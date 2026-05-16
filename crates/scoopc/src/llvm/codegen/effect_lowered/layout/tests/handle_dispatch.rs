@@ -5,7 +5,7 @@
 use super::*;
 
 #[test]
-pub(super) fn refactor_handle_dispatch_contract_publishes_llvm_query_layout() {
+pub(super) fn handle_dispatch_contract_publishes_llvm_query_layout() {
     with_phase_fixture_query_result(
         "effect_facts",
         "nested_handle_self_contained_vs_outward.scoop",
@@ -69,7 +69,7 @@ pub(super) fn refactor_handle_dispatch_contract_publishes_llvm_query_layout() {
 }
 
 #[test]
-pub(super) fn refactor_llvm_handle_dispatch_publishes_pending_payload_transport_layout() {
+pub(super) fn llvm_handle_dispatch_publishes_pending_payload_transport_layout() {
     with_inputs_query_result(
         build_fixture_inputs_from_source(SourceFile::new_virtual(
             "<mem>/llvm_handle_pending_payload_transport.scoop",
@@ -166,7 +166,7 @@ return handle {
 }
 
 #[test]
-pub(super) fn refactor_llvm_handle_dispatch_rejects_missing_pending_payload_transport() {
+pub(super) fn llvm_handle_dispatch_rejects_missing_pending_payload_transport() {
     with_inputs_query_result(
         build_fixture_inputs_from_source(SourceFile::new_virtual(
             "<mem>/llvm_handle_pending_payload_transport_missing.scoop",
@@ -267,7 +267,7 @@ return handle {
 }
 
 #[test]
-pub(super) fn refactor_handle_dispatch_region_routing_publishes_query_lookup() {
+pub(super) fn handle_dispatch_region_routing_publishes_query_lookup() {
     with_phase_fixture_query_result(
         "run-pass",
         "effect_resume_if_else_branch_single_perform.scoop",
@@ -335,7 +335,7 @@ pub(super) fn refactor_handle_dispatch_region_routing_publishes_query_lookup() {
 }
 
 #[test]
-pub(super) fn refactor_handle_dispatch_region_routing_rejects_resume_state_drift() {
+pub(super) fn handle_dispatch_region_routing_rejects_resume_state_drift() {
     with_phase_fixture_query_result(
         "run-pass",
         "effect_resume_if_else_branch_single_perform.scoop",
@@ -432,7 +432,7 @@ pub(super) fn refactor_handle_dispatch_region_routing_rejects_resume_state_drift
 }
 
 #[test]
-pub(super) fn refactor_handle_arm_binding_contract_publishes_llvm_query_layout() {
+pub(super) fn handle_arm_binding_contract_publishes_llvm_query_layout() {
     with_inputs_query_result(
         build_fixture_inputs_from_source(SourceFile::new_virtual(
             "<mem>/llvm_handle_arm_binding_single.scoop",
@@ -501,7 +501,7 @@ return 0
 }
 
 #[test]
-pub(super) fn refactor_handle_arm_continuation_binding_publishes_mixed_multi_arm_query_layout() {
+pub(super) fn handle_arm_continuation_binding_publishes_mixed_multi_arm_query_layout() {
     with_phase_fixture_query_result(
         "run-pass",
         "effect_multi_escape_indirect_direct_while.scoop",
@@ -544,7 +544,7 @@ pub(super) fn refactor_handle_arm_continuation_binding_publishes_mixed_multi_arm
 }
 
 #[test]
-pub(super) fn refactor_completion_state_contract_rejects_missing_completion_tag_slot() {
+pub(super) fn completion_state_contract_rejects_missing_completion_tag_slot() {
     with_phase_fixture_query_result(
         "effect_facts",
         "nested_handle_self_contained_vs_outward.scoop",
@@ -612,7 +612,7 @@ pub(super) fn refactor_completion_state_contract_rejects_missing_completion_tag_
 }
 
 #[test]
-pub(super) fn refactor_handle_arm_binding_contract_rejects_payload_binder_order_drift() {
+pub(super) fn handle_arm_binding_contract_rejects_payload_binder_order_drift() {
     with_inputs_query_result(
         build_fixture_inputs_from_source(SourceFile::new_virtual(
             "<mem>/llvm_handle_arm_binding_order_drift.scoop",
@@ -704,7 +704,7 @@ return 0
 }
 
 #[test]
-pub(super) fn refactor_handle_dispatch_contract_rejects_missing_handled_arm_mapping() {
+pub(super) fn handle_dispatch_contract_rejects_missing_handled_arm_mapping() {
     with_phase_fixture_query_result(
         "effect_facts",
         "nested_handle_self_contained_vs_outward.scoop",
@@ -774,7 +774,7 @@ pub(super) fn refactor_handle_dispatch_contract_rejects_missing_handled_arm_mapp
 }
 
 #[test]
-pub(super) fn refactor_handle_arm_continuation_binding_rejects_missing_published_continuation_binder()
+pub(super) fn handle_arm_continuation_binding_rejects_missing_published_continuation_binder()
  {
     with_phase_fixture_query_result(
         "run-pass",

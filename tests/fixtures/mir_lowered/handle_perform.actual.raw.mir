@@ -1,0 +1,306 @@
+File {
+    items: [
+        Fun(
+            FunDecl {
+                span: 36..125,
+                fqn: "a.main",
+                name: "main",
+                ty: TypeId(
+                    10,
+                ),
+                params: [],
+                return_ty: TypeId(
+                    5,
+                ),
+                body: Some(
+                    Body {
+                        locals: [
+                            LocalDecl {
+                                span: 51..123,
+                                name: Some(
+                                    "tmp0",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 112..113,
+                                name: Some(
+                                    "e",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: SourceLocal,
+                            },
+                            LocalDecl {
+                                span: 76..77,
+                                name: Some(
+                                    "tmp1",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 64..78,
+                                name: Some(
+                                    "tmp2",
+                                ),
+                                ty: TypeId(
+                                    3,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 83..84,
+                                name: Some(
+                                    "tmp3",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 118..119,
+                                name: Some(
+                                    "tmp4",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                        ],
+                        blocks: [
+                            BasicBlock {
+                                is_cleanup: false,
+                                stmts: [],
+                                terminator: Terminator {
+                                    span: 51..123,
+                                    kind: Handle {
+                                        site_id: site0,
+                                        metadata: HandleMetadata {
+                                            result_ty: TypeId(
+                                                5,
+                                            ),
+                                            body_result_ty: TypeId(
+                                                5,
+                                            ),
+                                            finally_result_ty: None,
+                                        },
+                                        arms: [
+                                            HandlerArm {
+                                                op_fqn: "scoop.core.Raise.raise",
+                                                binder_count: 1,
+                                                binder_locals: [
+                                                    l1,
+                                                ],
+                                                continuation_local: None,
+                                                handled_effect_ty: TypeId(
+                                                    11,
+                                                ),
+                                                payload_tuple_ty: Some(
+                                                    TypeId(
+                                                        5,
+                                                    ),
+                                                ),
+                                                payload_component_tys: [
+                                                    TypeId(
+                                                        5,
+                                                    ),
+                                                ],
+                                                body_ty: TypeId(
+                                                    5,
+                                                ),
+                                                kind: NonResuming,
+                                            },
+                                        ],
+                                        has_finally: false,
+                                        body_target: bb1,
+                                        arm_targets: [
+                                            bb2,
+                                        ],
+                                        finally_target: None,
+                                        exit_target: bb3,
+                                    },
+                                    unwind: NoUnwind,
+                                },
+                            },
+                            BasicBlock {
+                                is_cleanup: false,
+                                stmts: [
+                                    Statement {
+                                        span: 76..77,
+                                        kind: Assign {
+                                            target: l2,
+                                            value: Use(
+                                                Const(
+                                                    Int,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 64..78,
+                                        kind: Assign {
+                                            target: l3,
+                                            value: PerformResult {
+                                                op_fqn: "scoop.core.Raise.raise",
+                                                effect_ty: TypeId(
+                                                    11,
+                                                ),
+                                            },
+                                        },
+                                    },
+                                ],
+                                terminator: Terminator {
+                                    span: 64..78,
+                                    kind: Perform {
+                                        site_id: site1,
+                                        op_fqn: "scoop.core.Raise.raise",
+                                        metadata: PerformMetadata {
+                                            effect_ty: TypeId(
+                                                11,
+                                            ),
+                                            result_ty: TypeId(
+                                                3,
+                                            ),
+                                            payload_tuple_ty: Some(
+                                                TypeId(
+                                                    5,
+                                                ),
+                                            ),
+                                            payload_component_tys: [
+                                                TypeId(
+                                                    5,
+                                                ),
+                                            ],
+                                            payload_transport: [
+                                                ValueTransportMetadata {
+                                                    source_ty: TypeId(
+                                                        5,
+                                                    ),
+                                                    kind: EffectPayload,
+                                                    requirements: MirTransportRequirements {
+                                                        trace: false,
+                                                        copy: true,
+                                                        drop: false,
+                                                    },
+                                                    boxing: None,
+                                                },
+                                            ],
+                                            arg_mapping: [
+                                                0,
+                                            ],
+                                        },
+                                        args: [
+                                            PerformArg {
+                                                span: 76..77,
+                                                source_arg_index: 0,
+                                                name: None,
+                                                value: Local(
+                                                    l2,
+                                                ),
+                                            },
+                                        ],
+                                        resume_target: bb4,
+                                    },
+                                    unwind: Propagate,
+                                },
+                            },
+                            BasicBlock {
+                                is_cleanup: false,
+                                stmts: [
+                                    Statement {
+                                        span: 118..119,
+                                        kind: Assign {
+                                            target: l5,
+                                            value: Use(
+                                                Const(
+                                                    Int,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 100..119,
+                                        kind: Assign {
+                                            target: l0,
+                                            value: Use(
+                                                Local(
+                                                    l5,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                ],
+                                terminator: Terminator {
+                                    span: 100..119,
+                                    kind: Goto {
+                                        target: bb3,
+                                    },
+                                    unwind: NoUnwind,
+                                },
+                            },
+                            BasicBlock {
+                                is_cleanup: false,
+                                stmts: [],
+                                terminator: Terminator {
+                                    span: 36..125,
+                                    kind: Return {
+                                        value: Some(
+                                            Local(
+                                                l0,
+                                            ),
+                                        ),
+                                    },
+                                    unwind: NoUnwind,
+                                },
+                            },
+                            BasicBlock {
+                                is_cleanup: false,
+                                stmts: [
+                                    Statement {
+                                        span: 83..84,
+                                        kind: Assign {
+                                            target: l4,
+                                            value: Use(
+                                                Const(
+                                                    Int,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 58..88,
+                                        kind: Assign {
+                                            target: l0,
+                                            value: Use(
+                                                Local(
+                                                    l4,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                ],
+                                terminator: Terminator {
+                                    span: 58..88,
+                                    kind: Goto {
+                                        target: bb3,
+                                    },
+                                    unwind: NoUnwind,
+                                },
+                            },
+                        ],
+                        start: bb0,
+                    },
+                ),
+            },
+        ),
+    ],
+}

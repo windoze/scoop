@@ -1,0 +1,16 @@
+// EXPECT: pass
+// 目标：MIR-T09 pattern `is Type` 在 MIR 中保留 type-test metadata。
+
+package mir_lowered.pattern_is_type
+
+import scoop.core.*
+
+class Box(val value: Int)
+
+fun classify(x: Any): Int {
+    return when (x) {
+        is String -> 1
+        is Box -> 2
+        else -> 0
+    }
+}

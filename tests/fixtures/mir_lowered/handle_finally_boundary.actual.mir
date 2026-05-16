@@ -1,0 +1,193 @@
+File {
+    items: [
+        Metadata(
+            Nominal(
+                NominalMetadata {
+                    span: 30..74,
+                    fqn: "fixtures.mir_lowered.Step",
+                    name: "Step",
+                    kind: Effect,
+                    type_params: [],
+                    supertypes: [],
+                    interfaces: [],
+                    constructors: [],
+                    members: [Fun(MemberFunMetadata { span: 48..72, fqn: "fixtures.mir_lowered.Step.next", name: "next", type_params: [], params: [CtorParamMetadata { span: 57..61, name: "seed", ty: Int, has_default: false, property: None }], return_ty: Int })],
+                },
+            ),
+        ),
+        Fun(
+            FunDecl {
+                span: 76..92,
+                fqn: "fixtures.mir_lowered.cleanup",
+                name: "cleanup",
+                ty: () -> Unit / Pure,
+                params: [],
+                return_ty: Unit,
+                body: Some(
+                    Body {
+                        locals: [],
+                        blocks: [
+                            BasicBlock {
+                                label: bb#h70d6ef20ff6fbc082707c962536cb80e,
+                                is_cleanup: false,
+                                stmts: [],
+                                terminator: Terminator { span: 76..92, kind: Return { value: None }, unwind: NoUnwind },
+                            },
+                        ],
+                        start: bb#h70d6ef20ff6fbc082707c962536cb80e,
+                    }
+                ),
+            },
+        ),
+        Fun(
+            FunDecl {
+                span: 94..240,
+                fqn: "fixtures.mir_lowered.body_completes",
+                name: "body_completes",
+                ty: () -> Int / Pure,
+                params: [],
+                return_ty: Int,
+                body: Some(
+                    Body {
+                        locals: [LocalDecl { label: local#hd4a32a87141419b0787339c71240c7b0, span: 133..238, name: Some("tmp0"), ty: Int, source: CompilerTemporary }, LocalDecl { label: local#h5fcefbf756e6e9a26b2ff668b77f2235, span: 183..188, name: Some("value"), ty: Int, source: SourceLocal }, LocalDecl { label: local#hc90ccb526028a0a03ca61de86aee670e, span: 150..151, name: Some("tmp1"), ty: Int, source: CompilerTemporary }, LocalDecl { label: local#he2ada4a7cf5707c703cab1814baa86c5, span: 223..232, name: Some("tmp2"), ty: Unit, source: CompilerTemporary }, LocalDecl { label: local#h9cb107895f402ab83439763306acb84d, span: 120..240, name: Some("tmp3"), ty: Unit, source: CompilerTemporary }],
+                        blocks: [
+                            BasicBlock {
+                                label: bb#hf370fb65dd7e40a39b54f235ab3f5f44,
+                                is_cleanup: false,
+                                stmts: [],
+                                terminator: Terminator { span: 133..238, kind: Handle { site_id: site#ha2daf9201d49c667a067ac038d3f9f00, metadata: HandleMetadata { result_ty: Int, body_result_ty: Int, finally_result_ty: Some(Unit) }, arms: [HandlerArm { op_fqn: "fixtures.mir_lowered.Step.next", op_type_args: [], binder_count: 1, binder_locals: [local#h5fcefbf756e6e9a26b2ff668b77f2235], continuation_local: None, handled_effect_ty: fixtures.mir_lowered.Step, payload_tuple_ty: Some(Int), payload_component_tys: [Int], body_ty: Int, kind: NonResuming }], has_finally: true, body_target: bb#h2d772f328f041e88cc502164828b0fe5, arm_targets: [bb#h0031bb0ca4e736652d38f4f41897dfb6], finally_target: Some(bb#h47adea797989d29affad5675b880415f), exit_target: bb#h96888ab0665ddd4b248a5b1d2c0e040b }, unwind: NoUnwind },
+                            },
+                            BasicBlock {
+                                label: bb#h2d772f328f041e88cc502164828b0fe5,
+                                is_cleanup: false,
+                                stmts: [Statement { span: 150..151, kind: Assign { target: local#hc90ccb526028a0a03ca61de86aee670e, value: Use(Const(Int)) } }, Statement { span: 140..157, kind: Assign { target: local#hd4a32a87141419b0787339c71240c7b0, value: Use(Local(local#hc90ccb526028a0a03ca61de86aee670e)) } }],
+                                terminator: Terminator { span: 140..157, kind: Goto { target: bb#h47adea797989d29affad5675b880415f }, unwind: NoUnwind },
+                            },
+                            BasicBlock {
+                                label: bb#h0031bb0ca4e736652d38f4f41897dfb6,
+                                is_cleanup: false,
+                                stmts: [Statement { span: 173..198, kind: Assign { target: local#hd4a32a87141419b0787339c71240c7b0, value: Use(Local(local#h5fcefbf756e6e9a26b2ff668b77f2235)) } }],
+                                terminator: Terminator { span: 173..198, kind: Goto { target: bb#h47adea797989d29affad5675b880415f }, unwind: NoUnwind },
+                            },
+                            BasicBlock {
+                                label: bb#h47adea797989d29affad5675b880415f,
+                                is_cleanup: true,
+                                stmts: [Statement { span: 223..232, kind: Assign { target: local#he2ada4a7cf5707c703cab1814baa86c5, value: Call { site_id: site#h3cf668f325c41e0c30e24fda42851258, kind: Direct { callee_fqn: "fixtures.mir_lowered.cleanup" }, args: [], transport: CallTransportMetadata { result: ValueTransportMetadata { source_ty: Unit, kind: Scalar, requirements: MirTransportRequirements { trace: false, copy: true, drop: false }, boxing: None }, aggregate_return: None, array: None, gc: None, thread_resume_payload: None, abi: CallAbiHandoffMetadata { callable_abi_kind: DeferredToEffectFacts, resolved_outward_cases: [], impl_plan: DeferredToEffectFacts, adapter_required: false } } } } }],
+                                terminator: Terminator { span: 213..238, kind: Goto { target: bb#h96888ab0665ddd4b248a5b1d2c0e040b }, unwind: NoUnwind },
+                            },
+                            BasicBlock {
+                                label: bb#h96888ab0665ddd4b248a5b1d2c0e040b,
+                                is_cleanup: false,
+                                stmts: [],
+                                terminator: Terminator { span: 126..238, kind: Return { value: Some(Local(local#hd4a32a87141419b0787339c71240c7b0)) }, unwind: NoUnwind },
+                            },
+                        ],
+                        start: bb#hf370fb65dd7e40a39b54f235ab3f5f44,
+                    }
+                ),
+            },
+        ),
+        Fun(
+            FunDecl {
+                span: 242..412,
+                fqn: "fixtures.mir_lowered.handled_raise",
+                name: "handled_raise",
+                ty: () -> Int / Pure,
+                params: [],
+                return_ty: Int,
+                body: Some(
+                    Body {
+                        locals: [LocalDecl { label: local#h403f80e1ecff557ea10ea3577fe44620, span: 280..410, name: Some("tmp0"), ty: Int, source: CompilerTemporary }, LocalDecl { label: local#h975eec8df95af2eb33ad6fa5028fc2e2, span: 351..356, name: Some("value"), ty: Int, source: SourceLocal }, LocalDecl { label: local#h240541276f85e4361d89b96c0336459d, span: 307..308, name: Some("tmp1"), ty: Int, source: CompilerTemporary }, LocalDecl { label: local#hcbd90ec66afdb700984b01048de8770b, span: 297..309, name: Some("tmp2"), ty: Int, source: CompilerTemporary }, LocalDecl { label: local#hcd813509dbdc3527e82a661d9972440b, span: 395..404, name: Some("tmp3"), ty: Unit, source: CompilerTemporary }, LocalDecl { label: local#h61cccb9089a275c97681a1eefe05f430, span: 318..319, name: Some("tmp4"), ty: Int, source: CompilerTemporary }, LocalDecl { label: local#h0f3931ca933c6d8833e3009ca3c57e39, span: 361..370, name: Some("tmp5"), ty: Int, source: CompilerTemporary }, LocalDecl { label: local#h6a690e3b30abba03d3252401c9fcd051, span: 369..370, name: Some("tmp6"), ty: Int, source: CompilerTemporary }, LocalDecl { label: local#h33f7f343479377bf39779ba7c8bc44b5, span: 395..404, name: Some("tmp7"), ty: Unit, source: CompilerTemporary }, LocalDecl { label: local#h418f5a673c5b9b24099bdb0fe1a6d497, span: 267..412, name: Some("tmp8"), ty: Unit, source: CompilerTemporary }],
+                        blocks: [
+                            BasicBlock {
+                                label: bb#h8d575b869e6c4dab1b86fdbf68ff732a,
+                                is_cleanup: false,
+                                stmts: [],
+                                terminator: Terminator { span: 280..410, kind: Handle { site_id: site#h63f855990922e02dbbbc00e35dead87a, metadata: HandleMetadata { result_ty: Int, body_result_ty: Int, finally_result_ty: Some(Unit) }, arms: [HandlerArm { op_fqn: "fixtures.mir_lowered.Step.next", op_type_args: [], binder_count: 1, binder_locals: [local#h975eec8df95af2eb33ad6fa5028fc2e2], continuation_local: None, handled_effect_ty: fixtures.mir_lowered.Step, payload_tuple_ty: Some(Int), payload_component_tys: [Int], body_ty: Int, kind: NonResuming }], has_finally: true, body_target: bb#hc9b60c834ba161f8632ea98bf5790342, arm_targets: [bb#hdf07990714cd9a5e7946ac41dfcd5832], finally_target: Some(bb#hca2850b67ad3768d44badde4c7248823), exit_target: bb#hb92b98c40926e6f9c994809d6734c26f }, unwind: NoUnwind },
+                            },
+                            BasicBlock {
+                                label: bb#hc9b60c834ba161f8632ea98bf5790342,
+                                is_cleanup: false,
+                                stmts: [Statement { span: 307..308, kind: Assign { target: local#h240541276f85e4361d89b96c0336459d, value: Use(Const(Int)) } }, Statement { span: 297..309, kind: Assign { target: local#hcbd90ec66afdb700984b01048de8770b, value: PerformResult { op_fqn: "fixtures.mir_lowered.Step.next", effect_ty: fixtures.mir_lowered.Step } } }],
+                                terminator: Terminator { span: 297..309, kind: Perform { site_id: site#hfd6f1eb8682777cd6331928d2a41ffbc, op_fqn: "fixtures.mir_lowered.Step.next", metadata: PerformMetadata { effect_ty: fixtures.mir_lowered.Step, op_type_args: [], result_ty: Int, payload_tuple_ty: Some(Int), payload_component_tys: [Int], payload_transport: [ValueTransportMetadata { source_ty: Int, kind: EffectPayload, requirements: MirTransportRequirements { trace: false, copy: true, drop: false }, boxing: None }], arg_mapping: [0] }, args: [PerformArg { span: 307..308, source_arg_index: 0, name: None, value: Local(local#h240541276f85e4361d89b96c0336459d) }], resume_target: bb#h3508af457aadb39bb049f24c2d77fda3 }, unwind: Cleanup { target: bb#h15e7a3cd53636f22c83e2df096dbe59e } },
+                            },
+                            BasicBlock {
+                                label: bb#hdf07990714cd9a5e7946ac41dfcd5832,
+                                is_cleanup: false,
+                                stmts: [Statement { span: 369..370, kind: Assign { target: local#h6a690e3b30abba03d3252401c9fcd051, value: Use(Const(Int)) } }, Statement { span: 361..370, kind: Assign { target: local#h0f3931ca933c6d8833e3009ca3c57e39, value: Binary { lhs: Local(local#h975eec8df95af2eb33ad6fa5028fc2e2), op: Add, rhs: Local(local#h6a690e3b30abba03d3252401c9fcd051) } } }, Statement { span: 341..370, kind: Assign { target: local#h403f80e1ecff557ea10ea3577fe44620, value: Use(Local(local#h0f3931ca933c6d8833e3009ca3c57e39)) } }],
+                                terminator: Terminator { span: 341..370, kind: Goto { target: bb#hca2850b67ad3768d44badde4c7248823 }, unwind: NoUnwind },
+                            },
+                            BasicBlock {
+                                label: bb#hca2850b67ad3768d44badde4c7248823,
+                                is_cleanup: true,
+                                stmts: [Statement { span: 395..404, kind: Assign { target: local#h33f7f343479377bf39779ba7c8bc44b5, value: Call { site_id: site#h837bd74ee6fdd5f19a763f00d376d0a3, kind: Direct { callee_fqn: "fixtures.mir_lowered.cleanup" }, args: [], transport: CallTransportMetadata { result: ValueTransportMetadata { source_ty: Unit, kind: Scalar, requirements: MirTransportRequirements { trace: false, copy: true, drop: false }, boxing: None }, aggregate_return: None, array: None, gc: None, thread_resume_payload: None, abi: CallAbiHandoffMetadata { callable_abi_kind: DeferredToEffectFacts, resolved_outward_cases: [], impl_plan: DeferredToEffectFacts, adapter_required: false } } } } }],
+                                terminator: Terminator { span: 385..410, kind: Goto { target: bb#hb92b98c40926e6f9c994809d6734c26f }, unwind: NoUnwind },
+                            },
+                            BasicBlock {
+                                label: bb#hb92b98c40926e6f9c994809d6734c26f,
+                                is_cleanup: false,
+                                stmts: [],
+                                terminator: Terminator { span: 273..410, kind: Return { value: Some(Local(local#h403f80e1ecff557ea10ea3577fe44620)) }, unwind: NoUnwind },
+                            },
+                            BasicBlock {
+                                label: bb#h3508af457aadb39bb049f24c2d77fda3,
+                                is_cleanup: false,
+                                stmts: [Statement { span: 318..319, kind: Assign { target: local#h61cccb9089a275c97681a1eefe05f430, value: Use(Const(Int)) } }, Statement { span: 287..325, kind: Assign { target: local#h403f80e1ecff557ea10ea3577fe44620, value: Use(Local(local#h61cccb9089a275c97681a1eefe05f430)) } }],
+                                terminator: Terminator { span: 287..325, kind: Goto { target: bb#hca2850b67ad3768d44badde4c7248823 }, unwind: NoUnwind },
+                            },
+                            BasicBlock {
+                                label: bb#hb45cd694487d52adfcf0d2f221c65205,
+                                is_cleanup: true,
+                                stmts: [],
+                                terminator: Terminator { span: 297..309, kind: ResumeUnwind, unwind: NoUnwind },
+                            },
+                            BasicBlock {
+                                label: bb#h15e7a3cd53636f22c83e2df096dbe59e,
+                                is_cleanup: true,
+                                stmts: [Statement { span: 395..404, kind: Assign { target: local#hcd813509dbdc3527e82a661d9972440b, value: Call { site_id: site#h9d4c586765b1e12537dd5de72971549a, kind: Direct { callee_fqn: "fixtures.mir_lowered.cleanup" }, args: [], transport: CallTransportMetadata { result: ValueTransportMetadata { source_ty: Unit, kind: Scalar, requirements: MirTransportRequirements { trace: false, copy: true, drop: false }, boxing: None }, aggregate_return: None, array: None, gc: None, thread_resume_payload: None, abi: CallAbiHandoffMetadata { callable_abi_kind: DeferredToEffectFacts, resolved_outward_cases: [], impl_plan: DeferredToEffectFacts, adapter_required: false } } } } }],
+                                terminator: Terminator { span: 385..410, kind: Goto { target: bb#hb45cd694487d52adfcf0d2f221c65205 }, unwind: NoUnwind },
+                            },
+                        ],
+                        start: bb#h8d575b869e6c4dab1b86fdbf68ff732a,
+                    }
+                ),
+            },
+        ),
+        Fun(
+            FunDecl {
+                span: 414..479,
+                fqn: "fixtures.mir_lowered.main",
+                name: "main",
+                ty: () -> Int / Pure,
+                params: [],
+                return_ty: Int,
+                body: Some(
+                    Body {
+                        locals: [LocalDecl { label: local#h6030f415f40a7352b3a514cf7c1e9d51, span: 443..477, name: Some("tmp0"), ty: Int, source: CompilerTemporary }, LocalDecl { label: local#h98507d8585001b2239a5a780cb5a79a9, span: 443..459, name: Some("tmp1"), ty: Int, source: CompilerTemporary }, LocalDecl { label: local#h0d367705d1d45168d85de853dee17e85, span: 462..477, name: Some("tmp2"), ty: Int, source: CompilerTemporary }, LocalDecl { label: local#hbafd24b4dab0cb96af4ae36d471974d7, span: 430..479, name: Some("tmp3"), ty: Unit, source: CompilerTemporary }],
+                        blocks: [
+                            BasicBlock {
+                                label: bb#h71e9b13402fd4d7ec38a0b1df2e161dc,
+                                is_cleanup: false,
+                                stmts: [Statement { span: 443..459, kind: Assign { target: local#h98507d8585001b2239a5a780cb5a79a9, value: Call { site_id: site#h436a694d59ca0ec697329411d008c21d, kind: Direct { callee_fqn: "fixtures.mir_lowered.body_completes" }, args: [], transport: CallTransportMetadata { result: ValueTransportMetadata { source_ty: Int, kind: Scalar, requirements: MirTransportRequirements { trace: false, copy: true, drop: false }, boxing: None }, aggregate_return: None, array: None, gc: None, thread_resume_payload: None, abi: CallAbiHandoffMetadata { callable_abi_kind: DeferredToEffectFacts, resolved_outward_cases: [], impl_plan: DeferredToEffectFacts, adapter_required: false } } } } }, Statement { span: 462..477, kind: Assign { target: local#h0d367705d1d45168d85de853dee17e85, value: Call { site_id: site#h8459de86022dbf779d97bd118938b40b, kind: Direct { callee_fqn: "fixtures.mir_lowered.handled_raise" }, args: [], transport: CallTransportMetadata { result: ValueTransportMetadata { source_ty: Int, kind: Scalar, requirements: MirTransportRequirements { trace: false, copy: true, drop: false }, boxing: None }, aggregate_return: None, array: None, gc: None, thread_resume_payload: None, abi: CallAbiHandoffMetadata { callable_abi_kind: DeferredToEffectFacts, resolved_outward_cases: [], impl_plan: DeferredToEffectFacts, adapter_required: false } } } } }, Statement { span: 443..477, kind: Assign { target: local#h6030f415f40a7352b3a514cf7c1e9d51, value: Binary { lhs: Local(local#h98507d8585001b2239a5a780cb5a79a9), op: Add, rhs: Local(local#h0d367705d1d45168d85de853dee17e85) } } }],
+                                terminator: Terminator { span: 436..477, kind: Return { value: Some(Local(local#h6030f415f40a7352b3a514cf7c1e9d51)) }, unwind: NoUnwind },
+                            },
+                        ],
+                        start: bb#h71e9b13402fd4d7ec38a0b1df2e161dc,
+                    }
+                ),
+            },
+        ),
+        Fun(
+            FunDecl {
+                span: 48..72,
+                fqn: "fixtures.mir_lowered.Step.next",
+                name: "next",
+                ty: (fixtures.mir_lowered.Step, Int) -> Int / Pure,
+                params: [Param { span: 37..41, name: "this", ty: fixtures.mir_lowered.Step }, Param { span: 57..61, name: "seed", ty: Int }],
+                return_ty: Int,
+                body: None,
+            },
+        ),
+    ],
+}
+

@@ -180,7 +180,7 @@ mod tests {
     use crate::session::{Session, SessionOptions};
     use crate::source::SourceFile;
 
-    fn refactor_session() -> Session {
+    fn session() -> Session {
         Session::with_options(SessionOptions::new()).unwrap()
     }
 
@@ -192,18 +192,18 @@ mod tests {
     }
 
     fn run_sample() -> EffectLoweredStageOutput {
-        let session = refactor_session();
+        let session = session();
         let source = sample_source();
         let effect_facts_output =
             super::super::load_effect_facts_stage_output_for_dump(&session, &source).unwrap();
-        super::run(effect_facts_output).expect("fixture 应可通过 refactor late-lowering stage")
+        super::run(effect_facts_output).expect("fixture 应可通过 late-lowering stage")
     }
 
     fn run_stage_with_opt_level(
         source: &SourceFile,
         opt_level: OptLevel,
     ) -> EffectLoweredStageOutput {
-        let session = refactor_session();
+        let session = session();
         let materialized =
             crate::mir::materialize_for_dump_with_opt_level(&session, source, opt_level).unwrap();
         let mir_stage_output =
@@ -213,7 +213,7 @@ mod tests {
         let effect_facts_output =
             super::super::build_effect_facts_stage_output(&session, source, mir_stage_output)
                 .unwrap();
-        super::run(effect_facts_output).expect("fixture 应可通过 refactor late-lowering stage")
+        super::run(effect_facts_output).expect("fixture 应可通过 late-lowering stage")
     }
 
     fn dump_fixture_source() -> SourceFile {
@@ -281,12 +281,12 @@ fun leaf(): Unit / Ping {
     fn handle_finally_boundary_fixture_source() -> SourceFile {
         SourceFile::new_virtual(
             "<mem>/handle_finally_boundary.scoop",
-            include_str!("../../../../tests/fixtures/mir_refactor/handle_finally_boundary.scoop"),
+            include_str!("../../../../tests/fixtures/mir_lowered/handle_finally_boundary.scoop"),
         )
     }
 
     #[test]
-    fn refactor_effect_lowered_stage_output_is_constructible() {
+    fn effect_lowered_stage_output_is_constructible() {
         let output = run_sample();
 
         assert_eq!(
@@ -304,8 +304,8 @@ fun leaf(): Unit / Ping {
     }
 
     #[test]
-    fn refactor_effect_lowered_stage_explicitly_consumes_p4_effect_facts_stage_output() {
-        let session = refactor_session();
+    fn effect_lowered_stage_explicitly_consumes_p4_effect_facts_stage_output() {
+        let session = session();
         let source = sample_source();
         let effect_facts_output =
             super::super::load_effect_facts_stage_output_for_dump(&session, &source).unwrap();
@@ -350,7 +350,7 @@ fun leaf(): Unit / Ping {
     }
 
     #[test]
-    fn refactor_effect_lowered_no_outward_plain_callable_handoff() {
+    fn effect_lowered_no_outward_plain_callable_handoff() {
         let output = run_sample();
         let main = output
             .program()
@@ -371,8 +371,8 @@ fun leaf(): Unit / Ping {
     }
 
     #[test]
-    fn refactor_effect_lowered_stage_stable_dump_lists_post_opt_late_lowered_sections() {
-        let session = refactor_session();
+    fn effect_lowered_stage_stable_dump_lists_post_opt_late_lowered_sections() {
+        let session = session();
         let source = dump_fixture_source();
         let effect_facts_output =
             super::super::load_effect_facts_stage_output_for_dump(&session, &source).unwrap();
@@ -397,7 +397,7 @@ fun leaf(): Unit / Ping {
     }
 
     #[test]
-    fn refactor_effect_lowered_stage_stable_dump_locks_opt_level_visible_impl_plan() {
+    fn effect_lowered_stage_stable_dump_locks_opt_level_visible_impl_plan() {
         let source = single_case_source();
         let o0 = run_stage_with_opt_level(&source, OptLevel::O0).stable_dump();
         let o2 = run_stage_with_opt_level(&source, OptLevel::O2).stable_dump();
@@ -410,8 +410,8 @@ fun leaf(): Unit / Ping {
     }
 
     #[test]
-    fn refactor_effect_lowered_stage_dump_exposes_plain_effect_step_call_contract() {
-        let session = refactor_session();
+    fn effect_lowered_stage_dump_exposes_plain_effect_step_call_contract() {
+        let session = session();
         let source = local_runtime_error_fixture_source();
         let effect_facts_output =
             super::super::load_effect_facts_stage_output_for_dump(&session, &source).unwrap();
@@ -430,8 +430,8 @@ fun leaf(): Unit / Ping {
     }
 
     #[test]
-    fn refactor_effect_lowered_stage_dump_prioritizes_authoritative_surface_resume_dispatch() {
-        let session = refactor_session();
+    fn effect_lowered_stage_dump_prioritizes_authoritative_surface_resume_dispatch() {
+        let session = session();
         let source = dynamic_fallback_fixture_source();
         let effect_facts_output =
             super::super::load_effect_facts_stage_output_for_dump(&session, &source).unwrap();
@@ -464,8 +464,8 @@ fun leaf(): Unit / Ping {
     }
 
     #[test]
-    fn refactor_effect_lowered_stage_dump_exposes_handle_and_resume_site_authoritative_sources() {
-        let session = refactor_session();
+    fn effect_lowered_stage_dump_exposes_handle_and_resume_site_authoritative_sources() {
+        let session = session();
         let source = local_runtime_error_fixture_source();
         let effect_facts_output =
             super::super::load_effect_facts_stage_output_for_dump(&session, &source).unwrap();
@@ -489,7 +489,7 @@ fun leaf(): Unit / Ping {
     }
 
     #[test]
-    fn refactor_mir_policy_gates_dump_resume_unwind_pending_completion_contract() {
+    fn mir_policy_gates_dump_resume_unwind_pending_completion_contract() {
         let source = handle_finally_boundary_fixture_source();
         let dump = run_stage_with_opt_level(&source, OptLevel::O0).stable_dump();
 

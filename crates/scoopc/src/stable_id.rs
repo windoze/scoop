@@ -683,7 +683,7 @@ impl PrivateSymbolMangler {
     {
         let family = sanitize_symbol_component(family);
         let hash = self.hash_suffix(role, key);
-        format!("scoop.refactor.{family}__h{hash}")
+        format!("scoop.lowered.{family}__h{hash}")
     }
 }
 

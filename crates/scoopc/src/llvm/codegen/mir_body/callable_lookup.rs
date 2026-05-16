@@ -258,7 +258,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
         if param_tys.len() != mir_fun.params.len() {
             return Err(frontend_error(format!(
-                "refactor materialized closure `{}` 的 plain ABI 参数数量({}) 与 MIR 参数数量({}) 不一致",
+                "materialized closure `{}` 的 plain ABI 参数数量({}) 与 MIR 参数数量({}) 不一致",
                 mir_fun.fqn,
                 param_tys.len(),
                 mir_fun.params.len()
@@ -332,7 +332,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
         if param_tys.len() != mir_fun.params.len() {
             return Err(frontend_error(format!(
-                "refactor plain materialized callable `{}` 的 plain ABI 参数数量({}) 与 MIR 参数数量({}) 不一致",
+                "plain materialized callable `{}` 的 plain ABI 参数数量({}) 与 MIR 参数数量({}) 不一致",
                 mir_fun.fqn,
                 param_tys.len(),
                 mir_fun.params.len()

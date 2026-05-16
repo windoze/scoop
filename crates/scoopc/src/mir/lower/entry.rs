@@ -13,8 +13,8 @@ pub enum MirLowerError {
     #[error(transparent)]
     #[diagnostic(transparent)]
     Hir(#[from] hir::HirLowerError),
-    #[error("refactor direct-style MIR validation failed for `{fqn}`: {error}")]
-    InvalidRefactorMir {
+    #[error("direct-style MIR validation failed for `{fqn}`: {error}")]
+    InvalidMir {
         fqn: String,
         #[source]
         error: MirValidationError,
@@ -135,10 +135,10 @@ impl<'a> MirLowering<'a> {
             file.items.len()
                 + member_funs.len()
                 + file.decls.len()
-                + self.facts.refactor_top_level_init_roots().len()
-                + self.facts.refactor_extern_global_contracts().len(),
+                + self.facts.top_level_init_roots().len()
+                + self.facts.extern_global_contracts().len(),
         );
-        if self.facts.uses_refactor_typed_contracts() {
+        if self.facts.uses_typed_contracts() {
             items.extend(
                 file.decls
                     .iter()
@@ -147,13 +147,13 @@ impl<'a> MirLowering<'a> {
         }
         items.extend(
             self.facts
-                .refactor_top_level_init_roots()
+                .top_level_init_roots()
                 .iter()
                 .map(|root| Item::InitializerRoot(self.lower_initializer_root(root))),
         );
         items.extend(
             self.facts
-                .refactor_extern_global_contracts()
+                .extern_global_contracts()
                 .iter()
                 .map(|contract| Item::ExternGlobal(lower_extern_global_root(contract))),
         );

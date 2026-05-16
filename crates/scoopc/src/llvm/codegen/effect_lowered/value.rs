@@ -1,6 +1,6 @@
-//! Effect-neutral value/expression primitives for the clean refactor LLVM path.
+//! Effect-neutral value/expression primitives for the clean LLVM path.
 //!
-//! This module is the narrow sharing boundary between the refactor backend and
+//! This module is the narrow sharing boundary between the backend and
 //! generic LLVM value helpers.  It may lower literals, local loads/stores,
 //! scalar/tuple ABI packing, primitive operators, casts that do not introduce a
 //! hidden control path, and canonical MIR member read/write primitives.  It must
@@ -29,14 +29,14 @@ use super::super::types::{CgTy, CgValue, IntTy};
 use super::super::{CallableCarrierKind, MainCodegen};
 use super::stable_naming;
 use super::types::{
-    ProgramAbiQuery, RefactorCallableEntryLayout, RefactorContinuationSurfaceResumeLayout,
-    RefactorSourceAbiLayout, RefactorSourceAbiLayoutKind, RefactorStepLayout,
+    ProgramAbiQuery, CallableEntryLayout, ContinuationSurfaceResumeLayout,
+    SourceAbiLayout, SourceAbiLayoutKind, StepLayout,
 };
 
 const THREAD_RESUME_STEP_TAG_COMPLETE: u64 = 0;
 
 /// A borrow-scoped facade over effect-neutral LLVM value primitives.
-pub(super) struct RefactorValuePrimitives<'p, 'a, 'ctx> {
+pub(super) struct ValuePrimitives<'p, 'a, 'ctx> {
     codegen: &'p mut MainCodegen<'a, 'ctx>,
     source_types: &'a TypeStore,
     body: &'a mir::Body,
@@ -45,7 +45,7 @@ pub(super) struct RefactorValuePrimitives<'p, 'a, 'ctx> {
 }
 
 #[derive(Clone, Copy)]
-struct RefactorClosureSurfaceLayout<'ctx> {
+struct ClosureSurfaceLayout<'ctx> {
     llvm_ty: FunctionType<'ctx>,
     invoke_args_tuple_ty: TypeId,
     return_step_schema: crate::effect_facts::StepSchemaId,
@@ -53,7 +53,7 @@ struct RefactorClosureSurfaceLayout<'ctx> {
 
 type EffectFamilyMatchKey = (String, Vec<TypeId>);
 
-struct RefactorThreadResumeTransportValue<'ctx> {
+struct ThreadResumeTransportValue<'ctx> {
     word: IntValue<'ctx>,
     gc_ref: PointerValue<'ctx>,
     descriptor: PointerValue<'ctx>,
@@ -159,7 +159,7 @@ fn rvalue_mentions_local(value: &mir::Rvalue, local: LocalId) -> bool {
     }
 }
 
-impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
+impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
     pub(super) fn new(
         codegen: &'p mut MainCodegen<'a, 'ctx>,
         source_types: &'a TypeStore,
@@ -289,7 +289,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                     .map_err(|err| match err {
                         LlvmEmitError::InvalidLiteral { .. } => err,
                         other => frontend_error(format!(
-                            "refactor pure assignment local{} rvalue {:?} lowering failed: {other}",
+                            "pure assignment local{} rvalue {:?} lowering failed: {other}",
                             target.as_u32(),
                             rvalue,
                         )),
@@ -312,7 +312,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                     .store_local_value(stmt.span, slot.ptr, slot.cg_ty, value)
                     .map_err(|err| {
                         frontend_error(format!(
-                            "refactor pure assignment local{} store failed: value_ty={:?} target_ty={:?}: {err}",
+                            "pure assignment local{} store failed: value_ty={:?} target_ty={:?}: {err}",
                             target.as_u32(),
                             value_ty,
                             slot.cg_ty,
@@ -354,7 +354,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                 .codegen
                 .codegen_mir_store_top_level_var(stmt.span, fqn, value, *value_ty, self.slots),
             mir::StatementKind::Todo(_) => Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "refactor pure statement todo",
+                kind: "pure statement todo",
                 at: stmt.span.into(),
             }),
         }
@@ -406,7 +406,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         {
             let _ = (args, target_ty);
             return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "refactor enum variant call requires MIR enum payload schema",
+                kind: "enum variant call requires MIR enum payload schema",
                 at: span.into(),
             });
         }
@@ -423,7 +423,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                 .codegen
                 .mir_operand_cg_ty(self.body, self.source_types, &env)
                 .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "refactor effect-typed closure coercion env type",
+                    kind: "effect-typed closure coercion env type",
                     at: span.into(),
                 })?;
             return self.codegen.codegen_mir_make_closure_with_target_fn_ptr(
@@ -445,7 +445,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                 args,
                 transport,
                 ..
-            } => self.lower_refactor_pure_direct_call(
+            } => self.lower_pure_direct_call(
                 span,
                 kind,
                 args,
@@ -462,7 +462,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                     .codegen
                     .mir_operand_cg_ty(self.body, self.source_types, env)
                     .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "refactor pure closure carrier env type",
+                        kind: "pure closure carrier env type",
                         at: span.into(),
                     })?;
                 if let Some(adapter) =
@@ -511,8 +511,8 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                 ..
             } => {
                 let class_layout_key =
-                    self.refactor_class_ctor_layout_key(class_fqn, target_local)?;
-                self.codegen.codegen_mir_refactor_class_ctor_call(
+                    self.class_ctor_layout_key(class_fqn, target_local)?;
+                self.codegen.codegen_mir_class_ctor_call(
                     span,
                     &class_layout_key,
                     ctor,
@@ -715,7 +715,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
             .is_some_and(|variant| variant.fields.is_empty())
     }
 
-    fn refactor_class_ctor_layout_key(
+    fn class_ctor_layout_key(
         &self,
         class_fqn: &str,
         target_local: Option<LocalId>,
@@ -736,7 +736,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         let layout = self.abi.class_instance_layout(target_ty)?;
         if layout.base_fqn() != class_fqn {
             return Err(frontend_error(format!(
-                "refactor class ctor `{class_fqn}` target type t{} resolved to mismatched class layout `{}`",
+                "class ctor `{class_fqn}` target type t{} resolved to mismatched class layout `{}`",
                 target_ty.as_u32(),
                 layout.base_fqn()
             )));
@@ -790,7 +790,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
             .equivalent_codegen_function_type(self.source_types, surface_fun_ty)
         else {
             return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "refactor effect-typed closure surface function type",
+                kind: "effect-typed closure surface function type",
                 at: span.into(),
             });
         };
@@ -829,7 +829,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                 .map(Some);
         }
         Err(frontend_error(format!(
-            "refactor effect-typed closure surface `{}` 缺少 published closure carrier target 或 plain callable layout",
+            "effect-typed closure surface `{}` 缺少 published closure carrier target 或 plain callable layout",
             fn_ptr,
         )))
     }
@@ -850,7 +850,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         let layout_key = self.codegen.nominal_layout_key(nominal);
         let layout = self.codegen.struct_layouts.get(&layout_key).ok_or(
             LlvmEmitError::UnsupportedMainBody {
-                kind: "refactor struct closure adapter layout",
+                kind: "struct closure adapter layout",
                 at: span.into(),
             },
         )?;
@@ -900,7 +900,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                 if let Some(existing) = matched {
                     if existing != surface_ty {
                         return Err(frontend_error(format!(
-                            "refactor closure local{} 被多个不兼容的 function surface 消费：t{} 与 t{}",
+                            "closure local{} 被多个不兼容的 function surface 消费：t{} 与 t{}",
                             local.as_u32(),
                             existing.as_u32(),
                             surface_ty.as_u32(),
@@ -973,20 +973,20 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         let closure = self.codegen.coerce_value(span, closure, CgTy::Ref)?;
         let Some(BasicValueEnum::PointerValue(raw_closure)) = closure.value else {
             return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "refactor struct closure adapter value",
+                kind: "struct closure adapter value",
                 at: span.into(),
             });
         };
-        let closure_ptr = self.codegen.refactor_cast_ptr(
+        let closure_ptr = self.codegen.cast_ptr(
             raw_closure,
             self.codegen.llvm_ptr_type(self.codegen.gc_address_space()),
-            "refactor_struct_closure_adapter_obj",
+            "struct_closure_adapter_obj",
         )?;
         let fn_gep = self.codegen.builder.build_struct_gep(
             self.codegen.llvm_closure_object_type(),
             closure_ptr,
             2,
-            "refactor_struct_closure_adapter_fn_gep",
+            "struct_closure_adapter_fn_gep",
         )?;
         let _ = self.codegen.builder.build_store(fn_gep, fn_ptr)?;
         Ok(())
@@ -995,7 +995,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
     fn effect_typed_closure_surface_layout(
         &self,
         fun_ty: &crate::ty::FunctionType,
-    ) -> Result<Option<RefactorClosureSurfaceLayout<'ctx>>, LlvmEmitError> {
+    ) -> Result<Option<ClosureSurfaceLayout<'ctx>>, LlvmEmitError> {
         let expected_args = function_type_source_args(fun_ty);
         let expected_effect_families = self.effect_row_family_match_keys(&fun_ty.effects)?;
         // Contract-first: only consume published dynamic callable surfaces here.
@@ -1021,7 +1021,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                 self.source_types,
                 step_layout.complete_variant().payload_source_ty(),
             )?;
-            (payload_ty == fun_ty.return_ty).then_some(RefactorClosureSurfaceLayout {
+            (payload_ty == fun_ty.return_ty).then_some(ClosureSurfaceLayout {
                 llvm_ty: layout.llvm_ty(),
                 invoke_args_tuple_ty: layout.invoke_args_tuple_ty(),
                 return_step_schema: layout.return_step_schema(),
@@ -1037,7 +1037,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         });
         if ambiguous {
             return Err(frontend_error(format!(
-                "refactor effect-typed closure surface function type args={:?} effects={:?} return=t{} 匹配多个 dynamic-invoke layout",
+                "effect-typed closure surface function type args={:?} effects={:?} return=t{} 匹配多个 dynamic-invoke layout",
                 expected_args
                     .iter()
                     .map(|ty| ty.as_u32())
@@ -1058,7 +1058,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
             let TypeKind::Ref(RefTypeKind::Nominal(nominal)) = self.codegen.types.kind(*effect_ty)
             else {
                 return Err(frontend_error(format!(
-                    "refactor effect-typed plain adapter effect row term t{} is not a nominal effect type",
+                    "effect-typed plain adapter effect row term t{} is not a nominal effect type",
                     effect_ty.as_u32()
                 )));
             };
@@ -1069,7 +1069,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
 
     fn step_layout_effect_family_match_keys(
         &self,
-        step_layout: &RefactorStepLayout<'ctx>,
+        step_layout: &StepLayout<'ctx>,
     ) -> Option<BTreeSet<EffectFamilyMatchKey>> {
         let mut families = BTreeSet::new();
         for case in step_layout.cases().values() {
@@ -1092,7 +1092,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         span: Span,
         fn_ptr: &str,
         fun_ty: &crate::ty::FunctionType,
-        adapter: RefactorClosureSurfaceLayout<'ctx>,
+        adapter: ClosureSurfaceLayout<'ctx>,
     ) -> Result<inkwell::values::PointerValue<'ctx>, LlvmEmitError> {
         let plain = self.abi.plain_callable_layout_by_root_fqn(fn_ptr)?;
         let return_step_layout = self
@@ -1100,13 +1100,13 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
             .step_layout(adapter.return_step_schema)
             .ok_or_else(|| {
                 frontend_error(format!(
-                    "refactor effect-typed plain adapter `{}` 缺少 return step schema s{} layout",
+                    "effect-typed plain adapter `{}` 缺少 return step schema s{} layout",
                     fn_ptr,
                     adapter.return_step_schema.as_u32(),
                 ))
             })?;
         let name = stable_naming::private_name_from_key_text(
-            "refactor_plain_adapter",
+            "plain_adapter",
             &canonical_record(
                 "plain_adapter",
                 [
@@ -1137,7 +1137,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         span: Span,
         fn_ptr: &str,
         _fun_ty: &crate::ty::FunctionType,
-        adapter: RefactorClosureSurfaceLayout<'ctx>,
+        adapter: ClosureSurfaceLayout<'ctx>,
         function: FunctionValue<'ctx>,
     ) -> Result<(), LlvmEmitError> {
         let saved_block = self.codegen.builder.get_insert_block();
@@ -1151,7 +1151,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
             .get_function(plain.direct_entry().symbol_name())
             .ok_or_else(|| {
                 frontend_error(format!(
-                    "refactor effect-typed plain adapter `{}` 缺少 plain entry `{}`",
+                    "effect-typed plain adapter `{}` 缺少 plain entry `{}`",
                     fn_ptr,
                     plain.direct_entry().symbol_name(),
                 ))
@@ -1161,7 +1161,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
             .step_layout(adapter.return_step_schema)
             .ok_or_else(|| {
                 frontend_error(format!(
-                    "refactor effect-typed plain adapter 缺少 return step schema s{} layout",
+                    "effect-typed plain adapter 缺少 return step schema s{} layout",
                     adapter.return_step_schema.as_u32(),
                 ))
             })?;
@@ -1175,7 +1175,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                     .get_field_type_at_index(0)
                     .ok_or_else(|| {
                         frontend_error(format!(
-                            "refactor effect-typed plain adapter Step complete payload `{}` 缺少 field#0",
+                            "effect-typed plain adapter Step complete payload `{}` 缺少 field#0",
                             complete_variant.payload_anchor_name(),
                         ))
                     })?,
@@ -1185,20 +1185,20 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         let carrier = function
             .get_nth_param(0)
             .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "refactor effect-typed plain adapter carrier param",
+                kind: "effect-typed plain adapter carrier param",
                 at: span.into(),
             })?
             .into_pointer_value();
-        let closure_ptr = self.codegen.refactor_cast_ptr(
+        let closure_ptr = self.codegen.cast_ptr(
             carrier,
             self.codegen.llvm_ptr_type(self.codegen.gc_address_space()),
-            "refactor_adapter_closure_obj",
+            "adapter_closure_obj",
         )?;
         let env_gep = self.codegen.builder.build_struct_gep(
             self.codegen.llvm_closure_object_type(),
             closure_ptr,
             1,
-            "refactor_adapter_env_gep",
+            "adapter_env_gep",
         )?;
         let env = self
             .codegen
@@ -1206,7 +1206,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
             .build_load(
                 self.codegen.llvm_gc_i8_ptr_type(),
                 env_gep,
-                "refactor_adapter_env",
+                "adapter_env",
             )?
             .into_pointer_value();
         let explicit_args =
@@ -1217,7 +1217,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
             (count, _) if count == plain_arg_count_without_sret => false,
             (count, _) => {
                 return Err(frontend_error(format!(
-                    "refactor effect-typed plain adapter `{}` plain entry param count drift: entry={} expected={} or {}",
+                    "effect-typed plain adapter `{}` plain entry param count drift: entry={} expected={} or {}",
                     fn_ptr,
                     count,
                     plain_arg_count_without_sret,
@@ -1229,12 +1229,12 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         let mut call_args = Vec::<BasicMetadataValueEnum<'ctx>>::new();
         let sret_result_slot = if uses_hidden_sret {
             let result_ty = complete_payload_ty.ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "refactor effect-typed plain adapter sret payload type",
+                kind: "effect-typed plain adapter sret payload type",
                 at: span.into(),
             })?;
             let slot = self.codegen.create_entry_alloca_raw(
                 span,
-                "refactor_adapter_plain_sret",
+                "adapter_plain_sret",
                 result_ty,
             )?;
             call_args.push(slot.into());
@@ -1247,7 +1247,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         let call =
             self.codegen
                 .builder
-                .build_call(plain_fun, &call_args, "refactor_carrier_to_plain")?;
+                .build_call(plain_fun, &call_args, "carrier_to_plain")?;
         if let Some((_, result_ty)) = sret_result_slot {
             self.codegen.add_sret_attribute_to_call(call, 0, result_ty);
         }
@@ -1261,31 +1261,31 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                         span,
                         result_ptr,
                         expected_payload_ty,
-                        "refactor_adapter_plain_sret",
+                        "adapter_plain_sret",
                     )?;
                 }
                 let payload = self.codegen.builder.build_load(
                     expected_payload_ty,
                     result_ptr,
-                    "refactor_adapter_plain_sret_payload",
+                    "adapter_plain_sret_payload",
                 )?;
                 self.codegen.clear_spill_slot_root_homes(
                     span,
                     result_ptr,
                     expected_payload_ty,
-                    "refactor_adapter_plain_sret",
+                    "adapter_plain_sret",
                 )?;
                 payload
             } else {
                 let payload = call.try_as_basic_value().basic().ok_or(
                     LlvmEmitError::UnsupportedMainBody {
-                        kind: "refactor effect-typed plain adapter plain return value",
+                        kind: "effect-typed plain adapter plain return value",
                         at: span.into(),
                     },
                 )?;
                 if payload.get_type() != expected_payload_ty {
                     return Err(frontend_error(format!(
-                        "refactor effect-typed plain adapter `{}` direct payload type drift: expected {:?}, got {:?}",
+                        "effect-typed plain adapter `{}` direct payload type drift: expected {:?}, got {:?}",
                         fn_ptr,
                         expected_payload_ty,
                         payload.get_type(),
@@ -1298,8 +1298,8 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         };
         let step = self
             .codegen
-            .refactor_build_step_complete(step_layout, payload)
-            .map_err(|err| frontend_error(format!("refactor_adapter_complete failed: {err}")))?;
+            .build_step_complete(step_layout, payload)
+            .map_err(|err| frontend_error(format!("adapter_complete failed: {err}")))?;
         self.codegen.builder.build_return(Some(&step))?;
 
         if let Some(saved) = saved_block {
@@ -1312,13 +1312,13 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         &mut self,
         span: Span,
         fn_ptr: &str,
-        adapter: RefactorClosureSurfaceLayout<'ctx>,
+        adapter: ClosureSurfaceLayout<'ctx>,
         source_step_schema: crate::effect_facts::StepSchemaId,
         source_symbol_name: &str,
     ) -> Result<inkwell::values::PointerValue<'ctx>, LlvmEmitError> {
         let source_step_layout = self.abi.step_layout(source_step_schema).ok_or_else(|| {
             frontend_error(format!(
-                "refactor effectful closure adapter `{}` 缺少 source step schema s{} layout",
+                "effectful closure adapter `{}` 缺少 source step schema s{} layout",
                 fn_ptr,
                 source_step_schema.as_u32(),
             ))
@@ -1328,13 +1328,13 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
             .step_layout(adapter.return_step_schema)
             .ok_or_else(|| {
                 frontend_error(format!(
-                    "refactor effectful closure adapter `{}` 缺少 return step schema s{} layout",
+                    "effectful closure adapter `{}` 缺少 return step schema s{} layout",
                     fn_ptr,
                     adapter.return_step_schema.as_u32(),
                 ))
             })?;
         let name = stable_naming::private_name_from_key_text(
-            "refactor_closure_step_adapter",
+            "closure_step_adapter",
             &canonical_record(
                 "closure_step_adapter",
                 [
@@ -1376,7 +1376,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         &mut self,
         span: Span,
         fn_ptr: &str,
-        adapter: RefactorClosureSurfaceLayout<'ctx>,
+        adapter: ClosureSurfaceLayout<'ctx>,
         source_step_schema: crate::effect_facts::StepSchemaId,
         source_symbol_name: &str,
         function: FunctionValue<'ctx>,
@@ -1391,7 +1391,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
             .get_function(source_symbol_name)
             .ok_or_else(|| {
                 frontend_error(format!(
-                    "refactor effect-typed closure adapter `{}` 缺少 source carrier entry `{}`",
+                    "effect-typed closure adapter `{}` 缺少 source carrier entry `{}`",
                     fn_ptr, source_symbol_name,
                 ))
             })?;
@@ -1399,7 +1399,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
             function
                 .get_nth_param(0)
                 .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "refactor effect-typed closure adapter carrier param",
+                    kind: "effect-typed closure adapter carrier param",
                     at: span.into(),
                 })?
                 .into(),
@@ -1409,7 +1409,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         }
         if source_fun.count_params() as usize != call_args.len() {
             return Err(frontend_error(format!(
-                "refactor effect-typed closure adapter `{}` source carrier entry `{}` param count drift: entry={} expected={}",
+                "effect-typed closure adapter `{}` source carrier entry `{}` param count drift: entry={} expected={}",
                 fn_ptr,
                 source_symbol_name,
                 source_fun.count_params(),
@@ -1419,19 +1419,19 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         let call = self.codegen.builder.build_call(
             source_fun,
             &call_args,
-            "refactor_carrier_to_effectful",
+            "carrier_to_effectful",
         )?;
         let step = call
             .try_as_basic_value()
             .basic()
             .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "refactor effect-typed closure adapter source carrier return",
+                kind: "effect-typed closure adapter source carrier return",
                 at: span.into(),
             })?;
         let step = if source_step_schema == adapter.return_step_schema {
             step
         } else {
-            self.codegen.project_refactor_step_to_schema(
+            self.codegen.project_step_to_schema(
                 self.abi,
                 step,
                 source_step_schema,
@@ -1462,12 +1462,12 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         let raw = function
             .get_nth_param(1)
             .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "refactor effect-typed plain adapter args payload",
+                kind: "effect-typed plain adapter args payload",
                 at: span.into(),
             })?;
         match layout.kind() {
-            RefactorSourceAbiLayoutKind::Scalar => Ok(vec![raw.into()]),
-            RefactorSourceAbiLayoutKind::Tuple => {
+            SourceAbiLayoutKind::Scalar => Ok(vec![raw.into()]),
+            SourceAbiLayoutKind::Tuple => {
                 let tuple = raw.into_struct_value();
                 let mut args = Vec::new();
                 for field in layout.fields() {
@@ -1477,7 +1477,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                     let value = self.codegen.builder.build_extract_value(
                         tuple,
                         index,
-                        &format!("refactor_adapter_arg{}", field.source_index()),
+                        &format!("adapter_arg{}", field.source_index()),
                     )?;
                     args.push(value.into());
                 }
@@ -1486,7 +1486,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         }
     }
 
-    fn lower_refactor_pure_direct_call(
+    fn lower_pure_direct_call(
         &mut self,
         span: Span,
         kind: &mir::CallKind,
@@ -1521,10 +1521,10 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                         .codegen_mir_sysroot_gc_handle_drop(span, args, self.slots);
                 }
                 "scoop.core.GC.pin" => {
-                    return self.lower_refactor_gc_pin(span, args, target_cg);
+                    return self.lower_gc_pin(span, args, target_cg);
                 }
                 "scoop.core.GC.unpin" => {
-                    return self.lower_refactor_gc_unpin(span, args);
+                    return self.lower_gc_unpin(span, args);
                 }
                 _ => {}
             }
@@ -1536,7 +1536,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
             | mir::CallKind::FunPtr { .. }
             | mir::CallKind::Virtual { .. }
             | mir::CallKind::Interface { .. } => {
-                return self.codegen.codegen_mir_refactor_plain_dynamic_call(
+                return self.codegen.codegen_mir_plain_dynamic_call(
                     span,
                     kind,
                     args,
@@ -1547,7 +1547,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
             }
             mir::CallKind::Resume { .. } => {
                 return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "refactor pure statement resume call requires boundary lowering",
+                    kind: "pure statement resume call requires boundary lowering",
                     at: span.into(),
                 });
             }
@@ -1575,17 +1575,17 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                     .codegen_mir_sysroot_gc_handle_drop(span, args, self.slots);
             }
             "scoop.core.GC.pin" => {
-                return self.lower_refactor_gc_pin(span, args, target_cg);
+                return self.lower_gc_pin(span, args, target_cg);
             }
             "scoop.core.GC.unpin" => {
-                return self.lower_refactor_gc_unpin(span, args);
+                return self.lower_gc_unpin(span, args);
             }
             _ => {}
         }
-        if let Some(value) = self.lower_refactor_internal_print_string(span, callee_fqn, args)? {
+        if let Some(value) = self.lower_internal_print_string(span, callee_fqn, args)? {
             return Ok(value);
         }
-        if let Some(value) = self.lower_refactor_thread_spawn_join_resume(
+        if let Some(value) = self.lower_thread_spawn_join_resume(
             span,
             callee_fqn,
             args,
@@ -1593,36 +1593,36 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         )? {
             return Ok(value);
         }
-        if let Some(value) = self.lower_refactor_gc_debug_intrinsic(span, callee_fqn, args)? {
+        if let Some(value) = self.lower_gc_debug_intrinsic(span, callee_fqn, args)? {
             return Ok(value);
         }
-        if let Some(value) = self.lower_refactor_to_int_intrinsic(span, callee_fqn, args)? {
+        if let Some(value) = self.lower_to_int_intrinsic(span, callee_fqn, args)? {
             return Ok(value);
         }
-        if let Some(value) = self.lower_refactor_hash_intrinsic(span, callee_fqn, args)? {
+        if let Some(value) = self.lower_hash_intrinsic(span, callee_fqn, args)? {
             return Ok(value);
         }
         if callee_fqn == "scoop.core.byteLength" {
-            return self.lower_refactor_core_string_byte_length_call(span, args, target_cg);
+            return self.lower_core_string_byte_length_call(span, args, target_cg);
         }
         if callee_fqn == "scoop.core.getByte" {
-            return self.lower_refactor_core_string_get_byte_call(span, args, target_cg);
+            return self.lower_core_string_get_byte_call(span, args, target_cg);
         }
         if callee_fqn == "scoop.core.unsafeSliceBytes" {
-            return self.lower_refactor_core_string_unsafe_slice_bytes_call(span, args, target_cg);
+            return self.lower_core_string_unsafe_slice_bytes_call(span, args, target_cg);
         }
         if matches!(
             callee_fqn.as_str(),
             "scoop.core.abs" | "scoop.core.isNaN" | "scoop.core.isInfinite"
         ) && let Some(value) =
-            self.maybe_lower_refactor_float_ext_call(span, callee_fqn, args, target_cg)?
+            self.maybe_lower_float_ext_call(span, callee_fqn, args, target_cg)?
         {
             return Ok(value);
         }
         if callee_fqn == "scoop.thread.yield" {
             if !args.is_empty() {
                 return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "refactor thread.yield arg contract",
+                    kind: "thread.yield arg contract",
                     at: span.into(),
                 });
             }
@@ -1632,7 +1632,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                     .build_call_preserving_gc_local_roots(span, rt, &[], "thread_yield")?;
             return Ok(CgValue::unit());
         }
-        if let Some(value) = self.lower_refactor_array_builder_intrinsic(
+        if let Some(value) = self.lower_array_builder_intrinsic(
             span,
             callee_fqn,
             args,
@@ -1640,7 +1640,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         )? {
             return Ok(value);
         }
-        if let Some(value) = self.lower_refactor_atomic_int_intrinsic(span, callee_fqn, args)? {
+        if let Some(value) = self.lower_atomic_int_intrinsic(span, callee_fqn, args)? {
             return Ok(value);
         }
         if callee_fqn == "scoop.core.getPlatform" {
@@ -1653,13 +1653,13 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
             return self.codegen.codegen_platform_literal(span, target_cg);
         }
         if callee_fqn == "scoop.core.panic" {
-            return self.lower_refactor_panic_call(span, args);
+            return self.lower_panic_call(span, args);
         }
         let dispatch_fqn = direct_call_dispatch_fqn(callee_fqn);
-        if let Some(value) = self.lower_refactor_sync_intrinsic(span, dispatch_fqn, args)? {
+        if let Some(value) = self.lower_sync_intrinsic(span, dispatch_fqn, args)? {
             return Ok(value);
         }
-        if let Some(value) = self.lower_refactor_thread_intrinsic(span, dispatch_fqn, args)? {
+        if let Some(value) = self.lower_thread_intrinsic(span, dispatch_fqn, args)? {
             return Ok(value);
         }
         if dispatch_fqn == "scoop.unsafe.invoke" {
@@ -1701,7 +1701,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
             .codegen
             .has_materialized_instances_for_template(callee_fqn)
         {
-            let value = self.codegen.codegen_mir_refactor_plain_direct_call(
+            let value = self.codegen.codegen_mir_plain_direct_call(
                 span,
                 callee_fqn,
                 args,
@@ -1745,7 +1745,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                     );
                 }
                 if let Some(callee_local) = self.top_level_callable_value_local(callee_fqn) {
-                    return self.codegen.codegen_mir_refactor_plain_dynamic_call(
+                    return self.codegen.codegen_mir_plain_dynamic_call(
                         span,
                         &mir::CallKind::FunValue {
                             callee: mir::Operand::Local(callee_local),
@@ -1757,13 +1757,13 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                     );
                 }
                 return Err(frontend_error(format!(
-                    "refactor pure statement call 缺少 callee `{callee_fqn}` 的 callable signature"
+                    "pure statement call 缺少 callee `{callee_fqn}` 的 callable signature"
                 )));
             }
         };
         if sig_fun.body.is_none() {
             return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "refactor pure statement declaration-only direct call",
+                kind: "pure statement declaration-only direct call",
                 at: span.into(),
             });
         }
@@ -1772,7 +1772,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
             .maybe_plain_callable_layout_by_root_fqn(callee_fqn)?
             .is_some()
         {
-            return self.codegen.codegen_mir_refactor_plain_direct_call(
+            return self.codegen.codegen_mir_plain_direct_call(
                 span,
                 callee_fqn,
                 args,
@@ -1787,7 +1787,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
             .known_fun_body_may_outward_effect(callee_fqn, sig_fun.ty)
         {
             return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "refactor pure statement effectful direct call requires boundary lowering",
+                kind: "pure statement effectful direct call requires boundary lowering",
                 at: span.into(),
             });
         }
@@ -1795,19 +1795,19 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         let entry = layout.direct_entry();
         if entry.return_step_schema() != layout.step_schema() {
             return Err(frontend_error(format!(
-                "refactor pure statement call `{callee_fqn}` direct entry return schema 漂移：entry=s{} layout=s{}",
+                "pure statement call `{callee_fqn}` direct entry return schema 漂移：entry=s{} layout=s{}",
                 entry.return_step_schema().as_u32(),
                 layout.step_schema().as_u32()
             )));
         }
-        let payload = self.pack_refactor_call_args(span, entry, args)?;
+        let payload = self.pack_call_args(span, entry, args)?;
         let callee = self
             .codegen
             .module
             .get_function(entry.symbol_name())
             .ok_or_else(|| {
                 frontend_error(format!(
-                    "refactor pure statement call `{callee_fqn}` 缺少 direct entry shell `{}`",
+                    "pure statement call `{callee_fqn}` 缺少 direct entry shell `{}`",
                     entry.symbol_name()
                 ))
             })?;
@@ -1817,7 +1817,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                 payload
                     .ok_or_else(|| {
                         frontend_error(format!(
-                            "refactor pure statement call `{callee_fqn}` 需要 non-elided args payload"
+                            "pure statement call `{callee_fqn}` 需要 non-elided args payload"
                         ))
                     })?
                     .into(),
@@ -1826,16 +1826,16 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         let call =
             self.codegen
                 .builder
-                .build_call(callee, &call_args, "refactor_pure_call_step")?;
+                .build_call(callee, &call_args, "pure_call_step")?;
         let step = call.try_as_basic_value().basic().ok_or_else(|| {
             frontend_error(format!(
-                "refactor pure statement call `{callee_fqn}` direct entry 未返回 Step_F"
+                "pure statement call `{callee_fqn}` direct entry 未返回 Step_F"
             ))
         })?;
-        self.extract_refactor_pure_call_complete(span, layout.step_schema(), step, target_cg)
+        self.extract_pure_call_complete(span, layout.step_schema(), step, target_cg)
     }
 
-    fn lower_refactor_thread_intrinsic(
+    fn lower_thread_intrinsic(
         &mut self,
         span: Span,
         dispatch_fqn: &str,
@@ -1843,43 +1843,43 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
     ) -> Result<Option<CgValue<'ctx>>, LlvmEmitError> {
         match dispatch_fqn {
             "scoop.thread.threadSpawn" => {
-                self.expect_refactor_sync_arity(span, dispatch_fqn, args, 1)?;
-                let block = self.lower_refactor_sync_ref_arg(dispatch_fqn, &args[0])?;
+                self.expect_sync_arity(span, dispatch_fqn, args, 1)?;
+                let block = self.lower_sync_ref_arg(dispatch_fqn, &args[0])?;
                 let closure_ty = self.codegen.llvm_closure_object_type();
                 let closure_ptr_ty = self.codegen.llvm_ptr_type(self.codegen.gc_address_space());
                 let closure_ptr = self.codegen.builder.build_pointer_cast(
                     block,
                     closure_ptr_ty,
-                    "refactor_thread_block_ptr",
+                    "thread_block_ptr",
                 )?;
                 let i8_ptr_ty = self.codegen.llvm_i8_ptr_type();
                 let env_gep = self.codegen.builder.build_struct_gep(
                     closure_ty,
                     closure_ptr,
                     1,
-                    "refactor_thread_env_gep",
+                    "thread_env_gep",
                 )?;
                 let fn_gep = self.codegen.builder.build_struct_gep(
                     closure_ty,
                     closure_ptr,
                     2,
-                    "refactor_thread_fn_gep",
+                    "thread_fn_gep",
                 )?;
                 let env_ptr = self
                     .codegen
                     .builder
-                    .build_load(i8_ptr_ty, env_gep, "refactor_thread_env")?
+                    .build_load(i8_ptr_ty, env_gep, "thread_env")?
                     .into_pointer_value();
                 let fn_ptr_raw = self
                     .codegen
                     .builder
-                    .build_load(i8_ptr_ty, fn_gep, "refactor_thread_fn_raw")?
+                    .build_load(i8_ptr_ty, fn_gep, "thread_fn_raw")?
                     .into_pointer_value();
                 let start_fn_ptr_ty = self.codegen.llvm_ptr_type(AddressSpace::default());
                 let start_fn_ptr = self.codegen.builder.build_pointer_cast(
                     fn_ptr_raw,
                     start_fn_ptr_ty,
-                    "refactor_thread_fn_typed",
+                    "thread_fn_typed",
                 )?;
                 let rt = self.codegen.declare_runtime_thread_spawn();
                 let call = self.codegen.build_call_preserving_gc_local_roots(
@@ -1894,8 +1894,8 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                 }))
             }
             "scoop.thread.join" => {
-                self.expect_refactor_sync_arity(span, dispatch_fqn, args, 1)?;
-                let thread = self.lower_refactor_sync_ref_arg(dispatch_fqn, &args[0])?;
+                self.expect_sync_arity(span, dispatch_fqn, args, 1)?;
+                let thread = self.lower_sync_ref_arg(dispatch_fqn, &args[0])?;
                 let rt = self.codegen.declare_runtime_thread_join();
                 let _ = self.codegen.build_call_preserving_gc_local_roots(
                     span,
@@ -1906,7 +1906,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                 Ok(Some(CgValue::unit()))
             }
             "scoop.thread.sleepMillis" => {
-                self.expect_refactor_sync_arity(span, dispatch_fqn, args, 1)?;
+                self.expect_sync_arity(span, dispatch_fqn, args, 1)?;
                 let word = IntTy {
                     bits: self.codegen.host.word_bit_width(),
                     signed: true,
@@ -1921,7 +1921,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                     .codegen
                     .coerce_value(args[0].span, value, CgTy::Int(word))?;
                 let (raw, from) = value.as_int().ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "refactor thread.sleepMillis value",
+                    kind: "thread.sleepMillis value",
                     at: args[0].span.into(),
                 })?;
                 let ms = self.codegen.cast_int(
@@ -1942,7 +1942,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                 Ok(Some(CgValue::unit()))
             }
             "scoop.thread.currentId" => {
-                self.expect_refactor_sync_arity(span, dispatch_fqn, args, 0)?;
+                self.expect_sync_arity(span, dispatch_fqn, args, 0)?;
                 let rt = self.codegen.declare_runtime_thread_current_id();
                 let call = self.codegen.build_call_preserving_gc_local_roots(
                     span,
@@ -1952,13 +1952,13 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                 )?;
                 let raw = call.try_as_basic_value().basic().ok_or(
                     LlvmEmitError::UnsupportedMainBody {
-                        kind: "refactor thread.currentId return value",
+                        kind: "thread.currentId return value",
                         at: span.into(),
                     },
                 )?;
                 let BasicValueEnum::IntValue(id) = raw else {
                     return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "refactor thread.currentId return type",
+                        kind: "thread.currentId return type",
                         at: span.into(),
                     });
                 };
@@ -1971,7 +1971,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                 )))
             }
             "scoop.thread.yield" => {
-                self.expect_refactor_sync_arity(span, dispatch_fqn, args, 0)?;
+                self.expect_sync_arity(span, dispatch_fqn, args, 0)?;
                 let rt = self.codegen.declare_runtime_thread_yield();
                 let _ = self.codegen.build_call_preserving_gc_local_roots(
                     span,
@@ -1985,7 +1985,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         }
     }
 
-    fn lower_refactor_sync_intrinsic(
+    fn lower_sync_intrinsic(
         &mut self,
         span: Span,
         dispatch_fqn: &str,
@@ -1993,7 +1993,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
     ) -> Result<Option<CgValue<'ctx>>, LlvmEmitError> {
         match dispatch_fqn {
             "scoop.sync.mutexCreate" => {
-                self.expect_refactor_sync_arity(span, dispatch_fqn, args, 0)?;
+                self.expect_sync_arity(span, dispatch_fqn, args, 0)?;
                 let rt = self.codegen.declare_runtime_sync_mutex_create();
                 let call = self
                     .codegen
@@ -2005,8 +2005,8 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                 }))
             }
             "scoop.sync.lock" => {
-                self.expect_refactor_sync_arity(span, dispatch_fqn, args, 1)?;
-                let recv = self.lower_refactor_sync_ref_arg(dispatch_fqn, &args[0])?;
+                self.expect_sync_arity(span, dispatch_fqn, args, 1)?;
+                let recv = self.lower_sync_ref_arg(dispatch_fqn, &args[0])?;
                 let rt = self.codegen.declare_runtime_sync_mutex_lock();
                 let _ = self.codegen.build_call_preserving_gc_local_roots(
                     span,
@@ -2017,8 +2017,8 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                 Ok(Some(CgValue::unit()))
             }
             "scoop.sync.unlock" => {
-                self.expect_refactor_sync_arity(span, dispatch_fqn, args, 1)?;
-                let recv = self.lower_refactor_sync_ref_arg(dispatch_fqn, &args[0])?;
+                self.expect_sync_arity(span, dispatch_fqn, args, 1)?;
+                let recv = self.lower_sync_ref_arg(dispatch_fqn, &args[0])?;
                 let rt = self.codegen.declare_runtime_sync_mutex_unlock();
                 let _ = self.codegen.build_call_preserving_gc_local_roots(
                     span,
@@ -2029,7 +2029,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                 Ok(Some(CgValue::unit()))
             }
             "scoop.sync.condVarCreate" => {
-                self.expect_refactor_sync_arity(span, dispatch_fqn, args, 0)?;
+                self.expect_sync_arity(span, dispatch_fqn, args, 0)?;
                 let rt = self.codegen.declare_runtime_sync_condvar_create();
                 let call = self
                     .codegen
@@ -2041,9 +2041,9 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                 }))
             }
             "scoop.sync.wait" => {
-                self.expect_refactor_sync_arity(span, dispatch_fqn, args, 2)?;
-                let cv = self.lower_refactor_sync_ref_arg(dispatch_fqn, &args[0])?;
-                let mutex = self.lower_refactor_sync_ref_arg(dispatch_fqn, &args[1])?;
+                self.expect_sync_arity(span, dispatch_fqn, args, 2)?;
+                let cv = self.lower_sync_ref_arg(dispatch_fqn, &args[0])?;
+                let mutex = self.lower_sync_ref_arg(dispatch_fqn, &args[1])?;
                 let rt = self.codegen.declare_runtime_sync_condvar_wait();
                 let _ = self.codegen.build_call_preserving_gc_local_roots(
                     span,
@@ -2054,8 +2054,8 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                 Ok(Some(CgValue::unit()))
             }
             "scoop.sync.notifyOne" => {
-                self.expect_refactor_sync_arity(span, dispatch_fqn, args, 1)?;
-                let cv = self.lower_refactor_sync_ref_arg(dispatch_fqn, &args[0])?;
+                self.expect_sync_arity(span, dispatch_fqn, args, 1)?;
+                let cv = self.lower_sync_ref_arg(dispatch_fqn, &args[0])?;
                 let rt = self.codegen.declare_runtime_sync_condvar_notify_one();
                 let _ = self.codegen.build_call_preserving_gc_local_roots(
                     span,
@@ -2066,8 +2066,8 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                 Ok(Some(CgValue::unit()))
             }
             "scoop.sync.notifyAll" => {
-                self.expect_refactor_sync_arity(span, dispatch_fqn, args, 1)?;
-                let cv = self.lower_refactor_sync_ref_arg(dispatch_fqn, &args[0])?;
+                self.expect_sync_arity(span, dispatch_fqn, args, 1)?;
+                let cv = self.lower_sync_ref_arg(dispatch_fqn, &args[0])?;
                 let rt = self.codegen.declare_runtime_sync_condvar_notify_all();
                 let _ = self.codegen.build_call_preserving_gc_local_roots(
                     span,
@@ -2078,7 +2078,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                 Ok(Some(CgValue::unit()))
             }
             "scoop.sync.onceCreate" => {
-                self.expect_refactor_sync_arity(span, dispatch_fqn, args, 0)?;
+                self.expect_sync_arity(span, dispatch_fqn, args, 0)?;
                 let rt = self.codegen.declare_runtime_sync_once_create();
                 let call = self
                     .codegen
@@ -2090,8 +2090,8 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                 }))
             }
             "scoop.sync.isDone" => {
-                self.expect_refactor_sync_arity(span, dispatch_fqn, args, 1)?;
-                let once = self.lower_refactor_sync_ref_arg(dispatch_fqn, &args[0])?;
+                self.expect_sync_arity(span, dispatch_fqn, args, 1)?;
+                let once = self.lower_sync_ref_arg(dispatch_fqn, &args[0])?;
                 let rt = self.codegen.declare_runtime_sync_once_is_done();
                 let call = self.codegen.build_call_preserving_gc_local_roots(
                     span,
@@ -2101,66 +2101,66 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                 )?;
                 let raw = call.try_as_basic_value().basic().ok_or(
                     LlvmEmitError::UnsupportedMainBody {
-                        kind: "refactor sync.Once.isDone return value",
+                        kind: "sync.Once.isDone return value",
                         at: span.into(),
                     },
                 )?;
                 let BasicValueEnum::IntValue(done) = raw else {
                     return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "refactor sync.Once.isDone return type",
+                        kind: "sync.Once.isDone return type",
                         at: span.into(),
                     });
                 };
                 Ok(Some(CgValue::bool(done)))
             }
             "scoop.sync.run" => {
-                self.expect_refactor_sync_arity(span, dispatch_fqn, args, 2)?;
-                let once = self.lower_refactor_sync_ref_arg(dispatch_fqn, &args[0])?;
+                self.expect_sync_arity(span, dispatch_fqn, args, 2)?;
+                let once = self.lower_sync_ref_arg(dispatch_fqn, &args[0])?;
                 let deferred_once = self.codegen.defer_gc_ref_pointer(
                     args[0].span,
-                    "refactor_sync_once_run_receiver",
+                    "sync_once_run_receiver",
                     once,
                 )?;
-                let block = self.lower_refactor_sync_ref_arg(dispatch_fqn, &args[1])?;
+                let block = self.lower_sync_ref_arg(dispatch_fqn, &args[1])?;
                 let closure_ty = self.codegen.llvm_closure_object_type();
                 let closure_ptr_ty = self.codegen.llvm_ptr_type(self.codegen.gc_address_space());
                 let closure_ptr = self.codegen.builder.build_pointer_cast(
                     block,
                     closure_ptr_ty,
-                    "refactor_once_block_ptr",
+                    "once_block_ptr",
                 )?;
                 let i8_ptr_ty = self.codegen.llvm_i8_ptr_type();
                 let env_gep = self.codegen.builder.build_struct_gep(
                     closure_ty,
                     closure_ptr,
                     1,
-                    "refactor_once_env_gep",
+                    "once_env_gep",
                 )?;
                 let fn_gep = self.codegen.builder.build_struct_gep(
                     closure_ty,
                     closure_ptr,
                     2,
-                    "refactor_once_fn_gep",
+                    "once_fn_gep",
                 )?;
                 let env_ptr = self
                     .codegen
                     .builder
-                    .build_load(i8_ptr_ty, env_gep, "refactor_once_env")?
+                    .build_load(i8_ptr_ty, env_gep, "once_env")?
                     .into_pointer_value();
                 let fn_ptr_raw = self
                     .codegen
                     .builder
-                    .build_load(i8_ptr_ty, fn_gep, "refactor_once_fn_raw")?
+                    .build_load(i8_ptr_ty, fn_gep, "once_fn_raw")?
                     .into_pointer_value();
                 let init_fn_ptr_ty = self.codegen.llvm_ptr_type(AddressSpace::default());
                 let init_fn_ptr = self.codegen.builder.build_pointer_cast(
                     fn_ptr_raw,
                     init_fn_ptr_ty,
-                    "refactor_once_fn_typed",
+                    "once_fn_typed",
                 )?;
                 let once = self.codegen.reload_deferred_gc_ref_without_clearing(
                     args[0].span,
-                    "refactor_sync_once_run_receiver_reload",
+                    "sync_once_run_receiver_reload",
                     &deferred_once,
                 )?;
                 let rt = self.codegen.declare_runtime_sync_once_run();
@@ -2172,33 +2172,33 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                 )?;
                 self.codegen.clear_deferred_cg_value_root_homes(
                     args[0].span,
-                    "refactor_sync_once_run_receiver_drop",
+                    "sync_once_run_receiver_drop",
                     &deferred_once,
                 )?;
                 Ok(Some(CgValue::unit()))
             }
             "scoop.sync.destroy" => {
-                self.expect_refactor_sync_arity(span, dispatch_fqn, args, 1)?;
+                self.expect_sync_arity(span, dispatch_fqn, args, 1)?;
                 let recv_ty = self.operand_source_ty(&args[0].value).ok_or(
                     LlvmEmitError::UnsupportedMainBody {
-                        kind: "refactor sync.destroy receiver source type",
+                        kind: "sync.destroy receiver source type",
                         at: args[0].span.into(),
                     },
                 )?;
                 let TypeKind::Ref(RefTypeKind::Nominal(nominal)) = self.source_types.kind(recv_ty)
                 else {
                     return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "refactor sync.destroy receiver nominal type",
+                        kind: "sync.destroy receiver nominal type",
                         at: args[0].span.into(),
                     });
                 };
-                let recv = self.lower_refactor_sync_ref_arg(dispatch_fqn, &args[0])?;
+                let recv = self.lower_sync_ref_arg(dispatch_fqn, &args[0])?;
                 let rt = match nominal.fqn.as_str() {
                     "scoop.sync.Mutex" => self.codegen.declare_runtime_sync_mutex_destroy(),
                     "scoop.sync.CondVar" => self.codegen.declare_runtime_sync_condvar_destroy(),
                     _ => {
                         return Err(LlvmEmitError::UnsupportedMainBody {
-                            kind: "refactor sync.destroy receiver nominal",
+                            kind: "sync.destroy receiver nominal",
                             at: args[0].span.into(),
                         });
                     }
@@ -2215,7 +2215,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         }
     }
 
-    fn expect_refactor_sync_arity(
+    fn expect_sync_arity(
         &self,
         span: Span,
         dispatch_fqn: &str,
@@ -2224,7 +2224,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
     ) -> Result<(), LlvmEmitError> {
         if args.len() != expected || args.iter().any(|arg| arg.name.is_some()) {
             return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "refactor sync intrinsic arg contract",
+                kind: "sync intrinsic arg contract",
                 at: span.into(),
             });
         }
@@ -2232,7 +2232,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         Ok(())
     }
 
-    fn lower_refactor_sync_ref_arg(
+    fn lower_sync_ref_arg(
         &mut self,
         dispatch_fqn: &str,
         arg: &mir::CallArg,
@@ -2246,7 +2246,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         let value = self.codegen.coerce_value(arg.span, value, CgTy::Ref)?;
         let Some(BasicValueEnum::PointerValue(ptr)) = value.value else {
             return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "refactor sync intrinsic ref arg",
+                kind: "sync intrinsic ref arg",
                 at: arg.span.into(),
             });
         };
@@ -2264,12 +2264,12 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
             .try_as_basic_value()
             .basic()
             .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "refactor sync intrinsic return value",
+                kind: "sync intrinsic return value",
                 at: span.into(),
             })?;
         let BasicValueEnum::PointerValue(ptr) = raw else {
             return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "refactor sync intrinsic return type",
+                kind: "sync intrinsic return type",
                 at: span.into(),
             });
         };
@@ -2277,7 +2277,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         Ok(ptr)
     }
 
-    fn lower_refactor_thread_spawn_join_resume(
+    fn lower_thread_spawn_join_resume(
         &mut self,
         span: Span,
         callee_fqn: &str,
@@ -2292,7 +2292,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         }
         if args.len() != 2 || args.iter().any(|arg| arg.name.is_some()) {
             return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "refactor thread spawn+resume transport arg contract",
+                kind: "thread spawn+resume transport arg contract",
                 at: span.into(),
             });
         }
@@ -2308,14 +2308,14 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
             .coerce_value(args[0].span, continuation, CgTy::Ref)?;
         let Some(BasicValueEnum::PointerValue(k_ptr)) = continuation.value else {
             return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "refactor thread spawn+resume continuation value",
+                kind: "thread spawn+resume continuation value",
                 at: args[0].span.into(),
             });
         };
         let continuation_ty =
             self.operand_source_ty(&args[0].value)
                 .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "refactor thread spawn+resume continuation source type",
+                    kind: "thread spawn+resume continuation source type",
                     at: args[0].span.into(),
                 })?;
 
@@ -2323,14 +2323,14 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         let resume_ty =
             self.operand_source_ty(&value_arg.value)
                 .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "refactor thread spawn+resume transport value source type",
+                    kind: "thread spawn+resume transport value source type",
                     at: value_arg.span.into(),
                 })?;
         let value_cg = self
             .codegen
             .mir_operand_cg_ty(self.body, self.source_types, &value_arg.value)
             .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "refactor thread spawn+resume transport value type",
+                kind: "thread spawn+resume transport value type",
                 at: value_arg.span.into(),
             })?;
         let value = self.codegen.codegen_mir_operand_expected(
@@ -2356,7 +2356,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         };
         if surface.param_count() != expected_params {
             return Err(frontend_error(format!(
-                "refactor thread spawn+resume transport surface resume 参数数漂移：expected={}, actual={}",
+                "thread spawn+resume transport surface resume 参数数漂移：expected={}, actual={}",
                 expected_params,
                 surface.param_count(),
             )));
@@ -2366,11 +2366,11 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
             .step_layout(surface.return_step_schema())
             .ok_or_else(|| {
                 frontend_error(format!(
-                    "refactor thread spawn+resume u64 缺少 surface return step s{} layout",
+                    "thread spawn+resume u64 缺少 surface return step s{} layout",
                     surface.return_step_schema().as_u32()
                 ))
             })?;
-        verify_refactor_thread_resume_surface_policy(
+        verify_thread_resume_surface_policy(
             self.source_types,
             dispatch_fqn,
             surface,
@@ -2380,7 +2380,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         let k_i8 = self.codegen.builder.build_pointer_cast(
             k_ptr,
             self.codegen.llvm_gc_i8_ptr_type(),
-            "refactor_thread_resume_k_i8",
+            "thread_resume_k_i8",
         )?;
 
         if u64_resume_dispatch {
@@ -2393,7 +2393,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
             }
             let value_word = self.codegen.coerce_u64_word(value_arg.span, value)?;
             let thunk =
-                get_or_create_refactor_thread_resume_u64_thunk(self.codegen, surface, step_layout)?;
+                get_or_create_thread_resume_u64_thunk(self.codegen, surface, step_layout)?;
             let runtime = self.codegen.declare_runtime_thread_spawn_join_resume_u64();
             let thunk_ptr = self.codegen.builder.build_pointer_cast(
                 thunk.as_global_value().as_pointer_value(),
@@ -2421,14 +2421,14 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                 at: value_arg.span.into(),
             });
         }
-        let payload = self.materialize_refactor_thread_resume_transport_payload(
+        let payload = self.materialize_thread_resume_transport_payload(
             value_arg.span,
             value,
             value_cg,
             payload_transport,
             surface.resume_payload_abi(),
         )?;
-        let thunk = get_or_create_refactor_thread_resume_transport_thunk(
+        let thunk = get_or_create_thread_resume_transport_thunk(
             self.codegen,
             surface,
             step_layout,
@@ -2457,14 +2457,14 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         Ok(Some(CgValue::unit()))
     }
 
-    fn materialize_refactor_thread_resume_transport_payload(
+    fn materialize_thread_resume_transport_payload(
         &mut self,
         span: Span,
         value: CgValue<'ctx>,
         value_cg: CgTy,
         transport: &mir::ValueTransportMetadata,
-        payload_abi: &super::types::RefactorAbiValue<'ctx>,
-    ) -> Result<RefactorThreadResumeTransportValue<'ctx>, LlvmEmitError> {
+        payload_abi: &super::types::AbiValue<'ctx>,
+    ) -> Result<ThreadResumeTransportValue<'ctx>, LlvmEmitError> {
         let i64_ty = self.codegen.context.i64_type();
         let default_ptr_ty = self.codegen.llvm_ptr_type(AddressSpace::default());
         let gc_ptr_ty = self.codegen.llvm_gc_i8_ptr_type();
@@ -2472,7 +2472,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         let null_gc = gc_ptr_ty.const_null();
 
         if payload_abi.is_elided() {
-            return Ok(RefactorThreadResumeTransportValue {
+            return Ok(ThreadResumeTransportValue {
                 word: i64_ty.const_zero(),
                 gc_ref: null_gc,
                 descriptor: null_default,
@@ -2485,16 +2485,16 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                 let value = self.codegen.coerce_value(span, value, value_cg)?;
                 let Some(BasicValueEnum::PointerValue(ptr)) = value.value else {
                     return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "refactor thread spawn+resume ref payload value",
+                        kind: "thread spawn+resume ref payload value",
                         at: span.into(),
                     });
                 };
                 let gc_ref = self.codegen.builder.build_pointer_cast(
                     ptr,
                     gc_ptr_ty,
-                    "refactor_thread_resume_payload_gc_ref",
+                    "thread_resume_payload_gc_ref",
                 )?;
-                Ok(RefactorThreadResumeTransportValue {
+                Ok(ThreadResumeTransportValue {
                     word: i64_ty.const_zero(),
                     gc_ref,
                     descriptor: null_default,
@@ -2503,7 +2503,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
             }
             BasicTypeEnum::IntType(int_ty) if int_ty.get_bit_width() <= 64 => {
                 let word = self.codegen.coerce_u64_word(span, value)?;
-                Ok(RefactorThreadResumeTransportValue {
+                Ok(ThreadResumeTransportValue {
                     word,
                     gc_ref: null_gc,
                     descriptor: null_default,
@@ -2515,7 +2515,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                     || float_ty == self.codegen.context.f64_type() =>
             {
                 let word = self.codegen.coerce_u64_word(span, value)?;
-                Ok(RefactorThreadResumeTransportValue {
+                Ok(ThreadResumeTransportValue {
                     word,
                     gc_ref: null_gc,
                     descriptor: null_default,
@@ -2539,7 +2539,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                     )?;
                 let slot = self.codegen.create_entry_alloca(
                     span,
-                    "refactor_thread_resume_payload",
+                    "thread_resume_payload",
                     value_cg,
                 )?;
                 let value = self.codegen.coerce_value(span, value, value_cg)?;
@@ -2549,14 +2549,14 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                 let descriptor = self.codegen.builder.build_pointer_cast(
                     descriptor.as_pointer_value(),
                     default_ptr_ty,
-                    "refactor_thread_resume_payload_desc",
+                    "thread_resume_payload_desc",
                 )?;
                 let payload_ptr = self.codegen.builder.build_pointer_cast(
                     slot,
                     default_ptr_ty,
-                    "refactor_thread_resume_payload_ptr",
+                    "thread_resume_payload_ptr",
                 )?;
-                Ok(RefactorThreadResumeTransportValue {
+                Ok(ThreadResumeTransportValue {
                     word: i64_ty.const_zero(),
                     gc_ref: null_gc,
                     descriptor,
@@ -2566,7 +2566,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         }
     }
 
-    fn lower_refactor_atomic_int_intrinsic(
+    fn lower_atomic_int_intrinsic(
         &mut self,
         span: Span,
         callee_fqn: &str,
@@ -2580,7 +2580,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
             "scoop.unsafe.__atomicIntLoad" => {
                 if args.len() != 1 || args[0].name.is_some() {
                     return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "refactor atomicIntLoad arg contract",
+                        kind: "atomicIntLoad arg contract",
                         at: span.into(),
                     });
                 }
@@ -2588,7 +2588,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                     self.atomic_int_lvalue_ptr(&args[0].value, args[0].span, false)?;
                 if int_ty != atomic_word {
                     return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "refactor atomicIntLoad target width",
+                        kind: "atomicIntLoad target width",
                         at: args[0].span.into(),
                     });
                 }
@@ -2601,17 +2601,17 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                     loaded
                         .as_instruction_value()
                         .ok_or(LlvmEmitError::UnsupportedMainBody {
-                            kind: "refactor atomicIntLoad load instruction",
+                            kind: "atomicIntLoad load instruction",
                             at: args[0].span.into(),
                         })?;
                 inst.set_atomic_ordering(AtomicOrdering::SequentiallyConsistent)
                     .map_err(|_| LlvmEmitError::UnsupportedMainBody {
-                        kind: "refactor atomicIntLoad set ordering",
+                        kind: "atomicIntLoad set ordering",
                         at: args[0].span.into(),
                     })?;
                 let BasicValueEnum::IntValue(raw) = loaded else {
                     return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "refactor atomicIntLoad return type",
+                        kind: "atomicIntLoad return type",
                         at: args[0].span.into(),
                     });
                 };
@@ -2620,7 +2620,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
             "scoop.unsafe.__atomicIntStore" => {
                 if args.len() != 2 || args.iter().any(|arg| arg.name.is_some()) {
                     return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "refactor atomicIntStore arg contract",
+                        kind: "atomicIntStore arg contract",
                         at: span.into(),
                     });
                 }
@@ -2628,7 +2628,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                     self.atomic_int_lvalue_ptr(&args[0].value, args[0].span, true)?;
                 if int_ty != atomic_word {
                     return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "refactor atomicIntStore target width",
+                        kind: "atomicIntStore target width",
                         at: args[0].span.into(),
                     });
                 }
@@ -2642,14 +2642,14 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                     self.codegen
                         .coerce_value(args[1].span, value, CgTy::Int(atomic_word))?;
                 let (raw, from) = value.as_int().ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "refactor atomicIntStore value",
+                    kind: "atomicIntStore value",
                     at: args[1].span.into(),
                 })?;
                 let raw = self.codegen.cast_int(raw, from, atomic_word)?;
                 let inst = self.codegen.builder.build_store(ptr, raw)?;
                 inst.set_atomic_ordering(AtomicOrdering::SequentiallyConsistent)
                     .map_err(|_| LlvmEmitError::UnsupportedMainBody {
-                        kind: "refactor atomicIntStore set ordering",
+                        kind: "atomicIntStore set ordering",
                         at: span.into(),
                     })?;
                 Ok(Some(CgValue::unit()))
@@ -2657,7 +2657,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
             "scoop.unsafe.__atomicIntCompareExchange" => {
                 if args.len() != 3 || args.iter().any(|arg| arg.name.is_some()) {
                     return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "refactor atomicIntCompareExchange arg contract",
+                        kind: "atomicIntCompareExchange arg contract",
                         at: span.into(),
                     });
                 }
@@ -2665,7 +2665,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                     self.atomic_int_lvalue_ptr(&args[0].value, args[0].span, true)?;
                 if int_ty != atomic_word {
                     return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "refactor atomicIntCompareExchange target width",
+                        kind: "atomicIntCompareExchange target width",
                         at: args[0].span.into(),
                     });
                 }
@@ -2685,7 +2685,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                     .build_extract_value(cx, 1, "cmpxchg_success")?;
                 let BasicValueEnum::IntValue(ok) = success else {
                     return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "refactor atomicIntCompareExchange success type",
+                        kind: "atomicIntCompareExchange success type",
                         at: span.into(),
                     });
                 };
@@ -2695,7 +2695,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         }
     }
 
-    fn lower_refactor_array_builder_intrinsic(
+    fn lower_array_builder_intrinsic(
         &mut self,
         span: Span,
         callee_fqn: &str,
@@ -2710,7 +2710,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
             "scoop.core.__scoop_array_builder_new" => {
                 if !args.is_empty() {
                     return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "refactor array_builder_new arity mismatch",
+                        kind: "array_builder_new arity mismatch",
                         at: span.into(),
                     });
                 }
@@ -2723,13 +2723,13 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                 )?;
                 let raw = call.try_as_basic_value().basic().ok_or(
                     LlvmEmitError::UnsupportedMainBody {
-                        kind: "refactor array_builder_new return value",
+                        kind: "array_builder_new return value",
                         at: span.into(),
                     },
                 )?;
                 let BasicValueEnum::PointerValue(ptr) = raw else {
                     return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "refactor array_builder_new return type",
+                        kind: "array_builder_new return type",
                         at: span.into(),
                     });
                 };
@@ -2742,7 +2742,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
             | "scoop.core.__scoop_array_builder_push_string" => {
                 if args.len() != 2 || args.iter().any(|arg| arg.name.is_some()) {
                     return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "refactor array_builder_push arg contract",
+                        kind: "array_builder_push arg contract",
                         at: span.into(),
                     });
                 }
@@ -2764,13 +2764,13 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                         .coerce_value(builder_arg.span, builder_v, CgTy::Ref)?;
                 let Some(builder_raw) = builder_v.value else {
                     return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "refactor array_builder_push builder value",
+                        kind: "array_builder_push builder value",
                         at: builder_arg.span.into(),
                     });
                 };
                 let BasicValueEnum::PointerValue(builder_ptr) = builder_raw else {
                     return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "refactor array_builder_push builder type",
+                        kind: "array_builder_push builder type",
                         at: builder_arg.span.into(),
                     });
                 };
@@ -2824,7 +2824,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                 }
                 if Self::array_codegen_ty_requires_composite_runtime(value_cg) {
                     return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "refactor array_builder_push composite transport metadata",
+                        kind: "array_builder_push composite transport metadata",
                         at: value_arg.span.into(),
                     });
                 }
@@ -2835,13 +2835,13 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                                 .coerce_value(value_arg.span, value_v, CgTy::Ref)?;
                         let Some(raw) = value_v.value else {
                             return Err(LlvmEmitError::UnsupportedMainBody {
-                                kind: "refactor array_builder_push ref value",
+                                kind: "array_builder_push ref value",
                                 at: value_arg.span.into(),
                             });
                         };
                         let BasicValueEnum::PointerValue(ptr) = raw else {
                             return Err(LlvmEmitError::UnsupportedMainBody {
-                                kind: "refactor array_builder_push ref type",
+                                kind: "array_builder_push ref type",
                                 at: value_arg.span.into(),
                             });
                         };
@@ -2871,7 +2871,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
             | "scoop.core.__scoop_array_builder_build_array_string" => {
                 if args.len() != 1 || args[0].name.is_some() {
                     return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "refactor array_builder_build arg contract",
+                        kind: "array_builder_build arg contract",
                         at: span.into(),
                     });
                 }
@@ -2902,13 +2902,13 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                         .coerce_value(builder_arg.span, builder_v, CgTy::Ref)?;
                 let Some(builder_raw) = builder_v.value else {
                     return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "refactor array_builder_build builder value",
+                        kind: "array_builder_build builder value",
                         at: builder_arg.span.into(),
                     });
                 };
                 let BasicValueEnum::PointerValue(builder_ptr) = builder_raw else {
                     return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "refactor array_builder_build builder type",
+                        kind: "array_builder_build builder type",
                         at: builder_arg.span.into(),
                     });
                 };
@@ -2956,13 +2956,13 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                 )?;
                 let raw = call.try_as_basic_value().basic().ok_or(
                     LlvmEmitError::UnsupportedMainBody {
-                        kind: "refactor array_builder_build return value",
+                        kind: "array_builder_build return value",
                         at: span.into(),
                     },
                 )?;
                 let BasicValueEnum::PointerValue(ptr) = raw else {
                     return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "refactor array_builder_build return type",
+                        kind: "array_builder_build return type",
                         at: span.into(),
                     });
                 };
@@ -3070,18 +3070,18 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         Ok(slot)
     }
 
-    fn lower_refactor_to_int_intrinsic(
+    fn lower_to_int_intrinsic(
         &mut self,
         span: Span,
         callee_fqn: &str,
         args: &[mir::CallArg],
     ) -> Result<Option<CgValue<'ctx>>, LlvmEmitError> {
-        if refactor_intrinsic_base_fqn(callee_fqn) != "scoop.core.toInt" {
+        if intrinsic_base_fqn(callee_fqn) != "scoop.core.toInt" {
             return Ok(None);
         }
         if args.len() != 1 || args[0].name.is_some() {
             return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "refactor toInt arg contract",
+                kind: "toInt arg contract",
                 at: span.into(),
             });
         }
@@ -3092,7 +3092,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
             .cg_ty_of_mir_type(self.source_types, value_ty)
             .or_else(|| self.operand_slot_cg_ty(&arg.value))
             .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "refactor toInt receiver type",
+                kind: "toInt receiver type",
                 at: arg.span.into(),
             })?;
         let value = self.codegen.codegen_mir_operand_expected(
@@ -3120,7 +3120,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
             CgTy::Float64 | CgTy::Float32 => {
                 let Some(BasicValueEnum::FloatValue(float_val)) = value.value else {
                     return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "refactor Float.toInt receiver value",
+                        kind: "Float.toInt receiver value",
                         at: arg.span.into(),
                     });
                 };
@@ -3137,13 +3137,13 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                 )?;
                 let raw = call.try_as_basic_value().basic().ok_or(
                     LlvmEmitError::UnsupportedMainBody {
-                        kind: "refactor Float.toInt return value",
+                        kind: "Float.toInt return value",
                         at: span.into(),
                     },
                 )?;
                 let BasicValueEnum::IntValue(int64_val) = raw else {
                     return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "refactor Float.toInt return type",
+                        kind: "Float.toInt return type",
                         at: span.into(),
                     });
                 };
@@ -3159,24 +3159,24 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                     .map(Some)
             }
             _ => Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "refactor toInt unsupported receiver type",
+                kind: "toInt unsupported receiver type",
                 at: span.into(),
             }),
         }
     }
 
-    fn lower_refactor_hash_intrinsic(
+    fn lower_hash_intrinsic(
         &mut self,
         span: Span,
         callee_fqn: &str,
         args: &[mir::CallArg],
     ) -> Result<Option<CgValue<'ctx>>, LlvmEmitError> {
-        if refactor_intrinsic_base_fqn(callee_fqn) != "scoop.core.hash" {
+        if intrinsic_base_fqn(callee_fqn) != "scoop.core.hash" {
             return Ok(None);
         }
         if args.len() != 1 || args[0].name.is_some() {
             return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "refactor hash arg contract",
+                kind: "hash arg contract",
                 at: span.into(),
             });
         }
@@ -3187,7 +3187,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
             .codegen
             .cg_ty_of_mir_type(self.source_types, value_ty)
             .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "refactor hash receiver type",
+                kind: "hash receiver type",
                 at: arg.span.into(),
             })?;
         let value = self.codegen.codegen_mir_operand_expected(
@@ -3203,14 +3203,14 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
             TypeKind::Value(ValueTypeKind::Char) => {
                 let Some(BasicValueEnum::IntValue(codepoint)) = value.value else {
                     return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "refactor Char.hash receiver value",
+                        kind: "Char.hash receiver value",
                         at: arg.span.into(),
                     });
                 };
                 let widened = self.codegen.builder.build_int_z_extend(
                     codepoint,
                     i64_ty,
-                    "refactor_char_hash_zext",
+                    "char_hash_zext",
                 )?;
                 self.codegen.codegen_i64_hash_value(widened).map(Some)
             }
@@ -3225,7 +3225,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                     let value = self.codegen.coerce_value(arg.span, value, int64)?;
                     let Some(BasicValueEnum::IntValue(raw)) = value.value else {
                         return Err(LlvmEmitError::UnsupportedMainBody {
-                            kind: "refactor Int.hash receiver value",
+                            kind: "Int.hash receiver value",
                             at: arg.span.into(),
                         });
                     };
@@ -3236,21 +3236,21 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                     .codegen_float_hash_value(arg.span, value)
                     .map(Some),
                 _ => Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "refactor hash unsupported receiver type",
+                    kind: "hash unsupported receiver type",
                     at: span.into(),
                 }),
             },
         }
     }
 
-    fn lower_refactor_panic_call(
+    fn lower_panic_call(
         &mut self,
         span: Span,
         args: &[mir::CallArg],
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         if args.len() != 1 || args[0].name.is_some() {
             return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "refactor panic arg contract",
+                kind: "panic arg contract",
                 at: span.into(),
             });
         }
@@ -3264,7 +3264,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         let message = self.codegen.coerce_value(arg.span, message, CgTy::String)?;
         let Some(BasicValueEnum::PointerValue(message_ptr)) = message.value else {
             return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "refactor panic message value",
+                kind: "panic message value",
                 at: arg.span.into(),
             });
         };
@@ -3273,7 +3273,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
             arg.span,
             runtime,
             &[message_ptr.into()],
-            "refactor_rt_panic",
+            "rt_panic",
         )?;
         Ok(CgValue::never())
     }
@@ -3294,7 +3294,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
             .codegen
             .coerce_value(span, value, CgTy::Int(atomic_word))?;
         let (raw, from) = value.as_int().ok_or(LlvmEmitError::UnsupportedMainBody {
-            kind: "refactor atomicInt operand",
+            kind: "atomicInt operand",
             at: span.into(),
         })?;
         self.codegen.cast_int(raw, from, atomic_word)
@@ -3314,7 +3314,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
     > {
         let mir::Operand::Local(local) = operand else {
             return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "refactor atomicInt target operand",
+                kind: "atomicInt target operand",
                 at: span.into(),
             });
         };
@@ -3323,7 +3323,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         {
             let CgTy::Int(int_ty) = field_cg else {
                 return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "refactor atomicInt target type",
+                    kind: "atomicInt target type",
                     at: span.into(),
                 });
             };
@@ -3334,7 +3334,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         {
             let CgTy::Int(int_ty) = cg_ty else {
                 return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "refactor atomicInt target type",
+                    kind: "atomicInt target type",
                     at: span.into(),
                 });
             };
@@ -3345,7 +3345,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
             return Ok((slot.ptr, int_ty));
         }
         Err(LlvmEmitError::UnsupportedMainBody {
-            kind: "refactor atomicInt target place",
+            kind: "atomicInt target place",
             at: span.into(),
         })
     }
@@ -3365,7 +3365,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         if let Some(global) = self.codegen.materialized_extern_global_root(&fqn).cloned() {
             if require_writable && !global.mutable {
                 return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "refactor atomicInt immutable extern global",
+                    kind: "atomicInt immutable extern global",
                     at: span.into(),
                 });
             }
@@ -3373,7 +3373,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                 self.codegen
                     .cg_ty_of(global.ty)
                     .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "refactor atomicInt extern global type",
+                        kind: "atomicInt extern global type",
                         at: span.into(),
                     })?;
             let gv = self.codegen.declare_mir_extern_global(&global)?;
@@ -3383,7 +3383,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         if let Some(global) = self.codegen.extern_globals.get(&fqn).cloned() {
             if require_writable && !global.mutable {
                 return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "refactor atomicInt immutable extern global",
+                    kind: "atomicInt immutable extern global",
                     at: span.into(),
                 });
             }
@@ -3391,7 +3391,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                 self.codegen
                     .cg_ty_of(global.ty)
                     .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "refactor atomicInt extern global type",
+                        kind: "atomicInt extern global type",
                         at: span.into(),
                     })?;
             let gv = self.codegen.declare_extern_global(&global)?;
@@ -3405,7 +3405,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
             .codegen
             .cg_ty_of(var.ty)
             .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "refactor atomicInt top-level var type",
+                kind: "atomicInt top-level var type",
                 at: span.into(),
             })?;
         let gv = self.codegen.declare_top_level_var_global(&var)?;
@@ -3461,7 +3461,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
             self.codegen
                 .cg_ty_of(receiver_type_id)
                 .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "refactor atomicInt member receiver type",
+                    kind: "atomicInt member receiver type",
                     at: span.into(),
                 })?;
         if let Some((class, field_idx, field_cg)) =
@@ -3474,12 +3474,12 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                     .fields
                     .get(field_idx as usize)
                     .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "refactor atomicInt class field index",
+                        kind: "atomicInt class field index",
                         at: span.into(),
                     })?;
             if require_writable && !field.mutable {
                 return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "refactor atomicInt immutable class field",
+                    kind: "atomicInt immutable class field",
                     at: span.into(),
                 });
             }
@@ -3492,13 +3492,13 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
             let receiver_value = self.codegen.coerce_value(span, receiver_value, CgTy::Ref)?;
             let Some(raw) = receiver_value.value else {
                 return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "refactor atomicInt class receiver value",
+                    kind: "atomicInt class receiver value",
                     at: span.into(),
                 });
             };
             let BasicValueEnum::PointerValue(obj_ptr) = raw else {
                 return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "refactor atomicInt class receiver type",
+                    kind: "atomicInt class receiver type",
                     at: span.into(),
                 });
             };
@@ -3510,7 +3510,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
 
         let CgTy::Struct(struct_ty) = receiver_cg else {
             return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "refactor atomicInt member field target",
+                kind: "atomicInt member field target",
                 at: span.into(),
             });
         };
@@ -3538,7 +3538,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
     ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
         let mir::Operand::Local(local) = receiver else {
             return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "refactor atomicInt struct receiver place",
+                kind: "atomicInt struct receiver place",
                 at: span.into(),
             });
         };
@@ -3547,7 +3547,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         {
             if cg_ty != CgTy::Struct(struct_ty) {
                 return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "refactor atomicInt struct receiver type drift",
+                    kind: "atomicInt struct receiver type drift",
                     at: span.into(),
                 });
             }
@@ -3556,7 +3556,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         let slot = self.codegen.mir_local_slot(span, self.slots, *local)?;
         if slot.cg_ty != CgTy::Struct(struct_ty) {
             return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "refactor atomicInt struct receiver slot type",
+                kind: "atomicInt struct receiver slot type",
                 at: span.into(),
             });
         }
@@ -3585,7 +3585,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                     .equivalent_codegen_type_id(self.source_types, member.receiver_ty)
             })
             .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "refactor atomicInt member receiver type",
+                kind: "atomicInt member receiver type",
                 at: span.into(),
             })
     }
@@ -3597,11 +3597,11 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         match member.resolved.as_ref() {
             Some(mir::MemberTarget::Value { fqn }) => Ok(fqn.as_str()),
             Some(_) => Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "refactor atomicInt member target is not value",
+                kind: "atomicInt member target is not value",
                 at: span.into(),
             }),
             None => Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "refactor atomicInt member target unresolved",
+                kind: "atomicInt member target unresolved",
                 at: span.into(),
             }),
         }
@@ -3614,7 +3614,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
     ) -> Result<TypeId, LlvmEmitError> {
         self.operand_source_ty(operand)
             .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "refactor task transport operand source type",
+                kind: "task transport operand source type",
                 at: span.into(),
             })
     }
@@ -3670,7 +3670,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         };
         if !fun_ty.effects.is_pure() {
             return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "refactor top-level FunPtr effect-typed direct call",
+                kind: "top-level FunPtr effect-typed direct call",
                 at: span.into(),
             });
         }
@@ -3680,7 +3680,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
             .get(callable_fqn)
             .cloned()
             .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "refactor top-level FunPtr value metadata",
+                kind: "top-level FunPtr value metadata",
                 at: span.into(),
             })?;
         let funptr = self
@@ -3688,7 +3688,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
             .codegen_top_level_immutable_value_access(span, &value)?;
         let Some(BasicValueEnum::IntValue(funptr_addr)) = funptr.value else {
             return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "refactor top-level FunPtr value",
+                kind: "top-level FunPtr value",
                 at: span.into(),
             });
         };
@@ -3706,7 +3706,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         );
         if args.len() != source_arg_tys.len() {
             return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "refactor top-level FunPtr direct call arity",
+                kind: "top-level FunPtr direct call arity",
                 at: span.into(),
             });
         }
@@ -3718,7 +3718,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                     .iter()
                     .position(|(param_name, _)| param_name == name)
                     .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "refactor top-level FunPtr named arg",
+                        kind: "top-level FunPtr named arg",
                         at: arg.span.into(),
                     })?
             } else {
@@ -3728,7 +3728,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
             };
             if index >= ordered_args.len() || ordered_args[index].replace(arg).is_some() {
                 return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "refactor top-level FunPtr arg mapping",
+                    kind: "top-level FunPtr arg mapping",
                     at: arg.span.into(),
                 });
             }
@@ -3742,12 +3742,12 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                 self.codegen
                     .cg_ty_of(*source_ty)
                     .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "refactor top-level FunPtr param type",
+                        kind: "top-level FunPtr param type",
                         at: span.into(),
                     })?;
             llvm_param_tys.push(self.codegen.llvm_basic_type_of(span, param_cg)?.into());
             let arg = ordered_args[index].ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "refactor top-level FunPtr missing arg",
+                kind: "top-level FunPtr missing arg",
                 at: span.into(),
             })?;
             let value = self.codegen.codegen_mir_operand_expected(
@@ -3758,7 +3758,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
             )?;
             let value = self.codegen.coerce_value(arg.span, value, param_cg)?;
             let raw = value.value.ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "refactor top-level FunPtr arg value",
+                kind: "top-level FunPtr arg value",
                 at: arg.span.into(),
             })?;
             llvm_args.push(raw.into());
@@ -3768,7 +3768,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
             self.codegen
                 .cg_ty_of(fun_ty.return_ty)
                 .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "refactor top-level FunPtr return type",
+                    kind: "top-level FunPtr return type",
                     at: span.into(),
                 })?;
         let llvm_fun_ty = match ret_cg {
@@ -3786,13 +3786,13 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         let typed_fn_ptr = self.codegen.builder.build_int_to_ptr(
             funptr_addr,
             fun_ptr_ty,
-            "refactor_top_level_funptr_typed",
+            "top_level_funptr_typed",
         )?;
         let call_site = self.codegen.builder.build_indirect_call(
             llvm_fun_ty,
             typed_fn_ptr,
             &llvm_args,
-            "refactor_top_level_funptr_call",
+            "top_level_funptr_call",
         )?;
         match ret_cg {
             CgTy::Unit => Ok(Some(CgValue::unit())),
@@ -3800,7 +3800,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
             _ => {
                 let raw = call_site.try_as_basic_value().basic().ok_or(
                     LlvmEmitError::UnsupportedMainBody {
-                        kind: "refactor top-level FunPtr return value",
+                        kind: "top-level FunPtr return value",
                         at: span.into(),
                     },
                 )?;
@@ -3847,7 +3847,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         if !fun_ty.effects.is_pure() {
             return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "refactor top-level function-value effect-typed direct call",
+                kind: "top-level function-value effect-typed direct call",
                 at: span.into(),
             });
         }
@@ -3857,7 +3857,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
             .get(callable_fqn)
             .cloned()
             .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "refactor top-level function-value metadata",
+                kind: "top-level function-value metadata",
                 at: span.into(),
             })?;
         let callee = self
@@ -3866,7 +3866,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         let callee = self.codegen.coerce_value(span, callee, CgTy::Ref)?;
         let Some(BasicValueEnum::PointerValue(closure_obj_i8)) = callee.value else {
             return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "refactor top-level function-value value",
+                kind: "top-level function-value value",
                 at: span.into(),
             });
         };
@@ -3919,7 +3919,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         Ok(ptr)
     }
 
-    fn lower_refactor_core_string_byte_length_call(
+    fn lower_core_string_byte_length_call(
         &mut self,
         span: Span,
         args: &[mir::CallArg],
@@ -3927,7 +3927,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         if args.len() != 1 || args[0].name.is_some() {
             return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "refactor core byteLength arg contract",
+                kind: "core byteLength arg contract",
                 at: span.into(),
             });
         }
@@ -3941,22 +3941,22 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         let receiver_ptr = self.string_like_pointer(
             args[0].span,
             receiver,
-            "refactor core byteLength receiver value",
+            "core byteLength receiver value",
         )?;
         let len_ptr = self.codegen.builder.build_struct_gep(
             self.codegen.llvm_scoop_string_type(),
             receiver_ptr,
             1,
-            "refactor_core_byte_length_gep",
+            "core_byte_length_gep",
         )?;
         let raw = self.codegen.builder.build_load(
             self.codegen.context.i64_type(),
             len_ptr,
-            "refactor_core_byte_length",
+            "core_byte_length",
         )?;
         let BasicValueEnum::IntValue(result) = raw else {
             return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "refactor core byteLength load type",
+                kind: "core byteLength load type",
                 at: span.into(),
             });
         };
@@ -3970,7 +3970,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         self.codegen.coerce_value(span, value, target_cg)
     }
 
-    fn lower_refactor_core_string_get_byte_call(
+    fn lower_core_string_get_byte_call(
         &mut self,
         span: Span,
         args: &[mir::CallArg],
@@ -3978,7 +3978,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         if args.len() != 2 || args.iter().any(|arg| arg.name.is_some()) {
             return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "refactor core getByte arg contract",
+                kind: "core getByte arg contract",
                 at: span.into(),
             });
         }
@@ -3992,7 +3992,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         let receiver_ptr = self.string_like_pointer(
             args[0].span,
             receiver,
-            "refactor core getByte receiver value",
+            "core getByte receiver value",
         )?;
         let index = self.codegen.codegen_mir_operand_expected(
             args[1].span,
@@ -4005,7 +4005,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         )?;
         let Some(BasicValueEnum::IntValue(index_int)) = index.value else {
             return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "refactor core getByte index value",
+                kind: "core getByte index value",
                 at: args[1].span.into(),
             });
         };
@@ -4016,18 +4016,18 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
             self.codegen.llvm_scoop_string_type(),
             receiver_ptr,
             1,
-            "refactor_core_get_byte_len_gep",
+            "core_get_byte_len_gep",
         )?;
         let len_val = self
             .codegen
             .builder
-            .build_load(i64_ty, len_ptr, "refactor_core_get_byte_len")?
+            .build_load(i64_ty, len_ptr, "core_get_byte_len")?
             .into_int_value();
         let data_ptr_ptr = self.codegen.builder.build_struct_gep(
             self.codegen.llvm_scoop_string_type(),
             receiver_ptr,
             2,
-            "refactor_core_get_byte_data_gep",
+            "core_get_byte_data_gep",
         )?;
         let data_ptr = self
             .codegen
@@ -4035,7 +4035,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
             .build_load(
                 self.codegen.llvm_i8_ptr_type(),
                 data_ptr_ptr,
-                "refactor_core_get_byte_data",
+                "core_get_byte_data",
             )?
             .into_pointer_value();
 
@@ -4049,26 +4049,26 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         let in_bounds_bb = self
             .codegen
             .context
-            .append_basic_block(current_fn, "refactor_getByte_in_bounds");
+            .append_basic_block(current_fn, "getByte_in_bounds");
         let out_of_bounds_bb = self
             .codegen
             .context
-            .append_basic_block(current_fn, "refactor_getByte_out_of_bounds");
+            .append_basic_block(current_fn, "getByte_out_of_bounds");
         let merge_bb = self
             .codegen
             .context
-            .append_basic_block(current_fn, "refactor_getByte_merge");
+            .append_basic_block(current_fn, "getByte_merge");
 
         let is_negative = self.codegen.builder.build_int_compare(
             inkwell::IntPredicate::SLT,
             index_int,
             i64_ty.const_zero(),
-            "refactor_getByte_negative",
+            "getByte_negative",
         )?;
         let not_negative_bb = self
             .codegen
             .context
-            .append_basic_block(current_fn, "refactor_getByte_not_negative");
+            .append_basic_block(current_fn, "getByte_not_negative");
         self.codegen.builder.build_conditional_branch(
             is_negative,
             out_of_bounds_bb,
@@ -4080,7 +4080,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
             inkwell::IntPredicate::SGE,
             index_int,
             len_val,
-            "refactor_getByte_ge_len",
+            "getByte_ge_len",
         )?;
         self.codegen
             .builder
@@ -4096,18 +4096,18 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                 i8_ty,
                 data_ptr,
                 &[index_int],
-                "refactor_core_get_byte_elem_gep",
+                "core_get_byte_elem_gep",
             )?
         };
         let byte_val = self
             .codegen
             .builder
-            .build_load(i8_ty, byte_ptr, "refactor_core_get_byte_val")?
+            .build_load(i8_ty, byte_ptr, "core_get_byte_val")?
             .into_int_value();
         let byte_i64 = self.codegen.builder.build_int_z_extend(
             byte_val,
             i64_ty,
-            "refactor_core_get_byte_zext",
+            "core_get_byte_zext",
         )?;
         self.codegen.builder.build_unconditional_branch(merge_bb)?;
 
@@ -4115,7 +4115,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         let phi = self
             .codegen
             .builder
-            .build_phi(i64_ty, "refactor_core_get_byte_result")?;
+            .build_phi(i64_ty, "core_get_byte_result")?;
         phi.add_incoming(&[(&zero_val, out_of_bounds_bb), (&byte_i64, in_bounds_bb)]);
         let value = CgValue::int(
             phi.as_basic_value().into_int_value(),
@@ -4127,7 +4127,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         self.codegen.coerce_value(span, value, target_cg)
     }
 
-    fn lower_refactor_core_string_unsafe_slice_bytes_call(
+    fn lower_core_string_unsafe_slice_bytes_call(
         &mut self,
         span: Span,
         args: &[mir::CallArg],
@@ -4135,7 +4135,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         if args.len() != 3 || args.iter().any(|arg| arg.name.is_some()) {
             return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "refactor core unsafeSliceBytes arg contract",
+                kind: "core unsafeSliceBytes arg contract",
                 at: span.into(),
             });
         }
@@ -4149,7 +4149,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         let receiver_ptr = self.string_like_pointer(
             args[0].span,
             receiver,
-            "refactor core unsafeSliceBytes receiver value",
+            "core unsafeSliceBytes receiver value",
         )?;
         let offset = self.codegen.codegen_mir_operand_expected(
             args[1].span,
@@ -4162,7 +4162,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         )?;
         let Some(offset_val) = offset.value else {
             return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "refactor core unsafeSliceBytes offset value",
+                kind: "core unsafeSliceBytes offset value",
                 at: args[1].span.into(),
             });
         };
@@ -4177,7 +4177,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         )?;
         let Some(len_val) = len.value else {
             return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "refactor core unsafeSliceBytes len value",
+                kind: "core unsafeSliceBytes len value",
                 at: args[2].span.into(),
             });
         };
@@ -4187,14 +4187,14 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
             span,
             runtime,
             &[receiver_ptr.into(), offset_val.into(), len_val.into()],
-            "refactor_core_string_unsafe_slice_bytes",
+            "core_string_unsafe_slice_bytes",
         )?;
         let string =
             self.string_result_from_runtime_call(span, call, "scoop.core.unsafeSliceBytes")?;
         self.codegen.coerce_value(span, string, target_cg)
     }
 
-    fn maybe_lower_refactor_float_ext_call(
+    fn maybe_lower_float_ext_call(
         &mut self,
         span: Span,
         callee_fqn: &str,
@@ -4203,13 +4203,13 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
     ) -> Result<Option<CgValue<'ctx>>, LlvmEmitError> {
         let [arg] = args else {
             return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "refactor Float extension intrinsic arity",
+                kind: "Float extension intrinsic arity",
                 at: span.into(),
             });
         };
         if arg.name.is_some() {
             return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "refactor Float extension intrinsic named arg",
+                kind: "Float extension intrinsic named arg",
                 at: arg.span.into(),
             });
         }
@@ -4217,7 +4217,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
             .codegen
             .mir_operand_cg_ty(self.body, self.source_types, &arg.value)
             .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "refactor Float extension intrinsic arg type",
+                kind: "Float extension intrinsic arg type",
                 at: arg.span.into(),
             })?;
         if !matches!(arg_cg, CgTy::Float64 | CgTy::Float32) {
@@ -4253,12 +4253,12 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
             .try_as_basic_value()
             .basic()
             .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "refactor core print ToString runtime ret",
+                kind: "core print ToString runtime ret",
                 at: span.into(),
             })?;
         let BasicValueEnum::PointerValue(str_ptr) = ret else {
             return Err(frontend_error(format!(
-                "refactor core print {label} ToString runtime ret type mismatch"
+                "core print {label} ToString runtime ret type mismatch"
             )));
         };
         Ok(CgValue {
@@ -4267,7 +4267,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         })
     }
 
-    fn lower_refactor_internal_print_string(
+    fn lower_internal_print_string(
         &mut self,
         span: Span,
         callee_fqn: &str,
@@ -4280,7 +4280,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         };
         if args.len() != 1 || args[0].name.is_some() {
             return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "refactor internal print string arg contract",
+                kind: "internal print string arg contract",
                 at: span.into(),
             });
         }
@@ -4294,7 +4294,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         let value = self.codegen.coerce_value(arg.span, value, CgTy::String)?;
         let Some(BasicValueEnum::PointerValue(str_ptr)) = value.value else {
             return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "refactor internal print string arg value",
+                kind: "internal print string arg value",
                 at: arg.span.into(),
             });
         };
@@ -4303,7 +4303,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
             arg.span,
             runtime,
             &[str_ptr.into()],
-            "refactor_internal_print",
+            "internal_print",
         )?;
         Ok(Some(CgValue::unit()))
     }
@@ -4328,7 +4328,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
             )
     }
 
-    fn lower_refactor_gc_pin(
+    fn lower_gc_pin(
         &mut self,
         span: Span,
         args: &[mir::CallArg],
@@ -4336,13 +4336,13 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         if args.len() != 1 || args[0].name.is_some() {
             return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "refactor GC.pin arg contract",
+                kind: "GC.pin arg contract",
                 at: span.into(),
             });
         }
         let CgTy::Struct(pinned_ty) = target_cg else {
             return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "refactor GC.pin target type",
+                kind: "GC.pin target type",
                 at: span.into(),
             });
         };
@@ -4360,7 +4360,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         let obj_ref = self.codegen.coerce_value(arg.span, obj, CgTy::Ref)?;
         let Some(BasicValueEnum::PointerValue(obj_ptr)) = obj_ref.value else {
             return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "refactor GC.pin arg value",
+                kind: "GC.pin arg value",
                 at: arg.span.into(),
             });
         };
@@ -4369,10 +4369,10 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         let call = self
             .codegen
             .builder
-            .build_call(rt_pin, &[obj_ptr.into()], "refactor_gc_pin")?;
+            .build_call(rt_pin, &[obj_ptr.into()], "gc_pin")?;
         let Some(BasicValueEnum::IntValue(ok_i32)) = call.try_as_basic_value().basic() else {
             return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "refactor GC.pin return type",
+                kind: "GC.pin return type",
                 at: span.into(),
             });
         };
@@ -4381,20 +4381,20 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
             IntPredicate::NE,
             ok_i32,
             self.codegen.context.i32_type().const_zero(),
-            "refactor_gc_pin_ok",
+            "gc_pin_ok",
         )?;
         let insert_block =
             self.codegen
                 .builder
                 .get_insert_block()
                 .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "refactor GC.pin insert block",
+                    kind: "GC.pin insert block",
                     at: span.into(),
                 })?;
         let function = insert_block
             .get_parent()
             .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "refactor GC.pin parent function",
+                kind: "GC.pin parent function",
                 at: span.into(),
             })?;
         let ok_bb = self
@@ -4422,7 +4422,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         let raw_field: BasicValueEnum<'ctx> = match field_cg_ty {
             CgTy::Unit => self.codegen.context.i8_type().const_int(0, false).into(),
             _ => obj.value.ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "refactor GC.pin field value",
+                kind: "GC.pin field value",
                 at: arg.span.into(),
             })?,
         };
@@ -4430,7 +4430,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
             agg,
             raw_field,
             field_idx,
-            "refactor_pinned_value",
+            "pinned_value",
         )?;
         self.codegen.builder.build_unconditional_branch(cont_bb)?;
 
@@ -4441,14 +4441,14 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         })
     }
 
-    fn lower_refactor_gc_unpin(
+    fn lower_gc_unpin(
         &mut self,
         span: Span,
         args: &[mir::CallArg],
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         if args.len() != 1 || args[0].name.is_some() {
             return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "refactor GC.unpin arg contract",
+                kind: "GC.unpin arg contract",
                 at: span.into(),
             });
         }
@@ -4458,13 +4458,13 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
             .codegen_mir_operand_expected(arg.span, &arg.value, self.slots, None)?;
         let CgTy::Struct(pinned_ty) = pinned.ty else {
             return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "refactor GC.unpin arg type",
+                kind: "GC.unpin arg type",
                 at: arg.span.into(),
             });
         };
         let Some(BasicValueEnum::StructValue(struct_v)) = pinned.value else {
             return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "refactor GC.unpin arg value",
+                kind: "GC.unpin arg value",
                 at: arg.span.into(),
             });
         };
@@ -4474,7 +4474,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         let extracted = self.codegen.builder.build_extract_value(
             struct_v,
             field_idx,
-            "refactor_pinned_value",
+            "pinned_value",
         )?;
         let field = self
             .codegen
@@ -4482,7 +4482,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         let field_ref = self.codegen.coerce_value(arg.span, field, CgTy::Ref)?;
         let Some(BasicValueEnum::PointerValue(obj_ptr)) = field_ref.value else {
             return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "refactor GC.unpin value",
+                kind: "GC.unpin value",
                 at: arg.span.into(),
             });
         };
@@ -4491,10 +4491,10 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         let call =
             self.codegen
                 .builder
-                .build_call(rt_unpin, &[obj_ptr.into()], "refactor_gc_unpin")?;
+                .build_call(rt_unpin, &[obj_ptr.into()], "gc_unpin")?;
         let Some(BasicValueEnum::IntValue(ok_i32)) = call.try_as_basic_value().basic() else {
             return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "refactor GC.unpin return type",
+                kind: "GC.unpin return type",
                 at: span.into(),
             });
         };
@@ -4503,20 +4503,20 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
             IntPredicate::NE,
             ok_i32,
             self.codegen.context.i32_type().const_zero(),
-            "refactor_gc_unpin_ok",
+            "gc_unpin_ok",
         )?;
         let insert_block =
             self.codegen
                 .builder
                 .get_insert_block()
                 .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "refactor GC.unpin insert block",
+                    kind: "GC.unpin insert block",
                     at: span.into(),
                 })?;
         let function = insert_block
             .get_parent()
             .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "refactor GC.unpin parent function",
+                kind: "GC.unpin parent function",
                 at: span.into(),
             })?;
         let ok_bb = self
@@ -4545,7 +4545,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         Ok(CgValue::unit())
     }
 
-    fn lower_refactor_gc_debug_intrinsic(
+    fn lower_gc_debug_intrinsic(
         &mut self,
         span: Span,
         callee_fqn: &str,
@@ -4555,7 +4555,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
             "scoop.core.__scoop_gc_collect" => {
                 if !args.is_empty() {
                     return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "refactor gc collect arity mismatch",
+                        kind: "gc collect arity mismatch",
                         at: span.into(),
                     });
                 }
@@ -4564,14 +4564,14 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                     span,
                     runtime,
                     &[],
-                    "refactor_gc_collect_safepoint",
+                    "gc_collect_safepoint",
                 )?;
                 Ok(Some(CgValue::unit()))
             }
             "scoop.core.__scoop_gc_debug_heap_object_count" => {
                 if !args.is_empty() {
                     return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "refactor gc heap object count arity mismatch",
+                        kind: "gc heap object count arity mismatch",
                         at: span.into(),
                     });
                 }
@@ -4579,17 +4579,17 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                 let call = self.codegen.builder.build_call(
                     runtime,
                     &[],
-                    "refactor_gc_debug_heap_object_count",
+                    "gc_debug_heap_object_count",
                 )?;
                 let raw = call.try_as_basic_value().basic().ok_or(
                     LlvmEmitError::UnsupportedMainBody {
-                        kind: "refactor gc heap object count return value",
+                        kind: "gc heap object count return value",
                         at: span.into(),
                     },
                 )?;
                 let BasicValueEnum::IntValue(raw_int) = raw else {
                     return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "refactor gc heap object count return type",
+                        kind: "gc heap object count return type",
                         at: span.into(),
                     });
                 };
@@ -4607,7 +4607,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
             "scoop.core.__scoop_gc_debug_alloc_garbage" => {
                 if args.len() != 1 || args[0].name.is_some() {
                     return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "refactor gc debug alloc garbage arg contract",
+                        kind: "gc debug alloc garbage arg contract",
                         at: span.into(),
                     });
                 }
@@ -4625,7 +4625,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                     self.codegen
                         .coerce_value(args[0].span, value, CgTy::Int(value_word))?;
                 let (raw, from) = value.as_int().ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "refactor gc debug alloc garbage count value",
+                    kind: "gc debug alloc garbage count value",
                     at: args[0].span.into(),
                 })?;
                 let to = IntTy {
@@ -4638,14 +4638,14 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                     span,
                     runtime,
                     &[count_i64.into()],
-                    "refactor_gc_debug_alloc_garbage",
+                    "gc_debug_alloc_garbage",
                 )?;
                 Ok(Some(CgValue::unit()))
             }
             "scoop.core.__scoop_stackmap_statepoint_smoke" => {
                 if !args.is_empty() {
                     return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "refactor stackmap statepoint smoke arity mismatch",
+                        kind: "stackmap statepoint smoke arity mismatch",
                         at: span.into(),
                     });
                 }
@@ -4655,7 +4655,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                     .get_insert_block()
                     .and_then(|bb| bb.get_parent())
                     .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "refactor stackmap statepoint smoke caller function",
+                        kind: "stackmap statepoint smoke caller function",
                         at: span.into(),
                     })?;
                 current_fun.set_gc("statepoint-example");
@@ -4665,17 +4665,17 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                     span,
                     runtime,
                     &[],
-                    "refactor_stackmap_statepoint_smoke",
+                    "stackmap_statepoint_smoke",
                 )?;
                 let raw = call.try_as_basic_value().basic().ok_or(
                     LlvmEmitError::UnsupportedMainBody {
-                        kind: "refactor stackmap statepoint smoke return value",
+                        kind: "stackmap statepoint smoke return value",
                         at: span.into(),
                     },
                 )?;
                 let BasicValueEnum::IntValue(raw_int) = raw else {
                     return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "refactor stackmap statepoint smoke return type",
+                        kind: "stackmap statepoint smoke return type",
                         at: span.into(),
                     });
                 };
@@ -4694,17 +4694,17 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         }
     }
 
-    fn pack_refactor_call_args(
+    fn pack_call_args(
         &mut self,
         span: Span,
-        entry: &RefactorCallableEntryLayout<'ctx>,
+        entry: &CallableEntryLayout<'ctx>,
         args: &[mir::CallArg],
     ) -> Result<Option<BasicValueEnum<'ctx>>, LlvmEmitError> {
         self.pack_call_args_for_invoke_args_tuple(
             span,
             entry.invoke_args_tuple_ty(),
             args,
-            "refactor_pure_call",
+            "pure_call",
         )
     }
 
@@ -4717,7 +4717,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
     ) -> Result<Option<BasicValueEnum<'ctx>>, LlvmEmitError> {
         if args.iter().any(|arg| arg.name.is_some()) {
             return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "refactor named call arg",
+                kind: "named call arg",
                 at: span.into(),
             });
         }
@@ -4726,7 +4726,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
             return Ok(None);
         }
         match layout.kind() {
-            RefactorSourceAbiLayoutKind::Scalar => {
+            SourceAbiLayoutKind::Scalar => {
                 let arg = args.first().ok_or_else(|| {
                     frontend_error(format!("{name} scalar call ABI 缺少 argument"))
                 })?;
@@ -4740,7 +4740,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                     .codegen
                     .cg_ty_of_mir_type(self.source_types, layout.source_ty())
                     .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "refactor scalar call arg type",
+                        kind: "scalar call arg type",
                         at: arg.span.into(),
                     })?;
                 let value = self.codegen.codegen_mir_operand_expected(
@@ -4752,12 +4752,12 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                 let value = self.codegen.coerce_value(arg.span, value, expected)?;
                 Ok(Some(value.value.ok_or(
                     LlvmEmitError::UnsupportedMainBody {
-                        kind: "refactor scalar call arg value",
+                        kind: "scalar call arg value",
                         at: arg.span.into(),
                     },
                 )?))
             }
-            RefactorSourceAbiLayoutKind::Tuple => {
+            SourceAbiLayoutKind::Tuple => {
                 if args.len() == 1
                     && self.operand_source_ty(&args[0].value) == Some(layout.source_ty())
                 {
@@ -4782,14 +4782,14 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                     }
                     let arg = args.get(index).ok_or_else(|| {
                         frontend_error(format!(
-                            "refactor pure statement tuple call ABI 缺少 argument {index}"
+                            "pure statement tuple call ABI 缺少 argument {index}"
                         ))
                     })?;
                     let expected = self
                         .codegen
                         .cg_ty_of_mir_type(self.source_types, field.source_ty())
                         .ok_or(LlvmEmitError::UnsupportedMainBody {
-                            kind: "refactor tuple call arg type",
+                            kind: "tuple call arg type",
                             at: arg.span.into(),
                         })?;
                     let value = self.codegen.codegen_mir_operand_expected(
@@ -4800,7 +4800,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                     )?;
                     let value = self.codegen.coerce_value(arg.span, value, expected)?;
                     let raw = value.value.ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "refactor tuple call arg value",
+                        kind: "tuple call arg value",
                         at: arg.span.into(),
                     })?;
                     aggregate = self
@@ -4821,7 +4821,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
         }
     }
 
-    fn extract_refactor_pure_call_complete(
+    fn extract_pure_call_complete(
         &mut self,
         span: Span,
         step_schema: crate::effect_facts::StepSchemaId,
@@ -4830,40 +4830,40 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         let step_layout = self.abi.step_layout(step_schema).ok_or_else(|| {
             frontend_error(format!(
-                "refactor pure statement call 缺少 callee step schema s{} layout",
+                "pure statement call 缺少 callee step schema s{} layout",
                 step_schema.as_u32()
             ))
         })?;
         if !step_layout.cases().is_empty() {
             return Err(frontend_error(format!(
-                "refactor pure statement call callee step schema s{} 含 outward case，必须走 boundary lowering",
+                "pure statement call callee step schema s{} 含 outward case，必须走 boundary lowering",
                 step_schema.as_u32()
             )));
         }
-        let payload = self.codegen.refactor_extract_step_payload(
+        let payload = self.codegen.extract_step_payload(
             step_layout,
             step,
             step_layout.complete_variant(),
-            "refactor_pure_call_complete_payload",
+            "pure_call_complete_payload",
         )?;
         match (target_cg, payload) {
             (super::super::types::CgTy::Unit, None) => Ok(CgValue::unit()),
             (super::super::types::CgTy::Never, None) => Ok(CgValue::never()),
             (super::super::types::CgTy::Unit, Some(_)) => Err(frontend_error(
-                "refactor pure statement call Unit target 收到 non-elided Complete payload"
+                "pure statement call Unit target 收到 non-elided Complete payload"
                     .to_string(),
             )),
             (_, Some(raw)) => {
                 let value = self.codegen.cg_value_from_loaded(span, target_cg, raw)?;
                 self.codegen.coerce_value(span, value, target_cg).map_err(|err| {
                     frontend_error(format!(
-                        "refactor pure direct call Complete payload coercion failed: value_ty={:?} target_ty={:?}: {err}",
+                        "pure direct call Complete payload coercion failed: value_ty={:?} target_ty={:?}: {err}",
                         value.ty, target_cg,
                     ))
                 })
             }
             (_, None) => Err(frontend_error(
-                "refactor pure statement call non-Unit target 缺少 Complete payload".to_string(),
+                "pure statement call non-Unit target 缺少 Complete payload".to_string(),
             )),
         }
     }
@@ -4889,7 +4889,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                 .coerce_value(span, value, slot.cg_ty)
                 .map_err(|err| match err {
                     LlvmEmitError::Frontend { message } => frontend_error(format!(
-                        "refactor store local{} coercion failed at {:?}: {message}",
+                        "store local{} coercion failed at {:?}: {message}",
                         local.as_u32(),
                         span
                     )),
@@ -4920,7 +4920,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
             .codegen
             .cg_ty_of_mir_type(self.source_types, source.source_ty())
             .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "refactor operand source type",
+                kind: "operand source type",
                 at: span.into(),
             })?;
         let operand = match source.value() {
@@ -4947,26 +4947,26 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
             return Ok(None);
         }
         match layout.kind() {
-            RefactorSourceAbiLayoutKind::Scalar => {
+            SourceAbiLayoutKind::Scalar => {
                 let source = sources.first().ok_or_else(|| {
-                    frontend_error(format!("refactor ABI scalar payload `{name}` 缺少 source"))
+                    frontend_error(format!("ABI scalar payload `{name}` 缺少 source"))
                 })?;
                 Ok(self.lower_operand_source(source)?.value)
             }
-            RefactorSourceAbiLayoutKind::Tuple => {
+            SourceAbiLayoutKind::Tuple => {
                 if sources.len() == 1 && sources[0].source_ty() == source_ty {
                     return self.pack_whole_tuple_source(layout, &sources[0], name);
                 }
                 let BasicTypeEnum::StructType(struct_ty) = layout.abi().llvm_ty() else {
                     return Err(frontend_error(format!(
-                        "refactor ABI tuple payload `{name}` layout 不是 struct"
+                        "ABI tuple payload `{name}` layout 不是 struct"
                     )));
                 };
                 let mut aggregate = struct_ty.get_undef();
                 for (index, source) in sources.iter().enumerate() {
                     let Some(field) = layout.field(index) else {
                         return Err(frontend_error(format!(
-                            "refactor ABI tuple payload `{name}` source index {index} 超出 layout 字段"
+                            "ABI tuple payload `{name}` source index {index} 超出 layout 字段"
                         )));
                     };
                     if field.is_elided() {
@@ -4974,7 +4974,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                     }
                     let raw = self.lower_operand_source(source)?.value.ok_or_else(|| {
                         frontend_error(format!(
-                            "refactor ABI tuple payload `{name}` source index {index} 被 elide 但 field 需要值"
+                            "ABI tuple payload `{name}` source index {index} 被 elide 但 field 需要值"
                         ))
                     })?;
                     aggregate = self
@@ -4997,7 +4997,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
 
     fn pack_whole_tuple_operand(
         &mut self,
-        layout: &RefactorSourceAbiLayout<'ctx>,
+        layout: &SourceAbiLayout<'ctx>,
         operand: &mir::Operand,
         name: &str,
     ) -> Result<Option<BasicValueEnum<'ctx>>, LlvmEmitError> {
@@ -5016,7 +5016,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
 
     fn pack_whole_tuple_source(
         &mut self,
-        layout: &RefactorSourceAbiLayout<'ctx>,
+        layout: &SourceAbiLayout<'ctx>,
         source: &LateLoweredOperandSource,
         name: &str,
     ) -> Result<Option<BasicValueEnum<'ctx>>, LlvmEmitError> {
@@ -5029,18 +5029,18 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
 
     fn pack_whole_tuple_value(
         &mut self,
-        layout: &RefactorSourceAbiLayout<'ctx>,
+        layout: &SourceAbiLayout<'ctx>,
         value: CgValue<'ctx>,
         name: &str,
     ) -> Result<Option<BasicValueEnum<'ctx>>, LlvmEmitError> {
         let Some(BasicValueEnum::StructValue(tuple)) = value.value else {
             return Err(frontend_error(format!(
-                "refactor ABI tuple payload `{name}` whole tuple source 缺少 struct value"
+                "ABI tuple payload `{name}` whole tuple source 缺少 struct value"
             )));
         };
         let BasicTypeEnum::StructType(struct_ty) = layout.abi().llvm_ty() else {
             return Err(frontend_error(format!(
-                "refactor ABI tuple payload `{name}` whole tuple layout 不是 struct"
+                "ABI tuple payload `{name}` whole tuple layout 不是 struct"
             )));
         };
         let mut aggregate = struct_ty.get_undef();
@@ -5109,11 +5109,11 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
             return Ok(None);
         }
         match layout.kind() {
-            RefactorSourceAbiLayoutKind::Scalar => Ok(payload),
-            RefactorSourceAbiLayoutKind::Tuple => {
+            SourceAbiLayoutKind::Scalar => Ok(payload),
+            SourceAbiLayoutKind::Tuple => {
                 let Some(field) = layout.field(ordinal as usize) else {
                     return Err(frontend_error(format!(
-                        "refactor payload tuple t{} 缺少 ordinal {}",
+                        "payload tuple t{} 缺少 ordinal {}",
                         payload_ty.as_u32(),
                         ordinal
                     )));
@@ -5123,7 +5123,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                 }
                 let Some(BasicValueEnum::StructValue(tuple)) = payload else {
                     return Err(frontend_error(format!(
-                        "refactor payload tuple t{} 缺少 struct payload",
+                        "payload tuple t{} 缺少 struct payload",
                         payload_ty.as_u32()
                     )));
                 };
@@ -5133,7 +5133,7 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
                         field
                             .abi_field_index()
                             .expect("non-elided field has ABI index"),
-                        "refactor_payload_field",
+                        "payload_field",
                     )?,
                 ))
             }
@@ -5149,13 +5149,13 @@ impl<'p, 'a, 'ctx> RefactorValuePrimitives<'p, 'a, 'ctx> {
     }
 }
 
-fn get_or_create_refactor_thread_resume_u64_thunk<'a, 'ctx>(
+fn get_or_create_thread_resume_u64_thunk<'a, 'ctx>(
     codegen: &mut MainCodegen<'a, 'ctx>,
-    surface: &RefactorContinuationSurfaceResumeLayout<'ctx>,
-    step_layout: &RefactorStepLayout<'ctx>,
+    surface: &ContinuationSurfaceResumeLayout<'ctx>,
+    step_layout: &StepLayout<'ctx>,
 ) -> Result<FunctionValue<'ctx>, LlvmEmitError> {
     let symbol = stable_naming::private_name_from_key_text(
-        "refactor_thread_resume_u64",
+        "thread_resume_u64",
         surface.stable_continuation_key_text(),
     );
     let k_ty = codegen.llvm_gc_i8_ptr_type();
@@ -5176,12 +5176,12 @@ fn get_or_create_refactor_thread_resume_u64_thunk<'a, 'ctx>(
     codegen.builder.position_at_end(entry);
     let continuation = function.get_nth_param(0).ok_or_else(|| {
         frontend_error(format!(
-            "refactor thread resume thunk `{symbol}` 缺少 continuation 参数"
+            "thread resume thunk `{symbol}` 缺少 continuation 参数"
         ))
     })?;
     let payload = function.get_nth_param(1).ok_or_else(|| {
         frontend_error(format!(
-            "refactor thread resume thunk `{symbol}` 缺少 payload 参数"
+            "thread resume thunk `{symbol}` 缺少 payload 参数"
         ))
     })?;
     let surface_fun = codegen.declare_compiler_private_helper_function(
@@ -5192,29 +5192,29 @@ fn get_or_create_refactor_thread_resume_u64_thunk<'a, 'ctx>(
     let call = codegen.builder.build_call(
         surface_fun,
         &[continuation.into(), payload.into()],
-        "refactor_thread_surface_resume",
+        "thread_surface_resume",
     )?;
     let step = call.try_as_basic_value().basic().ok_or_else(|| {
-        frontend_error("refactor thread surface resume 未返回 Step_F".to_string())
+        frontend_error("thread surface resume 未返回 Step_F".to_string())
     })?;
     let BasicValueEnum::StructValue(step_struct) = step else {
         return Err(frontend_error(
-            "refactor thread surface resume Step_F 不是 struct".to_string(),
+            "thread surface resume Step_F 不是 struct".to_string(),
         ));
     };
     if step_struct.get_type() != step_layout.llvm_ty() {
         return Err(frontend_error(format!(
-            "refactor thread surface resume Step_F layout 漂移：surface s{}",
+            "thread surface resume Step_F layout 漂移：surface s{}",
             surface.return_step_schema().as_u32()
         )));
     }
-    emit_refactor_thread_resume_step_terminal(
+    emit_thread_resume_step_terminal(
         codegen,
         function,
         surface,
         step_layout,
         step,
-        "refactor_thread_resume",
+        "thread_resume",
     )?;
 
     if let Some(block) = restore_block {
@@ -5223,13 +5223,13 @@ fn get_or_create_refactor_thread_resume_u64_thunk<'a, 'ctx>(
     Ok(function)
 }
 
-fn get_or_create_refactor_thread_resume_transport_thunk<'a, 'ctx>(
+fn get_or_create_thread_resume_transport_thunk<'a, 'ctx>(
     codegen: &mut MainCodegen<'a, 'ctx>,
-    surface: &RefactorContinuationSurfaceResumeLayout<'ctx>,
-    step_layout: &RefactorStepLayout<'ctx>,
+    surface: &ContinuationSurfaceResumeLayout<'ctx>,
+    step_layout: &StepLayout<'ctx>,
 ) -> Result<FunctionValue<'ctx>, LlvmEmitError> {
     let symbol = stable_naming::private_name_from_key_text(
-        "refactor_thread_resume_transport",
+        "thread_resume_transport",
         surface.stable_continuation_key_text(),
     );
     let k_ty = codegen.llvm_gc_i8_ptr_type();
@@ -5257,22 +5257,22 @@ fn get_or_create_refactor_thread_resume_transport_thunk<'a, 'ctx>(
     codegen.builder.position_at_end(entry);
     let continuation = function.get_nth_param(0).ok_or_else(|| {
         frontend_error(format!(
-            "refactor thread resume transport thunk `{symbol}` 缺少 continuation 参数"
+            "thread resume transport thunk `{symbol}` 缺少 continuation 参数"
         ))
     })?;
     let word = function.get_nth_param(1).ok_or_else(|| {
         frontend_error(format!(
-            "refactor thread resume transport thunk `{symbol}` 缺少 word 参数"
+            "thread resume transport thunk `{symbol}` 缺少 word 参数"
         ))
     })?;
     let gc_ref = function.get_nth_param(2).ok_or_else(|| {
         frontend_error(format!(
-            "refactor thread resume transport thunk `{symbol}` 缺少 gc_ref 参数"
+            "thread resume transport thunk `{symbol}` 缺少 gc_ref 参数"
         ))
     })?;
     let payload_ptr = function.get_nth_param(3).ok_or_else(|| {
         frontend_error(format!(
-            "refactor thread resume transport thunk `{symbol}` 缺少 payload pointer 参数"
+            "thread resume transport thunk `{symbol}` 缺少 payload pointer 参数"
         ))
     })?;
     let surface_fun = codegen
@@ -5287,7 +5287,7 @@ fn get_or_create_refactor_thread_resume_transport_thunk<'a, 'ctx>(
         });
     let mut call_args = vec![continuation.into()];
     if !surface.resume_payload_abi().is_elided() {
-        let payload_arg = build_refactor_thread_resume_surface_payload_arg(
+        let payload_arg = build_thread_resume_surface_payload_arg(
             codegen,
             surface,
             word.into_int_value(),
@@ -5299,29 +5299,29 @@ fn get_or_create_refactor_thread_resume_transport_thunk<'a, 'ctx>(
     let call = codegen.builder.build_call(
         surface_fun,
         &call_args,
-        "refactor_thread_surface_resume_transport",
+        "thread_surface_resume_transport",
     )?;
     let step = call.try_as_basic_value().basic().ok_or_else(|| {
-        frontend_error("refactor thread surface resume transport 未返回 Step_F".to_string())
+        frontend_error("thread surface resume transport 未返回 Step_F".to_string())
     })?;
     let BasicValueEnum::StructValue(step_struct) = step else {
         return Err(frontend_error(
-            "refactor thread surface resume transport Step_F 不是 struct".to_string(),
+            "thread surface resume transport Step_F 不是 struct".to_string(),
         ));
     };
     if step_struct.get_type() != step_layout.llvm_ty() {
         return Err(frontend_error(format!(
-            "refactor thread surface resume transport Step_F layout 漂移：surface s{}",
+            "thread surface resume transport Step_F layout 漂移：surface s{}",
             surface.return_step_schema().as_u32()
         )));
     }
-    emit_refactor_thread_resume_step_terminal(
+    emit_thread_resume_step_terminal(
         codegen,
         function,
         surface,
         step_layout,
         step,
-        "refactor_thread_resume_transport",
+        "thread_resume_transport",
     )?;
 
     if let Some(block) = restore_block {
@@ -5330,23 +5330,23 @@ fn get_or_create_refactor_thread_resume_transport_thunk<'a, 'ctx>(
     Ok(function)
 }
 
-fn verify_refactor_thread_resume_surface_policy<'ctx>(
+fn verify_thread_resume_surface_policy<'ctx>(
     types: &TypeStore,
     dispatch_fqn: &str,
-    surface: &RefactorContinuationSurfaceResumeLayout<'ctx>,
-    step_layout: &RefactorStepLayout<'ctx>,
+    surface: &ContinuationSurfaceResumeLayout<'ctx>,
+    step_layout: &StepLayout<'ctx>,
     continuation_ty: TypeId,
 ) -> Result<(), LlvmEmitError> {
-    match refactor_thread_resume_continuation_ty_is_pure(types, continuation_ty) {
+    match thread_resume_continuation_ty_is_pure(types, continuation_ty) {
         Some(true) => Ok(()),
         Some(false) => Err(frontend_error(format!(
-            "refactor thread spawn+resume `{dispatch_fqn}` received non-Pure continuation type t{} for schema k{} / step s{}; MIR-T13 requires the upstream cross-thread resume diagnostic gate to reject non-Pure continuations before codegen",
+            "thread spawn+resume `{dispatch_fqn}` received non-Pure continuation type t{} for schema k{} / step s{}; MIR-T13 requires the upstream cross-thread resume diagnostic gate to reject non-Pure continuations before codegen",
             continuation_ty.as_u32(),
             surface.continuation_schema().as_u32(),
             step_layout.step_schema().as_u32(),
         ))),
         None => Err(frontend_error(format!(
-            "refactor thread spawn+resume `{dispatch_fqn}` continuation operand type t{} is not a published Continuation type for schema k{} / step s{}",
+            "thread spawn+resume `{dispatch_fqn}` continuation operand type t{} is not a published Continuation type for schema k{} / step s{}",
             continuation_ty.as_u32(),
             surface.continuation_schema().as_u32(),
             step_layout.step_schema().as_u32(),
@@ -5354,7 +5354,7 @@ fn verify_refactor_thread_resume_surface_policy<'ctx>(
     }
 }
 
-fn refactor_thread_resume_continuation_ty_is_pure(types: &TypeStore, ty: TypeId) -> Option<bool> {
+fn thread_resume_continuation_ty_is_pure(types: &TypeStore, ty: TypeId) -> Option<bool> {
     match types.kind(ty) {
         TypeKind::Ref(RefTypeKind::Nominal(nominal))
             if nominal.fqn == "scoop.core.Continuation" =>
@@ -5362,14 +5362,14 @@ fn refactor_thread_resume_continuation_ty_is_pure(types: &TypeStore, ty: TypeId)
             Some(nominal.eff.as_ref().is_none_or(|row| row.is_pure()))
         }
         TypeKind::Value(ValueTypeKind::Option(inner)) => {
-            refactor_thread_resume_continuation_ty_is_pure(types, *inner)
+            thread_resume_continuation_ty_is_pure(types, *inner)
         }
         _ => None,
     }
 }
 
-fn refactor_thread_resume_case_is_runtime_error<'ctx>(
-    case: &super::types::RefactorStepCaseLayout<'ctx>,
+fn thread_resume_case_is_runtime_error<'ctx>(
+    case: &super::types::StepCaseLayout<'ctx>,
 ) -> bool {
     case.concrete_op_key()
         .instance_key()
@@ -5383,11 +5383,11 @@ fn refactor_thread_resume_case_is_runtime_error<'ctx>(
             .starts_with("scoop.core.Raise")
 }
 
-fn emit_refactor_thread_resume_step_terminal<'a, 'ctx>(
+fn emit_thread_resume_step_terminal<'a, 'ctx>(
     codegen: &mut MainCodegen<'a, 'ctx>,
     function: FunctionValue<'ctx>,
-    surface: &RefactorContinuationSurfaceResumeLayout<'ctx>,
-    step_layout: &RefactorStepLayout<'ctx>,
+    surface: &ContinuationSurfaceResumeLayout<'ctx>,
+    step_layout: &StepLayout<'ctx>,
     step: BasicValueEnum<'ctx>,
     name: &str,
 ) -> Result<(), LlvmEmitError> {
@@ -5398,7 +5398,7 @@ fn emit_refactor_thread_resume_step_terminal<'a, 'ctx>(
 
     let BasicValueEnum::StructValue(step_struct) = step else {
         return Err(frontend_error(format!(
-            "refactor thread resume surface `{}` did not return a Step_F struct",
+            "thread resume surface `{}` did not return a Step_F struct",
             surface.symbol_name()
         )));
     };
@@ -5425,7 +5425,7 @@ fn emit_refactor_thread_resume_step_terminal<'a, 'ctx>(
                 .const_int(case.variant().tag_value() as u64, false),
             bb,
         ));
-        case_blocks.push((case, bb, refactor_thread_resume_case_is_runtime_error(case)));
+        case_blocks.push((case, bb, thread_resume_case_is_runtime_error(case)));
     }
 
     let is_complete = codegen.builder.build_int_compare(
@@ -5451,13 +5451,13 @@ fn emit_refactor_thread_resume_step_terminal<'a, 'ctx>(
             codegen.builder.build_unreachable()?;
             continue;
         }
-        let payload = codegen.refactor_extract_step_payload(
+        let payload = codegen.extract_step_payload(
             step_layout,
             step,
             case.variant(),
             &format!("{name}_runtime_error_payload"),
         )?;
-        let payload = refactor_thread_resume_runtime_error_payload_ptr(
+        let payload = thread_resume_runtime_error_payload_ptr(
             codegen,
             payload,
             case.case_tag().as_u32(),
@@ -5482,7 +5482,7 @@ fn emit_refactor_thread_resume_step_terminal<'a, 'ctx>(
     Ok(())
 }
 
-fn refactor_thread_resume_runtime_error_payload_ptr<'a, 'ctx>(
+fn thread_resume_runtime_error_payload_ptr<'a, 'ctx>(
     codegen: &mut MainCodegen<'a, 'ctx>,
     payload: Option<BasicValueEnum<'ctx>>,
     case_tag: u32,
@@ -5499,14 +5499,14 @@ fn refactor_thread_resume_runtime_error_payload_ptr<'a, 'ctx>(
             Ok(slot)
         }
         None => Err(frontend_error(format!(
-            "refactor thread resume non-complete RuntimeError case c{case_tag} did not carry a RuntimeError ref payload"
+            "thread resume non-complete RuntimeError case c{case_tag} did not carry a RuntimeError ref payload"
         ))),
     }
 }
 
-fn build_refactor_thread_resume_surface_payload_arg<'a, 'ctx>(
+fn build_thread_resume_surface_payload_arg<'a, 'ctx>(
     codegen: &mut MainCodegen<'a, 'ctx>,
-    surface: &RefactorContinuationSurfaceResumeLayout<'ctx>,
+    surface: &ContinuationSurfaceResumeLayout<'ctx>,
     word: IntValue<'ctx>,
     gc_ref: PointerValue<'ctx>,
     payload_ptr: PointerValue<'ctx>,
@@ -5519,43 +5519,43 @@ fn build_refactor_thread_resume_surface_payload_arg<'a, 'ctx>(
             } else if int_ty.get_bit_width() < 64 {
                 Ok(codegen
                     .builder
-                    .build_int_truncate(word, int_ty, "refactor_thread_resume_word_trunc")?
+                    .build_int_truncate(word, int_ty, "thread_resume_word_trunc")?
                     .into())
             } else {
                 Ok(codegen
                     .builder
-                    .build_int_z_extend(word, int_ty, "refactor_thread_resume_word_zext")?
+                    .build_int_z_extend(word, int_ty, "thread_resume_word_zext")?
                     .into())
             }
         }
         BasicTypeEnum::FloatType(float_ty) if float_ty == codegen.context.f64_type() => Ok(codegen
             .builder
-            .build_bit_cast(word, float_ty, "refactor_thread_resume_word_f64")?),
+            .build_bit_cast(word, float_ty, "thread_resume_word_f64")?),
         BasicTypeEnum::FloatType(float_ty) if float_ty == codegen.context.f32_type() => {
             let bits32 = codegen.builder.build_int_truncate(
                 word,
                 codegen.context.i32_type(),
-                "refactor_thread_resume_word_i32",
+                "thread_resume_word_i32",
             )?;
             Ok(codegen.builder.build_bit_cast(
                 bits32,
                 float_ty,
-                "refactor_thread_resume_word_f32",
+                "thread_resume_word_f32",
             )?)
         }
         BasicTypeEnum::PointerType(ptr_ty) => Ok(codegen
             .builder
-            .build_pointer_cast(gc_ref, ptr_ty, "refactor_thread_resume_gc_ref_cast")?
+            .build_pointer_cast(gc_ref, ptr_ty, "thread_resume_gc_ref_cast")?
             .into()),
         _ => {
             let typed_ptr = codegen.builder.build_pointer_cast(
                 payload_ptr,
                 codegen.llvm_ptr_type(AddressSpace::default()),
-                "refactor_thread_resume_payload_typed_ptr",
+                "thread_resume_payload_typed_ptr",
             )?;
             codegen
                 .builder
-                .build_load(payload_ty, typed_ptr, "refactor_thread_resume_payload_load")
+                .build_load(payload_ty, typed_ptr, "thread_resume_payload_load")
                 .map_err(Into::into)
         }
     }
@@ -5565,7 +5565,7 @@ fn frontend_error(message: String) -> LlvmEmitError {
     LlvmEmitError::Frontend { message }
 }
 
-fn refactor_intrinsic_base_fqn(fqn: &str) -> &str {
+fn intrinsic_base_fqn(fqn: &str) -> &str {
     fqn.split("::<")
         .next()
         .unwrap_or(fqn)
@@ -5578,7 +5578,7 @@ fn refactor_intrinsic_base_fqn(fqn: &str) -> &str {
 mod tests {
 
     #[test]
-    fn refactor_llvm_value_primitive_inventory_is_explicit() {
+    fn llvm_value_primitive_inventory_is_explicit() {
         let inventory = [
             "literal",
             "local-load",

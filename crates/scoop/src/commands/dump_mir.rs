@@ -63,7 +63,7 @@ mod tests {
     fn dump_mir_render_uses_stage_stable_dump_surface() {
         let session_options = SessionOptions::new();
         let fixture = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("../../tests/fixtures/mir_refactor/top_level_roots.scoop")
+            .join("../../tests/fixtures/mir_lowered/top_level_roots.scoop")
             .canonicalize()
             .unwrap();
         let source = SourceFile::load(&fixture).unwrap();

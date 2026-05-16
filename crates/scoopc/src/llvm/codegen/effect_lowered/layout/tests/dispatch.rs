@@ -5,9 +5,9 @@
 use super::*;
 
 #[test]
-pub(super) fn refactor_llvm_callable_carrier_layout_resolves_non_boundary_virtual_contracts() {
+pub(super) fn llvm_callable_carrier_layout_resolves_non_boundary_virtual_contracts() {
     with_fixture_query(
-        "effect_refactor_non_boundary_dynamic_call_emit_llvm.scoop",
+        "effect_lowered_non_boundary_dynamic_call_emit_llvm.scoop",
         |inputs, query, _module| {
             let helper = inputs
                 .abi_visibility_program
@@ -44,9 +44,9 @@ pub(super) fn refactor_llvm_callable_carrier_layout_resolves_non_boundary_virtua
 }
 
 #[test]
-pub(super) fn refactor_llvm_dynamic_invoke_query_rejects_missing_published_contract() {
+pub(super) fn llvm_dynamic_invoke_query_rejects_missing_published_contract() {
     with_fixture_query_result(
-        "effect_refactor_dynamic_invoke_candidate_set_emit_llvm.scoop",
+        "effect_lowered_dynamic_invoke_candidate_set_emit_llvm.scoop",
         |inputs| {
             let program = &inputs.abi_visibility_program;
             let helper = program
@@ -125,13 +125,13 @@ pub(super) fn refactor_llvm_dynamic_invoke_query_rejects_missing_published_contr
 }
 
 #[test]
-pub(super) fn refactor_llvm_call_boundary_continuation_composition() {
+pub(super) fn llvm_call_boundary_continuation_composition() {
     with_phase_fixture_query_result(
         "run-pass",
         "effect_multi_escape_indirect_direct_while.scoop",
         |inputs| inputs.abi_visibility_program.clone(),
         |inputs, result, _module| {
-            let query = result.expect("refactor ABI materialization 应成功");
+            let query = result.expect("ABI materialization 应成功");
             let main = inputs
                 .abi_visibility_program
                 .callable("main")
@@ -152,7 +152,7 @@ pub(super) fn refactor_llvm_call_boundary_continuation_composition() {
                 .continuation_layout(main.continuation_object())
                 .expect("main continuation object layout 应存在");
             assert!(continuation_layout.fields().iter().any(|field| {
-                field.kind() == RefactorContinuationFieldKind::CapturedCalleeSuspendStateRef
+                field.kind() == ContinuationFieldKind::CapturedCalleeSuspendStateRef
             }));
             let callee_surface = query
                 .surface_resume_layout(composition.callee_continuation_schema())
@@ -242,12 +242,12 @@ pub(super) fn refactor_llvm_call_boundary_continuation_composition() {
 }
 
 #[test]
-pub(super) fn refactor_llvm_dynamic_entry_publication_declares_closure_vtable_and_itable_targets() {
+pub(super) fn llvm_dynamic_entry_publication_declares_closure_vtable_and_itable_targets() {
     with_inputs_query_result_and_codegen(
-        build_fixture_inputs("effect_refactor_dynamic_entry_publication_emit_llvm.scoop"),
+        build_fixture_inputs("effect_lowered_dynamic_entry_publication_emit_llvm.scoop"),
         |inputs| inputs.abi_visibility_program.clone(),
         |inputs, codegen, result, module| {
-            let query = result.expect("refactor ABI materialization 应成功");
+            let query = result.expect("ABI materialization 应成功");
             let make_closure_callable = inputs
                 .abi_visibility_program
                 .callable("fixtures.build.makeClosure")
@@ -346,9 +346,9 @@ pub(super) fn refactor_llvm_dynamic_entry_publication_declares_closure_vtable_an
 }
 
 #[test]
-pub(super) fn refactor_llvm_callable_carrier_version_selection_rejects_ambiguous_root_targets() {
+pub(super) fn llvm_callable_carrier_version_selection_rejects_ambiguous_root_targets() {
     with_fixture_query_result(
-        "effect_refactor_dynamic_entry_publication_emit_llvm.scoop",
+        "effect_lowered_dynamic_entry_publication_emit_llvm.scoop",
         |inputs| {
             duplicate_no_outward_callable_version(
                 &inputs.abi_visibility_program,
@@ -379,14 +379,14 @@ pub(super) fn refactor_llvm_callable_carrier_version_selection_rejects_ambiguous
 }
 
 #[test]
-pub(super) fn refactor_llvm_dynamic_entry_publication_rejects_missing_dispatch_callable_shell() {
+pub(super) fn llvm_dynamic_entry_publication_rejects_missing_dispatch_callable_shell() {
     with_inputs_query_result_and_codegen(
-        build_fixture_inputs("effect_refactor_dynamic_entry_publication_emit_llvm.scoop"),
+        build_fixture_inputs("effect_lowered_dynamic_entry_publication_emit_llvm.scoop"),
         |inputs| inputs.abi_visibility_program.clone(),
         |_inputs, codegen, result, _module| {
             let _ = result.expect("ABI materialization 应成功");
             let dummy_fn = codegen.declare_compiler_private_helper_function(
-                "__scoop_refactor_missing_carrier_target_dummy",
+                "__scoop_missing_carrier_target_dummy",
                 codegen.context.void_type().fn_type(&[], false),
                 Linkage::External,
             );
@@ -412,7 +412,7 @@ pub(super) fn refactor_llvm_dynamic_entry_publication_rejects_missing_dispatch_c
 }
 
 #[test]
-pub(super) fn refactor_llvm_local_runtime_error_contract_resolves_pure_call_boundary_targets() {
+pub(super) fn llvm_local_runtime_error_contract_resolves_pure_call_boundary_targets() {
     with_phase_fixture_query_result(
         "run-pass",
         "effect_resume_if_else_branch_single_perform.scoop",
@@ -475,7 +475,7 @@ pub(super) fn refactor_llvm_local_runtime_error_contract_resolves_pure_call_boun
 }
 
 #[test]
-pub(super) fn refactor_llvm_local_runtime_error_contract_rejects_missing_target_state() {
+pub(super) fn llvm_local_runtime_error_contract_rejects_missing_target_state() {
     with_phase_fixture_query_result(
         "run-pass",
         "effect_resume_if_else_branch_single_perform.scoop",
@@ -566,7 +566,7 @@ pub(super) fn refactor_llvm_local_runtime_error_contract_rejects_missing_target_
 }
 
 #[test]
-pub(super) fn refactor_llvm_local_runtime_error_contract_rejects_non_local_runtime_error_terminator()
+pub(super) fn llvm_local_runtime_error_contract_rejects_non_local_runtime_error_terminator()
  {
     with_phase_fixture_query_result(
         "run-pass",

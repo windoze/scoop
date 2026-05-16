@@ -1,10 +1,10 @@
-//! Resume / surface-resume / continuation-driver codegen entries plus the small helper methods (current_function, refactor_function, LLVM type accessors) that the resume layer relies on.
+//! Resume / surface-resume / continuation-driver codegen entries plus the small helper methods (current_function, function, LLVM type accessors) that the resume layer relies on.
 
 use super::*;
 
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     #[allow(clippy::too_many_arguments)]
-    pub(super) fn codegen_refactor_resume_method(
+    pub(super) fn codegen_resume_method(
         &mut self,
         program: &'a LateLoweredProgram,
         source_types: &'a TypeStore,
@@ -21,17 +21,17 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         if function.count_basic_blocks() > 0 {
             return Ok(());
         }
-        let mir_fun = refactor_mir_callable(pass_view, callable.root_fqn())?;
+        let mir_fun = mir_callable(pass_view, callable.root_fqn())?;
         let body = mir_fun.body.as_ref().ok_or_else(|| {
             frontend_error(format!(
-                "refactor resume method `{symbol_name}` owner `{}` 缺少 canonical MIR body",
+                "resume method `{symbol_name}` owner `{}` 缺少 canonical MIR body",
                 callable.root_fqn()
             ))
         })?;
         let entry = self.context.append_basic_block(function, "entry");
         self.builder.position_at_end(entry);
         self.begin_function_explicit_frame_layout(function)?;
-        RefactorCallableEmitter::new(
+        CallableEmitter::new(
             self,
             program,
             source_types,
@@ -44,14 +44,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             None,
             None,
             None,
-            RefactorHandleCompletionMode::ReturnFromFunction,
+            HandleCompletionMode::ReturnFromFunction,
         )?
         .emit_resume_method(case_tag, resume_tuple_ty)?;
         self.finish_function_explicit_frame_layout(mir_fun.span)?;
         Ok(())
     }
 
-    pub(super) fn codegen_refactor_unreachable_resume_method(
+    pub(super) fn codegen_unreachable_resume_method(
         &mut self,
         symbol_name: &str,
         fn_ty: inkwell::types::FunctionType<'ctx>,
@@ -66,11 +66,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(())
     }
 
-    pub(super) fn codegen_refactor_surface_resume(
+    pub(super) fn codegen_surface_resume(
         &mut self,
         _program: &LateLoweredProgram,
         abi: &ProgramAbiQuery<'ctx>,
-        surface: &RefactorContinuationSurfaceResumeLayout<'ctx>,
+        surface: &ContinuationSurfaceResumeLayout<'ctx>,
     ) -> Result<(), LlvmEmitError> {
         let function = self.declare_compiler_private_helper_function(
             surface.symbol_name(),
@@ -90,7 +90,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
         let cont = function.get_nth_param(0).ok_or_else(|| {
             frontend_error(format!(
-                "refactor surface resume `{}` 缺少 continuation 参数",
+                "surface resume `{}` 缺少 continuation 参数",
                 surface.symbol_name()
             ))
         })?;
@@ -99,20 +99,20 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         if surface.param_count() > 1 {
             let payload = function.get_nth_param(1).ok_or_else(|| {
                 frontend_error(format!(
-                    "refactor surface resume `{}` 缺少 resume payload 参数",
+                    "surface resume `{}` 缺少 resume payload 参数",
                     surface.symbol_name()
                 ))
             })?;
             args.push(payload.into());
         }
         if targets.len() == 1 {
-            let trampoline_fun = self.refactor_function(targets[0].symbol_name())?;
+            let trampoline_fun = self.function(targets[0].symbol_name())?;
             let call =
                 self.builder
-                    .build_call(trampoline_fun, &args, "refactor_surface_resume_call")?;
+                    .build_call(trampoline_fun, &args, "surface_resume_call")?;
             let owner_step = call.try_as_basic_value().basic().ok_or_else(|| {
                 frontend_error(format!(
-                    "refactor surface resume `{}` 调用 owner dispatch 未返回 Step_F",
+                    "surface resume `{}` 调用 owner dispatch 未返回 Step_F",
                     surface.symbol_name()
                 ))
             })?;
@@ -146,12 +146,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 .continuation_layout(target.owner_continuation_object())
                 .ok_or_else(|| {
                     frontend_error(format!(
-                        "refactor surface resume `{}` 缺少 owner continuation object ko{} layout",
+                        "surface resume `{}` 缺少 owner continuation object ko{} layout",
                         surface.symbol_name(),
                         target.owner_continuation_object().as_u32(),
                     ))
                 })?;
-            let type_desc = self.get_or_create_refactor_gc_type_descriptor(
+            let type_desc = self.get_or_create_gc_type_descriptor(
                 crate::span::Span::new(0, 0),
                 continuation_layout.llvm_ty(),
                 continuation_layout.layout_anchor_name(),
@@ -176,15 +176,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 .build_conditional_branch(is_match, hit_bb, next_bb)?;
 
             self.builder.position_at_end(hit_bb);
-            let trampoline_fun = self.refactor_function(target.symbol_name())?;
+            let trampoline_fun = self.function(target.symbol_name())?;
             let call = self.builder.build_call(
                 trampoline_fun,
                 &args,
-                "refactor_surface_resume_owner_call",
+                "surface_resume_owner_call",
             )?;
             let owner_step = call.try_as_basic_value().basic().ok_or_else(|| {
                 frontend_error(format!(
-                    "refactor surface resume `{}` 调用 owner dispatch `{}` 未返回 Step_F",
+                    "surface resume `{}` 调用 owner dispatch `{}` 未返回 Step_F",
                     surface.symbol_name(),
                     target.symbol_name(),
                 ))
@@ -198,12 +198,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(())
     }
 
-    pub(super) fn codegen_refactor_surface_resume_outcome(
+    pub(super) fn codegen_surface_resume_outcome(
         &mut self,
         abi: &ProgramAbiQuery<'ctx>,
-        surface: &RefactorContinuationSurfaceResumeLayout<'ctx>,
+        surface: &ContinuationSurfaceResumeLayout<'ctx>,
     ) -> Result<(), LlvmEmitError> {
-        let function = self.refactor_surface_resume_outcome_function(surface);
+        let function = self.surface_resume_outcome_function(surface);
         if function.count_basic_blocks() > 0 {
             return Ok(());
         }
@@ -217,7 +217,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
         let cont = function.get_nth_param(0).ok_or_else(|| {
             frontend_error(format!(
-                "refactor outcome surface resume `{}` 缺少 continuation 参数",
+                "outcome surface resume `{}` 缺少 continuation 参数",
                 function.get_name().to_str().unwrap_or("<invalid>")
             ))
         })?;
@@ -225,7 +225,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         if !surface.resume_payload_abi().is_elided() {
             let payload = function.get_nth_param(1).ok_or_else(|| {
                 frontend_error(format!(
-                    "refactor outcome surface resume `{}` 缺少 resume payload 参数",
+                    "outcome surface resume `{}` 缺少 resume payload 参数",
                     function.get_name().to_str().unwrap_or("<invalid>")
                 ))
             })?;
@@ -238,18 +238,18 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         };
         let outcome_ptr = function.get_nth_param(outcome_index).ok_or_else(|| {
             frontend_error(format!(
-                "refactor outcome surface resume `{}` 缺少 explicit outcome 参数",
+                "outcome surface resume `{}` 缺少 explicit outcome 参数",
                 function.get_name().to_str().unwrap_or("<invalid>")
             ))
         })?;
         args.push(outcome_ptr.into());
         if targets.len() == 1 {
-            let callee = self.refactor_surface_resume_owner_outcome_function(surface, &targets[0]);
+            let callee = self.surface_resume_owner_outcome_function(surface, &targets[0]);
             self.build_call_preserving_gc_local_roots(
                 crate::span::Span::new(0, 0),
                 callee,
                 &args,
-                "refactor_surface_resume_outcome_call",
+                "surface_resume_outcome_call",
             )?;
             self.builder.build_return(None)?;
             return Ok(());
@@ -286,12 +286,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 .continuation_layout(target.owner_continuation_object())
                 .ok_or_else(|| {
                     frontend_error(format!(
-                        "refactor outcome surface resume `{}` 缺少 owner continuation object ko{} layout",
+                        "outcome surface resume `{}` 缺少 owner continuation object ko{} layout",
                         function.get_name().to_str().unwrap_or("<invalid>"),
                         target.owner_continuation_object().as_u32(),
                     ))
                 })?;
-            let type_desc = self.get_or_create_refactor_gc_type_descriptor(
+            let type_desc = self.get_or_create_gc_type_descriptor(
                 crate::span::Span::new(0, 0),
                 continuation_layout.llvm_ty(),
                 continuation_layout.layout_anchor_name(),
@@ -316,12 +316,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 .build_conditional_branch(is_match, hit_bb, next_bb)?;
 
             self.builder.position_at_end(hit_bb);
-            let callee = self.refactor_surface_resume_owner_outcome_function(surface, target);
+            let callee = self.surface_resume_owner_outcome_function(surface, target);
             self.build_call_preserving_gc_local_roots(
                 crate::span::Span::new(0, 0),
                 callee,
                 &args,
-                "refactor_surface_resume_owner_outcome_call",
+                "surface_resume_owner_outcome_call",
             )?;
             self.builder.build_return(None)?;
             check_bb = next_bb;
@@ -332,12 +332,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(())
     }
 
-    pub(super) fn codegen_refactor_continuation_drive_outcome(
+    pub(super) fn codegen_continuation_drive_outcome(
         &mut self,
         abi: &ProgramAbiQuery<'ctx>,
-        surface: &RefactorContinuationSurfaceResumeLayout<'ctx>,
+        surface: &ContinuationSurfaceResumeLayout<'ctx>,
     ) -> Result<(), LlvmEmitError> {
-        let function = self.refactor_continuation_drive_outcome_function(surface);
+        let function = self.continuation_drive_outcome_function(surface);
         if function.count_basic_blocks() > 0 {
             return Ok(());
         }
@@ -351,31 +351,31 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
         let cont = function.get_nth_param(0).ok_or_else(|| {
             frontend_error(format!(
-                "refactor continuation drive outcome `{}` 缺少 continuation 参数",
+                "continuation drive outcome `{}` 缺少 continuation 参数",
                 function.get_name().to_str().unwrap_or("<invalid>")
             ))
         })?;
         let resume_word = function.get_nth_param(1).ok_or_else(|| {
             frontend_error(format!(
-                "refactor continuation drive outcome `{}` 缺少 resume_word 参数",
+                "continuation drive outcome `{}` 缺少 resume_word 参数",
                 function.get_name().to_str().unwrap_or("<invalid>")
             ))
         })?;
         let resume_gc_ref = function.get_nth_param(2).ok_or_else(|| {
             frontend_error(format!(
-                "refactor continuation drive outcome `{}` 缺少 resume_gc_ref 参数",
+                "continuation drive outcome `{}` 缺少 resume_gc_ref 参数",
                 function.get_name().to_str().unwrap_or("<invalid>")
             ))
         })?;
         let answer_slot = function.get_nth_param(3).ok_or_else(|| {
             frontend_error(format!(
-                "refactor continuation drive outcome `{}` 缺少 answer slot 参数",
+                "continuation drive outcome `{}` 缺少 answer slot 参数",
                 function.get_name().to_str().unwrap_or("<invalid>")
             ))
         })?;
         let outcome_ptr = function.get_nth_param(4).ok_or_else(|| {
             frontend_error(format!(
-                "refactor continuation drive outcome `{}` 缺少 outcome 参数",
+                "continuation drive outcome `{}` 缺少 outcome 参数",
                 function.get_name().to_str().unwrap_or("<invalid>")
             ))
         })?;
@@ -388,12 +388,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         ];
         if targets.len() == 1 {
             let callee =
-                self.refactor_continuation_drive_owner_outcome_function(surface, &targets[0]);
+                self.continuation_drive_owner_outcome_function(surface, &targets[0]);
             self.build_call_preserving_gc_local_roots(
                 crate::span::Span::new(0, 0),
                 callee,
                 &args,
-                "refactor_continuation_drive_outcome_call",
+                "continuation_drive_outcome_call",
             )?;
             self.builder.build_return(None)?;
             return Ok(());
@@ -430,12 +430,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 .continuation_layout(target.owner_continuation_object())
                 .ok_or_else(|| {
                     frontend_error(format!(
-                        "refactor continuation drive outcome `{}` 缺少 owner continuation object ko{} layout",
+                        "continuation drive outcome `{}` 缺少 owner continuation object ko{} layout",
                         function.get_name().to_str().unwrap_or("<invalid>"),
                         target.owner_continuation_object().as_u32(),
                     ))
                 })?;
-            let type_desc = self.get_or_create_refactor_gc_type_descriptor(
+            let type_desc = self.get_or_create_gc_type_descriptor(
                 crate::span::Span::new(0, 0),
                 continuation_layout.llvm_ty(),
                 continuation_layout.layout_anchor_name(),
@@ -460,12 +460,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 .build_conditional_branch(is_match, hit_bb, next_bb)?;
 
             self.builder.position_at_end(hit_bb);
-            let callee = self.refactor_continuation_drive_owner_outcome_function(surface, target);
+            let callee = self.continuation_drive_owner_outcome_function(surface, target);
             self.build_call_preserving_gc_local_roots(
                 crate::span::Span::new(0, 0),
                 callee,
                 &args,
-                "refactor_continuation_drive_owner_outcome_call",
+                "continuation_drive_owner_outcome_call",
             )?;
             self.builder.build_return(None)?;
             check_bb = next_bb;
@@ -476,13 +476,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(())
     }
 
-    pub(super) fn codegen_refactor_dynamic_surface_resume_adapter(
+    pub(super) fn codegen_dynamic_surface_resume_adapter(
         &mut self,
         program: &'a LateLoweredProgram,
         abi: &ProgramAbiQuery<'ctx>,
-        surface: &RefactorContinuationSurfaceResumeLayout<'ctx>,
+        surface: &ContinuationSurfaceResumeLayout<'ctx>,
     ) -> Result<(), LlvmEmitError> {
-        let function = self.refactor_function(surface.symbol_name())?;
+        let function = self.function(surface.symbol_name())?;
         if function.count_basic_blocks() > 0 {
             return Ok(());
         }
@@ -490,7 +490,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .step_type(surface.return_step_schema())
             .ok_or_else(|| {
                 frontend_error(format!(
-                    "refactor dynamic surface resume k{} 缺少 wrapper step schema s{}",
+                    "dynamic surface resume k{} 缺少 wrapper step schema s{}",
                     surface.continuation_schema().as_u32(),
                     surface.return_step_schema().as_u32()
                 ))
@@ -503,7 +503,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             })
             .ok_or_else(|| {
                 frontend_error(format!(
-                    "refactor dynamic surface resume k{} 无法在 wrapper step s{} 中找到对应 case",
+                    "dynamic surface resume k{} 无法在 wrapper step s{} 中找到对应 case",
                     surface.continuation_schema().as_u32(),
                     wrapper_step.step_schema().as_u32()
                 ))
@@ -547,7 +547,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.builder.position_at_end(entry);
         let cont = function.get_nth_param(0).ok_or_else(|| {
             frontend_error(format!(
-                "refactor dynamic surface resume `{}` 缺少 continuation 参数",
+                "dynamic surface resume `{}` 缺少 continuation 参数",
                 surface.symbol_name()
             ))
         })?;
@@ -555,7 +555,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let payload = if surface.param_count() > 1 {
             Some(function.get_nth_param(1).ok_or_else(|| {
                 frontend_error(format!(
-                    "refactor dynamic surface resume `{}` 缺少 payload 参数",
+                    "dynamic surface resume `{}` 缺少 payload 参数",
                     surface.symbol_name()
                 ))
             })?)
@@ -586,7 +586,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 &format!("dynamic_surface_hit_s{}", callable.step_schema().as_u32()),
             );
             self.builder.position_at_end(check_bb);
-            let type_desc = self.get_or_create_refactor_gc_type_descriptor(
+            let type_desc = self.get_or_create_gc_type_descriptor(
                 crate::span::Span::new(0, 0),
                 continuation_layout.llvm_ty(),
                 continuation_layout.layout_anchor_name(),
@@ -611,14 +611,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 .build_conditional_branch(is_match, hit_bb, next_bb)?;
 
             self.builder.position_at_end(hit_bb);
-            let owner_fun = self.refactor_function(owner_surface.symbol_name())?;
+            let owner_fun = self.function(owner_surface.symbol_name())?;
             let mut args = Vec::<BasicMetadataValueEnum<'ctx>>::from([cont_ptr.into()]);
             if owner_surface.param_count() > 1 {
                 args.push(
                     payload
                         .ok_or_else(|| {
                             frontend_error(format!(
-                                "refactor dynamic surface resume `{}` target `{}` 需要 payload",
+                                "dynamic surface resume `{}` target `{}` 需要 payload",
                                 surface.symbol_name(),
                                 owner_surface.symbol_name()
                             ))
@@ -634,12 +634,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             )?;
             let owner_step = call.try_as_basic_value().basic().ok_or_else(|| {
                 frontend_error(format!(
-                    "refactor dynamic surface resume `{}` target `{}` 未返回 Step_F",
+                    "dynamic surface resume `{}` target `{}` 未返回 Step_F",
                     surface.symbol_name(),
                     owner_surface.symbol_name()
                 ))
             })?;
-            let projected = self.project_refactor_step_to_schema(
+            let projected = self.project_step_to_schema(
                 abi,
                 owner_step,
                 callable.step_schema(),
@@ -656,7 +656,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     pub(super) fn collect_surface_resume_handle_sites(
         &self,
-        target: &super::super::types::RefactorContinuationSurfaceResumeOwnerTrampolineLayout<'ctx>,
+        target: &super::super::types::ContinuationSurfaceResumeOwnerTrampolineLayout<'ctx>,
     ) -> Option<BTreeSet<SiteId>> {
         let mut surface_handle_sites = target
             .handle_binder_routes()
@@ -674,16 +674,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         (!surface_handle_sites.is_empty()).then_some(surface_handle_sites)
     }
 
-    pub(super) fn codegen_refactor_surface_resume_owner_core(
+    pub(super) fn codegen_surface_resume_owner_core(
         &mut self,
         program: &'a LateLoweredProgram,
         source_types: &'a TypeStore,
         pass_view: &'a mir::MaterializedMirPassView<'a>,
         abi: &ProgramAbiQuery<'ctx>,
-        surface: &RefactorContinuationSurfaceResumeLayout<'ctx>,
-        target: &super::super::types::RefactorContinuationSurfaceResumeOwnerTrampolineLayout<'ctx>,
+        surface: &ContinuationSurfaceResumeLayout<'ctx>,
+        target: &super::super::types::ContinuationSurfaceResumeOwnerTrampolineLayout<'ctx>,
     ) -> Result<(), LlvmEmitError> {
-        let core_fun = self.refactor_surface_resume_owner_core_function(surface, target);
+        let core_fun = self.surface_resume_owner_core_function(surface, target);
         if core_fun.count_basic_blocks() > 0 {
             return Ok(());
         }
@@ -703,15 +703,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             })
             .ok_or_else(|| {
                 frontend_error(format!(
-                    "refactor outcome owner core k{} 缺少 owner callable {:?}",
+                    "outcome owner core k{} 缺少 owner callable {:?}",
                     surface.continuation_schema().as_u32(),
                     target.owner_version_key()
                 ))
             })?;
-        let mir_fun = refactor_mir_callable(pass_view, callable.root_fqn())?;
+        let mir_fun = mir_callable(pass_view, callable.root_fqn())?;
         let body = mir_fun.body.as_ref().ok_or_else(|| {
             frontend_error(format!(
-                "refactor outcome owner core `{}` owner `{}` 缺少 canonical MIR body",
+                "outcome owner core `{}` owner `{}` 缺少 canonical MIR body",
                 core_fun.get_name().to_str().unwrap_or("<invalid>"),
                 callable.root_fqn()
             ))
@@ -719,7 +719,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let entry = self.context.append_basic_block(core_fun, "entry");
         self.builder.position_at_end(entry);
         self.begin_function_explicit_frame_layout(core_fun)?;
-        RefactorCallableEmitter::new(
+        CallableEmitter::new(
             self,
             program,
             source_types,
@@ -732,30 +732,30 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             None,
             None,
             self.collect_surface_resume_handle_sites(target),
-            RefactorHandleCompletionMode::ReturnFromFunction,
+            HandleCompletionMode::ReturnFromFunction,
         )?
         .emit_resume_outcome_core(surface.resume_tuple_ty())?;
         self.finish_function_explicit_frame_layout(mir_fun.span)?;
         Ok(())
     }
 
-    pub(super) fn codegen_refactor_surface_resume_owner_outcome(
+    pub(super) fn codegen_surface_resume_owner_outcome(
         &mut self,
         program: &'a LateLoweredProgram,
         source_types: &'a TypeStore,
         pass_view: &'a mir::MaterializedMirPassView<'a>,
         abi: &ProgramAbiQuery<'ctx>,
-        surface: &RefactorContinuationSurfaceResumeLayout<'ctx>,
-        target: &super::super::types::RefactorContinuationSurfaceResumeOwnerTrampolineLayout<'ctx>,
+        surface: &ContinuationSurfaceResumeLayout<'ctx>,
+        target: &super::super::types::ContinuationSurfaceResumeOwnerTrampolineLayout<'ctx>,
     ) -> Result<(), LlvmEmitError> {
-        let outcome_fun = self.refactor_surface_resume_owner_outcome_function(surface, target);
+        let outcome_fun = self.surface_resume_owner_outcome_function(surface, target);
         if outcome_fun.count_basic_blocks() > 0 {
             return Ok(());
         }
-        let core_fun = self.refactor_surface_resume_owner_core_function(surface, target);
+        let core_fun = self.surface_resume_owner_core_function(surface, target);
         {
             let mut child = self.fresh_child_codegen();
-            child.codegen_refactor_surface_resume_owner_core(
+            child.codegen_surface_resume_owner_core(
                 program,
                 source_types,
                 pass_view,
@@ -780,15 +780,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             })
             .ok_or_else(|| {
                 frontend_error(format!(
-                    "refactor outcome owner wrapper k{} 缺少 owner callable {:?}",
+                    "outcome owner wrapper k{} 缺少 owner callable {:?}",
                     surface.continuation_schema().as_u32(),
                     target.owner_version_key()
                 ))
             })?;
-        let mir_fun = refactor_mir_callable(pass_view, callable.root_fqn())?;
+        let mir_fun = mir_callable(pass_view, callable.root_fqn())?;
         let body = mir_fun.body.as_ref().ok_or_else(|| {
             frontend_error(format!(
-                "refactor outcome owner wrapper `{}` owner `{}` 缺少 canonical MIR body",
+                "outcome owner wrapper `{}` owner `{}` 缺少 canonical MIR body",
                 outcome_fun.get_name().to_str().unwrap_or("<invalid>"),
                 callable.root_fqn()
             ))
@@ -796,7 +796,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let entry = self.context.append_basic_block(outcome_fun, "entry");
         self.builder.position_at_end(entry);
         self.begin_function_explicit_frame_layout(outcome_fun)?;
-        RefactorCallableEmitter::new(
+        CallableEmitter::new(
             self,
             program,
             source_types,
@@ -809,23 +809,23 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             None,
             None,
             self.collect_surface_resume_handle_sites(target),
-            RefactorHandleCompletionMode::ReturnFromFunction,
+            HandleCompletionMode::ReturnFromFunction,
         )?
         .emit_resume_outcome_wrapper(core_fun, surface.resume_tuple_ty())?;
         self.finish_function_explicit_frame_layout(mir_fun.span)?;
         Ok(())
     }
 
-    pub(super) fn codegen_refactor_continuation_step(
+    pub(super) fn codegen_continuation_step(
         &mut self,
         program: &'a LateLoweredProgram,
         source_types: &'a TypeStore,
         pass_view: &'a mir::MaterializedMirPassView<'a>,
         abi: &ProgramAbiQuery<'ctx>,
-        surface: &RefactorContinuationSurfaceResumeLayout<'ctx>,
-        target: &super::super::types::RefactorContinuationSurfaceResumeOwnerTrampolineLayout<'ctx>,
+        surface: &ContinuationSurfaceResumeLayout<'ctx>,
+        target: &super::super::types::ContinuationSurfaceResumeOwnerTrampolineLayout<'ctx>,
     ) -> Result<(), LlvmEmitError> {
-        let function = self.refactor_continuation_step_function(target);
+        let function = self.continuation_step_function(target);
         if function.count_basic_blocks() > 0 {
             return Ok(());
         }
@@ -845,15 +845,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             })
             .ok_or_else(|| {
                 frontend_error(format!(
-                    "refactor continuation step k{} 缺少 owner callable {:?}",
+                    "continuation step k{} 缺少 owner callable {:?}",
                     surface.continuation_schema().as_u32(),
                     target.owner_version_key()
                 ))
             })?;
-        let mir_fun = refactor_mir_callable(pass_view, callable.root_fqn())?;
+        let mir_fun = mir_callable(pass_view, callable.root_fqn())?;
         let body = mir_fun.body.as_ref().ok_or_else(|| {
             frontend_error(format!(
-                "refactor continuation step `{}` owner `{}` 缺少 canonical MIR body",
+                "continuation step `{}` owner `{}` 缺少 canonical MIR body",
                 function.get_name().to_str().unwrap_or("<invalid>"),
                 callable.root_fqn()
             ))
@@ -861,7 +861,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let entry = self.context.append_basic_block(function, "entry");
         self.builder.position_at_end(entry);
         self.begin_function_explicit_frame_layout(function)?;
-        RefactorCallableEmitter::new(
+        CallableEmitter::new(
             self,
             program,
             source_types,
@@ -874,29 +874,29 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             None,
             None,
             self.collect_surface_resume_handle_sites(target),
-            RefactorHandleCompletionMode::ReturnFromFunction,
+            HandleCompletionMode::ReturnFromFunction,
         )?
         .emit_generated_continuation_step(surface.resume_tuple_ty())?;
         self.finish_function_explicit_frame_layout(mir_fun.span)?;
         Ok(())
     }
 
-    pub(super) fn codegen_refactor_continuation_drive_owner_outcome(
+    pub(super) fn codegen_continuation_drive_owner_outcome(
         &mut self,
         program: &'a LateLoweredProgram,
         source_types: &'a TypeStore,
         pass_view: &'a mir::MaterializedMirPassView<'a>,
         abi: &ProgramAbiQuery<'ctx>,
-        surface: &RefactorContinuationSurfaceResumeLayout<'ctx>,
-        target: &super::super::types::RefactorContinuationSurfaceResumeOwnerTrampolineLayout<'ctx>,
+        surface: &ContinuationSurfaceResumeLayout<'ctx>,
+        target: &super::super::types::ContinuationSurfaceResumeOwnerTrampolineLayout<'ctx>,
     ) -> Result<(), LlvmEmitError> {
-        let outcome_fun = self.refactor_continuation_drive_owner_outcome_function(surface, target);
+        let outcome_fun = self.continuation_drive_owner_outcome_function(surface, target);
         if outcome_fun.count_basic_blocks() > 0 {
             return Ok(());
         }
         {
             let mut child = self.fresh_child_codegen();
-            child.codegen_refactor_continuation_step(
+            child.codegen_continuation_step(
                 program,
                 source_types,
                 pass_view,
@@ -921,15 +921,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             })
             .ok_or_else(|| {
                 frontend_error(format!(
-                    "refactor continuation drive owner outcome k{} 缺少 owner callable {:?}",
+                    "continuation drive owner outcome k{} 缺少 owner callable {:?}",
                     surface.continuation_schema().as_u32(),
                     target.owner_version_key()
                 ))
             })?;
-        let mir_fun = refactor_mir_callable(pass_view, callable.root_fqn())?;
+        let mir_fun = mir_callable(pass_view, callable.root_fqn())?;
         let body = mir_fun.body.as_ref().ok_or_else(|| {
             frontend_error(format!(
-                "refactor continuation drive owner outcome `{}` owner `{}` 缺少 canonical MIR body",
+                "continuation drive owner outcome `{}` owner `{}` 缺少 canonical MIR body",
                 outcome_fun.get_name().to_str().unwrap_or("<invalid>"),
                 callable.root_fqn()
             ))
@@ -937,7 +937,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let entry = self.context.append_basic_block(outcome_fun, "entry");
         self.builder.position_at_end(entry);
         self.begin_function_explicit_frame_layout(outcome_fun)?;
-        RefactorCallableEmitter::new(
+        CallableEmitter::new(
             self,
             program,
             source_types,
@@ -950,7 +950,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             None,
             None,
             self.collect_surface_resume_handle_sites(target),
-            RefactorHandleCompletionMode::ReturnFromFunction,
+            HandleCompletionMode::ReturnFromFunction,
         )?
         .emit_generated_continuation_resume_driver(surface)?;
         self.finish_function_explicit_frame_layout(mir_fun.span)?;
@@ -976,14 +976,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .into_pointer_value())
     }
 
-    pub(super) fn codegen_refactor_surface_resume_owner_trampoline(
+    pub(super) fn codegen_surface_resume_owner_trampoline(
         &mut self,
         program: &'a LateLoweredProgram,
         source_types: &'a TypeStore,
         pass_view: &'a mir::MaterializedMirPassView<'a>,
         abi: &ProgramAbiQuery<'ctx>,
-        surface: &RefactorContinuationSurfaceResumeLayout<'ctx>,
-        target: &super::super::types::RefactorContinuationSurfaceResumeOwnerTrampolineLayout<'ctx>,
+        surface: &ContinuationSurfaceResumeLayout<'ctx>,
+        target: &super::super::types::ContinuationSurfaceResumeOwnerTrampolineLayout<'ctx>,
     ) -> Result<(), LlvmEmitError> {
         let function = self
             .module
@@ -1014,7 +1014,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             })
             .ok_or_else(|| {
                 frontend_error(format!(
-                    "refactor surface resume owner dispatch k{} 缺少 owner callable {:?}",
+                    "surface resume owner dispatch k{} 缺少 owner callable {:?}",
                     surface.continuation_schema().as_u32(),
                     target.owner_version_key()
                 ))
@@ -1024,16 +1024,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 != target.owner_version_key().surface_instance()
         {
             return Err(frontend_error(format!(
-                "refactor surface resume owner dispatch k{} owner step schema 漂移：callable=s{} target=s{}",
+                "surface resume owner dispatch k{} owner step schema 漂移：callable=s{} target=s{}",
                 surface.continuation_schema().as_u32(),
                 callable.step_schema().as_u32(),
                 target.owner_step_schema().as_u32()
             )));
         }
-        let mir_fun = refactor_mir_callable(pass_view, callable.root_fqn())?;
+        let mir_fun = mir_callable(pass_view, callable.root_fqn())?;
         let body = mir_fun.body.as_ref().ok_or_else(|| {
             frontend_error(format!(
-                "refactor surface resume owner dispatch `{}` owner `{}` 缺少 canonical MIR body",
+                "surface resume owner dispatch `{}` owner `{}` 缺少 canonical MIR body",
                 target.symbol_name(),
                 callable.root_fqn()
             ))
@@ -1067,7 +1067,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let return_step_schema = (target.wrapper_projection().is_none()
             && target.owner_step_schema() != surface.return_step_schema())
         .then_some(surface.return_step_schema());
-        RefactorCallableEmitter::new(
+        CallableEmitter::new(
             self,
             program,
             source_types,
@@ -1080,7 +1080,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             target.wrapper_projection(),
             return_step_schema,
             surface_handle_sites,
-            RefactorHandleCompletionMode::ReturnFromFunction,
+            HandleCompletionMode::ReturnFromFunction,
         )?
         .emit_resume_entry(surface.resume_tuple_ty())?;
         self.finish_function_explicit_frame_layout(mir_fun.span)?;
@@ -1093,25 +1093,25 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .and_then(|bb| bb.get_parent())
             .ok_or_else(|| {
                 frontend_error(
-                    "refactor body lowering 当前 builder 没有 active function".to_string(),
+                    "body lowering 当前 builder 没有 active function".to_string(),
                 )
             })
     }
 
-    pub(super) fn refactor_function(
+    pub(super) fn function(
         &self,
         symbol_name: &str,
     ) -> Result<FunctionValue<'ctx>, LlvmEmitError> {
         self.module.get_function(symbol_name).ok_or_else(|| {
             frontend_error(format!(
-                "refactor body lowering 缺少已发布 function shell `{symbol_name}`"
+                "body lowering 缺少已发布 function shell `{symbol_name}`"
             ))
         })
     }
 
-    pub(super) fn refactor_surface_resume_outcome_llvm_ty(
+    pub(super) fn surface_resume_outcome_llvm_ty(
         &self,
-        surface: &RefactorContinuationSurfaceResumeLayout<'ctx>,
+        surface: &ContinuationSurfaceResumeLayout<'ctx>,
     ) -> inkwell::types::FunctionType<'ctx> {
         let mut params = vec![self.llvm_gc_i8_ptr_type().into()];
         if !surface.resume_payload_abi().is_elided() {
@@ -1121,16 +1121,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.context.void_type().fn_type(&params, false)
     }
 
-    pub(super) fn refactor_surface_resume_owner_outcome_llvm_ty(
+    pub(super) fn surface_resume_owner_outcome_llvm_ty(
         &self,
-        surface: &RefactorContinuationSurfaceResumeLayout<'ctx>,
+        surface: &ContinuationSurfaceResumeLayout<'ctx>,
     ) -> inkwell::types::FunctionType<'ctx> {
-        self.refactor_surface_resume_outcome_llvm_ty(surface)
+        self.surface_resume_outcome_llvm_ty(surface)
     }
 
-    pub(super) fn refactor_surface_resume_owner_core_llvm_ty(
+    pub(super) fn surface_resume_owner_core_llvm_ty(
         &self,
-        surface: &RefactorContinuationSurfaceResumeLayout<'ctx>,
+        surface: &ContinuationSurfaceResumeLayout<'ctx>,
     ) -> inkwell::types::FunctionType<'ctx> {
         let mut params = vec![self.llvm_gc_i8_ptr_type().into()];
         if !surface.resume_payload_abi().is_elided() {
@@ -1142,36 +1142,36 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.context.void_type().fn_type(&params, false)
     }
 
-    pub(super) fn refactor_surface_resume_outcome_function(
+    pub(super) fn surface_resume_outcome_function(
         &mut self,
-        surface: &RefactorContinuationSurfaceResumeLayout<'ctx>,
+        surface: &ContinuationSurfaceResumeLayout<'ctx>,
     ) -> FunctionValue<'ctx> {
-        let symbol_name = refactor_surface_resume_outcome_symbol_name(surface);
-        let llvm_ty = self.refactor_surface_resume_outcome_llvm_ty(surface);
+        let symbol_name = surface_resume_outcome_symbol_name(surface);
+        let llvm_ty = self.surface_resume_outcome_llvm_ty(surface);
         self.declare_compiler_private_helper_function(&symbol_name, llvm_ty, Linkage::Internal)
     }
 
-    pub(super) fn refactor_surface_resume_owner_outcome_function(
+    pub(super) fn surface_resume_owner_outcome_function(
         &mut self,
-        surface: &RefactorContinuationSurfaceResumeLayout<'ctx>,
-        target: &super::super::types::RefactorContinuationSurfaceResumeOwnerTrampolineLayout<'ctx>,
+        surface: &ContinuationSurfaceResumeLayout<'ctx>,
+        target: &super::super::types::ContinuationSurfaceResumeOwnerTrampolineLayout<'ctx>,
     ) -> FunctionValue<'ctx> {
-        let symbol_name = refactor_surface_resume_owner_outcome_symbol_name(target);
-        let llvm_ty = self.refactor_surface_resume_owner_outcome_llvm_ty(surface);
+        let symbol_name = surface_resume_owner_outcome_symbol_name(target);
+        let llvm_ty = self.surface_resume_owner_outcome_llvm_ty(surface);
         self.declare_compiler_private_helper_function(&symbol_name, llvm_ty, Linkage::Internal)
     }
 
-    pub(super) fn refactor_surface_resume_owner_core_function(
+    pub(super) fn surface_resume_owner_core_function(
         &mut self,
-        surface: &RefactorContinuationSurfaceResumeLayout<'ctx>,
-        target: &super::super::types::RefactorContinuationSurfaceResumeOwnerTrampolineLayout<'ctx>,
+        surface: &ContinuationSurfaceResumeLayout<'ctx>,
+        target: &super::super::types::ContinuationSurfaceResumeOwnerTrampolineLayout<'ctx>,
     ) -> FunctionValue<'ctx> {
-        let symbol_name = refactor_surface_resume_owner_core_symbol_name(target);
-        let llvm_ty = self.refactor_surface_resume_owner_core_llvm_ty(surface);
+        let symbol_name = surface_resume_owner_core_symbol_name(target);
+        let llvm_ty = self.surface_resume_owner_core_llvm_ty(surface);
         self.declare_compiler_private_helper_function(&symbol_name, llvm_ty, Linkage::Internal)
     }
 
-    pub(super) fn refactor_continuation_drive_outcome_llvm_ty(
+    pub(super) fn continuation_drive_outcome_llvm_ty(
         &self,
     ) -> inkwell::types::FunctionType<'ctx> {
         let params = [
@@ -1184,7 +1184,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.context.void_type().fn_type(&params, false)
     }
 
-    pub(super) fn refactor_continuation_step_llvm_ty(&self) -> inkwell::types::FunctionType<'ctx> {
+    pub(super) fn continuation_step_llvm_ty(&self) -> inkwell::types::FunctionType<'ctx> {
         let params = [
             self.llvm_gc_i8_ptr_type().into(),
             self.context.i64_type().into(),
@@ -1196,31 +1196,31 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.context.void_type().fn_type(&params, false)
     }
 
-    pub(super) fn refactor_continuation_drive_outcome_function(
+    pub(super) fn continuation_drive_outcome_function(
         &mut self,
-        surface: &RefactorContinuationSurfaceResumeLayout<'ctx>,
+        surface: &ContinuationSurfaceResumeLayout<'ctx>,
     ) -> FunctionValue<'ctx> {
-        let symbol_name = refactor_continuation_drive_outcome_symbol_name(surface);
-        let llvm_ty = self.refactor_continuation_drive_outcome_llvm_ty();
+        let symbol_name = continuation_drive_outcome_symbol_name(surface);
+        let llvm_ty = self.continuation_drive_outcome_llvm_ty();
         self.declare_compiler_private_helper_function(&symbol_name, llvm_ty, Linkage::Internal)
     }
 
-    pub(super) fn refactor_continuation_drive_owner_outcome_function(
+    pub(super) fn continuation_drive_owner_outcome_function(
         &mut self,
-        _surface: &RefactorContinuationSurfaceResumeLayout<'ctx>,
-        target: &super::super::types::RefactorContinuationSurfaceResumeOwnerTrampolineLayout<'ctx>,
+        _surface: &ContinuationSurfaceResumeLayout<'ctx>,
+        target: &super::super::types::ContinuationSurfaceResumeOwnerTrampolineLayout<'ctx>,
     ) -> FunctionValue<'ctx> {
-        let symbol_name = refactor_continuation_drive_owner_outcome_symbol_name(target);
-        let llvm_ty = self.refactor_continuation_drive_outcome_llvm_ty();
+        let symbol_name = continuation_drive_owner_outcome_symbol_name(target);
+        let llvm_ty = self.continuation_drive_outcome_llvm_ty();
         self.declare_compiler_private_helper_function(&symbol_name, llvm_ty, Linkage::Internal)
     }
 
-    pub(super) fn refactor_continuation_step_function(
+    pub(super) fn continuation_step_function(
         &mut self,
-        target: &super::super::types::RefactorContinuationSurfaceResumeOwnerTrampolineLayout<'ctx>,
+        target: &super::super::types::ContinuationSurfaceResumeOwnerTrampolineLayout<'ctx>,
     ) -> FunctionValue<'ctx> {
-        let symbol_name = refactor_continuation_step_symbol_name(target);
-        let llvm_ty = self.refactor_continuation_step_llvm_ty();
+        let symbol_name = continuation_step_symbol_name(target);
+        let llvm_ty = self.continuation_step_llvm_ty();
         self.declare_compiler_private_helper_function(&symbol_name, llvm_ty, Linkage::Internal)
     }
 }

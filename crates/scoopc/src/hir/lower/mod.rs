@@ -512,7 +512,7 @@ struct HirLowering<'a> {
     materialize_direct_call_targets: bool,
     /// 是否在 explicit MIR instance lowering 的 HIR 兼容前端上执行 exact-receiver devirtualization。
     devirtualize_dispatch_calls: bool,
-    /// refactor typed HIR 的语句级 `comptime` 展开计划。
+    /// typed HIR 的语句级 `comptime` 展开计划。
     runtime_comptime_plan: Option<&'a crate::comptime::RuntimeComptimePlan>,
     /// 当前 `comptime for` 展开迭代中的编译期值绑定（decl span -> const value）。
     comptime_value_scopes: Vec<HashMap<Span, crate::comptime::ConstValue>>,

@@ -61,13 +61,13 @@ pub enum Command {
         input: PathBuf,
     },
 
-    /// 解析/resolve/typecheck/materialize 输入并打印 refactor effect facts
+    /// 解析/resolve/typecheck/materialize 输入并打印 effect facts
     DumpEffectFacts {
         /// 输入源文件路径
         input: PathBuf,
     },
 
-    /// 解析/resolve/typecheck/materialize 输入并打印 refactor late-lowered representation
+    /// 解析/resolve/typecheck/materialize 输入并打印 late-lowered representation
     DumpEffectLowered {
         /// 输入源文件路径
         input: PathBuf,
@@ -235,7 +235,7 @@ mod tests {
         let args = Args::try_parse_from([
             "scoop",
             "dump-effect-facts",
-            "tests/fixtures/mir_refactor/handle_perform.scoop",
+            "tests/fixtures/mir_lowered/handle_perform.scoop",
         ])
         .unwrap();
 
@@ -243,7 +243,7 @@ mod tests {
             Command::DumpEffectFacts { input } => {
                 assert_eq!(
                     input,
-                    PathBuf::from("tests/fixtures/mir_refactor/handle_perform.scoop")
+                    PathBuf::from("tests/fixtures/mir_lowered/handle_perform.scoop")
                 );
             }
             other => panic!("unexpected command: {other:?}"),

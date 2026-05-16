@@ -2,21 +2,21 @@
 
 use super::*;
 
-impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
+impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
     pub(super) fn emit_states(&mut self) -> Result<(), LlvmEmitError> {
         for state in self.callable.state_graph().states() {
             let bb = self.state_block(state.state_id())?;
             self.codegen.builder.position_at_end(bb);
             self.lower_state_source_slices(state).map_err(|err| {
                 frontend_error(format!(
-                    "refactor callable `{}` state st{} source-slice lowering failed: {err}",
+                    "callable `{}` state st{} source-slice lowering failed: {err}",
                     self.callable.root_fqn(),
                     state.state_id().as_u32()
                 ))
             })?;
             self.lower_state_terminator(state).map_err(|err| {
                 frontend_error(format!(
-                    "refactor callable `{}` step schema s{} (ABI s{}) state st{} terminator lowering failed: {err}",
+                    "callable `{}` step schema s{} (ABI s{}) state st{} terminator lowering failed: {err}",
                     self.callable.root_fqn(),
                     self.callable.step_schema().as_u32(),
                     self.abi_step_schema.as_u32(),
@@ -25,7 +25,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             })?;
             if bb.get_terminator().is_none() {
                 return Err(frontend_error(format!(
-                    "refactor callable `{}` state st{} lowering 完成后仍未生成 terminator；不能把该 state 留给后续 LLVM verifier 兜底",
+                    "callable `{}` state st{} lowering 完成后仍未生成 terminator；不能把该 state 留给后续 LLVM verifier 兜底",
                     self.callable.root_fqn(),
                     state.state_id().as_u32(),
                 )));
@@ -36,7 +36,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
 
     pub(super) fn bind_direct_args(
         &mut self,
-        entry_layout: &RefactorCallableEntryLayout<'ctx>,
+        entry_layout: &CallableEntryLayout<'ctx>,
     ) -> Result<(), LlvmEmitError> {
         let args_layout = self
             .abi
@@ -46,7 +46,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         } else {
             Some(self.function.get_nth_param(0).ok_or_else(|| {
                 frontend_error(format!(
-                    "refactor direct entry `{}` 缺少 args tuple 参数",
+                    "direct entry `{}` 缺少 args tuple 参数",
                     entry_layout.symbol_name()
                 ))
             })?)
@@ -57,7 +57,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                 .codegen
                 .cg_ty_of_mir_type(self.source_types, param.ty)
                 .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "refactor direct param type",
+                    kind: "direct param type",
                     at: param.span.into(),
                 })?;
             let value = if let Some(env_component_count) = lambda_env_component_count {
@@ -127,7 +127,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
 
     pub(super) fn lambda_env_component_count(
         &self,
-        entry_layout: &RefactorCallableEntryLayout<'ctx>,
+        entry_layout: &CallableEntryLayout<'ctx>,
     ) -> Result<Option<usize>, LlvmEmitError> {
         if !self.mir_fun.name.starts_with("$lambda") {
             return Ok(None);
@@ -145,7 +145,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             }
             TypeKind::Value(ValueTypeKind::Tuple(_)) => Ok(Some(1)),
             _ => Err(frontend_error(format!(
-                "refactor direct entry `{}` 的 lambda env 参数不是 Unit 或 tuple",
+                "direct entry `{}` 的 lambda env 参数不是 Unit 或 tuple",
                 self.mir_fun.fqn,
             ))),
         }
@@ -156,7 +156,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         entry_symbol: &str,
         span: crate::span::Span,
         param_cg: CgTy,
-        args_layout: &RefactorSourceAbiLayout<'ctx>,
+        args_layout: &SourceAbiLayout<'ctx>,
         raw_arg: Option<BasicValueEnum<'ctx>>,
         source_index: usize,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
@@ -173,14 +173,14 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         span: crate::span::Span,
         tuple_ty: TypeId,
         tuple_cg: CgTy,
-        args_layout: &RefactorSourceAbiLayout<'ctx>,
+        args_layout: &SourceAbiLayout<'ctx>,
         raw_arg: Option<BasicValueEnum<'ctx>>,
         source_start: usize,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         let TypeKind::Value(ValueTypeKind::Tuple(elements)) = self.source_types.kind(tuple_ty)
         else {
             return Err(frontend_error(format!(
-                "refactor direct entry `{entry_symbol}` 不能从 components 组装非 tuple 参数 t{}",
+                "direct entry `{entry_symbol}` 不能从 components 组装非 tuple 参数 t{}",
                 tuple_ty.as_u32(),
             )));
         };
@@ -188,7 +188,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             self.codegen.llvm_basic_type_of(span, tuple_cg)?
         else {
             return Err(frontend_error(format!(
-                "refactor direct entry `{entry_symbol}` tuple 参数 t{} 的 LLVM type 不是 struct",
+                "direct entry `{entry_symbol}` tuple 参数 t{} 的 LLVM type 不是 struct",
                 tuple_ty.as_u32(),
             )));
         };
@@ -198,7 +198,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                 .codegen
                 .cg_ty_of_mir_type(self.source_types, *elem_ty)
                 .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "refactor direct tuple param element type",
+                    kind: "direct tuple param element type",
                     at: span.into(),
                 })?;
             let raw = match self.extract_direct_arg_component(
@@ -220,7 +220,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                     aggregate,
                     raw,
                     offset as u32,
-                    &format!("refactor_direct_tuple_param{source_start}_{offset}"),
+                    &format!("direct_tuple_param{source_start}_{offset}"),
                 )?
                 .into_struct_value();
         }
@@ -231,29 +231,29 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
     pub(super) fn extract_direct_arg_component(
         &mut self,
         entry_symbol: &str,
-        args_layout: &RefactorSourceAbiLayout<'ctx>,
+        args_layout: &SourceAbiLayout<'ctx>,
         raw_arg: Option<BasicValueEnum<'ctx>>,
         source_index: usize,
     ) -> Result<Option<BasicValueEnum<'ctx>>, LlvmEmitError> {
         match args_layout.kind() {
-            RefactorSourceAbiLayoutKind::Scalar if source_index == 0 => {
+            SourceAbiLayoutKind::Scalar if source_index == 0 => {
                 if args_layout.abi().is_elided() {
                     Ok(None)
                 } else {
                     raw_arg.map(Some).ok_or_else(|| {
                         frontend_error(format!(
-                            "refactor direct entry `{entry_symbol}` scalar args ABI 缺少 raw 参数"
+                            "direct entry `{entry_symbol}` scalar args ABI 缺少 raw 参数"
                         ))
                     })
                 }
             }
-            RefactorSourceAbiLayoutKind::Scalar => Err(frontend_error(format!(
-                "refactor direct entry `{entry_symbol}` scalar args ABI 不能绑定 source component {source_index}；不能用默认值掩盖 contract 漂移"
+            SourceAbiLayoutKind::Scalar => Err(frontend_error(format!(
+                "direct entry `{entry_symbol}` scalar args ABI 不能绑定 source component {source_index}；不能用默认值掩盖 contract 漂移"
             ))),
-            RefactorSourceAbiLayoutKind::Tuple => {
+            SourceAbiLayoutKind::Tuple => {
                 let field = args_layout.field(source_index).ok_or_else(|| {
                     frontend_error(format!(
-                        "refactor direct entry `{entry_symbol}` args tuple ABI 缺少 source component {source_index} 的 field；不能用默认值掩盖 contract 漂移"
+                        "direct entry `{entry_symbol}` args tuple ABI 缺少 source component {source_index} 的 field；不能用默认值掩盖 contract 漂移"
                     ))
                 })?;
                 if field.is_elided() {
@@ -261,7 +261,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                 }
                 let tuple = raw_arg.ok_or_else(|| {
                     frontend_error(format!(
-                        "refactor direct entry `{entry_symbol}` args tuple ABI 缺少 raw 参数"
+                        "direct entry `{entry_symbol}` args tuple ABI 缺少 raw 参数"
                     ))
                 })?;
                 let struct_value = tuple.into_struct_value();
@@ -270,7 +270,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                     field
                         .abi_field_index()
                         .expect("non-elided field has ABI index"),
-                    &format!("refactor_arg_field{source_index}"),
+                    &format!("arg_field{source_index}"),
                 )?;
                 Ok(Some(raw))
             }
@@ -287,13 +287,13 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                 .blocks
                 .get(slice.block_id().as_u32() as usize)
                 .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "refactor source slice block",
+                    kind: "source slice block",
                     at: self.mir_fun.span.into(),
                 })?;
             for stmt_index in slice.start_statement_index()..slice.end_statement_index() {
                 let stmt = block.stmts.get(stmt_index as usize).ok_or(
                     LlvmEmitError::UnsupportedMainBody {
-                        kind: "refactor source slice statement",
+                        kind: "source slice statement",
                         at: self.mir_fun.span.into(),
                     },
                 )?;
@@ -302,7 +302,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                     .source_statement_classification(*slice, stmt_index)
                     .ok_or_else(|| {
                         frontend_error(format!(
-                            "refactor source-slice statement bb{} stmt{} 缺少 published classification",
+                            "source-slice statement bb{} stmt{} 缺少 published classification",
                             slice.block_id().as_u32(),
                             stmt_index,
                         ))
@@ -321,7 +321,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                     | LateLoweredSourceStatementClassificationKind::ElidedUnreachable => {}
                     LateLoweredSourceStatementClassificationKind::Unsupported { reason } => {
                         return Err(frontend_error(format!(
-                            "refactor source-slice statement bb{} stmt{} classified unsupported: {reason}",
+                            "source-slice statement bb{} stmt{} classified unsupported: {reason}",
                             slice.block_id().as_u32(),
                             stmt_index,
                         )));
@@ -359,7 +359,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                     .load_local_value(self.mir_fun.span, *cond_local)?
                     .as_bool()
                     .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "refactor state branch condition",
+                        kind: "state branch condition",
                         at: self.mir_fun.span.into(),
                     })?;
                 self.codegen.builder.build_conditional_branch(
@@ -387,27 +387,27 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                     )
                     .map_err(|err| {
                     frontend_error(format!(
-                        "refactor return state st{} completion payload {:?} lowering failed: {err}",
+                        "return state st{} completion payload {:?} lowering failed: {err}",
                         state.state_id().as_u32(),
                         payload_source,
                     ))
                 })?;
                 if payload.is_none() && !self.step_layout.complete_variant().payload_is_elided() {
                     return Err(frontend_error(format!(
-                        "refactor return state st{} payload source {:?} produced no payload for non-elided Complete layout {}",
+                        "return state st{} payload source {:?} produced no payload for non-elided Complete layout {}",
                         state.state_id().as_u32(),
                         payload_source,
                         self.step_layout.complete_variant().payload_anchor_name()
                     )));
                 }
                 match self.return_mode {
-                    RefactorCallableReturnMode::Step => {
+                    CallableReturnMode::Step => {
                         let step = self
                             .codegen
-                            .refactor_build_step_complete(self.step_layout, payload)
+                            .build_step_complete(self.step_layout, payload)
                             .map_err(|err| {
                                 frontend_error(format!(
-                                    "refactor return state st{} build Complete step failed: {err}",
+                                    "return state st{} build Complete step failed: {err}",
                                     state.state_id().as_u32(),
                                 ))
                             })?;
@@ -417,18 +417,18 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                         )?;
                         self.return_step(step).map_err(|err| {
                             frontend_error(format!(
-                                "refactor return state st{} return Step failed: {err}",
+                                "return state st{} return Step failed: {err}",
                                 state.state_id().as_u32(),
                             ))
                         })
                     }
-                    RefactorCallableReturnMode::EffectOutcome => {
+                    CallableReturnMode::EffectOutcome => {
                         let payload =
                             self.complete_payload_or_default(self.step_layout, payload)?;
                         let complete_transport = self.encode_effect_transport_parts(
                             self.step_layout.complete_variant().payload_source_ty(),
                             payload,
-                            "refactor_return_effect_outcome",
+                            "return_effect_outcome",
                         )?;
                         let zero_signal = self.codegen.build_effect_signal(
                             self.codegen.context.i32_type().const_zero(),
@@ -447,12 +447,12 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                         )?;
                         self.emit_effect_outcome_return(outcome).map_err(|err| {
                             frontend_error(format!(
-                                "refactor return state st{} return EffectOutcome failed: {err}",
+                                "return state st{} return EffectOutcome failed: {err}",
                                 state.state_id().as_u32(),
                             ))
                         })
                     }
-                    RefactorCallableReturnMode::Plain { declared_return_cg } => {
+                    CallableReturnMode::Plain { declared_return_cg } => {
                         let value = match payload {
                             Some(raw) => self.codegen.cg_value_from_loaded(
                                 self.mir_fun.span,
@@ -569,13 +569,13 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             })
             .ok_or_else(|| {
                 frontend_error(format!(
-                    "refactor suspend state st{} 缺少可 lower 的 primary boundary",
+                    "suspend state st{} 缺少可 lower 的 primary boundary",
                     state.state_id().as_u32()
                 ))
             })?;
         match boundary.lowering().ok_or_else(|| {
             frontend_error(format!(
-                "refactor boundary bd{} 缺少 published lowering",
+                "boundary bd{} 缺少 published lowering",
                 boundary.boundary_id().as_u32()
             ))
         })? {
@@ -589,13 +589,13 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                 let args_payload = self.pack_sources(
                     lowering.facts().invoke_args_tuple_ty(),
                     lowering.operand_contract().arg_sources(),
-                    "refactor_call_args",
+                    "call_args",
                 )?;
                 let target =
                     self.abi
                         .call_target_layout(self.abi_step_schema, source, lowering.facts())?;
                 let (step, callee_step_schema) = match target {
-                    RefactorCallTargetQuery::KnownInstance(layout) => (
+                    CallTargetQuery::KnownInstance(layout) => (
                         self.emit_known_instance_call_step(
                             source,
                             layout.direct_entry(),
@@ -603,10 +603,10 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                         )?,
                         layout.step_schema(),
                     ),
-                    RefactorCallTargetQuery::DynamicInvoke(layout) => {
+                    CallTargetQuery::DynamicInvoke(layout) => {
                         let carrier_source = lowering.operand_contract().carrier_source().ok_or_else(|| {
                             frontend_error(format!(
-                                "refactor dynamic call boundary site {} 缺少 published carrier source",
+                                "dynamic call boundary site {} 缺少 published carrier source",
                                 source.as_u32()
                             ))
                         })?;
@@ -615,12 +615,12 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                             .value
                             .ok_or_else(|| {
                                 frontend_error(format!(
-                                    "refactor dynamic call boundary site {} carrier source 缺少可传递值",
+                                    "dynamic call boundary site {} carrier source 缺少可传递值",
                                     source.as_u32()
                                 ))
                             })?;
                         (
-                            self.emit_refactor_dynamic_invoke_step(layout, carrier, args_payload)?,
+                            self.emit_dynamic_invoke_step(layout, carrier, args_payload)?,
                             layout.return_step_schema(),
                         )
                     }
@@ -647,7 +647,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                 let payload = self.pack_sources(
                     lowering.emitted_step().payload_tuple_ty(),
                     lowering.operand_contract().payload_sources(),
-                    "refactor_perform_payload",
+                    "perform_payload",
                 )?;
                 self.emit_or_consume_outward_case(
                     boundary,
@@ -670,7 +670,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                     .surface_resume_layout(lowering.facts().continuation_schema())
                     .ok_or_else(|| {
                         frontend_error(format!(
-                            "refactor resume site {} 缺少 continuation schema k{} surface ABI",
+                            "resume site {} 缺少 continuation schema k{} surface ABI",
                             source.as_u32(),
                             lowering.facts().continuation_schema().as_u32()
                         ))
@@ -679,20 +679,20 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                     self.lower_operand_source(lowering.operand_contract().continuation_source())?;
                 let cont_ptr = cont_value.value.ok_or_else(|| {
                     frontend_error(format!(
-                        "refactor resume site {} continuation source 被 elide",
+                        "resume site {} continuation source 被 elide",
                         source.as_u32()
                     ))
                 })?;
                 let BasicValueEnum::PointerValue(cont_ptr) = cont_ptr else {
                     return Err(frontend_error(format!(
-                        "refactor resume site {} continuation source 不是 pointer",
+                        "resume site {} continuation source 不是 pointer",
                         source.as_u32()
                     )));
                 };
                 let args_payload = self.pack_sources(
                     surface.resume_tuple_ty(),
                     lowering.operand_contract().arg_sources(),
-                    "refactor_resume_args",
+                    "resume_args",
                 )?;
                 self.sync_frame_slots_from_locals()?;
                 if self.should_use_task_transport_dynamic_resume(source, surface, lowering)?
@@ -706,14 +706,14 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                 {
                     return Ok(());
                 }
-                let callee = self.codegen.refactor_function(surface.symbol_name())?;
+                let callee = self.codegen.function(surface.symbol_name())?;
                 let mut args = vec![cont_ptr.into()];
                 if !surface.resume_payload_abi().is_elided() {
                     args.push(
                         args_payload
                             .ok_or_else(|| {
                                 frontend_error(format!(
-                                    "refactor resume site {} 需要 non-elided payload",
+                                    "resume site {} 需要 non-elided payload",
                                     source.as_u32()
                                 ))
                             })?
@@ -724,10 +724,10 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                     self.mir_fun.span,
                     callee,
                     &args,
-                    "refactor_resume_step",
+                    "resume_step",
                 )?;
                 let step = call.try_as_basic_value().basic().ok_or_else(|| {
-                    frontend_error("refactor resume boundary callee 未返回 Step_F".to_string())
+                    frontend_error("resume boundary callee 未返回 Step_F".to_string())
                 })?;
                 self.dispatch_boundary_step(
                     boundary,
@@ -772,16 +772,16 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                 .field_index_for_slot(slot.slot_id())
                 .ok_or_else(|| {
                     frontend_error(format!(
-                        "refactor frame layout 缺少 slot{} field index",
+                        "frame layout 缺少 slot{} field index",
                         slot.slot_id().as_u32()
                     ))
                 })?;
-            let field_ptr = self.frame_field_ptr(field_index, "refactor_frame_slot_load_gep")?;
+            let field_ptr = self.frame_field_ptr(field_index, "frame_slot_load_gep")?;
             let loaded = self.codegen.builder.build_load(
                 self.codegen
                     .llvm_basic_type_of(self.mir_fun.span, local_slot.cg_ty)?,
                 field_ptr,
-                "refactor_frame_slot_load",
+                "frame_slot_load",
             )?;
             let _ = self.store_loaded_raw_local(self.mir_fun.span, local, loaded)?;
         }
@@ -804,18 +804,18 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             .field_index_for_slot(frame_slot)
             .ok_or_else(|| {
                 frontend_error(format!(
-                    "refactor frame layout 缺少 slot{} field index",
+                    "frame layout 缺少 slot{} field index",
                     frame_slot.as_u32()
                 ))
             })?;
-        let field_ptr = self.frame_field_ptr(field_index, "refactor_frame_slot_store_gep")?;
+        let field_ptr = self.frame_field_ptr(field_index, "frame_slot_store_gep")?;
         let value = self.load_local_value(self.mir_fun.span, local)?;
         if let Some(raw) = value.value {
-            self.codegen.refactor_store_gc_aware_value(
+            self.codegen.store_gc_aware_value(
                 self.mir_fun.span,
                 field_ptr,
                 raw,
-                "refactor_frame_slot_store",
+                "frame_slot_store",
             )?;
         }
         Ok(())
@@ -859,7 +859,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
     pub(super) fn state_block(&self, state_id: StateId) -> Result<BasicBlock<'ctx>, LlvmEmitError> {
         self.state_blocks.get(&state_id).copied().ok_or_else(|| {
             frontend_error(format!(
-                "refactor state graph 缺少 StateId st{} 的 LLVM block",
+                "state graph 缺少 StateId st{} 的 LLVM block",
                 state_id.as_u32()
             ))
         })

@@ -128,12 +128,12 @@ pub(super) enum DelegatedPropertyInfo<'a> {
 
 pub(super) type DelegatedPropertyIndex<'a> = HashMap<String, DelegatedPropertyInfo<'a>>;
 
-/// refactor typed HIR stage 的结构化错误。
+/// typed HIR stage 的结构化错误。
 ///
 /// 该错误固定 source path、span、placeholder/contract reason 与所属 item/function，避免 HIR
 /// completeness gate 退化成无定位的后端 unsupported 报错。
 #[derive(Debug, Clone, PartialEq, Eq, Error, Diagnostic)]
-#[error("refactor HIR stage failed for `{owner}` at {source_path:?}:{span:?}: {reason}")]
+#[error("HIR stage failed for `{owner}` at {source_path:?}:{span:?}: {reason}")]
 #[diagnostic(code(scoop::hir::stage_error))]
 pub struct HirStageError {
     source_path: PathBuf,
@@ -342,7 +342,7 @@ pub struct LoweredHir {
     pub enum_layouts: EnumLayoutIndex,
     /// `@Extern` 外部函数信息（供 LLVM codegen 声明正确的符号名与 ABI）。
     pub extern_funs: ExternFunIndex,
-    /// `@Extern` 顶层变量信息（供 refactor HIR/MIR handoff 显式发布 extern global roots）。
+    /// `@Extern` 顶层变量信息（供 HIR/MIR handoff 显式发布 extern global roots）。
     pub extern_globals: ExternGlobalIndex,
     /// 链接阶段需要额外加入的外部库（来自 `@Extern(lib = "...")`；去重 + 稳定排序）。
     ///
@@ -460,7 +460,7 @@ impl LoweredHir {
     /// 取走当前 lowering 产物上保留的 canonical materialized MIR 快照（若存在）。
     ///
     /// 说明：
-    /// - refactor MIR stage 会用它把现有 production materialized handoff 显式挂到自己的
+    /// - MIR stage 会用它把现有 production materialized handoff 显式挂到自己的
     ///   stage 输出上；
     /// - dump/typed-only lowering 路径通常返回 `None`。
     pub(crate) fn into_materialized_mir(self) -> Option<crate::mir::MaterializedMir> {
@@ -470,9 +470,9 @@ impl LoweredHir {
     /// 克隆一份仅供现有 LLVM 通用/非 effect scaffolding 继续查询的 HIR 兼容输入。
     ///
     /// 说明：
-    /// - refactor LLVM stage 会显式把 canonical pass-view / late-lowered program 作为新的
+    /// - LLVM stage 会显式把 canonical pass-view / late-lowered program 作为新的
     ///   authoritative effect handoff；
-    /// - 这里故意丢弃 `materialized_mir`，避免 refactor P6 入口再经由旧的
+    /// - 这里故意丢弃 `materialized_mir`，避免 P6 入口再经由旧的
     ///   `materialized_lowered_hir` emit API 隐式回落；
     /// - P6-T02/P6-T03 会继续收缩这份 scaffolding 的职责，直到 backend 不再依赖它承载
     ///   effect lowering 语义。

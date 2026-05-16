@@ -1,4 +1,4 @@
-package fixtures.mir_refactor
+package fixtures.mir_lowered
 
 effect Step {
     fun next(seed: Int): Int

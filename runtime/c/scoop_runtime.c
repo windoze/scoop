@@ -812,12 +812,12 @@ void scoop_panic(const void *message) {
   exit(3);
 }
 
-// refactor effect lowering：pure caller 本地消费 ordinary RuntimeError 后的已发布终止入口。
+// effect lowering：pure caller 本地消费 ordinary RuntimeError 后的已发布终止入口。
 //
 // 约定：
 // - 参数是已物化的 `RuntimeError` payload object；
 // - 当前实现仍只要求“立即终止”，暂不承担 stderr 格式化；
-// - LLVM refactor backend 必须通过这个已发布入口结束 `LocalRuntimeError` synthetic state，
+// - LLVM backend 必须通过这个已发布入口结束 `LocalRuntimeError` synthetic state，
 //   不能在 backend 现场自行发明隐藏 trap 路径。
 void scoop_runtime_error_fatal(const void *runtime_error) {
   (void)runtime_error;

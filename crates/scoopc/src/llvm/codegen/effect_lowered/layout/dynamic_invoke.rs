@@ -10,9 +10,9 @@ use super::*;
 impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
     pub(super) fn materialize_dynamic_invoke_layouts(
         &mut self,
-        step_layouts: &BTreeMap<StepSchemaId, RefactorStepLayout<'ctx>>,
+        step_layouts: &BTreeMap<StepSchemaId, StepLayout<'ctx>>,
     ) -> Result<
-        BTreeMap<(StepSchemaId, crate::mir::SiteId), RefactorDynamicInvokeLayout<'ctx>>,
+        BTreeMap<(StepSchemaId, crate::mir::SiteId), DynamicInvokeLayout<'ctx>>,
         LlvmEmitError,
     > {
         let mut layouts = BTreeMap::new();
@@ -29,10 +29,10 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
     pub(super) fn publish_boundary_dynamic_invoke_layouts(
         &mut self,
         callable: &LateLoweredCallable,
-        step_layouts: &BTreeMap<StepSchemaId, RefactorStepLayout<'ctx>>,
+        step_layouts: &BTreeMap<StepSchemaId, StepLayout<'ctx>>,
         layouts: &mut BTreeMap<
             (StepSchemaId, crate::mir::SiteId),
-            RefactorDynamicInvokeLayout<'ctx>,
+            DynamicInvokeLayout<'ctx>,
         >,
     ) -> Result<(), LlvmEmitError> {
         for boundary in callable.boundary_map().entries() {
@@ -68,10 +68,10 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
     pub(super) fn publish_source_slice_dynamic_invoke_layouts(
         &mut self,
         callable: &LateLoweredCallable,
-        step_layouts: &BTreeMap<StepSchemaId, RefactorStepLayout<'ctx>>,
+        step_layouts: &BTreeMap<StepSchemaId, StepLayout<'ctx>>,
         layouts: &mut BTreeMap<
             (StepSchemaId, crate::mir::SiteId),
-            RefactorDynamicInvokeLayout<'ctx>,
+            DynamicInvokeLayout<'ctx>,
         >,
     ) -> Result<(), LlvmEmitError> {
         let boundary_call_sites = callable
@@ -96,7 +96,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                 for slice in state.source_slices() {
                     let Some(block) = body.blocks.get(slice.block_id().as_u32() as usize) else {
                         return Err(frontend_error(format!(
-                            "refactor LLVM ABI materialization 发现 callable `{}` 的 source slice 指向缺失的 canonical MIR block bb{}",
+                            "LLVM ABI materialization 发现 callable `{}` 的 source slice 指向缺失的 canonical MIR block bb{}",
                             callable.root_fqn(),
                             slice.block_id().as_u32(),
                         )));
@@ -105,7 +105,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                     let end = slice.end_statement_index() as usize;
                     if start > end || end > block.stmts.len() {
                         return Err(frontend_error(format!(
-                            "refactor LLVM ABI materialization 发现 callable `{}` 的 source slice [{start}..{end}) 越界于 canonical MIR block bb{}（stmt_count={}）",
+                            "LLVM ABI materialization 发现 callable `{}` 的 source slice [{start}..{end}) 越界于 canonical MIR block bb{}（stmt_count={}）",
                             callable.root_fqn(),
                             slice.block_id().as_u32(),
                             block.stmts.len(),
@@ -141,14 +141,14 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
 
                         let site = body_facts.site(*site_id).ok_or_else(|| {
                             frontend_error(format!(
-                                "refactor LLVM ABI materialization 缺少 callable `{}` source-slice call site {} 的 published effect facts，无法发布 non-boundary dynamic-invoke contract",
+                                "LLVM ABI materialization 缺少 callable `{}` source-slice call site {} 的 published effect facts，无法发布 non-boundary dynamic-invoke contract",
                                 callable.root_fqn(),
                                 site_id.as_u32(),
                             ))
                         })?;
                         let SiteEffectFacts::Call(facts) = site else {
                             return Err(frontend_error(format!(
-                                "refactor LLVM ABI materialization 发现 callable `{}` source-slice call site {} 的 canonical MIR kind {:?} 不是普通 Call site，而 published facts 为 {site:?}",
+                                "LLVM ABI materialization 发现 callable `{}` source-slice call site {} 的 canonical MIR kind {:?} 不是普通 Call site，而 published facts 为 {site:?}",
                                 callable.root_fqn(),
                                 site_id.as_u32(),
                                 kind,
@@ -156,7 +156,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                         };
                         if !facts.resolved_cases().is_empty() {
                             return Err(frontend_error(format!(
-                                "refactor LLVM ABI materialization 发现 callable `{}` source-slice dynamic call site {} 仍暴露 outward cases，但 late-lowered handoff 没有对应 call boundary",
+                                "LLVM ABI materialization 发现 callable `{}` source-slice dynamic call site {} 仍暴露 outward cases，但 late-lowered handoff 没有对应 call boundary",
                                 callable.root_fqn(),
                                 site_id.as_u32(),
                             )));
@@ -204,16 +204,16 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
         call_kind: &MirCallKind,
         carrier_source_ty: Option<TypeId>,
         arg_count: usize,
-        step_layouts: &BTreeMap<StepSchemaId, RefactorStepLayout<'ctx>>,
+        step_layouts: &BTreeMap<StepSchemaId, StepLayout<'ctx>>,
         layouts: &mut BTreeMap<
             (StepSchemaId, crate::mir::SiteId),
-            RefactorDynamicInvokeLayout<'ctx>,
+            DynamicInvokeLayout<'ctx>,
         >,
     ) -> Result<(), LlvmEmitError> {
         let key = (callable.step_schema(), site_id);
         if layouts.contains_key(&key) {
             return Err(frontend_error(format!(
-                "refactor LLVM ABI materialization 发现 owner step schema {} call site {} 的 dynamic-invoke contract 重复发布",
+                "LLVM ABI materialization 发现 owner step schema {} call site {} 的 dynamic-invoke contract 重复发布",
                 callable.step_schema().as_u32(),
                 site_id.as_u32(),
             )));
@@ -242,14 +242,14 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
         call_kind: &MirCallKind,
         carrier_source_ty: Option<TypeId>,
         arg_count: usize,
-        step_layouts: &BTreeMap<StepSchemaId, RefactorStepLayout<'ctx>>,
-    ) -> Result<RefactorDynamicInvokeLayout<'ctx>, LlvmEmitError> {
+        step_layouts: &BTreeMap<StepSchemaId, StepLayout<'ctx>>,
+    ) -> Result<DynamicInvokeLayout<'ctx>, LlvmEmitError> {
         self.validate_dynamic_call_site_kind(owner_root_fqn, site_id, facts, call_kind)?;
         let step_ty = step_layouts
             .get(&facts.callee_schema())
             .ok_or_else(|| {
                 frontend_error(format!(
-                    "refactor LLVM ABI materialization 缺少 callable `{owner_root_fqn}` call site {} dynamic-invoke return step schema {} 的 step layout",
+                    "LLVM ABI materialization 缺少 callable `{owner_root_fqn}` call site {} dynamic-invoke return step schema {} 的 step layout",
                     site_id.as_u32(),
                     facts.callee_schema().as_u32(),
                 ))
@@ -266,7 +266,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                     CallTargetMode::DynamicFallback | CallTargetMode::KnownInstance
                 ) {
                     return Err(frontend_error(format!(
-                        "refactor LLVM ABI materialization 发现 callable `{owner_root_fqn}` call site {} 的 {:?} lowering 只能绑定 KnownInstance/DynamicFallback，但实际 target_mode 为 {:?}",
+                        "LLVM ABI materialization 发现 callable `{owner_root_fqn}` call site {} 的 {:?} lowering 只能绑定 KnownInstance/DynamicFallback，但实际 target_mode 为 {:?}",
                         site_id.as_u32(),
                         call_kind,
                         facts.target_mode(),
@@ -274,16 +274,16 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                 }
                 let carrier_source_ty = carrier_source_ty.ok_or_else(|| {
                     frontend_error(format!(
-                        "refactor LLVM ABI materialization 缺少 callable `{owner_root_fqn}` call site {} 的 callable carrier source type",
+                        "LLVM ABI materialization 缺少 callable `{owner_root_fqn}` call site {} 的 callable carrier source type",
                         site_id.as_u32(),
                     ))
                 })?;
                 let receiver_abi = *self.source_value_layout(carrier_source_ty)?.abi();
                 if self.is_funptr_source_ty(carrier_source_ty) {
-                    RefactorDynamicInvokeCarrierLayout::FunPtr(receiver_abi)
+                    DynamicInvokeCarrierLayout::FunPtr(receiver_abi)
                 } else {
-                    RefactorDynamicInvokeCarrierLayout::ClosureObject(
-                        RefactorClosureCarrierLayout::new(
+                    DynamicInvokeCarrierLayout::ClosureObject(
+                        ClosureCarrierLayout::new(
                             self.codegen.llvm_closure_object_type(),
                             receiver_abi,
                             1,
@@ -303,15 +303,15 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                     for target in targets {
                         if self.program.callable(&target.template.fqn).is_none() {
                             return Err(frontend_error(format!(
-                                "refactor LLVM ABI materialization 缺少 callable `{owner_root_fqn}` call site {} CandidateSet target `{}` 的 published callable shell",
+                                "LLVM ABI materialization 缺少 callable `{owner_root_fqn}` call site {} CandidateSet target `{}` 的 published callable shell",
                                 site_id.as_u32(),
                                 target.template.fqn,
                             )));
                         }
                     }
                 }
-                RefactorDynamicInvokeCarrierLayout::VirtualReceiver(
-                    RefactorDispatchReceiverLayout::new(
+                DynamicInvokeCarrierLayout::VirtualReceiver(
+                    DispatchReceiverLayout::new(
                         dispatch.receiver_ty,
                         *self.source_value_layout(dispatch.receiver_ty)?.abi(),
                         dispatch.owner_fqn.clone(),
@@ -332,15 +332,15 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                     for target in targets {
                         if self.program.callable(&target.template.fqn).is_none() {
                             return Err(frontend_error(format!(
-                                "refactor LLVM ABI materialization 缺少 callable `{owner_root_fqn}` call site {} CandidateSet target `{}` 的 published callable shell",
+                                "LLVM ABI materialization 缺少 callable `{owner_root_fqn}` call site {} CandidateSet target `{}` 的 published callable shell",
                                 site_id.as_u32(),
                                 target.template.fqn,
                             )));
                         }
                     }
                 }
-                RefactorDynamicInvokeCarrierLayout::InterfaceReceiver(
-                    RefactorDispatchReceiverLayout::new(
+                DynamicInvokeCarrierLayout::InterfaceReceiver(
+                    DispatchReceiverLayout::new(
                         dispatch.receiver_ty,
                         *self.source_value_layout(dispatch.receiver_ty)?.abi(),
                         dispatch.owner_fqn.clone(),
@@ -352,7 +352,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             }
             other => {
                 return Err(frontend_error(format!(
-                    "refactor LLVM ABI materialization 发现 callable `{owner_root_fqn}` call site {} 的 canonical MIR kind {other:?} 无法为 {:?} 发布 dynamic-invoke contract",
+                    "LLVM ABI materialization 发现 callable `{owner_root_fqn}` call site {} 的 canonical MIR kind {other:?} 无法为 {:?} 发布 dynamic-invoke contract",
                     site_id.as_u32(),
                     facts.target_mode(),
                 )));
@@ -377,7 +377,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             crate::effect_facts::CallSiteTarget::DynamicFallback => Vec::new(),
         };
 
-        Ok(RefactorDynamicInvokeLayout::new(
+        Ok(DynamicInvokeLayout::new(
             owner_step_schema,
             site_id,
             facts.target_mode(),

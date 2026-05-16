@@ -1,8 +1,8 @@
 //! `scoopc` 独立命令行入口（早期阶段）。
 //!
 //! 当前支持 single-source virtual cone 的默认 artifact 能力：
-//! - `scoopc <input.scoop> [-o <out.ll>]`：经 refactor LLVM stage 生成 LLVM IR。
-//! - `scoopc --obj <input.scoop> [-o <out.o>]`：经 refactor LLVM stage 生成 object 文件。
+//! - `scoopc <input.scoop> [-o <out.ll>]`：经 LLVM stage 生成 LLVM IR。
+//! - `scoopc --obj <input.scoop> [-o <out.o>]`：经 LLVM stage 生成 object 文件。
 
 use std::path::{Path, PathBuf};
 

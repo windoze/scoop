@@ -10,12 +10,12 @@ use super::{MirStageOutput, TypedHirStageOutput, load_typed_hir_stage_output_for
 const HIR_COMPLETENESS_FIXTURES: &[HirCompletenessFixture] = &[
     HirCompletenessFixture {
         phase: "hir",
-        name: "refactor_comptime_control_flow.scoop",
+        name: "lowered_comptime_control_flow.scoop",
         requirements: &[],
     },
     HirCompletenessFixture {
         phase: "hir",
-        name: "refactor_decl_graph.scoop",
+        name: "lowered_decl_graph.scoop",
         requirements: &[RequiredHirContract::DeclarationGraph],
     },
     HirCompletenessFixture {
@@ -25,12 +25,12 @@ const HIR_COMPLETENESS_FIXTURES: &[HirCompletenessFixture] = &[
     },
     HirCompletenessFixture {
         phase: "hir",
-        name: "refactor_call_args.scoop",
+        name: "lowered_call_args.scoop",
         requirements: &[RequiredHirContract::CallSite],
     },
     HirCompletenessFixture {
         phase: "typecheck",
-        name: "refactor_hir_call_contracts_surface_ok.scoop",
+        name: "lowered_hir_call_contracts_surface_ok.scoop",
         requirements: &[
             RequiredHirContract::CallSite,
             RequiredHirContract::ContinuationResume,
@@ -40,7 +40,7 @@ const HIR_COMPLETENESS_FIXTURES: &[HirCompletenessFixture] = &[
     },
     HirCompletenessFixture {
         phase: "typecheck",
-        name: "refactor_hir_class_literal_runtime_ok.scoop",
+        name: "lowered_hir_class_literal_runtime_ok.scoop",
         requirements: &[RequiredHirContract::DeclarationGraph],
     },
     HirCompletenessFixture {
@@ -70,7 +70,7 @@ const HIR_COMPLETENESS_FIXTURES: &[HirCompletenessFixture] = &[
     },
     HirCompletenessFixture {
         phase: "typecheck",
-        name: "refactor_hir_assignment_places_ok.scoop",
+        name: "lowered_hir_assignment_places_ok.scoop",
         requirements: &[RequiredHirContract::AssignPlace],
     },
     HirCompletenessFixture {
@@ -80,7 +80,7 @@ const HIR_COMPLETENESS_FIXTURES: &[HirCompletenessFixture] = &[
     },
     HirCompletenessFixture {
         phase: "hir",
-        name: "refactor_top_level_init.scoop",
+        name: "lowered_top_level_init.scoop",
         requirements: &[
             RequiredHirContract::TopLevelInitRoot,
             RequiredHirContract::ExternGlobal,
@@ -179,8 +179,8 @@ impl fmt::Display for RequiredHirContract {
 }
 
 #[test]
-fn refactor_hir_preflight_checks_completeness_fixtures_and_mir_smoke() {
-    let session = refactor_session();
+fn hir_preflight_checks_completeness_fixtures_and_mir_smoke() {
+    let session = session();
     let mut mir_smoke_count = 0usize;
 
     for fixture in HIR_COMPLETENESS_FIXTURES {
@@ -198,10 +198,10 @@ fn refactor_hir_preflight_checks_completeness_fixtures_and_mir_smoke() {
 }
 
 #[test]
-fn refactor_mir_comptime_splice_class_literal_and_with_update_preclosure() {
-    let session = refactor_session();
+fn mir_comptime_splice_class_literal_and_with_update_preclosure() {
+    let session = session();
     let fixture = HirCompletenessFixture {
-        phase: "mir_refactor",
+        phase: "mir_lowered",
         name: "comptime_splice_class_with_update.scoop",
         requirements: &[
             RequiredHirContract::DeclarationGraph,
@@ -228,7 +228,7 @@ fn refactor_mir_comptime_splice_class_literal_and_with_update_preclosure() {
     }
 
     let output = super::load_direct_style_mir_stage_output_for_dump(&session, &source)
-        .unwrap_or_else(|err| panic!("refactor MIR preclosure fixture should pass: {err:?}"));
+        .unwrap_or_else(|err| panic!("MIR preclosure fixture should pass: {err:?}"));
     assert_no_hir_origin_mir_fallbacks(&output, fixture);
 
     let dump = format!("{:#?}", output.file());
@@ -250,7 +250,7 @@ fn refactor_mir_comptime_splice_class_literal_and_with_update_preclosure() {
     );
 }
 
-fn refactor_session() -> Session {
+fn session() -> Session {
     Session::with_options(SessionOptions::new()).unwrap()
 }
 

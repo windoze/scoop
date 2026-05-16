@@ -11,7 +11,7 @@ use super::*;
 impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
     pub(super) fn materialize_resume_payload_binding_layouts(
         &mut self,
-        frame_layouts: &BTreeMap<StepSchemaId, RefactorFrameLayout<'ctx>>,
+        frame_layouts: &BTreeMap<StepSchemaId, FrameLayout<'ctx>>,
     ) -> Result<
         (
             ResumePayloadBindingLayouts,
@@ -28,7 +28,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             }
             let frame_layout = frame_layouts.get(&callable.step_schema()).ok_or_else(|| {
                 frontend_error(format!(
-                    "refactor LLVM ABI materialization 缺少 callable `{}` step schema s{} 的 frame layout，无法发布 resumed local/home contract",
+                    "LLVM ABI materialization 缺少 callable `{}` step schema s{} 的 frame layout，无法发布 resumed local/home contract",
                     callable.root_fqn(),
                     callable.step_schema().as_u32(),
                 ))
@@ -51,7 +51,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                         .is_none()
                 {
                     return Err(frontend_error(format!(
-                        "refactor LLVM ABI materialization 发现 callable `{}` boundary bd{} 缺少 resumed local/home contract",
+                        "LLVM ABI materialization 发现 callable `{}` boundary bd{} 缺少 resumed local/home contract",
                         callable.root_fqn(),
                         boundary.boundary_id().as_u32(),
                     )));
@@ -61,7 +61,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             for binding in callable.frame_schema().resume_payload_bindings() {
                 let frame_field_index =
                     self.validate_resume_payload_binding(callable, frame_layout, binding)?;
-                let layout = RefactorResumePayloadBindingLayout::new(
+                let layout = ResumePayloadBindingLayout::new(
                     callable.step_schema(),
                     *binding,
                     frame_field_index,
@@ -69,7 +69,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                 let boundary_key = (callable.step_schema(), binding.boundary_id());
                 if bindings_by_boundary.insert(boundary_key, layout).is_some() {
                     return Err(frontend_error(format!(
-                        "refactor LLVM ABI materialization 发现 owner step schema s{} boundary bd{} 的 resumed local/home contract 重复发布",
+                        "LLVM ABI materialization 发现 owner step schema s{} boundary bd{} 的 resumed local/home contract 重复发布",
                         callable.step_schema().as_u32(),
                         binding.boundary_id().as_u32(),
                     )));
@@ -82,7 +82,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                             && existing.frame_field_index() == layout.frame_field_index() => {}
                     Some(existing) => {
                         return Err(frontend_error(format!(
-                            "refactor LLVM ABI materialization 发现 owner step schema s{} resume state st{} 的 resumed local/home contract 冲突：已发布 boundary bd{} -> local{} home={:?}，当前 boundary bd{} -> local{} home={:?}",
+                            "LLVM ABI materialization 发现 owner step schema s{} resume state st{} 的 resumed local/home contract 冲突：已发布 boundary bd{} -> local{} home={:?}，当前 boundary bd{} -> local{} home={:?}",
                             callable.step_schema().as_u32(),
                             binding.resume_state().as_u32(),
                             existing.boundary_id().as_u32(),
@@ -106,7 +106,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
     pub(super) fn validate_resume_payload_binding(
         &mut self,
         callable: &LateLoweredCallable,
-        frame_layout: &RefactorFrameLayout<'ctx>,
+        frame_layout: &FrameLayout<'ctx>,
         binding: &LateLoweredResumePayloadBinding,
     ) -> Result<Option<u32>, LlvmEmitError> {
         let boundary = callable
@@ -114,14 +114,14 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             .boundary(binding.boundary_id())
             .ok_or_else(|| {
                 frontend_error(format!(
-                    "refactor LLVM ABI materialization 发现 callable `{}` 的 resumed local/home contract 引用了不存在的 boundary bd{}",
+                    "LLVM ABI materialization 发现 callable `{}` 的 resumed local/home contract 引用了不存在的 boundary bd{}",
                     callable.root_fqn(),
                     binding.boundary_id().as_u32(),
                 ))
             })?;
         if binding.resume_state() != boundary.resume_state() {
             return Err(frontend_error(format!(
-                "refactor LLVM ABI materialization 发现 callable `{}` boundary bd{} 的 resumed local/home contract resume_state 漂移：published=st{}，boundary=st{}",
+                "LLVM ABI materialization 发现 callable `{}` boundary bd{} 的 resumed local/home contract resume_state 漂移：published=st{}，boundary=st{}",
                 callable.root_fqn(),
                 binding.boundary_id().as_u32(),
                 binding.resume_state().as_u32(),
@@ -140,7 +140,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                 )
                 .ok_or_else(|| {
                     frontend_error(format!(
-                        "refactor LLVM ABI materialization 发现 callable `{}` perform boundary bd{} 缺少 BoundaryResult slot，无法校验 resumed local/home contract",
+                        "LLVM ABI materialization 发现 callable `{}` perform boundary bd{} 缺少 BoundaryResult slot，无法校验 resumed local/home contract",
                         callable.root_fqn(),
                         binding.boundary_id().as_u32(),
                     ))
@@ -156,7 +156,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                     .resume_payload_binding(lowering.resume_boundary())
                     .ok_or_else(|| {
                         frontend_error(format!(
-                            "refactor LLVM ABI materialization 发现 callable `{}` runtime-error boundary bd{} 的 paired resume boundary bd{} 缺少 resumed local/home contract",
+                            "LLVM ABI materialization 发现 callable `{}` runtime-error boundary bd{} 的 paired resume boundary bd{} 缺少 resumed local/home contract",
                             callable.root_fqn(),
                             binding.boundary_id().as_u32(),
                             lowering.resume_boundary().as_u32(),
@@ -166,7 +166,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                     || paired_binding.consumer_frame_slot() != binding.consumer_frame_slot()
                 {
                     return Err(frontend_error(format!(
-                        "refactor LLVM ABI materialization 发现 callable `{}` runtime-error boundary bd{} 的 resumed local/home contract 与 paired resume boundary bd{} 漂移",
+                        "LLVM ABI materialization 发现 callable `{}` runtime-error boundary bd{} 的 resumed local/home contract 与 paired resume boundary bd{} 漂移",
                         callable.root_fqn(),
                         binding.boundary_id().as_u32(),
                         lowering.resume_boundary().as_u32(),
@@ -178,7 +178,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             | Some(LateLoweredBoundaryLowering::Handle(_))
             | None => {
                 return Err(frontend_error(format!(
-                    "refactor LLVM ABI materialization 发现 callable `{}` boundary bd{} 不应发布 resumed local/home contract",
+                    "LLVM ABI materialization 发现 callable `{}` boundary bd{} 不应发布 resumed local/home contract",
                     callable.root_fqn(),
                     binding.boundary_id().as_u32(),
                 )));
@@ -187,7 +187,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
 
         if binding.consumer_local() != expected_local {
             return Err(frontend_error(format!(
-                "refactor LLVM ABI materialization 发现 callable `{}` boundary bd{} 的 resumed local/home contract local 漂移：published=local{}，expected=local{}",
+                "LLVM ABI materialization 发现 callable `{}` boundary bd{} 的 resumed local/home contract local 漂移：published=local{}，expected=local{}",
                 callable.root_fqn(),
                 binding.boundary_id().as_u32(),
                 binding.consumer_local().as_u32(),
@@ -201,7 +201,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             (Some((slot_local, slot_id)), Some(binding_slot)) => {
                 if slot_local != binding.consumer_local() || slot_id != binding_slot {
                     return Err(frontend_error(format!(
-                        "refactor LLVM ABI materialization 发现 callable `{}` boundary bd{} 的 resumed local/home slot 漂移：published=slot{}，expected BoundaryResult home=slot{}",
+                        "LLVM ABI materialization 发现 callable `{}` boundary bd{} 的 resumed local/home slot 漂移：published=slot{}，expected BoundaryResult home=slot{}",
                         callable.root_fqn(),
                         binding.boundary_id().as_u32(),
                         binding_slot.as_u32(),
@@ -211,7 +211,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             }
             (Some((_slot_local, slot_id)), None) => {
                 return Err(frontend_error(format!(
-                    "refactor LLVM ABI materialization 发现 callable `{}` boundary bd{} 已有 BoundaryResult home slot{}，但 resumed local/home contract 未发布 frame home",
+                    "LLVM ABI materialization 发现 callable `{}` boundary bd{} 已有 BoundaryResult home slot{}，但 resumed local/home contract 未发布 frame home",
                     callable.root_fqn(),
                     binding.boundary_id().as_u32(),
                     slot_id.as_u32(),
@@ -225,7 +225,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                     .find(|slot| slot.slot_id() == binding_slot)
                     .ok_or_else(|| {
                         frontend_error(format!(
-                            "refactor LLVM ABI materialization 发现 callable `{}` boundary bd{} 的 resumed local/home contract 引用了不存在的 frame slot fs{}",
+                            "LLVM ABI materialization 发现 callable `{}` boundary bd{} 的 resumed local/home contract 引用了不存在的 frame slot fs{}",
                             callable.root_fqn(),
                             binding.boundary_id().as_u32(),
                             binding_slot.as_u32(),
@@ -233,7 +233,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                     })?;
                 let Some(slot_local) = Self::frame_slot_local(slot.kind()) else {
                     return Err(frontend_error(format!(
-                        "refactor LLVM ABI materialization 发现 callable `{}` boundary bd{} 的 resumed local/home contract 引用了不能承载 local 的 frame slot fs{} kind={:?}",
+                        "LLVM ABI materialization 发现 callable `{}` boundary bd{} 的 resumed local/home contract 引用了不能承载 local 的 frame slot fs{} kind={:?}",
                         callable.root_fqn(),
                         binding.boundary_id().as_u32(),
                         binding_slot.as_u32(),
@@ -242,7 +242,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                 };
                 if slot_local != binding.consumer_local() {
                     return Err(frontend_error(format!(
-                        "refactor LLVM ABI materialization 发现 callable `{}` boundary bd{} 的 resumed local/home contract frame slot fs{} 绑定到了 local{}，但 published local 为 local{}",
+                        "LLVM ABI materialization 发现 callable `{}` boundary bd{} 的 resumed local/home contract frame slot fs{} 绑定到了 local{}，但 published local 为 local{}",
                         callable.root_fqn(),
                         binding.boundary_id().as_u32(),
                         binding_slot.as_u32(),
@@ -261,7 +261,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                     .field_index_for_slot(slot_id)
                     .ok_or_else(|| {
                         frontend_error(format!(
-                            "refactor LLVM ABI materialization 发现 callable `{}` boundary bd{} 的 resumed local/home contract 引用了 frame slot fs{}，但 frame layout 中缺少对应 field",
+                            "LLVM ABI materialization 发现 callable `{}` boundary bd{} 的 resumed local/home contract 引用了 frame slot fs{}，但 frame layout 中缺少对应 field",
                             callable.root_fqn(),
                             binding.boundary_id().as_u32(),
                             slot_id.as_u32(),
@@ -273,8 +273,8 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
 
     pub(super) fn materialize_completion_payload_binding_layouts(
         &mut self,
-        step_layouts: &BTreeMap<StepSchemaId, RefactorStepLayout<'ctx>>,
-        frame_layouts: &BTreeMap<StepSchemaId, RefactorFrameLayout<'ctx>>,
+        step_layouts: &BTreeMap<StepSchemaId, StepLayout<'ctx>>,
+        frame_layouts: &BTreeMap<StepSchemaId, FrameLayout<'ctx>>,
     ) -> Result<CompletionPayloadBindingLayouts<'ctx>, LlvmEmitError> {
         let mut layouts = CompletionPayloadBindingLayouts::new();
 
@@ -284,21 +284,21 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             }
             let step_type = self.program.step_type(callable.step_schema()).ok_or_else(|| {
                 frontend_error(format!(
-                    "refactor LLVM ABI materialization 缺少 callable `{}` step schema s{} 的 Step shell，无法发布 completion payload contract",
+                    "LLVM ABI materialization 缺少 callable `{}` step schema s{} 的 Step shell，无法发布 completion payload contract",
                     callable.root_fqn(),
                     callable.step_schema().as_u32(),
                 ))
             })?;
             let step_layout = step_layouts.get(&callable.step_schema()).ok_or_else(|| {
                 frontend_error(format!(
-                    "refactor LLVM ABI materialization 缺少 callable `{}` step schema s{} 的 Step layout，无法发布 completion payload contract",
+                    "LLVM ABI materialization 缺少 callable `{}` step schema s{} 的 Step layout，无法发布 completion payload contract",
                     callable.root_fqn(),
                     callable.step_schema().as_u32(),
                 ))
             })?;
             if step_layout.complete_variant().payload_source_ty() != step_type.complete_ty() {
                 return Err(frontend_error(format!(
-                    "refactor LLVM ABI materialization 发现 callable `{}` 的 Step complete variant 类型漂移：layout=t{}，step=t{}",
+                    "LLVM ABI materialization 发现 callable `{}` 的 Step complete variant 类型漂移：layout=t{}，step=t{}",
                     callable.root_fqn(),
                     step_layout.complete_variant().payload_source_ty().as_u32(),
                     step_type.complete_ty().as_u32(),
@@ -306,7 +306,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             }
             let frame_layout = frame_layouts.get(&callable.step_schema()).ok_or_else(|| {
                 frontend_error(format!(
-                    "refactor LLVM ABI materialization 缺少 callable `{}` step schema s{} 的 frame layout，无法发布 completion payload contract",
+                    "LLVM ABI materialization 缺少 callable `{}` step schema s{} 的 frame layout，无法发布 completion payload contract",
                     callable.root_fqn(),
                     callable.step_schema().as_u32(),
                 ))
@@ -325,7 +325,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                     .is_none()
                 {
                     return Err(frontend_error(format!(
-                        "refactor LLVM ABI materialization 发现 callable `{}` return state st{} 缺少 completion payload contract",
+                        "LLVM ABI materialization 发现 callable `{}` return state st{} 缺少 completion payload contract",
                         callable.root_fqn(),
                         state.state_id().as_u32(),
                     )));
@@ -339,7 +339,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                     frame_layout,
                     binding,
                 )?;
-                let layout = RefactorCompletionPayloadBindingLayout::new(
+                let layout = CompletionPayloadBindingLayout::new(
                     callable.step_schema(),
                     binding.clone(),
                     payload_abi,
@@ -348,7 +348,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                 let key = (callable.step_schema(), binding.return_state());
                 if layouts.insert(key, layout).is_some() {
                     return Err(frontend_error(format!(
-                        "refactor LLVM ABI materialization 发现 owner step schema s{} return state st{} 的 completion payload contract 重复发布",
+                        "LLVM ABI materialization 发现 owner step schema s{} return state st{} 的 completion payload contract 重复发布",
                         callable.step_schema().as_u32(),
                         binding.return_state().as_u32(),
                     )));
@@ -363,9 +363,9 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
         &mut self,
         callable: &LateLoweredCallable,
         step_type: &LateLoweredStepType,
-        frame_layout: &RefactorFrameLayout<'ctx>,
+        frame_layout: &FrameLayout<'ctx>,
         binding: &LateLoweredCompletionPayloadBinding,
-    ) -> Result<(RefactorAbiValue<'ctx>, Option<u32>), LlvmEmitError> {
+    ) -> Result<(AbiValue<'ctx>, Option<u32>), LlvmEmitError> {
         let state = callable
             .state_graph()
             .states()
@@ -373,7 +373,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             .find(|state| state.state_id() == binding.return_state())
             .ok_or_else(|| {
                 frontend_error(format!(
-                    "refactor LLVM ABI materialization 发现 callable `{}` 的 completion payload contract 引用了不存在的 return state st{}",
+                    "LLVM ABI materialization 发现 callable `{}` 的 completion payload contract 引用了不存在的 return state st{}",
                     callable.root_fqn(),
                     binding.return_state().as_u32(),
                 ))
@@ -384,7 +384,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
         } = state.terminator()
         else {
             return Err(frontend_error(format!(
-                "refactor LLVM ABI materialization 发现 callable `{}` state st{} 不是 Return，却发布了 completion payload contract",
+                "LLVM ABI materialization 发现 callable `{}` state st{} 不是 Return，却发布了 completion payload contract",
                 callable.root_fqn(),
                 binding.return_state().as_u32(),
             )));
@@ -393,7 +393,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             || binding.complete_state() != callable.state_graph().complete_state()
         {
             return Err(frontend_error(format!(
-                "refactor LLVM ABI materialization 发现 callable `{}` return state st{} 的 complete_state 漂移：binding=st{}，state_graph_return=st{}，callable_complete=st{}",
+                "LLVM ABI materialization 发现 callable `{}` return state st{} 的 complete_state 漂移：binding=st{}，state_graph_return=st{}，callable_complete=st{}",
                 callable.root_fqn(),
                 binding.return_state().as_u32(),
                 binding.complete_state().as_u32(),
@@ -403,7 +403,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
         }
         if binding.payload_source() != payload_source {
             return Err(frontend_error(format!(
-                "refactor LLVM ABI materialization 发现 callable `{}` return state st{} 的 completion payload source 漂移：binding={:?}，state_graph={:?}",
+                "LLVM ABI materialization 发现 callable `{}` return state st{} 的 completion payload source 漂移：binding={:?}，state_graph={:?}",
                 callable.root_fqn(),
                 binding.return_state().as_u32(),
                 binding.payload_source(),
@@ -412,7 +412,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
         }
         if binding.payload_source().source_ty() != step_type.complete_ty() {
             return Err(frontend_error(format!(
-                "refactor LLVM ABI materialization 发现 callable `{}` return state st{} 的 completion payload source type t{} 与 StepSchema s{} complete_ty t{} 不一致",
+                "LLVM ABI materialization 发现 callable `{}` return state st{} 的 completion payload source type t{} 与 StepSchema s{} complete_ty t{} 不一致",
                 callable.root_fqn(),
                 binding.return_state().as_u32(),
                 binding.payload_source().source_ty().as_u32(),
@@ -428,7 +428,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             TypeKind::Value(ValueTypeKind::Unit)
         ) {
             return Err(frontend_error(format!(
-                "refactor LLVM ABI materialization 发现 callable `{}` return state st{} 对 non-Unit complete_ty t{} 发布了 Unit completion payload source",
+                "LLVM ABI materialization 发现 callable `{}` return state st{} 对 non-Unit complete_ty t{} 发布了 Unit completion payload source",
                 callable.root_fqn(),
                 binding.return_state().as_u32(),
                 step_type.complete_ty().as_u32(),
@@ -446,7 +446,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
         };
         if binding.payload_frame_slot() != expected_frame_slot {
             return Err(frontend_error(format!(
-                "refactor LLVM ABI materialization 发现 callable `{}` return state st{} 的 completion payload frame home 漂移：binding={:?}，expected={:?}",
+                "LLVM ABI materialization 发现 callable `{}` return state st{} 的 completion payload frame home 漂移：binding={:?}，expected={:?}",
                 callable.root_fqn(),
                 binding.return_state().as_u32(),
                 binding.payload_frame_slot(),
@@ -464,7 +464,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                     .find(|slot| slot.slot_id() == slot_id)
                     .ok_or_else(|| {
                         frontend_error(format!(
-                            "refactor LLVM ABI materialization 发现 callable `{}` return state st{} 的 completion payload contract 引用了不存在的 frame slot fs{}",
+                            "LLVM ABI materialization 发现 callable `{}` return state st{} 的 completion payload contract 引用了不存在的 frame slot fs{}",
                             callable.root_fqn(),
                             binding.return_state().as_u32(),
                             slot_id.as_u32(),
@@ -472,7 +472,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                     })?;
                 if slot.ty() != binding.payload_source().source_ty() {
                     return Err(frontend_error(format!(
-                        "refactor LLVM ABI materialization 发现 callable `{}` return state st{} 的 completion payload home slot fs{} 类型 t{} 与 payload source type t{} 不一致",
+                        "LLVM ABI materialization 发现 callable `{}` return state st{} 的 completion payload home slot fs{} 类型 t{} 与 payload source type t{} 不一致",
                         callable.root_fqn(),
                         binding.return_state().as_u32(),
                         slot_id.as_u32(),
@@ -482,7 +482,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                 }
                 frame_layout.field_index_for_slot(slot_id).ok_or_else(|| {
                     frontend_error(format!(
-                        "refactor LLVM ABI materialization 发现 callable `{}` return state st{} 的 completion payload frame slot fs{} 在 frame layout 中缺少对应 field",
+                        "LLVM ABI materialization 发现 callable `{}` return state st{} 的 completion payload frame slot fs{} 在 frame layout 中缺少对应 field",
                         callable.root_fqn(),
                         binding.return_state().as_u32(),
                         slot_id.as_u32(),

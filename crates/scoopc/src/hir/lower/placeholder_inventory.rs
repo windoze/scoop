@@ -1,6 +1,6 @@
-//! Executable inventory for refactor HIR placeholders.
+//! Executable inventory for HIR placeholders.
 //!
-//! The refactor typed HIR handoff still reuses the generic `LoweredHir` shape, but the active
+//! The typed HIR handoff still reuses the generic `LoweredHir` shape, but the active
 //! runtime path should no longer construct placeholder HIR nodes.
 //!
 //! This test now acts as a zero-baseline guard: any newly introduced `Todo(...)` constructor in
@@ -29,13 +29,13 @@ struct InventoryEntry {
     reason: &'static str,
     disposition: PlaceholderDisposition,
     owner_task: &'static str,
-    must_eliminate_from_refactor_hir: bool,
+    must_eliminate_from_hir: bool,
     handling_strategy: &'static str,
 }
 
 const ALL_DISPOSITIONS: &[PlaceholderDisposition] = &[PlaceholderDisposition::ImplementBeforeMir];
 
-const REFACTOR_HIR_PLACEHOLDER_INVENTORY: &[InventoryEntry] = &[];
+const HIR_PLACEHOLDER_INVENTORY: &[InventoryEntry] = &[];
 
 const REQUIRED_ELIMINATION_REASONS: &[&str] = &[];
 
@@ -59,10 +59,10 @@ impl PlaceholderKey {
 }
 
 #[test]
-fn refactor_hir_placeholder_inventory() {
+fn hir_placeholder_inventory() {
     assert_inventory_entries_are_actionable();
 
-    let expected = REFACTOR_HIR_PLACEHOLDER_INVENTORY
+    let expected = HIR_PLACEHOLDER_INVENTORY
         .iter()
         .map(|entry| PlaceholderKey::new(entry.surface, entry.reason))
         .collect::<BTreeSet<_>>();
@@ -70,13 +70,13 @@ fn refactor_hir_placeholder_inventory() {
 
     assert_eq!(
         observed, expected,
-        "HIR placeholder constructors changed; update the refactor HIR inventory and classification first"
+        "HIR placeholder constructors changed; update the HIR inventory and classification first"
     );
 }
 
 fn assert_inventory_entries_are_actionable() {
     let mut seen = BTreeSet::new();
-    for entry in REFACTOR_HIR_PLACEHOLDER_INVENTORY {
+    for entry in HIR_PLACEHOLDER_INVENTORY {
         let key = PlaceholderKey::new(entry.surface, entry.reason);
         assert!(seen.insert(key), "duplicate inventory entry: {entry:?}");
         assert!(
@@ -94,13 +94,13 @@ fn assert_inventory_entries_are_actionable() {
     }
 
     for reason in REQUIRED_ELIMINATION_REASONS {
-        let entry = REFACTOR_HIR_PLACEHOLDER_INVENTORY
+        let entry = HIR_PLACEHOLDER_INVENTORY
             .iter()
             .find(|entry| entry.reason == *reason)
             .unwrap_or_else(|| panic!("required placeholder reason is missing: {reason}"));
         assert!(
-            entry.must_eliminate_from_refactor_hir,
-            "{reason} must be marked for refactor HIR elimination"
+            entry.must_eliminate_from_hir,
+            "{reason} must be marked for HIR elimination"
         );
     }
 }

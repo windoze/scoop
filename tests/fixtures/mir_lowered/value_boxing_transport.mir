@@ -1,0 +1,257 @@
+File {
+    items: [
+        Metadata(
+            Nominal(
+                NominalMetadata {
+                    span: 150..195,
+                    fqn: "mir_lowered.value_boxing_transport.Measured",
+                    name: "Measured",
+                    kind: Interface,
+                    type_params: [],
+                    supertypes: [],
+                    interfaces: [],
+                    constructors: [],
+                    members: [Fun(MemberFunMetadata { span: 175..193, fqn: "mir_lowered.value_boxing_transport.Measured.measure", name: "measure", type_params: [], params: [], return_ty: Int })],
+                },
+            ),
+        ),
+        Metadata(
+            Nominal(
+                NominalMetadata {
+                    span: 197..240,
+                    fqn: "mir_lowered.value_boxing_transport.Point",
+                    name: "Point",
+                    kind: Struct,
+                    type_params: [],
+                    supertypes: [],
+                    interfaces: [],
+                    constructors: [CtorMetadata { span: 209..240, kind: Primary, params: [CtorParamMetadata { span: 214..215, name: "x", ty: Int, has_default: false, property: Some(Val) }, CtorParamMetadata { span: 226..231, name: "label", ty: String, has_default: false, property: Some(Val) }], delegation: None }],
+                    members: [Field(FieldMetadata { span: 214..215, fqn: "mir_lowered.value_boxing_transport.Point.x", name: "x", mutable: false, ty: Int, origin: PrimaryCtorParam }), Field(FieldMetadata { span: 226..231, fqn: "mir_lowered.value_boxing_transport.Point.label", name: "label", mutable: false, ty: String, origin: PrimaryCtorParam })],
+                },
+            ),
+        ),
+        Metadata(
+            Nominal(
+                NominalMetadata {
+                    span: 242..333,
+                    fqn: "mir_lowered.value_boxing_transport.Token",
+                    name: "Token",
+                    kind: Struct,
+                    type_params: [],
+                    supertypes: [SupertypeMetadata { span: 273..281, fqn: Some("mir_lowered.value_boxing_transport.Measured"), ty: mir_lowered.value_boxing_transport.Measured, ctor_arg_count: 0 }],
+                    interfaces: ["mir_lowered.value_boxing_transport.Measured"],
+                    constructors: [CtorMetadata { span: 254..270, kind: Primary, params: [CtorParamMetadata { span: 259..264, name: "value", ty: Int, has_default: false, property: Some(Val) }], delegation: None }],
+                    members: [Field(FieldMetadata { span: 259..264, fqn: "mir_lowered.value_boxing_transport.Token.value", name: "value", mutable: false, ty: Int, origin: PrimaryCtorParam }), Fun(MemberFunMetadata { span: 288..331, fqn: "mir_lowered.value_boxing_transport.Token.measure", name: "measure", type_params: [], params: [], return_ty: Int })],
+                },
+            ),
+        ),
+        Metadata(
+            Nominal(
+                NominalMetadata {
+                    span: 335..387,
+                    fqn: "mir_lowered.value_boxing_transport.Wrapped",
+                    name: "Wrapped",
+                    kind: Enum,
+                    type_params: [],
+                    supertypes: [],
+                    interfaces: [],
+                    constructors: [],
+                    members: [EnumVariant(EnumVariantMetadata { span: 354..384, fqn: "mir_lowered.value_boxing_transport.Wrapped.WrappedPoint", name: "WrappedPoint", fields: [FieldMetadata { span: 371..376, fqn: "mir_lowered.value_boxing_transport.Wrapped.WrappedPoint.point", name: "point", mutable: false, ty: mir_lowered.value_boxing_transport.Point, origin: EnumVariantPayload }] })],
+                },
+            ),
+        ),
+        InitializerRoot(
+            InitializerRoot {
+                span: 389..422,
+                fqn: "mir_lowered.value_boxing_transport.topAny",
+                source_path: "tests/fixtures/mir_lowered/value_boxing_transport.scoop",
+                kind: RuntimeImmutableVal,
+                ty: Some(Any),
+                initializer_transport: Some(ValueTransportMetadata { source_ty: mir_lowered.value_boxing_transport.Point, kind: Struct, requirements: MirTransportRequirements { trace: true, copy: true, drop: true }, boxing: Some(MirBoxingIntent { source_ty: mir_lowered.value_boxing_transport.Point, target_ty: Some(Any), reason: AnyErasure }) }),
+                has_initializer: true,
+                dependencies: [],
+                hidden_effects: Pure,
+            },
+        ),
+        Fun(
+            FunDecl {
+                span: 424..469,
+                fqn: "mir_lowered.value_boxing_transport.takeAny",
+                name: "takeAny",
+                ty: (Any) -> Int / Pure,
+                params: [Param { span: 436..441, name: "value", ty: Any, local: local#h02728fa82378ee6981b87ee2544db2c4 }],
+                return_ty: Int,
+                body: Some(
+                    Body {
+                        locals: [LocalDecl { label: local#h02728fa82378ee6981b87ee2544db2c4, span: 436..441, name: Some("value"), ty: Any, source: SourceLocal }, LocalDecl { label: local#h2fbfba2a016b179735868432512c03a1, span: 466..467, name: Some("tmp0"), ty: Int, source: CompilerTemporary }, LocalDecl { label: local#h80a0ae81f9d56948a97a9bbe8607dd40, span: 453..469, name: Some("tmp1"), ty: Unit, source: CompilerTemporary }],
+                        blocks: [
+                            BasicBlock {
+                                label: bb#h7aecd18c675b7b946ced3e41f6010e46,
+                                is_cleanup: false,
+                                stmts: [Statement { span: 466..467, kind: Assign { target: local#h2fbfba2a016b179735868432512c03a1, value: Use(Const(Int)) } }],
+                                terminator: Terminator { span: 459..467, kind: Return { value: Some(Local(local#h2fbfba2a016b179735868432512c03a1)) }, unwind: NoUnwind },
+                            },
+                        ],
+                        start: bb#h7aecd18c675b7b946ced3e41f6010e46,
+                    }
+                ),
+            },
+        ),
+        Fun(
+            FunDecl {
+                span: 471..540,
+                fqn: "mir_lowered.value_boxing_transport.takeMeasured",
+                name: "takeMeasured",
+                ty: (mir_lowered.value_boxing_transport.Measured) -> Int / Pure,
+                params: [Param { span: 488..493, name: "value", ty: mir_lowered.value_boxing_transport.Measured, local: local#h9c06bd9ac54a07ed0cc2709fa970dd5d }],
+                return_ty: Int,
+                body: Some(
+                    Body {
+                        locals: [LocalDecl { label: local#h9c06bd9ac54a07ed0cc2709fa970dd5d, span: 488..493, name: Some("value"), ty: mir_lowered.value_boxing_transport.Measured, source: SourceLocal }, LocalDecl { label: local#h238dca20f123b398bc172f593af9b940, span: 523..538, name: Some("tmp0"), ty: Int, source: CompilerTemporary }, LocalDecl { label: local#h9cb044f6468f82bd37c7d659fcb667ea, span: 510..540, name: Some("tmp1"), ty: Unit, source: CompilerTemporary }],
+                        blocks: [
+                            BasicBlock {
+                                label: bb#hfe90dcd53c248f21b9fe3af77ecfe561,
+                                is_cleanup: false,
+                                stmts: [Statement { span: 523..538, kind: Assign { target: local#h238dca20f123b398bc172f593af9b940, value: Call { site_id: site#hc8088af26188633bf8fdf2f0b9aef03d, kind: Interface { receiver: Local(local#h9c06bd9ac54a07ed0cc2709fa970dd5d), dispatch: DispatchMetadata { owner_fqn: "mir_lowered.value_boxing_transport.Measured", member_name: "measure", member_fqn: "mir_lowered.value_boxing_transport.Measured.measure", member_decl_span: Some(179..186), receiver_ty: mir_lowered.value_boxing_transport.Measured } }, args: [], transport: CallTransportMetadata { result: ValueTransportMetadata { source_ty: Int, kind: Scalar, requirements: MirTransportRequirements { trace: false, copy: true, drop: false }, boxing: None }, aggregate_return: None, array: None, gc: None, thread_resume_payload: None, abi: CallAbiHandoffMetadata { callable_abi_kind: DeferredToEffectFacts, resolved_outward_cases: [], impl_plan: DeferredToEffectFacts, adapter_required: false } } } } }],
+                                terminator: Terminator { span: 516..538, kind: Return { value: Some(Local(local#h238dca20f123b398bc172f593af9b940)) }, unwind: NoUnwind },
+                            },
+                        ],
+                        start: bb#hfe90dcd53c248f21b9fe3af77ecfe561,
+                    }
+                ),
+            },
+        ),
+        Fun(
+            FunDecl {
+                span: 542..595,
+                fqn: "mir_lowered.value_boxing_transport.returnAny",
+                name: "returnAny",
+                ty: (mir_lowered.value_boxing_transport.Point) -> Any / Pure,
+                params: [Param { span: 556..561, name: "point", ty: mir_lowered.value_boxing_transport.Point, local: local#hea65141726c7735753abf904cb533afd }],
+                return_ty: Any,
+                body: Some(
+                    Body {
+                        locals: [LocalDecl { label: local#hea65141726c7735753abf904cb533afd, span: 556..561, name: Some("point"), ty: mir_lowered.value_boxing_transport.Point, source: SourceLocal }, LocalDecl { label: local#hcf914d569f0f47dc2812b6c539091759, span: 581..593, name: Some("tmp0"), ty: Any, source: CompilerTemporary }, LocalDecl { label: local#h9e56c7e256ab104ddf04b0a52f6ba646, span: 575..595, name: Some("tmp1"), ty: Unit, source: CompilerTemporary }],
+                        blocks: [
+                            BasicBlock {
+                                label: bb#he6894bb95424e8264dd1767136fdbe80,
+                                is_cleanup: false,
+                                stmts: [Statement { span: 581..593, kind: Assign { target: local#hcf914d569f0f47dc2812b6c539091759, value: Transport { value: Local(local#hea65141726c7735753abf904cb533afd), transport: ValueTransportMetadata { source_ty: mir_lowered.value_boxing_transport.Point, kind: Struct, requirements: MirTransportRequirements { trace: true, copy: true, drop: true }, boxing: Some(MirBoxingIntent { source_ty: mir_lowered.value_boxing_transport.Point, target_ty: Some(Any), reason: AnyErasure }) } } } }],
+                                terminator: Terminator { span: 581..593, kind: Return { value: Some(Local(local#hcf914d569f0f47dc2812b6c539091759)) }, unwind: NoUnwind },
+                            },
+                        ],
+                        start: bb#he6894bb95424e8264dd1767136fdbe80,
+                    }
+                ),
+            },
+        ),
+        Fun(
+            FunDecl {
+                span: 597..641,
+                fqn: "mir_lowered.value_boxing_transport.tailAny",
+                name: "tailAny",
+                ty: (mir_lowered.value_boxing_transport.Point) -> Any / Pure,
+                params: [Param { span: 609..614, name: "point", ty: mir_lowered.value_boxing_transport.Point, local: local#h2810637ac11aefd51f0e6721fe6e0eb3 }],
+                return_ty: Any,
+                body: Some(
+                    Body {
+                        locals: [LocalDecl { label: local#h2810637ac11aefd51f0e6721fe6e0eb3, span: 609..614, name: Some("point"), ty: mir_lowered.value_boxing_transport.Point, source: SourceLocal }, LocalDecl { label: local#ha4f63b92125aeb7ae1e71c480b1bf9d7, span: 597..641, name: Some("tmp0"), ty: Any, source: CompilerTemporary }],
+                        blocks: [
+                            BasicBlock {
+                                label: bb#h53071ed340989d8a105f73468e00b9c0,
+                                is_cleanup: false,
+                                stmts: [Statement { span: 597..641, kind: Assign { target: local#ha4f63b92125aeb7ae1e71c480b1bf9d7, value: Transport { value: Local(local#h2810637ac11aefd51f0e6721fe6e0eb3), transport: ValueTransportMetadata { source_ty: mir_lowered.value_boxing_transport.Point, kind: Struct, requirements: MirTransportRequirements { trace: true, copy: true, drop: true }, boxing: Some(MirBoxingIntent { source_ty: mir_lowered.value_boxing_transport.Point, target_ty: Some(Any), reason: AnyErasure }) } } } }],
+                                terminator: Terminator { span: 597..641, kind: Return { value: Some(Local(local#ha4f63b92125aeb7ae1e71c480b1bf9d7)) }, unwind: NoUnwind },
+                            },
+                        ],
+                        start: bb#h53071ed340989d8a105f73468e00b9c0,
+                    }
+                ),
+            },
+        ),
+        Fun(
+            FunDecl {
+                span: 643..1087,
+                fqn: "mir_lowered.value_boxing_transport.useBoxing",
+                name: "useBoxing",
+                ty: (mir_lowered.value_boxing_transport.Point) -> Any / Pure,
+                params: [Param { span: 657..662, name: "point", ty: mir_lowered.value_boxing_transport.Point, local: local#h8530076e2f5423ee4a4eab5038dd3d71 }],
+                return_ty: Any,
+                body: Some(
+                    Body {
+                        locals: [LocalDecl { label: local#h8530076e2f5423ee4a4eab5038dd3d71, span: 657..662, name: Some("point"), ty: mir_lowered.value_boxing_transport.Point, source: SourceLocal }, LocalDecl { label: local#heacee1cdb6b7aad84fae33968d00b4ed, span: 682..707, name: Some("localAny"), ty: Any, source: SourceLocal }, LocalDecl { label: local#h88d5522d6bdd491c91352bff3d418b14, span: 712..752, name: Some("assigned"), ty: Any, source: SourceLocal }, LocalDecl { label: local#h9484547bdb0072c5a764c55a08d639a2, span: 732..752, name: Some("tmp0"), ty: mir_lowered.value_boxing_transport.Point, source: CompilerTemporary }, LocalDecl { label: local#h4343887d566ce7e7b32597aff13b59d3, span: 738..739, name: Some("tmp1"), ty: Int, source: CompilerTemporary }, LocalDecl { label: local#h748aaf863b1888c313f75f6ef71a3d26, span: 741..751, name: Some("tmp2"), ty: String, source: CompilerTemporary }, LocalDecl { label: local#he96d516db61d5a1cb4d9e8580fb76aab, span: 768..790, name: Some("tmp3"), ty: mir_lowered.value_boxing_transport.Point, source: CompilerTemporary }, LocalDecl { label: local#hd0e10b523b060bd270062ee69ec7022b, span: 774..775, name: Some("tmp4"), ty: Int, source: CompilerTemporary }, LocalDecl { label: local#hb2ccc8a1fd71ec20de1cf47266252ceb, span: 777..789, name: Some("tmp5"), ty: String, source: CompilerTemporary }, LocalDecl { label: local#h731768a18e02a7fc83f045140adc5c74, span: 795..847, name: Some("callAny"), ty: Int, source: SourceLocal }, LocalDecl { label: local#haf131563a067051fb5dd58ab53d972ca, span: 814..847, name: Some("tmp6"), ty: Int, source: CompilerTemporary }, LocalDecl { label: local#hdffdfa20ca2afb6663c08aad3fc3785e, span: 822..846, name: Some("tmp7"), ty: (mir_lowered.value_boxing_transport.Point, mir_lowered.value_boxing_transport.Point), source: CompilerTemporary }, LocalDecl { label: local#he5947d48d49d90c02b83508de90f9594, span: 830..845, name: Some("tmp8"), ty: mir_lowered.value_boxing_transport.Point, source: CompilerTemporary }, LocalDecl { label: local#h7315ac702ae3385be882b32a49fadfe9, span: 836..837, name: Some("tmp9"), ty: Int, source: CompilerTemporary }, LocalDecl { label: local#hd5c406500c9c49f51493843b3104ddc2, span: 839..844, name: Some("tmp10"), ty: String, source: CompilerTemporary }, LocalDecl { label: local#he16952d9bb4726566f781990ac5a8dff, span: 822..846, name: Some("tmp11"), ty: Any, source: CompilerTemporary }, LocalDecl { label: local#hfae53304bb5a5b3fc70eab373c15a685, span: 852..885, name: Some("refLocal"), ty: mir_lowered.value_boxing_transport.Measured, source: SourceLocal }, LocalDecl { label: local#h8326d0dd7520f8f645c03eecccbe8882, span: 877..885, name: Some("tmp12"), ty: mir_lowered.value_boxing_transport.Token, source: CompilerTemporary }, LocalDecl { label: local#h0f4903454ce0788932558734600831ae, span: 883..884, name: Some("tmp13"), ty: Int, source: CompilerTemporary }, LocalDecl { label: local#h2c207868d6650bfaf9c4e5f1722d30e7, span: 890..930, name: Some("refArg"), ty: Int, source: SourceLocal }, LocalDecl { label: local#h12e21f62bb9a9f05e697e6fedf0179e8, span: 908..930, name: Some("tmp14"), ty: Int, source: CompilerTemporary }, LocalDecl { label: local#h31c912a0aad2458967b702d7042e9e5c, span: 921..929, name: Some("tmp15"), ty: mir_lowered.value_boxing_transport.Token, source: CompilerTemporary }, LocalDecl { label: local#h90bd7e7ee766f57dfda7218cdd9c8e7f, span: 927..928, name: Some("tmp16"), ty: Int, source: CompilerTemporary }, LocalDecl { label: local#hdaa78937a57c92214024502a2013f1de, span: 921..929, name: Some("tmp17"), ty: mir_lowered.value_boxing_transport.Measured, source: CompilerTemporary }, LocalDecl { label: local#h6649bb72af4acb4847d272c7c59e85ab, span: 935..984, name: Some("enumAny"), ty: Any, source: SourceLocal }, LocalDecl { label: local#hc0f8f2c1edeed5d6997dc477c7ceb3ec, span: 954..984, name: Some("tmp18"), ty: mir_lowered.value_boxing_transport.Wrapped, source: CompilerTemporary }, LocalDecl { label: local#hf7aadebd8d8889296bb02e86e785aded, span: 967..983, name: Some("tmp19"), ty: mir_lowered.value_boxing_transport.Point, source: CompilerTemporary }, LocalDecl { label: local#h5036a48cdb032aeb263c944531a3533e, span: 973..974, name: Some("tmp20"), ty: Int, source: CompilerTemporary }, LocalDecl { label: local#hbae8028584ff4f999185466a82455ede, span: 976..982, name: Some("tmp21"), ty: String, source: CompilerTemporary }, LocalDecl { label: local#h60bc3bbcfe5076202337c9aa086d03c6, span: 989..1027, name: Some("fromReturn"), ty: Any, source: SourceLocal }, LocalDecl { label: local#h076d39605bf2a607e5327bea1ed03a0a, span: 1011..1027, name: Some("tmp22"), ty: Any, source: CompilerTemporary }, LocalDecl { label: local#hf08df816d96dc9d08ab416548fdd0242, span: 1032..1066, name: Some("fromTail"), ty: Any, source: SourceLocal }, LocalDecl { label: local#h26e4b37063e15152870dcc5595bc77d6, span: 1052..1066, name: Some("tmp23"), ty: Any, source: CompilerTemporary }, LocalDecl { label: local#h3f1cd28e717dc88f89d527729372edef, span: 676..1087, name: Some("tmp24"), ty: Unit, source: CompilerTemporary }],
+                        blocks: [
+                            BasicBlock {
+                                label: bb#h5767b9420235ee8a3b9fe05a0c48841d,
+                                is_cleanup: false,
+                                stmts: [Statement { span: 682..707, kind: Assign { target: local#heacee1cdb6b7aad84fae33968d00b4ed, value: Transport { value: Local(local#h8530076e2f5423ee4a4eab5038dd3d71), transport: ValueTransportMetadata { source_ty: mir_lowered.value_boxing_transport.Point, kind: Struct, requirements: MirTransportRequirements { trace: true, copy: true, drop: true }, boxing: Some(MirBoxingIntent { source_ty: mir_lowered.value_boxing_transport.Point, target_ty: Some(Any), reason: AnyErasure }) } } } }, Statement { span: 738..739, kind: Assign { target: local#h4343887d566ce7e7b32597aff13b59d3, value: Use(Const(Int)) } }, Statement { span: 741..751, kind: Assign { target: local#h748aaf863b1888c313f75f6ef71a3d26, value: Use(Const(String)) } }, Statement { span: 732..752, kind: Assign { target: local#h9484547bdb0072c5a764c55a08d639a2, value: StructLit { fields: [StructLitField { span: 738..739, name: "x", value: Local(local#h4343887d566ce7e7b32597aff13b59d3) }, StructLitField { span: 741..751, name: "label", value: Local(local#h748aaf863b1888c313f75f6ef71a3d26) }], transport: AggregateTransportMetadata { aggregate_ty: mir_lowered.value_boxing_transport.Point, kind: Struct, fields: [AggregateTransportField { index: 0, name: Some("x"), ty: Int, transport: ValueTransportMetadata { source_ty: Int, kind: Scalar, requirements: MirTransportRequirements { trace: false, copy: true, drop: false }, boxing: None } }, AggregateTransportField { index: 1, name: Some("label"), ty: String, transport: ValueTransportMetadata { source_ty: String, kind: Reference, requirements: MirTransportRequirements { trace: true, copy: true, drop: true }, boxing: None } }] } } } }, Statement { span: 712..752, kind: Assign { target: local#h88d5522d6bdd491c91352bff3d418b14, value: Transport { value: Local(local#h9484547bdb0072c5a764c55a08d639a2), transport: ValueTransportMetadata { source_ty: mir_lowered.value_boxing_transport.Point, kind: Struct, requirements: MirTransportRequirements { trace: true, copy: true, drop: true }, boxing: Some(MirBoxingIntent { source_ty: mir_lowered.value_boxing_transport.Point, target_ty: Some(Any), reason: AnyErasure }) } } } }, Statement { span: 774..775, kind: Assign { target: local#hd0e10b523b060bd270062ee69ec7022b, value: Use(Const(Int)) } }, Statement { span: 777..789, kind: Assign { target: local#hb2ccc8a1fd71ec20de1cf47266252ceb, value: Use(Const(String)) } }, Statement { span: 768..790, kind: Assign { target: local#he96d516db61d5a1cb4d9e8580fb76aab, value: StructLit { fields: [StructLitField { span: 774..775, name: "x", value: Local(local#hd0e10b523b060bd270062ee69ec7022b) }, StructLitField { span: 777..789, name: "label", value: Local(local#hb2ccc8a1fd71ec20de1cf47266252ceb) }], transport: AggregateTransportMetadata { aggregate_ty: mir_lowered.value_boxing_transport.Point, kind: Struct, fields: [AggregateTransportField { index: 0, name: Some("x"), ty: Int, transport: ValueTransportMetadata { source_ty: Int, kind: Scalar, requirements: MirTransportRequirements { trace: false, copy: true, drop: false }, boxing: None } }, AggregateTransportField { index: 1, name: Some("label"), ty: String, transport: ValueTransportMetadata { source_ty: String, kind: Reference, requirements: MirTransportRequirements { trace: true, copy: true, drop: true }, boxing: None } }] } } } }, Statement { span: 757..790, kind: Assign { target: local#h88d5522d6bdd491c91352bff3d418b14, value: Transport { value: Local(local#he96d516db61d5a1cb4d9e8580fb76aab), transport: ValueTransportMetadata { source_ty: mir_lowered.value_boxing_transport.Point, kind: Struct, requirements: MirTransportRequirements { trace: true, copy: true, drop: true }, boxing: Some(MirBoxingIntent { source_ty: mir_lowered.value_boxing_transport.Point, target_ty: Some(Any), reason: AnyErasure }) } } } }, Statement { span: 836..837, kind: Assign { target: local#h7315ac702ae3385be882b32a49fadfe9, value: Use(Const(Int)) } }, Statement { span: 839..844, kind: Assign { target: local#hd5c406500c9c49f51493843b3104ddc2, value: Use(Const(String)) } }, Statement { span: 830..845, kind: Assign { target: local#he5947d48d49d90c02b83508de90f9594, value: StructLit { fields: [StructLitField { span: 836..837, name: "x", value: Local(local#h7315ac702ae3385be882b32a49fadfe9) }, StructLitField { span: 839..844, name: "label", value: Local(local#hd5c406500c9c49f51493843b3104ddc2) }], transport: AggregateTransportMetadata { aggregate_ty: mir_lowered.value_boxing_transport.Point, kind: Struct, fields: [AggregateTransportField { index: 0, name: Some("x"), ty: Int, transport: ValueTransportMetadata { source_ty: Int, kind: Scalar, requirements: MirTransportRequirements { trace: false, copy: true, drop: false }, boxing: None } }, AggregateTransportField { index: 1, name: Some("label"), ty: String, transport: ValueTransportMetadata { source_ty: String, kind: Reference, requirements: MirTransportRequirements { trace: true, copy: true, drop: true }, boxing: None } }] } } } }, Statement { span: 822..846, kind: Assign { target: local#hdffdfa20ca2afb6663c08aad3fc3785e, value: MakeTuple { elements: [Local(local#h8530076e2f5423ee4a4eab5038dd3d71), Local(local#he5947d48d49d90c02b83508de90f9594)], transport: AggregateTransportMetadata { aggregate_ty: (mir_lowered.value_boxing_transport.Point, mir_lowered.value_boxing_transport.Point), kind: Tuple, fields: [AggregateTransportField { index: 0, name: None, ty: mir_lowered.value_boxing_transport.Point, transport: ValueTransportMetadata { source_ty: mir_lowered.value_boxing_transport.Point, kind: Struct, requirements: MirTransportRequirements { trace: true, copy: true, drop: true }, boxing: None } }, AggregateTransportField { index: 1, name: None, ty: mir_lowered.value_boxing_transport.Point, transport: ValueTransportMetadata { source_ty: mir_lowered.value_boxing_transport.Point, kind: Struct, requirements: MirTransportRequirements { trace: true, copy: true, drop: true }, boxing: None } }] } } } }, Statement { span: 822..846, kind: Assign { target: local#he16952d9bb4726566f781990ac5a8dff, value: Transport { value: Local(local#hdffdfa20ca2afb6663c08aad3fc3785e), transport: ValueTransportMetadata { source_ty: (mir_lowered.value_boxing_transport.Point, mir_lowered.value_boxing_transport.Point), kind: Tuple, requirements: MirTransportRequirements { trace: true, copy: true, drop: true }, boxing: Some(MirBoxingIntent { source_ty: (mir_lowered.value_boxing_transport.Point, mir_lowered.value_boxing_transport.Point), target_ty: Some(Any), reason: AnyErasure }) } } } }, Statement { span: 814..847, kind: Assign { target: local#haf131563a067051fb5dd58ab53d972ca, value: Call { site_id: site#hef0680d2a77459730d0ed4243a689625, kind: Direct { callee_fqn: "mir_lowered.value_boxing_transport.takeAny" }, args: [CallArg { span: 822..846, name: None, value: Local(local#he16952d9bb4726566f781990ac5a8dff) }], transport: CallTransportMetadata { result: ValueTransportMetadata { source_ty: Int, kind: Scalar, requirements: MirTransportRequirements { trace: false, copy: true, drop: false }, boxing: None }, aggregate_return: None, array: None, gc: None, thread_resume_payload: None, abi: CallAbiHandoffMetadata { callable_abi_kind: DeferredToEffectFacts, resolved_outward_cases: [], impl_plan: DeferredToEffectFacts, adapter_required: false } } } } }, Statement { span: 795..847, kind: Assign { target: local#h731768a18e02a7fc83f045140adc5c74, value: Use(Local(local#haf131563a067051fb5dd58ab53d972ca)) } }, Statement { span: 883..884, kind: Assign { target: local#h0f4903454ce0788932558734600831ae, value: Use(Const(Int)) } }, Statement { span: 877..885, kind: Assign { target: local#h8326d0dd7520f8f645c03eecccbe8882, value: StructLit { fields: [StructLitField { span: 883..884, name: "value", value: Local(local#h0f4903454ce0788932558734600831ae) }], transport: AggregateTransportMetadata { aggregate_ty: mir_lowered.value_boxing_transport.Token, kind: Struct, fields: [AggregateTransportField { index: 0, name: Some("value"), ty: Int, transport: ValueTransportMetadata { source_ty: Int, kind: Scalar, requirements: MirTransportRequirements { trace: false, copy: true, drop: false }, boxing: None } }] } } } }, Statement { span: 852..885, kind: Assign { target: local#hfae53304bb5a5b3fc70eab373c15a685, value: Transport { value: Local(local#h8326d0dd7520f8f645c03eecccbe8882), transport: ValueTransportMetadata { source_ty: mir_lowered.value_boxing_transport.Token, kind: Struct, requirements: MirTransportRequirements { trace: true, copy: true, drop: true }, boxing: Some(MirBoxingIntent { source_ty: mir_lowered.value_boxing_transport.Token, target_ty: Some(mir_lowered.value_boxing_transport.Measured), reason: RefErasure }) } } } }, Statement { span: 927..928, kind: Assign { target: local#h90bd7e7ee766f57dfda7218cdd9c8e7f, value: Use(Const(Int)) } }, Statement { span: 921..929, kind: Assign { target: local#h31c912a0aad2458967b702d7042e9e5c, value: StructLit { fields: [StructLitField { span: 927..928, name: "value", value: Local(local#h90bd7e7ee766f57dfda7218cdd9c8e7f) }], transport: AggregateTransportMetadata { aggregate_ty: mir_lowered.value_boxing_transport.Token, kind: Struct, fields: [AggregateTransportField { index: 0, name: Some("value"), ty: Int, transport: ValueTransportMetadata { source_ty: Int, kind: Scalar, requirements: MirTransportRequirements { trace: false, copy: true, drop: false }, boxing: None } }] } } } }, Statement { span: 921..929, kind: Assign { target: local#hdaa78937a57c92214024502a2013f1de, value: Transport { value: Local(local#h31c912a0aad2458967b702d7042e9e5c), transport: ValueTransportMetadata { source_ty: mir_lowered.value_boxing_transport.Token, kind: Struct, requirements: MirTransportRequirements { trace: true, copy: true, drop: true }, boxing: Some(MirBoxingIntent { source_ty: mir_lowered.value_boxing_transport.Token, target_ty: Some(mir_lowered.value_boxing_transport.Measured), reason: RefErasure }) } } } }, Statement { span: 908..930, kind: Assign { target: local#h12e21f62bb9a9f05e697e6fedf0179e8, value: Call { site_id: site#h0fa74e475c8541a227fa856ce30f039e, kind: Direct { callee_fqn: "mir_lowered.value_boxing_transport.takeMeasured" }, args: [CallArg { span: 921..929, name: None, value: Local(local#hdaa78937a57c92214024502a2013f1de) }], transport: CallTransportMetadata { result: ValueTransportMetadata { source_ty: Int, kind: Scalar, requirements: MirTransportRequirements { trace: false, copy: true, drop: false }, boxing: None }, aggregate_return: None, array: None, gc: None, thread_resume_payload: None, abi: CallAbiHandoffMetadata { callable_abi_kind: DeferredToEffectFacts, resolved_outward_cases: [], impl_plan: DeferredToEffectFacts, adapter_required: false } } } } }, Statement { span: 890..930, kind: Assign { target: local#h2c207868d6650bfaf9c4e5f1722d30e7, value: Use(Local(local#h12e21f62bb9a9f05e697e6fedf0179e8)) } }, Statement { span: 973..974, kind: Assign { target: local#h5036a48cdb032aeb263c944531a3533e, value: Use(Const(Int)) } }, Statement { span: 976..982, kind: Assign { target: local#hbae8028584ff4f999185466a82455ede, value: Use(Const(String)) } }, Statement { span: 967..983, kind: Assign { target: local#hf7aadebd8d8889296bb02e86e785aded, value: StructLit { fields: [StructLitField { span: 973..974, name: "x", value: Local(local#h5036a48cdb032aeb263c944531a3533e) }, StructLitField { span: 976..982, name: "label", value: Local(local#hbae8028584ff4f999185466a82455ede) }], transport: AggregateTransportMetadata { aggregate_ty: mir_lowered.value_boxing_transport.Point, kind: Struct, fields: [AggregateTransportField { index: 0, name: Some("x"), ty: Int, transport: ValueTransportMetadata { source_ty: Int, kind: Scalar, requirements: MirTransportRequirements { trace: false, copy: true, drop: false }, boxing: None } }, AggregateTransportField { index: 1, name: Some("label"), ty: String, transport: ValueTransportMetadata { source_ty: String, kind: Reference, requirements: MirTransportRequirements { trace: true, copy: true, drop: true }, boxing: None } }] } } } }, Statement { span: 954..984, kind: Assign { target: local#hc0f8f2c1edeed5d6997dc477c7ceb3ec, value: EnumVariant { enum_ty: mir_lowered.value_boxing_transport.Wrapped, variant_name: "WrappedPoint", args: [CallArg { span: 967..983, name: None, value: Local(local#hf7aadebd8d8889296bb02e86e785aded) }], payload: AggregateTransportMetadata { aggregate_ty: mir_lowered.value_boxing_transport.Wrapped, kind: EnumPayload, fields: [AggregateTransportField { index: 0, name: None, ty: mir_lowered.value_boxing_transport.Point, transport: ValueTransportMetadata { source_ty: mir_lowered.value_boxing_transport.Point, kind: Struct, requirements: MirTransportRequirements { trace: true, copy: true, drop: true }, boxing: None } }] } } } }, Statement { span: 935..984, kind: Assign { target: local#h6649bb72af4acb4847d272c7c59e85ab, value: Transport { value: Local(local#hc0f8f2c1edeed5d6997dc477c7ceb3ec), transport: ValueTransportMetadata { source_ty: mir_lowered.value_boxing_transport.Wrapped, kind: EnumPayload, requirements: MirTransportRequirements { trace: true, copy: true, drop: true }, boxing: Some(MirBoxingIntent { source_ty: mir_lowered.value_boxing_transport.Wrapped, target_ty: Some(Any), reason: AnyErasure }) } } } }, Statement { span: 1011..1027, kind: Assign { target: local#h076d39605bf2a607e5327bea1ed03a0a, value: Call { site_id: site#h1c786f90eeae5c9d810421eaffe0b9f1, kind: Direct { callee_fqn: "mir_lowered.value_boxing_transport.returnAny" }, args: [CallArg { span: 1021..1026, name: None, value: Local(local#h8530076e2f5423ee4a4eab5038dd3d71) }], transport: CallTransportMetadata { result: ValueTransportMetadata { source_ty: Any, kind: Reference, requirements: MirTransportRequirements { trace: true, copy: true, drop: true }, boxing: None }, aggregate_return: None, array: None, gc: None, thread_resume_payload: None, abi: CallAbiHandoffMetadata { callable_abi_kind: DeferredToEffectFacts, resolved_outward_cases: [], impl_plan: DeferredToEffectFacts, adapter_required: false } } } } }, Statement { span: 989..1027, kind: Assign { target: local#h60bc3bbcfe5076202337c9aa086d03c6, value: Use(Local(local#h076d39605bf2a607e5327bea1ed03a0a)) } }, Statement { span: 1052..1066, kind: Assign { target: local#h26e4b37063e15152870dcc5595bc77d6, value: Call { site_id: site#h4fd192a3130ed7de74b004e5b79b516e, kind: Direct { callee_fqn: "mir_lowered.value_boxing_transport.tailAny" }, args: [CallArg { span: 1060..1065, name: None, value: Local(local#h8530076e2f5423ee4a4eab5038dd3d71) }], transport: CallTransportMetadata { result: ValueTransportMetadata { source_ty: Any, kind: Reference, requirements: MirTransportRequirements { trace: true, copy: true, drop: true }, boxing: None }, aggregate_return: None, array: None, gc: None, thread_resume_payload: None, abi: CallAbiHandoffMetadata { callable_abi_kind: DeferredToEffectFacts, resolved_outward_cases: [], impl_plan: DeferredToEffectFacts, adapter_required: false } } } } }, Statement { span: 1032..1066, kind: Assign { target: local#hf08df816d96dc9d08ab416548fdd0242, value: Use(Local(local#h26e4b37063e15152870dcc5595bc77d6)) } }],
+                                terminator: Terminator { span: 1071..1085, kind: Return { value: Some(Local(local#h6649bb72af4acb4847d272c7c59e85ab)) }, unwind: NoUnwind },
+                            },
+                        ],
+                        start: bb#h5767b9420235ee8a3b9fe05a0c48841d,
+                    }
+                ),
+            },
+        ),
+        Fun(
+            FunDecl {
+                span: 1089..1174,
+                fqn: "mir_lowered.value_boxing_transport.main",
+                name: "main",
+                ty: () -> Int / Pure,
+                params: [],
+                return_ty: Int,
+                body: Some(
+                    Body {
+                        locals: [LocalDecl { label: local#h55546d75a11a4b9ffefe322c1f11f710, span: 1111..1148, name: Some("any"), ty: Any, source: SourceLocal }, LocalDecl { label: local#h29293e4681929c63007648ac4b6f87da, span: 1121..1148, name: Some("tmp0"), ty: Any, source: CompilerTemporary }, LocalDecl { label: local#hea9078c08004f5e46c36628a73c3dbfd, span: 1131..1147, name: Some("tmp1"), ty: mir_lowered.value_boxing_transport.Point, source: CompilerTemporary }, LocalDecl { label: local#h460caaa8194700dbc2f56d010f2af2b6, span: 1137..1138, name: Some("tmp2"), ty: Int, source: CompilerTemporary }, LocalDecl { label: local#h56319d5259bc174bd787784460e63685, span: 1140..1146, name: Some("tmp3"), ty: String, source: CompilerTemporary }, LocalDecl { label: local#ha35cb72914ba58b7bcfaa36395c7f359, span: 1160..1172, name: Some("tmp4"), ty: Int, source: CompilerTemporary }, LocalDecl { label: local#he1259d7a2b4dc9387636b09f07d710f6, span: 1105..1174, name: Some("tmp5"), ty: Unit, source: CompilerTemporary }],
+                        blocks: [
+                            BasicBlock {
+                                label: bb#h4f0c2ddd605cbc346963a2cb9900e263,
+                                is_cleanup: false,
+                                stmts: [Statement { span: 1137..1138, kind: Assign { target: local#h460caaa8194700dbc2f56d010f2af2b6, value: Use(Const(Int)) } }, Statement { span: 1140..1146, kind: Assign { target: local#h56319d5259bc174bd787784460e63685, value: Use(Const(String)) } }, Statement { span: 1131..1147, kind: Assign { target: local#hea9078c08004f5e46c36628a73c3dbfd, value: StructLit { fields: [StructLitField { span: 1137..1138, name: "x", value: Local(local#h460caaa8194700dbc2f56d010f2af2b6) }, StructLitField { span: 1140..1146, name: "label", value: Local(local#h56319d5259bc174bd787784460e63685) }], transport: AggregateTransportMetadata { aggregate_ty: mir_lowered.value_boxing_transport.Point, kind: Struct, fields: [AggregateTransportField { index: 0, name: Some("x"), ty: Int, transport: ValueTransportMetadata { source_ty: Int, kind: Scalar, requirements: MirTransportRequirements { trace: false, copy: true, drop: false }, boxing: None } }, AggregateTransportField { index: 1, name: Some("label"), ty: String, transport: ValueTransportMetadata { source_ty: String, kind: Reference, requirements: MirTransportRequirements { trace: true, copy: true, drop: true }, boxing: None } }] } } } }, Statement { span: 1121..1148, kind: Assign { target: local#h29293e4681929c63007648ac4b6f87da, value: Call { site_id: site#h37b08bae1148d6ab5a0be51df38c6601, kind: Direct { callee_fqn: "mir_lowered.value_boxing_transport.useBoxing" }, args: [CallArg { span: 1131..1147, name: None, value: Local(local#hea9078c08004f5e46c36628a73c3dbfd) }], transport: CallTransportMetadata { result: ValueTransportMetadata { source_ty: Any, kind: Reference, requirements: MirTransportRequirements { trace: true, copy: true, drop: true }, boxing: None }, aggregate_return: None, array: None, gc: None, thread_resume_payload: None, abi: CallAbiHandoffMetadata { callable_abi_kind: DeferredToEffectFacts, resolved_outward_cases: [], impl_plan: DeferredToEffectFacts, adapter_required: false } } } } }, Statement { span: 1111..1148, kind: Assign { target: local#h55546d75a11a4b9ffefe322c1f11f710, value: Use(Local(local#h29293e4681929c63007648ac4b6f87da)) } }, Statement { span: 1160..1172, kind: Assign { target: local#ha35cb72914ba58b7bcfaa36395c7f359, value: Call { site_id: site#h7fdaed3366ee1721d10cee46de066200, kind: Direct { callee_fqn: "mir_lowered.value_boxing_transport.takeAny" }, args: [CallArg { span: 1168..1171, name: None, value: Local(local#h55546d75a11a4b9ffefe322c1f11f710) }], transport: CallTransportMetadata { result: ValueTransportMetadata { source_ty: Int, kind: Scalar, requirements: MirTransportRequirements { trace: false, copy: true, drop: false }, boxing: None }, aggregate_return: None, array: None, gc: None, thread_resume_payload: None, abi: CallAbiHandoffMetadata { callable_abi_kind: DeferredToEffectFacts, resolved_outward_cases: [], impl_plan: DeferredToEffectFacts, adapter_required: false } } } } }],
+                                terminator: Terminator { span: 1153..1172, kind: Return { value: Some(Local(local#ha35cb72914ba58b7bcfaa36395c7f359)) }, unwind: NoUnwind },
+                            },
+                        ],
+                        start: bb#h4f0c2ddd605cbc346963a2cb9900e263,
+                    }
+                ),
+            },
+        ),
+        Fun(
+            FunDecl {
+                span: 175..193,
+                fqn: "mir_lowered.value_boxing_transport.Measured.measure",
+                name: "measure",
+                ty: (mir_lowered.value_boxing_transport.Measured) -> Int / Pure,
+                params: [Param { span: 160..168, name: "this", ty: mir_lowered.value_boxing_transport.Measured }],
+                return_ty: Int,
+                body: None,
+            },
+        ),
+        Fun(
+            FunDecl {
+                span: 288..331,
+                fqn: "mir_lowered.value_boxing_transport.Token.measure",
+                name: "measure",
+                ty: (mir_lowered.value_boxing_transport.Token) -> Int / Pure,
+                params: [Param { span: 249..254, name: "this", ty: mir_lowered.value_boxing_transport.Token, local: local#h2731c58c597b753837271a86b9f63508 }],
+                return_ty: Int,
+                body: Some(
+                    Body {
+                        locals: [LocalDecl { label: local#h2731c58c597b753837271a86b9f63508, span: 249..254, name: Some("this"), ty: mir_lowered.value_boxing_transport.Token, source: SourceLocal }, LocalDecl { label: local#h767da3828b27d0b2253b0fbe6687614b, span: 324..325, name: Some("tmp0"), ty: Int, source: CompilerTemporary }, LocalDecl { label: local#h39a8ea4f73c216fe9d44eab68c52cc2e, span: 307..331, name: Some("tmp1"), ty: Unit, source: CompilerTemporary }],
+                        blocks: [
+                            BasicBlock {
+                                label: bb#hcebb2aec04336ec05ddf13486d116739,
+                                is_cleanup: false,
+                                stmts: [Statement { span: 324..325, kind: Assign { target: local#h767da3828b27d0b2253b0fbe6687614b, value: Use(Const(Int)) } }],
+                                terminator: Terminator { span: 317..325, kind: Return { value: Some(Local(local#h767da3828b27d0b2253b0fbe6687614b)) }, unwind: NoUnwind },
+                            },
+                        ],
+                        start: bb#hcebb2aec04336ec05ddf13486d116739,
+                    }
+                ),
+            },
+        ),
+    ],
+}
+

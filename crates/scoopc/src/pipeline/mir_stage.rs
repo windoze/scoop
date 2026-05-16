@@ -139,9 +139,9 @@ impl MirStageOutput {
         }
     }
 
-    /// refactor `dump-mir` / `mir_refactor` fixtures / 定向单测共用的稳定文本 surface。
+    /// `dump-mir` / `mir_lowered` fixtures / 定向单测共用的稳定文本 surface。
     ///
-    /// P3-T04 起，这个 formatter 就是 refactor direct-style MIR 的 snapshot/golden 基线：
+    /// P3-T04 起，这个 formatter 就是 direct-style MIR 的 snapshot/golden 基线：
     /// - 必须稳定暴露 direct-style MIR body / CFG；
     /// - 必须保留 `SiteId`、cleanup/finally target，以及 `Call / Perform / Resume / Handle`
     ///   的关键 metadata；
@@ -204,18 +204,18 @@ fn collect_metadata_root_indices(file: &MirFile) -> BTreeMap<String, usize> {
     indices
 }
 
-fn validate_refactor_bodies(file: &MirFile, unit_ty: TypeId) -> Result<(), MirLowerError> {
-    file.validate_refactor_production(unit_ty)
-        .map_err(|error| MirLowerError::InvalidRefactorMir {
-            fqn: error.refactor_body_fqn().unwrap_or("<file>").to_string(),
+fn validate_bodies(file: &MirFile, unit_ty: TypeId) -> Result<(), MirLowerError> {
+    file.validate_production(unit_ty)
+        .map_err(|error| MirLowerError::InvalidMir {
+            fqn: error.body_fqn().unwrap_or("<file>").to_string(),
             error,
         })
 }
 
-fn lower_refactor_mir_stage_unvalidated(
+fn lower_mir_stage_unvalidated(
     typed_hir_output: TypedHirStageOutput,
 ) -> (MirStageOutput, TypeId) {
-    let facts = MirLoweringFacts::from_refactor_typed_handoff(
+    let facts = MirLoweringFacts::from_typed_handoff(
         typed_hir_output.lowered_hir(),
         typed_hir_output.effect_contracts(),
     );
@@ -243,8 +243,8 @@ fn lower_refactor_mir_stage_unvalidated(
 }
 
 pub(crate) fn run(typed_hir_output: TypedHirStageOutput) -> Result<MirStageOutput, MirLowerError> {
-    let (output, unit_ty) = lower_refactor_mir_stage_unvalidated(typed_hir_output);
-    validate_refactor_bodies(output.file(), unit_ty)?;
+    let (output, unit_ty) = lower_mir_stage_unvalidated(typed_hir_output);
+    validate_bodies(output.file(), unit_ty)?;
     Ok(output)
 }
 
@@ -269,7 +269,7 @@ mod tests {
 
     use super::super::TypedHirEffectContracts;
 
-    fn refactor_session() -> Session {
+    fn session() -> Session {
         Session::with_options(SessionOptions::new()).unwrap()
     }
 
@@ -282,11 +282,11 @@ mod tests {
     }
 
     fn run_fixture(phase: &str, name: &str) -> MirStageOutput {
-        let session = refactor_session();
+        let session = session();
         let source = load_fixture(phase, name);
         let typed_hir_output =
             super::super::load_typed_hir_stage_output_for_dump(&session, &source).unwrap();
-        super::run(typed_hir_output).expect("fixture 应可通过 refactor MIR stage")
+        super::run(typed_hir_output).expect("fixture 应可通过 MIR stage")
     }
 
     fn callable_body<'a>(output: &'a MirStageOutput, fqn: &str) -> &'a crate::mir::Body {
@@ -298,8 +298,8 @@ mod tests {
 
     fn validated_callable_body<'a>(output: &'a MirStageOutput, fqn: &str) -> &'a crate::mir::Body {
         let body = callable_body(output, fqn);
-        body.validate_refactor_direct_style()
-            .unwrap_or_else(|err| panic!("refactor MIR body `{fqn}` 应通过验证器: {err}"));
+        body.validate_direct_style()
+            .unwrap_or_else(|err| panic!("MIR body `{fqn}` 应通过验证器: {err}"));
         body
     }
 
@@ -322,8 +322,8 @@ mod tests {
     }
 
     #[test]
-    fn refactor_direct_mir_stage_output_is_constructible() {
-        let session = refactor_session();
+    fn direct_mir_stage_output_is_constructible() {
+        let session = session();
         let source = SourceFile::new_virtual(
             "<mem>",
             "package sample\nfun helper() {}\nfun main() { helper() }\n",
@@ -341,16 +341,16 @@ mod tests {
     }
 
     #[test]
-    fn refactor_mir_stable_dump_normalizes_workspace_source_paths() {
-        let session = refactor_session();
-        let source = load_fixture("mir_refactor", "top_level_roots.scoop");
+    fn mir_stable_dump_normalizes_workspace_source_paths() {
+        let session = session();
+        let source = load_fixture("mir_lowered", "top_level_roots.scoop");
 
         let output = super::super::load_direct_style_mir_stage_output_for_dump(&session, &source)
-            .expect("top-level roots fixture should produce strict refactor MIR");
+            .expect("top-level roots fixture should produce strict MIR");
         let dump = output.stable_dump();
 
         assert!(
-            dump.contains("source_path: \"tests/fixtures/mir_refactor/top_level_roots.scoop\""),
+            dump.contains("source_path: \"tests/fixtures/mir_lowered/top_level_roots.scoop\""),
             "stable dump should use workspace-relative source paths: {dump}"
         );
         assert!(
@@ -360,8 +360,8 @@ mod tests {
     }
 
     #[test]
-    fn refactor_mir_stable_dump_uses_semantic_types_and_stable_labels() {
-        let session = refactor_session();
+    fn mir_stable_dump_uses_semantic_types_and_stable_labels() {
+        let session = session();
         let source = load_fixture("mir", "direct_zero_arg_call.scoop");
 
         let output = super::super::load_direct_style_mir_stage_output_for_dump(&session, &source)
@@ -385,10 +385,10 @@ mod tests {
     }
 
     #[test]
-    fn refactor_mir_item_graph_publishes_top_level_roots() {
-        let session = refactor_session();
+    fn mir_item_graph_publishes_top_level_roots() {
+        let session = session();
         let source = SourceFile::new_virtual(
-            "<mem>/refactor_mir_item_graph.scoop",
+            "<mem>/mir_item_graph.scoop",
             r#"package sample
 import scoop.core.*
 
@@ -423,7 +423,7 @@ fun main() {}
                 .items
                 .iter()
                 .all(|item| !matches!(item, Item::Todo { .. })),
-            "refactor MIR item graph must not contain top-level declaration Todo: {:#?}",
+            "MIR item graph must not contain top-level declaration Todo: {:#?}",
             output.file()
         );
 
@@ -485,20 +485,20 @@ fun main() {}
     }
 
     #[test]
-    fn refactor_mir_place_contract_lowers_assignment_places() {
-        let output = run_fixture("mir_refactor", "assignment_places.scoop");
+    fn mir_place_contract_lowers_assignment_places() {
+        let output = run_fixture("mir_lowered", "assignment_places.scoop");
         let dump = output.stable_dump();
         assert!(
             !dump.contains("Todo"),
-            "refactor MIR assignment place lowering must not leak Todo placeholders: {dump}"
+            "MIR assignment place lowering must not leak Todo placeholders: {dump}"
         );
 
         let native = output
-            .extern_global_root("mir_refactor.assignment_places.NativeCounter")
+            .extern_global_root("mir_lowered.assignment_places.NativeCounter")
             .expect("extern global root should be published");
         assert!(native.unsafe_required);
 
-        let body = validated_callable_body(&output, "mir_refactor.assignment_places.use");
+        let body = validated_callable_body(&output, "mir_lowered.assignment_places.use");
         let mut saw_global_store = false;
         let mut saw_extern_store = false;
         let mut saw_capture_box_new = false;
@@ -508,12 +508,12 @@ fun main() {}
         for stmt in body.blocks.iter().flat_map(|block| block.stmts.iter()) {
             match &stmt.kind {
                 StatementKind::StoreTopLevelVar { fqn, .. }
-                    if fqn == "mir_refactor.assignment_places.G" =>
+                    if fqn == "mir_lowered.assignment_places.G" =>
                 {
                     saw_global_store = true;
                 }
                 StatementKind::StoreTopLevelVar { fqn, .. }
-                    if fqn == "mir_refactor.assignment_places.NativeCounter" =>
+                    if fqn == "mir_lowered.assignment_places.NativeCounter" =>
                 {
                     saw_extern_store = true;
                 }
@@ -533,7 +533,7 @@ fun main() {}
                     if matches!(
                         member.resolved.as_ref(),
                         Some(MemberTarget::Value { fqn })
-                            if fqn == "mir_refactor.assignment_places.Box.value"
+                            if fqn == "mir_lowered.assignment_places.Box.value"
                     ) =>
                 {
                     box_value_store_count += 1;
@@ -555,8 +555,8 @@ fun main() {}
     }
 
     #[test]
-    fn refactor_mir_place_contract_rejects_invalid_inputs_before_mir() {
-        let session = refactor_session();
+    fn mir_place_contract_rejects_invalid_inputs_before_mir() {
+        let session = session();
         for (name, source, expected) in [
             (
                 "local_missing_initializer",
@@ -591,16 +591,16 @@ fun main() {}
     }
 
     #[test]
-    fn refactor_mir_call_contract_lowers_typed_call_sites() {
-        let output = run_fixture("mir_refactor", "call_contracts.scoop");
+    fn mir_call_contract_lowers_typed_call_sites() {
+        let output = run_fixture("mir_lowered", "call_contracts.scoop");
         let dump = output.stable_dump();
         assert!(
             !dump.contains("Todo"),
-            "refactor MIR call lowering must not leak Todo placeholders: {dump}"
+            "MIR call lowering must not leak Todo placeholders: {dump}"
         );
 
-        let main = validated_callable_body(&output, "mir_refactor.call_contracts.main");
-        let apply = validated_callable_body(&output, "mir_refactor.call_contracts.apply");
+        let main = validated_callable_body(&output, "mir_lowered.call_contracts.main");
+        let apply = validated_callable_body(&output, "mir_lowered.call_contracts.apply");
         let mut direct_fqns = Vec::new();
         let mut saw_get_platform = false;
         let mut saw_class_ctor = false;
@@ -628,7 +628,7 @@ fun main() {}
                     if callee_fqn == "scoop.core.getPlatform" {
                         saw_get_platform = true;
                     }
-                    if callee_fqn == "mir_refactor.call_contracts.namedDefault" {
+                    if callee_fqn == "mir_lowered.call_contracts.namedDefault" {
                         assert_eq!(
                             args.len(),
                             2,
@@ -636,7 +636,7 @@ fun main() {}
                         );
                         saw_named_default_call = true;
                     }
-                    if callee_fqn == "mir_refactor.call_contracts.ext" {
+                    if callee_fqn == "mir_lowered.call_contracts.ext" {
                         assert_eq!(
                             args.len(),
                             2,
@@ -655,7 +655,7 @@ fun main() {}
                             ..
                         },
                     ..
-                } if class_fqn == "mir_refactor.call_contracts.Box" && args.len() == 1 => {
+                } if class_fqn == "mir_lowered.call_contracts.Box" && args.len() == 1 => {
                     assert_eq!(ctor.ordered_param_count, 1);
                     assert!(ctor.selected_ctor_span.is_some());
                     saw_class_ctor = true;
@@ -664,14 +664,14 @@ fun main() {}
                     value: Rvalue::SizeOf { value_ty },
                     ..
                 } if output.types().display(*value_ty).to_string()
-                    == "mir_refactor.call_contracts.Box" =>
+                    == "mir_lowered.call_contracts.Box" =>
                 {
                     saw_size_of = true;
                 }
                 StatementKind::Assign {
                     value: Rvalue::TypeMetadataLiteral(metadata),
                     ..
-                } if metadata.source_fqn.as_deref() == Some("mir_refactor.call_contracts.Box") => {
+                } if metadata.source_fqn.as_deref() == Some("mir_lowered.call_contracts.Box") => {
                     saw_name_of_metadata = true;
                 }
                 StatementKind::Assign {
@@ -689,12 +689,12 @@ fun main() {}
         }
 
         for expected in [
-            "mir_refactor.call_contracts.direct",
-            "mir_refactor.call_contracts.generic",
-            "mir_refactor.call_contracts.namedDefault",
-            "mir_refactor.call_contracts.ext",
-            "mir_refactor.call_contracts.Singleton.get",
-            "mir_refactor.call_contracts.apply",
+            "mir_lowered.call_contracts.direct",
+            "mir_lowered.call_contracts.generic",
+            "mir_lowered.call_contracts.namedDefault",
+            "mir_lowered.call_contracts.ext",
+            "mir_lowered.call_contracts.Singleton.get",
+            "mir_lowered.call_contracts.apply",
         ] {
             assert!(
                 direct_fqns.contains(&expected),
@@ -740,10 +740,10 @@ fun main() {}
     }
 
     #[test]
-    fn refactor_mir_funptr_calls_lower_to_explicit_funptr_kind() {
-        let session = refactor_session();
+    fn mir_funptr_calls_lower_to_explicit_funptr_kind() {
+        let session = session();
         let source = SourceFile::new_virtual(
-            "<mem>/refactor_mir_funptr.scoop",
+            "<mem>/mir_funptr.scoop",
             r#"package sample
 
 import scoop.core.*
@@ -783,10 +783,10 @@ fun use(): Int {
     }
 
     #[test]
-    fn refactor_mir_ctor_default_args_lower_to_ordered_class_ctor() {
-        let session = refactor_session();
+    fn mir_ctor_default_args_lower_to_ordered_class_ctor() {
+        let session = session();
         let source = SourceFile::new_virtual(
-            "<mem>/refactor_mir_ctor_default_args.scoop",
+            "<mem>/mir_ctor_default_args.scoop",
             r#"package sample
 
 class Pair(val first: Int = 7, val second: Int)
@@ -835,9 +835,9 @@ fun main(): Int {
     }
 
     #[test]
-    fn refactor_mir_value_primitives_record_typecheck_and_cast_metadata() {
-        let output = run_fixture("mir_refactor", "runtime_typecheck_cast.scoop");
-        let body = validated_callable_body(&output, "mir_refactor.runtime_typecheck_cast.inspect");
+    fn mir_value_primitives_record_typecheck_and_cast_metadata() {
+        let output = run_fixture("mir_lowered", "runtime_typecheck_cast.scoop");
+        let body = validated_callable_body(&output, "mir_lowered.runtime_typecheck_cast.inspect");
         let mut saw_iface_is = false;
         let mut saw_other_not_is = false;
         let mut saw_parameterized_holder_is = false;
@@ -865,7 +865,7 @@ fun main(): Int {
                                 kind: Some(ast::TypeKind::Interface),
                             },
                             ast::TypeCheckOp::Is,
-                        ) if fqn == "mir_refactor.runtime_typecheck_cast.IFace" => {
+                        ) if fqn == "mir_lowered.runtime_typecheck_cast.IFace" => {
                             saw_iface_is = true;
                         }
                         (
@@ -874,7 +874,7 @@ fun main(): Int {
                                 kind: Some(ast::TypeKind::Class),
                             },
                             ast::TypeCheckOp::NotIs,
-                        ) if fqn == "mir_refactor.runtime_typecheck_cast.Other" => {
+                        ) if fqn == "mir_lowered.runtime_typecheck_cast.Other" => {
                             saw_other_not_is = true;
                         }
                         (
@@ -883,7 +883,7 @@ fun main(): Int {
                                 kind: Some(ast::TypeKind::Class),
                             },
                             ast::TypeCheckOp::Is,
-                        ) if fqn == "mir_refactor.runtime_typecheck_cast.Holder" => {
+                        ) if fqn == "mir_lowered.runtime_typecheck_cast.Holder" => {
                             assert!(matches!(
                                 &metadata.parameterized,
                                 RuntimeTypeParameterizedMatch::Nominal { type_args, .. }
@@ -948,9 +948,9 @@ fun main(): Int {
     }
 
     #[test]
-    fn refactor_mir_value_primitives_not_null_assert_is_explicit_match_and_raise() {
-        let output = run_fixture("mir_refactor", "not_null_assert.scoop");
-        let body = validated_callable_body(&output, "mir_refactor.not_null_assert.unwrap");
+    fn mir_value_primitives_not_null_assert_is_explicit_match_and_raise() {
+        let output = run_fixture("mir_lowered", "not_null_assert.scoop");
+        let body = validated_callable_body(&output, "mir_lowered.not_null_assert.unwrap");
         let mut saw_some_match = false;
         let mut saw_none_match = false;
         let mut saw_extract = false;
@@ -990,9 +990,9 @@ fun main(): Int {
     }
 
     #[test]
-    fn refactor_mir_value_primitives_pattern_is_type_metadata_is_classified() {
-        let output = run_fixture("mir_refactor", "pattern_is_type.scoop");
-        let body = validated_callable_body(&output, "mir_refactor.pattern_is_type.classify");
+    fn mir_value_primitives_pattern_is_type_metadata_is_classified() {
+        let output = run_fixture("mir_lowered", "pattern_is_type.scoop");
+        let body = validated_callable_body(&output, "mir_lowered.pattern_is_type.classify");
         let mut saw_string = false;
         let mut saw_box = false;
 
@@ -1017,7 +1017,7 @@ fun main(): Int {
                     RuntimeTypeDescriptorKind::Nominal {
                         fqn,
                         kind: Some(ast::TypeKind::Class),
-                    } if fqn == "mir_refactor.pattern_is_type.Box" => {
+                    } if fqn == "mir_lowered.pattern_is_type.Box" => {
                         assert_eq!(
                             metadata.match_kind,
                             RuntimePatternTypeTestKind::RuntimeClass
@@ -1034,8 +1034,8 @@ fun main(): Int {
     }
 
     #[test]
-    fn refactor_mir_value_primitives_reject_unsupported_function_type_cast_before_mir() {
-        let session = refactor_session();
+    fn mir_value_primitives_reject_unsupported_function_type_cast_before_mir() {
+        let session = session();
         let source = SourceFile::new_virtual(
             "<mem>/unsupported_function_type_cast.scoop",
             r#"package sample
@@ -1060,8 +1060,8 @@ fun bad() {
     }
 
     #[test]
-    fn refactor_mir_aggregate_transport_records_composite_contracts() {
-        let output = run_fixture("mir_refactor", "aggregate_transport.scoop");
+    fn mir_aggregate_transport_records_composite_contracts() {
+        let output = run_fixture("mir_lowered", "aggregate_transport.scoop");
         let dump = output.stable_dump();
         assert!(
             !dump.contains("Todo"),
@@ -1091,7 +1091,7 @@ fun bad() {
             let Some(body) = &fun.body else {
                 continue;
             };
-            body.validate_refactor_direct_style()
+            body.validate_direct_style()
                 .unwrap_or_else(|err| panic!("{} should validate: {err}", fun.fqn));
             for block in &body.blocks {
                 for stmt in &block.stmts {
@@ -1242,13 +1242,13 @@ fun bad() {
     }
 
     #[test]
-    fn refactor_mir_composite_transport_metadata_contracts() {
-        refactor_mir_aggregate_transport_records_composite_contracts();
+    fn mir_composite_transport_metadata_contracts() {
+        mir_aggregate_transport_records_composite_contracts();
     }
 
     #[test]
-    fn refactor_mir_value_boxing_transport_contract() {
-        let output = run_fixture("mir_refactor", "value_boxing_transport.scoop");
+    fn mir_value_boxing_transport_contract() {
+        let output = run_fixture("mir_lowered", "value_boxing_transport.scoop");
         let dump = output.stable_dump();
         assert!(
             !dump.contains("Todo"),
@@ -1256,7 +1256,7 @@ fun bad() {
         );
 
         let top = output
-            .initializer_root("mir_refactor.value_boxing_transport.topAny")
+            .initializer_root("mir_lowered.value_boxing_transport.topAny")
             .expect("top-level Any initializer root must be published");
         assert_value_erasure_transport(
             top.initializer_transport.as_ref(),
@@ -1423,7 +1423,7 @@ fun bad() {
     }
 
     #[test]
-    fn refactor_mir_no_todo_stage_validator_rejects_item_todo() {
+    fn mir_no_todo_stage_validator_rejects_item_todo() {
         const SYNTHETIC_ITEM_TODO_REASON: &str = "synthetic item todo";
 
         let mut types = TypeStore::new();
@@ -1435,7 +1435,7 @@ fun bad() {
             }],
         };
 
-        let err = super::validate_refactor_bodies(&file, builtins.unit)
+        let err = super::validate_bodies(&file, builtins.unit)
             .expect_err("production stage validator should reject item Todo");
         let rendered = err.to_string();
         assert!(rendered.contains("<file>"));
@@ -1443,7 +1443,7 @@ fun bad() {
     }
 
     #[test]
-    fn refactor_direct_mir_stage_keeps_callable_body_query_surface_stable() {
+    fn direct_mir_stage_keeps_callable_body_query_surface_stable() {
         let mut types = TypeStore::new();
         let builtins = types.intern_builtins();
         let output = MirStageOutput::new(
@@ -1473,7 +1473,7 @@ fun bad() {
     }
 
     #[test]
-    fn refactor_mir_effect_site_contract_keeps_dispatch_and_resume_sites_explicit() {
+    fn mir_effect_site_contract_keeps_dispatch_and_resume_sites_explicit() {
         let direct_output = run_fixture("mir", "direct_and_fun_value_call.scoop");
         let main_body = callable_body(&direct_output, "a.main");
         let main_calls = main_body
@@ -1637,7 +1637,7 @@ fun bad() {
     }
 
     #[test]
-    fn refactor_mir_effect_site_contract_records_perform_and_handle_metadata() {
+    fn mir_effect_site_contract_records_perform_and_handle_metadata() {
         let output = run_fixture("mir", "handle_perform.scoop");
         let body = callable_body(&output, "a.main");
         let entry = &body.blocks[body.start.as_u32() as usize].terminator.kind;
@@ -1714,7 +1714,7 @@ fun bad() {
     }
 
     #[test]
-    fn refactor_mir_effect_site_contract_missing_perform_contract_is_stage_error() {
+    fn mir_effect_site_contract_missing_perform_contract_is_stage_error() {
         let source = SourceFile::new_virtual(
             "<mem>/missing_perform_contract.scoop",
             r#"package sample
@@ -1726,43 +1726,43 @@ fun entry(): Int / Raise<Int> {
 }
 "#,
         );
-        let (file, unit_ty) = lower_with_empty_refactor_contracts(&source);
+        let (file, unit_ty) = lower_with_empty_contracts(&source);
         let dump = format!("{file:#?}");
-        let old_reason = ["refactor perform", " contract missing"].concat();
+        let old_reason = ["perform", " contract missing"].concat();
         assert!(
             !dump.contains(&old_reason) && !dump.contains("Todo"),
             "missing typed perform contract should be an invalid site metadata diagnostic, not a Todo: {dump}"
         );
 
         assert_site_metadata_error(
-            super::validate_refactor_bodies(&file, unit_ty)
+            super::validate_bodies(&file, unit_ty)
                 .expect_err("missing perform contract should fail stage validation"),
             MirSiteMetadataKind::Perform,
         );
     }
 
     #[test]
-    fn refactor_mir_effect_site_contract_missing_handle_contract_is_stage_error() {
-        let source = load_fixture("mir_refactor", "handle_perform.scoop");
-        let (file, unit_ty) = lower_with_empty_refactor_contracts(&source);
+    fn mir_effect_site_contract_missing_handle_contract_is_stage_error() {
+        let source = load_fixture("mir_lowered", "handle_perform.scoop");
+        let (file, unit_ty) = lower_with_empty_contracts(&source);
         let dump = format!("{file:#?}");
-        let old_reason = ["refactor handle", " contract missing"].concat();
+        let old_reason = ["handle", " contract missing"].concat();
         assert!(
             !dump.contains(&old_reason) && !dump.contains("Todo"),
             "missing typed handle contract should be an invalid site metadata diagnostic, not a Todo: {dump}"
         );
 
         assert_site_metadata_error(
-            super::validate_refactor_bodies(&file, unit_ty)
+            super::validate_bodies(&file, unit_ty)
                 .expect_err("missing handle contract should fail stage validation"),
             MirSiteMetadataKind::Handle,
         );
     }
 
     #[test]
-    fn refactor_mir_effect_site_contract_canonicalizes_resume_unit_sugar() {
-        let output = run_fixture("mir_refactor", "continuation_resume_unit_sugar.scoop");
-        let body = callable_body(&output, "fixtures.mir_refactor.resumeUnit");
+    fn mir_effect_site_contract_canonicalizes_resume_unit_sugar() {
+        let output = run_fixture("mir_lowered", "continuation_resume_unit_sugar.scoop");
+        let body = callable_body(&output, "fixtures.mir_lowered.resumeUnit");
 
         let resume_calls = body
             .blocks
@@ -1807,7 +1807,7 @@ fun entry(): Int / Raise<Int> {
                             ..
                         },
                     ..
-                } if callee_fqn == "fixtures.mir_refactor.takesUnit" => Some(args),
+                } if callee_fqn == "fixtures.mir_lowered.takesUnit" => Some(args),
                 _ => None,
             })
             .collect::<Vec<_>>();
@@ -1826,14 +1826,14 @@ fun entry(): Int / Raise<Int> {
         );
     }
 
-    fn lower_with_empty_refactor_contracts(
+    fn lower_with_empty_contracts(
         source: &SourceFile,
     ) -> (crate::mir::File, crate::ty::TypeId) {
-        let session = refactor_session();
+        let session = session();
         let typed_hir_output = super::super::load_typed_hir_stage_output_for_dump(&session, source)
             .expect("typed HIR should pass before forged contract lowering");
         let facts = MirLoweringFacts::default()
-            .with_refactor_typed_contracts(&TypedHirEffectContracts::default());
+            .with_typed_contracts(&TypedHirEffectContracts::default());
         let mut lowered_hir = typed_hir_output.into_lowered_hir();
         let builtins = lowered_hir.types.intern_builtins();
         let file = lower_hir_file_for_dump_with_facts(
@@ -1847,10 +1847,10 @@ fun entry(): Int / Raise<Int> {
     }
 
     fn assert_site_metadata_error(error: MirLowerError, expected_site: MirSiteMetadataKind) {
-        let MirLowerError::InvalidRefactorMir { error, .. } = error else {
-            panic!("expected refactor MIR validation error, got {error:?}");
+        let MirLowerError::InvalidMir { error, .. } = error else {
+            panic!("expected MIR validation error, got {error:?}");
         };
-        let MirValidationError::RefactorProductionSiteMetadata { site, detail, .. } = error else {
+        let MirValidationError::ProductionSiteMetadata { site, detail, .. } = error else {
             panic!("expected site metadata validation error, got {error:?}");
         };
         assert_eq!(site, expected_site);
@@ -1858,7 +1858,7 @@ fun entry(): Int / Raise<Int> {
     }
 
     #[test]
-    fn refactor_mir_cfg_existing_control_flow_samples_validate() {
+    fn mir_cfg_existing_control_flow_samples_validate() {
         let while_output = run_fixture("mir", "while_break_continue.scoop");
         validated_callable_body(&while_output, "a.main");
 
@@ -1867,10 +1867,10 @@ fun entry(): Int / Raise<Int> {
     }
 
     #[test]
-    fn refactor_mir_cfg_handle_finally_boundary_is_explicit() {
-        let output = run_fixture("mir_refactor", "handle_finally_boundary.scoop");
+    fn mir_cfg_handle_finally_boundary_is_explicit() {
+        let output = run_fixture("mir_lowered", "handle_finally_boundary.scoop");
 
-        let completes = validated_callable_body(&output, "fixtures.mir_refactor.body_completes");
+        let completes = validated_callable_body(&output, "fixtures.mir_lowered.body_completes");
         let completes_entry = &completes.blocks[completes.start.as_u32() as usize]
             .terminator
             .kind;
@@ -1908,7 +1908,7 @@ fun entry(): Int / Raise<Int> {
             TerminatorKind::Goto { target } if target == exit_target
         ));
 
-        let raised = validated_callable_body(&output, "fixtures.mir_refactor.handled_raise");
+        let raised = validated_callable_body(&output, "fixtures.mir_lowered.handled_raise");
         let raised_entry = &raised.blocks[raised.start.as_u32() as usize]
             .terminator
             .kind;
@@ -1936,9 +1936,9 @@ fun entry(): Int / Raise<Int> {
     }
 
     #[test]
-    fn refactor_mir_policy_gates_keep_resume_unwind_cleanup_contract() {
-        let output = run_fixture("mir_refactor", "handle_finally_boundary.scoop");
-        let raised = validated_callable_body(&output, "fixtures.mir_refactor.handled_raise");
+    fn mir_policy_gates_keep_resume_unwind_cleanup_contract() {
+        let output = run_fixture("mir_lowered", "handle_finally_boundary.scoop");
+        let raised = validated_callable_body(&output, "fixtures.mir_lowered.handled_raise");
 
         let perform = raised
             .blocks
@@ -1956,11 +1956,11 @@ fun entry(): Int / Raise<Int> {
     }
 
     #[test]
-    fn refactor_mir_policy_gates_publish_gc_pin_handle_intrinsic_contracts() {
-        let session = refactor_session();
+    fn mir_policy_gates_publish_gc_pin_handle_intrinsic_contracts() {
+        let session = session();
         let source = SourceFile::new_virtual(
             "<mem>/gc_policy_gates.scoop",
-            r#"package fixtures.mir_refactor
+            r#"package fixtures.mir_lowered
 
 import scoop.core.*
 
@@ -1982,7 +1982,7 @@ fun main(): Unit {
             super::super::load_typed_hir_stage_output_for_dump(&session, &source)
                 .expect("GC policy fixture should typecheck before MIR");
         let output = super::run(typed_hir_output).expect("GC policy fixture should lower to MIR");
-        let body = callable_body(&output, "fixtures.mir_refactor.main");
+        let body = callable_body(&output, "fixtures.mir_lowered.main");
         let call_contracts = body
             .blocks
             .iter()
@@ -2055,11 +2055,11 @@ fun main(): Unit {
     }
 
     #[test]
-    fn refactor_mir_gc_handle_raw_uintptr_token_stays_scalar() {
-        let session = refactor_session();
+    fn mir_gc_handle_raw_uintptr_token_stays_scalar() {
+        let session = session();
         let source = SourceFile::new_virtual(
             "<mem>/gc_handle_uintptr_policy.scoop",
-            r#"package fixtures.mir_refactor
+            r#"package fixtures.mir_lowered
 
 import scoop.core.*
 
@@ -2081,7 +2081,7 @@ fun main(): Unit {
                 .expect("GC handle raw UIntPtr fixture should typecheck before MIR");
         let output = super::run(typed_hir_output)
             .expect("GC handle raw UIntPtr fixture should lower to MIR");
-        let body = callable_body(&output, "fixtures.mir_refactor.main");
+        let body = callable_body(&output, "fixtures.mir_lowered.main");
 
         let take_transport = body
             .blocks
@@ -2096,7 +2096,7 @@ fun main(): Unit {
                             ..
                         },
                     ..
-                } if callee_fqn == "fixtures.mir_refactor.handleTokenSlotTake" => Some(transport),
+                } if callee_fqn == "fixtures.mir_lowered.handleTokenSlotTake" => Some(transport),
                 _ => None,
             })
             .expect("extern take-handle-token call should be present");
@@ -2130,9 +2130,9 @@ fun main(): Unit {
     }
 
     #[test]
-    fn refactor_mir_cfg_effect_boundary_inside_expr_context_uses_explicit_blocks() {
-        let output = run_fixture("mir_refactor", "effect_boundary_inside_expr_context.scoop");
-        let body = validated_callable_body(&output, "fixtures.mir_refactor.main");
+    fn mir_cfg_effect_boundary_inside_expr_context_uses_explicit_blocks() {
+        let output = run_fixture("mir_lowered", "effect_boundary_inside_expr_context.scoop");
+        let body = validated_callable_body(&output, "fixtures.mir_lowered.main");
 
         let handle_count = body
             .blocks
@@ -2166,7 +2166,7 @@ fun main(): Unit {
                                 ..
                             },
                         ..
-                    } if callee_fqn == "fixtures.mir_refactor.box_int"
+                    } if callee_fqn == "fixtures.mir_lowered.box_int"
                 )
             })
         }));
@@ -2178,7 +2178,7 @@ fun main(): Unit {
     }
 
     #[test]
-    fn refactor_mir_cfg_escape_continuation_finally_materializes_continuation_local() {
+    fn mir_cfg_escape_continuation_finally_materializes_continuation_local() {
         let output = run_fixture(
             "run-pass",
             "effect_handle_return_from_function_finally.scoop",

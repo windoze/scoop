@@ -983,7 +983,7 @@ mod tests {
     };
     use crate::ty::{EffectRow, NominalType, RefTypeKind, TypeId, TypeKind, TypeStore};
 
-    fn refactor_session() -> Session {
+    fn session() -> Session {
         Session::with_options(SessionOptions::new()).unwrap()
     }
 
@@ -1329,7 +1329,7 @@ mod tests {
     }
 
     #[test]
-    fn refactor_late_opt_devirt_prunes_unreachable_internal_resume_methods() {
+    fn late_opt_devirt_prunes_unreachable_internal_resume_methods() {
         let optimized = optimize_program(sample_opt_program());
         let callable = optimized
             .callable("sample.worker")
@@ -1358,7 +1358,7 @@ mod tests {
     }
 
     #[test]
-    fn refactor_late_opt_inline_collapses_trivial_invoke_and_resume_wrappers() {
+    fn late_opt_inline_collapses_trivial_invoke_and_resume_wrappers() {
         let optimized = optimize_program(sample_opt_program());
         let callable = optimized
             .callable("sample.worker")
@@ -1399,7 +1399,7 @@ mod tests {
     }
 
     #[test]
-    fn refactor_late_opt_dce_removes_dead_states_and_unused_frame_slots() {
+    fn late_opt_dce_removes_dead_states_and_unused_frame_slots() {
         let optimized = optimize_program(sample_opt_program());
         let callable = optimized
             .callable("sample.worker")
@@ -1431,11 +1431,11 @@ mod tests {
     }
 
     #[test]
-    fn refactor_late_opt_devirt_stage_output_is_post_opt_final() {
-        let session = refactor_session();
+    fn late_opt_devirt_stage_output_is_post_opt_final() {
+        let session = session();
         let source = load_fixture("effect_facts", "single_case_impl_plan.scoop");
         let output = load_effect_lowered_stage_output_for_dump(&session, &source)
-            .expect("fixture 应可通过 refactor late-lowering stage");
+            .expect("fixture 应可通过 late-lowering stage");
         let leaf = output
             .program()
             .callable("sample.leaf")
@@ -1451,14 +1451,14 @@ mod tests {
     }
 
     #[test]
-    fn refactor_late_opt_preserves_dedicated_drop_state_paths() {
-        let session = refactor_session();
+    fn late_opt_preserves_dedicated_drop_state_paths() {
+        let session = session();
         let source = load_fixture(
             "effect_lowered",
             "dropped_continuation_abandons_remaining_work.scoop",
         );
         let output = load_effect_lowered_stage_output_for_dump(&session, &source)
-            .expect("fixture 应可通过 refactor late-lowering stage");
+            .expect("fixture 应可通过 late-lowering stage");
         let callable = output
             .program()
             .callable("sample.helper")

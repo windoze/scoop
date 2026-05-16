@@ -351,7 +351,7 @@ const FUNCTION_TYPE_CAST_MARKERS: &[SourceMarker] = &[
     },
     SourceMarker {
         path: "crates/scoopc/src/pipeline/mir_stage.rs",
-        marker: "fn refactor_mir_value_primitives_reject_unsupported_function_type_cast_before_mir()",
+        marker: "fn mir_value_primitives_reject_unsupported_function_type_cast_before_mir()",
     },
 ];
 
@@ -465,7 +465,7 @@ const POST_UPSTREAM_VALIDATION_GUARDS: &[UpstreamGuardedSentinel] = &[
 ];
 
 const INTERNAL_BUG_SENTINEL_HITS: &[&str] = &[
-    "crates/scoopc/src/llvm/codegen/mir_body/call.rs:721:            (None, CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_)) => unreachable!(",
+    "crates/scoopc/src/llvm/codegen/mir_body/call.rs:723:            (None, CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_)) => unreachable!(",
     "crates/scoopc/src/llvm/codegen/effect_lowered/value.rs:2887:                    _ => unreachable!(\"match arms cover array builder build intrinsics\"),",
     "crates/scoopc/src/llvm/codegen/effect_lowered/value.rs:2935:                            _ => unreachable!(\"build_operation only contains builder build cases\"),",
     "crates/scoopc/src/llvm/codegen/effect_lowered/value.rs:2947:                            _ => unreachable!(\"match arms cover array builder build intrinsics\"),",

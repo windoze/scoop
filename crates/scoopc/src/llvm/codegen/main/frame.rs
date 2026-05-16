@@ -169,7 +169,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .get_function(&symbol_name)
             .ok_or_else(|| LlvmEmitError::Frontend {
                 message: format!(
-                    "refactor callable carrier contract 为 {} `{}` 发布了 target `{symbol_name}`，但 LLVM module 中缺少对应 function shell",
+                    "callable carrier contract 为 {} `{}` 发布了 target `{symbol_name}`，但 LLVM module 中缺少对应 function shell",
                     kind.label(),
                     callable_fqn,
                 ),

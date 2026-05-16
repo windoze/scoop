@@ -161,7 +161,7 @@ pub(super) fn infer_splice_field_expr_type(
 ) -> Result<TypeId, ExprTypeError> {
     // splice 字段访问：`receiver.[field]`（spec §6.4）
     //
-    // HIR-T04：进入 refactor HIR 前必须得到静态字段 contract；只有 comptime for binder
+    // HIR-T04：进入 HIR 前必须得到静态字段 contract；只有 comptime for binder
     // 这类字段名会在 runtime comptime expansion 中变成具体 FieldMeta 值，因此允许暂缓到 HIR lowering。
     let receiver_ty = inputs.infer(lower, receiver)?;
 

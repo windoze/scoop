@@ -1,4 +1,4 @@
-//! Declaration graph lowering for refactor typed HIR.
+//! Declaration graph lowering for typed HIR.
 
 use super::*;
 

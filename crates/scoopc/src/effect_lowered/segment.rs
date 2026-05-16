@@ -1015,7 +1015,7 @@ mod tests {
     use crate::session::{Session, SessionOptions};
     use crate::source::SourceFile;
 
-    fn refactor_session() -> Session {
+    fn session() -> Session {
         Session::with_options(SessionOptions::new()).unwrap()
     }
 
@@ -1028,9 +1028,9 @@ mod tests {
     }
 
     fn load_output(source: &SourceFile) -> crate::pipeline::EffectLoweredStageOutput {
-        let session = refactor_session();
+        let session = session();
         load_effect_lowered_stage_output_for_dump(&session, source)
-            .expect("fixture 应可通过 refactor late-lowering stage")
+            .expect("fixture 应可通过 late-lowering stage")
     }
 
     fn callable<'a>(
@@ -1061,7 +1061,7 @@ mod tests {
     }
 
     #[test]
-    fn refactor_late_boundary_selection_marks_call_resume_runtime_error_perform_and_outward_handle_boundaries()
+    fn late_boundary_selection_marks_call_resume_runtime_error_perform_and_outward_handle_boundaries()
      {
         let call_output = load_output(&load_fixture(
             "effect_facts",
@@ -1117,7 +1117,7 @@ mod tests {
     }
 
     #[test]
-    fn refactor_late_boundary_selection_skips_self_contained_nested_handle_boundaries() {
+    fn late_boundary_selection_skips_self_contained_nested_handle_boundaries() {
         let output = load_output(&load_fixture(
             "effect_facts",
             "nested_handle_self_contained_vs_outward.scoop",
@@ -1130,7 +1130,7 @@ mod tests {
     }
 
     #[test]
-    fn refactor_late_segmentation_splits_statement_boundaries_into_suffix_resume_states() {
+    fn late_segmentation_splits_statement_boundaries_into_suffix_resume_states() {
         let output = load_output(&load_fixture(
             "effect_facts",
             "dynamic_fallback_widening.scoop",
@@ -1164,12 +1164,12 @@ mod tests {
     }
 
     #[test]
-    fn refactor_late_segmentation_keeps_expression_argument_and_if_context_boundaries_distinct() {
+    fn late_segmentation_keeps_expression_argument_and_if_context_boundaries_distinct() {
         let output = load_output(&load_fixture(
-            "mir_refactor",
+            "mir_lowered",
             "effect_boundary_inside_expr_context.scoop",
         ));
-        let callable = callable(&output, "fixtures.mir_refactor.main");
+        let callable = callable(&output, "fixtures.mir_lowered.main");
         let perform_boundaries = site_boundaries(callable, BoundarySiteKind::Perform);
 
         assert_eq!(perform_boundaries.len(), 4);
@@ -1198,7 +1198,7 @@ mod tests {
     }
 
     #[test]
-    fn refactor_owner_resume_state_tracks_loop_condition_boundaries() {
+    fn owner_resume_state_tracks_loop_condition_boundaries() {
         let output = load_output(&SourceFile::new_virtual(
             "<mem>/late_segment_loop_condition.scoop",
             r#"
@@ -1239,7 +1239,7 @@ fun main(): Int {
     }
 
     #[test]
-    fn refactor_owner_resume_state_keeps_no_outward_callables_plain_without_state_framework() {
+    fn owner_resume_state_keeps_no_outward_callables_plain_without_state_framework() {
         let output = load_output(&SourceFile::new_virtual(
             "<mem>/late_segment_no_outward.scoop",
             "package sample\nfun helper() {}\nfun main() { helper() }\n",
@@ -1256,7 +1256,7 @@ fun main(): Int {
     }
 
     #[test]
-    fn refactor_late_control_flow_encodes_loop_break_continue_as_explicit_state_edges() {
+    fn late_control_flow_encodes_loop_break_continue_as_explicit_state_edges() {
         let output = load_output(&SourceFile::new_virtual(
             "<mem>/late_segment_effectful_while_break_continue.scoop",
             r#"
@@ -1313,12 +1313,12 @@ fun main(): Int {
     }
 
     #[test]
-    fn refactor_late_control_flow_keeps_handle_body_arm_finally_and_cleanup_edges_explicit() {
+    fn late_control_flow_keeps_handle_body_arm_finally_and_cleanup_edges_explicit() {
         let output = load_output(&load_fixture(
-            "mir_refactor",
+            "mir_lowered",
             "handle_finally_boundary.scoop",
         ));
-        let callable = callable(&output, "fixtures.mir_refactor.handled_raise");
+        let callable = callable(&output, "fixtures.mir_lowered.handled_raise");
         let states = callable.state_graph().states();
 
         let handle_dispatch = states
@@ -1364,7 +1364,7 @@ fun main(): Int {
     }
 
     #[test]
-    fn refactor_dropped_continuation_uses_dedicated_drop_state_instead_of_cleanup() {
+    fn dropped_continuation_uses_dedicated_drop_state_instead_of_cleanup() {
         let output = load_output(&load_fixture(
             "effect_lowered",
             "dropped_continuation_abandons_remaining_work.scoop",
@@ -1400,7 +1400,7 @@ fun main(): Int {
     }
 
     #[test]
-    fn refactor_runtime_error_boundary_stays_inside_explicit_suspend_contract() {
+    fn runtime_error_boundary_stays_inside_explicit_suspend_contract() {
         let output = load_output(&load_fixture(
             "effect_lowered",
             "continuation_resume_runtime_error_boundary.scoop",
@@ -1454,11 +1454,11 @@ fun main(): Int {
     }
 
     #[test]
-    fn refactor_owner_resume_state_builder_consumes_only_p4_facts_and_mir_shape() {
-        let session = refactor_session();
+    fn owner_resume_state_builder_consumes_only_p4_facts_and_mir_shape() {
+        let session = session();
         let source = load_fixture("effect_facts", "dynamic_fallback_widening.scoop");
         let effect_lowered_output = load_effect_lowered_stage_output_for_dump(&session, &source)
-            .expect("fixture 应可通过 refactor late-lowering stage");
+            .expect("fixture 应可通过 late-lowering stage");
         let pass_view = effect_lowered_output.materialized_pass_view();
         let family = pass_view
             .root_family_for_fqn("sample.callValue")

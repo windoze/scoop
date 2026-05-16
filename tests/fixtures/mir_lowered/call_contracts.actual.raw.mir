@@ -1,0 +1,2448 @@
+File {
+    items: [
+        Metadata(
+            Nominal(
+                NominalMetadata {
+                    span: 357..382,
+                    fqn: "mir_lowered.call_contracts.Box",
+                    name: "Box",
+                    kind: Class,
+                    type_params: [],
+                    supertypes: [],
+                    interfaces: [],
+                    constructors: [
+                        CtorMetadata {
+                            span: 366..382,
+                            kind: Primary,
+                            params: [
+                                CtorParamMetadata {
+                                    span: 371..376,
+                                    name: "value",
+                                    ty: TypeId(
+                                        5,
+                                    ),
+                                    has_default: false,
+                                    property: Some(
+                                        Val,
+                                    ),
+                                },
+                            ],
+                            delegation: None,
+                        },
+                    ],
+                    members: [
+                        Field(
+                            FieldMetadata {
+                                span: 371..376,
+                                fqn: "mir_lowered.call_contracts.Box.value",
+                                name: "value",
+                                mutable: false,
+                                ty: TypeId(
+                                    5,
+                                ),
+                                origin: PrimaryCtorParam,
+                            },
+                        ),
+                    ],
+                },
+            ),
+        ),
+        Metadata(
+            Object(
+                ObjectMetadata {
+                    span: 384..436,
+                    fqn: "mir_lowered.call_contracts.Singleton",
+                    name: "Singleton",
+                    kind: Object,
+                    supertypes: [],
+                    interfaces: [],
+                    initializer_root: "mir_lowered.call_contracts.Singleton",
+                    members: [
+                        Fun(
+                            MemberFunMetadata {
+                                span: 407..434,
+                                fqn: "mir_lowered.call_contracts.Singleton.get",
+                                name: "get",
+                                type_params: [],
+                                params: [],
+                                return_ty: TypeId(
+                                    5,
+                                ),
+                            },
+                        ),
+                    ],
+                },
+            ),
+        ),
+        InitializerRoot(
+            InitializerRoot {
+                span: 384..436,
+                fqn: "mir_lowered.call_contracts.Singleton",
+                source_path: "/Volumes/Data/home/chenxu/repos/scoop/tests/fixtures/mir_lowered/call_contracts.scoop",
+                kind: ObjectSingleton,
+                ty: None,
+                initializer_transport: None,
+                has_initializer: false,
+                dependencies: [],
+                hidden_effects: EffectRow {
+                    terms: [],
+                },
+            },
+        ),
+        Fun(
+            FunDecl {
+                span: 139..175,
+                fqn: "mir_lowered.call_contracts.direct",
+                name: "direct",
+                ty: TypeId(
+                    10,
+                ),
+                params: [
+                    Param {
+                        span: 150..151,
+                        name: "x",
+                        ty: TypeId(
+                            5,
+                        ),
+                        local: l0,
+                    },
+                ],
+                return_ty: TypeId(
+                    5,
+                ),
+                body: Some(
+                    Body {
+                        locals: [
+                            LocalDecl {
+                                span: 150..151,
+                                name: Some(
+                                    "x",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: SourceLocal,
+                            },
+                            LocalDecl {
+                                span: 163..175,
+                                name: Some(
+                                    "tmp0",
+                                ),
+                                ty: TypeId(
+                                    2,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                        ],
+                        blocks: [
+                            BasicBlock {
+                                is_cleanup: false,
+                                stmts: [],
+                                terminator: Terminator {
+                                    span: 165..173,
+                                    kind: Return {
+                                        value: Some(
+                                            Local(
+                                                l0,
+                                            ),
+                                        ),
+                                    },
+                                    unwind: NoUnwind,
+                                },
+                            },
+                        ],
+                        start: bb0,
+                    },
+                ),
+            },
+        ),
+        Fun(
+            FunDecl {
+                span: 177..221,
+                fqn: "mir_lowered.call_contracts.generic",
+                name: "generic",
+                ty: TypeId(
+                    12,
+                ),
+                params: [
+                    Param {
+                        span: 192..197,
+                        name: "value",
+                        ty: TypeId(
+                            11,
+                        ),
+                        local: l0,
+                    },
+                ],
+                return_ty: TypeId(
+                    11,
+                ),
+                body: Some(
+                    Body {
+                        locals: [
+                            LocalDecl {
+                                span: 192..197,
+                                name: Some(
+                                    "value",
+                                ),
+                                ty: TypeId(
+                                    11,
+                                ),
+                                source: SourceLocal,
+                            },
+                            LocalDecl {
+                                span: 205..221,
+                                name: Some(
+                                    "tmp0",
+                                ),
+                                ty: TypeId(
+                                    2,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                        ],
+                        blocks: [
+                            BasicBlock {
+                                is_cleanup: false,
+                                stmts: [],
+                                terminator: Terminator {
+                                    span: 207..219,
+                                    kind: Return {
+                                        value: Some(
+                                            Local(
+                                                l0,
+                                            ),
+                                        ),
+                                    },
+                                    unwind: NoUnwind,
+                                },
+                            },
+                        ],
+                        start: bb0,
+                    },
+                ),
+            },
+        ),
+        Fun(
+            FunDecl {
+                span: 223..297,
+                fqn: "mir_lowered.call_contracts.namedDefault",
+                name: "namedDefault",
+                ty: TypeId(
+                    13,
+                ),
+                params: [
+                    Param {
+                        span: 240..245,
+                        name: "value",
+                        ty: TypeId(
+                            5,
+                        ),
+                        local: l0,
+                    },
+                    Param {
+                        span: 256..261,
+                        name: "extra",
+                        ty: TypeId(
+                            5,
+                        ),
+                        local: l1,
+                    },
+                ],
+                return_ty: TypeId(
+                    5,
+                ),
+                body: Some(
+                    Body {
+                        locals: [
+                            LocalDecl {
+                                span: 240..245,
+                                name: Some(
+                                    "value",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: SourceLocal,
+                            },
+                            LocalDecl {
+                                span: 256..261,
+                                name: Some(
+                                    "extra",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: SourceLocal,
+                            },
+                            LocalDecl {
+                                span: 282..295,
+                                name: Some(
+                                    "tmp0",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 273..297,
+                                name: Some(
+                                    "tmp1",
+                                ),
+                                ty: TypeId(
+                                    2,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                        ],
+                        blocks: [
+                            BasicBlock {
+                                is_cleanup: false,
+                                stmts: [
+                                    Statement {
+                                        span: 282..295,
+                                        kind: Assign {
+                                            target: l2,
+                                            value: Binary {
+                                                lhs: Local(
+                                                    l0,
+                                                ),
+                                                op: Add,
+                                                rhs: Local(
+                                                    l1,
+                                                ),
+                                            },
+                                        },
+                                    },
+                                ],
+                                terminator: Terminator {
+                                    span: 275..295,
+                                    kind: Return {
+                                        value: Some(
+                                            Local(
+                                                l2,
+                                            ),
+                                        ),
+                                    },
+                                    unwind: NoUnwind,
+                                },
+                            },
+                        ],
+                        start: bb0,
+                    },
+                ),
+            },
+        ),
+        Fun(
+            FunDecl {
+                span: 299..355,
+                fqn: "mir_lowered.call_contracts.ext",
+                name: "ext",
+                ty: TypeId(
+                    13,
+                ),
+                params: [
+                    Param {
+                        span: 303..306,
+                        name: "this",
+                        ty: TypeId(
+                            5,
+                        ),
+                        local: l0,
+                    },
+                    Param {
+                        span: 311..316,
+                        name: "delta",
+                        ty: TypeId(
+                            5,
+                        ),
+                        local: l1,
+                    },
+                ],
+                return_ty: TypeId(
+                    5,
+                ),
+                body: Some(
+                    Body {
+                        locals: [
+                            LocalDecl {
+                                span: 303..306,
+                                name: Some(
+                                    "this",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: SourceLocal,
+                            },
+                            LocalDecl {
+                                span: 311..316,
+                                name: Some(
+                                    "delta",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: SourceLocal,
+                            },
+                            LocalDecl {
+                                span: 341..353,
+                                name: Some(
+                                    "tmp0",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 332..355,
+                                name: Some(
+                                    "tmp1",
+                                ),
+                                ty: TypeId(
+                                    2,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                        ],
+                        blocks: [
+                            BasicBlock {
+                                is_cleanup: false,
+                                stmts: [
+                                    Statement {
+                                        span: 341..353,
+                                        kind: Assign {
+                                            target: l2,
+                                            value: Binary {
+                                                lhs: Local(
+                                                    l0,
+                                                ),
+                                                op: Add,
+                                                rhs: Local(
+                                                    l1,
+                                                ),
+                                            },
+                                        },
+                                    },
+                                ],
+                                terminator: Terminator {
+                                    span: 334..353,
+                                    kind: Return {
+                                        value: Some(
+                                            Local(
+                                                l2,
+                                            ),
+                                        ),
+                                    },
+                                    unwind: NoUnwind,
+                                },
+                            },
+                        ],
+                        start: bb0,
+                    },
+                ),
+            },
+        ),
+        Fun(
+            FunDecl {
+                span: 438..493,
+                fqn: "mir_lowered.call_contracts.apply",
+                name: "apply",
+                ty: TypeId(
+                    14,
+                ),
+                params: [
+                    Param {
+                        span: 448..449,
+                        name: "f",
+                        ty: TypeId(
+                            10,
+                        ),
+                        local: l0,
+                    },
+                    Param {
+                        span: 465..466,
+                        name: "x",
+                        ty: TypeId(
+                            5,
+                        ),
+                        local: l1,
+                    },
+                ],
+                return_ty: TypeId(
+                    5,
+                ),
+                body: Some(
+                    Body {
+                        locals: [
+                            LocalDecl {
+                                span: 448..449,
+                                name: Some(
+                                    "f",
+                                ),
+                                ty: TypeId(
+                                    10,
+                                ),
+                                source: SourceLocal,
+                            },
+                            LocalDecl {
+                                span: 465..466,
+                                name: Some(
+                                    "x",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: SourceLocal,
+                            },
+                            LocalDecl {
+                                span: 487..491,
+                                name: Some(
+                                    "tmp0",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 478..493,
+                                name: Some(
+                                    "tmp1",
+                                ),
+                                ty: TypeId(
+                                    2,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                        ],
+                        blocks: [
+                            BasicBlock {
+                                is_cleanup: false,
+                                stmts: [
+                                    Statement {
+                                        span: 487..491,
+                                        kind: Assign {
+                                            target: l2,
+                                            value: Call {
+                                                site_id: site0,
+                                                kind: FunValue {
+                                                    callee: Local(
+                                                        l0,
+                                                    ),
+                                                },
+                                                args: [
+                                                    CallArg {
+                                                        span: 489..490,
+                                                        name: None,
+                                                        value: Local(
+                                                            l1,
+                                                        ),
+                                                    },
+                                                ],
+                                                transport: CallTransportMetadata {
+                                                    result: ValueTransportMetadata {
+                                                        source_ty: TypeId(
+                                                            5,
+                                                        ),
+                                                        kind: Scalar,
+                                                        requirements: MirTransportRequirements {
+                                                            trace: false,
+                                                            copy: true,
+                                                            drop: false,
+                                                        },
+                                                        boxing: None,
+                                                    },
+                                                    aggregate_return: None,
+                                                    array: None,
+                                                    gc: None,
+                                                    thread_resume_payload: None,
+                                                    abi: CallAbiHandoffMetadata {
+                                                        callable_abi_kind: DeferredToEffectFacts,
+                                                        resolved_outward_cases: [],
+                                                        impl_plan: DeferredToEffectFacts,
+                                                        adapter_required: false,
+                                                    },
+                                                },
+                                            },
+                                        },
+                                    },
+                                ],
+                                terminator: Terminator {
+                                    span: 480..491,
+                                    kind: Return {
+                                        value: Some(
+                                            Local(
+                                                l2,
+                                            ),
+                                        ),
+                                    },
+                                    unwind: NoUnwind,
+                                },
+                            },
+                        ],
+                        start: bb0,
+                    },
+                ),
+            },
+        ),
+        Fun(
+            FunDecl {
+                span: 495..991,
+                fqn: "mir_lowered.call_contracts.main",
+                name: "main",
+                ty: TypeId(
+                    15,
+                ),
+                params: [],
+                return_ty: TypeId(
+                    5,
+                ),
+                body: Some(
+                    Body {
+                        locals: [
+                            LocalDecl {
+                                span: 517..539,
+                                name: Some(
+                                    "d",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: SourceLocal,
+                            },
+                            LocalDecl {
+                                span: 530..539,
+                                name: Some(
+                                    "tmp0",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 537..538,
+                                name: Some(
+                                    "tmp1",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 544..572,
+                                name: Some(
+                                    "g",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: SourceLocal,
+                            },
+                            LocalDecl {
+                                span: 557..572,
+                                name: Some(
+                                    "tmp2",
+                                ),
+                                ty: TypeId(
+                                    11,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 570..571,
+                                name: Some(
+                                    "tmp3",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 570..571,
+                                name: Some(
+                                    "tmp4",
+                                ),
+                                ty: TypeId(
+                                    11,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 577..613,
+                                name: Some(
+                                    "n",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: SourceLocal,
+                            },
+                            LocalDecl {
+                                span: 590..613,
+                                name: Some(
+                                    "extra",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: SourceLocal,
+                            },
+                            LocalDecl {
+                                span: 611..612,
+                                name: Some(
+                                    "tmp5",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 590..613,
+                                name: Some(
+                                    "value",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: SourceLocal,
+                            },
+                            LocalDecl {
+                                span: 253..254,
+                                name: Some(
+                                    "tmp6",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 590..613,
+                                name: Some(
+                                    "tmp7",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 618..638,
+                                name: Some(
+                                    "e",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: SourceLocal,
+                            },
+                            LocalDecl {
+                                span: 631..638,
+                                name: Some(
+                                    "__call_receiver_0",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: SourceLocal,
+                            },
+                            LocalDecl {
+                                span: 631..632,
+                                name: Some(
+                                    "tmp8",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 631..638,
+                                name: Some(
+                                    "__call_default_1",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: SourceLocal,
+                            },
+                            LocalDecl {
+                                span: 324..325,
+                                name: Some(
+                                    "tmp9",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 631..638,
+                                name: Some(
+                                    "tmp10",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 643..671,
+                                name: Some(
+                                    "m",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: SourceLocal,
+                            },
+                            LocalDecl {
+                                span: 656..671,
+                                name: Some(
+                                    "tmp11",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 656..665,
+                                name: Some(
+                                    "tmp12",
+                                ),
+                                ty: TypeId(
+                                    16,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 676..705,
+                                name: Some(
+                                    "box",
+                                ),
+                                ty: TypeId(
+                                    17,
+                                ),
+                                source: SourceLocal,
+                            },
+                            LocalDecl {
+                                span: 691..705,
+                                name: Some(
+                                    "tmp13",
+                                ),
+                                ty: TypeId(
+                                    17,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 703..704,
+                                name: Some(
+                                    "tmp14",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 710..738,
+                                name: Some(
+                                    "f",
+                                ),
+                                ty: TypeId(
+                                    10,
+                                ),
+                                source: SourceLocal,
+                            },
+                            LocalDecl {
+                                span: 732..738,
+                                name: Some(
+                                    "tmp15",
+                                ),
+                                ty: TypeId(
+                                    10,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 743..768,
+                                name: Some(
+                                    "fv",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: SourceLocal,
+                            },
+                            LocalDecl {
+                                span: 757..768,
+                                name: Some(
+                                    "tmp16",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 766..767,
+                                name: Some(
+                                    "tmp17",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 773..811,
+                                name: Some(
+                                    "cl",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: SourceLocal,
+                            },
+                            LocalDecl {
+                                span: 787..811,
+                                name: Some(
+                                    "tmp18",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 787..808,
+                                name: Some(
+                                    "tmp19",
+                                ),
+                                ty: TypeId(
+                                    10,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 809..810,
+                                name: Some(
+                                    "tmp20",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 816..852,
+                                name: Some(
+                                    "typeName",
+                                ),
+                                ty: TypeId(
+                                    1,
+                                ),
+                                source: SourceLocal,
+                            },
+                            LocalDecl {
+                                span: 839..852,
+                                name: Some(
+                                    "tmp21",
+                                ),
+                                ty: TypeId(
+                                    1,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 857..887,
+                                name: Some(
+                                    "bytes",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: SourceLocal,
+                            },
+                            LocalDecl {
+                                span: 874..887,
+                                name: Some(
+                                    "tmp22",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 892..930,
+                                name: Some(
+                                    "platform",
+                                ),
+                                ty: TypeId(
+                                    18,
+                                ),
+                                source: SourceLocal,
+                            },
+                            LocalDecl {
+                                span: 917..930,
+                                name: Some(
+                                    "tmp23",
+                                ),
+                                ty: TypeId(
+                                    18,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 942..989,
+                                name: Some(
+                                    "tmp24",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 942..981,
+                                name: Some(
+                                    "tmp25",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 942..976,
+                                name: Some(
+                                    "tmp26",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 942..971,
+                                name: Some(
+                                    "tmp27",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 942..959,
+                                name: Some(
+                                    "tmp28",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 942..955,
+                                name: Some(
+                                    "tmp29",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 942..951,
+                                name: Some(
+                                    "tmp30",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 942..947,
+                                name: Some(
+                                    "tmp31",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 962..971,
+                                name: Some(
+                                    "tmp32",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 511..991,
+                                name: Some(
+                                    "tmp33",
+                                ),
+                                ty: TypeId(
+                                    2,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                        ],
+                        blocks: [
+                            BasicBlock {
+                                is_cleanup: false,
+                                stmts: [
+                                    Statement {
+                                        span: 537..538,
+                                        kind: Assign {
+                                            target: l2,
+                                            value: Use(
+                                                Const(
+                                                    Int,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 530..539,
+                                        kind: Assign {
+                                            target: l1,
+                                            value: Call {
+                                                site_id: site0,
+                                                kind: Direct {
+                                                    callee_fqn: "mir_lowered.call_contracts.direct",
+                                                },
+                                                args: [
+                                                    CallArg {
+                                                        span: 537..538,
+                                                        name: None,
+                                                        value: Local(
+                                                            l2,
+                                                        ),
+                                                    },
+                                                ],
+                                                transport: CallTransportMetadata {
+                                                    result: ValueTransportMetadata {
+                                                        source_ty: TypeId(
+                                                            5,
+                                                        ),
+                                                        kind: Scalar,
+                                                        requirements: MirTransportRequirements {
+                                                            trace: false,
+                                                            copy: true,
+                                                            drop: false,
+                                                        },
+                                                        boxing: None,
+                                                    },
+                                                    aggregate_return: None,
+                                                    array: None,
+                                                    gc: None,
+                                                    thread_resume_payload: None,
+                                                    abi: CallAbiHandoffMetadata {
+                                                        callable_abi_kind: DeferredToEffectFacts,
+                                                        resolved_outward_cases: [],
+                                                        impl_plan: DeferredToEffectFacts,
+                                                        adapter_required: false,
+                                                    },
+                                                },
+                                            },
+                                        },
+                                    },
+                                    Statement {
+                                        span: 517..539,
+                                        kind: Assign {
+                                            target: l0,
+                                            value: Use(
+                                                Local(
+                                                    l1,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 570..571,
+                                        kind: Assign {
+                                            target: l5,
+                                            value: Use(
+                                                Const(
+                                                    Int,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 570..571,
+                                        kind: Assign {
+                                            target: l6,
+                                            value: Transport {
+                                                value: Local(
+                                                    l5,
+                                                ),
+                                                transport: ValueTransportMetadata {
+                                                    source_ty: TypeId(
+                                                        5,
+                                                    ),
+                                                    kind: Scalar,
+                                                    requirements: MirTransportRequirements {
+                                                        trace: false,
+                                                        copy: true,
+                                                        drop: false,
+                                                    },
+                                                    boxing: Some(
+                                                        MirBoxingIntent {
+                                                            source_ty: TypeId(
+                                                                5,
+                                                            ),
+                                                            target_ty: Some(
+                                                                TypeId(
+                                                                    11,
+                                                                ),
+                                                            ),
+                                                            reason: RefErasure,
+                                                        },
+                                                    ),
+                                                },
+                                            },
+                                        },
+                                    },
+                                    Statement {
+                                        span: 557..572,
+                                        kind: Assign {
+                                            target: l4,
+                                            value: Call {
+                                                site_id: site1,
+                                                kind: Direct {
+                                                    callee_fqn: "mir_lowered.call_contracts.generic",
+                                                },
+                                                args: [
+                                                    CallArg {
+                                                        span: 570..571,
+                                                        name: None,
+                                                        value: Local(
+                                                            l6,
+                                                        ),
+                                                    },
+                                                ],
+                                                transport: CallTransportMetadata {
+                                                    result: ValueTransportMetadata {
+                                                        source_ty: TypeId(
+                                                            11,
+                                                        ),
+                                                        kind: Unknown,
+                                                        requirements: MirTransportRequirements {
+                                                            trace: true,
+                                                            copy: true,
+                                                            drop: true,
+                                                        },
+                                                        boxing: None,
+                                                    },
+                                                    aggregate_return: None,
+                                                    array: None,
+                                                    gc: None,
+                                                    thread_resume_payload: None,
+                                                    abi: CallAbiHandoffMetadata {
+                                                        callable_abi_kind: DeferredToEffectFacts,
+                                                        resolved_outward_cases: [],
+                                                        impl_plan: DeferredToEffectFacts,
+                                                        adapter_required: false,
+                                                    },
+                                                },
+                                            },
+                                        },
+                                    },
+                                    Statement {
+                                        span: 544..572,
+                                        kind: Assign {
+                                            target: l3,
+                                            value: Use(
+                                                Local(
+                                                    l4,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 611..612,
+                                        kind: Assign {
+                                            target: l9,
+                                            value: Use(
+                                                Const(
+                                                    Int,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 590..613,
+                                        kind: Assign {
+                                            target: l8,
+                                            value: Use(
+                                                Local(
+                                                    l9,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 253..254,
+                                        kind: Assign {
+                                            target: l11,
+                                            value: Use(
+                                                Const(
+                                                    Int,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 590..613,
+                                        kind: Assign {
+                                            target: l10,
+                                            value: Use(
+                                                Local(
+                                                    l11,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 590..613,
+                                        kind: Assign {
+                                            target: l12,
+                                            value: Call {
+                                                site_id: site2,
+                                                kind: Direct {
+                                                    callee_fqn: "mir_lowered.call_contracts.namedDefault",
+                                                },
+                                                args: [
+                                                    CallArg {
+                                                        span: 240..245,
+                                                        name: None,
+                                                        value: Local(
+                                                            l10,
+                                                        ),
+                                                    },
+                                                    CallArg {
+                                                        span: 256..261,
+                                                        name: None,
+                                                        value: Local(
+                                                            l8,
+                                                        ),
+                                                    },
+                                                ],
+                                                transport: CallTransportMetadata {
+                                                    result: ValueTransportMetadata {
+                                                        source_ty: TypeId(
+                                                            5,
+                                                        ),
+                                                        kind: Scalar,
+                                                        requirements: MirTransportRequirements {
+                                                            trace: false,
+                                                            copy: true,
+                                                            drop: false,
+                                                        },
+                                                        boxing: None,
+                                                    },
+                                                    aggregate_return: None,
+                                                    array: None,
+                                                    gc: None,
+                                                    thread_resume_payload: None,
+                                                    abi: CallAbiHandoffMetadata {
+                                                        callable_abi_kind: DeferredToEffectFacts,
+                                                        resolved_outward_cases: [],
+                                                        impl_plan: DeferredToEffectFacts,
+                                                        adapter_required: false,
+                                                    },
+                                                },
+                                            },
+                                        },
+                                    },
+                                    Statement {
+                                        span: 577..613,
+                                        kind: Assign {
+                                            target: l7,
+                                            value: Use(
+                                                Local(
+                                                    l12,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 631..632,
+                                        kind: Assign {
+                                            target: l15,
+                                            value: Use(
+                                                Const(
+                                                    Int,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 631..638,
+                                        kind: Assign {
+                                            target: l14,
+                                            value: Use(
+                                                Local(
+                                                    l15,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 324..325,
+                                        kind: Assign {
+                                            target: l17,
+                                            value: Use(
+                                                Const(
+                                                    Int,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 631..638,
+                                        kind: Assign {
+                                            target: l16,
+                                            value: Use(
+                                                Local(
+                                                    l17,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 631..638,
+                                        kind: Assign {
+                                            target: l18,
+                                            value: Call {
+                                                site_id: site3,
+                                                kind: Direct {
+                                                    callee_fqn: "mir_lowered.call_contracts.ext",
+                                                },
+                                                args: [
+                                                    CallArg {
+                                                        span: 992..993,
+                                                        name: None,
+                                                        value: Local(
+                                                            l14,
+                                                        ),
+                                                    },
+                                                    CallArg {
+                                                        span: 994..995,
+                                                        name: None,
+                                                        value: Local(
+                                                            l16,
+                                                        ),
+                                                    },
+                                                ],
+                                                transport: CallTransportMetadata {
+                                                    result: ValueTransportMetadata {
+                                                        source_ty: TypeId(
+                                                            5,
+                                                        ),
+                                                        kind: Scalar,
+                                                        requirements: MirTransportRequirements {
+                                                            trace: false,
+                                                            copy: true,
+                                                            drop: false,
+                                                        },
+                                                        boxing: None,
+                                                    },
+                                                    aggregate_return: None,
+                                                    array: None,
+                                                    gc: None,
+                                                    thread_resume_payload: None,
+                                                    abi: CallAbiHandoffMetadata {
+                                                        callable_abi_kind: DeferredToEffectFacts,
+                                                        resolved_outward_cases: [],
+                                                        impl_plan: DeferredToEffectFacts,
+                                                        adapter_required: false,
+                                                    },
+                                                },
+                                            },
+                                        },
+                                    },
+                                    Statement {
+                                        span: 618..638,
+                                        kind: Assign {
+                                            target: l13,
+                                            value: Use(
+                                                Local(
+                                                    l18,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 656..665,
+                                        kind: Assign {
+                                            target: l21,
+                                            value: TopLevelRef(
+                                                TopLevelRef {
+                                                    fqn: "mir_lowered.call_contracts.Singleton",
+                                                    site_id: None,
+                                                    hidden_effects: EffectRow {
+                                                        terms: [],
+                                                    },
+                                                },
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 656..671,
+                                        kind: Assign {
+                                            target: l20,
+                                            value: Call {
+                                                site_id: site4,
+                                                kind: Direct {
+                                                    callee_fqn: "mir_lowered.call_contracts.Singleton.get",
+                                                },
+                                                args: [
+                                                    CallArg {
+                                                        span: 656..665,
+                                                        name: None,
+                                                        value: Local(
+                                                            l21,
+                                                        ),
+                                                    },
+                                                ],
+                                                transport: CallTransportMetadata {
+                                                    result: ValueTransportMetadata {
+                                                        source_ty: TypeId(
+                                                            5,
+                                                        ),
+                                                        kind: Scalar,
+                                                        requirements: MirTransportRequirements {
+                                                            trace: false,
+                                                            copy: true,
+                                                            drop: false,
+                                                        },
+                                                        boxing: None,
+                                                    },
+                                                    aggregate_return: None,
+                                                    array: Some(
+                                                        ArrayElementTransportMetadata {
+                                                            operation: Get,
+                                                            array_ty: TypeId(
+                                                                16,
+                                                            ),
+                                                            element_ty: TypeId(
+                                                                5,
+                                                            ),
+                                                            mutable: false,
+                                                            element: ValueTransportMetadata {
+                                                                source_ty: TypeId(
+                                                                    5,
+                                                                ),
+                                                                kind: ArrayElement,
+                                                                requirements: MirTransportRequirements {
+                                                                    trace: false,
+                                                                    copy: true,
+                                                                    drop: false,
+                                                                },
+                                                                boxing: None,
+                                                            },
+                                                        },
+                                                    ),
+                                                    gc: None,
+                                                    thread_resume_payload: None,
+                                                    abi: CallAbiHandoffMetadata {
+                                                        callable_abi_kind: DeferredToEffectFacts,
+                                                        resolved_outward_cases: [],
+                                                        impl_plan: DeferredToEffectFacts,
+                                                        adapter_required: false,
+                                                    },
+                                                },
+                                            },
+                                        },
+                                    },
+                                    Statement {
+                                        span: 643..671,
+                                        kind: Assign {
+                                            target: l19,
+                                            value: Use(
+                                                Local(
+                                                    l20,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 703..704,
+                                        kind: Assign {
+                                            target: l24,
+                                            value: Use(
+                                                Const(
+                                                    Int,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 691..705,
+                                        kind: Assign {
+                                            target: l23,
+                                            value: ClassCtor {
+                                                site_id: site5,
+                                                class_fqn: "mir_lowered.call_contracts.Box",
+                                                ctor: ClassCtorCallMetadata {
+                                                    selected_ctor_span: Some(
+                                                        366..382,
+                                                    ),
+                                                    ordered_param_count: 1,
+                                                },
+                                                args: [
+                                                    CallArg {
+                                                        span: 703..704,
+                                                        name: None,
+                                                        value: Local(
+                                                            l24,
+                                                        ),
+                                                    },
+                                                ],
+                                                hidden_effects: EffectRow {
+                                                    terms: [],
+                                                },
+                                            },
+                                        },
+                                    },
+                                    Statement {
+                                        span: 676..705,
+                                        kind: Assign {
+                                            target: l22,
+                                            value: Use(
+                                                Local(
+                                                    l23,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 732..738,
+                                        kind: Assign {
+                                            target: l26,
+                                            value: MakeClosure {
+                                                env: Const(
+                                                    Unit,
+                                                ),
+                                                fn_ptr: "mir_lowered.call_contracts.main.$lambda0",
+                                                env_contract: ClosureEnvTransportMetadata {
+                                                    env_ty: TypeId(
+                                                        2,
+                                                    ),
+                                                    captures: [],
+                                                },
+                                            },
+                                        },
+                                    },
+                                    Statement {
+                                        span: 710..738,
+                                        kind: Assign {
+                                            target: l25,
+                                            value: Use(
+                                                Local(
+                                                    l26,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 766..767,
+                                        kind: Assign {
+                                            target: l29,
+                                            value: Use(
+                                                Const(
+                                                    Int,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 757..768,
+                                        kind: Assign {
+                                            target: l28,
+                                            value: Call {
+                                                site_id: site6,
+                                                kind: Direct {
+                                                    callee_fqn: "mir_lowered.call_contracts.apply",
+                                                },
+                                                args: [
+                                                    CallArg {
+                                                        span: 763..764,
+                                                        name: None,
+                                                        value: Local(
+                                                            l25,
+                                                        ),
+                                                    },
+                                                    CallArg {
+                                                        span: 766..767,
+                                                        name: None,
+                                                        value: Local(
+                                                            l29,
+                                                        ),
+                                                    },
+                                                ],
+                                                transport: CallTransportMetadata {
+                                                    result: ValueTransportMetadata {
+                                                        source_ty: TypeId(
+                                                            5,
+                                                        ),
+                                                        kind: Scalar,
+                                                        requirements: MirTransportRequirements {
+                                                            trace: false,
+                                                            copy: true,
+                                                            drop: false,
+                                                        },
+                                                        boxing: None,
+                                                    },
+                                                    aggregate_return: None,
+                                                    array: None,
+                                                    gc: None,
+                                                    thread_resume_payload: None,
+                                                    abi: CallAbiHandoffMetadata {
+                                                        callable_abi_kind: DeferredToEffectFacts,
+                                                        resolved_outward_cases: [],
+                                                        impl_plan: DeferredToEffectFacts,
+                                                        adapter_required: false,
+                                                    },
+                                                },
+                                            },
+                                        },
+                                    },
+                                    Statement {
+                                        span: 743..768,
+                                        kind: Assign {
+                                            target: l27,
+                                            value: Use(
+                                                Local(
+                                                    l28,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 787..808,
+                                        kind: Assign {
+                                            target: l32,
+                                            value: MakeClosure {
+                                                env: Const(
+                                                    Unit,
+                                                ),
+                                                fn_ptr: "mir_lowered.call_contracts.main.$lambda1",
+                                                env_contract: ClosureEnvTransportMetadata {
+                                                    env_ty: TypeId(
+                                                        2,
+                                                    ),
+                                                    captures: [],
+                                                },
+                                            },
+                                        },
+                                    },
+                                    Statement {
+                                        span: 809..810,
+                                        kind: Assign {
+                                            target: l33,
+                                            value: Use(
+                                                Const(
+                                                    Int,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 787..811,
+                                        kind: Assign {
+                                            target: l31,
+                                            value: Call {
+                                                site_id: site7,
+                                                kind: Closure {
+                                                    callee: Local(
+                                                        l32,
+                                                    ),
+                                                    fn_ptr: "mir_lowered.call_contracts.main.$lambda1",
+                                                },
+                                                args: [
+                                                    CallArg {
+                                                        span: 809..810,
+                                                        name: None,
+                                                        value: Local(
+                                                            l33,
+                                                        ),
+                                                    },
+                                                ],
+                                                transport: CallTransportMetadata {
+                                                    result: ValueTransportMetadata {
+                                                        source_ty: TypeId(
+                                                            5,
+                                                        ),
+                                                        kind: Scalar,
+                                                        requirements: MirTransportRequirements {
+                                                            trace: false,
+                                                            copy: true,
+                                                            drop: false,
+                                                        },
+                                                        boxing: None,
+                                                    },
+                                                    aggregate_return: None,
+                                                    array: None,
+                                                    gc: None,
+                                                    thread_resume_payload: None,
+                                                    abi: CallAbiHandoffMetadata {
+                                                        callable_abi_kind: DeferredToEffectFacts,
+                                                        resolved_outward_cases: [],
+                                                        impl_plan: DeferredToEffectFacts,
+                                                        adapter_required: false,
+                                                    },
+                                                },
+                                            },
+                                        },
+                                    },
+                                    Statement {
+                                        span: 773..811,
+                                        kind: Assign {
+                                            target: l30,
+                                            value: Use(
+                                                Local(
+                                                    l31,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 839..852,
+                                        kind: Assign {
+                                            target: l35,
+                                            value: TypeMetadataLiteral(
+                                                TypeMetadataLiteral {
+                                                    source_ty: TypeId(
+                                                        17,
+                                                    ),
+                                                    source_fqn: Some(
+                                                        "mir_lowered.call_contracts.Box",
+                                                    ),
+                                                    kind: TypeNameString,
+                                                },
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 816..852,
+                                        kind: Assign {
+                                            target: l34,
+                                            value: Use(
+                                                Local(
+                                                    l35,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 874..887,
+                                        kind: Assign {
+                                            target: l37,
+                                            value: SizeOf {
+                                                value_ty: TypeId(
+                                                    17,
+                                                ),
+                                            },
+                                        },
+                                    },
+                                    Statement {
+                                        span: 857..887,
+                                        kind: Assign {
+                                            target: l36,
+                                            value: Use(
+                                                Local(
+                                                    l37,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 917..930,
+                                        kind: Assign {
+                                            target: l39,
+                                            value: Call {
+                                                site_id: site8,
+                                                kind: Direct {
+                                                    callee_fqn: "scoop.core.getPlatform",
+                                                },
+                                                args: [],
+                                                transport: CallTransportMetadata {
+                                                    result: ValueTransportMetadata {
+                                                        source_ty: TypeId(
+                                                            18,
+                                                        ),
+                                                        kind: Struct,
+                                                        requirements: MirTransportRequirements {
+                                                            trace: true,
+                                                            copy: true,
+                                                            drop: true,
+                                                        },
+                                                        boxing: None,
+                                                    },
+                                                    aggregate_return: Some(
+                                                        ValueTransportMetadata {
+                                                            source_ty: TypeId(
+                                                                18,
+                                                            ),
+                                                            kind: Struct,
+                                                            requirements: MirTransportRequirements {
+                                                                trace: true,
+                                                                copy: true,
+                                                                drop: true,
+                                                            },
+                                                            boxing: None,
+                                                        },
+                                                    ),
+                                                    array: None,
+                                                    gc: None,
+                                                    thread_resume_payload: None,
+                                                    abi: CallAbiHandoffMetadata {
+                                                        callable_abi_kind: DeferredToEffectFacts,
+                                                        resolved_outward_cases: [],
+                                                        impl_plan: DeferredToEffectFacts,
+                                                        adapter_required: false,
+                                                    },
+                                                },
+                                            },
+                                        },
+                                    },
+                                    Statement {
+                                        span: 892..930,
+                                        kind: Assign {
+                                            target: l38,
+                                            value: Use(
+                                                Local(
+                                                    l39,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 942..947,
+                                        kind: Assign {
+                                            target: l47,
+                                            value: Binary {
+                                                lhs: Local(
+                                                    l0,
+                                                ),
+                                                op: Add,
+                                                rhs: Local(
+                                                    l3,
+                                                ),
+                                            },
+                                        },
+                                    },
+                                    Statement {
+                                        span: 942..951,
+                                        kind: Assign {
+                                            target: l46,
+                                            value: Binary {
+                                                lhs: Local(
+                                                    l47,
+                                                ),
+                                                op: Add,
+                                                rhs: Local(
+                                                    l7,
+                                                ),
+                                            },
+                                        },
+                                    },
+                                    Statement {
+                                        span: 942..955,
+                                        kind: Assign {
+                                            target: l45,
+                                            value: Binary {
+                                                lhs: Local(
+                                                    l46,
+                                                ),
+                                                op: Add,
+                                                rhs: Local(
+                                                    l13,
+                                                ),
+                                            },
+                                        },
+                                    },
+                                    Statement {
+                                        span: 942..959,
+                                        kind: Assign {
+                                            target: l44,
+                                            value: Binary {
+                                                lhs: Local(
+                                                    l45,
+                                                ),
+                                                op: Add,
+                                                rhs: Local(
+                                                    l19,
+                                                ),
+                                            },
+                                        },
+                                    },
+                                    Statement {
+                                        span: 962..971,
+                                        kind: Assign {
+                                            target: l48,
+                                            value: MemberAccess {
+                                                site_id: None,
+                                                receiver: Local(
+                                                    l22,
+                                                ),
+                                                member: MemberAccessMetadata {
+                                                    name: "value",
+                                                    receiver_ty: TypeId(
+                                                        17,
+                                                    ),
+                                                    resolved: Some(
+                                                        Value {
+                                                            fqn: "mir_lowered.call_contracts.Box.value",
+                                                        },
+                                                    ),
+                                                    hidden_effects: EffectRow {
+                                                        terms: [],
+                                                    },
+                                                },
+                                            },
+                                        },
+                                    },
+                                    Statement {
+                                        span: 942..971,
+                                        kind: Assign {
+                                            target: l43,
+                                            value: Binary {
+                                                lhs: Local(
+                                                    l44,
+                                                ),
+                                                op: Add,
+                                                rhs: Local(
+                                                    l48,
+                                                ),
+                                            },
+                                        },
+                                    },
+                                    Statement {
+                                        span: 942..976,
+                                        kind: Assign {
+                                            target: l42,
+                                            value: Binary {
+                                                lhs: Local(
+                                                    l43,
+                                                ),
+                                                op: Add,
+                                                rhs: Local(
+                                                    l27,
+                                                ),
+                                            },
+                                        },
+                                    },
+                                    Statement {
+                                        span: 942..981,
+                                        kind: Assign {
+                                            target: l41,
+                                            value: Binary {
+                                                lhs: Local(
+                                                    l42,
+                                                ),
+                                                op: Add,
+                                                rhs: Local(
+                                                    l30,
+                                                ),
+                                            },
+                                        },
+                                    },
+                                    Statement {
+                                        span: 942..989,
+                                        kind: Assign {
+                                            target: l40,
+                                            value: Binary {
+                                                lhs: Local(
+                                                    l41,
+                                                ),
+                                                op: Add,
+                                                rhs: Local(
+                                                    l36,
+                                                ),
+                                            },
+                                        },
+                                    },
+                                ],
+                                terminator: Terminator {
+                                    span: 935..989,
+                                    kind: Return {
+                                        value: Some(
+                                            Local(
+                                                l40,
+                                            ),
+                                        ),
+                                    },
+                                    unwind: NoUnwind,
+                                },
+                            },
+                        ],
+                        start: bb0,
+                    },
+                ),
+            },
+        ),
+        Fun(
+            FunDecl {
+                span: 732..738,
+                fqn: "mir_lowered.call_contracts.main.$lambda0",
+                name: "$lambda0",
+                ty: TypeId(
+                    0,
+                ),
+                params: [
+                    Param {
+                        span: 732..738,
+                        name: "$env",
+                        ty: TypeId(
+                            2,
+                        ),
+                        local: l0,
+                    },
+                    Param {
+                        span: 739..739,
+                        name: "a0",
+                        ty: TypeId(
+                            5,
+                        ),
+                        local: l1,
+                    },
+                ],
+                return_ty: TypeId(
+                    5,
+                ),
+                body: Some(
+                    Body {
+                        locals: [
+                            LocalDecl {
+                                span: 732..738,
+                                name: Some(
+                                    "$env",
+                                ),
+                                ty: TypeId(
+                                    2,
+                                ),
+                                source: SourceLocal,
+                            },
+                            LocalDecl {
+                                span: 739..739,
+                                name: Some(
+                                    "a0",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: SourceLocal,
+                            },
+                            LocalDecl {
+                                span: 732..738,
+                                name: Some(
+                                    "tmp0",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                        ],
+                        blocks: [
+                            BasicBlock {
+                                is_cleanup: false,
+                                stmts: [
+                                    Statement {
+                                        span: 732..738,
+                                        kind: Assign {
+                                            target: l2,
+                                            value: Call {
+                                                site_id: site0,
+                                                kind: Direct {
+                                                    callee_fqn: "mir_lowered.call_contracts.direct",
+                                                },
+                                                args: [
+                                                    CallArg {
+                                                        span: 739..739,
+                                                        name: None,
+                                                        value: Local(
+                                                            l1,
+                                                        ),
+                                                    },
+                                                ],
+                                                transport: CallTransportMetadata {
+                                                    result: ValueTransportMetadata {
+                                                        source_ty: TypeId(
+                                                            5,
+                                                        ),
+                                                        kind: Scalar,
+                                                        requirements: MirTransportRequirements {
+                                                            trace: false,
+                                                            copy: true,
+                                                            drop: false,
+                                                        },
+                                                        boxing: None,
+                                                    },
+                                                    aggregate_return: None,
+                                                    array: None,
+                                                    gc: None,
+                                                    thread_resume_payload: None,
+                                                    abi: CallAbiHandoffMetadata {
+                                                        callable_abi_kind: DeferredToEffectFacts,
+                                                        resolved_outward_cases: [],
+                                                        impl_plan: DeferredToEffectFacts,
+                                                        adapter_required: false,
+                                                    },
+                                                },
+                                            },
+                                        },
+                                    },
+                                ],
+                                terminator: Terminator {
+                                    span: 732..738,
+                                    kind: Return {
+                                        value: Some(
+                                            Local(
+                                                l2,
+                                            ),
+                                        ),
+                                    },
+                                    unwind: NoUnwind,
+                                },
+                            },
+                        ],
+                        start: bb0,
+                    },
+                ),
+            },
+        ),
+        Fun(
+            FunDecl {
+                span: 787..808,
+                fqn: "mir_lowered.call_contracts.main.$lambda1",
+                name: "$lambda1",
+                ty: TypeId(
+                    0,
+                ),
+                params: [
+                    Param {
+                        span: 787..808,
+                        name: "$env",
+                        ty: TypeId(
+                            2,
+                        ),
+                        local: l0,
+                    },
+                    Param {
+                        span: 790..791,
+                        name: "x",
+                        ty: TypeId(
+                            5,
+                        ),
+                        local: l1,
+                    },
+                ],
+                return_ty: TypeId(
+                    5,
+                ),
+                body: Some(
+                    Body {
+                        locals: [
+                            LocalDecl {
+                                span: 787..808,
+                                name: Some(
+                                    "$env",
+                                ),
+                                ty: TypeId(
+                                    2,
+                                ),
+                                source: SourceLocal,
+                            },
+                            LocalDecl {
+                                span: 790..791,
+                                name: Some(
+                                    "x",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: SourceLocal,
+                            },
+                            LocalDecl {
+                                span: 800..805,
+                                name: Some(
+                                    "tmp0",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 804..805,
+                                name: Some(
+                                    "tmp1",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                        ],
+                        blocks: [
+                            BasicBlock {
+                                is_cleanup: false,
+                                stmts: [
+                                    Statement {
+                                        span: 804..805,
+                                        kind: Assign {
+                                            target: l3,
+                                            value: Use(
+                                                Const(
+                                                    Int,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 800..805,
+                                        kind: Assign {
+                                            target: l2,
+                                            value: Binary {
+                                                lhs: Local(
+                                                    l1,
+                                                ),
+                                                op: Add,
+                                                rhs: Local(
+                                                    l3,
+                                                ),
+                                            },
+                                        },
+                                    },
+                                ],
+                                terminator: Terminator {
+                                    span: 787..808,
+                                    kind: Return {
+                                        value: Some(
+                                            Local(
+                                                l2,
+                                            ),
+                                        ),
+                                    },
+                                    unwind: NoUnwind,
+                                },
+                            },
+                        ],
+                        start: bb0,
+                    },
+                ),
+            },
+        ),
+        Fun(
+            FunDecl {
+                span: 407..434,
+                fqn: "mir_lowered.call_contracts.Singleton.get",
+                name: "get",
+                ty: TypeId(
+                    19,
+                ),
+                params: [
+                    Param {
+                        span: 391..400,
+                        name: "this",
+                        ty: TypeId(
+                            16,
+                        ),
+                        local: l0,
+                    },
+                ],
+                return_ty: TypeId(
+                    5,
+                ),
+                body: Some(
+                    Body {
+                        locals: [
+                            LocalDecl {
+                                span: 391..400,
+                                name: Some(
+                                    "this",
+                                ),
+                                ty: TypeId(
+                                    16,
+                                ),
+                                source: SourceLocal,
+                            },
+                            LocalDecl {
+                                span: 431..432,
+                                name: Some(
+                                    "tmp0",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 422..434,
+                                name: Some(
+                                    "tmp1",
+                                ),
+                                ty: TypeId(
+                                    2,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                        ],
+                        blocks: [
+                            BasicBlock {
+                                is_cleanup: false,
+                                stmts: [
+                                    Statement {
+                                        span: 431..432,
+                                        kind: Assign {
+                                            target: l1,
+                                            value: Use(
+                                                Const(
+                                                    Int,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                ],
+                                terminator: Terminator {
+                                    span: 424..432,
+                                    kind: Return {
+                                        value: Some(
+                                            Local(
+                                                l1,
+                                            ),
+                                        ),
+                                    },
+                                    unwind: NoUnwind,
+                                },
+                            },
+                        ],
+                        start: bb0,
+                    },
+                ),
+            },
+        ),
+    ],
+}

@@ -95,7 +95,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     llvm_fun,
                     idx as u32 + param_offset,
                     slot.cg_ty,
-                    "missing refactor plain MIR llvm param",
+                    "missing plain MIR llvm param",
                 )?
             };
             let _ = self.store_local_value(param.span, slot.ptr, slot.cg_ty, init)?;
@@ -444,7 +444,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             } => {
                 let class_layout_key =
                     self.mir_class_ctor_layout_key(class_fqn, mir_types, target_source_ty);
-                self.codegen_mir_refactor_class_ctor_call(
+                self.codegen_mir_class_ctor_call(
                     span,
                     &class_layout_key,
                     ctor,
@@ -573,26 +573,26 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 slots,
             ),
             crate::mir::Rvalue::Call { .. } => Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "refactor value primitive call requires published ABI",
+                kind: "value primitive call requires published ABI",
                 at: span.into(),
             }),
             crate::mir::Rvalue::MakeClosure { .. } => Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "refactor value primitive closure carrier requires published ABI",
+                kind: "value primitive closure carrier requires published ABI",
                 at: span.into(),
             }),
             crate::mir::Rvalue::ClassCtor { .. } => Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "refactor value primitive class construction requires published ABI",
+                kind: "value primitive class construction requires published ABI",
                 at: span.into(),
             }),
             crate::mir::Rvalue::PerformResult { .. } => Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "refactor value primitive boundary payload requires published contract",
+                kind: "value primitive boundary payload requires published contract",
                 at: span.into(),
             }),
             crate::mir::Rvalue::UnresolvedName { name } => {
                 self.codegen_unresolved_ident(span, name, Some(target_cg))
             }
             crate::mir::Rvalue::Todo(_) => Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "refactor value primitive rvalue",
+                kind: "value primitive rvalue",
                 at: span.into(),
             }),
         }

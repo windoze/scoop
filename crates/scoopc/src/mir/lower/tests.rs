@@ -10,7 +10,7 @@ use super::*;
     use std::path::PathBuf;
 
     #[test]
-    fn refactor_typed_contracts_clear_fallback_resume_and_perform_metadata() {
+    fn typed_contracts_clear_fallback_resume_and_perform_metadata() {
         let span = Span::new(1, 2);
         let fallback_effect_sites = std::iter::once((
             hir::CallSite::new(PathBuf::from("fixtures/mir_lower_facts.scoop"), span),
@@ -32,9 +32,9 @@ use super::*;
             &when_pat_binding_tys,
             &top_level_fun_call_sites,
         )
-        .with_refactor_typed_contracts(&TypedHirEffectContracts::default());
+        .with_typed_contracts(&TypedHirEffectContracts::default());
 
-        assert!(facts.uses_refactor_typed_contracts());
+        assert!(facts.uses_typed_contracts());
         assert!(!facts.fallback_resume_site_matches(span));
         assert!(!facts.fallback_resume_site_suspends_outward(span));
         assert!(facts.fallback_perform_site_info(span).is_none());
@@ -799,7 +799,7 @@ fun main(): Int {
     }
 
     #[test]
-    fn refactor_mir_array_literal_helper_calls_keep_distinct_call_contracts() {
+    fn mir_array_literal_helper_calls_keep_distinct_call_contracts() {
         let sess = Session::new().unwrap();
         let source = SourceFile::new_virtual(
             "<mem>/mir_array_literal_helper_call_contracts.scoop",

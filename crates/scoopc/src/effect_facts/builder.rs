@@ -3581,7 +3581,7 @@ mod tests {
     use crate::span::Span;
     use crate::ty::{EffectRow, NominalType, RefTypeKind, TypeKind, TypeStore};
 
-    fn refactor_session() -> Session {
+    fn session() -> Session {
         Session::with_options(SessionOptions::new()).unwrap()
     }
 
@@ -3630,7 +3630,7 @@ fun exercise(k: Continuation<Unit, Unit, eff Pure>): Unit / (Flag + Raise<String
         crate::mir::MaterializedMir,
         crate::effect_facts::MaterializedEffectFacts,
     ) {
-        let session = refactor_session();
+        let session = session();
         let source = sample_source();
         let mut materialized = materialize_for_dump(&session, &source).unwrap();
         let facts = MaterializedEffectFactsBuilder::from_materialized_snapshot(
@@ -3670,7 +3670,7 @@ fun exercise(k: Continuation<Unit, Unit, eff Pure>): Unit / (Flag + Raise<String
         crate::mir::MaterializedMir,
         crate::effect_facts::MaterializedEffectFacts,
     ) {
-        let session = refactor_session();
+        let session = session();
         let mut materialized = materialize_for_dump(&session, &source).unwrap();
         let facts = MaterializedEffectFactsBuilder::from_materialized_snapshot(
             &session,
@@ -3932,7 +3932,7 @@ fun pureHelper(): Unit {}
     }
 
     #[test]
-    fn refactor_site_effect_facts_capture_call_target_modes_and_resume_contracts() {
+    fn site_effect_facts_capture_call_target_modes_and_resume_contracts() {
         let (materialized, facts) = build_facts_for_source(call_and_resume_source());
         let (apply_key, _) = callable_facts_for(&facts, "sample.apply");
         let (exercise_key, _) = callable_facts_for(&facts, "sample.exercise");
@@ -4183,7 +4183,7 @@ fun pureHelper(): Unit {}
     }
 
     #[test]
-    fn refactor_funptr_call_sites_stay_plain_native_dynamic_fallbacks() {
+    fn funptr_call_sites_stay_plain_native_dynamic_fallbacks() {
         let (materialized, facts) = build_facts_for_source(funptr_source());
         let (key, _) = callable_facts_for(&facts, "sample.use");
         let pass_view = materialized.pass_view();
@@ -4234,7 +4234,7 @@ fun pureHelper(): Unit {}
     }
 
     #[test]
-    fn refactor_site_effect_facts_capture_perform_and_handle_contracts() {
+    fn site_effect_facts_capture_perform_and_handle_contracts() {
         let (materialized, facts) = build_facts_for_source(handle_site_source());
         let (key, _) = callable_facts_for(&facts, "sample.handled_raise");
         let pass_view = materialized.pass_view();
@@ -4303,7 +4303,7 @@ fun pureHelper(): Unit {}
     }
 
     #[test]
-    fn refactor_body_effect_facts_index_blocks_and_sites_by_stable_ids() {
+    fn body_effect_facts_index_blocks_and_sites_by_stable_ids() {
         let (materialized, facts) = build_facts_for_source(handle_site_source());
         let (key, _) = callable_facts_for(&facts, "sample.handled_raise");
         let pass_view = materialized.pass_view();
@@ -4362,7 +4362,7 @@ fun pureHelper(): Unit {}
     }
 
     #[test]
-    fn refactor_nested_handle_classification_distinguishes_self_contained_and_finally_outward() {
+    fn nested_handle_classification_distinguishes_self_contained_and_finally_outward() {
         let (materialized, facts) = build_facts_for_source(nested_handle_source());
         let pass_view = materialized.pass_view();
 
@@ -4444,7 +4444,7 @@ fun pureHelper(): Unit {}
 
     #[test]
     fn materialized_effect_facts_builder_uses_canonical_pass_view_snapshot() {
-        let session = refactor_session();
+        let session = session();
         let source = sample_source();
         let mut materialized = materialize_for_dump(&session, &source).unwrap();
         let removed_fqn = materialized
@@ -4486,7 +4486,7 @@ fun pureHelper(): Unit {}
     }
 
     #[test]
-    fn refactor_callable_effect_facts_shell_skips_effect_op_roots() {
+    fn callable_effect_facts_shell_skips_effect_op_roots() {
         let (materialized, facts) = build_sample_facts();
         let pass_view = materialized.pass_view();
         let pass_roots = pass_view
@@ -4519,7 +4519,7 @@ fun pureHelper(): Unit {}
     }
 
     #[test]
-    fn refactor_effect_schema_case_tags_are_stable_and_distinguish_generic_specialized_raise_cases()
+    fn effect_schema_case_tags_are_stable_and_distinguish_generic_specialized_raise_cases()
     {
         let (materialized, facts) = build_sample_facts();
 
@@ -4568,7 +4568,7 @@ fun pureHelper(): Unit {}
     }
 
     #[test]
-    fn refactor_continuation_schema_explicitly_records_unit_payload_resume_and_surface_type() {
+    fn continuation_schema_explicitly_records_unit_payload_resume_and_surface_type() {
         let (materialized, facts) = build_sample_facts();
 
         let (_, ping_flag_facts) = callable_facts_for(&facts, "sample.pingFlag");
@@ -4620,7 +4620,7 @@ fun pureHelper(): Unit {}
     }
 
     #[test]
-    fn refactor_callable_effect_facts_shell_uses_final_shape_and_runtime_error_case() {
+    fn callable_effect_facts_shell_uses_final_shape_and_runtime_error_case() {
         let (materialized, facts) = build_sample_facts();
 
         let (_, pure_facts) = callable_facts_for(&facts, "sample.pureUnit");
@@ -4665,9 +4665,9 @@ fun pureHelper(): Unit {}
     }
 
     #[test]
-    fn refactor_effect_schema_compiler_continuation_runtime_error_adds_runtime_error_case_to_step_schema()
+    fn effect_schema_compiler_continuation_runtime_error_adds_runtime_error_case_to_step_schema()
      {
-        let session = refactor_session();
+        let session = session();
         let source = compiler_continuation_runtime_error_source();
         let mut materialized = materialize_for_dump(&session, &source).unwrap();
         let leaf_key = materialized
@@ -4701,9 +4701,9 @@ fun pureHelper(): Unit {}
     }
 
     #[test]
-    fn refactor_continuation_schema_surface_ty_preserves_residual_out_row_for_compiler_runtime_error_upper_bound()
+    fn continuation_schema_surface_ty_preserves_residual_out_row_for_compiler_runtime_error_upper_bound()
      {
-        let session = refactor_session();
+        let session = session();
         let source = compiler_continuation_runtime_error_source();
         let mut materialized = materialize_for_dump(&session, &source).unwrap();
         let leaf_key = materialized
@@ -4742,9 +4742,9 @@ fun pureHelper(): Unit {}
     }
 
     #[test]
-    fn refactor_callable_effect_facts_shell_compiler_continuation_runtime_error_only_expands_selected_callables()
+    fn callable_effect_facts_shell_compiler_continuation_runtime_error_only_expands_selected_callables()
      {
-        let session = refactor_session();
+        let session = session();
         let source = compiler_continuation_runtime_error_source();
         let mut materialized = materialize_for_dump(&session, &source).unwrap();
         let pass_view = materialized.pass_view();
@@ -4786,7 +4786,7 @@ fun pureHelper(): Unit {}
     }
 
     #[test]
-    fn refactor_continuation_schema_surface_ty_preserves_pure_resume_surface_row() {
+    fn continuation_schema_surface_ty_preserves_pure_resume_surface_row() {
         let (materialized, facts) = build_sample_facts();
         let (resume_zero_key, _) = callable_facts_for(&facts, "sample.resumeZero");
         let pass_view = materialized.pass_view();
@@ -4847,7 +4847,7 @@ fun pureHelper(): Unit {}
     }
 
     #[test]
-    fn refactor_callable_effect_facts_shell_instance_keys_distinguish_allowed_rows() {
+    fn callable_effect_facts_shell_instance_keys_distinguish_allowed_rows() {
         let mut types = TypeStore::new();
         let builtins = types.intern_builtins();
         let raise_string = types.intern(TypeKind::Ref(RefTypeKind::Nominal(NominalType {
@@ -4884,7 +4884,7 @@ fun pureHelper(): Unit {}
     }
 
     #[test]
-    fn refactor_continuation_schema_identity_distinguishes_callable_instances() {
+    fn continuation_schema_identity_distinguishes_callable_instances() {
         let mut types = TypeStore::new();
         let builtins = types.intern_builtins();
         let raise_string = types.intern(TypeKind::Ref(RefTypeKind::Nominal(NominalType {

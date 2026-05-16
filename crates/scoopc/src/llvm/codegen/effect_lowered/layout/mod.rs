@@ -54,27 +54,27 @@ use super::super::types::IntTy;
 use super::super::{CallableCarrierKind, LlvmFunctionDeclarationSurface, MainCodegen};
 use super::stable_naming;
 use super::types::{
-    ProgramAbiQuery, RefactorAbiValue, RefactorCallBoundaryOperandLayout,
-    RefactorCallableCarrierTargetLayout, RefactorCallableEntryLayout, RefactorCallableLayout,
-    RefactorClassInstanceFieldLayout, RefactorClassInstanceLayout, RefactorClosureCarrierLayout,
-    RefactorCompletionPayloadBindingLayout, RefactorContinuationFieldKind,
-    RefactorContinuationFieldLayout, RefactorContinuationObjectLayout,
-    RefactorContinuationSurfaceResumeBinding, RefactorContinuationSurfaceResumeDispatchLayout,
-    RefactorContinuationSurfaceResumeDispatchTarget,
-    RefactorContinuationSurfaceResumeHandleBinderRoute, RefactorContinuationSurfaceResumeLayout,
-    RefactorContinuationSurfaceResumeMethodLookup,
-    RefactorContinuationSurfaceResumeOwnerTrampolineLayout, RefactorDispatchReceiverLayout,
-    RefactorDynamicInvokeCarrierLayout, RefactorDynamicInvokeLayout, RefactorFrameFieldKind,
-    RefactorFrameFieldLayout, RefactorFrameLayout, RefactorHandleArmLayout,
-    RefactorHandleContinuationBinderLayout, RefactorHandleDispatchLayout,
-    RefactorHandlePayloadBinderLayout, RefactorHandlePendingPayloadTransportLayout,
-    RefactorLocalRuntimeErrorContract, RefactorLocalRuntimeErrorTerminalAction,
-    RefactorPerformBoundaryOperandLayout, RefactorPlainCallableEntryLayout,
-    RefactorPlainCallableLayout, RefactorPublishedRuntimeEntryLayout,
-    RefactorResumeBoundaryOperandLayout, RefactorResumeInterfaceLayout, RefactorResumeMethodLayout,
-    RefactorResumePayloadBindingLayout, RefactorSourceAbiFieldLayout, RefactorSourceAbiLayout,
-    RefactorSourceAbiLayoutKind, RefactorStepCaseLayout, RefactorStepLayout,
-    RefactorStepVariantLayout,
+    ProgramAbiQuery, AbiValue, CallBoundaryOperandLayout,
+    CallableCarrierTargetLayout, CallableEntryLayout, CallableLayout,
+    ClassInstanceFieldLayout, ClassInstanceLayout, ClosureCarrierLayout,
+    CompletionPayloadBindingLayout, ContinuationFieldKind,
+    ContinuationFieldLayout, ContinuationObjectLayout,
+    ContinuationSurfaceResumeBinding, ContinuationSurfaceResumeDispatchLayout,
+    ContinuationSurfaceResumeDispatchTarget,
+    ContinuationSurfaceResumeHandleBinderRoute, ContinuationSurfaceResumeLayout,
+    ContinuationSurfaceResumeMethodLookup,
+    ContinuationSurfaceResumeOwnerTrampolineLayout, DispatchReceiverLayout,
+    DynamicInvokeCarrierLayout, DynamicInvokeLayout, FrameFieldKind,
+    FrameFieldLayout, FrameLayout, HandleArmLayout,
+    HandleContinuationBinderLayout, HandleDispatchLayout,
+    HandlePayloadBinderLayout, HandlePendingPayloadTransportLayout,
+    LocalRuntimeErrorContract, LocalRuntimeErrorTerminalAction,
+    PerformBoundaryOperandLayout, PlainCallableEntryLayout,
+    PlainCallableLayout, PublishedRuntimeEntryLayout,
+    ResumeBoundaryOperandLayout, ResumeInterfaceLayout, ResumeMethodLayout,
+    ResumePayloadBindingLayout, SourceAbiFieldLayout, SourceAbiLayout,
+    SourceAbiLayoutKind, StepCaseLayout, StepLayout,
+    StepVariantLayout,
 };
 
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
@@ -92,20 +92,20 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 }
 
 type BoundaryOperandKey = (StepSchemaId, crate::mir::SiteId);
-type CallBoundaryOperandLayouts = BTreeMap<BoundaryOperandKey, RefactorCallBoundaryOperandLayout>;
+type CallBoundaryOperandLayouts = BTreeMap<BoundaryOperandKey, CallBoundaryOperandLayout>;
 type PerformBoundaryOperandLayouts =
-    BTreeMap<BoundaryOperandKey, RefactorPerformBoundaryOperandLayout>;
+    BTreeMap<BoundaryOperandKey, PerformBoundaryOperandLayout>;
 type ResumeBoundaryOperandLayouts =
-    BTreeMap<BoundaryOperandKey, RefactorResumeBoundaryOperandLayout>;
+    BTreeMap<BoundaryOperandKey, ResumeBoundaryOperandLayout>;
 type ResumePayloadBindingBoundaryKey = (StepSchemaId, BoundaryId);
 type ResumePayloadBindingStateKey = (StepSchemaId, StateId);
 type ResumePayloadBindingLayouts =
-    BTreeMap<ResumePayloadBindingBoundaryKey, RefactorResumePayloadBindingLayout>;
+    BTreeMap<ResumePayloadBindingBoundaryKey, ResumePayloadBindingLayout>;
 type ResumePayloadBindingLayoutsByState =
-    BTreeMap<ResumePayloadBindingStateKey, RefactorResumePayloadBindingLayout>;
+    BTreeMap<ResumePayloadBindingStateKey, ResumePayloadBindingLayout>;
 type CompletionPayloadBindingKey = (StepSchemaId, StateId);
 type CompletionPayloadBindingLayouts<'ctx> =
-    BTreeMap<CompletionPayloadBindingKey, RefactorCompletionPayloadBindingLayout<'ctx>>;
+    BTreeMap<CompletionPayloadBindingKey, CompletionPayloadBindingLayout<'ctx>>;
 type BoundaryOperandLayoutSets = (
     CallBoundaryOperandLayouts,
     PerformBoundaryOperandLayouts,
@@ -126,7 +126,7 @@ fn validate_program_layout_inventory(program: &LateLoweredProgram) -> Result<(),
             .is_some()
         {
             return Err(frontend_error(format!(
-                "refactor LLVM ABI materialization 遇到重复 StepSchemaId {}",
+                "LLVM ABI materialization 遇到重复 StepSchemaId {}",
                 step_type.step_schema().as_u32()
             )));
         }
@@ -142,7 +142,7 @@ fn validate_program_layout_inventory(program: &LateLoweredProgram) -> Result<(),
             .is_some()
         {
             return Err(frontend_error(format!(
-                "refactor LLVM ABI materialization 遇到重复 callable step schema {}（callable={})",
+                "LLVM ABI materialization 遇到重复 callable step schema {}（callable={})",
                 step_schema.as_u32(),
                 callable.root_fqn()
             )));
@@ -156,7 +156,7 @@ fn validate_program_layout_inventory(program: &LateLoweredProgram) -> Result<(),
             .is_some()
         {
             return Err(frontend_error(format!(
-                "refactor LLVM ABI materialization 遇到重复 continuation object {}",
+                "LLVM ABI materialization 遇到重复 continuation object {}",
                 object.object_id().as_u32()
             )));
         }
@@ -169,7 +169,7 @@ fn validate_program_layout_inventory(program: &LateLoweredProgram) -> Result<(),
             .is_some()
         {
             return Err(frontend_error(format!(
-                "refactor LLVM ABI materialization 遇到重复 resume packing {}",
+                "LLVM ABI materialization 遇到重复 resume packing {}",
                 interface.interface_id().as_u32()
             )));
         }
@@ -184,7 +184,7 @@ struct ProgramAbiMaterializer<'cg, 'a, 'ctx> {
     source_types: &'a TypeStore,
     pass_view: &'a crate::mir::MaterializedMirPassView<'a>,
     effect_facts: &'a MaterializedEffectFacts,
-    source_value_layouts: BTreeMap<TypeId, RefactorSourceAbiLayout<'ctx>>,
+    source_value_layouts: BTreeMap<TypeId, SourceAbiLayout<'ctx>>,
 }
 
 // ----- cross-module utilities -----
@@ -197,7 +197,7 @@ fn frontend_error(message: String) -> LlvmEmitError {
     LlvmEmitError::Frontend { message }
 }
 
-fn refactor_layout_type_is_any(types: &TypeStore, ty: TypeId) -> bool {
+fn layout_type_is_any(types: &TypeStore, ty: TypeId) -> bool {
     matches!(types.kind(ty), TypeKind::Ref(RefTypeKind::Any))
 }
 

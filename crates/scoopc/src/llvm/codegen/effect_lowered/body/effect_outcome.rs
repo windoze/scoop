@@ -2,7 +2,7 @@
 
 use super::*;
 
-impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
+impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
     pub(super) fn zero_transport_parts(&self) -> ValueTransportParts<'ctx> {
         ValueTransportParts {
             word: self.codegen.context.i64_type().const_zero(),
@@ -12,7 +12,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
 
     pub(super) fn effect_signal_constants_for_case(
         &mut self,
-        case_layout: &RefactorStepCaseLayout<'ctx>,
+        case_layout: &StepCaseLayout<'ctx>,
     ) -> Result<(IntValue<'ctx>, IntValue<'ctx>), LlvmEmitError> {
         let effect_family = case_layout.concrete_op_key().effect_family();
         let op_tag = self.codegen.context.i32_type().const_int(
@@ -33,7 +33,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                         .equivalent_codegen_type_id(self.source_types, *ty)
                         .ok_or_else(|| {
                             frontend_error(format!(
-                                "refactor step schema s{} case c{} effect family type arg t{} 缺少 codegen 等价类型",
+                                "step schema s{} case c{} effect family type arg t{} 缺少 codegen 等价类型",
                                 self.abi_step_schema.as_u32(),
                                 case_layout.case_tag().as_u32(),
                                 ty.as_u32(),
@@ -54,7 +54,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                 })
                 .ok_or_else(|| {
                     frontend_error(format!(
-                        "refactor step schema s{} case c{} 缺少 effect family `{}` 的 codegen nominal type",
+                        "step schema s{} case c{} 缺少 effect family `{}` 的 codegen nominal type",
                         self.abi_step_schema.as_u32(),
                         case_layout.case_tag().as_u32(),
                         effect_family.effect_fqn(),
@@ -62,7 +62,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                 })?;
             self.codegen.effect_instance_key(effect_ty).ok_or_else(|| {
                 frontend_error(format!(
-                    "refactor step schema s{} case c{} 缺少可发布的 effect_instance_key",
+                    "step schema s{} case c{} 缺少可发布的 effect_instance_key",
                     self.abi_step_schema.as_u32(),
                     case_layout.case_tag().as_u32()
                 ))
@@ -124,7 +124,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
     ) -> Result<StructValue<'ctx>, LlvmEmitError> {
         let case_layout = self.step_layout.case_layout(case_tag).ok_or_else(|| {
             frontend_error(format!(
-                "refactor callable `{}` step schema s{} 缺少 outward case c{}",
+                "callable `{}` step schema s{} 缺少 outward case c{}",
                 self.callable.root_fqn(),
                 self.abi_step_schema.as_u32(),
                 case_tag.as_u32()
@@ -148,7 +148,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
 
     pub(super) fn build_step_from_effect_outcome(
         &mut self,
-        step_layout: &RefactorStepLayout<'ctx>,
+        step_layout: &StepLayout<'ctx>,
         outcome_ptr: PointerValue<'ctx>,
         name: &str,
     ) -> Result<BasicValueEnum<'ctx>, LlvmEmitError> {
@@ -192,10 +192,10 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         )?;
         let complete_step = self
             .codegen
-            .refactor_build_step_complete(step_layout, complete_payload)?;
+            .build_step_complete(step_layout, complete_payload)?;
         self.codegen.builder.build_unconditional_branch(done_bb)?;
         let complete_end = self.codegen.builder.get_insert_block().ok_or_else(|| {
-            frontend_error(format!("refactor `{name}` complete path 缺少 insert block"))
+            frontend_error(format!("`{name}` complete path 缺少 insert block"))
         })?;
         incoming_steps.push((complete_step, complete_end));
 
@@ -273,7 +273,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             self.codegen.builder.position_at_end(hit_bb);
             let case_layout = step_layout.case_layout(case_tag).ok_or_else(|| {
                 frontend_error(format!(
-                    "refactor step schema 缺少 case c{}",
+                    "step schema 缺少 case c{}",
                     case_tag.as_u32()
                 ))
             })?;
@@ -282,7 +282,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                 signal_payload,
                 &format!("{name}_case{}_payload", case_tag.as_u32()),
             )?;
-            let step = self.codegen.refactor_build_step_case(
+            let step = self.codegen.build_step_case(
                 step_layout,
                 case_layout,
                 payload,
@@ -291,7 +291,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             self.codegen.builder.build_unconditional_branch(done_bb)?;
             let end_bb = self.codegen.builder.get_insert_block().ok_or_else(|| {
                 frontend_error(format!(
-                    "refactor `{name}` case c{} path 缺少 insert block",
+                    "`{name}` case c{} path 缺少 insert block",
                     case_tag.as_u32()
                 ))
             })?;

@@ -17,7 +17,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         for callable in program.callables() {
             let mut child = self.fresh_child_codegen();
             if callable.plain_abi().is_some() {
-                child.codegen_refactor_plain_callable_entry(
+                child.codegen_plain_callable_entry(
                     program,
                     source_types,
                     pass_view,
@@ -25,7 +25,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     callable,
                 )?;
             } else {
-                child.codegen_refactor_callable_entries(
+                child.codegen_callable_entries(
                     program,
                     source_types,
                     pass_view,
@@ -45,7 +45,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
             let mut child = self.fresh_child_codegen();
             if callable.plain_abi().is_some() {
-                child.codegen_refactor_plain_callable_entry(
+                child.codegen_plain_callable_entry(
                     abi_program,
                     abi_source_types,
                     abi_pass_view,
@@ -53,7 +53,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     callable,
                 )?;
             } else {
-                child.codegen_refactor_callable_entries(
+                child.codegen_callable_entries(
                     abi_program,
                     abi_source_types,
                     abi_pass_view,
@@ -64,7 +64,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
         for (kind, carrier_fqn, target) in abi.callable_carrier_target_layouts() {
             let mut child = self.fresh_child_codegen();
-            child.codegen_refactor_callable_carrier_entry_shell(
+            child.codegen_callable_carrier_entry_shell(
                 kind,
                 carrier_fqn,
                 target,
@@ -78,14 +78,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 .resume_packing_layout(interface.interface_id())
                 .ok_or_else(|| {
                     frontend_error(format!(
-                        "refactor body lowering 缺少 resume packing ri{} 的 ABI layout",
+                        "body lowering 缺少 resume packing ri{} 的 ABI layout",
                         interface.interface_id().as_u32()
                     ))
                 })?;
             for method in interface.methods() {
                 let method_layout = packing.method(method.case_tag()).ok_or_else(|| {
                     frontend_error(format!(
-                        "refactor body lowering 缺少 resume packing ri{} case c{} method layout",
+                        "body lowering 缺少 resume packing ri{} case c{} method layout",
                         interface.interface_id().as_u32(),
                         method.case_tag().as_u32()
                     ))
@@ -96,7 +96,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     method.case_tag(),
                 ) {
                     let mut child = self.fresh_child_codegen();
-                    child.codegen_refactor_unreachable_resume_method(
+                    child.codegen_unreachable_resume_method(
                         method_layout.symbol_name(),
                         method_layout.llvm_ty(),
                     )?;
@@ -107,12 +107,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 .iter()
                     .find(|callable| callable.body_step_schema() == Some(method.out_step_schema()))
                     .ok_or_else(|| frontend_error(format!(
-                        "refactor body lowering 缺少 resume method case c{} 的 owner step schema s{} callable",
+                        "body lowering 缺少 resume method case c{} 的 owner step schema s{} callable",
                         method.case_tag().as_u32(),
                         method.out_step_schema().as_u32()
                     )))?;
                 let mut child = self.fresh_child_codegen();
-                child.codegen_refactor_resume_method(
+                child.codegen_resume_method(
                     abi_program,
                     abi_source_types,
                     abi_pass_view,
@@ -129,30 +129,30 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             let surface = abi
                 .surface_resume_layout(entry.continuation_schema())
                 .ok_or_else(|| frontend_error(format!(
-                    "refactor body lowering 缺少 continuation schema k{} 的 surface-resume layout",
+                    "body lowering 缺少 continuation schema k{} 的 surface-resume layout",
                     entry.continuation_schema().as_u32()
                 )))?;
             let mut child = self.fresh_child_codegen();
-            child.codegen_refactor_surface_resume(program, abi, surface)?;
+            child.codegen_surface_resume(program, abi, surface)?;
         }
         for surface in abi.surface_resume_layouts() {
             let mut child = self.fresh_child_codegen();
-            child.codegen_refactor_surface_resume_outcome(abi, surface)?;
+            child.codegen_surface_resume_outcome(abi, surface)?;
         }
         for dispatch in abi.surface_resume_dispatch_layouts() {
             let surface = abi
                 .surface_resume_layout(dispatch.continuation_schema())
                 .ok_or_else(|| {
                     frontend_error(format!(
-                        "refactor body lowering 缺少 ABI continuation schema k{} 的 surface-resume layout",
+                        "body lowering 缺少 ABI continuation schema k{} 的 surface-resume layout",
                         dispatch.continuation_schema().as_u32()
                     ))
                 })?;
             let mut child = self.fresh_child_codegen();
-            child.codegen_refactor_continuation_drive_outcome(abi, surface)?;
+            child.codegen_continuation_drive_outcome(abi, surface)?;
             for target in dispatch.target().owner_trampolines() {
                 let mut child = self.fresh_child_codegen();
-                child.codegen_refactor_surface_resume_owner_outcome(
+                child.codegen_surface_resume_owner_outcome(
                     abi_program,
                     abi_source_types,
                     abi_pass_view,
@@ -161,7 +161,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     target,
                 )?;
                 let mut child = self.fresh_child_codegen();
-                child.codegen_refactor_continuation_drive_owner_outcome(
+                child.codegen_continuation_drive_owner_outcome(
                     abi_program,
                     abi_source_types,
                     abi_pass_view,
@@ -170,7 +170,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     target,
                 )?;
                 let mut child = self.fresh_child_codegen();
-                child.codegen_refactor_surface_resume_owner_trampoline(
+                child.codegen_surface_resume_owner_trampoline(
                     abi_program,
                     abi_source_types,
                     abi_pass_view,
@@ -180,7 +180,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 )?;
             }
             let mut child = self.fresh_child_codegen();
-            child.codegen_refactor_surface_resume(abi_program, abi, surface)?;
+            child.codegen_surface_resume(abi_program, abi, surface)?;
         }
         for callable in program.callables() {
             if !callable.has_control_body() {
@@ -202,7 +202,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         .continuation_schema();
                     let surface = abi.surface_resume_layout(continuation_schema).ok_or_else(|| {
                         frontend_error(format!(
-                            "refactor body lowering 缺少 dynamic continuation schema k{} 的 surface-resume layout",
+                            "body lowering 缺少 dynamic continuation schema k{} 的 surface-resume layout",
                             continuation_schema.as_u32()
                         ))
                     })?;
@@ -213,7 +213,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         continue;
                     }
                     let mut child = self.fresh_child_codegen();
-                    child.codegen_refactor_dynamic_surface_resume_adapter(program, abi, surface)?;
+                    child.codegen_dynamic_surface_resume_adapter(program, abi, surface)?;
                 }
             }
         }
@@ -234,18 +234,18 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .filter(|callable| callable.root_fqn() == hir_main.fqn);
         let callable = entry_callables.next().ok_or_else(|| {
             frontend_error(format!(
-                "refactor LLVM main wrapper 缺少入口 `{}` 的 callable body",
+                "LLVM main wrapper 缺少入口 `{}` 的 callable body",
                 hir_main.fqn
             ))
         })?;
         if entry_callables.next().is_some() {
             return Err(frontend_error(format!(
-                "refactor LLVM main wrapper 发现入口 `{}` 存在多个 callable body version；必须通过 body version key 明确选择入口 shell",
+                "LLVM main wrapper 发现入口 `{}` 存在多个 callable body version；必须通过 body version key 明确选择入口 shell",
                 hir_main.fqn
             )));
         }
         if callable.plain_abi().is_some() {
-            return self.codegen_refactor_plain_main_exit_code(
+            return self.codegen_plain_main_exit_code(
                 hir_main,
                 entry_argv_array,
                 callable,
@@ -254,47 +254,47 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
         if entry_argv_array.is_some() {
             return Err(frontend_error(
-                "refactor LLVM effect-step main wrapper 尚未发布 Array<String> argv Step ABI"
+                "LLVM effect-step main wrapper 尚未发布 Array<String> argv Step ABI"
                     .to_string(),
             ));
         }
 
         let layout = abi.callable_layout_by_version_key(callable.body_version_key())?;
-        let direct = self.refactor_function(layout.direct_entry().symbol_name())?;
+        let direct = self.function(layout.direct_entry().symbol_name())?;
         let args = Vec::<BasicMetadataValueEnum<'ctx>>::new();
         if !layout.direct_entry().args_abi().is_elided() {
             return Err(frontend_error(format!(
-                "refactor LLVM main wrapper 入口 `{}` 的 direct entry args ABI 非 elided；Array<String> argv tuple ABI 尚未发布或 entry contract 漂移",
+                "LLVM main wrapper 入口 `{}` 的 direct entry args ABI 非 elided；Array<String> argv tuple ABI 尚未发布或 entry contract 漂移",
                 hir_main.fqn
             )));
         }
         let call = self
             .builder
-            .build_call(direct, &args, "refactor_main_step")?;
+            .build_call(direct, &args, "main_step")?;
         let step = call.try_as_basic_value().basic().ok_or_else(|| {
-            frontend_error("refactor main direct entry 未返回 Step_F".to_string())
+            frontend_error("main direct entry 未返回 Step_F".to_string())
         })?;
         let step_layout = abi.step_layout(layout.step_schema()).ok_or_else(|| {
             frontend_error(format!(
-                "refactor LLVM main wrapper 缺少入口 step schema s{} layout",
+                "LLVM main wrapper 缺少入口 step schema s{} layout",
                 layout.step_schema().as_u32()
             ))
         })?;
-        let tag = self.refactor_extract_step_tag(step_layout, step)?;
+        let tag = self.extract_step_tag(step_layout, step)?;
         let ok_bb = self
             .context
-            .append_basic_block(self.current_function()?, "refactor_main_complete");
+            .append_basic_block(self.current_function()?, "main_complete");
         let bad_bb = self
             .context
-            .append_basic_block(self.current_function()?, "refactor_main_unhandled");
+            .append_basic_block(self.current_function()?, "main_unhandled");
         let done_bb = self
             .context
-            .append_basic_block(self.current_function()?, "refactor_main_done");
+            .append_basic_block(self.current_function()?, "main_done");
         let is_complete = self.builder.build_int_compare(
             inkwell::IntPredicate::EQ,
             tag,
             self.context.i32_type().const_int(STEP_TAG_COMPLETE, false),
-            "refactor_main_is_complete",
+            "main_is_complete",
         )?;
         self.builder
             .build_conditional_branch(is_complete, ok_bb, bad_bb)?;
@@ -309,7 +309,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             let exit = self
                 .context
                 .i32_type()
-                .const_int(REFACTOR_MAIN_UNHANDLED_EXIT_CODE, false);
+                .const_int(MAIN_UNHANDLED_EXIT_CODE, false);
             self.builder.build_unconditional_branch(done_bb)?;
             Some(exit)
         };
@@ -318,23 +318,23 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let exit_value = match self.cg_ty_of(hir_main.return_ty) {
             Some(CgTy::Unit) => self.context.i32_type().const_zero(),
             Some(CgTy::Int(_)) => {
-                let payload = self.refactor_extract_step_payload(
+                let payload = self.extract_step_payload(
                     step_layout,
                     step,
                     step_layout.complete_variant(),
-                    "refactor_main_complete_payload",
+                    "main_complete_payload",
                 )?;
                 match payload {
                     Some(BasicValueEnum::IntValue(value)) => {
                         self.builder.build_int_truncate_or_bit_cast(
                             value,
                             self.context.i32_type(),
-                            "refactor_main_exit_i32",
+                            "main_exit_i32",
                         )?
                     }
                     Some(_) => {
                         return Err(frontend_error(
-                            "refactor main Complete payload 不是整数值".to_string(),
+                            "main Complete payload 不是整数值".to_string(),
                         ));
                     }
                     None => self.context.i32_type().const_zero(),
@@ -342,7 +342,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
             _ => {
                 return Err(frontend_error(format!(
-                    "refactor main wrapper 不支持入口 `{}` 的返回类型",
+                    "main wrapper 不支持入口 `{}` 的返回类型",
                     hir_main.fqn
                 )));
             }
@@ -352,7 +352,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.builder.position_at_end(done_bb);
         let phi = self
             .builder
-            .build_phi(self.context.i32_type(), "refactor_main_exit")?;
+            .build_phi(self.context.i32_type(), "main_exit")?;
         phi.add_incoming(&[(&exit_value, ok_bb)]);
         if let Some(exit) = unhandled_exit {
             phi.add_incoming(&[(&exit, bad_bb)]);
@@ -360,7 +360,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(phi.as_basic_value().into_int_value())
     }
 
-    pub(super) fn codegen_refactor_plain_main_exit_code(
+    pub(super) fn codegen_plain_main_exit_code(
         &mut self,
         hir_main: &crate::hir::FunDecl,
         entry_argv_array: Option<PointerValue<'ctx>>,
@@ -370,7 +370,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let layout = abi.plain_callable_layout_by_version_key(callable.body_version_key())?;
         if layout.root_fqn() != callable.root_fqn() {
             return Err(frontend_error(format!(
-                "refactor plain main `{}` 的 ABI layout root 漂移：layout=`{}`",
+                "plain main `{}` 的 ABI layout root 漂移：layout=`{}`",
                 callable.root_fqn(),
                 layout.root_fqn(),
             )));
@@ -381,58 +381,58 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             ([_param], Some(argv_array)) if entry.param_count() == 1 => vec![argv_array.into()],
             ([], Some(_)) => {
                 return Err(frontend_error(format!(
-                    "refactor plain main `{}` 没有 source argv 参数，但 wrapper 收到了 argv array",
+                    "plain main `{}` 没有 source argv 参数，但 wrapper 收到了 argv array",
                     hir_main.fqn,
                 )));
             }
             ([_], None) => {
                 return Err(frontend_error(format!(
-                    "refactor plain main `{}` 需要 argv array，但 wrapper 未收到入口 argv",
+                    "plain main `{}` 需要 argv array，但 wrapper 未收到入口 argv",
                     hir_main.fqn,
                 )));
             }
             _ => {
                 return Err(frontend_error(format!(
-                    "refactor plain main `{}` argv ABI 漂移：source_params={} direct_params={}",
+                    "plain main `{}` argv ABI 漂移：source_params={} direct_params={}",
                     hir_main.fqn,
                     hir_main.params.len(),
                     entry.param_count(),
                 )));
             }
         };
-        let direct = self.refactor_function(entry.symbol_name())?;
+        let direct = self.function(entry.symbol_name())?;
         let call = self
             .builder
-            .build_call(direct, &args, "refactor_plain_main")?;
+            .build_call(direct, &args, "plain_main")?;
         match self.cg_ty_of(hir_main.return_ty) {
             Some(CgTy::Unit) => Ok(self.context.i32_type().const_zero()),
             Some(CgTy::Int(_)) => {
                 let raw = call.try_as_basic_value().basic().ok_or_else(|| {
                     frontend_error(format!(
-                        "refactor plain main `{}` 的普通入口未返回整数值",
+                        "plain main `{}` 的普通入口未返回整数值",
                         hir_main.fqn
                     ))
                 })?;
                 let BasicValueEnum::IntValue(value) = raw else {
                     return Err(frontend_error(format!(
-                        "refactor plain main `{}` 的普通入口返回值不是整数",
+                        "plain main `{}` 的普通入口返回值不是整数",
                         hir_main.fqn
                     )));
                 };
                 Ok(self.builder.build_int_truncate_or_bit_cast(
                     value,
                     self.context.i32_type(),
-                    "refactor_plain_main_exit_i32",
+                    "plain_main_exit_i32",
                 )?)
             }
             _ => Err(frontend_error(format!(
-                "refactor plain main wrapper 不支持入口 `{}` 的返回类型",
+                "plain main wrapper 不支持入口 `{}` 的返回类型",
                 hir_main.fqn
             ))),
         }
     }
 
-    pub(super) fn codegen_refactor_plain_callable_entry(
+    pub(super) fn codegen_plain_callable_entry(
         &mut self,
         program: &'a LateLoweredProgram,
         source_types: &'a TypeStore,
@@ -442,36 +442,36 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     ) -> Result<(), LlvmEmitError> {
         let plain = callable.plain_abi().ok_or_else(|| {
             frontend_error(format!(
-                "refactor plain body lowering callable `{}` 缺少 plain ABI handoff",
+                "plain body lowering callable `{}` 缺少 plain ABI handoff",
                 callable.root_fqn()
             ))
         })?;
         let layout = abi.plain_callable_layout_by_version_key(callable.body_version_key())?;
         validate_plain_callable_layout(callable, layout)?;
-        let function = self.refactor_function(layout.direct_entry().symbol_name())?;
+        let function = self.function(layout.direct_entry().symbol_name())?;
         if function.count_basic_blocks() > 0 {
             return Ok(());
         }
 
         let hir_fun = self.hir_fun_for_callable_fqn(callable.root_fqn());
-        let mir_fun = refactor_mir_callable(pass_view, callable.root_fqn())?;
+        let mir_fun = mir_callable(pass_view, callable.root_fqn())?;
         let is_materialized_closure = hir_fun.is_none() && mir_fun.name.starts_with("$lambda");
         if hir_fun.is_none() && !is_materialized_closure {
             return Err(frontend_error(format!(
-                "refactor plain body lowering callable `{}` 缺少 HIR signature",
+                "plain body lowering callable `{}` 缺少 HIR signature",
                 callable.root_fqn()
             )));
         }
         let body = mir_fun.body.as_ref().ok_or_else(|| {
             frontend_error(format!(
-                "refactor plain body lowering callable `{}` 缺少 canonical MIR body",
+                "plain body lowering callable `{}` 缺少 canonical MIR body",
                 callable.root_fqn()
             ))
         })?;
         let mir_types = &pass_view.materialized().types;
         body.validate_cfg()
             .map_err(|_| LlvmEmitError::UnsupportedMainBody {
-                kind: "refactor plain callable cfg",
+                kind: "plain callable cfg",
                 at: mir_fun.span.into(),
             })?;
         self.verify_mir_body_composite_transport_contract(
@@ -494,7 +494,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         let declared_return_cg = self.cg_ty_of_mir_type(mir_types, mir_fun.return_ty).ok_or(
             LlvmEmitError::UnsupportedMainBody {
-                kind: "refactor plain callable return type",
+                kind: "plain callable return type",
                 at: mir_fun.span.into(),
             },
         )?;
@@ -507,7 +507,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 function
                     .get_nth_param(0)
                     .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "missing refactor plain llvm function sret param",
+                        kind: "missing plain llvm function sret param",
                         at: mir_fun.span.into(),
                     })?
                     .into_pointer_value(),
@@ -519,7 +519,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let (return_bb, return_alloca) =
             self.setup_function_return_context(mir_fun.span, function, declared_return_cg)?;
         if plain.local_effect_control().is_some() {
-            let emitter = RefactorCallableEmitter::new(
+            let emitter = CallableEmitter::new(
                 self,
                 program,
                 source_types,
@@ -532,7 +532,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 None,
                 None,
                 None,
-                RefactorHandleCompletionMode::ContinueToExit,
+                HandleCompletionMode::ContinueToExit,
             )?;
             if let Some(hir_fun) = hir_fun {
                 emitter.emit_plain_direct(
@@ -548,7 +548,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 )?;
             } else {
                 return Err(frontend_error(format!(
-                    "refactor plain callable `{}` 的 local effect/control path 缺少 HIR function shell",
+                    "plain callable `{}` 的 local effect/control path 缺少 HIR function shell",
                     callable.root_fqn(),
                 )));
             }
@@ -600,7 +600,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .get(body.start.as_u32() as usize)
             .copied()
             .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "refactor plain callable start block",
+                kind: "plain callable start block",
                 at: mir_fun.span.into(),
             })?;
         self.builder.build_unconditional_branch(start_bb)?;
@@ -610,20 +610,20 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             let block_id = mir::BasicBlockId::from_raw(idx as u32);
             let slice = body_slices.get(&block_id).ok_or_else(|| {
                 frontend_error(format!(
-                    "refactor plain body lowering callable `{}` 缺少 bb{} 的 published source slice",
+                    "plain body lowering callable `{}` 缺少 bb{} 的 published source slice",
                     callable.root_fqn(),
                     block_id.as_u32(),
                 ))
             })?;
             {
-                let mut values = RefactorValuePrimitives::new(self, mir_types, body, &slots, abi);
+                let mut values = ValuePrimitives::new(self, mir_types, body, &slots, abi);
                 for stmt in &block.stmts
                     [slice.start_statement_index() as usize..slice.end_statement_index() as usize]
                 {
                     values.lower_effect_neutral_statement(stmt, &used_locals)?;
                 }
             }
-            self.codegen_refactor_plain_terminator(
+            self.codegen_plain_terminator(
                 &block.terminator,
                 &slots,
                 &llvm_blocks,
@@ -642,7 +642,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(())
     }
 
-    pub(super) fn codegen_refactor_plain_terminator(
+    pub(super) fn codegen_plain_terminator(
         &mut self,
         terminator: &mir::Terminator,
         slots: &[MirLocalSlot<'ctx>],
@@ -671,7 +671,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     .coerce_value(terminator.span, value, declared_return_cg)
                     .map_err(|err| match err {
                         LlvmEmitError::Frontend { message } => frontend_error(format!(
-                            "refactor plain return coercion failed at {:?}: {message}",
+                            "plain return coercion failed at {:?}: {message}",
                             terminator.span
                         )),
                         other => other,
@@ -681,7 +681,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             mir::TerminatorKind::Goto { target } => {
                 let target_bb = llvm_blocks.get(target.as_u32() as usize).copied().ok_or(
                     LlvmEmitError::UnsupportedMainBody {
-                        kind: "refactor plain goto target",
+                        kind: "plain goto target",
                         at: terminator.span.into(),
                     },
                 )?;
@@ -697,21 +697,21 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     .codegen_mir_operand(terminator.span, cond, slots)?
                     .as_bool()
                     .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "refactor plain branch condition",
+                        kind: "plain branch condition",
                         at: terminator.span.into(),
                     })?;
                 let then_bb = llvm_blocks
                     .get(then_target.as_u32() as usize)
                     .copied()
                     .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "refactor plain then target",
+                        kind: "plain then target",
                         at: terminator.span.into(),
                     })?;
                 let else_bb = llvm_blocks
                     .get(else_target.as_u32() as usize)
                     .copied()
                     .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "refactor plain else target",
+                        kind: "plain else target",
                         at: terminator.span.into(),
                     })?;
                 self.builder
@@ -726,7 +726,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             | mir::TerminatorKind::ResumeUnwind
             | mir::TerminatorKind::Handle { .. }
             | mir::TerminatorKind::Todo(_) => Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "refactor plain callable effect/control terminator",
+                kind: "plain callable effect/control terminator",
                 at: terminator.span.into(),
             }),
         }

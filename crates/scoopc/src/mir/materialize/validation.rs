@@ -22,7 +22,7 @@ pub(super) struct MaterializedRootSets<'a> {
     pub(super) generic_templates: &'a HashSet<String>,
 }
 
-pub(super) fn validate_refactor_materialized_mir(
+pub(super) fn validate_materialized_mir(
     materialized: &MaterializedMir,
 ) -> MaterializeResult<()> {
     let known_roots = collect_materialized_known_roots(materialized);
@@ -1593,7 +1593,7 @@ pub(super) fn validate_materialized_terminator(
                     MirMaterializeError::MaterializedMirValidation {
                         fqn: fun.fqn.clone(),
                         error:
-                            super::super::MirValidationError::RefactorProductionMissingReturnValue {
+                            super::super::MirValidationError::ProductionMissingReturnValue {
                                 fqn: fun.fqn.clone(),
                                 block,
                                 span: terminator.span,

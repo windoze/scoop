@@ -1,4 +1,4 @@
-//! Refactor LLVM body lowering（P6-T03）。
+//! LLVM effect-lowered body codegen（P6-T03）。
 //!
 //! This module lowers the P5 late-lowered state graph directly.  Generic MIR
 //! lowering is reused only for effect-neutral source slices; every boundary,
@@ -49,18 +49,18 @@ use super::super::{
 };
 use super::stable_naming;
 use super::types::{
-    ProgramAbiQuery, RefactorCallTargetQuery, RefactorCallableEntryLayout, RefactorCallableLayout,
-    RefactorContinuationSurfaceResumeDispatchTarget, RefactorContinuationSurfaceResumeLayout,
-    RefactorDynamicInvokeCarrierLayout, RefactorDynamicInvokeLayout, RefactorFrameLayout,
-    RefactorHandleContinuationBinderLayout, RefactorHandlePayloadBinderLayout,
-    RefactorLocalRuntimeErrorTerminalAction, RefactorPlainCallableLayout, RefactorSourceAbiLayout,
-    RefactorSourceAbiLayoutKind, RefactorStepCaseLayout, RefactorStepLayout,
-    RefactorStepVariantLayout,
+    ProgramAbiQuery, CallTargetQuery, CallableEntryLayout, CallableLayout,
+    ContinuationSurfaceResumeDispatchTarget, ContinuationSurfaceResumeLayout,
+    DynamicInvokeCarrierLayout, DynamicInvokeLayout, FrameLayout,
+    HandleContinuationBinderLayout, HandlePayloadBinderLayout,
+    LocalRuntimeErrorTerminalAction, PlainCallableLayout, SourceAbiLayout,
+    SourceAbiLayoutKind, StepCaseLayout, StepLayout,
+    StepVariantLayout,
 };
-use super::value::RefactorValuePrimitives;
+use super::value::ValuePrimitives;
 
 const STEP_TAG_COMPLETE: u64 = 0;
-const REFACTOR_MAIN_UNHANDLED_EXIT_CODE: u64 = 3;
+const MAIN_UNHANDLED_EXIT_CODE: u64 = 3;
 const CONT_FIELD_RESUMED: u32 = 1;
 const CONT_FIELD_RESUME_STATE: u32 = 2;
 const CONT_FIELD_CAPTURED_EFFECT_CTX: u32 = 3;
@@ -74,10 +74,10 @@ const CONT_FIELD_CAPTURED_CALLEE_SUSPEND_STATE: u32 = 8;
 //
 // Each of these functions is a small pure helper used across multiple
 // submodules to inspect late-lowered IR shapes. They live here (not on
-// `RefactorCallableEmitter`) because they take only borrowed inputs and
+// `CallableEmitter`) because they take only borrowed inputs and
 // don't need access to per-callable codegen state.
 
-fn refactor_mir_callable<'a>(
+fn mir_callable<'a>(
     pass_view: &'a mir::MaterializedMirPassView<'a>,
     fqn: &str,
 ) -> Result<&'a mir::FunDecl, LlvmEmitError> {
@@ -103,7 +103,7 @@ fn refactor_mir_callable<'a>(
         })
         .ok_or_else(|| {
             frontend_error(format!(
-                "refactor body lowering 缺少 callable `{fqn}` 的 materialized MIR body"
+                "body lowering 缺少 callable `{fqn}` 的 materialized MIR body"
             ))
         })
 }
@@ -130,7 +130,7 @@ fn boundary_site(boundary: &LateLoweredBoundary, expected: &str) -> Result<SiteI
     match boundary.source() {
         LateLoweredBoundarySource::Site { site_id, .. } => Ok(site_id),
         other => Err(frontend_error(format!(
-            "refactor {expected} boundary bd{} 绑定到非 site source {other:?}",
+            "{expected} boundary bd{} 绑定到非 site source {other:?}",
             boundary.boundary_id().as_u32()
         ))),
     }
@@ -186,7 +186,7 @@ fn handle_finally_return_payload_source(
             }
             Some(existing) => {
                 return Err(frontend_error(format!(
-                    "refactor HandleDispatch finally ReturnFromFunction completion payload source 歧义：body/previous={existing:?} arm={candidate:?}"
+                    "HandleDispatch finally ReturnFromFunction completion payload source 歧义：body/previous={existing:?} arm={candidate:?}"
                 )));
             }
             None => published = Some(candidate.clone()),
@@ -240,7 +240,7 @@ fn completion_payload_local_pair(
 }
 
 fn validate_callable_entry_layout(
-    layout: &RefactorCallableLayout<'_>,
+    layout: &CallableLayout<'_>,
 ) -> Result<(), LlvmEmitError> {
     let direct = layout.direct_entry();
     let dynamic = layout.dynamic_entry();
@@ -251,7 +251,7 @@ fn validate_callable_entry_layout(
         || direct.return_step_schema() != layout.step_schema()
     {
         return Err(frontend_error(format!(
-            "refactor callable `{}` entry ABI contract 漂移：direct=(args=t{}, params={}, elided={}, return=s{}) dynamic=(args=t{}, params={}, elided={}, return=s{}) layout_step=s{}",
+            "callable `{}` entry ABI contract 漂移：direct=(args=t{}, params={}, elided={}, return=s{}) dynamic=(args=t{}, params={}, elided={}, return=s{}) layout_step=s{}",
             layout.root_fqn(),
             direct.invoke_args_tuple_ty().as_u32(),
             direct.param_count(),
@@ -269,11 +269,11 @@ fn validate_callable_entry_layout(
 
 fn validate_plain_callable_layout(
     callable: &LateLoweredCallable,
-    layout: &RefactorPlainCallableLayout<'_>,
+    layout: &PlainCallableLayout<'_>,
 ) -> Result<(), LlvmEmitError> {
     let plain = callable.plain_abi().ok_or_else(|| {
         frontend_error(format!(
-            "refactor plain callable `{}` 缺少 plain ABI handoff",
+            "plain callable `{}` 缺少 plain ABI handoff",
             callable.root_fqn()
         ))
     })?;
@@ -284,7 +284,7 @@ fn validate_plain_callable_layout(
         || entry.return_ty() != plain.return_ty()
     {
         return Err(frontend_error(format!(
-            "refactor plain callable `{}` ABI contract 漂移：layout_root=`{}` function_ty=t{} return=t{} params={:?} handoff_function=t{} handoff_return=t{} handoff_params={:?}",
+            "plain callable `{}` ABI contract 漂移：layout_root=`{}` function_ty=t{} return=t{} params={:?} handoff_function=t{} handoff_return=t{} handoff_params={:?}",
             callable.root_fqn(),
             layout.root_fqn(),
             entry.function_ty().as_u32(),
@@ -305,7 +305,7 @@ fn validate_plain_body_slices(
 ) -> Result<BTreeMap<mir::BasicBlockId, LateLoweredPlainBodySlice>, LlvmEmitError> {
     if plain.body_slices().len() != body.blocks.len() {
         return Err(frontend_error(format!(
-            "refactor plain callable `{root_fqn}` 的 body_slices 数量({}) 与 MIR block 数量({}) 不一致",
+            "plain callable `{root_fqn}` 的 body_slices 数量({}) 与 MIR block 数量({}) 不一致",
             plain.body_slices().len(),
             body.blocks.len(),
         )));
@@ -317,7 +317,7 @@ fn validate_plain_body_slices(
             .get(slice.block_id().as_u32() as usize)
             .ok_or_else(|| {
                 frontend_error(format!(
-                    "refactor plain callable `{root_fqn}` 的 source slice 指向缺失 bb{}",
+                    "plain callable `{root_fqn}` 的 source slice 指向缺失 bb{}",
                     slice.block_id().as_u32()
                 ))
             })?;
@@ -326,7 +326,7 @@ fn validate_plain_body_slices(
             || !slice.includes_terminator()
         {
             return Err(frontend_error(format!(
-                "refactor plain callable `{root_fqn}` 的 bb{} source slice 不是完整 ordinary block：slice=[{}..{}) includes_terminator={} stmt_count={}",
+                "plain callable `{root_fqn}` 的 bb{} source slice 不是完整 ordinary block：slice=[{}..{}) includes_terminator={} stmt_count={}",
                 slice.block_id().as_u32(),
                 slice.start_statement_index(),
                 slice.end_statement_index(),
@@ -336,7 +336,7 @@ fn validate_plain_body_slices(
         }
         if slices.insert(slice.block_id(), *slice).is_some() {
             return Err(frontend_error(format!(
-                "refactor plain callable `{root_fqn}` 重复发布 bb{} source slice",
+                "plain callable `{root_fqn}` 重复发布 bb{} source slice",
                 slice.block_id().as_u32()
             )));
         }
@@ -382,13 +382,13 @@ fn same_completion_payload_source_ignoring_span(
     }
 }
 
-fn refactor_source_layout_component_count(layout: &RefactorSourceAbiLayout<'_>) -> usize {
+fn source_layout_component_count(layout: &SourceAbiLayout<'_>) -> usize {
     if layout.abi().is_elided() {
         return 0;
     }
     match layout.kind() {
-        RefactorSourceAbiLayoutKind::Scalar => 1,
-        RefactorSourceAbiLayoutKind::Tuple => layout
+        SourceAbiLayoutKind::Scalar => 1,
+        SourceAbiLayoutKind::Tuple => layout
             .fields()
             .iter()
             .map(|field| field.source_index() as usize + 1)
@@ -436,6 +436,6 @@ mod verification;
 mod wrapper;
 
 // Re-exports so sibling submodules can refer to these names via `use super::*;`.
-use emitter::{ComposedBoundaryDispatchContext, RefactorCallableEmitter};
+use emitter::{ComposedBoundaryDispatchContext, CallableEmitter};
 use runtime_types::*;
 use symbol_naming::*;

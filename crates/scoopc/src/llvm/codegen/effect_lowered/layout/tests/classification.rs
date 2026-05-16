@@ -5,7 +5,7 @@
 use super::*;
 
 #[test]
-pub(super) fn refactor_llvm_source_slice_classification_rejects_missing_handoff() {
+pub(super) fn llvm_source_slice_classification_rejects_missing_handoff() {
     with_phase_fixture_query_result(
         "run-pass",
         "effect_multi_escape_indirect_direct_while.scoop",
@@ -50,9 +50,9 @@ pub(super) fn refactor_llvm_source_slice_classification_rejects_missing_handoff(
 }
 
 #[test]
-pub(super) fn refactor_llvm_no_outward_plain_abi_layout_has_no_step_shell() {
+pub(super) fn llvm_no_outward_plain_abi_layout_has_no_step_shell() {
     with_fixture_query(
-        "effect_refactor_step_enum_no_outward.scoop",
+        "effect_lowered_step_enum_no_outward.scoop",
         |inputs, query, module| {
             for fqn in ["fixtures.build.helper", "fixtures.build.main"] {
                 let callable = inputs
@@ -87,10 +87,10 @@ pub(super) fn refactor_llvm_no_outward_plain_abi_layout_has_no_step_shell() {
 
             let ir = module.print_to_string().to_string();
             assert!(
-                !ir.contains("__scoop_priv0__refactor_step_case_tag_complete__h")
-                    && !ir.contains("__scoop_priv0__refactor_direct_invoke__h")
-                    && !ir.contains("__scoop_priv0__refactor_dynamic_invoke__h")
-                    && !ir.contains("%scoop.refactor.Step__h"),
+                !ir.contains("__scoop_priv0__lowered_step_case_tag_complete__h")
+                    && !ir.contains("__scoop_priv0__lowered_direct_invoke__h")
+                    && !ir.contains("__scoop_priv0__lowered_dynamic_invoke__h")
+                    && !ir.contains("%scoop.lowered.Step__h"),
                 "plain callable 不应发布 effect-step type/case-tag/dynamic-entry 家族：\n{ir}"
             );
         },
@@ -98,9 +98,9 @@ pub(super) fn refactor_llvm_no_outward_plain_abi_layout_has_no_step_shell() {
 }
 
 #[test]
-pub(super) fn refactor_llvm_step_layout_keeps_canonical_case_set_for_single_case_callable() {
+pub(super) fn llvm_step_layout_keeps_canonical_case_set_for_single_case_callable() {
     with_fixture_query(
-        "effect_refactor_step_enum_single_case.scoop",
+        "effect_lowered_step_enum_single_case.scoop",
         |inputs, query, module| {
             let callable = inputs
                 .effect_lowered_stage_output
@@ -168,9 +168,9 @@ pub(super) fn refactor_llvm_step_layout_keeps_canonical_case_set_for_single_case
 }
 
 #[test]
-pub(super) fn refactor_llvm_frame_layout_preserves_slot_indices_and_system_fields() {
+pub(super) fn llvm_frame_layout_preserves_slot_indices_and_system_fields() {
     with_fixture_query(
-        "effect_refactor_step_enum_single_case.scoop",
+        "effect_lowered_step_enum_single_case.scoop",
         |inputs, query, _module| {
             let callable = inputs
                 .effect_lowered_stage_output
@@ -183,7 +183,7 @@ pub(super) fn refactor_llvm_frame_layout_preserves_slot_indices_and_system_field
 
             assert_eq!(
                 frame_layout.fields()[0].kind(),
-                RefactorFrameFieldKind::Header
+                FrameFieldKind::Header
             );
             for (ordinal, slot) in callable.frame_schema().slots().iter().enumerate() {
                 let expected_field_index = ordinal as u32 + 1;
@@ -216,9 +216,9 @@ pub(super) fn refactor_llvm_frame_layout_preserves_slot_indices_and_system_field
 }
 
 #[test]
-pub(super) fn refactor_llvm_continuation_layout_keeps_full_method_set() {
+pub(super) fn llvm_continuation_layout_keeps_full_method_set() {
     with_fixture_query_result(
-        "effect_refactor_step_enum_single_case.scoop",
+        "effect_lowered_step_enum_single_case.scoop",
         |inputs| {
             single_case_worker_program_with_ping_method_order(
                 inputs,
@@ -288,9 +288,9 @@ pub(super) fn refactor_llvm_continuation_layout_keeps_full_method_set() {
 }
 
 #[test]
-pub(super) fn refactor_llvm_continuation_layout_uses_codegen_owned_fields() {
+pub(super) fn llvm_continuation_layout_uses_codegen_owned_fields() {
     with_fixture_query(
-        "effect_refactor_step_enum_single_case.scoop",
+        "effect_lowered_step_enum_single_case.scoop",
         |inputs, query, _module| {
             let callable = inputs
                 .effect_lowered_stage_output
@@ -310,15 +310,15 @@ pub(super) fn refactor_llvm_continuation_layout_uses_codegen_owned_fields() {
             assert_eq!(
                 field_kinds,
                 vec![
-                    RefactorContinuationFieldKind::Header,
-                    RefactorContinuationFieldKind::ResumedFlag,
-                    RefactorContinuationFieldKind::ResumeStateTag,
-                    RefactorContinuationFieldKind::CapturedEffectCtxRef,
-                    RefactorContinuationFieldKind::StateRef,
-                    RefactorContinuationFieldKind::StepFn,
-                    RefactorContinuationFieldKind::ResumeWord,
-                    RefactorContinuationFieldKind::ResumeGcRef,
-                    RefactorContinuationFieldKind::CapturedCalleeSuspendStateRef,
+                    ContinuationFieldKind::Header,
+                    ContinuationFieldKind::ResumedFlag,
+                    ContinuationFieldKind::ResumeStateTag,
+                    ContinuationFieldKind::CapturedEffectCtxRef,
+                    ContinuationFieldKind::StateRef,
+                    ContinuationFieldKind::StepFn,
+                    ContinuationFieldKind::ResumeWord,
+                    ContinuationFieldKind::ResumeGcRef,
+                    ContinuationFieldKind::CapturedCalleeSuspendStateRef,
                 ]
             );
         },
@@ -326,9 +326,9 @@ pub(super) fn refactor_llvm_continuation_layout_uses_codegen_owned_fields() {
 }
 
 #[test]
-pub(super) fn refactor_llvm_continuation_layout_preserves_published_packing_order() {
+pub(super) fn llvm_continuation_layout_preserves_published_packing_order() {
     with_fixture_query_result(
-        "effect_refactor_step_enum_single_case.scoop",
+        "effect_lowered_step_enum_single_case.scoop",
         |inputs| {
             let program = single_case_worker_program_with_ping_method_order(
                 inputs,
@@ -453,9 +453,9 @@ pub(super) fn refactor_llvm_continuation_layout_preserves_published_packing_orde
 }
 
 #[test]
-pub(super) fn refactor_llvm_continuation_layout_preserves_authoritative_method_order() {
+pub(super) fn llvm_continuation_layout_preserves_authoritative_method_order() {
     with_fixture_query_result(
-        "effect_refactor_step_enum_single_case.scoop",
+        "effect_lowered_step_enum_single_case.scoop",
         |inputs| {
             single_case_worker_program_with_ping_method_order(
                 inputs,
@@ -506,9 +506,9 @@ pub(super) fn refactor_llvm_continuation_layout_preserves_authoritative_method_o
 }
 
 #[test]
-pub(super) fn refactor_llvm_continuation_layout_rejects_missing_published_packing() {
+pub(super) fn llvm_continuation_layout_rejects_missing_published_packing() {
     with_fixture_query_result(
-        "effect_refactor_step_enum_single_case.scoop",
+        "effect_lowered_step_enum_single_case.scoop",
         |inputs| {
             let program = &inputs.abi_visibility_program;
             let callable = program
@@ -559,9 +559,9 @@ pub(super) fn refactor_llvm_continuation_layout_rejects_missing_published_packin
 }
 
 #[test]
-pub(super) fn refactor_llvm_continuation_layout_rejects_missing_authoritative_method() {
+pub(super) fn llvm_continuation_layout_rejects_missing_authoritative_method() {
     with_fixture_query_result(
-        "effect_refactor_step_enum_single_case.scoop",
+        "effect_lowered_step_enum_single_case.scoop",
         |inputs| single_case_worker_program_with_ping_method_order(inputs, &[CaseTag::new(0)]),
         |_inputs, result, _module| {
             let err = match result {
@@ -586,7 +586,7 @@ pub(super) fn refactor_llvm_continuation_layout_rejects_missing_authoritative_me
 }
 
 #[test]
-pub(super) fn refactor_llvm_call_target_query_preserves_known_instance_direct_entries() {
+pub(super) fn llvm_call_target_query_preserves_known_instance_direct_entries() {
     with_phase_fixture_query_result(
         "run-pass",
         "effect_handle_hidden_suspend_virtual_helper_basic.scoop",
@@ -623,9 +623,9 @@ pub(super) fn refactor_llvm_call_target_query_preserves_known_instance_direct_en
 }
 
 #[test]
-pub(super) fn refactor_llvm_callable_version_query_resolves_layout_by_body_version_key() {
+pub(super) fn llvm_callable_version_query_resolves_layout_by_body_version_key() {
     with_fixture_query(
-        "effect_refactor_dynamic_entry_publication_emit_llvm.scoop",
+        "effect_lowered_dynamic_entry_publication_emit_llvm.scoop",
         |inputs, query, _module| {
             for callable in inputs.abi_visibility_program.callables() {
                 if callable.effect_step_abi().is_some() {
@@ -647,7 +647,7 @@ pub(super) fn refactor_llvm_callable_version_query_resolves_layout_by_body_versi
 }
 
 #[test]
-pub(super) fn refactor_llvm_known_instance_version_selection_resolves_generic_instance_keys() {
+pub(super) fn llvm_known_instance_version_selection_resolves_generic_instance_keys() {
     with_phase_fixture_query_result(
         "run-pass",
         "effect_multi_escape_indirect_direct_while.scoop",
@@ -684,7 +684,7 @@ pub(super) fn refactor_llvm_known_instance_version_selection_resolves_generic_in
 }
 
 #[test]
-pub(super) fn refactor_llvm_boundary_operand_contract_resolves_direct_call_anchor_and_args() {
+pub(super) fn llvm_boundary_operand_contract_resolves_direct_call_anchor_and_args() {
     with_phase_fixture_query_result(
         "run-pass",
         "effect_resume_if_else_branch_single_perform.scoop",
@@ -705,7 +705,7 @@ pub(super) fn refactor_llvm_boundary_operand_contract_resolves_direct_call_ancho
                     lowering.operand_contract(),
                 )
                 .expect("direct call boundary 应可回查 published operand contract");
-            let RefactorCallTargetQuery::KnownInstance(_) = query
+            let CallTargetQuery::KnownInstance(_) = query
                 .call_target_layout(main.step_schema(), site_id, lowering.facts())
                 .expect("direct call target contract 应成功")
             else {
@@ -742,7 +742,7 @@ pub(super) fn refactor_llvm_boundary_operand_contract_resolves_direct_call_ancho
 }
 
 #[test]
-pub(super) fn refactor_llvm_boundary_operand_contract_resolves_dynamic_call_carrier() {
+pub(super) fn llvm_boundary_operand_contract_resolves_dynamic_call_carrier() {
     with_phase_fixture_query_result(
         "effect_facts",
         "dynamic_fallback_widening.scoop",
@@ -763,7 +763,7 @@ pub(super) fn refactor_llvm_boundary_operand_contract_resolves_dynamic_call_carr
                     lowering.operand_contract(),
                 )
                 .expect("dynamic call boundary 应可回查 published operand contract");
-            let RefactorCallTargetQuery::DynamicInvoke(_) = query
+            let CallTargetQuery::DynamicInvoke(_) = query
                 .call_target_layout(call_value.step_schema(), site_id, lowering.facts())
                 .expect("dynamic call target contract 应成功")
             else {
@@ -788,7 +788,7 @@ pub(super) fn refactor_llvm_boundary_operand_contract_resolves_dynamic_call_carr
 }
 
 #[test]
-pub(super) fn refactor_llvm_boundary_operand_contract_resolves_perform_and_resume_sources() {
+pub(super) fn llvm_boundary_operand_contract_resolves_perform_and_resume_sources() {
     with_phase_fixture_query_result(
         "effect_facts",
         "handle_perform.scoop",
@@ -958,7 +958,7 @@ pub(super) fn refactor_llvm_boundary_operand_contract_resolves_perform_and_resum
 }
 
 #[test]
-pub(super) fn refactor_llvm_resume_payload_binding_resolves_boundary_and_state_queries() {
+pub(super) fn llvm_resume_payload_binding_resolves_boundary_and_state_queries() {
     with_phase_fixture_query_result(
         "run-pass",
         "effect_resume_if_else_branch_single_perform.scoop",
@@ -1100,7 +1100,7 @@ pub(super) fn refactor_llvm_resume_payload_binding_resolves_boundary_and_state_q
 }
 
 #[test]
-pub(super) fn refactor_llvm_resume_payload_binding_rejects_missing_contract() {
+pub(super) fn llvm_resume_payload_binding_rejects_missing_contract() {
     with_phase_fixture_query_result(
         "run-pass",
         "effect_multi_escape_indirect_direct_while.scoop",
@@ -1146,7 +1146,7 @@ pub(super) fn refactor_llvm_resume_payload_binding_rejects_missing_contract() {
 }
 
 #[test]
-pub(super) fn refactor_llvm_resume_payload_binding_rejects_runtime_error_binding_drift() {
+pub(super) fn llvm_resume_payload_binding_rejects_runtime_error_binding_drift() {
     with_phase_fixture_query_result(
         "run-pass",
         "effect_multi_escape_indirect_direct_while.scoop",
@@ -1234,7 +1234,7 @@ pub(super) fn refactor_llvm_resume_payload_binding_rejects_runtime_error_binding
 }
 
 #[test]
-pub(super) fn refactor_llvm_completion_payload_contract_resolves_return_state_query() {
+pub(super) fn llvm_completion_payload_contract_resolves_return_state_query() {
     with_phase_fixture_query_result(
         "run-pass",
         "effect_resume_if_else_branch_single_perform.scoop",
@@ -1289,7 +1289,7 @@ pub(super) fn refactor_llvm_completion_payload_contract_resolves_return_state_qu
 }
 
 #[test]
-pub(super) fn refactor_llvm_completion_payload_contract_rejects_missing_contract() {
+pub(super) fn llvm_completion_payload_contract_rejects_missing_contract() {
     with_phase_fixture_query_result(
         "run-pass",
         "effect_resume_if_else_branch_single_perform.scoop",
@@ -1334,7 +1334,7 @@ pub(super) fn refactor_llvm_completion_payload_contract_rejects_missing_contract
 }
 
 #[test]
-pub(super) fn refactor_llvm_completion_payload_contract_rejects_source_drift() {
+pub(super) fn llvm_completion_payload_contract_rejects_source_drift() {
     with_phase_fixture_query_result(
         "run-pass",
         "effect_resume_if_else_branch_single_perform.scoop",
@@ -1398,7 +1398,7 @@ pub(super) fn refactor_llvm_completion_payload_contract_rejects_source_drift() {
 }
 
 #[test]
-pub(super) fn refactor_llvm_boundary_operand_contract_rejects_ordered_arg_drift() {
+pub(super) fn llvm_boundary_operand_contract_rejects_ordered_arg_drift() {
     with_phase_fixture_query_result(
         "run-pass",
         "effect_resume_if_else_branch_single_perform.scoop",
@@ -1480,7 +1480,7 @@ pub(super) fn refactor_llvm_boundary_operand_contract_rejects_ordered_arg_drift(
 }
 
 #[test]
-pub(super) fn refactor_llvm_boundary_operand_contract_rejects_missing_dynamic_carrier_source() {
+pub(super) fn llvm_boundary_operand_contract_rejects_missing_dynamic_carrier_source() {
     with_phase_fixture_query_result(
         "effect_facts",
         "dynamic_fallback_widening.scoop",
@@ -1562,7 +1562,7 @@ pub(super) fn refactor_llvm_boundary_operand_contract_rejects_missing_dynamic_ca
 }
 
 #[test]
-pub(super) fn refactor_llvm_boundary_operand_contract_rejects_missing_underlying_continuation_route_publication()
+pub(super) fn llvm_boundary_operand_contract_rejects_missing_underlying_continuation_route_publication()
  {
     with_phase_fixture_query_result(
         "run-pass",
@@ -1664,7 +1664,7 @@ pub(super) fn refactor_llvm_boundary_operand_contract_rejects_missing_underlying
 }
 
 #[test]
-pub(super) fn refactor_llvm_dynamic_invoke_query_resolves_fun_value_unit_contract() {
+pub(super) fn llvm_dynamic_invoke_query_resolves_fun_value_unit_contract() {
     with_phase_fixture_query_result(
         "effect_facts",
         "dynamic_fallback_widening.scoop",
@@ -1684,7 +1684,7 @@ pub(super) fn refactor_llvm_dynamic_invoke_query_resolves_fun_value_unit_contrac
                 CallTargetMode::DynamicFallback
             );
             let site_id = boundary_site_id(boundary);
-            let RefactorCallTargetQuery::DynamicInvoke(layout) = query
+            let CallTargetQuery::DynamicInvoke(layout) = query
                 .call_target_layout(callable.step_schema(), site_id, lowering.facts())
                 .expect("fun-value boundary 应可回查 dynamic invoke contract")
             else {
@@ -1704,7 +1704,7 @@ pub(super) fn refactor_llvm_dynamic_invoke_query_resolves_fun_value_unit_contrac
             assert!(layout.args_abi().is_elided());
             assert_eq!(layout.param_count(), 1);
             match layout.carrier() {
-                RefactorDynamicInvokeCarrierLayout::ClosureObject(carrier) => {
+                DynamicInvokeCarrierLayout::ClosureObject(carrier) => {
                     assert_eq!(carrier.object_ty().count_fields(), 3);
                     assert_eq!(carrier.env_field_index(), 1);
                     assert_eq!(carrier.fn_field_index(), 2);
@@ -1719,9 +1719,9 @@ pub(super) fn refactor_llvm_dynamic_invoke_query_resolves_fun_value_unit_contrac
 }
 
 #[test]
-pub(super) fn refactor_llvm_callable_carrier_layout_resolves_virtual_candidate_set_contracts() {
+pub(super) fn llvm_callable_carrier_layout_resolves_virtual_candidate_set_contracts() {
     with_fixture_query_result(
-        "effect_refactor_dynamic_invoke_candidate_set_emit_llvm.scoop",
+        "effect_lowered_dynamic_invoke_candidate_set_emit_llvm.scoop",
         |inputs| inputs.abi_visibility_program.clone(),
         |inputs, result, _module| {
             let query =
@@ -1735,7 +1735,7 @@ pub(super) fn refactor_llvm_callable_carrier_layout_resolves_virtual_candidate_s
 
             assert_eq!(lowering.facts().target_mode(), CallTargetMode::CandidateSet);
             let site_id = boundary_site_id(boundary);
-            let RefactorCallTargetQuery::DynamicInvoke(layout) = query
+            let CallTargetQuery::DynamicInvoke(layout) = query
                 .call_target_layout(callable.step_schema(), site_id, lowering.facts())
                 .expect("candidate-set virtual boundary 应可回查 dynamic invoke contract")
             else {
@@ -1749,7 +1749,7 @@ pub(super) fn refactor_llvm_callable_carrier_layout_resolves_virtual_candidate_s
                 lowering.facts().callee_schema()
             );
             match layout.carrier() {
-                RefactorDynamicInvokeCarrierLayout::VirtualReceiver(dispatch) => {
+                DynamicInvokeCarrierLayout::VirtualReceiver(dispatch) => {
                     assert_eq!(
                         inputs
                             .effect_lowered_stage_output
@@ -1771,9 +1771,9 @@ pub(super) fn refactor_llvm_callable_carrier_layout_resolves_virtual_candidate_s
 }
 
 #[test]
-pub(super) fn refactor_llvm_dynamic_invoke_query_resolves_non_boundary_virtual_contract() {
+pub(super) fn llvm_dynamic_invoke_query_resolves_non_boundary_virtual_contract() {
     with_fixture_query(
-        "effect_refactor_non_boundary_dynamic_call_emit_llvm.scoop",
+        "effect_lowered_non_boundary_dynamic_call_emit_llvm.scoop",
         |inputs, query, _module| {
             let helper = inputs
                 .abi_visibility_program

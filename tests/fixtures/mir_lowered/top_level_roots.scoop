@@ -1,0 +1,22 @@
+package mir_lowered.top_level_roots
+
+import scoop.core.*
+
+typealias Alias = Int
+struct Point(val x: Int, val y: Int)
+
+const val Base: Int = 1
+val Runtime: Int = Base + 1
+
+@Global
+var Counter: Int = Runtime
+
+@Extern(name = "native_counter")
+var NativeCounter: Int
+
+object Registry {
+    val count: Int = Runtime
+    fun touch(): Int { return 0 }
+}
+
+fun main() {}

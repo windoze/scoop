@@ -5,10 +5,10 @@
 use super::*;
 
 #[test]
-pub(super) fn refactor_llvm_surface_resume_layout_keeps_shared_schema_multi_case_object_publications()
+pub(super) fn llvm_surface_resume_layout_keeps_shared_schema_multi_case_object_publications()
  {
     with_fixture_query_result(
-        "effect_refactor_step_enum_single_case.scoop",
+        "effect_lowered_step_enum_single_case.scoop",
         |inputs| inputs.abi_visibility_program.clone(),
         |inputs, result, _module| {
             let query = result.expect("shared-schema fixture 应可物化 surface-resume ABI");
@@ -54,7 +54,7 @@ pub(super) fn refactor_llvm_surface_resume_layout_keeps_shared_schema_multi_case
 }
 
 #[test]
-pub(super) fn refactor_llvm_surface_resume_layout_resolves_resume_site_contracts() {
+pub(super) fn llvm_surface_resume_layout_resolves_resume_site_contracts() {
     with_phase_fixture_query_result(
         "run-pass",
         "effect_resume_if_else_branch_single_perform.scoop",
@@ -108,9 +108,9 @@ pub(super) fn refactor_llvm_surface_resume_layout_resolves_resume_site_contracts
 }
 
 #[test]
-pub(super) fn refactor_llvm_surface_resume_layout_rejects_missing_published_contract() {
+pub(super) fn llvm_surface_resume_layout_rejects_missing_published_contract() {
     with_fixture_query_result(
-        "effect_refactor_dynamic_invoke_unit_payload.scoop",
+        "effect_lowered_dynamic_invoke_unit_payload.scoop",
         |inputs| {
             let program = &inputs.abi_visibility_program;
             let callable = program
@@ -160,9 +160,9 @@ pub(super) fn refactor_llvm_surface_resume_layout_rejects_missing_published_cont
 }
 
 #[test]
-pub(super) fn refactor_llvm_surface_resume_dispatch_layout_resolves_object_method_target() {
+pub(super) fn llvm_surface_resume_dispatch_layout_resolves_object_method_target() {
     with_fixture_query_result(
-        "effect_refactor_step_enum_single_case.scoop",
+        "effect_lowered_step_enum_single_case.scoop",
         |inputs| inputs.abi_visibility_program.clone(),
         |inputs, result, _module| {
             let query = result.expect("shared schema 应可发布 owner dispatch query");
@@ -211,7 +211,7 @@ pub(super) fn refactor_llvm_surface_resume_dispatch_layout_resolves_object_metho
             );
 
             match dispatch.target() {
-                RefactorContinuationSurfaceResumeDispatchTarget::OwnerTrampoline(trampoline) => {
+                ContinuationSurfaceResumeDispatchTarget::OwnerTrampoline(trampoline) => {
                     assert_eq!(
                         trampoline.owner_root_fqn(),
                         "fixtures.build.singleCaseWorker"
@@ -223,10 +223,10 @@ pub(super) fn refactor_llvm_surface_resume_dispatch_layout_resolves_object_metho
                     assert!(trampoline.resume_boundary_sites().is_empty());
                     assert!(trampoline.handle_binder_routes().is_empty());
                 }
-                RefactorContinuationSurfaceResumeDispatchTarget::Unreachable => {
+                ContinuationSurfaceResumeDispatchTarget::Unreachable => {
                     panic!("shared schema object-method fixture 不应是 unreachable dispatch")
                 }
-                RefactorContinuationSurfaceResumeDispatchTarget::OwnerTrampolines(_) => {
+                ContinuationSurfaceResumeDispatchTarget::OwnerTrampolines(_) => {
                     panic!("shared schema object-method fixture 不应发布 multi-owner dispatch")
                 }
             }
@@ -235,7 +235,7 @@ pub(super) fn refactor_llvm_surface_resume_dispatch_layout_resolves_object_metho
 }
 
 #[test]
-pub(super) fn refactor_llvm_surface_resume_dispatch_layout_resolves_handle_binder_owner_trampoline()
+pub(super) fn llvm_surface_resume_dispatch_layout_resolves_handle_binder_owner_trampoline()
 {
     with_phase_fixture_query_result(
         "run-pass",
@@ -263,7 +263,7 @@ pub(super) fn refactor_llvm_surface_resume_dispatch_layout_resolves_handle_binde
             );
             assert!(dispatch.method_targets().is_empty());
             match dispatch.target() {
-                RefactorContinuationSurfaceResumeDispatchTarget::OwnerTrampoline(trampoline) => {
+                ContinuationSurfaceResumeDispatchTarget::OwnerTrampoline(trampoline) => {
                     assert_eq!(trampoline.owner_root_fqn(), "run");
                     assert_eq!(
                         trampoline.owner_continuation_object(),
@@ -279,10 +279,10 @@ pub(super) fn refactor_llvm_surface_resume_dispatch_layout_resolves_handle_binde
                     );
                     assert!(module.get_function(trampoline.symbol_name()).is_some());
                 }
-                RefactorContinuationSurfaceResumeDispatchTarget::Unreachable => {
+                ContinuationSurfaceResumeDispatchTarget::Unreachable => {
                     panic!("handle-binder-only schema 不应是 unreachable dispatch")
                 }
-                RefactorContinuationSurfaceResumeDispatchTarget::OwnerTrampolines(_) => {
+                ContinuationSurfaceResumeDispatchTarget::OwnerTrampolines(_) => {
                     panic!("handle-binder-only schema 不应发布 multi-owner dispatch")
                 }
             }
@@ -291,7 +291,7 @@ pub(super) fn refactor_llvm_surface_resume_dispatch_layout_resolves_handle_binde
 }
 
 #[test]
-pub(super) fn refactor_llvm_surface_resume_dispatch_layout_resolves_multi_site_resume_owner_trampoline()
+pub(super) fn llvm_surface_resume_dispatch_layout_resolves_multi_site_resume_owner_trampoline()
  {
     with_phase_fixture_query_result(
         "run-pass",
@@ -332,7 +332,7 @@ pub(super) fn refactor_llvm_surface_resume_dispatch_layout_resolves_multi_site_r
             );
             assert!(dispatch.method_targets().is_empty());
             match dispatch.target() {
-                RefactorContinuationSurfaceResumeDispatchTarget::OwnerTrampoline(trampoline) => {
+                ContinuationSurfaceResumeDispatchTarget::OwnerTrampoline(trampoline) => {
                     let sites = trampoline
                         .resume_boundary_sites()
                         .iter()
@@ -382,10 +382,10 @@ pub(super) fn refactor_llvm_surface_resume_dispatch_layout_resolves_multi_site_r
                     assert_eq!(outward.wrapper_case_tag().as_u32(), 0);
                     assert!(module.get_function(trampoline.symbol_name()).is_some());
                 }
-                RefactorContinuationSurfaceResumeDispatchTarget::Unreachable => {
+                ContinuationSurfaceResumeDispatchTarget::Unreachable => {
                     panic!("resume-boundary-only schema 不应是 unreachable dispatch")
                 }
-                RefactorContinuationSurfaceResumeDispatchTarget::OwnerTrampolines(_) => {
+                ContinuationSurfaceResumeDispatchTarget::OwnerTrampolines(_) => {
                     panic!("single-owner resume schema 不应发布 multi-owner dispatch")
                 }
             }
@@ -394,7 +394,7 @@ pub(super) fn refactor_llvm_surface_resume_dispatch_layout_resolves_multi_site_r
 }
 
 #[test]
-pub(super) fn refactor_llvm_surface_resume_dispatch_layout_resolves_cross_owner_wrapper_trampoline()
+pub(super) fn llvm_surface_resume_dispatch_layout_resolves_cross_owner_wrapper_trampoline()
 {
     with_phase_fixture_query_result(
         "run-pass",
@@ -438,7 +438,7 @@ pub(super) fn refactor_llvm_surface_resume_dispatch_layout_resolves_cross_owner_
                 dispatch.source_kind(),
                 crate::effect_lowered::ir::LateLoweredSurfaceResumeDispatchSourceKind::OwnerTrampolineMixed
             );
-            let RefactorContinuationSurfaceResumeDispatchTarget::OwnerTrampoline(trampoline) =
+            let ContinuationSurfaceResumeDispatchTarget::OwnerTrampoline(trampoline) =
                 dispatch.target()
             else {
                 panic!("cross-owner fixture 应发布单一 underlying owner trampoline")
@@ -459,7 +459,7 @@ pub(super) fn refactor_llvm_surface_resume_dispatch_layout_resolves_cross_owner_
 }
 
 #[test]
-pub(super) fn refactor_llvm_surface_resume_dispatch_layout_resolves_multi_owner_trampolines() {
+pub(super) fn llvm_surface_resume_dispatch_layout_resolves_multi_owner_trampolines() {
     with_phase_fixture_query_result(
         "run-pass",
         "effect_multi_escape_custom_nonresuming_direct_indirect_multi.scoop",
@@ -477,7 +477,7 @@ pub(super) fn refactor_llvm_surface_resume_dispatch_layout_resolves_multi_owner_
                 .expect("multi-owner schema 的 owner dispatch contract 应可查询");
 
             assert_eq!(entry.wrapper_projections().len(), 2);
-            let RefactorContinuationSurfaceResumeDispatchTarget::OwnerTrampolines(targets) =
+            let ContinuationSurfaceResumeDispatchTarget::OwnerTrampolines(targets) =
                 dispatch.target()
             else {
                 panic!("multi-owner schema 应发布多个 owner trampoline target");
@@ -512,7 +512,7 @@ pub(super) fn refactor_llvm_surface_resume_dispatch_layout_resolves_multi_owner_
 }
 
 #[test]
-pub(super) fn refactor_llvm_surface_resume_dispatch_layout_rejects_missing_wrapper_projection_contract()
+pub(super) fn llvm_surface_resume_dispatch_layout_rejects_missing_wrapper_projection_contract()
  {
     with_phase_fixture_query_result(
         "run-pass",
@@ -569,13 +569,13 @@ pub(super) fn refactor_llvm_surface_resume_dispatch_layout_rejects_missing_wrapp
 }
 
 #[test]
-pub(super) fn refactor_llvm_surface_resume_wrapper_completion_resolves_payload_source() {
+pub(super) fn llvm_surface_resume_wrapper_completion_resolves_payload_source() {
     with_phase_fixture_query_result(
         "run-pass",
         "effect_multi_escape_indirect_direct_while.scoop",
         |inputs| inputs.abi_visibility_program.clone(),
         |inputs, result, _module| {
-            let query = result.expect("refactor ABI materialization 应成功");
+            let query = result.expect("ABI materialization 应成功");
             let callable = inputs
                 .effect_lowered_stage_output
                 .program()
@@ -597,18 +597,18 @@ pub(super) fn refactor_llvm_surface_resume_wrapper_completion_resolves_payload_s
                 .expect("shared wrapper dispatch 应可查询");
 
             let trampoline = match dispatch.target() {
-                RefactorContinuationSurfaceResumeDispatchTarget::OwnerTrampoline(trampoline) => {
+                ContinuationSurfaceResumeDispatchTarget::OwnerTrampoline(trampoline) => {
                     trampoline.as_ref()
                 }
-                RefactorContinuationSurfaceResumeDispatchTarget::OwnerTrampolines(targets)
+                ContinuationSurfaceResumeDispatchTarget::OwnerTrampolines(targets)
                     if targets.len() == 1 =>
                 {
                     &targets[0]
                 }
-                RefactorContinuationSurfaceResumeDispatchTarget::OwnerTrampolines(_) => {
+                ContinuationSurfaceResumeDispatchTarget::OwnerTrampolines(_) => {
                     panic!("该 fixture 应只有一个 owner trampoline")
                 }
-                RefactorContinuationSurfaceResumeDispatchTarget::Unreachable => {
+                ContinuationSurfaceResumeDispatchTarget::Unreachable => {
                     panic!("shared wrapper schema 应发布 owner trampoline")
                 }
             };
@@ -630,14 +630,14 @@ pub(super) fn refactor_llvm_surface_resume_wrapper_completion_resolves_payload_s
 }
 
 #[test]
-pub(super) fn refactor_llvm_surface_resume_wrapper_completion_uses_owner_complete_for_matching_answer_type()
+pub(super) fn llvm_surface_resume_wrapper_completion_uses_owner_complete_for_matching_answer_type()
  {
     with_phase_fixture_query_result(
         "run-pass",
         "effect_resume_if_else_branch_single_perform.scoop",
         |inputs| inputs.abi_visibility_program.clone(),
         |inputs, result, _module| {
-            let query = result.expect("refactor ABI materialization 应成功");
+            let query = result.expect("ABI materialization 应成功");
             let resume_schema = inputs
                 .abi_visibility_program
                 .surface_resume_dispatch_inventory()
@@ -654,18 +654,18 @@ pub(super) fn refactor_llvm_surface_resume_wrapper_completion_uses_owner_complet
                 .expect("shared wrapper dispatch 应可查询");
 
             let trampoline = match dispatch.target() {
-                RefactorContinuationSurfaceResumeDispatchTarget::OwnerTrampoline(trampoline) => {
+                ContinuationSurfaceResumeDispatchTarget::OwnerTrampoline(trampoline) => {
                     trampoline.as_ref()
                 }
-                RefactorContinuationSurfaceResumeDispatchTarget::OwnerTrampolines(targets)
+                ContinuationSurfaceResumeDispatchTarget::OwnerTrampolines(targets)
                     if targets.len() == 1 =>
                 {
                     &targets[0]
                 }
-                RefactorContinuationSurfaceResumeDispatchTarget::OwnerTrampolines(_) => {
+                ContinuationSurfaceResumeDispatchTarget::OwnerTrampolines(_) => {
                     panic!("该 fixture 应只有一个 owner trampoline")
                 }
-                RefactorContinuationSurfaceResumeDispatchTarget::Unreachable => {
+                ContinuationSurfaceResumeDispatchTarget::Unreachable => {
                     panic!("shared wrapper schema 应发布 owner trampoline")
                 }
             };
@@ -687,7 +687,7 @@ pub(super) fn refactor_llvm_surface_resume_wrapper_completion_uses_owner_complet
 }
 
 #[test]
-pub(super) fn refactor_llvm_surface_resume_wrapper_completion_rejects_type_drift() {
+pub(super) fn llvm_surface_resume_wrapper_completion_rejects_type_drift() {
     with_phase_fixture_query_result(
         "run-pass",
         "effect_multi_escape_indirect_direct_while.scoop",
@@ -759,10 +759,10 @@ pub(super) fn refactor_llvm_surface_resume_wrapper_completion_rejects_type_drift
 }
 
 #[test]
-pub(super) fn refactor_llvm_surface_resume_dispatch_layout_rejects_missing_internal_method_target()
+pub(super) fn llvm_surface_resume_dispatch_layout_rejects_missing_internal_method_target()
 {
     with_fixture_query_result(
-        "effect_refactor_step_enum_single_case.scoop",
+        "effect_lowered_step_enum_single_case.scoop",
         |inputs| {
             let program = &inputs.abi_visibility_program;
             let callable = program
@@ -807,7 +807,7 @@ pub(super) fn refactor_llvm_surface_resume_dispatch_layout_rejects_missing_inter
 }
 
 #[test]
-pub(super) fn refactor_llvm_surface_resume_dispatch_layout_keeps_multi_method_lookup_set() {
+pub(super) fn llvm_surface_resume_dispatch_layout_keeps_multi_method_lookup_set() {
     with_phase_fixture_query_result(
         "effect_facts",
         "dynamic_fallback_widening.scoop",
@@ -846,7 +846,7 @@ pub(super) fn refactor_llvm_surface_resume_dispatch_layout_keeps_multi_method_lo
             );
             assert_eq!(method_keys, vec![(0, 0), (1, 1)]);
             match dispatch.target() {
-                RefactorContinuationSurfaceResumeDispatchTarget::OwnerTrampoline(trampoline) => {
+                ContinuationSurfaceResumeDispatchTarget::OwnerTrampoline(trampoline) => {
                     assert_eq!(trampoline.owner_root_fqn(), "sample.callValue");
                     assert_eq!(
                         trampoline.owner_continuation_object(),
@@ -854,10 +854,10 @@ pub(super) fn refactor_llvm_surface_resume_dispatch_layout_keeps_multi_method_lo
                     );
                     assert!(module.get_function(trampoline.symbol_name()).is_some());
                 }
-                RefactorContinuationSurfaceResumeDispatchTarget::Unreachable => {
+                ContinuationSurfaceResumeDispatchTarget::Unreachable => {
                     panic!("多 method 共享 schema 不应是 unreachable dispatch")
                 }
-                RefactorContinuationSurfaceResumeDispatchTarget::OwnerTrampolines(_) => {
+                ContinuationSurfaceResumeDispatchTarget::OwnerTrampolines(_) => {
                     panic!("多 method 单 owner schema 不应发布 multi-owner dispatch")
                 }
             }
@@ -866,9 +866,9 @@ pub(super) fn refactor_llvm_surface_resume_dispatch_layout_keeps_multi_method_lo
 }
 
 #[test]
-pub(super) fn refactor_llvm_surface_resume_dispatch_layout_rejects_multi_object_publication() {
+pub(super) fn llvm_surface_resume_dispatch_layout_rejects_multi_object_publication() {
     with_fixture_query_result(
-        "effect_refactor_step_enum_single_case.scoop",
+        "effect_lowered_step_enum_single_case.scoop",
         |inputs| {
             let program = &inputs.abi_visibility_program;
             let callable = program

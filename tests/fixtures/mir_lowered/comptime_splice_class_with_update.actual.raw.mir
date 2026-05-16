@@ -1,0 +1,2167 @@
+File {
+    items: [
+        Metadata(
+            Nominal(
+                NominalMetadata {
+                    span: 229..265,
+                    fqn: "mir_lowered.comptime_splice_class_with_update.Point",
+                    name: "Point",
+                    kind: Struct,
+                    type_params: [],
+                    supertypes: [],
+                    interfaces: [],
+                    constructors: [
+                        CtorMetadata {
+                            span: 241..265,
+                            kind: Primary,
+                            params: [
+                                CtorParamMetadata {
+                                    span: 246..247,
+                                    name: "x",
+                                    ty: TypeId(
+                                        5,
+                                    ),
+                                    has_default: false,
+                                    property: Some(
+                                        Val,
+                                    ),
+                                },
+                                CtorParamMetadata {
+                                    span: 258..259,
+                                    name: "y",
+                                    ty: TypeId(
+                                        5,
+                                    ),
+                                    has_default: false,
+                                    property: Some(
+                                        Val,
+                                    ),
+                                },
+                            ],
+                            delegation: None,
+                        },
+                    ],
+                    members: [
+                        Field(
+                            FieldMetadata {
+                                span: 246..247,
+                                fqn: "mir_lowered.comptime_splice_class_with_update.Point.x",
+                                name: "x",
+                                mutable: false,
+                                ty: TypeId(
+                                    5,
+                                ),
+                                origin: PrimaryCtorParam,
+                            },
+                        ),
+                        Field(
+                            FieldMetadata {
+                                span: 258..259,
+                                fqn: "mir_lowered.comptime_splice_class_with_update.Point.y",
+                                name: "y",
+                                mutable: false,
+                                ty: TypeId(
+                                    5,
+                                ),
+                                origin: PrimaryCtorParam,
+                            },
+                        ),
+                    ],
+                },
+            ),
+        ),
+        Metadata(
+            Nominal(
+                NominalMetadata {
+                    span: 267..332,
+                    fqn: "mir_lowered.comptime_splice_class_with_update.Result",
+                    name: "Result",
+                    kind: Enum,
+                    type_params: [],
+                    supertypes: [],
+                    interfaces: [],
+                    constructors: [],
+                    members: [
+                        EnumVariant(
+                            EnumVariantMetadata {
+                                span: 285..305,
+                                fqn: "mir_lowered.comptime_splice_class_with_update.Result.Ok",
+                                name: "Ok",
+                                fields: [
+                                    FieldMetadata {
+                                        span: 292..297,
+                                        fqn: "mir_lowered.comptime_splice_class_with_update.Result.Ok.point",
+                                        name: "point",
+                                        mutable: false,
+                                        ty: TypeId(
+                                            11,
+                                        ),
+                                        origin: EnumVariantPayload,
+                                    },
+                                ],
+                            },
+                        ),
+                        EnumVariant(
+                            EnumVariantMetadata {
+                                span: 311..329,
+                                fqn: "mir_lowered.comptime_splice_class_with_update.Result.Err",
+                                name: "Err",
+                                fields: [
+                                    FieldMetadata {
+                                        span: 319..323,
+                                        fqn: "mir_lowered.comptime_splice_class_with_update.Result.Err.code",
+                                        name: "code",
+                                        mutable: false,
+                                        ty: TypeId(
+                                            5,
+                                        ),
+                                        origin: EnumVariantPayload,
+                                    },
+                                ],
+                            },
+                        ),
+                    ],
+                },
+            ),
+        ),
+        InitializerRoot(
+            InitializerRoot {
+                span: 76..106,
+                fqn: "mir_lowered.comptime_splice_class_with_update.ENABLED",
+                source_path: "/Volumes/Data/home/chenxu/repos/scoop/tests/fixtures/mir_lowered/comptime_splice_class_with_update.scoop",
+                kind: ConstVal,
+                ty: Some(
+                    TypeId(
+                        4,
+                    ),
+                ),
+                initializer_transport: None,
+                has_initializer: true,
+                dependencies: [],
+                hidden_effects: EffectRow {
+                    terms: [],
+                },
+            },
+        ),
+        Fun(
+            FunDecl {
+                span: 133..172,
+                fqn: "mir_lowered.comptime_splice_class_with_update.packageSelected",
+                name: "packageSelected",
+                ty: TypeId(
+                    10,
+                ),
+                params: [],
+                return_ty: TypeId(
+                    5,
+                ),
+                body: Some(
+                    Body {
+                        locals: [
+                            LocalDecl {
+                                span: 169..170,
+                                name: Some(
+                                    "tmp0",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 160..172,
+                                name: Some(
+                                    "tmp1",
+                                ),
+                                ty: TypeId(
+                                    2,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                        ],
+                        blocks: [
+                            BasicBlock {
+                                is_cleanup: false,
+                                stmts: [
+                                    Statement {
+                                        span: 169..170,
+                                        kind: Assign {
+                                            target: l0,
+                                            value: Use(
+                                                Const(
+                                                    Int,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                ],
+                                terminator: Terminator {
+                                    span: 162..170,
+                                    kind: Return {
+                                        value: Some(
+                                            Local(
+                                                l0,
+                                            ),
+                                        ),
+                                    },
+                                    unwind: NoUnwind,
+                                },
+                            },
+                        ],
+                        start: bb0,
+                    },
+                ),
+            },
+        ),
+        Fun(
+            FunDecl {
+                span: 334..444,
+                fqn: "mir_lowered.comptime_splice_class_with_update.selectedBranch",
+                name: "selectedBranch",
+                ty: TypeId(
+                    10,
+                ),
+                params: [],
+                return_ty: TypeId(
+                    5,
+                ),
+                body: Some(
+                    Body {
+                        locals: [
+                            LocalDecl {
+                                span: 405..406,
+                                name: Some(
+                                    "tmp0",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 360..444,
+                                name: Some(
+                                    "tmp1",
+                                ),
+                                ty: TypeId(
+                                    2,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                        ],
+                        blocks: [
+                            BasicBlock {
+                                is_cleanup: false,
+                                stmts: [
+                                    Statement {
+                                        span: 405..406,
+                                        kind: Assign {
+                                            target: l0,
+                                            value: Use(
+                                                Const(
+                                                    Int,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                ],
+                                terminator: Terminator {
+                                    span: 398..406,
+                                    kind: Return {
+                                        value: Some(
+                                            Local(
+                                                l0,
+                                            ),
+                                        ),
+                                    },
+                                    unwind: NoUnwind,
+                                },
+                            },
+                        ],
+                        start: bb0,
+                    },
+                ),
+            },
+        ),
+        Fun(
+            FunDecl {
+                span: 446..564,
+                fqn: "mir_lowered.comptime_splice_class_with_update.unrolled",
+                name: "unrolled",
+                ty: TypeId(
+                    10,
+                ),
+                params: [],
+                return_ty: TypeId(
+                    5,
+                ),
+                body: Some(
+                    Body {
+                        locals: [
+                            LocalDecl {
+                                span: 472..488,
+                                name: Some(
+                                    "acc",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: SourceLocal,
+                            },
+                            LocalDecl {
+                                span: 487..488,
+                                name: Some(
+                                    "tmp0",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 534..541,
+                                name: Some(
+                                    "tmp1",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 540..541,
+                                name: Some(
+                                    "tmp2",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 534..541,
+                                name: Some(
+                                    "tmp3",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 540..541,
+                                name: Some(
+                                    "tmp4",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 534..541,
+                                name: Some(
+                                    "tmp5",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 540..541,
+                                name: Some(
+                                    "tmp6",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 466..564,
+                                name: Some(
+                                    "tmp7",
+                                ),
+                                ty: TypeId(
+                                    2,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                        ],
+                        blocks: [
+                            BasicBlock {
+                                is_cleanup: false,
+                                stmts: [
+                                    Statement {
+                                        span: 487..488,
+                                        kind: Assign {
+                                            target: l1,
+                                            value: Use(
+                                                Const(
+                                                    Int,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 472..488,
+                                        kind: Assign {
+                                            target: l0,
+                                            value: Use(
+                                                Local(
+                                                    l1,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 540..541,
+                                        kind: Assign {
+                                            target: l3,
+                                            value: Use(
+                                                Const(
+                                                    Int,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 534..541,
+                                        kind: Assign {
+                                            target: l2,
+                                            value: Binary {
+                                                lhs: Local(
+                                                    l0,
+                                                ),
+                                                op: Add,
+                                                rhs: Local(
+                                                    l3,
+                                                ),
+                                            },
+                                        },
+                                    },
+                                    Statement {
+                                        span: 528..541,
+                                        kind: Assign {
+                                            target: l0,
+                                            value: Use(
+                                                Local(
+                                                    l2,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 540..541,
+                                        kind: Assign {
+                                            target: l5,
+                                            value: Use(
+                                                Const(
+                                                    Int,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 534..541,
+                                        kind: Assign {
+                                            target: l4,
+                                            value: Binary {
+                                                lhs: Local(
+                                                    l0,
+                                                ),
+                                                op: Add,
+                                                rhs: Local(
+                                                    l5,
+                                                ),
+                                            },
+                                        },
+                                    },
+                                    Statement {
+                                        span: 528..541,
+                                        kind: Assign {
+                                            target: l0,
+                                            value: Use(
+                                                Local(
+                                                    l4,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 540..541,
+                                        kind: Assign {
+                                            target: l7,
+                                            value: Use(
+                                                Const(
+                                                    Int,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 534..541,
+                                        kind: Assign {
+                                            target: l6,
+                                            value: Binary {
+                                                lhs: Local(
+                                                    l0,
+                                                ),
+                                                op: Add,
+                                                rhs: Local(
+                                                    l7,
+                                                ),
+                                            },
+                                        },
+                                    },
+                                    Statement {
+                                        span: 528..541,
+                                        kind: Assign {
+                                            target: l0,
+                                            value: Use(
+                                                Local(
+                                                    l6,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                ],
+                                terminator: Terminator {
+                                    span: 552..562,
+                                    kind: Return {
+                                        value: Some(
+                                            Local(
+                                                l0,
+                                            ),
+                                        ),
+                                    },
+                                    unwind: NoUnwind,
+                                },
+                            },
+                        ],
+                        start: bb0,
+                    },
+                ),
+            },
+        ),
+        Fun(
+            FunDecl {
+                span: 566..649,
+                fqn: "mir_lowered.comptime_splice_class_with_update.spliceField",
+                name: "spliceField",
+                ty: TypeId(
+                    12,
+                ),
+                params: [
+                    Param {
+                        span: 582..583,
+                        name: "p",
+                        ty: TypeId(
+                            11,
+                        ),
+                        local: l0,
+                    },
+                ],
+                return_ty: TypeId(
+                    5,
+                ),
+                body: Some(
+                    Body {
+                        locals: [
+                            LocalDecl {
+                                span: 582..583,
+                                name: Some(
+                                    "p",
+                                ),
+                                ty: TypeId(
+                                    11,
+                                ),
+                                source: SourceLocal,
+                            },
+                            LocalDecl {
+                                span: 610..647,
+                                name: Some(
+                                    "tmp0",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 610..617,
+                                name: Some(
+                                    "tmp1",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 620..647,
+                                name: Some(
+                                    "tmp2",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 597..649,
+                                name: Some(
+                                    "tmp3",
+                                ),
+                                ty: TypeId(
+                                    2,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                        ],
+                        blocks: [
+                            BasicBlock {
+                                is_cleanup: false,
+                                stmts: [
+                                    Statement {
+                                        span: 610..617,
+                                        kind: Assign {
+                                            target: l2,
+                                            value: MemberAccess {
+                                                site_id: None,
+                                                receiver: Local(
+                                                    l0,
+                                                ),
+                                                member: MemberAccessMetadata {
+                                                    name: "x",
+                                                    receiver_ty: TypeId(
+                                                        11,
+                                                    ),
+                                                    resolved: Some(
+                                                        Value {
+                                                            fqn: "mir_lowered.comptime_splice_class_with_update.Point.x",
+                                                        },
+                                                    ),
+                                                    hidden_effects: EffectRow {
+                                                        terms: [],
+                                                    },
+                                                },
+                                            },
+                                        },
+                                    },
+                                    Statement {
+                                        span: 620..647,
+                                        kind: Assign {
+                                            target: l3,
+                                            value: MemberAccess {
+                                                site_id: None,
+                                                receiver: Local(
+                                                    l0,
+                                                ),
+                                                member: MemberAccessMetadata {
+                                                    name: "y",
+                                                    receiver_ty: TypeId(
+                                                        11,
+                                                    ),
+                                                    resolved: Some(
+                                                        Value {
+                                                            fqn: "mir_lowered.comptime_splice_class_with_update.Point.y",
+                                                        },
+                                                    ),
+                                                    hidden_effects: EffectRow {
+                                                        terms: [],
+                                                    },
+                                                },
+                                            },
+                                        },
+                                    },
+                                    Statement {
+                                        span: 610..647,
+                                        kind: Assign {
+                                            target: l1,
+                                            value: Binary {
+                                                lhs: Local(
+                                                    l2,
+                                                ),
+                                                op: Add,
+                                                rhs: Local(
+                                                    l3,
+                                                ),
+                                            },
+                                        },
+                                    },
+                                ],
+                                terminator: Terminator {
+                                    span: 603..647,
+                                    kind: Return {
+                                        value: Some(
+                                            Local(
+                                                l1,
+                                            ),
+                                        ),
+                                    },
+                                    unwind: NoUnwind,
+                                },
+                            },
+                        ],
+                        start: bb0,
+                    },
+                ),
+            },
+        ),
+        Fun(
+            FunDecl {
+                span: 651..702,
+                fqn: "mir_lowered.comptime_splice_class_with_update.className",
+                name: "className",
+                ty: TypeId(
+                    13,
+                ),
+                params: [],
+                return_ty: TypeId(
+                    1,
+                ),
+                body: Some(
+                    Body {
+                        locals: [
+                            LocalDecl {
+                                span: 688..700,
+                                name: Some(
+                                    "tmp0",
+                                ),
+                                ty: TypeId(
+                                    1,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 675..702,
+                                name: Some(
+                                    "tmp1",
+                                ),
+                                ty: TypeId(
+                                    2,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                        ],
+                        blocks: [
+                            BasicBlock {
+                                is_cleanup: false,
+                                stmts: [
+                                    Statement {
+                                        span: 688..700,
+                                        kind: Assign {
+                                            target: l0,
+                                            value: TypeMetadataLiteral(
+                                                TypeMetadataLiteral {
+                                                    source_ty: TypeId(
+                                                        11,
+                                                    ),
+                                                    source_fqn: Some(
+                                                        "mir_lowered.comptime_splice_class_with_update.Point",
+                                                    ),
+                                                    kind: TypeNameString,
+                                                },
+                                            ),
+                                        },
+                                    },
+                                ],
+                                terminator: Terminator {
+                                    span: 681..700,
+                                    kind: Return {
+                                        value: Some(
+                                            Local(
+                                                l0,
+                                            ),
+                                        ),
+                                    },
+                                    unwind: NoUnwind,
+                                },
+                            },
+                        ],
+                        start: bb0,
+                    },
+                ),
+            },
+        ),
+        Fun(
+            FunDecl {
+                span: 704..768,
+                fqn: "mir_lowered.comptime_splice_class_with_update.updateStruct",
+                name: "updateStruct",
+                ty: TypeId(
+                    14,
+                ),
+                params: [
+                    Param {
+                        span: 721..722,
+                        name: "p",
+                        ty: TypeId(
+                            11,
+                        ),
+                        local: l0,
+                    },
+                ],
+                return_ty: TypeId(
+                    11,
+                ),
+                body: Some(
+                    Body {
+                        locals: [
+                            LocalDecl {
+                                span: 721..722,
+                                name: Some(
+                                    "p",
+                                ),
+                                ty: TypeId(
+                                    11,
+                                ),
+                                source: SourceLocal,
+                            },
+                            LocalDecl {
+                                span: 753..757,
+                                name: Some(
+                                    "$with_base",
+                                ),
+                                ty: TypeId(
+                                    11,
+                                ),
+                                source: SourceLocal,
+                            },
+                            LocalDecl {
+                                span: 763..764,
+                                name: Some(
+                                    "__with_update_value_0",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: SourceLocal,
+                            },
+                            LocalDecl {
+                                span: 763..764,
+                                name: Some(
+                                    "tmp0",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 751..766,
+                                name: Some(
+                                    "tmp1",
+                                ),
+                                ty: TypeId(
+                                    11,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 753..757,
+                                name: Some(
+                                    "tmp2",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 738..768,
+                                name: Some(
+                                    "tmp3",
+                                ),
+                                ty: TypeId(
+                                    2,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                        ],
+                        blocks: [
+                            BasicBlock {
+                                is_cleanup: false,
+                                stmts: [
+                                    Statement {
+                                        span: 753..757,
+                                        kind: Assign {
+                                            target: l1,
+                                            value: Use(
+                                                Local(
+                                                    l0,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 763..764,
+                                        kind: Assign {
+                                            target: l3,
+                                            value: Use(
+                                                Const(
+                                                    Int,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 763..764,
+                                        kind: Assign {
+                                            target: l2,
+                                            value: Use(
+                                                Local(
+                                                    l3,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 753..757,
+                                        kind: Assign {
+                                            target: l5,
+                                            value: MemberAccess {
+                                                site_id: None,
+                                                receiver: Local(
+                                                    l1,
+                                                ),
+                                                member: MemberAccessMetadata {
+                                                    name: "y",
+                                                    receiver_ty: TypeId(
+                                                        11,
+                                                    ),
+                                                    resolved: Some(
+                                                        Value {
+                                                            fqn: "mir_lowered.comptime_splice_class_with_update.Point.y",
+                                                        },
+                                                    ),
+                                                    hidden_effects: EffectRow {
+                                                        terms: [],
+                                                    },
+                                                },
+                                            },
+                                        },
+                                    },
+                                    Statement {
+                                        span: 751..766,
+                                        kind: Assign {
+                                            target: l4,
+                                            value: StructLit {
+                                                fields: [
+                                                    StructLitField {
+                                                        span: 763..764,
+                                                        name: "x",
+                                                        value: Local(
+                                                            l2,
+                                                        ),
+                                                    },
+                                                    StructLitField {
+                                                        span: 753..757,
+                                                        name: "y",
+                                                        value: Local(
+                                                            l5,
+                                                        ),
+                                                    },
+                                                ],
+                                                transport: AggregateTransportMetadata {
+                                                    aggregate_ty: TypeId(
+                                                        11,
+                                                    ),
+                                                    kind: Struct,
+                                                    fields: [
+                                                        AggregateTransportField {
+                                                            index: 0,
+                                                            name: Some(
+                                                                "x",
+                                                            ),
+                                                            ty: TypeId(
+                                                                5,
+                                                            ),
+                                                            transport: ValueTransportMetadata {
+                                                                source_ty: TypeId(
+                                                                    5,
+                                                                ),
+                                                                kind: Scalar,
+                                                                requirements: MirTransportRequirements {
+                                                                    trace: false,
+                                                                    copy: true,
+                                                                    drop: false,
+                                                                },
+                                                                boxing: None,
+                                                            },
+                                                        },
+                                                        AggregateTransportField {
+                                                            index: 1,
+                                                            name: Some(
+                                                                "y",
+                                                            ),
+                                                            ty: TypeId(
+                                                                5,
+                                                            ),
+                                                            transport: ValueTransportMetadata {
+                                                                source_ty: TypeId(
+                                                                    5,
+                                                                ),
+                                                                kind: Scalar,
+                                                                requirements: MirTransportRequirements {
+                                                                    trace: false,
+                                                                    copy: true,
+                                                                    drop: false,
+                                                                },
+                                                                boxing: None,
+                                                            },
+                                                        },
+                                                    ],
+                                                },
+                                            },
+                                        },
+                                    },
+                                ],
+                                terminator: Terminator {
+                                    span: 744..766,
+                                    kind: Return {
+                                        value: Some(
+                                            Local(
+                                                l4,
+                                            ),
+                                        ),
+                                    },
+                                    unwind: NoUnwind,
+                                },
+                            },
+                        ],
+                        start: bb0,
+                    },
+                ),
+            },
+        ),
+        Fun(
+            FunDecl {
+                span: 770..880,
+                fqn: "mir_lowered.comptime_splice_class_with_update.updateTuple",
+                name: "updateTuple",
+                ty: TypeId(
+                    17,
+                ),
+                params: [
+                    Param {
+                        span: 786..790,
+                        name: "pair",
+                        ty: TypeId(
+                            16,
+                        ),
+                        local: l0,
+                    },
+                ],
+                return_ty: TypeId(
+                    16,
+                ),
+                body: Some(
+                    Body {
+                        locals: [
+                            LocalDecl {
+                                span: 786..790,
+                                name: Some(
+                                    "pair",
+                                ),
+                                ty: TypeId(
+                                    16,
+                                ),
+                                source: SourceLocal,
+                            },
+                            LocalDecl {
+                                span: 852..856,
+                                name: Some(
+                                    "$with_base",
+                                ),
+                                ty: TypeId(
+                                    16,
+                                ),
+                                source: SourceLocal,
+                            },
+                            LocalDecl {
+                                span: 865..866,
+                                name: Some(
+                                    "__with_update_value_1",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: SourceLocal,
+                            },
+                            LocalDecl {
+                                span: 865..866,
+                                name: Some(
+                                    "tmp0",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 875..876,
+                                name: Some(
+                                    "__with_update_value_2",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: SourceLocal,
+                            },
+                            LocalDecl {
+                                span: 875..876,
+                                name: Some(
+                                    "tmp1",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 847..878,
+                                name: Some(
+                                    "tmp2",
+                                ),
+                                ty: TypeId(
+                                    16,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 847..878,
+                                name: Some(
+                                    "tmp3",
+                                ),
+                                ty: TypeId(
+                                    11,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 852..856,
+                                name: Some(
+                                    "tmp4",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 852..856,
+                                name: Some(
+                                    "tmp5",
+                                ),
+                                ty: TypeId(
+                                    11,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 847..878,
+                                name: Some(
+                                    "tmp6",
+                                ),
+                                ty: TypeId(
+                                    15,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 852..856,
+                                name: Some(
+                                    "tmp7",
+                                ),
+                                ty: TypeId(
+                                    0,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 852..856,
+                                name: Some(
+                                    "tmp8",
+                                ),
+                                ty: TypeId(
+                                    15,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 834..880,
+                                name: Some(
+                                    "tmp9",
+                                ),
+                                ty: TypeId(
+                                    2,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                        ],
+                        blocks: [
+                            BasicBlock {
+                                is_cleanup: false,
+                                stmts: [
+                                    Statement {
+                                        span: 852..856,
+                                        kind: Assign {
+                                            target: l1,
+                                            value: Use(
+                                                Local(
+                                                    l0,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 865..866,
+                                        kind: Assign {
+                                            target: l3,
+                                            value: Use(
+                                                Const(
+                                                    Int,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 865..866,
+                                        kind: Assign {
+                                            target: l2,
+                                            value: Use(
+                                                Local(
+                                                    l3,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 875..876,
+                                        kind: Assign {
+                                            target: l5,
+                                            value: Use(
+                                                Const(
+                                                    Int,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 875..876,
+                                        kind: Assign {
+                                            target: l4,
+                                            value: Use(
+                                                Local(
+                                                    l5,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 852..856,
+                                        kind: Assign {
+                                            target: l9,
+                                            value: TupleGet {
+                                                tuple: Local(
+                                                    l1,
+                                                ),
+                                                index: 0,
+                                            },
+                                        },
+                                    },
+                                    Statement {
+                                        span: 852..856,
+                                        kind: Assign {
+                                            target: l8,
+                                            value: MemberAccess {
+                                                site_id: None,
+                                                receiver: Local(
+                                                    l9,
+                                                ),
+                                                member: MemberAccessMetadata {
+                                                    name: "y",
+                                                    receiver_ty: TypeId(
+                                                        11,
+                                                    ),
+                                                    resolved: Some(
+                                                        Value {
+                                                            fqn: "mir_lowered.comptime_splice_class_with_update.Point.y",
+                                                        },
+                                                    ),
+                                                    hidden_effects: EffectRow {
+                                                        terms: [],
+                                                    },
+                                                },
+                                            },
+                                        },
+                                    },
+                                    Statement {
+                                        span: 847..878,
+                                        kind: Assign {
+                                            target: l7,
+                                            value: StructLit {
+                                                fields: [
+                                                    StructLitField {
+                                                        span: 865..866,
+                                                        name: "x",
+                                                        value: Local(
+                                                            l2,
+                                                        ),
+                                                    },
+                                                    StructLitField {
+                                                        span: 852..856,
+                                                        name: "y",
+                                                        value: Local(
+                                                            l8,
+                                                        ),
+                                                    },
+                                                ],
+                                                transport: AggregateTransportMetadata {
+                                                    aggregate_ty: TypeId(
+                                                        11,
+                                                    ),
+                                                    kind: Struct,
+                                                    fields: [
+                                                        AggregateTransportField {
+                                                            index: 0,
+                                                            name: Some(
+                                                                "x",
+                                                            ),
+                                                            ty: TypeId(
+                                                                5,
+                                                            ),
+                                                            transport: ValueTransportMetadata {
+                                                                source_ty: TypeId(
+                                                                    5,
+                                                                ),
+                                                                kind: Scalar,
+                                                                requirements: MirTransportRequirements {
+                                                                    trace: false,
+                                                                    copy: true,
+                                                                    drop: false,
+                                                                },
+                                                                boxing: None,
+                                                            },
+                                                        },
+                                                        AggregateTransportField {
+                                                            index: 1,
+                                                            name: Some(
+                                                                "y",
+                                                            ),
+                                                            ty: TypeId(
+                                                                5,
+                                                            ),
+                                                            transport: ValueTransportMetadata {
+                                                                source_ty: TypeId(
+                                                                    5,
+                                                                ),
+                                                                kind: Scalar,
+                                                                requirements: MirTransportRequirements {
+                                                                    trace: false,
+                                                                    copy: true,
+                                                                    drop: false,
+                                                                },
+                                                                boxing: None,
+                                                            },
+                                                        },
+                                                    ],
+                                                },
+                                            },
+                                        },
+                                    },
+                                    Statement {
+                                        span: 852..856,
+                                        kind: Assign {
+                                            target: l12,
+                                            value: TupleGet {
+                                                tuple: Local(
+                                                    l1,
+                                                ),
+                                                index: 1,
+                                            },
+                                        },
+                                    },
+                                    Statement {
+                                        span: 852..856,
+                                        kind: Assign {
+                                            target: l11,
+                                            value: TupleGet {
+                                                tuple: Local(
+                                                    l12,
+                                                ),
+                                                index: 1,
+                                            },
+                                        },
+                                    },
+                                    Statement {
+                                        span: 847..878,
+                                        kind: Assign {
+                                            target: l10,
+                                            value: MakeTuple {
+                                                elements: [
+                                                    Local(
+                                                        l4,
+                                                    ),
+                                                    Local(
+                                                        l11,
+                                                    ),
+                                                ],
+                                                transport: AggregateTransportMetadata {
+                                                    aggregate_ty: TypeId(
+                                                        15,
+                                                    ),
+                                                    kind: Tuple,
+                                                    fields: [
+                                                        AggregateTransportField {
+                                                            index: 0,
+                                                            name: None,
+                                                            ty: TypeId(
+                                                                5,
+                                                            ),
+                                                            transport: ValueTransportMetadata {
+                                                                source_ty: TypeId(
+                                                                    5,
+                                                                ),
+                                                                kind: Scalar,
+                                                                requirements: MirTransportRequirements {
+                                                                    trace: false,
+                                                                    copy: true,
+                                                                    drop: false,
+                                                                },
+                                                                boxing: None,
+                                                            },
+                                                        },
+                                                        AggregateTransportField {
+                                                            index: 1,
+                                                            name: None,
+                                                            ty: TypeId(
+                                                                0,
+                                                            ),
+                                                            transport: ValueTransportMetadata {
+                                                                source_ty: TypeId(
+                                                                    0,
+                                                                ),
+                                                                kind: Reference,
+                                                                requirements: MirTransportRequirements {
+                                                                    trace: true,
+                                                                    copy: true,
+                                                                    drop: true,
+                                                                },
+                                                                boxing: None,
+                                                            },
+                                                        },
+                                                    ],
+                                                },
+                                            },
+                                        },
+                                    },
+                                    Statement {
+                                        span: 847..878,
+                                        kind: Assign {
+                                            target: l6,
+                                            value: MakeTuple {
+                                                elements: [
+                                                    Local(
+                                                        l7,
+                                                    ),
+                                                    Local(
+                                                        l10,
+                                                    ),
+                                                ],
+                                                transport: AggregateTransportMetadata {
+                                                    aggregate_ty: TypeId(
+                                                        16,
+                                                    ),
+                                                    kind: Tuple,
+                                                    fields: [
+                                                        AggregateTransportField {
+                                                            index: 0,
+                                                            name: None,
+                                                            ty: TypeId(
+                                                                11,
+                                                            ),
+                                                            transport: ValueTransportMetadata {
+                                                                source_ty: TypeId(
+                                                                    11,
+                                                                ),
+                                                                kind: Struct,
+                                                                requirements: MirTransportRequirements {
+                                                                    trace: true,
+                                                                    copy: true,
+                                                                    drop: true,
+                                                                },
+                                                                boxing: None,
+                                                            },
+                                                        },
+                                                        AggregateTransportField {
+                                                            index: 1,
+                                                            name: None,
+                                                            ty: TypeId(
+                                                                15,
+                                                            ),
+                                                            transport: ValueTransportMetadata {
+                                                                source_ty: TypeId(
+                                                                    15,
+                                                                ),
+                                                                kind: Tuple,
+                                                                requirements: MirTransportRequirements {
+                                                                    trace: false,
+                                                                    copy: true,
+                                                                    drop: true,
+                                                                },
+                                                                boxing: None,
+                                                            },
+                                                        },
+                                                    ],
+                                                },
+                                            },
+                                        },
+                                    },
+                                ],
+                                terminator: Terminator {
+                                    span: 840..878,
+                                    kind: Return {
+                                        value: Some(
+                                            Local(
+                                                l6,
+                                            ),
+                                        ),
+                                    },
+                                    unwind: NoUnwind,
+                                },
+                            },
+                        ],
+                        start: bb0,
+                    },
+                ),
+            },
+        ),
+        Fun(
+            FunDecl {
+                span: 882..968,
+                fqn: "mir_lowered.comptime_splice_class_with_update.updateEnum",
+                name: "updateEnum",
+                ty: TypeId(
+                    19,
+                ),
+                params: [
+                    Param {
+                        span: 897..898,
+                        name: "r",
+                        ty: TypeId(
+                            18,
+                        ),
+                        local: l0,
+                    },
+                ],
+                return_ty: TypeId(
+                    18,
+                ),
+                body: Some(
+                    Body {
+                        locals: [
+                            LocalDecl {
+                                span: 897..898,
+                                name: Some(
+                                    "r",
+                                ),
+                                ty: TypeId(
+                                    18,
+                                ),
+                                source: SourceLocal,
+                            },
+                            LocalDecl {
+                                span: 931..935,
+                                name: Some(
+                                    "$with_base",
+                                ),
+                                ty: TypeId(
+                                    18,
+                                ),
+                                source: SourceLocal,
+                            },
+                            LocalDecl {
+                                span: 950..951,
+                                name: Some(
+                                    "__with_update_value_3",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: SourceLocal,
+                            },
+                            LocalDecl {
+                                span: 950..951,
+                                name: Some(
+                                    "tmp0",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 963..964,
+                                name: Some(
+                                    "__with_update_value_4",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: SourceLocal,
+                            },
+                            LocalDecl {
+                                span: 963..964,
+                                name: Some(
+                                    "tmp1",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 929..966,
+                                name: Some(
+                                    "tmp2",
+                                ),
+                                ty: TypeId(
+                                    18,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 929..966,
+                                name: Some(
+                                    "tmp3",
+                                ),
+                                ty: TypeId(
+                                    4,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 979..980,
+                                name: Some(
+                                    "__with_enum_field_5",
+                                ),
+                                ty: TypeId(
+                                    11,
+                                ),
+                                source: SourceLocal,
+                            },
+                            LocalDecl {
+                                span: 929..966,
+                                name: Some(
+                                    "tmp4",
+                                ),
+                                ty: TypeId(
+                                    18,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 929..966,
+                                name: Some(
+                                    "tmp5",
+                                ),
+                                ty: TypeId(
+                                    11,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 931..935,
+                                name: Some(
+                                    "tmp6",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 929..966,
+                                name: Some(
+                                    "tmp7",
+                                ),
+                                ty: TypeId(
+                                    4,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 981..982,
+                                name: Some(
+                                    "__with_enum_field_6",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: SourceLocal,
+                            },
+                            LocalDecl {
+                                span: 929..966,
+                                name: Some(
+                                    "tmp8",
+                                ),
+                                ty: TypeId(
+                                    18,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 916..968,
+                                name: Some(
+                                    "tmp9",
+                                ),
+                                ty: TypeId(
+                                    2,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                        ],
+                        blocks: [
+                            BasicBlock {
+                                is_cleanup: false,
+                                stmts: [
+                                    Statement {
+                                        span: 931..935,
+                                        kind: Assign {
+                                            target: l1,
+                                            value: Use(
+                                                Local(
+                                                    l0,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 950..951,
+                                        kind: Assign {
+                                            target: l3,
+                                            value: Use(
+                                                Const(
+                                                    Int,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 950..951,
+                                        kind: Assign {
+                                            target: l2,
+                                            value: Use(
+                                                Local(
+                                                    l3,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 963..964,
+                                        kind: Assign {
+                                            target: l5,
+                                            value: Use(
+                                                Const(
+                                                    Int,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 963..964,
+                                        kind: Assign {
+                                            target: l4,
+                                            value: Use(
+                                                Local(
+                                                    l5,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 931..935,
+                                        kind: Assign {
+                                            target: l7,
+                                            value: PatternMatch {
+                                                subject: Local(
+                                                    l1,
+                                                ),
+                                                pattern: Variant {
+                                                    name: "Ok",
+                                                    args: [
+                                                        Bind {
+                                                            name: "__with_enum_field_5",
+                                                            ty: TypeId(
+                                                                11,
+                                                            ),
+                                                        },
+                                                    ],
+                                                },
+                                            },
+                                        },
+                                    },
+                                ],
+                                terminator: Terminator {
+                                    span: 929..966,
+                                    kind: CondBr {
+                                        cond: Local(
+                                            l7,
+                                        ),
+                                        then_target: bb3,
+                                        else_target: bb2,
+                                    },
+                                    unwind: NoUnwind,
+                                },
+                            },
+                            BasicBlock {
+                                is_cleanup: false,
+                                stmts: [],
+                                terminator: Terminator {
+                                    span: 922..966,
+                                    kind: Return {
+                                        value: Some(
+                                            Local(
+                                                l6,
+                                            ),
+                                        ),
+                                    },
+                                    unwind: NoUnwind,
+                                },
+                            },
+                            BasicBlock {
+                                is_cleanup: false,
+                                stmts: [
+                                    Statement {
+                                        span: 931..935,
+                                        kind: Assign {
+                                            target: l12,
+                                            value: PatternMatch {
+                                                subject: Local(
+                                                    l1,
+                                                ),
+                                                pattern: Variant {
+                                                    name: "Err",
+                                                    args: [
+                                                        Bind {
+                                                            name: "__with_enum_field_6",
+                                                            ty: TypeId(
+                                                                5,
+                                                            ),
+                                                        },
+                                                    ],
+                                                },
+                                            },
+                                        },
+                                    },
+                                ],
+                                terminator: Terminator {
+                                    span: 929..966,
+                                    kind: CondBr {
+                                        cond: Local(
+                                            l12,
+                                        ),
+                                        then_target: bb5,
+                                        else_target: bb4,
+                                    },
+                                    unwind: NoUnwind,
+                                },
+                            },
+                            BasicBlock {
+                                is_cleanup: false,
+                                stmts: [
+                                    Statement {
+                                        span: 979..980,
+                                        kind: Assign {
+                                            target: l8,
+                                            value: PatternExtract {
+                                                subject: Local(
+                                                    l1,
+                                                ),
+                                                path: [
+                                                    VariantField {
+                                                        variant: "Ok",
+                                                        field_index: 0,
+                                                    },
+                                                ],
+                                            },
+                                        },
+                                    },
+                                    Statement {
+                                        span: 931..935,
+                                        kind: Assign {
+                                            target: l11,
+                                            value: MemberAccess {
+                                                site_id: None,
+                                                receiver: Local(
+                                                    l8,
+                                                ),
+                                                member: MemberAccessMetadata {
+                                                    name: "y",
+                                                    receiver_ty: TypeId(
+                                                        11,
+                                                    ),
+                                                    resolved: Some(
+                                                        Value {
+                                                            fqn: "mir_lowered.comptime_splice_class_with_update.Point.y",
+                                                        },
+                                                    ),
+                                                    hidden_effects: EffectRow {
+                                                        terms: [],
+                                                    },
+                                                },
+                                            },
+                                        },
+                                    },
+                                    Statement {
+                                        span: 929..966,
+                                        kind: Assign {
+                                            target: l10,
+                                            value: StructLit {
+                                                fields: [
+                                                    StructLitField {
+                                                        span: 950..951,
+                                                        name: "x",
+                                                        value: Local(
+                                                            l2,
+                                                        ),
+                                                    },
+                                                    StructLitField {
+                                                        span: 931..935,
+                                                        name: "y",
+                                                        value: Local(
+                                                            l11,
+                                                        ),
+                                                    },
+                                                ],
+                                                transport: AggregateTransportMetadata {
+                                                    aggregate_ty: TypeId(
+                                                        11,
+                                                    ),
+                                                    kind: Struct,
+                                                    fields: [
+                                                        AggregateTransportField {
+                                                            index: 0,
+                                                            name: Some(
+                                                                "x",
+                                                            ),
+                                                            ty: TypeId(
+                                                                5,
+                                                            ),
+                                                            transport: ValueTransportMetadata {
+                                                                source_ty: TypeId(
+                                                                    5,
+                                                                ),
+                                                                kind: Scalar,
+                                                                requirements: MirTransportRequirements {
+                                                                    trace: false,
+                                                                    copy: true,
+                                                                    drop: false,
+                                                                },
+                                                                boxing: None,
+                                                            },
+                                                        },
+                                                        AggregateTransportField {
+                                                            index: 1,
+                                                            name: Some(
+                                                                "y",
+                                                            ),
+                                                            ty: TypeId(
+                                                                5,
+                                                            ),
+                                                            transport: ValueTransportMetadata {
+                                                                source_ty: TypeId(
+                                                                    5,
+                                                                ),
+                                                                kind: Scalar,
+                                                                requirements: MirTransportRequirements {
+                                                                    trace: false,
+                                                                    copy: true,
+                                                                    drop: false,
+                                                                },
+                                                                boxing: None,
+                                                            },
+                                                        },
+                                                    ],
+                                                },
+                                            },
+                                        },
+                                    },
+                                    Statement {
+                                        span: 929..966,
+                                        kind: Assign {
+                                            target: l9,
+                                            value: EnumVariant {
+                                                enum_ty: TypeId(
+                                                    18,
+                                                ),
+                                                variant_name: "Ok",
+                                                args: [
+                                                    CallArg {
+                                                        span: 929..966,
+                                                        name: None,
+                                                        value: Local(
+                                                            l10,
+                                                        ),
+                                                    },
+                                                ],
+                                                payload: AggregateTransportMetadata {
+                                                    aggregate_ty: TypeId(
+                                                        18,
+                                                    ),
+                                                    kind: EnumPayload,
+                                                    fields: [
+                                                        AggregateTransportField {
+                                                            index: 0,
+                                                            name: None,
+                                                            ty: TypeId(
+                                                                11,
+                                                            ),
+                                                            transport: ValueTransportMetadata {
+                                                                source_ty: TypeId(
+                                                                    11,
+                                                                ),
+                                                                kind: Struct,
+                                                                requirements: MirTransportRequirements {
+                                                                    trace: true,
+                                                                    copy: true,
+                                                                    drop: true,
+                                                                },
+                                                                boxing: None,
+                                                            },
+                                                        },
+                                                    ],
+                                                },
+                                            },
+                                        },
+                                    },
+                                    Statement {
+                                        span: 929..966,
+                                        kind: Assign {
+                                            target: l6,
+                                            value: Use(
+                                                Local(
+                                                    l9,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                ],
+                                terminator: Terminator {
+                                    span: 929..966,
+                                    kind: Goto {
+                                        target: bb1,
+                                    },
+                                    unwind: NoUnwind,
+                                },
+                            },
+                            BasicBlock {
+                                is_cleanup: false,
+                                stmts: [],
+                                terminator: Terminator {
+                                    span: 929..966,
+                                    kind: Unreachable,
+                                    unwind: NoUnwind,
+                                },
+                            },
+                            BasicBlock {
+                                is_cleanup: false,
+                                stmts: [
+                                    Statement {
+                                        span: 981..982,
+                                        kind: Assign {
+                                            target: l13,
+                                            value: PatternExtract {
+                                                subject: Local(
+                                                    l1,
+                                                ),
+                                                path: [
+                                                    VariantField {
+                                                        variant: "Err",
+                                                        field_index: 0,
+                                                    },
+                                                ],
+                                            },
+                                        },
+                                    },
+                                    Statement {
+                                        span: 929..966,
+                                        kind: Assign {
+                                            target: l14,
+                                            value: EnumVariant {
+                                                enum_ty: TypeId(
+                                                    18,
+                                                ),
+                                                variant_name: "Err",
+                                                args: [
+                                                    CallArg {
+                                                        span: 963..964,
+                                                        name: None,
+                                                        value: Local(
+                                                            l4,
+                                                        ),
+                                                    },
+                                                ],
+                                                payload: AggregateTransportMetadata {
+                                                    aggregate_ty: TypeId(
+                                                        18,
+                                                    ),
+                                                    kind: EnumPayload,
+                                                    fields: [
+                                                        AggregateTransportField {
+                                                            index: 0,
+                                                            name: None,
+                                                            ty: TypeId(
+                                                                5,
+                                                            ),
+                                                            transport: ValueTransportMetadata {
+                                                                source_ty: TypeId(
+                                                                    5,
+                                                                ),
+                                                                kind: Scalar,
+                                                                requirements: MirTransportRequirements {
+                                                                    trace: false,
+                                                                    copy: true,
+                                                                    drop: false,
+                                                                },
+                                                                boxing: None,
+                                                            },
+                                                        },
+                                                    ],
+                                                },
+                                            },
+                                        },
+                                    },
+                                    Statement {
+                                        span: 929..966,
+                                        kind: Assign {
+                                            target: l6,
+                                            value: Use(
+                                                Local(
+                                                    l14,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                ],
+                                terminator: Terminator {
+                                    span: 929..966,
+                                    kind: Goto {
+                                        target: bb1,
+                                    },
+                                    unwind: NoUnwind,
+                                },
+                            },
+                        ],
+                        start: bb0,
+                    },
+                ),
+            },
+        ),
+    ],
+}

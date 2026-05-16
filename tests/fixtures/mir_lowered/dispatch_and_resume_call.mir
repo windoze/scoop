@@ -1,0 +1,192 @@
+File {
+    items: [
+        Metadata(
+            Nominal(
+                NominalMetadata {
+                    span: 43..78,
+                    fqn: "fixtures.mir.Boom",
+                    name: "Boom",
+                    kind: Effect,
+                    type_params: [],
+                    supertypes: [],
+                    interfaces: [],
+                    constructors: [],
+                    members: [Fun(MemberFunMetadata { span: 61..76, fqn: "fixtures.mir.Boom.next", name: "next", type_params: [], params: [], return_ty: Int })],
+                },
+            ),
+        ),
+        Metadata(
+            Nominal(
+                NominalMetadata {
+                    span: 80..151,
+                    fqn: "fixtures.mir.Base",
+                    name: "Base",
+                    kind: Class,
+                    type_params: [],
+                    supertypes: [],
+                    interfaces: [],
+                    constructors: [CtorMetadata { span: 95..97, kind: Primary, params: [], delegation: None }],
+                    members: [Fun(MemberFunMetadata { span: 104..149, fqn: "fixtures.mir.Base.ping", name: "ping", type_params: [], params: [], return_ty: Int })],
+                },
+            ),
+        ),
+        Metadata(
+            Nominal(
+                NominalMetadata {
+                    span: 153..191,
+                    fqn: "fixtures.mir.IFace",
+                    name: "IFace",
+                    kind: Interface,
+                    type_params: [],
+                    supertypes: [],
+                    interfaces: [],
+                    constructors: [],
+                    members: [Fun(MemberFunMetadata { span: 175..189, fqn: "fixtures.mir.IFace.foo", name: "foo", type_params: [], params: [], return_ty: Int })],
+                },
+            ),
+        ),
+        Fun(
+            FunDecl {
+                span: 193..246,
+                fqn: "fixtures.mir.callVirtual",
+                name: "callVirtual",
+                ty: (fixtures.mir.Base) -> Int / Pure,
+                params: [Param { span: 209..210, name: "b", ty: fixtures.mir.Base, local: local#hedc3ae728ac116403c0236b4883dcea4 }],
+                return_ty: Int,
+                body: Some(
+                    Body {
+                        locals: [LocalDecl { label: local#hedc3ae728ac116403c0236b4883dcea4, span: 209..210, name: Some("b"), ty: fixtures.mir.Base, source: SourceLocal }, LocalDecl { label: local#h7eddd628c4bd1b42884389a006398b6e, span: 236..244, name: Some("tmp0"), ty: Int, source: CompilerTemporary }, LocalDecl { label: local#h66e75150598f03f62d98d82c6c4099b2, span: 223..246, name: Some("tmp1"), ty: Unit, source: CompilerTemporary }],
+                        blocks: [
+                            BasicBlock {
+                                label: bb#h3772c147751c78489a4740fb4e9d75c5,
+                                is_cleanup: false,
+                                stmts: [Statement { span: 236..244, kind: Assign { target: local#h7eddd628c4bd1b42884389a006398b6e, value: Call { site_id: site#hb4a157a26fd7cff5da86cc1e5f4395d5, kind: Virtual { receiver: Local(local#hedc3ae728ac116403c0236b4883dcea4), dispatch: DispatchMetadata { owner_fqn: "fixtures.mir.Base", member_name: "ping", member_fqn: "fixtures.mir.Base.ping", member_decl_span: Some(113..117), receiver_ty: fixtures.mir.Base } }, args: [], transport: CallTransportMetadata { result: ValueTransportMetadata { source_ty: Int, kind: Scalar, requirements: MirTransportRequirements { trace: false, copy: true, drop: false }, boxing: None }, aggregate_return: None, array: None, gc: None, thread_resume_payload: None, abi: CallAbiHandoffMetadata { callable_abi_kind: DeferredToEffectFacts, resolved_outward_cases: [], impl_plan: DeferredToEffectFacts, adapter_required: false } } } } }],
+                                terminator: Terminator { span: 229..244, kind: Return { value: Some(Local(local#h7eddd628c4bd1b42884389a006398b6e)) }, unwind: NoUnwind },
+                            },
+                        ],
+                        start: bb#h3772c147751c78489a4740fb4e9d75c5,
+                    }
+                ),
+            },
+        ),
+        Fun(
+            FunDecl {
+                span: 248..303,
+                fqn: "fixtures.mir.callInterface",
+                name: "callInterface",
+                ty: (fixtures.mir.IFace) -> Int / Pure,
+                params: [Param { span: 266..267, name: "i", ty: fixtures.mir.IFace, local: local#hc95ad77fa417bb7cc95bf2a83e0a4329 }],
+                return_ty: Int,
+                body: Some(
+                    Body {
+                        locals: [LocalDecl { label: local#hc95ad77fa417bb7cc95bf2a83e0a4329, span: 266..267, name: Some("i"), ty: fixtures.mir.IFace, source: SourceLocal }, LocalDecl { label: local#hb54246f30f4df41a70919329db74894b, span: 294..301, name: Some("tmp0"), ty: Int, source: CompilerTemporary }, LocalDecl { label: local#hc71755b72c0452354e964a972581c7cd, span: 281..303, name: Some("tmp1"), ty: Unit, source: CompilerTemporary }],
+                        blocks: [
+                            BasicBlock {
+                                label: bb#h62c159584b0f3f457d1564bb65a3bd97,
+                                is_cleanup: false,
+                                stmts: [Statement { span: 294..301, kind: Assign { target: local#hb54246f30f4df41a70919329db74894b, value: Call { site_id: site#had4d9246bdf5c30b3864af4bc21bf5a4, kind: Interface { receiver: Local(local#hc95ad77fa417bb7cc95bf2a83e0a4329), dispatch: DispatchMetadata { owner_fqn: "fixtures.mir.IFace", member_name: "foo", member_fqn: "fixtures.mir.IFace.foo", member_decl_span: Some(179..182), receiver_ty: fixtures.mir.IFace } }, args: [], transport: CallTransportMetadata { result: ValueTransportMetadata { source_ty: Int, kind: Scalar, requirements: MirTransportRequirements { trace: false, copy: true, drop: false }, boxing: None }, aggregate_return: None, array: None, gc: None, thread_resume_payload: None, abi: CallAbiHandoffMetadata { callable_abi_kind: DeferredToEffectFacts, resolved_outward_cases: [], impl_plan: DeferredToEffectFacts, adapter_required: false } } } } }],
+                                terminator: Terminator { span: 287..301, kind: Return { value: Some(Local(local#hb54246f30f4df41a70919329db74894b)) }, unwind: NoUnwind },
+                            },
+                        ],
+                        start: bb#h62c159584b0f3f457d1564bb65a3bd97,
+                    }
+                ),
+            },
+        ),
+        Fun(
+            FunDecl {
+                span: 305..405,
+                fqn: "fixtures.mir.resumeOnce",
+                name: "resumeOnce",
+                ty: (scoop.core.Continuation<Int, Unit, eff Pure>) -> Unit / scoop.core.Raise<scoop.core.RuntimeError>,
+                params: [Param { span: 320..321, name: "k", ty: scoop.core.Continuation<Int, Unit, eff Pure>, local: local#h07edf254a96f7c6efb5c7582547a0ce9 }],
+                return_ty: Unit,
+                body: Some(
+                    Body {
+                        locals: [LocalDecl { label: local#h07edf254a96f7c6efb5c7582547a0ce9, span: 320..321, name: Some("k"), ty: scoop.core.Continuation<Int, Unit, eff Pure>, source: SourceLocal }, LocalDecl { label: local#h57e684cc97a205da5caee70970cd4805, span: 392..403, name: Some("tmp0"), ty: Unit, source: CompilerTemporary }, LocalDecl { label: local#hafdb5c742be5970194b8f40119744a48, span: 401..402, name: Some("tmp1"), ty: Int, source: CompilerTemporary }],
+                        blocks: [
+                            BasicBlock {
+                                label: bb#h9c365f7d142dd2e168bca85c60ee8b99,
+                                is_cleanup: false,
+                                stmts: [Statement { span: 401..402, kind: Assign { target: local#hafdb5c742be5970194b8f40119744a48, value: Use(Const(Int)) } }, Statement { span: 392..403, kind: Assign { target: local#h57e684cc97a205da5caee70970cd4805, value: Call { site_id: site#h72cdfe55b2024d7aa5db81cd5895f89a, kind: Resume { continuation: Local(local#h07edf254a96f7c6efb5c7582547a0ce9), resume: ResumeMetadata { continuation_ty: scoop.core.Continuation<Int, Unit, eff Pure>, resume_ty: Int, answer_ty: Unit, return_ty: Unit, out_effects: Pure, runtime_error_effect_ty: Some(scoop.core.Raise<scoop.core.RuntimeError>), suspends_outward: false } }, args: [CallArg { span: 401..402, name: None, value: Local(local#hafdb5c742be5970194b8f40119744a48) }], transport: CallTransportMetadata { result: ValueTransportMetadata { source_ty: Unit, kind: Scalar, requirements: MirTransportRequirements { trace: false, copy: true, drop: false }, boxing: None }, aggregate_return: None, array: None, gc: None, thread_resume_payload: None, abi: CallAbiHandoffMetadata { callable_abi_kind: DeferredToEffectFacts, resolved_outward_cases: [], impl_plan: DeferredToEffectFacts, adapter_required: false } } } } }],
+                                terminator: Terminator { span: 305..405, kind: Return { value: None }, unwind: NoUnwind },
+                            },
+                        ],
+                        start: bb#h9c365f7d142dd2e168bca85c60ee8b99,
+                    }
+                ),
+            },
+        ),
+        Fun(
+            FunDecl {
+                span: 407..516,
+                fqn: "fixtures.mir.resumeBoom",
+                name: "resumeBoom",
+                ty: (scoop.core.Continuation<Int, Unit, eff fixtures.mir.Boom>) -> Unit / (scoop.core.Raise<scoop.core.RuntimeError> + fixtures.mir.Boom),
+                params: [Param { span: 422..423, name: "k", ty: scoop.core.Continuation<Int, Unit, eff fixtures.mir.Boom>, local: local#h107a93b795a7f31dbdae5e939cea548b }],
+                return_ty: Unit,
+                body: Some(
+                    Body {
+                        locals: [LocalDecl { label: local#h107a93b795a7f31dbdae5e939cea548b, span: 422..423, name: Some("k"), ty: scoop.core.Continuation<Int, Unit, eff fixtures.mir.Boom>, source: SourceLocal }, LocalDecl { label: local#h25743b5806ab9bac1f7804d125bf7115, span: 503..514, name: Some("tmp0"), ty: Unit, source: CompilerTemporary }, LocalDecl { label: local#h9cc6e494bf1d39cf5239630494c6fbff, span: 512..513, name: Some("tmp1"), ty: Int, source: CompilerTemporary }],
+                        blocks: [
+                            BasicBlock {
+                                label: bb#hc96e86a1dc1b77623d4378fcc780502e,
+                                is_cleanup: false,
+                                stmts: [Statement { span: 512..513, kind: Assign { target: local#h9cc6e494bf1d39cf5239630494c6fbff, value: Use(Const(Int)) } }, Statement { span: 503..514, kind: Assign { target: local#h25743b5806ab9bac1f7804d125bf7115, value: Call { site_id: site#ha93381b3967578211f2906e61a910bfc, kind: Resume { continuation: Local(local#h107a93b795a7f31dbdae5e939cea548b), resume: ResumeMetadata { continuation_ty: scoop.core.Continuation<Int, Unit, eff fixtures.mir.Boom>, resume_ty: Int, answer_ty: Unit, return_ty: Unit, out_effects: fixtures.mir.Boom, runtime_error_effect_ty: Some(scoop.core.Raise<scoop.core.RuntimeError>), suspends_outward: true } }, args: [CallArg { span: 512..513, name: None, value: Local(local#h9cc6e494bf1d39cf5239630494c6fbff) }], transport: CallTransportMetadata { result: ValueTransportMetadata { source_ty: Unit, kind: Scalar, requirements: MirTransportRequirements { trace: false, copy: true, drop: false }, boxing: None }, aggregate_return: None, array: None, gc: None, thread_resume_payload: None, abi: CallAbiHandoffMetadata { callable_abi_kind: DeferredToEffectFacts, resolved_outward_cases: [], impl_plan: DeferredToEffectFacts, adapter_required: false } } } } }],
+                                terminator: Terminator { span: 407..516, kind: Return { value: None }, unwind: NoUnwind },
+                            },
+                        ],
+                        start: bb#hc96e86a1dc1b77623d4378fcc780502e,
+                    }
+                ),
+            },
+        ),
+        Fun(
+            FunDecl {
+                span: 61..76,
+                fqn: "fixtures.mir.Boom.next",
+                name: "next",
+                ty: (fixtures.mir.Boom) -> Int / Pure,
+                params: [Param { span: 50..54, name: "this", ty: fixtures.mir.Boom }],
+                return_ty: Int,
+                body: None,
+            },
+        ),
+        Fun(
+            FunDecl {
+                span: 104..149,
+                fqn: "fixtures.mir.Base.ping",
+                name: "ping",
+                ty: (fixtures.mir.Base) -> Int / Pure,
+                params: [Param { span: 91..95, name: "this", ty: fixtures.mir.Base, local: local#h0ba637828a8536badfde052ed7d8d226 }],
+                return_ty: Int,
+                body: Some(
+                    Body {
+                        locals: [LocalDecl { label: local#h0ba637828a8536badfde052ed7d8d226, span: 91..95, name: Some("this"), ty: fixtures.mir.Base, source: SourceLocal }, LocalDecl { label: local#h878d8da534420c6dca8c6c5b3e89720e, span: 142..143, name: Some("tmp0"), ty: Int, source: CompilerTemporary }, LocalDecl { label: local#h9b1d148a4e5bdae4017e584bc5434fbf, span: 125..149, name: Some("tmp1"), ty: Unit, source: CompilerTemporary }],
+                        blocks: [
+                            BasicBlock {
+                                label: bb#h0a714e81f72919106fcf428be4dc5cf3,
+                                is_cleanup: false,
+                                stmts: [Statement { span: 142..143, kind: Assign { target: local#h878d8da534420c6dca8c6c5b3e89720e, value: Use(Const(Int)) } }],
+                                terminator: Terminator { span: 135..143, kind: Return { value: Some(Local(local#h878d8da534420c6dca8c6c5b3e89720e)) }, unwind: NoUnwind },
+                            },
+                        ],
+                        start: bb#h0a714e81f72919106fcf428be4dc5cf3,
+                    }
+                ),
+            },
+        ),
+        Fun(
+            FunDecl {
+                span: 175..189,
+                fqn: "fixtures.mir.IFace.foo",
+                name: "foo",
+                ty: (fixtures.mir.IFace) -> Int / Pure,
+                params: [Param { span: 163..168, name: "this", ty: fixtures.mir.IFace }],
+                return_ty: Int,
+                body: None,
+            },
+        ),
+    ],
+}
+

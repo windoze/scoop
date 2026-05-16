@@ -1,6 +1,6 @@
 //! 统一 pipeline 的顶层 stage API。
 //!
-//! P8 起，legacy/refactor selector 与并行 dispatcher 已删除；本模块只暴露当前唯一
+//! P8 起，legacy/selector 与并行 dispatcher 已删除；本模块只暴露当前唯一
 //! 生效的 production stage 入口，不再承载任何双主线分发语义。
 
 mod ast_stage;

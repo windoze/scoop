@@ -1,4 +1,4 @@
-//! refactor 主线的 effect-facts 子系统。
+//! effect-facts 子系统。
 //!
 //! P4 起，authoritative effect contract 必须集中在这套 side table 中，而不是继续散落在
 //! legacy `effect/analysis`、`ProgramFacts` 或 `mir::summary::InstanceSummary` 里。
@@ -56,13 +56,13 @@ pub enum EffectFactsError {
     #[error(transparent)]
     ItableLayout(#[from] crate::itable::ItableLayoutError),
 
-    #[error("refactor effect-facts stage requires a canonical materialized MIR snapshot from P3")]
+    #[error("effect-facts stage requires a canonical materialized MIR snapshot from P3")]
     MissingMaterializedMirSnapshot,
 
-    #[error("refactor effect-facts stage frontend setup failed: {message}")]
+    #[error("effect-facts stage frontend setup failed: {message}")]
     Frontend { message: String },
 
-    #[error("refactor effect-facts stage 找不到 callable root `{fqn}` 的 MIR 声明头")]
+    #[error("effect-facts stage 找不到 callable root `{fqn}` 的 MIR 声明头")]
     MissingCallableRoot { fqn: String },
 
     #[error("effect row 中出现了无法作为 canonical effect identity 的项：{ty}")]

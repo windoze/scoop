@@ -1,0 +1,53 @@
+File {
+    items: [
+        Fun(
+            FunDecl {
+                span: 36..125,
+                fqn: "a.main",
+                name: "main",
+                ty: () -> Int / Pure,
+                params: [],
+                return_ty: Int,
+                body: Some(
+                    Body {
+                        locals: [LocalDecl { label: local#he618b11a85749dc8dc7fb3328b5d2894, span: 51..123, name: Some("tmp0"), ty: Int, source: CompilerTemporary }, LocalDecl { label: local#h7b400c4194d18bf927f0bf6b284a929a, span: 112..113, name: Some("e"), ty: Int, source: SourceLocal }, LocalDecl { label: local#hcaef621bd24378fa5e0fc270b6582dde, span: 76..77, name: Some("tmp1"), ty: Int, source: CompilerTemporary }, LocalDecl { label: local#hdbf9f60b954d6a4ded37f37f7dc56624, span: 64..78, name: Some("tmp2"), ty: Nothing, source: CompilerTemporary }, LocalDecl { label: local#h46e05d052e97b0af519d1df6321d7edf, span: 83..84, name: Some("tmp3"), ty: Int, source: CompilerTemporary }, LocalDecl { label: local#hdf880912dbc60fbbc8b469c06c36d723, span: 118..119, name: Some("tmp4"), ty: Int, source: CompilerTemporary }],
+                        blocks: [
+                            BasicBlock {
+                                label: bb#hc29dfec02493b16a4cc6f1bc979d5ac6,
+                                is_cleanup: false,
+                                stmts: [],
+                                terminator: Terminator { span: 51..123, kind: Handle { site_id: site#h2233e50e666678b3ee3ec4fe96c0895c, metadata: HandleMetadata { result_ty: Int, body_result_ty: Int, finally_result_ty: None }, arms: [HandlerArm { op_fqn: "scoop.core.Raise.raise", op_type_args: [], binder_count: 1, binder_locals: [local#h7b400c4194d18bf927f0bf6b284a929a], continuation_local: None, handled_effect_ty: scoop.core.Raise<Int>, payload_tuple_ty: Some(Int), payload_component_tys: [Int], body_ty: Int, kind: NonResuming }], has_finally: false, body_target: bb#hc72be33720210562a0d77182b11ba28d, arm_targets: [bb#hdece5c432fd5a70b75872eda74508bf8], finally_target: None, exit_target: bb#h12153b95561962726986b9a4ba35bb54 }, unwind: NoUnwind },
+                            },
+                            BasicBlock {
+                                label: bb#hc72be33720210562a0d77182b11ba28d,
+                                is_cleanup: false,
+                                stmts: [Statement { span: 76..77, kind: Assign { target: local#hcaef621bd24378fa5e0fc270b6582dde, value: Use(Const(Int)) } }, Statement { span: 64..78, kind: Assign { target: local#hdbf9f60b954d6a4ded37f37f7dc56624, value: PerformResult { op_fqn: "scoop.core.Raise.raise", effect_ty: scoop.core.Raise<Int> } } }],
+                                terminator: Terminator { span: 64..78, kind: Perform { site_id: site#he15b43c7f645a2e31bfc24bf582dc0e0, op_fqn: "scoop.core.Raise.raise", metadata: PerformMetadata { effect_ty: scoop.core.Raise<Int>, op_type_args: [], result_ty: Nothing, payload_tuple_ty: Some(Int), payload_component_tys: [Int], payload_transport: [ValueTransportMetadata { source_ty: Int, kind: EffectPayload, requirements: MirTransportRequirements { trace: false, copy: true, drop: false }, boxing: None }], arg_mapping: [0] }, args: [PerformArg { span: 76..77, source_arg_index: 0, name: None, value: Local(local#hcaef621bd24378fa5e0fc270b6582dde) }], resume_target: bb#hfce44e992c6d1564350fdd46e9db09b4 }, unwind: Propagate },
+                            },
+                            BasicBlock {
+                                label: bb#hdece5c432fd5a70b75872eda74508bf8,
+                                is_cleanup: false,
+                                stmts: [Statement { span: 118..119, kind: Assign { target: local#hdf880912dbc60fbbc8b469c06c36d723, value: Use(Const(Int)) } }, Statement { span: 100..119, kind: Assign { target: local#he618b11a85749dc8dc7fb3328b5d2894, value: Use(Local(local#hdf880912dbc60fbbc8b469c06c36d723)) } }],
+                                terminator: Terminator { span: 100..119, kind: Goto { target: bb#h12153b95561962726986b9a4ba35bb54 }, unwind: NoUnwind },
+                            },
+                            BasicBlock {
+                                label: bb#h12153b95561962726986b9a4ba35bb54,
+                                is_cleanup: false,
+                                stmts: [],
+                                terminator: Terminator { span: 36..125, kind: Return { value: Some(Local(local#he618b11a85749dc8dc7fb3328b5d2894)) }, unwind: NoUnwind },
+                            },
+                            BasicBlock {
+                                label: bb#hfce44e992c6d1564350fdd46e9db09b4,
+                                is_cleanup: false,
+                                stmts: [Statement { span: 83..84, kind: Assign { target: local#h46e05d052e97b0af519d1df6321d7edf, value: Use(Const(Int)) } }, Statement { span: 58..88, kind: Assign { target: local#he618b11a85749dc8dc7fb3328b5d2894, value: Use(Local(local#h46e05d052e97b0af519d1df6321d7edf)) } }],
+                                terminator: Terminator { span: 58..88, kind: Goto { target: bb#h12153b95561962726986b9a4ba35bb54 }, unwind: NoUnwind },
+                            },
+                        ],
+                        start: bb#hc29dfec02493b16a4cc6f1bc979d5ac6,
+                    }
+                ),
+            },
+        ),
+    ],
+}
+

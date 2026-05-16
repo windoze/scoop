@@ -1190,14 +1190,14 @@ mod tests {
     use crate::session::{Session, SessionOptions};
     use crate::source::SourceFile;
 
-    fn refactor_session() -> Session {
+    fn session() -> Session {
         Session::with_options(SessionOptions::new()).unwrap()
     }
 
     fn load_output(source: &SourceFile) -> crate::pipeline::EffectLoweredStageOutput {
-        let session = refactor_session();
+        let session = session();
         load_effect_lowered_stage_output_for_dump(&session, source)
-            .expect("fixture 应可通过 refactor late-lowering stage")
+            .expect("fixture 应可通过 late-lowering stage")
     }
 
     fn callable<'a>(
@@ -1211,7 +1211,7 @@ mod tests {
     }
 
     #[test]
-    fn refactor_frame_lifting_lifts_locals_temporaries_resume_slots_and_system_fields() {
+    fn frame_lifting_lifts_locals_temporaries_resume_slots_and_system_fields() {
         let output = load_output(&SourceFile::new_virtual(
             "<mem>/effect_lowered_expr_context.scoop",
             r#"
@@ -1320,7 +1320,7 @@ fun main(): Int {
     }
 
     #[test]
-    fn refactor_frame_lifting_uses_stable_mir_local_source_metadata() {
+    fn frame_lifting_uses_stable_mir_local_source_metadata() {
         let output = load_output(&SourceFile::new_virtual(
             "<mem>/effect_lowered_tmp_named_source_local.scoop",
             r#"
@@ -1418,7 +1418,7 @@ fun main(): Int {
     }
 
     #[test]
-    fn refactor_frame_lifting_marks_handle_binders_that_cross_nested_boundaries() {
+    fn frame_lifting_marks_handle_binders_that_cross_nested_boundaries() {
         let output = load_output(&SourceFile::new_virtual(
             "<mem>/effect_lowered_handle_binder.scoop",
             r#"
@@ -1466,7 +1466,7 @@ fun main(): Int {
     }
 
     #[test]
-    fn refactor_frame_lifting_captures_locals_used_by_routed_handle_arm() {
+    fn frame_lifting_captures_locals_used_by_routed_handle_arm() {
         let output = load_output(&SourceFile::new_virtual(
             "<mem>/effect_lowered_nested_arm_replay_capture.scoop",
             r#"
@@ -1536,7 +1536,7 @@ fun main() {}
     }
 
     #[test]
-    fn refactor_frame_lifting_marks_phi_like_join_values_that_cross_later_boundaries() {
+    fn frame_lifting_marks_phi_like_join_values_that_cross_later_boundaries() {
         let output = load_output(&SourceFile::new_virtual(
             "<mem>/effect_lowered_join_value.scoop",
             r#"

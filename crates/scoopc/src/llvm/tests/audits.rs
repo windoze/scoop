@@ -70,7 +70,7 @@ pub(super) fn stable_id_symbol_looks_like_closure_dynamic_entry_family(name: &st
 }
 
 pub(super) fn stable_id_symbol_looks_like_effect_helper_family(name: &str) -> bool {
-    name.contains("refactor_") || name.contains("__outcome") || name.contains("__k")
+    name.contains("lowered_") || name.contains("__outcome") || name.contains("__k")
 }
 
 pub(super) fn stable_id_symbol_looks_like_hidden_init_family(name: &str) -> bool {
@@ -100,7 +100,7 @@ pub(super) fn stable_id_symbol_has_private_role(name: &str, role: &str) -> bool 
 }
 
 pub(super) fn stable_id_type_name_has_hashed_family(name: &str, family: &str) -> bool {
-    name.starts_with(&format!("scoop.refactor.{family}__h"))
+    name.starts_with(&format!("scoop.lowered.{family}__h"))
         && stable_id_symbol_has_hash128_suffix(name)
 }
 
@@ -787,11 +787,11 @@ fun main(): Int {
         llvm_function_header_uses_internal_or_private_linkage(header)
             && stable_id_symbol_has_private_role(
                 llvm_function_symbol_name(function),
-                "refactor_direct_invoke",
+                "lowered_direct_invoke",
             )
     });
     let entry_step_ty = llvm_function_return_named_struct_type(entry_ir)
-        .expect("expected hashed refactor Step return type for source-level entry impl");
+        .expect("expected hashed Step return type for source-level entry impl");
     assert!(
         llvm_function_header_uses_internal_or_private_linkage(
             entry_ir.lines().next().expect("expected entry header"),

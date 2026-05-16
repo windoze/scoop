@@ -5,9 +5,9 @@
 use super::*;
 
 #[test]
-pub(super) fn refactor_llvm_layout_binds_pure_direct_entries_without_hir_typestore_fallback() {
+pub(super) fn llvm_layout_binds_pure_direct_entries_without_hir_typestore_fallback() {
     with_fixture_query(
-        "effect_refactor_dynamic_entry_publication_emit_llvm.scoop",
+        "effect_lowered_dynamic_entry_publication_emit_llvm.scoop",
         |inputs, query, module| {
             let lambda_root = inputs
                 .abi_visibility_program
@@ -47,9 +47,9 @@ pub(super) fn refactor_llvm_layout_binds_pure_direct_entries_without_hir_typesto
 }
 
 #[test]
-pub(super) fn refactor_llvm_layout_resolves_unit_case_payload_contract() {
+pub(super) fn llvm_layout_resolves_unit_case_payload_contract() {
     with_fixture_query(
-        "effect_refactor_dynamic_invoke_unit_payload.scoop",
+        "effect_lowered_dynamic_invoke_unit_payload.scoop",
         |inputs, query, _module| {
             let callable = inputs
                 .effect_lowered_stage_output
@@ -72,7 +72,7 @@ pub(super) fn refactor_llvm_layout_resolves_unit_case_payload_contract() {
 
             assert_eq!(
                 case_payload_layout.kind(),
-                RefactorSourceAbiLayoutKind::Scalar
+                SourceAbiLayoutKind::Scalar
             );
             assert!(case_payload_layout.abi().is_elided());
             assert!(case_payload_layout.fields().is_empty());
@@ -85,7 +85,7 @@ pub(super) fn refactor_llvm_layout_resolves_unit_case_payload_contract() {
 }
 
 #[test]
-pub(super) fn refactor_llvm_layout_resolves_tuple_resume_payload_and_answer_contract() {
+pub(super) fn llvm_layout_resolves_tuple_resume_payload_and_answer_contract() {
     with_phase_fixture_query_result(
         "run-pass",
         "continuation_resume_surface_named_tuple_and_unit_basic.scoop",
@@ -118,7 +118,7 @@ pub(super) fn refactor_llvm_layout_resolves_tuple_resume_payload_and_answer_cont
 
             assert_eq!(
                 resume_payload_layout.kind(),
-                RefactorSourceAbiLayoutKind::Tuple
+                SourceAbiLayoutKind::Tuple
             );
             assert_eq!(resume_payload_layout.fields().len(), 2);
             assert_eq!(resume_payload_layout.abi_field_count(), 2);
@@ -128,15 +128,15 @@ pub(super) fn refactor_llvm_layout_resolves_tuple_resume_payload_and_answer_cont
             assert_eq!(resume_payload_layout.fields()[1].abi_field_index(), Some(1));
             assert!(!resume_payload_layout.fields()[0].is_elided());
             assert!(!resume_payload_layout.fields()[1].is_elided());
-            assert_eq!(answer_layout.kind(), RefactorSourceAbiLayoutKind::Scalar);
+            assert_eq!(answer_layout.kind(), SourceAbiLayoutKind::Scalar);
             assert!(answer_layout.abi().is_elided());
         },
     );
 }
 
 #[test]
-pub(super) fn refactor_llvm_layout_rejects_unlowerable_invoke_args_type() {
-    let inputs = build_fixture_inputs("effect_refactor_step_enum_single_case.scoop");
+pub(super) fn llvm_layout_rejects_unlowerable_invoke_args_type() {
+    let inputs = build_fixture_inputs("effect_lowered_step_enum_single_case.scoop");
     let mut source_types = inputs.effect_lowered_stage_output.types().clone();
     let param_ty = source_types.ty_param(TypeParamType {
         name: "SyntheticInvokeArgs".to_string(),
@@ -199,9 +199,9 @@ pub(super) fn refactor_llvm_layout_rejects_unlowerable_invoke_args_type() {
 }
 
 #[test]
-pub(super) fn refactor_llvm_unit_abi_elides_zero_sized_args_and_resume_payloads() {
+pub(super) fn llvm_unit_abi_elides_zero_sized_args_and_resume_payloads() {
     with_fixture_query_result(
-        "effect_refactor_dynamic_invoke_unit_payload.scoop",
+        "effect_lowered_dynamic_invoke_unit_payload.scoop",
         unit_worker_program_with_ping_interface,
         |inputs, result, module| {
             let query = result.expect("published unit resume packing 应可物化 ABI");

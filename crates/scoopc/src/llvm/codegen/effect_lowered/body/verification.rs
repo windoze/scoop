@@ -2,7 +2,7 @@
 
 use super::*;
 
-impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
+impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
     pub(super) fn verify_body_contract(&self) -> Result<(), LlvmEmitError> {
         self.verify_state_graph_contract()?;
         self.verify_frame_contract()?;
@@ -13,7 +13,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
     pub(super) fn verify_state_graph_contract(&self) -> Result<(), LlvmEmitError> {
         if self.callable.state_graph().states().is_empty() {
             return Err(frontend_error(format!(
-                "refactor body verifier 发现 callable `{}` 没有 state graph body",
+                "body verifier 发现 callable `{}` 没有 state graph body",
                 self.callable.root_fqn()
             )));
         }
@@ -30,7 +30,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         for state in self.callable.state_graph().states() {
             if !seen_states.insert(state.state_id()) {
                 return Err(frontend_error(format!(
-                    "refactor body verifier 发现 callable `{}` 重复发布 state st{}",
+                    "body verifier 发现 callable `{}` 重复发布 state st{}",
                     self.callable.root_fqn(),
                     state.state_id().as_u32()
                 )));
@@ -56,7 +56,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                 .get(slice.block_id().as_u32() as usize)
                 .ok_or_else(|| {
                     frontend_error(format!(
-                        "refactor body verifier 发现 callable `{}` state st{} source slice 指向缺失 block bb{}",
+                        "body verifier 发现 callable `{}` state st{} source slice 指向缺失 block bb{}",
                         self.callable.root_fqn(),
                         state.state_id().as_u32(),
                         slice.block_id().as_u32()
@@ -66,7 +66,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                 || slice.end_statement_index() as usize > block.stmts.len()
             {
                 return Err(frontend_error(format!(
-                    "refactor body verifier 发现 callable `{}` state st{} source slice [{}..{}) 越界于 bb{}（stmt_count={}）",
+                    "body verifier 发现 callable `{}` state st{} source slice [{}..{}) 越界于 bb{}（stmt_count={}）",
                     self.callable.root_fqn(),
                     state.state_id().as_u32(),
                     slice.start_statement_index(),
@@ -81,7 +81,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                     .source_statement_classification(*slice, stmt_index)
                     .ok_or_else(|| {
                         frontend_error(format!(
-                            "refactor body verifier 发现 callable `{}` state st{} source-slice bb{} stmt{} 缺少 classification",
+                            "body verifier 发现 callable `{}` state st{} source-slice bb{} stmt{} 缺少 classification",
                             self.callable.root_fqn(),
                             state.state_id().as_u32(),
                             slice.block_id().as_u32(),
@@ -103,7 +103,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             | LateLoweredSourceStatementClassificationKind::ElidedUnreachable => Ok(()),
             LateLoweredSourceStatementClassificationKind::Unsupported { reason } => {
                 Err(frontend_error(format!(
-                    "refactor body verifier 发现 source statement classified unsupported: {reason}；unsupported classification 必须在 late-lowered handoff 前被拒绝或改写为 explicit elide/skip contract"
+                    "body verifier 发现 source statement classified unsupported: {reason}；unsupported classification 必须在 late-lowered handoff 前被拒绝或改写为 explicit elide/skip contract"
                 )))
             }
             LateLoweredSourceStatementClassificationKind::BoundaryConsumedAnchor {
@@ -124,7 +124,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                     .resume_payload_binding(boundary_id)
                     .ok_or_else(|| {
                         frontend_error(format!(
-                            "refactor body verifier 发现 boundary bd{} resume payload classification 缺少 frame binding",
+                            "body verifier 发现 boundary bd{} resume payload classification 缺少 frame binding",
                             boundary_id.as_u32()
                         ))
                     })?;
@@ -132,7 +132,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                     || binding.consumer_local() != consumer_local
                 {
                     return Err(frontend_error(format!(
-                        "refactor body verifier 发现 boundary bd{} resume payload classification 与 frame binding 漂移",
+                        "body verifier 发现 boundary bd{} resume payload classification 与 frame binding 漂移",
                         boundary_id.as_u32()
                     )));
                 }
@@ -195,7 +195,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                     )
                 {
                     return Err(frontend_error(format!(
-                        "refactor body verifier 发现 callable `{}` abi schema s{} return state st{} completion payload source 漂移：terminator={:?} binding={:?}",
+                        "body verifier 发现 callable `{}` abi schema s{} return state st{} completion payload source 漂移：terminator={:?} binding={:?}",
                         self.callable.root_fqn(),
                         self.abi_step_schema.as_u32(),
                         state.state_id().as_u32(),
@@ -217,7 +217,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                     let boundary = self.verify_boundary_exists(*boundary_id, "suspend boundary")?;
                     if boundary.owner_state() != state.state_id() {
                         return Err(frontend_error(format!(
-                            "refactor body verifier 发现 suspend state st{} 引用 boundary bd{}，但 boundary owner 是 st{}",
+                            "body verifier 发现 suspend state st{} 引用 boundary bd{}，但 boundary owner 是 st{}",
                             state.state_id().as_u32(),
                             boundary.boundary_id().as_u32(),
                             boundary.owner_state().as_u32()
@@ -225,7 +225,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                     }
                     if boundary.resume_state() != *resume_state {
                         return Err(frontend_error(format!(
-                            "refactor body verifier 发现 suspend state st{} boundary bd{} resume state 漂移：terminator=st{} boundary=st{}",
+                            "body verifier 发现 suspend state st{} boundary bd{} resume state 漂移：terminator=st{} boundary=st{}",
                             state.state_id().as_u32(),
                             boundary.boundary_id().as_u32(),
                             resume_state.as_u32(),
@@ -284,7 +284,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                 )?;
                 if runtime.target_state != state.state_id() {
                     return Err(frontend_error(format!(
-                        "refactor body verifier 发现 LocalRuntimeError st{} target contract 漂移为 st{}",
+                        "body verifier 发现 LocalRuntimeError st{} target contract 漂移为 st{}",
                         state.state_id().as_u32(),
                         runtime.target_state.as_u32()
                     )));
@@ -343,7 +343,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                 Some(_) => primary_count += 1,
                 None => {
                     return Err(frontend_error(format!(
-                        "refactor suspend state st{} boundary bd{} 缺少 published lowering",
+                        "suspend state st{} boundary bd{} 缺少 published lowering",
                         state.state_id().as_u32(),
                         boundary_id.as_u32()
                     )));
@@ -352,7 +352,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         }
         if primary_count > 1 || (primary_count == 0 && runtime_count > 1) {
             return Err(frontend_error(format!(
-                "refactor suspend state st{} 发布了多义 primary boundary：non_runtime={} runtime_error={}，backend 不能用 find() 静默选择",
+                "suspend state st{} 发布了多义 primary boundary：non_runtime={} runtime_error={}，backend 不能用 find() 静默选择",
                 state.state_id().as_u32(),
                 primary_count,
                 runtime_count
@@ -367,14 +367,14 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
     ) -> Result<(), LlvmEmitError> {
         if state.role() != LateLoweredStateRole::Cleanup || !state.successors().is_empty() {
             return Err(frontend_error(format!(
-                "refactor ResumeUnwind state st{} 不是 terminal cleanup state，缺少 published unwind payload / cleanup continuation contract",
+                "ResumeUnwind state st{} 不是 terminal cleanup state，缺少 published unwind payload / cleanup continuation contract",
                 state.state_id().as_u32()
             )));
         }
         self.verify_resume_unwind_source(state)?;
         let origin = self.resume_unwind_cleanup_origin(state.state_id()).ok_or_else(|| {
             frontend_error(format!(
-                "refactor ResumeUnwind state st{} 未由 Suspend cleanup_state 的 published cleanup continuation route 到达，不能作为普通 CFG placeholder",
+                "ResumeUnwind state st{} 未由 Suspend cleanup_state 的 published cleanup continuation route 到达，不能作为普通 CFG placeholder",
                 state.state_id().as_u32()
             ))
         })?;
@@ -387,7 +387,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
     ) -> Result<(), LlvmEmitError> {
         if state.source_slices().is_empty() {
             return Err(frontend_error(format!(
-                "refactor ResumeUnwind state st{} 缺少 canonical MIR cleanup source slice",
+                "ResumeUnwind state st{} 缺少 canonical MIR cleanup source slice",
                 state.state_id().as_u32()
             )));
         }
@@ -398,21 +398,21 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                 .get(slice.block_id().as_u32() as usize)
                 .ok_or_else(|| {
                     frontend_error(format!(
-                        "refactor ResumeUnwind state st{} source slice 指向缺失 block bb{}",
+                        "ResumeUnwind state st{} source slice 指向缺失 block bb{}",
                         state.state_id().as_u32(),
                         slice.block_id().as_u32()
                     ))
                 })?;
             if !block.is_cleanup || !slice.includes_terminator() {
                 return Err(frontend_error(format!(
-                    "refactor ResumeUnwind state st{} source slice bb{} 未发布 cleanup terminator contract",
+                    "ResumeUnwind state st{} source slice bb{} 未发布 cleanup terminator contract",
                     state.state_id().as_u32(),
                     slice.block_id().as_u32()
                 )));
             }
             if !matches!(block.terminator.kind, mir::TerminatorKind::ResumeUnwind) {
                 return Err(frontend_error(format!(
-                    "refactor ResumeUnwind state st{} source slice bb{} terminator 不是 canonical MIR ResumeUnwind",
+                    "ResumeUnwind state st{} source slice bb{} terminator 不是 canonical MIR ResumeUnwind",
                     state.state_id().as_u32(),
                     slice.block_id().as_u32()
                 )));
@@ -424,7 +424,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
     pub(super) fn resume_unwind_cleanup_origin(
         &self,
         resume_unwind_state: StateId,
-    ) -> Option<RefactorResumeUnwindOrigin<'_>> {
+    ) -> Option<ResumeUnwindOrigin<'_>> {
         let mut found = None;
         for state in self.callable.state_graph().states() {
             let LateLoweredStateTerminator::Suspend {
@@ -439,7 +439,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             if !self.cleanup_route_reaches_resume_unwind(*cleanup_state, resume_unwind_state) {
                 continue;
             }
-            let origin = RefactorResumeUnwindOrigin {
+            let origin = ResumeUnwindOrigin {
                 suspend_state: state.state_id(),
                 cleanup_state: *cleanup_state,
                 resume_state: *resume_state,
@@ -483,12 +483,12 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
     pub(super) fn verify_resume_unwind_handle_contract(
         &self,
         state_id: StateId,
-        origin: RefactorResumeUnwindOrigin<'_>,
+        origin: ResumeUnwindOrigin<'_>,
     ) -> Result<(), LlvmEmitError> {
         self.verify_state_exists(origin.cleanup_state, "ResumeUnwind cleanup route start")?;
         if origin.boundary_ids.is_empty() {
             return Err(frontend_error(format!(
-                "refactor ResumeUnwind state st{} 的 cleanup continuation 来自 st{}，但 Suspend 缺少 boundary ids",
+                "ResumeUnwind state st{} 的 cleanup continuation 来自 st{}，但 Suspend 缺少 boundary ids",
                 state_id.as_u32(),
                 origin.suspend_state.as_u32()
             )));
@@ -499,7 +499,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                 || boundary.resume_state() != origin.resume_state
             {
                 return Err(frontend_error(format!(
-                    "refactor ResumeUnwind state st{} boundary bd{} 的 origin/resume-state contract 漂移：origin=st{} resume=st{} boundary_owner=st{} boundary_resume=st{}",
+                    "ResumeUnwind state st{} boundary bd{} 的 origin/resume-state contract 漂移：origin=st{} resume=st{} boundary_owner=st{} boundary_resume=st{}",
                     state_id.as_u32(),
                     boundary_id.as_u32(),
                     origin.suspend_state.as_u32(),
@@ -534,7 +534,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                 .completion_tag_value(LateLoweredHandlePendingCompletion::ContinueToExit)
                 .ok_or_else(|| {
                     frontend_error(format!(
-                        "refactor ResumeUnwind state st{} HandleDispatch site{} 缺少 ContinueToExit completion tag",
+                        "ResumeUnwind state st{} HandleDispatch site{} 缺少 ContinueToExit completion tag",
                         state_id.as_u32(),
                         site_id.as_u32()
                     ))
@@ -543,7 +543,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                 .completion_tag_value(LateLoweredHandlePendingCompletion::ReturnFromFunction)
                 .ok_or_else(|| {
                     frontend_error(format!(
-                        "refactor ResumeUnwind state st{} HandleDispatch site{} 缺少 ReturnFromFunction completion tag",
+                        "ResumeUnwind state st{} HandleDispatch site{} 缺少 ReturnFromFunction completion tag",
                         state_id.as_u32(),
                         site_id.as_u32()
                     ))
@@ -554,7 +554,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                         .pending_payload_transport_layout(transport.completion())
                         .ok_or_else(|| {
                             frontend_error(format!(
-                                "refactor ResumeUnwind state st{} HandleDispatch site{} pending payload transport {:?} 缺少 ABI layout",
+                                "ResumeUnwind state st{} HandleDispatch site{} pending payload transport {:?} 缺少 ABI layout",
                                 state_id.as_u32(),
                                 site_id.as_u32(),
                                 transport.completion()
@@ -563,7 +563,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                 }
                 let _ = layout.pending_completion_origin_tag_value(*origin).ok_or_else(|| {
                     frontend_error(format!(
-                        "refactor ResumeUnwind state st{} HandleDispatch site{} pending origin {:?} 缺少 completion tag",
+                        "ResumeUnwind state st{} HandleDispatch site{} pending origin {:?} 缺少 completion tag",
                         state_id.as_u32(),
                         site_id.as_u32(),
                         origin
@@ -579,7 +579,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                 Some((matched_depth, _)) if depth < matched_depth => {}
                 Some(_) => {
                     return Err(frontend_error(format!(
-                        "refactor ResumeUnwind state st{} 命中多个同层 HandleDispatch cleanup/unwind contract",
+                        "ResumeUnwind state st{} 命中多个同层 HandleDispatch cleanup/unwind contract",
                         state_id.as_u32()
                     )));
                 }
@@ -588,7 +588,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
 
         matched_handle.map(|_| ()).ok_or_else(|| {
             frontend_error(format!(
-                "refactor ResumeUnwind state st{} 缺少 enclosing HandleDispatch pending completion contract",
+                "ResumeUnwind state st{} 缺少 enclosing HandleDispatch pending completion contract",
                 state_id.as_u32()
             ))
         })
@@ -603,7 +603,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             || !state.source_slices().is_empty()
         {
             return Err(frontend_error(format!(
-                "refactor Abandon state st{} 只能作为 published drop_state 的空 Drop state 终止，不能作为普通 CFG fallback",
+                "Abandon state st{} 只能作为 published drop_state 的空 Drop state 终止，不能作为普通 CFG fallback",
                 state.state_id().as_u32()
             )));
         }
@@ -613,7 +613,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
     pub(super) fn verify_frame_contract(&self) -> Result<(), LlvmEmitError> {
         if self.frame_layout.step_schema() != self.abi_step_schema {
             return Err(frontend_error(format!(
-                "refactor body verifier 发现 frame layout step schema 漂移：layout=s{} abi=s{}",
+                "body verifier 发现 frame layout step schema 漂移：layout=s{} abi=s{}",
                 self.frame_layout.step_schema().as_u32(),
                 self.abi_step_schema.as_u32()
             )));
@@ -625,7 +625,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                 .is_none()
             {
                 return Err(frontend_error(format!(
-                    "refactor body verifier 发现 frame slot fs{} 缺少 ABI field layout",
+                    "body verifier 发现 frame slot fs{} 缺少 ABI field layout",
                     slot.slot_id().as_u32()
                 )));
             }
@@ -649,7 +649,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                 && self.frame_layout.field_index_for_slot(frame_slot).is_none()
             {
                 return Err(frontend_error(format!(
-                    "refactor body verifier 发现 resume payload binding bd{} 的 frame slot fs{} 缺少 ABI field layout",
+                    "body verifier 发现 resume payload binding bd{} 的 frame slot fs{} 缺少 ABI field layout",
                     binding.boundary_id().as_u32(),
                     frame_slot.as_u32()
                 )));
@@ -669,7 +669,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                     .state(binding.return_state())
                     .ok_or_else(|| {
                         frontend_error(format!(
-                            "refactor body verifier 发现 completion payload binding return state st{} 不存在",
+                            "body verifier 发现 completion payload binding return state st{} 不存在",
                             binding.return_state().as_u32()
                         ))
                     })?;
@@ -679,7 +679,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                     binding.payload_source(),
                 ) {
                     return Err(frontend_error(format!(
-                        "refactor body verifier 发现 callable `{}` return state st{} completion payload binding 与 ABI contract 漂移：published={:?} binding={:?}",
+                        "body verifier 发现 callable `{}` return state st{} completion payload binding 与 ABI contract 漂移：published={:?} binding={:?}",
                         self.callable.root_fqn(),
                         binding.return_state().as_u32(),
                         published.binding(),
@@ -698,7 +698,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         for boundary in self.callable.boundary_map().entries() {
             if !seen_boundaries.insert(boundary.boundary_id()) {
                 return Err(frontend_error(format!(
-                    "refactor body verifier 发现 callable `{}` 重复发布 boundary bd{}",
+                    "body verifier 发现 callable `{}` 重复发布 boundary bd{}",
                     self.callable.root_fqn(),
                     boundary.boundary_id().as_u32()
                 )));
@@ -707,7 +707,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             self.verify_state_exists(boundary.resume_state(), "boundary resume state")?;
             let lowering = boundary.lowering().ok_or_else(|| {
                 frontend_error(format!(
-                    "refactor body verifier 发现 boundary bd{} 缺少 published lowering",
+                    "body verifier 发现 boundary bd{} 缺少 published lowering",
                     boundary.boundary_id().as_u32()
                 ))
             })?;
@@ -778,7 +778,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                         .surface_resume_layout(lowering.facts().continuation_schema())
                         .ok_or_else(|| {
                             frontend_error(format!(
-                                "refactor body verifier 缺少 continuation schema k{} 的 surface resume ABI",
+                                "body verifier 缺少 continuation schema k{} 的 surface resume ABI",
                                 lowering.facts().continuation_schema().as_u32()
                             ))
                         })?;
@@ -824,7 +824,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                     .source_statement_classification(source_slice, statement_index)
                     .ok_or_else(|| {
                         frontend_error(format!(
-                            "refactor body verifier 发现 boundary bd{} statement anchor bb{} stmt{} 缺少 classification",
+                            "body verifier 发现 boundary bd{} statement anchor bb{} stmt{} 缺少 classification",
                             boundary.boundary_id().as_u32(),
                             source_slice.block_id().as_u32(),
                             statement_index
@@ -835,7 +835,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                         boundary_id,
                     } if boundary_id == boundary.boundary_id() => Ok(()),
                     other => Err(frontend_error(format!(
-                        "refactor body verifier 发现 boundary bd{} statement anchor classification 漂移：{:?}",
+                        "body verifier 发现 boundary bd{} statement anchor classification 漂移：{:?}",
                         boundary.boundary_id().as_u32(),
                         other
                     ))),
@@ -844,7 +844,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             LateLoweredBoundarySourceConsumption::Terminator { source_slice } => {
                 if !source_slice.includes_terminator() {
                     return Err(frontend_error(format!(
-                        "refactor body verifier 发现 boundary bd{} terminator anchor 所在 source slice 没有包含 terminator",
+                        "body verifier 发现 boundary bd{} terminator anchor 所在 source slice 没有包含 terminator",
                         boundary.boundary_id().as_u32()
                     )));
                 }
@@ -860,7 +860,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
     ) -> Result<(), LlvmEmitError> {
         self.step_layout.case_layout(case_tag).ok_or_else(|| {
             frontend_error(format!(
-                "refactor body verifier 发现 step schema s{} 缺少 case c{} layout",
+                "body verifier 发现 step schema s{} 缺少 case c{} layout",
                 self.abi_step_schema.as_u32(),
                 case_tag.as_u32()
             ))
@@ -903,7 +903,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             Ok(())
         } else {
             Err(frontend_error(format!(
-                "refactor body verifier 发现 {label} 引用缺失 state st{}",
+                "body verifier 发现 {label} 引用缺失 state st{}",
                 state_id.as_u32()
             )))
         }
@@ -919,7 +919,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             .boundary(boundary_id)
             .ok_or_else(|| {
                 frontend_error(format!(
-                    "refactor body verifier 发现 {label} 引用缺失 boundary bd{}",
+                    "body verifier 发现 {label} 引用缺失 boundary bd{}",
                     boundary_id.as_u32()
                 ))
             })
@@ -934,7 +934,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             Ok(())
         } else {
             Err(frontend_error(format!(
-                "refactor body verifier 发现 {label} 引用缺失 local l{}",
+                "body verifier 发现 {label} 引用缺失 local l{}",
                 local.as_u32()
             )))
         }
@@ -950,7 +950,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         }
         self.abi.source_value_layout(ty).map(|_| ()).map_err(|err| {
             frontend_error(format!(
-                "refactor body verifier 发现 {label} t{} 缺少 ABI value lowering contract：{err}",
+                "body verifier 发现 {label} t{} 缺少 ABI value lowering contract：{err}",
                 ty.as_u32()
             ))
         })

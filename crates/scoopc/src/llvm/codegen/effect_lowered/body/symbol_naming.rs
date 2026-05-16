@@ -1,4 +1,4 @@
-//! Stable symbol names for refactor surface-resume / continuation-driver
+//! Stable symbol names for surface-resume / continuation-driver
 //! / continuation-step entry points.
 //!
 //! Each helper takes a published surface-resume or owner-trampoline layout
@@ -8,56 +8,56 @@
 
 use super::*;
 
-pub(super) fn refactor_surface_resume_outcome_symbol_name<'ctx>(
-    surface: &RefactorContinuationSurfaceResumeLayout<'ctx>,
+pub(super) fn surface_resume_outcome_symbol_name<'ctx>(
+    surface: &ContinuationSurfaceResumeLayout<'ctx>,
 ) -> String {
     stable_naming::private_name_from_key_text(
-        "refactor_surface_resume__outcome",
+        "surface_resume__outcome",
         surface.stable_continuation_key_text(),
     )
 }
 
-pub(super) fn refactor_surface_resume_owner_outcome_symbol_name<'ctx>(
-    target: &super::super::types::RefactorContinuationSurfaceResumeOwnerTrampolineLayout<'ctx>,
+pub(super) fn surface_resume_owner_outcome_symbol_name<'ctx>(
+    target: &super::super::types::ContinuationSurfaceResumeOwnerTrampolineLayout<'ctx>,
 ) -> String {
     stable_naming::private_name_from_key_text(
-        "refactor_surface_resume_owner__outcome",
+        "surface_resume_owner__outcome",
         target.stable_owner_dispatch_key_text(),
     )
 }
 
-pub(super) fn refactor_surface_resume_owner_core_symbol_name<'ctx>(
-    target: &super::super::types::RefactorContinuationSurfaceResumeOwnerTrampolineLayout<'ctx>,
+pub(super) fn surface_resume_owner_core_symbol_name<'ctx>(
+    target: &super::super::types::ContinuationSurfaceResumeOwnerTrampolineLayout<'ctx>,
 ) -> String {
     stable_naming::private_name_from_key_text(
-        "refactor_surface_resume_owner__core",
+        "surface_resume_owner__core",
         target.stable_owner_dispatch_key_text(),
     )
 }
 
-pub(super) fn refactor_continuation_drive_outcome_symbol_name<'ctx>(
-    surface: &RefactorContinuationSurfaceResumeLayout<'ctx>,
+pub(super) fn continuation_drive_outcome_symbol_name<'ctx>(
+    surface: &ContinuationSurfaceResumeLayout<'ctx>,
 ) -> String {
     stable_naming::private_name_from_key_text(
-        "refactor_continuation_drive__outcome",
+        "continuation_drive__outcome",
         surface.stable_continuation_key_text(),
     )
 }
 
-pub(super) fn refactor_continuation_drive_owner_outcome_symbol_name<'ctx>(
-    target: &super::super::types::RefactorContinuationSurfaceResumeOwnerTrampolineLayout<'ctx>,
+pub(super) fn continuation_drive_owner_outcome_symbol_name<'ctx>(
+    target: &super::super::types::ContinuationSurfaceResumeOwnerTrampolineLayout<'ctx>,
 ) -> String {
     stable_naming::private_name_from_key_text(
-        "refactor_continuation_drive_owner__outcome",
+        "continuation_drive_owner__outcome",
         target.stable_owner_dispatch_key_text(),
     )
 }
 
-pub(super) fn refactor_continuation_step_symbol_name<'ctx>(
-    target: &super::super::types::RefactorContinuationSurfaceResumeOwnerTrampolineLayout<'ctx>,
+pub(super) fn continuation_step_symbol_name<'ctx>(
+    target: &super::super::types::ContinuationSurfaceResumeOwnerTrampolineLayout<'ctx>,
 ) -> String {
     stable_naming::private_name_from_key_text(
-        "refactor_continuation__step",
+        "continuation__step",
         target.stable_owner_dispatch_key_text(),
     )
 }

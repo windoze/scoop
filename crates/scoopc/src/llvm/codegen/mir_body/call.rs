@@ -19,7 +19,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         match kind {
             crate::mir::CallKind::Direct { callee_fqn } => {
                 if self.class_inits.contains_key(callee_fqn) {
-                    return self.codegen_mir_class_ctor_call(span, callee_fqn, args, slots);
+                    return self.codegen_mir_class_ctor_call_at_site(
+                        span, callee_fqn, args, slots,
+                    );
                 }
                 self.codegen_mir_direct_call(
                     span, callee_fqn, args, body, mir_types, transport, slots,
@@ -119,7 +121,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let dispatch_fqn = mir_direct_call_base_fqn(&concrete_fqn);
         if require_plain_surface && uses_effect_step_surface {
             return Err(frontend_error(format!(
-                "refactor plain direct call `{}` 仍要求 effect-step callable surface；应走 published boundary/dynamic adapter，而不是 ordinary direct call",
+                "plain direct call `{}` 仍要求 effect-step callable surface；应走 published boundary/dynamic adapter，而不是 ordinary direct call",
                 concrete_fqn,
             )));
         }
@@ -481,7 +483,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
     }
 
-    pub(in crate::llvm::codegen) fn codegen_mir_class_ctor_call(
+    pub(in crate::llvm::codegen) fn codegen_mir_class_ctor_call_at_site(
         &mut self,
         span: crate::span::Span,
         class_layout_key: &str,
@@ -495,7 +497,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 kind: "pass MIR class ctor call site",
                 at: span.into(),
             })?;
-        self.codegen_mir_refactor_class_ctor_call(
+        self.codegen_mir_class_ctor_call(
             span,
             class_layout_key,
             &crate::mir::ClassCtorCallMetadata {
@@ -844,7 +846,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
     }
 
-    pub(in crate::llvm::codegen) fn codegen_mir_refactor_plain_dynamic_call(
+    pub(in crate::llvm::codegen) fn codegen_mir_plain_dynamic_call(
         &mut self,
         span: crate::span::Span,
         kind: &crate::mir::CallKind,
@@ -874,7 +876,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 let fun_ty = self
                     .mir_operand_function_type(body, mir_types, callee)
                     .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "refactor plain closure callee type",
+                        kind: "plain closure callee type",
                         at: span.into(),
                     })?;
                 if !fun_ty.effects.is_pure() {
@@ -890,13 +892,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         Some(false) => {}
                         Some(true) => {
                             return Err(LlvmEmitError::UnsupportedMainBody {
-                                kind: "refactor plain closure call target may outward-effect",
+                                kind: "plain closure call target may outward-effect",
                                 at: span.into(),
                             });
                         }
                         None => {
                             return Err(LlvmEmitError::UnsupportedMainBody {
-                                kind: "refactor plain closure call effect-typed surface requires adapter",
+                                kind: "plain closure call effect-typed surface requires adapter",
                                 at: span.into(),
                             });
                         }
@@ -908,7 +910,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 let fun_ty = self
                     .mir_operand_function_type(body, mir_types, callee)
                     .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "refactor plain function-value callee type",
+                        kind: "plain function-value callee type",
                         at: span.into(),
                     })?;
                 if !fun_ty.effects.is_pure() {
@@ -919,13 +921,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         Some(false) => {}
                         Some(true) => {
                             return Err(LlvmEmitError::UnsupportedMainBody {
-                                kind: "refactor plain function-value call target may outward-effect",
+                                kind: "plain function-value call target may outward-effect",
                                 at: span.into(),
                             });
                         }
                         None => {
                             return Err(LlvmEmitError::UnsupportedMainBody {
-                                kind: "refactor plain function-value call effect-typed surface requires adapter",
+                                kind: "plain function-value call effect-typed surface requires adapter",
                                 at: span.into(),
                             });
                         }
@@ -937,12 +939,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 let fun_ty = self
                     .mir_operand_funptr_function_type(body, mir_types, callee)
                     .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "refactor plain FunPtr callee type",
+                        kind: "plain FunPtr callee type",
                         at: span.into(),
                     })?;
                 if !fun_ty.effects.is_pure() {
                     return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "refactor plain FunPtr call effect-typed surface requires adapter",
+                        kind: "plain FunPtr call effect-typed surface requires adapter",
                         at: span.into(),
                     });
                 }
@@ -980,7 +982,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
             crate::mir::CallKind::Direct { .. } | crate::mir::CallKind::Resume { .. } => {
                 Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "refactor plain dynamic call kind",
+                    kind: "plain dynamic call kind",
                     at: span.into(),
                 })
             }
@@ -1000,7 +1002,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let callee_value = self.coerce_value(span, callee_value, CgTy::Ref)?;
         let Some(BasicValueEnum::PointerValue(closure_obj_i8)) = callee_value.value else {
             return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "refactor plain function-value callee value",
+                kind: "plain function-value callee value",
                 at: span.into(),
             });
         };
@@ -1023,12 +1025,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         let deferred_callee = self.defer_gc_ref_pointer(
             span,
-            "refactor_plain_function_value_callee",
+            "plain_function_value_callee",
             closure_obj_i8,
         )?;
         let closure_obj_i8 = self.reload_deferred_gc_ref_without_clearing(
             span,
-            "refactor_plain_function_value_callee_reload",
+            "plain_function_value_callee_reload",
             &deferred_callee,
         )?;
         self.codegen_mir_function_value_call_from_closure_obj(

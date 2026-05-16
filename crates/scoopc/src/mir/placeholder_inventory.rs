@@ -1,4 +1,4 @@
-//! Executable inventory for refactor MIR placeholders.
+//! Executable inventory for MIR placeholders.
 //!
 //! The inventory freezes every placeholder that can currently reach direct-style MIR or be
 //! forwarded by generic MIR materialization. Follow-up MIR closure tasks must update this table
@@ -31,7 +31,7 @@ struct InventoryEntry {
     pipeline_gap: &'static str,
     disposition: PlaceholderDisposition,
     owner_task: &'static str,
-    must_eliminate_from_refactor_production: bool,
+    must_eliminate_from_production: bool,
     handling_strategy: &'static str,
 }
 
@@ -41,7 +41,7 @@ const fn entry(
     pipeline_gap: &'static str,
     disposition: PlaceholderDisposition,
     owner_task: &'static str,
-    must_eliminate_from_refactor_production: bool,
+    must_eliminate_from_production: bool,
     handling_strategy: &'static str,
 ) -> InventoryEntry {
     InventoryEntry {
@@ -50,7 +50,7 @@ const fn entry(
         pipeline_gap,
         disposition,
         owner_task,
-        must_eliminate_from_refactor_production,
+        must_eliminate_from_production,
         handling_strategy,
     }
 }
@@ -61,7 +61,7 @@ const ALL_DISPOSITIONS: &[PlaceholderDisposition] = &[
     PlaceholderDisposition::Reject,
 ];
 
-const REFACTOR_MIR_PLACEHOLDER_INVENTORY: &[InventoryEntry] = &[
+const MIR_PLACEHOLDER_INVENTORY: &[InventoryEntry] = &[
     entry(
         PlaceholderSurface::Terminator,
         "unterminated",
@@ -108,25 +108,25 @@ impl PlaceholderKey {
 }
 
 #[test]
-fn refactor_mir_placeholder_inventory() {
+fn mir_placeholder_inventory() {
     assert_inventory_entries_are_actionable();
     assert_pipeline_has_no_placeholder_constructors();
 
-    let expected = REFACTOR_MIR_PLACEHOLDER_INVENTORY
+    let expected = MIR_PLACEHOLDER_INVENTORY
         .iter()
         .map(|entry| PlaceholderKey::new(entry.surface, entry.reason))
         .collect::<BTreeSet<_>>();
-    let observed = scan_refactor_mir_placeholder_surfaces();
+    let observed = scan_mir_placeholder_surfaces();
 
     assert_eq!(
         observed, expected,
-        "MIR placeholder surfaces changed; update the refactor MIR inventory and ownership map first"
+        "MIR placeholder surfaces changed; update the MIR inventory and ownership map first"
     );
 }
 
 fn assert_inventory_entries_are_actionable() {
     let mut seen = BTreeSet::new();
-    for entry in REFACTOR_MIR_PLACEHOLDER_INVENTORY {
+    for entry in MIR_PLACEHOLDER_INVENTORY {
         let key = PlaceholderKey::new(entry.surface, entry.reason);
         assert!(seen.insert(key), "duplicate inventory entry: {entry:?}");
         assert!(
@@ -148,18 +148,18 @@ fn assert_inventory_entries_are_actionable() {
     }
 
     for reason in REQUIRED_KNOWN_MIR_REASONS {
-        let entry = REFACTOR_MIR_PLACEHOLDER_INVENTORY
+        let entry = MIR_PLACEHOLDER_INVENTORY
             .iter()
             .find(|entry| entry.reason == *reason)
             .unwrap_or_else(|| panic!("required MIR placeholder reason is missing: {reason}"));
         assert!(
-            entry.must_eliminate_from_refactor_production,
-            "{reason} must be marked for refactor production elimination"
+            entry.must_eliminate_from_production,
+            "{reason} must be marked for production elimination"
         );
     }
 }
 
-fn scan_refactor_mir_placeholder_surfaces() -> BTreeSet<PlaceholderKey> {
+fn scan_mir_placeholder_surfaces() -> BTreeSet<PlaceholderKey> {
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let mut observed = BTreeSet::new();
 
@@ -291,7 +291,7 @@ fn assert_pipeline_has_no_placeholder_constructors() {
 
     assert!(
         observed.is_empty(),
-        "effect refactor pipeline should not construct MIR placeholders directly: {observed:?}"
+        "effect pipeline should not construct MIR placeholders directly: {observed:?}"
     );
 }
 

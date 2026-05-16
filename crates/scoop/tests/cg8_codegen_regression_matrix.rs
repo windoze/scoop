@@ -11,8 +11,8 @@ struct MatrixCase {
 const MATRIX: &[MatrixCase] = &[
     MatrixCase {
         owner: "CG-T01",
-        fixture: "tests/fixtures/build/effect_refactor_direct_handle_resume_emit_llvm.scoop",
-        coverage: "effect/control body reroute and refactor LLVM gate",
+        fixture: "tests/fixtures/build/effect_lowered_direct_handle_resume_emit_llvm.scoop",
+        coverage: "effect/control body reroute and LLVM gate",
     },
     MatrixCase {
         owner: "CG-T02",

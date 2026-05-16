@@ -107,7 +107,7 @@ fun handled(): Int {
         let absolute = fixture.canonicalize().unwrap();
         let rendered = super::render_dump_output(fixture, SessionOptions::new()).unwrap();
 
-        assert!(rendered.contains("fixtures.mir_refactor.body_completes"));
+        assert!(rendered.contains("fixtures.mir_lowered.body_completes"));
         assert!(!rendered.contains(&absolute.display().to_string()));
     }
 }

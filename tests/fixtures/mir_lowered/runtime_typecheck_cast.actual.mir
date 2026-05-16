@@ -1,0 +1,193 @@
+File {
+    items: [
+        Metadata(
+            Nominal(
+                NominalMetadata {
+                    span: 172..211,
+                    fqn: "mir_lowered.runtime_typecheck_cast.IFace",
+                    name: "IFace",
+                    kind: Interface,
+                    type_params: [],
+                    supertypes: [],
+                    interfaces: [],
+                    constructors: [],
+                    members: [Fun(MemberFunMetadata { span: 194..209, fqn: "mir_lowered.runtime_typecheck_cast.IFace.ping", name: "ping", type_params: [], params: [], return_ty: Int })],
+                },
+            ),
+        ),
+        Metadata(
+            Nominal(
+                NominalMetadata {
+                    span: 213..230,
+                    fqn: "mir_lowered.runtime_typecheck_cast.Base",
+                    name: "Base",
+                    kind: Class,
+                    type_params: [],
+                    supertypes: [],
+                    interfaces: [],
+                    constructors: [CtorMetadata { span: 228..230, kind: Primary, params: [], delegation: None }],
+                    members: [],
+                },
+            ),
+        ),
+        Metadata(
+            Nominal(
+                NominalMetadata {
+                    span: 232..297,
+                    fqn: "mir_lowered.runtime_typecheck_cast.Impl",
+                    name: "Impl",
+                    kind: Class,
+                    type_params: [],
+                    supertypes: [SupertypeMetadata { span: 247..253, fqn: Some("mir_lowered.runtime_typecheck_cast.Base"), ty: mir_lowered.runtime_typecheck_cast.Base, ctor_arg_count: 0 }, SupertypeMetadata { span: 255..260, fqn: Some("mir_lowered.runtime_typecheck_cast.IFace"), ty: mir_lowered.runtime_typecheck_cast.IFace, ctor_arg_count: 0 }],
+                    interfaces: ["mir_lowered.runtime_typecheck_cast.IFace"],
+                    constructors: [CtorMetadata { span: 242..244, kind: Primary, params: [], delegation: None }],
+                    members: [Fun(MemberFunMetadata { span: 267..295, fqn: "mir_lowered.runtime_typecheck_cast.Impl.ping", name: "ping", type_params: [], params: [], return_ty: Int })],
+                },
+            ),
+        ),
+        Metadata(
+            Nominal(
+                NominalMetadata {
+                    span: 299..321,
+                    fqn: "mir_lowered.runtime_typecheck_cast.Other",
+                    name: "Other",
+                    kind: Class,
+                    type_params: [],
+                    supertypes: [SupertypeMetadata { span: 315..321, fqn: Some("mir_lowered.runtime_typecheck_cast.Base"), ty: mir_lowered.runtime_typecheck_cast.Base, ctor_arg_count: 0 }],
+                    interfaces: [],
+                    constructors: [CtorMetadata { span: 310..312, kind: Primary, params: [], delegation: None }],
+                    members: [],
+                },
+            ),
+        ),
+        Metadata(
+            Nominal(
+                NominalMetadata {
+                    span: 323..352,
+                    fqn: "mir_lowered.runtime_typecheck_cast.Holder",
+                    name: "Holder",
+                    kind: Class,
+                    type_params: [DeclTypeParamMetadata { span: 336..337, name: "T", variance: None, ty: T }],
+                    supertypes: [],
+                    interfaces: [],
+                    constructors: [CtorMetadata { span: 338..352, kind: Primary, params: [CtorParamMetadata { span: 343..348, name: "value", ty: T, has_default: false, property: Some(Val) }], delegation: None }],
+                    members: [Field(FieldMetadata { span: 343..348, fqn: "mir_lowered.runtime_typecheck_cast.Holder.value", name: "value", mutable: false, ty: T, origin: PrimaryCtorParam })],
+                },
+            ),
+        ),
+        Fun(
+            FunDecl {
+                span: 354..699,
+                fqn: "mir_lowered.runtime_typecheck_cast.inspect",
+                name: "inspect",
+                ty: (Any) -> Int / scoop.core.Raise<scoop.core.RuntimeError>,
+                params: [Param { span: 366..367, name: "x", ty: Any, local: local#h2ca0cded1f1bb8b1e9b6839283f74c51 }],
+                return_ty: Int,
+                body: Some(
+                    Body {
+                        locals: [LocalDecl { label: local#h2ca0cded1f1bb8b1e9b6839283f74c51, span: 366..367, name: Some("x"), ty: Any, source: SourceLocal }, LocalDecl { label: local#h5a4373e5f7fee023273397d8f49afa87, span: 407..437, name: Some("isIface"), ty: Bool, source: SourceLocal }, LocalDecl { label: local#h98d429290b4801e683db4e5d347a2be1, span: 427..437, name: Some("tmp0"), ty: Bool, source: CompilerTemporary }, LocalDecl { label: local#hc7d3f2a7c0aa1a3fbb3bb4a44c98bdeb, span: 442..474, name: Some("notOther"), ty: Bool, source: SourceLocal }, LocalDecl { label: local#he1bdc9511dc39ad065b887960e40ab34, span: 463..474, name: Some("tmp1"), ty: Bool, source: CompilerTemporary }, LocalDecl { label: local#h12473fde3760b027e32ec50831d89b76, span: 479..516, name: Some("isHolder"), ty: Bool, source: SourceLocal }, LocalDecl { label: local#h08c31b6d11764dc1b0a4dc85e1ffd780, span: 500..516, name: Some("tmp2"), ty: Bool, source: CompilerTemporary }, LocalDecl { label: local#h0cde931426040738ab1b44b57a85b481, span: 521..552, name: Some("asIface"), ty: mir_lowered.runtime_typecheck_cast.IFace, source: SourceLocal }, LocalDecl { label: local#hfa1a3ff6d356cce74c09a8d694544f03, span: 542..552, name: Some("tmp3"), ty: mir_lowered.runtime_typecheck_cast.IFace, source: CompilerTemporary }, LocalDecl { label: local#h7e50473060cd34f0f7dda0df316f4a05, span: 542..552, name: Some("tmp4"), ty: Bool, source: CompilerTemporary }, LocalDecl { label: local#hb77b79232be357d4e5eca96a4dac2f5a, span: 542..552, name: Some("tmp5"), ty: scoop.core.RuntimeError, source: CompilerTemporary }, LocalDecl { label: local#h1a8d253d461bac1316fc32e0585305ea, span: 542..552, name: Some("tmp6"), ty: Nothing, source: CompilerTemporary }, LocalDecl { label: local#he8ea2fb851c2a344db7548057d9e0f79, span: 557..606, name: Some("maybeHolder"), ty: Option<mir_lowered.runtime_typecheck_cast.Holder<Int>>, source: SourceLocal }, LocalDecl { label: local#h75f9f8c4edb121909cf4a7c1c83d4c87, span: 589..606, name: Some("tmp7"), ty: Option<mir_lowered.runtime_typecheck_cast.Holder<Int>>, source: CompilerTemporary }, LocalDecl { label: local#h61417ca183de0863ca0e9756c4ae8b3a, span: 618..697, name: Some("tmp8"), ty: Int, source: CompilerTemporary }, LocalDecl { label: local#he5204b8fea387980d85e7d3a8a3aec7f, span: 647..673, name: Some("tmp9"), ty: Bool, source: CompilerTemporary }, LocalDecl { label: local#hd42fa9d676753c8b48158c7b54c0751c, span: 652..654, name: Some("_o"), ty: mir_lowered.runtime_typecheck_cast.Holder<Int>, source: SourceLocal }, LocalDecl { label: local#h82937ccfbd6637cd59a64521fd05a36f, span: 659..673, name: Some("tmp10"), ty: Int, source: CompilerTemporary }, LocalDecl { label: local#hd4b6f74ab5cd3ee022dde40bae16c26f, span: 682..691, name: Some("tmp11"), ty: Bool, source: CompilerTemporary }, LocalDecl { label: local#h8106fef87717bfa249821ce83965f560, span: 690..691, name: Some("tmp12"), ty: Int, source: CompilerTemporary }, LocalDecl { label: local#h6ff7d68a482874bf5734192cdb9bd660, span: 401..699, name: Some("tmp13"), ty: Unit, source: CompilerTemporary }],
+                        blocks: [
+                            BasicBlock {
+                                label: bb#h0d57fffc8bf7f214c4d51fe2898dafa4,
+                                is_cleanup: false,
+                                stmts: [Statement { span: 427..437, kind: Assign { target: local#h98d429290b4801e683db4e5d347a2be1, value: TypeCheck { value: Local(local#h2ca0cded1f1bb8b1e9b6839283f74c51), op: Is, test_ty: mir_lowered.runtime_typecheck_cast.IFace, metadata: RuntimeTypeTestMetadata { source_ty: Any, target_ty: mir_lowered.runtime_typecheck_cast.IFace, descriptor: RuntimeTypeDescriptorKey { ty: mir_lowered.runtime_typecheck_cast.IFace, kind: Nominal { fqn: "mir_lowered.runtime_typecheck_cast.IFace", kind: Some(Interface) } }, static_fold: Dynamic, parameterized: None } } } }, Statement { span: 407..437, kind: Assign { target: local#h5a4373e5f7fee023273397d8f49afa87, value: Use(Local(local#h98d429290b4801e683db4e5d347a2be1)) } }, Statement { span: 463..474, kind: Assign { target: local#he1bdc9511dc39ad065b887960e40ab34, value: TypeCheck { value: Local(local#h2ca0cded1f1bb8b1e9b6839283f74c51), op: NotIs, test_ty: mir_lowered.runtime_typecheck_cast.Other, metadata: RuntimeTypeTestMetadata { source_ty: Any, target_ty: mir_lowered.runtime_typecheck_cast.Other, descriptor: RuntimeTypeDescriptorKey { ty: mir_lowered.runtime_typecheck_cast.Other, kind: Nominal { fqn: "mir_lowered.runtime_typecheck_cast.Other", kind: Some(Class) } }, static_fold: Dynamic, parameterized: None } } } }, Statement { span: 442..474, kind: Assign { target: local#hc7d3f2a7c0aa1a3fbb3bb4a44c98bdeb, value: Use(Local(local#he1bdc9511dc39ad065b887960e40ab34)) } }, Statement { span: 500..516, kind: Assign { target: local#h08c31b6d11764dc1b0a4dc85e1ffd780, value: TypeCheck { value: Local(local#h2ca0cded1f1bb8b1e9b6839283f74c51), op: Is, test_ty: mir_lowered.runtime_typecheck_cast.Holder<Int>, metadata: RuntimeTypeTestMetadata { source_ty: Any, target_ty: mir_lowered.runtime_typecheck_cast.Holder<Int>, descriptor: RuntimeTypeDescriptorKey { ty: mir_lowered.runtime_typecheck_cast.Holder<Int>, kind: Nominal { fqn: "mir_lowered.runtime_typecheck_cast.Holder", kind: Some(Class) } }, static_fold: Dynamic, parameterized: Nominal { type_args: [Int], effect_arg: None } } } } }, Statement { span: 479..516, kind: Assign { target: local#h12473fde3760b027e32ec50831d89b76, value: Use(Local(local#h08c31b6d11764dc1b0a4dc85e1ffd780)) } }, Statement { span: 542..552, kind: Assign { target: local#h7e50473060cd34f0f7dda0df316f4a05, value: TypeCheck { value: Local(local#h2ca0cded1f1bb8b1e9b6839283f74c51), op: Is, test_ty: mir_lowered.runtime_typecheck_cast.IFace, metadata: RuntimeTypeTestMetadata { source_ty: Any, target_ty: mir_lowered.runtime_typecheck_cast.IFace, descriptor: RuntimeTypeDescriptorKey { ty: mir_lowered.runtime_typecheck_cast.IFace, kind: Nominal { fqn: "mir_lowered.runtime_typecheck_cast.IFace", kind: Some(Interface) } }, static_fold: Dynamic, parameterized: None } } } }],
+                                terminator: Terminator { span: 542..552, kind: CondBr { cond: Local(local#h7e50473060cd34f0f7dda0df316f4a05), then_target: bb#hcdcf57607ff21ed8dd7525db846df99c, else_target: bb#hcdcf57607ff21ed8dd7525db846df99c }, unwind: NoUnwind },
+                            },
+                            BasicBlock {
+                                label: bb#hcdcf57607ff21ed8dd7525db846df99c,
+                                is_cleanup: false,
+                                stmts: [Statement { span: 542..552, kind: Assign { target: local#hfa1a3ff6d356cce74c09a8d694544f03, value: Cast { value: Local(local#h2ca0cded1f1bb8b1e9b6839283f74c51), op: As, target_ty: mir_lowered.runtime_typecheck_cast.IFace, metadata: RuntimeCastMetadata { test: RuntimeTypeTestMetadata { source_ty: Any, target_ty: mir_lowered.runtime_typecheck_cast.IFace, descriptor: RuntimeTypeDescriptorKey { ty: mir_lowered.runtime_typecheck_cast.IFace, kind: Nominal { fqn: "mir_lowered.runtime_typecheck_cast.IFace", kind: Some(Interface) } }, static_fold: AlwaysTrue, parameterized: None }, failure: Raise { effect_ty: Some(scoop.core.Raise<scoop.core.RuntimeError>), error_fqn: "scoop.core.RuntimeError.ClassCastFailed" }, result: Target { ty: mir_lowered.runtime_typecheck_cast.IFace } } } } }],
+                                terminator: Terminator { span: 542..552, kind: Goto { target: bb#hdbf0ef253482925de9869796c17ea92d }, unwind: NoUnwind },
+                            },
+                            BasicBlock {
+                                label: bb#hcdcf57607ff21ed8dd7525db846df99c,
+                                is_cleanup: false,
+                                stmts: [Statement { span: 542..552, kind: Assign { target: local#hb77b79232be357d4e5eca96a4dac2f5a, value: TopLevelRef { fqn: "scoop.core.RuntimeError.ClassCastFailed", site_id: None, hidden_effects: Pure } } }, Statement { span: 542..552, kind: Assign { target: local#h1a8d253d461bac1316fc32e0585305ea, value: PerformResult { op_fqn: "scoop.core.Raise.raise", effect_ty: scoop.core.Raise<scoop.core.RuntimeError> } } }],
+                                terminator: Terminator { span: 542..552, kind: Perform { site_id: site#ha4bf361808e123c5e41380c1996c1011, op_fqn: "scoop.core.Raise.raise", metadata: PerformMetadata { effect_ty: scoop.core.Raise<scoop.core.RuntimeError>, op_type_args: [], result_ty: Nothing, payload_tuple_ty: Some(scoop.core.RuntimeError), payload_component_tys: [scoop.core.RuntimeError], payload_transport: [ValueTransportMetadata { source_ty: scoop.core.RuntimeError, kind: EffectPayload, requirements: MirTransportRequirements { trace: true, copy: true, drop: true }, boxing: Some(MirBoxingIntent { source_ty: scoop.core.RuntimeError, target_ty: Some(scoop.core.RuntimeError), reason: EffectPayload }) }], arg_mapping: [0] }, args: [PerformArg { span: 542..552, source_arg_index: 0, name: None, value: Local(local#hb77b79232be357d4e5eca96a4dac2f5a) }], resume_target: bb#hcdcf57607ff21ed8dd7525db846df99c }, unwind: Propagate },
+                            },
+                            BasicBlock {
+                                label: bb#hdbf0ef253482925de9869796c17ea92d,
+                                is_cleanup: false,
+                                stmts: [Statement { span: 521..552, kind: Assign { target: local#h0cde931426040738ab1b44b57a85b481, value: Use(Local(local#hfa1a3ff6d356cce74c09a8d694544f03)) } }, Statement { span: 589..606, kind: Assign { target: local#h75f9f8c4edb121909cf4a7c1c83d4c87, value: Cast { value: Local(local#h2ca0cded1f1bb8b1e9b6839283f74c51), op: AsQ, target_ty: mir_lowered.runtime_typecheck_cast.Holder<Int>, metadata: RuntimeCastMetadata { test: RuntimeTypeTestMetadata { source_ty: Any, target_ty: mir_lowered.runtime_typecheck_cast.Holder<Int>, descriptor: RuntimeTypeDescriptorKey { ty: mir_lowered.runtime_typecheck_cast.Holder<Int>, kind: Nominal { fqn: "mir_lowered.runtime_typecheck_cast.Holder", kind: Some(Class) } }, static_fold: Dynamic, parameterized: Nominal { type_args: [Int], effect_arg: None } }, failure: ReturnNone, result: Option { option_ty: Option<mir_lowered.runtime_typecheck_cast.Holder<Int>>, some_ty: mir_lowered.runtime_typecheck_cast.Holder<Int> } } } } }, Statement { span: 557..606, kind: Assign { target: local#he8ea2fb851c2a344db7548057d9e0f79, value: Use(Local(local#h75f9f8c4edb121909cf4a7c1c83d4c87)) } }, Statement { span: 647..655, kind: Assign { target: local#he5204b8fea387980d85e7d3a8a3aec7f, value: PatternMatch { subject: Local(local#he8ea2fb851c2a344db7548057d9e0f79), pattern: Variant { name: "Some", args: [Bind { name: "_o", ty: mir_lowered.runtime_typecheck_cast.Holder<Int> }] } } } }],
+                                terminator: Terminator { span: 647..673, kind: CondBr { cond: Local(local#he5204b8fea387980d85e7d3a8a3aec7f), then_target: bb#hdbf0ef253482925de9869796c17ea92d, else_target: bb#hcdd35b0bd8708414c577632b91de2b43 }, unwind: NoUnwind },
+                            },
+                            BasicBlock {
+                                label: bb#hcdcf57607ff21ed8dd7525db846df99c,
+                                is_cleanup: false,
+                                stmts: [Statement { span: 542..552, kind: Assign { target: local#hfa1a3ff6d356cce74c09a8d694544f03, value: Transport { value: Local(local#h1a8d253d461bac1316fc32e0585305ea), transport: ValueTransportMetadata { source_ty: Nothing, kind: Scalar, requirements: MirTransportRequirements { trace: false, copy: true, drop: false }, boxing: Some(MirBoxingIntent { source_ty: Nothing, target_ty: Some(mir_lowered.runtime_typecheck_cast.IFace), reason: RefErasure }) } } } }],
+                                terminator: Terminator { span: 542..552, kind: Goto { target: bb#hdbf0ef253482925de9869796c17ea92d }, unwind: NoUnwind },
+                            },
+                            BasicBlock {
+                                label: bb#he8a57a3ead9e70417450fa2f452f09da,
+                                is_cleanup: false,
+                                stmts: [],
+                                terminator: Terminator { span: 611..697, kind: Return { value: Some(Local(local#h61417ca183de0863ca0e9756c4ae8b3a)) }, unwind: NoUnwind },
+                            },
+                            BasicBlock {
+                                label: bb#hcdd35b0bd8708414c577632b91de2b43,
+                                is_cleanup: false,
+                                stmts: [Statement { span: 682..686, kind: Assign { target: local#hd4b6f74ab5cd3ee022dde40bae16c26f, value: PatternMatch { subject: Local(local#he8ea2fb851c2a344db7548057d9e0f79), pattern: Variant { name: "None", args: [] } } } }],
+                                terminator: Terminator { span: 682..691, kind: CondBr { cond: Local(local#hd4b6f74ab5cd3ee022dde40bae16c26f), then_target: bb#hcdd35b0bd8708414c577632b91de2b43, else_target: bb#h176a87c24ca5f036e535d0faf91e277b }, unwind: NoUnwind },
+                            },
+                            BasicBlock {
+                                label: bb#hdbf0ef253482925de9869796c17ea92d,
+                                is_cleanup: false,
+                                stmts: [Statement { span: 652..654, kind: Assign { target: local#hd42fa9d676753c8b48158c7b54c0751c, value: PatternExtract { subject: Local(local#he8ea2fb851c2a344db7548057d9e0f79), path: [VariantField { variant: "Some", field_index: 0 }] } } }, Statement { span: 659..673, kind: Assign { target: local#h82937ccfbd6637cd59a64521fd05a36f, value: Call { site_id: site#hba5a5af3fa12f6ffdadf4d850a2f2d2b, kind: Interface { receiver: Local(local#h0cde931426040738ab1b44b57a85b481), dispatch: DispatchMetadata { owner_fqn: "mir_lowered.runtime_typecheck_cast.IFace", member_name: "ping", member_fqn: "mir_lowered.runtime_typecheck_cast.IFace.ping", member_decl_span: Some(198..202), receiver_ty: mir_lowered.runtime_typecheck_cast.IFace } }, args: [], transport: CallTransportMetadata { result: ValueTransportMetadata { source_ty: Int, kind: Scalar, requirements: MirTransportRequirements { trace: false, copy: true, drop: false }, boxing: None }, aggregate_return: None, array: None, gc: None, thread_resume_payload: None, abi: CallAbiHandoffMetadata { callable_abi_kind: DeferredToEffectFacts, resolved_outward_cases: [], impl_plan: DeferredToEffectFacts, adapter_required: false } } } } }, Statement { span: 647..673, kind: Assign { target: local#h61417ca183de0863ca0e9756c4ae8b3a, value: Use(Local(local#h82937ccfbd6637cd59a64521fd05a36f)) } }],
+                                terminator: Terminator { span: 647..673, kind: Goto { target: bb#he8a57a3ead9e70417450fa2f452f09da }, unwind: NoUnwind },
+                            },
+                            BasicBlock {
+                                label: bb#h176a87c24ca5f036e535d0faf91e277b,
+                                is_cleanup: false,
+                                stmts: [],
+                                terminator: Terminator { span: 618..697, kind: Unreachable, unwind: NoUnwind },
+                            },
+                            BasicBlock {
+                                label: bb#hcdd35b0bd8708414c577632b91de2b43,
+                                is_cleanup: false,
+                                stmts: [Statement { span: 690..691, kind: Assign { target: local#h8106fef87717bfa249821ce83965f560, value: Use(Const(Int)) } }, Statement { span: 682..691, kind: Assign { target: local#h61417ca183de0863ca0e9756c4ae8b3a, value: Use(Local(local#h8106fef87717bfa249821ce83965f560)) } }],
+                                terminator: Terminator { span: 682..691, kind: Goto { target: bb#he8a57a3ead9e70417450fa2f452f09da }, unwind: NoUnwind },
+                            },
+                        ],
+                        start: bb#h0d57fffc8bf7f214c4d51fe2898dafa4,
+                    }
+                ),
+            },
+        ),
+        Fun(
+            FunDecl {
+                span: 194..209,
+                fqn: "mir_lowered.runtime_typecheck_cast.IFace.ping",
+                name: "ping",
+                ty: (mir_lowered.runtime_typecheck_cast.IFace) -> Int / Pure,
+                params: [Param { span: 182..187, name: "this", ty: mir_lowered.runtime_typecheck_cast.IFace }],
+                return_ty: Int,
+                body: None,
+            },
+        ),
+        Fun(
+            FunDecl {
+                span: 267..295,
+                fqn: "mir_lowered.runtime_typecheck_cast.Impl.ping",
+                name: "ping",
+                ty: (mir_lowered.runtime_typecheck_cast.Impl) -> Int / Pure,
+                params: [Param { span: 238..242, name: "this", ty: mir_lowered.runtime_typecheck_cast.Impl, local: local#h4f52676657d969ba2caa05bbc551acf9 }],
+                return_ty: Int,
+                body: Some(
+                    Body {
+                        locals: [LocalDecl { label: local#h4f52676657d969ba2caa05bbc551acf9, span: 238..242, name: Some("this"), ty: mir_lowered.runtime_typecheck_cast.Impl, source: SourceLocal }, LocalDecl { label: local#ha6d613f4bc6c81a1b7f3e8146c6f3f52, span: 292..293, name: Some("tmp0"), ty: Int, source: CompilerTemporary }, LocalDecl { label: local#hf22428d3ecf345a25726fc6b20c4e8e7, span: 283..295, name: Some("tmp1"), ty: Unit, source: CompilerTemporary }],
+                        blocks: [
+                            BasicBlock {
+                                label: bb#h5ce71ba51c401ef11d846e3d0bb45932,
+                                is_cleanup: false,
+                                stmts: [Statement { span: 292..293, kind: Assign { target: local#ha6d613f4bc6c81a1b7f3e8146c6f3f52, value: Use(Const(Int)) } }],
+                                terminator: Terminator { span: 285..293, kind: Return { value: Some(Local(local#ha6d613f4bc6c81a1b7f3e8146c6f3f52)) }, unwind: NoUnwind },
+                            },
+                        ],
+                        start: bb#h5ce71ba51c401ef11d846e3d0bb45932,
+                    }
+                ),
+            },
+        ),
+    ],
+}
+

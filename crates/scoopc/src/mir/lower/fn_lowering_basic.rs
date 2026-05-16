@@ -189,7 +189,7 @@ impl<'a> FnLowering<'a> {
     /// - 若这里直接停止，generic MIR materializer 将看不到这些后续 call-site；
     /// - 因此仅当终止原因是占位式 `Handle` / `Perform` 时，允许把后续语句接到一个新的孤立 block 中继续保形。
     pub(in crate::mir::lower) fn continue_after_placeholder_effect_terminator_if_needed(&mut self, next_span: Span) -> bool {
-        if self.facts.uses_refactor_typed_contracts() {
+        if self.facts.uses_typed_contracts() {
             return !self.current_is_terminated();
         }
         if !self.current_is_terminated() {
@@ -700,7 +700,7 @@ impl<'a> FnLowering<'a> {
     ) {
         let Some(contract) = self
             .facts
-            .refactor_assign_place_contract(self.source_path.as_path(), span)
+            .assign_place_contract(self.source_path.as_path(), span)
             .cloned()
         else {
             panic!("typed HIR assignment must have a place contract before MIR lowering: {span:?}");

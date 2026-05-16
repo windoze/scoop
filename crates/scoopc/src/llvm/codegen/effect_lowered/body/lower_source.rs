@@ -2,18 +2,18 @@
 
 use super::*;
 
-impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
+impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
     pub(super) fn local_runtime_error_runtime_for_call(
         &self,
         site_id: SiteId,
         contract: &LateLoweredConsumedRuntimeErrorCase,
-    ) -> Result<RefactorLocalRuntimeErrorRuntime, LlvmEmitError> {
+    ) -> Result<LocalRuntimeErrorRuntime, LlvmEmitError> {
         let published =
             self.abi
                 .call_local_runtime_error_contract(self.abi_step_schema, site_id, contract)?;
         if published.owner_step_schema() != self.abi_step_schema || published.site_id() != site_id {
             return Err(frontend_error(format!(
-                "refactor body verifier 发现 local runtime-error contract identity 漂移：layout=(s{}, site={}) expected=(s{}, site={})",
+                "body verifier 发现 local runtime-error contract identity 漂移：layout=(s{}, site={}) expected=(s{}, site={})",
                 published.owner_step_schema().as_u32(),
                 published.site_id().as_u32(),
                 self.abi_step_schema.as_u32(),
@@ -22,16 +22,16 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         }
         if published.payload_abi().is_elided() {
             return Err(frontend_error(format!(
-                "refactor body verifier 发现 call site {} 的 local runtime-error payload ABI 被错误 elide",
+                "body verifier 发现 call site {} 的 local runtime-error payload ABI 被错误 elide",
                 site_id.as_u32()
             )));
         }
         let runtime_entry = match published.terminal_action() {
-            RefactorLocalRuntimeErrorTerminalAction::RuntimeFatal { runtime_entry } => {
+            LocalRuntimeErrorTerminalAction::RuntimeFatal { runtime_entry } => {
                 runtime_entry
             }
         };
-        Ok(RefactorLocalRuntimeErrorRuntime {
+        Ok(LocalRuntimeErrorRuntime {
             site_id,
             input_case_tag: published.input_case_tag(),
             payload_tuple_ty: published.payload_tuple_ty(),
@@ -46,8 +46,8 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         target_state: StateId,
         payload_tuple_ty: TypeId,
         terminal_action: crate::effect_lowered::ir::LateLoweredLocalRuntimeErrorTerminalAction,
-    ) -> Result<RefactorLocalRuntimeErrorRuntime, LlvmEmitError> {
-        let mut selected = None::<RefactorLocalRuntimeErrorRuntime>;
+    ) -> Result<LocalRuntimeErrorRuntime, LlvmEmitError> {
+        let mut selected = None::<LocalRuntimeErrorRuntime>;
         for boundary in self.callable.boundary_map().entries() {
             let LateLoweredBoundarySource::Site {
                 site_id,
@@ -69,7 +69,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                 || contract.terminal_action() != terminal_action
             {
                 return Err(frontend_error(format!(
-                    "refactor body verifier 发现 LocalRuntimeError st{} 与 call site {} consumed contract 漂移",
+                    "body verifier 发现 LocalRuntimeError st{} 与 call site {} consumed contract 漂移",
                     target_state.as_u32(),
                     site_id.as_u32()
                 )));
@@ -77,7 +77,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             let runtime = self.local_runtime_error_runtime_for_call(site_id, contract)?;
             if let Some(existing) = &selected {
                 return Err(frontend_error(format!(
-                    "refactor body verifier 发现 LocalRuntimeError st{} 被多个 call site 消费：{} 与 {}",
+                    "body verifier 发现 LocalRuntimeError st{} 被多个 call site 消费：{} 与 {}",
                     target_state.as_u32(),
                     existing.site_id.as_u32(),
                     site_id.as_u32()
@@ -87,7 +87,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         }
         selected.ok_or_else(|| {
             frontend_error(format!(
-                "refactor body verifier 发现 LocalRuntimeError st{} 缺少对应 consumed runtime-error case contract",
+                "body verifier 发现 LocalRuntimeError st{} 缺少对应 consumed runtime-error case contract",
                 target_state.as_u32()
             ))
         })
@@ -103,7 +103,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         let slots = &self.slots;
         let abi = self.abi;
         let used_locals = &self.used_locals;
-        RefactorValuePrimitives::new(codegen, source_types, body, slots, abi)
+        ValuePrimitives::new(codegen, source_types, body, slots, abi)
             .lower_effect_neutral_statement(stmt, used_locals)
     }
 
@@ -140,7 +140,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         else {
             let value = self
                 .codegen
-                .codegen_mir_refactor_plain_dynamic_call(
+                .codegen_mir_plain_dynamic_call(
                     stmt.span,
                     kind,
                     args,
@@ -150,7 +150,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                 )
                 .map_err(|err| {
                     frontend_error(format!(
-                        "refactor source-slice dynamic call site {} 缺少 published dynamic-invoke contract，且 plain callable lowering 失败: {err}",
+                        "source-slice dynamic call site {} 缺少 published dynamic-invoke contract，且 plain callable lowering 失败: {err}",
                         site_id.as_u32(),
                     ))
                 })?;
@@ -161,10 +161,10 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             stmt.span,
             layout.invoke_args_tuple_ty(),
             args,
-            "refactor_dynamic_call",
+            "dynamic_call",
         )?;
         let carrier = self.lower_dynamic_call_carrier(stmt.span, kind, layout)?;
-        let step = self.emit_refactor_dynamic_invoke_step(layout, carrier, args_payload)?;
+        let step = self.emit_dynamic_invoke_step(layout, carrier, args_payload)?;
         self.store_no_outward_call_complete(
             stmt.span,
             *site_id,

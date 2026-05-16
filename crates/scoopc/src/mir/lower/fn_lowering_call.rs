@@ -24,7 +24,7 @@ impl<'a> FnLowering<'a> {
         self.source_arg_expected_tys_from_param_tys(&param_tys, explicit_arg_count, false, binding)
     }
 
-    pub(in crate::mir::lower) fn lower_refactor_typed_call_expr(
+    pub(in crate::mir::lower) fn lower_typed_call_expr(
         &mut self,
         span: Span,
         result: LocalId,
@@ -33,7 +33,7 @@ impl<'a> FnLowering<'a> {
     ) -> bool {
         let Some(contract) = self
             .facts
-            .refactor_call_site_contract(self.source_path.as_path(), span)
+            .call_site_contract(self.source_path.as_path(), span)
             .cloned()
         else {
             return false;
@@ -44,7 +44,7 @@ impl<'a> FnLowering<'a> {
 
         match contract {
             TypedCallSiteContract::DirectTopLevel(function) => {
-                self.lower_refactor_direct_call_expr(
+                self.lower_direct_call_expr(
                     span,
                     result,
                     function.fqn(),
@@ -54,7 +54,7 @@ impl<'a> FnLowering<'a> {
                 true
             }
             TypedCallSiteContract::MemberDirect(member) => {
-                self.lower_refactor_direct_call_expr(
+                self.lower_direct_call_expr(
                     span,
                     result,
                     member.function().fqn(),
@@ -64,7 +64,7 @@ impl<'a> FnLowering<'a> {
                 true
             }
             TypedCallSiteContract::Extension { function, .. } => {
-                self.lower_refactor_direct_call_expr(
+                self.lower_direct_call_expr(
                     span,
                     result,
                     function.fqn(),
@@ -74,11 +74,11 @@ impl<'a> FnLowering<'a> {
                 true
             }
             TypedCallSiteContract::Constructor(ctor) => {
-                self.lower_refactor_constructor_call_expr(span, result, &ctor, args);
+                self.lower_constructor_call_expr(span, result, &ctor, args);
                 true
             }
             TypedCallSiteContract::Closure { arg_binding, .. } => {
-                self.lower_refactor_callable_value_call_expr(
+                self.lower_callable_value_call_expr(
                     span,
                     result,
                     callee,
@@ -89,7 +89,7 @@ impl<'a> FnLowering<'a> {
                 true
             }
             TypedCallSiteContract::FunValue { arg_binding, .. } => {
-                self.lower_refactor_callable_value_call_expr(
+                self.lower_callable_value_call_expr(
                     span,
                     result,
                     callee,
@@ -100,7 +100,7 @@ impl<'a> FnLowering<'a> {
                 true
             }
             TypedCallSiteContract::FunPtr { arg_binding, .. } => {
-                self.lower_refactor_funptr_call_expr(
+                self.lower_funptr_call_expr(
                     span,
                     result,
                     callee,
@@ -110,7 +110,7 @@ impl<'a> FnLowering<'a> {
                 true
             }
             TypedCallSiteContract::Virtual(member) => {
-                self.lower_refactor_dispatch_call_expr_from_contract(
+                self.lower_dispatch_call_expr_from_contract(
                     span,
                     result,
                     callee,
@@ -121,7 +121,7 @@ impl<'a> FnLowering<'a> {
                 true
             }
             TypedCallSiteContract::Interface(member) => {
-                self.lower_refactor_dispatch_call_expr_from_contract(
+                self.lower_dispatch_call_expr_from_contract(
                     span,
                     result,
                     callee,
@@ -132,7 +132,7 @@ impl<'a> FnLowering<'a> {
                 true
             }
             TypedCallSiteContract::Intrinsic { kind, function } => {
-                self.lower_refactor_intrinsic_call_expr(span, result, &kind, function.fqn(), args)
+                self.lower_intrinsic_call_expr(span, result, &kind, function.fqn(), args)
             }
             TypedCallSiteContract::EffectOp(_) | TypedCallSiteContract::ContinuationResume(_) => {
                 false
@@ -165,7 +165,7 @@ impl<'a> FnLowering<'a> {
         intrinsic_base_fqn(contract_fqn) == intrinsic_base_fqn(callee_fqn)
     }
 
-    pub(in crate::mir::lower) fn lower_refactor_direct_call_expr(
+    pub(in crate::mir::lower) fn lower_direct_call_expr(
         &mut self,
         span: Span,
         result: LocalId,
@@ -221,7 +221,7 @@ impl<'a> FnLowering<'a> {
         }
     }
 
-    pub(in crate::mir::lower) fn lower_refactor_constructor_call_expr(
+    pub(in crate::mir::lower) fn lower_constructor_call_expr(
         &mut self,
         span: Span,
         result: LocalId,
@@ -251,7 +251,7 @@ impl<'a> FnLowering<'a> {
         );
     }
 
-    pub(in crate::mir::lower) fn lower_refactor_callable_value_call_expr(
+    pub(in crate::mir::lower) fn lower_callable_value_call_expr(
         &mut self,
         span: Span,
         result: LocalId,
@@ -303,7 +303,7 @@ impl<'a> FnLowering<'a> {
         );
     }
 
-    pub(in crate::mir::lower) fn lower_refactor_funptr_call_expr(
+    pub(in crate::mir::lower) fn lower_funptr_call_expr(
         &mut self,
         span: Span,
         result: LocalId,
@@ -346,7 +346,7 @@ impl<'a> FnLowering<'a> {
         );
     }
 
-    pub(in crate::mir::lower) fn lower_refactor_intrinsic_call_expr(
+    pub(in crate::mir::lower) fn lower_intrinsic_call_expr(
         &mut self,
         span: Span,
         result: LocalId,
@@ -365,7 +365,7 @@ impl<'a> FnLowering<'a> {
                     })
                     .or_else(|| {
                         self.facts
-                            .refactor_call_site_contract(self.source_path.as_path(), span)
+                            .call_site_contract(self.source_path.as_path(), span)
                             .and_then(|contract| match contract {
                                 TypedCallSiteContract::Intrinsic { function, .. } => {
                                     function.type_args().first().copied()
@@ -380,7 +380,7 @@ impl<'a> FnLowering<'a> {
             (TypedIntrinsicKind::Reflection { name }, "scoop.core.nameOf") if name == "nameOf" => {
                 let source_ty = self
                     .facts
-                    .refactor_call_site_contract(self.source_path.as_path(), span)
+                    .call_site_contract(self.source_path.as_path(), span)
                     .and_then(|contract| match contract {
                         TypedCallSiteContract::Intrinsic { function, .. } => {
                             function.type_args().first().copied()
@@ -400,13 +400,13 @@ impl<'a> FnLowering<'a> {
                 true
             }
             _ => {
-                self.lower_refactor_direct_call_expr(span, result, callee_fqn, args, None);
+                self.lower_direct_call_expr(span, result, callee_fqn, args, None);
                 true
             }
         }
     }
 
-    pub(in crate::mir::lower) fn lower_refactor_dispatch_call_expr_from_contract(
+    pub(in crate::mir::lower) fn lower_dispatch_call_expr_from_contract(
         &mut self,
         span: Span,
         result: LocalId,
@@ -912,12 +912,12 @@ impl<'a> FnLowering<'a> {
         result_ty: TypeId,
         lowered_args: Vec<CallArg>,
     ) -> Option<(Vec<PerformArg>, PerformMetadata)> {
-        let uses_refactor_typed_contracts = self.facts.uses_refactor_typed_contracts();
+        let uses_typed_contracts = self.facts.uses_typed_contracts();
         if let Some(mut metadata) = self
             .facts
-            .refactor_perform_metadata(self.source_path.as_path(), span)
+            .perform_metadata(self.source_path.as_path(), span)
             .filter(|metadata| {
-                if uses_refactor_typed_contracts {
+                if uses_typed_contracts {
                     metadata.arg_mapping.len() == lowered_args.len()
                 } else {
                     metadata
@@ -928,7 +928,7 @@ impl<'a> FnLowering<'a> {
             })
             .cloned()
         {
-            let perform_args = if uses_refactor_typed_contracts {
+            let perform_args = if uses_typed_contracts {
                 lowered_args
                     .iter()
                     .enumerate()
@@ -968,7 +968,7 @@ impl<'a> FnLowering<'a> {
             return Some((perform_args, metadata));
         }
 
-        if self.facts.uses_refactor_typed_contracts() {
+        if self.facts.uses_typed_contracts() {
             return None;
         }
 
@@ -1044,14 +1044,14 @@ impl<'a> FnLowering<'a> {
 
         if let Some(resume_info) = self
             .facts
-            .refactor_resume_call_info(self.source_path.as_path(), span)
+            .resume_call_info(self.source_path.as_path(), span)
             .cloned()
         {
             self.lower_resume_call_expr(span, result, callee, args, &resume_info);
             return result;
         }
 
-        if self.lower_refactor_typed_call_expr(span, result, callee, args) {
+        if self.lower_typed_call_expr(span, result, callee, args) {
             return result;
         }
 

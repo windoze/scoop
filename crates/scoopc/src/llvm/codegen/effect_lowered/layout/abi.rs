@@ -1,6 +1,6 @@
 //! ABI value materialization and LLVM type lowering.
 //!
-//! Translates a source `TypeId` into the corresponding `RefactorAbiValue`
+//! Translates a source `TypeId` into the corresponding `AbiValue`
 //! (carrier, source layout, LLVM type) used by every other module. Owns
 //! the LLVM struct/integer/enum-layout primitives plus the case-tag and
 //! private-helper-function declarations that the rest of the materializer
@@ -12,14 +12,14 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
     pub(super) fn abi_value(
         &mut self,
         ty: TypeId,
-    ) -> Result<RefactorAbiValue<'ctx>, LlvmEmitError> {
+    ) -> Result<AbiValue<'ctx>, LlvmEmitError> {
         self.abi_value_from_types(self.source_types, ty)
     }
 
     pub(super) fn source_value_layout(
         &mut self,
         ty: TypeId,
-    ) -> Result<RefactorSourceAbiLayout<'ctx>, LlvmEmitError> {
+    ) -> Result<SourceAbiLayout<'ctx>, LlvmEmitError> {
         if let Some(layout) = self.source_value_layouts.get(&ty) {
             return Ok(layout.clone());
         }
@@ -41,22 +41,22 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                         next_abi_field_index = next_abi_field_index.saturating_add(1);
                         Some(field_index)
                     };
-                    fields.push(RefactorSourceAbiFieldLayout::new(
+                    fields.push(SourceAbiFieldLayout::new(
                         source_index as u32,
                         element_ty,
                         abi_field_index,
                         *element_layout.abi(),
                     ));
                 }
-                RefactorSourceAbiLayout::new(ty, RefactorSourceAbiLayoutKind::Tuple, abi, fields)
+                SourceAbiLayout::new(ty, SourceAbiLayoutKind::Tuple, abi, fields)
             }
             _ => {
                 let abi = self
                     .abi_value_from_types(self.source_types, ty)
                     .map_err(|err| self.wrap_source_value_layout_error(ty, err))?;
-                RefactorSourceAbiLayout::new(
+                SourceAbiLayout::new(
                     ty,
-                    RefactorSourceAbiLayoutKind::Scalar,
+                    SourceAbiLayoutKind::Scalar,
                     abi,
                     Vec::new(),
                 )
@@ -68,7 +68,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
 
     pub(super) fn materialize_class_instance_layouts(
         &self,
-    ) -> Result<BTreeMap<TypeId, RefactorClassInstanceLayout>, LlvmEmitError> {
+    ) -> Result<BTreeMap<TypeId, ClassInstanceLayout>, LlvmEmitError> {
         let mut layouts = BTreeMap::new();
         for ty in self.source_types.iter_ids() {
             let TypeKind::Ref(RefTypeKind::Nominal(nominal)) = self.source_types.kind(ty) else {
@@ -89,18 +89,18 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                 .any(|field| self.type_contains_param_in_types(self.codegen.types, field.ty))
             {
                 return Err(frontend_error(format!(
-                    "refactor LLVM ABI materialization 发现 concrete class `{class_key}` 的 field layout 仍含未实例化类型参数"
+                    "LLVM ABI materialization 发现 concrete class `{class_key}` 的 field layout 仍含未实例化类型参数"
                 )));
             }
 
             let fields = class
                 .fields
                 .iter()
-                .map(|field| RefactorClassInstanceFieldLayout::new(field.fqn.clone(), field.ty))
+                .map(|field| ClassInstanceFieldLayout::new(field.fqn.clone(), field.ty))
                 .collect();
             layouts.insert(
                 ty,
-                RefactorClassInstanceLayout::new(ty, nominal.fqn.clone(), class_key, fields),
+                ClassInstanceLayout::new(ty, nominal.fqn.clone(), class_key, fields),
             );
         }
         Ok(layouts)
@@ -153,13 +153,13 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
     pub(super) fn resume_surface_abi_value(
         &mut self,
         ty: TypeId,
-    ) -> Result<RefactorAbiValue<'ctx>, LlvmEmitError> {
+    ) -> Result<AbiValue<'ctx>, LlvmEmitError> {
         if matches!(self.source_types.kind(ty), TypeKind::Param(_)) {
             // Generic effect operations are represented at the effect-family resume surface before
             // an operation type parameter has a single concrete instantiation. That shared resume
             // slot uses the erased managed carrier; ordinary source values and callable invoke
             // arguments still fail fast on bare type params via `source_value_layout`.
-            return Ok(RefactorAbiValue::new(
+            return Ok(AbiValue::new(
                 self.codegen.llvm_gc_i8_ptr_type().into(),
                 false,
             ));
@@ -174,7 +174,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
     ) -> LlvmEmitError {
         match err {
             LlvmEmitError::Frontend { message } => frontend_error(format!(
-                "refactor LLVM source-type ABI value lowering 无法为 `{}`（t{}）建立 authoritative contract: {message}",
+                "LLVM source-type ABI value lowering 无法为 `{}`（t{}）建立 authoritative contract: {message}",
                 self.source_types.display(ty),
                 ty.as_u32()
             )),
@@ -186,11 +186,11 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
         &mut self,
         types: &TypeStore,
         ty: TypeId,
-    ) -> Result<RefactorAbiValue<'ctx>, LlvmEmitError> {
+    ) -> Result<AbiValue<'ctx>, LlvmEmitError> {
         let llvm_ty = self.llvm_abi_type_of_types(types, ty)?;
         let elided = matches!(types.kind(ty), TypeKind::Value(ValueTypeKind::Nothing))
             || self.codegen.target_data.get_store_size(&llvm_ty) == 0;
-        Ok(RefactorAbiValue::new(llvm_ty, elided))
+        Ok(AbiValue::new(llvm_ty, elided))
     }
 
     pub(super) fn llvm_abi_type_of_types(
@@ -255,7 +255,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                 if let Some(codegen_ty) = self.equivalent_codegen_type_id_from_types(types, ty) {
                     let cg_ty = self.codegen.cg_ty_of(codegen_ty).ok_or_else(|| {
                         frontend_error(format!(
-                            "refactor LLVM ABI materialization 无法为 `{}` 恢复 codegen 类型",
+                            "LLVM ABI materialization 无法为 `{}` 恢复 codegen 类型",
                             types.display(ty)
                         ))
                     })?;
@@ -264,7 +264,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                 let key = crate::hir::mangle_nominal_fqn("scoop.core.Option", &[*inner], types);
                 let layout = self.codegen.enum_layouts.get(&key).ok_or_else(|| {
                     frontend_error(format!(
-                        "refactor LLVM ABI materialization 缺少 `{}` 的 enum layout",
+                        "LLVM ABI materialization 缺少 `{}` 的 enum layout",
                         types.display(ty)
                     ))
                 })?;
@@ -292,7 +292,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                 if let Some(codegen_ty) = self.equivalent_codegen_type_id_from_types(types, ty) {
                     let cg_ty = self.codegen.cg_ty_of(codegen_ty).ok_or_else(|| {
                         frontend_error(format!(
-                            "refactor LLVM ABI materialization 无法为 `{}` 恢复 codegen 类型",
+                            "LLVM ABI materialization 无法为 `{}` 恢复 codegen 类型",
                             types.display(ty)
                         ))
                     })?;
@@ -301,7 +301,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                 self.llvm_nominal_value_type_from_layout(nominal)
             }
             TypeKind::Param(_) => Err(frontend_error(format!(
-                "refactor LLVM ABI materialization 遇到尚未实例化的类型参数 `{}`（t{}）",
+                "LLVM ABI materialization 遇到尚未实例化的类型参数 `{}`（t{}）",
                 types.display(ty),
                 ty.as_u32()
             ))),
@@ -315,7 +315,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
         let key = crate::hir::mangle_nominal_fqn(&nominal.fqn, &nominal.args, self.source_types);
         let layout = self.codegen.enum_layouts.get(&key).ok_or_else(|| {
             frontend_error(format!(
-                "refactor LLVM ABI materialization 缺少 nominal value `{}` 的等价 codegen TypeId 或 enum layout",
+                "LLVM ABI materialization 缺少 nominal value `{}` 的等价 codegen TypeId 或 enum layout",
                 nominal.fqn
             ))
         })?;
@@ -356,7 +356,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
     ) -> Result<BasicTypeEnum<'ctx>, LlvmEmitError> {
         let fqn = underlying_ty_fqn.ok_or_else(|| {
             frontend_error(
-                "refactor LLVM ABI materialization 缺少 value-only enum 的底层整数类型".to_string(),
+                "LLVM ABI materialization 缺少 value-only enum 的底层整数类型".to_string(),
             )
         })?;
         let int_ty = match fqn {
@@ -384,7 +384,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                     }
                 } else {
                     return Err(frontend_error(format!(
-                        "refactor LLVM ABI materialization 目前只支持 integer-backed value-only enum，实际底层类型为 `{other}`"
+                        "LLVM ABI materialization 目前只支持 integer-backed value-only enum，实际底层类型为 `{other}`"
                     )));
                 }
             }

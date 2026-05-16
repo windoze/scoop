@@ -58,7 +58,7 @@ impl EffectFactsStageOutput {
         &self.effect_facts
     }
 
-    /// refactor `dump-effect-facts` / dedicated fixtures / 定向单测共用的稳定文本 surface。
+    /// `dump-effect-facts` / dedicated fixtures / 定向单测共用的稳定文本 surface。
     ///
     /// 该 dump 明确锁定 P4 -> P5 handoff：只展示 canonical MIR snapshot 绑定到的
     /// `MaterializedEffectFacts`，不回 HIR/typecheck 重建缺失 effect 语义。
@@ -165,7 +165,7 @@ mod tests {
     use crate::source::SourceFile;
     use crate::ty::TypeStore;
 
-    fn refactor_session() -> Session {
+    fn session() -> Session {
         Session::with_options(SessionOptions::new()).unwrap()
     }
 
@@ -177,7 +177,7 @@ mod tests {
     }
 
     fn run_sample() -> EffectFactsStageOutput {
-        let session = refactor_session();
+        let session = session();
         let source = sample_source();
         run_stage(&session, &source)
     }
@@ -190,14 +190,14 @@ mod tests {
                 .unwrap()
                 .with_materialized_mir(materialized);
         super::run(session, source, mir_stage_output)
-            .expect("fixture 应可通过 refactor effect-facts stage")
+            .expect("fixture 应可通过 effect-facts stage")
     }
 
     fn run_stage_with_opt_level(
         source: &SourceFile,
         opt_level: crate::opt::OptLevel,
     ) -> EffectFactsStageOutput {
-        let session = refactor_session();
+        let session = session();
         let materialized =
             crate::mir::materialize_for_dump_with_opt_level(&session, source, opt_level).unwrap();
         let mir_stage_output =
@@ -205,7 +205,7 @@ mod tests {
                 .unwrap()
                 .with_materialized_mir(materialized);
         super::run(&session, source, mir_stage_output)
-            .expect("fixture 应可通过 refactor effect-facts stage")
+            .expect("fixture 应可通过 effect-facts stage")
     }
 
     fn dump_fixture_source() -> SourceFile {
@@ -371,7 +371,7 @@ fun callInterface(i: IFace): Int {
     }
 
     #[test]
-    fn refactor_effect_facts_stage_output_is_constructible() {
+    fn effect_facts_stage_output_is_constructible() {
         let output = run_sample();
 
         assert_eq!(output.file().items.len(), 2);
@@ -404,7 +404,7 @@ fun callInterface(i: IFace): Int {
     }
 
     #[test]
-    fn refactor_effect_facts_stage_explicitly_consumes_p3_mir_stage_output() {
+    fn effect_facts_stage_explicitly_consumes_p3_mir_stage_output() {
         let output = run_sample();
 
         assert!(
@@ -424,7 +424,7 @@ fun callInterface(i: IFace): Int {
     }
 
     #[test]
-    fn refactor_effect_facts_stage_requires_materialized_snapshot() {
+    fn effect_facts_stage_requires_materialized_snapshot() {
         let output = MirStageOutput::new(
             LoweredMir {
                 file: File { items: Vec::new() },
@@ -434,7 +434,7 @@ fun callInterface(i: IFace): Int {
             None,
         );
 
-        let session = refactor_session();
+        let session = session();
         let source = sample_source();
         let err = super::run(&session, &source, output).unwrap_err();
 
@@ -445,7 +445,7 @@ fun callInterface(i: IFace): Int {
     }
 
     #[test]
-    fn refactor_effect_facts_stage_non_generic_sample_main_uses_canonical_pass_view_roots() {
+    fn effect_facts_stage_non_generic_sample_main_uses_canonical_pass_view_roots() {
         let output = run_sample();
         let main_key = output
             .materialized_pass_view()
@@ -467,7 +467,7 @@ fun callInterface(i: IFace): Int {
     }
 
     #[test]
-    fn refactor_effect_facts_stage_non_generic_sample_helper_uses_canonical_pass_view_roots() {
+    fn effect_facts_stage_non_generic_sample_helper_uses_canonical_pass_view_roots() {
         let output = run_sample();
         let helper_key = output
             .materialized_pass_view()
@@ -489,8 +489,8 @@ fun callInterface(i: IFace): Int {
     }
 
     #[test]
-    fn refactor_effect_facts_stage_stable_dump_lists_schema_callable_and_site_sections() {
-        let session = refactor_session();
+    fn effect_facts_stage_stable_dump_lists_schema_callable_and_site_sections() {
+        let session = session();
         let source = dump_fixture_source();
         let output = run_stage(&session, &source);
         let dump = output.stable_dump();
@@ -508,7 +508,7 @@ fun callInterface(i: IFace): Int {
     }
 
     #[test]
-    fn refactor_effect_facts_stage_stable_dump_locks_opt_level_visible_impl_plan() {
+    fn effect_facts_stage_stable_dump_locks_opt_level_visible_impl_plan() {
         let source = single_case_source();
         let o0 = run_stage_with_opt_level(&source, crate::opt::OptLevel::O0).stable_dump();
         let o2 = run_stage_with_opt_level(&source, crate::opt::OptLevel::O2).stable_dump();
@@ -521,7 +521,7 @@ fun callInterface(i: IFace): Int {
     }
 
     #[test]
-    fn refactor_effect_facts_stage_compiler_continuation_runtime_error_keeps_runtime_error_in_schema_upper_bound()
+    fn effect_facts_stage_compiler_continuation_runtime_error_keeps_runtime_error_in_schema_upper_bound()
      {
         let source = compiler_continuation_runtime_error_source();
         let output = run_stage_with_opt_level(&source, crate::opt::OptLevel::O2);
@@ -553,7 +553,7 @@ fun callInterface(i: IFace): Int {
     }
 
     #[test]
-    fn refactor_effect_facts_stage_surface_ty_distinguishes_step_upper_bound_for_compiler_runtime_error()
+    fn effect_facts_stage_surface_ty_distinguishes_step_upper_bound_for_compiler_runtime_error()
      {
         let source = compiler_continuation_runtime_error_source();
         let output = run_stage_with_opt_level(&source, crate::opt::OptLevel::O2);
@@ -572,8 +572,8 @@ fun callInterface(i: IFace): Int {
     }
 
     #[test]
-    fn refactor_effect_facts_stage_supports_declaration_only_interface_surface_contracts() {
-        let session = refactor_session();
+    fn effect_facts_stage_supports_declaration_only_interface_surface_contracts() {
+        let session = session();
         let source = declaration_only_interface_source();
         let dump = run_stage(&session, &source).stable_dump();
 

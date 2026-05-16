@@ -1,0 +1,21 @@
+// 目标：P6-T02 canonical `Step_F` 在 single-case callable 上仍需保留完整 case/tag 身份。
+// - `singleCaseWorker` 当前只 outward `Ping.hit()`，late-lowered `impl_plan` 应收敛为 `SingleCase(case0)`；
+// - `P6-T01b` 之后，build 会通过独立 ABI visibility handoff 暴露 request-source 范围的 ABI shell，
+//   因此这里不再需要让 effectful helper 从 `main` 可达，也不允许借 reachable handle 走 legacy lowering。
+// ARGS: --emit-llvm --opt-level 0
+// BUILD-LLVM-REGEX: @__scoop_priv0__lowered_step_case_tag_complete__h[0-9a-f]+ = internal constant i32 0
+// BUILD-LLVM-REGEX: @__scoop_priv0__lowered_step_case_tag_case__h[0-9a-f]+ = internal constant i32 1
+// BUILD-LLVM-REGEX: @__scoop_priv0__lowered_step_case_tag_case__h[0-9a-f]+ = internal constant i32 2
+// BUILD-LLVM-REGEX: @__scoop_priv0__lowered_step_case_tag_case__h[0-9a-f]+ = internal constant i32 3
+package fixtures.build
+
+effect Ping {
+    fun hit(): Unit
+    fun pong(): Unit
+}
+
+fun singleCaseWorker(): Unit / Ping {
+    Ping.hit()
+}
+
+fun main() {}

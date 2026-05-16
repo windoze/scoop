@@ -120,16 +120,16 @@ fn test_span() -> Span {
 }
 
 fn test_source_path() -> PathBuf {
-    PathBuf::from("<mem>/refactor_materialized_mir.scoop")
+    PathBuf::from("<mem>/materialized_mir.scoop")
 }
 
-fn mir_refactor_fixture(name: &str) -> SourceFile {
+fn mir_fixture(name: &str) -> SourceFile {
     let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../../tests/fixtures/mir_refactor")
+        .join("../../tests/fixtures/mir_lowered")
         .join(name);
     SourceFile::load(&path).unwrap_or_else(|error| {
         panic!(
-            "failed to load MIR refactor fixture {}: {error}",
+            "failed to load MIR fixture {}: {error}",
             path.display()
         )
     })
@@ -196,7 +196,7 @@ fn has_class_ctor_for_type(
             let Rvalue::ClassCtor { class_fqn, .. } = value else {
                 return false;
             };
-            class_fqn == "mir_refactor.generic_materialization.Holder"
+            class_fqn == "mir_lowered.generic_materialization.Holder"
                 && body
                     .locals
                     .get(target.as_u32() as usize)
@@ -553,7 +553,7 @@ return a + b + c + d
 }
 
 #[test]
-fn refactor_materialized_mir_no_todo_rejects_statement_template() {
+fn materialized_mir_no_todo_rejects_statement_template() {
     let (materializer, instance) = generic_materializer_for_body(body_with_statement_todo(), None);
 
     let err = materializer.run(vec![instance]).unwrap_err();
@@ -568,7 +568,7 @@ fn refactor_materialized_mir_no_todo_rejects_statement_template() {
 }
 
 #[test]
-fn refactor_materialized_mir_no_todo_rejects_rvalue_template() {
+fn materialized_mir_no_todo_rejects_rvalue_template() {
     let mut types = TypeStore::new();
     let builtins = types.intern_builtins();
     let (materializer, instance) =
@@ -586,7 +586,7 @@ fn refactor_materialized_mir_no_todo_rejects_rvalue_template() {
 }
 
 #[test]
-fn refactor_materialized_mir_no_todo_rejects_terminator_template() {
+fn materialized_mir_no_todo_rejects_terminator_template() {
     let (materializer, instance) = generic_materializer_for_body(body_with_terminator_todo(), None);
 
     let err = materializer.run(vec![instance]).unwrap_err();
@@ -601,7 +601,7 @@ fn refactor_materialized_mir_no_todo_rejects_terminator_template() {
 }
 
 #[test]
-fn refactor_materialized_mir_no_todo_rejects_unwind_template() {
+fn materialized_mir_no_todo_rejects_unwind_template() {
     let (materializer, instance) = generic_materializer_for_body(body_with_unwind_todo(), None);
 
     let err = materializer.run(vec![instance]).unwrap_err();
@@ -616,7 +616,7 @@ fn refactor_materialized_mir_no_todo_rejects_unwind_template() {
 }
 
 #[test]
-fn refactor_mir_no_return_none_materialized_rejects_non_unit_empty_return() {
+fn mir_no_return_none_materialized_rejects_non_unit_empty_return() {
     let mut types = TypeStore::new();
     let builtins = types.intern_builtins();
     let file = File {
@@ -632,11 +632,11 @@ fn refactor_mir_no_return_none_materialized_rejects_non_unit_empty_return() {
     };
     let materialized = materialized_for_test(file, types);
 
-    let err = materialized.validate_refactor_materialized().unwrap_err();
+    let err = materialized.validate_materialized().unwrap_err();
     assert!(matches!(
         *err,
         MirMaterializeError::MaterializedMirValidation {
-            error: crate::mir::MirValidationError::RefactorProductionMissingReturnValue {
+            error: crate::mir::MirValidationError::ProductionMissingReturnValue {
                 return_ty,
                 ..
             },
@@ -646,7 +646,7 @@ fn refactor_mir_no_return_none_materialized_rejects_non_unit_empty_return() {
 }
 
 #[test]
-fn refactor_materialized_mir_refactor_mir_materialize_generics_rejects_frame_slot_type_param() {
+fn materialized_mir_mir_materialize_generics_rejects_frame_slot_type_param() {
     let mut types = TypeStore::new();
     let builtins = types.intern_builtins();
     let param_ty = types.ty_param(TypeParamType {
@@ -674,7 +674,7 @@ fn refactor_materialized_mir_refactor_mir_materialize_generics_rejects_frame_slo
     };
     let materialized = materialized_for_test(file, types);
 
-    let err = materialized.validate_refactor_materialized().unwrap_err();
+    let err = materialized.validate_materialized().unwrap_err();
     assert!(matches!(
         *err,
         MirMaterializeError::MaterializedUnresolvedGenericParam {
@@ -685,7 +685,7 @@ fn refactor_materialized_mir_refactor_mir_materialize_generics_rejects_frame_slo
 }
 
 #[test]
-fn refactor_materialized_mir_refactor_mir_materialize_generics_missing_root_reports_template_span()
+fn materialized_mir_mir_materialize_generics_missing_root_reports_template_span()
 {
     let mut types = TypeStore::new();
     let builtins = types.intern_builtins();
@@ -751,7 +751,7 @@ fn refactor_materialized_mir_refactor_mir_materialize_generics_missing_root_repo
 }
 
 #[test]
-fn refactor_mir_materialize_generics_missing_template_reports_call_site() {
+fn mir_materialize_generics_missing_template_reports_call_site() {
     let mut types = TypeStore::new();
     let builtins = types.intern_builtins();
     let mut typecheck_types = TypeStore::new();
@@ -844,7 +844,7 @@ fn refactor_mir_materialize_generics_missing_template_reports_call_site() {
 }
 
 #[test]
-fn refactor_materialized_mir_refactor_mir_materialize_generics_rejects_missing_effect_row_arg() {
+fn materialized_mir_mir_materialize_generics_rejects_missing_effect_row_arg() {
     let (materializer, instance) =
         generic_materializer_for_body(unit_return_body(), Some("E".to_string()));
 
@@ -1154,11 +1154,11 @@ val b = wrap<Int, eff Zap>(2)
 }
 
 #[test]
-fn refactor_mir_materialize_generics_covers_roots_effect_rows_and_call_rewrites() {
+fn mir_materialize_generics_covers_roots_effect_rows_and_call_rewrites() {
     let sess = Session::new().unwrap();
-    let source = mir_refactor_fixture("generic_materialization.scoop");
+    let source = mir_fixture("generic_materialization.scoop");
     let materialized = materialize_for_dump_with_opt_level(&sess, &source, OptLevel::O0).unwrap();
-    let boom = "mir_refactor.generic_materialization.Boom".to_string();
+    let boom = "mir_lowered.generic_materialization.Boom".to_string();
 
     let key = |template_fqn: &str| {
         materialized
@@ -1168,26 +1168,26 @@ fn refactor_mir_materialize_generics_covers_roots_effect_rows_and_call_rewrites(
             .unwrap_or_else(|| panic!("missing materialized instance for {template_fqn}"))
     };
 
-    let top = key("mir_refactor.generic_materialization.top");
+    let top = key("mir_lowered.generic_materialization.top");
     assert_eq!(type_arg_names(&materialized, top), vec!["Int"]);
     assert_eq!(effect_arg_names(&materialized, top), vec![boom.clone()]);
 
-    let capture = key("mir_refactor.generic_materialization.capture");
+    let capture = key("mir_lowered.generic_materialization.capture");
     assert_eq!(type_arg_names(&materialized, capture), vec!["Int"]);
     assert_eq!(effect_arg_names(&materialized, capture), vec![boom.clone()]);
 
-    let pair = key("mir_refactor.generic_materialization.Box.pair");
+    let pair = key("mir_lowered.generic_materialization.Box.pair");
     assert_eq!(type_arg_names(&materialized, pair), vec!["Int", "String"]);
     assert_eq!(effect_arg_names(&materialized, pair), vec![boom.clone()]);
 
-    let extension = key("mir_refactor.generic_materialization.effectExt");
+    let extension = key("mir_lowered.generic_materialization.effectExt");
     assert!(extension.type_args.is_empty());
     assert_eq!(
         effect_arg_names(&materialized, extension),
         vec![boom.clone()]
     );
 
-    let object_member = key("mir_refactor.generic_materialization.Tools.choose");
+    let object_member = key("mir_lowered.generic_materialization.Tools.choose");
     assert_eq!(type_arg_names(&materialized, object_member), vec!["String"]);
     assert!(object_member.eff_args.is_empty());
 
@@ -1201,11 +1201,11 @@ fn refactor_mir_materialize_generics_covers_roots_effect_rows_and_call_rewrites(
         })
         .collect::<Vec<_>>();
     for expected in [
-        "mir_refactor.generic_materialization.top::<Int, eff mir_refactor.generic_materialization.Boom>",
-        "mir_refactor.generic_materialization.capture::<Int, eff mir_refactor.generic_materialization.Boom>",
-        "mir_refactor.generic_materialization.Box.pair::<Int, String, eff mir_refactor.generic_materialization.Boom>",
-        "mir_refactor.generic_materialization.effectExt::<eff mir_refactor.generic_materialization.Boom>",
-        "mir_refactor.generic_materialization.Tools.choose::<String>",
+        "mir_lowered.generic_materialization.top::<Int, eff mir_lowered.generic_materialization.Boom>",
+        "mir_lowered.generic_materialization.capture::<Int, eff mir_lowered.generic_materialization.Boom>",
+        "mir_lowered.generic_materialization.Box.pair::<Int, String, eff mir_lowered.generic_materialization.Boom>",
+        "mir_lowered.generic_materialization.effectExt::<eff mir_lowered.generic_materialization.Boom>",
+        "mir_lowered.generic_materialization.Tools.choose::<String>",
     ] {
         assert!(
             fun_fqns.contains(&expected),
@@ -1215,15 +1215,15 @@ fn refactor_mir_materialize_generics_covers_roots_effect_rows_and_call_rewrites(
 
     let pass_view = materialized.pass_view();
     let entry = pass_view
-        .callable("mir_refactor.generic_materialization.entry")
+        .callable("mir_lowered.generic_materialization.entry")
         .expect("request-root entry should be visible in materialized pass view");
     let direct_calls = direct_call_fqns(entry);
     for expected in [
-        "mir_refactor.generic_materialization.Box.pair::<Int, String, eff mir_refactor.generic_materialization.Boom>",
-        "mir_refactor.generic_materialization.Tools.choose::<String>",
-        "mir_refactor.generic_materialization.effectExt::<eff mir_refactor.generic_materialization.Boom>",
-        "mir_refactor.generic_materialization.capture::<Int, eff mir_refactor.generic_materialization.Boom>",
-        "mir_refactor.generic_materialization.top::<Int, eff mir_refactor.generic_materialization.Boom>",
+        "mir_lowered.generic_materialization.Box.pair::<Int, String, eff mir_lowered.generic_materialization.Boom>",
+        "mir_lowered.generic_materialization.Tools.choose::<String>",
+        "mir_lowered.generic_materialization.effectExt::<eff mir_lowered.generic_materialization.Boom>",
+        "mir_lowered.generic_materialization.capture::<Int, eff mir_lowered.generic_materialization.Boom>",
+        "mir_lowered.generic_materialization.top::<Int, eff mir_lowered.generic_materialization.Boom>",
     ] {
         assert!(
             direct_calls.iter().any(|fqn| fqn == expected),
@@ -1231,11 +1231,11 @@ fn refactor_mir_materialize_generics_covers_roots_effect_rows_and_call_rewrites(
         );
     }
     for template in [
-        "mir_refactor.generic_materialization.Box.pair",
-        "mir_refactor.generic_materialization.Tools.choose",
-        "mir_refactor.generic_materialization.effectExt",
-        "mir_refactor.generic_materialization.capture",
-        "mir_refactor.generic_materialization.top",
+        "mir_lowered.generic_materialization.Box.pair",
+        "mir_lowered.generic_materialization.Tools.choose",
+        "mir_lowered.generic_materialization.effectExt",
+        "mir_lowered.generic_materialization.capture",
+        "mir_lowered.generic_materialization.top",
     ] {
         assert!(
             !direct_calls.iter().any(|fqn| fqn == template),
@@ -1246,7 +1246,7 @@ fn refactor_mir_materialize_generics_covers_roots_effect_rows_and_call_rewrites(
         has_class_ctor_for_type(
             &materialized,
             entry,
-            "mir_refactor.generic_materialization.Holder<Int>",
+            "mir_lowered.generic_materialization.Holder<Int>",
         ),
         "generic constructor surface should keep the concrete owner type in materialized pass view"
     );

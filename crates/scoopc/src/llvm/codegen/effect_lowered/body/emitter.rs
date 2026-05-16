@@ -1,4 +1,4 @@
-//! `RefactorCallableEmitter` definition: per-callable state machine emitter
+//! `CallableEmitter` definition: per-callable state machine emitter
 //! that the `MainCodegen` entry layer constructs and drives. The constructor
 //! captures the published late-lowered callable, allocates state blocks, and
 //! sets up the frame layout caches. Other methods on this type live in the
@@ -6,7 +6,7 @@
 
 use super::*;
 
-pub(super) struct RefactorCallableEmitter<'cg, 'a, 'ctx> {
+pub(super) struct CallableEmitter<'cg, 'a, 'ctx> {
     pub(super) codegen: &'cg mut MainCodegen<'a, 'ctx>,
     pub(super) program: &'a LateLoweredProgram,
     pub(super) source_types: &'a TypeStore,
@@ -19,16 +19,16 @@ pub(super) struct RefactorCallableEmitter<'cg, 'a, 'ctx> {
     pub(super) slots: Vec<MirLocalSlot<'ctx>>,
     pub(super) used_locals: HashSet<LocalId>,
     pub(super) abi_step_schema: StepSchemaId,
-    pub(super) frame_layout: &'cg RefactorFrameLayout<'ctx>,
-    pub(super) step_layout: &'cg RefactorStepLayout<'ctx>,
+    pub(super) frame_layout: &'cg FrameLayout<'ctx>,
+    pub(super) step_layout: &'cg StepLayout<'ctx>,
     pub(super) frame_root_slot: PointerValue<'ctx>,
     pub(super) state_blocks: BTreeMap<StateId, BasicBlock<'ctx>>,
     pub(super) return_projection:
         Option<&'cg crate::effect_lowered::ir::LateLoweredSurfaceResumeWrapperProjection>,
     pub(super) return_step_schema: Option<StepSchemaId>,
     pub(super) surface_resume_handle_sites: Option<BTreeSet<SiteId>>,
-    pub(super) handle_completion_mode: RefactorHandleCompletionMode,
-    pub(super) return_mode: RefactorCallableReturnMode,
+    pub(super) handle_completion_mode: HandleCompletionMode,
+    pub(super) return_mode: CallableReturnMode,
 }
 
 pub(super) struct ComposedBoundaryDispatchContext<'a> {
@@ -37,7 +37,7 @@ pub(super) struct ComposedBoundaryDispatchContext<'a> {
     pub(super) continuation_compositions: &'a [LateLoweredCallBoundaryContinuationComposition],
 }
 
-impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
+impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
     #[allow(clippy::too_many_arguments)]
     pub(super) fn new(
         codegen: &'cg mut MainCodegen<'a, 'ctx>,
@@ -54,7 +54,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         >,
         return_step_schema: Option<StepSchemaId>,
         surface_resume_handle_sites: Option<BTreeSet<SiteId>>,
-        handle_completion_mode: RefactorHandleCompletionMode,
+        handle_completion_mode: HandleCompletionMode,
     ) -> Result<Self, LlvmEmitError> {
         if let Some(callable_layout) = callable
             .effect_step_abi()
@@ -63,14 +63,14 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             && callable_layout.root_fqn() != callable.root_fqn()
         {
             return Err(frontend_error(format!(
-                "refactor body lowering callable `{}` 的 ABI layout root 漂移：layout=`{}`",
+                "body lowering callable `{}` 的 ABI layout root 漂移：layout=`{}`",
                 callable.root_fqn(),
                 callable_layout.root_fqn(),
             )));
         }
         let body_step_schema = callable.body_step_schema().ok_or_else(|| {
             frontend_error(format!(
-                "refactor body lowering callable `{}` 缺少 control-body step schema",
+                "body lowering callable `{}` 缺少 control-body step schema",
                 callable.root_fqn()
             ))
         })?;
@@ -84,14 +84,14 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             .unwrap_or(body_step_schema);
         let frame_layout = abi.frame_layout(abi_step_schema).ok_or_else(|| {
             frontend_error(format!(
-                "refactor body lowering 缺少 callable `{}` 的 ABI frame layout s{}",
+                "body lowering 缺少 callable `{}` 的 ABI frame layout s{}",
                 callable.root_fqn(),
                 abi_step_schema.as_u32()
             ))
         })?;
         let step_layout = abi.step_layout(abi_step_schema).ok_or_else(|| {
             frontend_error(format!(
-                "refactor body lowering 缺少 callable `{}` 的 ABI step layout s{}",
+                "body lowering 缺少 callable `{}` 的 ABI step layout s{}",
                 callable.root_fqn(),
                 abi_step_schema.as_u32()
             ))
@@ -104,7 +104,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         }
         let used_locals = super::super::super::mir_body::collect_mir_local_uses(body);
         let frame_root_slot =
-            codegen.create_refactor_gc_root_slot(mir_fun.span, "refactor_frame_root")?;
+            codegen.create_gc_root_slot(mir_fun.span, "frame_root")?;
         let mut state_blocks = BTreeMap::new();
         for state in callable.state_graph().states() {
             if state_blocks
@@ -112,13 +112,13 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                     state.state_id(),
                     codegen.context.append_basic_block(
                         function,
-                        &format!("refactor.st{}", state.state_id().as_u32()),
+                        &format!("lowered.st{}", state.state_id().as_u32()),
                     ),
                 )
                 .is_some()
             {
                 return Err(frontend_error(format!(
-                    "refactor body verifier 发现 callable `{}` 重复发布 state st{}",
+                    "body verifier 发现 callable `{}` 重复发布 state st{}",
                     callable.root_fqn(),
                     state.state_id().as_u32()
                 )));
@@ -145,14 +145,14 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             return_step_schema,
             surface_resume_handle_sites,
             handle_completion_mode,
-            return_mode: RefactorCallableReturnMode::Step,
+            return_mode: CallableReturnMode::Step,
         };
         emitter.verify_body_contract()?;
         Ok(emitter)
     }
 
-    pub(super) fn value_primitives(&mut self) -> RefactorValuePrimitives<'_, 'a, 'ctx> {
-        RefactorValuePrimitives::new(
+    pub(super) fn value_primitives(&mut self) -> ValuePrimitives<'_, 'a, 'ctx> {
+        ValuePrimitives::new(
             &mut *self.codegen,
             self.source_types,
             self.body,

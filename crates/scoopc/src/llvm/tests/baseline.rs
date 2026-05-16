@@ -77,17 +77,17 @@ fun main(): Int {
     );
     let session = Session::new().unwrap();
     let ir = emit_minimal_main_ir(&session, &source).expect(
-        "默认单文件 helper 应走 refactor LLVM stage，而不是命中已删除的 HIR handle lowering",
+        "默认单文件 helper 应走 LLVM stage，而不是命中已删除的 HIR handle lowering",
     );
 
     assert!(ir.contains("define i32 @main("));
     assert!(
         function_ir_count_matching(&ir, |header, _| header.contains("resume")) >= 1
-            && ir.contains("refactor_handle_saved_ctx")
-            && ir.contains("refactor_handle_direct_exit_ctx_clear_saved")
+            && ir.contains("handle_saved_ctx")
+            && ir.contains("handle_direct_exit_ctx_clear_saved")
             && ir.contains("%scoop.runtime.ScoopEffectHandlerNode")
             && ir.contains("%scoop.runtime.ScoopEffectCtx"),
-        "默认单文件 helper 应继续产出 refactor handle/state-machine lowering，而不是回退到已删除的 HIR handle lowering 或只剩空壳 C main:\n{ir}"
+        "默认单文件 helper 应继续产出 handle/state-machine lowering，而不是回退到已删除的 HIR handle lowering 或只剩空壳 C main:\n{ir}"
     );
 }
 
@@ -269,7 +269,7 @@ fun main(): Int {
 }
 
 #[test]
-pub(super) fn refactor_llvm_call_contract_lowering() {
+pub(super) fn llvm_call_contract_lowering() {
     let session = Session::new().unwrap();
     let source = SourceFile::new_virtual(
         "<mem>/cg_t03_call_contracts.scoop",
@@ -363,7 +363,7 @@ fun main(): Int {
         "value-box itable method table 应直接引用 user struct body method symbol，而不是 box thunk:\n{ir}"
     );
     assert!(
-        !ir.contains("refactor_itable_dynamic_entry"),
+        !ir.contains("itable_dynamic_entry"),
         "plain value-box interface dispatch 不应为 struct receiver 发布 itable thunk shell:\n{ir}"
     );
 }
@@ -418,7 +418,7 @@ fun main(): Int {
         "intrinsic value-box itable method table 应直接引用 struct body method symbol，而不是额外 thunk:\n{ir}"
     );
     assert!(
-        !ir.contains("refactor_itable_dynamic_entry"),
+        !ir.contains("itable_dynamic_entry"),
         "intrinsic value-type interface dispatch 不应要求新的 box thunk shell:\n{ir}"
     );
 }
@@ -666,7 +666,7 @@ pub(super) fn intrinsic_nominal_body_method_fixtures_do_not_introduce_by_name_co
 }
 
 #[test]
-pub(super) fn refactor_llvm_ctor_default_arg_contract_lowering() {
+pub(super) fn llvm_ctor_default_arg_contract_lowering() {
     let session = Session::new().unwrap();
     let source = SourceFile::new_virtual(
         "<mem>/cg_t03_ctor_default_args.scoop",
@@ -692,7 +692,7 @@ fun main(): Int {
 }
 
 #[test]
-pub(super) fn refactor_llvm_extern_global() {
+pub(super) fn llvm_extern_global() {
     let session = Session::new().unwrap();
     let source = SourceFile::new_virtual(
         "<mem>/cg_t07_extern_global.scoop",

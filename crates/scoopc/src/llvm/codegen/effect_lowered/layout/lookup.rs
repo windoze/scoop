@@ -16,7 +16,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             .body(callable.instance_key())
             .ok_or_else(|| {
                 frontend_error(format!(
-                    "refactor LLVM ABI materialization 缺少 callable `{}` 的 BodyEffectFacts，无法发布 source-slice dynamic-invoke contract",
+                    "LLVM ABI materialization 缺少 callable `{}` 的 BodyEffectFacts，无法发布 source-slice dynamic-invoke contract",
                     callable.root_fqn(),
                 ))
             })
@@ -37,7 +37,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             MirCallKind::Interface { .. } => CallSiteKind::Interface,
             other => {
                 return Err(frontend_error(format!(
-                    "refactor LLVM ABI materialization 发现 callable `{owner_root_fqn}` call site {} 的 canonical MIR kind {other:?} 无法为 {:?} 发布 dynamic-invoke contract",
+                    "LLVM ABI materialization 发现 callable `{owner_root_fqn}` call site {} 的 canonical MIR kind {other:?} 无法为 {:?} 发布 dynamic-invoke contract",
                     site_id.as_u32(),
                     facts.target_mode(),
                 )));
@@ -45,7 +45,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
         };
         if facts.kind() != expected_kind {
             return Err(frontend_error(format!(
-                "refactor LLVM ABI materialization 发现 callable `{owner_root_fqn}` call site {} 的 call kind contract 漂移：canonical MIR={call_kind:?}，effect facts={:?}",
+                "LLVM ABI materialization 发现 callable `{owner_root_fqn}` call site {} 的 call kind contract 漂移：canonical MIR={call_kind:?}，effect facts={:?}",
                 site_id.as_u32(),
                 facts.kind(),
             )));
@@ -59,12 +59,12 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
     ) -> Result<&crate::mir::Body, LlvmEmitError> {
         let callable = self.pass_view.callable(owner_root_fqn).ok_or_else(|| {
             frontend_error(format!(
-                "refactor LLVM ABI materialization 缺少 callable `{owner_root_fqn}` 的 canonical MIR body，无法发布 dynamic-invoke contract"
+                "LLVM ABI materialization 缺少 callable `{owner_root_fqn}` 的 canonical MIR body，无法发布 dynamic-invoke contract"
             ))
         })?;
         callable.body.as_ref().ok_or_else(|| {
             frontend_error(format!(
-                "refactor LLVM ABI materialization 缺少 callable `{owner_root_fqn}` 的 canonical MIR body 内容，无法发布 dynamic-invoke contract"
+                "LLVM ABI materialization 缺少 callable `{owner_root_fqn}` 的 canonical MIR body 内容，无法发布 dynamic-invoke contract"
             ))
         })
     }
@@ -138,7 +138,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             }
         }
         Err(frontend_error(format!(
-            "refactor LLVM ABI materialization 缺少 callable `{owner_root_fqn}` call site {} 的 canonical MIR call metadata，无法发布 dynamic-invoke contract",
+            "LLVM ABI materialization 缺少 callable `{owner_root_fqn}` call site {} 的 canonical MIR call metadata，无法发布 dynamic-invoke contract",
             site_id.as_u32(),
         )))
     }
@@ -156,7 +156,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             .get(&dispatch.owner_fqn)
             .ok_or_else(|| {
                 frontend_error(format!(
-                    "refactor LLVM ABI materialization 缺少 callable `{owner_root_fqn}` virtual call site {} owner `{}` 的 class vtable，无法发布 dispatch slot",
+                    "LLVM ABI materialization 缺少 callable `{owner_root_fqn}` virtual call site {} owner `{}` 的 class vtable，无法发布 dispatch slot",
                     site_id.as_u32(),
                     dispatch.owner_fqn,
                 ))
@@ -166,7 +166,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
         });
         let first = candidates.next().ok_or_else(|| {
             frontend_error(format!(
-                "refactor LLVM ABI materialization 缺少 callable `{owner_root_fqn}` virtual call site {} `{}`.`{}`/{} 的 vtable slot",
+                "LLVM ABI materialization 缺少 callable `{owner_root_fqn}` virtual call site {} `{}`.`{}`/{} 的 vtable slot",
                 site_id.as_u32(),
                 dispatch.owner_fqn,
                 dispatch.member_name,
@@ -175,7 +175,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
         })?;
         if candidates.next().is_some() {
             return Err(frontend_error(format!(
-                "refactor LLVM ABI materialization 发现 callable `{owner_root_fqn}` virtual call site {} `{}`.`{}`/{} 的 vtable slot 多义",
+                "LLVM ABI materialization 发现 callable `{owner_root_fqn}` virtual call site {} `{}`.`{}`/{} 的 vtable slot 多义",
                 site_id.as_u32(),
                 dispatch.owner_fqn,
                 dispatch.member_name,
@@ -198,7 +198,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             .get(&dispatch.owner_fqn)
             .ok_or_else(|| {
                 frontend_error(format!(
-                    "refactor LLVM ABI materialization 缺少 callable `{owner_root_fqn}` interface call site {} owner `{}` 的 interface metadata，无法发布 itable slot",
+                    "LLVM ABI materialization 缺少 callable `{owner_root_fqn}` interface call site {} owner `{}` 的 interface metadata，无法发布 itable slot",
                     site_id.as_u32(),
                     dispatch.owner_fqn,
                 ))
@@ -208,14 +208,14 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
         });
         let first = candidates.next().ok_or_else(|| {
             frontend_error(format!(
-                "refactor LLVM ABI materialization 缺少 callable `{owner_root_fqn}` interface call site {} `{}` 的 selected itable slot",
+                "LLVM ABI materialization 缺少 callable `{owner_root_fqn}` interface call site {} `{}` 的 selected itable slot",
                 site_id.as_u32(),
                 dispatch.member_fqn,
             ))
         })?;
         if candidates.next().is_some() {
             return Err(frontend_error(format!(
-                "refactor LLVM ABI materialization 发现 callable `{owner_root_fqn}` interface call site {} `{}` 的 selected itable slot 多义",
+                "LLVM ABI materialization 发现 callable `{owner_root_fqn}` interface call site {} `{}` 的 selected itable slot 多义",
                 site_id.as_u32(),
                 dispatch.member_fqn,
             )));
@@ -244,14 +244,14 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             }
             if found.replace(arms.as_slice()).is_some() {
                 return Err(frontend_error(format!(
-                    "refactor LLVM ABI materialization 发现 callable `{owner_root_fqn}` handle site {} 在 canonical MIR 中重复出现多个 Handle terminator",
+                    "LLVM ABI materialization 发现 callable `{owner_root_fqn}` handle site {} 在 canonical MIR 中重复出现多个 Handle terminator",
                     site_id.as_u32(),
                 )));
             }
         }
         found.ok_or_else(|| {
             frontend_error(format!(
-                "refactor LLVM ABI materialization 缺少 callable `{owner_root_fqn}` handle site {} 的 canonical MIR arm metadata，无法校验 HandleDispatch arm binder contract",
+                "LLVM ABI materialization 缺少 callable `{owner_root_fqn}` handle site {} 的 canonical MIR arm metadata，无法校验 HandleDispatch arm binder contract",
                 site_id.as_u32(),
             ))
         })
@@ -267,19 +267,19 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
         for &interface_id in interface_ids {
             if !seen.insert(interface_id) {
                 return Err(frontend_error(format!(
-                    "refactor LLVM ABI materialization 发现 {owner_label} 重复发布 resume packing {}",
+                    "LLVM ABI materialization 发现 {owner_label} 重复发布 resume packing {}",
                     interface_id.as_u32()
                 )));
             }
             let interface = self.program.resume_packing(interface_id).ok_or_else(|| {
                 frontend_error(format!(
-                    "refactor LLVM ABI materialization 缺少 {owner_label} 发布的 resume packing {}",
+                    "LLVM ABI materialization 缺少 {owner_label} 发布的 resume packing {}",
                     interface_id.as_u32()
                 ))
             })?;
             if interface.return_step_schema() != expected_step_schema {
                 return Err(frontend_error(format!(
-                    "refactor LLVM ABI materialization 发现 {owner_label} 发布的 resume packing {} return step schema 为 {}，但当前 step schema 为 {}",
+                    "LLVM ABI materialization 发现 {owner_label} 发布的 resume packing {} return step schema 为 {}，但当前 step schema 为 {}",
                     interface_id.as_u32(),
                     interface.return_step_schema().as_u32(),
                     expected_step_schema.as_u32()

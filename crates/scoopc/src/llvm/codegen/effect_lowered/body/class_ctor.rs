@@ -2,7 +2,7 @@
 
 use super::*;
 
-impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
+impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
     pub(super) fn lower_class_ctor_boundary(
         &mut self,
         boundary: &LateLoweredBoundary,
@@ -11,7 +11,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         let site_id = boundary_site(boundary, "ClassCtor")?;
         let source = self.class_ctor_boundary_statement(lowering, site_id)?;
         match &source {
-            RefactorClassCtorBoundarySource::ClassCtor { span, ctor, args } => {
+            ClassCtorBoundarySource::ClassCtor { span, ctor, args } => {
                 let class_layout_key =
                     self.class_ctor_layout_key(lowering.class_fqn(), lowering.result_local())?;
                 let slots = self.slots.clone();
@@ -22,7 +22,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                         site_id.as_u32(),
                         |cg| {
                             cg.with_ordinary_effect_propagation_suppressed(|cg| {
-                                cg.codegen_mir_refactor_class_ctor_call(
+                                cg.codegen_mir_class_ctor_call(
                                     *span,
                                     &class_layout_key,
                                     ctor,
@@ -65,13 +65,13 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                     [single] => single,
                     [] => {
                         return Err(frontend_error(format!(
-                            "refactor class ctor boundary bd{} 缺少 hidden effect emission",
+                            "class ctor boundary bd{} 缺少 hidden effect emission",
                             boundary.boundary_id().as_u32()
                         )));
                     }
                     many => {
                         return Err(frontend_error(format!(
-                            "refactor class ctor boundary bd{} 发布了 {} 个 hidden effect emission；当前 runtime outcome lowering 需要唯一 ordinary effect case",
+                            "class ctor boundary bd{} 发布了 {} 个 hidden effect emission；当前 runtime outcome lowering 需要唯一 ordinary effect case",
                             boundary.boundary_id().as_u32(),
                             many.len()
                         )));
@@ -96,24 +96,24 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                 let _ = self.store_local_value(*span, lowering.result_local(), result)?;
                 self.branch_to_state(boundary.resume_state())
             }
-            RefactorClassCtorBoundarySource::ObjectProperty { span, fqn } => {
+            ClassCtorBoundarySource::ObjectProperty { span, fqn } => {
                 let object_fqn = self
                     .codegen
                     .lookup_object_property_by_fqn(fqn)
                     .map(|(object, _prop)| object.fqn.clone())
                     .ok_or_else(|| {
                         frontend_error(format!(
-                            "refactor class ctor boundary site{} hidden object property `{fqn}` 缺少 metadata",
+                            "class ctor boundary site{} hidden object property `{fqn}` 缺少 metadata",
                             site_id.as_u32()
                         ))
                     })?;
                 let bridge = self
                     .codegen
-                    .ensure_refactor_object_init_bridge_defined(&object_fqn)?;
-                let outcome_slot = self.call_refactor_hidden_init_bridge(
+                    .ensure_object_init_bridge_defined(&object_fqn)?;
+                let outcome_slot = self.call_hidden_init_bridge(
                     *span,
                     bridge,
-                    "refactor_hidden_object_init_bridge",
+                    "hidden_object_init_bridge",
                 )?;
                 let prop_fqn = (*fqn).to_string();
                 self.lower_hidden_init_boundary_from_bridge(
@@ -127,16 +127,16 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                     },
                 )
             }
-            RefactorClassCtorBoundarySource::TopLevelRef { span, fqn } => {
+            ClassCtorBoundarySource::TopLevelRef { span, fqn } => {
                 if self.codegen.object_inits.contains_key(*fqn) {
                     let object_fqn = (*fqn).to_string();
                     let bridge = self
                         .codegen
-                        .ensure_refactor_object_init_bridge_defined(&object_fqn)?;
-                    let outcome_slot = self.call_refactor_hidden_init_bridge(
+                        .ensure_object_init_bridge_defined(&object_fqn)?;
+                    let outcome_slot = self.call_hidden_init_bridge(
                         *span,
                         bridge,
-                        "refactor_hidden_object_init_bridge",
+                        "hidden_object_init_bridge",
                     )?;
                     self.lower_hidden_init_boundary_from_bridge(
                         boundary,
@@ -150,13 +150,13 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                 {
                     let bridge = self
                         .codegen
-                        .ensure_refactor_top_level_immutable_value_init_bridge_defined(
+                        .ensure_top_level_immutable_value_init_bridge_defined(
                             &value.fqn,
                         )?;
-                    let outcome_slot = self.call_refactor_hidden_init_bridge(
+                    let outcome_slot = self.call_hidden_init_bridge(
                         *span,
                         bridge,
-                        "refactor_hidden_top_level_init_bridge",
+                        "hidden_top_level_init_bridge",
                     )?;
                     self.lower_hidden_init_boundary_from_bridge(
                         boundary,
@@ -170,7 +170,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                     )
                 } else {
                     Err(frontend_error(format!(
-                        "refactor class ctor boundary site{} hidden top-level ref `{fqn}` 不是 object/top-level immutable init",
+                        "class ctor boundary site{} hidden top-level ref `{fqn}` 不是 object/top-level immutable init",
                         site_id.as_u32()
                     )))
                 }
@@ -178,7 +178,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         }
     }
 
-    pub(super) fn call_refactor_hidden_init_bridge(
+    pub(super) fn call_hidden_init_bridge(
         &mut self,
         span: crate::span::Span,
         bridge: FunctionValue<'ctx>,
@@ -190,7 +190,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                 let call = cg.builder.build_call(bridge, &[], label)?;
                 let outcome = call.try_as_basic_value().basic().ok_or_else(|| {
                     frontend_error(format!(
-                        "refactor hidden-init bridge `{label}` 未返回 explicit outcome aggregate"
+                        "hidden-init bridge `{label}` 未返回 explicit outcome aggregate"
                     ))
                 })?;
                 cg.builder.build_store(outcome_slot, outcome)?;
@@ -214,13 +214,13 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             [single] => single,
             [] => {
                 return Err(frontend_error(format!(
-                    "refactor class ctor boundary bd{} 缺少 hidden effect emission",
+                    "class ctor boundary bd{} 缺少 hidden effect emission",
                     boundary.boundary_id().as_u32()
                 )));
             }
             many => {
                 return Err(frontend_error(format!(
-                    "refactor class ctor boundary bd{} 发布了 {} 个 hidden effect emission；当前 hidden-init bridge 需要唯一 ordinary effect case",
+                    "class ctor boundary bd{} 发布了 {} 个 hidden effect emission；当前 hidden-init bridge 需要唯一 ordinary effect case",
                     boundary.boundary_id().as_u32(),
                     many.len()
                 )));
@@ -269,7 +269,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             .builder
             .build_unconditional_branch(dispatch_bb)?;
         let active_end = self.codegen.builder.get_insert_block().ok_or_else(|| {
-            frontend_error("refactor hidden-init active branch 缺少 insert block".to_string())
+            frontend_error("hidden-init active branch 缺少 insert block".to_string())
         })?;
 
         self.codegen.builder.position_at_end(inactive_bb);
@@ -277,7 +277,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             .builder
             .build_unconditional_branch(dispatch_bb)?;
         let inactive_end = self.codegen.builder.get_insert_block().ok_or_else(|| {
-            frontend_error("refactor hidden-init inactive branch 缺少 insert block".to_string())
+            frontend_error("hidden-init inactive branch 缺少 insert block".to_string())
         })?;
 
         self.codegen.builder.position_at_end(dispatch_bb);
@@ -289,11 +289,11 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         let step_tag = self
             .codegen
             .builder
-            .build_phi(self.codegen.context.i32_type(), "refactor_step_tag")?;
+            .build_phi(self.codegen.context.i32_type(), "step_tag")?;
         step_tag.add_incoming(&[(&outward_tag, active_end), (&complete_tag, inactive_end)]);
-        let refactor_step_tag = step_tag.as_basic_value().into_int_value();
+        let step_tag = step_tag.as_basic_value().into_int_value();
         self.codegen.builder.build_switch(
-            refactor_step_tag,
+            step_tag,
             unmatched_bb,
             &[(complete_tag, complete_bb), (outward_tag, case_bb)],
         )?;
@@ -346,7 +346,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         let layout = self.abi.class_instance_layout(target_ty)?;
         if layout.base_fqn() != class_fqn {
             return Err(frontend_error(format!(
-                "refactor class ctor boundary `{class_fqn}` result local{} resolved to mismatched layout `{}`",
+                "class ctor boundary `{class_fqn}` result local{} resolved to mismatched layout `{}`",
                 result_local.as_u32(),
                 layout.base_fqn()
             )));
@@ -358,10 +358,10 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         &self,
         lowering: &crate::effect_lowered::ir::LateLoweredClassCtorBoundaryLowering,
         site_id: SiteId,
-    ) -> Result<RefactorClassCtorBoundarySource<'a>, LlvmEmitError> {
+    ) -> Result<ClassCtorBoundarySource<'a>, LlvmEmitError> {
         let Some(statement_index) = lowering.source_consumption().statement_index() else {
             return Err(frontend_error(format!(
-                "refactor class ctor boundary site{} source consumption 不是 statement anchor",
+                "class ctor boundary site{} source consumption 不是 statement anchor",
                 site_id.as_u32()
             )));
         };
@@ -372,14 +372,14 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             .get(source_slice.block_id().as_u32() as usize)
             .ok_or_else(|| {
                 frontend_error(format!(
-                    "refactor class ctor boundary site{} source block bb{} 不存在",
+                    "class ctor boundary site{} source block bb{} 不存在",
                     site_id.as_u32(),
                     source_slice.block_id().as_u32()
                 ))
             })?;
         let stmt = block.stmts.get(statement_index as usize).ok_or_else(|| {
             frontend_error(format!(
-                "refactor class ctor boundary site{} source statement {} 不存在",
+                "class ctor boundary site{} source statement {} 不存在",
                 site_id.as_u32(),
                 statement_index
             ))
@@ -394,7 +394,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                         ..
                     },
                 ..
-            } if *stmt_site == site_id => Ok(RefactorClassCtorBoundarySource::ClassCtor {
+            } if *stmt_site == site_id => Ok(ClassCtorBoundarySource::ClassCtor {
                 span: stmt.span,
                 ctor,
                 args,
@@ -403,7 +403,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                 value: mir::Rvalue::TopLevelRef(top_level),
                 ..
             } if top_level.site_id == Some(site_id) && !top_level.hidden_effects.is_pure() => {
-                Ok(RefactorClassCtorBoundarySource::TopLevelRef {
+                Ok(ClassCtorBoundarySource::TopLevelRef {
                     span: stmt.span,
                     fqn: &top_level.fqn,
                 })
@@ -419,17 +419,17 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             } if *stmt_site == site_id && !member.hidden_effects.is_pure() => {
                 let Some(mir::MemberTarget::Value { fqn }) = member.resolved.as_ref() else {
                     return Err(frontend_error(format!(
-                        "refactor class ctor boundary site{} hidden member source 不是 resolved value member",
+                        "class ctor boundary site{} hidden member source 不是 resolved value member",
                         site_id.as_u32()
                     )));
                 };
-                Ok(RefactorClassCtorBoundarySource::ObjectProperty {
+                Ok(ClassCtorBoundarySource::ObjectProperty {
                     span: stmt.span,
                     fqn,
                 })
             }
             _ => Err(frontend_error(format!(
-                "refactor class ctor boundary site{} source anchor 不是 ClassCtor/hidden member statement",
+                "class ctor boundary site{} source anchor 不是 ClassCtor/hidden member statement",
                 site_id.as_u32()
             ))),
         }
@@ -449,7 +449,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             .cg_ty_of_mir_type(self.source_types, payload_ty)
             .ok_or_else(|| {
                 frontend_error(format!(
-                    "refactor class ctor hidden effect payload t{} 缺少 codegen type",
+                    "class ctor hidden effect payload t{} 缺少 codegen type",
                     payload_ty.as_u32()
                 ))
             })?;
@@ -469,7 +469,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             .value
             .ok_or_else(|| {
                 frontend_error(format!(
-                    "refactor class ctor hidden effect payload t{} decoded to elided value despite non-elided ABI",
+                    "class ctor hidden effect payload t{} decoded to elided value despite non-elided ABI",
                     payload_ty.as_u32()
                 ))
             })
@@ -479,7 +479,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
     pub(super) fn should_use_task_transport_dynamic_resume(
         &mut self,
         site_id: SiteId,
-        surface: &RefactorContinuationSurfaceResumeLayout<'ctx>,
+        surface: &ContinuationSurfaceResumeLayout<'ctx>,
         lowering: &crate::effect_lowered::ir::LateLoweredResumeBoundaryLowering,
     ) -> Result<bool, LlvmEmitError> {
         // These continuations are stored in heap state and later resumed from helper paths, so
@@ -502,13 +502,13 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         &mut self,
         boundary: &LateLoweredBoundary,
         lowering: &crate::effect_lowered::ir::LateLoweredResumeBoundaryLowering,
-        surface: &RefactorContinuationSurfaceResumeLayout<'ctx>,
+        surface: &ContinuationSurfaceResumeLayout<'ctx>,
         cont_ptr: PointerValue<'ctx>,
         args_payload: Option<BasicValueEnum<'ctx>>,
     ) -> Result<bool, LlvmEmitError> {
         let payload = args_payload.ok_or_else(|| {
             frontend_error(format!(
-                "refactor task transport resume bd{} 需要 non-elided payload",
+                "task transport resume bd{} 需要 non-elided payload",
                 boundary.boundary_id().as_u32()
             ))
         })?;
@@ -568,11 +568,11 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                 self.mir_fun.span,
                 candidate.adapter,
                 &args,
-                "refactor_task_transport_resume",
+                "task_transport_resume",
             )?;
             let owner_step = call.try_as_basic_value().basic().ok_or_else(|| {
                 frontend_error(format!(
-                    "refactor task transport resume adapter `{}` 未返回 Step_F",
+                    "task transport resume adapter `{}` 未返回 Step_F",
                     candidate.adapter.get_name().to_str().unwrap_or("<invalid>")
                 ))
             })?;
@@ -617,11 +617,11 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                 .continuation_layout(callable.continuation_object())
                 .ok_or_else(|| {
                     frontend_error(format!(
-                        "refactor task transport resume 缺少 callable `{}` continuation layout",
+                        "task transport resume 缺少 callable `{}` continuation layout",
                         callable.root_fqn()
                     ))
                 })?;
-            let type_desc = self.codegen.get_or_create_refactor_gc_type_descriptor(
+            let type_desc = self.codegen.get_or_create_gc_type_descriptor(
                 self.mir_fun.span,
                 continuation_layout.llvm_ty(),
                 continuation_layout.layout_anchor_name(),
@@ -648,7 +648,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         transport_ty: TypeId,
     ) -> Result<bool, LlvmEmitError> {
         for binding in callable.frame_schema().resume_payload_bindings() {
-            let Some(mir_fun) = refactor_mir_callable(self.pass_view, callable.root_fqn()).ok()
+            let Some(mir_fun) = mir_callable(self.pass_view, callable.root_fqn()).ok()
             else {
                 continue;
             };
@@ -670,7 +670,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
     ) -> Result<Option<LateLoweredStepDispatchPlan>, LlvmEmitError> {
         let owner_step = self.program.step_type(owner_step_schema).ok_or_else(|| {
             frontend_error(format!(
-                "refactor task transport resume 缺少 owner step schema s{}",
+                "task transport resume 缺少 owner step schema s{}",
                 owner_step_schema.as_u32()
             ))
         })?;
@@ -682,7 +682,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             .step_type(wrapper_dispatch.input_step_schema())
             .ok_or_else(|| {
                 frontend_error(format!(
-                    "refactor task transport resume 缺少 wrapper step schema s{}",
+                    "task transport resume 缺少 wrapper step schema s{}",
                     wrapper_dispatch.input_step_schema().as_u32()
                 ))
             })?;
@@ -720,7 +720,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             .step_layout(callable.step_schema())
             .ok_or_else(|| {
                 frontend_error(format!(
-                    "refactor task transport resume 缺少 callable `{}` step layout s{}",
+                    "task transport resume 缺少 callable `{}` step layout s{}",
                     callable.root_fqn(),
                     callable.step_schema().as_u32()
                 ))
@@ -740,13 +740,13 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         )
         .map_err(|err| {
             frontend_error(format!(
-                "refactor task transport resume `{}` 计算 canonical type text 失败（t{}）: {err}",
+                "task transport resume `{}` 计算 canonical type text 失败（t{}）: {err}",
                 callable.root_fqn(),
                 transport_ty.as_u32()
             ))
         })?;
         let symbol_name = stable_naming::private_name_from_key_text(
-            "refactor_task_transport_resume",
+            "task_transport_resume",
             &canonical_record(
                 "task_transport_resume",
                 [
@@ -766,10 +766,10 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
 
         let saved_block = self.codegen.builder.get_insert_block();
         let mut child = self.codegen.fresh_child_codegen();
-        let mir_fun = refactor_mir_callable(self.pass_view, callable.root_fqn())?;
+        let mir_fun = mir_callable(self.pass_view, callable.root_fqn())?;
         let body = mir_fun.body.as_ref().ok_or_else(|| {
             frontend_error(format!(
-                "refactor task transport resume adapter `{}` owner `{}` 缺少 canonical MIR body",
+                "task transport resume adapter `{}` owner `{}` 缺少 canonical MIR body",
                 symbol_name,
                 callable.root_fqn()
             ))
@@ -777,7 +777,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         let entry = child.context.append_basic_block(function, "entry");
         child.builder.position_at_end(entry);
         child.begin_function_explicit_frame_layout(function)?;
-        RefactorCallableEmitter::new(
+        CallableEmitter::new(
             &mut child,
             self.program,
             self.source_types,
@@ -790,7 +790,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             None,
             None,
             None,
-            RefactorHandleCompletionMode::ReturnFromFunction,
+            HandleCompletionMode::ReturnFromFunction,
         )?
         .emit_resume_entry(transport_ty)?;
         child.finish_function_explicit_frame_layout(mir_fun.span)?;

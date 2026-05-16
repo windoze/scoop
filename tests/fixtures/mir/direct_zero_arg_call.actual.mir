@@ -1,0 +1,53 @@
+File {
+    items: [
+        Fun(
+            FunDecl {
+                span: 11..34,
+                fqn: "a.zero",
+                name: "zero",
+                ty: () -> Int / Pure,
+                params: [],
+                return_ty: Int,
+                body: Some(
+                    Body {
+                        locals: [LocalDecl { label: local#h197d1acb7239b6686a96206eb4b2b517, span: 31..32, name: Some("tmp0"), ty: Int, source: CompilerTemporary }],
+                        blocks: [
+                            BasicBlock {
+                                label: bb#h367a20aae4b32d36bc5728b92efda4da,
+                                is_cleanup: false,
+                                stmts: [Statement { span: 31..32, kind: Assign { target: local#h197d1acb7239b6686a96206eb4b2b517, value: Use(Const(Int)) } }],
+                                terminator: Terminator { span: 11..34, kind: Return { value: Some(Local(local#h197d1acb7239b6686a96206eb4b2b517)) }, unwind: NoUnwind },
+                            },
+                        ],
+                        start: bb#h367a20aae4b32d36bc5728b92efda4da,
+                    }
+                ),
+            },
+        ),
+        Fun(
+            FunDecl {
+                span: 36..59,
+                fqn: "a.main",
+                name: "main",
+                ty: () -> Int / Pure,
+                params: [],
+                return_ty: Int,
+                body: Some(
+                    Body {
+                        locals: [LocalDecl { label: local#h696e6b2be7be178bc3705966993d9f20, span: 51..57, name: Some("tmp0"), ty: Int, source: CompilerTemporary }],
+                        blocks: [
+                            BasicBlock {
+                                label: bb#ha6e0fbd3eef34d58ff1975801ab66502,
+                                is_cleanup: false,
+                                stmts: [Statement { span: 51..57, kind: Assign { target: local#h696e6b2be7be178bc3705966993d9f20, value: Call { site_id: site#h33b50ec004e9fb15fd96ded6cda5fe77, kind: Direct { callee_fqn: "a.zero" }, args: [], transport: CallTransportMetadata { result: ValueTransportMetadata { source_ty: Int, kind: Scalar, requirements: MirTransportRequirements { trace: false, copy: true, drop: false }, boxing: None }, aggregate_return: None, array: None, gc: None, thread_resume_payload: None, abi: CallAbiHandoffMetadata { callable_abi_kind: DeferredToEffectFacts, resolved_outward_cases: [], impl_plan: DeferredToEffectFacts, adapter_required: false } } } } }],
+                                terminator: Terminator { span: 36..59, kind: Return { value: Some(Local(local#h696e6b2be7be178bc3705966993d9f20)) }, unwind: NoUnwind },
+                            },
+                        ],
+                        start: bb#ha6e0fbd3eef34d58ff1975801ab66502,
+                    }
+                ),
+            },
+        ),
+    ],
+}
+

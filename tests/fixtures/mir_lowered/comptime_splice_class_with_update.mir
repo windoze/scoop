@@ -1,0 +1,270 @@
+File {
+    items: [
+        Metadata(
+            Nominal(
+                NominalMetadata {
+                    span: 229..265,
+                    fqn: "mir_lowered.comptime_splice_class_with_update.Point",
+                    name: "Point",
+                    kind: Struct,
+                    type_params: [],
+                    supertypes: [],
+                    interfaces: [],
+                    constructors: [CtorMetadata { span: 241..265, kind: Primary, params: [CtorParamMetadata { span: 246..247, name: "x", ty: Int, has_default: false, property: Some(Val) }, CtorParamMetadata { span: 258..259, name: "y", ty: Int, has_default: false, property: Some(Val) }], delegation: None }],
+                    members: [Field(FieldMetadata { span: 246..247, fqn: "mir_lowered.comptime_splice_class_with_update.Point.x", name: "x", mutable: false, ty: Int, origin: PrimaryCtorParam }), Field(FieldMetadata { span: 258..259, fqn: "mir_lowered.comptime_splice_class_with_update.Point.y", name: "y", mutable: false, ty: Int, origin: PrimaryCtorParam })],
+                },
+            ),
+        ),
+        Metadata(
+            Nominal(
+                NominalMetadata {
+                    span: 267..332,
+                    fqn: "mir_lowered.comptime_splice_class_with_update.Result",
+                    name: "Result",
+                    kind: Enum,
+                    type_params: [],
+                    supertypes: [],
+                    interfaces: [],
+                    constructors: [],
+                    members: [EnumVariant(EnumVariantMetadata { span: 285..305, fqn: "mir_lowered.comptime_splice_class_with_update.Result.Ok", name: "Ok", fields: [FieldMetadata { span: 292..297, fqn: "mir_lowered.comptime_splice_class_with_update.Result.Ok.point", name: "point", mutable: false, ty: mir_lowered.comptime_splice_class_with_update.Point, origin: EnumVariantPayload }] }), EnumVariant(EnumVariantMetadata { span: 311..329, fqn: "mir_lowered.comptime_splice_class_with_update.Result.Err", name: "Err", fields: [FieldMetadata { span: 319..323, fqn: "mir_lowered.comptime_splice_class_with_update.Result.Err.code", name: "code", mutable: false, ty: Int, origin: EnumVariantPayload }] })],
+                },
+            ),
+        ),
+        InitializerRoot(
+            InitializerRoot {
+                span: 76..106,
+                fqn: "mir_lowered.comptime_splice_class_with_update.ENABLED",
+                source_path: "tests/fixtures/mir_lowered/comptime_splice_class_with_update.scoop",
+                kind: ConstVal,
+                ty: Some(Bool),
+                initializer_transport: None,
+                has_initializer: true,
+                dependencies: [],
+                hidden_effects: Pure,
+            },
+        ),
+        Fun(
+            FunDecl {
+                span: 133..172,
+                fqn: "mir_lowered.comptime_splice_class_with_update.packageSelected",
+                name: "packageSelected",
+                ty: () -> Int / Pure,
+                params: [],
+                return_ty: Int,
+                body: Some(
+                    Body {
+                        locals: [LocalDecl { label: local#h7b6b230c5c2556dc71e7a2fd605cead4, span: 169..170, name: Some("tmp0"), ty: Int, source: CompilerTemporary }, LocalDecl { label: local#h15002d6656f50550248ec3d856141f0f, span: 160..172, name: Some("tmp1"), ty: Unit, source: CompilerTemporary }],
+                        blocks: [
+                            BasicBlock {
+                                label: bb#h8e365cdb0583303ac60faa378982fe1d,
+                                is_cleanup: false,
+                                stmts: [Statement { span: 169..170, kind: Assign { target: local#h7b6b230c5c2556dc71e7a2fd605cead4, value: Use(Const(Int)) } }],
+                                terminator: Terminator { span: 162..170, kind: Return { value: Some(Local(local#h7b6b230c5c2556dc71e7a2fd605cead4)) }, unwind: NoUnwind },
+                            },
+                        ],
+                        start: bb#h8e365cdb0583303ac60faa378982fe1d,
+                    }
+                ),
+            },
+        ),
+        Fun(
+            FunDecl {
+                span: 334..444,
+                fqn: "mir_lowered.comptime_splice_class_with_update.selectedBranch",
+                name: "selectedBranch",
+                ty: () -> Int / Pure,
+                params: [],
+                return_ty: Int,
+                body: Some(
+                    Body {
+                        locals: [LocalDecl { label: local#h7d71de71612735e7318007462ab2b143, span: 405..406, name: Some("tmp0"), ty: Int, source: CompilerTemporary }, LocalDecl { label: local#h59cc5c12660d27360cc5cf38db7ab279, span: 360..444, name: Some("tmp1"), ty: Unit, source: CompilerTemporary }],
+                        blocks: [
+                            BasicBlock {
+                                label: bb#h932dedd1db4297f91ec631e29c522953,
+                                is_cleanup: false,
+                                stmts: [Statement { span: 405..406, kind: Assign { target: local#h7d71de71612735e7318007462ab2b143, value: Use(Const(Int)) } }],
+                                terminator: Terminator { span: 398..406, kind: Return { value: Some(Local(local#h7d71de71612735e7318007462ab2b143)) }, unwind: NoUnwind },
+                            },
+                        ],
+                        start: bb#h932dedd1db4297f91ec631e29c522953,
+                    }
+                ),
+            },
+        ),
+        Fun(
+            FunDecl {
+                span: 446..564,
+                fqn: "mir_lowered.comptime_splice_class_with_update.unrolled",
+                name: "unrolled",
+                ty: () -> Int / Pure,
+                params: [],
+                return_ty: Int,
+                body: Some(
+                    Body {
+                        locals: [LocalDecl { label: local#hd4f36d6d6113675e69f50ab1f85dd803, span: 472..488, name: Some("acc"), ty: Int, source: SourceLocal }, LocalDecl { label: local#h32298006553e330b0c96484ce096e61f, span: 487..488, name: Some("tmp0"), ty: Int, source: CompilerTemporary }, LocalDecl { label: local#hddffc0844235051ae31f65be2d2aa035, span: 534..541, name: Some("tmp1"), ty: Int, source: CompilerTemporary }, LocalDecl { label: local#hb89d599007175094031f9c6ebc96b1b3, span: 540..541, name: Some("tmp2"), ty: Int, source: CompilerTemporary }, LocalDecl { label: local#ha169758443db44660b209c8262456ab6, span: 534..541, name: Some("tmp3"), ty: Int, source: CompilerTemporary }, LocalDecl { label: local#h70b565a43cf913e10160e8eae33af013, span: 540..541, name: Some("tmp4"), ty: Int, source: CompilerTemporary }, LocalDecl { label: local#h58ccf1614190dd757d082d5919340af6, span: 534..541, name: Some("tmp5"), ty: Int, source: CompilerTemporary }, LocalDecl { label: local#hcbb1b5be0633259d41aeef7255979bcf, span: 540..541, name: Some("tmp6"), ty: Int, source: CompilerTemporary }, LocalDecl { label: local#h6d29231c4084093561336c690baf1d2e, span: 466..564, name: Some("tmp7"), ty: Unit, source: CompilerTemporary }],
+                        blocks: [
+                            BasicBlock {
+                                label: bb#h8d582797fe8ece3e4a654fbcd66cd85a,
+                                is_cleanup: false,
+                                stmts: [Statement { span: 487..488, kind: Assign { target: local#h32298006553e330b0c96484ce096e61f, value: Use(Const(Int)) } }, Statement { span: 472..488, kind: Assign { target: local#hd4f36d6d6113675e69f50ab1f85dd803, value: Use(Local(local#h32298006553e330b0c96484ce096e61f)) } }, Statement { span: 540..541, kind: Assign { target: local#hb89d599007175094031f9c6ebc96b1b3, value: Use(Const(Int)) } }, Statement { span: 534..541, kind: Assign { target: local#hddffc0844235051ae31f65be2d2aa035, value: Binary { lhs: Local(local#hd4f36d6d6113675e69f50ab1f85dd803), op: Add, rhs: Local(local#hb89d599007175094031f9c6ebc96b1b3) } } }, Statement { span: 528..541, kind: Assign { target: local#hd4f36d6d6113675e69f50ab1f85dd803, value: Use(Local(local#hddffc0844235051ae31f65be2d2aa035)) } }, Statement { span: 540..541, kind: Assign { target: local#h70b565a43cf913e10160e8eae33af013, value: Use(Const(Int)) } }, Statement { span: 534..541, kind: Assign { target: local#ha169758443db44660b209c8262456ab6, value: Binary { lhs: Local(local#hd4f36d6d6113675e69f50ab1f85dd803), op: Add, rhs: Local(local#h70b565a43cf913e10160e8eae33af013) } } }, Statement { span: 528..541, kind: Assign { target: local#hd4f36d6d6113675e69f50ab1f85dd803, value: Use(Local(local#ha169758443db44660b209c8262456ab6)) } }, Statement { span: 540..541, kind: Assign { target: local#hcbb1b5be0633259d41aeef7255979bcf, value: Use(Const(Int)) } }, Statement { span: 534..541, kind: Assign { target: local#h58ccf1614190dd757d082d5919340af6, value: Binary { lhs: Local(local#hd4f36d6d6113675e69f50ab1f85dd803), op: Add, rhs: Local(local#hcbb1b5be0633259d41aeef7255979bcf) } } }, Statement { span: 528..541, kind: Assign { target: local#hd4f36d6d6113675e69f50ab1f85dd803, value: Use(Local(local#h58ccf1614190dd757d082d5919340af6)) } }],
+                                terminator: Terminator { span: 552..562, kind: Return { value: Some(Local(local#hd4f36d6d6113675e69f50ab1f85dd803)) }, unwind: NoUnwind },
+                            },
+                        ],
+                        start: bb#h8d582797fe8ece3e4a654fbcd66cd85a,
+                    }
+                ),
+            },
+        ),
+        Fun(
+            FunDecl {
+                span: 566..649,
+                fqn: "mir_lowered.comptime_splice_class_with_update.spliceField",
+                name: "spliceField",
+                ty: (mir_lowered.comptime_splice_class_with_update.Point) -> Int / Pure,
+                params: [Param { span: 582..583, name: "p", ty: mir_lowered.comptime_splice_class_with_update.Point, local: local#h5f992e3873a4aa934975e6e3d5928863 }],
+                return_ty: Int,
+                body: Some(
+                    Body {
+                        locals: [LocalDecl { label: local#h5f992e3873a4aa934975e6e3d5928863, span: 582..583, name: Some("p"), ty: mir_lowered.comptime_splice_class_with_update.Point, source: SourceLocal }, LocalDecl { label: local#h99c96265f022e2f2182cb5121c2eef23, span: 610..647, name: Some("tmp0"), ty: Int, source: CompilerTemporary }, LocalDecl { label: local#h0889abe3e16f03ef53d7472a67c718d8, span: 610..617, name: Some("tmp1"), ty: Int, source: CompilerTemporary }, LocalDecl { label: local#h5794dcac457783e0ff4f4abc18f715af, span: 620..647, name: Some("tmp2"), ty: Int, source: CompilerTemporary }, LocalDecl { label: local#h727c444e675f2cb2d8d51eab55594407, span: 597..649, name: Some("tmp3"), ty: Unit, source: CompilerTemporary }],
+                        blocks: [
+                            BasicBlock {
+                                label: bb#h0bef0f29dd33dafb52cea0f36d9d968c,
+                                is_cleanup: false,
+                                stmts: [Statement { span: 610..617, kind: Assign { target: local#h0889abe3e16f03ef53d7472a67c718d8, value: MemberAccess { site_id: None, receiver: Local(local#h5f992e3873a4aa934975e6e3d5928863), member: MemberAccessMetadata { name: "x", receiver_ty: mir_lowered.comptime_splice_class_with_update.Point, resolved: Some(Value { fqn: "mir_lowered.comptime_splice_class_with_update.Point.x" }), hidden_effects: Pure } } } }, Statement { span: 620..647, kind: Assign { target: local#h5794dcac457783e0ff4f4abc18f715af, value: MemberAccess { site_id: None, receiver: Local(local#h5f992e3873a4aa934975e6e3d5928863), member: MemberAccessMetadata { name: "y", receiver_ty: mir_lowered.comptime_splice_class_with_update.Point, resolved: Some(Value { fqn: "mir_lowered.comptime_splice_class_with_update.Point.y" }), hidden_effects: Pure } } } }, Statement { span: 610..647, kind: Assign { target: local#h99c96265f022e2f2182cb5121c2eef23, value: Binary { lhs: Local(local#h0889abe3e16f03ef53d7472a67c718d8), op: Add, rhs: Local(local#h5794dcac457783e0ff4f4abc18f715af) } } }],
+                                terminator: Terminator { span: 603..647, kind: Return { value: Some(Local(local#h99c96265f022e2f2182cb5121c2eef23)) }, unwind: NoUnwind },
+                            },
+                        ],
+                        start: bb#h0bef0f29dd33dafb52cea0f36d9d968c,
+                    }
+                ),
+            },
+        ),
+        Fun(
+            FunDecl {
+                span: 651..702,
+                fqn: "mir_lowered.comptime_splice_class_with_update.className",
+                name: "className",
+                ty: () -> String / Pure,
+                params: [],
+                return_ty: String,
+                body: Some(
+                    Body {
+                        locals: [LocalDecl { label: local#h65d3b1885307f82ac3e459b6143c0af0, span: 688..700, name: Some("tmp0"), ty: String, source: CompilerTemporary }, LocalDecl { label: local#hae7023f69aea52fa770fbef06d6b307e, span: 675..702, name: Some("tmp1"), ty: Unit, source: CompilerTemporary }],
+                        blocks: [
+                            BasicBlock {
+                                label: bb#h9424528eb2c07b3aff6a8fccc006705a,
+                                is_cleanup: false,
+                                stmts: [Statement { span: 688..700, kind: Assign { target: local#h65d3b1885307f82ac3e459b6143c0af0, value: TypeMetadataLiteral { source_ty: mir_lowered.comptime_splice_class_with_update.Point, source_fqn: Some("mir_lowered.comptime_splice_class_with_update.Point"), kind: TypeNameString } } }],
+                                terminator: Terminator { span: 681..700, kind: Return { value: Some(Local(local#h65d3b1885307f82ac3e459b6143c0af0)) }, unwind: NoUnwind },
+                            },
+                        ],
+                        start: bb#h9424528eb2c07b3aff6a8fccc006705a,
+                    }
+                ),
+            },
+        ),
+        Fun(
+            FunDecl {
+                span: 704..768,
+                fqn: "mir_lowered.comptime_splice_class_with_update.updateStruct",
+                name: "updateStruct",
+                ty: (mir_lowered.comptime_splice_class_with_update.Point) -> mir_lowered.comptime_splice_class_with_update.Point / Pure,
+                params: [Param { span: 721..722, name: "p", ty: mir_lowered.comptime_splice_class_with_update.Point, local: local#h6ec70f6ca88aeac959be7658a1e1b37d }],
+                return_ty: mir_lowered.comptime_splice_class_with_update.Point,
+                body: Some(
+                    Body {
+                        locals: [LocalDecl { label: local#h6ec70f6ca88aeac959be7658a1e1b37d, span: 721..722, name: Some("p"), ty: mir_lowered.comptime_splice_class_with_update.Point, source: SourceLocal }, LocalDecl { label: local#h28e59fda762c01d5ea0c4e6e091d2a98, span: 753..757, name: Some("$with_base"), ty: mir_lowered.comptime_splice_class_with_update.Point, source: SourceLocal }, LocalDecl { label: local#h00de5c15f5ee59c161af18ada834151e, span: 763..764, name: Some("__with_update_value_0"), ty: Int, source: SourceLocal }, LocalDecl { label: local#h53963fec6066ec5d3ee109eb96c1cdf7, span: 763..764, name: Some("tmp0"), ty: Int, source: CompilerTemporary }, LocalDecl { label: local#h4c568499a47c392b45b063b644ba3ed2, span: 751..766, name: Some("tmp1"), ty: mir_lowered.comptime_splice_class_with_update.Point, source: CompilerTemporary }, LocalDecl { label: local#hd8083edda351dde5a8d3c9356079a252, span: 753..757, name: Some("tmp2"), ty: Int, source: CompilerTemporary }, LocalDecl { label: local#h50fdd4aedd2cb5d9b64e05b53e3b504c, span: 738..768, name: Some("tmp3"), ty: Unit, source: CompilerTemporary }],
+                        blocks: [
+                            BasicBlock {
+                                label: bb#h5c2a51a82fd38d122e45fa38a83dadb7,
+                                is_cleanup: false,
+                                stmts: [Statement { span: 753..757, kind: Assign { target: local#h28e59fda762c01d5ea0c4e6e091d2a98, value: Use(Local(local#h6ec70f6ca88aeac959be7658a1e1b37d)) } }, Statement { span: 763..764, kind: Assign { target: local#h53963fec6066ec5d3ee109eb96c1cdf7, value: Use(Const(Int)) } }, Statement { span: 763..764, kind: Assign { target: local#h00de5c15f5ee59c161af18ada834151e, value: Use(Local(local#h53963fec6066ec5d3ee109eb96c1cdf7)) } }, Statement { span: 753..757, kind: Assign { target: local#hd8083edda351dde5a8d3c9356079a252, value: MemberAccess { site_id: None, receiver: Local(local#h28e59fda762c01d5ea0c4e6e091d2a98), member: MemberAccessMetadata { name: "y", receiver_ty: mir_lowered.comptime_splice_class_with_update.Point, resolved: Some(Value { fqn: "mir_lowered.comptime_splice_class_with_update.Point.y" }), hidden_effects: Pure } } } }, Statement { span: 751..766, kind: Assign { target: local#h4c568499a47c392b45b063b644ba3ed2, value: StructLit { fields: [StructLitField { span: 763..764, name: "x", value: Local(local#h00de5c15f5ee59c161af18ada834151e) }, StructLitField { span: 753..757, name: "y", value: Local(local#hd8083edda351dde5a8d3c9356079a252) }], transport: AggregateTransportMetadata { aggregate_ty: mir_lowered.comptime_splice_class_with_update.Point, kind: Struct, fields: [AggregateTransportField { index: 0, name: Some("x"), ty: Int, transport: ValueTransportMetadata { source_ty: Int, kind: Scalar, requirements: MirTransportRequirements { trace: false, copy: true, drop: false }, boxing: None } }, AggregateTransportField { index: 1, name: Some("y"), ty: Int, transport: ValueTransportMetadata { source_ty: Int, kind: Scalar, requirements: MirTransportRequirements { trace: false, copy: true, drop: false }, boxing: None } }] } } } }],
+                                terminator: Terminator { span: 744..766, kind: Return { value: Some(Local(local#h4c568499a47c392b45b063b644ba3ed2)) }, unwind: NoUnwind },
+                            },
+                        ],
+                        start: bb#h5c2a51a82fd38d122e45fa38a83dadb7,
+                    }
+                ),
+            },
+        ),
+        Fun(
+            FunDecl {
+                span: 770..880,
+                fqn: "mir_lowered.comptime_splice_class_with_update.updateTuple",
+                name: "updateTuple",
+                ty: ((mir_lowered.comptime_splice_class_with_update.Point, (Int, Int))) -> (mir_lowered.comptime_splice_class_with_update.Point, (Int, Int)) / Pure,
+                params: [Param { span: 786..790, name: "pair", ty: (mir_lowered.comptime_splice_class_with_update.Point, (Int, Int)), local: local#hd6ce7a79e3cb11bfc52c74949841226a }],
+                return_ty: (mir_lowered.comptime_splice_class_with_update.Point, (Int, Int)),
+                body: Some(
+                    Body {
+                        locals: [LocalDecl { label: local#hd6ce7a79e3cb11bfc52c74949841226a, span: 786..790, name: Some("pair"), ty: (mir_lowered.comptime_splice_class_with_update.Point, (Int, Int)), source: SourceLocal }, LocalDecl { label: local#ha5bab67250a400ad3d4da04e5c06a8bb, span: 852..856, name: Some("$with_base"), ty: (mir_lowered.comptime_splice_class_with_update.Point, (Int, Int)), source: SourceLocal }, LocalDecl { label: local#ha211aace866d7b69be7971839ad5da7b, span: 865..866, name: Some("__with_update_value_1"), ty: Int, source: SourceLocal }, LocalDecl { label: local#h7ed9d588b12949ad919d08f188226528, span: 865..866, name: Some("tmp0"), ty: Int, source: CompilerTemporary }, LocalDecl { label: local#h660f160fee9e500636a2ddbaa3ac65b4, span: 875..876, name: Some("__with_update_value_2"), ty: Int, source: SourceLocal }, LocalDecl { label: local#h0be6b9e981f2df3313beb6f3cae58535, span: 875..876, name: Some("tmp1"), ty: Int, source: CompilerTemporary }, LocalDecl { label: local#he338bd1f22dccc33d794975e724c243b, span: 847..878, name: Some("tmp2"), ty: (mir_lowered.comptime_splice_class_with_update.Point, (Int, Int)), source: CompilerTemporary }, LocalDecl { label: local#hee56ed823e48c6ac9788c571f42f12df, span: 847..878, name: Some("tmp3"), ty: mir_lowered.comptime_splice_class_with_update.Point, source: CompilerTemporary }, LocalDecl { label: local#hce9acbd3be8a209c7a01ee100d8421f7, span: 852..856, name: Some("tmp4"), ty: Int, source: CompilerTemporary }, LocalDecl { label: local#h643b0e1c0c939d5e7414e6384bb9db9b, span: 852..856, name: Some("tmp5"), ty: mir_lowered.comptime_splice_class_with_update.Point, source: CompilerTemporary }, LocalDecl { label: local#h10d86eeead06954e0720c45480bcdfd0, span: 847..878, name: Some("tmp6"), ty: (Int, Int), source: CompilerTemporary }, LocalDecl { label: local#h178bc8d360b8c902cd90fec0ec7185d3, span: 852..856, name: Some("tmp7"), ty: Any, source: CompilerTemporary }, LocalDecl { label: local#hbae9feddbd8185d29814bec89b0d5875, span: 852..856, name: Some("tmp8"), ty: (Int, Int), source: CompilerTemporary }, LocalDecl { label: local#h6b093b7ac0d653cb77b1b8d1456bf8b8, span: 834..880, name: Some("tmp9"), ty: Unit, source: CompilerTemporary }],
+                        blocks: [
+                            BasicBlock {
+                                label: bb#h93556ada3713bf4521ec3f0fb3852499,
+                                is_cleanup: false,
+                                stmts: [Statement { span: 852..856, kind: Assign { target: local#ha5bab67250a400ad3d4da04e5c06a8bb, value: Use(Local(local#hd6ce7a79e3cb11bfc52c74949841226a)) } }, Statement { span: 865..866, kind: Assign { target: local#h7ed9d588b12949ad919d08f188226528, value: Use(Const(Int)) } }, Statement { span: 865..866, kind: Assign { target: local#ha211aace866d7b69be7971839ad5da7b, value: Use(Local(local#h7ed9d588b12949ad919d08f188226528)) } }, Statement { span: 875..876, kind: Assign { target: local#h0be6b9e981f2df3313beb6f3cae58535, value: Use(Const(Int)) } }, Statement { span: 875..876, kind: Assign { target: local#h660f160fee9e500636a2ddbaa3ac65b4, value: Use(Local(local#h0be6b9e981f2df3313beb6f3cae58535)) } }, Statement { span: 852..856, kind: Assign { target: local#h643b0e1c0c939d5e7414e6384bb9db9b, value: TupleGet { tuple: Local(local#ha5bab67250a400ad3d4da04e5c06a8bb), index: 0 } } }, Statement { span: 852..856, kind: Assign { target: local#hce9acbd3be8a209c7a01ee100d8421f7, value: MemberAccess { site_id: None, receiver: Local(local#h643b0e1c0c939d5e7414e6384bb9db9b), member: MemberAccessMetadata { name: "y", receiver_ty: mir_lowered.comptime_splice_class_with_update.Point, resolved: Some(Value { fqn: "mir_lowered.comptime_splice_class_with_update.Point.y" }), hidden_effects: Pure } } } }, Statement { span: 847..878, kind: Assign { target: local#hee56ed823e48c6ac9788c571f42f12df, value: StructLit { fields: [StructLitField { span: 865..866, name: "x", value: Local(local#ha211aace866d7b69be7971839ad5da7b) }, StructLitField { span: 852..856, name: "y", value: Local(local#hce9acbd3be8a209c7a01ee100d8421f7) }], transport: AggregateTransportMetadata { aggregate_ty: mir_lowered.comptime_splice_class_with_update.Point, kind: Struct, fields: [AggregateTransportField { index: 0, name: Some("x"), ty: Int, transport: ValueTransportMetadata { source_ty: Int, kind: Scalar, requirements: MirTransportRequirements { trace: false, copy: true, drop: false }, boxing: None } }, AggregateTransportField { index: 1, name: Some("y"), ty: Int, transport: ValueTransportMetadata { source_ty: Int, kind: Scalar, requirements: MirTransportRequirements { trace: false, copy: true, drop: false }, boxing: None } }] } } } }, Statement { span: 852..856, kind: Assign { target: local#hbae9feddbd8185d29814bec89b0d5875, value: TupleGet { tuple: Local(local#ha5bab67250a400ad3d4da04e5c06a8bb), index: 1 } } }, Statement { span: 852..856, kind: Assign { target: local#h178bc8d360b8c902cd90fec0ec7185d3, value: TupleGet { tuple: Local(local#hbae9feddbd8185d29814bec89b0d5875), index: 1 } } }, Statement { span: 847..878, kind: Assign { target: local#h10d86eeead06954e0720c45480bcdfd0, value: MakeTuple { elements: [Local(local#h660f160fee9e500636a2ddbaa3ac65b4), Local(local#h178bc8d360b8c902cd90fec0ec7185d3)], transport: AggregateTransportMetadata { aggregate_ty: (Int, Int), kind: Tuple, fields: [AggregateTransportField { index: 0, name: None, ty: Int, transport: ValueTransportMetadata { source_ty: Int, kind: Scalar, requirements: MirTransportRequirements { trace: false, copy: true, drop: false }, boxing: None } }, AggregateTransportField { index: 1, name: None, ty: Any, transport: ValueTransportMetadata { source_ty: Any, kind: Reference, requirements: MirTransportRequirements { trace: true, copy: true, drop: true }, boxing: None } }] } } } }, Statement { span: 847..878, kind: Assign { target: local#he338bd1f22dccc33d794975e724c243b, value: MakeTuple { elements: [Local(local#hee56ed823e48c6ac9788c571f42f12df), Local(local#h10d86eeead06954e0720c45480bcdfd0)], transport: AggregateTransportMetadata { aggregate_ty: (mir_lowered.comptime_splice_class_with_update.Point, (Int, Int)), kind: Tuple, fields: [AggregateTransportField { index: 0, name: None, ty: mir_lowered.comptime_splice_class_with_update.Point, transport: ValueTransportMetadata { source_ty: mir_lowered.comptime_splice_class_with_update.Point, kind: Struct, requirements: MirTransportRequirements { trace: true, copy: true, drop: true }, boxing: None } }, AggregateTransportField { index: 1, name: None, ty: (Int, Int), transport: ValueTransportMetadata { source_ty: (Int, Int), kind: Tuple, requirements: MirTransportRequirements { trace: false, copy: true, drop: true }, boxing: None } }] } } } }],
+                                terminator: Terminator { span: 840..878, kind: Return { value: Some(Local(local#he338bd1f22dccc33d794975e724c243b)) }, unwind: NoUnwind },
+                            },
+                        ],
+                        start: bb#h93556ada3713bf4521ec3f0fb3852499,
+                    }
+                ),
+            },
+        ),
+        Fun(
+            FunDecl {
+                span: 882..968,
+                fqn: "mir_lowered.comptime_splice_class_with_update.updateEnum",
+                name: "updateEnum",
+                ty: (mir_lowered.comptime_splice_class_with_update.Result) -> mir_lowered.comptime_splice_class_with_update.Result / Pure,
+                params: [Param { span: 897..898, name: "r", ty: mir_lowered.comptime_splice_class_with_update.Result, local: local#hf0ab80bf98c2206abf7d6e56594559e5 }],
+                return_ty: mir_lowered.comptime_splice_class_with_update.Result,
+                body: Some(
+                    Body {
+                        locals: [LocalDecl { label: local#hf0ab80bf98c2206abf7d6e56594559e5, span: 897..898, name: Some("r"), ty: mir_lowered.comptime_splice_class_with_update.Result, source: SourceLocal }, LocalDecl { label: local#h296dbf8d6dbc0a7427bb10a32e1d660b, span: 931..935, name: Some("$with_base"), ty: mir_lowered.comptime_splice_class_with_update.Result, source: SourceLocal }, LocalDecl { label: local#hf0ffe91f890c3fabb823e7b5a4ed5cad, span: 950..951, name: Some("__with_update_value_3"), ty: Int, source: SourceLocal }, LocalDecl { label: local#hca51a75dd3d831078848a5c3a09ab781, span: 950..951, name: Some("tmp0"), ty: Int, source: CompilerTemporary }, LocalDecl { label: local#h5ce18661a991b4e0e78df44d42b00c99, span: 963..964, name: Some("__with_update_value_4"), ty: Int, source: SourceLocal }, LocalDecl { label: local#h439fc5df3d26e9d9447fd18c888b88a8, span: 963..964, name: Some("tmp1"), ty: Int, source: CompilerTemporary }, LocalDecl { label: local#h725c84c442804df9982f2f8661216af5, span: 929..966, name: Some("tmp2"), ty: mir_lowered.comptime_splice_class_with_update.Result, source: CompilerTemporary }, LocalDecl { label: local#hd18c034fc689bc1eaa86b425753c7778, span: 929..966, name: Some("tmp3"), ty: Bool, source: CompilerTemporary }, LocalDecl { label: local#h7da82940f55c72623fedfc9b3935de5c, span: 979..980, name: Some("__with_enum_field_5"), ty: mir_lowered.comptime_splice_class_with_update.Point, source: SourceLocal }, LocalDecl { label: local#h2feb04accfc6cd01d5a6926fbc431841, span: 929..966, name: Some("tmp4"), ty: mir_lowered.comptime_splice_class_with_update.Result, source: CompilerTemporary }, LocalDecl { label: local#hc0e18e09845401d03c96e21f03611ac2, span: 929..966, name: Some("tmp5"), ty: mir_lowered.comptime_splice_class_with_update.Point, source: CompilerTemporary }, LocalDecl { label: local#h6d0f26d61aba20909a98d1e4302dd97d, span: 931..935, name: Some("tmp6"), ty: Int, source: CompilerTemporary }, LocalDecl { label: local#h59f8f9f7d4ee6388dd2606e9b5521faa, span: 929..966, name: Some("tmp7"), ty: Bool, source: CompilerTemporary }, LocalDecl { label: local#ha600018847a3f7b5401dc6b5fcebbfe2, span: 981..982, name: Some("__with_enum_field_6"), ty: Int, source: SourceLocal }, LocalDecl { label: local#h3c7ad1f4a8a79e89a0135987ec473b8f, span: 929..966, name: Some("tmp8"), ty: mir_lowered.comptime_splice_class_with_update.Result, source: CompilerTemporary }, LocalDecl { label: local#h4c36b290237a302d0494c542797f06bc, span: 916..968, name: Some("tmp9"), ty: Unit, source: CompilerTemporary }],
+                        blocks: [
+                            BasicBlock {
+                                label: bb#hb4130c7a9a7328021478ceef1cb1b1d9,
+                                is_cleanup: false,
+                                stmts: [Statement { span: 931..935, kind: Assign { target: local#h296dbf8d6dbc0a7427bb10a32e1d660b, value: Use(Local(local#hf0ab80bf98c2206abf7d6e56594559e5)) } }, Statement { span: 950..951, kind: Assign { target: local#hca51a75dd3d831078848a5c3a09ab781, value: Use(Const(Int)) } }, Statement { span: 950..951, kind: Assign { target: local#hf0ffe91f890c3fabb823e7b5a4ed5cad, value: Use(Local(local#hca51a75dd3d831078848a5c3a09ab781)) } }, Statement { span: 963..964, kind: Assign { target: local#h439fc5df3d26e9d9447fd18c888b88a8, value: Use(Const(Int)) } }, Statement { span: 963..964, kind: Assign { target: local#h5ce18661a991b4e0e78df44d42b00c99, value: Use(Local(local#h439fc5df3d26e9d9447fd18c888b88a8)) } }, Statement { span: 931..935, kind: Assign { target: local#hd18c034fc689bc1eaa86b425753c7778, value: PatternMatch { subject: Local(local#h296dbf8d6dbc0a7427bb10a32e1d660b), pattern: Variant { name: "Ok", args: [Bind { name: "__with_enum_field_5", ty: mir_lowered.comptime_splice_class_with_update.Point }] } } } }],
+                                terminator: Terminator { span: 929..966, kind: CondBr { cond: Local(local#hd18c034fc689bc1eaa86b425753c7778), then_target: bb#hd292bb711ed4c77211b101bec7410f19, else_target: bb#hd292bb711ed4c77211b101bec7410f19 }, unwind: NoUnwind },
+                            },
+                            BasicBlock {
+                                label: bb#h7bbf376a41d09d1dbfde30da0c01d631,
+                                is_cleanup: false,
+                                stmts: [],
+                                terminator: Terminator { span: 922..966, kind: Return { value: Some(Local(local#h725c84c442804df9982f2f8661216af5)) }, unwind: NoUnwind },
+                            },
+                            BasicBlock {
+                                label: bb#hd292bb711ed4c77211b101bec7410f19,
+                                is_cleanup: false,
+                                stmts: [Statement { span: 931..935, kind: Assign { target: local#h59f8f9f7d4ee6388dd2606e9b5521faa, value: PatternMatch { subject: Local(local#h296dbf8d6dbc0a7427bb10a32e1d660b), pattern: Variant { name: "Err", args: [Bind { name: "__with_enum_field_6", ty: Int }] } } } }],
+                                terminator: Terminator { span: 929..966, kind: CondBr { cond: Local(local#h59f8f9f7d4ee6388dd2606e9b5521faa), then_target: bb#hd292bb711ed4c77211b101bec7410f19, else_target: bb#hd292bb711ed4c77211b101bec7410f19 }, unwind: NoUnwind },
+                            },
+                            BasicBlock {
+                                label: bb#hd292bb711ed4c77211b101bec7410f19,
+                                is_cleanup: false,
+                                stmts: [Statement { span: 979..980, kind: Assign { target: local#h7da82940f55c72623fedfc9b3935de5c, value: PatternExtract { subject: Local(local#h296dbf8d6dbc0a7427bb10a32e1d660b), path: [VariantField { variant: "Ok", field_index: 0 }] } } }, Statement { span: 931..935, kind: Assign { target: local#h6d0f26d61aba20909a98d1e4302dd97d, value: MemberAccess { site_id: None, receiver: Local(local#h7da82940f55c72623fedfc9b3935de5c), member: MemberAccessMetadata { name: "y", receiver_ty: mir_lowered.comptime_splice_class_with_update.Point, resolved: Some(Value { fqn: "mir_lowered.comptime_splice_class_with_update.Point.y" }), hidden_effects: Pure } } } }, Statement { span: 929..966, kind: Assign { target: local#hc0e18e09845401d03c96e21f03611ac2, value: StructLit { fields: [StructLitField { span: 950..951, name: "x", value: Local(local#hf0ffe91f890c3fabb823e7b5a4ed5cad) }, StructLitField { span: 931..935, name: "y", value: Local(local#h6d0f26d61aba20909a98d1e4302dd97d) }], transport: AggregateTransportMetadata { aggregate_ty: mir_lowered.comptime_splice_class_with_update.Point, kind: Struct, fields: [AggregateTransportField { index: 0, name: Some("x"), ty: Int, transport: ValueTransportMetadata { source_ty: Int, kind: Scalar, requirements: MirTransportRequirements { trace: false, copy: true, drop: false }, boxing: None } }, AggregateTransportField { index: 1, name: Some("y"), ty: Int, transport: ValueTransportMetadata { source_ty: Int, kind: Scalar, requirements: MirTransportRequirements { trace: false, copy: true, drop: false }, boxing: None } }] } } } }, Statement { span: 929..966, kind: Assign { target: local#h2feb04accfc6cd01d5a6926fbc431841, value: EnumVariant { enum_ty: mir_lowered.comptime_splice_class_with_update.Result, variant_name: "Ok", args: [CallArg { span: 929..966, name: None, value: Local(local#hc0e18e09845401d03c96e21f03611ac2) }], payload: AggregateTransportMetadata { aggregate_ty: mir_lowered.comptime_splice_class_with_update.Result, kind: EnumPayload, fields: [AggregateTransportField { index: 0, name: None, ty: mir_lowered.comptime_splice_class_with_update.Point, transport: ValueTransportMetadata { source_ty: mir_lowered.comptime_splice_class_with_update.Point, kind: Struct, requirements: MirTransportRequirements { trace: true, copy: true, drop: true }, boxing: None } }] } } } }, Statement { span: 929..966, kind: Assign { target: local#h725c84c442804df9982f2f8661216af5, value: Use(Local(local#h2feb04accfc6cd01d5a6926fbc431841)) } }],
+                                terminator: Terminator { span: 929..966, kind: Goto { target: bb#h7bbf376a41d09d1dbfde30da0c01d631 }, unwind: NoUnwind },
+                            },
+                            BasicBlock {
+                                label: bb#hd292bb711ed4c77211b101bec7410f19,
+                                is_cleanup: false,
+                                stmts: [],
+                                terminator: Terminator { span: 929..966, kind: Unreachable, unwind: NoUnwind },
+                            },
+                            BasicBlock {
+                                label: bb#hd292bb711ed4c77211b101bec7410f19,
+                                is_cleanup: false,
+                                stmts: [Statement { span: 981..982, kind: Assign { target: local#ha600018847a3f7b5401dc6b5fcebbfe2, value: PatternExtract { subject: Local(local#h296dbf8d6dbc0a7427bb10a32e1d660b), path: [VariantField { variant: "Err", field_index: 0 }] } } }, Statement { span: 929..966, kind: Assign { target: local#h3c7ad1f4a8a79e89a0135987ec473b8f, value: EnumVariant { enum_ty: mir_lowered.comptime_splice_class_with_update.Result, variant_name: "Err", args: [CallArg { span: 963..964, name: None, value: Local(local#h5ce18661a991b4e0e78df44d42b00c99) }], payload: AggregateTransportMetadata { aggregate_ty: mir_lowered.comptime_splice_class_with_update.Result, kind: EnumPayload, fields: [AggregateTransportField { index: 0, name: None, ty: Int, transport: ValueTransportMetadata { source_ty: Int, kind: Scalar, requirements: MirTransportRequirements { trace: false, copy: true, drop: false }, boxing: None } }] } } } }, Statement { span: 929..966, kind: Assign { target: local#h725c84c442804df9982f2f8661216af5, value: Use(Local(local#h3c7ad1f4a8a79e89a0135987ec473b8f)) } }],
+                                terminator: Terminator { span: 929..966, kind: Goto { target: bb#h7bbf376a41d09d1dbfde30da0c01d631 }, unwind: NoUnwind },
+                            },
+                        ],
+                        start: bb#hb4130c7a9a7328021478ceef1cb1b1d9,
+                    }
+                ),
+            },
+        ),
+    ],
+}
+

@@ -167,8 +167,8 @@ impl MaterializedMir {
     }
 
     /// Validate the canonical materialized MIR handoff before it can be consumed by later stages.
-    pub fn validate_refactor_materialized(&self) -> Result<(), Box<MirMaterializeError>> {
-        validation::validate_refactor_materialized_mir(self)
+    pub fn validate_materialized(&self) -> Result<(), Box<MirMaterializeError>> {
+        validation::validate_materialized_mir(self)
     }
 
     /// 返回当前 materialized MIR 上 canonical 的 callable body / summary 查询视图。

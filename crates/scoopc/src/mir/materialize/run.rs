@@ -265,7 +265,7 @@ impl MirInstanceMaterializer {
                 super::super::escape::run_escape_analysis(&mut materialized);
             }
         }
-        materialized.validate_refactor_materialized()?;
+        materialized.validate_materialized()?;
         Ok(materialized)
     }
 

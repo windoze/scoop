@@ -657,7 +657,7 @@ mod tests {
     use tempfile::tempdir;
 
     #[cfg(feature = "llvm")]
-    fn refactor_session() -> scoopc::session::Session {
+    fn session() -> scoopc::session::Session {
         use scoopc::session::SessionOptions;
 
         scoopc::session::Session::with_options(SessionOptions::new()).unwrap()
@@ -960,7 +960,7 @@ public fun main() / Pure! {
         let out = dir.path().join("dynamic_entry_publication.ll");
 
         let input = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(
-            "../../tests/fixtures/build/effect_refactor_dynamic_entry_publication_emit_llvm.scoop",
+            "../../tests/fixtures/build/effect_lowered_dynamic_entry_publication_emit_llvm.scoop",
         );
 
         super::run(
@@ -985,10 +985,10 @@ public fun main() / Pure! {
             "metadata-only plain carrier targets 也必须有已发布的 plain callable body:\n{ll}"
         );
         assert!(
-            !ll.contains("__scoop_priv0__refactor_vtable_dynamic_entry__h")
-                && !ll.contains("__scoop_priv0__refactor_itable_dynamic_entry__h")
-                && !ll.contains("__scoop_priv0__refactor_closure_dynamic_entry__h")
-                && !ll.contains("%scoop.refactor.Step__h"),
+            !ll.contains("__scoop_priv0__lowered_vtable_dynamic_entry__h")
+                && !ll.contains("__scoop_priv0__lowered_itable_dynamic_entry__h")
+                && !ll.contains("__scoop_priv0__lowered_closure_dynamic_entry__h")
+                && !ll.contains("%scoop.lowered.Step__h"),
             "NoOutward carrier target 不应重新发布 effect-step dynamic entry 或 Step shell:\n{ll}"
         );
     }
@@ -1499,7 +1499,7 @@ fun main(): Int / Pure! {
 
     #[cfg(feature = "llvm")]
     #[test]
-    fn refactor_build_publishes_request_source_abi_shells_for_unreachable_effectful_helpers() {
+    fn build_publishes_request_source_abi_shells_for_unreachable_effectful_helpers() {
         let dir = tempdir().unwrap();
         let input = dir.path().join("main.scoop");
         let out = dir.path().join("abi.ll");
@@ -1524,14 +1524,14 @@ fun main(): Int {
         )
         .unwrap();
 
-        let session = refactor_session();
+        let session = session();
         let build_context = super::load_build_context(&input, None).unwrap();
         let front = super::run_frontend(&session, build_context).unwrap();
         let lowered = super::lower_main_hir_for_build(&session, &front, OptLevel::O0).unwrap();
         let abi_visibility_lowered =
             super::abi_visibility_lowered_hir_for_build(&session, &front, OptLevel::O0)
                 .unwrap()
-                .expect("refactor build 应额外构造 request-source ABI visibility handoff");
+                .expect("build 应额外构造 request-source ABI visibility handoff");
         let (source_map, entry_source_id) = super::build_codegen_source_map(&session, &front);
 
         scoopc::pipeline::emit_production_llvm_artifact_to_file(
@@ -1549,26 +1549,26 @@ fun main(): Int {
 
         let ir = std::fs::read_to_string(&out).unwrap();
         assert!(
-            ir.contains("__scoop_priv0__refactor_dynamic_invoke__h")
-                && ir.contains("__scoop_priv0__refactor_direct_invoke__h"),
-            "ABI visibility handoff 应让不可达 effectful helper 的 canonical invoke shell family 出现在 refactor build IR 中：\n{ir}"
+            ir.contains("__scoop_priv0__lowered_dynamic_invoke__h")
+                && ir.contains("__scoop_priv0__lowered_direct_invoke__h"),
+            "ABI visibility handoff 应让不可达 effectful helper 的 canonical invoke shell family 出现在 build IR 中：\n{ir}"
         );
         assert!(
             !ir.contains("scoop.effect.frame."),
-            "纯 main 的 refactor build 不应为了 ABI shell 可见性而偷偷生成 legacy effect frame IR：\n{ir}"
+            "纯 main 的 build 不应为了 ABI shell 可见性而偷偷生成 legacy effect frame IR：\n{ir}"
         );
     }
 
     #[cfg(feature = "llvm")]
     #[test]
-    fn refactor_build_lowers_reachable_self_contained_effect_body_without_legacy_frames() {
+    fn build_lowers_reachable_self_contained_effect_body_without_legacy_frames() {
         let dir = tempdir().unwrap();
         let input = dir.path().join("main.scoop");
-        let out = dir.path().join("refactor.ll");
+        let out = dir.path().join("lowered.ll");
 
         write_reachable_legacy_effect_fixture(&input);
 
-        let session = refactor_session();
+        let session = session();
         let build_context = super::load_build_context(&input, None).unwrap();
         let front = super::run_frontend(&session, build_context).unwrap();
         let lowered = super::lower_main_hir_for_build(&session, &front, OptLevel::O0).unwrap();
@@ -1587,25 +1587,25 @@ fun main(): Int {
             OptLevel::O0,
             LlvmArtifactKind::LlvmIr,
         )
-        .expect("reachable self-contained handle 应由 refactor lowering 正常生成 IR");
+        .expect("reachable self-contained handle 应由 lowering 正常生成 IR");
 
         let ir = std::fs::read_to_string(&out).unwrap();
         assert!(
-            ir.contains("__scoop_priv0__refactor_"),
-            "refactor IR 应包含 canonical private refactor symbol family，而不是空壳输出：\n{ir}"
+            ir.contains("__scoop_priv0__lowered_"),
+            "IR 应包含 canonical private symbol family，而不是空壳输出：\n{ir}"
         );
         assert!(
             !ir.contains("scoop_effect_handler_stack") && !ir.contains("scoop_effect_outcome"),
-            "refactor IR 不应回落到 legacy handler-stack/outcome runtime：\n{ir}"
+            "IR 不应回落到 legacy handler-stack/outcome runtime：\n{ir}"
         );
     }
 
     #[cfg(feature = "llvm")]
     #[test]
-    fn no_hidden_legacy_fallback_for_default_refactor_build_output() {
+    fn no_hidden_legacy_fallback_for_default_build_output() {
         let dir = tempdir().unwrap();
         let input = dir.path().join("main.scoop");
-        let out = dir.path().join("default_refactor.ll");
+        let out = dir.path().join("default_lowered.ll");
 
         write_reachable_legacy_effect_fixture(&input);
 
@@ -1618,12 +1618,12 @@ fun main(): Int {
                 ..super::BuildOptions::default()
             },
         )
-        .expect("default refactor build should lower without hidden legacy fallback");
+        .expect("default build should lower without hidden legacy fallback");
         let ir = std::fs::read_to_string(&out).unwrap();
 
         assert!(
-            ir.contains("__scoop_priv0__refactor_"),
-            "default build should emit canonical private refactor symbols:\n{ir}"
+            ir.contains("__scoop_priv0__lowered_"),
+            "default build should emit canonical private symbols:\n{ir}"
         );
         assert!(
             !ir.contains("scoop_effect_handler_stack") && !ir.contains("scoop_effect_outcome"),

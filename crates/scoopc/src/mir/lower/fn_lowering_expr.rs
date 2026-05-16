@@ -834,7 +834,7 @@ impl<'a> FnLowering<'a> {
 
     /// 将 HIR side table 发布的 call-arg binding 收口为稳定的 MIR 槽位顺序。
     ///
-    /// 这里仅处理当前 refactor 主线已显式 contract 化的简单 receiver/explicit case；
+    /// 这里仅处理已显式 contract 化的简单 receiver/explicit case；
     /// 对 default/vararg/spread 等更复杂形状维持原顺序，避免在 MIR lowering 现场猜测。
     pub(in crate::mir::lower) fn canonicalize_call_args_from_binding(
         &self,

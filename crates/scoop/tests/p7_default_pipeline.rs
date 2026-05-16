@@ -199,7 +199,7 @@ fn single_pipeline_runs_raise_cleanup_gc_cli() {
 #[test]
 fn single_pipeline_build_emit_llvm_cli_preserves_target_shape_effect_contract() {
     let fixture =
-        workspace_path("tests/fixtures/build/effect_refactor_direct_handle_resume_emit_llvm.scoop");
+        workspace_path("tests/fixtures/build/effect_lowered_direct_handle_resume_emit_llvm.scoop");
     let dir = tempdir().unwrap();
     let output_ll = dir.path().join("effect_contract.ll");
 
@@ -222,9 +222,9 @@ fn single_pipeline_build_emit_llvm_cli_preserves_target_shape_effect_contract() 
         "single pipeline CLI IR should keep explicit EffectCtx / EffectOutcome surface: {ir}"
     );
     assert!(
-        ir.contains("@__scoop_priv0__refactor_surface_resume__outcome__h")
+        ir.contains("@__scoop_priv0__lowered_surface_resume__outcome__h")
             && ir.contains("cmpxchg")
-            && ir.contains("refactor_step_is_complete"),
+            && ir.contains("step_is_complete"),
         "single pipeline CLI IR should keep target-shape Step_F / surface-resume contract: {ir}"
     );
 }
@@ -266,7 +266,7 @@ fn single_effect_pipeline_test_fixtures_cli_works() {
 #[test]
 fn single_pipeline_fixture_harness_has_no_hidden_legacy_fallback() {
     let fixture =
-        workspace_path("tests/fixtures/build/effect_refactor_no_legacy_handler_stack_calls.scoop");
+        workspace_path("tests/fixtures/build/effect_lowered_no_legacy_handler_stack_calls.scoop");
     let output = run_scoop([
         OsStr::new("test"),
         OsStr::new("--fixtures"),
@@ -275,7 +275,7 @@ fn single_pipeline_fixture_harness_has_no_hidden_legacy_fallback() {
 
     assert!(
         output.status.success(),
-        "single pipeline fixture harness should run the refactor-only build fixture: {output:?}"
+        "single pipeline fixture harness should run the build fixture: {output:?}"
     );
     assert!(String::from_utf8_lossy(&output.stdout).contains("fixtures: ok (1)"));
 }

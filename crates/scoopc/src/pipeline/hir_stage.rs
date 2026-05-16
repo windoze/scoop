@@ -872,7 +872,7 @@ impl TypedCallSiteContract {
     }
 }
 
-/// refactor typed HIR stage 显式输出的 effect / continuation contract side tables。
+/// typed HIR stage 显式输出的 effect / continuation contract side tables。
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct TypedHirEffectContracts {
     function_effects: Vec<FunctionEffectContract>,
@@ -1216,13 +1216,13 @@ impl TypedHirEffectContracts {
     }
 }
 
-/// refactor typed HIR stage 的稳定输出形状。
+/// typed HIR stage 的稳定输出形状。
 ///
 /// 本阶段固定如下 invariants，供 P2/P3 及后续阶段直接消费：
 /// - 输出已经过 resolver + typecheck，可直接视为 typed HIR handoff；
 /// - `Continuation` / `resume` / `perform` / `handle` 的 typed contract 应在此阶段显式化，
 ///   下游不应再回 AST 猜测 surface 语义；
-/// - `dump-hir` 的 refactor 路径必须优先消费这一 stage 输出，而不是 legacy
+/// - `dump-hir` 必须优先消费这一 stage 输出，而不是 legacy
 ///   `hir::lower_for_dump(...)`；
 /// - `effect_contracts` 现在显式输出函数级 allowed-row contract，以及 `Continuation.resume(...)` /
 ///   `perform` / `handle` 的结构化 typed contract，固定 `ResumeTuple` / `Answer` / `Out`、
@@ -1272,7 +1272,7 @@ impl TypedHirStageOutput {
         &self.source_path
     }
 
-    /// 以稳定文本渲染 refactor typed HIR dump：先打印 HIR `File`，再追加 typed side tables。
+    /// 以稳定文本渲染 typed HIR dump：先打印 HIR `File`，再追加 typed side tables。
     pub fn stable_dump(&self) -> String {
         let mut out =
             crate::hir::stable_dump_file(self.hir_file(), self.types(), self.source_path());
@@ -3146,7 +3146,7 @@ mod tests {
 
     use crate::session::SessionOptions;
 
-    fn refactor_session() -> Session {
+    fn session() -> Session {
         Session::with_options(SessionOptions::new()).unwrap()
     }
 
@@ -3158,9 +3158,9 @@ mod tests {
     }
 
     fn clean_lowered_hir() -> (LoweredHir, PathBuf) {
-        let session = refactor_session();
+        let session = session();
         let source = SourceFile::new_virtual(
-            "<mem>/refactor_hir_no_todo_clean.scoop",
+            "<mem>/hir_no_todo_clean.scoop",
             "package sample\nfun main() {}\n",
         );
         let source_path = source.path().to_path_buf();
@@ -3170,7 +3170,7 @@ mod tests {
 
     fn stage_error_for(lowered: LoweredHir, source_path: &std::path::Path) -> HirStageError {
         TypedHirStageOutput::new(lowered, source_path)
-            .expect_err("refactor HIR completeness verifier 应拒绝 placeholder")
+            .expect_err("HIR completeness verifier 应拒绝 placeholder")
     }
 
     fn test_span() -> Span {
@@ -3223,7 +3223,7 @@ mod tests {
     }
 
     #[test]
-    fn refactor_hir_no_todo_rejects_current_placeholder_reasons() {
+    fn hir_no_todo_rejects_current_placeholder_reasons() {
         const EXPR_REASONS: &[&str] = &[
             "array_lit",
             "spread_arg",
@@ -3301,7 +3301,7 @@ mod tests {
     }
 
     #[test]
-    fn refactor_hir_no_todo_scans_member_fun_and_init_roots() {
+    fn hir_no_todo_scans_member_fun_and_init_roots() {
         let (mut lowered, source_path) = clean_lowered_hir();
         let mut member_fun = main_fun_clone(&lowered);
         member_fun.fqn = "sample.Box.member".to_string();
@@ -3384,10 +3384,10 @@ mod tests {
     }
 
     #[test]
-    fn refactor_hir_decls_lowers_typealias_nominal_object_and_extension_property_graph() {
-        let session = refactor_session();
+    fn hir_decls_lowers_typealias_nominal_object_and_extension_property_graph() {
+        let session = session();
         let source = SourceFile::new_virtual(
-            "<mem>/refactor_hir_decls.scoop",
+            "<mem>/hir_decls.scoop",
             r#"package sample
 typealias Alias = Int
 interface Named {
@@ -3491,8 +3491,8 @@ fun main() {}
     }
 
     #[test]
-    fn refactor_hir_decls_reports_extension_property_missing_getter_before_hir() {
-        let session = refactor_session();
+    fn hir_decls_reports_extension_property_missing_getter_before_hir() {
+        let session = session();
         let source = SourceFile::new_virtual(
             "<mem>/extension_property_missing_getter.scoop",
             "package sample\nval String.bad: Int\nfun main(): Int { return \"\".bad }\n",
@@ -3509,10 +3509,10 @@ fun main() {}
     }
 
     #[test]
-    fn refactor_hir_splice_field_lowers_static_contracts_to_member_access() {
-        let session = refactor_session();
+    fn hir_splice_field_lowers_static_contracts_to_member_access() {
+        let session = session();
         let source = SourceFile::new_virtual(
-            "<mem>/refactor_hir_splice_field_static.scoop",
+            "<mem>/hir_splice_field_static.scoop",
             r#"package sample
 import scoop.core.*
 struct Point(val x: Int, val y: Int)
@@ -3534,10 +3534,10 @@ fun get_y(p: Point): Int { return p.[FieldMeta { name: "y" }] }
     }
 
     #[test]
-    fn refactor_hir_splice_field_lowers_reflection_loop_field_meta() {
-        let session = refactor_session();
+    fn hir_splice_field_lowers_reflection_loop_field_meta() {
+        let session = session();
         let source = SourceFile::new_virtual(
-            "<mem>/refactor_hir_splice_field_loop.scoop",
+            "<mem>/hir_splice_field_loop.scoop",
             r#"package sample
 import scoop.core.*
 struct Point(val x: Int, val y: Int)
@@ -3562,10 +3562,10 @@ fun visit(p: Point) {
     }
 
     #[test]
-    fn refactor_hir_splice_field_reports_non_static_field_name() {
-        let session = refactor_session();
+    fn hir_splice_field_reports_non_static_field_name() {
+        let session = session();
         let source = SourceFile::new_virtual(
-            "<mem>/refactor_hir_splice_field_dynamic.scoop",
+            "<mem>/hir_splice_field_dynamic.scoop",
             r#"package sample
 import scoop.core.*
 struct Point(val x: Int)
@@ -3584,10 +3584,10 @@ fun bad(p: Point, name: String): Any { return p.[name] }
     }
 
     #[test]
-    fn refactor_hir_call_args_canonicalizes_arrays_named_defaults_and_spread() {
-        let session = refactor_session();
+    fn hir_call_args_canonicalizes_arrays_named_defaults_and_spread() {
+        let session = session();
         let source = SourceFile::new_virtual(
-            "<mem>/refactor_hir_call_args.scoop",
+            "<mem>/hir_call_args.scoop",
             r#"package sample
 import scoop.core.*
 
@@ -3638,10 +3638,10 @@ fun main(): Int {
     }
 
     #[test]
-    fn refactor_hir_call_contracts_record_callable_provenance() {
-        let session = refactor_session();
+    fn hir_call_contracts_record_callable_provenance() {
+        let session = session();
         let source = SourceFile::new_virtual(
-            "<mem>/refactor_hir_call_contracts.scoop",
+            "<mem>/hir_call_contracts.scoop",
             r#"package sample
 import scoop.core.*
 import scoop.unsafe.*
@@ -3763,10 +3763,10 @@ fun use(k: Continuation<Int, Unit, eff Pure>, b: Base, i: IFace): Int / Raise<Ru
     }
 
     #[test]
-    fn refactor_hir_rejects_effectful_funptr_signature_before_hir() {
-        let session = refactor_session();
+    fn hir_rejects_effectful_funptr_signature_before_hir() {
+        let session = session();
         let source = SourceFile::new_virtual(
-            "<mem>/refactor_hir_effect_bridge_abi.scoop",
+            "<mem>/hir_effect_bridge_abi.scoop",
             r#"package sample
 import scoop.core.*
 import scoop.unsafe.*
@@ -3797,10 +3797,10 @@ fun useBridge(): Int / (Ask) {
     }
 
     #[test]
-    fn refactor_hir_gc_intrinsic_member_calls_publish_intrinsic_contracts() {
-        let session = refactor_session();
+    fn hir_gc_intrinsic_member_calls_publish_intrinsic_contracts() {
+        let session = session();
         let source = SourceFile::new_virtual(
-            "<mem>/refactor_hir_gc_intrinsics.scoop",
+            "<mem>/hir_gc_intrinsics.scoop",
             r#"package sample
 import scoop.core.*
 
@@ -3856,10 +3856,10 @@ fun main(): Unit {
     }
 
     #[test]
-    fn refactor_hir_ctor_contract_canonicalizes_default_args_to_ordered_slots() {
-        let session = refactor_session();
+    fn hir_ctor_contract_canonicalizes_default_args_to_ordered_slots() {
+        let session = session();
         let source = SourceFile::new_virtual(
-            "<mem>/refactor_hir_ctor_call_contracts.scoop",
+            "<mem>/hir_ctor_call_contracts.scoop",
             r#"package sample
 
 class Pair(val first: Int = 7, val second: Int)
@@ -3899,10 +3899,10 @@ fun main(): Int {
     }
 
     #[test]
-    fn refactor_hir_call_contracts_publish_where_bound_member_dispatch() {
-        let session = refactor_session();
+    fn hir_call_contracts_publish_where_bound_member_dispatch() {
+        let session = session();
         let source = SourceFile::new_virtual(
-            "<mem>/refactor_hir_where_bound_call_contracts.scoop",
+            "<mem>/hir_where_bound_call_contracts.scoop",
             r#"package sample
 import scoop.core.*
 
@@ -3924,10 +3924,10 @@ fun <T> stringify(value: T): String where T: ToString {
     }
 
     #[test]
-    fn refactor_hir_with_update_publishes_copy_update_contracts() {
-        let session = refactor_session();
+    fn hir_with_update_publishes_copy_update_contracts() {
+        let session = session();
         let source = SourceFile::new_virtual(
-            "<mem>/refactor_hir_with_update.scoop",
+            "<mem>/hir_with_update.scoop",
             r#"package sample
 import scoop.core.*
 
@@ -4009,10 +4009,10 @@ fun use(pair: (Point, (Int, Int)), r: Result): Int {
     }
 
     #[test]
-    fn refactor_hir_places_publish_assignment_contracts() {
-        let session = refactor_session();
+    fn hir_places_publish_assignment_contracts() {
+        let session = session();
         let source = SourceFile::new_virtual(
-            "<mem>/refactor_hir_places.scoop",
+            "<mem>/hir_places.scoop",
             r#"package sample
 
 import scoop.core.*
@@ -4057,7 +4057,7 @@ fun entry(box: Box): Int {
             "place contracts should be visible in typed HIR dump: {dump}"
         );
 
-        let facts = crate::mir::MirLoweringFacts::from_refactor_typed_handoff(
+        let facts = crate::mir::MirLoweringFacts::from_typed_handoff(
             output.lowered_hir(),
             output.effect_contracts(),
         );
@@ -4081,7 +4081,7 @@ fun entry(box: Box): Int {
             for stmt in body.blocks.iter().flat_map(|block| block.stmts.iter()) {
                 assert!(
                     !matches!(stmt.kind, crate::mir::StatementKind::Todo(_)),
-                    "refactor MIR should consume assignment place contracts: {mir:#?}"
+                    "MIR should consume assignment place contracts: {mir:#?}"
                 );
                 match &stmt.kind {
                     crate::mir::StatementKind::StoreTopLevelVar { fqn, .. }
@@ -4113,10 +4113,10 @@ fun entry(box: Box): Int {
     }
 
     #[test]
-    fn refactor_hir_for_loop_lowers_custom_iterator_contracts() {
-        let session = refactor_session();
+    fn hir_for_loop_lowers_custom_iterator_contracts() {
+        let session = session();
         let source = SourceFile::new_virtual(
-            "<mem>/refactor_hir_for_loop_custom_iterator.scoop",
+            "<mem>/hir_for_loop_custom_iterator.scoop",
             r#"package sample
 
 import scoop.core.*
@@ -4165,10 +4165,10 @@ fun sum(xs: MyIterable): Int {
     }
 
     #[test]
-    fn refactor_hir_for_loop_missing_contract_is_stage_error() {
-        let session = refactor_session();
+    fn hir_for_loop_missing_contract_is_stage_error() {
+        let session = session();
         let source = SourceFile::new_virtual(
-            "<mem>/refactor_hir_for_loop_missing_contract.scoop",
+            "<mem>/hir_for_loop_missing_contract.scoop",
             r#"package sample
 
 import scoop.core.*
@@ -4202,7 +4202,7 @@ fun use(xs: MyIterable) {
 
     #[test]
     fn static_initializer_handle_is_stage_error() {
-        let session = refactor_session();
+        let session = session();
         let source = SourceFile::new_virtual(
             "<mem>/static_initializer_handle.scoop",
             r#"package sample
@@ -4236,10 +4236,10 @@ fun main(): Int {
     }
 
     #[test]
-    fn refactor_hir_top_level_init_publishes_storage_and_extern_roots() {
-        let session = refactor_session();
+    fn hir_top_level_init_publishes_storage_and_extern_roots() {
+        let session = session();
         let source = SourceFile::new_virtual(
-            "<mem>/refactor_hir_top_level_init.scoop",
+            "<mem>/hir_top_level_init.scoop",
             r#"package sample
 
 import scoop.core.*
@@ -4315,10 +4315,10 @@ fun main() {}
     }
 
     #[test]
-    fn refactor_hir_class_literal_and_intrinsic_contracts() {
-        let session = refactor_session();
+    fn hir_class_literal_and_intrinsic_contracts() {
+        let session = session();
         let source = SourceFile::new_virtual(
-            "<mem>/refactor_hir_class_literal.scoop",
+            "<mem>/hir_class_literal.scoop",
             r#"package sample
 import scoop.core.*
 
@@ -4420,9 +4420,9 @@ fun runtime(): String {
     }
 
     fn assert_fixture_effect_contract_dump(name: &str, expected: &str) {
-        let session = refactor_session();
+        let session = session();
         let source = load_hir_fixture(name);
-        let output = run(&session, &source).expect("fixture 应能通过 refactor typed HIR stage");
+        let output = run(&session, &source).expect("fixture 应能通过 typed HIR stage");
 
         assert_eq!(
             output.effect_contracts().stable_dump(output.types()),
@@ -4431,8 +4431,8 @@ fun runtime(): String {
     }
 
     #[test]
-    fn refactor_typed_hir_stage_output_is_constructible() {
-        let session = refactor_session();
+    fn typed_hir_stage_output_is_constructible() {
+        let session = session();
         let source = SourceFile::new_virtual("<mem>", "package sample\nfun main() {}\n");
 
         let output = run(&session, &source).unwrap();
@@ -4452,8 +4452,8 @@ fun runtime(): String {
     }
 
     #[test]
-    fn refactor_typed_hir_stage_builds_explicit_contract_tables() {
-        let session = refactor_session();
+    fn typed_hir_stage_builds_explicit_contract_tables() {
+        let session = session();
         let source = SourceFile::new_virtual("<mem>", "package sample\nfun main() {}\n");
 
         let output = run(&session, &source).unwrap();
@@ -4468,10 +4468,10 @@ fun runtime(): String {
     }
 
     #[test]
-    fn refactor_typed_hir_records_resume_contracts_in_typed_hir_stage() {
-        let session = refactor_session();
+    fn typed_hir_records_resume_contracts_in_typed_hir_stage() {
+        let session = session();
         let source = SourceFile::new_virtual(
-            "<mem>/refactor_continuation_contracts.scoop",
+            "<mem>/continuation_contracts.scoop",
             r#"
 package fixtures.hirstage
 
@@ -4533,7 +4533,7 @@ fun resumeWithEffects(k: Continuation<Int, Int, eff Raise<Int>>): Int / (Raise<I
     }
 
     #[test]
-    fn refactor_typed_hir_continuation_contract_dump_snapshot() {
+    fn typed_hir_continuation_contract_dump_snapshot() {
         assert_fixture_effect_contract_dump(
             "continuation_resume_surface_named_tuple_and_unit_basic.scoop",
             r#"TypedHirEffectContracts {
@@ -4683,8 +4683,8 @@ fun resumeWithEffects(k: Continuation<Int, Int, eff Raise<Int>>): Int / (Raise<I
     }
 
     #[test]
-    fn refactor_typed_hir_runtime_error_contract_dump_records_required_effect() {
-        let session = refactor_session();
+    fn typed_hir_runtime_error_contract_dump_records_required_effect() {
+        let session = session();
         let source = SourceFile::new_virtual(
             "<mem>/runtime_error_contract.scoop",
             r#"
@@ -4709,7 +4709,7 @@ fun resumeWithEffects(k: Continuation<Int, Int, eff Raise<Int>>): Int / (Raise<I
     }
 
     #[test]
-    fn refactor_typed_hir_handle_contract_dump_snapshot() {
+    fn typed_hir_handle_contract_dump_snapshot() {
         assert_fixture_effect_contract_dump(
             "handle_perform.scoop",
             r#"TypedHirEffectContracts {
@@ -4783,8 +4783,8 @@ fun resumeWithEffects(k: Continuation<Int, Int, eff Raise<Int>>): Int / (Raise<I
     }
 
     #[test]
-    fn refactor_typed_hir_collects_perform_and_handle_contracts() {
-        let session = refactor_session();
+    fn typed_hir_collects_perform_and_handle_contracts() {
+        let session = session();
         let source = load_hir_fixture("handle_perform.scoop");
 
         let output = run(&session, &source).unwrap();

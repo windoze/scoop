@@ -1,0 +1,159 @@
+File {
+    items: [
+        Metadata(
+            TypeAlias(
+                TypeAliasMetadata {
+                    span: 58..79,
+                    fqn: "mir_lowered.top_level_roots.Alias",
+                    name: "Alias",
+                    type_params: [],
+                    ty: Int,
+                },
+            ),
+        ),
+        Metadata(
+            Nominal(
+                NominalMetadata {
+                    span: 80..116,
+                    fqn: "mir_lowered.top_level_roots.Point",
+                    name: "Point",
+                    kind: Struct,
+                    type_params: [],
+                    supertypes: [],
+                    interfaces: [],
+                    constructors: [CtorMetadata { span: 92..116, kind: Primary, params: [CtorParamMetadata { span: 97..98, name: "x", ty: Int, has_default: false, property: Some(Val) }, CtorParamMetadata { span: 109..110, name: "y", ty: Int, has_default: false, property: Some(Val) }], delegation: None }],
+                    members: [Field(FieldMetadata { span: 97..98, fqn: "mir_lowered.top_level_roots.Point.x", name: "x", mutable: false, ty: Int, origin: PrimaryCtorParam }), Field(FieldMetadata { span: 109..110, fqn: "mir_lowered.top_level_roots.Point.y", name: "y", mutable: false, ty: Int, origin: PrimaryCtorParam })],
+                },
+            ),
+        ),
+        Metadata(
+            Object(
+                ObjectMetadata {
+                    span: 264..346,
+                    fqn: "mir_lowered.top_level_roots.Registry",
+                    name: "Registry",
+                    kind: Object,
+                    supertypes: [],
+                    interfaces: [],
+                    initializer_root: "mir_lowered.top_level_roots.Registry",
+                    members: [Field(FieldMetadata { span: 290..295, fqn: "mir_lowered.top_level_roots.Registry.count", name: "count", mutable: false, ty: Int, origin: BodyProperty }), Fun(MemberFunMetadata { span: 315..344, fqn: "mir_lowered.top_level_roots.Registry.touch", name: "touch", type_params: [], params: [], return_ty: Int })],
+                },
+            ),
+        ),
+        InitializerRoot(
+            InitializerRoot {
+                span: 118..141,
+                fqn: "mir_lowered.top_level_roots.Base",
+                source_path: "tests/fixtures/mir_lowered/top_level_roots.scoop",
+                kind: ConstVal,
+                ty: Some(Int),
+                initializer_transport: None,
+                has_initializer: true,
+                dependencies: [],
+                hidden_effects: Pure,
+            },
+        ),
+        InitializerRoot(
+            InitializerRoot {
+                span: 171..205,
+                fqn: "mir_lowered.top_level_roots.Counter",
+                source_path: "tests/fixtures/mir_lowered/top_level_roots.scoop",
+                kind: RuntimeMutableVar { storage: Global },
+                ty: Some(Int),
+                initializer_transport: None,
+                has_initializer: true,
+                dependencies: [InitializerDependency { fqn: "mir_lowered.top_level_roots.Runtime", kind: TopLevelValue }],
+                hidden_effects: Pure,
+            },
+        ),
+        InitializerRoot(
+            InitializerRoot {
+                span: 264..346,
+                fqn: "mir_lowered.top_level_roots.Registry",
+                source_path: "tests/fixtures/mir_lowered/top_level_roots.scoop",
+                kind: ObjectSingleton,
+                ty: None,
+                initializer_transport: None,
+                has_initializer: true,
+                dependencies: [InitializerDependency { fqn: "mir_lowered.top_level_roots.Runtime", kind: TopLevelValue }],
+                hidden_effects: Pure,
+            },
+        ),
+        InitializerRoot(
+            InitializerRoot {
+                span: 142..169,
+                fqn: "mir_lowered.top_level_roots.Runtime",
+                source_path: "tests/fixtures/mir_lowered/top_level_roots.scoop",
+                kind: RuntimeImmutableVal,
+                ty: Some(Int),
+                initializer_transport: None,
+                has_initializer: true,
+                dependencies: [InitializerDependency { fqn: "mir_lowered.top_level_roots.Base", kind: TopLevelValue }],
+                hidden_effects: Pure,
+            },
+        ),
+        ExternGlobal(
+            ExternGlobalRoot {
+                span: 207..262,
+                fqn: "mir_lowered.top_level_roots.NativeCounter",
+                source_path: "tests/fixtures/mir_lowered/top_level_roots.scoop",
+                ty: Int,
+                mutable: true,
+                symbol: "native_counter",
+                linkage: External,
+                storage: Global,
+                initializer_absent: true,
+                unsafe_required: true,
+            },
+        ),
+        Fun(
+            FunDecl {
+                span: 348..361,
+                fqn: "mir_lowered.top_level_roots.main",
+                name: "main",
+                ty: () -> Unit / Pure,
+                params: [],
+                return_ty: Unit,
+                body: Some(
+                    Body {
+                        locals: [],
+                        blocks: [
+                            BasicBlock {
+                                label: bb#h88dcebade9a8b640a29ce2713be441b5,
+                                is_cleanup: false,
+                                stmts: [],
+                                terminator: Terminator { span: 348..361, kind: Return { value: None }, unwind: NoUnwind },
+                            },
+                        ],
+                        start: bb#h88dcebade9a8b640a29ce2713be441b5,
+                    }
+                ),
+            },
+        ),
+        Fun(
+            FunDecl {
+                span: 315..344,
+                fqn: "mir_lowered.top_level_roots.Registry.touch",
+                name: "touch",
+                ty: (mir_lowered.top_level_roots.Registry) -> Int / Pure,
+                params: [Param { span: 271..279, name: "this", ty: mir_lowered.top_level_roots.Registry, local: local#h8e4c90ba2c4bbb894ab98b33b68eb4ab }],
+                return_ty: Int,
+                body: Some(
+                    Body {
+                        locals: [LocalDecl { label: local#h8e4c90ba2c4bbb894ab98b33b68eb4ab, span: 271..279, name: Some("this"), ty: mir_lowered.top_level_roots.Registry, source: SourceLocal }, LocalDecl { label: local#hd4c3266359822c8d0fe2bc2f9f0a29da, span: 341..342, name: Some("tmp0"), ty: Int, source: CompilerTemporary }, LocalDecl { label: local#h42cba5229a767300b79d57dae8495e07, span: 332..344, name: Some("tmp1"), ty: Unit, source: CompilerTemporary }],
+                        blocks: [
+                            BasicBlock {
+                                label: bb#h08acc6d193d4f8793ae857e193fafcd6,
+                                is_cleanup: false,
+                                stmts: [Statement { span: 341..342, kind: Assign { target: local#hd4c3266359822c8d0fe2bc2f9f0a29da, value: Use(Const(Int)) } }],
+                                terminator: Terminator { span: 334..342, kind: Return { value: Some(Local(local#hd4c3266359822c8d0fe2bc2f9f0a29da)) }, unwind: NoUnwind },
+                            },
+                        ],
+                        start: bb#h08acc6d193d4f8793ae857e193fafcd6,
+                    }
+                ),
+            },
+        ),
+    ],
+}
+

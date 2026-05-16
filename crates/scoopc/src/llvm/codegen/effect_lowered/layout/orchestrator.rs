@@ -87,7 +87,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                 .insert(callable.body_version_key().clone(), layout)
             {
                 return Err(frontend_error(format!(
-                    "refactor LLVM ABI materialization 发现 body version key {:?} 同时发布了多个 plain callable layout（已有 `{}`，新值 `{}`）",
+                    "LLVM ABI materialization 发现 body version key {:?} 同时发布了多个 plain callable layout（已有 `{}`，新值 `{}`）",
                     callable.body_version_key(),
                     existing.root_fqn(),
                     callable.root_fqn(),

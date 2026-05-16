@@ -2,7 +2,7 @@
 
 use super::*;
 
-impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
+impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
     pub(super) fn load_gc_object_type_desc(
         &mut self,
         obj: PointerValue<'ctx>,
@@ -55,9 +55,9 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         let value =
             self.runtime_error_unit_variant_payload(payload_ty, "ContinuationAlreadyResumed")?;
         match layout.kind() {
-            RefactorSourceAbiLayoutKind::Scalar => Ok(value.value),
-            RefactorSourceAbiLayoutKind::Tuple => Err(frontend_error(format!(
-                "refactor runtime-error boundary payload t{} 需要 scalar ABI，当前 tuple ABI 尚未发布 payload field contract",
+            SourceAbiLayoutKind::Scalar => Ok(value.value),
+            SourceAbiLayoutKind::Tuple => Err(frontend_error(format!(
+                "runtime-error boundary payload t{} 需要 scalar ABI，当前 tuple ABI 尚未发布 payload field contract",
                 payload_ty.as_u32()
             ))),
         }
@@ -70,7 +70,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         if !self.source_ty_is_runtime_error(payload_ty) {
             return Err(frontend_error(format!(
-                "refactor runtime-error payload t{} 不是 scoop.core.RuntimeError",
+                "runtime-error payload t{} 不是 scoop.core.RuntimeError",
                 payload_ty.as_u32()
             )));
         }
@@ -79,7 +79,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             .enum_layouts
             .get("scoop.core.RuntimeError")
             .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "refactor RuntimeError enum layout",
+                kind: "RuntimeError enum layout",
                 at: self.mir_fun.span.into(),
             })?;
         let variant = enum_layout
@@ -87,12 +87,12 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             .iter()
             .find(|variant| variant.name == variant_name)
             .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "refactor RuntimeError variant layout",
+                kind: "RuntimeError variant layout",
                 at: self.mir_fun.span.into(),
             })?;
         if !variant.fields.is_empty() {
             return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "refactor RuntimeError payload variant arity",
+                kind: "RuntimeError payload variant arity",
                 at: self.mir_fun.span.into(),
             });
         }
@@ -103,7 +103,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                 let Some(BasicTypeEnum::IntType(tag_ty)) = struct_ty.get_field_type_at_index(0)
                 else {
                     return Err(frontend_error(
-                        "refactor RuntimeError tagged-union payload 缺少整数 tag field".to_string(),
+                        "RuntimeError tagged-union payload 缺少整数 tag field".to_string(),
                     ));
                 };
                 let mut aggregate = struct_ty.get_undef();
@@ -114,13 +114,13 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                         aggregate,
                         tag_ty.const_int(variant.tag, false),
                         0,
-                        "refactor_runtime_error_tag",
+                        "runtime_error_tag",
                     )?
                     .into_struct_value();
                 for field_index in 1..struct_ty.count_fields() {
                     let Some(field_ty) = struct_ty.get_field_type_at_index(field_index) else {
                         return Err(frontend_error(format!(
-                            "refactor RuntimeError tagged-union payload 缺少 field {}",
+                            "RuntimeError tagged-union payload 缺少 field {}",
                             field_index
                         )));
                     };
@@ -131,7 +131,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                             aggregate,
                             field_ty.const_zero(),
                             field_index,
-                            "refactor_runtime_error_payload_zero",
+                            "runtime_error_payload_zero",
                         )?
                         .into_struct_value();
                 }
@@ -139,7 +139,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             }
             other => {
                 return Err(frontend_error(format!(
-                    "refactor RuntimeError payload ABI 不是 int/struct：{:?}",
+                    "RuntimeError payload ABI 不是 int/struct：{:?}",
                     other
                 )));
             }
@@ -152,12 +152,12 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
 
     pub(super) fn emit_local_runtime_error_terminal(
         &mut self,
-        runtime: &RefactorLocalRuntimeErrorRuntime,
+        runtime: &LocalRuntimeErrorRuntime,
         payload: Option<BasicValueEnum<'ctx>>,
     ) -> Result<(), LlvmEmitError> {
         let payload = payload.ok_or_else(|| {
             frontend_error(format!(
-                "refactor LocalRuntimeError st{} call site {} case c{} 需要 materialized payload t{}，但 lowering 产出了 elided payload",
+                "LocalRuntimeError st{} call site {} case c{} 需要 materialized payload t{}，但 lowering 产出了 elided payload",
                 runtime.target_state.as_u32(),
                 runtime.site_id.as_u32(),
                 runtime.input_case_tag.as_u32(),
@@ -171,7 +171,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             .unwrap_or_else(|| self.codegen.declare_runtime_error_fatal());
         if callee.count_params() as usize != runtime.runtime_param_count {
             return Err(frontend_error(format!(
-                "refactor LocalRuntimeError runtime entry `{}` 参数数量漂移：module={} contract={}",
+                "LocalRuntimeError runtime entry `{}` 参数数量漂移：module={} contract={}",
                 runtime.runtime_symbol,
                 callee.count_params(),
                 runtime.runtime_param_count
@@ -181,7 +181,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         self.codegen.builder.build_call(
             callee,
             &[payload.into()],
-            "refactor_local_runtime_error_fatal",
+            "local_runtime_error_fatal",
         )?;
         self.codegen.builder.build_unreachable()?;
         Ok(())
@@ -193,22 +193,22 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
     ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
         let runtime_payload_ty = self.codegen.llvm_gc_i8_ptr_type();
         if let BasicValueEnum::PointerValue(ptr) = payload {
-            return self.codegen.refactor_cast_ptr(
+            return self.codegen.cast_ptr(
                 ptr,
                 runtime_payload_ty,
-                "refactor_runtime_error_payload_ptr",
+                "runtime_error_payload_ptr",
             );
         }
 
         let slot = self
             .codegen
             .builder
-            .build_alloca(payload.get_type(), "refactor_runtime_error_payload_obj")?;
+            .build_alloca(payload.get_type(), "runtime_error_payload_obj")?;
         self.codegen.builder.build_store(slot, payload)?;
-        self.codegen.refactor_cast_ptr(
+        self.codegen.cast_ptr(
             slot,
             runtime_payload_ty,
-            "refactor_runtime_error_payload_ptr",
+            "runtime_error_payload_ptr",
         )
     }
 }

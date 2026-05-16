@@ -2,7 +2,7 @@
 
 use super::*;
 
-impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
+impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
     pub(super) fn double_resume_runtime_error_case(
         &self,
     ) -> Result<(CaseTag, TypeId), LlvmEmitError> {
@@ -20,7 +20,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             match &selected {
                 Some(existing) if existing != &candidate => {
                     return Err(frontend_error(format!(
-                        "refactor callable `{}` 存在多义 double resume runtime error emission：{:?} 与 {:?}",
+                        "callable `{}` 存在多义 double resume runtime error emission：{:?} 与 {:?}",
                         self.callable.root_fqn(),
                         existing,
                         candidate,
@@ -40,7 +40,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                 match &selected {
                     Some(existing) if existing != &candidate => {
                         return Err(frontend_error(format!(
-                            "refactor callable `{}` 存在多义 double resume runtime error Step case：{:?} 与 {:?}",
+                            "callable `{}` 存在多义 double resume runtime error Step case：{:?} 与 {:?}",
                             self.callable.root_fqn(),
                             existing,
                             candidate,
@@ -53,7 +53,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         }
         selected.ok_or_else(|| {
             frontend_error(format!(
-                "refactor callable `{}` 缺少 double resume 可用的 ordinary runtime error boundary emission",
+                "callable `{}` 缺少 double resume 可用的 ordinary runtime error boundary emission",
                 self.callable.root_fqn(),
             ))
         })
@@ -129,7 +129,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             if let Some(existing) = seen_states.get(&resume_state) {
                 if *existing != candidate {
                     return Err(frontend_error(format!(
-                        "refactor callable `{}` resume state st{} 存在多义 call-boundary continuation composition origin：{:?} 与 {:?}",
+                        "callable `{}` resume state st{} 存在多义 call-boundary continuation composition origin：{:?} 与 {:?}",
                         self.callable.root_fqn(),
                         resume_state.as_u32(),
                         existing,
@@ -203,7 +203,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             || composition.caller_resume_state() != boundary.resume_state()
         {
             return Err(frontend_error(format!(
-                "refactor composed call boundary bd{} continuation composition 与 boundary resume state 漂移：composition={:?}",
+                "composed call boundary bd{} continuation composition 与 boundary resume state 漂移：composition={:?}",
                 boundary.boundary_id().as_u32(),
                 composition,
             )));
@@ -213,14 +213,14 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             .surface_resume_layout(composition.callee_continuation_schema())
             .ok_or_else(|| {
                 frontend_error(format!(
-                    "refactor composed call boundary bd{} 缺少 callee continuation schema k{} surface ABI",
+                    "composed call boundary bd{} 缺少 callee continuation schema k{} surface ABI",
                     boundary.boundary_id().as_u32(),
                     composition.callee_continuation_schema().as_u32(),
                 ))
             })?;
         if surface.resume_tuple_ty() != resume_tuple_ty {
             return Err(frontend_error(format!(
-                "refactor composed call boundary bd{} callee surface ABI 漂移：surface_resume=t{} surface_out=s{} composition_resume=t{} composition_out=s{}",
+                "composed call boundary bd{} callee surface ABI 漂移：surface_resume=t{} surface_out=s{} composition_resume=t{} composition_out=s{}",
                 boundary.boundary_id().as_u32(),
                 surface.resume_tuple_ty().as_u32(),
                 surface.return_step_schema().as_u32(),
@@ -230,7 +230,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         }
         let deferred_callee_continuation = self.codegen.defer_gc_ref_pointer(
             self.mir_fun.span,
-            "refactor_composed_resume_callee_continuation",
+            "composed_resume_callee_continuation",
             callee_continuation,
         )?;
         let deferred_payload = payload
@@ -240,14 +240,14 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                     .cg_ty_of_mir_type(self.source_types, resume_tuple_ty)
                     .ok_or_else(|| {
                         frontend_error(format!(
-                            "refactor composed call boundary bd{} payload t{} 缺少 codegen type",
+                            "composed call boundary bd{} payload t{} 缺少 codegen type",
                             boundary.boundary_id().as_u32(),
                             resume_tuple_ty.as_u32(),
                         ))
                     })?;
                 self.codegen.defer_gc_sensitive_cg_value(
                     self.mir_fun.span,
-                    "refactor_composed_resume_payload",
+                    "composed_resume_payload",
                     CgValue {
                         ty: payload_cg,
                         value: Some(raw),
@@ -264,10 +264,10 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         }
         let callee = self
             .codegen
-            .refactor_surface_resume_outcome_function(surface);
+            .surface_resume_outcome_function(surface);
         let callee_continuation = self.codegen.reload_deferred_gc_ref_without_clearing(
             self.mir_fun.span,
-            "refactor_composed_resume_callee_continuation_reload",
+            "composed_resume_callee_continuation_reload",
             &deferred_callee_continuation,
         )?;
         let mut args = vec![callee_continuation.into()];
@@ -278,7 +278,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                     .map(|value| {
                         self.codegen.reload_deferred_cg_value_without_clearing(
                             self.mir_fun.span,
-                            "refactor_composed_resume_payload_reload",
+                            "composed_resume_payload_reload",
                             value,
                         )
                     })
@@ -286,7 +286,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                     .and_then(|value| value.value)
                     .ok_or_else(|| {
                         frontend_error(format!(
-                            "refactor composed call boundary bd{} callee resume 需要 non-elided payload（function=`{}`, surface=`{}`, resume_tuple_ty=t{} `{}`, payload_present={}）",
+                            "composed call boundary bd{} callee resume 需要 non-elided payload（function=`{}`, surface=`{}`, resume_tuple_ty=t{} `{}`, payload_present={}）",
                             boundary.boundary_id().as_u32(),
                             self.function.get_name().to_str().unwrap_or("<invalid>"),
                             surface.symbol_name(),
@@ -300,23 +300,23 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         }
         let outcome_slot = self
             .codegen
-            .alloc_effect_outcome_slot(self.mir_fun.span, "refactor_composed_resume")?;
+            .alloc_effect_outcome_slot(self.mir_fun.span, "composed_resume")?;
         args.push(outcome_slot.into());
         self.codegen.build_call_preserving_gc_local_roots(
             self.mir_fun.span,
             callee,
             &args,
-            "refactor_composed_callee_resume_outcome",
+            "composed_callee_resume_outcome",
         )?;
         self.codegen.clear_deferred_cg_value_root_homes(
             self.mir_fun.span,
-            "refactor_composed_resume_callee_continuation_clear",
+            "composed_resume_callee_continuation_clear",
             &deferred_callee_continuation,
         )?;
         if let Some(deferred_payload) = &deferred_payload {
             self.codegen.clear_deferred_cg_value_root_homes(
                 self.mir_fun.span,
-                "refactor_composed_resume_payload_clear",
+                "composed_resume_payload_clear",
                 deferred_payload,
             )?;
         }
@@ -325,7 +325,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             .step_layout(surface.return_step_schema())
             .ok_or_else(|| {
                 frontend_error(format!(
-                    "refactor composed call boundary bd{} 缺少 callee step schema s{} layout",
+                    "composed call boundary bd{} 缺少 callee step schema s{} layout",
                     boundary.boundary_id().as_u32(),
                     surface.return_step_schema().as_u32(),
                 ))
@@ -333,7 +333,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         let step = self.build_step_from_effect_outcome(
             step_layout,
             outcome_slot,
-            "refactor_composed_resume_outcome",
+            "composed_resume_outcome",
         )?;
         self.dispatch_boundary_step(
             boundary,
@@ -434,7 +434,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             if !starts_after_call {
                 continue;
             }
-            let Some(RefactorHandleBoundaryRuntimeAction::ConsumeToArm(action)) = self
+            let Some(HandleBoundaryRuntimeAction::ConsumeToArm(action)) = self
                 .handle_boundary_action(
                     candidate.boundary_id(),
                     perform.emitted_step().case_tag(),
@@ -456,7 +456,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
     ) -> Result<(), LlvmEmitError> {
         let Some(owner_state) = self.callable.state_graph().state(boundary.owner_state()) else {
             return Err(frontend_error(format!(
-                "refactor composed call replay bd{} 缺少 owner state st{}",
+                "composed call replay bd{} 缺少 owner state st{}",
                 boundary.boundary_id().as_u32(),
                 boundary.owner_state().as_u32(),
             )));
@@ -480,7 +480,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             .blocks
             .get(source_slice.block_id().as_u32() as usize)
             .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "refactor composed call replay block",
+                kind: "composed call replay block",
                 at: self.mir_fun.span.into(),
             })?;
         for stmt_index in source_slice.start_statement_index()..statement_index {
@@ -489,7 +489,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                     .stmts
                     .get(stmt_index as usize)
                     .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "refactor composed call replay statement",
+                        kind: "composed call replay statement",
                         at: self.mir_fun.span.into(),
                     })?;
             let classification = self
@@ -497,7 +497,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                 .source_statement_classification(source_slice, stmt_index)
                 .ok_or_else(|| {
                     frontend_error(format!(
-                        "refactor composed call replay bb{} stmt{} 缺少 published classification",
+                        "composed call replay bb{} stmt{} 缺少 published classification",
                         source_slice.block_id().as_u32(),
                         stmt_index,
                     ))
@@ -522,7 +522,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                 | LateLoweredSourceStatementClassificationKind::ElidedUnreachable => {}
                 LateLoweredSourceStatementClassificationKind::Unsupported { reason } => {
                     return Err(frontend_error(format!(
-                        "refactor composed call replay bb{} stmt{} classified unsupported: {reason}",
+                        "composed call replay bb{} stmt{} classified unsupported: {reason}",
                         source_slice.block_id().as_u32(),
                         stmt_index,
                     )));

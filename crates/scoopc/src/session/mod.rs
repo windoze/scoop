@@ -4,7 +4,7 @@
 //! - 把“加载 sysroot / 读取源文件 / 驱动前端各阶段”的入口集中在一个地方
 //! - 确保任何编译流程默认都包含 sysroot，从而让名字解析/类型检查在同一环境下工作
 //!
-//! P8 起，effect pipeline 已收口为单一路径；session 不再承载 legacy/refactor bifurcation。
+//! P8 起，effect pipeline 已收口为单一路径；session 不再承载 legacy/bifurcation。
 
 use std::path::{Path, PathBuf};
 

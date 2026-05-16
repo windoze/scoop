@@ -2,7 +2,7 @@
 
 use super::*;
 
-impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
+impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
     pub(super) fn frame_field_type(
         &self,
         field_index: u32,
@@ -12,7 +12,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             .get_field_type_at_index(field_index)
             .ok_or_else(|| {
                 frontend_error(format!(
-                    "refactor frame layout 缺少 field index {field_index}"
+                    "frame layout 缺少 field index {field_index}"
                 ))
             })
     }
@@ -41,13 +41,13 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             .resume_payload_binding(boundary_id)
             .ok_or_else(|| {
                 frontend_error(format!(
-                    "refactor boundary bd{} 缺少 resumed local/home binding",
+                    "boundary bd{} 缺少 resumed local/home binding",
                     boundary_id.as_u32()
                 ))
             })?;
         if binding.resume_state() != resume_state {
             return Err(frontend_error(format!(
-                "refactor boundary bd{} resume state 漂移：boundary=st{} binding=st{}",
+                "boundary bd{} resume state 漂移：boundary=st{} binding=st{}",
                 boundary_id.as_u32(),
                 resume_state.as_u32(),
                 binding.resume_state().as_u32()
@@ -81,7 +81,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                     .codegen
                     .cg_ty_of_mir_type(self.source_types, resume_tuple_ty)
                     .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "refactor task transport resume payload type",
+                        kind: "task transport resume payload type",
                         at: self.mir_fun.span.into(),
                     })?;
                 let slot = self.codegen.mir_local_slot(
@@ -178,7 +178,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
     ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
         if value.value.is_none() {
             return Err(frontend_error(format!(
-                "refactor effect transport composite t{} 缺少 runtime value",
+                "effect transport composite t{} 缺少 runtime value",
                 source_ty.as_u32()
             )));
         }
@@ -186,7 +186,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         let deferred = self
             .codegen
             .defer_gc_sensitive_cg_value(self.mir_fun.span, name, value)?;
-        let box_ptr = self.codegen.refactor_alloc_gc_struct(
+        let box_ptr = self.codegen.alloc_gc_struct(
             self.mir_fun.span,
             box_ty,
             &layout_anchor_name,
@@ -207,10 +207,10 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             .value
             .ok_or_else(|| {
                 frontend_error(format!(
-                    "refactor effect transport composite `{name}` reload 缺少 runtime value"
+                    "effect transport composite `{name}` reload 缺少 runtime value"
                 ))
             })?;
-        self.codegen.refactor_store_gc_aware_value(
+        self.codegen.store_gc_aware_value(
             self.mir_fun.span,
             payload_ptr,
             materialized,
@@ -219,7 +219,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         let box_ptr =
             self.reload_gc_pointer_from_root_slot(box_root_slot, &format!("{name}_root"))?;
         self.clear_root_gc_slot(box_root_slot, &format!("{name}_root_clear"))?;
-        self.codegen.refactor_cast_ptr(
+        self.codegen.cast_ptr(
             box_ptr,
             self.codegen.llvm_gc_i8_ptr_type(),
             &format!("{name}_gc_ref"),
@@ -234,7 +234,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         name: &str,
     ) -> Result<BasicValueEnum<'ctx>, LlvmEmitError> {
         let (box_ty, _) = self.effect_transport_box_layout(source_ty, target_cg)?;
-        let box_ptr = self.codegen.refactor_cast_ptr(
+        let box_ptr = self.codegen.cast_ptr(
             gc_ref,
             self.codegen.llvm_ptr_type(self.codegen.gc_address_space()),
             &format!("{name}_box_ptr"),
@@ -268,7 +268,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         }
         let Some(raw) = payload else {
             return Err(frontend_error(format!(
-                "refactor effect transport t{} 需要 non-elided payload",
+                "effect transport t{} 需要 non-elided payload",
                 source_ty.as_u32()
             )));
         };
@@ -277,7 +277,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             .cg_ty_of_mir_type(self.source_types, source_ty)
             .ok_or_else(|| {
                 frontend_error(format!(
-                    "refactor effect transport t{} (`{}`) 缺少 codegen type",
+                    "effect transport t{} (`{}`) 缺少 codegen type",
                     source_ty.as_u32(),
                     self.source_types.display(source_ty)
                 ))
@@ -302,7 +302,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                 gc_ref: value
                     .value
                     .ok_or_else(|| {
-                        frontend_error("refactor effect transport ref 缺少值".to_string())
+                        frontend_error("effect transport ref 缺少值".to_string())
                     })?
                     .into_pointer_value(),
             }),
@@ -312,7 +312,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                     value
                         .value
                         .ok_or_else(|| {
-                            frontend_error("refactor effect transport string 缺少值".to_string())
+                            frontend_error("effect transport string 缺少值".to_string())
                         })?
                         .into_pointer_value(),
                     self.codegen.llvm_gc_i8_ptr_type(),
@@ -341,7 +341,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             .cg_ty_of_mir_type(self.source_types, source_ty)
             .ok_or_else(|| {
                 frontend_error(format!(
-                    "refactor effect transport t{} (`{}`) 缺少 codegen type",
+                    "effect transport t{} (`{}`) 缺少 codegen type",
                     source_ty.as_u32(),
                     self.source_types.display(source_ty)
                 ))
@@ -375,7 +375,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                 let value = self.lower_operand_source(source)?;
                 if value.value.is_none() {
                     return Err(frontend_error(format!(
-                        "refactor completion payload source {:?} lowered to no runtime value",
+                        "completion payload source {:?} lowered to no runtime value",
                         source
                     )));
                 }
@@ -393,7 +393,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             .codegen
             .cg_ty_of_mir_type(self.source_types, target_ty)
             .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "refactor completion payload target type",
+                kind: "completion payload target type",
                 at: self.mir_fun.span.into(),
             })?;
         if expected == CgTy::Unit {
@@ -410,7 +410,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                 )?;
                 if value.value.is_none() {
                     return Err(frontend_error(format!(
-                        "refactor completion payload source {:?} coerced to no runtime value",
+                        "completion payload source {:?} coerced to no runtime value",
                         source
                     )));
                 }

@@ -455,7 +455,7 @@ fun main(): Int {
         )
     }
 
-    fn refactor_session() -> Session {
+    fn session() -> Session {
         Session::with_options(SessionOptions::new()).unwrap()
     }
 
@@ -749,7 +749,7 @@ fun main(): Int {
 
     #[test]
     fn materialized_pass_view_non_generic_direct_call_roots_are_published() {
-        let sess = refactor_session();
+        let sess = session();
         let source = SourceFile::new_virtual(
             "<mem>/mir_pass_view_non_generic_direct.scoop",
             r#"
@@ -788,8 +788,8 @@ fun main(): Int {
 
     #[test]
     fn materialized_pass_view_non_generic_dispatch_and_resume_roots_are_published() {
-        let sess = refactor_session();
-        let source = load_fixture("mir_refactor", "dispatch_and_resume_call.scoop");
+        let sess = session();
+        let source = load_fixture("mir_lowered", "dispatch_and_resume_call.scoop");
         let materialized = materialize_for_dump(&sess, &source).unwrap();
 
         assert_non_generic_pass_root_published(&materialized, "fixtures.mir.callVirtual");
@@ -800,19 +800,19 @@ fun main(): Int {
 
     #[test]
     fn materialized_pass_view_non_generic_handle_finally_roots_are_published() {
-        let sess = refactor_session();
-        let source = load_fixture("mir_refactor", "handle_finally_boundary.scoop");
+        let sess = session();
+        let source = load_fixture("mir_lowered", "handle_finally_boundary.scoop");
         let materialized = materialize_for_dump(&sess, &source).unwrap();
 
-        assert_non_generic_pass_root_published(&materialized, "fixtures.mir_refactor.cleanup");
+        assert_non_generic_pass_root_published(&materialized, "fixtures.mir_lowered.cleanup");
         assert_non_generic_pass_root_published(
             &materialized,
-            "fixtures.mir_refactor.body_completes",
+            "fixtures.mir_lowered.body_completes",
         );
         assert_non_generic_pass_root_published(
             &materialized,
-            "fixtures.mir_refactor.handled_raise",
+            "fixtures.mir_lowered.handled_raise",
         );
-        assert_non_generic_pass_root_published(&materialized, "fixtures.mir_refactor.main");
+        assert_non_generic_pass_root_published(&materialized, "fixtures.mir_lowered.main");
     }
 }

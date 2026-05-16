@@ -1,0 +1,1001 @@
+File {
+    items: [
+        Metadata(
+            Nominal(
+                NominalMetadata {
+                    span: 30..74,
+                    fqn: "fixtures.mir_lowered.Step",
+                    name: "Step",
+                    kind: Effect,
+                    type_params: [],
+                    supertypes: [],
+                    interfaces: [],
+                    constructors: [],
+                    members: [
+                        Fun(
+                            MemberFunMetadata {
+                                span: 48..72,
+                                fqn: "fixtures.mir_lowered.Step.next",
+                                name: "next",
+                                type_params: [],
+                                params: [
+                                    CtorParamMetadata {
+                                        span: 57..61,
+                                        name: "seed",
+                                        ty: TypeId(
+                                            5,
+                                        ),
+                                        has_default: false,
+                                        property: None,
+                                    },
+                                ],
+                                return_ty: TypeId(
+                                    5,
+                                ),
+                            },
+                        ),
+                    ],
+                },
+            ),
+        ),
+        Fun(
+            FunDecl {
+                span: 76..92,
+                fqn: "fixtures.mir_lowered.cleanup",
+                name: "cleanup",
+                ty: TypeId(
+                    10,
+                ),
+                params: [],
+                return_ty: TypeId(
+                    2,
+                ),
+                body: Some(
+                    Body {
+                        locals: [],
+                        blocks: [
+                            BasicBlock {
+                                is_cleanup: false,
+                                stmts: [],
+                                terminator: Terminator {
+                                    span: 76..92,
+                                    kind: Return {
+                                        value: None,
+                                    },
+                                    unwind: NoUnwind,
+                                },
+                            },
+                        ],
+                        start: bb0,
+                    },
+                ),
+            },
+        ),
+        Fun(
+            FunDecl {
+                span: 94..240,
+                fqn: "fixtures.mir_lowered.body_completes",
+                name: "body_completes",
+                ty: TypeId(
+                    11,
+                ),
+                params: [],
+                return_ty: TypeId(
+                    5,
+                ),
+                body: Some(
+                    Body {
+                        locals: [
+                            LocalDecl {
+                                span: 133..238,
+                                name: Some(
+                                    "tmp0",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 183..188,
+                                name: Some(
+                                    "value",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: SourceLocal,
+                            },
+                            LocalDecl {
+                                span: 150..151,
+                                name: Some(
+                                    "tmp1",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 223..232,
+                                name: Some(
+                                    "tmp2",
+                                ),
+                                ty: TypeId(
+                                    2,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 120..240,
+                                name: Some(
+                                    "tmp3",
+                                ),
+                                ty: TypeId(
+                                    2,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                        ],
+                        blocks: [
+                            BasicBlock {
+                                is_cleanup: false,
+                                stmts: [],
+                                terminator: Terminator {
+                                    span: 133..238,
+                                    kind: Handle {
+                                        site_id: site0,
+                                        metadata: HandleMetadata {
+                                            result_ty: TypeId(
+                                                5,
+                                            ),
+                                            body_result_ty: TypeId(
+                                                5,
+                                            ),
+                                            finally_result_ty: Some(
+                                                TypeId(
+                                                    2,
+                                                ),
+                                            ),
+                                        },
+                                        arms: [
+                                            HandlerArm {
+                                                op_fqn: "fixtures.mir_lowered.Step.next",
+                                                binder_count: 1,
+                                                binder_locals: [
+                                                    l1,
+                                                ],
+                                                continuation_local: None,
+                                                handled_effect_ty: TypeId(
+                                                    12,
+                                                ),
+                                                payload_tuple_ty: Some(
+                                                    TypeId(
+                                                        5,
+                                                    ),
+                                                ),
+                                                payload_component_tys: [
+                                                    TypeId(
+                                                        5,
+                                                    ),
+                                                ],
+                                                body_ty: TypeId(
+                                                    5,
+                                                ),
+                                                kind: NonResuming,
+                                            },
+                                        ],
+                                        has_finally: true,
+                                        body_target: bb1,
+                                        arm_targets: [
+                                            bb2,
+                                        ],
+                                        finally_target: Some(
+                                            bb3,
+                                        ),
+                                        exit_target: bb4,
+                                    },
+                                    unwind: NoUnwind,
+                                },
+                            },
+                            BasicBlock {
+                                is_cleanup: false,
+                                stmts: [
+                                    Statement {
+                                        span: 150..151,
+                                        kind: Assign {
+                                            target: l2,
+                                            value: Use(
+                                                Const(
+                                                    Int,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 140..157,
+                                        kind: Assign {
+                                            target: l0,
+                                            value: Use(
+                                                Local(
+                                                    l2,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                ],
+                                terminator: Terminator {
+                                    span: 140..157,
+                                    kind: Goto {
+                                        target: bb3,
+                                    },
+                                    unwind: NoUnwind,
+                                },
+                            },
+                            BasicBlock {
+                                is_cleanup: false,
+                                stmts: [
+                                    Statement {
+                                        span: 173..198,
+                                        kind: Assign {
+                                            target: l0,
+                                            value: Use(
+                                                Local(
+                                                    l1,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                ],
+                                terminator: Terminator {
+                                    span: 173..198,
+                                    kind: Goto {
+                                        target: bb3,
+                                    },
+                                    unwind: NoUnwind,
+                                },
+                            },
+                            BasicBlock {
+                                is_cleanup: true,
+                                stmts: [
+                                    Statement {
+                                        span: 223..232,
+                                        kind: Assign {
+                                            target: l3,
+                                            value: Call {
+                                                site_id: site1,
+                                                kind: Direct {
+                                                    callee_fqn: "fixtures.mir_lowered.cleanup",
+                                                },
+                                                args: [],
+                                                transport: CallTransportMetadata {
+                                                    result: ValueTransportMetadata {
+                                                        source_ty: TypeId(
+                                                            2,
+                                                        ),
+                                                        kind: Scalar,
+                                                        requirements: MirTransportRequirements {
+                                                            trace: false,
+                                                            copy: true,
+                                                            drop: false,
+                                                        },
+                                                        boxing: None,
+                                                    },
+                                                    aggregate_return: None,
+                                                    array: None,
+                                                    gc: None,
+                                                    thread_resume_payload: None,
+                                                    abi: CallAbiHandoffMetadata {
+                                                        callable_abi_kind: DeferredToEffectFacts,
+                                                        resolved_outward_cases: [],
+                                                        impl_plan: DeferredToEffectFacts,
+                                                        adapter_required: false,
+                                                    },
+                                                },
+                                            },
+                                        },
+                                    },
+                                ],
+                                terminator: Terminator {
+                                    span: 213..238,
+                                    kind: Goto {
+                                        target: bb4,
+                                    },
+                                    unwind: NoUnwind,
+                                },
+                            },
+                            BasicBlock {
+                                is_cleanup: false,
+                                stmts: [],
+                                terminator: Terminator {
+                                    span: 126..238,
+                                    kind: Return {
+                                        value: Some(
+                                            Local(
+                                                l0,
+                                            ),
+                                        ),
+                                    },
+                                    unwind: NoUnwind,
+                                },
+                            },
+                        ],
+                        start: bb0,
+                    },
+                ),
+            },
+        ),
+        Fun(
+            FunDecl {
+                span: 242..412,
+                fqn: "fixtures.mir_lowered.handled_raise",
+                name: "handled_raise",
+                ty: TypeId(
+                    11,
+                ),
+                params: [],
+                return_ty: TypeId(
+                    5,
+                ),
+                body: Some(
+                    Body {
+                        locals: [
+                            LocalDecl {
+                                span: 280..410,
+                                name: Some(
+                                    "tmp0",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 351..356,
+                                name: Some(
+                                    "value",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: SourceLocal,
+                            },
+                            LocalDecl {
+                                span: 307..308,
+                                name: Some(
+                                    "tmp1",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 297..309,
+                                name: Some(
+                                    "tmp2",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 395..404,
+                                name: Some(
+                                    "tmp3",
+                                ),
+                                ty: TypeId(
+                                    2,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 318..319,
+                                name: Some(
+                                    "tmp4",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 361..370,
+                                name: Some(
+                                    "tmp5",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 369..370,
+                                name: Some(
+                                    "tmp6",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 395..404,
+                                name: Some(
+                                    "tmp7",
+                                ),
+                                ty: TypeId(
+                                    2,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 267..412,
+                                name: Some(
+                                    "tmp8",
+                                ),
+                                ty: TypeId(
+                                    2,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                        ],
+                        blocks: [
+                            BasicBlock {
+                                is_cleanup: false,
+                                stmts: [],
+                                terminator: Terminator {
+                                    span: 280..410,
+                                    kind: Handle {
+                                        site_id: site0,
+                                        metadata: HandleMetadata {
+                                            result_ty: TypeId(
+                                                5,
+                                            ),
+                                            body_result_ty: TypeId(
+                                                5,
+                                            ),
+                                            finally_result_ty: Some(
+                                                TypeId(
+                                                    2,
+                                                ),
+                                            ),
+                                        },
+                                        arms: [
+                                            HandlerArm {
+                                                op_fqn: "fixtures.mir_lowered.Step.next",
+                                                binder_count: 1,
+                                                binder_locals: [
+                                                    l1,
+                                                ],
+                                                continuation_local: None,
+                                                handled_effect_ty: TypeId(
+                                                    12,
+                                                ),
+                                                payload_tuple_ty: Some(
+                                                    TypeId(
+                                                        5,
+                                                    ),
+                                                ),
+                                                payload_component_tys: [
+                                                    TypeId(
+                                                        5,
+                                                    ),
+                                                ],
+                                                body_ty: TypeId(
+                                                    5,
+                                                ),
+                                                kind: NonResuming,
+                                            },
+                                        ],
+                                        has_finally: true,
+                                        body_target: bb1,
+                                        arm_targets: [
+                                            bb2,
+                                        ],
+                                        finally_target: Some(
+                                            bb3,
+                                        ),
+                                        exit_target: bb4,
+                                    },
+                                    unwind: NoUnwind,
+                                },
+                            },
+                            BasicBlock {
+                                is_cleanup: false,
+                                stmts: [
+                                    Statement {
+                                        span: 307..308,
+                                        kind: Assign {
+                                            target: l2,
+                                            value: Use(
+                                                Const(
+                                                    Int,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 297..309,
+                                        kind: Assign {
+                                            target: l3,
+                                            value: PerformResult {
+                                                op_fqn: "fixtures.mir_lowered.Step.next",
+                                                effect_ty: TypeId(
+                                                    12,
+                                                ),
+                                            },
+                                        },
+                                    },
+                                ],
+                                terminator: Terminator {
+                                    span: 297..309,
+                                    kind: Perform {
+                                        site_id: site1,
+                                        op_fqn: "fixtures.mir_lowered.Step.next",
+                                        metadata: PerformMetadata {
+                                            effect_ty: TypeId(
+                                                12,
+                                            ),
+                                            result_ty: TypeId(
+                                                5,
+                                            ),
+                                            payload_tuple_ty: Some(
+                                                TypeId(
+                                                    5,
+                                                ),
+                                            ),
+                                            payload_component_tys: [
+                                                TypeId(
+                                                    5,
+                                                ),
+                                            ],
+                                            payload_transport: [
+                                                ValueTransportMetadata {
+                                                    source_ty: TypeId(
+                                                        5,
+                                                    ),
+                                                    kind: EffectPayload,
+                                                    requirements: MirTransportRequirements {
+                                                        trace: false,
+                                                        copy: true,
+                                                        drop: false,
+                                                    },
+                                                    boxing: None,
+                                                },
+                                            ],
+                                            arg_mapping: [
+                                                0,
+                                            ],
+                                        },
+                                        args: [
+                                            PerformArg {
+                                                span: 307..308,
+                                                source_arg_index: 0,
+                                                name: None,
+                                                value: Local(
+                                                    l2,
+                                                ),
+                                            },
+                                        ],
+                                        resume_target: bb5,
+                                    },
+                                    unwind: Cleanup {
+                                        target: bb7,
+                                    },
+                                },
+                            },
+                            BasicBlock {
+                                is_cleanup: false,
+                                stmts: [
+                                    Statement {
+                                        span: 369..370,
+                                        kind: Assign {
+                                            target: l7,
+                                            value: Use(
+                                                Const(
+                                                    Int,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 361..370,
+                                        kind: Assign {
+                                            target: l6,
+                                            value: Binary {
+                                                lhs: Local(
+                                                    l1,
+                                                ),
+                                                op: Add,
+                                                rhs: Local(
+                                                    l7,
+                                                ),
+                                            },
+                                        },
+                                    },
+                                    Statement {
+                                        span: 341..370,
+                                        kind: Assign {
+                                            target: l0,
+                                            value: Use(
+                                                Local(
+                                                    l6,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                ],
+                                terminator: Terminator {
+                                    span: 341..370,
+                                    kind: Goto {
+                                        target: bb3,
+                                    },
+                                    unwind: NoUnwind,
+                                },
+                            },
+                            BasicBlock {
+                                is_cleanup: true,
+                                stmts: [
+                                    Statement {
+                                        span: 395..404,
+                                        kind: Assign {
+                                            target: l8,
+                                            value: Call {
+                                                site_id: site3,
+                                                kind: Direct {
+                                                    callee_fqn: "fixtures.mir_lowered.cleanup",
+                                                },
+                                                args: [],
+                                                transport: CallTransportMetadata {
+                                                    result: ValueTransportMetadata {
+                                                        source_ty: TypeId(
+                                                            2,
+                                                        ),
+                                                        kind: Scalar,
+                                                        requirements: MirTransportRequirements {
+                                                            trace: false,
+                                                            copy: true,
+                                                            drop: false,
+                                                        },
+                                                        boxing: None,
+                                                    },
+                                                    aggregate_return: None,
+                                                    array: None,
+                                                    gc: None,
+                                                    thread_resume_payload: None,
+                                                    abi: CallAbiHandoffMetadata {
+                                                        callable_abi_kind: DeferredToEffectFacts,
+                                                        resolved_outward_cases: [],
+                                                        impl_plan: DeferredToEffectFacts,
+                                                        adapter_required: false,
+                                                    },
+                                                },
+                                            },
+                                        },
+                                    },
+                                ],
+                                terminator: Terminator {
+                                    span: 385..410,
+                                    kind: Goto {
+                                        target: bb4,
+                                    },
+                                    unwind: NoUnwind,
+                                },
+                            },
+                            BasicBlock {
+                                is_cleanup: false,
+                                stmts: [],
+                                terminator: Terminator {
+                                    span: 273..410,
+                                    kind: Return {
+                                        value: Some(
+                                            Local(
+                                                l0,
+                                            ),
+                                        ),
+                                    },
+                                    unwind: NoUnwind,
+                                },
+                            },
+                            BasicBlock {
+                                is_cleanup: false,
+                                stmts: [
+                                    Statement {
+                                        span: 318..319,
+                                        kind: Assign {
+                                            target: l5,
+                                            value: Use(
+                                                Const(
+                                                    Int,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 287..325,
+                                        kind: Assign {
+                                            target: l0,
+                                            value: Use(
+                                                Local(
+                                                    l5,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                ],
+                                terminator: Terminator {
+                                    span: 287..325,
+                                    kind: Goto {
+                                        target: bb3,
+                                    },
+                                    unwind: NoUnwind,
+                                },
+                            },
+                            BasicBlock {
+                                is_cleanup: true,
+                                stmts: [],
+                                terminator: Terminator {
+                                    span: 297..309,
+                                    kind: ResumeUnwind,
+                                    unwind: NoUnwind,
+                                },
+                            },
+                            BasicBlock {
+                                is_cleanup: true,
+                                stmts: [
+                                    Statement {
+                                        span: 395..404,
+                                        kind: Assign {
+                                            target: l4,
+                                            value: Call {
+                                                site_id: site2,
+                                                kind: Direct {
+                                                    callee_fqn: "fixtures.mir_lowered.cleanup",
+                                                },
+                                                args: [],
+                                                transport: CallTransportMetadata {
+                                                    result: ValueTransportMetadata {
+                                                        source_ty: TypeId(
+                                                            2,
+                                                        ),
+                                                        kind: Scalar,
+                                                        requirements: MirTransportRequirements {
+                                                            trace: false,
+                                                            copy: true,
+                                                            drop: false,
+                                                        },
+                                                        boxing: None,
+                                                    },
+                                                    aggregate_return: None,
+                                                    array: None,
+                                                    gc: None,
+                                                    thread_resume_payload: None,
+                                                    abi: CallAbiHandoffMetadata {
+                                                        callable_abi_kind: DeferredToEffectFacts,
+                                                        resolved_outward_cases: [],
+                                                        impl_plan: DeferredToEffectFacts,
+                                                        adapter_required: false,
+                                                    },
+                                                },
+                                            },
+                                        },
+                                    },
+                                ],
+                                terminator: Terminator {
+                                    span: 385..410,
+                                    kind: Goto {
+                                        target: bb6,
+                                    },
+                                    unwind: NoUnwind,
+                                },
+                            },
+                        ],
+                        start: bb0,
+                    },
+                ),
+            },
+        ),
+        Fun(
+            FunDecl {
+                span: 414..479,
+                fqn: "fixtures.mir_lowered.main",
+                name: "main",
+                ty: TypeId(
+                    11,
+                ),
+                params: [],
+                return_ty: TypeId(
+                    5,
+                ),
+                body: Some(
+                    Body {
+                        locals: [
+                            LocalDecl {
+                                span: 443..477,
+                                name: Some(
+                                    "tmp0",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 443..459,
+                                name: Some(
+                                    "tmp1",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 462..477,
+                                name: Some(
+                                    "tmp2",
+                                ),
+                                ty: TypeId(
+                                    5,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 430..479,
+                                name: Some(
+                                    "tmp3",
+                                ),
+                                ty: TypeId(
+                                    2,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                        ],
+                        blocks: [
+                            BasicBlock {
+                                is_cleanup: false,
+                                stmts: [
+                                    Statement {
+                                        span: 443..459,
+                                        kind: Assign {
+                                            target: l1,
+                                            value: Call {
+                                                site_id: site0,
+                                                kind: Direct {
+                                                    callee_fqn: "fixtures.mir_lowered.body_completes",
+                                                },
+                                                args: [],
+                                                transport: CallTransportMetadata {
+                                                    result: ValueTransportMetadata {
+                                                        source_ty: TypeId(
+                                                            5,
+                                                        ),
+                                                        kind: Scalar,
+                                                        requirements: MirTransportRequirements {
+                                                            trace: false,
+                                                            copy: true,
+                                                            drop: false,
+                                                        },
+                                                        boxing: None,
+                                                    },
+                                                    aggregate_return: None,
+                                                    array: None,
+                                                    gc: None,
+                                                    thread_resume_payload: None,
+                                                    abi: CallAbiHandoffMetadata {
+                                                        callable_abi_kind: DeferredToEffectFacts,
+                                                        resolved_outward_cases: [],
+                                                        impl_plan: DeferredToEffectFacts,
+                                                        adapter_required: false,
+                                                    },
+                                                },
+                                            },
+                                        },
+                                    },
+                                    Statement {
+                                        span: 462..477,
+                                        kind: Assign {
+                                            target: l2,
+                                            value: Call {
+                                                site_id: site1,
+                                                kind: Direct {
+                                                    callee_fqn: "fixtures.mir_lowered.handled_raise",
+                                                },
+                                                args: [],
+                                                transport: CallTransportMetadata {
+                                                    result: ValueTransportMetadata {
+                                                        source_ty: TypeId(
+                                                            5,
+                                                        ),
+                                                        kind: Scalar,
+                                                        requirements: MirTransportRequirements {
+                                                            trace: false,
+                                                            copy: true,
+                                                            drop: false,
+                                                        },
+                                                        boxing: None,
+                                                    },
+                                                    aggregate_return: None,
+                                                    array: None,
+                                                    gc: None,
+                                                    thread_resume_payload: None,
+                                                    abi: CallAbiHandoffMetadata {
+                                                        callable_abi_kind: DeferredToEffectFacts,
+                                                        resolved_outward_cases: [],
+                                                        impl_plan: DeferredToEffectFacts,
+                                                        adapter_required: false,
+                                                    },
+                                                },
+                                            },
+                                        },
+                                    },
+                                    Statement {
+                                        span: 443..477,
+                                        kind: Assign {
+                                            target: l0,
+                                            value: Binary {
+                                                lhs: Local(
+                                                    l1,
+                                                ),
+                                                op: Add,
+                                                rhs: Local(
+                                                    l2,
+                                                ),
+                                            },
+                                        },
+                                    },
+                                ],
+                                terminator: Terminator {
+                                    span: 436..477,
+                                    kind: Return {
+                                        value: Some(
+                                            Local(
+                                                l0,
+                                            ),
+                                        ),
+                                    },
+                                    unwind: NoUnwind,
+                                },
+                            },
+                        ],
+                        start: bb0,
+                    },
+                ),
+            },
+        ),
+        Fun(
+            FunDecl {
+                span: 48..72,
+                fqn: "fixtures.mir_lowered.Step.next",
+                name: "next",
+                ty: TypeId(
+                    13,
+                ),
+                params: [
+                    Param {
+                        span: 37..41,
+                        name: "this",
+                        ty: TypeId(
+                            12,
+                        ),
+                        local: l0,
+                    },
+                    Param {
+                        span: 57..61,
+                        name: "seed",
+                        ty: TypeId(
+                            5,
+                        ),
+                        local: l1,
+                    },
+                ],
+                return_ty: TypeId(
+                    5,
+                ),
+                body: None,
+            },
+        ),
+    ],
+}

@@ -1,21 +1,21 @@
-//! GC root slot management plus refactor-specific GC object allocation, type-descriptor materialization, payload zeroing, and the GC-aware value/basic-value store helpers used by the body lowerer.
+//! GC root slot management plus effect-lowered GC object allocation, type-descriptor materialization, payload zeroing, and the GC-aware value/basic-value store helpers used by the body lowerer.
 
 use super::*;
 
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
-    pub(super) fn build_volatile_refactor_gc_root_store(
+    pub(super) fn build_volatile_gc_root_store(
         &mut self,
         slot: PointerValue<'ctx>,
         value: PointerValue<'ctx>,
     ) -> Result<(), LlvmEmitError> {
         let store = self.builder.build_store(slot, value)?;
         store.set_volatile(true).map_err(|err| {
-            frontend_error(format!("refactor GC root store 无法标记 volatile: {err}"))
+            frontend_error(format!("GC root store 无法标记 volatile: {err}"))
         })?;
         Ok(())
     }
 
-    pub(super) fn build_volatile_refactor_gc_root_load(
+    pub(super) fn build_volatile_gc_root_load(
         &mut self,
         slot: PointerValue<'ctx>,
         name: &str,
@@ -25,16 +25,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 .build_load(self.llvm_gc_i8_ptr_type(), slot, &format!("{name}_reload"))?;
         let Some(inst) = loaded.as_instruction_value() else {
             return Err(frontend_error(format!(
-                "refactor GC root load `{name}` 缺少 instruction value"
+                "GC root load `{name}` 缺少 instruction value"
             )));
         };
         inst.set_volatile(true).map_err(|err| {
-            frontend_error(format!("refactor GC root load 无法标记 volatile: {err}"))
+            frontend_error(format!("GC root load 无法标记 volatile: {err}"))
         })?;
         Ok(loaded.into_pointer_value())
     }
 
-    pub(super) fn refactor_gc_root_explicit_frame_slot(
+    pub(super) fn gc_root_explicit_frame_slot(
         &mut self,
         at: crate::span::Span,
         slot: PointerValue<'ctx>,
@@ -48,27 +48,27 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         )
     }
 
-    pub(super) fn create_refactor_gc_root_slot(
+    pub(super) fn create_gc_root_slot(
         &mut self,
         at: crate::span::Span,
         name: &str,
     ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
         let gc_ptr_ty = self.llvm_gc_i8_ptr_type();
         let slot = self.create_entry_alloca_raw(at, name, gc_ptr_ty.into())?;
-        if let Some(frame_slot) = self.refactor_gc_root_explicit_frame_slot(at, slot, name)? {
+        if let Some(frame_slot) = self.gc_root_explicit_frame_slot(at, slot, name)? {
             // In explicit-frame mode the mirror slot is the authoritative root home. Keep
-            // compiler-generated refactor root slots out of a second stack shadow so SROA cannot
+            // compiler-generated root slots out of a second stack shadow so SROA cannot
             // turn reload/store pairs on the shadow slot into reachable `ptr poison` and then
             // leak that poison back into explicit-frame roots.
-            self.build_volatile_refactor_gc_root_store(frame_slot, gc_ptr_ty.const_null())?;
+            self.build_volatile_gc_root_store(frame_slot, gc_ptr_ty.const_null())?;
         } else {
-            self.build_volatile_refactor_gc_root_store(slot, gc_ptr_ty.const_null())?;
+            self.build_volatile_gc_root_store(slot, gc_ptr_ty.const_null())?;
             self.track_gc_root_slots_for_spill_slot(at, slot, gc_ptr_ty.into(), name)?;
         }
         Ok(slot)
     }
 
-    pub(super) fn store_refactor_gc_root_slot(
+    pub(super) fn store_gc_root_slot(
         &mut self,
         at: crate::span::Span,
         slot: PointerValue<'ctx>,
@@ -76,12 +76,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         name: &str,
     ) -> Result<(), LlvmEmitError> {
         let value =
-            self.refactor_cast_ptr(value, self.llvm_gc_i8_ptr_type(), &format!("{name}_gc"))?;
-        if let Some(frame_slot) = self.refactor_gc_root_explicit_frame_slot(at, slot, name)? {
-            self.build_volatile_refactor_gc_root_store(frame_slot, value)?;
+            self.cast_ptr(value, self.llvm_gc_i8_ptr_type(), &format!("{name}_gc"))?;
+        if let Some(frame_slot) = self.gc_root_explicit_frame_slot(at, slot, name)? {
+            self.build_volatile_gc_root_store(frame_slot, value)?;
             Ok(())
         } else {
-            self.build_volatile_refactor_gc_root_store(slot, value)?;
+            self.build_volatile_gc_root_store(slot, value)?;
             self.sync_storage_slot_into_explicit_frame(
                 at,
                 slot,
@@ -91,19 +91,19 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
     }
 
-    pub(super) fn load_refactor_gc_root_slot(
+    pub(super) fn load_gc_root_slot(
         &mut self,
         at: crate::span::Span,
         slot: PointerValue<'ctx>,
         name: &str,
     ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
         let load_slot = self
-            .refactor_gc_root_explicit_frame_slot(at, slot, name)?
+            .gc_root_explicit_frame_slot(at, slot, name)?
             .unwrap_or(slot);
-        self.build_volatile_refactor_gc_root_load(load_slot, name)
+        self.build_volatile_gc_root_load(load_slot, name)
     }
 
-    pub(super) fn refactor_alloc_gc_struct(
+    pub(super) fn alloc_gc_struct(
         &mut self,
         at: crate::span::Span,
         struct_ty: StructType<'ctx>,
@@ -111,7 +111,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         name: &str,
     ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
         let desc =
-            self.get_or_create_refactor_gc_type_descriptor(at, struct_ty, layout_anchor_name)?;
+            self.get_or_create_gc_type_descriptor(at, struct_ty, layout_anchor_name)?;
         let desc_i8 = self.builder.build_pointer_cast(
             desc.as_pointer_value(),
             self.llvm_i8_ptr_type(),
@@ -133,12 +133,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .basic()
             .ok_or_else(|| frontend_error("scoop_alloc_typed 未返回 pointer".to_string()))?
             .into_pointer_value();
-        let ptr = self.refactor_cast_ptr(raw, self.llvm_ptr_type(self.gc_address_space()), name)?;
-        self.refactor_zero_gc_object_payload(struct_ty, ptr, name)?;
+        let ptr = self.cast_ptr(raw, self.llvm_ptr_type(self.gc_address_space()), name)?;
+        self.zero_gc_object_payload(struct_ty, ptr, name)?;
         Ok(ptr)
     }
 
-    pub(super) fn get_or_create_refactor_gc_type_descriptor(
+    pub(super) fn get_or_create_gc_type_descriptor(
         &mut self,
         at: crate::span::Span,
         struct_ty: StructType<'ctx>,
@@ -164,7 +164,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         })
     }
 
-    pub(super) fn refactor_zero_gc_object_payload(
+    pub(super) fn zero_gc_object_payload(
         &mut self,
         struct_ty: StructType<'ctx>,
         ptr: PointerValue<'ctx>,
@@ -173,7 +173,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         for field_index in 1..struct_ty.count_fields() {
             let Some(field_ty) = struct_ty.get_field_type_at_index(field_index) else {
                 return Err(frontend_error(format!(
-                    "refactor GC object `{name}` 缺少 field {}",
+                    "GC object `{name}` 缺少 field {}",
                     field_index
                 )));
             };
@@ -188,17 +188,17 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(())
     }
 
-    pub(super) fn refactor_store_gc_aware_value(
+    pub(super) fn store_gc_aware_value(
         &mut self,
         at: crate::span::Span,
         ptr: PointerValue<'ctx>,
         value: BasicValueEnum<'ctx>,
         name: &str,
     ) -> Result<(), LlvmEmitError> {
-        self.refactor_store_gc_aware_basic_value(at, ptr, value.get_type(), value, name)
+        self.store_gc_aware_basic_value(at, ptr, value.get_type(), value, name)
     }
 
-    pub(super) fn refactor_store_gc_aware_basic_value(
+    pub(super) fn store_gc_aware_basic_value(
         &mut self,
         at: crate::span::Span,
         ptr: PointerValue<'ctx>,
@@ -213,7 +213,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             {
                 let BasicValueEnum::PointerValue(value_ptr) = value else {
                     return Err(frontend_error(format!(
-                        "refactor GC-aware store `{name}` 的值不是 pointer"
+                        "GC-aware store `{name}` 的值不是 pointer"
                     )));
                 };
                 self.store_gc_pointer_slot_with_write_barrier(at, ptr, value_ptr)
@@ -224,13 +224,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             {
                 let BasicValueEnum::StructValue(struct_value) = value else {
                     return Err(frontend_error(format!(
-                        "refactor GC-aware store `{name}` 的值不是 struct"
+                        "GC-aware store `{name}` 的值不是 struct"
                     )));
                 };
                 for field_index in 0..struct_ty.count_fields() {
                     let Some(field_ty) = struct_ty.get_field_type_at_index(field_index) else {
                         return Err(frontend_error(format!(
-                            "refactor GC-aware store `{name}` 缺少 field {}",
+                            "GC-aware store `{name}` 缺少 field {}",
                             field_index
                         )));
                     };
@@ -245,7 +245,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         field_index,
                         &format!("{name}_field_value_{field_index}"),
                     )?;
-                    self.refactor_store_gc_aware_basic_value(
+                    self.store_gc_aware_basic_value(
                         at,
                         field_ptr,
                         field_ty,
@@ -257,7 +257,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
             BasicTypeEnum::ArrayType(_) if self.basic_type_contains_gc_ptrs(at, value_ty)? => {
                 Err(frontend_error(format!(
-                    "refactor GC-aware store `{name}` 尚未发布 array payload root/write-barrier contract"
+                    "GC-aware store `{name}` 尚未发布 array payload root/write-barrier contract"
                 )))
             }
             _ => {
@@ -267,7 +267,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
     }
 
-    pub(in crate::llvm::codegen::effect_lowered) fn refactor_cast_ptr(
+    pub(in crate::llvm::codegen::effect_lowered) fn cast_ptr(
         &self,
         ptr: PointerValue<'ctx>,
         target_ty: inkwell::types::PointerType<'ctx>,
@@ -282,12 +282,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
     }
 
-    pub(in crate::llvm::codegen::effect_lowered) fn refactor_build_step_complete(
+    pub(in crate::llvm::codegen::effect_lowered) fn build_step_complete(
         &mut self,
-        step_layout: &RefactorStepLayout<'ctx>,
+        step_layout: &StepLayout<'ctx>,
         payload: Option<BasicValueEnum<'ctx>>,
     ) -> Result<BasicValueEnum<'ctx>, LlvmEmitError> {
-        self.refactor_build_step_variant(
+        self.build_step_variant(
             step_layout,
             step_layout.complete_variant(),
             STEP_TAG_COMPLETE as u32,

@@ -1,7 +1,7 @@
 // EXPECT-EXIT: 3
 // T4016b1: 删除用户态 `-> resume` 后，旧 immediate-resume 专用的前端静态约束也随之移除。
 // P6-T05: 该 fixture 保留“同一 arm 内出现多个 `k.resume(...)` 调用”的 migrated source shape，
-// 并在 refactor LLVM path 上锁定未捕获 double-resume RuntimeError 经 main wrapper 的 fatal exit。
+// 并在 LLVM path 上锁定未捕获 double-resume RuntimeError 经 main wrapper 的 fatal exit。
 //
 // 说明：
 // - 可捕获的 one-shot 运行期重复 resume 语义由

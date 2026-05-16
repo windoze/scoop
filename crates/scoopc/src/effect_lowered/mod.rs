@@ -1,4 +1,4 @@
-//! refactor 主线的 late-lowered internal representation 子系统。
+//! late-lowered internal representation 子系统。
 //!
 //! P5-T01 在这里先固定独立边界。当前仓库中的实际模块路径与 TODO 推荐拆分的映射如下：
 //! - `ir.rs` 对应 late-lowered IR 容器；
@@ -35,26 +35,26 @@ pub enum EffectLoweringError {
     #[error(transparent)]
     EffectFacts(#[from] Box<crate::effect_facts::EffectFactsError>),
 
-    #[error("refactor late-lowering stage 找不到 `{root_fqn}` 对应的 callable facts")]
+    #[error("late-lowering stage 找不到 `{root_fqn}` 对应的 callable facts")]
     MissingCallableFacts { root_fqn: String },
 
-    #[error("refactor late-lowering stage 找不到 `{root_fqn}` 对应的 stable instance key")]
+    #[error("late-lowering stage 找不到 `{root_fqn}` 对应的 stable instance key")]
     MissingStableInstanceKey { root_fqn: String },
 
-    #[error("refactor late-lowering stage 找不到 `{root_fqn}` 对应的 body facts")]
+    #[error("late-lowering stage 找不到 `{root_fqn}` 对应的 body facts")]
     MissingBodyFacts { root_fqn: String },
 
-    #[error("refactor late-lowering stage 找不到 `{root_fqn}` 对应的 plain callable 普通签名")]
+    #[error("late-lowering stage 找不到 `{root_fqn}` 对应的 plain callable 普通签名")]
     MissingPlainCallableSignature { root_fqn: String },
 
-    #[error("refactor late-lowering stage 找不到 `{root_fqn}` 对应的 StepSchema s{step_schema}")]
+    #[error("late-lowering stage 找不到 `{root_fqn}` 对应的 StepSchema s{step_schema}")]
     MissingStepSchema { root_fqn: String, step_schema: u32 },
 
-    #[error("refactor late-lowering stage 在 `{root_fqn}` 的 site{site_id} 上找不到 P4 site facts")]
+    #[error("late-lowering stage 在 `{root_fqn}` 的 site{site_id} 上找不到 P4 site facts")]
     MissingSiteFacts { root_fqn: String, site_id: u32 },
 
     #[error(
-        "refactor late-lowering stage 在 `{root_fqn}` 的 site{site_id} 上看到的 P4 site facts 种类不是期望的 `{expected}`，而是 `{actual}`"
+        "late-lowering stage 在 `{root_fqn}` 的 site{site_id} 上看到的 P4 site facts 种类不是期望的 `{expected}`，而是 `{actual}`"
     )]
     UnexpectedSiteFactsKind {
         root_fqn: String,
@@ -64,7 +64,7 @@ pub enum EffectLoweringError {
     },
 
     #[error(
-        "refactor late-lowering stage 看到的 StepSchema s{step_schema} 在 case c{case_tag} 上缺少 continuation schema k{continuation_schema}"
+        "late-lowering stage 看到的 StepSchema s{step_schema} 在 case c{case_tag} 上缺少 continuation schema k{continuation_schema}"
     )]
     MissingContinuationSchema {
         step_schema: u32,
@@ -73,7 +73,7 @@ pub enum EffectLoweringError {
     },
 
     #[error(
-        "refactor late-lowering stage 看到的 StepSchema s{step_schema} 在 case c{case_tag} 上引用的 continuation schema k{continuation_schema} 声明 out_step_schema=s{out_step_schema}，与当前 return-step contract 不一致"
+        "late-lowering stage 看到的 StepSchema s{step_schema} 在 case c{case_tag} 上引用的 continuation schema k{continuation_schema} 声明 out_step_schema=s{out_step_schema}，与当前 return-step contract 不一致"
     )]
     ContinuationOutStepSchemaMismatch {
         step_schema: u32,
@@ -83,7 +83,7 @@ pub enum EffectLoweringError {
     },
 
     #[error(
-        "refactor late-lowering stage 看到的 StepSchema s{step_schema} 在 case c{case_tag} 上引用的 continuation schema k{continuation_schema} 声明 answer_ty=t{answer_ty}，但当前 return-step complete_ty=t{complete_ty}"
+        "late-lowering stage 看到的 StepSchema s{step_schema} 在 case c{case_tag} 上引用的 continuation schema k{continuation_schema} 声明 answer_ty=t{answer_ty}，但当前 return-step complete_ty=t{complete_ty}"
     )]
     ContinuationAnswerTyMismatch {
         step_schema: u32,
@@ -94,7 +94,7 @@ pub enum EffectLoweringError {
     },
 
     #[error(
-        "refactor late-lowering stage 看到的 `{root_fqn}` invoke args tuple(t{callable_args_tuple}) 与 StepSchema s{step_schema} 的 invoke args tuple(t{step_args_tuple}) 不一致"
+        "late-lowering stage 看到的 `{root_fqn}` invoke args tuple(t{callable_args_tuple}) 与 StepSchema s{step_schema} 的 invoke args tuple(t{step_args_tuple}) 不一致"
     )]
     InvokeArgsTupleMismatch {
         root_fqn: String,
@@ -104,7 +104,7 @@ pub enum EffectLoweringError {
     },
 
     #[error(
-        "refactor late-lowering stage 看到的 canonical snapshot instance 数量({snapshot_instances}) 与 callable facts 数量({callable_facts}) 不一致"
+        "late-lowering stage 看到的 canonical snapshot instance 数量({snapshot_instances}) 与 callable facts 数量({callable_facts}) 不一致"
     )]
     SnapshotCallableCountMismatch {
         snapshot_instances: usize,
@@ -112,7 +112,7 @@ pub enum EffectLoweringError {
     },
 
     #[error(
-        "refactor late-lowering stage 无法为 `{root_fqn}` 的 boundary `{description}` 绑定 owner/resume state"
+        "late-lowering stage 无法为 `{root_fqn}` 的 boundary `{description}` 绑定 owner/resume state"
     )]
     UnboundBoundary {
         root_fqn: String,
@@ -120,7 +120,7 @@ pub enum EffectLoweringError {
     },
 
     #[error(
-        "refactor late-lowering stage 在 StepSchema s{step_schema} 上找不到 effect family `{effect_fqn}` 对应的 resume interface"
+        "late-lowering stage 在 StepSchema s{step_schema} 上找不到 effect family `{effect_fqn}` 对应的 resume interface"
     )]
     MissingResumeInterfaceFamily {
         step_schema: u32,
@@ -128,7 +128,7 @@ pub enum EffectLoweringError {
     },
 
     #[error(
-        "refactor late-lowering stage 在 `{root_fqn}` 的 site{site_id} 上找不到 `{kind}` boundary 对应的结果 local"
+        "late-lowering stage 在 `{root_fqn}` 的 site{site_id} 上找不到 `{kind}` boundary 对应的结果 local"
     )]
     MissingBoundaryResultLocal {
         root_fqn: String,
@@ -137,17 +137,17 @@ pub enum EffectLoweringError {
     },
 
     #[error(
-        "refactor late-lowering stage 在 `{root_fqn}` 的 resume site{site_id} 上找不到配对的 runtime-error boundary"
+        "late-lowering stage 在 `{root_fqn}` 的 resume site{site_id} 上找不到配对的 runtime-error boundary"
     )]
     MissingPairedRuntimeErrorBoundary { root_fqn: String, site_id: u32 },
 
     #[error(
-        "refactor late-lowering stage 在 `{root_fqn}` 的 runtime-error site{site_id} 上找不到配对的 resume boundary"
+        "late-lowering stage 在 `{root_fqn}` 的 runtime-error site{site_id} 上找不到配对的 resume boundary"
     )]
     MissingPairedResumeBoundary { root_fqn: String, site_id: u32 },
 
     #[error(
-        "refactor late-lowering stage 在 `{root_fqn}` 的 StepSchema s{step_schema} 上找不到 case c{case_tag}"
+        "late-lowering stage 在 `{root_fqn}` 的 StepSchema s{step_schema} 上找不到 case c{case_tag}"
     )]
     MissingInputStepCase {
         root_fqn: String,
@@ -156,7 +156,7 @@ pub enum EffectLoweringError {
     },
 
     #[error(
-        "refactor late-lowering stage 无法在 `{root_fqn}` 中把 `{concrete_op}` 从 input StepSchema s{input_step_schema} 投影到 output StepSchema s{output_step_schema} 上"
+        "late-lowering stage 无法在 `{root_fqn}` 中把 `{concrete_op}` 从 input StepSchema s{input_step_schema} 投影到 output StepSchema s{output_step_schema} 上"
     )]
     MissingProjectedStepCase {
         root_fqn: String,
@@ -166,17 +166,17 @@ pub enum EffectLoweringError {
     },
 
     #[error(
-        "refactor late-lowering stage 在 `{root_fqn}` 的 resume site{site_id} 上找不到 MIR resume metadata"
+        "late-lowering stage 在 `{root_fqn}` 的 resume site{site_id} 上找不到 MIR resume metadata"
     )]
     MissingResumeSiteMetadata { root_fqn: String, site_id: u32 },
 
     #[error(
-        "refactor late-lowering stage 在 `{root_fqn}` 的 resume site{site_id} 上找不到 runtime-error effect 身份"
+        "late-lowering stage 在 `{root_fqn}` 的 resume site{site_id} 上找不到 runtime-error effect 身份"
     )]
     MissingResumeRuntimeErrorEffect { root_fqn: String, site_id: u32 },
 
     #[error(
-        "refactor late-lowering stage 无法把 `{root_fqn}` 的 site{site_id} 上的 t{ty} 解释成稳定 effect family"
+        "late-lowering stage 无法把 `{root_fqn}` 的 site{site_id} 上的 t{ty} 解释成稳定 effect family"
     )]
     UnsupportedEffectFamilyType {
         root_fqn: String,
@@ -185,7 +185,7 @@ pub enum EffectLoweringError {
     },
 
     #[error(
-        "refactor late-lowering stage 在 `{root_fqn}` 的 resume site{site_id} 的 out StepSchema s{step_schema} 上找不到 runtime-error case"
+        "late-lowering stage 在 `{root_fqn}` 的 resume site{site_id} 的 out StepSchema s{step_schema} 上找不到 runtime-error case"
     )]
     MissingRuntimeErrorCaseInResumeStep {
         root_fqn: String,
@@ -194,7 +194,7 @@ pub enum EffectLoweringError {
     },
 
     #[error(
-        "refactor late-lowering stage 无法把 `{root_fqn}` 的 call boundary bd{boundary_id} 绑定到 owner state st{owner_state} 的 local runtime-error path：该 state 不是可扩展的 Suspend terminator"
+        "late-lowering stage 无法把 `{root_fqn}` 的 call boundary bd{boundary_id} 绑定到 owner state st{owner_state} 的 local runtime-error path：该 state 不是可扩展的 Suspend terminator"
     )]
     InvalidLocalRuntimeErrorOwnerState {
         root_fqn: String,
@@ -203,7 +203,7 @@ pub enum EffectLoweringError {
     },
 
     #[error(
-        "refactor late-lowering stage 无法为 `{root_fqn}` 的 handle site{site_id} 发布 HandleDispatch contract：{detail}"
+        "late-lowering stage 无法为 `{root_fqn}` 的 handle site{site_id} 发布 HandleDispatch contract：{detail}"
     )]
     InvalidHandleDispatchContract {
         root_fqn: String,
@@ -212,7 +212,7 @@ pub enum EffectLoweringError {
     },
 
     #[error(
-        "refactor late-lowering stage 无法为 `{root_fqn}` 的 {kind} site{site_id} 发布 boundary operand contract：{detail}"
+        "late-lowering stage 无法为 `{root_fqn}` 的 {kind} site{site_id} 发布 boundary operand contract：{detail}"
     )]
     InvalidBoundaryOperandContract {
         root_fqn: String,
@@ -222,7 +222,7 @@ pub enum EffectLoweringError {
     },
 
     #[error(
-        "refactor late-lowering stage 无法为 `{root_fqn}` 的 boundary bd{boundary_id} 发布 resumed local/home contract：{detail}"
+        "late-lowering stage 无法为 `{root_fqn}` 的 boundary bd{boundary_id} 发布 resumed local/home contract：{detail}"
     )]
     InvalidResumePayloadBindingContract {
         root_fqn: String,
@@ -231,21 +231,21 @@ pub enum EffectLoweringError {
     },
 
     #[error(
-        "refactor late-lowering stage 无法为 `{root_fqn}` 发布 completion payload contract：{detail}"
+        "late-lowering stage 无法为 `{root_fqn}` 发布 completion payload contract：{detail}"
     )]
     InvalidCompletionPayloadContract { root_fqn: String, detail: String },
 
     #[error(
-        "refactor late-lowering stage 无法为 `{root_fqn}` 发布 source-slice statement classification contract：{detail}"
+        "late-lowering stage 无法为 `{root_fqn}` 发布 source-slice statement classification contract：{detail}"
     )]
     InvalidSourceSliceClassificationContract { root_fqn: String, detail: String },
 
     #[error(
-        "refactor late-lowering stage 无法为 plain callable `{root_fqn}` 发布本地 effect/control contract：{detail}"
+        "late-lowering stage 无法为 plain callable `{root_fqn}` 发布本地 effect/control contract：{detail}"
     )]
     InvalidPlainLocalEffectControlContract { root_fqn: String, detail: String },
 
-    #[error("refactor late-lowering stage 在 `{root_fqn}` 上找不到已 intern 的 builtin 类型集合")]
+    #[error("late-lowering stage 在 `{root_fqn}` 上找不到已 intern 的 builtin 类型集合")]
     MissingBuiltinTypes { root_fqn: String },
 }
 

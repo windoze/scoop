@@ -12,7 +12,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     ) -> Result<PlainDispatchTarget<'a>, LlvmEmitError> {
         let slots = self.class_vtables.get(&dispatch.owner_fqn).ok_or_else(|| {
             frontend_error(format!(
-                "refactor plain virtual call 缺少 `{}` 的 class vtable metadata",
+                "plain virtual call 缺少 `{}` 的 class vtable metadata",
                 dispatch.owner_fqn,
             ))
         })?;
@@ -21,13 +21,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         });
         let slot = candidates.next().ok_or_else(|| {
             frontend_error(format!(
-                "refactor plain virtual call 缺少 `{}`.`{}`/{} 的 vtable slot",
+                "plain virtual call 缺少 `{}`.`{}`/{} 的 vtable slot",
                 dispatch.owner_fqn, dispatch.member_name, explicit_arg_count,
             ))
         })?;
         if candidates.next().is_some() {
             return Err(frontend_error(format!(
-                "refactor plain virtual call `{}`.`{}`/{} 的 vtable slot 多义",
+                "plain virtual call `{}`.`{}`/{} 的 vtable slot 多义",
                 dispatch.owner_fqn, dispatch.member_name, explicit_arg_count,
             )));
         }
@@ -37,7 +37,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .copied()
             .ok_or_else(|| {
                 frontend_error(format!(
-                    "refactor plain virtual call 缺少 target `{}` 的 signature",
+                    "plain virtual call 缺少 target `{}` 的 signature",
                     slot.impl_member_fqn,
                 ))
             })?;
@@ -54,7 +54,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     ) -> Result<PlainDispatchTarget<'a>, LlvmEmitError> {
         let iface = self.interfaces.get(&dispatch.owner_fqn).ok_or_else(|| {
             frontend_error(format!(
-                "refactor plain interface call 缺少 `{}` 的 interface metadata",
+                "plain interface call 缺少 `{}` 的 interface metadata",
                 dispatch.owner_fqn,
             ))
         })?;
@@ -63,13 +63,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         });
         let slot = slots.next().ok_or_else(|| {
             frontend_error(format!(
-                "refactor plain interface call 缺少 `{}` 的 selected itable slot",
+                "plain interface call 缺少 `{}` 的 selected itable slot",
                 dispatch.member_fqn,
             ))
         })?;
         if slots.next().is_some() {
             return Err(frontend_error(format!(
-                "refactor plain interface call `{}` 的 selected itable slot 多义",
+                "plain interface call `{}` 的 selected itable slot 多义",
                 dispatch.member_fqn,
             )));
         }
@@ -80,7 +80,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .copied()
             .ok_or_else(|| {
                 frontend_error(format!(
-                    "refactor plain interface call 缺少 `{}` 的 selected signature",
+                    "plain interface call 缺少 `{}` 的 selected signature",
                     dispatch.member_fqn,
                 ))
             })?;
@@ -287,7 +287,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let sig_fun = target.sig_fun();
         if sig_fun.params.len() != args.len() + 1 {
             return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "refactor plain dispatch arity mismatch",
+                kind: "plain dispatch arity mismatch",
                 at: span.into(),
             });
         }
@@ -295,7 +295,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             && self.known_fun_body_may_outward_effect(&sig_fun.fqn, sig_fun.ty)
         {
             return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "refactor plain dispatch target may outward-effect",
+                kind: "plain dispatch target may outward-effect",
                 at: span.into(),
             });
         }
@@ -323,7 +323,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
             let interface_fqn = sig_fun.fqn.rsplit_once('.').map(|(owner, _)| owner).ok_or(
                 LlvmEmitError::UnsupportedMainBody {
-                    kind: "refactor plain interface owner fqn",
+                    kind: "plain interface owner fqn",
                     at: span.into(),
                 },
             )?;
@@ -332,12 +332,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             let receiver_value = self.coerce_value(span, receiver_value, CgTy::Ref)?;
             let Some(BasicValueEnum::PointerValue(receiver_ptr)) = receiver_value.value else {
                 return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "refactor plain interface receiver value",
+                    kind: "plain interface receiver value",
                     at: span.into(),
                 });
             };
             let deferred_receiver =
-                self.defer_gc_ref_pointer(span, "refactor_plain_interface_receiver", receiver_ptr)?;
+                self.defer_gc_ref_pointer(span, "plain_interface_receiver", receiver_ptr)?;
             let explicit_param_names = sig_fun.params[1..]
                 .iter()
                 .map(|param| param.name.clone())
@@ -361,7 +361,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 .collect::<Vec<_>>();
             let receiver_ptr = self.reload_deferred_gc_ref_without_clearing(
                 span,
-                "refactor_plain_interface_receiver_reload",
+                "plain_interface_receiver_reload",
                 &deferred_receiver,
             )?;
             let lookup =
@@ -384,7 +384,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let ret_cg =
             self.cg_ty_of(sig_fun.return_ty)
                 .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "refactor plain dispatch return type",
+                    kind: "plain dispatch return type",
                     at: span.into(),
                 })?;
         let hidden_sret_result_ty = self.hidden_sret_result_ty(span, ret_cg)?;
@@ -418,7 +418,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .first()
             .and_then(|arg| arg.pointer_value)
             .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "refactor plain dispatch receiver value",
+                kind: "plain dispatch receiver value",
                 at: span.into(),
             })?;
         let deferred_receiver = self.defer_gc_ref_pointer(
@@ -429,7 +429,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let mut llvm_args: Vec<BasicMetadataValueEnum<'ctx>> =
             Vec::with_capacity(evaluated_args.len() + usize::from(hidden_sret_result_ty.is_some()));
         let sret_result_slot = if let Some(result_ty) = hidden_sret_result_ty {
-            let slot = self.create_entry_alloca(span, "refactor_plain_dispatch_sret", ret_cg)?;
+            let slot = self.create_entry_alloca(span, "plain_dispatch_sret", ret_cg)?;
             llvm_args.push(slot.into());
             Some((slot, result_ty))
         } else {
@@ -439,7 +439,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         let receiver_ptr = self.reload_deferred_gc_ref_without_clearing(
             span,
-            "refactor_plain_dispatch_receiver_reload",
+            "plain_dispatch_receiver_reload",
             &deferred_receiver,
         )?;
         let fn_i8 = match target {
@@ -455,14 +455,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let typed_fn_ptr = self.builder.build_pointer_cast(
             fn_i8,
             self.llvm_ptr_type(AddressSpace::default()),
-            "refactor_plain_dispatch_fn_typed",
+            "plain_dispatch_fn_typed",
         )?;
         let call_site_result = self.with_conservative_gc_local_root_spills(span, |cg| {
             let call_site = cg.builder.build_indirect_call(
                 llvm_fun_ty,
                 typed_fn_ptr,
                 &llvm_args,
-                "refactor_plain_dispatch_call",
+                "plain_dispatch_call",
             )?;
             if let Some((_, result_ty)) = sret_result_slot {
                 cg.add_sret_attribute_to_call(call_site, 0, result_ty);
@@ -477,7 +477,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 span,
                 ret_cg,
                 result_ptr,
-                "refactor_plain_dispatch_sret",
+                "plain_dispatch_sret",
             )?;
         }
         let deferred_direct_result = if sret_result_slot.is_none() {
@@ -485,7 +485,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 span,
                 ret_cg,
                 call_site,
-                "refactor_plain_dispatch_direct_result",
+                "plain_dispatch_direct_result",
             )?
         } else {
             None
@@ -498,14 +498,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     span,
                     ret_cg,
                     result_ptr,
-                    "refactor_plain_dispatch_sret",
+                    "plain_dispatch_sret",
                 )?
             } else {
                 self.materialize_deferred_cg_value(
                     span,
-                    "refactor_plain_dispatch_direct_result_reload",
+                    "plain_dispatch_direct_result_reload",
                     deferred_direct_result.ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "refactor plain dispatch deferred return value",
+                        kind: "plain dispatch deferred return value",
                         at: span.into(),
                     })?,
                 )?
@@ -530,7 +530,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     }
 
     #[allow(clippy::too_many_arguments)]
-    pub(in crate::llvm::codegen) fn codegen_mir_refactor_plain_direct_call(
+    pub(in crate::llvm::codegen) fn codegen_mir_plain_direct_call(
         &mut self,
         span: crate::span::Span,
         fqn: &str,
@@ -566,14 +566,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     .iter()
                     .find(|candidate| candidate.span == selected_span)
                     .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "refactor class ctor selected ctor contract",
+                        kind: "class ctor selected ctor contract",
                         at: span.into(),
                     })?,
             ),
             None if class.ctors.is_empty() => None,
             None => {
                 return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "refactor class ctor selected ctor contract",
+                    kind: "class ctor selected ctor contract",
                     at: span.into(),
                 });
             }

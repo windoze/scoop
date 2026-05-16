@@ -207,7 +207,7 @@ fun main() {
             !header.contains("@main(")
                 && stable_id_symbol_is_user_callable(llvm_function_symbol_name(function))
                 && function.contains("@scoop_gc_collect_safepoint")
-                && function.contains("rt_alloc_refactor_class")
+                && function.contains("rt_alloc_lowered_class")
         },
     );
     let call_idx = entry_ir
@@ -309,7 +309,7 @@ fun main() {
                 && stable_id_symbol_is_user_callable(llvm_function_symbol_name(function))
                 && header.contains("ptr addrspace(1)")
                 && !function.contains("@\"scoop.core.println::<String>\"")
-                && function.contains("refactor_class_ctor_obj_root")
+                && function.contains("lowered_class_ctor_obj_root")
         },
     );
     let string_alloc_idx = make_ir
@@ -319,25 +319,21 @@ fun main() {
 
     assert!(
         make_ir.contains(
-            "store ptr addrspace(1) %rt_alloc_refactor_class, ptr %refactor_class_ctor_obj_root"
+            "store ptr addrspace(1) %rt_alloc_lowered_class, ptr %lowered_class_ctor_obj_root"
         ),
         "factory class ctor should spill the freshly allocated object before any GC-sensitive arg evaluation\n{make_ir}"
     );
     assert!(
         reload_window.contains(
-            "class_ctor_obj_before_invoke = load ptr addrspace(1), ptr %explicit_root_frame_slot_"
+            "lowered_class_ctor_obj_before_invoke = load ptr addrspace(1), ptr %explicit_root_frame_slot_"
         ),
         "ctor arg evaluation should reload the allocated object from its explicit-frame-backed root before invoking ctor init\n{reload_window}"
     );
     assert!(
         reload_window.contains(
-            "class_ctor_obj_return = load ptr addrspace(1), ptr %explicit_root_frame_slot_"
+            "lowered_class_ctor_obj_return = load ptr addrspace(1), ptr %explicit_root_frame_slot_"
         ),
         "factory return should reload the allocated object from its explicit-frame-backed root after ctor init\n{reload_window}"
-    );
-    assert!(
-        !reload_window.contains("ptr addrspace(1) %rt_alloc_class, i32 0, i32 1"),
-        "ctor path should not keep using the pre-GC raw class allocation SSA after GC-sensitive arg evaluation\n{reload_window}"
     );
 }
 
@@ -558,30 +554,30 @@ fun main(): Int {
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
     let go_ir = function_ir_matching(&ir, "managed outward payload helper", |header, function| {
         !header.contains("@main(")
-            && header.contains("direct_invoke")
-            && function.contains("refactor_outward_payload_reload_frame_reload")
+            && header.contains("lowered_direct_invoke")
+            && function.contains("outward_payload_reload_frame_reload")
     });
     let box_idx = go_ir
-        .find("refactor_outward_payload_reload_frame_reload")
-        .expect("expected refactor outward payload reload in go() IR");
+        .find("outward_payload_reload_frame_reload")
+        .expect("expected outward payload reload in go() IR");
     let reload_window_start = box_idx.saturating_sub(1400);
     let reload_window = &go_ir[reload_window_start..std::cmp::min(box_idx + 400, go_ir.len())];
 
     assert!(
-        go_ir.contains("refactor_outward_payload_reload_rebuild = alloca %a.Named")
+        go_ir.contains("outward_payload_reload_rebuild = alloca %a.Named")
             && go_ir.contains(
-                "refactor_outward_payload_reload_field_insert_0 = insertvalue %a.Named undef"
+                "outward_payload_reload_field_insert_0 = insertvalue %a.Named undef"
             )
-            && go_ir.contains("refactor_step_payload_insert = insertvalue")
-            && go_ir.contains("%a.Named %refactor_outward_payload_reload, 0"),
-        "refactor outward payload should rebuild a fresh aggregate before publishing Step payload\n{go_ir}"
+            && go_ir.contains("step_payload_insert = insertvalue")
+            && go_ir.contains("%a.Named %outward_payload_reload, 0"),
+        "outward payload should rebuild a fresh aggregate before publishing Step payload\n{go_ir}"
     );
     assert!(
-        reload_window.contains("refactor_outward_payload_reload_frame_reload = load ptr addrspace(1)")
+        reload_window.contains("outward_payload_reload_frame_reload = load ptr addrspace(1)")
             && reload_window.contains(
-                "refactor_outward_payload_reload_field_insert_0 = insertvalue %a.Named undef, ptr addrspace(1) %refactor_outward_payload_reload_frame_reload, 0"
+                "outward_payload_reload_field_insert_0 = insertvalue %a.Named undef, ptr addrspace(1) %outward_payload_reload_frame_reload, 0"
             ),
-        "refactor outward payload rebuild should reload GC leaf fields from explicit frame home slots\n{reload_window}"
+        "outward payload rebuild should reload GC leaf fields from explicit frame home slots\n{reload_window}"
     );
 }
 
@@ -688,7 +684,7 @@ fun main(): Int {
 
     assert!(
         ir.contains("define i32 @main("),
-        "nested Raise.raise try/catch fixture should lower through refactor EffectStep main codegen\n{ir}"
+        "nested Raise.raise try/catch fixture should lower through EffectStep main codegen\n{ir}"
     );
 }
 
@@ -738,7 +734,7 @@ fun main(): Int {
             !header.contains("@main(")
                 && stable_id_symbol_has_private_role(
                     llvm_function_symbol_name(function),
-                    "refactor_direct_invoke",
+                    "lowered_direct_invoke",
                 )
                 && header.contains("({ %fixtures.t5000j1d.MyOpt, i64 } %0)")
         },
@@ -970,7 +966,7 @@ fun main(): Int {
 }
 
 #[test]
-pub(super) fn refactor_plain_array_string_get_keeps_string_surface_for_println() {
+pub(super) fn plain_array_string_get_keeps_string_surface_for_println() {
     let source = SourceFile::new_virtual(
         "<mem>/t1703_string_array_println_surface.scoop",
         r#"

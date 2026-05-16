@@ -1264,7 +1264,7 @@ mod tests {
     use crate::session::{Session, SessionOptions};
     use crate::source::SourceFile;
 
-    fn refactor_session() -> Session {
+    fn session() -> Session {
         Session::with_options(SessionOptions::new()).unwrap()
     }
 
@@ -1272,7 +1272,7 @@ mod tests {
         source: &SourceFile,
         opt_level: OptLevel,
     ) -> crate::pipeline::EffectFactsStageOutput {
-        let session = refactor_session();
+        let session = session();
         let mir_stage_output =
             load_direct_style_mir_stage_output_for_dump(&session, source).unwrap();
         let materialized =
@@ -1290,7 +1290,7 @@ mod tests {
         opt_level: OptLevel,
         config: EffectFactsSolverConfig,
     ) -> crate::effect_facts::MaterializedEffectFacts {
-        let session = refactor_session();
+        let session = session();
         let mut materialized =
             materialize_for_dump_with_opt_level(&session, source, opt_level).unwrap();
         let seeded =
@@ -1675,7 +1675,7 @@ fun callEffectTyped(f: (Int) -> Int / Boom): Int / Boom {
     }
 
     #[test]
-    fn refactor_callable_effect_facts_no_outward_uses_plain_abi_after_solver() {
+    fn callable_effect_facts_no_outward_uses_plain_abi_after_solver() {
         let output =
             build_stage_output_for_source(&plain_and_effect_dynamic_call_source(), OptLevel::O2);
         let facts = output.effect_facts();
@@ -1708,7 +1708,7 @@ fun callEffectTyped(f: (Int) -> Int / Boom): Int / Boom {
     }
 
     #[test]
-    fn refactor_step_schema_not_published_for_plain_body_after_solver() {
+    fn step_schema_not_published_for_plain_body_after_solver() {
         let output = build_stage_output_for_source(&pure_plain_abi_source(), OptLevel::O2);
         let facts = output.effect_facts();
 
@@ -1726,7 +1726,7 @@ fun callEffectTyped(f: (Int) -> Int / Boom): Int / Boom {
     }
 
     #[test]
-    fn refactor_call_site_facts_distinguish_plain_call_and_effect_adapter_after_solver() {
+    fn call_site_facts_distinguish_plain_call_and_effect_adapter_after_solver() {
         let output =
             build_stage_output_for_source(&plain_and_effect_dynamic_call_source(), OptLevel::O2);
         let facts = output.effect_facts();
@@ -1813,7 +1813,7 @@ fun callEffectTyped(f: (Int) -> Int / Boom): Int / Boom {
     }
 
     #[test]
-    fn refactor_effect_solver_propagates_direct_scc_and_known_callee_cases() {
+    fn effect_solver_propagates_direct_scc_and_known_callee_cases() {
         let output = build_stage_output_for_source(&direct_scc_source(), OptLevel::O2);
         let facts = output.effect_facts();
 
@@ -1873,7 +1873,7 @@ fun callEffectTyped(f: (Int) -> Int / Boom): Int / Boom {
     }
 
     #[test]
-    fn refactor_effect_solver_unions_candidate_sets_and_dynamic_fallback() {
+    fn effect_solver_unions_candidate_sets_and_dynamic_fallback() {
         let candidate_output =
             build_stage_output_for_source(&candidate_union_source(), OptLevel::O2);
         let candidate_facts = candidate_output.effect_facts();
@@ -1981,7 +1981,7 @@ fun callEffectTyped(f: (Int) -> Int / Boom): Int / Boom {
     }
 
     #[test]
-    fn refactor_effect_solver_consumes_higher_order_function_value_call_in_handle() {
+    fn effect_solver_consumes_higher_order_function_value_call_in_handle() {
         let output = build_stage_output_for_source(
             &higher_order_handled_function_value_source(),
             OptLevel::O0,
@@ -2004,7 +2004,7 @@ fun callEffectTyped(f: (Int) -> Int / Boom): Int / Boom {
     }
 
     #[test]
-    fn refactor_effect_solver_budget_exhaustion_widens_affected_callable() {
+    fn effect_solver_budget_exhaustion_widens_affected_callable() {
         let source = candidate_union_source();
         let facts = solve_with_config(
             &source,
@@ -2049,7 +2049,7 @@ fun callEffectTyped(f: (Int) -> Int / Boom): Int / Boom {
     }
 
     #[test]
-    fn refactor_impl_plan_tracks_needs_reentry_and_opt_level_policy() {
+    fn impl_plan_tracks_needs_reentry_and_opt_level_policy() {
         let source = direct_scc_source();
         let o2 = build_stage_output_for_source(&source, OptLevel::O2);
         let (_, o2_leaf) = callable_facts_for(o2.effect_facts(), "sample.leaf");
@@ -2063,7 +2063,7 @@ fun callEffectTyped(f: (Int) -> Int / Boom): Int / Boom {
     }
 
     #[test]
-    fn refactor_block_effect_facts_finalize_ambient_and_outward_cases() {
+    fn block_effect_facts_finalize_ambient_and_outward_cases() {
         let output = build_stage_output_for_source(&mixed_handle_source(), OptLevel::O2);
         let facts = output.effect_facts();
         let (mixed_key, mixed_facts) = callable_facts_for(facts, "sample.mixed");
@@ -2139,7 +2139,7 @@ fun callEffectTyped(f: (Int) -> Int / Boom): Int / Boom {
     }
 
     #[test]
-    fn refactor_block_effect_facts_preserve_nested_handle_classification_after_solver() {
+    fn block_effect_facts_preserve_nested_handle_classification_after_solver() {
         let output = build_stage_output_for_source(&nested_handle_source(), OptLevel::O2);
         let facts = output.effect_facts();
         let pass_view = output.materialized_pass_view();
@@ -2221,7 +2221,7 @@ fun callEffectTyped(f: (Int) -> Int / Boom): Int / Boom {
     }
 
     #[test]
-    fn refactor_effect_solver_recomputes_handle_outward_from_finalized_call_sites() {
+    fn effect_solver_recomputes_handle_outward_from_finalized_call_sites() {
         let output = build_stage_output_for_source(&handle_call_subset_source(), OptLevel::O2);
         let facts = output.effect_facts();
         let pass_view = output.materialized_pass_view();
@@ -2264,7 +2264,7 @@ fun callEffectTyped(f: (Int) -> Int / Boom): Int / Boom {
     }
 
     #[test]
-    fn refactor_effect_solver_keeps_handle_body_outward_for_plain_call_effects() {
+    fn effect_solver_keeps_handle_body_outward_for_plain_call_effects() {
         let output =
             build_stage_output_for_source(&handle_body_call_outward_source(), OptLevel::O2);
         let facts = output.effect_facts();

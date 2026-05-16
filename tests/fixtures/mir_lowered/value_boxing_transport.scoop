@@ -1,0 +1,58 @@
+// EXPECT: pass
+// 目标：CG-T04b0 value erasure boxing MIR transport contract。
+
+package mir_lowered.value_boxing_transport
+
+import scoop.core.*
+
+interface Measured {
+    fun measure(): Int
+}
+
+struct Point(val x: Int, val label: String)
+
+struct Token(val value: Int) : Measured {
+    fun measure(): Int {
+        return 1
+    }
+}
+
+enum Wrapped {
+    WrappedPoint(val point: Point),
+}
+
+val topAny: Any = Point(1, "top")
+
+fun takeAny(value: Any): Int {
+    return 1
+}
+
+fun takeMeasured(value: Measured): Int {
+    return value.measure()
+}
+
+fun returnAny(point: Point): Any {
+    return point
+}
+
+fun tailAny(point: Point): Any {
+    point
+}
+
+fun useBoxing(point: Point): Any {
+    val localAny: Any = point
+    var assigned: Any = Point(2, "assigned")
+    assigned = Point(3, "reassigned")
+    val callAny: Int = takeAny((point, Point(4, "arg")))
+    val refLocal: Measured = Token(5)
+    val refArg: Int = takeMeasured(Token(6))
+    val enumAny: Any = WrappedPoint(Point(7, "enum"))
+    val fromReturn: Any = returnAny(point)
+    val fromTail: Any = tailAny(point)
+    return enumAny
+}
+
+fun main(): Int {
+    val any = useBoxing(Point(0, "main"))
+    return takeAny(any)
+}

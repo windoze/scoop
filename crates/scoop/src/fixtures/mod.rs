@@ -30,9 +30,9 @@
 //! - `tests/fixtures/infer/**` → infer
 //! - `tests/fixtures/hir/**` → hir（HIR lowering + `.hir` golden 比对）
 //! - `tests/fixtures/mir/**` → mir（MIR lowering + `.mir` golden 比对）
-//! - `tests/fixtures/mir_refactor/**` → mir_refactor（refactor direct-style MIR stable dump + `.mir` golden 比对）
-//! - `tests/fixtures/effect_facts/**` → effect_facts（refactor effect-facts stable dump + `.effectfacts` golden 比对）
-//! - `tests/fixtures/effect_lowered/**` → effect_lowered（refactor late-lowered stable dump + `.effectlowered` golden 比对）
+//! - `tests/fixtures/mir_lowered/**` → mir_lowered（direct-style MIR stable dump + `.mir` golden 比对）
+//! - `tests/fixtures/effect_facts/**` → effect_facts（effect-facts stable dump + `.effectfacts` golden 比对）
+//! - `tests/fixtures/effect_lowered/**` → effect_lowered（late-lowered stable dump + `.effectlowered` golden 比对）
 //! - `tests/fixtures/scoopir/**` → scoopir（public API 导出 + `.scoopir.json` golden 比对）
 //! - 其它一级目录会被识别为 phase，但目前统一返回“未实现”的诊断。
 
@@ -670,8 +670,7 @@ fn run_one(
             FixturePhase::RunPass
         }
         Some(name) if name == "hir" => FixturePhase::Hir,
-        Some(name) if name == "mir" => FixturePhase::Mir,
-        Some(name) if name == "mir_refactor" => FixturePhase::MirRefactor,
+        Some(name) if name == "mir" || name == "mir_lowered" => FixturePhase::Mir,
         Some(name) if name == "effect_facts" => FixturePhase::EffectFacts,
         Some(name) if name == "effect_lowered" => FixturePhase::EffectLowered,
         Some(name) if name == "scoopir" => FixturePhase::ScoopIr,
@@ -695,7 +694,6 @@ fn run_one(
         ),
         FixturePhase::Hir => hir_fixture(session, &source, path),
         FixturePhase::Mir => mir_fixture(session, &source, path),
-        FixturePhase::MirRefactor => mir_refactor_fixture(session, &source, path),
         FixturePhase::EffectFacts => effect_facts_fixture(session, &source, path),
         FixturePhase::EffectLowered => effect_lowered_fixture(session, &source, path),
         FixturePhase::ScoopIr => scoopir_fixture(session, &source, path),
@@ -727,7 +725,6 @@ enum FixturePhase {
     RunPass,
     Hir,
     Mir,
-    MirRefactor,
     EffectFacts,
     EffectLowered,
     ScoopIr,
@@ -1528,18 +1525,6 @@ fn hir_fixture(
 }
 
 fn mir_fixture(
-    session: &scoopc::session::Session,
-    source: &scoopc::source::SourceFile,
-    fixture_path: &Path,
-) -> std::result::Result<(), Box<dyn miette::Diagnostic>> {
-    let output = scoopc::pipeline::load_direct_style_mir_stage_output_for_dump(session, source)
-        .map_err(box_diagnostic)?;
-    let actual = normalize_newlines(&output.stable_dump());
-
-    assert_mir_golden_matches(&actual, fixture_path)
-}
-
-fn mir_refactor_fixture(
     session: &scoopc::session::Session,
     source: &scoopc::source::SourceFile,
     fixture_path: &Path,
@@ -3308,7 +3293,7 @@ fn is_phase_dir_name(name: &std::ffi::OsStr) -> bool {
                 | "runtime_gc"
                 | "hir"
                 | "mir"
-                | "mir_refactor"
+                | "mir_lowered"
                 | "effect_facts"
                 | "effect_lowered"
                 | "scoopir"
@@ -3381,13 +3366,13 @@ mod tests {
     }
 
     #[test]
-    fn phase_name_falls_back_to_root_phase_dir_for_mir_refactor_single_file_subset() {
-        let fixtures_root = Path::new("tests/fixtures/mir_refactor");
+    fn phase_name_falls_back_to_root_phase_dir_for_mir_single_file_subset() {
+        let fixtures_root = Path::new("tests/fixtures/mir_lowered");
         let rel = Path::new("generic_materialization.scoop");
 
         assert_eq!(
             phase_name(fixtures_root, rel),
-            Some(OsStr::new("mir_refactor"))
+            Some(OsStr::new("mir_lowered"))
         );
     }
 
@@ -3689,7 +3674,7 @@ val bad: Int = Box("oops").bodyCopy
     }
 
     #[test]
-    fn infer_fixtures_use_refactor_typed_hir_diagnostics() {
+    fn infer_fixtures_use_typed_hir_diagnostics() {
         let dir = tempdir().unwrap();
         let fixture_dir = dir.path().join("infer").join("effects");
         fs::create_dir_all(&fixture_dir).unwrap();
@@ -3721,12 +3706,12 @@ val bad: Int = Box("oops").bodyCopy
         let dir = tempdir().unwrap();
         let fixture_dir = dir.path().join("build");
         fs::create_dir_all(&fixture_dir).unwrap();
-        let fixture = fixture_dir.join("refactor_abi_visibility.scoop");
+        let fixture = fixture_dir.join("abi_visibility.scoop");
         fs::write(
             &fixture,
             r#"// EXPECT: pass
 // ARGS: --emit-llvm
-// BUILD-LLVM-REGEX: __scoop_priv0__refactor_dynamic_invoke__h[0-9a-f]+
+// BUILD-LLVM-REGEX: __scoop_priv0__lowered_dynamic_invoke__h[0-9a-f]+
 
 package fixtures.build_fixture_visibility
 
@@ -3772,14 +3757,14 @@ fun main(): Int {
             temp_dir.as_ref().unwrap().path().to_path_buf()
         };
         let build_dir = root.join("build");
-        let mir_refactor_dir = root.join("mir_refactor");
+        let mir_dir = root.join("mir_lowered");
         fs::create_dir_all(&build_dir).unwrap();
-        fs::create_dir_all(&mir_refactor_dir).unwrap();
+        fs::create_dir_all(&mir_dir).unwrap();
 
         let workspace_fixtures =
             PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../tests/fixtures");
         let build_fixture = build_dir.join("effect_no_perform_no_handler_symbols_basic.scoop");
-        let mir_fixture = mir_refactor_dir.join("aggregate_transport.scoop");
+        let mir_fixture = mir_dir.join("aggregate_transport.scoop");
 
         fs::copy(
             workspace_fixtures.join("build/effect_no_perform_no_handler_symbols_basic.scoop"),
@@ -3787,12 +3772,12 @@ fun main(): Int {
         )
         .unwrap();
         fs::copy(
-            workspace_fixtures.join("mir_refactor/aggregate_transport.scoop"),
+            workspace_fixtures.join("mir_lowered/aggregate_transport.scoop"),
             &mir_fixture,
         )
         .unwrap();
         fs::copy(
-            workspace_fixtures.join("mir_refactor/aggregate_transport.mir"),
+            workspace_fixtures.join("mir_lowered/aggregate_transport.mir"),
             mir_fixture.with_extension("mir"),
         )
         .unwrap();

@@ -25,7 +25,7 @@ use std::path::PathBuf;
     use crate::session::{Session, SessionOptions};
     use crate::source::SourceFile;
 
-    fn refactor_session() -> Session {
+    fn session() -> Session {
         Session::with_options(SessionOptions::new()).unwrap()
     }
 
@@ -53,9 +53,9 @@ use std::path::PathBuf;
     }
 
     fn load_output(source: &SourceFile) -> RawMaterializedOutput {
-        let session = refactor_session();
+        let session = session();
         let effect_facts_stage_output = load_effect_facts_stage_output_for_dump(&session, source)
-            .expect("fixture 应可通过 refactor effect-facts stage");
+            .expect("fixture 应可通过 effect-facts stage");
         let program = LateLoweredProgramBuilder::from_canonical_inputs(
             effect_facts_stage_output.materialized_pass_view(),
             effect_facts_stage_output.effect_facts(),
@@ -137,7 +137,7 @@ use std::path::PathBuf;
     }
 
     #[test]
-    fn refactor_step_materialization_keeps_canonical_cases_and_dynamic_entry_states() {
+    fn step_materialization_keeps_canonical_cases_and_dynamic_entry_states() {
         let output = load_output(&load_fixture("effect_facts", "single_case_impl_plan.scoop"));
         let leaf = callable(&output, "sample.leaf");
         let step_type = output
@@ -174,7 +174,7 @@ use std::path::PathBuf;
     }
 
     #[test]
-    fn refactor_resume_interface_completeness_groups_methods_by_effect_family() {
+    fn resume_interface_completeness_groups_methods_by_effect_family() {
         let output = load_output(&load_fixture("effect_facts", "single_case_impl_plan.scoop"));
         let leaf = callable(&output, "sample.leaf");
         let interfaces = leaf
@@ -218,7 +218,7 @@ use std::path::PathBuf;
     }
 
     #[test]
-    fn refactor_continuation_object_materializes_surface_resume_and_one_shot_contracts() {
+    fn continuation_object_materializes_surface_resume_and_one_shot_contracts() {
         let output = load_output(&load_fixture("effect_facts", "single_case_impl_plan.scoop"));
         let leaf = callable(&output, "sample.leaf");
         let object = output
@@ -255,10 +255,10 @@ use std::path::PathBuf;
     }
 
     #[test]
-    fn refactor_surface_resume_dispatch_inventory_marks_shared_schema_object_method_sources() {
+    fn surface_resume_dispatch_inventory_marks_shared_schema_object_method_sources() {
         let output = load_output(&load_fixture(
             "build",
-            "effect_refactor_step_enum_single_case.scoop",
+            "effect_lowered_step_enum_single_case.scoop",
         ));
         let worker = callable(&output, "fixtures.build.singleCaseWorker");
         let step = output
@@ -349,7 +349,7 @@ use std::path::PathBuf;
     }
 
     #[test]
-    fn refactor_surface_resume_dispatch_inventory_covers_resume_site_only_and_handle_binder_schema()
+    fn surface_resume_dispatch_inventory_covers_resume_site_only_and_handle_binder_schema()
     {
         let output = load_output(&load_fixture(
             "run-pass",
@@ -427,7 +427,7 @@ use std::path::PathBuf;
     }
 
     #[test]
-    fn refactor_boundary_lowering_materializes_effectful_call_dispatch_contract() {
+    fn boundary_lowering_materializes_effectful_call_dispatch_contract() {
         let output = load_output(&load_fixture(
             "effect_facts",
             "dynamic_fallback_widening.scoop",
@@ -477,7 +477,7 @@ use std::path::PathBuf;
     }
 
     #[test]
-    fn refactor_effect_lowered_boundary_operand_contract_publishes_direct_dynamic_and_perform_sources()
+    fn effect_lowered_boundary_operand_contract_publishes_direct_dynamic_and_perform_sources()
      {
         let direct_output = load_output(&load_fixture(
             "run-pass",
@@ -586,7 +586,7 @@ use std::path::PathBuf;
     }
 
     #[test]
-    fn refactor_effect_lowered_boundary_operand_contract_publishes_known_closure_env_sources() {
+    fn effect_lowered_boundary_operand_contract_publishes_known_closure_env_sources() {
         let output = load_output(&load_fixture(
             "run-pass",
             "effect_multi_escape_indirect_callee_suspend_matrix.scoop",
@@ -636,7 +636,7 @@ use std::path::PathBuf;
     }
 
     #[test]
-    fn refactor_effect_lowered_boundary_operand_contract_publishes_resume_sources() {
+    fn effect_lowered_boundary_operand_contract_publishes_resume_sources() {
         let output = load_output(&load_fixture(
             "effect_facts",
             "dispatch_and_resume_call.scoop",
@@ -696,7 +696,7 @@ use std::path::PathBuf;
     }
 
     #[test]
-    fn refactor_boundary_operand_contract_accepts_nominal_upcast_direct_arg_sources() {
+    fn boundary_operand_contract_accepts_nominal_upcast_direct_arg_sources() {
         let source = SourceFile::new_virtual(
             "<mem>/nominal_upcast_boundary.scoop",
             r#"
@@ -733,9 +733,9 @@ fun main(): Int {
 }
 "#,
         );
-        let session = refactor_session();
+        let session = session();
         let effect_facts_stage_output = load_effect_facts_stage_output_for_dump(&session, &source)
-            .expect("nominal upcast sample 应可通过 refactor effect-facts stage");
+            .expect("nominal upcast sample 应可通过 effect-facts stage");
         let pass_view = effect_facts_stage_output.materialized_pass_view();
         let main_family = pass_view
             .instances()
@@ -830,7 +830,7 @@ fun main(): Int {
     }
 
     #[test]
-    fn refactor_boundary_lowering_keeps_local_runtime_error_contract_for_pure_caller_calls() {
+    fn boundary_lowering_keeps_local_runtime_error_contract_for_pure_caller_calls() {
         let output = load_output(&load_fixture(
             "run-pass",
             "effect_resume_if_else_branch_single_perform.scoop",
@@ -913,9 +913,9 @@ fun main(): Int {
     }
 
     #[test]
-    fn refactor_boundary_lowering_materializes_resume_and_runtime_error_contracts() {
+    fn boundary_lowering_materializes_resume_and_runtime_error_contracts() {
         let output = load_output(&load_fixture(
-            "mir_refactor",
+            "mir_lowered",
             "dispatch_and_resume_call.scoop",
         ));
         let callable = callable(&output, "fixtures.mir.resumeBoom");
@@ -971,7 +971,7 @@ fun main(): Int {
     }
 
     #[test]
-    fn refactor_boundary_lowering_publishes_member_readback_resume_route() {
+    fn boundary_lowering_publishes_member_readback_resume_route() {
         let output = load_output(&load_fixture(
             "run-pass",
             "effect_multi_escape_indirect_direct_while.scoop",
@@ -1035,7 +1035,7 @@ fun main(): Int {
     }
 
     #[test]
-    fn refactor_boundary_lowering_publishes_local_option_continuation_readback_route() {
+    fn boundary_lowering_publishes_local_option_continuation_readback_route() {
         let output = load_output(&load_fixture(
             "run-pass",
             "continuation_resume_continuation.scoop",
@@ -1084,7 +1084,7 @@ fun main(): Int {
     }
 
     #[test]
-    fn refactor_surface_resume_dispatch_inventory_publishes_shared_wrapper_projection() {
+    fn surface_resume_dispatch_inventory_publishes_shared_wrapper_projection() {
         let output = load_output(&load_fixture(
             "run-pass",
             "effect_multi_escape_indirect_direct_while.scoop",
@@ -1168,10 +1168,10 @@ fun main(): Int {
     }
 
     #[test]
-    fn refactor_surface_resume_dispatch_inventory_publishes_wrapper_outward_continuation_schema() {
+    fn surface_resume_dispatch_inventory_publishes_wrapper_outward_continuation_schema() {
         let output = load_output(&load_fixture(
             "build",
-            "effect_refactor_direct_handle_resume_emit_llvm.scoop",
+            "effect_lowered_direct_handle_resume_emit_llvm.scoop",
         ));
         let callable = callable(&output, "fixtures.build.main");
         let resume_lowering = callable
@@ -1222,7 +1222,7 @@ fun main(): Int {
     }
 
     #[test]
-    fn refactor_surface_resume_dispatch_dump_exposes_shared_wrapper_projection() {
+    fn surface_resume_dispatch_dump_exposes_shared_wrapper_projection() {
         let output = load_output(&load_fixture(
             "run-pass",
             "effect_multi_escape_indirect_direct_while.scoop",
@@ -1245,7 +1245,7 @@ fun main(): Int {
     }
 
     #[test]
-    fn refactor_effect_lowered_surface_resume_wrapper_completion_publishes_handle_arm_payload_source()
+    fn effect_lowered_surface_resume_wrapper_completion_publishes_handle_arm_payload_source()
      {
         let output = load_output(&load_fixture(
             "run-pass",
@@ -1299,7 +1299,7 @@ fun main(): Int {
     }
 
     #[test]
-    fn refactor_effect_lowered_surface_resume_wrapper_completion_uses_owner_complete_for_matching_answer_type()
+    fn effect_lowered_surface_resume_wrapper_completion_uses_owner_complete_for_matching_answer_type()
      {
         let output = load_output(&load_fixture(
             "run-pass",
@@ -1335,7 +1335,7 @@ fun main(): Int {
     }
 
     #[test]
-    fn refactor_effect_lowered_resume_boundary_self_route_publishes_step_projection() {
+    fn effect_lowered_resume_boundary_self_route_publishes_step_projection() {
         let output = load_output(&load_fixture(
             "run-pass",
             "effect_escape_continuation_resume_later_exit.scoop",
@@ -1372,7 +1372,7 @@ fun main(): Int {
     }
 
     #[test]
-    fn refactor_boundary_lowering_publishes_direct_resume_self_route() {
+    fn boundary_lowering_publishes_direct_resume_self_route() {
         let output = load_output(&load_fixture(
             "effect_facts",
             "dispatch_and_resume_call.scoop",
@@ -1411,7 +1411,7 @@ fun main(): Int {
     }
 
     #[test]
-    fn refactor_effect_lowered_resume_payload_binding_covers_call_and_resume_boundaries() {
+    fn effect_lowered_resume_payload_binding_covers_call_and_resume_boundaries() {
         let output = load_output(&load_fixture(
             "run-pass",
             "effect_resume_if_else_branch_single_perform.scoop",
@@ -1462,7 +1462,7 @@ fun main(): Int {
     }
 
     #[test]
-    fn refactor_effect_lowered_resume_payload_binding_covers_perform_and_runtime_error_paths() {
+    fn effect_lowered_resume_payload_binding_covers_perform_and_runtime_error_paths() {
         let output = load_output(&load_fixture(
             "run-pass",
             "effect_multi_escape_indirect_direct_while.scoop",
@@ -1530,7 +1530,7 @@ fun main(): Int {
     }
 
     #[test]
-    fn refactor_effect_lowered_call_boundary_continuation_composition() {
+    fn effect_lowered_call_boundary_continuation_composition() {
         let output = load_output(&load_fixture(
             "run-pass",
             "effect_multi_escape_indirect_direct_while.scoop",
@@ -1611,7 +1611,7 @@ fun main(): Int {
     }
 
     #[test]
-    fn refactor_effect_lowered_resume_boundary_continuation_composition_for_cross_call_escape() {
+    fn effect_lowered_resume_boundary_continuation_composition_for_cross_call_escape() {
         let output = load_output(&load_fixture(
             "run-pass",
             "continuation_escape_binder_resume_effect_row_runtime_basic.scoop",
@@ -1702,7 +1702,7 @@ fun main(): Int {
     }
 
     #[test]
-    fn refactor_effect_lowered_resume_payload_binding_dump_exposes_consumers() {
+    fn effect_lowered_resume_payload_binding_dump_exposes_consumers() {
         let output = load_output(&load_fixture(
             "run-pass",
             "effect_multi_escape_indirect_direct_while.scoop",
@@ -1716,7 +1716,7 @@ fun main(): Int {
     }
 
     #[test]
-    fn refactor_effect_lowered_completion_payload_contract_publishes_non_unit_return_source() {
+    fn effect_lowered_completion_payload_contract_publishes_non_unit_return_source() {
         let output = load_output(&load_fixture(
             "run-pass",
             "effect_resume_if_else_branch_single_perform.scoop",
@@ -1766,7 +1766,7 @@ fun main(): Int {
     }
 
     #[test]
-    fn refactor_effect_lowered_completion_payload_contract_dump_exposes_sources() {
+    fn effect_lowered_completion_payload_contract_dump_exposes_sources() {
         let output = load_output(&load_fixture(
             "run-pass",
             "effect_resume_if_else_branch_single_perform.scoop",
@@ -1779,7 +1779,7 @@ fun main(): Int {
     }
 
     #[test]
-    fn refactor_effect_lowered_source_slice_classification_publishes_statement_purposes() {
+    fn effect_lowered_source_slice_classification_publishes_statement_purposes() {
         let output = load_output(&load_fixture(
             "run-pass",
             "effect_multi_escape_indirect_direct_while.scoop",
@@ -1812,7 +1812,7 @@ fun main(): Int {
     }
 
     #[test]
-    fn refactor_effect_lowered_completion_payload_contract_rejects_type_drift() {
+    fn effect_lowered_completion_payload_contract_rejects_type_drift() {
         let output = load_output(&load_fixture(
             "run-pass",
             "effect_resume_if_else_branch_single_perform.scoop",
@@ -2110,7 +2110,7 @@ fun main(): Int {
     }
 
     #[test]
-    fn refactor_boundary_lowering_materializes_perform_and_handle_contracts() {
+    fn boundary_lowering_materializes_perform_and_handle_contracts() {
         let perform_output = load_output(&load_fixture("effect_facts", "handle_perform.scoop"));
         let handled_main = callable(&perform_output, "a.main");
         let perform_boundary = site_boundary(handled_main, BoundarySiteKind::Perform);
@@ -2162,7 +2162,7 @@ fun main(): Int {
     }
 
     #[test]
-    fn refactor_handle_dispatch_contract_publishes_body_arm_finally_and_outward_routes() {
+    fn handle_dispatch_contract_publishes_body_arm_finally_and_outward_routes() {
         let output = load_output(&load_fixture(
             "effect_facts",
             "nested_handle_self_contained_vs_outward.scoop",
@@ -2241,7 +2241,7 @@ fun main(): Int {
     }
 
     #[test]
-    fn refactor_handle_dispatch_region_contract_publishes_body_routing_for_handled_perform() {
+    fn handle_dispatch_region_contract_publishes_body_routing_for_handled_perform() {
         let output = load_output(&load_fixture(
             "run-pass",
             "effect_resume_if_else_branch_single_perform.scoop",
@@ -2306,7 +2306,7 @@ fun main(): Int {
     }
 
     #[test]
-    fn refactor_handle_dispatch_region_contract_tracks_multi_resume_routes_and_arm_regions() {
+    fn handle_dispatch_region_contract_tracks_multi_resume_routes_and_arm_regions() {
         let output = load_output(&load_fixture(
             "run-pass",
             "effect_multi_escape_indirect_direct_while.scoop",
@@ -2379,7 +2379,7 @@ fun main(): Int {
     }
 
     #[test]
-    fn refactor_handle_dispatch_region_contract_tracks_pending_and_finally_routing() {
+    fn handle_dispatch_region_contract_tracks_pending_and_finally_routing() {
         let pending_output = load_output(&SourceFile::new_virtual(
             "<mem>/late_lowered_handle_region_pending.scoop",
             r#"
@@ -2495,7 +2495,7 @@ fun finally_outward(): Int / (Outer) {
     }
 
     #[test]
-    fn refactor_handle_arm_binding_contract_publishes_payload_and_escape_continuation_binding() {
+    fn handle_arm_binding_contract_publishes_payload_and_escape_continuation_binding() {
         let output = load_output(&SourceFile::new_virtual(
             "<mem>/late_lowered_handle_arm_binding_single.scoop",
             r#"
@@ -2565,7 +2565,7 @@ fun main(): Int {
     }
 
     #[test]
-    fn refactor_handle_arm_binding_contract_publishes_mixed_multi_arm_bindings_without_ambiguity() {
+    fn handle_arm_binding_contract_publishes_mixed_multi_arm_bindings_without_ambiguity() {
         let output = load_output(&load_fixture(
             "run-pass",
             "effect_multi_escape_indirect_direct_while.scoop",
@@ -2632,7 +2632,7 @@ fun main(): Int {
     }
 
     #[test]
-    fn refactor_completion_state_contract_tracks_body_outward_cases_across_finally() {
+    fn completion_state_contract_tracks_body_outward_cases_across_finally() {
         let output = load_output(&SourceFile::new_virtual(
             "<mem>/late_lowered_handle_body_outward_finally.scoop",
             r#"
@@ -2682,7 +2682,7 @@ fun propagate_before_finally(): Int {
     }
 
     #[test]
-    fn refactor_handle_dispatch_contract_publishes_pending_payload_transport_across_finally() {
+    fn handle_dispatch_contract_publishes_pending_payload_transport_across_finally() {
         let output = load_output(&SourceFile::new_virtual(
             "<mem>/late_lowered_handle_pending_payload_transport.scoop",
             r#"
@@ -2769,7 +2769,7 @@ fun propagate_before_finally(): Int {
     }
 
     #[test]
-    fn refactor_handle_dispatch_contract_publishes_origin_aware_pending_completion() {
+    fn handle_dispatch_contract_publishes_origin_aware_pending_completion() {
         let output = load_output(&load_fixture(
             "run-pass",
             "effect_resume_finally_body_raise_after_resume.scoop",
@@ -2813,7 +2813,7 @@ fun propagate_before_finally(): Int {
     }
 
     #[test]
-    fn refactor_handle_dispatch_contract_dump_exposes_published_completion_state() {
+    fn handle_dispatch_contract_dump_exposes_published_completion_state() {
         let output = load_output(&SourceFile::new_virtual(
             "<mem>/late_lowered_handle_contract_dump.scoop",
             r#"
@@ -2861,7 +2861,7 @@ fun propagate_before_finally(): Int {
     }
 
     #[test]
-    fn refactor_handle_arm_binding_contract_dump_exposes_payload_and_continuation_binders() {
+    fn handle_arm_binding_contract_dump_exposes_payload_and_continuation_binders() {
         let output = load_output(&load_fixture(
             "run-pass",
             "effect_multi_escape_indirect_direct_while.scoop",
@@ -2874,7 +2874,7 @@ fun propagate_before_finally(): Int {
     }
 
     #[test]
-    fn refactor_impl_plan_lowering_keeps_no_outward_single_case_and_canonical_full_distinct() {
+    fn impl_plan_lowering_keeps_no_outward_single_case_and_canonical_full_distinct() {
         let no_outward_output = load_output(&SourceFile::new_virtual(
             "<mem>/late_lowered_no_outward.scoop",
             "package sample\nfun helper() {}\nfun main() { helper() }\n",

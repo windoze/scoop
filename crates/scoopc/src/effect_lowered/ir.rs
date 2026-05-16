@@ -5066,7 +5066,7 @@ mod tests {
     };
     use crate::ty::{NominalType, RefTypeKind, TypeKind, TypeStore};
 
-    fn refactor_session() -> Session {
+    fn session() -> Session {
         Session::with_options(SessionOptions::new()).unwrap()
     }
 
@@ -5094,9 +5094,9 @@ mod tests {
     }
 
     fn build_raw_output(source: &SourceFile) -> RawProgramOutput {
-        let session = refactor_session();
+        let session = session();
         let effect_facts_output = load_effect_facts_stage_output_for_dump(&session, source)
-            .expect("fixture 应可通过 refactor effect-facts stage");
+            .expect("fixture 应可通过 effect-facts stage");
         let program = LateLoweredProgramBuilder::from_canonical_inputs(
             effect_facts_output.materialized_pass_view(),
             effect_facts_output.effect_facts(),
@@ -5491,7 +5491,7 @@ mod tests {
     }
 
     #[test]
-    fn refactor_body_version_key_keeps_allowed_row_in_identity() {
+    fn body_version_key_keeps_allowed_row_in_identity() {
         let mut types = TypeStore::new();
         let alpha = nominal_effect(&mut types, "sample.Alpha");
         let beta = nominal_effect(&mut types, "sample.Beta");
@@ -5515,7 +5515,7 @@ mod tests {
     }
 
     #[test]
-    fn refactor_body_version_key_distinguishes_single_case_and_canonical_full_versions() {
+    fn body_version_key_distinguishes_single_case_and_canonical_full_versions() {
         let mut types = TypeStore::new();
         let alpha = nominal_effect(&mut types, "sample.Alpha");
         let allowed_row = EffectRow::new(vec![alpha]);
@@ -5552,7 +5552,7 @@ mod tests {
     }
 
     #[test]
-    fn refactor_late_lowered_ir_step_materialization_shell_keeps_canonical_cases_for_single_case_versions()
+    fn late_lowered_ir_step_materialization_shell_keeps_canonical_cases_for_single_case_versions()
      {
         let program = sample_manual_program();
         let callable = program
@@ -5573,7 +5573,7 @@ mod tests {
     }
 
     #[test]
-    fn refactor_late_lowered_ir_resume_interface_shell_records_complete_methods_and_reachability() {
+    fn late_lowered_ir_resume_interface_shell_records_complete_methods_and_reachability() {
         let program = sample_manual_program();
         let callable = program
             .callable("sample.worker")
@@ -5616,7 +5616,7 @@ mod tests {
     }
 
     #[test]
-    fn refactor_late_lowered_ir_stable_dump_exposes_frame_slot_categories() {
+    fn late_lowered_ir_stable_dump_exposes_frame_slot_categories() {
         let program = sample_manual_program();
         let dump = program.stable_dump();
 
@@ -5640,7 +5640,7 @@ mod tests {
     }
 
     #[test]
-    fn refactor_late_lowered_ir_stable_dump_demotes_packings_but_keeps_authoritative_cases_visible()
+    fn late_lowered_ir_stable_dump_demotes_packings_but_keeps_authoritative_cases_visible()
     {
         let program = sample_manual_program();
         let dump = program.stable_dump();
@@ -5666,7 +5666,7 @@ mod tests {
     }
 
     #[test]
-    fn refactor_late_lowered_ir_builder_materializes_program_shells_from_effect_facts() {
+    fn late_lowered_ir_builder_materializes_program_shells_from_effect_facts() {
         let source = load_fixture("effect_facts", "single_case_impl_plan.scoop");
         let program = build_raw_program(&source);
 
@@ -5733,7 +5733,7 @@ mod tests {
     }
 
     #[test]
-    fn refactor_late_lowered_ir_plain_callable_has_no_step_shell_for_no_outward_body() {
+    fn late_lowered_ir_plain_callable_has_no_step_shell_for_no_outward_body() {
         let source = load_fixture("effect_lowered", "direct_and_fun_value_call.scoop");
         let program = build_raw_program(&source);
 
@@ -5753,7 +5753,7 @@ mod tests {
     }
 
     #[test]
-    fn refactor_source_slice_plain_call_keeps_ordinary_call_contract_without_boundary_dispatch() {
+    fn source_slice_plain_call_keeps_ordinary_call_contract_without_boundary_dispatch() {
         let source = load_fixture("effect_lowered", "direct_and_fun_value_call.scoop");
         let program = build_raw_program(&source);
         let main = program
@@ -5787,7 +5787,7 @@ mod tests {
     }
 
     #[test]
-    fn refactor_effect_lowered_plain_local_effect_control() {
+    fn effect_lowered_plain_local_effect_control() {
         let source = load_fixture(
             "run-pass",
             "continuation_resume_surface_named_tuple_and_unit_basic.scoop",
@@ -5858,7 +5858,7 @@ mod tests {
     }
 
     #[test]
-    fn refactor_resume_interface_uses_out_step_schema_not_surface_ty_for_runtime_error_case() {
+    fn resume_interface_uses_out_step_schema_not_surface_ty_for_runtime_error_case() {
         let source = load_fixture("effect_facts", "dispatch_and_resume_call.scoop");
         let output = build_raw_output(&source);
         let method = output
@@ -5893,11 +5893,11 @@ mod tests {
     }
 
     #[test]
-    fn refactor_continuation_object_one_shot_runtime_error_preserves_surface_row_in_shell() {
-        let session = refactor_session();
+    fn continuation_object_one_shot_runtime_error_preserves_surface_row_in_shell() {
+        let session = session();
         let source = load_fixture("effect_facts", "single_case_impl_plan.scoop");
         let output = load_effect_lowered_stage_output_for_dump(&session, &source)
-            .expect("fixture 应可通过 refactor late-lowering stage");
+            .expect("fixture 应可通过 late-lowering stage");
         let leaf = output
             .program()
             .callable("sample.leaf")
@@ -5947,11 +5947,11 @@ mod tests {
     }
 
     #[test]
-    fn refactor_effect_lowered_stage_surface_ty_does_not_control_runtime_error_case_contracts() {
-        let session = refactor_session();
+    fn effect_lowered_stage_surface_ty_does_not_control_runtime_error_case_contracts() {
+        let session = session();
         let source = load_fixture("effect_facts", "dispatch_and_resume_call.scoop");
         let output = load_effect_lowered_stage_output_for_dump(&session, &source)
-            .expect("fixture 应可通过 refactor late-lowering stage");
+            .expect("fixture 应可通过 late-lowering stage");
         let widened_surface_method = output
             .program()
             .resume_packings()

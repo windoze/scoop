@@ -186,7 +186,7 @@ pub struct File {
 }
 
 #[derive(Clone, Copy)]
-struct RefactorProductionSiteContext<'a> {
+struct ProductionSiteContext<'a> {
     fqn: &'a str,
     block: BasicBlockId,
     span: Span,
@@ -222,17 +222,17 @@ fn is_cross_thread_resume_intrinsic(callee_fqn: &str) -> bool {
 }
 
 impl File {
-    /// Production verifier for refactor MIR stage output.
+    /// Production verifier for MIR stage output.
     ///
-    /// Dump/debug paths may still inspect incomplete MIR, but the production refactor stage must
+    /// Dump/debug paths may still inspect incomplete MIR, but the production stage must
     /// not successfully hand off executable placeholders or ambiguous return/site contracts.
-    pub fn validate_refactor_production(&self, unit_ty: TypeId) -> Result<(), MirValidationError> {
+    pub fn validate_production(&self, unit_ty: TypeId) -> Result<(), MirValidationError> {
         for item in &self.items {
             match item {
-                Item::Fun(fun) => self.validate_refactor_production_fun(fun, unit_ty)?,
+                Item::Fun(fun) => self.validate_production_fun(fun, unit_ty)?,
                 Item::InitializerRoot(_) | Item::ExternGlobal(_) | Item::Metadata(_) => {}
                 Item::Todo { span, kind } => {
-                    return Err(MirValidationError::RefactorProductionTodo {
+                    return Err(MirValidationError::ProductionTodo {
                         fqn: "<file>".to_string(),
                         block: None,
                         span: *span,
@@ -246,7 +246,7 @@ impl File {
         Ok(())
     }
 
-    fn validate_refactor_production_fun(
+    fn validate_production_fun(
         &self,
         fun: &FunDecl,
         unit_ty: TypeId,
@@ -255,21 +255,21 @@ impl File {
             return Ok(());
         };
 
-        body.validate_refactor_direct_style()
+        body.validate_direct_style()
             .map_err(|error| match error {
-                MirValidationError::RefactorTodo {
+                MirValidationError::Todo {
                     block,
                     span,
                     category,
                     reason,
-                } => MirValidationError::RefactorProductionTodo {
+                } => MirValidationError::ProductionTodo {
                     fqn: fun.fqn.clone(),
                     block: Some(block),
                     span,
                     category,
                     reason,
                 },
-                other => MirValidationError::RefactorProductionBodyContract {
+                other => MirValidationError::ProductionBodyContract {
                     fqn: fun.fqn.clone(),
                     error: Box::new(other),
                 },
@@ -279,22 +279,22 @@ impl File {
             let block_id = BasicBlockId(index as u32);
 
             for stmt in &block.stmts {
-                self.validate_refactor_production_statement(&fun.fqn, body, block_id, stmt)?;
+                self.validate_production_statement(&fun.fqn, body, block_id, stmt)?;
             }
 
-            self.validate_refactor_production_unwind(
+            self.validate_production_unwind(
                 &fun.fqn,
                 block_id,
                 block.terminator.span,
                 &block.terminator.unwind,
             )?;
-            self.validate_refactor_production_terminator(fun, body, block_id, block, unit_ty)?;
+            self.validate_production_terminator(fun, body, block_id, block, unit_ty)?;
         }
 
         Ok(())
     }
 
-    fn validate_refactor_production_statement(
+    fn validate_production_statement(
         &self,
         fqn: &str,
         body: &Body,
@@ -303,22 +303,22 @@ impl File {
     ) -> Result<(), MirValidationError> {
         match &stmt.kind {
             StatementKind::Assign { target, value } => {
-                let result_ty = Self::refactor_local_ty(body, *target);
-                self.validate_refactor_production_rvalue(
+                let result_ty = Self::local_ty(body, *target);
+                self.validate_production_rvalue(
                     fqn, body, block, stmt.span, result_ty, value,
                 )
             }
             StatementKind::StoreMember {
                 continuation_route: StoredContinuationRoutePublication::Ambiguous,
                 ..
-            } => Err(MirValidationError::RefactorProductionTransportMetadata {
+            } => Err(MirValidationError::ProductionTransportMetadata {
                 fqn: fqn.to_string(),
                 block,
                 span: stmt.span,
                 transport: "member store continuation route",
                 detail: "ambiguous continuation route must be split or rejected before handoff",
             }),
-            StatementKind::Todo(reason) => Err(MirValidationError::RefactorProductionTodo {
+            StatementKind::Todo(reason) => Err(MirValidationError::ProductionTodo {
                 fqn: fqn.to_string(),
                 block: Some(block),
                 span: stmt.span,
@@ -331,7 +331,7 @@ impl File {
         }
     }
 
-    fn validate_refactor_production_rvalue(
+    fn validate_production_rvalue(
         &self,
         fqn: &str,
         body: &Body,
@@ -340,24 +340,24 @@ impl File {
         result_ty: Option<TypeId>,
         value: &Rvalue,
     ) -> Result<(), MirValidationError> {
-        let site = RefactorProductionSiteContext { fqn, block, span };
+        let site = ProductionSiteContext { fqn, block, span };
         match value {
-            Rvalue::Todo(reason) => Err(MirValidationError::RefactorProductionTodo {
+            Rvalue::Todo(reason) => Err(MirValidationError::ProductionTodo {
                 fqn: fqn.to_string(),
                 block: Some(block),
                 span,
                 category: MirPlaceholderCategory::Rvalue,
                 reason,
             }),
-            Rvalue::Transport { value, transport } => self.validate_refactor_value_transport(
+            Rvalue::Transport { value, transport } => self.validate_value_transport(
                 site,
                 "value erasure",
-                Self::refactor_operand_ty(body, value),
+                Self::operand_ty(body, value),
                 transport,
             )
             .and_then(|()| {
                 let Some(boxing) = &transport.boxing else {
-                    return Err(MirValidationError::RefactorProductionTransportMetadata {
+                    return Err(MirValidationError::ProductionTransportMetadata {
                         fqn: fqn.to_string(),
                         block,
                         span,
@@ -369,7 +369,7 @@ impl File {
                     boxing.reason,
                     MirBoxingReason::AnyErasure | MirBoxingReason::RefErasure
                 ) {
-                    return Err(MirValidationError::RefactorProductionTransportMetadata {
+                    return Err(MirValidationError::ProductionTransportMetadata {
                         fqn: fqn.to_string(),
                         block,
                         span,
@@ -378,7 +378,7 @@ impl File {
                     });
                 }
                 if boxing.target_ty.is_none() {
-                    return Err(MirValidationError::RefactorProductionTransportMetadata {
+                    return Err(MirValidationError::ProductionTransportMetadata {
                         fqn: fqn.to_string(),
                         block,
                         span,
@@ -387,7 +387,7 @@ impl File {
                     });
                 }
                 if result_ty.is_some_and(|target_ty| boxing.target_ty != Some(target_ty)) {
-                    return Err(MirValidationError::RefactorProductionTransportMetadata {
+                    return Err(MirValidationError::ProductionTransportMetadata {
                         fqn: fqn.to_string(),
                         block,
                         span,
@@ -403,15 +403,15 @@ impl File {
                 transport,
                 ..
             } => {
-                self.validate_refactor_production_call_kind(fqn, block, span, kind)?;
-                self.validate_refactor_value_transport(
+                self.validate_production_call_kind(fqn, block, span, kind)?;
+                self.validate_value_transport(
                     site,
                     "call result",
                     result_ty,
                     &transport.result,
                 )?;
                 if let Some(aggregate_return) = &transport.aggregate_return {
-                    self.validate_refactor_value_transport(
+                    self.validate_value_transport(
                         site,
                         "call aggregate return",
                         result_ty,
@@ -419,15 +419,15 @@ impl File {
                     )?;
                 }
                 if let Some(array) = &transport.array {
-                    self.validate_refactor_value_transport(
+                    self.validate_value_transport(
                         site,
                         "array element",
                         Some(array.element_ty),
                         &array.element,
                     )?;
                 }
-                self.validate_refactor_gc_intrinsic_transport(site, kind, result_ty, transport)?;
-                self.validate_refactor_thread_resume_payload_transport(
+                self.validate_gc_intrinsic_transport(site, kind, result_ty, transport)?;
+                self.validate_thread_resume_payload_transport(
                     site, body, kind, args, transport,
                 )?;
                 Ok(())
@@ -443,11 +443,11 @@ impl File {
                     .map(|arg| {
                         (
                             arg.name.as_deref(),
-                            Self::refactor_operand_ty(body, &arg.value),
+                            Self::operand_ty(body, &arg.value),
                         )
                     })
                     .collect::<Vec<_>>();
-                self.validate_refactor_aggregate_transport(
+                self.validate_aggregate_transport(
                     site,
                     "enum payload",
                     *enum_ty,
@@ -462,9 +462,9 @@ impl File {
             } => {
                 let expected_fields = elements
                     .iter()
-                    .map(|element| (None, Self::refactor_operand_ty(body, element)))
+                    .map(|element| (None, Self::operand_ty(body, element)))
                     .collect::<Vec<_>>();
-                self.validate_refactor_aggregate_transport(
+                self.validate_aggregate_transport(
                     site,
                     "tuple aggregate",
                     result_ty.unwrap_or(transport.aggregate_ty),
@@ -479,11 +479,11 @@ impl File {
                     .map(|field| {
                         (
                             Some(field.name.as_str()),
-                            Self::refactor_operand_ty(body, &field.value),
+                            Self::operand_ty(body, &field.value),
                         )
                     })
                     .collect::<Vec<_>>();
-                self.validate_refactor_aggregate_transport(
+                self.validate_aggregate_transport(
                     site,
                     "struct aggregate",
                     result_ty.unwrap_or(transport.aggregate_ty),
@@ -492,13 +492,13 @@ impl File {
                     transport,
                 )
             }
-            Rvalue::CaptureBoxNew { value, contract } => self.validate_refactor_value_transport(
+            Rvalue::CaptureBoxNew { value, contract } => self.validate_value_transport(
                 site,
                 "capture box value",
-                Self::refactor_operand_ty(body, value),
+                Self::operand_ty(body, value),
                 &contract.value,
             ),
-            Rvalue::CaptureBoxGet { contract, .. } => self.validate_refactor_value_transport(
+            Rvalue::CaptureBoxGet { contract, .. } => self.validate_value_transport(
                 site,
                 "capture box value",
                 Some(contract.value.source_ty),
@@ -506,19 +506,19 @@ impl File {
             ),
             Rvalue::CaptureBoxSet {
                 value, contract, ..
-            } => self.validate_refactor_value_transport(
+            } => self.validate_value_transport(
                 site,
                 "capture box value",
-                Self::refactor_operand_ty(body, value),
+                Self::operand_ty(body, value),
                 &contract.value,
             ),
             Rvalue::MakeClosure {
                 env, env_contract, ..
             } => {
-                if Self::refactor_operand_ty(body, env)
+                if Self::operand_ty(body, env)
                     .is_some_and(|env_ty| env_ty != env_contract.env_ty)
                 {
-                    return Err(MirValidationError::RefactorProductionTransportMetadata {
+                    return Err(MirValidationError::ProductionTransportMetadata {
                         fqn: fqn.to_string(),
                         block,
                         span,
@@ -533,9 +533,9 @@ impl File {
                 test_ty,
                 metadata,
                 ..
-            } => self.validate_refactor_type_test_metadata(
+            } => self.validate_type_test_metadata(
                 site,
-                Self::refactor_operand_ty(body, value),
+                Self::operand_ty(body, value),
                 *test_ty,
                 metadata,
             ),
@@ -545,43 +545,43 @@ impl File {
                 target_ty,
                 metadata,
                 ..
-            } => self.validate_refactor_cast_metadata(
+            } => self.validate_cast_metadata(
                 site,
                 *op,
-                Self::refactor_operand_ty(body, value),
+                Self::operand_ty(body, value),
                 *target_ty,
                 result_ty,
                 metadata,
             ),
-            Rvalue::PatternMatch { subject, pattern } => self.validate_refactor_pattern_metadata(
+            Rvalue::PatternMatch { subject, pattern } => self.validate_pattern_metadata(
                 site,
-                Self::refactor_operand_ty(body, subject),
+                Self::operand_ty(body, subject),
                 pattern,
             ),
             _ => Ok(()),
         }
     }
 
-    fn refactor_local_ty(body: &Body, local: LocalId) -> Option<TypeId> {
+    fn local_ty(body: &Body, local: LocalId) -> Option<TypeId> {
         body.locals.get(local.as_u32() as usize).map(|decl| decl.ty)
     }
 
-    fn refactor_operand_ty(body: &Body, operand: &Operand) -> Option<TypeId> {
+    fn operand_ty(body: &Body, operand: &Operand) -> Option<TypeId> {
         match operand {
-            Operand::Local(local) => Self::refactor_local_ty(body, *local),
+            Operand::Local(local) => Self::local_ty(body, *local),
             Operand::Const(_) => None,
         }
     }
 
-    fn validate_refactor_type_test_metadata(
+    fn validate_type_test_metadata(
         &self,
-        site: RefactorProductionSiteContext<'_>,
+        site: ProductionSiteContext<'_>,
         expected_source_ty: Option<TypeId>,
         expected_target_ty: TypeId,
         metadata: &RuntimeTypeTestMetadata,
     ) -> Result<(), MirValidationError> {
         if expected_source_ty.is_some_and(|source_ty| metadata.source_ty != source_ty) {
-            return Err(MirValidationError::RefactorProductionRuntimeValueMetadata {
+            return Err(MirValidationError::ProductionRuntimeValueMetadata {
                 fqn: site.fqn.to_string(),
                 block: site.block,
                 span: site.span,
@@ -591,7 +591,7 @@ impl File {
         }
         if metadata.target_ty != expected_target_ty || metadata.descriptor.ty != expected_target_ty
         {
-            return Err(MirValidationError::RefactorProductionRuntimeValueMetadata {
+            return Err(MirValidationError::ProductionRuntimeValueMetadata {
                 fqn: site.fqn.to_string(),
                 block: site.block,
                 span: site.span,
@@ -602,15 +602,15 @@ impl File {
         Ok(())
     }
 
-    fn validate_refactor_value_transport(
+    fn validate_value_transport(
         &self,
-        site: RefactorProductionSiteContext<'_>,
+        site: ProductionSiteContext<'_>,
         transport: &'static str,
         expected_source_ty: Option<TypeId>,
         metadata: &ValueTransportMetadata,
     ) -> Result<(), MirValidationError> {
         if expected_source_ty.is_some_and(|source_ty| metadata.source_ty != source_ty) {
-            return Err(MirValidationError::RefactorProductionTransportMetadata {
+            return Err(MirValidationError::ProductionTransportMetadata {
                 fqn: site.fqn.to_string(),
                 block: site.block,
                 span: site.span,
@@ -623,7 +623,7 @@ impl File {
             .as_ref()
             .is_some_and(|boxing| boxing.source_ty != metadata.source_ty)
         {
-            return Err(MirValidationError::RefactorProductionTransportMetadata {
+            return Err(MirValidationError::ProductionTransportMetadata {
                 fqn: site.fqn.to_string(),
                 block: site.block,
                 span: site.span,
@@ -634,9 +634,9 @@ impl File {
         Ok(())
     }
 
-    fn validate_refactor_gc_intrinsic_transport(
+    fn validate_gc_intrinsic_transport(
         &self,
-        site: RefactorProductionSiteContext<'_>,
+        site: ProductionSiteContext<'_>,
         kind: &CallKind,
         result_ty: Option<TypeId>,
         transport: &CallTransportMetadata,
@@ -653,7 +653,7 @@ impl File {
 
         let Some(gc) = &transport.gc else {
             if direct_operation.is_some() {
-                return Err(MirValidationError::RefactorProductionTransportMetadata {
+                return Err(MirValidationError::ProductionTransportMetadata {
                     fqn: site.fqn.to_string(),
                     block: site.block,
                     span: site.span,
@@ -665,7 +665,7 @@ impl File {
         };
 
         let Some(expected_operation) = gc_intrinsic_operation(&gc.callee_fqn) else {
-            return Err(MirValidationError::RefactorProductionTransportMetadata {
+            return Err(MirValidationError::ProductionTransportMetadata {
                 fqn: site.fqn.to_string(),
                 block: site.block,
                 span: site.span,
@@ -725,7 +725,7 @@ impl File {
         };
 
         if let Some(detail) = detail {
-            return Err(MirValidationError::RefactorProductionTransportMetadata {
+            return Err(MirValidationError::ProductionTransportMetadata {
                 fqn: site.fqn.to_string(),
                 block: site.block,
                 span: site.span,
@@ -734,7 +734,7 @@ impl File {
             });
         }
 
-        self.validate_refactor_value_transport(
+        self.validate_value_transport(
             site,
             "GC intrinsic subject",
             Some(gc.subject_ty),
@@ -742,9 +742,9 @@ impl File {
         )
     }
 
-    fn validate_refactor_thread_resume_payload_transport(
+    fn validate_thread_resume_payload_transport(
         &self,
-        site: RefactorProductionSiteContext<'_>,
+        site: ProductionSiteContext<'_>,
         body: &Body,
         kind: &CallKind,
         args: &[CallArg],
@@ -762,7 +762,7 @@ impl File {
 
         let Some(payload) = &transport.thread_resume_payload else {
             if direct_thread_resume {
-                return Err(MirValidationError::RefactorProductionTransportMetadata {
+                return Err(MirValidationError::ProductionTransportMetadata {
                     fqn: site.fqn.to_string(),
                     block: site.block,
                     span: site.span,
@@ -774,7 +774,7 @@ impl File {
         };
 
         if !direct_thread_resume {
-            return Err(MirValidationError::RefactorProductionTransportMetadata {
+            return Err(MirValidationError::ProductionTransportMetadata {
                 fqn: site.fqn.to_string(),
                 block: site.block,
                 span: site.span,
@@ -785,11 +785,11 @@ impl File {
 
         let expected_ty = args
             .get(1)
-            .and_then(|arg| Self::refactor_operand_ty(body, &arg.value));
+            .and_then(|arg| Self::operand_ty(body, &arg.value));
         if payload.kind != MirTransportKind::EffectPayload
             || expected_ty.is_some_and(|ty| payload.source_ty != ty)
         {
-            return Err(MirValidationError::RefactorProductionTransportMetadata {
+            return Err(MirValidationError::ProductionTransportMetadata {
                 fqn: site.fqn.to_string(),
                 block: site.block,
                 span: site.span,
@@ -798,7 +798,7 @@ impl File {
             });
         }
 
-        self.validate_refactor_value_transport(
+        self.validate_value_transport(
             site,
             "cross-thread resume payload",
             expected_ty,
@@ -806,9 +806,9 @@ impl File {
         )
     }
 
-    fn validate_refactor_aggregate_transport(
+    fn validate_aggregate_transport(
         &self,
-        site: RefactorProductionSiteContext<'_>,
+        site: ProductionSiteContext<'_>,
         transport: &'static str,
         expected_aggregate_ty: TypeId,
         expected_kind: AggregateTransportKind,
@@ -846,7 +846,7 @@ impl File {
         };
 
         if let Some(detail) = detail {
-            return Err(MirValidationError::RefactorProductionTransportMetadata {
+            return Err(MirValidationError::ProductionTransportMetadata {
                 fqn: site.fqn.to_string(),
                 block: site.block,
                 span: site.span,
@@ -855,7 +855,7 @@ impl File {
             });
         }
         for field in &metadata.fields {
-            self.validate_refactor_value_transport(
+            self.validate_value_transport(
                 site,
                 transport,
                 Some(field.ty),
@@ -865,16 +865,16 @@ impl File {
         Ok(())
     }
 
-    fn validate_refactor_cast_metadata(
+    fn validate_cast_metadata(
         &self,
-        site: RefactorProductionSiteContext<'_>,
+        site: ProductionSiteContext<'_>,
         op: ast::CastOp,
         expected_source_ty: Option<TypeId>,
         expected_target_ty: TypeId,
         expected_result_ty: Option<TypeId>,
         metadata: &RuntimeCastMetadata,
     ) -> Result<(), MirValidationError> {
-        self.validate_refactor_type_test_metadata(
+        self.validate_type_test_metadata(
             site,
             expected_source_ty,
             expected_target_ty,
@@ -900,7 +900,7 @@ impl File {
                     (expected_result_ty, &metadata.result)
                     && *option_ty != result_ty
                 {
-                    return Err(MirValidationError::RefactorProductionRuntimeValueMetadata {
+                    return Err(MirValidationError::ProductionRuntimeValueMetadata {
                         fqn: site.fqn.to_string(),
                         block: site.block,
                         span: site.span,
@@ -910,7 +910,7 @@ impl File {
                 }
                 Ok(())
             }
-            _ => Err(MirValidationError::RefactorProductionRuntimeValueMetadata {
+            _ => Err(MirValidationError::ProductionRuntimeValueMetadata {
                 fqn: site.fqn.to_string(),
                 block: site.block,
                 span: site.span,
@@ -920,16 +920,16 @@ impl File {
         }
     }
 
-    fn validate_refactor_pattern_metadata(
+    fn validate_pattern_metadata(
         &self,
-        site: RefactorProductionSiteContext<'_>,
+        site: ProductionSiteContext<'_>,
         expected_subject_ty: Option<TypeId>,
         pattern: &Pattern,
     ) -> Result<(), MirValidationError> {
         match pattern {
             Pattern::Is { ty, metadata } => {
                 if expected_subject_ty.is_some_and(|subject_ty| metadata.subject_ty != subject_ty) {
-                    return Err(MirValidationError::RefactorProductionRuntimeValueMetadata {
+                    return Err(MirValidationError::ProductionRuntimeValueMetadata {
                         fqn: site.fqn.to_string(),
                         block: site.block,
                         span: site.span,
@@ -938,7 +938,7 @@ impl File {
                     });
                 }
                 if metadata.target_ty != *ty || metadata.descriptor.ty != *ty {
-                    return Err(MirValidationError::RefactorProductionRuntimeValueMetadata {
+                    return Err(MirValidationError::ProductionRuntimeValueMetadata {
                         fqn: site.fqn.to_string(),
                         block: site.block,
                         span: site.span,
@@ -950,19 +950,19 @@ impl File {
             }
             Pattern::Or { pats } => {
                 for pat in pats {
-                    self.validate_refactor_pattern_metadata(site, expected_subject_ty, pat)?;
+                    self.validate_pattern_metadata(site, expected_subject_ty, pat)?;
                 }
                 Ok(())
             }
             Pattern::Tuple { elements } => {
                 for element in elements {
-                    self.validate_refactor_pattern_metadata(site, None, element)?;
+                    self.validate_pattern_metadata(site, None, element)?;
                 }
                 Ok(())
             }
             Pattern::Variant { args, .. } => {
                 for arg in args {
-                    self.validate_refactor_pattern_metadata(site, None, arg)?;
+                    self.validate_pattern_metadata(site, None, arg)?;
                 }
                 Ok(())
             }
@@ -977,7 +977,7 @@ impl File {
         }
     }
 
-    fn validate_refactor_production_call_kind(
+    fn validate_production_call_kind(
         &self,
         fqn: &str,
         block: BasicBlockId,
@@ -986,7 +986,7 @@ impl File {
     ) -> Result<(), MirValidationError> {
         match kind {
             CallKind::Direct { callee_fqn } if callee_fqn.is_empty() => {
-                Err(MirValidationError::RefactorProductionSiteMetadata {
+                Err(MirValidationError::ProductionSiteMetadata {
                     fqn: fqn.to_string(),
                     block,
                     span,
@@ -995,7 +995,7 @@ impl File {
                 })
             }
             CallKind::Closure { fn_ptr, .. } if fn_ptr.is_empty() => {
-                Err(MirValidationError::RefactorProductionSiteMetadata {
+                Err(MirValidationError::ProductionSiteMetadata {
                     fqn: fqn.to_string(),
                     block,
                     span,
@@ -1008,7 +1008,7 @@ impl File {
                     || dispatch.member_name.is_empty()
                     || dispatch.member_fqn.is_empty() =>
             {
-                Err(MirValidationError::RefactorProductionSiteMetadata {
+                Err(MirValidationError::ProductionSiteMetadata {
                     fqn: fqn.to_string(),
                     block,
                     span,
@@ -1017,7 +1017,7 @@ impl File {
                 })
             }
             CallKind::Resume { resume, .. } if resume.runtime_error_effect_ty.is_none() => {
-                Err(MirValidationError::RefactorProductionSiteMetadata {
+                Err(MirValidationError::ProductionSiteMetadata {
                     fqn: fqn.to_string(),
                     block,
                     span,
@@ -1035,7 +1035,7 @@ impl File {
         }
     }
 
-    fn validate_refactor_production_unwind(
+    fn validate_production_unwind(
         &self,
         fqn: &str,
         block: BasicBlockId,
@@ -1043,7 +1043,7 @@ impl File {
         unwind: &UnwindAction,
     ) -> Result<(), MirValidationError> {
         match unwind {
-            UnwindAction::Todo(reason) => Err(MirValidationError::RefactorProductionTodo {
+            UnwindAction::Todo(reason) => Err(MirValidationError::ProductionTodo {
                 fqn: fqn.to_string(),
                 block: Some(block),
                 span,
@@ -1056,7 +1056,7 @@ impl File {
         }
     }
 
-    fn validate_refactor_production_terminator(
+    fn validate_production_terminator(
         &self,
         fun: &FunDecl,
         body: &Body,
@@ -1066,14 +1066,14 @@ impl File {
     ) -> Result<(), MirValidationError> {
         match &block.terminator.kind {
             TerminatorKind::Return { value: None } if fun.return_ty != unit_ty => {
-                Err(MirValidationError::RefactorProductionMissingReturnValue {
+                Err(MirValidationError::ProductionMissingReturnValue {
                     fqn: fun.fqn.clone(),
                     block: block_id,
                     span: block.terminator.span,
                     return_ty: fun.return_ty,
                 })
             }
-            TerminatorKind::Todo(reason) => Err(MirValidationError::RefactorProductionTodo {
+            TerminatorKind::Todo(reason) => Err(MirValidationError::ProductionTodo {
                 fqn: fun.fqn.clone(),
                 block: Some(block_id),
                 span: block.terminator.span,
@@ -1086,12 +1086,12 @@ impl File {
                 args,
                 ..
             } => {
-                let site = RefactorProductionSiteContext {
+                let site = ProductionSiteContext {
                     fqn: &fun.fqn,
                     block: block_id,
                     span: block.terminator.span,
                 };
-                self.validate_refactor_production_perform(
+                self.validate_production_perform(
                     site,
                     body,
                     op_fqn,
@@ -1105,7 +1105,7 @@ impl File {
                 arms,
                 has_finally,
                 ..
-            } => self.validate_refactor_production_handle(
+            } => self.validate_production_handle(
                 &fun.fqn,
                 block_id,
                 block.terminator.span,
@@ -1122,9 +1122,9 @@ impl File {
         }
     }
 
-    fn validate_refactor_production_perform(
+    fn validate_production_perform(
         &self,
-        site: RefactorProductionSiteContext<'_>,
+        site: ProductionSiteContext<'_>,
         body: &Body,
         op_fqn: &str,
         metadata: &PerformMetadata,
@@ -1158,7 +1158,7 @@ impl File {
             .iter()
             .zip(args.iter())
             .any(|(transport, arg)| {
-                Self::refactor_operand_ty(body, &arg.value)
+                Self::operand_ty(body, &arg.value)
                     .is_some_and(|ty| transport.source_ty != ty)
             })
         {
@@ -1170,7 +1170,7 @@ impl File {
         };
 
         if let Some(detail) = detail {
-            return Err(MirValidationError::RefactorProductionSiteMetadata {
+            return Err(MirValidationError::ProductionSiteMetadata {
                 fqn: site.fqn.to_string(),
                 block: site.block,
                 span: site.span,
@@ -1184,7 +1184,7 @@ impl File {
             .iter()
             .zip(metadata.payload_component_tys.iter().copied())
         {
-            self.validate_refactor_value_transport(
+            self.validate_value_transport(
                 site,
                 "perform payload",
                 Some(component_ty),
@@ -1195,7 +1195,7 @@ impl File {
         Ok(())
     }
 
-    fn validate_refactor_production_handle(
+    fn validate_production_handle(
         &self,
         fqn: &str,
         block: BasicBlockId,
@@ -1233,7 +1233,7 @@ impl File {
         }
 
         if let Some(detail) = detail {
-            return Err(MirValidationError::RefactorProductionSiteMetadata {
+            return Err(MirValidationError::ProductionSiteMetadata {
                 fqn: fqn.to_string(),
                 block,
                 span,
@@ -1250,7 +1250,7 @@ impl File {
 #[derive(Debug, Clone)]
 pub enum Item {
     Fun(FunDecl),
-    /// Non-function root used by later refactor stages to discover top-level initialization.
+    /// Non-function root used by later stages to discover top-level initialization.
     InitializerRoot(InitializerRoot),
     /// External global storage contract published by typed HIR and owned by MIR stage output.
     ExternGlobal(ExternGlobalRoot),
@@ -1661,14 +1661,14 @@ impl Body {
         Ok(())
     }
 
-    /// 针对 refactor direct-style MIR 的额外形状校验。
+    /// 针对 direct-style MIR 的额外形状校验。
     ///
     /// 说明：
     /// - 该验证器建立在 `validate_cfg()` 之上，因此会先检查所有 CFG/cleanup target 是否落在
     ///   `blocks` 范围内；
     /// - 它只约束 P3/P4 会依赖的 direct-style MIR contract，不试图把当前整个 MIR 限制为
     ///   “完全无 Todo”；未纳入本阶段的表达式 lowering 仍可继续用其它 `Todo(...)` 占位。
-    pub fn validate_refactor_direct_style(&self) -> Result<(), MirValidationError> {
+    pub fn validate_direct_style(&self) -> Result<(), MirValidationError> {
         self.validate_cfg()?;
 
         let mut seen_site_ids = HashMap::new();
@@ -1676,7 +1676,7 @@ impl Body {
             let block_id = BasicBlockId(index as u32);
 
             for stmt in &block.stmts {
-                self.validate_refactor_statement(block_id, stmt)?;
+                self.validate_statement(block_id, stmt)?;
                 let StatementKind::Assign { value, .. } = &stmt.kind else {
                     continue;
                 };
@@ -1691,12 +1691,12 @@ impl Body {
                 }
             }
 
-            self.validate_refactor_unwind(
+            self.validate_unwind(
                 block_id,
                 block.terminator.span,
                 &block.terminator.unwind,
             )?;
-            self.validate_refactor_terminator(
+            self.validate_terminator(
                 block_id,
                 block.terminator.span,
                 &block.terminator.kind,
@@ -1715,7 +1715,7 @@ impl Body {
         Ok(())
     }
 
-    fn validate_refactor_statement(
+    fn validate_statement(
         &self,
         block: BasicBlockId,
         stmt: &Statement,
@@ -1723,12 +1723,12 @@ impl Body {
         match &stmt.kind {
             StatementKind::Nop => Ok(()),
             StatementKind::Assign { value, .. } => {
-                self.validate_refactor_rvalue(block, stmt.span, value)
+                self.validate_rvalue(block, stmt.span, value)
             }
             StatementKind::StoreMember { .. } | StatementKind::StoreTopLevelVar { .. } => Ok(()),
             StatementKind::Todo(reason) => {
-                if is_forbidden_refactor_effect_todo(reason) {
-                    return Err(MirValidationError::RefactorTodo {
+                if is_forbidden_effect_todo(reason) {
+                    return Err(MirValidationError::Todo {
                         block,
                         span: stmt.span,
                         category: MirPlaceholderCategory::Statement,
@@ -1740,16 +1740,16 @@ impl Body {
         }
     }
 
-    fn validate_refactor_rvalue(
+    fn validate_rvalue(
         &self,
         block: BasicBlockId,
         span: Span,
         value: &Rvalue,
     ) -> Result<(), MirValidationError> {
         if let Rvalue::Todo(reason) = value
-            && is_forbidden_refactor_effect_todo(reason)
+            && is_forbidden_effect_todo(reason)
         {
-            return Err(MirValidationError::RefactorTodo {
+            return Err(MirValidationError::Todo {
                 block,
                 span,
                 category: MirPlaceholderCategory::Rvalue,
@@ -1759,7 +1759,7 @@ impl Body {
         Ok(())
     }
 
-    fn validate_refactor_unwind(
+    fn validate_unwind(
         &self,
         block: BasicBlockId,
         span: Span,
@@ -1776,7 +1776,7 @@ impl Body {
                 }
                 Ok(())
             }
-            UnwindAction::Todo(reason) => Err(MirValidationError::RefactorTodo {
+            UnwindAction::Todo(reason) => Err(MirValidationError::Todo {
                 block,
                 span,
                 category: MirPlaceholderCategory::UnwindAction,
@@ -1785,7 +1785,7 @@ impl Body {
         }
     }
 
-    fn validate_refactor_terminator(
+    fn validate_terminator(
         &self,
         block: BasicBlockId,
         span: Span,
@@ -1831,8 +1831,8 @@ impl Body {
                 }
                 Ok(())
             }
-            TerminatorKind::Todo(reason) if is_forbidden_refactor_effect_todo(reason) => {
-                Err(MirValidationError::RefactorTodo {
+            TerminatorKind::Todo(reason) if is_forbidden_effect_todo(reason) => {
+                Err(MirValidationError::Todo {
                     block,
                     span,
                     category: MirPlaceholderCategory::Terminator,
@@ -2829,43 +2829,43 @@ pub enum MirValidationError {
         blocks_len: usize,
     },
     #[error(
-        "refactor MIR still contains forbidden {category} todo `{reason}` in {block:?} at {span:?}"
+        "MIR still contains forbidden {category} todo `{reason}` in {block:?} at {span:?}"
     )]
-    RefactorTodo {
+    Todo {
         block: BasicBlockId,
         span: Span,
         category: MirPlaceholderCategory,
         reason: &'static str,
     },
     #[error(
-        "refactor production MIR `{fqn}` contains {category} todo `{reason}` in {block:?} at {span:?}"
+        "production MIR `{fqn}` contains {category} todo `{reason}` in {block:?} at {span:?}"
     )]
-    RefactorProductionTodo {
+    ProductionTodo {
         fqn: String,
         block: Option<BasicBlockId>,
         span: Span,
         category: MirPlaceholderCategory,
         reason: &'static str,
     },
-    #[error("refactor production MIR `{fqn}` failed direct-style contract: {error}")]
-    RefactorProductionBodyContract {
+    #[error("production MIR `{fqn}` failed direct-style contract: {error}")]
+    ProductionBodyContract {
         fqn: String,
         #[source]
         error: Box<MirValidationError>,
     },
     #[error(
-        "refactor production MIR `{fqn}` has non-Unit return type {return_ty:?} but returns no value in {block:?} at {span:?}"
+        "production MIR `{fqn}` has non-Unit return type {return_ty:?} but returns no value in {block:?} at {span:?}"
     )]
-    RefactorProductionMissingReturnValue {
+    ProductionMissingReturnValue {
         fqn: String,
         block: BasicBlockId,
         span: Span,
         return_ty: TypeId,
     },
     #[error(
-        "refactor production MIR `{fqn}` has incomplete {site} site metadata in {block:?} at {span:?}: {detail}"
+        "production MIR `{fqn}` has incomplete {site} site metadata in {block:?} at {span:?}: {detail}"
     )]
-    RefactorProductionSiteMetadata {
+    ProductionSiteMetadata {
         fqn: String,
         block: BasicBlockId,
         span: Span,
@@ -2873,9 +2873,9 @@ pub enum MirValidationError {
         detail: &'static str,
     },
     #[error(
-        "refactor production MIR `{fqn}` has incomplete {primitive} runtime value metadata in {block:?} at {span:?}: {detail}"
+        "production MIR `{fqn}` has incomplete {primitive} runtime value metadata in {block:?} at {span:?}: {detail}"
     )]
-    RefactorProductionRuntimeValueMetadata {
+    ProductionRuntimeValueMetadata {
         fqn: String,
         block: BasicBlockId,
         span: Span,
@@ -2883,9 +2883,9 @@ pub enum MirValidationError {
         detail: &'static str,
     },
     #[error(
-        "refactor production MIR `{fqn}` has incomplete {transport} transport metadata in {block:?} at {span:?}: {detail}"
+        "production MIR `{fqn}` has incomplete {transport} transport metadata in {block:?} at {span:?}: {detail}"
     )]
-    RefactorProductionTransportMetadata {
+    ProductionTransportMetadata {
         fqn: String,
         block: BasicBlockId,
         span: Span,
@@ -2895,14 +2895,14 @@ pub enum MirValidationError {
 }
 
 impl MirValidationError {
-    pub fn refactor_body_fqn(&self) -> Option<&str> {
+    pub fn body_fqn(&self) -> Option<&str> {
         match self {
-            MirValidationError::RefactorProductionTodo { fqn, .. }
-            | MirValidationError::RefactorProductionBodyContract { fqn, .. }
-            | MirValidationError::RefactorProductionMissingReturnValue { fqn, .. }
-            | MirValidationError::RefactorProductionSiteMetadata { fqn, .. }
-            | MirValidationError::RefactorProductionRuntimeValueMetadata { fqn, .. }
-            | MirValidationError::RefactorProductionTransportMetadata { fqn, .. } => Some(fqn),
+            MirValidationError::ProductionTodo { fqn, .. }
+            | MirValidationError::ProductionBodyContract { fqn, .. }
+            | MirValidationError::ProductionMissingReturnValue { fqn, .. }
+            | MirValidationError::ProductionSiteMetadata { fqn, .. }
+            | MirValidationError::ProductionRuntimeValueMetadata { fqn, .. }
+            | MirValidationError::ProductionTransportMetadata { fqn, .. } => Some(fqn),
             MirValidationError::EmptyBody
             | MirValidationError::InvalidStartBlock { .. }
             | MirValidationError::InvalidTarget { .. }
@@ -2912,12 +2912,12 @@ impl MirValidationError {
             | MirValidationError::InvalidHandleFinallyTarget { .. }
             | MirValidationError::HandleFinallyTargetNotCleanup { .. }
             | MirValidationError::InvalidHandleExitTarget { .. }
-            | MirValidationError::RefactorTodo { .. } => None,
+            | MirValidationError::Todo { .. } => None,
         }
     }
 }
 
-fn is_forbidden_refactor_effect_todo(reason: &str) -> bool {
+fn is_forbidden_effect_todo(reason: &str) -> bool {
     matches!(
         reason,
         "unterminated"
@@ -3048,7 +3048,7 @@ mod tests {
     }
 
     #[test]
-    fn refactor_mir_no_todo_rejects_item_todo() {
+    fn mir_no_todo_rejects_item_todo() {
         let mut types = TypeStore::new();
         let builtins = types.intern_builtins();
         let file = File {
@@ -3059,8 +3059,8 @@ mod tests {
         };
 
         assert_eq!(
-            file.validate_refactor_production(builtins.unit),
-            Err(MirValidationError::RefactorProductionTodo {
+            file.validate_production(builtins.unit),
+            Err(MirValidationError::ProductionTodo {
                 fqn: "<file>".to_string(),
                 block: None,
                 span: test_span(),
@@ -3071,7 +3071,7 @@ mod tests {
     }
 
     #[test]
-    fn refactor_mir_no_todo_rejects_statement_todo() {
+    fn mir_no_todo_rejects_statement_todo() {
         let mut types = TypeStore::new();
         let builtins = types.intern_builtins();
         let stmt = Statement {
@@ -3088,8 +3088,8 @@ mod tests {
         );
 
         assert_eq!(
-            file.validate_refactor_production(builtins.unit),
-            Err(MirValidationError::RefactorProductionTodo {
+            file.validate_production(builtins.unit),
+            Err(MirValidationError::ProductionTodo {
                 fqn: TEST_FQN.to_string(),
                 block: Some(BasicBlockId(0)),
                 span: test_span(),
@@ -3100,7 +3100,7 @@ mod tests {
     }
 
     #[test]
-    fn refactor_mir_no_todo_rejects_rvalue_todo() {
+    fn mir_no_todo_rejects_rvalue_todo() {
         let mut types = TypeStore::new();
         let builtins = types.intern_builtins();
         let file = production_file(
@@ -3109,8 +3109,8 @@ mod tests {
         );
 
         assert_eq!(
-            file.validate_refactor_production(builtins.unit),
-            Err(MirValidationError::RefactorProductionTodo {
+            file.validate_production(builtins.unit),
+            Err(MirValidationError::ProductionTodo {
                 fqn: TEST_FQN.to_string(),
                 block: Some(BasicBlockId(0)),
                 span: test_span(),
@@ -3121,7 +3121,7 @@ mod tests {
     }
 
     #[test]
-    fn refactor_mir_no_todo_rejects_terminator_todo() {
+    fn mir_no_todo_rejects_terminator_todo() {
         let mut types = TypeStore::new();
         let builtins = types.intern_builtins();
         let file = production_file(
@@ -3134,8 +3134,8 @@ mod tests {
         );
 
         assert_eq!(
-            file.validate_refactor_production(builtins.unit),
-            Err(MirValidationError::RefactorProductionTodo {
+            file.validate_production(builtins.unit),
+            Err(MirValidationError::ProductionTodo {
                 fqn: TEST_FQN.to_string(),
                 block: Some(BasicBlockId(0)),
                 span: test_span(),
@@ -3146,7 +3146,7 @@ mod tests {
     }
 
     #[test]
-    fn refactor_mir_no_todo_direct_style_rejects_unterminated_sentinel() {
+    fn mir_no_todo_direct_style_rejects_unterminated_sentinel() {
         let body = single_block_body(
             Vec::new(),
             TerminatorKind::Todo("unterminated"),
@@ -3154,8 +3154,8 @@ mod tests {
         );
 
         assert_eq!(
-            body.validate_refactor_direct_style(),
-            Err(MirValidationError::RefactorTodo {
+            body.validate_direct_style(),
+            Err(MirValidationError::Todo {
                 block: BasicBlockId(0),
                 span: test_span(),
                 category: MirPlaceholderCategory::Terminator,
@@ -3165,7 +3165,7 @@ mod tests {
     }
 
     #[test]
-    fn refactor_mir_no_todo_rejects_unwind_todo() {
+    fn mir_no_todo_rejects_unwind_todo() {
         let mut types = TypeStore::new();
         let builtins = types.intern_builtins();
         let file = production_file(
@@ -3178,8 +3178,8 @@ mod tests {
         );
 
         assert_eq!(
-            file.validate_refactor_production(builtins.unit),
-            Err(MirValidationError::RefactorProductionTodo {
+            file.validate_production(builtins.unit),
+            Err(MirValidationError::ProductionTodo {
                 fqn: TEST_FQN.to_string(),
                 block: Some(BasicBlockId(0)),
                 span: test_span(),
@@ -3190,7 +3190,7 @@ mod tests {
     }
 
     #[test]
-    fn refactor_mir_no_todo_rejects_non_unit_empty_return() {
+    fn mir_no_todo_rejects_non_unit_empty_return() {
         let mut types = TypeStore::new();
         let builtins = types.intern_builtins();
         let file = production_file(
@@ -3203,8 +3203,8 @@ mod tests {
         );
 
         assert_eq!(
-            file.validate_refactor_production(builtins.unit),
-            Err(MirValidationError::RefactorProductionMissingReturnValue {
+            file.validate_production(builtins.unit),
+            Err(MirValidationError::ProductionMissingReturnValue {
                 fqn: TEST_FQN.to_string(),
                 block: BasicBlockId(0),
                 span: test_span(),
@@ -3214,7 +3214,7 @@ mod tests {
     }
 
     #[test]
-    fn refactor_mir_no_todo_requires_resume_runtime_error_metadata() {
+    fn mir_no_todo_requires_resume_runtime_error_metadata() {
         let mut types = TypeStore::new();
         let builtins = types.intern_builtins();
         let file = production_file(
@@ -3246,8 +3246,8 @@ mod tests {
         );
 
         assert_eq!(
-            file.validate_refactor_production(builtins.unit),
-            Err(MirValidationError::RefactorProductionSiteMetadata {
+            file.validate_production(builtins.unit),
+            Err(MirValidationError::ProductionSiteMetadata {
                 fqn: TEST_FQN.to_string(),
                 block: BasicBlockId(0),
                 span: test_span(),
@@ -3258,7 +3258,7 @@ mod tests {
     }
 
     #[test]
-    fn refactor_mir_value_metadata_rejects_typecheck_source_mismatch() {
+    fn mir_value_metadata_rejects_typecheck_source_mismatch() {
         let mut types = TypeStore::new();
         let builtins = types.intern_builtins();
         let file = production_file(
@@ -3281,8 +3281,8 @@ mod tests {
         );
 
         assert_eq!(
-            file.validate_refactor_production(builtins.unit),
-            Err(MirValidationError::RefactorProductionRuntimeValueMetadata {
+            file.validate_production(builtins.unit),
+            Err(MirValidationError::ProductionRuntimeValueMetadata {
                 fqn: TEST_FQN.to_string(),
                 block: BasicBlockId(0),
                 span: test_span(),
@@ -3293,7 +3293,7 @@ mod tests {
     }
 
     #[test]
-    fn refactor_mir_value_metadata_rejects_asq_result_mismatch() {
+    fn mir_value_metadata_rejects_asq_result_mismatch() {
         let mut types = TypeStore::new();
         let builtins = types.intern_builtins();
         let option_int = types.ty_option(builtins.int);
@@ -3324,8 +3324,8 @@ mod tests {
         );
 
         assert_eq!(
-            file.validate_refactor_production(builtins.unit),
-            Err(MirValidationError::RefactorProductionRuntimeValueMetadata {
+            file.validate_production(builtins.unit),
+            Err(MirValidationError::ProductionRuntimeValueMetadata {
                 fqn: TEST_FQN.to_string(),
                 block: BasicBlockId(0),
                 span: test_span(),
@@ -3336,7 +3336,7 @@ mod tests {
     }
 
     #[test]
-    fn refactor_mir_value_metadata_rejects_pattern_subject_mismatch() {
+    fn mir_value_metadata_rejects_pattern_subject_mismatch() {
         let mut types = TypeStore::new();
         let builtins = types.intern_builtins();
         let file = production_file(
@@ -3363,8 +3363,8 @@ mod tests {
         );
 
         assert_eq!(
-            file.validate_refactor_production(builtins.unit),
-            Err(MirValidationError::RefactorProductionRuntimeValueMetadata {
+            file.validate_production(builtins.unit),
+            Err(MirValidationError::ProductionRuntimeValueMetadata {
                 fqn: TEST_FQN.to_string(),
                 block: BasicBlockId(0),
                 span: test_span(),
@@ -3375,7 +3375,7 @@ mod tests {
     }
 
     #[test]
-    fn refactor_mir_aggregate_transport_rejects_ambiguous_continuation_route() {
+    fn mir_aggregate_transport_rejects_ambiguous_continuation_route() {
         let mut types = TypeStore::new();
         let builtins = types.intern_builtins();
         let mut body = Body::new_empty();
@@ -3418,8 +3418,8 @@ mod tests {
         let file = production_file(builtins.unit, body);
 
         assert_eq!(
-            file.validate_refactor_production(builtins.unit),
-            Err(MirValidationError::RefactorProductionTransportMetadata {
+            file.validate_production(builtins.unit),
+            Err(MirValidationError::ProductionTransportMetadata {
                 fqn: TEST_FQN.to_string(),
                 block: BasicBlockId(0),
                 span: test_span(),
@@ -3430,7 +3430,7 @@ mod tests {
     }
 
     #[test]
-    fn refactor_mir_aggregate_transport_rejects_field_type_mismatch() {
+    fn mir_aggregate_transport_rejects_field_type_mismatch() {
         let mut types = TypeStore::new();
         let builtins = types.intern_builtins();
         let tuple_ty = types.ty_tuple(vec![builtins.int]);
@@ -3481,8 +3481,8 @@ mod tests {
         let file = production_file(builtins.unit, body);
 
         assert_eq!(
-            file.validate_refactor_production(builtins.unit),
-            Err(MirValidationError::RefactorProductionTransportMetadata {
+            file.validate_production(builtins.unit),
+            Err(MirValidationError::ProductionTransportMetadata {
                 fqn: TEST_FQN.to_string(),
                 block: BasicBlockId(0),
                 span: test_span(),
@@ -3493,7 +3493,7 @@ mod tests {
     }
 
     #[test]
-    fn refactor_mir_aggregate_transport_rejects_perform_payload_transport_mismatch() {
+    fn mir_aggregate_transport_rejects_perform_payload_transport_mismatch() {
         let mut types = TypeStore::new();
         let builtins = types.intern_builtins();
         let mut body = Body::new_empty();
@@ -3549,8 +3549,8 @@ mod tests {
         let file = production_file(builtins.unit, body);
 
         assert_eq!(
-            file.validate_refactor_production(builtins.unit),
-            Err(MirValidationError::RefactorProductionSiteMetadata {
+            file.validate_production(builtins.unit),
+            Err(MirValidationError::ProductionSiteMetadata {
                 fqn: TEST_FQN.to_string(),
                 block: BasicBlockId(0),
                 span: test_span(),
@@ -3698,7 +3698,7 @@ mod tests {
     }
 
     #[test]
-    fn refactor_mir_cfg_rejects_cleanup_target_without_cleanup_flag() {
+    fn mir_cfg_rejects_cleanup_target_without_cleanup_flag() {
         let mut types = TypeStore::default();
         let builtins = types.intern_builtins();
         let mut body = Body::new_empty();
@@ -3764,7 +3764,7 @@ mod tests {
         body.start = bb0;
 
         assert_eq!(
-            body.validate_refactor_direct_style(),
+            body.validate_direct_style(),
             Err(MirValidationError::CleanupTargetNotMarked {
                 from: BasicBlockId(0),
                 target: BasicBlockId(2),
@@ -3773,7 +3773,7 @@ mod tests {
     }
 
     #[test]
-    fn refactor_mir_site_id_rejects_duplicate_call_and_terminator_site_ids() {
+    fn mir_site_id_rejects_duplicate_call_and_terminator_site_ids() {
         let mut types = TypeStore::default();
         let builtins = types.intern_builtins();
         let mut body = Body::new_empty();
@@ -3832,7 +3832,7 @@ mod tests {
         body.start = bb0;
 
         assert_eq!(
-            body.validate_refactor_direct_style(),
+            body.validate_direct_style(),
             Err(MirValidationError::DuplicateSiteId {
                 site_id: SiteId::from_raw(0),
                 first_block: BasicBlockId(0),

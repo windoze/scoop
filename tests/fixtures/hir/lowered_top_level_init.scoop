@@ -1,0 +1,22 @@
+// EXPECT: pass
+// EXPECT-HIR: lowered_top_level_init.hir
+// 目标：HIR-T12，typed HIR 输出 top-level init/storage/object/extern-global handoff contract。
+
+package fixtures.hir_init
+
+import scoop.core.*
+
+const val Base: Int = 1
+val Runtime: Int = Base + 1
+
+@Global
+var Counter: Int = Runtime
+
+@Extern(name = "native_counter")
+var NativeCounter: Int
+
+object Holder {
+    val value: Int = Runtime
+}
+
+fun main() {}

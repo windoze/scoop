@@ -554,7 +554,7 @@ use super::*;
         .unwrap()
     }
 
-    fn refactor_session() -> Session {
+    fn session() -> Session {
         Session::with_options(SessionOptions::new()).unwrap()
     }
 
@@ -571,10 +571,10 @@ use super::*;
     }
 
     #[test]
-    fn refactor_hir_collects_scoop_extern_abi_metadata() {
-        let sess = refactor_session();
+    fn hir_collects_scoop_extern_abi_metadata() {
+        let sess = session();
         let src = SourceFile::new_virtual(
-            "<mem>/refactor_hir_collects_scoop_extern_abi_metadata.scoop",
+            "<mem>/hir_collects_scoop_extern_abi_metadata.scoop",
             r#"
 package fixtures.hir
 
@@ -600,10 +600,10 @@ fun managedEcho(value: String): String
     }
 
     #[test]
-    fn refactor_hir_comptime_expands_block_if_for_and_package_if() {
-        let sess = refactor_session();
+    fn hir_comptime_expands_block_if_for_and_package_if() {
+        let sess = session();
         let src = SourceFile::new_virtual(
-            "<mem>/refactor_hir_comptime.scoop",
+            "<mem>/hir_comptime.scoop",
             r#"
 package fixtures.hir_comptime
 
@@ -647,7 +647,7 @@ fun returnsIterationValue(): Int {
         );
 
         let lowered = crate::pipeline::lower_typed_hir_for_dump(&sess, &src)
-            .expect("refactor HIR stage should accept expanded comptime control flow");
+            .expect("HIR stage should accept expanded comptime control flow");
         let dump = format!("{:#?}", lowered.file);
         assert!(
             !dump.contains("Todo"),
@@ -735,10 +735,10 @@ fun returnsIterationValue(): Int {
     }
 
     #[test]
-    fn refactor_hir_tail_if_uses_declared_return_type_hint() {
-        let sess = refactor_session();
+    fn hir_tail_if_uses_declared_return_type_hint() {
+        let sess = session();
         let src = SourceFile::new_virtual(
-            "<mem>/refactor_hir_tail_if_return_expected.scoop",
+            "<mem>/hir_tail_if_return_expected.scoop",
             r#"
 fun main(): Int {
     if (true) { 3 } else { 1 }
@@ -747,7 +747,7 @@ fun main(): Int {
         );
 
         let lowered = crate::pipeline::lower_typed_hir_for_dump(&sess, &src)
-            .expect("refactor HIR stage should lower a tail if with declared return type");
+            .expect("HIR stage should lower a tail if with declared return type");
         let main = find_fun(&lowered, "main");
         let body = main.body.as_ref().expect("main has body");
         assert_eq!(

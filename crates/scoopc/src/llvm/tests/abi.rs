@@ -590,16 +590,16 @@ fun main(): Int {
         |header, function| {
             !header.contains("@main(")
                 && function.contains("load_vtable_fn")
-                && function.contains("call %scoop.refactor.Step")
-                && function.contains("switch i32 %refactor_step_tag")
+                && function.contains("call %scoop.lowered.Step")
+                && function.contains("switch i32 %step_tag")
         },
     );
 
     assert!(
         helper_ir.contains("load_vtable_fn")
-            && helper_ir.contains("call %scoop.refactor.Step")
-            && helper_ir.contains("switch i32 %refactor_step_tag"),
-        "默认 virtual-cone path 的 outward vtable helper 应走 refactor Step dispatch，而不是缺失 helper body 或回落旧 wrapper:\n{helper_ir}"
+            && helper_ir.contains("call %scoop.lowered.Step")
+            && helper_ir.contains("switch i32 %step_tag"),
+        "默认 virtual-cone path 的 outward vtable helper 应走 Step dispatch，而不是缺失 helper body 或回落旧 wrapper:\n{helper_ir}"
     );
     assert!(
         ir.contains("surface_resume_owner_dispatch"),
@@ -651,14 +651,14 @@ fun main(): Int {
             !header.contains("@main(")
                 && function.contains("itable_lookup")
                 && function.contains("load_itable_fn")
-                && function.contains("call %scoop.refactor.Step")
+                && function.contains("call %scoop.lowered.Step")
         });
 
     assert!(
         helper_ir.contains("itable_lookup")
             && helper_ir.contains("load_itable_fn")
-            && helper_ir.contains("call %scoop.refactor.Step"),
-        "默认 virtual-cone path 的 outward itable helper 应走 refactor Step dispatch，而不是缺失 helper body 或回落旧 wrapper:\n{helper_ir}"
+            && helper_ir.contains("call %scoop.lowered.Step"),
+        "默认 virtual-cone path 的 outward itable helper 应走 Step dispatch，而不是缺失 helper body 或回落旧 wrapper:\n{helper_ir}"
     );
     assert!(
         ir.contains("surface_resume_owner_dispatch"),
@@ -703,13 +703,13 @@ fun main(): Int {
             !header.contains("@main(")
                 && stable_id_symbol_is_user_callable(llvm_function_symbol_name(function))
                 && stable_id_ir_contains_hidden_init_call(function)
-                && !function.contains("switch i32 %refactor_step_tag")
+                && !function.contains("switch i32 %step_tag")
         },
     );
 
     assert!(
         stable_id_ir_contains_hidden_init_call(helper_ir)
-            && !helper_ir.contains("switch i32 %refactor_step_tag"),
+            && !helper_ir.contains("switch i32 %step_tag"),
         "object value init access 应保持 plain once-init call surface，而不是进入 Step dispatch:\n{helper_ir}"
     );
 }
@@ -744,13 +744,13 @@ fun main(): Int {
             !header.contains("@main(")
                 && stable_id_symbol_is_user_callable(llvm_function_symbol_name(function))
                 && stable_id_ir_contains_hidden_init_call(function)
-                && !function.contains("switch i32 %refactor_step_tag")
+                && !function.contains("switch i32 %step_tag")
         },
     );
 
     assert!(
         stable_id_ir_contains_hidden_init_call(helper_ir)
-            && !helper_ir.contains("switch i32 %refactor_step_tag"),
+            && !helper_ir.contains("switch i32 %step_tag"),
         "object property init access 应保持 plain once-init call surface，而不是进入 Step dispatch:\n{helper_ir}"
     );
 }
@@ -783,13 +783,13 @@ fun main(): Int {
             !header.contains("@main(")
                 && stable_id_symbol_is_user_callable(llvm_function_symbol_name(function))
                 && stable_id_ir_contains_hidden_init_call(function)
-                && !function.contains("switch i32 %refactor_step_tag")
+                && !function.contains("switch i32 %step_tag")
         },
     );
 
     assert!(
         stable_id_ir_contains_hidden_init_call(helper_ir)
-            && !helper_ir.contains("switch i32 %refactor_step_tag"),
+            && !helper_ir.contains("switch i32 %step_tag"),
         "top-level immutable init access 应保持 plain once-init call surface，而不是进入 Step dispatch:\n{helper_ir}"
     );
 }
@@ -823,19 +823,19 @@ fun main(): Int {
             !header.contains("@main(")
                 && stable_id_symbol_is_user_callable(llvm_function_symbol_name(function))
                 && function.contains("@scoop_test_add_int")
-                && !function.contains("switch i32 %refactor_step_tag")
+                && !function.contains("switch i32 %step_tag")
         },
     );
 
     assert!(
         helper_ir.contains("@scoop_test_add_int")
-            && !helper_ir.contains("switch i32 %refactor_step_tag"),
+            && !helper_ir.contains("switch i32 %step_tag"),
         "ordinary `@Extern` 调用应保持 plain native call surface，而不是进入 Step dispatch:\n{helper_ir}"
     );
 }
 
 #[test]
-pub(super) fn refactor_class_ctor_uses_concrete_generic_instance_layout() {
+pub(super) fn class_ctor_uses_concrete_generic_instance_layout() {
     let source = SourceFile::new_virtual(
         "<mem>/generic_class_instance_layout.scoop",
         r#"
@@ -860,7 +860,7 @@ fun main(): Int {
     let payload_defs = ir
         .lines()
         .filter(|line| {
-            line.starts_with("%scoop.refactor.ClassPayload__h") && line.contains(" = type ")
+            line.starts_with("%scoop.lowered.ClassPayload__h") && line.contains(" = type ")
         })
         .collect::<Vec<_>>();
     assert_eq!(
@@ -880,7 +880,7 @@ fun main(): Int {
     let object_defs = ir
         .lines()
         .filter(|line| {
-            line.starts_with("%scoop.refactor.ClassObject__h") && line.contains(" = type ")
+            line.starts_with("%scoop.lowered.ClassObject__h") && line.contains(" = type ")
         })
         .collect::<Vec<_>>();
     assert_eq!(
@@ -900,7 +900,7 @@ fun main(): Int {
     assert!(
         ir.contains("@scoop_alloc_typed")
             && ir.contains(&format!(
-                "%refactor_class_payload_gep = getelementptr inbounds nuw %{object_ty_name}"
+                "%class_payload_gep = getelementptr inbounds nuw %{object_ty_name}"
             ))
             && ir.contains(&format!(
                 "%class_field_gep = getelementptr inbounds nuw %{payload_ty_name}"
@@ -941,13 +941,13 @@ fun main(): Int {
         .expect("generic class init cleanup path 应可为 type-driven private box 命名生成 IR");
 
     assert!(
-        ir.contains("scoop.refactor.MirValueBox__h")
-            || ir.contains("scoop.refactor.EffectTransportBox__h"),
+        ir.contains("scoop.lowered.MirValueBox__h")
+            || ir.contains("scoop.lowered.EffectTransportBox__h"),
         "generic class init cleanup path 应继续发布 stable-hash private box family，而不是因为 type param resolver 缺失而失败\n{ir}"
     );
     assert!(
         ir.contains("@__scoop_priv0__mir_value_box_type_desc__h")
-            || ir.contains("@__scoop_priv0__refactor_effect_transport_box__h"),
+            || ir.contains("@__scoop_priv0__lowered_effect_transport_box__h"),
         "generic class init cleanup path 应继续发布对应的 stable private descriptor/global anchor\n{ir}"
     );
 }
@@ -1416,8 +1416,8 @@ fun main(): Int {
 
     assert!(
         ir.lines().any(|line| {
-            line.starts_with("%scoop.refactor.EnumBoxedPayloadObject__h")
-                && line.contains(" = type { %scoop.runtime.ScoopGcObjectHeader, %scoop.refactor.EnumBoxedPayloadFields__h")
+            line.starts_with("%scoop.lowered.EnumBoxedPayloadObject__h")
+                && line.contains(" = type { %scoop.runtime.ScoopGcObjectHeader, %scoop.lowered.EnumBoxedPayloadFields__h")
         }),
         "single-field non-scalar payload 应生成 hashed boxed payload object type\n{ir}"
     );

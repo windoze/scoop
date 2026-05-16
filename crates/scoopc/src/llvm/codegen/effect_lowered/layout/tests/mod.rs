@@ -25,7 +25,7 @@ use crate::effect_lowered::ir::{
 use crate::effect_lowered::{
     LateLoweredOptOptions, LateLoweredProgramBuilder, optimize_program_with_options,
 };
-use crate::llvm::codegen::effect_lowered::types::RefactorCallTargetQuery;
+use crate::llvm::codegen::effect_lowered::types::CallTargetQuery;
 use crate::llvm::codegen::{
     CompilationUnitCodegenCx, CompilationUnitCodegenInputs, EffectOpTagState, MainCodegen,
 };
@@ -49,7 +49,7 @@ struct FixtureAbiInputs {
     abi_visibility_program: LateLoweredProgram,
 }
 
-fn refactor_session() -> Session {
+fn session() -> Session {
     Session::with_options(SessionOptions::new()).unwrap()
 }
 
@@ -66,13 +66,13 @@ fn load_build_fixture(name: &str) -> SourceFile {
 }
 
 fn build_fixture_inputs_from_source(source: SourceFile) -> FixtureAbiInputs {
-    let session = refactor_session();
+    let session = session();
     let typed_hir_output =
         load_typed_hir_stage_output_for_dump(&session, &source).expect("typed HIR stage 应成功");
     let hir_compat_scaffold = typed_hir_output
         .lowered_hir()
         .clone_hir_compat_scaffold_without_materialized_mir();
-    let facts = MirLoweringFacts::from_refactor_typed_handoff(
+    let facts = MirLoweringFacts::from_typed_handoff(
         typed_hir_output.lowered_hir(),
         typed_hir_output.effect_contracts(),
     );
@@ -99,7 +99,7 @@ fn build_fixture_inputs_from_source(source: SourceFile) -> FixtureAbiInputs {
     let effect_lowered_stage_output =
         build_effect_lowered_stage_output(&session, effect_facts_stage_output)
             .expect("effect lowered stage 应成功");
-    // ABI materializer 必须消费与真实 refactor LLVM stage 相同的 shell-preserving handoff，
+    // ABI materializer 必须消费与真实 LLVM stage 相同的 shell-preserving handoff，
     // 不能误用会裁剪 published resume methods 的 authoritative reachable-body program。
     let abi_visibility_program = optimize_program_with_options(
         LateLoweredProgramBuilder::from_canonical_inputs(
@@ -138,7 +138,7 @@ fn with_inputs_query_result(
 ) {
     let program = rewrite_program(&inputs);
     let context = Context::create();
-    let module = context.create_module("refactor_abi_test");
+    let module = context.create_module("abi_test");
     let builder = context.create_builder();
     let target_info = target::configure_module_for_host(&module).expect("host target 应可配置");
     let target_data = inkwell::targets::TargetData::create(&target_info.data_layout);
@@ -217,7 +217,7 @@ fn with_inputs_query_result_for_source_types(
     let program = rewrite_program(&inputs);
     let source_types = rewrite_source_types(&inputs);
     let context = Context::create();
-    let module = context.create_module("refactor_abi_test");
+    let module = context.create_module("abi_test");
     let builder = context.create_builder();
     let target_info = target::configure_module_for_host(&module).expect("host target 应可配置");
     let target_data = inkwell::targets::TargetData::create(&target_info.data_layout);
@@ -295,7 +295,7 @@ fn with_inputs_query_result_and_codegen(
 ) {
     let program = rewrite_program(&inputs);
     let context = Context::create();
-    let module = context.create_module("refactor_abi_test");
+    let module = context.create_module("abi_test");
     let builder = context.create_builder();
     let target_info = target::configure_module_for_host(&module).expect("host target 应可配置");
     let target_data = inkwell::targets::TargetData::create(&target_info.data_layout);
@@ -403,7 +403,7 @@ fn with_fixture_query(
         name,
         |inputs| inputs.abi_visibility_program.clone(),
         |inputs, result, module| {
-            let query = result.expect("refactor ABI materialization 应成功");
+            let query = result.expect("ABI materialization 应成功");
             check(inputs, &query, module);
         },
     );

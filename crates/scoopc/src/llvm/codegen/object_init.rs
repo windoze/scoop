@@ -98,13 +98,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.cg_value_from_loaded(at, prop_cg, loaded)
     }
 
-    pub(in crate::llvm::codegen) fn ensure_refactor_object_init_bridge_defined(
+    pub(in crate::llvm::codegen) fn ensure_object_init_bridge_defined(
         &mut self,
         object_fqn: &str,
     ) -> Result<FunctionValue<'ctx>, LlvmEmitError> {
         let Some(obj) = self.object_inits.get(object_fqn) else {
             return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "refactor hidden object init bridge (missing metadata)",
+                kind: "hidden object init bridge (missing metadata)",
                 at: crate::span::Span::new(0, 0).into(),
             });
         };
@@ -122,7 +122,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let saved_block = self.builder.get_insert_block();
 
         let mut bridge_codegen = self.fresh_child_codegen();
-        bridge_codegen.codegen_refactor_object_init_bridge_body(obj, llvm_fun)?;
+        bridge_codegen.codegen_object_init_bridge_body(obj, llvm_fun)?;
 
         if let Some(bb) = saved_block {
             self.builder.position_at_end(bb);
@@ -131,7 +131,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(llvm_fun)
     }
 
-    fn codegen_refactor_object_init_bridge_body(
+    fn codegen_object_init_bridge_body(
         &mut self,
         obj: &hir::ObjectInit,
         llvm_fun: FunctionValue<'ctx>,

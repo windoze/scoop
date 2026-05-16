@@ -2,7 +2,7 @@
 
 use super::*;
 
-impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
+impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
     pub(super) fn lower_handle_boundary(
         &mut self,
         boundary: &LateLoweredBoundary,
@@ -10,7 +10,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
     ) -> Result<(), LlvmEmitError> {
         let handle_site_id = Self::handle_boundary_site_id(boundary).ok_or_else(|| {
             frontend_error(format!(
-                "refactor handle boundary bd{} 缺少 Handle site id",
+                "handle boundary bd{} 缺少 Handle site id",
                 boundary.boundary_id().as_u32()
             ))
         })?;
@@ -18,16 +18,16 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             [] => {
                 self.restore_and_clear_handle_effect_ctx_slots(
                     handle_site_id,
-                    "refactor_handle_exit_ctx",
-                    "refactor_handle_exit_ctx_clear",
+                    "handle_exit_ctx",
+                    "handle_exit_ctx_clear",
                 )?;
                 self.branch_to_state(boundary.resume_state())
             }
             [emission] => {
                 self.restore_and_clear_handle_effect_ctx_slots(
                     handle_site_id,
-                    "refactor_handle_outward_ctx",
-                    "refactor_handle_outward_ctx_clear",
+                    "handle_outward_ctx",
+                    "handle_outward_ctx_clear",
                 )?;
                 self.emit_or_consume_outward_case(
                     boundary,
@@ -39,7 +39,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                 )
             }
             emissions => Err(frontend_error(format!(
-                "refactor handle boundary bd{} 发布了 {} 个 outward emission；需要 HandleDispatch contract 选择具体 case",
+                "handle boundary bd{} 发布了 {} 个 outward emission；需要 HandleDispatch contract 选择具体 case",
                 boundary.boundary_id().as_u32(),
                 emissions.len()
             ))),
@@ -57,7 +57,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
     ) -> Result<(), LlvmEmitError> {
         let input_layout = self.abi.step_layout(input_step_schema).ok_or_else(|| {
             frontend_error(format!(
-                "refactor boundary dispatch 缺少 input step schema s{} layout",
+                "boundary dispatch 缺少 input step schema s{} layout",
                 input_step_schema.as_u32()
             ))
         })?;
@@ -99,7 +99,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             Some(contract) => {
                 let case_layout = input_layout.case_layout(contract.input_case_tag()).ok_or_else(|| {
                     frontend_error(format!(
-                        "refactor call boundary bd{} local runtime-error case c{} 缺少 input Step layout",
+                        "call boundary bd{} local runtime-error case c{} 缺少 input Step layout",
                         boundary.boundary_id().as_u32(),
                         contract.input_case_tag().as_u32()
                     ))
@@ -126,7 +126,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             }
             None => None,
         };
-        let tag = self.codegen.refactor_extract_step_tag(input_layout, step)?;
+        let tag = self.codegen.extract_step_tag(input_layout, step)?;
         let dispatch_bb = self.codegen.context.append_basic_block(
             function,
             &format!("bd{}_dispatch", boundary.boundary_id().as_u32()),
@@ -138,7 +138,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                 .context
                 .i32_type()
                 .const_int(STEP_TAG_COMPLETE, false),
-            "refactor_step_is_complete",
+            "step_is_complete",
         )?;
         self.codegen
             .builder
@@ -156,11 +156,11 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             .build_switch(tag, unmatched_bb, &switch_cases)?;
 
         self.codegen.builder.position_at_end(complete_bb);
-        let payload = self.codegen.refactor_extract_step_payload(
+        let payload = self.codegen.extract_step_payload(
             input_layout,
             step,
             input_layout.complete_variant(),
-            "refactor_boundary_complete_payload",
+            "boundary_complete_payload",
         )?;
         self.store_boundary_result(boundary.boundary_id(), payload, boundary.resume_state())?;
         if matches!(
@@ -186,15 +186,15 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             self.codegen.builder.position_at_end(bb);
             let case_layout = input_layout.case_layout(input_case).ok_or_else(|| {
                 frontend_error(format!(
-                    "refactor boundary dispatch 缺少 case c{}",
+                    "boundary dispatch 缺少 case c{}",
                     input_case.as_u32()
                 ))
             })?;
-            let (payload, callee_continuation) = self.codegen.refactor_extract_step_case_parts(
+            let (payload, callee_continuation) = self.codegen.extract_step_case_parts(
                 input_layout,
                 step,
                 case_layout,
-                "refactor_boundary_case_payload",
+                "boundary_case_payload",
             )?;
             let composition = match continuation_compositions {
                 Some(compositions) => {
@@ -203,14 +203,14 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                         .find(|composition| composition.input_case_tag() == input_case)
                         .ok_or_else(|| {
                             frontend_error(format!(
-                                "refactor boundary bd{} case c{} 缺少 continuation composition contract",
+                                "boundary bd{} case c{} 缺少 continuation composition contract",
                                 boundary.boundary_id().as_u32(),
                                 input_case.as_u32(),
                             ))
                         })?;
                     if composition.output_case_tag() != output_case {
                         return Err(frontend_error(format!(
-                            "refactor boundary bd{} case c{} continuation composition 输出 case 漂移：composition=c{} dispatch=c{}",
+                            "boundary bd{} case c{} continuation composition 输出 case 漂移：composition=c{} dispatch=c{}",
                             boundary.boundary_id().as_u32(),
                             input_case.as_u32(),
                             composition.output_case_tag().as_u32(),
@@ -240,15 +240,15 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             self.codegen.builder.position_at_end(bb);
             let case_layout = input_layout.case_layout(input_case).ok_or_else(|| {
                 frontend_error(format!(
-                    "refactor boundary dispatch 缺少 local runtime-error case c{}",
+                    "boundary dispatch 缺少 local runtime-error case c{}",
                     input_case.as_u32()
                 ))
             })?;
-            let (payload, _continuation) = self.codegen.refactor_extract_step_case_parts(
+            let (payload, _continuation) = self.codegen.extract_step_case_parts(
                 input_layout,
                 step,
                 case_layout,
-                "refactor_local_runtime_error_payload",
+                "local_runtime_error_payload",
             )?;
             self.emit_local_runtime_error_terminal(&runtime, payload)?;
         }
@@ -304,7 +304,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             };
             if matched_target.replace(target).is_some() {
                 return Err(frontend_error(format!(
-                    "refactor boundary bd{} complete 命中多个 handle completion target",
+                    "boundary bd{} complete 命中多个 handle completion target",
                     boundary.boundary_id().as_u32(),
                 )));
             }
@@ -350,7 +350,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
     pub(super) fn apply_handle_boundary_consume_to_arm(
         &mut self,
         boundary: &LateLoweredBoundary,
-        action: &RefactorHandleConsumeArmRuntime,
+        action: &HandleConsumeArmRuntime,
         case_tag: CaseTag,
         payload: Option<BasicValueEnum<'ctx>>,
         payload_ty: TypeId,
@@ -358,25 +358,25 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         composition: Option<&LateLoweredCallBoundaryContinuationComposition>,
     ) -> Result<(), LlvmEmitError> {
         let continuation_effect_ctx =
-            self.load_current_effect_ctx("refactor_handle_resume_effect_ctx")?;
+            self.load_current_effect_ctx("handle_resume_effect_ctx")?;
         let continuation_effect_ctx_root_slot = self.capture_gc_pointer_root_slot(
             continuation_effect_ctx,
-            "refactor_handle_resume_effect_ctx_root",
+            "handle_resume_effect_ctx_root",
         )?;
         let arm_ctx = self.load_handle_arm_effect_ctx(
             action.site_id,
             action.arm_ordinal,
-            "refactor_handle_arm_effect_ctx_load",
+            "handle_arm_effect_ctx_load",
         )?;
         let arm_ctx_root_slot =
-            self.capture_gc_pointer_root_slot(arm_ctx, "refactor_handle_arm_effect_ctx_root")?;
-        self.store_current_effect_ctx(arm_ctx, "refactor_handle_arm_effect_ctx_store")?;
+            self.capture_gc_pointer_root_slot(arm_ctx, "handle_arm_effect_ctx_root")?;
+        self.store_current_effect_ctx(arm_ctx, "handle_arm_effect_ctx_store")?;
 
         let deferred_callee_continuation = callee_continuation
             .map(|continuation| {
                 self.codegen.defer_gc_ref_pointer(
                     self.mir_fun.span,
-                    "refactor_outward_callee_continuation",
+                    "outward_callee_continuation",
                     continuation,
                 )
             })
@@ -388,7 +388,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                 .cg_ty_of_mir_type(self.source_types, payload_ty)
                 .ok_or_else(|| {
                     frontend_error(format!(
-                        "refactor handle arm payload t{} 缺少 codegen type",
+                        "handle arm payload t{} 缺少 codegen type",
                         payload_ty.as_u32()
                     ))
                 })?;
@@ -396,7 +396,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                 .map(|raw| {
                     self.codegen.defer_gc_sensitive_cg_value(
                         self.mir_fun.span,
-                        "refactor_handle_arm_payload",
+                        "handle_arm_payload",
                         CgValue {
                             ty: payload_cg,
                             value: Some(raw),
@@ -414,13 +414,13 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                     self.codegen
                         .materialize_deferred_cg_value(
                             self.mir_fun.span,
-                            "refactor_handle_arm_callee_continuation_reload",
+                            "handle_arm_callee_continuation_reload",
                             deferred,
                         )?
                         .value
                         .ok_or_else(|| {
                             frontend_error(
-                                "refactor handle arm callee continuation reload 缺少值".to_string(),
+                                "handle arm callee continuation reload 缺少值".to_string(),
                             )
                         })?
                         .into_pointer_value(),
@@ -431,11 +431,11 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             let continuation = if composition.is_some() {
                 let continuation_effect_ctx = self.reload_gc_pointer_from_root_slot(
                     continuation_effect_ctx_root_slot,
-                    "refactor_handle_resume_effect_ctx_root",
+                    "handle_resume_effect_ctx_root",
                 )?;
                 self.store_current_effect_ctx(
                     continuation_effect_ctx,
-                    "refactor_handle_continuation_effect_ctx_store",
+                    "handle_continuation_effect_ctx_store",
                 )?;
                 self.create_continuation_object(
                     boundary.resume_state(),
@@ -448,48 +448,48 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             } else {
                 let continuation_effect_ctx = self.reload_gc_pointer_from_root_slot(
                     continuation_effect_ctx_root_slot,
-                    "refactor_handle_resume_effect_ctx_root",
+                    "handle_resume_effect_ctx_root",
                 )?;
                 self.store_current_effect_ctx(
                     continuation_effect_ctx,
-                    "refactor_handle_continuation_effect_ctx_store",
+                    "handle_continuation_effect_ctx_store",
                 )?;
                 self.create_continuation_object(boundary.resume_state(), case_tag, None, None)?
             };
             let continuation_root_slot = self.capture_gc_pointer_root_slot(
                 continuation,
-                "refactor_handle_continuation_binder_root",
+                "handle_continuation_binder_root",
             )?;
             let arm_ctx = self.reload_gc_pointer_from_root_slot(
                 arm_ctx_root_slot,
-                "refactor_handle_arm_effect_ctx_root",
+                "handle_arm_effect_ctx_root",
             )?;
-            self.store_current_effect_ctx(arm_ctx, "refactor_handle_arm_effect_ctx_restore")?;
+            self.store_current_effect_ctx(arm_ctx, "handle_arm_effect_ctx_restore")?;
             let continuation = self.reload_gc_pointer_from_root_slot(
                 continuation_root_slot,
-                "refactor_handle_continuation_binder_root",
+                "handle_continuation_binder_root",
             )?;
             self.store_gc_ref_to_binder(binder, continuation)?;
             self.clear_root_gc_slot(
                 continuation_root_slot,
-                "refactor_handle_continuation_binder_root_clear",
+                "handle_continuation_binder_root_clear",
             )?;
         }
 
         self.clear_root_gc_slot(
             continuation_effect_ctx_root_slot,
-            "refactor_handle_resume_effect_ctx_root_clear",
+            "handle_resume_effect_ctx_root_clear",
         )?;
         self.clear_root_gc_slot(
             arm_ctx_root_slot,
-            "refactor_handle_arm_effect_ctx_root_clear",
+            "handle_arm_effect_ctx_root_clear",
         )?;
 
         let payload = if let Some(deferred_payload) = deferred_payload {
             self.codegen
                 .materialize_deferred_cg_value(
                     self.mir_fun.span,
-                    "refactor_handle_arm_payload_reload",
+                    "handle_arm_payload_reload",
                     deferred_payload,
                 )?
                 .value
@@ -502,7 +502,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
 
     pub(super) fn apply_handle_boundary_pending_completion(
         &mut self,
-        action: &RefactorHandlePendingCompletionRuntime,
+        action: &HandlePendingCompletionRuntime,
         payload: Option<BasicValueEnum<'ctx>>,
         payload_ty: TypeId,
     ) -> Result<(), LlvmEmitError> {
@@ -518,7 +518,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         payload_ty: TypeId,
         callee_continuation: Option<PointerValue<'ctx>>,
         composition: Option<&LateLoweredCallBoundaryContinuationComposition>,
-        candidates: &[RefactorHandleBoundaryDispatchCandidate],
+        candidates: &[HandleBoundaryDispatchCandidate],
     ) -> Result<bool, LlvmEmitError> {
         if candidates.is_empty() {
             return Ok(false);
@@ -527,7 +527,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         let function = self.function;
         let dispatch_index = boundary.boundary_id().as_u32();
         let dispatch_entry_bb = self.codegen.builder.get_insert_block().ok_or_else(|| {
-            frontend_error("refactor handle ctx dispatch 缺少 active insert block".to_string())
+            frontend_error("handle ctx dispatch 缺少 active insert block".to_string())
         })?;
         let loop_bb = self.codegen.context.append_basic_block(
             function,
@@ -565,18 +565,18 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             ),
         );
 
-        let current_ctx = self.load_current_effect_ctx("refactor_handle_dispatch_ctx")?;
+        let current_ctx = self.load_current_effect_ctx("handle_dispatch_ctx")?;
         let current_ctx_ptr =
-            self.cast_gc_ref_to_effect_ctx_ptr(current_ctx, "refactor_handle_dispatch_ctx_ptr")?;
+            self.cast_gc_ref_to_effect_ctx_ptr(current_ctx, "handle_dispatch_ctx_ptr")?;
         let handler_top = self
             .codegen
-            .load_effect_ctx_handler_top(current_ctx_ptr, "refactor_handle_dispatch_top")?;
-        let current_frame_gc = self.current_frame_gc_ref("refactor_handle_dispatch_owner_frame")?;
+            .load_effect_ctx_handler_top(current_ctx_ptr, "handle_dispatch_top")?;
+        let current_frame_gc = self.current_frame_gc_ref("handle_dispatch_owner_frame")?;
         let word_ty = self.codegen.llvm_ptr_sized_int_type(None);
         let current_frame_int = self.codegen.builder.build_ptr_to_int(
             current_frame_gc,
             word_ty,
-            "refactor_handle_dispatch_owner_frame_int",
+            "handle_dispatch_owner_frame_int",
         )?;
         let active_mask = self
             .codegen
@@ -594,70 +594,70 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         self.codegen.builder.position_at_end(loop_bb);
         let node_phi = self.codegen.builder.build_phi(
             self.codegen.llvm_gc_i8_ptr_type(),
-            "refactor_handle_dispatch_node",
+            "handle_dispatch_node",
         )?;
         node_phi.add_incoming(&[(&handler_top, dispatch_entry_bb)]);
         let node_gc = node_phi.as_basic_value().into_pointer_value();
         let is_null = self
             .codegen
             .builder
-            .build_is_null(node_gc, "refactor_handle_dispatch_node_is_null")?;
+            .build_is_null(node_gc, "handle_dispatch_node_is_null")?;
         self.codegen
             .builder
             .build_conditional_branch(is_null, no_match_bb, scan_bb)?;
 
         self.codegen.builder.position_at_end(scan_bb);
         let node_ptr = self
-            .cast_gc_ref_to_effect_handler_node_ptr(node_gc, "refactor_handle_dispatch_node_ptr")?;
+            .cast_gc_ref_to_effect_handler_node_ptr(node_gc, "handle_dispatch_node_ptr")?;
         let node_flags = self
             .codegen
-            .load_effect_handler_flags(node_ptr, "refactor_handle_dispatch_flags")?;
+            .load_effect_handler_flags(node_ptr, "handle_dispatch_flags")?;
         let node_op_tag = self
             .codegen
-            .load_effect_handler_op_tag(node_ptr, "refactor_handle_dispatch_op_tag")?;
+            .load_effect_handler_op_tag(node_ptr, "handle_dispatch_op_tag")?;
         let node_owner = self
             .codegen
-            .load_effect_handler_owner_frame_ref(node_ptr, "refactor_handle_dispatch_owner")?;
+            .load_effect_handler_owner_frame_ref(node_ptr, "handle_dispatch_owner")?;
         let node_owner_int = self.codegen.builder.build_ptr_to_int(
             node_owner,
             word_ty,
-            "refactor_handle_dispatch_owner_int",
+            "handle_dispatch_owner_int",
         )?;
         let node_dispatch_identity = self
             .codegen
-            .load_effect_handler_dispatch_identity(node_ptr, "refactor_handle_dispatch_identity")?;
+            .load_effect_handler_dispatch_identity(node_ptr, "handle_dispatch_identity")?;
         let node_active_bits = self.codegen.builder.build_and(
             node_flags,
             active_mask,
-            "refactor_handle_dispatch_active_bits",
+            "handle_dispatch_active_bits",
         )?;
         let is_active = self.codegen.builder.build_int_compare(
             inkwell::IntPredicate::NE,
             node_active_bits,
             self.codegen.context.i32_type().const_zero(),
-            "refactor_handle_dispatch_is_active",
+            "handle_dispatch_is_active",
         )?;
         let owner_matches = self.codegen.builder.build_int_compare(
             inkwell::IntPredicate::EQ,
             node_owner_int,
             current_frame_int,
-            "refactor_handle_dispatch_owner_matches",
+            "handle_dispatch_owner_matches",
         )?;
         let op_matches = self.codegen.builder.build_int_compare(
             inkwell::IntPredicate::EQ,
             node_op_tag,
             expected_op_tag,
-            "refactor_handle_dispatch_op_matches",
+            "handle_dispatch_op_matches",
         )?;
         let active_owner = self.codegen.builder.build_and(
             is_active,
             owner_matches,
-            "refactor_handle_dispatch_active_owner",
+            "handle_dispatch_active_owner",
         )?;
         let should_switch = self.codegen.builder.build_and(
             active_owner,
             op_matches,
-            "refactor_handle_dispatch_should_switch",
+            "handle_dispatch_should_switch",
         )?;
 
         let mut switch_cases = Vec::with_capacity(candidates.len());
@@ -692,7 +692,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         for (candidate, bb) in action_blocks {
             self.codegen.builder.position_at_end(bb);
             match &candidate.action {
-                RefactorHandleBoundaryRuntimeAction::ConsumeToArm(action) => {
+                HandleBoundaryRuntimeAction::ConsumeToArm(action) => {
                     self.apply_handle_boundary_consume_to_arm(
                         boundary,
                         action,
@@ -703,10 +703,10 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                         composition,
                     )?;
                 }
-                RefactorHandleBoundaryRuntimeAction::PendingCompletion(action) => {
+                HandleBoundaryRuntimeAction::PendingCompletion(action) => {
                     self.apply_handle_boundary_pending_completion(action, payload, payload_ty)?;
                 }
-                RefactorHandleBoundaryRuntimeAction::EmitOutward => {
+                HandleBoundaryRuntimeAction::EmitOutward => {
                     self.codegen
                         .builder
                         .build_unconditional_branch(advance_bb)?;
@@ -717,7 +717,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         self.codegen.builder.position_at_end(advance_bb);
         let prev_ref = self
             .codegen
-            .load_effect_handler_prev_ref(node_ptr, "refactor_handle_dispatch_prev")?;
+            .load_effect_handler_prev_ref(node_ptr, "handle_dispatch_prev")?;
         self.codegen.builder.build_unconditional_branch(loop_bb)?;
         node_phi.add_incoming(&[(&prev_ref, advance_bb)]);
 
@@ -736,14 +736,14 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
     ) -> Result<(), LlvmEmitError> {
         let origin_bb = self.codegen.builder.get_insert_block().ok_or_else(|| {
             frontend_error(format!(
-                "refactor boundary bd{} case c{} lowering 缺少 active insert block",
+                "boundary bd{} case c{} lowering 缺少 active insert block",
                 boundary.boundary_id().as_u32(),
                 case_tag.as_u32(),
             ))
         })?;
         if composition.is_some() && callee_continuation.is_none() {
             return Err(frontend_error(format!(
-                "refactor boundary bd{} case c{} 的 callee continuation 与 composition contract 不一致",
+                "boundary bd{} case c{} 的 callee continuation 与 composition contract 不一致",
                 boundary.boundary_id().as_u32(),
                 case_tag.as_u32(),
             )));
@@ -752,7 +752,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             .map(|continuation| {
                 self.codegen.defer_gc_ref_pointer(
                     self.mir_fun.span,
-                    "refactor_outward_callee_continuation",
+                    "outward_callee_continuation",
                     continuation,
                 )
             })
@@ -760,7 +760,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         self.sync_frame_slots_from_locals()?;
         let routed_action = self.handle_boundary_action(boundary.boundary_id(), case_tag)?;
         let skip_finalized_site =
-            if let Some(RefactorHandleBoundaryRuntimeAction::PendingCompletion(action)) =
+            if let Some(HandleBoundaryRuntimeAction::PendingCompletion(action)) =
                 &routed_action
             {
                 self.composed_resume_already_ran_handle_finally(action, composition)?
@@ -772,7 +772,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             && skip_finalized_site.is_none()
         {
             match action {
-                RefactorHandleBoundaryRuntimeAction::ConsumeToArm(action) => {
+                HandleBoundaryRuntimeAction::ConsumeToArm(action) => {
                     return self.apply_handle_boundary_consume_to_arm(
                         boundary,
                         action,
@@ -783,11 +783,11 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                         composition,
                     );
                 }
-                RefactorHandleBoundaryRuntimeAction::PendingCompletion(action) => {
+                HandleBoundaryRuntimeAction::PendingCompletion(action) => {
                     return self
                         .apply_handle_boundary_pending_completion(action, payload, payload_ty);
                 }
-                RefactorHandleBoundaryRuntimeAction::EmitOutward => {}
+                HandleBoundaryRuntimeAction::EmitOutward => {}
             }
         }
         let dispatch_candidates = self.handle_boundary_dispatch_candidates_excluding(
@@ -811,7 +811,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         }
         if has_dispatch_candidates && self.codegen.builder.get_insert_block() == Some(origin_bb) {
             return Err(frontend_error(format!(
-                "refactor boundary bd{} case c{} 已解析到显式 handle dispatch candidate，但 origin block 仍未切到 dispatch loop；不能继续生成 fallback outward path",
+                "boundary bd{} case c{} 已解析到显式 handle dispatch candidate，但 origin block 仍未切到 dispatch loop；不能继续生成 fallback outward path",
                 boundary.boundary_id().as_u32(),
                 case_tag.as_u32(),
             )));
@@ -821,7 +821,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             && skip_finalized_site.is_some()
         {
             match action {
-                RefactorHandleBoundaryRuntimeAction::ConsumeToArm(action) => {
+                HandleBoundaryRuntimeAction::ConsumeToArm(action) => {
                     return self.apply_handle_boundary_consume_to_arm(
                         boundary,
                         action,
@@ -832,17 +832,17 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                         composition,
                     );
                 }
-                RefactorHandleBoundaryRuntimeAction::PendingCompletion(action) => {
+                HandleBoundaryRuntimeAction::PendingCompletion(action) => {
                     return self
                         .apply_handle_boundary_pending_completion(action, payload, payload_ty);
                 }
-                RefactorHandleBoundaryRuntimeAction::EmitOutward => {}
+                HandleBoundaryRuntimeAction::EmitOutward => {}
             }
         }
-        if matches!(self.return_mode, RefactorCallableReturnMode::Plain { .. }) {
+        if matches!(self.return_mode, CallableReturnMode::Plain { .. }) {
             if !has_dispatch_candidates {
                 return Err(frontend_error(format!(
-                    "refactor plain callable `{}` 的 boundary bd{} case c{} 没有任何本地 handle/catch dispatch candidate；NoOutward plain body 不应回退到 outward Step_F path",
+                    "plain callable `{}` 的 boundary bd{} case c{} 没有任何本地 handle/catch dispatch candidate；NoOutward plain body 不应回退到 outward Step_F path",
                     self.callable.root_fqn(),
                     boundary.boundary_id().as_u32(),
                     case_tag.as_u32(),
@@ -858,13 +858,13 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                     .cg_ty_of_mir_type(self.source_types, payload_ty)
                     .ok_or_else(|| {
                         frontend_error(format!(
-                            "refactor outward payload t{} 缺少 codegen type",
+                            "outward payload t{} 缺少 codegen type",
                             payload_ty.as_u32()
                         ))
                     })?;
                 self.codegen.defer_gc_sensitive_cg_value(
                     self.mir_fun.span,
-                    "refactor_outward_payload",
+                    "outward_payload",
                     CgValue {
                         ty: payload_cg,
                         value: Some(raw),
@@ -877,13 +877,13 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                 self.codegen
                     .materialize_deferred_cg_value(
                         self.mir_fun.span,
-                        "refactor_outward_callee_continuation_reload",
+                        "outward_callee_continuation_reload",
                         deferred,
                     )?
                     .value
                     .ok_or_else(|| {
                         frontend_error(
-                            "refactor outward callee continuation reload 缺少值".to_string(),
+                            "outward callee continuation reload 缺少值".to_string(),
                         )
                     })?
                     .into_pointer_value(),
@@ -901,7 +901,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             self.codegen
                 .materialize_deferred_cg_value(
                     self.mir_fun.span,
-                    "refactor_outward_payload_reload",
+                    "outward_payload_reload",
                     deferred_payload,
                 )?
                 .value
@@ -909,7 +909,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             payload
         };
         match self.return_mode {
-            RefactorCallableReturnMode::EffectOutcome => {
+            CallableReturnMode::EffectOutcome => {
                 let outcome = self.build_propagating_effect_outcome_for_case(
                     case_tag,
                     payload,
@@ -921,13 +921,13 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             _ => {
                 let out_layout = self.step_layout.case_layout(case_tag).ok_or_else(|| {
                     frontend_error(format!(
-                        "refactor callable `{}` step schema s{} 缺少 outward case c{}",
+                        "callable `{}` step schema s{} 缺少 outward case c{}",
                         self.callable.root_fqn(),
                         self.abi_step_schema.as_u32(),
                         case_tag.as_u32()
                     ))
                 })?;
-                let step = self.codegen.refactor_build_step_case(
+                let step = self.codegen.build_step_case(
                     self.step_layout,
                     out_layout,
                     payload,
@@ -940,7 +940,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
 
     pub(super) fn composed_resume_already_ran_handle_finally(
         &self,
-        action: &RefactorHandlePendingCompletionRuntime,
+        action: &HandlePendingCompletionRuntime,
         composition: Option<&LateLoweredCallBoundaryContinuationComposition>,
     ) -> Result<bool, LlvmEmitError> {
         let Some(composition) = composition else {

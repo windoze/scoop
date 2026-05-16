@@ -1,0 +1,53 @@
+File {
+    items: [
+        Fun(
+            FunDecl {
+                span: 11..69,
+                fqn: "a.main",
+                name: "main",
+                ty: () -> Int / Pure,
+                params: [],
+                return_ty: Int,
+                body: Some(
+                    Body {
+                        locals: [LocalDecl { label: local#hfa842a85b4fab734cc064271e2aa04de, span: 26..59, name: Some("id"), ty: (Int) -> Int / Pure, source: SourceLocal }, LocalDecl { label: local#ha1ecdb1f211861f628b5ad52c61da2af, span: 49..59, name: Some("tmp0"), ty: (Int) -> Int / Pure, source: CompilerTemporary }, LocalDecl { label: local#he8583d2c562cfddfb6c9eac0c9f0bf3c, span: 62..67, name: Some("tmp1"), ty: Int, source: CompilerTemporary }, LocalDecl { label: local#h039bbe103bacdfb08fad73299784b60e, span: 65..66, name: Some("tmp2"), ty: Int, source: CompilerTemporary }],
+                        blocks: [
+                            BasicBlock {
+                                label: bb#h6d55daf7ba28e2fa0ccb2313ca4d274e,
+                                is_cleanup: false,
+                                stmts: [Statement { span: 49..59, kind: Assign { target: local#ha1ecdb1f211861f628b5ad52c61da2af, value: MakeClosure { env: Const(Unit), fn_ptr: "a.main.$lambda0", env_contract: ClosureEnvTransportMetadata { env_ty: Unit, captures: [] } } } }, Statement { span: 26..59, kind: Assign { target: local#hfa842a85b4fab734cc064271e2aa04de, value: Use(Local(local#ha1ecdb1f211861f628b5ad52c61da2af)) } }, Statement { span: 65..66, kind: Assign { target: local#h039bbe103bacdfb08fad73299784b60e, value: Use(Const(Int)) } }, Statement { span: 62..67, kind: Assign { target: local#he8583d2c562cfddfb6c9eac0c9f0bf3c, value: Call { site_id: site#h299a3da3f9a5eeb22db2733fd13453c1, kind: FunValue { callee: Local(local#hfa842a85b4fab734cc064271e2aa04de) }, args: [CallArg { span: 65..66, name: None, value: Local(local#h039bbe103bacdfb08fad73299784b60e) }], transport: CallTransportMetadata { result: ValueTransportMetadata { source_ty: Int, kind: Scalar, requirements: MirTransportRequirements { trace: false, copy: true, drop: false }, boxing: None }, aggregate_return: None, array: None, gc: None, thread_resume_payload: None, abi: CallAbiHandoffMetadata { callable_abi_kind: DeferredToEffectFacts, resolved_outward_cases: [], impl_plan: DeferredToEffectFacts, adapter_required: false } } } } }],
+                                terminator: Terminator { span: 11..69, kind: Return { value: Some(Local(local#he8583d2c562cfddfb6c9eac0c9f0bf3c)) }, unwind: NoUnwind },
+                            },
+                        ],
+                        start: bb#h6d55daf7ba28e2fa0ccb2313ca4d274e,
+                    }
+                ),
+            },
+        ),
+        Fun(
+            FunDecl {
+                span: 49..59,
+                fqn: "a.main.$lambda0",
+                name: "$lambda0",
+                ty: Any,
+                params: [Param { span: 49..59, name: "$env", ty: Unit, local: local#h7dbf2ec924d244ac65a0e80e08f1bfa2 }, Param { span: 51..52, name: "x", ty: Int, local: local#h33a2706bf06a3c8f3ef4e95190d85627 }],
+                return_ty: Int,
+                body: Some(
+                    Body {
+                        locals: [LocalDecl { label: local#h7dbf2ec924d244ac65a0e80e08f1bfa2, span: 49..59, name: Some("$env"), ty: Unit, source: SourceLocal }, LocalDecl { label: local#h33a2706bf06a3c8f3ef4e95190d85627, span: 51..52, name: Some("x"), ty: Int, source: SourceLocal }],
+                        blocks: [
+                            BasicBlock {
+                                label: bb#h8645d090e486e2bf5a8c2e5bea6aede1,
+                                is_cleanup: false,
+                                stmts: [],
+                                terminator: Terminator { span: 49..59, kind: Return { value: Some(Local(local#h33a2706bf06a3c8f3ef4e95190d85627)) }, unwind: NoUnwind },
+                            },
+                        ],
+                        start: bb#h8645d090e486e2bf5a8c2e5bea6aede1,
+                    }
+                ),
+            },
+        ),
+    ],
+}
+

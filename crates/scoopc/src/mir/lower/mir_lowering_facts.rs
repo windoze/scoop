@@ -32,12 +32,12 @@ impl MirLoweringFacts {
 
         let contracts = TypedHirEffectContracts::from_lowered_hir(lowered, default_source_path)
             .map_err(hir::HirLowerError::from)?;
-        facts.refactor_top_level_init_roots = contracts.top_level_init_roots().to_vec();
-        facts.refactor_extern_global_contracts = contracts.extern_global_contracts().to_vec();
+        facts.top_level_init_roots = contracts.top_level_init_roots().to_vec();
+        facts.extern_global_contracts = contracts.extern_global_contracts().to_vec();
         for (call_site, contract) in contracts.continuation_resume_sites() {
-            facts.refactor_resume_sites.insert(
+            facts.resume_sites.insert(
                 call_site.clone(),
-                RefactorResumeCallInfo {
+                ResumeCallInfo {
                     receiver_route: contract.receiver_route(),
                     payload_arg_indices: contract.payload_arg_indices().to_vec(),
                     metadata: ResumeMetadata {
@@ -53,16 +53,16 @@ impl MirLoweringFacts {
             );
         }
         facts
-            .refactor_call_sites
+            .call_sites
             .extend(contracts.call_site_contracts().clone());
         facts
-            .refactor_assign_places
+            .assign_places
             .extend(contracts.assign_place_contracts().clone());
 
         Ok(facts)
     }
 
-    pub(crate) fn from_refactor_typed_handoff(
+    pub(crate) fn from_typed_handoff(
         lowered: &hir::LoweredHir,
         contracts: &TypedHirEffectContracts,
     ) -> Self {
@@ -93,7 +93,7 @@ impl MirLoweringFacts {
             .with_continuation_identity_return_funs(lowered)
             .with_class_ctor_hidden_effects(lowered);
 
-        facts.with_refactor_typed_contracts(contracts)
+        facts.with_typed_contracts(contracts)
     }
 
     pub(crate) fn from_hir_side_tables_and_resume_spans(
@@ -259,26 +259,26 @@ impl MirLoweringFacts {
         self
     }
 
-    pub(crate) fn with_refactor_typed_contracts(
+    pub(crate) fn with_typed_contracts(
         mut self,
         contracts: &TypedHirEffectContracts,
     ) -> Self {
-        self.site_contract_source = MirSiteContractSource::RefactorTyped;
+        self.site_contract_source = MirSiteContractSource::Typed;
         self.fallback_resume_site_spans.clear();
         self.fallback_outward_resume_site_spans.clear();
         self.fallback_perform_sites.clear();
-        self.refactor_resume_sites.clear();
-        self.refactor_perform_sites.clear();
-        self.refactor_handle_sites.clear();
-        self.refactor_call_sites.clear();
-        self.refactor_assign_places.clear();
-        self.refactor_top_level_init_roots = contracts.top_level_init_roots().to_vec();
-        self.refactor_extern_global_contracts = contracts.extern_global_contracts().to_vec();
+        self.resume_sites.clear();
+        self.perform_sites.clear();
+        self.handle_sites.clear();
+        self.call_sites.clear();
+        self.assign_places.clear();
+        self.top_level_init_roots = contracts.top_level_init_roots().to_vec();
+        self.extern_global_contracts = contracts.extern_global_contracts().to_vec();
 
         for (call_site, contract) in contracts.continuation_resume_sites() {
-            self.refactor_resume_sites.insert(
+            self.resume_sites.insert(
                 call_site.clone(),
-                RefactorResumeCallInfo {
+                ResumeCallInfo {
                     receiver_route: contract.receiver_route(),
                     payload_arg_indices: contract.payload_arg_indices().to_vec(),
                     metadata: ResumeMetadata {
@@ -295,7 +295,7 @@ impl MirLoweringFacts {
         }
 
         for (call_site, contract) in contracts.perform_sites() {
-            self.refactor_perform_sites.insert(
+            self.perform_sites.insert(
                 call_site.clone(),
                 PerformMetadata {
                     effect_ty: contract.effect_ty(),
@@ -331,9 +331,9 @@ impl MirLoweringFacts {
                     },
                 })
                 .collect();
-            self.refactor_handle_sites.insert(
+            self.handle_sites.insert(
                 call_site.clone(),
-                RefactorHandleSiteInfo {
+                HandleSiteInfo {
                     metadata: HandleMetadata {
                         result_ty: contract.result_ty(),
                         body_result_ty: contract.body_result_ty(),
@@ -345,18 +345,18 @@ impl MirLoweringFacts {
         }
 
         for (call_site, contract) in contracts.call_site_contracts() {
-            self.refactor_call_sites
+            self.call_sites
                 .insert(call_site.clone(), contract.clone());
         }
 
-        self.refactor_assign_places
+        self.assign_places
             .extend(contracts.assign_place_contracts().clone());
 
         self
     }
 
-    pub(in crate::mir::lower) fn uses_refactor_typed_contracts(&self) -> bool {
-        self.site_contract_source == MirSiteContractSource::RefactorTyped
+    pub(in crate::mir::lower) fn uses_typed_contracts(&self) -> bool {
+        self.site_contract_source == MirSiteContractSource::Typed
     }
 
     pub(in crate::mir::lower) fn nominal_kind(&self, fqn: &str) -> Option<ast::TypeKind> {
@@ -395,21 +395,21 @@ impl MirLoweringFacts {
         self.dispatch_target_kind(source_path, call_span, receiver_ty)
     }
 
-    pub(in crate::mir::lower) fn refactor_assign_place_contract(
+    pub(in crate::mir::lower) fn assign_place_contract(
         &self,
         source_path: &std::path::Path,
         assign_span: Span,
     ) -> Option<&hir::AssignPlaceContract> {
-        self.refactor_assign_places
+        self.assign_places
             .get(&hir::CallSite::new(source_path.to_path_buf(), assign_span))
     }
 
-    pub(in crate::mir::lower) fn refactor_call_site_contract(
+    pub(in crate::mir::lower) fn call_site_contract(
         &self,
         source_path: &std::path::Path,
         call_span: Span,
     ) -> Option<&TypedCallSiteContract> {
-        self.refactor_call_sites
+        self.call_sites
             .get(&hir::CallSite::new(source_path.to_path_buf(), call_span))
     }
 
@@ -438,30 +438,30 @@ impl MirLoweringFacts {
         self.fallback_perform_sites.get(&span)
     }
 
-    pub(in crate::mir::lower) fn refactor_resume_call_info(
+    pub(in crate::mir::lower) fn resume_call_info(
         &self,
         source_path: &std::path::Path,
         span: Span,
-    ) -> Option<&RefactorResumeCallInfo> {
-        self.refactor_resume_sites
+    ) -> Option<&ResumeCallInfo> {
+        self.resume_sites
             .get(&hir::CallSite::new(source_path.to_path_buf(), span))
     }
 
-    pub(in crate::mir::lower) fn refactor_perform_metadata(
+    pub(in crate::mir::lower) fn perform_metadata(
         &self,
         source_path: &std::path::Path,
         span: Span,
     ) -> Option<&PerformMetadata> {
-        self.refactor_perform_sites
+        self.perform_sites
             .get(&hir::CallSite::new(source_path.to_path_buf(), span))
     }
 
-    pub(in crate::mir::lower) fn refactor_handle_site_info(
+    pub(in crate::mir::lower) fn handle_site_info(
         &self,
         source_path: &std::path::Path,
         span: Span,
-    ) -> Option<&RefactorHandleSiteInfo> {
-        self.refactor_handle_sites
+    ) -> Option<&HandleSiteInfo> {
+        self.handle_sites
             .get(&hir::CallSite::new(source_path.to_path_buf(), span))
     }
 
@@ -486,12 +486,12 @@ impl MirLoweringFacts {
             .unwrap_or_else(EffectRow::pure)
     }
 
-    pub(in crate::mir::lower) fn refactor_top_level_init_roots(&self) -> &[TopLevelInitRootContract] {
-        &self.refactor_top_level_init_roots
+    pub(in crate::mir::lower) fn top_level_init_roots(&self) -> &[TopLevelInitRootContract] {
+        &self.top_level_init_roots
     }
 
-    pub(in crate::mir::lower) fn refactor_extern_global_contracts(&self) -> &[ExternGlobalContract] {
-        &self.refactor_extern_global_contracts
+    pub(in crate::mir::lower) fn extern_global_contracts(&self) -> &[ExternGlobalContract] {
+        &self.extern_global_contracts
     }
 
     pub(in crate::mir::lower) fn when_pat_binding_ty(&self, span: Span) -> Option<TypeId> {

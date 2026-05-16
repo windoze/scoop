@@ -225,13 +225,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(llvm_fun)
     }
 
-    pub(in crate::llvm::codegen) fn ensure_refactor_top_level_immutable_value_init_bridge_defined(
+    pub(in crate::llvm::codegen) fn ensure_top_level_immutable_value_init_bridge_defined(
         &mut self,
         value_fqn: &str,
     ) -> Result<FunctionValue<'ctx>, LlvmEmitError> {
         let Some(value) = self.top_level_immutable_values.get(value_fqn) else {
             return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "refactor hidden top-level immutable init bridge (missing metadata)",
+                kind: "hidden top-level immutable init bridge (missing metadata)",
                 at: crate::span::Span::new(0, 0).into(),
             });
         };
@@ -251,7 +251,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         let mut bridge_codegen = self.fresh_child_codegen();
         bridge_codegen
-            .codegen_refactor_top_level_immutable_value_init_bridge_body(value, llvm_fun)?;
+            .codegen_top_level_immutable_value_init_bridge_body(value, llvm_fun)?;
 
         if let Some(bb) = saved_block {
             self.builder.position_at_end(bb);
@@ -260,7 +260,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(llvm_fun)
     }
 
-    pub(in crate::llvm::codegen) fn codegen_refactor_top_level_immutable_value_init_bridge_body(
+    pub(in crate::llvm::codegen) fn codegen_top_level_immutable_value_init_bridge_body(
         &mut self,
         value: &hir::TopLevelImmutableValue,
         llvm_fun: FunctionValue<'ctx>,

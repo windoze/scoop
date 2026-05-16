@@ -72,9 +72,9 @@ impl LlvmCodegenStageInput {
 /// - `abi_visibility_effect_lowered_stage_output` 若存在，则只用于发布 build fixture / ABI 断言所需的
 ///   request-source callable shell，可见性与 reachable body lowering 明确分离；
 /// - `hir_compat_scaffold` 只为当前仍未迁出的通用 LLVM 布局/顶层索引查询提供过渡输入；
-/// - 该 scaffold 明确不再携带 `materialized_mir/pass_view`，避免 refactor 路径再回落到旧的
+/// - 该 scaffold 明确不再携带 `materialized_mir/pass_view`，避免 lowering 路径再回落到旧的
 ///   `materialized_lowered_hir` emit helper；
-/// - `.ll/.o/.s` 三类产物都必须共用这份 handoff，再进入新的 refactor emit API。
+/// - `.ll/.o/.s` 三类产物都必须共用这份 handoff，再进入新的 emit API。
 #[derive(Debug)]
 pub struct LlvmCodegenStageOutput {
     source_map: SourceMap,
@@ -201,7 +201,7 @@ pub(crate) fn run(
             .source(entry_source_id)
             .ok_or_else(|| LlvmEmitError::Frontend {
                 message: format!(
-                    "refactor LLVM stage 找不到入口源文件（source_id={})",
+                    "LLVM stage 找不到入口源文件（source_id={})",
                     entry_source_id.as_usize()
                 ),
             })?;
@@ -591,7 +591,7 @@ fn precheck_negative_int_literal(
         .source(source_id)
         .ok_or_else(|| LlvmEmitError::Frontend {
             message: format!(
-                "refactor LLVM literal precheck 找不到 source_id={}",
+                "LLVM literal precheck 找不到 source_id={}",
                 source_id.as_usize()
             ),
         })?;
@@ -629,7 +629,7 @@ fn precheck_int_literal_text(
         .source(source_id)
         .ok_or_else(|| LlvmEmitError::Frontend {
             message: format!(
-                "refactor LLVM literal precheck 找不到 source_id={}",
+                "LLVM literal precheck 找不到 source_id={}",
                 source_id.as_usize()
             ),
         })?;
@@ -765,7 +765,7 @@ fn source_text_int_literal_body(text: &str) -> Option<(bool, &str)> {
 
 fn stage_error(stage: &'static str, error: impl std::fmt::Display) -> LlvmEmitError {
     LlvmEmitError::Frontend {
-        message: format!("refactor LLVM stage `{stage}` 失败：{error}"),
+        message: format!("LLVM stage `{stage}` 失败：{error}"),
     }
 }
 
@@ -856,7 +856,7 @@ mod tests {
             .as_nanos();
         let ordinal = NEXT_ID.fetch_add(1, Ordering::SeqCst);
         let dir = std::env::temp_dir().join(format!(
-            "scoopc_refactor_llvm_codegen_stage_{}_{}_{}",
+            "scoopc_llvm_codegen_stage_{}_{}_{}",
             std::process::id(),
             unique,
             ordinal
@@ -867,7 +867,7 @@ mod tests {
 
     fn sample_source() -> SourceFile {
         SourceFile::new_virtual(
-            "<mem>/refactor_llvm_codegen_stage_fixture.scoop",
+            "<mem>/llvm_codegen_stage_fixture.scoop",
             r#"
 package sample
 
@@ -880,7 +880,7 @@ fun main(): Int {
 
     fn effectful_source() -> SourceFile {
         SourceFile::new_virtual(
-            "<mem>/refactor_llvm_codegen_stage_effectful_fixture.scoop",
+            "<mem>/llvm_codegen_stage_effectful_fixture.scoop",
             r#"
 package sample
 
@@ -900,7 +900,7 @@ fun main(): Int {
 
     fn member_codegen_source() -> SourceFile {
         SourceFile::new_virtual(
-            "<mem>/refactor_mir_member_codegen_fixture.scoop",
+            "<mem>/mir_member_codegen_fixture.scoop",
             r#"
 package sample
 
@@ -921,7 +921,7 @@ fun main(): Int {
 
     fn unhandled_outward_entry_source() -> SourceFile {
         SourceFile::new_virtual(
-            "<mem>/refactor_main_unhandled_outward_fixture.scoop",
+            "<mem>/main_unhandled_outward_fixture.scoop",
             r#"
 package sample
 
@@ -940,7 +940,7 @@ fun main() {}
 
     fn array_string_main_source() -> SourceFile {
         SourceFile::new_virtual(
-            "<mem>/refactor_main_array_string_fixture.scoop",
+            "<mem>/main_array_string_fixture.scoop",
             r#"
 package sample
 
@@ -955,7 +955,7 @@ fun main(args: Array<String>): Int {
 
     fn runtime_type_primitives_source() -> SourceFile {
         SourceFile::new_virtual(
-            "<mem>/refactor_runtime_type_primitives_fixture.scoop",
+            "<mem>/runtime_type_primitives_fixture.scoop",
             r#"
 package sample
 
@@ -1009,7 +1009,7 @@ fun main(): Int {
 
     fn composite_transport_contract_source() -> SourceFile {
         SourceFile::new_virtual(
-            "<mem>/refactor_composite_transport_contract_fixture.scoop",
+            "<mem>/composite_transport_contract_fixture.scoop",
             r#"
 package sample
 
@@ -1032,7 +1032,7 @@ fun main(): Int {
 
     fn value_boxing_transport_source() -> SourceFile {
         SourceFile::new_virtual(
-            "<mem>/refactor_value_boxing_transport_fixture.scoop",
+            "<mem>/value_boxing_transport_fixture.scoop",
             r#"
 package sample
 
@@ -1062,7 +1062,7 @@ fun main(): Int {
 
     fn enum_payload_transport_source() -> SourceFile {
         SourceFile::new_virtual(
-            "<mem>/refactor_enum_payload_transport_fixture.scoop",
+            "<mem>/enum_payload_transport_fixture.scoop",
             r#"
 package sample
 
@@ -1111,7 +1111,7 @@ fun main(): Int {
 
     fn array_composite_transport_source() -> SourceFile {
         SourceFile::new_virtual(
-            "<mem>/refactor_array_composite_transport_fixture.scoop",
+            "<mem>/array_composite_transport_fixture.scoop",
             r#"
 package sample
 
@@ -1153,7 +1153,7 @@ fun main(): Int {
 
     fn closure_env_transport_source() -> SourceFile {
         SourceFile::new_virtual(
-            "<mem>/refactor_closure_env_transport_fixture.scoop",
+            "<mem>/closure_env_transport_fixture.scoop",
             r#"
 package sample
 
@@ -1203,7 +1203,7 @@ fun main(): Int {
 
     fn cross_thread_resume_payload_transport_source() -> SourceFile {
         SourceFile::new_virtual(
-            "<mem>/refactor_cross_thread_resume_payload_transport_fixture.scoop",
+            "<mem>/cross_thread_resume_payload_transport_fixture.scoop",
             r#"
 package sample
 
@@ -1249,11 +1249,11 @@ fun main(): Int {
         )
     }
 
-    fn emit_refactor_ir_for_source(source: SourceFile, file_name: &str) -> String {
-        emit_refactor_ir_for_source_with_entry(source, file_name, None).unwrap()
+    fn emit_ir_for_source(source: SourceFile, file_name: &str) -> String {
+        emit_ir_for_source_with_entry(source, file_name, None).unwrap()
     }
 
-    fn emit_refactor_ir_for_source_with_entry(
+    fn emit_ir_for_source_with_entry(
         source: SourceFile,
         file_name: &str,
         entry_main_fqn: Option<&str>,
@@ -1276,7 +1276,7 @@ fun main(): Int {
         Ok(std::fs::read_to_string(out).unwrap())
     }
 
-    fn emit_refactor_object_external_symbols_for_source_with_entry(
+    fn emit_object_external_symbols_for_source_with_entry(
         source: SourceFile,
         file_name: &str,
         entry_main_fqn: Option<&str>,
@@ -1511,8 +1511,8 @@ fun main(): Int {
     }
 
     #[test]
-    fn refactor_mir_member_access_codegen() {
-        let ir = emit_refactor_ir_for_source(member_codegen_source(), "member_access.ll");
+    fn mir_member_access_codegen() {
+        let ir = emit_ir_for_source(member_codegen_source(), "member_access.ll");
 
         assert!(
             ir.contains("pass_mir_member_load"),
@@ -1521,8 +1521,8 @@ fun main(): Int {
     }
 
     #[test]
-    fn refactor_mir_store_member_codegen() {
-        let ir = emit_refactor_ir_for_source(member_codegen_source(), "store_member.ll");
+    fn mir_store_member_codegen() {
+        let ir = emit_ir_for_source(member_codegen_source(), "store_member.ll");
 
         assert!(
             ir.contains("store i64 %pass_mir_iadd"),
@@ -1531,8 +1531,8 @@ fun main(): Int {
     }
 
     #[test]
-    fn refactor_llvm_composite_transport_contract_emits_layout_descriptor_globals() {
-        let ir = emit_refactor_ir_for_source(
+    fn llvm_composite_transport_contract_emits_layout_descriptor_globals() {
+        let ir = emit_ir_for_source(
             composite_transport_contract_source(),
             "composite_transport_contract.ll",
         );
@@ -1569,8 +1569,8 @@ fun main(): Int {
     }
 
     #[test]
-    fn refactor_llvm_value_boxing_transport() {
-        let ir = emit_refactor_ir_for_source(
+    fn llvm_value_boxing_transport() {
+        let ir = emit_ir_for_source(
             value_boxing_transport_source(),
             "value_boxing_transport.ll",
         );
@@ -1591,7 +1591,7 @@ fun main(): Int {
         );
         assert!(
             ir.lines().any(|line| {
-                line.starts_with("%scoop.refactor.MirValueBox__h")
+                line.starts_with("%scoop.lowered.MirValueBox__h")
                     && line
                         .contains(" = type { %scoop.runtime.ScoopGcObjectHeader, %sample.Named }")
             }) && ir.contains("@__scoop_priv0__mir_value_box_type_desc__h")
@@ -1609,8 +1609,8 @@ fun main(): Int {
     }
 
     #[test]
-    fn refactor_llvm_enum_payload_transport() {
-        let ir = emit_refactor_ir_for_source(
+    fn llvm_enum_payload_transport() {
+        let ir = emit_ir_for_source(
             enum_payload_transport_source(),
             "enum_payload_transport.ll",
         );
@@ -1640,7 +1640,7 @@ fun main(): Int {
         );
         assert!(
             ir.lines().any(|line| {
-                line.starts_with("%scoop.refactor.MirValueBox__h")
+                line.starts_with("%scoop.lowered.MirValueBox__h")
                     && line
                         .contains(" = type { %scoop.runtime.ScoopGcObjectHeader, %sample.Outer }")
             }) && ir.contains("@__scoop_priv0__mir_value_box_type_desc__h")
@@ -1656,8 +1656,8 @@ fun main(): Int {
     }
 
     #[test]
-    fn refactor_llvm_array_composite_transport() {
-        let ir = emit_refactor_ir_for_source(
+    fn llvm_array_composite_transport() {
+        let ir = emit_ir_for_source(
             array_composite_transport_source(),
             "array_composite_transport.ll",
         );
@@ -1690,9 +1690,9 @@ fun main(): Int {
     }
 
     #[test]
-    fn refactor_llvm_closure_env_transport() {
+    fn llvm_closure_env_transport() {
         let ir =
-            emit_refactor_ir_for_source(closure_env_transport_source(), "closure_env_transport.ll");
+            emit_ir_for_source(closure_env_transport_source(), "closure_env_transport.ll");
 
         let closure_env_descriptor = ir_global_definition_matching(
             &ir,
@@ -1722,7 +1722,7 @@ fun main(): Int {
         assert!(
             ir.contains("@__scoop_priv0__mir_capture_box_type_desc__h")
                 && ir.lines().any(|line| {
-                    line.starts_with("%scoop.refactor.MirCaptureBox__h")
+                    line.starts_with("%scoop.lowered.MirCaptureBox__h")
                         && line.contains(" = type { %scoop.runtime.ScoopGcObjectHeader")
                 }),
             "capture box private type/descriptor naming 应改走 stable type key，而不是 current TypeId/display 文本\n{ir}"
@@ -1735,8 +1735,8 @@ fun main(): Int {
     }
 
     #[test]
-    fn refactor_llvm_cross_thread_resume_payload_transport() {
-        let ir = emit_refactor_ir_for_source(
+    fn llvm_cross_thread_resume_payload_transport() {
+        let ir = emit_ir_for_source(
             cross_thread_resume_payload_transport_source(),
             "cross_thread_resume_payload_transport.ll",
         );
@@ -1750,8 +1750,8 @@ fun main(): Int {
             "typed thread resume transport thunk",
             |header, function| {
                 !header.contains("@main(")
-                    && function.contains("refactor_thread_surface_resume_transport")
-                    && function.contains("refactor_thread_resume_payload")
+                    && function.contains("thread_surface_resume_transport")
+                    && function.contains("thread_resume_payload")
             },
         );
         let transport_symbol = ir_function_symbol_name(transport_thunk);
@@ -1780,15 +1780,15 @@ fun main(): Int {
             "cross-thread resume payload descriptor 应改走 stable private namespace\n{payload_descriptor}"
         );
         assert!(
-            ir.contains("%refactor_thread_resume_payload")
+            ir.contains("%thread_resume_payload")
                 && ir.contains("@scoop_thread_spawn_join_resume_transport"),
             "composite resume payload should be passed through an explicit carrier pointer\n{ir}"
         );
     }
 
     #[test]
-    fn refactor_llvm_function_abi_entry_shells_use_refactor_direct_entry() {
-        let ir = emit_refactor_ir_for_source_with_entry(
+    fn llvm_function_abi_entry_shells_use_direct_entry() {
+        let ir = emit_ir_for_source_with_entry(
             unhandled_outward_entry_source(),
             "function_abi.ll",
             Some("sample.effectEntry"),
@@ -1827,19 +1827,19 @@ fun main(): Int {
         let dynamic_calls = ir_function_defined_call_targets(&ir, dynamic);
         assert!(
             dynamic_calls.len() == 1 && dynamic_calls[0] == direct_entry_symbol,
-            "dynamic entry should forward through the published refactor direct entry:\n{dynamic}"
+            "dynamic entry should forward through the published direct entry:\n{dynamic}"
         );
 
         let main_calls = ir_function_defined_call_targets(&ir, &main);
         assert!(
             main_calls.len() == 1 && main_calls[0] == direct_entry_symbol,
-            "C main wrapper should call the refactor direct entry, not the legacy function ABI:\n{main}"
+            "C main wrapper should call the direct entry, not the legacy function ABI:\n{main}"
         );
     }
 
     #[test]
-    fn refactor_llvm_main_wrapper_routes_unhandled_outward_to_exit_code() {
-        let ir = emit_refactor_ir_for_source_with_entry(
+    fn llvm_main_wrapper_routes_unhandled_outward_to_exit_code() {
+        let ir = emit_ir_for_source_with_entry(
             unhandled_outward_entry_source(),
             "main_unhandled.ll",
             Some("sample.effectEntry"),
@@ -1847,13 +1847,13 @@ fun main(): Int {
         .unwrap();
         let main = ir_function_body(&ir, "define i32 @main(");
         let unhandled = main
-            .split("refactor_main_unhandled:")
+            .split("main_unhandled:")
             .nth(1)
-            .and_then(|tail| tail.split("refactor_main_done:").next())
+            .and_then(|tail| tail.split("main_done:").next())
             .expect("main wrapper should contain an unhandled Step branch");
 
         assert!(
-            unhandled.contains("br label %refactor_main_done"),
+            unhandled.contains("br label %main_done"),
             "unhandled outward case should rejoin the explicit exit path:\n{main}"
         );
         assert!(
@@ -1863,13 +1863,13 @@ fun main(): Int {
     }
 
     #[test]
-    fn refactor_llvm_main_wrapper_passes_array_string_argv_to_plain_entry() {
-        let ir = emit_refactor_ir_for_source_with_entry(
+    fn llvm_main_wrapper_passes_array_string_argv_to_plain_entry() {
+        let ir = emit_ir_for_source_with_entry(
             array_string_main_source(),
             "main_argv.ll",
             None,
         )
-        .expect("refactor argv ABI should lower through the plain entry ABI");
+        .expect("argv ABI should lower through the plain entry ABI");
         let main = ir_function_body(&ir, "define i32 @main(");
         let main_defined_calls = ir_function_defined_call_targets(&ir, &main);
         assert_eq!(
@@ -1886,20 +1886,20 @@ fun main(): Int {
                 !header.contains("@main(")
                     && ir_function_symbol_name(function) == plain_entry_symbol.as_str()
                     && header.contains("ptr addrspace(1)")
-                    && !function.contains("switch i32 %refactor_step_tag")
+                    && !function.contains("switch i32 %step_tag")
             },
         );
 
         assert!(
             main.contains("@scoop_entry_argv_array")
                 && ir_function_symbol_name(plain_entry) == plain_entry_symbol,
-            "main wrapper should build argv array and pass it to the refactor plain entry:\n{main}"
+            "main wrapper should build argv array and pass it to the plain entry:\n{main}"
         );
     }
 
     #[test]
-    fn refactor_llvm_runtime_type_primitives() {
-        let ir = emit_refactor_ir_for_source(
+    fn llvm_runtime_type_primitives() {
+        let ir = emit_ir_for_source(
             runtime_type_primitives_source(),
             "runtime_type_primitives.ll",
         );
@@ -1910,7 +1910,7 @@ fun main(): Int {
         );
         assert!(
             ir.contains("mir_asq_value"),
-            "`as?` should construct an Option<T> value in refactor LLVM:\n{ir}"
+            "`as?` should construct an Option<T> value in LLVM:\n{ir}"
         );
         assert!(
             ir.contains("isa_iface") || ir.contains("isa_loop"),
@@ -1957,10 +1957,10 @@ fun main(): Int {
     }
 
     #[test]
-    fn refactor_llvm_overloaded_source_level_callables_publish_distinct_abi_symbols() {
-        let ir = emit_refactor_ir_for_source(
+    fn llvm_overloaded_source_level_callables_publish_distinct_abi_symbols() {
+        let ir = emit_ir_for_source(
             SourceFile::new_virtual(
-                "<mem>/refactor_overload_export_fixture.scoop",
+                "<mem>/overload_export_fixture.scoop",
                 r#"
 package sample
 
@@ -1977,7 +1977,7 @@ fun main(): Int {
 }
 "#,
             ),
-            "refactor_overload_export.ll",
+            "overload_export.ll",
         );
 
         let overload_symbols = ir_defined_function_symbols(&ir)
@@ -1996,10 +1996,10 @@ fun main(): Int {
     }
 
     #[test]
-    fn refactor_llvm_vtable_targets_use_abi_mangler_namespace() {
-        let ir = emit_refactor_ir_for_source(
+    fn llvm_vtable_targets_use_abi_mangler_namespace() {
+        let ir = emit_ir_for_source(
             SourceFile::new_virtual(
-                "<mem>/refactor_vtable_symbol_fixture.scoop",
+                "<mem>/vtable_symbol_fixture.scoop",
                 r#"
 package fixtures.build
 
@@ -2025,7 +2025,7 @@ fun main() {
 }
 "#,
             ),
-            "refactor_vtable_symbol.ll",
+            "vtable_symbol.ll",
         );
         let base_symbols = ir_defined_function_symbols(&ir)
             .into_iter()
@@ -2080,7 +2080,7 @@ fun main() {
     }
 
     #[test]
-    fn refactor_llvm_codegen_stage_output_is_constructible() {
+    fn llvm_codegen_stage_output_is_constructible() {
         let _guard = test_lock();
         let (session, source_map, entry_source_id, lowered) = sample_emit_args();
         let input = LlvmCodegenStageInput::new(
@@ -2106,7 +2106,7 @@ fun main() {
                 .hir_compat_scaffold()
                 .materialized_pass_view()
                 .is_none(),
-            "refactor LLVM stage 的 HIR scaffold 不应再携带旧 production pass-view 入口"
+            "LLVM stage 的 HIR scaffold 不应再携带旧 production pass-view 入口"
         );
         assert!(
             stage_output
@@ -2164,7 +2164,7 @@ fun main() {
         let session = session();
         let source = effectful_source();
         let ir = crate::llvm::emit_minimal_main_ir(&session, &source)
-            .expect("默认单文件 IR helper 应经 refactor LLVM stage 成功 lower effectful main");
+            .expect("默认单文件 IR helper 应经 LLVM stage 成功 lower effectful main");
 
         assert!(ir.contains("define i32 @main("));
         assert_eq!(test_stage_run_count(), 1);
@@ -2195,7 +2195,7 @@ fun main() {
     }
 
     #[test]
-    fn refactor_llvm_codegen_stage_shares_same_stage_entry_for_ir_obj_and_asm() {
+    fn llvm_codegen_stage_shares_same_stage_entry_for_ir_obj_and_asm() {
         let _guard = test_lock();
         let _stage_run_guard = enable_test_stage_run_counting();
         let temp = make_temp_dir();
@@ -2228,7 +2228,7 @@ fun main() {
     }
 
     #[test]
-    fn refactor_llvm_backend_gate_smoke_lowers_effectful_handle_body_without_legacy() {
+    fn llvm_backend_gate_smoke_lowers_effectful_handle_body_without_legacy() {
         let _guard = test_lock();
         let _stage_run_guard = enable_test_stage_run_counting();
         let temp = make_temp_dir();
@@ -2246,16 +2246,16 @@ fun main() {
             OptLevel::O0,
             LlvmArtifactKind::LlvmIr,
         )
-        .expect("effectful refactor LLVM path 应由 clean stage lowering 成功生成 IR");
+        .expect("effectful LLVM path 应由 clean stage lowering 成功生成 IR");
 
         assert_eq!(test_stage_run_count(), 1);
         let ir = std::fs::read_to_string(out).unwrap();
-        assert!(ir.contains("scoop.refactor.Step"));
+        assert!(ir.contains("scoop.lowered.Step"));
         assert!(ir.contains("call void @scoop_runtime_init()"));
     }
 
     #[test]
-    fn refactor_llvm_exported_object_symbols_are_path_stable_across_checkout_roots() {
+    fn llvm_exported_object_symbols_are_path_stable_across_checkout_roots() {
         let source_text = r#"
 package sample
 
@@ -2280,13 +2280,13 @@ fun main(): Int {
             source_text,
         );
 
-        let symbols_a = emit_refactor_object_external_symbols_for_source_with_entry(
+        let symbols_a = emit_object_external_symbols_for_source_with_entry(
             source_a,
             "path_stable_plain_export_a.o",
             None,
         )
         .expect("path-stable plain export source 应可成功发 object");
-        let symbols_b = emit_refactor_object_external_symbols_for_source_with_entry(
+        let symbols_b = emit_object_external_symbols_for_source_with_entry(
             source_b,
             "path_stable_plain_export_b.o",
             None,
@@ -2310,7 +2310,7 @@ fun main(): Int {
     }
 
     #[test]
-    fn refactor_llvm_user_abi_symbols_stay_disjoint_for_distinct_virtual_cones() {
+    fn llvm_user_abi_symbols_stay_disjoint_for_distinct_virtual_cones() {
         let source_text = r#"
 package sample
 
@@ -2335,7 +2335,7 @@ fun main(): Int {
             source_text,
         );
 
-        let user_abi_a = emit_refactor_object_external_symbols_for_source_with_entry(
+        let user_abi_a = emit_object_external_symbols_for_source_with_entry(
             source_a,
             "collision_alpha.o",
             None,
@@ -2344,7 +2344,7 @@ fun main(): Int {
         .into_iter()
         .filter(|symbol| symbol.starts_with("__scoop_abi0_fun__sample_helper__h"))
         .collect::<BTreeSet<_>>();
-        let user_abi_b = emit_refactor_object_external_symbols_for_source_with_entry(
+        let user_abi_b = emit_object_external_symbols_for_source_with_entry(
             source_b,
             "collision_beta.o",
             None,

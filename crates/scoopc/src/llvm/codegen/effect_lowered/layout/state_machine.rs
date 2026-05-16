@@ -11,7 +11,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
     pub(super) fn materialize_step_layout(
         &mut self,
         step_type: &LateLoweredStepType,
-    ) -> Result<RefactorStepLayout<'ctx>, LlvmEmitError> {
+    ) -> Result<StepLayout<'ctx>, LlvmEmitError> {
         let stable_effect_key_text = stable_naming::effect_schema_key_text(
             self.codegen.stable_cone_key,
             self.source_types,
@@ -22,29 +22,29 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
         )?;
         let step_type_name = stable_naming::private_type_name_from_key_text(
             "Step",
-            "refactor_step_type",
+            "step_type",
             &stable_effect_key_text,
         )?;
         let storage_type_name = stable_naming::private_type_name_from_key_text(
             "StepStorage",
-            "refactor_step_storage",
+            "step_storage",
             &stable_effect_key_text,
         )?;
         let step_anchor_name = stable_naming::private_name_from_key_text(
-            "refactor_step_layout",
+            "step_layout",
             &stable_effect_key_text,
         );
         let complete_tag_name = stable_naming::private_name_from_key_text(
-            "refactor_step_case_tag_complete",
+            "step_case_tag_complete",
             &stable_effect_key_text,
         );
         let complete_payload_name = stable_naming::private_type_name_from_key_text(
             "StepComplete",
-            "refactor_step_complete_type",
+            "step_complete_type",
             &stable_effect_key_text,
         )?;
         let complete_payload_anchor = stable_naming::private_name_from_key_text(
-            "refactor_step_variant_payload_complete",
+            "step_variant_payload_complete",
             &stable_effect_key_text,
         );
 
@@ -60,7 +60,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
         self.ensure_struct_anchor(&complete_payload_anchor, complete_payload_ty);
         self.ensure_case_tag_constant(&complete_tag_name, 0);
 
-        let complete_variant = RefactorStepVariantLayout::new(
+        let complete_variant = StepVariantLayout::new(
             0,
             step_type.complete_ty(),
             complete_payload_ty,
@@ -86,15 +86,15 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             )?;
             let case_payload_name = stable_naming::private_type_name_from_key_text(
                 "StepCase",
-                "refactor_step_case_type",
+                "step_case_type",
                 &case_key_text,
             )?;
             let case_payload_anchor = stable_naming::private_name_from_key_text(
-                "refactor_step_variant_payload_case",
+                "step_variant_payload_case",
                 &case_key_text,
             );
             let case_tag_name = stable_naming::private_name_from_key_text(
-                "refactor_step_case_tag_case",
+                "step_case_tag_case",
                 &case_key_text,
             );
             let payload_layout = self.source_value_layout(case.payload_tuple_ty())?;
@@ -112,12 +112,12 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             payload_tys.push(case_payload_ty);
             case_layouts.insert(
                 case.case_tag(),
-                RefactorStepCaseLayout::new(
+                StepCaseLayout::new(
                     case.case_tag(),
                     case.concrete_op_key().clone(),
                     case.payload_tuple_ty(),
                     case_tag_name,
-                    RefactorStepVariantLayout::new(
+                    StepVariantLayout::new(
                         tag_value,
                         case.payload_tuple_ty(),
                         case_payload_ty,
@@ -136,7 +136,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
         );
         self.ensure_struct_anchor(&step_anchor_name, step_ty);
 
-        Ok(RefactorStepLayout::new(
+        Ok(StepLayout::new(
             step_type.step_schema(),
             stable_effect_key_text,
             step_ty,
@@ -150,14 +150,14 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
     pub(super) fn materialize_resume_packing_layout(
         &mut self,
         interface: &LateLoweredResumeInterface,
-        step_layouts: &BTreeMap<StepSchemaId, RefactorStepLayout<'ctx>>,
-    ) -> Result<RefactorResumeInterfaceLayout<'ctx>, LlvmEmitError> {
+        step_layouts: &BTreeMap<StepSchemaId, StepLayout<'ctx>>,
+    ) -> Result<ResumeInterfaceLayout<'ctx>, LlvmEmitError> {
         let step_schema = interface.return_step_schema();
         let return_step_ty = step_layouts
             .get(&step_schema)
             .ok_or_else(|| {
                 frontend_error(format!(
-                    "refactor LLVM ABI materialization 缺少 resume packing {} 的 return step schema {}",
+                    "LLVM ABI materialization 缺少 resume packing {} 的 return step schema {}",
                     interface.interface_id().as_u32(),
                     step_schema.as_u32()
                 ))
@@ -165,14 +165,14 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             .llvm_ty();
         let step_type = self.program.step_type(step_schema).ok_or_else(|| {
             frontend_error(format!(
-                "refactor LLVM ABI materialization 缺少 resume packing {} 的 step type {}",
+                "LLVM ABI materialization 缺少 resume packing {} 的 step type {}",
                 interface.interface_id().as_u32(),
                 step_schema.as_u32()
             ))
         })?;
         let step_layout = step_layouts.get(&step_schema).ok_or_else(|| {
             frontend_error(format!(
-                "refactor LLVM ABI materialization 缺少 resume packing {} 的 step layout {}",
+                "LLVM ABI materialization 缺少 resume packing {} 的 step layout {}",
                 interface.interface_id().as_u32(),
                 step_schema.as_u32()
             ))
@@ -186,11 +186,11 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
         );
         let vtable_type_name = stable_naming::private_type_name_from_key_text(
             "ResumeVtable",
-            "refactor_resume_vtable_type",
+            "resume_vtable_type",
             &vtable_key_text,
         )?;
         let vtable_anchor_name = stable_naming::private_name_from_key_text(
-            "refactor_resume_vtable_layout",
+            "resume_vtable_layout",
             &vtable_key_text,
         );
         let expected_case_tags = step_type
@@ -206,7 +206,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
         for (index, method) in interface.methods().iter().enumerate() {
             let step_case = step_type.case(method.case_tag()).ok_or_else(|| {
                 frontend_error(format!(
-                    "refactor LLVM ABI materialization 发现 resume packing {} method case {} 在 step schema {} 中不存在",
+                    "LLVM ABI materialization 发现 resume packing {} method case {} 在 step schema {} 中不存在",
                     interface.interface_id().as_u32(),
                     method.case_tag().as_u32(),
                     step_schema.as_u32()
@@ -214,14 +214,14 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             })?;
             if !published_case_tags.insert(method.case_tag()) {
                 return Err(frontend_error(format!(
-                    "refactor LLVM ABI materialization 发现 resume packing {} 重复发布 case {}",
+                    "LLVM ABI materialization 发现 resume packing {} 重复发布 case {}",
                     interface.interface_id().as_u32(),
                     method.case_tag().as_u32()
                 )));
             }
             if method.concrete_op_key().effect_family() != interface.effect_family() {
                 return Err(frontend_error(format!(
-                    "refactor LLVM ABI materialization 发现 resume packing {} method case {} 的 effect family `{}` 与 packing family `{}` 不一致",
+                    "LLVM ABI materialization 发现 resume packing {} method case {} 的 effect family `{}` 与 packing family `{}` 不一致",
                     interface.interface_id().as_u32(),
                     method.case_tag().as_u32(),
                     method.concrete_op_key().effect_family().effect_fqn(),
@@ -230,7 +230,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             }
             if step_case.concrete_op_key() != method.concrete_op_key() {
                 return Err(frontend_error(format!(
-                    "refactor LLVM ABI materialization 发现 resume packing {} method case {} 的 concrete op `{}` 与 step shell 发布 `{}` 不一致",
+                    "LLVM ABI materialization 发现 resume packing {} method case {} 的 concrete op `{}` 与 step shell 发布 `{}` 不一致",
                     interface.interface_id().as_u32(),
                     method.case_tag().as_u32(),
                     method.concrete_op_key().instance_key().template.fqn,
@@ -239,7 +239,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             }
             if step_case.concrete_op_key().effect_family() != interface.effect_family() {
                 return Err(frontend_error(format!(
-                    "refactor LLVM ABI materialization 发现 resume packing {} method case {} 指向的 step case family `{}` 与 packing family `{}` 不一致",
+                    "LLVM ABI materialization 发现 resume packing {} method case {} 指向的 step case family `{}` 与 packing family `{}` 不一致",
                     interface.interface_id().as_u32(),
                     method.case_tag().as_u32(),
                     step_case.concrete_op_key().effect_family().effect_fqn(),
@@ -248,7 +248,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             }
             if method.out_step_schema() != step_schema {
                 return Err(frontend_error(format!(
-                    "refactor LLVM ABI materialization 发现 resume packing {} method case {} 的 out step schema {} 与 packing return step schema {} 不一致",
+                    "LLVM ABI materialization 发现 resume packing {} method case {} 的 out step schema {} 与 packing return step schema {} 不一致",
                     interface.interface_id().as_u32(),
                     method.case_tag().as_u32(),
                     method.out_step_schema().as_u32(),
@@ -257,7 +257,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             }
             if step_case.continuation_contract() != method.continuation_contract() {
                 return Err(frontend_error(format!(
-                    "refactor LLVM ABI materialization 发现 resume packing {} method case {} 的 continuation contract 与 step shell 不一致",
+                    "LLVM ABI materialization 发现 resume packing {} method case {} 的 continuation contract 与 step shell 不一致",
                     interface.interface_id().as_u32(),
                     method.case_tag().as_u32()
                 )));
@@ -265,13 +265,13 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
 
             let step_case = step_type.case(method.case_tag()).ok_or_else(|| {
                 frontend_error(format!(
-                    "refactor LLVM ABI materialization 缺少 resume packing {} method case {} 的 authoritative step case",
+                    "LLVM ABI materialization 缺少 resume packing {} method case {} 的 authoritative step case",
                     interface.interface_id().as_u32(),
                     method.case_tag().as_u32(),
                 ))
             })?;
             let symbol_name = stable_naming::private_name_from_key_text(
-                "refactor_resume",
+                "resume",
                 &canonical_record(
                     "resume_method",
                     [
@@ -303,7 +303,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             vtable_fields.push(self.codegen.llvm_i8_ptr_type().into());
             methods.insert(
                 method.case_tag(),
-                RefactorResumeMethodLayout::new(
+                ResumeMethodLayout::new(
                     interface.interface_id(),
                     method.case_tag(),
                     symbol_name,
@@ -321,7 +321,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             .collect::<Vec<_>>();
         if !missing_case_tags.is_empty() {
             return Err(frontend_error(format!(
-                "refactor LLVM ABI materialization 发现 resume packing {} 在 step schema {} 的 effect family `{}` 下缺少 authoritative method cases [{}]",
+                "LLVM ABI materialization 发现 resume packing {} 在 step schema {} 的 effect family `{}` 下缺少 authoritative method cases [{}]",
                 interface.interface_id().as_u32(),
                 step_schema.as_u32(),
                 interface.effect_family().effect_fqn(),
@@ -331,7 +331,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
 
         let vtable_ty = self.define_named_struct(&vtable_type_name, &vtable_fields);
         self.ensure_struct_anchor(&vtable_anchor_name, vtable_ty);
-        Ok(RefactorResumeInterfaceLayout::new(
+        Ok(ResumeInterfaceLayout::new(
             interface.interface_id(),
             interface.effect_family().effect_fqn().to_string(),
             vtable_ty,
@@ -342,9 +342,9 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
 
     pub(super) fn materialize_surface_resume_layouts(
         &mut self,
-        step_layouts: &BTreeMap<StepSchemaId, RefactorStepLayout<'ctx>>,
+        step_layouts: &BTreeMap<StepSchemaId, StepLayout<'ctx>>,
     ) -> Result<
-        BTreeMap<ContinuationSchemaId, RefactorContinuationSurfaceResumeLayout<'ctx>>,
+        BTreeMap<ContinuationSchemaId, ContinuationSurfaceResumeLayout<'ctx>>,
         LlvmEmitError,
     > {
         let mut layouts = BTreeMap::new();
@@ -396,14 +396,14 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
     #[allow(clippy::too_many_arguments)]
     pub(super) fn register_surface_resume_layout(
         &mut self,
-        layouts: &mut BTreeMap<ContinuationSchemaId, RefactorContinuationSurfaceResumeLayout<'ctx>>,
+        layouts: &mut BTreeMap<ContinuationSchemaId, ContinuationSurfaceResumeLayout<'ctx>>,
         continuation_schema: ContinuationSchemaId,
         dispatch_source_kind: crate::effect_lowered::ir::LateLoweredSurfaceResumeDispatchSourceKind,
         resume_tuple_ty: crate::ty::TypeId,
         answer_ty: crate::ty::TypeId,
         return_step_schema: StepSchemaId,
         source_label: &str,
-        step_layouts: &BTreeMap<StepSchemaId, RefactorStepLayout<'ctx>>,
+        step_layouts: &BTreeMap<StepSchemaId, StepLayout<'ctx>>,
     ) -> Result<(), LlvmEmitError> {
         let layout = self.materialize_surface_resume_layout(
             continuation_schema,
@@ -427,7 +427,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                         != layout.resume_payload_abi().is_elided()
                 {
                     return Err(frontend_error(format!(
-                        "refactor LLVM ABI materialization 发现 continuation schema k{} 的 surface-resume contract 漂移：已发布为 resume_tuple_ty={} answer_ty={} out_step_schema={}，但 {source_label} 重新发布为 resume_tuple_ty={} answer_ty={} out_step_schema={}",
+                        "LLVM ABI materialization 发现 continuation schema k{} 的 surface-resume contract 漂移：已发布为 resume_tuple_ty={} answer_ty={} out_step_schema={}，但 {source_label} 重新发布为 resume_tuple_ty={} answer_ty={} out_step_schema={}",
                         continuation_schema.as_u32(),
                         existing.resume_tuple_ty().as_u32(),
                         existing.answer_ty().as_u32(),
@@ -449,13 +449,13 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
         resume_tuple_ty: crate::ty::TypeId,
         answer_ty: crate::ty::TypeId,
         step_schema: StepSchemaId,
-        step_layouts: &BTreeMap<StepSchemaId, RefactorStepLayout<'ctx>>,
-    ) -> Result<RefactorContinuationSurfaceResumeLayout<'ctx>, LlvmEmitError> {
+        step_layouts: &BTreeMap<StepSchemaId, StepLayout<'ctx>>,
+    ) -> Result<ContinuationSurfaceResumeLayout<'ctx>, LlvmEmitError> {
         let return_step_ty = step_layouts
             .get(&step_schema)
             .ok_or_else(|| {
                 frontend_error(format!(
-                    "refactor LLVM ABI materialization 缺少 continuation schema k{} 的 surface-resume return step schema {}",
+                    "LLVM ABI materialization 缺少 continuation schema k{} 的 surface-resume return step schema {}",
                     continuation_schema.as_u32(),
                     step_schema.as_u32()
                 ))
@@ -467,7 +467,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             .get(&continuation_schema)
             .ok_or_else(|| {
                 frontend_error(format!(
-                    "refactor LLVM ABI materialization 缺少 continuation schema {} 的 authoritative facts",
+                    "LLVM ABI materialization 缺少 continuation schema {} 的 authoritative facts",
                     continuation_schema.as_u32()
                 ))
             })?;
@@ -476,7 +476,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             || continuation_schema_facts.out_step_schema() != step_schema
         {
             return Err(frontend_error(format!(
-                "refactor LLVM ABI materialization 发现 continuation schema {} 的 layout 输入与 authoritative facts 漂移",
+                "LLVM ABI materialization 发现 continuation schema {} 的 layout 输入与 authoritative facts 漂移",
                 continuation_schema.as_u32()
             )));
         }
@@ -489,7 +489,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             &format!("continuation schema {}", continuation_schema.as_u32()),
         )?;
         let symbol_name = stable_naming::private_name_from_key_text(
-            "refactor_surface_resume",
+            "surface_resume",
             &stable_continuation_key_text,
         );
         let payload_abi = self.resume_surface_abi_value(resume_tuple_ty)?;
@@ -501,7 +501,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
         }
         let fn_ty = return_step_ty.fn_type(&params, false);
         self.ensure_declared_compiler_private_helper_function(&symbol_name, fn_ty);
-        Ok(RefactorContinuationSurfaceResumeLayout::new(
+        Ok(ContinuationSurfaceResumeLayout::new(
             continuation_schema,
             dispatch_source_kind,
             stable_continuation_key_text,
@@ -519,7 +519,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
         &self,
         surface_resume_layouts: &BTreeMap<
             ContinuationSchemaId,
-            RefactorContinuationSurfaceResumeLayout<'ctx>,
+            ContinuationSurfaceResumeLayout<'ctx>,
         >,
     ) -> Result<(), LlvmEmitError> {
         for callable in self.program.callables() {
@@ -538,7 +538,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                     } => site_id,
                     other => {
                         return Err(frontend_error(format!(
-                            "refactor LLVM ABI materialization 发现 callable `{}` 的 resume lowering 绑定到了非 Resume boundary source {other:?}",
+                            "LLVM ABI materialization 发现 callable `{}` 的 resume lowering 绑定到了非 Resume boundary source {other:?}",
                             callable.root_fqn(),
                         )));
                     }
@@ -546,7 +546,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                 let facts = lowering.facts();
                 let layout = surface_resume_layouts.get(&facts.continuation_schema()).ok_or_else(|| {
                     frontend_error(format!(
-                        "refactor LLVM ABI materialization 缺少 callable `{}` resume site {} 所需的 continuation schema k{} surface-resume layout",
+                        "LLVM ABI materialization 缺少 callable `{}` resume site {} 所需的 continuation schema k{} surface-resume layout",
                         callable.root_fqn(),
                         site_id.as_u32(),
                         facts.continuation_schema().as_u32(),
@@ -557,7 +557,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                     || layout.return_step_schema() != facts.out_step_schema()
                 {
                     return Err(frontend_error(format!(
-                        "refactor LLVM ABI materialization 发现 callable `{}` resume site {} 的 continuation schema k{} surface-resume contract 与 ResumeSiteEffectFacts 漂移：layout=(resume_tuple_ty={}, answer_ty={}, out_step_schema={})，facts=(resume_tuple_ty={}, answer_ty={}, out_step_schema={})",
+                        "LLVM ABI materialization 发现 callable `{}` resume site {} 的 continuation schema k{} surface-resume contract 与 ResumeSiteEffectFacts 漂移：layout=(resume_tuple_ty={}, answer_ty={}, out_step_schema={})，facts=(resume_tuple_ty={}, answer_ty={}, out_step_schema={})",
                         callable.root_fqn(),
                         site_id.as_u32(),
                         facts.continuation_schema().as_u32(),
@@ -575,7 +575,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                         | crate::effect_lowered::ir::LateLoweredSurfaceResumeDispatchSourceKind::Unreachable
                 ) {
                     return Err(frontend_error(format!(
-                        "refactor LLVM ABI materialization 发现 callable `{}` resume site {} 的 continuation schema k{} dispatch source kind 为 {:?}，无法作为 authoritative resume-site surface source",
+                        "LLVM ABI materialization 发现 callable `{}` resume site {} 的 continuation schema k{} dispatch source kind 为 {:?}，无法作为 authoritative resume-site surface source",
                         callable.root_fqn(),
                         site_id.as_u32(),
                         facts.continuation_schema().as_u32(),
@@ -590,7 +590,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
     pub(super) fn materialize_frame_layout(
         &mut self,
         callable: &LateLoweredCallable,
-    ) -> Result<RefactorFrameLayout<'ctx>, LlvmEmitError> {
+    ) -> Result<FrameLayout<'ctx>, LlvmEmitError> {
         let stable_callable_key_text = stable_naming::callable_version_key_text(
             self.codegen.stable_cone_key,
             self.source_types,
@@ -601,18 +601,18 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
         )?;
         let frame_type_name = stable_naming::private_type_name_from_key_text(
             "Frame",
-            "refactor_frame_type",
+            "frame_type",
             &stable_callable_key_text,
         )?;
         let frame_anchor_name = stable_naming::private_name_from_key_text(
-            "refactor_frame_layout",
+            "frame_layout",
             &stable_callable_key_text,
         );
         let header_ty = self.codegen.llvm_gc_object_header_type();
         let mut llvm_fields: Vec<BasicTypeEnum<'ctx>> = vec![header_ty.into()];
-        let mut fields = vec![RefactorFrameFieldLayout::new(
+        let mut fields = vec![FrameFieldLayout::new(
             0,
-            RefactorFrameFieldKind::Header,
+            FrameFieldKind::Header,
             header_ty.into(),
         )];
         let mut slot_field_indices = BTreeMap::new();
@@ -627,9 +627,9 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                 _ => self.abi_value(slot.ty())?,
             };
             llvm_fields.push(slot_abi.llvm_ty());
-            fields.push(RefactorFrameFieldLayout::new(
+            fields.push(FrameFieldLayout::new(
                 field_index,
-                RefactorFrameFieldKind::Slot(slot.slot_id()),
+                FrameFieldKind::Slot(slot.slot_id()),
                 slot_abi.llvm_ty(),
             ));
             slot_field_indices.insert(slot.slot_id(), field_index);
@@ -640,7 +640,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
 
         let frame_ty = self.define_named_struct(&frame_type_name, &llvm_fields);
         self.ensure_struct_anchor(&frame_anchor_name, frame_ty);
-        Ok(RefactorFrameLayout::new(
+        Ok(FrameLayout::new(
             callable.step_schema(),
             frame_ty,
             frame_anchor_name,

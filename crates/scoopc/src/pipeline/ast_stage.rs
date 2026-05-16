@@ -3,7 +3,7 @@ use crate::parser::ParseError;
 use crate::session::Session;
 use crate::source::SourceFile;
 
-/// refactor AST stage 的稳定 AST -> typed handoff 形状。
+/// AST stage 的稳定 AST -> typed handoff 形状。
 ///
 /// P1 在这里固定如下 contract，供后续 typed 阶段直接消费：
 /// - AST 只保留普通 `Call` / `MemberAccess` 等源码级形状；
@@ -51,7 +51,7 @@ mod tests {
     use crate::session::SessionOptions;
 
     #[test]
-    fn ast_stage_output_is_constructible_for_refactor_pipeline() {
+    fn ast_stage_output_is_constructible_for_pipeline() {
         let session = Session::with_options(SessionOptions::new()).unwrap();
         let source = SourceFile::new_virtual("<mem>", "package sample\nfun main() {}\n");
 

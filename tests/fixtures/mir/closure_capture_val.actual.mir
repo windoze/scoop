@@ -1,0 +1,53 @@
+File {
+    items: [
+        Fun(
+            FunDecl {
+                span: 11..79,
+                fqn: "a.main",
+                name: "main",
+                ty: () -> Int / Pure,
+                params: [],
+                return_ty: Int,
+                body: Some(
+                    Body {
+                        locals: [LocalDecl { label: local#hb473dafd1deaef2170a29a9aee82fe84, span: 26..35, name: Some("y"), ty: Int, source: SourceLocal }, LocalDecl { label: local#h72726cd9935d5d820f5c8689a4c8787e, span: 34..35, name: Some("tmp0"), ty: Int, source: CompilerTemporary }, LocalDecl { label: local#hc0f038ae28af7ffdd8d73824b42a91bd, span: 38..70, name: Some("f"), ty: (Int) -> Int / Pure, source: SourceLocal }, LocalDecl { label: local#h83627e7c36ba15f151949781a047f425, span: 60..70, name: Some("tmp1"), ty: (Int,), source: CompilerTemporary }, LocalDecl { label: local#hd7b0563f641bf9998349a5aa5160f41c, span: 60..70, name: Some("tmp2"), ty: (Int) -> Int / Pure, source: CompilerTemporary }, LocalDecl { label: local#h6582d957cd23415b0db999fdf1f93093, span: 73..77, name: Some("tmp3"), ty: Int, source: CompilerTemporary }, LocalDecl { label: local#haf94374b47a4b9b80c77954c03b4a141, span: 75..76, name: Some("tmp4"), ty: Int, source: CompilerTemporary }],
+                        blocks: [
+                            BasicBlock {
+                                label: bb#h57d40927cde23ed6082cc9d455226b5d,
+                                is_cleanup: false,
+                                stmts: [Statement { span: 34..35, kind: Assign { target: local#h72726cd9935d5d820f5c8689a4c8787e, value: Use(Const(Int)) } }, Statement { span: 26..35, kind: Assign { target: local#hb473dafd1deaef2170a29a9aee82fe84, value: Use(Local(local#h72726cd9935d5d820f5c8689a4c8787e)) } }, Statement { span: 60..70, kind: Assign { target: local#h83627e7c36ba15f151949781a047f425, value: MakeTuple { elements: [Local(local#hb473dafd1deaef2170a29a9aee82fe84)], transport: AggregateTransportMetadata { aggregate_ty: (Int,), kind: ClosureEnv, fields: [AggregateTransportField { index: 0, name: Some("y"), ty: Int, transport: ValueTransportMetadata { source_ty: Int, kind: Scalar, requirements: MirTransportRequirements { trace: false, copy: true, drop: false }, boxing: None } }] } } } }, Statement { span: 60..70, kind: Assign { target: local#hd7b0563f641bf9998349a5aa5160f41c, value: MakeClosure { env: Local(local#h83627e7c36ba15f151949781a047f425), fn_ptr: "a.main.$lambda0", env_contract: ClosureEnvTransportMetadata { env_ty: (Int,), captures: [ClosureCaptureTransportMetadata { name: "y", decl_span: 30..31, mutable: false, source_local: local#hb473dafd1deaef2170a29a9aee82fe84, transport: ValueTransportMetadata { source_ty: Int, kind: Scalar, requirements: MirTransportRequirements { trace: false, copy: true, drop: false }, boxing: None } }] } } } }, Statement { span: 38..70, kind: Assign { target: local#hc0f038ae28af7ffdd8d73824b42a91bd, value: Use(Local(local#hd7b0563f641bf9998349a5aa5160f41c)) } }, Statement { span: 75..76, kind: Assign { target: local#haf94374b47a4b9b80c77954c03b4a141, value: Use(Const(Int)) } }, Statement { span: 73..77, kind: Assign { target: local#h6582d957cd23415b0db999fdf1f93093, value: Call { site_id: site#h160a3f924d4d8d9bb97aabdec9eda4e2, kind: FunValue { callee: Local(local#hc0f038ae28af7ffdd8d73824b42a91bd) }, args: [CallArg { span: 75..76, name: None, value: Local(local#haf94374b47a4b9b80c77954c03b4a141) }], transport: CallTransportMetadata { result: ValueTransportMetadata { source_ty: Int, kind: Scalar, requirements: MirTransportRequirements { trace: false, copy: true, drop: false }, boxing: None }, aggregate_return: None, array: None, gc: None, thread_resume_payload: None, abi: CallAbiHandoffMetadata { callable_abi_kind: DeferredToEffectFacts, resolved_outward_cases: [], impl_plan: DeferredToEffectFacts, adapter_required: false } } } } }],
+                                terminator: Terminator { span: 11..79, kind: Return { value: Some(Local(local#h6582d957cd23415b0db999fdf1f93093)) }, unwind: NoUnwind },
+                            },
+                        ],
+                        start: bb#h57d40927cde23ed6082cc9d455226b5d,
+                    }
+                ),
+            },
+        ),
+        Fun(
+            FunDecl {
+                span: 60..70,
+                fqn: "a.main.$lambda0",
+                name: "$lambda0",
+                ty: Any,
+                params: [Param { span: 60..70, name: "$env", ty: (Int,), local: local#h093b7f42a6e06789613bd42401c7c6b3 }, Param { span: 62..63, name: "x", ty: Int, local: local#h6abeaa0b9d486354685397590e5f1130 }],
+                return_ty: Int,
+                body: Some(
+                    Body {
+                        locals: [LocalDecl { label: local#h093b7f42a6e06789613bd42401c7c6b3, span: 60..70, name: Some("$env"), ty: (Int,), source: SourceLocal }, LocalDecl { label: local#h7bdee280750d587ab6c7481fc45362a2, span: 30..31, name: Some("y"), ty: Int, source: SourceLocal }, LocalDecl { label: local#h6abeaa0b9d486354685397590e5f1130, span: 62..63, name: Some("x"), ty: Int, source: SourceLocal }],
+                        blocks: [
+                            BasicBlock {
+                                label: bb#h8b9d41cb9e5b3416c76d21cdc0c20966,
+                                is_cleanup: false,
+                                stmts: [Statement { span: 30..31, kind: Assign { target: local#h7bdee280750d587ab6c7481fc45362a2, value: TupleGet { tuple: Local(local#h093b7f42a6e06789613bd42401c7c6b3), index: 0 } } }],
+                                terminator: Terminator { span: 60..70, kind: Return { value: Some(Local(local#h7bdee280750d587ab6c7481fc45362a2)) }, unwind: NoUnwind },
+                            },
+                        ],
+                        start: bb#h8b9d41cb9e5b3416c76d21cdc0c20966,
+                    }
+                ),
+            },
+        ),
+    ],
+}
+

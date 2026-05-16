@@ -789,7 +789,7 @@ mod tests {
     }
 
     #[test]
-    fn refactor_llvm_raw_route_gate_rejects_unsupported_call_kinds_before_body_emission() {
+    fn llvm_raw_route_gate_rejects_unsupported_call_kinds_before_body_emission() {
         let mut types = TypeStore::new();
         let builtins = types.intern_builtins();
 
@@ -804,7 +804,7 @@ mod tests {
     }
 
     #[test]
-    fn refactor_llvm_raw_route_gate_rejects_perform_result_before_body_emission() {
+    fn llvm_raw_route_gate_rejects_perform_result_before_body_emission() {
         let mut types = TypeStore::new();
         let builtins = types.intern_builtins();
 
@@ -886,7 +886,7 @@ mod tests {
     }
 
     #[test]
-    fn refactor_mir_member_access_codegen_rejects_unresolved_metadata() {
+    fn mir_member_access_codegen_rejects_unresolved_metadata() {
         let mut types = TypeStore::new();
         let builtins = types.intern_builtins();
         let member = crate::mir::MemberAccessMetadata {
@@ -903,7 +903,7 @@ mod tests {
     }
 
     #[test]
-    fn refactor_mir_store_member_codegen_rejects_ambiguous_continuation_route() {
+    fn mir_store_member_codegen_rejects_ambiguous_continuation_route() {
         let body = crate::mir::Body::new_empty();
         let result = mir_store_member_continuation_route_is_lowerable(
             crate::span::Span::new(0, 1),
@@ -915,7 +915,7 @@ mod tests {
     }
 
     #[test]
-    fn refactor_mir_store_member_codegen_validates_unique_continuation_route_source() {
+    fn mir_store_member_codegen_validates_unique_continuation_route_source() {
         let mut types = TypeStore::new();
         let builtins = types.intern_builtins();
         let mut body = crate::mir::Body::new_empty();
@@ -957,7 +957,7 @@ mod tests {
     }
 
     #[test]
-    fn refactor_mir_no_return_none_raw_codegen_rejects_non_unit_empty_return() {
+    fn mir_no_return_none_raw_codegen_rejects_non_unit_empty_return() {
         let result = mir_empty_return_contract_is_lowerable(
             crate::span::Span::new(0, 1),
             CgTy::Int(IntTy {
@@ -970,7 +970,7 @@ mod tests {
     }
 
     #[test]
-    fn refactor_mir_no_return_none_raw_codegen_allows_unit_empty_return() {
+    fn mir_no_return_none_raw_codegen_allows_unit_empty_return() {
         assert!(
             mir_empty_return_contract_is_lowerable(crate::span::Span::new(0, 1), CgTy::Unit,)
                 .is_ok()

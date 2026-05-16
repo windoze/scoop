@@ -56,7 +56,7 @@ use super::{
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum MirSiteContractSource {
     FallbackSideTables,
-    RefactorTyped,
+    Typed,
 }
 
 #[derive(Debug, Clone)]
@@ -67,17 +67,17 @@ pub(crate) struct MirLoweringFacts {
     fallback_resume_site_spans: HashSet<Span>,
     fallback_outward_resume_site_spans: HashSet<Span>,
     fallback_perform_sites: HashMap<Span, PerformCallSiteInfo>,
-    refactor_resume_sites: HashMap<hir::CallSite, RefactorResumeCallInfo>,
-    refactor_perform_sites: HashMap<hir::CallSite, PerformMetadata>,
-    refactor_handle_sites: HashMap<hir::CallSite, RefactorHandleSiteInfo>,
-    refactor_call_sites: HashMap<hir::CallSite, TypedCallSiteContract>,
-    refactor_assign_places: HashMap<hir::CallSite, hir::AssignPlaceContract>,
+    resume_sites: HashMap<hir::CallSite, ResumeCallInfo>,
+    perform_sites: HashMap<hir::CallSite, PerformMetadata>,
+    handle_sites: HashMap<hir::CallSite, HandleSiteInfo>,
+    call_sites: HashMap<hir::CallSite, TypedCallSiteContract>,
+    assign_places: HashMap<hir::CallSite, hir::AssignPlaceContract>,
     class_ctor_call_sites: HashMap<hir::CallSite, hir::CtorCallInfo>,
     class_ctor_hidden_effects: HashMap<hir::CallSite, EffectRow>,
     object_member_hidden_effects: HashMap<String, EffectRow>,
     top_level_ref_hidden_effects: HashMap<String, EffectRow>,
-    refactor_top_level_init_roots: Vec<TopLevelInitRootContract>,
-    refactor_extern_global_contracts: Vec<ExternGlobalContract>,
+    top_level_init_roots: Vec<TopLevelInitRootContract>,
+    extern_global_contracts: Vec<ExternGlobalContract>,
     when_pat_binding_tys: HashMap<Span, TypeId>,
     nominal_kinds: HashMap<String, ast::TypeKind>,
     top_level_fun_call_sites: HashMap<hir::CallSite, ast::TopLevelFunCallBinding>,
@@ -94,17 +94,17 @@ impl Default for MirLoweringFacts {
             fallback_resume_site_spans: HashSet::new(),
             fallback_outward_resume_site_spans: HashSet::new(),
             fallback_perform_sites: HashMap::new(),
-            refactor_resume_sites: HashMap::new(),
-            refactor_perform_sites: HashMap::new(),
-            refactor_handle_sites: HashMap::new(),
-            refactor_call_sites: HashMap::new(),
-            refactor_assign_places: HashMap::new(),
+            resume_sites: HashMap::new(),
+            perform_sites: HashMap::new(),
+            handle_sites: HashMap::new(),
+            call_sites: HashMap::new(),
+            assign_places: HashMap::new(),
             class_ctor_call_sites: HashMap::new(),
             class_ctor_hidden_effects: HashMap::new(),
             object_member_hidden_effects: HashMap::new(),
             top_level_ref_hidden_effects: HashMap::new(),
-            refactor_top_level_init_roots: Vec::new(),
-            refactor_extern_global_contracts: Vec::new(),
+            top_level_init_roots: Vec::new(),
+            extern_global_contracts: Vec::new(),
             when_pat_binding_tys: HashMap::new(),
             nominal_kinds: HashMap::new(),
             top_level_fun_call_sites: HashMap::new(),
@@ -127,13 +127,13 @@ struct PerformCallSiteInfo {
 }
 
 #[derive(Debug, Clone)]
-struct RefactorHandleSiteInfo {
+struct HandleSiteInfo {
     metadata: HandleMetadata,
     arms: Vec<HandlerArm>,
 }
 
 #[derive(Debug, Clone)]
-struct RefactorResumeCallInfo {
+struct ResumeCallInfo {
     receiver_route: ContinuationResumeReceiverRoute,
     payload_arg_indices: Vec<usize>,
     metadata: ResumeMetadata,

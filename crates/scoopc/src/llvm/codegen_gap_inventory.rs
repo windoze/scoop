@@ -7,7 +7,7 @@
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) enum CodegenGapRoute {
     RawMirLlvm,
-    EffectRefactorLlvm,
+    EffectLoweredLlvm,
     RuntimeC,
     UpstreamMirContract,
     FrontendReject,
@@ -17,7 +17,7 @@ impl CodegenGapRoute {
     pub(crate) fn as_str(self) -> &'static str {
         match self {
             Self::RawMirLlvm => "raw MIR LLVM",
-            Self::EffectRefactorLlvm => "effect-refactor LLVM",
+            Self::EffectLoweredLlvm => "effect-lowered LLVM",
             Self::RuntimeC => "runtime C",
             Self::UpstreamMirContract => "upstream MIR contract",
             Self::FrontendReject => "frontend reject",
@@ -91,7 +91,7 @@ pub(crate) const CODEGEN_GAP_INVENTORY: &[CodegenGapEntry] = &[
         "PIPELINE_GAPS §3.5",
         "P6-T01",
         "P6-T01 / runtime cast contract guard",
-        EffectRefactorLlvm,
+        EffectLoweredLlvm,
         true,
         false,
         "runtime cast/typecheck metadata must stay within supported runtime-ref or static-folded surface"
@@ -136,7 +136,7 @@ pub(crate) const CODEGEN_GAP_INVENTORY: &[CodegenGapEntry] = &[
         "PIPELINE_GAPS §3.11",
         "P5-T02",
         "P5-T02 / closure env composite transport guard",
-        EffectRefactorLlvm,
+        EffectLoweredLlvm,
         true,
         false,
         "closure env transport must publish shared descriptor-backed env/capture contract"
@@ -145,7 +145,7 @@ pub(crate) const CODEGEN_GAP_INVENTORY: &[CodegenGapEntry] = &[
         "PIPELINE_GAPS §3.12",
         "P4-T01",
         "P4-T01 / effect-typed callable adapter regression guard",
-        EffectRefactorLlvm,
+        EffectLoweredLlvm,
         false,
         false,
         "effect-typed callable adapter regression guard"
@@ -163,7 +163,7 @@ pub(crate) const CODEGEN_GAP_INVENTORY: &[CodegenGapEntry] = &[
         "PIPELINE_GAPS §4.1",
         "P5-T01",
         "P5-T01 / composite value erasure guard",
-        EffectRefactorLlvm,
+        EffectLoweredLlvm,
         true,
         false,
         "composite value erasure must publish descriptor-backed boxing intent"
@@ -190,7 +190,7 @@ pub(crate) const CODEGEN_GAP_INVENTORY: &[CodegenGapEntry] = &[
         "PIPELINE_GAPS §4.5",
         "P5-T01",
         "P5-T01 / array composite element transport guard",
-        EffectRefactorLlvm,
+        EffectLoweredLlvm,
         true,
         false,
         "array composite element transport must publish descriptor-backed metadata"
@@ -199,7 +199,7 @@ pub(crate) const CODEGEN_GAP_INVENTORY: &[CodegenGapEntry] = &[
         "PIPELINE_GAPS §5.1",
         "P4-T01",
         "P4-T01 / actual-outward ABI routing guard",
-        EffectRefactorLlvm,
+        EffectLoweredLlvm,
         true,
         false,
         "actual outward effect set must uniquely decide callable ABI"
@@ -208,7 +208,7 @@ pub(crate) const CODEGEN_GAP_INVENTORY: &[CodegenGapEntry] = &[
         "PIPELINE_GAPS §5.3",
         "P4-T02",
         "P4-T02 / cleanup-unwind contract guard",
-        EffectRefactorLlvm,
+        EffectLoweredLlvm,
         true,
         false,
         "published ResumeUnwind cleanup contract must remain coherent"
@@ -217,7 +217,7 @@ pub(crate) const CODEGEN_GAP_INVENTORY: &[CodegenGapEntry] = &[
         "PIPELINE_GAPS §5.4",
         "P4-T01",
         "P4-T01 / outward-empty plain routing guard",
-        EffectRefactorLlvm,
+        EffectLoweredLlvm,
         true,
         false,
         "outward-empty callable must publish plain entry routing"
@@ -373,7 +373,7 @@ mod tests {
                     matches!(
                         entry.route,
                         CodegenGapRoute::RawMirLlvm
-                            | CodegenGapRoute::EffectRefactorLlvm
+                            | CodegenGapRoute::EffectLoweredLlvm
                             | CodegenGapRoute::RuntimeC
                             | CodegenGapRoute::UpstreamMirContract
                             | CodegenGapRoute::FrontendReject
@@ -408,7 +408,7 @@ mod tests {
             closure.suggested_owner,
             "P5-T02 / closure env composite transport guard"
         );
-        assert_eq!(closure.route, CodegenGapRoute::EffectRefactorLlvm);
+        assert_eq!(closure.route, CodegenGapRoute::EffectLoweredLlvm);
         assert!(closure.needs_upstream_contract);
         assert!(!closure.production_blocker);
         assert_eq!(
@@ -423,7 +423,7 @@ mod tests {
             (
                 "PIPELINE_GAPS §4.1",
                 "P5-T01 / composite value erasure guard",
-                CodegenGapRoute::EffectRefactorLlvm,
+                CodegenGapRoute::EffectLoweredLlvm,
                 true,
                 "composite value erasure must publish descriptor-backed boxing intent",
             ),
@@ -444,7 +444,7 @@ mod tests {
             (
                 "PIPELINE_GAPS §4.5",
                 "P5-T01 / array composite element transport guard",
-                CodegenGapRoute::EffectRefactorLlvm,
+                CodegenGapRoute::EffectLoweredLlvm,
                 true,
                 "array composite element transport must publish descriptor-backed metadata",
             ),
@@ -479,7 +479,7 @@ mod tests {
             runtime_cast.suggested_owner,
             "P6-T01 / runtime cast contract guard"
         );
-        assert_eq!(runtime_cast.route, CodegenGapRoute::EffectRefactorLlvm);
+        assert_eq!(runtime_cast.route, CodegenGapRoute::EffectLoweredLlvm);
         assert!(runtime_cast.needs_upstream_contract);
         assert!(!runtime_cast.production_blocker);
         assert_eq!(
@@ -596,7 +596,7 @@ mod tests {
                 .unwrap_or_else(|| panic!("{gap_id} guard should remain tracked in inventory"));
             assert_eq!(entry.owner_task, owner);
             assert_eq!(entry.suggested_owner, suggested_owner);
-            assert_eq!(entry.route, CodegenGapRoute::EffectRefactorLlvm);
+            assert_eq!(entry.route, CodegenGapRoute::EffectLoweredLlvm);
             assert_eq!(entry.needs_upstream_contract, needs_upstream_contract);
             assert!(
                 !entry.production_blocker,
@@ -615,7 +615,7 @@ mod tests {
             entry.suggested_owner,
             "P4-T02 / cleanup-unwind contract guard"
         );
-        assert_eq!(entry.route, CodegenGapRoute::EffectRefactorLlvm);
+        assert_eq!(entry.route, CodegenGapRoute::EffectLoweredLlvm);
         assert!(entry.needs_upstream_contract);
         assert!(
             !entry.production_blocker,

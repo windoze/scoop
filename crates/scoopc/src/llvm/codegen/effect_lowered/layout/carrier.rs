@@ -11,14 +11,14 @@ use super::*;
 impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
     pub(super) fn publish_callable_carrier_entry_shells(
         &mut self,
-        callable_layouts: &BTreeMap<StepSchemaId, RefactorCallableLayout<'ctx>>,
-        step_layouts: &BTreeMap<StepSchemaId, RefactorStepLayout<'ctx>>,
+        callable_layouts: &BTreeMap<StepSchemaId, CallableLayout<'ctx>>,
+        step_layouts: &BTreeMap<StepSchemaId, StepLayout<'ctx>>,
         dynamic_invoke_layouts: &BTreeMap<
             (StepSchemaId, crate::mir::SiteId),
-            RefactorDynamicInvokeLayout<'ctx>,
+            DynamicInvokeLayout<'ctx>,
         >,
     ) -> Result<
-        HashMap<(CallableCarrierKind, String), RefactorCallableCarrierTargetLayout>,
+        HashMap<(CallableCarrierKind, String), CallableCarrierTargetLayout>,
         LlvmEmitError,
     > {
         let published_callable_roots = self
@@ -203,20 +203,20 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
         &self,
         dynamic_invoke_layouts: &BTreeMap<
             (StepSchemaId, crate::mir::SiteId),
-            RefactorDynamicInvokeLayout<'ctx>,
+            DynamicInvokeLayout<'ctx>,
         >,
     ) -> Result<HashMap<(CallableCarrierKind, String), StepSchemaId>, LlvmEmitError> {
         let mut targets = HashMap::<(CallableCarrierKind, String), StepSchemaId>::new();
         for layout in dynamic_invoke_layouts.values() {
             let kind = match layout.carrier() {
-                RefactorDynamicInvokeCarrierLayout::VirtualReceiver(_) => {
+                DynamicInvokeCarrierLayout::VirtualReceiver(_) => {
                     CallableCarrierKind::ClassVtable
                 }
-                RefactorDynamicInvokeCarrierLayout::InterfaceReceiver(_) => {
+                DynamicInvokeCarrierLayout::InterfaceReceiver(_) => {
                     CallableCarrierKind::InterfaceItable
                 }
-                RefactorDynamicInvokeCarrierLayout::ClosureObject(_)
-                | RefactorDynamicInvokeCarrierLayout::FunPtr(_) => continue,
+                DynamicInvokeCarrierLayout::ClosureObject(_)
+                | DynamicInvokeCarrierLayout::FunPtr(_) => continue,
             };
             for fqn in layout.candidate_targets() {
                 let key = (kind, fqn.clone());
@@ -224,7 +224,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                     && existing != layout.return_step_schema()
                 {
                     return Err(frontend_error(format!(
-                        "refactor LLVM ABI materialization 发现 {} `{}` 需要多个 dynamic carrier return schema：s{} 与 s{}",
+                        "LLVM ABI materialization 发现 {} `{}` 需要多个 dynamic carrier return schema：s{} 与 s{}",
                         kind.label(),
                         fqn,
                         existing.as_u32(),
@@ -239,11 +239,11 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
     pub(super) fn publish_closure_carrier_entry_shell(
         &mut self,
         callable_fqn: &str,
-        callable_layouts: &BTreeMap<StepSchemaId, RefactorCallableLayout<'ctx>>,
-        step_layouts: &BTreeMap<StepSchemaId, RefactorStepLayout<'ctx>>,
+        callable_layouts: &BTreeMap<StepSchemaId, CallableLayout<'ctx>>,
+        step_layouts: &BTreeMap<StepSchemaId, StepLayout<'ctx>>,
         carrier_layouts: &mut HashMap<
             (CallableCarrierKind, String),
-            RefactorCallableCarrierTargetLayout,
+            CallableCarrierTargetLayout,
         >,
     ) -> Result<(), LlvmEmitError> {
         let callable_layout = self.callable_layout_for_carrier_target(
@@ -255,7 +255,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             .get(&callable_layout.step_schema())
             .ok_or_else(|| {
                 frontend_error(format!(
-                    "refactor LLVM ABI materialization 缺少 callable `{}` closure carrier target 的 step layout {}",
+                    "LLVM ABI materialization 缺少 callable `{}` closure carrier target 的 step layout {}",
                     callable_fqn,
                     callable_layout.step_schema().as_u32(),
                 ))
@@ -268,7 +268,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             params.push(args_abi.llvm_ty().into());
         }
         let symbol_name = stable_naming::private_name_from_key_text(
-            "refactor_closure_dynamic_entry",
+            "closure_dynamic_entry",
             step_layout.stable_effect_key_text(),
         );
         self.ensure_declared_compiler_private_helper_function(
@@ -291,11 +291,11 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
         kind: CallableCarrierKind,
         impl_fqn: &str,
         return_step_schema: Option<StepSchemaId>,
-        callable_layouts: &BTreeMap<StepSchemaId, RefactorCallableLayout<'ctx>>,
-        step_layouts: &BTreeMap<StepSchemaId, RefactorStepLayout<'ctx>>,
+        callable_layouts: &BTreeMap<StepSchemaId, CallableLayout<'ctx>>,
+        step_layouts: &BTreeMap<StepSchemaId, StepLayout<'ctx>>,
         carrier_layouts: &mut HashMap<
             (CallableCarrierKind, String),
-            RefactorCallableCarrierTargetLayout,
+            CallableCarrierTargetLayout,
         >,
     ) -> Result<(), LlvmEmitError> {
         let callable_layout =
@@ -305,7 +305,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             .get(&return_step_schema)
             .ok_or_else(|| {
                 frontend_error(format!(
-                    "refactor LLVM ABI materialization 缺少 {} `{}` target 的 step layout {}",
+                    "LLVM ABI materialization 缺少 {} `{}` target 的 step layout {}",
                     kind.label(),
                     impl_fqn,
                     return_step_schema.as_u32(),
@@ -316,7 +316,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             .get(&callable_layout.step_schema())
             .ok_or_else(|| {
                 frontend_error(format!(
-                    "refactor LLVM ABI materialization 缺少 {} `{}` owner step layout {}",
+                    "LLVM ABI materialization 缺少 {} `{}` owner step layout {}",
                     kind.label(),
                     impl_fqn,
                     callable_layout.step_schema().as_u32(),
@@ -329,9 +329,9 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
         }
         let symbol_name = stable_naming::private_name_from_key_text(
             match kind {
-                CallableCarrierKind::ClassVtable => "refactor_vtable_dynamic_entry",
-                CallableCarrierKind::InterfaceItable => "refactor_itable_dynamic_entry",
-                CallableCarrierKind::ClosureObject => "refactor_closure_dynamic_entry",
+                CallableCarrierKind::ClassVtable => "vtable_dynamic_entry",
+                CallableCarrierKind::InterfaceItable => "itable_dynamic_entry",
+                CallableCarrierKind::ClosureObject => "closure_dynamic_entry",
             },
             owner_step_layout.stable_effect_key_text(),
         );
@@ -354,19 +354,19 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
         &self,
         kind: CallableCarrierKind,
         callable_fqn: &str,
-        callable_layout: &RefactorCallableLayout<'ctx>,
+        callable_layout: &CallableLayout<'ctx>,
         return_step_schema: StepSchemaId,
         symbol_name: &str,
         carrier_layouts: &mut HashMap<
             (CallableCarrierKind, String),
-            RefactorCallableCarrierTargetLayout,
+            CallableCarrierTargetLayout,
         >,
     ) -> Result<(), LlvmEmitError> {
         self.codegen
             .register_callable_carrier_entry_symbol(kind, callable_fqn, symbol_name)?;
 
         let key = (kind, callable_fqn.to_string());
-        let published = RefactorCallableCarrierTargetLayout::new(
+        let published = CallableCarrierTargetLayout::new(
             callable_fqn.to_string(),
             callable_layout.body_version_key().clone(),
             return_step_schema,
@@ -375,7 +375,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
         if let Some(existing) = carrier_layouts.get(&key) {
             if existing != &published {
                 return Err(frontend_error(format!(
-                    "refactor LLVM ABI materialization 发现 {} `{}` 重复发布了不兼容的 callable version contract：已有 {:?}，新值 {:?}",
+                    "LLVM ABI materialization 发现 {} `{}` 重复发布了不兼容的 callable version contract：已有 {:?}，新值 {:?}",
                     kind.label(),
                     callable_fqn,
                     existing,
@@ -390,23 +390,23 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
 
     pub(super) fn callable_layout_for_carrier_target<'b>(
         &self,
-        callable_layouts: &'b BTreeMap<StepSchemaId, RefactorCallableLayout<'ctx>>,
+        callable_layouts: &'b BTreeMap<StepSchemaId, CallableLayout<'ctx>>,
         kind: CallableCarrierKind,
         callable_fqn: &str,
-    ) -> Result<&'b RefactorCallableLayout<'ctx>, LlvmEmitError> {
+    ) -> Result<&'b CallableLayout<'ctx>, LlvmEmitError> {
         let matches = callable_layouts
             .values()
             .filter(|layout| layout.root_fqn() == callable_fqn)
             .collect::<Vec<_>>();
         match matches.as_slice() {
             [] => Err(frontend_error(format!(
-                "refactor LLVM ABI materialization 缺少 {} `{}` 的 published callable version，无法发布 carrier target",
+                "LLVM ABI materialization 缺少 {} `{}` 的 published callable version，无法发布 carrier target",
                 kind.label(),
                 callable_fqn,
             ))),
             [layout] => Ok(*layout),
             _ => Err(frontend_error(format!(
-                "refactor LLVM ABI materialization 发现 {} `{}` 存在多个 published callable version {:?}，缺少 authoritative version selector，无法发布 carrier target",
+                "LLVM ABI materialization 发现 {} `{}` 存在多个 published callable version {:?}，缺少 authoritative version selector，无法发布 carrier target",
                 kind.label(),
                 callable_fqn,
                 matches
@@ -420,7 +420,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
     pub(super) fn closure_carrier_args_abi(
         &mut self,
         root_fqn: &str,
-    ) -> Result<RefactorAbiValue<'ctx>, LlvmEmitError> {
+    ) -> Result<AbiValue<'ctx>, LlvmEmitError> {
         if let Some(callable) = self.pass_view.callable(root_fqn) {
             let skip = usize::from(callable.name.starts_with("$lambda"));
             let component_tys = callable
@@ -439,22 +439,22 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             return self.canonical_tuple_abi_from_types(self.codegen.types, &component_tys);
         }
         Err(frontend_error(format!(
-            "refactor LLVM ABI materialization 缺少 closure-like callable `{root_fqn}` 的 authoritative signature，无法发布 closure carrier target"
+            "LLVM ABI materialization 缺少 closure-like callable `{root_fqn}` 的 authoritative signature，无法发布 closure carrier target"
         )))
     }
 
     pub(super) fn dispatch_carrier_receiver_and_args_abi(
         &mut self,
         impl_fqn: &str,
-    ) -> Result<(RefactorAbiValue<'ctx>, RefactorAbiValue<'ctx>), LlvmEmitError> {
+    ) -> Result<(AbiValue<'ctx>, AbiValue<'ctx>), LlvmEmitError> {
         let fun = self.codegen.fun_index.get(impl_fqn).copied().ok_or_else(|| {
             frontend_error(format!(
-                "refactor LLVM ABI materialization 缺少 dispatch target `{impl_fqn}` 的 authoritative HIR signature，无法发布 vtable/itable carrier target"
+                "LLVM ABI materialization 缺少 dispatch target `{impl_fqn}` 的 authoritative HIR signature，无法发布 vtable/itable carrier target"
             ))
         })?;
         let Some((receiver, explicit_params)) = fun.params.split_first() else {
             return Err(frontend_error(format!(
-                "refactor LLVM ABI materialization 发现 dispatch target `{impl_fqn}` 没有 receiver 参数，无法发布 vtable/itable carrier target"
+                "LLVM ABI materialization 发现 dispatch target `{impl_fqn}` 没有 receiver 参数，无法发布 vtable/itable carrier target"
             )));
         };
         let args = explicit_params
@@ -471,9 +471,9 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
         &mut self,
         types: &TypeStore,
         components: &[TypeId],
-    ) -> Result<RefactorAbiValue<'ctx>, LlvmEmitError> {
+    ) -> Result<AbiValue<'ctx>, LlvmEmitError> {
         match components {
-            [] => Ok(RefactorAbiValue::new(
+            [] => Ok(AbiValue::new(
                 self.codegen.context.struct_type(&[], false).into(),
                 true,
             )),
@@ -494,7 +494,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                     fields.push(llvm_ty);
                 }
                 let llvm_ty = self.codegen.context.struct_type(&fields, false).into();
-                Ok(RefactorAbiValue::new(
+                Ok(AbiValue::new(
                     llvm_ty,
                     self.codegen.target_data.get_store_size(&llvm_ty) == 0,
                 ))
@@ -518,7 +518,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                     .collect::<Vec<_>>()
                     .join(", ");
                 frontend_error(format!(
-                    "refactor LLVM tuple ABI component #{index} `{}`（t{}）lowering failed in ({component_list}): {message}",
+                    "LLVM tuple ABI component #{index} `{}`（t{}）lowering failed in ({component_list}): {message}",
                     types.display(component),
                     component.as_u32()
                 ))

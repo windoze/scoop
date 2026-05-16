@@ -4,49 +4,49 @@ snapshot_binding:
   opt_level: O2
   instance_count: 4
   canonical_body_fqns:
-    - fixtures.mir_refactor.body_completes
-    - fixtures.mir_refactor.cleanup
-    - fixtures.mir_refactor.handled_raise
-    - fixtures.mir_refactor.main
+    - fixtures.mir_lowered.body_completes
+    - fixtures.mir_lowered.cleanup
+    - fixtures.mir_lowered.handled_raise
+    - fixtures.mir_lowered.main
 step_schemas:
-  step#ha7a72ed016fb9e831884c5e3f4533bd4:
+  step#hc6e0729d81fa4e1669dcd55c81487115:
     invoke_args_tuple_ty: Unit
     complete_ty: Int
-    continuation_obj_ty: scoop.__compiler.ContinuationObject@tests/fixtures/effect_facts/handle_finally_boundary.scoop:95..241::fixtures.mir_refactor.body_completes
+    continuation_obj_ty: scoop.__compiler.ContinuationObject@tests/fixtures/effect_facts/handle_finally_boundary.scoop:94..240::fixtures.mir_lowered.body_completes
     cases:
-      - case#hf95aca950c1280eedc118ce6dc1193e8: op=fixtures.mir_refactor.Step.next payload_tuple_ty=Int continuation_schema=cont#h896bb1ddbab16b8fd6224f73438b7e49
-      - case#h4e2a9e57acbfc9b6770ab36389bad92c: op=scoop.core.Raise.raise<scoop.core.RuntimeError> payload_tuple_ty=scoop.core.RuntimeError continuation_schema=cont#h3c694c43c23c40b6f93a6d0a864b51a0
-  step#hf9f4b3bed5e1eb4ab25aec2f5aee8569:
+      - case#h5d08df7e781667603e735b1634cf37a9: op=fixtures.mir_lowered.Step.next payload_tuple_ty=Int continuation_schema=cont#h4f7e3b7a5d713442034ff56c3c43ab75
+      - case#h27036057dba4ef244706b411a56c01ce: op=scoop.core.Raise.raise<scoop.core.RuntimeError> payload_tuple_ty=scoop.core.RuntimeError continuation_schema=cont#h14224947e342572199807a14751fe699
+  step#hee792ea5a6ab70cdf40fb59c15ef7c16:
     invoke_args_tuple_ty: Unit
     complete_ty: Int
-    continuation_obj_ty: scoop.__compiler.ContinuationObject@tests/fixtures/effect_facts/handle_finally_boundary.scoop:243..413::fixtures.mir_refactor.handled_raise
+    continuation_obj_ty: scoop.__compiler.ContinuationObject@tests/fixtures/effect_facts/handle_finally_boundary.scoop:242..412::fixtures.mir_lowered.handled_raise
     cases:
-      - case#he74299140ad7bc6604895d3cb6ca9fe0: op=fixtures.mir_refactor.Step.next payload_tuple_ty=Int continuation_schema=cont#ha42f50791146717c29e79603c80e2100
-      - case#h782197bc655a53fd6800b9e8be22a31a: op=scoop.core.Raise.raise<scoop.core.RuntimeError> payload_tuple_ty=scoop.core.RuntimeError continuation_schema=cont#h592e3710b97cedb2f76de7384b015532
+      - case#hebd43c1ac32ff27eec6991c418109d5a: op=fixtures.mir_lowered.Step.next payload_tuple_ty=Int continuation_schema=cont#hbf16d36cac95e86add9f6b0215c0bac1
+      - case#h7b826e4f3d6ebe7539d64db975146f84: op=scoop.core.Raise.raise<scoop.core.RuntimeError> payload_tuple_ty=scoop.core.RuntimeError continuation_schema=cont#h46ef1bc150bfb0178b6f2e00e07a10f3
 continuation_schemas:
-  cont#h896bb1ddbab16b8fd6224f73438b7e49:
+  cont#h4f7e3b7a5d713442034ff56c3c43ab75:
     resume_tuple_ty: Int
     answer_ty: Int
-    out_step_schema: step#ha7a72ed016fb9e831884c5e3f4533bd4
-    surface_ty: scoop.core.Continuation<Int, Int, eff fixtures.mir_refactor.Step>
-  cont#h3c694c43c23c40b6f93a6d0a864b51a0:
+    out_step_schema: step#hc6e0729d81fa4e1669dcd55c81487115
+    surface_ty: scoop.core.Continuation<Int, Int, eff fixtures.mir_lowered.Step>
+  cont#h14224947e342572199807a14751fe699:
     resume_tuple_ty: Nothing
     answer_ty: Int
-    out_step_schema: step#ha7a72ed016fb9e831884c5e3f4533bd4
-    surface_ty: scoop.core.Continuation<Nothing, Int, eff fixtures.mir_refactor.Step>
-  cont#ha42f50791146717c29e79603c80e2100:
+    out_step_schema: step#hc6e0729d81fa4e1669dcd55c81487115
+    surface_ty: scoop.core.Continuation<Nothing, Int, eff fixtures.mir_lowered.Step>
+  cont#hbf16d36cac95e86add9f6b0215c0bac1:
     resume_tuple_ty: Int
     answer_ty: Int
-    out_step_schema: step#hf9f4b3bed5e1eb4ab25aec2f5aee8569
-    surface_ty: scoop.core.Continuation<Int, Int, eff fixtures.mir_refactor.Step>
-  cont#h592e3710b97cedb2f76de7384b015532:
+    out_step_schema: step#hee792ea5a6ab70cdf40fb59c15ef7c16
+    surface_ty: scoop.core.Continuation<Int, Int, eff fixtures.mir_lowered.Step>
+  cont#h46ef1bc150bfb0178b6f2e00e07a10f3:
     resume_tuple_ty: Nothing
     answer_ty: Int
-    out_step_schema: step#hf9f4b3bed5e1eb4ab25aec2f5aee8569
-    surface_ty: scoop.core.Continuation<Nothing, Int, eff fixtures.mir_refactor.Step>
+    out_step_schema: step#hee792ea5a6ab70cdf40fb59c15ef7c16
+    surface_ty: scoop.core.Continuation<Nothing, Int, eff fixtures.mir_lowered.Step>
 callable_facts:
-  fixtures.mir_refactor.body_completes:
-    instance_key: fixtures.mir_refactor.body_completes
+  fixtures.mir_lowered.body_completes:
+    instance_key: fixtures.mir_lowered.body_completes
     declared_row: Pure
     call_abi_kind: Plain
     invoke_args_tuple_ty: <none>
@@ -54,8 +54,8 @@ callable_facts:
     resolved_outward_cases: []
     needs_reentry: false
     impl_plan: NoOutward
-  fixtures.mir_refactor.cleanup:
-    instance_key: fixtures.mir_refactor.cleanup
+  fixtures.mir_lowered.cleanup:
+    instance_key: fixtures.mir_lowered.cleanup
     declared_row: Pure
     call_abi_kind: Plain
     invoke_args_tuple_ty: <none>
@@ -63,8 +63,8 @@ callable_facts:
     resolved_outward_cases: []
     needs_reentry: false
     impl_plan: NoOutward
-  fixtures.mir_refactor.handled_raise:
-    instance_key: fixtures.mir_refactor.handled_raise
+  fixtures.mir_lowered.handled_raise:
+    instance_key: fixtures.mir_lowered.handled_raise
     declared_row: Pure
     call_abi_kind: Plain
     invoke_args_tuple_ty: <none>
@@ -72,8 +72,8 @@ callable_facts:
     resolved_outward_cases: []
     needs_reentry: false
     impl_plan: NoOutward
-  fixtures.mir_refactor.main:
-    instance_key: fixtures.mir_refactor.main
+  fixtures.mir_lowered.main:
+    instance_key: fixtures.mir_lowered.main
     declared_row: Pure
     call_abi_kind: Plain
     invoke_args_tuple_ty: <none>
@@ -82,162 +82,162 @@ callable_facts:
     needs_reentry: false
     impl_plan: NoOutward
 body_facts:
-  fixtures.mir_refactor.body_completes:
+  fixtures.mir_lowered.body_completes:
     blocks:
-      bb#h4a526041738d71c47b987501fac3c2ff:
+      bb#hf370fb65dd7e40a39b54f235ab3f5f44:
         ambient_cases: []
         outward_cases: []
         has_suspend_boundary: false
         has_handle_boundary: true
-      bb#hb30b86158ae8d8432180eef916f45d53:
+      bb#h2d772f328f041e88cc502164828b0fe5:
         ambient_cases: []
         outward_cases: []
         has_suspend_boundary: false
         has_handle_boundary: false
-      bb#h2051649b4330bde9851edd0bfda1d358:
+      bb#h0031bb0ca4e736652d38f4f41897dfb6:
         ambient_cases: []
         outward_cases: []
         has_suspend_boundary: false
         has_handle_boundary: false
-      bb#h5047a6eb2eb008aa512573752075b91c:
+      bb#h47adea797989d29affad5675b880415f:
         ambient_cases: []
         outward_cases: []
         has_suspend_boundary: false
         has_handle_boundary: false
-      bb#h29b1433f3699845e500fc5b731dcc725:
+      bb#h96888ab0665ddd4b248a5b1d2c0e040b:
         ambient_cases: []
         outward_cases: []
         has_suspend_boundary: false
         has_handle_boundary: false
     sites:
-      site#hd738d4c71b22f4e6498aa91e1447e308:
+      site#ha2daf9201d49c667a067ac038d3f9f00:
         kind: Handle
         result_ty: Int
-        handled_cases: [case#hf95aca950c1280eedc118ce6dc1193e8=fixtures.mir_refactor.Step.next]
+        handled_cases: [case#h5d08df7e781667603e735b1634cf37a9=fixtures.mir_lowered.Step.next]
         body_outward_cases: []
         finally_outward_cases: []
         nested_handle_classification: SelfContained
         arm_facts:
-          - handled_case: case#hf95aca950c1280eedc118ce6dc1193e8=fixtures.mir_refactor.Step.next payload_tuple_ty=Int continuation_schema=cont#h896bb1ddbab16b8fd6224f73438b7e49 arm_outward_cases=[]
-      site#hd0a4ab85abed5bed964d2f148e27804b:
+          - handled_case: case#h5d08df7e781667603e735b1634cf37a9=fixtures.mir_lowered.Step.next payload_tuple_ty=Int continuation_schema=cont#h4f7e3b7a5d713442034ff56c3c43ab75 arm_outward_cases=[]
+      site#h3cf668f325c41e0c30e24fda42851258:
         kind: Call
         call_kind: Direct
         target_mode: KnownInstance
-        target: KnownInstance(fixtures.mir_refactor.cleanup)
+        target: KnownInstance(fixtures.mir_lowered.cleanup)
         callee_abi_kind: Plain
         invoke_args_tuple_ty: Unit
         callee_schema: <none>
         resolved_cases: []
         precision: Precise
-  fixtures.mir_refactor.cleanup:
+  fixtures.mir_lowered.cleanup:
     blocks:
-      bb#h656f84eb5bdc448d2f1cd18fb7c9c549:
+      bb#h70d6ef20ff6fbc082707c962536cb80e:
         ambient_cases: []
         outward_cases: []
         has_suspend_boundary: false
         has_handle_boundary: false
     sites:
       <none>
-  fixtures.mir_refactor.handled_raise:
+  fixtures.mir_lowered.handled_raise:
     blocks:
-      bb#h899dc72e862fa9aa29338bcb87075111:
+      bb#h8d575b869e6c4dab1b86fdbf68ff732a:
         ambient_cases: []
         outward_cases: []
         has_suspend_boundary: false
         has_handle_boundary: true
-      bb#h03f3145bd428c5f3c88e03fe25351460:
+      bb#hc9b60c834ba161f8632ea98bf5790342:
         ambient_cases: []
         outward_cases: []
         has_suspend_boundary: true
         has_handle_boundary: false
-      bb#h37235945940e33996d2c3635f60e4302:
+      bb#hdf07990714cd9a5e7946ac41dfcd5832:
         ambient_cases: []
         outward_cases: []
         has_suspend_boundary: false
         has_handle_boundary: false
-      bb#h680fddd968ffac7373173cc58c647b09:
+      bb#hca2850b67ad3768d44badde4c7248823:
         ambient_cases: []
         outward_cases: []
         has_suspend_boundary: false
         has_handle_boundary: false
-      bb#hde162e90cc30531bde0db8726a07e38c:
+      bb#hb92b98c40926e6f9c994809d6734c26f:
         ambient_cases: []
         outward_cases: []
         has_suspend_boundary: false
         has_handle_boundary: false
-      bb#h281578e9cec8d6b4f14fe163b01c100f:
+      bb#h3508af457aadb39bb049f24c2d77fda3:
         ambient_cases: []
         outward_cases: []
         has_suspend_boundary: false
         has_handle_boundary: false
-      bb#h9afc7482d839f8f8d6ac6f6dd2d8dc5f:
+      bb#hb45cd694487d52adfcf0d2f221c65205:
         ambient_cases: []
         outward_cases: []
         has_suspend_boundary: false
         has_handle_boundary: false
-      bb#hea95b5a10c18af192f8f3a0123cecd15:
+      bb#h15e7a3cd53636f22c83e2df096dbe59e:
         ambient_cases: []
         outward_cases: []
         has_suspend_boundary: false
         has_handle_boundary: false
     sites:
-      site#h93f4b722e3ce881f71784cb6ea3ba187:
+      site#h63f855990922e02dbbbc00e35dead87a:
         kind: Handle
         result_ty: Int
-        handled_cases: [case#he74299140ad7bc6604895d3cb6ca9fe0=fixtures.mir_refactor.Step.next]
+        handled_cases: [case#hebd43c1ac32ff27eec6991c418109d5a=fixtures.mir_lowered.Step.next]
         body_outward_cases: []
         finally_outward_cases: []
         nested_handle_classification: SelfContained
         arm_facts:
-          - handled_case: case#he74299140ad7bc6604895d3cb6ca9fe0=fixtures.mir_refactor.Step.next payload_tuple_ty=Int continuation_schema=cont#ha42f50791146717c29e79603c80e2100 arm_outward_cases=[]
-      site#h01cb7d6f74233d8ebd2983ce612cd106:
+          - handled_case: case#hebd43c1ac32ff27eec6991c418109d5a=fixtures.mir_lowered.Step.next payload_tuple_ty=Int continuation_schema=cont#hbf16d36cac95e86add9f6b0215c0bac1 arm_outward_cases=[]
+      site#hfd6f1eb8682777cd6331928d2a41ffbc:
         kind: Perform
-        emitted_case: case#he74299140ad7bc6604895d3cb6ca9fe0=fixtures.mir_refactor.Step.next
+        emitted_case: case#hebd43c1ac32ff27eec6991c418109d5a=fixtures.mir_lowered.Step.next
         payload_tuple_ty: Int
-        captured_cont_schema: cont#ha42f50791146717c29e79603c80e2100
-      site#h2a69f2bde54adc74ccb39202ef058195:
+        captured_cont_schema: cont#hbf16d36cac95e86add9f6b0215c0bac1
+      site#h9d4c586765b1e12537dd5de72971549a:
         kind: Call
         call_kind: Direct
         target_mode: KnownInstance
-        target: KnownInstance(fixtures.mir_refactor.cleanup)
+        target: KnownInstance(fixtures.mir_lowered.cleanup)
         callee_abi_kind: Plain
         invoke_args_tuple_ty: Unit
         callee_schema: <none>
         resolved_cases: []
         precision: Precise
-      site#h7b9c91e099f4f7be6137443ba683e478:
+      site#h837bd74ee6fdd5f19a763f00d376d0a3:
         kind: Call
         call_kind: Direct
         target_mode: KnownInstance
-        target: KnownInstance(fixtures.mir_refactor.cleanup)
+        target: KnownInstance(fixtures.mir_lowered.cleanup)
         callee_abi_kind: Plain
         invoke_args_tuple_ty: Unit
         callee_schema: <none>
         resolved_cases: []
         precision: Precise
-  fixtures.mir_refactor.main:
+  fixtures.mir_lowered.main:
     blocks:
-      bb#h1c4226f7d0c312ffc177a75980a0a3cf:
+      bb#h71e9b13402fd4d7ec38a0b1df2e161dc:
         ambient_cases: []
         outward_cases: []
         has_suspend_boundary: false
         has_handle_boundary: false
     sites:
-      site#h89a94e0737a9fd553f83159399eb0ad2:
+      site#h436a694d59ca0ec697329411d008c21d:
         kind: Call
         call_kind: Direct
         target_mode: KnownInstance
-        target: KnownInstance(fixtures.mir_refactor.body_completes)
+        target: KnownInstance(fixtures.mir_lowered.body_completes)
         callee_abi_kind: Plain
         invoke_args_tuple_ty: Unit
         callee_schema: <none>
         resolved_cases: []
         precision: Precise
-      site#hbe1636b82817159a3c5fa5f3f2289d21:
+      site#h8459de86022dbf779d97bd118938b40b:
         kind: Call
         call_kind: Direct
         target_mode: KnownInstance
-        target: KnownInstance(fixtures.mir_refactor.handled_raise)
+        target: KnownInstance(fixtures.mir_lowered.handled_raise)
         callee_abi_kind: Plain
         invoke_args_tuple_ty: Unit
         callee_schema: <none>

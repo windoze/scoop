@@ -376,12 +376,12 @@ mod tests {
     #[test]
     fn parse_build_llvm_contains_directives() {
         let exp = FixtureExpectation::from_source(
-            "// BUILD-LLVM-CONTAINS: define\n// BUILD-LLVM-REGEX: __scoop_priv0__refactor_resume__h[0-9a-f]+\n// BUILD-LLVM-NOT-CONTAINS: inttoptr (i64 1\n// BUILD-LLVM-NOT-CONTAINS: inttoptr (i32 1\nfun main() {}\n",
+            "// BUILD-LLVM-CONTAINS: define\n// BUILD-LLVM-REGEX: __scoop_priv0__lowered_resume__h[0-9a-f]+\n// BUILD-LLVM-NOT-CONTAINS: inttoptr (i64 1\n// BUILD-LLVM-NOT-CONTAINS: inttoptr (i32 1\nfun main() {}\n",
         );
         assert_eq!(exp.build_llvm_contains, vec!["define"]);
         assert_eq!(
             exp.build_llvm_regex,
-            vec!["__scoop_priv0__refactor_resume__h[0-9a-f]+"]
+            vec!["__scoop_priv0__lowered_resume__h[0-9a-f]+"]
         );
         assert_eq!(
             exp.build_llvm_not_contains,

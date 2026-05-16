@@ -40,7 +40,7 @@ fun main(): Int {
 
     let composite_transport = context
         .get_struct_type("scoop.runtime.ScoopCompositeTransportDescriptor")
-        .expect("refactor effect codegen 应注册共享的 composite transport descriptor 类型");
+        .expect("effect codegen 应注册共享的 composite transport descriptor 类型");
     assert_eq!(composite_transport.count_fields(), 11);
 
     let ir = module.print_to_string().to_string();
@@ -51,7 +51,7 @@ fun main(): Int {
             "hashed Step shell",
             |name, _| stable_id_type_name_has_hashed_family(name, "Step"),
         ))
-        .expect("默认单文件 refactor path 应为 outward callable 注册 hashed Step shell");
+        .expect("默认单文件 path 应为 outward callable 注册 hashed Step shell");
     assert_eq!(step.count_fields(), 2);
 
     let step_complete = context
@@ -60,7 +60,7 @@ fun main(): Int {
             "hashed Step complete payload shell",
             |name, _| stable_id_type_name_has_hashed_family(name, "StepComplete"),
         ))
-        .expect("refactor Step 应发布 hashed complete payload shell");
+        .expect("Step 应发布 hashed complete payload shell");
     assert_eq!(step_complete.count_fields(), 1);
 
     let resume_vtable = context
@@ -69,7 +69,7 @@ fun main(): Int {
             "hashed surface-resume vtable",
             |name, _| stable_id_type_name_has_hashed_family(name, "ResumeVtable"),
         ))
-        .expect("refactor continuation 应发布 authoritative hashed surface-resume vtable");
+        .expect("continuation 应发布 authoritative hashed surface-resume vtable");
     assert_eq!(resume_vtable.count_fields(), 1);
 
     let continuation = context
@@ -78,21 +78,21 @@ fun main(): Int {
             "hashed continuation object",
             |name, _| stable_id_type_name_has_hashed_family(name, "Continuation"),
         ))
-        .expect("默认单文件 refactor path 应为 handled perform 注册 hashed continuation object");
+        .expect("默认单文件 path 应为 handled perform 注册 hashed continuation object");
     assert!(
         continuation.count_fields() >= 10,
         "continuation object 至少应包含 header/resumed/state/effect_ctx/state_ref/step_fn/resume transport/captured suspend-state/vtable 字段"
     );
 
     assert!(
-        !ir.contains("%scoop.refactor.Step__a_go")
-            && !ir.contains("%scoop.refactor.StepComplete__a_go")
-            && !ir.contains("%scoop.refactor.ResumeVtable__a_go__a_Ping")
-            && !ir.contains("%scoop.refactor.Continuation__a_go")
+        !ir.contains("%scoop.lowered.Step__a_go")
+            && !ir.contains("%scoop.lowered.StepComplete__a_go")
+            && !ir.contains("%scoop.lowered.ResumeVtable__a_go__a_Ping")
+            && !ir.contains("%scoop.lowered.Continuation__a_go")
             && ir.contains("surface_resume_owner_dispatch")
             && ir.contains("continuation_layout")
             && ir.contains("type_desc"),
-        "默认单文件 refactor path 应继续发布 surface-resume owner dispatch 与 continuation type descriptor 家族，而不是把旧 kN/type-desc 拼写写死在测试里:\n{ir}"
+        "默认单文件 path 应继续发布 surface-resume owner dispatch 与 continuation type descriptor 家族，而不是把旧 kN/type-desc 拼写写死在测试里:\n{ir}"
     );
 }
 
@@ -127,21 +127,21 @@ fun main(): Int {
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
 
     assert!(
-        ir.contains("refactor_step_payload_insert") && ir.contains("switch i32 %refactor_step_tag"),
-        "ordinary callee perform 应通过 refactor Step payload/dispatch lower，而不是依赖旧 perform-slot runtime 入口\n{ir}"
+        ir.contains("step_payload_insert") && ir.contains("switch i32 %step_tag"),
+        "ordinary callee perform 应通过 Step payload/dispatch lower，而不是依赖旧 perform-slot runtime 入口\n{ir}"
     );
     assert!(
         ir.contains("= type { { ptr addrspace(1), i64 }, ptr addrspace(1) }")
             && ir.contains("insertvalue { ptr addrspace(1), i64 } undef")
             && ir
-                .contains("insertvalue { ptr addrspace(1), i64 } %refactor_perform_payload_field0"),
-        "multi-payload perform 应以内联 tuple payload 发布 refactor Step case，而不是丢参或回旧 boxing ABI\n{ir}"
+                .contains("insertvalue { ptr addrspace(1), i64 } %perform_payload_field0"),
+        "multi-payload perform 应以内联 tuple payload 发布 Step case，而不是丢参或回旧 boxing ABI\n{ir}"
     );
     assert!(
         ir.contains(
-            "extractvalue { ptr addrspace(1), i64 } %refactor_boundary_case_payload_payload, 0"
+            "extractvalue { ptr addrspace(1), i64 } %boundary_case_payload_payload, 0"
         ) && ir.contains(
-            "extractvalue { ptr addrspace(1), i64 } %refactor_boundary_case_payload_payload, 1"
+            "extractvalue { ptr addrspace(1), i64 } %boundary_case_payload_payload, 1"
         ),
         "handler binder lowering 应继续按 tuple payload 的两个字段读取 binder，而不是退回单值 transport\n{ir}"
     );
@@ -194,7 +194,7 @@ fun main(): Int {
     let step_adapter_ir = maybe_function_ir_for_symbol(&ir, stored_step_adapters[0])
         .expect("stored schema-aware closure adapter should be defined in the same module");
     assert!(
-        step_adapter_ir.contains("refactor_carrier_to_effectful"),
+        step_adapter_ir.contains("carrier_to_effectful"),
         "effectful closure carrier 应写入真正执行 carrier->effectful 转换的 adapter，而不是任意 private helper:\n{step_adapter_ir}"
     );
     assert!(
@@ -276,13 +276,13 @@ fun main(): Int {
     let plain_adapter_ir = maybe_function_ir_for_symbol(&ir, plain_adapters[0])
         .expect("stored plain adapter should be defined in the same module");
     assert!(
-        plain_adapter_ir.contains("refactor_carrier_to_plain"),
+        plain_adapter_ir.contains("carrier_to_plain"),
         "pure branch adapter 应执行 carrier->plain 转换，而不是依赖某个固定 helper 名字:\n{plain_adapter_ir}"
     );
     let step_adapter_ir = maybe_function_ir_for_symbol(&ir, step_adapters[0])
         .expect("stored effectful adapter should be defined in the same module");
     assert!(
-        step_adapter_ir.contains("refactor_carrier_to_effectful"),
+        step_adapter_ir.contains("carrier_to_effectful"),
         "effectful branch adapter 应执行 carrier->effectful 转换，而不是依赖某个固定 helper 名字:\n{step_adapter_ir}"
     );
     assert!(
@@ -327,46 +327,46 @@ fun main(): Int {
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
 
     assert!(
-        ir.contains("refactor_step_payload_insert") && ir.contains("switch i32 %refactor_step_tag"),
-        "state-machine perform 应通过 refactor Step payload/dispatch lower，而不是依赖旧 perform-slot runtime 入口\n{ir}"
+        ir.contains("step_payload_insert") && ir.contains("switch i32 %step_tag"),
+        "state-machine perform 应通过 Step payload/dispatch lower，而不是依赖旧 perform-slot runtime 入口\n{ir}"
     );
     assert!(
         ir.contains("= type { { ptr addrspace(1), i64 }, ptr addrspace(1) }")
             && ir.contains("insertvalue { ptr addrspace(1), i64 } undef")
             && ir
-                .contains("insertvalue { ptr addrspace(1), i64 } %refactor_perform_payload_field0"),
+                .contains("insertvalue { ptr addrspace(1), i64 } %perform_payload_field0"),
         "state-machine multi-payload perform 应以内联 tuple payload 穿过 handle arm，而不是退回旧 boxing ABI\n{ir}"
     );
     assert!(
-        ir.contains("refactor_handle_arm_payload_reload") && ir.contains("refactor_payload_field"),
+        ir.contains("handle_arm_payload_reload") && ir.contains("payload_field"),
         "state-machine handler binder lowering 应继续按 tuple payload 的两个字段读取 binder\n{ir}"
     );
     assert!(
-        ir.contains("refactor_resume_step = call %scoop.refactor.Step")
+        ir.contains("resume_step = call %scoop.lowered.Step")
             && ir.contains("surface_resume_owner_dispatch"),
         "Continuation.resume lowering 应改走 published surface-resume path，而不是旧 runtime helper 入口\n{ir}"
     );
     let resume_idx = ir
-        .find("refactor_resume_step = call %scoop.refactor.Step")
+        .find("resume_step = call %scoop.lowered.Step")
         .expect("expected published surface-resume call in emitted IR");
     let resume_window_start = resume_idx.saturating_sub(500);
     let resume_window_end = std::cmp::min(resume_idx + 2200, ir.len());
     let resume_window = &ir[resume_window_start..resume_window_end];
     assert!(
-        resume_window.contains("extractvalue %scoop.refactor.Step")
-            && resume_window.contains("%refactor_resume_step, 0")
-            && resume_window.contains("br i1 %refactor_step_is_complete"),
+        resume_window.contains("extractvalue %scoop.lowered.Step")
+            && resume_window.contains("%resume_step, 0")
+            && resume_window.contains("br i1 %step_is_complete"),
         "surface-resume call return path 应继续按 Step tag dispatch，而不是回答案专用 helper\n{resume_window}"
     );
     assert!(
-        ir.contains("refactor_resume_state")
-            && ir.contains("refactor_surface_resume_resumed_gep")
+        ir.contains("resume_state")
+            && ir.contains("surface_resume_resumed_gep")
             && ir.contains("cmpxchg"),
         "surface-resume path 应继续显式消费 continuation state/cmpxchg one-shot contract\n{resume_window}"
     );
     assert!(
-        ir.contains("store i32 %refactor_resume_state")
-            || ir.contains("store i32 2, ptr addrspace(1) %refactor_cont_state_gep"),
+        ir.contains("store i32 %resume_state")
+            || ir.contains("store i32 2, ptr addrspace(1) %cont_state_gep"),
         "surface-resume return path 应继续把 continuation state 写回 object contract\n{resume_window}"
     );
 }
@@ -384,7 +384,7 @@ pub(super) fn continuation_resume_driver_reloads_state_ref_from_explicit_frame_b
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
 
     let call_idx = ir
-        .find("call void %refactor_cont_step_fn(")
+        .find("call void %cont_step_fn(")
         .expect("expected continuation step dispatch call in emitted IR");
     let window_start = call_idx.saturating_sub(900);
     let window_end = std::cmp::min(call_idx + 300, ir.len());
@@ -393,13 +393,13 @@ pub(super) fn continuation_resume_driver_reloads_state_ref_from_explicit_frame_b
     assert!(
         window.contains("load volatile ptr addrspace(1), ptr %explicit_root_frame_slot_8")
             && window.contains(
-                "call void %refactor_cont_step_fn(ptr addrspace(1) %refactor_frame_root_reload"
+                "call void %cont_step_fn(ptr addrspace(1) %frame_root_reload"
             ),
         "continuation resume driver should reload state_ref from explicit-frame home slot before calling cont_step\n{window}"
     );
     assert!(
         !window
-            .contains("call void %refactor_cont_step_fn(ptr addrspace(1) %refactor_load_frame_gc"),
+            .contains("call void %cont_step_fn(ptr addrspace(1) %load_frame_gc"),
         "continuation resume driver must not reuse stale pre-safepoint state_ref SSA at cont_step call site\n{window}"
     );
 }
@@ -417,7 +417,7 @@ pub(super) fn fresh_continuation_object_reloads_rooted_self_after_gc_barrier_ini
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
 
     let state_ref_idx = ir
-        .find("refactor_cont_state_ref_gep")
+        .find("cont_state_ref_gep")
         .expect("expected continuation state_ref store in emitted IR");
     let window_start = state_ref_idx.saturating_sub(500);
     let window_end = std::cmp::min(state_ref_idx + 180, ir.len());
@@ -427,11 +427,11 @@ pub(super) fn fresh_continuation_object_reloads_rooted_self_after_gc_barrier_ini
         .find("gc_write_barrier")
         .expect("expected write barrier before continuation state_ref init");
     let reload_idx = window[barrier_idx..]
-        .find("refactor_cont_root_reload")
+        .find("cont_root_reload")
         .map(|idx| barrier_idx + idx)
         .expect("expected rooted continuation reload after write barrier");
     let state_ref_local_idx = window
-        .find("refactor_cont_state_ref_gep")
+        .find("cont_state_ref_gep")
         .expect("expected continuation state_ref GEP in local window");
 
     assert!(
@@ -469,7 +469,7 @@ pub(super) fn composed_continuation_resume_publishes_internal_outcome_surface_an
     assert!(
         outcome_window.contains("ScoopEffectOutcome")
             && outcome_window.contains("store")
-            && !outcome_window.contains("call %scoop.refactor.Step"),
+            && !outcome_window.contains("call %scoop.lowered.Step"),
         "internal outcome surface 应直接写 explicit EffectOutcome，而不是继续把 Step_F 当 resume 内核\n{outcome_window}"
     );
 }
@@ -488,11 +488,11 @@ pub(super) fn composed_continuation_resume_reconstructs_step_from_internal_outco
 
     assert!(
         ir.contains("surface_resume_outcome")
-            && ir.contains("refactor_composed_resume_outcome_phi"),
+            && ir.contains("composed_resume_outcome_phi"),
         "composed call-boundary resume 应先调用 internal outcome surface，再由 caller 侧重建 Step dispatch\n{ir}"
     );
     assert!(
-        !ir.contains("refactor_composed_callee_resume = call %scoop.refactor.Step"),
+        !ir.contains("composed_callee_resume = call %scoop.lowered.Step"),
         "composed call-boundary resume 不应再直接调用 shared Step_F surface 充当 resume 内核\n{ir}"
     );
 }
@@ -511,7 +511,7 @@ pub(super) fn cross_call_escape_resume_roots_do_not_degrade_to_poison_in_explici
 
     assert!(
         ir.contains("explicit_root_frame_slot_"),
-        "emitted IR should keep refactor-owned roots in explicit frame homes\n{ir}"
+        "emitted IR should keep effect-lowered roots in explicit frame homes\n{ir}"
     );
     assert!(
         !ir.contains("ptr poison"),
@@ -562,7 +562,7 @@ fun main(): Int {
         |header, function| {
             !header.contains("@main(")
                 && stable_id_symbol_is_user_callable(llvm_function_symbol_name(function))
-                && !function.contains("switch i32 %refactor_step_tag")
+                && !function.contains("switch i32 %step_tag")
                 && function.contains("i64 41")
         },
     );
@@ -573,14 +573,14 @@ fun main(): Int {
         |header, function| {
             !header.contains("@main(")
                 && llvm_function_symbol_name(function) != hidden_symbol
-                && !function.contains("switch i32 %refactor_step_tag")
+                && !function.contains("switch i32 %step_tag")
                 && function_ir_calls_symbol(function, hidden_symbol)
         },
     );
 
     assert!(
         function_ir_calls_symbol(entry_ir, hidden_symbol)
-            && !entry_ir.contains("switch i32 %refactor_step_tag"),
+            && !entry_ir.contains("switch i32 %step_tag"),
         "签名 effectful 但 body 不 outward 的直调用应保持 direct-call surface，而不是进入 Step dispatch:\n{entry_ir}"
     );
 }
@@ -625,7 +625,7 @@ fun main(): Int {
         |header, function| {
             !header.contains("@main(")
                 && stable_id_symbol_is_user_callable(llvm_function_symbol_name(function))
-                && !function.contains("switch i32 %refactor_step_tag")
+                && !function.contains("switch i32 %step_tag")
                 && header.contains("ptr addrspace(1)")
                 && !function.contains(" call ")
         },
@@ -637,14 +637,14 @@ fun main(): Int {
         |header, function| {
             !header.contains("@main(")
                 && llvm_function_symbol_name(function) != latent_symbol
-                && !function.contains("switch i32 %refactor_step_tag")
+                && !function.contains("switch i32 %step_tag")
                 && function_ir_calls_symbol(function, latent_symbol)
         },
     );
 
     assert!(
         function_ir_calls_symbol(entry_ir, latent_symbol)
-            && !entry_ir.contains("switch i32 %refactor_step_tag"),
+            && !entry_ir.contains("switch i32 %step_tag"),
         "未调用的 higher-order effect 参数不应让外层 ordinary 直调用进入 Step dispatch:\n{entry_ir}"
     );
 }
@@ -691,7 +691,7 @@ fun main(): Int {
         |header, function| {
             !header.contains("@main(")
                 && stable_id_symbol_is_user_callable(llvm_function_symbol_name(function))
-                && !function.contains("switch i32 %refactor_step_tag")
+                && !function.contains("switch i32 %step_tag")
                 && (function_ir_calls_matching_symbol(
                     function,
                     stable_id_symbol_looks_like_closure_family,
@@ -704,7 +704,7 @@ fun main(): Int {
         (function_ir_calls_matching_symbol(entry_ir, stable_id_symbol_looks_like_closure_family)
             || entry_ir.contains("closure_dynamic_entry")
             || entry_ir.contains("closure_env"))
-            && !entry_ir.contains("switch i32 %refactor_step_tag"),
+            && !entry_ir.contains("switch i32 %step_tag"),
         "body 不 outward 的 closure 调用应保持 direct-call surface，而不是进入 Step dispatch:\n{entry_ir}"
     );
 }
@@ -745,22 +745,22 @@ fun main(): Int {
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
     let outward_ir = function_ir_matching(&ir, "outward effect helper", |header, function| {
         !header.contains("@main(")
-            && header.contains("direct_invoke")
-            && !function.contains("switch i32 %refactor_step_tag")
+            && header.contains("lowered_direct_invoke")
+            && !function.contains("switch i32 %step_tag")
             && function.contains("store i32 1")
             && function.contains("i64 41")
     });
     let entry_ir = function_ir_matching(&ir, "entry step-boundary helper", |header, function| {
         !header.contains("@main(")
-            && header.contains("direct_invoke")
-            && function.contains("switch i32 %refactor_step_tag")
-            && function.contains("call %scoop.refactor.Step")
+            && header.contains("lowered_direct_invoke")
+            && function.contains("switch i32 %step_tag")
+            && function.contains("call %scoop.lowered.Step")
     });
 
     assert!(
-        entry_ir.contains("call %scoop.refactor.Step")
-            && entry_ir.contains("switch i32 %refactor_step_tag"),
-        "ordinary direct outward-effect call 应改走 refactor Step boundary，并按 step tag dispatch:\n{entry_ir}"
+        entry_ir.contains("call %scoop.lowered.Step")
+            && entry_ir.contains("switch i32 %step_tag"),
+        "ordinary direct outward-effect call 应改走 Step boundary，并按 step tag dispatch:\n{entry_ir}"
     );
     assert!(
         outward_ir.contains("store i32 1"),
@@ -770,7 +770,7 @@ fun main(): Int {
         function_ir_count_matching(&ir, |header, _| {
             header.contains("surface_resume_owner_dispatch")
         }) >= 2,
-        "refactor direct outward path 应继续发布 entry/callee 的 authoritative surface-resume owner dispatch:\n{ir}"
+        "direct outward path 应继续发布 entry/callee 的 authoritative surface-resume owner dispatch:\n{ir}"
     );
 }
 
@@ -813,9 +813,9 @@ fun main(): Int {
             !header.contains("@main(")
                 && stable_id_symbol_has_private_role(
                     llvm_function_symbol_name(function),
-                    "refactor_direct_invoke",
+                    "lowered_direct_invoke",
                 )
-                && !function.contains("switch i32 %refactor_step_tag")
+                && !function.contains("switch i32 %step_tag")
                 && function.contains("store i32 1")
                 && function.contains("i64 41")
         },
@@ -825,14 +825,14 @@ fun main(): Int {
         "entry helper for outward closure call",
         |header, function| {
             !header.contains("@main(")
-                && header.contains("direct_invoke")
-                && function.contains("switch i32 %refactor_step_tag")
+                && header.contains("lowered_direct_invoke")
+                && function.contains("switch i32 %step_tag")
         },
     );
 
     assert!(
-        entry_ir.contains("switch i32 %refactor_step_tag"),
-        "outward-effect closure call 应通过 refactor Step boundary 做 step-tag dispatch:\n{entry_ir}"
+        entry_ir.contains("switch i32 %step_tag"),
+        "outward-effect closure call 应通过 Step boundary 做 step-tag dispatch:\n{entry_ir}"
     );
     let lambda_step_ty = llvm_function_return_named_struct_type(lambda_ir)
         .expect("expected hashed Step return type for outward closure body helper");
@@ -840,7 +840,7 @@ fun main(): Int {
         stable_id_type_name_has_hashed_family(lambda_step_ty, "Step")
             && entry_ir.lines().any(|line| {
                 line.contains(" call ")
-                    && line.contains("@__scoop_priv0__refactor_direct_invoke__h")
+                    && line.contains("@__scoop_priv0__lowered_direct_invoke__h")
                     && line.contains(&format!("%{lambda_step_ty}"))
             }),
         "当前默认路径会把单次 outward closure thunk 直接绑定到 authoritative lambda entry:\n{entry_ir}"

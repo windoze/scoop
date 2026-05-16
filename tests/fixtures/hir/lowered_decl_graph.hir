@@ -1,0 +1,422 @@
+File {
+    decls: [
+        TypeAlias(
+            TypeAliasDecl {
+                span: 184..205,
+                fqn: "fixtures.hir_decls.Alias",
+                name: "Alias",
+                type_params: [
+                ],
+                ty: Int,
+            },
+        ),
+        Nominal(
+            NominalDecl {
+                span: 207..249,
+                fqn: "fixtures.hir_decls.Named",
+                name: "Named",
+                kind: Interface,
+                type_params: [
+                ],
+                supertypes: [
+                ],
+                interfaces: [
+                ],
+                constructors: [
+                ],
+                members: [
+                    Fun(
+                        MemberFunDecl {
+                            span: 229..247,
+                            fqn: "fixtures.hir_decls.Named.name",
+                            name: "name",
+                            type_params: [
+                            ],
+                            params: [
+                            ],
+                            return_ty: String,
+                        },
+                    ),
+                ],
+            },
+        ),
+        Nominal(
+            NominalDecl {
+                span: 251..426,
+                fqn: "fixtures.hir_decls.Person",
+                name: "Person",
+                kind: Class,
+                type_params: [
+                ],
+                supertypes: [
+                    SupertypeDecl {
+                        span: 279..284,
+                        fqn: Some("fixtures.hir_decls.Named"),
+                        ty: fixtures.hir_decls.Named,
+                        ctor_arg_count: 0,
+                    },
+                ],
+                interfaces: [
+                    "fixtures.hir_decls.Named",
+                ],
+                constructors: [
+                    CtorDecl {
+                        span: 263..276,
+                        kind: Primary,
+                        params: [
+                            CtorParamDecl {
+                                span: 268..270,
+                                name: "id",
+                                ty: Int,
+                                has_default: false,
+                                property: Some(Val),
+                            },
+                        ],
+                        delegation: None,
+                    },
+                    CtorDecl {
+                        span: 332..381,
+                        kind: Secondary,
+                        params: [
+                            CtorParamDecl {
+                                span: 344..346,
+                                name: "id",
+                                ty: Int,
+                                has_default: false,
+                                property: None,
+                            },
+                            CtorParamDecl {
+                                span: 353..358,
+                                name: "label",
+                                ty: String,
+                                has_default: false,
+                                property: None,
+                            },
+                        ],
+                        delegation: Some(This),
+                    },
+                ],
+                members: [
+                    Field(
+                        FieldDecl {
+                            span: 268..270,
+                            fqn: "fixtures.hir_decls.Person.id",
+                            name: "id",
+                            mutable: false,
+                            ty: Int,
+                            origin: PrimaryCtorParam,
+                        },
+                    ),
+                    Field(
+                        FieldDecl {
+                            span: 295..300,
+                            fqn: "fixtures.hir_decls.Person.title",
+                            name: "title",
+                            mutable: false,
+                            ty: String,
+                            origin: BodyProperty,
+                        },
+                    ),
+                    InitBlock {
+                        span: 320..327,
+                    },
+                    Fun(
+                        MemberFunDecl {
+                            span: 386..424,
+                            fqn: "fixtures.hir_decls.Person.name",
+                            name: "name",
+                            type_params: [
+                            ],
+                            params: [
+                            ],
+                            return_ty: String,
+                        },
+                    ),
+                ],
+            },
+        ),
+        Nominal(
+            NominalDecl {
+                span: 428..464,
+                fqn: "fixtures.hir_decls.Point",
+                name: "Point",
+                kind: Struct,
+                type_params: [
+                ],
+                supertypes: [
+                ],
+                interfaces: [
+                ],
+                constructors: [
+                    CtorDecl {
+                        span: 440..464,
+                        kind: Primary,
+                        params: [
+                            CtorParamDecl {
+                                span: 445..446,
+                                name: "x",
+                                ty: Int,
+                                has_default: false,
+                                property: Some(Val),
+                            },
+                            CtorParamDecl {
+                                span: 457..458,
+                                name: "y",
+                                ty: Int,
+                                has_default: false,
+                                property: Some(Val),
+                            },
+                        ],
+                        delegation: None,
+                    },
+                ],
+                members: [
+                    Field(
+                        FieldDecl {
+                            span: 445..446,
+                            fqn: "fixtures.hir_decls.Point.x",
+                            name: "x",
+                            mutable: false,
+                            ty: Int,
+                            origin: PrimaryCtorParam,
+                        },
+                    ),
+                    Field(
+                        FieldDecl {
+                            span: 457..458,
+                            fqn: "fixtures.hir_decls.Point.y",
+                            name: "y",
+                            mutable: false,
+                            ty: Int,
+                            origin: PrimaryCtorParam,
+                        },
+                    ),
+                ],
+            },
+        ),
+        Nominal(
+            NominalDecl {
+                span: 466..515,
+                fqn: "fixtures.hir_decls.Choice",
+                name: "Choice",
+                kind: Enum,
+                type_params: [
+                ],
+                supertypes: [
+                ],
+                interfaces: [
+                ],
+                constructors: [
+                ],
+                members: [
+                    EnumVariant(
+                        EnumVariantDecl {
+                            span: 484..504,
+                            fqn: "fixtures.hir_decls.Choice.Some",
+                            name: "Some",
+                            fields: [
+                                FieldDecl {
+                                    span: 493..498,
+                                    fqn: "fixtures.hir_decls.Choice.Some.value",
+                                    name: "value",
+                                    mutable: false,
+                                    ty: Int,
+                                    origin: EnumVariantPayload,
+                                },
+                            ],
+                        },
+                    ),
+                    EnumVariant(
+                        EnumVariantDecl {
+                            span: 509..513,
+                            fqn: "fixtures.hir_decls.Choice.None",
+                            name: "None",
+                            fields: [
+                            ],
+                        },
+                    ),
+                ],
+            },
+        ),
+        Object(
+            ObjectDecl {
+                span: 517..604,
+                fqn: "fixtures.hir_decls.Registry",
+                name: "Registry",
+                kind: Object,
+                supertypes: [
+                ],
+                interfaces: [
+                ],
+                initializer_root: "fixtures.hir_decls.Registry",
+                members: [
+                    Field(
+                        FieldDecl {
+                            span: 543..548,
+                            fqn: "fixtures.hir_decls.Registry.count",
+                            name: "count",
+                            mutable: false,
+                            ty: Int,
+                            origin: BodyProperty,
+                        },
+                    ),
+                    Fun(
+                        MemberFunDecl {
+                            span: 562..602,
+                            fqn: "fixtures.hir_decls.Registry.name",
+                            name: "name",
+                            type_params: [
+                            ],
+                            params: [
+                            ],
+                            return_ty: String,
+                        },
+                    ),
+                ],
+            },
+        ),
+        ExtensionProperty(
+            ExtensionPropertyDecl {
+                span: 606..640,
+                fqn: "fixtures.hir_decls.last",
+                name: "last",
+                mutable: false,
+                type_params: [
+                ],
+                receiver_ty: String,
+                ty: Int,
+                getter: Some(
+                    AccessorContract {
+                        span: 631..640,
+                        fqn: "fixtures.hir_decls.last",
+                    }
+                ),
+                setter: None,
+            },
+        ),
+    ],
+    items: [
+        Fun(
+            FunDecl {
+                span: 606..640,
+                fqn: "fixtures.hir_decls.last",
+                name: "last",
+                ty: (String) -> Int / Pure,
+                params: [
+                    Param {
+                        span: 610..616,
+                        label: sym#hc22841dcfac5aec6c9103ec0c390660d,
+                        name: "this",
+                        ty: String,
+                    },
+                ],
+                return_ty: Int,
+                body: Some(
+                    Block {
+                        span: 639..640,
+                        ty: Int,
+                        stmts: [
+                            Stmt {
+                                span: 639..640,
+                                ty: Int,
+                                kind: Expr(
+                                    Expr {
+                                        span: 639..640,
+                                        ty: Int,
+                                        kind: Literal(Int),
+                                    }
+                                ),
+                            },
+                        ],
+                    }
+                ),
+            },
+        ),
+        Fun(
+            FunDecl {
+                span: 642..655,
+                fqn: "fixtures.hir_decls.main",
+                name: "main",
+                ty: () -> Unit / Pure,
+                params: [
+                ],
+                return_ty: Unit,
+                body: Some(
+                    Block {
+                        span: 653..655,
+                        ty: Unit,
+                        stmts: [
+                        ],
+                    }
+                ),
+            },
+        ),
+    ],
+}
+
+
+TypedHirEffectContracts {
+    function_effects: [
+        FunctionEffectContract {
+            span: 229..247,
+            fqn: "fixtures.hir_decls.Named.name",
+            return_ty: String,
+            allowed_effects: Pure,
+            effects_closed: false,
+        },
+        FunctionEffectContract {
+            span: 386..424,
+            fqn: "fixtures.hir_decls.Person.name",
+            return_ty: String,
+            allowed_effects: Pure,
+            effects_closed: false,
+        },
+        FunctionEffectContract {
+            span: 562..602,
+            fqn: "fixtures.hir_decls.Registry.name",
+            return_ty: String,
+            allowed_effects: Pure,
+            effects_closed: false,
+        },
+        FunctionEffectContract {
+            span: 606..640,
+            fqn: "fixtures.hir_decls.last",
+            return_ty: Int,
+            allowed_effects: Pure,
+            effects_closed: false,
+        },
+        FunctionEffectContract {
+            span: 642..655,
+            fqn: "fixtures.hir_decls.main",
+            return_ty: Unit,
+            allowed_effects: Pure,
+            effects_closed: false,
+        },
+    ],
+    call_site_kinds: [
+    ],
+    call_site_contracts: [
+    ],
+    with_update_contracts: [
+    ],
+    assign_place_contracts: [
+    ],
+    top_level_init_roots: [
+        TopLevelInitRootContract {
+            span: 517..604,
+            fqn: "fixtures.hir_decls.Registry",
+            kind: ObjectSingleton,
+            ty: None,
+            initializer_ty: None,
+            has_initializer: true,
+            dependencies: [
+            ],
+        },
+    ],
+    continuation_resume_sites: [
+    ],
+    perform_sites: [
+    ],
+    handle_sites: [
+    ],
+}

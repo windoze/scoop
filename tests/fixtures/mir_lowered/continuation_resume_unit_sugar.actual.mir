@@ -1,0 +1,53 @@
+File {
+    items: [
+        Fun(
+            FunDecl {
+                span: 51..80,
+                fqn: "fixtures.mir_lowered.takesUnit",
+                name: "takesUnit",
+                ty: (Unit) -> Unit / Pure,
+                params: [Param { span: 65..70, name: "value", ty: Unit, local: local#h3861b5c971e866287bb886b229848a26 }],
+                return_ty: Unit,
+                body: Some(
+                    Body {
+                        locals: [LocalDecl { label: local#h3861b5c971e866287bb886b229848a26, span: 65..70, name: Some("value"), ty: Unit, source: SourceLocal }],
+                        blocks: [
+                            BasicBlock {
+                                label: bb#hc13032f3c01049f421a476e3f5c6bd9e,
+                                is_cleanup: false,
+                                stmts: [],
+                                terminator: Terminator { span: 51..80, kind: Return { value: None }, unwind: NoUnwind },
+                            },
+                        ],
+                        start: bb#hc13032f3c01049f421a476e3f5c6bd9e,
+                    }
+                ),
+            },
+        ),
+        Fun(
+            FunDecl {
+                span: 82..233,
+                fqn: "fixtures.mir_lowered.resumeUnit",
+                name: "resumeUnit",
+                ty: (scoop.core.Continuation<Unit, Unit, eff Pure>) -> Unit / scoop.core.Raise<scoop.core.RuntimeError>,
+                params: [Param { span: 97..98, name: "k", ty: scoop.core.Continuation<Unit, Unit, eff Pure>, local: local#hcb542a6531bfe380b5bdf206e0b855da }],
+                return_ty: Unit,
+                body: Some(
+                    Body {
+                        locals: [LocalDecl { label: local#hcb542a6531bfe380b5bdf206e0b855da, span: 97..98, name: Some("k"), ty: scoop.core.Continuation<Unit, Unit, eff Pure>, source: SourceLocal }, LocalDecl { label: local#hac6b3263798e45e6106f5c66c983a554, span: 170..180, name: Some("tmp0"), ty: Unit, source: CompilerTemporary }, LocalDecl { label: local#ha1cfbd83e58ea9a820269ce416930d89, span: 170..180, name: Some("tmp1"), ty: Unit, source: CompilerTemporary }, LocalDecl { label: local#h3a8f8ba5963cde94dfd3261686c79e96, span: 185..197, name: Some("tmp2"), ty: Unit, source: CompilerTemporary }, LocalDecl { label: local#hba0508cf428136a40efe74b554906008, span: 194..196, name: Some("tmp3"), ty: Unit, source: CompilerTemporary }, LocalDecl { label: local#h661b89fe37c1c7c32c58082df7931fb6, span: 202..213, name: Some("tmp4"), ty: Unit, source: CompilerTemporary }, LocalDecl { label: local#hf5d595ea248ddd24cc6a7b9e2350398c, span: 202..213, name: Some("tmp5"), ty: Unit, source: CompilerTemporary }, LocalDecl { label: local#h1143adfee7a10f3063ed9791ab22d882, span: 218..231, name: Some("tmp6"), ty: Unit, source: CompilerTemporary }, LocalDecl { label: local#h53392af25e156414b6132e7e972d9948, span: 228..230, name: Some("tmp7"), ty: Unit, source: CompilerTemporary }],
+                        blocks: [
+                            BasicBlock {
+                                label: bb#h92e65e8699fcc58a041be3a7db5d6d5f,
+                                is_cleanup: false,
+                                stmts: [Statement { span: 170..180, kind: Assign { target: local#ha1cfbd83e58ea9a820269ce416930d89, value: Use(Const(Unit)) } }, Statement { span: 170..180, kind: Assign { target: local#hac6b3263798e45e6106f5c66c983a554, value: Call { site_id: site#hf336d32a9a3aa536c7f40ad3702cb346, kind: Resume { continuation: Local(local#hcb542a6531bfe380b5bdf206e0b855da), resume: ResumeMetadata { continuation_ty: scoop.core.Continuation<Unit, Unit, eff Pure>, resume_ty: Unit, answer_ty: Unit, return_ty: Unit, out_effects: Pure, runtime_error_effect_ty: Some(scoop.core.Raise<scoop.core.RuntimeError>), suspends_outward: false } }, args: [CallArg { span: 170..180, name: None, value: Local(local#ha1cfbd83e58ea9a820269ce416930d89) }], transport: CallTransportMetadata { result: ValueTransportMetadata { source_ty: Unit, kind: Scalar, requirements: MirTransportRequirements { trace: false, copy: true, drop: false }, boxing: None }, aggregate_return: None, array: None, gc: None, thread_resume_payload: None, abi: CallAbiHandoffMetadata { callable_abi_kind: DeferredToEffectFacts, resolved_outward_cases: [], impl_plan: DeferredToEffectFacts, adapter_required: false } } } } }, Statement { span: 194..196, kind: Assign { target: local#hba0508cf428136a40efe74b554906008, value: Use(Const(Unit)) } }, Statement { span: 185..197, kind: Assign { target: local#h3a8f8ba5963cde94dfd3261686c79e96, value: Call { site_id: site#h12cafb375f0ee3c95731cf00f3edf740, kind: Resume { continuation: Local(local#hcb542a6531bfe380b5bdf206e0b855da), resume: ResumeMetadata { continuation_ty: scoop.core.Continuation<Unit, Unit, eff Pure>, resume_ty: Unit, answer_ty: Unit, return_ty: Unit, out_effects: Pure, runtime_error_effect_ty: Some(scoop.core.Raise<scoop.core.RuntimeError>), suspends_outward: false } }, args: [CallArg { span: 194..196, name: None, value: Local(local#hba0508cf428136a40efe74b554906008) }], transport: CallTransportMetadata { result: ValueTransportMetadata { source_ty: Unit, kind: Scalar, requirements: MirTransportRequirements { trace: false, copy: true, drop: false }, boxing: None }, aggregate_return: None, array: None, gc: None, thread_resume_payload: None, abi: CallAbiHandoffMetadata { callable_abi_kind: DeferredToEffectFacts, resolved_outward_cases: [], impl_plan: DeferredToEffectFacts, adapter_required: false } } } } }, Statement { span: 202..213, kind: Assign { target: local#hf5d595ea248ddd24cc6a7b9e2350398c, value: Use(Const(Unit)) } }, Statement { span: 202..213, kind: Assign { target: local#h661b89fe37c1c7c32c58082df7931fb6, value: Call { site_id: site#h8cee1a294ac49585a7d272fd434e0019, kind: Direct { callee_fqn: "fixtures.mir_lowered.takesUnit" }, args: [CallArg { span: 202..213, name: None, value: Local(local#hf5d595ea248ddd24cc6a7b9e2350398c) }], transport: CallTransportMetadata { result: ValueTransportMetadata { source_ty: Unit, kind: Scalar, requirements: MirTransportRequirements { trace: false, copy: true, drop: false }, boxing: None }, aggregate_return: None, array: None, gc: None, thread_resume_payload: None, abi: CallAbiHandoffMetadata { callable_abi_kind: DeferredToEffectFacts, resolved_outward_cases: [], impl_plan: DeferredToEffectFacts, adapter_required: false } } } } }, Statement { span: 228..230, kind: Assign { target: local#h53392af25e156414b6132e7e972d9948, value: Use(Const(Unit)) } }, Statement { span: 218..231, kind: Assign { target: local#h1143adfee7a10f3063ed9791ab22d882, value: Call { site_id: site#h516ffff6b313ae5244cc4b143aee1afc, kind: Direct { callee_fqn: "fixtures.mir_lowered.takesUnit" }, args: [CallArg { span: 228..230, name: None, value: Local(local#h53392af25e156414b6132e7e972d9948) }], transport: CallTransportMetadata { result: ValueTransportMetadata { source_ty: Unit, kind: Scalar, requirements: MirTransportRequirements { trace: false, copy: true, drop: false }, boxing: None }, aggregate_return: None, array: None, gc: None, thread_resume_payload: None, abi: CallAbiHandoffMetadata { callable_abi_kind: DeferredToEffectFacts, resolved_outward_cases: [], impl_plan: DeferredToEffectFacts, adapter_required: false } } } } }],
+                                terminator: Terminator { span: 82..233, kind: Return { value: None }, unwind: NoUnwind },
+                            },
+                        ],
+                        start: bb#h92e65e8699fcc58a041be3a7db5d6d5f,
+                    }
+                ),
+            },
+        ),
+    ],
+}
+

@@ -708,7 +708,7 @@ impl BodyEffectFacts {
     }
 }
 
-/// refactor 主线的 authoritative effect-facts 容器。
+/// authoritative effect-facts 容器。
 ///
 /// 生命周期规则：
 /// - 与当前 canonical materialized MIR snapshot 一一对应；

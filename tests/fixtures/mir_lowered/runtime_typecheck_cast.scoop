@@ -1,0 +1,32 @@
+// EXPECT: pass
+// 目标：MIR-T09 runtime typecheck/cast primitives 在 MIR 中携带完整元数据。
+
+package mir_lowered.runtime_typecheck_cast
+
+import scoop.core.*
+
+interface IFace {
+    fun ping(): Int
+}
+
+open class Base()
+
+class Impl() : Base(), IFace {
+    fun ping(): Int { return 1 }
+}
+
+class Other() : Base()
+
+class Holder<T>(val value: T)
+
+fun inspect(x: Any): Int / Raise<RuntimeError> {
+    val isIface: Bool = x is IFace
+    val notOther: Bool = x !is Other
+    val isHolder: Bool = x is Holder<Int>
+    val asIface: IFace = x as IFace
+    val maybeHolder: Holder<Int>? = x as? Holder<Int>
+    return when (maybeHolder) {
+        Some(_o) -> asIface.ping()
+        None -> 0
+    }
+}

@@ -2,14 +2,14 @@
 
 use super::*;
 
-impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
+impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
     pub(super) fn emit_direct(
         mut self,
-        entry_layout: &RefactorCallableEntryLayout<'ctx>,
+        entry_layout: &CallableEntryLayout<'ctx>,
     ) -> Result<(), LlvmEmitError> {
         self.bind_direct_args(entry_layout).map_err(|err| {
             frontend_error(format!(
-                "refactor direct entry `{}` bind args failed: {err}",
+                "direct entry `{}` bind args failed: {err}",
                 entry_layout.symbol_name()
             ))
         })?;
@@ -26,7 +26,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         param_offset: u32,
         declared_return_cg: CgTy,
     ) -> Result<(), LlvmEmitError> {
-        self.return_mode = RefactorCallableReturnMode::Plain { declared_return_cg };
+        self.return_mode = CallableReturnMode::Plain { declared_return_cg };
         self.codegen.bind_mir_params(
             hir_fun,
             self.mir_fun,
@@ -46,7 +46,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         param_offset: u32,
         declared_return_cg: CgTy,
     ) -> Result<(), LlvmEmitError> {
-        self.return_mode = RefactorCallableReturnMode::Plain { declared_return_cg };
+        self.return_mode = CallableReturnMode::Plain { declared_return_cg };
         self.codegen.bind_mir_params_without_hir(
             self.mir_fun,
             self.function,
@@ -87,7 +87,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                     || existing.consumer_frame_slot() != binding.consumer_frame_slot()
                 {
                     return Err(frontend_error(format!(
-                        "refactor resume entry st{} 的 resumed local/home contract 冲突：bd{} 与 bd{}",
+                        "resume entry st{} 的 resumed local/home contract 冲突：bd{} 与 bd{}",
                         binding.resume_state().as_u32(),
                         existing.boundary_id().as_u32(),
                         binding.boundary_id().as_u32()
@@ -138,33 +138,33 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
     ) -> Result<(), LlvmEmitError> {
         let cont = self.function.get_nth_param(0).ok_or_else(|| {
             frontend_error(format!(
-                "refactor resume method `{}` 缺少 continuation 参数",
+                "resume method `{}` 缺少 continuation 参数",
                 self.function.get_name().to_str().unwrap_or("<invalid>")
             ))
         })?;
         let cont_root_slot = self
             .codegen
-            .create_refactor_gc_root_slot(self.mir_fun.span, "refactor_resume_cont_root")?;
+            .create_gc_root_slot(self.mir_fun.span, "resume_cont_root")?;
         let cont_ptr = self.root_gc_pointer_in_slot(
             cont_root_slot,
             cont.into_pointer_value(),
-            "refactor_resume_cont_root",
+            "resume_cont_root",
         )?;
         let cont_ptr = self.cast_gc_ref_to_continuation(cont_ptr)?;
         let captured_frame = self.load_frame_from_continuation(cont_ptr)?;
         self.store_frame_root(captured_frame)?;
         self.restore_frame_slots_to_locals()?;
         let current_effect_ctx = self.load_captured_effect_ctx_from_continuation(cont_ptr)?;
-        self.store_current_effect_ctx(current_effect_ctx, "refactor_resume_effect_ctx")?;
-        let cont_ptr = self.codegen.load_refactor_gc_root_slot(
+        self.store_current_effect_ctx(current_effect_ctx, "resume_effect_ctx")?;
+        let cont_ptr = self.codegen.load_gc_root_slot(
             self.mir_fun.span,
             cont_root_slot,
-            "refactor_resume_cont_root",
+            "resume_cont_root",
         )?;
         let cont_ptr = self.cast_gc_ref_to_continuation(cont_ptr)?;
         let payload = if self.function.count_params() > 1 {
             Some(self.function.get_nth_param(1).ok_or_else(|| {
-                frontend_error("refactor resume method 缺少 payload 参数".to_string())
+                frontend_error("resume method 缺少 payload 参数".to_string())
             })?)
         } else {
             None
@@ -179,7 +179,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             .context
             .append_basic_block(self.function, "resume_double");
         let first_resume =
-            self.try_mark_continuation_resumed(cont_ptr, "refactor_surface_resume")?;
+            self.try_mark_continuation_resumed(cont_ptr, "surface_resume")?;
         self.codegen.builder.build_conditional_branch(
             first_resume,
             first_resume_bb,
@@ -194,7 +194,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         let composed_is_null = self
             .codegen
             .builder
-            .build_is_null(composed_callee, "refactor_composed_callee_is_null")?;
+            .build_is_null(composed_callee, "composed_callee_is_null")?;
         let ordinary_resume_bb = self
             .codegen
             .context
@@ -254,17 +254,17 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
     ) -> Result<(), LlvmEmitError> {
         let cont = self.function.get_nth_param(0).ok_or_else(|| {
             frontend_error(format!(
-                "refactor outcome resume wrapper `{}` 缺少 continuation 参数",
+                "outcome resume wrapper `{}` 缺少 continuation 参数",
                 self.function.get_name().to_str().unwrap_or("<invalid>")
             ))
         })?;
         let cont_ptr = self.cast_gc_ref_to_continuation(cont.into_pointer_value())?;
-        let cont_ptr = self.root_gc_pointer(cont_ptr, "refactor_outcome_resume_cont_root")?;
+        let cont_ptr = self.root_gc_pointer(cont_ptr, "outcome_resume_cont_root")?;
         let captured_frame = self.load_frame_from_continuation(cont_ptr)?;
         self.store_frame_root(captured_frame)?;
         let payload = if self.function.count_params() > 2 {
             Some(self.function.get_nth_param(1).ok_or_else(|| {
-                frontend_error("refactor outcome resume wrapper 缺少 payload 参数".to_string())
+                frontend_error("outcome resume wrapper 缺少 payload 参数".to_string())
             })?)
         } else {
             None
@@ -273,7 +273,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             .function
             .get_nth_param(self.function.count_params().saturating_sub(1))
             .ok_or_else(|| {
-                frontend_error("refactor outcome resume wrapper 缺少 outcome 参数".to_string())
+                frontend_error("outcome resume wrapper 缺少 outcome 参数".to_string())
             })?
             .into_pointer_value();
         let resume_state_tag = self.load_continuation_resume_state(cont_ptr)?;
@@ -286,7 +286,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             .context
             .append_basic_block(self.function, "resume_double");
         let first_resume =
-            self.try_mark_continuation_resumed(cont_ptr, "refactor_surface_resume_outcome")?;
+            self.try_mark_continuation_resumed(cont_ptr, "surface_resume_outcome")?;
         self.codegen.builder.build_conditional_branch(
             first_resume,
             first_resume_bb,
@@ -297,10 +297,10 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         self.emit_double_resume_runtime_error_to_ptr(outcome_ptr, resume_state_tag)?;
 
         self.codegen.builder.position_at_end(first_resume_bb);
-        self.store_current_state_tag(resume_state_tag, "refactor_outcome_resume_state")?;
+        self.store_current_state_tag(resume_state_tag, "outcome_resume_state")?;
         let current_effect_ctx = self.load_captured_effect_ctx_from_continuation(cont_ptr)?;
         let incoming_resume_token = self.load_captured_callee_suspend_state_ref(cont_ptr)?;
-        let state_ref = self.current_frame_gc_ref("refactor_outcome_resume_state_ref")?;
+        let state_ref = self.current_frame_gc_ref("outcome_resume_state_ref")?;
         let mut args = vec![state_ref.into()];
         if let Some(payload) = payload {
             args.push(payload.into());
@@ -312,7 +312,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             self.mir_fun.span,
             core_fun,
             &args,
-            "refactor_outcome_resume_core",
+            "outcome_resume_core",
         )?;
         self.codegen.builder.build_return(None)?;
         self.seal_unterminated_state_blocks_as_unreachable()?;
@@ -323,7 +323,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         mut self,
         resume_tuple_ty: TypeId,
     ) -> Result<(), LlvmEmitError> {
-        self.return_mode = RefactorCallableReturnMode::EffectOutcome;
+        self.return_mode = CallableReturnMode::EffectOutcome;
         let payload_param_index = (self.function.count_params() > 4).then_some(1u32);
         self.codegen.bind_explicit_effect_hidden_abi_slots(
             self.mir_fun.span,
@@ -333,14 +333,14 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         )?;
         let state_ref = self.function.get_nth_param(0).ok_or_else(|| {
             frontend_error(format!(
-                "refactor outcome core `{}` 缺少 state_ref 参数",
+                "outcome core `{}` 缺少 state_ref 参数",
                 self.function.get_name().to_str().unwrap_or("<invalid>")
             ))
         })?;
-        let state_ref = self.codegen.refactor_cast_ptr(
+        let state_ref = self.codegen.cast_ptr(
             state_ref.into_pointer_value(),
             self.codegen.llvm_ptr_type(self.codegen.gc_address_space()),
-            "refactor_outcome_core_state_ref",
+            "outcome_core_state_ref",
         )?;
         self.store_frame_root(state_ref)?;
         self.restore_frame_slots_to_locals()?;
@@ -349,21 +349,21 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                 .function_cx
                 .current_effect_ctx_ref
                 .ok_or_else(|| {
-                    frontend_error("refactor outcome core 缺少 current_effect_ctx_ref".to_string())
+                    frontend_error("outcome core 缺少 current_effect_ctx_ref".to_string())
                 })?;
-        self.store_current_effect_ctx(current_effect_ctx, "refactor_outcome_core_effect_ctx")?;
-        let resume_state_tag = self.load_current_state_tag("refactor_outcome_core_state_tag")?;
+        self.store_current_effect_ctx(current_effect_ctx, "outcome_core_effect_ctx")?;
+        let resume_state_tag = self.load_current_state_tag("outcome_core_state_tag")?;
         let incoming_resume_token = self
             .codegen
             .function_cx
             .current_incoming_resume_token_ref
             .ok_or_else(|| {
-                frontend_error("refactor outcome core 缺少 incoming_resume_token_ref".to_string())
+                frontend_error("outcome core 缺少 incoming_resume_token_ref".to_string())
             })?;
         let payload = payload_param_index
             .map(|index| {
                 self.function.get_nth_param(index).ok_or_else(|| {
-                    frontend_error("refactor outcome core 缺少 payload 参数".to_string())
+                    frontend_error("outcome core 缺少 payload 参数".to_string())
                 })
             })
             .transpose()?;
@@ -377,7 +377,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             .append_basic_block(self.function, "resume_core_composed_dispatch");
         let incoming_is_null = self.codegen.builder.build_is_null(
             incoming_resume_token,
-            "refactor_outcome_core_incoming_is_null",
+            "outcome_core_incoming_is_null",
         )?;
         self.codegen.builder.build_conditional_branch(
             incoming_is_null,
@@ -405,7 +405,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         mut self,
         resume_tuple_ty: TypeId,
     ) -> Result<(), LlvmEmitError> {
-        self.return_mode = RefactorCallableReturnMode::EffectOutcome;
+        self.return_mode = CallableReturnMode::EffectOutcome;
         self.codegen.bind_explicit_effect_hidden_abi_slots(
             self.mir_fun.span,
             self.function,
@@ -414,27 +414,27 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         )?;
         let state_ref = self.function.get_nth_param(0).ok_or_else(|| {
             frontend_error(format!(
-                "refactor continuation step `{}` 缺少 state_ref 参数",
+                "continuation step `{}` 缺少 state_ref 参数",
                 self.function.get_name().to_str().unwrap_or("<invalid>")
             ))
         })?;
-        let state_ref = self.codegen.refactor_cast_ptr(
+        let state_ref = self.codegen.cast_ptr(
             state_ref.into_pointer_value(),
             self.codegen.llvm_ptr_type(self.codegen.gc_address_space()),
-            "refactor_cont_step_state_ref",
+            "cont_step_state_ref",
         )?;
         let resume_word = self
             .function
             .get_nth_param(1)
             .ok_or_else(|| {
-                frontend_error("refactor continuation step 缺少 resume_word 参数".to_string())
+                frontend_error("continuation step 缺少 resume_word 参数".to_string())
             })?
             .into_int_value();
         let resume_gc_ref = self
             .function
             .get_nth_param(2)
             .ok_or_else(|| {
-                frontend_error("refactor continuation step 缺少 resume_gc_ref 参数".to_string())
+                frontend_error("continuation step 缺少 resume_gc_ref 参数".to_string())
             })?
             .into_pointer_value();
         self.store_frame_root(state_ref)?;
@@ -445,18 +445,18 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                 .current_effect_ctx_ref
                 .ok_or_else(|| {
                     frontend_error(
-                        "refactor continuation step 缺少 current_effect_ctx_ref".to_string(),
+                        "continuation step 缺少 current_effect_ctx_ref".to_string(),
                     )
                 })?;
-        self.store_current_effect_ctx(current_effect_ctx, "refactor_cont_step_effect_ctx")?;
-        let resume_state_tag = self.load_current_state_tag("refactor_cont_step_state_tag")?;
+        self.store_current_effect_ctx(current_effect_ctx, "cont_step_effect_ctx")?;
+        let resume_state_tag = self.load_current_state_tag("cont_step_state_tag")?;
         let incoming_resume_token = self
             .codegen
             .function_cx
             .current_incoming_resume_token_ref
             .ok_or_else(|| {
                 frontend_error(
-                    "refactor continuation step 缺少 incoming_resume_token_ref".to_string(),
+                    "continuation step 缺少 incoming_resume_token_ref".to_string(),
                 )
             })?;
         let payload = self.decode_effect_transport_parts(
@@ -465,7 +465,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                 word: resume_word,
                 gc_ref: resume_gc_ref,
             },
-            "refactor_cont_step_payload",
+            "cont_step_payload",
         )?;
         let ordinary_resume_bb = self
             .codegen
@@ -478,7 +478,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         let incoming_is_null = self
             .codegen
             .builder
-            .build_is_null(incoming_resume_token, "refactor_cont_step_incoming_is_null")?;
+            .build_is_null(incoming_resume_token, "cont_step_incoming_is_null")?;
         self.codegen.builder.build_conditional_branch(
             incoming_is_null,
             ordinary_resume_bb,
@@ -503,13 +503,13 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
 
     pub(super) fn write_generated_continuation_answer_slot(
         &mut self,
-        surface: &RefactorContinuationSurfaceResumeLayout<'ctx>,
+        surface: &ContinuationSurfaceResumeLayout<'ctx>,
         answer_slot: PointerValue<'ctx>,
         outcome_ptr: PointerValue<'ctx>,
     ) -> Result<(), LlvmEmitError> {
         let Some(answer_cg) = self.codegen.cg_ty_of(surface.answer_ty()) else {
             return Err(frontend_error(format!(
-                "refactor continuation drive k{} answer t{} 缺少 codegen type",
+                "continuation drive k{} answer t{} 缺少 codegen type",
                 surface.continuation_schema().as_u32(),
                 surface.answer_ty().as_u32()
             )));
@@ -520,12 +520,12 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         let complete_transport = self.codegen.effect_outcome_complete_transport(
             self.mir_fun.span,
             outcome_ptr,
-            "refactor_continuation_answer_transport",
+            "continuation_answer_transport",
         )?;
         let Some(answer) = self.decode_effect_transport_parts(
             surface.answer_ty(),
             complete_transport,
-            "refactor_continuation_answer",
+            "continuation_answer",
         )?
         else {
             return Ok(());
@@ -533,7 +533,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
         let slot_ptr = self.codegen.builder.build_pointer_cast(
             answer_slot,
             self.codegen.context.ptr_type(AddressSpace::default()),
-            "refactor_continuation_answer_slot",
+            "continuation_answer_slot",
         )?;
         self.codegen.builder.build_store(slot_ptr, answer)?;
         Ok(())
@@ -541,21 +541,21 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
 
     pub(super) fn emit_generated_continuation_resume_driver(
         mut self,
-        surface: &RefactorContinuationSurfaceResumeLayout<'ctx>,
+        surface: &ContinuationSurfaceResumeLayout<'ctx>,
     ) -> Result<(), LlvmEmitError> {
         let cont = self.function.get_nth_param(0).ok_or_else(|| {
             frontend_error(format!(
-                "refactor continuation drive `{}` 缺少 continuation 参数",
+                "continuation drive `{}` 缺少 continuation 参数",
                 self.function.get_name().to_str().unwrap_or("<invalid>")
             ))
         })?;
         let cont_root_slot = self
             .codegen
-            .create_refactor_gc_root_slot(self.mir_fun.span, "refactor_continuation_drive_root")?;
+            .create_gc_root_slot(self.mir_fun.span, "continuation_drive_root")?;
         let cont_ptr = self.root_gc_pointer_in_slot(
             cont_root_slot,
             cont.into_pointer_value(),
-            "refactor_continuation_drive_root",
+            "continuation_drive_root",
         )?;
         let cont_ptr = self.cast_gc_ref_to_continuation(cont_ptr)?;
         let state_ref = self.load_frame_from_continuation(cont_ptr)?;
@@ -564,28 +564,28 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             .function
             .get_nth_param(1)
             .ok_or_else(|| {
-                frontend_error("refactor continuation drive 缺少 resume_word 参数".to_string())
+                frontend_error("continuation drive 缺少 resume_word 参数".to_string())
             })?
             .into_int_value();
         let resume_gc_ref = self
             .function
             .get_nth_param(2)
             .ok_or_else(|| {
-                frontend_error("refactor continuation drive 缺少 resume_gc_ref 参数".to_string())
+                frontend_error("continuation drive 缺少 resume_gc_ref 参数".to_string())
             })?
             .into_pointer_value();
         let answer_slot = self
             .function
             .get_nth_param(3)
             .ok_or_else(|| {
-                frontend_error("refactor continuation drive 缺少 answer_slot 参数".to_string())
+                frontend_error("continuation drive 缺少 answer_slot 参数".to_string())
             })?
             .into_pointer_value();
         let outcome_ptr = self
             .function
             .get_nth_param(4)
             .ok_or_else(|| {
-                frontend_error("refactor continuation drive 缺少 outcome 参数".to_string())
+                frontend_error("continuation drive 缺少 outcome 参数".to_string())
             })?
             .into_pointer_value();
         let resume_state_tag = self.load_continuation_resume_state(cont_ptr)?;
@@ -606,7 +606,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             .context
             .append_basic_block(self.function, "resume_return");
         let first_resume =
-            self.try_mark_continuation_resumed(cont_ptr, "refactor_continuation_drive")?;
+            self.try_mark_continuation_resumed(cont_ptr, "continuation_drive")?;
         self.codegen.builder.build_conditional_branch(
             first_resume,
             first_resume_bb,
@@ -623,19 +623,19 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                 word: resume_word,
                 gc_ref: resume_gc_ref,
             },
-            "refactor_continuation_drive",
+            "continuation_drive",
         )?;
-        self.store_current_state_tag(resume_state_tag, "refactor_continuation_drive_state")?;
-        let cont_ptr = self.codegen.load_refactor_gc_root_slot(
+        self.store_current_state_tag(resume_state_tag, "continuation_drive_state")?;
+        let cont_ptr = self.codegen.load_gc_root_slot(
             self.mir_fun.span,
             cont_root_slot,
-            "refactor_continuation_drive_root",
+            "continuation_drive_root",
         )?;
         let cont_ptr = self.cast_gc_ref_to_continuation(cont_ptr)?;
         let current_effect_ctx = self.load_captured_effect_ctx_from_continuation(cont_ptr)?;
         let incoming_resume_token = self.load_captured_callee_suspend_state_ref(cont_ptr)?;
         let step_fn = self.load_continuation_step_fn(cont_ptr)?;
-        let state_ref = self.current_frame_gc_ref("refactor_continuation_drive_state_reload")?;
+        let state_ref = self.current_frame_gc_ref("continuation_drive_state_reload")?;
         let step_args = [
             state_ref.into(),
             resume_word.into(),
@@ -649,13 +649,13 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
                 let typed_step = codegen.builder.build_pointer_cast(
                     step_fn,
                     codegen.context.ptr_type(AddressSpace::default()),
-                    "refactor_continuation_step_fn_typed",
+                    "continuation_step_fn_typed",
                 )?;
                 codegen.builder.build_indirect_call(
-                    codegen.refactor_continuation_step_llvm_ty(),
+                    codegen.continuation_step_llvm_ty(),
                     typed_step,
                     &step_args,
-                    "refactor_continuation_step_call",
+                    "continuation_step_call",
                 )?;
                 Ok(())
             })?;
@@ -678,16 +678,16 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             let answer_slot_is_null = self
                 .codegen
                 .builder
-                .build_is_null(answer_slot, "refactor_continuation_answer_slot_is_null")?;
+                .build_is_null(answer_slot, "continuation_answer_slot_is_null")?;
             let is_propagating = self.codegen.effect_outcome_is_propagating(
                 self.mir_fun.span,
                 outcome_ptr,
-                "refactor_continuation_drive_outcome",
+                "continuation_drive_outcome",
             )?;
             let should_skip = self.codegen.builder.build_or(
                 answer_slot_is_null,
                 is_propagating,
-                "refactor_continuation_skip_answer",
+                "continuation_skip_answer",
             )?;
             self.codegen.builder.build_conditional_branch(
                 should_skip,
@@ -719,7 +719,7 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             None,
         )?;
         match self.return_mode {
-            RefactorCallableReturnMode::EffectOutcome => {
+            CallableReturnMode::EffectOutcome => {
                 let outcome = self.build_propagating_effect_outcome_for_case(
                     case_tag,
                     payload,
@@ -731,13 +731,13 @@ impl<'cg, 'a, 'ctx> RefactorCallableEmitter<'cg, 'a, 'ctx> {
             _ => {
                 let out_layout = self.step_layout.case_layout(case_tag).ok_or_else(|| {
                     frontend_error(format!(
-                        "refactor callable `{}` step schema s{} 缺少 double resume runtime error case c{}",
+                        "callable `{}` step schema s{} 缺少 double resume runtime error case c{}",
                         self.callable.root_fqn(),
                         self.abi_step_schema.as_u32(),
                         case_tag.as_u32(),
                     ))
                 })?;
-                let step = self.codegen.refactor_build_step_case(
+                let step = self.codegen.build_step_case(
                     self.step_layout,
                     out_layout,
                     payload,

@@ -817,7 +817,7 @@ mod tests {
     }
 
     #[test]
-    fn refactor_llvm_composite_transport_contract_maps_owner_specific_gates() {
+    fn llvm_composite_transport_contract_maps_owner_specific_gates() {
         let mut types = TypeStore::new();
         let source_ty = types.intern_builtins().unit;
         assert_eq!(
@@ -839,7 +839,7 @@ mod tests {
     }
 
     #[test]
-    fn refactor_llvm_composite_transport_contract_rejects_fake_trace_hook() {
+    fn llvm_composite_transport_contract_rejects_fake_trace_hook() {
         let mut types = TypeStore::new();
         let source_ty = types.intern_builtins().unit;
         let metadata = ValueTransportMetadata {

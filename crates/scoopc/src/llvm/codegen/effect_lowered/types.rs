@@ -26,17 +26,17 @@ use crate::ty::TypeId;
 
 use super::super::CallableCarrierKind;
 
-/// 单个 refactor ABI 值位的 LLVM 形状。
+/// 单个 ABI 值位的 LLVM 形状。
 ///
 /// `elided=true` 表示该值在 function ABI 中可被省略；但若它出现在 frame/step payload field 中，
 /// 仍可能用零大小 struct 保留稳定 field index。
 #[derive(Clone, Copy, Debug)]
-pub(super) struct RefactorAbiValue<'ctx> {
+pub(super) struct AbiValue<'ctx> {
     llvm_ty: BasicTypeEnum<'ctx>,
     elided: bool,
 }
 
-impl<'ctx> RefactorAbiValue<'ctx> {
+impl<'ctx> AbiValue<'ctx> {
     pub(super) fn new(llvm_ty: BasicTypeEnum<'ctx>, elided: bool) -> Self {
         Self { llvm_ty, elided }
     }
@@ -50,28 +50,28 @@ impl<'ctx> RefactorAbiValue<'ctx> {
     }
 }
 
-/// refactor source type 在 LLVM ABI 中的稳定 carrier 分类。
+/// source type 在 LLVM ABI 中的稳定 carrier 分类。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(super) enum RefactorSourceAbiLayoutKind {
+pub(super) enum SourceAbiLayoutKind {
     Scalar,
     Tuple,
 }
 
 /// tuple-like source carrier 中单个 source field 对应的 ABI field 映射。
 #[derive(Debug, Clone, Copy)]
-pub(super) struct RefactorSourceAbiFieldLayout<'ctx> {
+pub(super) struct SourceAbiFieldLayout<'ctx> {
     source_index: u32,
     source_ty: TypeId,
     abi_field_index: Option<u32>,
-    abi: RefactorAbiValue<'ctx>,
+    abi: AbiValue<'ctx>,
 }
 
-impl<'ctx> RefactorSourceAbiFieldLayout<'ctx> {
+impl<'ctx> SourceAbiFieldLayout<'ctx> {
     pub(super) fn new(
         source_index: u32,
         source_ty: TypeId,
         abi_field_index: Option<u32>,
-        abi: RefactorAbiValue<'ctx>,
+        abi: AbiValue<'ctx>,
     ) -> Self {
         Self {
             source_index,
@@ -93,7 +93,7 @@ impl<'ctx> RefactorSourceAbiFieldLayout<'ctx> {
         self.abi_field_index
     }
 
-    pub(super) fn abi(&self) -> &RefactorAbiValue<'ctx> {
+    pub(super) fn abi(&self) -> &AbiValue<'ctx> {
         &self.abi
     }
 
@@ -104,19 +104,19 @@ impl<'ctx> RefactorSourceAbiFieldLayout<'ctx> {
 
 /// late-lowered source type 到 LLVM ABI value 的 authoritative 查询面。
 #[derive(Debug, Clone)]
-pub(super) struct RefactorSourceAbiLayout<'ctx> {
+pub(super) struct SourceAbiLayout<'ctx> {
     source_ty: TypeId,
-    kind: RefactorSourceAbiLayoutKind,
-    abi: RefactorAbiValue<'ctx>,
-    fields: Vec<RefactorSourceAbiFieldLayout<'ctx>>,
+    kind: SourceAbiLayoutKind,
+    abi: AbiValue<'ctx>,
+    fields: Vec<SourceAbiFieldLayout<'ctx>>,
 }
 
-impl<'ctx> RefactorSourceAbiLayout<'ctx> {
+impl<'ctx> SourceAbiLayout<'ctx> {
     pub(super) fn new(
         source_ty: TypeId,
-        kind: RefactorSourceAbiLayoutKind,
-        abi: RefactorAbiValue<'ctx>,
-        fields: Vec<RefactorSourceAbiFieldLayout<'ctx>>,
+        kind: SourceAbiLayoutKind,
+        abi: AbiValue<'ctx>,
+        fields: Vec<SourceAbiFieldLayout<'ctx>>,
     ) -> Self {
         Self {
             source_ty,
@@ -130,23 +130,23 @@ impl<'ctx> RefactorSourceAbiLayout<'ctx> {
         self.source_ty
     }
 
-    pub(super) fn kind(&self) -> RefactorSourceAbiLayoutKind {
+    pub(super) fn kind(&self) -> SourceAbiLayoutKind {
         self.kind
     }
 
     pub(super) fn is_tuple(&self) -> bool {
-        self.kind == RefactorSourceAbiLayoutKind::Tuple
+        self.kind == SourceAbiLayoutKind::Tuple
     }
 
-    pub(super) fn abi(&self) -> &RefactorAbiValue<'ctx> {
+    pub(super) fn abi(&self) -> &AbiValue<'ctx> {
         &self.abi
     }
 
-    pub(super) fn fields(&self) -> &[RefactorSourceAbiFieldLayout<'ctx>] {
+    pub(super) fn fields(&self) -> &[SourceAbiFieldLayout<'ctx>] {
         &self.fields
     }
 
-    pub(super) fn field(&self, source_index: usize) -> Option<&RefactorSourceAbiFieldLayout<'ctx>> {
+    pub(super) fn field(&self, source_index: usize) -> Option<&SourceAbiFieldLayout<'ctx>> {
         self.fields.get(source_index)
     }
 
@@ -158,14 +158,14 @@ impl<'ctx> RefactorSourceAbiLayout<'ctx> {
     }
 }
 
-/// 单个 concrete class instance field 在 refactor LLVM handoff 中的稳定来源。
+/// 单个 concrete class instance field 在 LLVM handoff 中的稳定来源。
 #[derive(Debug, Clone)]
-pub(super) struct RefactorClassInstanceFieldLayout {
+pub(super) struct ClassInstanceFieldLayout {
     field_fqn: String,
     source_ty: TypeId,
 }
 
-impl RefactorClassInstanceFieldLayout {
+impl ClassInstanceFieldLayout {
     pub(super) fn new(field_fqn: String, source_ty: TypeId) -> Self {
         Self {
             field_fqn,
@@ -184,19 +184,19 @@ impl RefactorClassInstanceFieldLayout {
 
 /// concrete class source type 到 canonical class payload/type-descriptor key 的 handoff。
 #[derive(Debug, Clone)]
-pub(super) struct RefactorClassInstanceLayout {
+pub(super) struct ClassInstanceLayout {
     source_ty: TypeId,
     base_fqn: String,
     class_key: String,
-    fields: Vec<RefactorClassInstanceFieldLayout>,
+    fields: Vec<ClassInstanceFieldLayout>,
 }
 
-impl RefactorClassInstanceLayout {
+impl ClassInstanceLayout {
     pub(super) fn new(
         source_ty: TypeId,
         base_fqn: String,
         class_key: String,
-        fields: Vec<RefactorClassInstanceFieldLayout>,
+        fields: Vec<ClassInstanceFieldLayout>,
     ) -> Self {
         Self {
             source_ty,
@@ -218,13 +218,13 @@ impl RefactorClassInstanceLayout {
         &self.class_key
     }
 
-    pub(super) fn fields(&self) -> &[RefactorClassInstanceFieldLayout] {
+    pub(super) fn fields(&self) -> &[ClassInstanceFieldLayout] {
         &self.fields
     }
 }
 
 /// `Step_F` 的单个 variant 布局。
-pub(super) struct RefactorStepVariantLayout<'ctx> {
+pub(super) struct StepVariantLayout<'ctx> {
     tag_value: u32,
     payload_source_ty: TypeId,
     payload_ty: StructType<'ctx>,
@@ -233,7 +233,7 @@ pub(super) struct RefactorStepVariantLayout<'ctx> {
     payload_is_elided: bool,
 }
 
-impl<'ctx> RefactorStepVariantLayout<'ctx> {
+impl<'ctx> StepVariantLayout<'ctx> {
     pub(super) fn new(
         tag_value: u32,
         payload_source_ty: TypeId,
@@ -278,21 +278,21 @@ impl<'ctx> RefactorStepVariantLayout<'ctx> {
 }
 
 /// `Step_F` 中某个 canonical outward case 的 LLVM 布局。
-pub(super) struct RefactorStepCaseLayout<'ctx> {
+pub(super) struct StepCaseLayout<'ctx> {
     case_tag: CaseTag,
     concrete_op_key: ConcreteOpKey,
     payload_tuple_ty: TypeId,
     tag_constant_name: String,
-    variant: RefactorStepVariantLayout<'ctx>,
+    variant: StepVariantLayout<'ctx>,
 }
 
-impl<'ctx> RefactorStepCaseLayout<'ctx> {
+impl<'ctx> StepCaseLayout<'ctx> {
     pub(super) fn new(
         case_tag: CaseTag,
         concrete_op_key: ConcreteOpKey,
         payload_tuple_ty: TypeId,
         tag_constant_name: String,
-        variant: RefactorStepVariantLayout<'ctx>,
+        variant: StepVariantLayout<'ctx>,
     ) -> Self {
         Self {
             case_tag,
@@ -319,31 +319,31 @@ impl<'ctx> RefactorStepCaseLayout<'ctx> {
         &self.tag_constant_name
     }
 
-    pub(super) fn variant(&self) -> &RefactorStepVariantLayout<'ctx> {
+    pub(super) fn variant(&self) -> &StepVariantLayout<'ctx> {
         &self.variant
     }
 }
 
 /// 单个 `StepSchemaId` 对应的 canonical `Step_F` 布局。
-pub(super) struct RefactorStepLayout<'ctx> {
+pub(super) struct StepLayout<'ctx> {
     step_schema: StepSchemaId,
     stable_effect_key_text: String,
     llvm_ty: StructType<'ctx>,
     layout_anchor_name: String,
     complete_tag_constant_name: String,
-    complete_variant: RefactorStepVariantLayout<'ctx>,
-    cases: BTreeMap<CaseTag, RefactorStepCaseLayout<'ctx>>,
+    complete_variant: StepVariantLayout<'ctx>,
+    cases: BTreeMap<CaseTag, StepCaseLayout<'ctx>>,
 }
 
-impl<'ctx> RefactorStepLayout<'ctx> {
+impl<'ctx> StepLayout<'ctx> {
     pub(super) fn new(
         step_schema: StepSchemaId,
         stable_effect_key_text: String,
         llvm_ty: StructType<'ctx>,
         layout_anchor_name: String,
         complete_tag_constant_name: String,
-        complete_variant: RefactorStepVariantLayout<'ctx>,
-        cases: BTreeMap<CaseTag, RefactorStepCaseLayout<'ctx>>,
+        complete_variant: StepVariantLayout<'ctx>,
+        cases: BTreeMap<CaseTag, StepCaseLayout<'ctx>>,
     ) -> Self {
         Self {
             step_schema,
@@ -376,37 +376,37 @@ impl<'ctx> RefactorStepLayout<'ctx> {
         &self.complete_tag_constant_name
     }
 
-    pub(super) fn complete_variant(&self) -> &RefactorStepVariantLayout<'ctx> {
+    pub(super) fn complete_variant(&self) -> &StepVariantLayout<'ctx> {
         &self.complete_variant
     }
 
-    pub(super) fn cases(&self) -> &BTreeMap<CaseTag, RefactorStepCaseLayout<'ctx>> {
+    pub(super) fn cases(&self) -> &BTreeMap<CaseTag, StepCaseLayout<'ctx>> {
         &self.cases
     }
 
-    pub(super) fn case_layout(&self, case_tag: CaseTag) -> Option<&RefactorStepCaseLayout<'ctx>> {
+    pub(super) fn case_layout(&self, case_tag: CaseTag) -> Option<&StepCaseLayout<'ctx>> {
         self.cases.get(&case_tag)
     }
 }
 
 /// frame 内单个 field 的稳定分类。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(super) enum RefactorFrameFieldKind {
+pub(super) enum FrameFieldKind {
     Header,
     Slot(FrameSlotId),
 }
 
 /// 单个 frame field 的 LLVM 布局。
-pub(super) struct RefactorFrameFieldLayout<'ctx> {
+pub(super) struct FrameFieldLayout<'ctx> {
     field_index: u32,
-    kind: RefactorFrameFieldKind,
+    kind: FrameFieldKind,
     llvm_ty: BasicTypeEnum<'ctx>,
 }
 
-impl<'ctx> RefactorFrameFieldLayout<'ctx> {
+impl<'ctx> FrameFieldLayout<'ctx> {
     pub(super) fn new(
         field_index: u32,
-        kind: RefactorFrameFieldKind,
+        kind: FrameFieldKind,
         llvm_ty: BasicTypeEnum<'ctx>,
     ) -> Self {
         Self {
@@ -420,7 +420,7 @@ impl<'ctx> RefactorFrameFieldLayout<'ctx> {
         self.field_index
     }
 
-    pub(super) fn kind(&self) -> RefactorFrameFieldKind {
+    pub(super) fn kind(&self) -> FrameFieldKind {
         self.kind
     }
 
@@ -430,21 +430,21 @@ impl<'ctx> RefactorFrameFieldLayout<'ctx> {
 }
 
 /// 单个 callable version 的 frame 布局查询面。
-pub(super) struct RefactorFrameLayout<'ctx> {
+pub(super) struct FrameLayout<'ctx> {
     step_schema: StepSchemaId,
     llvm_ty: StructType<'ctx>,
     layout_anchor_name: String,
-    fields: Vec<RefactorFrameFieldLayout<'ctx>>,
+    fields: Vec<FrameFieldLayout<'ctx>>,
     slot_field_indices: BTreeMap<FrameSlotId, u32>,
     system_field_indices: BTreeMap<SystemSlotKind, u32>,
 }
 
-impl<'ctx> RefactorFrameLayout<'ctx> {
+impl<'ctx> FrameLayout<'ctx> {
     pub(super) fn new(
         step_schema: StepSchemaId,
         llvm_ty: StructType<'ctx>,
         layout_anchor_name: String,
-        fields: Vec<RefactorFrameFieldLayout<'ctx>>,
+        fields: Vec<FrameFieldLayout<'ctx>>,
         slot_field_indices: BTreeMap<FrameSlotId, u32>,
         system_field_indices: BTreeMap<SystemSlotKind, u32>,
     ) -> Self {
@@ -470,7 +470,7 @@ impl<'ctx> RefactorFrameLayout<'ctx> {
         &self.layout_anchor_name
     }
 
-    pub(super) fn fields(&self) -> &[RefactorFrameFieldLayout<'ctx>] {
+    pub(super) fn fields(&self) -> &[FrameFieldLayout<'ctx>] {
         &self.fields
     }
 
@@ -484,17 +484,17 @@ impl<'ctx> RefactorFrameLayout<'ctx> {
 }
 
 /// callable entry（dynamic/direct invoke）共享的 LLVM 函数签名。
-pub(super) struct RefactorCallableEntryLayout<'ctx> {
+pub(super) struct CallableEntryLayout<'ctx> {
     symbol_name: String,
     llvm_ty: FunctionType<'ctx>,
     param_count: usize,
     invoke_args_tuple_ty: TypeId,
-    args_abi: RefactorAbiValue<'ctx>,
+    args_abi: AbiValue<'ctx>,
     return_step_schema: StepSchemaId,
 }
 
 /// plain callable 入口使用普通函数 ABI；它不携带 `StepSchema` 或 continuation/state-machine shell。
-pub(super) struct RefactorPlainCallableEntryLayout<'ctx> {
+pub(super) struct PlainCallableEntryLayout<'ctx> {
     symbol_name: String,
     llvm_ty: FunctionType<'ctx>,
     param_count: usize,
@@ -503,7 +503,7 @@ pub(super) struct RefactorPlainCallableEntryLayout<'ctx> {
     return_ty: TypeId,
 }
 
-impl<'ctx> RefactorPlainCallableEntryLayout<'ctx> {
+impl<'ctx> PlainCallableEntryLayout<'ctx> {
     pub(super) fn new(
         symbol_name: String,
         llvm_ty: FunctionType<'ctx>,
@@ -547,13 +547,13 @@ impl<'ctx> RefactorPlainCallableEntryLayout<'ctx> {
     }
 }
 
-impl<'ctx> RefactorCallableEntryLayout<'ctx> {
+impl<'ctx> CallableEntryLayout<'ctx> {
     pub(super) fn new(
         symbol_name: String,
         llvm_ty: FunctionType<'ctx>,
         param_count: usize,
         invoke_args_tuple_ty: TypeId,
-        args_abi: RefactorAbiValue<'ctx>,
+        args_abi: AbiValue<'ctx>,
         return_step_schema: StepSchemaId,
     ) -> Self {
         Self {
@@ -582,7 +582,7 @@ impl<'ctx> RefactorCallableEntryLayout<'ctx> {
         self.invoke_args_tuple_ty
     }
 
-    pub(super) fn args_abi(&self) -> &RefactorAbiValue<'ctx> {
+    pub(super) fn args_abi(&self) -> &AbiValue<'ctx> {
         &self.args_abi
     }
 
@@ -593,17 +593,17 @@ impl<'ctx> RefactorCallableEntryLayout<'ctx> {
 
 /// closure-like runtime callable object 的 carrier 布局。
 #[derive(Debug)]
-pub(super) struct RefactorClosureCarrierLayout<'ctx> {
+pub(super) struct ClosureCarrierLayout<'ctx> {
     object_ty: StructType<'ctx>,
-    receiver_abi: RefactorAbiValue<'ctx>,
+    receiver_abi: AbiValue<'ctx>,
     env_field_index: u32,
     fn_field_index: u32,
 }
 
-impl<'ctx> RefactorClosureCarrierLayout<'ctx> {
+impl<'ctx> ClosureCarrierLayout<'ctx> {
     pub(super) fn new(
         object_ty: StructType<'ctx>,
-        receiver_abi: RefactorAbiValue<'ctx>,
+        receiver_abi: AbiValue<'ctx>,
         env_field_index: u32,
         fn_field_index: u32,
     ) -> Self {
@@ -619,7 +619,7 @@ impl<'ctx> RefactorClosureCarrierLayout<'ctx> {
         self.object_ty
     }
 
-    pub(super) fn receiver_abi(&self) -> &RefactorAbiValue<'ctx> {
+    pub(super) fn receiver_abi(&self) -> &AbiValue<'ctx> {
         &self.receiver_abi
     }
 
@@ -634,19 +634,19 @@ impl<'ctx> RefactorClosureCarrierLayout<'ctx> {
 
 /// virtual/interface dispatch receiver 的 authoritative carrier 布局。
 #[derive(Debug)]
-pub(super) struct RefactorDispatchReceiverLayout<'ctx> {
+pub(super) struct DispatchReceiverLayout<'ctx> {
     receiver_ty: TypeId,
-    receiver_abi: RefactorAbiValue<'ctx>,
+    receiver_abi: AbiValue<'ctx>,
     owner_fqn: String,
     member_name: String,
     method_slot: u32,
     interface_id: Option<u64>,
 }
 
-impl<'ctx> RefactorDispatchReceiverLayout<'ctx> {
+impl<'ctx> DispatchReceiverLayout<'ctx> {
     pub(super) fn new(
         receiver_ty: TypeId,
-        receiver_abi: RefactorAbiValue<'ctx>,
+        receiver_abi: AbiValue<'ctx>,
         owner_fqn: String,
         member_name: String,
         method_slot: u32,
@@ -666,7 +666,7 @@ impl<'ctx> RefactorDispatchReceiverLayout<'ctx> {
         self.receiver_ty
     }
 
-    pub(super) fn receiver_abi(&self) -> &RefactorAbiValue<'ctx> {
+    pub(super) fn receiver_abi(&self) -> &AbiValue<'ctx> {
         &self.receiver_abi
     }
 
@@ -689,15 +689,15 @@ impl<'ctx> RefactorDispatchReceiverLayout<'ctx> {
 
 /// runtime callable value 在 call boundary 上的 carrier 形状。
 #[derive(Debug)]
-pub(super) enum RefactorDynamicInvokeCarrierLayout<'ctx> {
-    ClosureObject(RefactorClosureCarrierLayout<'ctx>),
-    FunPtr(RefactorAbiValue<'ctx>),
-    VirtualReceiver(RefactorDispatchReceiverLayout<'ctx>),
-    InterfaceReceiver(RefactorDispatchReceiverLayout<'ctx>),
+pub(super) enum DynamicInvokeCarrierLayout<'ctx> {
+    ClosureObject(ClosureCarrierLayout<'ctx>),
+    FunPtr(AbiValue<'ctx>),
+    VirtualReceiver(DispatchReceiverLayout<'ctx>),
+    InterfaceReceiver(DispatchReceiverLayout<'ctx>),
 }
 
-impl<'ctx> RefactorDynamicInvokeCarrierLayout<'ctx> {
-    pub(super) fn receiver_abi(&self) -> &RefactorAbiValue<'ctx> {
+impl<'ctx> DynamicInvokeCarrierLayout<'ctx> {
+    pub(super) fn receiver_abi(&self) -> &AbiValue<'ctx> {
         match self {
             Self::ClosureObject(layout) => layout.receiver_abi(),
             Self::FunPtr(abi) => abi,
@@ -710,20 +710,20 @@ impl<'ctx> RefactorDynamicInvokeCarrierLayout<'ctx> {
 
 /// 按 call boundary 发布的 canonical dynamic-invoke surface：`invoke(receiver, args_tuple) -> Step_F`。
 #[derive(Debug)]
-pub(super) struct RefactorDynamicInvokeLayout<'ctx> {
+pub(super) struct DynamicInvokeLayout<'ctx> {
     owner_step_schema: StepSchemaId,
     site_id: SiteId,
     target_mode: CallTargetMode,
     invoke_args_tuple_ty: TypeId,
     llvm_ty: FunctionType<'ctx>,
     param_count: usize,
-    args_abi: RefactorAbiValue<'ctx>,
+    args_abi: AbiValue<'ctx>,
     return_step_schema: StepSchemaId,
-    carrier: RefactorDynamicInvokeCarrierLayout<'ctx>,
+    carrier: DynamicInvokeCarrierLayout<'ctx>,
     candidate_targets: Vec<String>,
 }
 
-impl<'ctx> RefactorDynamicInvokeLayout<'ctx> {
+impl<'ctx> DynamicInvokeLayout<'ctx> {
     #[allow(clippy::too_many_arguments)]
     pub(super) fn new(
         owner_step_schema: StepSchemaId,
@@ -732,9 +732,9 @@ impl<'ctx> RefactorDynamicInvokeLayout<'ctx> {
         invoke_args_tuple_ty: TypeId,
         llvm_ty: FunctionType<'ctx>,
         param_count: usize,
-        args_abi: RefactorAbiValue<'ctx>,
+        args_abi: AbiValue<'ctx>,
         return_step_schema: StepSchemaId,
-        carrier: RefactorDynamicInvokeCarrierLayout<'ctx>,
+        carrier: DynamicInvokeCarrierLayout<'ctx>,
         candidate_targets: Vec<String>,
     ) -> Self {
         Self {
@@ -775,7 +775,7 @@ impl<'ctx> RefactorDynamicInvokeLayout<'ctx> {
         self.param_count
     }
 
-    pub(super) fn args_abi(&self) -> &RefactorAbiValue<'ctx> {
+    pub(super) fn args_abi(&self) -> &AbiValue<'ctx> {
         &self.args_abi
     }
 
@@ -783,7 +783,7 @@ impl<'ctx> RefactorDynamicInvokeLayout<'ctx> {
         self.return_step_schema
     }
 
-    pub(super) fn carrier(&self) -> &RefactorDynamicInvokeCarrierLayout<'ctx> {
+    pub(super) fn carrier(&self) -> &DynamicInvokeCarrierLayout<'ctx> {
         &self.carrier
     }
 
@@ -793,19 +793,19 @@ impl<'ctx> RefactorDynamicInvokeLayout<'ctx> {
 }
 
 /// `CallSiteTarget` 经 ABI query 解析后的稳定 lowering 入口。
-pub(super) enum RefactorCallTargetQuery<'a, 'ctx> {
-    KnownInstance(&'a RefactorCallableLayout<'ctx>),
-    DynamicInvoke(&'a RefactorDynamicInvokeLayout<'ctx>),
+pub(super) enum CallTargetQuery<'a, 'ctx> {
+    KnownInstance(&'a CallableLayout<'ctx>),
+    DynamicInvoke(&'a DynamicInvokeLayout<'ctx>),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(super) struct RefactorCallBoundaryOperandLayout {
+pub(super) struct CallBoundaryOperandLayout {
     owner_step_schema: StepSchemaId,
     site_id: SiteId,
     contract: LateLoweredCallBoundaryOperandContract,
 }
 
-impl RefactorCallBoundaryOperandLayout {
+impl CallBoundaryOperandLayout {
     pub(super) fn new(
         owner_step_schema: StepSchemaId,
         site_id: SiteId,
@@ -832,13 +832,13 @@ impl RefactorCallBoundaryOperandLayout {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(super) struct RefactorPerformBoundaryOperandLayout {
+pub(super) struct PerformBoundaryOperandLayout {
     owner_step_schema: StepSchemaId,
     site_id: SiteId,
     contract: LateLoweredPerformBoundaryOperandContract,
 }
 
-impl RefactorPerformBoundaryOperandLayout {
+impl PerformBoundaryOperandLayout {
     pub(super) fn new(
         owner_step_schema: StepSchemaId,
         site_id: SiteId,
@@ -865,13 +865,13 @@ impl RefactorPerformBoundaryOperandLayout {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(super) struct RefactorResumeBoundaryOperandLayout {
+pub(super) struct ResumeBoundaryOperandLayout {
     owner_step_schema: StepSchemaId,
     site_id: SiteId,
     contract: LateLoweredResumeBoundaryOperandContract,
 }
 
-impl RefactorResumeBoundaryOperandLayout {
+impl ResumeBoundaryOperandLayout {
     pub(super) fn new(
         owner_step_schema: StepSchemaId,
         site_id: SiteId,
@@ -898,13 +898,13 @@ impl RefactorResumeBoundaryOperandLayout {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(super) struct RefactorResumePayloadBindingLayout {
+pub(super) struct ResumePayloadBindingLayout {
     owner_step_schema: StepSchemaId,
     binding: LateLoweredResumePayloadBinding,
     frame_field_index: Option<u32>,
 }
 
-impl RefactorResumePayloadBindingLayout {
+impl ResumePayloadBindingLayout {
     pub(super) fn new(
         owner_step_schema: StepSchemaId,
         binding: LateLoweredResumePayloadBinding,
@@ -947,18 +947,18 @@ impl RefactorResumePayloadBindingLayout {
 }
 
 #[derive(Debug, Clone)]
-pub(super) struct RefactorCompletionPayloadBindingLayout<'ctx> {
+pub(super) struct CompletionPayloadBindingLayout<'ctx> {
     owner_step_schema: StepSchemaId,
     binding: LateLoweredCompletionPayloadBinding,
-    payload_abi: RefactorAbiValue<'ctx>,
+    payload_abi: AbiValue<'ctx>,
     frame_field_index: Option<u32>,
 }
 
-impl<'ctx> RefactorCompletionPayloadBindingLayout<'ctx> {
+impl<'ctx> CompletionPayloadBindingLayout<'ctx> {
     pub(super) fn new(
         owner_step_schema: StepSchemaId,
         binding: LateLoweredCompletionPayloadBinding,
-        payload_abi: RefactorAbiValue<'ctx>,
+        payload_abi: AbiValue<'ctx>,
         frame_field_index: Option<u32>,
     ) -> Self {
         Self {
@@ -993,7 +993,7 @@ impl<'ctx> RefactorCompletionPayloadBindingLayout<'ctx> {
         self.binding.payload_frame_slot()
     }
 
-    pub(super) fn payload_abi(&self) -> &RefactorAbiValue<'ctx> {
+    pub(super) fn payload_abi(&self) -> &AbiValue<'ctx> {
         &self.payload_abi
     }
 
@@ -1003,14 +1003,14 @@ impl<'ctx> RefactorCompletionPayloadBindingLayout<'ctx> {
 }
 
 /// pure caller call boundary 本地消费 compiler-generated runtime-error case 的稳定 lowering 查询面。
-pub(super) struct RefactorPublishedRuntimeEntryLayout<'ctx> {
+pub(super) struct PublishedRuntimeEntryLayout<'ctx> {
     kind: LateLoweredPublishedRuntimeEntry,
     symbol_name: String,
     llvm_ty: FunctionType<'ctx>,
     param_count: usize,
 }
 
-impl<'ctx> RefactorPublishedRuntimeEntryLayout<'ctx> {
+impl<'ctx> PublishedRuntimeEntryLayout<'ctx> {
     pub(super) fn new(
         kind: LateLoweredPublishedRuntimeEntry,
         symbol_name: String,
@@ -1042,13 +1042,13 @@ impl<'ctx> RefactorPublishedRuntimeEntryLayout<'ctx> {
     }
 }
 
-pub(super) enum RefactorLocalRuntimeErrorTerminalAction<'ctx> {
+pub(super) enum LocalRuntimeErrorTerminalAction<'ctx> {
     RuntimeFatal {
-        runtime_entry: RefactorPublishedRuntimeEntryLayout<'ctx>,
+        runtime_entry: PublishedRuntimeEntryLayout<'ctx>,
     },
 }
 
-impl<'ctx> RefactorLocalRuntimeErrorTerminalAction<'ctx> {
+impl<'ctx> LocalRuntimeErrorTerminalAction<'ctx> {
     pub(super) fn lowered_action(&self) -> LateLoweredLocalRuntimeErrorTerminalAction {
         match self {
             Self::RuntimeFatal { runtime_entry } => {
@@ -1059,31 +1059,31 @@ impl<'ctx> RefactorLocalRuntimeErrorTerminalAction<'ctx> {
         }
     }
 
-    pub(super) fn runtime_entry(&self) -> &RefactorPublishedRuntimeEntryLayout<'ctx> {
+    pub(super) fn runtime_entry(&self) -> &PublishedRuntimeEntryLayout<'ctx> {
         match self {
             Self::RuntimeFatal { runtime_entry } => runtime_entry,
         }
     }
 }
 
-pub(super) struct RefactorLocalRuntimeErrorContract<'ctx> {
+pub(super) struct LocalRuntimeErrorContract<'ctx> {
     owner_step_schema: StepSchemaId,
     site_id: SiteId,
     input_case_tag: CaseTag,
     payload_tuple_ty: TypeId,
-    payload_abi: RefactorAbiValue<'ctx>,
-    terminal_action: RefactorLocalRuntimeErrorTerminalAction<'ctx>,
+    payload_abi: AbiValue<'ctx>,
+    terminal_action: LocalRuntimeErrorTerminalAction<'ctx>,
     target_state: StateId,
 }
 
-impl<'ctx> RefactorLocalRuntimeErrorContract<'ctx> {
+impl<'ctx> LocalRuntimeErrorContract<'ctx> {
     pub(super) fn new(
         owner_step_schema: StepSchemaId,
         site_id: SiteId,
         input_case_tag: CaseTag,
         payload_tuple_ty: TypeId,
-        payload_abi: RefactorAbiValue<'ctx>,
-        terminal_action: RefactorLocalRuntimeErrorTerminalAction<'ctx>,
+        payload_abi: AbiValue<'ctx>,
+        terminal_action: LocalRuntimeErrorTerminalAction<'ctx>,
         target_state: StateId,
     ) -> Self {
         Self {
@@ -1113,11 +1113,11 @@ impl<'ctx> RefactorLocalRuntimeErrorContract<'ctx> {
         self.payload_tuple_ty
     }
 
-    pub(super) fn payload_abi(&self) -> &RefactorAbiValue<'ctx> {
+    pub(super) fn payload_abi(&self) -> &AbiValue<'ctx> {
         &self.payload_abi
     }
 
-    pub(super) fn terminal_action(&self) -> &RefactorLocalRuntimeErrorTerminalAction<'ctx> {
+    pub(super) fn terminal_action(&self) -> &LocalRuntimeErrorTerminalAction<'ctx> {
         &self.terminal_action
     }
 
@@ -1128,14 +1128,14 @@ impl<'ctx> RefactorLocalRuntimeErrorContract<'ctx> {
 
 /// `HandleDispatch` 在 LLVM query 层发布的 field/tag 布局。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(super) struct RefactorHandlePayloadBinderLayout {
+pub(super) struct HandlePayloadBinderLayout {
     ordinal: u32,
     local: LocalId,
     frame_slot: Option<FrameSlotId>,
     frame_field_index: Option<u32>,
 }
 
-impl RefactorHandlePayloadBinderLayout {
+impl HandlePayloadBinderLayout {
     pub(super) fn new(
         ordinal: u32,
         local: LocalId,
@@ -1168,7 +1168,7 @@ impl RefactorHandlePayloadBinderLayout {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(super) struct RefactorHandleContinuationBinderLayout {
+pub(super) struct HandleContinuationBinderLayout {
     local: LocalId,
     frame_slot: Option<FrameSlotId>,
     frame_field_index: Option<u32>,
@@ -1178,7 +1178,7 @@ pub(super) struct RefactorHandleContinuationBinderLayout {
     surface_resume_return_step_schema: StepSchemaId,
 }
 
-impl RefactorHandleContinuationBinderLayout {
+impl HandleContinuationBinderLayout {
     pub(super) fn new(
         local: LocalId,
         frame_slot: Option<FrameSlotId>,
@@ -1229,24 +1229,24 @@ impl RefactorHandleContinuationBinderLayout {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(super) struct RefactorHandleArmLayout {
+pub(super) struct HandleArmLayout {
     handled_case: CaseTag,
     arm_state: StateId,
     arm_ordinal: u32,
     payload_tuple_ty: TypeId,
-    payload_binders: Vec<RefactorHandlePayloadBinderLayout>,
-    continuation_binder: Option<RefactorHandleContinuationBinderLayout>,
+    payload_binders: Vec<HandlePayloadBinderLayout>,
+    continuation_binder: Option<HandleContinuationBinderLayout>,
     arm_outward_cases: Vec<CaseTag>,
 }
 
-impl RefactorHandleArmLayout {
+impl HandleArmLayout {
     pub(super) fn new(
         handled_case: CaseTag,
         arm_state: StateId,
         arm_ordinal: u32,
         payload_tuple_ty: TypeId,
-        payload_binders: Vec<RefactorHandlePayloadBinderLayout>,
-        continuation_binder: Option<RefactorHandleContinuationBinderLayout>,
+        payload_binders: Vec<HandlePayloadBinderLayout>,
+        continuation_binder: Option<HandleContinuationBinderLayout>,
         arm_outward_cases: Vec<CaseTag>,
     ) -> Self {
         Self {
@@ -1276,11 +1276,11 @@ impl RefactorHandleArmLayout {
         self.payload_tuple_ty
     }
 
-    pub(super) fn payload_binders(&self) -> &[RefactorHandlePayloadBinderLayout] {
+    pub(super) fn payload_binders(&self) -> &[HandlePayloadBinderLayout] {
         &self.payload_binders
     }
 
-    pub(super) fn continuation_binder(&self) -> Option<RefactorHandleContinuationBinderLayout> {
+    pub(super) fn continuation_binder(&self) -> Option<HandleContinuationBinderLayout> {
         self.continuation_binder
     }
 
@@ -1289,7 +1289,7 @@ impl RefactorHandleArmLayout {
     }
 }
 
-pub(super) struct RefactorHandleDispatchLayout {
+pub(super) struct HandleDispatchLayout {
     owner_step_schema: StepSchemaId,
     site_id: SiteId,
     lowered_contract: LateLoweredHandleDispatchContract,
@@ -1299,17 +1299,17 @@ pub(super) struct RefactorHandleDispatchLayout {
     completion_tags: BTreeMap<LateLoweredHandlePendingCompletion, u32>,
     pending_completion_origin_tags: BTreeMap<LateLoweredHandlePendingCompletionOrigin, u32>,
     pending_payload_transports:
-        BTreeMap<LateLoweredHandlePendingCompletion, RefactorHandlePendingPayloadTransportLayout>,
-    handled_arms: Vec<RefactorHandleArmLayout>,
+        BTreeMap<LateLoweredHandlePendingCompletion, HandlePendingPayloadTransportLayout>,
+    handled_arms: Vec<HandleArmLayout>,
 }
 
 #[derive(Debug, Clone, Copy)]
-pub(super) struct RefactorHandlePendingPayloadTransportLayout {
+pub(super) struct HandlePendingPayloadTransportLayout {
     lowered_transport: LateLoweredHandlePendingPayloadTransport,
     frame_field_index: u32,
 }
 
-impl RefactorHandlePendingPayloadTransportLayout {
+impl HandlePendingPayloadTransportLayout {
     pub(super) fn new(
         lowered_transport: LateLoweredHandlePendingPayloadTransport,
         frame_field_index: u32,
@@ -1341,7 +1341,7 @@ impl RefactorHandlePendingPayloadTransportLayout {
     }
 }
 
-impl RefactorHandleDispatchLayout {
+impl HandleDispatchLayout {
     #[allow(clippy::too_many_arguments)]
     pub(super) fn new(
         owner_step_schema: StepSchemaId,
@@ -1354,9 +1354,9 @@ impl RefactorHandleDispatchLayout {
         pending_completion_origin_tags: BTreeMap<LateLoweredHandlePendingCompletionOrigin, u32>,
         pending_payload_transports: BTreeMap<
             LateLoweredHandlePendingCompletion,
-            RefactorHandlePendingPayloadTransportLayout,
+            HandlePendingPayloadTransportLayout,
         >,
-        handled_arms: Vec<RefactorHandleArmLayout>,
+        handled_arms: Vec<HandleArmLayout>,
     ) -> Self {
         Self {
             owner_step_schema,
@@ -1423,15 +1423,15 @@ impl RefactorHandleDispatchLayout {
     pub(super) fn pending_payload_transport_layout(
         &self,
         completion: LateLoweredHandlePendingCompletion,
-    ) -> Option<&RefactorHandlePendingPayloadTransportLayout> {
+    ) -> Option<&HandlePendingPayloadTransportLayout> {
         self.pending_payload_transports.get(&completion)
     }
 
-    pub(super) fn handled_arms(&self) -> &[RefactorHandleArmLayout] {
+    pub(super) fn handled_arms(&self) -> &[HandleArmLayout] {
         &self.handled_arms
     }
 
-    pub(super) fn handled_arm(&self, handled_case: CaseTag) -> Option<&RefactorHandleArmLayout> {
+    pub(super) fn handled_arm(&self, handled_case: CaseTag) -> Option<&HandleArmLayout> {
         self.handled_arms
             .iter()
             .find(|arm| arm.handled_case() == handled_case)
@@ -1440,7 +1440,7 @@ impl RefactorHandleDispatchLayout {
     pub(super) fn handled_arm_by_ordinal(
         &self,
         arm_ordinal: u32,
-    ) -> Option<&RefactorHandleArmLayout> {
+    ) -> Option<&HandleArmLayout> {
         self.handled_arms
             .iter()
             .find(|arm| arm.arm_ordinal() == arm_ordinal)
@@ -1467,7 +1467,7 @@ impl RefactorHandleDispatchLayout {
 }
 
 /// 源码可见 `Continuation.resume(...) -> Step_F` 的 LLVM 级合同。
-pub(super) struct RefactorContinuationSurfaceResumeLayout<'ctx> {
+pub(super) struct ContinuationSurfaceResumeLayout<'ctx> {
     continuation_schema: ContinuationSchemaId,
     dispatch_source_kind: LateLoweredSurfaceResumeDispatchSourceKind,
     stable_continuation_key_text: String,
@@ -1476,11 +1476,11 @@ pub(super) struct RefactorContinuationSurfaceResumeLayout<'ctx> {
     param_count: usize,
     resume_tuple_ty: TypeId,
     answer_ty: TypeId,
-    resume_payload_abi: RefactorAbiValue<'ctx>,
+    resume_payload_abi: AbiValue<'ctx>,
     return_step_schema: StepSchemaId,
 }
 
-impl<'ctx> RefactorContinuationSurfaceResumeLayout<'ctx> {
+impl<'ctx> ContinuationSurfaceResumeLayout<'ctx> {
     #[allow(clippy::too_many_arguments)]
     pub(super) fn new(
         continuation_schema: ContinuationSchemaId,
@@ -1491,7 +1491,7 @@ impl<'ctx> RefactorContinuationSurfaceResumeLayout<'ctx> {
         param_count: usize,
         resume_tuple_ty: TypeId,
         answer_ty: TypeId,
-        resume_payload_abi: RefactorAbiValue<'ctx>,
+        resume_payload_abi: AbiValue<'ctx>,
         return_step_schema: StepSchemaId,
     ) -> Self {
         Self {
@@ -1540,7 +1540,7 @@ impl<'ctx> RefactorContinuationSurfaceResumeLayout<'ctx> {
         self.answer_ty
     }
 
-    pub(super) fn resume_payload_abi(&self) -> &RefactorAbiValue<'ctx> {
+    pub(super) fn resume_payload_abi(&self) -> &AbiValue<'ctx> {
         &self.resume_payload_abi
     }
 
@@ -1551,7 +1551,7 @@ impl<'ctx> RefactorContinuationSurfaceResumeLayout<'ctx> {
 
 /// surface-resume shared symbol 经过 continuation object 可回查到的 object-side packing method lookup。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(super) struct RefactorContinuationSurfaceResumeMethodLookup {
+pub(super) struct ContinuationSurfaceResumeMethodLookup {
     continuation_object: ContinuationObjectId,
     packing_interface_id: ResumeInterfaceId,
     packing_field_index: u32,
@@ -1559,7 +1559,7 @@ pub(super) struct RefactorContinuationSurfaceResumeMethodLookup {
     vtable_index: u32,
 }
 
-impl RefactorContinuationSurfaceResumeMethodLookup {
+impl ContinuationSurfaceResumeMethodLookup {
     pub(super) fn new(
         continuation_object: ContinuationObjectId,
         packing_interface_id: ResumeInterfaceId,
@@ -1599,13 +1599,13 @@ impl RefactorContinuationSurfaceResumeMethodLookup {
 
 /// owner trampoline 继续分派到 handle continuation binder 时所需的已发布 route。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(super) struct RefactorContinuationSurfaceResumeHandleBinderRoute {
+pub(super) struct ContinuationSurfaceResumeHandleBinderRoute {
     site_id: SiteId,
     arm_ordinal: u32,
     handled_case: CaseTag,
 }
 
-impl RefactorContinuationSurfaceResumeHandleBinderRoute {
+impl ContinuationSurfaceResumeHandleBinderRoute {
     pub(super) fn new(site_id: SiteId, arm_ordinal: u32, handled_case: CaseTag) -> Self {
         Self {
             site_id,
@@ -1628,7 +1628,7 @@ impl RefactorContinuationSurfaceResumeHandleBinderRoute {
 }
 
 /// surface-resume shared symbol 继续进入 owner-specific lowering 时的 trampoline contract。
-pub(super) struct RefactorContinuationSurfaceResumeOwnerTrampolineLayout<'ctx> {
+pub(super) struct ContinuationSurfaceResumeOwnerTrampolineLayout<'ctx> {
     owner_version_key: LateLoweredBodyVersionKey,
     owner_root_fqn: String,
     owner_step_schema: StepSchemaId,
@@ -1638,11 +1638,11 @@ pub(super) struct RefactorContinuationSurfaceResumeOwnerTrampolineLayout<'ctx> {
     llvm_ty: FunctionType<'ctx>,
     param_count: usize,
     resume_boundary_sites: Vec<SiteId>,
-    handle_binder_routes: Vec<RefactorContinuationSurfaceResumeHandleBinderRoute>,
+    handle_binder_routes: Vec<ContinuationSurfaceResumeHandleBinderRoute>,
     wrapper_projection: Option<LateLoweredSurfaceResumeWrapperProjection>,
 }
 
-impl<'ctx> RefactorContinuationSurfaceResumeOwnerTrampolineLayout<'ctx> {
+impl<'ctx> ContinuationSurfaceResumeOwnerTrampolineLayout<'ctx> {
     #[allow(clippy::too_many_arguments)]
     pub(super) fn new(
         owner_version_key: LateLoweredBodyVersionKey,
@@ -1654,7 +1654,7 @@ impl<'ctx> RefactorContinuationSurfaceResumeOwnerTrampolineLayout<'ctx> {
         llvm_ty: FunctionType<'ctx>,
         param_count: usize,
         resume_boundary_sites: Vec<SiteId>,
-        handle_binder_routes: Vec<RefactorContinuationSurfaceResumeHandleBinderRoute>,
+        handle_binder_routes: Vec<ContinuationSurfaceResumeHandleBinderRoute>,
         wrapper_projection: Option<LateLoweredSurfaceResumeWrapperProjection>,
     ) -> Self {
         Self {
@@ -1710,7 +1710,7 @@ impl<'ctx> RefactorContinuationSurfaceResumeOwnerTrampolineLayout<'ctx> {
 
     pub(super) fn handle_binder_routes(
         &self,
-    ) -> &[RefactorContinuationSurfaceResumeHandleBinderRoute] {
+    ) -> &[ContinuationSurfaceResumeHandleBinderRoute] {
         &self.handle_binder_routes
     }
 
@@ -1720,16 +1720,16 @@ impl<'ctx> RefactorContinuationSurfaceResumeOwnerTrampolineLayout<'ctx> {
 }
 
 /// `ContinuationSchemaId` authoritative 地路由到 owner-specific lowering target。
-pub(super) enum RefactorContinuationSurfaceResumeDispatchTarget<'ctx> {
-    OwnerTrampoline(Box<RefactorContinuationSurfaceResumeOwnerTrampolineLayout<'ctx>>),
-    OwnerTrampolines(Vec<RefactorContinuationSurfaceResumeOwnerTrampolineLayout<'ctx>>),
+pub(super) enum ContinuationSurfaceResumeDispatchTarget<'ctx> {
+    OwnerTrampoline(Box<ContinuationSurfaceResumeOwnerTrampolineLayout<'ctx>>),
+    OwnerTrampolines(Vec<ContinuationSurfaceResumeOwnerTrampolineLayout<'ctx>>),
     Unreachable,
 }
 
-impl<'ctx> RefactorContinuationSurfaceResumeDispatchTarget<'ctx> {
+impl<'ctx> ContinuationSurfaceResumeDispatchTarget<'ctx> {
     pub(super) fn owner_trampolines(
         &self,
-    ) -> &[RefactorContinuationSurfaceResumeOwnerTrampolineLayout<'ctx>] {
+    ) -> &[ContinuationSurfaceResumeOwnerTrampolineLayout<'ctx>] {
         match self {
             Self::OwnerTrampoline(target) => std::slice::from_ref(target.as_ref()),
             Self::OwnerTrampolines(targets) => targets,
@@ -1739,19 +1739,19 @@ impl<'ctx> RefactorContinuationSurfaceResumeDispatchTarget<'ctx> {
 }
 
 /// shared surface-resume symbol 到 owner dispatch target 的稳定 LLVM query。
-pub(super) struct RefactorContinuationSurfaceResumeDispatchLayout<'ctx> {
+pub(super) struct ContinuationSurfaceResumeDispatchLayout<'ctx> {
     continuation_schema: ContinuationSchemaId,
     source_kind: LateLoweredSurfaceResumeDispatchSourceKind,
-    method_targets: Vec<RefactorContinuationSurfaceResumeMethodLookup>,
-    target: RefactorContinuationSurfaceResumeDispatchTarget<'ctx>,
+    method_targets: Vec<ContinuationSurfaceResumeMethodLookup>,
+    target: ContinuationSurfaceResumeDispatchTarget<'ctx>,
 }
 
-impl<'ctx> RefactorContinuationSurfaceResumeDispatchLayout<'ctx> {
+impl<'ctx> ContinuationSurfaceResumeDispatchLayout<'ctx> {
     pub(super) fn new(
         continuation_schema: ContinuationSchemaId,
         source_kind: LateLoweredSurfaceResumeDispatchSourceKind,
-        method_targets: Vec<RefactorContinuationSurfaceResumeMethodLookup>,
-        target: RefactorContinuationSurfaceResumeDispatchTarget<'ctx>,
+        method_targets: Vec<ContinuationSurfaceResumeMethodLookup>,
+        target: ContinuationSurfaceResumeDispatchTarget<'ctx>,
     ) -> Self {
         Self {
             continuation_schema,
@@ -1769,28 +1769,28 @@ impl<'ctx> RefactorContinuationSurfaceResumeDispatchLayout<'ctx> {
         self.source_kind
     }
 
-    pub(super) fn method_targets(&self) -> &[RefactorContinuationSurfaceResumeMethodLookup] {
+    pub(super) fn method_targets(&self) -> &[ContinuationSurfaceResumeMethodLookup] {
         &self.method_targets
     }
 
-    pub(super) fn target(&self) -> &RefactorContinuationSurfaceResumeDispatchTarget<'ctx> {
+    pub(super) fn target(&self) -> &ContinuationSurfaceResumeDispatchTarget<'ctx> {
         &self.target
     }
 }
 
 /// 单个 resume packing method 的 LLVM 级合同。
-pub(super) struct RefactorResumeMethodLayout<'ctx> {
+pub(super) struct ResumeMethodLayout<'ctx> {
     packing_interface_id: ResumeInterfaceId,
     case_tag: CaseTag,
     symbol_name: String,
     llvm_ty: FunctionType<'ctx>,
     param_count: usize,
     vtable_index: u32,
-    resume_payload_abi: RefactorAbiValue<'ctx>,
+    resume_payload_abi: AbiValue<'ctx>,
     return_step_schema: StepSchemaId,
 }
 
-impl<'ctx> RefactorResumeMethodLayout<'ctx> {
+impl<'ctx> ResumeMethodLayout<'ctx> {
     #[allow(clippy::too_many_arguments)]
     pub(super) fn new(
         packing_interface_id: ResumeInterfaceId,
@@ -1799,7 +1799,7 @@ impl<'ctx> RefactorResumeMethodLayout<'ctx> {
         llvm_ty: FunctionType<'ctx>,
         param_count: usize,
         vtable_index: u32,
-        resume_payload_abi: RefactorAbiValue<'ctx>,
+        resume_payload_abi: AbiValue<'ctx>,
         return_step_schema: StepSchemaId,
     ) -> Self {
         Self {
@@ -1838,7 +1838,7 @@ impl<'ctx> RefactorResumeMethodLayout<'ctx> {
         self.vtable_index
     }
 
-    pub(super) fn resume_payload_abi(&self) -> &RefactorAbiValue<'ctx> {
+    pub(super) fn resume_payload_abi(&self) -> &AbiValue<'ctx> {
         &self.resume_payload_abi
     }
 
@@ -1851,21 +1851,21 @@ impl<'ctx> RefactorResumeMethodLayout<'ctx> {
 ///
 /// 这里保留 effect-family 分组只为 continuation object 上的 packing/vtable 物理布局服务，
 /// 不能替代 `ContinuationSchemaId` / `CaseTag` 的 authoritative resume 语义入口。
-pub(super) struct RefactorResumeInterfaceLayout<'ctx> {
+pub(super) struct ResumeInterfaceLayout<'ctx> {
     packing_interface_id: ResumeInterfaceId,
     packing_family_fqn: String,
     llvm_vtable_ty: StructType<'ctx>,
     layout_anchor_name: String,
-    methods: BTreeMap<CaseTag, RefactorResumeMethodLayout<'ctx>>,
+    methods: BTreeMap<CaseTag, ResumeMethodLayout<'ctx>>,
 }
 
-impl<'ctx> RefactorResumeInterfaceLayout<'ctx> {
+impl<'ctx> ResumeInterfaceLayout<'ctx> {
     pub(super) fn new(
         packing_interface_id: ResumeInterfaceId,
         packing_family_fqn: String,
         llvm_vtable_ty: StructType<'ctx>,
         layout_anchor_name: String,
-        methods: BTreeMap<CaseTag, RefactorResumeMethodLayout<'ctx>>,
+        methods: BTreeMap<CaseTag, ResumeMethodLayout<'ctx>>,
     ) -> Self {
         Self {
             packing_interface_id,
@@ -1892,25 +1892,25 @@ impl<'ctx> RefactorResumeInterfaceLayout<'ctx> {
         &self.layout_anchor_name
     }
 
-    pub(super) fn methods(&self) -> &BTreeMap<CaseTag, RefactorResumeMethodLayout<'ctx>> {
+    pub(super) fn methods(&self) -> &BTreeMap<CaseTag, ResumeMethodLayout<'ctx>> {
         &self.methods
     }
 
-    pub(super) fn method(&self, case_tag: CaseTag) -> Option<&RefactorResumeMethodLayout<'ctx>> {
+    pub(super) fn method(&self, case_tag: CaseTag) -> Option<&ResumeMethodLayout<'ctx>> {
         self.methods.get(&case_tag)
     }
 }
 
 /// continuation object 上单个 surface `resume(...)` case 的 object-side 已发布映射。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(super) struct RefactorContinuationSurfaceResumeBinding {
+pub(super) struct ContinuationSurfaceResumeBinding {
     continuation_schema: ContinuationSchemaId,
     return_step_schema: StepSchemaId,
     case_tag: CaseTag,
     reachability: LateLoweredContinuationMethodReachability,
 }
 
-impl RefactorContinuationSurfaceResumeBinding {
+impl ContinuationSurfaceResumeBinding {
     pub(super) fn new(
         continuation_schema: ContinuationSchemaId,
         return_step_schema: StepSchemaId,
@@ -1944,7 +1944,7 @@ impl RefactorContinuationSurfaceResumeBinding {
 
 /// continuation object field 的稳定分类。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(super) enum RefactorContinuationFieldKind {
+pub(super) enum ContinuationFieldKind {
     Header,
     ResumedFlag,
     ResumeStateTag,
@@ -1958,16 +1958,16 @@ pub(super) enum RefactorContinuationFieldKind {
 }
 
 /// 单个 continuation object field 的 LLVM 布局。
-pub(super) struct RefactorContinuationFieldLayout<'ctx> {
+pub(super) struct ContinuationFieldLayout<'ctx> {
     field_index: u32,
-    kind: RefactorContinuationFieldKind,
+    kind: ContinuationFieldKind,
     llvm_ty: BasicTypeEnum<'ctx>,
 }
 
-impl<'ctx> RefactorContinuationFieldLayout<'ctx> {
+impl<'ctx> ContinuationFieldLayout<'ctx> {
     pub(super) fn new(
         field_index: u32,
-        kind: RefactorContinuationFieldKind,
+        kind: ContinuationFieldKind,
         llvm_ty: BasicTypeEnum<'ctx>,
     ) -> Self {
         Self {
@@ -1981,7 +1981,7 @@ impl<'ctx> RefactorContinuationFieldLayout<'ctx> {
         self.field_index
     }
 
-    pub(super) fn kind(&self) -> RefactorContinuationFieldKind {
+    pub(super) fn kind(&self) -> ContinuationFieldKind {
         self.kind
     }
 
@@ -1991,28 +1991,28 @@ impl<'ctx> RefactorContinuationFieldLayout<'ctx> {
 }
 
 /// 单个 continuation object 的 LLVM 布局。
-pub(super) struct RefactorContinuationObjectLayout<'ctx> {
+pub(super) struct ContinuationObjectLayout<'ctx> {
     object_id: ContinuationObjectId,
     owner_step_schema: StepSchemaId,
     llvm_ty: StructType<'ctx>,
     layout_anchor_name: String,
-    fields: Vec<RefactorContinuationFieldLayout<'ctx>>,
+    fields: Vec<ContinuationFieldLayout<'ctx>>,
     packing_field_indices: BTreeMap<ResumeInterfaceId, u32>,
     surface_resume_bindings:
-        BTreeMap<ContinuationSchemaId, Vec<RefactorContinuationSurfaceResumeBinding>>,
+        BTreeMap<ContinuationSchemaId, Vec<ContinuationSurfaceResumeBinding>>,
 }
 
-impl<'ctx> RefactorContinuationObjectLayout<'ctx> {
+impl<'ctx> ContinuationObjectLayout<'ctx> {
     pub(super) fn new(
         object_id: ContinuationObjectId,
         owner_step_schema: StepSchemaId,
         llvm_ty: StructType<'ctx>,
         layout_anchor_name: String,
-        fields: Vec<RefactorContinuationFieldLayout<'ctx>>,
+        fields: Vec<ContinuationFieldLayout<'ctx>>,
         packing_field_indices: BTreeMap<ResumeInterfaceId, u32>,
         surface_resume_bindings: BTreeMap<
             ContinuationSchemaId,
-            Vec<RefactorContinuationSurfaceResumeBinding>,
+            Vec<ContinuationSurfaceResumeBinding>,
         >,
     ) -> Self {
         Self {
@@ -2042,7 +2042,7 @@ impl<'ctx> RefactorContinuationObjectLayout<'ctx> {
         &self.layout_anchor_name
     }
 
-    pub(super) fn fields(&self) -> &[RefactorContinuationFieldLayout<'ctx>] {
+    pub(super) fn fields(&self) -> &[ContinuationFieldLayout<'ctx>] {
         &self.fields
     }
 
@@ -2058,7 +2058,7 @@ impl<'ctx> RefactorContinuationObjectLayout<'ctx> {
     pub(super) fn surface_resume_bindings(
         &self,
         continuation_schema: ContinuationSchemaId,
-    ) -> Option<&[RefactorContinuationSurfaceResumeBinding]> {
+    ) -> Option<&[ContinuationSurfaceResumeBinding]> {
         self.surface_resume_bindings
             .get(&continuation_schema)
             .map(Vec::as_slice)
@@ -2066,26 +2066,26 @@ impl<'ctx> RefactorContinuationObjectLayout<'ctx> {
 }
 
 /// 单个 callable version 暴露给后续 body emitter 的 LLVM ABI 查询面。
-pub(super) struct RefactorCallableLayout<'ctx> {
+pub(super) struct CallableLayout<'ctx> {
     root_fqn: String,
     body_version_key: LateLoweredBodyVersionKey,
     stable_callable_key_text: String,
     step_schema: StepSchemaId,
-    dynamic_entry: RefactorCallableEntryLayout<'ctx>,
-    direct_entry: RefactorCallableEntryLayout<'ctx>,
+    dynamic_entry: CallableEntryLayout<'ctx>,
+    direct_entry: CallableEntryLayout<'ctx>,
     continuation_object: ContinuationObjectId,
     resume_packings: Vec<ResumeInterfaceId>,
 }
 
-impl<'ctx> RefactorCallableLayout<'ctx> {
+impl<'ctx> CallableLayout<'ctx> {
     #[allow(clippy::too_many_arguments)]
     pub(super) fn new(
         root_fqn: String,
         body_version_key: LateLoweredBodyVersionKey,
         stable_callable_key_text: String,
         step_schema: StepSchemaId,
-        dynamic_entry: RefactorCallableEntryLayout<'ctx>,
-        direct_entry: RefactorCallableEntryLayout<'ctx>,
+        dynamic_entry: CallableEntryLayout<'ctx>,
+        direct_entry: CallableEntryLayout<'ctx>,
         continuation_object: ContinuationObjectId,
         resume_packings: Vec<ResumeInterfaceId>,
     ) -> Self {
@@ -2121,11 +2121,11 @@ impl<'ctx> RefactorCallableLayout<'ctx> {
         self.step_schema
     }
 
-    pub(super) fn dynamic_entry(&self) -> &RefactorCallableEntryLayout<'ctx> {
+    pub(super) fn dynamic_entry(&self) -> &CallableEntryLayout<'ctx> {
         &self.dynamic_entry
     }
 
-    pub(super) fn direct_entry(&self) -> &RefactorCallableEntryLayout<'ctx> {
+    pub(super) fn direct_entry(&self) -> &CallableEntryLayout<'ctx> {
         &self.direct_entry
     }
 
@@ -2138,20 +2138,20 @@ impl<'ctx> RefactorCallableLayout<'ctx> {
     }
 }
 
-/// 单个 plain callable version 暴露给 refactor body emitter 的普通 ABI 查询面。
-pub(super) struct RefactorPlainCallableLayout<'ctx> {
+/// 单个 plain callable version 暴露给 body emitter 的普通 ABI 查询面。
+pub(super) struct PlainCallableLayout<'ctx> {
     root_fqn: String,
     body_version_key: LateLoweredBodyVersionKey,
     stable_callable_key_text: String,
-    direct_entry: RefactorPlainCallableEntryLayout<'ctx>,
+    direct_entry: PlainCallableEntryLayout<'ctx>,
 }
 
-impl<'ctx> RefactorPlainCallableLayout<'ctx> {
+impl<'ctx> PlainCallableLayout<'ctx> {
     pub(super) fn new(
         root_fqn: String,
         body_version_key: LateLoweredBodyVersionKey,
         stable_callable_key_text: String,
-        direct_entry: RefactorPlainCallableEntryLayout<'ctx>,
+        direct_entry: PlainCallableEntryLayout<'ctx>,
     ) -> Self {
         Self {
             root_fqn,
@@ -2177,21 +2177,21 @@ impl<'ctx> RefactorPlainCallableLayout<'ctx> {
         self.body_version_key.surface_instance()
     }
 
-    pub(super) fn direct_entry(&self) -> &RefactorPlainCallableEntryLayout<'ctx> {
+    pub(super) fn direct_entry(&self) -> &PlainCallableEntryLayout<'ctx> {
         &self.direct_entry
     }
 }
 
 /// runtime callable carrier 对应的 canonical dynamic entry target contract。
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(super) struct RefactorCallableCarrierTargetLayout {
+pub(super) struct CallableCarrierTargetLayout {
     callable_fqn: String,
     body_version_key: LateLoweredBodyVersionKey,
     step_schema: StepSchemaId,
     symbol_name: String,
 }
 
-impl RefactorCallableCarrierTargetLayout {
+impl CallableCarrierTargetLayout {
     pub(super) fn new(
         callable_fqn: String,
         body_version_key: LateLoweredBodyVersionKey,
@@ -2225,65 +2225,65 @@ impl RefactorCallableCarrierTargetLayout {
 
 /// effect-lowered LLVM type/layout 层对下游 body emitter 暴露的稳定查询面。
 pub(crate) struct ProgramAbiQuery<'ctx> {
-    source_value_layouts: BTreeMap<TypeId, RefactorSourceAbiLayout<'ctx>>,
-    class_instance_layouts: BTreeMap<TypeId, RefactorClassInstanceLayout>,
-    step_layouts: BTreeMap<StepSchemaId, RefactorStepLayout<'ctx>>,
-    frame_layouts: BTreeMap<StepSchemaId, RefactorFrameLayout<'ctx>>,
-    continuation_layouts: BTreeMap<ContinuationObjectId, RefactorContinuationObjectLayout<'ctx>>,
-    resume_packing_layouts: BTreeMap<ResumeInterfaceId, RefactorResumeInterfaceLayout<'ctx>>,
+    source_value_layouts: BTreeMap<TypeId, SourceAbiLayout<'ctx>>,
+    class_instance_layouts: BTreeMap<TypeId, ClassInstanceLayout>,
+    step_layouts: BTreeMap<StepSchemaId, StepLayout<'ctx>>,
+    frame_layouts: BTreeMap<StepSchemaId, FrameLayout<'ctx>>,
+    continuation_layouts: BTreeMap<ContinuationObjectId, ContinuationObjectLayout<'ctx>>,
+    resume_packing_layouts: BTreeMap<ResumeInterfaceId, ResumeInterfaceLayout<'ctx>>,
     surface_resume_layouts:
-        BTreeMap<ContinuationSchemaId, RefactorContinuationSurfaceResumeLayout<'ctx>>,
+        BTreeMap<ContinuationSchemaId, ContinuationSurfaceResumeLayout<'ctx>>,
     surface_resume_dispatch_layouts:
-        BTreeMap<ContinuationSchemaId, RefactorContinuationSurfaceResumeDispatchLayout<'ctx>>,
-    callable_layouts: BTreeMap<StepSchemaId, RefactorCallableLayout<'ctx>>,
+        BTreeMap<ContinuationSchemaId, ContinuationSurfaceResumeDispatchLayout<'ctx>>,
+    callable_layouts: BTreeMap<StepSchemaId, CallableLayout<'ctx>>,
     callable_layouts_by_version_key: HashMap<LateLoweredBodyVersionKey, StepSchemaId>,
     plain_local_effect_step_schemas_by_version_key:
         HashMap<LateLoweredBodyVersionKey, StepSchemaId>,
     plain_callable_layouts_by_version_key:
-        HashMap<LateLoweredBodyVersionKey, RefactorPlainCallableLayout<'ctx>>,
+        HashMap<LateLoweredBodyVersionKey, PlainCallableLayout<'ctx>>,
     known_instance_callable_versions:
         HashMap<(InstanceKey, StepSchemaId), LateLoweredBodyVersionKey>,
     callable_carrier_target_layouts:
-        HashMap<(CallableCarrierKind, String), RefactorCallableCarrierTargetLayout>,
-    dynamic_invoke_layouts: BTreeMap<(StepSchemaId, SiteId), RefactorDynamicInvokeLayout<'ctx>>,
+        HashMap<(CallableCarrierKind, String), CallableCarrierTargetLayout>,
+    dynamic_invoke_layouts: BTreeMap<(StepSchemaId, SiteId), DynamicInvokeLayout<'ctx>>,
     call_boundary_operand_layouts:
-        BTreeMap<(StepSchemaId, SiteId), RefactorCallBoundaryOperandLayout>,
+        BTreeMap<(StepSchemaId, SiteId), CallBoundaryOperandLayout>,
     perform_boundary_operand_layouts:
-        BTreeMap<(StepSchemaId, SiteId), RefactorPerformBoundaryOperandLayout>,
+        BTreeMap<(StepSchemaId, SiteId), PerformBoundaryOperandLayout>,
     resume_boundary_operand_layouts:
-        BTreeMap<(StepSchemaId, SiteId), RefactorResumeBoundaryOperandLayout>,
+        BTreeMap<(StepSchemaId, SiteId), ResumeBoundaryOperandLayout>,
     resume_payload_binding_layouts:
-        BTreeMap<(StepSchemaId, BoundaryId), RefactorResumePayloadBindingLayout>,
+        BTreeMap<(StepSchemaId, BoundaryId), ResumePayloadBindingLayout>,
     resume_payload_bindings_by_state:
-        BTreeMap<(StepSchemaId, StateId), RefactorResumePayloadBindingLayout>,
+        BTreeMap<(StepSchemaId, StateId), ResumePayloadBindingLayout>,
     completion_payload_binding_layouts:
-        BTreeMap<(StepSchemaId, StateId), RefactorCompletionPayloadBindingLayout<'ctx>>,
+        BTreeMap<(StepSchemaId, StateId), CompletionPayloadBindingLayout<'ctx>>,
     local_runtime_error_contracts:
-        BTreeMap<(StepSchemaId, SiteId), RefactorLocalRuntimeErrorContract<'ctx>>,
-    handle_dispatch_layouts: BTreeMap<(StepSchemaId, SiteId), RefactorHandleDispatchLayout>,
+        BTreeMap<(StepSchemaId, SiteId), LocalRuntimeErrorContract<'ctx>>,
+    handle_dispatch_layouts: BTreeMap<(StepSchemaId, SiteId), HandleDispatchLayout>,
 }
 
 impl<'ctx> ProgramAbiQuery<'ctx> {
     #[allow(clippy::too_many_arguments)]
     pub(super) fn new(
-        source_value_layouts: BTreeMap<TypeId, RefactorSourceAbiLayout<'ctx>>,
-        class_instance_layouts: BTreeMap<TypeId, RefactorClassInstanceLayout>,
-        step_layouts: BTreeMap<StepSchemaId, RefactorStepLayout<'ctx>>,
-        frame_layouts: BTreeMap<StepSchemaId, RefactorFrameLayout<'ctx>>,
+        source_value_layouts: BTreeMap<TypeId, SourceAbiLayout<'ctx>>,
+        class_instance_layouts: BTreeMap<TypeId, ClassInstanceLayout>,
+        step_layouts: BTreeMap<StepSchemaId, StepLayout<'ctx>>,
+        frame_layouts: BTreeMap<StepSchemaId, FrameLayout<'ctx>>,
         continuation_layouts: BTreeMap<
             ContinuationObjectId,
-            RefactorContinuationObjectLayout<'ctx>,
+            ContinuationObjectLayout<'ctx>,
         >,
-        resume_packing_layouts: BTreeMap<ResumeInterfaceId, RefactorResumeInterfaceLayout<'ctx>>,
+        resume_packing_layouts: BTreeMap<ResumeInterfaceId, ResumeInterfaceLayout<'ctx>>,
         surface_resume_layouts: BTreeMap<
             ContinuationSchemaId,
-            RefactorContinuationSurfaceResumeLayout<'ctx>,
+            ContinuationSurfaceResumeLayout<'ctx>,
         >,
         surface_resume_dispatch_layouts: BTreeMap<
             ContinuationSchemaId,
-            RefactorContinuationSurfaceResumeDispatchLayout<'ctx>,
+            ContinuationSurfaceResumeDispatchLayout<'ctx>,
         >,
-        callable_layouts: BTreeMap<StepSchemaId, RefactorCallableLayout<'ctx>>,
+        callable_layouts: BTreeMap<StepSchemaId, CallableLayout<'ctx>>,
         callable_layouts_by_version_key: HashMap<LateLoweredBodyVersionKey, StepSchemaId>,
         plain_local_effect_step_schemas_by_version_key: HashMap<
             LateLoweredBodyVersionKey,
@@ -2291,7 +2291,7 @@ impl<'ctx> ProgramAbiQuery<'ctx> {
         >,
         plain_callable_layouts_by_version_key: HashMap<
             LateLoweredBodyVersionKey,
-            RefactorPlainCallableLayout<'ctx>,
+            PlainCallableLayout<'ctx>,
         >,
         known_instance_callable_versions: HashMap<
             (InstanceKey, StepSchemaId),
@@ -2299,38 +2299,38 @@ impl<'ctx> ProgramAbiQuery<'ctx> {
         >,
         callable_carrier_target_layouts: HashMap<
             (CallableCarrierKind, String),
-            RefactorCallableCarrierTargetLayout,
+            CallableCarrierTargetLayout,
         >,
-        dynamic_invoke_layouts: BTreeMap<(StepSchemaId, SiteId), RefactorDynamicInvokeLayout<'ctx>>,
+        dynamic_invoke_layouts: BTreeMap<(StepSchemaId, SiteId), DynamicInvokeLayout<'ctx>>,
         call_boundary_operand_layouts: BTreeMap<
             (StepSchemaId, SiteId),
-            RefactorCallBoundaryOperandLayout,
+            CallBoundaryOperandLayout,
         >,
         perform_boundary_operand_layouts: BTreeMap<
             (StepSchemaId, SiteId),
-            RefactorPerformBoundaryOperandLayout,
+            PerformBoundaryOperandLayout,
         >,
         resume_boundary_operand_layouts: BTreeMap<
             (StepSchemaId, SiteId),
-            RefactorResumeBoundaryOperandLayout,
+            ResumeBoundaryOperandLayout,
         >,
         resume_payload_binding_layouts: BTreeMap<
             (StepSchemaId, BoundaryId),
-            RefactorResumePayloadBindingLayout,
+            ResumePayloadBindingLayout,
         >,
         resume_payload_bindings_by_state: BTreeMap<
             (StepSchemaId, StateId),
-            RefactorResumePayloadBindingLayout,
+            ResumePayloadBindingLayout,
         >,
         completion_payload_binding_layouts: BTreeMap<
             (StepSchemaId, StateId),
-            RefactorCompletionPayloadBindingLayout<'ctx>,
+            CompletionPayloadBindingLayout<'ctx>,
         >,
         local_runtime_error_contracts: BTreeMap<
             (StepSchemaId, SiteId),
-            RefactorLocalRuntimeErrorContract<'ctx>,
+            LocalRuntimeErrorContract<'ctx>,
         >,
-        handle_dispatch_layouts: BTreeMap<(StepSchemaId, SiteId), RefactorHandleDispatchLayout>,
+        handle_dispatch_layouts: BTreeMap<(StepSchemaId, SiteId), HandleDispatchLayout>,
     ) -> Self {
         Self {
             source_value_layouts,
@@ -2362,12 +2362,12 @@ impl<'ctx> ProgramAbiQuery<'ctx> {
     pub(super) fn source_value_layout(
         &self,
         source_ty: TypeId,
-    ) -> Result<&RefactorSourceAbiLayout<'ctx>, LlvmEmitError> {
+    ) -> Result<&SourceAbiLayout<'ctx>, LlvmEmitError> {
         self.source_value_layouts
             .get(&source_ty)
             .ok_or_else(|| LlvmEmitError::Frontend {
                 message: format!(
-                    "refactor LLVM ABI query 缺少 source type {} 的 ABI value lowering contract",
+                    "LLVM ABI query 缺少 source type {} 的 ABI value lowering contract",
                     source_ty.as_u32()
                 ),
             })
@@ -2376,12 +2376,12 @@ impl<'ctx> ProgramAbiQuery<'ctx> {
     pub(super) fn class_instance_layout(
         &self,
         source_ty: TypeId,
-    ) -> Result<&RefactorClassInstanceLayout, LlvmEmitError> {
+    ) -> Result<&ClassInstanceLayout, LlvmEmitError> {
         self.class_instance_layouts
             .get(&source_ty)
             .ok_or_else(|| LlvmEmitError::Frontend {
                 message: format!(
-                    "refactor LLVM ABI query 缺少 source type {} 的 concrete class instance layout contract",
+                    "LLVM ABI query 缺少 source type {} 的 concrete class instance layout contract",
                     source_ty.as_u32()
                 ),
             })
@@ -2390,24 +2390,24 @@ impl<'ctx> ProgramAbiQuery<'ctx> {
     pub(super) fn step_layout(
         &self,
         step_schema: StepSchemaId,
-    ) -> Option<&RefactorStepLayout<'ctx>> {
+    ) -> Option<&StepLayout<'ctx>> {
         self.step_layouts.get(&step_schema)
     }
 
-    pub(super) fn step_layouts(&self) -> impl Iterator<Item = &RefactorStepLayout<'ctx>> {
+    pub(super) fn step_layouts(&self) -> impl Iterator<Item = &StepLayout<'ctx>> {
         self.step_layouts.values()
     }
 
     pub(super) fn dynamic_invoke_layouts(
         &self,
-    ) -> impl Iterator<Item = &RefactorDynamicInvokeLayout<'ctx>> {
+    ) -> impl Iterator<Item = &DynamicInvokeLayout<'ctx>> {
         self.dynamic_invoke_layouts.values()
     }
 
     pub(super) fn frame_layout(
         &self,
         step_schema: StepSchemaId,
-    ) -> Option<&RefactorFrameLayout<'ctx>> {
+    ) -> Option<&FrameLayout<'ctx>> {
         self.frame_layouts.get(&step_schema)
     }
 
@@ -2423,27 +2423,27 @@ impl<'ctx> ProgramAbiQuery<'ctx> {
     pub(super) fn continuation_layout(
         &self,
         object_id: ContinuationObjectId,
-    ) -> Option<&RefactorContinuationObjectLayout<'ctx>> {
+    ) -> Option<&ContinuationObjectLayout<'ctx>> {
         self.continuation_layouts.get(&object_id)
     }
 
     pub(super) fn resume_packing_layout(
         &self,
         packing_interface_id: ResumeInterfaceId,
-    ) -> Option<&RefactorResumeInterfaceLayout<'ctx>> {
+    ) -> Option<&ResumeInterfaceLayout<'ctx>> {
         self.resume_packing_layouts.get(&packing_interface_id)
     }
 
     pub(super) fn surface_resume_layout(
         &self,
         continuation_schema: ContinuationSchemaId,
-    ) -> Option<&RefactorContinuationSurfaceResumeLayout<'ctx>> {
+    ) -> Option<&ContinuationSurfaceResumeLayout<'ctx>> {
         self.surface_resume_layouts.get(&continuation_schema)
     }
 
     pub(super) fn surface_resume_layouts(
         &self,
-    ) -> impl Iterator<Item = &RefactorContinuationSurfaceResumeLayout<'ctx>> {
+    ) -> impl Iterator<Item = &ContinuationSurfaceResumeLayout<'ctx>> {
         self.surface_resume_layouts.values()
     }
 
@@ -2452,14 +2452,14 @@ impl<'ctx> ProgramAbiQuery<'ctx> {
         resume_tuple_ty: TypeId,
         answer_ty: TypeId,
         context: &str,
-    ) -> Result<&RefactorContinuationSurfaceResumeLayout<'ctx>, LlvmEmitError> {
+    ) -> Result<&ContinuationSurfaceResumeLayout<'ctx>, LlvmEmitError> {
         let mut matches = self.surface_resume_layouts.values().filter(|layout| {
             layout.resume_tuple_ty() == resume_tuple_ty && layout.answer_ty() == answer_ty
         });
         let Some(first) = matches.next() else {
             return Err(LlvmEmitError::Frontend {
                 message: format!(
-                    "refactor LLVM ABI query 缺少 {context} 需要的 surface-resume contract: resume_ty=t{} answer_ty=t{}",
+                    "LLVM ABI query 缺少 {context} 需要的 surface-resume contract: resume_ty=t{} answer_ty=t{}",
                     resume_tuple_ty.as_u32(),
                     answer_ty.as_u32()
                 ),
@@ -2468,7 +2468,7 @@ impl<'ctx> ProgramAbiQuery<'ctx> {
         if let Some(second) = matches.next() {
             return Err(LlvmEmitError::Frontend {
                 message: format!(
-                    "refactor LLVM ABI query 发现 {context} 的 surface-resume contract 多义：k{} 与 k{} 都匹配 resume_ty=t{} answer_ty=t{}",
+                    "LLVM ABI query 发现 {context} 的 surface-resume contract 多义：k{} 与 k{} 都匹配 resume_ty=t{} answer_ty=t{}",
                     first.continuation_schema().as_u32(),
                     second.continuation_schema().as_u32(),
                     resume_tuple_ty.as_u32(),
@@ -2485,7 +2485,7 @@ impl<'ctx> ProgramAbiQuery<'ctx> {
         resume_tuple_ty: TypeId,
         answer_ty: TypeId,
         context: &str,
-    ) -> Result<&RefactorContinuationSurfaceResumeLayout<'ctx>, LlvmEmitError> {
+    ) -> Result<&ContinuationSurfaceResumeLayout<'ctx>, LlvmEmitError> {
         if let Ok(layout) =
             self.unique_surface_resume_layout_for_signature(resume_tuple_ty, answer_ty, context)
         {
@@ -2501,7 +2501,7 @@ impl<'ctx> ProgramAbiQuery<'ctx> {
         let Some(first) = matches.next() else {
             return Err(LlvmEmitError::Frontend {
                 message: format!(
-                    "refactor LLVM ABI query 缺少 {context} 需要的 surface-resume contract: resume_ty=t{} ({}) answer_ty=t{} ({})",
+                    "LLVM ABI query 缺少 {context} 需要的 surface-resume contract: resume_ty=t{} ({}) answer_ty=t{} ({})",
                     resume_tuple_ty.as_u32(),
                     resume_display,
                     answer_ty.as_u32(),
@@ -2512,7 +2512,7 @@ impl<'ctx> ProgramAbiQuery<'ctx> {
         if let Some(second) = matches.next() {
             return Err(LlvmEmitError::Frontend {
                 message: format!(
-                    "refactor LLVM ABI query 发现 {context} 的等价 surface-resume contract 多义：k{} 与 k{} 都匹配 resume_ty={} answer_ty={}",
+                    "LLVM ABI query 发现 {context} 的等价 surface-resume contract 多义：k{} 与 k{} 都匹配 resume_ty={} answer_ty={}",
                     first.continuation_schema().as_u32(),
                     second.continuation_schema().as_u32(),
                     resume_display,
@@ -2526,12 +2526,12 @@ impl<'ctx> ProgramAbiQuery<'ctx> {
     pub(super) fn surface_resume_dispatch_layout(
         &self,
         continuation_schema: ContinuationSchemaId,
-    ) -> Result<&RefactorContinuationSurfaceResumeDispatchLayout<'ctx>, LlvmEmitError> {
+    ) -> Result<&ContinuationSurfaceResumeDispatchLayout<'ctx>, LlvmEmitError> {
         self.surface_resume_dispatch_layouts
             .get(&continuation_schema)
             .ok_or_else(|| LlvmEmitError::Frontend {
                 message: format!(
-                    "refactor LLVM ABI query 缺少 continuation schema k{} 的 surface-resume owner dispatch contract",
+                    "LLVM ABI query 缺少 continuation schema k{} 的 surface-resume owner dispatch contract",
                     continuation_schema.as_u32()
                 ),
             })
@@ -2539,18 +2539,18 @@ impl<'ctx> ProgramAbiQuery<'ctx> {
 
     pub(super) fn surface_resume_dispatch_layouts(
         &self,
-    ) -> impl Iterator<Item = &RefactorContinuationSurfaceResumeDispatchLayout<'ctx>> {
+    ) -> impl Iterator<Item = &ContinuationSurfaceResumeDispatchLayout<'ctx>> {
         self.surface_resume_dispatch_layouts.values()
     }
 
     pub(super) fn surface_resume_method_layout(
         &self,
-        lookup: RefactorContinuationSurfaceResumeMethodLookup,
-    ) -> Result<&RefactorResumeMethodLayout<'ctx>, LlvmEmitError> {
+        lookup: ContinuationSurfaceResumeMethodLookup,
+    ) -> Result<&ResumeMethodLayout<'ctx>, LlvmEmitError> {
         let packing = self.resume_packing_layout(lookup.packing_interface_id()).ok_or_else(|| {
             LlvmEmitError::Frontend {
                 message: format!(
-                    "refactor LLVM ABI query 缺少 continuation object ko{} surface-resume lookup 需要的 resume packing ri{}",
+                    "LLVM ABI query 缺少 continuation object ko{} surface-resume lookup 需要的 resume packing ri{}",
                     lookup.continuation_object().as_u32(),
                     lookup.packing_interface_id().as_u32(),
                 ),
@@ -2558,7 +2558,7 @@ impl<'ctx> ProgramAbiQuery<'ctx> {
         })?;
         let method = packing.method(lookup.case_tag()).ok_or_else(|| LlvmEmitError::Frontend {
             message: format!(
-                "refactor LLVM ABI query 缺少 continuation object ko{} surface-resume lookup 需要的 resume packing ri{}::c{} method layout",
+                "LLVM ABI query 缺少 continuation object ko{} surface-resume lookup 需要的 resume packing ri{}::c{} method layout",
                 lookup.continuation_object().as_u32(),
                 lookup.packing_interface_id().as_u32(),
                 lookup.case_tag().as_u32(),
@@ -2569,7 +2569,7 @@ impl<'ctx> ProgramAbiQuery<'ctx> {
         {
             return Err(LlvmEmitError::Frontend {
                 message: format!(
-                    "refactor LLVM ABI query 发现 continuation object ko{} 的 surface-resume packing lookup 漂移：lookup=(ri{}, field={}, case=c{}, vtable_index={})，layout=(ri{}, case=c{}, vtable_index={})",
+                    "LLVM ABI query 发现 continuation object ko{} 的 surface-resume packing lookup 漂移：lookup=(ri{}, field={}, case=c{}, vtable_index={})，layout=(ri{}, case=c{}, vtable_index={})",
                     lookup.continuation_object().as_u32(),
                     lookup.packing_interface_id().as_u32(),
                     lookup.packing_field_index(),
@@ -2587,14 +2587,14 @@ impl<'ctx> ProgramAbiQuery<'ctx> {
     pub(super) fn callable_layout(
         &self,
         step_schema: StepSchemaId,
-    ) -> Option<&RefactorCallableLayout<'ctx>> {
+    ) -> Option<&CallableLayout<'ctx>> {
         self.callable_layouts.get(&step_schema)
     }
 
     pub(super) fn callable_layout_by_root_fqn(
         &self,
         root_fqn: &str,
-    ) -> Result<&RefactorCallableLayout<'ctx>, LlvmEmitError> {
+    ) -> Result<&CallableLayout<'ctx>, LlvmEmitError> {
         let matches = self
             .callable_layouts
             .values()
@@ -2603,13 +2603,13 @@ impl<'ctx> ProgramAbiQuery<'ctx> {
         match matches.as_slice() {
             [] => Err(LlvmEmitError::Frontend {
                 message: format!(
-                    "refactor LLVM ABI query 缺少 callable `{root_fqn}` 的 published callable version"
+                    "LLVM ABI query 缺少 callable `{root_fqn}` 的 published callable version"
                 ),
             }),
             [layout] => Ok(*layout),
             _ => Err(LlvmEmitError::Frontend {
                 message: format!(
-                    "refactor LLVM ABI query 发现 callable `{root_fqn}` 存在多个 published callable version；请改用 body version key 查询"
+                    "LLVM ABI query 发现 callable `{root_fqn}` 存在多个 published callable version；请改用 body version key 查询"
                 ),
             }),
         }
@@ -2618,20 +2618,20 @@ impl<'ctx> ProgramAbiQuery<'ctx> {
     pub(super) fn callable_layout_by_version_key(
         &self,
         version_key: &LateLoweredBodyVersionKey,
-    ) -> Result<&RefactorCallableLayout<'ctx>, LlvmEmitError> {
+    ) -> Result<&CallableLayout<'ctx>, LlvmEmitError> {
         let step_schema = self
             .callable_layouts_by_version_key
             .get(version_key)
             .ok_or_else(|| LlvmEmitError::Frontend {
                 message: format!(
-                    "refactor LLVM ABI query 缺少 body version key {:?} 的 callable layout",
+                    "LLVM ABI query 缺少 body version key {:?} 的 callable layout",
                     version_key
                 ),
             })?;
         self.callable_layout(*step_schema)
             .ok_or_else(|| LlvmEmitError::Frontend {
                 message: format!(
-                    "refactor LLVM ABI query 发现 body version key {:?} 指向缺失的 callable step schema s{}",
+                    "LLVM ABI query 发现 body version key {:?} 指向缺失的 callable step schema s{}",
                     version_key,
                     step_schema.as_u32()
                 ),
@@ -2641,12 +2641,12 @@ impl<'ctx> ProgramAbiQuery<'ctx> {
     pub(super) fn plain_callable_layout_by_version_key(
         &self,
         version_key: &LateLoweredBodyVersionKey,
-    ) -> Result<&RefactorPlainCallableLayout<'ctx>, LlvmEmitError> {
+    ) -> Result<&PlainCallableLayout<'ctx>, LlvmEmitError> {
         self.plain_callable_layouts_by_version_key
             .get(version_key)
             .ok_or_else(|| LlvmEmitError::Frontend {
                 message: format!(
-                    "refactor LLVM ABI query 缺少 body version key {:?} 的 plain callable layout",
+                    "LLVM ABI query 缺少 body version key {:?} 的 plain callable layout",
                     version_key
                 ),
             })
@@ -2655,7 +2655,7 @@ impl<'ctx> ProgramAbiQuery<'ctx> {
     pub(super) fn plain_callable_layout_by_root_fqn(
         &self,
         root_fqn: &str,
-    ) -> Result<&RefactorPlainCallableLayout<'ctx>, LlvmEmitError> {
+    ) -> Result<&PlainCallableLayout<'ctx>, LlvmEmitError> {
         let matches = self
             .plain_callable_layouts_by_version_key
             .values()
@@ -2664,13 +2664,13 @@ impl<'ctx> ProgramAbiQuery<'ctx> {
         match matches.as_slice() {
             [] => Err(LlvmEmitError::Frontend {
                 message: format!(
-                    "refactor LLVM ABI query 缺少 plain callable `{root_fqn}` 的 published ordinary callable version"
+                    "LLVM ABI query 缺少 plain callable `{root_fqn}` 的 published ordinary callable version"
                 ),
             }),
             [layout] => Ok(*layout),
             _ => Err(LlvmEmitError::Frontend {
                 message: format!(
-                    "refactor LLVM ABI query 发现 plain callable `{root_fqn}` 存在多个 published callable version；请改用 body version key 查询"
+                    "LLVM ABI query 发现 plain callable `{root_fqn}` 存在多个 published callable version；请改用 body version key 查询"
                 ),
             }),
         }
@@ -2679,7 +2679,7 @@ impl<'ctx> ProgramAbiQuery<'ctx> {
     pub(super) fn maybe_plain_callable_layout_by_root_fqn(
         &self,
         root_fqn: &str,
-    ) -> Result<Option<&RefactorPlainCallableLayout<'ctx>>, LlvmEmitError> {
+    ) -> Result<Option<&PlainCallableLayout<'ctx>>, LlvmEmitError> {
         let matches = self
             .plain_callable_layouts_by_version_key
             .values()
@@ -2690,7 +2690,7 @@ impl<'ctx> ProgramAbiQuery<'ctx> {
             [layout] => Ok(Some(*layout)),
             _ => Err(LlvmEmitError::Frontend {
                 message: format!(
-                    "refactor LLVM ABI query 发现 plain callable `{root_fqn}` 存在多个 published callable version；请改用 body version key 查询"
+                    "LLVM ABI query 发现 plain callable `{root_fqn}` 存在多个 published callable version；请改用 body version key 查询"
                 ),
             }),
         }
@@ -2700,12 +2700,12 @@ impl<'ctx> ProgramAbiQuery<'ctx> {
         &self,
         kind: CallableCarrierKind,
         callable_fqn: &str,
-    ) -> Result<&RefactorCallableCarrierTargetLayout, LlvmEmitError> {
+    ) -> Result<&CallableCarrierTargetLayout, LlvmEmitError> {
         self.callable_carrier_target_layouts
             .get(&(kind, callable_fqn.to_string()))
             .ok_or_else(|| LlvmEmitError::Frontend {
                 message: format!(
-                    "refactor LLVM ABI query 缺少 {} `{}` 的 callable version 选择 contract",
+                    "LLVM ABI query 缺少 {} `{}` 的 callable version 选择 contract",
                     kind.label(),
                     callable_fqn,
                 ),
@@ -2716,7 +2716,7 @@ impl<'ctx> ProgramAbiQuery<'ctx> {
         &self,
         kind: CallableCarrierKind,
         callable_fqn: &str,
-    ) -> Option<&RefactorCallableCarrierTargetLayout> {
+    ) -> Option<&CallableCarrierTargetLayout> {
         self.callable_carrier_target_layouts
             .get(&(kind, callable_fqn.to_string()))
     }
@@ -2727,7 +2727,7 @@ impl<'ctx> ProgramAbiQuery<'ctx> {
         Item = (
             CallableCarrierKind,
             &str,
-            &RefactorCallableCarrierTargetLayout,
+            &CallableCarrierTargetLayout,
         ),
     > + '_ {
         self.callable_carrier_target_layouts
@@ -2739,7 +2739,7 @@ impl<'ctx> ProgramAbiQuery<'ctx> {
         &self,
         owner_step_schema: StepSchemaId,
         site_id: SiteId,
-    ) -> Option<&RefactorDynamicInvokeLayout<'ctx>> {
+    ) -> Option<&DynamicInvokeLayout<'ctx>> {
         self.dynamic_invoke_layouts
             .get(&(owner_step_schema, site_id))
     }
@@ -2749,13 +2749,13 @@ impl<'ctx> ProgramAbiQuery<'ctx> {
         owner_step_schema: StepSchemaId,
         site_id: SiteId,
         contract: &LateLoweredCallBoundaryOperandContract,
-    ) -> Result<&RefactorCallBoundaryOperandLayout, LlvmEmitError> {
+    ) -> Result<&CallBoundaryOperandLayout, LlvmEmitError> {
         let published = self
             .call_boundary_operand_layouts
             .get(&(owner_step_schema, site_id))
             .ok_or_else(|| LlvmEmitError::Frontend {
                 message: format!(
-                    "refactor LLVM ABI query 缺少 owner step schema s{} call site {} 的 boundary operand contract",
+                    "LLVM ABI query 缺少 owner step schema s{} call site {} 的 boundary operand contract",
                     owner_step_schema.as_u32(),
                     site_id.as_u32(),
                 ),
@@ -2763,7 +2763,7 @@ impl<'ctx> ProgramAbiQuery<'ctx> {
         if published.contract() != contract {
             return Err(LlvmEmitError::Frontend {
                 message: format!(
-                    "refactor LLVM ABI query 发现 owner step schema s{} call site {} 的 boundary operand contract 漂移：published={:?}，lowering={:?}",
+                    "LLVM ABI query 发现 owner step schema s{} call site {} 的 boundary operand contract 漂移：published={:?}，lowering={:?}",
                     owner_step_schema.as_u32(),
                     site_id.as_u32(),
                     published.contract(),
@@ -2779,13 +2779,13 @@ impl<'ctx> ProgramAbiQuery<'ctx> {
         owner_step_schema: StepSchemaId,
         site_id: SiteId,
         contract: &LateLoweredPerformBoundaryOperandContract,
-    ) -> Result<&RefactorPerformBoundaryOperandLayout, LlvmEmitError> {
+    ) -> Result<&PerformBoundaryOperandLayout, LlvmEmitError> {
         let published = self
             .perform_boundary_operand_layouts
             .get(&(owner_step_schema, site_id))
             .ok_or_else(|| LlvmEmitError::Frontend {
                 message: format!(
-                    "refactor LLVM ABI query 缺少 owner step schema s{} perform site {} 的 boundary operand contract",
+                    "LLVM ABI query 缺少 owner step schema s{} perform site {} 的 boundary operand contract",
                     owner_step_schema.as_u32(),
                     site_id.as_u32(),
                 ),
@@ -2793,7 +2793,7 @@ impl<'ctx> ProgramAbiQuery<'ctx> {
         if published.contract() != contract {
             return Err(LlvmEmitError::Frontend {
                 message: format!(
-                    "refactor LLVM ABI query 发现 owner step schema s{} perform site {} 的 boundary operand contract 漂移：published={:?}，lowering={:?}",
+                    "LLVM ABI query 发现 owner step schema s{} perform site {} 的 boundary operand contract 漂移：published={:?}，lowering={:?}",
                     owner_step_schema.as_u32(),
                     site_id.as_u32(),
                     published.contract(),
@@ -2809,13 +2809,13 @@ impl<'ctx> ProgramAbiQuery<'ctx> {
         owner_step_schema: StepSchemaId,
         site_id: SiteId,
         contract: &LateLoweredResumeBoundaryOperandContract,
-    ) -> Result<&RefactorResumeBoundaryOperandLayout, LlvmEmitError> {
+    ) -> Result<&ResumeBoundaryOperandLayout, LlvmEmitError> {
         let published = self
             .resume_boundary_operand_layouts
             .get(&(owner_step_schema, site_id))
             .ok_or_else(|| LlvmEmitError::Frontend {
                 message: format!(
-                    "refactor LLVM ABI query 缺少 owner step schema s{} resume site {} 的 boundary operand contract",
+                    "LLVM ABI query 缺少 owner step schema s{} resume site {} 的 boundary operand contract",
                     owner_step_schema.as_u32(),
                     site_id.as_u32(),
                 ),
@@ -2823,7 +2823,7 @@ impl<'ctx> ProgramAbiQuery<'ctx> {
         if published.contract() != contract {
             return Err(LlvmEmitError::Frontend {
                 message: format!(
-                    "refactor LLVM ABI query 发现 owner step schema s{} resume site {} 的 boundary operand contract 漂移：published={:?}，lowering={:?}",
+                    "LLVM ABI query 发现 owner step schema s{} resume site {} 的 boundary operand contract 漂移：published={:?}，lowering={:?}",
                     owner_step_schema.as_u32(),
                     site_id.as_u32(),
                     published.contract(),
@@ -2838,13 +2838,13 @@ impl<'ctx> ProgramAbiQuery<'ctx> {
         &self,
         owner_step_schema: StepSchemaId,
         binding: &LateLoweredResumePayloadBinding,
-    ) -> Result<&RefactorResumePayloadBindingLayout, LlvmEmitError> {
+    ) -> Result<&ResumePayloadBindingLayout, LlvmEmitError> {
         let published = self
             .resume_payload_binding_layouts
             .get(&(owner_step_schema, binding.boundary_id()))
             .ok_or_else(|| LlvmEmitError::Frontend {
                 message: format!(
-                    "refactor LLVM ABI query 缺少 owner step schema s{} boundary bd{} 的 resumed local/home contract",
+                    "LLVM ABI query 缺少 owner step schema s{} boundary bd{} 的 resumed local/home contract",
                     owner_step_schema.as_u32(),
                     binding.boundary_id().as_u32(),
                 ),
@@ -2852,7 +2852,7 @@ impl<'ctx> ProgramAbiQuery<'ctx> {
         if published.binding() != binding {
             return Err(LlvmEmitError::Frontend {
                 message: format!(
-                    "refactor LLVM ABI query 发现 owner step schema s{} boundary bd{} 的 resumed local/home contract 漂移：published={:?}，lowered={:?}",
+                    "LLVM ABI query 发现 owner step schema s{} boundary bd{} 的 resumed local/home contract 漂移：published={:?}，lowered={:?}",
                     owner_step_schema.as_u32(),
                     binding.boundary_id().as_u32(),
                     published.binding(),
@@ -2867,12 +2867,12 @@ impl<'ctx> ProgramAbiQuery<'ctx> {
         &self,
         owner_step_schema: StepSchemaId,
         resume_state: StateId,
-    ) -> Result<&RefactorResumePayloadBindingLayout, LlvmEmitError> {
+    ) -> Result<&ResumePayloadBindingLayout, LlvmEmitError> {
         self.resume_payload_bindings_by_state
             .get(&(owner_step_schema, resume_state))
             .ok_or_else(|| LlvmEmitError::Frontend {
                 message: format!(
-                    "refactor LLVM ABI query 缺少 owner step schema s{} resume state st{} 的 resumed local/home contract",
+                    "LLVM ABI query 缺少 owner step schema s{} resume state st{} 的 resumed local/home contract",
                     owner_step_schema.as_u32(),
                     resume_state.as_u32(),
                 ),
@@ -2883,13 +2883,13 @@ impl<'ctx> ProgramAbiQuery<'ctx> {
         &self,
         owner_step_schema: StepSchemaId,
         binding: &LateLoweredCompletionPayloadBinding,
-    ) -> Result<&RefactorCompletionPayloadBindingLayout<'ctx>, LlvmEmitError> {
+    ) -> Result<&CompletionPayloadBindingLayout<'ctx>, LlvmEmitError> {
         let published = self
             .completion_payload_binding_layouts
             .get(&(owner_step_schema, binding.return_state()))
             .ok_or_else(|| LlvmEmitError::Frontend {
                 message: format!(
-                    "refactor LLVM ABI query 缺少 owner step schema s{} return state st{} 的 completion payload contract",
+                    "LLVM ABI query 缺少 owner step schema s{} return state st{} 的 completion payload contract",
                     owner_step_schema.as_u32(),
                     binding.return_state().as_u32(),
                 ),
@@ -2897,7 +2897,7 @@ impl<'ctx> ProgramAbiQuery<'ctx> {
         if published.binding() != binding {
             return Err(LlvmEmitError::Frontend {
                 message: format!(
-                    "refactor LLVM ABI query 发现 owner step schema s{} return state st{} 的 completion payload contract 漂移：published={:?}，lowered={:?}",
+                    "LLVM ABI query 发现 owner step schema s{} return state st{} 的 completion payload contract 漂移：published={:?}，lowered={:?}",
                     owner_step_schema.as_u32(),
                     binding.return_state().as_u32(),
                     published.binding(),
@@ -2912,12 +2912,12 @@ impl<'ctx> ProgramAbiQuery<'ctx> {
         &self,
         owner_step_schema: StepSchemaId,
         return_state: StateId,
-    ) -> Result<&RefactorCompletionPayloadBindingLayout<'ctx>, LlvmEmitError> {
+    ) -> Result<&CompletionPayloadBindingLayout<'ctx>, LlvmEmitError> {
         self.completion_payload_binding_layouts
             .get(&(owner_step_schema, return_state))
             .ok_or_else(|| LlvmEmitError::Frontend {
                 message: format!(
-                    "refactor LLVM ABI query 缺少 owner step schema s{} return state st{} 的 completion payload contract",
+                    "LLVM ABI query 缺少 owner step schema s{} return state st{} 的 completion payload contract",
                     owner_step_schema.as_u32(),
                     return_state.as_u32(),
                 ),
@@ -2929,13 +2929,13 @@ impl<'ctx> ProgramAbiQuery<'ctx> {
         owner_step_schema: StepSchemaId,
         site_id: SiteId,
         contract: &LateLoweredConsumedRuntimeErrorCase,
-    ) -> Result<&RefactorLocalRuntimeErrorContract<'ctx>, LlvmEmitError> {
+    ) -> Result<&LocalRuntimeErrorContract<'ctx>, LlvmEmitError> {
         let published = self
             .local_runtime_error_contracts
             .get(&(owner_step_schema, site_id))
             .ok_or_else(|| LlvmEmitError::Frontend {
                 message: format!(
-                    "refactor LLVM ABI query 缺少 owner step schema s{} call site {} 的 local runtime-error contract",
+                    "LLVM ABI query 缺少 owner step schema s{} call site {} 的 local runtime-error contract",
                     owner_step_schema.as_u32(),
                     site_id.as_u32(),
                 ),
@@ -2947,7 +2947,7 @@ impl<'ctx> ProgramAbiQuery<'ctx> {
         {
             return Err(LlvmEmitError::Frontend {
                 message: format!(
-                    "refactor LLVM ABI query 发现 owner step schema s{} call site {} 的 local runtime-error contract 漂移：layout=(input_case=c{}, payload_tuple_ty={}, terminal_action={:?}, target_state=st{})，lowering=(input_case=c{}, payload_tuple_ty={}, terminal_action={:?}, target_state=st{})",
+                    "LLVM ABI query 发现 owner step schema s{} call site {} 的 local runtime-error contract 漂移：layout=(input_case=c{}, payload_tuple_ty={}, terminal_action={:?}, target_state=st{})，lowering=(input_case=c{}, payload_tuple_ty={}, terminal_action={:?}, target_state=st{})",
                     owner_step_schema.as_u32(),
                     site_id.as_u32(),
                     published.input_case_tag().as_u32(),
@@ -2969,13 +2969,13 @@ impl<'ctx> ProgramAbiQuery<'ctx> {
         owner_step_schema: StepSchemaId,
         site_id: SiteId,
         contract: &LateLoweredHandleDispatchContract,
-    ) -> Result<&RefactorHandleDispatchLayout, LlvmEmitError> {
+    ) -> Result<&HandleDispatchLayout, LlvmEmitError> {
         let published = self
             .handle_dispatch_layouts
             .get(&(owner_step_schema, site_id))
             .ok_or_else(|| LlvmEmitError::Frontend {
                 message: format!(
-                    "refactor LLVM ABI query 缺少 owner step schema s{} handle site {} 的 HandleDispatch contract",
+                    "LLVM ABI query 缺少 owner step schema s{} handle site {} 的 HandleDispatch contract",
                     owner_step_schema.as_u32(),
                     site_id.as_u32(),
                 ),
@@ -2983,7 +2983,7 @@ impl<'ctx> ProgramAbiQuery<'ctx> {
         if published.lowered_contract() != contract {
             return Err(LlvmEmitError::Frontend {
                 message: format!(
-                    "refactor LLVM ABI query 发现 owner step schema s{} handle site {} 的 HandleDispatch contract 漂移：published={:?}，lowered={:?}",
+                    "LLVM ABI query 发现 owner step schema s{} handle site {} 的 HandleDispatch contract 漂移：published={:?}，lowered={:?}",
                     owner_step_schema.as_u32(),
                     site_id.as_u32(),
                     published.lowered_contract(),
@@ -2999,7 +2999,7 @@ impl<'ctx> ProgramAbiQuery<'ctx> {
         owner_step_schema: StepSchemaId,
         site_id: SiteId,
         facts: &CallSiteEffectFacts,
-    ) -> Result<RefactorCallTargetQuery<'_, 'ctx>, LlvmEmitError> {
+    ) -> Result<CallTargetQuery<'_, 'ctx>, LlvmEmitError> {
         match facts.target() {
             crate::effect_facts::CallSiteTarget::KnownInstance(instance) => {
                 let version_key = self
@@ -3016,7 +3016,7 @@ impl<'ctx> ProgramAbiQuery<'ctx> {
                     })
                     .ok_or_else(|| LlvmEmitError::Frontend {
                         message: format!(
-                            "refactor LLVM ABI query 缺少 known-instance call target `{:?}` + callee step schema s{} 的 callable version selector",
+                            "LLVM ABI query 缺少 known-instance call target `{:?}` + callee step schema s{} 的 callable version selector",
                             instance,
                             facts.callee_schema().as_u32()
                         ),
@@ -3025,7 +3025,7 @@ impl<'ctx> ProgramAbiQuery<'ctx> {
                 if layout.surface_instance() != instance {
                     return Err(LlvmEmitError::Frontend {
                         message: format!(
-                            "refactor LLVM ABI query 发现 known-instance call target `{:?}` + s{} 的 callable version selector 漂移：layout=(instance={:?}, step_schema=s{}, version={:?})",
+                            "LLVM ABI query 发现 known-instance call target `{:?}` + s{} 的 callable version selector 漂移：layout=(instance={:?}, step_schema=s{}, version={:?})",
                             instance,
                             facts.callee_schema().as_u32(),
                             layout.surface_instance(),
@@ -3037,7 +3037,7 @@ impl<'ctx> ProgramAbiQuery<'ctx> {
                 if layout.dynamic_entry().invoke_args_tuple_ty() != facts.invoke_args_tuple_ty() {
                     return Err(LlvmEmitError::Frontend {
                         message: format!(
-                            "refactor LLVM ABI query 发现 known-instance call target `{:?}` 的 dynamic entry contract 漂移：layout=(invoke_args_tuple_ty={}, return_step_schema={}, version={:?})，facts=(invoke_args_tuple_ty={}, callee_step_schema={})",
+                            "LLVM ABI query 发现 known-instance call target `{:?}` 的 dynamic entry contract 漂移：layout=(invoke_args_tuple_ty={}, return_step_schema={}, version={:?})，facts=(invoke_args_tuple_ty={}, callee_step_schema={})",
                             instance,
                             layout.dynamic_entry().invoke_args_tuple_ty().as_u32(),
                             layout.dynamic_entry().return_step_schema().as_u32(),
@@ -3047,14 +3047,14 @@ impl<'ctx> ProgramAbiQuery<'ctx> {
                         ),
                     });
                 }
-                Ok(RefactorCallTargetQuery::KnownInstance(layout))
+                Ok(CallTargetQuery::KnownInstance(layout))
             }
             crate::effect_facts::CallSiteTarget::CandidateSet(_)
             | crate::effect_facts::CallSiteTarget::DynamicFallback => {
                 let layout = self.dynamic_invoke_layout(owner_step_schema, site_id).ok_or_else(
                     || LlvmEmitError::Frontend {
                         message: format!(
-                            "refactor LLVM ABI query 缺少 owner step schema s{} call site {} 的 dynamic-invoke contract",
+                            "LLVM ABI query 缺少 owner step schema s{} call site {} 的 dynamic-invoke contract",
                             owner_step_schema.as_u32(),
                             site_id.as_u32(),
                         ),
@@ -3065,7 +3065,7 @@ impl<'ctx> ProgramAbiQuery<'ctx> {
                 {
                     return Err(LlvmEmitError::Frontend {
                         message: format!(
-                            "refactor LLVM ABI query 发现 owner step schema s{} call site {} 的 dynamic-invoke contract 漂移：layout=(target_mode={:?}, invoke_args_tuple_ty={}, return_step_schema={})，facts=(target_mode={:?}, invoke_args_tuple_ty={}, callee_step_schema={})",
+                            "LLVM ABI query 发现 owner step schema s{} call site {} 的 dynamic-invoke contract 漂移：layout=(target_mode={:?}, invoke_args_tuple_ty={}, return_step_schema={})，facts=(target_mode={:?}, invoke_args_tuple_ty={}, callee_step_schema={})",
                             owner_step_schema.as_u32(),
                             site_id.as_u32(),
                             layout.target_mode(),
@@ -3077,7 +3077,7 @@ impl<'ctx> ProgramAbiQuery<'ctx> {
                         ),
                     });
                 }
-                Ok(RefactorCallTargetQuery::DynamicInvoke(layout))
+                Ok(CallTargetQuery::DynamicInvoke(layout))
             }
         }
     }

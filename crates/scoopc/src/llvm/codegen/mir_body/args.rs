@@ -1,11 +1,11 @@
-//! MIR call argument binding helpers (refactor class-ctor, bound MIR args).
+//! MIR call argument binding helpers (class-ctor, bound MIR args).
 
 #![allow(dead_code)]
 
 use super::*;
 
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
-    pub(in crate::llvm::codegen) fn codegen_mir_refactor_class_ctor_ordered_args(
+    pub(in crate::llvm::codegen) fn codegen_mir_class_ctor_ordered_args(
         &mut self,
         span: crate::span::Span,
         args: &[crate::mir::CallArg],
@@ -31,7 +31,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             let param_cg = self
                 .cg_ty_of(param.ty)
                 .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "refactor class ctor param type",
+                    kind: "class ctor param type",
                     at: arg.span.into(),
                 })?;
             let value =
@@ -39,12 +39,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             let value = self.coerce_value(arg.span, value, param_cg)?;
             let deferred = self.defer_gc_sensitive_cg_value(
                 arg.span,
-                &format!("refactor_class_ctor_ordered_arg_{idx}"),
+                &format!("class_ctor_ordered_arg_{idx}"),
                 value,
             )?;
             evaluated_args.push(self.materialize_deferred_cg_value(
                 arg.span,
-                &format!("refactor_class_ctor_ordered_arg_reload_{idx}"),
+                &format!("class_ctor_ordered_arg_reload_{idx}"),
                 deferred,
             )?);
         }
@@ -52,7 +52,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(evaluated_args)
     }
 
-    pub(in crate::llvm::codegen) fn codegen_mir_refactor_class_ctor_call(
+    pub(in crate::llvm::codegen) fn codegen_mir_class_ctor_call(
         &mut self,
         span: crate::span::Span,
         class_layout_key: &str,
@@ -66,7 +66,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             &class,
             ctor,
             args,
-            "refactor class ctor selected/ordered args contract",
+            "class ctor selected/ordered args contract",
         )?;
         let ctor_params: &[hir::ClassCtorParam] = match selected_ctor {
             Some(ctor) => ctor.params.as_slice(),
@@ -80,25 +80,25 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let type_desc_i8 = self.builder.build_pointer_cast(
             type_desc.as_pointer_value(),
             self.llvm_i8_ptr_type(),
-            "refactor_class_type_desc_i8",
+            "lowered_class_type_desc_i8",
         )?;
         let rt_alloc = self.declare_runtime_alloc_typed();
         let call = self.build_call_preserving_gc_local_roots(
             span,
             rt_alloc,
             &[type_desc_i8.into(), size_v.into()],
-            "rt_alloc_refactor_class",
+            "rt_alloc_lowered_class",
         )?;
         let raw = call
             .try_as_basic_value()
             .basic()
             .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "refactor scoop_alloc_typed return value",
+                kind: "scoop_alloc_typed return value",
                 at: span.into(),
             })?;
         let BasicValueEnum::PointerValue(obj_ptr) = raw else {
             return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "refactor scoop_alloc_typed return type",
+                kind: "scoop_alloc_typed return type",
                 at: span.into(),
             });
         };
@@ -106,10 +106,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let obj_ptr_ty = self.llvm_ptr_type(self.gc_address_space());
         let typed_obj =
             self.builder
-                .build_pointer_cast(obj_ptr, obj_ptr_ty, "refactor_class_obj_ptr")?;
+                .build_pointer_cast(obj_ptr, obj_ptr_ty, "lowered_class_obj_ptr")?;
         let payload_ptr =
             self.builder
-                .build_struct_gep(obj_ty, typed_obj, 1, "refactor_class_payload_gep")?;
+                .build_struct_gep(obj_ty, typed_obj, 1, "lowered_class_payload_gep")?;
         let payload_ty = self.llvm_class_payload_type(span, &class)?;
         let payload_size_bytes = self.target_data.get_store_size(&payload_ty);
         if payload_size_bytes > 0 {
@@ -118,7 +118,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 .build_bit_cast(
                     payload_ptr,
                     self.llvm_gc_i8_ptr_type(),
-                    "refactor_class_payload_i8",
+                    "lowered_class_payload_i8",
                 )?
                 .into_pointer_value();
             let size_ty = self.llvm_ptr_sized_int_type(None);
@@ -129,24 +129,24 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         let deferred_obj = self.defer_gc_sensitive_cg_value(
             span,
-            "refactor_class_ctor_obj_root",
+            "lowered_class_ctor_obj_root",
             CgValue {
                 ty: CgTy::Ref,
                 value: Some(obj_ptr.into()),
             },
         )?;
 
-        let evaluated_args = self.codegen_mir_refactor_class_ctor_ordered_args(
+        let evaluated_args = self.codegen_mir_class_ctor_ordered_args(
             span,
             args,
             slots,
             ctor_params,
-            "refactor class ctor ordered arg eval",
+            "class ctor ordered arg eval",
         )?;
 
         let current_obj = self.reload_deferred_gc_ref_without_clearing(
             span,
-            "refactor_class_ctor_obj_before_invoke",
+            "lowered_class_ctor_obj_before_invoke",
             &deferred_obj,
         )?;
 
@@ -158,7 +158,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             evaluated_args.as_slice(),
             current_obj,
         )?;
-        self.emit_ordinary_call_effect_propagation_check(span, "refactor_class_ctor_call_effect")?;
+        self.emit_ordinary_call_effect_propagation_check(span, "lowered_class_ctor_call_effect")?;
 
         if !self.ordinary_effect_propagation_enabled()
             && let Some(outcome_ptr) = self.function_cx.current_effect_outcome_ptr
@@ -168,22 +168,22 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 .get_insert_block()
                 .and_then(|bb| bb.get_parent())
                 .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "refactor class ctor current function",
+                    kind: "class ctor current function",
                     at: span.into(),
                 })?;
             let active_bb = self
                 .context
-                .append_basic_block(current_fn, "refactor_class_ctor_active");
+                .append_basic_block(current_fn, "lowered_class_ctor_active");
             let inactive_bb = self
                 .context
-                .append_basic_block(current_fn, "refactor_class_ctor_inactive");
+                .append_basic_block(current_fn, "lowered_class_ctor_inactive");
             let merge_bb = self
                 .context
-                .append_basic_block(current_fn, "refactor_class_ctor_merge");
+                .append_basic_block(current_fn, "lowered_class_ctor_merge");
             let is_propagating = self.effect_outcome_is_propagating(
                 span,
                 outcome_ptr,
-                "refactor_class_ctor_effect",
+                "lowered_class_ctor_effect",
             )?;
             self.builder
                 .build_conditional_branch(is_propagating, active_bb, inactive_bb)?;
@@ -191,14 +191,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             self.builder.position_at_end(active_bb);
             self.clear_deferred_cg_value_root_homes(
                 span,
-                "refactor_class_ctor_obj_active_drop",
+                "lowered_class_ctor_obj_active_drop",
                 &deferred_obj,
             )?;
             let active_bb_end =
                 self.builder
                     .get_insert_block()
                     .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "refactor class ctor active block",
+                        kind: "class ctor active block",
                         at: span.into(),
                     })?;
             self.builder.build_unconditional_branch(merge_bb)?;
@@ -206,14 +206,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             self.builder.position_at_end(inactive_bb);
             let current_obj = self.reload_deferred_gc_ref_without_clearing(
                 span,
-                "refactor_class_ctor_obj_return",
+                "lowered_class_ctor_obj_return",
                 &deferred_obj,
             )?;
             let inactive_bb_end =
                 self.builder
                     .get_insert_block()
                     .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "refactor class ctor inactive block",
+                        kind: "class ctor inactive block",
                         at: span.into(),
                     })?;
             self.builder.build_unconditional_branch(merge_bb)?;
@@ -221,7 +221,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             self.builder.position_at_end(merge_bb);
             let result_phi = self
                 .builder
-                .build_phi(self.llvm_gc_i8_ptr_type(), "refactor_class_ctor_result")?;
+                .build_phi(self.llvm_gc_i8_ptr_type(), "lowered_class_ctor_result")?;
             result_phi.add_incoming(&[
                 (&self.llvm_gc_i8_ptr_type().const_null(), active_bb_end),
                 (&current_obj, inactive_bb_end),
@@ -234,7 +234,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         let current_obj = self.reload_deferred_gc_ref_without_clearing(
             span,
-            "refactor_class_ctor_obj_return",
+            "lowered_class_ctor_obj_return",
             &deferred_obj,
         )?;
 

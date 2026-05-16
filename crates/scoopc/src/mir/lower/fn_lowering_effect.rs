@@ -27,14 +27,14 @@ impl<'a> FnLowering<'a> {
         result: LocalId,
         callee: &hir::Expr,
         args: &[hir::CallArg],
-        resume_info: &RefactorResumeCallInfo,
+        resume_info: &ResumeCallInfo,
     ) {
         let Some(receiver) = self.resume_receiver_from_contract(callee, args, resume_info) else {
-            self.lower_malformed_refactor_resume_call(span, result, resume_info.metadata.clone());
+            self.lower_malformed_resume_call(span, result, resume_info.metadata.clone());
             return;
         };
         let Some(payload_args) = self.resume_payload_args_from_contract(args, resume_info) else {
-            self.lower_malformed_refactor_resume_call(span, result, resume_info.metadata.clone());
+            self.lower_malformed_resume_call(span, result, resume_info.metadata.clone());
             return;
         };
 
@@ -76,7 +76,7 @@ impl<'a> FnLowering<'a> {
         &self,
         callee: &'b hir::Expr,
         args: &'b [hir::CallArg],
-        info: &RefactorResumeCallInfo,
+        info: &ResumeCallInfo,
     ) -> Option<&'b hir::Expr> {
         match info.receiver_route {
             ContinuationResumeReceiverRoute::CallArg { index } => {
@@ -92,7 +92,7 @@ impl<'a> FnLowering<'a> {
     pub(in crate::mir::lower) fn resume_payload_args_from_contract(
         &self,
         args: &[hir::CallArg],
-        info: &RefactorResumeCallInfo,
+        info: &ResumeCallInfo,
     ) -> Option<Vec<hir::CallArg>> {
         info.payload_arg_indices
             .iter()
@@ -100,7 +100,7 @@ impl<'a> FnLowering<'a> {
             .collect()
     }
 
-    pub(in crate::mir::lower) fn lower_malformed_refactor_resume_call(
+    pub(in crate::mir::lower) fn lower_malformed_resume_call(
         &mut self,
         span: Span,
         result: LocalId,
@@ -248,13 +248,13 @@ impl<'a> FnLowering<'a> {
         let outer_bb = self.current_bb;
 
         let result = self.push_temp_local(span, ty);
-        let refactor_handle_site = self
+        let handle_site = self
             .facts
-            .refactor_handle_site_info(self.source_path.as_path(), span)
+            .handle_site_info(self.source_path.as_path(), span)
             .cloned();
-        let handle_contract = if let Some(site) = refactor_handle_site {
+        let handle_contract = if let Some(site) = handle_site {
             Some((site.metadata, site.arms))
-        } else if self.facts.uses_refactor_typed_contracts() {
+        } else if self.facts.uses_typed_contracts() {
             None
         } else {
             Some(self.lower_handle_contract_from_hir(ty, handle))

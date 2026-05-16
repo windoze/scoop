@@ -79,7 +79,7 @@ impl SurfaceResumeOwnerTrampolineCandidate {
         if let Some(existing) = &self.wrapper_projection {
             if !same_surface_resume_wrapper_projection_shape(existing, &projection) {
                 return Err(frontend_error(format!(
-                    "refactor LLVM ABI materialization 发现 continuation schema k{} owner ko{} 的 owner-step -> wrapper-step projection contract 歧义：published={existing:?}，new={projection:?}",
+                    "LLVM ABI materialization 发现 continuation schema k{} owner ko{} 的 owner-step -> wrapper-step projection contract 歧义：published={existing:?}，new={projection:?}",
                     continuation_schema.as_u32(),
                     self.owner_continuation_object.as_u32(),
                 )));
@@ -100,7 +100,7 @@ impl SurfaceResumeOwnerTrampolineCandidate {
             || self.owner_continuation_object != owner_continuation_object
         {
             return Err(frontend_error(format!(
-                "refactor LLVM ABI materialization 发现 continuation schema k{} 的 surface-resume owner dispatch contract 漂移：candidate ko{} 与 publication ko{} 不一致",
+                "LLVM ABI materialization 发现 continuation schema k{} 的 surface-resume owner dispatch contract 漂移：candidate ko{} 与 publication ko{} 不一致",
                 continuation_schema.as_u32(),
                 self.owner_continuation_object.as_u32(),
                 owner_continuation_object.as_u32(),
@@ -115,17 +115,17 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
         &mut self,
         surface_resume_layouts: &BTreeMap<
             ContinuationSchemaId,
-            RefactorContinuationSurfaceResumeLayout<'ctx>,
+            ContinuationSurfaceResumeLayout<'ctx>,
         >,
         continuation_layouts: &BTreeMap<
             ContinuationObjectId,
-            RefactorContinuationObjectLayout<'ctx>,
+            ContinuationObjectLayout<'ctx>,
         >,
-        resume_packing_layouts: &BTreeMap<ResumeInterfaceId, RefactorResumeInterfaceLayout<'ctx>>,
-        callable_layouts: &BTreeMap<StepSchemaId, RefactorCallableLayout<'ctx>>,
-        frame_layouts: &BTreeMap<StepSchemaId, RefactorFrameLayout<'ctx>>,
+        resume_packing_layouts: &BTreeMap<ResumeInterfaceId, ResumeInterfaceLayout<'ctx>>,
+        callable_layouts: &BTreeMap<StepSchemaId, CallableLayout<'ctx>>,
+        frame_layouts: &BTreeMap<StepSchemaId, FrameLayout<'ctx>>,
     ) -> Result<
-        BTreeMap<ContinuationSchemaId, RefactorContinuationSurfaceResumeDispatchLayout<'ctx>>,
+        BTreeMap<ContinuationSchemaId, ContinuationSurfaceResumeDispatchLayout<'ctx>>,
         LlvmEmitError,
     > {
         let mut layouts = BTreeMap::new();
@@ -135,7 +135,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                 .get(&continuation_schema)
                 .ok_or_else(|| {
                     frontend_error(format!(
-                        "refactor LLVM ABI materialization 缺少 continuation schema k{} 的 surface-resume layout，无法发布 owner dispatch contract",
+                        "LLVM ABI materialization 缺少 continuation schema k{} 的 surface-resume layout，无法发布 owner dispatch contract",
                         continuation_schema.as_u32(),
                     ))
                 })?;
@@ -151,7 +151,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             };
             let target = match entry.source_kind() {
                 crate::effect_lowered::ir::LateLoweredSurfaceResumeDispatchSourceKind::Unreachable => {
-                    RefactorContinuationSurfaceResumeDispatchTarget::Unreachable
+                    ContinuationSurfaceResumeDispatchTarget::Unreachable
                 }
                 _ => {
                     let mut targets = self.materialize_surface_resume_owner_trampoline_layouts(
@@ -162,18 +162,18 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                         &method_targets,
                     )?;
                     if targets.len() == 1 {
-                        RefactorContinuationSurfaceResumeDispatchTarget::OwnerTrampoline(Box::new(
+                        ContinuationSurfaceResumeDispatchTarget::OwnerTrampoline(Box::new(
                             targets.remove(0),
                         ))
                     } else {
-                        RefactorContinuationSurfaceResumeDispatchTarget::OwnerTrampolines(targets)
+                        ContinuationSurfaceResumeDispatchTarget::OwnerTrampolines(targets)
                     }
                 }
             };
             if layouts
                 .insert(
                     continuation_schema,
-                    RefactorContinuationSurfaceResumeDispatchLayout::new(
+                    ContinuationSurfaceResumeDispatchLayout::new(
                         continuation_schema,
                         entry.source_kind(),
                         method_targets,
@@ -183,7 +183,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                 .is_some()
             {
                 return Err(frontend_error(format!(
-                    "refactor LLVM ABI materialization 发现 continuation schema k{} 的 surface-resume owner dispatch contract 重复发布",
+                    "LLVM ABI materialization 发现 continuation schema k{} 的 surface-resume owner dispatch contract 重复发布",
                     continuation_schema.as_u32(),
                 )));
             }
@@ -194,13 +194,13 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
     pub(super) fn materialize_surface_resume_method_targets(
         &self,
         entry: &LateLoweredSurfaceResumeDispatchInventoryEntry,
-        surface_layout: &RefactorContinuationSurfaceResumeLayout<'ctx>,
+        surface_layout: &ContinuationSurfaceResumeLayout<'ctx>,
         continuation_layouts: &BTreeMap<
             ContinuationObjectId,
-            RefactorContinuationObjectLayout<'ctx>,
+            ContinuationObjectLayout<'ctx>,
         >,
-        resume_packing_layouts: &BTreeMap<ResumeInterfaceId, RefactorResumeInterfaceLayout<'ctx>>,
-    ) -> Result<Vec<RefactorContinuationSurfaceResumeMethodLookup>, LlvmEmitError> {
+        resume_packing_layouts: &BTreeMap<ResumeInterfaceId, ResumeInterfaceLayout<'ctx>>,
+    ) -> Result<Vec<ContinuationSurfaceResumeMethodLookup>, LlvmEmitError> {
         let mut candidates = BTreeSet::new();
         for publication in entry.publications() {
             let LateLoweredSurfaceResumeDispatchPublication::InternalMethod {
@@ -238,7 +238,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
 
         candidates.iter().next().copied().ok_or_else(|| {
             frontend_error(format!(
-                "refactor LLVM ABI materialization 发现 continuation schema k{} 已发布为 ContinuationObjectMethod，但缺少 reachable internal method target",
+                "LLVM ABI materialization 发现 continuation schema k{} 已发布为 ContinuationObjectMethod，但缺少 reachable internal method target",
                 entry.continuation_schema().as_u32(),
             ))
         })?;
@@ -248,7 +248,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             .collect::<BTreeSet<_>>();
         if entry.wrapper_projections().is_empty() && distinct_objects.len() > 1 {
             return Err(frontend_error(format!(
-                "refactor LLVM ABI materialization 发现 continuation schema k{} 的 surface-resume owner dispatch contract 歧义：多个 continuation object 共享同一 schema [{}]",
+                "LLVM ABI materialization 发现 continuation schema k{} 的 surface-resume owner dispatch contract 歧义：多个 continuation object 共享同一 schema [{}]",
                 entry.continuation_schema().as_u32(),
                 render_candidates(),
             )));
@@ -258,7 +258,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
         for (object_id, interface_id, case_tag) in candidates {
             let continuation_layout = continuation_layouts.get(&object_id).ok_or_else(|| {
                 frontend_error(format!(
-                    "refactor LLVM ABI materialization 缺少 continuation schema k{} 需要的 continuation object ko{} layout，无法发布 surface-resume owner dispatch contract",
+                    "LLVM ABI materialization 缺少 continuation schema k{} 需要的 continuation object ko{} layout，无法发布 surface-resume owner dispatch contract",
                     entry.continuation_schema().as_u32(),
                     object_id.as_u32(),
                 ))
@@ -291,7 +291,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                 .field_index_for_packing(interface_id)
                 .ok_or_else(|| {
                     frontend_error(format!(
-                        "refactor LLVM ABI materialization 发现 continuation schema k{} 的 internal method target ko{} ri{}::c{} 缺少 object-side packing field lookup",
+                        "LLVM ABI materialization 发现 continuation schema k{} 的 internal method target ko{} ri{}::c{} 缺少 object-side packing field lookup",
                         entry.continuation_schema().as_u32(),
                         object_id.as_u32(),
                         interface_id.as_u32(),
@@ -302,7 +302,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                 .surface_resume_bindings(binding_schema)
                 .ok_or_else(|| {
                     frontend_error(format!(
-                        "refactor LLVM ABI materialization 发现 continuation schema k{} 的 continuation object ko{} 缺少 object-side surface-resume binding k{}",
+                        "LLVM ABI materialization 发现 continuation schema k{} 的 continuation object ko{} 缺少 object-side surface-resume binding k{}",
                         entry.continuation_schema().as_u32(),
                         object_id.as_u32(),
                         binding_schema.as_u32(),
@@ -315,7 +315,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                         == LateLoweredContinuationMethodReachability::Reachable
             }) {
                 return Err(frontend_error(format!(
-                    "refactor LLVM ABI materialization 发现 continuation schema k{} 的 internal method target ko{} ri{}::c{} 缺少匹配的 reachable object-side surface-resume binding k{} -> s{}",
+                    "LLVM ABI materialization 发现 continuation schema k{} 的 internal method target ko{} ri{}::c{} 缺少匹配的 reachable object-side surface-resume binding k{} -> s{}",
                     entry.continuation_schema().as_u32(),
                     object_id.as_u32(),
                     interface_id.as_u32(),
@@ -327,14 +327,14 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
 
             let interface_layout = resume_packing_layouts.get(&interface_id).ok_or_else(|| {
                 frontend_error(format!(
-                    "refactor LLVM ABI materialization 缺少 continuation schema k{} internal method target 需要的 resume packing ri{} layout",
+                    "LLVM ABI materialization 缺少 continuation schema k{} internal method target 需要的 resume packing ri{} layout",
                     entry.continuation_schema().as_u32(),
                     interface_id.as_u32(),
                 ))
             })?;
             let method_layout = interface_layout.method(case_tag).ok_or_else(|| {
                 frontend_error(format!(
-                    "refactor LLVM ABI materialization 缺少 continuation schema k{} internal method target 需要的 resume method ri{}::c{} layout",
+                    "LLVM ABI materialization 缺少 continuation schema k{} internal method target 需要的 resume method ri{}::c{} layout",
                     entry.continuation_schema().as_u32(),
                     interface_id.as_u32(),
                     case_tag.as_u32(),
@@ -346,7 +346,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                     != surface_layout.resume_payload_abi().is_elided()
             {
                 return Err(frontend_error(format!(
-                    "refactor LLVM ABI materialization 发现 continuation schema k{} 的 surface-resume method lookup contract 漂移：surface=(out_step_schema=s{}, param_count={}, payload_elided={})，method target ko{} ri{}::c{}=(out_step_schema=s{}, expected_out=s{}, param_count={}, payload_elided={})",
+                    "LLVM ABI materialization 发现 continuation schema k{} 的 surface-resume method lookup contract 漂移：surface=(out_step_schema=s{}, param_count={}, payload_elided={})，method target ko{} ri{}::c{}=(out_step_schema=s{}, expected_out=s{}, param_count={}, payload_elided={})",
                     entry.continuation_schema().as_u32(),
                     surface_layout.return_step_schema().as_u32(),
                     surface_layout.param_count(),
@@ -361,7 +361,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                 )));
             }
 
-            method_targets.push(RefactorContinuationSurfaceResumeMethodLookup::new(
+            method_targets.push(ContinuationSurfaceResumeMethodLookup::new(
                 object_id,
                 interface_id,
                 packing_field_index,
@@ -376,11 +376,11 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
     pub(super) fn materialize_surface_resume_owner_trampoline_layouts(
         &mut self,
         entry: &LateLoweredSurfaceResumeDispatchInventoryEntry,
-        surface_layout: &RefactorContinuationSurfaceResumeLayout<'ctx>,
-        callable_layouts: &BTreeMap<StepSchemaId, RefactorCallableLayout<'ctx>>,
-        frame_layouts: &BTreeMap<StepSchemaId, RefactorFrameLayout<'ctx>>,
-        method_targets: &[RefactorContinuationSurfaceResumeMethodLookup],
-    ) -> Result<Vec<RefactorContinuationSurfaceResumeOwnerTrampolineLayout<'ctx>>, LlvmEmitError>
+        surface_layout: &ContinuationSurfaceResumeLayout<'ctx>,
+        callable_layouts: &BTreeMap<StepSchemaId, CallableLayout<'ctx>>,
+        frame_layouts: &BTreeMap<StepSchemaId, FrameLayout<'ctx>>,
+        method_targets: &[ContinuationSurfaceResumeMethodLookup],
+    ) -> Result<Vec<ContinuationSurfaceResumeOwnerTrampolineLayout<'ctx>>, LlvmEmitError>
     {
         let mut candidates = Vec::<SurfaceResumeOwnerTrampolineCandidate>::new();
 
@@ -489,7 +489,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
 
         if candidates.is_empty() {
             return Err(frontend_error(format!(
-                "refactor LLVM ABI materialization 发现 continuation schema k{} 已发布为 {:?}，但缺少 owner-specific surface-resume dispatch target",
+                "LLVM ABI materialization 发现 continuation schema k{} 已发布为 {:?}，但缺少 owner-specific surface-resume dispatch target",
                 entry.continuation_schema().as_u32(),
                 entry.source_kind(),
             )));
@@ -512,11 +512,11 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
     pub(super) fn materialize_surface_resume_owner_trampoline_candidate(
         &mut self,
         entry: &LateLoweredSurfaceResumeDispatchInventoryEntry,
-        surface_layout: &RefactorContinuationSurfaceResumeLayout<'ctx>,
-        callable_layouts: &BTreeMap<StepSchemaId, RefactorCallableLayout<'ctx>>,
-        frame_layouts: &BTreeMap<StepSchemaId, RefactorFrameLayout<'ctx>>,
+        surface_layout: &ContinuationSurfaceResumeLayout<'ctx>,
+        callable_layouts: &BTreeMap<StepSchemaId, CallableLayout<'ctx>>,
+        frame_layouts: &BTreeMap<StepSchemaId, FrameLayout<'ctx>>,
         candidate: SurfaceResumeOwnerTrampolineCandidate,
-    ) -> Result<RefactorContinuationSurfaceResumeOwnerTrampolineLayout<'ctx>, LlvmEmitError> {
+    ) -> Result<ContinuationSurfaceResumeOwnerTrampolineLayout<'ctx>, LlvmEmitError> {
         let owner_version_key = candidate.owner_version_key;
         let owner_continuation_object = candidate.owner_continuation_object;
         if !candidate.has_method_target {
@@ -525,7 +525,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                     if candidate.resume_boundary_sites.is_empty() =>
                 {
                     return Err(frontend_error(format!(
-                        "refactor LLVM ABI materialization 发现 continuation schema k{} 已发布为 ResumeBoundaryOnly，但 owner trampoline contract 缺少 resume boundary site",
+                        "LLVM ABI materialization 发现 continuation schema k{} 已发布为 ResumeBoundaryOnly，但 owner trampoline contract 缺少 resume boundary site",
                         entry.continuation_schema().as_u32(),
                     )));
                 }
@@ -533,7 +533,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                     if candidate.handle_binder_routes.is_empty() =>
                 {
                     return Err(frontend_error(format!(
-                        "refactor LLVM ABI materialization 发现 continuation schema k{} 已发布为 HandleContinuationBinderOnly，但 owner trampoline contract 缺少 handle binder route",
+                        "LLVM ABI materialization 发现 continuation schema k{} 已发布为 HandleContinuationBinderOnly，但 owner trampoline contract 缺少 handle binder route",
                         entry.continuation_schema().as_u32(),
                     )));
                 }
@@ -543,7 +543,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                             || candidate.handle_binder_routes.is_empty()) =>
                 {
                     return Err(frontend_error(format!(
-                        "refactor LLVM ABI materialization 发现 continuation schema k{} 已发布为 OwnerTrampolineMixed，但 owner trampoline contract 未同时覆盖 resume boundary 与 handle binder route",
+                        "LLVM ABI materialization 发现 continuation schema k{} 已发布为 OwnerTrampolineMixed，但 owner trampoline contract 未同时覆盖 resume boundary 与 handle binder route",
                         entry.continuation_schema().as_u32(),
                     )));
                 }
@@ -556,13 +556,13 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             .callable_by_version_key(&owner_version_key)
             .ok_or_else(|| {
                 frontend_error(format!(
-                    "refactor LLVM ABI materialization 缺少 continuation schema k{} owner trampoline 需要的 owner callable",
+                    "LLVM ABI materialization 缺少 continuation schema k{} owner trampoline 需要的 owner callable",
                     entry.continuation_schema().as_u32(),
                 ))
             })?;
         if owner_callable.continuation_object() != owner_continuation_object {
             return Err(frontend_error(format!(
-                "refactor LLVM ABI materialization 发现 continuation schema k{} 的 owner trampoline contract 漂移：owner callable `{}` 发布 continuation object ko{}，inventory 指向 ko{}",
+                "LLVM ABI materialization 发现 continuation schema k{} 的 owner trampoline contract 漂移：owner callable `{}` 发布 continuation object ko{}，inventory 指向 ko{}",
                 entry.continuation_schema().as_u32(),
                 owner_callable.root_fqn(),
                 owner_callable.continuation_object().as_u32(),
@@ -572,7 +572,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
         if let Some(callable_layout) = callable_layouts.get(&owner_callable.step_schema()) {
             if callable_layout.continuation_object() != owner_continuation_object {
                 return Err(frontend_error(format!(
-                    "refactor LLVM ABI materialization 发现 continuation schema k{} 的 callable layout continuation object 漂移：callable `{}` -> ko{}，owner trampoline inventory -> ko{}",
+                    "LLVM ABI materialization 发现 continuation schema k{} 的 callable layout continuation object 漂移：callable `{}` -> ko{}，owner trampoline inventory -> ko{}",
                     entry.continuation_schema().as_u32(),
                     owner_callable.root_fqn(),
                     callable_layout.continuation_object().as_u32(),
@@ -581,7 +581,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             }
         } else if owner_callable.effect_step_abi().is_some() {
             return Err(frontend_error(format!(
-                "refactor LLVM ABI materialization 缺少 continuation schema k{} owner callable `{}` 的 callable layout，无法发布 effect-step owner trampoline contract",
+                "LLVM ABI materialization 缺少 continuation schema k{} owner callable `{}` 的 callable layout，无法发布 effect-step owner trampoline contract",
                 entry.continuation_schema().as_u32(),
                 owner_callable.root_fqn(),
             )));
@@ -612,7 +612,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             ],
         );
         let symbol_name = stable_naming::private_name_from_key_text(
-            "refactor_surface_resume_owner_dispatch",
+            "surface_resume_owner_dispatch",
             &stable_owner_dispatch_key_text,
         );
         self.ensure_declared_compiler_private_helper_function(
@@ -620,7 +620,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             surface_layout.llvm_ty(),
         );
 
-        Ok(RefactorContinuationSurfaceResumeOwnerTrampolineLayout::new(
+        Ok(ContinuationSurfaceResumeOwnerTrampolineLayout::new(
             owner_version_key,
             owner_callable.root_fqn().to_string(),
             owner_callable.step_schema(),
@@ -634,7 +634,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                 .handle_binder_routes
                 .into_iter()
                 .map(|(site_id, arm_ordinal, handled_case)| {
-                    RefactorContinuationSurfaceResumeHandleBinderRoute::new(
+                    ContinuationSurfaceResumeHandleBinderRoute::new(
                         site_id,
                         arm_ordinal,
                         handled_case,
@@ -649,7 +649,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
         &mut self,
         entry: &LateLoweredSurfaceResumeDispatchInventoryEntry,
         owner_callable: &LateLoweredCallable,
-        frame_layouts: &BTreeMap<StepSchemaId, RefactorFrameLayout<'ctx>>,
+        frame_layouts: &BTreeMap<StepSchemaId, FrameLayout<'ctx>>,
         published_projection: Option<&LateLoweredSurfaceResumeWrapperProjection>,
     ) -> Result<Option<LateLoweredSurfaceResumeWrapperProjection>, LlvmEmitError> {
         let mut derived_candidates = Vec::<LateLoweredSurfaceResumeWrapperProjection>::new();
@@ -680,7 +680,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
 
         if derived_candidates.len() > 1 {
             return Err(frontend_error(format!(
-                "refactor LLVM ABI materialization 发现 continuation schema k{} 的 owner-step -> wrapper-step projection contract 歧义：不同 resume boundary 发布了多个 shared surface wrapper projection",
+                "LLVM ABI materialization 发现 continuation schema k{} 的 owner-step -> wrapper-step projection contract 歧义：不同 resume boundary 发布了多个 shared surface wrapper projection",
                 entry.continuation_schema().as_u32(),
             )));
         }
@@ -689,14 +689,14 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             (Some(published), Some(derived)) => {
                 if !same_surface_resume_wrapper_projection_shape(published, &derived) {
                     return Err(frontend_error(format!(
-                        "refactor LLVM ABI materialization 发现 continuation schema k{} 的 owner-step -> wrapper-step projection contract 漂移：published={published:?}，derived={derived:?}",
+                        "LLVM ABI materialization 发现 continuation schema k{} 的 owner-step -> wrapper-step projection contract 漂移：published={published:?}，derived={derived:?}",
                         entry.continuation_schema().as_u32(),
                     )));
                 }
                 Ok(Some(published.clone()))
             }
             (None, Some(derived)) => Err(frontend_error(format!(
-                "refactor LLVM ABI materialization 发现 continuation schema k{} 已桥接到 underlying route k{}，但缺少 published owner-step -> wrapper-step projection contract：derived={derived:?}",
+                "LLVM ABI materialization 发现 continuation schema k{} 已桥接到 underlying route k{}，但缺少 published owner-step -> wrapper-step projection contract：derived={derived:?}",
                 entry.continuation_schema().as_u32(),
                 derived.underlying_route().continuation_schema().as_u32(),
             ))),
@@ -717,7 +717,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
         &mut self,
         entry: &LateLoweredSurfaceResumeDispatchInventoryEntry,
         owner_callable: &LateLoweredCallable,
-        frame_layouts: &BTreeMap<StepSchemaId, RefactorFrameLayout<'ctx>>,
+        frame_layouts: &BTreeMap<StepSchemaId, FrameLayout<'ctx>>,
         lowering: &crate::effect_lowered::ir::LateLoweredResumeBoundaryLowering,
     ) -> Result<Option<LateLoweredSurfaceResumeWrapperProjection>, LlvmEmitError> {
         let underlying_route = lowering.operand_contract().underlying_continuation_route();
@@ -726,7 +726,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             .step_type(owner_callable.step_schema())
             .ok_or_else(|| {
                 frontend_error(format!(
-                    "refactor LLVM ABI materialization 缺少 continuation schema k{} owner-step -> wrapper-step projection 需要的 owner step schema s{}",
+                    "LLVM ABI materialization 缺少 continuation schema k{} owner-step -> wrapper-step projection 需要的 owner step schema s{}",
                     entry.continuation_schema().as_u32(),
                     owner_callable.step_schema().as_u32(),
                 ))
@@ -736,7 +736,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             .step_type(lowering.facts().out_step_schema())
             .ok_or_else(|| {
                 frontend_error(format!(
-                    "refactor LLVM ABI materialization 缺少 continuation schema k{} owner-step -> wrapper-step projection 需要的 wrapper step schema s{}",
+                    "LLVM ABI materialization 缺少 continuation schema k{} owner-step -> wrapper-step projection 需要的 wrapper step schema s{}",
                     entry.continuation_schema().as_u32(),
                     lowering.facts().out_step_schema().as_u32(),
                 ))
@@ -751,7 +751,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             .surface_resume_dispatch(underlying_route.continuation_schema())
             .ok_or_else(|| {
                 frontend_error(format!(
-                    "refactor LLVM ABI materialization 缺少 continuation schema k{} owner-step -> wrapper-step projection 需要的 underlying route schema k{} inventory",
+                    "LLVM ABI materialization 缺少 continuation schema k{} owner-step -> wrapper-step projection 需要的 underlying route schema k{} inventory",
                     entry.continuation_schema().as_u32(),
                     underlying_route.continuation_schema().as_u32(),
                 ))
@@ -764,7 +764,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             };
         let owner_step = self.program.step_type(owner_step_schema).ok_or_else(|| {
             frontend_error(format!(
-                "refactor LLVM ABI materialization 缺少 continuation schema k{} wrapper projection underlying owner step schema s{}",
+                "LLVM ABI materialization 缺少 continuation schema k{} wrapper projection underlying owner step schema s{}",
                 entry.continuation_schema().as_u32(),
                 owner_step_schema.as_u32(),
             ))
@@ -779,7 +779,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                     .case(forwarding.input_case_tag())
                     .ok_or_else(|| {
                         frontend_error(format!(
-                            "refactor LLVM ABI materialization 发现 continuation schema k{} 的 wrapper projection 缺少 wrapper step s{} case c{}",
+                            "LLVM ABI materialization 发现 continuation schema k{} 的 wrapper projection 缺少 wrapper step s{} case c{}",
                             entry.continuation_schema().as_u32(),
                             wrapper_step.step_schema().as_u32(),
                             forwarding.input_case_tag().as_u32(),
@@ -787,7 +787,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                     })?;
                 if wrapper_case.concrete_op_key() != forwarding.input_concrete_op_key() {
                     return Err(frontend_error(format!(
-                        "refactor LLVM ABI materialization 发现 continuation schema k{} 的 wrapper projection 输入 case 漂移：dispatch in c{} op={}，wrapper step s{} case op={}",
+                        "LLVM ABI materialization 发现 continuation schema k{} 的 wrapper projection 输入 case 漂移：dispatch in c{} op={}，wrapper step s{} case op={}",
                         entry.continuation_schema().as_u32(),
                         forwarding.input_case_tag().as_u32(),
                         forwarding.input_concrete_op_key().instance_key().template.fqn,
@@ -801,7 +801,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                     .find(|case| case.concrete_op_key() == forwarding.input_concrete_op_key())
                     .ok_or_else(|| {
                         frontend_error(format!(
-                            "refactor LLVM ABI materialization 发现 continuation schema k{} 的 wrapper projection 缺少 owner step s{} op={} case",
+                            "LLVM ABI materialization 发现 continuation schema k{} 的 wrapper projection 缺少 owner step s{} op={} case",
                             entry.continuation_schema().as_u32(),
                             owner_step.step_schema().as_u32(),
                             forwarding.input_concrete_op_key().instance_key().template.fqn,
@@ -839,7 +839,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
         &mut self,
         entry: &LateLoweredSurfaceResumeDispatchInventoryEntry,
         owner_callable: &LateLoweredCallable,
-        frame_layouts: &BTreeMap<StepSchemaId, RefactorFrameLayout<'ctx>>,
+        frame_layouts: &BTreeMap<StepSchemaId, FrameLayout<'ctx>>,
         underlying_route: &crate::effect_lowered::ir::LateLoweredContinuationRoute,
         owner_answer_ty: TypeId,
         wrapper_answer_ty: TypeId,
@@ -856,7 +856,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                 )?
                 .ok_or_else(|| {
                     frontend_error(format!(
-                        "refactor LLVM ABI materialization 发现 continuation schema k{} 的 wrapper complete projection 需要 t{} payload，但缺少 published wrapper payload source",
+                        "LLVM ABI materialization 发现 continuation schema k{} 的 wrapper complete projection 需要 t{} payload，但缺少 published wrapper payload source",
                         entry.continuation_schema().as_u32(),
                         wrapper_answer_ty.as_u32(),
                     ))
@@ -924,7 +924,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                 .map(Some)
                 .ok_or_else(|| {
                     frontend_error(format!(
-                        "refactor LLVM ABI materialization 发现 continuation schema k{} 的 wrapper complete projection 找不到 resume boundary site{} 的 completion payload source",
+                        "LLVM ABI materialization 发现 continuation schema k{} 的 wrapper complete projection 找不到 resume boundary site{} 的 completion payload source",
                         entry.continuation_schema().as_u32(),
                         site_id.as_u32(),
                     ))
@@ -958,7 +958,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             })
             .ok_or_else(|| {
                 frontend_error(format!(
-                    "refactor LLVM ABI materialization 发现 continuation schema k{} 的 wrapper complete projection 找不到 handle binder site{} arm#{} case c{} 的 completion payload source",
+                    "LLVM ABI materialization 发现 continuation schema k{} 的 wrapper complete projection 找不到 handle binder site{} arm#{} case c{} 的 completion payload source",
                     entry.continuation_schema().as_u32(),
                     site_id.as_u32(),
                     arm_ordinal,
@@ -967,7 +967,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             })?;
         if source.source_ty() != wrapper_answer_ty {
             return Err(frontend_error(format!(
-                "refactor LLVM ABI materialization 发现 continuation schema k{} 的 wrapper complete payload source type t{} 与 wrapper answer t{} 不一致",
+                "LLVM ABI materialization 发现 continuation schema k{} 的 wrapper complete payload source type t{} 与 wrapper answer t{} 不一致",
                 entry.continuation_schema().as_u32(),
                 source.source_ty().as_u32(),
                 wrapper_answer_ty.as_u32(),
@@ -980,12 +980,12 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
         &mut self,
         entry: &LateLoweredSurfaceResumeDispatchInventoryEntry,
         owner_callable: &LateLoweredCallable,
-        frame_layouts: &BTreeMap<StepSchemaId, RefactorFrameLayout<'ctx>>,
+        frame_layouts: &BTreeMap<StepSchemaId, FrameLayout<'ctx>>,
         complete: &LateLoweredSurfaceResumeWrapperCompleteProjection,
     ) -> Result<(), LlvmEmitError> {
         if complete.payload_source().source_ty() != complete.wrapper_answer_ty() {
             return Err(frontend_error(format!(
-                "refactor LLVM ABI materialization 发现 continuation schema k{} 的 wrapper complete payload source type t{} 与 wrapper answer t{} 不一致",
+                "LLVM ABI materialization 发现 continuation schema k{} 的 wrapper complete payload source type t{} 与 wrapper answer t{} 不一致",
                 entry.continuation_schema().as_u32(),
                 complete.payload_source().source_ty().as_u32(),
                 complete.wrapper_answer_ty().as_u32(),
@@ -997,7 +997,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                     || *answer_ty != complete.wrapper_answer_ty()
                 {
                     return Err(frontend_error(format!(
-                        "refactor LLVM ABI materialization 发现 continuation schema k{} 的 owner-complete wrapper payload 漂移：owner=t{} wrapper=t{} source=t{}",
+                        "LLVM ABI materialization 发现 continuation schema k{} 的 owner-complete wrapper payload 漂移：owner=t{} wrapper=t{} source=t{}",
                         entry.continuation_schema().as_u32(),
                         complete.owner_answer_ty().as_u32(),
                         complete.wrapper_answer_ty().as_u32(),
@@ -1009,7 +1009,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             LateLoweredSurfaceResumeWrapperCompletePayloadSource::WrapperPayload(source) => {
                 if source.source_ty() != complete.wrapper_answer_ty() {
                     return Err(frontend_error(format!(
-                        "refactor LLVM ABI materialization 发现 continuation schema k{} 的 wrapper payload source type t{} 与 wrapper answer t{} 不一致",
+                        "LLVM ABI materialization 发现 continuation schema k{} 的 wrapper payload source type t{} 与 wrapper answer t{} 不一致",
                         entry.continuation_schema().as_u32(),
                         source.source_ty().as_u32(),
                         complete.wrapper_answer_ty().as_u32(),
@@ -1022,7 +1022,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                     )
                 {
                     return Err(frontend_error(format!(
-                        "refactor LLVM ABI materialization 发现 continuation schema k{} 对 non-Unit wrapper answer t{} 发布了 Unit wrapper complete payload source",
+                        "LLVM ABI materialization 发现 continuation schema k{} 对 non-Unit wrapper answer t{} 发布了 Unit wrapper complete payload source",
                         entry.continuation_schema().as_u32(),
                         complete.wrapper_answer_ty().as_u32(),
                     )));
@@ -1041,7 +1041,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                         .expect("published_frame_slot_for_local returned existing slot");
                     if slot.ty() != source.source_ty() {
                         return Err(frontend_error(format!(
-                            "refactor LLVM ABI materialization 发现 continuation schema k{} 的 wrapper complete payload home slot fs{} 类型 t{} 与 source type t{} 不一致",
+                            "LLVM ABI materialization 发现 continuation schema k{} 的 wrapper complete payload home slot fs{} 类型 t{} 与 source type t{} 不一致",
                             entry.continuation_schema().as_u32(),
                             slot_id.as_u32(),
                             slot.ty().as_u32(),
@@ -1050,13 +1050,13 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                     }
                     let frame_layout = frame_layouts.get(&owner_callable.step_schema()).ok_or_else(|| {
                         frontend_error(format!(
-                            "refactor LLVM ABI materialization 缺少 callable `{}` frame layout，无法校验 wrapper complete payload source",
+                            "LLVM ABI materialization 缺少 callable `{}` frame layout，无法校验 wrapper complete payload source",
                             owner_callable.root_fqn(),
                         ))
                     })?;
                     if frame_layout.field_index_for_slot(slot_id).is_none() {
                         return Err(frontend_error(format!(
-                            "refactor LLVM ABI materialization 发现 continuation schema k{} 的 wrapper complete payload home slot fs{} 在 frame layout 中缺少 field",
+                            "LLVM ABI materialization 发现 continuation schema k{} 的 wrapper complete payload home slot fs{} 在 frame layout 中缺少 field",
                             entry.continuation_schema().as_u32(),
                             slot_id.as_u32(),
                         )));

@@ -636,7 +636,7 @@ mod tests {
 
     fn setup_interface_check(source_text: &str) -> (SourceFile, ast::File, Index, TypeEnv) {
         let session = Session::with_options(SessionOptions::new()).unwrap();
-        let source = SourceFile::new_virtual("<refactor_continuation_interface>", source_text);
+        let source = SourceFile::new_virtual("<continuation_interface>", source_text);
         let mut ast = parse_file(&source).expect("parse");
 
         typecheck::check_file_headers(&source, &ast).expect("headers");
@@ -660,7 +660,7 @@ mod tests {
     }
 
     #[test]
-    fn refactor_continuation_typecheck_rejects_user_impl_of_compiler_owned_continuation() {
+    fn continuation_typecheck_rejects_user_impl_of_compiler_owned_continuation() {
         let (source, ast, index, env) = setup_interface_check(
             r#"
 package fixtures.typecheck

@@ -133,7 +133,7 @@ impl<'a> LoweredCodegenEntry<'a> {
     ) -> Self {
         debug_assert!(
             lowered.materialized_pass_view().is_none(),
-            "refactor LLVM stage 的 HIR scaffold 不应继续携带旧 production pass-view"
+            "LLVM stage 的 HIR scaffold 不应继续携带旧 production pass-view"
         );
         let abi_visibility_effect_lowered_stage_output =
             abi_visibility_effect_lowered_stage_output.unwrap_or(effect_lowered_stage_output);
@@ -154,7 +154,7 @@ impl<'a> LoweredCodegenEntry<'a> {
 
 /// 为一个 Scoop 程序生成默认单文件 LLVM IR（`.ll` 文本）。
 ///
-/// 当前默认路径会先运行 refactor LLVM stage，再消费其 authoritative handoff 发射产物。
+/// 当前默认路径会先运行 LLVM stage，再消费其 authoritative handoff 发射产物。
 ///
 /// 输出形态：
 /// - 一个 LLVM module（module name 取决于输入文件名）；

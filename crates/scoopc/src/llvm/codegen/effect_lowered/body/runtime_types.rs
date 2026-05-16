@@ -11,19 +11,19 @@
 use super::*;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(super) enum RefactorHandleCompletionMode {
+pub(super) enum HandleCompletionMode {
     ContinueToExit,
     ReturnFromFunction,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(super) enum RefactorCallableReturnMode {
+pub(super) enum CallableReturnMode {
     Step,
     EffectOutcome,
     Plain { declared_return_cg: CgTy },
 }
 
-impl RefactorHandleCompletionMode {
+impl HandleCompletionMode {
     pub(super) fn pending_completion(self) -> LateLoweredHandlePendingCompletion {
         match self {
             Self::ContinueToExit => LateLoweredHandlePendingCompletion::ContinueToExit,
@@ -33,39 +33,39 @@ impl RefactorHandleCompletionMode {
 }
 
 #[derive(Clone)]
-pub(super) struct RefactorHandleConsumeArmRuntime {
+pub(super) struct HandleConsumeArmRuntime {
     pub(super) site_id: SiteId,
     pub(super) arm_ordinal: u32,
     pub(super) arm_state: StateId,
-    pub(super) payload_binders: Vec<RefactorHandlePayloadBinderLayout>,
-    pub(super) continuation_binder: Option<RefactorHandleContinuationBinderLayout>,
+    pub(super) payload_binders: Vec<HandlePayloadBinderLayout>,
+    pub(super) continuation_binder: Option<HandleContinuationBinderLayout>,
 }
 
 #[derive(Clone)]
-pub(super) struct RefactorHandleBoundaryDispatchCandidate {
+pub(super) struct HandleBoundaryDispatchCandidate {
     pub(super) dispatch_identity: u64,
-    pub(super) action: RefactorHandleBoundaryRuntimeAction,
+    pub(super) action: HandleBoundaryRuntimeAction,
 }
 
 #[derive(Clone, Copy)]
-pub(super) struct RefactorHandlePendingPayloadRuntime {
+pub(super) struct HandlePendingPayloadRuntime {
     pub(super) completion: LateLoweredHandlePendingCompletion,
     pub(super) payload_tuple_ty: TypeId,
     pub(super) frame_field_index: u32,
 }
 
 #[derive(Clone)]
-pub(super) struct RefactorHandlePendingCompletionRuntime {
+pub(super) struct HandlePendingCompletionRuntime {
     pub(super) site_id: SiteId,
     pub(super) completion: LateLoweredHandlePendingCompletion,
     pub(super) completion_tag_value: u32,
     pub(super) completion_tag_field_index: u32,
     pub(super) finally_state: StateId,
-    pub(super) payload_transport: Option<RefactorHandlePendingPayloadRuntime>,
+    pub(super) payload_transport: Option<HandlePendingPayloadRuntime>,
 }
 
 #[derive(Clone)]
-pub(super) struct RefactorLocalRuntimeErrorRuntime {
+pub(super) struct LocalRuntimeErrorRuntime {
     pub(super) site_id: SiteId,
     pub(super) input_case_tag: CaseTag,
     pub(super) payload_tuple_ty: TypeId,
@@ -75,53 +75,53 @@ pub(super) struct RefactorLocalRuntimeErrorRuntime {
 }
 
 #[derive(Clone)]
-pub(super) enum RefactorHandleBoundaryRuntimeAction {
-    ConsumeToArm(RefactorHandleConsumeArmRuntime),
-    PendingCompletion(RefactorHandlePendingCompletionRuntime),
+pub(super) enum HandleBoundaryRuntimeAction {
+    ConsumeToArm(HandleConsumeArmRuntime),
+    PendingCompletion(HandlePendingCompletionRuntime),
     EmitOutward,
 }
 
 #[derive(Clone)]
-pub(super) enum RefactorHandleGotoRuntimeAction {
+pub(super) enum HandleGotoRuntimeAction {
     RestoreSavedCtxAndGoto {
         clear_slots: bool,
         site_id: SiteId,
         target: StateId,
     },
-    BeginCompletion(RefactorHandlePendingCompletionRuntime),
-    FinishFinally(RefactorHandleFinallyRuntime),
+    BeginCompletion(HandlePendingCompletionRuntime),
+    FinishFinally(HandleFinallyRuntime),
 }
 
 #[derive(Clone, Copy)]
-pub(super) struct RefactorHandleOutwardCompletionRuntime {
+pub(super) struct HandleOutwardCompletionRuntime {
     pub(super) boundary_id: BoundaryId,
     pub(super) completion_tag_value: u32,
     pub(super) case_tag: CaseTag,
     pub(super) payload_tuple_ty: TypeId,
     pub(super) resume_state: StateId,
-    pub(super) payload_transport: Option<RefactorHandlePendingPayloadRuntime>,
+    pub(super) payload_transport: Option<HandlePendingPayloadRuntime>,
 }
 
 #[derive(Clone)]
-pub(super) struct RefactorHandleFinallyRuntime {
+pub(super) struct HandleFinallyRuntime {
     pub(super) site_id: SiteId,
     pub(super) completion_tag_field_index: u32,
     pub(super) exit_state: StateId,
     pub(super) continue_to_exit_tag: u32,
     pub(super) return_from_function_tag: u32,
     pub(super) return_payload_source: Option<LateLoweredCompletionPayloadSource>,
-    pub(super) propagate_outward: Vec<RefactorHandleOutwardCompletionRuntime>,
+    pub(super) propagate_outward: Vec<HandleOutwardCompletionRuntime>,
 }
 
 #[derive(Clone, Copy)]
-pub(super) struct RefactorResumeUnwindOrigin<'a> {
+pub(super) struct ResumeUnwindOrigin<'a> {
     pub(super) suspend_state: StateId,
     pub(super) cleanup_state: StateId,
     pub(super) resume_state: StateId,
     pub(super) boundary_ids: &'a [BoundaryId],
 }
 
-pub(super) enum RefactorClassCtorBoundarySource<'a> {
+pub(super) enum ClassCtorBoundarySource<'a> {
     ClassCtor {
         span: crate::span::Span,
         ctor: &'a mir::ClassCtorCallMetadata,

@@ -1538,7 +1538,7 @@ fun main(): Int {
     }
 
     #[test]
-    fn refactor_mir_site_id_inline_clones_allocate_fresh_call_site_ids() {
+    fn mir_site_id_inline_clones_allocate_fresh_call_site_ids() {
         let mut types = TypeStore::default();
         let builtins = types.intern_builtins();
 
@@ -1644,7 +1644,7 @@ fun main(): Int {
     }
 
     #[test]
-    fn refactor_mir_site_id_effect_sensitive_bodies_are_not_inlineable() {
+    fn mir_site_id_effect_sensitive_bodies_are_not_inlineable() {
         let mut types = TypeStore::default();
         let builtins = types.intern_builtins();
         let mut body = Body::new_empty();

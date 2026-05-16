@@ -13,7 +13,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
     pub(super) fn materialize_local_runtime_error_contracts(
         &mut self,
     ) -> Result<
-        BTreeMap<(StepSchemaId, crate::mir::SiteId), RefactorLocalRuntimeErrorContract<'ctx>>,
+        BTreeMap<(StepSchemaId, crate::mir::SiteId), LocalRuntimeErrorContract<'ctx>>,
         LlvmEmitError,
     > {
         let mut contracts = BTreeMap::new();
@@ -42,7 +42,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                     .find(|state| state.state_id() == contract.target_state())
                 else {
                     return Err(frontend_error(format!(
-                        "refactor LLVM ABI materialization 缺少 callable `{}` call site {} local runtime-error target state st{}",
+                        "LLVM ABI materialization 缺少 callable `{}` call site {} local runtime-error target state st{}",
                         callable.root_fqn(),
                         site_id.as_u32(),
                         contract.target_state().as_u32(),
@@ -62,7 +62,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                         terminal_action,
                     } => {
                         return Err(frontend_error(format!(
-                            "refactor LLVM ABI materialization 发现 callable `{}` call site {} 的 local runtime-error target state st{} contract 漂移：state_graph=(payload_tuple_ty=t{}, terminal_action={terminal_action:?})，boundary lowering=(payload_tuple_ty=t{}, terminal_action={:?})",
+                            "LLVM ABI materialization 发现 callable `{}` call site {} 的 local runtime-error target state st{} contract 漂移：state_graph=(payload_tuple_ty=t{}, terminal_action={terminal_action:?})，boundary lowering=(payload_tuple_ty=t{}, terminal_action={:?})",
                             callable.root_fqn(),
                             site_id.as_u32(),
                             contract.target_state().as_u32(),
@@ -73,7 +73,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                     }
                     other => {
                         return Err(frontend_error(format!(
-                            "refactor LLVM ABI materialization 发现 callable `{}` call site {} 的 local runtime-error target state st{} 不是 LocalRuntimeError terminator，而是 {other:?}",
+                            "LLVM ABI materialization 发现 callable `{}` call site {} 的 local runtime-error target state st{} 不是 LocalRuntimeError terminator，而是 {other:?}",
                             callable.root_fqn(),
                             site_id.as_u32(),
                             contract.target_state().as_u32(),
@@ -83,7 +83,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                 let key = (callable.step_schema(), site_id);
                 if contracts.contains_key(&key) {
                     return Err(frontend_error(format!(
-                        "refactor LLVM ABI materialization 发现 owner step schema {} call site {} 的 local runtime-error contract 重复发布",
+                        "LLVM ABI materialization 发现 owner step schema {} call site {} 的 local runtime-error contract 重复发布",
                         callable.step_schema().as_u32(),
                         site_id.as_u32(),
                     )));
@@ -96,7 +96,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                 )?;
                 contracts.insert(
                     key,
-                    RefactorLocalRuntimeErrorContract::new(
+                    LocalRuntimeErrorContract::new(
                         callable.step_schema(),
                         site_id,
                         contract.input_case_tag(),
@@ -113,17 +113,17 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
 
     pub(super) fn materialize_handle_dispatch_layouts(
         &mut self,
-        frame_layouts: &BTreeMap<StepSchemaId, RefactorFrameLayout<'ctx>>,
+        frame_layouts: &BTreeMap<StepSchemaId, FrameLayout<'ctx>>,
         continuation_layouts: &BTreeMap<
             crate::effect_lowered::ir::ContinuationObjectId,
-            RefactorContinuationObjectLayout<'ctx>,
+            ContinuationObjectLayout<'ctx>,
         >,
         surface_resume_layouts: &BTreeMap<
             ContinuationSchemaId,
-            RefactorContinuationSurfaceResumeLayout<'ctx>,
+            ContinuationSurfaceResumeLayout<'ctx>,
         >,
     ) -> Result<
-        BTreeMap<(StepSchemaId, crate::mir::SiteId), RefactorHandleDispatchLayout>,
+        BTreeMap<(StepSchemaId, crate::mir::SiteId), HandleDispatchLayout>,
         LlvmEmitError,
     > {
         let mut layouts = BTreeMap::new();
@@ -147,7 +147,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             }
             let frame_layout = frame_layouts.get(&callable.step_schema()).ok_or_else(|| {
                 frontend_error(format!(
-                    "refactor LLVM ABI materialization 缺少 callable `{}` 的 frame layout，无法发布 HandleDispatch contract",
+                    "LLVM ABI materialization 缺少 callable `{}` 的 frame layout，无法发布 HandleDispatch contract",
                     callable.root_fqn(),
                 ))
             })?;
@@ -155,7 +155,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                 .field_index_for_system(SystemSlotKind::StateTag)
                 .ok_or_else(|| {
                     frontend_error(format!(
-                        "refactor LLVM ABI materialization 发现 callable `{}` 的 frame layout 缺少 StateTag system field，无法发布 HandleDispatch contract",
+                        "LLVM ABI materialization 发现 callable `{}` 的 frame layout 缺少 StateTag system field，无法发布 HandleDispatch contract",
                         callable.root_fqn(),
                     ))
                 })?;
@@ -163,7 +163,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                 .field_index_for_system(SystemSlotKind::CompletionTag)
                 .ok_or_else(|| {
                     frontend_error(format!(
-                        "refactor LLVM ABI materialization 发现 callable `{}` 的 frame layout 缺少 CompletionTag system field，无法发布 HandleDispatch contract",
+                        "LLVM ABI materialization 发现 callable `{}` 的 frame layout 缺少 CompletionTag system field，无法发布 HandleDispatch contract",
                         callable.root_fqn(),
                     ))
                 })?;
@@ -171,7 +171,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                 .field_index_for_system(SystemSlotKind::ResumePayloadCarrier)
                 .ok_or_else(|| {
                     frontend_error(format!(
-                        "refactor LLVM ABI materialization 发现 callable `{}` 的 frame layout 缺少 ResumePayloadCarrier system field，无法发布 HandleDispatch contract",
+                        "LLVM ABI materialization 发现 callable `{}` 的 frame layout 缺少 ResumePayloadCarrier system field，无法发布 HandleDispatch contract",
                         callable.root_fqn(),
                     ))
                 })?;
@@ -194,7 +194,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                 let expected_complete_target = finally_state.unwrap_or(*exit_state);
                 if contract.body_complete_target() != expected_complete_target {
                     return Err(frontend_error(format!(
-                        "refactor LLVM ABI materialization 发现 callable `{}` handle site {} 的 body complete target 漂移：contract=st{}，state_graph=st{}",
+                        "LLVM ABI materialization 发现 callable `{}` handle site {} 的 body complete target 漂移：contract=st{}，state_graph=st{}",
                         callable.root_fqn(),
                         site_id.as_u32(),
                         contract.body_complete_target().as_u32(),
@@ -203,7 +203,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                 }
                 if contract.arm_complete_target() != expected_complete_target {
                     return Err(frontend_error(format!(
-                        "refactor LLVM ABI materialization 发现 callable `{}` handle site {} 的 arm complete target 漂移：contract=st{}，state_graph=st{}",
+                        "LLVM ABI materialization 发现 callable `{}` handle site {} 的 arm complete target 漂移：contract=st{}，state_graph=st{}",
                         callable.root_fqn(),
                         site_id.as_u32(),
                         contract.arm_complete_target().as_u32(),
@@ -212,7 +212,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                 }
                 if contract.finally_complete_target() != finally_state.map(|_| *exit_state) {
                     return Err(frontend_error(format!(
-                        "refactor LLVM ABI materialization 发现 callable `{}` handle site {} 的 finally complete target 漂移：contract={:?}，state_graph={:?}",
+                        "LLVM ABI materialization 发现 callable `{}` handle site {} 的 finally complete target 漂移：contract={:?}，state_graph={:?}",
                         callable.root_fqn(),
                         site_id.as_u32(),
                         contract.finally_complete_target(),
@@ -221,7 +221,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                 }
                 if contract.abandon_target() != *drop_state {
                     return Err(frontend_error(format!(
-                        "refactor LLVM ABI materialization 发现 callable `{}` handle site {} 的 abandon target 漂移：contract={:?}，state_graph={:?}",
+                        "LLVM ABI materialization 发现 callable `{}` handle site {} 的 abandon target 漂移：contract={:?}，state_graph={:?}",
                         callable.root_fqn(),
                         site_id.as_u32(),
                         contract.abandon_target(),
@@ -230,7 +230,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                 }
                 if contract.handled_arms().len() != arm_states.len() {
                     return Err(frontend_error(format!(
-                        "refactor LLVM ABI materialization 发现 callable `{}` handle site {} 的 handled-arm 数量({}) 与 state_graph arm 数量({}) 不一致",
+                        "LLVM ABI materialization 发现 callable `{}` handle site {} 的 handled-arm 数量({}) 与 state_graph arm 数量({}) 不一致",
                         callable.root_fqn(),
                         site_id.as_u32(),
                         contract.handled_arms().len(),
@@ -242,7 +242,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                     let arm_ordinal = arm.arm_ordinal() as usize;
                     let Some(expected_state) = arm_states.get(arm_ordinal) else {
                         return Err(frontend_error(format!(
-                            "refactor LLVM ABI materialization 发现 callable `{}` handle site {} 的 handled case c{} 引用了越界 arm ordinal {}（state_graph arm 数量={})",
+                            "LLVM ABI materialization 发现 callable `{}` handle site {} 的 handled case c{} 引用了越界 arm ordinal {}（state_graph arm 数量={})",
                             callable.root_fqn(),
                             site_id.as_u32(),
                             arm.handled_case().as_u32(),
@@ -252,7 +252,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                     };
                     if !published_arm_ordinals.insert(arm.arm_ordinal()) {
                         return Err(frontend_error(format!(
-                            "refactor LLVM ABI materialization 发现 callable `{}` handle site {} 重复发布 arm ordinal {}",
+                            "LLVM ABI materialization 发现 callable `{}` handle site {} 重复发布 arm ordinal {}",
                             callable.root_fqn(),
                             site_id.as_u32(),
                             arm.arm_ordinal(),
@@ -260,7 +260,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                     }
                     if arm.arm_state() != *expected_state {
                         return Err(frontend_error(format!(
-                            "refactor LLVM ABI materialization 发现 callable `{}` handle site {} 的 handled case c{} arm state 漂移：contract=st{}，state_graph=st{}（ordinal={})",
+                            "LLVM ABI materialization 发现 callable `{}` handle site {} 的 handled case c{} arm state 漂移：contract=st{}，state_graph=st{}（ordinal={})",
                             callable.root_fqn(),
                             site_id.as_u32(),
                             arm.handled_case().as_u32(),
@@ -287,7 +287,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                     .collect::<BTreeSet<_>>();
                 if !published_outward_cases.is_subset(&expected_outward_cases) {
                     return Err(frontend_error(format!(
-                        "refactor LLVM ABI materialization 发现 callable `{}` handle site {} 的 outward emission 包含未在 HandleDispatch contract 中声明的 case：contract={}，emissions={}",
+                        "LLVM ABI materialization 发现 callable `{}` handle site {} 的 outward emission 包含未在 HandleDispatch contract 中声明的 case：contract={}，emissions={}",
                         callable.root_fqn(),
                         site_id.as_u32(),
                         render_case_tags(&expected_outward_cases),
@@ -313,7 +313,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                     .collect::<BTreeSet<_>>();
                 if expected_pending_outward != published_pending_outward {
                     return Err(frontend_error(format!(
-                        "refactor LLVM ABI materialization 发现 callable `{}` handle site {} 的 pending outward completion 集合漂移：contract={}，pending={}",
+                        "LLVM ABI materialization 发现 callable `{}` handle site {} 的 pending outward completion 集合漂移：contract={}，pending={}",
                         callable.root_fqn(),
                         site_id.as_u32(),
                         render_case_tags(&expected_pending_outward),
@@ -328,7 +328,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                     ] {
                         if !contract.pending_completions().contains(&required) {
                             return Err(frontend_error(format!(
-                                "refactor LLVM ABI materialization 发现 callable `{}` handle site {} 缺少 required pending completion {:?}",
+                                "LLVM ABI materialization 发现 callable `{}` handle site {} 缺少 required pending completion {:?}",
                                 callable.root_fqn(),
                                 site_id.as_u32(),
                                 required,
@@ -337,7 +337,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                     }
                 } else if !contract.pending_completions().is_empty() {
                     return Err(frontend_error(format!(
-                        "refactor LLVM ABI materialization 发现 callable `{}` handle site {} 没有 finally state，却发布了 pending completion {:?}",
+                        "LLVM ABI materialization 发现 callable `{}` handle site {} 没有 finally state，却发布了 pending completion {:?}",
                         callable.root_fqn(),
                         site_id.as_u32(),
                         contract.pending_completions(),
@@ -394,7 +394,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                         .is_some()
                     {
                         return Err(frontend_error(format!(
-                            "refactor LLVM ABI materialization 发现 callable `{}` handle site {} 重复发布 pending completion {:?}",
+                            "LLVM ABI materialization 发现 callable `{}` handle site {} 重复发布 pending completion {:?}",
                             callable.root_fqn(),
                             site_id.as_u32(),
                             pending,
@@ -407,7 +407,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                         origin.completion()
                     else {
                         return Err(frontend_error(format!(
-                            "refactor LLVM ABI materialization 发现 callable `{}` handle site {} 的 pending origin {:?} 不是 outward completion",
+                            "LLVM ABI materialization 发现 callable `{}` handle site {} 的 pending origin {:?} 不是 outward completion",
                             callable.root_fqn(),
                             site_id.as_u32(),
                             origin,
@@ -415,7 +415,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                     };
                     if contract.outward_emission(case_tag).is_none() {
                         return Err(frontend_error(format!(
-                            "refactor LLVM ABI materialization 发现 callable `{}` handle site {} 的 pending completion origin {:?} 缺少 outward emission",
+                            "LLVM ABI materialization 发现 callable `{}` handle site {} 的 pending completion origin {:?} 缺少 outward emission",
                             callable.root_fqn(),
                             site_id.as_u32(),
                             origin,
@@ -426,7 +426,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                         .is_some()
                     {
                         return Err(frontend_error(format!(
-                            "refactor LLVM ABI materialization 发现 callable `{}` handle site {} 重复发布 pending completion origin {:?}",
+                            "LLVM ABI materialization 发现 callable `{}` handle site {} 重复发布 pending completion origin {:?}",
                             callable.root_fqn(),
                             site_id.as_u32(),
                             origin,
@@ -445,14 +445,14 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                 let key = (callable.step_schema(), *site_id);
                 if layouts.contains_key(&key) {
                     return Err(frontend_error(format!(
-                        "refactor LLVM ABI materialization 发现 owner step schema s{} handle site {} 的 HandleDispatch contract 重复发布",
+                        "LLVM ABI materialization 发现 owner step schema s{} handle site {} 的 HandleDispatch contract 重复发布",
                         callable.step_schema().as_u32(),
                         site_id.as_u32(),
                     )));
                 }
                 layouts.insert(
                     key,
-                    RefactorHandleDispatchLayout::new(
+                    HandleDispatchLayout::new(
                         callable.step_schema(),
                         *site_id,
                         contract.clone(),
@@ -475,21 +475,21 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
         callable: &LateLoweredCallable,
         site_id: SiteId,
         contract: &crate::effect_lowered::ir::LateLoweredHandleDispatchContract,
-        frame_layout: &RefactorFrameLayout<'ctx>,
+        frame_layout: &FrameLayout<'ctx>,
         continuation_layouts: &BTreeMap<
             crate::effect_lowered::ir::ContinuationObjectId,
-            RefactorContinuationObjectLayout<'ctx>,
+            ContinuationObjectLayout<'ctx>,
         >,
         surface_resume_layouts: &BTreeMap<
             ContinuationSchemaId,
-            RefactorContinuationSurfaceResumeLayout<'ctx>,
+            ContinuationSurfaceResumeLayout<'ctx>,
         >,
-    ) -> Result<Vec<RefactorHandleArmLayout>, LlvmEmitError> {
+    ) -> Result<Vec<HandleArmLayout>, LlvmEmitError> {
         let materialized_arms =
             self.lookup_materialized_handle_arms(callable.root_fqn(), site_id)?;
         if materialized_arms.len() != contract.handled_arms().len() {
             return Err(frontend_error(format!(
-                "refactor LLVM ABI materialization 发现 callable `{}` handle site {} 的 canonical MIR arm 数量({}) 与 published HandleDispatch arm 数量({}) 不一致",
+                "LLVM ABI materialization 发现 callable `{}` handle site {} 的 canonical MIR arm 数量({}) 与 published HandleDispatch arm 数量({}) 不一致",
                 callable.root_fqn(),
                 site_id.as_u32(),
                 materialized_arms.len(),
@@ -502,7 +502,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             let materialized_arm = materialized_arms
                 .get(arm.arm_ordinal() as usize)
                 .ok_or_else(|| frontend_error(format!(
-                    "refactor LLVM ABI materialization 发现 callable `{}` handle site {} 的 handled case c{} 引用了不存在的 canonical MIR arm ordinal {}",
+                    "LLVM ABI materialization 发现 callable `{}` handle site {} 的 handled case c{} 引用了不存在的 canonical MIR arm ordinal {}",
                     callable.root_fqn(),
                     site_id.as_u32(),
                     arm.handled_case().as_u32(),
@@ -510,7 +510,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                 )))?;
             if materialized_arm.payload_tuple_ty != Some(arm.payload_tuple_ty()) {
                 return Err(frontend_error(format!(
-                    "refactor LLVM ABI materialization 发现 callable `{}` handle site {} 的 handled case c{} payload tuple ty 漂移：contract=t{}，canonical_mir={:?}",
+                    "LLVM ABI materialization 发现 callable `{}` handle site {} 的 handled case c{} payload tuple ty 漂移：contract=t{}，canonical_mir={:?}",
                     callable.root_fqn(),
                     site_id.as_u32(),
                     arm.handled_case().as_u32(),
@@ -520,7 +520,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             }
             if materialized_arm.binder_count != arm.payload_binders().len() {
                 return Err(frontend_error(format!(
-                    "refactor LLVM ABI materialization 发现 callable `{}` handle site {} 的 handled case c{} payload binder 数量漂移：contract={}，canonical_mir={}",
+                    "LLVM ABI materialization 发现 callable `{}` handle site {} 的 handled case c{} payload binder 数量漂移：contract={}，canonical_mir={}",
                     callable.root_fqn(),
                     site_id.as_u32(),
                     arm.handled_case().as_u32(),
@@ -533,7 +533,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             for (expected_ordinal, binder) in arm.payload_binders().iter().enumerate() {
                 if binder.ordinal() != expected_ordinal as u32 {
                     return Err(frontend_error(format!(
-                        "refactor LLVM ABI materialization 发现 callable `{}` handle site {} 的 handled case c{} payload binder ordinal 漂移：contract=#{}，expected=#{}",
+                        "LLVM ABI materialization 发现 callable `{}` handle site {} 的 handled case c{} payload binder ordinal 漂移：contract=#{}，expected=#{}",
                         callable.root_fqn(),
                         site_id.as_u32(),
                         arm.handled_case().as_u32(),
@@ -546,7 +546,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                     .get(expected_ordinal)
                     .copied()
                     .ok_or_else(|| frontend_error(format!(
-                        "refactor LLVM ABI materialization 发现 callable `{}` handle site {} 的 handled case c{} 缺少 canonical MIR payload binder #{}",
+                        "LLVM ABI materialization 发现 callable `{}` handle site {} 的 handled case c{} 缺少 canonical MIR payload binder #{}",
                         callable.root_fqn(),
                         site_id.as_u32(),
                         arm.handled_case().as_u32(),
@@ -554,7 +554,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                     )))?;
                 if binder.local() != expected_local {
                     return Err(frontend_error(format!(
-                        "refactor LLVM ABI materialization 发现 callable `{}` handle site {} 的 handled case c{} payload binder #{} local 漂移：contract=local{}，canonical_mir=local{}",
+                        "LLVM ABI materialization 发现 callable `{}` handle site {} 的 handled case c{} payload binder #{} local 漂移：contract=local{}，canonical_mir=local{}",
                         callable.root_fqn(),
                         site_id.as_u32(),
                         arm.handled_case().as_u32(),
@@ -566,7 +566,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                 let frame_field_index = match binder.frame_slot() {
                     Some(frame_slot) => Some(frame_layout.field_index_for_slot(frame_slot).ok_or_else(
                         || frontend_error(format!(
-                            "refactor LLVM ABI materialization 发现 callable `{}` handle site {} 的 handled case c{} payload binder #{} 引用了 frame slot fs{}，但 frame layout 中缺少对应 field",
+                            "LLVM ABI materialization 发现 callable `{}` handle site {} 的 handled case c{} payload binder #{} 引用了 frame slot fs{}，但 frame layout 中缺少对应 field",
                             callable.root_fqn(),
                             site_id.as_u32(),
                             arm.handled_case().as_u32(),
@@ -576,7 +576,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                     )?),
                     None => None,
                 };
-                payload_binders.push(RefactorHandlePayloadBinderLayout::new(
+                payload_binders.push(HandlePayloadBinderLayout::new(
                     binder.ordinal(),
                     binder.local(),
                     binder.frame_slot(),
@@ -591,7 +591,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                 (Some(expected_local), Some(binder)) => {
                     if binder.local() != expected_local {
                         return Err(frontend_error(format!(
-                            "refactor LLVM ABI materialization 发现 callable `{}` handle site {} 的 handled case c{} continuation binder local 漂移：contract=local{}，canonical_mir=local{}",
+                            "LLVM ABI materialization 发现 callable `{}` handle site {} 的 handled case c{} continuation binder local 漂移：contract=local{}，canonical_mir=local{}",
                             callable.root_fqn(),
                             site_id.as_u32(),
                             arm.handled_case().as_u32(),
@@ -601,7 +601,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                     }
                     if binder.continuation_object() != callable.continuation_object() {
                         return Err(frontend_error(format!(
-                            "refactor LLVM ABI materialization 发现 callable `{}` handle site {} 的 handled case c{} continuation object 漂移：contract=ko{}，owner=ko{}",
+                            "LLVM ABI materialization 发现 callable `{}` handle site {} 的 handled case c{} continuation object 漂移：contract=ko{}，owner=ko{}",
                             callable.root_fqn(),
                             site_id.as_u32(),
                             arm.handled_case().as_u32(),
@@ -611,7 +611,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                     }
                     let continuation_layout = continuation_layouts.get(&binder.continuation_object()).ok_or_else(
                         || frontend_error(format!(
-                            "refactor LLVM ABI materialization 缺少 callable `{}` handle site {} 的 handled case c{} continuation object ko{} layout",
+                            "LLVM ABI materialization 缺少 callable `{}` handle site {} 的 handled case c{} continuation object ko{} layout",
                             callable.root_fqn(),
                             site_id.as_u32(),
                             arm.handled_case().as_u32(),
@@ -621,7 +621,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                     let surface_layout = surface_resume_layouts
                         .get(&binder.continuation_schema())
                         .ok_or_else(|| frontend_error(format!(
-                            "refactor LLVM ABI materialization 发现 callable `{}` handle site {} 的 handled case c{} continuation binder 缺少 continuation schema k{} 的 authoritative surface-resume dispatch inventory",
+                            "LLVM ABI materialization 发现 callable `{}` handle site {} 的 handled case c{} continuation binder 缺少 continuation schema k{} 的 authoritative surface-resume dispatch inventory",
                             callable.root_fqn(),
                             site_id.as_u32(),
                             arm.handled_case().as_u32(),
@@ -633,7 +633,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                             | crate::effect_lowered::ir::LateLoweredSurfaceResumeDispatchSourceKind::Unreachable
                     ) {
                         return Err(frontend_error(format!(
-                            "refactor LLVM ABI materialization 发现 callable `{}` handle site {} 的 handled case c{} continuation schema k{} dispatch source kind 为 {:?}，无法作为 authoritative handle-binder surface source",
+                            "LLVM ABI materialization 发现 callable `{}` handle site {} 的 handled case c{} continuation schema k{} dispatch source kind 为 {:?}，无法作为 authoritative handle-binder surface source",
                             callable.root_fqn(),
                             site_id.as_u32(),
                             arm.handled_case().as_u32(),
@@ -645,7 +645,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                     let frame_field_index = match binder.frame_slot() {
                         Some(frame_slot) => Some(frame_layout.field_index_for_slot(frame_slot).ok_or_else(
                             || frontend_error(format!(
-                                "refactor LLVM ABI materialization 发现 callable `{}` handle site {} 的 handled case c{} continuation binder 引用了 frame slot fs{}，但 frame layout 中缺少对应 field",
+                                "LLVM ABI materialization 发现 callable `{}` handle site {} 的 handled case c{} continuation binder 引用了 frame slot fs{}，但 frame layout 中缺少对应 field",
                                 callable.root_fqn(),
                                 site_id.as_u32(),
                                 arm.handled_case().as_u32(),
@@ -654,7 +654,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                         )?),
                         None => None,
                     };
-                    Some(RefactorHandleContinuationBinderLayout::new(
+                    Some(HandleContinuationBinderLayout::new(
                         binder.local(),
                         binder.frame_slot(),
                         frame_field_index,
@@ -666,7 +666,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                 }
                 (Some(_), None) => {
                     return Err(frontend_error(format!(
-                        "refactor LLVM ABI materialization 发现 callable `{}` handle site {} 的 handled case c{} 缺少 published continuation binder contract",
+                        "LLVM ABI materialization 发现 callable `{}` handle site {} 的 handled case c{} 缺少 published continuation binder contract",
                         callable.root_fqn(),
                         site_id.as_u32(),
                         arm.handled_case().as_u32(),
@@ -674,7 +674,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                 }
                 (None, Some(_)) => {
                     return Err(frontend_error(format!(
-                        "refactor LLVM ABI materialization 发现 callable `{}` handle site {} 的 handled case c{} 不存在 canonical MIR continuation binder，却发布了 continuation binder contract",
+                        "LLVM ABI materialization 发现 callable `{}` handle site {} 的 handled case c{} 不存在 canonical MIR continuation binder，却发布了 continuation binder contract",
                         callable.root_fqn(),
                         site_id.as_u32(),
                         arm.handled_case().as_u32(),
@@ -683,7 +683,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                 (None, None) => None,
             };
 
-            layouts.push(RefactorHandleArmLayout::new(
+            layouts.push(HandleArmLayout::new(
                 arm.handled_case(),
                 arm.arm_state(),
                 arm.arm_ordinal(),
@@ -702,9 +702,9 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
         callable: &LateLoweredCallable,
         site_id: SiteId,
         contract: &crate::effect_lowered::ir::LateLoweredHandleDispatchContract,
-        frame_layout: &RefactorFrameLayout<'ctx>,
+        frame_layout: &FrameLayout<'ctx>,
     ) -> Result<
-        BTreeMap<LateLoweredHandlePendingCompletion, RefactorHandlePendingPayloadTransportLayout>,
+        BTreeMap<LateLoweredHandlePendingCompletion, HandlePendingPayloadTransportLayout>,
         LlvmEmitError,
     > {
         let expected_pending_cases = contract
@@ -726,7 +726,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                 LateLoweredHandlePendingCompletion::ContinueToExit
                 | LateLoweredHandlePendingCompletion::ReturnFromFunction => {
                     return Err(frontend_error(format!(
-                        "refactor LLVM ABI materialization 发现 callable `{}` handle site {} 为 {:?} 发布了 pending payload transport；只有 PropagateOutward(case) 才允许发布 typed payload transport",
+                        "LLVM ABI materialization 发现 callable `{}` handle site {} 为 {:?} 发布了 pending payload transport；只有 PropagateOutward(case) 才允许发布 typed payload transport",
                         callable.root_fqn(),
                         site_id.as_u32(),
                         completion,
@@ -735,7 +735,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             };
             if !contract.pending_completions().contains(&completion) {
                 return Err(frontend_error(format!(
-                    "refactor LLVM ABI materialization 发现 callable `{}` handle site {} 的 pending payload transport {:?} 没有对应的 pending completion",
+                    "LLVM ABI materialization 发现 callable `{}` handle site {} 的 pending payload transport {:?} 没有对应的 pending completion",
                     callable.root_fqn(),
                     site_id.as_u32(),
                     completion,
@@ -743,7 +743,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             }
             let emission = contract.outward_emission(case_tag).ok_or_else(|| {
                 frontend_error(format!(
-                    "refactor LLVM ABI materialization 发现 callable `{}` handle site {} 的 pending payload transport c{} 缺少 outward emission",
+                    "LLVM ABI materialization 发现 callable `{}` handle site {} 的 pending payload transport c{} 缺少 outward emission",
                     callable.root_fqn(),
                     site_id.as_u32(),
                     case_tag.as_u32(),
@@ -751,7 +751,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             })?;
             if emission.payload_tuple_ty() != transport.payload_tuple_ty() {
                 return Err(frontend_error(format!(
-                    "refactor LLVM ABI materialization 发现 callable `{}` handle site {} 的 pending payload transport c{} payload tuple ty 漂移：transport=t{}，outward emission=t{}",
+                    "LLVM ABI materialization 发现 callable `{}` handle site {} 的 pending payload transport c{} payload tuple ty 漂移：transport=t{}，outward emission=t{}",
                     callable.root_fqn(),
                     site_id.as_u32(),
                     case_tag.as_u32(),
@@ -766,7 +766,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                 .find(|slot| slot.slot_id() == transport.frame_slot())
                 .ok_or_else(|| {
                     frontend_error(format!(
-                        "refactor LLVM ABI materialization 发现 callable `{}` handle site {} 的 pending payload transport c{} 引用了不存在的 frame slot fs{}",
+                        "LLVM ABI materialization 发现 callable `{}` handle site {} 的 pending payload transport c{} 引用了不存在的 frame slot fs{}",
                         callable.root_fqn(),
                         site_id.as_u32(),
                         case_tag.as_u32(),
@@ -776,7 +776,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             if slot.kind() != (LateLoweredFrameSlotKind::HandlePendingPayload { site_id, case_tag })
             {
                 return Err(frontend_error(format!(
-                    "refactor LLVM ABI materialization 发现 callable `{}` handle site {} 的 pending payload transport c{} 引用的 frame slot fs{} kind 漂移：published={:?}",
+                    "LLVM ABI materialization 发现 callable `{}` handle site {} 的 pending payload transport c{} 引用的 frame slot fs{} kind 漂移：published={:?}",
                     callable.root_fqn(),
                     site_id.as_u32(),
                     case_tag.as_u32(),
@@ -786,7 +786,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             }
             if slot.ty() != transport.payload_tuple_ty() {
                 return Err(frontend_error(format!(
-                    "refactor LLVM ABI materialization 发现 callable `{}` handle site {} 的 pending payload transport c{} frame slot fs{} 类型漂移：slot=t{}，transport=t{}",
+                    "LLVM ABI materialization 发现 callable `{}` handle site {} 的 pending payload transport c{} frame slot fs{} 类型漂移：slot=t{}，transport=t{}",
                     callable.root_fqn(),
                     site_id.as_u32(),
                     case_tag.as_u32(),
@@ -799,7 +799,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                 .field_index_for_slot(transport.frame_slot())
                 .ok_or_else(|| {
                     frontend_error(format!(
-                        "refactor LLVM ABI materialization 发现 callable `{}` handle site {} 的 pending payload transport c{} 引用了 frame slot fs{}，但 frame layout 中缺少对应 field",
+                        "LLVM ABI materialization 发现 callable `{}` handle site {} 的 pending payload transport c{} 引用了 frame slot fs{}，但 frame layout 中缺少对应 field",
                         callable.root_fqn(),
                         site_id.as_u32(),
                         case_tag.as_u32(),
@@ -809,12 +809,12 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             if layouts
                 .insert(
                     completion,
-                    RefactorHandlePendingPayloadTransportLayout::new(*transport, frame_field_index),
+                    HandlePendingPayloadTransportLayout::new(*transport, frame_field_index),
                 )
                 .is_some()
             {
                 return Err(frontend_error(format!(
-                    "refactor LLVM ABI materialization 发现 callable `{}` handle site {} 重复发布 pending payload transport {:?}",
+                    "LLVM ABI materialization 发现 callable `{}` handle site {} 重复发布 pending payload transport {:?}",
                     callable.root_fqn(),
                     site_id.as_u32(),
                     completion,
@@ -825,7 +825,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
 
         if published_pending_cases != expected_pending_cases {
             return Err(frontend_error(format!(
-                "refactor LLVM ABI materialization 发现 callable `{}` handle site {} 的 pending payload transport 集合漂移：published={}，expected={}",
+                "LLVM ABI materialization 发现 callable `{}` handle site {} 的 pending payload transport 集合漂移：published={}，expected={}",
                 callable.root_fqn(),
                 site_id.as_u32(),
                 render_case_tags(&published_pending_cases),
@@ -839,11 +839,11 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
     pub(super) fn materialize_local_runtime_error_terminal_action(
         &mut self,
         action: LateLoweredLocalRuntimeErrorTerminalAction,
-        payload_abi: RefactorAbiValue<'ctx>,
-    ) -> Result<RefactorLocalRuntimeErrorTerminalAction<'ctx>, LlvmEmitError> {
+        payload_abi: AbiValue<'ctx>,
+    ) -> Result<LocalRuntimeErrorTerminalAction<'ctx>, LlvmEmitError> {
         match action {
             LateLoweredLocalRuntimeErrorTerminalAction::RuntimeFatal { runtime_entry } => {
-                Ok(RefactorLocalRuntimeErrorTerminalAction::RuntimeFatal {
+                Ok(LocalRuntimeErrorTerminalAction::RuntimeFatal {
                     runtime_entry: self
                         .materialize_published_runtime_entry(runtime_entry, payload_abi)?,
                 })
@@ -854,20 +854,20 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
     pub(super) fn materialize_published_runtime_entry(
         &mut self,
         runtime_entry: LateLoweredPublishedRuntimeEntry,
-        payload_abi: RefactorAbiValue<'ctx>,
-    ) -> Result<RefactorPublishedRuntimeEntryLayout<'ctx>, LlvmEmitError> {
+        payload_abi: AbiValue<'ctx>,
+    ) -> Result<PublishedRuntimeEntryLayout<'ctx>, LlvmEmitError> {
         match runtime_entry {
             LateLoweredPublishedRuntimeEntry::RuntimeErrorFatal => {
                 if payload_abi.is_elided() {
                     return Err(frontend_error(
-                        "refactor LLVM ABI materialization 不允许把 local runtime-error payload 退化成零载荷 runtime fatal contract"
+                        "LLVM ABI materialization 不允许把 local runtime-error payload 退化成零载荷 runtime fatal contract"
                             .to_string(),
                     ));
                 }
                 self.codegen.declare_runtime_error_fatal();
                 let params: [BasicMetadataTypeEnum<'ctx>; 1] = [payload_abi.llvm_ty().into()];
                 let llvm_ty = self.codegen.context.void_type().fn_type(&params, false);
-                Ok(RefactorPublishedRuntimeEntryLayout::new(
+                Ok(PublishedRuntimeEntryLayout::new(
                     runtime_entry,
                     runtime_entry.symbol_name().to_string(),
                     llvm_ty,
@@ -1034,7 +1034,7 @@ fn collect_expected_handle_region_states(
 ) -> Result<BTreeSet<crate::effect_lowered::ir::StateId>, LlvmEmitError> {
     if state_graph.state(entry_state).is_none() {
         return Err(frontend_error(format!(
-            "refactor LLVM ABI materialization 发现 callable `{owner_root_fqn}` handle site {} 的 region root st{} 不存在于 state graph 中",
+            "LLVM ABI materialization 发现 callable `{owner_root_fqn}` handle site {} 的 region root st{} 不存在于 state graph 中",
             site_id.as_u32(),
             entry_state.as_u32(),
         )));
@@ -1048,7 +1048,7 @@ fn collect_expected_handle_region_states(
         }
         let state = state_graph.state(state_id).ok_or_else(|| {
             frontend_error(format!(
-                "refactor LLVM ABI materialization 发现 callable `{owner_root_fqn}` handle site {} 的 region traversal 命中了不存在的 state st{}",
+                "LLVM ABI materialization 发现 callable `{owner_root_fqn}` handle site {} 的 region traversal 命中了不存在的 state st{}",
                 site_id.as_u32(),
                 state_id.as_u32(),
             ))
@@ -1070,7 +1070,7 @@ fn insert_expected_handle_state_region(
 ) -> Result<(), LlvmEmitError> {
     match regions.insert(state_id, region) {
         Some(existing) if existing != region => Err(frontend_error(format!(
-            "refactor LLVM ABI materialization 发现 callable `{owner_root_fqn}` handle site {} 的 state st{} 同时归属于 {:?} 和 {:?}",
+            "LLVM ABI materialization 发现 callable `{owner_root_fqn}` handle site {} 的 state st{} 同时归属于 {:?} 和 {:?}",
             site_id.as_u32(),
             state_id.as_u32(),
             existing,
@@ -1093,7 +1093,7 @@ fn validate_published_handle_state_regions(
     for entry in contract.state_regions() {
         if published.insert(entry.state_id(), entry.region()).is_some() {
             return Err(frontend_error(format!(
-                "refactor LLVM ABI materialization 发现 callable `{owner_root_fqn}` handle site {} 的 published state region 重复声明 st{}",
+                "LLVM ABI materialization 发现 callable `{owner_root_fqn}` handle site {} 的 published state region 重复声明 st{}",
                 site_id.as_u32(),
                 entry.state_id().as_u32(),
             )));
@@ -1101,7 +1101,7 @@ fn validate_published_handle_state_regions(
     }
     if &published != expected_regions {
         return Err(frontend_error(format!(
-            "refactor LLVM ABI materialization 发现 callable `{owner_root_fqn}` handle site {} 的 state-region contract 漂移：published={published:?}，state_graph={expected_regions:?}",
+            "LLVM ABI materialization 发现 callable `{owner_root_fqn}` handle site {} 的 state-region contract 漂移：published={published:?}，state_graph={expected_regions:?}",
             site_id.as_u32(),
         )));
     }
@@ -1182,7 +1182,7 @@ fn build_expected_handle_boundary_routings(
             } if boundary_site == site_id
         ) {
             return Err(frontend_error(format!(
-                "refactor LLVM ABI materialization 发现 callable `{owner_root_fqn}` handle site {} 的 dispatch boundary bd{} source 漂移：{:?}",
+                "LLVM ABI materialization 发现 callable `{owner_root_fqn}` handle site {} 的 dispatch boundary bd{} source 漂移：{:?}",
                 site_id.as_u32(),
                 boundary.boundary_id().as_u32(),
                 boundary.source(),
@@ -1228,7 +1228,7 @@ fn collect_expected_handle_boundary_case_tags(
 ) -> Result<Vec<crate::effect_facts::CaseTag>, LlvmEmitError> {
     let lowering = boundary.lowering().ok_or_else(|| {
         frontend_error(format!(
-            "refactor LLVM ABI materialization 发现 callable `{owner_root_fqn}` handle site {} 的 boundary bd{} 缺少 lowering，无法校验 routing contract",
+            "LLVM ABI materialization 发现 callable `{owner_root_fqn}` handle site {} 的 boundary bd{} 缺少 lowering，无法校验 routing contract",
             site_id.as_u32(),
             boundary.boundary_id().as_u32(),
         ))
@@ -1267,7 +1267,7 @@ fn collect_expected_handle_boundary_case_tags(
     for case_tag in raw_tags {
         if !tags.insert(case_tag) {
             return Err(frontend_error(format!(
-                "refactor LLVM ABI materialization 发现 callable `{owner_root_fqn}` handle site {} 的 boundary bd{} 重复发布 case c{}，无法校验稳定 routing",
+                "LLVM ABI materialization 发现 callable `{owner_root_fqn}` handle site {} 的 boundary bd{} 重复发布 case c{}，无法校验稳定 routing",
                 site_id.as_u32(),
                 boundary.boundary_id().as_u32(),
                 case_tag.as_u32(),
@@ -1313,7 +1313,7 @@ fn build_expected_handle_boundary_case_routing(
                 crate::effect_lowered::ir::LateLoweredHandleBoundaryCaseRoutingAction::EmitOutward
             } else {
                 return Err(frontend_error(format!(
-                    "refactor LLVM ABI materialization 发现 callable `{owner_root_fqn}` handle site {} 的 body boundary bd{} 发布了未声明的 case c{}",
+                    "LLVM ABI materialization 发现 callable `{owner_root_fqn}` handle site {} 的 body boundary bd{} 发布了未声明的 case c{}",
                     site_id.as_u32(),
                     boundary.boundary_id().as_u32(),
                     case_tag.as_u32(),
@@ -1325,14 +1325,14 @@ fn build_expected_handle_boundary_case_routing(
             arm_ordinal,
         } => {
             let arm = handled_arms.get(&handled_case).ok_or_else(|| frontend_error(format!(
-                "refactor LLVM ABI materialization 发现 callable `{owner_root_fqn}` handle site {} 的 arm region(c{}, ordinal={}) 缺少 handled-arm contract",
+                "LLVM ABI materialization 发现 callable `{owner_root_fqn}` handle site {} 的 arm region(c{}, ordinal={}) 缺少 handled-arm contract",
                 site_id.as_u32(),
                 handled_case.as_u32(),
                 arm_ordinal,
             )))?;
             if arm.arm_ordinal() != arm_ordinal {
                 return Err(frontend_error(format!(
-                    "refactor LLVM ABI materialization 发现 callable `{owner_root_fqn}` handle site {} 的 arm region(c{}, ordinal={}) 与 handled-arm ordinal {} 不一致",
+                    "LLVM ABI materialization 发现 callable `{owner_root_fqn}` handle site {} 的 arm region(c{}, ordinal={}) 与 handled-arm ordinal {} 不一致",
                     site_id.as_u32(),
                     handled_case.as_u32(),
                     arm_ordinal,
@@ -1341,7 +1341,7 @@ fn build_expected_handle_boundary_case_routing(
             }
             if !arm.arm_outward_cases().contains(&case_tag) {
                 return Err(frontend_error(format!(
-                    "refactor LLVM ABI materialization 发现 callable `{owner_root_fqn}` handle site {} 的 arm boundary bd{} 发布了未声明的 case c{}",
+                    "LLVM ABI materialization 发现 callable `{owner_root_fqn}` handle site {} 的 arm boundary bd{} 发布了未声明的 case c{}",
                     site_id.as_u32(),
                     boundary.boundary_id().as_u32(),
                     case_tag.as_u32(),
@@ -1355,7 +1355,7 @@ fn build_expected_handle_boundary_case_routing(
         crate::effect_lowered::ir::LateLoweredHandleStateRegion::Finally => {
             if !finally_outward_cases.contains(&case_tag) {
                 return Err(frontend_error(format!(
-                    "refactor LLVM ABI materialization 发现 callable `{owner_root_fqn}` handle site {} 的 finally boundary bd{} 发布了未声明的 case c{}",
+                    "LLVM ABI materialization 发现 callable `{owner_root_fqn}` handle site {} 的 finally boundary bd{} 发布了未声明的 case c{}",
                     site_id.as_u32(),
                     boundary.boundary_id().as_u32(),
                     case_tag.as_u32(),
@@ -1366,7 +1366,7 @@ fn build_expected_handle_boundary_case_routing(
         crate::effect_lowered::ir::LateLoweredHandleStateRegion::Dispatch => {
             if !outward_emission_cases.contains(&case_tag) {
                 return Err(frontend_error(format!(
-                    "refactor LLVM ABI materialization 发现 callable `{owner_root_fqn}` handle site {} 的 dispatch boundary bd{} 发布了未声明的 outward emission case c{}",
+                    "LLVM ABI materialization 发现 callable `{owner_root_fqn}` handle site {} 的 dispatch boundary bd{} 发布了未声明的 outward emission case c{}",
                     site_id.as_u32(),
                     boundary.boundary_id().as_u32(),
                     case_tag.as_u32(),
@@ -1377,7 +1377,7 @@ fn build_expected_handle_boundary_case_routing(
         crate::effect_lowered::ir::LateLoweredHandleStateRegion::Exit
         | crate::effect_lowered::ir::LateLoweredHandleStateRegion::OutsideHandle => {
             return Err(frontend_error(format!(
-                "refactor LLVM ABI materialization 发现 callable `{owner_root_fqn}` handle site {} 的 boundary bd{} owner state st{} 不属于当前 handle region",
+                "LLVM ABI materialization 发现 callable `{owner_root_fqn}` handle site {} 的 boundary bd{} owner state st{} 不属于当前 handle region",
                 site_id.as_u32(),
                 boundary.boundary_id().as_u32(),
                 boundary.owner_state().as_u32(),
@@ -1403,7 +1403,7 @@ fn validate_published_handle_boundary_routings(
             .is_some()
         {
             return Err(frontend_error(format!(
-                "refactor LLVM ABI materialization 发现 callable `{owner_root_fqn}` handle site {} 的 published boundary routing 重复声明 bd{}",
+                "LLVM ABI materialization 发现 callable `{owner_root_fqn}` handle site {} 的 published boundary routing 重复声明 bd{}",
                 site_id.as_u32(),
                 routing.boundary_id().as_u32(),
             )));
@@ -1411,7 +1411,7 @@ fn validate_published_handle_boundary_routings(
     }
     if &published != expected_routes {
         return Err(frontend_error(format!(
-            "refactor LLVM ABI materialization 发现 callable `{owner_root_fqn}` handle site {} 的 boundary-routing contract 漂移：published={published:?}，expected={expected_routes:?}",
+            "LLVM ABI materialization 发现 callable `{owner_root_fqn}` handle site {} 的 boundary-routing contract 漂移：published={published:?}，expected={expected_routes:?}",
             site_id.as_u32(),
         )));
     }
@@ -1449,7 +1449,7 @@ fn validate_published_handle_pending_completion_origins(
         .collect::<BTreeSet<_>>();
     if published != expected {
         return Err(frontend_error(format!(
-            "refactor LLVM ABI materialization 发现 callable `{owner_root_fqn}` handle site {} 的 pending completion origin contract 漂移：published={published:?}，expected={expected:?}",
+            "LLVM ABI materialization 发现 callable `{owner_root_fqn}` handle site {} 的 pending completion origin contract 漂移：published={published:?}，expected={expected:?}",
             site_id.as_u32(),
         )));
     }
