@@ -345,6 +345,92 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(CgValue::int(raw, value_word))
     }
 
+    pub(in crate::llvm::codegen) fn codegen_sysroot_kind_of(
+        &mut self,
+        span: crate::span::Span,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let source_ty = self.reflection_type_arg_for_current_call(span, "kindOf")?;
+        let kind = self.array_elem_kind_for_type_id(source_ty);
+        let value_word = IntTy {
+            bits: self.host.word_bit_width(),
+            signed: true,
+        };
+        let raw = self.int_type(value_word).const_int(kind, false);
+        Ok(CgValue::int(raw, value_word))
+    }
+
+    pub(in crate::llvm::codegen) fn codegen_sysroot_desc_of(
+        &mut self,
+        span: crate::span::Span,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let _source_ty = self.reflection_type_arg_for_current_call(span, "descOf")?;
+        let value_word = IntTy {
+            bits: self.host.word_bit_width(),
+            signed: false,
+        };
+        let raw = self.int_type(value_word).const_int(0, false);
+        Ok(CgValue::int(raw, value_word))
+    }
+
+    fn reflection_type_arg_for_current_call(
+        &self,
+        span: crate::span::Span,
+        name: &'static str,
+    ) -> Result<TypeId, LlvmEmitError> {
+        let binding = self.current_top_level_fun_call_binding(span)?.ok_or(
+            LlvmEmitError::UnsupportedMainBody {
+                kind: "reflection intrinsic call binding",
+                at: span.into(),
+            },
+        )?;
+        binding
+            .type_args
+            .first()
+            .copied()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: name,
+                at: span.into(),
+            })
+    }
+
+    fn array_elem_kind_for_type_id(&self, ty: TypeId) -> u64 {
+        match self.types.kind(ty) {
+            TypeKind::Ref(_) => 2,
+            TypeKind::Value(ValueTypeKind::Unit)
+            | TypeKind::Value(ValueTypeKind::Nothing)
+            | TypeKind::Value(ValueTypeKind::Bool)
+            | TypeKind::Value(ValueTypeKind::Char)
+            | TypeKind::Value(ValueTypeKind::Float64)
+            | TypeKind::Value(ValueTypeKind::Float32)
+            | TypeKind::Value(ValueTypeKind::Int)
+            | TypeKind::Value(ValueTypeKind::UInt)
+            | TypeKind::Value(ValueTypeKind::IntN(_))
+            | TypeKind::Value(ValueTypeKind::UIntN(_)) => 1,
+            TypeKind::Value(ValueTypeKind::Tuple(elements)) if elements.is_empty() => 1,
+            TypeKind::Value(ValueTypeKind::Nominal(nominal)) => {
+                match self.nominal_kinds.get(&nominal.fqn) {
+                    Some(
+                        ast::TypeKind::Class | ast::TypeKind::Interface | ast::TypeKind::Effect,
+                    ) => 2,
+                    Some(ast::TypeKind::Enum)
+                        if self.enum_layouts.get(&nominal.fqn).is_some_and(|layout| {
+                            layout
+                                .variants
+                                .iter()
+                                .all(|variant| variant.fields.is_empty())
+                        }) =>
+                    {
+                        1
+                    }
+                    _ => 3,
+                }
+            }
+            TypeKind::Value(ValueTypeKind::Tuple(_))
+            | TypeKind::Value(ValueTypeKind::Option(_)) => 3,
+            TypeKind::Param(_) | TypeKind::StarProjection(_) => 3,
+        }
+    }
+
     /// `Char` 在 LLVM 侧与 `Int` 同为 `CgTy::Int`，因此 builtin 分发需要额外看 HIR concrete type。
     pub(in crate::llvm::codegen) fn expr_is_builtin_char(&self, expr: &hir::Expr) -> bool {
         let ty = self.resolve_expr_concrete_type(expr).unwrap_or(expr.ty);

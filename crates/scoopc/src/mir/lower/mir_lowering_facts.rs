@@ -26,6 +26,7 @@ impl MirLoweringFacts {
         .with_call_arg_bindings(lowered)
         .with_member_value_types(lowered)
         .with_nominal_kinds(lowered)
+        .with_enum_payload_kinds(lowered)
         .with_class_ctor_call_sites(lowered)
         .with_continuation_identity_return_funs(lowered)
         .with_class_ctor_hidden_effects(lowered);
@@ -89,6 +90,7 @@ impl MirLoweringFacts {
             .with_call_arg_bindings(lowered)
             .with_member_value_types(lowered)
             .with_nominal_kinds(lowered)
+            .with_enum_payload_kinds(lowered)
             .with_class_ctor_call_sites(lowered)
             .with_continuation_identity_return_funs(lowered)
             .with_class_ctor_hidden_effects(lowered);
@@ -152,7 +154,10 @@ impl MirLoweringFacts {
         self
     }
 
-    pub(in crate::mir::lower) fn with_member_value_types(mut self, lowered: &hir::LoweredHir) -> Self {
+    pub(in crate::mir::lower) fn with_member_value_types(
+        mut self,
+        lowered: &hir::LoweredHir,
+    ) -> Self {
         for class in lowered.class_inits.values() {
             for field in &class.fields {
                 if Self::member_fqn_matches_owner(&field.fqn, &class.fqn) {
@@ -183,7 +188,10 @@ impl MirLoweringFacts {
         self
     }
 
-    pub(in crate::mir::lower) fn with_call_arg_bindings(mut self, lowered: &hir::LoweredHir) -> Self {
+    pub(in crate::mir::lower) fn with_call_arg_bindings(
+        mut self,
+        lowered: &hir::LoweredHir,
+    ) -> Self {
         self.call_arg_bindings.extend(
             lowered
                 .call_arg_bindings
@@ -193,13 +201,19 @@ impl MirLoweringFacts {
         self
     }
 
-    pub(in crate::mir::lower) fn member_fqn_matches_owner(member_fqn: &str, owner_fqn: &str) -> bool {
+    pub(in crate::mir::lower) fn member_fqn_matches_owner(
+        member_fqn: &str,
+        owner_fqn: &str,
+    ) -> bool {
         member_fqn
             .strip_prefix(owner_fqn)
             .is_some_and(|suffix| suffix.starts_with('.'))
     }
 
-    pub(in crate::mir::lower) fn with_class_ctor_call_sites(mut self, lowered: &hir::LoweredHir) -> Self {
+    pub(in crate::mir::lower) fn with_class_ctor_call_sites(
+        mut self,
+        lowered: &hir::LoweredHir,
+    ) -> Self {
         self.class_ctor_call_sites
             .extend(lowered.ctor_call_sites.clone());
         self
@@ -210,7 +224,27 @@ impl MirLoweringFacts {
         self
     }
 
-    pub(in crate::mir::lower) fn with_continuation_identity_return_funs(mut self, lowered: &hir::LoweredHir) -> Self {
+    pub(in crate::mir::lower) fn with_enum_payload_kinds(
+        mut self,
+        lowered: &hir::LoweredHir,
+    ) -> Self {
+        self.enum_has_payload
+            .extend(lowered.enum_layouts.iter().map(|(fqn, layout)| {
+                (
+                    fqn.clone(),
+                    layout
+                        .variants
+                        .iter()
+                        .any(|variant| !variant.fields.is_empty()),
+                )
+            }));
+        self
+    }
+
+    pub(in crate::mir::lower) fn with_continuation_identity_return_funs(
+        mut self,
+        lowered: &hir::LoweredHir,
+    ) -> Self {
         for item in &lowered.file.items {
             if let hir::Item::Fun(fun) = item
                 && let Some(param_index) = continuation_identity_return_param(&lowered.types, fun)
@@ -229,7 +263,10 @@ impl MirLoweringFacts {
         self
     }
 
-    pub(in crate::mir::lower) fn with_class_ctor_hidden_effects(mut self, lowered: &hir::LoweredHir) -> Self {
+    pub(in crate::mir::lower) fn with_class_ctor_hidden_effects(
+        mut self,
+        lowered: &hir::LoweredHir,
+    ) -> Self {
         let analyzer = HiddenInitEffectAnalyzer::new(lowered);
         for (site, info) in &lowered.ctor_call_sites {
             let effects = analyzer.class_ctor_effect_row(&info.class_fqn, info.ctor_span);
@@ -259,10 +296,7 @@ impl MirLoweringFacts {
         self
     }
 
-    pub(crate) fn with_typed_contracts(
-        mut self,
-        contracts: &TypedHirEffectContracts,
-    ) -> Self {
+    pub(crate) fn with_typed_contracts(mut self, contracts: &TypedHirEffectContracts) -> Self {
         self.site_contract_source = MirSiteContractSource::Typed;
         self.fallback_resume_site_spans.clear();
         self.fallback_outward_resume_site_spans.clear();
@@ -345,8 +379,7 @@ impl MirLoweringFacts {
         }
 
         for (call_site, contract) in contracts.call_site_contracts() {
-            self.call_sites
-                .insert(call_site.clone(), contract.clone());
+            self.call_sites.insert(call_site.clone(), contract.clone());
         }
 
         self.assign_places
@@ -361,6 +394,10 @@ impl MirLoweringFacts {
 
     pub(in crate::mir::lower) fn nominal_kind(&self, fqn: &str) -> Option<ast::TypeKind> {
         self.nominal_kinds.get(fqn).copied()
+    }
+
+    pub(in crate::mir::lower) fn enum_has_payload(&self, fqn: &str) -> Option<bool> {
+        self.enum_has_payload.get(fqn).copied()
     }
 
     pub(in crate::mir::lower) fn dispatch_target_kind(
@@ -422,7 +459,10 @@ impl MirLoweringFacts {
             .get(&hir::CallSite::new(source_path.to_path_buf(), call_span))
     }
 
-    pub(in crate::mir::lower) fn continuation_identity_return_param(&self, fqn: &str) -> Option<usize> {
+    pub(in crate::mir::lower) fn continuation_identity_return_param(
+        &self,
+        fqn: &str,
+    ) -> Option<usize> {
         self.continuation_identity_return_funs.get(fqn).copied()
     }
 
@@ -434,7 +474,10 @@ impl MirLoweringFacts {
         self.fallback_outward_resume_site_spans.contains(&span)
     }
 
-    pub(in crate::mir::lower) fn fallback_perform_site_info(&self, span: Span) -> Option<&PerformCallSiteInfo> {
+    pub(in crate::mir::lower) fn fallback_perform_site_info(
+        &self,
+        span: Span,
+    ) -> Option<&PerformCallSiteInfo> {
         self.fallback_perform_sites.get(&span)
     }
 
@@ -465,7 +508,11 @@ impl MirLoweringFacts {
             .get(&hir::CallSite::new(source_path.to_path_buf(), span))
     }
 
-    pub(in crate::mir::lower) fn class_ctor_hidden_effects(&self, source_path: &std::path::Path, span: Span) -> EffectRow {
+    pub(in crate::mir::lower) fn class_ctor_hidden_effects(
+        &self,
+        source_path: &std::path::Path,
+        span: Span,
+    ) -> EffectRow {
         self.class_ctor_hidden_effects
             .get(&hir::CallSite::new(source_path.to_path_buf(), span))
             .cloned()
@@ -498,4 +545,3 @@ impl MirLoweringFacts {
         self.when_pat_binding_tys.get(&span).copied()
     }
 }
-

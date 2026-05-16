@@ -1463,6 +1463,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             if dispatch_fqn == "scoop.core.sizeOf" {
                 return self.codegen_sysroot_size_of(span, callee.span, args);
             }
+            if dispatch_fqn == "scoop.core.kindOf" {
+                return self.codegen_sysroot_kind_of(span);
+            }
+            if dispatch_fqn == "scoop.core.descOf" {
+                return self.codegen_sysroot_desc_of(span);
+            }
             if dispatch_fqn == "scoop.core.panic" {
                 return self.codegen_sysroot_panic(span, callee.span, args);
             }

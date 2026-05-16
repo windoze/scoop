@@ -80,6 +80,7 @@ pub(crate) struct MirLoweringFacts {
     extern_global_contracts: Vec<ExternGlobalContract>,
     when_pat_binding_tys: HashMap<Span, TypeId>,
     nominal_kinds: HashMap<String, ast::TypeKind>,
+    enum_has_payload: HashMap<String, bool>,
     top_level_fun_call_sites: HashMap<hir::CallSite, ast::TopLevelFunCallBinding>,
     member_value_tys: HashMap<String, TypeId>,
     continuation_identity_return_funs: HashMap<String, usize>,
@@ -107,6 +108,7 @@ impl Default for MirLoweringFacts {
             extern_global_contracts: Vec::new(),
             when_pat_binding_tys: HashMap::new(),
             nominal_kinds: HashMap::new(),
+            enum_has_payload: HashMap::new(),
             top_level_fun_call_sites: HashMap::new(),
             member_value_tys: HashMap::new(),
             continuation_identity_return_funs: HashMap::new(),
@@ -196,7 +198,6 @@ fn call_arg_binding_without_receiver(
             .collect(),
     ))
 }
-
 
 mod entry;
 mod fn_lowering_basic;

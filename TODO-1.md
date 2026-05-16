@@ -207,7 +207,7 @@
 
 ## P2：反射 const fun 补全
 
-### P2-T01：补 `kindOf<T>` / `descOf<T>` + `ARRAY_ELEM_KIND_*` 常量
+### [DONE] P2-T01：补 `kindOf<T>` / `descOf<T>` + `ARRAY_ELEM_KIND_*` 常量
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §3.3 (c) / §9 / P2
@@ -270,6 +270,15 @@
 - 完成条件：
   - P3-T03 的 sysroot 泛型 wrapper 可以直接调用 `kindOf<T>()` / `descOf<T>()`。
 - 依赖：P1-T02。
+
+完成记录（2026-05-17）：
+
+- 改动范围：更新 `sysroot/core.scoop`，新增 `kindOf<T>()` / `descOf<T>()` 反射 intrinsic 声明与 `ARRAY_ELEM_KIND_WORD/REF/COMPOSITE` 三个 `const val`；更新 const 解释器、typed intrinsic 分类、MIR lowering、LLVM HIR-compatible call lowering；新增 `comptime` owner tests 与 `tests/fixtures/run-pass/reflection_kind_desc_basic.scoop` / `.stdout`；`PLAN.md` 阶段计划未变化。
+- 核心决策：`kindOf<T>()` 按现有类型分类返回 1=WORD、2=REF、3=COMPOSITE；标量 / payload-less enum 归 WORD，class/interface/effect/`Any`/`String` 归 REF，struct / tuple / payload enum / `Option<T>` 归 COMPOSITE。`ARRAY_ELEM_KIND_*` 直接使用字面量 `const val`，已通过 run-pass 与全量 fixture 验证 sysroot source-backed literal 可用，无需 stdlib 的 `sizeOf(sample) / sizeOf(sample)` trick。
+- `descOf<T>()`：当前 `ConstValue` 与 HIR-compatible LLVM initializer lowering 都没有 descriptor global forward-reference 表示，因此本任务按条目允许的 fallback 先把所有类型 materialize 为 null `UIntPtr`（非 composite 语义已完整；composite descriptor 真地址待后续 P3/P4 使用点补齐）。
+- 验证结果：`cargo test -p scoopc kind_of -- --nocapture` 通过；`cargo test -p scoopc desc_of -- --nocapture` 通过；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/reflection_kind_desc_basic.scoop` 通过；`cargo run -p scoop -- test` 通过，输出 `fixtures: ok (1369)`；`cargo test --all --all-targets` 通过（836 tests）；`cargo clippy --all-targets -- -D warnings` 通过。
+- 与 `PLAN.md` 对应闭合：完成 P2 的 reflection surface 与 const/runtime folding 接入，使后续 MutableArray wrapper 可按元素 kind 选择 word/ref/composite 分支；descriptor pointer 的真实 composite 值仍受当前 const/LLVM 表示能力限制，按本任务要求记录为后续回填点。
+- 暂时性 failing fixture：无。
 
 ## P3：MutableArray layout 升级
 

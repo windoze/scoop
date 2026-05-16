@@ -1289,6 +1289,74 @@ const val F0T: String = fieldsOf<Point>()._0.type.name
 }
 
 #[test]
+fn kind_of_reflection_intrinsic_classifies_word_ref_and_composite() {
+    let ty = ConstIntTy::host_word(true);
+
+    let consts = eval_file_consts(
+        r#"
+import scoop.core.*
+
+struct Point(val x: Int, val y: Int)
+enum Color { Red, Blue }
+enum MaybeInt { Some(val value: Int), None }
+
+const val WORD: Int = kindOf<Int>()
+const val REF: Int = kindOf<String>()
+const val COMPOSITE: Int = kindOf<Point>()
+const val ENUM_WORD: Int = kindOf<Color>()
+const val ENUM_COMPOSITE: Int = kindOf<MaybeInt>()
+"#,
+    );
+
+    assert_eq!(
+        consts,
+        vec![
+            ConstBinding {
+                name: "WORD".to_string(),
+                value: mk_int(ty, 1),
+            },
+            ConstBinding {
+                name: "REF".to_string(),
+                value: mk_int(ty, 2),
+            },
+            ConstBinding {
+                name: "COMPOSITE".to_string(),
+                value: mk_int(ty, 3),
+            },
+            ConstBinding {
+                name: "ENUM_WORD".to_string(),
+                value: mk_int(ty, 1),
+            },
+            ConstBinding {
+                name: "ENUM_COMPOSITE".to_string(),
+                value: mk_int(ty, 3),
+            },
+        ]
+    );
+}
+
+#[test]
+fn desc_of_reflection_intrinsic_returns_zero_for_non_composite() {
+    let ty = ConstIntTy::host_word(false);
+
+    let consts = eval_file_consts(
+        r#"
+import scoop.core.*
+
+const val DESC: UIntPtr = descOf<Int>()
+"#,
+    );
+
+    assert_eq!(
+        consts,
+        vec![ConstBinding {
+            name: "DESC".to_string(),
+            value: mk_int(ty, 0),
+        }]
+    );
+}
+
+#[test]
 fn const_eval_fields_of_supports_class_fields_v0() {
     let ty = ConstIntTy::host_word(true);
 

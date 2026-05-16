@@ -544,6 +544,8 @@ impl TypedIntrinsicKind {
             "scoop.core.nameOf"
             | "scoop.core.sizeOf"
             | "scoop.core.alignOf"
+            | "scoop.core.kindOf"
+            | "scoop.core.descOf"
             | "scoop.core.fieldsOf"
             | "scoop.core.variantsOf"
             | "scoop.core.superTypesOf"

@@ -494,6 +494,10 @@ const fun <T> sizeOf(): Int
 @Intrinsic
 const fun <T> alignOf(): Int
 @Intrinsic
+const fun <T> kindOf(): Int
+@Intrinsic
+const fun <T> descOf(): UIntPtr
+@Intrinsic
 const fun <T> fieldsOf(): ComptimeList<FieldMeta>
 @Intrinsic
 const fun <T> variantsOf(): ComptimeList<VariantMeta>
@@ -503,6 +507,10 @@ const fun <T> superTypesOf(): ComptimeList<TypeMeta>
 const fun <T> annotationsOf(): ComptimeList<AnnotationMeta>
 @Intrinsic
 const fun paramsOf(fn: FunctionMeta): ComptimeList<ParamMeta>
+
+const val ARRAY_ELEM_KIND_WORD: Int = 1
+const val ARRAY_ELEM_KIND_REF: Int = 2
+const val ARRAY_ELEM_KIND_COMPOSITE: Int = 3
 
 // Platform Introspection（spec §6.4）。
 //

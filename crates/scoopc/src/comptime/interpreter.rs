@@ -539,6 +539,10 @@ enum PreRegisterDecls {
     Yes,
 }
 
+const ARRAY_ELEM_KIND_WORD: u64 = 1;
+const ARRAY_ELEM_KIND_REF: u64 = 2;
+const ARRAY_ELEM_KIND_COMPOSITE: u64 = 3;
+
 #[derive(Clone, Copy)]
 struct RegisteredFun<'a> {
     source: &'a SourceFile,
@@ -565,6 +569,7 @@ struct ReflectionTypeTarget<'a> {
     full_name: String,
     simple_name: String,
     span: Span,
+    ty: Option<TypeId>,
     decl: Option<RegisteredType<'a>>,
 }
 
@@ -1699,8 +1704,8 @@ impl<'a> ConstInterpreter<'a> {
 
         // T1204：反射 intrinsics（comptime 执行时由解释器内建实现）。
         match callee_name {
-            "nameOf" | "sizeOf" | "alignOf" | "fieldsOf" | "variantsOf" | "superTypesOf"
-            | "annotationsOf" => {
+            "nameOf" | "sizeOf" | "alignOf" | "kindOf" | "descOf" | "fieldsOf" | "variantsOf"
+            | "superTypesOf" | "annotationsOf" => {
                 return self.call_reflection_intrinsics(call_span, callee_name, type_args, args);
             }
             "paramsOf" => {
@@ -1771,6 +1776,22 @@ impl<'a> ConstInterpreter<'a> {
                 Ok(ConstValue::Int(super::ConstInt::new(
                     self.default_int_ty,
                     align as u128,
+                )))
+            }
+            "kindOf" => {
+                let kind = self.reflection_array_elem_kind(&target)?;
+                Ok(ConstValue::Int(super::ConstInt::new(
+                    self.default_int_ty,
+                    kind as u128,
+                )))
+            }
+            "descOf" => {
+                // The current const value model cannot carry a symbolic pointer to a backend
+                // transport descriptor. Non-composite types, and the temporary composite fallback,
+                // therefore both materialize as a null UIntPtr until descriptor forward refs exist.
+                Ok(ConstValue::Int(super::ConstInt::new(
+                    ConstIntTy::host_word(false),
+                    0,
                 )))
             }
             "fieldsOf" => {
@@ -1934,6 +1955,97 @@ impl<'a> ConstInterpreter<'a> {
                 reason: "unknown reflection intrinsic",
                 span: call_span.into(),
             }),
+        }
+    }
+
+    fn reflection_array_elem_kind(
+        &self,
+        target: &ReflectionTypeTarget<'a>,
+    ) -> Result<u64, ConstEvalError> {
+        if let Some(kind) = array_elem_kind_for_builtin_name(&target.simple_name) {
+            return Ok(kind);
+        }
+
+        if let Some(ty) = target.ty {
+            return self.reflection_array_elem_kind_for_type_id(ty, target);
+        }
+
+        if let Some(decl) = target.decl {
+            return self.reflection_array_elem_kind_for_decl(decl, target);
+        }
+
+        Err(ConstEvalError::ReflectionUnknownType {
+            name: target.full_name.clone(),
+            span: target.span.into(),
+        })
+    }
+
+    fn reflection_array_elem_kind_for_type_id(
+        &self,
+        ty: TypeId,
+        target: &ReflectionTypeTarget<'a>,
+    ) -> Result<u64, ConstEvalError> {
+        match self.types.kind(ty) {
+            TypeKind::Ref(_) => Ok(ARRAY_ELEM_KIND_REF),
+            TypeKind::Value(ValueTypeKind::Unit)
+            | TypeKind::Value(ValueTypeKind::Nothing)
+            | TypeKind::Value(ValueTypeKind::Bool)
+            | TypeKind::Value(ValueTypeKind::Char)
+            | TypeKind::Value(ValueTypeKind::Float64)
+            | TypeKind::Value(ValueTypeKind::Float32)
+            | TypeKind::Value(ValueTypeKind::Int)
+            | TypeKind::Value(ValueTypeKind::UInt)
+            | TypeKind::Value(ValueTypeKind::IntN(_))
+            | TypeKind::Value(ValueTypeKind::UIntN(_)) => Ok(ARRAY_ELEM_KIND_WORD),
+            TypeKind::Value(ValueTypeKind::Tuple(elements)) if elements.is_empty() => {
+                Ok(ARRAY_ELEM_KIND_WORD)
+            }
+            TypeKind::Value(ValueTypeKind::Tuple(_))
+            | TypeKind::Value(ValueTypeKind::Option(_)) => Ok(ARRAY_ELEM_KIND_COMPOSITE),
+            TypeKind::Value(ValueTypeKind::Nominal(_)) => {
+                let decl = target
+                    .decl
+                    .or_else(|| self.lookup_type_decl_for_type_id(ty))
+                    .ok_or_else(|| ConstEvalError::ReflectionUnknownType {
+                        name: target.full_name.clone(),
+                        span: target.span.into(),
+                    })?;
+                self.reflection_array_elem_kind_for_decl(decl, target)
+            }
+            TypeKind::Param(_) => Err(ConstEvalError::ReflectionTypeArgNotSupported {
+                found: "generic type parameter",
+                span: target.span.into(),
+            }),
+            TypeKind::StarProjection(_) => Err(ConstEvalError::ReflectionTypeArgNotSupported {
+                found: "star projection",
+                span: target.span.into(),
+            }),
+        }
+    }
+
+    fn reflection_array_elem_kind_for_decl(
+        &self,
+        decl: RegisteredType<'a>,
+        target: &ReflectionTypeTarget<'a>,
+    ) -> Result<u64, ConstEvalError> {
+        match decl.decl.kind {
+            ast::TypeKind::Class | ast::TypeKind::Interface | ast::TypeKind::Effect => {
+                Ok(ARRAY_ELEM_KIND_REF)
+            }
+            ast::TypeKind::Struct => {
+                if let Some(kind) = array_elem_kind_for_builtin_name(&target.simple_name) {
+                    Ok(kind)
+                } else {
+                    Ok(ARRAY_ELEM_KIND_COMPOSITE)
+                }
+            }
+            ast::TypeKind::Enum => {
+                if enum_decl_has_payload(decl.decl) {
+                    Ok(ARRAY_ELEM_KIND_COMPOSITE)
+                } else {
+                    Ok(ARRAY_ELEM_KIND_WORD)
+                }
+            }
         }
     }
 
@@ -2215,6 +2327,7 @@ impl<'a> ConstInterpreter<'a> {
                 full_name: self.type_id_to_stable_name(bound_ty),
                 simple_name: self.type_id_simple_name(bound_ty),
                 span: path.span,
+                ty: Some(bound_ty),
                 decl: self.lookup_type_decl_for_type_id(bound_ty),
             });
         }
@@ -2246,6 +2359,7 @@ impl<'a> ConstInterpreter<'a> {
             full_name,
             simple_name,
             span: path.span,
+            ty: None,
             decl,
         })
     }
@@ -3371,6 +3485,27 @@ fn size_of_builtin_ty_bytes(name: &str) -> Option<usize> {
 
         _ => None,
     }
+}
+
+fn array_elem_kind_for_builtin_name(name: &str) -> Option<u64> {
+    match name {
+        "Bool" | "Unit" | "Nothing" | "Char" | "Float64" | "Double" | "Float32" | "Int"
+        | "UInt" | "UIntPtr" | "Int8" | "UInt8" | "Byte" | "Int16" | "UInt16" | "Short"
+        | "UShort" | "Int32" | "UInt32" | "Int64" | "UInt64" | "Long" | "ULong" => {
+            Some(ARRAY_ELEM_KIND_WORD)
+        }
+        "Any" | "String" => Some(ARRAY_ELEM_KIND_REF),
+        _ => None,
+    }
+}
+
+fn enum_decl_has_payload(decl: &ast::TypeDecl) -> bool {
+    decl.body.as_ref().is_some_and(|body| {
+        body.members.iter().any(|member| match member {
+            ast::TypeMember::EnumVariant(variant) => !variant.params.is_empty(),
+            _ => false,
+        })
+    })
 }
 
 fn align_of_builtin_ty_bytes(name: &str) -> Option<usize> {

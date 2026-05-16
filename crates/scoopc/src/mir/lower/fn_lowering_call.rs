@@ -5,7 +5,6 @@
 use super::*;
 
 impl<'a> FnLowering<'a> {
-
     pub(in crate::mir::lower) fn source_arg_expected_tys_for_callee_ty(
         &self,
         callee_ty: TypeId,
@@ -44,13 +43,7 @@ impl<'a> FnLowering<'a> {
 
         match contract {
             TypedCallSiteContract::DirectTopLevel(function) => {
-                self.lower_direct_call_expr(
-                    span,
-                    result,
-                    function.fqn(),
-                    args,
-                    Some(&function),
-                );
+                self.lower_direct_call_expr(span, result, function.fqn(), args, Some(&function));
                 true
             }
             TypedCallSiteContract::MemberDirect(member) => {
@@ -64,13 +57,7 @@ impl<'a> FnLowering<'a> {
                 true
             }
             TypedCallSiteContract::Extension { function, .. } => {
-                self.lower_direct_call_expr(
-                    span,
-                    result,
-                    function.fqn(),
-                    args,
-                    Some(&function),
-                );
+                self.lower_direct_call_expr(span, result, function.fqn(), args, Some(&function));
                 true
             }
             TypedCallSiteContract::Constructor(ctor) => {
@@ -100,13 +87,7 @@ impl<'a> FnLowering<'a> {
                 true
             }
             TypedCallSiteContract::FunPtr { arg_binding, .. } => {
-                self.lower_funptr_call_expr(
-                    span,
-                    result,
-                    callee,
-                    args,
-                    arg_binding.as_ref(),
-                );
+                self.lower_funptr_call_expr(span, result, callee, args, arg_binding.as_ref());
                 true
             }
             TypedCallSiteContract::Virtual(member) => {
@@ -399,6 +380,25 @@ impl<'a> FnLowering<'a> {
                 );
                 true
             }
+            (TypedIntrinsicKind::Reflection { name }, "scoop.core.kindOf") if name == "kindOf" => {
+                let source_ty = self.reflection_type_arg_for_call(span, "kindOf");
+                let kind = self.array_elem_kind_for_ty(source_ty);
+                self.assign(
+                    span,
+                    result,
+                    Rvalue::Use(Operand::Const(ConstValue::SynthInt(kind))),
+                );
+                true
+            }
+            (TypedIntrinsicKind::Reflection { name }, "scoop.core.descOf") if name == "descOf" => {
+                let _source_ty = self.reflection_type_arg_for_call(span, "descOf");
+                self.assign(
+                    span,
+                    result,
+                    Rvalue::Use(Operand::Const(ConstValue::SynthInt(0))),
+                );
+                true
+            }
             _ => {
                 self.lower_direct_call_expr(span, result, callee_fqn, args, None);
                 true
@@ -511,6 +511,56 @@ impl<'a> FnLowering<'a> {
         }
     }
 
+    fn reflection_type_arg_for_call(&self, span: Span, name: &str) -> TypeId {
+        self.facts
+            .call_site_contract(self.source_path.as_path(), span)
+            .and_then(|contract| match contract {
+                TypedCallSiteContract::Intrinsic { function, .. } => {
+                    function.type_args().first().copied()
+                }
+                _ => None,
+            })
+            .unwrap_or_else(|| panic!("typed {name} intrinsic must publish a type argument"))
+    }
+
+    fn array_elem_kind_for_ty(&self, ty: TypeId) -> i64 {
+        match self.types.kind(ty) {
+            TypeKind::Ref(_) => 2,
+            TypeKind::Value(ValueTypeKind::Unit)
+            | TypeKind::Value(ValueTypeKind::Nothing)
+            | TypeKind::Value(ValueTypeKind::Bool)
+            | TypeKind::Value(ValueTypeKind::Char)
+            | TypeKind::Value(ValueTypeKind::Float64)
+            | TypeKind::Value(ValueTypeKind::Float32)
+            | TypeKind::Value(ValueTypeKind::Int)
+            | TypeKind::Value(ValueTypeKind::UInt)
+            | TypeKind::Value(ValueTypeKind::IntN(_))
+            | TypeKind::Value(ValueTypeKind::UIntN(_)) => 1,
+            TypeKind::Value(ValueTypeKind::Tuple(elements)) if elements.is_empty() => 1,
+            TypeKind::Value(ValueTypeKind::Nominal(_))
+                if is_builtin_scalar_nominal_value_type(self.types, ty) =>
+            {
+                1
+            }
+            TypeKind::Value(ValueTypeKind::Nominal(nominal)) => {
+                match self.facts.nominal_kind(&nominal.fqn) {
+                    Some(
+                        ast::TypeKind::Class | ast::TypeKind::Interface | ast::TypeKind::Effect,
+                    ) => 2,
+                    Some(ast::TypeKind::Enum)
+                        if self.facts.enum_has_payload(&nominal.fqn) == Some(false) =>
+                    {
+                        1
+                    }
+                    _ => 3,
+                }
+            }
+            TypeKind::Value(ValueTypeKind::Tuple(_))
+            | TypeKind::Value(ValueTypeKind::Option(_)) => 3,
+            TypeKind::Param(_) | TypeKind::StarProjection(_) => 3,
+        }
+    }
+
     pub(in crate::mir::lower) fn operand_ty(&self, operand: &Operand) -> TypeId {
         match operand {
             Operand::Local(local) => self.body.locals[local.as_u32() as usize].ty,
@@ -533,7 +583,10 @@ impl<'a> FnLowering<'a> {
         mir_is_aggregate_transport_ty(self.types, ty)
     }
 
-    pub(in crate::mir::lower) fn transport_requirements(&self, ty: TypeId) -> MirTransportRequirements {
+    pub(in crate::mir::lower) fn transport_requirements(
+        &self,
+        ty: TypeId,
+    ) -> MirTransportRequirements {
         mir_transport_requirements(self.types, ty)
     }
 
@@ -778,7 +831,10 @@ impl<'a> FnLowering<'a> {
         }
     }
 
-    pub(in crate::mir::lower) fn call_abi_handoff(&self, kind: &CallKind) -> CallAbiHandoffMetadata {
+    pub(in crate::mir::lower) fn call_abi_handoff(
+        &self,
+        kind: &CallKind,
+    ) -> CallAbiHandoffMetadata {
         match kind {
             CallKind::Direct { callee_fqn } if Self::is_plain_no_outward_intrinsic(callee_fqn) => {
                 CallAbiHandoffMetadata::plain_no_outward()

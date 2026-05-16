@@ -1,0 +1,52 @@
+struct Point(val x: Int, val y: Int)
+enum Color { Red, Blue }
+enum MaybeInt { Some(val value: Int), None }
+
+const val WORD_KIND: Int = kindOf<Int>()
+const val REF_KIND: Int = kindOf<String>()
+const val COMPOSITE_KIND: Int = kindOf<Point>()
+const val ENUM_WORD_KIND: Int = kindOf<Color>()
+const val ENUM_COMPOSITE_KIND: Int = kindOf<MaybeInt>()
+const val INT_DESC: UIntPtr = descOf<Int>()
+
+fun main() {
+    if (WORD_KIND != ARRAY_ELEM_KIND_WORD) {
+        panic("word kind mismatch")
+    }
+    if (REF_KIND != ARRAY_ELEM_KIND_REF) {
+        panic("ref kind mismatch")
+    }
+    if (COMPOSITE_KIND != ARRAY_ELEM_KIND_COMPOSITE) {
+        panic("composite kind mismatch")
+    }
+    if (ENUM_WORD_KIND != ARRAY_ELEM_KIND_WORD) {
+        panic("enum word kind mismatch")
+    }
+    if (ENUM_COMPOSITE_KIND != ARRAY_ELEM_KIND_COMPOSITE) {
+        panic("enum composite kind mismatch")
+    }
+
+    val runtimeWord: Int = kindOf<Int>()
+    val runtimeRef: Int = kindOf<String>()
+    val runtimeComposite: Int = kindOf<Point>()
+    val runtimeEnumWord: Int = kindOf<Color>()
+    val runtimeEnumComposite: Int = kindOf<MaybeInt>()
+    if (runtimeWord != ARRAY_ELEM_KIND_WORD) {
+        panic("runtime word kind mismatch")
+    }
+    if (runtimeRef != ARRAY_ELEM_KIND_REF) {
+        panic("runtime ref kind mismatch")
+    }
+    if (runtimeComposite != ARRAY_ELEM_KIND_COMPOSITE) {
+        panic("runtime composite kind mismatch")
+    }
+    if (runtimeEnumWord != ARRAY_ELEM_KIND_WORD) {
+        panic("runtime enum word kind mismatch")
+    }
+    if (runtimeEnumComposite != ARRAY_ELEM_KIND_COMPOSITE) {
+        panic("runtime enum composite kind mismatch")
+    }
+
+    val desc: UIntPtr = INT_DESC
+    println("reflection kind desc ok")
+}
