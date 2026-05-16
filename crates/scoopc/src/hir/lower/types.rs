@@ -198,7 +198,7 @@ pub(super) struct DefaultArgParamInfo {
 }
 
 #[derive(Debug, Clone)]
-pub(super) struct DefaultArgStructInfo {
+pub(in crate::hir) struct DefaultArgStructInfo {
     pub(super) decl_file: PathBuf,
     pub(super) type_params: Vec<String>,
     pub(super) params: Vec<DefaultArgParamInfo>,
