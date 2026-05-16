@@ -1,26 +1,59 @@
-# 当前执行计划
+# Claude Execution Plan
 
-1. 读取 `TODO.md`，按文件顺序定位第一个标题未带 `[DONE]` 的任务。
-2. 查看最近提交信息，只判断是否有与该任务直接相关的未完成事项或前置问题。
-3. 阅读当前任务要求、依赖和验证要求；必要时查看相关源码、测试和规格文档。
-4. 若任务可直接完成，则实现最小且完整的修复或功能；若发现阻塞该任务的真实前置问题，则更新 `TODO.md` 记录前置任务并停止。
-5. 运行与任务相关的测试和必要的格式/检查命令，修复发现的问题。
-6. 将已完成任务标题加上 `[DONE]`，更新完成记录；只有阶段级计划改变时才更新 `PLAN.md`。
-7. 提交本次任务相关全部变更，提交后停止，不进入下一个任务。
+## Scope
 
-## 进度记录
+- Source of truth: `TODO.md`.
+- Goal for this invocation: identify and complete exactly the first incomplete task, then stop after committing.
+- Note: this file records the execution plan and progress in a concise, auditable form; it does not include private chain-of-thought.
 
-- 已创建本执行计划；下一步读取 `TODO.md` 定位首个未完成任务。
-- 已读取 `TODO.md`；首个未完成任务为 `P5-T01：做全量稳定化、跨平台矩阵与文档收尾`。下一步核对最新提交是否包含与该任务直接相关的未完成事项。
-- 最新提交为 `[P4-T02] Migrate remaining string helpers`，未显式记录与 `P5-T01` 直接相关的未完成事项。下一步阅读 `PLAN.md` / `MANAGED_ABI.md` 相关章节，确认文档收尾范围并开始验证。
-- 已确认本机为 `Darwin/arm64`，Docker 可用但服务端为 `linux/arm64`；`llvm-config` 不在本机 PATH。下一步先执行 macOS/aarch64 全量验证，并评估是否能用 Docker 补跑 Linux/amd64 矩阵。
-- 开始执行 macOS/aarch64 全量 Rust 测试：`cargo test --all --all-targets`。
-- `cargo test --all --all-targets` 失败：主要是 `scoop` crate 单测/fixture harness 中临时工程没有加载默认 sysroot，导致 `scoop.core.*` unresolved；另有旧测试输入仍声明无 body 普通 helper，触发 `fun_must_have_body`。下一步修复测试 harness / test resources，使 P5 全量验证可执行。
-- 已修复 dump/materialize/package/typecheck-cone 路径对 compilable sysroot support sources 的索引与类型环境注入，并把遗漏的 infer fixture 普通无 body helper 改为真实 body；`cargo test -p scoop --bin scoop` 现为 116 passed / 0 failed。
-- 重跑 `cargo test --all --all-targets` 后，`scoop` 相关测试已通过；当前阻塞为 `scoop_runtime` export allowlist 漏登记 `scoop_array_alloc` / `scoop_array_builder_grow` / 三个测试 helper。下一步按 runtime API 头的分类补登记，保持 allowlist 测试不放宽。
-- runtime export allowlist 已补齐并通过定向验证；随后 `cargo test --all --all-targets` 在 `gc_stop_the_world` 集成测试处超过 20 分钟超时，违反单测 <1 分钟要求。下一步定位 STW 测试/运行时挂起并修复。
-- 定向运行 `cargo test -p scoop_runtime --test gc_stop_the_world -- --nocapture` 0 秒通过，说明前一次是全量命令总时限不足而非该单测卡死。下一步用更长超时重跑完整 `cargo test --all --all-targets`。
-- 已完成 `scoopc` direct-test/sysroot support-source 修复：为 compilable sysroot 生成 signature-only index AST，补齐 dump/materialize/effect-facts support source 去重，并刷新相关 owner tests / failure-policy sentinel；`cargo test -p scoopc --lib` 现为 864 passed / 0 failed。
-- `cargo test --all --all-targets` 已通过完整 Rust workspace 矩阵。下一步运行 `cargo run -p scoop -- test` 完整 fixture suite。
-- `cargo run -p scoop -- test` 已通过完整 fixture suite（1367 checks）。下一步补跑 `llvm_tests` / native direct-indirect parity / managed ABI 定向验证、`clippy`，并评估 Linux/amd64 Docker 矩阵。
-- 本机 `macos/aarch64` 验证完成：`cargo test --all --all-targets`、完整 fixture suite、native/managed ABI 定向套件、GC stress string helper 与 `cargo clippy --all-targets -- -D warnings` 均通过。Linux/amd64 Docker 可启动到 `x86_64`，但完整 Rust/LLVM 矩阵在 emulation 下未能在 30 分钟内完成，已停止超时容器；后续文档需明确该矩阵限制。
+## Initial Plan
+
+1. Read `TODO.md` to identify the first heading not explicitly prefixed with `[DONE]`.
+2. Check the latest commit message only for a directly relevant unfinished issue tied to that task.
+3. Read the selected task details, dependencies, and validation requirements.
+4. Inspect only the code, fixtures, docs, and tests relevant to that task.
+5. Implement the smallest spec-correct change needed for the task, without workaround behavior.
+6. Add or update focused tests/fixtures required by the task.
+7. Run the task-specified validations and any narrowly relevant checks; fix failures caused by this work.
+8. Update `TODO.md` by prefixing the completed task title with `[DONE]` and filling its completion record.
+9. Run formatting if needed and re-run relevant validation.
+10. Commit all task-related changes with a clear task-tagged message.
+11. Stop without starting the next task.
+
+## Progress Log
+
+- Started invocation and recorded the initial execution plan.
+- Identified first incomplete task: `P5-T00` (`补跑 Linux/amd64 LLVM ABI 矩阵并固化可复现执行环境`).
+- Latest commit is `4688fa91 [P5-T00] Record Linux ABI matrix prerequisite`, directly relevant to the selected task; treat the recorded Linux runner prerequisite and prior Docker timeout as part of this task context.
+
+## P5-T00 Execution Plan
+
+1. Inspect existing CI/Docker/tooling and ABI documentation relevant to P5-T00.
+2. Add the smallest reproducible Linux/amd64 runner artifact (prefer CI workflow or Dockerfile) that installs Rust stable, clang, and LLVM 21 compatible with the current `llvm-sys`/`inkwell` configuration.
+3. Execute the P5-T00 Linux/amd64 validation matrix if the runner can be used locally; otherwise capture the concrete blocker and add the minimal prerequisite task rather than marking P5-T00 done.
+4. If validations pass, update `TODO.md` completion record and ABI documentation with exact commands, platform, and LLVM version.
+5. Run formatting/lint or relevant checks for changed files.
+6. Commit all changes for this task and stop.
+
+## P5-T00 Findings
+
+- Remote CI run `25950480831` for commit `4688fa91` completed successfully on GitHub Actions `ubuntu-24.04` / `x86_64-unknown-linux-gnu` with LLVM `21.1.8` and clang target `x86_64-pc-linux-gnu`.
+- That run covers `cargo test --all --all-targets`, no-default/runtime feature tests, spec fixture check, and full `cargo run -p scoop -- test` fixture smoke (`1367` checks).
+- The current CI workflow does not yet run Linux `cargo clippy --all-targets -- -D warnings`, which is an explicit P5-T00 validation item.
+- Local Docker attempt using `docker.1ms.run/rust:bookworm` with `--platform linux/amd64` timed out after 90 minutes while still installing/downloading LLVM 21 packages and never reached `cargo clippy`; the container was stopped. This confirms local emulation is not a reproducible P5-T00 validation path.
+
+## Adjusted Plan
+
+1. Attempt a local `linux/amd64` Docker Clippy run using an LLVM 21 environment to fill the missing Linux Clippy validation without changing task scope.
+2. If Docker/emulation remains non-reproducible or too slow, update the CI runner artifact to include platform diagnostics, explicit P5 ABI targeted checks, and Linux Clippy, then keep P5-T00 incomplete with the remaining requirement clearly recorded.
+
+## Current Next Step
+
+- Patch `.github/workflows/ci.yml` to make the Linux/amd64 runner explicitly record platform/LLVM details and run the missing P5 ABI/Clippy matrix. Since pushing is not permitted in this invocation, `P5-T00` must remain incomplete until that updated workflow is run remotely.
+
+## Progress Update
+
+- Updated `.github/workflows/ci.yml` with `Platform diagnostics`, explicit `P5 ABI targeted matrix`, and Linux `Clippy` steps.
+- Updated `TODO.md` P5-T00 current record with the successful partial GitHub Actions Linux run, the failed local Docker Clippy attempt, and the remaining requirement to push/run the updated CI workflow before marking the task complete.
+- `P5-T00` remains intentionally incomplete because the required Linux Clippy/P5 targeted matrix logs do not exist yet for the updated workflow.
+- Validation for this partial/blocker commit: `git diff --check` passed.

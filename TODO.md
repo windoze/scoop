@@ -2029,6 +2029,16 @@
 - 当前记录：
   - 本机 Docker smoke：`docker run --rm --platform linux/amd64 docker.1ms.run/rust:bookworm uname -m` 输出 `x86_64`。
   - 本机 Docker no-default Rust 矩阵尝试：`cargo test --all --all-targets --no-default-features` 在 emulation 下超过 30 分钟未完成；已停止超时容器，未把该结果视为 Linux/amd64 验收。
+  - 远端 GitHub Actions `CI` run `25950480831`（commit `4688fa915606c985c13a82e2893d9a6ea9a4b6a2`）已在 `ubuntu-24.04` / `x86_64-unknown-linux-gnu` 上通过：
+    - runner image：`ubuntu-24.04` `20260513.135.3`；Rust：`rustc 1.95.0 (59807616e 2026-04-14)`；LLVM：`llvm-config 21.1.8`；clang target：`x86_64-pc-linux-gnu`。
+    - `cargo test --all --all-targets`：通过。
+    - `cargo test --all --all-targets --no-default-features`：通过。
+    - `cargo test -p scoop_runtime --all-targets --no-default-features --features gc-baseline` / `gc-minimal` / `gc-hosted`：通过。
+    - `cargo run -p scoop_tools -- spec-fixtures check`：通过。
+    - `cargo run -p scoop -- test`：通过（`fixtures: ok (1367)`）。
+  - 该远端 run 尚未覆盖 P5-T00 明确要求的 Linux `cargo clippy --all-targets -- -D warnings`，因此不能作为完整验收；`P5-T00` 保持未完成。
+  - 本轮又尝试用 `docker run --rm --platform linux/amd64 docker.1ms.run/rust:bookworm ... cargo clippy --all-targets -- -D warnings` 补跑 Linux Clippy，但在 emulation/网络环境下 90 分钟仍停留于 LLVM 21 package 下载/安装，未进入 `cargo clippy`；已停止该容器，仍不接受为 Linux/amd64 验收。
+  - 本轮已更新 `.github/workflows/ci.yml`，在 `ubuntu-latest` Linux runner 中新增 `Platform diagnostics`、显式 `P5 ABI targeted matrix` 与 `Clippy` 步骤；该 commit 推送并产生成功的远端 CI run 后，方可把 `P5-T00` 标为 `[DONE]` 并将完整日志回写到 `TODO.md` / `MANAGED_ABI.md`。
 
 ### [TODO] P5-T01：做全量稳定化、跨平台矩阵与文档收尾
 

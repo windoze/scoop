@@ -37,6 +37,13 @@ jobs:
           "$LLVM_PREFIX/bin/llvm-config" --version
           "$LLVM_PREFIX/bin/clang" --version
 
+      - name: Platform diagnostics
+        run: |
+          uname -m
+          rustc -vV
+          llvm-config --version
+          clang --version
+
       - name: Cargo test
         run: cargo test --all --all-targets
 
@@ -57,3 +64,18 @@ jobs:
 
       - name: Fixture smoke
         run: cargo run -p scoop -- test
+
+      - name: P5 ABI targeted matrix
+        run: |
+          cargo test -p scoopc native_callable -- --nocapture
+          cargo test -p scoopc managed_extern_ -- --nocapture
+          cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/extern_native_aggregate_return_direct_indirect_parity.scoop
+          cargo run -p scoop -- test --fixtures tests/fixtures/runtime_gc/funptr_enter_native_roots_gc.scoop
+          cargo run -p scoop -- test --fixtures tests/fixtures/build/funptr_enter_native_no_statepoint_writeback.scoop
+          cargo run -p scoop -- test --fixtures tests/fixtures/build/managed_abi_aggregate_return_hidden_sret.scoop
+          cargo run -p scoop -- test --fixtures tests/fixtures/build/managed_abi_direct_call_ordinary_contract.scoop
+          cargo run -p scoop -- test --fixtures tests/fixtures/run_pass_cone/managed_abi_string_gc
+          cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/managed_abi_string_helpers_basic.scoop
+
+      - name: Clippy
+        run: cargo clippy --all-targets -- -D warnings
