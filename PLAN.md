@@ -710,7 +710,7 @@ runtime 的最终目标是只包含 GC 实现与 GC-adjacent 功能（GC handle 
    - `linux/amd64`
    - `macos/aarch64`
 
-当前执行备注（P5-T00）：`macos/aarch64` 可在本机完成；`linux/amd64` 需要带 LLVM 21 的可复现 runner（CI 或专用 Docker image）。本地 Docker emulation 只能确认 `x86_64` 容器可启动，不能作为完整 ABI matrix 验收。
+当前执行备注（P5-T00）：`macos/aarch64` 可在本机完成；`linux/amd64` 已固化为带 LLVM 21 的 GitHub Actions `CI` runner，并在 run `25952815819` 上通过完整 Rust / fixture / ABI targeted matrix / Clippy 验证。本地 Docker emulation 只保留为 smoke，不作为完整 ABI matrix 验收。
 
 完成条件：
 

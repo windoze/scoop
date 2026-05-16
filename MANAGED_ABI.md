@@ -658,6 +658,43 @@ P4-T02 后 string helper 边界进一步收口：
    `@Extern` direct call、取地址后的 `FunPtr` indirect call、以及不同 host 架构。
 3. 任何只在单一架构通过、但 ABI 模型本身不自洽的测试，都不能作为设计正确性的证据。
 
+### 10.5 P5-T00 Linux/amd64 矩阵记录
+
+P5-T00 固化的 Linux/amd64 runner 为 GitHub Actions `CI` job：run `25952815819`，commit `10df6e1aff76351156dbf3924b2eb20d324b0394`，完整日志见 <https://github.com/windoze/scoop/actions/runs/25952815819>。
+
+该 runner 的可审计环境为：
+
+1. runner image：`ubuntu-24.04` `20260513.135.3`
+2. `uname -m`：`x86_64`
+3. Rust：`rustc 1.95.0 (59807616e 2026-04-14)`，host `x86_64-unknown-linux-gnu`
+4. LLVM / clang：`llvm-config --version` = `21.1.8`，clang target `x86_64-pc-linux-gnu`
+5. LLVM env：`LLVM_CONFIG_PATH=/usr/lib/llvm-21/bin/llvm-config`，`LLVM_SYS_211_PREFIX=/usr/lib/llvm-21`，`CC=/usr/lib/llvm-21/bin/clang`，`CXX=/usr/lib/llvm-21/bin/clang++`
+
+该 run 在同一 Linux/amd64 job 中通过：
+
+1. `cargo test --all --all-targets`
+2. `cargo test --all --all-targets --no-default-features`
+3. `cargo test -p scoop_runtime --all-targets --no-default-features --features gc-baseline`
+4. `cargo test -p scoop_runtime --all-targets --no-default-features --features gc-minimal`
+5. `cargo test -p scoop_runtime --all-targets --no-default-features --features gc-hosted`
+6. `cargo run -p scoop_tools -- spec-fixtures check`
+7. `cargo run -p scoop -- test`（`fixtures: ok (1367)`）
+8. `cargo clippy --all-targets -- -D warnings`
+
+P5 ABI targeted matrix 同时通过：
+
+1. `cargo test -p scoopc native_callable -- --nocapture`（2 passed）
+2. `cargo test -p scoopc managed_extern_ -- --nocapture`（2 passed）
+3. `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/extern_native_aggregate_return_direct_indirect_parity.scoop`
+4. `cargo run -p scoop -- test --fixtures tests/fixtures/runtime_gc/funptr_enter_native_roots_gc.scoop`
+5. `cargo run -p scoop -- test --fixtures tests/fixtures/build/funptr_enter_native_no_statepoint_writeback.scoop`
+6. `cargo run -p scoop -- test --fixtures tests/fixtures/build/managed_abi_aggregate_return_hidden_sret.scoop`
+7. `cargo run -p scoop -- test --fixtures tests/fixtures/build/managed_abi_direct_call_ordinary_contract.scoop`
+8. `cargo run -p scoop -- test --fixtures tests/fixtures/run_pass_cone/managed_abi_string_gc`
+9. `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/managed_abi_string_helpers_basic.scoop`
+
+本记录关闭 P5-T00 的 Linux/amd64 前置要求；本地 Docker emulation 只作为排查 smoke，不作为本文的 ABI 验收来源。
+
 ## 11. 成功判据
 
 本文方案落地后，应达到以下结果：

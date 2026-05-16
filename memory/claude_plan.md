@@ -1,59 +1,25 @@
-# Claude Execution Plan
+# 执行计划
 
-## Scope
+> 说明：这里记录可检查的执行计划、关键判断和进度更新；不记录私有逐字推理链。
 
-- Source of truth: `TODO.md`.
-- Goal for this invocation: identify and complete exactly the first incomplete task, then stop after committing.
-- Note: this file records the execution plan and progress in a concise, auditable form; it does not include private chain-of-thought.
+## 初始计划
 
-## Initial Plan
+1. 读取 `TODO.md`，按文件顺序找到第一个标题未带 `[DONE]` 的任务。
+2. 如需要，查看最新提交是否明确提到与该任务直接相关的未完成问题；只处理会阻塞当前任务的问题。
+3. 阅读当前任务涉及的代码、测试和规格上下文，确认完成条件与验证命令。
+4. 以最小正确改动实现当前任务；若发现阻塞性的缺失功能或规格不匹配，则在 `TODO.md` 中插入最小必要前置任务并停止。
+5. 运行相关测试；必要时运行更广的验证命令，修复当前任务引入或暴露且会阻塞该任务的问题。
+6. 更新 `TODO.md`：完成时在任务标题前加 `[DONE]` 并填写完成记录；仅在阶段计划真实变化时更新 `PLAN.md`。
+7. 更新本文件记录关键进度。
+8. 按要求提交所有本次任务相关更改，提交信息使用任务编号和简明描述。
+9. 完成一个任务后停止，不继续下一个任务。
 
-1. Read `TODO.md` to identify the first heading not explicitly prefixed with `[DONE]`.
-2. Check the latest commit message only for a directly relevant unfinished issue tied to that task.
-3. Read the selected task details, dependencies, and validation requirements.
-4. Inspect only the code, fixtures, docs, and tests relevant to that task.
-5. Implement the smallest spec-correct change needed for the task, without workaround behavior.
-6. Add or update focused tests/fixtures required by the task.
-7. Run the task-specified validations and any narrowly relevant checks; fix failures caused by this work.
-8. Update `TODO.md` by prefixing the completed task title with `[DONE]` and filling its completion record.
-9. Run formatting if needed and re-run relevant validation.
-10. Commit all task-related changes with a clear task-tagged message.
-11. Stop without starting the next task.
+## 进度日志
 
-## Progress Log
-
-- Started invocation and recorded the initial execution plan.
-- Identified first incomplete task: `P5-T00` (`补跑 Linux/amd64 LLVM ABI 矩阵并固化可复现执行环境`).
-- Latest commit is `4688fa91 [P5-T00] Record Linux ABI matrix prerequisite`, directly relevant to the selected task; treat the recorded Linux runner prerequisite and prior Docker timeout as part of this task context.
-
-## P5-T00 Execution Plan
-
-1. Inspect existing CI/Docker/tooling and ABI documentation relevant to P5-T00.
-2. Add the smallest reproducible Linux/amd64 runner artifact (prefer CI workflow or Dockerfile) that installs Rust stable, clang, and LLVM 21 compatible with the current `llvm-sys`/`inkwell` configuration.
-3. Execute the P5-T00 Linux/amd64 validation matrix if the runner can be used locally; otherwise capture the concrete blocker and add the minimal prerequisite task rather than marking P5-T00 done.
-4. If validations pass, update `TODO.md` completion record and ABI documentation with exact commands, platform, and LLVM version.
-5. Run formatting/lint or relevant checks for changed files.
-6. Commit all changes for this task and stop.
-
-## P5-T00 Findings
-
-- Remote CI run `25950480831` for commit `4688fa91` completed successfully on GitHub Actions `ubuntu-24.04` / `x86_64-unknown-linux-gnu` with LLVM `21.1.8` and clang target `x86_64-pc-linux-gnu`.
-- That run covers `cargo test --all --all-targets`, no-default/runtime feature tests, spec fixture check, and full `cargo run -p scoop -- test` fixture smoke (`1367` checks).
-- The current CI workflow does not yet run Linux `cargo clippy --all-targets -- -D warnings`, which is an explicit P5-T00 validation item.
-- Local Docker attempt using `docker.1ms.run/rust:bookworm` with `--platform linux/amd64` timed out after 90 minutes while still installing/downloading LLVM 21 packages and never reached `cargo clippy`; the container was stopped. This confirms local emulation is not a reproducible P5-T00 validation path.
-
-## Adjusted Plan
-
-1. Attempt a local `linux/amd64` Docker Clippy run using an LLVM 21 environment to fill the missing Linux Clippy validation without changing task scope.
-2. If Docker/emulation remains non-reproducible or too slow, update the CI runner artifact to include platform diagnostics, explicit P5 ABI targeted checks, and Linux Clippy, then keep P5-T00 incomplete with the remaining requirement clearly recorded.
-
-## Current Next Step
-
-- Patch `.github/workflows/ci.yml` to make the Linux/amd64 runner explicitly record platform/LLVM details and run the missing P5 ABI/Clippy matrix. Since pushing is not permitted in this invocation, `P5-T00` must remain incomplete until that updated workflow is run remotely.
-
-## Progress Update
-
-- Updated `.github/workflows/ci.yml` with `Platform diagnostics`, explicit `P5 ABI targeted matrix`, and Linux `Clippy` steps.
-- Updated `TODO.md` P5-T00 current record with the successful partial GitHub Actions Linux run, the failed local Docker Clippy attempt, and the remaining requirement to push/run the updated CI workflow before marking the task complete.
-- `P5-T00` remains intentionally incomplete because the required Linux Clippy/P5 targeted matrix logs do not exist yet for the updated workflow.
-- Validation for this partial/blocker commit: `git diff --check` passed.
+- 已读取 `TODO.md`，第一个未完成任务是 `P5-T00：补跑 Linux/amd64 LLVM ABI 矩阵并固化可复现执行环境`。
+- 下一步核对最新提交、CI 配置和远端/本地可用验证记录；如果当前 CI run 已覆盖任务要求，则回写 `TODO.md` / 相关文档并提交；如果没有可完成的 Linux/amd64 runner 结果，则只记录阻塞和必要的前置调整。
+- 已核对最新提交：`10df6e1 [P5-T00] Extend Linux ABI CI runner`，包含 `.github/workflows/ci.yml` 的 Linux ABI targeted matrix 与 Clippy 步骤；远端 CI run `25952815819` 正在执行。
+- 当前执行策略：等待该 CI run 完成，检查 `Platform diagnostics`、完整 cargo/fixture、P5 targeted matrix 与 Clippy 步骤；成功后回写 `TODO.md` / `MANAGED_ABI.md`，失败则按真实失败修复或记录新的前置任务。
+- CI run `25952815819` 已成功：`ubuntu-24.04` / `x86_64` / Rust `1.95.0` / LLVM `21.1.8`；完整 Rust suite、fixture smoke、P5 ABI targeted matrix 与 `cargo clippy --all-targets -- -D warnings` 均通过。
+- 已把 `P5-T00` 标记为 `[DONE]`，并更新 `TODO.md`、`MANAGED_ABI.md`、`PLAN.md` 记录 Linux/amd64 runner、命令日志 URL、平台诊断与验证结果。
+- 下一步运行轻量文档差异检查并提交本次完成记录。

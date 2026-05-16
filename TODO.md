@@ -41,7 +41,7 @@
 | `P4-T01q` | P4 前置 V | [DONE] 收口前端通用约束：所有 method/function 必须有完整定义与实现（仅 `@Intrinsic` / `@Extern` / 无默认实现的 interface method 三类例外） |
 | `P4-T01` | P4 | [DONE] 以标量 `toString` 为 tracer bullet，删除第一批字符串名字特判 |
 | `P4-T02` | P4 | [DONE] 迁移 remaining string helper，明确 substrate 边界并收缩 runtime surface |
-| `P5-T00` | P5 前置 | 补跑 Linux/amd64 LLVM ABI 矩阵并固化可复现执行环境 |
+| `P5-T00` | P5 前置 | [DONE] 补跑 Linux/amd64 LLVM ABI 矩阵并固化可复现执行环境 |
 | `P5-T01` | P5 | 做全量稳定化、跨平台矩阵与文档收尾 |
 
 ## 全局约束
@@ -2002,7 +2002,7 @@
 
 ## P5：稳定化与收尾
 
-### [TODO] P5-T00：补跑 Linux/amd64 LLVM ABI 矩阵并固化可复现执行环境
+### [DONE] P5-T00：补跑 Linux/amd64 LLVM ABI 矩阵并固化可复现执行环境
 
 - 起因 / 阻塞说明：
   - `P5-T01` 要求至少覆盖 `linux/amd64` 与 `macos/aarch64` matrix。
@@ -2026,19 +2026,30 @@
 - 完成条件：
   - Linux/amd64 与 macOS/aarch64 两侧都具备可审计的 P5 验证记录。
 - 依赖：`P4-T02`
-- 当前记录：
-  - 本机 Docker smoke：`docker run --rm --platform linux/amd64 docker.1ms.run/rust:bookworm uname -m` 输出 `x86_64`。
-  - 本机 Docker no-default Rust 矩阵尝试：`cargo test --all --all-targets --no-default-features` 在 emulation 下超过 30 分钟未完成；已停止超时容器，未把该结果视为 Linux/amd64 验收。
-  - 远端 GitHub Actions `CI` run `25950480831`（commit `4688fa915606c985c13a82e2893d9a6ea9a4b6a2`）已在 `ubuntu-24.04` / `x86_64-unknown-linux-gnu` 上通过：
-    - runner image：`ubuntu-24.04` `20260513.135.3`；Rust：`rustc 1.95.0 (59807616e 2026-04-14)`；LLVM：`llvm-config 21.1.8`；clang target：`x86_64-pc-linux-gnu`。
-    - `cargo test --all --all-targets`：通过。
-    - `cargo test --all --all-targets --no-default-features`：通过。
-    - `cargo test -p scoop_runtime --all-targets --no-default-features --features gc-baseline` / `gc-minimal` / `gc-hosted`：通过。
-    - `cargo run -p scoop_tools -- spec-fixtures check`：通过。
-    - `cargo run -p scoop -- test`：通过（`fixtures: ok (1367)`）。
-  - 该远端 run 尚未覆盖 P5-T00 明确要求的 Linux `cargo clippy --all-targets -- -D warnings`，因此不能作为完整验收；`P5-T00` 保持未完成。
-  - 本轮又尝试用 `docker run --rm --platform linux/amd64 docker.1ms.run/rust:bookworm ... cargo clippy --all-targets -- -D warnings` 补跑 Linux Clippy，但在 emulation/网络环境下 90 分钟仍停留于 LLVM 21 package 下载/安装，未进入 `cargo clippy`；已停止该容器，仍不接受为 Linux/amd64 验收。
-  - 本轮已更新 `.github/workflows/ci.yml`，在 `ubuntu-latest` Linux runner 中新增 `Platform diagnostics`、显式 `P5 ABI targeted matrix` 与 `Clippy` 步骤；该 commit 推送并产生成功的远端 CI run 后，方可把 `P5-T00` 标为 `[DONE]` 并将完整日志回写到 `TODO.md` / `MANAGED_ABI.md`。
+- 完成记录：
+  - 改动范围：
+    - `.github/workflows/ci.yml`
+    - `TODO.md`
+    - `MANAGED_ABI.md`
+    - `PLAN.md`
+    - `memory/claude_plan.md`
+  - 核心决策：
+    - GitHub Actions `CI` 的 Linux job 是 P5 的 `linux/amd64` 可审计 runner；job 安装 LLVM 21，并固定 `CC` / `CXX` / `LLVM_CONFIG_PATH` / `LLVM_SYS_211_PREFIX` 指向 `/usr/lib/llvm-21`。
+    - 本机 Docker emulation 只保留为历史 smoke / blocker 记录，不作为验收来源；Linux 验收只接受远端 `x86_64-unknown-linux-gnu` runner 的完整成功日志。
+    - Linux targeted matrix 显式覆盖 native direct/indirect parity、FunPtr native boundary、managed extern hidden-sret / ordinary-call contract 与 string cone GC/helper smoke，并把 `cargo clippy --all-targets -- -D warnings` 纳入同一 runner。
+  - 历史阻塞记录：
+    - 本机 Docker smoke：`docker run --rm --platform linux/amd64 docker.1ms.run/rust:bookworm uname -m` 输出 `x86_64`。
+    - 本机 Docker no-default Rust 矩阵尝试：`cargo test --all --all-targets --no-default-features` 在 emulation 下超过 30 分钟未完成；未把该结果视为 Linux/amd64 验收。
+    - 本机 Docker Clippy 尝试：`docker run --rm --platform linux/amd64 docker.1ms.run/rust:bookworm ... cargo clippy --all-targets -- -D warnings` 在 emulation / 网络环境下 90 分钟仍停留于 LLVM 21 package 下载/安装；未把该结果视为 Linux/amd64 验收。
+  - 验证结果：
+    - macOS/aarch64：沿用本机 P5 稳定化预备记录（见 `P5-T01` 当前记录），包括 `cargo test --all --all-targets`、`cargo run -p scoop -- test`、native / managed ABI targeted fixture 与 `cargo clippy --all-targets -- -D warnings` 通过。
+    - Linux/amd64：GitHub Actions `CI` run `25952815819`，commit `10df6e1aff76351156dbf3924b2eb20d324b0394`，job `76293821472`，完整日志：`https://github.com/windoze/scoop/actions/runs/25952815819`。
+    - Linux runner diagnostics：runner image `ubuntu-24.04` `20260513.135.3`；`uname -m` = `x86_64`；`rustc 1.95.0 (59807616e 2026-04-14)`；Rust host `x86_64-unknown-linux-gnu`；`llvm-config --version` = `21.1.8`；clang target `x86_64-pc-linux-gnu`；`LLVM_CONFIG_PATH=/usr/lib/llvm-21/bin/llvm-config`；`LLVM_SYS_211_PREFIX=/usr/lib/llvm-21`。
+    - Linux full suite：`cargo test --all --all-targets` 通过；`cargo test --all --all-targets --no-default-features` 通过；`cargo test -p scoop_runtime --all-targets --no-default-features --features gc-baseline` / `gc-minimal` / `gc-hosted` 通过；`cargo run -p scoop_tools -- spec-fixtures check` 通过；`cargo run -p scoop -- test` 通过（`fixtures: ok (1367)`）；`cargo clippy --all-targets -- -D warnings` 通过。
+    - Linux P5 ABI targeted matrix：`cargo test -p scoopc native_callable -- --nocapture` 通过（2 passed）；`cargo test -p scoopc managed_extern_ -- --nocapture` 通过（2 passed）；`extern_native_aggregate_return_direct_indirect_parity.scoop` 通过；`funptr_enter_native_roots_gc.scoop` 通过；`funptr_enter_native_no_statepoint_writeback.scoop` 通过；`managed_abi_aggregate_return_hidden_sret.scoop` 通过；`managed_abi_direct_call_ordinary_contract.scoop` 通过；`run_pass_cone/managed_abi_string_gc` 通过；`managed_abi_string_helpers_basic.scoop` 通过。
+  - 与 `PLAN.md` / `MANAGED_ABI.md` 的对应闭合：
+    - 对应 `PLAN.md` P5 cross-platform matrix：`linux/amd64` 现在已有带 LLVM 21、platform diagnostics、完整 suite、ABI targeted matrix 与 Clippy 的可审计 CI runner；`macos/aarch64` 本机记录已保留在 `P5-T01` 当前记录中。
+    - `MANAGED_ABI.md` §10 已新增 Linux/amd64 P5-T00 矩阵记录，明确该 run 覆盖 native callable ABI parity 与 managed external ABI contract，不再把 Docker emulation 当作验收路径。
 
 ### [TODO] P5-T01：做全量稳定化、跨平台矩阵与文档收尾
 
