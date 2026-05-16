@@ -1,0 +1,513 @@
+//! Continuation objects, callable layouts, and surface-resume bindings.
+//!
+//! Each late-lowered callable surfaces in three flavours: the plain (effect-
+//! neutral) shell, the version-indexed family for stateful callables, and
+//! the continuation object that ties resume sites to body versions. Surface
+//! resume bindings record which body satisfies each resume packing
+//! interface.
+
+use super::*;
+
+impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
+    pub(super) fn materialize_continuation_object_layout(
+        &mut self,
+        object: &LateLoweredContinuationObject,
+        surface_resume_layouts: &BTreeMap<
+            ContinuationSchemaId,
+            RefactorContinuationSurfaceResumeLayout<'ctx>,
+        >,
+    ) -> Result<RefactorContinuationObjectLayout<'ctx>, LlvmEmitError> {
+        let owner_callable = self
+            .program
+            .callable_by_version_key(object.owner_version_key())
+            .ok_or_else(|| {
+                frontend_error(format!(
+                    "refactor LLVM ABI materialization 缺少 continuation object {} 的 owner callable",
+                    object.object_id().as_u32()
+                ))
+            })?;
+        let stable_owner_key_text = stable_naming::callable_version_key_text(
+            self.codegen.stable_cone_key,
+            self.source_types,
+            self.codegen.stable_type_param_resolver(),
+            self.program,
+            owner_callable.body_version_key(),
+            &format!("continuation object {}", object.object_id().as_u32()),
+        )?;
+        let cont_type_name = stable_naming::private_type_name_from_key_text(
+            "Continuation",
+            "refactor_continuation_type",
+            &stable_owner_key_text,
+        )?;
+        let cont_anchor_name = stable_naming::private_name_from_key_text(
+            "refactor_continuation_layout",
+            &stable_owner_key_text,
+        );
+        let header_ty = self.codegen.llvm_gc_object_header_type();
+        let gc_ref_ty = self.codegen.llvm_gc_i8_ptr_type();
+        let resumed_ty = self.codegen.context.i32_type();
+        let resume_state_ty = self.codegen.context.i32_type();
+        let step_fn_ty = self.codegen.llvm_i8_ptr_type();
+        let resume_word_ty = self.codegen.context.i64_type();
+        let vtable_ptr_ty = self.codegen.llvm_i8_ptr_type();
+        self.validate_published_resume_packing_ids(
+            &format!("continuation object {}", object.object_id().as_u32()),
+            owner_callable.step_schema(),
+            object.implemented_packings(),
+        )?;
+        let surface_resume_bindings = self.materialize_surface_resume_bindings(
+            object,
+            owner_callable,
+            surface_resume_layouts,
+        )?;
+        if object.implemented_packings() != owner_callable.resume_packings() {
+            return Err(frontend_error(format!(
+                "refactor LLVM ABI materialization 发现 continuation object {} 的 implemented packings {} 与 owner callable `{}` 的 published resume packings {} 不一致",
+                object.object_id().as_u32(),
+                render_resume_packing_ids(object.implemented_packings()),
+                owner_callable.root_fqn(),
+                render_resume_packing_ids(owner_callable.resume_packings()),
+            )));
+        }
+        let packing_ids = object.implemented_packings().to_vec();
+
+        let mut llvm_fields: Vec<BasicTypeEnum<'ctx>> = vec![
+            header_ty.into(),
+            resumed_ty.into(),
+            resume_state_ty.into(),
+            gc_ref_ty.into(),
+            gc_ref_ty.into(),
+            step_fn_ty.into(),
+            resume_word_ty.into(),
+            gc_ref_ty.into(),
+            gc_ref_ty.into(),
+        ];
+        let mut fields = vec![
+            RefactorContinuationFieldLayout::new(
+                0,
+                RefactorContinuationFieldKind::Header,
+                header_ty.into(),
+            ),
+            RefactorContinuationFieldLayout::new(
+                1,
+                RefactorContinuationFieldKind::ResumedFlag,
+                resumed_ty.into(),
+            ),
+            RefactorContinuationFieldLayout::new(
+                2,
+                RefactorContinuationFieldKind::ResumeStateTag,
+                resume_state_ty.into(),
+            ),
+            RefactorContinuationFieldLayout::new(
+                3,
+                RefactorContinuationFieldKind::CapturedEffectCtxRef,
+                gc_ref_ty.into(),
+            ),
+            RefactorContinuationFieldLayout::new(
+                4,
+                RefactorContinuationFieldKind::StateRef,
+                gc_ref_ty.into(),
+            ),
+            RefactorContinuationFieldLayout::new(
+                5,
+                RefactorContinuationFieldKind::StepFn,
+                step_fn_ty.into(),
+            ),
+            RefactorContinuationFieldLayout::new(
+                6,
+                RefactorContinuationFieldKind::ResumeWord,
+                resume_word_ty.into(),
+            ),
+            RefactorContinuationFieldLayout::new(
+                7,
+                RefactorContinuationFieldKind::ResumeGcRef,
+                gc_ref_ty.into(),
+            ),
+            RefactorContinuationFieldLayout::new(
+                8,
+                RefactorContinuationFieldKind::CapturedCalleeSuspendStateRef,
+                gc_ref_ty.into(),
+            ),
+        ];
+        let mut packing_field_indices = BTreeMap::new();
+        for interface_id in &packing_ids {
+            let field_index = llvm_fields.len() as u32;
+            llvm_fields.push(vtable_ptr_ty.into());
+            fields.push(RefactorContinuationFieldLayout::new(
+                field_index,
+                RefactorContinuationFieldKind::PackingVtable(*interface_id),
+                vtable_ptr_ty.into(),
+            ));
+            packing_field_indices.insert(*interface_id, field_index);
+        }
+
+        let cont_ty = self.define_named_struct(&cont_type_name, &llvm_fields);
+        self.ensure_struct_anchor(&cont_anchor_name, cont_ty);
+        Ok(RefactorContinuationObjectLayout::new(
+            object.object_id(),
+            owner_callable.step_schema(),
+            cont_ty,
+            cont_anchor_name,
+            fields,
+            packing_field_indices,
+            surface_resume_bindings,
+        ))
+    }
+
+    pub(super) fn materialize_surface_resume_bindings(
+        &self,
+        object: &LateLoweredContinuationObject,
+        owner_callable: &LateLoweredCallable,
+        surface_resume_layouts: &BTreeMap<
+            ContinuationSchemaId,
+            RefactorContinuationSurfaceResumeLayout<'ctx>,
+        >,
+    ) -> Result<
+        BTreeMap<ContinuationSchemaId, Vec<RefactorContinuationSurfaceResumeBinding>>,
+        LlvmEmitError,
+    > {
+        let mut bindings =
+            BTreeMap::<ContinuationSchemaId, Vec<RefactorContinuationSurfaceResumeBinding>>::new();
+        let mut register_binding =
+            |continuation_schema: ContinuationSchemaId,
+             return_step_schema: StepSchemaId,
+             case_tag: crate::effect_facts::CaseTag,
+             reachability: crate::effect_lowered::ir::LateLoweredContinuationMethodReachability,
+             source_label: &str|
+             -> Result<(), LlvmEmitError> {
+                let layout = surface_resume_layouts
+                .get(&continuation_schema)
+                .ok_or_else(|| {
+                    frontend_error(format!(
+                        "refactor LLVM ABI materialization 缺少 continuation object {} 需要的 continuation schema k{} surface-resume layout（来源：{source_label}）",
+                        object.object_id().as_u32(),
+                        continuation_schema.as_u32(),
+                    ))
+                })?;
+                if layout.return_step_schema() != return_step_schema {
+                    return Err(frontend_error(format!(
+                        "refactor LLVM ABI materialization 发现 continuation object {} 的 continuation schema k{} 在 {source_label} 上声明 out_step_schema=s{}，但已发布 surface-resume layout 的 return step schema 为 s{}",
+                        object.object_id().as_u32(),
+                        continuation_schema.as_u32(),
+                        return_step_schema.as_u32(),
+                        layout.return_step_schema().as_u32(),
+                    )));
+                }
+                bindings.entry(continuation_schema).or_default().push(
+                    RefactorContinuationSurfaceResumeBinding::new(
+                        continuation_schema,
+                        return_step_schema,
+                        case_tag,
+                        reachability,
+                    ),
+                );
+                Ok(())
+            };
+
+        for surface_resume in object.surface_resumes() {
+            register_binding(
+                surface_resume.continuation_schema(),
+                surface_resume.out_step_schema(),
+                surface_resume.case_tag(),
+                surface_resume.reachability(),
+                &format!(
+                    "continuation object {} published surface resume case {}",
+                    object.object_id().as_u32(),
+                    surface_resume.case_tag().as_u32()
+                ),
+            )?;
+        }
+
+        let owner_step = self
+            .program
+            .step_type(owner_callable.step_schema())
+            .ok_or_else(|| {
+                frontend_error(format!(
+                    "refactor LLVM ABI materialization 缺少 continuation object {} 的 owner step schema {}",
+                    object.object_id().as_u32(),
+                    owner_callable.step_schema().as_u32(),
+                ))
+            })?;
+        for case in owner_step.cases() {
+            if !bindings.contains_key(&case.continuation_schema()) {
+                return Err(frontend_error(format!(
+                    "refactor LLVM ABI materialization 发现 continuation object {} 缺少 owner step schema {} case {} 所需的 continuation schema k{} surface-resume 发布",
+                    object.object_id().as_u32(),
+                    owner_callable.step_schema().as_u32(),
+                    case.case_tag().as_u32(),
+                    case.continuation_schema().as_u32(),
+                )));
+            }
+        }
+        Ok(bindings)
+    }
+
+    pub(super) fn materialize_callable_layout(
+        &mut self,
+        callable: &LateLoweredCallable,
+        step_layouts: &BTreeMap<StepSchemaId, RefactorStepLayout<'ctx>>,
+    ) -> Result<RefactorCallableLayout<'ctx>, LlvmEmitError> {
+        let step_layout = step_layouts.get(&callable.step_schema()).ok_or_else(|| {
+            frontend_error(format!(
+                "refactor LLVM ABI materialization 缺少 callable `{}` 的 step layout {}",
+                callable.root_fqn(),
+                callable.step_schema().as_u32()
+            ))
+        })?;
+        let step_ty = step_layout.llvm_ty();
+        let args_layout =
+            self.source_value_layout(callable.dynamic_invoke_entry().invoke_args_tuple_ty())?;
+        let args_abi = *args_layout.abi();
+        let mut params: Vec<BasicMetadataTypeEnum<'ctx>> = Vec::new();
+        if !args_abi.is_elided() {
+            params.push(args_abi.llvm_ty().into());
+        }
+        let dynamic_ty = step_ty.fn_type(&params, false);
+        let direct_ty = step_ty.fn_type(&params, false);
+        let stable_callable_key_text = stable_naming::callable_version_key_text(
+            self.codegen.stable_cone_key,
+            self.source_types,
+            self.codegen.stable_type_param_resolver(),
+            self.program,
+            callable.body_version_key(),
+            &format!("callable `{}`", callable.root_fqn()),
+        )?;
+        let dynamic_name = stable_naming::private_name_from_key_text(
+            "refactor_dynamic_invoke",
+            step_layout.stable_effect_key_text(),
+        );
+        let direct_name = stable_naming::private_name_from_key_text(
+            "refactor_direct_invoke",
+            step_layout.stable_effect_key_text(),
+        );
+        self.ensure_declared_compiler_private_helper_function(&dynamic_name, dynamic_ty);
+        self.ensure_declared_compiler_private_helper_function(&direct_name, direct_ty);
+        self.validate_published_resume_packing_ids(
+            &format!("callable `{}`", callable.root_fqn()),
+            callable.step_schema(),
+            callable.resume_packings(),
+        )?;
+        let continuation_object = self
+            .program
+            .continuation_object(callable.continuation_object())
+            .ok_or_else(|| {
+                frontend_error(format!(
+                    "refactor LLVM ABI materialization 缺少 callable `{}` 的 continuation object {}",
+                    callable.root_fqn(),
+                    callable.continuation_object().as_u32()
+                ))
+            })?;
+        if continuation_object.implemented_packings() != callable.resume_packings() {
+            return Err(frontend_error(format!(
+                "refactor LLVM ABI materialization 发现 callable `{}` 的 published resume packings {} 与 continuation object {} 的 implemented packings {} 不一致",
+                callable.root_fqn(),
+                render_resume_packing_ids(callable.resume_packings()),
+                continuation_object.object_id().as_u32(),
+                render_resume_packing_ids(continuation_object.implemented_packings()),
+            )));
+        }
+        let resume_packings = callable.resume_packings().to_vec();
+
+        Ok(RefactorCallableLayout::new(
+            callable.root_fqn().to_string(),
+            callable.body_version_key().clone(),
+            stable_callable_key_text,
+            callable.step_schema(),
+            RefactorCallableEntryLayout::new(
+                dynamic_name,
+                dynamic_ty,
+                params.len(),
+                callable.dynamic_invoke_entry().invoke_args_tuple_ty(),
+                args_abi,
+                callable.step_schema(),
+            ),
+            RefactorCallableEntryLayout::new(
+                direct_name,
+                direct_ty,
+                params.len(),
+                callable.dynamic_invoke_entry().invoke_args_tuple_ty(),
+                args_abi,
+                callable.step_schema(),
+            ),
+            callable.continuation_object(),
+            resume_packings,
+        ))
+    }
+
+    pub(super) fn materialize_plain_callable_layout(
+        &mut self,
+        callable: &LateLoweredCallable,
+    ) -> Result<RefactorPlainCallableLayout<'ctx>, LlvmEmitError> {
+        let stable_callable_key_text = stable_naming::callable_version_key_text(
+            self.codegen.stable_cone_key,
+            self.source_types,
+            self.codegen.stable_type_param_resolver(),
+            self.program,
+            callable.body_version_key(),
+            &format!("plain callable `{}`", callable.root_fqn()),
+        )?;
+        let plain = callable.plain_abi().ok_or_else(|| {
+            frontend_error(format!(
+                "refactor LLVM ABI materialization 发现 callable `{}` 没有 plain ABI handoff",
+                callable.root_fqn()
+            ))
+        })?;
+        let mir_fun = self
+            .materialized_callable_for_plain_signature(callable.root_fqn())?
+            .clone();
+        let mir_types = &self.pass_view.materialized().types;
+        let mir_param_tys = mir_fun
+            .params
+            .iter()
+            .map(|param| param.ty)
+            .collect::<Vec<_>>();
+        if mir_fun.ty != plain.function_ty()
+            || mir_fun.return_ty != plain.return_ty()
+            || mir_param_tys != plain.param_tys()
+        {
+            return Err(frontend_error(format!(
+                "refactor LLVM ABI materialization 发现 plain callable `{}` 的 materialized MIR signature 与 P5 plain ABI handoff 漂移",
+                callable.root_fqn()
+            )));
+        }
+        let llvm_fun = if self.codegen.fun_index.get(callable.root_fqn()).is_some() {
+            if callable.root_fqn() == "main" {
+                self.codegen
+                    .declare_materialized_mir_plain_fun_with_symbol(
+                        "__scoop_refactor_plain_source_main",
+                        LlvmFunctionDeclarationSurface::CompilerPrivateHelper,
+                        &mir_fun,
+                        &mir_param_tys,
+                        mir_fun.return_ty,
+                        mir_types,
+                    )?
+            } else {
+                self.codegen
+                    .declare_materialized_mir_plain_fun_with_symbol(
+                        callable.root_fqn(),
+                        LlvmFunctionDeclarationSurface::ExportedAbi,
+                        &mir_fun,
+                        &mir_param_tys,
+                        mir_fun.return_ty,
+                        mir_types,
+                    )?
+            }
+        } else if mir_fun.name.starts_with("$lambda") {
+            self.codegen
+                .declare_materialized_mir_closure_fun_with_signature(
+                    mir_fun.span,
+                    &mir_fun,
+                    &mir_param_tys,
+                    mir_fun.return_ty,
+                    mir_types,
+                )?
+        } else {
+            self.codegen
+                .declare_materialized_mir_plain_fun_with_symbol(
+                    callable.root_fqn(),
+                    LlvmFunctionDeclarationSurface::ExportedAbi,
+                    &mir_fun,
+                    &mir_param_tys,
+                    mir_fun.return_ty,
+                    mir_types,
+                )?
+        };
+        let symbol_name = llvm_fun
+            .get_name()
+            .to_str()
+            .map_err(|_| {
+                frontend_error(format!(
+                    "refactor LLVM ABI materialization 发现 plain callable `{}` 的 LLVM symbol 非 UTF-8",
+                    callable.root_fqn()
+                ))
+            })?
+            .to_string();
+        Ok(RefactorPlainCallableLayout::new(
+            callable.root_fqn().to_string(),
+            callable.body_version_key().clone(),
+            stable_callable_key_text,
+            RefactorPlainCallableEntryLayout::new(
+                symbol_name,
+                llvm_fun.get_type(),
+                llvm_fun.count_params() as usize,
+                plain.function_ty(),
+                plain.param_tys().to_vec(),
+                plain.return_ty(),
+            ),
+        ))
+    }
+
+    pub(super) fn materialized_callable_for_plain_signature(
+        &self,
+        root_fqn: &str,
+    ) -> Result<&crate::mir::FunDecl, LlvmEmitError> {
+        self.pass_view
+            .callable(root_fqn)
+            .or_else(|| {
+                self.pass_view
+                    .materialized()
+                    .file
+                    .items
+                    .iter()
+                    .find_map(|item| match item {
+                        crate::mir::Item::Fun(fun) if fun.fqn == root_fqn => Some(fun),
+                        _ => None,
+                    })
+            })
+            .or_else(|| {
+                self.pass_view
+                    .materialized()
+                    .caller_side_pass_candidate_bodies()
+                    .iter()
+                    .find(|fun| fun.fqn == root_fqn)
+            })
+            .ok_or_else(|| {
+                frontend_error(format!(
+                    "refactor LLVM ABI materialization 缺少 plain callable `{root_fqn}` 的 materialized MIR signature"
+                ))
+            })
+    }
+
+    pub(super) fn materialize_callable_version_layout_index(
+        &self,
+        callable_layouts: &BTreeMap<StepSchemaId, RefactorCallableLayout<'ctx>>,
+    ) -> Result<HashMap<LateLoweredBodyVersionKey, StepSchemaId>, LlvmEmitError> {
+        let mut index = HashMap::with_capacity(callable_layouts.len());
+        for layout in callable_layouts.values() {
+            let version_key = layout.body_version_key().clone();
+            if let Some(existing_step_schema) =
+                index.insert(version_key.clone(), layout.step_schema())
+            {
+                return Err(frontend_error(format!(
+                    "refactor LLVM ABI materialization 发现 body version key {:?} 同时指向 callable step schema s{} 与 s{}",
+                    version_key,
+                    existing_step_schema.as_u32(),
+                    layout.step_schema().as_u32(),
+                )));
+            }
+        }
+        Ok(index)
+    }
+
+    pub(super) fn materialize_known_instance_callable_versions(
+        &self,
+        callable_layouts: &BTreeMap<StepSchemaId, RefactorCallableLayout<'ctx>>,
+    ) -> Result<HashMap<(InstanceKey, StepSchemaId), LateLoweredBodyVersionKey>, LlvmEmitError>
+    {
+        let mut selectors = HashMap::with_capacity(callable_layouts.len());
+        for layout in callable_layouts.values() {
+            let selector = (layout.surface_instance().clone(), layout.step_schema());
+            let version_key = layout.body_version_key().clone();
+            if let Some(existing) = selectors.insert(selector.clone(), version_key.clone()) {
+                return Err(frontend_error(format!(
+                    "refactor LLVM ABI materialization 发现 known-instance selector ({:?}, s{}) 同时指向多个 callable version：已有 {:?}，新值 {:?}",
+                    selector.0,
+                    selector.1.as_u32(),
+                    existing,
+                    version_key,
+                )));
+            }
+        }
+        Ok(selectors)
+    }
+}

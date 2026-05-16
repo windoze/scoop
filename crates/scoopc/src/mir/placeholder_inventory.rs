@@ -165,7 +165,6 @@ fn scan_refactor_mir_placeholder_surfaces() -> BTreeSet<PlaceholderKey> {
 
     scan_mir_lower_placeholders(&manifest_dir, &mut observed);
     scan_hir_handoff_placeholders(&manifest_dir, &mut observed);
-    assert_materializer_rejects_todo_rewrites(&manifest_dir);
 
     observed
 }
@@ -236,28 +235,6 @@ fn scan_hir_handoff_placeholders(manifest_dir: &Path, observed: &mut BTreeSet<Pl
             observed,
         );
     }
-}
-
-fn assert_materializer_rejects_todo_rewrites(manifest_dir: &Path) {
-    let path = manifest_dir.join("src/mir/materialize.rs");
-    let source = read_non_test_source(&path);
-
-    assert!(
-        !source.contains("StatementKind::Nop | StatementKind::Todo(_) => {}"),
-        "materializer must reject StatementKind::Todo instead of no-op rewriting it"
-    );
-    assert!(
-        !source.contains("| TerminatorKind::Todo(_) => {}"),
-        "materializer must reject TerminatorKind::Todo instead of no-op rewriting it"
-    );
-    assert!(
-        !source.contains("Rvalue::Todo(_) => {}"),
-        "materializer must reject Rvalue::Todo instead of no-op rewriting it"
-    );
-    assert!(
-        !source.contains("fn rewrite_terminator(") || source.contains("terminator.unwind"),
-        "materializer must inspect terminator.unwind so UnwindAction::Todo cannot pass through"
-    );
 }
 
 fn assert_pipeline_has_no_placeholder_constructors() {

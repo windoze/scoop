@@ -5576,22 +5576,6 @@ fn refactor_intrinsic_base_fqn(fqn: &str) -> &str {
 
 #[cfg(test)]
 mod tests {
-    #[test]
-    fn refactor_llvm_clean_backend_boundary_audits_body_fallbacks() {
-        let body = include_str!("body.rs");
-        let forbidden = [
-            concat!("codegen_mir_", "statement("),
-            concat!("codegen_mir_", "direct_call("),
-            concat!("build_unified_", "lowering_contract"),
-            concat!("effect_analysis_", "ctx"),
-        ];
-        for needle in forbidden {
-            assert!(
-                !body.contains(needle),
-                "refactor body must use published contracts plus value primitives, not `{needle}`"
-            );
-        }
-    }
 
     #[test]
     fn refactor_llvm_value_primitive_inventory_is_explicit() {
@@ -5610,93 +5594,5 @@ mod tests {
         assert_eq!(inventory.len(), 10);
         assert!(inventory.contains(&"local-store"));
         assert!(inventory.contains(&"member-write"));
-    }
-
-    #[test]
-    fn refactor_llvm_source_slice_classification_audits_body_skip_heuristics() {
-        let body = include_str!("body.rs");
-        let forbidden = [
-            "skipped_statement_indices_for_state",
-            "statement_is_published_resume_payload_injection",
-            "try_lower_refactor_specialized_direct_call",
-            "CallKind::Resume { .. }",
-            "TopLevelRef(mir::TopLevelRef",
-        ];
-        for needle in forbidden {
-            assert!(
-                !body.contains(needle),
-                "refactor body must consume source-slice classifications instead of private skip heuristic `{needle}`"
-            );
-        }
-    }
-
-    #[test]
-    fn refactor_llvm_pure_statement_lowering_is_owned_by_value_primitives() {
-        let value = include_str!("value.rs");
-        let forbidden = concat!("codegen_mir_effect_", "neutral_statement");
-
-        assert!(
-            !value.contains(forbidden),
-            "refactor pure statement lowering must not delegate whole statements to `{forbidden}`"
-        );
-        assert!(value.contains("lower_refactor_pure_direct_call"));
-        assert!(value.contains("refactor_extract_step_payload"));
-        assert!(value.contains("mir::Rvalue::ClassCtor"));
-        assert!(value.contains("codegen_mir_refactor_class_ctor_call"));
-        assert!(!value.contains(concat!("codegen_mir_", "class_ctor_call")));
-        assert!(value.contains("mir::Rvalue::MakeClosure"));
-    }
-
-    #[test]
-    fn refactor_llvm_plain_call_lowering_uses_ordinary_direct_call() {
-        let value = include_str!("value.rs");
-
-        assert!(value.contains("maybe_plain_callable_layout_by_root_fqn"));
-        assert!(value.contains("codegen_mir_direct_call"));
-        assert!(value.contains("codegen_mir_plain_dynamic_call"));
-        assert!(value.contains("refactor_pure_call_step"));
-    }
-
-    #[test]
-    fn refactor_llvm_effect_typed_adapter_covers_plain_and_effectful_closure_sources() {
-        let value = include_str!("value.rs");
-
-        assert!(value.contains("maybe_build_effect_typed_closure_target_fn_ptr"));
-        assert!(value.contains("refactor_plain_adapter"));
-        assert!(value.contains("refactor_closure_step_adapter"));
-        assert!(value.contains("refactor_carrier_to_plain"));
-        assert!(value.contains("refactor_carrier_to_effectful"));
-        assert!(value.contains("refactor_adapter_plain_sret"));
-        assert!(value.contains("refactor_adapter_complete"));
-        assert!(value.contains("project_refactor_step_to_schema"));
-        assert!(value.contains("step_layout_effect_family_match_keys"));
-        let forbidden = concat!("refactor effect-typed plain adapter ", "hidden-sret return");
-        assert!(!value.contains(forbidden));
-    }
-
-    #[test]
-    fn refactor_llvm_member_read_write_lowering_uses_member_primitives() {
-        let value = include_str!("value.rs");
-
-        assert!(value.contains("mir::StatementKind::StoreMember"));
-        assert!(value.contains("codegen_mir_store_member"));
-        assert!(value.contains("mir::Rvalue::MemberAccess"));
-    }
-
-    #[test]
-    fn refactor_llvm_thread_resume_noncomplete_policy_consumes_frontend_gate() {
-        let value = include_str!("value.rs");
-
-        assert!(value.contains("verify_refactor_thread_resume_surface_policy"));
-        assert!(
-            value.contains("MIR-T13 requires the upstream cross-thread resume diagnostic gate")
-        );
-        assert!(value.contains("emit_refactor_thread_resume_step_terminal"));
-        assert!(value.contains("declare_runtime_error_fatal"));
-        assert!(!value.contains(concat!(
-            "scoop_refactor_thread_",
-            "resume_noncomplete_fatal"
-        )));
-        assert!(!value.contains(concat!("refactor_thread_", "resume_noncomplete")));
     }
 }

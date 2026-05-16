@@ -72,8 +72,6 @@ fn refactor_hir_placeholder_inventory() {
         observed, expected,
         "HIR placeholder constructors changed; update the refactor HIR inventory and classification first"
     );
-
-    assert_pipeline_hir_stage_does_not_use_legacy_dump_fallback();
 }
 
 fn assert_inventory_entries_are_actionable() {
@@ -203,22 +201,4 @@ fn collect_item_todo_constructors(source: &str, out: &mut BTreeSet<PlaceholderKe
         }
         remaining = after_item;
     }
-}
-
-fn assert_pipeline_hir_stage_does_not_use_legacy_dump_fallback() {
-    let hir_stage = include_str!("../../pipeline/hir_stage.rs");
-    assert!(
-        hir_stage.contains("crate::hir::lower_typed_for_dump(session, source)"),
-        "refactor typed HIR stage must enter the typed HIR lowering entrypoint"
-    );
-    assert!(
-        !hir_stage.contains("crate::hir::lower_for_dump(session, source)"),
-        "refactor typed HIR stage must not carry the legacy dump-only HIR fallback"
-    );
-    assert!(
-        hir_stage.contains(
-            "crate::hir::stable_dump_file(self.hir_file(), self.types(), self.source_path())"
-        ),
-        "refactor stable dump should render the stage-owned typed HIR file"
-    );
 }

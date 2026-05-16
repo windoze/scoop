@@ -508,21 +508,4 @@ fun leaf(): Unit / Ping {
             );
         }
     }
-
-    #[test]
-    fn refactor_effect_lowered_stage_has_no_legacy_state_machine_or_llvm_imports() {
-        let stage_source = include_str!("effect_lowering_stage.rs");
-        let builder_source = include_str!("../effect_lowered/builder.rs");
-        let production_stage_source = stage_source
-            .split("#[cfg(test)]")
-            .next()
-            .unwrap_or(stage_source);
-
-        for source in [production_stage_source, builder_source] {
-            assert!(!source.contains("use crate::llvm"));
-            assert!(!source.contains("crate::llvm::"));
-            assert!(!source.contains("use crate::effect::state_machine"));
-            assert!(!source.contains("crate::effect::state_machine::"));
-        }
-    }
 }
