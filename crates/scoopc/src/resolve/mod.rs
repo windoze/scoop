@@ -21,6 +21,7 @@ use thiserror::Error;
 
 use crate::{ast, intrinsics::best_effort_intrinsic_entry_name, source::SourceFile, span::Span};
 
+pub(crate) use imports::add_auto_prelude_star_imports;
 pub use imports::{ImportNamespace, ImportTable};
 use scopes::check_block_scopes;
 
@@ -512,8 +513,12 @@ impl NamespacedSymbols {
 pub struct Index {
     /// FQN（例如 `scoop.core.Option`）→ 按命名空间分组的符号集合。
     pub by_fqn: HashMap<String, NamespacedSymbols>,
+    /// 编译单元中出现过的 package 前缀；空 package 不记录。
+    packages: HashSet<String>,
     /// 每个源文件所属的 cone（用于可见性过滤）。
     file_cones: HashMap<PathBuf, ConeId>,
+    /// 当前索引是否包含 sysroot 文件，用于区分真实编译与极小单测索引。
+    has_sysroot_files: bool,
     /// runtime entry point：可执行入口函数（`fun main`）。
     ///
     /// 说明（T1113）：
@@ -584,6 +589,9 @@ impl Index {
     pub fn build_with_cones(files: &[IndexedFile<'_>]) -> Result<Self, ResolveError> {
         let mut index = Index::default();
         for f in files {
+            if f.source.is_sysroot() {
+                index.has_sysroot_files = true;
+            }
             index
                 .file_cones
                 .insert(f.source.path().to_path_buf(), f.cone);
@@ -619,6 +627,19 @@ impl Index {
 
     pub fn is_runtime_entry_point(&self, fqn: &str) -> bool {
         self.runtime_entry_point.as_deref() == Some(fqn)
+    }
+
+    pub(crate) fn has_sysroot_files(&self) -> bool {
+        self.has_sysroot_files
+    }
+
+    pub(crate) fn has_importable_prefix(&self, path: &str) -> bool {
+        if self.packages.contains(path) {
+            return true;
+        }
+
+        let prefix = format!("{path}.");
+        self.by_fqn.keys().any(|fqn| fqn.starts_with(&prefix))
     }
 
     fn collect_extension_funs(&mut self, files: &[IndexedFile<'_>]) {
@@ -904,6 +925,10 @@ impl Index {
         // 3) 对单段名字，应用 import 规则（显式 import / star import）
         if segments.len() == 1 {
             let name = segments[0];
+            for prefix in imports::auto_prelude_star_imports(source) {
+                candidates.push(format!("{prefix}.{name}"));
+            }
+
             for import in &file.imports {
                 let import_path = import
                     .path
@@ -954,6 +979,9 @@ impl Index {
         file: &ast::File,
     ) -> Result<(), ResolveError> {
         let pkg = package_prefix(source, file.package.as_ref());
+        if !pkg.is_empty() {
+            self.packages.insert(pkg.clone());
+        }
         let pkg_origin = DeclOrigin {
             cone,
             source,
@@ -1686,7 +1714,7 @@ pub fn check_file_headers(
     let imports = ImportTable::build(source, file, index)?;
 
     // T1015：命名空间注解（`@A.B`）的最小存在性解析。
-    resolve_namespaced_annotations(source, file, index, &file.file_annotations)?;
+    resolve_namespaced_annotations(source, file, index, &imports, &file.file_annotations)?;
 
     // T0309：声明级 type params 作用域（用于签名中的 TypeRef 解析）。
     let mut type_params = TypeParamScopes::new();
@@ -1696,26 +1724,36 @@ pub fn check_file_headers(
     for item in &file.items {
         match item {
             ast::Item::TypeAlias(ta) => {
-                resolve_namespaced_annotations(source, file, index, &ta.annotations)?;
+                resolve_namespaced_annotations(source, file, index, &imports, &ta.annotations)?;
                 type_params.push_decl(source, &ta.type_params)?;
-                let result = resolve_type_ref(source, file, index, &type_params, None, &ta.ty);
+                let result =
+                    resolve_type_ref(source, file, index, &imports, &type_params, None, &ta.ty);
                 type_params.pop_decl();
                 result?
             }
             ast::Item::Fun(fun) => {
                 type_params.push_decl(source, &fun.type_params)?;
                 let eff_param = fun.eff_param.as_ref().map(|p| source.slice(p.name.span));
-                let result = resolve_fun_header(source, file, index, &type_params, eff_param, fun);
+                let result =
+                    resolve_fun_header(source, file, index, &imports, &type_params, eff_param, fun);
                 type_params.pop_decl();
                 result?;
             }
             ast::Item::ExtensionProperty(p) => {
                 type_params.push_decl(source, &p.type_params)?;
                 let result = (|| {
-                    resolve_namespaced_annotations(source, file, index, &p.annotations)?;
-                    resolve_type_ref(source, file, index, &type_params, None, &p.receiver)?;
+                    resolve_namespaced_annotations(source, file, index, &imports, &p.annotations)?;
+                    resolve_type_ref(
+                        source,
+                        file,
+                        index,
+                        &imports,
+                        &type_params,
+                        None,
+                        &p.receiver,
+                    )?;
                     if let Some(ty) = &p.ty {
-                        resolve_type_ref(source, file, index, &type_params, None, ty)?;
+                        resolve_type_ref(source, file, index, &imports, &type_params, None, ty)?;
                     }
                     Ok(())
                 })();
@@ -1723,15 +1761,17 @@ pub fn check_file_headers(
                 result?;
             }
             ast::Item::Val(v) => {
-                resolve_namespaced_annotations(source, file, index, &v.annotations)?;
+                resolve_namespaced_annotations(source, file, index, &imports, &v.annotations)?;
                 if let Some(ty) = &v.ty {
-                    resolve_type_ref(source, file, index, &type_params, None, ty)?;
+                    resolve_type_ref(source, file, index, &imports, &type_params, None, ty)?;
                 }
             }
             ast::Item::Type(ty) => {
-                resolve_type_decl_headers(source, file, index, ty, &mut type_params)?
+                resolve_type_decl_headers(source, file, index, &imports, ty, &mut type_params)?
             }
-            ast::Item::Object(obj) => resolve_object_decl_headers(source, file, index, obj)?,
+            ast::Item::Object(obj) => {
+                resolve_object_decl_headers(source, file, index, &imports, obj)?
+            }
             // T1220a：package-level comptime if 在进入 index/resolve 之前应被裁剪（TODO T1220b）。
             ast::Item::ComptimeIf(_) => {}
         }
@@ -1757,10 +1797,11 @@ fn resolve_namespaced_annotations(
     source: &SourceFile,
     file: &ast::File,
     index: &Index,
+    imports: &ImportTable,
     anns: &[ast::AnnotationUse],
 ) -> Result<(), ResolveError> {
     for ann in anns {
-        resolve_namespaced_annotation_use(source, file, index, ann)?;
+        resolve_namespaced_annotation_use(source, file, index, imports, ann)?;
     }
     Ok(())
 }
@@ -1769,6 +1810,7 @@ fn resolve_namespaced_annotation_use(
     source: &SourceFile,
     file: &ast::File,
     index: &Index,
+    imports: &ImportTable,
     ann: &ast::AnnotationUse,
 ) -> Result<(), ResolveError> {
     // T1015：仅对 `@A.B` 这类“命名空间注解”做最小存在性解析：
@@ -1792,35 +1834,44 @@ fn resolve_namespaced_annotation_use(
 
     // 注解名解析不引入声明级 type param 作用域（它解析的是注解类的名字路径）。
     let type_params = TypeParamScopes::new();
-    resolve_type_path(source, file, index, &type_params, None, &path)
+    resolve_type_path(source, file, index, imports, &type_params, None, &path)
 }
 
 fn resolve_fun_header(
     source: &SourceFile,
     file: &ast::File,
     index: &Index,
+    imports: &ImportTable,
     type_params: &TypeParamScopes,
     eff_param: Option<&str>,
     fun: &ast::FunDecl,
 ) -> Result<(), ResolveError> {
-    resolve_namespaced_annotations(source, file, index, &fun.annotations)?;
+    resolve_namespaced_annotations(source, file, index, imports, &fun.annotations)?;
     for p in &fun.params {
-        resolve_namespaced_annotations(source, file, index, &p.annotations)?;
+        resolve_namespaced_annotations(source, file, index, imports, &p.annotations)?;
     }
 
     if let Some(receiver) = &fun.receiver {
-        resolve_type_ref(source, file, index, type_params, eff_param, receiver)?;
+        resolve_type_ref(
+            source,
+            file,
+            index,
+            imports,
+            type_params,
+            eff_param,
+            receiver,
+        )?;
     }
     for p in &fun.params {
         if let Some(ty) = &p.ty {
-            resolve_type_ref(source, file, index, type_params, eff_param, ty)?;
+            resolve_type_ref(source, file, index, imports, type_params, eff_param, ty)?;
         }
     }
     if let Some(ret) = &fun.return_ty {
-        resolve_type_ref(source, file, index, type_params, eff_param, ret)?;
+        resolve_type_ref(source, file, index, imports, type_params, eff_param, ret)?;
     }
     if let Some(w) = &fun.where_clause {
-        resolve_where_clause(source, file, index, type_params, eff_param, w)?;
+        resolve_where_clause(source, file, index, imports, type_params, eff_param, w)?;
     }
     Ok(())
 }
@@ -1829,6 +1880,7 @@ fn resolve_type_decl_headers(
     source: &SourceFile,
     file: &ast::File,
     index: &Index,
+    imports: &ImportTable,
     ty: &ast::TypeDecl,
     type_params: &mut TypeParamScopes,
 ) -> Result<(), ResolveError> {
@@ -1836,26 +1888,34 @@ fn resolve_type_decl_headers(
     type_params.push_decl(source, &ty.type_params)?;
 
     let result = (|| {
-        resolve_namespaced_annotations(source, file, index, &ty.annotations)?;
+        resolve_namespaced_annotations(source, file, index, imports, &ty.annotations)?;
         let ty_eff_param = ty.eff_param.as_ref().map(|p| source.slice(p.name.span));
 
         if let Some(w) = &ty.where_clause {
-            resolve_where_clause(source, file, index, type_params, ty_eff_param, w)?;
+            resolve_where_clause(source, file, index, imports, type_params, ty_eff_param, w)?;
         }
 
         // 主构造头参数（只解析类型；默认值的值解析需要更完整的 class 作用域规则，留给 T0313）。
         if let Some(primary_ctor) = &ty.primary_ctor {
             for p in &primary_ctor.params {
-                resolve_namespaced_annotations(source, file, index, &p.annotations)?;
+                resolve_namespaced_annotations(source, file, index, imports, &p.annotations)?;
                 if let Some(ty) = &p.ty {
-                    resolve_type_ref(source, file, index, type_params, ty_eff_param, ty)?;
+                    resolve_type_ref(source, file, index, imports, type_params, ty_eff_param, ty)?;
                 }
             }
         }
 
         // 继承/实现列表：解析 supertype 的类型引用。
         for st in &ty.supertypes {
-            resolve_type_ref(source, file, index, type_params, ty_eff_param, &st.ty)?;
+            resolve_type_ref(
+                source,
+                file,
+                index,
+                imports,
+                type_params,
+                ty_eff_param,
+                &st.ty,
+            )?;
         }
 
         // 类型体成员签名：property/fun/nested type。
@@ -1866,33 +1926,75 @@ fn resolve_type_decl_headers(
         for member in &body.members {
             match member {
                 ast::TypeMember::EnumVariant(v) => {
-                    resolve_namespaced_annotations(source, file, index, &v.annotations)?;
+                    resolve_namespaced_annotations(source, file, index, imports, &v.annotations)?;
                     // enum variant payload 字段类型也属于 “签名里的类型引用” 范畴；
                     // 这里复用 TypeRef 的存在性解析规则（包含 type params）。
                     for p in &v.params {
-                        resolve_namespaced_annotations(source, file, index, &p.annotations)?;
+                        resolve_namespaced_annotations(
+                            source,
+                            file,
+                            index,
+                            imports,
+                            &p.annotations,
+                        )?;
                         if let Some(ty) = &p.ty {
-                            resolve_type_ref(source, file, index, type_params, ty_eff_param, ty)?;
+                            resolve_type_ref(
+                                source,
+                                file,
+                                index,
+                                imports,
+                                type_params,
+                                ty_eff_param,
+                                ty,
+                            )?;
                         }
                     }
                 }
                 ast::TypeMember::Property(p) => {
-                    resolve_namespaced_annotations(source, file, index, &p.annotations)?;
+                    resolve_namespaced_annotations(source, file, index, imports, &p.annotations)?;
                     if let Some(ty) = &p.ty {
-                        resolve_type_ref(source, file, index, type_params, ty_eff_param, ty)?;
+                        resolve_type_ref(
+                            source,
+                            file,
+                            index,
+                            imports,
+                            type_params,
+                            ty_eff_param,
+                            ty,
+                        )?;
                     }
                 }
                 ast::TypeMember::InitBlock(_b) => {
                     // init block 的类型/值解析属于初始化执行体语境（T0313），当前阶段先跳过。
                 }
                 ast::TypeMember::SecondaryCtor(ctor) => {
-                    resolve_namespaced_annotations(source, file, index, &ctor.annotations)?;
+                    resolve_namespaced_annotations(
+                        source,
+                        file,
+                        index,
+                        imports,
+                        &ctor.annotations,
+                    )?;
                     // 次构造器参数类型也属于“签名里的类型引用”范畴；
                     // 默认值与 body 的值解析规则依赖完整构造/初始化语义（T0313），当前先不处理。
                     for p in &ctor.params {
-                        resolve_namespaced_annotations(source, file, index, &p.annotations)?;
+                        resolve_namespaced_annotations(
+                            source,
+                            file,
+                            index,
+                            imports,
+                            &p.annotations,
+                        )?;
                         if let Some(ty) = &p.ty {
-                            resolve_type_ref(source, file, index, type_params, ty_eff_param, ty)?;
+                            resolve_type_ref(
+                                source,
+                                file,
+                                index,
+                                imports,
+                                type_params,
+                                ty_eff_param,
+                                ty,
+                            )?;
                         }
                     }
                 }
@@ -1903,8 +2005,15 @@ fn resolve_type_decl_headers(
                         .as_ref()
                         .map(|p| source.slice(p.name.span))
                         .or(ty_eff_param);
-                    let result =
-                        resolve_fun_header(source, file, index, type_params, fun_eff_param, f);
+                    let result = resolve_fun_header(
+                        source,
+                        file,
+                        index,
+                        imports,
+                        type_params,
+                        fun_eff_param,
+                        f,
+                    );
                     type_params.pop_decl();
                     result?;
                 }
@@ -1916,12 +2025,13 @@ fn resolve_type_decl_headers(
                         source,
                         file,
                         index,
+                        imports,
                         nested,
                         &mut nested_type_params,
                     )?;
                 }
                 ast::TypeMember::Object(obj) => {
-                    resolve_object_decl_headers(source, file, index, obj)?;
+                    resolve_object_decl_headers(source, file, index, imports, obj)?;
                 }
             }
         }
@@ -1941,6 +2051,7 @@ fn resolve_where_clause(
     source: &SourceFile,
     file: &ast::File,
     index: &Index,
+    imports: &ImportTable,
     type_params: &TypeParamScopes,
     eff_param: Option<&str>,
     where_clause: &ast::WhereClause,
@@ -1953,7 +2064,15 @@ fn resolve_where_clause(
                 span: c.ty_param.span.into(),
             });
         }
-        resolve_type_ref(source, file, index, type_params, eff_param, &c.bound)?;
+        resolve_type_ref(
+            source,
+            file,
+            index,
+            imports,
+            type_params,
+            eff_param,
+            &c.bound,
+        )?;
     }
     Ok(())
 }
@@ -1962,16 +2081,17 @@ fn resolve_object_decl_headers(
     source: &SourceFile,
     file: &ast::File,
     index: &Index,
+    imports: &ImportTable,
     obj: &ast::ObjectDecl,
 ) -> Result<(), ResolveError> {
     // object 自身不引入类型参数作用域（当前语法不支持 object 的 `<T>`）；成员可各自声明 type params。
     let mut type_params = TypeParamScopes::new();
 
-    resolve_namespaced_annotations(source, file, index, &obj.annotations)?;
+    resolve_namespaced_annotations(source, file, index, imports, &obj.annotations)?;
 
     // 超类型列表：解析类型引用（若存在）。
     for st in &obj.supertypes {
-        resolve_type_ref(source, file, index, &type_params, None, &st.ty)?;
+        resolve_type_ref(source, file, index, imports, &type_params, None, &st.ty)?;
     }
 
     let Some(body) = &obj.body else {
@@ -1981,43 +2101,51 @@ fn resolve_object_decl_headers(
     for member in &body.members {
         match member {
             ast::TypeMember::EnumVariant(v) => {
-                resolve_namespaced_annotations(source, file, index, &v.annotations)?;
+                resolve_namespaced_annotations(source, file, index, imports, &v.annotations)?;
                 for p in &v.params {
-                    resolve_namespaced_annotations(source, file, index, &p.annotations)?;
+                    resolve_namespaced_annotations(source, file, index, imports, &p.annotations)?;
                     if let Some(ty) = &p.ty {
-                        resolve_type_ref(source, file, index, &type_params, None, ty)?;
+                        resolve_type_ref(source, file, index, imports, &type_params, None, ty)?;
                     }
                 }
             }
             ast::TypeMember::Property(p) => {
-                resolve_namespaced_annotations(source, file, index, &p.annotations)?;
+                resolve_namespaced_annotations(source, file, index, imports, &p.annotations)?;
                 if let Some(ty) = &p.ty {
-                    resolve_type_ref(source, file, index, &type_params, None, ty)?;
+                    resolve_type_ref(source, file, index, imports, &type_params, None, ty)?;
                 }
             }
             ast::TypeMember::InitBlock(_b) => {}
             ast::TypeMember::SecondaryCtor(ctor) => {
-                resolve_namespaced_annotations(source, file, index, &ctor.annotations)?;
+                resolve_namespaced_annotations(source, file, index, imports, &ctor.annotations)?;
                 for p in &ctor.params {
-                    resolve_namespaced_annotations(source, file, index, &p.annotations)?;
+                    resolve_namespaced_annotations(source, file, index, imports, &p.annotations)?;
                     if let Some(ty) = &p.ty {
-                        resolve_type_ref(source, file, index, &type_params, None, ty)?;
+                        resolve_type_ref(source, file, index, imports, &type_params, None, ty)?;
                     }
                 }
             }
             ast::TypeMember::Fun(f) => {
                 type_params.push_decl(source, &f.type_params)?;
                 let eff_param = f.eff_param.as_ref().map(|p| source.slice(p.name.span));
-                let result = resolve_fun_header(source, file, index, &type_params, eff_param, f);
+                let result =
+                    resolve_fun_header(source, file, index, imports, &type_params, eff_param, f);
                 type_params.pop_decl();
                 result?;
             }
             ast::TypeMember::Type(nested) => {
                 let mut nested_type_params = TypeParamScopes::new();
-                resolve_type_decl_headers(source, file, index, nested, &mut nested_type_params)?;
+                resolve_type_decl_headers(
+                    source,
+                    file,
+                    index,
+                    imports,
+                    nested,
+                    &mut nested_type_params,
+                )?;
             }
             ast::TypeMember::Object(nested) => {
-                resolve_object_decl_headers(source, file, index, nested)?;
+                resolve_object_decl_headers(source, file, index, imports, nested)?;
             }
         }
     }
@@ -2029,15 +2157,18 @@ fn resolve_type_ref(
     source: &SourceFile,
     file: &ast::File,
     index: &Index,
+    imports: &ImportTable,
     type_params: &TypeParamScopes,
     eff_param: Option<&str>,
     ty: &ast::TypeRef,
 ) -> Result<(), ResolveError> {
     match ty {
-        ast::TypeRef::Path(p) => resolve_type_path(source, file, index, type_params, eff_param, p),
+        ast::TypeRef::Path(p) => {
+            resolve_type_path(source, file, index, imports, type_params, eff_param, p)
+        }
         ast::TypeRef::Tuple(t) => {
             for e in &t.elements {
-                resolve_type_ref(source, file, index, type_params, eff_param, e)?;
+                resolve_type_ref(source, file, index, imports, type_params, eff_param, e)?;
             }
             Ok(())
         }
@@ -2054,18 +2185,34 @@ fn resolve_type_ref(
                 }) {
                     continue;
                 }
-                resolve_type_path(source, file, index, type_params, eff_param, term)?;
+                resolve_type_path(source, file, index, imports, type_params, eff_param, term)?;
             }
             Ok(())
         }
         ast::TypeRef::Function(f) => {
             if let Some(receiver) = &f.receiver {
-                resolve_type_ref(source, file, index, type_params, eff_param, receiver)?;
+                resolve_type_ref(
+                    source,
+                    file,
+                    index,
+                    imports,
+                    type_params,
+                    eff_param,
+                    receiver,
+                )?;
             }
             for p in &f.params {
-                resolve_type_ref(source, file, index, type_params, eff_param, p)?;
+                resolve_type_ref(source, file, index, imports, type_params, eff_param, p)?;
             }
-            resolve_type_ref(source, file, index, type_params, eff_param, &f.return_ty)?;
+            resolve_type_ref(
+                source,
+                file,
+                index,
+                imports,
+                type_params,
+                eff_param,
+                &f.return_ty,
+            )?;
 
             if let Some(effects) = &f.effects {
                 for term in &effects.terms {
@@ -2076,14 +2223,14 @@ fn resolve_type_ref(
                     }) {
                         continue;
                     }
-                    resolve_type_path(source, file, index, type_params, eff_param, term)?;
+                    resolve_type_path(source, file, index, imports, type_params, eff_param, term)?;
                 }
             }
 
             Ok(())
         }
         ast::TypeRef::Nullable { inner, .. } => {
-            resolve_type_ref(source, file, index, type_params, eff_param, inner)
+            resolve_type_ref(source, file, index, imports, type_params, eff_param, inner)
         }
     }
 }
@@ -2092,13 +2239,14 @@ fn resolve_type_path(
     source: &SourceFile,
     file: &ast::File,
     index: &Index,
+    imports: &ImportTable,
     type_params: &TypeParamScopes,
     eff_param: Option<&str>,
     path: &ast::TypePath,
 ) -> Result<(), ResolveError> {
     // 先解析类型实参（如 `Option<T>`），确保其中的 TypeRef 也会被递归解析。
     for arg in &path.args {
-        resolve_type_ref(source, file, index, type_params, eff_param, arg)?;
+        resolve_type_ref(source, file, index, imports, type_params, eff_param, arg)?;
     }
 
     let segments = path
@@ -2129,41 +2277,11 @@ fn resolve_type_path(
         let name = segments[0];
 
         // T1310：显式 import（含 alias）优先于 star import，且不依赖 import 语句的先后顺序。
-        for import in &file.imports {
-            if import.has_star {
-                continue;
-            }
-
-            let import_local = import
-                .alias
-                .as_ref()
-                .map(|id| source.slice(id.span))
-                .or_else(|| import.path.last().map(|id| source.slice(id.span)))
-                .unwrap_or("");
-            if import_local != name {
-                continue;
-            }
-
-            let import_path = import
-                .path
-                .iter()
-                .map(|id| source.slice(id.span))
-                .collect::<Vec<_>>()
-                .join(".");
-            candidates.push(import_path);
+        if let Some(fqns) = imports.ty.explicit.get(name) {
+            candidates.extend(fqns.iter().cloned());
         }
 
-        for import in &file.imports {
-            if !import.has_star {
-                continue;
-            }
-
-            let import_path = import
-                .path
-                .iter()
-                .map(|id| source.slice(id.span))
-                .collect::<Vec<_>>()
-                .join(".");
+        for import_path in &imports.star {
             candidates.push(format!("{import_path}.{name}"));
         }
     }

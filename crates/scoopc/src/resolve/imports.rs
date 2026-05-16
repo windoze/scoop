@@ -6,11 +6,13 @@
 //! - 当前阶段（T0303）仅构建 import 表：显式 import 与通配 `*` import；
 //!   不在这里执行表达式中的标识符解析（后续任务再接入）。
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, HashSet};
 
 use crate::{ast, source::SourceFile, span::Span};
 
 use super::{Index, ResolveError, SymbolKind};
+
+const AUTO_PRELUDE_STAR_IMPORTS: [&str; 2] = ["scoop.core", "scoop.lang.string"];
 
 /// 按命名空间拆分后的 import 表。
 ///
@@ -42,6 +44,13 @@ impl ImportTable {
     ) -> Result<Self, ResolveError> {
         let mut table = ImportTable::default();
 
+        add_auto_prelude_star_imports(&mut table, source);
+        if index.has_sysroot_files() {
+            for path in auto_prelude_star_imports(source) {
+                validate_star_import(index, path, Span::synthetic_prelude())?;
+            }
+        }
+
         // T0315/T1310：import alias 需要参与冲突检查。
         // 规则：
         // - alias 名字在对应命名空间下必须唯一（不能与其它 import 的 local 名冲突）
@@ -53,15 +62,8 @@ impl ImportTable {
             let path = join_import_path(source, &import.path);
 
             if import.has_star {
-                // 通配 import：要求至少存在某个符号在该前缀下（不区分命名空间）。
-                let prefix = format!("{path}.");
-                let ok = index.by_fqn.keys().any(|k| k.starts_with(&prefix));
-                if !ok {
-                    return Err(ResolveError::UnresolvedImport {
-                        import: format!("{path}.*"),
-                        span: import.span.into(),
-                    });
-                }
+                // 通配 import：目标 package 存在即可；空 cone 会在后续阶段逐步补 export。
+                validate_star_import(index, &path, import.span)?;
 
                 table.star.push(path);
                 continue;
@@ -105,8 +107,42 @@ impl ImportTable {
             }
         }
 
+        dedup_star_imports(&mut table.star);
+
         Ok(table)
     }
+}
+
+pub(crate) fn auto_prelude_star_imports(source: &SourceFile) -> &'static [&'static str] {
+    if source.is_sysroot() {
+        &[]
+    } else {
+        &AUTO_PRELUDE_STAR_IMPORTS
+    }
+}
+
+pub(crate) fn add_auto_prelude_star_imports(table: &mut ImportTable, source: &SourceFile) {
+    table.star.extend(
+        auto_prelude_star_imports(source)
+            .iter()
+            .map(|path| (*path).to_string()),
+    );
+}
+
+fn validate_star_import(index: &Index, path: &str, span: Span) -> Result<(), ResolveError> {
+    if index.has_importable_prefix(path) {
+        return Ok(());
+    }
+
+    Err(ResolveError::UnresolvedImport {
+        import: format!("{path}.*"),
+        span: span.into(),
+    })
+}
+
+fn dedup_star_imports(star: &mut Vec<String>) {
+    let mut seen = HashSet::new();
+    star.retain(|path| seen.insert(path.clone()));
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -174,7 +210,80 @@ fn join_import_path(source: &SourceFile, path: &[ast::Ident]) -> String {
 mod tests {
     use super::*;
     use crate::parser::parse_file;
-    use crate::source::SourceFile;
+    use crate::source::{SourceFile, SourceOrigin};
+
+    fn prelude_sysroot_sources() -> (SourceFile, ast::File, SourceFile, ast::File) {
+        let core = SourceFile::new_virtual_with_origin(
+            "<core>",
+            "package scoop.core\nstruct PreludeType {}\nfun println() {}",
+            SourceOrigin::Sysroot,
+        );
+        let lang_string = SourceFile::new_virtual_with_origin(
+            "<lang_string>",
+            "package scoop.lang.string",
+            SourceOrigin::Sysroot,
+        );
+        let core_ast = parse_file(&core).unwrap();
+        let lang_string_ast = parse_file(&lang_string).unwrap();
+        (core, core_ast, lang_string, lang_string_ast)
+    }
+
+    #[test]
+    fn auto_prelude_injects_core_for_user_file() {
+        let (core, core_ast, lang_string, lang_string_ast) = prelude_sysroot_sources();
+        let user = SourceFile::new_virtual("<user>", "package app\nfun use() {}");
+        let user_ast = parse_file(&user).unwrap();
+
+        let index = Index::build(&[
+            (&core, &core_ast),
+            (&lang_string, &lang_string_ast),
+            (&user, &user_ast),
+        ])
+        .unwrap();
+        let table = ImportTable::build(&user, &user_ast, &index).unwrap();
+
+        assert_eq!(
+            table.star,
+            vec!["scoop.core".to_string(), "scoop.lang.string".to_string()]
+        );
+    }
+
+    #[test]
+    fn auto_prelude_skips_sysroot_file() {
+        let sysroot = SourceFile::new_virtual_with_origin(
+            "<sysroot>",
+            "package scoop.lang.string\nfun marker() {}",
+            SourceOrigin::Sysroot,
+        );
+        let ast = parse_file(&sysroot).unwrap();
+        let index = Index::build(&[(&sysroot, &ast)]).unwrap();
+        let table = ImportTable::build(&sysroot, &ast, &index).unwrap();
+
+        assert!(table.star.is_empty());
+    }
+
+    #[test]
+    fn auto_prelude_dedup_with_explicit_user_import() {
+        let (core, core_ast, lang_string, lang_string_ast) = prelude_sysroot_sources();
+        let user = SourceFile::new_virtual(
+            "<user>",
+            "package app\nimport scoop.core.*\nimport scoop.lang.string.*\nfun use() {}",
+        );
+        let user_ast = parse_file(&user).unwrap();
+
+        let index = Index::build(&[
+            (&core, &core_ast),
+            (&lang_string, &lang_string_ast),
+            (&user, &user_ast),
+        ])
+        .unwrap();
+        let table = ImportTable::build(&user, &user_ast, &index).unwrap();
+
+        assert_eq!(
+            table.star,
+            vec!["scoop.core".to_string(), "scoop.lang.string".to_string()]
+        );
+    }
 
     #[test]
     fn import_table_separates_type_and_value_explicit_imports() {
@@ -192,7 +301,14 @@ mod tests {
         let index = Index::build(&[(&s1, &a1), (&s2, &a2)]).unwrap();
         let table = ImportTable::build(&s2, &a2, &index).unwrap();
 
-        assert_eq!(table.star, vec!["a".to_string()]);
+        assert_eq!(
+            table.star,
+            vec![
+                "scoop.core".to_string(),
+                "scoop.lang.string".to_string(),
+                "a".to_string()
+            ]
+        );
 
         assert_eq!(
             table.ty.explicit.get("Foo").unwrap(),

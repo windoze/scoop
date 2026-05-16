@@ -157,7 +157,7 @@
 - 与 `PLAN.md` 对应闭合：完成 P1 前置的 `scoop.lang.string` cone 物理落点与默认 sysroot 可见性，P1-T02 后续可安全注入 `import scoop.lang.string.*`。
 - 暂时性 failing fixture：无。
 
-### P1-T02：自动 prelude——`scoop.core.*` + `scoop.lang.string.*` 注入 ImportTable
+### [DONE] P1-T02：自动 prelude——`scoop.core.*` + `scoop.lang.string.*` 注入 ImportTable
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §3.2 / §9 / P1
@@ -196,6 +196,14 @@
   - 用户写的 `.scoop` 文件不再需要 `import scoop.core.*` / `import scoop.lang.string.*`，不写也能直接用 `String` / `Int` / `println` / 未来的 `StringBuilder` 等。
   - 所有现有 fixture 仍 pass（显式 import 与合成 import 共存等价）。
 - 依赖：P1-T01。
+
+完成记录（2026-05-17）：
+
+- 改动范围：更新 `crates/scoopc/src/resolve/imports.rs`、`crates/scoopc/src/resolve/mod.rs`、`crates/scoopc/src/typecheck/type_env.rs`、`crates/scoopc/src/span.rs`；新增 run-pass owner fixture `tests/fixtures/run-pass/auto_prelude_core_basic.scoop` / `.stdout`；更新 `TODO.md` 索引与本任务完成记录；`PLAN.md` 阶段计划未变化。
+- 核心决策：用户源文件在 `ImportTable::build` 中先注入 `scoop.core.*` 与 `scoop.lang.string.*`，sysroot 源文件不注入；显式重复 star import 保持等价并按首次出现去重；`Index` 记录 package 前缀，使空的 `scoop.lang.string` cone 可作为有效 star import 目标；header type path、direct supertype best-effort 解析与 `TypeEnv` 的 best-effort import table 也复用自动 prelude，避免只在 value resolve 中生效。
+- 验证结果：`cargo test -p scoopc resolve::imports -- --nocapture` 通过（7 tests）；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/auto_prelude_core_basic.scoop` 通过；抽样 5 条显式 `import scoop.core.*` fixture（`managed_abi_string_helpers_basic.scoop`、`tostring_interface_basic.scoop`、`managed_abi_scalar_tostring_basic.scoop`、`intrinsic_synthetic_property_basic.scoop`、`sync_gc_release_task_like_object_basic.scoop`）均通过；`cargo run -p scoop -- test` 通过，输出 `fixtures: ok (1368)`、pass target 数 1331；`cargo clippy --all-targets -- -D warnings` 通过；`cargo test --all --all-targets` 通过；触及 Rust 文件的 `rustfmt --edition 2024 --check` 通过。
+- 与 `PLAN.md` 对应闭合：完成 P1 自动 prelude 注入目标，后续 P5 可在 `scoop.lang.string` 中添加 `StringBuilder` / helper surface 而不要求用户显式 import。
+- 暂时性 failing fixture：无。
 
 ## P2：反射 const fun 补全
 

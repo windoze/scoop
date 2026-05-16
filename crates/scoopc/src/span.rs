@@ -16,6 +16,10 @@ impl Span {
         Self { start, end }
     }
 
+    pub fn synthetic_prelude() -> Self {
+        Self::new(0, 0)
+    }
+
     pub fn len(self) -> usize {
         self.end.saturating_sub(self.start)
     }

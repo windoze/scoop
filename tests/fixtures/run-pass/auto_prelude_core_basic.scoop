@@ -1,0 +1,11 @@
+// EXPECT: pass
+// RUN-STDOUT: auto_prelude_core_basic.stdout
+// EXPECT-EXIT: 0
+//
+// P1-T02: user files can use scoop.core symbols without an explicit star import.
+
+fun main(): Int {
+    val s: String = "auto_prelude"
+    println(s)
+    0
+}

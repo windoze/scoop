@@ -13,7 +13,7 @@ use miette::Diagnostic;
 use thiserror::Error;
 
 use crate::ast;
-use crate::resolve::{ImportTable, Index, Visibility};
+use crate::resolve::{ImportTable, Index, Visibility, add_auto_prelude_star_imports};
 use crate::source::SourceFile;
 use crate::span::Span;
 use crate::sysroot::Sysroot;
@@ -1280,6 +1280,7 @@ fn build_import_table_best_effort(
     index: &Index,
 ) -> ImportTable {
     let mut table = ImportTable::default();
+    add_auto_prelude_star_imports(&mut table, source);
 
     for import in &file.imports {
         let path = import
