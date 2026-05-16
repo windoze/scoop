@@ -127,12 +127,8 @@ fn mir_fixture(name: &str) -> SourceFile {
     let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("../../tests/fixtures/mir_lowered")
         .join(name);
-    SourceFile::load(&path).unwrap_or_else(|error| {
-        panic!(
-            "failed to load MIR fixture {}: {error}",
-            path.display()
-        )
-    })
+    SourceFile::load(&path)
+        .unwrap_or_else(|error| panic!("failed to load MIR fixture {}: {error}", path.display()))
 }
 
 fn type_arg_names(materialized: &MaterializedMir, key: &InstanceKey) -> Vec<String> {
@@ -685,8 +681,7 @@ fn materialized_mir_mir_materialize_generics_rejects_frame_slot_type_param() {
 }
 
 #[test]
-fn materialized_mir_mir_materialize_generics_missing_root_reports_template_span()
-{
+fn materialized_mir_mir_materialize_generics_missing_root_reports_template_span() {
     let mut types = TypeStore::new();
     let builtins = types.intern_builtins();
     let typecheck_types = TypeStore::new();

@@ -103,8 +103,7 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
             codegen.current_source_id = source_id;
         }
         let used_locals = super::super::super::mir_body::collect_mir_local_uses(body);
-        let frame_root_slot =
-            codegen.create_gc_root_slot(mir_fun.span, "frame_root")?;
+        let frame_root_slot = codegen.create_gc_root_slot(mir_fun.span, "frame_root")?;
         let mut state_blocks = BTreeMap::new();
         for state in callable.state_graph().states() {
             if state_blocks

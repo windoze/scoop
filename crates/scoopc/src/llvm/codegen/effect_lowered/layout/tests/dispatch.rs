@@ -566,8 +566,7 @@ pub(super) fn llvm_local_runtime_error_contract_rejects_missing_target_state() {
 }
 
 #[test]
-pub(super) fn llvm_local_runtime_error_contract_rejects_non_local_runtime_error_terminator()
- {
+pub(super) fn llvm_local_runtime_error_contract_rejects_non_local_runtime_error_terminator() {
     with_phase_fixture_query_result(
         "run-pass",
         "effect_resume_if_else_branch_single_perform.scoop",

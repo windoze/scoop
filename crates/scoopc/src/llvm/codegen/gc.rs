@@ -918,6 +918,46 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         ty
     }
 
+    pub(super) fn llvm_scoop_mutable_array_type(&self) -> StructType<'ctx> {
+        const TY_NAME: &str = "scoop.runtime.ScoopMutableArray";
+
+        if let Some(existing) = self.context.get_struct_type(TY_NAME) {
+            return existing;
+        }
+
+        // `typedef struct ScoopMutableArray {
+        //    ScoopGcObjectHeader header;
+        //    uint64_t len;
+        //    uint64_t cap;
+        //    uint64_t elem_size_bytes;
+        //    uint64_t elem_align_bytes;
+        //    const ScoopCompositeTransportDescriptor *elem_desc;
+        //    uint8_t *data;
+        //    uint32_t elem_kind;
+        //    uint32_t _reserved_u32;
+        // } ScoopMutableArray;`
+        let ty = self.context.opaque_struct_type(TY_NAME);
+        let header_ty = self.llvm_gc_object_header_type();
+        let i64_ty = self.context.i64_type();
+        let i32_ty = self.context.i32_type();
+        let ptr_ty = self.llvm_ptr_type(AddressSpace::default());
+        ty.set_body(
+            &[
+                header_ty.into(),
+                i64_ty.into(),
+                i64_ty.into(),
+                i64_ty.into(),
+                i64_ty.into(),
+                ptr_ty.into(),
+                ptr_ty.into(),
+                i32_ty.into(),
+                i32_ty.into(),
+            ],
+            false,
+        );
+        ty
+    }
+
     pub(super) fn llvm_scoop_string_ptr_type(&self) -> inkwell::types::PointerType<'ctx> {
         self.llvm_ptr_type(self.gc_address_space())
     }

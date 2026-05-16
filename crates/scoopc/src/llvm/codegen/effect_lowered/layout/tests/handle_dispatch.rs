@@ -774,8 +774,7 @@ pub(super) fn handle_dispatch_contract_rejects_missing_handled_arm_mapping() {
 }
 
 #[test]
-pub(super) fn handle_arm_continuation_binding_rejects_missing_published_continuation_binder()
- {
+pub(super) fn handle_arm_continuation_binding_rejects_missing_published_continuation_binder() {
     with_phase_fixture_query_result(
         "run-pass",
         "effect_multi_escape_indirect_direct_while.scoop",

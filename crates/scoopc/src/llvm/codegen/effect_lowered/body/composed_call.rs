@@ -262,9 +262,7 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
         {
             self.replay_call_boundary_prefix(boundary, call_lowering)?;
         }
-        let callee = self
-            .codegen
-            .surface_resume_outcome_function(surface);
+        let callee = self.codegen.surface_resume_outcome_function(surface);
         let callee_continuation = self.codegen.reload_deferred_gc_ref_without_clearing(
             self.mir_fun.span,
             "composed_resume_callee_continuation_reload",

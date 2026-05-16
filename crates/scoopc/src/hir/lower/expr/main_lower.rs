@@ -5,7 +5,10 @@
 use super::*;
 
 impl<'a> HirLowering<'a> {
-    pub(in crate::hir::lower) fn invalid_expr_kind_after_stage_error(&mut self, _span: Span) -> (ExprKind, TypeId) {
+    pub(in crate::hir::lower) fn invalid_expr_kind_after_stage_error(
+        &mut self,
+        _span: Span,
+    ) -> (ExprKind, TypeId) {
         (ExprKind::Literal(LiteralKind::Unit), self.builtins.unit)
     }
 
@@ -1205,7 +1208,10 @@ impl<'a> HirLowering<'a> {
         })
     }
 
-    pub(in crate::hir::lower) fn typechecked_with_update_contract(&mut self, span: Span) -> Option<ast::WithUpdateContract> {
+    pub(in crate::hir::lower) fn typechecked_with_update_contract(
+        &mut self,
+        span: Span,
+    ) -> Option<ast::WithUpdateContract> {
         let typecheck_types = self.typecheck_types?;
         let contract = self.file.with_update_contract(span)?;
         Some(Self::re_intern_with_update_contract_types(
@@ -1311,7 +1317,10 @@ impl<'a> HirLowering<'a> {
         Some(self.apply_active_type_param_bindings(ty))
     }
 
-    pub(in crate::hir::lower) fn typechecked_fun_return_ty(&mut self, span: Span) -> Option<TypeId> {
+    pub(in crate::hir::lower) fn typechecked_fun_return_ty(
+        &mut self,
+        span: Span,
+    ) -> Option<TypeId> {
         let typecheck_types = self.typecheck_types?;
         let ty = self.file.inferred_fun_return_ty(span)?;
         let ty = self.types.re_intern_from(typecheck_types, ty);
@@ -1325,14 +1334,20 @@ impl<'a> HirLowering<'a> {
         }
     }
 
-    pub(in crate::hir::lower) fn typechecked_performed_effect_ty(&mut self, span: Span) -> Option<TypeId> {
+    pub(in crate::hir::lower) fn typechecked_performed_effect_ty(
+        &mut self,
+        span: Span,
+    ) -> Option<TypeId> {
         let typecheck_types = self.typecheck_types?;
         let ty = self.file.inferred_performed_effect_ty(span)?;
         let ty = self.types.re_intern_from(typecheck_types, ty);
         Some(self.apply_active_type_param_bindings(ty))
     }
 
-    pub(in crate::hir::lower) fn typechecked_handle_arm_effect_ty(&mut self, span: Span) -> Option<TypeId> {
+    pub(in crate::hir::lower) fn typechecked_handle_arm_effect_ty(
+        &mut self,
+        span: Span,
+    ) -> Option<TypeId> {
         let typecheck_types = self.typecheck_types?;
         let ty = self.file.inferred_handle_arm_effect_ty(span)?;
         let ty = self.types.re_intern_from(typecheck_types, ty);
@@ -1377,7 +1392,10 @@ impl<'a> HirLowering<'a> {
         })
     }
 
-    pub(in crate::hir::lower) fn typechecked_handle_arm_op_type_args(&mut self, span: Span) -> Option<Vec<TypeId>> {
+    pub(in crate::hir::lower) fn typechecked_handle_arm_op_type_args(
+        &mut self,
+        span: Span,
+    ) -> Option<Vec<TypeId>> {
         let typecheck_types = self.typecheck_types?;
         let args = self.file.inferred_handle_arm_op_type_args(span)?;
         Some(
@@ -1458,7 +1476,10 @@ impl<'a> HirLowering<'a> {
         })
     }
 
-    pub(in crate::hir::lower) fn typechecked_call_arg_binding(&self, span: Span) -> Option<crate::ast::CallArgBinding> {
+    pub(in crate::hir::lower) fn typechecked_call_arg_binding(
+        &self,
+        span: Span,
+    ) -> Option<crate::ast::CallArgBinding> {
         self.file.typechecked_call_arg_binding(span)
     }
 
@@ -1546,5 +1567,4 @@ impl<'a> HirLowering<'a> {
             .unwrap_or("");
         stable_instance_fqn(self.types, &template, type_args, eff_args, symbol_suffix)
     }
-
 }

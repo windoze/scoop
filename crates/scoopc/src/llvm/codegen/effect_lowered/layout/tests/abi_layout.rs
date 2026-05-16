@@ -70,10 +70,7 @@ pub(super) fn llvm_layout_resolves_unit_case_payload_contract() {
                 .source_value_layout(step_layout.complete_variant().payload_source_ty())
                 .expect("complete payload source type 应发布 source-type ABI contract");
 
-            assert_eq!(
-                case_payload_layout.kind(),
-                SourceAbiLayoutKind::Scalar
-            );
+            assert_eq!(case_payload_layout.kind(), SourceAbiLayoutKind::Scalar);
             assert!(case_payload_layout.abi().is_elided());
             assert!(case_payload_layout.fields().is_empty());
             assert!(case_variant.payload_is_elided());
@@ -116,10 +113,7 @@ pub(super) fn llvm_layout_resolves_tuple_resume_payload_and_answer_contract() {
                 .source_value_layout(surface_layout.answer_ty())
                 .expect("resume answer source type 应发布 source-type ABI contract");
 
-            assert_eq!(
-                resume_payload_layout.kind(),
-                SourceAbiLayoutKind::Tuple
-            );
+            assert_eq!(resume_payload_layout.kind(), SourceAbiLayoutKind::Tuple);
             assert_eq!(resume_payload_layout.fields().len(), 2);
             assert_eq!(resume_payload_layout.abi_field_count(), 2);
             assert_eq!(resume_payload_layout.fields()[0].source_index(), 0);

@@ -30,10 +30,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
         &mut self,
         callable: &LateLoweredCallable,
         step_layouts: &BTreeMap<StepSchemaId, StepLayout<'ctx>>,
-        layouts: &mut BTreeMap<
-            (StepSchemaId, crate::mir::SiteId),
-            DynamicInvokeLayout<'ctx>,
-        >,
+        layouts: &mut BTreeMap<(StepSchemaId, crate::mir::SiteId), DynamicInvokeLayout<'ctx>>,
     ) -> Result<(), LlvmEmitError> {
         for boundary in callable.boundary_map().entries() {
             let (
@@ -69,10 +66,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
         &mut self,
         callable: &LateLoweredCallable,
         step_layouts: &BTreeMap<StepSchemaId, StepLayout<'ctx>>,
-        layouts: &mut BTreeMap<
-            (StepSchemaId, crate::mir::SiteId),
-            DynamicInvokeLayout<'ctx>,
-        >,
+        layouts: &mut BTreeMap<(StepSchemaId, crate::mir::SiteId), DynamicInvokeLayout<'ctx>>,
     ) -> Result<(), LlvmEmitError> {
         let boundary_call_sites = callable
             .boundary_map()
@@ -205,10 +199,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
         carrier_source_ty: Option<TypeId>,
         arg_count: usize,
         step_layouts: &BTreeMap<StepSchemaId, StepLayout<'ctx>>,
-        layouts: &mut BTreeMap<
-            (StepSchemaId, crate::mir::SiteId),
-            DynamicInvokeLayout<'ctx>,
-        >,
+        layouts: &mut BTreeMap<(StepSchemaId, crate::mir::SiteId), DynamicInvokeLayout<'ctx>>,
     ) -> Result<(), LlvmEmitError> {
         let key = (callable.step_schema(), site_id);
         if layouts.contains_key(&key) {
@@ -282,14 +273,12 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                 if self.is_funptr_source_ty(carrier_source_ty) {
                     DynamicInvokeCarrierLayout::FunPtr(receiver_abi)
                 } else {
-                    DynamicInvokeCarrierLayout::ClosureObject(
-                        ClosureCarrierLayout::new(
-                            self.codegen.llvm_closure_object_type(),
-                            receiver_abi,
-                            1,
-                            2,
-                        ),
-                    )
+                    DynamicInvokeCarrierLayout::ClosureObject(ClosureCarrierLayout::new(
+                        self.codegen.llvm_closure_object_type(),
+                        receiver_abi,
+                        1,
+                        2,
+                    ))
                 }
             }
             MirCallKind::Virtual { dispatch, .. } => {
@@ -310,16 +299,14 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                         }
                     }
                 }
-                DynamicInvokeCarrierLayout::VirtualReceiver(
-                    DispatchReceiverLayout::new(
-                        dispatch.receiver_ty,
-                        *self.source_value_layout(dispatch.receiver_ty)?.abi(),
-                        dispatch.owner_fqn.clone(),
-                        dispatch.member_name.clone(),
-                        method_slot,
-                        None,
-                    ),
-                )
+                DynamicInvokeCarrierLayout::VirtualReceiver(DispatchReceiverLayout::new(
+                    dispatch.receiver_ty,
+                    *self.source_value_layout(dispatch.receiver_ty)?.abi(),
+                    dispatch.owner_fqn.clone(),
+                    dispatch.member_name.clone(),
+                    method_slot,
+                    None,
+                ))
             }
             MirCallKind::Interface { dispatch, .. } => {
                 let (interface_id, method_slot) = self.resolve_interface_dispatch_slot(
@@ -339,16 +326,14 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                         }
                     }
                 }
-                DynamicInvokeCarrierLayout::InterfaceReceiver(
-                    DispatchReceiverLayout::new(
-                        dispatch.receiver_ty,
-                        *self.source_value_layout(dispatch.receiver_ty)?.abi(),
-                        dispatch.owner_fqn.clone(),
-                        dispatch.member_name.clone(),
-                        method_slot,
-                        Some(interface_id),
-                    ),
-                )
+                DynamicInvokeCarrierLayout::InterfaceReceiver(DispatchReceiverLayout::new(
+                    dispatch.receiver_ty,
+                    *self.source_value_layout(dispatch.receiver_ty)?.abi(),
+                    dispatch.owner_fqn.clone(),
+                    dispatch.member_name.clone(),
+                    method_slot,
+                    Some(interface_id),
+                ))
             }
             other => {
                 return Err(frontend_error(format!(

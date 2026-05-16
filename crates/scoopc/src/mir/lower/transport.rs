@@ -134,7 +134,9 @@ pub(in crate::mir::lower) fn value_erasure_transport(
     })
 }
 
-pub(in crate::mir::lower) fn lower_initializer_root_kind(kind: TopLevelInitRootKind) -> InitializerRootKind {
+pub(in crate::mir::lower) fn lower_initializer_root_kind(
+    kind: TopLevelInitRootKind,
+) -> InitializerRootKind {
     match kind {
         TopLevelInitRootKind::ConstVal => InitializerRootKind::ConstVal,
         TopLevelInitRootKind::RuntimeImmutableVal => InitializerRootKind::RuntimeImmutableVal,
@@ -159,7 +161,9 @@ pub(in crate::mir::lower) fn lower_initializer_dependency(
     }
 }
 
-pub(in crate::mir::lower) fn lower_extern_global_root(contract: &ExternGlobalContract) -> ExternGlobalRoot {
+pub(in crate::mir::lower) fn lower_extern_global_root(
+    contract: &ExternGlobalContract,
+) -> ExternGlobalRoot {
     ExternGlobalRoot {
         span: contract.span(),
         fqn: contract.fqn().to_string(),
@@ -252,7 +256,9 @@ pub(in crate::mir::lower) fn lower_decl_metadata(decl: &hir::Decl) -> MetadataRo
     }
 }
 
-pub(in crate::mir::lower) fn lower_decl_type_param_metadata(param: &hir::DeclTypeParam) -> DeclTypeParamMetadata {
+pub(in crate::mir::lower) fn lower_decl_type_param_metadata(
+    param: &hir::DeclTypeParam,
+) -> DeclTypeParamMetadata {
     DeclTypeParamMetadata {
         span: param.span,
         name: param.name.clone(),
@@ -261,7 +267,9 @@ pub(in crate::mir::lower) fn lower_decl_type_param_metadata(param: &hir::DeclTyp
     }
 }
 
-pub(in crate::mir::lower) fn lower_supertype_metadata(supertype: &hir::SupertypeDecl) -> SupertypeMetadata {
+pub(in crate::mir::lower) fn lower_supertype_metadata(
+    supertype: &hir::SupertypeDecl,
+) -> SupertypeMetadata {
     SupertypeMetadata {
         span: supertype.span,
         fqn: supertype.fqn.clone(),
@@ -279,7 +287,9 @@ pub(in crate::mir::lower) fn lower_ctor_metadata(ctor: &hir::CtorDecl) -> CtorMe
     }
 }
 
-pub(in crate::mir::lower) fn lower_ctor_param_metadata(param: &hir::CtorParamDecl) -> CtorParamMetadata {
+pub(in crate::mir::lower) fn lower_ctor_param_metadata(
+    param: &hir::CtorParamDecl,
+) -> CtorParamMetadata {
     CtorParamMetadata {
         span: param.span,
         name: param.name.clone(),
@@ -289,7 +299,9 @@ pub(in crate::mir::lower) fn lower_ctor_param_metadata(param: &hir::CtorParamDec
     }
 }
 
-pub(in crate::mir::lower) fn lower_decl_member_metadata(member: &hir::DeclMember) -> DeclMemberMetadata {
+pub(in crate::mir::lower) fn lower_decl_member_metadata(
+    member: &hir::DeclMember,
+) -> DeclMemberMetadata {
     match member {
         hir::DeclMember::Field(field) => DeclMemberMetadata::Field(lower_field_metadata(field)),
         hir::DeclMember::Property(prop) => DeclMemberMetadata::Property(PropertyMetadata {
@@ -340,7 +352,9 @@ pub(in crate::mir::lower) fn lower_field_metadata(field: &hir::FieldDecl) -> Fie
     }
 }
 
-pub(in crate::mir::lower) fn lower_accessor_metadata(accessor: &hir::AccessorContract) -> AccessorMetadata {
+pub(in crate::mir::lower) fn lower_accessor_metadata(
+    accessor: &hir::AccessorContract,
+) -> AccessorMetadata {
     AccessorMetadata {
         span: accessor.span,
         fqn: accessor.fqn.clone(),
@@ -399,7 +413,9 @@ pub(in crate::mir::lower) enum ValueOrigin {
     UnknownCallable,
 }
 
-pub(in crate::mir::lower) fn gc_intrinsic_callee_from_origin(origin: Option<&ValueOrigin>) -> Option<&str> {
+pub(in crate::mir::lower) fn gc_intrinsic_callee_from_origin(
+    origin: Option<&ValueOrigin>,
+) -> Option<&str> {
     let Some(ValueOrigin::MemberAccess {
         member:
             MemberAccessMetadata {
@@ -447,4 +463,3 @@ pub(in crate::mir::lower) struct WhenPatternBinding {
     pub(in crate::mir::lower) ty: TypeId,
     pub(in crate::mir::lower) path: Vec<PatternBindingStep>,
 }
-

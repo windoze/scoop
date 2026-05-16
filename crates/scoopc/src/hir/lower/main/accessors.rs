@@ -4,7 +4,6 @@
 
 use super::*;
 
-
 pub(crate) fn collect_default_arg_structs(
     compilation_unit: &[(&SourceFile, &ast::File)],
 ) -> HashMap<String, DefaultArgStructInfo> {
@@ -389,4 +388,3 @@ pub(crate) fn collect_compilation_unit_object_and_class_inits(
         assign_place_contracts,
     ))
 }
-

@@ -565,9 +565,7 @@ fun main(): Int {
 
     assert!(
         go_ir.contains("outward_payload_reload_rebuild = alloca %a.Named")
-            && go_ir.contains(
-                "outward_payload_reload_field_insert_0 = insertvalue %a.Named undef"
-            )
+            && go_ir.contains("outward_payload_reload_field_insert_0 = insertvalue %a.Named undef")
             && go_ir.contains("step_payload_insert = insertvalue")
             && go_ir.contains("%a.Named %outward_payload_reload, 0"),
         "outward payload should rebuild a fresh aggregate before publishing Step payload\n{go_ir}"

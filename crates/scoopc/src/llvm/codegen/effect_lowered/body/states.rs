@@ -386,12 +386,12 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
                         self.step_layout.complete_variant().payload_source_ty(),
                     )
                     .map_err(|err| {
-                    frontend_error(format!(
-                        "return state st{} completion payload {:?} lowering failed: {err}",
-                        state.state_id().as_u32(),
-                        payload_source,
-                    ))
-                })?;
+                        frontend_error(format!(
+                            "return state st{} completion payload {:?} lowering failed: {err}",
+                            state.state_id().as_u32(),
+                            payload_source,
+                        ))
+                    })?;
                 if payload.is_none() && !self.step_layout.complete_variant().payload_is_elided() {
                     return Err(frontend_error(format!(
                         "return state st{} payload source {:?} produced no payload for non-elided Complete layout {}",
@@ -604,12 +604,15 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
                         layout.step_schema(),
                     ),
                     CallTargetQuery::DynamicInvoke(layout) => {
-                        let carrier_source = lowering.operand_contract().carrier_source().ok_or_else(|| {
-                            frontend_error(format!(
-                                "dynamic call boundary site {} 缺少 published carrier source",
-                                source.as_u32()
-                            ))
-                        })?;
+                        let carrier_source = lowering
+                            .operand_contract()
+                            .carrier_source()
+                            .ok_or_else(|| {
+                                frontend_error(format!(
+                                    "dynamic call boundary site {} 缺少 published carrier source",
+                                    source.as_u32()
+                                ))
+                            })?;
                         let carrier = self
                             .lower_operand_source(carrier_source)?
                             .value

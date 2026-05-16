@@ -68,7 +68,10 @@ impl<'a> HirLowering<'a> {
         })
     }
 
-    pub(in crate::hir::lower) fn comptime_splice_field_name(&self, field: &ast::Expr) -> Option<String> {
+    pub(in crate::hir::lower) fn comptime_splice_field_name(
+        &self,
+        field: &ast::Expr,
+    ) -> Option<String> {
         let ast::ExprKind::Ident(id) = &field.kind else {
             return None;
         };
@@ -235,7 +238,10 @@ impl<'a> HirLowering<'a> {
         (ExprKind::MemberAccess { receiver, member }, result_ty)
     }
 
-    pub(in crate::hir::lower) fn lower_resolved_member_ref(&mut self, resolved: &ast::ResolvedMemberRef) -> MemberRef {
+    pub(in crate::hir::lower) fn lower_resolved_member_ref(
+        &mut self,
+        resolved: &ast::ResolvedMemberRef,
+    ) -> MemberRef {
         match resolved {
             ast::ResolvedMemberRef::Value { fqn } => MemberRef::Value {
                 id: self.symbols.intern_top_level(fqn.clone()),
@@ -298,7 +304,10 @@ impl<'a> HirLowering<'a> {
         false
     }
 
-    pub(in crate::hir::lower) fn lower_ident_expr(&mut self, id: &ast::ValueIdent) -> (ExprKind, TypeId) {
+    pub(in crate::hir::lower) fn lower_ident_expr(
+        &mut self,
+        id: &ast::ValueIdent,
+    ) -> (ExprKind, TypeId) {
         let text = self.source.slice(id.span);
         if text == "true" {
             return (
@@ -418,7 +427,11 @@ impl<'a> HirLowering<'a> {
         }
     }
 
-    pub(in crate::hir::lower) fn synth_object_singleton_value_expr(&mut self, fqn: &str, span: Span) -> Expr {
+    pub(in crate::hir::lower) fn synth_object_singleton_value_expr(
+        &mut self,
+        fqn: &str,
+        span: Span,
+    ) -> Expr {
         Expr {
             span,
             ty: self.intern_nominal(fqn.to_string(), Vec::new(), None),
@@ -968,7 +981,10 @@ impl<'a> HirLowering<'a> {
         self.lower_type_path(&runtime_error_path)
     }
 
-    pub(in crate::hir::lower) fn synth_raise_runtime_error_effect_ty(&mut self, span: Span) -> TypeId {
+    pub(in crate::hir::lower) fn synth_raise_runtime_error_effect_ty(
+        &mut self,
+        span: Span,
+    ) -> TypeId {
         let raise_path = ast::TypePath {
             span,
             segments: vec![
@@ -990,7 +1006,12 @@ impl<'a> HirLowering<'a> {
     }
 
     /// Synthesize `Some(inner)` and preserve the surrounding `Option<T>` result type.
-    pub(in crate::hir::lower) fn synth_some_wrap(&self, span: Span, result_ty: TypeId, inner: Expr) -> Expr {
+    pub(in crate::hir::lower) fn synth_some_wrap(
+        &self,
+        span: Span,
+        result_ty: TypeId,
+        inner: Expr,
+    ) -> Expr {
         Expr {
             span,
             ty: result_ty,
@@ -1045,7 +1066,11 @@ impl<'a> HirLowering<'a> {
         }
     }
 
-    pub(in crate::hir::lower) fn lower_handle_arm(&mut self, pkg_prefix: &str, arm: &ast::HandleArm) -> HandleArm {
+    pub(in crate::hir::lower) fn lower_handle_arm(
+        &mut self,
+        pkg_prefix: &str,
+        arm: &ast::HandleArm,
+    ) -> HandleArm {
         let kind = match arm.kind {
             ast::HandleArmKind::NonResuming => HandleArmKind::NonResuming,
             ast::HandleArmKind::EscapeContinuation { k_span } => {
@@ -1062,7 +1087,11 @@ impl<'a> HirLowering<'a> {
         }
     }
 
-    pub(in crate::hir::lower) fn lower_handle_op(&mut self, _pkg_prefix: &str, op: &ast::HandleOp) -> HandleOp {
+    pub(in crate::hir::lower) fn lower_handle_op(
+        &mut self,
+        _pkg_prefix: &str,
+        op: &ast::HandleOp,
+    ) -> HandleOp {
         let effect_ty = self
             .typechecked_handle_arm_effect_ty(op.span)
             .unwrap_or_else(|| self.lower_type_path(&op.effect));
@@ -1110,7 +1139,10 @@ impl<'a> HirLowering<'a> {
         }
     }
 
-    pub(in crate::hir::lower) fn lower_handle_binder(&mut self, b: &ast::HandleBinder) -> HandleBinder {
+    pub(in crate::hir::lower) fn lower_handle_binder(
+        &mut self,
+        b: &ast::HandleBinder,
+    ) -> HandleBinder {
         let ty =
             b.ty.as_ref()
                 .map(|t| self.lower_type_ref(t))
@@ -1124,7 +1156,11 @@ impl<'a> HirLowering<'a> {
         }
     }
 
-    pub(in crate::hir::lower) fn lower_call_arg(&mut self, pkg_prefix: &str, arg: &ast::Expr) -> CallArg {
+    pub(in crate::hir::lower) fn lower_call_arg(
+        &mut self,
+        pkg_prefix: &str,
+        arg: &ast::Expr,
+    ) -> CallArg {
         let (value, _) = Self::call_arg_value_expr(arg);
         CallArg::Positional(self.lower_expr(pkg_prefix, value))
     }
@@ -1399,7 +1435,12 @@ impl<'a> HirLowering<'a> {
     /// - 移位：`T << Int -> T` / `T >> Int -> T`
     /// - 比较：`T < T -> Bool` 等
     /// - 相等：`T == T -> Bool` / `Bool == Bool -> Bool`
-    pub(in crate::hir::lower) fn lower_binary_expr_type(&self, lhs: &Expr, rhs: &Expr, op: ast::BinaryOp) -> TypeId {
+    pub(in crate::hir::lower) fn lower_binary_expr_type(
+        &self,
+        lhs: &Expr,
+        rhs: &Expr,
+        op: ast::BinaryOp,
+    ) -> TypeId {
         let unify_int_same_type = |lhs: &Expr, rhs: &Expr| -> Option<TypeId> {
             if lhs.ty == rhs.ty && self.is_integer_type(lhs.ty) {
                 return Some(lhs.ty);

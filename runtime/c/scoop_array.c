@@ -1081,6 +1081,88 @@ static void scoop_array_builder_reset_after_transfer(ScoopArrayBuilder *b) {
   b->elem_kind = SCOOP_ARRAY_ELEM_KIND_UNKNOWN;
 }
 
+static void *scoop_array_builder_build_mutable_common(
+    ScoopArrayBuilder *b,
+    const ScoopCompositeTransportDescriptor *empty_composite_desc) {
+  if (b == 0) {
+    return 0;
+  }
+
+  uint32_t elem_kind = b->elem_kind;
+  const ScoopCompositeTransportDescriptor *elem_desc = b->elem_desc;
+  if (elem_kind == SCOOP_ARRAY_ELEM_KIND_UNKNOWN) {
+    if (empty_composite_desc != 0) {
+      elem_kind = SCOOP_ARRAY_ELEM_KIND_COMPOSITE;
+      elem_desc = empty_composite_desc;
+    } else {
+      elem_kind = SCOOP_ARRAY_ELEM_KIND_WORD;
+    }
+  }
+
+  uint64_t elem_size = 0;
+  uint64_t elem_align = 0;
+  const ScoopCompositeTransportDescriptor *normalized_desc = 0;
+  if (!scoop_mutable_array_layout(
+          elem_kind, 0, 0, elem_desc, &elem_size, &elem_align, &normalized_desc)) {
+    return 0;
+  }
+
+  uint64_t cap = b->cap;
+  if (cap < b->len) {
+    cap = b->len;
+  }
+  if (cap == 0) {
+    cap = 4;
+  }
+  if (cap > (uint64_t)(SIZE_MAX / elem_size)) {
+    return 0;
+  }
+
+  uint8_t *data = b->data;
+  const uint32_t transfers_builder_data = data != 0;
+  if (data == 0) {
+    if (!scoop_mutable_array_alloc_data(cap, elem_size, &data)) {
+      return 0;
+    }
+  } else if (cap != b->cap) {
+    uint8_t *grown = (uint8_t *)realloc(data, (size_t)cap * (size_t)elem_size);
+    if (grown == 0) {
+      return 0;
+    }
+    data = grown;
+    b->data = grown;
+    b->cap = cap;
+  }
+
+  scoop_pin((void *)b);
+  ScoopMutableArray *arr = (ScoopMutableArray *)scoop_alloc_typed(
+      &SCOOP_MUTABLE_ARRAY_TYPE_DESC,
+      (uint64_t)sizeof(ScoopMutableArray));
+  if (arr == 0) {
+    scoop_unpin((void *)b);
+    if (!transfers_builder_data) {
+      free(data);
+    }
+    return 0;
+  }
+
+  arr->len = b->len;
+  arr->cap = cap;
+  arr->elem_size_bytes = elem_size;
+  arr->elem_align_bytes = elem_align;
+  arr->elem_desc = normalized_desc;
+  arr->data = data;
+  arr->elem_kind = elem_kind;
+  arr->_reserved_u32 = 0;
+
+  if (transfers_builder_data) {
+    b->data = 0;
+  }
+  scoop_array_builder_reset_after_transfer(b);
+  scoop_unpin((void *)b);
+  return (void *)arr;
+}
+
 static void *scoop_array_builder_build_common(
     ScoopArrayBuilder *b,
     const ScoopCompositeTransportDescriptor *empty_composite_desc) {
@@ -1169,7 +1251,7 @@ void *scoop_array_builder_build_array(void *builder) {
 }
 
 void *scoop_array_builder_build_mutable_array(void *builder) {
-  return scoop_array_builder_build_common((ScoopArrayBuilder *)builder, 0);
+  return scoop_array_builder_build_mutable_common((ScoopArrayBuilder *)builder, 0);
 }
 
 void *scoop_array_builder_build_array_composite(
@@ -1181,5 +1263,5 @@ void *scoop_array_builder_build_array_composite(
 void *scoop_array_builder_build_mutable_array_composite(
     void *builder,
     const ScoopCompositeTransportDescriptor *descriptor) {
-  return scoop_array_builder_build_common((ScoopArrayBuilder *)builder, descriptor);
+  return scoop_array_builder_build_mutable_common((ScoopArrayBuilder *)builder, descriptor);
 }

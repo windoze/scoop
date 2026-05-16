@@ -25,13 +25,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     callable,
                 )?;
             } else {
-                child.codegen_callable_entries(
-                    program,
-                    source_types,
-                    pass_view,
-                    abi,
-                    callable,
-                )?;
+                child.codegen_callable_entries(program, source_types, pass_view, abi, callable)?;
             }
         }
         let primary_roots = program
@@ -128,10 +122,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         for entry in program.surface_resume_dispatch_inventory() {
             let surface = abi
                 .surface_resume_layout(entry.continuation_schema())
-                .ok_or_else(|| frontend_error(format!(
-                    "body lowering 缺少 continuation schema k{} 的 surface-resume layout",
-                    entry.continuation_schema().as_u32()
-                )))?;
+                .ok_or_else(|| {
+                    frontend_error(format!(
+                        "body lowering 缺少 continuation schema k{} 的 surface-resume layout",
+                        entry.continuation_schema().as_u32()
+                    ))
+                })?;
             let mut child = self.fresh_child_codegen();
             child.codegen_surface_resume(program, abi, surface)?;
         }
@@ -245,17 +241,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             )));
         }
         if callable.plain_abi().is_some() {
-            return self.codegen_plain_main_exit_code(
-                hir_main,
-                entry_argv_array,
-                callable,
-                abi,
-            );
+            return self.codegen_plain_main_exit_code(hir_main, entry_argv_array, callable, abi);
         }
         if entry_argv_array.is_some() {
             return Err(frontend_error(
-                "LLVM effect-step main wrapper 尚未发布 Array<String> argv Step ABI"
-                    .to_string(),
+                "LLVM effect-step main wrapper 尚未发布 Array<String> argv Step ABI".to_string(),
             ));
         }
 
@@ -268,12 +258,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 hir_main.fqn
             )));
         }
-        let call = self
-            .builder
-            .build_call(direct, &args, "main_step")?;
-        let step = call.try_as_basic_value().basic().ok_or_else(|| {
-            frontend_error("main direct entry 未返回 Step_F".to_string())
-        })?;
+        let call = self.builder.build_call(direct, &args, "main_step")?;
+        let step = call
+            .try_as_basic_value()
+            .basic()
+            .ok_or_else(|| frontend_error("main direct entry 未返回 Step_F".to_string()))?;
         let step_layout = abi.step_layout(layout.step_schema()).ok_or_else(|| {
             frontend_error(format!(
                 "LLVM main wrapper 缺少入口 step schema s{} layout",
@@ -401,9 +390,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
         };
         let direct = self.function(entry.symbol_name())?;
-        let call = self
-            .builder
-            .build_call(direct, &args, "plain_main")?;
+        let call = self.builder.build_call(direct, &args, "plain_main")?;
         match self.cg_ty_of(hir_main.return_ty) {
             Some(CgTy::Unit) => Ok(self.context.i32_type().const_zero()),
             Some(CgTy::Int(_)) => {

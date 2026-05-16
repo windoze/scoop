@@ -34,12 +34,8 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
 
     pub(super) fn clear_frame_root(&mut self) -> Result<(), LlvmEmitError> {
         let null = self.codegen.llvm_gc_i8_ptr_type().const_null();
-        self.codegen.store_gc_root_slot(
-            self.mir_fun.span,
-            self.frame_root_slot,
-            null,
-            "frame_root",
-        )
+        self.codegen
+            .store_gc_root_slot(self.mir_fun.span, self.frame_root_slot, null, "frame_root")
     }
 
     pub(super) fn release_frame_root_for_frame_free_tail(
@@ -189,9 +185,7 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
             .frame_layout
             .field_index_for_system(SystemSlotKind::CurrentEffectCtx)
             .ok_or_else(|| {
-                frontend_error(
-                    "frame layout 缺少 CurrentEffectCtx system field".to_string(),
-                )
+                frontend_error("frame layout 缺少 CurrentEffectCtx system field".to_string())
             })?;
         self.frame_field_ptr(field_index, name)
     }
@@ -203,9 +197,7 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
         let field_index = self
             .frame_layout
             .field_index_for_system(SystemSlotKind::StateTag)
-            .ok_or_else(|| {
-                frontend_error("frame layout 缺少 StateTag system field".to_string())
-            })?;
+            .ok_or_else(|| frontend_error("frame layout 缺少 StateTag system field".to_string()))?;
         self.frame_field_ptr(field_index, name)
     }
 
@@ -623,11 +615,7 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
                 active_flag,
                 site_id,
                 arm_ordinal,
-                &format!(
-                    "handle{}_active_arm{}_node",
-                    site_id.as_u32(),
-                    arm_ordinal
-                ),
+                &format!("handle{}_active_arm{}_node", site_id.as_u32(), arm_ordinal),
             )?;
             let active_top = self.root_gc_pointer_in_slot(
                 active_top_root_slot,
@@ -639,10 +627,8 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
                 ),
             )?;
             active_prev_root_slot = active_top_root_slot;
-            let body_ctx = self.load_current_effect_ctx(&format!(
-                "handle{}_body_ctx_reload",
-                site_id.as_u32()
-            ))?;
+            let body_ctx = self
+                .load_current_effect_ctx(&format!("handle{}_body_ctx_reload", site_id.as_u32()))?;
             let body_ctx_ptr = self.cast_gc_ref_to_effect_ctx_ptr(
                 body_ctx,
                 &format!("handle{}_body_ctx_ptr", site_id.as_u32()),
@@ -654,10 +640,7 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
                 &format!("handle{}_body_ctx_top", site_id.as_u32()),
             )?;
         }
-        self.clear_root_gc_slot(
-            active_top_root_slot,
-            "handle_active_top_root_clear",
-        )?;
+        self.clear_root_gc_slot(active_top_root_slot, "handle_active_top_root_clear")?;
 
         for (target_arm_ordinal, _) in &arm_metas {
             let derived_ctx_root_slot = self.codegen.create_gc_root_slot(
@@ -773,10 +756,7 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
             )?;
         }
         self.clear_root_gc_slot(body_ctx_root_slot, "handle_body_ctx_root_clear")?;
-        self.clear_root_gc_slot(
-            outer_handler_top_root_slot,
-            "handle_outer_top_root_clear",
-        )?;
+        self.clear_root_gc_slot(outer_handler_top_root_slot, "handle_outer_top_root_clear")?;
         Ok(())
     }
 
@@ -796,9 +776,7 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
         value: PointerValue<'ctx>,
         name: &str,
     ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
-        let slot = self
-            .codegen
-            .create_gc_root_slot(self.mir_fun.span, name)?;
+        let slot = self.codegen.create_gc_root_slot(self.mir_fun.span, name)?;
         let value = self.codegen.cast_ptr(
             value,
             self.codegen.llvm_gc_i8_ptr_type(),
@@ -835,9 +813,7 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
         value: PointerValue<'ctx>,
         name: &str,
     ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
-        let slot = self
-            .codegen
-            .create_gc_root_slot(self.mir_fun.span, name)?;
+        let slot = self.codegen.create_gc_root_slot(self.mir_fun.span, name)?;
         let _ = self.root_gc_pointer_in_slot(slot, value, name)?;
         Ok(slot)
     }

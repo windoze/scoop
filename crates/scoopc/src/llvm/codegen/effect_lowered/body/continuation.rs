@@ -94,10 +94,9 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
         // value still gets written into the wrapper.
         let callee_continuation_root = match callee_continuation {
             Some(callee_continuation) => {
-                let slot = self.codegen.create_gc_root_slot(
-                    self.mir_fun.span,
-                    "composed_callee_root",
-                )?;
+                let slot = self
+                    .codegen
+                    .create_gc_root_slot(self.mir_fun.span, "composed_callee_root")?;
                 self.codegen.store_gc_root_slot(
                     self.mir_fun.span,
                     slot,
@@ -133,14 +132,17 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
         let continuation_schema = continuation_case
             .continuation_contract()
             .continuation_schema();
-        let _surface = self.abi.surface_resume_layout(continuation_schema).ok_or_else(|| {
-            frontend_error(format!(
-                "callable `{}` case c{} 缺少 continuation schema k{} 的 surface resume ABI",
-                self.callable.root_fqn(),
-                case_tag.as_u32(),
-                continuation_schema.as_u32(),
-            ))
-        })?;
+        let _surface = self
+            .abi
+            .surface_resume_layout(continuation_schema)
+            .ok_or_else(|| {
+                frontend_error(format!(
+                    "callable `{}` case c{} 缺少 continuation schema k{} 的 surface resume ABI",
+                    self.callable.root_fqn(),
+                    case_tag.as_u32(),
+                    continuation_schema.as_u32(),
+                ))
+            })?;
         let dispatch = self
             .abi
             .surface_resume_dispatch_layout(continuation_schema)?;
@@ -191,8 +193,7 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
         let cont_root_slot = self
             .codegen
             .create_gc_root_slot(self.mir_fun.span, "cont_root")?;
-        let cont_ptr =
-            self.root_gc_pointer_in_slot(cont_root_slot, cont_ptr, "cont_root")?;
+        let cont_ptr = self.root_gc_pointer_in_slot(cont_root_slot, cont_ptr, "cont_root")?;
         let cont_ptr = self.cast_gc_ref_to_continuation(cont_ptr)?;
         let current_effect_ctx = self.load_current_effect_ctx("cont_effect_ctx")?;
         let resumed_gep = self.codegen.builder.build_struct_gep(
@@ -224,11 +225,9 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
             effect_ctx_gep,
             current_effect_ctx,
         )?;
-        let cont_ptr = self.codegen.load_gc_root_slot(
-            self.mir_fun.span,
-            cont_root_slot,
-            "cont_root",
-        )?;
+        let cont_ptr =
+            self.codegen
+                .load_gc_root_slot(self.mir_fun.span, cont_root_slot, "cont_root")?;
         let cont_ptr = self.cast_gc_ref_to_continuation(cont_ptr)?;
         let current_frame = self.current_frame_gc_ref("cont_state_ref_reload")?;
         let state_ref_gep = self.codegen.builder.build_struct_gep(
@@ -242,11 +241,9 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
             state_ref_gep,
             current_frame,
         )?;
-        let cont_ptr = self.codegen.load_gc_root_slot(
-            self.mir_fun.span,
-            cont_root_slot,
-            "cont_root",
-        )?;
+        let cont_ptr =
+            self.codegen
+                .load_gc_root_slot(self.mir_fun.span, cont_root_slot, "cont_root")?;
         let cont_ptr = self.cast_gc_ref_to_continuation(cont_ptr)?;
         let step_fn_gep = self.codegen.builder.build_struct_gep(
             cont_layout.llvm_ty(),
@@ -281,11 +278,9 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
             resume_gc_ref_gep,
             self.codegen.llvm_gc_i8_ptr_type().const_null(),
         )?;
-        let cont_ptr = self.codegen.load_gc_root_slot(
-            self.mir_fun.span,
-            cont_root_slot,
-            "cont_root",
-        )?;
+        let cont_ptr =
+            self.codegen
+                .load_gc_root_slot(self.mir_fun.span, cont_root_slot, "cont_root")?;
         let cont_ptr = self.cast_gc_ref_to_continuation(cont_ptr)?;
         let captured_token_gep = self.codegen.builder.build_struct_gep(
             cont_layout.llvm_ty(),
@@ -294,11 +289,10 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
             "cont_captured_token_gep",
         )?;
         let captured_token = match callee_continuation_root {
-            Some(slot) => self.codegen.load_gc_root_slot(
-                self.mir_fun.span,
-                slot,
-                "composed_callee_root",
-            )?,
+            Some(slot) => {
+                self.codegen
+                    .load_gc_root_slot(self.mir_fun.span, slot, "composed_callee_root")?
+            }
             None => self.codegen.llvm_gc_i8_ptr_type().const_null(),
         };
         self.codegen.store_gc_pointer_slot_with_write_barrier(
@@ -306,21 +300,16 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
             captured_token_gep,
             captured_token,
         )?;
-        let cont_ptr = self.codegen.load_gc_root_slot(
-            self.mir_fun.span,
-            cont_root_slot,
-            "cont_root",
-        )?;
+        let cont_ptr =
+            self.codegen
+                .load_gc_root_slot(self.mir_fun.span, cont_root_slot, "cont_root")?;
         let cont_ptr = self.cast_gc_ref_to_continuation(cont_ptr)?;
         if let Some(slot) = callee_continuation_root {
             self.clear_root_gc_slot(slot, "composed_callee_root_clear")?;
         }
         self.clear_root_gc_slot(cont_root_slot, "cont_root_clear")?;
-        self.codegen.cast_ptr(
-            cont_ptr,
-            self.codegen.llvm_gc_i8_ptr_type(),
-            "cont_gc",
-        )
+        self.codegen
+            .cast_ptr(cont_ptr, self.codegen.llvm_gc_i8_ptr_type(), "cont_gc")
     }
 
     pub(super) fn cast_gc_ref_to_continuation(
@@ -328,8 +317,7 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
         ptr: PointerValue<'ctx>,
     ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
         let target_ty = self.codegen.llvm_ptr_type(self.codegen.gc_address_space());
-        self.codegen
-            .cast_ptr(ptr, target_ty, "cont_typed")
+        self.codegen.cast_ptr(ptr, target_ty, "cont_typed")
     }
 
     pub(super) fn load_frame_from_continuation(
@@ -339,9 +327,7 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
         let layout = self
             .abi
             .continuation_layout(self.callable.continuation_object())
-            .ok_or_else(|| {
-                frontend_error("resume 缺少 continuation layout".to_string())
-            })?;
+            .ok_or_else(|| frontend_error("resume 缺少 continuation layout".to_string()))?;
         let gep = self.codegen.builder.build_struct_gep(
             layout.llvm_ty(),
             cont_ptr,
@@ -351,11 +337,7 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
         let raw = self
             .codegen
             .builder
-            .build_load(
-                self.codegen.llvm_gc_i8_ptr_type(),
-                gep,
-                "load_frame_gc",
-            )?
+            .build_load(self.codegen.llvm_gc_i8_ptr_type(), gep, "load_frame_gc")?
             .into_pointer_value();
         self.codegen.cast_ptr(
             raw,
@@ -381,11 +363,7 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
         Ok(self
             .codegen
             .builder
-            .build_load(
-                self.codegen.context.i32_type(),
-                gep,
-                "resume_state",
-            )?
+            .build_load(self.codegen.context.i32_type(), gep, "resume_state")?
             .into_int_value())
     }
 
@@ -456,11 +434,7 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
         Ok(self
             .codegen
             .builder
-            .build_load(
-                self.codegen.llvm_i8_ptr_type(),
-                gep,
-                "cont_step_fn",
-            )?
+            .build_load(self.codegen.llvm_i8_ptr_type(), gep, "cont_step_fn")?
             .into_pointer_value())
     }
 

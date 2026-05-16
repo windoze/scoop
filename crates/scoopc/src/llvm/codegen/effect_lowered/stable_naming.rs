@@ -223,11 +223,8 @@ where
         )?],
     );
     let layout_anchor_name = private_name_from_key_text("effect_transport_box", &key_text);
-    let type_name = private_type_name_from_key_text(
-        "EffectTransportBox",
-        "effect_transport_box",
-        &key_text,
-    )?;
+    let type_name =
+        private_type_name_from_key_text("EffectTransportBox", "effect_transport_box", &key_text)?;
     Ok((type_name, layout_anchor_name))
 }
 

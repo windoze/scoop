@@ -5,7 +5,6 @@
 use super::*;
 
 impl<'a> FnLowering<'a> {
-
     /// 创建一个新的函数 lowering builder。
     pub(in crate::mir::lower) fn new(
         builtins: BuiltinTypes,
@@ -39,7 +38,10 @@ impl<'a> FnLowering<'a> {
     }
 
     /// 把一个 HIR 函数声明降到 MIR（当前阶段仅关注 body 的 CFG 形态）。
-    pub(in crate::mir::lower) fn lower_fun(mut self, fun: &hir::FunDecl) -> (FunDecl, Vec<FunDecl>) {
+    pub(in crate::mir::lower) fn lower_fun(
+        mut self,
+        fun: &hir::FunDecl,
+    ) -> (FunDecl, Vec<FunDecl>) {
         self.current_return_ty = fun.return_ty;
         // 1) 创建入口块。
         let entry = self.push_block(fun.span);
@@ -167,7 +169,12 @@ impl<'a> FnLowering<'a> {
     }
 
     /// 覆盖指定 basic block 的 terminator（默认 `NoUnwind`）。
-    pub(in crate::mir::lower) fn set_terminator(&mut self, bb: BasicBlockId, span: Span, kind: TerminatorKind) {
+    pub(in crate::mir::lower) fn set_terminator(
+        &mut self,
+        bb: BasicBlockId,
+        span: Span,
+        kind: TerminatorKind,
+    ) {
         self.set_terminator_with_unwind(bb, span, kind, UnwindAction::NoUnwind);
     }
 
@@ -188,7 +195,10 @@ impl<'a> FnLowering<'a> {
     ///   并且恢复路径也仍需要在 generic MIR 中保形；
     /// - 若这里直接停止，generic MIR materializer 将看不到这些后续 call-site；
     /// - 因此仅当终止原因是占位式 `Handle` / `Perform` 时，允许把后续语句接到一个新的孤立 block 中继续保形。
-    pub(in crate::mir::lower) fn continue_after_placeholder_effect_terminator_if_needed(&mut self, next_span: Span) -> bool {
+    pub(in crate::mir::lower) fn continue_after_placeholder_effect_terminator_if_needed(
+        &mut self,
+        next_span: Span,
+    ) -> bool {
         if self.facts.uses_typed_contracts() {
             return !self.current_is_terminated();
         }
@@ -205,7 +215,11 @@ impl<'a> FnLowering<'a> {
         true
     }
 
-    pub(in crate::mir::lower) fn with_cleanup_scope_len<T>(&mut self, len: usize, f: impl FnOnce(&mut Self) -> T) -> T {
+    pub(in crate::mir::lower) fn with_cleanup_scope_len<T>(
+        &mut self,
+        len: usize,
+        f: impl FnOnce(&mut Self) -> T,
+    ) -> T {
         let mut tail = self.cleanup_scopes.split_off(len);
         let result = f(self);
         self.cleanup_scopes.append(&mut tail);
@@ -249,7 +263,10 @@ impl<'a> FnLowering<'a> {
         next_target
     }
 
-    pub(in crate::mir::lower) fn build_perform_unwind_action(&mut self, span: Span) -> UnwindAction {
+    pub(in crate::mir::lower) fn build_perform_unwind_action(
+        &mut self,
+        span: Span,
+    ) -> UnwindAction {
         let Some(scope) = self.cleanup_scopes.last().cloned() else {
             return UnwindAction::Propagate;
         };
@@ -279,7 +296,12 @@ impl<'a> FnLowering<'a> {
     }
 
     /// 分配一个具名 local（用于参数与 `val/var` 声明）。
-    pub(in crate::mir::lower) fn push_named_local(&mut self, span: Span, name: &str, ty: TypeId) -> LocalId {
+    pub(in crate::mir::lower) fn push_named_local(
+        &mut self,
+        span: Span,
+        name: &str,
+        ty: TypeId,
+    ) -> LocalId {
         self.body.push_local(LocalDecl {
             span,
             name: Some(name.to_string()),
@@ -288,7 +310,11 @@ impl<'a> FnLowering<'a> {
         })
     }
 
-    pub(in crate::mir::lower) fn local_for_assign_decl_span(&self, decl_span: Span, name: &str) -> Option<LocalId> {
+    pub(in crate::mir::lower) fn local_for_assign_decl_span(
+        &self,
+        decl_span: Span,
+        name: &str,
+    ) -> Option<LocalId> {
         self.body
             .locals
             .iter()
@@ -341,7 +367,11 @@ impl<'a> FnLowering<'a> {
         value_erasure_transport(self.builtins, self.types, self.facts, source_ty, target_ty)
     }
 
-    pub(in crate::mir::lower) fn transporting_use_rvalue(&self, value: Operand, target_ty: TypeId) -> Rvalue {
+    pub(in crate::mir::lower) fn transporting_use_rvalue(
+        &self,
+        value: Operand,
+        target_ty: TypeId,
+    ) -> Rvalue {
         let source_ty = self.operand_ty(&value);
         if let Some(transport) = self.value_erasure_transport(source_ty, target_ty) {
             Rvalue::Transport { value, transport }
@@ -350,13 +380,23 @@ impl<'a> FnLowering<'a> {
         }
     }
 
-    pub(in crate::mir::lower) fn assign_use_to_local(&mut self, span: Span, target: LocalId, value: Operand) {
+    pub(in crate::mir::lower) fn assign_use_to_local(
+        &mut self,
+        span: Span,
+        target: LocalId,
+        value: Operand,
+    ) {
         let target_ty = self.body.locals[target.as_u32() as usize].ty;
         let rvalue = self.transporting_use_rvalue(value, target_ty);
         self.assign(span, target, rvalue);
     }
 
-    pub(in crate::mir::lower) fn operand_for_target_ty(&mut self, span: Span, value: Operand, target_ty: TypeId) -> Operand {
+    pub(in crate::mir::lower) fn operand_for_target_ty(
+        &mut self,
+        span: Span,
+        value: Operand,
+        target_ty: TypeId,
+    ) -> Operand {
         let source_ty = self.operand_ty(&value);
         let Some(transport) = self.value_erasure_transport(source_ty, target_ty) else {
             return value;
@@ -366,7 +406,11 @@ impl<'a> FnLowering<'a> {
         Operand::Local(tmp)
     }
 
-    pub(in crate::mir::lower) fn operand_for_current_return_ty(&mut self, span: Span, value: Operand) -> Operand {
+    pub(in crate::mir::lower) fn operand_for_current_return_ty(
+        &mut self,
+        span: Span,
+        value: Operand,
+    ) -> Operand {
         self.operand_for_target_ty(span, value, self.current_return_ty)
     }
 
@@ -386,14 +430,21 @@ impl<'a> FnLowering<'a> {
         self.is_function_value_ty(ty) || self.is_funptr_value_ty(ty)
     }
 
-    pub(in crate::mir::lower) fn value_origin_from_operand(&self, operand: &Operand) -> Option<ValueOrigin> {
+    pub(in crate::mir::lower) fn value_origin_from_operand(
+        &self,
+        operand: &Operand,
+    ) -> Option<ValueOrigin> {
         match operand {
             Operand::Local(local) => self.value_origins.get(local).cloned(),
             Operand::Const(_) => None,
         }
     }
 
-    pub(in crate::mir::lower) fn classify_value_assignment(&self, target: LocalId, value: &Rvalue) -> Option<ValueOrigin> {
+    pub(in crate::mir::lower) fn classify_value_assignment(
+        &self,
+        target: LocalId,
+        value: &Rvalue,
+    ) -> Option<ValueOrigin> {
         let target_ty = self.body.locals[target.as_u32() as usize].ty;
         match value {
             Rvalue::MakeClosure { fn_ptr, .. } => Some(ValueOrigin::Closure {
@@ -534,7 +585,12 @@ impl<'a> FnLowering<'a> {
     }
 
     /// 降低一个 `while` 语句：构造 loop CFG，并为 `break/continue` 建立跳转目标。
-    pub(in crate::mir::lower) fn lower_while_stmt(&mut self, span: Span, cond: &hir::Expr, body: &hir::Block) {
+    pub(in crate::mir::lower) fn lower_while_stmt(
+        &mut self,
+        span: Span,
+        cond: &hir::Expr,
+        body: &hir::Block,
+    ) {
         // CFG 形态（无 label）：
         //
         //   parent ──goto──▶ cond_bb ──condbr──▶ body_bb ──goto──▶ cond_bb
@@ -688,7 +744,12 @@ impl<'a> FnLowering<'a> {
     }
 
     /// 降低一个赋值语句。
-    pub(in crate::mir::lower) fn lower_assign_stmt(&mut self, span: Span, lhs: &hir::Expr, rhs: &hir::Expr) {
+    pub(in crate::mir::lower) fn lower_assign_stmt(
+        &mut self,
+        span: Span,
+        lhs: &hir::Expr,
+        rhs: &hir::Expr,
+    ) {
         self.lower_assign_stmt_with_place_contract(span, lhs, rhs);
     }
 

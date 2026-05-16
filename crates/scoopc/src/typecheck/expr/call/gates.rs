@@ -243,4 +243,3 @@ pub(in crate::typecheck::expr) fn check_nogc_boxing_gate(
         span: at.into(),
     })
 }
-

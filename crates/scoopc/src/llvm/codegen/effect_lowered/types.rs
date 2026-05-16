@@ -1437,10 +1437,7 @@ impl HandleDispatchLayout {
             .find(|arm| arm.handled_case() == handled_case)
     }
 
-    pub(super) fn handled_arm_by_ordinal(
-        &self,
-        arm_ordinal: u32,
-    ) -> Option<&HandleArmLayout> {
+    pub(super) fn handled_arm_by_ordinal(&self, arm_ordinal: u32) -> Option<&HandleArmLayout> {
         self.handled_arms
             .iter()
             .find(|arm| arm.arm_ordinal() == arm_ordinal)
@@ -1708,9 +1705,7 @@ impl<'ctx> ContinuationSurfaceResumeOwnerTrampolineLayout<'ctx> {
         &self.resume_boundary_sites
     }
 
-    pub(super) fn handle_binder_routes(
-        &self,
-    ) -> &[ContinuationSurfaceResumeHandleBinderRoute] {
+    pub(super) fn handle_binder_routes(&self) -> &[ContinuationSurfaceResumeHandleBinderRoute] {
         &self.handle_binder_routes
     }
 
@@ -1998,8 +1993,7 @@ pub(super) struct ContinuationObjectLayout<'ctx> {
     layout_anchor_name: String,
     fields: Vec<ContinuationFieldLayout<'ctx>>,
     packing_field_indices: BTreeMap<ResumeInterfaceId, u32>,
-    surface_resume_bindings:
-        BTreeMap<ContinuationSchemaId, Vec<ContinuationSurfaceResumeBinding>>,
+    surface_resume_bindings: BTreeMap<ContinuationSchemaId, Vec<ContinuationSurfaceResumeBinding>>,
 }
 
 impl<'ctx> ContinuationObjectLayout<'ctx> {
@@ -2231,8 +2225,7 @@ pub(crate) struct ProgramAbiQuery<'ctx> {
     frame_layouts: BTreeMap<StepSchemaId, FrameLayout<'ctx>>,
     continuation_layouts: BTreeMap<ContinuationObjectId, ContinuationObjectLayout<'ctx>>,
     resume_packing_layouts: BTreeMap<ResumeInterfaceId, ResumeInterfaceLayout<'ctx>>,
-    surface_resume_layouts:
-        BTreeMap<ContinuationSchemaId, ContinuationSurfaceResumeLayout<'ctx>>,
+    surface_resume_layouts: BTreeMap<ContinuationSchemaId, ContinuationSurfaceResumeLayout<'ctx>>,
     surface_resume_dispatch_layouts:
         BTreeMap<ContinuationSchemaId, ContinuationSurfaceResumeDispatchLayout<'ctx>>,
     callable_layouts: BTreeMap<StepSchemaId, CallableLayout<'ctx>>,
@@ -2246,16 +2239,13 @@ pub(crate) struct ProgramAbiQuery<'ctx> {
     callable_carrier_target_layouts:
         HashMap<(CallableCarrierKind, String), CallableCarrierTargetLayout>,
     dynamic_invoke_layouts: BTreeMap<(StepSchemaId, SiteId), DynamicInvokeLayout<'ctx>>,
-    call_boundary_operand_layouts:
-        BTreeMap<(StepSchemaId, SiteId), CallBoundaryOperandLayout>,
+    call_boundary_operand_layouts: BTreeMap<(StepSchemaId, SiteId), CallBoundaryOperandLayout>,
     perform_boundary_operand_layouts:
         BTreeMap<(StepSchemaId, SiteId), PerformBoundaryOperandLayout>,
-    resume_boundary_operand_layouts:
-        BTreeMap<(StepSchemaId, SiteId), ResumeBoundaryOperandLayout>,
+    resume_boundary_operand_layouts: BTreeMap<(StepSchemaId, SiteId), ResumeBoundaryOperandLayout>,
     resume_payload_binding_layouts:
         BTreeMap<(StepSchemaId, BoundaryId), ResumePayloadBindingLayout>,
-    resume_payload_bindings_by_state:
-        BTreeMap<(StepSchemaId, StateId), ResumePayloadBindingLayout>,
+    resume_payload_bindings_by_state: BTreeMap<(StepSchemaId, StateId), ResumePayloadBindingLayout>,
     completion_payload_binding_layouts:
         BTreeMap<(StepSchemaId, StateId), CompletionPayloadBindingLayout<'ctx>>,
     local_runtime_error_contracts:
@@ -2270,10 +2260,7 @@ impl<'ctx> ProgramAbiQuery<'ctx> {
         class_instance_layouts: BTreeMap<TypeId, ClassInstanceLayout>,
         step_layouts: BTreeMap<StepSchemaId, StepLayout<'ctx>>,
         frame_layouts: BTreeMap<StepSchemaId, FrameLayout<'ctx>>,
-        continuation_layouts: BTreeMap<
-            ContinuationObjectId,
-            ContinuationObjectLayout<'ctx>,
-        >,
+        continuation_layouts: BTreeMap<ContinuationObjectId, ContinuationObjectLayout<'ctx>>,
         resume_packing_layouts: BTreeMap<ResumeInterfaceId, ResumeInterfaceLayout<'ctx>>,
         surface_resume_layouts: BTreeMap<
             ContinuationSchemaId,
@@ -2302,10 +2289,7 @@ impl<'ctx> ProgramAbiQuery<'ctx> {
             CallableCarrierTargetLayout,
         >,
         dynamic_invoke_layouts: BTreeMap<(StepSchemaId, SiteId), DynamicInvokeLayout<'ctx>>,
-        call_boundary_operand_layouts: BTreeMap<
-            (StepSchemaId, SiteId),
-            CallBoundaryOperandLayout,
-        >,
+        call_boundary_operand_layouts: BTreeMap<(StepSchemaId, SiteId), CallBoundaryOperandLayout>,
         perform_boundary_operand_layouts: BTreeMap<
             (StepSchemaId, SiteId),
             PerformBoundaryOperandLayout,
@@ -2387,10 +2371,7 @@ impl<'ctx> ProgramAbiQuery<'ctx> {
             })
     }
 
-    pub(super) fn step_layout(
-        &self,
-        step_schema: StepSchemaId,
-    ) -> Option<&StepLayout<'ctx>> {
+    pub(super) fn step_layout(&self, step_schema: StepSchemaId) -> Option<&StepLayout<'ctx>> {
         self.step_layouts.get(&step_schema)
     }
 
@@ -2404,10 +2385,7 @@ impl<'ctx> ProgramAbiQuery<'ctx> {
         self.dynamic_invoke_layouts.values()
     }
 
-    pub(super) fn frame_layout(
-        &self,
-        step_schema: StepSchemaId,
-    ) -> Option<&FrameLayout<'ctx>> {
+    pub(super) fn frame_layout(&self, step_schema: StepSchemaId) -> Option<&FrameLayout<'ctx>> {
         self.frame_layouts.get(&step_schema)
     }
 
@@ -2723,13 +2701,7 @@ impl<'ctx> ProgramAbiQuery<'ctx> {
 
     pub(super) fn callable_carrier_target_layouts(
         &self,
-    ) -> impl Iterator<
-        Item = (
-            CallableCarrierKind,
-            &str,
-            &CallableCarrierTargetLayout,
-        ),
-    > + '_ {
+    ) -> impl Iterator<Item = (CallableCarrierKind, &str, &CallableCarrierTargetLayout)> + '_ {
         self.callable_carrier_target_layouts
             .iter()
             .map(|((kind, callable_fqn), layout)| (*kind, callable_fqn.as_str(), layout))

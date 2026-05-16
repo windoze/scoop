@@ -24,7 +24,10 @@ pub(in crate::mir::lower) fn payload_tuple_ty_from_components(
     }
 }
 
-pub(in crate::mir::lower) fn continuation_identity_return_param(types: &TypeStore, fun: &hir::FunDecl) -> Option<usize> {
+pub(in crate::mir::lower) fn continuation_identity_return_param(
+    types: &TypeStore,
+    fun: &hir::FunDecl,
+) -> Option<usize> {
     continuation_contract_from_type(types, fun.return_ty)?;
     let returned = block_identity_return_expr(fun.body.as_ref()?)?;
     let hir::ExprKind::VarRef(hir::ValueRef::Local { id, .. }) = &returned.kind else {
@@ -99,7 +102,10 @@ pub(in crate::mir::lower) fn boxed_symbols_in_expr(expr: &hir::Expr) -> HashSet<
     out
 }
 
-pub(in crate::mir::lower) fn collect_boxed_symbols_in_block(block: &hir::Block, out: &mut HashSet<hir::SymbolId>) {
+pub(in crate::mir::lower) fn collect_boxed_symbols_in_block(
+    block: &hir::Block,
+    out: &mut HashSet<hir::SymbolId>,
+) {
     for stmt in &block.stmts {
         match &stmt.kind {
             hir::StmtKind::Empty
@@ -129,7 +135,10 @@ pub(in crate::mir::lower) fn collect_boxed_symbols_in_block(block: &hir::Block, 
     }
 }
 
-pub(in crate::mir::lower) fn collect_boxed_symbols_in_expr(expr: &hir::Expr, out: &mut HashSet<hir::SymbolId>) {
+pub(in crate::mir::lower) fn collect_boxed_symbols_in_expr(
+    expr: &hir::Expr,
+    out: &mut HashSet<hir::SymbolId>,
+) {
     match &expr.kind {
         hir::ExprKind::Missing
         | hir::ExprKind::Literal(_)

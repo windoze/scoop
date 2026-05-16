@@ -751,7 +751,10 @@ pub(crate) fn build_ordered_call_arg_sources(
         .collect()
 }
 
-pub(crate) fn expected_source_components_for_carrier(types: &TypeStore, carrier_ty: TypeId) -> Vec<TypeId> {
+pub(crate) fn expected_source_components_for_carrier(
+    types: &TypeStore,
+    carrier_ty: TypeId,
+) -> Vec<TypeId> {
     match types.kind(carrier_ty) {
         TypeKind::Value(ValueTypeKind::Unit) => Vec::new(),
         TypeKind::Value(ValueTypeKind::Tuple(elements)) => elements.clone(),
@@ -769,7 +772,10 @@ pub(crate) fn local_assignment(body: &Body, local: LocalId) -> Option<&Rvalue> {
         })
 }
 
-pub(crate) fn resolve_closure_env_operand<'a>(body: &'a Body, callee: &Operand) -> Option<&'a Operand> {
+pub(crate) fn resolve_closure_env_operand<'a>(
+    body: &'a Body,
+    callee: &Operand,
+) -> Option<&'a Operand> {
     let &Operand::Local(mut current) = callee else {
         return None;
     };
@@ -1001,4 +1007,3 @@ pub(crate) fn validate_source_slice_bounds(
     }
     Ok(())
 }
-

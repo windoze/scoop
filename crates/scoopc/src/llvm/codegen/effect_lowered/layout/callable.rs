@@ -83,16 +83,8 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             gc_ref_ty.into(),
         ];
         let mut fields = vec![
-            ContinuationFieldLayout::new(
-                0,
-                ContinuationFieldKind::Header,
-                header_ty.into(),
-            ),
-            ContinuationFieldLayout::new(
-                1,
-                ContinuationFieldKind::ResumedFlag,
-                resumed_ty.into(),
-            ),
+            ContinuationFieldLayout::new(0, ContinuationFieldKind::Header, header_ty.into()),
+            ContinuationFieldLayout::new(1, ContinuationFieldKind::ResumedFlag, resumed_ty.into()),
             ContinuationFieldLayout::new(
                 2,
                 ContinuationFieldKind::ResumeStateTag,
@@ -103,26 +95,14 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                 ContinuationFieldKind::CapturedEffectCtxRef,
                 gc_ref_ty.into(),
             ),
-            ContinuationFieldLayout::new(
-                4,
-                ContinuationFieldKind::StateRef,
-                gc_ref_ty.into(),
-            ),
-            ContinuationFieldLayout::new(
-                5,
-                ContinuationFieldKind::StepFn,
-                step_fn_ty.into(),
-            ),
+            ContinuationFieldLayout::new(4, ContinuationFieldKind::StateRef, gc_ref_ty.into()),
+            ContinuationFieldLayout::new(5, ContinuationFieldKind::StepFn, step_fn_ty.into()),
             ContinuationFieldLayout::new(
                 6,
                 ContinuationFieldKind::ResumeWord,
                 resume_word_ty.into(),
             ),
-            ContinuationFieldLayout::new(
-                7,
-                ContinuationFieldKind::ResumeGcRef,
-                gc_ref_ty.into(),
-            ),
+            ContinuationFieldLayout::new(7, ContinuationFieldKind::ResumeGcRef, gc_ref_ty.into()),
             ContinuationFieldLayout::new(
                 8,
                 ContinuationFieldKind::CapturedCalleeSuspendStateRef,
@@ -162,10 +142,8 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             ContinuationSchemaId,
             ContinuationSurfaceResumeLayout<'ctx>,
         >,
-    ) -> Result<
-        BTreeMap<ContinuationSchemaId, Vec<ContinuationSurfaceResumeBinding>>,
-        LlvmEmitError,
-    > {
+    ) -> Result<BTreeMap<ContinuationSchemaId, Vec<ContinuationSurfaceResumeBinding>>, LlvmEmitError>
+    {
         let mut bindings =
             BTreeMap::<ContinuationSchemaId, Vec<ContinuationSurfaceResumeBinding>>::new();
         let mut register_binding =

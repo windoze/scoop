@@ -6,13 +6,16 @@ use super::*;
 
 impl<'a> HirLowering<'a> {
     pub(in crate::hir::lower) const PROPERTY_META_FQN: &'static str = "scoop.core.PropertyMeta";
-    pub(in crate::hir::lower) const ARRAY_BUILDER_NEW_FQN: &'static str = "scoop.core.__scoop_array_builder_new";
-    pub(in crate::hir::lower) const ARRAY_BUILDER_PUSH_FQN: &'static str = "scoop.core.__scoop_array_builder_push";
+    pub(in crate::hir::lower) const ARRAY_BUILDER_NEW_FQN: &'static str =
+        "scoop.core.__scoop_array_builder_new";
+    pub(in crate::hir::lower) const ARRAY_BUILDER_PUSH_FQN: &'static str =
+        "scoop.core.__scoop_array_builder_push";
     pub(in crate::hir::lower) const ARRAY_BUILDER_BUILD_ARRAY_FQN: &'static str =
         "scoop.core.__scoop_array_builder_build_array";
     pub(in crate::hir::lower) const INT_PROGRESSION_FQN: &'static str = "scoop.core.IntProgression";
     pub(in crate::hir::lower) const RANGE_TO_FQN: &'static str = "scoop.core.rangeTo";
-    pub(in crate::hir::lower) const RANGE_DEFAULT_STEP_FQN: &'static str = "scoop.core.__scoop_range_default_step";
+    pub(in crate::hir::lower) const RANGE_DEFAULT_STEP_FQN: &'static str =
+        "scoop.core.__scoop_range_default_step";
     pub(in crate::hir::lower) const SYNC_MUTEX_TYPE_FQN: &'static str = "scoop.sync.Mutex";
     pub(in crate::hir::lower) const SYNC_MUTEX_CREATE_FQN: &'static str = "scoop.sync.mutexCreate";
     pub(in crate::hir::lower) const SYNC_MUTEX_LOCK_FQN: &'static str = "scoop.sync.lock";
@@ -187,7 +190,11 @@ impl<'a> HirLowering<'a> {
         self.when_pat_binding_tys.insert(site, ty);
     }
 
-    pub(crate) fn intern_effect_row_param_marker(&mut self, name: String, decl_span: Span) -> TypeId {
+    pub(crate) fn intern_effect_row_param_marker(
+        &mut self,
+        name: String,
+        decl_span: Span,
+    ) -> TypeId {
         self.types.intern(TypeKind::Param(TypeParamType {
             name,
             decl_file: std::path::PathBuf::from(EFFECT_ROW_PARAM_DECL_FILE),
@@ -322,7 +329,10 @@ impl<'a> HirLowering<'a> {
     /// 注意：
     /// - 这里只服务于早期单文件 codegen，因此只索引“当前文件内”的顶层函数；
     /// - 不尝试处理 overload set（同名重载）与泛型函数（它们需要 typecheck 的最终决议信息）。
-    pub(crate) fn collect_default_arg_funs(&mut self, pkg_prefix: &str) -> HashMap<String, DefaultArgFunInfo> {
+    pub(crate) fn collect_default_arg_funs(
+        &mut self,
+        pkg_prefix: &str,
+    ) -> HashMap<String, DefaultArgFunInfo> {
         let mut out: HashMap<String, DefaultArgFunInfo> = HashMap::new();
 
         for item in &self.file.items {
@@ -1391,7 +1401,12 @@ impl<'a> HirLowering<'a> {
         self.file.replace_top_level_fun_call_bindings(bindings);
     }
 
-    pub(crate) fn lower_val_decl(&mut self, pkg_prefix: &str, v: &ast::ValDecl, scope: ValScope) -> ValDecl {
+    pub(crate) fn lower_val_decl(
+        &mut self,
+        pkg_prefix: &str,
+        v: &ast::ValDecl,
+        scope: ValScope,
+    ) -> ValDecl {
         // T0124: lower the declared type first so we can pass it as expected type for struct literals.
         let declared_ty_early = v.ty.as_ref().map(|t| self.lower_type_ref(t));
         let typechecked_init_ty = v
@@ -1520,7 +1535,11 @@ impl<'a> HirLowering<'a> {
         }
     }
 
-    pub(crate) fn extern_global_symbol(&self, v: &ast::ValDecl, default_name: &str) -> Option<String> {
+    pub(crate) fn extern_global_symbol(
+        &self,
+        v: &ast::ValDecl,
+        default_name: &str,
+    ) -> Option<String> {
         v.annotations
             .iter()
             .find_map(|ann| extern_annotation_symbol(self.source, ann, default_name))
@@ -1549,7 +1568,11 @@ impl<'a> HirLowering<'a> {
         }
     }
 
-    pub(crate) fn annotation_use_resolves_to_fqn(&self, ann: &ast::AnnotationUse, expected_fqn: &str) -> bool {
+    pub(crate) fn annotation_use_resolves_to_fqn(
+        &self,
+        ann: &ast::AnnotationUse,
+        expected_fqn: &str,
+    ) -> bool {
         // 与 typecheck 保持一致：复用 Index 的 import/package 解析逻辑，避免仅按未限定名匹配导致误判。
         let ty = ast::TypeRef::Path(ast::TypePath {
             span: ann.span,
@@ -1704,7 +1727,12 @@ impl<'a> HirLowering<'a> {
         EffectRow::new(terms)
     }
 
-    pub(crate) fn intern_nominal(&mut self, fqn: String, args: Vec<TypeId>, eff: Option<EffectRow>) -> TypeId {
+    pub(crate) fn intern_nominal(
+        &mut self,
+        fqn: String,
+        args: Vec<TypeId>,
+        eff: Option<EffectRow>,
+    ) -> TypeId {
         let nominal = NominalType { fqn, args, eff };
 
         // 尝试用 `type_kinds` 判断 struct/enum（value type）vs class/interface/effect（ref type）。
@@ -1743,7 +1771,10 @@ impl<'a> HirLowering<'a> {
     ///
     /// 用途：
     /// - 单态化实例生成：把 `T` 等抽象类型替换为调用点推断出的具体类型。
-    pub(crate) fn push_type_param_bindings(&mut self, bindings: impl IntoIterator<Item = (String, TypeId)>) {
+    pub(crate) fn push_type_param_bindings(
+        &mut self,
+        bindings: impl IntoIterator<Item = (String, TypeId)>,
+    ) {
         let mut frame = HashMap::new();
         for (name, id) in bindings {
             frame.insert(name, id);
@@ -1782,7 +1813,11 @@ impl<'a> HirLowering<'a> {
             .find_map(|scope| scope.get(name).copied())
     }
 
-    pub(crate) fn push_synthetic_local_decl_ty(&mut self, span: Span, ty: TypeId) -> Option<TypeId> {
+    pub(crate) fn push_synthetic_local_decl_ty(
+        &mut self,
+        span: Span,
+        ty: TypeId,
+    ) -> Option<TypeId> {
         self.local_decl_tys.insert(span, ty)
     }
 

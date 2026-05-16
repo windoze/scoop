@@ -444,13 +444,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             } => {
                 let class_layout_key =
                     self.mir_class_ctor_layout_key(class_fqn, mir_types, target_source_ty);
-                self.codegen_mir_class_ctor_call(
-                    span,
-                    &class_layout_key,
-                    ctor,
-                    args,
-                    slots,
-                )
+                self.codegen_mir_class_ctor_call(span, &class_layout_key, ctor, args, slots)
             }
             crate::mir::Rvalue::UnresolvedName { name } => {
                 self.codegen_unresolved_ident(span, name, Some(target_cg))

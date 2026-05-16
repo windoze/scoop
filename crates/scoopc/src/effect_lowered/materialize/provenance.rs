@@ -4,7 +4,6 @@
 
 use super::*;
 
-
 #[derive(Debug, Clone)]
 pub(crate) struct ResolvedResumeLocalRoute {
     pub(crate) route: Option<LateLoweredContinuationRoute>,

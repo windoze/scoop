@@ -41,7 +41,8 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
                         })
                 })
                 .collect::<Result<Vec<_>, _>>()?;
-            let effect_ty = self.codegen
+            let effect_ty = self
+                .codegen
                 .types
                 .iter_ids()
                 .find(|type_id| {
@@ -194,9 +195,10 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
             .codegen
             .build_step_complete(step_layout, complete_payload)?;
         self.codegen.builder.build_unconditional_branch(done_bb)?;
-        let complete_end = self.codegen.builder.get_insert_block().ok_or_else(|| {
-            frontend_error(format!("`{name}` complete path 缺少 insert block"))
-        })?;
+        let complete_end =
+            self.codegen.builder.get_insert_block().ok_or_else(|| {
+                frontend_error(format!("`{name}` complete path 缺少 insert block"))
+            })?;
         incoming_steps.push((complete_step, complete_end));
 
         self.codegen.builder.position_at_end(dispatch_bb);
@@ -272,10 +274,7 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
         for (case_tag, payload_ty, hit_bb) in case_blocks {
             self.codegen.builder.position_at_end(hit_bb);
             let case_layout = step_layout.case_layout(case_tag).ok_or_else(|| {
-                frontend_error(format!(
-                    "step schema 缺少 case c{}",
-                    case_tag.as_u32()
-                ))
+                frontend_error(format!("step schema 缺少 case c{}", case_tag.as_u32()))
             })?;
             let payload = self.decode_effect_transport_parts(
                 payload_ty,

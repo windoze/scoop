@@ -50,28 +50,28 @@ typealias Double = Float64
 
 @Intrinsic
 class Array<T> {
-    @Intrinsic("array_size")
+    @Intrinsic("array_size_inline")
     fun size(): Int
 
-    @Intrinsic("array_get")
+    @Intrinsic("array_get_inline")
     fun get(index: Int): T
 
-    @Intrinsic("array_data_ptr")
+    @Intrinsic("array_data_ptr_inline")
     fun __dataPtr(): UIntPtr
 }
 
 @Intrinsic
 class MutableArray<T> {
-    @Intrinsic("array_size")
+    @Intrinsic("array_size_outofline")
     fun size(): Int
 
-    @Intrinsic("array_get")
+    @Intrinsic("array_get_outofline")
     fun get(index: Int): T
 
-    @Intrinsic("array_set")
+    @Intrinsic("array_set_outofline")
     fun set(index: Int, value: T): Unit
 
-    @Intrinsic("array_data_ptr")
+    @Intrinsic("array_data_ptr_outofline")
     fun __dataPtr(): UIntPtr
 }
 

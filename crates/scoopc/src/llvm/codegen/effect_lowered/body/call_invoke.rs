@@ -57,9 +57,9 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
             &args,
             "call_step",
         )?;
-        call.try_as_basic_value().basic().ok_or_else(|| {
-            frontend_error("call boundary callee 未返回 Step_F".to_string())
-        })
+        call.try_as_basic_value()
+            .basic()
+            .ok_or_else(|| frontend_error("call boundary callee 未返回 Step_F".to_string()))
     }
 
     pub(super) fn body_operand_source_ty(&self, operand: &crate::mir::Operand) -> Option<TypeId> {

@@ -189,10 +189,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             };
             let bb = self.context.append_basic_block(
                 function,
-                &format!(
-                    "carrier_project_case{}",
-                    wrapper_case.1.case_tag().as_u32()
-                ),
+                &format!("carrier_project_case{}", wrapper_case.1.case_tag().as_u32()),
             );
             case_targets.push((
                 self.context
@@ -260,9 +257,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.builder.build_unreachable()?;
 
         self.builder.position_at_end(done_bb);
-        let phi = self
-            .builder
-            .build_phi(phi_ty, "carrier_projected_step")?;
+        let phi = self.builder.build_phi(phi_ty, "carrier_projected_step")?;
         for (value, bb) in &incomings {
             phi.add_incoming(&[(value, *bb)]);
         }
@@ -571,12 +566,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             self.context.ptr_type(self.gc_address_space()),
             "closure_obj",
         )?;
-        let env_gep = self.builder.build_struct_gep(
-            closure_ty,
-            closure_ptr,
-            1,
-            "closure_env_gep",
-        )?;
+        let env_gep =
+            self.builder
+                .build_struct_gep(closure_ty, closure_ptr, 1, "closure_env_gep")?;
         Ok(self
             .builder
             .build_load(self.llvm_gc_i8_ptr_type(), env_gep, "closure_env")?
@@ -619,9 +611,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 .and_then(|value| *value)
                 .map(Some)
                 .ok_or_else(|| {
-                    frontend_error(format!(
-                        "ABI scalar payload `{name}` 缺少 source component"
-                    ))
+                    frontend_error(format!("ABI scalar payload `{name}` 缺少 source component"))
                 }),
             SourceAbiLayoutKind::Tuple => {
                 let BasicTypeEnum::StructType(struct_ty) = layout.abi().llvm_ty() else {

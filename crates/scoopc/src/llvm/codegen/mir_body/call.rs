@@ -19,9 +19,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         match kind {
             crate::mir::CallKind::Direct { callee_fqn } => {
                 if self.class_inits.contains_key(callee_fqn) {
-                    return self.codegen_mir_class_ctor_call_at_site(
-                        span, callee_fqn, args, slots,
-                    );
+                    return self.codegen_mir_class_ctor_call_at_site(span, callee_fqn, args, slots);
                 }
                 self.codegen_mir_direct_call(
                     span, callee_fqn, args, body, mir_types, transport, slots,
@@ -1023,11 +1021,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         fun_ty: &crate::ty::FunctionType,
         slots: &[MirLocalSlot<'ctx>],
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        let deferred_callee = self.defer_gc_ref_pointer(
-            span,
-            "plain_function_value_callee",
-            closure_obj_i8,
-        )?;
+        let deferred_callee =
+            self.defer_gc_ref_pointer(span, "plain_function_value_callee", closure_obj_i8)?;
         let closure_obj_i8 = self.reload_deferred_gc_ref_without_clearing(
             span,
             "plain_function_value_callee_reload",

@@ -178,11 +178,9 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
             )));
         }
         let payload = self.materialize_runtime_error_fatal_payload(payload)?;
-        self.codegen.builder.build_call(
-            callee,
-            &[payload.into()],
-            "local_runtime_error_fatal",
-        )?;
+        self.codegen
+            .builder
+            .build_call(callee, &[payload.into()], "local_runtime_error_fatal")?;
         self.codegen.builder.build_unreachable()?;
         Ok(())
     }
@@ -193,11 +191,9 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
     ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
         let runtime_payload_ty = self.codegen.llvm_gc_i8_ptr_type();
         if let BasicValueEnum::PointerValue(ptr) = payload {
-            return self.codegen.cast_ptr(
-                ptr,
-                runtime_payload_ty,
-                "runtime_error_payload_ptr",
-            );
+            return self
+                .codegen
+                .cast_ptr(ptr, runtime_payload_ty, "runtime_error_payload_ptr");
         }
 
         let slot = self
@@ -205,10 +201,7 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
             .builder
             .build_alloca(payload.get_type(), "runtime_error_payload_obj")?;
         self.codegen.builder.build_store(slot, payload)?;
-        self.codegen.cast_ptr(
-            slot,
-            runtime_payload_ty,
-            "runtime_error_payload_ptr",
-        )
+        self.codegen
+            .cast_ptr(slot, runtime_payload_ty, "runtime_error_payload_ptr")
     }
 }

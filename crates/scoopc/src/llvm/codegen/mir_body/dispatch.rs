@@ -473,20 +473,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.release_evaluated_call_arg_roots(&evaluated_args);
         let call_site = call_site_result?;
         if let Some((result_ptr, _)) = sret_result_slot {
-            self.sync_hidden_sret_result_roots(
-                span,
-                ret_cg,
-                result_ptr,
-                "plain_dispatch_sret",
-            )?;
+            self.sync_hidden_sret_result_roots(span, ret_cg, result_ptr, "plain_dispatch_sret")?;
         }
         let deferred_direct_result = if sret_result_slot.is_none() {
-            self.defer_direct_call_result(
-                span,
-                ret_cg,
-                call_site,
-                "plain_dispatch_direct_result",
-            )?
+            self.defer_direct_call_result(span, ret_cg, call_site, "plain_dispatch_direct_result")?
         } else {
             None
         };

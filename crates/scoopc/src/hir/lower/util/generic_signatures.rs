@@ -764,7 +764,10 @@ pub(in crate::hir::lower) fn build_template_symbol_suffixes(
     out
 }
 
-pub(in crate::hir::lower) fn template_key_sort(lhs: &TemplateKey, rhs: &TemplateKey) -> std::cmp::Ordering {
+pub(in crate::hir::lower) fn template_key_sort(
+    lhs: &TemplateKey,
+    rhs: &TemplateKey,
+) -> std::cmp::Ordering {
     lhs.source_path
         .cmp(&rhs.source_path)
         .then_with(|| lhs.decl_span.start.cmp(&rhs.decl_span.start))
@@ -1460,7 +1463,11 @@ pub(in crate::hir::lower) fn map_hir_call_args_to_params_by_name(
     arg_to_param.into_iter().collect()
 }
 
-pub(in crate::hir::lower) fn collect_hir_type_param_names(types: &TypeStore, ty: crate::ty::TypeId, out: &mut Vec<String>) {
+pub(in crate::hir::lower) fn collect_hir_type_param_names(
+    types: &TypeStore,
+    ty: crate::ty::TypeId,
+    out: &mut Vec<String>,
+) {
     let mut stack = vec![ty];
     while let Some(id) = stack.pop() {
         match types.kind(id) {

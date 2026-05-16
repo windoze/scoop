@@ -4,7 +4,6 @@
 
 use super::*;
 
-
 pub(in crate::hir::lower) fn generic_fun_dispatch_fqn(fqn: &str) -> &str {
     if let Some((base, _)) = fqn.rsplit_once("::<") {
         return base;
@@ -29,7 +28,9 @@ pub(in crate::hir::lower) fn generic_fun_callee_fqn(expr: &super::super::Expr) -
     }
 }
 
-pub(in crate::hir::lower) fn generic_fun_call_receiver_expr(expr: &super::super::Expr) -> Option<&super::super::Expr> {
+pub(in crate::hir::lower) fn generic_fun_call_receiver_expr(
+    expr: &super::super::Expr,
+) -> Option<&super::super::Expr> {
     let super::super::ExprKind::MemberAccess { receiver, member } = &expr.kind else {
         return None;
     };
@@ -1094,7 +1095,9 @@ pub(in crate::hir::lower) fn generic_fun_decl_kind(fun: &ast::FunDecl) -> &'stat
     }
 }
 
-pub(in crate::hir::lower) fn generic_property_getter_decl_kind(_: &ast::PropertyDecl) -> &'static str {
+pub(in crate::hir::lower) fn generic_property_getter_decl_kind(
+    _: &ast::PropertyDecl,
+) -> &'static str {
     "generic_value_getter"
 }
 
@@ -1120,7 +1123,9 @@ pub(in crate::hir::lower) fn canonical_template_map(
     out
 }
 
-pub(in crate::hir::lower) fn preferred_template_candidate(group: Vec<&TemplateSymbolCandidate>) -> &TemplateSymbolCandidate {
+pub(in crate::hir::lower) fn preferred_template_candidate(
+    group: Vec<&TemplateSymbolCandidate>,
+) -> &TemplateSymbolCandidate {
     let mut preferred = group;
     preferred.sort_by(|lhs, rhs| {
         rhs.prefers_materialized_body
@@ -1168,7 +1173,10 @@ pub(crate) fn stable_instance_fqn(
     format!("{}::<{}>{symbol_suffix}", template.fqn, args.join(", "))
 }
 
-pub(in crate::hir::lower) fn stable_effect_row_string(types: &TypeStore, row: &EffectRow) -> String {
+pub(in crate::hir::lower) fn stable_effect_row_string(
+    types: &TypeStore,
+    row: &EffectRow,
+) -> String {
     if row.terms.is_empty() {
         return "Pure".to_string();
     }
@@ -1199,13 +1207,18 @@ pub(in crate::hir::lower) fn build_effect_binding(
     }
 }
 
-pub(in crate::hir::lower) fn explicit_instance_lowering_error(message: impl Into<String>) -> crate::hir::HirLowerError {
+pub(in crate::hir::lower) fn explicit_instance_lowering_error(
+    message: impl Into<String>,
+) -> crate::hir::HirLowerError {
     crate::hir::HirLowerError::Frontend {
         message: message.into(),
     }
 }
 
-pub(in crate::hir::lower) fn eval_value_only_enum_discriminant(source: &SourceFile, expr: &ast::Expr) -> Option<i128> {
+pub(in crate::hir::lower) fn eval_value_only_enum_discriminant(
+    source: &SourceFile,
+    expr: &ast::Expr,
+) -> Option<i128> {
     match &expr.kind {
         ast::ExprKind::IntLit => {
             let raw = source.slice(expr.span);

@@ -656,4 +656,3 @@ pub(super) fn resolves_to_compiler_owned_continuation_type(
         .as_deref()
         == Some("scoop.core.Continuation")
 }
-

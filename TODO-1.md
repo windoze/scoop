@@ -356,7 +356,7 @@
 - 与 `PLAN.md` 对应闭合：完成 P3 runtime 侧 `MutableArray` out-of-line layout、倍增扩容、freeze 到 inline `Array`、runtime ABI 符号登记与 GC trace/release 基础；P3-T02 后续可在编译器 lowering 中按 receiver layout 分流。
 - 暂时性 failing fixture：无。
 
-### P3-T02：编译器端——`array_size/get/set/data_ptr` 按 receiver layout 分流
+### [DONE] P3-T02：编译器端——`array_size/get/set/data_ptr` 按 receiver layout 分流
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §6.2 / §9 / P3
@@ -398,6 +398,17 @@
 - 完成条件：
   - 同一对 `Array.size` / `MutableArray.size` 调用产生不同 IR shape；`Array<T>` 路径无 IR drift。
 - 依赖：P3-T01。
+
+完成记录（2026-05-17）：
+
+- 改动范围：更新 `crates/scoopc/src/intrinsics.rs`、`crates/scoopc/src/llvm/codegen/intrinsics/named.rs`、`crates/scoopc/src/llvm/codegen/gc.rs`、`crates/scoopc/src/hir/lower/stmt.rs`、`sysroot/core.scoop`、相关 LLVM owner tests 与 build fixture overlay；更新 `runtime/c/scoop_array.c` 和 `crates/scoop_runtime/tests/mutable_array_runtime.rs`，使旧 mutable array literal builder 产物与新的 `MutableArray` out-of-line layout 一致；按仓库要求执行 `cargo fmt`，包含若干 Rust 文件的格式化-only diff；`PLAN.md` 阶段计划未变化。
+- 核心决策：采用任务建议的拆分 entry 方案，发布 `array_size/get/set/data_ptr_{inline,outofline}` lowering 单元；`Array<T>` 映射 inline `ScoopArray`，`MutableArray<T>` 映射 out-of-line `ScoopMutableArray`。保留 `array_set_inline` 作为完整表项，但 sysroot `Array<T>` 仍不暴露 `set`。
+- lowering 行为：inline 路径继续使用 `ScoopArray.len` + `data_offset_bytes` trailing-data GEP；out-of-line 路径使用 `ScoopMutableArray.len` 与 `data` 字段，`get/set/data_ptr` 先 load native data pointer 再按元素 stride 访问。`MutableArray<String/Any>.set` 先写 native C-heap slot，再以 `scoop_gc_write_barrier(NULL, value)` 的 promotion barrier 语义与 runtime `push_ref` 保持一致；composite set 在 copy 后对内嵌 ref 执行同类 promotion barrier。
+- layout 一致性修复：P3-T02 切换 `MutableArray` receiver layout 后，旧 `__scoop_array_builder_build_mutable_array*` 若仍返回 inline `ScoopArray` 会直接破坏现有 mutable array literal。已将这两个 runtime builder build 入口改为转移 builder out-of-line buffer 并返回 `ScoopMutableArray`，不删除 builder 编译器 lowering，满足 P4-T02 之前的并存要求。
+- fixture / overlay 更新：build fixture 的 sysroot overlay 改用新 named intrinsic entry；`array_intrinsic_write_barrier_ref_set.scoop` 的 IR 期望从 slot-address barrier 名称更新为 out-of-line promotion barrier 名称。
+- 验证结果：`cargo test -p scoopc mutable_array_ -- --nocapture` 通过（3 tests）；`cargo test -p scoopc array_size_still_inline -- --nocapture` 通过；`cargo test -p scoopc array_of_string_uses_ir_direct_ref_load_and_write_barrier_without_ptr_to_u64 -- --nocapture` 通过；`cargo test -p scoop_runtime --test mutable_array_runtime -- --nocapture` 通过（5 tests）；三个曾失败 build fixture 单独回放均通过；`cargo run -p scoop -- test` 通过，输出 `fixtures: ok (1369)`；`cargo test --all --all-targets` 通过（840 tests）；`cargo clippy --all-targets -- -D warnings` 通过。
+- 与 `PLAN.md` 对应闭合：完成 P3 的编译器 receiver layout 分流，使 `Array` 和 `MutableArray` 的基础访问生成不同 IR shape，并保持 `Array<T>` inline 路径无 drift。
+- 暂时性 failing fixture：无。
 
 ### P3-T03：sysroot 泛型 wrapper——`mutableArrayNew<T>` / `MutableArray<T>.push` / `MutableArray<T>.freeze`
 

@@ -230,9 +230,7 @@ pub enum EffectLoweringError {
         detail: String,
     },
 
-    #[error(
-        "late-lowering stage 无法为 `{root_fqn}` 发布 completion payload contract：{detail}"
-    )]
+    #[error("late-lowering stage 无法为 `{root_fqn}` 发布 completion payload contract：{detail}")]
     InvalidCompletionPayloadContract { root_fqn: String, detail: String },
 
     #[error(

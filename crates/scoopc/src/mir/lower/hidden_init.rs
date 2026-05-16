@@ -13,7 +13,11 @@ impl<'a> HiddenInitEffectAnalyzer<'a> {
         Self { lowered }
     }
 
-    pub(in crate::mir::lower) fn class_ctor_effect_row(&self, class_fqn: &str, ctor_span: Option<Span>) -> EffectRow {
+    pub(in crate::mir::lower) fn class_ctor_effect_row(
+        &self,
+        class_fqn: &str,
+        ctor_span: Option<Span>,
+    ) -> EffectRow {
         let mut visiting = HashSet::new();
         EffectRow::new(self.class_ctor_effect_terms(class_fqn, ctor_span, &mut visiting))
     }
@@ -23,7 +27,10 @@ impl<'a> HiddenInitEffectAnalyzer<'a> {
         EffectRow::new(self.object_init_effect_terms(object_fqn, &mut visiting))
     }
 
-    pub(in crate::mir::lower) fn top_level_immutable_value_effect_row(&self, value_fqn: &str) -> EffectRow {
+    pub(in crate::mir::lower) fn top_level_immutable_value_effect_row(
+        &self,
+        value_fqn: &str,
+    ) -> EffectRow {
         let mut visiting = HashSet::new();
         EffectRow::new(self.top_level_immutable_value_effect_terms(value_fqn, &mut visiting))
     }
@@ -155,7 +162,10 @@ impl<'a> HiddenInitEffectAnalyzer<'a> {
         terms
     }
 
-    pub(in crate::mir::lower) fn lookup_class_init(&self, class_fqn: &str) -> Option<&'a hir::ClassInit> {
+    pub(in crate::mir::lower) fn lookup_class_init(
+        &self,
+        class_fqn: &str,
+    ) -> Option<&'a hir::ClassInit> {
         self.lowered.class_inits.get(class_fqn).or_else(|| {
             self.lowered
                 .class_inits
@@ -353,4 +363,3 @@ impl<'a> HiddenInitEffectAnalyzer<'a> {
         terms
     }
 }
-

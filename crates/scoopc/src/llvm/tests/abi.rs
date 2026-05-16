@@ -828,8 +828,7 @@ fun main(): Int {
     );
 
     assert!(
-        helper_ir.contains("@scoop_test_add_int")
-            && !helper_ir.contains("switch i32 %step_tag"),
+        helper_ir.contains("@scoop_test_add_int") && !helper_ir.contains("switch i32 %step_tag"),
         "ordinary `@Extern` 调用应保持 plain native call surface，而不是进入 Step dispatch:\n{helper_ir}"
     );
 }
@@ -1323,14 +1322,14 @@ fun main(): Int {
         "Array<String> 的 array literal builder 应走 scoop_array_builder_push_ref"
     );
     assert!(
-        ir.contains("array_len_gep")
-            && ir.contains("array_data_offset_gep")
+        ir.contains("mutable_array_len_gep")
+            && ir.contains("mutable_array_data_gep")
             && ir.contains("array_get_load = load ptr addrspace(1)"),
-        "Array<String>.get 应直接 GEP/load `ScoopArray` layout，而不是回 runtime helper:\n{ir}"
+        "MutableArray<String>.get 应经 out-of-line data 指针 load，而不是回 runtime helper 或 inline ScoopArray layout:\n{ir}"
     );
     assert!(
-        ir.contains("@scoop_gc_write_barrier") && ir.contains("gc_wb_slot_addr"),
-        "MutableArray<String>.set 应直接写 slot 并经 write barrier，而不是回 runtime helper:\n{ir}"
+        ir.contains("@scoop_gc_write_barrier") && ir.contains("gc_promotion_barrier"),
+        "MutableArray<String>.set 应直接写 out-of-line slot 并经 promotion write barrier，而不是回 runtime helper:\n{ir}"
     );
     assert!(
         !ir.contains("@scoop_array_get_ref") && !ir.contains("@scoop_array_set_ref"),
@@ -1343,6 +1342,149 @@ fun main(): Int {
     assert!(
         !ir.contains("u64_to_string"),
         "String 元素路径不应从 u64 解码回 GC 字符串指针（u64_to_string）"
+    );
+}
+
+#[test]
+pub(super) fn mutable_array_size_loads_len_field() {
+    let source = SourceFile::new_virtual(
+        "<mem>/mutable_array_size_layout.scoop",
+        r#"
+package fixtures.p3t02.size
+
+import scoop.core.*
+
+fun main(): Int {
+    val xs: MutableArray<Int> = [1, 2, 3]
+    return xs.size()
+}
+"#,
+    );
+
+    let session = Session::new().unwrap();
+    let ir = emit_minimal_main_ir(&session, &source).unwrap();
+    let main_ir = function_ir_matching(&ir, "mutable array size main", |_, function| {
+        stable_id_symbol_mentions_fqn(
+            llvm_function_symbol_name(function),
+            "fixtures.p3t02.size.main",
+        )
+    });
+
+    assert!(
+        main_ir.contains("mutable_array_len_gep")
+            && main_ir.contains("mutable_array_len = load i64"),
+        "MutableArray.size 应从 ScoopMutableArray.len 字段读取:\n{main_ir}"
+    );
+    assert!(
+        !main_ir.contains("array_data_offset_gep"),
+        "MutableArray.size 不应触碰 inline ScoopArray data_offset 字段:\n{main_ir}"
+    );
+}
+
+#[test]
+pub(super) fn mutable_array_get_indirect_through_data_ptr() {
+    let source = SourceFile::new_virtual(
+        "<mem>/mutable_array_get_layout.scoop",
+        r#"
+package fixtures.p3t02.get
+
+import scoop.core.*
+
+fun main(): Int {
+    val xs: MutableArray<Int> = [11, 22]
+    return xs.get(1)
+}
+"#,
+    );
+
+    let session = Session::new().unwrap();
+    let ir = emit_minimal_main_ir(&session, &source).unwrap();
+    let main_ir = function_ir_matching(&ir, "mutable array get main", |_, function| {
+        stable_id_symbol_mentions_fqn(
+            llvm_function_symbol_name(function),
+            "fixtures.p3t02.get.main",
+        )
+    });
+
+    assert!(
+        main_ir.contains("mutable_array_data_gep")
+            && main_ir.contains("mutable_array_data = load ptr")
+            && main_ir.contains("array_get_load = load i64"),
+        "MutableArray.get 应先 load out-of-line data 指针再按元素 stride load:\n{main_ir}"
+    );
+    assert!(
+        !main_ir.contains("array_data_offset_gep"),
+        "MutableArray.get 不应沿用 inline ScoopArray trailing-data 路径:\n{main_ir}"
+    );
+}
+
+#[test]
+pub(super) fn mutable_array_set_emits_write_barrier_for_ref_element() {
+    let source = SourceFile::new_virtual(
+        "<mem>/mutable_array_set_ref_layout.scoop",
+        r#"
+package fixtures.p3t02.setref
+
+import scoop.core.*
+
+fun main(): Int {
+    val xs: MutableArray<String> = ["a", "b"]
+    xs.set(1, "z")
+    return xs.size()
+}
+"#,
+    );
+
+    let session = Session::new().unwrap();
+    let ir = emit_minimal_main_ir(&session, &source).unwrap();
+    let main_ir = function_ir_matching(&ir, "mutable array set ref main", |_, function| {
+        stable_id_symbol_mentions_fqn(
+            llvm_function_symbol_name(function),
+            "fixtures.p3t02.setref.main",
+        )
+    });
+
+    assert!(
+        main_ir.contains("mutable_array_data_gep")
+            && main_ir.contains("store ptr addrspace(1)")
+            && main_ir.contains("gc_promotion_barrier")
+            && main_ir.contains("@scoop_gc_write_barrier"),
+        "MutableArray<String>.set 应写 out-of-line ref slot 后调用 NULL-slot promotion barrier:\n{main_ir}"
+    );
+}
+
+#[test]
+pub(super) fn array_size_still_inline_after_dispatch_split() {
+    let source = SourceFile::new_virtual(
+        "<mem>/array_size_inline_layout.scoop",
+        r#"
+package fixtures.p3t02.inlinearr
+
+import scoop.core.*
+
+fun main(): Int {
+    val xs: Array<Int> = [7, 9]
+    return xs.size()
+}
+"#,
+    );
+
+    let session = Session::new().unwrap();
+    let ir = emit_minimal_main_ir(&session, &source).unwrap();
+    let main_ir = function_ir_matching(&ir, "array size inline main", |_, function| {
+        stable_id_symbol_mentions_fqn(
+            llvm_function_symbol_name(function),
+            "fixtures.p3t02.inlinearr.main",
+        )
+    });
+
+    assert!(
+        main_ir.contains("array_len_gep") && main_ir.contains("array_len = load i64"),
+        "Array.size 应保持 inline ScoopArray.len 字段读取:\n{main_ir}"
+    );
+    assert!(
+        !main_ir.contains("mutable_array_len_gep") && !main_ir.contains("mutable_array_data_gep"),
+        "Array.size 不应漂移到 MutableArray out-of-line layout:\n{main_ir}"
     );
 }
 

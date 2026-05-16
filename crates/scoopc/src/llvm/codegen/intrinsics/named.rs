@@ -41,26 +41,48 @@ struct NamedIntrinsicIrRuleEntry {
     lower: NamedIntrinsicIrEmissionLowerer,
 }
 
+#[derive(Clone, Copy)]
+enum NamedIntrinsicArrayLayout {
+    Inline,
+    OutOfLine,
+}
+
 const NAMED_INTRINSIC_IR_RULES: &[NamedIntrinsicIrRuleEntry] = &[
     NamedIntrinsicIrRuleEntry {
         name: "dummy_ir",
         lower: lower_dummy_ir,
     },
     NamedIntrinsicIrRuleEntry {
-        name: "array_size",
-        lower: lower_array_size,
+        name: "array_size_inline",
+        lower: lower_array_size_inline,
     },
     NamedIntrinsicIrRuleEntry {
-        name: "array_get",
-        lower: lower_array_get,
+        name: "array_size_outofline",
+        lower: lower_array_size_outofline,
     },
     NamedIntrinsicIrRuleEntry {
-        name: "array_set",
-        lower: lower_array_set,
+        name: "array_get_inline",
+        lower: lower_array_get_inline,
     },
     NamedIntrinsicIrRuleEntry {
-        name: "array_data_ptr",
-        lower: lower_array_data_ptr,
+        name: "array_get_outofline",
+        lower: lower_array_get_outofline,
+    },
+    NamedIntrinsicIrRuleEntry {
+        name: "array_set_inline",
+        lower: lower_array_set_inline,
+    },
+    NamedIntrinsicIrRuleEntry {
+        name: "array_set_outofline",
+        lower: lower_array_set_outofline,
+    },
+    NamedIntrinsicIrRuleEntry {
+        name: "array_data_ptr_inline",
+        lower: lower_array_data_ptr_inline,
+    },
+    NamedIntrinsicIrRuleEntry {
+        name: "array_data_ptr_outofline",
+        lower: lower_array_data_ptr_outofline,
     },
 ];
 
@@ -92,32 +114,60 @@ fn lower_dummy_ir<'a, 'ctx>(
     ))
 }
 
-fn lower_array_size<'a, 'ctx>(
+fn lower_array_size_inline<'a, 'ctx>(
     cg: &mut MainCodegen<'a, 'ctx>,
     call: LoweredNamedIntrinsicCall<'ctx>,
 ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-    cg.codegen_named_intrinsic_array_size(call)
+    cg.codegen_named_intrinsic_array_size(call, NamedIntrinsicArrayLayout::Inline)
 }
 
-fn lower_array_get<'a, 'ctx>(
+fn lower_array_size_outofline<'a, 'ctx>(
     cg: &mut MainCodegen<'a, 'ctx>,
     call: LoweredNamedIntrinsicCall<'ctx>,
 ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-    cg.codegen_named_intrinsic_array_get(call)
+    cg.codegen_named_intrinsic_array_size(call, NamedIntrinsicArrayLayout::OutOfLine)
 }
 
-fn lower_array_set<'a, 'ctx>(
+fn lower_array_get_inline<'a, 'ctx>(
     cg: &mut MainCodegen<'a, 'ctx>,
     call: LoweredNamedIntrinsicCall<'ctx>,
 ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-    cg.codegen_named_intrinsic_array_set(call)
+    cg.codegen_named_intrinsic_array_get(call, NamedIntrinsicArrayLayout::Inline)
 }
 
-fn lower_array_data_ptr<'a, 'ctx>(
+fn lower_array_get_outofline<'a, 'ctx>(
     cg: &mut MainCodegen<'a, 'ctx>,
     call: LoweredNamedIntrinsicCall<'ctx>,
 ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-    cg.codegen_named_intrinsic_array_data_ptr(call)
+    cg.codegen_named_intrinsic_array_get(call, NamedIntrinsicArrayLayout::OutOfLine)
+}
+
+fn lower_array_set_inline<'a, 'ctx>(
+    cg: &mut MainCodegen<'a, 'ctx>,
+    call: LoweredNamedIntrinsicCall<'ctx>,
+) -> Result<CgValue<'ctx>, LlvmEmitError> {
+    cg.codegen_named_intrinsic_array_set(call, NamedIntrinsicArrayLayout::Inline)
+}
+
+fn lower_array_set_outofline<'a, 'ctx>(
+    cg: &mut MainCodegen<'a, 'ctx>,
+    call: LoweredNamedIntrinsicCall<'ctx>,
+) -> Result<CgValue<'ctx>, LlvmEmitError> {
+    cg.codegen_named_intrinsic_array_set(call, NamedIntrinsicArrayLayout::OutOfLine)
+}
+
+fn lower_array_data_ptr_inline<'a, 'ctx>(
+    cg: &mut MainCodegen<'a, 'ctx>,
+    call: LoweredNamedIntrinsicCall<'ctx>,
+) -> Result<CgValue<'ctx>, LlvmEmitError> {
+    cg.codegen_named_intrinsic_array_data_ptr(call, NamedIntrinsicArrayLayout::Inline)
+}
+
+fn lower_array_data_ptr_outofline<'a, 'ctx>(
+    cg: &mut MainCodegen<'a, 'ctx>,
+    call: LoweredNamedIntrinsicCall<'ctx>,
+) -> Result<CgValue<'ctx>, LlvmEmitError> {
+    cg.codegen_named_intrinsic_array_data_ptr(call, NamedIntrinsicArrayLayout::OutOfLine)
 }
 
 fn normalize_array_like_fqn(fqn: &str) -> Option<&'static str> {
@@ -303,6 +353,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     fn codegen_named_intrinsic_array_size(
         &mut self,
         call: LoweredNamedIntrinsicCall<'ctx>,
+        layout: NamedIntrinsicArrayLayout,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         if call.operands.len() != 1 {
             return Err(LlvmEmitError::UnsupportedMainBody {
@@ -312,7 +363,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
         let receiver = &call.operands[0];
         let arr_ptr = self.named_intrinsic_array_receiver_ptr(receiver, "array_size receiver")?;
-        let len_i64 = self.named_intrinsic_array_len_value(call.span, arr_ptr)?;
+        let len_i64 = self.named_intrinsic_array_len_value(call.span, arr_ptr, layout)?;
         let len_word = self.cast_int(
             len_i64,
             IntTy {
@@ -336,6 +387,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     fn codegen_named_intrinsic_array_get(
         &mut self,
         call: LoweredNamedIntrinsicCall<'ctx>,
+        layout: NamedIntrinsicArrayLayout,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         if call.operands.len() != 2 {
             return Err(LlvmEmitError::UnsupportedMainBody {
@@ -357,7 +409,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             return Ok(CgValue::unit());
         }
 
-        let len_i64 = self.named_intrinsic_array_len_value(call.span, arr_ptr)?;
+        let len_i64 = self.named_intrinsic_array_len_value(call.span, arr_ptr, layout)?;
         let current_fn = self
             .builder
             .get_insert_block()
@@ -409,8 +461,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.builder.build_unconditional_branch(merge_bb)?;
 
         self.builder.position_at_end(in_bounds_bb);
-        let slot_ptr =
-            self.named_intrinsic_array_slot_ptr(call.span, arr_ptr, receiver, elem_cg, index_i64)?;
+        let slot_ptr = self.named_intrinsic_array_slot_ptr(
+            call.span, arr_ptr, receiver, elem_cg, index_i64, layout,
+        )?;
         let loaded = self
             .builder
             .build_load(llvm_elem_ty, slot_ptr, "array_get_load")?;
@@ -440,6 +493,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     fn codegen_named_intrinsic_array_set(
         &mut self,
         call: LoweredNamedIntrinsicCall<'ctx>,
+        layout: NamedIntrinsicArrayLayout,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         if call.operands.len() != 3 {
             return Err(LlvmEmitError::UnsupportedMainBody {
@@ -458,7 +512,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             call.array_element_source_ty,
             "array_set element type",
         )?;
-        let len_i64 = self.named_intrinsic_array_len_value(call.span, arr_ptr)?;
+        let len_i64 = self.named_intrinsic_array_len_value(call.span, arr_ptr, layout)?;
         let current_fn = self
             .builder
             .get_insert_block()
@@ -504,8 +558,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         self.builder.position_at_end(in_bounds_bb);
         if elem_cg != CgTy::Unit {
-            let slot_ptr = self
-                .named_intrinsic_array_slot_ptr(call.span, arr_ptr, receiver, elem_cg, index_i64)?;
+            let slot_ptr = self.named_intrinsic_array_slot_ptr(
+                call.span, arr_ptr, receiver, elem_cg, index_i64, layout,
+            )?;
             if matches!(elem_cg, CgTy::Ref | CgTy::String) {
                 let value = self.coerce_value(value_operand.span, value_operand.value, elem_cg)?;
                 let value = self.coerce_value(value_operand.span, value, CgTy::Ref)?;
@@ -515,7 +570,18 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         at: value_operand.span.into(),
                     });
                 };
-                self.store_gc_pointer_slot_with_write_barrier(call.span, slot_ptr, value_ptr)?;
+                match layout {
+                    NamedIntrinsicArrayLayout::Inline => {
+                        self.store_gc_pointer_slot_with_write_barrier(
+                            call.span, slot_ptr, value_ptr,
+                        )?;
+                    }
+                    NamedIntrinsicArrayLayout::OutOfLine => {
+                        self.store_out_of_line_gc_pointer_slot_with_promotion_barrier(
+                            call.span, slot_ptr, value_ptr,
+                        )?;
+                    }
+                }
             } else if matches!(elem_cg, CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_)) {
                 let value = self.coerce_value(value_operand.span, value_operand.value, elem_cg)?;
                 let value_ptr = self.named_intrinsic_materialize_value_ptr(
@@ -526,14 +592,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 )?;
                 let descriptor =
                     self.named_intrinsic_array_composite_descriptor(value_operand.span, elem_ty)?;
-                let slot_i8_gc = self.named_intrinsic_array_slot_i8_ptr(
-                    call.span, arr_ptr, receiver, elem_cg, index_i64,
+                let slot_i8 = self.named_intrinsic_array_slot_i8_ptr(
+                    call.span, arr_ptr, receiver, elem_cg, index_i64, layout,
                 )?;
-                let slot_i8 = self.builder.build_address_space_cast(
-                    slot_i8_gc,
-                    self.llvm_i8_ptr_type(),
-                    "array_set_composite_dst",
-                )?;
+                let slot_i8_native =
+                    self.named_intrinsic_native_i8_ptr(slot_i8, "array_set_composite_dst")?;
                 let src_i8 = self.builder.build_pointer_cast(
                     value_ptr,
                     self.llvm_i8_ptr_type(),
@@ -544,29 +607,28 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 let _ = self.build_call_preserving_gc_local_roots(
                     value_operand.span,
                     drop,
-                    &[descriptor.into(), slot_i8.into()],
+                    &[descriptor.into(), slot_i8_native.into()],
                     "array_set_composite_drop",
                 )?;
                 let _ = self.build_call_preserving_gc_local_roots(
                     value_operand.span,
                     copy,
-                    &[descriptor.into(), slot_i8.into(), src_i8.into()],
+                    &[descriptor.into(), slot_i8_native.into(), src_i8.into()],
                     "array_set_composite_copy",
                 )?;
                 for offset in self
                     .named_intrinsic_array_composite_gc_slot_offsets(value_operand.span, elem_cg)?
                 {
-                    let slot_gc = unsafe {
+                    let slot_gc_i8 = unsafe {
                         self.builder.build_in_bounds_gep(
                             self.context.i8_type(),
-                            slot_i8_gc,
+                            slot_i8,
                             &[self.context.i64_type().const_int(offset, false)],
                             "array_set_composite_gc_slot_i8",
                         )?
                     };
-                    let slot_gc_ptr = self.builder.build_pointer_cast(
-                        slot_gc,
-                        self.llvm_ptr_type(self.gc_address_space()),
+                    let slot_gc_ptr = self.named_intrinsic_array_slot_storage_ptr(
+                        slot_gc_i8,
                         "array_set_composite_gc_slot_ptr",
                     )?;
                     let loaded = self
@@ -577,11 +639,21 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                             "array_set_composite_gc_slot_load",
                         )?
                         .into_pointer_value();
-                    self.store_gc_pointer_slot_with_write_barrier(
-                        value_operand.span,
-                        slot_gc_ptr,
-                        loaded,
-                    )?;
+                    match layout {
+                        NamedIntrinsicArrayLayout::Inline => {
+                            self.store_gc_pointer_slot_with_write_barrier(
+                                value_operand.span,
+                                slot_gc_ptr,
+                                loaded,
+                            )?;
+                        }
+                        NamedIntrinsicArrayLayout::OutOfLine => {
+                            self.call_gc_promotion_barrier_for_out_of_line_value(
+                                value_operand.span,
+                                loaded,
+                            )?;
+                        }
+                    }
                 }
             } else {
                 let value = self.coerce_value(value_operand.span, value_operand.value, elem_cg)?;
@@ -603,6 +675,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     fn codegen_named_intrinsic_array_data_ptr(
         &mut self,
         call: LoweredNamedIntrinsicCall<'ctx>,
+        layout: NamedIntrinsicArrayLayout,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         if call.operands.len() != 1 {
             return Err(LlvmEmitError::UnsupportedMainBody {
@@ -613,12 +686,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let receiver = &call.operands[0];
         let arr_ptr =
             self.named_intrinsic_array_receiver_ptr(receiver, "array_data_ptr receiver")?;
-        let data_ptr_gc = self.named_intrinsic_array_data_base_ptr(call.span, arr_ptr)?;
-        let data_ptr = self.builder.build_address_space_cast(
-            data_ptr_gc,
-            self.llvm_i8_ptr_type(),
-            "array_data_ptr_native",
-        )?;
+        let data_base = self.named_intrinsic_array_data_base_ptr(call.span, arr_ptr, layout)?;
+        let data_ptr = self.named_intrinsic_native_i8_ptr(data_base, "array_data_ptr_native")?;
         let ptr_int_ty = self.llvm_ptr_sized_int_type(Some(AddressSpace::default()));
         let raw = self
             .builder
@@ -711,14 +780,24 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &mut self,
         _span: crate::span::Span,
         arr_ptr: PointerValue<'ctx>,
+        layout: NamedIntrinsicArrayLayout,
     ) -> Result<inkwell::values::IntValue<'ctx>, LlvmEmitError> {
-        let array_ty = self.llvm_scoop_array_type();
+        let (array_ty, gep_name, load_name) = match layout {
+            NamedIntrinsicArrayLayout::Inline => {
+                (self.llvm_scoop_array_type(), "array_len_gep", "array_len")
+            }
+            NamedIntrinsicArrayLayout::OutOfLine => (
+                self.llvm_scoop_mutable_array_type(),
+                "mutable_array_len_gep",
+                "mutable_array_len",
+            ),
+        };
         let len_ptr = self
             .builder
-            .build_struct_gep(array_ty, arr_ptr, 1, "array_len_gep")?;
+            .build_struct_gep(array_ty, arr_ptr, 1, gep_name)?;
         Ok(self
             .builder
-            .build_load(self.context.i64_type(), len_ptr, "array_len")?
+            .build_load(self.context.i64_type(), len_ptr, load_name)?
             .into_int_value())
     }
 
@@ -726,30 +805,50 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &mut self,
         _span: crate::span::Span,
         arr_ptr: PointerValue<'ctx>,
+        layout: NamedIntrinsicArrayLayout,
     ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
-        let array_ty = self.llvm_scoop_array_type();
-        let data_offset_ptr =
-            self.builder
-                .build_struct_gep(array_ty, arr_ptr, 3, "array_data_offset_gep")?;
-        let data_offset = self
-            .builder
-            .build_load(
-                self.context.i64_type(),
-                data_offset_ptr,
-                "array_data_offset",
-            )?
-            .into_int_value();
-        let array_i8_gc =
-            self.builder
-                .build_pointer_cast(arr_ptr, self.llvm_gc_i8_ptr_type(), "array_i8_gc")?;
-        Ok(unsafe {
-            self.builder.build_in_bounds_gep(
-                self.context.i8_type(),
-                array_i8_gc,
-                &[data_offset],
-                "array_data_base_gc",
-            )?
-        })
+        match layout {
+            NamedIntrinsicArrayLayout::Inline => {
+                let array_ty = self.llvm_scoop_array_type();
+                let data_offset_ptr =
+                    self.builder
+                        .build_struct_gep(array_ty, arr_ptr, 3, "array_data_offset_gep")?;
+                let data_offset = self
+                    .builder
+                    .build_load(
+                        self.context.i64_type(),
+                        data_offset_ptr,
+                        "array_data_offset",
+                    )?
+                    .into_int_value();
+                let array_i8_gc = self.builder.build_pointer_cast(
+                    arr_ptr,
+                    self.llvm_gc_i8_ptr_type(),
+                    "array_i8_gc",
+                )?;
+                Ok(unsafe {
+                    self.builder.build_in_bounds_gep(
+                        self.context.i8_type(),
+                        array_i8_gc,
+                        &[data_offset],
+                        "array_data_base_gc",
+                    )?
+                })
+            }
+            NamedIntrinsicArrayLayout::OutOfLine => {
+                let array_ty = self.llvm_scoop_mutable_array_type();
+                let data_ptr = self.builder.build_struct_gep(
+                    array_ty,
+                    arr_ptr,
+                    6,
+                    "mutable_array_data_gep",
+                )?;
+                Ok(self
+                    .builder
+                    .build_load(self.llvm_i8_ptr_type(), data_ptr, "mutable_array_data")?
+                    .into_pointer_value())
+            }
+        }
     }
 
     fn named_intrinsic_array_stride_bytes(
@@ -780,8 +879,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         receiver: &LoweredNamedIntrinsicOperand<'ctx>,
         elem_cg: CgTy,
         index_i64: inkwell::values::IntValue<'ctx>,
+        layout: NamedIntrinsicArrayLayout,
     ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
-        let data_base = self.named_intrinsic_array_data_base_ptr(span, arr_ptr)?;
+        let data_base = self.named_intrinsic_array_data_base_ptr(span, arr_ptr, layout)?;
         let stride = self.named_intrinsic_array_stride_bytes(span, elem_cg)?;
         let byte_offset = if stride == 1 {
             index_i64
@@ -793,12 +893,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             )?
         };
         let _ = receiver;
+        let name = match layout {
+            NamedIntrinsicArrayLayout::Inline => "array_elem_i8_gc",
+            NamedIntrinsicArrayLayout::OutOfLine => "mutable_array_elem_i8_native",
+        };
         Ok(unsafe {
             self.builder.build_in_bounds_gep(
                 self.context.i8_type(),
                 data_base,
                 &[byte_offset],
-                "array_elem_i8_gc",
+                name,
             )?
         })
     }
@@ -810,14 +914,79 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         receiver: &LoweredNamedIntrinsicOperand<'ctx>,
         elem_cg: CgTy,
         index_i64: inkwell::values::IntValue<'ctx>,
+        layout: NamedIntrinsicArrayLayout,
     ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
-        let slot_i8 =
-            self.named_intrinsic_array_slot_i8_ptr(span, arr_ptr, receiver, elem_cg, index_i64)?;
+        let slot_i8 = self.named_intrinsic_array_slot_i8_ptr(
+            span, arr_ptr, receiver, elem_cg, index_i64, layout,
+        )?;
+        self.named_intrinsic_array_slot_storage_ptr(
+            slot_i8,
+            match layout {
+                NamedIntrinsicArrayLayout::Inline => "array_elem_ptr_gc",
+                NamedIntrinsicArrayLayout::OutOfLine => "mutable_array_elem_ptr_native",
+            },
+        )
+    }
+
+    fn named_intrinsic_array_slot_storage_ptr(
+        &mut self,
+        slot_i8: PointerValue<'ctx>,
+        name: &str,
+    ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
         Ok(self.builder.build_pointer_cast(
             slot_i8,
-            self.llvm_ptr_type(self.gc_address_space()),
-            "array_elem_ptr_gc",
+            self.llvm_ptr_type(slot_i8.get_type().get_address_space()),
+            name,
         )?)
+    }
+
+    fn named_intrinsic_native_i8_ptr(
+        &mut self,
+        ptr: PointerValue<'ctx>,
+        name: &str,
+    ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
+        if ptr.get_type().get_address_space() == AddressSpace::default() {
+            return Ok(ptr);
+        }
+        Ok(self
+            .builder
+            .build_address_space_cast(ptr, self.llvm_i8_ptr_type(), name)?)
+    }
+
+    fn store_out_of_line_gc_pointer_slot_with_promotion_barrier(
+        &mut self,
+        at: crate::span::Span,
+        slot_ptr: PointerValue<'ctx>,
+        value_ptr: PointerValue<'ctx>,
+    ) -> Result<(), LlvmEmitError> {
+        let value_i8 = self.builder.build_pointer_cast(
+            value_ptr,
+            self.llvm_gc_i8_ptr_type(),
+            "mutable_array_set_ref_value_i8",
+        )?;
+        let _ = self.builder.build_store(slot_ptr, value_i8)?;
+        self.call_gc_promotion_barrier_for_out_of_line_value(at, value_i8)
+    }
+
+    fn call_gc_promotion_barrier_for_out_of_line_value(
+        &mut self,
+        at: crate::span::Span,
+        value_ptr: PointerValue<'ctx>,
+    ) -> Result<(), LlvmEmitError> {
+        let wb = self.declare_runtime_gc_write_barrier();
+        let value_i8 = self.builder.build_pointer_cast(
+            value_ptr,
+            self.llvm_gc_i8_ptr_type(),
+            "gc_promotion_value_i8",
+        )?;
+        let null_slot = self.llvm_i8_ptr_type().const_null();
+        let _ = self.build_call_preserving_gc_local_roots(
+            at,
+            wb,
+            &[null_slot.into(), value_i8.into()],
+            "gc_promotion_barrier",
+        )?;
+        Ok(())
     }
 
     fn named_intrinsic_materialize_value_ptr(

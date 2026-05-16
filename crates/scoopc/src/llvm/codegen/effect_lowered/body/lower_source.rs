@@ -27,9 +27,7 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
             )));
         }
         let runtime_entry = match published.terminal_action() {
-            LocalRuntimeErrorTerminalAction::RuntimeFatal { runtime_entry } => {
-                runtime_entry
-            }
+            LocalRuntimeErrorTerminalAction::RuntimeFatal { runtime_entry } => runtime_entry,
         };
         Ok(LocalRuntimeErrorRuntime {
             site_id,

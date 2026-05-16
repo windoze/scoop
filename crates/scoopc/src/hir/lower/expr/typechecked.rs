@@ -5,7 +5,10 @@
 use super::*;
 
 impl<'a> HirLowering<'a> {
-    pub(in crate::hir::lower) fn type_contains_param_for_direct_call_target(&self, ty: TypeId) -> bool {
+    pub(in crate::hir::lower) fn type_contains_param_for_direct_call_target(
+        &self,
+        ty: TypeId,
+    ) -> bool {
         let mut stack = vec![ty];
         while let Some(id) = stack.pop() {
             match self.types.kind(id) {
@@ -49,14 +52,20 @@ impl<'a> HirLowering<'a> {
         false
     }
 
-    pub(in crate::hir::lower) fn effect_row_contains_param_for_direct_call_target(&self, row: &EffectRow) -> bool {
+    pub(in crate::hir::lower) fn effect_row_contains_param_for_direct_call_target(
+        &self,
+        row: &EffectRow,
+    ) -> bool {
         row.terms
             .iter()
             .copied()
             .any(|ty| self.type_contains_param_for_direct_call_target(ty))
     }
 
-    pub(in crate::hir::lower) fn materialized_top_level_fun_call_target_fqn(&mut self, call_span: Span) -> Option<String> {
+    pub(in crate::hir::lower) fn materialized_top_level_fun_call_target_fqn(
+        &mut self,
+        call_span: Span,
+    ) -> Option<String> {
         let binding = self.typechecked_top_level_fun_call_binding(call_span)?;
         self.materialized_direct_call_target_fqn_for_binding(&binding)
     }
@@ -133,7 +142,11 @@ impl<'a> HirLowering<'a> {
         ))
     }
 
-    pub(in crate::hir::lower) fn top_level_callee_expr_with_fqn(&mut self, span: Span, fqn: String) -> Expr {
+    pub(in crate::hir::lower) fn top_level_callee_expr_with_fqn(
+        &mut self,
+        span: Span,
+        fqn: String,
+    ) -> Expr {
         Expr {
             span,
             ty: self.builtins.any,
@@ -324,11 +337,17 @@ impl<'a> HirLowering<'a> {
         crate::ty::EffectRow::new(terms)
     }
 
-    pub(in crate::hir::lower) fn typechecked_ctor_call_binding(&self, span: Span) -> Option<ast::CtorCallBinding> {
+    pub(in crate::hir::lower) fn typechecked_ctor_call_binding(
+        &self,
+        span: Span,
+    ) -> Option<ast::CtorCallBinding> {
         self.file.typechecked_ctor_call_binding(span)
     }
 
-    pub(in crate::hir::lower) fn struct_instance_from_type_id(&self, ty: TypeId) -> Option<(String, Vec<TypeId>)> {
+    pub(in crate::hir::lower) fn struct_instance_from_type_id(
+        &self,
+        ty: TypeId,
+    ) -> Option<(String, Vec<TypeId>)> {
         let TypeKind::Value(ValueTypeKind::Nominal(nominal)) = self.types.kind(ty).clone() else {
             return None;
         };
@@ -752,7 +771,11 @@ impl<'a> HirLowering<'a> {
         Some(param_to_arg)
     }
 
-    pub(in crate::hir::lower) fn synthetic_top_level_fun_value_param_span(&self, base_span: Span, ordinal: usize) -> Span {
+    pub(in crate::hir::lower) fn synthetic_top_level_fun_value_param_span(
+        &self,
+        base_span: Span,
+        ordinal: usize,
+    ) -> Span {
         let offset = base_span.end.saturating_add(ordinal).saturating_add(1);
         Span::new(offset, offset)
     }
@@ -797,7 +820,10 @@ impl<'a> HirLowering<'a> {
         }
     }
 
-    pub(in crate::hir::lower) fn format_effect_row_stable(&self, row: &crate::ty::EffectRow) -> String {
+    pub(in crate::hir::lower) fn format_effect_row_stable(
+        &self,
+        row: &crate::ty::EffectRow,
+    ) -> String {
         if row.terms.is_empty() {
             return "Pure".to_string();
         }
@@ -963,7 +989,10 @@ impl<'a> HirLowering<'a> {
         ))
     }
 
-    pub(in crate::hir::lower) fn array_lit_target_from_type_id(&self, ty: TypeId) -> Option<ArrayLitTarget> {
+    pub(in crate::hir::lower) fn array_lit_target_from_type_id(
+        &self,
+        ty: TypeId,
+    ) -> Option<ArrayLitTarget> {
         let TypeKind::Ref(crate::ty::RefTypeKind::Nominal(nominal)) = self.types.kind(ty) else {
             return None;
         };
@@ -980,7 +1009,10 @@ impl<'a> HirLowering<'a> {
         }
     }
 
-    pub(in crate::hir::lower) fn array_lit_element_ty_from_type_id(&mut self, ty: TypeId) -> Option<TypeId> {
+    pub(in crate::hir::lower) fn array_lit_element_ty_from_type_id(
+        &mut self,
+        ty: TypeId,
+    ) -> Option<TypeId> {
         let TypeKind::Ref(crate::ty::RefTypeKind::Nominal(nominal)) = self.types.kind(ty) else {
             return None;
         };
@@ -1009,7 +1041,10 @@ impl<'a> HirLowering<'a> {
         Some((target, result_ty, element_ty))
     }
 
-    pub(in crate::hir::lower) fn canonicalize_array_like_type_args(&mut self, ty: TypeId) -> TypeId {
+    pub(in crate::hir::lower) fn canonicalize_array_like_type_args(
+        &mut self,
+        ty: TypeId,
+    ) -> TypeId {
         let TypeKind::Ref(crate::ty::RefTypeKind::Nominal(nominal)) = self.types.kind(ty).clone()
         else {
             return ty;
@@ -1026,7 +1061,10 @@ impl<'a> HirLowering<'a> {
         self.intern_nominal(nominal.fqn, vec![canonical_arg], nominal.eff)
     }
 
-    pub(in crate::hir::lower) fn canonicalize_builtin_scalar_alias_ty(&mut self, ty: TypeId) -> TypeId {
+    pub(in crate::hir::lower) fn canonicalize_builtin_scalar_alias_ty(
+        &mut self,
+        ty: TypeId,
+    ) -> TypeId {
         let TypeKind::Value(ValueTypeKind::Nominal(nominal)) = self.types.kind(ty).clone() else {
             return ty;
         };
@@ -1059,7 +1097,10 @@ impl<'a> HirLowering<'a> {
         }
     }
 
-    pub(in crate::hir::lower) fn infer_array_lit_ty_from_lowered_elements(&mut self, elements: &[Expr]) -> Option<TypeId> {
+    pub(in crate::hir::lower) fn infer_array_lit_ty_from_lowered_elements(
+        &mut self,
+        elements: &[Expr],
+    ) -> Option<TypeId> {
         let first_ty = elements.first()?.ty;
         if first_ty == self.builtins.any {
             return None;
@@ -1075,7 +1116,10 @@ impl<'a> HirLowering<'a> {
     }
 
     /// 根据 FQN 获取函数签名（用于从函数参数类型向下传播 expected-type hint）。
-    pub(in crate::hir::lower) fn fun_overload_by_fqn(&self, fqn: &str) -> Option<crate::resolve::FunOverload> {
+    pub(in crate::hir::lower) fn fun_overload_by_fqn(
+        &self,
+        fqn: &str,
+    ) -> Option<crate::resolve::FunOverload> {
         let syms = self.index.by_fqn.get(fqn)?;
         let overload = syms.fun.first()?;
         Some(overload.clone())
@@ -1098,7 +1142,10 @@ impl<'a> HirLowering<'a> {
     ///
     /// 这样 `foo<T>()`、`obj.method<eff E>()` 与 `x.ext<U>()` 可以共用与非 `TypeApply`
     /// 相同的 lowering / 分派路径，而不会意外退回到值表达式处理。
-    pub(in crate::hir::lower) fn transparent_call_callee<'b>(&self, callee: &'b ast::Expr) -> &'b ast::Expr {
+    pub(in crate::hir::lower) fn transparent_call_callee<'b>(
+        &self,
+        callee: &'b ast::Expr,
+    ) -> &'b ast::Expr {
         match &callee.kind {
             ast::ExprKind::TypeApply { callee, .. } => callee.as_ref(),
             _ => callee,
@@ -1148,7 +1195,10 @@ impl<'a> HirLowering<'a> {
     }
 
     /// 尝试从 callee 表达式中提取“顶层函数 FQN”（用于向实参传播期望类型）。
-    pub(in crate::hir::lower) fn callee_top_level_fqn<'b>(&self, callee: &'b ast::Expr) -> Option<&'b str> {
+    pub(in crate::hir::lower) fn callee_top_level_fqn<'b>(
+        &self,
+        callee: &'b ast::Expr,
+    ) -> Option<&'b str> {
         // `callee<T>()`：在“调用 callee”位置仍把 `TypeApply` 视为透明包装；
         // 若其处于普通值表达式位置，则会提前经由 top-level function value side table 合成为 closure。
         let callee = self.transparent_call_callee(callee);
@@ -1306,7 +1356,10 @@ impl<'a> HirLowering<'a> {
         )
     }
 
-    pub(in crate::hir::lower) fn call_arg_binding_needs_block(&self, binding: &crate::ast::CallArgBinding) -> bool {
+    pub(in crate::hir::lower) fn call_arg_binding_needs_block(
+        &self,
+        binding: &crate::ast::CallArgBinding,
+    ) -> bool {
         let mut expected_arg_idx = 0usize;
         for param in &binding.params {
             match param {
@@ -1331,7 +1384,10 @@ impl<'a> HirLowering<'a> {
         false
     }
 
-    pub(in crate::hir::lower) fn call_arg_binding_has_receiver(&self, binding: &crate::ast::CallArgBinding) -> bool {
+    pub(in crate::hir::lower) fn call_arg_binding_has_receiver(
+        &self,
+        binding: &crate::ast::CallArgBinding,
+    ) -> bool {
         binding
             .params
             .iter()
@@ -1516,5 +1572,4 @@ impl<'a> HirLowering<'a> {
             kind,
         })
     }
-
 }

@@ -4,7 +4,6 @@
 
 use super::*;
 
-
 pub(crate) fn materialize_source_statement_classifications(
     root_fqn: &str,
     body: &Body,
@@ -328,7 +327,9 @@ pub(crate) fn classify_effect_neutral_source_statement(
     }
 }
 
-pub(crate) fn classify_effect_neutral_rvalue(value: &Rvalue) -> LateLoweredSourceStatementClassificationKind {
+pub(crate) fn classify_effect_neutral_rvalue(
+    value: &Rvalue,
+) -> LateLoweredSourceStatementClassificationKind {
     match value {
         Rvalue::Use(_)
         | Rvalue::Transport { .. }
@@ -483,4 +484,3 @@ pub(crate) fn invalid_source_slice_classification_contract(
         detail,
     }
 }
-

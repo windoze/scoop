@@ -5,8 +5,7 @@
 use super::*;
 
 #[test]
-pub(super) fn llvm_surface_resume_layout_keeps_shared_schema_multi_case_object_publications()
- {
+pub(super) fn llvm_surface_resume_layout_keeps_shared_schema_multi_case_object_publications() {
     with_fixture_query_result(
         "effect_lowered_step_enum_single_case.scoop",
         |inputs| inputs.abi_visibility_program.clone(),
@@ -235,8 +234,7 @@ pub(super) fn llvm_surface_resume_dispatch_layout_resolves_object_method_target(
 }
 
 #[test]
-pub(super) fn llvm_surface_resume_dispatch_layout_resolves_handle_binder_owner_trampoline()
-{
+pub(super) fn llvm_surface_resume_dispatch_layout_resolves_handle_binder_owner_trampoline() {
     with_phase_fixture_query_result(
         "run-pass",
         "effect_resume_if_else_branch_single_perform.scoop",
@@ -291,8 +289,7 @@ pub(super) fn llvm_surface_resume_dispatch_layout_resolves_handle_binder_owner_t
 }
 
 #[test]
-pub(super) fn llvm_surface_resume_dispatch_layout_resolves_multi_site_resume_owner_trampoline()
- {
+pub(super) fn llvm_surface_resume_dispatch_layout_resolves_multi_site_resume_owner_trampoline() {
     with_phase_fixture_query_result(
         "run-pass",
         "effect_multi_escape_indirect_direct_while.scoop",
@@ -394,8 +391,7 @@ pub(super) fn llvm_surface_resume_dispatch_layout_resolves_multi_site_resume_own
 }
 
 #[test]
-pub(super) fn llvm_surface_resume_dispatch_layout_resolves_cross_owner_wrapper_trampoline()
-{
+pub(super) fn llvm_surface_resume_dispatch_layout_resolves_cross_owner_wrapper_trampoline() {
     with_phase_fixture_query_result(
         "run-pass",
         "continuation_escape_binder_resume_effect_row_runtime_basic.scoop",
@@ -512,8 +508,7 @@ pub(super) fn llvm_surface_resume_dispatch_layout_resolves_multi_owner_trampolin
 }
 
 #[test]
-pub(super) fn llvm_surface_resume_dispatch_layout_rejects_missing_wrapper_projection_contract()
- {
+pub(super) fn llvm_surface_resume_dispatch_layout_rejects_missing_wrapper_projection_contract() {
     with_phase_fixture_query_result(
         "run-pass",
         "effect_multi_escape_indirect_direct_while.scoop",
@@ -631,7 +626,7 @@ pub(super) fn llvm_surface_resume_wrapper_completion_resolves_payload_source() {
 
 #[test]
 pub(super) fn llvm_surface_resume_wrapper_completion_uses_owner_complete_for_matching_answer_type()
- {
+{
     with_phase_fixture_query_result(
         "run-pass",
         "effect_resume_if_else_branch_single_perform.scoop",
@@ -759,8 +754,7 @@ pub(super) fn llvm_surface_resume_wrapper_completion_rejects_type_drift() {
 }
 
 #[test]
-pub(super) fn llvm_surface_resume_dispatch_layout_rejects_missing_internal_method_target()
-{
+pub(super) fn llvm_surface_resume_dispatch_layout_rejects_missing_internal_method_target() {
     with_fixture_query_result(
         "effect_lowered_step_enum_single_case.scoop",
         |inputs| {

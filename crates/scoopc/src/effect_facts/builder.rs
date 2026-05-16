@@ -4519,8 +4519,7 @@ fun pureHelper(): Unit {}
     }
 
     #[test]
-    fn effect_schema_case_tags_are_stable_and_distinguish_generic_specialized_raise_cases()
-    {
+    fn effect_schema_case_tags_are_stable_and_distinguish_generic_specialized_raise_cases() {
         let (materialized, facts) = build_sample_facts();
 
         let (_, raise_string_facts) = callable_facts_for(&facts, "sample.raiseString");
@@ -4665,8 +4664,7 @@ fun pureHelper(): Unit {}
     }
 
     #[test]
-    fn effect_schema_compiler_continuation_runtime_error_adds_runtime_error_case_to_step_schema()
-     {
+    fn effect_schema_compiler_continuation_runtime_error_adds_runtime_error_case_to_step_schema() {
         let session = session();
         let source = compiler_continuation_runtime_error_source();
         let mut materialized = materialize_for_dump(&session, &source).unwrap();

@@ -313,8 +313,7 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
                 self.step_layout.complete_variant().payload_anchor_name()
             )));
         }
-        self.codegen
-            .build_step_complete(self.step_layout, payload)
+        self.codegen.build_step_complete(self.step_layout, payload)
     }
 
     pub(super) fn store_case_payload_to_arm_binders(

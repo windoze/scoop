@@ -29,8 +29,8 @@ use super::super::types::{CgTy, CgValue, IntTy};
 use super::super::{CallableCarrierKind, MainCodegen};
 use super::stable_naming;
 use super::types::{
-    ProgramAbiQuery, CallableEntryLayout, ContinuationSurfaceResumeLayout,
-    SourceAbiLayout, SourceAbiLayoutKind, StepLayout,
+    CallableEntryLayout, ContinuationSurfaceResumeLayout, ProgramAbiQuery, SourceAbiLayout,
+    SourceAbiLayoutKind, StepLayout,
 };
 
 const THREAD_RESUME_STEP_TAG_COMPLETE: u64 = 0;
@@ -445,14 +445,7 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
                 args,
                 transport,
                 ..
-            } => self.lower_pure_direct_call(
-                span,
-                kind,
-                args,
-                transport,
-                target_cg,
-                target_local,
-            ),
+            } => self.lower_pure_direct_call(span, kind, args, transport, target_cg, target_local),
             mir::Rvalue::MakeClosure {
                 env,
                 fn_ptr,
@@ -510,8 +503,7 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
                 args,
                 ..
             } => {
-                let class_layout_key =
-                    self.class_ctor_layout_key(class_fqn, target_local)?;
+                let class_layout_key = self.class_ctor_layout_key(class_fqn, target_local)?;
                 self.codegen.codegen_mir_class_ctor_call(
                     span,
                     &class_layout_key,
@@ -1203,11 +1195,7 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
         let env = self
             .codegen
             .builder
-            .build_load(
-                self.codegen.llvm_gc_i8_ptr_type(),
-                env_gep,
-                "adapter_env",
-            )?
+            .build_load(self.codegen.llvm_gc_i8_ptr_type(), env_gep, "adapter_env")?
             .into_pointer_value();
         let explicit_args =
             self.adapter_explicit_args(span, function, adapter.invoke_args_tuple_ty)?;
@@ -1232,11 +1220,9 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
                 kind: "effect-typed plain adapter sret payload type",
                 at: span.into(),
             })?;
-            let slot = self.codegen.create_entry_alloca_raw(
-                span,
-                "adapter_plain_sret",
-                result_ty,
-            )?;
+            let slot =
+                self.codegen
+                    .create_entry_alloca_raw(span, "adapter_plain_sret", result_ty)?;
             call_args.push(slot.into());
             Some((slot, result_ty))
         } else {
@@ -1244,10 +1230,10 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
         };
         call_args.push(env.into());
         call_args.extend(explicit_args);
-        let call =
-            self.codegen
-                .builder
-                .build_call(plain_fun, &call_args, "carrier_to_plain")?;
+        let call = self
+            .codegen
+            .builder
+            .build_call(plain_fun, &call_args, "carrier_to_plain")?;
         if let Some((_, result_ty)) = sret_result_slot {
             self.codegen.add_sret_attribute_to_call(call, 0, result_ty);
         }
@@ -1416,11 +1402,10 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
                 call_args.len(),
             )));
         }
-        let call = self.codegen.builder.build_call(
-            source_fun,
-            &call_args,
-            "carrier_to_effectful",
-        )?;
+        let call =
+            self.codegen
+                .builder
+                .build_call(source_fun, &call_args, "carrier_to_effectful")?;
         let step = call
             .try_as_basic_value()
             .basic()
@@ -1632,12 +1617,9 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
                     .build_call_preserving_gc_local_roots(span, rt, &[], "thread_yield")?;
             return Ok(CgValue::unit());
         }
-        if let Some(value) = self.lower_array_builder_intrinsic(
-            span,
-            callee_fqn,
-            args,
-            transport.array.as_ref(),
-        )? {
+        if let Some(value) =
+            self.lower_array_builder_intrinsic(span, callee_fqn, args, transport.array.as_ref())?
+        {
             return Ok(value);
         }
         if let Some(value) = self.lower_atomic_int_intrinsic(span, callee_fqn, args)? {
@@ -1823,10 +1805,10 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
                     .into(),
             );
         }
-        let call =
-            self.codegen
-                .builder
-                .build_call(callee, &call_args, "pure_call_step")?;
+        let call = self
+            .codegen
+            .builder
+            .build_call(callee, &call_args, "pure_call_step")?;
         let step = call.try_as_basic_value().basic().ok_or_else(|| {
             frontend_error(format!(
                 "pure statement call `{callee_fqn}` direct entry 未返回 Step_F"
@@ -2392,8 +2374,7 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
                 ));
             }
             let value_word = self.codegen.coerce_u64_word(value_arg.span, value)?;
-            let thunk =
-                get_or_create_thread_resume_u64_thunk(self.codegen, surface, step_layout)?;
+            let thunk = get_or_create_thread_resume_u64_thunk(self.codegen, surface, step_layout)?;
             let runtime = self.codegen.declare_runtime_thread_spawn_join_resume_u64();
             let thunk_ptr = self.codegen.builder.build_pointer_cast(
                 thunk.as_global_value().as_pointer_value(),
@@ -2428,11 +2409,8 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
             payload_transport,
             surface.resume_payload_abi(),
         )?;
-        let thunk = get_or_create_thread_resume_transport_thunk(
-            self.codegen,
-            surface,
-            step_layout,
-        )?;
+        let thunk =
+            get_or_create_thread_resume_transport_thunk(self.codegen, surface, step_layout)?;
         let runtime = self
             .codegen
             .declare_runtime_thread_spawn_join_resume_transport();
@@ -2537,11 +2515,9 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
                         self.source_types,
                         transport,
                     )?;
-                let slot = self.codegen.create_entry_alloca(
-                    span,
-                    "thread_resume_payload",
-                    value_cg,
-                )?;
+                let slot =
+                    self.codegen
+                        .create_entry_alloca(span, "thread_resume_payload", value_cg)?;
                 let value = self.codegen.coerce_value(span, value, value_cg)?;
                 let _ = self
                     .codegen
@@ -3207,11 +3183,10 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
                         at: arg.span.into(),
                     });
                 };
-                let widened = self.codegen.builder.build_int_z_extend(
-                    codepoint,
-                    i64_ty,
-                    "char_hash_zext",
-                )?;
+                let widened =
+                    self.codegen
+                        .builder
+                        .build_int_z_extend(codepoint, i64_ty, "char_hash_zext")?;
                 self.codegen.codegen_i64_hash_value(widened).map(Some)
             }
             TypeKind::Ref(RefTypeKind::String) => Ok(None),
@@ -3938,11 +3913,8 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
             self.slots,
             Some(CgTy::String),
         )?;
-        let receiver_ptr = self.string_like_pointer(
-            args[0].span,
-            receiver,
-            "core byteLength receiver value",
-        )?;
+        let receiver_ptr =
+            self.string_like_pointer(args[0].span, receiver, "core byteLength receiver value")?;
         let len_ptr = self.codegen.builder.build_struct_gep(
             self.codegen.llvm_scoop_string_type(),
             receiver_ptr,
@@ -3989,11 +3961,8 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
             self.slots,
             Some(CgTy::String),
         )?;
-        let receiver_ptr = self.string_like_pointer(
-            args[0].span,
-            receiver,
-            "core getByte receiver value",
-        )?;
+        let receiver_ptr =
+            self.string_like_pointer(args[0].span, receiver, "core getByte receiver value")?;
         let index = self.codegen.codegen_mir_operand_expected(
             args[1].span,
             &args[1].value,
@@ -4104,11 +4073,10 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
             .builder
             .build_load(i8_ty, byte_ptr, "core_get_byte_val")?
             .into_int_value();
-        let byte_i64 = self.codegen.builder.build_int_z_extend(
-            byte_val,
-            i64_ty,
-            "core_get_byte_zext",
-        )?;
+        let byte_i64 =
+            self.codegen
+                .builder
+                .build_int_z_extend(byte_val, i64_ty, "core_get_byte_zext")?;
         self.codegen.builder.build_unconditional_branch(merge_bb)?;
 
         self.codegen.builder.position_at_end(merge_bb);
@@ -4426,12 +4394,10 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
                 at: arg.span.into(),
             })?,
         };
-        agg = self.codegen.builder.build_insert_value(
-            agg,
-            raw_field,
-            field_idx,
-            "pinned_value",
-        )?;
+        agg = self
+            .codegen
+            .builder
+            .build_insert_value(agg, raw_field, field_idx, "pinned_value")?;
         self.codegen.builder.build_unconditional_branch(cont_bb)?;
 
         self.codegen.builder.position_at_end(cont_bb);
@@ -4471,11 +4437,10 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
         let (field_idx, field_cg_ty) =
             self.codegen
                 .lookup_struct_field(pinned_ty, "scoop.core.Pinned.value", arg.span)?;
-        let extracted = self.codegen.builder.build_extract_value(
-            struct_v,
-            field_idx,
-            "pinned_value",
-        )?;
+        let extracted =
+            self.codegen
+                .builder
+                .build_extract_value(struct_v, field_idx, "pinned_value")?;
         let field = self
             .codegen
             .cg_value_from_loaded(arg.span, field_cg_ty, extracted)?;
@@ -4488,10 +4453,10 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
         };
 
         let rt_unpin = self.codegen.declare_runtime_gc_unpin();
-        let call =
-            self.codegen
-                .builder
-                .build_call(rt_unpin, &[obj_ptr.into()], "gc_unpin")?;
+        let call = self
+            .codegen
+            .builder
+            .build_call(rt_unpin, &[obj_ptr.into()], "gc_unpin")?;
         let Some(BasicValueEnum::IntValue(ok_i32)) = call.try_as_basic_value().basic() else {
             return Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "GC.unpin return type",
@@ -4576,11 +4541,10 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
                     });
                 }
                 let runtime = self.codegen.declare_runtime_gc_debug_heap_object_count();
-                let call = self.codegen.builder.build_call(
-                    runtime,
-                    &[],
-                    "gc_debug_heap_object_count",
-                )?;
+                let call =
+                    self.codegen
+                        .builder
+                        .build_call(runtime, &[], "gc_debug_heap_object_count")?;
                 let raw = call.try_as_basic_value().basic().ok_or(
                     LlvmEmitError::UnsupportedMainBody {
                         kind: "gc heap object count return value",
@@ -4850,8 +4814,7 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
             (super::super::types::CgTy::Unit, None) => Ok(CgValue::unit()),
             (super::super::types::CgTy::Never, None) => Ok(CgValue::never()),
             (super::super::types::CgTy::Unit, Some(_)) => Err(frontend_error(
-                "pure statement call Unit target 收到 non-elided Complete payload"
-                    .to_string(),
+                "pure statement call Unit target 收到 non-elided Complete payload".to_string(),
             )),
             (_, Some(raw)) => {
                 let value = self.codegen.cg_value_from_loaded(span, target_cg, raw)?;
@@ -5180,9 +5143,7 @@ fn get_or_create_thread_resume_u64_thunk<'a, 'ctx>(
         ))
     })?;
     let payload = function.get_nth_param(1).ok_or_else(|| {
-        frontend_error(format!(
-            "thread resume thunk `{symbol}` 缺少 payload 参数"
-        ))
+        frontend_error(format!("thread resume thunk `{symbol}` 缺少 payload 参数"))
     })?;
     let surface_fun = codegen.declare_compiler_private_helper_function(
         surface.symbol_name(),
@@ -5194,9 +5155,10 @@ fn get_or_create_thread_resume_u64_thunk<'a, 'ctx>(
         &[continuation.into(), payload.into()],
         "thread_surface_resume",
     )?;
-    let step = call.try_as_basic_value().basic().ok_or_else(|| {
-        frontend_error("thread surface resume 未返回 Step_F".to_string())
-    })?;
+    let step = call
+        .try_as_basic_value()
+        .basic()
+        .ok_or_else(|| frontend_error("thread surface resume 未返回 Step_F".to_string()))?;
     let BasicValueEnum::StructValue(step_struct) = step else {
         return Err(frontend_error(
             "thread surface resume Step_F 不是 struct".to_string(),
@@ -5296,11 +5258,10 @@ fn get_or_create_thread_resume_transport_thunk<'a, 'ctx>(
         )?;
         call_args.push(payload_arg.into());
     }
-    let call = codegen.builder.build_call(
-        surface_fun,
-        &call_args,
-        "thread_surface_resume_transport",
-    )?;
+    let call =
+        codegen
+            .builder
+            .build_call(surface_fun, &call_args, "thread_surface_resume_transport")?;
     let step = call.try_as_basic_value().basic().ok_or_else(|| {
         frontend_error("thread surface resume transport 未返回 Step_F".to_string())
     })?;
@@ -5368,9 +5329,7 @@ fn thread_resume_continuation_ty_is_pure(types: &TypeStore, ty: TypeId) -> Optio
     }
 }
 
-fn thread_resume_case_is_runtime_error<'ctx>(
-    case: &super::types::StepCaseLayout<'ctx>,
-) -> bool {
+fn thread_resume_case_is_runtime_error<'ctx>(case: &super::types::StepCaseLayout<'ctx>) -> bool {
     case.concrete_op_key()
         .instance_key()
         .template
@@ -5537,11 +5496,9 @@ fn build_thread_resume_surface_payload_arg<'a, 'ctx>(
                 codegen.context.i32_type(),
                 "thread_resume_word_i32",
             )?;
-            Ok(codegen.builder.build_bit_cast(
-                bits32,
-                float_ty,
-                "thread_resume_word_f32",
-            )?)
+            Ok(codegen
+                .builder
+                .build_bit_cast(bits32, float_ty, "thread_resume_word_f32")?)
         }
         BasicTypeEnum::PointerType(ptr_ty) => Ok(codegen
             .builder

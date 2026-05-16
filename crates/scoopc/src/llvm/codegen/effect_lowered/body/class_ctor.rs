@@ -110,11 +110,8 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
                 let bridge = self
                     .codegen
                     .ensure_object_init_bridge_defined(&object_fqn)?;
-                let outcome_slot = self.call_hidden_init_bridge(
-                    *span,
-                    bridge,
-                    "hidden_object_init_bridge",
-                )?;
+                let outcome_slot =
+                    self.call_hidden_init_bridge(*span, bridge, "hidden_object_init_bridge")?;
                 let prop_fqn = (*fqn).to_string();
                 self.lower_hidden_init_boundary_from_bridge(
                     boundary,
@@ -133,11 +130,8 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
                     let bridge = self
                         .codegen
                         .ensure_object_init_bridge_defined(&object_fqn)?;
-                    let outcome_slot = self.call_hidden_init_bridge(
-                        *span,
-                        bridge,
-                        "hidden_object_init_bridge",
-                    )?;
+                    let outcome_slot =
+                        self.call_hidden_init_bridge(*span, bridge, "hidden_object_init_bridge")?;
                     self.lower_hidden_init_boundary_from_bridge(
                         boundary,
                         lowering,
@@ -150,9 +144,7 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
                 {
                     let bridge = self
                         .codegen
-                        .ensure_top_level_immutable_value_init_bridge_defined(
-                            &value.fqn,
-                        )?;
+                        .ensure_top_level_immutable_value_init_bridge_defined(&value.fqn)?;
                     let outcome_slot = self.call_hidden_init_bridge(
                         *span,
                         bridge,
@@ -648,8 +640,7 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
         transport_ty: TypeId,
     ) -> Result<bool, LlvmEmitError> {
         for binding in callable.frame_schema().resume_payload_bindings() {
-            let Some(mir_fun) = mir_callable(self.pass_view, callable.root_fqn()).ok()
-            else {
+            let Some(mir_fun) = mir_callable(self.pass_view, callable.root_fqn()).ok() else {
                 continue;
             };
             let Some(body) = mir_fun.body.as_ref() else {

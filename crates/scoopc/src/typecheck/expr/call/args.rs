@@ -705,7 +705,10 @@ pub(super) fn synthesize_unit_arg_expr(call_span: Span) -> ast::Expr {
     }
 }
 
-pub(super) fn required_param_count(param_has_defaults: &[bool], param_is_vararg: &[bool]) -> Option<usize> {
+pub(super) fn required_param_count(
+    param_has_defaults: &[bool],
+    param_is_vararg: &[bool],
+) -> Option<usize> {
     if param_has_defaults.len() != param_is_vararg.len() {
         return None;
     }
@@ -944,4 +947,3 @@ pub(super) fn vararg_spread_missing_bridge_hint(
     // 非 `Int`：当前 std v0 可能尚无现成桥接，仍给出方向性的迁移提示。
     "；提示：对集合做 spread 前请先显式转换为 `Array<...>`（当前 std v0 的桥接多为 `Int` 专用，例如 `toArray()`）".to_string()
 }
-

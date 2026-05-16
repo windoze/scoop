@@ -30,10 +30,8 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             "step_storage",
             &stable_effect_key_text,
         )?;
-        let step_anchor_name = stable_naming::private_name_from_key_text(
-            "step_layout",
-            &stable_effect_key_text,
-        );
+        let step_anchor_name =
+            stable_naming::private_name_from_key_text("step_layout", &stable_effect_key_text);
         let complete_tag_name = stable_naming::private_name_from_key_text(
             "step_case_tag_complete",
             &stable_effect_key_text,
@@ -93,10 +91,8 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                 "step_variant_payload_case",
                 &case_key_text,
             );
-            let case_tag_name = stable_naming::private_name_from_key_text(
-                "step_case_tag_case",
-                &case_key_text,
-            );
+            let case_tag_name =
+                stable_naming::private_name_from_key_text("step_case_tag_case", &case_key_text);
             let payload_layout = self.source_value_layout(case.payload_tuple_ty())?;
             let payload_abi = *payload_layout.abi();
             let mut case_fields = Vec::new();
@@ -189,10 +185,8 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             "resume_vtable_type",
             &vtable_key_text,
         )?;
-        let vtable_anchor_name = stable_naming::private_name_from_key_text(
-            "resume_vtable_layout",
-            &vtable_key_text,
-        );
+        let vtable_anchor_name =
+            stable_naming::private_name_from_key_text("resume_vtable_layout", &vtable_key_text);
         let expected_case_tags = step_type
             .cases()
             .iter()
@@ -343,10 +337,8 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
     pub(super) fn materialize_surface_resume_layouts(
         &mut self,
         step_layouts: &BTreeMap<StepSchemaId, StepLayout<'ctx>>,
-    ) -> Result<
-        BTreeMap<ContinuationSchemaId, ContinuationSurfaceResumeLayout<'ctx>>,
-        LlvmEmitError,
-    > {
+    ) -> Result<BTreeMap<ContinuationSchemaId, ContinuationSurfaceResumeLayout<'ctx>>, LlvmEmitError>
+    {
         let mut layouts = BTreeMap::new();
         for entry in self.program.surface_resume_dispatch_inventory() {
             let contract = entry.contract();
@@ -604,10 +596,8 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             "frame_type",
             &stable_callable_key_text,
         )?;
-        let frame_anchor_name = stable_naming::private_name_from_key_text(
-            "frame_layout",
-            &stable_callable_key_text,
-        );
+        let frame_anchor_name =
+            stable_naming::private_name_from_key_text("frame_layout", &stable_callable_key_text);
         let header_ty = self.codegen.llvm_gc_object_header_type();
         let mut llvm_fields: Vec<BasicTypeEnum<'ctx>> = vec![header_ty.into()];
         let mut fields = vec![FrameFieldLayout::new(

@@ -54,27 +54,21 @@ use super::super::types::IntTy;
 use super::super::{CallableCarrierKind, LlvmFunctionDeclarationSurface, MainCodegen};
 use super::stable_naming;
 use super::types::{
-    ProgramAbiQuery, AbiValue, CallBoundaryOperandLayout,
-    CallableCarrierTargetLayout, CallableEntryLayout, CallableLayout,
-    ClassInstanceFieldLayout, ClassInstanceLayout, ClosureCarrierLayout,
-    CompletionPayloadBindingLayout, ContinuationFieldKind,
-    ContinuationFieldLayout, ContinuationObjectLayout,
-    ContinuationSurfaceResumeBinding, ContinuationSurfaceResumeDispatchLayout,
-    ContinuationSurfaceResumeDispatchTarget,
+    AbiValue, CallBoundaryOperandLayout, CallableCarrierTargetLayout, CallableEntryLayout,
+    CallableLayout, ClassInstanceFieldLayout, ClassInstanceLayout, ClosureCarrierLayout,
+    CompletionPayloadBindingLayout, ContinuationFieldKind, ContinuationFieldLayout,
+    ContinuationObjectLayout, ContinuationSurfaceResumeBinding,
+    ContinuationSurfaceResumeDispatchLayout, ContinuationSurfaceResumeDispatchTarget,
     ContinuationSurfaceResumeHandleBinderRoute, ContinuationSurfaceResumeLayout,
-    ContinuationSurfaceResumeMethodLookup,
-    ContinuationSurfaceResumeOwnerTrampolineLayout, DispatchReceiverLayout,
-    DynamicInvokeCarrierLayout, DynamicInvokeLayout, FrameFieldKind,
-    FrameFieldLayout, FrameLayout, HandleArmLayout,
-    HandleContinuationBinderLayout, HandleDispatchLayout,
-    HandlePayloadBinderLayout, HandlePendingPayloadTransportLayout,
-    LocalRuntimeErrorContract, LocalRuntimeErrorTerminalAction,
-    PerformBoundaryOperandLayout, PlainCallableEntryLayout,
-    PlainCallableLayout, PublishedRuntimeEntryLayout,
+    ContinuationSurfaceResumeMethodLookup, ContinuationSurfaceResumeOwnerTrampolineLayout,
+    DispatchReceiverLayout, DynamicInvokeCarrierLayout, DynamicInvokeLayout, FrameFieldKind,
+    FrameFieldLayout, FrameLayout, HandleArmLayout, HandleContinuationBinderLayout,
+    HandleDispatchLayout, HandlePayloadBinderLayout, HandlePendingPayloadTransportLayout,
+    LocalRuntimeErrorContract, LocalRuntimeErrorTerminalAction, PerformBoundaryOperandLayout,
+    PlainCallableEntryLayout, PlainCallableLayout, ProgramAbiQuery, PublishedRuntimeEntryLayout,
     ResumeBoundaryOperandLayout, ResumeInterfaceLayout, ResumeMethodLayout,
-    ResumePayloadBindingLayout, SourceAbiFieldLayout, SourceAbiLayout,
-    SourceAbiLayoutKind, StepCaseLayout, StepLayout,
-    StepVariantLayout,
+    ResumePayloadBindingLayout, SourceAbiFieldLayout, SourceAbiLayout, SourceAbiLayoutKind,
+    StepCaseLayout, StepLayout, StepVariantLayout,
 };
 
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
@@ -93,10 +87,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
 type BoundaryOperandKey = (StepSchemaId, crate::mir::SiteId);
 type CallBoundaryOperandLayouts = BTreeMap<BoundaryOperandKey, CallBoundaryOperandLayout>;
-type PerformBoundaryOperandLayouts =
-    BTreeMap<BoundaryOperandKey, PerformBoundaryOperandLayout>;
-type ResumeBoundaryOperandLayouts =
-    BTreeMap<BoundaryOperandKey, ResumeBoundaryOperandLayout>;
+type PerformBoundaryOperandLayouts = BTreeMap<BoundaryOperandKey, PerformBoundaryOperandLayout>;
+type ResumeBoundaryOperandLayouts = BTreeMap<BoundaryOperandKey, ResumeBoundaryOperandLayout>;
 type ResumePayloadBindingBoundaryKey = (StepSchemaId, BoundaryId);
 type ResumePayloadBindingStateKey = (StepSchemaId, StateId);
 type ResumePayloadBindingLayouts =

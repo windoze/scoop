@@ -403,7 +403,9 @@ impl<'a> HirLowering<'a> {
         self.build_array_lit_expr(span, lowered_elements, target, result_ty)
     }
 
-    pub(in crate::hir::lower) fn array_lit_element_needs_expected_binding(element: &ast::Expr) -> bool {
+    pub(in crate::hir::lower) fn array_lit_element_needs_expected_binding(
+        element: &ast::Expr,
+    ) -> bool {
         matches!(
             element.kind,
             ast::ExprKind::If { .. }
@@ -416,7 +418,9 @@ impl<'a> HirLowering<'a> {
         ) || Self::array_lit_element_is_numeric_expected_binding_candidate(element)
     }
 
-    pub(in crate::hir::lower) fn array_lit_element_is_numeric_expected_binding_candidate(element: &ast::Expr) -> bool {
+    pub(in crate::hir::lower) fn array_lit_element_is_numeric_expected_binding_candidate(
+        element: &ast::Expr,
+    ) -> bool {
         match &element.kind {
             ast::ExprKind::Unary { op, expr, .. } => {
                 matches!(op, ast::UnaryOp::Neg | ast::UnaryOp::BitNot)
@@ -442,7 +446,9 @@ impl<'a> HirLowering<'a> {
         }
     }
 
-    pub(in crate::hir::lower) fn array_lit_element_is_numeric_literal_tree(element: &ast::Expr) -> bool {
+    pub(in crate::hir::lower) fn array_lit_element_is_numeric_literal_tree(
+        element: &ast::Expr,
+    ) -> bool {
         match &element.kind {
             ast::ExprKind::IntLit | ast::ExprKind::FloatLit => true,
             ast::ExprKind::Unary { op, expr, .. } => {
@@ -1853,5 +1859,4 @@ impl<'a> HirLowering<'a> {
             &nested_prefix,
         )
     }
-
 }

@@ -4,8 +4,10 @@
 
 use super::*;
 
-
-pub(in crate::hir::lower) fn package_prefix(source: &SourceFile, package: Option<&ast::PackageDecl>) -> String {
+pub(in crate::hir::lower) fn package_prefix(
+    source: &SourceFile,
+    package: Option<&ast::PackageDecl>,
+) -> String {
     let Some(p) = package else {
         return String::new();
     };

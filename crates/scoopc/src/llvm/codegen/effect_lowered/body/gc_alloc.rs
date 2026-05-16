@@ -9,9 +9,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         value: PointerValue<'ctx>,
     ) -> Result<(), LlvmEmitError> {
         let store = self.builder.build_store(slot, value)?;
-        store.set_volatile(true).map_err(|err| {
-            frontend_error(format!("GC root store 无法标记 volatile: {err}"))
-        })?;
+        store
+            .set_volatile(true)
+            .map_err(|err| frontend_error(format!("GC root store 无法标记 volatile: {err}")))?;
         Ok(())
     }
 
@@ -28,9 +28,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 "GC root load `{name}` 缺少 instruction value"
             )));
         };
-        inst.set_volatile(true).map_err(|err| {
-            frontend_error(format!("GC root load 无法标记 volatile: {err}"))
-        })?;
+        inst.set_volatile(true)
+            .map_err(|err| frontend_error(format!("GC root load 无法标记 volatile: {err}")))?;
         Ok(loaded.into_pointer_value())
     }
 
@@ -75,8 +74,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         value: PointerValue<'ctx>,
         name: &str,
     ) -> Result<(), LlvmEmitError> {
-        let value =
-            self.cast_ptr(value, self.llvm_gc_i8_ptr_type(), &format!("{name}_gc"))?;
+        let value = self.cast_ptr(value, self.llvm_gc_i8_ptr_type(), &format!("{name}_gc"))?;
         if let Some(frame_slot) = self.gc_root_explicit_frame_slot(at, slot, name)? {
             self.build_volatile_gc_root_store(frame_slot, value)?;
             Ok(())
@@ -110,8 +108,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         layout_anchor_name: &str,
         name: &str,
     ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
-        let desc =
-            self.get_or_create_gc_type_descriptor(at, struct_ty, layout_anchor_name)?;
+        let desc = self.get_or_create_gc_type_descriptor(at, struct_ty, layout_anchor_name)?;
         let desc_i8 = self.builder.build_pointer_cast(
             desc.as_pointer_value(),
             self.llvm_i8_ptr_type(),
@@ -245,13 +242,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         field_index,
                         &format!("{name}_field_value_{field_index}"),
                     )?;
-                    self.store_gc_aware_basic_value(
-                        at,
-                        field_ptr,
-                        field_ty,
-                        field_value,
-                        name,
-                    )?;
+                    self.store_gc_aware_basic_value(at, field_ptr, field_ty, field_value, name)?;
                 }
                 Ok(())
             }

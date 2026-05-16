@@ -10,11 +10,7 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
         self.frame_layout
             .llvm_ty()
             .get_field_type_at_index(field_index)
-            .ok_or_else(|| {
-                frontend_error(format!(
-                    "frame layout 缺少 field index {field_index}"
-                ))
-            })
+            .ok_or_else(|| frontend_error(format!("frame layout 缺少 field index {field_index}")))
     }
 
     pub(super) fn frame_field_ptr(
@@ -186,12 +182,9 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
         let deferred = self
             .codegen
             .defer_gc_sensitive_cg_value(self.mir_fun.span, name, value)?;
-        let box_ptr = self.codegen.alloc_gc_struct(
-            self.mir_fun.span,
-            box_ty,
-            &layout_anchor_name,
-            name,
-        )?;
+        let box_ptr =
+            self.codegen
+                .alloc_gc_struct(self.mir_fun.span, box_ty, &layout_anchor_name, name)?;
         let box_root_slot = self.capture_gc_pointer_root_slot(box_ptr, &format!("{name}_root"))?;
         let box_ptr =
             self.reload_gc_pointer_from_root_slot(box_root_slot, &format!("{name}_root"))?;
@@ -301,9 +294,7 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
                 word: self.codegen.context.i64_type().const_zero(),
                 gc_ref: value
                     .value
-                    .ok_or_else(|| {
-                        frontend_error("effect transport ref 缺少值".to_string())
-                    })?
+                    .ok_or_else(|| frontend_error("effect transport ref 缺少值".to_string()))?
                     .into_pointer_value(),
             }),
             CgTy::String => Ok(ValueTransportParts {

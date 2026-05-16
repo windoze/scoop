@@ -181,10 +181,7 @@ pub(super) fn llvm_frame_layout_preserves_slot_indices_and_system_fields() {
                 .frame_layout(callable.step_schema())
                 .expect("frame layout 应可查询");
 
-            assert_eq!(
-                frame_layout.fields()[0].kind(),
-                FrameFieldKind::Header
-            );
+            assert_eq!(frame_layout.fields()[0].kind(), FrameFieldKind::Header);
             for (ordinal, slot) in callable.frame_schema().slots().iter().enumerate() {
                 let expected_field_index = ordinal as u32 + 1;
                 assert_eq!(

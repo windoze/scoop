@@ -9,10 +9,7 @@
 use super::*;
 
 impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
-    pub(super) fn abi_value(
-        &mut self,
-        ty: TypeId,
-    ) -> Result<AbiValue<'ctx>, LlvmEmitError> {
+    pub(super) fn abi_value(&mut self, ty: TypeId) -> Result<AbiValue<'ctx>, LlvmEmitError> {
         self.abi_value_from_types(self.source_types, ty)
     }
 
@@ -54,12 +51,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                 let abi = self
                     .abi_value_from_types(self.source_types, ty)
                     .map_err(|err| self.wrap_source_value_layout_error(ty, err))?;
-                SourceAbiLayout::new(
-                    ty,
-                    SourceAbiLayoutKind::Scalar,
-                    abi,
-                    Vec::new(),
-                )
+                SourceAbiLayout::new(ty, SourceAbiLayoutKind::Scalar, abi, Vec::new())
             }
         };
         self.source_value_layouts.insert(ty, layout.clone());

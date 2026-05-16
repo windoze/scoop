@@ -552,6 +552,5 @@ enum EffectRowParamBinding {
     Concrete(EffectRow),
 }
 
-
 mod main;
 pub use main::*;

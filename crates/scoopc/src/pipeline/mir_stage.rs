@@ -212,9 +212,7 @@ fn validate_bodies(file: &MirFile, unit_ty: TypeId) -> Result<(), MirLowerError>
         })
 }
 
-fn lower_mir_stage_unvalidated(
-    typed_hir_output: TypedHirStageOutput,
-) -> (MirStageOutput, TypeId) {
+fn lower_mir_stage_unvalidated(typed_hir_output: TypedHirStageOutput) -> (MirStageOutput, TypeId) {
     let facts = MirLoweringFacts::from_typed_handoff(
         typed_hir_output.lowered_hir(),
         typed_hir_output.effect_contracts(),
@@ -1826,14 +1824,12 @@ fun entry(): Int / Raise<Int> {
         );
     }
 
-    fn lower_with_empty_contracts(
-        source: &SourceFile,
-    ) -> (crate::mir::File, crate::ty::TypeId) {
+    fn lower_with_empty_contracts(source: &SourceFile) -> (crate::mir::File, crate::ty::TypeId) {
         let session = session();
         let typed_hir_output = super::super::load_typed_hir_stage_output_for_dump(&session, source)
             .expect("typed HIR should pass before forged contract lowering");
-        let facts = MirLoweringFacts::default()
-            .with_typed_contracts(&TypedHirEffectContracts::default());
+        let facts =
+            MirLoweringFacts::default().with_typed_contracts(&TypedHirEffectContracts::default());
         let mut lowered_hir = typed_hir_output.into_lowered_hir();
         let builtins = lowered_hir.types.intern_builtins();
         let file = lower_hir_file_for_dump_with_facts(

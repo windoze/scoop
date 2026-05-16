@@ -76,9 +76,8 @@ fun main(): Int {
 "#,
     );
     let session = Session::new().unwrap();
-    let ir = emit_minimal_main_ir(&session, &source).expect(
-        "默认单文件 helper 应走 LLVM stage，而不是命中已删除的 HIR handle lowering",
-    );
+    let ir = emit_minimal_main_ir(&session, &source)
+        .expect("默认单文件 helper 应走 LLVM stage，而不是命中已删除的 HIR handle lowering");
 
     assert!(ir.contains("define i32 @main("));
     assert!(

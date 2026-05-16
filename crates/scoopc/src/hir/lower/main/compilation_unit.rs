@@ -472,7 +472,8 @@ pub(crate) struct CompilationUnitLoweringOptions<'a> {
     pub(crate) stable_cone_key: StableConeKey,
     pub(crate) instance_mode: CompilationUnitInstanceMode<'a>,
     pub(crate) devirtualize_dispatch_calls: bool,
-    pub(crate) runtime_comptime_plans: &'a HashMap<std::path::PathBuf, crate::comptime::RuntimeComptimePlan>,
+    pub(crate) runtime_comptime_plans:
+        &'a HashMap<std::path::PathBuf, crate::comptime::RuntimeComptimePlan>,
 }
 
 impl<'a> CompilationUnitLoweringOptions<'a> {

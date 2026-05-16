@@ -1437,7 +1437,11 @@ pub(super) fn pick_ptr_type_fqn(lower: &TypeLowering<'_>) -> String {
     "Ptr".to_string()
 }
 
-pub(super) fn extract_ptr_pointee(ptr_ty: TypeId, ptr_fqn: &str, lower: &TypeLowering<'_>) -> Option<TypeId> {
+pub(super) fn extract_ptr_pointee(
+    ptr_ty: TypeId,
+    ptr_fqn: &str,
+    lower: &TypeLowering<'_>,
+) -> Option<TypeId> {
     match lower.type_kind(ptr_ty) {
         TypeKind::Value(ValueTypeKind::Nominal(n)) if n.fqn == ptr_fqn && n.args.len() == 1 => {
             Some(n.args[0])
@@ -1448,4 +1452,3 @@ pub(super) fn extract_ptr_pointee(ptr_ty: TypeId, ptr_fqn: &str, lower: &TypeLow
         _ => None,
     }
 }
-

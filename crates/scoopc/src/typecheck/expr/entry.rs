@@ -2106,8 +2106,7 @@ fun bad(): Unit {
     }
 
     #[test]
-    fn continuation_typecheck_rejects_runtime_construction_of_compiler_owned_continuation()
-    {
+    fn continuation_typecheck_rejects_runtime_construction_of_compiler_owned_continuation() {
         let (source, ast, index, imports, env, mut types, builtins) =
             setup_typed_file(CONTINUATION_RUNTIME_CTOR_SOURCE);
         let err = typecheck::check_file_exprs(

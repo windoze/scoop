@@ -5,8 +5,12 @@
 use super::*;
 
 impl<'a> FnLowering<'a> {
-
-    pub(in crate::mir::lower) fn lower_unresolved_ident(&mut self, span: Span, ty: TypeId, name: &str) -> LocalId {
+    pub(in crate::mir::lower) fn lower_unresolved_ident(
+        &mut self,
+        span: Span,
+        ty: TypeId,
+        name: &str,
+    ) -> LocalId {
         let tmp = self.push_temp_local(span, ty);
         self.assign(
             span,
@@ -25,7 +29,12 @@ impl<'a> FnLowering<'a> {
         tmp
     }
 
-    pub(in crate::mir::lower) fn lower_tuple_lit_expr(&mut self, span: Span, ty: TypeId, elements: &[hir::Expr]) -> LocalId {
+    pub(in crate::mir::lower) fn lower_tuple_lit_expr(
+        &mut self,
+        span: Span,
+        ty: TypeId,
+        elements: &[hir::Expr],
+    ) -> LocalId {
         let result = self.push_temp_local(span, ty);
         let mut lowered = Vec::with_capacity(elements.len());
         let mut field_tys = Vec::with_capacity(elements.len());
@@ -208,7 +217,11 @@ impl<'a> FnLowering<'a> {
         }
     }
 
-    pub(in crate::mir::lower) fn binary_result_ty(&self, fallback_ty: TypeId, op: ast::BinaryOp) -> TypeId {
+    pub(in crate::mir::lower) fn binary_result_ty(
+        &self,
+        fallback_ty: TypeId,
+        op: ast::BinaryOp,
+    ) -> TypeId {
         match op {
             ast::BinaryOp::Lt
             | ast::BinaryOp::Le
@@ -286,7 +299,10 @@ impl<'a> FnLowering<'a> {
         }
     }
 
-    pub(in crate::mir::lower) fn runtime_type_descriptor_key(&self, ty: TypeId) -> RuntimeTypeDescriptorKey {
+    pub(in crate::mir::lower) fn runtime_type_descriptor_key(
+        &self,
+        ty: TypeId,
+    ) -> RuntimeTypeDescriptorKey {
         let kind = match self.types.kind(ty) {
             TypeKind::Ref(RefTypeKind::Any) => RuntimeTypeDescriptorKind::Any,
             TypeKind::Ref(RefTypeKind::String) => RuntimeTypeDescriptorKind::String,
@@ -309,7 +325,10 @@ impl<'a> FnLowering<'a> {
         RuntimeTypeDescriptorKey { ty, kind }
     }
 
-    pub(in crate::mir::lower) fn runtime_type_parameterized_match(&self, ty: TypeId) -> RuntimeTypeParameterizedMatch {
+    pub(in crate::mir::lower) fn runtime_type_parameterized_match(
+        &self,
+        ty: TypeId,
+    ) -> RuntimeTypeParameterizedMatch {
         match self.types.kind(ty) {
             TypeKind::Ref(RefTypeKind::Nominal(nominal))
             | TypeKind::Value(ValueTypeKind::Nominal(nominal)) => {
@@ -588,7 +607,12 @@ impl<'a> FnLowering<'a> {
         self.current_bb = merge_bb;
     }
 
-    pub(in crate::mir::lower) fn lower_cast_as_failure_raise(&mut self, span: Span, result: LocalId, merge_bb: BasicBlockId) {
+    pub(in crate::mir::lower) fn lower_cast_as_failure_raise(
+        &mut self,
+        span: Span,
+        result: LocalId,
+        merge_bb: BasicBlockId,
+    ) {
         let runtime_error_ty = find_runtime_error_type(self.types).unwrap_or(self.builtins.any);
         let effect_ty = find_raise_runtime_error_effect(self.types).unwrap_or(self.builtins.any);
         let error_local = self.push_temp_local(span, runtime_error_ty);
@@ -722,7 +746,10 @@ impl<'a> FnLowering<'a> {
         result
     }
 
-    pub(in crate::mir::lower) fn member_value_ty(&self, member: &hir::MemberAccess) -> Option<TypeId> {
+    pub(in crate::mir::lower) fn member_value_ty(
+        &self,
+        member: &hir::MemberAccess,
+    ) -> Option<TypeId> {
         let Some(hir::MemberRef::Value { fqn, .. }) = member.resolved.as_ref() else {
             return None;
         };
@@ -771,7 +798,10 @@ impl<'a> FnLowering<'a> {
         }
     }
 
-    pub(in crate::mir::lower) fn lower_call_args(&mut self, args: &[hir::CallArg]) -> Option<Vec<CallArg>> {
+    pub(in crate::mir::lower) fn lower_call_args(
+        &mut self,
+        args: &[hir::CallArg],
+    ) -> Option<Vec<CallArg>> {
         self.lower_call_args_with_expected(args, &[])
     }
 
@@ -912,7 +942,9 @@ impl<'a> FnLowering<'a> {
         ordered
     }
 
-    pub(in crate::mir::lower) fn hir_call_args_are_already_canonical(args: &[hir::CallArg]) -> bool {
+    pub(in crate::mir::lower) fn hir_call_args_are_already_canonical(
+        args: &[hir::CallArg],
+    ) -> bool {
         args.iter()
             .all(|arg| matches!(arg, hir::CallArg::Positional(_)))
     }

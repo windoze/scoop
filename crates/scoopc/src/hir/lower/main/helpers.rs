@@ -4,7 +4,6 @@
 
 use super::*;
 
-
 pub(crate) struct LoweringInputs<'a> {
     pub(crate) source: &'a SourceFile,
     pub(crate) file: &'a ast::File,
@@ -344,4 +343,3 @@ pub(crate) fn lower_value_property_getter_with_type_bindings(
     }
     out
 }
-

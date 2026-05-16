@@ -809,10 +809,7 @@ fun main(): Int {
             &materialized,
             "fixtures.mir_lowered.body_completes",
         );
-        assert_non_generic_pass_root_published(
-            &materialized,
-            "fixtures.mir_lowered.handled_raise",
-        );
+        assert_non_generic_pass_root_published(&materialized, "fixtures.mir_lowered.handled_raise");
         assert_non_generic_pass_root_published(&materialized, "fixtures.mir_lowered.main");
     }
 }

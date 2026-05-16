@@ -5552,8 +5552,7 @@ mod tests {
     }
 
     #[test]
-    fn late_lowered_ir_step_materialization_shell_keeps_canonical_cases_for_single_case_versions()
-     {
+    fn late_lowered_ir_step_materialization_shell_keeps_canonical_cases_for_single_case_versions() {
         let program = sample_manual_program();
         let callable = program
             .callable("sample.worker")
@@ -5640,8 +5639,7 @@ mod tests {
     }
 
     #[test]
-    fn late_lowered_ir_stable_dump_demotes_packings_but_keeps_authoritative_cases_visible()
-    {
+    fn late_lowered_ir_stable_dump_demotes_packings_but_keeps_authoritative_cases_visible() {
         let program = sample_manual_program();
         let dump = program.stable_dump();
 

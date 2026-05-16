@@ -163,9 +163,11 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
         )?;
         let cont_ptr = self.cast_gc_ref_to_continuation(cont_ptr)?;
         let payload = if self.function.count_params() > 1 {
-            Some(self.function.get_nth_param(1).ok_or_else(|| {
-                frontend_error("resume method 缺少 payload 参数".to_string())
-            })?)
+            Some(
+                self.function
+                    .get_nth_param(1)
+                    .ok_or_else(|| frontend_error("resume method 缺少 payload 参数".to_string()))?,
+            )
         } else {
             None
         };
@@ -178,8 +180,7 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
             .codegen
             .context
             .append_basic_block(self.function, "resume_double");
-        let first_resume =
-            self.try_mark_continuation_resumed(cont_ptr, "surface_resume")?;
+        let first_resume = self.try_mark_continuation_resumed(cont_ptr, "surface_resume")?;
         self.codegen.builder.build_conditional_branch(
             first_resume,
             first_resume_bb,
@@ -272,9 +273,7 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
         let outcome_ptr = self
             .function
             .get_nth_param(self.function.count_params().saturating_sub(1))
-            .ok_or_else(|| {
-                frontend_error("outcome resume wrapper 缺少 outcome 参数".to_string())
-            })?
+            .ok_or_else(|| frontend_error("outcome resume wrapper 缺少 outcome 参数".to_string()))?
             .into_pointer_value();
         let resume_state_tag = self.load_continuation_resume_state(cont_ptr)?;
         let first_resume_bb = self
@@ -362,9 +361,9 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
             })?;
         let payload = payload_param_index
             .map(|index| {
-                self.function.get_nth_param(index).ok_or_else(|| {
-                    frontend_error("outcome core 缺少 payload 参数".to_string())
-                })
+                self.function
+                    .get_nth_param(index)
+                    .ok_or_else(|| frontend_error("outcome core 缺少 payload 参数".to_string()))
             })
             .transpose()?;
         let ordinary_resume_bb = self
@@ -375,10 +374,10 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
             .codegen
             .context
             .append_basic_block(self.function, "resume_core_composed_dispatch");
-        let incoming_is_null = self.codegen.builder.build_is_null(
-            incoming_resume_token,
-            "outcome_core_incoming_is_null",
-        )?;
+        let incoming_is_null = self
+            .codegen
+            .builder
+            .build_is_null(incoming_resume_token, "outcome_core_incoming_is_null")?;
         self.codegen.builder.build_conditional_branch(
             incoming_is_null,
             ordinary_resume_bb,
@@ -426,16 +425,12 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
         let resume_word = self
             .function
             .get_nth_param(1)
-            .ok_or_else(|| {
-                frontend_error("continuation step 缺少 resume_word 参数".to_string())
-            })?
+            .ok_or_else(|| frontend_error("continuation step 缺少 resume_word 参数".to_string()))?
             .into_int_value();
         let resume_gc_ref = self
             .function
             .get_nth_param(2)
-            .ok_or_else(|| {
-                frontend_error("continuation step 缺少 resume_gc_ref 参数".to_string())
-            })?
+            .ok_or_else(|| frontend_error("continuation step 缺少 resume_gc_ref 参数".to_string()))?
             .into_pointer_value();
         self.store_frame_root(state_ref)?;
         self.restore_frame_slots_to_locals()?;
@@ -444,9 +439,7 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
                 .function_cx
                 .current_effect_ctx_ref
                 .ok_or_else(|| {
-                    frontend_error(
-                        "continuation step 缺少 current_effect_ctx_ref".to_string(),
-                    )
+                    frontend_error("continuation step 缺少 current_effect_ctx_ref".to_string())
                 })?;
         self.store_current_effect_ctx(current_effect_ctx, "cont_step_effect_ctx")?;
         let resume_state_tag = self.load_current_state_tag("cont_step_state_tag")?;
@@ -455,9 +448,7 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
             .function_cx
             .current_incoming_resume_token_ref
             .ok_or_else(|| {
-                frontend_error(
-                    "continuation step 缺少 incoming_resume_token_ref".to_string(),
-                )
+                frontend_error("continuation step 缺少 incoming_resume_token_ref".to_string())
             })?;
         let payload = self.decode_effect_transport_parts(
             resume_tuple_ty,
@@ -563,9 +554,7 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
         let resume_word = self
             .function
             .get_nth_param(1)
-            .ok_or_else(|| {
-                frontend_error("continuation drive 缺少 resume_word 参数".to_string())
-            })?
+            .ok_or_else(|| frontend_error("continuation drive 缺少 resume_word 参数".to_string()))?
             .into_int_value();
         let resume_gc_ref = self
             .function
@@ -577,16 +566,12 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
         let answer_slot = self
             .function
             .get_nth_param(3)
-            .ok_or_else(|| {
-                frontend_error("continuation drive 缺少 answer_slot 参数".to_string())
-            })?
+            .ok_or_else(|| frontend_error("continuation drive 缺少 answer_slot 参数".to_string()))?
             .into_pointer_value();
         let outcome_ptr = self
             .function
             .get_nth_param(4)
-            .ok_or_else(|| {
-                frontend_error("continuation drive 缺少 outcome 参数".to_string())
-            })?
+            .ok_or_else(|| frontend_error("continuation drive 缺少 outcome 参数".to_string()))?
             .into_pointer_value();
         let resume_state_tag = self.load_continuation_resume_state(cont_ptr)?;
         let first_resume_bb = self
@@ -605,8 +590,7 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
             .codegen
             .context
             .append_basic_block(self.function, "resume_return");
-        let first_resume =
-            self.try_mark_continuation_resumed(cont_ptr, "continuation_drive")?;
+        let first_resume = self.try_mark_continuation_resumed(cont_ptr, "continuation_drive")?;
         self.codegen.builder.build_conditional_branch(
             first_resume,
             first_resume_bb,

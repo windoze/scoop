@@ -560,4 +560,3 @@ pub(in crate::typecheck::expr) fn infer_continuation_resume_call_expr_type(
         lower,
     )
 }
-

@@ -49,13 +49,11 @@ use super::super::{
 };
 use super::stable_naming;
 use super::types::{
-    ProgramAbiQuery, CallTargetQuery, CallableEntryLayout, CallableLayout,
-    ContinuationSurfaceResumeDispatchTarget, ContinuationSurfaceResumeLayout,
-    DynamicInvokeCarrierLayout, DynamicInvokeLayout, FrameLayout,
-    HandleContinuationBinderLayout, HandlePayloadBinderLayout,
-    LocalRuntimeErrorTerminalAction, PlainCallableLayout, SourceAbiLayout,
-    SourceAbiLayoutKind, StepCaseLayout, StepLayout,
-    StepVariantLayout,
+    CallTargetQuery, CallableEntryLayout, CallableLayout, ContinuationSurfaceResumeDispatchTarget,
+    ContinuationSurfaceResumeLayout, DynamicInvokeCarrierLayout, DynamicInvokeLayout, FrameLayout,
+    HandleContinuationBinderLayout, HandlePayloadBinderLayout, LocalRuntimeErrorTerminalAction,
+    PlainCallableLayout, ProgramAbiQuery, SourceAbiLayout, SourceAbiLayoutKind, StepCaseLayout,
+    StepLayout, StepVariantLayout,
 };
 use super::value::ValuePrimitives;
 
@@ -239,9 +237,7 @@ fn completion_payload_local_pair(
     Some((*binding_local, *return_local))
 }
 
-fn validate_callable_entry_layout(
-    layout: &CallableLayout<'_>,
-) -> Result<(), LlvmEmitError> {
+fn validate_callable_entry_layout(layout: &CallableLayout<'_>) -> Result<(), LlvmEmitError> {
     let direct = layout.direct_entry();
     let dynamic = layout.dynamic_entry();
     if direct.invoke_args_tuple_ty() != dynamic.invoke_args_tuple_ty()
@@ -436,6 +432,6 @@ mod verification;
 mod wrapper;
 
 // Re-exports so sibling submodules can refer to these names via `use super::*;`.
-use emitter::{ComposedBoundaryDispatchContext, CallableEmitter};
+use emitter::{CallableEmitter, ComposedBoundaryDispatchContext};
 use runtime_types::*;
 use symbol_naming::*;

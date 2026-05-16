@@ -60,9 +60,7 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
                 wrapper_step_schema.as_u32()
             ))
         })?;
-        let tag = self
-            .codegen
-            .extract_step_tag(owner_layout, owner_step)?;
+        let tag = self.codegen.extract_step_tag(owner_layout, owner_step)?;
         let complete_bb = self
             .codegen
             .context
@@ -128,9 +126,7 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
             owner_layout,
             owner_step,
         )?;
-        let projected = self
-            .codegen
-            .build_step_complete(wrapper_layout, payload)?;
+        let projected = self.codegen.build_step_complete(wrapper_layout, payload)?;
         self.codegen.builder.build_return(Some(&projected))?;
 
         for (_, bb, owner_case, wrapper_case) in cases {
@@ -282,9 +278,7 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
                 ))
             })?;
         let payload = self.lower_completion_payload(payload_source)?;
-        let projected = self
-            .codegen
-            .build_step_complete(wrapper_layout, payload)?;
+        let projected = self.codegen.build_step_complete(wrapper_layout, payload)?;
         self.sync_frame_slots_from_locals()?;
         self.codegen.builder.build_return(Some(&projected))?;
         Ok(true)
@@ -452,9 +446,7 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
                 }
             };
             let payload = self.complete_payload_or_default(wrapper_layout, payload)?;
-            let projected = self
-                .codegen
-                .build_step_complete(wrapper_layout, payload)?;
+            let projected = self.codegen.build_step_complete(wrapper_layout, payload)?;
             self.sync_frame_slots_from_locals()?;
             self.codegen.builder.build_return(Some(&projected))?;
         } else {
@@ -523,10 +515,7 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
                         "handle_direct_exit_ctx_clear",
                     )?;
                 } else {
-                    self.restore_handle_saved_effect_ctx(
-                        site_id,
-                        "handle_direct_exit_ctx",
-                    )?;
+                    self.restore_handle_saved_effect_ctx(site_id, "handle_direct_exit_ctx")?;
                 }
                 self.branch_to_state(target)?;
             }
@@ -718,15 +707,13 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
                             arm.arm_state().as_u32()
                         )));
                     }
-                    HandleBoundaryRuntimeAction::ConsumeToArm(
-                        HandleConsumeArmRuntime {
-                            site_id: *site_id,
-                            arm_ordinal,
-                            arm_state,
-                            payload_binders: arm.payload_binders().to_vec(),
-                            continuation_binder: arm.continuation_binder(),
-                        },
-                    )
+                    HandleBoundaryRuntimeAction::ConsumeToArm(HandleConsumeArmRuntime {
+                        site_id: *site_id,
+                        arm_ordinal,
+                        arm_state,
+                        payload_binders: arm.payload_binders().to_vec(),
+                        continuation_binder: arm.continuation_binder(),
+                    })
                 }
                 LateLoweredHandleBoundaryCaseRoutingAction::PendingCompletion { completion } => {
                     let origin = LateLoweredHandlePendingCompletionOrigin::new(
@@ -751,22 +738,20 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
                             boundary_id.as_u32()
                         ))
                     })?;
-                    HandleBoundaryRuntimeAction::PendingCompletion(
-                        HandlePendingCompletionRuntime {
-                            site_id: *site_id,
-                            completion,
-                            completion_tag_value,
-                            completion_tag_field_index: layout.completion_tag_field_index(),
-                            finally_state,
-                            payload_transport: layout
-                                .pending_payload_transport_layout(completion)
-                                .map(|transport| HandlePendingPayloadRuntime {
-                                    completion: transport.completion(),
-                                    payload_tuple_ty: transport.payload_tuple_ty(),
-                                    frame_field_index: transport.frame_field_index(),
-                                }),
-                        },
-                    )
+                    HandleBoundaryRuntimeAction::PendingCompletion(HandlePendingCompletionRuntime {
+                        site_id: *site_id,
+                        completion,
+                        completion_tag_value,
+                        completion_tag_field_index: layout.completion_tag_field_index(),
+                        finally_state,
+                        payload_transport: layout.pending_payload_transport_layout(completion).map(
+                            |transport| HandlePendingPayloadRuntime {
+                                completion: transport.completion(),
+                                payload_tuple_ty: transport.payload_tuple_ty(),
+                                frame_field_index: transport.frame_field_index(),
+                            },
+                        ),
+                    })
                 }
                 LateLoweredHandleBoundaryCaseRoutingAction::EmitOutward => {
                     HandleBoundaryRuntimeAction::EmitOutward
@@ -868,15 +853,13 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
                     handled_arm.arm_state().as_u32(),
                 )));
             }
-            let action = HandleBoundaryRuntimeAction::ConsumeToArm(
-                HandleConsumeArmRuntime {
-                    site_id: *site_id,
-                    arm_ordinal,
-                    arm_state,
-                    payload_binders: handled_arm.payload_binders().to_vec(),
-                    continuation_binder: handled_arm.continuation_binder(),
-                },
-            );
+            let action = HandleBoundaryRuntimeAction::ConsumeToArm(HandleConsumeArmRuntime {
+                site_id: *site_id,
+                arm_ordinal,
+                arm_state,
+                payload_binders: handled_arm.payload_binders().to_vec(),
+                continuation_binder: handled_arm.continuation_binder(),
+            });
             let action = if self.surface_resume_handle_sites.is_some()
                 && !self.surface_resume_allows_handle_dispatch(*site_id, state.state_id())
                 && !matches!(action, HandleBoundaryRuntimeAction::EmitOutward)

@@ -36,7 +36,10 @@ pub(in crate::hir::lower) fn compute_closure_captures(
     captures
 }
 
-pub(in crate::hir::lower) fn collect_declared_locals_in_expr(expr: &crate::hir::Expr, declared: &mut HashSet<SymbolId>) {
+pub(in crate::hir::lower) fn collect_declared_locals_in_expr(
+    expr: &crate::hir::Expr,
+    declared: &mut HashSet<SymbolId>,
+) {
     match &expr.kind {
         crate::hir::ExprKind::Missing
         | crate::hir::ExprKind::Literal(_)
@@ -68,8 +71,7 @@ pub(in crate::hir::lower) fn collect_declared_locals_in_expr(expr: &crate::hir::
             collect_declared_locals_in_expr(lhs.as_ref(), declared);
             collect_declared_locals_in_expr(rhs.as_ref(), declared);
         }
-        crate::hir::ExprKind::TypeCheck { expr, .. }
-        | crate::hir::ExprKind::Cast { expr, .. } => {
+        crate::hir::ExprKind::TypeCheck { expr, .. } | crate::hir::ExprKind::Cast { expr, .. } => {
             collect_declared_locals_in_expr(expr.as_ref(), declared);
         }
         crate::hir::ExprKind::Block(block) => collect_declared_locals_in_block(block, declared),
@@ -142,7 +144,10 @@ pub(in crate::hir::lower) fn collect_declared_locals_in_expr(expr: &crate::hir::
     }
 }
 
-pub(in crate::hir::lower) fn collect_declared_locals_in_block(block: &Block, declared: &mut HashSet<SymbolId>) {
+pub(in crate::hir::lower) fn collect_declared_locals_in_block(
+    block: &Block,
+    declared: &mut HashSet<SymbolId>,
+) {
     for stmt in &block.stmts {
         match &stmt.kind {
             StmtKind::Val(v) => {
@@ -175,7 +180,10 @@ pub(in crate::hir::lower) fn collect_declared_locals_in_block(block: &Block, dec
     }
 }
 
-pub(in crate::hir::lower) fn collect_declared_locals_in_when_pat(pat: &WhenPat, declared: &mut HashSet<SymbolId>) {
+pub(in crate::hir::lower) fn collect_declared_locals_in_when_pat(
+    pat: &WhenPat,
+    declared: &mut HashSet<SymbolId>,
+) {
     match pat {
         WhenPat::Or { pats, .. } => {
             for p in pats {
@@ -206,7 +214,10 @@ pub(in crate::hir::lower) fn collect_declared_locals_in_when_pat(pat: &WhenPat, 
     }
 }
 
-pub(in crate::hir::lower) fn collect_used_locals_in_expr(expr: &crate::hir::Expr, used: &mut HashMap<SymbolId, Capture>) {
+pub(in crate::hir::lower) fn collect_used_locals_in_expr(
+    expr: &crate::hir::Expr,
+    used: &mut HashMap<SymbolId, Capture>,
+) {
     match &expr.kind {
         crate::hir::ExprKind::Missing
         | crate::hir::ExprKind::Literal(_)
@@ -253,8 +264,7 @@ pub(in crate::hir::lower) fn collect_used_locals_in_expr(expr: &crate::hir::Expr
             collect_used_locals_in_expr(lhs.as_ref(), used);
             collect_used_locals_in_expr(rhs.as_ref(), used);
         }
-        crate::hir::ExprKind::TypeCheck { expr, .. }
-        | crate::hir::ExprKind::Cast { expr, .. } => {
+        crate::hir::ExprKind::TypeCheck { expr, .. } | crate::hir::ExprKind::Cast { expr, .. } => {
             collect_used_locals_in_expr(expr.as_ref(), used);
         }
         crate::hir::ExprKind::Block(block) => {

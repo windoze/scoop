@@ -189,8 +189,7 @@ mod tests {
             super::super::load_direct_style_mir_stage_output_for_dump(session, source)
                 .unwrap()
                 .with_materialized_mir(materialized);
-        super::run(session, source, mir_stage_output)
-            .expect("fixture 应可通过 effect-facts stage")
+        super::run(session, source, mir_stage_output).expect("fixture 应可通过 effect-facts stage")
     }
 
     fn run_stage_with_opt_level(
@@ -204,8 +203,7 @@ mod tests {
             super::super::load_direct_style_mir_stage_output_for_dump(&session, source)
                 .unwrap()
                 .with_materialized_mir(materialized);
-        super::run(&session, source, mir_stage_output)
-            .expect("fixture 应可通过 effect-facts stage")
+        super::run(&session, source, mir_stage_output).expect("fixture 应可通过 effect-facts stage")
     }
 
     fn dump_fixture_source() -> SourceFile {
@@ -553,8 +551,7 @@ fun callInterface(i: IFace): Int {
     }
 
     #[test]
-    fn effect_facts_stage_surface_ty_distinguishes_step_upper_bound_for_compiler_runtime_error()
-     {
+    fn effect_facts_stage_surface_ty_distinguishes_step_upper_bound_for_compiler_runtime_error() {
         let source = compiler_continuation_runtime_error_source();
         let output = run_stage_with_opt_level(&source, crate::opt::OptLevel::O2);
         let leaf_facts = callable_facts_for(&output, "sample.leaf");

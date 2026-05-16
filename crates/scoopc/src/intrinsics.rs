@@ -91,28 +91,56 @@ const NAMED_INTRINSIC_AUDIT_ENTRIES: &[NamedIntrinsicAuditEntry] = &[
         runtime_reason: None,
     },
     NamedIntrinsicAuditEntry {
-        name: "array_size",
+        name: "array_size_inline",
         lowering_mode: NamedIntrinsicLoweringMode::IrEmission,
         runtime_symbol: None,
         runtime_signature: None,
         runtime_reason: None,
     },
     NamedIntrinsicAuditEntry {
-        name: "array_get",
+        name: "array_size_outofline",
         lowering_mode: NamedIntrinsicLoweringMode::IrEmission,
         runtime_symbol: None,
         runtime_signature: None,
         runtime_reason: None,
     },
     NamedIntrinsicAuditEntry {
-        name: "array_set",
+        name: "array_get_inline",
         lowering_mode: NamedIntrinsicLoweringMode::IrEmission,
         runtime_symbol: None,
         runtime_signature: None,
         runtime_reason: None,
     },
     NamedIntrinsicAuditEntry {
-        name: "array_data_ptr",
+        name: "array_get_outofline",
+        lowering_mode: NamedIntrinsicLoweringMode::IrEmission,
+        runtime_symbol: None,
+        runtime_signature: None,
+        runtime_reason: None,
+    },
+    NamedIntrinsicAuditEntry {
+        name: "array_set_inline",
+        lowering_mode: NamedIntrinsicLoweringMode::IrEmission,
+        runtime_symbol: None,
+        runtime_signature: None,
+        runtime_reason: None,
+    },
+    NamedIntrinsicAuditEntry {
+        name: "array_set_outofline",
+        lowering_mode: NamedIntrinsicLoweringMode::IrEmission,
+        runtime_symbol: None,
+        runtime_signature: None,
+        runtime_reason: None,
+    },
+    NamedIntrinsicAuditEntry {
+        name: "array_data_ptr_inline",
+        lowering_mode: NamedIntrinsicLoweringMode::IrEmission,
+        runtime_symbol: None,
+        runtime_signature: None,
+        runtime_reason: None,
+    },
+    NamedIntrinsicAuditEntry {
+        name: "array_data_ptr_outofline",
         lowering_mode: NamedIntrinsicLoweringMode::IrEmission,
         runtime_symbol: None,
         runtime_signature: None,
@@ -271,12 +299,13 @@ pub(crate) fn fallback_named_intrinsic_entry_name_for_fqn(fqn: &str) -> Option<&
         .next()
         .unwrap_or(fqn);
     match base {
-        "scoop.core.Array.size" | "scoop.core.MutableArray.size" => Some("array_size"),
-        "scoop.core.Array.get" | "scoop.core.MutableArray.get" => Some("array_get"),
-        "scoop.core.MutableArray.set" => Some("array_set"),
-        "scoop.core.Array.__dataPtr" | "scoop.core.MutableArray.__dataPtr" => {
-            Some("array_data_ptr")
-        }
+        "scoop.core.Array.size" => Some("array_size_inline"),
+        "scoop.core.MutableArray.size" => Some("array_size_outofline"),
+        "scoop.core.Array.get" => Some("array_get_inline"),
+        "scoop.core.MutableArray.get" => Some("array_get_outofline"),
+        "scoop.core.MutableArray.set" => Some("array_set_outofline"),
+        "scoop.core.Array.__dataPtr" => Some("array_data_ptr_inline"),
+        "scoop.core.MutableArray.__dataPtr" => Some("array_data_ptr_outofline"),
         _ => None,
     }
 }

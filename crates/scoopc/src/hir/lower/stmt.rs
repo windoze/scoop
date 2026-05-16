@@ -898,7 +898,7 @@ impl<'a> HirLowering<'a> {
             "scoop.core.Array.size",
             vec![arr_ref(for_span)],
             int,
-            Some("array_size"),
+            Some("array_size_inline"),
         );
 
         // __for_i < size(__for_arr)
@@ -919,7 +919,7 @@ impl<'a> HirLowering<'a> {
             "scoop.core.Array.get",
             vec![arr_ref(for_span), idx_ref(for_span)],
             int,
-            Some("array_get"),
+            Some("array_get_inline"),
         );
 
         // val x = get(__for_arr, __for_i)

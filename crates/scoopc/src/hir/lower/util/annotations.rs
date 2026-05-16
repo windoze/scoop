@@ -4,8 +4,10 @@
 
 use super::*;
 
-
-pub(in crate::hir::lower) fn object_decl_name(source: &SourceFile, obj: &ast::ObjectDecl) -> Option<String> {
+pub(in crate::hir::lower) fn object_decl_name(
+    source: &SourceFile,
+    obj: &ast::ObjectDecl,
+) -> Option<String> {
     match obj.name.as_ref() {
         Some(name) => Some(name.text(source).to_string()),
         None => match obj.kind {
@@ -42,7 +44,9 @@ pub(in crate::hir::lower) enum ParsedStdDelegateExpr {
     },
 }
 
-pub(in crate::hir::lower) fn unique_top_level_fun_fqn_from_callee(callee: &ast::Expr) -> Option<String> {
+pub(in crate::hir::lower) fn unique_top_level_fun_fqn_from_callee(
+    callee: &ast::Expr,
+) -> Option<String> {
     let ast::ExprKind::Ident(id) = &callee.kind else {
         return None;
     };
@@ -101,7 +105,9 @@ pub(in crate::hir::lower) fn parse_lazy_thread_safety_mode(
 /// 提取 generic delegated property 的 delegate class FQN，用于 lowered HIR 中 setValue/getValue
 /// 调用的 typed call-site contract 发布。常见输入是 `Delegate()` 这样的构造调用，从 resolver
 /// 写回的 `Constructor { ty_fqn }` candidate 中读出类的 FQN。
-pub(in crate::hir::lower) fn delegate_class_fqn_from_expr(delegate_expr: &ast::Expr) -> Option<String> {
+pub(in crate::hir::lower) fn delegate_class_fqn_from_expr(
+    delegate_expr: &ast::Expr,
+) -> Option<String> {
     let ast::ExprKind::Call { callee, .. } = &delegate_expr.kind else {
         return None;
     };
@@ -432,7 +438,10 @@ pub(in crate::hir::lower) fn collect_delegated_properties_in_object_decl<'a>(
     }
 }
 
-pub(in crate::hir::lower) fn collect_extern_funs(source: &SourceFile, file: &ast::File) -> ExternFunIndex {
+pub(in crate::hir::lower) fn collect_extern_funs(
+    source: &SourceFile,
+    file: &ast::File,
+) -> ExternFunIndex {
     let pkg_prefix = package_prefix(source, file.package.as_ref());
     let mut out: ExternFunIndex = HashMap::new();
 
@@ -525,7 +534,10 @@ pub(in crate::hir::lower) fn parse_extern_annotation_args(
     out
 }
 
-pub(in crate::hir::lower) fn extern_fun_of_decl(source: &SourceFile, fun: &ast::FunDecl) -> Option<ExternFun> {
+pub(in crate::hir::lower) fn extern_fun_of_decl(
+    source: &SourceFile,
+    fun: &ast::FunDecl,
+) -> Option<ExternFun> {
     // 说明：
     // - `@Extern` 在语义上由 typecheck 校验（参数个数/类型等）；
     // - HIR lowering 只做“提取已校验信息”的 best-effort，避免把错误传播面扩到 HIR/LLVM 层。
@@ -569,7 +581,9 @@ pub(in crate::hir::lower) fn extern_annotation_symbol(
     Some(args.name.unwrap_or_else(|| default_name.to_string()))
 }
 
-pub(in crate::hir::lower) fn collect_extern_libs(pairs: &[(&SourceFile, &ast::File)]) -> Vec<String> {
+pub(in crate::hir::lower) fn collect_extern_libs(
+    pairs: &[(&SourceFile, &ast::File)],
+) -> Vec<String> {
     let mut libs: HashSet<String> = HashSet::new();
 
     for (source, file) in pairs {
@@ -581,7 +595,11 @@ pub(in crate::hir::lower) fn collect_extern_libs(pairs: &[(&SourceFile, &ast::Fi
     out
 }
 
-pub(in crate::hir::lower) fn collect_extern_libs_in_file(source: &SourceFile, file: &ast::File, out: &mut HashSet<String>) {
+pub(in crate::hir::lower) fn collect_extern_libs_in_file(
+    source: &SourceFile,
+    file: &ast::File,
+    out: &mut HashSet<String>,
+) {
     for item in &file.items {
         match item {
             ast::Item::TypeAlias(ta) => {
@@ -696,7 +714,10 @@ pub(in crate::hir::lower) fn collect_extern_libs_in_annotations(
     }
 }
 
-pub(in crate::hir::lower) fn is_builtin_extern_annotation(source: &SourceFile, ann: &ast::AnnotationUse) -> bool {
+pub(in crate::hir::lower) fn is_builtin_extern_annotation(
+    source: &SourceFile,
+    ann: &ast::AnnotationUse,
+) -> bool {
     let segs = ann
         .path
         .iter()
@@ -705,7 +726,10 @@ pub(in crate::hir::lower) fn is_builtin_extern_annotation(source: &SourceFile, a
     matches!(segs.as_slice(), ["Extern"] | ["scoop", "core", "Extern"])
 }
 
-pub(in crate::hir::lower) fn is_builtin_calling_convention_annotation(source: &SourceFile, ann: &ast::AnnotationUse) -> bool {
+pub(in crate::hir::lower) fn is_builtin_calling_convention_annotation(
+    source: &SourceFile,
+    ann: &ast::AnnotationUse,
+) -> bool {
     let segs = ann
         .path
         .iter()
@@ -785,7 +809,10 @@ pub(in crate::hir::lower) fn extract_struct_clayout(
     Some(parse_clayout_annotation_args(source, ann))
 }
 
-pub(in crate::hir::lower) fn parse_clayout_annotation_args(source: &SourceFile, ann: &ast::AnnotationUse) -> StructCLayout {
+pub(in crate::hir::lower) fn parse_clayout_annotation_args(
+    source: &SourceFile,
+    ann: &ast::AnnotationUse,
+) -> StructCLayout {
     // 说明：
     // - HIR lowering（dump/fixtures）不运行完整 typecheck，因此这里按 best-effort 解析；
     // - 实参的合法性与 GC-free 约束由 typecheck 阶段负责；

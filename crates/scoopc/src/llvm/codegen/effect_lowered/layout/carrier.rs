@@ -17,10 +17,8 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             (StepSchemaId, crate::mir::SiteId),
             DynamicInvokeLayout<'ctx>,
         >,
-    ) -> Result<
-        HashMap<(CallableCarrierKind, String), CallableCarrierTargetLayout>,
-        LlvmEmitError,
-    > {
+    ) -> Result<HashMap<(CallableCarrierKind, String), CallableCarrierTargetLayout>, LlvmEmitError>
+    {
         let published_callable_roots = self
             .program
             .callables()
@@ -209,9 +207,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
         let mut targets = HashMap::<(CallableCarrierKind, String), StepSchemaId>::new();
         for layout in dynamic_invoke_layouts.values() {
             let kind = match layout.carrier() {
-                DynamicInvokeCarrierLayout::VirtualReceiver(_) => {
-                    CallableCarrierKind::ClassVtable
-                }
+                DynamicInvokeCarrierLayout::VirtualReceiver(_) => CallableCarrierKind::ClassVtable,
                 DynamicInvokeCarrierLayout::InterfaceReceiver(_) => {
                     CallableCarrierKind::InterfaceItable
                 }
@@ -241,10 +237,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
         callable_fqn: &str,
         callable_layouts: &BTreeMap<StepSchemaId, CallableLayout<'ctx>>,
         step_layouts: &BTreeMap<StepSchemaId, StepLayout<'ctx>>,
-        carrier_layouts: &mut HashMap<
-            (CallableCarrierKind, String),
-            CallableCarrierTargetLayout,
-        >,
+        carrier_layouts: &mut HashMap<(CallableCarrierKind, String), CallableCarrierTargetLayout>,
     ) -> Result<(), LlvmEmitError> {
         let callable_layout = self.callable_layout_for_carrier_target(
             callable_layouts,
@@ -293,10 +286,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
         return_step_schema: Option<StepSchemaId>,
         callable_layouts: &BTreeMap<StepSchemaId, CallableLayout<'ctx>>,
         step_layouts: &BTreeMap<StepSchemaId, StepLayout<'ctx>>,
-        carrier_layouts: &mut HashMap<
-            (CallableCarrierKind, String),
-            CallableCarrierTargetLayout,
-        >,
+        carrier_layouts: &mut HashMap<(CallableCarrierKind, String), CallableCarrierTargetLayout>,
     ) -> Result<(), LlvmEmitError> {
         let callable_layout =
             self.callable_layout_for_carrier_target(callable_layouts, kind, impl_fqn)?;
@@ -357,10 +347,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
         callable_layout: &CallableLayout<'ctx>,
         return_step_schema: StepSchemaId,
         symbol_name: &str,
-        carrier_layouts: &mut HashMap<
-            (CallableCarrierKind, String),
-            CallableCarrierTargetLayout,
-        >,
+        carrier_layouts: &mut HashMap<(CallableCarrierKind, String), CallableCarrierTargetLayout>,
     ) -> Result<(), LlvmEmitError> {
         self.codegen
             .register_callable_carrier_entry_symbol(kind, callable_fqn, symbol_name)?;

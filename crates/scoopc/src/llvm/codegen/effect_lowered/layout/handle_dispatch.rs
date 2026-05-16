@@ -122,10 +122,8 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             ContinuationSchemaId,
             ContinuationSurfaceResumeLayout<'ctx>,
         >,
-    ) -> Result<
-        BTreeMap<(StepSchemaId, crate::mir::SiteId), HandleDispatchLayout>,
-        LlvmEmitError,
-    > {
+    ) -> Result<BTreeMap<(StepSchemaId, crate::mir::SiteId), HandleDispatchLayout>, LlvmEmitError>
+    {
         let mut layouts = BTreeMap::new();
         for callable in self.program.callables() {
             if !callable.has_control_body() {

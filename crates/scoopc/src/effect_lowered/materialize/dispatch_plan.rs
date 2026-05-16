@@ -4,7 +4,6 @@
 
 use super::*;
 
-
 pub(crate) fn collect_result_locals(body: &Body) -> BoundaryResultLocals {
     let mut call_results = HashMap::new();
     for block in &body.blocks {
@@ -523,4 +522,3 @@ pub(crate) fn is_runtime_error_raise_case(case: &LateLoweredStepCase, types: &Ty
             .iter()
             .any(|&ty| types.display(ty).to_string() == "scoop.core.RuntimeError")
 }
-

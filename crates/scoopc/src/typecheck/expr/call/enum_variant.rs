@@ -460,4 +460,3 @@ pub(in crate::typecheck) fn lower_type_ref_with_enum_subst(
         }
     })
 }
-

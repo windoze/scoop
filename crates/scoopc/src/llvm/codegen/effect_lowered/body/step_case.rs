@@ -32,12 +32,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .build_alloca(step_layout.llvm_ty(), "step_tmp")?;
         self.builder
             .build_store(step_ptr, step_layout.llvm_ty().const_zero())?;
-        let tag_ptr = self.builder.build_struct_gep(
-            step_layout.llvm_ty(),
-            step_ptr,
-            0,
-            "step_tag_gep",
-        )?;
+        let tag_ptr =
+            self.builder
+                .build_struct_gep(step_layout.llvm_ty(), step_ptr, 0, "step_tag_gep")?;
         self.builder.build_store(
             tag_ptr,
             self.context.i32_type().const_int(u64::from(tag), false),
@@ -86,24 +83,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
             payload_value = self
                 .builder
-                .build_insert_value(
-                    payload_value,
-                    payload,
-                    next_field,
-                    "step_payload_insert",
-                )?
+                .build_insert_value(payload_value, payload, next_field, "step_payload_insert")?
                 .into_struct_value();
             next_field += 1;
         }
         if let Some(continuation) = continuation {
             payload_value = self
                 .builder
-                .build_insert_value(
-                    payload_value,
-                    continuation,
-                    next_field,
-                    "step_cont_insert",
-                )?
+                .build_insert_value(payload_value, continuation, next_field, "step_cont_insert")?
                 .into_struct_value();
         }
         self.builder.build_store(payload_ptr, payload_value)?;
@@ -118,9 +105,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         step: BasicValueEnum<'ctx>,
     ) -> Result<IntValue<'ctx>, LlvmEmitError> {
         let BasicValueEnum::StructValue(step) = step else {
-            return Err(frontend_error(
-                "Step value 不是 struct".to_string(),
-            ));
+            return Err(frontend_error("Step value 不是 struct".to_string()));
         };
         Ok(self
             .builder
@@ -135,8 +120,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         variant: &StepVariantLayout<'ctx>,
         name: &str,
     ) -> Result<Option<BasicValueEnum<'ctx>>, LlvmEmitError> {
-        let (payload, _) =
-            self.extract_step_payload_struct(step_layout, step, variant, name)?;
+        let (payload, _) = self.extract_step_payload_struct(step_layout, step, variant, name)?;
         if variant.payload_is_elided() {
             return Ok(None);
         }

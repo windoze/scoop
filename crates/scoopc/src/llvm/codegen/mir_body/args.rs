@@ -180,11 +180,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             let merge_bb = self
                 .context
                 .append_basic_block(current_fn, "lowered_class_ctor_merge");
-            let is_propagating = self.effect_outcome_is_propagating(
-                span,
-                outcome_ptr,
-                "lowered_class_ctor_effect",
-            )?;
+            let is_propagating =
+                self.effect_outcome_is_propagating(span, outcome_ptr, "lowered_class_ctor_effect")?;
             self.builder
                 .build_conditional_branch(is_propagating, active_bb, inactive_bb)?;
 

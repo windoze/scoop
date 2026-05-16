@@ -133,16 +133,14 @@ fun main(): Int {
     assert!(
         ir.contains("= type { { ptr addrspace(1), i64 }, ptr addrspace(1) }")
             && ir.contains("insertvalue { ptr addrspace(1), i64 } undef")
-            && ir
-                .contains("insertvalue { ptr addrspace(1), i64 } %perform_payload_field0"),
+            && ir.contains("insertvalue { ptr addrspace(1), i64 } %perform_payload_field0"),
         "multi-payload perform 应以内联 tuple payload 发布 Step case，而不是丢参或回旧 boxing ABI\n{ir}"
     );
     assert!(
-        ir.contains(
-            "extractvalue { ptr addrspace(1), i64 } %boundary_case_payload_payload, 0"
-        ) && ir.contains(
-            "extractvalue { ptr addrspace(1), i64 } %boundary_case_payload_payload, 1"
-        ),
+        ir.contains("extractvalue { ptr addrspace(1), i64 } %boundary_case_payload_payload, 0")
+            && ir.contains(
+                "extractvalue { ptr addrspace(1), i64 } %boundary_case_payload_payload, 1"
+            ),
         "handler binder lowering 应继续按 tuple payload 的两个字段读取 binder，而不是退回单值 transport\n{ir}"
     );
 }
@@ -333,8 +331,7 @@ fun main(): Int {
     assert!(
         ir.contains("= type { { ptr addrspace(1), i64 }, ptr addrspace(1) }")
             && ir.contains("insertvalue { ptr addrspace(1), i64 } undef")
-            && ir
-                .contains("insertvalue { ptr addrspace(1), i64 } %perform_payload_field0"),
+            && ir.contains("insertvalue { ptr addrspace(1), i64 } %perform_payload_field0"),
         "state-machine multi-payload perform 应以内联 tuple payload 穿过 handle arm，而不是退回旧 boxing ABI\n{ir}"
     );
     assert!(
@@ -392,14 +389,11 @@ pub(super) fn continuation_resume_driver_reloads_state_ref_from_explicit_frame_b
 
     assert!(
         window.contains("load volatile ptr addrspace(1), ptr %explicit_root_frame_slot_8")
-            && window.contains(
-                "call void %cont_step_fn(ptr addrspace(1) %frame_root_reload"
-            ),
+            && window.contains("call void %cont_step_fn(ptr addrspace(1) %frame_root_reload"),
         "continuation resume driver should reload state_ref from explicit-frame home slot before calling cont_step\n{window}"
     );
     assert!(
-        !window
-            .contains("call void %cont_step_fn(ptr addrspace(1) %load_frame_gc"),
+        !window.contains("call void %cont_step_fn(ptr addrspace(1) %load_frame_gc"),
         "continuation resume driver must not reuse stale pre-safepoint state_ref SSA at cont_step call site\n{window}"
     );
 }
@@ -487,8 +481,7 @@ pub(super) fn composed_continuation_resume_reconstructs_step_from_internal_outco
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
 
     assert!(
-        ir.contains("surface_resume_outcome")
-            && ir.contains("composed_resume_outcome_phi"),
+        ir.contains("surface_resume_outcome") && ir.contains("composed_resume_outcome_phi"),
         "composed call-boundary resume 应先调用 internal outcome surface，再由 caller 侧重建 Step dispatch\n{ir}"
     );
     assert!(
@@ -758,8 +751,7 @@ fun main(): Int {
     });
 
     assert!(
-        entry_ir.contains("call %scoop.lowered.Step")
-            && entry_ir.contains("switch i32 %step_tag"),
+        entry_ir.contains("call %scoop.lowered.Step") && entry_ir.contains("switch i32 %step_tag"),
         "ordinary direct outward-effect call 应改走 Step boundary，并按 step tag dispatch:\n{entry_ir}"
     );
     assert!(

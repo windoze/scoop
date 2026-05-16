@@ -250,8 +250,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let saved_block = self.builder.get_insert_block();
 
         let mut bridge_codegen = self.fresh_child_codegen();
-        bridge_codegen
-            .codegen_top_level_immutable_value_init_bridge_body(value, llvm_fun)?;
+        bridge_codegen.codegen_top_level_immutable_value_init_bridge_body(value, llvm_fun)?;
 
         if let Some(bb) = saved_block {
             self.builder.position_at_end(bb);

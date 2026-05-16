@@ -4,7 +4,6 @@
 
 use super::*;
 
-
 /// 为参数化名义类型构造 mangled FQN（用作 struct_layouts/enum_layouts 的 key）。
 ///
 /// 规则：
@@ -26,7 +25,10 @@ pub fn mangle_nominal_fqn(fqn: &str, args: &[crate::ty::TypeId], types: &TypeSto
 ///
 /// 用途：为泛型 struct/enum 的字段类型生成 `StructFieldLayout.ty_fqn` / `EnumVariantFieldLayout.ty_fqn`。
 /// 返回 `None` 表示无法确定（例如未知类型或未支持的类型类别）。
-pub(in crate::hir::lower) fn type_id_to_layout_fqn(types: &TypeStore, ty: crate::ty::TypeId) -> Option<String> {
+pub(in crate::hir::lower) fn type_id_to_layout_fqn(
+    types: &TypeStore,
+    ty: crate::ty::TypeId,
+) -> Option<String> {
     match types.kind(ty) {
         TypeKind::Value(ValueTypeKind::Unit) => Some("scoop.core.Unit".to_string()),
         TypeKind::Value(ValueTypeKind::Bool) => Some("scoop.core.Bool".to_string()),
@@ -76,7 +78,10 @@ pub(in crate::hir::lower) fn builtin_layout_alias_type_id(
     }
 }
 
-pub(in crate::hir::lower) fn find_layout_type_id_by_key(types: &TypeStore, layout_key: &str) -> Option<crate::ty::TypeId> {
+pub(in crate::hir::lower) fn find_layout_type_id_by_key(
+    types: &TypeStore,
+    layout_key: &str,
+) -> Option<crate::ty::TypeId> {
     types
         .iter_ids()
         .find(|id| type_id_to_layout_fqn(types, *id).as_deref() == Some(layout_key))
@@ -854,4 +859,3 @@ pub(in crate::hir::lower) fn collect_generic_class_decls_in_items<'a>(
         }
     }
 }
-

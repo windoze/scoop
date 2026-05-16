@@ -5,8 +5,11 @@
 use super::*;
 
 impl<'a> FnLowering<'a> {
-
-    pub(in crate::mir::lower) fn call_result_ty_from_callee(&self, span: Span, callee: &hir::Expr) -> Option<TypeId> {
+    pub(in crate::mir::lower) fn call_result_ty_from_callee(
+        &self,
+        span: Span,
+        callee: &hir::Expr,
+    ) -> Option<TypeId> {
         if let Some(binding) = self
             .facts
             .top_level_fun_call_binding(self.source_path.as_path(), span)
@@ -244,7 +247,12 @@ impl<'a> FnLowering<'a> {
     /// - body 与 arm 正常完成后显式写回结果并跳向 `finally`/`exit_target`；
     /// - `finally` 自身作为 cleanup block 存在，`return` / `break` / `continue` 通过 cleanup chain
     ///   穿过它，而不是把这些续点留成 `Todo(...)`。
-    pub(in crate::mir::lower) fn lower_handle_expr(&mut self, span: Span, ty: TypeId, handle: &hir::HandleExpr) -> LocalId {
+    pub(in crate::mir::lower) fn lower_handle_expr(
+        &mut self,
+        span: Span,
+        ty: TypeId,
+        handle: &hir::HandleExpr,
+    ) -> LocalId {
         let outer_bb = self.current_bb;
 
         let result = self.push_temp_local(span, ty);
@@ -434,7 +442,11 @@ impl<'a> FnLowering<'a> {
         )
     }
 
-    pub(in crate::mir::lower) fn allocate_handle_arm_locals(&mut self, arm: &hir::HandleArm, lowered_arm: &mut HandlerArm) {
+    pub(in crate::mir::lower) fn allocate_handle_arm_locals(
+        &mut self,
+        arm: &hir::HandleArm,
+        lowered_arm: &mut HandlerArm,
+    ) {
         lowered_arm.binder_locals = arm
             .op
             .binders
@@ -618,7 +630,12 @@ impl<'a> FnLowering<'a> {
     }
 
     /// 降低字面量：把常量写入一个临时 local。
-    pub(in crate::mir::lower) fn lower_literal(&mut self, span: Span, ty: TypeId, lit: &hir::LiteralKind) -> LocalId {
+    pub(in crate::mir::lower) fn lower_literal(
+        &mut self,
+        span: Span,
+        ty: TypeId,
+        lit: &hir::LiteralKind,
+    ) -> LocalId {
         let tmp = self.push_temp_local(span, ty);
         let c = match lit {
             hir::LiteralKind::Bool(b) => ConstValue::Bool(*b),
@@ -758,7 +775,12 @@ impl<'a> FnLowering<'a> {
     /// - 普通 local：直接返回其 local；
     /// - 被 capture 的 `var`（box 存储）：生成 `CaptureBoxGet` 并返回读取到的临时值 local；
     /// - 其它引用：降为 `Todo`。
-    pub(in crate::mir::lower) fn lower_var_ref(&mut self, span: Span, ty: TypeId, v: &hir::ValueRef) -> LocalId {
+    pub(in crate::mir::lower) fn lower_var_ref(
+        &mut self,
+        span: Span,
+        ty: TypeId,
+        v: &hir::ValueRef,
+    ) -> LocalId {
         match v {
             hir::ValueRef::Local { id, name, .. } => {
                 let local = match self.symbol_locals.get(id).copied() {
@@ -1073,7 +1095,11 @@ impl<'a> FnLowering<'a> {
         result
     }
 
-    pub(in crate::mir::lower) fn lower_pattern(&self, pat: &hir::WhenPat, subject_ty: TypeId) -> Pattern {
+    pub(in crate::mir::lower) fn lower_pattern(
+        &self,
+        pat: &hir::WhenPat,
+        subject_ty: TypeId,
+    ) -> Pattern {
         match pat {
             hir::WhenPat::Else { .. } => Pattern::Else,
             hir::WhenPat::Or { pats, .. } => Pattern::Or {
@@ -1121,7 +1147,11 @@ impl<'a> FnLowering<'a> {
         }
     }
 
-    pub(in crate::mir::lower) fn tuple_pattern_element_ty(&self, subject_ty: TypeId, index: usize) -> TypeId {
+    pub(in crate::mir::lower) fn tuple_pattern_element_ty(
+        &self,
+        subject_ty: TypeId,
+        index: usize,
+    ) -> TypeId {
         match self.types.kind(subject_ty) {
             TypeKind::Value(ValueTypeKind::Tuple(elements)) => {
                 elements.get(index).copied().unwrap_or(self.builtins.any)
@@ -1217,7 +1247,10 @@ impl<'a> FnLowering<'a> {
         shadowed
     }
 
-    pub(in crate::mir::lower) fn restore_shadowed_symbols(&mut self, shadowed: Vec<(hir::SymbolId, Option<LocalId>)>) {
+    pub(in crate::mir::lower) fn restore_shadowed_symbols(
+        &mut self,
+        shadowed: Vec<(hir::SymbolId, Option<LocalId>)>,
+    ) {
         for (id, previous) in shadowed.into_iter().rev() {
             match previous {
                 Some(local) => {

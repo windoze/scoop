@@ -1570,10 +1570,7 @@ fun main(): Int {
 
     #[test]
     fn llvm_value_boxing_transport() {
-        let ir = emit_ir_for_source(
-            value_boxing_transport_source(),
-            "value_boxing_transport.ll",
-        );
+        let ir = emit_ir_for_source(value_boxing_transport_source(), "value_boxing_transport.ll");
 
         let composite_descriptor = ir_global_definition_matching(
             &ir,
@@ -1610,10 +1607,7 @@ fun main(): Int {
 
     #[test]
     fn llvm_enum_payload_transport() {
-        let ir = emit_ir_for_source(
-            enum_payload_transport_source(),
-            "enum_payload_transport.ll",
-        );
+        let ir = emit_ir_for_source(enum_payload_transport_source(), "enum_payload_transport.ll");
 
         let payload_descriptor =
             ir_global_definition_matching(&ir, "enum payload layout descriptor global", |line| {
@@ -1691,8 +1685,7 @@ fun main(): Int {
 
     #[test]
     fn llvm_closure_env_transport() {
-        let ir =
-            emit_ir_for_source(closure_env_transport_source(), "closure_env_transport.ll");
+        let ir = emit_ir_for_source(closure_env_transport_source(), "closure_env_transport.ll");
 
         let closure_env_descriptor = ir_global_definition_matching(
             &ir,
@@ -1864,12 +1857,8 @@ fun main(): Int {
 
     #[test]
     fn llvm_main_wrapper_passes_array_string_argv_to_plain_entry() {
-        let ir = emit_ir_for_source_with_entry(
-            array_string_main_source(),
-            "main_argv.ll",
-            None,
-        )
-        .expect("argv ABI should lower through the plain entry ABI");
+        let ir = emit_ir_for_source_with_entry(array_string_main_source(), "main_argv.ll", None)
+            .expect("argv ABI should lower through the plain entry ABI");
         let main = ir_function_body(&ir, "define i32 @main(");
         let main_defined_calls = ir_function_defined_call_targets(&ir, &main);
         assert_eq!(
@@ -2335,24 +2324,18 @@ fun main(): Int {
             source_text,
         );
 
-        let user_abi_a = emit_object_external_symbols_for_source_with_entry(
-            source_a,
-            "collision_alpha.o",
-            None,
-        )
-        .expect("alpha virtual cone 应可成功发 object")
-        .into_iter()
-        .filter(|symbol| symbol.starts_with("__scoop_abi0_fun__sample_helper__h"))
-        .collect::<BTreeSet<_>>();
-        let user_abi_b = emit_object_external_symbols_for_source_with_entry(
-            source_b,
-            "collision_beta.o",
-            None,
-        )
-        .expect("beta virtual cone 应可成功发 object")
-        .into_iter()
-        .filter(|symbol| symbol.starts_with("__scoop_abi0_fun__sample_helper__h"))
-        .collect::<BTreeSet<_>>();
+        let user_abi_a =
+            emit_object_external_symbols_for_source_with_entry(source_a, "collision_alpha.o", None)
+                .expect("alpha virtual cone 应可成功发 object")
+                .into_iter()
+                .filter(|symbol| symbol.starts_with("__scoop_abi0_fun__sample_helper__h"))
+                .collect::<BTreeSet<_>>();
+        let user_abi_b =
+            emit_object_external_symbols_for_source_with_entry(source_b, "collision_beta.o", None)
+                .expect("beta virtual cone 应可成功发 object")
+                .into_iter()
+                .filter(|symbol| symbol.starts_with("__scoop_abi0_fun__sample_helper__h"))
+                .collect::<BTreeSet<_>>();
 
         assert_eq!(
             user_abi_a.len(),

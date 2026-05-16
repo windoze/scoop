@@ -357,8 +357,7 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
         callee_continuation: Option<PointerValue<'ctx>>,
         composition: Option<&LateLoweredCallBoundaryContinuationComposition>,
     ) -> Result<(), LlvmEmitError> {
-        let continuation_effect_ctx =
-            self.load_current_effect_ctx("handle_resume_effect_ctx")?;
+        let continuation_effect_ctx = self.load_current_effect_ctx("handle_resume_effect_ctx")?;
         let continuation_effect_ctx_root_slot = self.capture_gc_pointer_root_slot(
             continuation_effect_ctx,
             "handle_resume_effect_ctx_root",
@@ -456,10 +455,8 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
                 )?;
                 self.create_continuation_object(boundary.resume_state(), case_tag, None, None)?
             };
-            let continuation_root_slot = self.capture_gc_pointer_root_slot(
-                continuation,
-                "handle_continuation_binder_root",
-            )?;
+            let continuation_root_slot =
+                self.capture_gc_pointer_root_slot(continuation, "handle_continuation_binder_root")?;
             let arm_ctx = self.reload_gc_pointer_from_root_slot(
                 arm_ctx_root_slot,
                 "handle_arm_effect_ctx_root",
@@ -480,10 +477,7 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
             continuation_effect_ctx_root_slot,
             "handle_resume_effect_ctx_root_clear",
         )?;
-        self.clear_root_gc_slot(
-            arm_ctx_root_slot,
-            "handle_arm_effect_ctx_root_clear",
-        )?;
+        self.clear_root_gc_slot(arm_ctx_root_slot, "handle_arm_effect_ctx_root_clear")?;
 
         let payload = if let Some(deferred_payload) = deferred_payload {
             self.codegen
@@ -592,10 +586,10 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
         self.codegen.builder.build_unconditional_branch(loop_bb)?;
 
         self.codegen.builder.position_at_end(loop_bb);
-        let node_phi = self.codegen.builder.build_phi(
-            self.codegen.llvm_gc_i8_ptr_type(),
-            "handle_dispatch_node",
-        )?;
+        let node_phi = self
+            .codegen
+            .builder
+            .build_phi(self.codegen.llvm_gc_i8_ptr_type(), "handle_dispatch_node")?;
         node_phi.add_incoming(&[(&handler_top, dispatch_entry_bb)]);
         let node_gc = node_phi.as_basic_value().into_pointer_value();
         let is_null = self
@@ -607,8 +601,8 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
             .build_conditional_branch(is_null, no_match_bb, scan_bb)?;
 
         self.codegen.builder.position_at_end(scan_bb);
-        let node_ptr = self
-            .cast_gc_ref_to_effect_handler_node_ptr(node_gc, "handle_dispatch_node_ptr")?;
+        let node_ptr =
+            self.cast_gc_ref_to_effect_handler_node_ptr(node_gc, "handle_dispatch_node_ptr")?;
         let node_flags = self
             .codegen
             .load_effect_handler_flags(node_ptr, "handle_dispatch_flags")?;
@@ -760,9 +754,7 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
         self.sync_frame_slots_from_locals()?;
         let routed_action = self.handle_boundary_action(boundary.boundary_id(), case_tag)?;
         let skip_finalized_site =
-            if let Some(HandleBoundaryRuntimeAction::PendingCompletion(action)) =
-                &routed_action
-            {
+            if let Some(HandleBoundaryRuntimeAction::PendingCompletion(action)) = &routed_action {
                 self.composed_resume_already_ran_handle_finally(action, composition)?
                     .then_some(action.site_id)
             } else {
@@ -882,9 +874,7 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
                     )?
                     .value
                     .ok_or_else(|| {
-                        frontend_error(
-                            "outward callee continuation reload 缺少值".to_string(),
-                        )
+                        frontend_error("outward callee continuation reload 缺少值".to_string())
                     })?
                     .into_pointer_value(),
             )

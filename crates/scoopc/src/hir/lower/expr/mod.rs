@@ -271,7 +271,6 @@ fn const_value_splice_field_name(value: &crate::comptime::ConstValue) -> Option<
     }
 }
 
-
 mod canonical_call;
 mod main_lower;
 mod members;

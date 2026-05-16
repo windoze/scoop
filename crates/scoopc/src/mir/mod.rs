@@ -255,25 +255,24 @@ impl File {
             return Ok(());
         };
 
-        body.validate_direct_style()
-            .map_err(|error| match error {
-                MirValidationError::Todo {
-                    block,
-                    span,
-                    category,
-                    reason,
-                } => MirValidationError::ProductionTodo {
-                    fqn: fun.fqn.clone(),
-                    block: Some(block),
-                    span,
-                    category,
-                    reason,
-                },
-                other => MirValidationError::ProductionBodyContract {
-                    fqn: fun.fqn.clone(),
-                    error: Box::new(other),
-                },
-            })?;
+        body.validate_direct_style().map_err(|error| match error {
+            MirValidationError::Todo {
+                block,
+                span,
+                category,
+                reason,
+            } => MirValidationError::ProductionTodo {
+                fqn: fun.fqn.clone(),
+                block: Some(block),
+                span,
+                category,
+                reason,
+            },
+            other => MirValidationError::ProductionBodyContract {
+                fqn: fun.fqn.clone(),
+                error: Box::new(other),
+            },
+        })?;
 
         for (index, block) in body.blocks.iter().enumerate() {
             let block_id = BasicBlockId(index as u32);
@@ -304,9 +303,7 @@ impl File {
         match &stmt.kind {
             StatementKind::Assign { target, value } => {
                 let result_ty = Self::local_ty(body, *target);
-                self.validate_production_rvalue(
-                    fqn, body, block, stmt.span, result_ty, value,
-                )
+                self.validate_production_rvalue(fqn, body, block, stmt.span, result_ty, value)
             }
             StatementKind::StoreMember {
                 continuation_route: StoredContinuationRoutePublication::Ambiguous,
@@ -798,12 +795,7 @@ impl File {
             });
         }
 
-        self.validate_value_transport(
-            site,
-            "cross-thread resume payload",
-            expected_ty,
-            payload,
-        )
+        self.validate_value_transport(site, "cross-thread resume payload", expected_ty, payload)
     }
 
     fn validate_aggregate_transport(
@@ -855,12 +847,7 @@ impl File {
             });
         }
         for field in &metadata.fields {
-            self.validate_value_transport(
-                site,
-                transport,
-                Some(field.ty),
-                &field.transport,
-            )?;
+            self.validate_value_transport(site, transport, Some(field.ty), &field.transport)?;
         }
         Ok(())
     }
@@ -1158,8 +1145,7 @@ impl File {
             .iter()
             .zip(args.iter())
             .any(|(transport, arg)| {
-                Self::operand_ty(body, &arg.value)
-                    .is_some_and(|ty| transport.source_ty != ty)
+                Self::operand_ty(body, &arg.value).is_some_and(|ty| transport.source_ty != ty)
             })
         {
             Some("perform payload transport type does not match lowered payload value")
@@ -1184,12 +1170,7 @@ impl File {
             .iter()
             .zip(metadata.payload_component_tys.iter().copied())
         {
-            self.validate_value_transport(
-                site,
-                "perform payload",
-                Some(component_ty),
-                transport,
-            )?;
+            self.validate_value_transport(site, "perform payload", Some(component_ty), transport)?;
         }
 
         Ok(())
@@ -1691,16 +1672,8 @@ impl Body {
                 }
             }
 
-            self.validate_unwind(
-                block_id,
-                block.terminator.span,
-                &block.terminator.unwind,
-            )?;
-            self.validate_terminator(
-                block_id,
-                block.terminator.span,
-                &block.terminator.kind,
-            )?;
+            self.validate_unwind(block_id, block.terminator.span, &block.terminator.unwind)?;
+            self.validate_terminator(block_id, block.terminator.span, &block.terminator.kind)?;
             if let Some(site_id) = block.terminator.kind.site_id()
                 && let Some(first_block) = seen_site_ids.insert(site_id, block_id)
             {
@@ -1722,9 +1695,7 @@ impl Body {
     ) -> Result<(), MirValidationError> {
         match &stmt.kind {
             StatementKind::Nop => Ok(()),
-            StatementKind::Assign { value, .. } => {
-                self.validate_rvalue(block, stmt.span, value)
-            }
+            StatementKind::Assign { value, .. } => self.validate_rvalue(block, stmt.span, value),
             StatementKind::StoreMember { .. } | StatementKind::StoreTopLevelVar { .. } => Ok(()),
             StatementKind::Todo(reason) => {
                 if is_forbidden_effect_todo(reason) {
@@ -2828,18 +2799,14 @@ pub enum MirValidationError {
         target: BasicBlockId,
         blocks_len: usize,
     },
-    #[error(
-        "MIR still contains forbidden {category} todo `{reason}` in {block:?} at {span:?}"
-    )]
+    #[error("MIR still contains forbidden {category} todo `{reason}` in {block:?} at {span:?}")]
     Todo {
         block: BasicBlockId,
         span: Span,
         category: MirPlaceholderCategory,
         reason: &'static str,
     },
-    #[error(
-        "production MIR `{fqn}` contains {category} todo `{reason}` in {block:?} at {span:?}"
-    )]
+    #[error("production MIR `{fqn}` contains {category} todo `{reason}` in {block:?} at {span:?}")]
     ProductionTodo {
         fqn: String,
         block: Option<BasicBlockId>,

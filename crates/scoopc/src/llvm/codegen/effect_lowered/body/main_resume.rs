@@ -107,9 +107,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
         if targets.len() == 1 {
             let trampoline_fun = self.function(targets[0].symbol_name())?;
-            let call =
-                self.builder
-                    .build_call(trampoline_fun, &args, "surface_resume_call")?;
+            let call = self
+                .builder
+                .build_call(trampoline_fun, &args, "surface_resume_call")?;
             let owner_step = call.try_as_basic_value().basic().ok_or_else(|| {
                 frontend_error(format!(
                     "surface resume `{}` 调用 owner dispatch 未返回 Step_F",
@@ -177,11 +177,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
             self.builder.position_at_end(hit_bb);
             let trampoline_fun = self.function(target.symbol_name())?;
-            let call = self.builder.build_call(
-                trampoline_fun,
-                &args,
-                "surface_resume_owner_call",
-            )?;
+            let call =
+                self.builder
+                    .build_call(trampoline_fun, &args, "surface_resume_owner_call")?;
             let owner_step = call.try_as_basic_value().basic().ok_or_else(|| {
                 frontend_error(format!(
                     "surface resume `{}` 调用 owner dispatch `{}` 未返回 Step_F",
@@ -387,8 +385,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             outcome_ptr.into_pointer_value().into(),
         ];
         if targets.len() == 1 {
-            let callee =
-                self.continuation_drive_owner_outcome_function(surface, &targets[0]);
+            let callee = self.continuation_drive_owner_outcome_function(surface, &targets[0]);
             self.build_call_preserving_gc_local_roots(
                 crate::span::Span::new(0, 0),
                 callee,
@@ -1092,16 +1089,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .get_insert_block()
             .and_then(|bb| bb.get_parent())
             .ok_or_else(|| {
-                frontend_error(
-                    "body lowering 当前 builder 没有 active function".to_string(),
-                )
+                frontend_error("body lowering 当前 builder 没有 active function".to_string())
             })
     }
 
-    pub(super) fn function(
-        &self,
-        symbol_name: &str,
-    ) -> Result<FunctionValue<'ctx>, LlvmEmitError> {
+    pub(super) fn function(&self, symbol_name: &str) -> Result<FunctionValue<'ctx>, LlvmEmitError> {
         self.module.get_function(symbol_name).ok_or_else(|| {
             frontend_error(format!(
                 "body lowering 缺少已发布 function shell `{symbol_name}`"
@@ -1171,9 +1163,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.declare_compiler_private_helper_function(&symbol_name, llvm_ty, Linkage::Internal)
     }
 
-    pub(super) fn continuation_drive_outcome_llvm_ty(
-        &self,
-    ) -> inkwell::types::FunctionType<'ctx> {
+    pub(super) fn continuation_drive_outcome_llvm_ty(&self) -> inkwell::types::FunctionType<'ctx> {
         let params = [
             self.llvm_gc_i8_ptr_type().into(),
             self.context.i64_type().into(),

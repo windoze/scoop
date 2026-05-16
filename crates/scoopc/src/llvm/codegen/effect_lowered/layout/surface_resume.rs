@@ -117,10 +117,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             ContinuationSchemaId,
             ContinuationSurfaceResumeLayout<'ctx>,
         >,
-        continuation_layouts: &BTreeMap<
-            ContinuationObjectId,
-            ContinuationObjectLayout<'ctx>,
-        >,
+        continuation_layouts: &BTreeMap<ContinuationObjectId, ContinuationObjectLayout<'ctx>>,
         resume_packing_layouts: &BTreeMap<ResumeInterfaceId, ResumeInterfaceLayout<'ctx>>,
         callable_layouts: &BTreeMap<StepSchemaId, CallableLayout<'ctx>>,
         frame_layouts: &BTreeMap<StepSchemaId, FrameLayout<'ctx>>,
@@ -195,10 +192,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
         &self,
         entry: &LateLoweredSurfaceResumeDispatchInventoryEntry,
         surface_layout: &ContinuationSurfaceResumeLayout<'ctx>,
-        continuation_layouts: &BTreeMap<
-            ContinuationObjectId,
-            ContinuationObjectLayout<'ctx>,
-        >,
+        continuation_layouts: &BTreeMap<ContinuationObjectId, ContinuationObjectLayout<'ctx>>,
         resume_packing_layouts: &BTreeMap<ResumeInterfaceId, ResumeInterfaceLayout<'ctx>>,
     ) -> Result<Vec<ContinuationSurfaceResumeMethodLookup>, LlvmEmitError> {
         let mut candidates = BTreeSet::new();
@@ -380,8 +374,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
         callable_layouts: &BTreeMap<StepSchemaId, CallableLayout<'ctx>>,
         frame_layouts: &BTreeMap<StepSchemaId, FrameLayout<'ctx>>,
         method_targets: &[ContinuationSurfaceResumeMethodLookup],
-    ) -> Result<Vec<ContinuationSurfaceResumeOwnerTrampolineLayout<'ctx>>, LlvmEmitError>
-    {
+    ) -> Result<Vec<ContinuationSurfaceResumeOwnerTrampolineLayout<'ctx>>, LlvmEmitError> {
         let mut candidates = Vec::<SurfaceResumeOwnerTrampolineCandidate>::new();
 
         for lookup in method_targets {

@@ -4,7 +4,6 @@
 
 use super::*;
 
-
 pub(crate) fn materialize_step_and_resume_interfaces(
     effect_facts: &MaterializedEffectFacts,
 ) -> Result<StepMaterialization, EffectLoweringError> {
@@ -2040,7 +2039,10 @@ pub(crate) fn completion_payload_frame_slot(
     Ok(Some(slot_id))
 }
 
-pub(crate) fn invalid_completion_payload_contract(root_fqn: &str, detail: String) -> EffectLoweringError {
+pub(crate) fn invalid_completion_payload_contract(
+    root_fqn: &str,
+    detail: String,
+) -> EffectLoweringError {
     EffectLoweringError::InvalidCompletionPayloadContract {
         root_fqn: root_fqn.to_string(),
         detail,
