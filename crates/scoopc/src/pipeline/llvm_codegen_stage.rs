@@ -1673,9 +1673,14 @@ fun main(): Int {
             ir.contains("rt_alloc_pass_mir_closure_env"),
             "closure env heap object 应继续通过 typed alloc 发布 descriptor-backed runtime object，而不是锁死当前 closure-env descriptor symbol\n{ir}"
         );
+        let legacy_heap_alloc_marker = ["rt_alloc_pass_mir_", "capture", "_", "box"].concat();
+        let legacy_descriptor_marker = ["Mir", "Capture", "Box"].concat();
+        let legacy_snake_marker = ["capture", "_", "box"].concat();
         assert!(
-            !ir.contains("capture_box") && !ir.contains("MirCaptureBox"),
-            "closure capture lowering should not emit CaptureBox allocation/type descriptors\n{ir}"
+            !ir.contains(&legacy_heap_alloc_marker)
+                && !ir.contains(&legacy_descriptor_marker)
+                && !ir.contains(&legacy_snake_marker),
+            "closure capture lowering should not emit legacy mutable-capture allocation/type descriptors\n{ir}"
         );
         assert!(
             ir.contains("pass_mir_closure_env_field_gep"),

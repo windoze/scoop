@@ -1,4 +1,4 @@
-//! Callable / funptr value-args lowering, closure-env / capture-box type metadata.
+//! Callable / funptr value-args lowering and closure-env / value-box type metadata.
 
 #![allow(dead_code)]
 

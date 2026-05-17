@@ -1,39 +1,30 @@
-# Claude Execution Plan
+# Claude 执行计划
 
 本文件记录本次调用的可审计执行计划与进度更新。内容为行动计划与决策摘要，不包含私密推理链。
 
-## 当前目标
+## 范围
 
-- 以 `TODO.md` 为唯一任务顺序与完成状态来源。
-- 找到第一个标题未带 `[DONE]` 的任务。
-- 完整实现并验证该任务，更新 `TODO.md` 完成记录，提交 Git，然后停止。
+以 `TODO.md` 为任务顺序、需求、依赖、验证和完成状态的唯一来源，只完成第一个标题未带 `[DONE]` 的任务，提交后停止。
 
-## 初始步骤
+## 执行计划
 
-1. 读取 `TODO.md`，确认第一个未完成任务及其验证要求。
-2. 读取相关计划或上下文文件，仅限于理解当前任务所需内容。
-3. 检查最近提交是否明确提到与当前任务直接相关的未完成事项。
-4. 基于当前任务定位相关代码、测试和 fixtures。
-5. 实施最小且完整的代码或文档变更。
-6. 运行当前任务要求的验证命令；若发现阻塞性规格缺口，按要求更新 `TODO.md` 并停止。
-7. 将已完成任务标题加 `[DONE]` 并填写完成记录。
-8. 运行最终相关验证，检查工作区状态。
-9. 按任务编号提交所有相关变更。
+1. 先读取 `TODO.md`，确认第一个未完成任务。
+2. 只检查与当前任务直接相关的最近提交信息，不做开放式历史问题扫描。
+3. 审计当前任务列出的代码、测试和文档位置。
+4. 按任务要求实施最小且完整的修复，不引入 workaround、shim 或缩窄测试形态。
+5. 如遇到阻塞当前任务的真实规格缺口，则在 `TODO.md` 插入最小 prerequisite，保持当前任务未完成，提交后停止。
+6. 运行任务指定验证；若失败且与本任务相关，立即修复并重跑。
+7. 将完成的任务标题改为 `[DONE]`，填写完成记录。
+8. 仅在阶段级计划或依赖结构变化时更新 `PLAN.md`。
+9. 提交本任务相关全部变更。
+10. 不继续处理下一个任务。
 
 ## 进度日志
 
-- 已写入初始计划。下一步读取 `TODO.md` 确认当前任务。
-- 已确认第一个未完成任务为 `C2-T01C`：删除 MIR 分析、dump、materialize、effect facts 与 effect-lowered metadata/classification 中的 CaptureBox arm。
-- 已审计目标 source：`mir`、`effect_facts`、`effect_lowered` 中无 `CaptureBox`/`capture_box`/`mir_capture_box`/`__CaptureBox` 残留；仅修正 `mir/escape.rs` 的旧 capture-box 描述注释。
-- 已完成验证：`cargo build -p scoopc`、目标 `rg`、`cargo test -p scoopc mir -- --nocapture`、`cargo test -p scoopc effect_facts -- --nocapture`、`cargo clippy -p scoopc --all-targets -- -D warnings` 均通过。
-- 已将 `TODO.md` 中 `C2-T01C` 标记为 `[DONE]` 并填写完成记录。下一步检查 diff/status 后提交。
-
-## C2-T01C 执行计划
-
-1. 检查最近提交与工作区状态，确认是否存在与 `C2-T01C` 直接相关的未完成事项或用户改动。
-2. 定位 `TODO.md` 指定的 CaptureBox 命中点：`mir/closure_simplify.rs`、`escape.rs`、`inline.rs`、`summary.rs`、`dump.rs`、`mir/materialize/*`、`effect_facts/builder.rs`、`effect_lowered/{frame,segment,materialize/classification}.rs`。
-3. 删除仍存在的 CaptureBox 特例；若 C2-T01A/B 已提前删除部分代码，则以审计和残留清理为主。
-4. 保留普通 closure env transport 与 `MirBoxingReason::ClosureCapture` 逻辑，不误删 composite env boxing。
-5. 运行任务要求验证：`cargo build -p scoopc`、CaptureBox 搜索、`cargo test -p scoopc mir -- --nocapture`、`cargo test -p scoopc effect_facts -- --nocapture`；必要时运行 clippy 定向验证。
-6. 更新 `TODO.md`：给 `C2-T01C` 标题加 `[DONE]`，填写改动范围、核心决策、验证结果和计划闭合说明。
-7. 检查最终 diff 与状态，提交本任务相关变更后停止。
+- 已在读取项目任务文件前初始化本次执行计划。
+- 已确认第一个未完成任务为 `C2-T01D`：删除 LLVM / effect-lowered codegen 中的 CaptureBox lowering。
+- 最新提交为 `[C2-T01C] Close MIR CaptureBox pass cleanup`，是本任务的已完成前置项，没有新增需要插入的未完成 blocker。
+- 已审计任务列出的 LLVM / effect-lowered 文件。实际 CaptureBox lowering 分支已经不存在；剩余相关 source 命中是一处过期模块注释和 pipeline 负向测试断言字符串。
+- 已更新 pipeline 断言：继续检查 emitted IR 不含 legacy mutable-capture allocation / descriptor marker，同时不在 source 中保留禁止的 CaptureBox spelling；并刷新 `value_args.rs` 模块注释。
+- 已完成验证：`cargo build -p scoopc`、任务 grep gate、`closure_env_transport`、`composite_transport`、`llvm`、`cargo clippy -p scoopc --all-targets -- -D warnings` 均通过。
+- 已将 `TODO.md` 中 `C2-T01D` 标记为 `[DONE]`，并记录改动范围、核心决策、验证结果和计划/设计闭合；`PLAN.md` 无需更新。

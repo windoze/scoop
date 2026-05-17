@@ -443,7 +443,7 @@ C0-T01 (baseline + prerequisite inventory)
     - `cargo clippy -p scoopc --all-targets -- -D warnings`：通过。
   - 与 `PLAN.md` / `CLOSURE_FIX.md` 对应闭合：闭合 `PLAN.md` §7 C2-T01 的 MIR analysis / materialize / effect facts 删除入口，以及 `CLOSURE_FIX.md` 中删除 CaptureBox 后门、只保留普通 closure env/value transport 的对应要求；阶段级计划未变化。
 
-### [TODO] C2-T01D：删除 LLVM / effect-lowered codegen 中的 CaptureBox lowering
+### [DONE] C2-T01D：删除 LLVM / effect-lowered codegen 中的 CaptureBox lowering
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §7 C2-T01
@@ -476,9 +476,22 @@ C0-T01 (baseline + prerequisite inventory)
 - 依赖：C2-T01C
 - 完成记录：
   - 改动范围：
+    - 审计 `crates/scoopc/src/llvm/codegen/mir_body/{aggregates.rs,mod.rs,operand.rs,terminator.rs,value_args.rs}`、`crates/scoopc/src/llvm/codegen/effect_lowered/value.rs`、`crates/scoopc/src/llvm/codegen/composite_transport.rs`、`crates/scoopc/src/llvm/reachability.rs` 与 `crates/scoopc/src/pipeline/llvm_codegen_stage.rs`；LLVM direct MIR 与 effect-lowered 路径已无 CaptureBox lowering / dispatch / reachability / composite transport 分支。
+    - 更新 `llvm_codegen_stage.rs` 的 closure env transport 测试：继续验证 emitted IR 不含 legacy mutable-capture heap allocation / descriptor marker，同时不在 source 中保留 CaptureBox spellings，使本任务的 source grep gate 能清零。
+    - 更新 `mir_body/value_args.rs` 模块注释，移除过期的 capture-box metadata 描述；保留 closure env descriptor 与 MIR value-box metadata 语义。
+    - 未修改 `PLAN.md`、`CLOSURE_FIX.md`、runtime、sysroot 或 fixture expect；阶段级计划未变化。
   - 核心决策：
+    - 不引入替代隐式 box、shim 或兼容分支；LLVM 层只保留普通 closure env allocation / descriptor、value-box descriptor 与 composite capture transport。
+    - `rt_alloc_pass_mir_closure_env` 与 closure env composite descriptor / GC trace 断言继续保留，确保删除的是 mutable capture box lowering，而不是 closure env runtime object。
+    - 负向 IR 检查使用运行期拼接 legacy marker 的方式，避免源码中继续出现被任务审计命令禁止的 CaptureBox spelling。
   - 验证结果：
-  - 与 `PLAN.md` / `CLOSURE_FIX.md` 对应闭合：
+    - `cargo build -p scoopc`：通过。
+    - `rg -n "CaptureBox|capture_box|mir_capture_box|__CaptureBox|rt_alloc_pass_mir_capture_box" crates/scoopc/src/llvm crates/scoopc/src/pipeline`：无输出。
+    - `cargo test -p scoopc closure_env_transport -- --nocapture`：通过，1 个定向测试通过。
+    - `cargo test -p scoopc composite_transport -- --nocapture`：通过，6 个相关测试通过。
+    - `cargo test -p scoopc llvm -- --nocapture`：通过，248 个 LLVM 相关测试通过。
+    - `cargo clippy -p scoopc --all-targets -- -D warnings`：通过。
+  - 与 `PLAN.md` / `CLOSURE_FIX.md` 对应闭合：闭合 `PLAN.md` §7 C2-T01 的 LLVM / effect-lowered CaptureBox 删除入口，以及 `CLOSURE_FIX.md` 中删除 CaptureBox 后门、保留 descriptor-backed closure env 的 LLVM backend 部分；阶段级计划未变化。
 
 ### [TODO] C2-T01E：收口 CaptureBox 删除后的全仓审计
 
