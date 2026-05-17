@@ -685,7 +685,75 @@ impl<'a> FnLowering<'a> {
         let binding = self
             .facts
             .top_level_fun_call_binding(self.source_path.as_path(), span)?;
-        if self.compare_to_binary_already_lowered(lhs, rhs, binding.fqn.as_str()) {
+        let result = self.push_temp_local(span, result_ty);
+
+        let (compare_lhs, compare_rhs) = self
+            .already_lowered_compare_to_args(lhs, rhs, binding.fqn.as_str())
+            .unwrap_or((lhs, rhs));
+        let lhs_local = self.lower_expr_to_local(compare_lhs);
+        if self.current_is_terminated() {
+            return Some(result);
+        }
+        let rhs_local = self.lower_expr_to_local(compare_rhs);
+        if self.current_is_terminated() {
+            return Some(result);
+        }
+
+        let compare_result = self.push_temp_local(span, self.builtins.int);
+        let compare_kind = CallKind::Direct {
+            callee_fqn: binding.fqn.clone(),
+        };
+        let compare_args = vec![
+            CallArg {
+                span: compare_lhs.span,
+                name: None,
+                value: Operand::Local(lhs_local),
+            },
+            CallArg {
+                span: compare_rhs.span,
+                name: None,
+                value: Operand::Local(rhs_local),
+            },
+        ];
+        let compare_transport =
+            self.call_transport_metadata(self.builtins.int, &compare_kind, &compare_args, None);
+        let compare_site_id = self.fresh_site_id();
+        self.assign(
+            span,
+            compare_result,
+            Rvalue::Call {
+                site_id: compare_site_id,
+                kind: compare_kind,
+                args: compare_args,
+                transport: compare_transport,
+            },
+        );
+
+        let zero = self.push_temp_local(span, self.builtins.int);
+        self.assign(
+            span,
+            zero,
+            Rvalue::Use(Operand::Const(ConstValue::SynthInt(0))),
+        );
+        self.assign_int_compare_method_call(
+            span,
+            result,
+            op,
+            Operand::Local(compare_result),
+            Operand::Local(zero),
+        );
+        Some(result)
+    }
+
+    pub(in crate::mir::lower) fn try_lower_string_equality_binary_expr(
+        &mut self,
+        span: Span,
+        result_ty: TypeId,
+        lhs: &hir::Expr,
+        op: ast::BinaryOp,
+        rhs: &hir::Expr,
+    ) -> Option<LocalId> {
+        if lhs.ty != self.builtins.string || rhs.ty != self.builtins.string {
             return None;
         }
         let result = self.push_temp_local(span, result_ty);
@@ -699,9 +767,81 @@ impl<'a> FnLowering<'a> {
         }
 
         let compare_result = self.push_temp_local(span, self.builtins.int);
-        let site_id = self.fresh_site_id();
+        let compare_kind = CallKind::Direct {
+            callee_fqn: "scoop.core.String.compareTo".to_string(),
+        };
+        let compare_args = vec![
+            CallArg {
+                span: lhs.span,
+                name: None,
+                value: Operand::Local(lhs_local),
+            },
+            CallArg {
+                span: rhs.span,
+                name: None,
+                value: Operand::Local(rhs_local),
+            },
+        ];
+        let compare_transport =
+            self.call_transport_metadata(self.builtins.int, &compare_kind, &compare_args, None);
+        let compare_site_id = self.fresh_site_id();
+        self.assign(
+            span,
+            compare_result,
+            Rvalue::Call {
+                site_id: compare_site_id,
+                kind: compare_kind,
+                args: compare_args,
+                transport: compare_transport,
+            },
+        );
+
+        let zero = self.push_temp_local(span, self.builtins.int);
+        self.assign(
+            span,
+            zero,
+            Rvalue::Use(Operand::Const(ConstValue::SynthInt(0))),
+        );
+        self.assign_int_compare_method_call(
+            span,
+            result,
+            op,
+            Operand::Local(compare_result),
+            Operand::Local(zero),
+        );
+        Some(result)
+    }
+
+    pub(in crate::mir::lower) fn try_lower_scalar_binary_method_expr(
+        &mut self,
+        span: Span,
+        result_ty: TypeId,
+        lhs: &hir::Expr,
+        op: ast::BinaryOp,
+        rhs: &hir::Expr,
+    ) -> Option<LocalId> {
+        let method = Self::scalar_binary_operator_method(op)?;
+        let result = self.push_temp_local(span, result_ty);
+        let lhs_local = self.lower_expr_to_local(lhs);
+        if self.current_is_terminated() {
+            return Some(result);
+        }
+        let rhs_local = self.lower_expr_to_local(rhs);
+        if self.current_is_terminated() {
+            return Some(result);
+        }
+        let owner_fqn = self
+            .scalar_operator_owner_fqn_for_expr(lhs)
+            .or_else(|| self.scalar_operator_owner_fqn_for_local(lhs_local))
+            .or_else(|| self.scalar_operator_owner_fqn_for_expr(rhs))
+            .or_else(|| self.scalar_operator_owner_fqn_for_local(rhs_local));
+        let Some(owner_fqn) = owner_fqn else {
+            self.assign(span, result, Rvalue::Todo("missing expr"));
+            return Some(result);
+        };
+
         let kind = CallKind::Direct {
-            callee_fqn: binding.fqn.clone(),
+            callee_fqn: format!("{owner_fqn}.{method}"),
         };
         let args = vec![
             CallArg {
@@ -715,10 +855,11 @@ impl<'a> FnLowering<'a> {
                 value: Operand::Local(rhs_local),
             },
         ];
-        let transport = self.call_transport_metadata(self.builtins.int, &kind, &args, None);
+        let transport = self.call_transport_metadata(result_ty, &kind, &args, None);
+        let site_id = self.fresh_site_id();
         self.assign(
             span,
-            compare_result,
+            result,
             Rvalue::Call {
                 site_id,
                 kind,
@@ -726,50 +867,194 @@ impl<'a> FnLowering<'a> {
                 transport,
             },
         );
+        Some(result)
+    }
 
-        let zero = self.push_temp_local(span, self.builtins.int);
-        self.assign(
-            span,
-            zero,
-            Rvalue::Use(Operand::Const(ConstValue::SynthInt(0))),
-        );
+    pub(in crate::mir::lower) fn try_lower_scalar_unary_method_expr(
+        &mut self,
+        span: Span,
+        result_ty: TypeId,
+        op: ast::UnaryOp,
+        operand: &hir::Expr,
+    ) -> Option<LocalId> {
+        let method = Self::scalar_unary_operator_method(op)?;
+        let result = self.push_temp_local(span, result_ty);
+        let operand_local = self.lower_expr_to_local(operand);
+        if self.current_is_terminated() {
+            return Some(result);
+        }
+        let Some(owner_fqn) = self
+            .scalar_operator_owner_fqn_for_expr(operand)
+            .or_else(|| self.scalar_operator_owner_fqn_for_local(operand_local))
+        else {
+            self.assign(span, result, Rvalue::Todo("missing expr"));
+            return Some(result);
+        };
+        let kind = CallKind::Direct {
+            callee_fqn: format!("{owner_fqn}.{method}"),
+        };
+        let args = vec![CallArg {
+            span: operand.span,
+            name: None,
+            value: Operand::Local(operand_local),
+        }];
+        let transport = self.call_transport_metadata(result_ty, &kind, &args, None);
+        let site_id = self.fresh_site_id();
         self.assign(
             span,
             result,
-            Rvalue::Binary {
-                lhs: Operand::Local(compare_result),
-                op,
-                rhs: Operand::Local(zero),
+            Rvalue::Call {
+                site_id,
+                kind,
+                args,
+                transport,
             },
         );
         Some(result)
     }
 
-    pub(in crate::mir::lower) fn compare_to_binary_already_lowered(
+    fn scalar_operator_owner_fqn(&self, ty: TypeId) -> Option<String> {
+        match self.types.kind(ty) {
+            TypeKind::Value(ValueTypeKind::Bool) => Some("scoop.core.Bool".to_string()),
+            TypeKind::Value(ValueTypeKind::Char) => Some("scoop.core.Char".to_string()),
+            TypeKind::Value(ValueTypeKind::Float64) => Some("scoop.core.Float64".to_string()),
+            TypeKind::Value(ValueTypeKind::Float32) => Some("scoop.core.Float32".to_string()),
+            TypeKind::Value(ValueTypeKind::Int) => Some("scoop.core.Int".to_string()),
+            TypeKind::Value(ValueTypeKind::UInt) => Some("scoop.core.UInt".to_string()),
+            TypeKind::Value(ValueTypeKind::IntN(bits)) => Some(format!("scoop.core.Int{bits}")),
+            TypeKind::Value(ValueTypeKind::UIntN(bits)) => Some(format!("scoop.core.UInt{bits}")),
+            _ => None,
+        }
+    }
+
+    fn scalar_operator_owner_fqn_for_expr(&self, expr: &hir::Expr) -> Option<String> {
+        if let Some(owner_fqn) = self.scalar_operator_owner_fqn(expr.ty) {
+            return Some(owner_fqn);
+        }
+        if let hir::ExprKind::Call { callee, .. } = &expr.kind
+            && let Some(result_ty) = self.call_result_ty_from_callee(expr.span, callee)
+        {
+            return self.scalar_operator_owner_fqn(result_ty);
+        }
+        let hir::ExprKind::VarRef(hir::ValueRef::Local { id, .. }) = &expr.kind else {
+            return None;
+        };
+        let local = self.symbol_locals.get(id)?;
+        let local_ty = self.body.locals.get(local.as_u32() as usize)?.ty;
+        self.scalar_operator_owner_fqn(local_ty)
+    }
+
+    fn scalar_operator_owner_fqn_for_local(&self, local: LocalId) -> Option<String> {
+        let local_ty = self.body.locals.get(local.as_u32() as usize)?.ty;
+        self.scalar_operator_owner_fqn(local_ty)
+    }
+
+    fn scalar_binary_operator_method(op: ast::BinaryOp) -> Option<&'static str> {
+        match op {
+            ast::BinaryOp::Add => Some("plus"),
+            ast::BinaryOp::Sub => Some("minus"),
+            ast::BinaryOp::Mul => Some("times"),
+            ast::BinaryOp::Div => Some("div"),
+            ast::BinaryOp::Rem => Some("rem"),
+            ast::BinaryOp::BitAnd => Some("and"),
+            ast::BinaryOp::BitXor => Some("xor"),
+            ast::BinaryOp::BitOr => Some("or"),
+            ast::BinaryOp::Shl => Some("shl"),
+            ast::BinaryOp::Shr => Some("shr"),
+            ast::BinaryOp::Lt => Some("lt"),
+            ast::BinaryOp::Le => Some("le"),
+            ast::BinaryOp::Gt => Some("gt"),
+            ast::BinaryOp::Ge => Some("ge"),
+            ast::BinaryOp::Eq => Some("equals"),
+            ast::BinaryOp::Ne => Some("notEquals"),
+            ast::BinaryOp::LogAnd
+            | ast::BinaryOp::LogOr
+            | ast::BinaryOp::RangeInclusive
+            | ast::BinaryOp::Elvis => None,
+        }
+    }
+
+    fn scalar_unary_operator_method(op: ast::UnaryOp) -> Option<&'static str> {
+        match op {
+            ast::UnaryOp::Not => Some("not"),
+            ast::UnaryOp::Neg => Some("unaryMinus"),
+            ast::UnaryOp::BitNot => Some("inv"),
+        }
+    }
+
+    fn already_lowered_compare_to_args<'b>(
         &self,
-        lhs: &hir::Expr,
+        lhs: &'b hir::Expr,
         rhs: &hir::Expr,
         expected_fqn: &str,
-    ) -> bool {
-        if lhs.ty != self.builtins.int || rhs.ty != self.builtins.int {
-            return false;
+    ) -> Option<(&'b hir::Expr, &'b hir::Expr)> {
+        if rhs.ty != self.builtins.int
+            || !matches!(
+                rhs.kind,
+                hir::ExprKind::Literal(hir::LiteralKind::SynthInt(0))
+            )
+        {
+            return None;
         }
-        if !matches!(
-            rhs.kind,
-            hir::ExprKind::Literal(hir::LiteralKind::SynthInt(0))
-        ) {
-            return false;
+        let hir::ExprKind::Call { callee, args } = &lhs.kind else {
+            return None;
+        };
+        if args.len() != 2 {
+            return None;
         }
-        matches!(
-            &lhs.kind,
-            hir::ExprKind::Call { callee, args }
-                if args.len() == 2
-                    && matches!(
-                        &callee.kind,
-                        hir::ExprKind::VarRef(hir::ValueRef::TopLevel { fqn, .. })
-                            if fqn == expected_fqn
-                    )
-        )
+        let hir::ExprKind::VarRef(hir::ValueRef::TopLevel { fqn, .. }) = &callee.kind else {
+            return None;
+        };
+        if fqn != expected_fqn {
+            return None;
+        }
+        Some((call_arg_expr(&args[0]), call_arg_expr(&args[1])))
+    }
+
+    fn assign_int_compare_method_call(
+        &mut self,
+        span: Span,
+        result: LocalId,
+        op: ast::BinaryOp,
+        lhs: Operand,
+        rhs: Operand,
+    ) {
+        let method = match op {
+            ast::BinaryOp::Lt => "lt",
+            ast::BinaryOp::Le => "le",
+            ast::BinaryOp::Gt => "gt",
+            ast::BinaryOp::Ge => "ge",
+            ast::BinaryOp::Eq => "equals",
+            ast::BinaryOp::Ne => "notEquals",
+            _ => unreachable!("caller guarantees Int comparison/equality op"),
+        };
+        let kind = CallKind::Direct {
+            callee_fqn: format!("scoop.core.Int.{method}"),
+        };
+        let args = vec![
+            CallArg {
+                span,
+                name: None,
+                value: lhs,
+            },
+            CallArg {
+                span,
+                name: None,
+                value: rhs,
+            },
+        ];
+        let transport = self.call_transport_metadata(self.builtins.bool_, &kind, &args, None);
+        let site_id = self.fresh_site_id();
+        self.assign(
+            span,
+            result,
+            Rvalue::Call {
+                site_id,
+                kind,
+                args,
+                transport,
+            },
+        );
     }
 
     /// 降低变量引用：

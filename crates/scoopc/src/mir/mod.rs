@@ -2375,15 +2375,6 @@ pub enum Rvalue {
     UnresolvedName {
         name: String,
     },
-    Unary {
-        op: ast::UnaryOp,
-        operand: Operand,
-    },
-    Binary {
-        lhs: Operand,
-        op: ast::BinaryOp,
-        rhs: Operand,
-    },
     TypeCheck {
         value: Operand,
         op: ast::TypeCheckOp,
@@ -2685,8 +2676,6 @@ impl Rvalue {
             Rvalue::Use(_)
             | Rvalue::Transport { .. }
             | Rvalue::UnresolvedName { .. }
-            | Rvalue::Unary { .. }
-            | Rvalue::Binary { .. }
             | Rvalue::TypeCheck { .. }
             | Rvalue::Cast { .. }
             | Rvalue::MemberAccess { .. }

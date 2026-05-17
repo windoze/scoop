@@ -665,27 +665,6 @@ pub(super) fn validate_materialized_rvalue(
             validate_materialized_top_level_ref(materialized, fqn, block, span, top, root_sets)
         }
         Rvalue::UnresolvedName { .. } => Ok(()),
-        Rvalue::Unary { operand, .. } => validate_materialized_operand(
-            materialized,
-            fqn,
-            block,
-            span,
-            "unary operand",
-            locals,
-            operand,
-        ),
-        Rvalue::Binary { lhs, rhs, .. } => {
-            validate_materialized_operand(
-                materialized,
-                fqn,
-                block,
-                span,
-                "binary lhs",
-                locals,
-                lhs,
-            )?;
-            validate_materialized_operand(materialized, fqn, block, span, "binary rhs", locals, rhs)
-        }
         Rvalue::TypeCheck {
             value,
             test_ty,

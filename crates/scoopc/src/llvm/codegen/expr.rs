@@ -103,12 +103,30 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 kind: "interpolated string after HIR desugar",
                 at: expr.span.into(),
             }),
-            hir::ExprKind::Unary {
-                op, expr: inner, ..
-            } => self.codegen_unary(expr.span, expr.ty, *op, inner),
-            hir::ExprKind::Binary { lhs, op, rhs, .. } => {
-                self.codegen_binary(expr.span, *op, lhs, rhs)
-            }
+            hir::ExprKind::Unary { .. } => Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "unary operator after HIR desugar",
+                at: expr.span.into(),
+            }),
+            hir::ExprKind::Binary { lhs, op, rhs, .. } => match op {
+                ast::BinaryOp::Eq | ast::BinaryOp::Ne => {
+                    self.codegen_equality(expr.span, *op, lhs, rhs)
+                }
+                ast::BinaryOp::LogAnd | ast::BinaryOp::LogOr => {
+                    self.codegen_bool_logic(expr.span, *op, lhs, rhs)
+                }
+                ast::BinaryOp::RangeInclusive => Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "range operator",
+                    at: expr.span.into(),
+                }),
+                ast::BinaryOp::Elvis => Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "elvis operator",
+                    at: expr.span.into(),
+                }),
+                _ => Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "binary operator after HIR desugar",
+                    at: expr.span.into(),
+                }),
+            },
             hir::ExprKind::TypeCheck {
                 expr: inner,
                 op,

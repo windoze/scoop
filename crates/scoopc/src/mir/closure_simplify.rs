@@ -401,7 +401,6 @@ fn collect_rvalue_uses(value: &Rvalue, out: &mut HashSet<LocalId>) {
     match value {
         Rvalue::Use(operand)
         | Rvalue::Transport { value: operand, .. }
-        | Rvalue::Unary { operand, .. }
         | Rvalue::TypeCheck { value: operand, .. }
         | Rvalue::Cast { value: operand, .. }
         | Rvalue::TupleGet { tuple: operand, .. }
@@ -416,10 +415,6 @@ fn collect_rvalue_uses(value: &Rvalue, out: &mut HashSet<LocalId>) {
         | Rvalue::PatternExtract {
             subject: operand, ..
         } => collect_operand_use(operand, out),
-        Rvalue::Binary { lhs, rhs, .. } => {
-            collect_operand_use(lhs, out);
-            collect_operand_use(rhs, out);
-        }
         Rvalue::MemberAccess { receiver, .. } => collect_operand_use(receiver, out),
         Rvalue::Call { kind, args, .. } => {
             collect_call_kind_uses(kind, out);

@@ -428,8 +428,7 @@ fn observe_rvalue(
         | Rvalue::UnresolvedName { .. }
         | Rvalue::TypeMetadataLiteral(_)
         | Rvalue::PerformResult { .. } => {}
-        Rvalue::Unary { operand, .. }
-        | Rvalue::TypeCheck { value: operand, .. }
+        Rvalue::TypeCheck { value: operand, .. }
         | Rvalue::Cast { value: operand, .. }
         | Rvalue::TupleGet { tuple: operand, .. }
         | Rvalue::CaptureBoxGet {
@@ -443,10 +442,6 @@ fn observe_rvalue(
             subject: operand, ..
         } => {
             observe_operand(operand, OperandUsage::Value, state, param_use_summaries);
-        }
-        Rvalue::Binary { lhs, rhs, .. } => {
-            observe_operand(lhs, OperandUsage::Value, state, param_use_summaries);
-            observe_operand(rhs, OperandUsage::Value, state, param_use_summaries);
         }
         Rvalue::MemberAccess { receiver, .. } => {
             observe_operand(receiver, OperandUsage::Value, state, param_use_summaries);
@@ -668,9 +663,7 @@ fn rvalue_provenance(
             known_source(ResultProvenanceSource::PerformResult(op_fqn.clone()))
         }
         Rvalue::UnresolvedName { .. } | Rvalue::Todo(_) => LocalProvenance::Unknown,
-        Rvalue::Unary { .. }
-        | Rvalue::Binary { .. }
-        | Rvalue::TypeCheck { .. }
+        Rvalue::TypeCheck { .. }
         | Rvalue::Cast { .. }
         | Rvalue::SizeOf { .. }
         | Rvalue::KindOf { .. }
@@ -838,14 +831,13 @@ fn rvalue_cost(value: &Rvalue) -> u32 {
         | Rvalue::DescOf { .. }
         | Rvalue::TypeMetadataLiteral(_)
         | Rvalue::PerformResult { .. } => 1,
-        Rvalue::Unary { .. }
-        | Rvalue::TypeCheck { .. }
+        Rvalue::TypeCheck { .. }
         | Rvalue::Cast { .. }
         | Rvalue::TupleGet { .. }
         | Rvalue::CaptureBoxGet { .. }
         | Rvalue::PatternMatch { .. }
         | Rvalue::PatternExtract { .. } => 2,
-        Rvalue::Binary { .. } | Rvalue::MemberAccess { .. } => 3,
+        Rvalue::MemberAccess { .. } => 3,
         Rvalue::Call { args, .. } => 4 + args.len() as u32,
         Rvalue::EnumVariant { args, .. } => 2 + args.len() as u32,
         Rvalue::ClassCtor { args, .. } => 4 + args.len() as u32,

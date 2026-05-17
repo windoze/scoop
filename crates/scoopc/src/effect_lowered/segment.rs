@@ -663,7 +663,6 @@ fn rvalue_mentions_local_for_hidden_namespace(value: &Rvalue, local: LocalId) ->
     match value {
         Rvalue::Use(operand)
         | Rvalue::Transport { value: operand, .. }
-        | Rvalue::Unary { operand, .. }
         | Rvalue::TypeCheck { value: operand, .. }
         | Rvalue::Cast { value: operand, .. }
         | Rvalue::TupleGet { tuple: operand, .. }
@@ -680,10 +679,6 @@ fn rvalue_mentions_local_for_hidden_namespace(value: &Rvalue, local: LocalId) ->
         }
         | Rvalue::MakeClosure { env: operand, .. } => {
             operand_mentions_local_for_hidden_namespace(operand, local)
-        }
-        Rvalue::Binary { lhs, rhs, .. } => {
-            operand_mentions_local_for_hidden_namespace(lhs, local)
-                || operand_mentions_local_for_hidden_namespace(rhs, local)
         }
         Rvalue::MemberAccess { receiver, .. } => {
             operand_mentions_local_for_hidden_namespace(receiver, local)

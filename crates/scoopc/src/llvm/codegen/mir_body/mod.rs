@@ -249,7 +249,6 @@ mod cast;
 mod const_pat;
 mod dispatch;
 mod member;
-mod op;
 mod operand;
 mod string;
 mod terminator;
@@ -302,27 +301,6 @@ fn mir_store_member_continuation_route_is_lowerable(
             }
             Ok(())
         }
-    }
-}
-
-#[derive(Clone, Copy)]
-enum IntCompareKind {
-    Lt,
-    Le,
-    Gt,
-    Ge,
-}
-
-fn int_predicate(ty: IntTy, kind: IntCompareKind) -> IntPredicate {
-    match (ty.signed, kind) {
-        (true, IntCompareKind::Lt) => IntPredicate::SLT,
-        (true, IntCompareKind::Le) => IntPredicate::SLE,
-        (true, IntCompareKind::Gt) => IntPredicate::SGT,
-        (true, IntCompareKind::Ge) => IntPredicate::SGE,
-        (false, IntCompareKind::Lt) => IntPredicate::ULT,
-        (false, IntCompareKind::Le) => IntPredicate::ULE,
-        (false, IntCompareKind::Gt) => IntPredicate::UGT,
-        (false, IntCompareKind::Ge) => IntPredicate::UGE,
     }
 }
 
@@ -476,7 +454,6 @@ fn collect_mir_rvalue_uses(value: &crate::mir::Rvalue, out: &mut HashSet<crate::
     match value {
         crate::mir::Rvalue::Use(operand)
         | crate::mir::Rvalue::Transport { value: operand, .. }
-        | crate::mir::Rvalue::Unary { operand, .. }
         | crate::mir::Rvalue::TypeCheck { value: operand, .. }
         | crate::mir::Rvalue::Cast { value: operand, .. }
         | crate::mir::Rvalue::MemberAccess {
@@ -494,10 +471,6 @@ fn collect_mir_rvalue_uses(value: &crate::mir::Rvalue, out: &mut HashSet<crate::
         | crate::mir::Rvalue::PatternExtract {
             subject: operand, ..
         } => collect_mir_operand_use(operand, out),
-        crate::mir::Rvalue::Binary { lhs, rhs, .. } => {
-            collect_mir_operand_use(lhs, out);
-            collect_mir_operand_use(rhs, out);
-        }
         crate::mir::Rvalue::Call { kind, args, .. } => {
             collect_mir_call_kind_uses(kind, out);
             for arg in args {

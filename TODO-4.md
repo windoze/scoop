@@ -517,7 +517,7 @@
 - 与 `PLAN.md` 闭合：完成 PLAN §9 / P8 T8-4 的 HIR/typecheck operator method 化；P8-T05 可继续删除 LLVM/MIR 中按 `ast::BinaryOp` 的直接 codegen 死路径；阶段级计划与依赖未变化，未修改 `PLAN.md`。
 - 暂时性 failing fixture：`tests/fixtures/run-pass/mutable_array_ops_basic.scoop`，为 P8-T04c 已记录的既有 mutable array follow-up，继续由后续 P9-T02 / P13-T04 按三分类清单处理；本任务未新增其它 failing fixture。
 
-### P8-T05：删除 `mir_body/op.rs` 按 `ast::BinaryOp` 直接 codegen 路径
+### [DONE] P8-T05：删除 `mir_body/op.rs` 按 `ast::BinaryOp` 直接 codegen 路径
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §9 / P8 任务 T8-5
@@ -547,6 +547,14 @@
 - 完成条件：
   - LLVM codegen 中不再有按 `ast::BinaryOp` 的直接 dispatch。
 - 依赖：P8-T04。
+
+完成记录（2026-05-17）：
+
+- 改动范围：删除 `crates/scoopc/src/llvm/codegen/mir_body/op.rs` 与 `mod op;`；把仍有效的 MIR local slot/load helper 移入 `mir_body/operand.rs`；删除 MIR `Rvalue::Unary/Binary` variant 及所有 traversal/dump/materialize/codegen 消费分支；删除 HIR-direct legacy arithmetic/unary/operator-overload codegen helper；更新 `when_bind_guard.mir` golden、operator/compareTo MIR owner 测试和 failure-policy audit baseline。
+- 核心决策：不保留任何 LLVM 端 `ast::BinaryOp` / `ast::UnaryOp` fallback。残余合法 operator 形态在 MIR lowering 边界统一转为 canonical scalar method call（含 compareTo → `Int.lt/le/gt/ge`、String equality → `String.compareTo` + `Int.equals/notEquals`、numeric literal expected-type 残余路径、unary `inv/unaryMinus/not`），后端只接收普通 call / named intrinsic；负整数字面量的目标类型溢出诊断改由 MIR const lowering 读取完整 source span，保持 `scoop::llvm::invalid_literal` 行为。
+- 验证结果：`cargo build` 通过；Grep 验证 `codegen_mir_(binary|unary)`、`ast::BinaryOp::Add`（LLVM 目录）和 `Rvalue::Unary|Rvalue::Binary` 均无命中；`cargo test -p scoopc binary_op_lowers -- --nocapture` 通过；`cargo test --all --all-targets` 通过；`cargo clippy --all-targets -- -D warnings` 通过；`cargo run -p scoop -- test --fixtures tests/fixtures/build/int_literal_neg_int8_overflow_fail.scoop`、`.../mir/when_bind_guard.scoop`、`.../run-pass/int_bitops_shift.scoop` 均通过；`cargo run -p scoop -- test` 为 1341/1342 targets passed、1378 checks passed，仅既有 `run-pass/mutable_array_ops_basic.scoop` 失败。
+- 与 `PLAN.md` 闭合：完成 PLAN §9 / P8 T8-5 的 LLVM/MIR direct operator codegen 删除；阶段级计划、依赖和完成标准未变化，未修改 `PLAN.md`。
+- 暂时性 failing fixture：`tests/fixtures/run-pass/mutable_array_ops_basic.scoop`，为 P8-T04c/P8-T04 已记录的既有 mutable array follow-up，继续由后续 P9-T02 / P13-T04 按三分类清单处理；本任务未新增其它 failing fixture。
 
 ### P8-T06：算术 fixture 矩阵 + 边界值回归
 

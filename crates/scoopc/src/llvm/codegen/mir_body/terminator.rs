@@ -314,15 +314,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     self.codegen_top_level_value_ref(span, fqn)
                 }
             }
-            crate::mir::Rvalue::Unary { op, operand } => {
-                let operand = self.codegen_mir_operand(span, operand, slots)?;
-                self.codegen_mir_unary(span, *op, operand)
-            }
-            crate::mir::Rvalue::Binary { lhs, op, rhs } => {
-                let lhs = self.codegen_mir_operand(span, lhs, slots)?;
-                let rhs = self.codegen_mir_operand(span, rhs, slots)?;
-                self.codegen_mir_binary(span, *op, lhs, rhs)
-            }
             crate::mir::Rvalue::TypeCheck {
                 value,
                 op,
@@ -492,15 +483,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 } else {
                     self.codegen_top_level_value_ref(span, fqn)
                 }
-            }
-            crate::mir::Rvalue::Unary { op, operand } => {
-                let operand = self.codegen_mir_operand(span, operand, slots)?;
-                self.codegen_mir_unary(span, *op, operand)
-            }
-            crate::mir::Rvalue::Binary { lhs, op, rhs } => {
-                let lhs = self.codegen_mir_operand(span, lhs, slots)?;
-                let rhs = self.codegen_mir_operand(span, rhs, slots)?;
-                self.codegen_mir_binary(span, *op, lhs, rhs)
             }
             crate::mir::Rvalue::TypeCheck {
                 value,

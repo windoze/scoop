@@ -99,12 +99,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     crate::mir::Rvalue::Transport { value, transport } => {
                         self.mir_transport_result_cg_ty(body, mir_types, value, transport)?
                     }
-                    crate::mir::Rvalue::Unary { operand, .. } => {
-                        self.mir_operand_cg_ty(body, mir_types, operand)?
-                    }
-                    crate::mir::Rvalue::Binary { lhs, .. } => {
-                        self.mir_operand_cg_ty(body, mir_types, lhs)?
-                    }
                     crate::mir::Rvalue::TypeCheck { .. } => CgTy::Bool,
                     crate::mir::Rvalue::Cast { target_ty, .. } => {
                         self.cg_ty_of_mir_type(mir_types, *target_ty)?

@@ -838,11 +838,6 @@ impl MirInstanceMaterializer {
                     .collect();
             }
             Rvalue::UnresolvedName { .. } => {}
-            Rvalue::Unary { operand, .. } => *operand = self.rewrite_operand(operand.clone()),
-            Rvalue::Binary { lhs, rhs, .. } => {
-                *lhs = self.rewrite_operand(lhs.clone());
-                *rhs = self.rewrite_operand(rhs.clone());
-            }
             Rvalue::TypeCheck {
                 value,
                 test_ty,

@@ -367,8 +367,7 @@ fn analyze_rvalue_uses(
         Rvalue::Transport { value, .. } => {
             mark_operand_use(value, OperandUse::Escaping, aliases, facts)
         }
-        Rvalue::Unary { operand, .. }
-        | Rvalue::TypeCheck { value: operand, .. }
+        Rvalue::TypeCheck { value: operand, .. }
         | Rvalue::Cast { value: operand, .. }
         | Rvalue::TupleGet { tuple: operand, .. }
         | Rvalue::CaptureBoxNew { value: operand, .. }
@@ -382,10 +381,6 @@ fn analyze_rvalue_uses(
         | Rvalue::PatternExtract {
             subject: operand, ..
         } => mark_operand_use(operand, OperandUse::Escaping, aliases, facts),
-        Rvalue::Binary { lhs, rhs, .. } => {
-            mark_operand_use(lhs, OperandUse::Escaping, aliases, facts);
-            mark_operand_use(rhs, OperandUse::Escaping, aliases, facts);
-        }
         Rvalue::MemberAccess { receiver, .. } => {
             mark_operand_use(receiver, OperandUse::Escaping, aliases, facts);
         }

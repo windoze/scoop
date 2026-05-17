@@ -651,8 +651,6 @@ impl<'a> MirDumpRenderer<'a> {
             Rvalue::Transport { .. } => "transport",
             Rvalue::TopLevelRef(_) => "top_level_ref",
             Rvalue::UnresolvedName { .. } => "unresolved_name",
-            Rvalue::Unary { .. } => "unary",
-            Rvalue::Binary { .. } => "binary",
             Rvalue::TypeCheck { .. } => "type_check",
             Rvalue::Cast { .. } => "cast",
             Rvalue::MemberAccess { .. } => "member_access",
@@ -931,21 +929,6 @@ impl<'a> MirDumpRenderer<'a> {
             Rvalue::UnresolvedName { name } => {
                 self.inline_struct("UnresolvedName", vec![("name", format_debug(name))])
             }
-            Rvalue::Unary { op, operand } => self.inline_struct(
-                "Unary",
-                vec![
-                    ("op", format_debug(op)),
-                    ("operand", self.operand_text(ctx, operand)),
-                ],
-            ),
-            Rvalue::Binary { lhs, op, rhs } => self.inline_struct(
-                "Binary",
-                vec![
-                    ("lhs", self.operand_text(ctx, lhs)),
-                    ("op", format_debug(op)),
-                    ("rhs", self.operand_text(ctx, rhs)),
-                ],
-            ),
             Rvalue::TypeCheck {
                 value,
                 op,

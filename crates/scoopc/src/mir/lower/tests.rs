@@ -246,7 +246,7 @@ fun repeat<T>(x: T, n: Int): T {
 }
 
 #[test]
-fn dump_mir_lowers_user_defined_compare_to_as_direct_call_plus_zero_compare() {
+fn dump_mir_lowers_user_defined_compare_to_as_direct_call_plus_int_compare_method() {
     let sess = Session::new().unwrap();
     let source = SourceFile::new_virtual(
         "<mem>/mir_compare_to_direct_call.scoop",
@@ -322,20 +322,23 @@ fun entry(lhs: Num, rhs: Num): Bool {
         entry_block.stmts.iter().any(|stmt| {
             if let StatementKind::Assign {
                 value:
-                    Rvalue::Binary {
-                        lhs: Operand::Local(lhs_local),
-                        rhs: Operand::Local(rhs_local),
+                    Rvalue::Call {
+                        kind: CallKind::Direct { callee_fqn },
+                        args,
                         ..
                     },
                 ..
             } = &stmt.kind
             {
-                *lhs_local == compare_to_call_targets[0] && zero_locals.contains(rhs_local)
+                callee_fqn == "scoop.core.Int.lt"
+                    && args.len() == 2
+                    && matches!(args[0].value, Operand::Local(local) if local == compare_to_call_targets[0])
+                    && matches!(args[1].value, Operand::Local(local) if zero_locals.contains(&local))
             } else {
                 false
             }
         }),
-        "compareTo direct-call 结果仍应继续进入普通 MIR Binary 比较主线"
+        "compareTo direct-call 结果应继续进入 Int.lt method intrinsic 比较主线"
     );
     assert!(
         !zero_locals.is_empty(),
@@ -422,20 +425,23 @@ fun entry(lhs: Num, rhs: Num): Int {
             .any(|stmt| {
                 if let StatementKind::Assign {
                     value:
-                        Rvalue::Binary {
-                            lhs: Operand::Local(lhs_local),
-                            rhs: Operand::Local(rhs_local),
+                        Rvalue::Call {
+                            kind: CallKind::Direct { callee_fqn },
+                            args,
                             ..
                         },
                     ..
                 } = &stmt.kind
                 {
-                    *lhs_local == compare_to_call_targets[0] && zero_locals.contains(rhs_local)
+                    callee_fqn == "scoop.core.Int.lt"
+                        && args.len() == 2
+                        && matches!(args[0].value, Operand::Local(local) if local == compare_to_call_targets[0])
+                        && matches!(args[1].value, Operand::Local(local) if zero_locals.contains(&local))
                 } else {
                     false
                 }
             }),
-        "if 条件里的 compareTo → 0 比较应保留显式 SynthInt(0)"
+        "if 条件里的 compareTo → 0 比较应调用 Int.lt method intrinsic"
     );
 }
 

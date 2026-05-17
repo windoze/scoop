@@ -289,8 +289,6 @@ impl BlockCallableProvenance {
                 )
             }
             Rvalue::UnresolvedName { .. }
-            | Rvalue::Unary { .. }
-            | Rvalue::Binary { .. }
             | Rvalue::TypeCheck { .. }
             | Rvalue::Cast { .. }
             | Rvalue::SizeOf { .. }
@@ -581,8 +579,6 @@ fn rvalue_is_pass_publishable(value: &Rvalue) -> bool {
         Rvalue::Use(_)
         | Rvalue::Transport { .. }
         | Rvalue::TopLevelRef(_)
-        | Rvalue::Unary { .. }
-        | Rvalue::Binary { .. }
         | Rvalue::SizeOf { .. }
         | Rvalue::KindOf { .. }
         | Rvalue::AlignOf { .. }
@@ -633,8 +629,6 @@ fn rvalue_is_inlineable(
         Rvalue::Use(_)
         | Rvalue::Transport { .. }
         | Rvalue::TopLevelRef(_)
-        | Rvalue::Unary { .. }
-        | Rvalue::Binary { .. }
         | Rvalue::SizeOf { .. }
         | Rvalue::KindOf { .. }
         | Rvalue::AlignOf { .. }
@@ -747,7 +741,6 @@ fn collect_rvalue_uses(value: &Rvalue, out: &mut HashSet<LocalId>) {
     match value {
         Rvalue::Use(operand)
         | Rvalue::Transport { value: operand, .. }
-        | Rvalue::Unary { operand, .. }
         | Rvalue::TypeCheck { value: operand, .. }
         | Rvalue::Cast { value: operand, .. }
         | Rvalue::TupleGet { tuple: operand, .. }
@@ -762,10 +755,6 @@ fn collect_rvalue_uses(value: &Rvalue, out: &mut HashSet<LocalId>) {
         | Rvalue::PatternExtract {
             subject: operand, ..
         } => collect_operand_use(operand, out),
-        Rvalue::Binary { lhs, rhs, .. } => {
-            collect_operand_use(lhs, out);
-            collect_operand_use(rhs, out);
-        }
         Rvalue::MemberAccess { receiver, .. } => collect_operand_use(receiver, out),
         Rvalue::Call { kind, args, .. } => {
             collect_call_kind_uses(kind, out);
@@ -1023,15 +1012,6 @@ fn remap_rvalue(
             transport: transport.clone(),
         }),
         Rvalue::TopLevelRef(top) => Some(Rvalue::TopLevelRef(top.clone())),
-        Rvalue::Unary { op, operand } => Some(Rvalue::Unary {
-            op: *op,
-            operand: remap_operand(operand, local_operands, local_map)?,
-        }),
-        Rvalue::Binary { lhs, op, rhs } => Some(Rvalue::Binary {
-            lhs: remap_operand(lhs, local_operands, local_map)?,
-            op: *op,
-            rhs: remap_operand(rhs, local_operands, local_map)?,
-        }),
         Rvalue::Call {
             kind,
             args,

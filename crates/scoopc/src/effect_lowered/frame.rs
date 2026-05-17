@@ -1044,7 +1044,6 @@ fn collect_rvalue_uses(
     match value {
         Rvalue::Use(operand)
         | Rvalue::Transport { value: operand, .. }
-        | Rvalue::Unary { operand, .. }
         | Rvalue::TypeCheck { value: operand, .. }
         | Rvalue::Cast { value: operand, .. }
         | Rvalue::TupleGet { tuple: operand, .. }
@@ -1059,10 +1058,6 @@ fn collect_rvalue_uses(
         | Rvalue::PatternExtract {
             subject: operand, ..
         } => collect_operand_use(operand, defs, uses_before_def, read_states, state_id),
-        Rvalue::Binary { lhs, rhs, .. } => {
-            collect_operand_use(lhs, defs, uses_before_def, read_states, state_id);
-            collect_operand_use(rhs, defs, uses_before_def, read_states, state_id);
-        }
         Rvalue::MemberAccess { receiver, .. } => {
             collect_operand_use(receiver, defs, uses_before_def, read_states, state_id);
         }

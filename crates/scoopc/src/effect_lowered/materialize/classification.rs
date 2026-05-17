@@ -334,8 +334,6 @@ pub(crate) fn classify_effect_neutral_rvalue(
         Rvalue::Use(_)
         | Rvalue::Transport { .. }
         | Rvalue::TopLevelRef(_)
-        | Rvalue::Unary { .. }
-        | Rvalue::Binary { .. }
         | Rvalue::TypeCheck { .. }
         | Rvalue::Cast { .. }
         | Rvalue::SizeOf { .. }
@@ -428,7 +426,6 @@ pub(crate) fn rvalue_mentions_local(value: &Rvalue, local: LocalId) -> bool {
     match value {
         Rvalue::Use(operand)
         | Rvalue::Transport { value: operand, .. }
-        | Rvalue::Unary { operand, .. }
         | Rvalue::TypeCheck { value: operand, .. }
         | Rvalue::Cast { value: operand, .. }
         | Rvalue::TupleGet { tuple: operand, .. }
@@ -444,9 +441,6 @@ pub(crate) fn rvalue_mentions_local(value: &Rvalue, local: LocalId) -> bool {
             subject: operand, ..
         }
         | Rvalue::MakeClosure { env: operand, .. } => operand_mentions_local(operand, local),
-        Rvalue::Binary { lhs, rhs, .. } => {
-            operand_mentions_local(lhs, local) || operand_mentions_local(rhs, local)
-        }
         Rvalue::MemberAccess { receiver, .. } => operand_mentions_local(receiver, local),
         Rvalue::EnumVariant { args, .. } | Rvalue::ClassCtor { args, .. } => {
             call_args_mention_local(args, local)

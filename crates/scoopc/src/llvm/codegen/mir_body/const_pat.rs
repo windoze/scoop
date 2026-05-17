@@ -43,7 +43,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         });
                     }
                 };
-                let bits = self.int_literal_bits_for_ty(span, int_ty)?;
+                let bits = match self.int_literal_bits_from_source_span_if_present(span, int_ty)? {
+                    Some(bits) => bits,
+                    None => self.int_literal_bits_for_ty(span, int_ty)?,
+                };
                 Ok(CgValue::int(
                     self.int_type(int_ty).const_int(bits, false),
                     int_ty,

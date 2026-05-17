@@ -99,19 +99,18 @@ impl<'a> FnLowering<'a> {
         op: ast::UnaryOp,
         operand: &hir::Expr,
     ) -> LocalId {
-        let result = self.push_temp_local(span, ty);
-        let operand_local = self.lower_expr_to_local(operand);
-        if self.current_is_terminated() {
+        if matches!(op, ast::UnaryOp::Neg)
+            && matches!(operand.kind, hir::ExprKind::Literal(hir::LiteralKind::Int))
+        {
+            let result = self.push_temp_local(span, ty);
+            self.assign(span, result, Rvalue::Use(Operand::Const(ConstValue::Int)));
             return result;
         }
-        self.assign(
-            span,
-            result,
-            Rvalue::Unary {
-                op,
-                operand: Operand::Local(operand_local),
-            },
-        );
+        if let Some(result) = self.try_lower_scalar_unary_method_expr(span, ty, op, operand) {
+            return result;
+        }
+        let result = self.push_temp_local(span, ty);
+        self.assign(span, result, Rvalue::Todo("missing expr"));
         result
     }
 
@@ -134,46 +133,41 @@ impl<'a> FnLowering<'a> {
                 {
                     return result;
                 }
+                if let Some(result) =
+                    self.try_lower_scalar_binary_method_expr(span, result_ty, lhs, op, rhs)
+                {
+                    return result;
+                }
 
                 let result = self.push_temp_local(span, result_ty);
-                let lhs_local = self.lower_expr_to_local(lhs);
-                if self.current_is_terminated() {
+                self.assign(span, result, Rvalue::Todo("missing expr"));
+                result
+            }
+            ast::BinaryOp::Eq | ast::BinaryOp::Ne => {
+                if let Some(result) =
+                    self.try_lower_string_equality_binary_expr(span, result_ty, lhs, op, rhs)
+                {
                     return result;
                 }
-                let rhs_local = self.lower_expr_to_local(rhs);
-                if self.current_is_terminated() {
+                if let Some(result) =
+                    self.try_lower_scalar_binary_method_expr(span, result_ty, lhs, op, rhs)
+                {
                     return result;
                 }
-                self.assign(
-                    span,
-                    result,
-                    Rvalue::Binary {
-                        lhs: Operand::Local(lhs_local),
-                        op,
-                        rhs: Operand::Local(rhs_local),
-                    },
-                );
+
+                let result = self.push_temp_local(span, result_ty);
+                self.assign(span, result, Rvalue::Todo("missing expr"));
                 result
             }
             _ => {
+                if let Some(result) =
+                    self.try_lower_scalar_binary_method_expr(span, result_ty, lhs, op, rhs)
+                {
+                    return result;
+                }
+
                 let result = self.push_temp_local(span, result_ty);
-                let lhs_local = self.lower_expr_to_local(lhs);
-                if self.current_is_terminated() {
-                    return result;
-                }
-                let rhs_local = self.lower_expr_to_local(rhs);
-                if self.current_is_terminated() {
-                    return result;
-                }
-                self.assign(
-                    span,
-                    result,
-                    Rvalue::Binary {
-                        lhs: Operand::Local(lhs_local),
-                        op,
-                        rhs: Operand::Local(rhs_local),
-                    },
-                );
+                self.assign(span, result, Rvalue::Todo("missing expr"));
                 result
             }
         }

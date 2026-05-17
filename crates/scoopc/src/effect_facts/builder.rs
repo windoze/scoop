@@ -1367,8 +1367,6 @@ impl<'a, 'b> BodyFactsBuilder<'a, 'b> {
                 ..
             } => self.callable_value_provenance_from_direct_call(types, callee_fqn, args, visiting),
             Rvalue::UnresolvedName { .. }
-            | Rvalue::Unary { .. }
-            | Rvalue::Binary { .. }
             | Rvalue::TypeCheck { .. }
             | Rvalue::Cast { .. }
             | Rvalue::SizeOf { .. }
@@ -2915,7 +2913,6 @@ fn rvalue_mentions_local_for_hidden_namespace(value: &Rvalue, local: crate::mir:
     match value {
         Rvalue::Use(operand)
         | Rvalue::Transport { value: operand, .. }
-        | Rvalue::Unary { operand, .. }
         | Rvalue::TypeCheck { value: operand, .. }
         | Rvalue::Cast { value: operand, .. }
         | Rvalue::TupleGet { tuple: operand, .. }
@@ -2932,10 +2929,6 @@ fn rvalue_mentions_local_for_hidden_namespace(value: &Rvalue, local: crate::mir:
         }
         | Rvalue::MakeClosure { env: operand, .. } => {
             operand_mentions_local_for_hidden_namespace(operand, local)
-        }
-        Rvalue::Binary { lhs, rhs, .. } => {
-            operand_mentions_local_for_hidden_namespace(lhs, local)
-                || operand_mentions_local_for_hidden_namespace(rhs, local)
         }
         Rvalue::MemberAccess { receiver, .. } => {
             operand_mentions_local_for_hidden_namespace(receiver, local)

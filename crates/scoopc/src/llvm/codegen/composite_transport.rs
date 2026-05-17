@@ -185,8 +185,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             Rvalue::Use(_)
             | Rvalue::TopLevelRef(_)
             | Rvalue::UnresolvedName { .. }
-            | Rvalue::Unary { .. }
-            | Rvalue::Binary { .. }
             | Rvalue::TypeCheck { .. }
             | Rvalue::Cast { .. }
             | Rvalue::MemberAccess { .. }

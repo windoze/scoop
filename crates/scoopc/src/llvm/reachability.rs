@@ -580,8 +580,6 @@ impl<'a> ReachabilityCollector<'a> {
             mir::Rvalue::Use(_)
             | mir::Rvalue::Transport { .. }
             | mir::Rvalue::TopLevelRef(_)
-            | mir::Rvalue::Unary { .. }
-            | mir::Rvalue::Binary { .. }
             | mir::Rvalue::SizeOf { .. }
             | mir::Rvalue::KindOf { .. }
             | mir::Rvalue::AlignOf { .. }
@@ -744,7 +742,6 @@ impl<'a> ReachabilityCollector<'a> {
         match value {
             mir::Rvalue::Use(operand)
             | mir::Rvalue::Transport { value: operand, .. }
-            | mir::Rvalue::Unary { operand, .. }
             | mir::Rvalue::TypeCheck { value: operand, .. }
             | mir::Rvalue::Cast { value: operand, .. }
             | mir::Rvalue::TupleGet { tuple: operand, .. }
@@ -771,10 +768,6 @@ impl<'a> ReachabilityCollector<'a> {
             | mir::Rvalue::Todo(_) => {}
             mir::Rvalue::TopLevelRef(mir::TopLevelRef { fqn, .. }) => {
                 self.scan_top_level_value_ref(fqn)
-            }
-            mir::Rvalue::Binary { lhs, rhs, .. } => {
-                self.scan_mir_operand(lhs);
-                self.scan_mir_operand(rhs);
             }
             mir::Rvalue::MemberAccess { receiver, .. } => {
                 self.scan_mir_operand(receiver);

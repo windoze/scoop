@@ -111,7 +111,6 @@ fn rvalue_mentions_local(value: &mir::Rvalue, local: LocalId) -> bool {
     match value {
         mir::Rvalue::Use(operand)
         | mir::Rvalue::Transport { value: operand, .. }
-        | mir::Rvalue::Unary { operand, .. }
         | mir::Rvalue::TypeCheck { value: operand, .. }
         | mir::Rvalue::Cast { value: operand, .. }
         | mir::Rvalue::TupleGet { tuple: operand, .. }
@@ -127,9 +126,6 @@ fn rvalue_mentions_local(value: &mir::Rvalue, local: LocalId) -> bool {
             subject: operand, ..
         }
         | mir::Rvalue::MakeClosure { env: operand, .. } => operand_mentions_local(operand, local),
-        mir::Rvalue::Binary { lhs, rhs, .. } => {
-            operand_mentions_local(lhs, local) || operand_mentions_local(rhs, local)
-        }
         mir::Rvalue::MemberAccess { receiver, .. } => operand_mentions_local(receiver, local),
         mir::Rvalue::EnumVariant { args, .. } | mir::Rvalue::ClassCtor { args, .. } => {
             call_args_mention_local(args, local)
@@ -367,20 +363,6 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
         target_cg: super::super::types::CgTy,
         target_local: Option<LocalId>,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        if let mir::Rvalue::Unary {
-            op: crate::ast::UnaryOp::Neg,
-            ..
-        } = value
-            && let CgTy::Int(int_ty) = target_cg
-            && let Some(bits) = self
-                .codegen
-                .int_literal_bits_from_source_span_if_present(span, int_ty)?
-        {
-            return Ok(CgValue::int(
-                self.codegen.int_type(int_ty).const_int(bits, false),
-                int_ty,
-            ));
-        }
         if let mir::Rvalue::UnresolvedName { name } = value
             && let Some(source_ty) = target_local
                 .and_then(|local| self.body.locals.get(local.as_u32() as usize))

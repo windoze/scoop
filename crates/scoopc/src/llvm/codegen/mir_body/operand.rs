@@ -163,8 +163,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 body, mir_types, callee_fqn, args, visiting,
             ),
             crate::mir::Rvalue::UnresolvedName { .. }
-            | crate::mir::Rvalue::Unary { .. }
-            | crate::mir::Rvalue::Binary { .. }
             | crate::mir::Rvalue::TypeCheck { .. }
             | crate::mir::Rvalue::Cast { .. }
             | crate::mir::Rvalue::SizeOf { .. }
@@ -439,5 +437,50 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         Ok(capture_field_cgs)
+    }
+
+    pub(in crate::llvm::codegen) fn mir_local_slot(
+        &self,
+        span: crate::span::Span,
+        slots: &[MirLocalSlot<'ctx>],
+        local: crate::mir::LocalId,
+    ) -> Result<MirLocalSlot<'ctx>, LlvmEmitError> {
+        slots
+            .get(local.as_u32() as usize)
+            .copied()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "pass MIR local",
+                at: span.into(),
+            })
+    }
+
+    pub(in crate::llvm::codegen) fn load_mir_local(
+        &mut self,
+        span: crate::span::Span,
+        slot: MirLocalSlot<'ctx>,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        match slot.cg_ty {
+            CgTy::Unit => Ok(CgValue::unit()),
+            CgTy::Never => Ok(CgValue::never()),
+            _ => {
+                let local_ptr = self.local_ptr_for_use(
+                    span,
+                    CgLocal {
+                        hir_ty: None,
+                        call_may_suspend: false,
+                        ty: slot.cg_ty,
+                        ptr: slot.ptr,
+                        frame_backing_ptr: None,
+                        mutable: false,
+                    },
+                    "pass_mir_load_slot",
+                )?;
+                let llvm_ty = self.llvm_basic_type_of(span, slot.cg_ty)?;
+                let loaded = self
+                    .builder
+                    .build_load(llvm_ty, local_ptr, "pass_mir_load")?;
+                self.cg_value_from_loaded(span, slot.cg_ty, loaded)
+            }
+        }
     }
 }

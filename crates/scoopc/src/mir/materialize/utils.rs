@@ -406,7 +406,6 @@ pub(super) fn collect_rvalue_local_references(value: &Rvalue, out: &mut HashSet<
     match value {
         Rvalue::Use(operand)
         | Rvalue::Transport { value: operand, .. }
-        | Rvalue::Unary { operand, .. }
         | Rvalue::TypeCheck { value: operand, .. }
         | Rvalue::Cast { value: operand, .. }
         | Rvalue::TupleGet { tuple: operand, .. }
@@ -425,10 +424,6 @@ pub(super) fn collect_rvalue_local_references(value: &Rvalue, out: &mut HashSet<
             receiver: operand, ..
         }
         | Rvalue::MakeClosure { env: operand, .. } => collect_operand_local_reference(operand, out),
-        Rvalue::Binary { lhs, rhs, .. } => {
-            collect_operand_local_reference(lhs, out);
-            collect_operand_local_reference(rhs, out);
-        }
         Rvalue::CaptureBoxSet {
             box_operand, value, ..
         } => {
