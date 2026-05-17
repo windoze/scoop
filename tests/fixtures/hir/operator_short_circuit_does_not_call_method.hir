@@ -1,0 +1,305 @@
+File {
+    items: [
+        Fun(
+            FunDecl {
+                span: 207..242,
+                fqn: "fixtures.hir.rhs",
+                name: "rhs",
+                ty: () -> Bool / Pure,
+                params: [
+                ],
+                return_ty: Bool,
+                body: Some(
+                    Block {
+                        span: 223..242,
+                        ty: Unit,
+                        stmts: [
+                            Stmt {
+                                span: 229..240,
+                                ty: Nothing,
+                                kind: Return {
+                                    value: Some(
+                                        Expr {
+                                            span: 236..240,
+                                            ty: Bool,
+                                            kind: Literal(Bool(true)),
+                                        }
+                                    ),
+                                },
+                            },
+                        ],
+                    }
+                ),
+            },
+        ),
+        Fun(
+            FunDecl {
+                span: 244..416,
+                fqn: "fixtures.hir.use",
+                name: "use",
+                ty: (Bool, Bool) -> Bool / Pure,
+                params: [
+                    Param {
+                        span: 252..253,
+                        label: sym#hcdc7eeeba6b5c8ef298d97aba9413a7c,
+                        name: "a",
+                        ty: Bool,
+                    },
+                    Param {
+                        span: 261..262,
+                        label: sym#h6865e4cc0933157805c49848db92bdbe,
+                        name: "b",
+                        ty: Bool,
+                    },
+                ],
+                return_ty: Bool,
+                body: Some(
+                    Block {
+                        span: 276..416,
+                        ty: Unit,
+                        stmts: [
+                            Stmt {
+                                span: 282..313,
+                                ty: Unit,
+                                kind: Val(
+                                    ValDecl {
+                                        span: 282..313,
+                                        label: sym#h261b331ac6b9e2ac65e081d5e04a3656,
+                                        name: "andValue",
+                                        mutable: false,
+                                        ty: Bool,
+                                        init: Some(
+                                            Expr {
+                                                span: 303..313,
+                                                ty: Bool,
+                                                kind: Binary {
+                                                    lhs:
+                                                        Expr {
+                                                            span: 303..304,
+                                                            ty: Bool,
+                                                            kind: VarRef(
+                                                                Local {
+                                                                    label: sym#hcdc7eeeba6b5c8ef298d97aba9413a7c,
+                                                                    name: "a",
+                                                                    decl_span: 252..253,
+                                                                }
+                                                            ),
+                                                        }
+                                                    op: LogAnd,
+                                                    op_span: 305..307,
+                                                    rhs:
+                                                        Expr {
+                                                            span: 308..313,
+                                                            ty: Bool,
+                                                            kind: Call {
+                                                                callee:
+                                                                    Expr {
+                                                                        span: 308..311,
+                                                                        ty: Any,
+                                                                        kind: VarRef(
+                                                                            TopLevel {
+                                                                                fqn: "fixtures.hir.rhs",
+                                                                            }
+                                                                        ),
+                                                                    }
+                                                                args: [
+                                                                ],
+                                                            },
+                                                        }
+                                                },
+                                            }
+                                        ),
+                                    },
+                                ),
+                            },
+                            Stmt {
+                                span: 318..348,
+                                ty: Unit,
+                                kind: Val(
+                                    ValDecl {
+                                        span: 318..348,
+                                        label: sym#he67825d319f551be927b6836491de857,
+                                        name: "orValue",
+                                        mutable: false,
+                                        ty: Bool,
+                                        init: Some(
+                                            Expr {
+                                                span: 338..348,
+                                                ty: Bool,
+                                                kind: Binary {
+                                                    lhs:
+                                                        Expr {
+                                                            span: 338..339,
+                                                            ty: Bool,
+                                                            kind: VarRef(
+                                                                Local {
+                                                                    label: sym#h6865e4cc0933157805c49848db92bdbe,
+                                                                    name: "b",
+                                                                    decl_span: 261..262,
+                                                                }
+                                                            ),
+                                                        }
+                                                    op: LogOr,
+                                                    op_span: 340..342,
+                                                    rhs:
+                                                        Expr {
+                                                            span: 343..348,
+                                                            ty: Bool,
+                                                            kind: Call {
+                                                                callee:
+                                                                    Expr {
+                                                                        span: 343..346,
+                                                                        ty: Any,
+                                                                        kind: VarRef(
+                                                                            TopLevel {
+                                                                                fqn: "fixtures.hir.rhs",
+                                                                            }
+                                                                        ),
+                                                                    }
+                                                                args: [
+                                                                ],
+                                                            },
+                                                        }
+                                                },
+                                            }
+                                        ),
+                                    },
+                                ),
+                            },
+                            Stmt {
+                                span: 353..397,
+                                ty: Unit,
+                                kind: Expr(
+                                    Expr {
+                                        span: 353..397,
+                                        ty: Any,
+                                        kind: If {
+                                            cond:
+                                                Expr {
+                                                    span: 357..365,
+                                                    ty: Bool,
+                                                    kind: VarRef(
+                                                        Local {
+                                                            label: sym#h261b331ac6b9e2ac65e081d5e04a3656,
+                                                            name: "andValue",
+                                                            decl_span: 286..294,
+                                                        }
+                                                    ),
+                                                }
+                                            then_branch:
+                                                Expr {
+                                                    span: 367..397,
+                                                    ty: Unit,
+                                                    kind: Block(
+                                                        Block {
+                                                            span: 367..397,
+                                                            ty: Unit,
+                                                            stmts: [
+                                                                Stmt {
+                                                                    span: 377..391,
+                                                                    ty: Nothing,
+                                                                    kind: Return {
+                                                                        value: Some(
+                                                                            Expr {
+                                                                                span: 384..391,
+                                                                                ty: Bool,
+                                                                                kind: VarRef(
+                                                                                    Local {
+                                                                                        label: sym#he67825d319f551be927b6836491de857,
+                                                                                        name: "orValue",
+                                                                                        decl_span: 322..329,
+                                                                                    }
+                                                                                ),
+                                                                            }
+                                                                        ),
+                                                                    },
+                                                                },
+                                                            ],
+                                                        }
+                                                    ),
+                                                }
+                                            else_branch: None,
+                                        },
+                                    }
+                                ),
+                            },
+                            Stmt {
+                                span: 402..414,
+                                ty: Nothing,
+                                kind: Return {
+                                    value: Some(
+                                        Expr {
+                                            span: 409..414,
+                                            ty: Bool,
+                                            kind: Literal(Bool(false)),
+                                        }
+                                    ),
+                                },
+                            },
+                        ],
+                    }
+                ),
+            },
+        ),
+    ],
+}
+
+
+TypedHirEffectContracts {
+    function_effects: [
+        FunctionEffectContract {
+            span: 207..242,
+            fqn: "fixtures.hir.rhs",
+            return_ty: Bool,
+            allowed_effects: Pure,
+            effects_closed: false,
+        },
+        FunctionEffectContract {
+            span: 244..416,
+            fqn: "fixtures.hir.use",
+            return_ty: Bool,
+            allowed_effects: Pure,
+            effects_closed: false,
+        },
+    ],
+    call_site_kinds: [
+        TypedCallSiteContract {
+            span: 308..313,
+            kind: DirectTopLevel,
+        },
+        TypedCallSiteContract {
+            span: 343..348,
+            kind: DirectTopLevel,
+        },
+    ],
+    call_site_contracts: [
+        CallSiteContract {
+            span: 308..313,
+            kind: DirectTopLevel,
+            target_fqn: "fixtures.hir.rhs",
+            target_decl_span: Some(211..214),
+            target_type_args: [],
+            target_eff_args: [],
+            target_arg_binding: [],
+        },
+        CallSiteContract {
+            span: 343..348,
+            kind: DirectTopLevel,
+            target_fqn: "fixtures.hir.rhs",
+            target_decl_span: Some(211..214),
+            target_type_args: [],
+            target_eff_args: [],
+            target_arg_binding: [],
+        },
+    ],
+    with_update_contracts: [
+    ],
+    assign_place_contracts: [
+    ],
+    continuation_resume_sites: [
+    ],
+    perform_sites: [
+    ],
+    handle_sites: [
+    ],
+}

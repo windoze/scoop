@@ -1,0 +1,18 @@
+// EXPECT: pass
+// P8-T06: short-circuit operators remain valid Bool control-flow expressions.
+// The lowered-HIR snapshot that checks they do not become Bool.and/or calls is
+// `tests/fixtures/hir/operator_short_circuit_does_not_call_method.scoop`.
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+fun rhs(): Bool {
+    return true
+}
+
+fun use(a: Bool, b: Bool): Bool {
+    val andValue: Bool = a && rhs()
+    val orValue: Bool = b || rhs()
+    return andValue == orValue
+}

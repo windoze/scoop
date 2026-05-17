@@ -1,0 +1,80 @@
+// EXPECT: pass
+// RUN-STDOUT: operator_bool_logic.stdout
+// P8-T06: Bool non-short-circuit methods/bit ops and short-circuit control flow.
+
+import scoop.core.*
+
+@Global
+var calls: Int = 0
+
+fun rhsTrue(): Bool {
+    calls = calls + 1
+    return true
+}
+
+fun rhsFalse(): Bool {
+    calls = calls + 1
+    return false
+}
+
+fun main() {
+    val andOp: Bool = true & false
+    val andMethod: Bool = true.and(false)
+    val orOp: Bool = true | false
+    val orMethod: Bool = true.or(false)
+    val xorOp: Bool = true ^ false
+    val xorMethod: Bool = true.xor(false)
+    val xorFalseOp: Bool = true ^ true
+    val xorFalseMethod: Bool = true.xor(true)
+    val notOp: Bool = !true
+    val notMethod: Bool = true.not()
+
+    require(!andOp)
+    require(!andMethod)
+    require(orOp)
+    require(orMethod)
+    require(xorOp)
+    require(xorMethod)
+    require(!xorFalseOp)
+    require(!xorFalseMethod)
+    require(!notOp)
+    require(!notMethod)
+
+    calls = 0
+    val skippedAnd: Bool = false && rhsTrue()
+    require(!skippedAnd)
+    require(calls == 0)
+    val evaluatedAnd: Bool = true && rhsTrue()
+    require(evaluatedAnd)
+    require(calls == 1)
+
+    calls = 0
+    val skippedOr: Bool = true || rhsFalse()
+    require(skippedOr)
+    require(calls == 0)
+    val evaluatedOr: Bool = false || rhsTrue()
+    require(evaluatedOr)
+    require(calls == 1)
+
+    calls = 0
+    val methodAnd: Bool = false.and(rhsTrue())
+    require(!methodAnd)
+    require(calls == 1)
+
+    println(andOp)
+    println(andMethod)
+    println(orOp)
+    println(orMethod)
+    println(xorOp)
+    println(xorMethod)
+    println(xorFalseOp)
+    println(xorFalseMethod)
+    println(notOp)
+    println(notMethod)
+    println(skippedAnd)
+    println(evaluatedAnd)
+    println(skippedOr)
+    println(evaluatedOr)
+    println(methodAnd)
+    println(calls)
+}

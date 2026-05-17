@@ -1,0 +1,20 @@
+// EXPECT: pass
+// EXPECT-HIR: operator_short_circuit_does_not_call_method.hir
+// P8-T06: `&&` and `||` must lower to short-circuit control flow, not Bool.and/or.
+
+package fixtures.hir
+
+import scoop.core.*
+
+fun rhs(): Bool {
+    return true
+}
+
+fun use(a: Bool, b: Bool): Bool {
+    val andValue: Bool = a && rhs()
+    val orValue: Bool = b || rhs()
+    if (andValue) {
+        return orValue
+    }
+    return false
+}

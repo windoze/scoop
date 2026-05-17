@@ -1,0 +1,77 @@
+// EXPECT: pass
+// RUN-STDOUT: operator_int_arithmetic.stdout
+// P8-T06: Int arithmetic operator and method forms match the P8 baseline.
+
+import scoop.core.*
+
+fun main() {
+    val min: Int = -9223372036854775807 - 1
+    val max: Int = 9223372036854775807
+    val seven: Int = 7
+    val three: Int = 3
+    val zero: Int = 0
+    val one: Int = 1
+
+    val plusOp: Int = seven + three
+    val plusMethod: Int = seven.plus(three)
+    val minusOp: Int = seven - three
+    val minusMethod: Int = seven.minus(three)
+    val timesOp: Int = seven * three
+    val timesMethod: Int = seven.times(three)
+    val divOp: Int = seven / three
+    val divMethod: Int = seven.div(three)
+    val remOp: Int = seven % three
+    val remMethod: Int = seven.rem(three)
+    val maxPlusOneOp: Int = max + one
+    val maxPlusOneMethod: Int = max.plus(one)
+    val minMinusOneOp: Int = min - one
+    val minMinusOneMethod: Int = min.minus(one)
+    val minTimesTwoOp: Int = min * 2
+    val minTimesTwoMethod: Int = min.times(2)
+    val negMinOp: Int = -min
+    val negMinMethod: Int = min.unaryMinus()
+    val zeroDivOneOp: Int = zero / one
+    val zeroDivOneMethod: Int = zero.div(one)
+
+    require(plusOp == 10)
+    require(plusMethod == 10)
+    require(minusOp == 4)
+    require(minusMethod == 4)
+    require(timesOp == 21)
+    require(timesMethod == 21)
+    require(divOp == 2)
+    require(divMethod == 2)
+    require(remOp == 1)
+    require(remMethod == 1)
+    require(maxPlusOneOp == min)
+    require(maxPlusOneMethod == min)
+    require(minMinusOneOp == max)
+    require(minMinusOneMethod == max)
+    require(minTimesTwoOp == 0)
+    require(minTimesTwoMethod == 0)
+    require(negMinOp == min)
+    require(negMinMethod == min)
+    require(zeroDivOneOp == 0)
+    require(zeroDivOneMethod == 0)
+
+    println(plusOp)
+    println(plusMethod)
+    println(minusOp)
+    println(minusMethod)
+    println(timesOp)
+    println(timesMethod)
+    println(divOp)
+    println(divMethod)
+    println(remOp)
+    println(remMethod)
+    println(maxPlusOneOp)
+    println(maxPlusOneMethod)
+    println(minMinusOneOp)
+    println(minMinusOneMethod)
+    println(minTimesTwoOp)
+    println(minTimesTwoMethod)
+    println(negMinOp)
+    println(negMinMethod)
+    println(zeroDivOneOp)
+    println(zeroDivOneMethod)
+}

@@ -1,0 +1,58 @@
+// EXPECT: pass
+// RUN-STDOUT: operator_char_arithmetic.stdout
+// P8-T06: Char arithmetic, comparison, and equality operator/method forms.
+
+import scoop.core.*
+
+fun main() {
+    val upperA: Char = 'A'
+    val upperB: Char = 'B'
+    val upperC: Char = 'C'
+    val lowerA: Char = 'a'
+    val unicode: Char = '\u4E2D'
+
+    val plusOp: Char = upperA + 1
+    val plusMethod: Char = upperA.plus(1)
+    val minusIntOp: Char = upperC - 1
+    val minusIntMethod: Char = upperC.minus(1)
+    val minusCharOp: Int = upperC - upperA
+    val minusCharMethod: Int = upperC.minus(upperA)
+    val ltOp: Bool = upperA < lowerA
+    val ltMethod: Bool = upperA.compareTo(lowerA) < 0
+    val eqOp: Bool = upperA == 'A'
+    val eqMethod: Bool = upperA.equals('A')
+    val neOp: Bool = upperA != upperB
+    val neMethod: Bool = upperA.equals(upperB).not()
+    val unicodeGtOp: Bool = unicode > lowerA
+    val unicodeGtMethod: Bool = unicode.compareTo(lowerA) > 0
+
+    require(plusOp.toInt() == 66)
+    require(plusMethod.toInt() == 66)
+    require(minusIntOp.toInt() == 66)
+    require(minusIntMethod.toInt() == 66)
+    require(minusCharOp == 2)
+    require(minusCharMethod == 2)
+    require(ltOp)
+    require(ltMethod)
+    require(eqOp)
+    require(eqMethod)
+    require(neOp)
+    require(neMethod)
+    require(unicodeGtOp)
+    require(unicodeGtMethod)
+
+    println(plusOp.toInt())
+    println(plusMethod.toInt())
+    println(minusIntOp.toInt())
+    println(minusIntMethod.toInt())
+    println(minusCharOp)
+    println(minusCharMethod)
+    println(ltOp)
+    println(ltMethod)
+    println(eqOp)
+    println(eqMethod)
+    println(neOp)
+    println(neMethod)
+    println(unicodeGtOp)
+    println(unicodeGtMethod)
+}

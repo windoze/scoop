@@ -38,7 +38,7 @@
 | `P8-T04c` | [DONE] | P8 | [DONE] synthetic member call canonicalization + class/static init reachability 修复 | [TODO-4.md](./TODO-4.md) |
 | `P8-T04` | [DONE] | P8 | [DONE] HIR / typecheck：binary / unary operator 改写为 method call | [TODO-4.md](./TODO-4.md) |
 | `P8-T05` | [DONE] | P8 | [DONE] 删除 `mir_body/op.rs` 按 `ast::BinaryOp` 直接 codegen 路径 | [TODO-4.md](./TODO-4.md) |
-| `P8-T06` | [TODO] | P8 | 算术 fixture 矩阵 + 边界值回归 | [TODO-4.md](./TODO-4.md) |
+| `P8-T06` | [DONE] | P8 | [DONE] 算术 fixture 矩阵 + 边界值回归 | [TODO-4.md](./TODO-4.md) |
 | `P9-T01` | [TODO] | P9 | 把 `IntProgression.forEach` / `Int.rangeTo/downTo/until` 等 desugar 依赖从 stdlib 迁入 core | [TODO-5.md](./TODO-5.md) |
 | `P9-T02` | [TODO] | P9 | 按 P0-T01 三分类清单批量改写 / 合并 / 删除 fixture | [TODO-5.md](./TODO-5.md) |
 | `P9-T03` | [TODO] | P9 | 删除 `stdlib/` 目录与 frontend stdlib 注入路径 | [TODO-5.md](./TODO-5.md) |

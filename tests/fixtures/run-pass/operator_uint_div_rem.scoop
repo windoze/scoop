@@ -1,0 +1,62 @@
+// EXPECT: pass
+// RUN-STDOUT: operator_uint_div_rem.stdout
+// P8-T06: unsigned division/remainder use unsigned ordering and udiv/urem behavior.
+
+import scoop.core.*
+
+fun main() {
+    val max8: UInt8 = 255
+    val two8: UInt8 = 2
+    val zero8: UInt8 = 0
+    val one8: UInt8 = 1
+    val wrap8Op: UInt8 = zero8 - one8
+    val wrap8Method: UInt8 = zero8.minus(one8)
+    val div8Op: UInt8 = max8 / two8
+    val div8Method: UInt8 = max8.div(two8)
+    val rem8Op: UInt8 = max8 % two8
+    val rem8Method: UInt8 = max8.rem(two8)
+    val shr8Op: UInt8 = max8 >> 1
+    val shr8Method: UInt8 = max8.shr(1)
+    val ushr8Method: UInt8 = max8.ushr(1)
+
+    val zero: UInt = 0
+    val one: UInt = 1
+    val max: UInt = zero - one
+    val maxMethod: UInt = zero.minus(one)
+    val divSelf: UInt = max / max
+    val divSelfMethod: UInt = max.div(maxMethod)
+    val remSelf: UInt = max % max
+    val remSelfMethod: UInt = max.rem(maxMethod)
+
+    require(wrap8Op == 255)
+    require(wrap8Method == 255)
+    require(div8Op == 127)
+    require(div8Method == 127)
+    require(rem8Op == 1)
+    require(rem8Method == 1)
+    require(shr8Op == 127)
+    require(shr8Method == 127)
+    require(ushr8Method == 127)
+    require(max > zero)
+    require(max.gt(zero))
+    require(divSelf == one)
+    require(divSelfMethod == one)
+    require(remSelf == zero)
+    require(remSelfMethod == zero)
+
+    println(wrap8Op == 255)
+    println(wrap8Method == 255)
+    println(div8Op == 127)
+    println(div8Method == 127)
+    println(rem8Op == 1)
+    println(rem8Method == 1)
+    println(shr8Op == 127)
+    println(shr8Method == 127)
+    println(ushr8Method == 127)
+    println(max > zero)
+    println(max.gt(zero))
+    println(divSelf == one)
+    println(divSelfMethod == one)
+    println(remSelf == zero)
+    println(remSelfMethod == zero)
+}

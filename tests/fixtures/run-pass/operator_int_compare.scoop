@@ -1,0 +1,59 @@
+// EXPECT: pass
+// RUN-STDOUT: operator_int_compare.stdout
+// P8-T06: signed Int comparisons and compareTo match the P8 baseline.
+
+import scoop.core.*
+
+fun main() {
+    val min: Int = -9223372036854775807 - 1
+    val max: Int = 9223372036854775807
+    val minusOne: Int = -1
+
+    val ltOp: Bool = min < minusOne
+    val ltMethod: Bool = min.lt(minusOne)
+    val leOp: Bool = min <= min
+    val leMethod: Bool = min.le(min)
+    val gtOp: Bool = max > min
+    val gtMethod: Bool = max.gt(min)
+    val geOp: Bool = max >= max
+    val geMethod: Bool = max.ge(max)
+    val eqOp: Bool = min == min
+    val eqMethod: Bool = min.equals(min)
+    val neOp: Bool = min != max
+    val neMethod: Bool = min.notEquals(max)
+    val cmpLow: Int = min.compareTo(max)
+    val cmpEqual: Int = min.compareTo(min)
+    val cmpHigh: Int = max.compareTo(min)
+
+    require(ltOp)
+    require(ltMethod)
+    require(leOp)
+    require(leMethod)
+    require(gtOp)
+    require(gtMethod)
+    require(geOp)
+    require(geMethod)
+    require(eqOp)
+    require(eqMethod)
+    require(neOp)
+    require(neMethod)
+    require(cmpLow == -1)
+    require(cmpEqual == 0)
+    require(cmpHigh == 1)
+
+    println(ltOp)
+    println(ltMethod)
+    println(leOp)
+    println(leMethod)
+    println(gtOp)
+    println(gtMethod)
+    println(geOp)
+    println(geMethod)
+    println(eqOp)
+    println(eqMethod)
+    println(neOp)
+    println(neMethod)
+    println(cmpLow)
+    println(cmpEqual)
+    println(cmpHigh)
+}

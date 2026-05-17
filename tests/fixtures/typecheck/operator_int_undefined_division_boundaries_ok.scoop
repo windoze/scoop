@@ -1,0 +1,18 @@
+// EXPECT: pass
+// P8-T06: division-by-zero and signed MIN/-1 remain accepted by typecheck.
+// They are LLVM UB at runtime per the P8 baseline, so this fixture must not run.
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+fun main(): Int {
+    val min: Int = -9223372036854775807 - 1
+    val one: Int = 1
+    val zero: Int = 0
+    val signedOverflowDiv: Int = min / -1
+    val signedOverflowRem: Int = min % -1
+    val divideByZero: Int = one / zero
+    val remByZero: Int = one % zero
+    return signedOverflowDiv + signedOverflowRem + divideByZero + remByZero
+}

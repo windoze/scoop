@@ -1,0 +1,67 @@
+// EXPECT: pass
+// RUN-STDOUT: operator_float64_compare.stdout
+// P8-T06: Float64 ordered comparisons preserve NaN and signed-zero behavior.
+
+import scoop.core.*
+
+fun main() {
+    val nan: Float64 = 0.0 / 0.0
+    val posZero: Float64 = 0.0
+    val negZero: Float64 = -0.0
+    val one: Float64 = 1.0
+    val two: Float64 = 2.0
+
+    val ltOp: Bool = nan < one
+    val ltMethod: Bool = nan.lt(one)
+    val leOp: Bool = nan <= one
+    val leMethod: Bool = nan.le(one)
+    val gtOp: Bool = nan > one
+    val gtMethod: Bool = nan.gt(one)
+    val geOp: Bool = nan >= one
+    val geMethod: Bool = nan.ge(one)
+    val eqOp: Bool = nan == nan
+    val eqMethod: Bool = nan.equals(nan)
+    val neOp: Bool = nan != nan
+    val neMethod: Bool = nan.notEquals(nan)
+    val zeroEqOp: Bool = posZero == negZero
+    val zeroEqMethod: Bool = posZero.equals(negZero)
+    val cmpLow: Int = one.compareTo(two)
+    val cmpEqual: Int = one.compareTo(one)
+    val cmpHigh: Int = two.compareTo(one)
+
+    require(!ltOp)
+    require(!ltMethod)
+    require(!leOp)
+    require(!leMethod)
+    require(!gtOp)
+    require(!gtMethod)
+    require(!geOp)
+    require(!geMethod)
+    require(!eqOp)
+    require(!eqMethod)
+    require(neOp)
+    require(neMethod)
+    require(zeroEqOp)
+    require(zeroEqMethod)
+    require(cmpLow == -1)
+    require(cmpEqual == 0)
+    require(cmpHigh == 1)
+
+    println(ltOp)
+    println(ltMethod)
+    println(leOp)
+    println(leMethod)
+    println(gtOp)
+    println(gtMethod)
+    println(geOp)
+    println(geMethod)
+    println(eqOp)
+    println(eqMethod)
+    println(neOp)
+    println(neMethod)
+    println(zeroEqOp)
+    println(zeroEqMethod)
+    println(cmpLow)
+    println(cmpEqual)
+    println(cmpHigh)
+}

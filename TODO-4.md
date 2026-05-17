@@ -556,7 +556,7 @@
 - 与 `PLAN.md` 闭合：完成 PLAN §9 / P8 T8-5 的 LLVM/MIR direct operator codegen 删除；阶段级计划、依赖和完成标准未变化，未修改 `PLAN.md`。
 - 暂时性 failing fixture：`tests/fixtures/run-pass/mutable_array_ops_basic.scoop`，为 P8-T04c/P8-T04 已记录的既有 mutable array follow-up，继续由后续 P9-T02 / P13-T04 按三分类清单处理；本任务未新增其它 failing fixture。
 
-### P8-T06：算术 fixture 矩阵 + 边界值回归
+### [DONE] P8-T06：算术 fixture 矩阵 + 边界值回归
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §9 / P8 任务 T8-6 / T8-7
@@ -590,3 +590,11 @@
 - 完成条件：
   - operator 行为有完整 fixture 覆盖；P8 整体收口。
 - 依赖：P8-T05。
+
+完成记录（2026-05-17）：
+
+- 改动范围：新增 `tests/fixtures/run-pass/operator_int_arithmetic.scoop`、`operator_int_bitwise.scoop`、`operator_int_compare.scoop`、`operator_uint_div_rem.scoop`、`operator_float64_arithmetic.scoop`、`operator_float64_compare.scoop`、`operator_float32_basic.scoop`、`operator_bool_logic.scoop`、`operator_char_arithmetic.scoop` 及对应 stdout golden；新增 `tests/fixtures/typecheck/operator_int_undefined_division_boundaries_ok.scoop`、`tests/fixtures/typecheck/operator_short_circuit_does_not_call_method.scoop`；新增 `tests/fixtures/hir/operator_short_circuit_does_not_call_method.scoop/.hir`；同步更新 `TODO.md` 索引与本条任务标题。
+- 核心决策：每个 run-pass fixture 同时覆盖 operator 形式和直接 method 形式，stdout golden 固定 P8 baseline 的可观察结果；`Int.MIN_VALUE` 用 `-9223372036854775807 - 1` 表达，避免当前字面量 parser 把 `-9223372036854775808` 作为越界正整数字面量拒绝；`Int.MIN_VALUE / -1`、`Int.MIN_VALUE % -1`、`1 / 0`、`1 % 0` 属 LLVM UB，因此只用 typecheck-only fixture 覆盖“静态接受但不执行”；短路 `&&` / `||` 用 run-pass 副作用计数验证运行期不求 RHS，并用 HIR golden 固定 lowered HIR 不产生 `Bool.and` / `Bool.or` member call。
+- 验证结果：逐个运行 `tests/fixtures/run-pass/operator_*.scoop` 均通过（包含既有 `operator_overload_struct_basic.scoop`）；`cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/operator_short_circuit_does_not_call_method.scoop` 通过；`cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/operator_int_undefined_division_boundaries_ok.scoop` 通过；`cargo run -p scoop -- test --fixtures tests/fixtures/hir/operator_short_circuit_does_not_call_method.scoop` 通过；`cargo run -p scoop -- test` 为 1353/1354 targets passed、1390 checks passed，唯一失败是既有 `tests/fixtures/run-pass/mutable_array_ops_basic.scoop`；`cargo test --all --all-targets` 通过；`cargo clippy --all-targets -- -D warnings` 通过；`git diff --check` 通过。
+- 与 `PLAN.md` 闭合：完成 PLAN §9 / P8 T8-6/T8-7 的 operator behavior regression bedrock，为 P8 method 化后的未来行为变更提供 fixture 基线；阶段级计划、依赖和完成标准未变化，未修改 `PLAN.md`。
+- 暂时性 failing fixture：`tests/fixtures/run-pass/mutable_array_ops_basic.scoop`，为 P8-T04c/P8-T04/P8-T05 已记录的既有 mutable array follow-up，继续由后续 P9-T02 / P13-T04 按三分类清单处理；本任务未新增 failing fixture。

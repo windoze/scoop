@@ -1,0 +1,77 @@
+// EXPECT: pass
+// RUN-STDOUT: operator_int_bitwise.stdout
+// P8-T06: Int bitwise and shift operator/method forms match the P8 baseline.
+
+import scoop.core.*
+
+fun main() {
+    val ten: Int = 10
+    val twelve: Int = 12
+    val five: Int = 5
+    val zero: Int = 0
+    val one: Int = 1
+    val minusOne: Int = -1
+    val minusEight: Int = -8
+    val min: Int = -9223372036854775807 - 1
+    val max: Int = 9223372036854775807
+
+    val andOp: Int = ten & twelve
+    val andMethod: Int = ten.and(twelve)
+    val orOp: Int = ten | five
+    val orMethod: Int = ten.or(five)
+    val xorOp: Int = ten ^ twelve
+    val xorMethod: Int = ten.xor(twelve)
+    val invOp: Int = ~zero
+    val invMethod: Int = zero.inv()
+    val shlZeroOp: Int = one << 0
+    val shlZeroMethod: Int = one.shl(0)
+    val shlMaxOp: Int = one << 63
+    val shlMaxMethod: Int = one.shl(63)
+    val shlMaskedOp: Int = one << 64
+    val shlMaskedMethod: Int = one.shl(64)
+    val shlNegativeOp: Int = one << -1
+    val shlNegativeMethod: Int = one.shl(-1)
+    val shrOp: Int = minusEight >> 1
+    val shrMethod: Int = minusEight.shr(1)
+    val ushrMethod: Int = minusOne.ushr(1)
+
+    require(andOp == 8)
+    require(andMethod == 8)
+    require(orOp == 15)
+    require(orMethod == 15)
+    require(xorOp == 6)
+    require(xorMethod == 6)
+    require(invOp == -1)
+    require(invMethod == -1)
+    require(shlZeroOp == 1)
+    require(shlZeroMethod == 1)
+    require(shlMaxOp == min)
+    require(shlMaxMethod == min)
+    require(shlMaskedOp == 1)
+    require(shlMaskedMethod == 1)
+    require(shlNegativeOp == min)
+    require(shlNegativeMethod == min)
+    require(shrOp == -4)
+    require(shrMethod == -4)
+    require(ushrMethod == max)
+
+    println(andOp)
+    println(andMethod)
+    println(orOp)
+    println(orMethod)
+    println(xorOp)
+    println(xorMethod)
+    println(invOp)
+    println(invMethod)
+    println(shlZeroOp)
+    println(shlZeroMethod)
+    println(shlMaxOp)
+    println(shlMaxMethod)
+    println(shlMaskedOp)
+    println(shlMaskedMethod)
+    println(shlNegativeOp)
+    println(shlNegativeMethod)
+    println(shrOp)
+    println(shrMethod)
+    println(ushrMethod)
+}

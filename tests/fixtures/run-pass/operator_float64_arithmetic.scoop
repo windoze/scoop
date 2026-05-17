@@ -1,0 +1,76 @@
+// EXPECT: pass
+// RUN-STDOUT: operator_float64_arithmetic.stdout
+// P8-T06: Float64 arithmetic operator and method forms match the P8 baseline.
+
+import scoop.core.*
+
+fun main() {
+    val a: Float64 = 5.5
+    val b: Float64 = 2.0
+    val nan: Float64 = 0.0 / 0.0
+    val posInf: Float64 = 1.0 / 0.0
+    val negInf: Float64 = -1.0 / 0.0
+
+    val plusOp: Float64 = a + b
+    val plusMethod: Float64 = a.plus(b)
+    val minusOp: Float64 = a - b
+    val minusMethod: Float64 = a.minus(b)
+    val timesOp: Float64 = a * b
+    val timesMethod: Float64 = a.times(b)
+    val divOp: Float64 = a / b
+    val divMethod: Float64 = a.div(b)
+    val remOp: Float64 = a % b
+    val remMethod: Float64 = a.rem(b)
+    val negOp: Float64 = -a
+    val negMethod: Float64 = a.unaryMinus()
+
+    require(plusOp == 7.5)
+    require(plusMethod == 7.5)
+    require(minusOp == 3.5)
+    require(minusMethod == 3.5)
+    require(timesOp == 11.0)
+    require(timesMethod == 11.0)
+    require(divOp == 2.75)
+    require(divMethod == 2.75)
+    require(remOp == 1.5)
+    require(remMethod == 1.5)
+    require(negOp == -5.5)
+    require(negMethod == -5.5)
+    require((posInf + negInf).isNaN())
+    require(posInf.plus(negInf).isNaN())
+    require((nan - 1.0).isNaN())
+    require(nan.minus(1.0).isNaN())
+    require((nan * 1.0).isNaN())
+    require(nan.times(1.0).isNaN())
+    require(nan.isNaN())
+    require(posInf.isInfinite())
+    require((nan % 1.0).isNaN())
+    require(nan.rem(1.0).isNaN())
+    require((-nan).isNaN())
+    require(nan.unaryMinus().isNaN())
+
+    println(plusOp)
+    println(plusMethod)
+    println(minusOp)
+    println(minusMethod)
+    println(timesOp)
+    println(timesMethod)
+    println(divOp)
+    println(divMethod)
+    println(remOp)
+    println(remMethod)
+    println(negOp)
+    println(negMethod)
+    println((posInf + negInf).isNaN())
+    println(posInf.plus(negInf).isNaN())
+    println((nan - 1.0).isNaN())
+    println(nan.minus(1.0).isNaN())
+    println((nan * 1.0).isNaN())
+    println(nan.times(1.0).isNaN())
+    println(nan.isNaN())
+    println(posInf.isInfinite())
+    println((nan % 1.0).isNaN())
+    println(nan.rem(1.0).isNaN())
+    println((-nan).isNaN())
+    println(nan.unaryMinus().isNaN())
+}
