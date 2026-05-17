@@ -4,7 +4,7 @@
 > 设计基线：[`CLOSURE_FIX.md`](./CLOSURE_FIX.md)  
 > 计划基线：[`PLAN.md`](./PLAN.md)  
 > 格式参考：[`docs/archive/plans/TODO-stable-id.md`](./docs/archive/plans/TODO-stable-id.md)  
-> 当前状态：待开始  
+> 当前状态：C0-T01 已完成  
 > 执行原则：C0 必须最先完成；C1/C3 与 C2 两条实现线可按依赖并行，但单个任务完成时不得留下仓库内 failing fixture；每个任务完成后必须回写“完成记录”。
 
 ## 全局约束
@@ -169,7 +169,7 @@ C0-T01 (baseline + prerequisite inventory)
 
 ## C0：冻结 baseline + 摸底先决
 
-### [TODO] C0-T01：建立本轮 baseline、确认先决事实与 fixture 分类
+### [DONE] C0-T01：建立本轮 baseline、确认先决事实与 fixture 分类
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §7 C0
@@ -197,10 +197,22 @@ C0-T01 (baseline + prerequisite inventory)
   - 完成记录中有 baseline 结果、CaptureBox 命中摘要、closure fixture 分类、atomic-ref 缺口、sysroot 名字确认、audit 基线影响面。
 - 依赖：无
 - 完成记录：
-  - 改动范围：
+  - 改动范围：只更新本任务完成记录与 `memory/claude_plan.md` 进度；未修改语义代码、fixture expect 或 `PLAN.md`。
   - 核心决策：
+    - 当前 baseline 全绿；没有发现阻塞 C1/C2/C3 的现有 failing test 或 failing fixture。
+    - CaptureBox 命中与本文件“CaptureBox 当前命中快照”一致；没有新增 source 命中，`sysroot` 无 CaptureBox 命中。
+    - closure-dependent fixtures 分类如下：MIR snapshot 为 `tests/fixtures/mir/closure_capture_var.*`、`tests/fixtures/mir_lowered/aggregate_transport.*`、`tests/fixtures/mir_lowered/assignment_places.*`；run-pass closure 为 `closure_env_composite_capture_basic.scoop`；effect closure 为 `effect_indirect_perform_materialized_mir_closure_basic.scoop`、`effect_indirect_perform_nonresuming_closure.scoop`、`effect_escape_continuation_indirect_perform_closure*.scoop`；runtime_gc closure 为 `gc_trace_closure_capture_string_basic.scoop`、`gc_move_enum_maybe_ref_closure_capture_basic.scoop`；build closure 为 `safepoint_non_escaping_closure_basic.scoop`。
+    - atomic-ref 现状确认：`__atomicRef` / `atomic_ref` / `AtomicRef` / `atomicRef` 当前无命中，C3-T02 仍需新增 atomic-ref primitive 或等价 lowering。
+    - sysroot 名字确认：`sysroot` 当前没有 `AnyRef`、`AnyValue`、`RefCell`、`Box`、`AtomicInt`、`AtomicBool`、`Atomic<T>`、`AtomicValue<T>` 声明；`tests/fixtures/**` 中存在多处本地 `Box` 类型，后续新增 fixture 需避免本地重名噪音。
+    - `pipeline_user_visible_failure_policy.rs` 影响面：当前 `STALE_UNSUPPORTED_MAIN_BODY_COUNTS` 中相关条目为 `mir_body/aggregates.rs = 42`、`mir_body/terminator.rs = 19`、`mir_body/value_args.rs = 6`、`effect_lowered/value.rs = 126`。CaptureBox 删除预计会移除 `aggregates.rs` 中 capture-box new/get/set helper 内 11 个 `UnsupportedMainBody` 站点；`terminator.rs` 的 CaptureBox arms 只是派发到 helper，`value_args.rs` 的 capture-box descriptor helper 与 `effect_lowered/value.rs` 的 `rvalue_mentions_local` arms 不直接贡献 `UnsupportedMainBody` 计数。
   - 验证结果：
-  - 与 `PLAN.md` / `CLOSURE_FIX.md` 对应闭合：
+    - `cargo build`：通过。
+    - `cargo test --all --all-targets`：通过，命令整体退出成功；`scoopc` 测试段显示 856 passed。
+    - `cargo run -p scoop -- test`：通过，`1340/1340` fixtures PASS，`fixtures: ok (1377)`。
+    - `rg -n "CaptureBox|capture_box|mir_capture_box|__CaptureBox" crates/scoopc/src tests/fixtures sysroot`：通过；source counts 与快照一致，fixture 命中集中在已列出的 MIR snapshot。
+    - `rg -n "__atomicRef|atomic_ref|AtomicRef|atomicRef" crates/scoopc/src sysroot runtime tests/fixtures`：无输出。
+    - `rg -n '^\s*(class|struct|interface|sealed interface|typealias|enum|object|effect)\s+(AnyRef|AnyValue|RefCell|Box|Atomic(Int|Bool|Value)?|Atomic)\b' sysroot tests/fixtures`：仅 fixture-local `Box` 声明命中，`sysroot` 无命中。
+  - 与 `PLAN.md` / `CLOSURE_FIX.md` 对应闭合：闭合 `PLAN.md` §7 C0 与 `CLOSURE_FIX.md` §5.1 的 baseline / 先决事实摸底要求；阶段级计划未变化。
 
 ## C1：类型系统底座
 
