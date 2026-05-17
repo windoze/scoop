@@ -67,7 +67,7 @@
 - 与 `PLAN.md` 闭合：完成 P8 operator method 化前的行为仲裁文档；阶段级计划和依赖未变化，未修改 `PLAN.md`。
 - 暂时性 failing fixture：无；本任务仅新增文档，不引入 fixture 或代码路径变更。
 
-### P8-T02：编译器 method-level intrinsic 表扩展
+### [DONE] P8-T02：编译器 method-level intrinsic 表扩展
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §9 / P8 任务 T8-2 + entry key 表
@@ -124,6 +124,14 @@
 - 完成条件：
   - 全部新 entry 注册并实现 lowering；P8-T01 baseline 中列出的所有边界值在 unit test 形式下产出预期 IR。
 - 依赖：P8-T01。
+
+完成记录（2026-05-17）：
+
+- 改动范围：扩展 `crates/scoopc/src/intrinsics.rs` 的 named intrinsic audit entry 表与 scalar method FQN fallback；扩展 `crates/scoopc/src/llvm/codegen/intrinsics/named.rs` 的 IR rule 表和 lowering；新增 `crates/scoopc/src/llvm/tests/named_intrinsic.rs` owner 测试并接入 `llvm/tests/mod.rs`；同步更新 `TODO.md` 索引与本条任务标题。
+- 核心决策：新增 P8-T02 列出的 22 个 integer、17 个 float、4 个 bool、7 个 Char entry，全部保持 `IrEmission`；integer lowering 复用 P8-T01 baseline 的 wrap、signed/unsigned div/rem、shift count mask、signed/unsigned compare 规则；`int_shr` 按 receiver signedness 选择 `ashr/lshr`（因此 `UInt.shr` 为 `lshr`），`int_ushr` 始终为 `lshr`；float `!=` 使用 baseline 的 `fcmp une`；`compareTo` 用 `lt -> -1 / eq -> 0 / otherwise -> 1` 的 select chain；Char 算术按 i32 codepoint 运算且不做范围 clamp。
+- 验证结果：`cargo test -p scoopc named_intrinsic -- --nocapture` 通过；`cargo build` 通过；`cargo clippy --all-targets -- -D warnings` 通过；`cargo test --all --all-targets` 通过。首次全量测试命令因工具 120s 总超时在 `gc_immix_try_minor_deadline` 附近被中止；随后该单测单独复跑 0.06s 通过，并用更长超时复跑全量测试通过。
+- 与 `PLAN.md` 闭合：完成 P8 T8-2 的 method-level scalar intrinsic 表与 IR-direct lowering，为 P8-T03 sysroot method 声明和 P8-T04 operator 改写提供 entry surface；阶段级计划、依赖与完成标准未变化，未修改 `PLAN.md`。
+- 暂时性 failing fixture：无；本任务不启用新的 sysroot caller 或 operator 改写路径，未新增 failing fixture。
 
 ### P8-T03：sysroot 标量 type body 内补 `@Intrinsic("...")` method 声明
 

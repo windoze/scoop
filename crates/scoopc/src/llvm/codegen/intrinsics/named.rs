@@ -1,12 +1,15 @@
 //! Named intrinsic table lowering.
 
 use inkwell::AddressSpace;
+use inkwell::FloatPredicate;
 use inkwell::IntPredicate;
 use inkwell::types::BasicMetadataTypeEnum;
 use inkwell::types::BasicTypeEnum;
 use inkwell::values::BasicMetadataValueEnum;
 use inkwell::values::BasicValueEnum;
+use inkwell::values::FloatValue;
 use inkwell::values::FunctionValue;
+use inkwell::values::IntValue;
 use inkwell::values::PointerValue;
 
 use super::super::mir_body::MirLocalSlot;
@@ -46,6 +49,69 @@ struct NamedIntrinsicIrRuleEntry {
 enum NamedIntrinsicArrayLayout {
     Inline,
     OutOfLine,
+}
+
+#[derive(Clone, Copy)]
+enum NamedIntrinsicIntBinaryOp {
+    Add,
+    Sub,
+    Mul,
+    SignednessDiv,
+    SignednessRem,
+    And,
+    Or,
+    Xor,
+}
+
+#[derive(Clone, Copy)]
+enum NamedIntrinsicIntUnaryOp {
+    Neg,
+    Inc,
+    Dec,
+    Inv,
+}
+
+#[derive(Clone, Copy)]
+enum NamedIntrinsicIntShiftOp {
+    Shl,
+    Shr,
+    UShr,
+}
+
+#[derive(Clone, Copy)]
+enum NamedIntrinsicIntCompareOp {
+    Lt,
+    Le,
+    Gt,
+    Ge,
+    Eq,
+    Ne,
+}
+
+#[derive(Clone, Copy)]
+enum NamedIntrinsicFloatBinaryOp {
+    Add,
+    Sub,
+    Mul,
+    Div,
+    Rem,
+}
+
+#[derive(Clone, Copy)]
+enum NamedIntrinsicFloatCompareOp {
+    Lt,
+    Le,
+    Gt,
+    Ge,
+    Eq,
+    Ne,
+}
+
+#[derive(Clone, Copy)]
+enum NamedIntrinsicBoolBinaryOp {
+    And,
+    Or,
+    Xor,
 }
 
 const NAMED_INTRINSIC_IR_RULES: &[NamedIntrinsicIrRuleEntry] = &[
@@ -108,6 +174,206 @@ const NAMED_INTRINSIC_IR_RULES: &[NamedIntrinsicIrRuleEntry] = &[
     NamedIntrinsicIrRuleEntry {
         name: "unsafe_value_slot",
         lower: lower_unsafe_value_slot,
+    },
+    NamedIntrinsicIrRuleEntry {
+        name: "int_plus",
+        lower: lower_int_plus,
+    },
+    NamedIntrinsicIrRuleEntry {
+        name: "int_minus",
+        lower: lower_int_minus,
+    },
+    NamedIntrinsicIrRuleEntry {
+        name: "int_times",
+        lower: lower_int_times,
+    },
+    NamedIntrinsicIrRuleEntry {
+        name: "int_div",
+        lower: lower_int_div,
+    },
+    NamedIntrinsicIrRuleEntry {
+        name: "int_rem",
+        lower: lower_int_rem,
+    },
+    NamedIntrinsicIrRuleEntry {
+        name: "int_unary_minus",
+        lower: lower_int_unary_minus,
+    },
+    NamedIntrinsicIrRuleEntry {
+        name: "int_inc",
+        lower: lower_int_inc,
+    },
+    NamedIntrinsicIrRuleEntry {
+        name: "int_dec",
+        lower: lower_int_dec,
+    },
+    NamedIntrinsicIrRuleEntry {
+        name: "int_and",
+        lower: lower_int_and,
+    },
+    NamedIntrinsicIrRuleEntry {
+        name: "int_or",
+        lower: lower_int_or,
+    },
+    NamedIntrinsicIrRuleEntry {
+        name: "int_xor",
+        lower: lower_int_xor,
+    },
+    NamedIntrinsicIrRuleEntry {
+        name: "int_inv",
+        lower: lower_int_inv,
+    },
+    NamedIntrinsicIrRuleEntry {
+        name: "int_shl",
+        lower: lower_int_shl,
+    },
+    NamedIntrinsicIrRuleEntry {
+        name: "int_shr",
+        lower: lower_int_shr,
+    },
+    NamedIntrinsicIrRuleEntry {
+        name: "int_ushr",
+        lower: lower_int_ushr,
+    },
+    NamedIntrinsicIrRuleEntry {
+        name: "int_lt",
+        lower: lower_int_lt,
+    },
+    NamedIntrinsicIrRuleEntry {
+        name: "int_le",
+        lower: lower_int_le,
+    },
+    NamedIntrinsicIrRuleEntry {
+        name: "int_gt",
+        lower: lower_int_gt,
+    },
+    NamedIntrinsicIrRuleEntry {
+        name: "int_ge",
+        lower: lower_int_ge,
+    },
+    NamedIntrinsicIrRuleEntry {
+        name: "int_eq",
+        lower: lower_int_eq,
+    },
+    NamedIntrinsicIrRuleEntry {
+        name: "int_ne",
+        lower: lower_int_ne,
+    },
+    NamedIntrinsicIrRuleEntry {
+        name: "int_compare_to",
+        lower: lower_int_compare_to,
+    },
+    NamedIntrinsicIrRuleEntry {
+        name: "float_plus",
+        lower: lower_float_plus,
+    },
+    NamedIntrinsicIrRuleEntry {
+        name: "float_minus",
+        lower: lower_float_minus,
+    },
+    NamedIntrinsicIrRuleEntry {
+        name: "float_times",
+        lower: lower_float_times,
+    },
+    NamedIntrinsicIrRuleEntry {
+        name: "float_div",
+        lower: lower_float_div,
+    },
+    NamedIntrinsicIrRuleEntry {
+        name: "float_rem",
+        lower: lower_float_rem,
+    },
+    NamedIntrinsicIrRuleEntry {
+        name: "float_unary_minus",
+        lower: lower_float_unary_minus,
+    },
+    NamedIntrinsicIrRuleEntry {
+        name: "float_lt",
+        lower: lower_float_lt,
+    },
+    NamedIntrinsicIrRuleEntry {
+        name: "float_le",
+        lower: lower_float_le,
+    },
+    NamedIntrinsicIrRuleEntry {
+        name: "float_gt",
+        lower: lower_float_gt,
+    },
+    NamedIntrinsicIrRuleEntry {
+        name: "float_ge",
+        lower: lower_float_ge,
+    },
+    NamedIntrinsicIrRuleEntry {
+        name: "float_eq",
+        lower: lower_float_eq,
+    },
+    NamedIntrinsicIrRuleEntry {
+        name: "float_ne",
+        lower: lower_float_ne,
+    },
+    NamedIntrinsicIrRuleEntry {
+        name: "float_compare_to",
+        lower: lower_float_compare_to,
+    },
+    NamedIntrinsicIrRuleEntry {
+        name: "float_abs",
+        lower: lower_float_abs,
+    },
+    NamedIntrinsicIrRuleEntry {
+        name: "float_is_nan",
+        lower: lower_float_is_nan,
+    },
+    NamedIntrinsicIrRuleEntry {
+        name: "float_is_infinite",
+        lower: lower_float_is_infinite,
+    },
+    NamedIntrinsicIrRuleEntry {
+        name: "float_hash",
+        lower: lower_float_hash,
+    },
+    NamedIntrinsicIrRuleEntry {
+        name: "bool_and",
+        lower: lower_bool_and,
+    },
+    NamedIntrinsicIrRuleEntry {
+        name: "bool_or",
+        lower: lower_bool_or,
+    },
+    NamedIntrinsicIrRuleEntry {
+        name: "bool_xor",
+        lower: lower_bool_xor,
+    },
+    NamedIntrinsicIrRuleEntry {
+        name: "bool_not",
+        lower: lower_bool_not,
+    },
+    NamedIntrinsicIrRuleEntry {
+        name: "char_to_int",
+        lower: lower_char_to_int,
+    },
+    NamedIntrinsicIrRuleEntry {
+        name: "char_hash",
+        lower: lower_char_hash,
+    },
+    NamedIntrinsicIrRuleEntry {
+        name: "char_compare_to",
+        lower: lower_char_compare_to,
+    },
+    NamedIntrinsicIrRuleEntry {
+        name: "char_equals",
+        lower: lower_char_equals,
+    },
+    NamedIntrinsicIrRuleEntry {
+        name: "char_plus_int",
+        lower: lower_char_plus_int,
+    },
+    NamedIntrinsicIrRuleEntry {
+        name: "char_minus_int",
+        lower: lower_char_minus_int,
+    },
+    NamedIntrinsicIrRuleEntry {
+        name: "char_minus_char",
+        lower: lower_char_minus_char,
     },
 ];
 
@@ -223,6 +489,356 @@ fn lower_unsafe_value_slot<'a, 'ctx>(
     cg.codegen_named_intrinsic_unsafe_value_slot(call)
 }
 
+fn lower_int_plus<'a, 'ctx>(
+    cg: &mut MainCodegen<'a, 'ctx>,
+    call: LoweredNamedIntrinsicCall<'ctx>,
+) -> Result<CgValue<'ctx>, LlvmEmitError> {
+    cg.codegen_named_intrinsic_int_binary(call, NamedIntrinsicIntBinaryOp::Add)
+}
+
+fn lower_int_minus<'a, 'ctx>(
+    cg: &mut MainCodegen<'a, 'ctx>,
+    call: LoweredNamedIntrinsicCall<'ctx>,
+) -> Result<CgValue<'ctx>, LlvmEmitError> {
+    cg.codegen_named_intrinsic_int_binary(call, NamedIntrinsicIntBinaryOp::Sub)
+}
+
+fn lower_int_times<'a, 'ctx>(
+    cg: &mut MainCodegen<'a, 'ctx>,
+    call: LoweredNamedIntrinsicCall<'ctx>,
+) -> Result<CgValue<'ctx>, LlvmEmitError> {
+    cg.codegen_named_intrinsic_int_binary(call, NamedIntrinsicIntBinaryOp::Mul)
+}
+
+fn lower_int_div<'a, 'ctx>(
+    cg: &mut MainCodegen<'a, 'ctx>,
+    call: LoweredNamedIntrinsicCall<'ctx>,
+) -> Result<CgValue<'ctx>, LlvmEmitError> {
+    cg.codegen_named_intrinsic_int_binary(call, NamedIntrinsicIntBinaryOp::SignednessDiv)
+}
+
+fn lower_int_rem<'a, 'ctx>(
+    cg: &mut MainCodegen<'a, 'ctx>,
+    call: LoweredNamedIntrinsicCall<'ctx>,
+) -> Result<CgValue<'ctx>, LlvmEmitError> {
+    cg.codegen_named_intrinsic_int_binary(call, NamedIntrinsicIntBinaryOp::SignednessRem)
+}
+
+fn lower_int_unary_minus<'a, 'ctx>(
+    cg: &mut MainCodegen<'a, 'ctx>,
+    call: LoweredNamedIntrinsicCall<'ctx>,
+) -> Result<CgValue<'ctx>, LlvmEmitError> {
+    cg.codegen_named_intrinsic_int_unary(call, NamedIntrinsicIntUnaryOp::Neg)
+}
+
+fn lower_int_inc<'a, 'ctx>(
+    cg: &mut MainCodegen<'a, 'ctx>,
+    call: LoweredNamedIntrinsicCall<'ctx>,
+) -> Result<CgValue<'ctx>, LlvmEmitError> {
+    cg.codegen_named_intrinsic_int_unary(call, NamedIntrinsicIntUnaryOp::Inc)
+}
+
+fn lower_int_dec<'a, 'ctx>(
+    cg: &mut MainCodegen<'a, 'ctx>,
+    call: LoweredNamedIntrinsicCall<'ctx>,
+) -> Result<CgValue<'ctx>, LlvmEmitError> {
+    cg.codegen_named_intrinsic_int_unary(call, NamedIntrinsicIntUnaryOp::Dec)
+}
+
+fn lower_int_and<'a, 'ctx>(
+    cg: &mut MainCodegen<'a, 'ctx>,
+    call: LoweredNamedIntrinsicCall<'ctx>,
+) -> Result<CgValue<'ctx>, LlvmEmitError> {
+    cg.codegen_named_intrinsic_int_binary(call, NamedIntrinsicIntBinaryOp::And)
+}
+
+fn lower_int_or<'a, 'ctx>(
+    cg: &mut MainCodegen<'a, 'ctx>,
+    call: LoweredNamedIntrinsicCall<'ctx>,
+) -> Result<CgValue<'ctx>, LlvmEmitError> {
+    cg.codegen_named_intrinsic_int_binary(call, NamedIntrinsicIntBinaryOp::Or)
+}
+
+fn lower_int_xor<'a, 'ctx>(
+    cg: &mut MainCodegen<'a, 'ctx>,
+    call: LoweredNamedIntrinsicCall<'ctx>,
+) -> Result<CgValue<'ctx>, LlvmEmitError> {
+    cg.codegen_named_intrinsic_int_binary(call, NamedIntrinsicIntBinaryOp::Xor)
+}
+
+fn lower_int_inv<'a, 'ctx>(
+    cg: &mut MainCodegen<'a, 'ctx>,
+    call: LoweredNamedIntrinsicCall<'ctx>,
+) -> Result<CgValue<'ctx>, LlvmEmitError> {
+    cg.codegen_named_intrinsic_int_unary(call, NamedIntrinsicIntUnaryOp::Inv)
+}
+
+fn lower_int_shl<'a, 'ctx>(
+    cg: &mut MainCodegen<'a, 'ctx>,
+    call: LoweredNamedIntrinsicCall<'ctx>,
+) -> Result<CgValue<'ctx>, LlvmEmitError> {
+    cg.codegen_named_intrinsic_int_shift(call, NamedIntrinsicIntShiftOp::Shl)
+}
+
+fn lower_int_shr<'a, 'ctx>(
+    cg: &mut MainCodegen<'a, 'ctx>,
+    call: LoweredNamedIntrinsicCall<'ctx>,
+) -> Result<CgValue<'ctx>, LlvmEmitError> {
+    cg.codegen_named_intrinsic_int_shift(call, NamedIntrinsicIntShiftOp::Shr)
+}
+
+fn lower_int_ushr<'a, 'ctx>(
+    cg: &mut MainCodegen<'a, 'ctx>,
+    call: LoweredNamedIntrinsicCall<'ctx>,
+) -> Result<CgValue<'ctx>, LlvmEmitError> {
+    cg.codegen_named_intrinsic_int_shift(call, NamedIntrinsicIntShiftOp::UShr)
+}
+
+fn lower_int_lt<'a, 'ctx>(
+    cg: &mut MainCodegen<'a, 'ctx>,
+    call: LoweredNamedIntrinsicCall<'ctx>,
+) -> Result<CgValue<'ctx>, LlvmEmitError> {
+    cg.codegen_named_intrinsic_int_compare(call, NamedIntrinsicIntCompareOp::Lt)
+}
+
+fn lower_int_le<'a, 'ctx>(
+    cg: &mut MainCodegen<'a, 'ctx>,
+    call: LoweredNamedIntrinsicCall<'ctx>,
+) -> Result<CgValue<'ctx>, LlvmEmitError> {
+    cg.codegen_named_intrinsic_int_compare(call, NamedIntrinsicIntCompareOp::Le)
+}
+
+fn lower_int_gt<'a, 'ctx>(
+    cg: &mut MainCodegen<'a, 'ctx>,
+    call: LoweredNamedIntrinsicCall<'ctx>,
+) -> Result<CgValue<'ctx>, LlvmEmitError> {
+    cg.codegen_named_intrinsic_int_compare(call, NamedIntrinsicIntCompareOp::Gt)
+}
+
+fn lower_int_ge<'a, 'ctx>(
+    cg: &mut MainCodegen<'a, 'ctx>,
+    call: LoweredNamedIntrinsicCall<'ctx>,
+) -> Result<CgValue<'ctx>, LlvmEmitError> {
+    cg.codegen_named_intrinsic_int_compare(call, NamedIntrinsicIntCompareOp::Ge)
+}
+
+fn lower_int_eq<'a, 'ctx>(
+    cg: &mut MainCodegen<'a, 'ctx>,
+    call: LoweredNamedIntrinsicCall<'ctx>,
+) -> Result<CgValue<'ctx>, LlvmEmitError> {
+    cg.codegen_named_intrinsic_int_compare(call, NamedIntrinsicIntCompareOp::Eq)
+}
+
+fn lower_int_ne<'a, 'ctx>(
+    cg: &mut MainCodegen<'a, 'ctx>,
+    call: LoweredNamedIntrinsicCall<'ctx>,
+) -> Result<CgValue<'ctx>, LlvmEmitError> {
+    cg.codegen_named_intrinsic_int_compare(call, NamedIntrinsicIntCompareOp::Ne)
+}
+
+fn lower_int_compare_to<'a, 'ctx>(
+    cg: &mut MainCodegen<'a, 'ctx>,
+    call: LoweredNamedIntrinsicCall<'ctx>,
+) -> Result<CgValue<'ctx>, LlvmEmitError> {
+    cg.codegen_named_intrinsic_int_compare_to(call)
+}
+
+fn lower_float_plus<'a, 'ctx>(
+    cg: &mut MainCodegen<'a, 'ctx>,
+    call: LoweredNamedIntrinsicCall<'ctx>,
+) -> Result<CgValue<'ctx>, LlvmEmitError> {
+    cg.codegen_named_intrinsic_float_binary(call, NamedIntrinsicFloatBinaryOp::Add)
+}
+
+fn lower_float_minus<'a, 'ctx>(
+    cg: &mut MainCodegen<'a, 'ctx>,
+    call: LoweredNamedIntrinsicCall<'ctx>,
+) -> Result<CgValue<'ctx>, LlvmEmitError> {
+    cg.codegen_named_intrinsic_float_binary(call, NamedIntrinsicFloatBinaryOp::Sub)
+}
+
+fn lower_float_times<'a, 'ctx>(
+    cg: &mut MainCodegen<'a, 'ctx>,
+    call: LoweredNamedIntrinsicCall<'ctx>,
+) -> Result<CgValue<'ctx>, LlvmEmitError> {
+    cg.codegen_named_intrinsic_float_binary(call, NamedIntrinsicFloatBinaryOp::Mul)
+}
+
+fn lower_float_div<'a, 'ctx>(
+    cg: &mut MainCodegen<'a, 'ctx>,
+    call: LoweredNamedIntrinsicCall<'ctx>,
+) -> Result<CgValue<'ctx>, LlvmEmitError> {
+    cg.codegen_named_intrinsic_float_binary(call, NamedIntrinsicFloatBinaryOp::Div)
+}
+
+fn lower_float_rem<'a, 'ctx>(
+    cg: &mut MainCodegen<'a, 'ctx>,
+    call: LoweredNamedIntrinsicCall<'ctx>,
+) -> Result<CgValue<'ctx>, LlvmEmitError> {
+    cg.codegen_named_intrinsic_float_binary(call, NamedIntrinsicFloatBinaryOp::Rem)
+}
+
+fn lower_float_unary_minus<'a, 'ctx>(
+    cg: &mut MainCodegen<'a, 'ctx>,
+    call: LoweredNamedIntrinsicCall<'ctx>,
+) -> Result<CgValue<'ctx>, LlvmEmitError> {
+    cg.codegen_named_intrinsic_float_unary_minus(call)
+}
+
+fn lower_float_lt<'a, 'ctx>(
+    cg: &mut MainCodegen<'a, 'ctx>,
+    call: LoweredNamedIntrinsicCall<'ctx>,
+) -> Result<CgValue<'ctx>, LlvmEmitError> {
+    cg.codegen_named_intrinsic_float_compare(call, NamedIntrinsicFloatCompareOp::Lt)
+}
+
+fn lower_float_le<'a, 'ctx>(
+    cg: &mut MainCodegen<'a, 'ctx>,
+    call: LoweredNamedIntrinsicCall<'ctx>,
+) -> Result<CgValue<'ctx>, LlvmEmitError> {
+    cg.codegen_named_intrinsic_float_compare(call, NamedIntrinsicFloatCompareOp::Le)
+}
+
+fn lower_float_gt<'a, 'ctx>(
+    cg: &mut MainCodegen<'a, 'ctx>,
+    call: LoweredNamedIntrinsicCall<'ctx>,
+) -> Result<CgValue<'ctx>, LlvmEmitError> {
+    cg.codegen_named_intrinsic_float_compare(call, NamedIntrinsicFloatCompareOp::Gt)
+}
+
+fn lower_float_ge<'a, 'ctx>(
+    cg: &mut MainCodegen<'a, 'ctx>,
+    call: LoweredNamedIntrinsicCall<'ctx>,
+) -> Result<CgValue<'ctx>, LlvmEmitError> {
+    cg.codegen_named_intrinsic_float_compare(call, NamedIntrinsicFloatCompareOp::Ge)
+}
+
+fn lower_float_eq<'a, 'ctx>(
+    cg: &mut MainCodegen<'a, 'ctx>,
+    call: LoweredNamedIntrinsicCall<'ctx>,
+) -> Result<CgValue<'ctx>, LlvmEmitError> {
+    cg.codegen_named_intrinsic_float_compare(call, NamedIntrinsicFloatCompareOp::Eq)
+}
+
+fn lower_float_ne<'a, 'ctx>(
+    cg: &mut MainCodegen<'a, 'ctx>,
+    call: LoweredNamedIntrinsicCall<'ctx>,
+) -> Result<CgValue<'ctx>, LlvmEmitError> {
+    cg.codegen_named_intrinsic_float_compare(call, NamedIntrinsicFloatCompareOp::Ne)
+}
+
+fn lower_float_compare_to<'a, 'ctx>(
+    cg: &mut MainCodegen<'a, 'ctx>,
+    call: LoweredNamedIntrinsicCall<'ctx>,
+) -> Result<CgValue<'ctx>, LlvmEmitError> {
+    cg.codegen_named_intrinsic_float_compare_to(call)
+}
+
+fn lower_float_abs<'a, 'ctx>(
+    cg: &mut MainCodegen<'a, 'ctx>,
+    call: LoweredNamedIntrinsicCall<'ctx>,
+) -> Result<CgValue<'ctx>, LlvmEmitError> {
+    cg.codegen_named_intrinsic_float_abs(call)
+}
+
+fn lower_float_is_nan<'a, 'ctx>(
+    cg: &mut MainCodegen<'a, 'ctx>,
+    call: LoweredNamedIntrinsicCall<'ctx>,
+) -> Result<CgValue<'ctx>, LlvmEmitError> {
+    cg.codegen_named_intrinsic_float_is_nan(call)
+}
+
+fn lower_float_is_infinite<'a, 'ctx>(
+    cg: &mut MainCodegen<'a, 'ctx>,
+    call: LoweredNamedIntrinsicCall<'ctx>,
+) -> Result<CgValue<'ctx>, LlvmEmitError> {
+    cg.codegen_named_intrinsic_float_is_infinite(call)
+}
+
+fn lower_float_hash<'a, 'ctx>(
+    cg: &mut MainCodegen<'a, 'ctx>,
+    call: LoweredNamedIntrinsicCall<'ctx>,
+) -> Result<CgValue<'ctx>, LlvmEmitError> {
+    cg.codegen_named_intrinsic_float_hash(call)
+}
+
+fn lower_bool_and<'a, 'ctx>(
+    cg: &mut MainCodegen<'a, 'ctx>,
+    call: LoweredNamedIntrinsicCall<'ctx>,
+) -> Result<CgValue<'ctx>, LlvmEmitError> {
+    cg.codegen_named_intrinsic_bool_binary(call, NamedIntrinsicBoolBinaryOp::And)
+}
+
+fn lower_bool_or<'a, 'ctx>(
+    cg: &mut MainCodegen<'a, 'ctx>,
+    call: LoweredNamedIntrinsicCall<'ctx>,
+) -> Result<CgValue<'ctx>, LlvmEmitError> {
+    cg.codegen_named_intrinsic_bool_binary(call, NamedIntrinsicBoolBinaryOp::Or)
+}
+
+fn lower_bool_xor<'a, 'ctx>(
+    cg: &mut MainCodegen<'a, 'ctx>,
+    call: LoweredNamedIntrinsicCall<'ctx>,
+) -> Result<CgValue<'ctx>, LlvmEmitError> {
+    cg.codegen_named_intrinsic_bool_binary(call, NamedIntrinsicBoolBinaryOp::Xor)
+}
+
+fn lower_bool_not<'a, 'ctx>(
+    cg: &mut MainCodegen<'a, 'ctx>,
+    call: LoweredNamedIntrinsicCall<'ctx>,
+) -> Result<CgValue<'ctx>, LlvmEmitError> {
+    cg.codegen_named_intrinsic_bool_not(call)
+}
+
+fn lower_char_to_int<'a, 'ctx>(
+    cg: &mut MainCodegen<'a, 'ctx>,
+    call: LoweredNamedIntrinsicCall<'ctx>,
+) -> Result<CgValue<'ctx>, LlvmEmitError> {
+    cg.codegen_named_intrinsic_char_to_int(call)
+}
+
+fn lower_char_hash<'a, 'ctx>(
+    cg: &mut MainCodegen<'a, 'ctx>,
+    call: LoweredNamedIntrinsicCall<'ctx>,
+) -> Result<CgValue<'ctx>, LlvmEmitError> {
+    cg.codegen_named_intrinsic_char_hash(call)
+}
+
+fn lower_char_compare_to<'a, 'ctx>(
+    cg: &mut MainCodegen<'a, 'ctx>,
+    call: LoweredNamedIntrinsicCall<'ctx>,
+) -> Result<CgValue<'ctx>, LlvmEmitError> {
+    cg.codegen_named_intrinsic_char_compare_to(call)
+}
+
+fn lower_char_equals<'a, 'ctx>(
+    cg: &mut MainCodegen<'a, 'ctx>,
+    call: LoweredNamedIntrinsicCall<'ctx>,
+) -> Result<CgValue<'ctx>, LlvmEmitError> {
+    cg.codegen_named_intrinsic_char_equals(call)
+}
+
+fn lower_char_plus_int<'a, 'ctx>(
+    cg: &mut MainCodegen<'a, 'ctx>,
+    call: LoweredNamedIntrinsicCall<'ctx>,
+) -> Result<CgValue<'ctx>, LlvmEmitError> {
+    cg.codegen_named_intrinsic_char_plus_int(call)
+}
+
+fn lower_char_minus_int<'a, 'ctx>(
+    cg: &mut MainCodegen<'a, 'ctx>,
+    call: LoweredNamedIntrinsicCall<'ctx>,
+) -> Result<CgValue<'ctx>, LlvmEmitError> {
+    cg.codegen_named_intrinsic_char_minus_int(call)
+}
+
+fn lower_char_minus_char<'a, 'ctx>(
+    cg: &mut MainCodegen<'a, 'ctx>,
+    call: LoweredNamedIntrinsicCall<'ctx>,
+) -> Result<CgValue<'ctx>, LlvmEmitError> {
+    cg.codegen_named_intrinsic_char_minus_char(call)
+}
+
 fn normalize_array_like_fqn(fqn: &str) -> Option<&'static str> {
     match fqn {
         "scoop.core.Array"
@@ -234,6 +850,57 @@ fn normalize_array_like_fqn(fqn: &str) -> Option<&'static str> {
         | "scoop.collections.MutableSet"
         | "scoop.collections.MutableMap" => Some("scoop.core.MutableArray"),
         _ => None,
+    }
+}
+
+fn named_intrinsic_char_ty() -> IntTy {
+    IntTy {
+        bits: 32,
+        signed: false,
+    }
+}
+
+fn named_intrinsic_signed_i32_ty() -> IntTy {
+    IntTy {
+        bits: 32,
+        signed: true,
+    }
+}
+
+fn named_intrinsic_int_compare_predicate(
+    ty: IntTy,
+    op: NamedIntrinsicIntCompareOp,
+) -> IntPredicate {
+    match op {
+        NamedIntrinsicIntCompareOp::Lt if ty.signed => IntPredicate::SLT,
+        NamedIntrinsicIntCompareOp::Lt => IntPredicate::ULT,
+        NamedIntrinsicIntCompareOp::Le if ty.signed => IntPredicate::SLE,
+        NamedIntrinsicIntCompareOp::Le => IntPredicate::ULE,
+        NamedIntrinsicIntCompareOp::Gt if ty.signed => IntPredicate::SGT,
+        NamedIntrinsicIntCompareOp::Gt => IntPredicate::UGT,
+        NamedIntrinsicIntCompareOp::Ge if ty.signed => IntPredicate::SGE,
+        NamedIntrinsicIntCompareOp::Ge => IntPredicate::UGE,
+        NamedIntrinsicIntCompareOp::Eq => IntPredicate::EQ,
+        NamedIntrinsicIntCompareOp::Ne => IntPredicate::NE,
+    }
+}
+
+fn named_intrinsic_float_compare_predicate(op: NamedIntrinsicFloatCompareOp) -> FloatPredicate {
+    match op {
+        NamedIntrinsicFloatCompareOp::Lt => FloatPredicate::OLT,
+        NamedIntrinsicFloatCompareOp::Le => FloatPredicate::OLE,
+        NamedIntrinsicFloatCompareOp::Gt => FloatPredicate::OGT,
+        NamedIntrinsicFloatCompareOp::Ge => FloatPredicate::OGE,
+        NamedIntrinsicFloatCompareOp::Eq => FloatPredicate::OEQ,
+        NamedIntrinsicFloatCompareOp::Ne => FloatPredicate::UNE,
+    }
+}
+
+fn named_intrinsic_float_binary_target_ty(lhs: CgTy, rhs: CgTy) -> CgTy {
+    if lhs == CgTy::Float64 || rhs == CgTy::Float64 {
+        CgTy::Float64
+    } else {
+        CgTy::Float32
     }
 }
 
@@ -922,6 +1589,588 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         )?;
         let raw = self.unsafe_ptr_to_word(ptr, "unsafe_value_slot_word")?;
         Ok(CgValue::int(raw, word_ty))
+    }
+
+    fn codegen_named_intrinsic_int_binary(
+        &mut self,
+        call: LoweredNamedIntrinsicCall<'ctx>,
+        op: NamedIntrinsicIntBinaryOp,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        self.named_intrinsic_require_arity(&call, 2, "named intrinsic int binary operand arity")?;
+        let (lhs_raw, lhs_ty) =
+            self.named_intrinsic_int_operand(&call.operands[0], "named intrinsic int binary lhs")?;
+        let (rhs_raw, rhs_ty) =
+            self.named_intrinsic_int_operand(&call.operands[1], "named intrinsic int binary rhs")?;
+        let target_ty = self.named_intrinsic_int_binary_target_ty(lhs_ty, rhs_ty);
+        let lhs = self.cast_int(lhs_raw, lhs_ty, target_ty)?;
+        let rhs = self.cast_int(rhs_raw, rhs_ty, target_ty)?;
+        let value = match op {
+            NamedIntrinsicIntBinaryOp::Add => {
+                self.builder.build_int_add(lhs, rhs, "intrinsic_iadd")?
+            }
+            NamedIntrinsicIntBinaryOp::Sub => {
+                self.builder.build_int_sub(lhs, rhs, "intrinsic_isub")?
+            }
+            NamedIntrinsicIntBinaryOp::Mul => {
+                self.builder.build_int_mul(lhs, rhs, "intrinsic_imul")?
+            }
+            NamedIntrinsicIntBinaryOp::SignednessDiv if target_ty.signed => self
+                .builder
+                .build_int_signed_div(lhs, rhs, "intrinsic_sdiv")?,
+            NamedIntrinsicIntBinaryOp::SignednessDiv => {
+                self.builder
+                    .build_int_unsigned_div(lhs, rhs, "intrinsic_udiv")?
+            }
+            NamedIntrinsicIntBinaryOp::SignednessRem if target_ty.signed => self
+                .builder
+                .build_int_signed_rem(lhs, rhs, "intrinsic_srem")?,
+            NamedIntrinsicIntBinaryOp::SignednessRem => {
+                self.builder
+                    .build_int_unsigned_rem(lhs, rhs, "intrinsic_urem")?
+            }
+            NamedIntrinsicIntBinaryOp::And => self.builder.build_and(lhs, rhs, "intrinsic_iand")?,
+            NamedIntrinsicIntBinaryOp::Or => self.builder.build_or(lhs, rhs, "intrinsic_ior")?,
+            NamedIntrinsicIntBinaryOp::Xor => self.builder.build_xor(lhs, rhs, "intrinsic_ixor")?,
+        };
+        Ok(CgValue::int(value, target_ty))
+    }
+
+    fn codegen_named_intrinsic_int_unary(
+        &mut self,
+        call: LoweredNamedIntrinsicCall<'ctx>,
+        op: NamedIntrinsicIntUnaryOp,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        self.named_intrinsic_require_arity(&call, 1, "named intrinsic int unary operand arity")?;
+        let (value, ty) = self
+            .named_intrinsic_int_operand(&call.operands[0], "named intrinsic int unary operand")?;
+        let one = self.int_type(ty).const_int(1, false);
+        let value = match op {
+            NamedIntrinsicIntUnaryOp::Neg => self.builder.build_int_neg(value, "intrinsic_ineg")?,
+            NamedIntrinsicIntUnaryOp::Inc => {
+                self.builder.build_int_add(value, one, "intrinsic_iinc")?
+            }
+            NamedIntrinsicIntUnaryOp::Dec => {
+                self.builder.build_int_sub(value, one, "intrinsic_idec")?
+            }
+            NamedIntrinsicIntUnaryOp::Inv => self.builder.build_not(value, "intrinsic_iinv")?,
+        };
+        Ok(CgValue::int(value, ty))
+    }
+
+    fn codegen_named_intrinsic_int_shift(
+        &mut self,
+        call: LoweredNamedIntrinsicCall<'ctx>,
+        op: NamedIntrinsicIntShiftOp,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        self.named_intrinsic_require_arity(&call, 2, "named intrinsic int shift operand arity")?;
+        let (lhs, lhs_ty) =
+            self.named_intrinsic_int_operand(&call.operands[0], "named intrinsic int shift lhs")?;
+        let (rhs_raw, rhs_ty) =
+            self.named_intrinsic_int_operand(&call.operands[1], "named intrinsic int shift rhs")?;
+        let rhs = self.cast_int(rhs_raw, rhs_ty, lhs_ty)?;
+        let amount = self.mask_shift_count(lhs_ty, rhs)?;
+        let value = match op {
+            NamedIntrinsicIntShiftOp::Shl => {
+                self.builder
+                    .build_left_shift(lhs, amount, "intrinsic_shl")?
+            }
+            NamedIntrinsicIntShiftOp::Shr => {
+                self.builder
+                    .build_right_shift(lhs, amount, lhs_ty.signed, "intrinsic_shr")?
+            }
+            NamedIntrinsicIntShiftOp::UShr => {
+                self.builder
+                    .build_right_shift(lhs, amount, false, "intrinsic_ushr")?
+            }
+        };
+        Ok(CgValue::int(value, lhs_ty))
+    }
+
+    fn codegen_named_intrinsic_int_compare(
+        &mut self,
+        call: LoweredNamedIntrinsicCall<'ctx>,
+        op: NamedIntrinsicIntCompareOp,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        self.named_intrinsic_require_arity(&call, 2, "named intrinsic int compare operand arity")?;
+        let (lhs_raw, lhs_ty) =
+            self.named_intrinsic_int_operand(&call.operands[0], "named intrinsic int compare lhs")?;
+        let (rhs_raw, rhs_ty) =
+            self.named_intrinsic_int_operand(&call.operands[1], "named intrinsic int compare rhs")?;
+        let target_ty = self.named_intrinsic_int_binary_target_ty(lhs_ty, rhs_ty);
+        let lhs = self.cast_int(lhs_raw, lhs_ty, target_ty)?;
+        let rhs = self.cast_int(rhs_raw, rhs_ty, target_ty)?;
+        let value = self.builder.build_int_compare(
+            named_intrinsic_int_compare_predicate(target_ty, op),
+            lhs,
+            rhs,
+            "intrinsic_icmp",
+        )?;
+        Ok(CgValue::bool(value))
+    }
+
+    fn codegen_named_intrinsic_int_compare_to(
+        &mut self,
+        call: LoweredNamedIntrinsicCall<'ctx>,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        self.named_intrinsic_require_arity(
+            &call,
+            2,
+            "named intrinsic int compareTo operand arity",
+        )?;
+        let (lhs_raw, lhs_ty) = self
+            .named_intrinsic_int_operand(&call.operands[0], "named intrinsic int compareTo lhs")?;
+        let (rhs_raw, rhs_ty) = self
+            .named_intrinsic_int_operand(&call.operands[1], "named intrinsic int compareTo rhs")?;
+        let target_ty = self.named_intrinsic_int_binary_target_ty(lhs_ty, rhs_ty);
+        let lhs = self.cast_int(lhs_raw, lhs_ty, target_ty)?;
+        let rhs = self.cast_int(rhs_raw, rhs_ty, target_ty)?;
+        let is_lt = self.builder.build_int_compare(
+            named_intrinsic_int_compare_predicate(target_ty, NamedIntrinsicIntCompareOp::Lt),
+            lhs,
+            rhs,
+            "intrinsic_compare_to_lt",
+        )?;
+        let is_eq = self.builder.build_int_compare(
+            IntPredicate::EQ,
+            lhs,
+            rhs,
+            "intrinsic_compare_to_eq",
+        )?;
+        self.named_intrinsic_three_way_result(is_lt, is_eq)
+    }
+
+    fn codegen_named_intrinsic_float_binary(
+        &mut self,
+        call: LoweredNamedIntrinsicCall<'ctx>,
+        op: NamedIntrinsicFloatBinaryOp,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        self.named_intrinsic_require_arity(&call, 2, "named intrinsic float binary operand arity")?;
+        let (lhs_raw, lhs_ty) = self
+            .named_intrinsic_float_operand(&call.operands[0], "named intrinsic float binary lhs")?;
+        let (rhs_raw, rhs_ty) = self
+            .named_intrinsic_float_operand(&call.operands[1], "named intrinsic float binary rhs")?;
+        let target_ty = named_intrinsic_float_binary_target_ty(lhs_ty, rhs_ty);
+        let lhs = self.cast_float(lhs_raw, lhs_ty, target_ty)?;
+        let rhs = self.cast_float(rhs_raw, rhs_ty, target_ty)?;
+        let value = match op {
+            NamedIntrinsicFloatBinaryOp::Add => {
+                self.builder.build_float_add(lhs, rhs, "intrinsic_fadd")?
+            }
+            NamedIntrinsicFloatBinaryOp::Sub => {
+                self.builder.build_float_sub(lhs, rhs, "intrinsic_fsub")?
+            }
+            NamedIntrinsicFloatBinaryOp::Mul => {
+                self.builder.build_float_mul(lhs, rhs, "intrinsic_fmul")?
+            }
+            NamedIntrinsicFloatBinaryOp::Div => {
+                self.builder.build_float_div(lhs, rhs, "intrinsic_fdiv")?
+            }
+            NamedIntrinsicFloatBinaryOp::Rem => {
+                self.builder.build_float_rem(lhs, rhs, "intrinsic_frem")?
+            }
+        };
+        Ok(CgValue::float(value, target_ty))
+    }
+
+    fn codegen_named_intrinsic_float_unary_minus(
+        &mut self,
+        call: LoweredNamedIntrinsicCall<'ctx>,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        self.named_intrinsic_require_arity(&call, 1, "named intrinsic float unary operand arity")?;
+        let (value, ty) = self.named_intrinsic_float_operand(
+            &call.operands[0],
+            "named intrinsic float unary operand",
+        )?;
+        Ok(CgValue::float(
+            self.builder.build_float_neg(value, "intrinsic_fneg")?,
+            ty,
+        ))
+    }
+
+    fn codegen_named_intrinsic_float_compare(
+        &mut self,
+        call: LoweredNamedIntrinsicCall<'ctx>,
+        op: NamedIntrinsicFloatCompareOp,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        self.named_intrinsic_require_arity(
+            &call,
+            2,
+            "named intrinsic float compare operand arity",
+        )?;
+        let (lhs_raw, lhs_ty) = self.named_intrinsic_float_operand(
+            &call.operands[0],
+            "named intrinsic float compare lhs",
+        )?;
+        let (rhs_raw, rhs_ty) = self.named_intrinsic_float_operand(
+            &call.operands[1],
+            "named intrinsic float compare rhs",
+        )?;
+        let target_ty = named_intrinsic_float_binary_target_ty(lhs_ty, rhs_ty);
+        let lhs = self.cast_float(lhs_raw, lhs_ty, target_ty)?;
+        let rhs = self.cast_float(rhs_raw, rhs_ty, target_ty)?;
+        let value = self.builder.build_float_compare(
+            named_intrinsic_float_compare_predicate(op),
+            lhs,
+            rhs,
+            "intrinsic_fcmp",
+        )?;
+        Ok(CgValue::bool(value))
+    }
+
+    fn codegen_named_intrinsic_float_compare_to(
+        &mut self,
+        call: LoweredNamedIntrinsicCall<'ctx>,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        self.named_intrinsic_require_arity(
+            &call,
+            2,
+            "named intrinsic float compareTo operand arity",
+        )?;
+        let (lhs_raw, lhs_ty) = self.named_intrinsic_float_operand(
+            &call.operands[0],
+            "named intrinsic float compareTo lhs",
+        )?;
+        let (rhs_raw, rhs_ty) = self.named_intrinsic_float_operand(
+            &call.operands[1],
+            "named intrinsic float compareTo rhs",
+        )?;
+        let target_ty = named_intrinsic_float_binary_target_ty(lhs_ty, rhs_ty);
+        let lhs = self.cast_float(lhs_raw, lhs_ty, target_ty)?;
+        let rhs = self.cast_float(rhs_raw, rhs_ty, target_ty)?;
+        let is_lt = self.builder.build_float_compare(
+            FloatPredicate::OLT,
+            lhs,
+            rhs,
+            "intrinsic_fcompare_to_lt",
+        )?;
+        let is_eq = self.builder.build_float_compare(
+            FloatPredicate::OEQ,
+            lhs,
+            rhs,
+            "intrinsic_fcompare_to_eq",
+        )?;
+        self.named_intrinsic_three_way_result(is_lt, is_eq)
+    }
+
+    fn codegen_named_intrinsic_float_abs(
+        &mut self,
+        call: LoweredNamedIntrinsicCall<'ctx>,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        self.named_intrinsic_require_arity(&call, 1, "named intrinsic float abs operand arity")?;
+        let operand = call.operands[0].clone();
+        self.codegen_float_abs_value(operand.span, operand.value)
+    }
+
+    fn codegen_named_intrinsic_float_is_nan(
+        &mut self,
+        call: LoweredNamedIntrinsicCall<'ctx>,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        self.named_intrinsic_require_arity(&call, 1, "named intrinsic float isNaN operand arity")?;
+        let operand = call.operands[0].clone();
+        self.codegen_float_is_nan_value(operand.span, operand.value)
+    }
+
+    fn codegen_named_intrinsic_float_is_infinite(
+        &mut self,
+        call: LoweredNamedIntrinsicCall<'ctx>,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        self.named_intrinsic_require_arity(
+            &call,
+            1,
+            "named intrinsic float isInfinite operand arity",
+        )?;
+        let operand = call.operands[0].clone();
+        self.codegen_float_is_infinite_value(operand.span, operand.value)
+    }
+
+    fn codegen_named_intrinsic_float_hash(
+        &mut self,
+        call: LoweredNamedIntrinsicCall<'ctx>,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        self.named_intrinsic_require_arity(&call, 1, "named intrinsic float hash operand arity")?;
+        let operand = call.operands[0].clone();
+        self.codegen_float_hash_value(operand.span, operand.value)
+    }
+
+    fn codegen_named_intrinsic_bool_binary(
+        &mut self,
+        call: LoweredNamedIntrinsicCall<'ctx>,
+        op: NamedIntrinsicBoolBinaryOp,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        self.named_intrinsic_require_arity(&call, 2, "named intrinsic bool binary operand arity")?;
+        let lhs = self
+            .named_intrinsic_bool_operand(&call.operands[0], "named intrinsic bool binary lhs")?;
+        let rhs = self
+            .named_intrinsic_bool_operand(&call.operands[1], "named intrinsic bool binary rhs")?;
+        let value = match op {
+            NamedIntrinsicBoolBinaryOp::And => {
+                self.builder.build_and(lhs, rhs, "intrinsic_band")?
+            }
+            NamedIntrinsicBoolBinaryOp::Or => self.builder.build_or(lhs, rhs, "intrinsic_bor")?,
+            NamedIntrinsicBoolBinaryOp::Xor => {
+                self.builder.build_xor(lhs, rhs, "intrinsic_bxor")?
+            }
+        };
+        Ok(CgValue::bool(value))
+    }
+
+    fn codegen_named_intrinsic_bool_not(
+        &mut self,
+        call: LoweredNamedIntrinsicCall<'ctx>,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        self.named_intrinsic_require_arity(&call, 1, "named intrinsic bool not operand arity")?;
+        let value = self
+            .named_intrinsic_bool_operand(&call.operands[0], "named intrinsic bool not operand")?;
+        Ok(CgValue::bool(
+            self.builder.build_not(value, "intrinsic_bnot")?,
+        ))
+    }
+
+    fn codegen_named_intrinsic_char_to_int(
+        &mut self,
+        call: LoweredNamedIntrinsicCall<'ctx>,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        self.named_intrinsic_require_arity(&call, 1, "named intrinsic char toInt operand arity")?;
+        let value = self.named_intrinsic_char_operand(
+            &call.operands[0],
+            "named intrinsic char toInt operand",
+        )?;
+        let int_ty = self.named_intrinsic_word_int_ty();
+        let value = self.cast_int(value, named_intrinsic_char_ty(), int_ty)?;
+        Ok(CgValue::int(value, int_ty))
+    }
+
+    fn codegen_named_intrinsic_char_hash(
+        &mut self,
+        call: LoweredNamedIntrinsicCall<'ctx>,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        self.named_intrinsic_require_arity(&call, 1, "named intrinsic char hash operand arity")?;
+        let value = self
+            .named_intrinsic_char_operand(&call.operands[0], "named intrinsic char hash operand")?;
+        let widened = self.cast_int(
+            value,
+            named_intrinsic_char_ty(),
+            IntTy {
+                bits: 64,
+                signed: false,
+            },
+        )?;
+        self.codegen_i64_hash_value(widened)
+    }
+
+    fn codegen_named_intrinsic_char_compare_to(
+        &mut self,
+        call: LoweredNamedIntrinsicCall<'ctx>,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        self.named_intrinsic_require_arity(
+            &call,
+            2,
+            "named intrinsic char compareTo operand arity",
+        )?;
+        let lhs = self.named_intrinsic_char_operand(
+            &call.operands[0],
+            "named intrinsic char compareTo lhs",
+        )?;
+        let rhs = self.named_intrinsic_char_operand(
+            &call.operands[1],
+            "named intrinsic char compareTo rhs",
+        )?;
+        let is_lt = self.builder.build_int_compare(
+            IntPredicate::ULT,
+            lhs,
+            rhs,
+            "intrinsic_char_compare_to_lt",
+        )?;
+        let is_eq = self.builder.build_int_compare(
+            IntPredicate::EQ,
+            lhs,
+            rhs,
+            "intrinsic_char_compare_to_eq",
+        )?;
+        self.named_intrinsic_three_way_result(is_lt, is_eq)
+    }
+
+    fn codegen_named_intrinsic_char_equals(
+        &mut self,
+        call: LoweredNamedIntrinsicCall<'ctx>,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        self.named_intrinsic_require_arity(&call, 2, "named intrinsic char equals operand arity")?;
+        let lhs = self
+            .named_intrinsic_char_operand(&call.operands[0], "named intrinsic char equals lhs")?;
+        let rhs = self
+            .named_intrinsic_char_operand(&call.operands[1], "named intrinsic char equals rhs")?;
+        Ok(CgValue::bool(self.builder.build_int_compare(
+            IntPredicate::EQ,
+            lhs,
+            rhs,
+            "intrinsic_char_eq",
+        )?))
+    }
+
+    fn codegen_named_intrinsic_char_plus_int(
+        &mut self,
+        call: LoweredNamedIntrinsicCall<'ctx>,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        self.codegen_named_intrinsic_char_int_arithmetic(call, NamedIntrinsicIntBinaryOp::Add)
+    }
+
+    fn codegen_named_intrinsic_char_minus_int(
+        &mut self,
+        call: LoweredNamedIntrinsicCall<'ctx>,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        self.codegen_named_intrinsic_char_int_arithmetic(call, NamedIntrinsicIntBinaryOp::Sub)
+    }
+
+    fn codegen_named_intrinsic_char_minus_char(
+        &mut self,
+        call: LoweredNamedIntrinsicCall<'ctx>,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        self.named_intrinsic_require_arity(
+            &call,
+            2,
+            "named intrinsic char minus char operand arity",
+        )?;
+        let lhs = self.named_intrinsic_char_operand(
+            &call.operands[0],
+            "named intrinsic char minus char lhs",
+        )?;
+        let rhs = self.named_intrinsic_char_operand(
+            &call.operands[1],
+            "named intrinsic char minus char rhs",
+        )?;
+        let diff = self
+            .builder
+            .build_int_sub(lhs, rhs, "intrinsic_char_minus_char")?;
+        let int_ty = self.named_intrinsic_word_int_ty();
+        let widened = self.cast_int(diff, named_intrinsic_signed_i32_ty(), int_ty)?;
+        Ok(CgValue::int(widened, int_ty))
+    }
+
+    fn codegen_named_intrinsic_char_int_arithmetic(
+        &mut self,
+        call: LoweredNamedIntrinsicCall<'ctx>,
+        op: NamedIntrinsicIntBinaryOp,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        self.named_intrinsic_require_arity(&call, 2, "named intrinsic char int operand arity")?;
+        let char_ty = named_intrinsic_char_ty();
+        let lhs =
+            self.named_intrinsic_char_operand(&call.operands[0], "named intrinsic char int lhs")?;
+        let (rhs_raw, rhs_ty) =
+            self.named_intrinsic_int_operand(&call.operands[1], "named intrinsic char int rhs")?;
+        let rhs = self.cast_int(rhs_raw, rhs_ty, char_ty)?;
+        let value = match op {
+            NamedIntrinsicIntBinaryOp::Add => {
+                self.builder.build_int_add(lhs, rhs, "intrinsic_char_add")?
+            }
+            NamedIntrinsicIntBinaryOp::Sub => {
+                self.builder.build_int_sub(lhs, rhs, "intrinsic_char_sub")?
+            }
+            _ => unreachable!("char arithmetic only uses add/sub"),
+        };
+        Ok(CgValue::int(value, char_ty))
+    }
+
+    fn named_intrinsic_require_arity(
+        &self,
+        call: &LoweredNamedIntrinsicCall<'ctx>,
+        expected: usize,
+        kind: &'static str,
+    ) -> Result<(), LlvmEmitError> {
+        if call.operands.len() == expected {
+            return Ok(());
+        }
+        Err(LlvmEmitError::UnsupportedMainBody {
+            kind,
+            at: call.callee_span.into(),
+        })
+    }
+
+    fn named_intrinsic_int_operand(
+        &self,
+        operand: &LoweredNamedIntrinsicOperand<'ctx>,
+        kind: &'static str,
+    ) -> Result<(IntValue<'ctx>, IntTy), LlvmEmitError> {
+        operand
+            .value
+            .as_int()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind,
+                at: operand.span.into(),
+            })
+    }
+
+    fn named_intrinsic_bool_operand(
+        &self,
+        operand: &LoweredNamedIntrinsicOperand<'ctx>,
+        kind: &'static str,
+    ) -> Result<IntValue<'ctx>, LlvmEmitError> {
+        operand
+            .value
+            .as_bool()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind,
+                at: operand.span.into(),
+            })
+    }
+
+    fn named_intrinsic_float_operand(
+        &self,
+        operand: &LoweredNamedIntrinsicOperand<'ctx>,
+        kind: &'static str,
+    ) -> Result<(FloatValue<'ctx>, CgTy), LlvmEmitError> {
+        operand
+            .value
+            .as_float()
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind,
+                at: operand.span.into(),
+            })
+    }
+
+    fn named_intrinsic_char_operand(
+        &mut self,
+        operand: &LoweredNamedIntrinsicOperand<'ctx>,
+        kind: &'static str,
+    ) -> Result<IntValue<'ctx>, LlvmEmitError> {
+        let (value, ty) = self.named_intrinsic_int_operand(operand, kind)?;
+        self.cast_int(value, ty, named_intrinsic_char_ty())
+    }
+
+    fn named_intrinsic_word_int_ty(&self) -> IntTy {
+        IntTy {
+            bits: self.host.word_bit_width(),
+            signed: true,
+        }
+    }
+
+    fn named_intrinsic_int_binary_target_ty(&self, lhs: IntTy, rhs: IntTy) -> IntTy {
+        let word_bits = self.host.word_bit_width();
+        if lhs.bits == word_bits && rhs.bits != word_bits {
+            rhs
+        } else {
+            lhs
+        }
+    }
+
+    fn named_intrinsic_three_way_result(
+        &mut self,
+        is_lt: IntValue<'ctx>,
+        is_eq: IntValue<'ctx>,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let int_ty = self.named_intrinsic_word_int_ty();
+        let llvm_ty = self.int_type(int_ty);
+        let neg_one = llvm_ty.const_all_ones();
+        let zero = llvm_ty.const_zero();
+        let one = llvm_ty.const_int(1, false);
+        let eq_or_gt = self
+            .builder
+            .build_select(is_eq, zero, one, "intrinsic_compare_to_eq_or_gt")?
+            .into_int_value();
+        let result = self
+            .builder
+            .build_select(is_lt, neg_one, eq_or_gt, "intrinsic_compare_to_result")?
+            .into_int_value();
+        Ok(CgValue::int(result, int_ty))
     }
 
     fn unsafe_ptr_to_word(

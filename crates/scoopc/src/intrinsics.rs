@@ -82,6 +82,16 @@ const DUMMY_RUNTIME_SIGNATURE: NamedIntrinsicRuntimeSignature = NamedIntrinsicRu
     return_ty: NamedIntrinsicRuntimeTy::WordInt,
 };
 
+const fn ir_emission_entry(name: &'static str) -> NamedIntrinsicAuditEntry {
+    NamedIntrinsicAuditEntry {
+        name,
+        lowering_mode: NamedIntrinsicLoweringMode::IrEmission,
+        runtime_symbol: None,
+        runtime_signature: None,
+        runtime_reason: None,
+    }
+}
+
 const NAMED_INTRINSIC_AUDIT_ENTRIES: &[NamedIntrinsicAuditEntry] = &[
     NamedIntrinsicAuditEntry {
         name: "dummy_ir",
@@ -188,6 +198,56 @@ const NAMED_INTRINSIC_AUDIT_ENTRIES: &[NamedIntrinsicAuditEntry] = &[
         runtime_signature: None,
         runtime_reason: None,
     },
+    ir_emission_entry("int_plus"),
+    ir_emission_entry("int_minus"),
+    ir_emission_entry("int_times"),
+    ir_emission_entry("int_div"),
+    ir_emission_entry("int_rem"),
+    ir_emission_entry("int_unary_minus"),
+    ir_emission_entry("int_inc"),
+    ir_emission_entry("int_dec"),
+    ir_emission_entry("int_and"),
+    ir_emission_entry("int_or"),
+    ir_emission_entry("int_xor"),
+    ir_emission_entry("int_inv"),
+    ir_emission_entry("int_shl"),
+    ir_emission_entry("int_shr"),
+    ir_emission_entry("int_ushr"),
+    ir_emission_entry("int_lt"),
+    ir_emission_entry("int_le"),
+    ir_emission_entry("int_gt"),
+    ir_emission_entry("int_ge"),
+    ir_emission_entry("int_eq"),
+    ir_emission_entry("int_ne"),
+    ir_emission_entry("int_compare_to"),
+    ir_emission_entry("float_plus"),
+    ir_emission_entry("float_minus"),
+    ir_emission_entry("float_times"),
+    ir_emission_entry("float_div"),
+    ir_emission_entry("float_rem"),
+    ir_emission_entry("float_unary_minus"),
+    ir_emission_entry("float_lt"),
+    ir_emission_entry("float_le"),
+    ir_emission_entry("float_gt"),
+    ir_emission_entry("float_ge"),
+    ir_emission_entry("float_eq"),
+    ir_emission_entry("float_ne"),
+    ir_emission_entry("float_compare_to"),
+    ir_emission_entry("float_abs"),
+    ir_emission_entry("float_is_nan"),
+    ir_emission_entry("float_is_infinite"),
+    ir_emission_entry("float_hash"),
+    ir_emission_entry("bool_and"),
+    ir_emission_entry("bool_or"),
+    ir_emission_entry("bool_xor"),
+    ir_emission_entry("bool_not"),
+    ir_emission_entry("char_to_int"),
+    ir_emission_entry("char_hash"),
+    ir_emission_entry("char_compare_to"),
+    ir_emission_entry("char_equals"),
+    ir_emission_entry("char_plus_int"),
+    ir_emission_entry("char_minus_int"),
+    ir_emission_entry("char_minus_char"),
     NamedIntrinsicAuditEntry {
         name: "dummy_runtime",
         lowering_mode: NamedIntrinsicLoweringMode::RuntimeCall,
@@ -257,6 +317,113 @@ pub(crate) fn fallback_named_intrinsic_entry_name_for_fqn(fqn: &str) -> Option<&
         "scoop.core.MutableArray.set" => Some("array_set_outofline"),
         "scoop.core.Array.__dataPtr" => Some("array_data_ptr_inline"),
         "scoop.core.MutableArray.__dataPtr" => Some("array_data_ptr_outofline"),
+        _ => fallback_scalar_method_intrinsic_entry_name(base),
+    }
+}
+
+fn fallback_scalar_method_intrinsic_entry_name(base: &str) -> Option<&'static str> {
+    let (owner, method) = base.rsplit_once('.')?;
+    if scalar_owner_is_integer(owner) {
+        return int_method_intrinsic_entry_name(method);
+    }
+    if matches!(owner, "scoop.core.Float32" | "scoop.core.Float64") {
+        return float_method_intrinsic_entry_name(method);
+    }
+    if owner == "scoop.core.Bool" {
+        return bool_method_intrinsic_entry_name(method);
+    }
+    if owner == "scoop.core.Char" {
+        return char_method_intrinsic_entry_name(method);
+    }
+    None
+}
+
+fn scalar_owner_is_integer(owner: &str) -> bool {
+    matches!(
+        owner,
+        "scoop.core.Int"
+            | "scoop.core.UInt"
+            | "scoop.core.Int8"
+            | "scoop.core.Int16"
+            | "scoop.core.Int32"
+            | "scoop.core.Int64"
+            | "scoop.core.UInt8"
+            | "scoop.core.UInt16"
+            | "scoop.core.UInt32"
+            | "scoop.core.UInt64"
+    )
+}
+
+fn int_method_intrinsic_entry_name(method: &str) -> Option<&'static str> {
+    match method {
+        "plus" => Some("int_plus"),
+        "minus" => Some("int_minus"),
+        "times" => Some("int_times"),
+        "div" => Some("int_div"),
+        "rem" => Some("int_rem"),
+        "unaryMinus" => Some("int_unary_minus"),
+        "inc" => Some("int_inc"),
+        "dec" => Some("int_dec"),
+        "and" => Some("int_and"),
+        "or" => Some("int_or"),
+        "xor" => Some("int_xor"),
+        "inv" => Some("int_inv"),
+        "shl" => Some("int_shl"),
+        "shr" => Some("int_shr"),
+        "ushr" => Some("int_ushr"),
+        "lt" => Some("int_lt"),
+        "le" => Some("int_le"),
+        "gt" => Some("int_gt"),
+        "ge" => Some("int_ge"),
+        "eq" | "equals" => Some("int_eq"),
+        "ne" | "notEquals" => Some("int_ne"),
+        "compareTo" => Some("int_compare_to"),
+        _ => None,
+    }
+}
+
+fn float_method_intrinsic_entry_name(method: &str) -> Option<&'static str> {
+    match method {
+        "plus" => Some("float_plus"),
+        "minus" => Some("float_minus"),
+        "times" => Some("float_times"),
+        "div" => Some("float_div"),
+        "rem" => Some("float_rem"),
+        "unaryMinus" => Some("float_unary_minus"),
+        "lt" => Some("float_lt"),
+        "le" => Some("float_le"),
+        "gt" => Some("float_gt"),
+        "ge" => Some("float_ge"),
+        "eq" | "equals" => Some("float_eq"),
+        "ne" | "notEquals" => Some("float_ne"),
+        "compareTo" => Some("float_compare_to"),
+        "abs" => Some("float_abs"),
+        "isNaN" => Some("float_is_nan"),
+        "isInfinite" => Some("float_is_infinite"),
+        "hash" => Some("float_hash"),
+        _ => None,
+    }
+}
+
+fn bool_method_intrinsic_entry_name(method: &str) -> Option<&'static str> {
+    match method {
+        "and" => Some("bool_and"),
+        "or" => Some("bool_or"),
+        "xor" => Some("bool_xor"),
+        "not" => Some("bool_not"),
+        _ => None,
+    }
+}
+
+fn char_method_intrinsic_entry_name(method: &str) -> Option<&'static str> {
+    match method {
+        "toInt" => Some("char_to_int"),
+        "hash" => Some("char_hash"),
+        "compareTo" => Some("char_compare_to"),
+        "eq" | "equals" => Some("char_equals"),
+        "plus" | "plusInt" => Some("char_plus_int"),
+        "minus" | "minusInt" => Some("char_minus_int"),
+        "minusChar" => Some("char_minus_char"),
         _ => None,
     }
 }

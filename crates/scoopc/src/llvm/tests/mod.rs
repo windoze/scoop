@@ -427,10 +427,14 @@ mod baseline;
 mod effects;
 mod frontend_rewrite;
 mod late_lower;
+mod named_intrinsic;
 
 // Cross-submodule re-exports (private to `tests/`): each sub-file can pick
 // up helpers defined in any other sub-file via `use super::*;`. Some of
 // these globs are only consumed by sibling submodules, not by `mod.rs`
 // itself, hence the `#[allow(unused_imports)]`.
 #[allow(unused_imports)]
-use {abi::*, audits::*, baseline::*, effects::*, frontend_rewrite::*, late_lower::*};
+use {
+    abi::*, audits::*, baseline::*, effects::*, frontend_rewrite::*, late_lower::*,
+    named_intrinsic::*,
+};
