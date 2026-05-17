@@ -14,7 +14,7 @@ impl<'a> HirLowering<'a> {
     ) -> (ExprKind, TypeId) {
         let receiver = self.lower_expr(pkg_prefix, receiver);
         let result_ty = self.typechecked_expr_ty(span).unwrap_or(self.builtins.any);
-        self.lower_member_access_expr_from_receiver(pkg_prefix, receiver, member, result_ty)
+        self.lower_member_access_expr_from_receiver(pkg_prefix, span, receiver, member, result_ty)
     }
 
     pub(in crate::hir::lower) fn lower_splice_field_expr(
@@ -94,6 +94,7 @@ impl<'a> HirLowering<'a> {
     pub(in crate::hir::lower) fn lower_member_access_expr_from_receiver(
         &mut self,
         pkg_prefix: &str,
+        span: Span,
         receiver: Expr,
         member: &ast::MemberIdent,
         result_ty: TypeId,
@@ -122,14 +123,23 @@ impl<'a> HirLowering<'a> {
                         receiver,
                         &info,
                     );
-                    let getter_member_resolved =
-                        info.delegate_class_fqn.as_ref().map(|class_fqn| {
-                            let getter_fqn = format!("{class_fqn}.getValue");
-                            MemberRef::Fun {
-                                id: self.symbols.intern_top_level(getter_fqn.clone()),
-                                fqn: getter_fqn,
-                            }
-                        });
+                    let meta =
+                        self.lower_property_meta_ref_expr(member.span, &info.property_meta_fqn);
+
+                    if let Some(class_fqn) = info.delegate_class_fqn.as_ref() {
+                        let getter_fqn = format!("{class_fqn}.getValue");
+                        let receiver_ty = delegate.ty;
+                        let call = self.lower_synthetic_member_call_with_receiver_ty(
+                            span,
+                            delegate,
+                            receiver_ty,
+                            &getter_fqn,
+                            vec![this_ref, meta],
+                            result_ty,
+                        );
+                        return (call.kind, call.ty);
+                    }
+
                     let callee = Expr {
                         span: member.span,
                         ty: self.builtins.any,
@@ -138,12 +148,10 @@ impl<'a> HirLowering<'a> {
                             member: MemberAccess {
                                 span: member.span,
                                 name: "getValue".to_string(),
-                                resolved: getter_member_resolved,
+                                resolved: None,
                             },
                         },
                     };
-                    let meta =
-                        self.lower_property_meta_ref_expr(member.span, &info.property_meta_fqn);
 
                     return (
                         ExprKind::Call {
@@ -674,6 +682,7 @@ impl<'a> HirLowering<'a> {
         let inner_result_ty = self.option_inner_ty(result_ty).unwrap_or(self.builtins.any);
         let (inner_kind, inner_ty) = self.lower_member_access_expr_from_receiver(
             pkg_prefix,
+            member.span,
             v_ref.clone(),
             member,
             inner_result_ty,
@@ -848,24 +857,21 @@ impl<'a> HirLowering<'a> {
             );
             let owner_is_object = self.index.object_types.contains(owner_fqn);
             if owner_is_struct || owner_is_class || owner_is_interface || owner_is_object {
-                let mut all_args = Vec::with_capacity(lowered_args_without_receiver.len() + 1);
-                all_args.push(CallArg::Positional(v_ref.clone()));
-                all_args.extend(lowered_args_without_receiver);
-                return Expr {
+                let explicit_args = lowered_args_without_receiver
+                    .into_iter()
+                    .map(|arg| match arg {
+                        CallArg::Positional(expr) => expr,
+                        CallArg::Named { value, .. } => value,
+                    })
+                    .collect();
+                return self.lower_synthetic_member_call_with_receiver_ty(
                     span,
-                    ty: self.builtins.any,
-                    kind: ExprKind::Call {
-                        callee: Box::new(Expr {
-                            span: op_span,
-                            ty: self.builtins.any,
-                            kind: ExprKind::VarRef(ValueRef::TopLevel {
-                                id: self.symbols.intern_top_level(fqn.clone()),
-                                fqn: fqn.clone(),
-                            }),
-                        }),
-                        args: all_args,
-                    },
-                };
+                    v_ref.clone(),
+                    v_ref.ty,
+                    fqn,
+                    explicit_args,
+                    self.builtins.any,
+                );
             }
         }
 

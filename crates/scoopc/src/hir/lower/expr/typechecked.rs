@@ -1178,8 +1178,13 @@ impl<'a> HirLowering<'a> {
         let callee_ty = self
             .types
             .ty_function(None, Vec::new(), call_ty, EffectRow::pure(), true);
-        let (kind, _) =
-            self.lower_member_access_expr_from_receiver(pkg_prefix, receiver, member, callee_ty);
+        let (kind, _) = self.lower_member_access_expr_from_receiver(
+            pkg_prefix,
+            callee.span,
+            receiver,
+            member,
+            callee_ty,
+        );
         let callee = Expr {
             span: callee.span,
             ty: callee_ty,

@@ -491,7 +491,25 @@ impl MirInstanceMaterializer {
                 self.scan_reachable_top_level_ref_fqn(source_path, expr.span, fqn, out)?;
             }
             crate::hir::ExprKind::Call { callee, args } => {
-                self.scan_reachable_static_init_expr(source_path, callee, out)?;
+                if let Some(call) = self
+                    .ctor_call_sites
+                    .get(&crate::hir::CallSite::new(
+                        source_path.to_path_buf(),
+                        expr.span,
+                    ))
+                    .cloned()
+                {
+                    self.scan_reachable_class_ctor(&call.class_fqn, call.ctor_span, out)?;
+                }
+
+                if let crate::hir::ExprKind::VarRef(crate::hir::ValueRef::TopLevel {
+                    fqn, ..
+                }) = &callee.kind
+                {
+                    self.scan_reachable_top_level_ref_fqn(source_path, expr.span, fqn, out)?;
+                } else {
+                    self.scan_reachable_static_init_expr(source_path, callee, out)?;
+                }
                 for arg in args {
                     match arg {
                         crate::hir::CallArg::Positional(value) => {

@@ -18,7 +18,10 @@ pub(super) struct ReachabilityInputs<'a> {
     pub(super) class_vtables: &'a crate::vtable::ClassVtableIndex,
     pub(super) interfaces: &'a crate::itable::InterfaceIndex,
     pub(super) class_itables: &'a crate::itable::ClassItableIndex,
+    pub(super) direct_supertypes: &'a hir::DirectSupertypesIndex,
+    pub(super) dispatch_call_sites: &'a hir::DispatchCallSiteIndex,
     pub(super) ctor_call_sites: &'a hir::CtorCallSiteIndex,
+    pub(super) types: &'a TypeStore,
     pub(super) top_level_vars: &'a hir::TopLevelVarIndex,
     pub(super) top_level_consts: &'a hir::TopLevelConstIndex,
     pub(super) top_level_immutable_values: &'a hir::TopLevelImmutableValueIndex,
@@ -37,7 +40,10 @@ pub(super) fn collect_reachable_top_level_funs<'a>(
         class_vtables,
         interfaces,
         class_itables,
+        direct_supertypes,
+        dispatch_call_sites,
         ctor_call_sites,
+        types,
         top_level_vars,
         top_level_consts,
         top_level_immutable_values,
@@ -50,7 +56,10 @@ pub(super) fn collect_reachable_top_level_funs<'a>(
         class_vtables,
         interfaces,
         class_itables,
+        direct_supertypes,
+        dispatch_call_sites,
         ctor_call_sites,
+        types,
         top_level_vars,
         top_level_consts,
         top_level_immutable_values,
@@ -116,7 +125,10 @@ struct ReachabilityCollector<'a> {
     class_vtables: &'a crate::vtable::ClassVtableIndex,
     interfaces: &'a crate::itable::InterfaceIndex,
     class_itables: &'a crate::itable::ClassItableIndex,
+    direct_supertypes: &'a hir::DirectSupertypesIndex,
+    dispatch_call_sites: &'a hir::DispatchCallSiteIndex,
     ctor_call_sites: &'a hir::CtorCallSiteIndex,
+    types: &'a TypeStore,
     top_level_vars: &'a hir::TopLevelVarIndex,
     top_level_consts: &'a hir::TopLevelConstIndex,
     top_level_immutable_values: &'a hir::TopLevelImmutableValueIndex,
@@ -150,6 +162,21 @@ impl<'a> ReachabilityCollector<'a> {
         self.current_source_path
             .as_ref()
             .map(|path| hir::CallSite::new(path.clone(), span))
+    }
+
+    fn dispatch_kind_for_receiver(
+        &self,
+        span: Span,
+        receiver_ty: TypeId,
+    ) -> Option<hir::DispatchCallKind> {
+        let source_path = self.current_source_path.as_ref()?;
+        self.dispatch_call_sites
+            .get(&hir::DispatchCallSite::new(
+                source_path.clone(),
+                span,
+                receiver_ty,
+            ))
+            .copied()
     }
 
     fn enqueue_fun(&mut self, fqn: String) {
@@ -658,6 +685,26 @@ impl<'a> ReachabilityCollector<'a> {
         member_name: &str,
         explicit_arg_count: usize,
     ) -> Vec<String> {
+        let Some(types) = self.mir_types() else {
+            return Vec::new();
+        };
+        self.interface_dispatch_candidate_fqns_for_types(
+            types,
+            receiver_ty,
+            owner_fqn,
+            member_name,
+            explicit_arg_count,
+        )
+    }
+
+    fn interface_dispatch_candidate_fqns_for_types(
+        &self,
+        types: &TypeStore,
+        receiver_ty: TypeId,
+        owner_fqn: &str,
+        member_name: &str,
+        explicit_arg_count: usize,
+    ) -> Vec<String> {
         let Some(interface) = self.interfaces.get(owner_fqn) else {
             return Vec::new();
         };
@@ -672,8 +719,7 @@ impl<'a> ReachabilityCollector<'a> {
         }
 
         let mut targets = BTreeSet::new();
-        if let Some(types) = self.mir_types()
-            && let Some(receiver_fqn) = nominal_type_fqn(types, receiver_ty)
+        if let Some(receiver_fqn) = nominal_type_fqn(types, receiver_ty)
             && let Some(entries) = self.class_itables.get(receiver_fqn)
         {
             collect_interface_slot_targets(entries, owner_fqn, slot.slot as usize, &mut targets);
@@ -688,9 +734,7 @@ impl<'a> ReachabilityCollector<'a> {
                 );
             }
         }
-        if let Some(types) = self.mir_types()
-            && is_builtin_scalar_or_string_type(types, receiver_ty)
-        {
+        if is_builtin_scalar_or_string_type(types, receiver_ty) {
             targets.remove(&format!("{owner_fqn}.{member_name}"));
         }
         targets.into_iter().collect()
@@ -816,6 +860,57 @@ impl<'a> ReachabilityCollector<'a> {
         }
     }
 
+    fn scan_hir_dispatch_call(&mut self, span: Span, fqn: &str, args: &[hir::CallArg]) -> bool {
+        let Some((owner_fqn, member_name)) = fqn.rsplit_once('.') else {
+            return false;
+        };
+        let Some(receiver_ty) = args.first().and_then(|arg| match arg {
+            hir::CallArg::Positional(expr) => Some(expr.ty),
+            hir::CallArg::Named { value, .. } => Some(value.ty),
+        }) else {
+            return false;
+        };
+        let Some(dispatch_kind) = self.dispatch_kind_for_receiver(span, receiver_ty) else {
+            return false;
+        };
+        let explicit_arg_count = args.len().saturating_sub(1);
+        if let Some(target_fqn) = crate::devirtualize::try_devirtualize_dispatch_target(
+            dispatch_kind,
+            owner_fqn,
+            member_name,
+            explicit_arg_count,
+            receiver_ty,
+            self.types,
+            crate::devirtualize::DispatchTargetFacts {
+                known_receiver_subclasses: &crate::devirtualize::collect_known_receiver_subclasses(
+                    self.direct_supertypes,
+                ),
+                class_vtables: self.class_vtables,
+                interfaces: self.interfaces,
+                class_itables: self.class_itables,
+            },
+        ) {
+            self.enqueue_fun(target_fqn);
+            return true;
+        }
+
+        match dispatch_kind {
+            hir::DispatchCallKind::Interface => {
+                for candidate in self.interface_dispatch_candidate_fqns_for_types(
+                    self.types,
+                    receiver_ty,
+                    owner_fqn,
+                    member_name,
+                    explicit_arg_count,
+                ) {
+                    self.enqueue_fun(candidate);
+                }
+                true
+            }
+            hir::DispatchCallKind::Virtual => false,
+        }
+    }
+
     fn scan_block(&mut self, block: &hir::Block) {
         for stmt in &block.stmts {
             self.scan_stmt(stmt);
@@ -889,7 +984,10 @@ impl<'a> ReachabilityCollector<'a> {
             hir::ExprKind::Call { callee, args } => {
                 // 顶层函数调用：收集 callee fqn。
                 if let hir::ExprKind::VarRef(hir::ValueRef::TopLevel { fqn, .. }) = &callee.kind {
-                    if self.fun_index.contains_key(fqn) {
+                    if self.scan_hir_dispatch_call(expr.span, fqn, args) {
+                        // 已由 dispatch side table 收集真实目标；不能再把接口/虚方法声明本身
+                        // 当作普通 reachable callable，否则无 body 的 interface method 会误报。
+                    } else if self.fun_index.contains_key(fqn) {
                         self.enqueue_fun(fqn.clone());
                     } else {
                         self.scan_expr(callee);

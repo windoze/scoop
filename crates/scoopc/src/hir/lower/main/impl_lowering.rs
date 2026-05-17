@@ -1359,6 +1359,108 @@ impl<'a> HirLowering<'a> {
         expr
     }
 
+    /// Lower a compiler-generated member call through the same canonical HIR contract as source
+    /// member calls: `receiver.method(args...)` becomes `Owner.method(receiver, args...)`, with
+    /// interface/virtual dispatch recorded in the source-aware dispatch side table.
+    pub(crate) fn lower_synthetic_member_call(
+        &mut self,
+        span: Span,
+        receiver: Expr,
+        method_fqn: &str,
+        args: Vec<Expr>,
+        ret_ty: TypeId,
+    ) -> Expr {
+        let receiver_ty = receiver.ty;
+        self.lower_synthetic_member_call_with_receiver_ty(
+            span,
+            receiver,
+            receiver_ty,
+            method_fqn,
+            args,
+            ret_ty,
+        )
+    }
+
+    /// Variant of `lower_synthetic_member_call` for synthetic receiver expressions whose HIR type is
+    /// less precise than the statically selected dispatch receiver type.
+    pub(crate) fn lower_synthetic_member_call_with_receiver_ty(
+        &mut self,
+        span: Span,
+        receiver: Expr,
+        receiver_ty: TypeId,
+        method_fqn: &str,
+        args: Vec<Expr>,
+        ret_ty: TypeId,
+    ) -> Expr {
+        let mut target_fqn = method_fqn.to_string();
+        if let Some((owner_fqn, member_name)) = method_fqn.rsplit_once('.') {
+            let dispatch_kind = if matches!(
+                self.type_kinds.get(owner_fqn),
+                Some(ast::TypeKind::Interface)
+            ) {
+                Some(crate::hir::DispatchCallKind::Interface)
+            } else if matches!(self.type_kinds.get(owner_fqn), Some(ast::TypeKind::Class))
+                && owner_fqn != "scoop.core.String"
+            {
+                Some(crate::hir::DispatchCallKind::Virtual)
+            } else {
+                None
+            };
+
+            if let Some(dispatch_kind) = dispatch_kind {
+                if self.devirtualize_dispatch_calls {
+                    if let Some(devirtualized_target_fqn) =
+                        crate::devirtualize::try_devirtualize_dispatch_target(
+                            dispatch_kind,
+                            owner_fqn,
+                            member_name,
+                            args.len(),
+                            receiver_ty,
+                            self.types,
+                            crate::devirtualize::DispatchTargetFacts {
+                                known_receiver_subclasses: self.known_receiver_subclasses,
+                                class_vtables: self.class_vtables,
+                                interfaces: self.interfaces,
+                                class_itables: self.class_itables,
+                            },
+                        )
+                    {
+                        target_fqn = self.materialized_devirtualized_dispatch_target_fqn(
+                            span,
+                            &devirtualized_target_fqn,
+                        );
+                    } else {
+                        self.dispatch_call_sites
+                            .insert(self.dispatch_call_site(span, receiver_ty), dispatch_kind);
+                    }
+                } else {
+                    self.dispatch_call_sites
+                        .insert(self.dispatch_call_site(span, receiver_ty), dispatch_kind);
+                }
+            }
+        }
+
+        let mut call_args = Vec::with_capacity(args.len() + 1);
+        call_args.push(CallArg::Positional(receiver));
+        call_args.extend(args.into_iter().map(CallArg::Positional));
+
+        Expr {
+            span,
+            ty: ret_ty,
+            kind: ExprKind::Call {
+                callee: Box::new(Expr {
+                    span,
+                    ty: self.builtins.any,
+                    kind: ExprKind::VarRef(ValueRef::TopLevel {
+                        id: self.symbols.intern_top_level(target_fqn.clone()),
+                        fqn: target_fqn,
+                    }),
+                }),
+                args: call_args,
+            },
+        }
+    }
+
     pub(crate) fn record_synthetic_top_level_fun_call_binding(
         &self,
         span: Span,

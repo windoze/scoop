@@ -2,7 +2,7 @@ use std::collections::HashSet;
 
 use crate::hir;
 use crate::itable::InterfaceIndex;
-use crate::ty::{RefTypeKind, TypeId, TypeKind, TypeStore};
+use crate::ty::{RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind};
 use crate::vtable::ClassVtableIndex;
 
 pub(crate) type KnownReceiverSubclassIndex = HashSet<String>;
@@ -47,7 +47,7 @@ pub(crate) fn try_devirtualize_dispatch_target(
 
             let receiver_fqn =
                 exact_receiver_fqn(receiver_ty, types, facts.known_receiver_subclasses)?;
-            if let Some(slots) = facts.class_vtables.get(receiver_fqn)
+            if let Some(slots) = facts.class_vtables.get(receiver_fqn.as_str())
                 && let Some(slot) = slots.iter().find(|slot| {
                     slot.name == member_name && slot.params_len == explicit_arg_count as u32
                 })
@@ -71,7 +71,7 @@ pub(crate) fn try_devirtualize_dispatch_target(
 
             let targets = facts
                 .class_itables
-                .get(receiver_fqn)?
+                .get(receiver_fqn.as_str())?
                 .iter()
                 .filter(|entry| entry.interface_fqn == owner_fqn)
                 .filter_map(|entry| entry.method_impl_fqns.get(slot.slot as usize).cloned())
@@ -88,12 +88,23 @@ fn exact_receiver_fqn<'a>(
     receiver_ty: TypeId,
     types: &'a TypeStore,
     known_receiver_subclasses: &KnownReceiverSubclassIndex,
-) -> Option<&'a str> {
-    let TypeKind::Ref(RefTypeKind::Nominal(nominal)) = types.kind(receiver_ty) else {
-        return None;
-    };
-    if known_receiver_subclasses.contains(&nominal.fqn) {
-        return None;
+) -> Option<String> {
+    match types.kind(receiver_ty) {
+        TypeKind::Ref(RefTypeKind::Nominal(nominal)) => {
+            if known_receiver_subclasses.contains(&nominal.fqn) {
+                return None;
+            }
+            Some(nominal.fqn.clone())
+        }
+        TypeKind::Value(ValueTypeKind::Nominal(nominal)) => Some(nominal.fqn.clone()),
+        TypeKind::Value(ValueTypeKind::Bool) => Some("scoop.core.Bool".to_string()),
+        TypeKind::Value(ValueTypeKind::Char) => Some("scoop.core.Char".to_string()),
+        TypeKind::Value(ValueTypeKind::Float64) => Some("scoop.core.Float64".to_string()),
+        TypeKind::Value(ValueTypeKind::Float32) => Some("scoop.core.Float32".to_string()),
+        TypeKind::Value(ValueTypeKind::Int) => Some("scoop.core.Int".to_string()),
+        TypeKind::Value(ValueTypeKind::UInt) => Some("scoop.core.UInt".to_string()),
+        TypeKind::Value(ValueTypeKind::IntN(bits)) => Some(format!("scoop.core.Int{bits}")),
+        TypeKind::Value(ValueTypeKind::UIntN(bits)) => Some(format!("scoop.core.UInt{bits}")),
+        _ => None,
     }
-    Some(nominal.fqn.as_str())
 }

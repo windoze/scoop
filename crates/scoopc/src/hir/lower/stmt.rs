@@ -18,83 +18,6 @@ use super::super::{
 };
 
 impl<'a> HirLowering<'a> {
-    fn lower_synthetic_dispatch_call(
-        &mut self,
-        span: Span,
-        receiver: Expr,
-        receiver_ty: crate::ty::TypeId,
-        method_fqn: &str,
-        return_ty: crate::ty::TypeId,
-    ) -> Expr {
-        let mut target_fqn = method_fqn.to_string();
-        if let Some((owner_fqn, member_name)) = method_fqn.rsplit_once('.') {
-            let dispatch_kind = if matches!(
-                self.type_kinds.get(owner_fqn),
-                Some(ast::TypeKind::Interface)
-            ) {
-                Some(crate::hir::DispatchCallKind::Interface)
-            } else if matches!(self.type_kinds.get(owner_fqn), Some(ast::TypeKind::Class))
-                && self.class_vtables.get(owner_fqn).is_some_and(|slots| {
-                    slots
-                        .iter()
-                        .any(|slot| slot.name == member_name && slot.params_len == 0)
-                })
-            {
-                Some(crate::hir::DispatchCallKind::Virtual)
-            } else {
-                None
-            };
-
-            if let Some(dispatch_kind) = dispatch_kind {
-                if self.devirtualize_dispatch_calls {
-                    if let Some(devirtualized_target_fqn) =
-                        crate::devirtualize::try_devirtualize_dispatch_target(
-                            dispatch_kind,
-                            owner_fqn,
-                            member_name,
-                            0,
-                            receiver_ty,
-                            self.types,
-                            crate::devirtualize::DispatchTargetFacts {
-                                known_receiver_subclasses: self.known_receiver_subclasses,
-                                class_vtables: self.class_vtables,
-                                interfaces: self.interfaces,
-                                class_itables: self.class_itables,
-                            },
-                        )
-                    {
-                        target_fqn = self.materialized_devirtualized_dispatch_target_fqn(
-                            span,
-                            &devirtualized_target_fqn,
-                        );
-                    } else {
-                        self.dispatch_call_sites
-                            .insert(self.dispatch_call_site(span, receiver_ty), dispatch_kind);
-                    }
-                } else {
-                    self.dispatch_call_sites
-                        .insert(self.dispatch_call_site(span, receiver_ty), dispatch_kind);
-                }
-            }
-        }
-
-        Expr {
-            span,
-            ty: return_ty,
-            kind: ExprKind::Call {
-                callee: Box::new(Expr {
-                    span,
-                    ty: self.builtins.any,
-                    kind: ExprKind::VarRef(ValueRef::TopLevel {
-                        id: self.symbols.intern_top_level(target_fqn.clone()),
-                        fqn: target_fqn,
-                    }),
-                }),
-                args: vec![CallArg::Positional(receiver)],
-            },
-        }
-    }
-
     pub(super) fn lower_stmt_into_with_tail(
         &mut self,
         pkg_prefix: &str,
@@ -1347,11 +1270,12 @@ impl<'a> HirLowering<'a> {
         let next_call_span = Span::new(for_span.start + 5, for_span.start + 6);
 
         // val __for_iter = Iterable.iterator(__for_iterable)
-        let iterator_call = self.lower_synthetic_dispatch_call(
+        let iterator_call = self.lower_synthetic_member_call_with_receiver_ty(
             iterator_call_span,
             iterable_ref(for_span),
             iterable_ty,
             &info.iterator_method_fqn,
+            Vec::new(),
             iterator_ty,
         );
         let iterator_id = self.intern_local_symbol(iterator_span, false);
@@ -1410,11 +1334,12 @@ impl<'a> HirLowering<'a> {
         };
 
         // __for_iter.next()
-        let next_call = self.lower_synthetic_dispatch_call(
+        let next_call = self.lower_synthetic_member_call_with_receiver_ty(
             next_call_span,
             iterator_ref(for_span),
             iterator_ty,
             &info.next_method_fqn,
+            Vec::new(),
             next_result_ty,
         );
 

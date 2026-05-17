@@ -588,7 +588,7 @@ fn add_call_synth_string_arg(stmt: &Stmt) -> Option<&str> {
     Some(value.as_str())
 }
 
-fn add_call_arg_is_to_string_member_call(stmt: &Stmt) -> bool {
+fn add_call_arg_is_to_string_call(stmt: &Stmt) -> bool {
     let StmtKind::Expr(Expr {
         kind: ExprKind::Call { args, .. },
         ..
@@ -603,17 +603,82 @@ fn add_call_arg_is_to_string_member_call(stmt: &Stmt) -> bool {
     else {
         return false;
     };
-    if !args.is_empty() {
+    if args.len() != 1 {
         return false;
     }
-    let ExprKind::MemberAccess { member, .. } = &callee.kind else {
+    let ExprKind::VarRef(ValueRef::TopLevel { fqn, .. }) = &callee.kind else {
         return false;
     };
-    matches!(
-        member.resolved.as_ref(),
-        Some(crate::hir::MemberRef::Fun { fqn, .. })
-            if fqn == "scoop.core.ToString.toString"
-    )
+    fqn == "scoop.core.ToString.toString"
+}
+
+fn block_contains_call_with_member_access_callee(block: &Block) -> bool {
+    block
+        .stmts
+        .iter()
+        .any(stmt_contains_call_with_member_access_callee)
+}
+
+fn stmt_contains_call_with_member_access_callee(stmt: &Stmt) -> bool {
+    match &stmt.kind {
+        StmtKind::Expr(expr) => expr_contains_call_with_member_access_callee(expr),
+        StmtKind::Val(decl) => decl
+            .init
+            .as_ref()
+            .is_some_and(expr_contains_call_with_member_access_callee),
+        StmtKind::Assign { lhs, rhs, .. } => {
+            expr_contains_call_with_member_access_callee(lhs)
+                || expr_contains_call_with_member_access_callee(rhs)
+        }
+        StmtKind::Return { value } => value
+            .as_ref()
+            .is_some_and(expr_contains_call_with_member_access_callee),
+        StmtKind::While { cond, body } => {
+            expr_contains_call_with_member_access_callee(cond)
+                || block_contains_call_with_member_access_callee(body)
+        }
+        _ => false,
+    }
+}
+
+fn expr_contains_call_with_member_access_callee(expr: &Expr) -> bool {
+    match &expr.kind {
+        ExprKind::Call { callee, args } => {
+            matches!(&callee.kind, ExprKind::MemberAccess { .. })
+                || expr_contains_call_with_member_access_callee(callee)
+                || args.iter().any(|arg| match arg {
+                    CallArg::Positional(expr) => expr_contains_call_with_member_access_callee(expr),
+                    CallArg::Named { value, .. } => {
+                        expr_contains_call_with_member_access_callee(value)
+                    }
+                })
+        }
+        ExprKind::Block(block) => block_contains_call_with_member_access_callee(block),
+        ExprKind::MemberAccess { receiver, .. } => {
+            expr_contains_call_with_member_access_callee(receiver)
+        }
+        ExprKind::When { subject, arms } => {
+            expr_contains_call_with_member_access_callee(subject)
+                || arms.iter().any(|arm| {
+                    arm.guard
+                        .as_ref()
+                        .is_some_and(expr_contains_call_with_member_access_callee)
+                        || expr_contains_call_with_member_access_callee(&arm.body)
+                })
+        }
+        ExprKind::If {
+            cond,
+            then_branch,
+            else_branch,
+        } => {
+            expr_contains_call_with_member_access_callee(cond)
+                || expr_contains_call_with_member_access_callee(then_branch)
+                || else_branch
+                    .as_deref()
+                    .is_some_and(expr_contains_call_with_member_access_callee)
+        }
+        _ => false,
+    }
 }
 
 #[test]
@@ -668,16 +733,56 @@ fun main(): Int {
     );
     assert_eq!(add_call_synth_string_arg(&block.stmts[1]), Some("a"));
     assert!(
-        add_call_arg_is_to_string_member_call(&block.stmts[2]),
-        "expression part should call ToString.toString through ordinary member dispatch"
+        add_call_arg_is_to_string_call(&block.stmts[2]),
+        "expression part should call ToString.toString through canonical top-level callee"
     );
     assert_eq!(add_call_synth_string_arg(&block.stmts[3]), Some("b"));
+    assert!(
+        !block_contains_call_with_member_access_callee(block),
+        "synthetic f-string lowering must not emit Call(MemberAccess(...))"
+    );
     assert!(
         lowered
             .dispatch_call_sites
             .values()
             .any(|kind| *kind == crate::hir::DispatchCallKind::Interface),
         "ToString.toString should be published as an interface dispatch call"
+    );
+}
+
+#[test]
+fn for_custom_iterator_synthetic_calls_are_canonical_dispatch() {
+    let sess = session();
+    let fixture_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../../tests/fixtures/run-pass/for_in_custom_iterator_basic.scoop");
+    let source = SourceFile::load(&fixture_path).unwrap();
+    let lowered = lower_typed_single_source_file(&sess, &source);
+    let sum = find_fun(&lowered, "sumAndPrint");
+    let body = sum.body.as_ref().expect("sumAndPrint should have body");
+    let call_fqns = top_level_call_fqns_in_fun(sum);
+
+    assert!(
+        call_fqns
+            .iter()
+            .any(|fqn| fqn == "CounterIterableLike.iterator"),
+        "for custom iterator should call canonical iterator top-level method: {call_fqns:#?}"
+    );
+    assert!(
+        call_fqns
+            .iter()
+            .any(|fqn| fqn == "CounterIteratorLike.next"),
+        "for custom iterator should call canonical next top-level method: {call_fqns:#?}"
+    );
+    assert!(
+        !block_contains_call_with_member_access_callee(body),
+        "for custom iterator lowering must not emit Call(MemberAccess(...))"
+    );
+    assert!(
+        lowered
+            .dispatch_call_sites
+            .values()
+            .any(|kind| *kind == crate::hir::DispatchCallKind::Interface),
+        "iterator()/next() should be published as interface dispatch calls"
     );
 }
 

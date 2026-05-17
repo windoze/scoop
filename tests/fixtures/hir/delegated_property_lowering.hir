@@ -185,51 +185,45 @@ File {
                                                 kind: Call {
                                                     callee:
                                                         Expr {
-                                                            span: 290..291,
+                                                            span: 288..291,
                                                             ty: Any,
-                                                            kind: MemberAccess {
-                                                                receiver:
-                                                                    Expr {
-                                                                        span: 290..291,
-                                                                        ty: Any,
-                                                                        kind: MemberAccess {
-                                                                            receiver:
-                                                                                Expr {
-                                                                                    span: 288..289,
-                                                                                    ty: a.C,
-                                                                                    kind: VarRef(
-                                                                                        Local {
-                                                                                            label: sym#h319c5566a74a3ecb0647e84f91316ec2,
-                                                                                            name: "c",
-                                                                                            decl_span: 262..263,
-                                                                                        }
-                                                                                    ),
-                                                                                }
-                                                                            member:
-                                                                                MemberAccess {
-                                                                                    span: 290..291,
-                                                                                    name: "p$delegate",
-                                                                                    resolved: Some(
-                                                                                        Value {
-                                                                                            fqn: "a.C.p$delegate",
-                                                                                        }
-                                                                                    ),
-                                                                                }
-                                                                        },
-                                                                    }
-                                                                member:
-                                                                    MemberAccess {
-                                                                        span: 290..291,
-                                                                        name: "getValue",
-                                                                        resolved: Some(
-                                                                            Fun {
-                                                                                fqn: "a.Delegate.getValue",
-                                                                            }
-                                                                        ),
-                                                                    }
-                                                            },
+                                                            kind: VarRef(
+                                                                TopLevel {
+                                                                    fqn: "a.Delegate.getValue",
+                                                                }
+                                                            ),
                                                         }
                                                     args: [
+                                                        Positional(
+                                                            Expr {
+                                                                span: 290..291,
+                                                                ty: a.Delegate,
+                                                                kind: MemberAccess {
+                                                                    receiver:
+                                                                        Expr {
+                                                                            span: 288..289,
+                                                                            ty: a.C,
+                                                                            kind: VarRef(
+                                                                                Local {
+                                                                                    label: sym#h319c5566a74a3ecb0647e84f91316ec2,
+                                                                                    name: "c",
+                                                                                    decl_span: 262..263,
+                                                                                }
+                                                                            ),
+                                                                        }
+                                                                    member:
+                                                                        MemberAccess {
+                                                                            span: 290..291,
+                                                                            name: "p$delegate",
+                                                                            resolved: Some(
+                                                                                Value {
+                                                                                    fqn: "a.C.p$delegate",
+                                                                                }
+                                                                            ),
+                                                                        }
+                                                                },
+                                                            }
+                                                        ),
                                                         Positional(
                                                             Expr {
                                                                 span: 288..289,
@@ -271,51 +265,45 @@ File {
                                         kind: Call {
                                             callee:
                                                 Expr {
-                                                    span: 296..297,
+                                                    span: 294..301,
                                                     ty: Any,
-                                                    kind: MemberAccess {
-                                                        receiver:
-                                                            Expr {
-                                                                span: 296..297,
-                                                                ty: Any,
-                                                                kind: MemberAccess {
-                                                                    receiver:
-                                                                        Expr {
-                                                                            span: 294..295,
-                                                                            ty: a.C,
-                                                                            kind: VarRef(
-                                                                                Local {
-                                                                                    label: sym#h319c5566a74a3ecb0647e84f91316ec2,
-                                                                                    name: "c",
-                                                                                    decl_span: 262..263,
-                                                                                }
-                                                                            ),
-                                                                        }
-                                                                    member:
-                                                                        MemberAccess {
-                                                                            span: 296..297,
-                                                                            name: "p$delegate",
-                                                                            resolved: Some(
-                                                                                Value {
-                                                                                    fqn: "a.C.p$delegate",
-                                                                                }
-                                                                            ),
-                                                                        }
-                                                                },
-                                                            }
-                                                        member:
-                                                            MemberAccess {
-                                                                span: 296..297,
-                                                                name: "setValue",
-                                                                resolved: Some(
-                                                                    Fun {
-                                                                        fqn: "a.Delegate.setValue",
-                                                                    }
-                                                                ),
-                                                            }
-                                                    },
+                                                    kind: VarRef(
+                                                        TopLevel {
+                                                            fqn: "a.Delegate.setValue",
+                                                        }
+                                                    ),
                                                 }
                                             args: [
+                                                Positional(
+                                                    Expr {
+                                                        span: 296..297,
+                                                        ty: a.Delegate,
+                                                        kind: MemberAccess {
+                                                            receiver:
+                                                                Expr {
+                                                                    span: 294..295,
+                                                                    ty: a.C,
+                                                                    kind: VarRef(
+                                                                        Local {
+                                                                            label: sym#h319c5566a74a3ecb0647e84f91316ec2,
+                                                                            name: "c",
+                                                                            decl_span: 262..263,
+                                                                        }
+                                                                    ),
+                                                                }
+                                                            member:
+                                                                MemberAccess {
+                                                                    span: 296..297,
+                                                                    name: "p$delegate",
+                                                                    resolved: Some(
+                                                                        Value {
+                                                                            fqn: "a.C.p$delegate",
+                                                                        }
+                                                                    ),
+                                                                }
+                                                        },
+                                                    }
+                                                ),
                                                 Positional(
                                                     Expr {
                                                         span: 294..295,
@@ -409,11 +397,11 @@ TypedHirEffectContracts {
         },
         TypedCallSiteContract {
             span: 288..291,
-            kind: MemberDirect,
+            kind: Virtual,
         },
         TypedCallSiteContract {
             span: 294..301,
-            kind: MemberDirect,
+            kind: Virtual,
         },
     ],
     call_site_contracts: [
@@ -427,11 +415,11 @@ TypedHirEffectContracts {
         },
         CallSiteContract {
             span: 288..291,
-            kind: MemberDirect,
-            member_owner_fqn: "a.Delegate",
-            member_member_name: "getValue",
-            member_member_fqn: "a.Delegate.getValue",
-            receiver_ty: Any,
+            kind: Virtual,
+            dispatch_owner_fqn: "a.Delegate",
+            dispatch_member_name: "getValue",
+            dispatch_member_fqn: "a.Delegate.getValue",
+            receiver_ty: a.Delegate,
             target_fqn: "a.Delegate.getValue",
             target_decl_span: None,
             target_type_args: [],
@@ -439,11 +427,11 @@ TypedHirEffectContracts {
         },
         CallSiteContract {
             span: 294..301,
-            kind: MemberDirect,
-            member_owner_fqn: "a.Delegate",
-            member_member_name: "setValue",
-            member_member_fqn: "a.Delegate.setValue",
-            receiver_ty: Any,
+            kind: Virtual,
+            dispatch_owner_fqn: "a.Delegate",
+            dispatch_member_name: "setValue",
+            dispatch_member_fqn: "a.Delegate.setValue",
+            receiver_ty: a.Delegate,
             target_fqn: "a.Delegate.setValue",
             target_decl_span: None,
             target_type_args: [],

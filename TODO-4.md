@@ -410,6 +410,56 @@
 - 与 `PLAN.md` 闭合：纯 audit baseline 同步，未触及任何 PLAN §节点。
 - 暂时性 failing fixture：无。本任务不涉及 fixture。
 
+### [DONE] P8-T04c：synthetic member call canonicalization + class/static init reachability 修复
+
+- 参考：
+  - `tests/fixtures/run_pass_cone/cross_file_ctor_named_default_basic`（非入口文件 class/object initializer 内的 ctor + f-string 组合回归）
+  - `crates/scoopc/src/hir/lower/expr/main_lower.rs::desugar_f_string_expr`
+  - `crates/scoopc/src/hir/lower/stmt.rs::lower_for_custom_iterator`
+  - `crates/scoopc/src/hir/lower/sugar.rs` / `expr/members.rs`（generic delegated property get/set synthetic member call）
+  - `crates/scoopc/src/mir/materialize/reachable.rs` 与 `crates/scoopc/src/llvm/reachability.rs`（static/class init 与 dispatch reachability）
+- 目标：
+  - 消除 compiler-generated `Call(MemberAccess(...))` 形态，让 synthetic member call 与源码 member call 共享 canonical HIR contract：`Owner.method(receiver, args...)` + source-aware dispatch side table。
+  - 覆盖 f-string `ToString.toString`、custom `for` 的 `iterator()/next()`、safe-call ordinary member 分支、generic delegated property `getValue/setValue` 等同类 lowering 路径，避免后端再收到非 canonical callee。
+  - 让 class/static initializer 中的 canonical synthetic calls 也能被 MIR materialization / LLVM reachability 正确发现，特别是 `StringBuilder` 初始化链中的 generic sysroot call 与 interface dispatch target。
+- 当前实现入口（修复前现状）：
+  - f-string desugar 手工构造 `Call(MemberAccess(expr, ToString.toString), [])`；当该 f-string 位于 class field initializer 中时，HIR-direct codegen 会在 `call callee` 处触发 internal contract drift。
+  - `for` custom iterator 已有局部 helper 生成 canonical dispatch call，但 helper 私有在 `stmt.rs`，其它 synthetic lowering 不能复用。
+  - generic delegated property get/set 会手工拼 `delegate.getValue(...)` / `delegate.setValue(...)` 的 member-access callee，HIR golden 中也记录了旧形态。
+  - static/class init reachability scanner 对 `Call` 只扫描 callee expr 自身，未用整个 call expr span 恢复 generic direct-call binding，也未消费 ctor side table；LLVM reachability 对 canonicalized interface call 会把接口声明本身当作 reachable callable，导致 `scoop.core.ToString.toString` 缺 published body。
+- 实现内容：
+  1. 在 `HirLowering` 上新增 `lower_synthetic_member_call` / `lower_synthetic_member_call_with_receiver_ty`，统一生成 top-level callee + receiver-first args，并按 owner 类型记录 `DispatchCallSiteIndex`；`stmt.rs` 中原私有 `lower_synthetic_dispatch_call` 删除，`for` 复用新 helper。
+  2. f-string 的 `{expr}` 改为通过 helper 生成 `scoop.core.ToString.toString(expr)`；`StringBuilder.add` / `StringBuilder.toString` 也通过同一 canonical helper 构造，避免 synthetic lowering 自己拼 call shape。
+  3. safe-call ordinary member 分支、generic delegated property get/set 改用 helper；更新 `tests/fixtures/hir/delegated_property_lowering.hir`，golden 现在反映 canonical top-level callee 与精确 receiver dispatch contract。
+  4. MIR materializer construction inputs 增加 `ctor_call_sites`；static init reachability 在 `Call` 上先消费 ctor side table，再按 call expr span 查询 top-level generic binding，确保 class/object init 内的 generic sysroot call 参与 materialization。
+  5. `devirtualize::try_devirtualize_dispatch_target` 支持 value receiver / builtin scalar receiver 的 exact FQN，LLVM HIR-direct interface dispatch 在可精确解析时先降为 direct call；LLVM reachability 也消费 dispatch side table，收集真实实现目标而不是接口声明本身。
+- 必须遵从的约束：
+  - **不**在 LLVM `call callee` 错误点 special-case f-string / `ToString` / iterator；后端仍保持“不接受非 canonical HIR call shape”的 contract。
+  - **不**只修 `cross_file_ctor_named_default_basic` 这个 fixture；所有 compiler-generated member call 都必须走统一 primitive。
+  - **不**把 interface method 声明本身当作 published body fallback；动态 dispatch 的 reachable callable 必须由 dispatch side table + receiver type 推出真实目标。
+- 验证：
+  1. `cargo test -p scoopc fstring_desugar_lowers_to_string_builder_chain -- --nocapture`
+  2. `cargo test -p scoopc for_custom_iterator_synthetic_calls_are_canonical_dispatch -- --nocapture`
+  3. `cargo test -p scoopc lower_for_compilation_unit_multi_files_preserves_non_entry_call_site_side_tables -- --nocapture`
+  4. `cargo test -p scoopc materialize -- --nocapture`
+  5. `cargo run -p scoop -- test --fixtures tests/fixtures/run_pass_cone/cross_file_ctor_named_default_basic`
+  6. `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/for_in_custom_iterator_basic.scoop`
+  7. `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/println_string_statepoint_basic.scoop`
+  8. `cargo run -p scoop -- test --fixtures tests/fixtures/run_pass_cone/managed_abi_string_gc`
+  9. `cargo run -p scoop -- test`：1341/1342 targets passed、1378 checks passed，仅 `run-pass/mutable_array_ops_basic.scoop` 失败。
+- 完成条件：
+  - `cross_file_ctor_named_default_basic` 通过，且完整 fixture 除既有 mutable array follow-up 外无新增失败。
+  - HIR 结构性单测覆盖 f-string 与 custom `for` 的 synthetic member call canonicalization，并显式断言不再生成 `Call(MemberAccess(...))`。
+- 依赖：P8-T04b。本任务是 P8-T04 前置修复，消化 P8-T04 启动前暴露的 synthetic call / reachability contract drift；不改变 P8-T04 operator → method desugar 的任务目标。
+
+完成记录（2026-05-17）：
+
+- 改动范围：新增统一 synthetic member call lowering primitive；迁移 f-string、for custom iterator、safe-call ordinary member、generic delegated property get/set；扩展 materializer/LLVM reachability；更新 delegated property HIR golden；新增/更新 HIR 单测覆盖 f-string 与 custom iterator canonicalization。
+- 核心决策：把正确 contract 放在前端 lowering 边界，而不是让后端补洞。compiler-generated member call 与 source-level member call 表达同一语义，应统一进入 canonical top-level-call + receiver-first args + dispatch side table 的形态；这样 HIR/MIR/effect-lowered/LLVM 各阶段都能消费同一套事实，不需要按语法糖来源区分。
+- 验证结果：上述验证命令均通过；完整 `cargo run -p scoop -- test` 最终只剩 `run-pass/mutable_array_ops_basic.scoop` 失败，符合当前已知后续任务安排。
+- 与 `PLAN.md` 闭合：本任务是 P8-T04 前的 contract 修复，不改变 PLAN §9 / P8 operator 改写主线，只清理前置 lowering/reachability 漂移。
+- 暂时性 failing fixture：`tests/fixtures/run-pass/mutable_array_ops_basic.scoop`（既有 mutable array 后续任务处理）。
+
 ### P8-T04：HIR / typecheck——binary / unary operator 改写为 method call
 
 - 参考：

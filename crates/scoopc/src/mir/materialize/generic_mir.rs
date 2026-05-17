@@ -332,6 +332,7 @@ pub(super) struct MirInstanceMaterializer {
     pub(super) roots_by_fqn: HashMap<String, Vec<TemplateKey>>,
     pub(super) explicit_dispatch_candidate_instances: HashMap<String, Vec<InstanceKey>>,
     pub(super) direct_call_bindings: HashMap<SourceSiteKey, ast::TopLevelFunCallBinding>,
+    pub(super) ctor_call_sites: crate::hir::CtorCallSiteIndex,
     pub(super) top_level_vars: crate::hir::TopLevelVarIndex,
     pub(super) top_level_consts: crate::hir::TopLevelConstIndex,
     pub(super) top_level_immutable_values: crate::hir::TopLevelImmutableValueIndex,

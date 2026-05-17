@@ -99,13 +99,23 @@ impl<'a> HirLowering<'a> {
                     receiver.clone(),
                     &info,
                 );
-                let setter_member_resolved = info.delegate_class_fqn.as_ref().map(|class_fqn| {
+
+                let meta = self.lower_property_meta_ref_expr(member.span, &info.property_meta_fqn);
+                let value = self.lower_expr(pkg_prefix, rhs);
+
+                if let Some(class_fqn) = info.delegate_class_fqn.as_ref() {
                     let setter_fqn = format!("{class_fqn}.setValue");
-                    MemberRef::Fun {
-                        id: self.symbols.intern_top_level(setter_fqn.clone()),
-                        fqn: setter_fqn,
-                    }
-                });
+                    let receiver_ty = delegate.ty;
+                    return Some(self.lower_synthetic_member_call_with_receiver_ty(
+                        span,
+                        delegate,
+                        receiver_ty,
+                        &setter_fqn,
+                        vec![this_ref, meta, value],
+                        self.builtins.unit,
+                    ));
+                }
+
                 let callee = Expr {
                     span: member.span,
                     ty: self.builtins.any,
@@ -114,13 +124,10 @@ impl<'a> HirLowering<'a> {
                         member: MemberAccess {
                             span: member.span,
                             name: "setValue".to_string(),
-                            resolved: setter_member_resolved,
+                            resolved: None,
                         },
                     },
                 };
-
-                let meta = self.lower_property_meta_ref_expr(member.span, &info.property_meta_fqn);
-                let value = self.lower_expr(pkg_prefix, rhs);
 
                 Some(Expr {
                     span,
@@ -1045,9 +1052,14 @@ impl<'a> HirLowering<'a> {
         receiver: Expr,
         info: &GenericDelegatedPropertyInfo,
     ) -> Expr {
+        let ty = info
+            .delegate_class_fqn
+            .as_ref()
+            .map(|fqn| self.intern_nominal(fqn.clone(), Vec::new(), None))
+            .unwrap_or(self.builtins.any);
         Expr {
             span,
-            ty: self.builtins.any,
+            ty,
             kind: ExprKind::MemberAccess {
                 receiver: Box::new(receiver),
                 member: MemberAccess {

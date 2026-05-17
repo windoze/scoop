@@ -35,6 +35,7 @@
 | `P8-T03` | [DONE] | P8 | [DONE] sysroot 标量 type body 内补 `@Intrinsic("...")` method 声明 | [TODO-4.md](./TODO-4.md) |
 | `P8-T04a` | [DONE] | P8 | [DONE] runtime String helpers 写入正确 `type_desc`（修复 P6-T01 引入的 5 个 GC fixture 失败） | [TODO-4.md](./TODO-4.md) |
 | `P8-T04b` | [DONE] | P8 | [DONE] 修正 `INTERNAL_BUG_SENTINEL_HITS` 行号 drift（P8-T03 漏更新的 audit baseline） | [TODO-4.md](./TODO-4.md) |
+| `P8-T04c` | [DONE] | P8 | [DONE] synthetic member call canonicalization + class/static init reachability 修复 | [TODO-4.md](./TODO-4.md) |
 | `P8-T04` | [TODO] | P8 | HIR / typecheck：binary / unary operator 改写为 method call | [TODO-4.md](./TODO-4.md) |
 | `P8-T05` | [TODO] | P8 | 删除 `mir_body/op.rs` 按 `ast::BinaryOp` 直接 codegen 路径 | [TODO-4.md](./TODO-4.md) |
 | `P8-T06` | [TODO] | P8 | 算术 fixture 矩阵 + 边界值回归 | [TODO-4.md](./TODO-4.md) |

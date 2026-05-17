@@ -1045,38 +1045,13 @@ impl<'a> HirLowering<'a> {
                 ast::InterpolatedStringPart::Expr { expr } => {
                     let lowered_expr = self.lower_expr(pkg_prefix, expr);
                     let to_string_call_span = self.fresh_synthetic_call_site_span(expr.span);
-                    self.dispatch_call_sites.insert(
-                        crate::hir::DispatchCallSite::new(
-                            self.source.path().to_path_buf(),
-                            to_string_call_span,
-                            lowered_expr.ty,
-                        ),
-                        crate::hir::DispatchCallKind::Interface,
+                    let to_string_call = self.lower_synthetic_member_call(
+                        to_string_call_span,
+                        lowered_expr,
+                        Self::TO_STRING_INTERFACE_METHOD_FQN,
+                        Vec::new(),
+                        self.builtins.string,
                     );
-                    let to_string_call = Expr {
-                        span: to_string_call_span,
-                        ty: self.builtins.string,
-                        kind: ExprKind::Call {
-                            callee: Box::new(Expr {
-                                span: to_string_call_span,
-                                ty: self.builtins.any,
-                                kind: ExprKind::MemberAccess {
-                                    receiver: Box::new(lowered_expr),
-                                    member: MemberAccess {
-                                        span: to_string_call_span,
-                                        name: "toString".to_string(),
-                                        resolved: Some(MemberRef::Fun {
-                                            id: self.symbols.intern_top_level(
-                                                Self::TO_STRING_INTERFACE_METHOD_FQN.to_string(),
-                                            ),
-                                            fqn: Self::TO_STRING_INTERFACE_METHOD_FQN.to_string(),
-                                        }),
-                                    },
-                                },
-                            }),
-                            args: Vec::new(),
-                        },
-                    };
                     let add_call_span = self.fresh_synthetic_call_site_span(expr.span);
                     stmts.push(self.string_builder_add_stmt(
                         add_call_span,
@@ -1091,22 +1066,13 @@ impl<'a> HirLowering<'a> {
         }
 
         let finish_call_span = self.fresh_synthetic_call_site_span(span);
-        let finish_call = Expr {
-            span: finish_call_span,
-            ty: self.builtins.string,
-            kind: ExprKind::Call {
-                callee: Box::new(self.top_level_callee_expr_with_fqn(
-                    finish_call_span,
-                    Self::STRING_BUILDER_TO_STRING_FQN.to_string(),
-                )),
-                args: vec![CallArg::Positional(self.string_builder_ref_expr(
-                    builder_decl_span,
-                    builder_id,
-                    &builder_name,
-                    builder_ty,
-                ))],
-            },
-        };
+        let finish_call = self.lower_synthetic_member_call(
+            finish_call_span,
+            self.string_builder_ref_expr(builder_decl_span, builder_id, &builder_name, builder_ty),
+            Self::STRING_BUILDER_TO_STRING_FQN,
+            Vec::new(),
+            self.builtins.string,
+        );
         stmts.push(Stmt {
             span: finish_call_span,
             ty: self.builtins.string,
@@ -1151,25 +1117,13 @@ impl<'a> HirLowering<'a> {
         builder_ty: TypeId,
         value: Expr,
     ) -> Stmt {
-        let add_call = Expr {
-            span: call_span,
-            ty: builder_ty,
-            kind: ExprKind::Call {
-                callee: Box::new(self.top_level_callee_expr_with_fqn(
-                    call_span,
-                    Self::STRING_BUILDER_ADD_FQN.to_string(),
-                )),
-                args: vec![
-                    CallArg::Positional(self.string_builder_ref_expr(
-                        builder_decl_span,
-                        builder_id,
-                        builder_name,
-                        builder_ty,
-                    )),
-                    CallArg::Positional(value),
-                ],
-            },
-        };
+        let add_call = self.lower_synthetic_member_call(
+            call_span,
+            self.string_builder_ref_expr(builder_decl_span, builder_id, builder_name, builder_ty),
+            Self::STRING_BUILDER_ADD_FQN,
+            vec![value],
+            builder_ty,
+        );
         Stmt {
             span: call_span,
             ty: builder_ty,

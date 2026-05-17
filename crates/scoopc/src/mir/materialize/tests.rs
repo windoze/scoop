@@ -365,6 +365,7 @@ fn generic_materializer_for_body_with_template(
             top_level_fun_value_refs: HashMap::new(),
             top_level_fun_call_bindings: HashMap::new(),
             lowered_top_level_fun_call_bindings: HashMap::new(),
+            ctor_call_sites: HashMap::new(),
             top_level_vars: HashMap::new(),
             top_level_consts: HashMap::new(),
             top_level_immutable_values: HashMap::new(),
@@ -718,6 +719,7 @@ fn materialized_mir_mir_materialize_generics_missing_root_reports_template_span(
             top_level_fun_value_refs: HashMap::new(),
             top_level_fun_call_bindings: HashMap::new(),
             lowered_top_level_fun_call_bindings: HashMap::new(),
+            ctor_call_sites: HashMap::new(),
             top_level_vars: HashMap::new(),
             top_level_consts: HashMap::new(),
             top_level_immutable_values: HashMap::new(),
@@ -813,6 +815,7 @@ fn mir_materialize_generics_missing_template_reports_call_site() {
                 },
             )]),
             lowered_top_level_fun_call_bindings: HashMap::new(),
+            ctor_call_sites: HashMap::new(),
             top_level_vars: HashMap::new(),
             top_level_consts: HashMap::new(),
             top_level_immutable_values: HashMap::new(),
@@ -1504,6 +1507,7 @@ return 0
     let class_inits = lowered_hir.class_inits.clone();
     let lowered_top_level_fun_call_bindings =
         collect_lowered_top_level_fun_call_bindings(&lowered_hir);
+    let ctor_call_sites = lowered_hir.ctor_call_sites.clone();
     let member_value_tys = collect_member_value_type_infos_from_hir_decls(&lowered_hir.file.decls);
     let types = lowered_hir.types;
 
@@ -1525,6 +1529,7 @@ return 0
             top_level_fun_value_refs,
             top_level_fun_call_bindings,
             lowered_top_level_fun_call_bindings,
+            ctor_call_sites,
             top_level_vars,
             top_level_consts,
             top_level_immutable_values,
@@ -2489,6 +2494,7 @@ println(holder.node.tag.score)
     let class_inits = lowered_hir.class_inits.clone();
     let lowered_top_level_fun_call_bindings =
         collect_lowered_top_level_fun_call_bindings(&lowered_hir);
+    let ctor_call_sites = lowered_hir.ctor_call_sites.clone();
     let member_value_tys = collect_member_value_type_infos_from_hir_decls(&lowered_hir.file.decls);
     let types = lowered_hir.types;
     let mut materializer = MirInstanceMaterializer::new(
@@ -2509,6 +2515,7 @@ println(holder.node.tag.score)
             top_level_fun_value_refs,
             top_level_fun_call_bindings,
             lowered_top_level_fun_call_bindings,
+            ctor_call_sites,
             top_level_vars,
             top_level_consts,
             top_level_immutable_values,
@@ -2822,6 +2829,7 @@ return read(ints) + read(texts)
     let class_inits = lowered_hir.class_inits.clone();
     let lowered_top_level_fun_call_bindings =
         collect_lowered_top_level_fun_call_bindings(&lowered_hir);
+    let ctor_call_sites = lowered_hir.ctor_call_sites.clone();
     let member_value_tys = collect_member_value_type_infos_from_hir_decls(&lowered_hir.file.decls);
     let types = lowered_hir.types;
     let mut materializer = MirInstanceMaterializer::new(
@@ -2842,6 +2850,7 @@ return read(ints) + read(texts)
             top_level_fun_value_refs,
             top_level_fun_call_bindings,
             lowered_top_level_fun_call_bindings,
+            ctor_call_sites,
             top_level_vars,
             top_level_consts,
             top_level_immutable_values,
