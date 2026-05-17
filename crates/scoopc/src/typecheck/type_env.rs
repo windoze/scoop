@@ -1280,7 +1280,7 @@ fn build_import_table_best_effort(
     index: &Index,
 ) -> ImportTable {
     let mut table = ImportTable::default();
-    add_auto_prelude_star_imports(&mut table, source);
+    add_auto_prelude_star_imports(&mut table);
 
     for import in &file.imports {
         let path = import

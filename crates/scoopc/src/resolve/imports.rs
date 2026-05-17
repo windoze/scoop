@@ -44,9 +44,9 @@ impl ImportTable {
     ) -> Result<Self, ResolveError> {
         let mut table = ImportTable::default();
 
-        add_auto_prelude_star_imports(&mut table, source);
-        if index.has_sysroot_files() {
-            for path in auto_prelude_star_imports(source) {
+        add_auto_prelude_star_imports(&mut table);
+        if auto_prelude_is_available(index) {
+            for path in auto_prelude_star_imports() {
                 validate_star_import(index, path, Span::synthetic_prelude())?;
             }
         }
@@ -113,20 +113,22 @@ impl ImportTable {
     }
 }
 
-pub(crate) fn auto_prelude_star_imports(source: &SourceFile) -> &'static [&'static str] {
-    if source.is_sysroot() {
-        &[]
-    } else {
-        &AUTO_PRELUDE_STAR_IMPORTS
-    }
+pub(crate) fn auto_prelude_star_imports() -> &'static [&'static str] {
+    &AUTO_PRELUDE_STAR_IMPORTS
 }
 
-pub(crate) fn add_auto_prelude_star_imports(table: &mut ImportTable, source: &SourceFile) {
+pub(crate) fn add_auto_prelude_star_imports(table: &mut ImportTable) {
     table.star.extend(
-        auto_prelude_star_imports(source)
+        auto_prelude_star_imports()
             .iter()
             .map(|path| (*path).to_string()),
     );
+}
+
+fn auto_prelude_is_available(index: &Index) -> bool {
+    AUTO_PRELUDE_STAR_IMPORTS
+        .iter()
+        .all(|path| index.has_importable_prefix(path))
 }
 
 fn validate_star_import(index: &Index, path: &str, span: Span) -> Result<(), ResolveError> {
@@ -249,17 +251,15 @@ mod tests {
     }
 
     #[test]
-    fn auto_prelude_skips_sysroot_file() {
-        let sysroot = SourceFile::new_virtual_with_origin(
-            "<sysroot>",
-            "package scoop.lang.string\nfun marker() {}",
-            SourceOrigin::Sysroot,
-        );
-        let ast = parse_file(&sysroot).unwrap();
-        let index = Index::build(&[(&sysroot, &ast)]).unwrap();
-        let table = ImportTable::build(&sysroot, &ast, &index).unwrap();
+    fn auto_prelude_injects_for_sysroot_file() {
+        let (core, core_ast, lang_string, lang_string_ast) = prelude_sysroot_sources();
+        let index = Index::build(&[(&core, &core_ast), (&lang_string, &lang_string_ast)]).unwrap();
+        let table = ImportTable::build(&lang_string, &lang_string_ast, &index).unwrap();
 
-        assert!(table.star.is_empty());
+        assert_eq!(
+            table.star,
+            vec!["scoop.core".to_string(), "scoop.lang.string".to_string()]
+        );
     }
 
     #[test]

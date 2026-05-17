@@ -71,7 +71,7 @@ fn parse_minimal_file() {
 }
 
 #[test]
-fn sysroot_files_cannot_contain_fstring() {
+fn sysroot_origin_does_not_change_fstring_parsing() {
     let text = "package scoop.core\nval x = f\"hello\"\n";
     let src = SourceFile::new_virtual_with_origin(
         "<sysroot>",
@@ -79,14 +79,11 @@ fn sysroot_files_cannot_contain_fstring() {
         crate::source::SourceOrigin::Sysroot,
     );
 
-    let err = parse_file(&src).unwrap_err();
-    let ParseError::SysrootFString { span } = err else {
-        panic!("expected sysroot f-string diagnostic, got {err:?}");
-    };
-
-    let f_string_start = text.find("f\"hello\"").unwrap();
-    assert_eq!(span.offset(), f_string_start);
-    assert_eq!(span.len(), "f\"hello\"".len());
+    let ast = parse_file(&src).unwrap();
+    assert!(matches!(
+        top_level_val_init(&ast, 0).kind,
+        ast::ExprKind::InterpolatedString { .. }
+    ));
 }
 
 #[test]

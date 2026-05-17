@@ -517,8 +517,6 @@ pub struct Index {
     packages: HashSet<String>,
     /// 每个源文件所属的 cone（用于可见性过滤）。
     file_cones: HashMap<PathBuf, ConeId>,
-    /// 当前索引是否包含 sysroot 文件，用于区分真实编译与极小单测索引。
-    has_sysroot_files: bool,
     /// runtime entry point：可执行入口函数（`fun main`）。
     ///
     /// 说明（T1113）：
@@ -589,9 +587,6 @@ impl Index {
     pub fn build_with_cones(files: &[IndexedFile<'_>]) -> Result<Self, ResolveError> {
         let mut index = Index::default();
         for f in files {
-            if f.source.is_sysroot() {
-                index.has_sysroot_files = true;
-            }
             index
                 .file_cones
                 .insert(f.source.path().to_path_buf(), f.cone);
@@ -627,10 +622,6 @@ impl Index {
 
     pub fn is_runtime_entry_point(&self, fqn: &str) -> bool {
         self.runtime_entry_point.as_deref() == Some(fqn)
-    }
-
-    pub(crate) fn has_sysroot_files(&self) -> bool {
-        self.has_sysroot_files
     }
 
     pub(crate) fn has_importable_prefix(&self, path: &str) -> bool {
@@ -925,7 +916,7 @@ impl Index {
         // 3) 对单段名字，应用 import 规则（显式 import / star import）
         if segments.len() == 1 {
             let name = segments[0];
-            for prefix in imports::auto_prelude_star_imports(source) {
+            for prefix in imports::auto_prelude_star_imports() {
                 candidates.push(format!("{prefix}.{name}"));
             }
 

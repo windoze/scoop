@@ -770,7 +770,7 @@
   - 闭合 PLAN §9 / P12 中“sysroot file 与用户 file 在 body 缺失策略上完全一致”的要求；`@AllowIntrinsic` 自动 gate 的剩余 `is_sysroot()` 语义由 P12-T05 继续收口。
 - 暂时性 failing fixture：无。中途完整 fixture 暴露的 4 个 overlay 失败均为当前规则直接暴露的已存在不合法 overlay 声明，已在本任务内修复并回归通过。
 
-### P12-T05：`is_sysroot()` 语义收窄——仅保留在 `@file:AllowIntrinsic` 自动开 gate 处使用
+### [DONE] P12-T05：`is_sysroot()` 语义收窄——仅保留在 `@file:AllowIntrinsic` 自动开 gate 处使用
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §9 / P12
@@ -816,6 +816,29 @@
   - `is_sysroot()` 的影响面收窄到唯一一处（`@AllowIntrinsic` gate）。
   - sysroot file 与用户 file 在所有其他维度（AST 形态、body 缺失策略、可见性、编译路径）完全一致。
 - 依赖：P12-T04。
+
+完成记录：
+
+- 改动范围：
+  - `crates/scoopc/src/source.rs` 为 `SourceFile::is_sysroot()` 补充 P12 语义边界注释：该标志仅用于标准 cone 自动开启 `@file:AllowIntrinsic` gate，不再表达 sysroot 语义后门。
+  - `crates/scoopc/src/parser/*` 删除基于 sysroot origin 的 f-string 拒绝路径、`SysrootFString` 诊断与 parser 状态位；sysroot origin 现在与用户文件产出同形 AST。
+  - `crates/scoopc/src/resolve/*` 删除 `Index::has_sysroot_files` 与 auto-prelude 跳过 sysroot file 的分支；自动 prelude 对所有文件一致注入，验证条件改为“prelude package 在当前 index 中可导入”。
+  - 更新 parser / resolve 单测以覆盖 sysroot origin 不改变 f-string parsing 与 auto-prelude 注入行为。
+- 核心决策：
+  - 不通过 `origin()`、路径启发式或其它替代字段保留 parser / resolve 层的 sysroot 特权；唯一剩余行为入口是 `typecheck/annotations.rs::source_is_sysroot` 参与 intrinsic gate。
+  - auto-prelude 的验证不再用“是否包含 sysroot 文件”区分真实编译与极小单测，而是直接检查 `scoop.core` / `scoop.lang.string` package 是否已存在于 index，避免重新引入 origin 特判。
+- 验证结果：
+  - `grep` 等价检查：`crates/scoopc/src` 中 `is_sysroot()` 调用仅剩 `crates/scoopc/src/typecheck/annotations.rs::source_is_sysroot` 内的 `source.is_sysroot()`。
+  - `grep` 等价检查：`is_sysroot` 非调用命中仅剩 `source.rs` 定义、`typecheck/annotations.rs` gate helper/caller，以及 `frontend.rs` loader 局部变量。
+  - `cargo build` 通过。
+  - `cargo test -p scoopc sysroot_origin_does_not_change_fstring_parsing` 通过。
+  - `cargo test -p scoopc auto_prelude_injects_for_sysroot_file` 通过。
+  - `cargo run -p scoop -- test` 通过：1340/1340 targets，1377 checks。
+  - `cargo test --all --all-targets` 通过：856 tests。
+  - `cargo clippy --all-targets -- -D warnings` 通过。
+- 与 `PLAN.md` 对应闭合：
+  - 闭合 PLAN §9 / P12 中“`is_sysroot()` 收窄到仅用于 `@file:AllowIntrinsic` 自动开 gate”的要求；sysroot 与用户 file 不再因 origin 在 parser AST 或 resolve auto-prelude 行为上分叉。
+- 暂时性 failing fixture：无。
 
 ## P13：spec 与文档更新
 

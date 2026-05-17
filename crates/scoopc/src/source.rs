@@ -83,6 +83,12 @@ impl SourceFile {
         self.origin
     }
 
+    /// 标识该 file 是否来自标准 cone（sysroot）。
+    ///
+    /// **语义边界**：从 P12 起，本标志的唯一行为影响是自动开启
+    /// `@file:AllowIntrinsic` gate。这是标准 cone 作者撰写 intrinsic 声明的便利
+    /// 特权，不是语言后门。其它位置（typecheck body 缺失策略、AST stripping、
+    /// 编译列表过滤等）已经统一对待 sysroot 与用户 file。
     pub fn is_sysroot(&self) -> bool {
         self.origin == SourceOrigin::Sysroot
     }
