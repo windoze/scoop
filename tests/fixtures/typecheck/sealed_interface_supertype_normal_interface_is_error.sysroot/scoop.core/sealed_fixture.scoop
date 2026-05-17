@@ -1,0 +1,5 @@
+package scoop.core
+
+interface NormalMarkerSuper
+
+sealed interface BadMarker : NormalMarkerSuper

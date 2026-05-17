@@ -1,0 +1,4 @@
+package scoop.core
+
+sealed interface CycleA : CycleB
+sealed interface CycleB : CycleA

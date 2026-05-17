@@ -1,0 +1,5 @@
+package scoop.core
+
+class MarkerSuperClass
+
+sealed interface BadMarker : MarkerSuperClass

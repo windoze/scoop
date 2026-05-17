@@ -1,0 +1,8 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::sealed_interface_mutually_exclusive_bound
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+class Bad<T> where T: AnyRef, T: AnyValue

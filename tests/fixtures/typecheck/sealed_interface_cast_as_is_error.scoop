@@ -1,0 +1,11 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::sealed_interface_bound_only
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+fun castMarker(x: Any): Any / Raise<RuntimeError> {
+    val y = x as AnyRef
+    return x
+}

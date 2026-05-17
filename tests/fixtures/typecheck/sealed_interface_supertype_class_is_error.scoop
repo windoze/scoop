@@ -1,0 +1,6 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::sealed_interface_supertype_must_be_sealed
+
+package fixtures.typecheck
+
+import scoop.core.*

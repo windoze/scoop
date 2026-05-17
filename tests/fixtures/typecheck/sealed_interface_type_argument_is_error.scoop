@@ -1,0 +1,8 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::sealed_interface_bound_only
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+val xs: List<AnyRef> = []

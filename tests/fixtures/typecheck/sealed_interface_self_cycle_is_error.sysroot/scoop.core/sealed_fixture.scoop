@@ -1,0 +1,3 @@
+package scoop.core
+
+sealed interface SelfCycle : SelfCycle

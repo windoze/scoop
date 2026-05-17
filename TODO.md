@@ -4,7 +4,7 @@
 > 设计基线：[`CLOSURE_FIX.md`](./CLOSURE_FIX.md)  
 > 计划基线：[`PLAN.md`](./PLAN.md)  
 > 格式参考：[`docs/archive/plans/TODO-stable-id.md`](./docs/archive/plans/TODO-stable-id.md)  
-> 当前状态：C4-T01B 已完成
+> 当前状态：C4-T01C 已完成
 > 执行原则：C0 必须最先完成；C1/C3 与 C2 两条实现线可按依赖并行，但单个任务完成时不得留下仓库内 failing fixture；每个任务完成后必须回写“完成记录”。
 
 ## 全局约束
@@ -779,7 +779,7 @@ C0-T01 (baseline + prerequisite inventory)
     - `cargo clippy --all-targets -- -D warnings`：通过。
   - 与 `PLAN.md` / `CLOSURE_FIX.md` 对应闭合：闭合 `PLAN.md` §7 C4-T01 与 `CLOSURE_FIX.md` §1.1、§6/T-G 中 closure capture 正样本要求；阶段级计划未变化。
 
-### [TODO] C4-T01C：新增 sealed interface frontend reject / accept fixtures
+### [DONE] C4-T01C：新增 sealed interface frontend reject / accept fixtures
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §4.1、§7 C4-T01
@@ -813,9 +813,21 @@ C0-T01 (baseline + prerequisite inventory)
 - 依赖：C1-T02
 - 完成记录：
   - 改动范围：
+    - 新增 `tests/fixtures/typecheck/sealed_interface_bounds_accept_ok.scoop`，覆盖 `AnyRef` / `AnyValue` 作为 generic/where bound 的正样本，以及 `AnyRef` + 普通 `Hashable` interface 多约束正样本。
+    - 新增 16 个 sealed interface reject fixtures，覆盖 binding type、param type、return type、type argument、显式 class/struct supertype、`when is` pattern、`as` cast、用户源码定义、互斥 where bound、非空 body、互斥 sysroot marker、非 sealed supertype（普通 interface / class）、self-cycle 与 two-node cycle。
+    - 为需要以 sysroot origin 触发的定义形态错误新增 6 个 companion sysroot overlay 文件；用户源码中的 `sealed interface UserMarker` 仍直接覆盖 sysroot-only gate。
+    - 未修改 compiler/runtime/sysroot 语义代码；未修改 `PLAN.md` 或 `CLOSURE_FIX.md`。
   - 核心决策：
+    - accept/reject 样本均放在最小相关 phase `tests/fixtures/typecheck/`，所有 reject fixture 都含 `EXPECT-ERROR-CODE: scoop::typecheck::sealed_interface_*`。
+    - 当前 parser 不支持内联 `<T: Bound>` type param bound，也不支持 `T: AnyRef + Hashable` 这种 `+` intersection bound 语法；正样本使用现有 `where T: ...` 与重复 where constraint 表达同等已实现语义，未伪造 typecheck fixture。
+    - `sealed interface` 的 body、supertype、cycle 与 sysroot marker 互斥检查必须从 sysroot source 触发；这些 fixture 使用 companion `.sysroot/` overlay 添加额外 sysroot 文件，避免被 user-definition gate 抢先拦截。
+    - `pipeline_user_visible_failure_policy.rs` 审计表不在本任务更新；C4-T02 已明确负责登记 sealed-interface frontend reject surfaces。
   - 验证结果：
-  - 与 `PLAN.md` / `CLOSURE_FIX.md` 对应闭合：
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck --exit-on-failure`：通过，`fixtures: ok (491)`。
+    - `cargo run -p scoop -- test`：通过，`fixtures: ok (1403)`。
+    - `rg -n "sealed_interface_" tests/fixtures/typecheck crates/scoopc/src/pipeline_user_visible_failure_policy.rs`：通过；新增 fixture marker 均可定位，`pipeline_user_visible_failure_policy.rs` 等待 C4-T02 登记。
+    - `cargo clippy --all-targets -- -D warnings`：通过。
+  - 与 `PLAN.md` / `CLOSURE_FIX.md` 对应闭合：闭合 `PLAN.md` §4.1 / §7 C4-T01 与 `CLOSURE_FIX.md` §2 的 sealed interface frontend accept/reject fixture 覆盖要求；阶段级计划未变化。
 
 ### [TODO] C4-T01D：新增 shared-state primitive fixtures
 
