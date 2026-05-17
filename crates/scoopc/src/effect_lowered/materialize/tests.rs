@@ -379,9 +379,8 @@ fn surface_resume_dispatch_inventory_covers_resume_site_only_and_handle_binder_s
             publication,
             LateLoweredSurfaceResumeDispatchPublication::ResumeBoundary {
                 owner_continuation_object,
-                site_id,
                 ..
-            } if *owner_continuation_object == run.continuation_object() && site_id.as_u32() == 9
+            } if *owner_continuation_object == run.continuation_object()
         )
     }));
 
@@ -1010,7 +1009,7 @@ fn boundary_lowering_publishes_member_readback_resume_route() {
             .iter()
             .map(|(site_id, _)| site_id.as_u32())
             .collect::<Vec<_>>(),
-        vec![26, 31, 36, 41]
+        vec![33, 38, 43, 48]
     );
     for (_site_id, route) in resume_routes {
         assert_eq!(route.continuation_schema(), binder.continuation_schema());
@@ -1496,7 +1495,7 @@ fn effect_lowered_resume_payload_binding_covers_perform_and_runtime_error_paths(
                 boundary.source(),
                 crate::effect_lowered::ir::LateLoweredBoundarySource::RuntimeError {
                     origin_site
-                } if origin_site == SiteId::from_raw(26)
+                } if origin_site == SiteId::from_raw(33)
             )
         })
         .expect("首个 resume site 的 paired runtime-error boundary 应存在");

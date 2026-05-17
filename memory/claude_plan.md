@@ -1,50 +1,47 @@
 # Claude Execution Plan
 
-## Current Objective
+更新时间：2026-05-17
 
-Complete exactly the first incomplete task listed in `TODO.md`, then stop after marking it done and committing the completed work. This file records the execution plan and progress notes without exposing private chain-of-thought.
+说明：本文件记录本次调用的可审计执行计划、关键决策依据和进度更新；不记录不可公开的内部推理。
 
-## Step-by-Step Plan
+## 当前目标
 
-1. Read `TODO.md` first and identify the first task whose title is not prefixed with `[DONE]`.
-2. Review the selected task body, dependencies, validation requirements, and completion-record expectations.
-3. Inspect only the code, fixtures, and documentation needed to implement that task correctly.
-4. If a concrete blocking prerequisite is discovered, update `TODO.md` with the minimum prerequisite task in the correct order, keep the current task incomplete, update this plan, commit the bookkeeping change, and stop.
-5. Otherwise implement the selected task with minimal, spec-correct changes and no workarounds.
-6. Add or update targeted tests/fixtures required by the task.
-7. Run the task-specified validation and any relevant focused checks; fix failures caused by this task.
-8. Update `TODO.md` by prefixing the task title with `[DONE]` and filling in the completion record.
-9. Update this plan with completed key steps and validation results.
-10. Commit all relevant changes with a clear task-scoped commit message.
-11. Stop without starting the next task.
+根据 `TODO.md` 的权威排序，完成第一个标题未带 `[DONE]` 前缀的任务，然后停止。
 
-## Progress
+## 初始执行计划
 
-- Plan initialized before repository inspection.
-- Read `TODO.md`; first incomplete task is `P8-T02` in `TODO-4.md`.
-- Latest commit is `a26aa96b [P8-T01] Document scalar operator baseline`; it is directly relevant as the required baseline, but does not mention an unfinished blocker.
-- Implemented the scalar named intrinsic registry additions, FQN fallback helpers, LLVM lowering paths, and focused owner tests for representative integer, float, compareTo, and bool entries.
-- Validation passed: `cargo test -p scoopc named_intrinsic -- --nocapture`, `cargo build`, `cargo clippy --all-targets -- -D warnings`, and `cargo test --all --all-targets` (rerun with longer timeout after the first full-suite command hit the tool's 120s total timeout; the stopped GC test passed individually in 0.06s).
-- Updated `TODO.md` and `TODO-4.md` to mark `P8-T02` as `[DONE]` with a completion record.
-- Re-ran `cargo test -p scoopc named_intrinsic -- --nocapture` after the final Char fallback mapping adjustment; it passed.
-## 执行计划
+1. 读取 `TODO.md`，只识别第一个未完成任务，不做开放式历史问题扫描。
+2. 查看该任务相关上下文，包括任务正文、依赖、验证要求，以及必要时查看最新提交是否明确提到与该任务直接相关的未完成问题。
+3. 如果任务可直接完成，按最小正确变更实现，并避免 workaround、fixture-only hack 或削弱测试形状。
+4. 如果发现当前任务被具体缺失特性、规格不匹配或实现边界阻塞，则在 `TODO.md` 中插入最少必要的前置任务，保持当前任务未完成，提交后停止。
+5. 对实现运行相关验证；若验证暴露当前任务范围内问题，修复后重新验证。
+6. 完成后在 `TODO.md` 中给该任务标题添加 `[DONE]`，更新完成记录；仅当阶段级计划改变时才更新 `PLAN.md`。
+7. 提交本次所有相关变更，提交信息使用任务编号和简明说明。
+8. 停止，不继续处理下一项任务。
 
-1. 读取 `TODO.md`，按文档顺序找出第一个标题未带 `[DONE]` 的任务，并确认其要求、依赖和验证方式。
-2. 只围绕该任务收集必要上下文；如最新提交明确提到与该任务直接相关的未完成问题，将其纳入当前任务或作为前置项记录到 `TODO.md`。
-3. 实现该任务要求的最小正确改动，避免 workaround、夹具专用逻辑或偏离规范的替代方案。
-4. 运行任务要求的验证命令和相关测试；若发现直接阻塞当前任务的规范/实现缺口，优先修复，或把最小前置任务插入 `TODO.md` 后停止。
-5. 完成后更新 `TODO.md`：在该任务标题前加 `[DONE]`，填写完成记录；仅当阶段级计划改变时才更新 `PLAN.md`。
-6. 提交全部相关改动，提交信息使用任务编号前缀；提交后停止，不继续下一个任务。
+## 进度记录
 
-## 当前状态
+- 已写入初始计划，下一步读取 `TODO.md` 以确认第一个未完成任务。
+- 已确认第一个未完成任务为 `P8-T04：HIR / typecheck——binary / unary operator 改写为 method call`。最新提交 `6f971241 [P8-T04c] Canonicalize synthetic member calls` 是该任务的直接前置修复，已完成且不需要新增前置任务。
 
-- 已记录初始计划。
-- 已确认首个未完成任务为 `P8-T03`。
-- 发现直接阻塞点：`P8-T03` 需要 `unaryPlus` method 声明，但 P8-T02 尚未注册 `int_unary_plus` / `float_unary_plus` named intrinsic。将把这两个 entry 作为当前任务的前置修复一起完成。
-- 已补齐 `int_unary_plus` / `float_unary_plus`，并将 `Int.hash` 收口为 named IR intrinsic，避免旧 retained member-call 路径阻塞 HIR typed call contract。
-- 已在 `sysroot/core.scoop` 添加标量 type body method 声明，删除迁移后的顶层 numeric scalar extension intrinsic 声明，并新增 `tests/fixtures/run-pass/scalar_method_intrinsic_basic.scoop`。
-- 已单跑 `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/scalar_method_intrinsic_basic.scoop`，结果通过。
-- 已运行 `cargo test -p scoopc named_intrinsic -- --nocapture`、`cargo clippy --all-targets -- -D warnings`，均通过。
-- 已运行 `cargo run -p scoop -- test`，全量 baseline 仍有 7 个非 scalar-method 新增 fixture 的失败项；已写入 `TODO-4.md` 完成记录并指向后续 `P13-T04` fixture 收尾。
-- 已更新 `TODO.md` / `TODO-4.md` 将 `P8-T03` 标记为 `[DONE]`。
-- 下一步：检查 git diff/status，提交本任务改动后停止。
+## P8-T04 具体执行步骤
+
+1. 阅读 HIR lowering 中 `BinaryExpr` / `UnaryExpr` 分支、`lower_binary_expr_type` 类型推断逻辑，以及现有 synthetic member call helper。
+2. 复用 canonical synthetic/source-aware member call 机制，把可 method 化的 binary/unary operator 降为 `plus/minus/times/div/rem/and/or/xor/shl/shr/compare/equals/not/inv/unaryMinus/unaryPlus` 等 method call。
+3. 明确保留不改写的路径：短路 `&&` / `||`、range、elvis，以及 ref type `==` / `!=` 的既有语义。
+4. 增加或更新 HIR owner 测试，覆盖 `+`、比较、unary minus、短路逻辑不走 `Bool.and/or`。
+5. 运行任务指定验证和必要的补充测试；如失败属于本任务范围则修复。
+6. 更新 `TODO.md` / `TODO-4.md` 完成状态与记录，提交变更后停止。
+
+## 设计细化
+
+- 对算术、位运算、shift、Bool 非短路位逻辑、Char `plus/minus` 等 source operator，在 typecheck 阶段记录被选中的 scalar method binding；HIR lowering 复用现有 typechecked direct-call 路径，以保留重载选择和 literal expected-type。
+- 对比较、相等和 unary operator，在 HIR 阶段生成 canonical top-level method call；需要嵌套调用的场景使用独立 synthetic call-site span，避免同一 span 上出现两个不同 intrinsic binding。
+- `&&` / `||`、range、elvis、ref type `==` / `!=` 继续保持现有路径。
+
+## 当前进度
+
+- 已完成 P8-T04 代码实现与 owner 测试：`+`、`<`、unary `-` 均降为 method call，`&&` 保留短路输入形态。
+- 已修复 operator method 化引起的 HIR/MIR/LLVM 旧形态断言和 effect site id drift；`cargo test -p scoopc` 已通过（857 passed）。
+- 已完成验证：`cargo test --all --all-targets` 通过；`cargo clippy --all-targets -- -D warnings` 通过；完整 fixture suite `cargo run -p scoop -- test` 仅剩既有 `run-pass/mutable_array_ops_basic.scoop` 失败（1341/1342 targets passed）。
+- 已更新 `TODO.md` 与 `TODO-4.md`，将 `P8-T04` 标记为 `[DONE]` 并写入完成记录。下一步提交本次变更。

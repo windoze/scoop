@@ -2800,6 +2800,9 @@ fn is_plain_compiler_intrinsic(callable_fqn: &str) -> bool {
         .split("$overload")
         .next()
         .unwrap_or(callable_fqn);
+    if crate::intrinsics::fallback_named_intrinsic_entry_name_for_fqn(base).is_some() {
+        return true;
+    }
     matches!(
         base,
         "scoop.core.__scoop_gc_collect"

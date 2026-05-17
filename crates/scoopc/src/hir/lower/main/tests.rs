@@ -555,6 +555,30 @@ fn find_fun<'a>(lowered: &'a LoweredHir, fqn: &str) -> &'a FunDecl {
         .unwrap_or_else(|| panic!("expected HIR fun {fqn}"))
 }
 
+fn find_local_init<'a>(fun: &'a FunDecl, name: &str) -> &'a Expr {
+    fun.body
+        .as_ref()
+        .expect("fun should have body")
+        .stmts
+        .iter()
+        .find_map(|stmt| match &stmt.kind {
+            StmtKind::Val(val) if val.name.as_deref() == Some(name) => val.init.as_ref(),
+            _ => None,
+        })
+        .unwrap_or_else(|| panic!("expected local `{name}` initializer"))
+}
+
+fn assert_direct_call(expr: &Expr, expected_fqn: &str, expected_args: usize) {
+    let ExprKind::Call { callee, args } = &expr.kind else {
+        panic!("expected direct call expr, got {expr:?}");
+    };
+    let ExprKind::VarRef(ValueRef::TopLevel { fqn, .. }) = &callee.kind else {
+        panic!("expected top-level callee, got {callee:?}");
+    };
+    assert_eq!(fqn, expected_fqn);
+    assert_eq!(args.len(), expected_args);
+}
+
 fn top_level_call_fqns_in_fun(fun: &FunDecl) -> Vec<String> {
     let mut call_fqns = Vec::new();
     collect_top_level_call_fqns_in_block(
@@ -783,6 +807,119 @@ fn for_custom_iterator_synthetic_calls_are_canonical_dispatch() {
             .values()
             .any(|kind| *kind == crate::hir::DispatchCallKind::Interface),
         "iterator()/next() should be published as interface dispatch calls"
+    );
+}
+
+#[test]
+fn binary_op_lowers_to_method_call() {
+    let sess = session();
+    let src = SourceFile::new_virtual(
+        "<mem>/binary_op_method_lowering.scoop",
+        r#"
+package fixtures.binary_op_method_lowering
+
+fun main(): Int {
+    val a: Int = 5
+    val b: Int = 3
+    val sum = a + b
+    return sum
+}
+"#,
+    );
+
+    let lowered = lower_typed_single_source_file(&sess, &src);
+    let main = find_fun(&lowered, "fixtures.binary_op_method_lowering.main");
+    let sum = find_local_init(main, "sum");
+    assert_direct_call(sum, "scoop.core.Int.plus", 2);
+    assert!(
+        !expr_contains_call_with_member_access_callee(sum),
+        "operator lowering must emit canonical top-level method calls"
+    );
+}
+
+#[test]
+fn comparison_lowers_to_method_call() {
+    let sess = session();
+    let src = SourceFile::new_virtual(
+        "<mem>/comparison_method_lowering.scoop",
+        r#"
+package fixtures.comparison_method_lowering
+
+fun main(): Int {
+    val a: Int = 5
+    val b: Int = 3
+    val less = a < b
+    return if (less) { 1 } else { 0 }
+}
+"#,
+    );
+
+    let lowered = lower_typed_single_source_file(&sess, &src);
+    let main = find_fun(&lowered, "fixtures.comparison_method_lowering.main");
+    let less = find_local_init(main, "less");
+    assert_direct_call(less, "scoop.core.Int.lt", 2);
+}
+
+#[test]
+fn unary_minus_lowers_to_method() {
+    let sess = session();
+    let src = SourceFile::new_virtual(
+        "<mem>/unary_minus_method_lowering.scoop",
+        r#"
+package fixtures.unary_minus_method_lowering
+
+fun main(): Int {
+    val a: Int = 5
+    val neg = -a
+    return neg
+}
+"#,
+    );
+
+    let lowered = lower_typed_single_source_file(&sess, &src);
+    let main = find_fun(&lowered, "fixtures.unary_minus_method_lowering.main");
+    let neg = find_local_init(main, "neg");
+    assert_direct_call(neg, "scoop.core.Int.unaryMinus", 1);
+}
+
+#[test]
+fn short_circuit_logical_and_does_not_lower_to_bool_and() {
+    let sess = session();
+    let src = SourceFile::new_virtual(
+        "<mem>/short_circuit_method_lowering.scoop",
+        r#"
+package fixtures.short_circuit_method_lowering
+
+fun rhs(): Bool {
+    return true
+}
+
+fun main(): Int {
+    val lhs: Bool = false
+    val both = lhs && rhs()
+    return if (both) { 1 } else { 0 }
+}
+"#,
+    );
+
+    let lowered = lower_typed_single_source_file(&sess, &src);
+    let main = find_fun(&lowered, "fixtures.short_circuit_method_lowering.main");
+    let both = find_local_init(main, "both");
+    assert!(
+        matches!(
+            both.kind,
+            ExprKind::Binary {
+                op: ast::BinaryOp::LogAnd,
+                ..
+            }
+        ),
+        "short-circuit && should keep the existing control-flow lowering input, got {both:?}"
+    );
+    assert!(
+        !top_level_call_fqns_in_fun(main)
+            .iter()
+            .any(|fqn| fqn == "scoop.core.Bool.and"),
+        "short-circuit && must not lower to non-short-circuit Bool.and"
     );
 }
 
@@ -3616,11 +3753,21 @@ val topNamed: String.(Int) -> Int = { n: Int -> this.length() + n }
     let ExprKind::Closure(closure) = &init.kind else {
         panic!("topNamed initializer 应为 closure，实际为 {:?}", init.kind);
     };
-    let ExprKind::Binary { lhs, .. } = &closure.body.kind else {
+    let ExprKind::Call { callee, args } = &closure.body.kind else {
         panic!(
-            "receiver closure body 应为 binary，实际为 {:?}",
+            "receiver closure body 应为 operator method call，实际为 {:?}",
             closure.body.kind
         );
+    };
+    let ExprKind::VarRef(crate::hir::ValueRef::TopLevel { fqn, .. }) = &callee.kind else {
+        panic!(
+            "plus 调用 callee 应为 direct method，实际为 {:?}",
+            callee.kind
+        );
+    };
+    assert_eq!(fqn, "scoop.core.Int.plus");
+    let Some(CallArg::Positional(lhs)) = args.first() else {
+        panic!("plus 调用应保留 length() 结果作为第一个实参: {args:?}");
     };
     let ExprKind::Call { callee, args } = &lhs.kind else {
         panic!("length 调用应保留为 Call，实际为 {:?}", lhs.kind);

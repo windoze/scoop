@@ -17,6 +17,407 @@ impl<'a> HirLowering<'a> {
         Expr { span, ty, kind }
     }
 
+    fn scalar_operator_owner_fqn(&self, ty: TypeId) -> Option<String> {
+        match self.types.kind(ty) {
+            TypeKind::Value(ValueTypeKind::Bool) => Some("scoop.core.Bool".to_string()),
+            TypeKind::Value(ValueTypeKind::Char) => Some("scoop.core.Char".to_string()),
+            TypeKind::Value(ValueTypeKind::Float64) => Some("scoop.core.Float64".to_string()),
+            TypeKind::Value(ValueTypeKind::Float32) => Some("scoop.core.Float32".to_string()),
+            TypeKind::Value(ValueTypeKind::Int) => Some("scoop.core.Int".to_string()),
+            TypeKind::Value(ValueTypeKind::UInt) => Some("scoop.core.UInt".to_string()),
+            TypeKind::Value(ValueTypeKind::IntN(bits)) => Some(format!("scoop.core.Int{bits}")),
+            TypeKind::Value(ValueTypeKind::UIntN(bits)) => Some(format!("scoop.core.UInt{bits}")),
+            _ => None,
+        }
+    }
+
+    pub(in crate::hir::lower) fn is_float_type(&self, ty: TypeId) -> bool {
+        ty == self.builtins.float64
+            || ty == self.builtins.float32
+            || matches!(
+                self.types.kind(ty),
+                TypeKind::Value(ValueTypeKind::Float64 | ValueTypeKind::Float32)
+            )
+    }
+
+    fn ast_int_literal_absorbs_to(&self, expr: &ast::Expr, ty: TypeId) -> bool {
+        matches!(expr.kind, ast::ExprKind::IntLit) && self.is_integer_type(ty)
+    }
+
+    fn ast_float_literal_absorbs_to(&self, expr: &ast::Expr, ty: TypeId) -> bool {
+        matches!(expr.kind, ast::ExprKind::FloatLit) && self.is_float_type(ty)
+    }
+
+    fn unified_integer_operator_ty(
+        &self,
+        lhs: &ast::Expr,
+        lhs_ty: TypeId,
+        rhs: &ast::Expr,
+        rhs_ty: TypeId,
+    ) -> Option<TypeId> {
+        if lhs_ty == rhs_ty && self.is_integer_type(lhs_ty) {
+            return Some(lhs_ty);
+        }
+        if self.ast_int_literal_absorbs_to(lhs, rhs_ty) {
+            return Some(rhs_ty);
+        }
+        if self.ast_int_literal_absorbs_to(rhs, lhs_ty) {
+            return Some(lhs_ty);
+        }
+        None
+    }
+
+    fn unified_float_operator_ty(
+        &self,
+        lhs: &ast::Expr,
+        lhs_ty: TypeId,
+        rhs: &ast::Expr,
+        rhs_ty: TypeId,
+    ) -> Option<TypeId> {
+        if lhs_ty == rhs_ty && self.is_float_type(lhs_ty) {
+            return Some(lhs_ty);
+        }
+        if self.ast_float_literal_absorbs_to(lhs, rhs_ty) {
+            return Some(rhs_ty);
+        }
+        if self.ast_float_literal_absorbs_to(rhs, lhs_ty) {
+            return Some(lhs_ty);
+        }
+        None
+    }
+
+    fn lower_operator_method_call_from_receiver(
+        &mut self,
+        span: Span,
+        receiver: Expr,
+        receiver_ty: TypeId,
+        method: &str,
+        args: Vec<Expr>,
+        ret_ty: TypeId,
+    ) -> Option<Expr> {
+        let owner_fqn = self.scalar_operator_owner_fqn(receiver_ty)?;
+        let method_fqn = format!("{owner_fqn}.{method}");
+        Some(self.lower_synthetic_member_call_with_receiver_ty(
+            span,
+            receiver,
+            receiver_ty,
+            &method_fqn,
+            args,
+            ret_ty,
+        ))
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn lower_operator_method_call(
+        &mut self,
+        pkg_prefix: &str,
+        span: Span,
+        receiver_ast: &ast::Expr,
+        receiver_ty: TypeId,
+        method: &str,
+        arg_ast: &ast::Expr,
+        arg_ty: TypeId,
+        ret_ty: TypeId,
+    ) -> Option<Expr> {
+        let receiver_expected = self.expected_expr_for_param_ty(receiver_ty);
+        let receiver = self.lower_expr_with_expected(pkg_prefix, receiver_ast, receiver_expected);
+        let arg_expected = self.expected_expr_for_param_ty(arg_ty);
+        let arg = self.lower_expr_with_expected(pkg_prefix, arg_ast, arg_expected);
+        self.lower_operator_method_call_from_receiver(
+            span,
+            receiver,
+            receiver_ty,
+            method,
+            vec![arg],
+            ret_ty,
+        )
+    }
+
+    fn lower_bool_not_call(&mut self, span: Span, operand: Expr) -> Option<Expr> {
+        self.lower_operator_method_call_from_receiver(
+            span,
+            operand,
+            self.builtins.bool_,
+            "not",
+            Vec::new(),
+            self.builtins.bool_,
+        )
+    }
+
+    fn lower_equals_then_not(
+        &mut self,
+        pkg_prefix: &str,
+        span: Span,
+        lhs: &ast::Expr,
+        lhs_ty: TypeId,
+        rhs: &ast::Expr,
+        rhs_ty: TypeId,
+    ) -> Option<Expr> {
+        let equals_span = self.fresh_synthetic_call_site_span(span);
+        let equals = self.lower_operator_method_call(
+            pkg_prefix,
+            equals_span,
+            lhs,
+            lhs_ty,
+            "equals",
+            rhs,
+            rhs_ty,
+            self.builtins.bool_,
+        )?;
+        self.lower_bool_not_call(span, equals)
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn lower_compare_to_operator_call(
+        &mut self,
+        pkg_prefix: &str,
+        span: Span,
+        lhs: &ast::Expr,
+        lhs_ty: TypeId,
+        rhs: &ast::Expr,
+        rhs_ty: TypeId,
+        method: &str,
+    ) -> Option<Expr> {
+        let compare_span = self.fresh_synthetic_call_site_span(span);
+        let compare_to = self.lower_operator_method_call(
+            pkg_prefix,
+            compare_span,
+            lhs,
+            lhs_ty,
+            "compareTo",
+            rhs,
+            rhs_ty,
+            self.builtins.int,
+        )?;
+        let zero = Expr {
+            span: self.fresh_synthetic_call_site_span(span),
+            ty: self.builtins.int,
+            kind: ExprKind::Literal(LiteralKind::SynthInt(0)),
+        };
+        self.lower_operator_method_call_from_receiver(
+            span,
+            compare_to,
+            self.builtins.int,
+            method,
+            vec![zero],
+            self.builtins.bool_,
+        )
+    }
+
+    fn try_lower_builtin_unary_operator_expr(
+        &mut self,
+        pkg_prefix: &str,
+        span: Span,
+        op: ast::UnaryOp,
+        expr: &ast::Expr,
+    ) -> Option<Expr> {
+        let operand_ty = self.typechecked_expr_ty(expr.span)?;
+        let (method, ret_ty) = match op {
+            ast::UnaryOp::Not if operand_ty == self.builtins.bool_ => ("not", self.builtins.bool_),
+            ast::UnaryOp::Neg
+                if self.is_integer_type(operand_ty) || self.is_float_type(operand_ty) =>
+            {
+                ("unaryMinus", operand_ty)
+            }
+            ast::UnaryOp::BitNot if self.is_integer_type(operand_ty) => ("inv", operand_ty),
+            _ => return None,
+        };
+        let operand_expected = self.expected_expr_for_param_ty(operand_ty);
+        let operand = self.lower_expr_with_expected(pkg_prefix, expr, operand_expected);
+        self.lower_operator_method_call_from_receiver(
+            span,
+            operand,
+            operand_ty,
+            method,
+            Vec::new(),
+            ret_ty,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn try_lower_builtin_binary_operator_expr(
+        &mut self,
+        pkg_prefix: &str,
+        span: Span,
+        op: ast::BinaryOp,
+        lhs: &ast::Expr,
+        rhs: &ast::Expr,
+    ) -> Option<Expr> {
+        if matches!(
+            op,
+            ast::BinaryOp::LogAnd
+                | ast::BinaryOp::LogOr
+                | ast::BinaryOp::RangeInclusive
+                | ast::BinaryOp::Elvis
+        ) {
+            return None;
+        }
+
+        let lhs_ty = self.typechecked_expr_ty(lhs.span)?;
+        let rhs_ty = self.typechecked_expr_ty(rhs.span)?;
+        let result_ty = self.typechecked_expr_ty(span).unwrap_or(self.builtins.any);
+
+        match op {
+            ast::BinaryOp::Add
+            | ast::BinaryOp::Sub
+            | ast::BinaryOp::Mul
+            | ast::BinaryOp::Div
+            | ast::BinaryOp::Rem
+            | ast::BinaryOp::BitAnd
+            | ast::BinaryOp::BitXor
+            | ast::BinaryOp::BitOr => {
+                let method = match op {
+                    ast::BinaryOp::Add => "plus",
+                    ast::BinaryOp::Sub => "minus",
+                    ast::BinaryOp::Mul => "times",
+                    ast::BinaryOp::Div => "div",
+                    ast::BinaryOp::Rem => "rem",
+                    ast::BinaryOp::BitAnd => "and",
+                    ast::BinaryOp::BitXor => "xor",
+                    ast::BinaryOp::BitOr => "or",
+                    _ => unreachable!("filtered by outer match"),
+                };
+                if lhs_ty == self.builtins.bool_ && rhs_ty == self.builtins.bool_ {
+                    return self.lower_operator_method_call(
+                        pkg_prefix,
+                        span,
+                        lhs,
+                        lhs_ty,
+                        method,
+                        rhs,
+                        rhs_ty,
+                        self.builtins.bool_,
+                    );
+                }
+                if lhs_ty == self.builtins.char_
+                    && matches!(op, ast::BinaryOp::Add | ast::BinaryOp::Sub)
+                    && (rhs_ty == self.builtins.int || rhs_ty == self.builtins.char_)
+                {
+                    return self.lower_operator_method_call(
+                        pkg_prefix, span, lhs, lhs_ty, method, rhs, rhs_ty, result_ty,
+                    );
+                }
+                if let Some(operand_ty) = self
+                    .unified_integer_operator_ty(lhs, lhs_ty, rhs, rhs_ty)
+                    .or_else(|| self.unified_float_operator_ty(lhs, lhs_ty, rhs, rhs_ty))
+                {
+                    return self.lower_operator_method_call(
+                        pkg_prefix, span, lhs, operand_ty, method, rhs, operand_ty, operand_ty,
+                    );
+                }
+            }
+            ast::BinaryOp::Shl | ast::BinaryOp::Shr => {
+                if self.is_integer_type(lhs_ty) && rhs_ty == self.builtins.int {
+                    let method = match op {
+                        ast::BinaryOp::Shl => "shl",
+                        ast::BinaryOp::Shr => "shr",
+                        _ => unreachable!("filtered by outer match"),
+                    };
+                    return self.lower_operator_method_call(
+                        pkg_prefix,
+                        span,
+                        lhs,
+                        lhs_ty,
+                        method,
+                        rhs,
+                        self.builtins.int,
+                        lhs_ty,
+                    );
+                }
+            }
+            ast::BinaryOp::Lt | ast::BinaryOp::Le | ast::BinaryOp::Gt | ast::BinaryOp::Ge => {
+                let method = match op {
+                    ast::BinaryOp::Lt => "lt",
+                    ast::BinaryOp::Le => "le",
+                    ast::BinaryOp::Gt => "gt",
+                    ast::BinaryOp::Ge => "ge",
+                    _ => unreachable!("filtered by outer match"),
+                };
+                if let Some(operand_ty) = self
+                    .unified_integer_operator_ty(lhs, lhs_ty, rhs, rhs_ty)
+                    .or_else(|| self.unified_float_operator_ty(lhs, lhs_ty, rhs, rhs_ty))
+                {
+                    return self.lower_operator_method_call(
+                        pkg_prefix,
+                        span,
+                        lhs,
+                        operand_ty,
+                        method,
+                        rhs,
+                        operand_ty,
+                        self.builtins.bool_,
+                    );
+                }
+                if lhs_ty == self.builtins.char_ && rhs_ty == self.builtins.char_ {
+                    return self.lower_compare_to_operator_call(
+                        pkg_prefix, span, lhs, lhs_ty, rhs, rhs_ty, method,
+                    );
+                }
+            }
+            ast::BinaryOp::Eq | ast::BinaryOp::Ne => {
+                if lhs_ty == self.builtins.bool_ && rhs_ty == self.builtins.bool_ {
+                    let method = match op {
+                        ast::BinaryOp::Eq => "equals",
+                        ast::BinaryOp::Ne => "notEquals",
+                        _ => unreachable!("filtered by outer match"),
+                    };
+                    return self.lower_operator_method_call(
+                        pkg_prefix,
+                        span,
+                        lhs,
+                        lhs_ty,
+                        method,
+                        rhs,
+                        rhs_ty,
+                        self.builtins.bool_,
+                    );
+                }
+                if let Some(operand_ty) = self
+                    .unified_integer_operator_ty(lhs, lhs_ty, rhs, rhs_ty)
+                    .or_else(|| self.unified_float_operator_ty(lhs, lhs_ty, rhs, rhs_ty))
+                {
+                    let method = match op {
+                        ast::BinaryOp::Eq => "equals",
+                        ast::BinaryOp::Ne => "notEquals",
+                        _ => unreachable!("filtered by outer match"),
+                    };
+                    return self.lower_operator_method_call(
+                        pkg_prefix,
+                        span,
+                        lhs,
+                        operand_ty,
+                        method,
+                        rhs,
+                        operand_ty,
+                        self.builtins.bool_,
+                    );
+                }
+                if lhs_ty == self.builtins.char_ && rhs_ty == self.builtins.char_ {
+                    return if op == ast::BinaryOp::Eq {
+                        self.lower_operator_method_call(
+                            pkg_prefix,
+                            span,
+                            lhs,
+                            lhs_ty,
+                            "equals",
+                            rhs,
+                            rhs_ty,
+                            self.builtins.bool_,
+                        )
+                    } else {
+                        self.lower_equals_then_not(pkg_prefix, span, lhs, lhs_ty, rhs, rhs_ty)
+                    };
+                }
+            }
+            ast::BinaryOp::RangeInclusive
+            | ast::BinaryOp::LogAnd
+            | ast::BinaryOp::LogOr
+            | ast::BinaryOp::Elvis => {}
+        }
+
+        None
+    }
+
     pub(in crate::hir::lower) fn lower_expr(&mut self, pkg_prefix: &str, e: &ast::Expr) -> Expr {
         self.lower_expr_with_expected(pkg_prefix, e, ExpectedExpr::default())
     }
@@ -44,18 +445,29 @@ impl<'a> HirLowering<'a> {
                 return self.lower_expr_with_expected(pkg_prefix, expr, expected);
             }
             ast::ExprKind::IntLit => {
-                let ty = self
-                    .typechecked_expr_ty(e.span)
+                let ty = expected
+                    .value_ty
                     .filter(|ty| self.is_integer_type(*ty))
+                    .or_else(|| {
+                        self.typechecked_expr_ty(e.span)
+                            .filter(|ty| self.is_integer_type(*ty))
+                    })
                     .unwrap_or(self.builtins.int);
                 (ExprKind::Literal(LiteralKind::Int), ty)
             }
             ast::ExprKind::FloatLit => {
                 let parsed = parse_float_literal(self.source.slice(e.span));
-                if self.typechecked_expr_ty(e.span) == Some(self.builtins.float32) {
+                if expected.value_ty == Some(self.builtins.float32)
+                    || self.typechecked_expr_ty(e.span) == Some(self.builtins.float32)
+                {
                     (
                         ExprKind::Literal(LiteralKind::Float32(parsed.value as f32)),
                         self.builtins.float32,
+                    )
+                } else if expected.value_ty == Some(self.builtins.float64) {
+                    (
+                        ExprKind::Literal(LiteralKind::Float64(parsed.value)),
+                        self.builtins.float64,
                     )
                 } else {
                     match parsed.suffix {
@@ -786,13 +1198,14 @@ impl<'a> HirLowering<'a> {
                 self.lower_not_null_assert_expr(pkg_prefix, e.span, expr, *op_span)
             }
             ast::ExprKind::Unary { op, op_span, expr } => {
-                if *op == ast::UnaryOp::BitNot
-                    && let Some((kind, ty)) = self
-                        .try_lower_typechecked_operator_overload_unary_expr(
-                            pkg_prefix, e.span, expr,
-                        )
+                if let Some((kind, ty)) = self
+                    .try_lower_typechecked_operator_overload_unary_expr(pkg_prefix, e.span, expr)
                 {
                     (kind, ty)
+                } else if let Some(call) =
+                    self.try_lower_builtin_unary_operator_expr(pkg_prefix, e.span, *op, expr)
+                {
+                    (call.kind, call.ty)
                 } else {
                     let expr = Box::new(self.lower_expr(pkg_prefix, expr));
                     let heuristic_ty = match op {
@@ -861,6 +1274,10 @@ impl<'a> HirLowering<'a> {
                     )
                 {
                     (kind, ty)
+                } else if let Some(call) =
+                    self.try_lower_builtin_binary_operator_expr(pkg_prefix, e.span, *op, lhs, rhs)
+                {
+                    (call.kind, call.ty)
                 } else {
                     let lhs = Box::new(self.lower_expr(pkg_prefix, lhs));
                     let rhs = Box::new(self.lower_expr(pkg_prefix, rhs));

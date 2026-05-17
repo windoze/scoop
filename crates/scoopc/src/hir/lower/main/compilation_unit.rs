@@ -214,8 +214,9 @@ pub fn lower_for_compilation_unit_with_stable_cone_key(
         ci
     };
     let mut top_level_fun_call_sites = collect_top_level_fun_call_sites(&[(source, file)]);
-    top_level_fun_call_sites.extend(collect_synthetic_named_intrinsic_call_sites(
+    top_level_fun_call_sites.extend(collect_synthetic_named_intrinsic_call_sites_for_file(
         index,
+        &file_hir,
         &member_funs,
     ));
     let call_arg_bindings = collect_call_arg_bindings(&[(source, file)]);
@@ -933,15 +934,17 @@ pub(crate) fn lower_for_compilation_unit_multi_files_internal<'a>(
         Some(typecheck_types),
         &mut types,
     );
-    top_level_fun_call_sites.extend(collect_synthetic_named_intrinsic_call_sites(
+    let file_hir = File { decls, items };
+    top_level_fun_call_sites.extend(collect_synthetic_named_intrinsic_call_sites_for_file(
         index,
+        &file_hir,
         &member_funs,
     ));
     let call_arg_bindings = collect_call_arg_bindings(files_to_lower);
     let stable_type_param_keys = collect_stable_type_param_keys(compilation_unit, &stable_cone_key);
 
     Ok(LoweredHir {
-        file: File { decls, items },
+        file: file_hir,
         stable_cone_key,
         stable_type_param_keys,
         member_funs,

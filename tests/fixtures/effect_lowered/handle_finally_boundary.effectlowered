@@ -242,6 +242,7 @@ LateLoweredProgram
         - bb#hb45cd694487d52adfcf0d2f221c65205 stmts[0..0] + term
         - bb#h15e7a3cd53636f22c83e2df096dbe59e stmts[0..1] + term
       plain_call_sites:
+        - site#h7a8a6c7051487c4a482799cbb004f04d Direct target_mode=DynamicFallback target=DynamicFallback callee_abi=Plain invoke_args_tuple_ty=(Int, Int) callee_step_schema=<none> resolved_cases=[] anchor=bb#hdf07990714cd9a5e7946ac41dfcd5832 stmt1 dispatch=PlainCall
         - site#h837bd74ee6fdd5f19a763f00d376d0a3 Direct target_mode=KnownInstance target=fixtures.mir_lowered.cleanup callee_abi=Plain invoke_args_tuple_ty=Unit callee_step_schema=<none> resolved_cases=[] anchor=bb#hca2850b67ad3768d44badde4c7248823 stmt0 dispatch=PlainCall
         - site#h9d4c586765b1e12537dd5de72971549a Direct target_mode=KnownInstance target=fixtures.mir_lowered.cleanup callee_abi=Plain invoke_args_tuple_ty=Unit callee_step_schema=<none> resolved_cases=[] anchor=bb#h15e7a3cd53636f22c83e2df096dbe59e stmt0 dispatch=PlainCall
       plain_local_effect_control: step#h53be06b4429ae12b9b55650a6c54dbe6 cont_obj#he736e128b51ec98c82b8d93b8b426239
@@ -377,5 +378,6 @@ LateLoweredProgram
       plain_call_sites:
         - site#h436a694d59ca0ec697329411d008c21d Direct target_mode=KnownInstance target=fixtures.mir_lowered.body_completes callee_abi=Plain invoke_args_tuple_ty=Unit callee_step_schema=<none> resolved_cases=[] anchor=bb#h71e9b13402fd4d7ec38a0b1df2e161dc stmt0 dispatch=PlainCall
         - site#h8459de86022dbf779d97bd118938b40b Direct target_mode=KnownInstance target=fixtures.mir_lowered.handled_raise callee_abi=Plain invoke_args_tuple_ty=Unit callee_step_schema=<none> resolved_cases=[] anchor=bb#h71e9b13402fd4d7ec38a0b1df2e161dc stmt1 dispatch=PlainCall
+        - site#hea35088b9eb13301f9031568b097c821 Direct target_mode=DynamicFallback target=DynamicFallback callee_abi=Plain invoke_args_tuple_ty=(Int, Int) callee_step_schema=<none> resolved_cases=[] anchor=bb#h71e9b13402fd4d7ec38a0b1df2e161dc stmt2 dispatch=PlainCall
       plain_local_effect_control: <none>
       effect_step_handoff: <none>

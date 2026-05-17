@@ -1,7 +1,7 @@
 // 目标：P6-T02qe 锁定 canonical MIR member read/write 进入 effect-neutral LLVM helper。
 // ARGS: --emit-llvm --opt-level 0
 // BUILD-LLVM-CONTAINS: %pass_mir_member_load = load i64
-// BUILD-LLVM-CONTAINS: store i64 %pass_mir_iadd
+// BUILD-LLVM-CONTAINS: store i64 %intrinsic_iadd
 package fixtures.build
 
 class Cell(var count: Int)

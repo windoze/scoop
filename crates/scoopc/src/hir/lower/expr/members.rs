@@ -1422,10 +1422,10 @@ impl<'a> HirLowering<'a> {
     /// 对齐 typecheck 阶段的最小规则：整数二元运算要求“相同的整数类型”，但允许一侧是整数字面量。
     ///
     /// 说明：HIR lowering 目前仅用于 dump/fixtures 与早期 codegen，因此这里的规则只覆盖：
-    /// - 算术/位运算：`T op T -> T`（一侧为 int literal 时可吸收为另一侧的整数类型）
+    /// - 算术/位运算：`T op T -> T`（一侧为 numeric literal 时可吸收为另一侧的数值类型）
     /// - 移位：`T << Int -> T` / `T >> Int -> T`
     /// - 比较：`T < T -> Bool` 等
-    /// - 相等：`T == T -> Bool` / `Bool == Bool -> Bool`
+    /// - 相等：`T == T -> Bool` / `Bool == Bool -> Bool` / `Char == Char -> Bool`
     pub(in crate::hir::lower) fn lower_binary_expr_type(
         &self,
         lhs: &Expr,
@@ -1450,6 +1450,24 @@ impl<'a> HirLowering<'a> {
             None
         };
 
+        let unify_float_same_type = |lhs: &Expr, rhs: &Expr| -> Option<TypeId> {
+            if lhs.ty == rhs.ty && self.is_float_type(lhs.ty) {
+                return Some(lhs.ty);
+            }
+
+            let lhs_is_float_lit = matches!(lhs.kind, ExprKind::Literal(LiteralKind::Float64(_)));
+            let rhs_is_float_lit = matches!(rhs.kind, ExprKind::Literal(LiteralKind::Float64(_)));
+
+            if lhs_is_float_lit && self.is_float_type(rhs.ty) {
+                return Some(rhs.ty);
+            }
+            if rhs_is_float_lit && self.is_float_type(lhs.ty) {
+                return Some(lhs.ty);
+            }
+
+            None
+        };
+
         match op {
             // arithmetic + bitwise: T op T -> T
             ast::BinaryOp::Add
@@ -1459,7 +1477,24 @@ impl<'a> HirLowering<'a> {
             | ast::BinaryOp::Rem
             | ast::BinaryOp::BitAnd
             | ast::BinaryOp::BitXor
-            | ast::BinaryOp::BitOr => unify_int_same_type(lhs, rhs).unwrap_or(self.builtins.any),
+            | ast::BinaryOp::BitOr => unify_int_same_type(lhs, rhs)
+                .or_else(|| unify_float_same_type(lhs, rhs))
+                .or_else(|| {
+                    (lhs.ty == self.builtins.bool_ && rhs.ty == self.builtins.bool_)
+                        .then_some(self.builtins.bool_)
+                })
+                .or_else(|| {
+                    (lhs.ty == self.builtins.char_
+                        && matches!(op, ast::BinaryOp::Add | ast::BinaryOp::Sub)
+                        && (rhs.ty == self.builtins.int || rhs.ty == self.builtins.char_))
+                        .then_some(match (op, rhs.ty) {
+                            (ast::BinaryOp::Sub, ty) if ty == self.builtins.char_ => {
+                                self.builtins.int
+                            }
+                            _ => self.builtins.char_,
+                        })
+                })
+                .unwrap_or(self.builtins.any),
 
             // shifts: T << Int -> T
             ast::BinaryOp::Shl | ast::BinaryOp::Shr => {
@@ -1473,6 +1508,7 @@ impl<'a> HirLowering<'a> {
             // comparisons: T < T -> Bool
             ast::BinaryOp::Lt | ast::BinaryOp::Le | ast::BinaryOp::Gt | ast::BinaryOp::Ge => {
                 if unify_int_same_type(lhs, rhs).is_some()
+                    || unify_float_same_type(lhs, rhs).is_some()
                     || (self.is_char_type(lhs.ty) && self.is_char_type(rhs.ty))
                 {
                     self.builtins.bool_
@@ -1487,6 +1523,9 @@ impl<'a> HirLowering<'a> {
                     return self.builtins.bool_;
                 }
                 if self.is_char_type(lhs.ty) && self.is_char_type(rhs.ty) {
+                    return self.builtins.bool_;
+                }
+                if unify_float_same_type(lhs, rhs).is_some() {
                     return self.builtins.bool_;
                 }
                 if unify_int_same_type(lhs, rhs).is_some() {

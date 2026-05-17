@@ -205,6 +205,16 @@ body_facts:
         callee_schema: <none>
         resolved_cases: []
         precision: Precise
+      site#h7a8a6c7051487c4a482799cbb004f04d:
+        kind: Call
+        call_kind: Direct
+        target_mode: DynamicFallback
+        target: DynamicFallback
+        callee_abi_kind: Plain
+        invoke_args_tuple_ty: (Int, Int)
+        callee_schema: <none>
+        resolved_cases: []
+        precision: SignatureFallback
       site#h837bd74ee6fdd5f19a763f00d376d0a3:
         kind: Call
         call_kind: Direct
@@ -243,3 +253,13 @@ body_facts:
         callee_schema: <none>
         resolved_cases: []
         precision: Precise
+      site#hea35088b9eb13301f9031568b097c821:
+        kind: Call
+        call_kind: Direct
+        target_mode: DynamicFallback
+        target: DynamicFallback
+        callee_abi_kind: Plain
+        invoke_args_tuple_ty: (Int, Int)
+        callee_schema: <none>
+        resolved_cases: []
+        precision: SignatureFallback

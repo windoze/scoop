@@ -57,16 +57,26 @@ fun main(): Int {
         .expect("expected lowered main");
     let body = main.body.as_ref().expect("main should have a body");
 
-    let hir::ExprKind::Binary {
-        lhs: cmp_lhs,
-        op: cmp_op,
-        rhs: cmp_rhs,
-        ..
+    let hir::ExprKind::Call {
+        callee: cmp_callee,
+        args: cmp_args,
     } = &find_local_init(body, "strCmp").kind
     else {
-        panic!("strCmp should lower to a binary compare expression");
+        panic!("strCmp should lower to an Int.lt method call");
     };
-    assert_eq!(*cmp_op, ast::BinaryOp::Lt);
+    let hir::ExprKind::VarRef(hir::ValueRef::TopLevel { fqn, .. }) = &cmp_callee.kind else {
+        panic!(
+            "expected Int.lt top-level callee, actual: {:?}",
+            cmp_callee.kind
+        );
+    };
+    assert_eq!(fqn, "scoop.core.Int.lt");
+    let Some(hir::CallArg::Positional(cmp_lhs)) = cmp_args.first() else {
+        panic!("Int.lt should receive compareTo result as first arg: {cmp_args:?}");
+    };
+    let Some(hir::CallArg::Positional(cmp_rhs)) = cmp_args.get(1) else {
+        panic!("Int.lt should receive zero as second arg: {cmp_args:?}");
+    };
     assert_top_level_call(cmp_lhs, "scoop.core.String.compareTo", 2);
     assert!(matches!(
         cmp_rhs.kind,

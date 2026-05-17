@@ -3617,7 +3617,7 @@ fun main(): Int {
             "spread arg Todo leaked: {dump}"
         );
         assert!(
-            !dump.contains("Named"),
+            !dump.contains("Named(") && !dump.contains("Named {"),
             "HIR calls should use ordered positional args, not raw named args: {dump}"
         );
         assert!(

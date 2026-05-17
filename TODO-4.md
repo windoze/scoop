@@ -460,7 +460,7 @@
 - 与 `PLAN.md` 闭合：本任务是 P8-T04 前的 contract 修复，不改变 PLAN §9 / P8 operator 改写主线，只清理前置 lowering/reachability 漂移。
 - 暂时性 failing fixture：`tests/fixtures/run-pass/mutable_array_ops_basic.scoop`（既有 mutable array 后续任务处理）。
 
-### P8-T04：HIR / typecheck——binary / unary operator 改写为 method call
+### [DONE] P8-T04：HIR / typecheck——binary / unary operator 改写为 method call
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §9 / P8 任务 T8-4
@@ -508,6 +508,14 @@
 - 完成条件：
   - HIR 中所有 BinaryExpr / UnaryExpr（除短路逻辑、range、elvis）已 desugar 为 method call。
 - 依赖：P8-T03。
+
+完成记录（2026-05-17）：
+
+- 改动范围：HIR/typecheck operator lowering 改为标量 method call 路径；补齐 Bool `equals/notEquals` method-level intrinsic；扩展 HIR synthetic named-intrinsic call-site 收集覆盖 top-level fun；更新 MIR/effect/HIR golden、LLVM shape 断言和 operator owner 测试；同步更新 `TODO.md` 索引与本条任务标题。
+- 核心决策：内建标量算术/位运算/shift/unary/比较/equality 走 `scoop.core.<Scalar>.<method>` canonical top-level call，并由 named intrinsic 表 IR-direct lowering；`&&` / `||`、range、elvis 维持原路径；String/ref `==` / `!=` 维持既有 ref/string equality 路径；user-defined `compareTo` overload 保持 `compareTo(...)` + `0` 比较主线，避免把非标量 overload 强行接入标量 intrinsic 链路。
+- 验证结果：`cargo test -p scoopc binary_op_lowers -- --nocapture` 通过；`cargo test -p scoopc` 通过（857 passed）；`cargo test --all --all-targets` 通过；`cargo clippy --all-targets -- -D warnings` 通过；`cargo run -p scoop -- test --fixtures tests/fixtures/mir_lowered`、`.../hir`、`.../effect_facts`、`.../effect_lowered` 均通过；`cargo run -p scoop -- test` 结果为 1341/1342 targets passed、1378 checks passed，仅既有 `run-pass/mutable_array_ops_basic.scoop` 失败。
+- 与 `PLAN.md` 闭合：完成 PLAN §9 / P8 T8-4 的 HIR/typecheck operator method 化；P8-T05 可继续删除 LLVM/MIR 中按 `ast::BinaryOp` 的直接 codegen 死路径；阶段级计划与依赖未变化，未修改 `PLAN.md`。
+- 暂时性 failing fixture：`tests/fixtures/run-pass/mutable_array_ops_basic.scoop`，为 P8-T04c 已记录的既有 mutable array follow-up，继续由后续 P9-T02 / P13-T04 按三分类清单处理；本任务未新增其它 failing fixture。
 
 ### P8-T05：删除 `mir_body/op.rs` 按 `ast::BinaryOp` 直接 codegen 路径
 

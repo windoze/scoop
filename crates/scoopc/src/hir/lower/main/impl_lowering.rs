@@ -1507,6 +1507,48 @@ impl<'a> HirLowering<'a> {
         self.file.replace_top_level_fun_call_bindings(bindings);
     }
 
+    pub(crate) fn replace_synthetic_top_level_fun_call_binding(
+        &self,
+        span: Span,
+        fqn: &str,
+        intrinsic_entry_name: Option<&str>,
+    ) {
+        let mut bindings = self.file.top_level_fun_call_bindings();
+        let (decl_file, decl_span, is_intrinsic) = self
+            .index
+            .by_fqn
+            .get(fqn)
+            .and_then(|syms| syms.fun.first())
+            .map(|fun| {
+                (
+                    fun.symbol.decl_file.clone(),
+                    fun.symbol.span,
+                    fun.sig.builtin_flags.is_intrinsic,
+                )
+            })
+            .unwrap_or_else(|| {
+                (
+                    self.source.path().to_path_buf(),
+                    span,
+                    intrinsic_entry_name.is_some(),
+                )
+            });
+
+        bindings.insert(
+            span,
+            crate::ast::TopLevelFunCallBinding {
+                fqn: fqn.to_string(),
+                decl_file,
+                decl_span,
+                is_intrinsic,
+                intrinsic_entry_name: intrinsic_entry_name.map(str::to_string),
+                type_args: Vec::new(),
+                eff_args: Vec::new(),
+            },
+        );
+        self.file.replace_top_level_fun_call_bindings(bindings);
+    }
+
     pub(crate) fn lower_val_decl(
         &mut self,
         pkg_prefix: &str,

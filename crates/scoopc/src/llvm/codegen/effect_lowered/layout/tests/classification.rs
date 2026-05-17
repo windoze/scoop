@@ -932,7 +932,7 @@ pub(super) fn llvm_boundary_operand_contract_resolves_perform_and_resume_sources
                     .iter()
                     .map(|(site_id, _)| site_id.as_u32())
                     .collect::<Vec<_>>(),
-                vec![26, 31, 36, 41]
+                vec![33, 38, 43, 48]
             );
             for (_site_id, route) in routes {
                 assert_eq!(route.continuation_schema(), binder.continuation_schema());

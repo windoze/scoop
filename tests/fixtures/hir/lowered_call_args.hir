@@ -684,33 +684,45 @@ File {
                                         Expr {
                                             span: 337..342,
                                             ty: Int,
-                                            kind: Binary {
-                                                lhs:
+                                            kind: Call {
+                                                callee:
                                                     Expr {
-                                                        span: 337..338,
-                                                        ty: Int,
+                                                        span: 337..342,
+                                                        ty: Any,
                                                         kind: VarRef(
-                                                            Local {
-                                                                label: sym#h288ad2f75c721fd2f6cfc84acc7dc135,
-                                                                name: "a",
-                                                                decl_span: 191..192,
+                                                            TopLevel {
+                                                                fqn: "scoop.core.Int.plus",
                                                             }
                                                         ),
                                                     }
-                                                op: Add,
-                                                op_span: 339..340,
-                                                rhs:
-                                                    Expr {
-                                                        span: 341..342,
-                                                        ty: Int,
-                                                        kind: VarRef(
-                                                            Local {
-                                                                label: sym#h70592a332282382bb291dda22c29326a,
-                                                                name: "d",
-                                                                decl_span: 305..306,
-                                                            }
-                                                        ),
-                                                    }
+                                                args: [
+                                                    Positional(
+                                                        Expr {
+                                                            span: 337..338,
+                                                            ty: Int,
+                                                            kind: VarRef(
+                                                                Local {
+                                                                    label: sym#h288ad2f75c721fd2f6cfc84acc7dc135,
+                                                                    name: "a",
+                                                                    decl_span: 191..192,
+                                                                }
+                                                            ),
+                                                        }
+                                                    ),
+                                                    Positional(
+                                                        Expr {
+                                                            span: 341..342,
+                                                            ty: Int,
+                                                            kind: VarRef(
+                                                                Local {
+                                                                    label: sym#h70592a332282382bb291dda22c29326a,
+                                                                    name: "d",
+                                                                    decl_span: 305..306,
+                                                                }
+                                                            ),
+                                                        }
+                                                    ),
+                                                ],
                                             },
                                         }
                                     ),
@@ -759,6 +771,10 @@ TypedHirEffectContracts {
             kind: DirectTopLevel,
         },
         TypedCallSiteContract {
+            span: 337..342,
+            kind: Intrinsic,
+        },
+        TypedCallSiteContract {
             span: 1048921..1048922,
             kind: DirectTopLevel,
         },
@@ -801,6 +817,17 @@ TypedHirEffectContracts {
             target_type_args: [],
             target_eff_args: [],
             target_arg_binding: [Explicit(CallArgElementContract { arg_index: 0, spread: false }), Vararg([CallArgElementContract { arg_index: 1, spread: true }])],
+        },
+        CallSiteContract {
+            span: 337..342,
+            kind: Intrinsic,
+            intrinsic_kind: NamedTable { entry_name: "int_plus", uses_runtime_call: false },
+            intrinsic_allowed_context: RuntimeOnly,
+            intrinsic_runtime_fallback: CompilerLowered,
+            target_fqn: "scoop.core.Int.plus",
+            target_decl_span: Some(20977..20981),
+            target_type_args: [],
+            target_eff_args: [],
         },
         CallSiteContract {
             span: 1048921..1048922,

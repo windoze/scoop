@@ -35,8 +35,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let hir::ExprKind::MemberAccess { receiver, member } = &callee.kind else {
             return Ok(None);
         };
+        let member_fun_fqn = match member.resolved.as_ref() {
+            Some(hir::MemberRef::Fun { fqn, .. } | hir::MemberRef::ExtensionFun { fqn, .. }) => {
+                Some(fqn.as_str())
+            }
+            Some(hir::MemberRef::Value { .. } | hir::MemberRef::ExtensionValue { .. }) | None => {
+                None
+            }
+        };
 
-        if let Some(hir::MemberRef::Fun { fqn, .. }) = member.resolved.as_ref() {
+        if let Some(fqn) = member_fun_fqn {
             if fqn == "scoop.core.GC.handleNew" {
                 return self
                     .codegen_sysroot_gc_handle_new(span, member.span, args, expected)
@@ -66,7 +74,17 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         if let Some(entry_name) = self
             .current_top_level_fun_call_binding(span)?
+            .filter(|binding| {
+                member_fun_fqn.is_none_or(|fqn| {
+                    direct_call_dispatch_fqn(&binding.fqn) == direct_call_dispatch_fqn(fqn)
+                })
+            })
             .and_then(|binding| binding.intrinsic_entry_name.clone())
+            .or_else(|| {
+                member_fun_fqn
+                    .and_then(crate::intrinsics::fallback_named_intrinsic_entry_name_for_fqn)
+                    .map(str::to_string)
+            })
         {
             return self.try_codegen_named_intrinsic_hir_call(
                 span,
@@ -1420,6 +1438,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             if let Some(entry_name) = self
                 .current_top_level_fun_call_binding(span)?
                 .and_then(|binding| binding.intrinsic_entry_name.clone())
+                .or_else(|| {
+                    crate::intrinsics::fallback_named_intrinsic_entry_name_for_fqn(fqn)
+                        .map(str::to_string)
+                })
                 && let Some(value) = self.try_codegen_named_intrinsic_hir_call(
                     span,
                     callee.span,

@@ -400,7 +400,7 @@ LateLoweredProgram
         - bb#h2efc6e01dc5eaabf0ab63daf66d532ae stmts[0..4] + term
         - bb#h581d8a100d87a0d2805a22051b4e896a stmts[0..2] + term
       plain_call_sites:
-        <none>
+        - site#hf489fb61fa866e888e25601c6fd4812c Direct target_mode=DynamicFallback target=DynamicFallback callee_abi=Plain invoke_args_tuple_ty=(Int, Int) callee_step_schema=<none> resolved_cases=[] anchor=bb#h2efc6e01dc5eaabf0ab63daf66d532ae stmt2 dispatch=PlainCall
       plain_local_effect_control: step#hfe113d2cdac20433117e58b5886bdad8 cont_obj#h8f599b9c57654e24cf182be3ea9cda40
       state_graph:
         entry_state: state#hdd95f454dbcf76f33520114db1c3c6c4

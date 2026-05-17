@@ -98,6 +98,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
         let binding_entry_name = self
             .current_top_level_fun_call_binding(span)?
+            .filter(|binding| {
+                mir_direct_call_base_fqn(&binding.fqn) == mir_direct_call_base_fqn(fqn)
+            })
             .and_then(|binding| binding.intrinsic_entry_name.clone());
         if let Some(entry_name) = binding_entry_name
             .as_deref()

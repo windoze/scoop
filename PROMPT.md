@@ -101,3 +101,4 @@ For the first incomplete task in `TODO.md`:
 - Update `PLAN.md` only for real phase/stage plan changes, not for routine per-task bookkeeping.
 - If `PROMPT.md` is changed unexpectedly, include it in your commit as well, do not ignore or revert changes to it.
 - Every single test case or fixture should run in under 1 minute. If you find any test case that gets stuck for a long time, it indicates a problem that must be addressed immediately.
+- Full fixture-suite runs can take a long time. When running the complete fixture suite, for example `cargo run -p scoop -- test`, set a timeout of at least 30 minutes.

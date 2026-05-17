@@ -302,8 +302,9 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
         ci
     };
     let mut top_level_fun_call_sites = collect_top_level_fun_call_sites(&[(source, &ast)]);
-    top_level_fun_call_sites.extend(collect_synthetic_named_intrinsic_call_sites(
+    top_level_fun_call_sites.extend(collect_synthetic_named_intrinsic_call_sites_for_file(
         &index,
+        &file,
         &member_funs,
     ));
     let call_arg_bindings = collect_call_arg_bindings(&[(source, &ast)]);

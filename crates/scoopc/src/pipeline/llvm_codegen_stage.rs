@@ -1535,7 +1535,7 @@ fun main(): Int {
         let ir = emit_ir_for_source(member_codegen_source(), "store_member.ll");
 
         assert!(
-            ir.contains("store i64 %pass_mir_iadd"),
+            ir.contains("store i64 %intrinsic_iadd"),
             "member store should use the canonical MIR StoreMember helper:\n{ir}"
         );
     }

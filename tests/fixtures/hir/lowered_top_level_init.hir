@@ -54,25 +54,37 @@ File {
                     Expr {
                         span: 253..261,
                         ty: Int,
-                        kind: Binary {
-                            lhs:
+                        kind: Call {
+                            callee:
                                 Expr {
-                                    span: 253..257,
-                                    ty: Int,
+                                    span: 253..261,
+                                    ty: Any,
                                     kind: VarRef(
                                         TopLevel {
-                                            fqn: "fixtures.hir_init.Base",
+                                            fqn: "scoop.core.Int.plus",
                                         }
                                     ),
                                 }
-                            op: Add,
-                            op_span: 258..259,
-                            rhs:
-                                Expr {
-                                    span: 260..261,
-                                    ty: Int,
-                                    kind: Literal(Int),
-                                }
+                            args: [
+                                Positional(
+                                    Expr {
+                                        span: 253..257,
+                                        ty: Int,
+                                        kind: VarRef(
+                                            TopLevel {
+                                                fqn: "fixtures.hir_init.Base",
+                                            }
+                                        ),
+                                    }
+                                ),
+                                Positional(
+                                    Expr {
+                                        span: 260..261,
+                                        ty: Int,
+                                        kind: Literal(Int),
+                                    }
+                                ),
+                            ],
                         },
                     }
                 ),
@@ -142,8 +154,20 @@ TypedHirEffectContracts {
         },
     ],
     call_site_kinds: [
+        TypedCallSiteContract {
+            span: 253..261,
+            kind: DirectTopLevel,
+        },
     ],
     call_site_contracts: [
+        CallSiteContract {
+            span: 253..261,
+            kind: DirectTopLevel,
+            target_fqn: "scoop.core.Int.plus",
+            target_decl_span: None,
+            target_type_args: [],
+            target_eff_args: [],
+        },
     ],
     with_update_contracts: [
     ],

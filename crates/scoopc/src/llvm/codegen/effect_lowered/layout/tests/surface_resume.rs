@@ -340,7 +340,7 @@ pub(super) fn llvm_surface_resume_dispatch_layout_resolves_multi_site_resume_own
                         trampoline.owner_continuation_object(),
                         callable.continuation_object()
                     );
-                    assert_eq!(sites, vec![26, 31, 36, 41]);
+                    assert_eq!(sites, vec![33, 38, 43, 48]);
                     assert!(!trampoline.handle_binder_routes().is_empty());
                     let projection = trampoline.wrapper_projection().expect(
                         "shared wrapper schema 应发布 owner-step -> wrapper-step projection",

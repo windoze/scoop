@@ -864,9 +864,9 @@ impl<'a> ReachabilityCollector<'a> {
         let Some((owner_fqn, member_name)) = fqn.rsplit_once('.') else {
             return false;
         };
-        let Some(receiver_ty) = args.first().and_then(|arg| match arg {
-            hir::CallArg::Positional(expr) => Some(expr.ty),
-            hir::CallArg::Named { value, .. } => Some(value.ty),
+        let Some(receiver_ty) = args.first().map(|arg| match arg {
+            hir::CallArg::Positional(expr) => expr.ty,
+            hir::CallArg::Named { value, .. } => value.ty,
         }) else {
             return false;
         };

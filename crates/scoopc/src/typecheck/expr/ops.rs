@@ -234,6 +234,31 @@ fn builtin_binary_op_expected_text(op: ast::BinaryOp) -> &'static str {
     }
 }
 
+fn scalar_operator_method_name(op: ast::BinaryOp) -> Option<&'static str> {
+    match op {
+        ast::BinaryOp::Add => Some("plus"),
+        ast::BinaryOp::Sub => Some("minus"),
+        ast::BinaryOp::Mul => Some("times"),
+        ast::BinaryOp::Div => Some("div"),
+        ast::BinaryOp::Rem => Some("rem"),
+        ast::BinaryOp::BitAnd => Some("and"),
+        ast::BinaryOp::BitOr => Some("or"),
+        ast::BinaryOp::BitXor => Some("xor"),
+        ast::BinaryOp::Shl => Some("shl"),
+        ast::BinaryOp::Shr => Some("shr"),
+        ast::BinaryOp::Lt => Some("lt"),
+        ast::BinaryOp::Le => Some("le"),
+        ast::BinaryOp::Gt => Some("gt"),
+        ast::BinaryOp::Ge => Some("ge"),
+        ast::BinaryOp::Eq => Some("equals"),
+        ast::BinaryOp::Ne => Some("notEquals"),
+        ast::BinaryOp::RangeInclusive
+        | ast::BinaryOp::LogAnd
+        | ast::BinaryOp::LogOr
+        | ast::BinaryOp::Elvis => None,
+    }
+}
+
 pub(super) fn is_symbol_visible_from_source(
     use_cone: ConeId,
     use_source: &SourceFile,
@@ -617,6 +642,109 @@ fn record_member_direct_call_binding(
     Ok(())
 }
 
+fn record_scalar_operator_method_binding(
+    inputs: ExprInferInputs<'_>,
+    call_site_span: Span,
+    receiver_ty: TypeId,
+    method: &str,
+    explicit_args: &[(&ast::Expr, TypeId)],
+    lower: &mut TypeLowering<'_>,
+) -> Result<Option<TypeId>, ExprTypeError> {
+    let Some((receiver_fqn, receiver_args)) =
+        try_extract_member_call_receiver_fqn_and_args(receiver_ty, lower)
+    else {
+        return Ok(None);
+    };
+    if receiver_fqn == "scoop.core.String" {
+        return Ok(None);
+    }
+
+    let callee_fqn = format!("{receiver_fqn}.{method}");
+    let sigs = collect_member_method_signatures_from_index(
+        inputs.source,
+        receiver_ty,
+        &receiver_fqn,
+        &receiver_args,
+        &callee_fqn,
+        lower,
+        inputs.builtins,
+    )?;
+    let mut matched = Vec::new();
+    for sig in sigs {
+        if sig.params.len() != explicit_args.len() + 1
+            || !sig.type_params.is_empty()
+            || sig.eff_param.is_some()
+        {
+            continue;
+        }
+
+        check_unsafe_call_gate(&callee_fqn, &sig, call_site_span, lower)?;
+        check_nogc_call_gate(&callee_fqn, &sig, call_site_span, lower)?;
+        check_const_fun_call_gate(&callee_fqn, &sig, call_site_span, lower)?;
+
+        let args_match = explicit_args
+            .iter()
+            .enumerate()
+            .all(|(idx, (expr, found_ty))| {
+                let expected_ty = sig.params[idx + 1];
+                is_type_assignable(*found_ty, expected_ty, lower, inputs.builtins)
+                    || literal_absorbs_to_expected(
+                        expr,
+                        expected_ty,
+                        inputs.source,
+                        lower,
+                        inputs.builtins,
+                    )
+            });
+        if args_match {
+            matched.push(sig);
+        }
+    }
+
+    let sig = match matched.len() {
+        0 => return Ok(None),
+        1 => matched.remove(0),
+        _ => {
+            let candidates = matched
+                .iter()
+                .map(|sig| {
+                    let receiver_ty = sig.params.first().copied();
+                    fmt_overload_signature(
+                        method,
+                        receiver_ty,
+                        sig.params.get(1..).unwrap_or_default(),
+                        lower,
+                    )
+                })
+                .collect::<Vec<_>>();
+            return Err(ExprTypeError::AmbiguousOverload {
+                callee: callee_fqn,
+                candidates: join_overload_signatures(candidates),
+                span: call_site_span.into(),
+            });
+        }
+    };
+
+    record_member_method_effects_as_performed(
+        &receiver_fqn,
+        &receiver_args,
+        &sig,
+        call_site_span,
+        lower,
+    )?;
+    record_member_direct_call_binding(
+        lower,
+        call_site_span,
+        &callee_fqn,
+        &sig,
+        receiver_ty,
+        &[],
+        &[],
+    )?;
+
+    Ok(Some(sig.return_ty))
+}
+
 pub(super) fn infer_unary_expr_type(
     inputs: ExprInferInputs<'_>,
     unary_expr: &ast::Expr,
@@ -630,6 +758,14 @@ pub(super) fn infer_unary_expr_type(
     match op {
         ast::UnaryOp::Not => {
             if operand_ty == inputs.builtins.bool_ {
+                record_scalar_operator_method_binding(
+                    inputs,
+                    unary_expr.span,
+                    operand_ty,
+                    "not",
+                    &[],
+                    lower,
+                )?;
                 return Ok(inputs.builtins.bool_);
             }
 
@@ -644,6 +780,14 @@ pub(super) fn infer_unary_expr_type(
             if is_integer_type(operand_ty, lower, inputs.builtins)
                 || is_float_type(operand_ty, lower, inputs.builtins)
             {
+                record_scalar_operator_method_binding(
+                    inputs,
+                    unary_expr.span,
+                    operand_ty,
+                    "unaryMinus",
+                    &[],
+                    lower,
+                )?;
                 return Ok(operand_ty);
             }
 
@@ -656,6 +800,14 @@ pub(super) fn infer_unary_expr_type(
         }
         ast::UnaryOp::BitNot => {
             if is_integer_type(operand_ty, lower, inputs.builtins) {
+                record_scalar_operator_method_binding(
+                    inputs,
+                    unary_expr.span,
+                    operand_ty,
+                    "inv",
+                    &[],
+                    lower,
+                )?;
                 return Ok(operand_ty);
             }
 
@@ -765,6 +917,75 @@ pub(super) fn infer_operator_overload_binary_expr_type(
         });
     }
 
+    if lhs_ty == inputs.builtins.char_ {
+        let rhs_ty = inputs.infer(lower, rhs)?;
+        match op {
+            ast::BinaryOp::Add if rhs_ty == inputs.builtins.int => {
+                record_scalar_operator_method_binding(
+                    inputs,
+                    binary_expr.span,
+                    lhs_ty,
+                    "plus",
+                    &[(rhs, rhs_ty)],
+                    lower,
+                )?;
+                return Ok(inputs.builtins.char_);
+            }
+            ast::BinaryOp::Sub if rhs_ty == inputs.builtins.int => {
+                record_scalar_operator_method_binding(
+                    inputs,
+                    binary_expr.span,
+                    lhs_ty,
+                    "minus",
+                    &[(rhs, rhs_ty)],
+                    lower,
+                )?;
+                return Ok(inputs.builtins.char_);
+            }
+            ast::BinaryOp::Sub if rhs_ty == inputs.builtins.char_ => {
+                let Some(return_ty) = record_scalar_operator_method_binding(
+                    inputs,
+                    binary_expr.span,
+                    lhs_ty,
+                    "minus",
+                    &[(rhs, rhs_ty)],
+                    lower,
+                )?
+                else {
+                    return Err(ExprTypeError::OperatorOverloadNotFound {
+                        op: binary_op_text(op).to_string(),
+                        receiver: lower.fmt_type(lhs_ty),
+                        method: "minus".to_string(),
+                        rhs: lower.fmt_type(rhs_ty),
+                        span: op_span.into(),
+                    });
+                };
+                return Ok(return_ty);
+            }
+            _ => {}
+        }
+    }
+
+    if lhs_ty == inputs.builtins.bool_ {
+        let rhs_ty = inputs.infer(lower, rhs)?;
+        if matches!(
+            op,
+            ast::BinaryOp::BitAnd | ast::BinaryOp::BitOr | ast::BinaryOp::BitXor
+        ) && rhs_ty == inputs.builtins.bool_
+        {
+            let method = scalar_operator_method_name(op).expect("bool bit op has method");
+            record_scalar_operator_method_binding(
+                inputs,
+                binary_expr.span,
+                lhs_ty,
+                method,
+                &[(rhs, rhs_ty)],
+                lower,
+            )?;
+            return Ok(inputs.builtins.bool_);
+        }
+    }
+
     // Kotlin-like：对整数保留内建规则（避免要求 sysroot 的 Int/Int8/... 必须定义 `plus/and/shl/...`）。
     if is_integer_type(lhs_ty, lower, inputs.builtins) {
         let rhs_ty = inputs.infer(lower, rhs)?;
@@ -796,10 +1017,28 @@ pub(super) fn infer_operator_overload_binary_expr_type(
                     });
                 };
 
+                let method = scalar_operator_method_name(op).expect("integer op has method");
+                record_scalar_operator_method_binding(
+                    inputs,
+                    binary_expr.span,
+                    ty,
+                    method,
+                    &[(rhs, rhs_ty)],
+                    lower,
+                )?;
                 return Ok(ty);
             }
             ast::BinaryOp::Shl | ast::BinaryOp::Shr => {
                 if rhs_ty == inputs.builtins.int {
+                    let method = scalar_operator_method_name(op).expect("shift op has method");
+                    record_scalar_operator_method_binding(
+                        inputs,
+                        binary_expr.span,
+                        lhs_ty,
+                        method,
+                        &[(rhs, rhs_ty)],
+                        lower,
+                    )?;
                     return Ok(lhs_ty);
                 }
 
@@ -844,6 +1083,15 @@ pub(super) fn infer_operator_overload_binary_expr_type(
                 });
             };
 
+            let method = scalar_operator_method_name(op).expect("float op has method");
+            record_scalar_operator_method_binding(
+                inputs,
+                binary_expr.span,
+                ty,
+                method,
+                &[(rhs, rhs_ty)],
+                lower,
+            )?;
             return Ok(ty);
         }
     }

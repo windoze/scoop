@@ -84,9 +84,9 @@ pub(crate) fn try_devirtualize_dispatch_target(
     }
 }
 
-fn exact_receiver_fqn<'a>(
+fn exact_receiver_fqn(
     receiver_ty: TypeId,
-    types: &'a TypeStore,
+    types: &TypeStore,
     known_receiver_subclasses: &KnownReceiverSubclassIndex,
 ) -> Option<String> {
     match types.kind(receiver_ty) {

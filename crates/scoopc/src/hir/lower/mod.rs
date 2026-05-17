@@ -84,6 +84,23 @@ fn collect_synthetic_named_intrinsic_call_sites(
     sites
 }
 
+fn collect_synthetic_named_intrinsic_call_sites_for_file(
+    index: &Index,
+    file: &File,
+    member_funs: &[FunDecl],
+) -> crate::hir::TopLevelFunCallSiteIndex {
+    let mut funs = file
+        .items
+        .iter()
+        .filter_map(|item| match item {
+            Item::Fun(fun) => Some(fun.clone()),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    funs.extend(member_funs.iter().cloned());
+    collect_synthetic_named_intrinsic_call_sites(index, &funs)
+}
+
 fn collect_synthetic_named_intrinsic_call_sites_in_block(
     index: &Index,
     source_path: &std::path::Path,

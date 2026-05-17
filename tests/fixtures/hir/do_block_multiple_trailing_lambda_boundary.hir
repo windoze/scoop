@@ -163,27 +163,39 @@ File {
                                                                     Expr {
                                                                         span: 135..141,
                                                                         ty: Int,
-                                                                        kind: Binary {
-                                                                            lhs:
+                                                                        kind: Call {
+                                                                            callee:
                                                                                 Expr {
-                                                                                    span: 135..137,
-                                                                                    ty: Int,
+                                                                                    span: 135..141,
+                                                                                    ty: Any,
                                                                                     kind: VarRef(
-                                                                                        Local {
-                                                                                            label: sym#hb6ecf59d88cc100ee0373670ae1f2edf,
-                                                                                            name: "it",
-                                                                                            decl_span: 133..133,
+                                                                                        TopLevel {
+                                                                                            fqn: "scoop.core.Int.plus",
                                                                                         }
                                                                                     ),
                                                                                 }
-                                                                            op: Add,
-                                                                            op_span: 138..139,
-                                                                            rhs:
-                                                                                Expr {
-                                                                                    span: 140..141,
-                                                                                    ty: Int,
-                                                                                    kind: Literal(Int),
-                                                                                }
+                                                                            args: [
+                                                                                Positional(
+                                                                                    Expr {
+                                                                                        span: 135..137,
+                                                                                        ty: Int,
+                                                                                        kind: VarRef(
+                                                                                            Local {
+                                                                                                label: sym#hb6ecf59d88cc100ee0373670ae1f2edf,
+                                                                                                name: "it",
+                                                                                                decl_span: 133..133,
+                                                                                            }
+                                                                                        ),
+                                                                                    }
+                                                                                ),
+                                                                                Positional(
+                                                                                    Expr {
+                                                                                        span: 140..141,
+                                                                                        ty: Int,
+                                                                                        kind: Literal(Int),
+                                                                                    }
+                                                                                ),
+                                                                            ],
                                                                         },
                                                                     }
                                                             }
@@ -213,27 +225,39 @@ File {
                                                                     Expr {
                                                                         span: 146..152,
                                                                         ty: Int,
-                                                                        kind: Binary {
-                                                                            lhs:
+                                                                        kind: Call {
+                                                                            callee:
                                                                                 Expr {
-                                                                                    span: 146..148,
-                                                                                    ty: Int,
+                                                                                    span: 146..152,
+                                                                                    ty: Any,
                                                                                     kind: VarRef(
-                                                                                        Local {
-                                                                                            label: sym#h64a1f9d2e5a7cfe9acd60cfec895a1de,
-                                                                                            name: "it",
-                                                                                            decl_span: 144..144,
+                                                                                        TopLevel {
+                                                                                            fqn: "scoop.core.Int.plus",
                                                                                         }
                                                                                     ),
                                                                                 }
-                                                                            op: Add,
-                                                                            op_span: 149..150,
-                                                                            rhs:
-                                                                                Expr {
-                                                                                    span: 151..152,
-                                                                                    ty: Int,
-                                                                                    kind: Literal(Int),
-                                                                                }
+                                                                            args: [
+                                                                                Positional(
+                                                                                    Expr {
+                                                                                        span: 146..148,
+                                                                                        ty: Int,
+                                                                                        kind: VarRef(
+                                                                                            Local {
+                                                                                                label: sym#h64a1f9d2e5a7cfe9acd60cfec895a1de,
+                                                                                                name: "it",
+                                                                                                decl_span: 144..144,
+                                                                                            }
+                                                                                        ),
+                                                                                    }
+                                                                                ),
+                                                                                Positional(
+                                                                                    Expr {
+                                                                                        span: 151..152,
+                                                                                        ty: Int,
+                                                                                        kind: Literal(Int),
+                                                                                    }
+                                                                                ),
+                                                                            ],
                                                                         },
                                                                     }
                                                             }
@@ -324,27 +348,39 @@ File {
                                                                                             Expr {
                                                                                                 span: 192..198,
                                                                                                 ty: Int,
-                                                                                                kind: Binary {
-                                                                                                    lhs:
+                                                                                                kind: Call {
+                                                                                                    callee:
                                                                                                         Expr {
-                                                                                                            span: 192..194,
-                                                                                                            ty: Int,
+                                                                                                            span: 192..198,
+                                                                                                            ty: Any,
                                                                                                             kind: VarRef(
-                                                                                                                Local {
-                                                                                                                    label: sym#h71fb3a5d53507be59ee43cc6633160ea,
-                                                                                                                    name: "it",
-                                                                                                                    decl_span: 190..190,
+                                                                                                                TopLevel {
+                                                                                                                    fqn: "scoop.core.Int.plus",
                                                                                                                 }
                                                                                                             ),
                                                                                                         }
-                                                                                                    op: Add,
-                                                                                                    op_span: 195..196,
-                                                                                                    rhs:
-                                                                                                        Expr {
-                                                                                                            span: 197..198,
-                                                                                                            ty: Int,
-                                                                                                            kind: Literal(Int),
-                                                                                                        }
+                                                                                                    args: [
+                                                                                                        Positional(
+                                                                                                            Expr {
+                                                                                                                span: 192..194,
+                                                                                                                ty: Int,
+                                                                                                                kind: VarRef(
+                                                                                                                    Local {
+                                                                                                                        label: sym#h71fb3a5d53507be59ee43cc6633160ea,
+                                                                                                                        name: "it",
+                                                                                                                        decl_span: 190..190,
+                                                                                                                    }
+                                                                                                                ),
+                                                                                                            }
+                                                                                                        ),
+                                                                                                        Positional(
+                                                                                                            Expr {
+                                                                                                                span: 197..198,
+                                                                                                                ty: Int,
+                                                                                                                kind: Literal(Int),
+                                                                                                            }
+                                                                                                        ),
+                                                                                                    ],
                                                                                                 },
                                                                                             }
                                                                                     }
@@ -374,27 +410,39 @@ File {
                                                                                             Expr {
                                                                                                 span: 203..209,
                                                                                                 ty: Int,
-                                                                                                kind: Binary {
-                                                                                                    lhs:
+                                                                                                kind: Call {
+                                                                                                    callee:
                                                                                                         Expr {
-                                                                                                            span: 203..205,
-                                                                                                            ty: Int,
+                                                                                                            span: 203..209,
+                                                                                                            ty: Any,
                                                                                                             kind: VarRef(
-                                                                                                                Local {
-                                                                                                                    label: sym#h1f679a2e73abde78021031621afc5e1e,
-                                                                                                                    name: "it",
-                                                                                                                    decl_span: 201..201,
+                                                                                                                TopLevel {
+                                                                                                                    fqn: "scoop.core.Int.plus",
                                                                                                                 }
                                                                                                             ),
                                                                                                         }
-                                                                                                    op: Add,
-                                                                                                    op_span: 206..207,
-                                                                                                    rhs:
-                                                                                                        Expr {
-                                                                                                            span: 208..209,
-                                                                                                            ty: Int,
-                                                                                                            kind: Literal(Int),
-                                                                                                        }
+                                                                                                    args: [
+                                                                                                        Positional(
+                                                                                                            Expr {
+                                                                                                                span: 203..205,
+                                                                                                                ty: Int,
+                                                                                                                kind: VarRef(
+                                                                                                                    Local {
+                                                                                                                        label: sym#h1f679a2e73abde78021031621afc5e1e,
+                                                                                                                        name: "it",
+                                                                                                                        decl_span: 201..201,
+                                                                                                                    }
+                                                                                                                ),
+                                                                                                            }
+                                                                                                        ),
+                                                                                                        Positional(
+                                                                                                            Expr {
+                                                                                                                span: 208..209,
+                                                                                                                ty: Int,
+                                                                                                                kind: Literal(Int),
+                                                                                                            }
+                                                                                                        ),
+                                                                                                    ],
                                                                                                 },
                                                                                             }
                                                                                     }
@@ -452,8 +500,24 @@ TypedHirEffectContracts {
             kind: DirectTopLevel,
         },
         TypedCallSiteContract {
+            span: 135..141,
+            kind: Intrinsic,
+        },
+        TypedCallSiteContract {
+            span: 146..152,
+            kind: Intrinsic,
+        },
+        TypedCallSiteContract {
             span: 172..211,
             kind: DirectTopLevel,
+        },
+        TypedCallSiteContract {
+            span: 192..198,
+            kind: Intrinsic,
+        },
+        TypedCallSiteContract {
+            span: 203..209,
+            kind: Intrinsic,
         },
     ],
     call_site_contracts: [
@@ -483,6 +547,28 @@ TypedHirEffectContracts {
             target_arg_binding: [Explicit(CallArgElementContract { arg_index: 0, spread: false }), Explicit(CallArgElementContract { arg_index: 1, spread: false }), Explicit(CallArgElementContract { arg_index: 2, spread: false })],
         },
         CallSiteContract {
+            span: 135..141,
+            kind: Intrinsic,
+            intrinsic_kind: NamedTable { entry_name: "int_plus", uses_runtime_call: false },
+            intrinsic_allowed_context: RuntimeOnly,
+            intrinsic_runtime_fallback: CompilerLowered,
+            target_fqn: "scoop.core.Int.plus",
+            target_decl_span: Some(20977..20981),
+            target_type_args: [],
+            target_eff_args: [],
+        },
+        CallSiteContract {
+            span: 146..152,
+            kind: Intrinsic,
+            intrinsic_kind: NamedTable { entry_name: "int_plus", uses_runtime_call: false },
+            intrinsic_allowed_context: RuntimeOnly,
+            intrinsic_runtime_fallback: CompilerLowered,
+            target_fqn: "scoop.core.Int.plus",
+            target_decl_span: Some(20977..20981),
+            target_type_args: [],
+            target_eff_args: [],
+        },
+        CallSiteContract {
             span: 172..211,
             kind: DirectTopLevel,
             target_fqn: "fixtures.hir.combine",
@@ -490,6 +576,28 @@ TypedHirEffectContracts {
             target_type_args: [],
             target_eff_args: [],
             target_arg_binding: [Explicit(CallArgElementContract { arg_index: 0, spread: false }), Explicit(CallArgElementContract { arg_index: 1, spread: false }), Explicit(CallArgElementContract { arg_index: 2, spread: false })],
+        },
+        CallSiteContract {
+            span: 192..198,
+            kind: Intrinsic,
+            intrinsic_kind: NamedTable { entry_name: "int_plus", uses_runtime_call: false },
+            intrinsic_allowed_context: RuntimeOnly,
+            intrinsic_runtime_fallback: CompilerLowered,
+            target_fqn: "scoop.core.Int.plus",
+            target_decl_span: Some(20977..20981),
+            target_type_args: [],
+            target_eff_args: [],
+        },
+        CallSiteContract {
+            span: 203..209,
+            kind: Intrinsic,
+            intrinsic_kind: NamedTable { entry_name: "int_plus", uses_runtime_call: false },
+            intrinsic_allowed_context: RuntimeOnly,
+            intrinsic_runtime_fallback: CompilerLowered,
+            target_fqn: "scoop.core.Int.plus",
+            target_decl_span: Some(20977..20981),
+            target_type_args: [],
+            target_eff_args: [],
         },
     ],
     with_update_contracts: [

@@ -175,6 +175,16 @@ body_facts:
         emitted_case: case#hccf14ce395746959a68611429669c2b9=sample.Outer.again
         payload_tuple_ty: Unit
         captured_cont_schema: cont#ha710d4c7ddea07c0f2f9513f39b517c0
+      site#h78648813117e077d45a663311c5f4e88:
+        kind: Call
+        call_kind: Direct
+        target_mode: DynamicFallback
+        target: DynamicFallback
+        callee_abi_kind: Plain
+        invoke_args_tuple_ty: (Int, Int)
+        callee_schema: <none>
+        resolved_cases: []
+        precision: SignatureFallback
   sample.nested_self_contained:
     blocks:
       bb#h96752b1be955308eaa696fd6d8d70980:
@@ -241,3 +251,13 @@ body_facts:
         emitted_case: case#h481168745c1e1e56dab3777f2e1294ba=sample.Inner.go
         payload_tuple_ty: Unit
         captured_cont_schema: cont#hc5a00d5a23d9e739a0d9092f19e51af5
+      site#hf489fb61fa866e888e25601c6fd4812c:
+        kind: Call
+        call_kind: Direct
+        target_mode: DynamicFallback
+        target: DynamicFallback
+        callee_abi_kind: Plain
+        invoke_args_tuple_ty: (Int, Int)
+        callee_schema: <none>
+        resolved_cases: []
+        precision: SignatureFallback

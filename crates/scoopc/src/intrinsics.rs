@@ -243,6 +243,8 @@ const NAMED_INTRINSIC_AUDIT_ENTRIES: &[NamedIntrinsicAuditEntry] = &[
     ir_emission_entry("bool_and"),
     ir_emission_entry("bool_or"),
     ir_emission_entry("bool_xor"),
+    ir_emission_entry("bool_eq"),
+    ir_emission_entry("bool_ne"),
     ir_emission_entry("bool_not"),
     ir_emission_entry("char_to_int"),
     ir_emission_entry("char_hash"),
@@ -416,6 +418,8 @@ fn bool_method_intrinsic_entry_name(method: &str) -> Option<&'static str> {
         "and" => Some("bool_and"),
         "or" => Some("bool_or"),
         "xor" => Some("bool_xor"),
+        "eq" | "equals" => Some("bool_eq"),
+        "ne" | "notEquals" => Some("bool_ne"),
         "not" => Some("bool_not"),
         _ => None,
     }

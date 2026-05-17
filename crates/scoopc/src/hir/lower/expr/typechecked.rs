@@ -235,6 +235,39 @@ impl<'a> HirLowering<'a> {
         (call.kind, call.ty)
     }
 
+    fn builtin_scalar_ty_for_operator_owner_fqn(&mut self, owner_fqn: &str) -> Option<TypeId> {
+        let kind = match owner_fqn {
+            "scoop.core.Bool" => ValueTypeKind::Bool,
+            "scoop.core.Char" => ValueTypeKind::Char,
+            "scoop.core.Float64" => ValueTypeKind::Float64,
+            "scoop.core.Float32" => ValueTypeKind::Float32,
+            "scoop.core.Int" => ValueTypeKind::Int,
+            "scoop.core.UInt" => ValueTypeKind::UInt,
+            "scoop.core.Int8" => ValueTypeKind::IntN(8),
+            "scoop.core.Int16" => ValueTypeKind::IntN(16),
+            "scoop.core.Int32" => ValueTypeKind::IntN(32),
+            "scoop.core.Int64" => ValueTypeKind::IntN(64),
+            "scoop.core.UInt8" => ValueTypeKind::UIntN(8),
+            "scoop.core.UInt16" => ValueTypeKind::UIntN(16),
+            "scoop.core.UInt32" => ValueTypeKind::UIntN(32),
+            "scoop.core.UInt64" => ValueTypeKind::UIntN(64),
+            _ => return None,
+        };
+        Some(self.types.intern(TypeKind::Value(kind)))
+    }
+
+    fn operator_receiver_expected_expr(
+        &mut self,
+        binding: &crate::ast::TopLevelFunCallBinding,
+    ) -> ExpectedExpr {
+        let Some((owner_fqn, _)) = binding.fqn.rsplit_once('.') else {
+            return ExpectedExpr::default();
+        };
+        self.builtin_scalar_ty_for_operator_owner_fqn(owner_fqn)
+            .map(|ty| self.expected_expr_for_param_ty(ty))
+            .unwrap_or_default()
+    }
+
     pub(in crate::hir::lower) fn try_lower_typechecked_operator_overload_unary_expr(
         &mut self,
         pkg_prefix: &str,
@@ -242,7 +275,8 @@ impl<'a> HirLowering<'a> {
         operand: &ast::Expr,
     ) -> Option<(ExprKind, TypeId)> {
         let binding = self.typechecked_top_level_fun_call_binding(span)?;
-        let operand = self.lower_expr(pkg_prefix, operand);
+        let expected = self.operator_receiver_expected_expr(&binding);
+        let operand = self.lower_expr_with_expected(pkg_prefix, operand, expected);
         Some(self.lower_typechecked_operator_direct_call_expr(
             span,
             binding,
@@ -259,7 +293,8 @@ impl<'a> HirLowering<'a> {
     ) -> Option<(ExprKind, TypeId)> {
         let binding = self.typechecked_top_level_fun_call_binding(span)?;
         let overload = self.fun_overload_for_call_binding(&binding);
-        let lhs = self.lower_expr(pkg_prefix, lhs);
+        let lhs_expected = self.operator_receiver_expected_expr(&binding);
+        let lhs = self.lower_expr_with_expected(pkg_prefix, lhs, lhs_expected);
         let rhs_expected = self.expected_expr_for_fun_call_arg(overload.as_ref(), rhs, 0);
         let rhs = self.lower_expr_with_expected(pkg_prefix, rhs, rhs_expected);
         Some(self.lower_typechecked_operator_direct_call_expr(

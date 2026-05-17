@@ -357,6 +357,14 @@ const NAMED_INTRINSIC_IR_RULES: &[NamedIntrinsicIrRuleEntry] = &[
         lower: lower_bool_xor,
     },
     NamedIntrinsicIrRuleEntry {
+        name: "bool_eq",
+        lower: lower_bool_eq,
+    },
+    NamedIntrinsicIrRuleEntry {
+        name: "bool_ne",
+        lower: lower_bool_ne,
+    },
+    NamedIntrinsicIrRuleEntry {
         name: "bool_not",
         lower: lower_bool_not,
     },
@@ -815,6 +823,20 @@ fn lower_bool_xor<'a, 'ctx>(
     call: LoweredNamedIntrinsicCall<'ctx>,
 ) -> Result<CgValue<'ctx>, LlvmEmitError> {
     cg.codegen_named_intrinsic_bool_binary(call, NamedIntrinsicBoolBinaryOp::Xor)
+}
+
+fn lower_bool_eq<'a, 'ctx>(
+    cg: &mut MainCodegen<'a, 'ctx>,
+    call: LoweredNamedIntrinsicCall<'ctx>,
+) -> Result<CgValue<'ctx>, LlvmEmitError> {
+    cg.codegen_named_intrinsic_bool_compare(call, IntPredicate::EQ)
+}
+
+fn lower_bool_ne<'a, 'ctx>(
+    cg: &mut MainCodegen<'a, 'ctx>,
+    call: LoweredNamedIntrinsicCall<'ctx>,
+) -> Result<CgValue<'ctx>, LlvmEmitError> {
+    cg.codegen_named_intrinsic_bool_compare(call, IntPredicate::NE)
 }
 
 fn lower_bool_not<'a, 'ctx>(
@@ -1977,6 +1999,24 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
         };
         Ok(CgValue::bool(value))
+    }
+
+    fn codegen_named_intrinsic_bool_compare(
+        &mut self,
+        call: LoweredNamedIntrinsicCall<'ctx>,
+        pred: IntPredicate,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        self.named_intrinsic_require_arity(&call, 2, "named intrinsic bool compare operand arity")?;
+        let lhs = self
+            .named_intrinsic_bool_operand(&call.operands[0], "named intrinsic bool compare lhs")?;
+        let rhs = self
+            .named_intrinsic_bool_operand(&call.operands[1], "named intrinsic bool compare rhs")?;
+        Ok(CgValue::bool(self.builder.build_int_compare(
+            pred,
+            lhs,
+            rhs,
+            "intrinsic_bcmp",
+        )?))
     }
 
     fn codegen_named_intrinsic_bool_not(

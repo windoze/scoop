@@ -76,6 +76,12 @@ struct Bool : Hashable, ToString {
     @Intrinsic("bool_xor")
     fun xor(other: Bool): Bool
 
+    @Intrinsic("bool_eq")
+    fun equals(other: Bool): Bool
+
+    @Intrinsic("bool_ne")
+    fun notEquals(other: Bool): Bool
+
     @Intrinsic("bool_not")
     fun not(): Bool
 }
