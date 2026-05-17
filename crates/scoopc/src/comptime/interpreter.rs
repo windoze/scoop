@@ -154,15 +154,6 @@ pub fn eval_const_bindings_in_compilation_unit<'a>(
         });
     }
 
-    let stdlib_source_paths = load_stdlib_source_paths()?;
-    let mut prepared_stdlib: Vec<OwnedPreparedConstEvalFile> =
-        Vec::with_capacity(stdlib_source_paths.len());
-    for path in stdlib_source_paths {
-        let source = SourceFile::load(&path).map_err(|err| frontend_message(err.to_string()))?;
-        let ast = crate::parser::parse_file(&source).map_err(frontend_diagnostic)?;
-        prepared_stdlib.push(OwnedPreparedConstEvalFile { source, ast });
-    }
-
     let mut compilable_sysroot_paths = sysroot.compilable_source_paths.clone();
     compilable_sysroot_paths.sort();
 
@@ -186,16 +177,10 @@ pub fn eval_const_bindings_in_compilation_unit<'a>(
     }
 
     {
-        let mut trim_sources: Vec<&SourceFile> = Vec::with_capacity(
-            prepared_stdlib.len() + prepared_compilable_sysroot.len() + prepared.len(),
-        );
-        let mut trim_files: Vec<&mut ast::File> = Vec::with_capacity(
-            prepared_stdlib.len() + prepared_compilable_sysroot.len() + prepared.len(),
-        );
-        for file in &mut prepared_stdlib {
-            trim_sources.push(&file.source);
-            trim_files.push(&mut file.ast);
-        }
+        let mut trim_sources: Vec<&SourceFile> =
+            Vec::with_capacity(prepared_compilable_sysroot.len() + prepared.len());
+        let mut trim_files: Vec<&mut ast::File> =
+            Vec::with_capacity(prepared_compilable_sysroot.len() + prepared.len());
         for file in &mut prepared_compilable_sysroot {
             trim_sources.push(&file.source);
             trim_files.push(&mut file.ast);
@@ -217,16 +202,10 @@ pub fn eval_const_bindings_in_compilation_unit<'a>(
     }
 
     let mut pairs: Vec<(&SourceFile, &ast::File)> = Vec::with_capacity(
-        prepared_sysroot.len()
-            + prepared_stdlib.len()
-            + prepared_compilable_sysroot.len()
-            + prepared.len(),
+        prepared_sysroot.len() + prepared_compilable_sysroot.len() + prepared.len(),
     );
     for f in &prepared_sysroot {
         pairs.push((f.source, &f.ast));
-    }
-    for f in &prepared_stdlib {
-        pairs.push((&f.source, &f.ast));
     }
     for f in &prepared_compilable_sysroot {
         pairs.push((&f.source, &f.ast));
@@ -238,10 +217,6 @@ pub fn eval_const_bindings_in_compilation_unit<'a>(
     let index = crate::resolve::Index::build(&pairs).map_err(frontend_diagnostic)?;
     let mut env =
         crate::typecheck::TypeEnv::from_sysroot(sysroot, &index).map_err(frontend_diagnostic)?;
-    for f in &prepared_stdlib {
-        env.extend_from_file(&f.source, &f.ast, &index)
-            .map_err(frontend_diagnostic)?;
-    }
     for f in &prepared_compilable_sysroot {
         env.extend_from_file(&f.source, &f.ast, &index)
             .map_err(frontend_diagnostic)?;
@@ -332,9 +307,6 @@ pub fn eval_const_bindings_in_compilation_unit<'a>(
             Ok(())
         };
 
-    for f in &mut prepared_stdlib {
-        run_frontend_pipeline(&f.source, &mut f.ast)?;
-    }
     for f in &mut prepared {
         run_frontend_pipeline(f.source, &mut f.ast)?;
     }
@@ -348,9 +320,6 @@ pub fn eval_const_bindings_in_compilation_unit<'a>(
     );
     for f in &prepared_sysroot {
         interp.register_file(f.source, &f.ast);
-    }
-    for f in &prepared_stdlib {
-        interp.register_file(&f.source, &f.ast);
     }
     for f in &prepared_compilable_sysroot {
         interp.register_file(&f.source, &f.ast);
@@ -1103,44 +1072,6 @@ struct FrontendMessageDiagnostic {
 
 fn frontend_message(message: String) -> ConstEvalError {
     frontend_boxed_diagnostic(Box::new(FrontendMessageDiagnostic { message }))
-}
-
-fn load_stdlib_source_paths() -> Result<Vec<std::path::PathBuf>, ConstEvalError> {
-    let root = default_stdlib_path()
-        .canonicalize()
-        .map_err(|err| frontend_message(format!("无法定位 stdlib 目录：{err}")))?;
-    let mut paths = Vec::new();
-    collect_scoop_files_recursively(&root, &mut paths)?;
-    paths.sort();
-    Ok(paths)
-}
-
-fn default_stdlib_path() -> std::path::PathBuf {
-    std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../stdlib")
-}
-
-fn collect_scoop_files_recursively(
-    dir: &std::path::Path,
-    out: &mut Vec<std::path::PathBuf>,
-) -> Result<(), ConstEvalError> {
-    let entries = std::fs::read_dir(dir)
-        .map_err(|err| frontend_message(format!("无法读取目录：{}: {err}", dir.display())))?;
-    for entry in entries {
-        let entry = entry
-            .map_err(|err| frontend_message(format!("无法读取目录项：{}: {err}", dir.display())))?;
-        let path = entry.path();
-        let ty = entry.file_type().map_err(|err| {
-            frontend_message(format!("无法读取文件类型：{}: {err}", path.display()))
-        })?;
-        if ty.is_dir() {
-            collect_scoop_files_recursively(&path, out)?;
-            continue;
-        }
-        if ty.is_file() && path.extension().is_some_and(|ext| ext == "scoop") {
-            out.push(path);
-        }
-    }
-    Ok(())
 }
 
 /// `const fun` 调用与局部求值的解释器状态。

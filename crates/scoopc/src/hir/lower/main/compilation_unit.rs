@@ -263,7 +263,7 @@ pub fn lower_for_compilation_unit_with_stable_cone_key(
 /// 在”给定编译单元（多个源文件）”的上下文中，把多个文件一起 lowering 为一个 `LoweredHir`。
 ///
 /// 用途（T1315a）：
-/// - `scoop build/run` 注入 `stdlib/*.scoop` 后，需要让这些文件里的顶层函数在后端可见；
+/// - `scoop build/run` 注入 sysroot support sources 后，需要让这些文件里的顶层函数在后端可见；
 /// - T0150c：HIR 继续保留本地 span，但不再在 lowering 时 eager parse Int/String 字面量；
 ///   后续阶段通过“声明所属源文件 + 本地 span”回查原文。
 pub fn lower_for_compilation_unit_multi_files(
@@ -382,7 +382,7 @@ pub struct MirInstanceCollectionOptions<'a> {
 ///   可达扫描；
 /// - `request_root_mode` 决定 request roots 是整个 request source 集合，还是 production
 ///   executable 的 entry-main / export entry points；
-/// - 这样 frontend 就能把 stdlib/helper/support sources 留在 lowering / fun_index 中，
+/// - 这样 frontend 就能把 sysroot support sources 留在 lowering / fun_index 中，
 ///   同时避免把这些支持文件里未被入口触达的 generic 调用错误提升为实例收集种子。
 /// - 返回值中的 `LoweredHir` 仍承载当前 LLVM codegen 所需的 HIR 兼容输入，但会额外挂住
 ///   `LoweredHir::materialized_mir()`，作为 production 主路径保留的 canonical materialized

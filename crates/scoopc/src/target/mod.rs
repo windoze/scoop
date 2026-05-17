@@ -2,7 +2,7 @@
 //!
 //! 说明：
 //! - 目前编译器绝大多数流程仍只支持 host target（见 TODO T08xx/平台抽象路线）；
-//! - 但 typecheck/stdlib/sysroot 的设计需要从第一天就能表达“平台能力差异”，
+//! - 但 typecheck/sysroot 的设计需要从第一天就能表达“平台能力差异”，
 //!   避免出现“能通过解析/类型检查，但链接/运行必炸”的长期技术债；
 //! - 因此这里先引入一个轻量的 `TargetPlatform`，用于：
 //!   - delegated properties 等“由编译器插入 runtime 原语”的语义 gate（T1326c）

@@ -29,7 +29,6 @@ pub(crate) struct BuildFingerprint {
     pub(crate) fingerprint: String,
     pub(crate) cone_toml_sha256: String,
     pub(crate) cone_sources_sha256: String,
-    pub(crate) stdlib_sources_sha256: String,
     pub(crate) sysroot_sources_sha256: String,
     pub(crate) runtime_sources_sha256: String,
     pub(crate) toolchain_sha256: String,
@@ -44,7 +43,6 @@ pub(crate) struct BuildFingerprint {
 /// - 工具链版本
 ///
 /// 这里额外纳入：
-/// - stdlib（`stdlib/*.scoop`）
 /// - sysroot（`sysroot/*.scoop`）
 /// - C runtime（`runtime/c/**`）
 ///
@@ -59,13 +57,6 @@ pub(crate) fn compute_cone_build_fingerprint(
 
     let cone_toml_sha256 = sha256_file(&pkg.manifest_path)?;
     let cone_sources_sha256 = sha256_for_files(&pkg.root, &pkg.sources)?;
-
-    let stdlib_root = super::default_stdlib_path()
-        .canonicalize()
-        .into_diagnostic()
-        .wrap_err("无法定位 stdlib 目录（用于增量 fingerprint）")?;
-    let stdlib_sources = collect_scoop_files_sorted(&stdlib_root)?;
-    let stdlib_sources_sha256 = sha256_for_files(&stdlib_root, &stdlib_sources)?;
 
     let sysroot_root = scoopc::sysroot::Sysroot::default_path()
         .canonicalize()
@@ -104,9 +95,6 @@ pub(crate) fn compute_cone_build_fingerprint(
     hasher.update(b"cone_sources=");
     hasher.update(cone_sources_sha256.as_bytes());
     hasher.update(b"\n");
-    hasher.update(b"stdlib=");
-    hasher.update(stdlib_sources_sha256.as_bytes());
-    hasher.update(b"\n");
     hasher.update(b"sysroot=");
     hasher.update(sysroot_sources_sha256.as_bytes());
     hasher.update(b"\n");
@@ -123,7 +111,6 @@ pub(crate) fn compute_cone_build_fingerprint(
         fingerprint,
         cone_toml_sha256,
         cone_sources_sha256,
-        stdlib_sources_sha256,
         sysroot_sources_sha256,
         runtime_sources_sha256,
         toolchain_sha256,
@@ -171,7 +158,6 @@ pub(crate) fn write_build_json(
         "inputs": {
             "cone_toml_sha256": fp.cone_toml_sha256,
             "cone_sources_sha256": fp.cone_sources_sha256,
-            "stdlib_sources_sha256": fp.stdlib_sources_sha256,
             "sysroot_sources_sha256": fp.sysroot_sources_sha256,
             "runtime_sources_sha256": fp.runtime_sources_sha256,
             "toolchain_sha256": fp.toolchain_sha256,
@@ -225,9 +211,30 @@ fn normalize_rel_path_forward_slashes(root: &Path, abs: &Path) -> Result<String>
 
 fn collect_scoop_files_sorted(root: &Path) -> Result<Vec<PathBuf>> {
     let mut paths = Vec::new();
-    super::collect_scoop_files(root, &mut paths)?;
+    collect_scoop_files(root, &mut paths)?;
     paths.sort();
     Ok(paths)
+}
+
+fn collect_scoop_files(dir: &Path, out: &mut Vec<PathBuf>) -> Result<()> {
+    for entry in std::fs::read_dir(dir)
+        .into_diagnostic()
+        .wrap_err_with(|| format!("无法读取目录：{}", dir.display()))?
+    {
+        let entry = entry.into_diagnostic()?;
+        let path = entry.path();
+        let ty = entry.file_type().into_diagnostic()?;
+
+        if ty.is_dir() {
+            collect_scoop_files(&path, out)?;
+            continue;
+        }
+
+        if ty.is_file() && path.extension().is_some_and(|ext| ext == "scoop") {
+            out.push(path);
+        }
+    }
+    Ok(())
 }
 
 fn collect_all_files_sorted(root: &Path) -> Result<Vec<PathBuf>> {

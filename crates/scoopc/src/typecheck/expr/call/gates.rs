@@ -130,7 +130,7 @@ pub(in crate::typecheck::expr) fn check_const_fun_call_gate(
     // - 其它 `const fun`
     // - 编译器 intrinsics（即便 sysroot 声明未显式标记为 const）
     //
-    // 另外，部分 sysroot/stdlib API 虽然在源代码上是普通函数声明，
+    // 另外，部分 sysroot API 虽然在源代码上是普通函数声明，
     // 但 const/comptime 解释器会直接以内建逻辑执行，不会真的进入其函数体。
     // 这些调用点在前端 const gate 上也必须视为“编译器 intrinsic”同类目标，
     // 否则 compilation-unit 级 typecheck 会先把它们误拒绝。

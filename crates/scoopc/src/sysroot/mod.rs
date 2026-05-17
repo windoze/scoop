@@ -279,7 +279,7 @@ fn strip_type_member_bodies(member: &mut crate::ast::TypeMember) {
 }
 
 /// T0143：收集 sysroot 中需要走完整编译管线的源文件路径。
-/// 供 build pipeline 的 `load_stdlib_sources()` 调用，将这些文件与 stdlib 一同加入 `input.sources`。
+/// 供 build pipeline 调用，将这些文件作为 sysroot support sources 加入 `input.sources`。
 pub fn collect_compilable_sysroot_files(
     root: &Path,
     overlay_root: Option<&Path>,

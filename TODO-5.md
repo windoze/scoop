@@ -147,7 +147,7 @@
   - 闭合 PLAN §9 / P9-T02：stdlib-dependent fixtures 已按 P0-T01 清单保留、删除或改写；P9-T03 删除 `stdlib/` 前，fixture tree 已不再依赖旧 stdlib imports、precondition helpers 或 scope helpers。
 - 暂时性 failing fixture：无。本任务删除了 P9-T01 完成记录中列出的既有失败 `mutable_array_ops_basic.scoop`，并未新增 failing fixture。
 
-### P9-T03：删除 `stdlib/` 目录与 frontend stdlib 注入路径
+### [DONE] P9-T03：删除 `stdlib/` 目录与 frontend stdlib 注入路径
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §9 / P9
@@ -186,6 +186,30 @@
 - 完成条件：
   - 仓库内不再有 `stdlib/` 路径或代码引用。
 - 依赖：P9-T02。
+
+完成记录：
+
+- 改动范围：
+  - 删除 tracked `stdlib/` 目录下 8 个旧 `.scoop` 文件：`array_iter.scoop`、`collections_iter.scoop`、`collections_map.scoop`、`collections_set.scoop`、`math.scoop`、`mutable_array_iter.scoop`、`mutable_list.scoop`、`prelude.scoop`。
+  - `crates/scoopc/src/frontend.rs` 不再定位或注入 `../../stdlib`；默认 support sources 只来自 compilable sysroot files。
+  - `crates/scoopc/src/comptime/interpreter.rs` 不再为 const/comptime pipeline 额外加载 stdlib sources。
+  - `crates/scoop/src/commands/build/incremental.rs` 从 cone build fingerprint 与 `build.json` debug inputs 中移除 stdlib source hash；sysroot 与 runtime 仍计入 fingerprint。
+  - 清理代码与 fixture 注释中对已删除项目 stdlib 路径/实现来源的过期描述。
+- 核心决策：
+  - 删除路径一次性收口，不保留兼容副本、shim 或旧 `stdlib/` fallback。
+  - build fingerprint 直接以 sysroot/runtime/project sources 作为标准输入集合；删除 stdlib hash 会自然使旧 `build.json` fingerprint miss，无需额外迁移逻辑。
+  - 保留 P9-T02 已决定保留的历史 fixture 文件名（如 `stdlib_string_basic.scoop`），它们已改为验证 core / lang.string 行为，不再依赖 `stdlib/` 目录。
+- 验证结果：
+  - `ls stdlib/` 报告 `No such file or directory`。
+  - `git ls-files "stdlib/*"` 无输出。
+  - `grep`/`rg` 等价检查：`crates/scoopc/src/frontend.rs` 无 `stdlib` 命中；Rust sources / TOML / `build.rs` 中无 `stdlib/` 路径命中。
+  - `cargo build` 通过。
+  - `cargo run -p scoop -- test` 通过：1345/1345 targets，1382 checks。
+  - `cargo clippy --all-targets -- -D warnings` 通过。
+  - `cargo test --all --all-targets` 通过（857 passed）。
+- 与 `PLAN.md` 对应闭合：
+  - 闭合 PLAN §9 / P9-T03：旧 stdlib 物理目录与 frontend 注入路径已删除，P9-T02 处理后的 fixture baseline 在 core + lang.string + sysroot support sources 下保持通过。
+- 暂时性 failing fixture：无。
 
 ## P10：core 中 thread/sync/atomic 引用清理
 

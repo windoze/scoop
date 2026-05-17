@@ -1844,7 +1844,7 @@ impl<'a> HirLowering<'a> {
             // lowering 阶段只需要知道“数组字面量目标容器类型”，因此这里把别名也视为等价目标。
             "scoop.core.List" => Some(ArrayLitTarget::Array),
             "scoop.core.MutableList" => Some(ArrayLitTarget::MutableArray),
-            // T1317f4：stdlib `Set/MutableSet/MapView/MutableMap` 当前阶段以数组为底座（typealias）。
+            // T1317f4：`Set/MutableSet/MapView/MutableMap` 当前阶段以数组为底座（typealias）。
             // 这里同样把它们视为 array literal 的等价目标，便于写 `val s: MutableSet = []` 等用例。
             "scoop.collections.Set" => Some(ArrayLitTarget::Array),
             "scoop.collections.MapView" => Some(ArrayLitTarget::Array),

@@ -114,7 +114,7 @@ fn normalize_collections_alias(fqn: &str) -> &str {
     match fqn {
         "scoop.core.List" => "scoop.core.Array",
         "scoop.core.MutableList" => "scoop.core.MutableArray",
-        // T1317f4：stdlib `Set/MutableSet/MapView/MutableMap` 在当前阶段以
+        // T1317f4：`Set/MutableSet/MapView/MutableMap` 在当前阶段以
         // `Array<Int>` / `MutableArray<Int>` 的 typealias 落地。member/extension 解析
         // 统一归一化到真实 carrier，避免 sysroot surface 从 extension 切到 method 后回退。
         "scoop.collections.Set" => "scoop.core.Array",
@@ -1767,7 +1767,7 @@ impl<'a> BlockScopeChecker<'a> {
         }
 
         // T0147c: Float builtin API 需要保留为内建 member call，
-        // 不能先被 extension fun 路径改写为顶层调用，否则会与 stdlib `abs(Int)` 的同名 FQN 混淆。
+        // 不能先被 extension fun 路径改写为顶层调用，否则会与顶层 `abs(Int)` 的同名 FQN 混淆。
         if matches!(
             receiver_ty_fqn,
             "scoop.core.Float64" | "Float64" | "scoop.core.Float32" | "Float32"

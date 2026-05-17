@@ -1445,7 +1445,7 @@ pub enum BinaryOp {
     Rem,
 
     // ranges
-    /// `a..b`（Appendix B.12）：语法级 range/progression（语义由后续 lowering/stdlib 决定）。
+    /// `a..b`（Appendix B.12）：语法级 range/progression（语义由后续 lowering/core helper 决定）。
     RangeInclusive,
 
     // shifts

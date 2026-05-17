@@ -157,7 +157,7 @@ fun <T> MutableArray<T>.set(index: Int, value: T): Unit
 // `MutableArray` → `Array`：显式桥接（T1325a）。
 //
 // 说明：
-// - 该 API 由 stdlib 提供实现（pure scoop），sysroot 在此提供声明面用于名字解析与类型检查；
+// - 该 API 由 core helper 提供实现，sysroot 在此提供声明面用于名字解析与类型检查；
 // - 当前阶段先只提供 `Int` 专用版本；泛型版本待 `std` collections 更完整后再补齐。
 @Intrinsic
 fun MutableArray<Int>.toArray(): Array<Int>
@@ -445,8 +445,8 @@ struct UInt64 : Hashable
 // Kotlin-like ranges/progressions（Appendix B.12）所需的最小表面。
 //
 // 说明：
-// - v0 阶段先只提供 `IntProgression`（由 stdlib 提供纯 Scoop 可执行实现）；不引入更完整的 `IntRange` 等；
-// - 字段命名与 Kotlin/stdlib 对齐：`first/last/step`，并用 `increasing` 区分升序/降序迭代路径。
+// - v0 阶段先只提供 `IntProgression`（由 core helper 提供纯 Scoop 可执行实现）；不引入更完整的 `IntRange` 等；
+// - 字段命名与 Kotlin range API 对齐：`first/last/step`，并用 `increasing` 区分升序/降序迭代路径。
 struct IntProgression(val first: Int, val last: Int, val step: Int, val increasing: Bool)
 
 // 标准别名（Kotlin/Swift 风格）。

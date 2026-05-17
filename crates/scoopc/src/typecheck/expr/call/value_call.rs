@@ -442,7 +442,7 @@ pub(super) fn collect_top_level_fun_signatures_from_index(
     }
 
     // sysroot 的 "declaration-only" overload（`has_body = false`）用于 resolver/typecheck 可见性；
-    // 但当当前编译单元（或其注入的 stdlib）提供了同签名的实现（`has_body = true`）时，
+    // 但当当前编译单元提供了同签名的实现（`has_body = true`）时，
     // 若把两者同时暴露给重载决议，会导致"同签名重复候选 → ambiguous overload"。
     //
     // 因此这里先收集一份"已有实现的签名 key"，并在生成 `FunSigOwned` 时过滤掉同 key 的无 body 声明。

@@ -2,7 +2,7 @@
 // RUN-STDOUT: stdlib_smoke_ranges_and_io.stdout
 // EXPECT-EXIT: 0
 //
-// stdlib smoke test: ranges/progressions + IO (IntProgression, rangeTo, downTo, forEach, println)
+// Core smoke test: ranges/progressions + IO (IntProgression, rangeTo, downTo, forEach, println)
 // Exercises range-based computation patterns with observable IO output.
 
 import scoop.core.*

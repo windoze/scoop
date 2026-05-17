@@ -756,23 +756,10 @@ fn select_cone_entry_main(
     .into())
 }
 
-fn default_stdlib_path() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../stdlib")
-}
-
 pub(crate) fn load_default_support_sources(
     session_options: &SessionOptions,
 ) -> Result<Vec<SourceFile>> {
-    let root = default_stdlib_path()
-        .canonicalize()
-        .into_diagnostic()
-        .wrap_err("无法定位 stdlib 目录（T1315a）")?;
-
     let mut support_paths: Vec<(PathBuf, bool)> = Vec::new();
-    let mut stdlib_paths = Vec::new();
-    collect_scoop_files(&root, &mut stdlib_paths)?;
-    support_paths.extend(stdlib_paths.into_iter().map(|path| (path, false)));
-
     let sysroot_root = crate::sysroot::Sysroot::default_path()
         .canonicalize()
         .into_diagnostic()
@@ -801,23 +788,4 @@ pub(crate) fn load_default_support_sources(
         });
     }
     Ok(out)
-}
-
-fn collect_scoop_files(dir: &Path, out: &mut Vec<PathBuf>) -> Result<()> {
-    for entry in std::fs::read_dir(dir)
-        .into_diagnostic()
-        .wrap_err_with(|| format!("无法读取目录：{}", dir.display()))?
-    {
-        let entry = entry.into_diagnostic()?;
-        let path = entry.path();
-        let ty = entry.file_type().into_diagnostic()?;
-        if ty.is_dir() {
-            collect_scoop_files(&path, out)?;
-            continue;
-        }
-        if ty.is_file() && path.extension().is_some_and(|ext| ext == "scoop") {
-            out.push(path);
-        }
-    }
-    Ok(())
 }

@@ -389,29 +389,6 @@ fn default_output_path_for_input_and_emit(
     default_output_path_for_emit(emit)
 }
 
-fn default_stdlib_path() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../stdlib")
-}
-
-fn collect_scoop_files(dir: &Path, out: &mut Vec<PathBuf>) -> Result<()> {
-    for entry in std::fs::read_dir(dir)
-        .into_diagnostic()
-        .wrap_err_with(|| format!("无法读取目录：{}", dir.display()))?
-    {
-        let entry = entry.into_diagnostic()?;
-        let path = entry.path();
-        let ty = entry.file_type().into_diagnostic()?;
-        if ty.is_dir() {
-            collect_scoop_files(&path, out)?;
-            continue;
-        }
-        if ty.is_file() && path.extension().is_some_and(|ext| ext == "scoop") {
-            out.push(path);
-        }
-    }
-    Ok(())
-}
-
 fn run_frontend(
     session: &scoopc::session::Session,
     context: BuildContext,
@@ -995,7 +972,7 @@ public fun main() / Pure! {
 
     #[cfg(feature = "llvm")]
     #[test]
-    fn build_frontend_single_file_request_roots_exclude_stdlib_support_sources() {
+    fn build_frontend_single_file_request_roots_exclude_support_sources() {
         let dir = tempdir().unwrap();
         let input = dir.path().join("main.scoop");
         std::fs::write(&input, "fun main() {}\n").unwrap();
@@ -1021,7 +998,7 @@ public fun main() / Pure! {
 
     #[cfg(feature = "llvm")]
     #[test]
-    fn build_frontend_cone_request_roots_exclude_stdlib_support_sources() {
+    fn build_frontend_cone_request_roots_exclude_support_sources() {
         let dir = tempdir().unwrap();
         let pkg = dir.path().join("pkg");
         let src = pkg.join("src");
@@ -1060,7 +1037,7 @@ version = "0.0.0"
         );
         assert!(
             roots.iter().all(|path| path.starts_with(&cone_root)),
-            "cone build request roots 不应包含 stdlib/sysroot support sources: {roots:?}"
+            "cone build request roots 不应包含 sysroot support sources: {roots:?}"
         );
     }
 

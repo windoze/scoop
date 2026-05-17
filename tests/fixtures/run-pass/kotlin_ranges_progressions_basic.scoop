@@ -8,7 +8,7 @@
 // - `..` syntax sugar / `until` / direct `for (x in a..b)` 集成已在 T1819 补齐；
 // - `for` 本身已支持 `IntProgression` / `Array<Int>` / custom iterator 的 lowering；
 // - v0 先通过 `Int.rangeTo/downTo + forEach` 作为可回归落点；
-// - step 由调用方显式传入，避免 stdlib 在非入口文件中引入 Int 字面量（multi-file lowering 门禁）。
+// - step 由调用方显式传入，避免 support source 在非入口文件中引入 Int 字面量（multi-file lowering 门禁）。
 
 import scoop.core.*
 

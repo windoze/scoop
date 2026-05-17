@@ -1261,7 +1261,7 @@ impl<'a> HirLowering<'a> {
         // expected-type hint 当前既用于数组字面量 `[...]` 的 lowering（Array vs MutableArray），
         // 也用于把 `foo` / `foo<T>` 在值位置恢复成“顶层函数值 closure”形态。
         //
-        // 注意：`FunSig` 的参数 `TypeRef` 可能来自**其它源文件**（sysroot/stdlib/多文件编译单元），
+        // 注意：`FunSig` 的参数 `TypeRef` 可能来自**其它源文件**（sysroot/多文件编译单元），
         // 其 span 无法用当前文件的 `SourceFile` 回切；因此我们必须避免在“非数组字面量实参”
         // 的场景下无谓地解析参数类型，防止跨文件 span 误用导致 panic。
         let arg_is_array_lit = match &arg.kind {
