@@ -99,9 +99,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             hir::ExprKind::TupleLit { elements } => {
                 self.codegen_tuple_lit(expr.span, expr.ty, elements)
             }
-            hir::ExprKind::InterpolatedString { raw, parts } => {
-                self.codegen_interpolated_string(expr.span, *raw, parts)
-            }
+            hir::ExprKind::InterpolatedString { .. } => Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "interpolated string after HIR desugar",
+                at: expr.span.into(),
+            }),
             hir::ExprKind::Unary {
                 op, expr: inner, ..
             } => self.codegen_unary(expr.span, expr.ty, *op, inner),

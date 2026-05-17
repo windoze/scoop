@@ -411,7 +411,11 @@ impl<'a> Parser<'a> {
             span: Span::new(eof_pos, eof_pos),
         });
 
-        let mut sub = Parser::new(self.source_text, receiver_tokens);
+        let mut sub = Parser::new(
+            self.source_text,
+            receiver_tokens,
+            self.forbid_f_string_literals,
+        );
         let receiver = sub.parse_type_ref()?;
         if !sub.peek_kind(TokenKind::Eof) {
             let tok = *sub.peek();
@@ -1009,7 +1013,11 @@ impl<'a> Parser<'a> {
             span: Span::new(eof_pos, eof_pos),
         });
 
-        let mut sub = Parser::new(self.source_text, receiver_tokens);
+        let mut sub = Parser::new(
+            self.source_text,
+            receiver_tokens,
+            self.forbid_f_string_literals,
+        );
         let receiver = sub.parse_type_ref()?;
         if !sub.peek_kind(TokenKind::Eof) {
             let tok = *sub.peek();

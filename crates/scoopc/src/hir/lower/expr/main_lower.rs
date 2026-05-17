@@ -138,7 +138,7 @@ impl<'a> HirLowering<'a> {
                 )
             }
             ast::ExprKind::InterpolatedString { raw, parts } => {
-                let expr = self.lower_interpolated_string_desugar(pkg_prefix, e.span, *raw, parts);
+                let expr = self.desugar_f_string_expr(pkg_prefix, e.span, *raw, parts);
                 return expr;
             }
             ast::ExprKind::Ident(id) => self
@@ -942,7 +942,7 @@ impl<'a> HirLowering<'a> {
         }
     }
 
-    pub(in crate::hir::lower) fn lower_interpolated_string_desugar(
+    pub(in crate::hir::lower) fn desugar_f_string_expr(
         &mut self,
         pkg_prefix: &str,
         span: Span,

@@ -150,24 +150,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.declare_runtime_or_native_import_function(name, fn_ty)
     }
 
-    pub(super) fn declare_runtime_format_int(&self, name: &str) -> FunctionValue<'ctx> {
-        if let Some(existing) = self.module.get_function(name) {
-            return existing;
-        }
-
-        // `uint64_t scoop_format_{i64,u64}(int64_t value, uint8_t* out, uint64_t cap)`
-        //
-        // 说明：
-        // - 该函数用于 f-string 插值 `{Int}` 的最小 formatting（TODO T0823）；
-        // - 由 runtime 实现，避免在 LLVM IR 中直接引入 varargs `snprintf` 调用。
-        let i64_ty = self.context.i64_type();
-        let i8_ptr_ty = self.context.ptr_type(AddressSpace::default());
-        let param_tys: [BasicMetadataTypeEnum<'ctx>; 3] =
-            [i64_ty.into(), i8_ptr_ty.into(), i64_ty.into()];
-        let fn_ty = i64_ty.fn_type(&param_tys, false);
-        self.declare_runtime_or_native_import_function(name, fn_ty)
-    }
-
     /// T0107: `int64_t scoop_string_equals(const ScoopString* a, const ScoopString* b)`
     pub(super) fn declare_runtime_string_equals(&self) -> FunctionValue<'ctx> {
         const NAME: &str = runtime_symbols::SCOOP_STRING_EQUALS;
@@ -237,55 +219,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     // T0122: starts_with/ends_with/index_of/contains/split/trim/trim_start/trim_end
     // 已移除（迁移到 sysroot/string.scoop）
-
-    /// `const ScoopString* scoop_bool_to_string(int64_t value)`
-    ///
-    /// Only f-string synthesis uses this runtime symbol. Public `Bool.toString`
-    /// is a sysroot body method and must not regress to this by-name bridge.
-    pub(super) fn declare_runtime_bool_to_string(&self) -> FunctionValue<'ctx> {
-        const NAME: &str = runtime_symbols::SCOOP_BOOL_TO_STRING;
-        if let Some(existing) = self.module.get_function(NAME) {
-            return existing;
-        }
-        let i64_ty = self.context.i64_type();
-        let str_ptr_ty = self.llvm_scoop_string_ptr_type();
-        let fn_ty = str_ptr_ty.fn_type(&[i64_ty.into()], false);
-        self.declare_runtime_or_native_import_function(NAME, fn_ty)
-    }
-
-    /// `const ScoopString* scoop_char_to_string(int32_t codepoint)`
-    pub(super) fn declare_runtime_char_to_string(&self) -> FunctionValue<'ctx> {
-        const NAME: &str = runtime_symbols::SCOOP_CHAR_TO_STRING;
-        if let Some(existing) = self.module.get_function(NAME) {
-            return existing;
-        }
-        let i32_ty = self.context.i32_type();
-        let str_ptr_ty = self.llvm_scoop_string_ptr_type();
-        let fn_ty = str_ptr_ty.fn_type(&[i32_ty.into()], false);
-        self.declare_runtime_or_native_import_function(NAME, fn_ty)
-    }
-
-    /// `const ScoopString* scoop_float64_to_string(double value)`
-    pub(super) fn declare_runtime_float64_to_string(&self) -> FunctionValue<'ctx> {
-        const NAME: &str = runtime_symbols::SCOOP_FLOAT64_TO_STRING;
-        if let Some(existing) = self.module.get_function(NAME) {
-            return existing;
-        }
-        let str_ptr_ty = self.llvm_scoop_string_ptr_type();
-        let fn_ty = str_ptr_ty.fn_type(&[self.context.f64_type().into()], false);
-        self.declare_runtime_or_native_import_function(NAME, fn_ty)
-    }
-
-    /// `const ScoopString* scoop_float32_to_string(float value)`
-    pub(super) fn declare_runtime_float32_to_string(&self) -> FunctionValue<'ctx> {
-        const NAME: &str = runtime_symbols::SCOOP_FLOAT32_TO_STRING;
-        if let Some(existing) = self.module.get_function(NAME) {
-            return existing;
-        }
-        let str_ptr_ty = self.llvm_scoop_string_ptr_type();
-        let fn_ty = str_ptr_ty.fn_type(&[self.context.f32_type().into()], false);
-        self.declare_runtime_or_native_import_function(NAME, fn_ty)
-    }
 
     /// `int64_t scoop_float64_to_int(double value)`
     pub(super) fn declare_runtime_float64_to_int(&self) -> FunctionValue<'ctx> {

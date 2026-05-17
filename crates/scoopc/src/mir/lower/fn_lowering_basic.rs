@@ -1009,8 +1009,8 @@ impl<'a> FnLowering<'a> {
             hir::ExprKind::TupleLit { elements } => {
                 self.lower_tuple_lit_expr(expr.span, expr.ty, elements)
             }
-            hir::ExprKind::InterpolatedString { raw, parts } => {
-                self.lower_interpolated_string_expr(expr.span, expr.ty, *raw, parts)
+            hir::ExprKind::InterpolatedString { .. } => {
+                unreachable!("f-string expressions must be desugared before MIR lowering")
             }
             hir::ExprKind::Unary {
                 op, expr: operand, ..

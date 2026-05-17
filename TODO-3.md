@@ -75,7 +75,7 @@
 - 与 `PLAN.md` 闭合：完成 P6 §7.1 的 HIR f-string desugar 主线，使新 f-string 不再进入 LLVM f-string 拼装路径；P6-T02 继续负责删除后端旧路径与增加 sysroot f-string lint。
 - 暂时性 failing fixture：本任务未新增必须由 P6-T01 处理的 f-string owner failing fixture；全量 baseline 的 7 个剩余失败按上条记录，不作为 P6-T01 的前置 blocker。
 
-### P6-T02：删除 LLVM 阶段 f-string codegen 后门 + sysroot 文件 f-string 使用 lint
+### [DONE] P6-T02：删除 LLVM 阶段 f-string codegen 后门 + sysroot 文件 f-string 使用 lint
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §7.2 / §7.3 / §9 / P6
@@ -109,6 +109,15 @@
   - LLVM codegen 中不再有 f-string 处理路径。
   - sysroot 中误用 f-string 会被编译期拒绝。
 - 依赖：P6-T01。
+
+完成记录（2026-05-17）：
+
+- 改动范围：`crates/scoopc/src/llvm/codegen/main/literal.rs` 删除 direct HIR f-string 拼装函数与 string len/data helper；`crates/scoopc/src/llvm/codegen/mir_body/string.rs` 删除 MIR f-string 拼装与 expr segment helper；`crates/scoopc/src/mir/lower/fn_lowering_expr.rs` / `fn_lowering_basic.rs` 删除 `lower_interpolated_string_expr` 入口；`runtime_abi.rs` / `runtime_symbols.rs` / builtin intrinsic helper 中移除 f-string-only scalar formatting declarations 与未用 helper；`parser` 增加 sysroot f-string 诊断；同步更新 user-visible failure audit 计数。
+- 核心决策：保留 AST/HIR 的 `InterpolatedString` 中间表示作为 parser 输出与 HIR desugar 输入，但 LLVM/MIR 阶段只保留不可达 guard，不再有任何拼装 fallback；HIR desugar 函数重命名为 `desugar_f_string_expr`，满足旧后门命名 grep 完全无命中；sysroot lint 放在 parser 阶段，直接用 `SourceFile::is_sysroot()` 在 f-string token 处报 `sysroot files cannot use f-string`。
+- 验证结果：`grep "codegen_interpolated_string\|codegen_mir_interpolated\|lower_interpolated_string" crates/scoopc/src` 无命中；`cargo test -p scoopc sysroot_files_cannot_contain_fstring -- --nocapture` 通过；`cargo test -p scoopc fstring_desugar -- --nocapture` 通过；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/fstring_*.scoop` 通过；`cargo test --all --all-targets` 通过；`cargo clippy --all-targets -- -D warnings` 通过。
+- 全量 fixture：`cargo run -p scoop -- test` 在最终代码状态下完整执行，结果为 7 个失败、1335 个通过、1372 checks 通过。失败项不由本任务 f-string 后门删除引入，且不属于 P6-T02 owner path：`tests/fixtures/run-pass/mutable_array_ops_basic.scoop`、`tests/fixtures/runtime_gc/extern_enter_native_gc_arg_spill_reload.scoop`、`tests/fixtures/runtime_gc/extern_enter_native_roots_gc.scoop`、`tests/fixtures/runtime_gc/funptr_enter_native_roots_gc.scoop`、`tests/fixtures/runtime_gc/gc_handle_roundtrip.scoop`、`tests/fixtures/runtime_gc/gc_move_stackmap_heap_fixup.scoop`、`tests/fixtures/run_pass_cone/cross_file_ctor_named_default_basic`。
+- 与 `PLAN.md` 闭合：完成 P6 §7.2 / §7.3，LLVM 阶段旧 f-string 拼装后门退场，core / lang.string 等 sysroot 文件误用 f-string 会在编译前端被拒绝；阶段级计划未变化，未修改 `PLAN.md`。
+- 暂时性 failing fixture：本任务未新增 f-string owner failing fixture；全量 baseline 的 7 个剩余失败继续按 P13-T04 最终 fixture 收尾处理。
 
 ## P7：Intrinsic → scoop ABI 批量转换
 

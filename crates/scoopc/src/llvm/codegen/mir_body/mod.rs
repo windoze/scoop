@@ -27,12 +27,6 @@ pub(in crate::llvm::codegen) struct MirBodyCodegenCtx<'m, 'ctx> {
     slots: &'m [MirLocalSlot<'ctx>],
 }
 
-#[derive(Clone, Copy)]
-pub(in crate::llvm::codegen) struct MirInterpolatedSegment<'ctx> {
-    ptr: PointerValue<'ctx>,
-    len: inkwell::values::IntValue<'ctx>,
-}
-
 pub(in crate::llvm::codegen) enum PlainDispatchTarget<'h> {
     Virtual {
         slot: u32,

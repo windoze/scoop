@@ -372,8 +372,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             crate::mir::Rvalue::StructLit { fields, .. } => {
                 self.codegen_mir_make_struct(span, fields, target_cg, slots)
             }
-            crate::mir::Rvalue::InterpolatedString { raw, parts } => {
-                self.codegen_mir_interpolated_string(span, *raw, parts, body, mir_types, slots)
+            crate::mir::Rvalue::InterpolatedString { .. } => {
+                Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "interpolated string after HIR desugar",
+                    at: span.into(),
+                })
             }
             crate::mir::Rvalue::TupleGet { tuple, index } => {
                 self.codegen_mir_tuple_get(span, body, mir_types, tuple, *index, slots)
@@ -542,8 +545,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             crate::mir::Rvalue::StructLit { fields, .. } => {
                 self.codegen_mir_make_struct(span, fields, target_cg, slots)
             }
-            crate::mir::Rvalue::InterpolatedString { raw, parts } => {
-                self.codegen_mir_interpolated_string(span, *raw, parts, body, mir_types, slots)
+            crate::mir::Rvalue::InterpolatedString { .. } => {
+                Err(LlvmEmitError::UnsupportedMainBody {
+                    kind: "interpolated string after HIR desugar",
+                    at: span.into(),
+                })
             }
             crate::mir::Rvalue::TupleGet { tuple, index } => {
                 self.codegen_mir_tuple_get(span, body, mir_types, tuple, *index, slots)

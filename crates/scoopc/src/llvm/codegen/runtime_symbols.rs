@@ -21,12 +21,8 @@ pub(super) const SCOOP_ONCE_END: &str = "scoop_once_end";
 pub(super) const SCOOP_PANIC: &str = "scoop_panic";
 pub(super) const SCOOP_RUNTIME_ERROR_FATAL: &str = "scoop_runtime_error_fatal";
 pub(super) const SCOOP_PIN: &str = "scoop_pin";
-pub(super) const SCOOP_BOOL_TO_STRING: &str = "scoop_bool_to_string";
-pub(super) const SCOOP_CHAR_TO_STRING: &str = "scoop_char_to_string";
 pub(super) const SCOOP_FLOAT32_TO_INT: &str = "scoop_float32_to_int";
-pub(super) const SCOOP_FLOAT32_TO_STRING: &str = "scoop_float32_to_string";
 pub(super) const SCOOP_FLOAT64_TO_INT: &str = "scoop_float64_to_int";
-pub(super) const SCOOP_FLOAT64_TO_STRING: &str = "scoop_float64_to_string";
 pub(super) const SCOOP_TEST_STACKMAP_STATEPOINT_SMOKE: &str =
     "scoop_test_stackmap_statepoint_smoke";
 pub(super) const SCOOP_STRING_EQUALS: &str = "scoop_string_equals";

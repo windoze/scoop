@@ -816,36 +816,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.coerce_value(receiver.span, recv, int_ty)
     }
 
-    /// T0146c2: `Char.toString()` —— 调 runtime 把 Unicode scalar value 编码为 UTF-8 String。
-    pub(in crate::llvm::codegen) fn codegen_char_method_to_string(
-        &mut self,
-        span: crate::span::Span,
-        receiver: &hir::Expr,
-    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        let char_ty = CgTy::Int(IntTy {
-            bits: 32,
-            signed: false,
-        });
-        let recv = self.codegen_expr_in_expected_context(receiver, Some(char_ty))?;
-        let Some(raw) = recv.value else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "Char.toString receiver value",
-                at: receiver.span.into(),
-            });
-        };
-        let BasicValueEnum::IntValue(codepoint) = raw else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "Char.toString receiver type",
-                at: receiver.span.into(),
-            });
-        };
-        let str_ptr = self.codegen_char_to_string_value(span, codepoint)?;
-        Ok(CgValue {
-            ty: CgTy::String,
-            value: Some(str_ptr.into()),
-        })
-    }
-
     /// T0146c2: `Char.hash()` —— 以 codepoint zero-extend 到 i64 后复用 `Int.hash()` mixing。
     pub(in crate::llvm::codegen) fn codegen_char_method_hash(
         &mut self,
@@ -875,34 +845,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             "char_hash_zext",
         )?;
         self.codegen_i64_hash_value(widened)
-    }
-
-    pub(in crate::llvm::codegen) fn codegen_char_to_string_value(
-        &mut self,
-        span: crate::span::Span,
-        codepoint: IntValue<'ctx>,
-    ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
-        let rt_fun = self.declare_runtime_char_to_string();
-        let call = self.build_call_preserving_gc_local_roots(
-            span,
-            rt_fun,
-            &[codepoint.into()],
-            "rt_char_to_string",
-        )?;
-        let ret = call
-            .try_as_basic_value()
-            .basic()
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "Char.toString return value",
-                at: span.into(),
-            })?;
-        let BasicValueEnum::PointerValue(str_ptr) = ret else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "Char.toString return type",
-                at: span.into(),
-            });
-        };
-        Ok(str_ptr)
     }
 
     /// T1817: `Int.hash()` — SplitMix64-style bit-mixing (inline LLVM IR).
@@ -998,44 +940,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             });
         };
         Ok((float_val, recv.ty))
-    }
-
-    pub(in crate::llvm::codegen) fn codegen_float_to_string_value(
-        &mut self,
-        span: crate::span::Span,
-        receiver_span: crate::span::Span,
-        recv: CgValue<'ctx>,
-    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        let (float_val, float_ty) =
-            self.unpack_float_cg_value(recv, receiver_span, "Float.toString receiver type")?;
-        let rt_fun = match float_ty {
-            CgTy::Float64 => self.declare_runtime_float64_to_string(),
-            CgTy::Float32 => self.declare_runtime_float32_to_string(),
-            _ => unreachable!("filtered by unpack_float_cg_value"),
-        };
-        let call = self.build_call_preserving_gc_local_roots(
-            span,
-            rt_fun,
-            &[float_val.into()],
-            "rt_float_to_string",
-        )?;
-        let ret = call
-            .try_as_basic_value()
-            .basic()
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "Float.toString return value",
-                at: span.into(),
-            })?;
-        let BasicValueEnum::PointerValue(str_ptr) = ret else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "Float.toString return type",
-                at: span.into(),
-            });
-        };
-        Ok(CgValue {
-            ty: CgTy::String,
-            value: Some(str_ptr.into()),
-        })
     }
 
     pub(in crate::llvm::codegen) fn codegen_float_to_int_value(

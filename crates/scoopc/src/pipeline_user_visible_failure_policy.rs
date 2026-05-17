@@ -191,11 +191,11 @@ const STALE_UNSUPPORTED_MAIN_BODY_COUNTS: &[UnsupportedMainBodyCount] = &[
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/mir_body/string.rs",
-        expected_count: 19,
+        expected_count: 1,
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/mir_body/terminator.rs",
-        expected_count: 17,
+        expected_count: 19,
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/mir_body/transport.rs",
@@ -303,7 +303,7 @@ const STALE_UNSUPPORTED_MAIN_BODY_COUNTS: &[UnsupportedMainBodyCount] = &[
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/main/literal.rs",
-        expected_count: 25,
+        expected_count: 4,
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/main/numeric.rs",
@@ -586,7 +586,7 @@ fn pipeline_user_visible_failure_policy_tracks_stale_unsupportedmainbody_counts(
             baseline.path
         );
     }
-    assert_eq!(total, 732);
+    assert_eq!(total, 695);
 }
 
 #[test]

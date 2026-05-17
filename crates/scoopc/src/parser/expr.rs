@@ -743,6 +743,17 @@ impl<'a> Parser<'a> {
 
         if let TokenKind::StringLiteral(string_kind) = self.peek().kind {
             let tok = self.bump();
+            if self.forbid_f_string_literals
+                && matches!(
+                    string_kind,
+                    StringKind::Normal { interpolated: true }
+                        | StringKind::Raw { interpolated: true }
+                )
+            {
+                return Err(ParseError::SysrootFString {
+                    span: tok.span.into(),
+                });
+            }
             return Ok(Some(match string_kind {
                 StringKind::Normal { interpolated: true } => {
                     self.parse_interpolated_string_expr(tok, false)?
@@ -1641,7 +1652,7 @@ impl<'a> Parser<'a> {
             t.span = Span::new(t.span.start + start, t.span.end + start);
         }
 
-        let mut p = Parser::new(self.source_text, tokens);
+        let mut p = Parser::new(self.source_text, tokens, self.forbid_f_string_literals);
         let tok = *p.peek();
         let expr = p.try_parse_expr()?.ok_or(ParseError::Expected {
             expected: "表达式（f-string 插值）",

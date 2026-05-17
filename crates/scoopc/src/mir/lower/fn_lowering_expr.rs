@@ -92,44 +92,6 @@ impl<'a> FnLowering<'a> {
         result
     }
 
-    pub(in crate::mir::lower) fn lower_interpolated_string_expr(
-        &mut self,
-        span: Span,
-        ty: TypeId,
-        raw: bool,
-        parts: &[hir::InterpolatedStringPart],
-    ) -> LocalId {
-        let result = self.push_temp_local(span, ty);
-        let mut lowered = Vec::with_capacity(parts.len());
-        for part in parts {
-            match part {
-                hir::InterpolatedStringPart::Text { span } => {
-                    lowered.push(InterpolatedStringPart::Text { span: *span });
-                }
-                hir::InterpolatedStringPart::Expr { expr } => {
-                    let local = self.lower_expr_to_local(expr);
-                    if self.current_is_terminated() {
-                        return result;
-                    }
-                    lowered.push(InterpolatedStringPart::Expr {
-                        span: expr.span,
-                        value: Operand::Local(local),
-                        ty: expr.ty,
-                    });
-                }
-            }
-        }
-        self.assign(
-            span,
-            result,
-            Rvalue::InterpolatedString {
-                raw,
-                parts: lowered,
-            },
-        );
-        result
-    }
-
     pub(in crate::mir::lower) fn lower_unary_expr(
         &mut self,
         span: Span,

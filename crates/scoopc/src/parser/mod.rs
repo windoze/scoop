@@ -64,6 +64,13 @@ pub enum ParseError {
         span: miette::SourceSpan,
     },
 
+    #[error("sysroot files cannot use f-string")]
+    #[diagnostic(code(scoop::parse::sysroot_f_string))]
+    SysrootFString {
+        #[label("f-string is not allowed in sysroot files")]
+        span: miette::SourceSpan,
+    },
+
     #[error("语法错误：`::class` 的左侧必须是类型名路径（例如 `String::class`）")]
     #[diagnostic(code(scoop::parse::class_literal_receiver_invalid))]
     ClassLiteralReceiverInvalid {
@@ -134,7 +141,7 @@ pub enum ParseError {
 
 pub fn parse_file(source: &SourceFile) -> Result<ast::File, ParseError> {
     let tokens = lex(source.text())?;
-    Parser::new(source.text(), tokens).parse_file()
+    Parser::new(source.text(), tokens, source.is_sysroot()).parse_file()
 }
 
 struct Parser<'a> {
@@ -142,15 +149,17 @@ struct Parser<'a> {
     tokens: Vec<Token>,
     i: usize,
     errors: Vec<ParseError>,
+    forbid_f_string_literals: bool,
 }
 
 impl<'a> Parser<'a> {
-    fn new(source_text: &'a str, tokens: Vec<Token>) -> Self {
+    fn new(source_text: &'a str, tokens: Vec<Token>, forbid_f_string_literals: bool) -> Self {
         Self {
             source_text,
             tokens,
             i: 0,
             errors: Vec::new(),
+            forbid_f_string_literals,
         }
     }
 
@@ -199,6 +208,7 @@ impl ParseError {
             ParseError::Expected { span, .. } => Some(*span),
             ParseError::UnterminatedGroup { span, .. } => Some(*span),
             ParseError::FStringUnescapedRBrace { span } => Some(*span),
+            ParseError::SysrootFString { span } => Some(*span),
             ParseError::ClassLiteralReceiverInvalid { span } => Some(*span),
             ParseError::UnsafeBlockRequiresDo { span } => Some(*span),
             ParseError::HandleImmediateResumeRemoved { span } => Some(*span),
