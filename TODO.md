@@ -4,7 +4,7 @@
 > 设计基线：[`CLOSURE_FIX.md`](./CLOSURE_FIX.md)  
 > 计划基线：[`PLAN.md`](./PLAN.md)  
 > 格式参考：[`docs/archive/plans/TODO-stable-id.md`](./docs/archive/plans/TODO-stable-id.md)  
-> 当前状态：C4-T01A 已完成
+> 当前状态：C4-T01B 已完成
 > 执行原则：C0 必须最先完成；C1/C3 与 C2 两条实现线可按依赖并行，但单个任务完成时不得留下仓库内 failing fixture；每个任务完成后必须回写“完成记录”。
 
 ## 全局约束
@@ -736,7 +736,7 @@ C0-T01 (baseline + prerequisite inventory)
     - `cargo clippy --all-targets -- -D warnings`：通过。
   - 与 `PLAN.md` / `CLOSURE_FIX.md` 对应闭合：闭合 `PLAN.md` §7 C4-T01 中 CaptureBox 删除后 MIR / mir_lowered fixture 刷新要求，以及 `CLOSURE_FIX.md` 对“无隐式 CaptureBox、closure env snapshot + per-call local”语义的 fixture 回归要求；阶段级计划未变化。
 
-### [TODO] C4-T01B：新增 closure capture 新语义正样本 fixtures
+### [DONE] C4-T01B：新增 closure capture 新语义正样本 fixtures
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §7 C4-T01
@@ -760,9 +760,24 @@ C0-T01 (baseline + prerequisite inventory)
 - 依赖：C2-T02、C3-T01
 - 完成记录：
   - 改动范围：
+    - 新增 `tests/fixtures/run-pass/closure_capture_var_per_call_reset.scoop`，覆盖 captured `var` 在 closure 多次调用之间按 env snapshot 重新初始化，预期 `a == b`。
+    - 新增 `tests/fixtures/run-pass/closure_capture_var_outer_unaffected.scoop`，覆盖 lambda 内 rebind captured `var` 不回写外层 binding。
+    - 新增 `tests/fixtures/run-pass/closure_capture_ref_heap_mutation.scoop`，覆盖 class ref capture 复制 managed pointer，lambda 通过同一对象字段写入后外层可见。
+    - 新增 `tests/fixtures/run-pass/closure_capture_refcell_make_counter.scoop`，覆盖显式 `RefCell<Int>` 作为共享 mutable state 的 makeCounter 模式。
+    - 未修改语义代码、`PLAN.md` 或 `CLOSURE_FIX.md`。
   - 核心决策：
+    - 四个样本均放在最小相关 phase `tests/fixtures/run-pass/`，以运行结果而不是 MIR 形态验证用户可见语义。
+    - 使用独立 fixture 和 `EXPECT-EXIT`，让 per-call reset、outer unaffected、heap object mutation、explicit `RefCell` sharing 各自有清晰失败信号。
+    - `closure_capture_var_per_call_reset` 调用 closure 两次并期望 `11`；旧隐式 box 语义会得到 `12`，因此能区分旧新语义。
+    - `closure_capture_var_outer_unaffected` 期望 `59`；旧隐式 box 若回写外层 binding 会得到 `99`。
   - 验证结果：
-  - 与 `PLAN.md` / `CLOSURE_FIX.md` 对应闭合：
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/closure_capture_var_per_call_reset.scoop --exit-on-failure`：通过，1 个 check。
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/closure_capture_var_outer_unaffected.scoop --exit-on-failure`：通过，1 个 check。
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/closure_capture_ref_heap_mutation.scoop --exit-on-failure`：通过，1 个 check。
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/closure_capture_refcell_make_counter.scoop --exit-on-failure`：通过，1 个 check。
+    - `cargo run -p scoop -- test`：通过，`fixtures: ok (1386)`。
+    - `cargo clippy --all-targets -- -D warnings`：通过。
+  - 与 `PLAN.md` / `CLOSURE_FIX.md` 对应闭合：闭合 `PLAN.md` §7 C4-T01 与 `CLOSURE_FIX.md` §1.1、§6/T-G 中 closure capture 正样本要求；阶段级计划未变化。
 
 ### [TODO] C4-T01C：新增 sealed interface frontend reject / accept fixtures
 

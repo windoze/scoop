@@ -1,0 +1,19 @@
+// EXPECT: pass
+// EXPECT-EXIT: 33
+
+import scoop.core.*
+
+class ClosureCaptureRefCounter(var value: Int)
+
+fun main(): Int {
+    val counter: ClosureCaptureRefCounter = ClosureCaptureRefCounter(1)
+    val bump: () -> Int = {
+        counter.value = counter.value + 1
+        counter.value
+    }
+
+    bump()
+    val second: Int = bump()
+
+    return counter.value * 10 + second
+}

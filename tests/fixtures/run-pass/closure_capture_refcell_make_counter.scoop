@@ -1,0 +1,17 @@
+// EXPECT: pass
+// EXPECT-EXIT: 12
+
+import scoop.core.*
+
+fun main(): Int {
+    val n: RefCell<Int> = RefCell(0)
+    val next: () -> Int = {
+        n.value = n.value + 1
+        n.value
+    }
+
+    val first: Int = next()
+    val second: Int = next()
+
+    return first * 10 + second
+}

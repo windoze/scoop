@@ -1,0 +1,17 @@
+// EXPECT: pass
+// EXPECT-EXIT: 11
+
+import scoop.core.*
+
+fun main(): Int {
+    var x: Int = 0
+    val f: () -> Int = {
+        x = x + 1
+        x
+    }
+
+    val a: Int = f()
+    val b: Int = f()
+
+    return a * 10 + b
+}
