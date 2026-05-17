@@ -22,6 +22,13 @@ pub enum ExprTypeError {
         span: miette::SourceSpan,
     },
 
+    #[error("interpolation expr must be ToString")]
+    #[diagnostic(code(scoop::typecheck::interpolation_expr_not_to_string))]
+    InterpolationExprNotToString {
+        #[label("this expression must implement ToString")]
+        span: miette::SourceSpan,
+    },
+
     #[error("当前语言 contract 下，when or-pattern 不允许引入 binder")]
     #[diagnostic(code(scoop::typecheck::when_or_pattern_binder_not_allowed))]
     WhenOrPatternBinderNotAllowed {

@@ -138,23 +138,8 @@ impl<'a> HirLowering<'a> {
                 )
             }
             ast::ExprKind::InterpolatedString { raw, parts } => {
-                let parts = parts
-                    .iter()
-                    .map(|p| match p {
-                        ast::InterpolatedStringPart::Text { span } => {
-                            InterpolatedStringPart::Text { span: *span }
-                        }
-                        ast::InterpolatedStringPart::Expr { expr } => {
-                            InterpolatedStringPart::Expr {
-                                expr: self.lower_expr(pkg_prefix, expr),
-                            }
-                        }
-                    })
-                    .collect();
-                (
-                    ExprKind::InterpolatedString { raw: *raw, parts },
-                    self.builtins.string,
-                )
+                let expr = self.lower_interpolated_string_desugar(pkg_prefix, e.span, *raw, parts);
+                return expr;
             }
             ast::ExprKind::Ident(id) => self
                 .try_lower_top_level_fun_value_expr(e, expected)
@@ -954,6 +939,241 @@ impl<'a> HirLowering<'a> {
             span: e.span,
             ty,
             kind,
+        }
+    }
+
+    pub(in crate::hir::lower) fn lower_interpolated_string_desugar(
+        &mut self,
+        pkg_prefix: &str,
+        span: Span,
+        raw: bool,
+        parts: &[ast::InterpolatedStringPart],
+    ) -> Expr {
+        let builder_ty =
+            self.intern_nominal(Self::STRING_BUILDER_FQN.to_string(), Vec::new(), None);
+        let (builder_decl_span, builder_id, builder_name) =
+            self.fresh_synthetic_local(span, "__sb", false);
+
+        let ctor_call_span = self.fresh_synthetic_call_site_span(span);
+        let ctor_span = self
+            .index
+            .constructors
+            .get(Self::STRING_BUILDER_FQN)
+            .and_then(|ctors| {
+                ctors
+                    .iter()
+                    .find(|ctor| ctor.params.is_empty())
+                    .map(|ctor| ctor.span)
+            });
+        if ctor_span.is_none() {
+            self.record_stage_error(
+                span,
+                "StringBuilder constructor missing for f-string desugar",
+                "HIR f-string desugar",
+            );
+        }
+        self.ctor_call_sites.insert(
+            self.call_site(ctor_call_span),
+            crate::hir::CtorCallInfo {
+                class_fqn: Self::STRING_BUILDER_FQN.to_string(),
+                ctor_span,
+                arg_mapping: Vec::new(),
+            },
+        );
+
+        let ctor_call = Expr {
+            span: ctor_call_span,
+            ty: builder_ty,
+            kind: ExprKind::Call {
+                callee: Box::new(Expr {
+                    span: ctor_call_span,
+                    ty: self.builtins.any,
+                    kind: ExprKind::UnresolvedIdent {
+                        name: "StringBuilder".to_string(),
+                    },
+                }),
+                args: Vec::new(),
+            },
+        };
+
+        let mut stmts = vec![Stmt {
+            span: builder_decl_span,
+            ty: self.builtins.unit,
+            kind: StmtKind::Val(ValDecl {
+                span: builder_decl_span,
+                id: Some(builder_id),
+                name: Some(builder_name.clone()),
+                mutable: false,
+                ty: builder_ty,
+                init: Some(ctor_call),
+            }),
+        }];
+
+        for part in parts {
+            match part {
+                ast::InterpolatedStringPart::Text { span: text_span } => {
+                    let decoded = match parse_f_string_text_utf8(raw, self.source.slice(*text_span))
+                    {
+                        Ok(decoded) => decoded,
+                        Err(_) => {
+                            self.record_stage_error(
+                                *text_span,
+                                "invalid f-string text segment",
+                                "HIR f-string desugar",
+                            );
+                            String::new()
+                        }
+                    };
+                    if decoded.is_empty() {
+                        continue;
+                    }
+                    let text_expr = Expr {
+                        span: *text_span,
+                        ty: self.builtins.string,
+                        kind: ExprKind::Literal(LiteralKind::SynthString(decoded)),
+                    };
+                    let add_call_span = self.fresh_synthetic_call_site_span(*text_span);
+                    stmts.push(self.string_builder_add_stmt(
+                        add_call_span,
+                        builder_decl_span,
+                        builder_id,
+                        &builder_name,
+                        builder_ty,
+                        text_expr,
+                    ));
+                }
+                ast::InterpolatedStringPart::Expr { expr } => {
+                    let lowered_expr = self.lower_expr(pkg_prefix, expr);
+                    let to_string_call_span = self.fresh_synthetic_call_site_span(expr.span);
+                    self.dispatch_call_sites.insert(
+                        crate::hir::DispatchCallSite::new(
+                            self.source.path().to_path_buf(),
+                            to_string_call_span,
+                            lowered_expr.ty,
+                        ),
+                        crate::hir::DispatchCallKind::Interface,
+                    );
+                    let to_string_call = Expr {
+                        span: to_string_call_span,
+                        ty: self.builtins.string,
+                        kind: ExprKind::Call {
+                            callee: Box::new(Expr {
+                                span: to_string_call_span,
+                                ty: self.builtins.any,
+                                kind: ExprKind::MemberAccess {
+                                    receiver: Box::new(lowered_expr),
+                                    member: MemberAccess {
+                                        span: to_string_call_span,
+                                        name: "toString".to_string(),
+                                        resolved: Some(MemberRef::Fun {
+                                            id: self.symbols.intern_top_level(
+                                                Self::TO_STRING_INTERFACE_METHOD_FQN.to_string(),
+                                            ),
+                                            fqn: Self::TO_STRING_INTERFACE_METHOD_FQN.to_string(),
+                                        }),
+                                    },
+                                },
+                            }),
+                            args: Vec::new(),
+                        },
+                    };
+                    let add_call_span = self.fresh_synthetic_call_site_span(expr.span);
+                    stmts.push(self.string_builder_add_stmt(
+                        add_call_span,
+                        builder_decl_span,
+                        builder_id,
+                        &builder_name,
+                        builder_ty,
+                        to_string_call,
+                    ));
+                }
+            }
+        }
+
+        let finish_call_span = self.fresh_synthetic_call_site_span(span);
+        let finish_call = Expr {
+            span: finish_call_span,
+            ty: self.builtins.string,
+            kind: ExprKind::Call {
+                callee: Box::new(self.top_level_callee_expr_with_fqn(
+                    finish_call_span,
+                    Self::STRING_BUILDER_TO_STRING_FQN.to_string(),
+                )),
+                args: vec![CallArg::Positional(self.string_builder_ref_expr(
+                    builder_decl_span,
+                    builder_id,
+                    &builder_name,
+                    builder_ty,
+                ))],
+            },
+        };
+        stmts.push(Stmt {
+            span: finish_call_span,
+            ty: self.builtins.string,
+            kind: StmtKind::Expr(finish_call),
+        });
+
+        Expr {
+            span,
+            ty: self.builtins.string,
+            kind: ExprKind::Block(Block {
+                span,
+                ty: self.builtins.string,
+                stmts,
+            }),
+        }
+    }
+
+    fn string_builder_ref_expr(
+        &self,
+        decl_span: Span,
+        id: crate::hir::SymbolId,
+        name: &str,
+        ty: TypeId,
+    ) -> Expr {
+        Expr {
+            span: decl_span,
+            ty,
+            kind: ExprKind::VarRef(ValueRef::Local {
+                id,
+                name: name.to_string(),
+                decl_span,
+            }),
+        }
+    }
+
+    fn string_builder_add_stmt(
+        &mut self,
+        call_span: Span,
+        builder_decl_span: Span,
+        builder_id: crate::hir::SymbolId,
+        builder_name: &str,
+        builder_ty: TypeId,
+        value: Expr,
+    ) -> Stmt {
+        let add_call = Expr {
+            span: call_span,
+            ty: builder_ty,
+            kind: ExprKind::Call {
+                callee: Box::new(self.top_level_callee_expr_with_fqn(
+                    call_span,
+                    Self::STRING_BUILDER_ADD_FQN.to_string(),
+                )),
+                args: vec![
+                    CallArg::Positional(self.string_builder_ref_expr(
+                        builder_decl_span,
+                        builder_id,
+                        builder_name,
+                        builder_ty,
+                    )),
+                    CallArg::Positional(value),
+                ],
+            },
+        };
+        Stmt {
+            span: call_span,
+            ty: builder_ty,
+            kind: StmtKind::Expr(add_call),
         }
     }
 

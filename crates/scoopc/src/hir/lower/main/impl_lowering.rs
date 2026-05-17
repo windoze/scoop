@@ -14,6 +14,14 @@ impl<'a> HirLowering<'a> {
     pub(in crate::hir::lower) const RANGE_TO_FQN: &'static str = "scoop.core.rangeTo";
     pub(in crate::hir::lower) const RANGE_DEFAULT_STEP_FQN: &'static str =
         "scoop.core.__scoop_range_default_step";
+    pub(in crate::hir::lower) const STRING_BUILDER_FQN: &'static str =
+        "scoop.lang.string.StringBuilder";
+    pub(in crate::hir::lower) const STRING_BUILDER_ADD_FQN: &'static str =
+        "scoop.lang.string.StringBuilder.add";
+    pub(in crate::hir::lower) const STRING_BUILDER_TO_STRING_FQN: &'static str =
+        "scoop.lang.string.StringBuilder.toString";
+    pub(in crate::hir::lower) const TO_STRING_INTERFACE_METHOD_FQN: &'static str =
+        "scoop.core.ToString.toString";
     pub(in crate::hir::lower) const SYNC_MUTEX_TYPE_FQN: &'static str = "scoop.sync.Mutex";
     pub(in crate::hir::lower) const SYNC_MUTEX_CREATE_FQN: &'static str = "scoop.sync.mutexCreate";
     pub(in crate::hir::lower) const SYNC_MUTEX_LOCK_FQN: &'static str = "scoop.sync.lock";

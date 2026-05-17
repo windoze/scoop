@@ -531,7 +531,7 @@ impl<'a> FnLowering<'a> {
             Operand::Const(ConstValue::SynthInt(_)) => self.builtins.int,
             Operand::Const(ConstValue::Float64) => self.builtins.float64,
             Operand::Const(ConstValue::Float32) => self.builtins.float32,
-            Operand::Const(ConstValue::String) => self.builtins.string,
+            Operand::Const(ConstValue::String | ConstValue::SynthString(_)) => self.builtins.string,
         }
     }
 

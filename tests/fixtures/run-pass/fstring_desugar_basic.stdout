@@ -1,0 +1,5 @@
+value=42
+scoop:42:true
+braces={ok}, newline=
+end
+raw=scoop, slash=\n, braces={ok}

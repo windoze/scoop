@@ -84,6 +84,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 ))
             }
             crate::mir::ConstValue::String => self.codegen_string_literal(span),
+            crate::mir::ConstValue::SynthString(value) => {
+                self.codegen_string_literal_from_text(span, value)
+            }
         }
     }
 

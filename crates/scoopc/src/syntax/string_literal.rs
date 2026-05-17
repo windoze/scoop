@@ -49,6 +49,94 @@ pub fn parse_string_literal_bytes(text: &str) -> Result<Vec<u8>, StringLiteralPa
     parse_normal_string_bytes(inner)
 }
 
+/// 解析 parser 拆分后的 f-string 文本片段（不含外层引号）。
+///
+/// 支持：
+/// - `{{` / `}}` 消解为字面量大括号；
+/// - non-raw f-string 的普通字符串转义；
+/// - raw f-string 保留反斜杠，仅消解双大括号。
+pub fn parse_f_string_text_bytes(
+    raw: bool,
+    text: &str,
+) -> Result<Vec<u8>, StringLiteralParseError> {
+    if raw {
+        let undoubled = undouble_braces(text);
+        return Ok(undoubled.into_bytes());
+    }
+
+    // 非 raw：先在源码层消解双大括号，并避免把 `\u{...}` 的 `{}` 当作候选；
+    // 再复用普通字符串的转义解析。
+    let undoubled = undouble_braces_preserving_escapes(text);
+    parse_normal_string_bytes(&undoubled)
+}
+
+/// 解析 f-string 文本片段并要求其内容为有效 UTF-8。
+pub fn parse_f_string_text_utf8(raw: bool, text: &str) -> Result<String, StringLiteralParseError> {
+    let bytes = parse_f_string_text_bytes(raw, text)?;
+    String::from_utf8(bytes).map_err(|_| StringLiteralParseError::InvalidUtf8)
+}
+
+fn undouble_braces(text: &str) -> String {
+    let mut out = String::with_capacity(text.len());
+    let mut chars = text.chars().peekable();
+    while let Some(ch) = chars.next() {
+        match ch {
+            '{' if matches!(chars.peek(), Some('{')) => {
+                let _ = chars.next();
+                out.push('{');
+            }
+            '}' if matches!(chars.peek(), Some('}')) => {
+                let _ = chars.next();
+                out.push('}');
+            }
+            _ => out.push(ch),
+        }
+    }
+    out
+}
+
+fn undouble_braces_preserving_escapes(text: &str) -> String {
+    let mut out = String::with_capacity(text.len());
+    let mut chars = text.chars().peekable();
+
+    while let Some(ch) = chars.next() {
+        if ch == '\\' {
+            // 转义序列中的 `{`/`}` 不参与 `{{`/`}}` 的消解。
+            out.push('\\');
+            let Some(next) = chars.next() else {
+                break;
+            };
+            out.push(next);
+
+            // `\u{...}`：把整个 `{...}` 视为转义语法的一部分，原样拷贝。
+            if next == 'u' && matches!(chars.peek(), Some('{')) {
+                out.push(chars.next().expect("peek 已保证存在"));
+                for c in chars.by_ref() {
+                    out.push(c);
+                    if c == '}' {
+                        break;
+                    }
+                }
+            }
+            continue;
+        }
+
+        match ch {
+            '{' if matches!(chars.peek(), Some('{')) => {
+                let _ = chars.next();
+                out.push('{');
+            }
+            '}' if matches!(chars.peek(), Some('}')) => {
+                let _ = chars.next();
+                out.push('}');
+            }
+            _ => out.push(ch),
+        }
+    }
+
+    out
+}
+
 /// 解析普通字符串内容（不包含首尾 `"`）为 UTF-8 字节序列。
 ///
 /// 说明：

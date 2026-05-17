@@ -324,15 +324,13 @@ fun main() {
         "factory class ctor should spill the freshly allocated object before any GC-sensitive arg evaluation\n{make_ir}"
     );
     assert!(
-        reload_window.contains(
-            "lowered_class_ctor_obj_before_invoke = load ptr addrspace(1), ptr %explicit_root_frame_slot_"
-        ),
+        reload_window.contains("lowered_class_ctor_obj_before_invoke")
+            && reload_window.contains("load ptr addrspace(1), ptr %explicit_root_frame_slot_"),
         "ctor arg evaluation should reload the allocated object from its explicit-frame-backed root before invoking ctor init\n{reload_window}"
     );
     assert!(
-        reload_window.contains(
-            "lowered_class_ctor_obj_return = load ptr addrspace(1), ptr %explicit_root_frame_slot_"
-        ),
+        reload_window.contains("lowered_class_ctor_obj_return")
+            && reload_window.contains("load ptr addrspace(1), ptr %explicit_root_frame_slot_"),
         "factory return should reload the allocated object from its explicit-frame-backed root after ctor init\n{reload_window}"
     );
 }

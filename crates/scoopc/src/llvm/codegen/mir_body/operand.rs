@@ -31,7 +31,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 }
                 crate::mir::ConstValue::Float64 => self.builtins.float64,
                 crate::mir::ConstValue::Float32 => self.builtins.float32,
-                crate::mir::ConstValue::String => self.builtins.string,
+                crate::mir::ConstValue::String | crate::mir::ConstValue::SynthString(_) => {
+                    self.builtins.string
+                }
             }),
         }
     }

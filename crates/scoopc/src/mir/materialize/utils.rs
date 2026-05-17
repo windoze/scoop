@@ -555,7 +555,7 @@ pub(super) fn operand_type(
         Operand::Const(ConstValue::SynthInt(_)) => Some(builtins.int),
         Operand::Const(ConstValue::Float64) => Some(builtins.float64),
         Operand::Const(ConstValue::Float32) => Some(builtins.float32),
-        Operand::Const(ConstValue::String) => Some(builtins.string),
+        Operand::Const(ConstValue::String | ConstValue::SynthString(_)) => Some(builtins.string),
     }
     .filter(|ty| {
         !type_contains_param(types, *ty)

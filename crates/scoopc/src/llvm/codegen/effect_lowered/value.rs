@@ -4670,7 +4670,9 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
             }
             mir::Operand::Const(mir::ConstValue::Float64) => Some(self.codegen.builtins.float64),
             mir::Operand::Const(mir::ConstValue::Float32) => Some(self.codegen.builtins.float32),
-            mir::Operand::Const(mir::ConstValue::String) => Some(self.codegen.builtins.string),
+            mir::Operand::Const(mir::ConstValue::String | mir::ConstValue::SynthString(_)) => {
+                Some(self.codegen.builtins.string)
+            }
         }
     }
 

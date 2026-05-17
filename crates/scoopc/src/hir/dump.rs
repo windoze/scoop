@@ -1069,6 +1069,7 @@ impl<'a> HirDumpRenderer<'a> {
             LiteralKind::Float32(value) => format!("Float32({})", format_debug(value)),
             LiteralKind::Char(value) => format!("Char({})", format_debug(value)),
             LiteralKind::String => "String".to_string(),
+            LiteralKind::SynthString(value) => format!("SynthString({})", format_debug(value)),
             LiteralKind::Unit => "Unit".to_string(),
             LiteralKind::Bool(value) => format!("Bool({value})"),
             LiteralKind::SynthInt(value) => format!("SynthInt({value})"),

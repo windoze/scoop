@@ -67,7 +67,7 @@ use crate::stable_id::{
 };
 use crate::syntax::int_literal::{parse_int_literal, parse_int_literal_checked};
 use crate::syntax::string_literal::{
-    StringLiteralParseError, parse_normal_string_bytes, parse_string_literal_bytes,
+    StringLiteralParseError, parse_f_string_text_bytes, parse_string_literal_bytes,
 };
 use crate::ty::layout::{NicheStorage, TypeLayout};
 use crate::ty::{
@@ -1186,83 +1186,6 @@ fn source_text_int_literal_body(text: &str) -> Option<(bool, &str)> {
     }
 
     None
-}
-
-fn parse_f_string_text_bytes(raw: bool, text: &str) -> Result<Vec<u8>, StringLiteralParseError> {
-    // f-string 的 Text 片段来自 parser 拆分后的"内容区间 slice"，不包含包裹引号。
-    // 这里需要补齐两类语义：
-    // - `{{` / `}}`：字面量大括号（spec §8.2）；
-    // - 非 raw f-string：支持最小转义（与普通字符串一致）。
-    if raw {
-        let undoubled = undouble_braces(text);
-        return Ok(undoubled.into_bytes());
-    }
-
-    // 非 raw：先在源码层"去双大括号"，并避免把 `\u{...}` 的 `{}` 当作候选；
-    // 再复用普通字符串的转义解析。
-    let undoubled = undouble_braces_preserving_escapes(text);
-    parse_normal_string_bytes(&undoubled)
-}
-
-fn undouble_braces(text: &str) -> String {
-    let mut out = String::with_capacity(text.len());
-    let mut chars = text.chars().peekable();
-    while let Some(ch) = chars.next() {
-        match ch {
-            '{' if matches!(chars.peek(), Some('{')) => {
-                let _ = chars.next();
-                out.push('{');
-            }
-            '}' if matches!(chars.peek(), Some('}')) => {
-                let _ = chars.next();
-                out.push('}');
-            }
-            _ => out.push(ch),
-        }
-    }
-    out
-}
-
-fn undouble_braces_preserving_escapes(text: &str) -> String {
-    let mut out = String::with_capacity(text.len());
-    let mut chars = text.chars().peekable();
-
-    while let Some(ch) = chars.next() {
-        if ch == '\\' {
-            // 转义序列中的 `{`/`}` 不参与 `{{`/`}}` 的消解。
-            out.push('\\');
-            let Some(next) = chars.next() else {
-                break;
-            };
-            out.push(next);
-
-            // `\u{...}`：把整个 `{...}` 视为转义语法的一部分，原样拷贝。
-            if next == 'u' && matches!(chars.peek(), Some('{')) {
-                out.push(chars.next().expect("peek 已保证存在"));
-                for c in chars.by_ref() {
-                    out.push(c);
-                    if c == '}' {
-                        break;
-                    }
-                }
-            }
-            continue;
-        }
-
-        match ch {
-            '{' if matches!(chars.peek(), Some('{')) => {
-                let _ = chars.next();
-                out.push('{');
-            }
-            '}' if matches!(chars.peek(), Some('}')) => {
-                let _ = chars.next();
-                out.push('}');
-            }
-            _ => out.push(ch),
-        }
-    }
-
-    out
 }
 
 #[cfg(test)]

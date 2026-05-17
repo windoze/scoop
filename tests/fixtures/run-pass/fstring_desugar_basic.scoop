@@ -1,0 +1,16 @@
+// EXPECT: pass
+// RUN-STDOUT: fstring_desugar_basic.stdout
+// 目标：P6-T01 f-string 在 HIR 阶段降糖为 StringBuilder 调用链。
+
+package fixtures.run_pass
+
+fun main(): Int {
+    val name = "scoop"
+
+    println(f"value={42}")
+    println(f"{name}:{42}:{true}")
+    println(f"braces={{ok}}, newline=\nend")
+    println(f"""raw={name}, slash=\n, braces={{ok}}""")
+
+    return 0
+}

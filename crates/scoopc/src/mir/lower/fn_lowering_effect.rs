@@ -646,6 +646,7 @@ impl<'a> FnLowering<'a> {
             hir::LiteralKind::Float64(_) => ConstValue::Float64,
             hir::LiteralKind::Float32(_) => ConstValue::Float32,
             hir::LiteralKind::String => ConstValue::String,
+            hir::LiteralKind::SynthString(value) => ConstValue::SynthString(value.clone()),
         };
         self.assign(span, tmp, Rvalue::Use(Operand::Const(c)));
         tmp

@@ -1237,6 +1237,7 @@ impl<'a> MirDumpRenderer<'a> {
             ConstValue::Float64 => "Float64".to_string(),
             ConstValue::Float32 => "Float32".to_string(),
             ConstValue::String => "String".to_string(),
+            ConstValue::SynthString(value) => format!("SynthString({})", format_debug(value)),
         }
     }
 

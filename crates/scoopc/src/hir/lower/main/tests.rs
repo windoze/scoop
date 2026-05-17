@@ -564,6 +564,123 @@ fn top_level_call_fqns_in_fun(fun: &FunDecl) -> Vec<String> {
     call_fqns
 }
 
+fn add_call_synth_string_arg(stmt: &Stmt) -> Option<&str> {
+    let StmtKind::Expr(Expr {
+        kind: ExprKind::Call { callee, args },
+        ..
+    }) = &stmt.kind
+    else {
+        return None;
+    };
+    let ExprKind::VarRef(ValueRef::TopLevel { fqn, .. }) = &callee.kind else {
+        return None;
+    };
+    if fqn != "scoop.lang.string.StringBuilder.add" {
+        return None;
+    }
+    let Some(CallArg::Positional(Expr {
+        kind: ExprKind::Literal(LiteralKind::SynthString(value)),
+        ..
+    })) = args.get(1)
+    else {
+        return None;
+    };
+    Some(value.as_str())
+}
+
+fn add_call_arg_is_to_string_member_call(stmt: &Stmt) -> bool {
+    let StmtKind::Expr(Expr {
+        kind: ExprKind::Call { args, .. },
+        ..
+    }) = &stmt.kind
+    else {
+        return false;
+    };
+    let Some(CallArg::Positional(Expr {
+        kind: ExprKind::Call { callee, args },
+        ..
+    })) = args.get(1)
+    else {
+        return false;
+    };
+    if !args.is_empty() {
+        return false;
+    }
+    let ExprKind::MemberAccess { member, .. } = &callee.kind else {
+        return false;
+    };
+    matches!(
+        member.resolved.as_ref(),
+        Some(crate::hir::MemberRef::Fun { fqn, .. })
+            if fqn == "scoop.core.ToString.toString"
+    )
+}
+
+#[test]
+fn fstring_desugar_lowers_to_string_builder_chain() {
+    let sess = session();
+    let src = SourceFile::new_virtual(
+        "<mem>/fstring_desugar_string_builder.scoop",
+        r#"
+package fixtures.fstring_desugar
+
+fun format(x: Int): String {
+    val s = f"a{x}b"
+    return s
+}
+
+fun main(): Int {
+    println(format(1))
+    return 0
+}
+"#,
+    );
+
+    let lowered = lower_typed_single_source_file(&sess, &src);
+    let format = find_fun(&lowered, "fixtures.fstring_desugar.format");
+    let body = format.body.as_ref().expect("format should have body");
+    let StmtKind::Val(val_decl) = &body.stmts[0].kind else {
+        panic!("first statement should be val s, got {:?}", body.stmts[0]);
+    };
+    let Some(init) = val_decl.init.as_ref() else {
+        panic!("val s should have initializer");
+    };
+    let ExprKind::Block(block) = &init.kind else {
+        panic!("f-string should lower to a StringBuilder block, got {init:?}");
+    };
+
+    let call_fqns = top_level_call_fqns_in_fun(format);
+    assert_eq!(
+        call_fqns
+            .iter()
+            .filter(|fqn| fqn.as_str() == "scoop.lang.string.StringBuilder.add")
+            .count(),
+        3,
+        "f-string text/expression/text parts should each call StringBuilder.add: {call_fqns:#?}"
+    );
+    assert_eq!(
+        call_fqns
+            .iter()
+            .filter(|fqn| fqn.as_str() == "scoop.lang.string.StringBuilder.toString")
+            .count(),
+        1,
+        "f-string block should finish with StringBuilder.toString: {call_fqns:#?}"
+    );
+    assert_eq!(add_call_synth_string_arg(&block.stmts[1]), Some("a"));
+    assert!(
+        add_call_arg_is_to_string_member_call(&block.stmts[2]),
+        "expression part should call ToString.toString through ordinary member dispatch"
+    );
+    assert_eq!(add_call_synth_string_arg(&block.stmts[3]), Some("b"));
+    assert!(
+        lowered
+            .dispatch_call_sites
+            .values()
+            .any(|kind| *kind == crate::hir::DispatchCallKind::Interface),
+        "ToString.toString should be published as an interface dispatch call"
+    );
+}
+
 #[test]
 fn array_literal_desugar_array_uses_mutable_array_freeze() {
     let sess = session();

@@ -2010,7 +2010,9 @@ impl MirInstanceMaterializer {
             Operand::Const(ConstValue::Float64) => Some(self.builtins.float64),
             Operand::Const(ConstValue::Float32) => Some(self.builtins.float32),
             Operand::Const(ConstValue::Char) => Some(self.builtins.char_),
-            Operand::Const(ConstValue::String) => Some(self.builtins.string),
+            Operand::Const(ConstValue::String | ConstValue::SynthString(_)) => {
+                Some(self.builtins.string)
+            }
         }
     }
 

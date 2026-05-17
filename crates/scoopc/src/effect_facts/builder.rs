@@ -3535,7 +3535,7 @@ fn operand_ty(body: &MirBody, types: &mut TypeStore, operand: &Operand) -> TypeI
             ConstValue::Int | ConstValue::SynthInt(_) => types.intern_builtins().int,
             ConstValue::Float64 => types.intern_builtins().float64,
             ConstValue::Float32 => types.intern_builtins().float32,
-            ConstValue::String => types.intern_builtins().string,
+            ConstValue::String | ConstValue::SynthString(_) => types.intern_builtins().string,
         },
     }
 }

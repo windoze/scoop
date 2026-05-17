@@ -6,7 +6,7 @@
 > 全局约束：见 [`TODO.md`](./TODO.md) `## 全局约束` 一节。
 ## P6：f-string desugar
 
-### P6-T01：f-string HIR desugar——改写为 `StringBuilder().add(...).toString()`
+### [DONE] P6-T01：f-string HIR desugar——改写为 `StringBuilder().add(...).toString()`
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §7.1 / §9 / P6
@@ -65,6 +65,15 @@
 - 完成条件：
   - HIR 阶段 InterpolatedString 节点不再存在（或不再走 LLVM codegen 后门路径）。
 - 依赖：P5-T02。
+
+完成记录（2026-05-17）：
+
+- 改动范围：`crates/scoopc/src/hir/lower/expr/main_lower.rs` 将 `ast::ExprKind::InterpolatedString` 降为 `StringBuilder` block（`__sb_N = StringBuilder()`、逐段 `add`、最终 `toString`）；`syntax/string_literal.rs` 提供 f-string Text 片段解码；HIR/MIR 增加 `SynthString` 以承载已解码的合成字符串；typed HIR contract 支持合成 member-call dispatch；typecheck 增加 `interpolation_expr_not_to_string` 诊断；新增 `fstring_desugar_basic` run-pass fixture 与非 ToString 诊断 fixture；同步 LLVM IR 断言避免依赖临时名精确后缀。
+- 核心决策：采用 let-binding 串行形态而非 fluent chain，保证 builder receiver 推断与求值顺序稳定；Text part 在 lowering 时解码为 `SynthString`，不伪造源码字符串 span；Expr part 生成 `ToString.toString` 的普通 member-access interface dispatch，避免把 interface method 当成直接可达函数 body；保留 LLVM 阶段 f-string codegen 后门，留给 P6-T02 删除。
+- 验证结果：`cargo test -p scoopc fstring_desugar -- --nocapture` 通过；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/fstring_*.scoop` 通过；`cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/fstring_interpolation_non_tostring_is_error.scoop` 通过；`cargo run -p scoop -- test --fixtures tests/fixtures/codegen/f_string_interpolation.scoop` 通过；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/class_ctor_arg_eval_scope_shadow_free_basic.scoop` 通过；`cargo test --all --all-targets` 通过；`cargo clippy --all-targets -- -D warnings` 通过。
+- 全量 fixture：`cargo run -p scoop -- test` 完整执行，结果为 7 个失败、1335 个通过、1372 checks 通过。失败项均不由本任务新引入的 f-string owner path 触发：`tests/fixtures/runtime_gc/extern_enter_native_gc_arg_spill_reload.scoop`、`tests/fixtures/runtime_gc/extern_enter_native_roots_gc.scoop`、`tests/fixtures/runtime_gc/funptr_enter_native_roots_gc.scoop`、`tests/fixtures/runtime_gc/gc_handle_roundtrip.scoop`、`tests/fixtures/runtime_gc/gc_move_stackmap_heap_fixup.scoop` 为 runtime GC/native-root stdout mismatch；`tests/fixtures/run_pass_cone/cross_file_ctor_named_default_basic` 仍命中既有 cross-file ctor codegen path（直接复核显示与本任务 f-string direct owner fixtures不同）；这些不改变 P6-T01 完成范围，后续全量收尾按 P13-T04 处理。
+- 与 `PLAN.md` 闭合：完成 P6 §7.1 的 HIR f-string desugar 主线，使新 f-string 不再进入 LLVM f-string 拼装路径；P6-T02 继续负责删除后端旧路径与增加 sysroot f-string lint。
+- 暂时性 failing fixture：本任务未新增必须由 P6-T01 处理的 f-string owner failing fixture；全量 baseline 的 7 个剩余失败按上条记录，不作为 P6-T01 的前置 blocker。
 
 ### P6-T02：删除 LLVM 阶段 f-string codegen 后门 + sysroot 文件 f-string 使用 lint
 
@@ -269,4 +278,3 @@
 - 完成条件：
   - sysroot `@Extern(name = ...)` 与 runtime 导出符号一一对应、命名一致。
 - 依赖：P7-T02。
-

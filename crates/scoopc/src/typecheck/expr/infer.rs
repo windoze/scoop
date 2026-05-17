@@ -4,7 +4,9 @@ use crate::ast;
 use crate::source::SourceFile;
 use crate::span::Span;
 use crate::syntax::float_literal::{FloatLiteralSuffix, parse_float_literal};
-use crate::ty::{BuiltinTypes, EffectRow, RefTypeKind, TypeId, TypeKind, ValueTypeKind};
+use crate::ty::{
+    BuiltinTypes, EffectRow, NominalType, RefTypeKind, TypeId, TypeKind, ValueTypeKind,
+};
 
 use super::call::{
     EnumVariantCtorTarget, GenericArgConstraint, InstantiatedFunSig,
@@ -74,7 +76,12 @@ pub(super) fn infer_expr_type(
         ast::ExprKind::InterpolatedString { parts, .. } => {
             for part in parts {
                 if let ast::InterpolatedStringPart::Expr { expr } = part {
-                    inputs.infer(lower, expr)?;
+                    let expr_ty = inputs.infer(lower, expr)?;
+                    if !f_string_part_is_to_string(expr_ty, lower, builtins) {
+                        return Err(ExprTypeError::InterpolationExprNotToString {
+                            span: expr.span.into(),
+                        });
+                    }
                 }
             }
             Ok(builtins.string)
@@ -370,6 +377,19 @@ fn array_lit_element_ty_from_container(ty: TypeId, lower: &TypeLowering<'_>) -> 
         | "scoop.collections.MutableMap" => nominal.args.first().copied(),
         _ => None,
     }
+}
+
+fn f_string_part_is_to_string(
+    found: TypeId,
+    lower: &mut TypeLowering<'_>,
+    builtins: BuiltinTypes,
+) -> bool {
+    let to_string_ty = lower.intern_type_kind(TypeKind::Ref(RefTypeKind::Nominal(NominalType {
+        fqn: "scoop.core.ToString".to_string(),
+        args: Vec::new(),
+        eff: None,
+    })));
+    is_type_assignable(found, to_string_ty, lower, builtins)
 }
 
 fn infer_array_lit_expr_type(

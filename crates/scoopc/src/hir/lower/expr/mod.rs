@@ -12,6 +12,7 @@ use crate::resolve::{ConstructorOverload, ParamSig, Visibility};
 use crate::span::Span;
 use crate::syntax::char_literal::parse_char_literal;
 use crate::syntax::float_literal::{FloatLiteralSuffix, parse_float_literal};
+use crate::syntax::string_literal::parse_f_string_text_utf8;
 use crate::ty::{EffectRow, RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind};
 
 use super::HirLowering;
@@ -20,9 +21,9 @@ use super::util::*;
 
 use super::super::{
     Block, CallArg, ClassLiteralExpr, ClosureExpr, ClosureId, EffectOpRef, Expr, ExprKind,
-    HandleArm, HandleArmKind, HandleBinder, HandleExpr, HandleOp, InterpolatedStringPart,
-    LiteralKind, MemberAccess, MemberRef, Param, Stmt, StmtKind, StructLitField,
-    TypeMetadataLiteralKind, ValDecl, ValueRef, WhenArm, WhenPat,
+    HandleArm, HandleArmKind, HandleBinder, HandleExpr, HandleOp, LiteralKind, MemberAccess,
+    MemberRef, Param, Stmt, StmtKind, StructLitField, TypeMetadataLiteralKind, ValDecl, ValueRef,
+    WhenArm, WhenPat,
 };
 
 #[derive(Clone)]

@@ -636,6 +636,8 @@ pub enum LiteralKind {
     Char(char),
     /// String literal resolved on demand from source text (`Expr.span` + source provenance).
     String,
+    /// Compiler-generated String literal whose decoded contents do not exist as a quoted source span.
+    SynthString(String),
     Unit,
     Bool(bool),
     /// Synthesized integer literal (compiler-generated desugaring, e.g., for-loop index init/step).

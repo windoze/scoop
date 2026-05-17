@@ -763,7 +763,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
             crate::mir::ConstValue::Float64 => Some(CgTy::Float64),
             crate::mir::ConstValue::Float32 => Some(CgTy::Float32),
-            crate::mir::ConstValue::String => Some(CgTy::String),
+            crate::mir::ConstValue::String | crate::mir::ConstValue::SynthString(_) => {
+                Some(CgTy::String)
+            }
         }
     }
 }

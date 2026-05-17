@@ -1,0 +1,13 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::interpolation_expr_not_to_string
+// EXPECT-ERROR-AT: 12:15
+// EXPECT-ERROR: interpolation expr must be ToString
+// 目标：P6-T01 f-string 插值表达式必须实现 ToString，诊断位置指向表达式片段。
+
+package fixtures.typecheck
+
+class NotText(val x: Int)
+
+fun bad(value: NotText): String {
+    return f"{value}"
+}

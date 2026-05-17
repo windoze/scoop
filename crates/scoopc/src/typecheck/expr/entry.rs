@@ -2037,6 +2037,16 @@ fun bad(): Unit {
 }
 "#;
 
+    const FSTRING_DESUGAR_NON_TO_STRING_SOURCE: &str = r#"
+package fixtures.typecheck
+
+class NotText(val x: Int)
+
+fun bad(value: NotText): String {
+    return f"{value}"
+}
+"#;
+
     #[test]
     fn check_file_exprs_retypes_escape_continuation_binder_with_precise_effect_row() {
         let (source, ast, index, imports, env, mut types, builtins) =
@@ -2117,6 +2127,21 @@ fun bad(): Unit {
         assert!(matches!(
             err,
             ExprTypeError::ContinuationNotConstructible { .. }
+        ));
+    }
+
+    #[test]
+    fn fstring_desugar_rejects_non_to_string_expr_part() {
+        let (source, ast, index, imports, env, mut types, builtins) =
+            setup_typed_file(FSTRING_DESUGAR_NON_TO_STRING_SOURCE);
+        let err = typecheck::check_file_exprs(
+            &source, &ast, &index, &imports, &env, &mut types, builtins,
+        )
+        .expect_err("f-string expr part must implement ToString");
+
+        assert!(matches!(
+            err,
+            ExprTypeError::InterpolationExprNotToString { .. }
         ));
     }
 }

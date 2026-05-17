@@ -1767,23 +1767,26 @@ impl<'a> ContractCollector<'a> {
         } else if let Some((owner_fqn, member_name, fqn, receiver_ty)) =
             resolved_member_call_binding(callee)
         {
-            // 合成的 member-access call（例如 generic delegated property 的 getValue/setValue）
-            // 在 lowering 时已写回 `MemberRef::Fun { fqn }`；这里据此发布 MemberDirect contract，
+            // 合成的 member-access call（例如 generic delegated property 或 f-string ToString）
+            // 在 lowering 时已写回 `MemberRef::Fun { fqn }`；这里据此发布 typed contract，
             // 让 MIR / effect-facts / late-lowering 能像普通 source-level member 调用一样消费。
             let abi_identity = self.callable_abi_identity_for_fqn(&fqn);
-            Some(TypedCallSiteContract::MemberDirect(
-                MemberCallTargetContract::new(
-                    owner_fqn,
-                    member_name,
-                    fqn.clone(),
-                    receiver_ty,
-                    FunctionTargetContract::synthetic_with_arg_binding(
-                        fqn,
-                        abi_identity,
-                        arg_binding,
-                    ),
-                ),
-            ))
+            let function = FunctionTargetContract::synthetic_with_arg_binding(
+                fqn.clone(),
+                abi_identity,
+                arg_binding,
+            );
+            let member =
+                MemberCallTargetContract::new(owner_fqn, member_name, fqn, receiver_ty, function);
+            match self.dispatch_kind_and_receiver_ty(source_path, expr.span) {
+                Some((DispatchCallKind::Virtual, _)) => {
+                    Some(TypedCallSiteContract::Virtual(member))
+                }
+                Some((DispatchCallKind::Interface, _)) => {
+                    Some(TypedCallSiteContract::Interface(member))
+                }
+                None => Some(TypedCallSiteContract::MemberDirect(member)),
+            }
         } else if is_function_ty(&self.lowered_hir.types, callee.ty)
             || matches!(callee.kind, ExprKind::VarRef(ValueRef::Local { .. }))
         {
@@ -2070,12 +2073,9 @@ fn gc_member_intrinsic_fqn(callee: &Expr) -> Option<String> {
     fqn.starts_with("scoop.core.GC.").then(|| fqn.clone())
 }
 
-/// 当 HIR lowering 把合成 generic delegated property 的 getValue/setValue callee 已经
-/// resolve 成具体 `MemberRef::Fun { fqn }` 时，把 owner FQN / member 名 / 完整 FQN /
-/// receiver type 拆出来，让上游可以直接发布 `MemberDirect` typed call-site contract。
-///
-/// 仅匹配 receiver 是 `<owner>.<prop>$delegate` 字段访问的 callee，避免与普通 source-level
-/// member call 的常规 binding 路径互相覆盖。
+/// 当 HIR lowering 把合成 member call callee 已经 resolve 成具体 `MemberRef::Fun { fqn }` 时，
+/// 把 owner FQN / member 名 / 完整 FQN / receiver type 拆出来，让上游可以直接发布 typed
+/// call-site contract。
 fn resolved_member_call_binding(callee: &Expr) -> Option<(String, String, String, TypeId)> {
     let ExprKind::MemberAccess { receiver, member } = &callee.kind else {
         return None;
@@ -2086,9 +2086,6 @@ fn resolved_member_call_binding(callee: &Expr) -> Option<(String, String, String
     if fqn.starts_with("scoop.core.GC.") {
         return None;
     }
-    if !receiver_is_generic_delegate_field(receiver) {
-        return None;
-    }
     let (owner_fqn, member_name) = match fqn.rsplit_once('.') {
         Some((owner, name)) if !owner.is_empty() && !name.is_empty() => {
             (owner.to_string(), name.to_string())
@@ -2096,16 +2093,6 @@ fn resolved_member_call_binding(callee: &Expr) -> Option<(String, String, String
         _ => return None,
     };
     Some((owner_fqn, member_name, fqn.clone(), receiver.ty))
-}
-
-fn receiver_is_generic_delegate_field(receiver: &Expr) -> bool {
-    let ExprKind::MemberAccess { member, .. } = &receiver.kind else {
-        return false;
-    };
-    let Some(crate::hir::MemberRef::Value { fqn, .. }) = member.resolved.as_ref() else {
-        return false;
-    };
-    fqn.ends_with("$delegate")
 }
 
 fn collect_decl_owner_fqns(decls: &[Decl], owners: &mut Vec<String>) {

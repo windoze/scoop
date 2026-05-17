@@ -2181,6 +2181,8 @@ pub enum ConstValue {
     Float64,
     Float32,
     String,
+    /// Compiler-generated String literal with decoded UTF-8 contents preserved in MIR.
+    SynthString(String),
 }
 
 /// 运行期类型检查使用的 descriptor key。

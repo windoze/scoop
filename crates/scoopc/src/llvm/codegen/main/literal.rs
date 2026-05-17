@@ -97,6 +97,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 CgTy::Float32,
             )),
             hir::LiteralKind::String => self.codegen_string_literal(span),
+            hir::LiteralKind::SynthString(value) => {
+                self.codegen_string_literal_from_text(span, value)
+            }
             hir::LiteralKind::SynthInt(value) => {
                 // Synthesized integer literal from compiler desugaring (T0110).
                 let int_ty = IntTy {
