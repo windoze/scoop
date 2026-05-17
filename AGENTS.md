@@ -46,6 +46,11 @@ cargo run -p scoop -- build path/to/file.scoop -o /tmp/a.out
 - When editing `SCOOP_FULL_SPEC.md` code blocks tagged as fixtures, run:
   `cargo run -p scoop_tools -- spec-fixtures sync` and then `... check`.
 
+## Documentation Archiving
+
+- Completed or obsolete design documents are archived under `docs/archive/designs/`.
+- Completed or obsolete execution plans are archived under `docs/archive/plans/`.
+
 ## Commit & Pull Request Guidelines
 
 - Commit subjects commonly start with a task tag, e.g. `[T1505a] Describe change` (see `PLAN.md` / `TODO.md`).
