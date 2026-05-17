@@ -3473,6 +3473,9 @@ fn size_of_builtin_ty_bytes(name: &str) -> Option<usize> {
         // scalar/value types
         "Bool" => Some(std::mem::size_of::<bool>()),
         "Unit" => Some(std::mem::size_of::<()>()),
+        "Char" => Some(std::mem::size_of::<u32>()),
+        "Float64" | "Double" => Some(std::mem::size_of::<f64>()),
+        "Float32" => Some(std::mem::size_of::<f32>()),
         "Int" => Some(std::mem::size_of::<isize>()),
         "UInt" | "UIntPtr" => Some(std::mem::size_of::<usize>()),
         "Int8" | "UInt8" | "Byte" => Some(1),
@@ -3513,6 +3516,9 @@ fn align_of_builtin_ty_bytes(name: &str) -> Option<usize> {
         // scalar/value types
         "Bool" => Some(std::mem::align_of::<bool>()),
         "Unit" => Some(std::mem::align_of::<()>()),
+        "Char" => Some(std::mem::align_of::<u32>()),
+        "Float64" | "Double" => Some(std::mem::align_of::<f64>()),
+        "Float32" => Some(std::mem::align_of::<f32>()),
         "Int" => Some(std::mem::align_of::<isize>()),
         "UInt" | "UIntPtr" => Some(std::mem::align_of::<usize>()),
         "Int8" | "UInt8" | "Byte" => Some(std::mem::align_of::<u8>()),

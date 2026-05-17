@@ -148,7 +148,7 @@
 
 ## P5：`scoop.lang.string` cone 建立
 
-### P5-T01：runtime 端——三个 `scoop_string_from_*_array` 单态入口
+### [DONE] P5-T01：runtime 端——三个 `scoop_string_from_*_array` 单态入口
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5.1 / §9 / P5
@@ -198,6 +198,14 @@
 - 完成条件：
   - 3 个 runtime 符号编译通过、可被 sysroot 通过 scoop ABI 调用。
 - 依赖：P3-T01。
+
+完成记录（2026-05-17）：
+
+- 改动范围：新增 `runtime/c/scoop_array_internal.h` 共享 `ScoopArray` / `ScoopMutableArray` runtime internal layout；`runtime/c/scoop_runtime.c` 实现 `scoop_string_from_byte_array` / `scoop_string_from_char_array` / `scoop_string_from_string_array`，并复用 shared UTF-8 scalar helper 与 owned-byte String 构造；`runtime/c/scoop_runtime_api.h` 登记 3 个新 runtime ABI 符号；`runtime/c/scoop_array.c` 将 WORD `MutableArray` 存储从固定 word-sized 改为遵守 `elem_size` / `elem_align`；`crates/scoopc/src/llvm/codegen/intrinsics/named.rs` 同步数组 intrinsic stride；`crates/scoopc/src/comptime/interpreter.rs` 补齐 `sizeOf/alignOf<Char/Float32/Float64/Double>`；新增 `crates/scoop_runtime/tests/string_from_array_runtime.rs`。
+- 核心决策：byte array 入口要求 `elem_kind == WORD` 且 `elem_size_bytes == 1`，只做 unchecked memcpy，不做 UTF-8 校验；char array 入口要求 4-byte WORD slot，两遍扫描，非法 codepoint / surrogate 统一替换为 U+FFFD；string array 入口要求 REF pointer-sized slot，一遍求总字节数、一遍 memcpy，元素的 String 类型由后续 sysroot typed signature 保证，runtime 侧校验当前 layout 可表达的 REF/pointer shape；三个入口均为单次结果分配路径，不调用 `scoop_string_concat` / `scoop_string_unsafe_slice_bytes`。
+- 验证结果：`cargo test -p scoop_runtime --test string_from_array_runtime -- --nocapture` 通过（6 tests）；`cargo test -p scoop_runtime --test mutable_array_runtime -- --nocapture` 通过（4 tests）；`cargo build` 通过；`cargo run -p scoop -- test` 完成，结果为 1 个既有失败、1337 个通过、1374 checks 通过；`cargo test --all --all-targets` 通过；`cargo clippy --all-targets -- -D warnings` 通过。
+- 与 `PLAN.md` 闭合：完成 P5 §5.1 的三个 runtime 单态 String-from-array 入口；同时补齐 §6 MutableArray out-of-line layout 对 `sizeOf<T>()` 的真实元素大小支持，使 P5-T02 可以通过 `MutableArray<Byte>` / `MutableArray<Char>` / `MutableArray<String>` 直接调用这些 scoop ABI 符号。
+- 暂时性 failing fixture：本任务未新增 failing fixture；`tests/fixtures/run-pass/mutable_array_ops_basic.scoop` 仍为 P4-T02 完成记录中已列出的既有失败，原因是它覆盖已删除的旧 `MutableArray<Int>.pop/insert/removeAt/splice` copy-style API，继续由 P9-T02 三分类清单处理。
 
 ### P5-T02：sysroot 端——`scoop.lang.string` cone 内三个 scoop ABI 声明 + StringBuilder
 

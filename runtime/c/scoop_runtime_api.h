@@ -91,6 +91,9 @@
   X(scoop_int_to_string) \
   X(scoop_string_concat) \
   X(scoop_string_equals) \
+  X(scoop_string_from_byte_array) \
+  X(scoop_string_from_char_array) \
+  X(scoop_string_from_string_array) \
   X(scoop_string_to_float64) \
   X(scoop_string_unsafe_slice_bytes) \
   X(scoop_sync_condvar_create) \

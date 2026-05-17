@@ -1099,8 +1099,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     ) -> Result<u64, LlvmEmitError> {
         match elem_cg {
             CgTy::Ref | CgTy::String => Ok(self.target_layout().pointer_size.max(1)),
-            CgTy::Unit | CgTy::Bool | CgTy::Float64 | CgTy::Float32 | CgTy::Int(_) => {
-                Ok(self.target_layout().pointer_size.max(1))
+            CgTy::Unit => Ok(1),
+            CgTy::Bool | CgTy::Float64 | CgTy::Float32 | CgTy::Int(_) => {
+                let llvm_ty = self.llvm_basic_type_of(span, elem_cg)?;
+                Ok(self.store_size_bytes_of_basic_type(llvm_ty).max(1))
             }
             CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
                 let llvm_ty = self.llvm_basic_type_of(span, elem_cg)?;

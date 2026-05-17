@@ -10,39 +10,12 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "scoop_array_internal.h"
 #include "scoop_gc.h"
 
 // `scoop_alloc` 在 `scoop_runtime.c` 中实现；这里仅声明供本模块使用。
 void *scoop_alloc(uint64_t size);
 void *scoop_alloc_typed(const ScoopTypeDescriptor *type_desc, uint64_t size_bytes);
-
-#define SCOOP_ARRAY_ELEM_KIND_UNKNOWN 0u
-#define SCOOP_ARRAY_ELEM_KIND_WORD 1u
-#define SCOOP_ARRAY_ELEM_KIND_REF 2u
-#define SCOOP_ARRAY_ELEM_KIND_COMPOSITE 3u
-
-typedef struct ScoopArray {
-  ScoopGcObjectHeader header;
-  uint64_t len;
-  uint64_t elem_size_bytes;
-  uint64_t data_offset_bytes;
-  const ScoopCompositeTransportDescriptor *elem_desc;
-  uint32_t elem_kind;
-  uint32_t _reserved_u32;
-  uint8_t data[];
-} ScoopArray;
-
-typedef struct ScoopMutableArray {
-  ScoopGcObjectHeader header;
-  uint64_t len;
-  uint64_t cap;
-  uint64_t elem_size_bytes;
-  uint64_t elem_align_bytes;
-  const ScoopCompositeTransportDescriptor *elem_desc;
-  uint8_t *data;
-  uint32_t elem_kind;
-  uint32_t _reserved_u32;
-} ScoopMutableArray;
 
 #if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L
 _Static_assert(offsetof(ScoopArray, header) == 0,
@@ -106,7 +79,20 @@ static uint64_t scoop_array_word_size(void) {
   return (uint64_t)sizeof(uintptr_t);
 }
 
+static uint64_t scoop_array_normalize_word_size(uint64_t elem_size) {
+  return elem_size == 0 ? 1u : elem_size;
+}
+
+static uint64_t scoop_array_normalize_word_align(uint64_t elem_align) {
+  return elem_align == 0 ? 1u : elem_align;
+}
+
+static uint32_t scoop_array_is_power_of_two(uint64_t value) {
+  return value != 0 && (value & (value - 1u)) == 0;
+}
+
 static uint64_t scoop_array_element_size(uint32_t kind,
+                                         uint64_t elem_size,
                                          const ScoopCompositeTransportDescriptor *desc) {
   if (kind == SCOOP_ARRAY_ELEM_KIND_COMPOSITE) {
     if (desc == 0 || desc->size_bytes == 0) {
@@ -114,10 +100,17 @@ static uint64_t scoop_array_element_size(uint32_t kind,
     }
     return desc->size_bytes;
   }
-  return scoop_array_word_size();
+  if (kind == SCOOP_ARRAY_ELEM_KIND_WORD) {
+    return scoop_array_normalize_word_size(elem_size);
+  }
+  if (kind == SCOOP_ARRAY_ELEM_KIND_REF) {
+    return scoop_array_word_size();
+  }
+  return 0;
 }
 
 static uint64_t scoop_array_element_align(uint32_t kind,
+                                          uint64_t elem_align,
                                           const ScoopCompositeTransportDescriptor *desc) {
   if (kind == SCOOP_ARRAY_ELEM_KIND_COMPOSITE) {
     if (desc == 0 || desc->align_bytes == 0) {
@@ -125,7 +118,13 @@ static uint64_t scoop_array_element_align(uint32_t kind,
     }
     return desc->align_bytes;
   }
-  return (uint64_t)_Alignof(uintptr_t);
+  if (kind == SCOOP_ARRAY_ELEM_KIND_WORD) {
+    return scoop_array_normalize_word_align(elem_align);
+  }
+  if (kind == SCOOP_ARRAY_ELEM_KIND_REF) {
+    return (uint64_t)_Alignof(uintptr_t);
+  }
+  return 0;
 }
 
 static uint8_t *scoop_array_data(ScoopArray *arr) {
@@ -526,11 +525,13 @@ static const ScoopTypeDescriptor SCOOP_MUTABLE_ARRAY_TYPE_DESC = {
 static uint64_t scoop_array_allocation_size(
     uint64_t len,
     uint32_t elem_kind,
+    uint64_t elem_size_hint,
+    uint64_t elem_align_hint,
     const ScoopCompositeTransportDescriptor *desc,
     uint64_t *out_elem_size,
     uint64_t *out_data_offset) {
-  uint64_t elem_size = scoop_array_element_size(elem_kind, desc);
-  uint64_t elem_align = scoop_array_element_align(elem_kind, desc);
+  uint64_t elem_size = scoop_array_element_size(elem_kind, elem_size_hint, desc);
+  uint64_t elem_align = scoop_array_element_align(elem_kind, elem_align_hint, desc);
   if (elem_size == 0 || elem_align == 0) {
     return 0;
   }
@@ -562,7 +563,21 @@ static uint32_t scoop_mutable_array_layout(
     return 0;
   }
 
-  if (elem_kind == SCOOP_ARRAY_ELEM_KIND_WORD || elem_kind == SCOOP_ARRAY_ELEM_KIND_REF) {
+  if (elem_kind == SCOOP_ARRAY_ELEM_KIND_WORD) {
+    uint64_t normalized_size = scoop_array_normalize_word_size(elem_size);
+    uint64_t normalized_align = scoop_array_normalize_word_align(elem_align);
+    if (normalized_size > (uint64_t)sizeof(uint64_t) ||
+        !scoop_array_is_power_of_two(normalized_align) ||
+        normalized_align > normalized_size) {
+      return 0;
+    }
+    *out_elem_size = normalized_size;
+    *out_elem_align = normalized_align;
+    *out_descriptor = 0;
+    return 1;
+  }
+
+  if (elem_kind == SCOOP_ARRAY_ELEM_KIND_REF) {
     *out_elem_size = scoop_array_word_size();
     *out_elem_align = (uint64_t)_Alignof(uintptr_t);
     *out_descriptor = 0;
@@ -640,6 +655,35 @@ static uint8_t *scoop_mutable_array_next_slot(ScoopMutableArray *arr, uint32_t e
   return arr->data + (arr->len * arr->elem_size_bytes);
 }
 
+static void scoop_mutable_array_store_word(uint8_t *slot, uint64_t value, uint64_t elem_size) {
+  if (slot == 0) {
+    return;
+  }
+  switch (elem_size) {
+    case 1: {
+      uint8_t narrowed = (uint8_t)value;
+      (void)memcpy(slot, &narrowed, sizeof(narrowed));
+      return;
+    }
+    case 2: {
+      uint16_t narrowed = (uint16_t)value;
+      (void)memcpy(slot, &narrowed, sizeof(narrowed));
+      return;
+    }
+    case 4: {
+      uint32_t narrowed = (uint32_t)value;
+      (void)memcpy(slot, &narrowed, sizeof(narrowed));
+      return;
+    }
+    case 8:
+      (void)memcpy(slot, &value, sizeof(value));
+      return;
+    default:
+      (void)memset(slot, 0, (size_t)elem_size);
+      return;
+  }
+}
+
 static void scoop_array_promote_c_heap_ref_slot(void **slot, void *ctx) {
   (void)ctx;
   if (slot == 0) {
@@ -701,7 +745,7 @@ void scoop_mutable_array_push_word(void *mutable_array, uint64_t value) {
   if (slot == 0) {
     return;
   }
-  (void)memcpy(slot, &value, sizeof(value));
+  scoop_mutable_array_store_word(slot, value, arr->elem_size_bytes);
   arr->len += 1;
 }
 
@@ -762,6 +806,8 @@ void *scoop_mutable_array_freeze(void *mutable_array) {
   uint64_t bytes = scoop_array_allocation_size(
       src->len,
       src->elem_kind,
+      src->elem_size_bytes,
+      src->elem_align_bytes,
       src->elem_desc,
       &elem_size,
       &data_offset);
