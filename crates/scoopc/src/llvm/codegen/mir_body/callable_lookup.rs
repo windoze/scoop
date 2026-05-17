@@ -353,12 +353,18 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             llvm_param_tys.push(self.context.ptr_type(AddressSpace::default()).into());
         }
         for (param, param_ty) in mir_fun.params.iter().zip(param_tys.iter().copied()) {
-            let param_ty = self.equivalent_codegen_type_id(mir_types, param_ty).ok_or(
+            let param_ty = self.equivalent_codegen_type_id(mir_types, param_ty).ok_or_else(|| {
+                tracing::warn!(
+                    "declare_materialized_mir_plain_fun_with_symbol: unsupported param type for {} param {} -> {}",
+                    mir_fun.fqn,
+                    param.name,
+                    mir_types.display(param_ty)
+                );
                 LlvmEmitError::UnsupportedMainBody {
                     kind: "pass MIR plain param type",
                     at: param.span.into(),
-                },
-            )?;
+                }
+            })?;
             llvm_param_tys.push(
                 self.ordinary_param_abi(param.span, param_ty)?
                     .llvm_param_ty(),

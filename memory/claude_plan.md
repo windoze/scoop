@@ -1,46 +1,44 @@
 # Claude Execution Plan
 
 ## Scope
-
 - Follow `TODO.md` as the authoritative task list.
-- Complete exactly the first incomplete task, then stop.
-- Keep this file updated when the plan changes or a key step completes.
-- Do not expose private chain-of-thought; this file records the actionable plan and progress.
+- Select the first task whose heading is not prefixed with `[DONE]`.
+- Complete exactly one task, then stop.
+- Do not use workarounds for missing language/runtime behavior; if a blocker is discovered, record the minimum prerequisite task in `TODO.md`, commit, and stop.
 
-## Initial Plan
-
-1. Read `TODO.md` and identify the first task whose title is not prefixed with `[DONE]`.
-2. Check the latest commit message only for unfinished work directly relevant to that task.
-3. Inspect the task requirements, dependencies, and validation instructions.
-4. Examine only the code and fixtures needed for the selected task.
-5. Implement the required changes without workarounds or spec deviations.
-6. Run targeted tests first, then any required broader validation from the task.
-7. Update `TODO.md` by prefixing the completed task title with `[DONE]` and filling its completion record.
-8. Update this file with completed key steps and any plan changes.
-9. Commit all relevant changes with a descriptive task-tagged message.
+## Steps
+1. Read `TODO.md` and identify the first incomplete task.
+2. Check the latest commit only for unfinished work directly relevant to that task.
+3. Read the files and tests needed to understand the selected task.
+4. Implement the task with the smallest correct change.
+5. Add or update targeted tests/fixtures required by the task.
+6. Run focused validation first, then broader validation required by the task or touched area.
+7. Update `TODO.md` by prefixing the completed task heading with `[DONE]` and adding a completion record.
+8. Update this plan file when key steps complete or if the plan changes.
+9. Commit all relevant changes with a task-specific commit message.
 10. Stop without starting the next task.
 
-## Progress
-
-- Created initial execution plan before reading project files or running commands.
-- Read `TODO.md`; first incomplete task is `P12-T02` (`sysroot` physical directory reorganization by cone FQN).
-- Next step: read `TODO-5.md` for the full task body and check the latest commit only for directly relevant unfinished work.
-- Read `TODO-5.md` task body for `P12-T02`; scope is physical sysroot file relocation by `package` FQN, plus hardcoded path updates and validation.
-- Checked latest commit summary (`[P12-T01] Audit sysroot function declarations`); it is the direct prerequisite and does not indicate an unfinished blocker for this task.
-- Moved the 10 tracked top-level sysroot files into cone-FQN subdirectories with `git mv`.
-- Moved the 4 build fixture sysroot overlay `core.scoop` files into `scoop.core/core.scoop` so overlay relative paths continue replacing the base core file.
-- Next step: update Rust tests/helpers and remaining hardcoded path references that assume flat sysroot layout.
-- Updated Rust tests/helpers and source comments that assumed flat sysroot paths.
-- Ran `cargo build` and `cargo test -p scoopc sysroot::tests -- --nocapture`; both passed.
-- Full fixture run initially found 5 HIR golden span mismatches caused by the sysroot core comment path update; updated those HIR golden spans and confirmed `cargo run -p scoop -- test --fixtures tests/fixtures/hir` passes.
-- Next step: run the remaining required full validation and quality checks.
-- Confirmed `find sysroot -maxdepth 1 -name '*.scoop'` returns no files and nested sysroot files are under `sysroot/scoop.*` directories.
-- Re-ran `cargo run -p scoop -- test`; full fixture baseline passed (`1339/1339` targets, `1376` checks).
-- Ran `cargo test --all --all-targets`; passed (`856` tests in `scoopc` plus associated workspace tests).
-- Ran `cargo clippy --all-targets -- -D warnings`; passed.
-- Next step: update `TODO.md` / `TODO-5.md` completion records, then commit this task.
-- Marked `P12-T02` as `[DONE]` in `TODO.md` and `TODO-5.md`, and recorded change scope, decisions, validation, PLAN closure, and temporary fixture status.
-- Updated archived managed-ABI TODO references that pointed at the old flat overlay core paths.
-- Committed task implementation as `4336d988` (`[P12-T02] Reorganize sysroot by cone FQN`).
-- Remaining untracked files `CLOSURE_FIX.md` and `OVERLOAD_RESOLUTION.md` pre-existed this task and were intentionally left uncommitted.
-- Stop after committing this execution-log update; do not start `P12-T03`.
+## Current Status
+- Initial execution plan recorded.
+- `TODO.md` read complete; first incomplete task is `P12-T03`.
+- Latest commit checked; no directly relevant unfinished issue was identified.
+- `TODO-5.md` read complete; `P12-T03` requires removing `signature_only_sysroot_ast`, all `strip_*` helpers, and `is_compilable_sysroot_file` filtering.
+- Implementation approach: inspect `sysroot/mod.rs` and callers, replace `collect_compilable_sysroot_files` with an unfiltered `collect_sysroot_files`, update callers/tests, then run grep/build/fixture validation.
+- Code edit progress: `Sysroot` now stores full AST files only; obsolete stripping/filter helpers and old callers were removed; `frontend` now collects all sysroot files as support sources; const/comptime no longer reloads signature-only sysroot ASTs.
+- `cargo fmt` run complete.
+- `cargo build` passed with no warnings after removing stale `compilable_files` callers and unused const/comptime diagnostics.
+- Required removed-helper grep passed with no matches.
+- `cargo test -p scoopc sysroot::tests -- --nocapture` passed after normalizing `collect_sysroot_files` root paths.
+- `cargo build` re-run passed with no warnings.
+- First full fixture run exposed one failure: `run-pass/inherited_member_call_multi_level_chain_basic.scoop`.
+- Root cause fixed: cross-`TypeStore` codegen type mapping now prefers structural/kind-compatible matches before display-name fallback, preventing a nominal class `A` from mapping to a sysroot generic type parameter `A`.
+- Focused failing fixture now passes.
+- Full fixture suite passed: `cargo run -p scoop -- test` -> 1339/1339 targets, 1376 checks.
+- First `cargo test --all --all-targets` run exposed stale unit-test helpers and builtin nominal type mapping gaps.
+- Fixed via-MIR HIR test helper to use the production frontend support-source path.
+- Fixed codegen cross-`TypeStore` mapping for standard scalar nominal FQNs such as `scoop.core.Int`.
+- Focused regressions passed.
+- `cargo test --all --all-targets` passed: 856 tests.
+- `cargo clippy --all-targets -- -D warnings` passed.
+- `TODO.md` and `TODO-5.md` updated: `P12-T03` is marked `[DONE]` and has a completion record.
+- Next step: inspect git status/diff/log and create the required commit.

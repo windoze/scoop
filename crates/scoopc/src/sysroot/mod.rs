@@ -16,21 +16,11 @@ use crate::source::SourceFile;
 /// 外部 driver 可通过该环境变量为单次构建注入 sysroot overlay。
 pub const SYSROOT_OVERLAY_ENV: &str = "SCOOP_SYSROOT_OVERLAY";
 
-/// T0143：sysroot 文件分为两类：
-/// - `files`：声明索引文件（仅声明，不作为 support source 编译）。用于 production Index 起点。
-///   含真实实现体的 sysroot 文件在这里保存 signature-only AST。
-/// - `compilable_source_paths`：含有函数体的 sysroot 文件（如 `scoop.core/string.scoop`），
-///   需作为编译单元的一部分参与完整的 resolve → typecheck → HIR lowering → codegen 管线。
-/// - `compilable_files`：已解析的 compilable sysroot 文件，供 dump / package API export / 单测
-///   这类需要完整 AST 的路径使用。
+/// sysroot 中的所有文件都以完整 AST 参与声明索引与 support-source 编译。
 #[derive(Debug)]
 pub struct Sysroot {
     pub root: PathBuf,
     pub files: Vec<SysrootFile>,
-    /// T0143：需要被编译（而非仅作为签名索引）的 sysroot 源文件路径。
-    pub compilable_source_paths: Vec<PathBuf>,
-    /// 与 `compilable_source_paths` 对应的已解析完整 sysroot 文件。
-    pub compilable_files: Vec<SysrootFile>,
 }
 
 #[derive(Debug)]
@@ -69,40 +59,18 @@ impl Sysroot {
         }
 
         let mut files = Vec::new();
-        let mut compilable_source_paths = Vec::new();
-        let mut compilable_files = Vec::new();
         for path in paths {
             let source = SourceFile::load_sysroot(&path)?;
             let ast = crate::parser::parse_file(&source)
                 .wrap_err_with(|| format!("解析 sysroot 文件失败：{}", path.display()))?;
-
-            // T0143：含有真实实现体的 sysroot 文件需要走完整编译管线，而非仅作为签名索引。
-            // 除了既有的 core/string/lang_string/print/task 文件之外，overlay 的 `core.scoop` 若声明了
-            // bodied `@Intrinsic struct/class` 也必须进入 compilable support sources。
-            if is_compilable_sysroot_file(&path, &source, &ast) {
-                compilable_source_paths.push(path.clone());
-                compilable_files.push(SysrootFile {
-                    path: path.clone(),
-                    source: source.clone(),
-                    ast: ast.clone(),
-                });
-                files.push(SysrootFile {
-                    path,
-                    source,
-                    ast: signature_only_sysroot_ast(ast),
-                });
-                continue;
-            }
-
             files.push(SysrootFile { path, source, ast });
         }
 
         {
-            let mut source_clones = files
+            let source_clones = files
                 .iter()
                 .map(|file| file.source.clone())
                 .collect::<Vec<_>>();
-            source_clones.extend(compilable_files.iter().map(|file| file.source.clone()));
             let indexed_sources = source_clones
                 .iter()
                 .map(|source| (crate::resolve::ConeId::DEFAULT, source))
@@ -111,7 +79,6 @@ impl Sysroot {
                 .iter_mut()
                 .map(|file| &mut file.ast)
                 .collect::<Vec<_>>();
-            ast_refs.extend(compilable_files.iter_mut().map(|file| &mut file.ast));
             crate::comptime::trim_package_level_comptime_ifs_in_indexed_compilation_unit(
                 &[],
                 &indexed_sources,
@@ -120,12 +87,7 @@ impl Sysroot {
             .wrap_err("裁剪 sysroot compilation-unit 的 package-level comptime if 失败")?;
         }
 
-        Ok(Self {
-            root,
-            files,
-            compilable_source_paths,
-            compilable_files,
-        })
+        Ok(Self { root, files })
     }
 
     pub fn index_files(&self) -> impl Iterator<Item = &SysrootFile> {
@@ -133,159 +95,14 @@ impl Sysroot {
     }
 }
 
-/// T0143：判断 sysroot 文件是否需要作为编译单元的一部分（而非仅签名索引）。
-/// 当前规则：
-/// - `core.scoop`、`lang_string.scoop`、`runtime_test.scoop`、`string.scoop`、`print.scoop` 与 `task.scoop`
-///   一直是 support sources；
-/// - overlay 的 `core.scoop` 若声明了 bodied `@Intrinsic struct/class`，也要进入完整编译管线。
-fn is_compilable_sysroot_file(path: &Path, source: &SourceFile, ast: &crate::ast::File) -> bool {
-    is_always_compilable_sysroot_file(path) || has_bodied_intrinsic_nominal_method(source, ast)
-}
-
-fn is_always_compilable_sysroot_file(path: &Path) -> bool {
-    path.file_name().is_some_and(|name| {
-        name == "string.scoop"
-            || name == "lang_string.scoop"
-            || name == "runtime_test.scoop"
-            || name == "core.scoop"
-            || name == "print.scoop"
-            || name == "task.scoop"
-    })
-}
-
-fn has_bodied_intrinsic_nominal_method(source: &SourceFile, ast: &crate::ast::File) -> bool {
-    ast.items.iter().any(|item| {
-        let crate::ast::Item::Type(decl) = item else {
-            return false;
-        };
-        matches!(
-            decl.kind,
-            crate::ast::TypeKind::Struct | crate::ast::TypeKind::Class
-        ) && has_intrinsic_annotation(source, &decl.annotations)
-            && decl.body.as_ref().is_some_and(|body| {
-                body.members.iter().any(|member| {
-                    let crate::ast::TypeMember::Fun(fun) = member else {
-                        return false;
-                    };
-                    matches!(fun.body, crate::ast::FunBody::Block(_))
-                })
-            })
-    })
-}
-
-fn has_intrinsic_annotation(
-    source: &SourceFile,
-    annotations: &[crate::ast::AnnotationUse],
-) -> bool {
-    annotations.iter().any(|annotation| {
-        let segments = annotation
-            .path
-            .iter()
-            .map(|ident| ident.text(source))
-            .collect::<Vec<_>>();
-        matches!(
-            segments.as_slice(),
-            ["Intrinsic"] | ["scoop", "core", "Intrinsic"]
-        )
-    })
-}
-
-pub(crate) fn signature_only_sysroot_ast(mut ast: crate::ast::File) -> crate::ast::File {
-    for item in &mut ast.items {
-        strip_item_bodies(item);
-    }
-    ast
-}
-
-fn strip_item_bodies(item: &mut crate::ast::Item) {
-    match item {
-        crate::ast::Item::Fun(fun) => {
-            fun.body = crate::ast::FunBody::Missing;
-        }
-        crate::ast::Item::Type(decl) => strip_type_decl_bodies(decl),
-        crate::ast::Item::Object(object) => strip_object_decl_bodies(object),
-        crate::ast::Item::ComptimeIf(item) => {
-            for nested in &mut item.then_branch.items {
-                strip_item_bodies(nested);
-            }
-            if let Some(else_branch) = item.else_branch.as_deref_mut() {
-                strip_comptime_else_bodies(else_branch);
-            }
-        }
-        crate::ast::Item::TypeAlias(_)
-        | crate::ast::Item::ExtensionProperty(_)
-        | crate::ast::Item::Val(_) => {}
-    }
-}
-
-fn strip_comptime_else_bodies(else_branch: &mut crate::ast::ComptimeIfItemElse) {
-    match else_branch {
-        crate::ast::ComptimeIfItemElse::Block(block) => {
-            for nested in &mut block.items {
-                strip_item_bodies(nested);
-            }
-        }
-        crate::ast::ComptimeIfItemElse::If(item) => {
-            for nested in &mut item.then_branch.items {
-                strip_item_bodies(nested);
-            }
-            if let Some(next) = item.else_branch.as_deref_mut() {
-                strip_comptime_else_bodies(next);
-            }
-        }
-    }
-}
-
-fn strip_type_decl_bodies(decl: &mut crate::ast::TypeDecl) {
-    if decl.kind == crate::ast::TypeKind::Interface {
-        return;
-    }
-    let Some(body) = &mut decl.body else {
-        return;
-    };
-    for member in &mut body.members {
-        strip_type_member_bodies(member);
-    }
-}
-
-fn strip_object_decl_bodies(object: &mut crate::ast::ObjectDecl) {
-    let Some(body) = &mut object.body else {
-        return;
-    };
-    for member in &mut body.members {
-        strip_type_member_bodies(member);
-    }
-}
-
-fn strip_type_member_bodies(member: &mut crate::ast::TypeMember) {
-    match member {
-        crate::ast::TypeMember::Fun(fun) => {
-            fun.body = crate::ast::FunBody::Missing;
-        }
-        crate::ast::TypeMember::Type(decl) => strip_type_decl_bodies(decl),
-        crate::ast::TypeMember::Object(object) => strip_object_decl_bodies(object),
-        crate::ast::TypeMember::EnumVariant(_)
-        | crate::ast::TypeMember::Property(_)
-        | crate::ast::TypeMember::InitBlock(_)
-        | crate::ast::TypeMember::SecondaryCtor(_) => {}
-    }
-}
-
-/// T0143：收集 sysroot 中需要走完整编译管线的源文件路径。
-/// 供 build pipeline 调用，将这些文件作为 sysroot support sources 加入 `input.sources`。
-pub fn collect_compilable_sysroot_files(
+/// 收集所有 sysroot 源文件路径，供 build pipeline 作为 support sources 加入 `input.sources`。
+pub fn collect_sysroot_files(
     root: &Path,
     overlay_root: Option<&Path>,
     out: &mut Vec<PathBuf>,
 ) -> Result<()> {
-    for path in collect_merged_sysroot_paths(root, overlay_root)? {
-        let source = SourceFile::load_sysroot(&path)?;
-        let ast = crate::parser::parse_file(&source)
-            .wrap_err_with(|| format!("解析 sysroot 文件失败：{}", path.display()))?;
-        if is_compilable_sysroot_file(&path, &source, &ast) {
-            out.push(path);
-        }
-    }
+    let root = canonicalize_sysroot_root(root, "sysroot")?;
+    out.extend(collect_merged_sysroot_paths(&root, overlay_root)?);
     Ok(())
 }
 
@@ -355,7 +172,6 @@ fn collect_scoop_files(dir: &Path, out: &mut Vec<PathBuf>) -> Result<()> {
 mod tests {
     use super::*;
     use crate::ast;
-    use std::collections::BTreeSet;
     use std::path::{Path, PathBuf};
     use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -420,47 +236,37 @@ mod tests {
             "scoop.lang.string must index the StringBuilder surface"
         );
         assert!(
-            sysroot.compilable_source_paths.iter().any(|path| path
-                .file_name()
-                .is_some_and(|name| name == "lang_string.scoop")),
-            "lang_string.scoop must be compiled as a support source once it contains method bodies"
+            file_has_any_block_fun(&entry.ast),
+            "scoop.lang.string must keep full method bodies in the sysroot index"
         );
     }
 
     #[test]
-    fn sysroot_declaration_only_regular_funs_are_explicitly_exempted() {
+    fn sysroot_regular_funs_have_body_or_explicit_annotation() {
         let root = canonicalize_sysroot_root(&Sysroot::default_path(), "sysroot").unwrap();
         let mut parsed_files = Vec::new();
-        let mut implemented_top_level_fqns = BTreeSet::new();
         let mut violations = Vec::new();
 
         for path in collect_merged_sysroot_paths(&root, None).unwrap() {
             let source = SourceFile::load_sysroot(&path).unwrap();
             let file = crate::parser::parse_file(&source).unwrap();
-            collect_bodyful_top_level_regular_fqns(&source, &file, &mut implemented_top_level_fqns);
             parsed_files.push((path, source, file));
         }
 
         for (path, source, file) in &parsed_files {
-            audit_file_for_declaration_only_regular_funs(
-                path,
-                source,
-                file,
-                &implemented_top_level_fqns,
-                &mut violations,
-            );
+            audit_file_for_declaration_only_regular_funs(path, source, file, &mut violations);
         }
 
         assert!(
             violations.is_empty(),
-            "sysroot ordinary functions/methods without local bodies must be `@Intrinsic`, `@Extern`, abstract interface methods, or backed by a bodyful sysroot support source:\n{}",
+            "sysroot ordinary functions/methods without local bodies must be `@Intrinsic`, `@Extern`, or abstract interface methods:\n{}",
             violations.join("\n")
         );
     }
 
     #[test]
-    fn overlay_core_with_bodied_intrinsic_nominal_method_becomes_compilable_support_source() {
-        let root = make_temp_dir("overlay_core_compilable");
+    fn overlay_paths_replace_base_and_all_files_become_support_sources() {
+        let root = make_temp_dir("overlay_all_support_sources");
         let base_root = root.0.join("base");
         let overlay_root = root.0.join("overlay");
         let base_core = base_root.join("scoop.core").join("core.scoop");
@@ -481,48 +287,36 @@ mod tests {
         let overlay_core = overlay_core.canonicalize().unwrap();
         let unsafe_file = unsafe_file.canonicalize().unwrap();
 
-        assert_eq!(sysroot.compilable_source_paths, vec![overlay_core.clone()]);
         assert_eq!(sysroot.files.len(), 2);
         assert!(sysroot.files.iter().any(|file| file.path == unsafe_file));
         assert!(sysroot.files.iter().any(|file| file.path == overlay_core));
 
         let mut support_sources = Vec::new();
-        collect_compilable_sysroot_files(&base_root, Some(&overlay_root), &mut support_sources)
-            .unwrap();
-        assert_eq!(support_sources, vec![overlay_core]);
+        collect_sysroot_files(&base_root, Some(&overlay_root), &mut support_sources).unwrap();
+        assert_eq!(support_sources, vec![overlay_core, unsafe_file]);
     }
 
     #[test]
-    fn default_core_is_compilable_support_source_and_index_file() {
+    fn default_core_is_full_ast_index_file_and_support_source() {
         let sysroot = Sysroot::load_from(Sysroot::default_path()).unwrap();
+        let mut support_sources = Vec::new();
+        collect_sysroot_files(&Sysroot::default_path(), None, &mut support_sources).unwrap();
 
+        let core = sysroot
+            .index_files()
+            .find(|file| {
+                file.path
+                    .file_name()
+                    .is_some_and(|name| name == "core.scoop")
+            })
+            .expect("default core.scoop must remain visible through Sysroot::index_files()");
         assert!(
-            sysroot
-                .compilable_source_paths
-                .iter()
-                .any(|path| path.file_name().is_some_and(|name| name == "core.scoop")),
+            support_sources.contains(&core.path),
             "default core.scoop must be compiled as a support source"
         );
         assert!(
-            sysroot.compilable_files.iter().any(|file| file
-                .path
-                .file_name()
-                .is_some_and(|name| name == "core.scoop")),
-            "default core.scoop must still be available for direct dump/package indexing"
-        );
-        assert!(
-            sysroot.files.iter().any(|file| file
-                .path
-                .file_name()
-                .is_some_and(|name| name == "core.scoop")),
-            "default core.scoop signature must remain visible through sysroot.files"
-        );
-        assert!(
-            sysroot.index_files().any(|file| file
-                .path
-                .file_name()
-                .is_some_and(|name| name == "core.scoop")),
-            "default core.scoop must remain visible through Sysroot::index_files()"
+            file_has_any_block_fun(&core.ast),
+            "default core.scoop must keep full bodies in Sysroot::index_files()"
         );
     }
 
@@ -530,7 +324,6 @@ mod tests {
         path: &Path,
         source: &SourceFile,
         file: &ast::File,
-        implemented_top_level_fqns: &BTreeSet<String>,
         violations: &mut Vec<String>,
     ) {
         for item in &file.items {
@@ -539,31 +332,19 @@ mod tests {
                     audit_fun_for_declaration_only_regular_fun(
                         path,
                         source,
-                        file,
                         fun,
                         FunAuditContainer::TopLevel,
-                        implemented_top_level_fqns,
                         violations,
                     );
                 }
                 ast::Item::Type(decl) => {
                     audit_type_for_declaration_only_regular_funs(
-                        path,
-                        source,
-                        file,
-                        decl,
-                        implemented_top_level_fqns,
-                        violations,
+                        path, source, file, decl, violations,
                     );
                 }
                 ast::Item::Object(obj) => {
                     audit_object_for_declaration_only_regular_funs(
-                        path,
-                        source,
-                        file,
-                        obj,
-                        implemented_top_level_fqns,
-                        violations,
+                        path, source, file, obj, violations,
                     );
                 }
                 ast::Item::TypeAlias(_)
@@ -579,7 +360,6 @@ mod tests {
         source: &SourceFile,
         file: &ast::File,
         decl: &ast::TypeDecl,
-        implemented_top_level_fqns: &BTreeSet<String>,
         violations: &mut Vec<String>,
     ) {
         let Some(body) = &decl.body else {
@@ -591,31 +371,19 @@ mod tests {
                     audit_fun_for_declaration_only_regular_fun(
                         path,
                         source,
-                        file,
                         fun,
                         FunAuditContainer::Type(decl.kind),
-                        implemented_top_level_fqns,
                         violations,
                     );
                 }
                 ast::TypeMember::Type(nested) => {
                     audit_type_for_declaration_only_regular_funs(
-                        path,
-                        source,
-                        file,
-                        nested,
-                        implemented_top_level_fqns,
-                        violations,
+                        path, source, file, nested, violations,
                     );
                 }
                 ast::TypeMember::Object(obj) => {
                     audit_object_for_declaration_only_regular_funs(
-                        path,
-                        source,
-                        file,
-                        obj,
-                        implemented_top_level_fqns,
-                        violations,
+                        path, source, file, obj, violations,
                     );
                 }
                 ast::TypeMember::EnumVariant(_)
@@ -631,7 +399,6 @@ mod tests {
         source: &SourceFile,
         file: &ast::File,
         obj: &ast::ObjectDecl,
-        implemented_top_level_fqns: &BTreeSet<String>,
         violations: &mut Vec<String>,
     ) {
         let Some(body) = &obj.body else {
@@ -643,31 +410,19 @@ mod tests {
                     audit_fun_for_declaration_only_regular_fun(
                         path,
                         source,
-                        file,
                         fun,
                         FunAuditContainer::Object,
-                        implemented_top_level_fqns,
                         violations,
                     );
                 }
                 ast::TypeMember::Type(nested) => {
                     audit_type_for_declaration_only_regular_funs(
-                        path,
-                        source,
-                        file,
-                        nested,
-                        implemented_top_level_fqns,
-                        violations,
+                        path, source, file, nested, violations,
                     );
                 }
                 ast::TypeMember::Object(nested) => {
                     audit_object_for_declaration_only_regular_funs(
-                        path,
-                        source,
-                        file,
-                        nested,
-                        implemented_top_level_fqns,
-                        violations,
+                        path, source, file, nested, violations,
                     );
                 }
                 ast::TypeMember::EnumVariant(_)
@@ -681,10 +436,8 @@ mod tests {
     fn audit_fun_for_declaration_only_regular_fun(
         path: &Path,
         source: &SourceFile,
-        file: &ast::File,
         fun: &ast::FunDecl,
         container: FunAuditContainer,
-        implemented_top_level_fqns: &BTreeSet<String>,
         violations: &mut Vec<String>,
     ) {
         if !matches!(fun.body, ast::FunBody::Missing) || fun.kind != ast::FunDeclKind::Regular {
@@ -693,14 +446,8 @@ mod tests {
         if matches!(container, FunAuditContainer::Type(ast::TypeKind::Interface)) {
             return;
         }
-        if has_intrinsic_annotation(source, &fun.annotations)
+        if has_builtin_annotation(source, &fun.annotations, "Intrinsic")
             || has_builtin_annotation(source, &fun.annotations, "Extern")
-        {
-            return;
-        }
-        if matches!(container, FunAuditContainer::TopLevel)
-            && fun.receiver.is_none()
-            && implemented_top_level_fqns.contains(&top_level_fun_fqn(source, file, fun))
         {
             return;
         }
@@ -731,39 +478,60 @@ mod tests {
         })
     }
 
-    fn collect_bodyful_top_level_regular_fqns(
-        source: &SourceFile,
-        file: &ast::File,
-        out: &mut BTreeSet<String>,
-    ) {
-        for item in &file.items {
-            let ast::Item::Fun(fun) = item else {
-                continue;
-            };
-            if fun.kind == ast::FunDeclKind::Regular
-                && fun.receiver.is_none()
-                && matches!(fun.body, ast::FunBody::Block(_))
-            {
-                out.insert(top_level_fun_fqn(source, file, fun));
+    fn file_has_any_block_fun(file: &ast::File) -> bool {
+        file.items.iter().any(item_has_any_block_fun)
+    }
+
+    fn item_has_any_block_fun(item: &ast::Item) -> bool {
+        match item {
+            ast::Item::Fun(fun) => matches!(fun.body, ast::FunBody::Block(_)),
+            ast::Item::Type(decl) => decl
+                .body
+                .as_ref()
+                .is_some_and(|body| body.members.iter().any(type_member_has_any_block_fun)),
+            ast::Item::Object(obj) => obj
+                .body
+                .as_ref()
+                .is_some_and(|body| body.members.iter().any(type_member_has_any_block_fun)),
+            ast::Item::ComptimeIf(item) => {
+                item.then_branch.items.iter().any(item_has_any_block_fun)
+                    || item
+                        .else_branch
+                        .as_deref()
+                        .is_some_and(comptime_else_has_any_block_fun)
             }
+            ast::Item::TypeAlias(_) | ast::Item::ExtensionProperty(_) | ast::Item::Val(_) => false,
         }
     }
 
-    fn top_level_fun_fqn(source: &SourceFile, file: &ast::File, fun: &ast::FunDecl) -> String {
-        let name = source.slice(fun.name.span);
-        let Some(package) = &file.package else {
-            return name.to_string();
-        };
-        let prefix = package
-            .path
-            .iter()
-            .map(|segment| segment.text(source))
-            .collect::<Vec<_>>()
-            .join(".");
-        if prefix.is_empty() {
-            name.to_string()
-        } else {
-            format!("{prefix}.{name}")
+    fn type_member_has_any_block_fun(member: &ast::TypeMember) -> bool {
+        match member {
+            ast::TypeMember::Fun(fun) => matches!(fun.body, ast::FunBody::Block(_)),
+            ast::TypeMember::Type(decl) => decl
+                .body
+                .as_ref()
+                .is_some_and(|body| body.members.iter().any(type_member_has_any_block_fun)),
+            ast::TypeMember::Object(obj) => obj
+                .body
+                .as_ref()
+                .is_some_and(|body| body.members.iter().any(type_member_has_any_block_fun)),
+            ast::TypeMember::EnumVariant(_)
+            | ast::TypeMember::Property(_)
+            | ast::TypeMember::SecondaryCtor(_)
+            | ast::TypeMember::InitBlock(_) => false,
+        }
+    }
+
+    fn comptime_else_has_any_block_fun(else_branch: &ast::ComptimeIfItemElse) -> bool {
+        match else_branch {
+            ast::ComptimeIfItemElse::Block(block) => block.items.iter().any(item_has_any_block_fun),
+            ast::ComptimeIfItemElse::If(item) => {
+                item.then_branch.items.iter().any(item_has_any_block_fun)
+                    || item
+                        .else_branch
+                        .as_deref()
+                        .is_some_and(comptime_else_has_any_block_fun)
+            }
         }
     }
 

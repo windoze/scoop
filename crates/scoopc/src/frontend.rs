@@ -764,18 +764,14 @@ pub(crate) fn load_default_support_sources(
         .canonicalize()
         .into_diagnostic()
         .wrap_err("无法定位 sysroot 目录（T0143）")?;
-    let mut compilable_sysroot_paths = Vec::new();
-    crate::sysroot::collect_compilable_sysroot_files(
+    let mut sysroot_paths = Vec::new();
+    crate::sysroot::collect_sysroot_files(
         &sysroot_root,
         session_options.sysroot_overlay(),
-        &mut compilable_sysroot_paths,
+        &mut sysroot_paths,
     )?;
 
-    support_paths.extend(
-        compilable_sysroot_paths
-            .into_iter()
-            .map(|path| (path, true)),
-    );
+    support_paths.extend(sysroot_paths.into_iter().map(|path| (path, true)));
 
     support_paths.sort_by(|(lhs, _), (rhs, _)| lhs.cmp(rhs));
 

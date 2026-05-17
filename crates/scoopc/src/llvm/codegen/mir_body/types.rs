@@ -295,77 +295,159 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         source_types: &TypeStore,
         source_ty: TypeId,
     ) -> Option<TypeId> {
+        let source_kind = source_types.kind(source_ty);
+        if let Some(candidate) = self
+            .types
+            .iter_ids()
+            .find(|&candidate| self.types.kind(candidate) == source_kind)
+        {
+            return Some(candidate);
+        }
+
         let source_display = source_types.display(source_ty).to_string();
+        match source_kind {
+            TypeKind::Ref(RefTypeKind::Nominal(source_nominal)) => self
+                .builtin_nominal_codegen_type_id(source_nominal)
+                .or_else(|| {
+                    self.types.iter_ids().find(|candidate| {
+                        matches!(
+                            self.types.kind(*candidate),
+                            TypeKind::Ref(RefTypeKind::Nominal(candidate_nominal))
+                                if candidate_nominal.fqn == source_nominal.fqn
+                                    && self.nominal_args_equivalent(
+                                        source_types,
+                                        &source_nominal.args,
+                                        &candidate_nominal.args,
+                                    )
+                        )
+                    })
+                })
+                .or_else(|| self.display_compatible_codegen_type_id(source_kind, &source_display)),
+            TypeKind::Value(ValueTypeKind::Nominal(source_nominal)) => self
+                .builtin_nominal_codegen_type_id(source_nominal)
+                .or_else(|| {
+                    self.types.iter_ids().find(|candidate| {
+                        matches!(
+                            self.types.kind(*candidate),
+                            TypeKind::Value(ValueTypeKind::Nominal(candidate_nominal))
+                                if candidate_nominal.fqn == source_nominal.fqn
+                                    && self.nominal_args_equivalent(
+                                        source_types,
+                                        &source_nominal.args,
+                                        &candidate_nominal.args,
+                                    )
+                        )
+                    })
+                })
+                .or_else(|| self.display_compatible_codegen_type_id(source_kind, &source_display)),
+            TypeKind::Value(ValueTypeKind::Tuple(source_elems)) => self
+                .types
+                .iter_ids()
+                .find(|candidate| {
+                    matches!(
+                        self.types.kind(*candidate),
+                        TypeKind::Value(ValueTypeKind::Tuple(candidate_elems))
+                            if self.type_args_equivalent(source_types, source_elems, candidate_elems)
+                    )
+                })
+                .or_else(|| self.display_compatible_codegen_type_id(source_kind, &source_display)),
+            TypeKind::Value(ValueTypeKind::Option(source_inner)) => self
+                .types
+                .iter_ids()
+                .find(|candidate| {
+                    matches!(
+                        self.types.kind(*candidate),
+                        TypeKind::Value(ValueTypeKind::Option(candidate_inner))
+                            if self.type_args_equivalent(
+                                source_types,
+                                std::slice::from_ref(source_inner),
+                                std::slice::from_ref(candidate_inner),
+                            )
+                    )
+                })
+                .or_else(|| self.display_compatible_codegen_type_id(source_kind, &source_display)),
+            _ => self.display_compatible_codegen_type_id(source_kind, &source_display),
+        }
+    }
+
+    fn nominal_args_equivalent(
+        &self,
+        source_types: &TypeStore,
+        source_args: &[TypeId],
+        candidate_args: &[TypeId],
+    ) -> bool {
+        source_args.len() == candidate_args.len()
+            && self.type_args_equivalent(source_types, source_args, candidate_args)
+    }
+
+    fn type_args_equivalent(
+        &self,
+        source_types: &TypeStore,
+        source_args: &[TypeId],
+        candidate_args: &[TypeId],
+    ) -> bool {
+        source_args
+            .iter()
+            .zip(candidate_args.iter())
+            .all(|(source_arg, candidate_arg)| {
+                self.equivalent_codegen_type_id(source_types, *source_arg) == Some(*candidate_arg)
+            })
+    }
+
+    fn display_compatible_codegen_type_id(
+        &self,
+        source_kind: &TypeKind,
+        source_display: &str,
+    ) -> Option<TypeId> {
+        self.types.iter_ids().find(|&candidate| {
+            self.types.display(candidate).to_string() == source_display
+                && type_display_mapping_is_kind_compatible(source_kind, self.types.kind(candidate))
+        })
+    }
+
+    fn builtin_nominal_codegen_type_id(&self, nominal: &NominalType) -> Option<TypeId> {
+        if !nominal.args.is_empty() || nominal.eff.is_some() {
+            return None;
+        }
+        match nominal.fqn.as_str() {
+            "scoop.core.Any" => Some(self.builtins.any),
+            "scoop.core.String" => Some(self.builtins.string),
+            "scoop.core.Unit" => Some(self.builtins.unit),
+            "scoop.core.Nothing" => Some(self.builtins.nothing),
+            "scoop.core.Bool" => Some(self.builtins.bool_),
+            "scoop.core.Char" => Some(self.builtins.char_),
+            "scoop.core.Float64" | "scoop.core.Double" => Some(self.builtins.float64),
+            "scoop.core.Float32" => Some(self.builtins.float32),
+            "scoop.core.Int" | "scoop.unsafe.__AtomicInt" => Some(self.builtins.int),
+            "scoop.core.UInt" | "scoop.core.UIntPtr" | "scoop.unsafe.FunPtr" => {
+                Some(self.builtins.uint)
+            }
+            "scoop.core.Byte" | "scoop.core.UInt8" => {
+                self.find_codegen_value_type(ValueTypeKind::UIntN(8))
+            }
+            "scoop.core.Short" | "scoop.core.Int16" => {
+                self.find_codegen_value_type(ValueTypeKind::IntN(16))
+            }
+            "scoop.core.UShort" | "scoop.core.UInt16" => {
+                self.find_codegen_value_type(ValueTypeKind::UIntN(16))
+            }
+            "scoop.core.Int8" => self.find_codegen_value_type(ValueTypeKind::IntN(8)),
+            "scoop.core.Int32" => self.find_codegen_value_type(ValueTypeKind::IntN(32)),
+            "scoop.core.Int64" | "scoop.core.Long" => {
+                self.find_codegen_value_type(ValueTypeKind::IntN(64))
+            }
+            "scoop.core.UInt32" => self.find_codegen_value_type(ValueTypeKind::UIntN(32)),
+            "scoop.core.UInt64" | "scoop.core.ULong" => {
+                self.find_codegen_value_type(ValueTypeKind::UIntN(64))
+            }
+            _ => None,
+        }
+    }
+
+    fn find_codegen_value_type(&self, needle: ValueTypeKind) -> Option<TypeId> {
         self.types
             .iter_ids()
-            .find(|&candidate| self.types.display(candidate).to_string() == source_display)
-            .or_else(|| {
-                let display_matches = |source_arg: TypeId, candidate_arg: TypeId| {
-                    source_types.display(source_arg).to_string()
-                        == self.types.display(candidate_arg).to_string()
-                };
-                match source_types.kind(source_ty) {
-                    TypeKind::Ref(RefTypeKind::Nominal(source_nominal)) => {
-                        self.types.iter_ids().find(|candidate| {
-                            matches!(
-                                self.types.kind(*candidate),
-                                TypeKind::Ref(RefTypeKind::Nominal(candidate_nominal))
-                                    if candidate_nominal.fqn == source_nominal.fqn
-                                        && candidate_nominal.args.len() == source_nominal.args.len()
-                                        && source_nominal
-                                            .args
-                                            .iter()
-                                            .zip(candidate_nominal.args.iter())
-                                            .all(|(source_arg, candidate_arg)| {
-                                                display_matches(*source_arg, *candidate_arg)
-                                            })
-                            )
-                        })
-                    }
-                    TypeKind::Value(ValueTypeKind::Nominal(source_nominal)) => {
-                        self.types.iter_ids().find(|candidate| {
-                            matches!(
-                                self.types.kind(*candidate),
-                                TypeKind::Value(ValueTypeKind::Nominal(candidate_nominal))
-                                    if candidate_nominal.fqn == source_nominal.fqn
-                                        && candidate_nominal.args.len() == source_nominal.args.len()
-                                        && source_nominal
-                                            .args
-                                            .iter()
-                                            .zip(candidate_nominal.args.iter())
-                                            .all(|(source_arg, candidate_arg)| {
-                                                display_matches(*source_arg, *candidate_arg)
-                                            })
-                            )
-                        })
-                    }
-                    TypeKind::Value(ValueTypeKind::Tuple(source_elems)) => {
-                        self.types.iter_ids().find(|candidate| {
-                            matches!(
-                                self.types.kind(*candidate),
-                                TypeKind::Value(ValueTypeKind::Tuple(candidate_elems))
-                                    if candidate_elems.len() == source_elems.len()
-                                        && source_elems
-                                            .iter()
-                                            .zip(candidate_elems.iter())
-                                            .all(|(source_arg, candidate_arg)| {
-                                                display_matches(*source_arg, *candidate_arg)
-                                            })
-                            )
-                        })
-                    }
-                    TypeKind::Value(ValueTypeKind::Option(source_inner)) => {
-                        self.types.iter_ids().find(|candidate| {
-                            matches!(
-                                self.types.kind(*candidate),
-                                TypeKind::Value(ValueTypeKind::Option(candidate_inner))
-                                    if display_matches(*source_inner, *candidate_inner)
-                            )
-                        })
-                    }
-                    _ => None,
-                }
-            })
+            .find(|id| self.types.kind(*id) == &TypeKind::Value(needle.clone()))
     }
 
     pub(in crate::llvm::codegen) fn runtime_type_descriptor_is_codegen_supported(
@@ -762,4 +844,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
         }
     }
+}
+
+fn type_display_mapping_is_kind_compatible(source: &TypeKind, candidate: &TypeKind) -> bool {
+    matches!(
+        (source, candidate),
+        (TypeKind::Param(_), TypeKind::Param(_))
+            | (TypeKind::Ref(_), TypeKind::Ref(_))
+            | (TypeKind::Value(_), TypeKind::Value(_))
+            | (TypeKind::StarProjection(_), TypeKind::StarProjection(_))
+    )
 }

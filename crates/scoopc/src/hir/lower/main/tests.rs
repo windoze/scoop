@@ -1312,116 +1312,15 @@ fn lower_typed_single_source_file_via_mir_instance_collection(
     sess: &Session,
     source: &SourceFile,
 ) -> LoweredHir {
-    let mut ast = parse_file(source).unwrap();
-    {
-        let sources = [source];
-        let mut files = [&mut ast];
-        crate::comptime::trim_package_level_comptime_ifs_in_compilation_unit(
-            sess.sysroot(),
-            &sources,
-            &mut files,
-        )
-        .unwrap();
-    }
-
-    typecheck::check_file_headers(source, &ast).unwrap();
-    typecheck::check_file_struct_decls(source, &ast).unwrap();
-
-    let index = {
-        let mut unit: Vec<(&SourceFile, &ast::File)> = Vec::new();
-        for file in sess.sysroot().index_files() {
-            unit.push((&file.source, &file.ast));
-        }
-        unit.push((source, &ast));
-        Index::build(&unit).unwrap()
-    };
-    let headers = crate::resolve::check_file_headers(source, &ast, &index).unwrap();
-    crate::resolve::check_file_bodies(source, &mut ast, &index, &headers).unwrap();
-
-    let mut env = typecheck::TypeEnv::from_sysroot(sess.sysroot(), &index).unwrap();
-    env.extend_from_file(source, &ast, &index).unwrap();
-
-    let mut types = TypeStore::new();
-    let builtins = types.intern_builtins();
-
-    typecheck::check_file_annotations(
-        source,
-        &ast,
-        &index,
-        &headers.imports,
-        &env,
-        &mut types,
-        builtins,
-    )
-    .unwrap();
-    typecheck::check_file_properties(source, &ast, &index, &env).unwrap();
-    typecheck::check_file_inheritance(source, &ast, &index).unwrap();
-    typecheck::check_file_interfaces(source, &ast, &index, &env).unwrap();
-    typecheck::check_file_override_effects(
-        source,
-        &ast,
-        &index,
-        &headers.imports,
-        &env,
-        &mut types,
-        builtins,
-    )
-    .unwrap();
-    typecheck::check_file_type_refs(
-        source,
-        &ast,
-        &index,
-        &headers.imports,
-        &env,
-        &mut types,
-        builtins,
-    )
-    .unwrap();
-    typecheck::check_file_where_clauses(
-        source,
-        &ast,
-        &index,
-        &headers.imports,
-        &env,
-        &mut types,
-        builtins,
-    )
-    .unwrap();
-    typecheck::check_file_overload_conflicts(
-        source,
-        &ast,
-        &index,
-        &headers.imports,
-        &env,
-        &mut types,
-        builtins,
-    )
-    .unwrap();
-    typecheck::check_file_exprs(
-        source,
-        &ast,
-        &index,
-        &headers.imports,
-        &env,
-        &mut types,
-        builtins,
-    )
-    .unwrap();
-    typecheck::check_file_type_layouts(&index, &env, &mut types, builtins).unwrap();
-
-    let mut unit: Vec<(&SourceFile, &ast::File)> = Vec::new();
-    for file in sess.sysroot().index_files() {
-        unit.push((&file.source, &file.ast));
-    }
-    unit.push((source, &ast));
-
-    lower_for_compilation_unit_multi_files_via_mir_instance_collection(
-        &index,
-        &unit,
-        &[(source, &ast)],
-        &[],
-        Some(&env),
-        &types,
+    let context =
+        crate::frontend::prepare_virtual_cone_context_with_options(source.clone(), sess.options())
+            .unwrap();
+    let front = crate::frontend::run_project_frontend(sess, context).unwrap();
+    crate::frontend::lower_hir_for_codegen_with_request_root_mode(
+        sess,
+        &front,
+        crate::opt::OptLevel::O0,
+        crate::frontend::MirRequestRootMode::RequestSources,
     )
     .unwrap()
 }

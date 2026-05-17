@@ -139,12 +139,6 @@ pub fn eval_const_bindings_in_compilation_unit<'a>(
         ast: ast::File,
     }
 
-    #[derive(Clone)]
-    struct OwnedPreparedConstEvalFile {
-        source: SourceFile,
-        ast: ast::File,
-    }
-
     let mut prepared_sysroot: Vec<PreparedConstEvalFile<'a>> =
         Vec::with_capacity(sysroot.files.len());
     for f in &sysroot.files {
@@ -154,22 +148,6 @@ pub fn eval_const_bindings_in_compilation_unit<'a>(
         });
     }
 
-    let mut compilable_sysroot_paths = sysroot.compilable_source_paths.clone();
-    compilable_sysroot_paths.sort();
-
-    let mut prepared_compilable_sysroot: Vec<OwnedPreparedConstEvalFile> =
-        Vec::with_capacity(compilable_sysroot_paths.len());
-    for path in compilable_sysroot_paths {
-        if sysroot.files.iter().any(|file| file.path == path) {
-            continue;
-        }
-        let source =
-            SourceFile::load_sysroot(&path).map_err(|err| frontend_message(err.to_string()))?;
-        let ast = crate::parser::parse_file(&source).map_err(frontend_diagnostic)?;
-        let ast = crate::sysroot::signature_only_sysroot_ast(ast);
-        prepared_compilable_sysroot.push(OwnedPreparedConstEvalFile { source, ast });
-    }
-
     let mut prepared: Vec<PreparedConstEvalFile<'a>> = Vec::with_capacity(files.len());
     for (source, file) in files.iter().copied() {
         let ast = file.clone();
@@ -177,14 +155,8 @@ pub fn eval_const_bindings_in_compilation_unit<'a>(
     }
 
     {
-        let mut trim_sources: Vec<&SourceFile> =
-            Vec::with_capacity(prepared_compilable_sysroot.len() + prepared.len());
-        let mut trim_files: Vec<&mut ast::File> =
-            Vec::with_capacity(prepared_compilable_sysroot.len() + prepared.len());
-        for file in &mut prepared_compilable_sysroot {
-            trim_sources.push(&file.source);
-            trim_files.push(&mut file.ast);
-        }
+        let mut trim_sources: Vec<&SourceFile> = Vec::with_capacity(prepared.len());
+        let mut trim_files: Vec<&mut ast::File> = Vec::with_capacity(prepared.len());
         for file in &mut prepared {
             trim_sources.push(file.source);
             trim_files.push(&mut file.ast);
@@ -201,14 +173,10 @@ pub fn eval_const_bindings_in_compilation_unit<'a>(
         )?;
     }
 
-    let mut pairs: Vec<(&SourceFile, &ast::File)> = Vec::with_capacity(
-        prepared_sysroot.len() + prepared_compilable_sysroot.len() + prepared.len(),
-    );
+    let mut pairs: Vec<(&SourceFile, &ast::File)> =
+        Vec::with_capacity(prepared_sysroot.len() + prepared.len());
     for f in &prepared_sysroot {
         pairs.push((f.source, &f.ast));
-    }
-    for f in &prepared_compilable_sysroot {
-        pairs.push((&f.source, &f.ast));
     }
     for f in &prepared {
         pairs.push((f.source, &f.ast));
@@ -217,10 +185,6 @@ pub fn eval_const_bindings_in_compilation_unit<'a>(
     let index = crate::resolve::Index::build(&pairs).map_err(frontend_diagnostic)?;
     let mut env =
         crate::typecheck::TypeEnv::from_sysroot(sysroot, &index).map_err(frontend_diagnostic)?;
-    for f in &prepared_compilable_sysroot {
-        env.extend_from_file(&f.source, &f.ast, &index)
-            .map_err(frontend_diagnostic)?;
-    }
     for f in &prepared {
         env.extend_from_file(f.source, &f.ast, &index)
             .map_err(frontend_diagnostic)?;
@@ -320,9 +284,6 @@ pub fn eval_const_bindings_in_compilation_unit<'a>(
     );
     for f in &prepared_sysroot {
         interp.register_file(f.source, &f.ast);
-    }
-    for f in &prepared_compilable_sysroot {
-        interp.register_file(&f.source, &f.ast);
     }
     for f in &prepared {
         interp.register_file(f.source, &f.ast);
@@ -1062,16 +1023,6 @@ where
 
 fn frontend_boxed_diagnostic(error: Box<dyn miette::Diagnostic + Send + Sync>) -> ConstEvalError {
     ConstEvalError::Frontend(error)
-}
-
-#[derive(Debug, thiserror::Error, miette::Diagnostic)]
-#[error("{message}")]
-struct FrontendMessageDiagnostic {
-    message: String,
-}
-
-fn frontend_message(message: String) -> ConstEvalError {
-    frontend_boxed_diagnostic(Box::new(FrontendMessageDiagnostic { message }))
 }
 
 /// `const fun` 调用与局部求值的解释器状态。

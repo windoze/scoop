@@ -658,7 +658,7 @@
   - 闭合 PLAN §3.1 / §9 / P12：sysroot 物理结构已从扁平 `sysroot/*.scoop` 重组为按 cone FQN 命名的子目录，递归 loader 与支持源收集保持可用。
 - 暂时性 failing fixture：无。中途出现的 5 个 HIR snapshot mismatch 是本任务路径注释更新引起的稳定 span 漂移，已同步 golden 并回归通过。
 
-### P12-T03：取消 `signature_only_sysroot_ast` / `is_compilable_sysroot_file` 整套 AST stripping
+### [DONE] P12-T03：取消 `signature_only_sysroot_ast` / `is_compilable_sysroot_file` 整套 AST stripping
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §9 / P12
@@ -693,6 +693,30 @@
 - 完成条件：
   - sysroot file 与用户 file 在 AST / 编译路径上完全一致。
 - 依赖：P12-T02。
+
+完成记录：
+
+- 改动范围：
+  - `crates/scoopc/src/sysroot/mod.rs` 删除 `signature_only_sysroot_ast`、全部 `strip_*_bodies` helper、`is_compilable_sysroot_file`、`is_always_compilable_sysroot_file`、`has_bodied_intrinsic_nominal_method` 以及旧 `compilable_source_paths` / `compilable_files` 双轨字段。
+  - `Sysroot::load_from_with_overlay` 现在只保存完整 AST 的 sysroot file；`collect_sysroot_files` 取代旧 `collect_compilable_sysroot_files`，并返回 overlay 合并后的全部 `.scoop` 文件。
+  - `crates/scoopc/src/frontend.rs` 默认 support sources 改为加载全部 sysroot files；`crates/scoopc/src/comptime/interpreter.rs` 不再重载或裁剪 signature-only sysroot AST。
+  - fixture runner 与 Rust 测试中旧 `compilable_files` / 手工 sysroot support-source 假设已同步更新。
+  - 修复 P12-T03 暴露出的 codegen 跨 `TypeStore` 显示名映射问题：同名 type parameter 不再抢占 nominal type 映射，标准 scalar nominal FQN（如 `scoop.core.Int`）可映射到 codegen builtin `TypeId`。
+- 核心决策：
+  - 不保留 signature-only AST、compilable/non-compilable 过滤、字段别名或兼容 wrapper；sysroot 文件在 AST 与 support-source 编译路径上与用户文件一致。
+  - `collect_sysroot_files` 对 root 做 canonicalize，保持与 `Sysroot::load_from` 的路径语义一致，避免 overlay / tempdir 路径比较漂移。
+  - via-MIR 单测 helper 改走 production frontend support-source 路径，避免测试继续依赖“sysroot 只建索引、不 typecheck body”的旧模型。
+- 验证结果：
+  - `rg -n "signature_only_sysroot_ast|strip_item_bodies|strip_type_member_bodies|is_compilable_sysroot_file|is_always_compilable_sysroot_file" crates/scoopc/src` 无输出。
+  - `cargo build` 通过且无 warning。
+  - `cargo test -p scoopc sysroot::tests -- --nocapture` 通过：5 tests。
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/inherited_member_call_multi_level_chain_basic.scoop` 通过。
+  - `cargo run -p scoop -- test` 通过：1339/1339 targets，1376 checks。
+  - `cargo test --all --all-targets` 通过：856 tests。
+  - `cargo clippy --all-targets -- -D warnings` 通过。
+- 与 `PLAN.md` 对应闭合：
+  - 闭合 PLAN §9 / P12 中“删除 AST stripping 与 compilable sysroot file filtering”的要求；P12-T04 可在完整 AST / 全 sysroot support-source 前提下统一 body 缺失策略。
+- 暂时性 failing fixture：无。中途全量 fixture 暴露的 `inherited_member_call_multi_level_chain_basic.scoop` 是本任务全 sysroot support-source 路径触发的同名 type parameter / nominal type 映射缺陷，已在本任务内修复并回归通过。
 
 ### P12-T04：body 缺失策略统一——sysroot file 与用户 file 用同一规则
 

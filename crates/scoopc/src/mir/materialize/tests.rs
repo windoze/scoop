@@ -898,14 +898,10 @@ return id<Int>(1)
         "test setup 应故意收集 support source 中的 id<Int> request"
     );
 
-    let mut compilation_unit: Vec<(&SourceFile, &ast::File)> =
-        Vec::with_capacity(sess.sysroot().files.len() + files.len());
-    for file in sess.sysroot().index_files() {
-        compilation_unit.push((&file.source, &file.ast));
-    }
-    for (source, ast) in &files {
-        compilation_unit.push((source, ast));
-    }
+    let compilation_unit = files
+        .iter()
+        .map(|(source, ast)| (source, ast))
+        .collect::<Vec<_>>();
 
     let main_only = crate::mir::materialize_compilation_unit_from_typechecked_inputs(
         &compilation_unit,

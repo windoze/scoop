@@ -2268,10 +2268,6 @@ fn run_typecheck_cone_case(
     // type env：sysroot + 全部 cone 的文件（用于跨 cone TypeRef lowering）。
     let mut env = scoopc::typecheck::TypeEnv::from_sysroot(session.sysroot(), &index)
         .map_err(miette::Report::new)?;
-    for f in &session.sysroot().compilable_files {
-        env.extend_from_file(&f.source, &f.ast, &index)
-            .map_err(miette::Report::new)?;
-    }
     for f in &files {
         env.extend_from_file(&f.source, &f.ast, &index)
             .map_err(miette::Report::new)?;
@@ -2511,10 +2507,6 @@ fn run_typecheck_cone_archive_case(
     // type env：sysroot + consumer files（用于当前 cone 的 TypeRef lowering）。
     let mut env = scoopc::typecheck::TypeEnv::from_sysroot(session.sysroot(), &index)
         .map_err(miette::Report::new)?;
-    for f in &session.sysroot().compilable_files {
-        env.extend_from_file(&f.source, &f.ast, &index)
-            .map_err(miette::Report::new)?;
-    }
     for (source, ast) in sources.iter().zip(asts.iter()) {
         env.extend_from_file(source, ast, &index)
             .map_err(miette::Report::new)?;
