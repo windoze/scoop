@@ -352,7 +352,7 @@ C0-T01 (baseline + prerequisite inventory)
     - `cargo clippy -p scoopc --all-targets -- -D warnings`：通过。
   - 与 `PLAN.md` / `CLOSURE_FIX.md` 对应闭合：闭合 `PLAN.md` §7 C2-T01 的 MIR core model 删除入口，以及 `CLOSURE_FIX.md` 中“删除 CaptureBox 后门”的 MIR core/transport 部分；阶段级计划未变化。
 
-### [TODO] C2-T01B：删除 MIR lowering 中的隐式 CaptureBox 生成与读写
+### [DONE] C2-T01B：删除 MIR lowering 中的隐式 CaptureBox 生成与读写
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §7 C2-T01
@@ -384,9 +384,21 @@ C0-T01 (baseline + prerequisite inventory)
 - 依赖：C2-T01A
 - 完成记录：
   - 改动范围：
+    - 复核 `crates/scoopc/src/mir/lower` 中的 MIR lowering：captured mutable local 已走普通 local allocation / assignment / local ref，closure env contract 已按 `capture.ty` 使用普通 transport，并通过 `ClosureCaptureTransportMetadata.mutable` 保留 mutability metadata。
+    - 复核 closure function lowering：env `TupleGet` 后直接写入普通 local，未重新引入 `boxed_symbols` 或 CaptureBox 路径。
+    - 更新 `crates/scoopc/src/hir/mod.rs` 与 `crates/scoopc/src/hir/lower/mod.rs` 注释，移除旧的 capture box / alias 语义描述，改为 per-call local rebind 语义。
+    - 未修改 `PLAN.md` 或 `CLOSURE_FIX.md`；阶段级计划未变化。
   - 核心决策：
+    - 不引入替代隐式 box、shim 或兼容分支；mutable capture 继续按构造点 snapshot 进入 closure env，closure body 内只获得本次调用 frame 的普通可重绑 local。
+    - `Capture.mutable` 与 `ClosureCaptureTransportMetadata.mutable` 继续保留，作为后续 inner-side per-call local mutability 的输入，而不是共享 mutable state 的实现机制。
+    - C2-T01A 已删除 MIR core model 后暴露的 lowering 代码依赖；本任务以 scoped 审计、注释修正和定向验证收口 MIR lowering 层。
   - 验证结果：
-  - 与 `PLAN.md` / `CLOSURE_FIX.md` 对应闭合：
+    - `cargo build -p scoopc`：通过。
+    - `rg -n 'boxed_symbols|CaptureBoxNew|CaptureBoxGet|CaptureBoxSet|scoop\.__CaptureBox' crates/scoopc/src/mir/lower crates/scoopc/src/hir`：无输出。
+    - `cargo test -p scoopc mir_place_contract_lowers_assignment_places -- --nocapture`：通过，1 个定向测试通过。
+    - `cargo test -p scoopc mir_aggregate_transport_records_composite_contracts -- --nocapture`：通过，1 个定向测试通过。
+    - `cargo clippy -p scoopc --all-targets -- -D warnings`：通过。
+  - 与 `PLAN.md` / `CLOSURE_FIX.md` 对应闭合：闭合 `PLAN.md` §7 C2-T01 的 MIR lowering 删除入口，以及 `CLOSURE_FIX.md` 中删除 CaptureBox 后门、保持 closure env snapshot + per-call local 语义的 MIR lowering 部分；阶段级计划未变化。
 
 ### [TODO] C2-T01C：删除 MIR 分析、dump、materialize、effect facts 中的 CaptureBox arm
 

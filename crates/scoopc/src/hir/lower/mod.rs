@@ -483,8 +483,8 @@ struct HirLowering<'a> {
     symbols: SymbolInterner,
     /// 本文件内的“局部 symbol → 是否可变（var）”信息。
     ///
-    /// 用途：closure capture set 需要知道捕获目标是否为 `var`，以便在后续 MIR lowering（T0714）
-    /// 侧把可变捕获降为 box/alias 语义。
+    /// 用途：closure capture set 需要知道捕获目标是否为 `var`，以便 closure body 从 env load
+    /// 后创建的 per-call local 能按外层 binding mutability 重新绑定。
     local_mutability: HashMap<SymbolId, bool>,
     /// HIR lowering 合成出来、因此没有 typecheck side table 记录的局部声明类型。
     local_decl_tys: HashMap<Span, TypeId>,
