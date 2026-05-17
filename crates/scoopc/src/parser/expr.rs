@@ -2714,7 +2714,16 @@ impl<'a> Parser<'a> {
         if self.peek_symbol(Symbol::RParen) {
             let close = self.bump();
             let mut inner = first;
-            inner.span = Span::new(start, close.span.end);
+            if !matches!(
+                inner.kind,
+                ast::ExprKind::IntLit
+                    | ast::ExprKind::FloatLit
+                    | ast::ExprKind::CharLit
+                    | ast::ExprKind::StringLit
+                    | ast::ExprKind::InterpolatedString { .. }
+            ) {
+                inner.span = Span::new(start, close.span.end);
+            }
             return Ok(Some(inner));
         }
 

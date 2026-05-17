@@ -103,10 +103,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     .map(Some);
             }
         }
-        if matches!(
-            member.name.as_str(),
-            "byteLength" | "getByte" | "unsafeSliceBytes"
-        ) {
+        if matches!(member.name.as_str(), "byteLength" | "getByte") {
             return self
                 .codegen_string_method(span, receiver, &member.name, args)
                 .map(Some);
@@ -1703,10 +1700,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     return self.codegen_float_to_int_value(span, receiver.span, recv);
                 }
             }
-            if matches!(
-                member.name.as_str(),
-                "byteLength" | "getByte" | "unsafeSliceBytes"
-            ) {
+            if matches!(member.name.as_str(), "byteLength" | "getByte") {
                 return self.codegen_string_method(span, receiver, &member.name, args);
             }
             if member.name == "hash" {

@@ -401,6 +401,57 @@ fun main(): Int {
     );
 }
 
+pub(super) fn assert_scalar_to_string_calls_scoop_abi_runtime_directly() {
+    let source = SourceFile::new_virtual(
+        "<mem>/scalar_to_string_direct_runtime.scoop",
+        r#"
+package fixtures.scalar_to_string_direct
+
+import scoop.core.*
+
+fun main() {
+    val intText: String = (42).toString()
+    val boolText: String = true.toString()
+    println(intText)
+    println(boolText)
+}
+"#,
+    );
+
+    let session = Session::new().unwrap();
+    let ir = emit_minimal_main_ir(&session, &source).unwrap();
+
+    let int_to_string_ir =
+        function_ir_matching(&ir, "compiled sysroot Int.toString", |_, function| {
+            stable_id_symbol_mentions_fqn(
+                llvm_function_symbol_name(function),
+                "scoop.core.Int.toString",
+            )
+        });
+    assert!(
+        int_to_string_ir.contains("@scoop_int_to_string(")
+            && !int_to_string_ir.contains("__scoop_runtime_int_to_string_bridge")
+            && !int_to_string_ir.contains("scoopAbiIntToString")
+            && !int_to_string_ir.contains("@scoop_enter_native")
+            && !int_to_string_ir.contains("@scoop_leave_native"),
+        "Int.toString should call the scoop ABI runtime symbol directly without bridge or native boundary:\n{int_to_string_ir}"
+    );
+
+    let bool_to_string_ir =
+        function_ir_matching(&ir, "compiled sysroot Bool.toString", |_, function| {
+            stable_id_symbol_mentions_fqn(
+                llvm_function_symbol_name(function),
+                "scoop.core.Bool.toString",
+            )
+        });
+    assert!(
+        bool_to_string_ir.contains("@scoop_bool_to_string(")
+            && !bool_to_string_ir.contains("@scoop_enter_native")
+            && !bool_to_string_ir.contains("@scoop_leave_native"),
+        "Bool.toString should call the scoop ABI runtime symbol directly without native boundary:\n{bool_to_string_ir}"
+    );
+}
+
 pub(super) fn assert_managed_extern_direct_call_uses_ordinary_managed_contract() {
     let source = SourceFile::new_virtual(
         "<mem>/managed_extern_string_return.scoop",
@@ -1013,6 +1064,11 @@ pub(super) fn abi_baseline_compiled_sysroot_string_helper_stays_in_module() {
 #[test]
 pub(super) fn compiled_sysroot_scalar_string_bridge_helpers_stay_in_module() {
     assert_sysroot_scalar_string_bridge_contract();
+}
+
+#[test]
+pub(super) fn scalar_to_string_calls_scoop_abi_runtime_directly() {
+    assert_scalar_to_string_calls_scoop_abi_runtime_directly();
 }
 
 #[test]

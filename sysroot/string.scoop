@@ -7,10 +7,10 @@ package scoop.core
 
 import scoop.core.*
 
-// `String.concat` still needs the allocation/copy substrate.  Public `String.concat`
-// is ordinary sysroot code; only this audited bridge reaches the runtime symbol.
-@Intrinsic("string_concat_bridge")
-fun __scoop_runtime_string_concat_bridge(a: String, b: String): String
+// `String.concat` still needs the allocation/copy substrate. Public `String.concat`
+// is ordinary sysroot code; only this scoop ABI declaration reaches the runtime symbol.
+@Extern(name = "scoop_string_concat", abi = "scoop")
+fun __scoop_string_concat_runtime(a: String, b: String): String
 
 // --- 内部：migrated public String helper implementations ---
 
@@ -72,7 +72,7 @@ fun __scoop_string_to_int(value: String): Int {
 }
 
 fun __scoop_string_concat(a: String, b: String): String {
-    return __scoop_runtime_string_concat_bridge(a, b)
+    return __scoop_string_concat_runtime(a, b)
 }
 
 fun __scoop_string_hash(value: String): Int {

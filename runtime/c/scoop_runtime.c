@@ -890,8 +890,7 @@ void *scoop_entry_argv_array(int32_t argc, const char **argv) {
 
 // scoop_bool_to_string：将布尔值转换为 "true" 或 "false"。
 //
-// 当前只服务 f-string synthesis 的 bool formatting。public `Bool.toString` 已由
-// `sysroot/core.scoop` 中的 `Bool` body method 纯 Scoop 实现，不再依赖该 symbol。
+// 由 `sysroot/core.scoop` 中的 `Bool.toString` 通过 scoop ABI 调用。
 const ScoopString *scoop_bool_to_string(int64_t value) {
   static const uint8_t TRUE_BYTES[]  = { 't', 'r', 'u', 'e' };
   static const uint8_t FALSE_BYTES[] = { 'f', 'a', 'l', 's', 'e' };

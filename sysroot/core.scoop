@@ -8,6 +8,24 @@ package scoop.core
 
 import scoop.unsafe.*
 
+@Extern(name = "scoop_bool_to_string", abi = "scoop")
+fun __scoop_bool_to_string(value: Bool): String
+
+@Extern(name = "scoop_char_to_string", abi = "scoop")
+fun __scoop_char_to_string(value: Char): String
+
+@Extern(name = "scoop_int_to_string", abi = "scoop")
+fun __scoop_int_to_string(value: Int): String
+
+@Extern(name = "scoop_float32_to_string", abi = "scoop")
+fun __scoop_float32_to_string(value: Float32): String
+
+@Extern(name = "scoop_float64_to_string", abi = "scoop")
+fun __scoop_float64_to_string(value: Float64): String
+
+@Extern(name = "scoop_string_unsafe_slice_bytes", abi = "scoop")
+fun __scoop_string_unsafe_slice_bytes(value: String, byteOffset: Int, byteLength: Int): String
+
 // Root types
 interface Any
 
@@ -46,31 +64,28 @@ interface ToString {
 @Intrinsic
 struct Bool : Hashable, ToString {
     override fun toString(): String {
-        if (this) {
-            return "true"
-        }
-        return "false"
+        return __scoop_bool_to_string(this)
     }
 }
 
 @Intrinsic
 struct Char : Hashable, ToString {
     override fun toString(): String {
-        return scoopAbiCharToString(this)
+        return __scoop_char_to_string(this)
     }
 }
 
 @Intrinsic
 struct Float64 : Hashable, ToString {
     override fun toString(): String {
-        return scoopAbiFloat64ToString(this)
+        return __scoop_float64_to_string(this)
     }
 }
 
 @Intrinsic
 struct Float32 : Hashable, ToString {
     override fun toString(): String {
-        return scoopAbiFloat32ToString(this)
+        return __scoop_float32_to_string(this)
     }
 }
 
@@ -118,6 +133,11 @@ class String : Hashable, ToString {
 
     fun trimIndent(): String {
         return __scoop_string_trim_indent(this)
+    }
+
+    @Unsafe
+    fun unsafeSliceBytes(byteOffset: Int, byteLength: Int): String {
+        return __scoop_string_unsafe_slice_bytes(this, byteOffset, byteLength)
     }
 }
 typealias Double = Float64
@@ -348,12 +368,12 @@ fun <T> println(value: T): Unit where T: ToString
 // I/O（内部 runtime 映射）。
 //
 // 说明：
-// - `__scoop_print_string` / `__scoop_println_string` 是 runtime 映射的内部函数；
+// - `__scoop_print` / `__scoop_println` 是 scoop ABI runtime 映射的内部函数；
 // - 泛型 `print<T>` / `println<T>`（在 sysroot/print.scoop 中定义）调用这些内部函数。
-@Intrinsic
-fun __scoop_print_string(value: String): Unit
-@Intrinsic
-fun __scoop_println_string(value: String): Unit
+@Extern(name = "scoop_print", abi = "scoop")
+fun __scoop_print(value: String): Unit
+@Extern(name = "scoop_println", abi = "scoop")
+fun __scoop_println(value: String): Unit
 
 // GC（测试辅助）。
 //
@@ -366,7 +386,7 @@ fun __scoop_println_string(value: String): Unit
 //   它是显式 opt-in 的可选 stackmap 路径，不属于默认 explicit-root-frame correctness 主线；
 // - 编译器会仅对包含该调用点的函数恢复 statepoint GC strategy，并把它 lowering 成 ordinary
 //   managed runtime 调用，这样调用点本身会重新保留真实 statepoint/stackmap record。
-@Intrinsic
+@Extern(name = "scoop_gc_collect", abi = "scoop")
 fun __scoop_gc_collect(): Unit
 @Intrinsic
 fun __scoop_gc_debug_heap_object_count(): Int
@@ -504,7 +524,7 @@ struct AnnotationArgMeta {
 @Intrinsic
 struct Int : Hashable, ToString {
     override fun toString(): String {
-        return scoopAbiIntToString(this)
+        return __scoop_int_to_string(this)
     }
 }
 struct UInt : Hashable
@@ -639,14 +659,14 @@ enum RuntimeError {
     ContinuationAlreadyResumed,
 }
 
-// Fatal trap intrinsic（T5000e3a）。
+// Fatal trap runtime boundary（T5000e3a）。
 //
 // 说明：
 // - `panic(message)` 用于表达“不应继续执行”的 fatal trap / invariant break；
 // - 它返回 `Nothing`，因此类型检查与控制流分析会把它视为 bottom；
 // - 当前 runtime 仍允许把它实现为 `exit(3)` / 等价立即终止，但该细节必须隐藏在
-//   core intrinsic / runtime 边界后，而不是继续暴露为用户直接调用的 process-style surface。
-@Intrinsic
+//   core / runtime 边界后，而不是继续暴露为用户直接调用的 process-style surface。
+@Extern(name = "scoop_panic", abi = "scoop")
 fun panic(message: String): Nothing
 
 // Built-in effect: Raise

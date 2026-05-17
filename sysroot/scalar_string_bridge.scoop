@@ -1,25 +1,23 @@
 // Scalar String bridge helpers for compiled sysroot code.
 //
 // 说明：
-// - 这些 helper 是 ordinary managed surface，专门给 sysroot bodied helper 使用；
-// - 真正的 runtime 边界仍由 `@Intrinsic("scalar_*_to_string_bridge")` 承接，并在编译器内置表中
-//   记录 runtime symbol、精确签名与 why-runtime 原因；
-// - 它们不是 native `@Extern` allowlist 的放宽，也不是新的用户态 FFI 能力。
+// - 这些 helper 是过渡期 ordinary managed surface；P7-T02 会删除本文件。
+// - runtime 边界现在走 scoop ABI `@Extern`，不再通过 scalar toString intrinsic bridge。
 
 package scoop.core
 
 import scoop.core.*
 
-@Intrinsic("scalar_char_to_string_bridge")
+@Extern(name = "scoop_char_to_string", abi = "scoop")
 fun __scoop_runtime_char_to_string_bridge(value: Char): String
 
-@Intrinsic("scalar_int_to_string_bridge")
+@Extern(name = "scoop_int_to_string", abi = "scoop")
 fun __scoop_runtime_int_to_string_bridge(value: Int): String
 
-@Intrinsic("scalar_float32_to_string_bridge")
+@Extern(name = "scoop_float32_to_string", abi = "scoop")
 fun __scoop_runtime_float32_to_string_bridge(value: Float32): String
 
-@Intrinsic("scalar_float64_to_string_bridge")
+@Extern(name = "scoop_float64_to_string", abi = "scoop")
 fun __scoop_runtime_float64_to_string_bridge(value: Float64): String
 
 fun scoopAbiCharToString(value: Char): String {

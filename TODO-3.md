@@ -121,7 +121,7 @@
 
 ## P7：Intrinsic → scoop ABI 批量转换
 
-### P7-T01：sysroot——`String` body method / 标量 toString / print/println / panic 等转 `@Extern(abi = "scoop")`
+### [DONE] P7-T01：sysroot——`String` body method / 标量 toString / print/println / panic 等转 `@Extern(abi = "scoop")`
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §3.4 / §9 / P7
@@ -215,6 +215,17 @@
   - 所有"包装 runtime symbol"的 `@Intrinsic` 已转为 `@Extern(abi = "scoop")`。
   - sysroot 中只有 §3.3 三类真 intrinsic 还保留 `@Intrinsic` 标记。
 - 依赖：P6-T02。
+
+完成记录（2026-05-17）：
+
+- 改动范围：`sysroot/core.scoop` 新增 scalar `toString` / `String.unsafeSliceBytes` / print / println / panic / GC collect 的 scoop ABI 声明，标量 `toString()` body 改为直接调 `__scoop_*_to_string`，`String.unsafeSliceBytes` 改为 `@Unsafe` body method；`sysroot/string.scoop` 把 concat allocation boundary 改为 `@Extern(name = "scoop_string_concat", abi = "scoop")`；`sysroot/print.scoop` 改调 `__scoop_print` / `__scoop_println`；`sysroot/scalar_string_bridge.scoop` 的过渡 wrapper 改为 scoop ABI extern backing，等待 P7-T02 删除整文件；同步更新 build fixture sysroot overlays。
+- 编译器改动：`String.unsafeSliceBytes` 从 synthetic byte-level intrinsic path 移出，resolver / typecheck / HIR lowering / LLVM direct lowering 仅保留 `byteLength` 与 `getByte` 的 compiler-owned 路径；删除 effect-lowered `scoop.core.unsafeSliceBytes` runtime-call lowering 与对应 runtime ABI helper；新增 `scalar_to_string_calls_scoop_abi_runtime_directly` IR 回归，验证 `(42).toString()` 直接调用 `scoop_int_to_string`，且无 scalar bridge / native enter-leave；同步 failure-policy audit 计数。
+- 核心决策：`String.byteLength` / `String.getByte` 继续作为真实 intrinsic；`String.unsafeSliceBytes` 因为 runtime allocation/copy 改为普通 unsafe body + scoop ABI extern；`__scoop_gc_collect` 的 sysroot surface 已声明为 scoop ABI，但现有 codegen 的 `scoop_gc_collect_safepoint` statepoint lowering 暂不删除，符号最终对齐仍按 P7-T03 处理；P7-T02 继续负责删除 `scalar_string_bridge.scoop` 与 compiler audited scalar bridge entries。
+- 相关 blocker 修复：任务指定的 `(42).toString()` owner-test 形状暴露 parser 旧问题，grouped literal 的 AST span 会包含括号并导致 integer literal parsing panic；本任务修复为 literal grouping 保留 literal token span，非 literal grouping 保持历史 outer span，避免改动既有 parse/MIR snapshots。
+- 验证结果：`cargo test -p scoopc scalar_to_string_calls_scoop_abi_runtime_directly -- --nocapture` 通过；`cargo test -p scoopc builtin_string_intrinsic_member_calls_lower_to_direct_calls -- --nocapture` 通过；`cargo test -p scoopc lowered_call_results_keep_concrete_types_for_local_bindings -- --nocapture` 通过；`cargo test -p scoopc compiled_sysroot_scalar_string_bridge_helpers_stay_in_module -- --nocapture` 通过；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/sysroot_scalar_string_bridge_basic.scoop` 通过；`cargo run -p scoop -- test --fixtures tests/fixtures/unsafe_nogc/string_unsafe_slice_bytes_requires_unsafe_is_error.scoop` 通过；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/string_unsafe_slice_bytes.scoop` 通过；4 个受影响 sysroot overlay build fixture 均通过；`cargo test --all --all-targets` 通过；`cargo clippy --all-targets -- -D warnings` 通过。
+- 全量 fixture：`cargo run -p scoop -- test` 完整执行，结果为 7 个失败、1335 个通过、1372 checks 通过。失败项与 P6-T02 记录的既有 baseline 一致，不由 P7-T01 owner path 引入：`tests/fixtures/run-pass/mutable_array_ops_basic.scoop`、`tests/fixtures/runtime_gc/extern_enter_native_gc_arg_spill_reload.scoop`、`tests/fixtures/runtime_gc/extern_enter_native_roots_gc.scoop`、`tests/fixtures/runtime_gc/funptr_enter_native_roots_gc.scoop`、`tests/fixtures/runtime_gc/gc_handle_roundtrip.scoop`、`tests/fixtures/runtime_gc/gc_move_stackmap_heap_fixup.scoop`、`tests/fixtures/run_pass_cone/cross_file_ctor_named_default_basic`。
+- 与 `PLAN.md` 闭合：完成 §3.4 / §9 / P7 的 sysroot scoop ABI helper 转换主线，runtime-symbol wrappers 不再以 sysroot `@Intrinsic` 承载；阶段级计划未变化，未修改 `PLAN.md`。
+- 暂时性 failing fixture：本任务未新增必须由 P7-T01 处理的 failing fixture；上述 7 个 baseline 失败继续按 P13-T04 最终 fixture 收尾处理。
 
 ### P7-T02：删除 `sysroot/scalar_string_bridge.scoop` + 编译器对应 audited bridge dispatch
 

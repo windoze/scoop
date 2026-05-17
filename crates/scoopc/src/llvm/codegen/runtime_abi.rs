@@ -205,18 +205,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     // `const ScoopString* scoop_string_substring(const ScoopString* s, int64_t start, int64_t end)`
     // T0122/T0143: declare_runtime_string_substring 已移除（迁移到 sysroot/string.scoop）
 
-    /// `const ScoopString* scoop_string_unsafe_slice_bytes(const ScoopString* source, int64_t offset, int64_t len)`
-    pub(super) fn declare_runtime_string_unsafe_slice_bytes(&self) -> FunctionValue<'ctx> {
-        const NAME: &str = runtime_symbols::SCOOP_STRING_UNSAFE_SLICE_BYTES;
-        if let Some(existing) = self.module.get_function(NAME) {
-            return existing;
-        }
-        let i64_ty = self.context.i64_type();
-        let str_ptr_ty = self.llvm_scoop_string_ptr_type();
-        let fn_ty = str_ptr_ty.fn_type(&[str_ptr_ty.into(), i64_ty.into(), i64_ty.into()], false);
-        self.declare_runtime_or_native_import_function(NAME, fn_ty)
-    }
-
     // T0122: starts_with/ends_with/index_of/contains/split/trim/trim_start/trim_end
     // 已移除（迁移到 sysroot/string.scoop）
 

@@ -215,10 +215,7 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
                 }
                 if let mir::Rvalue::MemberAccess { member, .. } = rvalue
                     && member.resolved.is_none()
-                    && matches!(
-                        member.name.as_str(),
-                        "byteLength" | "getByte" | "unsafeSliceBytes"
-                    )
+                    && matches!(member.name.as_str(), "byteLength" | "getByte")
                 {
                     return Ok(());
                 }
@@ -1595,9 +1592,6 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
         }
         if callee_fqn == "scoop.core.getByte" {
             return self.lower_core_string_get_byte_call(span, args, target_cg);
-        }
-        if callee_fqn == "scoop.core.unsafeSliceBytes" {
-            return self.lower_core_string_unsafe_slice_bytes_call(span, args, target_cg);
         }
         if matches!(
             callee_fqn.as_str(),
@@ -3718,73 +3712,6 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
         self.codegen.coerce_value(span, value, target_cg)
     }
 
-    fn lower_core_string_unsafe_slice_bytes_call(
-        &mut self,
-        span: Span,
-        args: &[mir::CallArg],
-        target_cg: CgTy,
-    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        if args.len() != 3 || args.iter().any(|arg| arg.name.is_some()) {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "core unsafeSliceBytes arg contract",
-                at: span.into(),
-            });
-        }
-
-        let receiver = self.codegen.codegen_mir_operand_expected(
-            args[0].span,
-            &args[0].value,
-            self.slots,
-            Some(CgTy::String),
-        )?;
-        let receiver_ptr = self.string_like_pointer(
-            args[0].span,
-            receiver,
-            "core unsafeSliceBytes receiver value",
-        )?;
-        let offset = self.codegen.codegen_mir_operand_expected(
-            args[1].span,
-            &args[1].value,
-            self.slots,
-            Some(CgTy::Int(IntTy {
-                bits: 64,
-                signed: true,
-            })),
-        )?;
-        let Some(offset_val) = offset.value else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "core unsafeSliceBytes offset value",
-                at: args[1].span.into(),
-            });
-        };
-        let len = self.codegen.codegen_mir_operand_expected(
-            args[2].span,
-            &args[2].value,
-            self.slots,
-            Some(CgTy::Int(IntTy {
-                bits: 64,
-                signed: true,
-            })),
-        )?;
-        let Some(len_val) = len.value else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "core unsafeSliceBytes len value",
-                at: args[2].span.into(),
-            });
-        };
-
-        let runtime = self.codegen.declare_runtime_string_unsafe_slice_bytes();
-        let call = self.codegen.build_call_preserving_gc_local_roots(
-            span,
-            runtime,
-            &[receiver_ptr.into(), offset_val.into(), len_val.into()],
-            "core_string_unsafe_slice_bytes",
-        )?;
-        let string =
-            self.string_result_from_runtime_call(span, call, "scoop.core.unsafeSliceBytes")?;
-        self.codegen.coerce_value(span, string, target_cg)
-    }
-
     fn maybe_lower_float_ext_call(
         &mut self,
         span: Span,
@@ -3832,30 +3759,6 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
         self.codegen
             .coerce_value(span, lowered, target_cg)
             .map(Some)
-    }
-
-    fn string_result_from_runtime_call(
-        &self,
-        span: Span,
-        call: CallSiteValue<'ctx>,
-        label: &'static str,
-    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        let ret = call
-            .try_as_basic_value()
-            .basic()
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "core print ToString runtime ret",
-                at: span.into(),
-            })?;
-        let BasicValueEnum::PointerValue(str_ptr) = ret else {
-            return Err(frontend_error(format!(
-                "core print {label} ToString runtime ret type mismatch"
-            )));
-        };
-        Ok(CgValue {
-            ty: CgTy::String,
-            value: Some(str_ptr.into()),
-        })
     }
 
     fn lower_internal_print_string(

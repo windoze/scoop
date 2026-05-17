@@ -994,8 +994,8 @@ fun main() {
         "Unannotated local Float call results should keep Float64 through sysroot toString lowering"
     );
     assert!(
-        ir.contains("scoop_core_Bool_toString") && !ir.contains("@scoop_bool_to_string("),
-        "Unannotated local Bool call results should use the pure sysroot Bool.toString body"
+        ir.contains("@scoop_bool_to_string("),
+        "Unannotated local Bool call results should use the scoop ABI Bool.toString runtime helper"
     );
 }
 

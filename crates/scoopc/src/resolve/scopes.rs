@@ -1800,13 +1800,11 @@ impl<'a> BlockScopeChecker<'a> {
         // String byte-level substrate.
         //
         // 说明：
-        // - `length/toInt/concat/hash/isEmpty/replace/charAt/repeat/compareTo/trimIndent`
+        // - `length/toInt/concat/hash/isEmpty/replace/charAt/repeat/compareTo/trimIndent/unsafeSliceBytes`
         //   已迁入 `String` body / sysroot helper 主线；
         // - 这里只保留访问 `ScoopString` 物理表示所需的 byte-level substrate。
         if receiver_ty_fqn == "scoop.core.String" {
-            let is_known_string_method = member_name == "byteLength"
-                || member_name == "getByte"
-                || member_name == "unsafeSliceBytes";
+            let is_known_string_method = member_name == "byteLength" || member_name == "getByte";
             if is_known_string_method {
                 return Ok(());
             }

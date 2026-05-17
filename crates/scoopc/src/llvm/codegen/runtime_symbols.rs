@@ -26,7 +26,6 @@ pub(super) const SCOOP_FLOAT64_TO_INT: &str = "scoop_float64_to_int";
 pub(super) const SCOOP_TEST_STACKMAP_STATEPOINT_SMOKE: &str =
     "scoop_test_stackmap_statepoint_smoke";
 pub(super) const SCOOP_STRING_EQUALS: &str = "scoop_string_equals";
-pub(super) const SCOOP_STRING_UNSAFE_SLICE_BYTES: &str = "scoop_string_unsafe_slice_bytes";
 pub(super) const SCOOP_SYNC_CONDVAR_CREATE: &str = "scoop_sync_condvar_create";
 pub(super) const SCOOP_SYNC_CONDVAR_DESTROY: &str = "scoop_sync_condvar_destroy";
 pub(super) const SCOOP_SYNC_CONDVAR_NOTIFY_ALL: &str = "scoop_sync_condvar_notify_all";

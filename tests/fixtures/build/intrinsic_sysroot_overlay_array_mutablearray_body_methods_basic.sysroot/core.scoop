@@ -1,5 +1,11 @@
 package scoop.core
 
+@Extern(name = "scoop_int_to_string", abi = "scoop")
+fun __scoop_int_to_string(value: Int): String
+
+@Extern(name = "scoop_string_unsafe_slice_bytes", abi = "scoop")
+fun __scoop_string_unsafe_slice_bytes(value: String, byteOffset: Int, byteLength: Int): String
+
 interface Any
 
 interface Hashable {
@@ -33,6 +39,11 @@ class String : Hashable, ToString {
     fun repeat(n: Int): String { return __scoop_string_repeat(this, n) }
     fun compareTo(other: String): Int { return __scoop_string_compare_to(this, other) }
     fun trimIndent(): String { return __scoop_string_trim_indent(this) }
+
+    @Unsafe
+    fun unsafeSliceBytes(byteOffset: Int, byteLength: Int): String {
+        return __scoop_string_unsafe_slice_bytes(this, byteOffset, byteLength)
+    }
 }
 typealias Double = Float64
 
@@ -138,12 +149,12 @@ fun Float32.isInfinite(): Bool
 @Intrinsic
 fun Char.hash(): Int
 
-@Intrinsic
-fun __scoop_print_string(value: String): Unit
-@Intrinsic
-fun __scoop_println_string(value: String): Unit
+@Extern(name = "scoop_print", abi = "scoop")
+fun __scoop_print(value: String): Unit
+@Extern(name = "scoop_println", abi = "scoop")
+fun __scoop_println(value: String): Unit
 
-@Intrinsic
+@Extern(name = "scoop_gc_collect", abi = "scoop")
 fun __scoop_gc_collect(): Unit
 @Intrinsic
 fun __scoop_gc_debug_heap_object_count(): Int
@@ -233,7 +244,7 @@ struct AnnotationArgMeta {
 @Intrinsic
 struct Int : Hashable, ToString {
     override fun toString(): String {
-        return scoopAbiIntToString(this)
+        return __scoop_int_to_string(this)
     }
 }
 struct UInt : Hashable

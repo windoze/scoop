@@ -84,37 +84,18 @@ pub(super) fn infer_member_call_expr_type(
 
     // String byte-level substrate.
     //
-    // Public helpers such as `length/toInt/concat/hash/isEmpty/replace/charAt/repeat/compareTo/trimIndent`
+    // Public helpers such as `length/toInt/concat/hash/isEmpty/replace/charAt/repeat/compareTo/trimIndent/unsafeSliceBytes`
     // are ordinary `String` body methods now.  Only byte-level physical-layout access remains synthetic.
     let member_name = source.slice(member.span);
-    if actual_receiver_ty == builtins.string
-        && matches!(member_name, "byteLength" | "getByte" | "unsafeSliceBytes")
-    {
+    if actual_receiver_ty == builtins.string && matches!(member_name, "byteLength" | "getByte") {
         let callee_fqn = format!("scoop.core.{member_name}");
         let call_args = collect_call_arg_infos(inputs, args, lower)?;
         check_call_arg_named_rules(&callee_fqn, &call_args)?;
-        let (param_names, param_tys, return_ty, requires_unsafe) = match member_name {
-            "byteLength" => (Vec::new(), Vec::new(), builtins.int, false),
-            "getByte" => (
-                vec!["index".to_string()],
-                vec![builtins.int],
-                builtins.int,
-                false,
-            ),
-            "unsafeSliceBytes" => (
-                vec!["byteOffset".to_string(), "byteLength".to_string()],
-                vec![builtins.int, builtins.int],
-                builtins.string,
-                true,
-            ),
+        let (param_names, param_tys, return_ty) = match member_name {
+            "byteLength" => (Vec::new(), Vec::new(), builtins.int),
+            "getByte" => (vec!["index".to_string()], vec![builtins.int], builtins.int),
             _ => unreachable!("filtered by matches!"),
         };
-        if requires_unsafe && !lower.in_unsafe_context() {
-            return Err(ExprTypeError::UnsafeCallRequiresUnsafeContext {
-                callee: format!("String.{member_name}"),
-                span: call_expr.span.into(),
-            });
-        }
         check_call_named_args_exist_in_any_candidate(
             &callee_fqn,
             &call_args,

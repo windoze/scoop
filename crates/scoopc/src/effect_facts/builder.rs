@@ -2818,7 +2818,6 @@ fn is_plain_compiler_intrinsic(callable_fqn: &str) -> bool {
             | "scoop.core.MutableArray.set"
             | "scoop.core.byteLength"
             | "scoop.core.getByte"
-            | "scoop.core.unsafeSliceBytes"
             | "scoop.core.toInt"
             | "scoop.core.panic"
             | "scoop.sync.mutexCreate"

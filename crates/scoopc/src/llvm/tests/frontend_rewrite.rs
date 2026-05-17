@@ -193,8 +193,8 @@ fun main(): Int {
         "materialized MIR should contain a direct call to scoop.core.getByte"
     );
     assert!(
-        mir_fun_contains_direct_call(inspect_mir, "scoop.core.unsafeSliceBytes"),
-        "materialized MIR should contain a direct call to scoop.core.unsafeSliceBytes"
+        mir_fun_contains_direct_call(inspect_mir, "scoop.core.String.unsafeSliceBytes"),
+        "materialized MIR should contain a direct call to the String.unsafeSliceBytes body"
     );
 }
 

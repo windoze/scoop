@@ -8,9 +8,9 @@ import scoop.core.*
 // 让 monomorphization 为每个具体 `T: ToString` 生成实例。
 
 fun <T> print(value: T): Unit where T: ToString {
-    __scoop_print_string(value.toString())
+    __scoop_print(value.toString())
 }
 
 fun <T> println(value: T): Unit where T: ToString {
-    __scoop_println_string(value.toString())
+    __scoop_println(value.toString())
 }
