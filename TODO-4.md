@@ -133,7 +133,7 @@
 - 与 `PLAN.md` 闭合：完成 P8 T8-2 的 method-level scalar intrinsic 表与 IR-direct lowering，为 P8-T03 sysroot method 声明和 P8-T04 operator 改写提供 entry surface；阶段级计划、依赖与完成标准未变化，未修改 `PLAN.md`。
 - 暂时性 failing fixture：无；本任务不启用新的 sysroot caller 或 operator 改写路径，未新增 failing fixture。
 
-### P8-T03：sysroot 标量 type body 内补 `@Intrinsic("...")` method 声明
+### [DONE] P8-T03：sysroot 标量 type body 内补 `@Intrinsic("...")` method 声明
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §9 / P8 任务 T8-3 + Kotlin 命名约定
@@ -284,6 +284,15 @@
 - 完成条件：
   - 用户可以写 `a.plus(b)` 等 method 形式并通过 method intrinsic 直接 lowering 到对应 LLVM 指令。
 - 依赖：P8-T02。
+
+完成记录（2026-05-17）：
+
+- 改动范围：在 `sysroot/core.scoop` 的 Bool/Char/Float32/Float64/Int/UInt/Int8/16/32/64/UInt8/16/32/64 type body 中补充标量 method-level intrinsic 声明；删除已迁移的 Char/Float 顶层 numeric scalar extension intrinsic 声明；同步补齐 build fixture 的 sysroot overlay 中 `Int.hash` 声明；新增 `tests/fixtures/run-pass/scalar_method_intrinsic_basic.scoop`；同步更新 `TODO.md` 索引与本条任务标题。
+- 核心决策：补齐 P8-T03 直接需要但 P8-T02 未注册的 `int_unary_plus` / `float_unary_plus`，并把既有 `Int.hash` 收口为 `int_hash` named IR intrinsic，避免 `Int.hash()` 继续走 retained member-call 后门；Char/Float/Int 的已迁移 helper 不再在 typecheck/HIR 保留旧特殊路径，统一走普通 member direct call + named intrinsic fallback；`Float*.toInt()` 暂保留 legacy method intrinsic lowering，因为 P8-T02 未定义 `float_to_int` named entry。
+- 验证结果：`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/scalar_method_intrinsic_basic.scoop` 通过；`cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/literal_direct_call_float_only_is_error.scoop` 通过；`cargo test -p scoopc named_intrinsic -- --nocapture` 通过；`cargo clippy --all-targets -- -D warnings` 通过。
+- 全量 baseline：`cargo run -p scoop -- test` 未完全通过，结果为 1335/1342 targets passed、1372 checks passed、7 targets failed。失败项均不在本任务新增的 scalar method fixture 内，已记录到本完成记录并由后续 `P13-T04` 最终 fixture 收尾兜底处理：`run-pass/mutable_array_ops_basic.scoop`、`runtime_gc/extern_enter_native_gc_arg_spill_reload.scoop`、`runtime_gc/extern_enter_native_roots_gc.scoop`、`runtime_gc/funptr_enter_native_roots_gc.scoop`、`runtime_gc/gc_handle_roundtrip.scoop`、`runtime_gc/gc_move_stackmap_heap_fixup.scoop`、`run_pass_cone/cross_file_ctor_named_default_basic`。
+- 与 `PLAN.md` 闭合：完成 P8 T8-3 的 sysroot scalar method surface，为 P8-T04 operator desugar 提供可解析/可 lowering 的 method declarations；阶段级计划和依赖未变化，未修改 `PLAN.md`。
+- 暂时性 failing fixture：见“全量 baseline”条目；本任务新增 fixture 已通过。
 
 ### P8-T04：HIR / typecheck——binary / unary operator 改写为 method call
 

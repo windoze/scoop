@@ -1,0 +1,82 @@
+// EXPECT: pass
+// P8-T03: scalar method-level intrinsics are callable directly from user code.
+
+import scoop.core.*
+
+fun main(): Int {
+    val a: Int = 5
+    val b: Int = 3
+    if (a.plus(b) != 8) { return 1 }
+    if (a.minus(b) != 2) { return 2 }
+    if (a.times(b) != 15) { return 3 }
+    if (a.div(b) != 1) { return 4 }
+    if (a.rem(b) != 2) { return 5 }
+    if (a.unaryMinus() != -5) { return 6 }
+    if (a.unaryPlus() != 5) { return 7 }
+    if (a.inc() != 6) { return 8 }
+    if (a.dec() != 4) { return 9 }
+    if (a.and(b) != 1) { return 10 }
+    if (a.or(b) != 7) { return 11 }
+    if (a.xor(b) != 6) { return 12 }
+    if (0.inv() != -1) { return 13 }
+    if (a.shl(1) != 10) { return 14 }
+    if (a.shr(1) != 2) { return 15 }
+    if (a.ushr(1) != 2) { return 16 }
+    if (a.lt(b) != false) { return 17 }
+    if (a.le(5) != true) { return 18 }
+    if (a.gt(b) != true) { return 19 }
+    if (a.ge(5) != true) { return 20 }
+    if (a.equals(5) != true) { return 21 }
+    if (a.notEquals(b) != true) { return 22 }
+    if (a.compareTo(b) != 1) { return 23 }
+
+    val ua: UInt = 6
+    val ub: UInt = 2
+    if (ua.div(ub).equals(3).not()) { return 24 }
+    if (ua.shr(1).equals(3).not()) { return 25 }
+    if (ua.ushr(1).equals(3).not()) { return 26 }
+
+    val i8: Int8 = 7
+    if (i8.plus(1).compareTo(8) != 0) { return 27 }
+    val u8: UInt8 = 3
+    if (u8.shl(1).compareTo(6) != 0) { return 28 }
+
+    val f: Float64 = 5.5
+    if (f.plus(2.0).equals(7.5).not()) { return 29 }
+    if (f.minus(2.0).equals(3.5).not()) { return 30 }
+    if (f.times(2.0).equals(11.0).not()) { return 31 }
+    if (f.div(2.0).equals(2.75).not()) { return 32 }
+    if (f.rem(2.0).equals(1.5).not()) { return 33 }
+    if (f.unaryMinus().equals(0.0.minus(5.5)).not()) { return 34 }
+    if (f.unaryPlus().equals(5.5).not()) { return 35 }
+    if (f.lt(6.0).not()) { return 36 }
+    if (f.le(5.5).not()) { return 37 }
+    if (f.gt(4.0).not()) { return 38 }
+    if (f.ge(5.5).not()) { return 39 }
+    if (f.notEquals(4.0).not()) { return 40 }
+    if (f.compareTo(4.0) != 1) { return 41 }
+    if (0.0.minus(2.5).abs().equals(2.5).not()) { return 42 }
+    if (0.0.div(0.0).isNaN().not()) { return 43 }
+    if (1.0.div(0.0).isInfinite().not()) { return 44 }
+
+    val f32: Float32 = 1.5
+    if (f32.plus(2.0).toInt() != 3) { return 45 }
+
+    val truth: Bool = true
+    val lie: Bool = false
+    if (truth.and(lie) != false) { return 46 }
+    if (truth.or(lie) != true) { return 47 }
+    if (truth.xor(lie) != true) { return 48 }
+    if (truth.not() != false) { return 49 }
+
+    val c: Char = 'C'
+    if (c.toInt() != 67) { return 50 }
+    if (c.hash() != c.toInt().hash()) { return 51 }
+    if (c.compareTo('A') != 1) { return 52 }
+    if (c.equals('C').not()) { return 53 }
+    if (c.plus(1).toInt() != 68) { return 54 }
+    if (c.minus(1).toInt() != 66) { return 55 }
+    if (c.minus('A') != 2) { return 56 }
+
+    return 0
+}

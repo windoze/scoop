@@ -18,6 +18,7 @@ use miette::Diagnostic;
 use thiserror::Error;
 
 use crate::ast;
+use crate::intrinsics::{NamedIntrinsicLoweringMode, named_intrinsic_audit_entry};
 use crate::resolve::{FunOverload, Index};
 use crate::source::SourceFile;
 
@@ -461,7 +462,11 @@ fn check_intrinsic_type_interface_impl_shape(
         };
 
         let flags = BuiltinAnnotationFlags::from_annotations(source, &fun.annotations);
-        if !flags.is_intrinsic && !flags.is_extern && !matches!(fun.body, ast::FunBody::Missing) {
+        if named_ir_intrinsic_override_is_allowed(&flags)
+            || (!flags.is_intrinsic
+                && !flags.is_extern
+                && !matches!(fun.body, ast::FunBody::Missing))
+        {
             continue;
         }
 
@@ -477,6 +482,14 @@ fn check_intrinsic_type_interface_impl_shape(
     }
 
     Ok(())
+}
+
+fn named_ir_intrinsic_override_is_allowed(flags: &BuiltinAnnotationFlags) -> bool {
+    let Some(entry_name) = flags.intrinsic_entry_name.as_deref() else {
+        return false;
+    };
+    named_intrinsic_audit_entry(entry_name)
+        .is_some_and(|entry| entry.lowering_mode == NamedIntrinsicLoweringMode::IrEmission)
 }
 
 fn direct_interface_fun_targets<'a>(

@@ -265,6 +265,9 @@ struct Int : Hashable, ToString {
     override fun toString(): String {
         return "int"
     }
+
+    @Intrinsic("int_hash")
+    fun hash(): Int
 }
 
 struct UInt : Hashable

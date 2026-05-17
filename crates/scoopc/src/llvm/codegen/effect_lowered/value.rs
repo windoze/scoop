@@ -2669,7 +2669,10 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
         callee_fqn: &str,
         args: &[mir::CallArg],
     ) -> Result<Option<CgValue<'ctx>>, LlvmEmitError> {
-        if intrinsic_base_fqn(callee_fqn) != "scoop.core.toInt" {
+        if !matches!(
+            intrinsic_base_fqn(callee_fqn),
+            "scoop.core.toInt" | "scoop.core.Float64.toInt" | "scoop.core.Float32.toInt"
+        ) {
             return Ok(None);
         }
         if args.len() != 1 || args[0].name.is_some() {

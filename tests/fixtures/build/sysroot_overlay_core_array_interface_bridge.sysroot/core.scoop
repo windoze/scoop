@@ -426,6 +426,9 @@ struct Int : Hashable, ToString {
     override fun toString(): String {
         return __scoop_int_to_string(this)
     }
+
+    @Intrinsic("int_hash")
+    fun hash(): Int
 }
 struct UInt : Hashable
 

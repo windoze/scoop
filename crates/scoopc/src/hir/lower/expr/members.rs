@@ -286,21 +286,6 @@ impl<'a> HirLowering<'a> {
             return matches!(member_name, "byteLength" | "getByte");
         }
 
-        if receiver_ty == self.builtins.int {
-            return member_name == "hash";
-        }
-
-        if receiver_ty == self.builtins.char_ {
-            return matches!(member_name, "toInt" | "hash");
-        }
-
-        if receiver_ty == self.builtins.float64 || receiver_ty == self.builtins.float32 {
-            return matches!(
-                member_name,
-                "toInt" | "hash" | "abs" | "isNaN" | "isInfinite"
-            );
-        }
-
         false
     }
 

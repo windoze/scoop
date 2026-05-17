@@ -60,12 +60,24 @@ interface ToString {
 //
 // 说明：
 // - 这些类型的布局/语义由编译器与运行时固定；
-// - `toString` 走普通 method body，使调用路径不再依赖 compiler 按名字拦截。
+// - `toString` 走普通 method body；operator/helper surface 走 method-level intrinsic 声明。
 @Intrinsic
 struct Bool : Hashable, ToString {
     override fun toString(): String {
         return __scoop_bool_to_string(this)
     }
+
+    @Intrinsic("bool_and")
+    fun and(other: Bool): Bool
+
+    @Intrinsic("bool_or")
+    fun or(other: Bool): Bool
+
+    @Intrinsic("bool_xor")
+    fun xor(other: Bool): Bool
+
+    @Intrinsic("bool_not")
+    fun not(): Bool
 }
 
 @Intrinsic
@@ -73,6 +85,27 @@ struct Char : Hashable, ToString {
     override fun toString(): String {
         return __scoop_char_to_string(this)
     }
+
+    @Intrinsic("char_to_int")
+    fun toInt(): Int
+
+    @Intrinsic("char_hash")
+    fun hash(): Int
+
+    @Intrinsic("char_compare_to")
+    fun compareTo(other: Char): Int
+
+    @Intrinsic("char_equals")
+    fun equals(other: Char): Bool
+
+    @Intrinsic("char_plus_int")
+    fun plus(offset: Int): Char
+
+    @Intrinsic("char_minus_int")
+    fun minus(offset: Int): Char
+
+    @Intrinsic("char_minus_char")
+    fun minus(other: Char): Int
 }
 
 @Intrinsic
@@ -80,6 +113,63 @@ struct Float64 : Hashable, ToString {
     override fun toString(): String {
         return __scoop_float64_to_string(this)
     }
+
+    @Intrinsic
+    fun toInt(): Int
+
+    @Intrinsic("float_plus")
+    fun plus(other: Float64): Float64
+
+    @Intrinsic("float_minus")
+    fun minus(other: Float64): Float64
+
+    @Intrinsic("float_times")
+    fun times(other: Float64): Float64
+
+    @Intrinsic("float_div")
+    fun div(other: Float64): Float64
+
+    @Intrinsic("float_rem")
+    fun rem(other: Float64): Float64
+
+    @Intrinsic("float_unary_minus")
+    fun unaryMinus(): Float64
+
+    @Intrinsic("float_unary_plus")
+    fun unaryPlus(): Float64
+
+    @Intrinsic("float_lt")
+    fun lt(other: Float64): Bool
+
+    @Intrinsic("float_le")
+    fun le(other: Float64): Bool
+
+    @Intrinsic("float_gt")
+    fun gt(other: Float64): Bool
+
+    @Intrinsic("float_ge")
+    fun ge(other: Float64): Bool
+
+    @Intrinsic("float_eq")
+    fun equals(other: Float64): Bool
+
+    @Intrinsic("float_ne")
+    fun notEquals(other: Float64): Bool
+
+    @Intrinsic("float_compare_to")
+    fun compareTo(other: Float64): Int
+
+    @Intrinsic("float_abs")
+    fun abs(): Float64
+
+    @Intrinsic("float_is_nan")
+    fun isNaN(): Bool
+
+    @Intrinsic("float_is_infinite")
+    fun isInfinite(): Bool
+
+    @Intrinsic("float_hash")
+    fun hash(): Int
 }
 
 @Intrinsic
@@ -87,6 +177,63 @@ struct Float32 : Hashable, ToString {
     override fun toString(): String {
         return __scoop_float32_to_string(this)
     }
+
+    @Intrinsic
+    fun toInt(): Int
+
+    @Intrinsic("float_plus")
+    fun plus(other: Float32): Float32
+
+    @Intrinsic("float_minus")
+    fun minus(other: Float32): Float32
+
+    @Intrinsic("float_times")
+    fun times(other: Float32): Float32
+
+    @Intrinsic("float_div")
+    fun div(other: Float32): Float32
+
+    @Intrinsic("float_rem")
+    fun rem(other: Float32): Float32
+
+    @Intrinsic("float_unary_minus")
+    fun unaryMinus(): Float32
+
+    @Intrinsic("float_unary_plus")
+    fun unaryPlus(): Float32
+
+    @Intrinsic("float_lt")
+    fun lt(other: Float32): Bool
+
+    @Intrinsic("float_le")
+    fun le(other: Float32): Bool
+
+    @Intrinsic("float_gt")
+    fun gt(other: Float32): Bool
+
+    @Intrinsic("float_ge")
+    fun ge(other: Float32): Bool
+
+    @Intrinsic("float_eq")
+    fun equals(other: Float32): Bool
+
+    @Intrinsic("float_ne")
+    fun notEquals(other: Float32): Bool
+
+    @Intrinsic("float_compare_to")
+    fun compareTo(other: Float32): Int
+
+    @Intrinsic("float_abs")
+    fun abs(): Float32
+
+    @Intrinsic("float_is_nan")
+    fun isNaN(): Bool
+
+    @Intrinsic("float_is_infinite")
+    fun isInfinite(): Bool
+
+    @Intrinsic("float_hash")
+    fun hash(): Int
 }
 
 @Intrinsic
@@ -321,39 +468,6 @@ annotation class Retention(val policy: String)
 annotation class ThreadLocal
 annotation class Global
 
-// Built-in numeric scalar extension functions that still belong to compiler/runtime substrate.
-//
-// 说明：
-// - 这些声明让 resolver/typecheck 能以正常的 extension function 路径解析
-//   `Char.toInt()` / `Float64/Float32.toInt()/hash()/abs()/isNaN()/isInfinite()` /
-//   `Char.hash()`；
-// - public `String.*` helper 与 scalar `toString` 已迁到 intrinsic type body / sysroot helper；
-// - `Char.hash()` 走与 `Int.hash()` 相同的内建 mixing 逻辑，保证 Char/Int 哈希语义一致。
-@Intrinsic
-fun Char.toInt(): Int
-@Intrinsic
-fun Float64.toInt(): Int
-@Intrinsic
-fun Float64.hash(): Int
-@Intrinsic
-fun Float64.abs(): Float64
-@Intrinsic
-fun Float64.isNaN(): Bool
-@Intrinsic
-fun Float64.isInfinite(): Bool
-@Intrinsic
-fun Float32.toInt(): Int
-@Intrinsic
-fun Float32.hash(): Int
-@Intrinsic
-fun Float32.abs(): Float32
-@Intrinsic
-fun Float32.isNaN(): Bool
-@Intrinsic
-fun Float32.isInfinite(): Bool
-@Intrinsic
-fun Char.hash(): Int
-
 fun abs(x: Int): Int {
     if (x < 0) {
         return -x
@@ -526,18 +640,543 @@ struct Int : Hashable, ToString {
     override fun toString(): String {
         return __scoop_int_to_string(this)
     }
+
+    @Intrinsic("int_plus")
+    fun plus(other: Int): Int
+
+    @Intrinsic("int_minus")
+    fun minus(other: Int): Int
+
+    @Intrinsic("int_times")
+    fun times(other: Int): Int
+
+    @Intrinsic("int_div")
+    fun div(other: Int): Int
+
+    @Intrinsic("int_rem")
+    fun rem(other: Int): Int
+
+    @Intrinsic("int_unary_minus")
+    fun unaryMinus(): Int
+
+    @Intrinsic("int_unary_plus")
+    fun unaryPlus(): Int
+
+    @Intrinsic("int_inc")
+    fun inc(): Int
+
+    @Intrinsic("int_dec")
+    fun dec(): Int
+
+    @Intrinsic("int_and")
+    fun and(other: Int): Int
+
+    @Intrinsic("int_or")
+    fun or(other: Int): Int
+
+    @Intrinsic("int_xor")
+    fun xor(other: Int): Int
+
+    @Intrinsic("int_inv")
+    fun inv(): Int
+
+    @Intrinsic("int_shl")
+    fun shl(amount: Int): Int
+
+    @Intrinsic("int_shr")
+    fun shr(amount: Int): Int
+
+    @Intrinsic("int_ushr")
+    fun ushr(amount: Int): Int
+
+    @Intrinsic("int_lt")
+    fun lt(other: Int): Bool
+
+    @Intrinsic("int_le")
+    fun le(other: Int): Bool
+
+    @Intrinsic("int_gt")
+    fun gt(other: Int): Bool
+
+    @Intrinsic("int_ge")
+    fun ge(other: Int): Bool
+
+    @Intrinsic("int_eq")
+    fun equals(other: Int): Bool
+
+    @Intrinsic("int_ne")
+    fun notEquals(other: Int): Bool
+
+    @Intrinsic("int_compare_to")
+    fun compareTo(other: Int): Int
+
+    @Intrinsic("int_hash")
+    fun hash(): Int
 }
-struct UInt : Hashable
+
+struct UInt : Hashable {
+    @Intrinsic("int_plus")
+    fun plus(other: UInt): UInt
+
+    @Intrinsic("int_minus")
+    fun minus(other: UInt): UInt
+
+    @Intrinsic("int_times")
+    fun times(other: UInt): UInt
+
+    @Intrinsic("int_div")
+    fun div(other: UInt): UInt
+
+    @Intrinsic("int_rem")
+    fun rem(other: UInt): UInt
+
+    @Intrinsic("int_unary_minus")
+    fun unaryMinus(): UInt
+
+    @Intrinsic("int_unary_plus")
+    fun unaryPlus(): UInt
+
+    @Intrinsic("int_inc")
+    fun inc(): UInt
+
+    @Intrinsic("int_dec")
+    fun dec(): UInt
+
+    @Intrinsic("int_and")
+    fun and(other: UInt): UInt
+
+    @Intrinsic("int_or")
+    fun or(other: UInt): UInt
+
+    @Intrinsic("int_xor")
+    fun xor(other: UInt): UInt
+
+    @Intrinsic("int_inv")
+    fun inv(): UInt
+
+    @Intrinsic("int_shl")
+    fun shl(amount: Int): UInt
+
+    @Intrinsic("int_shr")
+    fun shr(amount: Int): UInt
+
+    @Intrinsic("int_ushr")
+    fun ushr(amount: Int): UInt
+
+    @Intrinsic("int_lt")
+    fun lt(other: UInt): Bool
+
+    @Intrinsic("int_le")
+    fun le(other: UInt): Bool
+
+    @Intrinsic("int_gt")
+    fun gt(other: UInt): Bool
+
+    @Intrinsic("int_ge")
+    fun ge(other: UInt): Bool
+
+    @Intrinsic("int_eq")
+    fun equals(other: UInt): Bool
+
+    @Intrinsic("int_ne")
+    fun notEquals(other: UInt): Bool
+
+    @Intrinsic("int_compare_to")
+    fun compareTo(other: UInt): Int
+}
 
 // fixed-width：用于 FFI/序列化等稳定布局场景。
-struct Int8 : Hashable
-struct Int16 : Hashable
-struct Int32 : Hashable
-struct Int64 : Hashable
-struct UInt8 : Hashable
-struct UInt16 : Hashable
-struct UInt32 : Hashable
-struct UInt64 : Hashable
+struct Int8 : Hashable {
+    @Intrinsic("int_plus")
+    fun plus(other: Int8): Int8
+    @Intrinsic("int_minus")
+    fun minus(other: Int8): Int8
+    @Intrinsic("int_times")
+    fun times(other: Int8): Int8
+    @Intrinsic("int_div")
+    fun div(other: Int8): Int8
+    @Intrinsic("int_rem")
+    fun rem(other: Int8): Int8
+    @Intrinsic("int_unary_minus")
+    fun unaryMinus(): Int8
+    @Intrinsic("int_unary_plus")
+    fun unaryPlus(): Int8
+    @Intrinsic("int_inc")
+    fun inc(): Int8
+    @Intrinsic("int_dec")
+    fun dec(): Int8
+    @Intrinsic("int_and")
+    fun and(other: Int8): Int8
+    @Intrinsic("int_or")
+    fun or(other: Int8): Int8
+    @Intrinsic("int_xor")
+    fun xor(other: Int8): Int8
+    @Intrinsic("int_inv")
+    fun inv(): Int8
+    @Intrinsic("int_shl")
+    fun shl(amount: Int): Int8
+    @Intrinsic("int_shr")
+    fun shr(amount: Int): Int8
+    @Intrinsic("int_ushr")
+    fun ushr(amount: Int): Int8
+    @Intrinsic("int_lt")
+    fun lt(other: Int8): Bool
+    @Intrinsic("int_le")
+    fun le(other: Int8): Bool
+    @Intrinsic("int_gt")
+    fun gt(other: Int8): Bool
+    @Intrinsic("int_ge")
+    fun ge(other: Int8): Bool
+    @Intrinsic("int_eq")
+    fun equals(other: Int8): Bool
+    @Intrinsic("int_ne")
+    fun notEquals(other: Int8): Bool
+    @Intrinsic("int_compare_to")
+    fun compareTo(other: Int8): Int
+}
+
+struct Int16 : Hashable {
+    @Intrinsic("int_plus")
+    fun plus(other: Int16): Int16
+    @Intrinsic("int_minus")
+    fun minus(other: Int16): Int16
+    @Intrinsic("int_times")
+    fun times(other: Int16): Int16
+    @Intrinsic("int_div")
+    fun div(other: Int16): Int16
+    @Intrinsic("int_rem")
+    fun rem(other: Int16): Int16
+    @Intrinsic("int_unary_minus")
+    fun unaryMinus(): Int16
+    @Intrinsic("int_unary_plus")
+    fun unaryPlus(): Int16
+    @Intrinsic("int_inc")
+    fun inc(): Int16
+    @Intrinsic("int_dec")
+    fun dec(): Int16
+    @Intrinsic("int_and")
+    fun and(other: Int16): Int16
+    @Intrinsic("int_or")
+    fun or(other: Int16): Int16
+    @Intrinsic("int_xor")
+    fun xor(other: Int16): Int16
+    @Intrinsic("int_inv")
+    fun inv(): Int16
+    @Intrinsic("int_shl")
+    fun shl(amount: Int): Int16
+    @Intrinsic("int_shr")
+    fun shr(amount: Int): Int16
+    @Intrinsic("int_ushr")
+    fun ushr(amount: Int): Int16
+    @Intrinsic("int_lt")
+    fun lt(other: Int16): Bool
+    @Intrinsic("int_le")
+    fun le(other: Int16): Bool
+    @Intrinsic("int_gt")
+    fun gt(other: Int16): Bool
+    @Intrinsic("int_ge")
+    fun ge(other: Int16): Bool
+    @Intrinsic("int_eq")
+    fun equals(other: Int16): Bool
+    @Intrinsic("int_ne")
+    fun notEquals(other: Int16): Bool
+    @Intrinsic("int_compare_to")
+    fun compareTo(other: Int16): Int
+}
+
+struct Int32 : Hashable {
+    @Intrinsic("int_plus")
+    fun plus(other: Int32): Int32
+    @Intrinsic("int_minus")
+    fun minus(other: Int32): Int32
+    @Intrinsic("int_times")
+    fun times(other: Int32): Int32
+    @Intrinsic("int_div")
+    fun div(other: Int32): Int32
+    @Intrinsic("int_rem")
+    fun rem(other: Int32): Int32
+    @Intrinsic("int_unary_minus")
+    fun unaryMinus(): Int32
+    @Intrinsic("int_unary_plus")
+    fun unaryPlus(): Int32
+    @Intrinsic("int_inc")
+    fun inc(): Int32
+    @Intrinsic("int_dec")
+    fun dec(): Int32
+    @Intrinsic("int_and")
+    fun and(other: Int32): Int32
+    @Intrinsic("int_or")
+    fun or(other: Int32): Int32
+    @Intrinsic("int_xor")
+    fun xor(other: Int32): Int32
+    @Intrinsic("int_inv")
+    fun inv(): Int32
+    @Intrinsic("int_shl")
+    fun shl(amount: Int): Int32
+    @Intrinsic("int_shr")
+    fun shr(amount: Int): Int32
+    @Intrinsic("int_ushr")
+    fun ushr(amount: Int): Int32
+    @Intrinsic("int_lt")
+    fun lt(other: Int32): Bool
+    @Intrinsic("int_le")
+    fun le(other: Int32): Bool
+    @Intrinsic("int_gt")
+    fun gt(other: Int32): Bool
+    @Intrinsic("int_ge")
+    fun ge(other: Int32): Bool
+    @Intrinsic("int_eq")
+    fun equals(other: Int32): Bool
+    @Intrinsic("int_ne")
+    fun notEquals(other: Int32): Bool
+    @Intrinsic("int_compare_to")
+    fun compareTo(other: Int32): Int
+}
+
+struct Int64 : Hashable {
+    @Intrinsic("int_plus")
+    fun plus(other: Int64): Int64
+    @Intrinsic("int_minus")
+    fun minus(other: Int64): Int64
+    @Intrinsic("int_times")
+    fun times(other: Int64): Int64
+    @Intrinsic("int_div")
+    fun div(other: Int64): Int64
+    @Intrinsic("int_rem")
+    fun rem(other: Int64): Int64
+    @Intrinsic("int_unary_minus")
+    fun unaryMinus(): Int64
+    @Intrinsic("int_unary_plus")
+    fun unaryPlus(): Int64
+    @Intrinsic("int_inc")
+    fun inc(): Int64
+    @Intrinsic("int_dec")
+    fun dec(): Int64
+    @Intrinsic("int_and")
+    fun and(other: Int64): Int64
+    @Intrinsic("int_or")
+    fun or(other: Int64): Int64
+    @Intrinsic("int_xor")
+    fun xor(other: Int64): Int64
+    @Intrinsic("int_inv")
+    fun inv(): Int64
+    @Intrinsic("int_shl")
+    fun shl(amount: Int): Int64
+    @Intrinsic("int_shr")
+    fun shr(amount: Int): Int64
+    @Intrinsic("int_ushr")
+    fun ushr(amount: Int): Int64
+    @Intrinsic("int_lt")
+    fun lt(other: Int64): Bool
+    @Intrinsic("int_le")
+    fun le(other: Int64): Bool
+    @Intrinsic("int_gt")
+    fun gt(other: Int64): Bool
+    @Intrinsic("int_ge")
+    fun ge(other: Int64): Bool
+    @Intrinsic("int_eq")
+    fun equals(other: Int64): Bool
+    @Intrinsic("int_ne")
+    fun notEquals(other: Int64): Bool
+    @Intrinsic("int_compare_to")
+    fun compareTo(other: Int64): Int
+}
+
+struct UInt8 : Hashable {
+    @Intrinsic("int_plus")
+    fun plus(other: UInt8): UInt8
+    @Intrinsic("int_minus")
+    fun minus(other: UInt8): UInt8
+    @Intrinsic("int_times")
+    fun times(other: UInt8): UInt8
+    @Intrinsic("int_div")
+    fun div(other: UInt8): UInt8
+    @Intrinsic("int_rem")
+    fun rem(other: UInt8): UInt8
+    @Intrinsic("int_unary_minus")
+    fun unaryMinus(): UInt8
+    @Intrinsic("int_unary_plus")
+    fun unaryPlus(): UInt8
+    @Intrinsic("int_inc")
+    fun inc(): UInt8
+    @Intrinsic("int_dec")
+    fun dec(): UInt8
+    @Intrinsic("int_and")
+    fun and(other: UInt8): UInt8
+    @Intrinsic("int_or")
+    fun or(other: UInt8): UInt8
+    @Intrinsic("int_xor")
+    fun xor(other: UInt8): UInt8
+    @Intrinsic("int_inv")
+    fun inv(): UInt8
+    @Intrinsic("int_shl")
+    fun shl(amount: Int): UInt8
+    @Intrinsic("int_shr")
+    fun shr(amount: Int): UInt8
+    @Intrinsic("int_ushr")
+    fun ushr(amount: Int): UInt8
+    @Intrinsic("int_lt")
+    fun lt(other: UInt8): Bool
+    @Intrinsic("int_le")
+    fun le(other: UInt8): Bool
+    @Intrinsic("int_gt")
+    fun gt(other: UInt8): Bool
+    @Intrinsic("int_ge")
+    fun ge(other: UInt8): Bool
+    @Intrinsic("int_eq")
+    fun equals(other: UInt8): Bool
+    @Intrinsic("int_ne")
+    fun notEquals(other: UInt8): Bool
+    @Intrinsic("int_compare_to")
+    fun compareTo(other: UInt8): Int
+}
+
+struct UInt16 : Hashable {
+    @Intrinsic("int_plus")
+    fun plus(other: UInt16): UInt16
+    @Intrinsic("int_minus")
+    fun minus(other: UInt16): UInt16
+    @Intrinsic("int_times")
+    fun times(other: UInt16): UInt16
+    @Intrinsic("int_div")
+    fun div(other: UInt16): UInt16
+    @Intrinsic("int_rem")
+    fun rem(other: UInt16): UInt16
+    @Intrinsic("int_unary_minus")
+    fun unaryMinus(): UInt16
+    @Intrinsic("int_unary_plus")
+    fun unaryPlus(): UInt16
+    @Intrinsic("int_inc")
+    fun inc(): UInt16
+    @Intrinsic("int_dec")
+    fun dec(): UInt16
+    @Intrinsic("int_and")
+    fun and(other: UInt16): UInt16
+    @Intrinsic("int_or")
+    fun or(other: UInt16): UInt16
+    @Intrinsic("int_xor")
+    fun xor(other: UInt16): UInt16
+    @Intrinsic("int_inv")
+    fun inv(): UInt16
+    @Intrinsic("int_shl")
+    fun shl(amount: Int): UInt16
+    @Intrinsic("int_shr")
+    fun shr(amount: Int): UInt16
+    @Intrinsic("int_ushr")
+    fun ushr(amount: Int): UInt16
+    @Intrinsic("int_lt")
+    fun lt(other: UInt16): Bool
+    @Intrinsic("int_le")
+    fun le(other: UInt16): Bool
+    @Intrinsic("int_gt")
+    fun gt(other: UInt16): Bool
+    @Intrinsic("int_ge")
+    fun ge(other: UInt16): Bool
+    @Intrinsic("int_eq")
+    fun equals(other: UInt16): Bool
+    @Intrinsic("int_ne")
+    fun notEquals(other: UInt16): Bool
+    @Intrinsic("int_compare_to")
+    fun compareTo(other: UInt16): Int
+}
+
+struct UInt32 : Hashable {
+    @Intrinsic("int_plus")
+    fun plus(other: UInt32): UInt32
+    @Intrinsic("int_minus")
+    fun minus(other: UInt32): UInt32
+    @Intrinsic("int_times")
+    fun times(other: UInt32): UInt32
+    @Intrinsic("int_div")
+    fun div(other: UInt32): UInt32
+    @Intrinsic("int_rem")
+    fun rem(other: UInt32): UInt32
+    @Intrinsic("int_unary_minus")
+    fun unaryMinus(): UInt32
+    @Intrinsic("int_unary_plus")
+    fun unaryPlus(): UInt32
+    @Intrinsic("int_inc")
+    fun inc(): UInt32
+    @Intrinsic("int_dec")
+    fun dec(): UInt32
+    @Intrinsic("int_and")
+    fun and(other: UInt32): UInt32
+    @Intrinsic("int_or")
+    fun or(other: UInt32): UInt32
+    @Intrinsic("int_xor")
+    fun xor(other: UInt32): UInt32
+    @Intrinsic("int_inv")
+    fun inv(): UInt32
+    @Intrinsic("int_shl")
+    fun shl(amount: Int): UInt32
+    @Intrinsic("int_shr")
+    fun shr(amount: Int): UInt32
+    @Intrinsic("int_ushr")
+    fun ushr(amount: Int): UInt32
+    @Intrinsic("int_lt")
+    fun lt(other: UInt32): Bool
+    @Intrinsic("int_le")
+    fun le(other: UInt32): Bool
+    @Intrinsic("int_gt")
+    fun gt(other: UInt32): Bool
+    @Intrinsic("int_ge")
+    fun ge(other: UInt32): Bool
+    @Intrinsic("int_eq")
+    fun equals(other: UInt32): Bool
+    @Intrinsic("int_ne")
+    fun notEquals(other: UInt32): Bool
+    @Intrinsic("int_compare_to")
+    fun compareTo(other: UInt32): Int
+}
+
+struct UInt64 : Hashable {
+    @Intrinsic("int_plus")
+    fun plus(other: UInt64): UInt64
+    @Intrinsic("int_minus")
+    fun minus(other: UInt64): UInt64
+    @Intrinsic("int_times")
+    fun times(other: UInt64): UInt64
+    @Intrinsic("int_div")
+    fun div(other: UInt64): UInt64
+    @Intrinsic("int_rem")
+    fun rem(other: UInt64): UInt64
+    @Intrinsic("int_unary_minus")
+    fun unaryMinus(): UInt64
+    @Intrinsic("int_unary_plus")
+    fun unaryPlus(): UInt64
+    @Intrinsic("int_inc")
+    fun inc(): UInt64
+    @Intrinsic("int_dec")
+    fun dec(): UInt64
+    @Intrinsic("int_and")
+    fun and(other: UInt64): UInt64
+    @Intrinsic("int_or")
+    fun or(other: UInt64): UInt64
+    @Intrinsic("int_xor")
+    fun xor(other: UInt64): UInt64
+    @Intrinsic("int_inv")
+    fun inv(): UInt64
+    @Intrinsic("int_shl")
+    fun shl(amount: Int): UInt64
+    @Intrinsic("int_shr")
+    fun shr(amount: Int): UInt64
+    @Intrinsic("int_ushr")
+    fun ushr(amount: Int): UInt64
+    @Intrinsic("int_lt")
+    fun lt(other: UInt64): Bool
+    @Intrinsic("int_le")
+    fun le(other: UInt64): Bool
+    @Intrinsic("int_gt")
+    fun gt(other: UInt64): Bool
+    @Intrinsic("int_ge")
+    fun ge(other: UInt64): Bool
+    @Intrinsic("int_eq")
+    fun equals(other: UInt64): Bool
+    @Intrinsic("int_ne")
+    fun notEquals(other: UInt64): Bool
+    @Intrinsic("int_compare_to")
+    fun compareTo(other: UInt64): Int
+}
 
 // Kotlin-like ranges/progressions（Appendix B.12）所需的最小表面。
 //

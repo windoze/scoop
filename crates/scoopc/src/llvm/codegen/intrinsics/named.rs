@@ -66,6 +66,7 @@ enum NamedIntrinsicIntBinaryOp {
 #[derive(Clone, Copy)]
 enum NamedIntrinsicIntUnaryOp {
     Neg,
+    Pos,
     Inc,
     Dec,
     Inv,
@@ -200,6 +201,10 @@ const NAMED_INTRINSIC_IR_RULES: &[NamedIntrinsicIrRuleEntry] = &[
         lower: lower_int_unary_minus,
     },
     NamedIntrinsicIrRuleEntry {
+        name: "int_unary_plus",
+        lower: lower_int_unary_plus,
+    },
+    NamedIntrinsicIrRuleEntry {
         name: "int_inc",
         lower: lower_int_inc,
     },
@@ -264,6 +269,10 @@ const NAMED_INTRINSIC_IR_RULES: &[NamedIntrinsicIrRuleEntry] = &[
         lower: lower_int_compare_to,
     },
     NamedIntrinsicIrRuleEntry {
+        name: "int_hash",
+        lower: lower_int_hash,
+    },
+    NamedIntrinsicIrRuleEntry {
         name: "float_plus",
         lower: lower_float_plus,
     },
@@ -286,6 +295,10 @@ const NAMED_INTRINSIC_IR_RULES: &[NamedIntrinsicIrRuleEntry] = &[
     NamedIntrinsicIrRuleEntry {
         name: "float_unary_minus",
         lower: lower_float_unary_minus,
+    },
+    NamedIntrinsicIrRuleEntry {
+        name: "float_unary_plus",
+        lower: lower_float_unary_plus,
     },
     NamedIntrinsicIrRuleEntry {
         name: "float_lt",
@@ -531,6 +544,13 @@ fn lower_int_unary_minus<'a, 'ctx>(
     cg.codegen_named_intrinsic_int_unary(call, NamedIntrinsicIntUnaryOp::Neg)
 }
 
+fn lower_int_unary_plus<'a, 'ctx>(
+    cg: &mut MainCodegen<'a, 'ctx>,
+    call: LoweredNamedIntrinsicCall<'ctx>,
+) -> Result<CgValue<'ctx>, LlvmEmitError> {
+    cg.codegen_named_intrinsic_int_unary(call, NamedIntrinsicIntUnaryOp::Pos)
+}
+
 fn lower_int_inc<'a, 'ctx>(
     cg: &mut MainCodegen<'a, 'ctx>,
     call: LoweredNamedIntrinsicCall<'ctx>,
@@ -643,6 +663,13 @@ fn lower_int_compare_to<'a, 'ctx>(
     cg.codegen_named_intrinsic_int_compare_to(call)
 }
 
+fn lower_int_hash<'a, 'ctx>(
+    cg: &mut MainCodegen<'a, 'ctx>,
+    call: LoweredNamedIntrinsicCall<'ctx>,
+) -> Result<CgValue<'ctx>, LlvmEmitError> {
+    cg.codegen_named_intrinsic_int_hash(call)
+}
+
 fn lower_float_plus<'a, 'ctx>(
     cg: &mut MainCodegen<'a, 'ctx>,
     call: LoweredNamedIntrinsicCall<'ctx>,
@@ -683,6 +710,13 @@ fn lower_float_unary_minus<'a, 'ctx>(
     call: LoweredNamedIntrinsicCall<'ctx>,
 ) -> Result<CgValue<'ctx>, LlvmEmitError> {
     cg.codegen_named_intrinsic_float_unary_minus(call)
+}
+
+fn lower_float_unary_plus<'a, 'ctx>(
+    cg: &mut MainCodegen<'a, 'ctx>,
+    call: LoweredNamedIntrinsicCall<'ctx>,
+) -> Result<CgValue<'ctx>, LlvmEmitError> {
+    cg.codegen_named_intrinsic_float_unary_plus(call)
 }
 
 fn lower_float_lt<'a, 'ctx>(
@@ -1646,6 +1680,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let one = self.int_type(ty).const_int(1, false);
         let value = match op {
             NamedIntrinsicIntUnaryOp::Neg => self.builder.build_int_neg(value, "intrinsic_ineg")?,
+            NamedIntrinsicIntUnaryOp::Pos => value,
             NamedIntrinsicIntUnaryOp::Inc => {
                 self.builder.build_int_add(value, one, "intrinsic_iinc")?
             }
@@ -1739,6 +1774,24 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.named_intrinsic_three_way_result(is_lt, is_eq)
     }
 
+    fn codegen_named_intrinsic_int_hash(
+        &mut self,
+        call: LoweredNamedIntrinsicCall<'ctx>,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        self.named_intrinsic_require_arity(&call, 1, "named intrinsic int hash operand arity")?;
+        let (value, ty) = self
+            .named_intrinsic_int_operand(&call.operands[0], "named intrinsic int hash operand")?;
+        let widened = self.cast_int(
+            value,
+            ty,
+            IntTy {
+                bits: 64,
+                signed: ty.signed,
+            },
+        )?;
+        self.codegen_i64_hash_value(widened)
+    }
+
     fn codegen_named_intrinsic_float_binary(
         &mut self,
         call: LoweredNamedIntrinsicCall<'ctx>,
@@ -1785,6 +1838,18 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             self.builder.build_float_neg(value, "intrinsic_fneg")?,
             ty,
         ))
+    }
+
+    fn codegen_named_intrinsic_float_unary_plus(
+        &mut self,
+        call: LoweredNamedIntrinsicCall<'ctx>,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        self.named_intrinsic_require_arity(&call, 1, "named intrinsic float unary operand arity")?;
+        let (value, ty) = self.named_intrinsic_float_operand(
+            &call.operands[0],
+            "named intrinsic float unary operand",
+        )?;
+        Ok(CgValue::float(value, ty))
     }
 
     fn codegen_named_intrinsic_float_compare(
