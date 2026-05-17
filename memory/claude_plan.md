@@ -54,4 +54,6 @@
 - `cargo run -p scoop -- test` passed with `fixtures: ok (1405)`.
 - `TODO.md` updated: `C4-T01D` is marked `[DONE]` with completion record.
 - `cargo clippy --all-targets -- -D warnings` passed.
-- Next step: inspect git diff/status, then commit task changes.
+- Task changes were committed as `71fd8228` (`[C4-T01D] Add shared-state primitive fixtures`).
+- Working tree was clean after the task commit.
+- Stop after this task; do not start `C4-T02` in this invocation.
