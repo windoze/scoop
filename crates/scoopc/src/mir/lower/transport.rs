@@ -382,8 +382,6 @@ pub(in crate::mir::lower) struct FnLowering<'a> {
     /// 当前阶段主要为 call / member / unresolved callee / pattern canonicalization 保留最小来源信息；
     /// 一旦出现多路径/多来源冲突，就保守退化为 `UnknownCallable`。
     pub(in crate::mir::lower) value_origins: HashMap<LocalId, ValueOrigin>,
-    /// 当前函数内哪些 `SymbolId` 以 box 形式存储（用于 `var` 被 closure 捕获时的别名语义，T0714）。
-    pub(in crate::mir::lower) boxed_symbols: HashSet<hir::SymbolId>,
     pub(in crate::mir::lower) cleanup_scopes: Vec<CleanupScope>,
     pub(in crate::mir::lower) loop_stack: Vec<LoopContext>,
     pub(in crate::mir::lower) nested_funs: Vec<FunDecl>,

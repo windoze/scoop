@@ -431,10 +431,6 @@ fn observe_rvalue(
         Rvalue::TypeCheck { value: operand, .. }
         | Rvalue::Cast { value: operand, .. }
         | Rvalue::TupleGet { tuple: operand, .. }
-        | Rvalue::CaptureBoxGet {
-            box_operand: operand,
-            ..
-        }
         | Rvalue::PatternMatch {
             subject: operand, ..
         }
@@ -526,16 +522,6 @@ fn observe_rvalue(
                     observe_operand(value, OperandUsage::Value, state, param_use_summaries);
                 }
             }
-        }
-        Rvalue::CaptureBoxNew { value, .. } => {
-            *may_allocate_closure = true;
-            observe_operand(value, OperandUsage::Escape, state, param_use_summaries);
-        }
-        Rvalue::CaptureBoxSet {
-            box_operand, value, ..
-        } => {
-            observe_operand(box_operand, OperandUsage::Value, state, param_use_summaries);
-            observe_operand(value, OperandUsage::Escape, state, param_use_summaries);
         }
         Rvalue::MakeClosure { env, .. } => {
             *may_allocate_closure = true;
@@ -677,9 +663,6 @@ fn rvalue_provenance(
         | Rvalue::StructLit { .. }
         | Rvalue::InterpolatedString { .. }
         | Rvalue::TupleGet { .. }
-        | Rvalue::CaptureBoxNew { .. }
-        | Rvalue::CaptureBoxGet { .. }
-        | Rvalue::CaptureBoxSet { .. }
         | Rvalue::PatternMatch { .. }
         | Rvalue::PatternExtract { .. } => {
             let _ = (target_ty, types);
@@ -834,7 +817,6 @@ fn rvalue_cost(value: &Rvalue) -> u32 {
         Rvalue::TypeCheck { .. }
         | Rvalue::Cast { .. }
         | Rvalue::TupleGet { .. }
-        | Rvalue::CaptureBoxGet { .. }
         | Rvalue::PatternMatch { .. }
         | Rvalue::PatternExtract { .. } => 2,
         Rvalue::MemberAccess { .. } => 3,
@@ -844,7 +826,6 @@ fn rvalue_cost(value: &Rvalue) -> u32 {
         Rvalue::MakeTuple { elements, .. } => 2 + elements.len() as u32,
         Rvalue::StructLit { fields, .. } => 2 + fields.len() as u32,
         Rvalue::InterpolatedString { parts, .. } => 3 + parts.len() as u32,
-        Rvalue::CaptureBoxNew { .. } | Rvalue::CaptureBoxSet { .. } => 4,
         Rvalue::MakeClosure { .. } => 5,
         Rvalue::Todo(_) => 3,
     }

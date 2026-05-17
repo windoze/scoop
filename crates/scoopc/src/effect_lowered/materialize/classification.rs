@@ -350,9 +350,6 @@ pub(crate) fn classify_effect_neutral_rvalue(
         | Rvalue::StructLit { .. }
         | Rvalue::InterpolatedString { .. }
         | Rvalue::TupleGet { .. }
-        | Rvalue::CaptureBoxNew { .. }
-        | Rvalue::CaptureBoxGet { .. }
-        | Rvalue::CaptureBoxSet { .. }
         | Rvalue::PatternMatch { .. }
         | Rvalue::PatternExtract { .. } => {
             LateLoweredSourceStatementClassificationKind::EffectNeutralValue
@@ -429,11 +426,6 @@ pub(crate) fn rvalue_mentions_local(value: &Rvalue, local: LocalId) -> bool {
         | Rvalue::TypeCheck { value: operand, .. }
         | Rvalue::Cast { value: operand, .. }
         | Rvalue::TupleGet { tuple: operand, .. }
-        | Rvalue::CaptureBoxNew { value: operand, .. }
-        | Rvalue::CaptureBoxGet {
-            box_operand: operand,
-            ..
-        }
         | Rvalue::PatternMatch {
             subject: operand, ..
         }
@@ -460,9 +452,6 @@ pub(crate) fn rvalue_mentions_local(value: &Rvalue, local: LocalId) -> bool {
                 operand_mentions_local(value, local)
             }
         }),
-        Rvalue::CaptureBoxSet {
-            box_operand, value, ..
-        } => operand_mentions_local(box_operand, local) || operand_mentions_local(value, local),
         Rvalue::TopLevelRef(_)
         | Rvalue::UnresolvedName { .. }
         | Rvalue::SizeOf { .. }

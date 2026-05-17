@@ -370,11 +370,6 @@ fn analyze_rvalue_uses(
         Rvalue::TypeCheck { value: operand, .. }
         | Rvalue::Cast { value: operand, .. }
         | Rvalue::TupleGet { tuple: operand, .. }
-        | Rvalue::CaptureBoxNew { value: operand, .. }
-        | Rvalue::CaptureBoxGet {
-            box_operand: operand,
-            ..
-        }
         | Rvalue::PatternMatch {
             subject: operand, ..
         }
@@ -416,12 +411,6 @@ fn analyze_rvalue_uses(
                     mark_operand_use(value, OperandUse::Escaping, aliases, facts);
                 }
             }
-        }
-        Rvalue::CaptureBoxSet {
-            box_operand, value, ..
-        } => {
-            mark_operand_use(box_operand, OperandUse::Escaping, aliases, facts);
-            mark_operand_use(value, OperandUse::Escaping, aliases, facts);
         }
         Rvalue::MakeClosure { env, .. } => {
             mark_operand_use(env, OperandUse::Escaping, aliases, facts);

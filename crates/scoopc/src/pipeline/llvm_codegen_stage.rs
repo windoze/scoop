@@ -1674,21 +1674,12 @@ fun main(): Int {
             "closure env heap object 应继续通过 typed alloc 发布 descriptor-backed runtime object，而不是锁死当前 closure-env descriptor symbol\n{ir}"
         );
         assert!(
-            ir.contains("rt_alloc_pass_mir_capture_box"),
-            "mutable struct capture should allocate a typed capture box descriptor-backed object\n{ir}"
+            !ir.contains("capture_box") && !ir.contains("MirCaptureBox"),
+            "closure capture lowering should not emit CaptureBox allocation/type descriptors\n{ir}"
         );
         assert!(
-            ir.contains("@__scoop_priv0__mir_capture_box_type_desc__h")
-                && ir.lines().any(|line| {
-                    line.starts_with("%scoop.lowered.MirCaptureBox__h")
-                        && line.contains(" = type { %scoop.runtime.ScoopGcObjectHeader")
-                }),
-            "capture box private type/descriptor naming 应改走 stable type key，而不是 current TypeId/display 文本\n{ir}"
-        );
-        assert!(
-            ir.contains("pass_mir_closure_env_field_gep")
-                && ir.contains("pass_mir_capture_box_set_field_gep"),
-            "closure allocation/invoke should store env fields and mutate through capture boxes\n{ir}"
+            ir.contains("pass_mir_closure_env_field_gep"),
+            "closure allocation should still store captured values into env fields\n{ir}"
         );
     }
 

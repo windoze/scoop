@@ -607,22 +607,6 @@ impl<'a> FnLowering<'a> {
         }
     }
 
-    pub(in crate::mir::lower) fn capture_box_contract(
-        &self,
-        box_ty: TypeId,
-        inner_ty: TypeId,
-    ) -> CaptureBoxTransportMetadata {
-        CaptureBoxTransportMetadata {
-            box_ty,
-            value: self.value_transport_with_boxing_reason(
-                inner_ty,
-                self.transport_kind_for_ty(inner_ty),
-                MirBoxingReason::ClosureCapture,
-                Some(box_ty),
-            ),
-        }
-    }
-
     pub(in crate::mir::lower) fn closure_env_contract(
         &self,
         env_ty: TypeId,
@@ -633,21 +617,13 @@ impl<'a> FnLowering<'a> {
             captures: captures
                 .iter()
                 .map(|capture| {
-                    let kind = if capture.mutable {
-                        MirTransportKind::CaptureBox
-                    } else {
-                        self.transport_kind_for_ty(capture.ty)
-                    };
-                    let transport = if capture.mutable {
-                        self.value_transport_with_kind(capture.ty, kind)
-                    } else {
-                        self.value_transport_with_boxing_reason(
-                            capture.ty,
-                            kind,
-                            MirBoxingReason::ClosureCapture,
-                            Some(env_ty),
-                        )
-                    };
+                    let kind = self.transport_kind_for_ty(capture.ty);
+                    let transport = self.value_transport_with_boxing_reason(
+                        capture.ty,
+                        kind,
+                        MirBoxingReason::ClosureCapture,
+                        Some(env_ty),
+                    );
                     ClosureCaptureTransportMetadata {
                         name: capture.name.clone(),
                         decl_span: capture.decl_span,

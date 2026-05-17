@@ -499,8 +499,7 @@ fun main() {}
         let body = validated_callable_body(&output, "mir_lowered.assignment_places.use");
         let mut saw_global_store = false;
         let mut saw_extern_store = false;
-        let mut saw_capture_box_new = false;
-        let mut saw_capture_box_set = false;
+        let mut captured_local_assign_count = 0usize;
         let mut box_value_store_count = 0usize;
 
         for stmt in body.blocks.iter().flat_map(|block| block.stmts.iter()) {
@@ -515,17 +514,10 @@ fun main() {}
                 {
                     saw_extern_store = true;
                 }
-                StatementKind::Assign {
-                    value: Rvalue::CaptureBoxNew { .. },
-                    ..
-                } => {
-                    saw_capture_box_new = true;
-                }
-                StatementKind::Assign {
-                    value: Rvalue::CaptureBoxSet { .. },
-                    ..
-                } => {
-                    saw_capture_box_set = true;
+                StatementKind::Assign { target, .. }
+                    if body.locals[target.as_u32() as usize].name.as_deref() == Some("captured") =>
+                {
+                    captured_local_assign_count += 1;
                 }
                 StatementKind::StoreMember { member, .. }
                     if matches!(
@@ -543,8 +535,8 @@ fun main() {}
         assert!(saw_global_store, "top-level var store missing: {dump}");
         assert!(saw_extern_store, "extern global store missing: {dump}");
         assert!(
-            saw_capture_box_new && saw_capture_box_set,
-            "boxed mutable local should lower to explicit capture-box new/set: {dump}"
+            captured_local_assign_count >= 2,
+            "captured mutable local should remain an ordinary assignable local: {dump}"
         );
         assert!(
             box_value_store_count >= 2,
@@ -1072,7 +1064,7 @@ fun bad() {
         let mut saw_enum_nested = false;
         let mut saw_enum_wide = false;
         let mut saw_closure_env = false;
-        let mut saw_capture_box = false;
+        let mut saw_mutable_capture = false;
         let mut saw_array_build = false;
         let mut saw_array_get = false;
         let mut saw_array_set = false;
@@ -1131,20 +1123,12 @@ fun bad() {
                                 _ => {}
                             }
                         }
-                        Rvalue::CaptureBoxNew { contract, .. }
-                        | Rvalue::CaptureBoxGet { contract, .. }
-                        | Rvalue::CaptureBoxSet { contract, .. } => {
-                            saw_capture_box = true;
-                            assert_ne!(contract.box_ty, contract.value.source_ty);
-                        }
                         Rvalue::MakeClosure { env_contract, .. }
                             if !env_contract.captures.is_empty() =>
                         {
                             saw_closure_env = true;
-                            assert!(env_contract.captures.iter().any(|capture| {
-                                capture.mutable
-                                    && capture.transport.kind == MirTransportKind::CaptureBox
-                            }));
+                            saw_mutable_capture |=
+                                env_contract.captures.iter().any(|capture| capture.mutable);
                             assert!(env_contract.captures.iter().any(|capture| {
                                 value_transport_has_boxing(
                                     &capture.transport,
@@ -1211,8 +1195,8 @@ fun bad() {
         assert!(saw_enum_wide, "wide enum payload schema missing: {dump}");
         assert!(saw_closure_env, "closure env transport missing: {dump}");
         assert!(
-            saw_capture_box,
-            "mutable capture box transport missing: {dump}"
+            saw_mutable_capture,
+            "mutable closure capture metadata missing: {dump}"
         );
         assert!(saw_array_build, "array build transport missing: {dump}");
         assert!(saw_array_get, "array get transport missing: {dump}");

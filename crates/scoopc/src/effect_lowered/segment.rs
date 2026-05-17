@@ -666,11 +666,6 @@ fn rvalue_mentions_local_for_hidden_namespace(value: &Rvalue, local: LocalId) ->
         | Rvalue::TypeCheck { value: operand, .. }
         | Rvalue::Cast { value: operand, .. }
         | Rvalue::TupleGet { tuple: operand, .. }
-        | Rvalue::CaptureBoxNew { value: operand, .. }
-        | Rvalue::CaptureBoxGet {
-            box_operand: operand,
-            ..
-        }
         | Rvalue::PatternMatch {
             subject: operand, ..
         }
@@ -702,12 +697,6 @@ fn rvalue_mentions_local_for_hidden_namespace(value: &Rvalue, local: LocalId) ->
                 operand_mentions_local_for_hidden_namespace(value, local)
             }
         }),
-        Rvalue::CaptureBoxSet {
-            box_operand, value, ..
-        } => {
-            operand_mentions_local_for_hidden_namespace(box_operand, local)
-                || operand_mentions_local_for_hidden_namespace(value, local)
-        }
         Rvalue::TopLevelRef(_)
         | Rvalue::UnresolvedName { .. }
         | Rvalue::SizeOf { .. }

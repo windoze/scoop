@@ -35,8 +35,6 @@ pub struct LoweredMir {
 /// 说明：builder 在 block 完成后应当覆盖该 terminator；若最终仍保留该值，说明 lowering 未覆盖到
 /// 某条控制流路径（对 dump/fixtures 来说仍可接受，但在后续阶段应当更严格约束）。
 pub(in crate::mir::lower) const UNTERMINATED: &str = "unterminated";
-/// `var` 可变捕获在 MIR dump 阶段使用的内部 box 类型名（T0714）。
-pub(in crate::mir::lower) const CAPTURE_BOX_FQN: &str = "scoop.__CaptureBox";
 
 pub(in crate::mir::lower) fn intrinsic_base_fqn(fqn: &str) -> &str {
     let base = fqn.rsplit_once("::<").map(|(base, _)| base).unwrap_or(fqn);

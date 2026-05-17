@@ -38,8 +38,8 @@ use crate::typecheck::{
 
 use super::{
     AggregateTransportField, AggregateTransportMetadata, ArrayElementTransportMetadata,
-    BasicBlockId, Body, CallArg, CallKind, CallTransportMetadata, CaptureBoxTransportMetadata,
-    ClosureCaptureTransportMetadata, ClosureEnvTransportMetadata, ConstValue, DeclMemberMetadata,
+    BasicBlockId, Body, CallArg, CallKind, CallTransportMetadata, ClosureCaptureTransportMetadata,
+    ClosureEnvTransportMetadata, ConstValue, DeclMemberMetadata,
     DeclOnlySummaryInput, DeclTypeParamMetadata, ExtensionPropertyMetadata, ExternGlobalRoot,
     FieldMetadata, File, FunDecl, GcIntrinsicTransportMetadata, HandleMetadata, HandlerArm,
     InitializerRoot, InstanceRootSummaryInput, InterpolatedStringPart, Item, LocalDecl, LocalId,

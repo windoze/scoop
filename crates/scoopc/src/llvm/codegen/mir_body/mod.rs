@@ -55,8 +55,6 @@ impl<'h> PlainDispatchTarget<'h> {
     }
 }
 
-const MIR_CAPTURE_BOX_FQN: &str = "scoop.__CaptureBox";
-
 fn frontend_error(message: String) -> LlvmEmitError {
     LlvmEmitError::Frontend { message }
 }
@@ -460,11 +458,6 @@ fn collect_mir_rvalue_uses(value: &crate::mir::Rvalue, out: &mut HashSet<crate::
             receiver: operand, ..
         }
         | crate::mir::Rvalue::TupleGet { tuple: operand, .. }
-        | crate::mir::Rvalue::CaptureBoxNew { value: operand, .. }
-        | crate::mir::Rvalue::CaptureBoxGet {
-            box_operand: operand,
-            ..
-        }
         | crate::mir::Rvalue::PatternMatch {
             subject: operand, ..
         }
@@ -503,12 +496,6 @@ fn collect_mir_rvalue_uses(value: &crate::mir::Rvalue, out: &mut HashSet<crate::
                     collect_mir_operand_use(value, out);
                 }
             }
-        }
-        crate::mir::Rvalue::CaptureBoxSet {
-            box_operand, value, ..
-        } => {
-            collect_mir_operand_use(box_operand, out);
-            collect_mir_operand_use(value, out);
         }
         crate::mir::Rvalue::MakeClosure { env, .. } => collect_mir_operand_use(env, out),
         crate::mir::Rvalue::TopLevelRef(_)

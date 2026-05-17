@@ -1279,16 +1279,11 @@ mod tests {
         let base = stable_rtti_type_key_for_type(&types, builtins.int, &NoTypeParamResolver)
             .expect("builtin type should have a canonical RTTI key");
         let value_box = stable_rtti_derived_type_key("mir_value_box_type_desc", base.as_str());
-        let capture_box = stable_rtti_derived_type_key("mir_capture_box_type_desc", base.as_str());
 
         assert_eq!(base.as_str(), "V(Int)");
         assert_ne!(
             stable_rtti_type_id(base.as_str()),
             stable_rtti_type_id(value_box.as_str())
-        );
-        assert_ne!(
-            stable_rtti_type_id(value_box.as_str()),
-            stable_rtti_type_id(capture_box.as_str())
         );
         assert!(value_box.as_str().contains("mir_value_box_type_desc"));
     }

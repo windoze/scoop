@@ -71,11 +71,10 @@ pub(crate) use transport::mir_transport_trace_requirement_for_type;
 pub use transport::{
     AggregateTransportField, AggregateTransportKind, AggregateTransportMetadata,
     ArrayElementTransportMetadata, ArrayTransportOperation, CallAbiHandoffMetadata,
-    CallTransportMetadata, CaptureBoxTransportMetadata, ClosureCaptureTransportMetadata,
-    ClosureEnvTransportMetadata, GcIntrinsicOperation, GcIntrinsicPairing,
-    GcIntrinsicTransportMetadata, GcRootLifetime, MirBoxingIntent, MirBoxingReason,
-    MirCallableAbiKind, MirCallableImplPlan, MirTransportKind, MirTransportRequirements,
-    ValueTransportMetadata,
+    CallTransportMetadata, ClosureCaptureTransportMetadata, ClosureEnvTransportMetadata,
+    GcIntrinsicOperation, GcIntrinsicPairing, GcIntrinsicTransportMetadata, GcRootLifetime,
+    MirBoxingIntent, MirBoxingReason, MirCallableAbiKind, MirCallableImplPlan, MirTransportKind,
+    MirTransportRequirements, ValueTransportMetadata,
 };
 
 /// MIR materialization 的 request-root 策略。
@@ -467,26 +466,6 @@ impl File {
                     transport,
                 )
             }
-            Rvalue::CaptureBoxNew { value, contract } => self.validate_value_transport(
-                site,
-                "capture box value",
-                Self::operand_ty(body, value),
-                &contract.value,
-            ),
-            Rvalue::CaptureBoxGet { contract, .. } => self.validate_value_transport(
-                site,
-                "capture box value",
-                Some(contract.value.source_ty),
-                &contract.value,
-            ),
-            Rvalue::CaptureBoxSet {
-                value, contract, ..
-            } => self.validate_value_transport(
-                site,
-                "capture box value",
-                Self::operand_ty(body, value),
-                &contract.value,
-            ),
             Rvalue::MakeClosure {
                 env, env_contract, ..
             } => {
@@ -2374,28 +2353,6 @@ pub enum Rvalue {
         tuple: Operand,
         index: usize,
     },
-    /// 创建一个“可变捕获盒”（T0714）。
-    ///
-    /// 语义：把一个值装入 heap cell，并返回该 cell 的引用；同一个 cell 可被多个 closure 共享捕获，
-    /// 从而保证 `var` 在内外层的读写具备别名一致性。
-    CaptureBoxNew {
-        value: Operand,
-        contract: CaptureBoxTransportMetadata,
-    },
-    /// 从“可变捕获盒”读取当前值（T0714）。
-    CaptureBoxGet {
-        box_operand: Operand,
-        contract: CaptureBoxTransportMetadata,
-    },
-    /// 向“可变捕获盒”写入新值（T0714）。
-    ///
-    /// 注意：该 rvalue 本身的“结果值”在当前阶段并不重要（通常写入一个 `Unit` 临时 local），
-    /// 主要用于在 MIR dump/fixtures 中显式体现写回语义。
-    CaptureBoxSet {
-        box_operand: Operand,
-        value: Operand,
-        contract: CaptureBoxTransportMetadata,
-    },
     /// 一个 `when` arm 的 pattern test（结果为 Bool）。
     PatternMatch {
         subject: Operand,
@@ -2608,9 +2565,6 @@ impl Rvalue {
             | Rvalue::TypeMetadataLiteral(_)
             | Rvalue::InterpolatedString { .. }
             | Rvalue::TupleGet { .. }
-            | Rvalue::CaptureBoxNew { .. }
-            | Rvalue::CaptureBoxGet { .. }
-            | Rvalue::CaptureBoxSet { .. }
             | Rvalue::PatternMatch { .. }
             | Rvalue::PatternExtract { .. }
             | Rvalue::MakeClosure { .. }

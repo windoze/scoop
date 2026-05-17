@@ -394,14 +394,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     slots,
                 )
             }
-            crate::mir::Rvalue::CaptureBoxNew { value, .. } => {
-                self.codegen_mir_capture_box_new(span, value, body, mir_types, target_cg, slots)
-            }
-            crate::mir::Rvalue::CaptureBoxGet { box_operand, .. } => self
-                .codegen_mir_capture_box_get(span, box_operand, body, mir_types, target_cg, slots),
-            crate::mir::Rvalue::CaptureBoxSet {
-                box_operand, value, ..
-            } => self.codegen_mir_capture_box_set(span, box_operand, value, body, mir_types, slots),
             crate::mir::Rvalue::PerformResult { .. } => Err(raw_mir_route_gate_error(
                 self.function_cx
                     .current_callable_fqn
@@ -536,14 +528,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             crate::mir::Rvalue::TupleGet { tuple, index } => {
                 self.codegen_mir_tuple_get(span, body, mir_types, tuple, *index, slots)
             }
-            crate::mir::Rvalue::CaptureBoxNew { value, .. } => {
-                self.codegen_mir_capture_box_new(span, value, body, mir_types, target_cg, slots)
-            }
-            crate::mir::Rvalue::CaptureBoxGet { box_operand, .. } => self
-                .codegen_mir_capture_box_get(span, box_operand, body, mir_types, target_cg, slots),
-            crate::mir::Rvalue::CaptureBoxSet {
-                box_operand, value, ..
-            } => self.codegen_mir_capture_box_set(span, box_operand, value, body, mir_types, slots),
             crate::mir::Rvalue::MemberAccess {
                 receiver, member, ..
             } => self.codegen_mir_member_access(

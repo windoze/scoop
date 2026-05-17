@@ -1047,11 +1047,6 @@ fn collect_rvalue_uses(
         | Rvalue::TypeCheck { value: operand, .. }
         | Rvalue::Cast { value: operand, .. }
         | Rvalue::TupleGet { tuple: operand, .. }
-        | Rvalue::CaptureBoxNew { value: operand, .. }
-        | Rvalue::CaptureBoxGet {
-            box_operand: operand,
-            ..
-        }
         | Rvalue::PatternMatch {
             subject: operand, ..
         }
@@ -1093,12 +1088,6 @@ fn collect_rvalue_uses(
                     collect_operand_use(value, defs, uses_before_def, read_states, state_id);
                 }
             }
-        }
-        Rvalue::CaptureBoxSet {
-            box_operand, value, ..
-        } => {
-            collect_operand_use(box_operand, defs, uses_before_def, read_states, state_id);
-            collect_operand_use(value, defs, uses_before_def, read_states, state_id);
         }
         Rvalue::MakeClosure { env, .. } => {
             collect_operand_use(env, defs, uses_before_def, read_states, state_id);

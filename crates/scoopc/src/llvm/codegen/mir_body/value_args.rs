@@ -172,28 +172,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(env_ty)
     }
 
-    pub(in crate::llvm::codegen) fn mir_capture_box_object_type(
-        &mut self,
-        at: crate::span::Span,
-        value_ty: TypeId,
-        value_cg: CgTy,
-    ) -> Result<StructType<'ctx>, LlvmEmitError> {
-        let key = CanonicalTextKey::new(
-            self.canonical_type_key_text_for_codegen(value_ty, "MIR capture box LLVM type")?,
-        );
-        let name = PrivateSymbolMangler.type_name("MirCaptureBox", "mir_capture_box_type", &key);
-        if let Some(existing) = self.context.get_struct_type(&name) {
-            return Ok(existing);
-        }
-        let box_ty = self.context.opaque_struct_type(&name);
-        let fields = [
-            self.llvm_gc_object_header_type().into(),
-            self.llvm_basic_type_of(at, value_cg)?,
-        ];
-        box_ty.set_body(&fields, false);
-        Ok(box_ty)
-    }
-
     pub(in crate::llvm::codegen) fn mir_value_box_object_type(
         &mut self,
         at: crate::span::Span,
@@ -233,33 +211,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             global_name: &global_name,
             type_id_key: &canonical_name,
             obj_ty: env_ty,
-            trace_start_offset_bytes,
-            parent: None,
-            itable: None,
-            vtable: None,
-        })
-    }
-
-    pub(in crate::llvm::codegen) fn get_or_create_mir_capture_box_type_desc_global(
-        &mut self,
-        at: crate::span::Span,
-        value_ty: TypeId,
-        box_ty: StructType<'ctx>,
-    ) -> Result<GlobalValue<'ctx>, LlvmEmitError> {
-        let base_type_key =
-            self.canonical_type_key_text_for_codegen(value_ty, "MIR capture box type descriptor")?;
-        let key = CanonicalTextKey::new(base_type_key.clone());
-        let global_name = PrivateSymbolMangler.mangle("mir_capture_box_type_desc", &key);
-        if let Some(existing) = self.module.get_global(&global_name) {
-            return Ok(existing);
-        }
-        let trace_start_offset_bytes = self.target_data.offset_of_element(&box_ty, 1).unwrap_or(0);
-        let type_id_key = stable_rtti_derived_type_key("mir_capture_box_type_desc", &base_type_key);
-        self.get_or_create_type_descriptor_global(TypeDescriptorSpec {
-            at,
-            global_name: &global_name,
-            type_id_key: type_id_key.as_str(),
-            obj_ty: box_ty,
             trace_start_offset_bytes,
             parent: None,
             itable: None,

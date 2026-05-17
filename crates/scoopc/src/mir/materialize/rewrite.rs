@@ -961,26 +961,6 @@ impl MirInstanceMaterializer {
                 }
             }
             Rvalue::TupleGet { tuple, .. } => *tuple = self.rewrite_operand(tuple.clone()),
-            Rvalue::CaptureBoxNew { value, contract } => {
-                *value = self.rewrite_operand(value.clone());
-                self.rewrite_capture_box_contract(contract, ctx.substitution);
-            }
-            Rvalue::CaptureBoxGet {
-                box_operand,
-                contract,
-            } => {
-                *box_operand = self.rewrite_operand(box_operand.clone());
-                self.rewrite_capture_box_contract(contract, ctx.substitution);
-            }
-            Rvalue::CaptureBoxSet {
-                box_operand,
-                value,
-                contract,
-            } => {
-                *box_operand = self.rewrite_operand(box_operand.clone());
-                *value = self.rewrite_operand(value.clone());
-                self.rewrite_capture_box_contract(contract, ctx.substitution);
-            }
             Rvalue::PatternMatch { subject, pattern } => {
                 *subject = self.rewrite_operand(subject.clone());
                 self.rewrite_pattern(pattern, ctx.substitution);
@@ -1894,16 +1874,6 @@ impl MirInstanceMaterializer {
             field.ty = substitute_type_and_effect_params(&mut self.types, field.ty, substitution);
             self.rewrite_value_transport(&mut field.transport, substitution);
         }
-    }
-
-    pub(super) fn rewrite_capture_box_contract(
-        &mut self,
-        contract: &mut CaptureBoxTransportMetadata,
-        substitution: &InstanceSubstitution,
-    ) {
-        contract.box_ty =
-            substitute_type_and_effect_params(&mut self.types, contract.box_ty, substitution);
-        self.rewrite_value_transport(&mut contract.value, substitution);
     }
 
     pub(super) fn rewrite_closure_env_contract(

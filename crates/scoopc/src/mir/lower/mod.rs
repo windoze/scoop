@@ -21,16 +21,16 @@ use crate::session::Session;
 use crate::source::SourceFile;
 use crate::span::Span;
 use crate::ty::{
-    BuiltinTypes, EffectRow, NominalType, RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind,
+    BuiltinTypes, EffectRow, RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind,
     is_builtin_scalar_nominal_value_type,
 };
 
 use super::{
     AccessorMetadata, AggregateTransportField, AggregateTransportKind, AggregateTransportMetadata,
     ArrayElementTransportMetadata, ArrayTransportOperation, BasicBlock, BasicBlockId, Body,
-    CallAbiHandoffMetadata, CallArg, CallKind, CallTransportMetadata, CaptureBoxTransportMetadata,
-    ClassCtorCallMetadata, ClosureCaptureTransportMetadata, ClosureEnvTransportMetadata,
-    ConstValue, CtorMetadata, CtorParamMetadata, DeclMemberMetadata, DeclTypeParamMetadata,
+    CallAbiHandoffMetadata, CallArg, CallKind, CallTransportMetadata, ClassCtorCallMetadata,
+    ClosureCaptureTransportMetadata, ClosureEnvTransportMetadata, ConstValue, CtorMetadata,
+    CtorParamMetadata, DeclMemberMetadata, DeclTypeParamMetadata,
     DispatchMetadata, EnumVariantMetadata, ExtensionPropertyMetadata, ExternGlobalRoot,
     FieldMetadata, File, FunDecl, GcIntrinsicOperation, GcIntrinsicPairing,
     GcIntrinsicTransportMetadata, GcRootLifetime, HandleMetadata, HandlerArm, HandlerArmKind,

@@ -409,11 +409,6 @@ pub(super) fn collect_rvalue_local_references(value: &Rvalue, out: &mut HashSet<
         | Rvalue::TypeCheck { value: operand, .. }
         | Rvalue::Cast { value: operand, .. }
         | Rvalue::TupleGet { tuple: operand, .. }
-        | Rvalue::CaptureBoxNew { value: operand, .. }
-        | Rvalue::CaptureBoxGet {
-            box_operand: operand,
-            ..
-        }
         | Rvalue::PatternMatch {
             subject: operand, ..
         }
@@ -424,12 +419,6 @@ pub(super) fn collect_rvalue_local_references(value: &Rvalue, out: &mut HashSet<
             receiver: operand, ..
         }
         | Rvalue::MakeClosure { env: operand, .. } => collect_operand_local_reference(operand, out),
-        Rvalue::CaptureBoxSet {
-            box_operand, value, ..
-        } => {
-            collect_operand_local_reference(box_operand, out);
-            collect_operand_local_reference(value, out);
-        }
         Rvalue::EnumVariant { args, .. }
         | Rvalue::ClassCtor { args, .. }
         | Rvalue::Call { args, .. } => {

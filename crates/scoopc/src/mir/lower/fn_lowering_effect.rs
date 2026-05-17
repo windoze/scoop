@@ -134,15 +134,6 @@ impl<'a> FnLowering<'a> {
         );
     }
 
-    pub(in crate::mir::lower) fn capture_box_ty(&mut self, inner: TypeId) -> TypeId {
-        self.types
-            .intern(TypeKind::Ref(RefTypeKind::Nominal(NominalType {
-                fqn: CAPTURE_BOX_FQN.to_string(),
-                args: vec![inner],
-                eff: None,
-            })))
-    }
-
     /// 降低一个 effect operation 调用（HIR `Perform`）到 MIR。
     ///
     /// 当前阶段会把 `perform` 同时显式化为：
@@ -1059,7 +1050,6 @@ impl<'a> FnLowering<'a> {
 
     /// 降低变量引用：
     /// - 普通 local：直接返回其 local；
-    /// - 被 capture 的 `var`（box 存储）：生成 `CaptureBoxGet` 并返回读取到的临时值 local；
     /// - 其它引用：降为 `Todo`。
     pub(in crate::mir::lower) fn lower_var_ref(
         &mut self,
@@ -1069,7 +1059,7 @@ impl<'a> FnLowering<'a> {
     ) -> LocalId {
         match v {
             hir::ValueRef::Local { id, name, .. } => {
-                let local = match self.symbol_locals.get(id).copied() {
+                match self.symbol_locals.get(id).copied() {
                     Some(local) => local,
                     None => {
                         if let Some(member_local) =
@@ -1079,24 +1069,6 @@ impl<'a> FnLowering<'a> {
                         }
                         panic!("typed HIR local reference must have an allocated MIR local: {id:?}")
                     }
-                };
-
-                if self.boxed_symbols.contains(id) {
-                    let tmp = self.push_temp_local(span, ty);
-                    self.assign(
-                        span,
-                        tmp,
-                        Rvalue::CaptureBoxGet {
-                            box_operand: Operand::Local(local),
-                            contract: self.capture_box_contract(
-                                self.body.locals[local.as_u32() as usize].ty,
-                                ty,
-                            ),
-                        },
-                    );
-                    tmp
-                } else {
-                    local
                 }
             }
             hir::ValueRef::TopLevel { .. } => {
@@ -1248,8 +1220,6 @@ impl<'a> FnLowering<'a> {
         captures: &[ClosureCaptureLayout],
     ) -> (FunDecl, Vec<FunDecl>) {
         self.current_return_ty = closure.body.ty;
-        // 0) 预扫描 closure body：本 closure 内部若存在嵌套 closure 捕获 `var`，则需要 box 存储（T0714）。
-        self.boxed_symbols = boxed_symbols_in_expr(closure.body.as_ref());
 
         // 1) 创建入口块。
         let entry = self.push_block(closure.span);
@@ -1272,9 +1242,6 @@ impl<'a> FnLowering<'a> {
         for (idx, cap) in captures.iter().enumerate() {
             let local = self.push_named_local(cap.decl_span, &cap.name, cap.ty);
             self.symbol_locals.insert(cap.id, local);
-            if cap.mutable {
-                self.boxed_symbols.insert(cap.id);
-            }
             self.assign(
                 cap.decl_span,
                 local,

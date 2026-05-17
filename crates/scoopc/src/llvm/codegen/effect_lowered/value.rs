@@ -104,11 +104,6 @@ fn rvalue_mentions_local(value: &mir::Rvalue, local: LocalId) -> bool {
         | mir::Rvalue::TypeCheck { value: operand, .. }
         | mir::Rvalue::Cast { value: operand, .. }
         | mir::Rvalue::TupleGet { tuple: operand, .. }
-        | mir::Rvalue::CaptureBoxNew { value: operand, .. }
-        | mir::Rvalue::CaptureBoxGet {
-            box_operand: operand,
-            ..
-        }
         | mir::Rvalue::PatternMatch {
             subject: operand, ..
         }
@@ -133,9 +128,6 @@ fn rvalue_mentions_local(value: &mir::Rvalue, local: LocalId) -> bool {
             mir::InterpolatedStringPart::Text { .. } => false,
             mir::InterpolatedStringPart::Expr { value, .. } => operand_mentions_local(value, local),
         }),
-        mir::Rvalue::CaptureBoxSet {
-            box_operand, value, ..
-        } => operand_mentions_local(box_operand, local) || operand_mentions_local(value, local),
         mir::Rvalue::TopLevelRef(_)
         | mir::Rvalue::UnresolvedName { .. }
         | mir::Rvalue::SizeOf { .. }

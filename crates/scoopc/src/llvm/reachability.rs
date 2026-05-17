@@ -514,10 +514,7 @@ impl<'a> ReachabilityCollector<'a> {
                     mir::Rvalue::MakeTuple { .. }
                     | mir::Rvalue::StructLit { .. }
                     | mir::Rvalue::TupleGet { .. }
-                    | mir::Rvalue::MakeClosure { .. }
-                    | mir::Rvalue::CaptureBoxNew { .. }
-                    | mir::Rvalue::CaptureBoxGet { .. }
-                    | mir::Rvalue::CaptureBoxSet { .. } => true,
+                    | mir::Rvalue::MakeClosure { .. } => true,
                     mir::Rvalue::Call {
                         kind: mir::CallKind::Closure { .. },
                         ..
@@ -592,9 +589,6 @@ impl<'a> ReachabilityCollector<'a> {
             | mir::Rvalue::MakeClosure { .. }
             | mir::Rvalue::EnumVariant { .. }
             | mir::Rvalue::ClassCtor { .. }
-            | mir::Rvalue::CaptureBoxNew { .. }
-            | mir::Rvalue::CaptureBoxGet { .. }
-            | mir::Rvalue::CaptureBoxSet { .. }
             | mir::Rvalue::PatternMatch { .. }
             | mir::Rvalue::PatternExtract { .. } => false,
             mir::Rvalue::Call { kind, .. } => self.mir_call_kind_requires_hir_compat_scan(kind),
@@ -745,11 +739,6 @@ impl<'a> ReachabilityCollector<'a> {
             | mir::Rvalue::TypeCheck { value: operand, .. }
             | mir::Rvalue::Cast { value: operand, .. }
             | mir::Rvalue::TupleGet { tuple: operand, .. }
-            | mir::Rvalue::CaptureBoxNew { value: operand, .. }
-            | mir::Rvalue::CaptureBoxGet {
-                box_operand: operand,
-                ..
-            }
             | mir::Rvalue::PatternMatch {
                 subject: operand, ..
             }
@@ -813,12 +802,6 @@ impl<'a> ReachabilityCollector<'a> {
                         self.scan_mir_operand(value);
                     }
                 }
-            }
-            mir::Rvalue::CaptureBoxSet {
-                box_operand, value, ..
-            } => {
-                self.scan_mir_operand(box_operand);
-                self.scan_mir_operand(value);
             }
             mir::Rvalue::MakeClosure { env, fn_ptr, .. } => {
                 self.scan_mir_operand(env);

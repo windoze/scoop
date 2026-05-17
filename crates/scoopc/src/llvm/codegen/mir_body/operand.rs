@@ -177,9 +177,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             | crate::mir::Rvalue::StructLit { .. }
             | crate::mir::Rvalue::InterpolatedString { .. }
             | crate::mir::Rvalue::TupleGet { .. }
-            | crate::mir::Rvalue::CaptureBoxNew { .. }
-            | crate::mir::Rvalue::CaptureBoxGet { .. }
-            | crate::mir::Rvalue::CaptureBoxSet { .. }
             | crate::mir::Rvalue::PatternMatch { .. }
             | crate::mir::Rvalue::PatternExtract { .. }
             | crate::mir::Rvalue::PerformResult { .. }
@@ -414,17 +411,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             {
                 return Err(LlvmEmitError::UnsupportedMainBody {
                     kind: "pass MIR closure env capture schema type",
-                    at: capture.decl_span.into(),
-                });
-            }
-            if capture.mutable
-                && (capture.transport.kind != crate::mir::MirTransportKind::CaptureBox
-                    || self
-                        .mir_capture_box_inner_type_id(mir_types, capture.transport.source_ty)
-                        .is_none())
-            {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "pass MIR closure mutable capture box contract",
                     at: capture.decl_span.into(),
                 });
             }

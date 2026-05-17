@@ -30,7 +30,6 @@ impl<'a> FnLowering<'a> {
             next_site_id: 0,
             symbol_locals: HashMap::new(),
             value_origins: HashMap::new(),
-            boxed_symbols: HashSet::new(),
             cleanup_scopes: Vec::new(),
             loop_stack: Vec::new(),
             nested_funs: Vec::new(),
@@ -63,8 +62,6 @@ impl<'a> FnLowering<'a> {
 
         // 3) lower 函数体。
         let mir_body = if let Some(block) = fun.body.as_ref() {
-            // 先扫描函数体：若某个 `var` 被任意深度的嵌套 closure 捕获，则该 `var` 在本函数内需要 box 存储。
-            self.boxed_symbols = boxed_symbols_in_block(block);
             if fun.return_ty == self.builtins.unit {
                 self.lower_block_as_stmt(block);
                 self.finish_function(fun.span);
@@ -703,34 +700,6 @@ impl<'a> FnLowering<'a> {
         });
 
         let name = decl.name.as_deref().unwrap_or("<anon>");
-        // `var` 若被 closure 捕获，需要在本函数内以 box 形式存储，保证后续读写别名一致（T0714）。
-        if decl.mutable && self.boxed_symbols.contains(&id) {
-            let box_ty = self.capture_box_ty(decl.ty);
-            let local = self.push_named_local(decl.span, name, box_ty);
-            self.symbol_locals.insert(id, local);
-
-            if let Some(init) = &decl.init {
-                let value = self.lower_expr_to_local(init);
-                if self.current_is_terminated() {
-                    return;
-                }
-                self.assign(
-                    decl.span,
-                    local,
-                    Rvalue::CaptureBoxNew {
-                        value: Operand::Local(value),
-                        contract: self.capture_box_contract(box_ty, decl.ty),
-                    },
-                );
-            } else {
-                panic!(
-                    "typecheck must reject captured mutable locals without initializer before MIR lowering: {:?}",
-                    decl.span
-                );
-            }
-            return;
-        }
-
         let local = self.push_named_local(decl.span, name, decl.ty);
         self.symbol_locals.insert(id, local);
 
@@ -788,23 +757,7 @@ impl<'a> FnLowering<'a> {
                 if self.current_is_terminated() {
                     return;
                 }
-                if self.boxed_symbols.contains(id) {
-                    let tmp = self.push_temp_local(span, self.builtins.unit);
-                    self.assign(
-                        span,
-                        tmp,
-                        Rvalue::CaptureBoxSet {
-                            box_operand: Operand::Local(target),
-                            value: Operand::Local(value),
-                            contract: self.capture_box_contract(
-                                self.body.locals[target.as_u32() as usize].ty,
-                                self.body.locals[value.as_u32() as usize].ty,
-                            ),
-                        },
-                    );
-                } else {
-                    self.assign_use_to_local(span, target, Operand::Local(value));
-                }
+                self.assign_use_to_local(span, target, Operand::Local(value));
             }
             hir::AssignPlaceKind::TopLevel { fqn, .. } => {
                 let value_local = self.lower_expr_to_local(rhs);

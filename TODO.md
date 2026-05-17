@@ -313,7 +313,7 @@ C0-T01 (baseline + prerequisite inventory)
 
 ## C2：closure capture 修复
 
-### [TODO] C2-T01A：删除 MIR core 中的 CaptureBox 类型与 transport 模型
+### [DONE] C2-T01A：删除 MIR core 中的 CaptureBox 类型与 transport 模型
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §7 C2-T01
@@ -336,9 +336,21 @@ C0-T01 (baseline + prerequisite inventory)
 - 依赖：C0-T01
 - 完成记录：
   - 改动范围：
+    - 删除 MIR core 中的 `Rvalue::CaptureBoxNew/Get/Set`、`MirTransportKind::CaptureBox` 与 `CaptureBoxTransportMetadata`，并清理 `stable_id.rs` 中只服务 `mir_capture_box_type_desc` 的测试角色。
+    - 为保证 `cargo build -p scoopc` 通过，删除由 core model 移除直接暴露出的下游引用：MIR lowering 不再构造/读取/写入 CaptureBox，MIR analysis/dump/materialize/effect facts/effect-lowered/LLVM codegen 不再匹配 CaptureBox rvalue 或 transport kind。
+    - 更新受编译影响的 Rust 测试断言，使其验证 captured mutable local 保持普通 local assignment、closure env 保留 capture mutability/boxing metadata，且 LLVM closure env lowering 不再产生 capture-box allocation/type descriptor。
   - 核心决策：
+    - 不引入替代隐式 box、shim 或兼容分支；删除 core model 后所有 capture 都继续通过普通 value transport 与 `ClosureCaptureTransportMetadata.mutable` 表达。
+    - `ClosureCaptureTransportMetadata.mutable` 保留，用于后续 C2-T02 把 closure body 内的 env-load local 标记为可 rebind。
+    - `stable_rtti_derived_type_key` 仍保留给 MIR value box descriptor 使用，只移除 capture-box 专用派生 role 覆盖。
   - 验证结果：
-  - 与 `PLAN.md` / `CLOSURE_FIX.md` 对应闭合：
+    - `cargo build -p scoopc`：通过。
+    - `rg -n "CaptureBoxTransportMetadata|MirTransportKind::CaptureBox|Rvalue::CaptureBox" crates/scoopc/src/mir crates/scoopc/src/stable_id.rs`：无输出。
+    - `cargo test -p scoopc mir_place_contract_lowers_assignment_places -- --nocapture`：通过。
+    - `cargo test -p scoopc mir_aggregate_transport_records_composite_contracts -- --nocapture`：通过。
+    - `cargo test -p scoopc llvm_closure_env_transport -- --nocapture`：通过。
+    - `cargo clippy -p scoopc --all-targets -- -D warnings`：通过。
+  - 与 `PLAN.md` / `CLOSURE_FIX.md` 对应闭合：闭合 `PLAN.md` §7 C2-T01 的 MIR core model 删除入口，以及 `CLOSURE_FIX.md` 中“删除 CaptureBox 后门”的 MIR core/transport 部分；阶段级计划未变化。
 
 ### [TODO] C2-T01B：删除 MIR lowering 中的隐式 CaptureBox 生成与读写
 

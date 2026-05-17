@@ -11,9 +11,8 @@ use inkwell::values::{BasicValueEnum, GlobalValue, PointerValue};
 use crate::llvm::{BackendGateError, LlvmEmitError};
 use crate::mir::{
     AggregateTransportMetadata, ArrayElementTransportMetadata, CallTransportMetadata,
-    CaptureBoxTransportMetadata, ClosureEnvTransportMetadata, GcIntrinsicTransportMetadata,
-    MirBoxingReason, MirTransportKind, Rvalue, StatementKind, TerminatorKind,
-    ValueTransportMetadata,
+    ClosureEnvTransportMetadata, GcIntrinsicTransportMetadata, MirBoxingReason, MirTransportKind,
+    Rvalue, StatementKind, TerminatorKind, ValueTransportMetadata,
 };
 use crate::span::Span;
 use crate::stable_id::{CanonicalTextKey, PrivateSymbolMangler, canonical_list, canonical_record};
@@ -98,7 +97,6 @@ fn composite_transport_kind_key(kind: MirTransportKind) -> &'static str {
         MirTransportKind::Struct => "struct",
         MirTransportKind::EnumPayload => "enum_payload",
         MirTransportKind::ClosureEnv => "closure_env",
-        MirTransportKind::CaptureBox => "capture_box",
         MirTransportKind::ArrayElement => "array_element",
         MirTransportKind::EffectPayload => "effect_payload",
         MirTransportKind::FunctionValue => "function_value",
@@ -163,12 +161,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 transport: payload, ..
             } => self
                 .verify_aggregate_composite_transport_contract(body_fqn, span, mir_types, payload),
-            Rvalue::CaptureBoxNew { contract, .. }
-            | Rvalue::CaptureBoxGet { contract, .. }
-            | Rvalue::CaptureBoxSet { contract, .. } => self
-                .verify_capture_box_composite_transport_contract(
-                    body_fqn, span, mir_types, contract,
-                ),
             Rvalue::MakeClosure { env_contract, .. } => self
                 .verify_closure_env_composite_transport_contract(
                     body_fqn,
@@ -262,16 +254,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             )?;
         }
         Ok(())
-    }
-
-    fn verify_capture_box_composite_transport_contract(
-        &mut self,
-        body_fqn: &str,
-        span: Span,
-        mir_types: &TypeStore,
-        contract: &CaptureBoxTransportMetadata,
-    ) -> Result<(), LlvmEmitError> {
-        self.verify_value_composite_transport_contract(body_fqn, span, mir_types, &contract.value)
     }
 
     fn verify_closure_env_composite_transport_contract(
@@ -474,7 +456,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     | MirTransportKind::Struct
                     | MirTransportKind::EnumPayload
                     | MirTransportKind::ClosureEnv
-                    | MirTransportKind::CaptureBox
                     | MirTransportKind::ArrayElement
                     | MirTransportKind::EffectPayload
             )
@@ -696,11 +677,7 @@ fn composite_transport_storage_kind(
             CompositeTransportStorageKind::Boxed
         }
         Some(MirBoxingReason::ArrayElement) => CompositeTransportStorageKind::Inline,
-        None if matches!(
-            metadata.kind,
-            MirTransportKind::ClosureEnv | MirTransportKind::CaptureBox
-        ) =>
-        {
+        None if metadata.kind == MirTransportKind::ClosureEnv => {
             CompositeTransportStorageKind::Boxed
         }
         None => CompositeTransportStorageKind::Inline,
@@ -708,10 +685,7 @@ fn composite_transport_storage_kind(
 }
 
 fn composite_transport_gap_id(metadata: &ValueTransportMetadata) -> &'static str {
-    if matches!(
-        metadata.kind,
-        MirTransportKind::ClosureEnv | MirTransportKind::CaptureBox
-    ) || metadata
+    if metadata.kind == MirTransportKind::ClosureEnv || metadata
         .boxing
         .as_ref()
         .is_some_and(|boxing| boxing.reason == MirBoxingReason::ClosureCapture)
@@ -802,7 +776,7 @@ mod tests {
         let mut types = TypeStore::new();
         let source_ty = types.intern_builtins().unit;
         assert_eq!(
-            composite_transport_gap_id(&transport(source_ty, MirTransportKind::CaptureBox)),
+            composite_transport_gap_id(&transport(source_ty, MirTransportKind::ClosureEnv)),
             "PIPELINE_GAPS §3.11"
         );
         assert_eq!(

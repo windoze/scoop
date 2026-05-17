@@ -12,7 +12,7 @@ use crate::ty::TypeStore;
 use super::{
     AccessorMetadata, AggregateTransportField, AggregateTransportMetadata,
     ArrayElementTransportMetadata, BasicBlock, BasicBlockId, Body, CallAbiHandoffMetadata, CallArg,
-    CallKind, CallTransportMetadata, CaptureBoxTransportMetadata, ConstValue, CtorMetadata,
+    CallKind, CallTransportMetadata, ConstValue, CtorMetadata,
     CtorParamMetadata, DeclMemberMetadata, DeclTypeParamMetadata, DispatchMetadata,
     EnumVariantMetadata, ExtensionPropertyMetadata, ExternGlobalRoot, FieldMetadata, File, FunDecl,
     GcIntrinsicTransportMetadata, HandlerArm, InitializerDependency, InitializerRoot, Item,
@@ -666,9 +666,6 @@ impl<'a> MirDumpRenderer<'a> {
             Rvalue::TypeMetadataLiteral(_) => "type_metadata_literal",
             Rvalue::InterpolatedString { .. } => "interpolated_string",
             Rvalue::TupleGet { .. } => "tuple_get",
-            Rvalue::CaptureBoxNew { .. } => "capture_box_new",
-            Rvalue::CaptureBoxGet { .. } => "capture_box_get",
-            Rvalue::CaptureBoxSet { .. } => "capture_box_set",
             Rvalue::PatternMatch { .. } => "pattern_match",
             Rvalue::PatternExtract { .. } => "pattern_extract",
             Rvalue::MakeClosure { .. } => "make_closure",
@@ -1114,44 +1111,6 @@ impl<'a> MirDumpRenderer<'a> {
                 vec![
                     ("tuple", self.operand_text(ctx, tuple)),
                     ("index", index.to_string()),
-                ],
-            ),
-            Rvalue::CaptureBoxNew { value, contract } => self.inline_struct(
-                "CaptureBoxNew",
-                vec![
-                    ("value", self.operand_text(ctx, value)),
-                    (
-                        "contract",
-                        self.capture_box_transport_text(Some(ctx), contract),
-                    ),
-                ],
-            ),
-            Rvalue::CaptureBoxGet {
-                box_operand,
-                contract,
-            } => self.inline_struct(
-                "CaptureBoxGet",
-                vec![
-                    ("box_operand", self.operand_text(ctx, box_operand)),
-                    (
-                        "contract",
-                        self.capture_box_transport_text(Some(ctx), contract),
-                    ),
-                ],
-            ),
-            Rvalue::CaptureBoxSet {
-                box_operand,
-                value,
-                contract,
-            } => self.inline_struct(
-                "CaptureBoxSet",
-                vec![
-                    ("box_operand", self.operand_text(ctx, box_operand)),
-                    ("value", self.operand_text(ctx, value)),
-                    (
-                        "contract",
-                        self.capture_box_transport_text(Some(ctx), contract),
-                    ),
                 ],
             ),
             Rvalue::PatternMatch { subject, pattern } => self.inline_struct(
@@ -1962,20 +1921,6 @@ impl<'a> MirDumpRenderer<'a> {
                     "transport",
                     self.value_transport_text(ctx, &field.transport),
                 ),
-            ],
-        )
-    }
-
-    fn capture_box_transport_text(
-        &self,
-        ctx: Option<&BodyRenderCtx<'_>>,
-        metadata: &CaptureBoxTransportMetadata,
-    ) -> String {
-        self.inline_struct(
-            "CaptureBoxTransportMetadata",
-            vec![
-                ("box_ty", self.type_text(metadata.box_ty)),
-                ("value", self.value_transport_text(ctx, &metadata.value)),
             ],
         )
     }

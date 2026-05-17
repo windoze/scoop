@@ -14,7 +14,6 @@ pub enum MirTransportKind {
     Struct,
     EnumPayload,
     ClosureEnv,
-    CaptureBox,
     ArrayElement,
     EffectPayload,
     FunctionValue,
@@ -183,12 +182,6 @@ pub struct AggregateTransportMetadata {
     pub aggregate_ty: TypeId,
     pub kind: AggregateTransportKind,
     pub fields: Vec<AggregateTransportField>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct CaptureBoxTransportMetadata {
-    pub box_ty: TypeId,
-    pub value: ValueTransportMetadata,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

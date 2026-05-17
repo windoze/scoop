@@ -303,9 +303,6 @@ impl BlockCallableProvenance {
             | Rvalue::StructLit { .. }
             | Rvalue::InterpolatedString { .. }
             | Rvalue::TupleGet { .. }
-            | Rvalue::CaptureBoxNew { .. }
-            | Rvalue::CaptureBoxGet { .. }
-            | Rvalue::CaptureBoxSet { .. }
             | Rvalue::PatternMatch { .. }
             | Rvalue::PatternExtract { .. }
             | Rvalue::PerformResult { .. }
@@ -597,9 +594,6 @@ fn rvalue_is_pass_publishable(value: &Rvalue) -> bool {
         | Rvalue::TypeCheck { .. }
         | Rvalue::Cast { .. }
         | Rvalue::MemberAccess { .. }
-        | Rvalue::CaptureBoxNew { .. }
-        | Rvalue::CaptureBoxGet { .. }
-        | Rvalue::CaptureBoxSet { .. }
         | Rvalue::PatternMatch { .. }
         | Rvalue::PatternExtract { .. }
         | Rvalue::PerformResult { .. }
@@ -644,9 +638,6 @@ fn rvalue_is_inlineable(
         | Rvalue::StructLit { .. }
         | Rvalue::InterpolatedString { .. }
         | Rvalue::TupleGet { .. }
-        | Rvalue::CaptureBoxNew { .. }
-        | Rvalue::CaptureBoxGet { .. }
-        | Rvalue::CaptureBoxSet { .. }
         | Rvalue::PatternMatch { .. }
         | Rvalue::PatternExtract { .. }
         | Rvalue::MakeClosure { .. }
@@ -744,11 +735,6 @@ fn collect_rvalue_uses(value: &Rvalue, out: &mut HashSet<LocalId>) {
         | Rvalue::TypeCheck { value: operand, .. }
         | Rvalue::Cast { value: operand, .. }
         | Rvalue::TupleGet { tuple: operand, .. }
-        | Rvalue::CaptureBoxNew { value: operand, .. }
-        | Rvalue::CaptureBoxGet {
-            box_operand: operand,
-            ..
-        }
         | Rvalue::PatternMatch {
             subject: operand, ..
         }
@@ -788,12 +774,6 @@ fn collect_rvalue_uses(value: &Rvalue, out: &mut HashSet<LocalId>) {
                     collect_operand_use(value, out);
                 }
             }
-        }
-        Rvalue::CaptureBoxSet {
-            box_operand, value, ..
-        } => {
-            collect_operand_use(box_operand, out);
-            collect_operand_use(value, out);
         }
         Rvalue::MakeClosure { env, .. } => collect_operand_use(env, out),
         Rvalue::TopLevelRef(_)
@@ -1087,9 +1067,6 @@ fn remap_rvalue(
         | Rvalue::MemberAccess { .. }
         | Rvalue::InterpolatedString { .. }
         | Rvalue::TupleGet { .. }
-        | Rvalue::CaptureBoxNew { .. }
-        | Rvalue::CaptureBoxGet { .. }
-        | Rvalue::CaptureBoxSet { .. }
         | Rvalue::PatternMatch { .. }
         | Rvalue::PatternExtract { .. }
         | Rvalue::MakeClosure { .. }

@@ -912,58 +912,6 @@ pub(super) fn validate_materialized_rvalue(
             locals,
             tuple,
         ),
-        Rvalue::CaptureBoxNew { value, contract } => {
-            validate_materialized_operand(
-                materialized,
-                fqn,
-                block,
-                span,
-                "capture box value",
-                locals,
-                value,
-            )?;
-            validate_materialized_capture_box_contract(materialized, fqn, block, span, contract)
-        }
-        Rvalue::CaptureBoxGet {
-            box_operand,
-            contract,
-        } => {
-            validate_materialized_operand(
-                materialized,
-                fqn,
-                block,
-                span,
-                "capture box source",
-                locals,
-                box_operand,
-            )?;
-            validate_materialized_capture_box_contract(materialized, fqn, block, span, contract)
-        }
-        Rvalue::CaptureBoxSet {
-            box_operand,
-            value,
-            contract,
-        } => {
-            validate_materialized_operand(
-                materialized,
-                fqn,
-                block,
-                span,
-                "capture box source",
-                locals,
-                box_operand,
-            )?;
-            validate_materialized_operand(
-                materialized,
-                fqn,
-                block,
-                span,
-                "capture box value",
-                locals,
-                value,
-            )?;
-            validate_materialized_capture_box_contract(materialized, fqn, block, span, contract)
-        }
         Rvalue::PatternMatch { subject, pattern } => {
             validate_materialized_operand(
                 materialized,
@@ -1141,33 +1089,6 @@ pub(super) fn validate_materialized_aggregate_transport_field(
         span,
         "aggregate transport field value",
         &field.transport,
-    )
-}
-
-pub(super) fn validate_materialized_capture_box_contract(
-    materialized: &MaterializedMir,
-    fqn: &str,
-    block: BasicBlockId,
-    span: Span,
-    contract: &CaptureBoxTransportMetadata,
-) -> MaterializeResult<()> {
-    validate_materialized_type(
-        materialized,
-        MaterializedValidationContext {
-            fqn,
-            block: Some(block),
-            span,
-            surface: "capture box type",
-        },
-        contract.box_ty,
-    )?;
-    validate_materialized_value_transport(
-        materialized,
-        fqn,
-        block,
-        span,
-        "capture box value transport",
-        &contract.value,
     )
 }
 
