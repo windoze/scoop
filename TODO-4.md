@@ -6,7 +6,7 @@
 > 全局约束：见 [`TODO.md`](./TODO.md) `## 全局约束` 一节。
 ## P8：算术 / 逻辑 operator method 化
 
-### P8-T01：标量 operator behavioral baseline 短文
+### [DONE] P8-T01：标量 operator behavioral baseline 短文
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §3.3 (a) / §9 / P8
@@ -58,6 +58,14 @@
 - 完成条件：
   - 文档可作为 P8-T02 ~ P8-T05 的仲裁依据。
 - 依赖：P7-T03。
+
+完成记录（2026-05-17）：
+
+- 改动范围：新增 `docs/reshape-baseline/operator-behavioral-baseline.md`，覆盖 `mir_body/op.rs` 现有一元/二元 operator lowering；同步更新 `TODO.md` 索引与本条任务标题。
+- 核心决策：baseline 以当前实现为准，明确记录整型算术 wrap、除零和 `Int.MIN_VALUE / -1` 的 LLVM UB、移位计数 mask、signed/unsigned compare predicate、浮点无 fast-math 的 ordered predicate、`fcmp une` 的 NaN `!=` 行为、Bool 短路与非短路路径差异，以及 `String == String` 继续走 runtime 内容相等而非 pointer identity。
+- 验证结果：`cat docs/reshape-baseline/operator-behavioral-baseline.md` 通过，文档存在并覆盖 P8-T01 要求的每个 op 类别；文档内包含 `Int.MIN_VALUE` 取负、`1.0 / 0.0`、`NaN < 1.0`、`Int.MIN_VALUE / -1`、`shl amount = bit_width` 等边界值验证片段；`git diff --check` 通过；`cargo clippy --all-targets -- -D warnings` 通过。
+- 与 `PLAN.md` 闭合：完成 P8 operator method 化前的行为仲裁文档；阶段级计划和依赖未变化，未修改 `PLAN.md`。
+- 暂时性 failing fixture：无；本任务仅新增文档，不引入 fixture 或代码路径变更。
 
 ### P8-T02：编译器 method-level intrinsic 表扩展
 
@@ -383,4 +391,3 @@
 - 完成条件：
   - operator 行为有完整 fixture 覆盖；P8 整体收口。
 - 依赖：P8-T05。
-

@@ -30,7 +30,7 @@
 | `P7-T01` | [DONE] | P7 | [DONE] sysroot：`String` body method / 标量 toString / print/println / panic 等转 `@Extern(abi = "scoop")` | [TODO-3.md](./TODO-3.md) |
 | `P7-T02` | [DONE] | P7 | [DONE] 删除 `sysroot/scalar_string_bridge.scoop` + 编译器对应 audited bridge dispatch | [TODO-3.md](./TODO-3.md) |
 | `P7-T03` | [DONE] | P7 | [DONE] runtime 端可能的符号改名（`scoop_print_string` → `scoop_print` 等） | [TODO-3.md](./TODO-3.md) |
-| `P8-T01` | [TODO] | P8 | 标量 operator behavioral baseline 短文 | [TODO-4.md](./TODO-4.md) |
+| `P8-T01` | [DONE] | P8 | [DONE] 标量 operator behavioral baseline 短文 | [TODO-4.md](./TODO-4.md) |
 | `P8-T02` | [TODO] | P8 | 编译器 method-level intrinsic 表扩展：算术 / 位运算 / 比较 / 布尔 / Char 一组 entry | [TODO-4.md](./TODO-4.md) |
 | `P8-T03` | [TODO] | P8 | sysroot 标量 type body 内补 `@Intrinsic("...")` method 声明 | [TODO-4.md](./TODO-4.md) |
 | `P8-T04` | [TODO] | P8 | HIR / typecheck：binary / unary operator 改写为 method call | [TODO-4.md](./TODO-4.md) |
