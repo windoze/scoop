@@ -213,7 +213,7 @@
 
 ## P10：core 中 thread/sync/atomic 引用清理
 
-### P10-T01：把 `__AtomicInt` 系列从 core 迁到 `scoop.unsafe`
+### [DONE] P10-T01：把 `__AtomicInt` 系列从 core 迁到 `scoop.unsafe`
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §4.2 / §9 / P10
@@ -243,6 +243,29 @@
 - 完成条件：
   - core 不再含任何 atomic surface；`scoop.unsafe` 是 atomic 的唯一来源。
 - 依赖：P9-T03。
+
+完成记录：
+
+- 改动范围：
+  - 审计确认 `sysroot/core.scoop` 中已无 `__AtomicInt` / `__atomicInt*` surface。
+  - `sysroot/unsafe.scoop` 的 `Internal atomics` 段已持有 `__AtomicInt` typealias 与 `__atomicIntLoad` / `__atomicIntStore` / `__atomicIntCompareExchange` 三个 `@Intrinsic @NoGC @Unsafe` 声明。
+  - atomic fixture 使用方已显式 `import scoop.unsafe.*`：`unsafe_atomic_int_basic.scoop`、`unsafe_atomic_int_field_lvalue_basic.scoop`、`unsafe_atomic_int_top_level_storage_llvm.scoop`、`unsafe_atomic_int_field_lvalue_llvm.scoop`、`gc_stw_cross_thread_roots_basic.scoop`。
+  - 编译器端 atomic FQN / layout / lowering 路径已使用 `scoop.unsafe.__AtomicInt` 与 `scoop.unsafe.__atomicInt*`，未保留 `scoop.core.__atomicInt*` 路径。
+- 核心决策：
+  - 不在 core 中保留 alias、shim 或兼容声明；`scoop.unsafe` 是 atomic surface 的唯一来源。
+  - 不修改 atomic lowering 行为；现有 LLVM atomic load/store/cmpxchg 仍使用 SeqCst。
+- 验证结果：
+  - `grep` 等价检查：`sysroot/core.scoop` 中 `__AtomicInt|__atomicInt` 无命中；整仓除本任务说明外无 `scoop.core.__AtomicInt` / `scoop.core.__atomicInt*` 命中。
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/unsafe_atomic_int_basic.scoop` 通过。
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/unsafe_atomic_int_field_lvalue_basic.scoop` 通过。
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/build/unsafe_atomic_int_top_level_storage_llvm.scoop` 通过。
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/build/unsafe_atomic_int_field_lvalue_llvm.scoop` 通过。
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/runtime_gc/gc_stw_cross_thread_roots_basic.scoop` 通过。
+  - `cargo run -p scoop -- test` 通过：1345/1345 targets，1382 checks。
+  - `cargo clippy --all-targets -- -D warnings` 通过。
+- 与 `PLAN.md` 对应闭合：
+  - 闭合 PLAN §4.2 / §9 / P10 中“core 清理 unsafe/thread/sync surface”的 atomic 部分：core 不再提供 atomic surface，后续 P10-T02 / P10-T03 可继续清 thread/sync 相关依赖。
+- 暂时性 failing fixture：无。
 
 ### P10-T02：删除 `__scoop_thread_spawn_join_resume*` 与相关 runtime 入口
 

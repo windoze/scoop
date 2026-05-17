@@ -1,32 +1,41 @@
-# Claude Execution Plan
+# Claude Plan
 
 ## Scope
-
 - Follow `TODO.md` as the authoritative task list.
-- Complete exactly the first task whose heading is not prefixed with `[DONE]`.
-- Do not proceed to the next task after completion.
+- Identify the first task whose heading is not prefixed with `[DONE]`.
+- Complete exactly that one task, or add the minimum prerequisite task if a concrete blocker prevents spec-correct implementation.
 
-## Step-by-Step Plan
+## Execution Plan
+1. Read `TODO.md` to identify the first incomplete task and its validation requirements.
+2. Check the latest commit only for an explicitly mentioned unfinished issue directly relevant to that task.
+3. Inspect the relevant code, fixtures, and documentation for that task.
+4. Implement the smallest spec-correct change needed for the task.
+5. Add or update tests/fixtures required by the task.
+6. Run targeted validation first, then any broader validation required by the task.
+7. Update `TODO.md` by prefixing the completed task heading with `[DONE]` and filling its completion record.
+8. Update this file with implementation and validation progress.
+9. Commit all task-related changes with a clear task-prefixed message.
+10. Stop without starting the next task.
 
-1. Read `TODO.md` and identify the first incomplete task by heading prefix.
-2. Check the latest commit only for directly relevant unfinished work tied to that task.
-3. Inspect the files and tests relevant to the selected task.
-4. Implement the task as specified, avoiding workarounds or scope narrowing.
-5. Run focused validation first, then broader required validation for the task.
-6. Fix any task-relevant failures discovered during validation.
-7. Update `TODO.md` by prefixing the completed task heading with `[DONE]` and adding a completion record.
-8. Update this file whenever the plan changes or a key step completes.
-9. Commit all changes for the completed task with a clear task-tagged message.
-10. Stop after the commit.
+## Status
+- Plan initialized before running project commands.
+- First incomplete task identified: `P10-T01` (`__AtomicInt` series moves from `scoop.core` to `scoop.unsafe`).
+- Latest commit checked: `[P9-T03] Remove stdlib injection paths`; no explicit unfinished issue for this task.
+- Existing unrelated worktree item noted: untracked `CLOSURE_FIX.md`; it will not be modified or committed for this task.
+
+## Current Task Plan: P10-T01
+1. Locate every `__AtomicInt` / `__atomicInt*` declaration, intrinsic dispatch entry, and fixture use.
+2. Move the typealias and three intrinsic declarations from `sysroot/core.scoop` to the reserved internal atomics section in `sysroot/unsafe.scoop`.
+3. Update any callers to import `scoop.unsafe.*` or otherwise reference the new source package.
+4. Update compiler intrinsic FQN dispatch from `scoop.core` to `scoop.unsafe` without changing lowering behavior.
+5. Run targeted atomic fixture validation and then the required full fixture suite.
+6. Update `TODO.md` and `TODO-5.md` completion records, then commit only task-related changes.
 
 ## Progress
-
-- Initial execution plan written before reading project task files or running commands.
-- Identified first incomplete task: `P9-T03` in `TODO-5.md`, dependent on completed `P9-T02`.
-- Latest commit is `[P9-T02] Migrate stdlib-dependent fixtures`, with no separate unfinished issue indicated by the subject.
-- Impact check found frontend support-source injection, const/comptime stdlib loading, and build fingerprint stdlib hashing that must be removed together with the `stdlib/` directory.
-- Removed project stdlib injection/loading/hash paths and deleted the tracked `stdlib/` source directory.
-- Post-edit static checks show no remaining `stdlib/` path references in Rust sources or TOML; `frontend.rs` has no `stdlib` matches.
-- Validation passed so far: `cargo build`; full fixture suite `cargo run -p scoop -- test` passed with 1345/1345 targets and 1382 checks.
-- Validation completed: `cargo clippy --all-targets -- -D warnings` passed; `cargo test --all --all-targets` passed; `ls stdlib/` reports no such directory; tracked `stdlib/*` files are gone; `frontend.rs` has no `stdlib` matches.
-- `TODO.md` and `TODO-5.md` updated to mark `P9-T03` as `[DONE]` with completion details.
+- Located current atomic surface: declarations are already in `sysroot/unsafe.scoop`, and `sysroot/core.scoop` has no `__AtomicInt` / `__atomicInt*` declaration block.
+- Located fixture users: `unsafe_atomic_int_basic`, `unsafe_atomic_int_field_lvalue_basic`, `unsafe_atomic_int_top_level_storage_llvm`, `unsafe_atomic_int_field_lvalue_llvm`, and `gc_stw_cross_thread_roots_basic`; visible fixtures already import `scoop.unsafe.*`.
+- Located compiler dispatch/lowering users: current FQNs are `scoop.unsafe.__AtomicInt` and `scoop.unsafe.__atomicInt*`, preserving SeqCst LLVM atomic lowering.
+- Targeted atomic owner fixtures passed individually: two run-pass fixtures, two LLVM build fixtures, and `runtime_gc/gc_stw_cross_thread_roots_basic.scoop`.
+- Full fixture suite passed: `cargo run -p scoop -- test` reported 1345/1345 targets and 1382 checks OK.
+- Clippy passed: `cargo clippy --all-targets -- -D warnings`.
+- `TODO.md` and `TODO-5.md` were updated to mark `P10-T01` as `[DONE]` with completion notes.
