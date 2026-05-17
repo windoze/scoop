@@ -912,7 +912,7 @@
   - 闭合 PLAN §9 / P13 中“删 §10.3 `var StringBuilder.lastChar` 示例、写 StringBuilder 最小表面、写 `scoop.lang` 简介、加入 sysroot 目录组织说明”的 spec 文档部分。
 - 暂时性 failing fixture：无。本任务只修改文档，未新增或遗留 failing fixture。
 
-### P13-T02：更新 `MANAGED_ABI.md` §2.2 typical example 列表
+### [DONE] P13-T02：更新 `MANAGED_ABI.md` §2.2 typical example 列表
 
 - 参考：
   - `MANAGED_ABI.md` §2.2（行 166-186）
@@ -931,6 +931,23 @@
 - 完成条件：
   - MANAGED_ABI.md 与本轮实施状态对齐。
 - 依赖：P13-T01。
+
+完成记录：
+
+- 改动范围：
+  - `MANAGED_ABI.md` §2.2 的 typical example 列表已标注 `Int.toString` / `Bool.toString` / `Char.toString` / `Float32.toString` / `Float64.toString` / `String.concat` / `String.replace` / `String.repeat` / `print` / `println` / `panic` 均已在本轮 P7 落地。
+  - 保留 future `path/io/env/fs/process/time` helper 作为后续工作。
+  - 在 §2.2 下方补充 reshape 后的边界总结：scoop ABI 已承接 sysroot 中所有“仅包装 runtime symbol”的 helper；剩余 sysroot intrinsic 仅限 inline IR、GC discipline 特殊待遇、compile-time eval 三类。
+- 核心决策：
+  - 严格限制在 `MANAGED_ABI.md` §2.2 内修改，不触碰 §3 / §5 / §10 等其它章节。
+  - 对浮点 surface 使用当前实际类型名 `Float32.toString` / `Float64.toString`，闭合任务中 `Float.toString` 的泛称。
+- 验证结果：
+  - `cat MANAGED_ABI.md` 已显示 §2.2 的更新后列表与新增总结段落。
+  - `git diff --check -- MANAGED_ABI.md TODO.md TODO-5.md memory/claude_plan.md` 通过。
+  - `cargo clippy --all-targets -- -D warnings` 通过。
+- 与 `PLAN.md` 对应闭合：
+  - 闭合 PLAN §8 / P13 中“更新 `MANAGED_ABI.md` 第 2.2 节典型例子列表”的文档收尾项。
+- 暂时性 failing fixture：无。本任务只修改文档，未新增或遗留 failing fixture。
 
 ### P13-T03：清理 sysroot 文件中的过期 TODO 注释
 

@@ -53,7 +53,7 @@
 | `P12-T04` | [DONE] | P12 | [DONE] body 缺失策略统一：sysroot file 与用户 file 用同一规则 | [TODO-5.md](./TODO-5.md) |
 | `P12-T05` | [DONE] | P12 | [DONE] `is_sysroot()` 语义收窄：仅保留在 `@file:AllowIntrinsic` 自动开 gate 处使用 | [TODO-5.md](./TODO-5.md) |
 | `P13-T01` | [DONE] | P13 | [DONE] spec §10.3 删除 `var StringBuilder.lastChar` 示例 + 加入 `scoop.lang` 简介 + sysroot 目录组织约定 | [TODO-5.md](./TODO-5.md) |
-| `P13-T02` | [TODO] | P13 | 更新 `MANAGED_ABI.md` §2.2 typical example 列表 | [TODO-5.md](./TODO-5.md) |
+| `P13-T02` | [DONE] | P13 | [DONE] 更新 `MANAGED_ABI.md` §2.2 typical example 列表 | [TODO-5.md](./TODO-5.md) |
 | `P13-T03` | [TODO] | P13 | 清理 sysroot 文件中的过期 TODO 注释（T0143 / T1317 / T1325 等历史工单引用） | [TODO-5.md](./TODO-5.md) |
 | `P13-T04` | [TODO] | P13 | 最终 fixture 收尾：所有 fixture 必须通过 / 删除 / 改写，不允许留下任何 failing fixture | [TODO-5.md](./TODO-5.md) |
 

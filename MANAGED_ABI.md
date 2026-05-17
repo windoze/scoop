@@ -175,14 +175,18 @@
 
 典型例子：
 
-- `Int.toString`
-- `Bool.toString`
-- `Char.toString`
-- `Float.toString`
-- `String.concat`
-- `String.replace`
-- `String.repeat`
+- `Int.toString`（已落地，本轮 P7）
+- `Bool.toString`（已落地，本轮 P7）
+- `Char.toString`（已落地，本轮 P7）
+- `Float32.toString` / `Float64.toString`（已落地，本轮 P7）
+- `String.concat`（已落地，本轮 P7）
+- `String.replace`（已落地，本轮 P7）
+- `String.repeat`（已落地，本轮 P7）
+- `print` / `println`（已落地，本轮 P7）
+- `panic`（已落地，本轮 P7）
 - 将来的一批 `path/io/env/fs/process/time` 表面 helper
+
+本轮（core/stdlib reshape）后，scoop ABI 已承接 sysroot 中所有“仅包装 runtime symbol”的 helper；剩下的 sysroot intrinsic 仅限三类：inline IR、GC discipline 特殊待遇、compile-time eval。
 
 ### 2.3 C ABI
 

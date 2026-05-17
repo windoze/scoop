@@ -1,19 +1,17 @@
-执行计划
+# Execution Plan
 
-1. 读取 TODO.md，按标题是否带有 [DONE] 判断第一个未完成任务，并同时检查最新提交信息是否明确提到与该任务直接相关的未完成事项。
-2. 读取该任务涉及的上下文文件，只做完成当前任务所需的最小范围调查，不进行开放式历史问题扫描。
-3. 如果发现当前任务被真实前置缺陷或缺失功能阻塞，则把最小必要前置任务插入 TODO.md，记录依赖关系，提交后停止。
-4. 如果未被阻塞，则按任务要求实现代码、夹具或文档变更，避免绕过规格或缩窄测试形状。
-5. 运行与该任务相关的测试和必要的验证命令；若失败，修复同一根因影响的完整问题类别后重新验证。
-6. 更新 TODO.md：在任务标题前加 [DONE]，补充完成记录和验证结果。仅当阶段级计划变化时才更新 PLAN.md。
-7. 提交本次任务相关的全部未提交变更，提交信息使用任务编号和简明描述。
-8. 停止，不继续处理下一个任务。
+1. Read `TODO.md` first and identify the first task whose heading is not prefixed with `[DONE]`.
+2. Check the latest commit only for unfinished work directly relevant to that selected task.
+3. Inspect the task's referenced code, fixtures, and validation requirements without doing broad unrelated triage.
+4. Implement the selected task exactly as specified, adding prerequisite TODO entries instead of workarounds if a blocking spec or implementation gap is found.
+5. Run the task's required validation and any narrowly relevant tests; fix failures that are in scope.
+6. Update `TODO.md` by prefixing the completed task heading with `[DONE]` and recording completion details. Update `PLAN.md` only if phase-level sequencing changed.
+7. Commit all relevant changes with a descriptive task-tagged message, then stop without starting the next task.
 
-进度记录
+## Progress
 
-- 已创建初始执行计划，下一步读取 TODO.md 识别第一个未完成任务。
-- 已读取 TODO.md；第一个未完成任务是 P13-T01：更新 spec §10.3，删除 `var StringBuilder.lastChar` 示例，加入 `scoop.lang` 简介和 sysroot 目录组织约定。最新提交 `[P12-T05] Narrow sysroot origin semantics` 未声明与该任务直接相关的未完成事项。
-- 已读取 TODO-5.md 中 P13-T01 详情；任务限定为 spec 文档修改，不改代码。索引标题包含 sysroot 目录组织约定，后续会在 `SCOOP_FULL_SPEC.md` 中与 `scoop.lang` 简介一并补充。
-- 已完成 `SCOOP_FULL_SPEC.md` 初稿修改：删除 `StringBuilder.lastChar` 示例，新增标准 cone / `scoop.lang.string.StringBuilder` / sysroot 目录约定说明，并更新 intrinsic/sysroot 交叉引用。
-- 已完成验证并回写任务状态：`TODO.md` 索引与 `TODO-5.md` 的 P13-T01 标题均已标记 `[DONE]`，完成记录已写入验证结果。下一步检查工作树并提交本任务变更。
-- 已补充 `git diff --check` 与 `cargo clippy --all-targets -- -D warnings` 验证并同步更新完成记录。提交时仅纳入本任务相关文件，保留现有未跟踪 Markdown 文件不动。
+- Initial execution plan recorded before reading task details.
+- Selected first incomplete task: `P13-T02` from `TODO.md` / `TODO-5.md`.
+- Scope confirmed as documentation-only: update `MANAGED_ABI.md` §2.2 typical examples and completion records; no code changes expected.
+- Updated `MANAGED_ABI.md` §2.2, validated the rendered section via `cat MANAGED_ABI.md`, and ran `cargo clippy --all-targets -- -D warnings` successfully.
+- Marked `P13-T02` as `[DONE]` in `TODO.md` and `TODO-5.md`; final whitespace check passed. Commit remains.
