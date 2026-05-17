@@ -335,7 +335,7 @@
   - `Continuation` 自身保留，后续 P10-T03 可继续验证 core/lang.string 不再隐式依赖 `scoop.thread` / `scoop.sync`。
 - 暂时性 failing fixture：无。
 
-### P10-T03：验证 core / lang.string 不再隐式依赖 `scoop.thread` / `scoop.sync`
+### [DONE] P10-T03：验证 core / lang.string 不再隐式依赖 `scoop.thread` / `scoop.sync`
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §9 / P10 / 风险条目
@@ -365,6 +365,26 @@
 - 完成条件：
   - core / lang.string 完全不依赖 scoop.thread / scoop.sync；下一轮重设计这两个 cone 时不会被反向拉扯。
 - 依赖：P10-T02。
+
+完成记录：
+
+- 改动范围：
+  - 审计 `sysroot/core.scoop`、`sysroot/string.scoop`、`sysroot/lang_string.scoop`、`sysroot/print.scoop`；当前仓库没有独立 `sysroot/progression.scoop`，progression surface 已在 `core.scoop` 内。
+  - sysroot 全量 thread/sync 关键词搜索只命中 `sysroot/delegates.scoop` 注释、`sysroot/thread.scoop`、`sysroot/sync.scoop`；core / lang.string 相关文件无命中。
+  - typecheck 搜索只命中显式 `scoop.thread.threadSpawn` 入口纯度策略与对应诊断，不是 core / lang.string 的隐式依赖路径。
+- 核心决策：
+  - 本任务是验证任务，未发现违规依赖，因此不需要回到 P10-T01 / P10-T02 修复，也不修改代码。
+  - `scoop.delegates` 对 `Mutex` 的说明与依赖按任务要求原样保留，留给下一轮 thread/sync 重设计。
+  - `scoop.thread.threadSpawn` 的 typecheck policy 属于显式 thread cone 行为，保留为合法命中。
+- 验证结果：
+  - core / lang.string 精确静态检查：`rg -n 'scoop\.thread|scoop\.sync|\b(Mutex|CondVar|Once|Thread|threadSpawn|mutexCreate|condVarCreate|onceCreate)\b' sysroot/core.scoop sysroot/string.scoop sysroot/lang_string.scoop sysroot/print.scoop` 无输出。
+  - `cargo build` 通过且无 warning。
+  - `cargo clippy --all-targets -- -D warnings` 通过。
+  - `cargo test --all --all-targets` 通过：856 passed。
+  - `cargo run -p scoop -- test` 通过：1338/1338 targets，1375 checks。
+- 与 `PLAN.md` 对应闭合：
+  - 闭合 PLAN §9 / P10 风险项：core 与 lang.string surface 不再反向依赖 `scoop.thread` / `scoop.sync`，后续重设计 thread/sync cone 不会被 core/lang.string 拉扯。
+- 暂时性 failing fixture：无。
 
 ## P11：测试 helper 迁移
 
