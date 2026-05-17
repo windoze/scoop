@@ -198,69 +198,6 @@ const NAMED_INTRINSIC_AUDIT_ENTRIES: &[NamedIntrinsicAuditEntry] = &[
         ),
     },
     NamedIntrinsicAuditEntry {
-        name: "scalar_char_to_string_bridge",
-        lowering_mode: NamedIntrinsicLoweringMode::RuntimeCall,
-        runtime_symbol: Some("scoop_char_to_string"),
-        runtime_signature: Some(NamedIntrinsicRuntimeSignature {
-            params: &[NamedIntrinsicRuntimeTy::I32],
-            return_ty: NamedIntrinsicRuntimeTy::StringRef,
-        }),
-        runtime_reason: Some(
-            "scalar Char formatting allocates and returns a managed String in runtime substrate; sysroot helpers must import it through an audited bridge instead of widening native @Extern",
-        ),
-    },
-    NamedIntrinsicAuditEntry {
-        name: "scalar_int_to_string_bridge",
-        lowering_mode: NamedIntrinsicLoweringMode::RuntimeCall,
-        runtime_symbol: Some("scoop_int_to_string"),
-        runtime_signature: Some(NamedIntrinsicRuntimeSignature {
-            params: &[NamedIntrinsicRuntimeTy::I64],
-            return_ty: NamedIntrinsicRuntimeTy::StringRef,
-        }),
-        runtime_reason: Some(
-            "scalar Int formatting allocates and returns a managed String in runtime substrate; sysroot helpers must import it through an audited bridge instead of widening native @Extern",
-        ),
-    },
-    NamedIntrinsicAuditEntry {
-        name: "scalar_float32_to_string_bridge",
-        lowering_mode: NamedIntrinsicLoweringMode::RuntimeCall,
-        runtime_symbol: Some("scoop_float32_to_string"),
-        runtime_signature: Some(NamedIntrinsicRuntimeSignature {
-            params: &[NamedIntrinsicRuntimeTy::Float32],
-            return_ty: NamedIntrinsicRuntimeTy::StringRef,
-        }),
-        runtime_reason: Some(
-            "scalar Float32 formatting allocates and returns a managed String in runtime substrate; sysroot helpers must import it through an audited bridge instead of widening native @Extern",
-        ),
-    },
-    NamedIntrinsicAuditEntry {
-        name: "scalar_float64_to_string_bridge",
-        lowering_mode: NamedIntrinsicLoweringMode::RuntimeCall,
-        runtime_symbol: Some("scoop_float64_to_string"),
-        runtime_signature: Some(NamedIntrinsicRuntimeSignature {
-            params: &[NamedIntrinsicRuntimeTy::Float64],
-            return_ty: NamedIntrinsicRuntimeTy::StringRef,
-        }),
-        runtime_reason: Some(
-            "scalar Float64 formatting allocates and returns a managed String in runtime substrate; sysroot helpers must import it through an audited bridge instead of widening native @Extern",
-        ),
-    },
-    NamedIntrinsicAuditEntry {
-        name: "string_concat_bridge",
-        lowering_mode: NamedIntrinsicLoweringMode::RuntimeCall,
-        runtime_symbol: Some("scoop_string_concat"),
-        runtime_signature: Some(NamedIntrinsicRuntimeSignature {
-            params: &[
-                NamedIntrinsicRuntimeTy::StringRef,
-                NamedIntrinsicRuntimeTy::StringRef,
-            ],
-            return_ty: NamedIntrinsicRuntimeTy::StringRef,
-        }),
-        runtime_reason: Some(
-            "String concatenation allocates a managed String from two byte buffers; the public helper is sysroot code, while this audited bridge keeps the allocation/copy boundary in runtime substrate",
-        ),
-    },
-    NamedIntrinsicAuditEntry {
         name: "write_barrier",
         lowering_mode: NamedIntrinsicLoweringMode::RuntimeCall,
         runtime_symbol: Some("scoop_gc_write_barrier"),

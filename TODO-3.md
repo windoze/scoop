@@ -227,7 +227,7 @@
 - 与 `PLAN.md` 闭合：完成 §3.4 / §9 / P7 的 sysroot scoop ABI helper 转换主线，runtime-symbol wrappers 不再以 sysroot `@Intrinsic` 承载；阶段级计划未变化，未修改 `PLAN.md`。
 - 暂时性 failing fixture：本任务未新增必须由 P7-T01 处理的 failing fixture；上述 7 个 baseline 失败继续按 P13-T04 最终 fixture 收尾处理。
 
-### P7-T02：删除 `sysroot/scalar_string_bridge.scoop` + 编译器对应 audited bridge dispatch
+### [DONE] P7-T02：删除 `sysroot/scalar_string_bridge.scoop` + 编译器对应 audited bridge dispatch
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §3.4 / §9 / P7
@@ -263,6 +263,15 @@
   - audited bridge 一层完整退场。
   - sysroot 文件数从 9 减为 8。
 - 依赖：P7-T01。
+
+完成记录（2026-05-17）：
+
+- 改动范围：删除 `sysroot/scalar_string_bridge.scoop`；从 sysroot/effect-facts support-source 列表移除该文件；从 `crates/scoopc/src/intrinsics.rs` 删除 scalar `*_to_string_bridge` audited entries，并同步删除已无 sysroot 使用方的 `string_concat_bridge` entry；删除旧 `compiled_sysroot_scalar_string_bridge_helpers_stay_in_module` IR 测试；删除旧 `tests/fixtures/run-pass/sysroot_scalar_string_bridge_basic.scoop` fixture。
+- 核心决策：`scoopAbi*ToString` 是本轮被删除的过渡 API，删除旧 fixture 的理由是其被测对象已不存在；scalar `toString()` 行为继续由 `managed_abi_scalar_tostring_basic.scoop`、`tostring_interface_basic.scoop` 与 `scalar_to_string_calls_scoop_abi_runtime_directly` 覆盖。`String.concat` 已在 P7-T01 改为 scoop ABI extern，本任务顺手移除残留的 unused `string_concat_bridge` audit entry，避免留下同类 bridge dispatch。
+- 验证结果：`rg` 验证 `crates runtime sysroot` 下 `scoopAbi.*ToString|scalar_.*_to_string_bridge|to_string_bridge` 无命中；`test ! -e sysroot/scalar_string_bridge.scoop` 通过；`cargo test -p scoopc scalar_to_string_calls_scoop_abi_runtime_directly -- --nocapture` 通过；`cargo test -p scoopc load_default_sysroot -- --nocapture` 通过；`cargo test -p scoopc default_core_is_compilable_support_source_and_index_file -- --nocapture` 通过；`cargo test -p scoopc sysroot_declaration_only_regular_funs_are_explicitly_exempted -- --nocapture` 通过；`cargo test --all --all-targets` 通过；`cargo clippy --all-targets -- -D warnings` 通过。
+- 全量 fixture：`cargo run -p scoop -- test` 完整执行，结果为 7 个失败、1334 个通过、1371 checks 通过。失败项与 P7-T01/P6-T02 记录的既有 baseline 一致，不由本任务 owner path 引入：`tests/fixtures/run-pass/mutable_array_ops_basic.scoop`、`tests/fixtures/runtime_gc/extern_enter_native_gc_arg_spill_reload.scoop`、`tests/fixtures/runtime_gc/extern_enter_native_roots_gc.scoop`、`tests/fixtures/runtime_gc/funptr_enter_native_roots_gc.scoop`、`tests/fixtures/runtime_gc/gc_handle_roundtrip.scoop`、`tests/fixtures/runtime_gc/gc_move_stackmap_heap_fixup.scoop`、`tests/fixtures/run_pass_cone/cross_file_ctor_named_default_basic`。目标/检查数各减少 1 是因为旧 bridge fixture 的被测 API 被本任务删除。
+- 与 `PLAN.md` 闭合：完成 P7 §3.4 / §9 中 scalar String bridge 文件与 audited bridge dispatch 退场；阶段级计划未变化，未修改 `PLAN.md`。
+- 暂时性 failing fixture：本任务未新增 P7-T02 owner failing fixture；上述 7 个 baseline 失败继续按 P13-T04 最终 fixture 收尾处理。
 
 ### P7-T03：runtime 端可能的符号改名（`scoop_print_string` → `scoop_print` 等）
 

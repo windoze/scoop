@@ -2167,7 +2167,7 @@ impl EffectFactsTypeContext {
             let is_effect_facts_signature_support = support_source
                 .path()
                 .file_name()
-                .is_some_and(|name| name == "scalar_string_bridge.scoop" || name == "string.scoop");
+                .is_some_and(|name| name == "string.scoop");
             if !is_effect_facts_signature_support {
                 continue;
             }

@@ -297,110 +297,6 @@ fun main(): Int {
     );
 }
 
-pub(super) fn assert_sysroot_scalar_string_bridge_contract() {
-    let source = SourceFile::new_virtual(
-        "<mem>/scalar_string_bridge_contract.scoop",
-        r#"
-package fixtures.scalar_string_bridge
-
-import scoop.core.*
-
-fun main(): Int {
-    val narrow: Float32 = 1.5
-    println(scoopAbiIntToString(42))
-    println(scoopAbiCharToString('A'))
-    println(scoopAbiFloat32ToString(narrow))
-    println(scoopAbiFloat64ToString(2.25))
-    return 0
-}
-"#,
-    );
-
-    let session = Session::new().unwrap();
-    let ir = emit_minimal_main_ir(&session, &source).unwrap();
-
-    let int_bridge_ir = function_ir_matching(
-        &ir,
-        "compiled sysroot Int scalar String bridge helper",
-        |header, function| {
-            !header.contains("@main(")
-                && stable_id_symbol_is_user_callable(llvm_function_symbol_name(function))
-                && stable_id_symbol_mentions_fqn(
-                    llvm_function_symbol_name(function),
-                    "scoop.core.scoopAbiIntToString",
-                )
-        },
-    );
-    assert!(
-        int_bridge_ir.contains("@scoop_int_to_string(")
-            && !int_bridge_ir.contains("@scoop_enter_native")
-            && !int_bridge_ir.contains("@scoop_leave_native"),
-        "compiled sysroot Int bridge helper 应通过 audited runtime symbol 返回 String，且不复用 native boundary scaffold:\n{int_bridge_ir}"
-    );
-
-    let char_bridge_ir = function_ir_matching(
-        &ir,
-        "compiled sysroot Char scalar String bridge helper",
-        |header, function| {
-            !header.contains("@main(")
-                && stable_id_symbol_is_user_callable(llvm_function_symbol_name(function))
-                && stable_id_symbol_mentions_fqn(
-                    llvm_function_symbol_name(function),
-                    "scoop.core.scoopAbiCharToString",
-                )
-        },
-    );
-    assert!(
-        char_bridge_ir.contains("@scoop_char_to_string("),
-        "compiled sysroot Char bridge helper 应调用 scoop_char_to_string:\n{char_bridge_ir}"
-    );
-
-    let float32_bridge_ir = function_ir_matching(
-        &ir,
-        "compiled sysroot Float32 scalar String bridge helper",
-        |header, function| {
-            !header.contains("@main(")
-                && stable_id_symbol_is_user_callable(llvm_function_symbol_name(function))
-                && stable_id_symbol_mentions_fqn(
-                    llvm_function_symbol_name(function),
-                    "scoop.core.scoopAbiFloat32ToString",
-                )
-        },
-    );
-    assert!(
-        float32_bridge_ir.contains("@scoop_float32_to_string("),
-        "compiled sysroot Float32 bridge helper 应调用 scoop_float32_to_string:\n{float32_bridge_ir}"
-    );
-
-    let float64_bridge_ir = function_ir_matching(
-        &ir,
-        "compiled sysroot Float64 scalar String bridge helper",
-        |header, function| {
-            !header.contains("@main(")
-                && stable_id_symbol_is_user_callable(llvm_function_symbol_name(function))
-                && stable_id_symbol_mentions_fqn(
-                    llvm_function_symbol_name(function),
-                    "scoop.core.scoopAbiFloat64ToString",
-                )
-        },
-    );
-    assert!(
-        float64_bridge_ir.contains("@scoop_float64_to_string("),
-        "compiled sysroot Float64 bridge helper 应调用 scoop_float64_to_string:\n{float64_bridge_ir}"
-    );
-
-    assert!(
-        maybe_function_ir_matching(&ir, |_, function| {
-            stable_id_symbol_mentions_fqn(
-                llvm_function_symbol_name(function),
-                "scoop.core.__scoop_runtime_int_to_string_bridge",
-            )
-        })
-        .is_none(),
-        "declaration-only runtime bridge intrinsic 不应物化成 ordinary helper 符号:\n{ir}"
-    );
-}
-
 pub(super) fn assert_scalar_to_string_calls_scoop_abi_runtime_directly() {
     let source = SourceFile::new_virtual(
         "<mem>/scalar_to_string_direct_runtime.scoop",
@@ -430,11 +326,9 @@ fun main() {
         });
     assert!(
         int_to_string_ir.contains("@scoop_int_to_string(")
-            && !int_to_string_ir.contains("__scoop_runtime_int_to_string_bridge")
-            && !int_to_string_ir.contains("scoopAbiIntToString")
             && !int_to_string_ir.contains("@scoop_enter_native")
             && !int_to_string_ir.contains("@scoop_leave_native"),
-        "Int.toString should call the scoop ABI runtime symbol directly without bridge or native boundary:\n{int_to_string_ir}"
+        "Int.toString should call the scoop ABI runtime symbol directly without native boundary:\n{int_to_string_ir}"
     );
 
     let bool_to_string_ir =
@@ -1059,11 +953,6 @@ pub(super) fn single_file_minimal_ir_includes_compilable_sysroot_string_helpers(
 #[test]
 pub(super) fn abi_baseline_compiled_sysroot_string_helper_stays_in_module() {
     assert_abi_baseline_sysroot_string_helper_contract();
-}
-
-#[test]
-pub(super) fn compiled_sysroot_scalar_string_bridge_helpers_stay_in_module() {
-    assert_sysroot_scalar_string_bridge_contract();
 }
 
 #[test]

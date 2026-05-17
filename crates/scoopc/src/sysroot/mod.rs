@@ -80,7 +80,7 @@ impl Sysroot {
                 .wrap_err_with(|| format!("解析 sysroot 文件失败：{}", path.display()))?;
 
             // T0143：含有真实实现体的 sysroot 文件需要走完整编译管线，而非仅作为签名索引。
-            // 除了既有的 `string/print/task.scoop` 之外，overlay 的 `core.scoop` 若声明了
+            // 除了既有的 `string/lang_string/print/task.scoop` 之外，overlay 的 `core.scoop` 若声明了
             // bodied `@Intrinsic struct/class` 也必须进入 compilable support sources。
             if is_compilable_sysroot_file(&path, &source, &ast) {
                 compilable_source_paths.push(path.clone());
@@ -143,7 +143,7 @@ impl Sysroot {
 
 /// T0143：判断 sysroot 文件是否需要作为编译单元的一部分（而非仅签名索引）。
 /// 当前规则：
-/// - `core.scoop`、`lang_string.scoop`、`string.scoop`、`print.scoop`、`scalar_string_bridge.scoop` 与 `task.scoop`
+/// - `core.scoop`、`lang_string.scoop`、`string.scoop`、`print.scoop` 与 `task.scoop`
 ///   一直是 support sources；
 /// - overlay 的 `core.scoop` 若声明了 bodied `@Intrinsic struct/class`，也要进入完整编译管线。
 fn is_compilable_sysroot_file(path: &Path, source: &SourceFile, ast: &crate::ast::File) -> bool {
@@ -156,7 +156,6 @@ fn is_always_compilable_sysroot_file(path: &Path) -> bool {
             || name == "lang_string.scoop"
             || name == "core.scoop"
             || name == "print.scoop"
-            || name == "scalar_string_bridge.scoop"
             || name == "task.scoop"
     })
 }
