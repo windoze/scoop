@@ -1,0 +1,14 @@
+// EXPECT: pass
+// RUN-STDOUT: sysroot_refcell_box_basic.stdout
+
+import scoop.core.*
+
+fun main(): Unit {
+    val cell: RefCell<Int> = RefCell(1)
+    println(cell.value)
+
+    cell.value = cell.value + 41
+    val box: Box<Int> = Box(cell.value)
+    println(cell.value)
+    println(box.value)
+}

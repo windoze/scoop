@@ -126,8 +126,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         if !self.class_inits.contains_key(&lookup_key) {
             // Fallback to base FQN for non-generic classes.
             if !self.class_inits.contains_key(owner_fqn) {
+                let mangled_owner_prefix = format!("{owner_fqn}<");
                 let class_keys = self.class_inits.keys().cloned().collect::<Vec<_>>();
                 for class_key in class_keys {
+                    if class_key != owner_fqn && !class_key.starts_with(&mangled_owner_prefix) {
+                        continue;
+                    }
                     if let Some(field) =
                         self.lookup_class_field_by_fqn_inner(field_fqn, at, &class_key)?
                     {

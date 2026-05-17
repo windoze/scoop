@@ -1671,6 +1671,26 @@ mod tests {
     }
 
     #[test]
+    fn sysroot_type_env_contains_refcell_box_classes() {
+        let sess = Session::new().unwrap();
+        let mut pairs: Vec<(&SourceFile, &ast::File)> = Vec::new();
+        for f in sess.sysroot().index_files() {
+            pairs.push((&f.source, &f.ast));
+        }
+        let index = Index::build(&pairs).unwrap();
+        let env = TypeEnv::from_sysroot(sess.sysroot(), &index).unwrap();
+
+        for fqn in ["scoop.core.RefCell", "scoop.core.Box"] {
+            let sym = env
+                .type_symbol(fqn)
+                .expect("sysroot shared-state class should be registered");
+            assert_eq!(sym.kind, TypeSymbolKind::Nominal(ast::TypeKind::Class));
+            assert!(!sym.is_sealed_interface);
+            assert_eq!(sym.type_param_count, 1);
+        }
+    }
+
+    #[test]
     fn sysroot_type_env_allows_anyref_anyvalue_generic_bounds() {
         let sess = Session::new().unwrap();
         let source = SourceFile::new_virtual(

@@ -1508,3 +1508,12 @@ fun panic(message: String): Nothing
 effect Raise<in E> {
     fun raise(error: E): Nothing
 }
+
+// Explicit heap cells for shared state. `RefCell` is single-threaded and
+// mutable; `Box` is an immutable wrapper used when an extra heap indirection is
+// required by library APIs such as atomic value snapshots.
+class RefCell<T>(initial: T) {
+    var value: T = initial
+}
+
+class Box<T>(val value: T)

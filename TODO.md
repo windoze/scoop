@@ -4,7 +4,7 @@
 > 设计基线：[`CLOSURE_FIX.md`](./CLOSURE_FIX.md)  
 > 计划基线：[`PLAN.md`](./PLAN.md)  
 > 格式参考：[`docs/archive/plans/TODO-stable-id.md`](./docs/archive/plans/TODO-stable-id.md)  
-> 当前状态：C2-T02 已完成
+> 当前状态：C3-T01 已完成
 > 执行原则：C0 必须最先完成；C1/C3 与 C2 两条实现线可按依赖并行，但单个任务完成时不得留下仓库内 failing fixture；每个任务完成后必须回写“完成记录”。
 
 ## 全局约束
@@ -580,7 +580,7 @@ C0-T01 (baseline + prerequisite inventory)
 
 ## C3：配套库类型
 
-### [TODO] C3-T01：在 sysroot 添加 `RefCell<T>` / `Box<T>`
+### [DONE] C3-T01：在 sysroot 添加 `RefCell<T>` / `Box<T>`
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5、§7 C3-T01
@@ -612,9 +612,28 @@ C0-T01 (baseline + prerequisite inventory)
 - 依赖：C0-T01
 - 完成记录：
   - 改动范围：
+    - 在 `sysroot/scoop.core/core.scoop` 新增普通 sysroot class：`RefCell<T>(initial: T) { var value: T = initial }` 与 `Box<T>(val value: T)`。
+    - 新增 `typecheck::type_env::tests::sysroot_type_env_contains_refcell_box_classes`，确认两个类型作为普通泛型 class 进入 sysroot type env，且不是 sealed marker。
+    - 新增 `tests/fixtures/run-pass/sysroot_refcell_box_basic.scoop` / `.stdout`，覆盖 `RefCell<Int>` 构造、`value` 读写与 `Box<Int>.value` 读取。
+    - 新增 `tests/fixtures/typecheck/sysroot_box_value_assign_is_error.scoop`，确认 `Box.value` 是 `val` 字段，赋值报 `scoop::typecheck::assignment_target_not_mutable`。
+    - 修复 `crates/scoopc/src/llvm/codegen/layout.rs` 的 class field fallback lookup：只允许扫描字段所属 class 或其泛型实例，避免新增 `scoop.core.Box.value` 后把本地 `struct Box.value` / `Entry.value` 等同名 value 字段误判为 class field。
+    - 更新 5 个 HIR golden 中的 sysroot target span，收口 C1 sysroot marker 插入后遗留的 span drift；未修改 `PLAN.md` 或 `CLOSURE_FIX.md`。
   - 核心决策：
+    - `RefCell` / `Box` 均走现有 class、constructor 与 field 机制；不新增 intrinsic、runtime ABI、layout 特例或 compiler shim。
+    - `RefCell<T>` 是单线程 mutable cell，仅提供一个普通 `var value` 字段；不提供原子或并发语义。
+    - `Box<T>` 保持不可变 heap wrapper，`value` 使用 `val`，为后续 `AtomicValue<T>` 的 snapshot / CAS expected 形态提供普通库类型。
+    - `RefCell` / `Box` 放在 `core.scoop` 文件尾部，避免再次移动既有 sysroot 声明 span 并扩大 HIR snapshot churn。
   - 验证结果：
-  - 与 `PLAN.md` / `CLOSURE_FIX.md` 对应闭合：
+    - `cargo build`：通过。
+    - `cargo test -p scoopc sysroot_type_env -- --nocapture`：通过，5 个 sysroot type env 相关测试通过。
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/sysroot_box_value_assign_is_error.scoop --exit-on-failure`：通过。
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/sysroot_refcell_box_basic.scoop --exit-on-failure`：通过。
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/struct_generic_member_access_result_type_basic.scoop --exit-on-failure`：通过，覆盖本地 `struct Box` 不被 sysroot `Box` 干扰。
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/build/array_intrinsic_composite_copy_set.scoop --exit-on-failure`：通过，覆盖同名 `value` 字段不被 class fallback 误匹配。
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/hir --exit-on-failure`：通过，26 个 HIR fixtures 通过。
+    - `cargo clippy --all-targets -- -D warnings`：通过。
+    - `cargo run -p scoop -- test`：已运行；除 `C4-T01A` 已登记的 3 个 CaptureBox MIR snapshot 刷新目标外，其余通过（`3/1342` failed, `1339/1342` passed, `1376` checks passed）。剩余失败为 `tests/fixtures/mir/closure_capture_var.scoop`、`tests/fixtures/mir_lowered/aggregate_transport.scoop`、`tests/fixtures/mir_lowered/assignment_places.scoop`，与本任务实现无关，且已由 `C4-T01A` 明确排队刷新。
+  - 与 `PLAN.md` / `CLOSURE_FIX.md` 对应闭合：闭合 `PLAN.md` §5 / §7 C3-T01 与 `CLOSURE_FIX.md` §3 的 `RefCell<T>` / `Box<T>` 普通库类型要求；阶段级计划未变化。
 
 ### [TODO] C3-T02：在 sysroot/compiler 添加 `Atomic` 一族
 

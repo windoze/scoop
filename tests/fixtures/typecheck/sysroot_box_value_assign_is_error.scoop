@@ -1,0 +1,12 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::assignment_target_not_mutable
+// EXPECT-ERROR: 不可赋值
+// EXPECT-ERROR-AT: 11:9
+
+package fixtures.typecheck
+import scoop.core.*
+
+fun main() {
+    val box: Box<Int> = Box(1)
+    box.value = 2
+}
