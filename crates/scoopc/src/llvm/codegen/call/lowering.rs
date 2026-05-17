@@ -1599,6 +1599,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     args,
                 );
             }
+            if dispatch_fqn.starts_with("scoop.unsafe.__atomicRef") {
+                return self.codegen_sysroot_atomic_ref_intrinsics(
+                    span,
+                    callee.span,
+                    dispatch_fqn,
+                    args,
+                );
+            }
             if let Some(callee_hir_ty) = self.top_level_value_ty(fqn) {
                 if let TypeKind::Ref(RefTypeKind::Function(fun_ty)) = self.types.kind(callee_hir_ty)
                 {
@@ -1765,19 +1773,19 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
         }
 
-        if let hir::ExprKind::UnresolvedIdent { name } = &callee.kind {
-            let call_site = self.current_call_site(span)?;
-            if let Some(site) = self.ctor_call_sites.get(&call_site) {
-                return self.codegen_class_ctor_call(
-                    span,
-                    callee.span,
-                    name,
-                    args,
-                    site,
-                    result_ty,
-                );
-            }
+        let call_site = self.current_call_site(span)?;
+        if let Some(site) = self.ctor_call_sites.get(&call_site).cloned() {
+            return self.codegen_class_ctor_call(
+                span,
+                callee.span,
+                &site.class_fqn,
+                args,
+                &site,
+                result_ty,
+            );
+        }
 
+        if let hir::ExprKind::UnresolvedIdent { name } = &callee.kind {
             let Some(CgTy::Enum(enum_ty)) = expected else {
                 return Err(LlvmEmitError::UnsupportedMainBody {
                     kind: "enum variant ctor call without expected enum type",

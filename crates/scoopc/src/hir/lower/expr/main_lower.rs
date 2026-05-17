@@ -1122,10 +1122,15 @@ impl<'a> HirLowering<'a> {
                     //
                     // P4-T01h：`Container<Int>(...)` 在 AST 中是 `Call(TypeApply(Ident, ...), ...)`，
                     // ctor 绑定本身仍键于 `e.span`，因此识别 callee 时需要把 `TypeApply` 透明展开。
-                    if let ast::ExprKind::Ident(id) = &self.transparent_call_callee(callee).kind
-                        && let Some(binding) = self
-                            .typechecked_ctor_call_binding(e.span)
-                            .or_else(|| self.resolver_fallback_ctor_call_binding(id, args))
+                    let ctor_binding = self.typechecked_ctor_call_binding(e.span).or_else(|| {
+                        if let ast::ExprKind::Ident(id) = &self.transparent_call_callee(callee).kind
+                        {
+                            self.resolver_fallback_ctor_call_binding(id, args)
+                        } else {
+                            None
+                        }
+                    });
+                    if let Some(binding) = ctor_binding
                         && matches!(
                             self.type_kinds.get(&binding.owner_fqn),
                             Some(ast::TypeKind::Class)

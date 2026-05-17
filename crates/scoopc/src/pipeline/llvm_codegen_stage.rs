@@ -1231,6 +1231,32 @@ fun main(): Int {
         )
     }
 
+    fn atomic_ref_source() -> SourceFile {
+        SourceFile::new_virtual(
+            "<mem>/atomic_ref_fixture.scoop",
+            r#"
+package sample
+
+import scoop.core.*
+
+class Node(var value: Int)
+
+fun main(): Int {
+    val first: Node = Node(1)
+    val second: Node = Node(2)
+    val cell: Atomic<Node> = Atomic(first)
+    val loaded: Node = cell.load()
+    cell.store(second)
+    val swapped: Bool = cell.cas(second, first)
+    if (swapped) {
+        return loaded.value + cell.load().value
+    }
+    return 0
+}
+"#,
+        )
+    }
+
     fn emit_ir_for_source(source: SourceFile, file_name: &str) -> String {
         emit_ir_for_source_with_entry(source, file_name, None).unwrap()
     }
@@ -1740,6 +1766,35 @@ fun main(): Int {
                 line.contains("store ") && line.contains("pass_mir_closure_env_field_gep")
             }),
             "closure body must not write rebinding back into the env object\n{closure_body}"
+        );
+    }
+
+    #[test]
+    fn llvm_atomic_ref_uses_atomic_instructions_and_gc_barrier() {
+        let ir = emit_ir_for_source(atomic_ref_source(), "atomic_ref.ll");
+
+        assert!(
+            ir.contains("load atomic ptr addrspace(1)")
+                && ir.contains("store atomic ptr addrspace(1)")
+                && ir.contains("cmpxchg ptr addrspace(1)"),
+            "Atomic<T: AnyRef> should lower load/store/cas to pointer atomic instructions\n{ir}"
+        );
+        let cas_function =
+            ir_function_matching(&ir, "atomic ref cas function", |_header, function| {
+                function.contains("cmpxchg ptr addrspace(1)")
+            });
+        assert!(
+            cas_function.contains("atomic_ref_cas_barrier")
+                && cas_function.contains("@scoop_gc_write_barrier"),
+            "atomic-ref CAS must run the GC write barrier only on the success path\n{cas_function}"
+        );
+        let store_function =
+            ir_function_matching(&ir, "atomic ref store function", |_header, function| {
+                function.contains("store atomic ptr addrspace(1)")
+            });
+        assert!(
+            store_function.contains("@scoop_gc_write_barrier"),
+            "atomic-ref store must invoke the GC write barrier protocol\n{store_function}"
         );
     }
 

@@ -4,7 +4,7 @@
 > 设计基线：[`CLOSURE_FIX.md`](./CLOSURE_FIX.md)  
 > 计划基线：[`PLAN.md`](./PLAN.md)  
 > 格式参考：[`docs/archive/plans/TODO-stable-id.md`](./docs/archive/plans/TODO-stable-id.md)  
-> 当前状态：C3-T01 已完成
+> 当前状态：C3-T02 已完成
 > 执行原则：C0 必须最先完成；C1/C3 与 C2 两条实现线可按依赖并行，但单个任务完成时不得留下仓库内 failing fixture；每个任务完成后必须回写“完成记录”。
 
 ## 全局约束
@@ -635,7 +635,7 @@ C0-T01 (baseline + prerequisite inventory)
     - `cargo run -p scoop -- test`：已运行；除 `C4-T01A` 已登记的 3 个 CaptureBox MIR snapshot 刷新目标外，其余通过（`3/1342` failed, `1339/1342` passed, `1376` checks passed）。剩余失败为 `tests/fixtures/mir/closure_capture_var.scoop`、`tests/fixtures/mir_lowered/aggregate_transport.scoop`、`tests/fixtures/mir_lowered/assignment_places.scoop`，与本任务实现无关，且已由 `C4-T01A` 明确排队刷新。
   - 与 `PLAN.md` / `CLOSURE_FIX.md` 对应闭合：闭合 `PLAN.md` §5 / §7 C3-T01 与 `CLOSURE_FIX.md` §3 的 `RefCell<T>` / `Box<T>` 普通库类型要求；阶段级计划未变化。
 
-### [TODO] C3-T02：在 sysroot/compiler 添加 `Atomic` 一族
+### [DONE] C3-T02：在 sysroot/compiler 添加 `Atomic` 一族
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5、§7 C3-T02
@@ -666,9 +666,32 @@ C0-T01 (baseline + prerequisite inventory)
 - 依赖：C1-T02、C3-T01
 - 完成记录：
   - 改动范围：
+    - 在 `sysroot/scoop.unsafe/unsafe.scoop` 新增内部 generic atomic-ref intrinsic：`__atomicRefLoad<T: AnyRef>`、`__atomicRefStore<T: AnyRef>`、`__atomicRefCompareExchange<T: AnyRef>`。
+    - 在 `sysroot/scoop.core/core.scoop` 发布用户 API：`AtomicInt`、`AtomicBool`、`Atomic<T> where T: AnyRef`、`AtomicValue<T> where T: AnyValue`；`AtomicValue<T>::cas` 使用 `expected: Box<T>`。
+    - LLVM direct HIR 与 effect-lowered 两条路径都新增 atomic-ref lowering；load/store/cmpxchg 生成 pointer atomic instruction，store 与 CAS 成功路径调用 GC write barrier 协议。
+    - 新增 null-slot GC barrier helper，避免 atomic-ref 写入后由 runtime barrier 再执行非原子 slot 写。
+    - 修复泛型 class concrete `ClassInit` 生成时未替换 initializer / ctor body 内嵌套 type param 的缺口，避免 `AtomicValue<T>` 中的 `Atomic<Box<T>>` 残留 `T` 到 codegen。
+    - 支持 qualified nominal constructor call（例如 `scoop.core.Box(...)`）的 typecheck、HIR call-site contract 与 direct HIR codegen，避免 sysroot 内部 `Box` 被用户本地同名类型干扰。
+    - 更新旧 sysroot overlay fixtures，补齐 `AnyRef` / `AnyValue` marker；新增 atomic API run-pass / bound-reject fixtures 与 atomic-ref LLVM unit test。
   - 核心决策：
+    - `AtomicInt` 复用现有 `__AtomicInt` / `__atomicInt*` primitive；`AtomicBool` 明确编码为 `0/1` 并复用 atomic-int primitive。
+    - `Atomic<T: AnyRef>` 内部持有普通 `var raw: T`，以 internal `__atomicRef*` 执行 pointer-identity load/store/CAS；unsafe primitive 不作为用户 API 暴露。
+    - `AtomicValue<T: AnyValue>` 内部使用 `Atomic<scoop.core.Box<T>>`，`snapshot()` 返回 `Box<T>`，`load()` 返回 `box.value`，`cas(expected: Box<T>, desired: T)` 构造新 `Box` 作为 desired。
+    - atomic-ref store 与 CAS 成功后调用 `scoop_gc_write_barrier(null, desired)`，让 runtime 执行 ref promotion / safepoint 协议，但不通过 barrier 非原子写回 atomic slot。
+    - 不引入 backward compatibility、shim 或 fixture-only 特例；qualified constructor support 作为通用语言/前端能力补齐。
   - 验证结果：
-  - 与 `PLAN.md` / `CLOSURE_FIX.md` 对应闭合：
+    - `cargo build`：通过。
+    - `cargo clippy --all-targets -- -D warnings`：通过。
+    - `cargo test -p scoopc llvm_atomic_ref_uses_atomic_instructions_and_gc_barrier -- --nocapture`：通过。
+    - `cargo test -p scoopc generic -- --nocapture`：通过，57 个 generic 相关测试通过。
+    - `cargo test -p scoopc llvm -- --nocapture`：通过，250 个 LLVM 相关测试通过。
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/sysroot_atomic_basic.scoop --exit-on-failure`：通过。
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/sysroot_atomic_ref_rejects_value_type.scoop --exit-on-failure`：通过。
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/sysroot_atomic_value_rejects_ref_type.scoop --exit-on-failure`：通过。
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/build/sysroot_overlay_core_array_interface_bridge.scoop --exit-on-failure`：通过。
+    - `cargo run -p scoop -- test`：已运行；除 `C4-T01A` 已登记的 3 个 CaptureBox MIR snapshot 刷新目标外，其余通过（`3/1345` failed, `1342/1345` passed, `1379` checks passed）。剩余失败为 `tests/fixtures/mir/closure_capture_var.scoop`、`tests/fixtures/mir_lowered/aggregate_transport.scoop`、`tests/fixtures/mir_lowered/assignment_places.scoop`，与本任务实现无关，且已由 `C4-T01A` 明确排队刷新。
+    - `cargo test --all --all-targets`：已运行；唯一失败为 `fixtures::tests::run_all_recreates_session_between_independent_fixtures`，失败原因同样是已登记的 `C4-T01A` `mir_lowered/aggregate_transport` snapshot mismatch；其它 Rust tests 通过。
+  - 与 `PLAN.md` / `CLOSURE_FIX.md` 对应闭合：闭合 `PLAN.md` §5 / §7 C3-T02 与 `CLOSURE_FIX.md` §3 的 Atomic shared-state primitives 要求；阶段级计划未变化。
 
 ## C4：fixtures + audit
 

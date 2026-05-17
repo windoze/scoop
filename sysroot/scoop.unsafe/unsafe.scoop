@@ -173,3 +173,15 @@ fun __atomicIntStore(target: __AtomicInt, value: Int): Unit
 /// atomic compare-exchange (SeqCst). Returns `true` when swapped.
 @Intrinsic @NoGC @Unsafe
 fun __atomicIntCompareExchange(target: __AtomicInt, expected: Int, desired: Int): Bool
+
+/// atomic ref load (SeqCst). The first argument must be a ref-typed lvalue slot.
+@Intrinsic @NoGC @Unsafe
+fun <T> __atomicRefLoad(target: T): T where T: AnyRef
+
+/// atomic ref store (SeqCst). The first argument must be a mutable ref-typed lvalue slot.
+@Intrinsic @NoGC @Unsafe
+fun <T> __atomicRefStore(target: T, value: T): Unit where T: AnyRef
+
+/// atomic ref compare-exchange (SeqCst). Returns `true` when pointer identity matched and swapped.
+@Intrinsic @NoGC @Unsafe
+fun <T> __atomicRefCompareExchange(target: T, expected: T, desired: T): Bool where T: AnyRef

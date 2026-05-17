@@ -9,6 +9,8 @@ fun __scoop_int_to_string(value: Int): String
 fun __scoop_string_unsafe_slice_bytes(value: String, byteOffset: Int, byteLength: Int): String
 
 interface Any
+sealed interface AnyRef
+sealed interface AnyValue
 
 interface Hashable {
     fun hash(): Int {

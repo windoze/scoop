@@ -4,29 +4,48 @@
 
 Goal: complete exactly the first incomplete task in `TODO.md`, then stop after validation and a git commit.
 
+Selected task: `C3-T02` (`在 sysroot/compiler 添加 Atomic 一族`).
+
+Task source of truth: `TODO.md` lines for `C3-T02`; `PLAN.md` is only consulted for phase-level context.
+
 ## Execution Plan
 
-1. Read `TODO.md` first and identify the first task whose heading is not prefixed with `[DONE]`.
-2. Check the latest commit only for directly relevant unfinished work tied to that selected task.
-3. Inspect the task requirements, dependencies, and validation notes before editing code.
-4. Implement the task as written, avoiding workaround behavior or scope narrowing.
-5. If a concrete blocker or missing prerequisite prevents correct implementation, update `TODO.md` with the minimum prerequisite task, keep the original task incomplete, commit that bookkeeping change, and stop.
-6. Run focused tests first, then the task-required validation commands. Fix any failures that are in scope for the selected task.
-7. Mark the completed task heading in `TODO.md` with `[DONE]` and update its completion record.
-8. Update this plan file when key steps complete or if the plan changes.
-9. Commit all relevant changes with a clear task-tagged message.
-10. Stop without starting the next task.
+1. Confirm the latest commit only for unfinished work directly relevant to `C3-T02`.
+2. Inspect the existing atomic-int implementation in `sysroot/scoop.unsafe`, direct HIR LLVM lowering, effect-lowered LLVM lowering, and GC write barrier helpers.
+3. Inspect sysroot core conventions for ordinary classes and methods, including existing generic-bound syntax using `AnyRef` / `AnyValue`.
+4. Design the smallest spec-correct surface for `AtomicInt`, `AtomicBool`, `Atomic<T: AnyRef>`, and `AtomicValue<T: AnyValue>` in sysroot, with unsafe atomic-ref intrinsics kept internal.
+5. Implement atomic-ref primitive support in the compiler for direct HIR LLVM and effect-lowered LLVM paths, ensuring ref store and successful CAS obey the GC barrier protocol.
+6. Implement sysroot public APIs on top of existing atomic-int intrinsics and the new internal atomic-ref intrinsics.
+7. Add focused compiler tests for atomic-ref IR generation and GC barrier behavior, plus fixture coverage for public API usage and marker-bound rejection.
+8. Run focused validation first, then task-required validation (`cargo build`, targeted LLVM tests, and `cargo run -p scoop -- test` with a long timeout). Fix in-scope failures.
+9. Mark `C3-T02` as `[DONE]` in `TODO.md` and fill its completion record with scope, decisions, validation, and plan/design closure.
+10. Commit all relevant changes with a clear `[C3-T02]` message.
+11. Stop without starting `C4-T01A`.
+
+## Guardrails
+
+- Do not weaken the API shape: `AtomicValue<T>::cas` must take `expected: Box<T>`.
+- Do not expose unsafe atomic-ref intrinsics as user-facing API.
+- Do not bypass the GC write barrier for atomic ref store/CAS success paths.
+- Do not add compatibility shims for old behavior.
+- If a missing prerequisite prevents spec-correct implementation, add the minimum prerequisite task before `C3-T02`, keep `C3-T02` incomplete, commit that bookkeeping change, and stop.
 
 ## Progress Log
 
-- Initialized execution plan before running repository commands.
-- Read `TODO.md`; selected first incomplete task: `C3-T01` (`RefCell<T>` / `Box<T>` in sysroot).
-- Next checks are limited to this task: inspect relevant sysroot/test files and latest commit for directly related unfinished work.
-- Latest commit is `[C2-T02] Fix mutable closure capture locals`; no directly relevant unfinished C3-T01 blocker found.
-- `sysroot/scoop.core/core.scoop` already hosts core root/container types, so `RefCell<T>` and `Box<T>` will be added there instead of creating a new sysroot file.
-- Added `RefCell<T>` and `Box<T>` as ordinary sysroot classes.
-- Added targeted coverage: sysroot type-env registration, run-pass construction/read/write behavior, and typecheck rejection for assigning `Box.value`.
-- Fixed class-field lookup so a sysroot `Box.value` field cannot be selected while lowering unrelated struct fields with the same member name.
-- Validation completed: `cargo build`, `cargo test -p scoopc sysroot_type_env -- --nocapture`, targeted fixtures, HIR fixture directory, and `cargo clippy --all-targets -- -D warnings` pass.
-- Full `cargo run -p scoop -- test` was run after fixes; remaining failures are the three pre-tracked `C4-T01A` CaptureBox MIR snapshot refresh targets (`mir/closure_capture_var`, `mir_lowered/aggregate_transport`, `mir_lowered/assignment_places`).
-- Marked `C3-T01` as `[DONE]` in `TODO.md` and filled its completion record.
+- Read `TODO.md`; first incomplete heading is `C3-T02`.
+- Wrote the current invocation plan before making implementation changes.
+- Latest commit is `[C3-T01] Add RefCell and Box sysroot types`; it is the direct dependency for `C3-T02` and does not mention an unfinished blocker.
+- Working tree initially contains only this plan-file update.
+- Inspected existing `__AtomicInt` sysroot declarations, direct LLVM lowering, effect-lowered LLVM lowering, and GC write barrier ABI.
+- Implementation direction: keep public `Atomic*` classes in `scoop.core`, add internal generic `__atomicRef*` declarations in `scoop.unsafe`, lower atomic-ref pointer operations in both LLVM paths, and call the GC write barrier with a null slot on ref writes so the barrier handles promotion/polling without performing a non-atomic slot write.
+- Implemented the first compiler/sysroot pass: added `__atomicRef*` declarations, public `AtomicInt` / `AtomicBool` / `Atomic<T>` / `AtomicValue<T>` APIs, direct LLVM atomic-ref lowering, effect-lowered atomic-ref lowering, and a null-slot GC barrier helper.
+- `cargo fmt` and `cargo build -p scoopc` pass after the first implementation pass.
+- Public `AtomicValue<T>` exposed a relevant generic-class initializer gap: concrete generic `ClassInit` entries substituted field and ctor parameter types but not property initializer / ctor body expressions. Fixed this class-wide by recursively substituting HIR types in generic class init steps, ctor defaults, delegations, and bodies.
+- Added targeted coverage: LLVM atomic-ref IR/barrier unit test, run-pass fixture for all four public Atomic APIs, and typecheck reject fixtures for `Atomic<Int>` / `AtomicValue<Class>` bound failures. The targeted fixtures and atomic-ref unit test pass.
+- Generic/LLVM targeted runs found old sysroot overlay fixtures missing `AnyRef` / `AnyValue`; updated those overlay core files so the new internal atomic-ref unsafe declarations can resolve their bounds under overlay sysroots. The overlay intrinsic LLVM tests now pass.
+- Re-ran `cargo test -p scoopc generic -- --nocapture`, `cargo test -p scoopc llvm -- --nocapture`, and the updated `sysroot_overlay_core_array_interface_bridge` fixture; all pass after the overlay update.
+- Full fixture run exposed `AtomicValue` internals conflicting with user-defined `Box` names. Fixed this by supporting qualified nominal constructor calls (`scoop.core.Box(...)`) in typecheck, HIR call-site contracts, and direct HIR codegen, then using qualified `scoop.core.Box` inside `AtomicValue`.
+- Re-ran the atomic fixture plus representative generic `Box` conflict fixtures; they pass after qualified constructor support.
+- Full fixture suite now has only the three pre-tracked `C4-T01A` MIR snapshot failures (`mir/closure_capture_var`, `mir_lowered/aggregate_transport`, `mir_lowered/assignment_places`); all C3-T02 fixtures and previously exposed generic `Box` conflict fixtures pass.
+- Final validation so far: `cargo build` passed; `cargo clippy --all-targets -- -D warnings` passed; `cargo test --all --all-targets` has one failure in `fixtures::tests::run_all_recreates_session_between_independent_fixtures`, caused by the same pre-tracked `C4-T01A` `mir_lowered/aggregate_transport` snapshot mismatch.
+- Marked `C3-T02` as `[DONE]` in `TODO.md` and filled its completion record. `PLAN.md` was not changed because phase-level sequencing and acceptance criteria did not change.

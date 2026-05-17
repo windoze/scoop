@@ -1,0 +1,10 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::where_constraint_not_satisfied
+// EXPECT-ERROR-AT: 10:10
+// EXPECT-ERROR: 泛型约束不满足
+
+import scoop.core.*
+
+class Node()
+
+val bad: AtomicValue<Node>

@@ -1217,6 +1217,17 @@ pub(in crate::typecheck::expr) fn infer_call_expr_type(
             Ok(chosen.instantiated.return_ty)
         }
         ast::ExprKind::MemberAccess { receiver, member } => {
+            if let Some(ty) = try_infer_qualified_nominal_constructor_call_expr_type(
+                inputs,
+                call_expr,
+                callee_expr,
+                args,
+                explicit_type_args.as_deref(),
+                lower,
+            )? {
+                return Ok(ty);
+            }
+
             if let Some(ty) = try_infer_qualified_enum_variant_ctor_call_expr_type(
                 inputs, call_expr, member, args, lower,
             )? {

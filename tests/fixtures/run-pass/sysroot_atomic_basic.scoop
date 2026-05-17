@@ -1,0 +1,47 @@
+// EXPECT: pass
+// RUN-STDOUT: sysroot_atomic_basic.stdout
+
+import scoop.core.*
+
+class Node(var value: Int)
+
+struct Pair(val x: Int, val y: Int)
+
+fun main(): Unit {
+    val intCell: AtomicInt = AtomicInt(1)
+    println(intCell.load())
+    intCell.store(2)
+    println(intCell.exchange(3))
+    println(intCell.load())
+    println(intCell.cas(3, 4))
+    println(intCell.load())
+
+    val boolCell: AtomicBool = AtomicBool(false)
+    println(boolCell.load())
+    boolCell.store(true)
+    println(boolCell.cas(true, false))
+    println(boolCell.exchange(true))
+    println(boolCell.load())
+
+    val first: Node = Node(10)
+    val second: Node = Node(20)
+    val refCell: Atomic<Node> = Atomic(first)
+    println(refCell.load().value)
+    refCell.store(second)
+    println(refCell.load().value)
+    println(refCell.cas(second, first))
+    println(refCell.exchange(second).value)
+    println(refCell.load().value)
+
+    val valueCell: AtomicValue<Pair> = AtomicValue(Pair(1, 2))
+    val stale: Box<Pair> = valueCell.snapshot()
+    println(valueCell.load().x + valueCell.load().y)
+    valueCell.store(Pair(3, 4))
+    println(valueCell.load().x + valueCell.load().y)
+    println(valueCell.cas(stale, Pair(5, 6)))
+    val current: Box<Pair> = valueCell.snapshot()
+    println(valueCell.cas(current, Pair(7, 8)))
+    val oldValue: Pair = valueCell.exchange(Pair(9, 10))
+    println(oldValue.x + oldValue.y)
+    println(valueCell.load().x + valueCell.load().y)
+}

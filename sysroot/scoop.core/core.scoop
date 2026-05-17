@@ -1517,3 +1517,110 @@ class RefCell<T>(initial: T) {
 }
 
 class Box<T>(val value: T)
+
+fun __atomicBoolToInt(value: Bool): Int {
+    if (value) {
+        return 1
+    }
+    return 0
+}
+
+fun __atomicIntToBool(value: Int): Bool {
+    return value != 0
+}
+
+class AtomicInt(initial: Int) {
+    var raw: __AtomicInt = initial
+
+    fun load(): Int {
+        return @Unsafe do { __atomicIntLoad(this.raw) }
+    }
+
+    fun store(value: Int): Unit {
+        @Unsafe do { __atomicIntStore(this.raw, value) }
+    }
+
+    fun cas(expected: Int, desired: Int): Bool {
+        return @Unsafe do { __atomicIntCompareExchange(this.raw, expected, desired) }
+    }
+
+    fun exchange(value: Int): Int {
+        var old: Int = this.load()
+        while (!this.cas(old, value)) {
+            old = this.load()
+        }
+        return old
+    }
+}
+
+class AtomicBool(initial: Bool) {
+    var raw: __AtomicInt = __atomicBoolToInt(initial)
+
+    fun load(): Bool {
+        return __atomicIntToBool(@Unsafe do { __atomicIntLoad(this.raw) })
+    }
+
+    fun store(value: Bool): Unit {
+        @Unsafe do { __atomicIntStore(this.raw, __atomicBoolToInt(value)) }
+    }
+
+    fun cas(expected: Bool, desired: Bool): Bool {
+        return @Unsafe do { __atomicIntCompareExchange(this.raw, __atomicBoolToInt(expected), __atomicBoolToInt(desired)) }
+    }
+
+    fun exchange(value: Bool): Bool {
+        var old: Bool = this.load()
+        while (!this.cas(old, value)) {
+            old = this.load()
+        }
+        return old
+    }
+}
+
+class Atomic<T>(initial: T) where T: AnyRef {
+    var raw: T = initial
+
+    fun load(): T {
+        return @Unsafe do { __atomicRefLoad<T>(this.raw) }
+    }
+
+    fun store(value: T): Unit {
+        @Unsafe do { __atomicRefStore<T>(this.raw, value) }
+    }
+
+    fun cas(expected: T, desired: T): Bool {
+        return @Unsafe do { __atomicRefCompareExchange<T>(this.raw, expected, desired) }
+    }
+
+    fun exchange(value: T): T {
+        var old: T = this.load()
+        while (!this.cas(old, value)) {
+            old = this.load()
+        }
+        return old
+    }
+}
+
+class AtomicValue<T>(initial: T) where T: AnyValue {
+    val raw: Atomic<scoop.core.Box<T>> = Atomic(scoop.core.Box(initial))
+
+    fun snapshot(): scoop.core.Box<T> {
+        return this.raw.load()
+    }
+
+    fun load(): T {
+        return this.snapshot().value
+    }
+
+    fun store(value: T): Unit {
+        this.raw.store(scoop.core.Box(value))
+    }
+
+    fun cas(expected: scoop.core.Box<T>, desired: T): Bool {
+        return this.raw.cas(expected, scoop.core.Box(desired))
+    }
+
+    fun exchange(value: T): T {
+        return this.raw.exchange(scoop.core.Box(value)).value
+    }
+}

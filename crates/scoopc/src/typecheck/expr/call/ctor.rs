@@ -507,6 +507,143 @@ pub(in crate::typecheck::expr) fn try_infer_nominal_constructor_call_expr_type_w
     )
 }
 
+pub(super) fn try_infer_qualified_nominal_constructor_call_expr_type(
+    inputs: ExprInferInputs<'_>,
+    call_expr: &ast::Expr,
+    callee: &ast::Expr,
+    args: &[ast::Expr],
+    explicit_type_args: Option<&[TypeId]>,
+    lower: &mut TypeLowering<'_>,
+) -> Result<Option<TypeId>, ExprTypeError> {
+    let mut segments = Vec::new();
+    if !collect_member_access_path(inputs.source, callee, &mut segments) || segments.len() < 2 {
+        return Ok(None);
+    }
+
+    let use_span = segments
+        .last()
+        .map(|(_, span)| *span)
+        .unwrap_or(callee.span);
+    let segment_names = segments
+        .iter()
+        .map(|(name, _)| name.clone())
+        .collect::<Vec<_>>();
+    let owner_fqn = match lower.resolve_type_path_fqn_by_name(&segment_names, use_span) {
+        Ok(fqn) => fqn,
+        Err(_) => return Ok(None),
+    };
+    let Some(TypeSymbolKind::Nominal(kind @ (ast::TypeKind::Class | ast::TypeKind::Struct))) =
+        lower.env().type_symbol(&owner_fqn).map(|sym| sym.kind)
+    else {
+        return Ok(None);
+    };
+
+    let call_args = collect_call_arg_infos_allow_expected_type_placeholders(inputs, args, lower)?;
+    let callee_name = segment_names.join(".");
+    check_call_arg_named_rules(&callee_name, &call_args)?;
+
+    if call_args_have_named(&call_args) {
+        let mut all_names: HashSet<String> = HashSet::new();
+        let use_cone = lower.index().cone_of_source(inputs.source);
+        if let Some(ctors) = lower.index().constructors.get(&owner_fqn) {
+            for ctor in ctors
+                .iter()
+                .filter(|ctor| is_ctor_visible_from(use_cone, inputs.source, ctor))
+            {
+                for p in &ctor.params {
+                    all_names.insert(p.name.clone());
+                }
+            }
+        }
+        for arg in &call_args {
+            let CallArgKind::Named { name, name_span } = &arg.kind else {
+                continue;
+            };
+            if !all_names.contains(name) {
+                return Err(ExprTypeError::UnknownCallArgName {
+                    callee: callee_name.clone(),
+                    name: name.clone(),
+                    span: (*name_span).into(),
+                });
+            }
+        }
+    }
+
+    let mut matched = collect_matched_ctor_overloads_for_owner(
+        inputs,
+        &owner_fqn,
+        call_expr.span,
+        &callee_name,
+        &call_args,
+        None,
+        explicit_type_args,
+        None,
+        lower,
+    )?;
+
+    if matched.is_empty() {
+        return Err(ExprTypeError::NoMatchingOverload {
+            callee: callee_name,
+            span: call_expr.span.into(),
+        });
+    }
+    let chosen = if matched.len() == 1 {
+        matched.pop().expect("len == 1")
+    } else {
+        let Some(idx) = pick_most_specific_ctor_overload(&matched, lower, inputs.builtins) else {
+            let candidates =
+                join_overload_signatures(matched.iter().map(|m| m.signature.clone()).collect());
+            return Err(ExprTypeError::AmbiguousOverload {
+                callee: callee_name,
+                candidates,
+                span: call_expr.span.into(),
+            });
+        };
+        matched.swap_remove(idx)
+    };
+
+    if lower.in_const_context() && matches!(kind, ast::TypeKind::Class) {
+        return Err(ExprTypeError::ConstFunRefTypeConstructionNotAllowed {
+            ty: callee_name,
+            span: call_expr.span.into(),
+        });
+    }
+
+    lower.record_typechecked_ctor_call_binding(
+        call_expr.span,
+        chosen.owner_fqn.clone(),
+        chosen.ctor_span,
+        chosen.arg_mapping.clone(),
+    );
+    if let Some(binding) = call_arg_binding_from_optional_mapping(&chosen.arg_mapping, &call_args) {
+        lower.record_typechecked_call_arg_binding(call_expr.span, binding);
+    }
+    let ty =
+        lower.lower_type_fqn_with_args(chosen.owner_fqn, chosen.inferred_type_args, use_span)?;
+    Ok(Some(ty))
+}
+
+fn collect_member_access_path(
+    source: &SourceFile,
+    expr: &ast::Expr,
+    out: &mut Vec<(String, Span)>,
+) -> bool {
+    match &expr.kind {
+        ast::ExprKind::Ident(id) => {
+            out.push((source.slice(id.span).to_string(), id.span));
+            true
+        }
+        ast::ExprKind::MemberAccess { receiver, member } => {
+            if !collect_member_access_path(source, receiver, out) {
+                return false;
+            }
+            out.push((source.slice(member.span).to_string(), member.span));
+            true
+        }
+        _ => false,
+    }
+}
+
 pub(super) fn infer_nominal_constructor_call_expr_type(
     inputs: ExprInferInputs<'_>,
     call_expr: &ast::Expr,

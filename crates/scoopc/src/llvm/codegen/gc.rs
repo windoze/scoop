@@ -2069,6 +2069,28 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(())
     }
 
+    pub(super) fn promote_gc_pointer_with_write_barrier(
+        &mut self,
+        at: crate::span::Span,
+        value_ptr: PointerValue<'ctx>,
+    ) -> Result<(), LlvmEmitError> {
+        let wb = self.declare_runtime_gc_write_barrier();
+        let slot_addr = self.llvm_i8_ptr_type().const_null();
+        let value_i8 = self.builder.build_pointer_cast(
+            value_ptr,
+            self.llvm_gc_i8_ptr_type(),
+            "gc_wb_value_i8",
+        )?;
+
+        let _ = self.build_call_preserving_gc_local_roots(
+            at,
+            wb,
+            &[slot_addr.into(), value_i8.into()],
+            "gc_write_barrier",
+        )?;
+        Ok(())
+    }
+
     fn try_store_heap_tagged_union_enum_exact(
         &mut self,
         at: crate::span::Span,
