@@ -15,7 +15,7 @@ struct ClosureParamBindings {
 struct ClosureBodyCodegenSpec<'ctx, 'spec> {
     receiver_binding: Option<&'spec (hir::SymbolId, String, TypeId)>,
     param_bindings: &'spec [(hir::SymbolId, String, TypeId)],
-    capture_bindings: &'spec [(hir::SymbolId, String, TypeId)],
+    capture_bindings: &'spec [(hir::SymbolId, String, TypeId, bool)],
     callable_fqn: &'spec str,
     root_stable_owner_key: &'spec StableDefKey,
     stable_closure_key: &'spec StableClosureKey,
@@ -94,12 +94,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             params: param_bindings,
             captures,
         } = self.closure_param_bindings(span, closure, fun_ty)?;
-        if captures.iter().any(|c| c.mutable) {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "mutable capture (not supported yet)",
-                at: span.into(),
-            });
-        }
 
         let closure_identity = self.direct_hir_closure_identity(span, closure)?;
         let root_stable_owner_key =
@@ -200,7 +194,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             let mut cg = self.fresh_child_codegen();
             // 说明：closure 捕获信息里没有类型；这里在外层 codegen 阶段用 env 中的 locals 恢复 type id，
             // 再传给 closure fun body 用于 env layout 与绑定。
-            let mut capture_bindings: Vec<(hir::SymbolId, String, TypeId)> =
+            let mut capture_bindings: Vec<(hir::SymbolId, String, TypeId, bool)> =
                 Vec::with_capacity(captures.len());
             for cap in &captures {
                 let Some(local) = self.function_cx.env.get(cap.id) else {
@@ -215,7 +209,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         at: cap.decl_span.into(),
                     });
                 };
-                capture_bindings.push((cap.id, cap.name.clone(), ty_id));
+                capture_bindings.push((cap.id, cap.name.clone(), ty_id, cap.mutable));
             }
 
             cg.codegen_closure_fun_body(
@@ -305,7 +299,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let env_i8 = if captures.is_empty() {
             gc_i8_ptr_ty.const_null()
         } else {
-            let mut capture_bindings: Vec<(hir::SymbolId, String, TypeId)> =
+            let mut capture_bindings: Vec<(hir::SymbolId, String, TypeId, bool)> =
                 Vec::with_capacity(captures.len());
             for cap in &captures {
                 let Some(local) = self.function_cx.env.get(cap.id) else {
@@ -320,7 +314,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         at: cap.decl_span.into(),
                     });
                 };
-                capture_bindings.push((cap.id, cap.name.clone(), ty_id));
+                capture_bindings.push((cap.id, cap.name.clone(), ty_id, cap.mutable));
             }
 
             let env_ty =
@@ -366,7 +360,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 .build_pointer_cast(env_i8, env_ptr_ty, "closure_env_ptr")?;
             let deferred_env = self.defer_gc_ref_pointer(span, "closure_env_root", env_ptr)?;
 
-            for (idx, (id, name, ty_id)) in capture_bindings.iter().enumerate() {
+            for (idx, (id, name, ty_id, _mutable)) in capture_bindings.iter().enumerate() {
                 let Some(local) = self.function_cx.env.get(*id) else {
                     return Err(LlvmEmitError::UnsupportedMainBody {
                         kind: "capture local not found",
@@ -622,7 +616,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 .builder
                 .build_pointer_cast(env_i8, env_ptr_ty, "closure_env_ptr")?;
 
-            for (idx, (id, name, ty_id)) in spec.capture_bindings.iter().enumerate() {
+            for (idx, (id, name, ty_id, mutable)) in spec.capture_bindings.iter().enumerate() {
                 let target_ty =
                     self.cg_ty_of(*ty_id)
                         .ok_or(LlvmEmitError::UnsupportedMainBody {
@@ -672,7 +666,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         ty: target_ty,
                         ptr,
                         frame_backing_ptr: None,
-                        mutable: false,
+                        mutable: *mutable,
                     },
                 );
             }
@@ -755,7 +749,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &mut self,
         at: crate::span::Span,
         closure_key: &StableClosureKey,
-        capture_bindings: &[(hir::SymbolId, String, TypeId)],
+        capture_bindings: &[(hir::SymbolId, String, TypeId, bool)],
     ) -> Result<StructType<'ctx>, LlvmEmitError> {
         let name = private_closure_env_type_name(closure_key);
         if let Some(existing) = self.context.get_struct_type(&name) {
@@ -767,7 +761,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let header_ty = self.llvm_gc_object_header_type();
         let mut fields: Vec<BasicTypeEnum<'ctx>> = Vec::with_capacity(1 + capture_bindings.len());
         fields.push(header_ty.into());
-        for (_id, _name, ty_id) in capture_bindings {
+        for (_id, _name, ty_id, _mutable) in capture_bindings {
             let cg_ty = self
                 .cg_ty_of(*ty_id)
                 .ok_or(LlvmEmitError::UnsupportedMainBody {

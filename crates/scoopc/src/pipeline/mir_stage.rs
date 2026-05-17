@@ -515,7 +515,8 @@ fun main() {}
                     saw_extern_store = true;
                 }
                 StatementKind::Assign { target, .. }
-                    if body.locals[target.as_u32() as usize].name.as_deref() == Some("captured") =>
+                    if body.locals[target.as_u32() as usize].name.as_deref()
+                        == Some("captured") =>
                 {
                     captured_local_assign_count += 1;
                 }
@@ -541,6 +542,122 @@ fun main() {}
         assert!(
             box_value_store_count >= 2,
             "direct and nested member stores should target Box.value: {dump}"
+        );
+    }
+
+    #[test]
+    fn mir_closure_mutable_capture_lowers_to_per_call_local() {
+        let session = session();
+        let source = SourceFile::new_virtual(
+            "<mem>/closure_mutable_capture_per_call.scoop",
+            r#"package sample
+import scoop.core.*
+
+fun callTwice(f: () -> Int): Int {
+    val a: Int = f()
+    val b: Int = f()
+    return a * 100 + b * 10
+}
+
+fun main(): Int {
+    var x: Int = 0
+    val f: () -> Int = {
+        x = x + 1
+        x
+    }
+    return callTwice(f) + x
+}
+"#,
+        );
+
+        let typed_hir_output =
+            super::super::load_typed_hir_stage_output_for_dump(&session, &source).unwrap();
+        let output = super::run(typed_hir_output).expect("closure source should lower to MIR");
+        let dump = output.stable_dump();
+
+        let main = validated_callable_body(&output, "sample.main");
+        let mut saw_mutable_env_contract = false;
+        for stmt in main.blocks.iter().flat_map(|block| block.stmts.iter()) {
+            if let StatementKind::Assign {
+                value: Rvalue::MakeClosure { env_contract, .. },
+                ..
+            } = &stmt.kind
+            {
+                saw_mutable_env_contract |= env_contract
+                    .captures
+                    .iter()
+                    .any(|capture| capture.name == "x" && capture.mutable);
+            }
+        }
+        assert!(
+            saw_mutable_env_contract,
+            "mutable capture metadata should survive into closure env contract: {dump}"
+        );
+
+        let closure_fun = output
+            .file()
+            .items
+            .iter()
+            .filter_map(|item| match item {
+                Item::Fun(fun) if fun.fqn.starts_with("sample.main.$lambda") => Some(fun),
+                _ => None,
+            })
+            .next()
+            .expect("main closure fun should be materialized");
+        let body = closure_fun
+            .body
+            .as_ref()
+            .expect("closure fun should have MIR body");
+        body.validate_direct_style()
+            .unwrap_or_else(|err| panic!("closure body should validate: {err}"));
+
+        let env_local = closure_fun
+            .params
+            .first()
+            .expect("closure should receive env param")
+            .local;
+        let x_local = body
+            .locals
+            .iter()
+            .enumerate()
+            .find_map(|(idx, local)| {
+                (local.name.as_deref() == Some("x"))
+                    .then(|| crate::mir::LocalId::from_raw(idx as u32))
+            })
+            .expect("captured x local should be present in closure body");
+
+        let mut saw_env_unpack_to_x = false;
+        let mut saw_x_rebind = false;
+        let mut saw_env_write = false;
+        for stmt in body.blocks.iter().flat_map(|block| block.stmts.iter()) {
+            if let StatementKind::Assign { target, value } = &stmt.kind {
+                if *target == env_local {
+                    saw_env_write = true;
+                }
+                if *target == x_local {
+                    match value {
+                        Rvalue::TupleGet {
+                            tuple: Operand::Local(local),
+                            index: 0,
+                        } if *local == env_local => saw_env_unpack_to_x = true,
+                        Rvalue::TupleGet { .. } => {}
+                        _ => saw_x_rebind = true,
+                    }
+                }
+            }
+        }
+
+        assert!(
+            saw_env_unpack_to_x,
+            "captured var should be unpacked from env snapshot into a local each call: {dump}"
+        );
+        assert!(
+            saw_x_rebind,
+            "lambda assignment should rebind the per-call local, not the env: {dump}"
+        );
+        assert!(
+            !saw_env_write,
+            "closure body must not write back into immutable env snapshot: {dump}"
         );
     }
 

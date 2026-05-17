@@ -685,10 +685,11 @@ fn composite_transport_storage_kind(
 }
 
 fn composite_transport_gap_id(metadata: &ValueTransportMetadata) -> &'static str {
-    if metadata.kind == MirTransportKind::ClosureEnv || metadata
-        .boxing
-        .as_ref()
-        .is_some_and(|boxing| boxing.reason == MirBoxingReason::ClosureCapture)
+    if metadata.kind == MirTransportKind::ClosureEnv
+        || metadata
+            .boxing
+            .as_ref()
+            .is_some_and(|boxing| boxing.reason == MirBoxingReason::ClosureCapture)
     {
         return "PIPELINE_GAPS §3.11";
     }

@@ -1058,19 +1058,16 @@ impl<'a> FnLowering<'a> {
         v: &hir::ValueRef,
     ) -> LocalId {
         match v {
-            hir::ValueRef::Local { id, name, .. } => {
-                match self.symbol_locals.get(id).copied() {
-                    Some(local) => local,
-                    None => {
-                        if let Some(member_local) =
-                            self.lower_implicit_this_member_ref(span, ty, name)
-                        {
-                            return member_local;
-                        }
-                        panic!("typed HIR local reference must have an allocated MIR local: {id:?}")
+            hir::ValueRef::Local { id, name, .. } => match self.symbol_locals.get(id).copied() {
+                Some(local) => local,
+                None => {
+                    if let Some(member_local) = self.lower_implicit_this_member_ref(span, ty, name)
+                    {
+                        return member_local;
                     }
+                    panic!("typed HIR local reference must have an allocated MIR local: {id:?}")
                 }
-            }
+            },
             hir::ValueRef::TopLevel { .. } => {
                 let hir::ValueRef::TopLevel { fqn, .. } = v else {
                     unreachable!("matched above");

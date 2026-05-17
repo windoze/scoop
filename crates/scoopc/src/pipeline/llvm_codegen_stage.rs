@@ -1205,6 +1205,32 @@ fun main(): Int {
         )
     }
 
+    fn closure_mutable_capture_per_call_source() -> SourceFile {
+        SourceFile::new_virtual(
+            "<mem>/closure_mutable_capture_per_call.scoop",
+            r#"
+package sample
+
+import scoop.core.*
+
+fun callTwice(f: () -> Int): Int {
+    val a: Int = f()
+    val b: Int = f()
+    return a * 100 + b * 10
+}
+
+fun main(): Int {
+    var x: Int = 0
+    val f: () -> Int = {
+        x = x + 1
+        x
+    }
+    return callTwice(f) + x
+}
+"#,
+        )
+    }
+
     fn emit_ir_for_source(source: SourceFile, file_name: &str) -> String {
         emit_ir_for_source_with_entry(source, file_name, None).unwrap()
     }
@@ -1685,6 +1711,35 @@ fun main(): Int {
         assert!(
             ir.contains("pass_mir_closure_env_field_gep"),
             "closure allocation should still store captured values into env fields\n{ir}"
+        );
+    }
+
+    #[test]
+    fn llvm_closure_mutable_capture_reloads_env_into_per_call_local() {
+        let ir = emit_ir_for_source(
+            closure_mutable_capture_per_call_source(),
+            "closure_mutable_capture_per_call.ll",
+        );
+
+        let closure_body =
+            ir_function_matching(&ir, "mutable capture closure body", |_header, function| {
+                function.contains("pass_mir_closure_env_field_load")
+                    && function.contains("intrinsic_iadd")
+            });
+        assert!(
+            closure_body.contains("pass_mir_closure_env_field_load"),
+            "closure body should reload captured x from env at each invocation\n{closure_body}"
+        );
+        assert!(
+            closure_body.contains("pass_mir_tuple_extract")
+                || closure_body.contains("pass_mir_closure_env_tuple_insert"),
+            "closure body should move the env snapshot through ordinary local tuple storage\n{closure_body}"
+        );
+        assert!(
+            !closure_body.lines().any(|line| {
+                line.contains("store ") && line.contains("pass_mir_closure_env_field_gep")
+            }),
+            "closure body must not write rebinding back into the env object\n{closure_body}"
         );
     }
 

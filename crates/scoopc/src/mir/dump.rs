@@ -12,9 +12,9 @@ use crate::ty::TypeStore;
 use super::{
     AccessorMetadata, AggregateTransportField, AggregateTransportMetadata,
     ArrayElementTransportMetadata, BasicBlock, BasicBlockId, Body, CallAbiHandoffMetadata, CallArg,
-    CallKind, CallTransportMetadata, ConstValue, CtorMetadata,
-    CtorParamMetadata, DeclMemberMetadata, DeclTypeParamMetadata, DispatchMetadata,
-    EnumVariantMetadata, ExtensionPropertyMetadata, ExternGlobalRoot, FieldMetadata, File, FunDecl,
+    CallKind, CallTransportMetadata, ConstValue, CtorMetadata, CtorParamMetadata,
+    DeclMemberMetadata, DeclTypeParamMetadata, DispatchMetadata, EnumVariantMetadata,
+    ExtensionPropertyMetadata, ExternGlobalRoot, FieldMetadata, File, FunDecl,
     GcIntrinsicTransportMetadata, HandlerArm, InitializerDependency, InitializerRoot, Item,
     LocalDecl, LocalId, MaterializedMir, MemberAccessMetadata, MemberFunMetadata, MemberTarget,
     MetadataRoot, MirBoxingIntent, MirTransportRequirements, NominalMetadata, ObjectMetadata,

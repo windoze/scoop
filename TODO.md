@@ -4,7 +4,7 @@
 > 设计基线：[`CLOSURE_FIX.md`](./CLOSURE_FIX.md)  
 > 计划基线：[`PLAN.md`](./PLAN.md)  
 > 格式参考：[`docs/archive/plans/TODO-stable-id.md`](./docs/archive/plans/TODO-stable-id.md)  
-> 当前状态：C2-T01E 已完成
+> 当前状态：C2-T02 已完成
 > 执行原则：C0 必须最先完成；C1/C3 与 C2 两条实现线可按依赖并行，但单个任务完成时不得留下仓库内 failing fixture；每个任务完成后必须回写“完成记录”。
 
 ## 全局约束
@@ -534,7 +534,7 @@ C0-T01 (baseline + prerequisite inventory)
     - `cargo clippy -p scoopc --all-targets -- -D warnings`：通过。
   - 与 `PLAN.md` / `CLOSURE_FIX.md` 对应闭合：闭合 `PLAN.md` §7 C2-T01 的 CaptureBox 删除收口审计，以及 `CLOSURE_FIX.md` 中“删除 CaptureBox 后门”对 source/sysroot 清零与 fixture 刷新延期到 C4 的要求；阶段级计划未变化。
 
-### [TODO] C2-T02：修 closure inner-mutable per-call local bug
+### [DONE] C2-T02：修 closure inner-mutable per-call local bug
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §7 C2-T02
@@ -561,9 +561,22 @@ C0-T01 (baseline + prerequisite inventory)
 - 依赖：C2-T01E
 - 完成记录：
   - 改动范围：
+    - `crates/scoopc/src/llvm/codegen/closure/mod.rs` 删除 direct HIR closure 对 mutable capture 的 `UnsupportedMainBody` 拒绝分支，并把 `Capture.mutable` 随 capture binding 传入 closure body binding。
+    - closure body 从 env field load 后创建的 entry alloca 现在按 `cap.mutable` 设置 `CgLocal.mutable`，让 captured `var` 在本次调用 frame 内可 rebind；env field 仍只在 closure 构造时写入。
+    - 新增 `pipeline::mir_stage::tests::mir_closure_mutable_capture_lowers_to_per_call_local`，检查 `var x; val f = { x = x + 1; x }` lowering 为 env snapshot -> per-call local，且 closure body 不写回 `$env`。
+    - 新增 `pipeline::llvm_codegen_stage::tests::llvm_closure_mutable_capture_reloads_env_into_per_call_local`，检查 LLVM closure body 每次调用从 env field reload，并且 rebind 不 store 回 closure env field。
+    - `cargo fmt` 同步格式化了若干既有长 import / match 表达式所在文件：`llvm/codegen/composite_transport.rs`、`mir/dump.rs`、`mir/lower/fn_lowering_effect.rs`、`mir/lower/mod.rs`、`mir/materialize/mod.rs`；未改变语义。
+    - 更新 `memory/claude_plan.md` 进度；未修改 `PLAN.md` 或 `CLOSURE_FIX.md`。
   - 核心决策：
+    - 不引入替代隐式 box、env field store、GC write barrier 或兼容 shim；mutable capture 仍是构造点 snapshot，closure body 内只是普通 per-call local rebind。
+    - effect-lowered / materialized MIR 路径已由 MIR closure function 的 `$env` 参数、`TupleGet` 解包和普通 MIR local assignment 表达同一语义；本任务补定向测试锁住该路径，而不是新增 MIR local mutability metadata。
+    - 删除 mutable-capture guard 而非改成 internal sentinel，因此 C4-T02 不需要为该 guard 登记 `INTERNAL_BUG_SENTINEL_HITS`。
   - 验证结果：
-  - 与 `PLAN.md` / `CLOSURE_FIX.md` 对应闭合：
+    - `cargo fmt`：通过。
+    - `cargo test -p scoopc closure -- --nocapture`：通过，30 个 closure 相关测试通过。
+    - `cargo build -p scoopc`：通过。
+    - `cargo clippy -p scoopc --all-targets -- -D warnings`：通过。
+  - 与 `PLAN.md` / `CLOSURE_FIX.md` 对应闭合：闭合 `PLAN.md` §7 C2-T02 与 `CLOSURE_FIX.md` §1.4 的 closure inner mutable per-call local 修复要求；阶段级计划未变化。
 
 ## C3：配套库类型
 
