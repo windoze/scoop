@@ -220,6 +220,10 @@ pub(crate) fn is_type_assignable(
         return true;
     }
 
+    if let Some(marker_fqn) = lower.sealed_marker_fqn(expected) {
+        return lower.type_satisfies_sealed_marker(found, &marker_fqn);
+    }
+
     // `Nothing`：不可达/空类型，可以视为任意类型的子类型。
     //
     // 说明：即使 `Nothing` 是值类型，也允许“赋值到引用类型”，因为这种赋值在运行时不会发生：

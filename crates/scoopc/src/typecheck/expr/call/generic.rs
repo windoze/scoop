@@ -946,7 +946,7 @@ pub(super) fn check_fun_where_constraints_after_instantiation(
         }
 
         // 在声明处文件上下文中 lower bound TypeRef，应用 type arg 替换。
-        let bound_ty = lower.lower_type_ref_in_decl_file_with_bindings(
+        let bound_ty = lower.lower_bound_type_ref_in_decl_file_with_bindings(
             &sig.decl_file,
             bindings.iter().cloned(),
             &c.bound,

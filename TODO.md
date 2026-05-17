@@ -4,7 +4,7 @@
 > 设计基线：[`CLOSURE_FIX.md`](./CLOSURE_FIX.md)  
 > 计划基线：[`PLAN.md`](./PLAN.md)  
 > 格式参考：[`docs/archive/plans/TODO-stable-id.md`](./docs/archive/plans/TODO-stable-id.md)  
-> 当前状态：C0-T01 已完成  
+> 当前状态：C1-T01 已完成
 > 执行原则：C0 必须最先完成；C1/C3 与 C2 两条实现线可按依赖并行，但单个任务完成时不得留下仓库内 failing fixture；每个任务完成后必须回写“完成记录”。
 
 ## 全局约束
@@ -216,7 +216,7 @@ C0-T01 (baseline + prerequisite inventory)
 
 ## C1：类型系统底座
 
-### [TODO] C1-T01：引入 `sealed interface` frontend 语义、marker metadata 与自动登记
+### [DONE] C1-T01：引入 `sealed interface` frontend 语义、marker metadata 与自动登记
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §4、§7 C1-T01
@@ -251,9 +251,22 @@ C0-T01 (baseline + prerequisite inventory)
 - 依赖：C0-T01
 - 完成记录：
   - 改动范围：
+    - `TypeEnv` 新增 sealed marker metadata：`is_sealed_interface`、direct sealed supers、transitive closure 与 `AnyRef` / `AnyValue` 互斥检查。
+    - type lowering 新增 sealed marker bound-only 语境；generic/where bound 右侧允许 marker，普通 binding/param/return/typealias/type argument/cast/type-test 等运行期类型位置报 `scoop::typecheck::sealed_interface_bound_only`。
+    - interface 检查拒绝 class/struct/enum/object/普通 interface 显式实现或继承 sealed marker；sealed marker 定义自身的图形合法性由 `TypeEnv` 检查。
+    - where 约束满足性接入自动 marker 满足关系：ref types 满足 `AnyRef`，value types（含 tuple/struct/enum/内建值类型）满足 `AnyValue`，并沿 marker super closure 查询。
+    - cone external type symbol 注入同步补齐 `TypeSymbol::is_sealed_interface = false`。
   - 核心决策：
+    - sealed marker 仍复用 parser 的 `Modifier::Sealed + TypeKind::Interface` surface，但在 type metadata 中作为 compile-time-only marker 单独登记，不进入 runtime interface lowering、itable、vtable、layout 或 type descriptor。
+    - marker 定义 gate 放在 type-env 收集/重建阶段，确保 sysroot-only、body-empty、supertype sealed-only、cycle 与互斥 marker 能在任何后续 lowering 前失败。
+    - bound lowering 只允许顶层 marker bound；marker 出现在 type argument 或其它嵌套 runtime type position 仍按 bound-only 违规拒绝。
+    - C1-T01 不向 sysroot 添加 `AnyRef` / `AnyValue`；测试使用 virtual sysroot source 验证 compiler 已能识别 sysroot sealed marker 定义。
   - 验证结果：
-  - 与 `PLAN.md` / `CLOSURE_FIX.md` 对应闭合：
+    - `cargo test -p scoopc sealed -- --nocapture`：通过，9 个 sealed 定向测试通过。
+    - `cargo test -p scoopc typecheck -- --nocapture`：通过，39 个 typecheck 相关测试通过。
+    - `cargo build`：通过。
+    - `cargo clippy --all-targets -- -D warnings`：通过。
+  - 与 `PLAN.md` / `CLOSURE_FIX.md` 对应闭合：闭合 `PLAN.md` §4 / §7 C1-T01 与 `CLOSURE_FIX.md` §2 的 sealed marker 前端语义、metadata、bound-only gate、自动 `AnyRef` / `AnyValue` 满足关系底座；阶段级计划未变化。
 
 ### [TODO] C1-T02：在 sysroot 添加 `AnyRef` / `AnyValue`
 

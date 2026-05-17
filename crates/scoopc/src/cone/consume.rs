@@ -262,6 +262,7 @@ pub fn inject_cone_dependency_public_api(
             fqn.clone(),
             TypeSymbol {
                 kind: type_kind,
+                is_sealed_interface: false,
                 is_annotation_class,
                 annotation_targets,
                 annotation_retention,

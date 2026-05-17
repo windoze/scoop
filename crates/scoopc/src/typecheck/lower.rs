@@ -25,6 +25,7 @@ use crate::warnings::{self, CompileWarning};
 
 use super::assignable::is_type_assignable;
 use super::builtin_annotations::{BuiltinAnnotationFlags, collect_file_warning_suppressions};
+use super::type_env::{ANY_REF_MARKER_FQN, ANY_VALUE_MARKER_FQN};
 use super::{TypeEnv, TypeSymbol, TypeSymbolKind};
 
 const CLAYOUT_FQN: &str = "scoop.core.CLayout";
@@ -66,6 +67,14 @@ pub enum TypeLowerError {
     AnnotationTypeRuntimeUseNotAllowed {
         name: String,
         #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("sealed marker `{name}` 只能作为 generic/where bound 使用，不能作为运行期类型位置")]
+    #[diagnostic(code(scoop::typecheck::sealed_interface_bound_only))]
+    SealedInterfaceBoundOnly {
+        name: String,
+        #[label("这里不是 generic/where bound 右侧")]
         span: miette::SourceSpan,
     },
 
@@ -301,7 +310,7 @@ pub fn check_file_type_refs(
                 // T0458：`where` 子句中的 bound 同样属于 type position，需要参与 lowering。
                 if let Some(w) = &fun.where_clause {
                     for c in &w.constraints {
-                        let _ = ctx.lower_type_ref(&c.bound)?;
+                        let _ = ctx.lower_bound_type_ref(&c.bound)?;
                     }
                 }
                 ctx.pop_type_params(&fun.type_params);
@@ -381,7 +390,7 @@ pub fn check_file_type_refs_with_type_instantiation_keys(
                 }
                 if let Some(w) = &fun.where_clause {
                     for c in &w.constraints {
-                        let _ = ctx.lower_type_ref(&c.bound)?;
+                        let _ = ctx.lower_bound_type_ref(&c.bound)?;
                     }
                 }
                 ctx.pop_type_params(&fun.type_params);
@@ -634,6 +643,8 @@ pub(crate) struct TypeLowering<'a> {
     /// - 仅在 annotation payload type 这类 compile-time-only 语境中临时开启；
     /// - 使用深度而非 bool，便于嵌套 helper 共享同一上下文控制。
     annotation_type_usage_depth: usize,
+    /// sealed marker 类型 lowering 许可深度，仅用于 generic/where bound 的顶层右侧。
+    sealed_marker_bound_usage_depth: usize,
     /// 具体 nominal `TypeId` 的 direct supertypes（已完成 type param substitution）。
     concrete_direct_supertypes: HashMap<TypeId, Vec<TypeId>>,
 }
@@ -728,6 +739,7 @@ impl<'a> TypeLowering<'a> {
             const_context_depth: 0,
             where_bound_scopes: Vec::new(),
             annotation_type_usage_depth: 0,
+            sealed_marker_bound_usage_depth: 0,
             concrete_direct_supertypes: HashMap::new(),
         }
     }
@@ -786,6 +798,18 @@ impl<'a> TypeLowering<'a> {
 
     fn annotation_types_allowed(&self) -> bool {
         self.annotation_type_usage_depth > 0
+    }
+
+    fn with_sealed_marker_bounds_allowed<R>(&mut self, f: impl FnOnce(&mut Self) -> R) -> R {
+        self.sealed_marker_bound_usage_depth += 1;
+        let out = f(self);
+        self.sealed_marker_bound_usage_depth =
+            self.sealed_marker_bound_usage_depth.saturating_sub(1);
+        out
+    }
+
+    fn sealed_marker_bounds_allowed(&self) -> bool {
+        self.sealed_marker_bound_usage_depth > 0
     }
 
     /// 计算并返回给定具体 nominal 类型的 direct supertypes（已完成 type/effect 实参 substitution）。
@@ -1094,6 +1118,7 @@ impl<'a> TypeLowering<'a> {
             imports,
         );
         ctx.annotation_type_usage_depth = self.annotation_type_usage_depth;
+        ctx.sealed_marker_bound_usage_depth = self.sealed_marker_bound_usage_depth;
         ctx.lower_type_ref(ty)
     }
 
@@ -1125,6 +1150,7 @@ impl<'a> TypeLowering<'a> {
             imports,
         );
         ctx.annotation_type_usage_depth = self.annotation_type_usage_depth;
+        ctx.sealed_marker_bound_usage_depth = self.sealed_marker_bound_usage_depth;
 
         // 为每个 type param name 创建一个 fresh TypeKind::Param。
         let mut scope: HashMap<String, TypeId> = HashMap::new();
@@ -1170,8 +1196,38 @@ impl<'a> TypeLowering<'a> {
             imports,
         );
         ctx.annotation_type_usage_depth = self.annotation_type_usage_depth;
+        ctx.sealed_marker_bound_usage_depth = self.sealed_marker_bound_usage_depth;
         ctx.push_type_param_bindings(bindings);
         let out = ctx.lower_type_ref(ty);
+        ctx.pop_type_param_bindings();
+        out
+    }
+
+    pub(super) fn lower_bound_type_ref_in_decl_file_with_bindings(
+        &mut self,
+        decl_file: &Path,
+        bindings: impl IntoIterator<Item = (String, TypeId)>,
+        ty: &ast::TypeRef,
+    ) -> Result<TypeId, TypeLowerError> {
+        let decl_source = self.env.source(decl_file).unwrap_or(self.source);
+        let (pkg_prefix, imports) = match self.env.file_type_context(decl_file) {
+            Some(ctx) => (ctx.pkg_prefix.clone(), ctx.imports.clone()),
+            None => (self.pkg_prefix.clone(), self.imports.clone()),
+        };
+
+        let mut ctx = TypeLowering::new_with_ctx(
+            decl_source,
+            self.index,
+            self.env,
+            self.types,
+            self.builtins,
+            pkg_prefix,
+            imports,
+        );
+        ctx.annotation_type_usage_depth = self.annotation_type_usage_depth;
+        ctx.sealed_marker_bound_usage_depth = self.sealed_marker_bound_usage_depth;
+        ctx.push_type_param_bindings(bindings);
+        let out = ctx.lower_bound_type_ref(ty);
         ctx.pop_type_param_bindings();
         out
     }
@@ -1290,6 +1346,7 @@ impl<'a> TypeLowering<'a> {
             imports,
         );
         ctx.annotation_type_usage_depth = self.annotation_type_usage_depth;
+        ctx.sealed_marker_bound_usage_depth = self.sealed_marker_bound_usage_depth;
 
         ctx.push_type_param_bindings(type_bindings);
         let mut pushed_eff = 0usize;
@@ -1421,6 +1478,16 @@ impl<'a> TypeLowering<'a> {
                     .ty_function(receiver, params, return_ty, effects, effects_closed))
             }
         }
+    }
+
+    pub(crate) fn lower_bound_type_ref(
+        &mut self,
+        ty: &ast::TypeRef,
+    ) -> Result<TypeId, TypeLowerError> {
+        if matches!(ty, ast::TypeRef::Path(_)) {
+            return self.with_sealed_marker_bounds_allowed(|lower| lower.lower_type_ref(ty));
+        }
+        self.lower_type_ref(ty)
     }
 
     pub(super) fn lower_effect_row_expr(
@@ -2018,6 +2085,39 @@ impl<'a> TypeLowering<'a> {
         }
     }
 
+    pub(crate) fn sealed_marker_fqn(&self, id: TypeId) -> Option<String> {
+        let TypeKind::Ref(RefTypeKind::Nominal(nominal)) = self.types.kind(id) else {
+            return None;
+        };
+        self.env
+            .is_sealed_interface(&nominal.fqn)
+            .then(|| nominal.fqn.clone())
+    }
+
+    pub(crate) fn type_satisfies_sealed_marker(&self, ty: TypeId, marker_fqn: &str) -> bool {
+        if !self.env.is_sealed_interface(marker_fqn) {
+            return false;
+        }
+
+        if let Some(found_marker) = self.sealed_marker_fqn(ty) {
+            return self.env.sealed_marker_implies(&found_marker, marker_fqn);
+        }
+
+        let Some(base_marker) = self.automatic_sealed_marker_for_type(ty) else {
+            return false;
+        };
+        self.env.is_sealed_interface(base_marker)
+            && self.env.sealed_marker_implies(base_marker, marker_fqn)
+    }
+
+    fn automatic_sealed_marker_for_type(&self, ty: TypeId) -> Option<&'static str> {
+        match self.types.kind(ty) {
+            TypeKind::Ref(_) => Some(ANY_REF_MARKER_FQN),
+            TypeKind::Value(_) => Some(ANY_VALUE_MARKER_FQN),
+            TypeKind::Param(_) | TypeKind::StarProjection(_) => None,
+        }
+    }
+
     pub(super) fn is_ref(&self, id: TypeId) -> bool {
         self.types.is_ref(id)
     }
@@ -2344,6 +2444,13 @@ impl<'a> TypeLowering<'a> {
             });
         }
 
+        if sym.is_sealed_interface && !self.sealed_marker_bounds_allowed() {
+            return Err(TypeLowerError::SealedInterfaceBoundOnly {
+                name: fqn,
+                span: span.into(),
+            });
+        }
+
         match sym.kind {
             TypeSymbolKind::TypeAlias => {
                 if explicit_eff.is_some() {
@@ -2433,7 +2540,7 @@ impl<'a> TypeLowering<'a> {
             }
 
             // 在声明处文件上下文中 lowering bound，并用 use-site type args 对其中出现的 `T` 做 substitution。
-            let bound_ty = self.lower_type_ref_in_decl_file_with_bindings(
+            let bound_ty = self.lower_bound_type_ref_in_decl_file_with_bindings(
                 &sym.decl_file,
                 bindings.iter().cloned(),
                 &c.bound,
@@ -3211,6 +3318,13 @@ impl<'a> TypeLowering<'a> {
             });
         }
 
+        if sym.is_sealed_interface && !self.sealed_marker_bounds_allowed() {
+            return Err(TypeLowerError::SealedInterfaceBoundOnly {
+                name: fqn,
+                span: path.span.into(),
+            });
+        }
+
         let args = type_args
             .iter()
             .map(|a| self.lower_type_ref(a))
@@ -3470,7 +3584,7 @@ impl<'a> TypeLowering<'a> {
         // T0458：`where` 子句中的 bound 也需要参与 lowering（arity/存在性等由 lowering 负责）。
         if let Some(w) = &ty.where_clause {
             for c in &w.constraints {
-                let _ = self.lower_type_ref(&c.bound)?;
+                let _ = self.lower_bound_type_ref(&c.bound)?;
             }
         }
 
@@ -3499,7 +3613,13 @@ impl<'a> TypeLowering<'a> {
         // - 具体“是否允许额外 interface supertypes”留给后续任务细化（当前不需要）。
         let mut first_super: Option<(TypeId, Span)> = None;
         for (idx, st) in ty.supertypes.iter().enumerate() {
-            let id = self.lower_type_ref(&st.ty)?;
+            let id = if ty.kind == ast::TypeKind::Interface
+                && ty.modifiers.contains(&ast::Modifier::Sealed)
+            {
+                self.lower_bound_type_ref(&st.ty)?
+            } else {
+                self.lower_type_ref(&st.ty)?
+            };
             if idx == 0 {
                 first_super = Some((id, st.ty.span()));
             }
@@ -3618,7 +3738,7 @@ impl<'a> TypeLowering<'a> {
                     }
                     if let Some(w) = &f.where_clause {
                         for c in &w.constraints {
-                            let _ = self.lower_type_ref(&c.bound)?;
+                            let _ = self.lower_bound_type_ref(&c.bound)?;
                         }
                     }
                     if fun_eff_binding {

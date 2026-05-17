@@ -62,6 +62,14 @@ pub enum InterfaceError {
         member_span: miette::SourceSpan,
     },
 
+    #[error("sealed marker `{name}` 只能作为 generic/where bound 使用，不能显式实现或继承")]
+    #[diagnostic(code(scoop::typecheck::sealed_interface_bound_only))]
+    SealedInterfaceBoundOnly {
+        name: String,
+        #[label("这里是显式 supertype/implements 位置")]
+        span: miette::SourceSpan,
+    },
+
     #[error("interface 成员实现存在歧义：{type_fqn} 对 {interface_fqn}.{member} 有多个候选实现")]
     #[diagnostic(code(scoop::typecheck::ambiguous_interface_member_impl))]
     AmbiguousInterfaceMemberImpl {
@@ -140,6 +148,9 @@ fn check_type_decl_interfaces(
         }
         ast::TypeKind::Enum => {
             check_enum_decl_interfaces(source, file, &type_fqn, &decl.supertypes, index, env)?;
+        }
+        ast::TypeKind::Interface if decl.modifiers.contains(&ast::Modifier::Sealed) => {
+            // Sealed markers are compile-time-only; TypeEnv validates their marker graph.
         }
         ast::TypeKind::Interface => {
             check_interface_decl_supertypes(source, file, &decl.supertypes, index, env)?;
@@ -243,6 +254,7 @@ fn check_interface_decl_supertypes(
             continue;
         };
 
+        reject_sealed_marker_supertype(env, &fqn, st.ty.span())?;
         reject_compiler_owned_continuation_interface(&fqn, st.ty.span())?;
 
         if st.ctor_args_span.is_some() {
@@ -282,6 +294,7 @@ fn check_class_like_interfaces(
             continue;
         };
 
+        reject_sealed_marker_supertype(env, &interface_fqn, st.ty.span())?;
         reject_compiler_owned_continuation_interface(&interface_fqn, st.ty.span())?;
 
         if st.ctor_args_span.is_some() {
@@ -330,6 +343,7 @@ fn check_value_type_interfaces(
             continue;
         };
 
+        reject_sealed_marker_supertype(env, &interface_fqn, st.ty.span())?;
         reject_compiler_owned_continuation_interface(&interface_fqn, st.ty.span())?;
 
         if st.ctor_args_span.is_some() {
@@ -615,6 +629,20 @@ fn is_interface(env: &TypeEnv, fqn: &str) -> bool {
     matches!(nominal_kind(env, fqn), Some(ast::TypeKind::Interface))
 }
 
+fn reject_sealed_marker_supertype(
+    env: &TypeEnv,
+    fqn: &str,
+    span: crate::span::Span,
+) -> Result<(), InterfaceError> {
+    if env.is_sealed_interface(fqn) {
+        return Err(InterfaceError::SealedInterfaceBoundOnly {
+            name: fqn.to_string(),
+            span: span.into(),
+        });
+    }
+    Ok(())
+}
+
 fn reject_compiler_owned_continuation_interface(
     interface_fqn: &str,
     span: crate::span::Span,
@@ -644,7 +672,7 @@ mod tests {
     use crate::parser::parse_file;
     use crate::resolve::{self, Index};
     use crate::session::{Session, SessionOptions};
-    use crate::source::SourceFile;
+    use crate::source::{SourceFile, SourceOrigin};
     use crate::typecheck;
 
     fn setup_interface_check(source_text: &str) -> (SourceFile, ast::File, Index, TypeEnv) {
@@ -694,6 +722,47 @@ class Fake() : Continuation<Int, Unit, eff Pure> {
         assert!(matches!(
             err,
             InterfaceError::ContinuationImplNotAllowed { .. }
+        ));
+    }
+
+    #[test]
+    fn sealed_interface_typecheck_rejects_explicit_marker_implementation() {
+        let marker_source = SourceFile::new_virtual_with_origin(
+            "<sealed-marker-sysroot>",
+            r#"
+package scoop.core
+
+sealed interface AnyRef
+sealed interface AnyValue
+"#,
+            SourceOrigin::Sysroot,
+        );
+        let marker_ast = parse_file(&marker_source).expect("parse markers");
+        let source = SourceFile::new_virtual(
+            "<sealed-marker-user>",
+            r#"
+package fixtures.typecheck
+
+import scoop.core.*
+
+class C() : AnyRef {}
+"#,
+        );
+        let ast = parse_file(&source).expect("parse user");
+        let pairs = vec![(&marker_source, &marker_ast), (&source, &ast)];
+        let index = Index::build(&pairs).expect("index");
+
+        let mut env = TypeEnv::default();
+        env.extend_from_file(&marker_source, &marker_ast, &index)
+            .expect("marker env");
+        env.extend_from_file(&source, &ast, &index)
+            .expect("user env");
+
+        let err = check_file_interfaces(&source, &ast, &index, &env)
+            .expect_err("explicit sealed marker implementation should be rejected");
+        assert!(matches!(
+            err,
+            InterfaceError::SealedInterfaceBoundOnly { .. }
         ));
     }
 }

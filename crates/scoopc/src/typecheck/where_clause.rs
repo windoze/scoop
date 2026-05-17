@@ -17,6 +17,7 @@ use crate::span::Span;
 use crate::ty::{BuiltinTypes, RefTypeKind, TypeId, TypeKind, TypeStore};
 
 use super::lower::{TypeLowerError, TypeLowering};
+use super::type_env::{ANY_REF_MARKER_FQN, ANY_VALUE_MARKER_FQN};
 
 #[derive(Debug, Error, Diagnostic)]
 pub enum WhereClauseError {
@@ -53,6 +54,14 @@ pub enum WhereClauseError {
         first: miette::SourceSpan,
         #[label("第二个约束在这里")]
         second: miette::SourceSpan,
+    },
+
+    #[error("where 约束不能同时要求 `{param}` 满足 AnyRef 与 AnyValue")]
+    #[diagnostic(code(scoop::typecheck::sealed_interface_mutually_exclusive_bound))]
+    SealedInterfaceMutuallyExclusiveBound {
+        param: String,
+        #[label("这里引入了互斥 sealed marker bound")]
+        span: miette::SourceSpan,
     },
 }
 
@@ -186,6 +195,7 @@ fn check_one_where_clause(
     let mut seen: HashMap<(String, TypeId), Span> = HashMap::new();
     // type_param_name -> first class-like bound (type_id, span)
     let mut first_class_bound: HashMap<String, (TypeId, Span)> = HashMap::new();
+    let mut marker_bounds: HashMap<String, HashSet<String>> = HashMap::new();
 
     for c in &w.constraints {
         let param = source.slice(c.ty_param.span).to_string();
@@ -196,7 +206,21 @@ fn check_one_where_clause(
             });
         }
 
-        let bound_ty = lower.lower_type_ref(&c.bound)?;
+        let bound_ty = lower.lower_bound_type_ref(&c.bound)?;
+
+        if let Some(marker_fqn) = lower.sealed_marker_fqn(bound_ty) {
+            let markers = marker_bounds.entry(param.clone()).or_default();
+            markers.insert(marker_fqn.clone());
+            if let Some(supers) = lower.env().sealed_marker_transitive_supers(&marker_fqn) {
+                markers.extend(supers.iter().cloned());
+            }
+            if markers.contains(ANY_REF_MARKER_FQN) && markers.contains(ANY_VALUE_MARKER_FQN) {
+                return Err(WhereClauseError::SealedInterfaceMutuallyExclusiveBound {
+                    param,
+                    span: c.span.into(),
+                });
+            }
+        }
 
         let key = (param.clone(), bound_ty);
         if let Some(prev_span) = seen.get(&key).copied() {
@@ -257,5 +281,63 @@ fn is_interface_like_bound(ty: TypeId, lower: &TypeLowering<'_>, builtins: Built
             )
         }
         _ => false,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use crate::parser::parse_file;
+    use crate::resolve::Index;
+    use crate::source::{SourceFile, SourceOrigin};
+
+    #[test]
+    fn sealed_interface_where_clause_rejects_anyref_anyvalue_mix() {
+        let marker_source = SourceFile::new_virtual_with_origin(
+            "<sealed-marker-sysroot>",
+            r#"
+package scoop.core
+
+sealed interface AnyRef
+sealed interface AnyValue
+"#,
+            SourceOrigin::Sysroot,
+        );
+        let marker_ast = parse_file(&marker_source).expect("parse markers");
+        let source = SourceFile::new_virtual(
+            "<sealed-marker-user>",
+            r#"
+package fixtures.typecheck
+
+import scoop.core.*
+
+class Bad<T> where T: AnyRef, T: AnyValue {}
+"#,
+        );
+        let ast = parse_file(&source).expect("parse user");
+        let pairs = vec![(&marker_source, &marker_ast), (&source, &ast)];
+        let index = Index::build(&pairs).expect("index");
+
+        let mut env = super::super::TypeEnv::default();
+        env.extend_from_file(&marker_source, &marker_ast, &index)
+            .expect("marker env");
+        env.extend_from_file(&source, &ast, &index)
+            .expect("user env");
+        let imports = env
+            .file_type_context(source.path())
+            .expect("file ctx")
+            .imports
+            .clone();
+        let mut types = TypeStore::new();
+        let builtins = types.intern_builtins();
+
+        let err =
+            check_file_where_clauses(&source, &ast, &index, &imports, &env, &mut types, builtins)
+                .expect_err("AnyRef + AnyValue should be mutually exclusive");
+        assert!(matches!(
+            err,
+            WhereClauseError::SealedInterfaceMutuallyExclusiveBound { .. }
+        ));
     }
 }
