@@ -27,15 +27,7 @@ pub(crate) fn load_dump_support_asts(
         if support_source
             .path()
             .file_name()
-            .is_some_and(|name| name == "print.scoop")
-        {
-            continue;
-        }
-        if session
-            .sysroot()
-            .files
-            .iter()
-            .any(|file| file.source.path() == support_source.path())
+            .is_some_and(|name| name == "core.scoop" || name == "lang_string.scoop")
         {
             continue;
         }
@@ -79,7 +71,13 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
         // 注意：`check_file_bodies` 需要 `&mut ast`，因此这里把构建 index 的临时借用放在独立作用域中，
         // 避免把 `&ast` 存到更长生命周期的容器里导致借用冲突。
         let mut pairs: Vec<(&SourceFile, &ast::File)> = Vec::new();
-        for f in &session.sysroot().files {
+        for f in session.sysroot().index_files() {
+            if support_asts
+                .iter()
+                .any(|(support_source, _)| support_source.path() == f.source.path())
+            {
+                continue;
+            }
             pairs.push((&f.source, &f.ast));
         }
         for (support_source, support_ast) in &support_asts {
@@ -106,7 +104,13 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
     crate::resolve::check_file_bodies(source, &mut ast, &index, &headers)?;
 
     let mut pairs: Vec<(&SourceFile, &ast::File)> = Vec::new();
-    for f in &session.sysroot().files {
+    for f in session.sysroot().index_files() {
+        if support_asts
+            .iter()
+            .any(|(support_source, _)| support_source.path() == f.source.path())
+        {
+            continue;
+        }
         pairs.push((&f.source, &f.ast));
     }
     for (support_source, support_ast) in &support_asts {
@@ -390,7 +394,13 @@ pub fn lower_typed_for_dump(
 
     let index = {
         let mut compilation_unit: Vec<(&SourceFile, &ast::File)> = Vec::new();
-        for file in &session.sysroot().files {
+        for file in session.sysroot().index_files() {
+            if support_asts
+                .iter()
+                .any(|(support_source, _)| support_source.path() == file.source.path())
+            {
+                continue;
+            }
             compilation_unit.push((&file.source, &file.ast));
         }
         for (support_source, support_ast) in &support_asts {
@@ -454,7 +464,13 @@ pub fn lower_typed_for_dump(
     )?;
 
     let mut compilation_unit: Vec<(&SourceFile, &ast::File)> = Vec::new();
-    for file in &session.sysroot().files {
+    for file in session.sysroot().index_files() {
+        if support_asts
+            .iter()
+            .any(|(support_source, _)| support_source.path() == file.source.path())
+        {
+            continue;
+        }
         compilation_unit.push((&file.source, &file.ast));
     }
     for (support_source, support_ast) in &support_asts {

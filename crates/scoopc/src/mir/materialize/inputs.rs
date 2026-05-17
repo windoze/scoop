@@ -220,8 +220,24 @@ pub(super) fn collect_dump_materialization_inputs(
     session: &Session,
     source: &SourceFile,
 ) -> MaterializeResult<DumpMaterializationInputs> {
-    let mut prepared_files = Vec::with_capacity(session.sysroot().files.len() + 8);
-    for file in &session.sysroot().files {
+    let support_sources = load_dump_support_sources(session)?
+        .into_iter()
+        .filter(|source| {
+            !source
+                .path()
+                .file_name()
+                .is_some_and(|name| name == "core.scoop" || name == "lang_string.scoop")
+        })
+        .collect::<Vec<_>>();
+    let mut prepared_files =
+        Vec::with_capacity(session.sysroot().files.len() + support_sources.len() + 1);
+    for file in session.sysroot().index_files() {
+        if support_sources
+            .iter()
+            .any(|support_source| support_source.path() == file.source.path())
+        {
+            continue;
+        }
         prepared_files.push(PreparedDumpFile {
             source: file.source.clone(),
             ast: file.ast.clone(),
@@ -230,16 +246,8 @@ pub(super) fn collect_dump_materialization_inputs(
         });
     }
 
-    for support_source in load_dump_support_sources(session)? {
+    for support_source in support_sources {
         if support_source.path() == source.path() {
-            continue;
-        }
-        if session
-            .sysroot()
-            .files
-            .iter()
-            .any(|file| file.source.path() == support_source.path())
-        {
             continue;
         }
         let ast = parse_file(&support_source)?;

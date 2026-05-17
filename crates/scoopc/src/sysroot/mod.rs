@@ -17,22 +17,19 @@ use crate::source::SourceFile;
 pub const SYSROOT_OVERLAY_ENV: &str = "SCOOP_SYSROOT_OVERLAY";
 
 /// T0143：sysroot 文件分为两类：
-/// - `files`：签名文件（仅声明，不作为 support source 编译）。用于 production Index 起点。
+/// - `files`：声明索引文件（仅声明，不作为 support source 编译）。用于 production Index 起点。
+///   含真实实现体的 sysroot 文件在这里保存 signature-only AST。
 /// - `compilable_source_paths`：含有函数体的 sysroot 文件（如 `string.scoop`），
 ///   需作为编译单元的一部分参与完整的 resolve → typecheck → HIR lowering → codegen 管线。
 /// - `compilable_files`：已解析的 compilable sysroot 文件，供 dump / package API export / 单测
-///   这类不经 support-source 输入的路径参与索引。
+///   这类需要完整 AST 的路径使用。
 #[derive(Debug)]
 pub struct Sysroot {
     pub root: PathBuf,
     pub files: Vec<SysrootFile>,
     /// T0143：需要被编译（而非仅作为签名索引）的 sysroot 源文件路径。
     pub compilable_source_paths: Vec<PathBuf>,
-    /// 与 `compilable_source_paths` 对应的已解析 sysroot 文件。
-    ///
-    /// 说明：这些文件不放入 `files`，以避免 production frontend 在 support-source
-    /// 输入中再次加入同一文件时形成重复声明；需要完整 sysroot 索引的路径应使用
-    /// `index_files()`。
+    /// 与 `compilable_source_paths` 对应的已解析完整 sysroot 文件。
     pub compilable_files: Vec<SysrootFile>,
 }
 
@@ -89,16 +86,11 @@ impl Sysroot {
                     source: source.clone(),
                     ast: ast.clone(),
                 });
-                if path
-                    .file_name()
-                    .is_some_and(|name| name == "core.scoop" || name == "lang_string.scoop")
-                {
-                    files.push(SysrootFile {
-                        path,
-                        source,
-                        ast: signature_only_sysroot_ast(ast),
-                    });
-                }
+                files.push(SysrootFile {
+                    path,
+                    source,
+                    ast: signature_only_sysroot_ast(ast),
+                });
                 continue;
             }
 

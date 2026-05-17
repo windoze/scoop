@@ -1681,7 +1681,7 @@ fn scoopir_fixture(
     }
 
     let mut pairs: Vec<(&scoopc::source::SourceFile, &scoopc::ast::File)> = Vec::new();
-    for f in &session.sysroot().files {
+    for f in session.sysroot().index_files() {
         pairs.push((&f.source, &f.ast));
     }
     pairs.push((source, &ast));
@@ -1742,7 +1742,7 @@ fn resolve_fixture(
     }
 
     let mut pairs: Vec<(&scoopc::source::SourceFile, &scoopc::ast::File)> = Vec::new();
-    for f in &session.sysroot().files {
+    for f in session.sysroot().index_files() {
         pairs.push((&f.source, &f.ast));
     }
     pairs.push((source, &ast));
@@ -1776,7 +1776,7 @@ fn typecheck_fixture(
     scoopc::typecheck::check_file_struct_decls(source, &ast).map_err(box_diagnostic)?;
 
     let mut pairs: Vec<(&scoopc::source::SourceFile, &scoopc::ast::File)> = Vec::new();
-    for f in &session.sysroot().files {
+    for f in session.sysroot().index_files() {
         pairs.push((&f.source, &f.ast));
     }
     pairs.push((source, &ast));
@@ -1968,7 +1968,7 @@ fn run_resolve_multi_case(
     }
 
     let mut pairs: Vec<(&scoopc::source::SourceFile, &scoopc::ast::File)> = Vec::new();
-    for f in &session.sysroot().files {
+    for f in session.sysroot().index_files() {
         pairs.push((&f.source, &f.ast));
     }
     for (s, a) in sources.iter().zip(asts.iter()) {
@@ -2864,7 +2864,7 @@ fn run_typecheck_multi_case(
 
     // 先构建单一 Index（sysroot + case）。
     let mut pairs: Vec<(&scoopc::source::SourceFile, &scoopc::ast::File)> = Vec::new();
-    for f in &session.sysroot().files {
+    for f in session.sysroot().index_files() {
         pairs.push((&f.source, &f.ast));
     }
     for (s, a) in sources.iter().zip(asts.iter()) {

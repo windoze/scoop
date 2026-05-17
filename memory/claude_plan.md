@@ -1,20 +1,37 @@
 # 当前执行计划
 
-1. 读取 `TODO.md`，按标题是否带有 `[DONE]` 判断第一个未完成任务。
-2. 检查该任务相关的上下文、依赖和最新提交是否存在直接相关的未完成事项。
-3. 在不绕过规格要求的前提下实现该任务；如果发现必须先修复的阻塞问题，则把最小必要前置任务写入 `TODO.md` 并停止。
-4. 为实现补充或更新最小相关测试/fixture，并运行任务要求或代码变更对应的验证命令。
-5. 验证通过后，将当前任务标题标记为 `[DONE]`，更新完成记录；仅在阶段级计划变化时修改 `PLAN.md`。
-6. 检查工作区变更，提交本次任务涉及的全部未提交文件，然后停止，不继续下一个任务。
+## 范围
+
+- 本次只处理 `TODO.md` 中第一个标题未带 `[DONE]` 的任务。
+- 不跳过 review 任务，不因为任务较大而默认拆分。
+- 如果发现当前任务被具体前置缺陷阻塞，只添加最小必要前置任务并停止。
+
+## 步骤
+
+1. 阅读 `TODO.md`，确定第一个未完成任务及其验收要求。
+2. 检查最近提交是否明确提到与该任务直接相关的未完成问题。
+3. 阅读与该任务相关的代码、测试和文档，确认实现边界。
+4. 实施最小正确修改，避免绕过规格或弱化测试。
+5. 运行当前任务要求的验证命令和必要的相关测试；如果失败，修复后重跑。
+6. 更新 `TODO.md`：把已完成任务标题加上 `[DONE]`，并更新完成记录。
+7. 仅在阶段计划实际变化时更新 `PLAN.md`。
+8. 提交所有与本任务相关的变更，提交信息包含任务编号。
+9. 停止，不继续处理下一个任务。
 
 ## 进度记录
 
-- 已创建本轮执行计划，下一步读取 `TODO.md` 识别第一个未完成任务。
-- 已识别第一个未完成任务为 `P11-T02`：测试 helper 迁移到 test cone 或 C ABI extern 或删除。下一步读取 `TODO-5.md` 的完整任务要求，并检查最新提交是否有直接相关的未完成事项。
-- 已读取 `P11-T02` 与最新提交：`03aa1548 [P11-T01] Audit GC test helper usage` 正是当前任务前置审计。执行将严格按 P11-T01 决策：新建 `scoop.runtime.test` cone，从 core 迁出四个 helper；fixture 显式 import test cone；stackmap smoke 的编译器 special-case FQN 改到 test cone。
-- 已完成主要迁移编辑：`sysroot/runtime_test.scoop` 持有四个测试 helper，`sysroot/core.scoop` 与 custom sysroot overlay 不再声明它们；调用 fixture 与相关 Rust source snippets 已显式导入 `scoop.runtime.test.*`；`heap_object_count` 调用改在 unsafe block 内执行。
-- 验证发现负向 owner fixture 失败：未显式 import 时仍可解析 runtime test helper。下一步定位自动 prelude / unqualified resolver 可见性路径，确保 `scoop.runtime.test` 不被默认导入。
-- 负向 owner fixture 已调整到 typecheck 阶段（resolver 会延迟裸调用诊断），`tests/fixtures/typecheck/runtime_test_helper_not_in_prelude_is_error.scoop` 现在验证未导入时不可调用并已通过。
-- 发现并修复 `runtime_test.scoop` 未作为 support source 编译导致 extern callable signature 缺失的问题；将其加入 compilable sysroot files 后，runtime GC 目录、HIR 目录与全量 fixture suite 均已通过。
-- 验证已完成：全量 fixture suite 通过，`cargo test --all --all-targets` 通过，`cargo clippy --all-targets -- -D warnings` 通过。下一步更新 `TODO.md` / `TODO-5.md` 完成记录并提交。
-- `TODO.md` 已将 `P11-T02` 标记为 `[DONE]`；`TODO-5.md` 已写入完成记录，并补充后续 P12 任务对 `runtime_test.scoop` 的文件清单/迁移目标引用。
+- 已创建初始执行计划。
+- 已读取 `TODO.md`，第一个未完成任务是 `P12-T01`。
+- 已读取 `TODO-5.md` 中 `P12-T01` 详情：本任务要求审计 sysroot 全部 `.scoop` 文件中的顶层 fun 与 type body method，确认每个声明满足 body / `@Intrinsic` / `@Extern` 三选一，并把 file × method 矩阵写入完成记录。
+- 已检查最新提交 `c1bb7713 [P11-T02] Move runtime test helpers out of core`，未发现直接要求先处理的未完成问题。
+- 已枚举并结构扫描 `sysroot/**/*.scoop`。
+- 初次审计发现 `sysroot/core.scoop` 中 `print<T>` / `println<T>` 是无 body、无 `@Intrinsic`、无 `@Extern` 的重复光声明；`sysroot/print.scoop` 已有普通 Scoop body。
+- 已删除 core 中这两条重复光声明，审计脚本复跑为 0 条违规。
+- `cargo build` 通过。
+- 全量 fixture 首次复跑出现 12 个 `print/println` 不可调用失败，定位为 typecheck-only 路径只使用 `Sysroot::index_files()`，而 `print.scoop` 这类可编译 sysroot 文件未进入索引；下一步修复 sysroot 索引包含非重复的 compilable files，再重跑验证。
+- 已将 `Sysroot::files` 收口为所有 sysroot 声明索引的 signature-only AST，并保留完整 AST/support source 路径；同时修复 fixture runner 与 dump/materialization 装配，避免 `print.scoop` 声明缺失或完整 body 被当作未 typecheck 的索引 AST 降低。
+- 已更新 5 个 HIR golden 中因删除 core 重复签名导致的 `target_decl_span` drift。
+- 最终结构审计结果：`VIOLATIONS 0`，9 条无 body 的声明均为 interface/effect 抽象 method。
+- 最终验证：`cargo build`、`cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/println_string_ok.scoop`、`cargo run -p scoop -- test --fixtures tests/fixtures/hir`、`cargo run -p scoop -- test`、`cargo test --all --all-targets`、`cargo clippy --all-targets -- -D warnings` 均通过。
+- 已回写 `TODO.md` 与 `TODO-5.md`，将 `P12-T01` 标记为 `[DONE]` 并写入完成记录。
+- 下一步提交本任务所有变更后停止。

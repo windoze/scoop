@@ -481,10 +481,6 @@ fun abs(x: Int): Int {
     return x
 }
 
-// T0131: 泛型 print/println 签名（实现由 sysroot/print.scoop 提供）。
-fun <T> print(value: T): Unit where T: ToString
-fun <T> println(value: T): Unit where T: ToString
-
 // I/O（内部 runtime 映射）。
 //
 // 说明：

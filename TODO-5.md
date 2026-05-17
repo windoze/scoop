@@ -517,7 +517,7 @@
 
 ## P12：core 真正成为 cone（去 sysroot 化）
 
-### P12-T01：sysroot 全 file 审计——每个 method/fun 满足 body / `@Intrinsic` / `@Extern` 三选一
+### [DONE] P12-T01：sysroot 全 file 审计——每个 method/fun 满足 body / `@Intrinsic` / `@Extern` 三选一
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §9 / P12 + §10 风险条目"P12 去 sysroot 化的隐性依赖"
@@ -545,6 +545,44 @@
 - 完成条件：
   - sysroot 全 file 满足"三选一"，可以推进 P12-T02。
 - 依赖：P11-T02。
+
+完成记录：
+
+- 改动范围：
+  - 审计 `sysroot/` 顶层 10 个 `.scoop` 文件：`collections.scoop`、`core.scoop`、`delegates.scoop`、`lang_string.scoop`、`print.scoop`、`runtime_test.scoop`、`string.scoop`、`sync.scoop`、`thread.scoop`、`unsafe.scoop`。
+  - 删除 `sysroot/core.scoop` 中 P7 留下的 `print<T>` / `println<T>` 两条无 body、无 `@Intrinsic`、无 `@Extern` 的重复光声明；实际普通 Scoop body 保留在 `sysroot/print.scoop`。
+  - `Sysroot::files` 现在为每个 compilable sysroot file 保存 signature-only AST；完整 AST 仍保留在 `compilable_files` / support source 路径，避免 typecheck-only 索引再依赖 core 中的重复签名。
+  - fixture runner 和 dump/materialization support-source 装配改为使用完整 sysroot 声明索引，并在需要完整 body 的路径避免 signature-only AST 与 support AST 重复。
+  - 同步更新 5 个 HIR golden 中因 `core.scoop` span 前移产生的 `target_decl_span`。
+- 审计矩阵：
+  - `sysroot/collections.scoop`：`body=0`，`@Extern=0`，`@Intrinsic=1`，抽象接口 method `5`，违规 `0`。
+  - `sysroot/core.scoop`：`body=43`，`@Extern=15`，`@Intrinsic=307`，抽象 interface/effect method `2`，违规 `0`。
+  - `sysroot/delegates.scoop`：`body=0`，`@Extern=0`，`@Intrinsic=4`，抽象接口 method `2`，违规 `0`。
+  - `sysroot/lang_string.scoop`：`body=12`，`@Extern=3`，`@Intrinsic=0`，违规 `0`。
+  - `sysroot/print.scoop`：`body=2`，`@Extern=0`，`@Intrinsic=0`，违规 `0`。
+  - `sysroot/runtime_test.scoop`：`body=0`，`@Extern=3`，`@Intrinsic=1`，违规 `0`。
+  - `sysroot/string.scoop`：`body=15`，`@Extern=1`，`@Intrinsic=0`，违规 `0`。
+  - `sysroot/sync.scoop`：`body=0`，`@Extern=0`，`@Intrinsic=12`，违规 `0`。
+  - `sysroot/thread.scoop`：`body=0`，`@Extern=0`，`@Intrinsic=5`，违规 `0`。
+  - `sysroot/unsafe.scoop`：`body=0`，`@Extern=0`，`@Intrinsic=29`，违规 `0`。
+- 抽象声明说明：
+  - 9 条无 body 且无 `@Intrinsic` / `@Extern` 的 method 均位于 `interface` 或 `effect` body：`Iterable.iterator`、`Iterator.next`、`IntIterable.iterator`、`IntIterator.next`、`Map.getValue`、`Continuation.resume`、`Raise.raise`、`ReadOnlyProperty.getValue`、`ReadWriteProperty.setValue`。
+  - 这些是语言允许的抽象 interface/effect 声明，已由现有 body 缺失策略和 fixture `fun_missing_body_interface_abstract_ok.scoop` 覆盖；普通顶层 fun、extension fun、class/struct/enum/object method 均满足 body / `@Intrinsic` / `@Extern` 三选一。
+- 核心决策：
+  - 不把 `print<T>` / `println<T>` 标成 `@Intrinsic` 或 `@Extern`，因为它们是普通 Scoop wrapper；也不在 core 中保留 alias/shim。
+  - 声明索引使用 signature-only AST，完整 sysroot body 只在 support-source 路径参与编译；这是当前 P12-T03 拆 AST stripping 前的必要收口，避免重复声明和缺少 typed call contract。
+  - `core.scoop` / `lang_string.scoop` 在 dump/materialization support 装配中继续走 signature-only 索引；`print.scoop` 等非重复 support file 在需要完整 body 的路径继续可用。
+- 验证结果：
+  - 结构审计脚本覆盖 `sysroot/*.scoop` 全部文件：`VIOLATIONS 0`，抽象 interface/effect method `9`。
+  - `cargo build` 通过。
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/println_string_ok.scoop` 通过。
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/hir` 通过：26/26 targets。
+  - `cargo run -p scoop -- test` 通过：1339/1339 targets，1376 checks。
+  - `cargo test --all --all-targets` 通过：856 tests。
+  - `cargo clippy --all-targets -- -D warnings` 通过。
+- 与 `PLAN.md` 对应闭合：
+  - 闭合 PLAN §9 / P12 的 P12-T01 前置审计：sysroot 普通 fun/method 不再依赖未标注光声明，P12-T02 可继续做物理目录重组，P12-T03 可在此前提上拆 `signature_only_sysroot_ast` / compilable-file 过滤。
+- 暂时性 failing fixture：无。中途因删除 core 重复签名暴露出的 `print/println` typecheck-only 索引缺口已在本任务内修复，最终全量 fixture 为 0 failing。
 
 ### P12-T02：sysroot 物理目录按 cone FQN 重组
 
