@@ -75,6 +75,34 @@ _Static_assert((sizeof(ScoopString) % sizeof(void *)) == 0,
                "ScoopString size must be pointer-aligned");
 #endif
 
+// `String` 类型描述符：runtime 端唯一定义，codegen 端以 `extern` 声明引用同一指针。
+//
+// 共享 pointer 的必要性：`as? String` 在 codegen 中实现为 pointer-equality（沿
+// `obj->type_desc->parent_type_desc` 链遍历，比对的是描述符地址而非 type_id）。
+// 因此 runtime 侧 `scoop_string_*` 分配与 codegen 侧字面量分配必须指向同一个
+// 描述符全局；用 external linkage 让 linker 在 codegen 单元里把符号解析到此处。
+extern const ScoopTypeDescriptor __scoop_type_desc_runtime__ScoopString;
+const ScoopTypeDescriptor __scoop_type_desc_runtime__ScoopString = {
+    .abi_version = 0,
+    .flags = 0,
+    .size_bytes = sizeof(ScoopString),
+    .align_bytes = (uint64_t)_Alignof(ScoopString),
+    .trace_start_offset_bytes = (uint64_t)sizeof(ScoopGcObjectHeader),
+    .trace_bitmap_u64_len = 0,
+    ._reserved_u32 = 0,
+    .trace_bitmap = 0,
+    // String 内部无 GC 引用字段（`data` 是 addrspace(0) 字节缓冲），无需 trace。
+    .trace_fn = 0,
+    .release_fn = 0,
+    // type_id：暂置 0。`as?` 走 pointer-equality 不读此字段；String 未声明任何
+    // interface 故不参与 itable lookup。如未来需要稳定 hash，需要 codegen 在
+    // module init 时回填，或 runtime 引入预先计算好的 hash 常量。
+    .type_id = 0,
+    .parent_type_desc = 0,
+    .itable = 0,
+    .vtable = 0,
+};
+
 // 前置声明：String helper（定义在文件后部）。
 static const ScoopString *scoop_string_empty(void);
 static const ScoopString *scoop_string_from_static_bytes(const uint8_t *value, uint64_t len);
@@ -700,7 +728,8 @@ uint64_t scoop_format_u64(uint64_t value, uint8_t *out, uint64_t cap) {
 // - 它们不是对外 runtime ABI，只在本文件内部复用。
 
 static const ScoopString *scoop_string_empty(void) {
-  ScoopString *out_str = (ScoopString *)scoop_alloc((uint64_t)sizeof(ScoopString));
+  ScoopString *out_str = (ScoopString *)scoop_alloc_typed(
+      &__scoop_type_desc_runtime__ScoopString, (uint64_t)sizeof(ScoopString));
   if (out_str == 0) {
     return 0;
   }
@@ -713,7 +742,7 @@ static const ScoopString *scoop_string_empty(void) {
 //
 // 说明：
 // - `value` 必须指向进程生命周期内有效的只读数据（例如字符串字面量的全局常量、或 runtime 内建常量）；
-// - 当前阶段不接入 type descriptor/release，因此该 String 不会释放 `value` 指向的内存。
+// - 当前阶段不接入 release，因此该 String 不会释放 `value` 指向的内存。
 static const ScoopString *scoop_string_from_static_bytes(const uint8_t *value, uint64_t len) {
   if (len == 0) {
     return scoop_string_empty();
@@ -722,7 +751,8 @@ static const ScoopString *scoop_string_from_static_bytes(const uint8_t *value, u
     return 0;
   }
 
-  ScoopString *out_str = (ScoopString *)scoop_alloc((uint64_t)sizeof(ScoopString));
+  ScoopString *out_str = (ScoopString *)scoop_alloc_typed(
+      &__scoop_type_desc_runtime__ScoopString, (uint64_t)sizeof(ScoopString));
   if (out_str == 0) {
     return 0;
   }
@@ -740,7 +770,8 @@ static const ScoopString *scoop_string_from_owned_bytes(uint8_t *value, uint64_t
     return 0;
   }
 
-  ScoopString *out_str = (ScoopString *)scoop_alloc((uint64_t)sizeof(ScoopString));
+  ScoopString *out_str = (ScoopString *)scoop_alloc_typed(
+      &__scoop_type_desc_runtime__ScoopString, (uint64_t)sizeof(ScoopString));
   if (out_str == 0) {
     free(value);
     return 0;

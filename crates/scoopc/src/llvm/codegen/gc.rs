@@ -1867,25 +1867,23 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     pub(super) fn get_or_create_string_type_desc_global(
         &mut self,
-        at: crate::span::Span,
+        _at: crate::span::Span,
     ) -> Result<GlobalValue<'ctx>, LlvmEmitError> {
+        // String 类型描述符由 C runtime 唯一定义（见
+        // `runtime/c/scoop_runtime.c::__scoop_type_desc_runtime__ScoopString`）。
+        // codegen 端只声明 extern：字面量分配（写入对象头）与 `as? String`
+        // 检查（沿 parent 链 pointer-equality）必须用同一指针，否则 cast 会
+        // 因为指针地址不同而误判 fail。
         const GLOBAL_NAME: &str = "__scoop_type_desc_runtime__ScoopString";
         if let Some(existing) = self.module.get_global(GLOBAL_NAME) {
             return Ok(existing);
         }
 
-        let obj_ty = self.llvm_scoop_string_type();
-        let trace_start_offset_bytes = self.target_data.offset_of_element(&obj_ty, 1).unwrap_or(0);
-        self.get_or_create_type_descriptor_global(TypeDescriptorSpec {
-            at,
-            global_name: GLOBAL_NAME,
-            type_id_key: "scoop.core.String",
-            obj_ty,
-            trace_start_offset_bytes,
-            parent: None,
-            itable: None,
-            vtable: None,
-        })
+        let desc_ty = self.llvm_scoop_type_descriptor_type();
+        let gv = self.module.add_global(desc_ty, None, GLOBAL_NAME);
+        gv.set_constant(true);
+        gv.set_linkage(Linkage::External);
+        Ok(gv)
     }
 
     pub(super) fn llvm_boxed_unit_type(&self) -> StructType<'ctx> {

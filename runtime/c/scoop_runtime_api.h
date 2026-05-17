@@ -24,6 +24,7 @@
   X(__start_llvm_stackmaps) \
   X(__stop_llvm_stackmaps) \
   X(__scoop_explicit_root_frame_top) \
+  X(__scoop_type_desc_runtime__ScoopString) \
   X(scoop_alloc) \
   X(scoop_alloc_typed) \
   X(scoop_enter_native) \

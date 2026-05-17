@@ -294,6 +294,85 @@
 - 与 `PLAN.md` 闭合：完成 P8 T8-3 的 sysroot scalar method surface，为 P8-T04 operator desugar 提供可解析/可 lowering 的 method declarations；阶段级计划和依赖未变化，未修改 `PLAN.md`。
 - 暂时性 failing fixture：见“全量 baseline”条目；本任务新增 fixture 已通过。
 
+### [DONE] P8-T04a：runtime String helpers 写入正确 `type_desc`（修复 P6-T01 引入的 GC fixture 回归）
+
+- 参考：
+  - [`PLAN.md`](./PLAN.md) §5 / §11（runtime / GC 边界）
+  - P6-T01 完成记录（[`TODO-3.md`](./TODO-3.md) "全量 fixture" 条目首次列入这 5 个 GC fixture）
+  - `runtime/c/scoop_runtime.c` 中 `ScoopString` 与 `scoop_string_*` 系列
+  - `crates/scoopc/src/llvm/codegen/gc.rs::get_or_create_string_type_desc_global`
+  - `crates/scoopc/src/llvm/codegen/main/literal.rs::codegen_string_literal_from_bytes`（字面量分配走 `scoop_alloc_typed`）
+  - `crates/scoopc/src/llvm/codegen/main/expr_op.rs::codegen_ref_is_instance_of_nonnull`（`as? String` 走 pointer-equality 比对 `type_desc` 链）
+- 目标：
+  - 让 runtime helper 产出的 `ScoopString*`（即 `scoop_string_empty/from_owned_bytes/from_static_bytes` 的所有 caller，含 `scoop_string_from_byte_array/char_array/string_array/cstr/bytes/concat/unsafe_slice_bytes`、`scoop_int_to_string/scoop_bool_to_string/scoop_char_to_string/scoop_float*_to_string`）的对象头 `type_desc` 与字面量 codegen 路径写入的指针**完全相同**，使 `as? String` pointer-equality 检查在两条来源的 String 上一致命中。
+  - 解锁前置阻塞：以下 5 个 P6-T01 baseline 中暂时累积、被 P8-T03 完成记录列入"P13-T04 兜底"的 GC fixture 必须在本任务后通过：
+    - `tests/fixtures/runtime_gc/extern_enter_native_gc_arg_spill_reload.scoop`
+    - `tests/fixtures/runtime_gc/extern_enter_native_roots_gc.scoop`
+    - `tests/fixtures/runtime_gc/funptr_enter_native_roots_gc.scoop`
+    - `tests/fixtures/runtime_gc/gc_handle_roundtrip.scoop`
+    - `tests/fixtures/runtime_gc/gc_move_stackmap_heap_fixup.scoop`
+- 当前实现入口（修复前现状）：
+  - `runtime/c/scoop_runtime.c::scoop_string_empty/from_static_bytes/from_owned_bytes`：均走裸 `scoop_alloc(sizeof(ScoopString))`，对象头 `type_desc` 为 NULL。
+  - `crates/scoopc/src/llvm/codegen/gc.rs::get_or_create_string_type_desc_global`：在 codegen 端创建 internal-linkage 全局 `__scoop_type_desc_runtime__ScoopString` 并写入 initializer；runtime 端无法访问该符号，无法回写到 helper 产出的对象头。
+- 必须实现的内容：
+  1. **runtime 端定义唯一描述符**：在 `runtime/c/scoop_runtime.c` 顶部（`ScoopString` 布局 `_Static_assert` 之后）定义
+     `const ScoopTypeDescriptor __scoop_type_desc_runtime__ScoopString`（C 默认 external linkage），字段：
+     - `size_bytes = sizeof(ScoopString)`、`align_bytes = _Alignof(ScoopString)`；
+     - `trace_start_offset_bytes = sizeof(ScoopGcObjectHeader)`；
+     - `trace_bitmap_u64_len = 0`、`trace_bitmap = NULL`、`trace_fn = NULL`（String 内部无 GC 引用字段，`data` 是 addrspace(0) 字节缓冲）；
+     - `release_fn = NULL`、`type_id = 0`、`parent_type_desc = NULL`、`itable = NULL`、`vtable = NULL`。
+  2. **runtime 端切到 typed alloc**：把 `scoop_string_empty/from_static_bytes/from_owned_bytes` 三个底层 helper 的 `scoop_alloc(sizeof(ScoopString))` 全改为
+     `scoop_alloc_typed(&__scoop_type_desc_runtime__ScoopString, (uint64_t)sizeof(ScoopString))`。
+     所有上层 helper（`scoop_string_from_*_array`、`scoop_*_to_string`、`scoop_string_concat`、`scoop_string_unsafe_slice_bytes` 等）均通过这三个底层 helper 出对象，一处改全覆盖；不需要逐一改 caller。
+  3. **codegen 端改为 extern 声明**：`get_or_create_string_type_desc_global` 不再调 `get_or_create_type_descriptor_global`（它会写 initializer + 设 internal linkage）；改为直接 `add_global(desc_ty, None, GLOBAL_NAME)` + `set_constant(true)` + `set_linkage(External)`，让 linker 把该符号解析到 runtime 端定义。这样：
+     - 字面量 codegen 路径（`codegen_string_literal_from_bytes`）写入对象头的 desc 指针；
+     - `as? String` 检查（`codegen_ref_is_instance_of_nonnull` → `codegen_type_desc_chain_contains_target`）比对的 desc 指针；
+     - runtime helper 写入对象头的 desc 指针；
+     都是同一个 linker-resolved 地址，pointer-equality 自然命中。
+  4. **ABI allowlist 登记**：在 `runtime/c/scoop_runtime_api.h` 的 `SCOOP_RUNTIME_API_SYMBOLS` X-macro 列表里按字典序加入 `X(__scoop_type_desc_runtime__ScoopString)`，否则 `scoop_runtime::abi_exports_allowlist::runtime_exports_must_be_allowlisted` 单测会拦下未登记导出符号。
+- 必须遵从的约束：
+  - **不**在 codegen 端继续保留 internal-linkage 的 `__scoop_type_desc_runtime__ScoopString` 副本作为兜底；只能 extern 声明。两份并存会让字面量与 runtime helper 产出的对象指向不同的描述符地址，`as?` pointer-equality 重新失败。
+  - **不**为该描述符在 codegen 端写 `type_id = stable_rtti_type_id("scoop.core.String")` 副本来"对齐"runtime 端的 0。runtime 端 0 是合法选择，理由：(a) `as?` 走 pointer-equality 不读 type_id；(b) sysroot 中 `String` 未声明任何 interface，不参与 itable lookup。如未来 audit 暴露 type_id 需要稳定 hash，应由 codegen 在 module init 阶段回填到 runtime 端的描述符（描述符需改 non-const），或 runtime 端引入预先计算好的常量；不允许通过"两份描述符"绕过这条约束。
+  - **不**改 `String` 的 `release_fn`。当前 runtime 不释放 `data` 字节缓冲（独立的 leak issue，与本任务正交），`release_fn = NULL` 与现状一致；本任务只补 type_desc，不顺手扩 release surface。
+- 验证：
+  1. 最小复现（修复前输出 `bad`，修复后输出 `hello 7`）：
+
+     ```
+     val x: Any = f"hello {7}"
+     val gotOpt: String? = x as? String
+     val got: String = when (gotOpt) { Some(v) -> v; None -> "bad" }
+     println(got)
+     ```
+  2. `cargo run -p scoop -- test --fixtures tests/fixtures/runtime_gc`：28/28 全通过。
+  3. `cargo run -p scoop -- test`（全量 baseline）—— 失败数从 P8-T03 完成记录里的 7 降到 2，其中本任务直接修复 5 个 GC fixture；剩余 2 个为独立问题（见下"未处理 fixture 现状"）。
+  4. `cargo test --all --all-targets`、`cargo clippy --all-targets -- -D warnings`。
+- 完成条件：
+  - 上述 5 个 GC fixture 在本任务后均 pass；其它任何 fixture 未由本任务新引入失败。
+  - `cargo test -p scoop_runtime --lib abi_exports_allowlist::runtime_exports_must_be_allowlisted` 通过（新导出符号已登记）。
+- 依赖：P8-T03 的完成（占住 P8 任务序）。本任务自身不依赖 P8-T03 的产物，是与 P8 主线（operator → method desugar）正交的 runtime/codegen 跨边界修复，但严格按 ID 顺序排在 P8-T04 之前，避免 P8-T04 改写 operator 时 carry 此回归。
+
+完成记录（2026-05-17）：
+
+- 改动范围：
+  - `runtime/c/scoop_runtime.c`：新增 `const ScoopTypeDescriptor __scoop_type_desc_runtime__ScoopString` 唯一定义；`scoop_string_empty/from_static_bytes/from_owned_bytes` 三个底层 helper 改用 `scoop_alloc_typed(&__scoop_type_desc_runtime__ScoopString, sizeof(ScoopString))`。
+  - `crates/scoopc/src/llvm/codegen/gc.rs::get_or_create_string_type_desc_global`：由"内部 emit + initializer + Linkage::Internal"改为"extern 声明（无 initializer）+ Linkage::External"。
+  - `runtime/c/scoop_runtime_api.h`：在 `SCOOP_RUNTIME_API_SYMBOLS` 中按字典序加入 `X(__scoop_type_desc_runtime__ScoopString)`。
+- 核心决策：
+  - **唯一定义点放 runtime 端**而非 codegen 端：保证字面量 alloc / `as?` 比对 / runtime helper alloc 都通过 linker 解析到同一指针，pointer-equality 自然命中。如果反过来由 codegen 唯一定义（保留 initializer，改 External + 主动 eager-emit），则需要 codegen 在每个 module 都强制创建该全局并保证只有一处定义；与现 codegen 架构（lazy + per-module emit）不契合，且 runtime 不能反向访问 codegen module 内的全局。
+  - **`type_id = 0`** 是当前合法选择，理由见上文"必须遵从的约束"。在 runtime descriptor 与 codegen 注释里都明确记录了未来若需要稳定 hash 的两条可行路径（codegen module init 回填 / runtime 预计算常量），避免 P12 阶段 audit 时重新挖掘背景。
+  - **不顺手修 `data` 字节缓冲泄漏**：`release_fn = NULL` 保持现状；该 leak 是独立 issue（P11/P12 阶段统一处理 release surface 时再考虑），本任务不扩范围。
+- 验证结果：
+  - `cargo run -p scoop -- run /tmp/scoop_repro.scoop`（最小复现：`val x: Any = f"hello {7}"; x as? String`）：修复前输出 `bad`，修复后输出 `hello 7`。
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/runtime_gc`：28/28 全通过（含本任务直接修复的 5 个 fixture）。
+  - `cargo run -p scoop -- test`（全量）：1340/1342 targets passed，1377 checks passed，2 targets failed（详见下"未处理 fixture 现状"）；从 P8-T03 完成记录里的 7 失败降到 2 失败。
+  - `cargo test --all --all-targets`：851 passed，1 failed —— 仅 `pipeline_user_visible_failure_policy::pipeline_user_visible_failure_policy_tracks_internal_bug_sentinels` 失败，已 `git stash` 验证为 pre-existing baseline drift（`effect_lowered/value.rs` 中 `unreachable!` 行号与 policy 表登记不一致），与本任务的三处改动无任何关联，留待独立处理。
+  - `cargo clippy --all-targets -- -D warnings`：通过。
+- 与 `PLAN.md` 闭合：本任务收口 PLAN §5（sysroot string substrate）/§11（runtime GC root scanning）跨边界的一个 latent bug——P6-T01 把 f-string desugar 切到 `StringBuilder().toString()` 路径后，runtime 端 string helpers 一直未给产出对象写 type descriptor。该 bug 对 println/print/string concat 等不查 RTTI 的路径不可见，但 P6-T01 baseline 里的 5 个 GC fixture（用 `as? String` 做 GC roundtrip 校验）首发暴露并被错误归类为"runtime GC/native-root stdout mismatch"。本任务修复后该归类作废，不再属于 P13-T04 兜底范围。阶段级计划与依赖未变化，未修改 `PLAN.md`。
+- 未处理 fixture 现状（与本任务无关、不属本任务消化范围）：
+  - `tests/fixtures/run-pass/mutable_array_ops_basic.scoop`：覆盖已删除的旧 `MutableArray<Int>.pop/insert/removeAt/splice` copy-style API，由 P9-T02 三分类清单按"删除/改写"原则处理（见 P4-T02 完成记录）。
+  - `tests/fixtures/run_pass_cone/cross_file_ctor_named_default_basic`：独立的 cross-file class field initializer ctor codegen contract drift（错误信息 "LLVM 主 codegen 收到本不应抵达的节点：call callee"），与本轮 reshape 主线脱钩，建议作为独立 follow-up 单独定位，不能通过 fixture 改写解决——继续由 P13-T04 兜底，或更早作为独立 P 阶段任务处理。
+- 暂时性 failing fixture：本任务消化了 P6-T01 起累积的 5 个；剩余 2 个见上条，均不属于本任务范围。
+
 ### P8-T04：HIR / typecheck——binary / unary operator 改写为 method call
 
 - 参考：
