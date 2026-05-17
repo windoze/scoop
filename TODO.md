@@ -4,7 +4,7 @@
 > 设计基线：[`CLOSURE_FIX.md`](./CLOSURE_FIX.md)  
 > 计划基线：[`PLAN.md`](./PLAN.md)  
 > 格式参考：[`docs/archive/plans/TODO-stable-id.md`](./docs/archive/plans/TODO-stable-id.md)  
-> 当前状态：C1-T01 已完成
+> 当前状态：C2-T01E 已完成
 > 执行原则：C0 必须最先完成；C1/C3 与 C2 两条实现线可按依赖并行，但单个任务完成时不得留下仓库内 failing fixture；每个任务完成后必须回写“完成记录”。
 
 ## 全局约束
@@ -493,7 +493,7 @@ C0-T01 (baseline + prerequisite inventory)
     - `cargo clippy -p scoopc --all-targets -- -D warnings`：通过。
   - 与 `PLAN.md` / `CLOSURE_FIX.md` 对应闭合：闭合 `PLAN.md` §7 C2-T01 的 LLVM / effect-lowered CaptureBox 删除入口，以及 `CLOSURE_FIX.md` 中删除 CaptureBox 后门、保留 descriptor-backed closure env 的 LLVM backend 部分；阶段级计划未变化。
 
-### [TODO] C2-T01E：收口 CaptureBox 删除后的全仓审计
+### [DONE] C2-T01E：收口 CaptureBox 删除后的全仓审计
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §7 C2-T01
@@ -518,9 +518,21 @@ C0-T01 (baseline + prerequisite inventory)
 - 依赖：C2-T01D
 - 完成记录：
   - 改动范围：
+    - 审计 `crates/scoopc/src/pipeline/mir_stage.rs`：source-level Rust tests 已不再期待 CaptureBox，`mir_place_contract_lowers_assignment_places` 验证 captured mutable local 是普通 assignable local，`mir_aggregate_transport_records_composite_contracts` 验证 closure env 与 mutable capture metadata 仍存在。
+    - 审计 `crates/scoopc/src` 与 `sysroot`：无 `CaptureBox` / `capture_box` / `mir_capture_box` / `__CaptureBox` / `rt_alloc_pass_mir_capture_box` source references。
+    - 审计 `tests/fixtures`：旧 expect 仅剩在 `tests/fixtures/mir/closure_capture_var.*`、`tests/fixtures/mir_lowered/aggregate_transport.*`、`tests/fixtures/mir_lowered/assignment_places.*`，已明确归入 C4-T01A 的 fixture refresh 范围；本任务未手改 fixture snapshot。
+    - 更新 `memory/claude_plan.md` 进度；未修改 `PLAN.md` 或 `CLOSURE_FIX.md`。
   - 核心决策：
+    - C2-T01A..D 已完成 source 层删除；C2-T01E 不引入新的语义代码或 fixture 快照刷新，只做 source-level 测试收口、全仓审计和后续 fixture refresh 清单确认。
+    - 保留 C4-T01A 集中刷新 MIR snapshots 的排序，避免在 C2 阶段提前手改大量 fixture expect。
   - 验证结果：
-  - 与 `PLAN.md` / `CLOSURE_FIX.md` 对应闭合：
+    - `cargo build -p scoopc`：通过。
+    - `cargo test -p scoopc mir_place_contract -- --nocapture`：通过，2 个定向测试通过。
+    - `cargo test -p scoopc aggregate_transport -- --nocapture`：通过，4 个相关测试通过。
+    - `rg -n "CaptureBox|capture_box|mir_capture_box|__CaptureBox|rt_alloc_pass_mir_capture_box" crates/scoopc/src sysroot`：无输出。
+    - `rg -n "CaptureBox|capture_box|mir_capture_box|__CaptureBox|rt_alloc_pass_mir_capture_box" crates/scoopc/src sysroot tests/fixtures`：仅 fixture 旧 expect 命中；命中文件为 `closure_capture_var.{mir,actual.mir,actual.raw.mir}`、`aggregate_transport.{mir,actual.mir,actual.raw.mir}`、`assignment_places.{mir,actual.mir,actual.raw.mir}`。
+    - `cargo clippy -p scoopc --all-targets -- -D warnings`：通过。
+  - 与 `PLAN.md` / `CLOSURE_FIX.md` 对应闭合：闭合 `PLAN.md` §7 C2-T01 的 CaptureBox 删除收口审计，以及 `CLOSURE_FIX.md` 中“删除 CaptureBox 后门”对 source/sysroot 清零与 fixture 刷新延期到 C4 的要求；阶段级计划未变化。
 
 ### [TODO] C2-T02：修 closure inner-mutable per-call local bug
 
@@ -639,7 +651,7 @@ C0-T01 (baseline + prerequisite inventory)
   1. 刷新 `tests/fixtures/mir/closure_capture_var.*`。
   2. 刷新 `tests/fixtures/mir_lowered/aggregate_transport.*`。
   3. 刷新 `tests/fixtures/mir_lowered/assignment_places.*`。
-  4. 如果 C0-T01 发现其它 fixture 包含 CaptureBox，也一并刷新。
+  4. C2-T01E 审计确认剩余 fixture 旧 expect 仅限上述三个 `.*` 组；若刷新前又发现其它 fixture 包含 CaptureBox，也一并刷新。
   5. 确认 `closure_capture_var.hir` 仍保留 `mutable: true` capture 信息。
 - 必须遵从的约束：
   - 不要删除能跑通且仍有语义价值的 fixtures；只刷新 expect。
