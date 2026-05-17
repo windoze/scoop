@@ -24,30 +24,30 @@ fun main() {
     val negOp: Float64 = -a
     val negMethod: Float64 = a.unaryMinus()
 
-    require(plusOp == 7.5)
-    require(plusMethod == 7.5)
-    require(minusOp == 3.5)
-    require(minusMethod == 3.5)
-    require(timesOp == 11.0)
-    require(timesMethod == 11.0)
-    require(divOp == 2.75)
-    require(divMethod == 2.75)
-    require(remOp == 1.5)
-    require(remMethod == 1.5)
-    require(negOp == -5.5)
-    require(negMethod == -5.5)
-    require((posInf + negInf).isNaN())
-    require(posInf.plus(negInf).isNaN())
-    require((nan - 1.0).isNaN())
-    require(nan.minus(1.0).isNaN())
-    require((nan * 1.0).isNaN())
-    require(nan.times(1.0).isNaN())
-    require(nan.isNaN())
-    require(posInf.isInfinite())
-    require((nan % 1.0).isNaN())
-    require(nan.rem(1.0).isNaN())
-    require((-nan).isNaN())
-    require(nan.unaryMinus().isNaN())
+    if (!(plusOp == 7.5)) { panic("fixture assertion failed") }
+    if (!(plusMethod == 7.5)) { panic("fixture assertion failed") }
+    if (!(minusOp == 3.5)) { panic("fixture assertion failed") }
+    if (!(minusMethod == 3.5)) { panic("fixture assertion failed") }
+    if (!(timesOp == 11.0)) { panic("fixture assertion failed") }
+    if (!(timesMethod == 11.0)) { panic("fixture assertion failed") }
+    if (!(divOp == 2.75)) { panic("fixture assertion failed") }
+    if (!(divMethod == 2.75)) { panic("fixture assertion failed") }
+    if (!(remOp == 1.5)) { panic("fixture assertion failed") }
+    if (!(remMethod == 1.5)) { panic("fixture assertion failed") }
+    if (!(negOp == -5.5)) { panic("fixture assertion failed") }
+    if (!(negMethod == -5.5)) { panic("fixture assertion failed") }
+    if (!((posInf + negInf).isNaN())) { panic("fixture assertion failed") }
+    if (!(posInf.plus(negInf).isNaN())) { panic("fixture assertion failed") }
+    if (!((nan - 1.0).isNaN())) { panic("fixture assertion failed") }
+    if (!(nan.minus(1.0).isNaN())) { panic("fixture assertion failed") }
+    if (!((nan * 1.0).isNaN())) { panic("fixture assertion failed") }
+    if (!(nan.times(1.0).isNaN())) { panic("fixture assertion failed") }
+    if (!(nan.isNaN())) { panic("fixture assertion failed") }
+    if (!(posInf.isInfinite())) { panic("fixture assertion failed") }
+    if (!((nan % 1.0).isNaN())) { panic("fixture assertion failed") }
+    if (!(nan.rem(1.0).isNaN())) { panic("fixture assertion failed") }
+    if (!((-nan).isNaN())) { panic("fixture assertion failed") }
+    if (!(nan.unaryMinus().isNaN())) { panic("fixture assertion failed") }
 
     println(plusOp)
     println(plusMethod)

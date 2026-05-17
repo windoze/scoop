@@ -19,7 +19,7 @@ effect Abort {
 
 class Cell(var k: Continuation<String, Int>?, var seen: Int)
 
-fun run(flag: Bool, cell: Cell, none_k: Continuation<String, Int>?) {
+fun executeCase(flag: Bool, cell: Cell, none_k: Continuation<String, Int>?) {
     cell.k = none_k
     cell.seen = 0
 
@@ -81,7 +81,7 @@ fun run(flag: Bool, cell: Cell, none_k: Continuation<String, Int>?) {
 fun main() {
     val none_k: Continuation<String, Int>? = None()
     val cell: Cell = Cell(none_k, 0)
-    run(true, cell, none_k)
-    run(false, cell, none_k)
+    executeCase(true, cell, none_k)
+    executeCase(false, cell, none_k)
     println("done")
 }

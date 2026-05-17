@@ -14,7 +14,7 @@ effect Yield {
     fun next(): Int
 }
 
-fun run(): Int {
+fun executeCase(): Int {
     handle {
         var i: Int = 0
         var total: Int = 0
@@ -40,5 +40,5 @@ fun run(): Int {
 }
 
 fun main() {
-    println(run())
+    println(executeCase())
 }

@@ -25,21 +25,21 @@ fun main() {
     val cmpEqual: Int = min.compareTo(min)
     val cmpHigh: Int = max.compareTo(min)
 
-    require(ltOp)
-    require(ltMethod)
-    require(leOp)
-    require(leMethod)
-    require(gtOp)
-    require(gtMethod)
-    require(geOp)
-    require(geMethod)
-    require(eqOp)
-    require(eqMethod)
-    require(neOp)
-    require(neMethod)
-    require(cmpLow == -1)
-    require(cmpEqual == 0)
-    require(cmpHigh == 1)
+    if (!(ltOp)) { panic("fixture assertion failed") }
+    if (!(ltMethod)) { panic("fixture assertion failed") }
+    if (!(leOp)) { panic("fixture assertion failed") }
+    if (!(leMethod)) { panic("fixture assertion failed") }
+    if (!(gtOp)) { panic("fixture assertion failed") }
+    if (!(gtMethod)) { panic("fixture assertion failed") }
+    if (!(geOp)) { panic("fixture assertion failed") }
+    if (!(geMethod)) { panic("fixture assertion failed") }
+    if (!(eqOp)) { panic("fixture assertion failed") }
+    if (!(eqMethod)) { panic("fixture assertion failed") }
+    if (!(neOp)) { panic("fixture assertion failed") }
+    if (!(neMethod)) { panic("fixture assertion failed") }
+    if (!(cmpLow == -1)) { panic("fixture assertion failed") }
+    if (!(cmpEqual == 0)) { panic("fixture assertion failed") }
+    if (!(cmpHigh == 1)) { panic("fixture assertion failed") }
 
     println(ltOp)
     println(ltMethod)

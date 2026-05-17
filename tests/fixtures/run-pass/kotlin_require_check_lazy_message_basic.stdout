@@ -1,7 +1,0 @@
-start
-after require(true)
-require(false) message
-10
-check(false) message
-20
-end

@@ -598,7 +598,7 @@ fun main() {}
         );
 
         let main = validated_callable_body(&output, "mir_lowered.call_contracts.main");
-        let apply = validated_callable_body(&output, "mir_lowered.call_contracts.apply");
+        let apply = validated_callable_body(&output, "mir_lowered.call_contracts.callFn");
         let mut direct_fqns = Vec::new();
         let mut saw_get_platform = false;
         let mut saw_class_ctor = false;
@@ -692,7 +692,7 @@ fun main() {}
             "mir_lowered.call_contracts.namedDefault",
             "mir_lowered.call_contracts.ext",
             "mir_lowered.call_contracts.Singleton.get",
-            "mir_lowered.call_contracts.apply",
+            "mir_lowered.call_contracts.callFn",
         ] {
             assert!(
                 direct_fqns.contains(&expected),
@@ -1489,10 +1489,10 @@ fun bad() {
         assert!(matches!(
             main_calls.as_slice(),
             [CallKind::Direct { callee_fqn }, CallKind::Direct { callee_fqn: callee_fqn_2 }]
-                if callee_fqn == "a.id" && callee_fqn_2 == "a.apply"
+                if callee_fqn == "a.id" && callee_fqn_2 == "a.callFn"
         ));
 
-        let apply_body = callable_body(&direct_output, "a.apply");
+        let apply_body = callable_body(&direct_output, "a.callFn");
         assert!(
             apply_body
                 .blocks

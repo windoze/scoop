@@ -6,8 +6,8 @@
 package fixtures.typecheck
 
 @Inline
-fun run(block: () -> Unit) { }
+fun use(block: () -> Unit) { }
 
 fun f(): Int {
-    run { return 1 }
+    use { return 1 }
 }

@@ -8,12 +8,12 @@ fun <T> id(x: T): T {
     return x
 }
 
-fun <T> apply(f: (T) -> T / Pure!, x: T): T {
+fun <T> callFn(f: (T) -> T / Pure!, x: T): T {
     return f(x)
 }
 
 fun caller(text: String): String {
-    return apply<String>(id<String>, text)
+    return callFn<String>(id<String>, text)
 }
 
 fun main(): Int {

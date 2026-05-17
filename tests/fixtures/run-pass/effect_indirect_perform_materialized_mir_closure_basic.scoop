@@ -2,7 +2,7 @@
 // RUN-STDOUT: effect_indirect_perform_materialized_mir_closure_basic.stdout
 //
 // T5002b2a1: Materialized MIR closure body performs an effect directly.
-// - `apply()` receives a closure value and invokes it through the ordinary indirect-call path.
+// - `callFn()` receives a closure value and invokes it through the ordinary indirect-call path.
 // - The closure captures a local, computes the payload, and performs `Ask.ask(...)` itself.
 // - Verifies production MIR closure-body lowering stays end-to-end runnable instead of failing
 //   in `mir_body.rs` / LLVM verification when `Perform` is the closure body's terminator.
@@ -13,7 +13,7 @@ effect Ask {
     fun ask(seed: Int): Int
 }
 
-fun apply(f: (Int) -> Int / (Ask), x: Int): Int / (Ask) {
+fun callFn(f: (Int) -> Int / (Ask), x: Int): Int / (Ask) {
     println("apply_before")
     val value: Int = f(x)
     println("apply_unreachable")
@@ -24,7 +24,7 @@ fun main(): Int {
     val delta: Int = 1
     val result: Int = handle {
         println("body")
-        apply({ y ->
+        callFn({ y ->
             println("closure_before")
             println(y + delta)
             Ask.ask(y + delta)

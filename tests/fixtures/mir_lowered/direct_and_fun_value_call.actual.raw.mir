@@ -59,15 +59,15 @@ File {
         ),
         Fun(
             FunDecl {
-                span: 40..90,
-                fqn: "a.apply",
-                name: "apply",
+                span: 40..91,
+                fqn: "a.callFn",
+                name: "callFn",
                 ty: TypeId(
                     11,
                 ),
                 params: [
                     Param {
-                        span: 50..51,
+                        span: 51..52,
                         name: "f",
                         ty: TypeId(
                             10,
@@ -75,7 +75,7 @@ File {
                         local: l0,
                     },
                     Param {
-                        span: 67..68,
+                        span: 68..69,
                         name: "x",
                         ty: TypeId(
                             5,
@@ -90,7 +90,7 @@ File {
                     Body {
                         locals: [
                             LocalDecl {
-                                span: 50..51,
+                                span: 51..52,
                                 name: Some(
                                     "f",
                                 ),
@@ -100,7 +100,7 @@ File {
                                 source: SourceLocal,
                             },
                             LocalDecl {
-                                span: 67..68,
+                                span: 68..69,
                                 name: Some(
                                     "x",
                                 ),
@@ -110,7 +110,7 @@ File {
                                 source: SourceLocal,
                             },
                             LocalDecl {
-                                span: 84..88,
+                                span: 85..89,
                                 name: Some(
                                     "tmp0",
                                 ),
@@ -125,7 +125,7 @@ File {
                                 is_cleanup: false,
                                 stmts: [
                                     Statement {
-                                        span: 84..88,
+                                        span: 85..89,
                                         kind: Assign {
                                             target: l2,
                                             value: Call {
@@ -137,7 +137,7 @@ File {
                                                 },
                                                 args: [
                                                     CallArg {
-                                                        span: 86..87,
+                                                        span: 87..88,
                                                         name: None,
                                                         value: Local(
                                                             l1,
@@ -173,7 +173,7 @@ File {
                                     },
                                 ],
                                 terminator: Terminator {
-                                    span: 40..90,
+                                    span: 40..91,
                                     kind: Return {
                                         value: Some(
                                             Local(
@@ -192,7 +192,7 @@ File {
         ),
         Fun(
             FunDecl {
-                span: 92..129,
+                span: 93..131,
                 fqn: "a.main",
                 name: "main",
                 ty: TypeId(
@@ -206,7 +206,7 @@ File {
                     Body {
                         locals: [
                             LocalDecl {
-                                span: 107..112,
+                                span: 108..113,
                                 name: Some(
                                     "tmp0",
                                 ),
@@ -216,7 +216,7 @@ File {
                                 source: CompilerTemporary,
                             },
                             LocalDecl {
-                                span: 110..111,
+                                span: 111..112,
                                 name: Some(
                                     "tmp1",
                                 ),
@@ -226,7 +226,7 @@ File {
                                 source: CompilerTemporary,
                             },
                             LocalDecl {
-                                span: 115..127,
+                                span: 116..129,
                                 name: Some(
                                     "tmp2",
                                 ),
@@ -236,7 +236,7 @@ File {
                                 source: CompilerTemporary,
                             },
                             LocalDecl {
-                                span: 121..123,
+                                span: 123..125,
                                 name: Some(
                                     "tmp3",
                                 ),
@@ -246,7 +246,7 @@ File {
                                 source: CompilerTemporary,
                             },
                             LocalDecl {
-                                span: 125..126,
+                                span: 127..128,
                                 name: Some(
                                     "tmp4",
                                 ),
@@ -261,7 +261,7 @@ File {
                                 is_cleanup: false,
                                 stmts: [
                                     Statement {
-                                        span: 110..111,
+                                        span: 111..112,
                                         kind: Assign {
                                             target: l1,
                                             value: Use(
@@ -272,7 +272,7 @@ File {
                                         },
                                     },
                                     Statement {
-                                        span: 107..112,
+                                        span: 108..113,
                                         kind: Assign {
                                             target: l0,
                                             value: Call {
@@ -282,7 +282,7 @@ File {
                                                 },
                                                 args: [
                                                     CallArg {
-                                                        span: 110..111,
+                                                        span: 111..112,
                                                         name: None,
                                                         value: Local(
                                                             l1,
@@ -317,7 +317,7 @@ File {
                                         },
                                     },
                                     Statement {
-                                        span: 121..123,
+                                        span: 123..125,
                                         kind: Assign {
                                             target: l3,
                                             value: MakeClosure {
@@ -335,7 +335,7 @@ File {
                                         },
                                     },
                                     Statement {
-                                        span: 125..126,
+                                        span: 127..128,
                                         kind: Assign {
                                             target: l4,
                                             value: Use(
@@ -346,24 +346,24 @@ File {
                                         },
                                     },
                                     Statement {
-                                        span: 115..127,
+                                        span: 116..129,
                                         kind: Assign {
                                             target: l2,
                                             value: Call {
                                                 site_id: site1,
                                                 kind: Direct {
-                                                    callee_fqn: "a.apply",
+                                                    callee_fqn: "a.callFn",
                                                 },
                                                 args: [
                                                     CallArg {
-                                                        span: 121..123,
+                                                        span: 123..125,
                                                         name: None,
                                                         value: Local(
                                                             l3,
                                                         ),
                                                     },
                                                     CallArg {
-                                                        span: 125..126,
+                                                        span: 127..128,
                                                         name: None,
                                                         value: Local(
                                                             l4,
@@ -399,7 +399,7 @@ File {
                                     },
                                 ],
                                 terminator: Terminator {
-                                    span: 92..129,
+                                    span: 93..131,
                                     kind: Return {
                                         value: Some(
                                             Local(
@@ -418,7 +418,7 @@ File {
         ),
         Fun(
             FunDecl {
-                span: 121..123,
+                span: 123..125,
                 fqn: "a.main.$lambda0",
                 name: "$lambda0",
                 ty: TypeId(
@@ -426,7 +426,7 @@ File {
                 ),
                 params: [
                     Param {
-                        span: 121..123,
+                        span: 123..125,
                         name: "$env",
                         ty: TypeId(
                             2,
@@ -434,7 +434,7 @@ File {
                         local: l0,
                     },
                     Param {
-                        span: 124..124,
+                        span: 126..126,
                         name: "a0",
                         ty: TypeId(
                             5,
@@ -449,7 +449,7 @@ File {
                     Body {
                         locals: [
                             LocalDecl {
-                                span: 121..123,
+                                span: 123..125,
                                 name: Some(
                                     "$env",
                                 ),
@@ -459,7 +459,7 @@ File {
                                 source: SourceLocal,
                             },
                             LocalDecl {
-                                span: 124..124,
+                                span: 126..126,
                                 name: Some(
                                     "a0",
                                 ),
@@ -469,7 +469,7 @@ File {
                                 source: SourceLocal,
                             },
                             LocalDecl {
-                                span: 121..123,
+                                span: 123..125,
                                 name: Some(
                                     "tmp0",
                                 ),
@@ -484,7 +484,7 @@ File {
                                 is_cleanup: false,
                                 stmts: [
                                     Statement {
-                                        span: 121..123,
+                                        span: 123..125,
                                         kind: Assign {
                                             target: l2,
                                             value: Call {
@@ -494,7 +494,7 @@ File {
                                                 },
                                                 args: [
                                                     CallArg {
-                                                        span: 124..124,
+                                                        span: 126..126,
                                                         name: None,
                                                         value: Local(
                                                             l1,
@@ -530,7 +530,7 @@ File {
                                     },
                                 ],
                                 terminator: Terminator {
-                                    span: 121..123,
+                                    span: 123..125,
                                     kind: Return {
                                         value: Some(
                                             Local(

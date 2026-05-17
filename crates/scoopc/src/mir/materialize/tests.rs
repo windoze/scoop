@@ -3043,85 +3043,6 @@ return wrap<eff Zap>()
 }
 
 #[test]
-fn materialize_for_dump_keeps_set_alias_receiver_overload_targets_distinct() {
-    let sess = Session::new().unwrap();
-    let fixture = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../../tests/fixtures/run-pass/stdlib_hash_set_map_basic.scoop");
-    let source = SourceFile::load(&fixture).expect("fixture 应可加载");
-
-    let materialized =
-        materialize_for_dump(&sess, &source).expect("stdlib_hash_set_map_basic 应可 materialize");
-    let pass_view = materialized.pass_view();
-    let main_body = pass_view
-        .callable("main")
-        .and_then(|fun| fun.body.as_ref())
-        .expect("应保留 main 的 materialized body");
-
-    let direct_targets = |predicate: &dyn Fn(&str) -> bool| {
-        main_body
-            .blocks
-            .iter()
-            .flat_map(|block| block.stmts.iter())
-            .filter_map(|stmt| {
-                let StatementKind::Assign {
-                    value:
-                        Rvalue::Call {
-                            kind: CallKind::Direct { callee_fqn },
-                            ..
-                        },
-                    ..
-                } = &stmt.kind
-                else {
-                    return None;
-                };
-                predicate(callee_fqn).then_some(callee_fqn.clone())
-            })
-            .collect::<std::collections::BTreeSet<_>>()
-    };
-
-    // P4-T01k：`Array.size()` / `MutableArray.size()` 在 P4-T01a/c 之后是 `@Intrinsic("array_size")`
-    // body method（FQN 形如 `scoop.core.Array.size::<Int>`），不再是 `scoop.core.size` 顶层扩展，
-    // 因此早期的 `scoop.core.size::<Int>$overload$...` 命名空间已经不存在。
-    // 真正锁定 "alias receiver overload distinct" 不变量的是 `scoop.collections.len$overload$...`：
-    // - `MutableSet.len()` 体不可被简单 inline，保留为 distinct `scoop.collections.len$overload$<hash>` direct call；
-    // - `Set.len()` 体只是 `return this.size()`，被 inline 成 `scoop.core.Array.size::<Int>` body method 直接调用，
-    //   不再污染 `len$overload$` 命名空间，因此 `len_targets.len() == 1` 仍然为真。
-    let len_targets =
-        direct_targets(&|callee_fqn| callee_fqn.starts_with("scoop.collections.len$overload$"));
-    let contains_targets = direct_targets(&|callee_fqn| {
-        callee_fqn.starts_with("scoop.collections.contains$overload$")
-    });
-    assert_eq!(
-        len_targets.len(),
-        1,
-        "main 中的 MutableSet.len direct-call target 应统一重写到 overload-aware symbol：{len_targets:#?}"
-    );
-    assert!(
-        len_targets
-            .iter()
-            .all(|target| target.starts_with("scoop.collections.len$overload$")),
-        "main 中不应再保留未重写的 `len()` alias target：{len_targets:#?}"
-    );
-    assert_eq!(
-        contains_targets.len(),
-        2,
-        "main 中的 contains receiver overload target 应保留 distinct overload-aware symbol：{contains_targets:#?}"
-    );
-    assert!(
-        contains_targets
-            .iter()
-            .all(|target| target.starts_with("scoop.collections.contains$overload$")),
-        "main 中不应再保留未重写的 `contains()` root target：{contains_targets:#?}"
-    );
-    for target in &contains_targets {
-        assert!(
-            pass_view.callable(target).is_some(),
-            "pass-view 应发布 direct-call target `{target}` 的 canonical body"
-        );
-    }
-}
-
-#[test]
 fn materialize_for_dump_keeps_non_generic_overload_targets_path_stable() {
     let sess = Session::new().unwrap();
     let program = r#"
@@ -3185,19 +3106,28 @@ return a + b
 }
 
 #[test]
-fn materialize_for_dump_keeps_hash_map_empty_table_push_transport_concrete() {
+fn materialize_for_dump_keeps_mutable_array_push_transport_concrete() {
     let sess = Session::new().unwrap();
-    let fixture = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../../tests/fixtures/run-pass/stdlib_hash_set_map_basic.scoop");
-    let source = SourceFile::load(&fixture).expect("fixture 应可加载");
+    let source = SourceFile::new_virtual(
+        "/tmp/fixtures/mutable_array_push_transport.scoop",
+        r#"
+import scoop.core.*
+
+fun main(): Int {
+    val xs: MutableArray<Int> = mutableArrayNew<Int>(capacity = 2)
+    xs.push(1)
+    return 0
+}
+"#,
+    );
 
     let materialized =
-        materialize_for_dump(&sess, &source).expect("stdlib_hash_set_map_basic 应可 materialize");
+        materialize_for_dump(&sess, &source).expect("mutable array push fixture 应可 materialize");
     let pass_view = materialized.pass_view();
     let body = pass_view
-        .callable("scoop.collections.__map_alloc_empty_table")
+        .callable("main")
         .and_then(|fun| fun.body.as_ref())
-        .expect("应保留 __map_alloc_empty_table 的 materialized body");
+        .expect("应保留 main 的 materialized body");
     let transport = body
         .blocks
         .iter()
@@ -3221,7 +3151,7 @@ fn materialize_for_dump_keeps_hash_map_empty_table_push_transport_concrete() {
                 .is_some_and(|base| base == "scoop.core.push")
                 .then_some(transport)
         })
-        .expect("应找到 empty-table MutableArray.push call transport");
+        .expect("应找到 MutableArray.push call transport");
     let array = transport
         .array
         .as_ref()
@@ -3229,31 +3159,28 @@ fn materialize_for_dump_keeps_hash_map_empty_table_push_transport_concrete() {
 
     assert!(
         !type_contains_param(&materialized.types, array.array_ty),
-        "empty-table array transport array type 应已具体化: {}",
+        "MutableArray.push array transport array type 应已具体化: {}",
         materialized.types.display(array.array_ty)
     );
     assert!(
         !type_contains_param(&materialized.types, array.element_ty),
-        "empty-table array transport element type 应已具体化: {}",
+        "MutableArray.push array transport element type 应已具体化: {}",
         materialized.types.display(array.element_ty)
     );
     let TypeKind::Ref(RefTypeKind::Nominal(array_nominal)) =
         materialized.types.kind(array.array_ty)
     else {
         panic!(
-            "empty-table push receiver 应是 nominal mutable array，实际为 {:?}",
+            "MutableArray.push receiver 应是 nominal mutable array，实际为 {:?}",
             materialized.types.kind(array.array_ty)
         );
     };
     assert!(
-        array_nominal.fqn == "scoop.core.MutableArray"
-            || array_nominal.fqn == "scoop.collections.MutableMap",
-        "empty-table push receiver 应保持 MutableArray 或其 alias，实际为 {}",
+        array_nominal.fqn == "scoop.core.MutableArray",
+        "MutableArray.push receiver 应保持 MutableArray，实际为 {}",
         array_nominal.fqn
     );
-    if array_nominal.fqn == "scoop.core.MutableArray" {
-        assert_eq!(array_nominal.args.first().copied(), Some(array.element_ty));
-    }
+    assert_eq!(array_nominal.args.first().copied(), Some(array.element_ty));
     assert_eq!(
         materialized.types.display(array.element_ty).to_string(),
         "Int"

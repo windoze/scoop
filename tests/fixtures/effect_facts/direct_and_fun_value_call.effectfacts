@@ -4,7 +4,7 @@ snapshot_binding:
   opt_level: O2
   instance_count: 4
   canonical_body_fqns:
-    - a.apply
+    - a.callFn
     - a.id
     - a.main
     - a.main.$lambda0
@@ -13,8 +13,8 @@ step_schemas:
 continuation_schemas:
   <none>
 callable_facts:
-  a.apply:
-    instance_key: a.apply
+  a.callFn:
+    instance_key: a.callFn
     declared_row: Pure
     call_abi_kind: Plain
     invoke_args_tuple_ty: <none>
@@ -50,15 +50,15 @@ callable_facts:
     needs_reentry: false
     impl_plan: NoOutward
 body_facts:
-  a.apply:
+  a.callFn:
     blocks:
-      bb#h09123e72b5ffaeb2c32941aa098951b3:
+      bb#heaed9b95c555bf3a8fe7d3c0179c1e5e:
         ambient_cases: []
         outward_cases: []
         has_suspend_boundary: false
         has_handle_boundary: false
     sites:
-      site#hb79a983c8e6822cbea521081a641a6b5:
+      site#h33d6076a3325ac9ba870ce0aabfb6cfc:
         kind: Call
         call_kind: FunValue
         target_mode: DynamicFallback
@@ -79,7 +79,7 @@ body_facts:
       <none>
   a.main:
     blocks:
-      bb#hdf1b9496ba2b5839af976a6bd07f2452:
+      bb#hf20af3d2812d9e961b451ffa062ceaa8:
         ambient_cases: []
         outward_cases: []
         has_suspend_boundary: false
@@ -88,7 +88,7 @@ body_facts:
       <none>
   a.main.$lambda0:
     blocks:
-      bb#h2dc8f8530359036716670923509bfdb9:
+      bb#h6176e062fbf80a8ac0434117cd97b69f:
         ambient_cases: []
         outward_cases: []
         has_suspend_boundary: false

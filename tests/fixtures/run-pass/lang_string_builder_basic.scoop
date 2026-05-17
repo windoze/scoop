@@ -5,7 +5,7 @@
 // P5-T02: scoop.lang.string.StringBuilder is available through the automatic prelude.
 
 fun assertEqString(expected: String, actual: String): Unit / Raise<RuntimeError> {
-    require(expected == actual)
+    if (!(expected == actual)) { panic("fixture assertion failed") }
 }
 
 fun main(): Int {

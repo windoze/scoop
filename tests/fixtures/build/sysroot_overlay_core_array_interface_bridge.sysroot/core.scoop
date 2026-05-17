@@ -515,24 +515,6 @@ enum Option<T> {
     None
 }
 
-// Scope functions（spec §11）。
-//
-// 说明：
-// - 这些函数是库定义的（非编译器内建）；sysroot 仅提供"声明表面"，便于 resolver/typecheck 可见；
-// - 关键点：它们应当是 effect-polymorphic：lambda body 中 perform/raise 的 effects 会通过 `<eff E>`
-//   推断并传播到调用点的 required effects。
-//
-// 当前阶段限制（为保持 LLVM run-pass 可落地）：
-// - 仅对 `Int` 提供最小可执行落点；更完整的 `<T>` 泛型版本将在 monomorph/codegen 能力补齐后升级。
-@Intrinsic
-fun <eff E = Pure> Int.let(block: (Int) -> Int / E): Int / E
-@Intrinsic
-fun <eff E = Pure> Int.run(block: (Int) -> Int / E): Int / E
-@Intrinsic
-fun <eff E = Pure> Int.also(block: (Int) -> Unit / E): Int / E
-@Intrinsic
-fun <eff E = Pure> Int.apply(block: (Int) -> Unit / E): Int / E
-
 // Continuation（spec §5.5）
 //
 // 说明：

@@ -15,7 +15,7 @@ effect Yield {
     fun next(): Int
 }
 
-fun run(limit: Int): Int {
+fun executeCase(limit: Int): Int {
     handle {
         println("body_start")
         var i: Int = 0
@@ -42,7 +42,7 @@ fun run(limit: Int): Int {
 
 fun main() {
     println("case_three")
-    println(run(3))
+    println(executeCase(3))
     println("case_zero")
-    println(run(0))
+    println(executeCase(0))
 }

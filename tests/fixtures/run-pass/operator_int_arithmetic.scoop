@@ -33,26 +33,26 @@ fun main() {
     val zeroDivOneOp: Int = zero / one
     val zeroDivOneMethod: Int = zero.div(one)
 
-    require(plusOp == 10)
-    require(plusMethod == 10)
-    require(minusOp == 4)
-    require(minusMethod == 4)
-    require(timesOp == 21)
-    require(timesMethod == 21)
-    require(divOp == 2)
-    require(divMethod == 2)
-    require(remOp == 1)
-    require(remMethod == 1)
-    require(maxPlusOneOp == min)
-    require(maxPlusOneMethod == min)
-    require(minMinusOneOp == max)
-    require(minMinusOneMethod == max)
-    require(minTimesTwoOp == 0)
-    require(minTimesTwoMethod == 0)
-    require(negMinOp == min)
-    require(negMinMethod == min)
-    require(zeroDivOneOp == 0)
-    require(zeroDivOneMethod == 0)
+    if (!(plusOp == 10)) { panic("fixture assertion failed") }
+    if (!(plusMethod == 10)) { panic("fixture assertion failed") }
+    if (!(minusOp == 4)) { panic("fixture assertion failed") }
+    if (!(minusMethod == 4)) { panic("fixture assertion failed") }
+    if (!(timesOp == 21)) { panic("fixture assertion failed") }
+    if (!(timesMethod == 21)) { panic("fixture assertion failed") }
+    if (!(divOp == 2)) { panic("fixture assertion failed") }
+    if (!(divMethod == 2)) { panic("fixture assertion failed") }
+    if (!(remOp == 1)) { panic("fixture assertion failed") }
+    if (!(remMethod == 1)) { panic("fixture assertion failed") }
+    if (!(maxPlusOneOp == min)) { panic("fixture assertion failed") }
+    if (!(maxPlusOneMethod == min)) { panic("fixture assertion failed") }
+    if (!(minMinusOneOp == max)) { panic("fixture assertion failed") }
+    if (!(minMinusOneMethod == max)) { panic("fixture assertion failed") }
+    if (!(minTimesTwoOp == 0)) { panic("fixture assertion failed") }
+    if (!(minTimesTwoMethod == 0)) { panic("fixture assertion failed") }
+    if (!(negMinOp == min)) { panic("fixture assertion failed") }
+    if (!(negMinMethod == min)) { panic("fixture assertion failed") }
+    if (!(zeroDivOneOp == 0)) { panic("fixture assertion failed") }
+    if (!(zeroDivOneMethod == 0)) { panic("fixture assertion failed") }
 
     println(plusOp)
     println(plusMethod)

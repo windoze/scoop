@@ -1057,9 +1057,9 @@ pub(super) fn materialized_gc_array_fixture_keeps_string_locals_for_println_stri
 }
 
 #[test]
-pub(super) fn production_codegen_list_fixture_materializes_mutable_list_add_and_push_instances() {
+pub(super) fn production_codegen_string_builder_fixture_materializes_mutable_array_push_instance() {
     let fixture = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../../tests/fixtures/run-pass/list_and_mutable_list_basic.scoop");
+        .join("../../tests/fixtures/run-pass/lang_string_builder_basic.scoop");
     let source = SourceFile::load(&fixture).unwrap();
     let session = Session::new().unwrap();
     let codegen_unit =
@@ -1080,14 +1080,8 @@ pub(super) fn production_codegen_list_fixture_materializes_mutable_list_add_and_
     assert!(
         pass_fun_fqns
             .iter()
-            .any(|fqn| fqn.starts_with("scoop.core.add")),
-        "expected list fixture to materialize MutableList.add instance in pass view, actual callables: {pass_fun_fqns:?}"
-    );
-    assert!(
-        pass_fun_fqns
-            .iter()
             .any(|fqn| fqn.starts_with("scoop.core.push")),
-        "expected list fixture to materialize MutableArray.push instance in pass view, actual callables: {pass_fun_fqns:?}"
+        "expected string-builder fixture to materialize MutableArray.push instance in pass view, actual callables: {pass_fun_fqns:?}"
     );
 
     let mut seen_runtime_word_push = false;

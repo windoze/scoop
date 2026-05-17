@@ -11,7 +11,7 @@ fun pick(value: Unit): String {
     return "unit"
 }
 
-fun run(): Int {
+fun entry(): Int {
     val exact: Int = pick()
     val via_unit: String = pick(())
     exact

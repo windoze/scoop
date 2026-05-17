@@ -993,7 +993,7 @@ pub(super) fn llvm_resume_payload_binding_resolves_boundary_and_state_queries() 
 
             let run = inputs
                 .abi_visibility_program
-                .callable("run")
+                .callable("executeCase")
                 .expect("run callable 应存在");
             let resume_boundary = site_boundary(run, BoundarySiteKind::Resume);
             let resume_binding = run
@@ -1240,7 +1240,7 @@ pub(super) fn llvm_completion_payload_contract_resolves_return_state_query() {
             let query = result.expect("completion payload contract 应成功发布到 LLVM query");
             let run = inputs
                 .abi_visibility_program
-                .callable("run")
+                .callable("executeCase")
                 .expect("run callable 应存在");
             let binding = run
                 .frame_schema()
@@ -1292,7 +1292,9 @@ pub(super) fn llvm_completion_payload_contract_rejects_missing_contract() {
         "effect_resume_if_else_branch_single_perform.scoop",
         |inputs| {
             let program = &inputs.abi_visibility_program;
-            let run = program.callable("run").expect("run callable 应存在");
+            let run = program
+                .callable("executeCase")
+                .expect("run callable 应存在");
             let frame_schema = LateLoweredFrameSchema::new(run.frame_schema().slots().to_vec())
                 .with_resume_payload_bindings(
                     run.frame_schema().resume_payload_bindings().to_vec(),
@@ -1337,7 +1339,9 @@ pub(super) fn llvm_completion_payload_contract_rejects_source_drift() {
         "effect_resume_if_else_branch_single_perform.scoop",
         |inputs| {
             let program = &inputs.abi_visibility_program;
-            let run = program.callable("run").expect("run callable 应存在");
+            let run = program
+                .callable("executeCase")
+                .expect("run callable 应存在");
             let drifted_bindings = run
                 .frame_schema()
                 .completion_payload_bindings()

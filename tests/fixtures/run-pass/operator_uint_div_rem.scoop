@@ -28,21 +28,21 @@ fun main() {
     val remSelf: UInt = max % max
     val remSelfMethod: UInt = max.rem(maxMethod)
 
-    require(wrap8Op == 255)
-    require(wrap8Method == 255)
-    require(div8Op == 127)
-    require(div8Method == 127)
-    require(rem8Op == 1)
-    require(rem8Method == 1)
-    require(shr8Op == 127)
-    require(shr8Method == 127)
-    require(ushr8Method == 127)
-    require(max > zero)
-    require(max.gt(zero))
-    require(divSelf == one)
-    require(divSelfMethod == one)
-    require(remSelf == zero)
-    require(remSelfMethod == zero)
+    if (!(wrap8Op == 255)) { panic("fixture assertion failed") }
+    if (!(wrap8Method == 255)) { panic("fixture assertion failed") }
+    if (!(div8Op == 127)) { panic("fixture assertion failed") }
+    if (!(div8Method == 127)) { panic("fixture assertion failed") }
+    if (!(rem8Op == 1)) { panic("fixture assertion failed") }
+    if (!(rem8Method == 1)) { panic("fixture assertion failed") }
+    if (!(shr8Op == 127)) { panic("fixture assertion failed") }
+    if (!(shr8Method == 127)) { panic("fixture assertion failed") }
+    if (!(ushr8Method == 127)) { panic("fixture assertion failed") }
+    if (!(max > zero)) { panic("fixture assertion failed") }
+    if (!(max.gt(zero))) { panic("fixture assertion failed") }
+    if (!(divSelf == one)) { panic("fixture assertion failed") }
+    if (!(divSelfMethod == one)) { panic("fixture assertion failed") }
+    if (!(remSelf == zero)) { panic("fixture assertion failed") }
+    if (!(remSelfMethod == zero)) { panic("fixture assertion failed") }
 
     println(wrap8Op == 255)
     println(wrap8Method == 255)

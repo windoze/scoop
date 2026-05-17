@@ -19,7 +19,7 @@ object Singleton {
     fun get(): Int { return 3 }
 }
 
-fun apply(f: (Int) -> Int, x: Int): Int { return f(x) }
+fun callFn(f: (Int) -> Int, x: Int): Int { return f(x) }
 
 fun main(): Int {
     val d: Int = direct(1)
@@ -29,7 +29,7 @@ fun main(): Int {
     val m: Int = Singleton.get()
     val box: Box = Box(value = 4)
     val f: (Int) -> Int = direct
-    val fv: Int = apply(f, 5)
+    val fv: Int = callFn(f, 5)
     val cl: Int = ({ x: Int -> x + 2 })(6)
     val typeName: String = nameOf<Box>()
     val bytes: Int = sizeOf<Box>()

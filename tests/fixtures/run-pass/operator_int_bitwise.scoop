@@ -35,25 +35,25 @@ fun main() {
     val shrMethod: Int = minusEight.shr(1)
     val ushrMethod: Int = minusOne.ushr(1)
 
-    require(andOp == 8)
-    require(andMethod == 8)
-    require(orOp == 15)
-    require(orMethod == 15)
-    require(xorOp == 6)
-    require(xorMethod == 6)
-    require(invOp == -1)
-    require(invMethod == -1)
-    require(shlZeroOp == 1)
-    require(shlZeroMethod == 1)
-    require(shlMaxOp == min)
-    require(shlMaxMethod == min)
-    require(shlMaskedOp == 1)
-    require(shlMaskedMethod == 1)
-    require(shlNegativeOp == min)
-    require(shlNegativeMethod == min)
-    require(shrOp == -4)
-    require(shrMethod == -4)
-    require(ushrMethod == max)
+    if (!(andOp == 8)) { panic("fixture assertion failed") }
+    if (!(andMethod == 8)) { panic("fixture assertion failed") }
+    if (!(orOp == 15)) { panic("fixture assertion failed") }
+    if (!(orMethod == 15)) { panic("fixture assertion failed") }
+    if (!(xorOp == 6)) { panic("fixture assertion failed") }
+    if (!(xorMethod == 6)) { panic("fixture assertion failed") }
+    if (!(invOp == -1)) { panic("fixture assertion failed") }
+    if (!(invMethod == -1)) { panic("fixture assertion failed") }
+    if (!(shlZeroOp == 1)) { panic("fixture assertion failed") }
+    if (!(shlZeroMethod == 1)) { panic("fixture assertion failed") }
+    if (!(shlMaxOp == min)) { panic("fixture assertion failed") }
+    if (!(shlMaxMethod == min)) { panic("fixture assertion failed") }
+    if (!(shlMaskedOp == 1)) { panic("fixture assertion failed") }
+    if (!(shlMaskedMethod == 1)) { panic("fixture assertion failed") }
+    if (!(shlNegativeOp == min)) { panic("fixture assertion failed") }
+    if (!(shlNegativeMethod == min)) { panic("fixture assertion failed") }
+    if (!(shrOp == -4)) { panic("fixture assertion failed") }
+    if (!(shrMethod == -4)) { panic("fixture assertion failed") }
+    if (!(ushrMethod == max)) { panic("fixture assertion failed") }
 
     println(andOp)
     println(andMethod)

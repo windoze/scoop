@@ -11,6 +11,6 @@ fun id(k: Continuation<Int, Unit, eff Pure>): Continuation<Int, Unit, eff Pure> 
     return k
 }
 
-fun run(k: Continuation<Int, Unit, eff Pure>): Unit / Raise<RuntimeError> {
+fun resumePure(k: Continuation<Int, Unit, eff Pure>): Unit / Raise<RuntimeError> {
     k.resume(1)
 }

@@ -8,11 +8,11 @@ package fixtures.typecheck
 
 import scoop.core.*
 
-// `run` 的 required effects 是 `/ E`，其中 `E` 来自 lambda body 的 required effects。
-fun <eff E = Pure> run(block: () -> Unit / E): Unit / E {
+// `use` 的 required effects 是 `/ E`，其中 `E` 来自 lambda body 的 required effects。
+fun <eff E = Pure> use(block: () -> Unit / E): Unit / E {
     block()
 }
 
 fun bad() {
-    val x: Unit = run { Raise.raise(1) }
+    val x: Unit = use { Raise.raise(1) }
 }

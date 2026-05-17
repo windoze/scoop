@@ -15,7 +15,7 @@ effect Yield {
     fun next(): Int
 }
 
-fun run(flag: Bool): Int {
+fun executeCase(flag: Bool): Int {
     handle {
         println("body_start")
         val seed: Int = 7
@@ -40,7 +40,7 @@ fun run(flag: Bool): Int {
 
 fun main() {
     println("case_false")
-    println(run(false))
+    println(executeCase(false))
     println("case_true")
-    println(run(true))
+    println(executeCase(true))
 }

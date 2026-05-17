@@ -29,37 +29,37 @@ fun main() {
     val notOp: Bool = !true
     val notMethod: Bool = true.not()
 
-    require(!andOp)
-    require(!andMethod)
-    require(orOp)
-    require(orMethod)
-    require(xorOp)
-    require(xorMethod)
-    require(!xorFalseOp)
-    require(!xorFalseMethod)
-    require(!notOp)
-    require(!notMethod)
+    if (!(!andOp)) { panic("fixture assertion failed") }
+    if (!(!andMethod)) { panic("fixture assertion failed") }
+    if (!(orOp)) { panic("fixture assertion failed") }
+    if (!(orMethod)) { panic("fixture assertion failed") }
+    if (!(xorOp)) { panic("fixture assertion failed") }
+    if (!(xorMethod)) { panic("fixture assertion failed") }
+    if (!(!xorFalseOp)) { panic("fixture assertion failed") }
+    if (!(!xorFalseMethod)) { panic("fixture assertion failed") }
+    if (!(!notOp)) { panic("fixture assertion failed") }
+    if (!(!notMethod)) { panic("fixture assertion failed") }
 
     calls = 0
     val skippedAnd: Bool = false && rhsTrue()
-    require(!skippedAnd)
-    require(calls == 0)
+    if (!(!skippedAnd)) { panic("fixture assertion failed") }
+    if (!(calls == 0)) { panic("fixture assertion failed") }
     val evaluatedAnd: Bool = true && rhsTrue()
-    require(evaluatedAnd)
-    require(calls == 1)
+    if (!(evaluatedAnd)) { panic("fixture assertion failed") }
+    if (!(calls == 1)) { panic("fixture assertion failed") }
 
     calls = 0
     val skippedOr: Bool = true || rhsFalse()
-    require(skippedOr)
-    require(calls == 0)
+    if (!(skippedOr)) { panic("fixture assertion failed") }
+    if (!(calls == 0)) { panic("fixture assertion failed") }
     val evaluatedOr: Bool = false || rhsTrue()
-    require(evaluatedOr)
-    require(calls == 1)
+    if (!(evaluatedOr)) { panic("fixture assertion failed") }
+    if (!(calls == 1)) { panic("fixture assertion failed") }
 
     calls = 0
     val methodAnd: Bool = false.and(rhsTrue())
-    require(!methodAnd)
-    require(calls == 1)
+    if (!(!methodAnd)) { panic("fixture assertion failed") }
+    if (!(calls == 1)) { panic("fixture assertion failed") }
 
     println(andOp)
     println(andMethod)

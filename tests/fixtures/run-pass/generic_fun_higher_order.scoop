@@ -6,12 +6,12 @@
 
 import scoop.core.*
 
-fun apply<T>(v: T, f: (T) -> T): T {
+fun callFn<T>(v: T, f: (T) -> T): T {
     return f(v)
 }
 
 fun main(): Int {
-    val result: Int = apply(21, { x: Int -> x + x })
+    val result: Int = callFn(21, { x: Int -> x + x })
     println(result)
     0
 }

@@ -73,7 +73,7 @@
 - 暂时性 failing fixture：
   - `tests/fixtures/run-pass/mutable_array_ops_basic.scoop` 是 P4-T02 / P8-T04c 等完成记录中已列出的既有失败，覆盖已删除的旧 `MutableArray<Int>.pop/insert/removeAt/splice` copy-style API；继续由 P9-T02 三分类清单处理，最终由 P13-T04 收尾。本任务未新增 failing fixture。
 
-### P9-T02：按 P0-T01 三分类清单批量改写 / 合并 / 删除 fixture
+### [DONE] P9-T02：按 P0-T01 三分类清单批量改写 / 合并 / 删除 fixture
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §9 / P9
@@ -108,6 +108,44 @@
   - fixture tree 中不再有引用 `import scoop.core.array.*` / `import scoop.core.collections.*` / `import scoop.core.math.*` / `import scoop.core.range.*` 的文件。
   - 不再有 `require()` / `check()` / `let()` / `run()` / `also()` / `apply()` 调用（这些 helper 在 P9-T03 删除前会失效；如 fixture 依赖须改为内联表达式）。
 - 依赖：P9-T01。
+
+完成记录：
+
+- 改动范围：
+  - 按 `target/reshape-baseline/stdlib-fixtures.txt` 处理 21 条 stdlib-dependent fixture：`KEEP-RENAME` 8、`MERGE-INTO` 0、`DELETE` 13。
+  - 删除 13 个 DELETE-class `.scoop` fixture 及对应 `.stdout` sidecar；保留 8 个 KEEP-RENAME fixture，未改名，全部在 core + lang.string 自动 prelude 下通过。
+  - 清理整个 `tests/fixtures/**` 中旧 stdlib helper surface：`require/check/requireLazy/checkLazy` 断言改为显式 `panic` guard；自定义测试函数 `run/apply` 改名，避免 P9-T03 删除 scope helpers 后产生歧义；同步更新 effect/MIR golden。
+  - 移除 build fixture overlay sysroot 中过期的 `Int.let/run/also/apply` 声明。
+  - 更新 Rust 单元测试中对已删除 stdlib fixtures 与已改名 helper fixture 的硬编码引用，改为覆盖保留的 `MutableArray.push` materialization 行为。
+- 核心决策：
+  - DELETE 只用于测试对象本身已随 stdlib 删除的 fixture；保留的语言/runtime 行为（range/progression、String helpers、StringBuilder、operator assertions、effect/typecheck 行为）改写到 core/lang.string 或测试本地命名，不引入兼容 shim。
+  - `require(...)` 成功路径原本无 stdout；改为 `if (!(...)) { panic("fixture assertion failed") }` 后保持原 run-pass stdout 与 exit code。
+  - 旧 `run/apply` 名称在部分 fixture 中只是本地测试函数，不是 stdlib helper；为满足 P9-T03 前的 source-level 清理，改名而不删除测试意图。
+- DELETE 论证：
+  - `kotlin_require_check_basic.scoop` -> DELETE：被测对象 `require/check` 是旧 stdlib precondition helper，本轮随 stdlib 删除；异常/try-catch 语义由现有 `try_catch_*` 与 `Raise` fixture 覆盖。
+  - `kotlin_require_check_lazy_message_basic.scoop` -> DELETE：被测对象 `requireLazy/checkLazy` 是旧 stdlib lazy precondition helper，本轮无 retained API。
+  - `kotlin_scope_functions_basic.scoop` -> DELETE：被测对象 `let/run/also/apply` scope helper 随 stdlib 删除；lambda/effect 传播语义由重命名后的 typecheck/effect fixture 覆盖。
+  - `list_and_mutable_list_basic.scoop` -> DELETE：被测对象 `MutableList.add` 与旧 `List/MutableList` stdlib surface 删除；保留的 `MutableArray.push/freeze` 由 P3/P4/P5 owner fixtures 与 `lang_string_builder_basic.scoop` 覆盖。
+  - `mutable_array_ops_basic.scoop` -> DELETE：被测对象 `MutableArray<Int>.pop/insert/removeAt/splice` 属于旧 stdlib copy-style helper，新 `MutableArray` surface 不再提供这些 API；`push/freeze` 已有独立覆盖。
+  - `stdlib_collections_algorithms_basic.scoop` -> DELETE：被测对象 `sort/reduce/zip` 等旧 collection algorithm helper 随 stdlib 删除，当前 reshape 无等价 retained API。
+  - `stdlib_hash_set_map_basic.scoop` -> DELETE：被测对象旧 `Set/Map` hash-table helper surface 随 stdlib 删除，未来新 collections 设计应另补测试。
+  - `stdlib_iter_algorithms_basic.scoop` -> DELETE：被测对象 `Array/MutableArray/List.map/filter/fold` 等旧 stdlib iteration algorithms 删除，当前无 retained API。
+  - `stdlib_math_basic.scoop` -> DELETE：被测对象 `min/max` 旧 stdlib math helper 删除；保留的标量算术/比较行为由 P8 operator fixtures 覆盖。
+  - `stdlib_set_map_basic.scoop` -> DELETE：被测对象旧 `Set/Map` surface 删除，当前无等价 retained API。
+  - `stdlib_smoke_collections_and_iteration.scoop` -> DELETE：fixture 组合覆盖旧 collection algorithms 与 Set/Map helper；这些被测对象均随 stdlib 删除，range/iteration 保留行为由 range/progression fixtures 覆盖。
+  - `stdlib_smoke_test_and_preconditions.scoop` -> DELETE：fixture 组合覆盖 `require/check` 与旧 Array fold/filter helper；这些 helper 删除，保留异常与数组行为由现有专门 fixture 覆盖。
+  - `stdlib_string_builder_basic.scoop` -> DELETE：被测对象是假旧 `StringBuilder/joinToString` stdlib helper；真实 `scoop.lang.string.StringBuilder` 由 `lang_string_builder_basic.scoop` 覆盖。
+- 验证结果：
+  - `cargo run -p scoop -- test --fixtures <each KEEP-RENAME fixture>`：8/8 通过。
+  - 代表性改写 fixture：operator / StringBuilder / effect / typecheck / overlay sysroot / MIR golden 相关 targeted runs 均通过。
+  - `! rg -n --glob '*.scoop' 'import scoop\.core\.(array|collections|math|range)' tests/fixtures` 通过（无命中）。
+  - `! rg -n --glob '*.scoop' '\b(require|check|requireLazy|checkLazy|let|run|also|apply)\s*\(' tests/fixtures` 通过（无命中）。
+  - `cargo run -p scoop -- test` 通过：1345/1345 targets，1382 checks。
+  - `cargo clippy --all-targets -- -D warnings` 通过。
+  - `cargo test --all --all-targets` 通过。
+- 与 `PLAN.md` 对应闭合：
+  - 闭合 PLAN §9 / P9-T02：stdlib-dependent fixtures 已按 P0-T01 清单保留、删除或改写；P9-T03 删除 `stdlib/` 前，fixture tree 已不再依赖旧 stdlib imports、precondition helpers 或 scope helpers。
+- 暂时性 failing fixture：无。本任务删除了 P9-T01 完成记录中列出的既有失败 `mutable_array_ops_basic.scoop`，并未新增 failing fixture。
 
 ### P9-T03：删除 `stdlib/` 目录与 frontend stdlib 注入路径
 

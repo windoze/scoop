@@ -5738,7 +5738,7 @@ mod tests {
         assert!(program.step_types().is_empty());
         assert!(program.resume_packings().is_empty());
         assert!(program.continuation_objects().is_empty());
-        for fqn in ["a.apply", "a.id", "a.main", "a.main.$lambda0"] {
+        for fqn in ["a.callFn", "a.id", "a.main", "a.main.$lambda0"] {
             let callable = program
                 .callable(fqn)
                 .unwrap_or_else(|| panic!("late-lowered program 应发布 {fqn}"));

@@ -243,7 +243,7 @@ pub(super) fn llvm_surface_resume_dispatch_layout_resolves_handle_binder_owner_t
             let query = result.expect("handle-binder schema 应可发布 owner trampoline query");
             let callable = inputs
                 .abi_visibility_program
-                .callable("run")
+                .callable("executeCase")
                 .expect("run callable 应存在");
             let (site_id, contract) = first_handle_dispatch(callable);
             let binder = contract
@@ -262,7 +262,7 @@ pub(super) fn llvm_surface_resume_dispatch_layout_resolves_handle_binder_owner_t
             assert!(dispatch.method_targets().is_empty());
             match dispatch.target() {
                 ContinuationSurfaceResumeDispatchTarget::OwnerTrampoline(trampoline) => {
-                    assert_eq!(trampoline.owner_root_fqn(), "run");
+                    assert_eq!(trampoline.owner_root_fqn(), "executeCase");
                     assert_eq!(
                         trampoline.owner_continuation_object(),
                         callable.continuation_object()

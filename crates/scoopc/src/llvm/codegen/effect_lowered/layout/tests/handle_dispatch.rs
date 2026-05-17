@@ -277,7 +277,7 @@ pub(super) fn handle_dispatch_region_routing_publishes_query_lookup() {
             let callable = inputs
                 .effect_lowered_stage_output
                 .program()
-                .callable("run")
+                .callable("executeCase")
                 .expect("run callable 应存在");
             let (site_id, contract) = first_handle_dispatch(callable);
             let published = query
@@ -341,7 +341,9 @@ pub(super) fn handle_dispatch_region_routing_rejects_resume_state_drift() {
         "effect_resume_if_else_branch_single_perform.scoop",
         |inputs| {
             let program = &inputs.abi_visibility_program;
-            let callable = program.callable("run").expect("run callable 应存在");
+            let callable = program
+                .callable("executeCase")
+                .expect("run callable 应存在");
             let (site_id, contract) = first_handle_dispatch(callable);
             let handled_case = contract
                 .handled_arms()

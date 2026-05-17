@@ -312,15 +312,6 @@ enum Option<T> {
     None
 }
 
-@Intrinsic
-fun <eff E = Pure> Int.let(block: (Int) -> Int / E): Int / E
-@Intrinsic
-fun <eff E = Pure> Int.run(block: (Int) -> Int / E): Int / E
-@Intrinsic
-fun <eff E = Pure> Int.also(block: (Int) -> Unit / E): Int / E
-@Intrinsic
-fun <eff E = Pure> Int.apply(block: (Int) -> Unit / E): Int / E
-
 interface Continuation<Resume, Answer, eff E = Pure> {
     fun resume(value: Resume): Answer / (E + Raise<RuntimeError>)
 }

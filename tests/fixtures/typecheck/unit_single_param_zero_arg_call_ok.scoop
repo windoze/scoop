@@ -5,7 +5,7 @@ package fixtures.typecheck
 
 fun takesUnit(value: Unit): Unit {}
 
-fun run(): Unit {
+fun entry(): Unit {
     takesUnit()
     takesUnit(())
 }

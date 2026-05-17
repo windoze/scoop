@@ -23,26 +23,26 @@ fun main() {
     val remOp: Float32 = a % b
     val remMethod: Float32 = a.rem(b)
 
-    require(plusOp == 3.5f)
-    require(plusMethod == 3.5f)
-    require(minusOp == 0.5f)
-    require(minusMethod == 0.5f)
-    require(timesOp == 3.0f)
-    require(timesMethod == 3.0f)
-    require(divOp == 0.75f)
-    require(divMethod == 0.75f)
-    require(remOp == 1.5f)
-    require(remMethod == 1.5f)
-    require((posInf + negInf).isNaN())
-    require(posInf.plus(negInf).isNaN())
-    require(nan.isNaN())
-    require(posInf.isInfinite())
-    require(!(nan < 1.0f))
-    require(!nan.lt(1.0f))
-    require(nan != nan)
-    require(nan.notEquals(nan))
-    require((precisionEdge + 1.0f) == precisionEdge)
-    require(precisionEdge.plus(1.0f).equals(precisionEdge))
+    if (!(plusOp == 3.5f)) { panic("fixture assertion failed") }
+    if (!(plusMethod == 3.5f)) { panic("fixture assertion failed") }
+    if (!(minusOp == 0.5f)) { panic("fixture assertion failed") }
+    if (!(minusMethod == 0.5f)) { panic("fixture assertion failed") }
+    if (!(timesOp == 3.0f)) { panic("fixture assertion failed") }
+    if (!(timesMethod == 3.0f)) { panic("fixture assertion failed") }
+    if (!(divOp == 0.75f)) { panic("fixture assertion failed") }
+    if (!(divMethod == 0.75f)) { panic("fixture assertion failed") }
+    if (!(remOp == 1.5f)) { panic("fixture assertion failed") }
+    if (!(remMethod == 1.5f)) { panic("fixture assertion failed") }
+    if (!((posInf + negInf).isNaN())) { panic("fixture assertion failed") }
+    if (!(posInf.plus(negInf).isNaN())) { panic("fixture assertion failed") }
+    if (!(nan.isNaN())) { panic("fixture assertion failed") }
+    if (!(posInf.isInfinite())) { panic("fixture assertion failed") }
+    if (!(!(nan < 1.0f))) { panic("fixture assertion failed") }
+    if (!(!nan.lt(1.0f))) { panic("fixture assertion failed") }
+    if (!(nan != nan)) { panic("fixture assertion failed") }
+    if (!(nan.notEquals(nan))) { panic("fixture assertion failed") }
+    if (!((precisionEdge + 1.0f) == precisionEdge)) { panic("fixture assertion failed") }
+    if (!(precisionEdge.plus(1.0f).equals(precisionEdge))) { panic("fixture assertion failed") }
 
     println(plusOp)
     println(plusMethod)

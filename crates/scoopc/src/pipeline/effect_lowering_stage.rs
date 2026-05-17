@@ -420,7 +420,7 @@ fun leaf(): Unit / Ping {
         assert!(dump.contains("root: main"));
         assert!(dump.contains("abi: Plain"));
         assert!(dump.contains("plain_call_sites:"));
-        assert!(dump.contains("target=run callee_abi=EffectStep"));
+        assert!(dump.contains("target=executeCase callee_abi=EffectStep"));
         assert!(dump.contains("callee_step_schema=step#h"));
         assert!(dump.contains("resolved_cases=[case#h"));
         assert!(dump.contains("dispatch=EffectStepDispatch"));
@@ -474,12 +474,12 @@ fun leaf(): Unit / Ping {
         for needle in [
             "continuation_schema: cont#h",
             "source=HandleContinuationBinderOnly",
-            "handle_continuation_binder instance=run allowed_row=Pure impl_plan=SingleCase(",
+            "handle_continuation_binder instance=executeCase allowed_row=Pure impl_plan=SingleCase(",
             "cont_obj#h",
             "site#h",
             "arm#0 handled_case=case#h",
             "source=OwnerTrampolineMixed",
-            "resume_boundary instance=run allowed_row=Pure impl_plan=SingleCase(",
+            "resume_boundary instance=executeCase allowed_row=Pure impl_plan=SingleCase(",
         ] {
             assert!(
                 dump.contains(needle),

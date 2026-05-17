@@ -7,6 +7,6 @@ fun String.needUnit(value: Unit): Int {
     return 1
 }
 
-fun run(): Int {
+fun entry(): Int {
     "hi".needUnit()
 }

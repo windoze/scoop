@@ -353,7 +353,7 @@ fn surface_resume_dispatch_inventory_covers_resume_site_only_and_handle_binder_s
         "run-pass",
         "effect_resume_if_else_branch_single_perform.scoop",
     ));
-    let run = callable(&output, "run");
+    let run = callable(&output, "executeCase");
 
     let resume_schema = run
         .boundary_map()
@@ -1430,7 +1430,7 @@ fn effect_lowered_resume_payload_binding_covers_call_and_resume_boundaries() {
         Some(call_slot.slot_id())
     );
 
-    let run = callable(&output, "run");
+    let run = callable(&output, "executeCase");
     let resume_boundary = site_boundary(run, BoundarySiteKind::Resume);
     let resume_binding = run
         .frame_schema()
@@ -1712,7 +1712,7 @@ fn effect_lowered_completion_payload_contract_publishes_non_unit_return_source()
         "run-pass",
         "effect_resume_if_else_branch_single_perform.scoop",
     ));
-    let run = callable(&output, "run");
+    let run = callable(&output, "executeCase");
     let step_type = output
         .program()
         .step_type(run.step_schema())
@@ -1765,7 +1765,7 @@ fn effect_lowered_completion_payload_contract_dump_exposes_sources() {
     let dump = output.program().stable_dump();
 
     assert!(dump.contains("completion_payload_bindings:"));
-    assert!(dump.contains("root: run"));
+    assert!(dump.contains("root: executeCase"));
     assert!(dump.contains("payload=local#h"));
 }
 
@@ -1808,7 +1808,7 @@ fn effect_lowered_completion_payload_contract_rejects_type_drift() {
         "run-pass",
         "effect_resume_if_else_branch_single_perform.scoop",
     ));
-    let run = callable(&output, "run");
+    let run = callable(&output, "executeCase");
     let step_type = output
         .program()
         .step_type(run.step_schema())
@@ -2237,7 +2237,7 @@ fn handle_dispatch_region_contract_publishes_body_routing_for_handled_perform() 
         "run-pass",
         "effect_resume_if_else_branch_single_perform.scoop",
     ));
-    let callable = callable(&output, "run");
+    let callable = callable(&output, "executeCase");
     let (_site_id, contract) = callable
         .state_graph()
         .states()

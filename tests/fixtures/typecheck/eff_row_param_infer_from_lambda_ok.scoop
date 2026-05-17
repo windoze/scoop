@@ -5,10 +5,10 @@ package fixtures.typecheck
 
 import scoop.core.*
 
-fun <eff E = Pure> run(block: () -> Unit / E): Unit / E {
+fun <eff E = Pure> use(block: () -> Unit / E): Unit / E {
     block()
 }
 
 fun ok() / (Raise<Int>) {
-    val x: Unit = run { Raise.raise(1) }
+    val x: Unit = use { Raise.raise(1) }
 }

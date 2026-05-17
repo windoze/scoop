@@ -26,20 +26,20 @@ fun main() {
     val unicodeGtOp: Bool = unicode > lowerA
     val unicodeGtMethod: Bool = unicode.compareTo(lowerA) > 0
 
-    require(plusOp.toInt() == 66)
-    require(plusMethod.toInt() == 66)
-    require(minusIntOp.toInt() == 66)
-    require(minusIntMethod.toInt() == 66)
-    require(minusCharOp == 2)
-    require(minusCharMethod == 2)
-    require(ltOp)
-    require(ltMethod)
-    require(eqOp)
-    require(eqMethod)
-    require(neOp)
-    require(neMethod)
-    require(unicodeGtOp)
-    require(unicodeGtMethod)
+    if (!(plusOp.toInt() == 66)) { panic("fixture assertion failed") }
+    if (!(plusMethod.toInt() == 66)) { panic("fixture assertion failed") }
+    if (!(minusIntOp.toInt() == 66)) { panic("fixture assertion failed") }
+    if (!(minusIntMethod.toInt() == 66)) { panic("fixture assertion failed") }
+    if (!(minusCharOp == 2)) { panic("fixture assertion failed") }
+    if (!(minusCharMethod == 2)) { panic("fixture assertion failed") }
+    if (!(ltOp)) { panic("fixture assertion failed") }
+    if (!(ltMethod)) { panic("fixture assertion failed") }
+    if (!(eqOp)) { panic("fixture assertion failed") }
+    if (!(eqMethod)) { panic("fixture assertion failed") }
+    if (!(neOp)) { panic("fixture assertion failed") }
+    if (!(neMethod)) { panic("fixture assertion failed") }
+    if (!(unicodeGtOp)) { panic("fixture assertion failed") }
+    if (!(unicodeGtMethod)) { panic("fixture assertion failed") }
 
     println(plusOp.toInt())
     println(plusMethod.toInt())
