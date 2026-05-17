@@ -41,4 +41,6 @@
 - Next step: update `TODO.md` / `TODO-5.md` completion records, then commit this task.
 - Marked `P12-T02` as `[DONE]` in `TODO.md` and `TODO-5.md`, and recorded change scope, decisions, validation, PLAN closure, and temporary fixture status.
 - Updated archived managed-ABI TODO references that pointed at the old flat overlay core paths.
-- Next step: inspect final diff/status, stage relevant files, commit, and stop.
+- Committed task implementation as `4336d988` (`[P12-T02] Reorganize sysroot by cone FQN`).
+- Remaining untracked files `CLOSURE_FIX.md` and `OVERLOAD_RESOLUTION.md` pre-existed this task and were intentionally left uncommitted.
+- Stop after committing this execution-log update; do not start `P12-T03`.
