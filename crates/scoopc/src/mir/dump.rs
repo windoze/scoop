@@ -662,6 +662,9 @@ impl<'a> MirDumpRenderer<'a> {
             Rvalue::MakeTuple { .. } => "make_tuple",
             Rvalue::StructLit { .. } => "struct_lit",
             Rvalue::SizeOf { .. } => "size_of",
+            Rvalue::KindOf { .. } => "kind_of",
+            Rvalue::AlignOf { .. } => "align_of",
+            Rvalue::DescOf { .. } => "desc_of",
             Rvalue::TypeMetadataLiteral(_) => "type_metadata_literal",
             Rvalue::InterpolatedString { .. } => "interpolated_string",
             Rvalue::TupleGet { .. } => "tuple_get",
@@ -1097,6 +1100,15 @@ impl<'a> MirDumpRenderer<'a> {
             ),
             Rvalue::SizeOf { value_ty } => {
                 self.inline_struct("SizeOf", vec![("value_ty", self.type_text(*value_ty))])
+            }
+            Rvalue::KindOf { value_ty } => {
+                self.inline_struct("KindOf", vec![("value_ty", self.type_text(*value_ty))])
+            }
+            Rvalue::AlignOf { value_ty } => {
+                self.inline_struct("AlignOf", vec![("value_ty", self.type_text(*value_ty))])
+            }
+            Rvalue::DescOf { value_ty } => {
+                self.inline_struct("DescOf", vec![("value_ty", self.type_text(*value_ty))])
             }
             Rvalue::TypeMetadataLiteral(literal) => self.type_metadata_literal_text(literal),
             Rvalue::InterpolatedString { raw, parts } => self.inline_struct(

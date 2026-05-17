@@ -885,6 +885,36 @@ pub(super) fn validate_materialized_rvalue(
             },
             *value_ty,
         ),
+        Rvalue::KindOf { value_ty } => validate_materialized_type(
+            materialized,
+            MaterializedValidationContext {
+                fqn,
+                block: Some(block),
+                span,
+                surface: "kindof type argument",
+            },
+            *value_ty,
+        ),
+        Rvalue::AlignOf { value_ty } => validate_materialized_type(
+            materialized,
+            MaterializedValidationContext {
+                fqn,
+                block: Some(block),
+                span,
+                surface: "alignof type argument",
+            },
+            *value_ty,
+        ),
+        Rvalue::DescOf { value_ty } => validate_materialized_type(
+            materialized,
+            MaterializedValidationContext {
+                fqn,
+                block: Some(block),
+                span,
+                surface: "descof type argument",
+            },
+            *value_ty,
+        ),
         Rvalue::TypeMetadataLiteral(metadata) => {
             validate_materialized_type_metadata_literal(materialized, fqn, block, span, metadata)
         }

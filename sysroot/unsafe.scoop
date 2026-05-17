@@ -84,6 +84,29 @@ fun <T> ptrToUIntPtr(p: Ptr<T>): UIntPtr
 @Intrinsic @NoGC @Unsafe
 fun <T> uintPtrToPtr(addr: UIntPtr): Ptr<T>
 
+// ---- Managed value representation casts（sysroot-internal）----
+//
+// These are intentionally low-level unsafe intrinsics used by ordinary sysroot wrappers when
+// crossing from generic Scoop APIs to monomorphic runtime ABI entry points.
+
+@Intrinsic("unsafe_mutable_array_cast") @NoGC @Unsafe
+fun <T> __scoop_unsafe_mutable_array_cast(raw: MutableArray<Any>): MutableArray<T>
+
+@Intrinsic("unsafe_mutable_array_erase") @NoGC @Unsafe
+fun <T> __scoop_unsafe_mutable_array_erase(value: MutableArray<T>): MutableArray<Any>
+
+@Intrinsic("unsafe_array_cast") @NoGC @Unsafe
+fun <T> __scoop_unsafe_array_cast(raw: Array<Any>): Array<T>
+
+@Intrinsic("unsafe_value_to_word") @NoGC @Unsafe
+fun <T> __scoop_unsafe_value_to_word(value: T): UIntPtr
+
+@Intrinsic("unsafe_value_to_any") @NoGC @Unsafe
+fun <T> __scoop_unsafe_value_to_any(value: T): Any
+
+@Intrinsic("unsafe_value_slot") @NoGC @Unsafe
+fun <T> __scoop_unsafe_value_slot(value: T): UIntPtr
+
 // ---- Function pointers（spec §15.9.4）----
 //
 // 说明：

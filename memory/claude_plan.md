@@ -1,33 +1,48 @@
 # Claude Execution Plan
 
 ## Scope
-- Follow `TODO.md` as the authoritative task list.
-- Complete exactly the first task whose title is not prefixed with `[DONE]`, then stop.
-- Do not perform broad issue triage before selecting the current task.
-- If a concrete blocker prevents spec-correct implementation, update `TODO.md` with the minimum prerequisite task, commit that bookkeeping, and stop.
 
-## Execution Plan
-1. Read `TODO.md` and identify the first incomplete task by title prefix.
-2. Check the latest commit message only for directly relevant unfinished work tied to that task.
-3. Inspect the files and tests relevant to the selected task.
-4. Implement the task with the smallest spec-correct change set.
-5. Add or update focused tests/fixtures required by the task.
-6. Run the task-specified validation commands, plus any narrowly relevant tests.
-7. Fix failures that are directly in scope for the selected task.
-8. Mark the task title `[DONE]` in `TODO.md` and update its completion record.
-9. Update this plan file with completed key steps and validation results.
-10. Commit all task-related changes with a descriptive message, including any pre-existing uncommitted files if this is a resumed task state.
-11. Stop without starting the next task.
+- Work on exactly the first incomplete task in `TODO.md`.
+- Treat a task as complete only when its heading is prefixed with `[DONE]`.
+- Do not proceed to the next task after completing or blocking the current one.
 
-## Progress
-- Plan initialized before reading `TODO.md`.
-- Read `TODO.md`; first incomplete task is `P3-T02`.
-- Latest commit is `eab69eff [P3-T01] Add mutable array runtime`; no explicit unfinished issue was found in the subject.
-- Read `TODO-1.md` P3-T02 details. Selected implementation direction will be decided after inspecting current intrinsic dispatch; expected preference is split entries for inline/out-of-line lowering if it fits existing code cleanly.
-- Inspected current implementation: shared `array_size/get/set/data_ptr` entries still mapped both `Array` and `MutableArray` to inline `ScoopArray` lowering.
-- Implemented split entry direction: `Array` uses `*_inline`, `MutableArray` uses `*_outofline`; added LLVM `ScoopMutableArray` type builder and out-of-line data loading.
-- Found a direct blocker for baseline compatibility: old mutable array literal builder still returned inline `ScoopArray`. Updated `scoop_array_builder_build_mutable_array*` to return `ScoopMutableArray` so existing mutable literals match the new receiver layout.
-- Added compiler owner tests for mutable array size/get/set out-of-line IR and Array inline size stability; added runtime coverage for builder-to-mutable out-of-line transfer.
-- `cargo fmt` was run for the workspace and produced formatting-only Rust diffs outside the direct implementation files; these are part of the verified worktree state.
-- Updated TODO completion records for `P3-T02`.
-- Validation completed: targeted compiler/runtime tests passed; three adjusted build fixtures passed; full fixture suite passed with `fixtures: ok (1369)`; `cargo test --all --all-targets` passed with 840 tests; `cargo clippy --all-targets -- -D warnings` passed.
+## Plan
+
+1. Read `TODO.md` and identify the first incomplete task.
+2. Check the latest commit only for directly relevant unfinished work that affects that task.
+3. Inspect the relevant source, tests, fixtures, and documentation for the selected task.
+4. Implement the smallest spec-correct change needed for that task, without workarounds or fixture-only hacks.
+5. Add or update focused tests and fixtures required by the task.
+6. Run the task-specified validation commands and any directly relevant checks.
+7. If the task is complete, update `TODO.md` by prefixing the task heading with `[DONE]` and filling in the completion record.
+8. If a concrete blocker prevents correct implementation, add the minimum prerequisite task to `TODO.md`, keep the current task incomplete, record the blocker here, commit, and stop.
+9. Commit all task-related changes with a descriptive message, then stop.
+
+## Progress Log
+
+- Initial plan recorded before reading `TODO.md` or running project commands.
+- Selected current task: `P3-T03` (`mutableArrayNew<T>`, `MutableArray<T>.push`, `MutableArray<T>.freeze` sysroot wrappers).
+- Latest commit check: `ced1dae9 [P3-T02] Split array intrinsics by layout`; no directly relevant unfinished issue was mentioned in the commit subject.
+
+## Current Task Execution Plan
+
+1. Inspect `sysroot/core.scoop`, `sysroot/unsafe.scoop`, existing `MutableArray` declarations, extern annotation syntax, unsafe primitive patterns, and relevant tests.
+2. Determine whether plain `as` casts can express the required generic erase/cast and value-to-word conversions; if not, add general unsafe intrinsic substrate rather than wrapper-specific compiler hacks.
+3. Add `@Extern(abi = "scoop")` runtime declarations and ordinary generic wrappers in `sysroot/core.scoop`.
+4. Add focused owner fixtures for word, ref, composite, grow, and freeze behavior.
+5. Run targeted fixtures, fix any implementation or type/lowering/runtime issues, then run full baseline and lint/test checks required by the task.
+6. Mark `P3-T03` `[DONE]` in `TODO.md` and `TODO-1.md` with completion record if validation passes.
+7. Commit all related changes and stop.
+
+## Current Task Findings
+
+- The old stdlib `MutableArray<Int>.push(value): MutableArray<Int>` conflicts with the required in-place `MutableArray<T>.push(value): Unit` surface, so stdlib call sites must be adjusted to the new semantics for baseline to remain valid.
+- The existing `descOf<T>()` codegen returns `0` for every type; this is sufficient for non-composite arrays but directly blocks `MutableArray<struct>` because the runtime requires a composite transport descriptor for `SCOOP_ARRAY_ELEM_KIND_COMPOSITE`.
+- The declared raw pointer surface (`stackAlloc` / `Ptr.store` / `ptrToUIntPtr`) is not currently lowered in the LLVM backend, and `Ptr<T>` is gated to GC-free pointees. The implementation will add general unsafe named intrinsics for generic erase/cast, value-to-word, value-to-Any, and immediate value-slot address materialization instead of adding a MutableArray-specific compiler special case.
+
+## Completion Update
+
+- Implemented `P3-T03` and marked it `[DONE]` in `TODO.md` and `TODO-1.md`.
+- Added sysroot wrappers, unsafe named intrinsic substrate, runtime reflection codegen for generic `kindOf` / `alignOf` / `descOf`, owner fixtures, and stdlib/overlay updates needed by the new in-place push surface.
+- Validation passed: owner fixtures, `cargo run -p scoop -- test` (`fixtures: ok (1374)`), `cargo test --all --all-targets` (840 tests), and `cargo clippy --all-targets -- -D warnings`.
+- Next required action: commit all task-related changes and stop.

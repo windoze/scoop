@@ -1,6 +1,7 @@
 //! Scalar builtins and core intrinsic lowering helpers.
 
 use super::super::*;
+use crate::mir;
 
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(in crate::llvm::codegen) fn codegen_sysroot_panic(
@@ -345,6 +346,27 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(CgValue::int(raw, value_word))
     }
 
+    pub(in crate::llvm::codegen) fn codegen_sysroot_align_of(
+        &mut self,
+        span: crate::span::Span,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let source_ty = self.reflection_type_arg_for_current_call(span, "alignOf")?;
+        let arg_cg = self
+            .cg_ty_of(source_ty)
+            .ok_or(LlvmEmitError::UnsupportedMainBody {
+                kind: "alignOf() arg type",
+                at: span.into(),
+            })?;
+        let llvm_ty = self.llvm_basic_type_of(span, arg_cg)?;
+        let align = self.abi_align_bytes_of_basic_type(llvm_ty);
+        let value_word = IntTy {
+            bits: self.host.word_bit_width(),
+            signed: true,
+        };
+        let raw = self.int_type(value_word).const_int(u64::from(align), false);
+        Ok(CgValue::int(raw, value_word))
+    }
+
     pub(in crate::llvm::codegen) fn codegen_sysroot_kind_of(
         &mut self,
         span: crate::span::Span,
@@ -363,12 +385,38 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &mut self,
         span: crate::span::Span,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        let _source_ty = self.reflection_type_arg_for_current_call(span, "descOf")?;
         let value_word = IntTy {
             bits: self.host.word_bit_width(),
             signed: false,
         };
-        let raw = self.int_type(value_word).const_int(0, false);
+        let source_ty = self.reflection_type_arg_for_current_call(span, "descOf")?;
+        let raw = if self.array_elem_kind_for_type_id(source_ty) == 3 {
+            let body_fqn = self
+                .function_cx
+                .current_callable_fqn
+                .clone()
+                .unwrap_or_else(|| "<descOf>".to_string());
+            let metadata =
+                mir::ValueTransportMetadata::plain(source_ty, mir::MirTransportKind::ArrayElement);
+            let descriptor = self.get_or_create_value_composite_transport_descriptor_global(
+                &body_fqn, span, self.types, &metadata,
+            )?;
+            let ptr = descriptor.as_pointer_value();
+            let ptr_int_ty = self.llvm_ptr_sized_int_type(Some(ptr.get_type().get_address_space()));
+            let raw = self
+                .builder
+                .build_ptr_to_int(ptr, ptr_int_ty, "desc_of_composite")?;
+            self.cast_int(
+                raw,
+                IntTy {
+                    bits: ptr_int_ty.get_bit_width(),
+                    signed: false,
+                },
+                value_word,
+            )?
+        } else {
+            self.int_type(value_word).const_int(0, false)
+        };
         Ok(CgValue::int(raw, value_word))
     }
 
@@ -1239,6 +1287,21 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             BasicTypeEnum::StructType(t) => self.target_data.get_store_size(&t),
             BasicTypeEnum::VectorType(t) => self.target_data.get_store_size(&t),
             BasicTypeEnum::ScalableVectorType(t) => self.target_data.get_store_size(&t),
+        }
+    }
+
+    pub(in crate::llvm::codegen) fn abi_align_bytes_of_basic_type(
+        &self,
+        ty: BasicTypeEnum<'ctx>,
+    ) -> u32 {
+        match ty {
+            BasicTypeEnum::ArrayType(t) => self.target_data.get_abi_alignment(&t),
+            BasicTypeEnum::FloatType(t) => self.target_data.get_abi_alignment(&t),
+            BasicTypeEnum::IntType(t) => self.target_data.get_abi_alignment(&t),
+            BasicTypeEnum::PointerType(t) => self.target_data.get_abi_alignment(&t),
+            BasicTypeEnum::StructType(t) => self.target_data.get_abi_alignment(&t),
+            BasicTypeEnum::VectorType(t) => self.target_data.get_abi_alignment(&t),
+            BasicTypeEnum::ScalableVectorType(t) => self.target_data.get_abi_alignment(&t),
         }
     }
 }

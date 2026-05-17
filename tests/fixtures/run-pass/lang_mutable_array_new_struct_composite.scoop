@@ -1,0 +1,17 @@
+// EXPECT: pass
+// RUN-STDOUT: lang_mutable_array_new_struct_composite.stdout
+
+struct Point(val x: Int, val y: Int)
+
+fun main(): Int {
+    val points: MutableArray<Point> = mutableArrayNew<Point>()
+    points.push(Point(3, 4))
+    points.push(Point(5, 6))
+
+    val a: Point = points.get(0)
+    val b: Point = points.get(1)
+    println(points.size())
+    println(a.x + a.y)
+    println(b.x + b.y)
+    return 0
+}

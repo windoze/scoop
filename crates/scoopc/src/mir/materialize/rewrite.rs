@@ -862,6 +862,18 @@ impl MirInstanceMaterializer {
                 *value_ty =
                     substitute_type_and_effect_params(&mut self.types, *value_ty, ctx.substitution);
             }
+            Rvalue::KindOf { value_ty } => {
+                *value_ty =
+                    substitute_type_and_effect_params(&mut self.types, *value_ty, ctx.substitution);
+            }
+            Rvalue::AlignOf { value_ty } => {
+                *value_ty =
+                    substitute_type_and_effect_params(&mut self.types, *value_ty, ctx.substitution);
+            }
+            Rvalue::DescOf { value_ty } => {
+                *value_ty =
+                    substitute_type_and_effect_params(&mut self.types, *value_ty, ctx.substitution);
+            }
             Rvalue::TypeMetadataLiteral(metadata) => {
                 metadata.source_ty = substitute_type_and_effect_params(
                     &mut self.types,

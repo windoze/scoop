@@ -410,7 +410,7 @@
 - 与 `PLAN.md` 对应闭合：完成 P3 的编译器 receiver layout 分流，使 `Array` 和 `MutableArray` 的基础访问生成不同 IR shape，并保持 `Array<T>` inline 路径无 drift。
 - 暂时性 failing fixture：无。
 
-### P3-T03：sysroot 泛型 wrapper——`mutableArrayNew<T>` / `MutableArray<T>.push` / `MutableArray<T>.freeze`
+### [DONE] P3-T03：sysroot 泛型 wrapper——`mutableArrayNew<T>` / `MutableArray<T>.push` / `MutableArray<T>.freeze`
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §6.3 / §9 / P3
@@ -509,3 +509,12 @@
   - 用户 / sysroot 代码可以写 `val xs = mutableArrayNew<String>(capacity = 8); xs.push("a"); xs.push("b"); val arr = xs.freeze()`。
   - `__scoop_array_builder_*` 旧路径仍存在（数组字面量不变），与新 wrapper 并存。
 - 依赖：P2-T01、P3-T01、P3-T02。
+
+完成记录（2026-05-17）：
+
+- 改动范围：更新 `sysroot/core.scoop` 与 `sysroot/unsafe.scoop`，新增 `mutableArrayNew<T>`、`MutableArray<T>.push`、`MutableArray<T>.freeze` 普通 sysroot wrapper 和 `scoop_mutable_array_*` scoop ABI extern 声明；更新 named intrinsic 表与 LLVM lowering，新增 unsafe erase/cast/value-to-word/value-to-Any/value-slot substrate；补齐 MIR/HIR runtime `kindOf<T>`、`alignOf<T>`、`descOf<T>` 在泛型 materialization 后的 codegen；调整旧 stdlib `MutableList.add` 到 in-place push 语义并移除旧 copy-style `MutableArray<Int>.push`；更新相关 build sysroot overlay；新增 5 个 `tests/fixtures/run-pass/lang_mutable_array_*.scoop` owner fixtures。
+- 核心决策：wrapper 本身不新增 compiler special-case，分配/追加/freeze 只通过 ordinary sysroot body 调反射 intrinsic 与单态 runtime symbol；由于现有 raw pointer primitive 尚无完整 LLVM lowering且 `Ptr<T>` 禁止 GC-ref pointee，composite push 使用通用 unsafe `__scoop_unsafe_value_slot<T>(value): UIntPtr` 立即 materialize stack slot，再交给 runtime copy。`descOf<T>()` 对 composite 现在生成 array-element composite transport descriptor 地址，非 composite 仍返回 0。
+- 兼容/旧 surface 处理：旧 `__scoop_array_builder_*` runtime/sysroot/compiler lowering 保持存在；旧 stdlib copy-style `MutableArray<Int>.push(): MutableArray<Int>` 与新 in-place `push(): Unit` 语义冲突，因此移除并改写现有 push 调用点为 in-place 形式。临时 build sysroot overlay 补充 `MutableArray<T>.push` 声明，避免 overlay + stdlib 组合缺失新 surface。
+- 验证结果：5 个 owner fixtures 单独通过：`lang_mutable_array_new_int_word.scoop`、`lang_mutable_array_new_string_ref.scoop`、`lang_mutable_array_new_struct_composite.scoop`、`lang_mutable_array_grow_amortized.scoop`、`lang_mutable_array_freeze_to_immutable.scoop`；`cargo run -p scoop -- test` 通过，输出 `fixtures: ok (1374)`；`cargo test --all --all-targets` 通过（840 tests）；`cargo clippy --all-targets -- -D warnings` 通过。
+- 与 `PLAN.md` 对应闭合：完成 P3 runtime out-of-line `MutableArray` 的 sysroot 泛型入口层，使用户代码可经 core prelude 直接创建、push 和 freeze，并为后续 P4 数组字面量 desugar 切换到该路径提供可执行基础。
+- 暂时性 failing fixture：无。

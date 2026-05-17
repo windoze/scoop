@@ -506,7 +506,10 @@ impl<'a> ReachabilityCollector<'a> {
                             || self.top_level_vars.contains_key(fqn)
                             || self.extern_globals.contains_key(fqn)
                     }
-                    mir::Rvalue::SizeOf { .. } => true,
+                    mir::Rvalue::SizeOf { .. }
+                    | mir::Rvalue::KindOf { .. }
+                    | mir::Rvalue::AlignOf { .. }
+                    | mir::Rvalue::DescOf { .. } => true,
                     _ => false,
                 }
             })
@@ -553,6 +556,9 @@ impl<'a> ReachabilityCollector<'a> {
             | mir::Rvalue::Unary { .. }
             | mir::Rvalue::Binary { .. }
             | mir::Rvalue::SizeOf { .. }
+            | mir::Rvalue::KindOf { .. }
+            | mir::Rvalue::AlignOf { .. }
+            | mir::Rvalue::DescOf { .. }
             | mir::Rvalue::TypeMetadataLiteral(_)
             | mir::Rvalue::MakeTuple { .. }
             | mir::Rvalue::StructLit { .. }
@@ -714,6 +720,9 @@ impl<'a> ReachabilityCollector<'a> {
             mir::Rvalue::PerformResult { .. }
             | mir::Rvalue::UnresolvedName { .. }
             | mir::Rvalue::SizeOf { .. }
+            | mir::Rvalue::KindOf { .. }
+            | mir::Rvalue::AlignOf { .. }
+            | mir::Rvalue::DescOf { .. }
             | mir::Rvalue::TypeMetadataLiteral(_)
             | mir::Rvalue::Todo(_) => {}
             mir::Rvalue::TopLevelRef(mir::TopLevelRef { fqn, .. }) => {

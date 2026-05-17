@@ -127,6 +127,131 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(CgValue::int(raw, value_word))
     }
 
+    pub(in crate::llvm::codegen) fn codegen_mir_kind_of(
+        &mut self,
+        span: crate::span::Span,
+        mir_types: &TypeStore,
+        value_ty: TypeId,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let kind = self.mir_array_elem_kind(span, mir_types, value_ty)?;
+        let value_word = IntTy {
+            bits: self.host.word_bit_width(),
+            signed: true,
+        };
+        let raw = self.int_type(value_word).const_int(kind, false);
+        Ok(CgValue::int(raw, value_word))
+    }
+
+    pub(in crate::llvm::codegen) fn codegen_mir_align_of(
+        &mut self,
+        span: crate::span::Span,
+        mir_types: &TypeStore,
+        value_ty: TypeId,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let arg_cg = self.cg_ty_of_mir_type(mir_types, value_ty).ok_or(
+            LlvmEmitError::UnsupportedMainBody {
+                kind: "pass MIR alignOf arg type",
+                at: span.into(),
+            },
+        )?;
+        let llvm_ty = self.llvm_basic_type_of(span, arg_cg)?;
+        let align = self.abi_align_bytes_of_basic_type(llvm_ty);
+        let value_word = IntTy {
+            bits: self.host.word_bit_width(),
+            signed: true,
+        };
+        let raw = self.int_type(value_word).const_int(u64::from(align), false);
+        Ok(CgValue::int(raw, value_word))
+    }
+
+    fn mir_array_elem_kind(
+        &mut self,
+        span: crate::span::Span,
+        mir_types: &TypeStore,
+        value_ty: TypeId,
+    ) -> Result<u64, LlvmEmitError> {
+        let arg_cg = self.cg_ty_of_mir_type(mir_types, value_ty).ok_or(
+            LlvmEmitError::UnsupportedMainBody {
+                kind: "pass MIR kindOf arg type",
+                at: span.into(),
+            },
+        )?;
+        match arg_cg {
+            CgTy::String | CgTy::Ref => Ok(2),
+            CgTy::Unit
+            | CgTy::Never
+            | CgTy::Bool
+            | CgTy::Float64
+            | CgTy::Float32
+            | CgTy::Int(_) => Ok(1),
+            CgTy::Enum(enum_ty) => {
+                let layout = self.cg_enum_layout(span, enum_ty)?;
+                if matches!(layout.repr, CgEnumRepr::ValueOnly { .. })
+                    || layout
+                        .variants
+                        .iter()
+                        .all(|variant| variant.fields.is_empty())
+                {
+                    Ok(1)
+                } else {
+                    Ok(3)
+                }
+            }
+            CgTy::Tuple(_) | CgTy::Struct(_) => Ok(3),
+        }
+    }
+
+    pub(in crate::llvm::codegen) fn codegen_mir_desc_of(
+        &mut self,
+        span: crate::span::Span,
+        mir_types: &TypeStore,
+        value_ty: TypeId,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let value_word = IntTy {
+            bits: self.host.word_bit_width(),
+            signed: false,
+        };
+        let arg_cg = self.cg_ty_of_mir_type(mir_types, value_ty).ok_or(
+            LlvmEmitError::UnsupportedMainBody {
+                kind: "pass MIR descOf arg type",
+                at: span.into(),
+            },
+        )?;
+        if !matches!(arg_cg, CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_)) {
+            return Ok(CgValue::int(
+                self.int_type(value_word).const_zero(),
+                value_word,
+            ));
+        }
+
+        let body_fqn = self
+            .function_cx
+            .current_callable_fqn
+            .clone()
+            .unwrap_or_else(|| "<mir-descOf>".to_string());
+        let metadata = crate::mir::ValueTransportMetadata::plain(
+            value_ty,
+            crate::mir::MirTransportKind::ArrayElement,
+        );
+        let descriptor = self.get_or_create_value_composite_transport_descriptor_global(
+            &body_fqn, span, mir_types, &metadata,
+        )?;
+        let ptr = descriptor.as_pointer_value();
+        let ptr_int_ty = self.llvm_ptr_sized_int_type(Some(ptr.get_type().get_address_space()));
+        let raw = self
+            .builder
+            .build_ptr_to_int(ptr, ptr_int_ty, "mir_desc_of_composite")?;
+        let raw = self.cast_int(
+            raw,
+            IntTy {
+                bits: ptr_int_ty.get_bit_width(),
+                signed: false,
+            },
+            value_word,
+        )?;
+        Ok(CgValue::int(raw, value_word))
+    }
+
     pub(in crate::llvm::codegen) fn codegen_mir_make_struct(
         &mut self,
         span: crate::span::Span,

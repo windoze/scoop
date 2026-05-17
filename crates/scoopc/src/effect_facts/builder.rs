@@ -1372,6 +1372,9 @@ impl<'a, 'b> BodyFactsBuilder<'a, 'b> {
             | Rvalue::TypeCheck { .. }
             | Rvalue::Cast { .. }
             | Rvalue::SizeOf { .. }
+            | Rvalue::KindOf { .. }
+            | Rvalue::AlignOf { .. }
+            | Rvalue::DescOf { .. }
             | Rvalue::TypeMetadataLiteral(_)
             | Rvalue::EnumVariant { .. }
             | Rvalue::ClassCtor { .. }
@@ -2969,6 +2972,9 @@ fn rvalue_mentions_local_for_hidden_namespace(value: &Rvalue, local: crate::mir:
         Rvalue::TopLevelRef(_)
         | Rvalue::UnresolvedName { .. }
         | Rvalue::SizeOf { .. }
+        | Rvalue::KindOf { .. }
+        | Rvalue::AlignOf { .. }
+        | Rvalue::DescOf { .. }
         | Rvalue::TypeMetadataLiteral(_)
         | Rvalue::PerformResult { .. }
         | Rvalue::Todo(_) => false,

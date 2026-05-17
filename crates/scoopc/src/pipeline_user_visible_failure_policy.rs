@@ -147,7 +147,7 @@ struct UnsupportedMainBodyCount {
 const STALE_UNSUPPORTED_MAIN_BODY_COUNTS: &[UnsupportedMainBodyCount] = &[
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/mir_body/aggregates.rs",
-        expected_count: 39,
+        expected_count: 42,
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/mir_body/args.rs",
@@ -466,11 +466,11 @@ const POST_UPSTREAM_VALIDATION_GUARDS: &[UpstreamGuardedSentinel] = &[
 
 const INTERNAL_BUG_SENTINEL_HITS: &[&str] = &[
     "crates/scoopc/src/llvm/codegen/mir_body/call.rs:721:            (None, CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_)) => unreachable!(",
-    "crates/scoopc/src/llvm/codegen/effect_lowered/value.rs:2863:                    _ => unreachable!(\"match arms cover array builder build intrinsics\"),",
-    "crates/scoopc/src/llvm/codegen/effect_lowered/value.rs:2911:                            _ => unreachable!(\"build_operation only contains builder build cases\"),",
-    "crates/scoopc/src/llvm/codegen/effect_lowered/value.rs:2923:                            _ => unreachable!(\"match arms cover array builder build intrinsics\"),",
-    "crates/scoopc/src/llvm/codegen/effect_lowered/value.rs:3106:                    _ => unreachable!(\"filtered by match\"),",
-    "crates/scoopc/src/llvm/codegen/effect_lowered/value.rs:4207:            _ => unreachable!(\"filtered by caller\"),",
+    "crates/scoopc/src/llvm/codegen/effect_lowered/value.rs:2866:                    _ => unreachable!(\"match arms cover array builder build intrinsics\"),",
+    "crates/scoopc/src/llvm/codegen/effect_lowered/value.rs:2914:                            _ => unreachable!(\"build_operation only contains builder build cases\"),",
+    "crates/scoopc/src/llvm/codegen/effect_lowered/value.rs:2926:                            _ => unreachable!(\"match arms cover array builder build intrinsics\"),",
+    "crates/scoopc/src/llvm/codegen/effect_lowered/value.rs:3109:                    _ => unreachable!(\"filtered by match\"),",
+    "crates/scoopc/src/llvm/codegen/effect_lowered/value.rs:4210:            _ => unreachable!(\"filtered by caller\"),",
     "crates/scoopc/src/llvm/codegen/main/alloca.rs:48:            _ => unreachable!(\"cast_float only accepts Float64/Float32\"),",
     "crates/scoopc/src/llvm/codegen/main/coerce.rs:74:                    _ => unreachable!(\"filtered by caller\"),",
     "crates/scoopc/src/llvm/codegen/main/coerce.rs:93:                _ => unreachable!(\"filtered by caller\"),",
@@ -589,7 +589,7 @@ fn pipeline_user_visible_failure_policy_tracks_stale_unsupportedmainbody_counts(
             baseline.path
         );
     }
-    assert_eq!(total, 743);
+    assert_eq!(total, 746);
 }
 
 #[test]

@@ -37,9 +37,9 @@ fun main(): Int {
     println("None")
     println(xs.size())
 
-    xs = xs.push(1)
-    xs = xs.push(2)
-    xs = xs.push(3)
+    xs.push(1)
+    xs.push(2)
+    xs.push(3)
     println("after push")
     dumpMutableIntArray(xs)
 

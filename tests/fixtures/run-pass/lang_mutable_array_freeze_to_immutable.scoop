@@ -1,0 +1,18 @@
+// EXPECT: pass
+// RUN-STDOUT: lang_mutable_array_freeze_to_immutable.stdout
+
+fun main(): Int {
+    val xs: MutableArray<Int> = mutableArrayNew<Int>(capacity = 2)
+    xs.push(1)
+    xs.push(2)
+
+    val frozen: Array<Int> = xs.freeze()
+    xs.push(3)
+
+    println(frozen.size())
+    println(frozen.get(0))
+    println(frozen.get(1))
+    println(xs.size())
+    println(xs.get(2))
+    return 0
+}

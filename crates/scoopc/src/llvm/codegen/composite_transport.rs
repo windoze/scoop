@@ -192,6 +192,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             | Rvalue::MemberAccess { .. }
             | Rvalue::ClassCtor { .. }
             | Rvalue::SizeOf { .. }
+            | Rvalue::KindOf { .. }
+            | Rvalue::AlignOf { .. }
+            | Rvalue::DescOf { .. }
             | Rvalue::TypeMetadataLiteral(_)
             | Rvalue::InterpolatedString { .. }
             | Rvalue::TupleGet { .. }

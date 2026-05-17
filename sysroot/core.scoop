@@ -6,6 +6,8 @@
 
 package scoop.core
 
+import scoop.unsafe.*
+
 // Root types
 interface Any
 
@@ -156,6 +158,69 @@ class MutableArray<T> {
 
     @Intrinsic("array_data_ptr_outofline")
     fun __dataPtr(): UIntPtr
+}
+
+@Extern(name = "scoop_mutable_array_new", abi = "scoop")
+fun __scoop_mutable_array_new(
+    elemKind: Int,
+    elemSize: Int,
+    elemAlign: Int,
+    elemDesc: UIntPtr,
+    capacity: Int,
+): MutableArray<Any>
+
+@Extern(name = "scoop_mutable_array_push_word", abi = "scoop")
+fun __scoop_mutable_array_push_word(arr: MutableArray<Any>, value: UIntPtr): Unit
+
+@Extern(name = "scoop_mutable_array_push_ref", abi = "scoop")
+fun __scoop_mutable_array_push_ref(arr: MutableArray<Any>, value: Any): Unit
+
+@Extern(name = "scoop_mutable_array_push_composite", abi = "scoop")
+fun __scoop_mutable_array_push_composite(arr: MutableArray<Any>, slot: UIntPtr, elemSize: Int): Unit
+
+@Extern(name = "scoop_mutable_array_freeze", abi = "scoop")
+fun __scoop_mutable_array_freeze(arr: MutableArray<Any>): Array<Any>
+
+@Extern(name = "scoop_mutable_array_to_array_data", abi = "scoop")
+fun __scoop_mutable_array_to_array_data(arr: MutableArray<Any>): UIntPtr
+
+fun <T> mutableArrayNew(capacity: Int = ARRAY_ELEM_KIND_WORD - ARRAY_ELEM_KIND_WORD): MutableArray<T> {
+    val raw: MutableArray<Any> = __scoop_mutable_array_new(
+        kindOf<T>(),
+        sizeOf<T>(),
+        alignOf<T>(),
+        descOf<T>(),
+        capacity,
+    )
+    return @Unsafe do { __scoop_unsafe_mutable_array_cast<T>(raw) }
+}
+
+fun <T> MutableArray<T>.push(value: T): Unit {
+    val kind: Int = kindOf<T>()
+    val raw: MutableArray<Any> = @Unsafe do { __scoop_unsafe_mutable_array_erase<T>(this) }
+
+    if (kind == ARRAY_ELEM_KIND_WORD) {
+        val word: UIntPtr = @Unsafe do { __scoop_unsafe_value_to_word<T>(value) }
+        __scoop_mutable_array_push_word(raw, word)
+        return
+    }
+
+    if (kind == ARRAY_ELEM_KIND_REF) {
+        val refValue: Any = @Unsafe do { __scoop_unsafe_value_to_any<T>(value) }
+        __scoop_mutable_array_push_ref(raw, refValue)
+        return
+    }
+
+    if (kind == ARRAY_ELEM_KIND_COMPOSITE) {
+        val slot: UIntPtr = @Unsafe do { __scoop_unsafe_value_slot<T>(value) }
+        __scoop_mutable_array_push_composite(raw, slot, sizeOf<T>())
+        return
+    }
+}
+
+fun <T> MutableArray<T>.freeze(): Array<T> {
+    val raw: Array<Any> = __scoop_mutable_array_freeze(@Unsafe do { __scoop_unsafe_mutable_array_erase<T>(this) })
+    return @Unsafe do { __scoop_unsafe_array_cast<T>(raw) }
 }
 
 // Kotlin-like collections：List / MutableList（std v1，TODO：T1317f2）。

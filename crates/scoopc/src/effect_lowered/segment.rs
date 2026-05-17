@@ -716,6 +716,9 @@ fn rvalue_mentions_local_for_hidden_namespace(value: &Rvalue, local: LocalId) ->
         Rvalue::TopLevelRef(_)
         | Rvalue::UnresolvedName { .. }
         | Rvalue::SizeOf { .. }
+        | Rvalue::KindOf { .. }
+        | Rvalue::AlignOf { .. }
+        | Rvalue::DescOf { .. }
         | Rvalue::TypeMetadataLiteral(_)
         | Rvalue::PerformResult { .. }
         | Rvalue::Todo(_) => false,

@@ -546,7 +546,10 @@ fn observe_rvalue(
             *may_allocate_closure = true;
             observe_operand(env, OperandUsage::Escape, state, param_use_summaries);
         }
-        Rvalue::SizeOf { .. } => {}
+        Rvalue::SizeOf { .. }
+        | Rvalue::KindOf { .. }
+        | Rvalue::AlignOf { .. }
+        | Rvalue::DescOf { .. } => {}
         Rvalue::Todo(_) => *base_outward_effect = true,
     }
 }
@@ -670,6 +673,9 @@ fn rvalue_provenance(
         | Rvalue::TypeCheck { .. }
         | Rvalue::Cast { .. }
         | Rvalue::SizeOf { .. }
+        | Rvalue::KindOf { .. }
+        | Rvalue::AlignOf { .. }
+        | Rvalue::DescOf { .. }
         | Rvalue::TypeMetadataLiteral(_)
         | Rvalue::EnumVariant { .. }
         | Rvalue::ClassCtor { .. }
@@ -827,6 +833,9 @@ fn rvalue_cost(value: &Rvalue) -> u32 {
         | Rvalue::TopLevelRef(_)
         | Rvalue::UnresolvedName { .. }
         | Rvalue::SizeOf { .. }
+        | Rvalue::KindOf { .. }
+        | Rvalue::AlignOf { .. }
+        | Rvalue::DescOf { .. }
         | Rvalue::TypeMetadataLiteral(_)
         | Rvalue::PerformResult { .. } => 1,
         Rvalue::Unary { .. }

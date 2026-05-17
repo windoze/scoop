@@ -85,22 +85,6 @@ fun MutableArray<Int>.toArray(): Array<Int> {
     return __scoop_array_builder_build_array(b)
 }
 
-/// 追加一个元素，返回新数组。
-fun MutableArray<Int>.push(value: Int): MutableArray<Int> {
-    val n: Int = this.size()
-    val one: Int = __stdlib_int_one(n)
-    val zero: Int = __stdlib_int_zero(n)
-
-    val b: Any = __scoop_array_builder_new()
-    var i: Int = zero
-    while (i < n) {
-        __scoop_array_builder_push(b, this.get(i))
-        i = i + one
-    }
-    __scoop_array_builder_push(b, value)
-    return __scoop_array_builder_build_mutable_array(b)
-}
-
 /// 弹出最后一个元素：返回新数组；空数组返回自身。
 fun MutableArray<Int>.pop(): MutableArray<Int> {
     val n: Int = this.size()

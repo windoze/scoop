@@ -465,6 +465,9 @@ pub(super) fn collect_rvalue_local_references(value: &Rvalue, out: &mut HashSet<
         Rvalue::TopLevelRef(_)
         | Rvalue::UnresolvedName { .. }
         | Rvalue::SizeOf { .. }
+        | Rvalue::KindOf { .. }
+        | Rvalue::AlignOf { .. }
+        | Rvalue::DescOf { .. }
         | Rvalue::TypeMetadataLiteral(_)
         | Rvalue::PerformResult { .. } => {}
         Rvalue::Todo(reason) => {

@@ -5,6 +5,7 @@ use inkwell::IntPredicate;
 use inkwell::types::BasicMetadataTypeEnum;
 use inkwell::types::BasicTypeEnum;
 use inkwell::values::BasicMetadataValueEnum;
+use inkwell::values::BasicValueEnum;
 use inkwell::values::FunctionValue;
 use inkwell::values::PointerValue;
 
@@ -83,6 +84,30 @@ const NAMED_INTRINSIC_IR_RULES: &[NamedIntrinsicIrRuleEntry] = &[
     NamedIntrinsicIrRuleEntry {
         name: "array_data_ptr_outofline",
         lower: lower_array_data_ptr_outofline,
+    },
+    NamedIntrinsicIrRuleEntry {
+        name: "unsafe_mutable_array_cast",
+        lower: lower_unsafe_ref_passthrough,
+    },
+    NamedIntrinsicIrRuleEntry {
+        name: "unsafe_mutable_array_erase",
+        lower: lower_unsafe_ref_passthrough,
+    },
+    NamedIntrinsicIrRuleEntry {
+        name: "unsafe_array_cast",
+        lower: lower_unsafe_ref_passthrough,
+    },
+    NamedIntrinsicIrRuleEntry {
+        name: "unsafe_value_to_word",
+        lower: lower_unsafe_value_to_word,
+    },
+    NamedIntrinsicIrRuleEntry {
+        name: "unsafe_value_to_any",
+        lower: lower_unsafe_value_to_any,
+    },
+    NamedIntrinsicIrRuleEntry {
+        name: "unsafe_value_slot",
+        lower: lower_unsafe_value_slot,
     },
 ];
 
@@ -168,6 +193,34 @@ fn lower_array_data_ptr_outofline<'a, 'ctx>(
     call: LoweredNamedIntrinsicCall<'ctx>,
 ) -> Result<CgValue<'ctx>, LlvmEmitError> {
     cg.codegen_named_intrinsic_array_data_ptr(call, NamedIntrinsicArrayLayout::OutOfLine)
+}
+
+fn lower_unsafe_ref_passthrough<'a, 'ctx>(
+    cg: &mut MainCodegen<'a, 'ctx>,
+    call: LoweredNamedIntrinsicCall<'ctx>,
+) -> Result<CgValue<'ctx>, LlvmEmitError> {
+    cg.codegen_named_intrinsic_unsafe_ref_passthrough(call)
+}
+
+fn lower_unsafe_value_to_word<'a, 'ctx>(
+    cg: &mut MainCodegen<'a, 'ctx>,
+    call: LoweredNamedIntrinsicCall<'ctx>,
+) -> Result<CgValue<'ctx>, LlvmEmitError> {
+    cg.codegen_named_intrinsic_unsafe_value_to_word(call)
+}
+
+fn lower_unsafe_value_to_any<'a, 'ctx>(
+    cg: &mut MainCodegen<'a, 'ctx>,
+    call: LoweredNamedIntrinsicCall<'ctx>,
+) -> Result<CgValue<'ctx>, LlvmEmitError> {
+    cg.codegen_named_intrinsic_unsafe_value_to_any(call)
+}
+
+fn lower_unsafe_value_slot<'a, 'ctx>(
+    cg: &mut MainCodegen<'a, 'ctx>,
+    call: LoweredNamedIntrinsicCall<'ctx>,
+) -> Result<CgValue<'ctx>, LlvmEmitError> {
+    cg.codegen_named_intrinsic_unsafe_value_slot(call)
 }
 
 fn normalize_array_like_fqn(fqn: &str) -> Option<&'static str> {
@@ -699,6 +752,194 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 signed: false,
             },
         ))
+    }
+
+    fn codegen_named_intrinsic_unsafe_ref_passthrough(
+        &mut self,
+        call: LoweredNamedIntrinsicCall<'ctx>,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        if call.operands.len() != 1 {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "named intrinsic unsafe ref passthrough operand arity",
+                at: call.callee_span.into(),
+            });
+        }
+        self.coerce_value(call.operands[0].span, call.operands[0].value, CgTy::Ref)
+    }
+
+    fn codegen_named_intrinsic_unsafe_value_to_any(
+        &mut self,
+        call: LoweredNamedIntrinsicCall<'ctx>,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        if call.operands.len() != 1 {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "named intrinsic unsafe value-to-any operand arity",
+                at: call.callee_span.into(),
+            });
+        }
+        let operand = &call.operands[0];
+        match operand.value.ty {
+            CgTy::Unit | CgTy::Bool | CgTy::Int(_) | CgTy::String | CgTy::Ref | CgTy::Enum(_) => {
+                self.coerce_value(operand.span, operand.value, CgTy::Ref)
+            }
+            _ => Ok(CgValue {
+                ty: CgTy::Ref,
+                value: Some(self.llvm_gc_i8_ptr_type().const_null().into()),
+            }),
+        }
+    }
+
+    fn codegen_named_intrinsic_unsafe_value_to_word(
+        &mut self,
+        call: LoweredNamedIntrinsicCall<'ctx>,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        if call.operands.len() != 1 {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "named intrinsic unsafe value-to-word operand arity",
+                at: call.callee_span.into(),
+            });
+        }
+        let operand = &call.operands[0];
+        let word_ty = IntTy {
+            bits: self.host.word_bit_width(),
+            signed: false,
+        };
+        let word_llvm_ty = self.int_type(word_ty);
+        let raw = match operand.value.ty {
+            CgTy::Unit | CgTy::Never => word_llvm_ty.const_zero(),
+            CgTy::Bool => {
+                let value = operand
+                    .value
+                    .as_bool()
+                    .ok_or(LlvmEmitError::UnsupportedMainBody {
+                        kind: "named intrinsic unsafe value-to-word bool value",
+                        at: operand.span.into(),
+                    })?;
+                self.builder
+                    .build_int_z_extend(value, word_llvm_ty, "unsafe_bool_to_word")?
+            }
+            CgTy::Int(from_ty) => {
+                let (value, _) =
+                    operand
+                        .value
+                        .as_int()
+                        .ok_or(LlvmEmitError::UnsupportedMainBody {
+                            kind: "named intrinsic unsafe value-to-word int value",
+                            at: operand.span.into(),
+                        })?;
+                self.cast_int(value, from_ty, word_ty)?
+            }
+            CgTy::Float32 => {
+                let (value, _) =
+                    operand
+                        .value
+                        .as_float()
+                        .ok_or(LlvmEmitError::UnsupportedMainBody {
+                            kind: "named intrinsic unsafe value-to-word float32 value",
+                            at: operand.span.into(),
+                        })?;
+                let bits = self
+                    .builder
+                    .build_bit_cast(value, self.context.i32_type(), "unsafe_f32_bits")?
+                    .into_int_value();
+                self.cast_int(
+                    bits,
+                    IntTy {
+                        bits: 32,
+                        signed: false,
+                    },
+                    word_ty,
+                )?
+            }
+            CgTy::Float64 => {
+                let (value, _) =
+                    operand
+                        .value
+                        .as_float()
+                        .ok_or(LlvmEmitError::UnsupportedMainBody {
+                            kind: "named intrinsic unsafe value-to-word float64 value",
+                            at: operand.span.into(),
+                        })?;
+                let bits = self
+                    .builder
+                    .build_bit_cast(value, self.context.i64_type(), "unsafe_f64_bits")?
+                    .into_int_value();
+                self.cast_int(
+                    bits,
+                    IntTy {
+                        bits: 64,
+                        signed: false,
+                    },
+                    word_ty,
+                )?
+            }
+            CgTy::String | CgTy::Ref => {
+                let value = self.coerce_value(operand.span, operand.value, CgTy::Ref)?;
+                let Some(BasicValueEnum::PointerValue(ptr)) = value.value else {
+                    return Err(LlvmEmitError::UnsupportedMainBody {
+                        kind: "named intrinsic unsafe value-to-word ref value",
+                        at: operand.span.into(),
+                    });
+                };
+                self.unsafe_ptr_to_word(ptr, "unsafe_ref_to_word")?
+            }
+            CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
+                let ptr = self.named_intrinsic_materialize_value_ptr(
+                    operand.span,
+                    "unsafe_value_to_word_slot",
+                    operand.value.ty,
+                    operand.value,
+                )?;
+                self.unsafe_ptr_to_word(ptr, "unsafe_composite_to_word")?
+            }
+        };
+        Ok(CgValue::int(raw, word_ty))
+    }
+
+    fn codegen_named_intrinsic_unsafe_value_slot(
+        &mut self,
+        call: LoweredNamedIntrinsicCall<'ctx>,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        if call.operands.len() != 1 {
+            return Err(LlvmEmitError::UnsupportedMainBody {
+                kind: "named intrinsic unsafe value-slot operand arity",
+                at: call.callee_span.into(),
+            });
+        }
+        let operand = &call.operands[0];
+        let word_ty = IntTy {
+            bits: self.host.word_bit_width(),
+            signed: false,
+        };
+        if matches!(operand.value.ty, CgTy::Unit | CgTy::Never) {
+            return Ok(CgValue::int(self.int_type(word_ty).const_zero(), word_ty));
+        }
+        let ptr = self.named_intrinsic_materialize_value_ptr(
+            operand.span,
+            "unsafe_value_slot",
+            operand.value.ty,
+            operand.value,
+        )?;
+        let raw = self.unsafe_ptr_to_word(ptr, "unsafe_value_slot_word")?;
+        Ok(CgValue::int(raw, word_ty))
+    }
+
+    fn unsafe_ptr_to_word(
+        &mut self,
+        ptr: PointerValue<'ctx>,
+        name: &str,
+    ) -> Result<inkwell::values::IntValue<'ctx>, LlvmEmitError> {
+        let ptr_int_ty = self.llvm_ptr_sized_int_type(Some(ptr.get_type().get_address_space()));
+        let from_ty = IntTy {
+            bits: ptr_int_ty.get_bit_width(),
+            signed: false,
+        };
+        let to_ty = IntTy {
+            bits: self.host.word_bit_width(),
+            signed: false,
+        };
+        let raw = self.builder.build_ptr_to_int(ptr, ptr_int_ty, name)?;
+        self.cast_int(raw, from_ty, to_ty)
     }
 
     fn named_intrinsic_array_receiver_ptr(

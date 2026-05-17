@@ -1092,7 +1092,7 @@ pub(super) fn production_codegen_list_fixture_materializes_mutable_list_add_and_
         "expected list fixture to materialize MutableArray.push instance in pass view, actual callables: {pass_fun_fqns:?}"
     );
 
-    let mut seen_push_builder_append = false;
+    let mut seen_runtime_word_push = false;
     for family in pass_view.instances() {
         for fun in family.callable_bodies() {
             if !fun.fqn.starts_with("scoop.core.push") {
@@ -1116,27 +1116,23 @@ pub(super) fn production_codegen_list_fixture_materializes_mutable_list_add_and_
                     else {
                         continue;
                     };
-                    if callee_fqn != "scoop.core.__scoop_array_builder_push" {
+                    if callee_fqn != "scoop.core.__scoop_mutable_array_push_word" {
                         continue;
                     }
-                    let array = transport
-                        .array
-                        .as_ref()
-                        .expect("array builder push call 应发布 array transport metadata");
                     assert_eq!(
-                        materialized.types.display(array.element_ty).to_string(),
-                        "Int",
-                        "callable `{}` 的 array builder push transport element type 应具体化为 Int",
+                        materialized.types.display(transport.result.source_ty).to_string(),
+                        "Unit",
+                        "callable `{}` 的 runtime MutableArray push 应保持 Unit result transport",
                         fun.fqn
                     );
-                    seen_push_builder_append = true;
+                    seen_runtime_word_push = true;
                 }
             }
         }
     }
     assert!(
-        seen_push_builder_append,
-        "expected MutableArray.push body to retain at least one builder append site in pass view"
+        seen_runtime_word_push,
+        "expected MutableArray.push body to call the runtime word push entry in pass view"
     );
 }
 

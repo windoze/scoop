@@ -76,6 +76,8 @@ fun <T> MutableArray<T>.set(index: Int, value: T): Unit
 @Intrinsic
 fun MutableArray<Int>.toArray(): Array<Int>
 
+fun <T> MutableArray<T>.push(value: T): Unit
+
 class ComptimeList<T>
 struct Unit
 enum Nothing

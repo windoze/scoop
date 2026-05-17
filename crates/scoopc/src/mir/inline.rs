@@ -294,6 +294,9 @@ impl BlockCallableProvenance {
             | Rvalue::TypeCheck { .. }
             | Rvalue::Cast { .. }
             | Rvalue::SizeOf { .. }
+            | Rvalue::KindOf { .. }
+            | Rvalue::AlignOf { .. }
+            | Rvalue::DescOf { .. }
             | Rvalue::TypeMetadataLiteral(_)
             | Rvalue::EnumVariant { .. }
             | Rvalue::ClassCtor { .. }
@@ -581,6 +584,9 @@ fn rvalue_is_pass_publishable(value: &Rvalue) -> bool {
         | Rvalue::Unary { .. }
         | Rvalue::Binary { .. }
         | Rvalue::SizeOf { .. }
+        | Rvalue::KindOf { .. }
+        | Rvalue::AlignOf { .. }
+        | Rvalue::DescOf { .. }
         | Rvalue::TypeMetadataLiteral(_) => true,
         Rvalue::Call { kind, .. } => {
             matches!(kind, CallKind::Direct { .. } | CallKind::Closure { .. })
@@ -630,6 +636,9 @@ fn rvalue_is_inlineable(
         | Rvalue::Unary { .. }
         | Rvalue::Binary { .. }
         | Rvalue::SizeOf { .. }
+        | Rvalue::KindOf { .. }
+        | Rvalue::AlignOf { .. }
+        | Rvalue::DescOf { .. }
         | Rvalue::TypeMetadataLiteral(_) => true,
         Rvalue::Call { kind, .. } => call_kind_is_inlineable(kind, direct_call_param_provenance),
         Rvalue::EnumVariant { .. } | Rvalue::ClassCtor { .. } => true,
@@ -801,6 +810,9 @@ fn collect_rvalue_uses(value: &Rvalue, out: &mut HashSet<LocalId>) {
         Rvalue::TopLevelRef(_)
         | Rvalue::UnresolvedName { .. }
         | Rvalue::SizeOf { .. }
+        | Rvalue::KindOf { .. }
+        | Rvalue::AlignOf { .. }
+        | Rvalue::DescOf { .. }
         | Rvalue::TypeMetadataLiteral(_)
         | Rvalue::PerformResult { .. }
         | Rvalue::Todo(_) => {}
@@ -1061,6 +1073,15 @@ fn remap_rvalue(
             hidden_effects: hidden_effects.clone(),
         }),
         Rvalue::SizeOf { value_ty } => Some(Rvalue::SizeOf {
+            value_ty: *value_ty,
+        }),
+        Rvalue::KindOf { value_ty } => Some(Rvalue::KindOf {
+            value_ty: *value_ty,
+        }),
+        Rvalue::AlignOf { value_ty } => Some(Rvalue::AlignOf {
+            value_ty: *value_ty,
+        }),
+        Rvalue::DescOf { value_ty } => Some(Rvalue::DescOf {
             value_ty: *value_ty,
         }),
         Rvalue::TypeMetadataLiteral(metadata) => {

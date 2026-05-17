@@ -153,6 +153,9 @@ fn rvalue_mentions_local(value: &mir::Rvalue, local: LocalId) -> bool {
         mir::Rvalue::TopLevelRef(_)
         | mir::Rvalue::UnresolvedName { .. }
         | mir::Rvalue::SizeOf { .. }
+        | mir::Rvalue::KindOf { .. }
+        | mir::Rvalue::AlignOf { .. }
+        | mir::Rvalue::DescOf { .. }
         | mir::Rvalue::TypeMetadataLiteral(_)
         | mir::Rvalue::PerformResult { .. }
         | mir::Rvalue::Todo(_) => false,

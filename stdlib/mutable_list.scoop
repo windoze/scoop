@@ -19,9 +19,8 @@ import scoop.core.*
 
 /// Kotlin-like：`MutableList.add(value)`（v0：Int 专用）。
 ///
-/// 语义：追加一个元素，返回新集合（copy 语义）。
+/// 语义：追加一个元素并返回当前集合，底层复用 core 的 in-place `MutableArray.push`。
 fun MutableList<Int>.add(value: Int): MutableList<Int> {
-    // `MutableList<Int>` 是 `MutableArray<Int>` 的别名：直接复用 stdlib 的 `push`。
-    return this.push(value)
+    this.push(value)
+    return this
 }
-

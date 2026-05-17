@@ -166,6 +166,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             | crate::mir::Rvalue::TypeCheck { .. }
             | crate::mir::Rvalue::Cast { .. }
             | crate::mir::Rvalue::SizeOf { .. }
+            | crate::mir::Rvalue::KindOf { .. }
+            | crate::mir::Rvalue::AlignOf { .. }
+            | crate::mir::Rvalue::DescOf { .. }
             | crate::mir::Rvalue::TypeMetadataLiteral(_)
             | crate::mir::Rvalue::EnumVariant { .. }
             | crate::mir::Rvalue::ClassCtor { .. }

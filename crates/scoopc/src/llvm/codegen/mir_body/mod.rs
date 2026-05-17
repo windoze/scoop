@@ -547,6 +547,9 @@ fn collect_mir_rvalue_uses(value: &crate::mir::Rvalue, out: &mut HashSet<crate::
         crate::mir::Rvalue::TopLevelRef(_)
         | crate::mir::Rvalue::UnresolvedName { .. }
         | crate::mir::Rvalue::SizeOf { .. }
+        | crate::mir::Rvalue::KindOf { .. }
+        | crate::mir::Rvalue::AlignOf { .. }
+        | crate::mir::Rvalue::DescOf { .. }
         | crate::mir::Rvalue::TypeMetadataLiteral(_)
         | crate::mir::Rvalue::PerformResult { .. }
         | crate::mir::Rvalue::Todo(_) => {}

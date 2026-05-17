@@ -23,8 +23,8 @@ fun main(): Int {
     // --- Step 1: Build data from MutableArray ---
     println("step1:build")
     var buf: MutableArray<Int> = [10, 20, 30]
-    buf = buf.push(40)
-    buf = buf.push(50)
+    buf.push(40)
+    buf.push(50)
     val data: Array<Int> = buf.toArray()
     printArray("data", data)
 

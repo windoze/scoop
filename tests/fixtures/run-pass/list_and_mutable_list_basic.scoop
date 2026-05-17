@@ -3,7 +3,7 @@
 //
 // 目标：T1317f2 `List/MutableList` 最小表面（v0）：
 // - sysroot：`typealias List<T> = Array<T>`、`typealias MutableList<T> = MutableArray<T>`
-// - stdlib：`MutableList<Int>.add` 可执行落点（基于 `MutableArray<Int>.push`）
+// - stdlib：`MutableList<Int>.add` 可执行落点（基于 in-place `MutableArray<Int>.push`）
 
 import scoop.core.*
 
@@ -40,10 +40,9 @@ fun main(): Int {
     println("mutable after add")
     dumpMutableList(ys)
 
-    ys = ys.push(40)
+    ys.push(40)
     println("mutable after push")
     dumpMutableList(ys)
 
     return 0
 }
-

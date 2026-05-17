@@ -1,0 +1,14 @@
+// EXPECT: pass
+// RUN-STDOUT: lang_mutable_array_new_string_ref.stdout
+
+fun main(): Int {
+    val xs: MutableArray<String> = mutableArrayNew<String>(capacity = 1)
+    xs.push("alpha")
+    xs.push("beta")
+    __scoop_gc_collect()
+
+    println(xs.size())
+    println(xs.get(0))
+    println(xs.get(1))
+    return 0
+}

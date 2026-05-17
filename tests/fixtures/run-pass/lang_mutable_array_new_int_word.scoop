@@ -1,0 +1,17 @@
+// EXPECT: pass
+// RUN-STDOUT: lang_mutable_array_new_int_word.stdout
+
+fun main(): Int {
+    val xs: MutableArray<Int> = mutableArrayNew<Int>(capacity = 4)
+    xs.push(10)
+    xs.push(20)
+    xs.push(30)
+    xs.push(40)
+
+    println(xs.size())
+    println(xs.get(0))
+    println(xs.get(1))
+    println(xs.get(2))
+    println(xs.get(3))
+    return 0
+}

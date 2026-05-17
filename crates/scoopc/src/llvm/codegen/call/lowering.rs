@@ -1463,6 +1463,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             if dispatch_fqn == "scoop.core.sizeOf" {
                 return self.codegen_sysroot_size_of(span, callee.span, args);
             }
+            if dispatch_fqn == "scoop.core.alignOf" {
+                return self.codegen_sysroot_align_of(span);
+            }
             if dispatch_fqn == "scoop.core.kindOf" {
                 return self.codegen_sysroot_kind_of(span);
             }

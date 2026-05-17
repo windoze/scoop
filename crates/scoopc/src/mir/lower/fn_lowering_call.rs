@@ -358,6 +358,13 @@ impl<'a> FnLowering<'a> {
                 self.assign(span, result, Rvalue::SizeOf { value_ty });
                 true
             }
+            (TypedIntrinsicKind::Reflection { name }, "scoop.core.alignOf")
+                if name == "alignOf" =>
+            {
+                let value_ty = self.reflection_type_arg_for_call(span, "alignOf");
+                self.assign(span, result, Rvalue::AlignOf { value_ty });
+                true
+            }
             (TypedIntrinsicKind::Reflection { name }, "scoop.core.nameOf") if name == "nameOf" => {
                 let source_ty = self
                     .facts
@@ -381,22 +388,13 @@ impl<'a> FnLowering<'a> {
                 true
             }
             (TypedIntrinsicKind::Reflection { name }, "scoop.core.kindOf") if name == "kindOf" => {
-                let source_ty = self.reflection_type_arg_for_call(span, "kindOf");
-                let kind = self.array_elem_kind_for_ty(source_ty);
-                self.assign(
-                    span,
-                    result,
-                    Rvalue::Use(Operand::Const(ConstValue::SynthInt(kind))),
-                );
+                let value_ty = self.reflection_type_arg_for_call(span, "kindOf");
+                self.assign(span, result, Rvalue::KindOf { value_ty });
                 true
             }
             (TypedIntrinsicKind::Reflection { name }, "scoop.core.descOf") if name == "descOf" => {
-                let _source_ty = self.reflection_type_arg_for_call(span, "descOf");
-                self.assign(
-                    span,
-                    result,
-                    Rvalue::Use(Operand::Const(ConstValue::SynthInt(0))),
-                );
+                let value_ty = self.reflection_type_arg_for_call(span, "descOf");
+                self.assign(span, result, Rvalue::DescOf { value_ty });
                 true
             }
             _ => {
@@ -521,44 +519,6 @@ impl<'a> FnLowering<'a> {
                 _ => None,
             })
             .unwrap_or_else(|| panic!("typed {name} intrinsic must publish a type argument"))
-    }
-
-    fn array_elem_kind_for_ty(&self, ty: TypeId) -> i64 {
-        match self.types.kind(ty) {
-            TypeKind::Ref(_) => 2,
-            TypeKind::Value(ValueTypeKind::Unit)
-            | TypeKind::Value(ValueTypeKind::Nothing)
-            | TypeKind::Value(ValueTypeKind::Bool)
-            | TypeKind::Value(ValueTypeKind::Char)
-            | TypeKind::Value(ValueTypeKind::Float64)
-            | TypeKind::Value(ValueTypeKind::Float32)
-            | TypeKind::Value(ValueTypeKind::Int)
-            | TypeKind::Value(ValueTypeKind::UInt)
-            | TypeKind::Value(ValueTypeKind::IntN(_))
-            | TypeKind::Value(ValueTypeKind::UIntN(_)) => 1,
-            TypeKind::Value(ValueTypeKind::Tuple(elements)) if elements.is_empty() => 1,
-            TypeKind::Value(ValueTypeKind::Nominal(_))
-                if is_builtin_scalar_nominal_value_type(self.types, ty) =>
-            {
-                1
-            }
-            TypeKind::Value(ValueTypeKind::Nominal(nominal)) => {
-                match self.facts.nominal_kind(&nominal.fqn) {
-                    Some(
-                        ast::TypeKind::Class | ast::TypeKind::Interface | ast::TypeKind::Effect,
-                    ) => 2,
-                    Some(ast::TypeKind::Enum)
-                        if self.facts.enum_has_payload(&nominal.fqn) == Some(false) =>
-                    {
-                        1
-                    }
-                    _ => 3,
-                }
-            }
-            TypeKind::Value(ValueTypeKind::Tuple(_))
-            | TypeKind::Value(ValueTypeKind::Option(_)) => 3,
-            TypeKind::Param(_) | TypeKind::StarProjection(_) => 3,
-        }
     }
 
     pub(in crate::mir::lower) fn operand_ty(&self, operand: &Operand) -> TypeId {

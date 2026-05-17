@@ -339,6 +339,9 @@ pub(crate) fn classify_effect_neutral_rvalue(
         | Rvalue::TypeCheck { .. }
         | Rvalue::Cast { .. }
         | Rvalue::SizeOf { .. }
+        | Rvalue::KindOf { .. }
+        | Rvalue::AlignOf { .. }
+        | Rvalue::DescOf { .. }
         | Rvalue::TypeMetadataLiteral(_)
         | Rvalue::MemberAccess { .. }
         | Rvalue::EnumVariant { .. }
@@ -469,6 +472,9 @@ pub(crate) fn rvalue_mentions_local(value: &Rvalue, local: LocalId) -> bool {
         Rvalue::TopLevelRef(_)
         | Rvalue::UnresolvedName { .. }
         | Rvalue::SizeOf { .. }
+        | Rvalue::KindOf { .. }
+        | Rvalue::AlignOf { .. }
+        | Rvalue::DescOf { .. }
         | Rvalue::TypeMetadataLiteral(_)
         | Rvalue::PerformResult { .. }
         | Rvalue::Todo(_) => false,
