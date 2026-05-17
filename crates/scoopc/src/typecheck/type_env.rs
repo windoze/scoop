@@ -1631,6 +1631,89 @@ mod tests {
     }
 
     #[test]
+    fn sysroot_type_env_contains_anyref_anyvalue_markers() {
+        let sess = Session::new().unwrap();
+        let mut pairs: Vec<(&SourceFile, &ast::File)> = Vec::new();
+        for f in sess.sysroot().index_files() {
+            pairs.push((&f.source, &f.ast));
+        }
+        let index = Index::build(&pairs).unwrap();
+        let env = TypeEnv::from_sysroot(sess.sysroot(), &index).unwrap();
+
+        for fqn in [ANY_REF_MARKER_FQN, ANY_VALUE_MARKER_FQN] {
+            let sym = env
+                .type_symbol(fqn)
+                .expect("sysroot marker should be registered");
+            assert_eq!(sym.kind, TypeSymbolKind::Nominal(ast::TypeKind::Interface));
+            assert!(sym.is_sealed_interface);
+            assert_eq!(sym.type_param_count, 0);
+            assert!(
+                env.sealed_marker_direct_supers(fqn)
+                    .is_some_and(|supers| supers.is_empty())
+            );
+            assert!(
+                env.sealed_marker_transitive_supers(fqn)
+                    .is_some_and(|supers| supers.is_empty())
+            );
+            assert!(env.direct_supertypes(fqn).is_none());
+        }
+
+        assert!(!env.sealed_marker_implies(ANY_REF_MARKER_FQN, ANY_VALUE_MARKER_FQN));
+        assert!(!env.sealed_marker_implies(ANY_VALUE_MARKER_FQN, ANY_REF_MARKER_FQN));
+        for (fqn, supers) in &env.supertypes {
+            assert!(
+                !supers
+                    .iter()
+                    .any(|st| st == ANY_REF_MARKER_FQN || st == ANY_VALUE_MARKER_FQN),
+                "{fqn} should not record sealed markers as runtime supertypes"
+            );
+        }
+    }
+
+    #[test]
+    fn sysroot_type_env_allows_anyref_anyvalue_generic_bounds() {
+        let sess = Session::new().unwrap();
+        let source = SourceFile::new_virtual(
+            "<sealed-marker-user>",
+            r#"
+package fixtures.typecheck
+
+import scoop.core.*
+
+class RefBox<T> where T: AnyRef {}
+class ValueBox<T> where T: AnyValue {}
+class C()
+struct S(val value: Int)
+typealias RefOk = RefBox<C>
+typealias ValueStructOk = ValueBox<S>
+typealias ValueIntOk = ValueBox<Int>
+"#,
+        );
+        let ast = sess.parse(&source).unwrap();
+        let mut pairs: Vec<(&SourceFile, &ast::File)> = Vec::new();
+        for f in sess.sysroot().index_files() {
+            pairs.push((&f.source, &f.ast));
+        }
+        pairs.push((&source, &ast));
+        let index = Index::build(&pairs).unwrap();
+
+        let mut env = TypeEnv::from_sysroot(sess.sysroot(), &index).unwrap();
+        env.extend_from_file(&source, &ast, &index).unwrap();
+
+        let imports = env
+            .file_type_context(source.path())
+            .unwrap()
+            .imports
+            .clone();
+        let mut types = TypeStore::new();
+        let builtins = types.intern_builtins();
+        typecheck::check_file_type_refs(
+            &source, &ast, &index, &imports, &env, &mut types, builtins,
+        )
+        .unwrap();
+    }
+
+    #[test]
     fn sysroot_type_env_collects_option_variants() {
         let sess = Session::new().unwrap();
         let mut pairs: Vec<(&SourceFile, &ast::File)> = Vec::new();

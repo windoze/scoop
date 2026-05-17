@@ -268,7 +268,7 @@ C0-T01 (baseline + prerequisite inventory)
     - `cargo clippy --all-targets -- -D warnings`：通过。
   - 与 `PLAN.md` / `CLOSURE_FIX.md` 对应闭合：闭合 `PLAN.md` §4 / §7 C1-T01 与 `CLOSURE_FIX.md` §2 的 sealed marker 前端语义、metadata、bound-only gate、自动 `AnyRef` / `AnyValue` 满足关系底座；阶段级计划未变化。
 
-### [TODO] C1-T02：在 sysroot 添加 `AnyRef` / `AnyValue`
+### [DONE] C1-T02：在 sysroot 添加 `AnyRef` / `AnyValue`
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §4.4、§7 C1-T02
@@ -297,9 +297,19 @@ C0-T01 (baseline + prerequisite inventory)
 - 依赖：C1-T01
 - 完成记录：
   - 改动范围：
+    - 在 `sysroot/scoop.core/core.scoop` Root types 区域新增空 `sealed interface AnyRef` 与 `sealed interface AnyValue`。
+    - 在 `crates/scoopc/src/typecheck/type_env.rs` 增加真实 sysroot 测试，覆盖 marker 注册、空 super closure、`AnyRef` / `AnyValue` 互斥、未写入 ordinary runtime supertype 图，以及用户源码中 `T: AnyRef` / `T: AnyValue` generic bound 使用。
+    - 未修改 `PLAN.md`、`CLOSURE_FIX.md` 或 runtime/codegen；未新增 sysroot 文件，因此无需调整 sysroot loader。
   - 核心决策：
+    - 直接把两个 marker 放入现有 `core.scoop` 的 Root types 附近，复用 C1-T01 已实现的 sysroot-only sealed marker metadata 与 bound-only gate。
+    - `AnyRef` / `AnyValue` 起步保持无 body、无 supertype，不继承普通 `Any` / `Hashable`，也不引入其它子 marker。
+    - 测试通过 `TypeEnv` 的 sealed marker 表与 ordinary `supertypes` 图分离来确认 marker 不作为 runtime interface supertype/itable 入口记录。
   - 验证结果：
-  - 与 `PLAN.md` / `CLOSURE_FIX.md` 对应闭合：
+    - `cargo test -p scoopc sysroot_type_env -- --nocapture`：通过，4 个 sysroot type env 定向测试通过。
+    - `cargo test -p scoopc sealed -- --nocapture`：通过，9 个 sealed 定向测试通过。
+    - `cargo build`：通过。
+    - `cargo clippy --all-targets -- -D warnings`：通过。
+  - 与 `PLAN.md` / `CLOSURE_FIX.md` 对应闭合：闭合 `PLAN.md` §4.4 / §7 C1-T02 与 `CLOSURE_FIX.md` §2.5 的 sysroot `AnyRef` / `AnyValue` marker 发布要求；阶段级计划未变化。
 
 ## C2：closure capture 修复
 

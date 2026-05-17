@@ -28,6 +28,8 @@ fun __scoop_string_unsafe_slice_bytes(value: String, byteOffset: Int, byteLength
 
 // Root types
 interface Any
+sealed interface AnyRef
+sealed interface AnyValue
 
 // 基础接口：Hashable（spec §2.2.2 / std v1）。
 //
