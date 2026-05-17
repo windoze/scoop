@@ -37,10 +37,6 @@ pub struct LoweredMir {
 pub(in crate::mir::lower) const UNTERMINATED: &str = "unterminated";
 /// `var` 可变捕获在 MIR dump 阶段使用的内部 box 类型名（T0714）。
 pub(in crate::mir::lower) const CAPTURE_BOX_FQN: &str = "scoop.__CaptureBox";
-pub(in crate::mir::lower) const THREAD_SPAWN_JOIN_RESUME_FQN: &str =
-    "scoop.core.__scoop_thread_spawn_join_resume";
-pub(in crate::mir::lower) const THREAD_SPAWN_JOIN_RESUME_U64_FQN: &str =
-    "scoop.core.__scoop_thread_spawn_join_resume_u64";
 
 pub(in crate::mir::lower) fn intrinsic_base_fqn(fqn: &str) -> &str {
     let base = fqn.rsplit_once("::<").map(|(base, _)| base).unwrap_or(fqn);

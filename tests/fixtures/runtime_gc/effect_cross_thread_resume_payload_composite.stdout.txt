@@ -1,6 +1,0 @@
-captured_payload
-captured_text
-payload_composite
-77
-payload_ref
-done

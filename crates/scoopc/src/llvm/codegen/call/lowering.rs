@@ -1599,15 +1599,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     args,
                 );
             }
-            if dispatch_fqn == "scoop.core.__scoop_thread_spawn_join_resume_u64" {
-                return self.codegen_sysroot_thread_intrinsics(
-                    span,
-                    callee.span,
-                    dispatch_fqn,
-                    args,
-                );
-            }
-
             if let Some(callee_hir_ty) = self.top_level_value_ty(fqn) {
                 if let TypeKind::Ref(RefTypeKind::Function(fun_ty)) = self.types.kind(callee_hir_ty)
                 {

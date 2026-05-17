@@ -8,7 +8,6 @@
 pub(crate) enum CodegenGapRoute {
     RawMirLlvm,
     EffectLoweredLlvm,
-    RuntimeC,
     UpstreamMirContract,
     FrontendReject,
 }
@@ -18,7 +17,6 @@ impl CodegenGapRoute {
         match self {
             Self::RawMirLlvm => "raw MIR LLVM",
             Self::EffectLoweredLlvm => "effect-lowered LLVM",
-            Self::RuntimeC => "runtime C",
             Self::UpstreamMirContract => "upstream MIR contract",
             Self::FrontendReject => "frontend reject",
         }
@@ -223,15 +221,6 @@ pub(crate) const CODEGEN_GAP_INVENTORY: &[CodegenGapEntry] = &[
         "outward-empty callable must publish plain entry routing"
     ),
     gap!(
-        "PIPELINE_GAPS §5.5",
-        "P5-T01",
-        "P5-T01 / cross-thread effect-payload transport guard",
-        RuntimeC,
-        true,
-        false,
-        "cross-thread resume payload must publish descriptor-backed composite transport metadata before reaching the runtime helper"
-    ),
-    gap!(
         "PIPELINE_GAPS §7.2",
         "P6-T02",
         "P6-T02 / function-type runtime cast frontend gate",
@@ -285,7 +274,6 @@ mod tests {
             "PIPELINE_GAPS §5.1",
             "PIPELINE_GAPS §5.3",
             "PIPELINE_GAPS §5.4",
-            "PIPELINE_GAPS §5.5",
             "PIPELINE_GAPS §7.2",
             "PIPELINE_GAPS §7.6",
         ];
@@ -374,7 +362,6 @@ mod tests {
                         entry.route,
                         CodegenGapRoute::RawMirLlvm
                             | CodegenGapRoute::EffectLoweredLlvm
-                            | CodegenGapRoute::RuntimeC
                             | CodegenGapRoute::UpstreamMirContract
                             | CodegenGapRoute::FrontendReject
                     ),
@@ -447,13 +434,6 @@ mod tests {
                 CodegenGapRoute::EffectLoweredLlvm,
                 true,
                 "array composite element transport must publish descriptor-backed metadata",
-            ),
-            (
-                "PIPELINE_GAPS §5.5",
-                "P5-T01 / cross-thread effect-payload transport guard",
-                CodegenGapRoute::RuntimeC,
-                true,
-                "cross-thread resume payload must publish descriptor-backed composite transport metadata before reaching the runtime helper",
             ),
         ] {
             let entry = codegen_gap_entry(gap_id)
@@ -657,7 +637,6 @@ mod tests {
             "UnsupportedMainBody",
             "pass MIR",
             "runtime cast/typecheck metadata",
-            "cross-thread resume payload",
         ] {
             assert!(
                 triggers.contains(needle),

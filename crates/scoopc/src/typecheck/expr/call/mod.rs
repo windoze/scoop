@@ -15,8 +15,7 @@ use super::ops::{
     try_extract_nominal_fqn_and_args,
 };
 use super::util::{
-    expr_kind_name, fmt_effect_row, fmt_overload_signature, join_overload_signatures,
-    short_name_from_fqn,
+    expr_kind_name, fmt_overload_signature, join_overload_signatures, short_name_from_fqn,
 };
 
 use super::collect::build_fun_where_constraints_from_resolve_sig;

@@ -2135,15 +2135,6 @@ impl<'a> MirDumpRenderer<'a> {
                             .map(|gc| self.gc_transport_text(ctx, gc)),
                     ),
                 ),
-                (
-                    "thread_resume_payload",
-                    self.option_text(
-                        metadata
-                            .thread_resume_payload
-                            .as_ref()
-                            .map(|transport| self.value_transport_text(Some(ctx), transport)),
-                    ),
-                ),
                 ("abi", self.call_abi_text(&metadata.abi)),
             ],
         )

@@ -441,58 +441,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.declare_runtime_or_native_import_function(NAME, fn_ty)
     }
 
-    pub(super) fn declare_runtime_thread_spawn_join_compat_resume_u64(
-        &self,
-    ) -> FunctionValue<'ctx> {
-        const NAME: &str = runtime_symbols::SCOOP_THREAD_SPAWN_JOIN_COMPAT_RESUME_U64;
-        if let Some(existing) = self.module.get_function(NAME) {
-            return existing;
-        }
-
-        let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
-        let i64_ty = self.context.i64_type();
-        let param_tys: [BasicMetadataTypeEnum<'ctx>; 2] = [gc_i8_ptr_ty.into(), i64_ty.into()];
-        let fn_ty = self.context.void_type().fn_type(&param_tys, false);
-        self.declare_runtime_or_native_import_function(NAME, fn_ty)
-    }
-
-    pub(super) fn declare_runtime_thread_spawn_join_resume_u64(&self) -> FunctionValue<'ctx> {
-        const NAME: &str = runtime_symbols::SCOOP_THREAD_SPAWN_JOIN_RESUME_U64;
-        if let Some(existing) = self.module.get_function(NAME) {
-            return existing;
-        }
-
-        let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
-        let i64_ty = self.context.i64_type();
-        let thunk_ptr_ty = self.context.ptr_type(AddressSpace::default());
-        let param_tys: [BasicMetadataTypeEnum<'ctx>; 3] =
-            [gc_i8_ptr_ty.into(), i64_ty.into(), thunk_ptr_ty.into()];
-        let fn_ty = self.context.void_type().fn_type(&param_tys, false);
-        self.declare_runtime_or_native_import_function(NAME, fn_ty)
-    }
-
-    pub(super) fn declare_runtime_thread_spawn_join_resume_transport(&self) -> FunctionValue<'ctx> {
-        const NAME: &str = runtime_symbols::SCOOP_THREAD_SPAWN_JOIN_RESUME_TRANSPORT;
-        if let Some(existing) = self.module.get_function(NAME) {
-            return existing;
-        }
-
-        let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
-        let i64_ty = self.context.i64_type();
-        let default_ptr_ty = self.context.ptr_type(AddressSpace::default());
-        let thunk_ptr_ty = self.context.ptr_type(AddressSpace::default());
-        let param_tys: [BasicMetadataTypeEnum<'ctx>; 6] = [
-            gc_i8_ptr_ty.into(),
-            i64_ty.into(),
-            gc_i8_ptr_ty.into(),
-            default_ptr_ty.into(),
-            default_ptr_ty.into(),
-            thunk_ptr_ty.into(),
-        ];
-        let fn_ty = self.context.void_type().fn_type(&param_tys, false);
-        self.declare_runtime_or_native_import_function(NAME, fn_ty)
-    }
-
     pub(super) fn declare_runtime_thread_join(&self) -> FunctionValue<'ctx> {
         const NAME: &str = runtime_symbols::SCOOP_THREAD_JOIN;
         if let Some(existing) = self.module.get_function(NAME) {

@@ -311,11 +311,6 @@ interface Continuation<Resume, Answer, eff E = Pure> {
     fun resume(value: Resume): Answer / (E + Raise<RuntimeError>)
 }
 
-@Intrinsic
-fun <Resume> __scoop_thread_spawn_join_resume(continuation: Continuation<Resume, Unit>, value: Resume): Unit
-@Intrinsic
-fun __scoop_thread_spawn_join_resume_u64(continuation: Continuation<Int, Unit>, value: Int): Unit
-
 enum RuntimeError {
     NullAssertionFailed,
     ClassCastFailed,

@@ -238,7 +238,7 @@ const STALE_UNSUPPORTED_MAIN_BODY_COUNTS: &[UnsupportedMainBodyCount] = &[
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/effect_lowered/value.rs",
-        expected_count: 140,
+        expected_count: 132,
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/main/alloca.rs",
@@ -461,8 +461,8 @@ const POST_UPSTREAM_VALIDATION_GUARDS: &[UpstreamGuardedSentinel] = &[
 
 const INTERNAL_BUG_SENTINEL_HITS: &[&str] = &[
     "crates/scoopc/src/llvm/codegen/mir_body/call.rs:724:            (None, CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_)) => unreachable!(",
-    "crates/scoopc/src/llvm/codegen/effect_lowered/value.rs:2708:                    _ => unreachable!(\"filtered by match\"),",
-    "crates/scoopc/src/llvm/codegen/effect_lowered/value.rs:3742:            _ => unreachable!(\"filtered by caller\"),",
+    "crates/scoopc/src/llvm/codegen/effect_lowered/value.rs:2407:                    _ => unreachable!(\"filtered by match\"),",
+    "crates/scoopc/src/llvm/codegen/effect_lowered/value.rs:3441:            _ => unreachable!(\"filtered by caller\"),",
     "crates/scoopc/src/llvm/codegen/main/alloca.rs:48:            _ => unreachable!(\"cast_float only accepts Float64/Float32\"),",
     "crates/scoopc/src/llvm/codegen/main/coerce.rs:74:                    _ => unreachable!(\"filtered by caller\"),",
     "crates/scoopc/src/llvm/codegen/main/coerce.rs:93:                _ => unreachable!(\"filtered by caller\"),",
@@ -581,7 +581,7 @@ fn pipeline_user_visible_failure_policy_tracks_stale_unsupportedmainbody_counts(
             baseline.path
         );
     }
-    assert_eq!(total, 651);
+    assert_eq!(total, 643);
 }
 
 #[test]

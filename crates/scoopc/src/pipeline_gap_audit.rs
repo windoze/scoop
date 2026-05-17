@@ -99,7 +99,6 @@ const CODEGEN_SCOPE_DRIFT_BASELINE: &[&str] = &[
     "PIPELINE_GAPS §5.1",
     "PIPELINE_GAPS §5.3",
     "PIPELINE_GAPS §5.4",
-    "PIPELINE_GAPS §5.5",
     "PIPELINE_GAPS §7.6",
 ];
 

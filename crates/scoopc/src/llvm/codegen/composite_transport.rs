@@ -230,14 +230,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         if let Some(gc) = &transport.gc {
             self.verify_gc_intrinsic_composite_transport_contract(body_fqn, span, mir_types, gc)?;
         }
-        if let Some(thread_resume_payload) = &transport.thread_resume_payload {
-            self.verify_value_composite_transport_contract(
-                body_fqn,
-                span,
-                mir_types,
-                thread_resume_payload,
-            )?;
-        }
         Ok(())
     }
 

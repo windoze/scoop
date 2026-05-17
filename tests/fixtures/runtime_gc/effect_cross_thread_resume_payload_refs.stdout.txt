@@ -1,8 +1,0 @@
-body_start
-captured
-before_thread
-resumed
-payload_ref
-42
-after_thread
-done

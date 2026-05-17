@@ -650,43 +650,7 @@ pub(super) fn nominal_eff_row_from_type(ty: TypeId, lower: &TypeLowering<'_>) ->
     }
 }
 
-pub(super) fn check_cross_thread_resume_policy(
-    callee_fqn: &str,
-    call_args: &[CallArgInfo<'_>],
-    checked_arg_tys: &[TypeId],
-    mapping_pairs: &[(usize, usize)],
-    lower: &TypeLowering<'_>,
-) -> Result<(), ExprTypeError> {
-    let base = cross_thread_resume_intrinsic_base(callee_fqn);
-    if !matches!(
-        base,
-        "scoop.core.__scoop_thread_spawn_join_resume"
-            | "scoop.core.__scoop_thread_spawn_join_resume_u64"
-    ) {
-        return Ok(());
-    }
-    let Some(arg_idx) = mapping_pairs
-        .iter()
-        .find_map(|(param_idx, arg_idx)| (*param_idx == 0).then_some(*arg_idx))
-    else {
-        return Ok(());
-    };
-    let Some(found_ty) = checked_arg_tys.get(arg_idx).copied() else {
-        return Ok(());
-    };
-    let Some(row) = continuation_effect_row(found_ty, lower) else {
-        return Ok(());
-    };
-    if row.is_pure() {
-        return Ok(());
-    }
-    Err(ExprTypeError::CrossThreadResumeOutwardEffectsUnsupported {
-        effects: fmt_effect_row(&row, lower),
-        span: call_args[arg_idx].expr.span.into(),
-    })
-}
-
-pub(super) fn cross_thread_resume_intrinsic_base(callee_fqn: &str) -> &str {
+pub(super) fn intrinsic_call_base(callee_fqn: &str) -> &str {
     let base = callee_fqn
         .rsplit_once("::<")
         .map(|(base, _)| base)
@@ -703,7 +667,7 @@ pub(super) fn check_thread_spawn_entry_policy(
     mapping_pairs: &[(usize, usize)],
     lower: &TypeLowering<'_>,
 ) -> Result<(), ExprTypeError> {
-    if cross_thread_resume_intrinsic_base(callee_fqn) != "scoop.thread.threadSpawn" {
+    if intrinsic_call_base(callee_fqn) != "scoop.thread.threadSpawn" {
         return Ok(());
     }
     let Some(arg_idx) = mapping_pairs
@@ -726,18 +690,6 @@ pub(super) fn check_thread_spawn_entry_policy(
         found: lower.fmt_type(found_ty),
         span: call_args[arg_idx].expr.span.into(),
     })
-}
-
-pub(super) fn continuation_effect_row(ty: TypeId, lower: &TypeLowering<'_>) -> Option<EffectRow> {
-    match lower.type_kind(ty) {
-        TypeKind::Ref(RefTypeKind::Nominal(nominal))
-            if nominal.fqn == "scoop.core.Continuation" =>
-        {
-            Some(nominal.eff.unwrap_or_else(EffectRow::pure))
-        }
-        TypeKind::Value(ValueTypeKind::Option(inner)) => continuation_effect_row(inner, lower),
-        _ => None,
-    }
 }
 
 pub(super) fn type_param_bindings_from_sig(

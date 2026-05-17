@@ -267,7 +267,7 @@
   - 闭合 PLAN §4.2 / §9 / P10 中“core 清理 unsafe/thread/sync surface”的 atomic 部分：core 不再提供 atomic surface，后续 P10-T02 / P10-T03 可继续清 thread/sync 相关依赖。
 - 暂时性 failing fixture：无。
 
-### P10-T02：删除 `__scoop_thread_spawn_join_resume*` 与相关 runtime 入口
+### [DONE] P10-T02：删除 `__scoop_thread_spawn_join_resume*` 与相关 runtime 入口
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §4.2 / §9 / P10
@@ -301,6 +301,39 @@
 - 完成条件：
   - 跨线程 resume 测试 helper 完整退场。
 - 依赖：P10-T01。
+
+完成记录：
+
+- 改动范围：
+  - `sysroot/core.scoop` 删除 `__scoop_thread_spawn_join_resume` / `__scoop_thread_spawn_join_resume_u64` 两个内部测试 helper 声明；`Continuation<Resume, Answer, eff E>` 接口保留。
+  - build fixture overlay sysroot 中同步删除这两个 helper 声明，避免 overlay core 继续暴露已退场 surface。
+  - `runtime/c/scoop_thread.c` 删除 `scoop_thread_spawn_join_resume_u64` / `scoop_thread_spawn_join_resume_transport` 及其 thunk/args/entry 实现；`runtime/c/scoop_runtime_api.h` 删除 `scoop_thread_spawn_join_compat_resume_u64` / `scoop_thread_spawn_join_resume_transport` / `scoop_thread_spawn_join_resume_u64` X-macro 导出项。
+  - `crates/scoopc/src/llvm/codegen/runtime_symbols.rs` / `runtime_abi.rs` 删除对应 runtime symbol 与 declare helper；HIR call lowering、`intrinsics/thread.rs`、effect-lowered value lowering、MIR call transport metadata、materialization rewrite/validation/dump、typecheck cross-thread resume diagnostic gate、codegen gap inventory 与相关 audit baseline 已同步删除或收口。
+  - MIR golden 中移除已删除的 `CallTransportMetadata.thread_resume_payload` 字段输出。
+  - 删除 7 个直接依赖跨线程 resume helper 的 fixtures 及 6 个 stdout sidecar；`crates/scoop/tests/cg8_codegen_regression_matrix.rs` 删除对这些 fixture 的矩阵引用。
+- 核心决策：
+  - 不为 helper 保留 alias、shim、fallback 或 C/runtime 兼容导出；跨线程 resume helper 是本轮明确退场的测试 surface。
+  - 不删除 `Continuation` 本身，也不触碰普通单线程 `k.resume(...)` 路径与 one-shot/runtime-error 语义。
+  - 连同 MIR `thread_resume_payload` 特殊 metadata 一并删除，因为它只服务已退场的跨线程 resume transport helper；保留会留下无调用方的编译器专用路径。
+  - fixture 处理按 P0-T01 删除标准执行：下列 fixture 的被测对象就是 `__scoop_thread_spawn_join_resume*` helper 或其专用 typed transport，因此随 helper 删除；普通 `Continuation` / 单线程 resume 已由 `continuation_*`、`effect_escape_continuation_resume_later_exit.scoop`、`dispatch_and_resume_call.scoop` 等现有 fixture 覆盖。
+- DELETE 论证：
+  - `tests/fixtures/typecheck/cross_thread_resume_outward_effects_is_error.scoop` -> DELETE：被测对象是 cross-thread resume helper 的 non-`Pure` policy gate；helper surface 删除后该 frontend diagnostic 不再有合法入口。
+  - `tests/fixtures/runtime_gc/effect_cross_thread_resume_payload_refs.scoop` -> DELETE：被测对象是跨线程 resume 下 String ref payload / moving-GC root writeback；该 transport helper 已删除，未来 thread/sync 重设计如恢复语义需重新建 fixture。
+  - `tests/fixtures/runtime_gc/effect_cross_thread_resume_payload_composite.scoop` -> DELETE：被测对象是 generic `__scoop_thread_spawn_join_resume<Resume>` 的 composite/ref payload transport；compiler/runtime transport path 已删除。
+  - `tests/fixtures/run-pass/effect_escape_continuation_resume_cross_thread.scoop` -> DELETE：被测对象是 T0618 跨线程 resume helper 的最小端到端行为；普通 escaped continuation resume 由单线程 fixtures 覆盖。
+  - `tests/fixtures/run-pass/effect_escape_continuation_multi_perform_cross_thread.scoop` -> DELETE：被测对象是同一 helper 下多 perform 点的跨线程 resume；多 perform / continuation lifting 的单线程语义仍由现有 effect fixtures 覆盖。
+  - `tests/fixtures/run-pass/gc_continuation_cross_thread_resume_with_objects.scoop` -> DELETE：被测对象是跨线程 resume + GC 下 ContState object graph 存活；跨线程 resume helper 删除后测试意图失效，GC object graph / continuation root 行为由非 helper fixtures 覆盖。
+  - `tests/fixtures/run-pass/object_once_init_cross_thread.scoop` -> DELETE：被测对象是通过跨线程 resume helper 让 object init 首次发生在 resumed thread；helper 删除后该 fixture 的执行机制失效，`scoop.thread` 通用 threadSpawn/once 相关行为由保留的 thread/sync fixtures 覆盖。
+- 验证结果：
+  - `grep` 等价检查：`crates/`、`runtime/`、`sysroot/` 中 `scoop_thread_spawn_join_resume|__scoop_thread_spawn_join_resume|scoop_thread_spawn_join_compat_resume` 无命中；`tests/fixtures/**/*.scoop` 中 `__scoop_thread_spawn_join_resume` 无命中。
+  - `cargo build` 通过且无 warning。
+  - `cargo clippy --all-targets -- -D warnings` 通过。
+  - `cargo test --all --all-targets` 通过：856 passed（scoopc lib）及其余 workspace tests 通过。
+  - `cargo run -p scoop -- test` 通过：1338/1338 targets，1375 checks。
+- 与 `PLAN.md` 对应闭合：
+  - 闭合 PLAN §4.2 / §9 / P10 中 “`__scoop_thread_spawn_join_resume*` 删除” 项；core 不再暴露跨线程 resume 测试 helper，runtime 与编译器也不再含对应专用入口。
+  - `Continuation` 自身保留，后续 P10-T03 可继续验证 core/lang.string 不再隐式依赖 `scoop.thread` / `scoop.sync`。
+- 暂时性 failing fixture：无。
 
 ### P10-T03：验证 core / lang.string 不再隐式依赖 `scoop.thread` / `scoop.sync`
 

@@ -2807,8 +2807,6 @@ fn is_plain_compiler_intrinsic(callable_fqn: &str) -> bool {
             | "scoop.core.__scoop_gc_debug_heap_object_count"
             | "scoop.core.__scoop_gc_debug_alloc_garbage"
             | "scoop.core.__scoop_stackmap_statepoint_smoke"
-            | "scoop.core.__scoop_thread_spawn_join_resume"
-            | "scoop.core.__scoop_thread_spawn_join_resume_u64"
             | "scoop.core.size"
             | "scoop.core.get"
             | "scoop.core.set"

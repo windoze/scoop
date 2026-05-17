@@ -323,7 +323,6 @@ pub struct CallTransportMetadata {
     pub aggregate_return: Option<ValueTransportMetadata>,
     pub array: Option<ArrayElementTransportMetadata>,
     pub gc: Option<GcIntrinsicTransportMetadata>,
-    pub thread_resume_payload: Option<Box<ValueTransportMetadata>>,
     pub abi: CallAbiHandoffMetadata,
 }
 
@@ -334,7 +333,6 @@ impl CallTransportMetadata {
             aggregate_return: None,
             array: None,
             gc: None,
-            thread_resume_payload: None,
             abi: CallAbiHandoffMetadata::plain_no_outward(),
         }
     }

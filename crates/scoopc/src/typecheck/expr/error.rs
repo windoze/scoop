@@ -523,14 +523,6 @@ pub enum ExprTypeError {
         span: miette::SourceSpan,
     },
 
-    #[error("跨线程 resume 当前阶段只支持 `Pure` continuation，不能传播 effect row：{effects}")]
-    #[diagnostic(code(scoop::typecheck::cross_thread_resume_outward_effects_unsupported))]
-    CrossThreadResumeOutwardEffectsUnsupported {
-        effects: String,
-        #[label("这里")]
-        span: miette::SourceSpan,
-    },
-
     #[error("{owner} 初始化器必须为 `Pure!`；这里需要 effect {required}")]
     #[diagnostic(code(scoop::typecheck::static_initializer_must_be_pure))]
     StaticInitializerMustBePure {

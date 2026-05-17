@@ -1201,54 +1201,6 @@ fun main(): Int {
         )
     }
 
-    fn cross_thread_resume_payload_transport_source() -> SourceFile {
-        SourceFile::new_virtual(
-            "<mem>/cross_thread_resume_payload_transport_fixture.scoop",
-            r#"
-package sample
-
-import scoop.core.*
-
-struct Point(val x: Int, val label: String)
-
-effect AwaitPoint {
-    fun next(): Point
-}
-
-fun main(): Int {
-    var saved: Continuation<Point, Unit>? = None()
-    var observed: Int = 0
-
-    val handled: Unit = handle {
-        val point: Point = AwaitPoint.next()
-        __scoop_gc_collect()
-        observed = point.x
-    } with {
-        AwaitPoint.next(), k -> {
-            saved = Some(k)
-        }
-    }
-
-    when (saved) {
-        Some(k) -> {
-            saved = None()
-            if (observed < 0) {
-                val ignored: Unit = try {
-                    k.resume(Point(0, "unused"))
-                } catch (e: RuntimeError) {
-                    val unused: RuntimeError = e
-                }
-            }
-            __scoop_thread_spawn_join_resume(k, Point(7, "resume"))
-        }
-        None -> {}
-    }
-    return observed
-}
-"#,
-        )
-    }
-
     fn emit_ir_for_source(source: SourceFile, file_name: &str) -> String {
         emit_ir_for_source_with_entry(source, file_name, None).unwrap()
     }
@@ -1733,58 +1685,6 @@ fun main(): Int {
             ir.contains("pass_mir_closure_env_field_gep")
                 && ir.contains("pass_mir_capture_box_set_field_gep"),
             "closure allocation/invoke should store env fields and mutate through capture boxes\n{ir}"
-        );
-    }
-
-    #[test]
-    fn llvm_cross_thread_resume_payload_transport() {
-        let ir = emit_ir_for_source(
-            cross_thread_resume_payload_transport_source(),
-            "cross_thread_resume_payload_transport.ll",
-        );
-
-        assert!(
-            ir.contains("@scoop_thread_spawn_join_resume_transport"),
-            "cross-thread resume should call the typed transport runtime helper\n{ir}"
-        );
-        let transport_thunk = ir_function_matching(
-            &ir,
-            "typed thread resume transport thunk",
-            |header, function| {
-                !header.contains("@main(")
-                    && function.contains("thread_surface_resume_transport")
-                    && function.contains("thread_resume_payload")
-            },
-        );
-        let transport_symbol = ir_function_symbol_name(transport_thunk);
-        assert!(
-            ir.lines().any(|line| {
-                line.contains("@scoop_thread_spawn_join_resume_transport")
-                    && ir_line_mentions_symbol(line, transport_symbol)
-            }),
-            "cross-thread resume should generate a typed surface-resume thunk and pass it to the runtime helper\n{transport_thunk}"
-        );
-        let payload_descriptor = ir_global_definition_matching(
-            &ir,
-            "boxed composite transport descriptor for resume payload",
-            |line| {
-                line.contains("%scoop.runtime.ScoopCompositeTransportDescriptor")
-                    && line.contains("__gc_slots")
-                    && line.contains("@scoop_composite_trace")
-            },
-        );
-        assert!(
-            payload_descriptor.contains("__gc_slots"),
-            "composite resume payload should pass a descriptor with GC slot metadata\n{payload_descriptor}"
-        );
-        assert!(
-            payload_descriptor.starts_with("@__scoop_priv0__composite_transport_desc__h"),
-            "cross-thread resume payload descriptor 应改走 stable private namespace\n{payload_descriptor}"
-        );
-        assert!(
-            ir.contains("%thread_resume_payload")
-                && ir.contains("@scoop_thread_spawn_join_resume_transport"),
-            "composite resume payload should be passed through an explicit carrier pointer\n{ir}"
         );
     }
 

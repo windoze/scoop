@@ -43,7 +43,7 @@
 | `P9-T02` | [DONE] | P9 | [DONE] 按 P0-T01 三分类清单批量改写 / 合并 / 删除 fixture | [TODO-5.md](./TODO-5.md) |
 | `P9-T03` | [DONE] | P9 | [DONE] 删除 `stdlib/` 目录与 frontend stdlib 注入路径 | [TODO-5.md](./TODO-5.md) |
 | `P10-T01` | [DONE] | P10 | [DONE] 把 `__AtomicInt` 系列从 core 迁到 `scoop.unsafe` | [TODO-5.md](./TODO-5.md) |
-| `P10-T02` | [TODO] | P10 | 删除 `__scoop_thread_spawn_join_resume*` 与相关 runtime 入口 | [TODO-5.md](./TODO-5.md) |
+| `P10-T02` | [DONE] | P10 | [DONE] 删除 `__scoop_thread_spawn_join_resume*` 与相关 runtime 入口 | [TODO-5.md](./TODO-5.md) |
 | `P10-T03` | [TODO] | P10 | 验证 core / lang.string 不再隐式依赖 `scoop.thread` / `scoop.sync` | [TODO-5.md](./TODO-5.md) |
 | `P11-T01` | [TODO] | P11 | 审查 `__scoop_stackmap_statepoint_smoke` / `__scoop_gc_debug_*` 实际使用方 | [TODO-5.md](./TODO-5.md) |
 | `P11-T02` | [TODO] | P11 | 测试 helper 迁移到 test cone 或 C ABI extern 或删除 | [TODO-5.md](./TODO-5.md) |

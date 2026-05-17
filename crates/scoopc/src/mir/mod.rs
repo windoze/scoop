@@ -203,24 +203,6 @@ fn gc_intrinsic_operation(callee_fqn: &str) -> Option<GcIntrinsicOperation> {
     }
 }
 
-fn intrinsic_base_fqn(callee_fqn: &str) -> &str {
-    let base = callee_fqn
-        .rsplit_once("::<")
-        .map(|(base, _)| base)
-        .unwrap_or(callee_fqn);
-    base.split_once("$overload")
-        .map(|(base, _)| base)
-        .unwrap_or(base)
-}
-
-fn is_cross_thread_resume_intrinsic(callee_fqn: &str) -> bool {
-    matches!(
-        intrinsic_base_fqn(callee_fqn),
-        "scoop.core.__scoop_thread_spawn_join_resume"
-            | "scoop.core.__scoop_thread_spawn_join_resume_u64"
-    )
-}
-
 impl File {
     /// Production verifier for MIR stage output.
     ///
@@ -396,7 +378,6 @@ impl File {
             }),
             Rvalue::Call {
                 kind,
-                args,
                 transport,
                 ..
             } => {
@@ -424,9 +405,6 @@ impl File {
                     )?;
                 }
                 self.validate_gc_intrinsic_transport(site, kind, result_ty, transport)?;
-                self.validate_thread_resume_payload_transport(
-                    site, body, kind, args, transport,
-                )?;
                 Ok(())
             }
             Rvalue::EnumVariant {
@@ -737,65 +715,6 @@ impl File {
             Some(gc.subject_ty),
             &gc.subject,
         )
-    }
-
-    fn validate_thread_resume_payload_transport(
-        &self,
-        site: ProductionSiteContext<'_>,
-        body: &Body,
-        kind: &CallKind,
-        args: &[CallArg],
-        transport: &CallTransportMetadata,
-    ) -> Result<(), MirValidationError> {
-        let direct_thread_resume = match kind {
-            CallKind::Direct { callee_fqn } => is_cross_thread_resume_intrinsic(callee_fqn),
-            CallKind::Closure { .. }
-            | CallKind::FunValue { .. }
-            | CallKind::FunPtr { .. }
-            | CallKind::Virtual { .. }
-            | CallKind::Interface { .. }
-            | CallKind::Resume { .. } => false,
-        };
-
-        let Some(payload) = &transport.thread_resume_payload else {
-            if direct_thread_resume {
-                return Err(MirValidationError::ProductionTransportMetadata {
-                    fqn: site.fqn.to_string(),
-                    block: site.block,
-                    span: site.span,
-                    transport: "cross-thread resume payload",
-                    detail: "cross-thread resume call is missing payload transport metadata",
-                });
-            }
-            return Ok(());
-        };
-
-        if !direct_thread_resume {
-            return Err(MirValidationError::ProductionTransportMetadata {
-                fqn: site.fqn.to_string(),
-                block: site.block,
-                span: site.span,
-                transport: "cross-thread resume payload",
-                detail: "payload transport metadata is attached to a non thread-resume call",
-            });
-        }
-
-        let expected_ty = args
-            .get(1)
-            .and_then(|arg| Self::operand_ty(body, &arg.value));
-        if payload.kind != MirTransportKind::EffectPayload
-            || expected_ty.is_some_and(|ty| payload.source_ty != ty)
-        {
-            return Err(MirValidationError::ProductionTransportMetadata {
-                fqn: site.fqn.to_string(),
-                block: site.block,
-                span: site.span,
-                transport: "cross-thread resume payload",
-                detail: "payload transport kind or source type disagrees with resume value",
-            });
-        }
-
-        self.validate_value_transport(site, "cross-thread resume payload", expected_ty, payload)
     }
 
     fn validate_aggregate_transport(

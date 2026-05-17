@@ -676,39 +676,8 @@ impl<'a> FnLowering<'a> {
             aggregate_return,
             array: self.array_transport_metadata(result_ty, kind, args),
             gc: self.gc_intrinsic_transport_metadata(result_ty, kind, args, gc_intrinsic_callee),
-            thread_resume_payload: self.thread_resume_payload_transport_metadata(kind, args),
             abi: self.call_abi_handoff(kind),
         }
-    }
-
-    pub(in crate::mir::lower) fn thread_resume_payload_transport_metadata(
-        &self,
-        kind: &CallKind,
-        args: &[CallArg],
-    ) -> Option<Box<ValueTransportMetadata>> {
-        let CallKind::Direct { callee_fqn } = kind else {
-            return None;
-        };
-        let base = intrinsic_base_fqn(callee_fqn);
-        if !matches!(
-            base,
-            THREAD_SPAWN_JOIN_RESUME_FQN | THREAD_SPAWN_JOIN_RESUME_U64_FQN
-        ) {
-            return None;
-        }
-        let payload_ty = args
-            .first()
-            .map(|arg| self.operand_ty(&arg.value))
-            .and_then(|ty| {
-                continuation_contract_from_type(self.types, ty).map(|(resume, _, _)| resume)
-            })
-            .or_else(|| args.get(1).map(|arg| self.operand_ty(&arg.value)))?;
-        Some(Box::new(self.value_transport_with_boxing_reason(
-            payload_ty,
-            MirTransportKind::EffectPayload,
-            MirBoxingReason::EffectPayload,
-            Some(payload_ty),
-        )))
     }
 
     pub(in crate::mir::lower) fn gc_intrinsic_transport_metadata(

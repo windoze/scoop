@@ -33,11 +33,6 @@ void scoop_leave_native(void);
 void scoop_gc_safepoint_poll(void);
 
 typedef void (*ScoopThreadStartFn)(void *env);
-typedef void (*ScoopThreadResumeU64Thunk)(void *continuation, uint64_t value);
-typedef void (*ScoopThreadResumeTransportThunk)(void *continuation,
-                                                uint64_t word,
-                                                void *gc_ref,
-                                                void *payload_ptr);
 
 typedef struct ScoopThreadHandle {
   ScoopGcObjectHeader header;
@@ -51,20 +46,6 @@ typedef struct ScoopThreadStartArgs {
   ScoopThreadStartFn fn;
   uint32_t env_is_pinned;
 } ScoopThreadStartArgs;
-
-typedef struct ScoopThreadResumeU64Args {
-  void *continuation;
-  uint64_t value;
-  ScoopThreadResumeU64Thunk thunk;
-} ScoopThreadResumeU64Args;
-
-typedef struct ScoopThreadResumeTransportArgs {
-  void *continuation;
-  uint64_t word;
-  void *gc_ref;
-  void *payload_ptr;
-  ScoopThreadResumeTransportThunk thunk;
-} ScoopThreadResumeTransportArgs;
 
 static uint32_t scoop_test_thread_spawn_gate_enabled_flag = 0;
 static uint32_t scoop_test_thread_spawn_gate_entered_flag = 0;
@@ -124,46 +105,6 @@ static void *scoop_thread_entry(void *arg) {
   }
   if (fn != 0) {
     fn(env);
-  }
-  scoop_thread_unregister();
-  return 0;
-}
-
-static void *scoop_thread_resume_u64_entry(void *arg) {
-  if (arg == 0) {
-    return 0;
-  }
-
-  ScoopThreadResumeU64Args *args = (ScoopThreadResumeU64Args *)arg;
-  void *continuation = args->continuation;
-  uint64_t value = args->value;
-  ScoopThreadResumeU64Thunk thunk = args->thunk;
-  free(args);
-
-  scoop_thread_register();
-  if (thunk != 0) {
-    thunk(continuation, value);
-  }
-  scoop_thread_unregister();
-  return 0;
-}
-
-static void *scoop_thread_resume_transport_entry(void *arg) {
-  if (arg == 0) {
-    return 0;
-  }
-
-  ScoopThreadResumeTransportArgs *args = (ScoopThreadResumeTransportArgs *)arg;
-  void *continuation = args->continuation;
-  uint64_t word = args->word;
-  void *gc_ref = args->gc_ref;
-  void *payload_ptr = args->payload_ptr;
-  ScoopThreadResumeTransportThunk thunk = args->thunk;
-  free(args);
-
-  scoop_thread_register();
-  if (thunk != 0) {
-    thunk(continuation, word, gc_ref, payload_ptr);
   }
   scoop_thread_unregister();
   return 0;
@@ -238,92 +179,6 @@ void scoop_thread_join(void *thread_obj) {
   scoop_enter_native(0, 0);
   (void)scoop_platform_thread_join(t->thread);
   scoop_leave_native();
-}
-
-void scoop_thread_spawn_join_resume_u64(void *continuation,
-                                        uint64_t value,
-                                        void *thunk_ptr) {
-  if (continuation == 0 || thunk_ptr == 0) {
-    return;
-  }
-
-  scoop_thread_register();
-  (void)scoop_pin(continuation);
-
-  ScoopThreadResumeU64Args *args =
-      (ScoopThreadResumeU64Args *)malloc(sizeof(ScoopThreadResumeU64Args));
-  if (args == 0) {
-    (void)scoop_unpin(continuation);
-    return;
-  }
-  args->continuation = continuation;
-  args->value = value;
-  args->thunk = (ScoopThreadResumeU64Thunk)thunk_ptr;
-
-  ScoopPlatformThread thread;
-  (void)memset(&thread, 0, sizeof(thread));
-  if (!scoop_platform_thread_spawn(&thread, scoop_thread_resume_u64_entry, (void *)args)) {
-    free(args);
-    (void)scoop_unpin(continuation);
-    return;
-  }
-
-  scoop_enter_native(0, 0);
-  (void)scoop_platform_thread_join(thread);
-  scoop_leave_native();
-  (void)scoop_unpin(continuation);
-}
-
-void scoop_thread_spawn_join_resume_transport(void *continuation,
-                                              uint64_t word,
-                                              void *gc_ref,
-                                              void *descriptor,
-                                              void *payload_ptr,
-                                              void *thunk_ptr) {
-  (void)descriptor;
-  if (continuation == 0 || thunk_ptr == 0) {
-    return;
-  }
-
-  scoop_thread_register();
-  (void)scoop_pin(continuation);
-  if (gc_ref != 0) {
-    (void)scoop_pin(gc_ref);
-  }
-
-  ScoopThreadResumeTransportArgs *args =
-      (ScoopThreadResumeTransportArgs *)malloc(sizeof(ScoopThreadResumeTransportArgs));
-  if (args == 0) {
-    if (gc_ref != 0) {
-      (void)scoop_unpin(gc_ref);
-    }
-    (void)scoop_unpin(continuation);
-    return;
-  }
-  args->continuation = continuation;
-  args->word = word;
-  args->gc_ref = gc_ref;
-  args->payload_ptr = payload_ptr;
-  args->thunk = (ScoopThreadResumeTransportThunk)thunk_ptr;
-
-  ScoopPlatformThread thread;
-  (void)memset(&thread, 0, sizeof(thread));
-  if (!scoop_platform_thread_spawn(&thread, scoop_thread_resume_transport_entry, (void *)args)) {
-    free(args);
-    if (gc_ref != 0) {
-      (void)scoop_unpin(gc_ref);
-    }
-    (void)scoop_unpin(continuation);
-    return;
-  }
-
-  scoop_enter_native(0, 0);
-  (void)scoop_platform_thread_join(thread);
-  scoop_leave_native();
-  if (gc_ref != 0) {
-    (void)scoop_unpin(gc_ref);
-  }
-  (void)scoop_unpin(continuation);
 }
 
 void scoop_thread_yield(void) {

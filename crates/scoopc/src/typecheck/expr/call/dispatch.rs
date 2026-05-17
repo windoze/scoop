@@ -407,13 +407,6 @@ pub(in crate::typecheck::expr) fn infer_call_expr_type(
                     )?;
                     checked_arg_tys[arg_idx] = found_ty;
                 }
-                check_cross_thread_resume_policy(
-                    &callee_fqn,
-                    &call_args,
-                    &checked_arg_tys,
-                    &mapping_pairs,
-                    lower,
-                )?;
                 check_thread_spawn_entry_policy(
                     &callee_fqn,
                     &call_args,

@@ -506,7 +506,6 @@ File {
                                                     aggregate_return: None,
                                                     array: None,
                                                     gc: None,
-                                                    thread_resume_payload: None,
                                                     abi: CallAbiHandoffMetadata {
                                                         callable_abi_kind: DeferredToEffectFacts,
                                                         resolved_outward_cases: [],
@@ -1084,7 +1083,6 @@ File {
                                                     ),
                                                     array: None,
                                                     gc: None,
-                                                    thread_resume_payload: None,
                                                     abi: CallAbiHandoffMetadata {
                                                         callable_abi_kind: DeferredToEffectFacts,
                                                         resolved_outward_cases: [],
@@ -1202,7 +1200,6 @@ File {
                                                     aggregate_return: None,
                                                     array: None,
                                                     gc: None,
-                                                    thread_resume_payload: None,
                                                     abi: CallAbiHandoffMetadata {
                                                         callable_abi_kind: DeferredToEffectFacts,
                                                         resolved_outward_cases: [],
@@ -1292,7 +1289,6 @@ File {
                                                     aggregate_return: None,
                                                     array: None,
                                                     gc: None,
-                                                    thread_resume_payload: None,
                                                     abi: CallAbiHandoffMetadata {
                                                         callable_abi_kind: DeferredToEffectFacts,
                                                         resolved_outward_cases: [],
@@ -1409,7 +1405,6 @@ File {
                                                     aggregate_return: None,
                                                     array: None,
                                                     gc: None,
-                                                    thread_resume_payload: None,
                                                     abi: CallAbiHandoffMetadata {
                                                         callable_abi_kind: DeferredToEffectFacts,
                                                         resolved_outward_cases: [],
@@ -1500,7 +1495,6 @@ File {
                                                     aggregate_return: None,
                                                     array: None,
                                                     gc: None,
-                                                    thread_resume_payload: None,
                                                     abi: CallAbiHandoffMetadata {
                                                         callable_abi_kind: DeferredToEffectFacts,
                                                         resolved_outward_cases: [],

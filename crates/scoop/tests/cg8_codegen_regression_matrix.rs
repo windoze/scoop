@@ -60,11 +60,6 @@ const MATRIX: &[MatrixCase] = &[
         coverage: "closure env composite capture transport",
     },
     MatrixCase {
-        owner: "CG-T04",
-        fixture: "tests/fixtures/runtime_gc/effect_cross_thread_resume_payload_composite.scoop",
-        coverage: "cross-thread composite resume payload rooting",
-    },
-    MatrixCase {
         owner: "CG-T05",
         fixture: "tests/fixtures/run-pass/effect_typed_plain_adapter_aggregate_return_basic.scoop",
         coverage: "effect-typed adapter aggregate return",
@@ -78,11 +73,6 @@ const MATRIX: &[MatrixCase] = &[
         owner: "CG-T06",
         fixture: "tests/fixtures/run-pass/handle_finally_boundary.scoop",
         coverage: "cleanup/finally boundary lowering",
-    },
-    MatrixCase {
-        owner: "CG-T06",
-        fixture: "tests/fixtures/run-pass/effect_escape_continuation_resume_cross_thread.scoop",
-        coverage: "cross-thread continuation resume policy",
     },
     MatrixCase {
         owner: "CG-T06",

@@ -536,17 +536,6 @@ interface Continuation<Resume, Answer, eff E = Pure> {
     fun resume(value: Resume): Answer / (E + Raise<RuntimeError>)
 }
 
-// Continuation / 线程（内部测试辅助）。
-//
-// 说明：
-// - 该 API 用于回归"跨线程 resume"语义（spec §5.5 / TODO T0618）；
-// - 当前阶段不提供调度器：该 helper 会创建一个新线程执行 `resume` 并 join 等待结束；
-// - 仅作为 fixtures 的可执行落点，并不承诺稳定的用户态 API。
-@Intrinsic
-fun <Resume> __scoop_thread_spawn_join_resume(continuation: Continuation<Resume, Unit>, value: Resume): Unit
-@Intrinsic
-fun __scoop_thread_spawn_join_resume_u64(continuation: Continuation<Int, Unit>, value: Int): Unit
-
 // Runtime errors expressed via `Raise<RuntimeError>` (spec §5.7).
 enum RuntimeError {
     NullAssertionFailed,
