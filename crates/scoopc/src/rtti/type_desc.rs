@@ -1197,31 +1197,6 @@ fn builtin_type_descs(target: TargetLayout) -> Vec<TypeDesc> {
         vtable_slots: Vec::new(),
         itable_entries: Vec::new(),
     });
-    out.push(TypeDesc {
-        name: "runtime.builtin.SCOOP_ARRAY_BUILDER_WORD_TYPE_DESC".to_string(),
-        kind: TypeDescKind::RuntimeBuiltin,
-        type_id: 0,
-        parent: None,
-        parent_chain: Vec::new(),
-        trace_start_offset_bytes: 0,
-        trace_bitmap_u64: Vec::new(),
-        trace_fn: None,
-        vtable_slots: Vec::new(),
-        itable_entries: Vec::new(),
-    });
-    out.push(TypeDesc {
-        name: "runtime.builtin.SCOOP_ARRAY_BUILDER_REF_TYPE_DESC".to_string(),
-        kind: TypeDescKind::RuntimeBuiltin,
-        type_id: 0,
-        parent: None,
-        parent_chain: Vec::new(),
-        trace_start_offset_bytes: 0,
-        trace_bitmap_u64: Vec::new(),
-        trace_fn: Some("scoop_array_builder_trace_ref_elems".to_string()),
-        vtable_slots: Vec::new(),
-        itable_entries: Vec::new(),
-    });
-
     out
 }
 

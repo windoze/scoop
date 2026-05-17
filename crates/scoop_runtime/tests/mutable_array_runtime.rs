@@ -106,9 +106,6 @@ unsafe extern "C" {
     fn scoop_mutable_array_freeze(arr: *mut c_void) -> *mut c_void;
     fn scoop_mutable_array_to_array_data(arr: *mut c_void) -> *const c_void;
 
-    fn scoop_array_builder_new() -> *mut c_void;
-    fn scoop_array_builder_push_u64(builder: *mut c_void, value: u64);
-    fn scoop_array_builder_build_mutable_array(builder: *mut c_void) -> *mut c_void;
 }
 
 struct RuntimeThread;
@@ -249,28 +246,5 @@ fn mutable_array_push_ref_and_composite_store_out_of_line_data() {
         assert_eq!((*composites).len, 1);
         let data = scoop_mutable_array_to_array_data(composites.cast::<c_void>()).cast::<Pair>();
         assert_eq!(*data, value);
-    }
-}
-
-#[test]
-fn array_builder_build_mutable_array_returns_out_of_line_layout() {
-    let _thread = RuntimeThread::enter();
-
-    unsafe {
-        let builder = scoop_array_builder_new();
-        assert!(!builder.is_null());
-        scoop_array_builder_push_u64(builder, 5);
-        scoop_array_builder_push_u64(builder, 8);
-
-        let mutable = scoop_array_builder_build_mutable_array(builder) as *mut ScoopMutableArray;
-        assert!(!mutable.is_null());
-        assert_eq!((*mutable).len, 2);
-        assert_eq!((*mutable).cap, 4);
-        assert_eq!((*mutable).elem_kind, ARRAY_ELEM_KIND_WORD);
-        assert!(!(*mutable).data.is_null());
-
-        let data = (*mutable).data.cast::<u64>();
-        assert_eq!(*data.add(0), 5);
-        assert_eq!(*data.add(1), 8);
     }
 }

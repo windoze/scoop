@@ -261,34 +261,6 @@ const NAMED_INTRINSIC_AUDIT_ENTRIES: &[NamedIntrinsicAuditEntry] = &[
         ),
     },
     NamedIntrinsicAuditEntry {
-        name: "array_alloc",
-        lowering_mode: NamedIntrinsicLoweringMode::RuntimeCall,
-        runtime_symbol: Some("scoop_array_alloc"),
-        runtime_signature: Some(NamedIntrinsicRuntimeSignature {
-            params: &[
-                NamedIntrinsicRuntimeTy::WordUInt,
-                NamedIntrinsicRuntimeTy::WordUInt,
-                NamedIntrinsicRuntimeTy::RawPtr,
-            ],
-            return_ty: NamedIntrinsicRuntimeTy::GcRef,
-        }),
-        runtime_reason: Some(
-            "involves GC heap allocation and array header initialization, so the allocation boundary must remain in runtime substrate",
-        ),
-    },
-    NamedIntrinsicAuditEntry {
-        name: "array_builder_grow",
-        lowering_mode: NamedIntrinsicLoweringMode::RuntimeCall,
-        runtime_symbol: Some("scoop_array_builder_grow"),
-        runtime_signature: Some(NamedIntrinsicRuntimeSignature {
-            params: &[NamedIntrinsicRuntimeTy::GcRef],
-            return_ty: NamedIntrinsicRuntimeTy::Bool,
-        }),
-        runtime_reason: Some(
-            "involves GC-visible builder growth and existing element migration, so the reallocation policy stays in runtime substrate",
-        ),
-    },
-    NamedIntrinsicAuditEntry {
         name: "write_barrier",
         lowering_mode: NamedIntrinsicLoweringMode::RuntimeCall,
         runtime_symbol: Some("scoop_gc_write_barrier"),

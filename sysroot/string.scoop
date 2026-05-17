@@ -7,14 +7,6 @@ package scoop.core
 
 import scoop.core.*
 
-// --- 内部：String 版 array builder（for split） ---
-
-@Intrinsic
-fun __scoop_array_builder_push_string(builder: Any, value: String): Unit
-
-@Intrinsic
-fun __scoop_array_builder_build_array_string(builder: Any): Array<String>
-
 // `String.concat` still needs the allocation/copy substrate.  Public `String.concat`
 // is ordinary sysroot code; only this audited bridge reaches the runtime symbol.
 @Intrinsic("string_concat_bridge")
@@ -482,13 +474,13 @@ fun String.split(delimiter: String): Array<String> {
     val slen: Int = this.byteLength()
     val dlen: Int = delimiter.byteLength()
 
-    val b: Any = __scoop_array_builder_new()
+    val parts: MutableArray<String> = mutableArrayNew<String>(capacity = 4)
 
     if (slen <= 0) {
         val empty: String = @Unsafe do { this.unsafeSliceBytes(0, 0) }
-        __scoop_array_builder_push_string(b, empty)
+        parts.push(empty)
     } else if (dlen <= 0) {
-        __scoop_array_builder_push_string(b, this)
+        parts.push(this)
     } else {
         var start: Int = 0
         var i: Int = 0
@@ -508,7 +500,7 @@ fun String.split(delimiter: String): Array<String> {
             if (matched) {
                 val segLen: Int = i - start
                 val seg: String = @Unsafe do { this.unsafeSliceBytes(start, segLen) }
-                __scoop_array_builder_push_string(b, seg)
+                parts.push(seg)
                 start = i + dlen
                 i = start
             } else {
@@ -518,10 +510,10 @@ fun String.split(delimiter: String): Array<String> {
 
         val tailLen: Int = slen - start
         val tail: String = @Unsafe do { this.unsafeSliceBytes(start, tailLen) }
-        __scoop_array_builder_push_string(b, tail)
+        parts.push(tail)
     }
 
-    return __scoop_array_builder_build_array_string(b)
+    return parts.freeze()
 }
 
 fun String.trimStart(): String {

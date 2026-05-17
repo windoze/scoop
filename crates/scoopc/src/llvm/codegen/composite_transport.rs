@@ -491,18 +491,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             || self.type_needs_composite_transport_layout(mir_types, metadata.source_ty)
     }
 
-    pub(super) fn array_element_transport_needs_composite_runtime(
-        &self,
-        mir_types: &TypeStore,
-        metadata: &ValueTransportMetadata,
-    ) -> bool {
-        metadata
-            .boxing
-            .as_ref()
-            .is_some_and(|boxing| boxing.reason == MirBoxingReason::ArrayElement)
-            || self.type_needs_composite_transport_layout(mir_types, metadata.source_ty)
-    }
-
     fn type_needs_composite_transport_layout(&self, mir_types: &TypeStore, ty: TypeId) -> bool {
         match mir_types.kind(ty) {
             TypeKind::Value(ValueTypeKind::Nominal(_))

@@ -25,7 +25,7 @@ fun main(): Int {
     var buf: MutableArray<Int> = [10, 20, 30]
     buf.push(40)
     buf.push(50)
-    val data: Array<Int> = buf.toArray()
+    val data: Array<Int> = buf.freeze()
     printArray("data", data)
 
     // --- Step 2: Transform with map ---

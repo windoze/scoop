@@ -131,14 +131,13 @@ fun __map_alloc_empty_table(capacity: Int): MutableMap {
     val three: Int = two + one
     val total: Int = two + capacity * three
 
-    val b: Any = __scoop_array_builder_new()
+    val table: MutableMap = mutableArrayNew<Int>(capacity = total)
     var i: Int = zero
     while (i < total) {
-        __scoop_array_builder_push(b, zero)
+        table.push(zero)
         i = i + one
     }
 
-    var table: MutableMap = __scoop_array_builder_build_mutable_array(b)
     table.set(zero, zero)
     table.set(one, capacity)
     return table
@@ -510,7 +509,7 @@ fun __map_export_view(table: MutableMap): Array<Int> {
     val capacity: Int = table.get(one)
     val full: Int = one
 
-    val b: Any = __scoop_array_builder_new()
+    val result: MutableArray<Int> = mutableArrayNew<Int>(capacity = rawLen)
     var slot: Int = zero
     while (slot < capacity) {
         val stateIdx: Int = __map_slot_state_index(slot, capacity)
@@ -519,15 +518,15 @@ fun __map_export_view(table: MutableMap): Array<Int> {
             true -> {
                 val key: Int = table.get(__map_slot_key_index(slot, capacity))
                 val value: Int = table.get(__map_slot_value_index(slot, capacity))
-                __scoop_array_builder_push(b, key)
-                __scoop_array_builder_push(b, value)
+                result.push(key)
+                result.push(value)
             }
             false -> ()
         }
         slot = slot + one
     }
 
-    return __scoop_array_builder_build_array(b)
+    return result.freeze()
 }
 
 /// MutableMap → MapView（只读视图）：导出为紧凑 flat kv 顺序数组。
@@ -539,14 +538,14 @@ fun MutableMap.asMapView(): MapView {
         }
         false -> {
             val rawLen: Int = this.size()
-            val b: Any = __scoop_array_builder_new()
+            val copy: MutableArray<Int> = mutableArrayNew<Int>(capacity = rawLen)
             var i: Int = 0
             while (i < rawLen) {
                 val v: Int = this.get(i)
-                __scoop_array_builder_push(b, v)
+                copy.push(v)
                 i = i + 1
             }
-            result = __scoop_array_builder_build_array(b)
+            result = copy.freeze()
         }
     }
     return result
@@ -554,8 +553,7 @@ fun MutableMap.asMapView(): MapView {
 
 /// 创建一个空 `MutableMap`。
 fun mutableIntIntMap(): MutableMap {
-    val b: Any = __scoop_array_builder_new()
-    val empty: MutableArray<Int> = __scoop_array_builder_build_mutable_array(b)
+    val empty: MutableArray<Int> = mutableArrayNew<Int>()
     val zero: Int = empty.size()
     return __map_new_table_for_entries(zero)
 }

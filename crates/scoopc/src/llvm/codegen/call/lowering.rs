@@ -1580,14 +1580,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     args,
                 );
             }
-            if dispatch_fqn.starts_with("scoop.core.__scoop_array_builder_") {
-                return self.codegen_sysroot_array_builder_intrinsics(
-                    span,
-                    callee.span,
-                    dispatch_fqn,
-                    args,
-                );
-            }
             if dispatch_fqn == "scoop.core.__scoop_thread_spawn_join_resume_u64" {
                 return self.codegen_sysroot_thread_intrinsics(
                     span,

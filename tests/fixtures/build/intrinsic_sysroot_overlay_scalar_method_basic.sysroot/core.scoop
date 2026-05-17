@@ -82,6 +82,8 @@ typealias MutableList<T> = MutableArray<T>
 fun MutableArray<Int>.toArray(): Array<Int>
 
 fun <T> MutableArray<T>.push(value: T): Unit
+fun <T> MutableArray<T>.freeze(): Array<T>
+fun <T> mutableArrayNew(capacity: Int = sizeOf<Int>() - sizeOf<Int>()): MutableArray<T>
 
 class ComptimeList<T>
 struct Unit

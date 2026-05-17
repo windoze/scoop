@@ -3,17 +3,6 @@
 //! 注意：这里仅负责“符号名字符串”，签名/调用约定见 `runtime_abi.rs`。
 
 pub(super) const SCOOP_ALLOC_TYPED: &str = "scoop_alloc_typed";
-pub(super) const SCOOP_ARRAY_BUILDER_BUILD_ARRAY: &str = "scoop_array_builder_build_array";
-pub(super) const SCOOP_ARRAY_BUILDER_BUILD_ARRAY_COMPOSITE: &str =
-    "scoop_array_builder_build_array_composite";
-pub(super) const SCOOP_ARRAY_BUILDER_BUILD_MUTABLE_ARRAY: &str =
-    "scoop_array_builder_build_mutable_array";
-pub(super) const SCOOP_ARRAY_BUILDER_BUILD_MUTABLE_ARRAY_COMPOSITE: &str =
-    "scoop_array_builder_build_mutable_array_composite";
-pub(super) const SCOOP_ARRAY_BUILDER_NEW: &str = "scoop_array_builder_new";
-pub(super) const SCOOP_ARRAY_BUILDER_PUSH_COMPOSITE: &str = "scoop_array_builder_push_composite";
-pub(super) const SCOOP_ARRAY_BUILDER_PUSH_REF: &str = "scoop_array_builder_push_ref";
-pub(super) const SCOOP_ARRAY_BUILDER_PUSH_U64: &str = "scoop_array_builder_push_u64";
 pub(super) const SCOOP_COMPOSITE_COPY: &str = "scoop_composite_copy";
 pub(super) const SCOOP_COMPOSITE_DROP: &str = "scoop_composite_drop";
 pub(super) const SCOOP_COMPOSITE_TRACE: &str = "scoop_composite_trace";

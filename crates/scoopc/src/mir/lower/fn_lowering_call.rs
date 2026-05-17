@@ -793,26 +793,9 @@ impl<'a> FnLowering<'a> {
 
     pub(in crate::mir::lower) fn call_abi_handoff(
         &self,
-        kind: &CallKind,
+        _kind: &CallKind,
     ) -> CallAbiHandoffMetadata {
-        match kind {
-            CallKind::Direct { callee_fqn } if Self::is_plain_no_outward_intrinsic(callee_fqn) => {
-                CallAbiHandoffMetadata::plain_no_outward()
-            }
-            _ => CallAbiHandoffMetadata::deferred_to_effect_facts(),
-        }
-    }
-
-    pub(in crate::mir::lower) fn is_plain_no_outward_intrinsic(fqn: &str) -> bool {
-        matches!(
-            fqn,
-            ARRAY_BUILDER_NEW_FQN
-                | ARRAY_BUILDER_PUSH_FQN
-                | ARRAY_BUILDER_PUSH_STRING_FQN
-                | ARRAY_BUILDER_BUILD_ARRAY_FQN
-                | ARRAY_BUILDER_BUILD_MUTABLE_ARRAY_FQN
-                | ARRAY_BUILDER_BUILD_ARRAY_STRING_FQN
-        )
+        CallAbiHandoffMetadata::deferred_to_effect_facts()
     }
 
     pub(in crate::mir::lower) fn array_transport_metadata(
@@ -825,7 +808,7 @@ impl<'a> FnLowering<'a> {
             return None;
         };
         match intrinsic_base_fqn(callee_fqn.as_str()) {
-            ARRAY_BUILDER_PUSH_FQN | ARRAY_BUILDER_PUSH_STRING_FQN | "scoop.core.push" => {
+            "scoop.core.push" => {
                 let builder_ty = args
                     .first()
                     .map(|arg| self.operand_ty(&arg.value))
@@ -847,26 +830,13 @@ impl<'a> FnLowering<'a> {
                     ),
                 })
             }
-            ARRAY_BUILDER_BUILD_ARRAY_FQN
-            | ARRAY_BUILDER_BUILD_ARRAY_STRING_FQN
-            | "scoop.core.freeze" => {
+            "scoop.core.freeze" => {
                 let element_ty = self.array_element_ty_from_array_ty(result_ty);
                 Some(ArrayElementTransportMetadata {
                     operation: ArrayTransportOperation::BuilderBuildArray,
                     array_ty: result_ty,
                     element_ty,
                     mutable: false,
-                    element: self
-                        .value_transport_with_kind(element_ty, MirTransportKind::ArrayElement),
-                })
-            }
-            ARRAY_BUILDER_BUILD_MUTABLE_ARRAY_FQN => {
-                let element_ty = self.array_element_ty_from_array_ty(result_ty);
-                Some(ArrayElementTransportMetadata {
-                    operation: ArrayTransportOperation::BuilderBuildMutableArray,
-                    array_ty: result_ty,
-                    element_ty,
-                    mutable: true,
                     element: self
                         .value_transport_with_kind(element_ty, MirTransportKind::ArrayElement),
                 })

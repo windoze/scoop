@@ -26,16 +26,6 @@
   X(__scoop_explicit_root_frame_top) \
   X(scoop_alloc) \
   X(scoop_alloc_typed) \
-  X(scoop_array_alloc) \
-  X(scoop_array_builder_build_array) \
-  X(scoop_array_builder_build_array_composite) \
-  X(scoop_array_builder_build_mutable_array) \
-  X(scoop_array_builder_build_mutable_array_composite) \
-  X(scoop_array_builder_grow) \
-  X(scoop_array_builder_new) \
-  X(scoop_array_builder_push_composite) \
-  X(scoop_array_builder_push_ref) \
-  X(scoop_array_builder_push_u64) \
   X(scoop_enter_native) \
   X(scoop_float32_to_int) \
   X(scoop_float32_to_string) \

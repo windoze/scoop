@@ -13,7 +13,7 @@ package scoop.core.array
 
 // 说明：
 // - 这里显式 import `scoop.core.*`，用于引入 sysroot 的 `Array.size/get` 声明，
-//   以及 stdlib 里复用的 `__stdlib_int_zero/one` 与 array builder helpers。
+//   以及 stdlib 里复用的 `__stdlib_int_zero/one` 与 MutableArray helpers。
 import scoop.core.*
 
 /// 迭代：对每个元素执行 `action`（effect-polymorphic）。
@@ -36,15 +36,15 @@ fun <eff E = Pure> Array<Int>.map(transform: (Int) -> Int / E): List<Int> / E {
     val one: Int = __stdlib_int_one(n)
     val zero: Int = __stdlib_int_zero(n)
 
-    val b: Any = __scoop_array_builder_new()
+    val result: MutableArray<Int> = mutableArrayNew<Int>(capacity = n)
     var i: Int = zero
     while (i < n) {
         val v: Int = this.get(i)
-        __scoop_array_builder_push(b, transform(v))
+        result.push(transform(v))
         i = i + one
     }
 
-    return __scoop_array_builder_build_array(b)
+    return result.freeze()
 }
 
 /// 过滤：保留满足 `predicate` 的元素，返回新 `List<Int>`（当前阶段为 `Array<Int>` 的别名）。
@@ -53,18 +53,18 @@ fun <eff E = Pure> Array<Int>.filter(predicate: (Int) -> Bool / E): List<Int> / 
     val one: Int = __stdlib_int_one(n)
     val zero: Int = __stdlib_int_zero(n)
 
-    val b: Any = __scoop_array_builder_new()
+    val result: MutableArray<Int> = mutableArrayNew<Int>(capacity = n)
     var i: Int = zero
     while (i < n) {
         val v: Int = this.get(i)
         when (predicate(v)) {
-            true -> __scoop_array_builder_push(b, v)
+            true -> result.push(v)
             false -> ()
         }
         i = i + one
     }
 
-    return __scoop_array_builder_build_array(b)
+    return result.freeze()
 }
 
 /// 折叠：从 `initial` 开始，把元素依次合并为一个值（effect-polymorphic）。
@@ -117,14 +117,14 @@ fun Array<Int>.zip(other: Array<Int>): Array<Int> {
         false -> ()
     }
 
-    val b: Any = __scoop_array_builder_new()
+    val result: MutableArray<Int> = mutableArrayNew<Int>(capacity = len + len)
     var i: Int = zero
     while (i < len) {
-        __scoop_array_builder_push(b, this.get(i))
-        __scoop_array_builder_push(b, other.get(i))
+        result.push(this.get(i))
+        result.push(other.get(i))
         i = i + one
     }
-    return __scoop_array_builder_build_array(b)
+    return result.freeze()
 }
 
 /// T1816: 将 Array<Int> 的元素以指定分隔符连接为字符串。

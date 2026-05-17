@@ -7,6 +7,20 @@
 
 package scoop.core
 
+// --- 内部：避免字面量的 Int 常量派生 ---
+
+/// 生成 `0`（不使用字面量）。
+fun __stdlib_int_zero(sample: Int): Int {
+    val w: Int = sizeOf(sample)
+    return w - w
+}
+
+/// 生成 `1`（不使用字面量）。
+fun __stdlib_int_one(sample: Int): Int {
+    val w: Int = sizeOf(sample)
+    return w / w
+}
+
 // Kotlin-like preconditions（early stage）。
 //
 // 说明：

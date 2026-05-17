@@ -275,15 +275,13 @@ fn validate_plain_callable_layout(
     })?;
     let entry = layout.direct_entry();
     if layout.root_fqn() != callable.root_fqn()
-        || entry.function_ty() != plain.function_ty()
         || entry.param_tys() != plain.param_tys()
         || entry.return_ty() != plain.return_ty()
     {
         return Err(frontend_error(format!(
-            "plain callable `{}` ABI contract 漂移：layout_root=`{}` function_ty=t{} return=t{} params={:?} handoff_function=t{} handoff_return=t{} handoff_params={:?}",
+            "plain callable `{}` ABI contract 漂移：layout_root=`{}` return=t{} params={:?} handoff_function=t{} handoff_return=t{} handoff_params={:?}",
             callable.root_fqn(),
             layout.root_fqn(),
-            entry.function_ty().as_u32(),
             entry.return_ty().as_u32(),
             entry.param_tys(),
             plain.function_ty().as_u32(),

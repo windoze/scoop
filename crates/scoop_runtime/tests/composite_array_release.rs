@@ -27,6 +27,8 @@ type ScoopCompositeDropFn = Option<
     unsafe extern "C" fn(descriptor: *const ScoopCompositeTransportDescriptor, value: *mut c_void),
 >;
 
+const ARRAY_ELEM_KIND_COMPOSITE: u32 = 3;
+
 #[repr(C)]
 struct ScoopCompositeTransportDescriptor {
     abi_version: u32,
@@ -61,20 +63,25 @@ unsafe extern "C" {
     fn scoop_thread_register();
     fn scoop_thread_unregister();
 
-    fn scoop_array_builder_new() -> *mut c_void;
-    fn scoop_array_builder_push_composite(
-        builder: *mut c_void,
-        descriptor: *const ScoopCompositeTransportDescriptor,
-        value: *const c_void,
-    );
-    fn scoop_array_builder_build_array_composite(
-        builder: *mut c_void,
-        descriptor: *const ScoopCompositeTransportDescriptor,
+    fn scoop_mutable_array_new(
+        elem_kind: u32,
+        elem_size: u64,
+        elem_align: u64,
+        elem_desc: *const c_void,
+        capacity: u64,
     ) -> *mut c_void;
+    fn scoop_mutable_array_push_composite(
+        mutable_array: *mut c_void,
+        slot_ptr: *const c_void,
+        elem_size: u64,
+    );
+    fn scoop_mutable_array_freeze(mutable_array: *mut c_void) -> *mut c_void;
 
     fn scoop_enter_native(root_slots: *mut *mut *mut c_void, root_slots_len: u32);
     fn scoop_leave_native();
     fn scoop_gc_collect();
+    fn scoop_pin(raw_obj: *mut c_void) -> u32;
+    fn scoop_unpin(raw_obj: *mut c_void) -> u32;
 }
 
 #[test]
@@ -107,26 +114,32 @@ fn composite_array_release_drops_elements_on_sweep() {
         scoop_thread_register();
         DROP_CALLS.store(0, Ordering::SeqCst);
 
-        let builder = scoop_array_builder_new();
-        assert!(!builder.is_null());
+        let mutable = scoop_mutable_array_new(
+            ARRAY_ELEM_KIND_COMPOSITE,
+            mem::size_of::<CompositeNoRef>() as u64,
+            mem::align_of::<CompositeNoRef>() as u64,
+            (&descriptor as *const ScoopCompositeTransportDescriptor).cast::<c_void>(),
+            2,
+        );
+        assert!(!mutable.is_null());
         let first = CompositeNoRef { value: 1 };
         let second = CompositeNoRef { value: 2 };
-        scoop_array_builder_push_composite(
-            builder,
-            &descriptor,
+        scoop_mutable_array_push_composite(
+            mutable,
             (&first as *const CompositeNoRef).cast::<c_void>(),
+            mem::size_of::<CompositeNoRef>() as u64,
         );
-        scoop_array_builder_push_composite(
-            builder,
-            &descriptor,
+        scoop_mutable_array_push_composite(
+            mutable,
             (&second as *const CompositeNoRef).cast::<c_void>(),
+            mem::size_of::<CompositeNoRef>() as u64,
         );
 
-        let array = scoop_array_builder_build_array_composite(builder, &descriptor);
+        assert_eq!(scoop_pin(mutable), 1);
+        let array = scoop_mutable_array_freeze(mutable);
         assert!(!array.is_null());
 
-        // Building transfers out of the builder and drops the builder-side copies;
-        // reset so the assertion below observes the array object's release only.
+        // Keep the mutable source pinned so the final assertion observes the frozen array only.
         DROP_CALLS.store(0, Ordering::SeqCst);
 
         let mut array_slot = array;
@@ -139,6 +152,7 @@ fn composite_array_release_drops_elements_on_sweep() {
         scoop_leave_native();
         scoop_gc_collect();
         assert_eq!(DROP_CALLS.load(Ordering::SeqCst), 2);
+        assert_eq!(scoop_unpin(mutable), 1);
 
         scoop_thread_unregister();
     }

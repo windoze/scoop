@@ -2802,13 +2802,7 @@ fn is_plain_compiler_intrinsic(callable_fqn: &str) -> bool {
         .unwrap_or(callable_fqn);
     matches!(
         base,
-        "scoop.core.__scoop_array_builder_new"
-            | "scoop.core.__scoop_array_builder_push"
-            | "scoop.core.__scoop_array_builder_push_string"
-            | "scoop.core.__scoop_array_builder_build_array"
-            | "scoop.core.__scoop_array_builder_build_mutable_array"
-            | "scoop.core.__scoop_array_builder_build_array_string"
-            | "scoop.core.__scoop_gc_collect"
+        "scoop.core.__scoop_gc_collect"
             | "scoop.core.__scoop_gc_debug_heap_object_count"
             | "scoop.core.__scoop_gc_debug_alloc_garbage"
             | "scoop.core.__scoop_stackmap_statepoint_smoke"

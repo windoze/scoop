@@ -142,6 +142,8 @@ fun <T> MutableArray<T>.set(index: Int, value: T): Unit
 @Intrinsic
 fun MutableArray<Int>.toArray(): Array<Int>
 fun <T> MutableArray<T>.push(value: T): Unit
+fun <T> MutableArray<T>.freeze(): Array<T>
+fun <T> mutableArrayNew(capacity: Int = sizeOf<Int>() - sizeOf<Int>()): MutableArray<T>
 // 编译期列表（spec §6.4）。
 //
 // 说明：

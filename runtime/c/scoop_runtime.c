@@ -830,34 +830,43 @@ void scoop_runtime_error_fatal(const void *runtime_error) {
 // - 直接按 native 程序边界的 argv 形状构造，包含 argv[0]；
 // - 当前阶段仅由 LLVM 入口 wrapper 调用一次，因此不再保留全局缓存/过渡 surface。
 void *scoop_entry_argv_array(int32_t argc, const char **argv) {
-  // Array builder 由 `runtime/c/scoop_array.c` 提供。
-  void *scoop_array_builder_new(void);
-  void scoop_array_builder_push_ref(void *builder, void *value);
-  void *scoop_array_builder_build_array(void *builder);
+  void *scoop_mutable_array_new(uint32_t elem_kind,
+                                uint64_t elem_size,
+                                uint64_t elem_align,
+                                const void *elem_desc,
+                                uint64_t capacity);
+  void scoop_mutable_array_push_ref(void *mutable_array, void *value);
+  void *scoop_mutable_array_freeze(void *mutable_array);
 
-  void *builder = scoop_array_builder_new();
-  if (builder == 0) {
+  const uint32_t ref_elem_kind = 2u;
+  uint64_t capacity = argc > 0 ? (uint64_t)argc : 0u;
+  void *parts = scoop_mutable_array_new(
+      ref_elem_kind,
+      (uint64_t)sizeof(void *),
+      (uint64_t)_Alignof(void *),
+      0,
+      capacity);
+  if (parts == 0) {
     return 0;
   }
 
-  // GC safety (T0106): pin `builder` — it's GC-managed and held across
-  // scoop_string_from_cstr / scoop_array_builder_build_array calls that trigger scoop_alloc.
-  scoop_pin(builder);
+  // `parts` is GC-managed and held across string allocations and final freeze.
+  scoop_pin(parts);
 
   if (argc <= 0 || argv == 0) {
-    void *arr = scoop_array_builder_build_array(builder);
-    scoop_unpin(builder);
+    void *arr = scoop_mutable_array_freeze(parts);
+    scoop_unpin(parts);
     return arr;
   }
 
   for (int32_t i = 0; i < argc; i++) {
     const char *s = argv[i];
     const ScoopString *str = scoop_string_from_cstr(s);
-    scoop_array_builder_push_ref(builder, (void *)str);
+    scoop_mutable_array_push_ref(parts, (void *)str);
   }
 
-  void *arr = scoop_array_builder_build_array(builder);
-  scoop_unpin(builder);
+  void *arr = scoop_mutable_array_freeze(parts);
+  scoop_unpin(parts);
   return arr;
 }
 

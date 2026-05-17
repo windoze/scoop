@@ -10,12 +10,6 @@ impl<'a> HirLowering<'a> {
         "scoop.core.mutableArrayNew";
     pub(in crate::hir::lower) const MUTABLE_ARRAY_PUSH_FQN: &'static str = "scoop.core.push";
     pub(in crate::hir::lower) const MUTABLE_ARRAY_FREEZE_FQN: &'static str = "scoop.core.freeze";
-    pub(in crate::hir::lower) const ARRAY_BUILDER_NEW_FQN: &'static str =
-        "scoop.core.__scoop_array_builder_new";
-    pub(in crate::hir::lower) const ARRAY_BUILDER_PUSH_FQN: &'static str =
-        "scoop.core.__scoop_array_builder_push";
-    pub(in crate::hir::lower) const ARRAY_BUILDER_BUILD_ARRAY_FQN: &'static str =
-        "scoop.core.__scoop_array_builder_build_array";
     pub(in crate::hir::lower) const INT_PROGRESSION_FQN: &'static str = "scoop.core.IntProgression";
     pub(in crate::hir::lower) const RANGE_TO_FQN: &'static str = "scoop.core.rangeTo";
     pub(in crate::hir::lower) const RANGE_DEFAULT_STEP_FQN: &'static str =
@@ -24,8 +18,6 @@ impl<'a> HirLowering<'a> {
     pub(in crate::hir::lower) const SYNC_MUTEX_CREATE_FQN: &'static str = "scoop.sync.mutexCreate";
     pub(in crate::hir::lower) const SYNC_MUTEX_LOCK_FQN: &'static str = "scoop.sync.lock";
     pub(in crate::hir::lower) const SYNC_MUTEX_UNLOCK_FQN: &'static str = "scoop.sync.unlock";
-    pub(in crate::hir::lower) const ARRAY_BUILDER_BUILD_MUTABLE_ARRAY_FQN: &'static str =
-        "scoop.core.__scoop_array_builder_build_mutable_array";
     pub(in crate::hir::lower) const RAISE_RAISE_FQN: &'static str = "scoop.core.Raise.raise";
     pub(in crate::hir::lower) const RUNTIME_ERROR_NULL_ASSERTION_FAILED_FQN: &'static str =
         "scoop.core.RuntimeError.NullAssertionFailed";

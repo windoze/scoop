@@ -3167,7 +3167,7 @@ return a + b
 }
 
 #[test]
-fn materialize_for_dump_keeps_hash_map_empty_table_array_transport_concrete() {
+fn materialize_for_dump_keeps_hash_map_empty_table_push_transport_concrete() {
     let sess = Session::new().unwrap();
     let fixture = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("../../tests/fixtures/run-pass/stdlib_hash_set_map_basic.scoop");
@@ -3197,14 +3197,17 @@ fn materialize_for_dump_keeps_hash_map_empty_table_array_transport_concrete() {
             else {
                 return None;
             };
-            (callee_fqn == "scoop.core.__scoop_array_builder_build_mutable_array")
+            callee_fqn
+                .split("::<")
+                .next()
+                .is_some_and(|base| base == "scoop.core.push")
                 .then_some(transport)
         })
-        .expect("应找到 empty-table builder build call transport");
+        .expect("应找到 empty-table MutableArray.push call transport");
     let array = transport
         .array
         .as_ref()
-        .expect("builder build mutable array 应发布 array transport metadata");
+        .expect("MutableArray.push 应发布 array transport metadata");
 
     assert!(
         !type_contains_param(&materialized.types, array.array_ty),
@@ -3220,12 +3223,19 @@ fn materialize_for_dump_keeps_hash_map_empty_table_array_transport_concrete() {
         materialized.types.kind(array.array_ty)
     else {
         panic!(
-            "empty-table builder result 应是 nominal mutable array，实际为 {:?}",
+            "empty-table push receiver 应是 nominal mutable array，实际为 {:?}",
             materialized.types.kind(array.array_ty)
         );
     };
-    assert_eq!(array_nominal.fqn, "scoop.core.MutableArray");
-    assert_eq!(array_nominal.args.first().copied(), Some(array.element_ty));
+    assert!(
+        array_nominal.fqn == "scoop.core.MutableArray"
+            || array_nominal.fqn == "scoop.collections.MutableMap",
+        "empty-table push receiver 应保持 MutableArray 或其 alias，实际为 {}",
+        array_nominal.fqn
+    );
+    if array_nominal.fqn == "scoop.core.MutableArray" {
+        assert_eq!(array_nominal.args.first().copied(), Some(array.element_ty));
+    }
     assert_eq!(
         materialized.types.display(array.element_ty).to_string(),
         "Int"

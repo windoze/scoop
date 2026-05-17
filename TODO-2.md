@@ -60,7 +60,7 @@
 - 与 `PLAN.md` 闭合：完成 P4 的数组字面量 desugar 切换部分；P4-T02 继续负责删除旧 builder surface。
 - 暂时性 failing fixture：无。
 
-### P4-T02：删除 `__scoop_array_builder_*` 整套
+### [DONE] P4-T02：删除 `__scoop_array_builder_*` 整套
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §9 / P4 任务 T4-3
@@ -137,6 +137,14 @@
   - 数组字面量、`String.split`、（如重写）vararg spread 全部走 `MutableArray.push + freeze` 路径。
   - stdlib 失效 fixture 清单已记录在完成记录中，等待 P9 处理。
 - 依赖：P4-T01。
+
+完成记录（2026-05-17）：
+
+- 改动范围：`sysroot/string.scoop::String.split` 改为 `mutableArrayNew<String>` + `push` + `freeze`；删除 string-specialized builder intrinsic 声明；删除 `stdlib/mutable_array.scoop`；将 `stdlib/array_iter.scoop`、`stdlib/mutable_array_iter.scoop`、`stdlib/collections_iter.scoop`、`stdlib/collections_map.scoop`、`stdlib/collections_set.scoop` 中剩余 builder 用法改为 `MutableArray` 路径；把 `__stdlib_int_zero/one` 迁入 `stdlib/prelude.scoop`；删除 compiler/runtime builder lowering、runtime ABI symbol、runtime C `ScoopArrayBuilder` 实现与 `scoop_array_alloc` 导出；同步 runtime/Rust tests、overlay sysroot fixtures、failure-policy audit baseline。
+- 核心决策：`ScoopMutableArray` 成为唯一 growable array buffer；`String.split` 保持 byte-level 扫描行为不变，仅替换收集容器；collections 中实际存在的 builder 调用一并重写，避免留下旧 surface；`scoop_array_alloc` 仅剩 audit/runtime API 引用且无实际 caller，因此删除；plain callable ABI 校验不再用冗余 function `TypeId` 身份判定漂移，改以 root/params/return 为准，避免 materialized generic declaration-only callable 的等价 function type 重建误报。
+- 验证结果：`cargo build` 通过；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/stdlib_string_basic.scoop` 通过；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/stdlib_string_methods_extended.scoop` 通过；`cargo run -p scoop -- test` 完成，结果为 1 个预期失败、1337 个通过、1374 checks 通过；`cargo test --all --all-targets` 通过；`cargo clippy --all-targets -- -D warnings` 通过；`rg "scoop_array_builder|ARRAY_BUILDER_|__scoop_array_builder" crates runtime sysroot` 无命中；`rg "scoop_array_builder|ARRAY_BUILDER_|__scoop_array_builder" stdlib` 无命中。
+- 与 `PLAN.md` 闭合：完成 P4 的旧 array builder surface 删除；数组字面量、vararg 合成、`String.split` 和 stdlib 内部收集路径均改走 `MutableArray.push + freeze`。
+- 暂时性 failing fixture：`tests/fixtures/run-pass/mutable_array_ops_basic.scoop` 仍失败，原因是它专门覆盖已删除的旧 `MutableArray<Int>.pop/insert/removeAt/splice` copy-style API；该 fixture 的 DELETE 或 KEEP-RENAME 命运按 P9-T02 三分类清单处理。
 
 ## P5：`scoop.lang.string` cone 建立
 

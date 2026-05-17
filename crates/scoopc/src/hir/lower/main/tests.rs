@@ -609,12 +609,6 @@ fun main(): Int {
         1,
         "Array<T> literal should finish with MutableArray.freeze: {call_fqns:#?}"
     );
-    assert!(
-        call_fqns
-            .iter()
-            .all(|fqn| !fqn.contains("__scoop_array_builder")),
-        "array literal HIR must not call the legacy builder: {call_fqns:#?}"
-    );
 }
 
 #[test]

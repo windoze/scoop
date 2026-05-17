@@ -19,6 +19,6 @@ import scoop.core.*
 /// - 当前阶段先保证 API surface 可用（typecheck 可通过），并保持实现可编译。
 fun IntIterable.toArray(): Array<Int> {
     // 最小实现：当前仍先返回空数组；真正的迭代收集逻辑会在后续 collections 任务中补齐。
-    val b: Any = __scoop_array_builder_new()
-    return __scoop_array_builder_build_array(b)
+    val empty: MutableArray<Int> = mutableArrayNew<Int>()
+    return empty.freeze()
 }

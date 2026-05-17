@@ -109,8 +109,13 @@ impl MirInstanceMaterializer {
                             let result_ty = transport.result.source_ty;
                             (!type_contains_param(&self.types, result_ty)).then_some(result_ty)
                         }),
-                    super::super::ArrayTransportOperation::BuilderPush
-                    | super::super::ArrayTransportOperation::BuilderNew => None,
+                    super::super::ArrayTransportOperation::BuilderPush => args
+                        .first()
+                        .and_then(|arg| {
+                            operand_type(&self.types, self.builtins, &locals, &arg.value)
+                        })
+                        .filter(|ty| !type_contains_param(&self.types, *ty)),
+                    super::super::ArrayTransportOperation::BuilderNew => None,
                 };
                 if let Some(array_ty) = authoritative_array_ty {
                     array.array_ty = array_ty;
@@ -159,9 +164,14 @@ impl MirInstanceMaterializer {
                         })
                         .filter(|ty| !type_contains_param(&self.types, *ty))
                         .or_else(|| {
-                            if type_contains_param(&self.types, array.array_ty)
-                                || type_contains_param(&self.types, array.element_ty)
-                            {
+                            if type_contains_param(&self.types, array.array_ty) {
+                                None
+                            } else {
+                                self.materialized_array_element_ty(array.array_ty)
+                            }
+                        })
+                        .or_else(|| {
+                            if type_contains_param(&self.types, array.element_ty) {
                                 None
                             } else {
                                 Some(array.element_ty)
