@@ -4,7 +4,7 @@ package scoop.core
 
 import scoop.core.*
 
-// T0143：`core.scoop` 保留 resolver/typecheck 可见的泛型签名；本文件提供可编译 body，
+// `core.scoop` 保留 resolver/typecheck 可见的泛型签名；本文件提供可编译 body，
 // 让 monomorphization 为每个具体 `T: ToString` 生成实例。
 
 fun <T> print(value: T): Unit where T: ToString {

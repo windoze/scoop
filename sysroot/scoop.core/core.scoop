@@ -42,7 +42,7 @@ interface Hashable {
     }
 }
 
-// T0131: ToString 接口——统一的文本转换表面。
+// ToString 接口：统一的文本转换表面。
 //
 // 说明：
 // - 任何类型实现 `ToString` 即可被传入泛型 `print`/`println`（`where T: ToString`）。
@@ -315,7 +315,7 @@ class Array<T> {
 // 可变泛型数组类型（runtime 表面）。
 //
 // 说明：
-// - `MutableArray<T>` 作为 `std` collections 的唯一可变集合底座（TODO：T1317 系列）；
+// - `MutableArray<T>` 是 collections 的唯一可变集合底座；
 // - 基础读写与 `Array<T>` 一样走 named intrinsic 表；真正涉及分配/搬移/GC 协作的路径仍由
 //   stdlib helper + runtime substrate 承接。
 @Intrinsic
@@ -396,7 +396,7 @@ fun <T> MutableArray<T>.freeze(): Array<T> {
     return @Unsafe do { __scoop_unsafe_array_cast<T>(raw) }
 }
 
-// Kotlin-like collections：List / MutableList（std v1，TODO：T1317f2）。
+// Kotlin-like collections：List / MutableList（std v1）。
 //
 // 说明：
 // - v0 先把 `List<T>`/`MutableList<T>` 作为 `Array<T>`/`MutableArray<T>` 的类型别名，
@@ -421,7 +421,7 @@ enum Nothing
 // - annotation 是 compile-time marker surface，不是普通 runtime nominal type；
 // - 这些注解由编译器识别并在不同子系统中被消费（typecheck/lowering/codegen/...）；
 // - sysroot 在这里提供"声明面"，用于名字解析、类型检查与工具链可见性；
-// - 当前阶段（T1013）先补齐缺失的内建注解集合与 `AnnotationTarget` enum，
+// - 当前阶段先补齐缺失的内建注解集合与 `AnnotationTarget` enum，
 //   更完整的 meta-annotation 规则（`@Target/@Retention` 约束）由后续任务实现。
 
 enum AnnotationTarget {
@@ -538,7 +538,7 @@ struct Pinned(val value: Any)
 // - 这些类型只在编译期可用：
 //   - 反射 intrinsics（如 `fieldsOf<T>()`）会返回它们的 `ComptimeList<...>`；
 //   - delegated properties lowering 会把 `PropertyMeta` 作为隐式参数传给 `getValue/setValue`（spec §10.4）。
-// - 当前阶段已实现"可回归的最小集合"（T1208/T1209/T1215）：
+// - 当前阶段已实现"可回归的最小集合"：
 //   - `TypeMeta`：类型名 + kind + 注解列表
 //   - `FieldMeta`：字段名 + 字段类型 + 字段序号 + 注解列表
 //   - `VariantMeta`：enum variant 名 + 字段列表 + 序号 + 注解列表
@@ -1402,20 +1402,20 @@ fun <eff E = Pure> ULongProgression.forEach(action: (ULong) -> Unit / E): Unit /
 //
 // 说明：
 // - 规范中的 `sizeOf<T>()` 是隐式 `const fun` 的反射 intrinsic；
-// - 当前阶段（TODO T12xx）尚未实现 comptime 执行链路；同时 typecheck 的"跨文件泛型函数签名 lowering"
+// - 当前阶段尚未实现完整 comptime 执行链路；同时 typecheck 的"跨文件泛型函数签名 lowering"
 //   也未补齐，因此这里先用一组 overload 作为最小可调用表面：
 //   - `sizeOf(1)` / `sizeOf("s")`
-// - 该声明仅用于工具链可见性与类型检查；实现由编译器在 codegen 阶段内建 lowering 提供（见 TODO T1007）。
+// - 该声明仅用于工具链可见性与类型检查；实现由编译器在 codegen 阶段内建 lowering 提供。
 @Intrinsic
 fun sizeOf(value: Int): Int
 @Intrinsic
 fun sizeOf(value: String): Int
 
-// Reflection intrinsics v0（spec §6.4 / TODO T1204/T1209）。
+// Reflection intrinsics v0（spec §6.4）。
 //
 // 说明：
 // - 这些函数在规范中"隐式 const"，这里显式标记为 `const fun` 便于工具链与 typecheck 识别；
-// - 当前阶段（TODO T1208）`fieldsOf<T>()` 返回 `FieldMeta` 列表（由编译器在 comptime 执行时内建实现）。
+// - 当前阶段 `fieldsOf<T>()` 返回 `FieldMeta` 列表（由编译器在 comptime 执行时内建实现）。
 @Intrinsic
 const fun <T> nameOf(): String
 @Intrinsic
@@ -1446,7 +1446,7 @@ const val ARRAY_ELEM_KIND_COMPOSITE: Int = 3
 // 说明：
 // - `Platform` 表示一个平台选择器（LLVM target triple + 拆分字段）；
 // - `getPlatform()` 既可在 comptime 求值，也可在运行期查询当前执行环境；
-// - 当前阶段（TODO T1219）先只保证 host target 可回归，交叉编译与更严格校验后续补齐。
+// - 当前阶段先只保证 host target 可回归，交叉编译与更严格校验后续补齐。
 struct Platform {
     val triple: String
     val arch: String
@@ -1492,7 +1492,7 @@ enum RuntimeError {
     ContinuationAlreadyResumed,
 }
 
-// Fatal trap runtime boundary（T5000e3a）。
+// Fatal trap runtime boundary.
 //
 // 说明：
 // - `panic(message)` 用于表达“不应继续执行”的 fatal trap / invariant break；

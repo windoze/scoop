@@ -949,7 +949,7 @@
   - 闭合 PLAN §8 / P13 中“更新 `MANAGED_ABI.md` 第 2.2 节典型例子列表”的文档收尾项。
 - 暂时性 failing fixture：无。本任务只修改文档，未新增或遗留 failing fixture。
 
-### P13-T03：清理 sysroot 文件中的过期 TODO 注释
+### [DONE] P13-T03：清理 sysroot 文件中的过期 TODO 注释
 
 - 参考：
   - 现 sysroot 各文件中的 `TODO T0143` / `TODO T1317` / `T1325` / `T1502` / `T0146` 等历史工单引用
@@ -974,6 +974,24 @@
 - 完成条件：
   - sysroot 文件不再保留过期工单引用，注释精简清晰。
 - 依赖：P13-T02。
+
+完成记录：
+
+- 改动范围：
+  - 清理 `sysroot/scoop.core/core.scoop`、`sysroot/scoop.core/string.scoop`、`sysroot/scoop.core/print.scoop`、`sysroot/scoop.unsafe/unsafe.scoop`、`sysroot/scoop.delegates/delegates.scoop`、`sysroot/scoop.collections/collections.scoop`、`sysroot/scoop.sync/sync.scoop`、`sysroot/scoop.thread/thread.scoop` 中的历史工单 ID / `TODO T####` 注释引用。
+  - 共消除 26 处 `TODO` / `T####` 命中；保留仍有价值的架构说明、平台 policy、early-stage 约束与 future-work 描述。
+  - 未修改任何 sysroot 声明、函数 body、annotation 或 ABI 名称。
+- 核心决策：
+  - 对已完成或已废弃的历史任务引用，直接删除工单 ID；对仍有效的后续工作提示，改写为不绑定具体工单号的中性描述。
+  - `String` / `print` 等迁移来源注释改写为当前架构边界说明，避免继续引用旧 stdlib/runtime 迁移任务。
+  - `delegates` / `sync` / `thread` / `collections` 中的 early-stage policy 说明继续保留，只移除历史任务编号。
+- 验证结果：
+  - `rg` 等价检查：`sysroot/**/*.scoop` 中 `TODO\s*T|T[0-9]+|TODO` 无命中。
+  - `cargo build` 通过。
+  - `cargo clippy --all-targets -- -D warnings` 通过。
+- 与 `PLAN.md` 对应闭合：
+  - 闭合 PLAN §8 / P13 中 sysroot 注释与历史工单引用收尾要求；sysroot 注释现在只保留当前架构说明，不再引用前一轮历史任务编号。
+- 暂时性 failing fixture：无。本任务只修改注释，未新增或遗留 failing fixture。
 
 ### P13-T04：最终 fixture 收尾——所有 fixture 必须通过
 

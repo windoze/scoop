@@ -1,17 +1,29 @@
-# Execution Plan
+# 本轮执行计划
 
-1. Read `TODO.md` first and identify the first task whose heading is not prefixed with `[DONE]`.
-2. Check the latest commit only for unfinished work directly relevant to that selected task.
-3. Inspect the task's referenced code, fixtures, and validation requirements without doing broad unrelated triage.
-4. Implement the selected task exactly as specified, adding prerequisite TODO entries instead of workarounds if a blocking spec or implementation gap is found.
-5. Run the task's required validation and any narrowly relevant tests; fix failures that are in scope.
-6. Update `TODO.md` by prefixing the completed task heading with `[DONE]` and recording completion details. Update `PLAN.md` only if phase-level sequencing changed.
-7. Commit all relevant changes with a descriptive task-tagged message, then stop without starting the next task.
+1. 读取 `TODO.md`，按文件顺序定位第一个标题未带 `[DONE]` 的任务。
+2. 检查该任务的依赖、验证要求和完成记录，必要时查看最新提交是否包含与该任务直接相关的未完成事项。
+3. 仅围绕当前任务收集代码上下文，不做开放式历史问题排查。
+4. 按任务要求实现最小且完整的变更；如果发现阻塞当前任务的真实缺口，则在 `TODO.md` 中插入最小前置任务并停止。
+5. 运行相关测试和质量检查；若失败且属于当前任务范围，继续修复并复测。
+6. 更新 `TODO.md`：完成时在任务标题前加 `[DONE]`，并补充完成记录；只有阶段计划变化时才更新 `PLAN.md`。
+7. 提交本轮所有相关变更，提交信息使用任务编号和简明说明。
+8. 完成一个任务后停止，不继续下一个任务。
 
-## Progress
+## 当前状态
 
-- Initial execution plan recorded before reading task details.
-- Selected first incomplete task: `P13-T02` from `TODO.md` / `TODO-5.md`.
-- Scope confirmed as documentation-only: update `MANAGED_ABI.md` §2.2 typical examples and completion records; no code changes expected.
-- Updated `MANAGED_ABI.md` §2.2, validated the rendered section via `cat MANAGED_ABI.md`, and ran `cargo clippy --all-targets -- -D warnings` successfully.
-- Marked `P13-T02` as `[DONE]` in `TODO.md` and `TODO-5.md`; final whitespace check passed. Commit remains.
+- 已读取 `TODO.md`。
+- 本轮第一个未完成任务为 `P13-T03`：清理 sysroot 文件中的过期 TODO 注释（T0143 / T1317 / T1325 等历史工单引用）。
+- 最新提交为 `[P13-T02] Update managed ABI examples`，未直接声明与 `P13-T03` 相关的未完成阻塞项。
+- 已读取 `TODO-5.md` 中 `P13-T03` 的完整任务要求。
+- 执行边界：只修改 sysroot 注释，不改代码逻辑；保留仍有架构价值的说明，但移除过期历史工单 ID。
+- 已扫描 `sysroot/**/*.scoop`，共有 26 处 `TODO` 或历史 `T####` 注释命中。
+- 处理策略：删除所有历史工单 ID；对仍有效的设计/阶段说明改写为中性表述；删除无独立价值的迁移来源说明。
+- 已对命中的 sysroot 文件应用注释级补丁，未修改代码声明或实现逻辑。
+- 复扫 `sysroot/**/*.scoop` 中 `TODO\s*T|T[0-9]+|TODO`：无命中。
+- `cargo build` 通过。
+- `cargo clippy --all-targets -- -D warnings` 通过。
+- 已更新 `TODO.md` 索引与 `TODO-5.md`，将 `P13-T03` 标记为 `[DONE]` 并写入完成记录。
+- 任务要求的精确 grep 验证通过：`sysroot/**/*.scoop` 中无 `TODO T` / `T01xx` / `T13xx` / `T15xx` 命中。
+- `git diff --check` 通过。
+- 已检查本轮 diff；未跟踪的 `CLOSURE_FIX.md`、`OVERLOAD_RESOLUTION.md`、`UnsupportedMainBody_FIX.md` 不属于本任务，保持未提交。
+- 下一步：提交 `P13-T03` 相关变更后停止。

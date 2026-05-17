@@ -64,7 +64,7 @@ fun <T> stackAlloc(): Ptr<T>
 // ---- Compat（迁移期旧名）----
 //
 // 说明：
-// - 兼容早期阶段（T1009）以“自由函数”形态提供的 `addrOf/load/store`；
+// - 兼容早期阶段以“自由函数”形态提供的 `addrOf/load/store`；
 // - 新代码建议使用 `addressOf` 与 `Ptr<T>.load/store`。
 
 @Intrinsic @NoGC @Unsafe

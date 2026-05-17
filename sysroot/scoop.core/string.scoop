@@ -1,7 +1,7 @@
 // Scoop sysroot：String 扩展方法
 //
-// T0143/P4-T02：从 stdlib/runtime 迁移到 sysroot，利用 T0120（byteLength/getByte）
-// 和 T0121（unsafeSliceBytes）这组 byte-level substrate 构建 public String helpers。
+// Public String helpers are ordinary sysroot code built on byte-level substrate
+// (`byteLength` / `getByte` / `unsafeSliceBytes`).
 
 package scoop.core
 

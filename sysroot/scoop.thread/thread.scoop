@@ -1,7 +1,7 @@
 // Scoop sysroot: thread surface（std v3，early stage）
 //
 // 说明：
-// - 该模块提供标准库 `scoop.thread` 的最小可执行表面（T1319c）。
+// - 该模块提供标准库 `scoop.thread` 的最小可执行表面。
 // - 当前阶段只覆盖 host 平台（pthread backend）：由 LLVM codegen 直接映射到 runtime C 符号（`scoop_thread_*`）。
 // - 线程句柄采用引用类型 `class Thread`（opaque handle），避免值类型 copy/析构语义在 early stage 过早复杂化。
 

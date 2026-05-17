@@ -12,7 +12,7 @@ import scoop.core.*
 ///
 /// 说明：
 /// - 0.1 阶段 `for (x in xs)` 的 typecheck 直接按该协议做存在性检查与元素类型推导；
-/// - 当前阶段“普通成员函数调用”尚未全面打通（见 TODO T1508），因此用户侧通常不会直接写
+/// - 当前阶段“普通成员函数调用”尚未全面打通，因此用户侧通常不会直接写
 ///   `xs.iterator().next()`；更多使用将通过 `for` 与标准库 helper（例如 `toArray()`）间接消费。
 interface Iterable<T> {
     fun iterator(): Iterator<T>
@@ -37,7 +37,7 @@ interface IntIterator {
     fun next(): Option<Int>
 }
 
-/// 迭代视图 → `Array` 的显式桥接（T1325c）。
+/// 迭代视图 → `Array` 的显式桥接。
 ///
 /// 说明：
 /// - 用于 vararg spread 的显式转换：`f(*xs.toArray())`；

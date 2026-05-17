@@ -31,7 +31,7 @@ fun <V> lazy(initializer: () -> V): ReadOnlyProperty<Any, V>
 
 /// lazy：指定线程安全策略（实现语义后续补齐）。
 ///
-/// 平台 policy（T1326c，early stage）：
+/// 平台 policy（early stage）：
 /// - `LazyThreadSafetyMode.None`：不依赖线程/互斥锁，可在所有平台落地；
 /// - `Publication/Synchronized`（以及省略 mode 的默认行为）会被编译器 lowering 为 `Mutex` + lock/unlock，
 ///   因此要求目标平台具备线程/互斥锁 runtime 能力；否则编译期会给出清晰诊断。
@@ -40,12 +40,12 @@ fun <V> lazy(mode: LazyThreadSafetyMode, initializer: () -> V): ReadOnlyProperty
 
 /// observable：每次写入触发回调（old/new）。
 ///
-/// 并发语义（T1326b，early stage）：
+/// 并发语义（early stage）：
 /// - 编译器会为该属性注入一个内部互斥锁字段（per-property `Mutex`），用于保护 backing field 的读写，
 ///   从而保证并发可见性并避免 data race；
 /// - 回调在写入完成后执行，且不在锁内执行（允许回调 reentrancy，并避免 `Raise`/异常路径导致锁泄漏）。
 ///
-/// 平台 policy（T1326c，early stage）：
+/// 平台 policy（early stage）：
 /// - 当前实现依赖 per-property `Mutex` 以保证并发可见性，因此要求目标平台具备线程/互斥锁能力；
 /// - 单线程/无 mutex 平台的“无锁降级实现”留给后续平台 backends 任务细化。
 @Intrinsic
@@ -53,11 +53,11 @@ fun <V> observable(initial: V, onChange: (V, V) -> Unit): ReadWriteProperty<Any,
 
 /// vetoable：写入前触发回调，返回 false 时拒绝更新。
 ///
-/// 并发语义（T1326b，early stage）：
+/// 并发语义（early stage）：
 /// - backing field 的读写由编译器注入的 per-property `Mutex` 保护（保证并发可见性、避免 data race）；
 /// - 回调不在锁内执行（允许回调 reentrancy，并避免 `Raise`/异常路径导致锁泄漏）；
 /// - 因此在并发场景下，回调看到的 `old` 是一次受保护读取的快照；回调返回 `true` 后的实际写入会再次加锁提交。
 ///
-/// 平台 policy（T1326c，early stage）：同 `observable`（需要线程/互斥锁能力）。
+/// 平台 policy（early stage）：同 `observable`（需要线程/互斥锁能力）。
 @Intrinsic
 fun <V> vetoable(initial: V, onChange: (V, V) -> Bool): ReadWriteProperty<Any, V>
