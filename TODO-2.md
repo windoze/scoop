@@ -276,7 +276,7 @@
 - 与 `PLAN.md` 闭合：完成 P5 §5.1/§5.2 的 sysroot string-from-array ABI surface 与 `StringBuilder` cone 落地；P6-T01 可直接生成 `StringBuilder().add(...).toString()` 调用链。
 - 暂时性 failing fixture：本任务未新增 failing fixture；`tests/fixtures/run-pass/mutable_array_ops_basic.scoop` 仍为 P4-T02 完成记录中已列出的既有失败，继续由 P9-T02 三分类清单处理。
 
-### P5-T03：sysroot/string.scoop 中高级 String helper 迁入 `scoop.lang.string`，更新 `String.split`
+### [DONE] P5-T03：sysroot/string.scoop 中高级 String helper 迁入 `scoop.lang.string`，更新 `String.split`
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5.3 / §5.4 / §9 / P5
@@ -308,3 +308,11 @@
 - 完成条件：
   - String 高级 helper 物理上位于 `scoop.lang.string`，但用户调用形态不变（自动 prelude 让它们可见）。
 - 依赖：P1-T02、P4-T02、P5-T02。
+
+完成记录（2026-05-17）：
+
+- 改动范围：`sysroot/string.scoop` 删除 9 个 public `fun String.*` 扩展 helper；`sysroot/lang_string.scoop` 新增 `substring/indexOf/contains/startsWith/endsWith/split/trimStart/trimEnd/trim`，保留 `String.split` 的 `MutableArray<String>.push + freeze` 实现；`sysroot/string.scoop` 内部 `replace/trimIndent` helper 改为直接使用 core byte-level `unsafeSliceBytes`，避免 core 反向依赖 `scoop.lang.string`；新增 `tests/fixtures/run-pass/lang_string_helpers_auto_prelude.scoop`；同步 const/comptime 内建白名单、comptime stdlib support-source 加载方式、LLVM sysroot helper ABI 断言。
+- 核心决策：高级 String helper 的用户可见 surface 迁入 `scoop.lang.string`，由自动 prelude 暴露；core 内部 helper 只依赖 `byteLength/getByte/unsafeSliceBytes/concat` 这组 core substrate，不 import `scoop.lang.string.*`；const/comptime 继续把这些 String helper 视为编译器内建可折叠调用，但 FQN 更新为 `scoop.lang.string.*`；comptime 侧 `stdlib/` 作为普通 support source 加载，使其与正常 frontend 一样获得自动 prelude。
+- 验证结果：`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/lang_string_helpers_auto_prelude.scoop` 通过；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/stdlib_string_basic.scoop` 通过；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/stdlib_string_methods_extended.scoop` 通过；`cargo run -p scoop -- test --fixtures tests/fixtures/comptime` 通过；`cargo run -p scoop -- test` 完成，结果为 1 个既有失败、1339 个通过、1376 checks 通过，唯一失败为 P4-T02 已记录待 P9-T02 处理的 `tests/fixtures/run-pass/mutable_array_ops_basic.scoop`；`cargo test --all --all-targets` 通过；`cargo clippy --all-targets -- -D warnings` 通过；`grep -n "fun String\." sysroot/string.scoop` 无命中。
+- 与 `PLAN.md` 闭合：完成 P5 §5.3/§5.4 的高级 String helper 迁入 `scoop.lang.string`；`sysroot/string.scoop` 现在只保留 core String body method 依赖的内部 helper 与后续 P7 待删 audited bridge。
+- 暂时性 failing fixture：本任务未新增 failing fixture；`tests/fixtures/run-pass/mutable_array_ops_basic.scoop` 仍为 P4-T02 完成记录中已列出的既有失败，继续由 P9-T02 三分类清单处理。

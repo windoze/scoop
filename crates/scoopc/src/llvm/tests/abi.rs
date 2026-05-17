@@ -283,7 +283,7 @@ fun main(): Int {
                 && stable_id_symbol_is_user_callable(llvm_function_symbol_name(function))
                 && stable_id_symbol_mentions_fqn(
                     llvm_function_symbol_name(function),
-                    "scoop.core.substring",
+                    "scoop.lang.string.substring",
                 )
         },
     );
@@ -291,7 +291,7 @@ fun main(): Int {
     assert!(
         stable_id_symbol_mentions_fqn(
             llvm_function_symbol_name(substring_ir),
-            "scoop.core.substring"
+            "scoop.lang.string.substring"
         ),
         "single-file LLVM 路径应把可编译 sysroot 源中的 substring helper 编进当前模块"
     );

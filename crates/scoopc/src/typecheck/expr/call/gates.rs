@@ -147,16 +147,16 @@ pub(in crate::typecheck::expr) fn check_const_fun_call_gate(
 pub(super) fn is_const_eval_builtin_fun(callee_fqn: &str) -> bool {
     matches!(
         callee_fqn,
-        "scoop.core.substring"
+        "scoop.lang.string.substring"
             | "scoop.core.String.trimIndent"
-            | "scoop.core.indexOf"
-            | "scoop.core.contains"
-            | "scoop.core.startsWith"
-            | "scoop.core.endsWith"
-            | "scoop.core.split"
-            | "scoop.core.trimStart"
-            | "scoop.core.trimEnd"
-            | "scoop.core.trim"
+            | "scoop.lang.string.indexOf"
+            | "scoop.lang.string.contains"
+            | "scoop.lang.string.startsWith"
+            | "scoop.lang.string.endsWith"
+            | "scoop.lang.string.split"
+            | "scoop.lang.string.trimStart"
+            | "scoop.lang.string.trimEnd"
+            | "scoop.lang.string.trim"
     )
 }
 

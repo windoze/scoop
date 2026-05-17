@@ -1,0 +1,10 @@
+// EXPECT: pass
+// RUN-STDOUT: lang_string_helpers_auto_prelude.stdout
+// EXPECT-EXIT: 0
+//
+// P5-T03: advanced String helpers are available through the automatic prelude.
+
+fun main(): Int {
+    println("abc".substring(0, 1))
+    return 0
+}

@@ -158,8 +158,7 @@ pub fn eval_const_bindings_in_compilation_unit<'a>(
     let mut prepared_stdlib: Vec<OwnedPreparedConstEvalFile> =
         Vec::with_capacity(stdlib_source_paths.len());
     for path in stdlib_source_paths {
-        let source =
-            SourceFile::load_sysroot(&path).map_err(|err| frontend_message(err.to_string()))?;
+        let source = SourceFile::load(&path).map_err(|err| frontend_message(err.to_string()))?;
         let ast = crate::parser::parse_file(&source).map_err(frontend_diagnostic)?;
         prepared_stdlib.push(OwnedPreparedConstEvalFile { source, ast });
     }
