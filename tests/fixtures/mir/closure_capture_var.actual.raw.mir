@@ -21,7 +21,7 @@ File {
                                     "x",
                                 ),
                                 ty: TypeId(
-                                    18,
+                                    5,
                                 ),
                                 source: SourceLocal,
                             },
@@ -51,7 +51,7 @@ File {
                                     "tmp1",
                                 ),
                                 ty: TypeId(
-                                    19,
+                                    25,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -81,7 +81,7 @@ File {
                                     "tmp3",
                                 ),
                                 ty: TypeId(
-                                    19,
+                                    25,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -96,29 +96,9 @@ File {
                                 source: CompilerTemporary,
                             },
                             LocalDecl {
-                                span: 128..129,
-                                name: Some(
-                                    "tmp5",
-                                ),
-                                ty: TypeId(
-                                    5,
-                                ),
-                                source: CompilerTemporary,
-                            },
-                            LocalDecl {
-                                span: 124..129,
-                                name: Some(
-                                    "tmp6",
-                                ),
-                                ty: TypeId(
-                                    2,
-                                ),
-                                source: CompilerTemporary,
-                            },
-                            LocalDecl {
                                 span: 132..135,
                                 name: Some(
-                                    "tmp7",
+                                    "tmp5",
                                 ),
                                 ty: TypeId(
                                     0,
@@ -128,20 +108,10 @@ File {
                             LocalDecl {
                                 span: 138..141,
                                 name: Some(
-                                    "tmp8",
+                                    "tmp6",
                                 ),
                                 ty: TypeId(
                                     0,
-                                ),
-                                source: CompilerTemporary,
-                            },
-                            LocalDecl {
-                                span: 144..145,
-                                name: Some(
-                                    "tmp9",
-                                ),
-                                ty: TypeId(
-                                    5,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -165,28 +135,11 @@ File {
                                         span: 26..35,
                                         kind: Assign {
                                             target: l0,
-                                            value: CaptureBoxNew {
-                                                value: Local(
+                                            value: Use(
+                                                Local(
                                                     l1,
                                                 ),
-                                                contract: CaptureBoxTransportMetadata {
-                                                    box_ty: TypeId(
-                                                        18,
-                                                    ),
-                                                    value: ValueTransportMetadata {
-                                                        source_ty: TypeId(
-                                                            5,
-                                                        ),
-                                                        kind: Scalar,
-                                                        requirements: MirTransportRequirements {
-                                                            trace: false,
-                                                            copy: true,
-                                                            drop: false,
-                                                        },
-                                                        boxing: None,
-                                                    },
-                                                },
-                                            },
+                                            ),
                                         },
                                     },
                                     Statement {
@@ -201,7 +154,7 @@ File {
                                                 ],
                                                 transport: AggregateTransportMetadata {
                                                     aggregate_ty: TypeId(
-                                                        19,
+                                                        25,
                                                     ),
                                                     kind: ClosureEnv,
                                                     fields: [
@@ -211,17 +164,17 @@ File {
                                                                 "x",
                                                             ),
                                                             ty: TypeId(
-                                                                18,
+                                                                5,
                                                             ),
                                                             transport: ValueTransportMetadata {
                                                                 source_ty: TypeId(
-                                                                    18,
+                                                                    5,
                                                                 ),
-                                                                kind: Reference,
+                                                                kind: Scalar,
                                                                 requirements: MirTransportRequirements {
-                                                                    trace: true,
+                                                                    trace: false,
                                                                     copy: true,
-                                                                    drop: true,
+                                                                    drop: false,
                                                                 },
                                                                 boxing: None,
                                                             },
@@ -242,7 +195,7 @@ File {
                                                 fn_ptr: "a.main.$lambda0",
                                                 env_contract: ClosureEnvTransportMetadata {
                                                     env_ty: TypeId(
-                                                        19,
+                                                        25,
                                                     ),
                                                     captures: [
                                                         ClosureCaptureTransportMetadata {
@@ -252,13 +205,13 @@ File {
                                                             source_local: l0,
                                                             transport: ValueTransportMetadata {
                                                                 source_ty: TypeId(
-                                                                    18,
+                                                                    5,
                                                                 ),
-                                                                kind: CaptureBox,
+                                                                kind: Scalar,
                                                                 requirements: MirTransportRequirements {
-                                                                    trace: true,
+                                                                    trace: false,
                                                                     copy: true,
-                                                                    drop: true,
+                                                                    drop: false,
                                                                 },
                                                                 boxing: None,
                                                             },
@@ -291,7 +244,7 @@ File {
                                                 ],
                                                 transport: AggregateTransportMetadata {
                                                     aggregate_ty: TypeId(
-                                                        19,
+                                                        25,
                                                     ),
                                                     kind: ClosureEnv,
                                                     fields: [
@@ -301,17 +254,17 @@ File {
                                                                 "x",
                                                             ),
                                                             ty: TypeId(
-                                                                18,
+                                                                5,
                                                             ),
                                                             transport: ValueTransportMetadata {
                                                                 source_ty: TypeId(
-                                                                    18,
+                                                                    5,
                                                                 ),
-                                                                kind: Reference,
+                                                                kind: Scalar,
                                                                 requirements: MirTransportRequirements {
-                                                                    trace: true,
+                                                                    trace: false,
                                                                     copy: true,
-                                                                    drop: true,
+                                                                    drop: false,
                                                                 },
                                                                 boxing: None,
                                                             },
@@ -332,7 +285,7 @@ File {
                                                 fn_ptr: "a.main.$lambda1",
                                                 env_contract: ClosureEnvTransportMetadata {
                                                     env_ty: TypeId(
-                                                        19,
+                                                        25,
                                                     ),
                                                     captures: [
                                                         ClosureCaptureTransportMetadata {
@@ -342,13 +295,13 @@ File {
                                                             source_local: l0,
                                                             transport: ValueTransportMetadata {
                                                                 source_ty: TypeId(
-                                                                    18,
+                                                                    5,
                                                                 ),
-                                                                kind: CaptureBox,
+                                                                kind: Scalar,
                                                                 requirements: MirTransportRequirements {
-                                                                    trace: true,
+                                                                    trace: false,
                                                                     copy: true,
-                                                                    drop: true,
+                                                                    drop: false,
                                                                 },
                                                                 boxing: None,
                                                             },
@@ -370,68 +323,20 @@ File {
                                         },
                                     },
                                     Statement {
-                                        span: 128..129,
-                                        kind: Assign {
-                                            target: l8,
-                                            value: CaptureBoxGet {
-                                                box_operand: Local(
-                                                    l0,
-                                                ),
-                                                contract: CaptureBoxTransportMetadata {
-                                                    box_ty: TypeId(
-                                                        18,
-                                                    ),
-                                                    value: ValueTransportMetadata {
-                                                        source_ty: TypeId(
-                                                            5,
-                                                        ),
-                                                        kind: Scalar,
-                                                        requirements: MirTransportRequirements {
-                                                            trace: false,
-                                                            copy: true,
-                                                            drop: false,
-                                                        },
-                                                        boxing: None,
-                                                    },
-                                                },
-                                            },
-                                        },
-                                    },
-                                    Statement {
                                         span: 124..129,
                                         kind: Assign {
-                                            target: l9,
-                                            value: CaptureBoxSet {
-                                                box_operand: Local(
+                                            target: l0,
+                                            value: Use(
+                                                Local(
                                                     l0,
                                                 ),
-                                                value: Local(
-                                                    l8,
-                                                ),
-                                                contract: CaptureBoxTransportMetadata {
-                                                    box_ty: TypeId(
-                                                        18,
-                                                    ),
-                                                    value: ValueTransportMetadata {
-                                                        source_ty: TypeId(
-                                                            5,
-                                                        ),
-                                                        kind: Scalar,
-                                                        requirements: MirTransportRequirements {
-                                                            trace: false,
-                                                            copy: true,
-                                                            drop: false,
-                                                        },
-                                                        boxing: None,
-                                                    },
-                                                },
-                                            },
+                                            ),
                                         },
                                     },
                                     Statement {
                                         span: 132..135,
                                         kind: Assign {
-                                            target: l10,
+                                            target: l8,
                                             value: Call {
                                                 site_id: site0,
                                                 kind: FunValue {
@@ -469,7 +374,7 @@ File {
                                     Statement {
                                         span: 138..141,
                                         kind: Assign {
-                                            target: l11,
+                                            target: l9,
                                             value: Call {
                                                 site_id: site1,
                                                 kind: FunValue {
@@ -504,41 +409,13 @@ File {
                                             },
                                         },
                                     },
-                                    Statement {
-                                        span: 144..145,
-                                        kind: Assign {
-                                            target: l12,
-                                            value: CaptureBoxGet {
-                                                box_operand: Local(
-                                                    l0,
-                                                ),
-                                                contract: CaptureBoxTransportMetadata {
-                                                    box_ty: TypeId(
-                                                        18,
-                                                    ),
-                                                    value: ValueTransportMetadata {
-                                                        source_ty: TypeId(
-                                                            5,
-                                                        ),
-                                                        kind: Scalar,
-                                                        requirements: MirTransportRequirements {
-                                                            trace: false,
-                                                            copy: true,
-                                                            drop: false,
-                                                        },
-                                                        boxing: None,
-                                                    },
-                                                },
-                                            },
-                                        },
-                                    },
                                 ],
                                 terminator: Terminator {
                                     span: 11..147,
                                     kind: Return {
                                         value: Some(
                                             Local(
-                                                l12,
+                                                l0,
                                             ),
                                         ),
                                     },
@@ -564,7 +441,7 @@ File {
                         span: 57..78,
                         name: "$env",
                         ty: TypeId(
-                            19,
+                            25,
                         ),
                         local: l0,
                     },
@@ -581,7 +458,7 @@ File {
                                     "$env",
                                 ),
                                 ty: TypeId(
-                                    19,
+                                    25,
                                 ),
                                 source: SourceLocal,
                             },
@@ -591,39 +468,9 @@ File {
                                     "x",
                                 ),
                                 ty: TypeId(
-                                    18,
+                                    5,
                                 ),
                                 source: SourceLocal,
-                            },
-                            LocalDecl {
-                                span: 67..68,
-                                name: Some(
-                                    "tmp0",
-                                ),
-                                ty: TypeId(
-                                    5,
-                                ),
-                                source: CompilerTemporary,
-                            },
-                            LocalDecl {
-                                span: 63..68,
-                                name: Some(
-                                    "tmp1",
-                                ),
-                                ty: TypeId(
-                                    2,
-                                ),
-                                source: CompilerTemporary,
-                            },
-                            LocalDecl {
-                                span: 73..74,
-                                name: Some(
-                                    "tmp2",
-                                ),
-                                ty: TypeId(
-                                    5,
-                                ),
-                                source: CompilerTemporary,
                             },
                         ],
                         blocks: [
@@ -643,90 +490,14 @@ File {
                                         },
                                     },
                                     Statement {
-                                        span: 67..68,
-                                        kind: Assign {
-                                            target: l2,
-                                            value: CaptureBoxGet {
-                                                box_operand: Local(
-                                                    l1,
-                                                ),
-                                                contract: CaptureBoxTransportMetadata {
-                                                    box_ty: TypeId(
-                                                        18,
-                                                    ),
-                                                    value: ValueTransportMetadata {
-                                                        source_ty: TypeId(
-                                                            5,
-                                                        ),
-                                                        kind: Scalar,
-                                                        requirements: MirTransportRequirements {
-                                                            trace: false,
-                                                            copy: true,
-                                                            drop: false,
-                                                        },
-                                                        boxing: None,
-                                                    },
-                                                },
-                                            },
-                                        },
-                                    },
-                                    Statement {
                                         span: 63..68,
                                         kind: Assign {
-                                            target: l3,
-                                            value: CaptureBoxSet {
-                                                box_operand: Local(
+                                            target: l1,
+                                            value: Use(
+                                                Local(
                                                     l1,
                                                 ),
-                                                value: Local(
-                                                    l2,
-                                                ),
-                                                contract: CaptureBoxTransportMetadata {
-                                                    box_ty: TypeId(
-                                                        18,
-                                                    ),
-                                                    value: ValueTransportMetadata {
-                                                        source_ty: TypeId(
-                                                            5,
-                                                        ),
-                                                        kind: Scalar,
-                                                        requirements: MirTransportRequirements {
-                                                            trace: false,
-                                                            copy: true,
-                                                            drop: false,
-                                                        },
-                                                        boxing: None,
-                                                    },
-                                                },
-                                            },
-                                        },
-                                    },
-                                    Statement {
-                                        span: 73..74,
-                                        kind: Assign {
-                                            target: l4,
-                                            value: CaptureBoxGet {
-                                                box_operand: Local(
-                                                    l1,
-                                                ),
-                                                contract: CaptureBoxTransportMetadata {
-                                                    box_ty: TypeId(
-                                                        18,
-                                                    ),
-                                                    value: ValueTransportMetadata {
-                                                        source_ty: TypeId(
-                                                            5,
-                                                        ),
-                                                        kind: Scalar,
-                                                        requirements: MirTransportRequirements {
-                                                            trace: false,
-                                                            copy: true,
-                                                            drop: false,
-                                                        },
-                                                        boxing: None,
-                                                    },
-                                                },
-                                            },
+                                            ),
                                         },
                                     },
                                 ],
@@ -735,7 +506,7 @@ File {
                                     kind: Return {
                                         value: Some(
                                             Local(
-                                                l4,
+                                                l1,
                                             ),
                                         ),
                                     },
@@ -761,7 +532,7 @@ File {
                         span: 100..121,
                         name: "$env",
                         ty: TypeId(
-                            19,
+                            25,
                         ),
                         local: l0,
                     },
@@ -778,7 +549,7 @@ File {
                                     "$env",
                                 ),
                                 ty: TypeId(
-                                    19,
+                                    25,
                                 ),
                                 source: SourceLocal,
                             },
@@ -788,39 +559,9 @@ File {
                                     "x",
                                 ),
                                 ty: TypeId(
-                                    18,
+                                    5,
                                 ),
                                 source: SourceLocal,
-                            },
-                            LocalDecl {
-                                span: 110..111,
-                                name: Some(
-                                    "tmp0",
-                                ),
-                                ty: TypeId(
-                                    5,
-                                ),
-                                source: CompilerTemporary,
-                            },
-                            LocalDecl {
-                                span: 106..111,
-                                name: Some(
-                                    "tmp1",
-                                ),
-                                ty: TypeId(
-                                    2,
-                                ),
-                                source: CompilerTemporary,
-                            },
-                            LocalDecl {
-                                span: 116..117,
-                                name: Some(
-                                    "tmp2",
-                                ),
-                                ty: TypeId(
-                                    5,
-                                ),
-                                source: CompilerTemporary,
                             },
                         ],
                         blocks: [
@@ -840,90 +581,14 @@ File {
                                         },
                                     },
                                     Statement {
-                                        span: 110..111,
-                                        kind: Assign {
-                                            target: l2,
-                                            value: CaptureBoxGet {
-                                                box_operand: Local(
-                                                    l1,
-                                                ),
-                                                contract: CaptureBoxTransportMetadata {
-                                                    box_ty: TypeId(
-                                                        18,
-                                                    ),
-                                                    value: ValueTransportMetadata {
-                                                        source_ty: TypeId(
-                                                            5,
-                                                        ),
-                                                        kind: Scalar,
-                                                        requirements: MirTransportRequirements {
-                                                            trace: false,
-                                                            copy: true,
-                                                            drop: false,
-                                                        },
-                                                        boxing: None,
-                                                    },
-                                                },
-                                            },
-                                        },
-                                    },
-                                    Statement {
                                         span: 106..111,
                                         kind: Assign {
-                                            target: l3,
-                                            value: CaptureBoxSet {
-                                                box_operand: Local(
+                                            target: l1,
+                                            value: Use(
+                                                Local(
                                                     l1,
                                                 ),
-                                                value: Local(
-                                                    l2,
-                                                ),
-                                                contract: CaptureBoxTransportMetadata {
-                                                    box_ty: TypeId(
-                                                        18,
-                                                    ),
-                                                    value: ValueTransportMetadata {
-                                                        source_ty: TypeId(
-                                                            5,
-                                                        ),
-                                                        kind: Scalar,
-                                                        requirements: MirTransportRequirements {
-                                                            trace: false,
-                                                            copy: true,
-                                                            drop: false,
-                                                        },
-                                                        boxing: None,
-                                                    },
-                                                },
-                                            },
-                                        },
-                                    },
-                                    Statement {
-                                        span: 116..117,
-                                        kind: Assign {
-                                            target: l4,
-                                            value: CaptureBoxGet {
-                                                box_operand: Local(
-                                                    l1,
-                                                ),
-                                                contract: CaptureBoxTransportMetadata {
-                                                    box_ty: TypeId(
-                                                        18,
-                                                    ),
-                                                    value: ValueTransportMetadata {
-                                                        source_ty: TypeId(
-                                                            5,
-                                                        ),
-                                                        kind: Scalar,
-                                                        requirements: MirTransportRequirements {
-                                                            trace: false,
-                                                            copy: true,
-                                                            drop: false,
-                                                        },
-                                                        boxing: None,
-                                                    },
-                                                },
-                                            },
+                                            ),
                                         },
                                     },
                                 ],
@@ -932,7 +597,7 @@ File {
                                     kind: Return {
                                         value: Some(
                                             Local(
-                                                l4,
+                                                l1,
                                             ),
                                         ),
                                     },

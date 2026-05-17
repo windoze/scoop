@@ -546,10 +546,10 @@ File {
                             LocalDecl {
                                 span: 630..652,
                                 name: Some(
-                                    "__array_builder",
+                                    "__array_lit_tmp_0",
                                 ),
                                 ty: TypeId(
-                                    0,
+                                    21,
                                 ),
                                 source: SourceLocal,
                             },
@@ -559,22 +559,22 @@ File {
                                     "tmp0",
                                 ),
                                 ty: TypeId(
-                                    0,
+                                    21,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 1050397..1050398,
+                                name: Some(
+                                    "tmp1",
+                                ),
+                                ty: TypeId(
+                                    5,
                                 ),
                                 source: CompilerTemporary,
                             },
                             LocalDecl {
                                 span: 1050399..1050400,
-                                name: Some(
-                                    "tmp1",
-                                ),
-                                ty: TypeId(
-                                    2,
-                                ),
-                                source: CompilerTemporary,
-                            },
-                            LocalDecl {
-                                span: 1050401..1050402,
                                 name: Some(
                                     "tmp2",
                                 ),
@@ -584,9 +584,19 @@ File {
                                 source: CompilerTemporary,
                             },
                             LocalDecl {
-                                span: 636..651,
+                                span: 1050401..1050402,
                                 name: Some(
                                     "tmp3",
+                                ),
+                                ty: TypeId(
+                                    2,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 636..651,
+                                name: Some(
+                                    "tmp4",
                                 ),
                                 ty: TypeId(
                                     10,
@@ -596,7 +606,7 @@ File {
                             LocalDecl {
                                 span: 640..641,
                                 name: Some(
-                                    "tmp4",
+                                    "tmp5",
                                 ),
                                 ty: TypeId(
                                     5,
@@ -606,7 +616,7 @@ File {
                             LocalDecl {
                                 span: 643..650,
                                 name: Some(
-                                    "tmp5",
+                                    "tmp6",
                                 ),
                                 ty: TypeId(
                                     1,
@@ -616,7 +626,7 @@ File {
                             LocalDecl {
                                 span: 1050403..1050404,
                                 name: Some(
-                                    "tmp6",
+                                    "tmp7",
                                 ),
                                 ty: TypeId(
                                     20,
@@ -636,7 +646,7 @@ File {
                             LocalDecl {
                                 span: 674..683,
                                 name: Some(
-                                    "tmp7",
+                                    "tmp8",
                                 ),
                                 ty: TypeId(
                                     10,
@@ -646,7 +656,7 @@ File {
                             LocalDecl {
                                 span: 681..682,
                                 name: Some(
-                                    "tmp8",
+                                    "tmp9",
                                 ),
                                 ty: TypeId(
                                     5,
@@ -666,27 +676,37 @@ File {
                             LocalDecl {
                                 span: 716..728,
                                 name: Some(
-                                    "__array_builder",
+                                    "__array_lit_tmp_1",
                                 ),
                                 ty: TypeId(
-                                    0,
+                                    21,
                                 ),
                                 source: SourceLocal,
                             },
                             LocalDecl {
                                 span: 1050405..1050406,
                                 name: Some(
-                                    "tmp9",
+                                    "tmp10",
                                 ),
                                 ty: TypeId(
-                                    0,
+                                    21,
+                                ),
+                                source: CompilerTemporary,
+                            },
+                            LocalDecl {
+                                span: 1050405..1050406,
+                                name: Some(
+                                    "tmp11",
+                                ),
+                                ty: TypeId(
+                                    5,
                                 ),
                                 source: CompilerTemporary,
                             },
                             LocalDecl {
                                 span: 1050407..1050408,
                                 name: Some(
-                                    "tmp10",
+                                    "tmp12",
                                 ),
                                 ty: TypeId(
                                     2,
@@ -696,7 +716,7 @@ File {
                             LocalDecl {
                                 span: 1050409..1050410,
                                 name: Some(
-                                    "tmp11",
+                                    "tmp13",
                                 ),
                                 ty: TypeId(
                                     2,
@@ -704,19 +724,9 @@ File {
                                 source: CompilerTemporary,
                             },
                             LocalDecl {
-                                span: 1050411..1050412,
-                                name: Some(
-                                    "tmp12",
-                                ),
-                                ty: TypeId(
-                                    21,
-                                ),
-                                source: CompilerTemporary,
-                            },
-                            LocalDecl {
                                 span: 733..757,
                                 name: Some(
-                                    "tmp13",
+                                    "tmp14",
                                 ),
                                 ty: TypeId(
                                     2,
@@ -726,7 +736,7 @@ File {
                             LocalDecl {
                                 span: 740..741,
                                 name: Some(
-                                    "tmp14",
+                                    "tmp15",
                                 ),
                                 ty: TypeId(
                                     5,
@@ -736,7 +746,7 @@ File {
                             LocalDecl {
                                 span: 743..756,
                                 name: Some(
-                                    "tmp15",
+                                    "tmp16",
                                 ),
                                 ty: TypeId(
                                     10,
@@ -746,7 +756,7 @@ File {
                             LocalDecl {
                                 span: 747..748,
                                 name: Some(
-                                    "tmp16",
+                                    "tmp17",
                                 ),
                                 ty: TypeId(
                                     5,
@@ -756,7 +766,7 @@ File {
                             LocalDecl {
                                 span: 750..755,
                                 name: Some(
-                                    "tmp17",
+                                    "tmp18",
                                 ),
                                 ty: TypeId(
                                     1,
@@ -766,7 +776,7 @@ File {
                             LocalDecl {
                                 span: 769..778,
                                 name: Some(
-                                    "tmp18",
+                                    "tmp19",
                                 ),
                                 ty: TypeId(
                                     10,
@@ -776,7 +786,7 @@ File {
                             LocalDecl {
                                 span: 776..777,
                                 name: Some(
-                                    "tmp19",
+                                    "tmp20",
                                 ),
                                 ty: TypeId(
                                     5,
@@ -786,7 +796,7 @@ File {
                             LocalDecl {
                                 span: 603..780,
                                 name: Some(
-                                    "tmp20",
+                                    "tmp21",
                                 ),
                                 ty: TypeId(
                                     2,
@@ -801,17 +811,38 @@ File {
                                     Statement {
                                         span: 1050397..1050398,
                                         kind: Assign {
+                                            target: l4,
+                                            value: Use(
+                                                Const(
+                                                    SynthInt(
+                                                        2,
+                                                    ),
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 1050397..1050398,
+                                        kind: Assign {
                                             target: l3,
                                             value: Call {
                                                 site_id: site0,
                                                 kind: Direct {
-                                                    callee_fqn: "scoop.core.__scoop_array_builder_new",
+                                                    callee_fqn: "scoop.core.mutableArrayNew",
                                                 },
-                                                args: [],
+                                                args: [
+                                                    CallArg {
+                                                        span: 1050397..1050398,
+                                                        name: None,
+                                                        value: Local(
+                                                            l4,
+                                                        ),
+                                                    },
+                                                ],
                                                 transport: CallTransportMetadata {
                                                     result: ValueTransportMetadata {
                                                         source_ty: TypeId(
-                                                            0,
+                                                            21,
                                                         ),
                                                         kind: Reference,
                                                         requirements: MirTransportRequirements {
@@ -825,9 +856,9 @@ File {
                                                     array: None,
                                                     gc: None,
                                                     abi: CallAbiHandoffMetadata {
-                                                        callable_abi_kind: Plain,
+                                                        callable_abi_kind: DeferredToEffectFacts,
                                                         resolved_outward_cases: [],
-                                                        impl_plan: NoOutward,
+                                                        impl_plan: DeferredToEffectFacts,
                                                         adapter_required: false,
                                                     },
                                                 },
@@ -848,15 +879,15 @@ File {
                                     Statement {
                                         span: 1050399..1050400,
                                         kind: Assign {
-                                            target: l4,
+                                            target: l5,
                                             value: Call {
                                                 site_id: site1,
                                                 kind: Direct {
-                                                    callee_fqn: "scoop.core.__scoop_array_builder_push",
+                                                    callee_fqn: "scoop.core.push",
                                                 },
                                                 args: [
                                                     CallArg {
-                                                        span: 630..630,
+                                                        span: 1821..1822,
                                                         name: None,
                                                         value: Local(
                                                             l2,
@@ -888,7 +919,7 @@ File {
                                                         ArrayElementTransportMetadata {
                                                             operation: BuilderPush,
                                                             array_ty: TypeId(
-                                                                0,
+                                                                21,
                                                             ),
                                                             element_ty: TypeId(
                                                                 10,
@@ -911,7 +942,7 @@ File {
                                                                         ),
                                                                         target_ty: Some(
                                                                             TypeId(
-                                                                                0,
+                                                                                21,
                                                                             ),
                                                                         ),
                                                                         reason: ArrayElement,
@@ -922,9 +953,9 @@ File {
                                                     ),
                                                     gc: None,
                                                     abi: CallAbiHandoffMetadata {
-                                                        callable_abi_kind: Plain,
+                                                        callable_abi_kind: DeferredToEffectFacts,
                                                         resolved_outward_cases: [],
-                                                        impl_plan: NoOutward,
+                                                        impl_plan: DeferredToEffectFacts,
                                                         adapter_required: false,
                                                     },
                                                 },
@@ -934,7 +965,7 @@ File {
                                     Statement {
                                         span: 640..641,
                                         kind: Assign {
-                                            target: l7,
+                                            target: l8,
                                             value: Use(
                                                 Const(
                                                     Int,
@@ -945,7 +976,7 @@ File {
                                     Statement {
                                         span: 643..650,
                                         kind: Assign {
-                                            target: l8,
+                                            target: l9,
                                             value: Use(
                                                 Const(
                                                     String,
@@ -956,21 +987,21 @@ File {
                                     Statement {
                                         span: 636..651,
                                         kind: Assign {
-                                            target: l6,
+                                            target: l7,
                                             value: StructLit {
                                                 fields: [
                                                     StructLitField {
                                                         span: 640..641,
                                                         name: "value",
                                                         value: Local(
-                                                            l7,
+                                                            l8,
                                                         ),
                                                     },
                                                     StructLitField {
                                                         span: 643..650,
                                                         name: "label",
                                                         value: Local(
-                                                            l8,
+                                                            l9,
                                                         ),
                                                     },
                                                 ],
@@ -1030,15 +1061,15 @@ File {
                                     Statement {
                                         span: 1050401..1050402,
                                         kind: Assign {
-                                            target: l5,
+                                            target: l6,
                                             value: Call {
                                                 site_id: site2,
                                                 kind: Direct {
-                                                    callee_fqn: "scoop.core.__scoop_array_builder_push",
+                                                    callee_fqn: "scoop.core.push",
                                                 },
                                                 args: [
                                                     CallArg {
-                                                        span: 630..630,
+                                                        span: 1821..1822,
                                                         name: None,
                                                         value: Local(
                                                             l2,
@@ -1048,7 +1079,7 @@ File {
                                                         span: 636..651,
                                                         name: None,
                                                         value: Local(
-                                                            l6,
+                                                            l7,
                                                         ),
                                                     },
                                                 ],
@@ -1070,7 +1101,7 @@ File {
                                                         ArrayElementTransportMetadata {
                                                             operation: BuilderPush,
                                                             array_ty: TypeId(
-                                                                0,
+                                                                21,
                                                             ),
                                                             element_ty: TypeId(
                                                                 10,
@@ -1093,7 +1124,7 @@ File {
                                                                         ),
                                                                         target_ty: Some(
                                                                             TypeId(
-                                                                                0,
+                                                                                21,
                                                                             ),
                                                                         ),
                                                                         reason: ArrayElement,
@@ -1104,9 +1135,9 @@ File {
                                                     ),
                                                     gc: None,
                                                     abi: CallAbiHandoffMetadata {
-                                                        callable_abi_kind: Plain,
+                                                        callable_abi_kind: DeferredToEffectFacts,
                                                         resolved_outward_cases: [],
-                                                        impl_plan: NoOutward,
+                                                        impl_plan: DeferredToEffectFacts,
                                                         adapter_required: false,
                                                     },
                                                 },
@@ -1116,15 +1147,15 @@ File {
                                     Statement {
                                         span: 1050403..1050404,
                                         kind: Assign {
-                                            target: l9,
+                                            target: l10,
                                             value: Call {
                                                 site_id: site3,
                                                 kind: Direct {
-                                                    callee_fqn: "scoop.core.__scoop_array_builder_build_array",
+                                                    callee_fqn: "scoop.core.freeze",
                                                 },
                                                 args: [
                                                     CallArg {
-                                                        span: 630..630,
+                                                        span: 1821..1822,
                                                         name: None,
                                                         value: Local(
                                                             l2,
@@ -1171,9 +1202,9 @@ File {
                                                     ),
                                                     gc: None,
                                                     abi: CallAbiHandoffMetadata {
-                                                        callable_abi_kind: Plain,
+                                                        callable_abi_kind: DeferredToEffectFacts,
                                                         resolved_outward_cases: [],
-                                                        impl_plan: NoOutward,
+                                                        impl_plan: DeferredToEffectFacts,
                                                         adapter_required: false,
                                                     },
                                                 },
@@ -1186,7 +1217,7 @@ File {
                                             target: l1,
                                             value: Use(
                                                 Local(
-                                                    l9,
+                                                    l10,
                                                 ),
                                             ),
                                         },
@@ -1194,7 +1225,7 @@ File {
                                     Statement {
                                         span: 681..682,
                                         kind: Assign {
-                                            target: l12,
+                                            target: l13,
                                             value: Use(
                                                 Const(
                                                     Int,
@@ -1205,7 +1236,7 @@ File {
                                     Statement {
                                         span: 674..683,
                                         kind: Assign {
-                                            target: l11,
+                                            target: l12,
                                             value: Call {
                                                 site_id: site4,
                                                 kind: Direct {
@@ -1223,7 +1254,7 @@ File {
                                                         span: 681..682,
                                                         name: None,
                                                         value: Local(
-                                                            l12,
+                                                            l13,
                                                         ),
                                                     },
                                                 ],
@@ -1292,10 +1323,10 @@ File {
                                     Statement {
                                         span: 657..683,
                                         kind: Assign {
-                                            target: l10,
+                                            target: l11,
                                             value: Use(
                                                 Local(
-                                                    l11,
+                                                    l12,
                                                 ),
                                             ),
                                         },
@@ -1303,17 +1334,38 @@ File {
                                     Statement {
                                         span: 1050405..1050406,
                                         kind: Assign {
-                                            target: l15,
+                                            target: l17,
+                                            value: Use(
+                                                Const(
+                                                    SynthInt(
+                                                        2,
+                                                    ),
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 1050405..1050406,
+                                        kind: Assign {
+                                            target: l16,
                                             value: Call {
                                                 site_id: site5,
                                                 kind: Direct {
-                                                    callee_fqn: "scoop.core.__scoop_array_builder_new",
+                                                    callee_fqn: "scoop.core.mutableArrayNew",
                                                 },
-                                                args: [],
+                                                args: [
+                                                    CallArg {
+                                                        span: 1050405..1050406,
+                                                        name: None,
+                                                        value: Local(
+                                                            l17,
+                                                        ),
+                                                    },
+                                                ],
                                                 transport: CallTransportMetadata {
                                                     result: ValueTransportMetadata {
                                                         source_ty: TypeId(
-                                                            0,
+                                                            21,
                                                         ),
                                                         kind: Reference,
                                                         requirements: MirTransportRequirements {
@@ -1327,9 +1379,9 @@ File {
                                                     array: None,
                                                     gc: None,
                                                     abi: CallAbiHandoffMetadata {
-                                                        callable_abi_kind: Plain,
+                                                        callable_abi_kind: DeferredToEffectFacts,
                                                         resolved_outward_cases: [],
-                                                        impl_plan: NoOutward,
+                                                        impl_plan: DeferredToEffectFacts,
                                                         adapter_required: false,
                                                     },
                                                 },
@@ -1339,10 +1391,10 @@ File {
                                     Statement {
                                         span: 716..728,
                                         kind: Assign {
-                                            target: l14,
+                                            target: l15,
                                             value: Use(
                                                 Local(
-                                                    l15,
+                                                    l16,
                                                 ),
                                             ),
                                         },
@@ -1350,18 +1402,18 @@ File {
                                     Statement {
                                         span: 1050407..1050408,
                                         kind: Assign {
-                                            target: l16,
+                                            target: l18,
                                             value: Call {
                                                 site_id: site6,
                                                 kind: Direct {
-                                                    callee_fqn: "scoop.core.__scoop_array_builder_push",
+                                                    callee_fqn: "scoop.core.push",
                                                 },
                                                 args: [
                                                     CallArg {
-                                                        span: 716..716,
+                                                        span: 1823..1824,
                                                         name: None,
                                                         value: Local(
-                                                            l14,
+                                                            l15,
                                                         ),
                                                     },
                                                     CallArg {
@@ -1390,7 +1442,7 @@ File {
                                                         ArrayElementTransportMetadata {
                                                             operation: BuilderPush,
                                                             array_ty: TypeId(
-                                                                0,
+                                                                21,
                                                             ),
                                                             element_ty: TypeId(
                                                                 10,
@@ -1413,7 +1465,7 @@ File {
                                                                         ),
                                                                         target_ty: Some(
                                                                             TypeId(
-                                                                                0,
+                                                                                21,
                                                                             ),
                                                                         ),
                                                                         reason: ArrayElement,
@@ -1424,9 +1476,9 @@ File {
                                                     ),
                                                     gc: None,
                                                     abi: CallAbiHandoffMetadata {
-                                                        callable_abi_kind: Plain,
+                                                        callable_abi_kind: DeferredToEffectFacts,
                                                         resolved_outward_cases: [],
-                                                        impl_plan: NoOutward,
+                                                        impl_plan: DeferredToEffectFacts,
                                                         adapter_required: false,
                                                     },
                                                 },
@@ -1436,25 +1488,25 @@ File {
                                     Statement {
                                         span: 1050409..1050410,
                                         kind: Assign {
-                                            target: l17,
+                                            target: l19,
                                             value: Call {
                                                 site_id: site7,
                                                 kind: Direct {
-                                                    callee_fqn: "scoop.core.__scoop_array_builder_push",
+                                                    callee_fqn: "scoop.core.push",
                                                 },
                                                 args: [
                                                     CallArg {
-                                                        span: 716..716,
+                                                        span: 1823..1824,
                                                         name: None,
                                                         value: Local(
-                                                            l14,
+                                                            l15,
                                                         ),
                                                     },
                                                     CallArg {
                                                         span: 722..727,
                                                         name: None,
                                                         value: Local(
-                                                            l10,
+                                                            l11,
                                                         ),
                                                     },
                                                 ],
@@ -1476,7 +1528,7 @@ File {
                                                         ArrayElementTransportMetadata {
                                                             operation: BuilderPush,
                                                             array_ty: TypeId(
-                                                                0,
+                                                                21,
                                                             ),
                                                             element_ty: TypeId(
                                                                 10,
@@ -1499,7 +1551,7 @@ File {
                                                                         ),
                                                                         target_ty: Some(
                                                                             TypeId(
-                                                                                0,
+                                                                                21,
                                                                             ),
                                                                         ),
                                                                         reason: ArrayElement,
@@ -1510,76 +1562,9 @@ File {
                                                     ),
                                                     gc: None,
                                                     abi: CallAbiHandoffMetadata {
-                                                        callable_abi_kind: Plain,
+                                                        callable_abi_kind: DeferredToEffectFacts,
                                                         resolved_outward_cases: [],
-                                                        impl_plan: NoOutward,
-                                                        adapter_required: false,
-                                                    },
-                                                },
-                                            },
-                                        },
-                                    },
-                                    Statement {
-                                        span: 1050411..1050412,
-                                        kind: Assign {
-                                            target: l18,
-                                            value: Call {
-                                                site_id: site8,
-                                                kind: Direct {
-                                                    callee_fqn: "scoop.core.__scoop_array_builder_build_mutable_array",
-                                                },
-                                                args: [
-                                                    CallArg {
-                                                        span: 716..716,
-                                                        name: None,
-                                                        value: Local(
-                                                            l14,
-                                                        ),
-                                                    },
-                                                ],
-                                                transport: CallTransportMetadata {
-                                                    result: ValueTransportMetadata {
-                                                        source_ty: TypeId(
-                                                            21,
-                                                        ),
-                                                        kind: Reference,
-                                                        requirements: MirTransportRequirements {
-                                                            trace: true,
-                                                            copy: true,
-                                                            drop: true,
-                                                        },
-                                                        boxing: None,
-                                                    },
-                                                    aggregate_return: None,
-                                                    array: Some(
-                                                        ArrayElementTransportMetadata {
-                                                            operation: BuilderBuildMutableArray,
-                                                            array_ty: TypeId(
-                                                                21,
-                                                            ),
-                                                            element_ty: TypeId(
-                                                                10,
-                                                            ),
-                                                            mutable: true,
-                                                            element: ValueTransportMetadata {
-                                                                source_ty: TypeId(
-                                                                    10,
-                                                                ),
-                                                                kind: ArrayElement,
-                                                                requirements: MirTransportRequirements {
-                                                                    trace: true,
-                                                                    copy: true,
-                                                                    drop: true,
-                                                                },
-                                                                boxing: None,
-                                                            },
-                                                        },
-                                                    ),
-                                                    gc: None,
-                                                    abi: CallAbiHandoffMetadata {
-                                                        callable_abi_kind: Plain,
-                                                        resolved_outward_cases: [],
-                                                        impl_plan: NoOutward,
+                                                        impl_plan: DeferredToEffectFacts,
                                                         adapter_required: false,
                                                     },
                                                 },
@@ -1589,10 +1574,10 @@ File {
                                     Statement {
                                         span: 688..728,
                                         kind: Assign {
-                                            target: l13,
+                                            target: l14,
                                             value: Use(
                                                 Local(
-                                                    l18,
+                                                    l15,
                                                 ),
                                             ),
                                         },
@@ -1600,7 +1585,7 @@ File {
                                     Statement {
                                         span: 740..741,
                                         kind: Assign {
-                                            target: l20,
+                                            target: l21,
                                             value: Use(
                                                 Const(
                                                     Int,
@@ -1611,7 +1596,7 @@ File {
                                     Statement {
                                         span: 747..748,
                                         kind: Assign {
-                                            target: l22,
+                                            target: l23,
                                             value: Use(
                                                 Const(
                                                     Int,
@@ -1622,7 +1607,7 @@ File {
                                     Statement {
                                         span: 750..755,
                                         kind: Assign {
-                                            target: l23,
+                                            target: l24,
                                             value: Use(
                                                 Const(
                                                     String,
@@ -1633,21 +1618,21 @@ File {
                                     Statement {
                                         span: 743..756,
                                         kind: Assign {
-                                            target: l21,
+                                            target: l22,
                                             value: StructLit {
                                                 fields: [
                                                     StructLitField {
                                                         span: 747..748,
                                                         name: "value",
                                                         value: Local(
-                                                            l22,
+                                                            l23,
                                                         ),
                                                     },
                                                     StructLitField {
                                                         span: 750..755,
                                                         name: "label",
                                                         value: Local(
-                                                            l23,
+                                                            l24,
                                                         ),
                                                     },
                                                 ],
@@ -1707,9 +1692,9 @@ File {
                                     Statement {
                                         span: 733..757,
                                         kind: Assign {
-                                            target: l19,
+                                            target: l20,
                                             value: Call {
-                                                site_id: site9,
+                                                site_id: site8,
                                                 kind: Direct {
                                                     callee_fqn: "scoop.core.MutableArray.set",
                                                 },
@@ -1718,21 +1703,21 @@ File {
                                                         span: 733..735,
                                                         name: None,
                                                         value: Local(
-                                                            l13,
+                                                            l14,
                                                         ),
                                                     },
                                                     CallArg {
                                                         span: 740..741,
                                                         name: None,
                                                         value: Local(
-                                                            l20,
+                                                            l21,
                                                         ),
                                                     },
                                                     CallArg {
                                                         span: 743..756,
                                                         name: None,
                                                         value: Local(
-                                                            l21,
+                                                            l22,
                                                         ),
                                                     },
                                                 ],
@@ -1800,7 +1785,7 @@ File {
                                     Statement {
                                         span: 776..777,
                                         kind: Assign {
-                                            target: l25,
+                                            target: l26,
                                             value: Use(
                                                 Const(
                                                     Int,
@@ -1811,9 +1796,9 @@ File {
                                     Statement {
                                         span: 769..778,
                                         kind: Assign {
-                                            target: l24,
+                                            target: l25,
                                             value: Call {
-                                                site_id: site10,
+                                                site_id: site9,
                                                 kind: Direct {
                                                     callee_fqn: "scoop.core.MutableArray.get",
                                                 },
@@ -1822,14 +1807,14 @@ File {
                                                         span: 769..771,
                                                         name: None,
                                                         value: Local(
-                                                            l13,
+                                                            l14,
                                                         ),
                                                     },
                                                     CallArg {
                                                         span: 776..777,
                                                         name: None,
                                                         value: Local(
-                                                            l25,
+                                                            l26,
                                                         ),
                                                     },
                                                 ],
@@ -1901,7 +1886,7 @@ File {
                                     kind: Return {
                                         value: Some(
                                             Local(
-                                                l24,
+                                                l25,
                                             ),
                                         ),
                                     },
@@ -1954,7 +1939,7 @@ File {
                                     "counter",
                                 ),
                                 ty: TypeId(
-                                    35,
+                                    5,
                                 ),
                                 source: SourceLocal,
                             },
@@ -1984,7 +1969,7 @@ File {
                                     "tmp1",
                                 ),
                                 ty: TypeId(
-                                    36,
+                                    42,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -2038,28 +2023,11 @@ File {
                                         span: 822..842,
                                         kind: Assign {
                                             target: l1,
-                                            value: CaptureBoxNew {
-                                                value: Local(
+                                            value: Use(
+                                                Local(
                                                     l2,
                                                 ),
-                                                contract: CaptureBoxTransportMetadata {
-                                                    box_ty: TypeId(
-                                                        35,
-                                                    ),
-                                                    value: ValueTransportMetadata {
-                                                        source_ty: TypeId(
-                                                            5,
-                                                        ),
-                                                        kind: Scalar,
-                                                        requirements: MirTransportRequirements {
-                                                            trace: false,
-                                                            copy: true,
-                                                            drop: false,
-                                                        },
-                                                        boxing: None,
-                                                    },
-                                                },
-                                            },
+                                            ),
                                         },
                                     },
                                     Statement {
@@ -2077,7 +2045,7 @@ File {
                                                 ],
                                                 transport: AggregateTransportMetadata {
                                                     aggregate_ty: TypeId(
-                                                        36,
+                                                        42,
                                                     ),
                                                     kind: ClosureEnv,
                                                     fields: [
@@ -2108,17 +2076,17 @@ File {
                                                                 "counter",
                                                             ),
                                                             ty: TypeId(
-                                                                35,
+                                                                5,
                                                             ),
                                                             transport: ValueTransportMetadata {
                                                                 source_ty: TypeId(
-                                                                    35,
+                                                                    5,
                                                                 ),
-                                                                kind: Reference,
+                                                                kind: Scalar,
                                                                 requirements: MirTransportRequirements {
-                                                                    trace: true,
+                                                                    trace: false,
                                                                     copy: true,
-                                                                    drop: true,
+                                                                    drop: false,
                                                                 },
                                                                 boxing: None,
                                                             },
@@ -2139,7 +2107,7 @@ File {
                                                 fn_ptr: "mir_lowered.aggregate_transport.closureCapture.$lambda0",
                                                 env_contract: ClosureEnvTransportMetadata {
                                                     env_ty: TypeId(
-                                                        36,
+                                                        42,
                                                     ),
                                                     captures: [
                                                         ClosureCaptureTransportMetadata {
@@ -2164,7 +2132,7 @@ File {
                                                                         ),
                                                                         target_ty: Some(
                                                                             TypeId(
-                                                                                36,
+                                                                                42,
                                                                             ),
                                                                         ),
                                                                         reason: ClosureCapture,
@@ -2179,13 +2147,13 @@ File {
                                                             source_local: l1,
                                                             transport: ValueTransportMetadata {
                                                                 source_ty: TypeId(
-                                                                    35,
+                                                                    5,
                                                                 ),
-                                                                kind: CaptureBox,
+                                                                kind: Scalar,
                                                                 requirements: MirTransportRequirements {
-                                                                    trace: true,
+                                                                    trace: false,
                                                                     copy: true,
-                                                                    drop: true,
+                                                                    drop: false,
                                                                 },
                                                                 boxing: None,
                                                             },
@@ -2276,7 +2244,7 @@ File {
                         span: 869..930,
                         name: "$env",
                         ty: TypeId(
-                            36,
+                            42,
                         ),
                         local: l0,
                     },
@@ -2293,7 +2261,7 @@ File {
                                     "$env",
                                 ),
                                 ty: TypeId(
-                                    36,
+                                    42,
                                 ),
                                 source: SourceLocal,
                             },
@@ -2313,7 +2281,7 @@ File {
                                     "counter",
                                 ),
                                 ty: TypeId(
-                                    35,
+                                    5,
                                 ),
                                 source: SourceLocal,
                             },
@@ -2328,39 +2296,9 @@ File {
                                 source: CompilerTemporary,
                             },
                             LocalDecl {
-                                span: 889..896,
-                                name: Some(
-                                    "tmp1",
-                                ),
-                                ty: TypeId(
-                                    5,
-                                ),
-                                source: CompilerTemporary,
-                            },
-                            LocalDecl {
                                 span: 899..908,
                                 name: Some(
-                                    "tmp2",
-                                ),
-                                ty: TypeId(
-                                    5,
-                                ),
-                                source: CompilerTemporary,
-                            },
-                            LocalDecl {
-                                span: 879..908,
-                                name: Some(
-                                    "tmp3",
-                                ),
-                                ty: TypeId(
-                                    2,
-                                ),
-                                source: CompilerTemporary,
-                            },
-                            LocalDecl {
-                                span: 917..924,
-                                name: Some(
-                                    "tmp4",
+                                    "tmp1",
                                 ),
                                 ty: TypeId(
                                     5,
@@ -2397,37 +2335,9 @@ File {
                                         },
                                     },
                                     Statement {
-                                        span: 889..896,
-                                        kind: Assign {
-                                            target: l4,
-                                            value: CaptureBoxGet {
-                                                box_operand: Local(
-                                                    l2,
-                                                ),
-                                                contract: CaptureBoxTransportMetadata {
-                                                    box_ty: TypeId(
-                                                        35,
-                                                    ),
-                                                    value: ValueTransportMetadata {
-                                                        source_ty: TypeId(
-                                                            5,
-                                                        ),
-                                                        kind: Scalar,
-                                                        requirements: MirTransportRequirements {
-                                                            trace: false,
-                                                            copy: true,
-                                                            drop: false,
-                                                        },
-                                                        boxing: None,
-                                                    },
-                                                },
-                                            },
-                                        },
-                                    },
-                                    Statement {
                                         span: 899..908,
                                         kind: Assign {
-                                            target: l5,
+                                            target: l4,
                                             value: MemberAccess {
                                                 site_id: None,
                                                 receiver: Local(
@@ -2454,74 +2364,62 @@ File {
                                         span: 889..908,
                                         kind: Assign {
                                             target: l3,
-                                            value: Binary {
-                                                lhs: Local(
-                                                    l4,
-                                                ),
-                                                op: Add,
-                                                rhs: Local(
-                                                    l5,
-                                                ),
+                                            value: Call {
+                                                site_id: site0,
+                                                kind: Direct {
+                                                    callee_fqn: "scoop.core.Int.plus",
+                                                },
+                                                args: [
+                                                    CallArg {
+                                                        span: 889..896,
+                                                        name: None,
+                                                        value: Local(
+                                                            l2,
+                                                        ),
+                                                    },
+                                                    CallArg {
+                                                        span: 899..908,
+                                                        name: None,
+                                                        value: Local(
+                                                            l4,
+                                                        ),
+                                                    },
+                                                ],
+                                                transport: CallTransportMetadata {
+                                                    result: ValueTransportMetadata {
+                                                        source_ty: TypeId(
+                                                            5,
+                                                        ),
+                                                        kind: Scalar,
+                                                        requirements: MirTransportRequirements {
+                                                            trace: false,
+                                                            copy: true,
+                                                            drop: false,
+                                                        },
+                                                        boxing: None,
+                                                    },
+                                                    aggregate_return: None,
+                                                    array: None,
+                                                    gc: None,
+                                                    abi: CallAbiHandoffMetadata {
+                                                        callable_abi_kind: DeferredToEffectFacts,
+                                                        resolved_outward_cases: [],
+                                                        impl_plan: DeferredToEffectFacts,
+                                                        adapter_required: false,
+                                                    },
+                                                },
                                             },
                                         },
                                     },
                                     Statement {
                                         span: 879..908,
                                         kind: Assign {
-                                            target: l6,
-                                            value: CaptureBoxSet {
-                                                box_operand: Local(
-                                                    l2,
-                                                ),
-                                                value: Local(
+                                            target: l2,
+                                            value: Use(
+                                                Local(
                                                     l3,
                                                 ),
-                                                contract: CaptureBoxTransportMetadata {
-                                                    box_ty: TypeId(
-                                                        35,
-                                                    ),
-                                                    value: ValueTransportMetadata {
-                                                        source_ty: TypeId(
-                                                            5,
-                                                        ),
-                                                        kind: Scalar,
-                                                        requirements: MirTransportRequirements {
-                                                            trace: false,
-                                                            copy: true,
-                                                            drop: false,
-                                                        },
-                                                        boxing: None,
-                                                    },
-                                                },
-                                            },
-                                        },
-                                    },
-                                    Statement {
-                                        span: 917..924,
-                                        kind: Assign {
-                                            target: l7,
-                                            value: CaptureBoxGet {
-                                                box_operand: Local(
-                                                    l2,
-                                                ),
-                                                contract: CaptureBoxTransportMetadata {
-                                                    box_ty: TypeId(
-                                                        35,
-                                                    ),
-                                                    value: ValueTransportMetadata {
-                                                        source_ty: TypeId(
-                                                            5,
-                                                        ),
-                                                        kind: Scalar,
-                                                        requirements: MirTransportRequirements {
-                                                            trace: false,
-                                                            copy: true,
-                                                            drop: false,
-                                                        },
-                                                        boxing: None,
-                                                    },
-                                                },
-                                            },
+                                            ),
                                         },
                                     },
                                 ],
@@ -2530,7 +2428,7 @@ File {
                                     kind: Return {
                                         value: Some(
                                             Local(
-                                                l7,
+                                                l2,
                                             ),
                                         ),
                                     },
@@ -3976,14 +3874,50 @@ File {
                                         span: 1413..1522,
                                         kind: Assign {
                                             target: l23,
-                                            value: Binary {
-                                                lhs: Local(
-                                                    l24,
-                                                ),
-                                                op: Add,
-                                                rhs: Local(
-                                                    l25,
-                                                ),
+                                            value: Call {
+                                                site_id: site2,
+                                                kind: Direct {
+                                                    callee_fqn: "scoop.core.Int.plus",
+                                                },
+                                                args: [
+                                                    CallArg {
+                                                        span: 1413..1427,
+                                                        name: None,
+                                                        value: Local(
+                                                            l24,
+                                                        ),
+                                                    },
+                                                    CallArg {
+                                                        span: 1430..1522,
+                                                        name: None,
+                                                        value: Local(
+                                                            l25,
+                                                        ),
+                                                    },
+                                                ],
+                                                transport: CallTransportMetadata {
+                                                    result: ValueTransportMetadata {
+                                                        source_ty: TypeId(
+                                                            5,
+                                                        ),
+                                                        kind: Scalar,
+                                                        requirements: MirTransportRequirements {
+                                                            trace: false,
+                                                            copy: true,
+                                                            drop: false,
+                                                        },
+                                                        boxing: None,
+                                                    },
+                                                    aggregate_return: None,
+                                                    array: None,
+                                                    gc: None,
+                                                    abi: CallAbiHandoffMetadata {
+                                                        callable_abi_kind: DeferredToEffectFacts,
+                                                        resolved_outward_cases: [],
+                                                        impl_plan: DeferredToEffectFacts,
+                                                        adapter_required: false,
+                                                    },
+                                                },
                                             },
                                         },
                                     },
@@ -4200,14 +4134,50 @@ File {
                                         span: 1413..1610,
                                         kind: Assign {
                                             target: l22,
-                                            value: Binary {
-                                                lhs: Local(
-                                                    l23,
-                                                ),
-                                                op: Add,
-                                                rhs: Local(
-                                                    l32,
-                                                ),
+                                            value: Call {
+                                                site_id: site3,
+                                                kind: Direct {
+                                                    callee_fqn: "scoop.core.Int.plus",
+                                                },
+                                                args: [
+                                                    CallArg {
+                                                        span: 1413..1522,
+                                                        name: None,
+                                                        value: Local(
+                                                            l23,
+                                                        ),
+                                                    },
+                                                    CallArg {
+                                                        span: 1525..1610,
+                                                        name: None,
+                                                        value: Local(
+                                                            l32,
+                                                        ),
+                                                    },
+                                                ],
+                                                transport: CallTransportMetadata {
+                                                    result: ValueTransportMetadata {
+                                                        source_ty: TypeId(
+                                                            5,
+                                                        ),
+                                                        kind: Scalar,
+                                                        requirements: MirTransportRequirements {
+                                                            trace: false,
+                                                            copy: true,
+                                                            drop: false,
+                                                        },
+                                                        boxing: None,
+                                                    },
+                                                    aggregate_return: None,
+                                                    array: None,
+                                                    gc: None,
+                                                    abi: CallAbiHandoffMetadata {
+                                                        callable_abi_kind: DeferredToEffectFacts,
+                                                        resolved_outward_cases: [],
+                                                        impl_plan: DeferredToEffectFacts,
+                                                        adapter_required: false,
+                                                    },
+                                                },
                                             },
                                         },
                                     },
@@ -4884,14 +4854,50 @@ File {
                                         span: 1750..1781,
                                         kind: Assign {
                                             target: l10,
-                                            value: Binary {
-                                                lhs: Local(
-                                                    l11,
-                                                ),
-                                                op: Add,
-                                                rhs: Local(
-                                                    l12,
-                                                ),
+                                            value: Call {
+                                                site_id: site3,
+                                                kind: Direct {
+                                                    callee_fqn: "scoop.core.Int.plus",
+                                                },
+                                                args: [
+                                                    CallArg {
+                                                        span: 1750..1765,
+                                                        name: None,
+                                                        value: Local(
+                                                            l11,
+                                                        ),
+                                                    },
+                                                    CallArg {
+                                                        span: 1768..1781,
+                                                        name: None,
+                                                        value: Local(
+                                                            l12,
+                                                        ),
+                                                    },
+                                                ],
+                                                transport: CallTransportMetadata {
+                                                    result: ValueTransportMetadata {
+                                                        source_ty: TypeId(
+                                                            5,
+                                                        ),
+                                                        kind: Scalar,
+                                                        requirements: MirTransportRequirements {
+                                                            trace: false,
+                                                            copy: true,
+                                                            drop: false,
+                                                        },
+                                                        boxing: None,
+                                                    },
+                                                    aggregate_return: None,
+                                                    array: None,
+                                                    gc: None,
+                                                    abi: CallAbiHandoffMetadata {
+                                                        callable_abi_kind: DeferredToEffectFacts,
+                                                        resolved_outward_cases: [],
+                                                        impl_plan: DeferredToEffectFacts,
+                                                        adapter_required: false,
+                                                    },
+                                                },
                                             },
                                         },
                                     },
@@ -4900,7 +4906,7 @@ File {
                                         kind: Assign {
                                             target: l13,
                                             value: Call {
-                                                site_id: site3,
+                                                site_id: site4,
                                                 kind: Direct {
                                                     callee_fqn: "mir_lowered.aggregate_transport.closureCapture",
                                                 },
@@ -4943,14 +4949,50 @@ File {
                                         span: 1750..1803,
                                         kind: Assign {
                                             target: l9,
-                                            value: Binary {
-                                                lhs: Local(
-                                                    l10,
-                                                ),
-                                                op: Add,
-                                                rhs: Local(
-                                                    l13,
-                                                ),
+                                            value: Call {
+                                                site_id: site5,
+                                                kind: Direct {
+                                                    callee_fqn: "scoop.core.Int.plus",
+                                                },
+                                                args: [
+                                                    CallArg {
+                                                        span: 1750..1781,
+                                                        name: None,
+                                                        value: Local(
+                                                            l10,
+                                                        ),
+                                                    },
+                                                    CallArg {
+                                                        span: 1784..1803,
+                                                        name: None,
+                                                        value: Local(
+                                                            l13,
+                                                        ),
+                                                    },
+                                                ],
+                                                transport: CallTransportMetadata {
+                                                    result: ValueTransportMetadata {
+                                                        source_ty: TypeId(
+                                                            5,
+                                                        ),
+                                                        kind: Scalar,
+                                                        requirements: MirTransportRequirements {
+                                                            trace: false,
+                                                            copy: true,
+                                                            drop: false,
+                                                        },
+                                                        boxing: None,
+                                                    },
+                                                    aggregate_return: None,
+                                                    array: None,
+                                                    gc: None,
+                                                    abi: CallAbiHandoffMetadata {
+                                                        callable_abi_kind: DeferredToEffectFacts,
+                                                        resolved_outward_cases: [],
+                                                        impl_plan: DeferredToEffectFacts,
+                                                        adapter_required: false,
+                                                    },
+                                                },
                                             },
                                         },
                                     },
@@ -4959,7 +5001,7 @@ File {
                                         kind: Assign {
                                             target: l14,
                                             value: Call {
-                                                site_id: site4,
+                                                site_id: site6,
                                                 kind: Direct {
                                                     callee_fqn: "mir_lowered.aggregate_transport.effects",
                                                 },
@@ -5002,14 +5044,50 @@ File {
                                         span: 1750..1818,
                                         kind: Assign {
                                             target: l8,
-                                            value: Binary {
-                                                lhs: Local(
-                                                    l9,
-                                                ),
-                                                op: Add,
-                                                rhs: Local(
-                                                    l14,
-                                                ),
+                                            value: Call {
+                                                site_id: site7,
+                                                kind: Direct {
+                                                    callee_fqn: "scoop.core.Int.plus",
+                                                },
+                                                args: [
+                                                    CallArg {
+                                                        span: 1750..1803,
+                                                        name: None,
+                                                        value: Local(
+                                                            l9,
+                                                        ),
+                                                    },
+                                                    CallArg {
+                                                        span: 1806..1818,
+                                                        name: None,
+                                                        value: Local(
+                                                            l14,
+                                                        ),
+                                                    },
+                                                ],
+                                                transport: CallTransportMetadata {
+                                                    result: ValueTransportMetadata {
+                                                        source_ty: TypeId(
+                                                            5,
+                                                        ),
+                                                        kind: Scalar,
+                                                        requirements: MirTransportRequirements {
+                                                            trace: false,
+                                                            copy: true,
+                                                            drop: false,
+                                                        },
+                                                        boxing: None,
+                                                    },
+                                                    aggregate_return: None,
+                                                    array: None,
+                                                    gc: None,
+                                                    abi: CallAbiHandoffMetadata {
+                                                        callable_abi_kind: DeferredToEffectFacts,
+                                                        resolved_outward_cases: [],
+                                                        impl_plan: DeferredToEffectFacts,
+                                                        adapter_required: false,
+                                                    },
+                                                },
                                             },
                                         },
                                     },

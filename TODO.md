@@ -4,7 +4,7 @@
 > 设计基线：[`CLOSURE_FIX.md`](./CLOSURE_FIX.md)  
 > 计划基线：[`PLAN.md`](./PLAN.md)  
 > 格式参考：[`docs/archive/plans/TODO-stable-id.md`](./docs/archive/plans/TODO-stable-id.md)  
-> 当前状态：C3-T02 已完成
+> 当前状态：C4-T01A 已完成
 > 执行原则：C0 必须最先完成；C1/C3 与 C2 两条实现线可按依赖并行，但单个任务完成时不得留下仓库内 failing fixture；每个任务完成后必须回写“完成记录”。
 
 ## 全局约束
@@ -695,7 +695,7 @@ C0-T01 (baseline + prerequisite inventory)
 
 ## C4：fixtures + audit
 
-### [TODO] C4-T01A：刷新受 CaptureBox 删除影响的 MIR fixtures
+### [DONE] C4-T01A：刷新受 CaptureBox 删除影响的 MIR fixtures
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §7 C4-T01
@@ -719,9 +719,22 @@ C0-T01 (baseline + prerequisite inventory)
 - 依赖：C2-T02
 - 完成记录：
   - 改动范围：
+    - 刷新 `tests/fixtures/mir/closure_capture_var.{mir,actual.mir,actual.raw.mir}`，移除旧 `scoop.__CaptureBox<Int>` local / env / get / set snapshot，改为普通 `Int` capture 与 per-call local assignment。
+    - 刷新 `tests/fixtures/mir_lowered/aggregate_transport.{mir,actual.mir,actual.raw.mir}`，其中 closure capture 部分不再使用 CaptureBox transport，`counter` 以普通 `Int` 进入 closure env，并保留 `ClosureCaptureTransportMetadata.mutable: true`。
+    - 刷新 `tests/fixtures/mir_lowered/assignment_places.{mir,actual.mir,actual.raw.mir}`，保留 top-level var store、extern/global store、member store 覆盖，同时把 captured mutable local 从 CaptureBox snapshot 改为普通 `Int` env snapshot。
+    - 确认 `tests/fixtures/hir/closure_capture_var.hir` 仍保留两处 `Capture { mutable: true }` 信息；未修改 fixture source、`PLAN.md` 或 `CLOSURE_FIX.md`。
   - 核心决策：
+    - 只刷新受 C2 删除 CaptureBox 后语义变化影响的 MIR golden / actual snapshot，不删除仍有语义价值的 fixtures，也不修改 `.scoop` 输入。
+    - 保留 `assignment_places` 对普通 local assignment、top-level/global/extern store、member store 的覆盖；仅移除旧隐式 CaptureBox 断言。
+    - 新 snapshot 明确记录 closure env 构造点 by-value snapshot 与 mutable capture metadata，但不再出现 `CaptureBox` / `MirTransportKind::CaptureBox` / `scoop.__CaptureBox` 文本。
   - 验证结果：
-  - 与 `PLAN.md` / `CLOSURE_FIX.md` 对应闭合：
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/mir/closure_capture_var.scoop --exit-on-failure`：通过，1 个 check。
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/mir_lowered/aggregate_transport.scoop --exit-on-failure`：通过，1 个 check。
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/mir_lowered/assignment_places.scoop --exit-on-failure`：通过，1 个 check。
+    - `cargo run -p scoop -- test`：通过，`fixtures: ok (1382)`。
+    - `rg -n "CaptureBox|MirTransportKind::CaptureBox|scoop\.__CaptureBox" tests/fixtures/mir tests/fixtures/mir_lowered`：无输出。
+    - `cargo clippy --all-targets -- -D warnings`：通过。
+  - 与 `PLAN.md` / `CLOSURE_FIX.md` 对应闭合：闭合 `PLAN.md` §7 C4-T01 中 CaptureBox 删除后 MIR / mir_lowered fixture 刷新要求，以及 `CLOSURE_FIX.md` 对“无隐式 CaptureBox、closure env snapshot + per-call local”语义的 fixture 回归要求；阶段级计划未变化。
 
 ### [TODO] C4-T01B：新增 closure capture 新语义正样本 fixtures
 

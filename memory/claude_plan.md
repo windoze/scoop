@@ -1,51 +1,27 @@
 # Claude Execution Plan
 
-## Current Invocation
+## Scope
+- Follow `TODO.md` as the source of truth.
+- Complete exactly the first task whose title is not prefixed with `[DONE]`.
+- Do not continue to the next task after completion.
 
-Goal: complete exactly the first incomplete task in `TODO.md`, then stop after validation and a git commit.
+## Plan
+1. Read `TODO.md` and identify the first incomplete task exactly as written.
+2. Check the latest commit message only for unfinished work directly relevant to that task.
+3. Inspect the code and tests needed for that task, avoiding unrelated issue triage.
+4. Implement the smallest spec-correct change that fully satisfies the task.
+5. Add or update focused tests/fixtures required by the task.
+6. Run the task's required validation commands and any targeted tests needed for confidence.
+7. If a concrete blocker prevents spec-correct completion, update `TODO.md` with the minimum prerequisite task, commit that bookkeeping, and stop.
+8. If the task is completed, prefix the task title in `TODO.md` with `[DONE]` and update its completion record.
+9. Commit all current uncommitted task-related changes with a clear task-tagged message.
+10. Stop after this single task.
 
-Selected task: `C3-T02` (`在 sysroot/compiler 添加 Atomic 一族`).
-
-Task source of truth: `TODO.md` lines for `C3-T02`; `PLAN.md` is only consulted for phase-level context.
-
-## Execution Plan
-
-1. Confirm the latest commit only for unfinished work directly relevant to `C3-T02`.
-2. Inspect the existing atomic-int implementation in `sysroot/scoop.unsafe`, direct HIR LLVM lowering, effect-lowered LLVM lowering, and GC write barrier helpers.
-3. Inspect sysroot core conventions for ordinary classes and methods, including existing generic-bound syntax using `AnyRef` / `AnyValue`.
-4. Design the smallest spec-correct surface for `AtomicInt`, `AtomicBool`, `Atomic<T: AnyRef>`, and `AtomicValue<T: AnyValue>` in sysroot, with unsafe atomic-ref intrinsics kept internal.
-5. Implement atomic-ref primitive support in the compiler for direct HIR LLVM and effect-lowered LLVM paths, ensuring ref store and successful CAS obey the GC barrier protocol.
-6. Implement sysroot public APIs on top of existing atomic-int intrinsics and the new internal atomic-ref intrinsics.
-7. Add focused compiler tests for atomic-ref IR generation and GC barrier behavior, plus fixture coverage for public API usage and marker-bound rejection.
-8. Run focused validation first, then task-required validation (`cargo build`, targeted LLVM tests, and `cargo run -p scoop -- test` with a long timeout). Fix in-scope failures.
-9. Mark `C3-T02` as `[DONE]` in `TODO.md` and fill its completion record with scope, decisions, validation, and plan/design closure.
-10. Commit all relevant changes with a clear `[C3-T02]` message.
-11. Stop without starting `C4-T01A`.
-
-## Guardrails
-
-- Do not weaken the API shape: `AtomicValue<T>::cas` must take `expected: Box<T>`.
-- Do not expose unsafe atomic-ref intrinsics as user-facing API.
-- Do not bypass the GC write barrier for atomic ref store/CAS success paths.
-- Do not add compatibility shims for old behavior.
-- If a missing prerequisite prevents spec-correct implementation, add the minimum prerequisite task before `C3-T02`, keep `C3-T02` incomplete, commit that bookkeeping change, and stop.
-
-## Progress Log
-
-- Read `TODO.md`; first incomplete heading is `C3-T02`.
-- Wrote the current invocation plan before making implementation changes.
-- Latest commit is `[C3-T01] Add RefCell and Box sysroot types`; it is the direct dependency for `C3-T02` and does not mention an unfinished blocker.
-- Working tree initially contains only this plan-file update.
-- Inspected existing `__AtomicInt` sysroot declarations, direct LLVM lowering, effect-lowered LLVM lowering, and GC write barrier ABI.
-- Implementation direction: keep public `Atomic*` classes in `scoop.core`, add internal generic `__atomicRef*` declarations in `scoop.unsafe`, lower atomic-ref pointer operations in both LLVM paths, and call the GC write barrier with a null slot on ref writes so the barrier handles promotion/polling without performing a non-atomic slot write.
-- Implemented the first compiler/sysroot pass: added `__atomicRef*` declarations, public `AtomicInt` / `AtomicBool` / `Atomic<T>` / `AtomicValue<T>` APIs, direct LLVM atomic-ref lowering, effect-lowered atomic-ref lowering, and a null-slot GC barrier helper.
-- `cargo fmt` and `cargo build -p scoopc` pass after the first implementation pass.
-- Public `AtomicValue<T>` exposed a relevant generic-class initializer gap: concrete generic `ClassInit` entries substituted field and ctor parameter types but not property initializer / ctor body expressions. Fixed this class-wide by recursively substituting HIR types in generic class init steps, ctor defaults, delegations, and bodies.
-- Added targeted coverage: LLVM atomic-ref IR/barrier unit test, run-pass fixture for all four public Atomic APIs, and typecheck reject fixtures for `Atomic<Int>` / `AtomicValue<Class>` bound failures. The targeted fixtures and atomic-ref unit test pass.
-- Generic/LLVM targeted runs found old sysroot overlay fixtures missing `AnyRef` / `AnyValue`; updated those overlay core files so the new internal atomic-ref unsafe declarations can resolve their bounds under overlay sysroots. The overlay intrinsic LLVM tests now pass.
-- Re-ran `cargo test -p scoopc generic -- --nocapture`, `cargo test -p scoopc llvm -- --nocapture`, and the updated `sysroot_overlay_core_array_interface_bridge` fixture; all pass after the overlay update.
-- Full fixture run exposed `AtomicValue` internals conflicting with user-defined `Box` names. Fixed this by supporting qualified nominal constructor calls (`scoop.core.Box(...)`) in typecheck, HIR call-site contracts, and direct HIR codegen, then using qualified `scoop.core.Box` inside `AtomicValue`.
-- Re-ran the atomic fixture plus representative generic `Box` conflict fixtures; they pass after qualified constructor support.
-- Full fixture suite now has only the three pre-tracked `C4-T01A` MIR snapshot failures (`mir/closure_capture_var`, `mir_lowered/aggregate_transport`, `mir_lowered/assignment_places`); all C3-T02 fixtures and previously exposed generic `Box` conflict fixtures pass.
-- Final validation so far: `cargo build` passed; `cargo clippy --all-targets -- -D warnings` passed; `cargo test --all --all-targets` has one failure in `fixtures::tests::run_all_recreates_session_between_independent_fixtures`, caused by the same pre-tracked `C4-T01A` `mir_lowered/aggregate_transport` snapshot mismatch.
-- Marked `C3-T02` as `[DONE]` in `TODO.md` and filled its completion record. `PLAN.md` was not changed because phase-level sequencing and acceptance criteria did not change.
+## Progress
+- Initial execution plan recorded before repository inspection.
+- Identified first incomplete task: `C4-T01A`, refreshing MIR / mir_lowered fixture snapshots affected by CaptureBox deletion.
+- Current task steps: check latest commit for directly relevant unfinished notes, inspect the three fixture groups, regenerate or refresh their expected outputs without changing fixture intent, verify `closure_capture_var.hir` still records `mutable: true`, run the required fixture suite and CaptureBox grep, update `TODO.md` completion record, then commit all task changes.
+- Refreshed generated `.actual.mir` / `.actual.raw.mir` for the three target fixtures and synchronized the stable `.mir` goldens. The updated snapshots now show ordinary `Int` captures and `ClosureCaptureTransportMetadata.mutable: true`, with no CaptureBox transport.
+- Verified `tests/fixtures/hir/closure_capture_var.hir` still contains `mutable: true` capture metadata for both closures.
+- Validation completed so far: the three refreshed target fixtures pass individually, full `cargo run -p scoop -- test` passes with `fixtures: ok (1382)`, the required CaptureBox grep over MIR fixture directories has no output, and `cargo clippy --all-targets -- -D warnings` passes.
+- `TODO.md` has been updated: `C4-T01A` is marked `[DONE]`, the current status line now names `C4-T01A`, and the completion record documents changed snapshots, validation, and closure to `PLAN.md` / `CLOSURE_FIX.md`.
