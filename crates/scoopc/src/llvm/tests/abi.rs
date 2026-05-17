@@ -904,6 +904,7 @@ pub(super) fn indirect_gc_aggregate_param_syncs_explicit_frame_home_slot_on_entr
 package a
 
 import scoop.core.*
+import scoop.runtime.test.*
 
 struct Named(val name: String, val score: Int)
 
@@ -968,6 +969,7 @@ pub(super) fn box_int_to_any_uses_addrspace_1_ref_pointer() {
 package a
 
 import scoop.core.*
+import scoop.runtime.test.*
 
 fun main(): Int {
     val a: Any = 1
@@ -1039,6 +1041,7 @@ pub(super) fn string_literal_uses_addrspace_1_gc_string_object() {
 package a
 
 import scoop.core.*
+import scoop.runtime.test.*
 
 fun main(): Int {
     val s: String = "hi"
@@ -1154,6 +1157,7 @@ pub(super) fn println_int_lowers_via_string_formatting_without_print_int_helpers
 package a
 
 import scoop.core.*
+import scoop.runtime.test.*
 
 fun main(): Int {
     println(123)
@@ -1197,6 +1201,7 @@ pub(super) fn array_of_any_uses_ir_direct_ref_load_without_ptr_to_u64() {
 package a
 
 import scoop.core.*
+import scoop.runtime.test.*
 
 fun main(): Int {
     val a: Any = 1
@@ -1596,6 +1601,7 @@ pub(super) fn minimal_main_obj_with_live_gc_roots_still_omits_stackmap_section()
 package a
 
 import scoop.core.*
+import scoop.runtime.test.*
 
 fun keepAlive(x: Any): Unit {
 }
@@ -1669,6 +1675,7 @@ pub(super) fn stackmap_statepoint_smoke_helper_opt_in_reenables_stackmap_pipelin
 package a
 
 import scoop.core.*
+import scoop.runtime.test.*
 
 fun main(): Int {
     return __scoop_stackmap_statepoint_smoke()
@@ -1706,6 +1713,7 @@ pub(super) fn stackmap_statepoint_smoke_helper_emits_stackmap_section_when_reque
 package a
 
 import scoop.core.*
+import scoop.runtime.test.*
 
 fun main(): Int {
     return __scoop_stackmap_statepoint_smoke()
@@ -1748,6 +1756,7 @@ pub(super) fn managed_function_emits_explicit_root_frame_descriptor() {
 package a
 
 import scoop.core.*
+import scoop.runtime.test.*
 
 fun keep(name: String): String {
     __scoop_gc_collect()

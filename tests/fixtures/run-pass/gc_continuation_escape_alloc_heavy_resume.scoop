@@ -12,6 +12,7 @@
 // - Exercises: ContState with growing set of live GC refs + allocation-heavy post-resume paths.
 
 import scoop.core.*
+import scoop.runtime.test.*
 
 effect Ask {
     fun ask(): String

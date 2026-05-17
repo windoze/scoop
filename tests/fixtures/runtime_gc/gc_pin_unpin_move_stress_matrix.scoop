@@ -16,6 +16,7 @@
 package fixtures.codegen
 
 import scoop.core.*
+import scoop.runtime.test.*
 
 @Extern("scoop_test_handle_get_object_addr")
 fun handleGetObjectAddr(handleRaw: UIntPtr): Int

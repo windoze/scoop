@@ -15,6 +15,7 @@
 package fixtures.codegen
 
 import scoop.core.*
+import scoop.runtime.test.*
 
 class Cell(val label: String)
 

@@ -576,21 +576,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.declare_runtime_or_native_import_function(NAME, fn_ty)
     }
 
-    pub(super) fn declare_runtime_gc_collect(&self) -> FunctionValue<'ctx> {
-        const NAME: &str = runtime_symbols::SCOOP_GC_COLLECT;
-        if let Some(existing) = self.module.get_function(NAME) {
-            return existing;
-        }
-
-        // `void scoop_gc_collect(void)`
-        //
-        // 说明：
-        // - sysroot `__scoop_gc_collect()` 已是 scoop ABI extern，符号名直接对齐 runtime；
-        // - codegen 仍通过 root-spill helper 发出调用，保证调用边界前后的 managed roots 可恢复。
-        let fn_ty = self.context.void_type().fn_type(&[], false);
-        self.declare_runtime_or_native_import_function(NAME, fn_ty)
-    }
-
     pub(super) fn declare_runtime_enter_native(&self) -> FunctionValue<'ctx> {
         const NAME: &str = runtime_symbols::SCOOP_ENTER_NATIVE;
         if let Some(existing) = self.module.get_function(NAME) {
@@ -689,30 +674,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let i64_ty = self.context.i64_type();
         let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [i64_ty.into()];
         let fn_ty = i32_ty.fn_type(&param_tys, false);
-        self.declare_runtime_or_native_import_function(NAME, fn_ty)
-    }
-
-    pub(super) fn declare_runtime_gc_debug_heap_object_count(&self) -> FunctionValue<'ctx> {
-        const NAME: &str = runtime_symbols::SCOOP_GC_DEBUG_HEAP_OBJECT_COUNT;
-        if let Some(existing) = self.module.get_function(NAME) {
-            return existing;
-        }
-
-        // `uint64_t scoop_gc_debug_heap_object_count(void)`
-        let fn_ty = self.context.i64_type().fn_type(&[], false);
-        self.declare_runtime_or_native_import_function(NAME, fn_ty)
-    }
-
-    pub(super) fn declare_runtime_gc_debug_alloc_garbage(&self) -> FunctionValue<'ctx> {
-        const NAME: &str = runtime_symbols::SCOOP_GC_DEBUG_ALLOC_GARBAGE;
-        if let Some(existing) = self.module.get_function(NAME) {
-            return existing;
-        }
-
-        // `void scoop_gc_debug_alloc_garbage(int64_t count)`
-        let i64_ty = self.context.i64_type();
-        let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [i64_ty.into()];
-        let fn_ty = self.context.void_type().fn_type(&param_tys, false);
         self.declare_runtime_or_native_import_function(NAME, fn_ty)
     }
 

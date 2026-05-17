@@ -4,6 +4,7 @@
 package fixtures.runpass
 
 import scoop.core.*
+import scoop.runtime.test.*
 
 struct Point(val x: Int, val label: String)
 

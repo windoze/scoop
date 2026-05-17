@@ -18,6 +18,7 @@
 package fixtures.codegen
 
 import scoop.core.*
+import scoop.runtime.test.*
 
 @Extern("scoop_test_unwind_dump_frames_and_stackmap_hits")
 fun unwindDumpFramesAndStackmapHits(): Int

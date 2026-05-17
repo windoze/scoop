@@ -11,6 +11,7 @@
 // - Multiple Holder<String> instances to stress GC
 
 import scoop.core.*
+import scoop.runtime.test.*
 
 class Holder<T>(val v: T) {
     fun get(): T {

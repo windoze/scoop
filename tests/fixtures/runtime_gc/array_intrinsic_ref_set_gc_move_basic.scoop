@@ -3,6 +3,7 @@
 package fixtures.runtime_gc
 
 import scoop.core.*
+import scoop.runtime.test.*
 
 fun main(): Int {
     val keep: String = f"ref-{7}"

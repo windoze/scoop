@@ -143,7 +143,7 @@ impl Sysroot {
 
 /// T0143：判断 sysroot 文件是否需要作为编译单元的一部分（而非仅签名索引）。
 /// 当前规则：
-/// - `core.scoop`、`lang_string.scoop`、`string.scoop`、`print.scoop` 与 `task.scoop`
+/// - `core.scoop`、`lang_string.scoop`、`runtime_test.scoop`、`string.scoop`、`print.scoop` 与 `task.scoop`
 ///   一直是 support sources；
 /// - overlay 的 `core.scoop` 若声明了 bodied `@Intrinsic struct/class`，也要进入完整编译管线。
 fn is_compilable_sysroot_file(path: &Path, source: &SourceFile, ast: &crate::ast::File) -> bool {
@@ -154,6 +154,7 @@ fn is_always_compilable_sysroot_file(path: &Path) -> bool {
     path.file_name().is_some_and(|name| {
         name == "string.scoop"
             || name == "lang_string.scoop"
+            || name == "runtime_test.scoop"
             || name == "core.scoop"
             || name == "print.scoop"
             || name == "task.scoop"

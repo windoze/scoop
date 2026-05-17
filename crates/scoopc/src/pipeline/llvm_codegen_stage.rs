@@ -1014,6 +1014,7 @@ fun main(): Int {
 package sample
 
 import scoop.core.*
+import scoop.runtime.test.*
 
 struct Named(val name: String, val score: Int)
 
@@ -1037,6 +1038,7 @@ fun main(): Int {
 package sample
 
 import scoop.core.*
+import scoop.runtime.test.*
 
 struct Named(val name: String, val score: Int)
 
@@ -1067,6 +1069,7 @@ fun main(): Int {
 package sample
 
 import scoop.core.*
+import scoop.runtime.test.*
 
 struct Point(val x: Int, val y: Int)
 
@@ -1158,6 +1161,7 @@ fun main(): Int {
 package sample
 
 import scoop.core.*
+import scoop.runtime.test.*
 
 struct Point(val x: Int, val label: String)
 

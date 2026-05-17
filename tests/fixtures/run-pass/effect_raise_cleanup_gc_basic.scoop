@@ -4,9 +4,10 @@
 //   不能继续作为 GC roots 泄漏到后续 `__scoop_gc_collect()`。
 
 import scoop.core.*
+import scoop.runtime.test.*
 
 fun main(): Int {
-    val before: Int = __scoop_gc_debug_heap_object_count()
+    val before: Int = @Unsafe do { __scoop_gc_debug_heap_object_count() }
 
     try {
         Raise.raise(RuntimeError.NullAssertionFailed)
@@ -16,7 +17,7 @@ fun main(): Int {
 
     __scoop_gc_collect()
 
-    val after: Int = __scoop_gc_debug_heap_object_count()
+    val after: Int = @Unsafe do { __scoop_gc_debug_heap_object_count() }
     println(after - before)
     return 0
 }

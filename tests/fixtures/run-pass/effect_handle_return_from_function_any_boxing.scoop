@@ -6,6 +6,7 @@
 // 不会作为真正的函数返回值保活，GC 后 heap object count 会错误回落到 0。
 
 import scoop.core.*
+import scoop.runtime.test.*
 
 effect Yield {
     fun next(): Int
@@ -30,7 +31,7 @@ fun earlyReturnAny(): Any {
 fun main(): Int {
     val x: Any = earlyReturnAny()
     __scoop_gc_collect()
-    println(__scoop_gc_debug_heap_object_count())
+    println(@Unsafe do { __scoop_gc_debug_heap_object_count() })
     blackBoxAny(x)
     return 0
 }

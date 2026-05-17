@@ -7,6 +7,7 @@
 // - 手动触发一次 `__scoop_gc_collect()`，应回收垃圾对象但保留 live 对象
 
 import scoop.core.*
+import scoop.runtime.test.*
 
 // 说明：该函数用于在优化 pass（例如 SROA）存在时，仍然让某个 ref 在 safepoint 之后保持“可观测的 use”，
 // 避免被当作 dead value 提前裁剪导致 GC roots 不完整。
@@ -17,7 +18,7 @@ fun main(): Unit {
     val keep: Any = 1
 
     // 1) 仅有 keep：应为 1
-    println(__scoop_gc_debug_heap_object_count())
+    println(@Unsafe do { __scoop_gc_debug_heap_object_count() })
 
     // 清掉上一次 `println(Int)` 产生的临时字符串垃圾，避免后续计数依赖是否在
     // `debug_alloc_garbage()` 前发生了 stress collect。
@@ -25,11 +26,11 @@ fun main(): Unit {
 
     // 2) 制造垃圾对象：应变为 1 + 1000 = 1001
     __scoop_gc_debug_alloc_garbage(1000)
-    println(__scoop_gc_debug_heap_object_count())
+    println(@Unsafe do { __scoop_gc_debug_heap_object_count() })
 
     // 3) 手动触发 GC：应回收垃圾对象，保留 keep
     __scoop_gc_collect()
-    println(__scoop_gc_debug_heap_object_count())
+    println(@Unsafe do { __scoop_gc_debug_heap_object_count() })
 
     // 让 keep 在 safepoint（collect）之后仍然有 use，确保它在 GC 时是 live root。
     blackBoxAny(keep)

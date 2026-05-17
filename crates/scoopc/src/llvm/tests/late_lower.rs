@@ -12,6 +12,7 @@ pub(super) fn managed_function_emits_explicit_root_frame_tls_lifecycle_and_slot_
 package a
 
 import scoop.core.*
+import scoop.runtime.test.*
 
 fun keep(name: String): String {
     __scoop_gc_collect()
@@ -135,6 +136,7 @@ pub(super) fn managed_function_reloads_direct_gc_local_from_explicit_frame_after
 package a
 
 import scoop.core.*
+import scoop.runtime.test.*
 
 fun keep(name: String): String {
     __scoop_gc_collect()
@@ -181,6 +183,7 @@ pub(super) fn class_ctor_this_local_reloads_from_explicit_frame_after_safepoint(
 package a
 
 import scoop.core.*
+import scoop.runtime.test.*
 
 class Box(val name: String) {
     val copy: String = @Safe do {
@@ -343,6 +346,7 @@ pub(super) fn deferred_call_arg_reloads_from_explicit_frame_after_later_safepoin
 package a
 
 import scoop.core.*
+import scoop.runtime.test.*
 
 fun take(a: String, b: String): String {
     return a
@@ -410,6 +414,7 @@ pub(super) fn aggregate_call_arg_rebuilds_from_explicit_frame_after_safepoint() 
 package a
 
 import scoop.core.*
+import scoop.runtime.test.*
 
 struct Named(val name: String, val score: Int)
 
@@ -472,6 +477,7 @@ pub(super) fn hidden_sret_aggregate_result_rebuilds_from_explicit_frame_slots() 
 package a
 
 import scoop.core.*
+import scoop.runtime.test.*
 
 struct Named(val name: String, val score: Int)
 
@@ -526,6 +532,7 @@ pub(super) fn boxed_effect_payload_rebuilds_aggregate_from_explicit_frame_after_
 package a
 
 import scoop.core.*
+import scoop.runtime.test.*
 
 struct Named(val name: String, val score: Int)
 
@@ -585,6 +592,7 @@ pub(super) fn never_returning_managed_function_pops_explicit_root_frame_before_u
 package a
 
 import scoop.core.*
+import scoop.runtime.test.*
 
 fun stop(name: String): Nothing / Raise<RuntimeError> {
     __scoop_gc_collect()

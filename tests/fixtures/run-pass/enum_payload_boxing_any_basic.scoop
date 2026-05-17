@@ -4,6 +4,7 @@
 // 回归：带 payload 的 enum 值擦除必须继续走显式 boxed carrier 路径。
 
 import scoop.core.*
+import scoop.runtime.test.*
 
 struct Point(val x: Int, val y: Int)
 

@@ -12,6 +12,7 @@
 // - Verifies that GC correctly traces through: Outer -> Pair (value) -> Inner (ref) -> Tag (value) -> String (ref).
 
 import scoop.core.*
+import scoop.runtime.test.*
 
 struct Tag(val label: String)
 

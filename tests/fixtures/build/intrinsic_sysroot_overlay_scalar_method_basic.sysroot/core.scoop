@@ -159,15 +159,6 @@ fun __scoop_print(value: String): Unit
 @Extern(name = "scoop_println", abi = "scoop")
 fun __scoop_println(value: String): Unit
 
-@Extern(name = "scoop_gc_collect", abi = "scoop")
-fun __scoop_gc_collect(): Unit
-@Intrinsic
-fun __scoop_gc_debug_heap_object_count(): Int
-@Intrinsic
-fun __scoop_gc_debug_alloc_garbage(count: Int): Unit
-@Intrinsic
-fun __scoop_stackmap_statepoint_smoke(): Int
-
 @Intrinsic
 object GC {
     @Intrinsic @Unsafe

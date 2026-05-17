@@ -3,6 +3,7 @@
 package fixtures.runtime_gc
 
 import scoop.core.*
+import scoop.runtime.test.*
 
 struct Entry(val label: String, val value: Int)
 

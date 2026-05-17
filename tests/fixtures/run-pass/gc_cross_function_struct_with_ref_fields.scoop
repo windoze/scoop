@@ -10,6 +10,7 @@
 //   correctly across function call boundaries, String fields will be corrupted.
 
 import scoop.core.*
+import scoop.runtime.test.*
 
 struct Named(val name: String, val score: Int)
 

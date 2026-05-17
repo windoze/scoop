@@ -450,7 +450,7 @@
   - 闭合 PLAN §9 / P11 的 T11-1：4 个 helper 的实际使用方、保留/迁移方式、ABI 形态与理由已明确，可由 P11-T02 实施。
 - 暂时性 failing fixture：无。本任务未改代码或 fixture 行为。
 
-### P11-T02：测试 helper 迁移到 test cone 或 C ABI extern 或删除
+### [DONE] P11-T02：测试 helper 迁移到 test cone 或 C ABI extern 或删除
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §9 / P11
@@ -486,6 +486,35 @@
   - sysroot core 不再含调试 / 测试 helper；GC fixture 仍 pass。
 - 依赖：P11-T01。
 
+完成记录：
+
+- 改动范围：
+  - 新增 `sysroot/runtime_test.scoop`（`package scoop.runtime.test`），集中声明 4 个 test-only runtime helper：`__scoop_gc_collect`、`__scoop_gc_debug_heap_object_count`、`__scoop_gc_debug_alloc_garbage`、`__scoop_stackmap_statepoint_smoke`。
+  - `sysroot/core.scoop` 已删除整组 GC / stackmap 测试 helper 声明；4 个 custom sysroot overlay 中的 core helper 副本同步删除。
+  - `__scoop_gc_collect` 与 `__scoop_gc_debug_alloc_garbage` 保持 `@Extern(abi = "scoop")`；`__scoop_gc_debug_heap_object_count` 改为 `@Extern(abi = "c")`；`__scoop_stackmap_statepoint_smoke` 保持 `@Intrinsic`，compiler special-case FQN 改到 `scoop.runtime.test.__scoop_stackmap_statepoint_smoke`。
+  - `sysroot/runtime_test.scoop` 加入 compilable sysroot support source 列表，确保 extern callable signatures / extern symbol table 在 codegen pipeline 中可用。
+  - 所有实际调用 helper 的 fixture 与 Rust source snippets 显式加入 `import scoop.runtime.test.*`；C ABI `heap_object_count` 调用点包进 `@Unsafe do { ... }`。
+  - 新增负向 owner fixture `tests/fixtures/typecheck/runtime_test_helper_not_in_prelude_is_error.scoop`，验证未显式 import 时 runtime test helper 不可调用。
+  - 因从 `core.scoop` 删除声明导致 sysroot intrinsic declaration span 前移，同步更新 5 个 HIR golden 的 `target_decl_span`。
+- 核心决策：
+  - 不保留 `scoop.core` alias、shim 或自动 prelude 可见性；`scoop.runtime.test` 是显式导入的 test-only cone。
+  - `heap_object_count` 走 C ABI native leaf，因此 source-level 调用必须位于 unsafe context；这与 C ABI 隐含 `@Unsafe` / `@NoGC` 的既有规则一致。
+  - `gc_collect` / `gc_debug_alloc_garbage` 继续走 scoop ABI managed boundary，避免 GC stress / safepoint 下丢失 root preservation contract。
+  - stackmap smoke 继续由编译器特殊 lowering 产生真实 statepoint/stackmap record，但该特殊路径只识别 test cone FQN。
+- 验证结果：
+  - `grep -n "__scoop_stackmap_statepoint_smoke\|__scoop_gc_debug_" sysroot/core.scoop` 无输出；custom sysroot overlay 中也无这 4 个 helper 声明。
+  - `cargo build` 通过。
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/runtime_test_helper_not_in_prelude_is_error.scoop` 通过。
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/runtime_gc` 通过：26/26 targets。
+  - `cargo test -p scoopc stackmap_statepoint_smoke_helper` 通过：2 tests。
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/hir` 通过：26/26 targets。
+  - `cargo run -p scoop -- test` 通过：1339/1339 targets，1376 checks。
+  - `cargo test --all --all-targets` 通过：856 tests。
+  - `cargo clippy --all-targets -- -D warnings` 通过。
+- 与 `PLAN.md` 对应闭合：
+  - 闭合 PLAN §9 / P11：GC / stackmap 调试 helper 已从 core 迁出到 test-only cone；GC fixture 与 stackmap smoke 仍覆盖原行为。
+- 暂时性 failing fixture：无。
+
 ## P12：core 真正成为 cone（去 sysroot 化）
 
 ### P12-T01：sysroot 全 file 审计——每个 method/fun 满足 body / `@Intrinsic` / `@Extern` 三选一
@@ -497,7 +526,7 @@
   - 在物理目录重组（P12-T02）与 `signature_only_sysroot_ast` 拆除（P12-T03）之前，先验证 sysroot 中每个 method/fun 都满足"body / `@Intrinsic` / `@Extern` 三选一"。
   - 这是 P12-T03 拆 AST stripping 的前置条件——如有"光声明无 body 也无 `@Intrinsic`/`@Extern`"的 surface，P12-T03 后会编译失败。
 - 当前实现入口：
-  - `sysroot/`（重组前的扁平结构）：`core.scoop` / `string.scoop` / `print.scoop` / `progression.scoop`（如 P9-T01 已建）/ `lang_string.scoop`（如 P5-T02 已建，可能命名不同）/ `unsafe.scoop` / `thread.scoop` / `sync.scoop` / `delegates.scoop` / `collections.scoop`
+  - `sysroot/`（重组前的扁平结构）：`core.scoop` / `string.scoop` / `print.scoop` / `progression.scoop`（如 P9-T01 已建）/ `lang_string.scoop`（如 P5-T02 已建，可能命名不同）/ `runtime_test.scoop` / `unsafe.scoop` / `thread.scoop` / `sync.scoop` / `delegates.scoop` / `collections.scoop`
 - 必须实现的内容：
   1. 对 sysroot 下每个 `.scoop` file 跑结构扫描，列出每个顶层 fun / type body 内 method 的形态：
      - 有 body（普通 Scoop 函数）→ ✓
@@ -540,9 +569,10 @@
      - `sysroot/progression.scoop`（如 P9-T01 已建）→ `sysroot/scoop.core/progression.scoop`
      - `sysroot/lang_string.scoop`（P1-T01 / P5-T02 引入）→ 拆成 `sysroot/scoop.lang.string/builder.scoop`（StringBuilder + 三个 string-from-... 入口）+ `sysroot/scoop.lang.string/helpers.scoop`（substring / indexOf / split / trim 等）。**也可以**保持单文件 `sysroot/scoop.lang.string/lang_string.scoop`，按工作进度选——文件粒度无强约束，只要 package 声明正确。
      - `sysroot/unsafe.scoop` → `sysroot/scoop.unsafe/unsafe.scoop`（package `scoop.unsafe`）
-     - `sysroot/thread.scoop` → `sysroot/scoop.thread/thread.scoop`（package `scoop.thread`）
-     - `sysroot/sync.scoop` → `sysroot/scoop.sync/sync.scoop`（package `scoop.sync`）
-     - `sysroot/delegates.scoop` → `sysroot/scoop.delegates/delegates.scoop`（package `scoop.delegates`）
+      - `sysroot/thread.scoop` → `sysroot/scoop.thread/thread.scoop`（package `scoop.thread`）
+      - `sysroot/sync.scoop` → `sysroot/scoop.sync/sync.scoop`（package `scoop.sync`）
+      - `sysroot/runtime_test.scoop` → `sysroot/scoop.runtime.test/runtime_test.scoop`（package `scoop.runtime.test`）
+      - `sysroot/delegates.scoop` → `sysroot/scoop.delegates/delegates.scoop`（package `scoop.delegates`）
      - `sysroot/collections.scoop` → 视 P10/P11 后还剩什么内容；如 `Iterable/Iterator` 已迁 core、`IntIterable` 已删、剩下只有 `Map`，可以并入 `sysroot/scoop.collections/collections.scoop`（package `scoop.collections`），或者 `Map` 也迁 `scoop.delegates`（它本来就是 delegated property 用的最小 Map 表面）后整文件删。
      - `sysroot/scalar_string_bridge.scoop` 已在 P7-T02 删除，无需迁移。
   2. 用 `git mv` 实施迁移（保留文件历史）。**注意 `git mv` 必须先 `mkdir -p` 目标目录**。

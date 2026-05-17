@@ -1,0 +1,11 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::callee_not_callable
+// EXPECT-ERROR-AT: 10:5
+// EXPECT-ERROR: __scoop_gc_collect
+// 目标：验证 scoop.runtime.test helper 不会通过自动 prelude 暴露给普通用户文件。
+
+package fixtures.typecheck
+
+fun main() {
+    __scoop_gc_collect()
+}

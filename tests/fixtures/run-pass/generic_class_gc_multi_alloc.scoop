@@ -10,6 +10,7 @@
 // - Holder<String> with multiple live instances + GC stress
 
 import scoop.core.*
+import scoop.runtime.test.*
 
 class Holder<T>(val v: T) {
     fun get(): T {

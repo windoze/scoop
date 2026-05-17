@@ -1,6 +1,8 @@
 // EXPECT: pass
 // RUN-STDOUT: lang_mutable_array_new_string_ref.stdout
 
+import scoop.runtime.test.*
+
 fun main(): Int {
     val xs: MutableArray<String> = mutableArrayNew<String>(capacity = 1)
     xs.push("alpha")

@@ -9,6 +9,7 @@
 package fixtures.codegen
 
 import scoop.core.*
+import scoop.runtime.test.*
 
 class Pair(val a: Any, val b: Any)
 

@@ -11,6 +11,7 @@
 // - Multiple instances with Some/None values + GC pressure
 
 import scoop.core.*
+import scoop.runtime.test.*
 
 class Holder<T>(val v: T) {
     fun get(): T {

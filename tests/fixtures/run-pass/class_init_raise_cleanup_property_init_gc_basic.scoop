@@ -6,6 +6,7 @@
 //   `__scoop_gc_collect()` 后 heap object count 不会回落
 
 import scoop.core.*
+import scoop.runtime.test.*
 
 class Boom() {
     val x: Int = @Safe do {
@@ -15,7 +16,7 @@ class Boom() {
 }
 
 fun main(): Int {
-    val before: Int = __scoop_gc_debug_heap_object_count()
+    val before: Int = @Unsafe do { __scoop_gc_debug_heap_object_count() }
 
     try {
         val _x: Boom = Boom()
@@ -25,7 +26,7 @@ fun main(): Int {
 
     __scoop_gc_collect()
 
-    val after: Int = __scoop_gc_debug_heap_object_count()
+    val after: Int = @Unsafe do { __scoop_gc_debug_heap_object_count() }
     println(after - before)
     return 0
 }

@@ -6,6 +6,7 @@
 // - 仅通过 array 元素持有两个字符串，在 `__scoop_gc_collect()` 后仍可读取并打印。
 
 import scoop.core.*
+import scoop.runtime.test.*
 
 fun make(): Array<String> {
     val xs: Array<String> = ["a", "b"]

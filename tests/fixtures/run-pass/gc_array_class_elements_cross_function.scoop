@@ -9,6 +9,7 @@
 // interaction issue; explicit __scoop_gc_collect() is used instead.
 
 import scoop.core.*
+import scoop.runtime.test.*
 
 fun makeStrings(prefix: String): Array<String> {
     val xs: Array<String> = [f"{prefix}_1", f"{prefix}_2", f"{prefix}_3"]

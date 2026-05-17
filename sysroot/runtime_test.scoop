@@ -1,0 +1,25 @@
+// Scoop sysroot: runtime test-only helper surface.
+//
+// 说明：
+// - 该 cone 只供仓库 fixture / compiler tests 显式导入；不进入自动 prelude；
+// - helper 用于验证 GC、moving roots 与 stackmap smoke，不是稳定用户态 API。
+
+package scoop.runtime.test
+
+import scoop.core.*
+
+// 手动触发真实 GC；保持 scoop ABI，确保调用边界保留 managed roots。
+@Extern(name = "scoop_gc_collect", abi = "scoop")
+fun __scoop_gc_collect(): Unit
+
+// 只读取 runtime heap 计数，不接收/返回 GC ref，按 C ABI leaf helper 暴露。
+@Extern(name = "scoop_gc_debug_heap_object_count", abi = "c")
+fun __scoop_gc_debug_heap_object_count(): Int
+
+// 会通过 runtime 分配垃圾对象并可能触发 safepoint；必须保持 managed boundary。
+@Extern(name = "scoop_gc_debug_alloc_garbage", abi = "scoop")
+fun __scoop_gc_debug_alloc_garbage(count: Int): Unit
+
+// 显式 opt-in 的 stackmap smoke；编译器会仅对该 FQN 恢复 statepoint lowering。
+@Intrinsic
+fun __scoop_stackmap_statepoint_smoke(): Int

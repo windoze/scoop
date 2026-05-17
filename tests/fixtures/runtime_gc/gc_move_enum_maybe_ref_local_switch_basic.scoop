@@ -12,6 +12,7 @@
 package fixtures.codegen
 
 import scoop.core.*
+import scoop.runtime.test.*
 
 enum E {
     A(val n: Int, val s: String),

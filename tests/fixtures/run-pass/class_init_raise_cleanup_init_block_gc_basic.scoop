@@ -5,6 +5,7 @@
 // - ctor call 临时 GC frame 必须在 unwind 路径 pop，避免失败构造对象被错误保留为 root
 
 import scoop.core.*
+import scoop.runtime.test.*
 
 class BoomInit() {
     init {
@@ -13,7 +14,7 @@ class BoomInit() {
 }
 
 fun main(): Int {
-    val before: Int = __scoop_gc_debug_heap_object_count()
+    val before: Int = @Unsafe do { __scoop_gc_debug_heap_object_count() }
 
     try {
         val _x: BoomInit = BoomInit()
@@ -23,7 +24,7 @@ fun main(): Int {
 
     __scoop_gc_collect()
 
-    val after: Int = __scoop_gc_debug_heap_object_count()
+    val after: Int = @Unsafe do { __scoop_gc_debug_heap_object_count() }
     println(after - before)
     return 0
 }

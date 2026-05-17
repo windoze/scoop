@@ -9,6 +9,7 @@
 // - Exercises the GC's enum slot scanning (variant discriminant + ref field offsets).
 
 import scoop.core.*
+import scoop.runtime.test.*
 
 enum Shape {
     Circle(val radius: Int),

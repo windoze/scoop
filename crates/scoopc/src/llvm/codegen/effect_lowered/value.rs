@@ -3493,10 +3493,7 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
                 fqn,
                 "scoop.core.__scoop_print_string"
                     | "scoop.core.__scoop_println_string"
-                    | "scoop.core.__scoop_gc_collect"
-                    | "scoop.core.__scoop_gc_debug_heap_object_count"
-                    | "scoop.core.__scoop_gc_debug_alloc_garbage"
-                    | "scoop.core.__scoop_stackmap_statepoint_smoke"
+                    | "scoop.runtime.test.__scoop_stackmap_statepoint_smoke"
                     | "scoop.core.GC.handleNew"
                     | "scoop.core.GC.handleGet"
                     | "scoop.core.GC.handleDrop"
@@ -3726,96 +3723,7 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
         args: &[mir::CallArg],
     ) -> Result<Option<CgValue<'ctx>>, LlvmEmitError> {
         match callee_fqn {
-            "scoop.core.__scoop_gc_collect" => {
-                if !args.is_empty() {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "gc collect arity mismatch",
-                        at: span.into(),
-                    });
-                }
-                let runtime = self.codegen.declare_runtime_gc_collect();
-                let _ = self.codegen.build_call_preserving_gc_local_roots(
-                    span,
-                    runtime,
-                    &[],
-                    "gc_collect",
-                )?;
-                Ok(Some(CgValue::unit()))
-            }
-            "scoop.core.__scoop_gc_debug_heap_object_count" => {
-                if !args.is_empty() {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "gc heap object count arity mismatch",
-                        at: span.into(),
-                    });
-                }
-                let runtime = self.codegen.declare_runtime_gc_debug_heap_object_count();
-                let call =
-                    self.codegen
-                        .builder
-                        .build_call(runtime, &[], "gc_debug_heap_object_count")?;
-                let raw = call.try_as_basic_value().basic().ok_or(
-                    LlvmEmitError::UnsupportedMainBody {
-                        kind: "gc heap object count return value",
-                        at: span.into(),
-                    },
-                )?;
-                let BasicValueEnum::IntValue(raw_int) = raw else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "gc heap object count return type",
-                        at: span.into(),
-                    });
-                };
-                let from = IntTy {
-                    bits: 64,
-                    signed: false,
-                };
-                let to = IntTy {
-                    bits: self.codegen.host.word_bit_width(),
-                    signed: true,
-                };
-                let casted = self.codegen.cast_int(raw_int, from, to)?;
-                Ok(Some(CgValue::int(casted, to)))
-            }
-            "scoop.core.__scoop_gc_debug_alloc_garbage" => {
-                if args.len() != 1 || args[0].name.is_some() {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "gc debug alloc garbage arg contract",
-                        at: span.into(),
-                    });
-                }
-                let value_word = IntTy {
-                    bits: self.codegen.host.word_bit_width(),
-                    signed: true,
-                };
-                let value = self.codegen.codegen_mir_operand_expected(
-                    args[0].span,
-                    &args[0].value,
-                    self.slots,
-                    Some(CgTy::Int(value_word)),
-                )?;
-                let value =
-                    self.codegen
-                        .coerce_value(args[0].span, value, CgTy::Int(value_word))?;
-                let (raw, from) = value.as_int().ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "gc debug alloc garbage count value",
-                    at: args[0].span.into(),
-                })?;
-                let to = IntTy {
-                    bits: 64,
-                    signed: true,
-                };
-                let count_i64 = self.codegen.cast_int(raw, from, to)?;
-                let runtime = self.codegen.declare_runtime_gc_debug_alloc_garbage();
-                let _ = self.codegen.build_call_preserving_gc_local_roots(
-                    span,
-                    runtime,
-                    &[count_i64.into()],
-                    "gc_debug_alloc_garbage",
-                )?;
-                Ok(Some(CgValue::unit()))
-            }
-            "scoop.core.__scoop_stackmap_statepoint_smoke" => {
+            "scoop.runtime.test.__scoop_stackmap_statepoint_smoke" => {
                 if !args.is_empty() {
                     return Err(LlvmEmitError::UnsupportedMainBody {
                         kind: "stackmap statepoint smoke arity mismatch",

@@ -7,6 +7,7 @@
 //   来做可观测回归：若 field 未被扫描，boxed int 会被回收，count 会从 2 回落到 1。
 
 import scoop.core.*
+import scoop.runtime.test.*
 
 class Holder(val v: Any)
 
@@ -23,12 +24,12 @@ fun main(): Int {
     val h: Holder = make()
 
     // 预期：holder + boxed int
-    println(__scoop_gc_debug_heap_object_count())
+    println(@Unsafe do { __scoop_gc_debug_heap_object_count() })
 
     __scoop_gc_collect()
 
     // 若 class 字段未被 GC 扫描，boxed int 会被回收，count 会回落到 1。
-    println(__scoop_gc_debug_heap_object_count())
+    println(@Unsafe do { __scoop_gc_debug_heap_object_count() })
 
     // 让 h 在 safepoint（collect）之后仍然有 use，确保 boxed int 在 GC 时可达。
     blackBoxHolder(h)

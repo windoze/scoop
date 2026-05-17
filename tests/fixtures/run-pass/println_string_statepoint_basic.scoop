@@ -6,6 +6,7 @@
 // - 字符串字面量与 f-string 在 GC safepoint 下可用。
 
 import scoop.core.*
+import scoop.runtime.test.*
 
 fun main(): Int {
     println("start")
@@ -24,4 +25,3 @@ fun main(): Int {
 
     return 0
 }
-

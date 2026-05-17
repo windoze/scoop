@@ -8,6 +8,7 @@
 package fixtures.codegen
 
 import scoop.core.*
+import scoop.runtime.test.*
 
 fun callAfterGc(f: () -> Int): Int {
     __scoop_gc_collect()

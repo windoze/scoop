@@ -8,6 +8,7 @@
 package fixtures.codegen
 
 import scoop.core.*
+import scoop.runtime.test.*
 
 class Node(val name: String) {
     var next: Node? = None()
@@ -35,4 +36,3 @@ fun main() {
     }
     println(a2.name)
 }
-

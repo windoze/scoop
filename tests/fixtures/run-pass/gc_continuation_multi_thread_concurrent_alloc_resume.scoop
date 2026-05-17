@@ -27,6 +27,7 @@
 // `SCOOP_GC_STRESS=1` 让 worker 内 resumed 路径上的分配也参与压力回归。
 
 import scoop.core.*
+import scoop.runtime.test.*
 import scoop.thread.*
 
 effect AwaitA {

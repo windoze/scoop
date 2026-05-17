@@ -6,6 +6,7 @@
 package fixtures.codegen
 
 import scoop.core.*
+import scoop.runtime.test.*
 
 fun main() {
     var x: Any = f"hello {7}"

@@ -2,6 +2,7 @@
 // 目标：CG-T04b tuple/struct value erasure boxing 走 GC-managed boxed transport。
 
 import scoop.core.*
+import scoop.runtime.test.*
 
 struct Named(val name: String, val score: Int)
 

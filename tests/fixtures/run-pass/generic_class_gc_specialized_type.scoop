@@ -11,6 +11,7 @@
 // - Wrapper with multiple different type args in same program
 
 import scoop.core.*
+import scoop.runtime.test.*
 
 class Wrapper<T>(val items: T) {
     fun get(): T {

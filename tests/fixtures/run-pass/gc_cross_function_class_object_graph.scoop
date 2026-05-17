@@ -9,6 +9,7 @@
 // - Verifies that all inter-object references (class->class, class->String) survive GC.
 
 import scoop.core.*
+import scoop.runtime.test.*
 
 class Node(val name: String, val value: Int) {
     var left: Node? = None()

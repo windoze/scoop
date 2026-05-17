@@ -495,26 +495,6 @@ fun __scoop_print(value: String): Unit
 @Extern(name = "scoop_println", abi = "scoop")
 fun __scoop_println(value: String): Unit
 
-// GC（测试辅助）。
-//
-// 说明：
-// - 该组 API 用于回归 v0 mark-sweep（TODO T0910）；并不承诺稳定的用户态 API；
-// - `__scoop_gc_collect()` 手动触发一次 GC（仅扫描当前线程 roots）；
-// - `__scoop_gc_debug_alloc_garbage(n)` 用于制造垃圾对象（不写入 roots）；
-// - `__scoop_gc_debug_heap_object_count()` 用于验证 sweep 是否回收；
-// - `__scoop_stackmap_statepoint_smoke()` 是 stackmap registry 的端到端 smoke：
-//   它是显式 opt-in 的可选 stackmap 路径，不属于默认 explicit-root-frame correctness 主线；
-// - 编译器会仅对包含该调用点的函数恢复 statepoint GC strategy，并把它 lowering 成 ordinary
-//   managed runtime 调用，这样调用点本身会重新保留真实 statepoint/stackmap record。
-@Extern(name = "scoop_gc_collect", abi = "scoop")
-fun __scoop_gc_collect(): Unit
-@Intrinsic
-fun __scoop_gc_debug_heap_object_count(): Int
-@Intrinsic
-fun __scoop_gc_debug_alloc_garbage(count: Int): Unit
-@Intrinsic
-fun __scoop_stackmap_statepoint_smoke(): Int
-
 // GC pinning API（spec §15.10）。
 //
 // 说明：

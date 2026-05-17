@@ -10,6 +10,7 @@
 // - 显式 `destroy()` 仍然可提前释放平台资源，且 GC sweep 不会对同一对象 double-destroy。
 
 import scoop.core.*
+import scoop.runtime.test.*
 import scoop.sync.*
 
 @Extern("scoop_test_sync_destroy_counts_reset")

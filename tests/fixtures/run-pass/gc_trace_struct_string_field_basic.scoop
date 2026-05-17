@@ -6,6 +6,7 @@
 //   也必须被 statepoint/stackmap roots 枚举到，不需要在源码里手工提取字段 keepalive。
 
 import scoop.core.*
+import scoop.runtime.test.*
 
 struct Wrap(val s: String)
 
@@ -18,7 +19,7 @@ fun main(): Unit {
     val w: Wrap = make()
 
     // 预期：仅有 1 个 live 对象（ScoopString）。
-    println(__scoop_gc_debug_heap_object_count())
+    println(@Unsafe do { __scoop_gc_debug_heap_object_count() })
 
     // 清掉上一次 `println(Int)` 产生的临时字符串垃圾，避免后续计数依赖 stress collect
     // 是否在 `debug_alloc_garbage()` 前发生。
@@ -26,11 +27,11 @@ fun main(): Unit {
 
     // 制造 1000 个不可达对象：应变为 1 + 1000 = 1001。
     __scoop_gc_debug_alloc_garbage(1000)
-    println(__scoop_gc_debug_heap_object_count())
+    println(@Unsafe do { __scoop_gc_debug_heap_object_count() })
 
     // 手动触发一次 GC：应回收垃圾对象但保留 w.s 持有的字符串。
     __scoop_gc_collect()
-    println(__scoop_gc_debug_heap_object_count())
+    println(@Unsafe do { __scoop_gc_debug_heap_object_count() })
 
     // 在 safepoint 之后读取字段：若 w.s 未被 roots 扫描保活，这里会读到悬挂指针/错误对象。
     println(w.s)

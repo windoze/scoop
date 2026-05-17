@@ -16,6 +16,7 @@
 package fixtures.codegen
 
 import scoop.core.*
+import scoop.runtime.test.*
 
 struct Wrap(val s: String)
 

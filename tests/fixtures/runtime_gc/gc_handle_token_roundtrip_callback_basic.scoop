@@ -12,6 +12,7 @@
 package fixtures.codegen
 
 import scoop.core.*
+import scoop.runtime.test.*
 
 @Extern("scoop_test_handle_token_slot_reset")
 fun handleTokenSlotReset(): Unit

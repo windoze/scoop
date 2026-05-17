@@ -8,6 +8,7 @@
 package fixtures.codegen
 
 import scoop.core.*
+import scoop.runtime.test.*
 
 interface IFace {
     fun ping(): Int

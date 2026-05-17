@@ -8,6 +8,7 @@
 package fixtures.codegen
 
 import scoop.core.*
+import scoop.runtime.test.*
 
 fun make(): Array<String> {
     val xs: Array<String> = [f"a {1}", f"b {2}"]
@@ -20,4 +21,3 @@ fun main() {
     println(f"array0={xs.get(0)}")
     println(f"array1={xs.get(1)}")
 }
-

@@ -15,6 +15,7 @@
 package fixtures.build
 
 import scoop.core.*
+import scoop.runtime.test.*
 
 fun keepAlive(value: Any): Unit {
 }

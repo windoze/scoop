@@ -9,6 +9,7 @@
 // - Exercises the GC's ability to distinguish live roots from dead allocations under stress.
 
 import scoop.core.*
+import scoop.runtime.test.*
 
 class LongLived(val id: Int, val tag: String)
 
