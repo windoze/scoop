@@ -993,7 +993,7 @@
   - 闭合 PLAN §8 / P13 中 sysroot 注释与历史工单引用收尾要求；sysroot 注释现在只保留当前架构说明，不再引用前一轮历史任务编号。
 - 暂时性 failing fixture：无。本任务只修改注释，未新增或遗留 failing fixture。
 
-### P13-T04：最终 fixture 收尾——所有 fixture 必须通过
+### [DONE] P13-T04：最终 fixture 收尾——所有 fixture 必须通过
 
 - 参考：
   - [`TODO.md`](./TODO.md) "fixture 终态铁律" + "fixture 删除标准" 两条全局约束
@@ -1046,3 +1046,35 @@
   - 所有上游"待处理"清单已闭合。
   - 整轮 reshape 至此完整收尾。
 - 依赖：P13-T03 + P0~P12 全部任务。本任务是整轮 reshape 的最后一站。
+
+完成记录：
+
+- 改动范围：
+  - 同步 5 个 HIR golden 中因 P13-T03 sysroot 注释清理引起的 `target_decl_span` 稳定 span 漂移：`const_fun_basic.hir`、`do_block_multiple_trailing_lambda_boundary.hir`、`handle_mixed_arm_kinds.hir`、`lowered_call_args.hir`、`lowered_comptime_control_flow.hir`。
+  - 未删除任何本任务发现的 failing fixture，未修改实现代码或 fixture source。
+  - `target/reshape-baseline/p13t04-failing.txt` 用于记录初次全量 suite 的 failing 全集；修复并复验后已清空，`wc -l` 为 `0`。
+- 初次 failing fixture 全集：
+  - `tests/fixtures/hir/const_fun_basic.scoop`：HIR snapshot 与 golden 不一致，仅 `scoop.core.Int.plus` 的 `target_decl_span` 从 `19735..19739` 漂移到 `19640..19644`。
+  - `tests/fixtures/hir/do_block_multiple_trailing_lambda_boundary.scoop`：HIR snapshot 与 golden 不一致，仅 4 处 `scoop.core.Int.plus` 的 `target_decl_span` 从 `19735..19739` 漂移到 `19640..19644`。
+  - `tests/fixtures/hir/handle_mixed_arm_kinds.scoop`：HIR snapshot 与 golden 不一致，仅 2 处 `scoop.core.Int.equals` 的 `target_decl_span` 从 `20840..20846` 漂移到 `20745..20751`，以及 2 处 `scoop.core.Int.plus` 的 `target_decl_span` 从 `19735..19739` 漂移到 `19640..19644`。
+  - `tests/fixtures/hir/lowered_call_args.scoop`：HIR snapshot 与 golden 不一致，仅 `scoop.core.Int.plus` 的 `target_decl_span` 从 `19735..19739` 漂移到 `19640..19644`。
+  - `tests/fixtures/hir/lowered_comptime_control_flow.scoop`：HIR snapshot 与 golden 不一致，仅 `scoop.core.Int.plus` 的 `target_decl_span` 从 `19735..19739` 漂移到 `19640..19644`。
+- Q1 / Q2 与处理决定：
+  - 上述 5 条 HIR fixture 验证的 HIR stable dump / intrinsic target declaration span 语义仍然存在（Q1 = 是）。
+  - 失败原因不是底层语义改变，也不是 API 删除，而是 P13-T03 删除/改写 `sysroot/scoop.core/core.scoop` 注释后造成的稳定源 span 漂移（Q2 = fixture golden 需同步）。
+  - 处理方式：改写 `.hir` golden 到当前真实输出；不删除 fixture。
+- 上游待处理清单闭合：
+  - `tests/fixtures/run-pass/mutable_array_ops_basic.scoop`：P4/P5/P8/P9 记录的旧 `MutableArray<Int>.pop/insert/removeAt/splice` copy-style API failure 已由 P9-T02 按 DELETE 规则删除并论证，本任务最终全量 suite 中不再存在该 failing fixture。
+  - P6/P7/P8 记录的 runtime GC/native-root 相关失败（`extern_enter_native_gc_arg_spill_reload.scoop`、`extern_enter_native_roots_gc.scoop`、`funptr_enter_native_roots_gc.scoop`、`gc_handle_roundtrip.scoop`、`gc_move_stackmap_heap_fixup.scoop`）在最终全量 suite 中全部通过。
+  - P6/P7/P8 记录的 `tests/fixtures/run_pass_cone/cross_file_ctor_named_default_basic` 在最终全量 suite 中通过。
+  - P12-T02 中曾出现并已同步的同一组 5 个 HIR span drift，本任务再次因 P13-T03 注释清理暴露；已按当前输出同步并由全量 suite 复验闭合。
+- 验证结果：
+  - 初次 `cargo run -p scoop -- test`：`1335/1340` targets passed，5 个 targets failed，失败全集见上。
+  - 5 个改写 fixture 的逐条验证均通过：`cargo run -p scoop -- test --fixtures tests/fixtures/hir/const_fun_basic.scoop`、`.../do_block_multiple_trailing_lambda_boundary.scoop`、`.../handle_mixed_arm_kinds.scoop`、`.../lowered_call_args.scoop`、`.../lowered_comptime_control_flow.scoop`。
+  - 修复后 `cargo run -p scoop -- test` 通过：`fixtures: ok (1377)`，即 `1340/1340` targets 通过，0 failing。
+  - `wc -l target/reshape-baseline/p13t04-failing.txt` 输出 `0`。
+  - `cargo build` 通过。
+  - `cargo clippy --all-targets -- -D warnings` 通过。
+- 与 `PLAN.md` 对应闭合：
+  - 闭合 PLAN §9 / P13 的最终 fixture 收尾要求：仓库内仍存在的 fixture 已全量通过，上游暂时 failing 清单已闭合，本轮 core / stdlib reshape fixture baseline 为 0 failing。
+- 暂时性 failing fixture：无。

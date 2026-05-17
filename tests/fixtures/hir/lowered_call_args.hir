@@ -825,7 +825,7 @@ TypedHirEffectContracts {
             intrinsic_allowed_context: RuntimeOnly,
             intrinsic_runtime_fallback: CompilerLowered,
             target_fqn: "scoop.core.Int.plus",
-            target_decl_span: Some(19735..19739),
+            target_decl_span: Some(19640..19644),
             target_type_args: [],
             target_eff_args: [],
         },
