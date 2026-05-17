@@ -2277,7 +2277,7 @@ fn check_builtin_annotations_on_fun_decl(
         });
     }
 
-    if !source.is_sysroot() && regular_fun_requires_body(fun, &flags, missing_body_policy) {
+    if regular_fun_requires_body(fun, &flags, missing_body_policy) {
         return Err(AnnotationError::FunMustHaveBody {
             decl_kind: missing_body_decl_kind(fun, fun_site),
             fun_name,

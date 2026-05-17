@@ -6,6 +6,8 @@
 
 package scoop.core
 
+import scoop.unsafe.*
+
 @Extern(name = "scoop_bool_to_string", abi = "scoop")
 fun __scoop_bool_to_string(value: Bool): String
 
@@ -161,9 +163,66 @@ fun <T> MutableArray<T>.set(index: Int, value: T): Unit
 // - 当前阶段先只提供 `Int` 专用版本；泛型版本待 `std` collections 更完整后再补齐。
 @Intrinsic
 fun MutableArray<Int>.toArray(): Array<Int>
-fun <T> MutableArray<T>.push(value: T): Unit
-fun <T> MutableArray<T>.freeze(): Array<T>
-fun <T> mutableArrayNew(capacity: Int = sizeOf<Int>() - sizeOf<Int>()): MutableArray<T>
+
+@Extern(name = "scoop_mutable_array_new", abi = "scoop")
+fun __scoop_mutable_array_new(
+    elemKind: Int,
+    elemSize: Int,
+    elemAlign: Int,
+    elemDesc: UIntPtr,
+    capacity: Int,
+): MutableArray<Any>
+
+@Extern(name = "scoop_mutable_array_push_word", abi = "scoop")
+fun __scoop_mutable_array_push_word(arr: MutableArray<Any>, value: UIntPtr): Unit
+
+@Extern(name = "scoop_mutable_array_push_ref", abi = "scoop")
+fun __scoop_mutable_array_push_ref(arr: MutableArray<Any>, value: Any): Unit
+
+@Extern(name = "scoop_mutable_array_push_composite", abi = "scoop")
+fun __scoop_mutable_array_push_composite(arr: MutableArray<Any>, slot: UIntPtr, elemSize: Int): Unit
+
+@Extern(name = "scoop_mutable_array_freeze", abi = "scoop")
+fun __scoop_mutable_array_freeze(arr: MutableArray<Any>): Array<Any>
+
+fun <T> mutableArrayNew(capacity: Int = ARRAY_ELEM_KIND_WORD - ARRAY_ELEM_KIND_WORD): MutableArray<T> {
+    val raw: MutableArray<Any> = __scoop_mutable_array_new(
+        kindOf<T>(),
+        sizeOf<T>(),
+        alignOf<T>(),
+        descOf<T>(),
+        capacity,
+    )
+    return @Unsafe do { __scoop_unsafe_mutable_array_cast<T>(raw) }
+}
+
+fun <T> MutableArray<T>.push(value: T): Unit {
+    val kind: Int = kindOf<T>()
+    val raw: MutableArray<Any> = @Unsafe do { __scoop_unsafe_mutable_array_erase<T>(this) }
+
+    if (kind == ARRAY_ELEM_KIND_WORD) {
+        val word: UIntPtr = @Unsafe do { __scoop_unsafe_value_to_word<T>(value) }
+        __scoop_mutable_array_push_word(raw, word)
+        return
+    }
+
+    if (kind == ARRAY_ELEM_KIND_REF) {
+        val refValue: Any = @Unsafe do { __scoop_unsafe_value_to_any<T>(value) }
+        __scoop_mutable_array_push_ref(raw, refValue)
+        return
+    }
+
+    if (kind == ARRAY_ELEM_KIND_COMPOSITE) {
+        val slot: UIntPtr = @Unsafe do { __scoop_unsafe_value_slot<T>(value) }
+        __scoop_mutable_array_push_composite(raw, slot, sizeOf<T>())
+        return
+    }
+}
+
+fun <T> MutableArray<T>.freeze(): Array<T> {
+    val raw: Array<Any> = __scoop_mutable_array_freeze(@Unsafe do { __scoop_unsafe_mutable_array_erase<T>(this) })
+    return @Unsafe do { __scoop_unsafe_array_cast<T>(raw) }
+}
 // 编译期列表（spec §6.4）。
 //
 // 说明：
@@ -462,6 +521,10 @@ const fun <T> sizeOf(): Int
 @Intrinsic
 const fun <T> alignOf(): Int
 @Intrinsic
+const fun <T> kindOf(): Int
+@Intrinsic
+const fun <T> descOf(): UIntPtr
+@Intrinsic
 const fun <T> fieldsOf(): ComptimeList<FieldMeta>
 @Intrinsic
 const fun <T> variantsOf(): ComptimeList<VariantMeta>
@@ -471,6 +534,10 @@ const fun <T> superTypesOf(): ComptimeList<TypeMeta>
 const fun <T> annotationsOf(): ComptimeList<AnnotationMeta>
 @Intrinsic
 const fun paramsOf(fn: FunctionMeta): ComptimeList<ParamMeta>
+
+const val ARRAY_ELEM_KIND_WORD: Int = 1
+const val ARRAY_ELEM_KIND_REF: Int = 2
+const val ARRAY_ELEM_KIND_COMPOSITE: Int = 3
 
 // Platform Introspection（spec §6.4）。
 //

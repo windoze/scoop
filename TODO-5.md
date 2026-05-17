@@ -718,7 +718,7 @@
   - 闭合 PLAN §9 / P12 中“删除 AST stripping 与 compilable sysroot file filtering”的要求；P12-T04 可在完整 AST / 全 sysroot support-source 前提下统一 body 缺失策略。
 - 暂时性 failing fixture：无。中途全量 fixture 暴露的 `inherited_member_call_multi_level_chain_basic.scoop` 是本任务全 sysroot support-source 路径触发的同名 type parameter / nominal type 映射缺陷，已在本任务内修复并回归通过。
 
-### P12-T04：body 缺失策略统一——sysroot file 与用户 file 用同一规则
+### [DONE] P12-T04：body 缺失策略统一——sysroot file 与用户 file 用同一规则
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §9 / P12
@@ -748,6 +748,27 @@
 - 完成条件：
   - sysroot 与用户 file 在 body 缺失策略上完全一致；唯一保留的语义差异在 `@AllowIntrinsic` 自动开 gate（P12-T05 收尾）。
 - 依赖：P12-T03。
+
+完成记录：
+
+- 改动范围：
+  - `crates/scoopc/src/typecheck/annotations.rs` 删除普通函数缺 body 检查中的 `source.is_sysroot()` 短路；`regular_fun_requires_body` 现在对 sysroot file 与用户 file 同样生效。
+  - 新增 `tests/fixtures/build/sysroot_missing_body_is_error.scoop` 及 companion sysroot overlay，回归 sysroot overlay 中普通无 body 顶层函数会报 `scoop::typecheck::fun_must_have_body`。
+  - 修正 4 个已有 build fixture sysroot overlay：`MutableArray.push` / `freeze` / `mutableArrayNew` 不再是普通无 body 声明，改为与生产 sysroot 一致的普通 Scoop wrapper body + 单态 runtime `@Extern(abi = "scoop")` entry；补齐对应 `scoop.unsafe.*` import、`kindOf<T>` / `descOf<T>` 与 `ARRAY_ELEM_KIND_*` 常量。
+- 核心决策：
+  - 不保留 sysroot body 缺失豁免，也不把 overlay 报错静默；已有 overlay 暴露出的普通无 body helper 属于当前统一规则下的直接阻塞，按生产 sysroot 形态修正。
+  - `regular_fun_requires_body` 内部已只识别 body / `@Extern` / `@Intrinsic` / interface abstract method 规则，无 sysroot 特例。
+- 验证结果：
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/build/sysroot_missing_body_is_error.scoop` 通过。
+  - `grep` 等价检查：`crates/scoopc/src/typecheck/annotations.rs` 中 `is_sysroot()` 仅剩 `source_is_sysroot` gate helper 命中。
+  - `cargo build` 通过。
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/build` 通过：45/45 targets。
+  - `cargo run -p scoop -- test` 通过：1340 targets，1377 checks。
+  - `cargo clippy --all-targets -- -D warnings` 通过。
+  - `cargo test --all --all-targets` 通过：856 tests。
+- 与 `PLAN.md` 对应闭合：
+  - 闭合 PLAN §9 / P12 中“sysroot file 与用户 file 在 body 缺失策略上完全一致”的要求；`@AllowIntrinsic` 自动 gate 的剩余 `is_sysroot()` 语义由 P12-T05 继续收口。
+- 暂时性 failing fixture：无。中途完整 fixture 暴露的 4 个 overlay 失败均为当前规则直接暴露的已存在不合法 overlay 声明，已在本任务内修复并回归通过。
 
 ### P12-T05：`is_sysroot()` 语义收窄——仅保留在 `@file:AllowIntrinsic` 自动开 gate 处使用
 

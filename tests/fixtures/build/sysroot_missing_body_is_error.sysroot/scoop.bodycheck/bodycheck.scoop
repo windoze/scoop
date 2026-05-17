@@ -1,0 +1,5 @@
+package scoop.bodycheck
+
+import scoop.core.*
+
+fun sysrootMissingBody(): Int

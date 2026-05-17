@@ -1,0 +1,12 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::fun_must_have_body
+// EXPECT-ERROR: 普通顶层函数必须提供函数体
+// ARGS: --emit-llvm
+
+package fixtures.build
+
+import scoop.core.*
+
+fun main(): Int {
+    return 0
+}

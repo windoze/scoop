@@ -50,7 +50,7 @@
 | `P12-T01` | [DONE] | P12 | [DONE] sysroot 全 file 审计：每个 method/fun 满足 body / `@Intrinsic` / `@Extern` 三选一 | [TODO-5.md](./TODO-5.md) |
 | `P12-T02` | [DONE] | P12 | [DONE] sysroot 物理目录按 cone FQN 重组（`sysroot/scoop.core/` / `sysroot/scoop.lang.string/` 等子目录） | [TODO-5.md](./TODO-5.md) |
 | `P12-T03` | [DONE] | P12 | [DONE] 取消 `signature_only_sysroot_ast` / `is_compilable_sysroot_file` 整套 AST stripping | [TODO-5.md](./TODO-5.md) |
-| `P12-T04` | [TODO] | P12 | body 缺失策略统一：sysroot file 与用户 file 用同一规则 | [TODO-5.md](./TODO-5.md) |
+| `P12-T04` | [DONE] | P12 | [DONE] body 缺失策略统一：sysroot file 与用户 file 用同一规则 | [TODO-5.md](./TODO-5.md) |
 | `P12-T05` | [TODO] | P12 | `is_sysroot()` 语义收窄：仅保留在 `@file:AllowIntrinsic` 自动开 gate 处使用 | [TODO-5.md](./TODO-5.md) |
 | `P13-T01` | [TODO] | P13 | spec §10.3 删除 `var StringBuilder.lastChar` 示例 + 加入 `scoop.lang` 简介 + sysroot 目录组织约定 | [TODO-5.md](./TODO-5.md) |
 | `P13-T02` | [TODO] | P13 | 更新 `MANAGED_ABI.md` §2.2 typical example 列表 | [TODO-5.md](./TODO-5.md) |
