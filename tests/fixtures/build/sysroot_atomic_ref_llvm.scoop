@@ -1,0 +1,35 @@
+// EXPECT: pass
+// ARGS: --emit-llvm --opt-level 0
+// BUILD-LLVM-CONTAINS: load atomic ptr addrspace(1)
+// BUILD-LLVM-CONTAINS: store atomic ptr addrspace(1)
+// BUILD-LLVM-CONTAINS: cmpxchg ptr addrspace(1)
+// BUILD-LLVM-CONTAINS: @scoop_gc_write_barrier
+//
+// Public `Atomic<T: AnyRef>` should lower to pointer atomic instructions while
+// preserving the GC write barrier protocol for writes.
+
+package fixtures.build
+
+import scoop.core.*
+
+class Node(var value: Int)
+
+fun main(): Int {
+    val first: Node = Node(1)
+    val second: Node = Node(2)
+    val third: Node = Node(3)
+    val cell: Atomic<Node> = Atomic(first)
+
+    val loaded: Node = cell.load()
+    cell.store(second)
+    val failed: Bool = cell.cas(first, third)
+    val swapped: Bool = cell.cas(second, first)
+
+    if (failed) {
+        return 0
+    }
+    if (swapped) {
+        return loaded.value + cell.load().value
+    }
+    return 0
+}

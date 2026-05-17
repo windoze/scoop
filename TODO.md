@@ -4,7 +4,7 @@
 > 设计基线：[`CLOSURE_FIX.md`](./CLOSURE_FIX.md)  
 > 计划基线：[`PLAN.md`](./PLAN.md)  
 > 格式参考：[`docs/archive/plans/TODO-stable-id.md`](./docs/archive/plans/TODO-stable-id.md)  
-> 当前状态：C4-T01C 已完成
+> 当前状态：C4-T01D 已完成
 > 执行原则：C0 必须最先完成；C1/C3 与 C2 两条实现线可按依赖并行，但单个任务完成时不得留下仓库内 failing fixture；每个任务完成后必须回写“完成记录”。
 
 ## 全局约束
@@ -829,7 +829,7 @@ C0-T01 (baseline + prerequisite inventory)
     - `cargo clippy --all-targets -- -D warnings`：通过。
   - 与 `PLAN.md` / `CLOSURE_FIX.md` 对应闭合：闭合 `PLAN.md` §4.1 / §7 C4-T01 与 `CLOSURE_FIX.md` §2 的 sealed interface frontend accept/reject fixture 覆盖要求；阶段级计划未变化。
 
-### [TODO] C4-T01D：新增 shared-state primitive fixtures
+### [DONE] C4-T01D：新增 shared-state primitive fixtures
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5、§7 C4-T01
@@ -855,9 +855,22 @@ C0-T01 (baseline + prerequisite inventory)
 - 依赖：C3-T02
 - 完成记录：
   - 改动范围：
+    - 扩展 `tests/fixtures/run-pass/sysroot_atomic_basic.scoop` / `.stdout`，在既有 `AtomicInt`、`AtomicBool`、`Atomic<Node>`、`AtomicValue<Pair>` run-pass 覆盖上补齐 CAS 失败路径，尤其覆盖 `Atomic<Node>` pointer identity 的 expected-old-object 失败与 expected-current-object 成功。
+    - 新增 `tests/fixtures/typecheck/sysroot_atomic_value_cas_expected_requires_box.scoop`，确认 `AtomicValue<T>::cas` 的 `expected` 不能传 `T`，必须传 `Box<T>`。
+    - 新增 `tests/fixtures/build/sysroot_atomic_ref_llvm.scoop`，通过用户可见 `Atomic<T: AnyRef>` API 检查 LLVM IR 中的 pointer atomic load/store/CAS 与 GC write barrier 调用形态。
+    - 复用既有 `sysroot_refcell_box_basic.scoop`、`closure_capture_refcell_make_counter.scoop`、`sysroot_box_value_assign_is_error.scoop`、`sysroot_atomic_ref_rejects_value_type.scoop`、`sysroot_atomic_value_rejects_ref_type.scoop` 覆盖 `RefCell` / `Box` 基本行为与 atomic bound 反样本；未修改语义代码、`PLAN.md` 或 `CLOSURE_FIX.md`。
   - 核心决策：
+    - Atomic fixture 继续保持单线程，验证 API 语义、CAS 成功/失败与 lowering 形态，不引入并发调度依赖。
+    - atomic-ref LLVM fixture 使用稳定的 IR 指令/运行时 barrier 关键形态断言，不锁死 hash 后缀等 private symbol spelling。
+    - `AtomicValue<T>::cas(expected: T, ...)` 当前经成员调用重载解析报 `scoop::typecheck::no_matching_overload`，fixture 按现有调用诊断表述锁定该用户可见错误。
   - 验证结果：
-  - 与 `PLAN.md` / `CLOSURE_FIX.md` 对应闭合：
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/sysroot_atomic_basic.scoop --exit-on-failure`：通过，1 个 check。
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/sysroot_atomic_value_cas_expected_requires_box.scoop --exit-on-failure`：通过，1 个 check。
+    - `cargo run -p scoop -- test --fixtures tests/fixtures/build/sysroot_atomic_ref_llvm.scoop --exit-on-failure`：通过，1 个 check。
+    - `cargo test -p scoopc atomic -- --nocapture`：通过，1 个 atomic 相关 Rust 测试通过。
+    - `cargo run -p scoop -- test`：通过，`fixtures: ok (1405)`。
+    - `cargo clippy --all-targets -- -D warnings`：通过。
+  - 与 `PLAN.md` / `CLOSURE_FIX.md` 对应闭合：闭合 `PLAN.md` §5 / §7 C4-T01 与 `CLOSURE_FIX.md` §3 的 shared-state primitive 用户可见 fixture 覆盖要求；阶段级计划未变化。
 
 ### [TODO] C4-T02：更新 user-visible failure / frontend reject audit 基线
 

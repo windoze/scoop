@@ -1,0 +1,13 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::no_matching_overload
+// EXPECT-ERROR-AT: 12:20
+// EXPECT-ERROR: 没有匹配的重载
+
+import scoop.core.*
+
+struct Pair(val x: Int, val y: Int)
+
+fun main() {
+    val cell: AtomicValue<Pair> = AtomicValue(Pair(1, 2))
+    val ok: Bool = cell.cas(Pair(1, 2), Pair(3, 4))
+}
