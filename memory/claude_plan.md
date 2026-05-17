@@ -1,30 +1,19 @@
-# Claude Execution Plan
+执行计划
 
-## Scope
+1. 读取 TODO.md，按标题是否带有 [DONE] 判断第一个未完成任务，并同时检查最新提交信息是否明确提到与该任务直接相关的未完成事项。
+2. 读取该任务涉及的上下文文件，只做完成当前任务所需的最小范围调查，不进行开放式历史问题扫描。
+3. 如果发现当前任务被真实前置缺陷或缺失功能阻塞，则把最小必要前置任务插入 TODO.md，记录依赖关系，提交后停止。
+4. 如果未被阻塞，则按任务要求实现代码、夹具或文档变更，避免绕过规格或缩窄测试形状。
+5. 运行与该任务相关的测试和必要的验证命令；若失败，修复同一根因影响的完整问题类别后重新验证。
+6. 更新 TODO.md：在任务标题前加 [DONE]，补充完成记录和验证结果。仅当阶段级计划变化时才更新 PLAN.md。
+7. 提交本次任务相关的全部未提交变更，提交信息使用任务编号和简明描述。
+8. 停止，不继续处理下一个任务。
 
-- Follow `TODO.md` as the authoritative task list.
-- Complete exactly the first task whose heading is not prefixed with `[DONE]`.
-- Do not proceed to the next task in this invocation.
-- If the selected task is blocked by a concrete prerequisite, update `TODO.md`, commit that bookkeeping, and stop.
+进度记录
 
-## Execution Plan
-
-1. Read `TODO.md` to identify the first incomplete task and its validation requirements.
-2. Inspect only the files and code paths needed for that task.
-3. Implement the task as specified, without weakening scope or adding workarounds.
-4. Add or update the smallest relevant tests or fixtures needed to prove the behavior.
-5. Run the task-specific validation commands, then broader checks if required by the task.
-6. Update `TODO.md` by prefixing the completed task title with `[DONE]` and filling its completion record.
-7. Update this file with key progress and validation results.
-8. Commit all changes for the completed task with a task-tagged message.
-9. Stop after the commit.
-
-## Progress Log
-
-- Initial plan recorded before reading task details or running commands.
-- Selected first incomplete task: `P12-T05` from `TODO.md` / `TODO-5.md`.
-- Task objective: constrain `SourceFile::is_sysroot()` usage so behavior only affects the standard-cone `@file:AllowIntrinsic` gate, while retaining loader identity APIs.
-- Next actions: audit `is_sysroot` call sites, update `source.rs` documentation, remove any unexpected behavior checks, validate by grep/build/full fixture suite, then mark `P12-T05` done and commit.
-- Audit result: found extra `is_sysroot()` behavior in parser f-string rejection and resolve auto-prelude skipping. Removed those call sites and updated tests so sysroot origin no longer changes parsing or prelude injection behavior.
-- Validation completed: grep audit passed; `cargo build`, targeted parser/resolve tests, full fixture suite, `cargo test --all --all-targets`, and `cargo clippy --all-targets -- -D warnings` all passed.
-- Task bookkeeping completed: `TODO.md` and `TODO-5.md` now mark `P12-T05` as `[DONE]` with completion notes.
+- 已创建初始执行计划，下一步读取 TODO.md 识别第一个未完成任务。
+- 已读取 TODO.md；第一个未完成任务是 P13-T01：更新 spec §10.3，删除 `var StringBuilder.lastChar` 示例，加入 `scoop.lang` 简介和 sysroot 目录组织约定。最新提交 `[P12-T05] Narrow sysroot origin semantics` 未声明与该任务直接相关的未完成事项。
+- 已读取 TODO-5.md 中 P13-T01 详情；任务限定为 spec 文档修改，不改代码。索引标题包含 sysroot 目录组织约定，后续会在 `SCOOP_FULL_SPEC.md` 中与 `scoop.lang` 简介一并补充。
+- 已完成 `SCOOP_FULL_SPEC.md` 初稿修改：删除 `StringBuilder.lastChar` 示例，新增标准 cone / `scoop.lang.string.StringBuilder` / sysroot 目录约定说明，并更新 intrinsic/sysroot 交叉引用。
+- 已完成验证并回写任务状态：`TODO.md` 索引与 `TODO-5.md` 的 P13-T01 标题均已标记 `[DONE]`，完成记录已写入验证结果。下一步检查工作树并提交本任务变更。
+- 已补充 `git diff --check` 与 `cargo clippy --all-targets -- -D warnings` 验证并同步更新完成记录。提交时仅纳入本任务相关文件，保留现有未跟踪 Markdown 文件不动。

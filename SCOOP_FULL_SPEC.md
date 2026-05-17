@@ -1650,11 +1650,6 @@ val String.lastChar: Char
 
 val <T> List<T>.lastIndex: Int
     get() = this.size - 1
-
-// Mutable extension property (reference types only, no backing field)
-var StringBuilder.lastChar: Char
-    get() = this[this.length - 1]
-    set(value) { this[this.length - 1] = value }
 ```
 
 **Compilation:** Extension properties compile to static getter (and setter) functions with the receiver as the first parameter, identical to extension functions.
@@ -1968,6 +1963,78 @@ Rules (v0):
 - If `when` matches, the `include` globs are added to the source set and the `exclude` globs are removed from the source set.
 - If multiple selectors match, they are applied in file order.
 - Exact glob syntax is implementation-defined, but it must be stable and platform-independent (forward slashes, UTF-8 paths).
+
+### 13.10 Standard Cones and Sysroot Layout
+
+The standard library surface is split into standard cones rather than one monolithic prelude. The compiler loads these cones from the sysroot before user code.
+
+- `scoop.core` contains language-core declarations: built-in scalar types, `String`, arrays, effects, reflection, GC surface, printing, `panic`, and range/progression support.
+- `scoop.lang` is the language-adjacent standard layer. It contains APIs that are closely tied to language features but are not primitive core declarations.
+- `scoop.lang.string` is the current `scoop.lang` child cone. It contains `StringBuilder`, the string-from-array runtime helpers, and advanced `String` helpers such as `substring`, `indexOf`, `contains`, `startsWith`, `endsWith`, `split`, and `trim*`.
+
+User source files receive these automatic star imports:
+
+```kotlin
+import scoop.core.*
+import scoop.lang.string.*
+```
+
+Writing either import explicitly is equivalent to relying on the automatic prelude. Other cones, including `scoop.unsafe`, `scoop.thread`, `scoop.sync`, `scoop.delegates`, `scoop.collections`, and `scoop.runtime.test`, require explicit imports.
+
+#### `scoop.lang.string.StringBuilder`
+
+`StringBuilder` is the minimal builder used by f-string desugaring and by ordinary source code that needs incremental string assembly:
+
+```kotlin
+class StringBuilder {
+    fun add(s: String): StringBuilder
+    fun toString(): String
+}
+```
+
+`add` appends a string part and returns the same builder, so calls can be chained:
+
+```kotlin
+val s = StringBuilder().add("a").add("b").toString() // "ab"
+```
+
+An f-string expression such as `f"a={x}"` is lowered to the same shape:
+
+```kotlin
+StringBuilder().add("a=").add(x.toString()).toString()
+```
+
+`StringBuilder` does not expose indexing, random mutation, or character-level replacement as part of its 0.1 surface.
+
+#### Sysroot Directory Convention
+
+The sysroot is a directory tree whose immediate subdirectories mirror standard cone fully-qualified names. Each `.scoop` file still declares its package; the directory layout is a packaging and discovery convention, not a replacement for `package` declarations.
+
+```text
+sysroot/
+├── scoop.core/
+│   ├── core.scoop
+│   ├── string.scoop
+│   └── print.scoop
+├── scoop.lang.string/
+│   └── lang_string.scoop
+├── scoop.unsafe/
+│   └── unsafe.scoop
+├── scoop.thread/
+│   └── thread.scoop
+├── scoop.sync/
+│   └── sync.scoop
+├── scoop.delegates/
+│   └── delegates.scoop
+├── scoop.collections/
+│   └── collections.scoop
+└── scoop.runtime.test/
+    └── runtime_test.scoop
+```
+
+The loader discovers sysroot sources recursively. Adding a new standard cone means adding a matching `sysroot/<cone.fqn>/` directory and `.scoop` files with matching `package` declarations.
+
+Sysroot files are ordinary Scoop source files for parsing, name resolution, type checking, and body requirements: functions and methods must have a body, be `@Extern`, or be `@Intrinsic`. The only remaining sysroot convenience is that standard cone files may declare intrinsic surfaces without each file spelling an explicit `@file:AllowIntrinsic` gate.
 
 ## 14. Type Inference
 
@@ -2595,7 +2662,7 @@ fun println(value: Int)
 fun println(value: String)
 ```
 
-Intrinsic declarations live in the **sysroot** — a directory of `.scoop` files that define the compiler's built-in API surface (see SCOOP_RUNTIME.md §8 for the sysroot directory structure). The compiler parses these files before user code and resolves calls to intrinsics using its own internal implementations.
+Intrinsic declarations live in the **sysroot** — a directory of `.scoop` files that define the compiler's built-in API surface (see §13.10 for the sysroot directory convention). The compiler parses these files before user code and resolves calls to intrinsics using its own internal implementations.
 
 Outside the sysroot, user code MUST NOT declare `@Intrinsic` surfaces by default. A source file (or equivalent module unit) that intentionally declares intrinsic APIs must opt in explicitly with `@AllowIntrinsic`, typically via a file-level annotation such as `@file:AllowIntrinsic`.
 

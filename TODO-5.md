@@ -842,7 +842,7 @@
 
 ## P13：spec 与文档更新
 
-### P13-T01：spec §10.3 删除 `var StringBuilder.lastChar` 示例 + 加入 `scoop.lang` 简介
+### [DONE] P13-T01：spec §10.3 删除 `var StringBuilder.lastChar` 示例 + 加入 `scoop.lang` 简介
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §9 / P12
@@ -889,6 +889,28 @@
 - 完成条件：
   - spec 不再含错误 StringBuilder.lastChar 示例；StringBuilder 最小表面已正式记入。
 - 依赖：P11-T02。
+
+完成记录：
+
+- 改动范围：
+  - `SCOOP_FULL_SPEC.md` §10.3 删除错误的 `var StringBuilder.lastChar` mutable extension property 示例；该示例假设 `StringBuilder` 支持 O(1) indexing 与字符级 set，不符合当前最小 surface。
+  - 在 `SCOOP_FULL_SPEC.md` §13 新增 `Standard Cones and Sysroot Layout` 小节，说明 `scoop.lang` 是语言核心扩展层，`scoop.lang.string` 包含 `StringBuilder`、string-from-array runtime helpers 与高级 `String` helper。
+  - 同一小节正式记录自动 prelude 的两条 import：`scoop.core.*` 与 `scoop.lang.string.*`；记录 `StringBuilder` 最小表面 `add(s: String): StringBuilder` / `toString(): String` 及 f-string desugar 形态。
+  - 同一小节补充 sysroot 目录组织约定：`sysroot/<cone.fqn>/` 子目录镜像标准 cone FQN，loader 递归发现 `.scoop` 文件，package 声明仍是 cone 归属的语义来源。
+  - `SCOOP_FULL_SPEC.md` §15.7 的 sysroot 目录结构引用改指向新增的 §13.10。
+- 核心决策：
+  - 不替换新的 mutable extension property 示例；§10.3 已保留 `String.lastChar` 与 `List<T>.lastIndex` 两个合法 computed extension property 示例，足以说明语法。
+  - 文档使用实际已落地的自动 prelude 形态 `scoop.lang.string.*`，而不是更宽泛的 `scoop.lang.*`。
+  - sysroot 目录示例按当前 P12-T02 之后的实际文件布局记录，不引入尚未存在的独立 `progression.scoop` 文件。
+- 验证结果：
+  - `StringBuilder\.lastChar` 在 `SCOOP_FULL_SPEC.md` 中无命中。
+  - `cargo run -p scoop_tools -- spec-fixtures check` 通过：`spec fixtures: ok (1)`。
+  - `pandoc "SCOOP_FULL_SPEC.md" -t html -o "/var/folders/0s/mcfxhz813ps4mky0c1sr7rz00000gn/T/opencode/scoop_full_spec.html"` 通过，无输出错误。
+  - `git diff --check -- TODO.md TODO-5.md SCOOP_FULL_SPEC.md memory/claude_plan.md` 通过。
+  - `cargo clippy --all-targets -- -D warnings` 通过。
+- 与 `PLAN.md` 对应闭合：
+  - 闭合 PLAN §9 / P13 中“删 §10.3 `var StringBuilder.lastChar` 示例、写 StringBuilder 最小表面、写 `scoop.lang` 简介、加入 sysroot 目录组织说明”的 spec 文档部分。
+- 暂时性 failing fixture：无。本任务只修改文档，未新增或遗留 failing fixture。
 
 ### P13-T02：更新 `MANAGED_ABI.md` §2.2 typical example 列表
 
