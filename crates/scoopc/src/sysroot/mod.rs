@@ -89,7 +89,10 @@ impl Sysroot {
                     source: source.clone(),
                     ast: ast.clone(),
                 });
-                if path.file_name().is_some_and(|name| name == "core.scoop") {
+                if path
+                    .file_name()
+                    .is_some_and(|name| name == "core.scoop" || name == "lang_string.scoop")
+                {
                     files.push(SysrootFile {
                         path,
                         source,
@@ -140,7 +143,7 @@ impl Sysroot {
 
 /// T0143：判断 sysroot 文件是否需要作为编译单元的一部分（而非仅签名索引）。
 /// 当前规则：
-/// - `core.scoop`、`string.scoop`、`print.scoop`、`scalar_string_bridge.scoop` 与 `task.scoop`
+/// - `core.scoop`、`lang_string.scoop`、`string.scoop`、`print.scoop`、`scalar_string_bridge.scoop` 与 `task.scoop`
 ///   一直是 support sources；
 /// - overlay 的 `core.scoop` 若声明了 bodied `@Intrinsic struct/class`，也要进入完整编译管线。
 fn is_compilable_sysroot_file(path: &Path, source: &SourceFile, ast: &crate::ast::File) -> bool {
@@ -150,6 +153,7 @@ fn is_compilable_sysroot_file(path: &Path, source: &SourceFile, ast: &crate::ast
 fn is_always_compilable_sysroot_file(path: &Path) -> bool {
     path.file_name().is_some_and(|name| {
         name == "string.scoop"
+            || name == "lang_string.scoop"
             || name == "core.scoop"
             || name == "print.scoop"
             || name == "scalar_string_bridge.scoop"
@@ -415,9 +419,19 @@ mod tests {
             1,
             "default sysroot must index exactly one scoop.lang.string file"
         );
+        let entry = entries[0];
         assert!(
-            entries[0].ast.items.is_empty(),
-            "scoop.lang.string placeholder must not export types or functions"
+            entry.ast.items.iter().any(|item| matches!(
+                item,
+                ast::Item::Type(decl) if entry.source.slice(decl.name.span) == "StringBuilder"
+            )),
+            "scoop.lang.string must index the StringBuilder surface"
+        );
+        assert!(
+            sysroot.compilable_source_paths.iter().any(|path| path
+                .file_name()
+                .is_some_and(|name| name == "lang_string.scoop")),
+            "lang_string.scoop must be compiled as a support source once it contains method bodies"
         );
     }
 

@@ -369,6 +369,7 @@ fn generic_materializer_for_body_with_template(
             top_level_consts: HashMap::new(),
             top_level_immutable_values: HashMap::new(),
             object_inits: HashMap::new(),
+            class_inits: HashMap::new(),
             member_value_tys: HashMap::new(),
             request_sources: HashSet::new(),
             request_root_mode: crate::mir::MaterializeRequestRootMode::RequestSources,
@@ -721,6 +722,7 @@ fn materialized_mir_mir_materialize_generics_missing_root_reports_template_span(
             top_level_consts: HashMap::new(),
             top_level_immutable_values: HashMap::new(),
             object_inits: HashMap::new(),
+            class_inits: HashMap::new(),
             member_value_tys: HashMap::new(),
             request_sources: HashSet::new(),
             request_root_mode: crate::mir::MaterializeRequestRootMode::RequestSources,
@@ -815,6 +817,7 @@ fn mir_materialize_generics_missing_template_reports_call_site() {
             top_level_consts: HashMap::new(),
             top_level_immutable_values: HashMap::new(),
             object_inits: HashMap::new(),
+            class_inits: HashMap::new(),
             member_value_tys: HashMap::new(),
             request_sources: HashSet::new(),
             request_root_mode: crate::mir::MaterializeRequestRootMode::RequestSources,
@@ -1498,6 +1501,7 @@ return 0
     let top_level_consts = lowered_hir.top_level_consts.clone();
     let top_level_immutable_values = lowered_hir.top_level_immutable_values.clone();
     let object_inits = lowered_hir.object_inits.clone();
+    let class_inits = lowered_hir.class_inits.clone();
     let lowered_top_level_fun_call_bindings =
         collect_lowered_top_level_fun_call_bindings(&lowered_hir);
     let member_value_tys = collect_member_value_type_infos_from_hir_decls(&lowered_hir.file.decls);
@@ -1525,6 +1529,7 @@ return 0
             top_level_consts,
             top_level_immutable_values,
             object_inits,
+            class_inits,
             member_value_tys,
             request_sources,
             request_root_mode: crate::mir::MaterializeRequestRootMode::EntryMain { fqn: None },
@@ -2481,6 +2486,7 @@ println(holder.node.tag.score)
     let top_level_consts = lowered_hir.top_level_consts.clone();
     let top_level_immutable_values = lowered_hir.top_level_immutable_values.clone();
     let object_inits = lowered_hir.object_inits.clone();
+    let class_inits = lowered_hir.class_inits.clone();
     let lowered_top_level_fun_call_bindings =
         collect_lowered_top_level_fun_call_bindings(&lowered_hir);
     let member_value_tys = collect_member_value_type_infos_from_hir_decls(&lowered_hir.file.decls);
@@ -2507,6 +2513,7 @@ println(holder.node.tag.score)
             top_level_consts,
             top_level_immutable_values,
             object_inits,
+            class_inits,
             member_value_tys,
             request_sources,
             request_root_mode: crate::mir::MaterializeRequestRootMode::RequestSources,
@@ -2812,6 +2819,7 @@ return read(ints) + read(texts)
     let top_level_consts = lowered_hir.top_level_consts.clone();
     let top_level_immutable_values = lowered_hir.top_level_immutable_values.clone();
     let object_inits = lowered_hir.object_inits.clone();
+    let class_inits = lowered_hir.class_inits.clone();
     let lowered_top_level_fun_call_bindings =
         collect_lowered_top_level_fun_call_bindings(&lowered_hir);
     let member_value_tys = collect_member_value_type_infos_from_hir_decls(&lowered_hir.file.decls);
@@ -2838,6 +2846,7 @@ return read(ints) + read(texts)
             top_level_consts,
             top_level_immutable_values,
             object_inits,
+            class_inits,
             member_value_tys,
             request_sources,
             request_root_mode: crate::mir::MaterializeRequestRootMode::RequestSources,

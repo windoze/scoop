@@ -207,7 +207,7 @@
 - 与 `PLAN.md` 闭合：完成 P5 §5.1 的三个 runtime 单态 String-from-array 入口；同时补齐 §6 MutableArray out-of-line layout 对 `sizeOf<T>()` 的真实元素大小支持，使 P5-T02 可以通过 `MutableArray<Byte>` / `MutableArray<Char>` / `MutableArray<String>` 直接调用这些 scoop ABI 符号。
 - 暂时性 failing fixture：本任务未新增 failing fixture；`tests/fixtures/run-pass/mutable_array_ops_basic.scoop` 仍为 P4-T02 完成记录中已列出的既有失败，原因是它覆盖已删除的旧 `MutableArray<Int>.pop/insert/removeAt/splice` copy-style API，继续由 P9-T02 三分类清单处理。
 
-### P5-T02：sysroot 端——`scoop.lang.string` cone 内三个 scoop ABI 声明 + StringBuilder
+### [DONE] P5-T02：sysroot 端——`scoop.lang.string` cone 内三个 scoop ABI 声明 + StringBuilder
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §5.1 / §5.2 / §9 / P5
@@ -267,6 +267,14 @@
   - 用户代码可以写 `StringBuilder().add("x").add(y.toString()).toString()`（前提是 y 实现 ToString）。
   - P6-T01 的 f-string desugar 可以直接 emit `StringBuilder` 调用链。
 - 依赖：P1-T01、P3-T03、P5-T01。
+
+完成记录（2026-05-17）：
+
+- 改动范围：`sysroot/lang_string.scoop` 从 placeholder 扩展为 `scoop.lang.string` 实现文件，新增 `scoop_string_from_byte_array` / `scoop_string_from_char_array` / `scoop_string_from_string_array` 的 scoop ABI surface 与 `StringBuilder` class；新增 `tests/fixtures/run-pass/lang_string_builder_basic.scoop` 覆盖单 add、链式 add、空 builder、grow、4-byte UTF-8、char-array 与 byte-array 构造路径；更新 sysroot loader、member-call typecheck、HIR scalar alias lowering、frontend monomorph binding 收集与 MIR materializer class-init reachability，支撑 `StringBuilder` 作为普通 sysroot class 编译运行。
+- 核心决策：`abi = "scoop"` 的 `@Extern` 仍不允许叠加 `@Unsafe`，因此 byte-array runtime symbol 暴露为 private raw extern `__scoop_lang_string_from_byte_array_unchecked`，公开 wrapper `__scoop_string_from_byte_array` 标记 `@Unsafe`；`StringBuilder` 是 ordinary class，只有 `add` 与 `toString` 两个方法，内部 `parts` 为 private `MutableArray<String>`，`toString()` 一次性调用 string-array runtime 入口；direct receiver member 在 typecheck 中优先于预解析 extension function，保证 `StringBuilder.add` 不被旧 `MutableList.add` 扩展遮蔽。
+- 验证结果：`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/lang_string_builder_basic.scoop` 通过；`cargo run -p scoop -- test` 完成，结果为 1 个既有失败、1338 个通过、1375 checks 通过，唯一失败为 P4-T02 已记录待 P9-T02 处理的 `tests/fixtures/run-pass/mutable_array_ops_basic.scoop`；`cargo test --all --all-targets` 通过；`cargo clippy --all-targets -- -D warnings` 通过。
+- 与 `PLAN.md` 闭合：完成 P5 §5.1/§5.2 的 sysroot string-from-array ABI surface 与 `StringBuilder` cone 落地；P6-T01 可直接生成 `StringBuilder().add(...).toString()` 调用链。
+- 暂时性 failing fixture：本任务未新增 failing fixture；`tests/fixtures/run-pass/mutable_array_ops_basic.scoop` 仍为 P4-T02 完成记录中已列出的既有失败，继续由 P9-T02 三分类清单处理。
 
 ### P5-T03：sysroot/string.scoop 中高级 String helper 迁入 `scoop.lang.string`，更新 `String.split`
 

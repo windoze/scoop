@@ -1653,12 +1653,18 @@ impl<'a> HirLowering<'a> {
             "scoop.core.Bool" => return self.builtins.bool_,
             "scoop.core.Char" => return self.builtins.char_,
             "scoop.core.Float64" => return self.builtins.float64,
+            "scoop.core.Double" => return self.builtins.float64,
             "scoop.core.Float32" => return self.builtins.float32,
             "scoop.core.Int" => return self.builtins.int,
             // T1027：internal atomics（`__AtomicInt`）——与 `Int` 相同布局的内部原子整型。
             "scoop.unsafe.__AtomicInt" => return self.builtins.int,
             "scoop.core.UInt" => return self.builtins.uint,
             "scoop.core.UIntPtr" => return self.builtins.uint,
+            "scoop.core.Byte" => return self.types.ty_uint_n(8),
+            "scoop.core.Short" => return self.types.ty_int_n(16),
+            "scoop.core.UShort" => return self.types.ty_uint_n(16),
+            "scoop.core.Long" => return self.types.ty_int_n(64),
+            "scoop.core.ULong" => return self.types.ty_uint_n(64),
             "scoop.core.Option" => {
                 let inner = type_args
                     .first()

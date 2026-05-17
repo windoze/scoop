@@ -86,6 +86,7 @@ pub(crate) fn materialize_compilation_unit_from_typechecked_inputs(
     let top_level_consts = lowered_hir.top_level_consts.clone();
     let top_level_immutable_values = lowered_hir.top_level_immutable_values.clone();
     let object_inits = lowered_hir.object_inits.clone();
+    let class_inits = lowered_hir.class_inits.clone();
     let hir_direct_instance_keys_by_fun = collect_hir_direct_call_instance_requests(
         &mut lowered_hir,
         typecheck_types,
@@ -147,6 +148,7 @@ pub(crate) fn materialize_compilation_unit_from_typechecked_inputs(
                 top_level_consts,
                 top_level_immutable_values,
                 object_inits,
+                class_inits,
                 member_value_tys,
                 request_sources,
                 request_root_mode,

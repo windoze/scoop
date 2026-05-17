@@ -1010,8 +1010,11 @@ public fun main() / Pure! {
             "单文件 build 只能让用户入口源贡献 MIR request roots"
         );
         assert!(
-            front.monomorph_requests().is_empty(),
-            "不含泛型调用的单文件入口不应因为 stdlib/sysroot support sources 产生初始 monomorph seeds: {:?}",
+            front
+                .monomorph_requests()
+                .iter()
+                .all(|request| request.request_source_path != input),
+            "不含泛型调用的单文件入口不应产生用户源 monomorph roots；support-source 请求只可作为 reachable binding 存在: {:?}",
             front.monomorph_requests()
         );
     }

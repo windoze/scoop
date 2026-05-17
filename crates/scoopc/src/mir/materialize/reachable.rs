@@ -197,6 +197,11 @@ impl MirInstanceMaterializer {
                     out,
                 )?;
             }
+            Rvalue::ClassCtor {
+                class_fqn, ctor, ..
+            } => {
+                self.scan_reachable_class_ctor(class_fqn, ctor.selected_ctor_span, out)?;
+            }
             Rvalue::MakeClosure { fn_ptr, .. } => {
                 if let Some(reachable_closure) =
                     self.resolve_non_generic_fun_body_by_fqn(scan.template_source_path, fn_ptr)
@@ -216,6 +221,91 @@ impl MirInstanceMaterializer {
             }
             _ => {}
         }
+        Ok(())
+    }
+
+    pub(super) fn scan_reachable_class_ctor(
+        &mut self,
+        class_fqn: &str,
+        ctor_span: Option<Span>,
+        out: &mut Vec<InstanceKey>,
+    ) -> MaterializeResult<()> {
+        let scan_key = format!("{}:{ctor_span:?}", class_fqn);
+        if !self.scanned_class_inits.insert(scan_key) {
+            return Ok(());
+        }
+        let Some(class) = self.class_inits.get(class_fqn).cloned() else {
+            return Ok(());
+        };
+
+        if let Some(super_call) = class.super_ctor_call.as_ref() {
+            self.scan_reachable_class_ctor(&super_call.class_fqn, super_call.ctor_span, out)?;
+        } else if let Some(super_fqn) = class.super_class_fqn.as_deref() {
+            self.scan_reachable_class_ctor(super_fqn, None, out)?;
+        }
+        self.scan_reachable_static_init_call_args(
+            class.source_path.as_path(),
+            &class.super_ctor_args,
+            out,
+        )?;
+
+        let selected_ctor = ctor_span
+            .and_then(|span| class.ctors.iter().find(|ctor| ctor.span == span))
+            .or_else(|| {
+                if ctor_span.is_none() && class.ctors.len() == 1 {
+                    class.ctors.first()
+                } else {
+                    None
+                }
+            });
+
+        if let Some(ctor) = selected_ctor {
+            for param in &ctor.params {
+                if let Some(default_value) = param.default_value.as_ref() {
+                    self.reachable_request_stmt_spans
+                        .push((class.source_path.clone(), default_value.span));
+                    self.scan_reachable_static_init_expr(
+                        class.source_path.as_path(),
+                        default_value,
+                        out,
+                    )?;
+                }
+            }
+            if let Some(delegation) = ctor.delegation.as_ref() {
+                if let Some(call) = delegation.call.as_ref() {
+                    self.scan_reachable_class_ctor(&call.class_fqn, call.ctor_span, out)?;
+                }
+                self.scan_reachable_static_init_call_args(
+                    class.source_path.as_path(),
+                    &delegation.args,
+                    out,
+                )?;
+            }
+        }
+
+        for step in &class.steps {
+            match step {
+                crate::hir::ClassInitStep::PropertyInit { init, .. } => {
+                    self.reachable_request_stmt_spans
+                        .push((class.source_path.clone(), init.span));
+                    self.scan_reachable_static_init_expr(class.source_path.as_path(), init, out)?;
+                }
+                crate::hir::ClassInitStep::InitBlock { block } => {
+                    self.reachable_request_stmt_spans
+                        .push((class.source_path.clone(), block.span));
+                    self.scan_reachable_static_init_block(class.source_path.as_path(), block, out)?;
+                }
+            }
+        }
+
+        if let Some(ctor) = selected_ctor
+            && let Some(body) = ctor.body.as_ref()
+        {
+            self.reachable_request_stmt_spans
+                .push((class.source_path.clone(), body.span));
+            self.scan_reachable_static_init_block(class.source_path.as_path(), body, out)?;
+        }
+
         Ok(())
     }
 
@@ -368,6 +458,23 @@ impl MirInstanceMaterializer {
                 | crate::hir::StmtKind::Break { .. }
                 | crate::hir::StmtKind::Continue { .. }
                 | crate::hir::StmtKind::Todo(_) => {}
+            }
+        }
+        Ok(())
+    }
+
+    pub(super) fn scan_reachable_static_init_call_args(
+        &mut self,
+        source_path: &Path,
+        args: &[crate::hir::CallArg],
+        out: &mut Vec<InstanceKey>,
+    ) -> MaterializeResult<()> {
+        for arg in args {
+            match arg {
+                crate::hir::CallArg::Positional(value)
+                | crate::hir::CallArg::Named { value, .. } => {
+                    self.scan_reachable_static_init_expr(source_path, value, out)?;
+                }
             }
         }
         Ok(())

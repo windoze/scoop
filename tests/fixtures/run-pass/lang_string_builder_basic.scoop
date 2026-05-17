@@ -1,0 +1,49 @@
+// EXPECT: pass
+// RUN-STDOUT: lang_string_builder_basic.stdout
+// EXPECT-EXIT: 0
+//
+// P5-T02: scoop.lang.string.StringBuilder is available through the automatic prelude.
+
+fun assertEqString(expected: String, actual: String): Unit / Raise<RuntimeError> {
+    require(expected == actual)
+}
+
+fun main(): Int {
+    assertEqString("hello", StringBuilder().add("hello").toString())
+    println("single-ok")
+
+    assertEqString("abc", StringBuilder().add("a").add("b").add("c").toString())
+    println("chain-ok")
+
+    assertEqString("", StringBuilder().toString())
+    println("empty-ok")
+
+    val grow: StringBuilder = StringBuilder()
+    var i: Int = 0
+    while (i < 24) {
+        grow.add("x")
+        i = i + 1
+    }
+    assertEqString("xxxxxxxxxxxxxxxxxxxxxxxx", grow.toString())
+    println("grow-ok")
+
+    assertEqString("hi 😀", StringBuilder().add("hi ").add("😀").toString())
+    println("utf8-ok")
+
+    val chars: MutableArray<Char> = mutableArrayNew<Char>(capacity = 2)
+    chars.push('O')
+    chars.push('K')
+    assertEqString("OK", __scoop_string_from_char_array(chars))
+    println("char-array-ok")
+
+    val bytes: MutableArray<Byte> = mutableArrayNew<Byte>(capacity = 2)
+    val byteO: Byte = 79
+    val byteK: Byte = 75
+    bytes.push(byteO)
+    bytes.push(byteK)
+    assertEqString("OK", @Unsafe do { __scoop_string_from_byte_array(bytes) })
+    println("byte-array-ok")
+
+    println("all_done")
+    return 0
+}

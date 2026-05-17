@@ -30,6 +30,7 @@ impl MirInstanceMaterializer {
             top_level_consts,
             top_level_immutable_values,
             object_inits,
+            class_inits,
             member_value_tys: hir_member_value_tys,
             request_sources,
             request_root_mode,
@@ -329,6 +330,7 @@ impl MirInstanceMaterializer {
             top_level_consts,
             top_level_immutable_values,
             object_inits,
+            class_inits,
             member_value_tys,
             request_sources,
             filter_initial_requests_to_reachable_call_sites: matches!(
@@ -346,6 +348,7 @@ impl MirInstanceMaterializer {
             scanned_top_level_consts: HashSet::new(),
             scanned_top_level_immutable_values: HashSet::new(),
             scanned_object_inits: HashSet::new(),
+            scanned_class_inits: HashSet::new(),
             scanned_non_generic_funs: HashSet::new(),
             caller_side_pass_candidates: Vec::new(),
             pass_published_ordinary_callables: Vec::new(),

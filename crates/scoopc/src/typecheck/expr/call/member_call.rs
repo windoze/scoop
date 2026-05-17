@@ -240,17 +240,25 @@ pub(super) fn infer_member_call_expr_type(
     let current_lambda_this = inputs.is_current_lambda_this_expr(receiver);
     let force_late_direct_member =
         actual_receiver_ty == builtins.string && matches!(member_name, "hash" | "toInt");
-    let late_direct_member_fun_fqn =
-        if current_lambda_this || member.resolved.is_none() || force_late_direct_member {
-            late_resolve_direct_member_fun_fqn_from_receiver_ty(
-                inputs,
-                actual_receiver_ty,
-                member_name,
-                lower,
-            )?
-        } else {
-            None
-        };
+    let pre_resolved_extension_fun = matches!(
+        member.resolved.as_ref(),
+        Some(ast::ResolvedMemberRef::ExtensionFun { .. })
+    );
+    // Direct receiver members take precedence over extension functions once the receiver type is known.
+    let late_direct_member_fun_fqn = if current_lambda_this
+        || member.resolved.is_none()
+        || pre_resolved_extension_fun
+        || force_late_direct_member
+    {
+        late_resolve_direct_member_fun_fqn_from_receiver_ty(
+            inputs,
+            actual_receiver_ty,
+            member_name,
+            lower,
+        )?
+    } else {
+        None
+    };
     let resolved_member_fun_fqn = late_direct_member_fun_fqn.as_deref().or({
         if current_lambda_this {
             None

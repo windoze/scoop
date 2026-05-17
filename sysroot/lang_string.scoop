@@ -1,7 +1,32 @@
-// Scoop sysroot: scoop.lang.string cone (placeholder)
-//
-// 说明：本文件目前只声明 package；StringBuilder / string-from-... helper 由 P5 阶段补齐。
+// Scoop sysroot: scoop.lang.string cone.
 
 package scoop.lang.string
 
 import scoop.core.*
+
+@Extern(name = "scoop_string_from_byte_array", abi = "scoop")
+private fun __scoop_lang_string_from_byte_array_unchecked(bytes: MutableArray<Byte>): String
+
+@Unsafe
+fun __scoop_string_from_byte_array(bytes: MutableArray<Byte>): String {
+    return __scoop_lang_string_from_byte_array_unchecked(bytes)
+}
+
+@Extern(name = "scoop_string_from_char_array", abi = "scoop")
+fun __scoop_string_from_char_array(chars: MutableArray<Char>): String
+
+@Extern(name = "scoop_string_from_string_array", abi = "scoop")
+fun __scoop_string_from_string_array(parts: MutableArray<String>): String
+
+class StringBuilder() {
+    private val parts: MutableArray<String> = mutableArrayNew<String>(capacity = 8)
+
+    fun add(s: String): StringBuilder {
+        this.parts.push(s)
+        return this
+    }
+
+    fun toString(): String {
+        return __scoop_string_from_string_array(this.parts)
+    }
+}

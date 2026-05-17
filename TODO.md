@@ -23,7 +23,7 @@
 | `P4-T01` | [DONE] | P4 | [DONE] 数组字面量 HIR desugar 切换到 `mutableArrayNew + push + freeze` 路径 | [TODO-2.md](./TODO-2.md) |
 | `P4-T02` | [DONE] | P4 | [DONE] 删除 `__scoop_array_builder_*` 整套（sysroot / runtime / 编译器 lowering） | [TODO-2.md](./TODO-2.md) |
 | `P5-T01` | [DONE] | P5 | [DONE] runtime 端:三个 `scoop_string_from_*_array` 单态入口 | [TODO-2.md](./TODO-2.md) |
-| `P5-T02` | [TODO] | P5 | sysroot 端：`scoop.lang.string` cone 内三个 scoop ABI 声明 + StringBuilder | [TODO-2.md](./TODO-2.md) |
+| `P5-T02` | [DONE] | P5 | [DONE] sysroot 端：`scoop.lang.string` cone 内三个 scoop ABI 声明 + StringBuilder | [TODO-2.md](./TODO-2.md) |
 | `P5-T03` | [TODO] | P5 | sysroot/string.scoop 中高级 String helper 迁入 `scoop.lang.string`，更新 `String.split` | [TODO-2.md](./TODO-2.md) |
 | `P6-T01` | [TODO] | P6 | f-string HIR desugar：改写为 `StringBuilder().add(...).toString()` 调用链 | [TODO-3.md](./TODO-3.md) |
 | `P6-T02` | [TODO] | P6 | 删除 LLVM 阶段 f-string codegen 后门 + sysroot 文件 f-string 使用 lint | [TODO-3.md](./TODO-3.md) |

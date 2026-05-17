@@ -1,47 +1,41 @@
 # Claude Execution Plan
 
 ## Scope
+- Follow `TODO.md` as the source of truth.
+- Complete exactly the first task whose heading is not prefixed with `[DONE]`.
+- Stop after implementing, validating, documenting completion, and committing that one task.
 
-- Execute exactly the first incomplete task in `TODO.md`.
-- Treat `TODO.md` as authoritative for ordering, dependencies, validation, and completion state.
-- Stop after completing and committing that one task, or after committing any required prerequisite/blocker bookkeeping.
+## Steps
+1. Read `TODO.md` to identify the first incomplete task and its validation requirements.
+2. Check recent git context only as needed to detect directly relevant unfinished work for that task.
+3. Inspect the smallest relevant set of source, fixture, and documentation files.
+4. Implement the task without workarounds or spec deviations.
+5. Run the task-specific validation commands, plus broader checks if needed by the task.
+6. Fix any failures that are in scope for the task.
+7. Update `TODO.md` by prefixing the completed task heading with `[DONE]` and filling its completion record.
+8. Update this plan file when key progress changes or if the plan changes.
+9. Commit all relevant changes with a task-specific commit message.
+10. Stop without starting the next task.
 
-## Plan
-
-1. Read `TODO.md` to identify the first task whose heading is not prefixed with `[DONE]`.
-2. Check the latest commit message only for unfinished issues directly relevant to that selected task.
-3. Read the selected task details, dependencies, and validation requirements.
-4. Inspect only the code, fixtures, and documentation relevant to the selected task.
-5. Implement the task as specified, avoiding workarounds or scope narrowing.
-6. If a concrete blocking prerequisite is discovered, update `TODO.md` with the minimum required prerequisite task in dependency order, document the blocker here, commit that bookkeeping, and stop.
-7. Run the task-required validation and any directly relevant tests. Fix failures that are in scope.
-8. Mark the task heading in `TODO.md` with `[DONE]` and update its completion record.
-9. Run final verification appropriate to the change.
-10. Commit all relevant changes with a clear task-tagged message.
-11. Stop without starting the next task.
-
-## Progress Log
-
-- Created initial execution plan before reading project task state.
-- Read `TODO.md`; first incomplete task is `P5-T01` in `TODO-2.md`.
-- Read `TODO-2.md`; `P5-T01` requires runtime C implementations for `scoop_string_from_byte_array`, `scoop_string_from_char_array`, and `scoop_string_from_string_array`, plus runtime API exports and validation.
-- Checked latest commit: `[P4-T02] Remove array builder surface`; no directly relevant unfinished issue was indicated.
-
-## Current Task Plan: P5-T01
-
-1. Inspect runtime String allocation helpers, UTF-8 encoding logic, mutable array layout, trap helpers, runtime API list, and existing runtime tests.
-2. Add shared runtime helpers only where they keep the implementation small and class-wide, such as mutable-array shape checks or UTF-8 codepoint encoding.
-3. Implement the three runtime symbols with single allocation and memcpy/encoding passes.
-4. Export the symbols through `SCOOP_RUNTIME_API_X_LIST`.
-5. Add or update focused runtime tests for byte, char, string, empty, 4-byte codepoint, and surrogate replacement behavior.
-6. Run required validation (`cargo build`) and relevant runtime test commands, then broader checks if needed.
-7. Mark `P5-T01` done in `TODO.md` and `TODO-2.md` with completion record.
-8. Commit all changes for this task and stop.
-
-## Discovery
-
-- `scoop_mutable_array_new` currently normalizes all WORD arrays to machine-word-sized storage, but `P5-T01` requires byte and char arrays to arrive with `elem_size_bytes == 1` and `elem_size_bytes == 4` respectively. This is directly blocking the task, so the implementation will include the class-wide storage/stride correction needed for WORD `MutableArray<T>` values before adding the new String runtime entries.
-- Implemented the runtime-side WORD storage correction and the matching LLVM array intrinsic stride change; also filled the directly relevant `sizeOf/alignOf<Char/Float*>` reflection gap so `mutableArrayNew<Char>()` can materialize a 4-byte element layout.
-- Added `scoop_string_from_byte_array`, `scoop_string_from_char_array`, and `scoop_string_from_string_array`, exported them in the runtime ABI list, and covered them with runtime Rust tests.
-- Validation completed: targeted runtime tests passed, `cargo build` passed, `cargo test --all --all-targets` passed, and `cargo clippy --all-targets -- -D warnings` passed. Full fixture run completed with only the pre-existing P4-T02 `mutable_array_ops_basic.scoop` failure.
-- Marked `P5-T01` as `[DONE]` in `TODO.md` and `TODO-2.md`, with completion record added to `TODO-2.md`.
+## Current Status
+- First incomplete task identified: `P5-T02` in `TODO-2.md`.
+- Latest commit `[P5-T01] Add string array runtime constructors` is directly relevant and provides the runtime symbols required by this task.
+- Confirmed `abi = "scoop"` extern declarations still reject explicit `@Unsafe`; implement the byte-array path as a private raw extern plus an unsafe public wrapper.
+- Confirmed class property initializers and `MutableArray<T>.push/freeze` are available for `StringBuilder`.
+- Implemented `sysroot/lang_string.scoop` extern declarations and `StringBuilder`; added `lang_string_builder_basic` run-pass fixture and stdout baseline.
+- Owner fixture initially showed `StringBuilder` without an explicit primary constructor is not callable; updated the class to `StringBuilder()` to satisfy the required `StringBuilder()` user surface.
+- Rerun exposed a resolver/typecheck blocker: an imported extension `scoop.core.add` can be pre-bound before receiver type is known and can shadow a real receiver member named `add`.
+- Fixed member-call typecheck so nominal direct members are late-resolved and preferred over pre-resolved extension functions.
+- Adjusted the byte-array subcase to use explicitly typed `Byte` locals, keeping the test focused on the new byte-array extern wrapper instead of generic numeric literal inference.
+- Found `lang_string.scoop` with bodies must be a compilable sysroot support source; updated sysroot loading to compile it while retaining a signature-only index copy.
+- Direct run now reaches codegen but the byte-array subcase exposes `MutableArray<Byte>.push` lowering failure: `UInt8` is not converted to the word payload expected by the runtime push entry.
+- Root cause narrowed to HIR lowering not expanding standard scalar typealiases (`Byte`, `Short`, `Long`, `Double`, etc.) to their builtin/fixed-width representation, even though typecheck expands them.
+- Added HIR lowering cases for the standard scalar aliases.
+- Link then exposed that reachable support-source class initializers need monomorph call-site bindings for generic calls; updated frontend expression checking to collect monomorph requests for support sources too while relying on MIR root filtering to avoid making them initial roots.
+- The remaining missing symbol came from class constructor/property initializer reachability: materialization scanned object/top-level init but not class init steps. Added class init data to the materializer and reachability scanning for class constructor init steps, defaults, delegation, super ctor args, and ctor bodies.
+- Owner fixture now passes through the fixture runner.
+- Full fixture baseline completed with the pre-existing `tests/fixtures/run-pass/mutable_array_ops_basic.scoop` failure already recorded by P4-T02 for P9-T02; no new fixture failure from this task.
+- Rust test suite `cargo test --all --all-targets` passes after formatting and after updating the request-root test to account for support-source monomorph bindings.
+- Clippy `cargo clippy --all-targets -- -D warnings` passes after formatting.
+- Updated `TODO.md` and `TODO-2.md` to mark `P5-T02` complete with completion record.
+- Next action: inspect git diff/status, then commit all task-related changes.

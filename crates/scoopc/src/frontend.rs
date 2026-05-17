@@ -463,7 +463,7 @@ pub fn run_frontend(
 
     for item in file_iter {
         #[cfg(feature = "llvm")]
-        let (source_index, ((source, ast), h)) = item;
+        let (_source_index, ((source, ast), h)) = item;
         #[cfg(not(feature = "llvm"))]
         let ((source, ast), h) = item;
 
@@ -496,18 +496,14 @@ pub fn run_frontend(
 
         #[cfg(feature = "llvm")]
         {
-            if input.project_source_indices.contains(&source_index) {
-                let requests = crate::typecheck::check_file_exprs_with_monomorph_requests(
-                    source, ast, &index, &h.imports, &env, &mut types, builtins,
-                )
-                .map_err(miette::Report::from)?;
-                all_monomorph_requests.extend(requests);
-            } else {
-                crate::typecheck::check_file_exprs(
-                    source, ast, &index, &h.imports, &env, &mut types, builtins,
-                )
-                .map_err(miette::Report::from)?;
-            }
+            // Support sources can contain generic calls inside reachable non-generic bodies
+            // (for example sysroot class initializers).  Collect their call-site bindings too;
+            // the MIR materializer still filters initial roots by `project_source_indices`.
+            let requests = crate::typecheck::check_file_exprs_with_monomorph_requests(
+                source, ast, &index, &h.imports, &env, &mut types, builtins,
+            )
+            .map_err(miette::Report::from)?;
+            all_monomorph_requests.extend(requests);
         }
         #[cfg(not(feature = "llvm"))]
         {

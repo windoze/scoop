@@ -68,6 +68,7 @@ pub(super) struct MaterializerConstructionInputs<'a> {
     pub(super) top_level_consts: crate::hir::TopLevelConstIndex,
     pub(super) top_level_immutable_values: crate::hir::TopLevelImmutableValueIndex,
     pub(super) object_inits: crate::hir::ObjectInitIndex,
+    pub(super) class_inits: crate::hir::ClassInitIndex,
     pub(super) member_value_tys: HashMap<String, MemberValueTypeInfo>,
     pub(super) request_sources: HashSet<PathBuf>,
     pub(super) request_root_mode: super::super::MaterializeRequestRootMode<'a>,
