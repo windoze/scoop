@@ -430,7 +430,7 @@
   - `__scoop_gc_debug_alloc_garbage`：11 个 fixture source 文件直接调用，用于制造未保活对象、施压 moving/mark-sweep 路径，并验证随后显式 GC 对 live roots / heap count / continuation state 的影响：`tests/fixtures/run-pass/gc_array_class_elements_cross_function.scoop`、`tests/fixtures/run-pass/gc_continuation_escape_alloc_heavy_resume.scoop`、`tests/fixtures/run-pass/gc_continuation_multi_thread_concurrent_alloc_resume.scoop`、`tests/fixtures/run-pass/gc_enum_ref_variants_cross_function.scoop`、`tests/fixtures/run-pass/gc_mark_sweep_basic.scoop`、`tests/fixtures/run-pass/gc_trace_struct_string_field_basic.scoop`、`tests/fixtures/runtime_gc/gc_module_global_roots_move_basic.scoop`、`tests/fixtures/runtime_gc/gc_move_enum_maybe_ref_closure_capture_basic.scoop`、`tests/fixtures/runtime_gc/gc_move_enum_maybe_ref_local_switch_basic.scoop`、`tests/fixtures/runtime_gc/gc_move_enum_maybe_ref_struct_field_basic.scoop`、`tests/fixtures/runtime_gc/gc_move_ordinary_call_struct_arg_basic.scoop`。
   - `__scoop_gc_debug_heap_object_count`：8 个 fixture source 文件直接调用，用于观测 sweep / cleanup / boxing / class-init failure 后 heap object 数是否符合预期：`tests/fixtures/run-pass/class_init_raise_cleanup_init_block_gc_basic.scoop`、`tests/fixtures/run-pass/class_init_raise_cleanup_property_init_gc_basic.scoop`、`tests/fixtures/run-pass/effect_handle_return_from_function_any_boxing.scoop`、`tests/fixtures/run-pass/effect_raise_cleanup_gc_basic.scoop`、`tests/fixtures/run-pass/gc_mark_sweep_basic.scoop`、`tests/fixtures/run-pass/gc_pin_unpin_basic.scoop`、`tests/fixtures/run-pass/gc_trace_class_ref_field_basic.scoop`、`tests/fixtures/run-pass/gc_trace_struct_string_field_basic.scoop`。
   - `__scoop_stackmap_statepoint_smoke`：`tests/fixtures/**/*.scoop` 中没有直接调用；实际覆盖在 `crates/scoopc/src/llvm/tests/abi.rs` 的 `stackmap_statepoint_smoke_helper_opt_in_reenables_stackmap_pipeline` 与 `stackmap_statepoint_smoke_helper_emits_stackmap_section_when_requested` 两个 Rust tests 中，验证显式 opt-in 后重新生成 `gc "statepoint-example"`、`llvm.experimental.gc.statepoint` 与 `.llvm_stackmaps` section。
-  - custom sysroot overlay 声明副本：`tests/fixtures/build/intrinsic_sysroot_overlay_scalar_method_basic.sysroot/core.scoop`、`tests/fixtures/build/intrinsic_sysroot_overlay_scalar_tostring_basic.sysroot/core.scoop`、`tests/fixtures/build/intrinsic_sysroot_overlay_array_mutablearray_body_methods_basic.sysroot/core.scoop`、`tests/fixtures/build/sysroot_overlay_core_array_interface_bridge.sysroot/core.scoop` 只复制声明，不直接调用 helper；P11-T02 迁移时需要同步更新或删除这些 overlay 声明，避免 custom sysroot 继续暴露 core helper。
+  - custom sysroot overlay 声明副本：`tests/fixtures/build/intrinsic_sysroot_overlay_scalar_method_basic.sysroot/scoop.core/core.scoop`、`tests/fixtures/build/intrinsic_sysroot_overlay_scalar_tostring_basic.sysroot/scoop.core/core.scoop`、`tests/fixtures/build/intrinsic_sysroot_overlay_array_mutablearray_body_methods_basic.sysroot/scoop.core/core.scoop`、`tests/fixtures/build/sysroot_overlay_core_array_interface_bridge.sysroot/scoop.core/core.scoop` 只复制声明，不直接调用 helper；P11-T02 迁移时需要同步更新或删除这些 overlay 声明，避免 custom sysroot 继续暴露 core helper。
 - 决策表：
   - `__scoop_gc_collect`：保留，P11-T02 迁入 test-only cone（建议 `scoop.runtime.test`），保持 `@Extern(name = "scoop_gc_collect", abi = "scoop")`；使用方 fixture 显式 `import scoop.runtime.test.*`。理由：调用点用于触发真实 GC，必须保持 managed call/root preservation 语义，且当前 sysroot 已是 scoop ABI，不属于 core 语言 surface。
   - `__scoop_gc_debug_heap_object_count`：保留，P11-T02 迁入 `scoop.runtime.test`，改为 `@Extern(name = "scoop_gc_debug_heap_object_count", abi = "c")`（不显式叠加 `@NoGC`）。理由：runtime 实现只读取 heap object list 并返回整数，不接收/返回 GC ref，不分配也不触发 GC，符合 native leaf / C ABI helper。
@@ -584,7 +584,7 @@
   - 闭合 PLAN §9 / P12 的 P12-T01 前置审计：sysroot 普通 fun/method 不再依赖未标注光声明，P12-T02 可继续做物理目录重组，P12-T03 可在此前提上拆 `signature_only_sysroot_ast` / compilable-file 过滤。
 - 暂时性 failing fixture：无。中途因删除 core 重复签名暴露出的 `print/println` typecheck-only 索引缺口已在本任务内修复，最终全量 fixture 为 0 failing。
 
-### P12-T02：sysroot 物理目录按 cone FQN 重组
+### [DONE] P12-T02：sysroot 物理目录按 cone FQN 重组
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §3.1 / §9 / P12
@@ -634,6 +634,29 @@
 - 完成条件：
   - sysroot 物理结构按 cone FQN 组织；编译器加载行为不变；硬编码路径全部修完。
 - 依赖：P12-T01。
+
+完成记录：
+
+- 改动范围：
+  - 将 `sysroot/` 顶层 10 个 `.scoop` 文件按 package FQN 下沉到 cone 子目录：`scoop.core/{core,string,print}.scoop`、`scoop.lang.string/lang_string.scoop`、`scoop.unsafe/unsafe.scoop`、`scoop.thread/thread.scoop`、`scoop.sync/sync.scoop`、`scoop.runtime.test/runtime_test.scoop`、`scoop.delegates/delegates.scoop`、`scoop.collections/collections.scoop`。
+  - 将 4 个 build fixture sysroot overlay 的 `core.scoop` 同步迁到 `*.sysroot/scoop.core/core.scoop`，保证 overlay 仍按相对路径覆盖基础 `scoop.core/core.scoop`，不产生额外 flat-file overlay。
+  - 更新 sysroot loader 单测、fixture overlay 目录过滤测试、Rust 注释中的旧 `sysroot/<file>.scoop` 路径引用；更新 `sysroot/scoop.core/core.scoop` 与 overlay core 注释中的 `print.scoop` 新位置。
+  - 因 core 注释长度变化导致 5 个 HIR golden 的 `target_decl_span` 漂移，同步更新 `const_fun_basic`、`do_block_multiple_trailing_lambda_boundary`、`handle_mixed_arm_kinds`、`lowered_call_args`、`lowered_comptime_control_flow` 的 `.hir` 快照。
+- 核心决策：
+  - 不拆分 `lang_string.scoop`；本任务只做物理重组，保持 `package scoop.lang.string` 的单文件形态。
+  - `collections.scoop` 保持 `package scoop.collections`，迁到 `sysroot/scoop.collections/collections.scoop`；不在本任务改变 `Map` surface 所属 cone。
+  - 不修改 loader 递归扫描实现，不保留顶层兼容副本、alias 或桥接；fixture overlay 也采用新 cone-FQN 相对路径。
+- 验证结果：
+  - `cargo build` 通过。
+  - `cargo test -p scoopc sysroot::tests -- --nocapture` 通过：5 tests。
+  - `find sysroot -maxdepth 1 -name '*.scoop'` 无输出；`find sysroot -mindepth 2 -name '*.scoop'` 列出 10 个嵌套 sysroot 文件。
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/hir` 通过：26/26 targets。
+  - `cargo run -p scoop -- test` 通过：1339/1339 targets，1376 checks。
+  - `cargo test --all --all-targets` 通过。
+  - `cargo clippy --all-targets -- -D warnings` 通过。
+- 与 `PLAN.md` 对应闭合：
+  - 闭合 PLAN §3.1 / §9 / P12：sysroot 物理结构已从扁平 `sysroot/*.scoop` 重组为按 cone FQN 命名的子目录，递归 loader 与支持源收集保持可用。
+- 暂时性 failing fixture：无。中途出现的 5 个 HIR snapshot mismatch 是本任务路径注释更新引起的稳定 span 漂移，已同步 golden 并回归通过。
 
 ### P12-T03：取消 `signature_only_sysroot_ast` / `is_compilable_sysroot_file` 整套 AST stripping
 

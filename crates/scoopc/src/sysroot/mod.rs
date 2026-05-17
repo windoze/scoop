@@ -19,7 +19,7 @@ pub const SYSROOT_OVERLAY_ENV: &str = "SCOOP_SYSROOT_OVERLAY";
 /// T0143：sysroot 文件分为两类：
 /// - `files`：声明索引文件（仅声明，不作为 support source 编译）。用于 production Index 起点。
 ///   含真实实现体的 sysroot 文件在这里保存 signature-only AST。
-/// - `compilable_source_paths`：含有函数体的 sysroot 文件（如 `string.scoop`），
+/// - `compilable_source_paths`：含有函数体的 sysroot 文件（如 `scoop.core/string.scoop`），
 ///   需作为编译单元的一部分参与完整的 resolve → typecheck → HIR lowering → codegen 管线。
 /// - `compilable_files`：已解析的 compilable sysroot 文件，供 dump / package API export / 单测
 ///   这类需要完整 AST 的路径使用。
@@ -77,7 +77,7 @@ impl Sysroot {
                 .wrap_err_with(|| format!("解析 sysroot 文件失败：{}", path.display()))?;
 
             // T0143：含有真实实现体的 sysroot 文件需要走完整编译管线，而非仅作为签名索引。
-            // 除了既有的 `core/string/lang_string/print/task.scoop` 之外，overlay 的 `core.scoop` 若声明了
+            // 除了既有的 core/string/lang_string/print/task 文件之外，overlay 的 `core.scoop` 若声明了
             // bodied `@Intrinsic struct/class` 也必须进入 compilable support sources。
             if is_compilable_sysroot_file(&path, &source, &ast) {
                 compilable_source_paths.push(path.clone());
@@ -463,9 +463,9 @@ mod tests {
         let root = make_temp_dir("overlay_core_compilable");
         let base_root = root.0.join("base");
         let overlay_root = root.0.join("overlay");
-        let base_core = base_root.join("core.scoop");
-        let overlay_core = overlay_root.join("core.scoop");
-        let unsafe_file = base_root.join("unsafe.scoop");
+        let base_core = base_root.join("scoop.core").join("core.scoop");
+        let overlay_core = overlay_root.join("scoop.core").join("core.scoop");
+        let unsafe_file = base_root.join("scoop.unsafe").join("unsafe.scoop");
 
         write_file(
             &base_core,

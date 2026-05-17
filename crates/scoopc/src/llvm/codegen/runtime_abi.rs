@@ -203,10 +203,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     }
 
     // `const ScoopString* scoop_string_substring(const ScoopString* s, int64_t start, int64_t end)`
-    // T0122/T0143: declare_runtime_string_substring 已移除（迁移到 sysroot/string.scoop）
+    // T0122/T0143: declare_runtime_string_substring 已移除（迁移到 sysroot/scoop.core/string.scoop）
 
     // T0122: starts_with/ends_with/index_of/contains/split/trim/trim_start/trim_end
-    // 已移除（迁移到 sysroot/string.scoop）
+    // 已移除（迁移到 sysroot/scoop.core/string.scoop）
 
     /// `int64_t scoop_float64_to_int(double value)`
     pub(super) fn declare_runtime_float64_to_int(&self) -> FunctionValue<'ctx> {

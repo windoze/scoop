@@ -3494,8 +3494,9 @@ mod tests {
             "// EXPECT: pass\npackage fixtures.build\nfun main() {}\n",
         )
         .unwrap();
+        fs::create_dir_all(overlay_dir.join("scoop.core")).unwrap();
         fs::write(
-            overlay_dir.join("core.scoop"),
+            overlay_dir.join("scoop.core").join("core.scoop"),
             "package scoop.core\ninterface Any\n",
         )
         .unwrap();

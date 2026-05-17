@@ -485,7 +485,7 @@ fun abs(x: Int): Int {
 //
 // 说明：
 // - `__scoop_print` / `__scoop_println` 是 scoop ABI runtime 映射的内部函数；
-// - 泛型 `print<T>` / `println<T>`（在 sysroot/print.scoop 中定义）调用这些内部函数。
+// - 泛型 `print<T>` / `println<T>`（在 sysroot/scoop.core/print.scoop 中定义）调用这些内部函数。
 @Extern(name = "scoop_print", abi = "scoop")
 fun __scoop_print(value: String): Unit
 @Extern(name = "scoop_println", abi = "scoop")

@@ -263,13 +263,13 @@ fun Float32.isInfinite(): Bool
 @Intrinsic
 fun Char.hash(): Int
 
-// 泛型 print/println 的函数体在 sysroot/print.scoop 中提供（compilable sysroot file）。
+// 泛型 print/println 的函数体在 sysroot/scoop.core/print.scoop 中提供（compilable sysroot file）。
 
 // I/O（内部 runtime 映射）。
 //
 // 说明：
 // - `__scoop_print` / `__scoop_println` 是 scoop ABI runtime 映射的内部函数；
-// - 泛型 `print<T>` / `println<T>`（在 sysroot/print.scoop 中定义）调用这些内部函数。
+// - 泛型 `print<T>` / `println<T>`（在 sysroot/scoop.core/print.scoop 中定义）调用这些内部函数。
 @Extern(name = "scoop_print", abi = "scoop")
 fun __scoop_print(value: String): Unit
 @Extern(name = "scoop_println", abi = "scoop")

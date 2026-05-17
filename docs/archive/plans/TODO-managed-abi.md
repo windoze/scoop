@@ -751,7 +751,7 @@
     - `crates/scoopc/src/{session/mod.rs,sysroot/mod.rs,frontend.rs,llvm/frontend.rs}`
     - `crates/scoop/src/{commands/build.rs,commands/test.rs,fixtures/mod.rs,fixtures/run_pass.rs,commands/dump_mir.rs}`
     - `tests/fixtures/build/sysroot_overlay_core_array_interface_bridge.scoop`
-    - `tests/fixtures/build/sysroot_overlay_core_array_interface_bridge.sysroot/core.scoop`
+    - `tests/fixtures/build/sysroot_overlay_core_array_interface_bridge.sysroot/scoop.core/core.scoop`
     - `TODO.md`
     - `memory/claude_plan.md`
   - 核心决策：
@@ -826,7 +826,7 @@
     - `tests/fixtures/run-pass/{intrinsic_struct_interface_body_method_basic.scoop,intrinsic_class_body_method_basic.scoop,intrinsic_generic_class_body_method_basic.scoop}`
     - `tests/fixtures/typecheck/{intrinsic_user_bodied_type_without_allow_intrinsic_is_error.scoop,intrinsic_type_body_field_is_error.scoop,intrinsic_type_ctor_field_is_error.scoop}`
     - `tests/fixtures/build/intrinsic_sysroot_overlay_array_mutablearray_body_methods_basic.scoop`
-    - `tests/fixtures/build/intrinsic_sysroot_overlay_array_mutablearray_body_methods_basic.sysroot/core.scoop`
+    - `tests/fixtures/build/intrinsic_sysroot_overlay_array_mutablearray_body_methods_basic.sysroot/scoop.core/core.scoop`
     - `TODO.md`
     - `memory/claude_plan.md`
   - 核心决策：
@@ -1509,7 +1509,7 @@
     - `crates/scoopc/src/hir/lower/expr.rs`：fallback canonical call lowering 在 `CallArgBinding` 含 `Receiver` 时，会从 `MemberAccess` callee 重建 receiver 并传给 `lower_canonical_call_expr`，避免 receiver slot 被静默吞掉后继续落到无参 direct-call fallback。
     - `crates/scoopc/src/llvm/tests.rs`：新增 `overlay_core_intrinsic_scalar_body_method_call_keeps_receiver_arg` owner test，验证 overlay `Bool.negate` 的 direct call 在 IR 中携带 builtin `Bool` receiver。
     - `crates/scoopc/src/{mir/materialize.rs,resolve/scopes.rs}`：`cargo fmt --all` 对既有长行做了格式化归一，无行为变更。
-    - `tests/fixtures/build/intrinsic_sysroot_overlay_scalar_method_basic.scoop` 与配套 `.sysroot/core.scoop`：新增 sysroot overlay fixture，把 `Bool` 改写为 bodied `@Intrinsic struct`，覆盖 `true.negate()` / `false.negate()`。
+    - `tests/fixtures/build/intrinsic_sysroot_overlay_scalar_method_basic.scoop` 与配套 `.sysroot/scoop.core/core.scoop`：新增 sysroot overlay fixture，把 `Bool` 改写为 bodied `@Intrinsic struct`，覆盖 `true.negate()` / `false.negate()`。
     - `TODO.md` / `memory/claude_plan.md`：刷新任务状态与执行记录。
   - 核心决策：
     - 保留 P4-T01a/c 已有 direct member-call 主线，不新增 builtin-only lowering path；本任务只修补 fallback canonical lowering 对既有 typecheck receiver binding 的消费，确保 `Receiver` binding 必须有真实 lowered receiver。
@@ -1543,7 +1543,7 @@
 - 必须实现的内容：
   1. 让 `ToString.toString` interface dispatch（含 default body 与 builtin scalar override）在 `@Intrinsic struct/class` 引入 override 后，仍被 monomorphization / late lowering 正确收集 callable 并发布 body；`println(<scalar>)` 不再 emit `LLVM stage handoff 缺少 reachable callable scoop.core.ToString.toString 的 published late-lowered body`。
   2. 保留所有现有 by-name 拦截（`try_codegen_tostring_iface_builtin` / `codegen_sysroot_to_string_ext` / `effect_lowered/{body,value}.rs` 中的 `ToString.toString` / scalar `toString` 拦截 / `codegen_mir_transport_to_string`）作为过渡 surface；它们的删除留给 `P4-T01`。
-  3. 新增 owner test：`tests/fixtures/build/intrinsic_sysroot_overlay_scalar_tostring_basic.scoop` + 配套 `*.sysroot/core.scoop` overlay，把 `Bool/Char/Int/Float32/Float64/String` 改写为 `@Intrinsic struct/class : Hashable, ToString { override fun toString(): String { ... } }`（同时保留 by-name extension 声明面），fixture 端到端覆盖：
+  3. 新增 owner test：`tests/fixtures/build/intrinsic_sysroot_overlay_scalar_tostring_basic.scoop` + 配套 `*.sysroot/scoop.core/core.scoop` overlay，把 `Bool/Char/Int/Float32/Float64/String` 改写为 `@Intrinsic struct/class : Hashable, ToString { override fun toString(): String { ... } }`（同时保留 by-name extension 声明面），fixture 端到端覆盖：
      - `<scalar>.toString()` 直连调用（典型：`123.toString()` / `true.toString()` / `'a'.toString()` / `1.5.toString()` / `"hi".toString()`）；
      - `println(<scalar>)` interface dispatch（每个 builtin scalar 至少一条）。
      运行该 fixture 不触发 `direct call arity mismatch` / `published late-lowered body` 缺失。
@@ -1567,7 +1567,7 @@
     - `crates/scoopc/src/mir/materialize.rs`：materialized generic instance body 现在会继续扫描 direct/interface dispatch reachability，把实例体内触达的 generic instance 与 non-generic dispatch target 发布进 pass view / late-lowered handoff；builtin scalar / `String` receiver FQN 提取与 default `ToString` 过滤同步补齐，避免默认 sysroot 的旧 by-name 过渡路径误发布 signature-only `ToString.toString`。
     - `crates/scoopc/src/llvm/reachability.rs`：LLVM reachability 扫描 pass-view MIR interface call 时按 itable metadata 收集 concrete/default dispatch target，不再因 interface call / Unit return / declaration-only direct call 回退到 HIR 模板扫描而误报 missing published body。
     - `crates/scoopc/src/llvm/tests.rs`：新增 `overlay_core_intrinsic_scalar_tostring_dispatch_publishes_override_and_default_bodies` owner test，锁定 builtin scalar override 与 interface default body 都能被发布。
-    - `tests/fixtures/build/intrinsic_sysroot_overlay_scalar_tostring_basic.scoop` 与配套 `.sysroot/core.scoop`：新增 sysroot overlay fixture，覆盖 `<scalar>.toString()` 直连过渡路径、`println(<scalar>)` interface dispatch、以及普通 class 走 `ToString` default body。
+    - `tests/fixtures/build/intrinsic_sysroot_overlay_scalar_tostring_basic.scoop` 与配套 `.sysroot/scoop.core/core.scoop`：新增 sysroot overlay fixture，覆盖 `<scalar>.toString()` 直连过渡路径、`println(<scalar>)` interface dispatch、以及普通 class 走 `ToString` default body。
     - `crates/scoopc/src/pipeline_user_visible_failure_policy.rs`：刷新 `materialize.rs` 行号型 internal-bug sentinel baseline（由本任务新增 materialization 扫描逻辑引起）。
     - `TODO.md` / `memory/claude_plan.md`：刷新任务状态与执行记录。
   - 核心决策：
@@ -1828,7 +1828,7 @@
     - `tests/fixtures/typecheck/fun_missing_body_*.scoop`：新增缺 body 失败矩阵与三类豁免正向 fixture。
     - `tests/fixtures/typecheck/eff_row_param_*.scoop`：把旧的普通 declaration-only helper 改成带 body 的真实 helper或参数输入，避免继续依赖已禁止的普通无 body 函数。
     - `tests/fixtures/typecheck/intrinsic_type_interface_override_missing_body_{class,struct}_is_error.scoop`：该形态现在由通用 `fun_must_have_body` 先行诊断，符合 P4-T01o 中允许“通用诊断或专属诊断”的记录。
-    - `tests/fixtures/build/*.sysroot/core.scoop` overlay：同步标注 declaration-only sysroot intrinsic surface，避免 overlay core 与新规则 drift。
+    - `tests/fixtures/build/*.sysroot/scoop.core/core.scoop` overlay：同步标注 declaration-only sysroot intrinsic surface，避免 overlay core 与新规则 drift。
   - 核心决策：
     - 用户源码中的普通 function/method 缺 body 现在在 annotation/typecheck 早期直接报 `fun_must_have_body`，不再等到 HIR/codegen/monomorphization 阶段以间接错误暴露。
     - 不把 sysroot 内部 header stub 当作第四类用户语言豁免；生产诊断跳过 sysroot 源文件，改由 sysroot audit 从整个 sysroot source set 判断是否有显式 intrinsic/extern/abstract 归类或 bodyful support 实现。
