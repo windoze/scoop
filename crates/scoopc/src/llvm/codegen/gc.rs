@@ -47,10 +47,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 });
             }
 
-            // 重要：该调用点必须能产出 stackmap record，否则 GC 期间无法枚举 managed roots。
-            let rt = self.declare_runtime_gc_collect_safepoint();
-            let _ =
-                self.build_call_preserving_gc_local_roots(span, rt, &[], "gc_collect_safepoint")?;
+            let rt = self.declare_runtime_gc_collect();
+            let _ = self.build_call_preserving_gc_local_roots(span, rt, &[], "gc_collect")?;
             return Ok(Some(CgValue::unit()));
         }
 

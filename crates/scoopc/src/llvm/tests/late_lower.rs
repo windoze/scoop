@@ -31,7 +31,7 @@ fun main() {
         |header, function| {
             !header.contains("@main(")
                 && stable_id_symbol_is_user_callable(llvm_function_symbol_name(function))
-                && function.contains("@scoop_gc_collect_safepoint")
+                && function.contains("@scoop_gc_collect")
                 && function.contains("ret ptr addrspace(1)")
         },
     );
@@ -154,12 +154,12 @@ fun main() {
         |header, function| {
             !header.contains("@main(")
                 && stable_id_symbol_is_user_callable(llvm_function_symbol_name(function))
-                && function.contains("@scoop_gc_collect_safepoint")
+                && function.contains("@scoop_gc_collect")
                 && function.contains("ret ptr addrspace(1)")
         },
     );
     let call_idx = keep_ir
-        .find("@scoop_gc_collect_safepoint")
+        .find("@scoop_gc_collect")
         .expect("expected explicit safepoint helper call in keep() IR");
     let reload_window = &keep_ir[call_idx..];
 
@@ -206,12 +206,12 @@ fun main() {
         |header, function| {
             !header.contains("@main(")
                 && stable_id_symbol_is_user_callable(llvm_function_symbol_name(function))
-                && function.contains("@scoop_gc_collect_safepoint")
+                && function.contains("@scoop_gc_collect")
                 && function.contains("rt_alloc_lowered_class")
         },
     );
     let call_idx = entry_ir
-        .find("@scoop_gc_collect_safepoint")
+        .find("@scoop_gc_collect")
         .expect("expected ctor property initializer to emit a safepoint");
     let reload_window = &entry_ir[call_idx..];
 

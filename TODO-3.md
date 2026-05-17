@@ -273,7 +273,7 @@
 - 与 `PLAN.md` 闭合：完成 P7 §3.4 / §9 中 scalar String bridge 文件与 audited bridge dispatch 退场；阶段级计划未变化，未修改 `PLAN.md`。
 - 暂时性 failing fixture：本任务未新增 P7-T02 owner failing fixture；上述 7 个 baseline 失败继续按 P13-T04 最终 fixture 收尾处理。
 
-### P7-T03：runtime 端可能的符号改名（`scoop_print_string` → `scoop_print` 等）
+### [DONE] P7-T03：runtime 端可能的符号改名（`scoop_print_string` → `scoop_print` 等）
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §10 风险条目（runtime symbol 改名）
@@ -307,3 +307,13 @@
 - 完成条件：
   - sysroot `@Extern(name = ...)` 与 runtime 导出符号一一对应、命名一致。
 - 依赖：P7-T02。
+
+完成记录（2026-05-17）：
+
+- 改动范围：`runtime/c/scoop_runtime.c` 删除旧 `scoop_gc_collect_safepoint` wrapper；`runtime/c/scoop_runtime_api.h` 从导出 allowlist 删除 `scoop_gc_collect_safepoint`；`crates/scoopc/src/llvm/codegen/runtime_symbols.rs` / `runtime_abi.rs` / GC collect lowering 改为声明并调用 `scoop_gc_collect`；同步更新受影响的 LLVM IR 回归断言。
+- 符号差异审计：`__scoop_print` / `scoop_print`、`__scoop_println` / `scoop_println`、`panic` / `scoop_panic` 已一致；唯一实际不一致项是 `__scoop_gc_collect` 的 compiler/runtime lowering 仍指向旧 `scoop_gc_collect_safepoint`。runtime 端已经存在公开 `scoop_gc_collect` collector，因此本任务删除旧 suffix wrapper，并把编译器内部 root-spill 调用边界改为同名 `scoop_gc_collect`，避免引入别名或兼容层。
+- 核心决策：不改 sysroot `@Extern(name = "scoop_gc_collect", abi = "scoop")`；保留现有 `build_call_preserving_gc_local_roots` 调用边界，确保 `__scoop_gc_collect()` 前后的 managed roots 仍通过 explicit frame spill/reload 保护；runtime ABI surface 不再导出 `_safepoint` 后缀符号。
+- 验证结果：`cargo fmt` 通过；`cargo test -p scoopc late_lower -- --nocapture` 通过；`cargo test -p scoopc indirect_gc_aggregate_param_syncs_explicit_frame_home_slot_on_entry -- --nocapture` 通过；`cargo test -p scoopc managed_function_emits_explicit_root_frame_descriptor -- --nocapture` 通过；`cargo test -p scoop_runtime runtime_exports_must_be_allowlisted -- --nocapture` 通过；`cargo build` 通过；`cargo test --all --all-targets` 通过；`cargo clippy --all-targets -- -D warnings` 通过；`nm` 检查最新 `libscooprt.a` 中存在 `scoop_gc_collect` 且不存在 `scoop_gc_collect_safepoint`；`crates/` 与 `runtime/` 源码中 `scoop_gc_collect_safepoint` / `SCOOP_GC_COLLECT_SAFEPOINT` / `declare_runtime_gc_collect_safepoint` 无命中。
+- 全量 fixture：`cargo run -p scoop -- test` 完整执行，结果为 7 个失败、1334 个通过、1371 checks 通过。失败项与 P7-T02 记录的既有 baseline 一致，不由本任务 owner path 引入：`tests/fixtures/run-pass/mutable_array_ops_basic.scoop`、`tests/fixtures/runtime_gc/extern_enter_native_gc_arg_spill_reload.scoop`、`tests/fixtures/runtime_gc/extern_enter_native_roots_gc.scoop`、`tests/fixtures/runtime_gc/funptr_enter_native_roots_gc.scoop`、`tests/fixtures/runtime_gc/gc_handle_roundtrip.scoop`、`tests/fixtures/runtime_gc/gc_move_stackmap_heap_fixup.scoop`、`tests/fixtures/run_pass_cone/cross_file_ctor_named_default_basic`。
+- 与 `PLAN.md` 闭合：完成 P7 §10 风险条目的 runtime symbol 改名收口，sysroot `@Extern(name = ...)` 与 runtime 导出符号对齐；阶段级计划未变化，未修改 `PLAN.md`。
+- 暂时性 failing fixture：本任务未新增 P7-T03 owner failing fixture；上述 7 个 baseline 失败继续按 P13-T04 最终 fixture 收尾处理。

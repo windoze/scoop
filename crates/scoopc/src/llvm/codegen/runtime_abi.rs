@@ -628,20 +628,18 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.declare_runtime_or_native_import_function(NAME, fn_ty)
     }
 
-    pub(super) fn declare_runtime_gc_collect_safepoint(&self) -> FunctionValue<'ctx> {
-        const NAME: &str = runtime_symbols::SCOOP_GC_COLLECT_SAFEPOINT;
+    pub(super) fn declare_runtime_gc_collect(&self) -> FunctionValue<'ctx> {
+        const NAME: &str = runtime_symbols::SCOOP_GC_COLLECT;
         if let Some(existing) = self.module.get_function(NAME) {
             return existing;
         }
 
-        // `void* scoop_gc_collect_safepoint(void)`
+        // `void scoop_gc_collect(void)`
         //
         // 说明：
-        // - 该函数在 C runtime 内部调用 `scoop_gc_collect()` 并返回 NULL；
-        // - LLVM statepoint pipeline 依赖其“返回 GC ref”的形状，在调用点产出 stackmap record；
-        // - codegen 会丢弃返回值，仅把它作为 safepoint 边界（供 roots 枚举/更新）。
-        let ret_ptr_ty = self.llvm_gc_i8_ptr_type();
-        let fn_ty = ret_ptr_ty.fn_type(&[], false);
+        // - sysroot `__scoop_gc_collect()` 已是 scoop ABI extern，符号名直接对齐 runtime；
+        // - codegen 仍通过 root-spill helper 发出调用，保证调用边界前后的 managed roots 可恢复。
+        let fn_ty = self.context.void_type().fn_type(&[], false);
         self.declare_runtime_or_native_import_function(NAME, fn_ty)
     }
 

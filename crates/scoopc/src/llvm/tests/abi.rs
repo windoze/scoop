@@ -925,7 +925,7 @@ fun main() {
         |header, function| {
             !header.contains("@main(")
                 && stable_id_symbol_is_user_callable(llvm_function_symbol_name(function))
-                && function.contains("@scoop_gc_collect_safepoint")
+                && function.contains("@scoop_gc_collect")
                 && function.contains("explicit_root_frame_slot_0")
         },
     );
@@ -1767,7 +1767,7 @@ fun main() {
         |header, function| {
             !header.contains("@main(")
                 && stable_id_symbol_is_user_callable(llvm_function_symbol_name(function))
-                && function.contains("@scoop_gc_collect_safepoint")
+                && function.contains("@scoop_gc_collect")
                 && function.contains("ret ptr addrspace(1)")
         },
     );

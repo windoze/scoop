@@ -35,7 +35,6 @@
   X(scoop_format_u64) \
   X(scoop_gc_collect) \
   X(scoop_gc_collect_minor) \
-  X(scoop_gc_collect_safepoint) \
   X(scoop_gc_debug_alloc_garbage) \
   X(scoop_gc_debug_heap_bytes_allocated) \
   X(scoop_gc_debug_heap_bytes_freed) \

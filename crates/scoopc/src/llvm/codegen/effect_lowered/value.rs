@@ -4050,12 +4050,12 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
                         at: span.into(),
                     });
                 }
-                let runtime = self.codegen.declare_runtime_gc_collect_safepoint();
+                let runtime = self.codegen.declare_runtime_gc_collect();
                 let _ = self.codegen.build_call_preserving_gc_local_roots(
                     span,
                     runtime,
                     &[],
-                    "gc_collect_safepoint",
+                    "gc_collect",
                 )?;
                 Ok(Some(CgValue::unit()))
             }
