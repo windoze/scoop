@@ -373,6 +373,43 @@
   - `tests/fixtures/run_pass_cone/cross_file_ctor_named_default_basic`：独立的 cross-file class field initializer ctor codegen contract drift（错误信息 "LLVM 主 codegen 收到本不应抵达的节点：call callee"），与本轮 reshape 主线脱钩，建议作为独立 follow-up 单独定位，不能通过 fixture 改写解决——继续由 P13-T04 兜底，或更早作为独立 P 阶段任务处理。
 - 暂时性 failing fixture：本任务消化了 P6-T01 起累积的 5 个；剩余 2 个见上条，均不属于本任务范围。
 
+### [DONE] P8-T04b：修正 `INTERNAL_BUG_SENTINEL_HITS` 行号 drift（P8-T03 漏更新的 audit baseline）
+
+- 参考：
+  - `crates/scoopc/src/pipeline_user_visible_failure_policy.rs::INTERNAL_BUG_SENTINEL_HITS`（行号哨兵清单）
+  - `crates/scoopc/src/pipeline_user_visible_failure_policy.rs::pipeline_user_visible_failure_policy_tracks_internal_bug_sentinels`（执行精确匹配的单测）
+  - 漏更新源头：commit `c665abdd [P8-T03] Add scalar sysroot intrinsic methods` 中 `crates/scoopc/src/llvm/codegen/effect_lowered/value.rs:2669` 附近 `intrinsic_base_fqn(callee_fqn) != "scoop.core.toInt"` 改写为跨 3 行的 `!matches!(...)` 形式，未同步审计表
+- 目标：
+  - `cargo test -p scoopc --lib pipeline_user_visible_failure_policy_tracks_internal_bug_sentinels` 通过；本前置任务覆盖 P8-T04a 完成记录中"验证结果"条目里标记的唯一 pre-existing 单测失败，让 `cargo test --all --all-targets` 在 P8-T04 启动前回到 0 failed 基线。
+- 当前实现入口（修复前现状）：
+  - `pipeline_user_visible_failure_policy.rs:469-470` 登记的两条命中：
+    - `effect_lowered/value.rs:2723:                    _ => unreachable!("filtered by match"),`
+    - `effect_lowered/value.rs:3757:            _ => unreachable!("filtered by caller"),`
+  - 实际源码现位置（P8-T03 之后）：`value.rs:2726` 与 `value.rs:3760`，行号整体 +3。
+- 必须实现的内容：
+  1. 把 `INTERNAL_BUG_SENTINEL_HITS` 表里 `effect_lowered/value.rs` 的两条记录的行号 `2723 → 2726`、`3757 → 3760`，文本与缩进保持原样不动。
+  2. 不动其它行：`pipeline_user_visible_failure_policy_tracks_internal_bug_sentinels` 在 P8-T04a 之前的 `git stash` 重跑里已确认其它路径的行号都仍然命中。
+- 必须遵从的约束：
+  - **不**用"批量 / 自动化重新生成"的方式覆盖整张 `INTERNAL_BUG_SENTINEL_HITS` —— 该表的存在意义就是"任何新增 / 移动 `panic!` / `unreachable!` 都要被人工评审"。本任务只修 P8-T03 已经评审过、只是漏了同步行号的两条；不允许借机把表当成自动产物。
+  - **不**通过禁用 / 标 `#[ignore]` / 改 audit 文件白名单等方式让测试"通过"。这条测试在 P7-T02 final-state 评论里被显式定位为 internal-bug 哨兵的最后审计闸门，绕过等于让后续任务的 panic 哨兵漂移失去监督。
+  - **不**在本任务里附带修 `effect_lowered/value.rs` 自身（例如把 `!matches!` 折回单行以"恢复行号"）。源文件改成 `!matches!` 是 P8-T03 出于可读性的合理决定；让审计表跟随源码，不让源码迁就审计表。
+- 验证：
+  1. `cargo test -p scoopc --lib pipeline_user_visible_failure_policy` —— 该模块下 7 个子测全部通过。
+  2. `cargo test --all --all-targets` —— 0 failed（P8-T04a 完成记录里挂着的那条 pre-existing 失败由本任务消化）。
+- 完成条件：
+  - 上述两条单测命令均 0 failed；本任务不引入任何 fixture / IR 变化（仅修审计表）。
+- 依赖：P8-T04a。本任务自身不依赖 P8-T04a 的产物，是与 P8-T04a 独立的 P8-T03 follow-up；按 ID 顺序排在 P8-T04 前，避免后续任务重复发现同一 audit 漂移。
+
+完成记录（2026-05-17）：
+
+- 改动范围：`crates/scoopc/src/pipeline_user_visible_failure_policy.rs::INTERNAL_BUG_SENTINEL_HITS` 中两条 `effect_lowered/value.rs` 命中的行号 `2723 → 2726` / `3757 → 3760`。除此之外不动任何源码、测试、fixture 或文档。
+- 核心决策：把审计表对齐源码当前行号，**而不是**把源码 `!matches!` 折回单行去"恢复"行号。源码采用 `!matches!` 是 P8-T03 为可读性做出的正向选择；审计表是历史快照，本就应当跟随源码漂移，不该反向束缚源码风格。也保留了 P7-T02 在该模块顶部留下的"internal-bug 哨兵唯一审计闸门"的语义——本次只是补上 P8-T03 漏的同步动作。
+- 验证结果：
+  - `cargo test -p scoopc --lib pipeline_user_visible_failure_policy`：7 passed / 0 failed。
+  - `cargo test --all --all-targets`：在 P8-T04a 完成记录里登记的唯一 pre-existing 失败（`pipeline_user_visible_failure_policy_tracks_internal_bug_sentinels`）已消化，整体回到 0 failed 基线。
+- 与 `PLAN.md` 闭合：纯 audit baseline 同步，未触及任何 PLAN §节点。
+- 暂时性 failing fixture：无。本任务不涉及 fixture。
+
 ### P8-T04：HIR / typecheck——binary / unary operator 改写为 method call
 
 - 参考：
