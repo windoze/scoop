@@ -3,9 +3,9 @@
 //! This pass is intentionally conservative. It only publishes non-escaping facts when a closure
 //! value is created in MIR and all observed uses are local `Closure` calls, or when a continuation
 //! local is only used as the receiver of `Continuation.resume(...)`. Any value returned, passed to
-//! another callable, stored into an aggregate/capture box, or seen through unmodelled MIR becomes
-//! escaping or unknown. Later simplification and effect planning can consume these facts without
-//! asking LLVM codegen to rediscover them from backend state.
+//! another callable, stored into an aggregate or another location, or seen through unmodelled MIR
+//! becomes escaping or unknown. Later simplification and effect planning can consume these facts
+//! without asking LLVM codegen to rediscover them from backend state.
 
 use std::collections::{BTreeMap, HashMap};
 

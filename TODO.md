@@ -400,7 +400,7 @@ C0-T01 (baseline + prerequisite inventory)
     - `cargo clippy -p scoopc --all-targets -- -D warnings`：通过。
   - 与 `PLAN.md` / `CLOSURE_FIX.md` 对应闭合：闭合 `PLAN.md` §7 C2-T01 的 MIR lowering 删除入口，以及 `CLOSURE_FIX.md` 中删除 CaptureBox 后门、保持 closure env snapshot + per-call local 语义的 MIR lowering 部分；阶段级计划未变化。
 
-### [TODO] C2-T01C：删除 MIR 分析、dump、materialize、effect facts 中的 CaptureBox arm
+### [DONE] C2-T01C：删除 MIR 分析、dump、materialize、effect facts 中的 CaptureBox arm
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §7 C2-T01
@@ -428,9 +428,20 @@ C0-T01 (baseline + prerequisite inventory)
 - 依赖：C2-T01B
 - 完成记录：
   - 改动范围：
+    - 审计 `crates/scoopc/src/mir/{closure_simplify.rs,escape.rs,inline.rs,summary.rs,dump.rs,materialize/*}`、`crates/scoopc/src/effect_facts/builder.rs` 与 `crates/scoopc/src/effect_lowered/{frame.rs,segment.rs,materialize/classification.rs}`；这些 MIR analysis / dump / materialize / effect facts / effect-lowered 分类路径已无 CaptureBox arm 或 helper。
+    - 修正 `crates/scoopc/src/mir/escape.rs` 的模块注释，移除旧的 “capture box” 逃逸形态描述，改为普通 aggregate / storage location 表述。
+    - 未修改语义代码、fixture expect、`PLAN.md` 或 `CLOSURE_FIX.md`；阶段级计划未变化。
   - 核心决策：
+    - C2-T01A/B 已在删除 MIR core model 与 lowering 时提前移除了本任务覆盖层的大部分编译期 CaptureBox 分支；本任务以目标层审计和残留注释清理收口。
+    - 保留普通 closure env transport、`ClosureCaptureTransportMetadata.mutable` 与 `MirBoxingReason::ClosureCapture` 的 composite env boxing 语义；未引入替代隐式 box、shim 或兼容路径。
+    - effect facts 与 effect-lowered frame/segment/classification 继续只依据普通 MIR rvalue、closure env、call ABI 与 storage 语义工作，不再识别 CaptureBox 特例。
   - 验证结果：
-  - 与 `PLAN.md` / `CLOSURE_FIX.md` 对应闭合：
+    - `cargo build -p scoopc`：通过。
+    - `rg -n "CaptureBox|capture_box|mir_capture_box|__CaptureBox" crates/scoopc/src/mir crates/scoopc/src/effect_facts crates/scoopc/src/effect_lowered`：无输出。
+    - `cargo test -p scoopc mir -- --nocapture`：通过，158 个 MIR 相关定向测试通过。
+    - `cargo test -p scoopc effect_facts -- --nocapture`：通过，41 个 effect facts 相关定向测试通过。
+    - `cargo clippy -p scoopc --all-targets -- -D warnings`：通过。
+  - 与 `PLAN.md` / `CLOSURE_FIX.md` 对应闭合：闭合 `PLAN.md` §7 C2-T01 的 MIR analysis / materialize / effect facts 删除入口，以及 `CLOSURE_FIX.md` 中删除 CaptureBox 后门、只保留普通 closure env/value transport 的对应要求；阶段级计划未变化。
 
 ### [TODO] C2-T01D：删除 LLVM / effect-lowered codegen 中的 CaptureBox lowering
 
