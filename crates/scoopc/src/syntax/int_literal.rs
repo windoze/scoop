@@ -7,6 +7,20 @@ pub enum IntLiteralParseError {
     Overflow,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum IntLiteralSuffix {
+    None,
+    UInt,
+    Long,
+    ULong,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct IntLiteralParts<'a> {
+    pub digits: &'a str,
+    pub suffix: IntLiteralSuffix,
+}
+
 impl IntLiteralParseError {
     pub fn reason(self) -> &'static str {
         match self {
@@ -41,7 +55,8 @@ pub fn parse_int_literal(text: &str) -> u128 {
 /// - 数字是否与 radix 匹配；
 /// - 数值是否超出 `u128`。
 pub fn parse_int_literal_checked(text: &str) -> Result<u128, IntLiteralParseError> {
-    let (radix, digits) = literal_radix_and_digits(text);
+    let parts = split_int_literal_suffix(text);
+    let (radix, digits) = literal_radix_and_digits(parts.digits);
     if digits.is_empty() {
         return Err(IntLiteralParseError::MissingDigits);
     }
@@ -77,6 +92,32 @@ pub fn parse_int_literal_checked(text: &str) -> Result<u128, IntLiteralParseErro
     Ok(out)
 }
 
+pub fn parse_int_literal_suffix(text: &str) -> IntLiteralSuffix {
+    split_int_literal_suffix(text).suffix
+}
+
+fn split_int_literal_suffix(text: &str) -> IntLiteralParts<'_> {
+    for (suffix_text, suffix) in [
+        ("uL", IntLiteralSuffix::ULong),
+        ("UL", IntLiteralSuffix::ULong),
+        ("ul", IntLiteralSuffix::ULong),
+        ("Ul", IntLiteralSuffix::ULong),
+        ("u", IntLiteralSuffix::UInt),
+        ("U", IntLiteralSuffix::UInt),
+        ("L", IntLiteralSuffix::Long),
+        ("l", IntLiteralSuffix::Long),
+    ] {
+        if let Some(digits) = text.strip_suffix(suffix_text) {
+            return IntLiteralParts { digits, suffix };
+        }
+    }
+
+    IntLiteralParts {
+        digits: text,
+        suffix: IntLiteralSuffix::None,
+    }
+}
+
 fn literal_radix_and_digits(text: &str) -> (u32, &str) {
     if let Some(rest) = text.strip_prefix("0x").or_else(|| text.strip_prefix("0X")) {
         (16, rest)
@@ -89,7 +130,10 @@ fn literal_radix_and_digits(text: &str) -> (u32, &str) {
 
 #[cfg(test)]
 mod tests {
-    use super::{IntLiteralParseError, parse_int_literal, parse_int_literal_checked};
+    use super::{
+        IntLiteralParseError, IntLiteralSuffix, parse_int_literal, parse_int_literal_checked,
+        parse_int_literal_suffix,
+    };
 
     #[test]
     fn parse_decimal_literal_with_separators() {
@@ -106,6 +150,17 @@ mod tests {
     fn parse_binary_literal() {
         assert_eq!(parse_int_literal("0b1010"), 10);
         assert_eq!(parse_int_literal("0B10_01"), 9);
+    }
+
+    #[test]
+    fn parse_integer_suffixes() {
+        assert_eq!(parse_int_literal("42L"), 42);
+        assert_eq!(parse_int_literal_suffix("42L"), IntLiteralSuffix::Long);
+        assert_eq!(parse_int_literal("42u"), 42);
+        assert_eq!(parse_int_literal_suffix("42u"), IntLiteralSuffix::UInt);
+        assert_eq!(parse_int_literal("42UL"), 42);
+        assert_eq!(parse_int_literal_suffix("42UL"), IntLiteralSuffix::ULong);
+        assert_eq!(parse_int_literal("0xFFu"), 255);
     }
 
     #[test]

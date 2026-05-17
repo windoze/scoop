@@ -6,6 +6,7 @@
 
 use crate::ast;
 use crate::span::Span;
+use crate::ty::TypeId;
 
 use super::HirLowering;
 use super::ValScope;
@@ -59,7 +60,7 @@ impl<'a> HirLowering<'a> {
             return true;
         }
 
-        out.push(self.lower_stmt_single(pkg_prefix, s));
+        out.push(self.lower_stmt_single(pkg_prefix, s, expected));
         false
     }
 
@@ -187,7 +188,12 @@ impl<'a> HirLowering<'a> {
         last_is_tail
     }
 
-    fn lower_stmt_single(&mut self, pkg_prefix: &str, s: &ast::Stmt) -> Stmt {
+    fn lower_stmt_single(
+        &mut self,
+        pkg_prefix: &str,
+        s: &ast::Stmt,
+        expected: ExpectedExpr,
+    ) -> Stmt {
         let (kind, ty) = match &s.kind {
             ast::StmtKind::Empty => (StmtKind::Empty, self.builtins.unit),
             ast::StmtKind::Expr(e) => {
@@ -224,7 +230,9 @@ impl<'a> HirLowering<'a> {
                 (StmtKind::Val(v), self.builtins.unit)
             }
             ast::StmtKind::Return { value, .. } => {
-                let value = value.as_ref().map(|e| self.lower_expr(pkg_prefix, e));
+                let value = value
+                    .as_ref()
+                    .map(|e| self.lower_expr_with_expected(pkg_prefix, e, expected));
                 (StmtKind::Return { value }, self.builtins.nothing)
             }
             ast::StmtKind::Missing => {
@@ -692,8 +700,39 @@ impl<'a> HirLowering<'a> {
             Some(ast::ForLoopIterableKind::ArrayInt) => {
                 self.lower_for_array_int(pkg_prefix, stmt_span, f)
             }
-            Some(ast::ForLoopIterableKind::IntProgression) => {
-                self.lower_for_int_progression(pkg_prefix, stmt_span, f)
+            Some(ast::ForLoopIterableKind::IntProgression) => self.lower_for_scalar_progression(
+                pkg_prefix,
+                stmt_span,
+                f,
+                Self::INT_PROGRESSION_FQN,
+                self.builtins.int,
+            ),
+            Some(ast::ForLoopIterableKind::LongProgression) => {
+                let elem_ty = self.types.ty_int_n(64);
+                self.lower_for_scalar_progression(
+                    pkg_prefix,
+                    stmt_span,
+                    f,
+                    Self::LONG_PROGRESSION_FQN,
+                    elem_ty,
+                )
+            }
+            Some(ast::ForLoopIterableKind::UIntProgression) => self.lower_for_scalar_progression(
+                pkg_prefix,
+                stmt_span,
+                f,
+                Self::UINT_PROGRESSION_FQN,
+                self.builtins.uint,
+            ),
+            Some(ast::ForLoopIterableKind::ULongProgression) => {
+                let elem_ty = self.types.ty_uint_n(64);
+                self.lower_for_scalar_progression(
+                    pkg_prefix,
+                    stmt_span,
+                    f,
+                    Self::ULONG_PROGRESSION_FQN,
+                    elem_ty,
+                )
             }
             Some(ast::ForLoopIterableKind::Custom) => {
                 let Some(custom) = info.and_then(|info| info.custom.as_ref()) else {
@@ -930,7 +969,7 @@ impl<'a> HirLowering<'a> {
         }
     }
 
-    /// `for (x in prog) { body }` — IntProgression 降糖：
+    /// `for (x in prog) { body }` — scalar Progression 降糖：
     ///
     /// ```text
     /// {
@@ -951,22 +990,22 @@ impl<'a> HirLowering<'a> {
     ///     }
     /// }
     /// ```
-    fn lower_for_int_progression(
+    fn lower_for_scalar_progression(
         &mut self,
         pkg_prefix: &str,
         stmt_span: Span,
         f: &ast::ForStmt,
+        progression_fqn: &str,
+        elem_ty: TypeId,
     ) -> Stmt {
         let span = f.span;
         let for_span = f.for_span;
 
         let iter_lowered = self.lower_expr(pkg_prefix, &f.iter);
 
-        let int = self.builtins.int;
         let bool_ = self.builtins.bool_;
         let unit = self.builtins.unit;
-        let prog_ty =
-            self.intern_nominal("scoop.core.IntProgression".to_string(), Vec::new(), None);
+        let prog_ty = self.intern_nominal(progression_fqn.to_string(), Vec::new(), None);
 
         // 各合成変数に異なる decl_span を付与（同一 span → 同一 SymbolId を回避）。
         let prog_span = Span::new(for_span.start, for_span.start + 1);
@@ -999,9 +1038,9 @@ impl<'a> HirLowering<'a> {
             }),
         };
 
-        // Helper: field access on __for_prog (field_ty: Int for first/last/step, Bool for increasing)
+        // Helper: field access on __for_prog (field_ty: element type for first/last/step, Bool for increasing)
         let prog_field = |me: &mut Self, span: Span, field: &str, field_ty| -> Expr {
-            let fqn = format!("scoop.core.IntProgression.{field}");
+            let fqn = format!("{progression_fqn}.{field}");
             Expr {
                 span,
                 ty: field_ty,
@@ -1022,7 +1061,7 @@ impl<'a> HirLowering<'a> {
         // var __for_cur = __for_prog.first
         let cur_id = self.intern_local_symbol(cur_span, true);
         let cur_name = "__for_cur".to_string();
-        let first_access = prog_field(self, for_span, "first", int);
+        let first_access = prog_field(self, for_span, "first", elem_ty);
         let cur_decl = Stmt {
             span: cur_span,
             ty: unit,
@@ -1031,7 +1070,7 @@ impl<'a> HirLowering<'a> {
                 id: Some(cur_id),
                 name: Some(cur_name.clone()),
                 mutable: true,
-                ty: int,
+                ty: elem_ty,
                 init: Some(first_access),
             }),
         };
@@ -1039,7 +1078,7 @@ impl<'a> HirLowering<'a> {
         // Helper: __for_cur ref
         let cur_ref = |span: Span| Expr {
             span,
-            ty: int,
+            ty: elem_ty,
             kind: ExprKind::VarRef(ValueRef::Local {
                 id: cur_id,
                 name: cur_name.clone(),
@@ -1055,7 +1094,7 @@ impl<'a> HirLowering<'a> {
             } else {
                 ast::BinaryOp::Ge
             };
-            let last_access = prog_field(me, for_span, "last", int);
+            let last_access = prog_field(me, for_span, "last", elem_ty);
             let cond = Expr {
                 span: for_span,
                 ty: bool_,
@@ -1078,7 +1117,7 @@ impl<'a> HirLowering<'a> {
                     id: Some(binder_id),
                     name: Some(binder_name),
                     mutable: false,
-                    ty: int,
+                    ty: elem_ty,
                     init: Some(cur_ref(for_span)),
                 }),
             };
@@ -1092,10 +1131,10 @@ impl<'a> HirLowering<'a> {
             } else {
                 ast::BinaryOp::Sub
             };
-            let step_access = prog_field(me, for_span, "step", int);
+            let step_access = prog_field(me, for_span, "step", elem_ty);
             let step_expr = Expr {
                 span: for_span,
-                ty: int,
+                ty: elem_ty,
                 kind: ExprKind::Binary {
                     lhs: Box::new(cur_ref(for_span)),
                     op: step_op,

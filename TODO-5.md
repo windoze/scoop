@@ -6,7 +6,7 @@
 > 全局约束：见 [`TODO.md`](./TODO.md) `## 全局约束` 一节。
 ## P9：删除 `stdlib/`
 
-### P9-T01：把 desugar 依赖从 stdlib 迁入 core
+### [DONE] P9-T01：把 desugar 依赖从 stdlib 迁入 core
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §6.5 / §9 / P9
@@ -43,6 +43,35 @@
 - 完成条件：
   - core 自身已包含 desugar 必需的 progression helper；删 stdlib 不会破坏 for-loop。
 - 依赖：P8-T06。
+
+完成记录：
+
+- 改动范围：
+  - `stdlib/prelude.scoop` 中旧 progression helper block 已移除，仅保留 scope/precondition 等待 P9-T03 删除的 stdlib surface。
+  - `sysroot/core.scoop` 现在包含 `Int/Long/UInt/ULongProgression`、`__scoop_range_default_step`、四组 `rangeTo/downTo/until/forEach` helper；`__scoop_range_default_step` 直接返回 `1` / `1u` / `1UL`，不再使用 `sizeOf(sample) / sizeOf(sample)` trick。
+  - `..` range HIR lowering 改为按 progression 结果类型直接构造对应 progression struct；`rangeTo/downTo/until` extension call lowering 同步 inline 为 progression struct 构造，避免 overloaded top-level helper 在 HIR/codegen 阶段重新选择错误版本。
+  - typecheck / HIR for-loop lowering 增加 `LongProgression` / `UIntProgression` / `ULongProgression` 分流；整数字面量增加 `L` / `u` / `UL` suffix 支持，满足 `0L..10L` / `0u..10u` / `0UL..10UL` owner fixtures。
+  - LLVM type FQN fallback 补齐 `Byte/Short/UShort/Long/ULong/Double` 标准 alias 映射，避免 alias 出现在 layout field fallback 时退化为未知类型。
+  - 新增 owner fixtures：`range_int_for.scoop`、`range_long_for.scoop`、`range_uint_for.scoop`、`range_ulong_for.scoop` 及对应 stdout。
+- 核心决策：
+  - 选择直接追加到 `sysroot/core.scoop`，未保留独立 `sysroot/progression.scoop`。验证中发现独立 compilable sysroot file 会让 progression struct 在当前 sysroot/support 双路径中产生不同 codegen identity；本任务允许“或直接追加到 core”，因此采用 core 内落地，避免引入新的 sysroot file 身份问题。
+  - 对 unsigned `until(0u/0UL)` 返回空 progression；`forEach` 在命中 `last` 后先 `break` 再加减 step，避免端点处 unsigned 下溢导致无限循环。
+  - `..` 与 `rangeTo/downTo/until` helper call 在 HIR 中直接构造 progression struct；sysroot 仍保留普通 Scoop helper surface，供 source-level API 与 P9-T03 后 core-only 环境使用。
+- 验证结果：
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/range_int_for.scoop` 通过。
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/range_long_for.scoop` 通过。
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/range_uint_for.scoop` 通过。
+  - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/range_ulong_for.scoop` 通过。
+  - 既有 range/progression 回归 `for_in_int_progression_basic.scoop`、`stdlib_ranges_enhanced_basic.scoop`、`stdlib_smoke_ranges_and_io.scoop`、`kotlin_ranges_progressions_basic.scoop` 均通过。
+  - `cargo build` 通过。
+  - `cargo clippy --all-targets -- -D warnings` 通过。
+  - `cargo test --all --all-targets` 通过（858 passed）。
+  - `cargo run -p scoop -- test` 完整执行，结果为 1357/1358 targets passed、1394 checks passed；唯一失败仍是既有 `run-pass/mutable_array_ops_basic.scoop`。
+- 与 `PLAN.md` 对应闭合：
+  - 闭合 PLAN §6.5：`IntProgression` 扩展为 `Int/Long/UInt/ULong` 四组 progression surface。
+  - 闭合 PLAN §9 / P9-T01：range / for-loop desugar 不再依赖 `stdlib/prelude.scoop` 中的 progression helper；后续 P9-T03 删除 `stdlib/` 不会破坏 range/for-loop core path。
+- 暂时性 failing fixture：
+  - `tests/fixtures/run-pass/mutable_array_ops_basic.scoop` 是 P4-T02 / P8-T04c 等完成记录中已列出的既有失败，覆盖已删除的旧 `MutableArray<Int>.pop/insert/removeAt/splice` copy-style API；继续由 P9-T02 三分类清单处理，最终由 P13-T04 收尾。本任务未新增 failing fixture。
 
 ### P9-T02：按 P0-T01 三分类清单批量改写 / 合并 / 删除 fixture
 

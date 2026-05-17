@@ -1,0 +1,17 @@
+// EXPECT: pass
+// RUN-STDOUT: range_int_for.stdout
+// EXPECT-EXIT: 0
+
+import scoop.core.*
+
+fun main(): Int {
+    var sum: Int = 0
+    var count: Int = 0
+    for (x in 0..10) {
+        sum = sum + x
+        count = count + 1
+    }
+    println(sum)
+    println(count)
+    return 0
+}

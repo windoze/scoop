@@ -2311,6 +2311,12 @@ pub enum ForLoopIterableKind {
     ArrayInt,
     /// `IntProgression` — 降糖为 progression while 循环（字段访问）。
     IntProgression,
+    /// `LongProgression` — 元素类型为 `Long`。
+    LongProgression,
+    /// `UIntProgression` — 元素类型为 `UInt`。
+    UIntProgression,
+    /// `ULongProgression` — 元素类型为 `ULong`。
+    ULongProgression,
     /// 其它实现了 iterator()/next() 协议的类型。
     Custom,
 }

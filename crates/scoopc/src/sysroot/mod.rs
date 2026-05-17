@@ -80,7 +80,7 @@ impl Sysroot {
                 .wrap_err_with(|| format!("解析 sysroot 文件失败：{}", path.display()))?;
 
             // T0143：含有真实实现体的 sysroot 文件需要走完整编译管线，而非仅作为签名索引。
-            // 除了既有的 `string/lang_string/print/task.scoop` 之外，overlay 的 `core.scoop` 若声明了
+            // 除了既有的 `core/string/lang_string/print/task.scoop` 之外，overlay 的 `core.scoop` 若声明了
             // bodied `@Intrinsic struct/class` 也必须进入 compilable support sources。
             if is_compilable_sysroot_file(&path, &source, &ast) {
                 compilable_source_paths.push(path.clone());

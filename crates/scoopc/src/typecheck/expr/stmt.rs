@@ -4,7 +4,9 @@ use crate::ast;
 use crate::resolve::Visibility;
 use crate::source::SourceFile;
 use crate::span::Span;
-use crate::ty::{BuiltinTypes, EffectRow, RefTypeKind, TypeId, TypeKind, ValueTypeKind};
+use crate::ty::{
+    BuiltinTypes, EffectRow, NominalType, RefTypeKind, TypeId, TypeKind, ValueTypeKind,
+};
 
 use super::call::{
     check_fn_value_to_any_erasure_gate, check_nogc_boxing_gate,
@@ -28,6 +30,48 @@ use super::super::annotations::check_inline_annotation_uses;
 use super::super::assignable::is_type_assignable;
 use super::super::builtin_annotations::BuiltinAnnotationFlags;
 use super::super::lower::{TypeLowering, WhereBoundEntry};
+
+fn scalar_progression_for_loop_kind(
+    fqn: &str,
+    builtins: BuiltinTypes,
+    lower: &mut TypeLowering<'_>,
+) -> Option<(ast::ForLoopIterableKind, TypeId)> {
+    let kind = match fqn {
+        "scoop.core.IntProgression" => ast::ForLoopIterableKind::IntProgression,
+        "scoop.core.LongProgression" => ast::ForLoopIterableKind::LongProgression,
+        "scoop.core.UIntProgression" => ast::ForLoopIterableKind::UIntProgression,
+        "scoop.core.ULongProgression" => ast::ForLoopIterableKind::ULongProgression,
+        _ => return None,
+    };
+    let elem_ty = scalar_progression_element_ty(fqn, builtins, lower)?;
+    Some((kind, elem_ty))
+}
+
+fn scalar_progression_element_ty(
+    fqn: &str,
+    builtins: BuiltinTypes,
+    lower: &mut TypeLowering<'_>,
+) -> Option<TypeId> {
+    match fqn {
+        "scoop.core.IntProgression" => Some(builtins.int),
+        "scoop.core.LongProgression" => Some(lower.intern_type_kind(TypeKind::Value(
+            ValueTypeKind::Nominal(NominalType {
+                fqn: "scoop.core.Int64".to_string(),
+                args: Vec::new(),
+                eff: None,
+            }),
+        ))),
+        "scoop.core.UIntProgression" => Some(builtins.uint),
+        "scoop.core.ULongProgression" => Some(lower.intern_type_kind(TypeKind::Value(
+            ValueTypeKind::Nominal(NominalType {
+                fqn: "scoop.core.UInt64".to_string(),
+                args: Vec::new(),
+                eff: None,
+            }),
+        ))),
+        _ => None,
+    }
+}
 use super::super::type_env::AnnotationTargetKind;
 use super::super::{val_pat, when_exhaustiveness, when_pat};
 
@@ -928,13 +972,13 @@ fn check_stmt_exprs_with_mode(
                 });
                 // Array<T> — 要素型は最初の型引数
                 iter_args.first().copied().unwrap_or(shared.builtins.any)
-            } else if iter_fqn == "scoop.core.IntProgression" {
-                let _ = f.resolved_for_info.set(ForLoopResolvedInfo {
-                    kind: ForLoopIterableKind::IntProgression,
-                    custom: None,
-                });
-                // IntProgression — 要素型は常に Int
-                shared.builtins.int
+            } else if let Some((kind, elem_ty)) =
+                scalar_progression_for_loop_kind(&iter_fqn, shared.builtins, lower)
+            {
+                let _ = f
+                    .resolved_for_info
+                    .set(ForLoopResolvedInfo { kind, custom: None });
+                elem_ty
             } else {
                 // Generic iterator protocol: xs.iterator().next(): Option<Elem>
                 let iterator_method_fqn = format!("{iter_fqn}.iterator");
@@ -1102,10 +1146,8 @@ fn check_stmt_exprs_with_mode(
                             || iter_fqn == "scoop.core.ComptimeList"
                         {
                             Some(iter_args.first().copied().unwrap_or(shared.builtins.any))
-                        } else if iter_fqn == "scoop.core.IntProgression" {
-                            Some(shared.builtins.int)
                         } else {
-                            None
+                            scalar_progression_element_ty(&iter_fqn, shared.builtins, lower)
                         }
                     })
                     .unwrap_or(shared.builtins.any),

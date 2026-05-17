@@ -364,6 +364,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 signed: false,
             })),
             "scoop.core.Float64" => Ok(CgTy::Float64),
+            "scoop.core.Double" => Ok(CgTy::Float64),
             "scoop.core.Float32" => Ok(CgTy::Float32),
             "scoop.core.Int" => Ok(CgTy::Int(IntTy {
                 bits: self.host.word_bit_width(),
@@ -379,6 +380,26 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             })),
             "scoop.core.UIntPtr" => Ok(CgTy::Int(IntTy {
                 bits: self.host.word_bit_width(),
+                signed: false,
+            })),
+            "scoop.core.Byte" => Ok(CgTy::Int(IntTy {
+                bits: 8,
+                signed: false,
+            })),
+            "scoop.core.Short" => Ok(CgTy::Int(IntTy {
+                bits: 16,
+                signed: true,
+            })),
+            "scoop.core.UShort" => Ok(CgTy::Int(IntTy {
+                bits: 16,
+                signed: false,
+            })),
+            "scoop.core.Long" => Ok(CgTy::Int(IntTy {
+                bits: 64,
+                signed: true,
+            })),
+            "scoop.core.ULong" => Ok(CgTy::Int(IntTy {
+                bits: 64,
                 signed: false,
             })),
             other => {

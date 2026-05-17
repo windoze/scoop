@@ -4,6 +4,7 @@ use crate::ast;
 use crate::source::SourceFile;
 use crate::span::Span;
 use crate::syntax::float_literal::{FloatLiteralSuffix, parse_float_literal};
+use crate::syntax::int_literal::{IntLiteralSuffix, parse_int_literal_suffix};
 use crate::ty::{
     BuiltinTypes, EffectRow, NominalType, RefTypeKind, TypeId, TypeKind, ValueTypeKind,
 };
@@ -63,7 +64,24 @@ pub(super) fn infer_expr_type(
     }
 
     match &expr.kind {
-        ast::ExprKind::IntLit => Ok(builtins.int),
+        ast::ExprKind::IntLit => match parse_int_literal_suffix(source.slice(expr.span)) {
+            IntLiteralSuffix::None => Ok(builtins.int),
+            IntLiteralSuffix::UInt => Ok(builtins.uint),
+            IntLiteralSuffix::Long => Ok(lower.intern_type_kind(TypeKind::Value(
+                ValueTypeKind::Nominal(NominalType {
+                    fqn: "scoop.core.Int64".to_string(),
+                    args: Vec::new(),
+                    eff: None,
+                }),
+            ))),
+            IntLiteralSuffix::ULong => Ok(lower.intern_type_kind(TypeKind::Value(
+                ValueTypeKind::Nominal(NominalType {
+                    fqn: "scoop.core.UInt64".to_string(),
+                    args: Vec::new(),
+                    eff: None,
+                }),
+            ))),
+        },
         ast::ExprKind::FloatLit => {
             let parsed = parse_float_literal(source.slice(expr.span));
             match parsed.suffix {

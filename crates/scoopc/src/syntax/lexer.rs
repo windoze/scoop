@@ -331,7 +331,22 @@ impl<'a> Lexer<'a> {
             }
             self.finish_float_literal(start)
         } else {
+            self.lex_int_suffix_candidate();
             self.finish_int_literal(start)
+        }
+    }
+
+    fn lex_int_suffix_candidate(&mut self) {
+        if self.peek_char().is_some_and(|ch| matches!(ch, 'u' | 'U')) {
+            self.bump_char();
+            if self.peek_char().is_some_and(|ch| matches!(ch, 'l' | 'L')) {
+                self.bump_char();
+            }
+            return;
+        }
+
+        if self.peek_char().is_some_and(|ch| matches!(ch, 'l' | 'L')) {
+            self.bump_char();
         }
     }
 

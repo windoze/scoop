@@ -1184,12 +1184,11 @@ struct UInt64 : Hashable {
     fun compareTo(other: UInt64): Int
 }
 
-// Kotlin-like ranges/progressions（Appendix B.12）所需的最小表面。
-//
-// 说明：
-// - v0 阶段先只提供 `IntProgression`（由 stdlib 提供纯 Scoop 可执行实现）；不引入更完整的 `IntRange` 等；
-// - 字段命名与 Kotlin/stdlib 对齐：`first/last/step`，并用 `increasing` 区分升序/降序迭代路径。
+// Kotlin-like ranges/progressions（Appendix B.12）所需的核心类型表面。
 struct IntProgression(val first: Int, val last: Int, val step: Int, val increasing: Bool)
+struct LongProgression(val first: Long, val last: Long, val step: Long, val increasing: Bool)
+struct UIntProgression(val first: UInt, val last: UInt, val step: UInt, val increasing: Bool)
+struct ULongProgression(val first: ULong, val last: ULong, val step: ULong, val increasing: Bool)
 
 // 标准别名（Kotlin/Swift 风格）。
 typealias Byte = UInt8
@@ -1198,6 +1197,230 @@ typealias UShort = UInt16
 typealias Long = Int64
 typealias ULong = UInt64
 typealias UIntPtr = UInt
+
+fun __scoop_range_default_step(sample: Int): Int {
+    return 1
+}
+
+fun __scoop_range_default_step(sample: Long): Long {
+    return 1
+}
+
+fun __scoop_range_default_step(sample: UInt): UInt {
+    return 1u
+}
+
+fun __scoop_range_default_step(sample: ULong): ULong {
+    return 1UL
+}
+
+fun Int.rangeTo(endInclusive: Int, step: Int): IntProgression {
+    return IntProgression {
+        first: this,
+        last: endInclusive,
+        step: step,
+        increasing: true,
+    }
+}
+
+fun Int.downTo(endInclusive: Int, step: Int): IntProgression {
+    return IntProgression {
+        first: this,
+        last: endInclusive,
+        step: step,
+        increasing: false,
+    }
+}
+
+fun Int.until(endExclusive: Int): IntProgression {
+    val one: Int = __scoop_range_default_step(this)
+    return this.rangeTo(endExclusive - one, one)
+}
+
+fun <eff E = Pure> IntProgression.forEach(action: (Int) -> Unit / E): Unit / E {
+    var cur: Int = this.first
+    when (this.increasing) {
+        true -> {
+            while (cur <= this.last) {
+                action(cur)
+                if (cur == this.last) {
+                    break
+                }
+                cur = cur + this.step
+            }
+        }
+        false -> {
+            while (cur >= this.last) {
+                action(cur)
+                if (cur == this.last) {
+                    break
+                }
+                cur = cur - this.step
+            }
+        }
+    }
+    return ()
+}
+
+fun Long.rangeTo(endInclusive: Long, step: Long): LongProgression {
+    return LongProgression {
+        first: this,
+        last: endInclusive,
+        step: step,
+        increasing: true,
+    }
+}
+
+fun Long.downTo(endInclusive: Long, step: Long): LongProgression {
+    return LongProgression {
+        first: this,
+        last: endInclusive,
+        step: step,
+        increasing: false,
+    }
+}
+
+fun Long.until(endExclusive: Long): LongProgression {
+    val one: Long = __scoop_range_default_step(this)
+    return this.rangeTo(endExclusive - one, one)
+}
+
+fun <eff E = Pure> LongProgression.forEach(action: (Long) -> Unit / E): Unit / E {
+    var cur: Long = this.first
+    when (this.increasing) {
+        true -> {
+            while (cur <= this.last) {
+                action(cur)
+                if (cur == this.last) {
+                    break
+                }
+                cur = cur + this.step
+            }
+        }
+        false -> {
+            while (cur >= this.last) {
+                action(cur)
+                if (cur == this.last) {
+                    break
+                }
+                cur = cur - this.step
+            }
+        }
+    }
+    return ()
+}
+
+fun UInt.rangeTo(endInclusive: UInt, step: UInt): UIntProgression {
+    return UIntProgression {
+        first: this,
+        last: endInclusive,
+        step: step,
+        increasing: true,
+    }
+}
+
+fun UInt.downTo(endInclusive: UInt, step: UInt): UIntProgression {
+    return UIntProgression {
+        first: this,
+        last: endInclusive,
+        step: step,
+        increasing: false,
+    }
+}
+
+fun UInt.until(endExclusive: UInt): UIntProgression {
+    val one: UInt = __scoop_range_default_step(this)
+    if (endExclusive == 0u) {
+        return UIntProgression {
+            first: one,
+            last: endExclusive,
+            step: one,
+            increasing: true,
+        }
+    }
+    return this.rangeTo(endExclusive - one, one)
+}
+
+fun <eff E = Pure> UIntProgression.forEach(action: (UInt) -> Unit / E): Unit / E {
+    var cur: UInt = this.first
+    when (this.increasing) {
+        true -> {
+            while (cur <= this.last) {
+                action(cur)
+                if (cur == this.last) {
+                    break
+                }
+                cur = cur + this.step
+            }
+        }
+        false -> {
+            while (cur >= this.last) {
+                action(cur)
+                if (cur == this.last) {
+                    break
+                }
+                cur = cur - this.step
+            }
+        }
+    }
+    return ()
+}
+
+fun ULong.rangeTo(endInclusive: ULong, step: ULong): ULongProgression {
+    return ULongProgression {
+        first: this,
+        last: endInclusive,
+        step: step,
+        increasing: true,
+    }
+}
+
+fun ULong.downTo(endInclusive: ULong, step: ULong): ULongProgression {
+    return ULongProgression {
+        first: this,
+        last: endInclusive,
+        step: step,
+        increasing: false,
+    }
+}
+
+fun ULong.until(endExclusive: ULong): ULongProgression {
+    val one: ULong = __scoop_range_default_step(this)
+    if (endExclusive == 0UL) {
+        return ULongProgression {
+            first: one,
+            last: endExclusive,
+            step: one,
+            increasing: true,
+        }
+    }
+    return this.rangeTo(endExclusive - one, one)
+}
+
+fun <eff E = Pure> ULongProgression.forEach(action: (ULong) -> Unit / E): Unit / E {
+    var cur: ULong = this.first
+    when (this.increasing) {
+        true -> {
+            while (cur <= this.last) {
+                action(cur)
+                if (cur == this.last) {
+                    break
+                }
+                cur = cur + this.step
+            }
+        }
+        false -> {
+            while (cur >= this.last) {
+                action(cur)
+                if (cur == this.last) {
+                    break
+                }
+                cur = cur - this.step
+            }
+        }
+    }
+    return ()
+}
 
 // Compiler intrinsics（spec §15.7 / §6.4）。
 //

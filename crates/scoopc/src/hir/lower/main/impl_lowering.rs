@@ -11,7 +11,15 @@ impl<'a> HirLowering<'a> {
     pub(in crate::hir::lower) const MUTABLE_ARRAY_PUSH_FQN: &'static str = "scoop.core.push";
     pub(in crate::hir::lower) const MUTABLE_ARRAY_FREEZE_FQN: &'static str = "scoop.core.freeze";
     pub(in crate::hir::lower) const INT_PROGRESSION_FQN: &'static str = "scoop.core.IntProgression";
+    pub(in crate::hir::lower) const LONG_PROGRESSION_FQN: &'static str =
+        "scoop.core.LongProgression";
+    pub(in crate::hir::lower) const UINT_PROGRESSION_FQN: &'static str =
+        "scoop.core.UIntProgression";
+    pub(in crate::hir::lower) const ULONG_PROGRESSION_FQN: &'static str =
+        "scoop.core.ULongProgression";
     pub(in crate::hir::lower) const RANGE_TO_FQN: &'static str = "scoop.core.rangeTo";
+    pub(in crate::hir::lower) const DOWN_TO_FQN: &'static str = "scoop.core.downTo";
+    pub(in crate::hir::lower) const UNTIL_FQN: &'static str = "scoop.core.until";
     pub(in crate::hir::lower) const RANGE_DEFAULT_STEP_FQN: &'static str =
         "scoop.core.__scoop_range_default_step";
     pub(in crate::hir::lower) const STRING_BUILDER_FQN: &'static str =

@@ -3,6 +3,7 @@ use crate::resolve::{ConeId, Visibility};
 use crate::source::SourceFile;
 use crate::span::Span;
 use crate::syntax::float_literal::{FloatLiteralSuffix, parse_float_literal};
+use crate::syntax::int_literal::{IntLiteralSuffix, parse_int_literal_suffix};
 use crate::ty::{
     BuiltinTypes, EffectRow, NominalType, RefTypeKind, TypeId, TypeKind, ValueTypeKind,
 };
@@ -97,21 +98,33 @@ fn is_char_type(ty: TypeId, builtins: BuiltinTypes) -> bool {
     ty == builtins.char_
 }
 
-fn int_progression_ty(lower: &mut TypeLowering<'_>) -> TypeId {
-    lower.intern_type_kind(TypeKind::Value(ValueTypeKind::Nominal(NominalType {
-        fqn: "scoop.core.IntProgression".to_string(),
-        args: Vec::new(),
-        eff: None,
-    })))
+fn progression_ty_for_integer_ty(ty: TypeId, lower: &mut TypeLowering<'_>) -> Option<TypeId> {
+    let fqn = match lower.type_kind(ty) {
+        TypeKind::Value(ValueTypeKind::Int) => "scoop.core.IntProgression",
+        TypeKind::Value(ValueTypeKind::UInt) => "scoop.core.UIntProgression",
+        TypeKind::Value(ValueTypeKind::IntN(64)) => "scoop.core.LongProgression",
+        TypeKind::Value(ValueTypeKind::UIntN(64)) => "scoop.core.ULongProgression",
+        TypeKind::Value(ValueTypeKind::Nominal(nominal)) if nominal.fqn == "scoop.core.Int64" => {
+            "scoop.core.LongProgression"
+        }
+        TypeKind::Value(ValueTypeKind::Nominal(nominal)) if nominal.fqn == "scoop.core.UInt64" => {
+            "scoop.core.ULongProgression"
+        }
+        _ => return None,
+    };
+
+    Some(
+        lower.intern_type_kind(TypeKind::Value(ValueTypeKind::Nominal(NominalType {
+            fqn: fqn.to_string(),
+            args: Vec::new(),
+            eff: None,
+        }))),
+    )
 }
 
-fn is_int_or_int_literal_absorbed_to_int(
-    expr: &ast::Expr,
-    ty: TypeId,
-    other_ty: TypeId,
-    builtins: BuiltinTypes,
-) -> bool {
-    ty == builtins.int || (matches!(expr.kind, ast::ExprKind::IntLit) && other_ty == builtins.int)
+fn unsuffixed_int_literal(expr: &ast::Expr, source: &SourceFile) -> bool {
+    matches!(expr.kind, ast::ExprKind::IntLit)
+        && parse_int_literal_suffix(source.slice(expr.span)) == IntLiteralSuffix::None
 }
 
 fn is_unsuffixed_float_literal(expr: &ast::Expr, source: &SourceFile) -> bool {
@@ -142,7 +155,9 @@ pub(super) fn literal_absorbs_to_expected(
     builtins: BuiltinTypes,
 ) -> bool {
     match &expr.kind {
-        ast::ExprKind::IntLit => is_integer_type(expected_ty, lower, builtins),
+        ast::ExprKind::IntLit => {
+            unsuffixed_int_literal(expr, source) && is_integer_type(expected_ty, lower, builtins)
+        }
         ast::ExprKind::FloatLit => {
             is_unsuffixed_float_literal(expr, source) && expected_ty == builtins.float32
         }
@@ -165,6 +180,7 @@ fn unify_integer_operands_for_same_type_rule(
     lhs_ty: TypeId,
     rhs: &ast::Expr,
     rhs_ty: TypeId,
+    source: &SourceFile,
     lower: &TypeLowering<'_>,
     builtins: BuiltinTypes,
 ) -> Option<TypeId> {
@@ -172,11 +188,11 @@ fn unify_integer_operands_for_same_type_rule(
         return Some(lhs_ty);
     }
 
-    if matches!(lhs.kind, ast::ExprKind::IntLit) && is_integer_type(rhs_ty, lower, builtins) {
+    if unsuffixed_int_literal(lhs, source) && is_integer_type(rhs_ty, lower, builtins) {
         return Some(rhs_ty);
     }
 
-    if matches!(rhs.kind, ast::ExprKind::IntLit) && is_integer_type(lhs_ty, lower, builtins) {
+    if unsuffixed_int_literal(rhs, source) && is_integer_type(lhs_ty, lower, builtins) {
         return Some(lhs_ty);
     }
 
@@ -1005,6 +1021,7 @@ pub(super) fn infer_operator_overload_binary_expr_type(
                     lhs_ty,
                     rhs,
                     rhs_ty,
+                    inputs.source,
                     lower,
                     inputs.builtins,
                 ) else {
@@ -1404,6 +1421,7 @@ pub(super) fn infer_builtin_scalar_binary_expr_type(
                     lhs_ty,
                     rhs,
                     rhs_ty,
+                    inputs.source,
                     lower,
                     inputs.builtins,
                 )
@@ -1426,6 +1444,7 @@ pub(super) fn infer_builtin_scalar_binary_expr_type(
                 lhs_ty,
                 rhs,
                 rhs_ty,
+                inputs.source,
                 lower,
                 inputs.builtins,
             )
@@ -1503,6 +1522,7 @@ pub(super) fn infer_builtin_scalar_binary_expr_type(
                 lhs_ty,
                 rhs,
                 rhs_ty,
+                inputs.source,
                 lower,
                 inputs.builtins,
             )
@@ -1526,16 +1546,27 @@ pub(super) fn infer_builtin_scalar_binary_expr_type(
             span: op_span.into(),
         }),
 
-        // range/progression（Appendix B.12）：当前阶段只支持 Int → IntProgression。
+        // range/progression（Appendix B.12）：核心整数类型映射到对应 Progression。
         ast::BinaryOp::RangeInclusive => {
-            let lhs_ok =
-                is_int_or_int_literal_absorbed_to_int(lhs, lhs_ty, rhs_ty, inputs.builtins);
-            let rhs_ok =
-                is_int_or_int_literal_absorbed_to_int(rhs, rhs_ty, lhs_ty, inputs.builtins);
-            if lhs_ok && rhs_ok {
-                return Ok(int_progression_ty(lower));
+            if let Some(integer_ty) = unify_integer_operands_for_same_type_rule(
+                lhs,
+                lhs_ty,
+                rhs,
+                rhs_ty,
+                inputs.source,
+                lower,
+                inputs.builtins,
+            ) && let Some(progression_ty) = progression_ty_for_integer_ty(integer_ty, lower)
+            {
+                return Ok(progression_ty);
             }
-            Err(mismatch("Int"))
+            Err(ExprTypeError::BinaryOpOperandTypeMismatch {
+                op: binary_op_text(op).to_string(),
+                expected: "Int、Long、UInt 或 ULong".to_string(),
+                lhs: lower.fmt_type(lhs_ty),
+                rhs: lower.fmt_type(rhs_ty),
+                span: op_span.into(),
+            })
         }
     }
 }

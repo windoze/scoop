@@ -1,0 +1,24 @@
+// EXPECT: pass
+// RUN-STDOUT: range_uint_for.stdout
+// EXPECT-EXIT: 0
+
+import scoop.core.*
+
+fun main(): Int {
+    var count: Int = 0
+    var firstOk: Bool = false
+    var lastOk: Bool = false
+    for (x in 0u..10u) {
+        if (count == 0) {
+            firstOk = x == 0u
+        }
+        if (x == 10u) {
+            lastOk = true
+        }
+        count = count + 1
+    }
+    println(count)
+    println(firstOk)
+    println(lastOk)
+    return 0
+}

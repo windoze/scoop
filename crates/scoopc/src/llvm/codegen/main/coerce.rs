@@ -395,6 +395,21 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
             (CgTy::Tuple(from), CgTy::Tuple(to)) if from == to => Ok(value),
             (CgTy::Struct(from), CgTy::Struct(to)) if from == to => Ok(value),
+            (CgTy::Struct(from), CgTy::Struct(to)) => {
+                let from_llvm = self.llvm_basic_type_of(at, CgTy::Struct(from))?;
+                let to_llvm = self.llvm_basic_type_of(at, CgTy::Struct(to))?;
+                if from_llvm == to_llvm {
+                    Ok(value)
+                } else {
+                    Err(LlvmEmitError::Frontend {
+                        message: format!(
+                            "unsupported value coercion from {:?} to {:?}",
+                            CgTy::Struct(from),
+                            CgTy::Struct(to)
+                        ),
+                    })
+                }
+            }
             (CgTy::Enum(from), CgTy::Enum(to)) if from == to => Ok(value),
             (CgTy::String, CgTy::Enum(target_enum))
             | (CgTy::Ref, CgTy::Enum(target_enum))

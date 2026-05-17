@@ -2,6 +2,8 @@
 
 #![allow(dead_code)]
 
+use crate::syntax::int_literal::{IntLiteralSuffix, parse_int_literal_suffix};
+
 use super::*;
 
 impl<'a> HirLowering<'a> {
@@ -41,7 +43,139 @@ impl<'a> HirLowering<'a> {
     }
 
     fn ast_int_literal_absorbs_to(&self, expr: &ast::Expr, ty: TypeId) -> bool {
-        matches!(expr.kind, ast::ExprKind::IntLit) && self.is_integer_type(ty)
+        matches!(expr.kind, ast::ExprKind::IntLit)
+            && parse_int_literal_suffix(self.source.slice(expr.span)) == IntLiteralSuffix::None
+            && self.is_integer_type(ty)
+    }
+
+    fn suffixed_int_literal_ty(&mut self, span: Span) -> Option<TypeId> {
+        match parse_int_literal_suffix(self.source.slice(span)) {
+            IntLiteralSuffix::None => None,
+            IntLiteralSuffix::UInt => Some(self.builtins.uint),
+            IntLiteralSuffix::Long => Some(self.types.ty_int_n(64)),
+            IntLiteralSuffix::ULong => Some(self.types.ty_uint_n(64)),
+        }
+    }
+
+    fn progression_element_ty(&mut self, progression_ty: TypeId) -> Option<TypeId> {
+        let fqn = match self.types.kind(progression_ty) {
+            TypeKind::Value(ValueTypeKind::Nominal(nominal)) => nominal.fqn.as_str(),
+            _ => return None,
+        };
+
+        match fqn {
+            Self::INT_PROGRESSION_FQN => Some(self.builtins.int),
+            Self::LONG_PROGRESSION_FQN => Some(self.types.ty_int_n(64)),
+            Self::UINT_PROGRESSION_FQN => Some(self.builtins.uint),
+            Self::ULONG_PROGRESSION_FQN => Some(self.types.ty_uint_n(64)),
+            _ => None,
+        }
+    }
+
+    fn progression_struct_lit_expr(
+        &self,
+        span: Span,
+        progression_ty: TypeId,
+        first: Expr,
+        last: Expr,
+        step: Expr,
+        increasing: bool,
+    ) -> Expr {
+        let first_span = first.span;
+        let last_span = last.span;
+        let step_span = step.span;
+        Expr {
+            span,
+            ty: progression_ty,
+            kind: ExprKind::StructLit {
+                ty: progression_ty,
+                fields: vec![
+                    StructLitField {
+                        span: first_span,
+                        name: "first".to_string(),
+                        name_span: first_span,
+                        colon_span: first_span,
+                        value: first,
+                    },
+                    StructLitField {
+                        span: last_span,
+                        name: "last".to_string(),
+                        name_span: last_span,
+                        colon_span: last_span,
+                        value: last,
+                    },
+                    StructLitField {
+                        span: step_span,
+                        name: "step".to_string(),
+                        name_span: step_span,
+                        colon_span: step_span,
+                        value: step,
+                    },
+                    StructLitField {
+                        span,
+                        name: "increasing".to_string(),
+                        name_span: span,
+                        colon_span: span,
+                        value: Expr {
+                            span,
+                            ty: self.builtins.bool_,
+                            kind: ExprKind::Literal(LiteralKind::Bool(increasing)),
+                        },
+                    },
+                ],
+            },
+        }
+    }
+
+    fn positional_call_arg_expr(args: &[CallArg], index: usize) -> Option<Expr> {
+        match args.get(index)? {
+            CallArg::Positional(expr) => Some(expr.clone()),
+            CallArg::Named { .. } => None,
+        }
+    }
+
+    fn try_lower_progression_extension_call(
+        &mut self,
+        span: Span,
+        fqn: &str,
+        args: &[CallArg],
+        call_ty: TypeId,
+    ) -> Option<Expr> {
+        let elem_ty = self.progression_element_ty(call_ty)?;
+        let first = Self::positional_call_arg_expr(args, 0)?;
+        let one = Expr {
+            span,
+            ty: elem_ty,
+            kind: ExprKind::Literal(LiteralKind::SynthInt(1)),
+        };
+
+        match fqn {
+            Self::RANGE_TO_FQN => {
+                let last = Self::positional_call_arg_expr(args, 1)?;
+                let step = Self::positional_call_arg_expr(args, 2)?;
+                Some(self.progression_struct_lit_expr(span, call_ty, first, last, step, true))
+            }
+            Self::DOWN_TO_FQN => {
+                let last = Self::positional_call_arg_expr(args, 1)?;
+                let step = Self::positional_call_arg_expr(args, 2)?;
+                Some(self.progression_struct_lit_expr(span, call_ty, first, last, step, false))
+            }
+            Self::UNTIL_FQN => {
+                let end_exclusive = Self::positional_call_arg_expr(args, 1)?;
+                let last = Expr {
+                    span,
+                    ty: elem_ty,
+                    kind: ExprKind::Binary {
+                        lhs: Box::new(end_exclusive),
+                        op: ast::BinaryOp::Sub,
+                        op_span: span,
+                        rhs: Box::new(one.clone()),
+                    },
+                };
+                Some(self.progression_struct_lit_expr(span, call_ty, first, last, one, true))
+            }
+            _ => None,
+        }
     }
 
     fn ast_float_literal_absorbs_to(&self, expr: &ast::Expr, ty: TypeId) -> bool {
@@ -445,14 +579,16 @@ impl<'a> HirLowering<'a> {
                 return self.lower_expr_with_expected(pkg_prefix, expr, expected);
             }
             ast::ExprKind::IntLit => {
-                let ty = expected
-                    .value_ty
-                    .filter(|ty| self.is_integer_type(*ty))
-                    .or_else(|| {
-                        self.typechecked_expr_ty(e.span)
-                            .filter(|ty| self.is_integer_type(*ty))
-                    })
-                    .unwrap_or(self.builtins.int);
+                let ty = self.suffixed_int_literal_ty(e.span).unwrap_or_else(|| {
+                    expected
+                        .value_ty
+                        .filter(|ty| self.is_integer_type(*ty))
+                        .or_else(|| {
+                            self.typechecked_expr_ty(e.span)
+                                .filter(|ty| self.is_integer_type(*ty))
+                        })
+                        .unwrap_or(self.builtins.int)
+                });
                 (ExprKind::Literal(LiteralKind::Int), ty)
             }
             ast::ExprKind::FloatLit => {
@@ -668,7 +804,12 @@ impl<'a> HirLowering<'a> {
                     let receiver =
                         self.lower_expr_with_expected(pkg_prefix, receiver, receiver_expected);
 
-                    if let Some(arg_binding) = self.typechecked_call_arg_binding(e.span)
+                    let is_progression_extension = matches!(
+                        fqn.as_str(),
+                        Self::RANGE_TO_FQN | Self::DOWN_TO_FQN | Self::UNTIL_FQN
+                    );
+                    if !is_progression_extension
+                        && let Some(arg_binding) = self.typechecked_call_arg_binding(e.span)
                         && let Some(fun_binding) =
                             self.typechecked_top_level_fun_call_binding(e.span)
                     {
@@ -707,6 +848,15 @@ impl<'a> HirLowering<'a> {
                         }
                         lowered_args
                             .push(self.lower_call_arg_with_expected(pkg_prefix, arg, expected));
+                    }
+
+                    if let Some(expr) = self.try_lower_progression_extension_call(
+                        e.span,
+                        fqn,
+                        &lowered_args,
+                        call_ty,
+                    ) {
+                        return Some((expr.kind, expr.ty));
                     }
 
                     let target_fqn = self
@@ -1548,12 +1698,13 @@ impl<'a> HirLowering<'a> {
         }
     }
 
-    /// `lhs .. rhs` → `{ val __range_start = lhs; val __range_end = rhs; rangeTo(__range_start, __range_end, __scoop_range_default_step(__range_start)) }`
+    /// `lhs .. rhs` → `{ val __range_start = lhs; val __range_end = rhs; Progression(__range_start, __range_end, 1, true) }`
     ///
     /// 说明：
     /// - 复用现有 `scoop.core.rangeTo(start, endInclusive, step)` 实现，不在后端新增 special-case；
     /// - 显式引入临时变量，保证左右端点只求值一次；
-    /// - `step = 1` 通过 stdlib helper `__scoop_range_default_step` 派生，避免在 lowering 中伪造源码字面量。
+    /// - `step = 1` 使用合成整数字面量，并按 range 元素类型赋予 HIR 类型；
+    /// - 直接构造 progression，避免 HIR synthetic top-level call 重新做 overloaded `rangeTo` 选择。
     pub(in crate::hir::lower) fn lower_range_inclusive_expr(
         &mut self,
         pkg_prefix: &str,
@@ -1566,8 +1717,13 @@ impl<'a> HirLowering<'a> {
             self.intern_nominal(Self::INT_PROGRESSION_FQN.to_string(), Vec::new(), None)
         });
 
-        let start_expr = self.lower_expr(pkg_prefix, lhs);
-        let end_expr = self.lower_expr(pkg_prefix, rhs);
+        let operand_expected = self
+            .progression_element_ty(progression_ty)
+            .map_or_else(ExpectedExpr::default, |ty| {
+                self.expected_expr_for_param_ty(ty)
+            });
+        let start_expr = self.lower_expr_with_expected(pkg_prefix, lhs, operand_expected);
+        let end_expr = self.lower_expr_with_expected(pkg_prefix, rhs, operand_expected);
 
         let start_decl_span = Span::new(op_span.start, op_span.start + 1);
         let end_decl_span = Span::new(op_span.start + 1, op_span.start + 2);
@@ -1625,47 +1781,20 @@ impl<'a> HirLowering<'a> {
             }),
         };
 
-        let step_helper = Expr {
-            span: op_span,
-            ty: self.builtins.any,
-            kind: ExprKind::VarRef(ValueRef::TopLevel {
-                id: self
-                    .symbols
-                    .intern_top_level(Self::RANGE_DEFAULT_STEP_FQN.to_string()),
-                fqn: Self::RANGE_DEFAULT_STEP_FQN.to_string(),
-            }),
-        };
         let step_expr = Expr {
             span: op_span,
-            ty: self.builtins.int,
-            kind: ExprKind::Call {
-                callee: Box::new(step_helper),
-                args: vec![CallArg::Positional(start_ref.clone())],
-            },
+            ty: start_ty,
+            kind: ExprKind::Literal(LiteralKind::SynthInt(1)),
         };
 
-        let range_to_callee = Expr {
-            span: op_span,
-            ty: self.builtins.any,
-            kind: ExprKind::VarRef(ValueRef::TopLevel {
-                id: self
-                    .symbols
-                    .intern_top_level(Self::RANGE_TO_FQN.to_string()),
-                fqn: Self::RANGE_TO_FQN.to_string(),
-            }),
-        };
-        let range_call = Expr {
+        let range_expr = self.progression_struct_lit_expr(
             span,
-            ty: progression_ty,
-            kind: ExprKind::Call {
-                callee: Box::new(range_to_callee),
-                args: vec![
-                    CallArg::Positional(start_ref),
-                    CallArg::Positional(end_ref),
-                    CallArg::Positional(step_expr),
-                ],
-            },
-        };
+            progression_ty,
+            start_ref,
+            end_ref,
+            step_expr,
+            true,
+        );
 
         Expr {
             span,
@@ -1679,7 +1808,7 @@ impl<'a> HirLowering<'a> {
                     Stmt {
                         span,
                         ty: progression_ty,
-                        kind: StmtKind::Expr(range_call),
+                        kind: StmtKind::Expr(range_expr),
                     },
                 ],
             }),
