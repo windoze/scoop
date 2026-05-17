@@ -1,25 +1,26 @@
-# Execution Plan
+# Claude Execution Plan
 
-This file tracks the actionable plan and progress for the current invocation. It intentionally records concise execution steps and status, not private reasoning.
+## Current Invocation
 
-## Current Plan
+- Goal: complete exactly the first incomplete task from `TODO.md`, then stop.
+- Source of truth: use `TODO.md` for task ordering, requirements, dependencies, validation, and completion records.
+- Plan:
+  1. Read `TODO.md` and identify the first task whose heading is not prefixed with `[DONE]`.
+  2. Check recent git context only as needed for the selected task, especially if the latest commit explicitly references an unfinished issue relevant to it.
+  3. Read the task's referenced code, tests, fixtures, and project context.
+  4. Implement the task directly, without narrowing scope or using workarounds.
+  5. If a concrete blocker prevents spec-correct implementation, add the minimum prerequisite task to `TODO.md`, keep the current task incomplete, commit that bookkeeping, and stop.
+  6. Run targeted validation first, then broader relevant validation required by the task.
+  7. Mark the completed task heading in `TODO.md` with `[DONE]` and update its completion record.
+  8. Update this file after key milestones or any plan change.
+  9. Commit all relevant changes with a descriptive task-tagged message.
+  10. Stop without starting the next task.
 
-1. Read `TODO.md` and identify the first task whose heading is not prefixed with `[DONE]`.
-2. Check the latest commit message only for an unfinished issue directly relevant to that selected task.
-3. Inspect the task requirements and the relevant code paths.
-4. Implement the first incomplete task completely, or add the minimum prerequisite task to `TODO.md` if a concrete blocker prevents spec-correct implementation.
-5. Run focused validation first, then broader required validation for the task.
-6. Update `TODO.md` completion status and record; update `PLAN.md` only if phase-level sequencing or dependencies changed.
-7. Commit all relevant changes with a descriptive task-tagged commit message.
-8. Stop after completing exactly one task.
+## Progress Log
 
-## Progress
-
-- Started invocation and recorded the initial execution plan.
-- Read `TODO.md`; selected first incomplete task `P10-T03`.
-- Read `TODO-5.md` task details and latest commit. Latest commit `[P10-T02] Remove cross-thread resume helper` is the direct predecessor and does not describe an unfinished blocker.
-- Audited sysroot and typecheck references. Thread/sync references are limited to `scoop.delegates`, `scoop.thread`, `scoop.sync`, and explicit `scoop.thread.threadSpawn` policy diagnostics; no core/lang.string dependency was found.
-- Validation passed: corrected static `rg` check for core/lang.string files, `cargo build`, `cargo clippy --all-targets -- -D warnings`, `cargo test --all --all-targets`, and full `cargo run -p scoop -- test`.
-- Preparing completion record updates for `P10-T03` in `TODO.md` and `TODO-5.md`; no phase-level `PLAN.md` change is needed.
-- Updated `TODO.md` and `TODO-5.md` to mark `P10-T03` as `[DONE]` with completion details.
-- Preparing git review and commit for the completed task.
+- Initial plan recorded before task inspection.
+- Identified first incomplete task: `P11-T01` in `TODO-5.md`.
+- Task scope: audit usage of `__scoop_gc_collect`, `__scoop_gc_debug_alloc_garbage`, `__scoop_gc_debug_heap_object_count`, and `__scoop_stackmap_statepoint_smoke`; record fixture usage and migration decisions for P11-T02 without implementing the migration yet.
+- Completed the audit record in `TODO-5.md` and marked `P11-T01` done in `TODO.md` / `TODO-5.md`.
+- Key decision update: `__scoop_gc_debug_heap_object_count` can move as C ABI leaf, but `__scoop_gc_debug_alloc_garbage` and `__scoop_stackmap_statepoint_smoke` must keep GC-aware/managed special handling in the future test cone.
+- Validation completed: required `rg` hit-count checks and overlay/stackmap usage checks match the completion record; `git diff --check` reports no whitespace errors.
