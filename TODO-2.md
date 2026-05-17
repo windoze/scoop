@@ -6,7 +6,7 @@
 > 全局约束：见 [`TODO.md`](./TODO.md) `## 全局约束` 一节。
 ## P4：数组字面量 desugar 切换 + 删除 builder
 
-### P4-T01：数组字面量 HIR desugar 切换到 `mutableArrayNew + push + freeze` 路径
+### [DONE] P4-T01：数组字面量 HIR desugar 切换到 `mutableArrayNew + push + freeze` 路径
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §6.4 / §9 / P4
@@ -51,6 +51,14 @@
   - HIR 阶段不再 emit `__scoop_array_builder_*` 调用（旧符号在 sysroot/runtime 里仍存在但已无 caller）。
   - 全量 fixture 运行结果不退化。
 - 依赖：P3-T03。
+
+完成记录（2026-05-17）：
+
+- 改动范围：`crates/scoopc/src/hir/lower/expr/canonical_call.rs` 中数组字面量和 vararg 合成数组统一改为 `mutableArrayNew(capacity=N)` + `scoop.core.push` + 可选 `scoop.core.freeze`；`crates/scoopc/src/hir/lower/util/generic_funs.rs` 支持从返回类型推断合成泛型调用实例；MIR array transport metadata 覆盖 `scoop.core.push/freeze`；相关 Rust 测试、HIR/MIR golden 和 LLVM 断言同步更新；新增 `tests/fixtures/run-pass/array_literal_empty_desugar.scoop`。
+- 核心决策：保留现有数组元素类型推断入口，只替换 lowering 形态；capacity hint 使用元素个数的 `SynthInt`；`Array<T>` 字面量 freeze，`MutableArray<T>` 字面量直接返回临时 `MutableArray<T>`；旧 `__scoop_array_builder_*` 声明/实现不在本任务删除，留给 P4-T02。
+- 验证结果：`cargo test -p scoopc array_literal_desugar -- --nocapture` 通过；5 个含数组字面量 run-pass fixture 抽样通过；`cargo run -p scoop -- test` 通过（1375 checks）；`cargo test --all --all-targets` 通过；`cargo clippy --all-targets -- -D warnings` 通过。
+- 与 `PLAN.md` 闭合：完成 P4 的数组字面量 desugar 切换部分；P4-T02 继续负责删除旧 builder surface。
+- 暂时性 failing fixture：无。
 
 ### P4-T02：删除 `__scoop_array_builder_*` 整套
 
@@ -276,4 +284,3 @@
 - 完成条件：
   - String 高级 helper 物理上位于 `scoop.lang.string`，但用户调用形态不变（自动 prelude 让它们可见）。
 - 依赖：P1-T02、P4-T02、P5-T02。
-

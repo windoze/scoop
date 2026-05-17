@@ -555,6 +555,186 @@ fn find_fun<'a>(lowered: &'a LoweredHir, fqn: &str) -> &'a FunDecl {
         .unwrap_or_else(|| panic!("expected HIR fun {fqn}"))
 }
 
+fn top_level_call_fqns_in_fun(fun: &FunDecl) -> Vec<String> {
+    let mut call_fqns = Vec::new();
+    collect_top_level_call_fqns_in_block(
+        fun.body.as_ref().expect("fun should have body"),
+        &mut call_fqns,
+    );
+    call_fqns
+}
+
+#[test]
+fn array_literal_desugar_array_uses_mutable_array_freeze() {
+    let sess = session();
+    let src = SourceFile::new_virtual(
+        "<mem>/array_literal_desugar_array.scoop",
+        r#"
+package fixtures.array_literal_desugar
+
+import scoop.core.*
+
+fun main(): Int {
+    val xs: Array<Int> = [1, 2, 3]
+    return xs.size()
+}
+"#,
+    );
+
+    let lowered = lower_typed_single_source_file(&sess, &src);
+    let main = find_fun(&lowered, "fixtures.array_literal_desugar.main");
+    let call_fqns = top_level_call_fqns_in_fun(main);
+
+    assert_eq!(
+        call_fqns
+            .iter()
+            .filter(|fqn| fqn.as_str() == "scoop.core.mutableArrayNew")
+            .count(),
+        1,
+        "array literal should allocate through mutableArrayNew: {call_fqns:#?}"
+    );
+    assert_eq!(
+        call_fqns
+            .iter()
+            .filter(|fqn| fqn.as_str() == "scoop.core.push")
+            .count(),
+        3,
+        "array literal should push each element through MutableArray.push: {call_fqns:#?}"
+    );
+    assert_eq!(
+        call_fqns
+            .iter()
+            .filter(|fqn| fqn.as_str() == "scoop.core.freeze")
+            .count(),
+        1,
+        "Array<T> literal should finish with MutableArray.freeze: {call_fqns:#?}"
+    );
+    assert!(
+        call_fqns
+            .iter()
+            .all(|fqn| !fqn.contains("__scoop_array_builder")),
+        "array literal HIR must not call the legacy builder: {call_fqns:#?}"
+    );
+}
+
+#[test]
+fn array_literal_desugar_mutable_array_skips_freeze() {
+    let sess = session();
+    let src = SourceFile::new_virtual(
+        "<mem>/array_literal_desugar_mutable_array.scoop",
+        r#"
+package fixtures.array_literal_desugar
+
+import scoop.core.*
+
+fun main(): Int {
+    val xs: MutableArray<Int> = [1, 2, 3]
+    return xs.size()
+}
+"#,
+    );
+
+    let lowered = lower_typed_single_source_file(&sess, &src);
+    let main = find_fun(&lowered, "fixtures.array_literal_desugar.main");
+    let call_fqns = top_level_call_fqns_in_fun(main);
+
+    assert_eq!(
+        call_fqns
+            .iter()
+            .filter(|fqn| fqn.as_str() == "scoop.core.mutableArrayNew")
+            .count(),
+        1,
+        "MutableArray<T> literal should allocate through mutableArrayNew: {call_fqns:#?}"
+    );
+    assert_eq!(
+        call_fqns
+            .iter()
+            .filter(|fqn| fqn.as_str() == "scoop.core.push")
+            .count(),
+        3,
+        "MutableArray<T> literal should push each element: {call_fqns:#?}"
+    );
+    assert!(
+        !call_fqns.iter().any(|fqn| fqn == "scoop.core.freeze"),
+        "MutableArray<T> literal must not freeze: {call_fqns:#?}"
+    );
+}
+
+#[test]
+fn array_literal_desugar_capacity_matches_element_count() {
+    let sess = session();
+    let src = SourceFile::new_virtual(
+        "<mem>/array_literal_desugar_capacity.scoop",
+        r#"
+package fixtures.array_literal_desugar
+
+import scoop.core.*
+
+fun main(): Int {
+    val xs: Array<Int> = [1, 2, 3]
+    return xs.size()
+}
+"#,
+    );
+
+    let lowered = lower_typed_single_source_file(&sess, &src);
+    let main = find_fun(&lowered, "fixtures.array_literal_desugar.main");
+    let main_body = main.body.as_ref().expect("main should have body");
+    let new_call = find_top_level_call_in_block(main_body, "scoop.core.mutableArrayNew")
+        .expect("array literal should call mutableArrayNew");
+    let ExprKind::Call { args, .. } = &new_call.kind else {
+        panic!("mutableArrayNew should lower to a call, got {new_call:?}");
+    };
+    let Some(CallArg::Positional(capacity)) = args.first() else {
+        panic!("mutableArrayNew should receive a positional capacity arg: {args:?}");
+    };
+    assert!(
+        matches!(capacity.kind, ExprKind::Literal(LiteralKind::SynthInt(3))),
+        "capacity hint should match element count, got {:?}",
+        capacity.kind
+    );
+}
+
+#[test]
+fn array_literal_desugar_empty_array_uses_zero_capacity_and_freeze() {
+    let sess = session();
+    let src = SourceFile::new_virtual(
+        "<mem>/array_literal_desugar_empty.scoop",
+        r#"
+package fixtures.array_literal_desugar
+
+import scoop.core.*
+
+fun main(): Int {
+    val xs: Array<Int> = []
+    return xs.size()
+}
+"#,
+    );
+
+    let lowered = lower_typed_single_source_file(&sess, &src);
+    let main = find_fun(&lowered, "fixtures.array_literal_desugar.main");
+    let main_body = main.body.as_ref().expect("main should have body");
+    let call_fqns = top_level_call_fqns_in_fun(main);
+    assert!(
+        call_fqns.iter().any(|fqn| fqn == "scoop.core.freeze"),
+        "empty Array<T> literal should still freeze: {call_fqns:#?}"
+    );
+    let new_call = find_top_level_call_in_block(main_body, "scoop.core.mutableArrayNew")
+        .expect("empty array literal should call mutableArrayNew");
+    let ExprKind::Call { args, .. } = &new_call.kind else {
+        panic!("mutableArrayNew should lower to a call, got {new_call:?}");
+    };
+    let Some(CallArg::Positional(capacity)) = args.first() else {
+        panic!("mutableArrayNew should receive a positional capacity arg: {args:?}");
+    };
+    assert!(
+        matches!(capacity.kind, ExprKind::Literal(LiteralKind::SynthInt(0))),
+        "empty array literal should pass zero capacity, got {:?}",
+        capacity.kind
+    );
+}
+
 #[test]
 fn hir_collects_scoop_extern_abi_metadata() {
     let sess = session();

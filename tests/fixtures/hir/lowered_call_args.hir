@@ -256,14 +256,14 @@ File {
                                                                 kind: Val(
                                                                     ValDecl {
                                                                         span: 259..265,
-                                                                        label: sym#h5e3106cffc3ddd9dcbeb6bc21fe8ff24,
-                                                                        name: "__array_builder",
+                                                                        label: sym#he42b3f12cb47f8f986cc670e917a7680,
+                                                                        name: "__array_lit_tmp_2",
                                                                         mutable: false,
-                                                                        ty: Any,
+                                                                        ty: scoop.core.MutableArray<Int>,
                                                                         init: Some(
                                                                             Expr {
                                                                                 span: 1048921..1048922,
-                                                                                ty: Any,
+                                                                                ty: scoop.core.MutableArray<Int>,
                                                                                 kind: Call {
                                                                                     callee:
                                                                                         Expr {
@@ -271,11 +271,18 @@ File {
                                                                                             ty: Any,
                                                                                             kind: VarRef(
                                                                                                 TopLevel {
-                                                                                                    fqn: "scoop.core.__scoop_array_builder_new",
+                                                                                                    fqn: "scoop.core.mutableArrayNew",
                                                                                                 }
                                                                                             ),
                                                                                         }
                                                                                     args: [
+                                                                                        Positional(
+                                                                                            Expr {
+                                                                                                span: 1048921..1048922,
+                                                                                                ty: Int,
+                                                                                                kind: Literal(SynthInt(2)),
+                                                                                            }
+                                                                                        ),
                                                                                     ],
                                                                                 },
                                                                             }
@@ -297,20 +304,20 @@ File {
                                                                                     ty: Any,
                                                                                     kind: VarRef(
                                                                                         TopLevel {
-                                                                                            fqn: "scoop.core.__scoop_array_builder_push",
+                                                                                            fqn: "scoop.core.push",
                                                                                         }
                                                                                     ),
                                                                                 }
                                                                             args: [
                                                                                 Positional(
                                                                                     Expr {
-                                                                                        span: 259..259,
-                                                                                        ty: Any,
+                                                                                        span: 349..350,
+                                                                                        ty: scoop.core.MutableArray<Int>,
                                                                                         kind: VarRef(
                                                                                             Local {
-                                                                                                label: sym#h5e3106cffc3ddd9dcbeb6bc21fe8ff24,
-                                                                                                name: "__array_builder",
-                                                                                                decl_span: 259..259,
+                                                                                                label: sym#he42b3f12cb47f8f986cc670e917a7680,
+                                                                                                name: "__array_lit_tmp_2",
+                                                                                                decl_span: 349..350,
                                                                                             }
                                                                                         ),
                                                                                     }
@@ -341,20 +348,20 @@ File {
                                                                                     ty: Any,
                                                                                     kind: VarRef(
                                                                                         TopLevel {
-                                                                                            fqn: "scoop.core.__scoop_array_builder_push",
+                                                                                            fqn: "scoop.core.push",
                                                                                         }
                                                                                     ),
                                                                                 }
                                                                             args: [
                                                                                 Positional(
                                                                                     Expr {
-                                                                                        span: 259..259,
-                                                                                        ty: Any,
+                                                                                        span: 349..350,
+                                                                                        ty: scoop.core.MutableArray<Int>,
                                                                                         kind: VarRef(
                                                                                             Local {
-                                                                                                label: sym#h5e3106cffc3ddd9dcbeb6bc21fe8ff24,
-                                                                                                name: "__array_builder",
-                                                                                                decl_span: 259..259,
+                                                                                                label: sym#he42b3f12cb47f8f986cc670e917a7680,
+                                                                                                name: "__array_lit_tmp_2",
+                                                                                                decl_span: 349..350,
                                                                                             }
                                                                                         ),
                                                                                     }
@@ -385,20 +392,20 @@ File {
                                                                                     ty: Any,
                                                                                     kind: VarRef(
                                                                                         TopLevel {
-                                                                                            fqn: "scoop.core.__scoop_array_builder_build_array",
+                                                                                            fqn: "scoop.core.freeze",
                                                                                         }
                                                                                     ),
                                                                                 }
                                                                             args: [
                                                                                 Positional(
                                                                                     Expr {
-                                                                                        span: 259..259,
-                                                                                        ty: Any,
+                                                                                        span: 349..350,
+                                                                                        ty: scoop.core.MutableArray<Int>,
                                                                                         kind: VarRef(
                                                                                             Local {
-                                                                                                label: sym#h5e3106cffc3ddd9dcbeb6bc21fe8ff24,
-                                                                                                name: "__array_builder",
-                                                                                                decl_span: 259..259,
+                                                                                                label: sym#he42b3f12cb47f8f986cc670e917a7680,
+                                                                                                name: "__array_lit_tmp_2",
+                                                                                                decl_span: 349..350,
                                                                                             }
                                                                                         ),
                                                                                     }
@@ -441,14 +448,14 @@ File {
                                                                 kind: Val(
                                                                     ValDecl {
                                                                         span: 294..296,
-                                                                        label: sym#hb1a3400c6ce31c9a5c2d78e7e6ce4432,
-                                                                        name: "__array_builder",
+                                                                        label: sym#h7b27bc06928269f1e997c2bb3d08c246,
+                                                                        name: "__array_lit_tmp_3",
                                                                         mutable: false,
-                                                                        ty: Any,
+                                                                        ty: scoop.core.MutableArray<Int>,
                                                                         init: Some(
                                                                             Expr {
                                                                                 span: 1048929..1048930,
-                                                                                ty: Any,
+                                                                                ty: scoop.core.MutableArray<Int>,
                                                                                 kind: Call {
                                                                                     callee:
                                                                                         Expr {
@@ -456,11 +463,18 @@ File {
                                                                                             ty: Any,
                                                                                             kind: VarRef(
                                                                                                 TopLevel {
-                                                                                                    fqn: "scoop.core.__scoop_array_builder_new",
+                                                                                                    fqn: "scoop.core.mutableArrayNew",
                                                                                                 }
                                                                                             ),
                                                                                         }
                                                                                     args: [
+                                                                                        Positional(
+                                                                                            Expr {
+                                                                                                span: 1048929..1048930,
+                                                                                                ty: Int,
+                                                                                                kind: Literal(SynthInt(0)),
+                                                                                            }
+                                                                                        ),
                                                                                     ],
                                                                                 },
                                                                             }
@@ -482,20 +496,20 @@ File {
                                                                                     ty: Any,
                                                                                     kind: VarRef(
                                                                                         TopLevel {
-                                                                                            fqn: "scoop.core.__scoop_array_builder_build_array",
+                                                                                            fqn: "scoop.core.freeze",
                                                                                         }
                                                                                     ),
                                                                                 }
                                                                             args: [
                                                                                 Positional(
                                                                                     Expr {
-                                                                                        span: 294..294,
-                                                                                        ty: Any,
+                                                                                        span: 351..352,
+                                                                                        ty: scoop.core.MutableArray<Int>,
                                                                                         kind: VarRef(
                                                                                             Local {
-                                                                                                label: sym#hb1a3400c6ce31c9a5c2d78e7e6ce4432,
-                                                                                                name: "__array_builder",
-                                                                                                decl_span: 294..294,
+                                                                                                label: sym#h7b27bc06928269f1e997c2bb3d08c246,
+                                                                                                name: "__array_lit_tmp_3",
+                                                                                                decl_span: 351..352,
                                                                                             }
                                                                                         ),
                                                                                     }
@@ -538,8 +552,8 @@ File {
                                                                 kind: Val(
                                                                     ValDecl {
                                                                         span: 314..325,
-                                                                        label: sym#h6b655f9b868a117a4677921bbb627a9b,
-                                                                        name: "__call_arg_2",
+                                                                        label: sym#h33f0c09ecb11c1bfeac19be3c1b3b9c6,
+                                                                        name: "__call_arg_4",
                                                                         mutable: false,
                                                                         ty: Int,
                                                                         init: Some(
@@ -558,8 +572,8 @@ File {
                                                                 kind: Val(
                                                                     ValDecl {
                                                                         span: 314..325,
-                                                                        label: sym#h274450601af9398a62b361befac88a4f,
-                                                                        name: "__call_arg_3",
+                                                                        label: sym#h35bed55d855a0eef96786c401a7b9c65,
+                                                                        name: "__call_arg_5",
                                                                         mutable: false,
                                                                         ty: scoop.core.Array<Int>,
                                                                         init: Some(
@@ -584,19 +598,19 @@ File {
                                                                 kind: Val(
                                                                     ValDecl {
                                                                         span: 314..325,
-                                                                        label: sym#h4373886a06696c5d63a8f554d2255937,
-                                                                        name: "__call_vararg_4",
+                                                                        label: sym#he6be5f197e9cdac7afdd2cc535572e5a,
+                                                                        name: "__call_vararg_6",
                                                                         mutable: false,
                                                                         ty: scoop.core.Array<Int>,
                                                                         init: Some(
                                                                             Expr {
-                                                                                span: 351..352,
+                                                                                span: 355..356,
                                                                                 ty: scoop.core.Array<Int>,
                                                                                 kind: VarRef(
                                                                                     Local {
-                                                                                        label: sym#h274450601af9398a62b361befac88a4f,
-                                                                                        name: "__call_arg_3",
-                                                                                        decl_span: 351..352,
+                                                                                        label: sym#h35bed55d855a0eef96786c401a7b9c65,
+                                                                                        name: "__call_arg_5",
+                                                                                        decl_span: 355..356,
                                                                                     }
                                                                                 ),
                                                                             }
@@ -625,26 +639,26 @@ File {
                                                                             args: [
                                                                                 Positional(
                                                                                     Expr {
-                                                                                        span: 349..350,
+                                                                                        span: 353..354,
                                                                                         ty: Int,
                                                                                         kind: VarRef(
                                                                                             Local {
-                                                                                                label: sym#h6b655f9b868a117a4677921bbb627a9b,
-                                                                                                name: "__call_arg_2",
-                                                                                                decl_span: 349..350,
+                                                                                                label: sym#h33f0c09ecb11c1bfeac19be3c1b3b9c6,
+                                                                                                name: "__call_arg_4",
+                                                                                                decl_span: 353..354,
                                                                                             }
                                                                                         ),
                                                                                     }
                                                                                 ),
                                                                                 Positional(
                                                                                     Expr {
-                                                                                        span: 353..354,
+                                                                                        span: 357..358,
                                                                                         ty: scoop.core.Array<Int>,
                                                                                         kind: VarRef(
                                                                                             Local {
-                                                                                                label: sym#h4373886a06696c5d63a8f554d2255937,
-                                                                                                name: "__call_vararg_4",
-                                                                                                decl_span: 353..354,
+                                                                                                label: sym#he6be5f197e9cdac7afdd2cc535572e5a,
+                                                                                                name: "__call_vararg_6",
+                                                                                                decl_span: 357..358,
                                                                                             }
                                                                                         ),
                                                                                     }
@@ -746,27 +760,27 @@ TypedHirEffectContracts {
         },
         TypedCallSiteContract {
             span: 1048921..1048922,
-            kind: Intrinsic,
+            kind: DirectTopLevel,
         },
         TypedCallSiteContract {
             span: 1048923..1048924,
-            kind: Intrinsic,
+            kind: DirectTopLevel,
         },
         TypedCallSiteContract {
             span: 1048925..1048926,
-            kind: Intrinsic,
+            kind: DirectTopLevel,
         },
         TypedCallSiteContract {
             span: 1048927..1048928,
-            kind: Intrinsic,
+            kind: DirectTopLevel,
         },
         TypedCallSiteContract {
             span: 1048929..1048930,
-            kind: Intrinsic,
+            kind: DirectTopLevel,
         },
         TypedCallSiteContract {
             span: 1048931..1048932,
-            kind: Intrinsic,
+            kind: DirectTopLevel,
         },
     ],
     call_site_contracts: [
@@ -790,66 +804,48 @@ TypedHirEffectContracts {
         },
         CallSiteContract {
             span: 1048921..1048922,
-            kind: Intrinsic,
-            intrinsic_kind: Runtime { name: "__scoop_array_builder_new" },
-            intrinsic_allowed_context: RuntimeOnly,
-            intrinsic_runtime_fallback: RuntimeIntrinsic,
-            target_fqn: "scoop.core.__scoop_array_builder_new",
+            kind: DirectTopLevel,
+            target_fqn: "scoop.core.mutableArrayNew",
             target_decl_span: None,
             target_type_args: [],
             target_eff_args: [],
         },
         CallSiteContract {
             span: 1048923..1048924,
-            kind: Intrinsic,
-            intrinsic_kind: Runtime { name: "__scoop_array_builder_push" },
-            intrinsic_allowed_context: RuntimeOnly,
-            intrinsic_runtime_fallback: RuntimeIntrinsic,
-            target_fqn: "scoop.core.__scoop_array_builder_push",
+            kind: DirectTopLevel,
+            target_fqn: "scoop.core.push",
             target_decl_span: None,
             target_type_args: [],
             target_eff_args: [],
         },
         CallSiteContract {
             span: 1048925..1048926,
-            kind: Intrinsic,
-            intrinsic_kind: Runtime { name: "__scoop_array_builder_push" },
-            intrinsic_allowed_context: RuntimeOnly,
-            intrinsic_runtime_fallback: RuntimeIntrinsic,
-            target_fqn: "scoop.core.__scoop_array_builder_push",
+            kind: DirectTopLevel,
+            target_fqn: "scoop.core.push",
             target_decl_span: None,
             target_type_args: [],
             target_eff_args: [],
         },
         CallSiteContract {
             span: 1048927..1048928,
-            kind: Intrinsic,
-            intrinsic_kind: Runtime { name: "__scoop_array_builder_build_array" },
-            intrinsic_allowed_context: RuntimeOnly,
-            intrinsic_runtime_fallback: RuntimeIntrinsic,
-            target_fqn: "scoop.core.__scoop_array_builder_build_array",
+            kind: DirectTopLevel,
+            target_fqn: "scoop.core.freeze",
             target_decl_span: None,
             target_type_args: [],
             target_eff_args: [],
         },
         CallSiteContract {
             span: 1048929..1048930,
-            kind: Intrinsic,
-            intrinsic_kind: Runtime { name: "__scoop_array_builder_new" },
-            intrinsic_allowed_context: RuntimeOnly,
-            intrinsic_runtime_fallback: RuntimeIntrinsic,
-            target_fqn: "scoop.core.__scoop_array_builder_new",
+            kind: DirectTopLevel,
+            target_fqn: "scoop.core.mutableArrayNew",
             target_decl_span: None,
             target_type_args: [],
             target_eff_args: [],
         },
         CallSiteContract {
             span: 1048931..1048932,
-            kind: Intrinsic,
-            intrinsic_kind: Runtime { name: "__scoop_array_builder_build_array" },
-            intrinsic_allowed_context: RuntimeOnly,
-            intrinsic_runtime_fallback: RuntimeIntrinsic,
-            target_fqn: "scoop.core.__scoop_array_builder_build_array",
+            kind: DirectTopLevel,
+            target_fqn: "scoop.core.freeze",
             target_decl_span: None,
             target_type_args: [],
             target_eff_args: [],

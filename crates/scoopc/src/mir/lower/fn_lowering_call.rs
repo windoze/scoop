@@ -824,8 +824,8 @@ impl<'a> FnLowering<'a> {
         let CallKind::Direct { callee_fqn } = kind else {
             return None;
         };
-        match callee_fqn.as_str() {
-            ARRAY_BUILDER_PUSH_FQN | ARRAY_BUILDER_PUSH_STRING_FQN => {
+        match intrinsic_base_fqn(callee_fqn.as_str()) {
+            ARRAY_BUILDER_PUSH_FQN | ARRAY_BUILDER_PUSH_STRING_FQN | "scoop.core.push" => {
                 let builder_ty = args
                     .first()
                     .map(|arg| self.operand_ty(&arg.value))
@@ -847,7 +847,9 @@ impl<'a> FnLowering<'a> {
                     ),
                 })
             }
-            ARRAY_BUILDER_BUILD_ARRAY_FQN | ARRAY_BUILDER_BUILD_ARRAY_STRING_FQN => {
+            ARRAY_BUILDER_BUILD_ARRAY_FQN
+            | ARRAY_BUILDER_BUILD_ARRAY_STRING_FQN
+            | "scoop.core.freeze" => {
                 let element_ty = self.array_element_ty_from_array_ty(result_ty);
                 Some(ArrayElementTransportMetadata {
                     operation: ArrayTransportOperation::BuilderBuildArray,

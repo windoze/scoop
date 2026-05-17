@@ -20,7 +20,7 @@
 | `P3-T01` | [DONE] | P3 | [DONE] runtime 端：`ScoopMutableArray` out-of-line layout + 单态 new/push/freeze 入口 | [TODO-1.md](./TODO-1.md) |
 | `P3-T02` | [DONE] | P3 | [DONE] 编译器端：`array_size/get/set/data_ptr` 按 receiver layout 分流 | [TODO-1.md](./TODO-1.md) |
 | `P3-T03` | [DONE] | P3 | [DONE] sysroot 泛型 wrapper：`mutableArrayNew<T>` / `MutableArray<T>.push` / `MutableArray<T>.freeze` | [TODO-1.md](./TODO-1.md) |
-| `P4-T01` | [TODO] | P4 | 数组字面量 HIR desugar 切换到 `mutableArrayNew + push + freeze` 路径 | [TODO-2.md](./TODO-2.md) |
+| `P4-T01` | [DONE] | P4 | [DONE] 数组字面量 HIR desugar 切换到 `mutableArrayNew + push + freeze` 路径 | [TODO-2.md](./TODO-2.md) |
 | `P4-T02` | [TODO] | P4 | 删除 `__scoop_array_builder_*` 整套（sysroot / runtime / 编译器 lowering） | [TODO-2.md](./TODO-2.md) |
 | `P5-T01` | [TODO] | P5 | runtime 端:三个 `scoop_string_from_*_array` 单态入口 | [TODO-2.md](./TODO-2.md) |
 | `P5-T02` | [TODO] | P5 | sysroot 端：`scoop.lang.string` cone 内三个 scoop ABI 声明 + StringBuilder | [TODO-2.md](./TODO-2.md) |

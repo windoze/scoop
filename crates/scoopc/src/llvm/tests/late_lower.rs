@@ -1120,7 +1120,10 @@ pub(super) fn production_codegen_list_fixture_materializes_mutable_list_add_and_
                         continue;
                     }
                     assert_eq!(
-                        materialized.types.display(transport.result.source_ty).to_string(),
+                        materialized
+                            .types
+                            .display(transport.result.source_ty)
+                            .to_string(),
                         "Unit",
                         "callable `{}` 的 runtime MutableArray push 应保持 Unit result transport",
                         fun.fqn
@@ -1168,7 +1171,7 @@ pub(super) fn production_codegen_uint8_array_numeric_elements_keep_scalar_transp
     let main = main.expect("expected literal numeric fixture to materialize main body");
     let body = main.body.as_ref().expect("main should have a body");
 
-    let mut seen_uint8_builder_pushes = 0;
+    let mut seen_uint8_pushes = 0;
     for block in &body.blocks {
         for stmt in &block.stmts {
             let crate::mir::StatementKind::Assign {
@@ -1183,13 +1186,17 @@ pub(super) fn production_codegen_uint8_array_numeric_elements_keep_scalar_transp
             else {
                 continue;
             };
-            if callee_fqn != "scoop.core.__scoop_array_builder_push" {
+            let callee_base = callee_fqn
+                .rsplit_once("::<")
+                .map(|(base, _)| base)
+                .unwrap_or(callee_fqn.as_str());
+            if callee_base != "scoop.core.push" {
                 continue;
             }
             let array = transport
                 .array
                 .as_ref()
-                .expect("array builder push call should publish array transport metadata");
+                .expect("MutableArray.push call should publish array transport metadata");
             if materialized.types.display(array.element_ty).to_string() != "UInt8" {
                 continue;
             }
@@ -1199,27 +1206,27 @@ pub(super) fn production_codegen_uint8_array_numeric_elements_keep_scalar_transp
                     .display(array.element.source_ty)
                     .to_string(),
                 "UInt8",
-                "main's UInt8 array builder push should keep UInt8 source surface"
+                "main's UInt8 MutableArray.push should keep UInt8 source surface"
             );
             assert!(
                 !array.element.requirements.trace,
-                "main's UInt8 array builder push should stay on scalar transport path"
+                "main's UInt8 MutableArray.push should stay on scalar transport path"
             );
             assert!(
                 !array.element.requirements.drop,
-                "main's UInt8 array builder push should not claim aggregate drop obligations"
+                "main's UInt8 MutableArray.push should not claim aggregate drop obligations"
             );
             assert!(
                 array.element.boxing.is_none(),
-                "main's UInt8 array builder push should not publish composite boxing metadata"
+                "main's UInt8 MutableArray.push should not publish composite boxing metadata"
             );
-            seen_uint8_builder_pushes += 1;
+            seen_uint8_pushes += 1;
         }
     }
 
     assert_eq!(
-        seen_uint8_builder_pushes, 2,
-        "expected the fixture's bytes array to retain two UInt8 builder push sites"
+        seen_uint8_pushes, 2,
+        "expected the fixture's bytes array to retain two UInt8 MutableArray.push sites"
     );
 }
 

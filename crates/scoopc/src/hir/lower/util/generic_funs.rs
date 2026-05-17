@@ -46,6 +46,7 @@ pub(in crate::hir::lower) fn infer_generic_fun_call_type_args(
     declared_type_param_names: &[String],
     receiver_expr: Option<&super::super::Expr>,
     args: &[CallArg],
+    result_ty: crate::ty::TypeId,
 ) -> Option<Vec<crate::ty::TypeId>> {
     let receiver_param_offset = usize::from(
         receiver_expr.is_some()
@@ -93,6 +94,24 @@ pub(in crate::hir::lower) fn infer_generic_fun_call_type_args(
             extract_concrete_hir_expr_ty(types, arg_expr)?
         };
         collect_hir_type_param_bindings(types, param.ty, concrete_ty, &mut bindings);
+    }
+    if type_contains_param(types, sig_fun.return_ty) && !type_contains_param(types, result_ty) {
+        let param_type_param_names = sig_fun
+            .params
+            .iter()
+            .flat_map(|param| {
+                let mut names = Vec::new();
+                collect_hir_type_param_names(types, param.ty, &mut names);
+                names
+            })
+            .collect::<HashSet<_>>();
+        let mut result_bindings = HashMap::new();
+        collect_hir_type_param_bindings(types, sig_fun.return_ty, result_ty, &mut result_bindings);
+        for (name, ty) in result_bindings {
+            if !param_type_param_names.contains(&name) || bindings.contains_key(&name) {
+                bindings.entry(name).or_insert(ty);
+            }
+        }
     }
 
     let mut ordered_args = Vec::with_capacity(declared_type_param_names.len());
@@ -314,6 +333,7 @@ pub(in crate::hir::lower) fn collect_generic_fun_calls_in_expr(
                     type_param_names,
                     generic_fun_call_receiver_expr(callee),
                     args,
+                    expr.ty,
                 ) {
                     out.push((lookup_key, type_args));
                 }

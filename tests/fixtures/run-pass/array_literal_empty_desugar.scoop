@@ -1,0 +1,15 @@
+// EXPECT: pass
+// RUN-STDOUT: array_literal_empty_desugar.stdout
+// 目标：空数组字面量经 mutableArrayNew(capacity = 0) + freeze 路径后保持 size() == 0。
+
+import scoop.core.*
+
+fun main(): Int {
+    val xs: Array<Int> = []
+    println(xs.size())
+
+    val ys: MutableArray<Int> = []
+    println(ys.size())
+
+    return 0
+}

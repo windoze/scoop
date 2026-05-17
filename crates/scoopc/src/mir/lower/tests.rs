@@ -743,19 +743,19 @@ fun main(): Int {
         else {
             continue;
         };
-        if callee_fqn != "scoop.core.__scoop_array_builder_push" {
+        if intrinsic_base_fqn(callee_fqn) != "scoop.core.push" {
             continue;
         }
         let array = transport
             .array
             .as_ref()
-            .expect("array builder push should publish array transport metadata");
+            .expect("MutableArray.push should publish array transport metadata");
         if lowered.types.display(array.element_ty).to_string() != "UInt8" {
             continue;
         }
         let value_local = match args.get(1).map(|arg| &arg.value) {
             Some(Operand::Local(local)) => *local,
-            _ => panic!("array builder push value should stay in a local"),
+            _ => panic!("MutableArray.push value should stay in a local"),
         };
         assert_eq!(
             lowered
@@ -792,7 +792,7 @@ fun main(): Int {
 
     assert_eq!(
         seen_uint8_pushes, 3,
-        "expected UInt8 builder push sites for if / when / call-arg nested array literals"
+        "expected UInt8 MutableArray.push sites for if / when / call-arg nested array literals"
     );
 }
 
@@ -835,7 +835,7 @@ fun main(): Int {
         .expect("expected main MIR root");
     let body = fun.body.as_ref().expect("main should have a MIR body");
 
-    let mut builder_pushes = 0;
+    let mut array_pushes = 0;
     let mut saw_hit_variant = false;
     let mut saw_pair_variant = false;
 
@@ -849,16 +849,16 @@ fun main(): Int {
                 args,
                 transport,
                 ..
-            } if callee_fqn == ARRAY_BUILDER_PUSH_FQN => {
-                builder_pushes += 1;
+            } if intrinsic_base_fqn(callee_fqn) == "scoop.core.push" => {
+                array_pushes += 1;
                 assert_eq!(
                     args.len(),
                     2,
-                    "array builder push helper must keep builder + element args instead of stealing an element contract"
+                    "MutableArray.push must keep receiver + element args instead of stealing an element contract"
                 );
                 let value_local = match args.get(1).map(|arg| &arg.value) {
                     Some(Operand::Local(local)) => *local,
-                    _ => panic!("array builder push element should stay in a local"),
+                    _ => panic!("MutableArray.push element should stay in a local"),
                 };
                 assert_eq!(
                     lowered
@@ -866,16 +866,16 @@ fun main(): Int {
                         .display(body.locals[value_local.as_u32() as usize].ty)
                         .to_string(),
                     "sample.Item",
-                    "array builder push element local should keep the enum element surface"
+                    "MutableArray.push element local should keep the enum element surface"
                 );
                 let array = transport
                     .array
                     .as_ref()
-                    .expect("array builder push should publish array transport metadata");
+                    .expect("MutableArray.push should publish array transport metadata");
                 assert_eq!(
                     lowered.types.display(array.element_ty).to_string(),
                     "sample.Item",
-                    "array builder push element type should remain the enum surface"
+                    "MutableArray.push element type should remain the enum surface"
                 );
             }
             Rvalue::EnumVariant { variant_name, .. } if variant_name == "Hit" => {
@@ -889,8 +889,8 @@ fun main(): Int {
     }
 
     assert_eq!(
-        builder_pushes, 2,
-        "expected exactly two builder push helper calls for the two array literal elements"
+        array_pushes, 2,
+        "expected exactly two MutableArray.push calls for the two array literal elements"
     );
     assert!(
         saw_hit_variant,

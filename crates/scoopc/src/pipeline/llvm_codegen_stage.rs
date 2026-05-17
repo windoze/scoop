@@ -1486,9 +1486,19 @@ fun main(): Int {
         crate::hir::LoweredHir,
     ) {
         let session = session();
-        let lowered = crate::hir::lower_typed_for_dump(&session, &source).unwrap();
-        let mut source_map = SourceMap::new();
-        let entry_source_id = source_map.add_source_clone(&source);
+        let context =
+            crate::frontend::prepare_virtual_cone_context_with_options(source, session.options())
+                .unwrap();
+        let front = crate::frontend::run_project_frontend(&session, context).unwrap();
+        let lowered = crate::frontend::lower_hir_for_codegen_with_request_root_mode(
+            &session,
+            &front,
+            OptLevel::O0,
+            crate::frontend::MirRequestRootMode::RequestSources,
+        )
+        .unwrap();
+        let (source_map, entry_source_id) =
+            crate::frontend::build_source_map(&session, front.input());
         (session, source_map, entry_source_id, lowered)
     }
 
@@ -1661,13 +1671,12 @@ fun main(): Int {
             "array composite transport should consume shared layout descriptors\n{ir}"
         );
         assert!(
-            ir.contains("@scoop_array_builder_push_composite"),
-            "composite array literal elements should use descriptor-backed builder push\n{ir}"
+            ir.contains("@scoop_mutable_array_push_composite"),
+            "composite array literal elements should use descriptor-backed MutableArray.push\n{ir}"
         );
         assert!(
-            ir.contains("@scoop_array_builder_build_array_composite")
-                && ir.contains("@scoop_array_builder_build_mutable_array_composite"),
-            "composite array build should pass the element descriptor to runtime\n{ir}"
+            ir.contains("@scoop_mutable_array_new") && ir.contains("@scoop_mutable_array_freeze"),
+            "composite array literal build should allocate MutableArray and freeze Array results\n{ir}"
         );
         assert!(
             ir.contains("array_get_load")

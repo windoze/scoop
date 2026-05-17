@@ -6,6 +6,10 @@ use super::*;
 
 impl<'a> HirLowering<'a> {
     pub(in crate::hir::lower) const PROPERTY_META_FQN: &'static str = "scoop.core.PropertyMeta";
+    pub(in crate::hir::lower) const MUTABLE_ARRAY_NEW_FQN: &'static str =
+        "scoop.core.mutableArrayNew";
+    pub(in crate::hir::lower) const MUTABLE_ARRAY_PUSH_FQN: &'static str = "scoop.core.push";
+    pub(in crate::hir::lower) const MUTABLE_ARRAY_FREEZE_FQN: &'static str = "scoop.core.freeze";
     pub(in crate::hir::lower) const ARRAY_BUILDER_NEW_FQN: &'static str =
         "scoop.core.__scoop_array_builder_new";
     pub(in crate::hir::lower) const ARRAY_BUILDER_PUSH_FQN: &'static str =

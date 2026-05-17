@@ -3621,7 +3621,7 @@ fun main(): Int {
         let output = run(&session, &source).expect("canonical call args should lower to HIR");
         let dump = output.stable_dump();
         assert!(
-            !dump.contains("array_lit"),
+            !dump.contains("Todo(\"array_lit"),
             "array literal Todo leaked: {dump}"
         );
         assert!(!dump.contains("named_arg"), "named arg Todo leaked: {dump}");

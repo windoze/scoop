@@ -349,18 +349,18 @@ impl<'a> HirLowering<'a> {
         ))
     }
 
-    /// 将 `[...]` 降到统一的 builder/intrinsics 调用形态（TODO T1317c）。
+    /// 将 `[...]` 降到统一的 `MutableArray<T>` wrapper 调用形态。
     ///
     /// 形态（概念上）：
     /// ```text
     /// [e0, e1, e2]
     /// =>
     /// {
-    ///   val __array_builder = __scoop_array_builder_new()
-    ///   __scoop_array_builder_push(__array_builder, e0)
-    ///   __scoop_array_builder_push(__array_builder, e1)
-    ///   __scoop_array_builder_push(__array_builder, e2)
-    ///   __scoop_array_builder_build_array(__array_builder) // or build_mutable_array
+    ///   val __array_lit_tmp = mutableArrayNew<T>(capacity = 3)
+    ///   __array_lit_tmp.push(e0)
+    ///   __array_lit_tmp.push(e1)
+    ///   __array_lit_tmp.push(e2)
+    ///   __array_lit_tmp.freeze() // omitted for MutableArray<T> targets
     /// }
     /// ```
     pub(in crate::hir::lower) fn lower_array_lit_expr(
@@ -532,36 +532,59 @@ impl<'a> HirLowering<'a> {
         target: ArrayLitTarget,
         result_ty: TypeId,
     ) -> (ExprKind, TypeId) {
-        // 说明：使用 push-based builder 语义承载元素顺序。
-        let builder_decl_span = Span::new(span.start, span.start);
-        let new_call_span = self.fresh_synthetic_call_site_span(span);
-        let builder_id = self.intern_local_symbol(builder_decl_span, false);
-        let builder_name = "__array_builder".to_string();
+        let expr = self.lower_array_literal_via_mutable_array(
+            elements,
+            target,
+            span,
+            result_ty,
+            "__array_lit_tmp",
+        );
+        (expr.kind, expr.ty)
+    }
 
-        let new_fqn = Self::ARRAY_BUILDER_NEW_FQN.to_string();
-        let new_callee = Expr {
+    pub(in crate::hir::lower) fn lower_array_literal_via_mutable_array(
+        &mut self,
+        elements: Vec<Expr>,
+        target: ArrayLitTarget,
+        span: Span,
+        result_ty: TypeId,
+        temp_prefix: &str,
+    ) -> Expr {
+        let element_ty = self
+            .array_lit_element_ty_from_type_id(result_ty)
+            .or_else(|| elements.first().map(|element| element.ty))
+            .unwrap_or(self.builtins.any);
+        let mutable_array_ty = self.intern_nominal(
+            "scoop.core.MutableArray".to_string(),
+            vec![element_ty],
+            None,
+        );
+        let (array_decl_span, array_id, array_name) =
+            self.fresh_synthetic_local(span, temp_prefix, false);
+
+        let new_call_span = self.fresh_synthetic_call_site_span(span);
+        let new_callee = self
+            .top_level_callee_expr_with_fqn(new_call_span, Self::MUTABLE_ARRAY_NEW_FQN.to_string());
+        let capacity_arg = Expr {
             span: new_call_span,
-            ty: self.builtins.any,
-            kind: ExprKind::VarRef(ValueRef::TopLevel {
-                id: self.symbols.intern_top_level(new_fqn.clone()),
-                fqn: new_fqn,
-            }),
+            ty: self.builtins.int,
+            kind: ExprKind::Literal(LiteralKind::SynthInt(elements.len() as i64)),
         };
         let new_call = Expr {
             span: new_call_span,
-            ty: self.builtins.any,
+            ty: mutable_array_ty,
             kind: ExprKind::Call {
                 callee: Box::new(new_callee),
-                args: Vec::new(),
+                args: vec![CallArg::Positional(capacity_arg)],
             },
         };
 
-        let builder_decl = ValDecl {
+        let array_decl = ValDecl {
             span,
-            id: Some(builder_id),
-            name: Some(builder_name.clone()),
+            id: Some(array_id),
+            name: Some(array_name.clone()),
             mutable: false,
-            ty: self.builtins.any,
+            ty: mutable_array_ty,
             init: Some(new_call),
         };
 
@@ -569,38 +592,32 @@ impl<'a> HirLowering<'a> {
         stmts.push(Stmt {
             span,
             ty: self.builtins.unit,
-            kind: StmtKind::Val(builder_decl),
+            kind: StmtKind::Val(array_decl),
         });
 
         for element_expr in elements {
-            // helper call-site 不能复用元素自己的 span，否则 typed call-site contract 会互相覆盖。
             let push_call_span = self.fresh_synthetic_call_site_span(element_expr.span);
-            let builder_ref = Expr {
-                span: builder_decl_span,
-                ty: self.builtins.any,
+            let array_ref = Expr {
+                span: array_decl_span,
+                ty: mutable_array_ty,
                 kind: ExprKind::VarRef(ValueRef::Local {
-                    id: builder_id,
-                    name: builder_name.clone(),
-                    decl_span: builder_decl_span,
+                    id: array_id,
+                    name: array_name.clone(),
+                    decl_span: array_decl_span,
                 }),
             };
 
-            let push_fqn = Self::ARRAY_BUILDER_PUSH_FQN.to_string();
-            let push_callee = Expr {
-                span: push_call_span,
-                ty: self.builtins.any,
-                kind: ExprKind::VarRef(ValueRef::TopLevel {
-                    id: self.symbols.intern_top_level(push_fqn.clone()),
-                    fqn: push_fqn,
-                }),
-            };
+            let push_callee = self.top_level_callee_expr_with_fqn(
+                push_call_span,
+                Self::MUTABLE_ARRAY_PUSH_FQN.to_string(),
+            );
             let push_call = Expr {
                 span: push_call_span,
                 ty: self.builtins.unit,
                 kind: ExprKind::Call {
                     callee: Box::new(push_callee),
                     args: vec![
-                        CallArg::Positional(builder_ref),
+                        CallArg::Positional(array_ref),
                         CallArg::Positional(element_expr),
                     ],
                 },
@@ -612,51 +629,52 @@ impl<'a> HirLowering<'a> {
             });
         }
 
-        let build_call_span = self.fresh_synthetic_call_site_span(span);
-        let build_fqn = match target {
-            ArrayLitTarget::Array => Self::ARRAY_BUILDER_BUILD_ARRAY_FQN,
-            ArrayLitTarget::MutableArray => Self::ARRAY_BUILDER_BUILD_MUTABLE_ARRAY_FQN,
-        }
-        .to_string();
-        let build_callee = Expr {
-            span: build_call_span,
-            ty: self.builtins.any,
-            kind: ExprKind::VarRef(ValueRef::TopLevel {
-                id: self.symbols.intern_top_level(build_fqn.clone()),
-                fqn: build_fqn,
-            }),
-        };
-        let builder_ref = Expr {
-            span: builder_decl_span,
-            ty: self.builtins.any,
+        let final_array_ref = Expr {
+            span: array_decl_span,
+            ty: mutable_array_ty,
             kind: ExprKind::VarRef(ValueRef::Local {
-                id: builder_id,
-                name: builder_name,
-                decl_span: builder_decl_span,
+                id: array_id,
+                name: array_name,
+                decl_span: array_decl_span,
             }),
         };
-        let build_call = Expr {
-            span: build_call_span,
-            ty: result_ty,
-            kind: ExprKind::Call {
-                callee: Box::new(build_callee),
-                args: vec![CallArg::Positional(builder_ref)],
+
+        let result_expr = match target {
+            ArrayLitTarget::Array => {
+                let freeze_call_span = self.fresh_synthetic_call_site_span(span);
+                let freeze_callee = self.top_level_callee_expr_with_fqn(
+                    freeze_call_span,
+                    Self::MUTABLE_ARRAY_FREEZE_FQN.to_string(),
+                );
+                Expr {
+                    span: freeze_call_span,
+                    ty: result_ty,
+                    kind: ExprKind::Call {
+                        callee: Box::new(freeze_callee),
+                        args: vec![CallArg::Positional(final_array_ref)],
+                    },
+                }
+            }
+            ArrayLitTarget::MutableArray => Expr {
+                ty: result_ty,
+                ..final_array_ref
             },
         };
         stmts.push(Stmt {
             span,
-            ty: build_call.ty,
-            kind: StmtKind::Expr(build_call),
+            ty: result_expr.ty,
+            kind: StmtKind::Expr(result_expr),
         });
 
-        (
-            ExprKind::Block(Block {
+        Expr {
+            span,
+            ty: result_ty,
+            kind: ExprKind::Block(Block {
                 span,
                 ty: result_ty,
                 stmts,
             }),
-            result_ty,
-        )
+        }
     }
 
     pub(in crate::hir::lower) fn lower_call_arg_with_expected(
@@ -691,7 +709,7 @@ impl<'a> HirLowering<'a> {
     /// - Args before the vararg index are lowered as normal positional args.
     /// - Args at and after the vararg index (up to the end) are collected:
     ///   - If a single spread arg `*arr`: pass the inner expression directly as the array.
-    ///   - Otherwise: wrap individual args into an array literal using the builder pattern.
+    ///   - Otherwise: wrap individual args into an array literal using the `MutableArray<T>` path.
     /// - The vararg slot becomes a single `CallArg::Positional(Array<T>)` expression.
     pub(in crate::hir::lower) fn lower_call_args_with_vararg(
         &mut self,
@@ -740,7 +758,7 @@ impl<'a> HirLowering<'a> {
                 _ => unreachable!("has_spread is true but arg is not SpreadArg"),
             }
         } else {
-            // Individual args: wrap in an array literal using the builder pattern.
+            // Individual args: wrap in an array literal using the same path as array literals.
             let elements: Vec<&ast::Expr> = vararg_args
                 .into_iter()
                 .map(|arg| match &arg.kind {
@@ -764,139 +782,33 @@ impl<'a> HirLowering<'a> {
 
     /// Synthesize an array literal from a list of AST expressions.
     ///
-    /// Uses the same builder pattern as `lower_array_lit_expr`:
-    /// `__scoop_array_builder_new()` → push elements → `__scoop_array_builder_build_array()`.
+    /// Uses the same `MutableArray<T>` path as `lower_array_lit_expr`.
     pub(in crate::hir::lower) fn synth_array_lit_from_exprs(
         &mut self,
         pkg_prefix: &str,
         span: Span,
         elements: &[&ast::Expr],
     ) -> Expr {
-        let builder_decl_span = Span::new(span.start, span.start);
-        let new_call_span = self.fresh_synthetic_call_site_span(span);
-        let builder_id = self.intern_local_symbol(builder_decl_span, false);
-        let builder_name = "__vararg_builder".to_string();
-
-        // val __vararg_builder = __scoop_array_builder_new()
-        let new_fqn = Self::ARRAY_BUILDER_NEW_FQN.to_string();
-        let new_callee = Expr {
-            span: new_call_span,
-            ty: self.builtins.any,
-            kind: ExprKind::VarRef(ValueRef::TopLevel {
-                id: self.symbols.intern_top_level(new_fqn.clone()),
-                fqn: new_fqn,
-            }),
-        };
-        let new_call = Expr {
-            span: new_call_span,
-            ty: self.builtins.any,
-            kind: ExprKind::Call {
-                callee: Box::new(new_callee),
-                args: Vec::new(),
-            },
-        };
-
-        let builder_decl = ValDecl {
-            span,
-            id: Some(builder_id),
-            name: Some(builder_name.clone()),
-            mutable: false,
-            ty: self.builtins.any,
-            init: Some(new_call),
-        };
-
-        let mut stmts: Vec<Stmt> = Vec::with_capacity(elements.len() + 2);
-        stmts.push(Stmt {
-            span,
-            ty: self.builtins.unit,
-            kind: StmtKind::Val(builder_decl),
-        });
-
-        // __scoop_array_builder_push(builder, element) for each element
-        for element in elements {
-            let element_expr = self.lower_expr(pkg_prefix, element);
-            // helper call-site 不能复用元素自己的 span，否则 typed call-site contract 会互相覆盖。
-            let push_call_span = self.fresh_synthetic_call_site_span(element_expr.span);
-            let builder_ref = Expr {
-                span: builder_decl_span,
-                ty: self.builtins.any,
-                kind: ExprKind::VarRef(ValueRef::Local {
-                    id: builder_id,
-                    name: builder_name.clone(),
-                    decl_span: builder_decl_span,
-                }),
-            };
-
-            let push_fqn = Self::ARRAY_BUILDER_PUSH_FQN.to_string();
-            let push_callee = Expr {
-                span: push_call_span,
-                ty: self.builtins.any,
-                kind: ExprKind::VarRef(ValueRef::TopLevel {
-                    id: self.symbols.intern_top_level(push_fqn.clone()),
-                    fqn: push_fqn,
-                }),
-            };
-            let push_call = Expr {
-                span: push_call_span,
-                ty: self.builtins.unit,
-                kind: ExprKind::Call {
-                    callee: Box::new(push_callee),
-                    args: vec![
-                        CallArg::Positional(builder_ref),
-                        CallArg::Positional(element_expr),
-                    ],
-                },
-            };
-            stmts.push(Stmt {
-                span,
-                ty: self.builtins.unit,
-                kind: StmtKind::Expr(push_call),
+        let lowered_elements: Vec<Expr> = elements
+            .iter()
+            .map(|element| self.lower_expr(pkg_prefix, element))
+            .collect();
+        let result_ty = self
+            .infer_array_lit_ty_from_lowered_elements(&lowered_elements)
+            .unwrap_or_else(|| {
+                self.intern_nominal(
+                    "scoop.core.Array".to_string(),
+                    vec![self.builtins.any],
+                    None,
+                )
             });
-        }
-
-        // __scoop_array_builder_build_array(builder)
-        let build_call_span = self.fresh_synthetic_call_site_span(span);
-        let builder_ref_final = Expr {
-            span: builder_decl_span,
-            ty: self.builtins.any,
-            kind: ExprKind::VarRef(ValueRef::Local {
-                id: builder_id,
-                name: builder_name.clone(),
-                decl_span: builder_decl_span,
-            }),
-        };
-        let build_fqn = Self::ARRAY_BUILDER_BUILD_ARRAY_FQN.to_string();
-        let build_callee = Expr {
-            span: build_call_span,
-            ty: self.builtins.any,
-            kind: ExprKind::VarRef(ValueRef::TopLevel {
-                id: self.symbols.intern_top_level(build_fqn.clone()),
-                fqn: build_fqn,
-            }),
-        };
-        let build_call = Expr {
-            span: build_call_span,
-            ty: self.builtins.any,
-            kind: ExprKind::Call {
-                callee: Box::new(build_callee),
-                args: vec![CallArg::Positional(builder_ref_final)],
-            },
-        };
-        stmts.push(Stmt {
+        self.lower_array_literal_via_mutable_array(
+            lowered_elements,
+            ArrayLitTarget::Array,
             span,
-            ty: self.builtins.any,
-            kind: StmtKind::Expr(build_call),
-        });
-
-        Expr {
-            span,
-            ty: self.builtins.any,
-            kind: ExprKind::Block(Block {
-                span,
-                ty: self.builtins.any,
-                stmts,
-            }),
-        }
+            result_ty,
+            "__vararg_array",
+        )
     }
 
     pub(in crate::hir::lower) fn alloc_closure_id(&mut self) -> ClosureId {

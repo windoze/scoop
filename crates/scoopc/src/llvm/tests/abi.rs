@@ -1268,8 +1268,8 @@ fun main(): Int {
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
 
     assert!(
-        ir.contains("@scoop_array_builder_push_ref"),
-        "Array<Any> 的 array literal builder 应走 scoop_array_builder_push_ref"
+        ir.contains("@scoop_mutable_array_push_ref") && ir.contains("@scoop_mutable_array_freeze"),
+        "Array<Any> 的 array literal 应走 MutableArray.push_ref + freeze 路径"
     );
     assert!(
         ir.contains("array_len_gep")
@@ -1318,8 +1318,8 @@ fun main(): Int {
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
 
     assert!(
-        ir.contains("@scoop_array_builder_push_ref"),
-        "Array<String> 的 array literal builder 应走 scoop_array_builder_push_ref"
+        ir.contains("@scoop_mutable_array_push_ref"),
+        "MutableArray<String> 的 array literal 应走 MutableArray.push_ref 路径"
     );
     assert!(
         ir.contains("mutable_array_len_gep")
