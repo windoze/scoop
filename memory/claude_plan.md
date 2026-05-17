@@ -41,4 +41,6 @@
 - `cargo test --all --all-targets` passed: 856 tests.
 - `cargo clippy --all-targets -- -D warnings` passed.
 - `TODO.md` and `TODO-5.md` updated: `P12-T03` is marked `[DONE]` and has a completion record.
-- Next step: inspect git status/diff/log and create the required commit.
+- Inspected git status/diff/log; unrelated untracked `CLOSURE_FIX.md` and `OVERLOAD_RESOLUTION.md` remain uncommitted.
+- Task implementation committed as `ee46a59e` (`[P12-T03] Remove sysroot AST stripping`).
+- Final step: commit this execution-log update, then stop without starting `P12-T04`.
