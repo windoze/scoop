@@ -2,7 +2,9 @@
 
 本文档来源于 2026-05-17 的设计讨论。目的是修正 Scoop 当前 closure capture 实现与语言 spec 的偏离，并为相关库类型（`RefCell` / `Box` / `Atomic` 一族）提供配套的类型系统底座（`sealed interface AnyRef` / `AnyValue`）。
 
-本文档只描述设计与修复路线，不实现任何代码改动。
+实现进度跟踪已移交至 [`PLAN.md`](./PLAN.md) / [`TODO.md`](./TODO.md)；本文档保留为设计讨论历史记录。
+
+本文档只描述设计与修复路线，不作为当前执行进度来源。
 
 ---
 

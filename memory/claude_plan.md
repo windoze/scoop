@@ -1,57 +1,32 @@
-# Current Invocation Plan
+# 执行计划
 
-## Scope
+## 当前约束
 
-- Follow `TODO.md` as the authoritative ordered task list.
-- Complete exactly the first task whose title is not prefixed with `[DONE]`, then stop.
-- Do not skip review tasks or tasks with partial completion notes.
-- Do not perform broad historical issue triage before selecting the current task.
-- Treat blockers or spec mismatches as prerequisites only when they directly block the selected task.
+- 以 `TODO.md` 为任务排序和完成状态的唯一依据。
+- 只完成第一个标题未带 `[DONE]` 的任务，完成后停止。
+- 若遇到阻塞当前任务的规格不匹配、缺失特性或实现边界，先在 `TODO.md` 中添加最小必要前置任务并提交，然后停止。
+- 完成任务后更新 `TODO.md` 的 `[DONE]` 标记和完成记录；仅当阶段级计划改变时才更新 `PLAN.md`。
+- 完成或阻塞记录都需要提交 Git。
 
-## Current Status
+## 步骤
 
-- `TODO.md` has been read.
-- First incomplete task identified: `C4-T02` (`更新 user-visible failure / frontend reject audit 基线`).
-- This plan is being written before running build, test, search, or Git commands for the task.
+1. 读取 `TODO.md`，按文件顺序找到第一个标题未带 `[DONE]` 的任务。
+2. 查看该任务的要求、依赖、验证方式和完成记录；必要时检查最近提交是否提到与该任务直接相关的未完成问题。
+3. 针对该任务读取最小必要代码和测试上下文，避免无关历史问题排查。
+4. 如果任务可以直接完成，按现有架构做最小正确实现，并补充或更新相关测试/fixture。
+5. 运行任务要求的验证命令，并根据失败结果修复当前任务范围内的问题。
+6. 如果出现必须先修复的具体阻塞项，则更新 `TODO.md` 插入前置任务，保留当前任务未完成，提交后停止。
+7. 如果验证通过，则将当前任务标题标记为 `[DONE]`，更新完成记录，并按需更新本文件进度。
+8. 检查工作区变更，提交本次任务涉及的全部未提交文件，提交信息使用任务编号和简洁说明。
+9. 停止，不继续处理下一个任务。
 
-## Selected Task Notes
+## 进度
 
-- Recompute `STALE_UNSUPPORTED_MAIN_BODY_COUNTS`, especially for `mir_body/aggregates.rs`, `mir_body/terminator.rs`, `mir_body/value_args.rs`, and `effect_lowered/value.rs` after CaptureBox removal.
-- Confirm whether C2-T02 left any internal `unreachable!` guard that must be listed in `INTERNAL_BUG_SENTINEL_HITS`; prior completion notes say the guard was deleted, so expectation is no new sentinel.
-- Register sealed-interface frontend rejects in `FRONTEND_REJECT_SURFACES` with matching source error-code locations and fixture markers.
-- Confirm `STALE_USER_VISIBLE_UNSUPPORTED_MARKERS` remains empty or document the specific reason if not.
-- Required validation: `cargo test -p scoopc pipeline_user_visible_failure_policy -- --nocapture`, `cargo test -p scoopc`, and `cargo run -p scoop -- test`.
-
-## Execution Plan For C4-T02
-
-1. Check the latest commit message for directly relevant unfinished work, then inspect the current worktree state.
-2. Inspect `crates/scoopc/src/pipeline_user_visible_failure_policy.rs` to understand the current audit tables and tests.
-3. Search current source for `UnsupportedMainBody`, user-visible unsupported markers, and internal sentinel hits needed by the audit policy.
-4. Recompute and update stale unsupported counts only where current source counts differ from the recorded baseline.
-5. Search sealed-interface diagnostics and fixtures, then add each implemented `scoop::typecheck::sealed_interface_*` reject surface to `FRONTEND_REJECT_SURFACES` with precise source and fixture markers.
-6. Run the targeted audit test; fix any policy mismatches without weakening the audit intent.
-7. Run the task-required broader validations and fix in-scope failures.
-8. Update `TODO.md` by marking `C4-T02` as `[DONE]` and filling in the completion record with scope, decisions, validation results, and plan/design closure.
-9. Update this file at key milestones or if the plan changes.
-10. Commit all task-related changes with a descriptive `[C4-T02]` message.
-11. Stop without starting `C5-T01`.
-
-## Progress
-
-- Plan initialized for `C4-T02`.
-- Latest commit checked: no directly relevant unfinished blocker for `C4-T02`.
-- Initial audit test exposed expected baseline drift: `UnsupportedMainBody` counts and internal sentinel line numbers changed after prior tasks.
-- Updated `pipeline_user_visible_failure_policy.rs` with recomputed stale unsupported counts, refreshed sentinel line locations, and sealed-interface frontend reject surfaces.
-- `cargo test -p scoopc pipeline_user_visible_failure_policy -- --nocapture` now passes.
-- Broader `cargo test -p scoopc` exposed an in-scope validation blocker: runtime itable/RTTI collection still treated `scoop.core.AnyRef` as a runtime interface target.
-- Fixed the blocker by filtering sealed interfaces out of runtime interface metadata/targets and adding an RTTI assertion that `AnyRef` / `AnyValue` do not appear in runtime match names.
-- `cargo fmt` passed.
-- `cargo test -p scoopc dump_rtti_class_itable_entries_preserve_parameterized_runtime_match_metadata -- --nocapture` passed.
-- `cargo test -p scoopc pipeline_user_visible_failure_policy -- --nocapture` passed after the blocker fix.
-- `cargo test -p scoopc` passed with 871 tests.
-- `cargo run -p scoop -- test` passed with `fixtures: ok (1405)`.
-- `cargo clippy --all-targets -- -D warnings` passed.
-- `TODO.md` updated: `C4-T02` is marked `[DONE]` with completion record.
-- Task changes were committed as `8dc91edc` (`[C4-T02] Update failure audit baseline`).
-- Working tree was clean after the task commit.
-- Stop after this task; do not start `C5-T01` in this invocation.
+- 已读取 `TODO.md`，确认第一个未完成任务为 `C5-T01：更新 spec、迁移说明与设计文档状态`。
+- 已核对最近提交：`[C4-T02] Record execution completion`，未发现与 `C5-T01` 直接相关的未完成项。
+- 已读取 `SCOOP_FULL_SPEC.md`、`CLOSURE_FIX.md`、`PLAN.md` 与 sysroot API 相关位置。
+- 已更新 `SCOOP_FULL_SPEC.md`：补入 sealed interface marker 规则、closure capture by-value snapshot / per-call reset、Kotlin makeCounter 迁移说明，以及 `RefCell` / `Box` / `Atomic*` shared-state API 摘要。
+- 已更新 `CLOSURE_FIX.md` 文件头部：说明实现进度跟踪已移交至 `PLAN.md` / `TODO.md`，本文档保留为历史设计记录。
+- 已运行验证：`cargo run -p scoop_tools -- spec-fixtures check` 通过（`spec fixtures: ok (1)`），`cargo run -p scoop -- test` 通过（`fixtures: ok (1405)`），`cargo clippy --all-targets -- -D warnings` 通过。
+- 已将 `TODO.md` 中 `C5-T01` 标记为 `[DONE]` 并填写完成记录。
+- 下一步检查工作区变更并提交本次任务。

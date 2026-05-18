@@ -917,7 +917,7 @@ C0-T01 (baseline + prerequisite inventory)
 
 ## C5：文档 / spec 收尾
 
-### [TODO] C5-T01：更新 spec、迁移说明与设计文档状态
+### [DONE] C5-T01：更新 spec、迁移说明与设计文档状态
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §7 C5
@@ -942,9 +942,21 @@ C0-T01 (baseline + prerequisite inventory)
 - 依赖：C4-T02
 - 完成记录：
   - 改动范围：
+    - `SCOOP_FULL_SPEC.md` 新增 sealed interface marker 规范，覆盖 empty body、sysroot-only、bound-only、继承/循环/互斥、`AnyRef` / `AnyValue` 自动满足关系与 runtime-invisible 约束。
+    - `SCOOP_FULL_SPEC.md` 新增 closure capture 规范，覆盖构造点 by-value snapshot、value/ref capture 差异、closure env 构造后不可变、captured `var` per-call reset、outer binding 不受 lambda 内 rebind 影响。
+    - `SCOOP_FULL_SPEC.md` 新增 shared-state API 摘要与 Kotlin-style `makeCounter` 迁移说明，明确 `RefCell<T>` / `Atomic*` 是显式共享 mutable state 出口，`AtomicValue<T>::cas` 的 expected 为 `Box<T>`。
+    - `CLOSURE_FIX.md` 文件头部标记实现进度跟踪已移交至 `PLAN.md` / `TODO.md`，本文档保留为设计讨论历史记录。
+    - 更新 `memory/claude_plan.md` 进度；未修改 `PLAN.md`、`MANAGED_ABI.md`、语义代码、runtime、sysroot 或 fixture。
   - 核心决策：
+    - 本任务只做用户可见文档收口，不改变阶段级计划；`PLAN.md` 无需更新。
+    - `SCOOP_FULL_SPEC.md` 示例不新增 `// FIXTURE:` doctest block，因此无需运行 `spec-fixtures sync`；仍运行 `spec-fixtures check` 确认现有 spec fixture 集合一致。
+    - sealed interface 文档按当前实现语法使用 `where T: AnyRef` / `where T: AnyValue`，不把当前 parser 尚未支持的 inline type-parameter bound 语法写成已支持。
+    - 迁移说明直接放入 `SCOOP_FULL_SPEC.md` 的 closure 章节，而不是新增独立 release note 文件。
   - 验证结果：
-  - 与 `PLAN.md` / `CLOSURE_FIX.md` 对应闭合：
+    - `cargo run -p scoop_tools -- spec-fixtures check`：通过，`spec fixtures: ok (1)`。
+    - `cargo run -p scoop -- test`：通过，`fixtures: ok (1405)`。
+    - `cargo clippy --all-targets -- -D warnings`：通过。
+  - 与 `PLAN.md` / `CLOSURE_FIX.md` 对应闭合：闭合 `PLAN.md` §7 C5 与 `CLOSURE_FIX.md` §6 / §7 的 spec、迁移说明和设计文档状态收尾要求；阶段级计划未变化。
 
 ## Final Review
 

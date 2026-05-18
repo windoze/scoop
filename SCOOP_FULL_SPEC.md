@@ -44,6 +44,7 @@ All types fall into one of two categories: **reference types** and **value types
 
 - **Reference types** are allocated on the GC-managed heap and accessed by reference. Assignment copies the reference, not the value.
 - **Value types** are stored inline (on the stack or embedded in containing types). Assignment copies the entire value. All value types are **immutable** — their fields cannot be modified after construction.
+- **Sealed interface markers** are compile-time-only generic bounds. They classify types for type checking, but they are not runtime types and cannot hold values.
 
 ### 2.2 Reference Types
 
@@ -77,6 +78,34 @@ interface Printable {
 
 - Interfaces can declare abstract members and provide default implementations.
 - Both reference types and value types can implement interfaces.
+
+#### 2.2.3 Sealed Interface Markers
+
+`sealed interface` declares a compile-time-only marker used as a generic bound. It is separate from ordinary `interface`: a sealed marker has no runtime dispatch surface, no members, and no user-written implementations.
+
+The initial sysroot markers are:
+
+```scoop
+sealed interface AnyRef
+sealed interface AnyValue
+```
+
+Rules:
+
+- A sealed interface body must be empty. Methods, properties, nested declarations, constructors, and other body members are rejected.
+- In Scoop 0.1, sealed interfaces may only be defined by the sysroot. User source cannot introduce new sealed markers.
+- A sealed interface name may appear only as a generic bound, for example `where T: AnyRef` or `where T: AnyRef, T: Hashable`.
+- A sealed interface name is rejected in runtime type positions: binding type, parameter type, return type, type argument, `is` / `!is`, `when is`, `as` / `as?`, and explicit class/struct/enum/interface supertype lists.
+- Sealed interfaces may inherit only other sealed interfaces. The compiler rejects cycles, non-sealed supertypes, and any marker whose transitive ancestors include both `AnyRef` and `AnyValue`.
+- `AnyRef` and `AnyValue` are mutually exclusive. A generic bound set that requires both is rejected because no concrete type can satisfy it.
+
+Satisfaction is compiler-defined:
+
+- Every class type satisfies `AnyRef`.
+- Every struct, tuple, enum, and built-in scalar value type satisfies `AnyValue`.
+- A type also satisfies the transitive sealed-marker supertypes of its directly assigned marker.
+
+This marker relation is stored only in compile-time type metadata. It is not emitted into object layout, vtables, itables, type descriptors, RTTI runtime-match names, or runtime cast/test machinery.
 
 ### 2.3 Value Types
 
@@ -1493,6 +1522,105 @@ A `do { ... }` block may appear in statement position or wherever an expression 
 Closure bodies use the same tail-expression rule as `do` blocks. Therefore `{ 1 }` is a closure returning `1`, while `do { 1 }` is a block expression whose value is `1`.
 
 Calls may consume one or more trailing lambdas. Only bare brace-delimited closure literals participate in this postfix syntax; an explicit `do { ... }` never becomes a trailing lambda. To pass the evaluated result of a local block to a call that also uses trailing lambdas, parenthesize the block as an ordinary argument (`combine(do { 3 }) { ... } { ... }`).
+
+#### 7.6.1 Capture Semantics
+
+Closure capture is a construction-point by-value snapshot:
+
+- Capturing a value type copies the value into the closure environment.
+- Capturing a reference type copies the managed pointer into the closure environment. The closure and the outer scope can still observe mutations to the same heap object through that pointer.
+- Closure environment fields are immutable after the closure value is constructed.
+- Inside the closure body, each captured name behaves like a local binding in the current call frame. A captured outer `val` is immutable inside the closure. A captured outer `var` is mutable inside the closure, but assignment only rebinds the closure call's local slot.
+- Rebinding a captured `var` does not write back to the outer binding and does not persist across multiple calls to the same closure value. Each call reloads the original environment snapshot into fresh call-frame locals.
+
+Example:
+
+```scoop
+var x = 10
+val f = { x = x + 1; x }
+
+val a = f()  // 11
+val b = f()  // 11, not 12
+val c = x    // 10, outer x was not rebound by f
+```
+
+Reference capture copies the reference, not the object:
+
+```scoop
+class Cell(var value: Int)
+
+val cell = Cell(0)
+val bump = { cell.value = cell.value + 1; cell.value }
+
+val a = bump()      // 1
+val b = bump()      // 2
+val outer = cell.value  // 2
+```
+
+Scoop does not perform implicit boxing for captured `var` bindings. If a closure must share mutable state with its creator, or if a closure instance must hold state across calls, use an explicit library type such as `RefCell<T>`, `AtomicInt`, `AtomicBool`, `Atomic<T>` for reference types, or `AtomicValue<T>` for value types.
+
+The initial shared-state sysroot surface is:
+
+```scoop
+class RefCell<T>(initial: T) {
+    var value: T = initial
+}
+
+class Box<T>(val value: T)
+
+class AtomicInt(initial: Int) {
+    fun load(): Int
+    fun store(value: Int): Unit
+    fun cas(expected: Int, desired: Int): Bool
+    fun exchange(value: Int): Int
+}
+
+class AtomicBool(initial: Bool) {
+    fun load(): Bool
+    fun store(value: Bool): Unit
+    fun cas(expected: Bool, desired: Bool): Bool
+    fun exchange(value: Bool): Bool
+}
+
+class Atomic<T>(initial: T) where T: AnyRef {
+    fun load(): T
+    fun store(value: T): Unit
+    fun cas(expected: T, desired: T): Bool
+    fun exchange(value: T): T
+}
+
+class AtomicValue<T>(initial: T) where T: AnyValue {
+    fun snapshot(): Box<T>
+    fun load(): T
+    fun store(value: T): Unit
+    fun cas(expected: Box<T>, desired: T): Bool
+    fun exchange(value: T): T
+}
+```
+
+`RefCell<T>` is single-threaded. `Box<T>` is immutable. `Atomic<T>` compares reference identity. `AtomicValue<T>` stores value snapshots through `Box<T>`; its `cas` operation takes `expected: Box<T>`, not `expected: T`, so callers compare the previously observed snapshot identity rather than value equality. The initial atomic API does not include `AtomicFloat*` or fixed-width integer atomic classes.
+
+#### 7.6.2 Migration Note: Kotlin-Style `makeCounter`
+
+Kotlin boxes captured `var` bindings implicitly, so this common pattern accumulates state in Kotlin:
+
+```scoop
+fun makeCounter(): () -> Int {
+    var n = 0
+    return { n = n + 1; n }
+}
+```
+
+In Scoop, that closure returns `1` on every call because `n` is reloaded from the closure environment snapshot into a fresh per-call local. Write the shared state explicitly instead:
+
+```scoop
+fun makeCounter(): () -> Int {
+    val n = RefCell(0)
+    return { n.value = n.value + 1; n.value }
+}
+```
+
+Use atomic library types instead of `RefCell<T>` when the shared state is intended to be accessed concurrently or needs atomic compare-and-swap behavior.
 
 ## 8. String Literals
 
