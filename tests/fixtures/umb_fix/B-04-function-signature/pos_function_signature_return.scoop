@@ -1,9 +1,8 @@
 // EXPECT: ok
-// IGNORE-UNTIL-FIX:B-04
 // SPEC: docs/spec/language_spec-part3.md#5-函数声明;docs/spec/language_spec-part3.md#51-inline;docs/spec/language_spec-part3.md#52-non-local-return
-// COVERS: UMB-0001, UMB-0002, UMB-0003, UMB-0004, UMB-0098, UMB-0102, UMB-0770, UMB-0772, UMB-0774, UMB-0822, UMB-0823, UMB-0824, UMB-0825, UMB-0826, UMB-0890, UMB-0891, UMB-0892, UMB-0939, UMB-0942, UMB-0980, UMB-0981, UMB-0983, UMB-0984, UMB-0994, UMB-1112, UMB-1119, UMB-1192, UMB-1194, UMB-1214
-// BUCKETS: B-03, B-04
-// REASON: U5-T02 records the spec surface before the matching implementation gate is enabled.
+// COVERS: NONE
+// BUCKETS: B-04
+// REASON: P7-B2.1 verifies function signature completeness before LLVM lowering.
 // SOURCE-FIXTURE: tests/fixtures/run-pass/generic_fun_basic.scoop
 
 import scoop.core.*

@@ -30,17 +30,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             &[desc_i8.into(), size_v.into()],
             "rt_alloc_box_unit",
         )?;
-        let raw = call
-            .try_as_basic_value()
-            .basic()
-            .expect("scoop_alloc_typed must return a boxed Unit pointer");
-
-        let BasicValueEnum::PointerValue(raw_ptr) = raw else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "scoop_alloc_typed return type",
-                at: at.into(),
-            });
-        };
+        let raw = self.expect_basic_value(call, "scoop_alloc_typed boxed Unit allocation");
+        let raw_ptr = self.expect_pointer_value(raw, "scoop_alloc_typed boxed Unit allocation");
 
         Ok(raw_ptr)
     }
@@ -93,17 +84,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             &[desc_i8.into(), size_v.into()],
             "rt_alloc_box",
         )?;
-        let raw = call
-            .try_as_basic_value()
-            .basic()
-            .expect("scoop_alloc_typed must return a boxed Int pointer");
-
-        let BasicValueEnum::PointerValue(raw_ptr) = raw else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "scoop_alloc_typed return type",
-                at: at.into(),
-            });
-        };
+        let raw = self.expect_basic_value(call, "scoop_alloc_typed boxed Int allocation");
+        let raw_ptr = self.expect_pointer_value(raw, "scoop_alloc_typed boxed Int allocation");
 
         // 写入 payload（对象头由 runtime 初始化）。
         let boxed_ty = self.llvm_boxed_int_type(value_ty);
@@ -143,16 +125,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             &[desc_i8.into(), size_v.into()],
             "rt_alloc_box_enum",
         )?;
-        let raw = call
-            .try_as_basic_value()
-            .basic()
-            .expect("scoop_alloc_typed must return a boxed enum pointer");
-        let BasicValueEnum::PointerValue(raw_ptr) = raw else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "scoop_alloc_typed enum box return type",
-                at: at.into(),
-            });
-        };
+        let raw = self.expect_basic_value(call, "scoop_alloc_typed boxed enum allocation");
+        let raw_ptr = self.expect_pointer_value(raw, "scoop_alloc_typed boxed enum allocation");
         let obj_ptr = self.builder.build_pointer_cast(
             raw_ptr,
             self.llvm_ptr_type(self.gc_address_space()),

@@ -58,10 +58,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 self.builder.build_unreachable()?;
             }
             _ => {
-                let alloca = return_alloca.ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "return alloca",
-                    at: at.into(),
-                })?;
+                let alloca = return_alloca.unwrap_or_else(|| {
+                    panic!("emit_function_return_block: function return context must publish return alloca")
+                });
                 let loaded = self.builder.build_load(
                     self.llvm_basic_type_of(at, declared_return_cg)?,
                     alloca,
@@ -157,17 +156,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.builder.position_at_end(entry);
         self.begin_function_explicit_frame_layout(llvm_fun)?;
 
-        let Some(declared_return_cg) = self.cg_ty_of(fun.return_ty) else {
+        let declared_return_cg = self.cg_ty_of(fun.return_ty).unwrap_or_else(|| {
             tracing::warn!(
                 "codegen_top_level_fun: unsupported return type for {} -> {}",
                 fun.fqn,
                 self.types.display(fun.return_ty)
             );
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "function return type",
-                at: fun.span.into(),
-            });
-        };
+            panic!("codegen_top_level_fun: MIR signature verifier accepted unsupported return type")
+        });
         self.function_cx.current_fun_return_ty = Some(declared_return_cg);
         let uses_hidden_sret = self
             .hidden_sret_result_ty(fun.span, declared_return_cg)?
@@ -179,10 +175,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             Some(
                 llvm_fun
                     .get_nth_param(0)
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "missing llvm function sret param",
-                        at: fun.span.into(),
-                    })?
+                    .unwrap_or_else(|| {
+                        panic!("codegen_top_level_fun: declared sret function must publish hidden return parameter")
+                    })
                     .into_pointer_value(),
             )
         } else {

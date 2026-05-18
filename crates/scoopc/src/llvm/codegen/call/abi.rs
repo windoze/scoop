@@ -28,7 +28,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         span: crate::span::Span,
         ty: TypeId,
     ) -> Result<BasicMetadataTypeEnum<'ctx>, LlvmEmitError> {
-        let cg = self.cg_ty_of(ty).ok_or_else(|| {
+        let cg = self.cg_ty_of(ty).unwrap_or_else(|| {
             let ty_desc = self
                 .codegen_type_store_for_type_id(ty)
                 .map(|types| types.display(ty).to_string())
@@ -39,11 +39,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 ty = %ty_desc,
                 "llvm_param_ty: unsupported function param type"
             );
-            LlvmEmitError::UnsupportedMainBody {
-                kind: "function param type",
-                at: span.into(),
-            }
-        })?;
+            panic!(
+                "llvm_param_ty: MIR signature verifier accepted unsupported param type {ty_desc}"
+            )
+        });
 
         Ok(self.llvm_basic_type_of(span, cg)?.into())
     }
@@ -53,7 +52,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         span: crate::span::Span,
         ty: TypeId,
     ) -> Result<OrdinaryParamAbi<'ctx>, LlvmEmitError> {
-        let cg = self.cg_ty_of(ty).ok_or_else(|| {
+        let cg = self.cg_ty_of(ty).unwrap_or_else(|| {
             let ty_desc = self
                 .codegen_type_store_for_type_id(ty)
                 .map(|types| types.display(ty).to_string())
@@ -64,11 +63,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 ty = %ty_desc,
                 "ordinary_param_abi: unsupported function param type"
             );
-            LlvmEmitError::UnsupportedMainBody {
-                kind: "function param type",
-                at: span.into(),
-            }
-        })?;
+            panic!("ordinary_param_abi: MIR signature verifier accepted unsupported param type {ty_desc}")
+        });
         let llvm_ty = self.llvm_basic_type_of(span, cg)?;
         let needs_indirect = matches!(
             llvm_ty,
@@ -109,7 +105,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         span: crate::span::Span,
         ty: TypeId,
     ) -> Result<NativeParamAbi<'ctx>, LlvmEmitError> {
-        self.cg_ty_of(ty).ok_or_else(|| {
+        self.cg_ty_of(ty).unwrap_or_else(|| {
             let ty_desc = self
                 .codegen_type_store_for_type_id(ty)
                 .map(|types| types.display(ty).to_string())
@@ -120,11 +116,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 ty = %ty_desc,
                 "native_param_abi: unsupported function param type"
             );
-            LlvmEmitError::UnsupportedMainBody {
-                kind: "function param type",
-                at: span.into(),
-            }
-        })?;
+            panic!(
+                "native_param_abi: MIR signature verifier accepted unsupported param type {ty_desc}"
+            )
+        });
         Ok(NativeParamAbi {
             llvm_param_ty: self.llvm_param_ty(span, ty)?,
         })
@@ -135,7 +130,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         span: crate::span::Span,
         return_ty: TypeId,
     ) -> Result<NativeReturnAbi<'ctx>, LlvmEmitError> {
-        let cg_ty = self.cg_ty_of(return_ty).ok_or_else(|| {
+        let cg_ty = self.cg_ty_of(return_ty).unwrap_or_else(|| {
             let ty_desc = self
                 .codegen_type_store_for_type_id(return_ty)
                 .map(|types| types.display(return_ty).to_string())
@@ -146,11 +141,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 ty = %ty_desc,
                 "native_return_abi: unsupported function return type"
             );
-            LlvmEmitError::UnsupportedMainBody {
-                kind: "function return type",
-                at: span.into(),
-            }
-        })?;
+            panic!("native_return_abi: MIR signature verifier accepted unsupported return type {ty_desc}")
+        });
         let llvm_return_ty = match cg_ty {
             CgTy::Unit | CgTy::Never => None,
             _ => Some(self.llvm_basic_type_of(span, cg_ty)?),

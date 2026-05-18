@@ -246,16 +246,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             &[closure_desc_i8.into(), size_v.into()],
             "rt_alloc_closure",
         )?;
-        let raw = call
-            .try_as_basic_value()
-            .basic()
-            .expect("scoop_alloc_typed must return a closure object pointer");
-        let BasicValueEnum::PointerValue(obj_i8) = raw else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "scoop_alloc_typed return type",
-                at: span.into(),
-            });
-        };
+        let raw = self.expect_basic_value(call, "scoop_alloc_typed closure object allocation");
+        let obj_i8 = self.expect_pointer_value(raw, "scoop_alloc_typed closure object allocation");
 
         let i8_ptr_ty = self.llvm_i8_ptr_type();
         let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
@@ -331,16 +323,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 &[env_desc_i8.into(), size_v.into()],
                 "rt_alloc_closure_env",
             )?;
-            let raw = call
-                .try_as_basic_value()
-                .basic()
-                .expect("scoop_alloc_typed must return a closure env pointer");
-            let BasicValueEnum::PointerValue(env_i8) = raw else {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "scoop_alloc_typed return type",
-                    at: span.into(),
-                });
-            };
+            let raw = self.expect_basic_value(call, "scoop_alloc_typed closure env allocation");
+            let env_i8 = self.expect_pointer_value(raw, "scoop_alloc_typed closure env allocation");
 
             let env_ptr_ty = self.llvm_ptr_type(self.gc_address_space());
             let env_ptr = self

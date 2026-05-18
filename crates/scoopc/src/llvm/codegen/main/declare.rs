@@ -54,21 +54,20 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // 否则它们内部的 managed calls 会被错误跳过 statepoint rewrite。
         let returns_gc_free_aggregate = self.returns_gc_free_aggregate(fun.return_ty);
 
-        let Some(return_cg) = native_abi
+        let return_cg = native_abi
             .as_ref()
             .map(|abi| abi.return_abi.cg_ty)
             .or_else(|| self.cg_ty_of(fun.return_ty))
-        else {
-            tracing::warn!(
-                "declare_top_level_fun: unsupported return type for {} -> {}",
-                fun.fqn,
-                self.types.display(fun.return_ty)
-            );
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "function return type",
-                at: fun.span.into(),
+            .unwrap_or_else(|| {
+                tracing::warn!(
+                    "declare_top_level_fun: unsupported return type for {} -> {}",
+                    fun.fqn,
+                    self.types.display(fun.return_ty)
+                );
+                panic!(
+                    "declare_top_level_fun: MIR signature verifier accepted unsupported return type"
+                )
             });
-        };
 
         let hidden_sret_result_ty = if native_abi.is_some() {
             None
@@ -193,21 +192,17 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
         let returns_gc_free_aggregate = self.returns_gc_free_aggregate(return_ty);
 
-        let Some(return_cg) = native_abi
+        let return_cg = native_abi
             .as_ref()
             .map(|abi| abi.return_abi.cg_ty)
             .or_else(|| self.cg_ty_of(return_ty))
-        else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "function return type",
-                at: fun.span.into(),
+            .unwrap_or_else(|| {
+                panic!("declare_top_level_fun_with_signature_override: MIR signature verifier accepted unsupported return type")
             });
-        };
         if param_tys.len() != fun.params.len() {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "function param type",
-                at: fun.span.into(),
-            });
+            panic!(
+                "declare_top_level_fun_with_signature_override: MIR signature verifier accepted param arity drift"
+            );
         }
 
         let hidden_sret_result_ty = if native_abi.is_some() {
@@ -318,22 +313,19 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         };
         let returns_gc_free_aggregate = self.returns_gc_free_aggregate(codegen_return_ty);
 
-        let Some(return_cg) = native_abi
+        let return_cg = native_abi
             .as_ref()
             .map(|abi| abi.return_abi.cg_ty)
             .or_else(|| self.cg_ty_of_mir_type(mir_types, fun.return_ty))
             .or_else(|| self.cg_ty_of(codegen_return_ty))
-        else {
-            tracing::warn!(
-                "declare_materialized_top_level_fun: unsupported return type for {} -> {}",
-                fun.fqn,
-                mir_types.display(fun.return_ty)
-            );
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "function return type",
-                at: fun.span.into(),
+            .unwrap_or_else(|| {
+                tracing::warn!(
+                    "declare_materialized_top_level_fun: unsupported return type for {} -> {}",
+                    fun.fqn,
+                    mir_types.display(fun.return_ty)
+                );
+                panic!("declare_materialized_top_level_fun: MIR materialize verifier accepted unsupported return type")
             });
-        };
 
         let hidden_sret_result_ty = if native_abi.is_some() {
             None
@@ -458,12 +450,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &mut self,
         fun: &hir::FunDecl,
     ) -> Result<FunctionValue<'ctx>, LlvmEmitError> {
-        let return_cg = self
-            .cg_ty_of(fun.return_ty)
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "function return type",
-                at: fun.span.into(),
-            })?;
+        let return_cg = self.cg_ty_of(fun.return_ty).unwrap_or_else(|| {
+            panic!("declare_top_level_fun_callee_resume_entry: MIR signature verifier accepted unsupported return type")
+        });
         self.declare_callee_resume_entry_function(
             fun.span,
             &top_level_callee_resume_entry_fn_name(&fun.fqn),

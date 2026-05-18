@@ -208,7 +208,7 @@ fn validate_bodies(file: &MirFile, unit_ty: TypeId) -> Result<(), MirLowerError>
     file.validate_production(unit_ty)
         .map_err(|error| MirLowerError::InvalidMir {
             fqn: error.body_fqn().unwrap_or("<file>").to_string(),
-            error,
+            error: Box::new(error),
         })
 }
 
@@ -1947,7 +1947,7 @@ fun entry(): Int / Raise<Int> {
         let MirLowerError::InvalidMir { error, .. } = error else {
             panic!("expected MIR validation error, got {error:?}");
         };
-        let MirValidationError::ProductionSiteMetadata { site, detail, .. } = error else {
+        let MirValidationError::ProductionSiteMetadata { site, detail, .. } = *error else {
             panic!("expected site metadata validation error, got {error:?}");
         };
         assert_eq!(site, expected_site);

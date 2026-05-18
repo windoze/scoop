@@ -33,13 +33,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         decl: &hir::ValDecl,
         target_ty: CgTy,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        let init = decl
-            .init
-            .as_ref()
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "val without initializer",
-                at: decl.span.into(),
-            })?;
+        let init = decl.init.as_ref().unwrap_or_else(|| {
+            panic!("codegen_decl_initializer_expr: typed HIR val must publish initializer")
+        });
 
         self.codegen_initializer_expr(init, target_ty, decl.ty)
     }

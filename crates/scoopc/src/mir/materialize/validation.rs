@@ -78,6 +78,25 @@ pub(super) fn collect_materialized_known_roots(materialized: &MaterializedMir) -
     roots
 }
 
+fn materialized_type_contract_err(
+    fqn: &str,
+    block: Option<BasicBlockId>,
+    span: Span,
+    surface: &'static str,
+    detail: &'static str,
+) -> Box<MirMaterializeError> {
+    materialize_err(MirMaterializeError::MaterializedMirValidation {
+        fqn: fqn.to_string(),
+        error: super::super::MirValidationError::TypeContract {
+            fqn: fqn.to_string(),
+            block,
+            span,
+            surface,
+            detail,
+        },
+    })
+}
+
 pub(super) fn validate_materialized_instance_key(
     materialized: &MaterializedMir,
     key: &InstanceKey,
@@ -453,6 +472,7 @@ pub(super) fn validate_materialized_fun(
             error,
         })
     })?;
+    validate_materialized_signature_locals(fun, body)?;
 
     for local in &body.locals {
         validate_materialized_type(
@@ -500,6 +520,33 @@ pub(super) fn validate_materialized_fun(
     Ok(())
 }
 
+pub(super) fn validate_materialized_signature_locals(
+    fun: &FunDecl,
+    body: &Body,
+) -> MaterializeResult<()> {
+    for param in &fun.params {
+        let Some(local) = body.locals.get(param.local.as_u32() as usize) else {
+            return Err(materialized_type_contract_err(
+                &fun.fqn,
+                None,
+                param.span,
+                "parameter local",
+                "parameter local is outside the body local table",
+            ));
+        };
+        if local.ty != param.ty {
+            return Err(materialized_type_contract_err(
+                &fun.fqn,
+                None,
+                param.span,
+                "parameter type",
+                "parameter type and parameter local type disagree",
+            ));
+        }
+    }
+    Ok(())
+}
+
 pub(super) fn validate_materialized_param(
     materialized: &MaterializedMir,
     fqn: &str,
@@ -526,15 +573,25 @@ pub(super) fn validate_materialized_statement(
     root_sets: MaterializedRootSets<'_>,
 ) -> MaterializeResult<()> {
     match &stmt.kind {
-        StatementKind::Assign { target: _, value } => validate_materialized_rvalue(
-            materialized,
-            fqn,
-            block,
-            stmt.span,
-            locals,
-            value,
-            root_sets,
-        ),
+        StatementKind::Assign { target, value } => {
+            validate_materialized_local(
+                fqn,
+                Some(block),
+                stmt.span,
+                "assignment target",
+                locals,
+                *target,
+            )?;
+            validate_materialized_rvalue(
+                materialized,
+                fqn,
+                block,
+                stmt.span,
+                locals,
+                value,
+                root_sets,
+            )
+        }
         StatementKind::StoreMember {
             receiver,
             member,
@@ -552,6 +609,24 @@ pub(super) fn validate_materialized_statement(
                 receiver,
             )?;
             validate_materialized_member_metadata(materialized, fqn, block, stmt.span, member)?;
+            let receiver_ty = materialized_operand_ty(
+                materialized,
+                fqn,
+                block,
+                stmt.span,
+                "member store receiver",
+                locals,
+                receiver,
+            )?;
+            if receiver_ty.is_some_and(|ty| ty != member.receiver_ty) {
+                return Err(materialized_type_contract_err(
+                    fqn,
+                    Some(block),
+                    stmt.span,
+                    "member store receiver",
+                    "receiver operand type and member receiver type disagree",
+                ));
+            }
             validate_materialized_operand(
                 materialized,
                 fqn,
@@ -561,6 +636,24 @@ pub(super) fn validate_materialized_statement(
                 locals,
                 value,
             )?;
+            let operand_ty = materialized_operand_ty(
+                materialized,
+                fqn,
+                block,
+                stmt.span,
+                "member store value",
+                locals,
+                value,
+            )?;
+            if operand_ty.is_some_and(|ty| ty != *value_ty) {
+                return Err(materialized_type_contract_err(
+                    fqn,
+                    Some(block),
+                    stmt.span,
+                    "member store value",
+                    "value operand type and published value type disagree",
+                ));
+            }
             validate_materialized_type(
                 materialized,
                 MaterializedValidationContext {
@@ -749,7 +842,26 @@ pub(super) fn validate_materialized_rvalue(
                 locals,
                 receiver,
             )?;
-            validate_materialized_member_metadata(materialized, fqn, block, span, member)
+            validate_materialized_member_metadata(materialized, fqn, block, span, member)?;
+            let receiver_ty = materialized_operand_ty(
+                materialized,
+                fqn,
+                block,
+                span,
+                "member receiver",
+                locals,
+                receiver,
+            )?;
+            if receiver_ty.is_some_and(|ty| ty != member.receiver_ty) {
+                return Err(materialized_type_contract_err(
+                    fqn,
+                    Some(block),
+                    span,
+                    "member receiver",
+                    "receiver operand type and member receiver type disagree",
+                ));
+            }
+            Ok(())
         }
         Rvalue::EnumVariant {
             enum_ty,
@@ -778,10 +890,29 @@ pub(super) fn validate_materialized_rvalue(
             )
         }
         Rvalue::ClassCtor {
+            ctor,
             args,
             hidden_effects,
             ..
         } => {
+            if ctor.ordered_param_count != args.len() {
+                return Err(materialized_type_contract_err(
+                    fqn,
+                    Some(block),
+                    span,
+                    "class constructor arguments",
+                    "ordered parameter count and lowered argument count disagree",
+                ));
+            }
+            if let Some(arg) = args.iter().find(|arg| arg.name.is_some()) {
+                return Err(materialized_type_contract_err(
+                    fqn,
+                    Some(block),
+                    arg.span,
+                    "class constructor arguments",
+                    "materialized constructor arguments must be positional",
+                ));
+            }
             validate_materialized_effect_row(
                 materialized,
                 MaterializedValidationContext {
@@ -1492,15 +1623,18 @@ pub(super) fn validate_materialized_terminator(
     terminator: &Terminator,
 ) -> MaterializeResult<()> {
     match &terminator.kind {
-        TerminatorKind::Return { value: Some(value) } => validate_materialized_operand(
-            materialized,
-            &fun.fqn,
-            block,
-            terminator.span,
-            "return value",
-            locals,
-            value,
-        ),
+        TerminatorKind::Return { value: Some(value) } => {
+            materialized_operand_ty(
+                materialized,
+                &fun.fqn,
+                block,
+                terminator.span,
+                "return value",
+                locals,
+                value,
+            )?;
+            Ok(())
+        }
         TerminatorKind::Return { value: None } => {
             let builtins = materialized
                 .types
@@ -2052,6 +2186,25 @@ pub(super) fn validate_materialized_operands(
     Ok(())
 }
 
+pub(super) fn validate_materialized_local<'a>(
+    fqn: &str,
+    block: Option<BasicBlockId>,
+    span: Span,
+    surface: &'static str,
+    locals: &'a [LocalDecl],
+    local: LocalId,
+) -> MaterializeResult<&'a LocalDecl> {
+    locals.get(local.as_u32() as usize).ok_or_else(|| {
+        materialized_type_contract_err(
+            fqn,
+            block,
+            span,
+            surface,
+            "local reference is outside the body local table",
+        )
+    })
+}
+
 pub(super) fn validate_materialized_operand(
     materialized: &MaterializedMir,
     fqn: &str,
@@ -2061,9 +2214,9 @@ pub(super) fn validate_materialized_operand(
     locals: &[LocalDecl],
     operand: &Operand,
 ) -> MaterializeResult<()> {
-    if let Operand::Local(local) = operand
-        && let Some(local_decl) = locals.get(local.as_u32() as usize)
-    {
+    if let Operand::Local(local) = operand {
+        let local_decl =
+            validate_materialized_local(fqn, Some(block), span, surface, locals, *local)?;
         validate_materialized_type(
             materialized,
             MaterializedValidationContext {
@@ -2076,6 +2229,35 @@ pub(super) fn validate_materialized_operand(
         )?;
     }
     Ok(())
+}
+
+pub(super) fn materialized_operand_ty(
+    materialized: &MaterializedMir,
+    fqn: &str,
+    block: BasicBlockId,
+    span: Span,
+    surface: &'static str,
+    locals: &[LocalDecl],
+    operand: &Operand,
+) -> MaterializeResult<Option<TypeId>> {
+    match operand {
+        Operand::Local(local) => {
+            let local_decl =
+                validate_materialized_local(fqn, Some(block), span, surface, locals, *local)?;
+            validate_materialized_type(
+                materialized,
+                MaterializedValidationContext {
+                    fqn,
+                    block: Some(block),
+                    span,
+                    surface,
+                },
+                local_decl.ty,
+            )?;
+            Ok(Some(local_decl.ty))
+        }
+        Operand::Const(_) => Ok(None),
+    }
 }
 
 pub(super) fn validate_materialized_type(

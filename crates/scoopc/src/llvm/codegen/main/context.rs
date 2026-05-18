@@ -78,6 +78,18 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         })
     }
 
+    /// Return a pointer value, or panic with a named compiler invariant.
+    pub(in crate::llvm::codegen) fn expect_pointer_value(
+        &self,
+        value: BasicValueEnum<'ctx>,
+        context: &str,
+    ) -> PointerValue<'ctx> {
+        match value {
+            BasicValueEnum::PointerValue(ptr) => ptr,
+            _ => panic!("expect_pointer_value: value was not a pointer while {context}"),
+        }
+    }
+
     pub(in crate::llvm::codegen) fn take_function_body_cx(
         &mut self,
     ) -> FunctionBodyCodegenCx<'ctx> {

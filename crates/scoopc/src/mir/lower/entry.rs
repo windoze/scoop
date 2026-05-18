@@ -17,7 +17,7 @@ pub enum MirLowerError {
     InvalidMir {
         fqn: String,
         #[source]
-        error: MirValidationError,
+        error: Box<MirValidationError>,
     },
 }
 

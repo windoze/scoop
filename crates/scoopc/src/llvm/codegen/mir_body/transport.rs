@@ -142,16 +142,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             &[box_desc_i8.into(), size_v.into()],
             "rt_alloc_mir_value_box",
         )?;
-        let raw = call
-            .try_as_basic_value()
-            .basic()
-            .expect("scoop_alloc_typed must return a MIR value box pointer");
-        let BasicValueEnum::PointerValue(obj_i8) = raw else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "scoop_alloc_typed value box return type",
-                at: span.into(),
-            });
-        };
+        let raw = self.expect_basic_value(call, "scoop_alloc_typed MIR value box allocation");
+        let obj_i8 = self.expect_pointer_value(raw, "scoop_alloc_typed MIR value box allocation");
 
         let obj_ptr_ty = self.llvm_ptr_type(self.gc_address_space());
         let obj_ptr =

@@ -7,26 +7,20 @@ use super::*;
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(in crate::llvm::codegen) fn codegen_mir_class_ctor_ordered_args(
         &mut self,
-        span: crate::span::Span,
+        _span: crate::span::Span,
         args: &[crate::mir::CallArg],
         slots: &[MirLocalSlot<'ctx>],
         ctor_params: &[hir::ClassCtorParam],
         kind: &'static str,
     ) -> Result<Vec<CgValue<'ctx>>, LlvmEmitError> {
         if ctor_params.len() != args.len() {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind,
-                at: span.into(),
-            });
+            panic!("codegen_mir_class_ctor_ordered_args: MIR verifier accepted {kind}");
         }
 
         let mut evaluated_args = Vec::with_capacity(args.len());
         for (idx, (param, arg)) in ctor_params.iter().zip(args).enumerate() {
             if arg.name.is_some() {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind,
-                    at: arg.span.into(),
-                });
+                panic!("codegen_mir_class_ctor_ordered_args: MIR verifier accepted {kind}");
             }
             let param_cg = self
                 .cg_ty_of(param.ty)
@@ -89,19 +83,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             &[type_desc_i8.into(), size_v.into()],
             "rt_alloc_lowered_class",
         )?;
-        let raw = call
-            .try_as_basic_value()
-            .basic()
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "scoop_alloc_typed return value",
-                at: span.into(),
-            })?;
-        let BasicValueEnum::PointerValue(obj_ptr) = raw else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "scoop_alloc_typed return type",
-                at: span.into(),
-            });
-        };
+        let raw = self.expect_basic_value(call, "scoop_alloc_typed lowered class allocation");
+        let obj_ptr = self.expect_pointer_value(raw, "scoop_alloc_typed lowered class allocation");
 
         let obj_ptr_ty = self.llvm_ptr_type(self.gc_address_space());
         let typed_obj =
@@ -410,12 +393,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     at: span.into(),
                 })?;
                 let param = &mir_fun.params[param_idx];
-                let abi_ty = self.equivalent_codegen_type_id(mir_types, param.ty).ok_or(
-                    LlvmEmitError::UnsupportedMainBody {
-                        kind: "pass MIR plain param type",
-                        at: param.span.into(),
-                    },
-                )?;
+                let abi_ty = self.equivalent_codegen_type_id(mir_types, param.ty).unwrap_or_else(|| {
+                    panic!(
+                        "codegen_bound_materialized_mir_call_args: MIR verifier accepted unsupported plain param type"
+                    )
+                });
                 let param_abi = if uses_native_abi {
                     None
                 } else {

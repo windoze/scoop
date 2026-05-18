@@ -254,6 +254,7 @@ impl File {
                 error: Box::new(other),
             },
         })?;
+        self.validate_production_signature(fun, body)?;
 
         for (index, block) in body.blocks.iter().enumerate() {
             let block_id = BasicBlockId(index as u32);
@@ -283,8 +284,15 @@ impl File {
     ) -> Result<(), MirValidationError> {
         match &stmt.kind {
             StatementKind::Assign { target, value } => {
-                let result_ty = Self::local_ty(body, *target);
-                self.validate_production_rvalue(fqn, body, block, stmt.span, result_ty, value)
+                let result_ty = self.validate_production_local(
+                    fqn,
+                    Some(block),
+                    stmt.span,
+                    body,
+                    *target,
+                    "assignment target",
+                )?;
+                self.validate_production_rvalue(fqn, body, block, stmt.span, Some(result_ty), value)
             }
             StatementKind::StoreMember {
                 continuation_route: StoredContinuationRoutePublication::Ambiguous,
@@ -296,6 +304,71 @@ impl File {
                 transport: "member store continuation route",
                 detail: "ambiguous continuation route must be split or rejected before handoff",
             }),
+            StatementKind::StoreMember {
+                receiver,
+                member,
+                value,
+                value_ty,
+                ..
+            } => {
+                let receiver_ty = self.validate_production_operand(
+                    fqn,
+                    block,
+                    stmt.span,
+                    body,
+                    "member store receiver",
+                    receiver,
+                )?;
+                if receiver_ty.is_some_and(|ty| ty != member.receiver_ty) {
+                    return Err(MirValidationError::TypeContract {
+                        fqn: fqn.to_string(),
+                        block: Some(block),
+                        span: stmt.span,
+                        surface: "member store receiver",
+                        detail: "receiver operand type and member receiver type disagree",
+                    });
+                }
+                let value_operand_ty = self.validate_production_operand(
+                    fqn,
+                    block,
+                    stmt.span,
+                    body,
+                    "member store value",
+                    value,
+                )?;
+                if value_operand_ty.is_some_and(|ty| ty != *value_ty) {
+                    return Err(MirValidationError::TypeContract {
+                        fqn: fqn.to_string(),
+                        block: Some(block),
+                        span: stmt.span,
+                        surface: "member store value",
+                        detail: "value operand type and published value type disagree",
+                    });
+                }
+                Ok(())
+            }
+            StatementKind::StoreTopLevelVar {
+                value, value_ty, ..
+            } => {
+                let operand_ty = self.validate_production_operand(
+                    fqn,
+                    block,
+                    stmt.span,
+                    body,
+                    "top-level store value",
+                    value,
+                )?;
+                if operand_ty.is_some_and(|ty| ty != *value_ty) {
+                    return Err(MirValidationError::TypeContract {
+                        fqn: fqn.to_string(),
+                        block: Some(block),
+                        span: stmt.span,
+                        surface: "top-level store value",
+                        detail: "value operand type and published value type disagree",
+                    });
+                }
+                Ok(())
+            }
             StatementKind::Todo(reason) => Err(MirValidationError::ProductionTodo {
                 fqn: fqn.to_string(),
                 block: Some(block),
@@ -303,9 +376,74 @@ impl File {
                 category: MirPlaceholderCategory::Statement,
                 reason,
             }),
-            StatementKind::Nop
-            | StatementKind::StoreMember { .. }
-            | StatementKind::StoreTopLevelVar { .. } => Ok(()),
+            StatementKind::Nop => Ok(()),
+        }
+    }
+
+    fn validate_production_signature(
+        &self,
+        fun: &FunDecl,
+        body: &Body,
+    ) -> Result<(), MirValidationError> {
+        for param in &fun.params {
+            let local = body
+                .locals
+                .get(param.local.as_u32() as usize)
+                .ok_or_else(|| MirValidationError::TypeContract {
+                    fqn: fun.fqn.clone(),
+                    block: None,
+                    span: param.span,
+                    surface: "parameter local",
+                    detail: "parameter local is outside the body local table",
+                })?;
+            if local.ty != param.ty {
+                return Err(MirValidationError::TypeContract {
+                    fqn: fun.fqn.clone(),
+                    block: None,
+                    span: param.span,
+                    surface: "parameter type",
+                    detail: "parameter type and parameter local type disagree",
+                });
+            }
+        }
+        Ok(())
+    }
+
+    fn validate_production_local(
+        &self,
+        fqn: &str,
+        block: Option<BasicBlockId>,
+        span: Span,
+        body: &Body,
+        local: LocalId,
+        surface: &'static str,
+    ) -> Result<TypeId, MirValidationError> {
+        body.locals
+            .get(local.as_u32() as usize)
+            .map(|decl| decl.ty)
+            .ok_or_else(|| MirValidationError::TypeContract {
+                fqn: fqn.to_string(),
+                block,
+                span,
+                surface,
+                detail: "local reference is outside the body local table",
+            })
+    }
+
+    fn validate_production_operand(
+        &self,
+        fqn: &str,
+        block: BasicBlockId,
+        span: Span,
+        body: &Body,
+        surface: &'static str,
+        operand: &Operand,
+    ) -> Result<Option<TypeId>, MirValidationError> {
+        match operand {
+            Operand::Local(local) => self
+                .validate_production_local(fqn, Some(block), span, body, *local, surface)
+                .map(Some),
+            Operand::Const(_) => Ok(None),
         }
     }
 
@@ -327,12 +465,20 @@ impl File {
                 category: MirPlaceholderCategory::Rvalue,
                 reason,
             }),
-            Rvalue::Transport { value, transport } => self.validate_value_transport(
-                site,
-                "value erasure",
-                Self::operand_ty(body, value),
-                transport,
-            )
+            Rvalue::Use(operand) => self
+                .validate_production_operand(fqn, block, span, body, "source value", operand)
+                .map(|_| ()),
+            Rvalue::Transport { value, transport } => {
+                let source_ty = self.validate_production_operand(
+                    fqn,
+                    block,
+                    span,
+                    body,
+                    "transport value",
+                    value,
+                )?;
+                self.validate_value_transport(site, "value erasure", source_ty, transport)
+            }
             .and_then(|()| {
                 let Some(boxing) = &transport.boxing else {
                     return Err(MirValidationError::ProductionTransportMetadata {
@@ -377,16 +523,22 @@ impl File {
             }),
             Rvalue::Call {
                 kind,
+                args,
                 transport,
                 ..
             } => {
+                for arg in args {
+                    self.validate_production_operand(
+                        fqn,
+                        block,
+                        arg.span,
+                        body,
+                        "call argument",
+                        &arg.value,
+                    )?;
+                }
                 self.validate_production_call_kind(fqn, block, span, kind)?;
-                self.validate_value_transport(
-                    site,
-                    "call result",
-                    result_ty,
-                    &transport.result,
-                )?;
+                self.validate_value_transport(site, "call result", result_ty, &transport.result)?;
                 if let Some(aggregate_return) = &transport.aggregate_return {
                     self.validate_value_transport(
                         site,
@@ -412,15 +564,20 @@ impl File {
                 payload,
                 ..
             } => {
-                let expected_fields = args
-                    .iter()
-                    .map(|arg| {
-                        (
-                            arg.name.as_deref(),
-                            Self::operand_ty(body, &arg.value),
-                        )
-                    })
-                    .collect::<Vec<_>>();
+                let mut expected_fields = Vec::with_capacity(args.len());
+                for arg in args {
+                    expected_fields.push((
+                        arg.name.as_deref(),
+                        self.validate_production_operand(
+                            site.fqn,
+                            block,
+                            arg.span,
+                            body,
+                            "enum payload argument",
+                            &arg.value,
+                        )?,
+                    ));
+                }
                 self.validate_aggregate_transport(
                     site,
                     "enum payload",
@@ -434,10 +591,20 @@ impl File {
                 elements,
                 transport,
             } => {
-                let expected_fields = elements
-                    .iter()
-                    .map(|element| (None, Self::operand_ty(body, element)))
-                    .collect::<Vec<_>>();
+                let mut expected_fields = Vec::with_capacity(elements.len());
+                for element in elements {
+                    expected_fields.push((
+                        None,
+                        self.validate_production_operand(
+                            fqn,
+                            block,
+                            span,
+                            body,
+                            "tuple aggregate element",
+                            element,
+                        )?,
+                    ));
+                }
                 self.validate_aggregate_transport(
                     site,
                     "tuple aggregate",
@@ -448,15 +615,20 @@ impl File {
                 )
             }
             Rvalue::StructLit { fields, transport } => {
-                let expected_fields = fields
-                    .iter()
-                    .map(|field| {
-                        (
-                            Some(field.name.as_str()),
-                            Self::operand_ty(body, &field.value),
-                        )
-                    })
-                    .collect::<Vec<_>>();
+                let mut expected_fields = Vec::with_capacity(fields.len());
+                for field in fields {
+                    expected_fields.push((
+                        Some(field.name.as_str()),
+                        self.validate_production_operand(
+                            fqn,
+                            block,
+                            field.span,
+                            body,
+                            "struct aggregate field",
+                            &field.value,
+                        )?,
+                    ));
+                }
                 self.validate_aggregate_transport(
                     site,
                     "struct aggregate",
@@ -469,7 +641,8 @@ impl File {
             Rvalue::MakeClosure {
                 env, env_contract, ..
             } => {
-                if Self::operand_ty(body, env)
+                if self
+                    .validate_production_operand(fqn, block, span, body, "closure env", env)?
                     .is_some_and(|env_ty| env_ty != env_contract.env_ty)
                 {
                     return Err(MirValidationError::ProductionTransportMetadata {
@@ -489,7 +662,7 @@ impl File {
                 ..
             } => self.validate_type_test_metadata(
                 site,
-                Self::operand_ty(body, value),
+                self.validate_production_operand(fqn, block, span, body, "typecheck value", value)?,
                 *test_ty,
                 metadata,
             ),
@@ -502,28 +675,86 @@ impl File {
             } => self.validate_cast_metadata(
                 site,
                 *op,
-                Self::operand_ty(body, value),
+                self.validate_production_operand(fqn, block, span, body, "cast value", value)?,
                 *target_ty,
                 result_ty,
                 metadata,
             ),
             Rvalue::PatternMatch { subject, pattern } => self.validate_pattern_metadata(
                 site,
-                Self::operand_ty(body, subject),
+                self.validate_production_operand(
+                    fqn,
+                    block,
+                    span,
+                    body,
+                    "pattern subject",
+                    subject,
+                )?,
                 pattern,
             ),
+            Rvalue::MemberAccess { receiver, .. } => self
+                .validate_production_operand(fqn, block, span, body, "member receiver", receiver)
+                .map(|_| ()),
+            Rvalue::ClassCtor { ctor, args, .. } => {
+                if ctor.ordered_param_count != args.len() {
+                    return Err(MirValidationError::TypeContract {
+                        fqn: fqn.to_string(),
+                        block: Some(block),
+                        span,
+                        surface: "class constructor arguments",
+                        detail: "ordered parameter count and lowered argument count disagree",
+                    });
+                }
+                for arg in args {
+                    if arg.name.is_some() {
+                        return Err(MirValidationError::TypeContract {
+                            fqn: fqn.to_string(),
+                            block: Some(block),
+                            span: arg.span,
+                            surface: "class constructor arguments",
+                            detail: "materialized constructor arguments must be positional",
+                        });
+                    }
+                    self.validate_production_operand(
+                        fqn,
+                        block,
+                        arg.span,
+                        body,
+                        "class constructor argument",
+                        &arg.value,
+                    )?;
+                }
+                Ok(())
+            }
+            Rvalue::InterpolatedString { parts, .. } => {
+                for part in parts {
+                    if let InterpolatedStringPart::Expr { span, value, .. } = part {
+                        self.validate_production_operand(
+                            fqn,
+                            block,
+                            *span,
+                            body,
+                            "interpolated string value",
+                            value,
+                        )?;
+                    }
+                }
+                Ok(())
+            }
+            Rvalue::TupleGet { tuple, .. } => self
+                .validate_production_operand(fqn, block, span, body, "tuple get source", tuple)
+                .map(|_| ()),
+            Rvalue::PatternExtract { subject, .. } => self
+                .validate_production_operand(
+                    fqn,
+                    block,
+                    span,
+                    body,
+                    "pattern extract subject",
+                    subject,
+                )
+                .map(|_| ()),
             _ => Ok(()),
-        }
-    }
-
-    fn local_ty(body: &Body, local: LocalId) -> Option<TypeId> {
-        body.locals.get(local.as_u32() as usize).map(|decl| decl.ty)
-    }
-
-    fn operand_ty(body: &Body, operand: &Operand) -> Option<TypeId> {
-        match operand {
-            Operand::Local(local) => Self::local_ty(body, *local),
-            Operand::Const(_) => None,
         }
     }
 
@@ -990,20 +1221,39 @@ impl File {
                 arms,
                 has_finally,
                 ..
-            } => self.validate_production_handle(
-                &fun.fqn,
-                block_id,
-                block.terminator.span,
-                metadata,
-                arms,
-                *has_finally,
-            ),
-            TerminatorKind::Return { value: Some(_) }
-            | TerminatorKind::Return { value: None }
+            } => {
+                let site = ProductionSiteContext {
+                    fqn: &fun.fqn,
+                    block: block_id,
+                    span: block.terminator.span,
+                };
+                self.validate_production_handle(site, body, metadata, arms, *has_finally)
+            }
+            TerminatorKind::Return { value: Some(value) } => {
+                self.validate_production_operand(
+                    &fun.fqn,
+                    block_id,
+                    block.terminator.span,
+                    body,
+                    "return value",
+                    value,
+                )?;
+                Ok(())
+            }
+            TerminatorKind::Return { value: None }
             | TerminatorKind::ResumeUnwind
             | TerminatorKind::Goto { .. }
-            | TerminatorKind::CondBr { .. }
             | TerminatorKind::Unreachable => Ok(()),
+            TerminatorKind::CondBr { cond, .. } => self
+                .validate_production_operand(
+                    &fun.fqn,
+                    block_id,
+                    block.terminator.span,
+                    body,
+                    "branch condition",
+                    cond,
+                )
+                .map(|_| ()),
         }
     }
 
@@ -1016,6 +1266,16 @@ impl File {
         args: &[PerformArg],
         unwind: &UnwindAction,
     ) -> Result<(), MirValidationError> {
+        for arg in args {
+            self.validate_production_operand(
+                site.fqn,
+                site.block,
+                arg.span,
+                body,
+                "perform payload arg",
+                &arg.value,
+            )?;
+        }
         let detail = if op_fqn.is_empty() {
             Some("perform terminator is missing effect operation identity")
         } else if metadata.arg_mapping.len() != args.len() {
@@ -1038,14 +1298,7 @@ impl File {
             .any(|(transport, ty)| transport.source_ty != ty)
         {
             Some("perform payload transport type disagrees with payload component type")
-        } else if metadata
-            .payload_transport
-            .iter()
-            .zip(args.iter())
-            .any(|(transport, arg)| {
-                Self::operand_ty(body, &arg.value).is_some_and(|ty| transport.source_ty != ty)
-            })
-        {
+        } else if self.perform_payload_transport_mismatches_operand(site, body, metadata, args)? {
             Some("perform payload transport type does not match lowered payload value")
         } else if matches!(unwind, UnwindAction::NoUnwind) {
             Some("perform terminator is missing an explicit unwind action")
@@ -1074,11 +1327,33 @@ impl File {
         Ok(())
     }
 
+    fn perform_payload_transport_mismatches_operand(
+        &self,
+        site: ProductionSiteContext<'_>,
+        body: &Body,
+        metadata: &PerformMetadata,
+        args: &[PerformArg],
+    ) -> Result<bool, MirValidationError> {
+        for (transport, arg) in metadata.payload_transport.iter().zip(args.iter()) {
+            let ty = self.validate_production_operand(
+                site.fqn,
+                site.block,
+                arg.span,
+                body,
+                "perform payload arg",
+                &arg.value,
+            )?;
+            if ty.is_some_and(|ty| transport.source_ty != ty) {
+                return Ok(true);
+            }
+        }
+        Ok(false)
+    }
+
     fn validate_production_handle(
         &self,
-        fqn: &str,
-        block: BasicBlockId,
-        span: Span,
+        site: ProductionSiteContext<'_>,
+        body: &Body,
         metadata: &HandleMetadata,
         arms: &[HandlerArm],
         has_finally: bool,
@@ -1102,6 +1377,30 @@ impl File {
                     detail = Some("handle arm payload component metadata does not match binders");
                     break;
                 }
+                for local in arm
+                    .binder_locals
+                    .iter()
+                    .copied()
+                    .chain(arm.continuation_local)
+                {
+                    if self
+                        .validate_production_local(
+                            site.fqn,
+                            Some(site.block),
+                            site.span,
+                            body,
+                            local,
+                            "handle binder local",
+                        )
+                        .is_err()
+                    {
+                        detail = Some("handle arm binder local is outside the body local table");
+                        break;
+                    }
+                }
+                if detail.is_some() {
+                    break;
+                }
                 if arm.kind == HandlerArmKind::EscapeContinuation
                     && arm.continuation_local.is_none()
                 {
@@ -1113,9 +1412,9 @@ impl File {
 
         if let Some(detail) = detail {
             return Err(MirValidationError::ProductionSiteMetadata {
-                fqn: fqn.to_string(),
-                block,
-                span,
+                fqn: site.fqn.to_string(),
+                block: site.block,
+                span: site.span,
                 site: MirSiteMetadataKind::Handle,
                 detail,
             });
@@ -2738,6 +3037,14 @@ pub enum MirValidationError {
         transport: &'static str,
         detail: &'static str,
     },
+    #[error("MIR `{fqn}` has invalid {surface} contract in {block:?} at {span:?}: {detail}")]
+    TypeContract {
+        fqn: String,
+        block: Option<BasicBlockId>,
+        span: Span,
+        surface: &'static str,
+        detail: &'static str,
+    },
 }
 
 impl MirValidationError {
@@ -2748,7 +3055,8 @@ impl MirValidationError {
             | MirValidationError::ProductionMissingReturnValue { fqn, .. }
             | MirValidationError::ProductionSiteMetadata { fqn, .. }
             | MirValidationError::ProductionRuntimeValueMetadata { fqn, .. }
-            | MirValidationError::ProductionTransportMetadata { fqn, .. } => Some(fqn),
+            | MirValidationError::ProductionTransportMetadata { fqn, .. }
+            | MirValidationError::TypeContract { fqn, .. } => Some(fqn),
             MirValidationError::EmptyBody
             | MirValidationError::InvalidStartBlock { .. }
             | MirValidationError::InvalidTarget { .. }
@@ -2962,6 +3270,113 @@ mod tests {
                 span: test_span(),
                 category: MirPlaceholderCategory::Rvalue,
                 reason: "missing expr",
+            })
+        );
+    }
+
+    #[test]
+    fn mir_type_contract_rejects_assignment_target_outside_local_table() {
+        let mut types = TypeStore::new();
+        let builtins = types.intern_builtins();
+        let stmt = Statement {
+            span: test_span(),
+            kind: StatementKind::Assign {
+                target: LocalId::from_raw(0),
+                value: Rvalue::Use(Operand::Const(ConstValue::Unit)),
+            },
+        };
+        let file = production_file(
+            builtins.unit,
+            single_block_body(
+                vec![stmt],
+                TerminatorKind::Return { value: None },
+                UnwindAction::NoUnwind,
+            ),
+        );
+
+        assert_eq!(
+            file.validate_production(builtins.unit),
+            Err(MirValidationError::TypeContract {
+                fqn: TEST_FQN.to_string(),
+                block: Some(BasicBlockId(0)),
+                span: test_span(),
+                surface: "assignment target",
+                detail: "local reference is outside the body local table",
+            })
+        );
+    }
+
+    #[test]
+    fn mir_type_contract_rejects_param_local_type_drift() {
+        let mut types = TypeStore::new();
+        let builtins = types.intern_builtins();
+        let mut body = single_block_body(
+            Vec::new(),
+            TerminatorKind::Return { value: None },
+            UnwindAction::NoUnwind,
+        );
+        let local = body.push_local(LocalDecl {
+            span: test_span(),
+            name: Some("x".to_string()),
+            ty: builtins.int,
+            source: LocalSourceKind::SourceLocal,
+        });
+        let file = File {
+            items: vec![Item::Fun(FunDecl {
+                span: test_span(),
+                fqn: TEST_FQN.to_string(),
+                name: "main".to_string(),
+                ty: builtins.unit,
+                params: vec![Param {
+                    span: test_span(),
+                    name: "x".to_string(),
+                    ty: builtins.bool_,
+                    local,
+                }],
+                return_ty: builtins.unit,
+                body: Some(body),
+            })],
+        };
+
+        assert_eq!(
+            file.validate_production(builtins.unit),
+            Err(MirValidationError::TypeContract {
+                fqn: TEST_FQN.to_string(),
+                block: None,
+                span: test_span(),
+                surface: "parameter type",
+                detail: "parameter type and parameter local type disagree",
+            })
+        );
+    }
+
+    #[test]
+    fn mir_type_contract_rejects_return_value_outside_local_table() {
+        let mut types = TypeStore::new();
+        let builtins = types.intern_builtins();
+        let mut body = Body::new_empty();
+        let bb = body.push_block(BasicBlock {
+            is_cleanup: false,
+            stmts: Vec::new(),
+            terminator: Terminator {
+                span: test_span(),
+                kind: TerminatorKind::Return {
+                    value: Some(Operand::Local(LocalId::from_raw(0))),
+                },
+                unwind: UnwindAction::NoUnwind,
+            },
+        });
+        body.start = bb;
+        let file = production_file(builtins.unit, body);
+
+        assert_eq!(
+            file.validate_production(builtins.unit),
+            Err(MirValidationError::TypeContract {
+                fqn: TEST_FQN.to_string(),
+                block: Some(BasicBlockId(0)),
+                span: test_span(),
+                surface: "return value",
+                detail: "local reference is outside the body local table",
             })
         );
     }

@@ -41,10 +41,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 };
                 if let Some(previous) = member_field_cg {
                     if !self.cg_ty_layout_equivalent(previous, field_cg) {
-                        return Err(LlvmEmitError::UnsupportedMainBody {
-                            kind: "pass MIR local member field type drift",
-                            at: stmt.span.into(),
-                        });
+                        panic!(
+                            "mir_local_storage_cg_ty: MIR verifier accepted member field type drift"
+                        );
                     }
                 } else {
                     member_field_cg = Some(field_cg);
@@ -71,10 +70,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         {
             return Ok(assigned_cg);
         }
-        local_cg.ok_or(LlvmEmitError::UnsupportedMainBody {
-            kind: "pass MIR local type",
-            at: local.span.into(),
-        })
+        Ok(local_cg.unwrap_or_else(|| {
+            panic!("mir_local_storage_cg_ty: MIR verifier accepted unsupported local type")
+        }))
     }
 
     pub(in crate::llvm::codegen) fn mir_local_assignment_cg_ty(

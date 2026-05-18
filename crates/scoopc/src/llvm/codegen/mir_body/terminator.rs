@@ -27,25 +27,20 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         slots: &mut [MirLocalSlot<'ctx>],
     ) -> Result<(), LlvmEmitError> {
         for (idx, param) in mir_fun.params.iter().enumerate() {
-            let _hir_param = hir_fun
-                .params
-                .get(idx)
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "pass MIR param arity",
-                    at: param.span.into(),
-                })?;
+            let _hir_param = hir_fun.params.get(idx).unwrap_or_else(|| {
+                panic!("bind_mir_params: MIR verifier accepted param arity drift")
+            });
             let slot = slots.get(param.local.as_u32() as usize).copied().ok_or(
                 LlvmEmitError::UnsupportedMainBody {
                     kind: "pass MIR param local",
                     at: param.span.into(),
                 },
             )?;
-            let abi_ty = self.equivalent_codegen_type_id(mir_types, param.ty).ok_or(
-                LlvmEmitError::UnsupportedMainBody {
-                    kind: "pass MIR param type",
-                    at: param.span.into(),
-                },
-            )?;
+            let abi_ty = self
+                .equivalent_codegen_type_id(mir_types, param.ty)
+                .unwrap_or_else(|| {
+                    panic!("bind_mir_params: MIR verifier accepted unsupported param type")
+                });
             let abi = self.ordinary_param_abi(param.span, abi_ty)?;
             let init = if let Some(pointee_ty) = abi.pointee_ty() {
                 let param_ptr = llvm_fun

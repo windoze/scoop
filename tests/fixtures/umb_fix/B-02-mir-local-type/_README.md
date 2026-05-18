@@ -7,8 +7,8 @@
 
 ## Scope
 
-U5-T01 creates this directory skeleton only. U5-T02 and U5-T03 must add `.scoop` fixtures and append matching `_index.csv` rows.
+P7-B2.1 activates this directory as coverage for the MIR local/member type contract. Retired B-02 IDs are covered by `audit/UMB_retired.csv`.
 
 ## Runner Status
 
-`scoop test` recognizes `tests/fixtures/umb_fix/**`. Fixtures marked `IGNORE-UNTIL-FIX:B-02` or `ignore-until-fix:B-02` are skipped until the corresponding production fix lands.
+`scoop test` recognizes `tests/fixtures/umb_fix/**`. B-02 fixtures are active; `COVERS` headers no longer reference retired B-02 IDs.

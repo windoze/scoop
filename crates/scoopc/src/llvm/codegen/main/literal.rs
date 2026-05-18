@@ -7,7 +7,7 @@ use super::*;
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(in crate::llvm::codegen) fn emit_return(
         &mut self,
-        span: crate::span::Span,
+        _span: crate::span::Span,
         declared_return_ty: CgTy,
         value: CgValue<'ctx>,
     ) -> Result<(), LlvmEmitError> {
@@ -31,16 +31,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             | CgTy::Tuple(_)
             | CgTy::Struct(_)
             | CgTy::Enum(_) => {
-                let Some(raw) = value.value else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: if self.function_cx.current_sret_return_ptr.is_some() {
-                            "sret return value"
-                        } else {
-                            "return value"
-                        },
-                        at: span.into(),
-                    });
-                };
+                let raw = value.value.unwrap_or_else(|| {
+                    if self.function_cx.current_sret_return_ptr.is_some() {
+                        panic!(
+                            "emit_return: MIR return contract accepted missing sret return value"
+                        )
+                    }
+                    panic!("emit_return: MIR return contract accepted missing return value")
+                });
                 if let Some(sret_ptr) = self.function_cx.current_sret_return_ptr
                     && matches!(
                         declared_return_ty,
@@ -164,12 +162,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 kind: "scoop_alloc_typed return value",
                 at: span.into(),
             })?;
-        let BasicValueEnum::PointerValue(raw_ptr) = raw else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "scoop_alloc_typed return type",
-                at: span.into(),
-            });
-        };
+        let raw_ptr = self.expect_pointer_value(raw, "scoop_alloc_typed string allocation");
 
         let str_ptr_ty = self.llvm_scoop_string_ptr_type();
         let str_ptr = self

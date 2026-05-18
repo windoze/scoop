@@ -150,7 +150,7 @@ const STALE_UNSUPPORTED_MAIN_BODY_COUNTS: &[UnsupportedMainBodyCount] = &[
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/mir_body/args.rs",
-        expected_count: 14,
+        expected_count: 9,
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/mir_body/call.rs",
@@ -170,7 +170,7 @@ const STALE_UNSUPPORTED_MAIN_BODY_COUNTS: &[UnsupportedMainBodyCount] = &[
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/mir_body/dispatch.rs",
-        expected_count: 16,
+        expected_count: 14,
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/mir_body/member.rs",
@@ -186,19 +186,19 @@ const STALE_UNSUPPORTED_MAIN_BODY_COUNTS: &[UnsupportedMainBodyCount] = &[
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/mir_body/string.rs",
-        expected_count: 1,
+        expected_count: 0,
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/mir_body/terminator.rs",
-        expected_count: 18,
+        expected_count: 16,
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/mir_body/transport.rs",
-        expected_count: 9,
+        expected_count: 8,
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/mir_body/types.rs",
-        expected_count: 4,
+        expected_count: 2,
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/mir_body/value_args.rs",
@@ -246,7 +246,7 @@ const STALE_UNSUPPORTED_MAIN_BODY_COUNTS: &[UnsupportedMainBodyCount] = &[
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/main/boxing.rs",
-        expected_count: 3,
+        expected_count: 0,
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/main/call.rs",
@@ -262,7 +262,7 @@ const STALE_UNSUPPORTED_MAIN_BODY_COUNTS: &[UnsupportedMainBodyCount] = &[
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/main/declare.rs",
-        expected_count: 7,
+        expected_count: 2,
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/main/expr_op.rs",
@@ -270,7 +270,7 @@ const STALE_UNSUPPORTED_MAIN_BODY_COUNTS: &[UnsupportedMainBodyCount] = &[
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/main/expr_value.rs",
-        expected_count: 18,
+        expected_count: 17,
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/main/frame.rs",
@@ -278,11 +278,11 @@ const STALE_UNSUPPORTED_MAIN_BODY_COUNTS: &[UnsupportedMainBodyCount] = &[
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/main/function.rs",
-        expected_count: 3,
+        expected_count: 0,
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/main/gc_locals.rs",
-        expected_count: 5,
+        expected_count: 4,
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/main/globals.rs",
@@ -294,11 +294,11 @@ const STALE_UNSUPPORTED_MAIN_BODY_COUNTS: &[UnsupportedMainBodyCount] = &[
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/main/immut_value.rs",
-        expected_count: 16,
+        expected_count: 15,
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/main/literal.rs",
-        expected_count: 4,
+        expected_count: 2,
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/main/numeric.rs",
@@ -693,9 +693,19 @@ const POST_UPSTREAM_VALIDATION_GUARDS: &[UpstreamGuardedSentinel] = &[
 
 const INTERNAL_BUG_SENTINEL_HITS: &[&str] = &[
     "crates/scoopc/src/llvm/codegen/mir_body/aggregates.rs:285:                unreachable!(",
+    "crates/scoopc/src/llvm/codegen/mir_body/args.rs:17:            panic!(\"codegen_mir_class_ctor_ordered_args: MIR verifier accepted {kind}\");",
+    "crates/scoopc/src/llvm/codegen/mir_body/args.rs:23:                panic!(\"codegen_mir_class_ctor_ordered_args: MIR verifier accepted {kind}\");",
+    "crates/scoopc/src/llvm/codegen/mir_body/args.rs:397:                    panic!(",
     "crates/scoopc/src/llvm/codegen/mir_body/call.rs:724:            (None, CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_)) => unreachable!(",
+    "crates/scoopc/src/llvm/codegen/mir_body/dispatch.rs:165:            panic!(",
+    "crates/scoopc/src/llvm/codegen/mir_body/dispatch.rs:384:            panic!(\"codegen_mir_plain_dispatch_call: MIR verifier accepted unsupported return type\")",
     "crates/scoopc/src/llvm/codegen/mir_body/member.rs:143:            unreachable!(",
     "crates/scoopc/src/llvm/codegen/mir_body/member.rs:268:                    unreachable!(",
+    "crates/scoopc/src/llvm/codegen/mir_body/string.rs:15:            panic!(\"codegen_mir_unresolved_name_with_source_ty: MIR verifier accepted unsupported source type\")",
+    "crates/scoopc/src/llvm/codegen/mir_body/terminator.rs:31:                panic!(\"bind_mir_params: MIR verifier accepted param arity drift\")",
+    "crates/scoopc/src/llvm/codegen/mir_body/terminator.rs:42:                    panic!(\"bind_mir_params: MIR verifier accepted unsupported param type\")",
+    "crates/scoopc/src/llvm/codegen/mir_body/types.rs:44:                        panic!(",
+    "crates/scoopc/src/llvm/codegen/mir_body/types.rs:74:            panic!(\"mir_local_storage_cg_ty: MIR verifier accepted unsupported local type\")",
     "crates/scoopc/src/llvm/codegen/effect_lowered/value.rs:2493:                    _ => unreachable!(\"filtered by match\"),",
     "crates/scoopc/src/llvm/codegen/effect_lowered/value.rs:3621:            _ => unreachable!(\"filtered by caller\"),",
     "crates/scoopc/src/llvm/codegen/main/alloca.rs:48:            _ => unreachable!(\"cast_float only accepts Float64/Float32\"),",
@@ -711,7 +721,21 @@ const INTERNAL_BUG_SENTINEL_HITS: &[&str] = &[
     "crates/scoopc/src/llvm/codegen/main/context.rs:45:            panic!(\"expect_instruction_parent_block: instruction has no parent block while {context}\")",
     "crates/scoopc/src/llvm/codegen/main/context.rs:66:            panic!(\"expect_entry_block: function has no entry block while {context}\")",
     "crates/scoopc/src/llvm/codegen/main/context.rs:77:            panic!(\"expect_basic_value: call did not produce a basic value while {context}\")",
-    "crates/scoopc/src/llvm/codegen/main/expr_value.rs:162:                unreachable!(",
+    "crates/scoopc/src/llvm/codegen/main/context.rs:89:            _ => panic!(\"expect_pointer_value: value was not a pointer while {context}\"),",
+    "crates/scoopc/src/llvm/codegen/main/declare.rs:67:                panic!(",
+    "crates/scoopc/src/llvm/codegen/main/declare.rs:200:                panic!(\"declare_top_level_fun_with_signature_override: MIR signature verifier accepted unsupported return type\")",
+    "crates/scoopc/src/llvm/codegen/main/declare.rs:203:            panic!(",
+    "crates/scoopc/src/llvm/codegen/main/declare.rs:327:                panic!(\"declare_materialized_top_level_fun: MIR materialize verifier accepted unsupported return type\")",
+    "crates/scoopc/src/llvm/codegen/main/declare.rs:454:            panic!(\"declare_top_level_fun_callee_resume_entry: MIR signature verifier accepted unsupported return type\")",
+    "crates/scoopc/src/llvm/codegen/main/expr_value.rs:17:                    panic!(\"codegen_var_ref: HIR verifier accepted an unbound local value\")",
+    "crates/scoopc/src/llvm/codegen/main/expr_value.rs:159:                unreachable!(",
+    "crates/scoopc/src/llvm/codegen/main/function.rs:62:                    panic!(\"emit_function_return_block: function return context must publish return alloca\")",
+    "crates/scoopc/src/llvm/codegen/main/function.rs:165:            panic!(\"codegen_top_level_fun: MIR signature verifier accepted unsupported return type\")",
+    "crates/scoopc/src/llvm/codegen/main/function.rs:179:                        panic!(\"codegen_top_level_fun: declared sret function must publish hidden return parameter\")",
+    "crates/scoopc/src/llvm/codegen/main/gc_locals.rs:90:            panic!(\"rematerialize_ptr_in_current_block: local slot GEP must publish source type\")",
+    "crates/scoopc/src/llvm/codegen/main/immut_value.rs:37:            panic!(\"codegen_decl_initializer_expr: typed HIR val must publish initializer\")",
+    "crates/scoopc/src/llvm/codegen/main/literal.rs:36:                        panic!(",
+    "crates/scoopc/src/llvm/codegen/main/literal.rs:40:                    panic!(\"emit_return: MIR return contract accepted missing return value\")",
     "crates/scoopc/src/mir/materialize/dispatch.rs:51:                    panic!(",
     "crates/scoopc/src/mir/materialize/output.rs:37:            panic!(",
     "crates/scoopc/src/typecheck/lower.rs:1268:                unreachable!(",
@@ -823,7 +847,7 @@ fn pipeline_user_visible_failure_policy_tracks_stale_unsupportedmainbody_counts(
             baseline.path
         );
     }
-    assert_eq!(total, 565);
+    assert_eq!(total, 536);
 }
 
 #[test]

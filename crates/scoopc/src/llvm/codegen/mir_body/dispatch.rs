@@ -161,12 +161,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             });
         }
 
-        let ret_cg =
-            self.cg_ty_of(impl_sig.return_ty)
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "static interface dispatch return type",
-                    at: span.into(),
-                })?;
+        let ret_cg = self.cg_ty_of(impl_sig.return_ty).unwrap_or_else(|| {
+            panic!(
+                "codegen_mir_plain_static_interface_dispatch_call: MIR verifier accepted unsupported return type"
+            )
+        });
         let hidden_sret_result_ty = self.hidden_sret_result_ty(span, ret_cg)?;
         let hidden_sret_slot = if hidden_sret_result_ty.is_some() {
             Some(self.create_entry_alloca(span, "static_iface_call_sret", ret_cg)?)
@@ -381,12 +380,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             return Ok(result);
         }
 
-        let ret_cg =
-            self.cg_ty_of(sig_fun.return_ty)
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "plain dispatch return type",
-                    at: span.into(),
-                })?;
+        let ret_cg = self.cg_ty_of(sig_fun.return_ty).unwrap_or_else(|| {
+            panic!("codegen_mir_plain_dispatch_call: MIR verifier accepted unsupported return type")
+        });
         let hidden_sret_result_ty = self.hidden_sret_result_ty(span, ret_cg)?;
         let mut llvm_param_tys: Vec<BasicMetadataTypeEnum<'ctx>> =
             Vec::with_capacity(sig_fun.params.len() + usize::from(hidden_sret_result_ty.is_some()));

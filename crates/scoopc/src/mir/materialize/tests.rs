@@ -399,7 +399,7 @@ fn generic_materializer_for_body(
 fn materialized_for_test(file: File, types: TypeStore) -> MaterializedMir {
     let instance_keys = Vec::new();
     let callable_families = MaterializedCallableFamilies::from_inputs(Vec::new());
-    let summaries = build_materialized_summary_table(&file, &types, &[], &[]);
+    let summaries = MaterializedMirSummaries::default();
     let pass_artifacts = MaterializedMirPassArtifacts::from_initial_publication(
         &file,
         &summaries,
@@ -677,6 +677,147 @@ fn materialized_mir_mir_materialize_generics_rejects_frame_slot_type_param() {
         *err,
         MirMaterializeError::MaterializedUnresolvedGenericParam {
             surface: "frame slot",
+            ..
+        }
+    ));
+}
+
+#[test]
+fn materialized_mir_type_contract_rejects_missing_operand_local() {
+    let mut types = TypeStore::new();
+    let builtins = types.intern_builtins();
+    let mut body = Body::new_empty();
+    let target = body.push_local(LocalDecl {
+        span: test_span(),
+        name: Some("target".to_string()),
+        ty: builtins.unit,
+        source: LocalSourceKind::CompilerTemporary,
+    });
+    let bb = body.push_block(BasicBlock {
+        is_cleanup: false,
+        stmts: vec![Statement {
+            span: test_span(),
+            kind: StatementKind::Assign {
+                target,
+                value: Rvalue::Use(Operand::Local(LocalId::from_raw(42))),
+            },
+        }],
+        terminator: Terminator {
+            span: test_span(),
+            kind: TerminatorKind::Return { value: None },
+            unwind: UnwindAction::NoUnwind,
+        },
+    });
+    body.start = bb;
+    let file = File {
+        items: vec![Item::Fun(FunDecl {
+            span: test_span(),
+            fqn: "fixtures.materialize.main".to_string(),
+            name: "main".to_string(),
+            ty: builtins.unit,
+            params: Vec::new(),
+            return_ty: builtins.unit,
+            body: Some(body),
+        })],
+    };
+    let materialized = materialized_for_test(file, types);
+
+    let err = materialized.validate_materialized().unwrap_err();
+    assert!(matches!(
+        *err,
+        MirMaterializeError::MaterializedMirValidation {
+            error: crate::mir::MirValidationError::TypeContract {
+                surface: "source value",
+                detail: "local reference is outside the body local table",
+                ..
+            },
+            ..
+        }
+    ));
+}
+
+#[test]
+fn materialized_mir_type_contract_rejects_param_local_type_drift() {
+    let mut types = TypeStore::new();
+    let builtins = types.intern_builtins();
+    let mut body = unit_return_body();
+    let local = body.push_local(LocalDecl {
+        span: test_span(),
+        name: Some("x".to_string()),
+        ty: builtins.int,
+        source: LocalSourceKind::SourceLocal,
+    });
+    let file = File {
+        items: vec![Item::Fun(FunDecl {
+            span: test_span(),
+            fqn: "fixtures.materialize.main".to_string(),
+            name: "main".to_string(),
+            ty: builtins.unit,
+            params: vec![Param {
+                span: test_span(),
+                name: "x".to_string(),
+                ty: builtins.bool_,
+                local,
+            }],
+            return_ty: builtins.unit,
+            body: Some(body),
+        })],
+    };
+    let materialized = materialized_for_test(file, types);
+
+    let err = materialized.validate_materialized().unwrap_err();
+    assert!(matches!(
+        *err,
+        MirMaterializeError::MaterializedMirValidation {
+            error: crate::mir::MirValidationError::TypeContract {
+                surface: "parameter type",
+                detail: "parameter type and parameter local type disagree",
+                ..
+            },
+            ..
+        }
+    ));
+}
+
+#[test]
+fn materialized_mir_type_contract_rejects_return_value_outside_local_table() {
+    let mut types = TypeStore::new();
+    let builtins = types.intern_builtins();
+    let mut body = Body::new_empty();
+    let bb = body.push_block(BasicBlock {
+        is_cleanup: false,
+        stmts: Vec::new(),
+        terminator: Terminator {
+            span: test_span(),
+            kind: TerminatorKind::Return {
+                value: Some(Operand::Local(LocalId::from_raw(0))),
+            },
+            unwind: UnwindAction::NoUnwind,
+        },
+    });
+    body.start = bb;
+    let file = File {
+        items: vec![Item::Fun(FunDecl {
+            span: test_span(),
+            fqn: "fixtures.materialize.main".to_string(),
+            name: "main".to_string(),
+            ty: builtins.unit,
+            params: Vec::new(),
+            return_ty: builtins.unit,
+            body: Some(body),
+        })],
+    };
+    let materialized = materialized_for_test(file, types);
+
+    let err = materialized.validate_materialized().unwrap_err();
+    assert!(matches!(
+        *err,
+        MirMaterializeError::MaterializedMirValidation {
+            error: crate::mir::MirValidationError::TypeContract {
+                surface: "return value",
+                detail: "local reference is outside the body local table",
+                ..
+            },
             ..
         }
     ));

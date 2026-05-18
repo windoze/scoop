@@ -86,12 +86,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let base_ptr =
             self.rematerialize_ptr_in_current_block(at, base_ptr, &format!("{name}_base"))?;
 
-        let source_ty =
-            inst.get_gep_source_element_type()
-                .map_err(|_| LlvmEmitError::UnsupportedMainBody {
-                    kind: "local slot gep source type",
-                    at: at.into(),
-                })?;
+        let source_ty = inst.get_gep_source_element_type().unwrap_or_else(|_| {
+            panic!("rematerialize_ptr_in_current_block: local slot GEP must publish source type")
+        });
         match source_ty {
             BasicTypeEnum::StructType(struct_ty) => {
                 let mut indices = inst.get_indices();

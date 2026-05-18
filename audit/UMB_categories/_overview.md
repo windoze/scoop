@@ -6,9 +6,9 @@ inventory 来源：[`audit/UMB_inventory.csv`](../UMB_inventory.csv)
 
 ## Summary
 
-- Total active inventory entries: 1,088
+- Total active inventory entries: 1,053
 - Bucket range: B-01 through B-36
-- Zero-entry buckets: B-01, B-15, B-16, B-36
+- Zero-entry buckets: B-01, B-02, B-04, B-15, B-16, B-36
 - Missing `spec_anchor`: 0
 - Missing `upstream_gate`: 0
 - Decision: all 36 stable buckets are retained; no merge or split is required in U2-T01.
@@ -18,9 +18,9 @@ inventory 来源：[`audit/UMB_inventory.csv`](../UMB_inventory.csv)
 | bucket | 名称 | 一级类 | entry 数 | expected_class 分布 | 主要 kind 标签前 5 条 | 主要文件前 5 个 | 备注 |
 |---|---|---:|---:|---|---|---|---|
 | B-01 | inkwell builder bookkeeping | A | 0 | retired InternalBugSentinel=71 | retired: builder has no insert block (29)<br>builder has no parent function (23)<br>function has no entry block (3)<br>atomicRefCompareExchange insert block (2)<br>atomicRefCompareExchange parent function (2) | retired ledger: `audit/UMB_retired.csv` | P7-B1 retired; active CSV empty. |
-| B-02 | MIR local / member 类型推断不完整 | B | 6 | InternalBugSentinel=6 | unknown local value (1)<br>local slot gep source type (1)<br>val without initializer (1)<br>MIR unresolved name source type (1)<br>pass MIR local member field type drift (1) | crates/scoopc/src/llvm/codegen/mir_body/types.rs (2)<br>crates/scoopc/src/llvm/codegen/main/expr_value.rs (1)<br>crates/scoopc/src/llvm/codegen/main/gc_locals.rs (1)<br>crates/scoopc/src/llvm/codegen/main/immut_value.rs (1)<br>crates/scoopc/src/llvm/codegen/mir_body/string.rs (1) | CSV non-empty; body pending U2-T02. |
+| B-02 | MIR local / member 类型推断不完整 | B | 0 | retired InternalBugSentinel=6 | retired: unknown local value (1)<br>local slot gep source type (1)<br>val without initializer (1)<br>MIR unresolved name source type (1)<br>pass MIR local member field type drift (1) | retired ledger: `audit/UMB_retired.csv` | P7-B2.1 retired; active CSV empty. |
 | B-03 | MIR direct/closure/funptr 调用 ABI 漂移 | B | 56 | InternalBugSentinel=56 | pass MIR call arg binding (5)<br>itable direct result storage (2)<br>pass MIR call arg type (2)<br>call arg value (1)<br>call arg type (1) | crates/scoopc/src/llvm/codegen/call/lowering.rs (23)<br>crates/scoopc/src/llvm/codegen/mir_body/call.rs (14)<br>crates/scoopc/src/llvm/codegen/mir_body/callable_lookup.rs (9)<br>crates/scoopc/src/llvm/codegen/mir_body/args.rs (6)<br>crates/scoopc/src/llvm/codegen/call/abi.rs (3) | CSV non-empty; body pending U2-T02. |
-| B-04 | MIR 函数签名 / 参数 / 返回类型缺失 | B | 29 | InternalBugSentinel=29 | function return type (6)<br>scoop_alloc_typed return type (6)<br>function param type (4)<br>DYNAMIC:kind (2)<br>scoop_alloc_typed enum box return type (1) | crates/scoopc/src/llvm/codegen/main/declare.rs (5)<br>crates/scoopc/src/llvm/codegen/mir_body/args.rs (5)<br>crates/scoopc/src/llvm/codegen/call/abi.rs (4)<br>crates/scoopc/src/llvm/codegen/main/boxing.rs (3)<br>crates/scoopc/src/llvm/codegen/main/function.rs (3) | CSV non-empty; body pending U2-T02. |
+| B-04 | MIR 函数签名 / 参数 / 返回类型缺失 | B | 0 | retired InternalBugSentinel=29 | retired: function return type (6)<br>scoop_alloc_typed return type (6)<br>function param type (4)<br>DYNAMIC:kind (2)<br>scoop_alloc_typed enum box return type (1) | retired ledger: `audit/UMB_retired.csv` | P7-B2.1 retired; active CSV empty. |
 | B-05 | MIR CFG / start block / goto target 异常 | B | 25 | InternalBugSentinel=25 | DYNAMIC:kind (2)<br>pass MIR param local (2)<br>interpolated string after HIR desugar (2)<br>if output type (1)<br>if condition value (1) | crates/scoopc/src/llvm/codegen/mir_body/terminator.rs (13)<br>crates/scoopc/src/llvm/codegen/mir_body/dispatch.rs (7)<br>crates/scoopc/src/llvm/codegen/control_flow.rs (5) | CSV non-empty; body pending U2-T02. |
 | B-06 | MIR struct/tuple/enum 字面量 schema 漂移 | B | 43 | InternalBugSentinel=43 | tuple type id (8)<br>tuple element type (3)<br>struct literal type (2)<br>tuple literal type (2)<br>pass MIR tuple element type (2) | crates/scoopc/src/llvm/codegen/mir_body/aggregates.rs (21)<br>crates/scoopc/src/llvm/codegen/main/expr_value.rs (8)<br>crates/scoopc/src/llvm/codegen/layout.rs (4)<br>crates/scoopc/src/llvm/codegen/ty.rs (4)<br>crates/scoopc/src/llvm/codegen/control_flow.rs (3) | CSV non-empty; body pending U2-T02. |
 | B-07 | MIR pattern 子句 schema 漂移 | B | 34 | InternalBugSentinel=34 | pass MIR pattern is target type (2)<br>pass MIR char literal (1)<br>pass MIR int builtin type (1)<br>pass MIR synthesized int builtin type (1)<br>pass MIR pattern int subject (1) | crates/scoopc/src/llvm/codegen/mir_body/const_pat.rs (34) | CSV non-empty; body pending U2-T02. |

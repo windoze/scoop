@@ -13,12 +13,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         match v {
             hir::ValueRef::TopLevel { fqn, .. } => self.codegen_top_level_value_ref(span, fqn),
             hir::ValueRef::Local { id, .. } => {
-                let local = self.function_cx.env.get(*id).ok_or_else(|| {
-                    LlvmEmitError::UnsupportedMainBody {
-                        kind: "unknown local value",
-                        at: span.into(),
-                    }
-                })?;
+                let local = self.function_cx.env.get(*id).unwrap_or_else(|| {
+                    panic!("codegen_var_ref: HIR verifier accepted an unbound local value")
+                });
                 let local_ptr = self.local_ptr_for_use(span, local, "load_local_slot")?;
 
                 match local.ty {

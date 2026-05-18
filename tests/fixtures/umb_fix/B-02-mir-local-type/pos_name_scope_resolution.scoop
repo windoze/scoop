@@ -1,14 +1,13 @@
 // EXPECT: ok
-// IGNORE-UNTIL-FIX:B-02
 // SPEC: docs/spec/language_spec-part1.md#7-名称与作用域
 // COVERS: NONE
 // BUCKETS: B-02, B-19
-// REASON: U5-T02 records the spec surface before the matching implementation gate is enabled.
+// REASON: P7-B2.1 keeps resolved locals materialized before LLVM lowering.
 // SOURCE-FIXTURE: tests/fixtures/resolve/forward_ref_top_level_symbol_ok.scoop
 
 package fixtures.resolve
 
-val x = later()
+val x: Unit = later()
 
 fun use() {
     later()
