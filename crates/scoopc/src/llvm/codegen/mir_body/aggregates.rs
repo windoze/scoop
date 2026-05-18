@@ -281,10 +281,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 .iter()
                 .filter(|field| field.name == layout_field.name);
             let Some(init) = matches.next() else {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "pass MIR struct literal missing field",
-                    at: span.into(),
-                });
+                // User-facing struct literal field coverage is owned by typecheck.
+                unreachable!(
+                    "typecheck must reject MIR struct literals missing required fields before LLVM codegen"
+                );
             };
             if matches.next().is_some() {
                 return Err(LlvmEmitError::UnsupportedMainBody {

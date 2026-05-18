@@ -1,9 +1,8 @@
 // EXPECT: ok
-// IGNORE-UNTIL-FIX:B-21
 // SPEC: docs/spec/language_spec-part2.md#8-with-copy-update
 // COVERS: NONE
 // BUCKETS: B-06, B-21
-// REASON: U5-T02 records the spec surface before the matching implementation gate is enabled.
+// REASON: P7-A2 keeps valid with-update fields accepted after frontend field gates retire stale UMB rows.
 // SOURCE-FIXTURE: tests/fixtures/run-pass/with_update_simple.scoop
 
 import scoop.core.*

@@ -146,7 +146,7 @@ struct UnsupportedMainBodyCount {
 const STALE_UNSUPPORTED_MAIN_BODY_COUNTS: &[UnsupportedMainBodyCount] = &[
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/mir_body/aggregates.rs",
-        expected_count: 31,
+        expected_count: 30,
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/mir_body/args.rs",
@@ -174,7 +174,7 @@ const STALE_UNSUPPORTED_MAIN_BODY_COUNTS: &[UnsupportedMainBodyCount] = &[
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/mir_body/member.rs",
-        expected_count: 50,
+        expected_count: 48,
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/mir_body/mod.rs",
@@ -270,7 +270,7 @@ const STALE_UNSUPPORTED_MAIN_BODY_COUNTS: &[UnsupportedMainBodyCount] = &[
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/main/expr_value.rs",
-        expected_count: 19,
+        expected_count: 18,
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/main/frame.rs",
@@ -637,10 +637,29 @@ const POST_UPSTREAM_VALIDATION_GUARDS: &[UpstreamGuardedSentinel] = &[
         site: "crates/scoopc/src/llvm/codegen/main/call.rs::codegen_early_return",
         upstream_gate: "typecheck::expr::stmt rejects return outside the immediately enclosing named function via ReturnNotInFunctionBody",
     },
+    UpstreamGuardedSentinel {
+        site: "crates/scoopc/src/llvm/codegen/mir_body/member.rs::codegen_mir_store_member",
+        upstream_gate: "typecheck assignment/member-store gate rejects non-writable member-store targets before LLVM codegen",
+    },
+    UpstreamGuardedSentinel {
+        site: "crates/scoopc/src/llvm/codegen/mir_body/member.rs::codegen_mir_member_place",
+        upstream_gate: "typecheck assignment/member-store gate rejects immutable class member stores before LLVM codegen",
+    },
+    UpstreamGuardedSentinel {
+        site: "crates/scoopc/src/llvm/codegen/main/expr_value.rs::codegen_struct_lit",
+        upstream_gate: "typecheck struct literal gate rejects missing required fields before LLVM codegen",
+    },
+    UpstreamGuardedSentinel {
+        site: "crates/scoopc/src/llvm/codegen/mir_body/aggregates.rs::codegen_mir_make_struct",
+        upstream_gate: "typecheck/MIR struct gate preserves required field coverage before LLVM codegen",
+    },
 ];
 
 const INTERNAL_BUG_SENTINEL_HITS: &[&str] = &[
+    "crates/scoopc/src/llvm/codegen/mir_body/aggregates.rs:285:                unreachable!(",
     "crates/scoopc/src/llvm/codegen/mir_body/call.rs:724:            (None, CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_)) => unreachable!(",
+    "crates/scoopc/src/llvm/codegen/mir_body/member.rs:143:            unreachable!(",
+    "crates/scoopc/src/llvm/codegen/mir_body/member.rs:268:                    unreachable!(",
     "crates/scoopc/src/llvm/codegen/effect_lowered/value.rs:2496:                    _ => unreachable!(\"filtered by match\"),",
     "crates/scoopc/src/llvm/codegen/effect_lowered/value.rs:3635:            _ => unreachable!(\"filtered by caller\"),",
     "crates/scoopc/src/llvm/codegen/main/alloca.rs:48:            _ => unreachable!(\"cast_float only accepts Float64/Float32\"),",
@@ -651,6 +670,7 @@ const INTERNAL_BUG_SENTINEL_HITS: &[&str] = &[
     "crates/scoopc/src/llvm/codegen/main/coerce.rs:170:                _ => unreachable!(\"filtered by caller\"),",
     "crates/scoopc/src/llvm/codegen/main/coerce.rs:204:            _ => unreachable!(\"filtered by caller\"),",
     "crates/scoopc/src/llvm/codegen/main/coerce.rs:236:            _ => unreachable!(\"filtered by caller\"),",
+    "crates/scoopc/src/llvm/codegen/main/expr_value.rs:162:                unreachable!(",
     "crates/scoopc/src/mir/materialize/dispatch.rs:51:                    panic!(",
     "crates/scoopc/src/mir/materialize/output.rs:37:            panic!(",
     "crates/scoopc/src/typecheck/lower.rs:1268:                unreachable!(",
@@ -762,7 +782,7 @@ fn pipeline_user_visible_failure_policy_tracks_stale_unsupportedmainbody_counts(
             baseline.path
         );
     }
-    assert_eq!(total, 637);
+    assert_eq!(total, 633);
 }
 
 #[test]

@@ -158,10 +158,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         for (idx, field) in layout.fields.iter().enumerate() {
             let Some(init) = fields.iter().find(|f| f.name == field.name) else {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "struct literal missing field",
-                    at: span.into(),
-                });
+                // User-facing struct literal field coverage is owned by typecheck.
+                unreachable!(
+                    "typecheck must reject struct literals missing required fields before LLVM codegen"
+                );
             };
 
             let field_cg =

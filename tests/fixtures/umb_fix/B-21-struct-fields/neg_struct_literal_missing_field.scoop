@@ -1,0 +1,19 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::struct_lit_missing_fields
+// EXPECT-ERROR-AT: 18:33
+// EXPECT-ERROR: 缺少字段
+// SPEC: docs/spec/language_spec-part2.md#51-struct
+// COVERS: NONE
+// BUCKETS: B-21
+// REASON: P7-A2 keeps struct literals missing required fields rejected before MIR/LLVM lowering.
+// SOURCE-FIXTURE: tests/fixtures/typecheck/struct_lit_missing_fields_is_error.scoop
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+struct Point(val x: Int, val y: Int)
+
+fun use() {
+    val p: Point = Point { x: 1 }
+}

@@ -224,10 +224,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .fields
             .iter()
             .position(|f| f.fqn == field_fqn)
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "unknown struct field",
-                at: at.into(),
-            })?;
+            .unwrap_or_else(|| {
+                // User-facing unknown field errors are owned by typecheck.
+                unreachable!(
+                    "typecheck must reject unknown struct fields before LLVM codegen: {field_fqn}"
+                )
+            });
 
         let field = &layout.fields[idx];
         let field_ty = self.cg_ty_of_layout_field(field.span, field.ty, field.ty_fqn.as_deref())?;

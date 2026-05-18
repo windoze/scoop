@@ -4,7 +4,7 @@
 > 计划基线：[`PLAN.md`](./PLAN.md)
 > 上一阶段任务档案：[`TODO-1.md`](./TODO-1.md)
 > 设计与 baseline：[`UnsupportedMainBody_FIX.md`](./UnsupportedMainBody_FIX.md)、[`UnsupportedMainBody_DONE.md`](./UnsupportedMainBody_DONE.md)
-> 当前状态：P7-0-T01、P7-0-T02、P7-A1 已完成；active=1,277，retired=7。
+> 当前状态：P7-0-T01、P7-0-T02、P7-A1、P7-A2 已完成；active=1,272，retired=12。
 
 ## 全局约束
 
@@ -28,7 +28,7 @@
 - `PLAN.md:183-206`：P7-C RealImpl 退场。
 - `PLAN.md:208-225`：P8 最终退场。
 - `PLAN.md:237-245`：总完成判据。
-- `audit/UMB_inventory.csv`：当前 active inventory，1,284 条。
+- `audit/UMB_inventory.csv`：当前 active inventory，1,272 条。
 - `audit/UMB_categories/_overview.md`：bucket entry 数和 class 分布总览。
 - `audit/UMB_categories/B-XX.md`：每 bucket symptom、root cause、fixture pointer。
 - `audit/strategies/B-XX.md`：每 bucket 上游契约和 P7 修复策略。
@@ -48,7 +48,7 @@
 ### Production 关键位置
 
 - `crates/scoopc/src/llvm/mod.rs`：`LlvmEmitError::UnsupportedMainBody` enum variant 和 diagnostic 映射。
-- `crates/scoopc/src/llvm/codegen/**`：当前 1,284 个 `UnsupportedMainBody` constructor 所在路径。
+- `crates/scoopc/src/llvm/codegen/**`：当前 active `UnsupportedMainBody` constructor 所在路径。
 - `crates/scoopc/src/pipeline_user_visible_failure_policy.rs`：`STALE_UNSUPPORTED_MAIN_BODY_COUNTS` 与 forbidden terms baseline。
 - `crates/scoopc/src/audit/umb_inventory.rs`：当前 inventory scanner、baseline constants 和 audit tests。
 - `crates/scoopc/src/bin/umb-audit.rs`：inventory CLI。
@@ -180,7 +180,7 @@ P7-0-T01 stable ID + retired ledger
   - 验证结果：`cargo run -p scoopc --bin umb-audit -- list --bucket B-16` 通过（entries 0）；`cargo run -p scoopc --bin umb-audit -- diff` 通过（in sync，1,277 entries）；`cargo run -p scoopc --bin umb-audit -- stats` 通过（active=1,277、retired=7、initial=1,284）；`cargo test -p scoopc audit:: -- --nocapture` 通过（23 passed）；`cargo test -p scoopc pipeline_user_visible_failure_policy -- --nocapture` 通过（7 passed）；`cargo run -p scoop -- test tests/fixtures/umb_fix/B-16-control-flow-context/` 通过（5 passed）；`cargo clippy --all-targets -- -D warnings` 通过。
   - 闭合目标：满足 `PLAN.md:96-117` 与本任务完成条件；B-16 active count 为 0，相关 negative fixture active 并通过。
 
-### [TODO] P7-A2：B-08/B-21 成员写入与 struct 字段负例早拒
+### [DONE] P7-A2：B-08/B-21 成员写入与 struct 字段负例早拒
 
 - 参考：`PLAN.md:100-117`、`audit/strategies/B-08.md`、`audit/strategies/B-21.md`。
 - 范围：B-08 FrontendReject rows 2 entries；B-21 FrontendReject rows 3 entries；合计 5 entries。
@@ -197,7 +197,15 @@ P7-0-T01 stable ID + retired ledger
   4. `cargo run -p scoop -- test tests/fixtures/umb_fix/B-21-struct-fields/`
 - 完成条件：B-08/B-21 的 FrontendReject active rows 为 0；相关 negative fixture active 并通过。
 - 依赖：P7-0-T02。
-- 完成记录：待填写。
+- 完成记录：
+  - 改动范围：更新 `crates/scoopc/src/llvm/codegen/layout.rs`、`crates/scoopc/src/llvm/codegen/main/expr_value.rs`、`crates/scoopc/src/llvm/codegen/mir_body/aggregates.rs`、`crates/scoopc/src/llvm/codegen/mir_body/member.rs`、`crates/scoopc/src/pipeline_user_visible_failure_policy.rs`；同步 `audit/UMB_inventory.csv`、`audit/UMB_retired.csv`、`audit/UMB_categories/B-08.md`、`audit/UMB_categories/B-21.md`、`audit/UMB_categories/_overview.md`、`audit/strategies/B-08.md`、`audit/strategies/B-21.md`、`tests/fixtures/umb_fix/_index.csv`、B-08/B-21 相关 fixtures 与 `memory/claude_plan.md`；同步 `layout.rs` line drift 影响的 B-06/B-20/B-22/B-36 文档行号。
+  - Retired IDs：`UMB-1131`、`UMB-1142`、`UMB-0750`、`UMB-0863`、`UMB-0962`；数量 5；bucket `B-08`/`B-21`；class `FrontendReject`。
+  - 核心决策：复用 typecheck 的 assignment/member-store 可写性 gate 与 struct field gate；LLVM lowering 删除用户面 `UnsupportedMainBody` fallback，改为上游 gate 后的 `unreachable!` invariant；剩余 B-08/B-21 active rows 均为后续 verifier/internal contract 任务处理的 `InternalBugSentinel`。
+  - Inventory/ledger：active 1,277 -> 1,272；retired 7 -> 12；B-08 `FrontendReject` active 2 -> 0；B-21 `FrontendReject` active 3 -> 0。
+  - Stale count：`crates/scoopc/src/llvm/codegen/mir_body/aggregates.rs` `UnsupportedMainBody` 31 -> 30；`crates/scoopc/src/llvm/codegen/main/expr_value.rs` 19 -> 18；`crates/scoopc/src/llvm/codegen/mir_body/member.rs` 50 -> 48；tracked stale total 637 -> 633；`layout.rs` 另删除 1 个 inventory fallback（不在 tracked stale list）。
+  - Fixture 状态：B-08/B-21 frontend negative fixtures active 并通过；新增 `neg_immutable_member_store.scoop` 与 `neg_struct_literal_missing_field.scoop`；retired IDs 改由 retired ledger 覆盖，active fixture `COVERS` 不再引用 retired IDs。
+  - 验证结果：`cargo run -p scoopc --bin umb-audit -- list --bucket B-08` 通过（remaining active entries 4，均为 `InternalBugSentinel`）；`cargo run -p scoopc --bin umb-audit -- list --bucket B-21` 通过（remaining active entries 3，均为 `InternalBugSentinel`）；`cargo run -p scoopc --bin umb-audit -- stats` 通过（active=1,272、retired=12、initial=1,284）；`cargo run -p scoopc --bin umb-audit -- diff` 通过（in sync，1,272 entries）；`cargo test -p scoopc audit:: -- --nocapture` 通过（23 passed）；`cargo test -p scoopc pipeline_user_visible_failure_policy -- --nocapture` 通过（7 passed）；`cargo run -p scoop -- test tests/fixtures/umb_fix/B-08-member-store/` 通过（4 passed）；`cargo run -p scoop -- test tests/fixtures/umb_fix/B-21-struct-fields/` 通过（7 passed，其中既有 2 个 `IGNORE-UNTIL-FIX:B-21` fixture 保持 skip/pass）；`cargo fmt` 通过；`cargo clippy --all-targets -- -D warnings` 通过。
+  - 闭合目标：满足 `PLAN.md:100-117` 与本任务完成条件；B-08/B-21 的 `FrontendReject` active rows 为 0，相关 negative fixture active 并通过，错误文案不含 forbidden terms。
 
 ### [TODO] P7-A3：B-15 when / 模式匹配用户面早拒
 

@@ -139,10 +139,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         };
         let place = self.codegen_mir_member_place(span, receiver, member, mir_ctx, true)?;
         if !place.writable {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "pass MIR member store target not writable",
-                at: span.into(),
-            });
+            // User-facing non-writable target errors are owned by typecheck.
+            unreachable!(
+                "typecheck must reject non-writable MIR member store targets before LLVM codegen"
+            );
         }
         let _value_cg = self.cg_ty_of_mir_type(mir_types, value_ty).ok_or(
             LlvmEmitError::UnsupportedMainBody {
@@ -264,10 +264,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     },
                 )?;
                 if require_writable && !field.mutable {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "pass MIR immutable class member store",
-                        at: span.into(),
-                    });
+                    // User-facing immutable member-store errors are owned by typecheck.
+                    unreachable!(
+                        "typecheck must reject immutable class member stores before LLVM codegen"
+                    );
                 }
                 let receiver_value = self.codegen_mir_operand_expected(
                     span,

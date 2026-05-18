@@ -7,8 +7,8 @@
 
 ## Scope
 
-U5-T01 creates this directory skeleton only. U5-T02 and U5-T03 must add `.scoop` fixtures and append matching `_index.csv` rows.
+P7-A2 retires the B-08 FrontendReject rows and activates the assignment/member-store frontend fixtures. The remaining B-08 InternalBugSentinel rows stay covered by `COVERS` until the later MIR/member-store verifier task retires them.
 
 ## Runner Status
 
-`scoop test` recognizes `tests/fixtures/umb_fix/**`. Fixtures marked `IGNORE-UNTIL-FIX:B-08` or `ignore-until-fix:B-08` are skipped until the corresponding production fix lands.
+`scoop test` recognizes `tests/fixtures/umb_fix/**`. B-08 fixtures are active after P7-A2; retired FrontendReject IDs are tracked in `audit/UMB_retired.csv` rather than fixture `COVERS` fields.

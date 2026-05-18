@@ -7,8 +7,8 @@
 
 ## Scope
 
-U5-T01 creates this directory skeleton only. U5-T02 and U5-T03 must add `.scoop` fixtures and append matching `_index.csv` rows.
+P7-A2 retires the B-21 FrontendReject rows and activates struct-field frontend fixtures for unknown fields, missing required fields, field type mismatch, and valid struct/with-update paths. The remaining B-21 InternalBugSentinel rows stay covered until the later aggregate/member schema verifier task retires them.
 
 ## Runner Status
 
-`scoop test` recognizes `tests/fixtures/umb_fix/**`. Fixtures marked `IGNORE-UNTIL-FIX:B-21` or `ignore-until-fix:B-21` are skipped until the corresponding production fix lands.
+`scoop test` recognizes `tests/fixtures/umb_fix/**`. P7-A2 fixtures are active; the parse-only disambiguation fixture remains ignored until its placeholder names are replaced. Retired FrontendReject IDs are tracked in `audit/UMB_retired.csv` rather than fixture `COVERS` fields.

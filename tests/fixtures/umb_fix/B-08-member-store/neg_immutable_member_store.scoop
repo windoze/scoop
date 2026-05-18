@@ -1,0 +1,17 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::assignment_target_not_mutable
+// EXPECT-ERROR-AT: 16:9
+// EXPECT-ERROR: 不可赋值
+// SPEC: docs/spec/language_spec-part3.md#8-属性
+// COVERS: NONE
+// BUCKETS: B-08
+// REASON: P7-A2 keeps immutable class member stores rejected before MIR/LLVM lowering.
+// SOURCE-FIXTURE: tests/fixtures/typecheck/sysroot_box_value_assign_is_error.scoop
+
+package fixtures.typecheck
+import scoop.core.*
+
+fun main() {
+    val box: Box<Int> = Box(1)
+    box.value = 2
+}
