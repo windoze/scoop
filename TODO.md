@@ -4,7 +4,7 @@
 > 设计基线：[`UnsupportedMainBody_FIX.md`](./UnsupportedMainBody_FIX.md)  
 > 计划基线：[`PLAN.md`](./PLAN.md)  
 > 格式参考：[`docs/archive/plans/TODO-closure-fix.md`](./docs/archive/plans/TODO-closure-fix.md)  
-> 当前状态：U1-T01 已完成；下一项 U1-T02
+> 当前状态：U1-T02 已完成；下一项 U2-T01
 > 执行原则：U0 必须最先完成；U1 → U2 → U3 严格串行；U4 与 U5 可在 U2/U3 稳定后并行，但 U5 的 negative fixture 必须引用 U4 已写明的 upstream gate；U6 必须最后完成。每个任务完成后必须回写“完成记录”。
 
 ## 全局约束
@@ -374,7 +374,7 @@ U0-T01 (摸底 + baseline 冻结)
   - 验证结果：`SCOOP_WRITE_UMB_INVENTORY=1 cargo test -p scoopc audit::umb_inventory::umb_inventory_csv_in_sync -- --nocapture` 通过并生成 CSV；`cargo test -p scoopc audit::umb_inventory -- --nocapture` 通过（3 passed）；`cargo test -p scoopc pipeline_user_visible_failure_policy -- --nocapture` 通过（7 passed）；`cargo clippy --all-targets -- -D warnings` 通过；`audit/UMB_inventory.csv` 未发现 `TBD`，且包含 1,284 条 `UMB-` 数据行。
   - 闭合目标：满足 U1-T01 的可重复源码扫描、稳定 ID、CSV 主表落地、bucket/class/spec/gate 填实、kind 计数对账和旧 gap inventory 交叉引用要求；后续 U1-T02 可在此模块逻辑上实现 `umb-audit list/diff/stats` 与 schema 文档。
 
-### [TODO] U1-T02：inventory schema 文档 + 索引子命令
+### [DONE] U1-T02：inventory schema 文档 + 索引子命令
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §3.1、§6 U1-T02
@@ -403,7 +403,13 @@ U0-T01 (摸底 + baseline 冻结)
   - 三个子命令在当前 checkout 跑通，`diff` 无漂移。
   - U6 baseline test #1 可直接复用此逻辑。
 - 依赖：U1-T01
-- 完成记录：待填写
+- 完成记录：
+  - 改动范围：新增 `audit/UMB_inventory_schema.md`；新增 `crates/scoopc/src/bin/umb-audit.rs` 与 `Cargo.toml` bin target；将 `crates/scoopc/src/audit/umb_inventory.rs` 的扫描、校验、渲染入口开放给审计 bin 复用。
+  - 核心决策：采用 `cargo run -p scoopc --bin umb-audit -- ...` 作为 U1 索引入口，不新建 dev-only crate；理由是可直接复用 U1 已冻结的 scanner/classification/render 逻辑，避免第二套 inventory 规则漂移，且该 bin 只读源码和 audit CSV，不接入 production `scoopc` 编译入口或 LLVM codegen 链路。
+  - schema 文档：`audit/UMB_inventory_schema.md` 已逐字段定义取值域、合法性规则、排序规则、CSV escaping 规则和对账规则，并复制 B-01 到 B-36 合法 bucket 表；bucket 拆分/合并流程明确要求同步更新 `PLAN.md` 与 `UnsupportedMainBody_FIX.md`。
+  - CLI 能力：`umb-audit list` 支持 `--bucket B-XX`、`--file PATH`、`--class CLASS`；`diff` 会重扫源码并报告新增、删除、line drift、kind drift、field drift，当前 checkout 无漂移；`stats` 输出每 bucket、每 class、每 file entry 数，以及缺失 `spec_anchor` / `upstream_gate` 数。
+  - 验证结果：`cargo run -p scoopc --bin umb-audit -- list --bucket B-02` 通过（6 entries）；`cargo run -p scoopc --bin umb-audit -- diff` 通过（1,284 entries in sync）；`cargo run -p scoopc --bin umb-audit -- stats` 通过（missing spec/gate 均为 0）；`cargo test -p scoopc audit::umb_inventory -- --nocapture` 通过（3 passed）；`cargo clippy --all-targets -- -D warnings` 通过。
+  - 闭合目标：满足 U1-T02 的 schema 文档、机器 diff/list/stats 入口和 U6 baseline test #1 复用要求；后续 U2-T01 可直接使用 `umb-audit stats` 生成 bucket 总览数字。
 
 ## U2：P2 — 成因分析与 Bucket 文档
 

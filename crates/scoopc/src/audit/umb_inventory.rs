@@ -5,21 +5,23 @@
 //! `crates/scoopc/src/llvm/codegen/**` gets a stable `UMB-NNNN` id and
 //! governance metadata used by later audit phases.
 
-use std::collections::{BTreeMap, BTreeSet};
+#[cfg(test)]
+use std::collections::BTreeMap;
+use std::collections::BTreeSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 
 const CODEGEN_ROOT: &str = "crates/scoopc/src/llvm/codegen";
-const INVENTORY_PATH: &str = "audit/UMB_inventory.csv";
+pub(crate) const INVENTORY_PATH: &str = "audit/UMB_inventory.csv";
 const EXPECTED_ENTRY_COUNT: usize = 1_284;
 // U0's broad grep counted every literal `kind:` field in codegen text. The
 // inventory scanner is constructor-scoped, so forwarded/dynamic rows are kept
 // as `DYNAMIC:*` entries and literal matching is checked within those rows.
 const EXPECTED_LITERAL_KIND_COUNT: usize = 1_241;
 const EXPECTED_DYNAMIC_KIND_COUNT: usize = 43;
-const CSV_HEADER: &str = "id,file,line,kind,route,surface,bucket,expected_class,spec_anchor,upstream_gate,existing_fixture,notes";
+pub(crate) const CSV_HEADER: &str = "id,file,line,kind,route,surface,bucket,expected_class,spec_anchor,upstream_gate,existing_fixture,notes";
 
-const VALID_BUCKETS: &[&str] = &[
+pub(crate) const VALID_BUCKETS: &[&str] = &[
     "B-01", "B-02", "B-03", "B-04", "B-05", "B-06", "B-07", "B-08", "B-09", "B-10", "B-11", "B-12",
     "B-13", "B-14", "B-15", "B-16", "B-17", "B-18", "B-19", "B-20", "B-21", "B-22", "B-23", "B-24",
     "B-25", "B-26", "B-27", "B-28", "B-29", "B-30", "B-31", "B-32", "B-33", "B-34", "B-35", "B-36",
@@ -41,7 +43,7 @@ struct SourceEntry {
 }
 
 #[derive(Debug, Clone)]
-struct InventoryEntry {
+pub(crate) struct InventoryEntry {
     id: String,
     file: String,
     line: usize,
@@ -148,7 +150,7 @@ fn umb_inventory_cross_references_legacy_gap_buckets() {
     );
 }
 
-fn inventory_entries() -> Vec<InventoryEntry> {
+pub(crate) fn inventory_entries() -> Vec<InventoryEntry> {
     let mut source_entries = scan_source_entries();
     source_entries.sort_by(|left, right| {
         (&left.file, left.line, left.column).cmp(&(&right.file, right.line, right.column))
@@ -927,7 +929,7 @@ impl SourceEntry {
     }
 }
 
-fn validate_inventory_entries(entries: &[InventoryEntry]) {
+pub(crate) fn validate_inventory_entries(entries: &[InventoryEntry]) {
     assert_eq!(
         entries.len(),
         EXPECTED_ENTRY_COUNT,
@@ -1016,7 +1018,7 @@ fn validate_inventory_entries(entries: &[InventoryEntry]) {
     );
 }
 
-fn render_csv(entries: &[InventoryEntry]) -> String {
+pub(crate) fn render_csv(entries: &[InventoryEntry]) -> String {
     let mut output = String::new();
     output.push_str(CSV_HEADER);
     output.push('\n');
@@ -1055,6 +1057,7 @@ fn csv_escape(field: &str) -> String {
     }
 }
 
+#[cfg(test)]
 fn bucket_distribution(entries: &[InventoryEntry]) -> String {
     let mut counts = BTreeMap::new();
     for entry in entries {
@@ -1072,6 +1075,7 @@ fn bucket_distribution(entries: &[InventoryEntry]) -> String {
         .join("\n")
 }
 
+#[cfg(test)]
 fn literal_kind_counts<'a>(kinds: impl Iterator<Item = &'a str>) -> BTreeMap<String, usize> {
     let mut counts = BTreeMap::new();
     for kind in kinds {
@@ -1080,7 +1084,7 @@ fn literal_kind_counts<'a>(kinds: impl Iterator<Item = &'a str>) -> BTreeMap<Str
     counts
 }
 
-fn repo_root() -> PathBuf {
+pub(crate) fn repo_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
 }
 
@@ -1453,6 +1457,7 @@ fn legacy_gap_ids_for(bucket: &str, lower: &str) -> Vec<&'static str> {
     gap_ids
 }
 
+#[cfg(test)]
 fn legacy_gap_ids_from_notes(notes: &str) -> impl Iterator<Item = &str> + '_ {
     notes
         .split(';')

@@ -28,3 +28,7 @@ object = { version = "0.37.3", default-features = false, features = ["read", "st
 name = "scoopc"
 path = "src/bin/scoopc.rs"
 required-features = ["llvm"]
+
+[[bin]]
+name = "umb-audit"
+path = "src/bin/umb-audit.rs"
