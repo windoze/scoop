@@ -24,6 +24,10 @@ pub enum Command {
 
     /// 运行 fixtures（当前阶段仅做最小 smoke）
     Test {
+        /// fixtures 目录或单个 fixture 文件（位置参数；默认：`tests/fixtures`）
+        #[arg(value_name = "FIXTURES", conflicts_with = "fixtures")]
+        fixture_path: Option<PathBuf>,
+
         /// fixtures 目录或单个 fixture 文件（默认：`tests/fixtures`）
         #[arg(long)]
         fixtures: Option<PathBuf>,
@@ -363,6 +367,7 @@ mod tests {
 
         match args.command {
             Command::Test {
+                fixture_path,
                 fixtures,
                 exit_on_failure,
                 processes,
@@ -371,6 +376,7 @@ mod tests {
                 gc_move,
                 threads,
             } => {
+                assert!(fixture_path.is_none());
                 assert!(fixtures.is_none());
                 assert!(!exit_on_failure);
                 assert_eq!(processes.get(), 5);
@@ -398,14 +404,33 @@ mod tests {
 
         match args.command {
             Command::Test {
+                fixture_path,
                 fixtures,
                 exit_on_failure,
                 processes,
                 ..
             } => {
+                assert!(fixture_path.is_none());
                 assert_eq!(fixtures, Some(PathBuf::from("tests/fixtures/parse")));
                 assert!(exit_on_failure);
                 assert_eq!(processes.get(), 7);
+            }
+            other => panic!("unexpected command: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn test_command_parses_fixture_positional_path() {
+        let args = Args::try_parse_from(["scoop", "test", "tests/fixtures/umb_fix"]).unwrap();
+
+        match args.command {
+            Command::Test {
+                fixture_path,
+                fixtures,
+                ..
+            } => {
+                assert_eq!(fixture_path, Some(PathBuf::from("tests/fixtures/umb_fix")));
+                assert!(fixtures.is_none());
             }
             other => panic!("unexpected command: {other:?}"),
         }

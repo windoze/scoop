@@ -25,6 +25,7 @@
 //! - `// EXPECT-MONOMORPH-MISS: <n>`（cone fixtures：期望需要本地生成的实例数量）
 //! - `// EXPECT-TYPE-MONOMORPH-HIT: <n>`（cone fixtures：期望命中 pre-specialize 的类型实例数量）
 //! - `// EXPECT-TYPE-MONOMORPH-MISS: <n>`（cone fixtures：期望需要本地生成的类型实例数量）
+//! - `// IGNORE-UNTIL-FIX:B-XX` / `// ignore-until-fix:B-XX`（UMB fixtures：跳过待修复用例）
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Expect {
@@ -57,6 +58,7 @@ pub struct FixtureExpectation<'a> {
     pub expect_monomorph_miss: Option<usize>,
     pub expect_type_monomorph_hit: Option<usize>,
     pub expect_type_monomorph_miss: Option<usize>,
+    pub ignore_until_fix: Option<&'a str>,
 }
 
 impl<'a> FixtureExpectation<'a> {
@@ -85,6 +87,7 @@ impl<'a> FixtureExpectation<'a> {
         let mut expect_monomorph_miss = None;
         let mut expect_type_monomorph_hit = None;
         let mut expect_type_monomorph_miss = None;
+        let mut ignore_until_fix = None;
 
         // 只扫描开头若干行，避免把正文里的 `// EXPECT:` 误判为指令。
         for line in text.lines().take(32) {
@@ -99,7 +102,7 @@ impl<'a> FixtureExpectation<'a> {
             if let Some(rest) = directive.strip_prefix("EXPECT:") {
                 let rest = rest.trim();
                 expect = match rest {
-                    "pass" => Expect::Pass,
+                    "pass" | "ok" => Expect::Pass,
                     "fail" => Expect::Fail,
                     _ => expect,
                 };
@@ -203,6 +206,16 @@ impl<'a> FixtureExpectation<'a> {
             if let Some(rest) = directive.strip_prefix("EXPECT-TYPE-MONOMORPH-MISS:") {
                 expect_type_monomorph_miss = rest.trim().parse::<usize>().ok();
             }
+
+            if let Some(rest) = directive
+                .strip_prefix("IGNORE-UNTIL-FIX:")
+                .or_else(|| directive.strip_prefix("ignore-until-fix:"))
+            {
+                let rest = rest.trim();
+                if !rest.is_empty() {
+                    ignore_until_fix = Some(rest);
+                }
+            }
         }
 
         Self {
@@ -229,6 +242,7 @@ impl<'a> FixtureExpectation<'a> {
             expect_monomorph_miss,
             expect_type_monomorph_hit,
             expect_type_monomorph_miss,
+            ignore_until_fix,
         }
     }
 }
@@ -310,6 +324,26 @@ mod tests {
         assert_eq!(exp.expect_monomorph_miss, None);
         assert_eq!(exp.expect_type_monomorph_hit, None);
         assert_eq!(exp.expect_type_monomorph_miss, None);
+    }
+
+    #[test]
+    fn parse_expect_ok_alias_and_ignore_until_fix() {
+        let exp = FixtureExpectation::from_source(
+            "// EXPECT: ok\n// IGNORE-UNTIL-FIX:B-12\nfun main() {}\n",
+        );
+
+        assert_eq!(exp.expect, Expect::Pass);
+        assert_eq!(exp.ignore_until_fix, Some("B-12"));
+    }
+
+    #[test]
+    fn parse_lowercase_ignore_until_fix() {
+        let exp = FixtureExpectation::from_source(
+            "// EXPECT: fail\n// ignore-until-fix:B-24\nfun main() {}\n",
+        );
+
+        assert_eq!(exp.expect, Expect::Fail);
+        assert_eq!(exp.ignore_until_fix, Some("B-24"));
     }
 
     #[test]

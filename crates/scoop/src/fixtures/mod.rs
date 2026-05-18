@@ -34,6 +34,7 @@
 //! - `tests/fixtures/effect_facts/**` → effect_facts（effect-facts stable dump + `.effectfacts` golden 比对）
 //! - `tests/fixtures/effect_lowered/**` → effect_lowered（late-lowered stable dump + `.effectlowered` golden 比对）
 //! - `tests/fixtures/scoopir/**` → scoopir（public API 导出 + `.scoopir.json` golden 比对）
+//! - `tests/fixtures/umb_fix/**` → UMB audit fixtures（支持 `IGNORE-UNTIL-FIX:B-XX` 跳过）
 //! - 其它一级目录会被识别为 phase，但目前统一返回“未实现”的诊断。
 
 mod expectations;
@@ -254,6 +255,10 @@ pub fn plan_targets(fixtures_root: &Path) -> Result<Vec<PlannedFixtureTarget>> {
         });
     }
 
+    if targets.is_empty() && is_under_umb_fix_dir(fixtures_root) {
+        return Ok(targets);
+    }
+
     if targets.is_empty() {
         return Err(miette!(
             "fixtures 目录下未发现任何 .scoop 文件：{}",
@@ -363,6 +368,12 @@ fn has_parent_dir_name(path: &Path, name: &str) -> bool {
     path.parent()
         .and_then(Path::file_name)
         .is_some_and(|dir| dir == std::ffi::OsStr::new(name))
+}
+
+fn is_under_umb_fix_dir(path: &Path) -> bool {
+    path.ancestors()
+        .filter_map(Path::file_name)
+        .any(|name| name == std::ffi::OsStr::new("umb_fix"))
 }
 
 fn is_resolve_multi_case_root(fixtures_root: &Path) -> bool {
@@ -658,6 +669,11 @@ fn run_one(
     // 当前阶段只有部分 phase 会消费它们（例如 build phase 会消费 emit 相关 ARGS，run-pass 会消费 env/stdout/stderr 等）。
 
     let rel = path.strip_prefix(fixtures_root).unwrap_or(path);
+    if let Some(bucket) = exp.ignore_until_fix {
+        println!("SKIP {} (IGNORE-UNTIL-FIX:{bucket})", rel.display());
+        return Ok(());
+    }
+
     let phase = match phase_name(fixtures_root, rel) {
         None => FixturePhase::Parse,
         Some(name) if name == "parse" || name == "spec_doctest" => FixturePhase::Parse,
@@ -674,6 +690,7 @@ fn run_one(
         Some(name) if name == "effect_facts" => FixturePhase::EffectFacts,
         Some(name) if name == "effect_lowered" => FixturePhase::EffectLowered,
         Some(name) if name == "scoopir" => FixturePhase::ScoopIr,
+        Some(name) if name == "umb_fix" => FixturePhase::UmbFix,
         Some(other) => FixturePhase::Unimplemented(other.to_string_lossy().to_string()),
     };
 
@@ -697,6 +714,9 @@ fn run_one(
         FixturePhase::EffectFacts => effect_facts_fixture(session, &source, path),
         FixturePhase::EffectLowered => effect_lowered_fixture(session, &source, path),
         FixturePhase::ScoopIr => scoopir_fixture(session, &source, path),
+        FixturePhase::UmbFix => {
+            umb_fix_fixture(session, &source, rel, path, opt_level, &exp, run_pass_env)
+        }
         FixturePhase::Unimplemented(phase) => Err(box_diagnostic(UnimplementedPhase {
             phase,
             fixture: rel.display().to_string(),
@@ -714,6 +734,56 @@ fn run_one(
     }
 }
 
+fn umb_fix_fixture(
+    session: &scoopc::session::Session,
+    source: &scoopc::source::SourceFile,
+    rel: &Path,
+    path: &Path,
+    opt_level: Option<OptLevel>,
+    exp: &FixtureExpectation<'_>,
+    run_pass_env: &RunPassEnvOverrides,
+) -> std::result::Result<(), Box<dyn miette::Diagnostic>> {
+    if is_umb_fix_build_fixture(exp) {
+        return build_fixture(session, rel, path, opt_level, exp);
+    }
+
+    if is_umb_fix_run_pass_fixture(path, exp) {
+        return run_pass::run_fixture(
+            rel,
+            path,
+            opt_level,
+            session.options().clone(),
+            exp,
+            run_pass_env,
+        );
+    }
+
+    typecheck_fixture(session, source, exp)
+}
+
+fn is_umb_fix_build_fixture(exp: &FixtureExpectation<'_>) -> bool {
+    !exp.build_llvm_contains.is_empty()
+        || !exp.build_llvm_regex.is_empty()
+        || !exp.build_llvm_not_contains.is_empty()
+        || exp
+            .args
+            .iter()
+            .any(|arg| matches!(arg.as_str(), "--emit-llvm" | "--emit-obj" | "--emit-asm"))
+}
+
+fn is_umb_fix_run_pass_fixture(path: &Path, exp: &FixtureExpectation<'_>) -> bool {
+    exp.run_stdout.is_some()
+        || exp.run_stderr.is_some()
+        || exp.run_stdin.is_some()
+        || exp.run_mode.is_some()
+        || exp.run_stdout_contains.is_some()
+        || exp.run_stderr_contains.is_some()
+        || exp.run_stackmaps_records_gt.is_some()
+        || exp.expect_exit.is_some()
+        || path.with_extension("stdout").is_file()
+        || path.with_extension("stderr").is_file()
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum FixturePhase {
     Parse,
@@ -728,6 +798,7 @@ enum FixturePhase {
     EffectFacts,
     EffectLowered,
     ScoopIr,
+    UmbFix,
     Unimplemented(String),
 }
 
@@ -3289,6 +3360,7 @@ fn is_phase_dir_name(name: &std::ffi::OsStr) -> bool {
                 | "effect_facts"
                 | "effect_lowered"
                 | "scoopir"
+                | "umb_fix"
         )
     )
 }
@@ -3503,6 +3575,16 @@ mod tests {
     }
 
     #[test]
+    fn plan_targets_allows_empty_umb_fix_tree() {
+        let dir = tempdir().unwrap();
+        let fixtures_root = dir.path().join("tests").join("fixtures").join("umb_fix");
+        fs::create_dir_all(fixtures_root.join("B-01-builder-invariant")).unwrap();
+
+        let targets = plan_targets(&fixtures_root).unwrap();
+        assert!(targets.is_empty());
+    }
+
+    #[test]
     fn session_options_for_target_picks_companion_sysroot_overlay_dir() {
         let dir = tempdir().unwrap();
         let build_dir = dir.path().join("build");
@@ -3658,6 +3740,32 @@ val bad: Int = Box("oops").bodyCopy
 
         let ok = run_all(
             &fixture,
+            None,
+            scoopc::session::SessionOptions::new(),
+            &RunPassEnvOverrides::new(),
+        )
+        .unwrap();
+        assert_eq!(ok, 1);
+    }
+
+    #[test]
+    fn run_all_skips_umb_fix_ignore_until_fix_fixture() {
+        let dir = tempdir().unwrap();
+        let fixture_dir = dir
+            .path()
+            .join("tests")
+            .join("fixtures")
+            .join("umb_fix")
+            .join("B-12-closure-capture");
+        fs::create_dir_all(&fixture_dir).unwrap();
+        fs::write(
+            fixture_dir.join("pos_closure_capture.scoop"),
+            "// EXPECT: ok\n// IGNORE-UNTIL-FIX:B-12\nthis is intentionally not parsed\n",
+        )
+        .unwrap();
+
+        let ok = run_all(
+            fixture_dir.parent().unwrap(),
             None,
             scoopc::session::SessionOptions::new(),
             &RunPassEnvOverrides::new(),

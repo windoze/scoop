@@ -4,7 +4,7 @@
 > 设计基线：[`UnsupportedMainBody_FIX.md`](./UnsupportedMainBody_FIX.md)  
 > 计划基线：[`PLAN.md`](./PLAN.md)  
 > 格式参考：[`docs/archive/plans/TODO-closure-fix.md`](./docs/archive/plans/TODO-closure-fix.md)  
-> 当前状态：U4-T01 已完成；下一项 U5-T01
+> 当前状态：U5-T01 已完成；下一项 U5-T02
 > 执行原则：U0 必须最先完成；U1 → U2 → U3 严格串行；U4 与 U5 可在 U2/U3 稳定后并行，但 U5 的 negative fixture 必须引用 U4 已写明的 upstream gate；U6 必须最后完成。每个任务完成后必须回写“完成记录”。
 
 ## 全局约束
@@ -571,7 +571,7 @@ U0-T01 (摸底 + baseline 冻结)
 
 ## U5：P5 — Fixture 集合
 
-### [TODO] U5-T01：fixture 目录骨架 + `_index.csv` + runner 支持确认
+### [DONE] U5-T01：fixture 目录骨架 + `_index.csv` + runner 支持确认
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §3.3、§6 U5-T01、§8、§9
@@ -602,7 +602,13 @@ U0-T01 (摸底 + baseline 冻结)
   - `_index.csv` 表头与 schema 一致。
   - `IGNORE-UNTIL-FIX` 支持状态明确；若需要 runner 改动，已落地并验证。
 - 依赖：U4-T01 可先行；U3-T01 必须已完成
-- 完成记录：待填写
+- 完成记录：
+  - 改动范围：新增 `tests/fixtures/umb_fix/_index.csv`；新增 `tests/fixtures/umb_fix/B-01-builder-invariant/` 到 `B-36-spec-uncovered/` 共 36 个 bucket 目录及 `_README.md`；更新 `crates/scoop/src/cli.rs`、`crates/scoop/src/commands/mod.rs`、`crates/scoop/src/fixtures/expectations.rs`、`crates/scoop/src/fixtures/mod.rs` 的 fixture/test infrastructure；未修改 production compiler semantics、production LLVM codegen、`PLAN.md` 或 `UnsupportedMainBody_FIX.md`。
+  - 核心决策：`_index.csv` 仅落地严格表头 `fixture_path,bucket,kind,spec_anchor,umb_ids,status,notes`，U5-T01 不提前登记尚未存在的 planned fixture，避免制造悬空路径；每个 bucket README 链接对应 category、strategy、spec matrix 与 `_index.csv` bucket 行说明。
+  - runner 支持状态：`scoop test` 现在接受 `scoop test tests/fixtures/umb_fix/` 位置参数形式；`tests/fixtures/umb_fix/**` 被识别为专用 phase；空 `umb_fix` 骨架目录返回通过；fixture 头部支持 `IGNORE-UNTIL-FIX:B-XX` 与 `ignore-until-fix:B-XX` 并在执行前 skip；`EXPECT: ok` 作为 `EXPECT: pass` 别名解析。
+  - active fixture 行为：未带 ignore 标记的 `umb_fix` fixture 会按头部内容进入 build/run-pass/typecheck test infrastructure，其中 build/run-pass 通过现有 `ARGS`、`BUILD-LLVM-*`、`RUN-*` 指令推断，否则默认走 typecheck；后续 U5-T02/U5-T03 仍需为每个新增 fixture 同步 `_index.csv`。
+  - 验证结果：`cargo run -p scoop -- test tests/fixtures/umb_fix/` 通过（fixtures: ok, 0 checks）；`cargo test -p scoop -- fixtures -- --nocapture` 通过（58 fixture-related unit tests + filtered integration tests）；`cargo clippy --all-targets -- -D warnings` 通过；`cargo test --all --all-targets` 通过（scoopc 874 passed，umb-audit 3 passed，其他目标通过）。
+  - 闭合目标：满足 U5-T01 的 36 个目录和 `_README.md`、`_index.csv` schema 表头、`IGNORE-UNTIL-FIX` 支持状态确认、必要 runner 改动落地和指定验证命令通过要求；后续 U5-T02 可开始添加 spec part1-6 fixture 主体。
 
 ### [TODO] U5-T02：spec part1-6 fixture 主体
 

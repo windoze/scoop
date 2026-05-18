@@ -48,6 +48,7 @@ pub fn dispatch(args: Args) -> Result<(), miette::Report> {
     match command {
         Command::New { project_name } => new::run(project_name),
         Command::Test {
+            fixture_path,
             fixtures,
             exit_on_failure,
             processes,
@@ -56,7 +57,7 @@ pub fn dispatch(args: Args) -> Result<(), miette::Report> {
             gc_move,
             threads,
         } => test::run(
-            fixtures,
+            fixture_path.or(fixtures),
             test::TestOptions {
                 opt_level: parse_opt_level_flag(opt_level)?,
                 gc_stress,
