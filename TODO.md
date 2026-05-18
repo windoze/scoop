@@ -4,7 +4,7 @@
 > 设计基线：[`UnsupportedMainBody_FIX.md`](./UnsupportedMainBody_FIX.md)  
 > 计划基线：[`PLAN.md`](./PLAN.md)  
 > 格式参考：[`docs/archive/plans/TODO-closure-fix.md`](./docs/archive/plans/TODO-closure-fix.md)  
-> 当前状态：U2-T01 已完成；下一项 U2-T02
+> 当前状态：U2-T02 已完成；下一项 U3-T01
 > 执行原则：U0 必须最先完成；U1 → U2 → U3 严格串行；U4 与 U5 可在 U2/U3 稳定后并行，但 U5 的 negative fixture 必须引用 U4 已写明的 upstream gate；U6 必须最后完成。每个任务完成后必须回写“完成记录”。
 
 ## 全局约束
@@ -447,7 +447,7 @@ U0-T01 (摸底 + baseline 冻结)
   - 验证结果：自定义结构校验脚本通过（36 bucket docs，1,284 total entries）；`cargo run -p scoopc --bin umb-audit -- stats` 通过（missing spec/gate 均为 0，36 个 bucket 全部非空）；`cargo test -p scoopc audit::umb_inventory -- --nocapture` 通过（3 passed）；手工通过 `glob audit/UMB_categories/*.md` 确认 `_overview.md` 与 36 份 `B-XX.md` 全部存在；`cargo clippy --all-targets -- -D warnings` 通过。
   - 闭合目标：满足 U2-T01 的 category 目录、bucket 总览、36 份骨架、表头声明、非空 bucket 决策和 CSV 数字对账要求；后续 U2-T02 可在这些骨架内补齐 symptom 表、源码片段和 root cause 主体。
 
-### [TODO] U2-T02：36 份 bucket md 主体
+### [DONE] U2-T02：36 份 bucket md 主体
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §6 U2-T02
@@ -478,7 +478,13 @@ U0-T01 (摸底 + baseline 冻结)
   - 每个 bucket md 的 class 分布数字之和等于 CSV 中该 bucket entry 数。
   - 每条 inventory entry 能在对应 bucket md 的 symptom 表中找到。
 - 依赖：U2-T01
-- 完成记录：待填写
+- 完成记录：
+  - 改动范围：更新 `audit/UMB_categories/B-01.md` 到 `audit/UMB_categories/B-36.md`，将 U2-T01 skeleton 全部替换为 U2-T02 主体内容；未修改 production codegen。
+  - 核心决策：每份 bucket 文档以 `audit/UMB_inventory.csv` 为唯一数据源，完整列出 `(id, file, line, kind, route, surface, expected_class)` symptom 表；代表源码片段直接按当前源码行号截取上下文；B-09、B-14、B-17、B-24、B-25、B-35 增加 entry-level cross-class split；B-36 保留 CSV 当前 `FrontendReject` 路径，同时在 bucket 文档中标记 `D-pending` 计划分类。
+  - 文档内容：36 份 md 均包含 `Symptom`、`Root Cause Hypothesis`、`Spec Linkage`、`Expected Post-Fix Class`、`Fix Strategy Outline`、`Fixture Set Pointer`、`Open Questions` 七段；每份包含 3 个代表性源码片段并说明代表原因；每份 class 计数合计等于该 bucket entry 数。
+  - 对账结果：自定义结构校验通过（36 bucket docs，1,284 inventory entries 全部落入对应 symptom 表，cross-class split id 完全匹配，未发现 skeleton 占位或 `TBD`）。
+  - 验证结果：`cargo run -p scoopc --bin umb-audit -- stats` 通过（1,284 entries，missing spec/gate 均为 0）；`cargo run -p scoopc --bin umb-audit -- diff` 通过（CSV in sync）；`cargo test -p scoopc audit::umb_inventory -- --nocapture` 通过（3 passed）；`cargo clippy --all-targets -- -D warnings` 通过。
+  - 闭合目标：满足 U2-T02 的 36 份 bucket md 主体、完整 entry 表、源码片段、root-cause hypothesis、spec linkage、post-fix class 分布、fixture pointer 和 open questions 要求；后续 U3-T01 可直接使用这些 bucket 文档编写 spec 覆盖矩阵。
 
 ## U3：P3 — Spec 覆盖矩阵
 

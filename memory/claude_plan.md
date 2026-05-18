@@ -1,32 +1,23 @@
-# Current Invocation Plan
+执行计划
 
-## Scope
+1. 读取 `TODO.md`，按文件顺序定位第一个标题未带 `[DONE]` 的任务；不进行开放式历史问题排查。
+2. 读取该任务相关上下文，并按需查看 `PLAN.md`、最近提交和相关源码，确认任务范围、依赖和验证要求。
+3. 如果发现当前任务被具体前置问题阻塞，只在 `TODO.md` 中添加最小必要前置任务或依赖记录，提交后停止。
+4. 如果任务可直接执行，实施最小正确改动，避免规避规格或夹带无关重构。
+5. 运行当前任务要求的验证命令，并补充必要的针对性测试；若失败，修复同一根因影响的相关问题。
+6. 将当前任务标题改为 `[DONE] ...`，更新完成记录；仅当阶段级计划变化时才更新 `PLAN.md`。
+7. 提交本次任务涉及的全部变更，提交信息使用任务编号开头。
+8. 停止，不继续处理下一个任务。
 
-- Follow `TODO.md` as the source of truth.
-- Identify and complete exactly the first incomplete task.
-- Stop after committing that task or, if blocked, after recording the minimum prerequisite task and committing the bookkeeping change.
+进度记录
 
-## Execution Plan
-
-1. Read `TODO.md` and identify the first task whose title is not prefixed with `[DONE]`.
-2. Check the latest commit message only for unfinished work directly relevant to that task.
-3. Inspect the task requirements, dependencies, affected code, and existing tests/fixtures.
-4. Implement the smallest spec-correct change that fully satisfies the current task.
-5. Add or update focused tests/fixtures required by the task.
-6. Run the task-specified validation plus relevant targeted checks; fix failures that are in scope.
-7. Update this file after key progress points and plan changes.
-8. Mark the task title `[DONE]` in `TODO.md` and update its completion record.
-9. Update `PLAN.md` only if phase-level sequencing, dependencies, or completion criteria changed.
-10. Commit all relevant uncommitted changes with a descriptive task-tagged commit message.
-11. Stop without starting the next task.
-
-## Current Status
-
-- First incomplete task identified: `U2-T01：bucket 分组确认 + md 表头声明`.
-- Latest commit: `[U1-T02] Add UMB inventory audit CLI`; no directly unfinished U2 blocker found.
-- `umb-audit stats` currently reports 1,284 total entries, 36 non-empty buckets, and zero missing spec/gate fields.
-- Generated `audit/UMB_categories/_overview.md` and `B-01.md` through `B-36.md` from `audit/UMB_inventory.csv`.
-- Validation completed: category structure check passed, `umb-audit stats` passed, `cargo test -p scoopc audit::umb_inventory -- --nocapture` passed, and `cargo clippy --all-targets -- -D warnings` passed.
-- `TODO.md` updated to mark `U2-T01` as `[DONE]` with completion record. `PLAN.md` was not changed because phase ordering and dependencies were unchanged.
-- Committed U2-T01 implementation as `[U2-T01] Add UMB bucket category skeletons` (`a7f24c94`).
-- Invocation complete: stop after this task; do not start U2-T02.
+- 已写入初始执行计划；下一步读取 `TODO.md` 定位第一个未完成任务。
+- 已读取 `TODO.md`，第一个未完成任务为 `U2-T02：36 份 bucket md 主体`。
+- 本次执行范围固定为补齐 `audit/UMB_categories/B-01.md` 到 `B-36.md` 的主体内容、验证数字对账、更新 `TODO.md` 完成记录并提交；不处理 U3 及后续任务。
+- 已检查最近提交 `3bfd5b5a [U2-T01] Record completion progress`，没有直接声明未完成且阻塞 U2-T02 的 issue。
+- 已确认 inventory stats：1,284 entries、36 个 bucket 全部非空、missing spec/upstream gate 均为 0；当前 bucket 文档仍是 U2-T01 skeleton。
+- 正在批量生成 U2-T02 文档主体：每份 bucket md 将包含完整 inventory symptom 表、3 个源码片段、root-cause hypothesis、spec linkage、post-fix class 分布、fixture pointer 与 open questions。
+- 已生成 36 份 bucket 文档主体，并移除 skeleton 占位文字；下一步做结构和数字对账。
+- 文档结构对账通过：36 份文档、1,284 条 inventory entry、每份 3 个 source excerpt、cross-class entry split 均匹配。
+- 验证通过：`cargo run -p scoopc --bin umb-audit -- stats`、`cargo run -p scoopc --bin umb-audit -- diff`、`cargo test -p scoopc audit::umb_inventory -- --nocapture`、`cargo clippy --all-targets -- -D warnings`。
+- 已更新 `TODO.md`：`U2-T02` 标记为 `[DONE]`，完成记录写入验证结果和对账摘要，顶部状态推进到 `U3-T01`。
