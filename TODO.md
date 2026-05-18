@@ -4,7 +4,7 @@
 > 计划基线：[`PLAN.md`](./PLAN.md)
 > 上一阶段任务档案：[`TODO-1.md`](./TODO-1.md)
 > 设计与 baseline：[`UnsupportedMainBody_FIX.md`](./UnsupportedMainBody_FIX.md)、[`UnsupportedMainBody_DONE.md`](./UnsupportedMainBody_DONE.md)
-> 当前状态：P7-0-T01 已完成；P7-0-T02 待开始；production 修复尚未开始。
+> 当前状态：P7-0-T01、P7-0-T02 已完成；production 修复尚未开始。
 
 ## 全局约束
 
@@ -123,7 +123,7 @@ P7-0-T01 stable ID + retired ledger
   - 验证结果：`cargo run -p scoopc --bin umb-audit -- diff` 通过（in sync，1284 entries）；`cargo run -p scoopc --bin umb-audit -- stats` 通过（total_entries=1284）；`cargo test -p scoopc audit:: -- --nocapture` 通过（20 passed）；`cargo clippy --all-targets -- -D warnings` 通过。
   - 闭合目标：满足 `PLAN.md:47-63` 与本任务完成条件；新增测试覆盖模拟删除 row 后 remaining IDs 不重排，并覆盖 line drift 顺序配对与歧义匹配报错。
 
-### [TODO] P7-0-T02：把 audit 常量改成退场倒计时
+### [DONE] P7-0-T02：把 audit 常量改成退场倒计时
 
 - 参考：`PLAN.md:65-79`。
 - 目标：P7 可以按 PR 递减 active count，而不是永远断言 1,284 active rows。
@@ -141,7 +141,15 @@ P7-0-T01 stable ID + retired ledger
   4. `cargo test -p scoopc pipeline_user_visible_failure_policy -- --nocapture`
 - 完成条件：当前状态显示 active=1,284、retired=0、initial=1,284；后续任务可只更新 retired IDs。
 - 依赖：P7-0-T01。
-- 完成记录：待填写。
+- 完成记录：
+  - 改动范围：更新 `crates/scoopc/src/audit/umb_inventory.rs`、`crates/scoopc/src/bin/umb-audit.rs`、`crates/scoopc/src/audit/spec_coverage.rs`、`audit/UMB_inventory_schema.md`；同步记录 `memory/claude_plan.md`。
+  - Retired IDs：无；数量 0；本任务不退场 production row。
+  - 核心决策：保留 `INITIAL_ENTRY_COUNT = 1_284` 只用于 active + retired 与 initial 对账；active count、literal kind count、dynamic kind count 改为从当前 active inventory / source scan 派生；`umb-audit diff` 使用 diff-mode stable ID 匹配报告未对账的新增/删除而不因 active < initial 直接 panic；严格 audit 路径仍要求 active IDs 与 retired IDs 并集等于 initial。
+  - Inventory/ledger：active 1,284 -> 1,284；retired 0 -> 0；initial 1,284。
+  - Stale count：未改 production fallback，stale count 不变。
+  - Fixture 状态：未改 fixture active/ignore 状态；fixture coverage audit 改为验证 active + retired countdown，不再要求 active ID 数恒为 1,284。
+  - 验证结果：`cargo run -p scoopc --bin umb-audit -- stats` 通过（active_entries=1284、retired_entries=0、initial_entries=1284）；`cargo run -p scoopc --bin umb-audit -- diff` 通过（in sync，1284 entries）；`cargo test -p scoopc audit:: -- --nocapture` 通过（23 passed）；`cargo test -p scoopc pipeline_user_visible_failure_policy -- --nocapture` 通过（7 passed）；`cargo clippy --all-targets -- -D warnings` 通过。
+  - 闭合目标：满足 `PLAN.md:65-79` 与本任务完成条件；后续退场 PR 可按 retired ledger 递减 active inventory，无需维持 1,284 active rows。
 
 ## P7-A：FrontendReject 退场（125 entries）
 

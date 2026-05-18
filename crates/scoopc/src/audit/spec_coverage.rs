@@ -8,7 +8,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use super::umb_inventory::{self, EXPECTED_ENTRY_COUNT, VALID_BUCKETS};
+use super::umb_inventory::{self, VALID_BUCKETS};
 
 const UMB_FIX_ROOT: &str = "tests/fixtures/umb_fix";
 const FIXTURE_INDEX_PATH: &str = "tests/fixtures/umb_fix/_index.csv";
@@ -57,6 +57,16 @@ fn umb_fix_every_inventory_id_is_covered() {
         .filter(|entry| entry.bucket == "B-01")
         .map(|entry| entry.id.clone())
         .collect::<BTreeSet<_>>();
+    let retired_count = umb_inventory::retired_entry_count();
+
+    assert_eq!(
+        inventory_ids.len() + retired_count,
+        umb_inventory::INITIAL_ENTRY_COUNT,
+        "fixture coverage audit countdown mismatch: active {} + retired {} must equal initial {}",
+        inventory_ids.len(),
+        retired_count,
+        umb_inventory::INITIAL_ENTRY_COUNT
+    );
 
     let mut covered = BTreeSet::new();
     for entry in fixture_index_entries() {
@@ -69,15 +79,13 @@ fn umb_fix_every_inventory_id_is_covered() {
     );
     covered.extend(sentinel_ids);
 
-    assert_eq!(
-        inventory_ids.len(),
-        EXPECTED_ENTRY_COUNT,
-        "inventory id set should match the frozen baseline"
-    );
     assert!(
         set_difference(&inventory_ids, &covered).is_empty(),
-        "inventory ids without fixture or sentinel coverage: {}",
-        set_difference(&inventory_ids, &covered).join(", ")
+        "active inventory ids without fixture or sentinel coverage: {}",
+        summarize_inventory_id_difference(
+            &set_difference(&inventory_ids, &covered),
+            &inventory_entries
+        )
     );
     assert!(
         set_difference(&covered, &inventory_ids).is_empty(),
@@ -487,6 +495,35 @@ fn finish_csv_record(records: &mut Vec<Vec<String>>, record: &mut Vec<String>, f
 
 fn set_difference(left: &BTreeSet<String>, right: &BTreeSet<String>) -> Vec<String> {
     left.difference(right).cloned().collect()
+}
+
+fn summarize_inventory_id_difference(
+    ids: &[String],
+    inventory_entries: &[umb_inventory::InventoryEntry],
+) -> String {
+    let by_id = inventory_entries
+        .iter()
+        .map(|entry| (entry.id.as_str(), entry))
+        .collect::<BTreeMap<_, _>>();
+    ids.iter()
+        .map(|id| {
+            by_id
+                .get(id.as_str())
+                .map(|entry| {
+                    format!(
+                        "{} {}:{} {} {} `{}`",
+                        entry.id,
+                        entry.file,
+                        entry.line,
+                        entry.bucket,
+                        entry.expected_class,
+                        entry.kind
+                    )
+                })
+                .unwrap_or_else(|| id.clone())
+        })
+        .collect::<Vec<_>>()
+        .join(", ")
 }
 
 fn repo_path(path: &str) -> PathBuf {

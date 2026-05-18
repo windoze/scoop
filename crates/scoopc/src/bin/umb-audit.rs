@@ -92,7 +92,7 @@ fn command_diff() -> Result<(), CliError> {
     let path = inventory_path();
     let on_disk = fs::read_to_string(&path)
         .map_err(|err| CliError::Failure(format!("failed to read {}: {err}", path.display())))?;
-    let generated_entries = umb_inventory::inventory_entries();
+    let generated_entries = umb_inventory::inventory_entries_for_diff();
     umb_inventory::validate_inventory_entries(&generated_entries);
     let generated = umb_inventory::render_csv(&generated_entries);
 
@@ -111,6 +111,15 @@ fn command_diff() -> Result<(), CliError> {
 
 fn command_stats() -> Result<(), CliError> {
     let entries = read_inventory_entries()?;
+    let active_count = entries.len();
+    let retired_count = umb_inventory::retired_entry_count();
+    let initial_count = umb_inventory::INITIAL_ENTRY_COUNT;
+    if active_count + retired_count != initial_count {
+        return Err(CliError::Failure(format!(
+            "UMB countdown mismatch: active {active_count} + retired {retired_count} must equal initial {initial_count}"
+        )));
+    }
+
     let mut by_bucket = BTreeMap::new();
     let mut by_class = BTreeMap::new();
     let mut by_file = BTreeMap::new();
@@ -132,7 +141,9 @@ fn command_stats() -> Result<(), CliError> {
         .filter(|entry| missing_governance_field(&entry.upstream_gate))
         .count();
 
-    println!("total_entries\t{}", entries.len());
+    println!("active_entries\t{active_count}");
+    println!("retired_entries\t{retired_count}");
+    println!("initial_entries\t{initial_count}");
     println!("missing_spec_anchor\t{missing_spec_anchor}");
     println!("missing_upstream_gate\t{missing_upstream_gate}");
 

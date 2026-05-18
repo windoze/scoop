@@ -13,12 +13,7 @@ const CODEGEN_ROOT: &str = "crates/scoopc/src/llvm/codegen";
 pub(crate) const INVENTORY_PATH: &str = "audit/UMB_inventory.csv";
 pub(crate) const INITIAL_INVENTORY_PATH: &str = "audit/UMB_inventory_initial.csv";
 pub(crate) const RETIRED_LEDGER_PATH: &str = "audit/UMB_retired.csv";
-pub(crate) const EXPECTED_ENTRY_COUNT: usize = 1_284;
-// U0's broad grep counted every literal `kind:` field in codegen text. The
-// inventory scanner is constructor-scoped, so forwarded/dynamic rows are kept
-// as `DYNAMIC:*` entries and literal matching is checked within those rows.
-const EXPECTED_LITERAL_KIND_COUNT: usize = 1_241;
-const EXPECTED_DYNAMIC_KIND_COUNT: usize = 43;
+pub(crate) const INITIAL_ENTRY_COUNT: usize = 1_284;
 pub(crate) const CSV_HEADER: &str = "id,file,line,kind,route,surface,bucket,expected_class,spec_anchor,upstream_gate,existing_fixture,notes";
 pub(crate) const RETIRED_LEDGER_HEADER: &str =
     "id,bucket,expected_class,file,old_line,kind,retired_by,retired_reason,retired_at_notes";
@@ -37,6 +32,13 @@ enum KindSource {
     Dynamic,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(not(test), allow(dead_code))]
+enum StableIdMode {
+    Strict,
+    Diff,
+}
+
 #[derive(Debug, Clone)]
 struct SourceEntry {
     file: String,
@@ -49,9 +51,9 @@ struct SourceEntry {
 #[derive(Debug, Clone)]
 pub(crate) struct InventoryEntry {
     pub(crate) id: String,
-    file: String,
-    line: usize,
-    kind: String,
+    pub(crate) file: String,
+    pub(crate) line: usize,
+    pub(crate) kind: String,
     route: &'static str,
     surface: &'static str,
     pub(crate) bucket: &'static str,
@@ -130,6 +132,15 @@ fn umb_inventory_csv_in_sync() {
 }
 
 #[test]
+fn umb_inventory_diff_generation_matches_strict_inventory_when_in_sync() {
+    assert_eq!(
+        render_csv(&inventory_entries_for_diff()),
+        render_csv(&inventory_entries()),
+        "diff-mode inventory generation should match strict generation when no drift exists"
+    );
+}
+
+#[test]
 fn umb_inventory_kind_counts_match_source() {
     let source_entries = scan_source_entries();
     let inventory = inventory_entries();
@@ -149,14 +160,25 @@ fn umb_inventory_kind_counts_match_source() {
     assert_eq!(source_counts, inventory_counts);
     assert_eq!(
         source_counts.values().sum::<usize>(),
-        EXPECTED_LITERAL_KIND_COUNT
+        inventory_counts.values().sum::<usize>(),
+        "literal kind count should track the current active inventory"
+    );
+    let source_dynamic_count = source_entries
+        .iter()
+        .filter(|entry| entry.kind_source == KindSource::Dynamic)
+        .count();
+    let inventory_dynamic_count = inventory
+        .iter()
+        .filter(|entry| entry.kind_source == KindSource::Dynamic)
+        .count();
+    assert_eq!(
+        source_dynamic_count, inventory_dynamic_count,
+        "dynamic kind count should track the current active inventory"
     );
     assert_eq!(
-        source_entries
-            .iter()
-            .filter(|entry| entry.kind_source == KindSource::Dynamic)
-            .count(),
-        EXPECTED_DYNAMIC_KIND_COUNT
+        source_entries.len(),
+        inventory.len(),
+        "source scan and active inventory should have the same current active count"
     );
 }
 
@@ -196,8 +218,9 @@ fn umb_inventory_buckets_total() {
     }
 
     assert_eq!(
-        documented_total, EXPECTED_ENTRY_COUNT,
-        "bucket docs should sum to the frozen UMB inventory baseline"
+        documented_total,
+        entries.len(),
+        "bucket docs should sum to the current active UMB inventory count"
     );
 }
 
@@ -358,6 +381,44 @@ fn stable_id_matching_rejects_ambiguous_group_count() {
     let _ = match_stable_ids(generated, &initial, &[]);
 }
 
+#[test]
+fn stable_id_matching_diff_mode_reports_unretired_deletion_without_panicking() {
+    let initial = vec![
+        test_snapshot_entry("UMB-0001", 10, "deleted row"),
+        test_snapshot_entry("UMB-0002", 20, "kept row"),
+    ];
+    let generated = vec![test_inventory_entry(20, "kept row")];
+
+    let matched = match_stable_ids_for_diff(generated, &initial, &[]);
+
+    assert_eq!(
+        matched
+            .iter()
+            .map(|entry| entry.id.as_str())
+            .collect::<Vec<_>>(),
+        ["UMB-0002"]
+    );
+}
+
+#[test]
+fn stable_id_matching_diff_mode_reports_unmatched_addition_with_new_id() {
+    let initial = vec![test_snapshot_entry("UMB-0001", 10, "kept row")];
+    let generated = vec![
+        test_inventory_entry(10, "kept row"),
+        test_inventory_entry(20, "new row"),
+    ];
+
+    let matched = match_stable_ids_for_diff(generated, &initial, &[]);
+
+    assert_eq!(
+        matched
+            .iter()
+            .map(|entry| entry.id.as_str())
+            .collect::<Vec<_>>(),
+        ["UMB-0001", "NEW-0001"]
+    );
+}
+
 #[cfg(test)]
 fn test_inventory_entry(line: usize, kind: &str) -> InventoryEntry {
     InventoryEntry {
@@ -405,11 +466,21 @@ fn test_retired_entry(initial: &InventorySnapshotEntry) -> RetiredEntry {
     }
 }
 
+#[cfg(test)]
 pub(crate) fn inventory_entries() -> Vec<InventoryEntry> {
     let generated = generated_inventory_entries();
     let initial = read_initial_inventory_snapshot();
     let retired = read_retired_ledger();
     inherit_stable_ids(generated, &initial, &retired)
+}
+
+pub(crate) fn inventory_entries_for_diff() -> Vec<InventoryEntry> {
+    let generated = generated_inventory_entries();
+    let initial = read_initial_inventory_snapshot();
+    let retired = read_retired_ledger();
+    validate_initial_snapshot(&initial);
+    validate_retired_ledger(&retired, &initial);
+    match_stable_ids_for_diff(generated, &initial, &retired)
 }
 
 fn generated_inventory_entries() -> Vec<InventoryEntry> {
@@ -444,6 +515,7 @@ fn generated_inventory_entries() -> Vec<InventoryEntry> {
 type ExactKey = (String, usize, String);
 type StableKey = (String, String, String, String, String);
 
+#[cfg(test)]
 fn inherit_stable_ids(
     generated: Vec<InventoryEntry>,
     initial: &[InventorySnapshotEntry],
@@ -454,10 +526,28 @@ fn inherit_stable_ids(
     match_stable_ids(generated, initial, retired)
 }
 
+#[cfg(test)]
 fn match_stable_ids(
+    generated: Vec<InventoryEntry>,
+    initial: &[InventorySnapshotEntry],
+    retired: &[RetiredEntry],
+) -> Vec<InventoryEntry> {
+    match_stable_ids_with_mode(generated, initial, retired, StableIdMode::Strict)
+}
+
+fn match_stable_ids_for_diff(
+    generated: Vec<InventoryEntry>,
+    initial: &[InventorySnapshotEntry],
+    retired: &[RetiredEntry],
+) -> Vec<InventoryEntry> {
+    match_stable_ids_with_mode(generated, initial, retired, StableIdMode::Diff)
+}
+
+fn match_stable_ids_with_mode(
     mut generated: Vec<InventoryEntry>,
     initial: &[InventorySnapshotEntry],
     retired: &[RetiredEntry],
+    mode: StableIdMode,
 ) -> Vec<InventoryEntry> {
     let retired_ids = retired
         .iter()
@@ -491,17 +581,29 @@ fn match_stable_ids(
         &mut assignments,
         &mut remaining_generated,
         &mut remaining_initial,
+        mode,
     );
 
+    let mut next_new_id = 1usize;
     for (entry, id) in generated.iter_mut().zip(assignments) {
-        entry.id = id.unwrap_or_else(|| {
-            panic!(
-                "failed to assign stable UMB id to {}",
-                source_entry_summary(entry)
-            )
-        });
+        entry.id = match (id, mode) {
+            (Some(id), _) => id,
+            (None, StableIdMode::Strict) => {
+                panic!(
+                    "failed to assign stable UMB id to {}",
+                    source_entry_summary(entry)
+                )
+            }
+            (None, StableIdMode::Diff) => {
+                let id = format!("NEW-{next_new_id:04}");
+                next_new_id += 1;
+                id
+            }
+        };
     }
-    validate_active_retired_partition(&generated, initial, retired);
+    if mode == StableIdMode::Strict {
+        validate_active_retired_partition(&generated, initial, retired);
+    }
     generated
 }
 
@@ -572,6 +674,7 @@ fn assign_ordered_stable_key_matches(
     assignments: &mut [Option<String>],
     remaining_generated: &mut BTreeSet<usize>,
     remaining_initial: &mut BTreeSet<usize>,
+    mode: StableIdMode,
 ) {
     let generated_by_key = group_generated_by_stable_key(generated, remaining_generated);
     let initial_by_key = group_initial_by_stable_key(active_initial, remaining_initial);
@@ -583,6 +686,9 @@ fn assign_ordered_stable_key_matches(
         let generated_indices = generated_by_key.get(&key).cloned().unwrap_or_default();
         let initial_indices = initial_by_key.get(&key).cloned().unwrap_or_default();
         if generated_indices.is_empty() {
+            if mode == StableIdMode::Diff {
+                continue;
+            }
             panic!(
                 "active inventory is missing unretired initial rows for {}: {}",
                 stable_key_label(&key),
@@ -593,7 +699,9 @@ fn assign_ordered_stable_key_matches(
                     .join("; ")
             );
         }
-        if initial_indices.is_empty() || generated_indices.len() != initial_indices.len() {
+        if mode == StableIdMode::Strict
+            && (initial_indices.is_empty() || generated_indices.len() != initial_indices.len())
+        {
             panic!(
                 "ambiguous stable ID match for {}: generated [{}], initial [{}]",
                 stable_key_label(&key),
@@ -751,9 +859,14 @@ fn stable_key_label(key: &StableKey) -> String {
 }
 
 fn source_entry_summary(entry: &InventoryEntry) -> String {
+    let id = if entry.id.is_empty() {
+        "<unassigned>"
+    } else {
+        entry.id.as_str()
+    };
     format!(
-        "{}:{} {} {} `{}`",
-        entry.file, entry.line, entry.bucket, entry.expected_class, entry.kind
+        "{} {}:{} {} {} `{}`",
+        id, entry.file, entry.line, entry.bucket, entry.expected_class, entry.kind
     )
 }
 
@@ -767,8 +880,8 @@ fn initial_entry_summary(entry: &InventorySnapshotEntry) -> String {
 fn validate_initial_snapshot(initial: &[InventorySnapshotEntry]) {
     assert_eq!(
         initial.len(),
-        EXPECTED_ENTRY_COUNT,
-        "{INITIAL_INVENTORY_PATH} must preserve the frozen {EXPECTED_ENTRY_COUNT}-row UMB baseline"
+        INITIAL_ENTRY_COUNT,
+        "{INITIAL_INVENTORY_PATH} must preserve the frozen {INITIAL_ENTRY_COUNT}-row UMB baseline"
     );
 
     let mut ids = BTreeSet::new();
@@ -869,6 +982,15 @@ fn validate_active_retired_partition(
     initial: &[InventorySnapshotEntry],
     retired: &[RetiredEntry],
 ) {
+    let initial_count = initial.len();
+    assert_eq!(
+        active.len() + retired.len(),
+        initial_count,
+        "UMB countdown mismatch: active {} + retired {} must equal initial {initial_count}",
+        active.len(),
+        retired.len()
+    );
+
     let active_ids = active
         .iter()
         .map(|entry| entry.id.as_str())
@@ -901,9 +1023,25 @@ fn validate_active_retired_partition(
     assert!(
         missing.is_empty() && extra.is_empty(),
         "active + retired UMB ids must equal {INITIAL_INVENTORY_PATH}; missing [{}], extra [{}]",
-        missing.join(", "),
+        summarize_initial_ids(&missing, initial),
         extra.join(", ")
     );
+}
+
+fn summarize_initial_ids(ids: &[&str], initial: &[InventorySnapshotEntry]) -> String {
+    let initial_by_id = initial
+        .iter()
+        .map(|entry| (entry.id.as_str(), entry))
+        .collect::<BTreeMap<_, _>>();
+    ids.iter()
+        .map(|id| {
+            initial_by_id
+                .get(*id)
+                .map(|entry| initial_entry_summary(entry))
+                .unwrap_or_else(|| (*id).to_string())
+        })
+        .collect::<Vec<_>>()
+        .join(", ")
 }
 
 fn read_initial_inventory_snapshot() -> Vec<InventorySnapshotEntry> {
@@ -922,6 +1060,14 @@ fn read_retired_ledger() -> Vec<RetiredEntry> {
         .enumerate()
         .map(|(index, record)| RetiredEntry::from_record(index + 2, record))
         .collect()
+}
+
+pub(crate) fn retired_entry_count() -> usize {
+    let initial = read_initial_inventory_snapshot();
+    validate_initial_snapshot(&initial);
+    let retired = read_retired_ledger();
+    validate_retired_ledger(&retired, &initial);
+    retired.len()
 }
 
 fn read_csv_records(path_fragment: &str, expected_header: &str) -> Vec<Vec<String>> {
@@ -1821,26 +1967,23 @@ impl SourceEntry {
 }
 
 pub(crate) fn validate_inventory_entries(entries: &[InventoryEntry]) {
-    assert_eq!(
-        entries.len(),
-        EXPECTED_ENTRY_COUNT,
-        "U0 froze the UnsupportedMainBody constructor baseline at {EXPECTED_ENTRY_COUNT} entries"
-    );
-
     let mut ids = BTreeSet::new();
     let mut locations = BTreeSet::new();
     for entry in entries {
-        assert!(ids.insert(entry.id.as_str()), "duplicate id: {}", entry.id);
+        assert!(
+            ids.insert(entry.id.as_str()),
+            "duplicate active inventory id: {}",
+            source_entry_summary(entry)
+        );
         assert!(
             locations.insert((entry.file.as_str(), entry.line)),
-            "duplicate source location in inventory: {}:{}",
-            entry.file,
-            entry.line
+            "duplicate source location in active inventory: {}",
+            source_entry_summary(entry)
         );
         assert!(
             VALID_BUCKETS.contains(&entry.bucket),
             "{} has invalid bucket {}",
-            entry.id,
+            source_entry_summary(entry),
             entry.bucket
         );
         assert!(
@@ -1849,23 +1992,23 @@ pub(crate) fn validate_inventory_entries(entries: &[InventoryEntry]) {
                 "FrontendReject" | "InternalBugSentinel" | "RealImpl"
             ),
             "{} has invalid expected_class {}",
-            entry.id,
+            source_entry_summary(entry),
             entry.expected_class
         );
         assert!(
             !entry.kind.trim().is_empty(),
             "{} has an empty kind field",
-            entry.id
+            source_entry_summary(entry)
         );
         assert!(
             !entry.spec_anchor.trim().is_empty(),
             "{} has an empty spec_anchor",
-            entry.id
+            source_entry_summary(entry)
         );
         assert!(
             !entry.upstream_gate.trim().is_empty(),
             "{} has an empty upstream_gate",
-            entry.id
+            source_entry_summary(entry)
         );
         assert!(
             !entry.notes.contains("TBD")
@@ -1874,13 +2017,14 @@ pub(crate) fn validate_inventory_entries(entries: &[InventoryEntry]) {
                 && entry.spec_anchor != "TBD"
                 && entry.upstream_gate != "TBD",
             "{} still contains a TBD field",
-            entry.id
+            source_entry_summary(entry)
         );
         if entry.spec_anchor == "N/A:helper-invariant" {
             assert_eq!(
-                entry.expected_class, "InternalBugSentinel",
+                entry.expected_class,
+                "InternalBugSentinel",
                 "helper invariant {} must be an internal bug sentinel",
-                entry.id
+                source_entry_summary(entry)
             );
         }
     }
@@ -1893,19 +2037,19 @@ pub(crate) fn validate_inventory_entries(entries: &[InventoryEntry]) {
             println!("dynamic kind: {}:{} {}", entry.file, entry.line, entry.kind);
         }
     }
+    let literal_count = entries
+        .iter()
+        .filter(|entry| entry.kind_source == KindSource::Literal)
+        .count();
+    let dynamic_count = entries
+        .iter()
+        .filter(|entry| entry.kind_source == KindSource::Dynamic)
+        .count();
     assert_eq!(
-        entries
-            .iter()
-            .filter(|entry| entry.kind_source == KindSource::Literal)
-            .count(),
-        EXPECTED_LITERAL_KIND_COUNT
-    );
-    assert_eq!(
-        entries
-            .iter()
-            .filter(|entry| entry.kind_source == KindSource::Dynamic)
-            .count(),
-        EXPECTED_DYNAMIC_KIND_COUNT
+        literal_count + dynamic_count,
+        entries.len(),
+        "kind-source counts should sum to current active entries: literal {literal_count}, dynamic {dynamic_count}, active {}",
+        entries.len()
     );
 }
 

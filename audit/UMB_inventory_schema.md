@@ -17,7 +17,7 @@
 - `audit/UMB_inventory.csv` 继承 initial baseline ID；删除源码 row 后，不得按当前扫描顺序重排剩余 ID。
 - stable ID 匹配策略依次为：exact `(file,line,kind)`；唯一 `(file,kind,bucket,expected_class,surface)`；同组按 initial `old_line` 与当前 source line 升序配对。
 - 无法唯一匹配的 row 必须报错，禁止自动生成新 ID 或重号。
-- active IDs 与 retired IDs 必须互斥，二者并集必须等于 initial baseline 的 1,284 个 ID。
+- active IDs 与 retired IDs 必须互斥，二者并集必须等于 initial baseline 的 1,284 个 ID；active count、literal kind count 与 dynamic kind count 均随当前 active inventory 递减。
 
 ## CSV 格式
 
@@ -103,7 +103,7 @@ id,bucket,expected_class,file,old_line,kind,retired_by,retired_reason,retired_at
 
 - `id,bucket,expected_class,file,old_line,kind` 必须与 `audit/UMB_inventory_initial.csv` 中对应 initial row 一致。
 - `retired_by` 记录退场任务或提交；`retired_reason` 记录 production 修复原因。
-- 当前 P7-0-T01 状态不退场 production row，因此 ledger 只有 header，active=1,284、retired=0、initial=1,284。
+- 当前 P7-0-T02 状态不退场 production row，因此 ledger 只有 header，active=1,284、retired=0、initial=1,284。
 
 拆分或合并流程：
 
@@ -115,4 +115,4 @@ id,bucket,expected_class,file,old_line,kind,retired_by,retired_reason,retired_at
 
 - `cargo run -p scoopc --bin umb-audit -- list --bucket B-02`：列出指定 bucket 的 entry。也支持 `--file PATH` 与 `--class CLASS`。
 - `cargo run -p scoopc --bin umb-audit -- diff`：重扫源码并与 `audit/UMB_inventory.csv` 比较；报告新增、删除、line drift、kind drift、field drift；无漂移时退出码为 0。
-- `cargo run -p scoopc --bin umb-audit -- stats`：输出每 bucket、每 class、每 file 的 entry 数，以及缺失 `spec_anchor` / `upstream_gate` 数。
+- `cargo run -p scoopc --bin umb-audit -- stats`：输出 `active_entries`、`retired_entries`、`initial_entries`、每 bucket、每 class、每 file 的 active entry 数，以及缺失 `spec_anchor` / `upstream_gate` 数。
