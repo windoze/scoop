@@ -19,9 +19,9 @@
 ### 0.1 当前状态（实测，2026-05-18 基线）
 
 - `LlvmEmitError::UnsupportedMainBody` 在 `crates/scoopc/src/llvm/codegen/` 下
-  共出现 **1 277 处**，覆盖 60 个文件；其中 production 路径
-  （`STALE_UNSUPPORTED_MAIN_BODY_COUNTS`）**冻结为 637 处**。
-- `kind:` 字面量共 **964 个不同标签**，其中 **825 个只出现一次** ——
+  共出现 **1 284 处**，覆盖 61 个文件；其中 production 路径
+  （`STALE_UNSUPPORTED_MAIN_BODY_COUNTS`）**冻结为 638 处**。
+- `kind:` 字面量共 **982 个不同标签**，其中 **836 个只出现一次** ——
   目前事实上是"一处一个 ad hoc bug 标签"的状态。
 - 错误本身 (`crates/scoopc/src/llvm/mod.rs:165-169`) 的设计语义是
   **"编译器内部不变量被打破（compiler bug）：LLVM 主 codegen 收到本不应
@@ -44,7 +44,7 @@
 3. **Spec 是覆盖完备性的最终标准**：fixture set 必须能与
    `docs/spec/language_spec-part{1..6}.md` 章节做双向回链。
 4. **既有 baseline 不破坏**：`pipeline_user_visible_failure_policy_*` 系列
-   测试目前冻结了 637 这个数字；本阶段产出的新增 fixture 不得使该计数
+   测试目前冻结了 638 这个数字；本阶段产出的新增 fixture 不得使该计数
    "意外漂移"，所有刻意引入的对照样本必须明确归类。
 
 ### 0.3 关键参考文件
@@ -125,7 +125,7 @@
 
 ### 2.5 验收标准
 
-- CSV 行数 == 当前实测的 1 277（基线值随 baseline 测试一并冻结，
+- CSV 行数 == 当前实测的 1 284（基线值随 baseline 测试一并冻结，
   不允许偷偷增长，需增长须改 baseline 数字并写明原因）。
 - 每个 `kind` 标签都有归属 bucket，无 `bucket=TBD` 残留。
 - 每条 entry 的 `spec_anchor` 不为空，除非 `expected_class =
@@ -515,7 +515,7 @@ package fixtures.umb_fix.B_15
 
 1. `umb_inventory_csv_in_sync` — CSV ⟷ 源码 grep 结果完全一致。
 2. `umb_inventory_buckets_total` — 每个 bucket 的 entry 数 == bucket md
-   表头声明的数；总和 == 1 277。
+   表头声明的数；总和 == 1 284。
 3. `umb_inventory_each_entry_has_spec_anchor_or_helper_marker`。
 4. `umb_inventory_class_distribution` — 三类 entry 数与 bucket md 中
    `Expected post-fix class` 段的数字对账。
@@ -626,7 +626,7 @@ P8 退场动作（一次性）：
    对策：P3 矩阵中 `INTENTIONALLY-EMPTY` 必须直接引用 spec 原句；
    遇到 spec 沉默时，P5 阶段写 frontend-reject 负例并把策略归到
    `BlockedOnSpec`。
-4. **fixture 体量爆炸**：1 277 entry × 平均 2 fixture ≈ 上千文件。
+4. **fixture 体量爆炸**：1 284 entry × 平均 2 fixture ≈ 上千文件。
    对策：每个 fixture 通过 `// COVERS:` 多对一覆盖 inventory id；
    只有当一条 fixture 无法物理同时触发多 entry 时才拆分。
 5. **D 类阻塞**：async/generator 等 spec 工作量很大。

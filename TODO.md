@@ -4,7 +4,7 @@
 > 设计基线：[`UnsupportedMainBody_FIX.md`](./UnsupportedMainBody_FIX.md)  
 > 计划基线：[`PLAN.md`](./PLAN.md)  
 > 格式参考：[`docs/archive/plans/TODO-closure-fix.md`](./docs/archive/plans/TODO-closure-fix.md)  
-> 当前状态：待开始  
+> 当前状态：U0-T01 已完成；下一项 U1-T01  
 > 执行原则：U0 必须最先完成；U1 → U2 → U3 严格串行；U4 与 U5 可在 U2/U3 稳定后并行，但 U5 的 negative fixture 必须引用 U4 已写明的 upstream gate；U6 必须最后完成。每个任务完成后必须回写“完成记录”。
 
 ## 全局约束
@@ -19,12 +19,12 @@
 - `audit/` 是仓库根文档和数据目录；`crates/scoopc/src/audit/` 是 Rust test module。两者不要混用。
 - 每个任务完成后必须回写：改动范围、核心决策、验证结果、与 `PLAN.md` / `UnsupportedMainBody_FIX.md` 闭合的目标或验收项。
 
-## 已知基线漂移风险
+## 已知基线漂移风险（U0 已处理）
 
-- `PLAN.md:23-35` 与 `UnsupportedMainBody_FIX.md:19-29` 记录的设计基线是：`UnsupportedMainBody {` 在 `crates/scoopc/src/llvm/codegen/` 下 1,277 处、60 个文件、964 个不同 `kind:` 标签、825 个单次出现标签，`STALE_UNSUPPORTED_MAIN_BODY_COUNTS` 为 637。
-- 本 TODO 生成时，粗粒度命令 `rg -n 'UnsupportedMainBody \{' crates/scoopc/src/llvm/codegen | wc -l` 观察到 1,284 处，`rg -l ... | wc -l` 观察到 61 个文件。
-- 当前 `crates/scoopc/src/pipeline_user_visible_failure_policy.rs:739-760` 的冻结测试断言 `total == 638`，不是 `PLAN.md` 里写的 637。
-- U0-T01 必须把这些数字逐项复算并决定：如果当前源码确已漂移，就同步更新 `PLAN.md` / `UnsupportedMainBody_FIX.md` 的基线；如果只是统计口径不同，就在 U0 完成记录中写明精确口径，并让 U1 脚本采用该口径。
+- U0-T01 已复算并同步更新 `PLAN.md` / `UnsupportedMainBody_FIX.md` 的设计基线：`LlvmEmitError::UnsupportedMainBody {` 在 `crates/scoopc/src/llvm/codegen/` 下 1,284 处、61 个文件、982 个不同 `kind:` 字面量标签、836 个单次出现字面量标签，`STALE_UNSUPPORTED_MAIN_BODY_COUNTS` 为 638。
+- U0 采用的 constructor 口径：匹配 `UnsupportedMainBody\s*\{`，且当前所有命中均为 `LlvmEmitError::UnsupportedMainBody {`；不排除 `#[cfg(test)]` 后内容；helper/shared path 计入总数。
+- U0 采用的 `kind:` 标签口径：只统计 `kind: "..."` 字面量字段；当前有 1,247 个字面量字段命中，其余 37 个 constructor 使用动态或转发式 `kind`，仍计入 1,284 个 constructor 总数。
+- 当前 `crates/scoopc/src/pipeline_user_visible_failure_policy.rs` 的冻结测试断言 `total == 638`，已与 U0 基线一致。
 
 ## 固定定位清单
 
@@ -288,7 +288,7 @@ U0-T01 (摸底 + baseline 冻结)
 
 ## U0：摸底 + baseline 冻结
 
-### [TODO] U0-T01：现状摸底与基线冻结
+### [DONE] U0-T01：现状摸底与基线冻结
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §1、§6 U0
@@ -321,7 +321,15 @@ U0-T01 (摸底 + baseline 冻结)
   - `audit/.gitkeep`、`audit/_baseline_files.txt`、`audit/_baseline_sampling.md` 落地。
   - 完成记录包含最终采用的 baseline 数字、统计口径、漂移处理结论、runner 支持状态、gap inventory 对账摘要。
 - 依赖：无
-- 完成记录：待填写
+- 完成记录：
+  - 改动范围：新增 `audit/.gitkeep`、`audit/_baseline_files.txt`、`audit/_baseline_sampling.md`；同步更新 `PLAN.md`、`UnsupportedMainBody_FIX.md` 与本 TODO 的 U0 基线数字。
+  - 核心决策：U0 constructor 采用 `crates/scoopc/src/llvm/codegen/**/*.rs` 内 `UnsupportedMainBody\s*\{` 全量口径，不排除 `#[cfg(test)]` 后内容，helper/shared path 计入总数；`kind:` 去重只统计 `kind: "..."` 字面量字段，动态/转发式 `kind` 由 U1 inventory 脚本继续精化。
+  - 最终 baseline：1,284 个 `LlvmEmitError::UnsupportedMainBody {` constructor、61 个命中文件、1,247 个 `kind:` 字面量字段、982 个唯一 `kind:` 字面量、836 个单次出现 `kind:` 字面量、638 条 `STALE_UNSUPPORTED_MAIN_BODY_COUNTS`、21 个 `CODEGEN_GAP_INVENTORY` entry。
+  - 漂移处理：确认源码已从旧设计基线 1,277/60/964/825/637 漂移；已更新 `PLAN.md` / `UnsupportedMainBody_FIX.md` 的阶段级基线与后续 U1/P6 expected count。
+  - runner 支持状态：`crates/scoop/src/fixtures/expectations.rs` 与 Rust fixture runner 当前不支持 `IGNORE-UNTIL-FIX` / `ignore-until-fix`；U5-T01 必须先扩展 test infrastructure。
+  - gap inventory 对账：21 个既有 `CODEGEN_GAP_INVENTORY` entry 均可映射到 B-01 到 B-36；存在第二候选的 entry 已记录在 `audit/_baseline_sampling.md` 的 notes 中。
+  - 验证结果：`cargo build` 通过；`cargo test --all --all-targets` 通过（871 passed）；`cargo run -p scoop -- test` 通过（fixtures: ok, 1405 checks）；`rg -n 'UnsupportedMainBody \{' crates/scoopc/src/llvm/codegen` 与 `rg -c ...` 已运行；`cargo test -p scoopc pipeline_user_visible_failure_policy -- --nocapture` 通过（7 passed）；`cargo clippy --all-targets -- -D warnings` 通过。
+  - 闭合目标：满足 U0 的 `audit/` 目录、codegen 文件清单、10 个抽样 entry、漂移处理、runner 能力复核和 gap inventory 对账要求；后续 U1 以 U0 冻结的 1,284 constructor 基线启动正式 inventory。
 
 ## U1：P1 — Inventory 快照
 

@@ -11,7 +11,7 @@
 - **本计划是 doc-and-test only**：不动任何 production 代码。所有产出限于 `.md` 文档、`.scoop` fixture、`.stdout` expected output、`.csv` / `.json` 数据表，以及仅由这些数据驱动的 `#[cfg(test)]` baseline 单元测试。production 修复（删除 / 改写 `LlvmEmitError::UnsupportedMainBody` 站点）由后续 P7 计划承接，本计划只负责"提供测试用例 + 把每一处归档可寻址"。
 - **不允许"兜底报错"**：每一处 `UnsupportedMainBody` 必须归属于以下三类之一——`FrontendReject`（前端早拒）、`InternalBugSentinel`（不可达断言）、`RealImpl`（真正实现缺失）。任何"不知道归到哪里"的 entry 直接判为本计划的工作量未完成，不允许 `expected_class=TBD` 残留进入合并。
 - **spec 是覆盖完备性的最终标准**：fixture set 必须能与 `docs/spec/language_spec-part{1..6}.md` 章节做双向回链；inventory 中除 helper-invariant 外，每条 entry 都要有非空 `spec_anchor`。
-- **既有 baseline 不破坏**：`pipeline_user_visible_failure_policy_*` 系列测试当前冻结了 `STALE_UNSUPPORTED_MAIN_BODY_COUNTS = 637`、源码总出现 `1 277` 等基线数字。本计划新增的对照样本（pos/neg fixture）若会改动这些数字，**必须**在同一 PR 同步更新基线常量并写明原因；不允许"意外漂移"。
+- **既有 baseline 不破坏**：`pipeline_user_visible_failure_policy_*` 系列测试当前冻结了 `STALE_UNSUPPORTED_MAIN_BODY_COUNTS = 638`、源码总出现 `1 284` 等基线数字。本计划新增的对照样本（pos/neg fixture）若会改动这些数字，**必须**在同一 PR 同步更新基线常量并写明原因；不允许"意外漂移"。
 - **inventory 是计划的唯一真值**：每一处 `UnsupportedMainBody { kind: ... }` 都要拿到一个稳定 ID（`UMB-NNNN`）、一个 bucket（`B-XX`）、一个 spec 锚（除 helper invariant），并在 `audit/UMB_inventory.csv` 落地。CSV 与源码之间由自动化脚本双向 diff，不允许手工维护。
 - **bucket 边界 = 修复责任分配**：bucket 划分遵循"应该由谁保证不可达"——helper-invariant、upstream contract、real implementation、spec uncovered 四类一级分组（参见 §3 / §4），同一条 entry 唯一归属一个 bucket，模糊归属在 `notes` 字段记录第二候选。
 - **D 类（spec uncovered）允许独立 release**：async / generator / yield 等 spec 当前未定义的 surface 对应的 inventory entry 可以暂留，在退场判据中独立计分；不强制本计划把它们的 spec 工作一并完成。
@@ -24,11 +24,11 @@
 
 | 指标 | 数值 | 来源 |
 |---|---|---|
-| `LlvmEmitError::UnsupportedMainBody {` 在 `crates/scoopc/src/llvm/codegen/` 出现总数 | **1 277** | `git grep -n "UnsupportedMainBody {"` |
-| 涉及文件数 | **60** | 同上 |
-| `kind:` 字面量去重总数 | **964** | inventory grep + sort -u |
-| 只出现一次的 `kind:` 字面量 | **825** | 同上 |
-| `STALE_UNSUPPORTED_MAIN_BODY_COUNTS` 冻结条目（production 路径） | **637** | `crates/scoopc/src/pipeline_user_visible_failure_policy.rs` |
+| `LlvmEmitError::UnsupportedMainBody {` 在 `crates/scoopc/src/llvm/codegen/` 出现总数 | **1 284** | `rg -n 'UnsupportedMainBody \{' crates/scoopc/src/llvm/codegen` |
+| 涉及文件数 | **61** | 同上 |
+| `kind:` 字面量去重总数 | **982** | U0 literal-field scan |
+| 只出现一次的 `kind:` 字面量 | **836** | 同上 |
+| `STALE_UNSUPPORTED_MAIN_BODY_COUNTS` 冻结条目（production 路径） | **638** | `crates/scoopc/src/pipeline_user_visible_failure_policy.rs` |
 | `crates/scoopc/src/llvm/codegen_gap_inventory.rs` 已登记 entry | **21** | 同文件 |
 | 错误枚举定义位置 | `crates/scoopc/src/llvm/mod.rs:135-169` | 源码 |
 | 设计语义 | "compiler bug：LLVM 主 codegen 收到本不应抵达的节点（contract drift）" | 同上 |
@@ -37,8 +37,8 @@
 ### 1.2 错误语义与现状偏离
 
 - 设计上 `UnsupportedMainBody` 表示"内部不变量被打破"——upstream pipeline 应保证不可达。
-- 现状是 60 个 codegen 文件里有 1 277 个不同的"兜底报错"分支，覆盖 **964** 种不同的 `kind:` 标签，其中 **825** 个只出现一次。这意味着每条 entry 的 root cause 都需要单独分析，没有"批量替换"的捷径。
-- production 路径冻结的 637 条全部由 `STALE_UNSUPPORTED_MAIN_BODY_COUNTS` 守住——这也是本计划退场判据 P7-#3 的对账锚点。
+- 现状是 61 个 codegen 文件里有 1 284 个不同的"兜底报错"分支，覆盖 **982** 种不同的 `kind:` 字面量标签，其中 **836** 个只出现一次。这意味着每条 entry 的 root cause 都需要单独分析，没有"批量替换"的捷径。
+- production 路径冻结的 638 条全部由 `STALE_UNSUPPORTED_MAIN_BODY_COUNTS` 守住——这也是本计划退场判据 P7-#3 的对账锚点。
 
 ### 1.3 既有审计资产与缺口
 
@@ -137,8 +137,8 @@ P6 阶段必须新增的 10 条 baseline 测试（位置：`crates/scoopc/src/au
 
 | 编号 | 测试名 | 守住的不变量 |
 |---|---|---|
-| #1 | `umb_inventory_csv_in_sync` | CSV ⟷ 源码 grep 结果完全一致；行数 == 1 277（基线值） |
-| #2 | `umb_inventory_buckets_total` | 每个 bucket 的 entry 数 == bucket md 表头声明的数；总和 == 1 277 |
+| #1 | `umb_inventory_csv_in_sync` | CSV ⟷ 源码 grep 结果完全一致；行数 == 1 284（基线值） |
+| #2 | `umb_inventory_buckets_total` | 每个 bucket 的 entry 数 == bucket md 表头声明的数；总和 == 1 284 |
 | #3 | `umb_inventory_each_entry_has_spec_anchor_or_helper_marker` | 每条 entry 要么 `spec_anchor` 非空，要么 `expected_class=InternalBugSentinel` 且 `spec_anchor=N/A:helper-invariant` |
 | #4 | `umb_inventory_class_distribution` | 三类 entry 数与 bucket md 中 `Expected post-fix class` 段的数字对账 |
 | #5 | `umb_fix_fixture_index_in_sync` | `tests/fixtures/umb_fix/_index.csv` ⟷ 实际目录扫描结果一致 |
@@ -148,7 +148,7 @@ P6 阶段必须新增的 10 条 baseline 测试（位置：`crates/scoopc/src/au
 | #9 | `umb_fix_no_forbidden_terms_in_neg_messages` | negative fixture 的 `EXPECT-ERROR` 文案不含 `FRONTEND_REJECT_FORBIDDEN_TERMS`（"后端" / "backend" / "LLVM" / "codegen" / "UnsupportedMainBody"） |
 | #10 | `umb_fix_helper_invariant_sentinel_tests_present` | `crates/scoopc/src/audit/sentinel_tests.rs` 中每个 A 类 bucket 至少一个 `#[should_panic]` 单测 |
 
-> baseline test #1 同时承担 P7 阶段的 daily diff 角色：删一条 production `UnsupportedMainBody` → CSV 减一行 → 测试断言 `len == expected_count` 强制同步。expected_count 在 P1 完成时锁定为 1 277，P7 阶段每个 PR 显式调减。
+> baseline test #1 同时承担 P7 阶段的 daily diff 角色：删一条 production `UnsupportedMainBody` → CSV 减一行 → 测试断言 `len == expected_count` 强制同步。expected_count 在 P1 完成时锁定为 1 284，P7 阶段每个 PR 显式调减。
 
 ## 5. 顺序总览
 
@@ -192,14 +192,14 @@ U0-T01 (摸底 + baseline 冻结)
 目标：
 
 - 把 §1.1 实测基线表的 7 个数字逐项 reproduce 一遍——`git grep -c "UnsupportedMainBody {" -- crates/scoopc/src/llvm/codegen/`、文件去重、`kind:` 字面量去重、单次出现统计、`STALE_UNSUPPORTED_MAIN_BODY_COUNTS` 当前值、`codegen_gap_inventory.rs` 长度——任一数字与本文 §1.1 不符，必须更新本文档而非偷调脚本。
-- 列出 `crates/scoopc/src/llvm/codegen/` 60 个文件清单，按 `route`（`RawMirLlvm` / `EffectLoweredLlvm` / `Both` / `Helper`）粗分组——后续 U1-T01 自动化生成时按此排序生成 `UMB-NNNN`。
+- 列出 `crates/scoopc/src/llvm/codegen/` 61 个文件清单，按 `route`（`RawMirLlvm` / `EffectLoweredLlvm` / `Both` / `Helper`）粗分组——后续 U1-T01 自动化生成时按此排序生成 `UMB-NNNN`。
 - 抽样 10 个 entry（每个一级类至少 2 个）做 root cause hypothesis 预演——把 §1.4 的 36 bucket 候选与抽样 entry 做对账，确认 bucket 划分对人工 reviewer 可解释。
 - 确认 `audit/` 目录在仓库根创建（本任务**仅**创建空目录 + `.gitkeep`，正式产出物从 U1 开始）。
 
 退场标准：
 
 - §1.1 表格全部确认；
-- 60 个 codegen 文件清单落地为 `audit/_baseline_files.txt`；
+- 61 个 codegen 文件清单落地为 `audit/_baseline_files.txt`；
 - 抽样 10 个 entry 的初步 root cause + bucket 归属落地为 `audit/_baseline_sampling.md`（仅 U0 阶段读，U1 完成后归档到 `docs/archive/`）。
 
 ### U1. P1 — Inventory 快照
@@ -210,12 +210,12 @@ U0-T01 (摸底 + baseline 冻结)
 
 - 在 `crates/scoopc/src/audit/umb_inventory.rs`（`#[cfg(test)]`）写源码 grep → CSV 重建 + 与磁盘 CSV diff 的双向校验逻辑。
 - CSV 字段按 §3.1（本文档）/ §2.3（源文档）schema；按 file+line 排序生成 `UMB-NNNN`。
-- 第一次跑必须输出 1 277 行；任一字段值缺失视为脚本不完整。
+- 第一次跑必须输出 1 284 行；任一字段值缺失视为脚本不完整。
 - 三个 bin 子命令 `cargo run -p scoopc --bin umb-audit -- list/diff/stats` 暂以 `#[cfg(test)]` 入口或独立 bin（实现时择一，记入完成记录）。
 
 退场标准：
 
-- `audit/UMB_inventory.csv` 落地，行数 == 1 277；
+- `audit/UMB_inventory.csv` 落地，行数 == 1 284；
 - `cargo test -p scoopc audit::umb_inventory` 通过；
 - 每条 entry 的 `bucket` ∈ §1.4 的 36 个编号之一（`bucket=TBD` 残留 == 任务未完成）；
 - 每个 `kind` 字面量在 CSV 中出现次数 == 实际源码中出现次数。
@@ -387,7 +387,7 @@ D 类特别要求：在 spec 补齐之前不允许进入 P7；本计划只负责
 注意：
 
 - `crates/scoopc/src/audit/` 整个 module 必须 `#[cfg(test)]` 限定（参见 §0 工作原则）；如果 cargo 结构需要它单独成 crate，则建立 `crates/scoopc-audit/` 并在 workspace 中显式标 `dev-dependency` only。
-- 测试的"基线数字"（1 277、bucket 总数 36、各 bucket entry 数等）必须在 U1-T01 完成后即时锁定，不允许在 U6 阶段重新拍脑袋。
+- 测试的"基线数字"（1 284、bucket 总数 36、各 bucket entry 数等）必须在 U1-T01 完成后即时锁定，不允许在 U6 阶段重新拍脑袋。
 
 退场标准：
 
@@ -411,7 +411,7 @@ D 类特别要求：在 spec 补齐之前不允许进入 P7；本计划只负责
 
 当且仅当下列条件**全部**满足，本计划文档可标注 `[DONE]`：
 
-1. `audit/UMB_inventory.csv` 落地，行数 == 1 277；
+1. `audit/UMB_inventory.csv` 落地，行数 == 1 284；
 2. `audit/UMB_inventory_schema.md` 落地，schema 字段定义完整；
 3. `audit/UMB_categories/B-01.md` ~ `audit/UMB_categories/B-36.md` 全部成文，每份七段齐全；
 4. `audit/spec_coverage_matrix.md` 落地，spec part 1-6 全覆盖（除 `INTENTIONALLY-EMPTY` 引用 spec 原句外）；
@@ -430,7 +430,7 @@ P7（production 修复）/ P8（variant 物理删除）的退场判据由后续�
 - `audit/UMB_inventory.csv`、36 份 bucket md、spec 矩阵、36 份策略 md 均为 doc 产出物，不影响构建。
 - `tests/fixtures/umb_fix/**` 是新增 fixture 目录；fixture runner 须识别 `IGNORE-UNTIL-FIX:B-XX` 头部标注做 skip / xfail——若现有 runner 不支持此标记，本计划在 U5-T01 阶段把 runner 扩展任务作为子任务列入完成记录（runner 改动属于 test infrastructure，不算 production 代码）。
 - `STALE_UNSUPPORTED_MAIN_BODY_COUNTS` / `INTERNAL_BUG_SENTINEL_HITS` / `FRONTEND_REJECT_SURFACES` 三表本计划**只读**，不动；P7 阶段才会逐条调减。
-- `pipeline_user_visible_failure_policy_*` 系列测试现冻结的 637 数字本计划不变；如果 U5 fixture 中负例触发了新的 frontend reject / sentinel hit 路径，必须在 U5-T02 / U5-T03 完成记录中显式登记，由 P7 阶段对账。
+- `pipeline_user_visible_failure_policy_*` 系列测试现冻结的 638 数字本计划不变；如果 U5 fixture 中负例触发了新的 frontend reject / sentinel hit 路径，必须在 U5-T02 / U5-T03 完成记录中显式登记，由 P7 阶段对账。
 - 不引入任何 spec 改动；async / generator / yield 等 D 类 bucket 触及的 spec 缺口由后续 spec 计划承接，本计划仅以 `INTENTIONALLY-EMPTY` 形式登记。
 - 不引入任何 sysroot 改动。
 
@@ -442,7 +442,7 @@ P7（production 修复）/ P8（variant 物理删除）的退场判据由后续�
   - 对策：每条 entry 唯一 bucket；模糊归属优先归到"上游修复点更具体"的 bucket，并在 `notes` 字段记录另一候选。U2-T01 阶段对所有跨类 entry 留下决策记录。
 - **spec 缺口**：D 类 bucket 触及 spec 未定义。
   - 对策：U3-T01 矩阵中 `INTENTIONALLY-EMPTY` 必须直接引用 spec 原句；遇到 spec 沉默时，U5-T02 阶段写 frontend-reject 负例并把策略归到 `BlockedOnSpec`。D 类不计入本计划 §7 判据 #1 的"清零"约束（但仍要在 #4 中登记 `INTENTIONALLY-EMPTY`），允许独立 release。
-- **fixture 体量爆炸**：1 277 entry × 平均 2 fixture ≈ 上千文件。
+- **fixture 体量爆炸**：1 284 entry × 平均 2 fixture ≈ 上千文件。
   - 对策：每个 fixture 通过 `// COVERS:` 多对一覆盖 inventory id；只有当一条 fixture 无法物理同时触发多 entry 时才拆分。U5-T03 完成记录中给出"平均覆盖率"指标（每条 fixture 覆盖多少 entry），高于 5 视为预期。
 - **bucket md 一致性**：36 份 md 易出现 symptom 表格 / class 分布数字与 CSV 不同步的情况。
   - 对策：baseline test #2 / #4 直接对账。U2-T02 阶段强制使用半自动模板：把 CSV 抽出对应 bucket 的 entry 表 → 直接贴进 md → 任何差异必须改 CSV 而非改 md。
@@ -454,7 +454,7 @@ P7（production 修复）/ P8（variant 物理删除）的退场判据由后续�
   - 对策：本计划 §3 / §4 / §5 / §6 全程使用绝对路径明确区分；U1-T01 / U6-T01 完成记录强制写明哪部分落在哪里。
 - **fixture runner 不识别 `IGNORE-UNTIL-FIX:B-XX`**：现有 runner 行为未知。
   - 对策：U5-T01 开工时第一步勘测现有 runner（`tests/fixtures/run-pass/` 等历史标记机制），如不支持则把 runner 扩展任务作为子任务列入 U5-T01 完成记录。runner 改动是 test infrastructure，不算 production 代码（参见 §0 工作原则）。
-- **CSV 行数基线 1 277 在 U1 实测时偏移**：源码自 2026-05-18 后可能继续微动，导致 U1-T01 跑出来不是 1 277。
+- **CSV 行数基线 1 284 在 U1 实测时偏移**：源码自 2026-05-18 后可能继续微动，导致 U1-T01 跑出来不是 1 284。
   - 对策：以 U1-T01 实跑值为准，回头同步本文档 §1.1 / §3.1 / §4 baseline test #1 的"基线值"；任何调整必须在 PR 描述里写明 delta 来源（具体 commit）。
 - **U2 / U4 多人并行的 md 风格漂移**：36 份 md 由不同人写易出现段落顺序 / 标题层级 / 表格列序不一致。
   - 对策：U2-T01 创建骨架时把七段 / 三段标题与表头格式固化为模板（在 `_overview.md` 里给出范例 B-01.md 的完整样本）；U6-T01 baseline test #2 / #3 / #4 隐含校验段落与字段数。
