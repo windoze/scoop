@@ -4,7 +4,7 @@
 > 设计基线：[`UnsupportedMainBody_FIX.md`](./UnsupportedMainBody_FIX.md)  
 > 计划基线：[`PLAN.md`](./PLAN.md)  
 > 格式参考：[`docs/archive/plans/TODO-closure-fix.md`](./docs/archive/plans/TODO-closure-fix.md)  
-> 当前状态：U0-T01 已完成；下一项 U1-T01  
+> 当前状态：U1-T01 已完成；下一项 U1-T02
 > 执行原则：U0 必须最先完成；U1 → U2 → U3 严格串行；U4 与 U5 可在 U2/U3 稳定后并行，但 U5 的 negative fixture 必须引用 U4 已写明的 upstream gate；U6 必须最后完成。每个任务完成后必须回写“完成记录”。
 
 ## 全局约束
@@ -333,7 +333,7 @@ U0-T01 (摸底 + baseline 冻结)
 
 ## U1：P1 — Inventory 快照
 
-### [TODO] U1-T01：inventory 脚本 + CSV 主表
+### [DONE] U1-T01：inventory 脚本 + CSV 主表
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §3.1、§6 U1-T01
@@ -365,7 +365,14 @@ U0-T01 (摸底 + baseline 冻结)
   - `bucket=TBD`、`expected_class=TBD` 不存在。
   - 每个 `kind` 字面量源码出现次数与 CSV 出现次数一致。
 - 依赖：U0-T01
-- 完成记录：待填写
+- 完成记录：
+  - 改动范围：新增 `crates/scoopc/src/audit/mod.rs`、`crates/scoopc/src/audit/umb_inventory.rs` 与正式生成的 `audit/UMB_inventory.csv`；在 `crates/scoopc/src/lib.rs` 中以 `#[cfg(test)] mod audit;` 接入测试专用 audit module。
+  - 核心决策：U1 scanner 递归扫描 `crates/scoopc/src/llvm/codegen/**/*.rs`，按 `file + line + column` 稳定排序生成 `UMB-NNNN`；CSV 表头严格为 `id,file,line,kind,route,surface,bucket,expected_class,spec_anchor,upstream_gate,existing_fixture,notes`；动态或转发式 `kind` 以 `DYNAMIC:<expr>` 记录，不伪造字面量。
+  - 分类结果：CSV 共 1,284 条 entry，覆盖 B-01 到 B-36 且无空 bucket；每条 entry 都有非 `TBD` 的 `bucket`、`expected_class`、`spec_anchor` 和 `upstream_gate`；helper invariant 使用 `spec_anchor=N/A:helper-invariant` 且 `expected_class=InternalBugSentinel`。
+  - kind 对账：正式 constructor-scoped inventory 中有 1,241 条 literal `kind` entry 和 43 条 dynamic/forwarded `kind` entry；测试按扫描结果对账每个 literal `kind` 在源码与 CSV 中的出现次数。
+  - gap inventory 对账：21 个既有 `CODEGEN_GAP_INVENTORY` / `PIPELINE_GAPS` entry 均通过 `notes` 中的 `legacy_gap=...` 映射到 B-01 到 B-36 的主 bucket；未发现无法映射项。
+  - 验证结果：`SCOOP_WRITE_UMB_INVENTORY=1 cargo test -p scoopc audit::umb_inventory::umb_inventory_csv_in_sync -- --nocapture` 通过并生成 CSV；`cargo test -p scoopc audit::umb_inventory -- --nocapture` 通过（3 passed）；`cargo test -p scoopc pipeline_user_visible_failure_policy -- --nocapture` 通过（7 passed）；`cargo clippy --all-targets -- -D warnings` 通过；`audit/UMB_inventory.csv` 未发现 `TBD`，且包含 1,284 条 `UMB-` 数据行。
+  - 闭合目标：满足 U1-T01 的可重复源码扫描、稳定 ID、CSV 主表落地、bucket/class/spec/gate 填实、kind 计数对账和旧 gap inventory 交叉引用要求；后续 U1-T02 可在此模块逻辑上实现 `umb-audit list/diff/stats` 与 schema 文档。
 
 ### [TODO] U1-T02：inventory schema 文档 + 索引子命令
 

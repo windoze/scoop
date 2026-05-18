@@ -1,19 +1,32 @@
-# 本轮执行计划
+# Claude Execution Plan
 
-1. 读取 `TODO.md`，按标题是否带 `[DONE]` 判断第一个未完成任务；不做开放式历史问题排查。
-2. 查看该任务的要求、依赖、验证方式，以及必要的相邻上下文；仅在与当前任务直接相关时查看 `PLAN.md` 或最新提交。
-3. 检查当前工作树状态，识别已有未提交变更，避免覆盖或回退非本轮修改。
-4. 实现第一个未完成任务；如果遇到阻塞当前任务的规格缺口或缺失前置条件，则只在 `TODO.md` 中加入最小必要前置任务并停止。
-5. 运行任务要求的验证命令；如失败，先修复与当前任务相关的问题并重新验证。
-6. 将完成情况写回 `TODO.md`，把任务标题加上 `[DONE]` 并更新 completion record；仅当阶段计划确实变化时才更新 `PLAN.md`。
-7. 提交本轮所有相关变更到 Git，提交信息使用任务编号和简短说明。
-8. 提交后停止，不继续处理下一个任务。
+## Scope
 
-## 进度
+- Follow `TODO.md` as the authoritative task list.
+- Identify the first task whose heading is not prefixed with `[DONE]`.
+- Complete exactly that task, or if a concrete blocker prevents completion, add the minimum prerequisite task needed and stop.
 
-- 已读取 `TODO.md`，首个未完成任务为 `U0-T01：现状摸底与基线冻结`。
-- 下一步读取相关基线段落、检查最新提交和工作树状态，然后复算 `UnsupportedMainBody` 基线并生成 `audit/` 文件。
-- 已复算当前基线：1,284 个 constructor、61 个文件、982 个唯一 `kind:` 字面量、836 个单次出现字面量、638 条 stale frozen count、21 个 gap inventory entry。
-- 已创建 `audit/.gitkeep`、`audit/_baseline_files.txt`、`audit/_baseline_sampling.md`，并同步更新 `PLAN.md` / `UnsupportedMainBody_FIX.md` 的漂移基线。
-- 已完成验证：`cargo build`、`cargo test --all --all-targets`、`cargo run -p scoop -- test`、`rg -n/-c`、`cargo test -p scoopc pipeline_user_visible_failure_policy -- --nocapture`、`cargo clippy --all-targets -- -D warnings` 均通过。
-- 已回写 `TODO.md`，将 `U0-T01` 标记为 `[DONE]` 并写入完成记录。下一步提交本轮变更。
+## Execution Plan
+
+1. Read `TODO.md` first and identify the first incomplete task.
+2. Check recent Git context only for directly relevant unfinished work after the task is selected.
+3. Inspect only the files needed to understand and implement that task.
+4. Make the smallest correct implementation changes without workarounds or spec deviations.
+5. Add or update targeted tests/fixtures required by the task.
+6. Run the task-specified validation commands and any additional relevant checks.
+7. Update `TODO.md` by prefixing the completed task heading with `[DONE]` and filling its completion record.
+8. Update this file when key steps complete or if the plan changes.
+9. Commit all relevant changes with a clear task-tagged message.
+10. Stop without starting the next task.
+
+## Progress
+
+- Plan file initialized before reading project task files or running commands.
+- Read `TODO.md` and identified the first incomplete task as `U1-T01: inventory 脚本 + CSV 主表`.
+- Next key step: inspect latest commit for directly relevant unfinished work, then inspect only U1-T01-related files and baselines.
+- Latest commit is `[U0-T01] Freeze UnsupportedMainBody baseline`; it is the expected prerequisite and does not introduce a separate blocker.
+- Implementation approach for U1-T01: add a `#[cfg(test)]` audit module that scans `crates/scoopc/src/llvm/codegen/**/*.rs`, derives route/surface/bucket/class/spec/gate metadata, writes/checks `audit/UMB_inventory.csv`, and validates the 1,284-entry U0 baseline.
+- Implemented the audit scanner/test module and confirmed it finds 1,284 entries. The formal per-entry scan observes 1,241 literal `kind` entries plus 43 dynamic/forwarded `kind` entries; this refines the U0 broad grep count while preserving the frozen constructor total.
+- Generated `audit/UMB_inventory.csv`, verified no `TBD` fields, and confirmed all 36 buckets have entries.
+- Validation completed: `cargo test -p scoopc audit::umb_inventory -- --nocapture`, `cargo test -p scoopc pipeline_user_visible_failure_policy -- --nocapture`, and `cargo clippy --all-targets -- -D warnings` all passed.
+- Updated `TODO.md` to mark `U1-T01` as `[DONE]` with completion notes; next step is to commit all U1-T01 changes and stop.

@@ -51,6 +51,9 @@ pub mod warnings;
 pub mod llvm;
 
 #[cfg(test)]
+mod audit;
+
+#[cfg(test)]
 mod pipeline_gap_audit;
 
 #[cfg(test)]
