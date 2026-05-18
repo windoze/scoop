@@ -872,7 +872,7 @@ C0-T01 (baseline + prerequisite inventory)
     - `cargo clippy --all-targets -- -D warnings`：通过。
   - 与 `PLAN.md` / `CLOSURE_FIX.md` 对应闭合：闭合 `PLAN.md` §5 / §7 C4-T01 与 `CLOSURE_FIX.md` §3 的 shared-state primitive 用户可见 fixture 覆盖要求；阶段级计划未变化。
 
-### [TODO] C4-T02：更新 user-visible failure / frontend reject audit 基线
+### [DONE] C4-T02：更新 user-visible failure / frontend reject audit 基线
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §7 C4-T02
@@ -896,9 +896,24 @@ C0-T01 (baseline + prerequisite inventory)
 - 依赖：C4-T01A、C4-T01C、C4-T01D
 - 完成记录：
   - 改动范围：
+    - 更新 `crates/scoopc/src/pipeline_user_visible_failure_policy.rs` 的 audit 基线：`STALE_UNSUPPORTED_MAIN_BODY_COUNTS` 中 `mir_body/aggregates.rs` 从 42 调整为 31、`mir_body/operand.rs` 从 9 调整为 8、`effect_lowered/value.rs` 从 126 调整为 139，总数从 637 调整为 638；`mir_body/terminator.rs` 与 `mir_body/value_args.rs` 复查后保持 19 / 6。
+    - 刷新 `INTERNAL_BUG_SENTINEL_HITS` 中因前序实现插入代码导致漂移的行号；C2-T02 已删除 mutable-capture guard，本任务未新增 internal sentinel。
+    - 在 `FRONTEND_REJECT_SURFACES` 登记 8 组 sealed-interface frontend rejects，覆盖 sysroot-only、empty body、sealed-only supertype、inheritance cycle、声明级互斥 marker、where-bound 互斥 marker、runtime type position bound-only、显式实现/继承 bound-only，并逐项绑定 source marker 与 fixture marker。
+    - 确认 `STALE_USER_VISIBLE_UNSUPPORTED_MARKERS` 仍为空。
+    - 修复验证中暴露的 sealed marker runtime metadata 泄漏：`itable` runtime interface target / closure / metadata 收集不再把 `sealed interface` 当作运行期 interface；RTTI 测试新增断言，确保 `scoop.core.AnyRef` / `scoop.core.AnyValue` 不进入 runtime match names。
+    - 更新 `memory/claude_plan.md` 进度；未修改 `PLAN.md` 或 `CLOSURE_FIX.md`。
   - 核心决策：
+    - Audit baseline 只反映当前实现事实，不通过放宽测试或登记 stale marker 来掩盖真实 `UnsupportedMainBody`；CaptureBox 删除影响的 stale count 按实际 source 重新冻结。
+    - Sealed-interface diagnostics 按实际定义面分组登记：同一错误码在 type lowering、interface checking、type env 与 where clause 中有不同用户可见消息时分别记录 surface。
+    - `AnyRef` / `AnyValue` 是 compile-time-only sealed markers；它们可以参与 bound satisfaction，但不能进入 runtime interface index、itable、type descriptor 或 RTTI runtime-match target。
   - 验证结果：
-  - 与 `PLAN.md` / `CLOSURE_FIX.md` 对应闭合：
+    - `cargo fmt`：通过。
+    - `cargo test -p scoopc pipeline_user_visible_failure_policy -- --nocapture`：通过，7 个 audit policy 测试通过。
+    - `cargo test -p scoopc dump_rtti_class_itable_entries_preserve_parameterized_runtime_match_metadata -- --nocapture`：通过，1 个 RTTI 定向回归测试通过。
+    - `cargo test -p scoopc`：通过，871 个测试通过。
+    - `cargo run -p scoop -- test`：通过，`fixtures: ok (1405)`。
+    - `cargo clippy --all-targets -- -D warnings`：通过。
+  - 与 `PLAN.md` / `CLOSURE_FIX.md` 对应闭合：闭合 `PLAN.md` §7 C4-T02 的 user-visible failure / frontend reject audit 基线更新要求，并补齐 `CLOSURE_FIX.md` §2 对 sealed marker 不进入 runtime metadata / itable / type descriptor 的约束；阶段级计划未变化。
 
 ## C5：文档 / spec 收尾
 

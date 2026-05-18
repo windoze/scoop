@@ -146,7 +146,7 @@ struct UnsupportedMainBodyCount {
 const STALE_UNSUPPORTED_MAIN_BODY_COUNTS: &[UnsupportedMainBodyCount] = &[
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/mir_body/aggregates.rs",
-        expected_count: 42,
+        expected_count: 31,
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/mir_body/args.rs",
@@ -182,7 +182,7 @@ const STALE_UNSUPPORTED_MAIN_BODY_COUNTS: &[UnsupportedMainBodyCount] = &[
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/mir_body/operand.rs",
-        expected_count: 9,
+        expected_count: 8,
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/mir_body/string.rs",
@@ -238,7 +238,7 @@ const STALE_UNSUPPORTED_MAIN_BODY_COUNTS: &[UnsupportedMainBodyCount] = &[
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/effect_lowered/value.rs",
-        expected_count: 126,
+        expected_count: 139,
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/main/alloca.rs",
@@ -387,6 +387,126 @@ const STRUCT_MUTABLE_FIELD_MARKERS: &[SourceMarker] = &[
     },
 ];
 
+const SEALED_INTERFACE_USER_DEFINITION_MARKERS: &[SourceMarker] = &[
+    SourceMarker {
+        path: "crates/scoopc/src/typecheck/type_env.rs",
+        marker: "SealedInterfaceUserDefinitionNotAllowed {",
+    },
+    SourceMarker {
+        path: "tests/fixtures/typecheck/sealed_interface_user_definition_is_error.scoop",
+        marker: "// EXPECT-ERROR-CODE: scoop::typecheck::sealed_interface_user_definition_not_allowed",
+    },
+];
+
+const SEALED_INTERFACE_EMPTY_BODY_MARKERS: &[SourceMarker] = &[
+    SourceMarker {
+        path: "crates/scoopc/src/typecheck/type_env.rs",
+        marker: "SealedInterfaceMustBeEmpty {",
+    },
+    SourceMarker {
+        path: "tests/fixtures/typecheck/sealed_interface_body_member_is_error.scoop",
+        marker: "// EXPECT-ERROR-CODE: scoop::typecheck::sealed_interface_must_be_empty",
+    },
+];
+
+const SEALED_INTERFACE_SUPERTYPE_MUST_BE_SEALED_MARKERS: &[SourceMarker] = &[
+    SourceMarker {
+        path: "crates/scoopc/src/typecheck/type_env.rs",
+        marker: "SealedInterfaceSupertypeMustBeSealed {",
+    },
+    SourceMarker {
+        path: "tests/fixtures/typecheck/sealed_interface_supertype_normal_interface_is_error.scoop",
+        marker: "// EXPECT-ERROR-CODE: scoop::typecheck::sealed_interface_supertype_must_be_sealed",
+    },
+    SourceMarker {
+        path: "tests/fixtures/typecheck/sealed_interface_supertype_class_is_error.scoop",
+        marker: "// EXPECT-ERROR-CODE: scoop::typecheck::sealed_interface_supertype_must_be_sealed",
+    },
+];
+
+const SEALED_INTERFACE_INHERITANCE_CYCLE_MARKERS: &[SourceMarker] = &[
+    SourceMarker {
+        path: "crates/scoopc/src/typecheck/type_env.rs",
+        marker: "SealedInterfaceInheritanceCycle {",
+    },
+    SourceMarker {
+        path: "tests/fixtures/typecheck/sealed_interface_self_cycle_is_error.scoop",
+        marker: "// EXPECT-ERROR-CODE: scoop::typecheck::sealed_interface_inheritance_cycle",
+    },
+    SourceMarker {
+        path: "tests/fixtures/typecheck/sealed_interface_two_node_cycle_is_error.scoop",
+        marker: "// EXPECT-ERROR-CODE: scoop::typecheck::sealed_interface_inheritance_cycle",
+    },
+];
+
+const SEALED_INTERFACE_DECL_MUTUAL_EXCLUSION_MARKERS: &[SourceMarker] = &[
+    SourceMarker {
+        path: "crates/scoopc/src/typecheck/type_env.rs",
+        marker: "SealedInterfaceMutuallyExclusiveBound {",
+    },
+    SourceMarker {
+        path: "tests/fixtures/typecheck/sealed_interface_mutually_exclusive_sysroot_marker_is_error.scoop",
+        marker: "// EXPECT-ERROR-CODE: scoop::typecheck::sealed_interface_mutually_exclusive_bound",
+    },
+];
+
+const SEALED_INTERFACE_WHERE_MUTUAL_EXCLUSION_MARKERS: &[SourceMarker] = &[
+    SourceMarker {
+        path: "crates/scoopc/src/typecheck/where_clause.rs",
+        marker: "SealedInterfaceMutuallyExclusiveBound {",
+    },
+    SourceMarker {
+        path: "tests/fixtures/typecheck/sealed_interface_mutually_exclusive_where_bound_is_error.scoop",
+        marker: "// EXPECT-ERROR-CODE: scoop::typecheck::sealed_interface_mutually_exclusive_bound",
+    },
+];
+
+const SEALED_INTERFACE_RUNTIME_TYPE_POSITION_MARKERS: &[SourceMarker] = &[
+    SourceMarker {
+        path: "crates/scoopc/src/typecheck/lower.rs",
+        marker: "SealedInterfaceBoundOnly {",
+    },
+    SourceMarker {
+        path: "tests/fixtures/typecheck/sealed_interface_binding_type_is_error.scoop",
+        marker: "// EXPECT-ERROR-CODE: scoop::typecheck::sealed_interface_bound_only",
+    },
+    SourceMarker {
+        path: "tests/fixtures/typecheck/sealed_interface_param_type_is_error.scoop",
+        marker: "// EXPECT-ERROR-CODE: scoop::typecheck::sealed_interface_bound_only",
+    },
+    SourceMarker {
+        path: "tests/fixtures/typecheck/sealed_interface_return_type_is_error.scoop",
+        marker: "// EXPECT-ERROR-CODE: scoop::typecheck::sealed_interface_bound_only",
+    },
+    SourceMarker {
+        path: "tests/fixtures/typecheck/sealed_interface_type_argument_is_error.scoop",
+        marker: "// EXPECT-ERROR-CODE: scoop::typecheck::sealed_interface_bound_only",
+    },
+    SourceMarker {
+        path: "tests/fixtures/typecheck/sealed_interface_when_is_pattern_is_error.scoop",
+        marker: "// EXPECT-ERROR-CODE: scoop::typecheck::sealed_interface_bound_only",
+    },
+    SourceMarker {
+        path: "tests/fixtures/typecheck/sealed_interface_cast_as_is_error.scoop",
+        marker: "// EXPECT-ERROR-CODE: scoop::typecheck::sealed_interface_bound_only",
+    },
+];
+
+const SEALED_INTERFACE_EXPLICIT_IMPLEMENTATION_MARKERS: &[SourceMarker] = &[
+    SourceMarker {
+        path: "crates/scoopc/src/typecheck/interfaces.rs",
+        marker: "SealedInterfaceBoundOnly {",
+    },
+    SourceMarker {
+        path: "tests/fixtures/typecheck/sealed_interface_class_supertype_is_error.scoop",
+        marker: "// EXPECT-ERROR-CODE: scoop::typecheck::sealed_interface_bound_only",
+    },
+    SourceMarker {
+        path: "tests/fixtures/typecheck/sealed_interface_struct_supertype_is_error.scoop",
+        marker: "// EXPECT-ERROR-CODE: scoop::typecheck::sealed_interface_bound_only",
+    },
+];
+
 const FRONTEND_REJECT_SURFACES: &[FrontendRejectSurface] = &[
     FrontendRejectSurface {
         gap_id: "PIPELINE_GAPS §7.1",
@@ -422,6 +542,62 @@ const FRONTEND_REJECT_SURFACES: &[FrontendRejectSurface] = &[
         diagnostic_code: "scoop::typecheck::struct_field_must_be_val",
         message: "当前语言 contract 下，struct 字段必须是 `val`，不允许 `var`：{struct_fqn}.{field}",
         markers: STRUCT_MUTABLE_FIELD_MARKERS,
+    },
+    FrontendRejectSurface {
+        gap_id: "CLOSURE_FIX §2 sealed interface sysroot-only definition",
+        definition_path: "crates/scoopc/src/typecheck/type_env.rs",
+        diagnostic_code: "scoop::typecheck::sealed_interface_user_definition_not_allowed",
+        message: "`sealed interface` 只能在 sysroot 中定义：{fqn}",
+        markers: SEALED_INTERFACE_USER_DEFINITION_MARKERS,
+    },
+    FrontendRejectSurface {
+        gap_id: "CLOSURE_FIX §2 sealed interface empty body",
+        definition_path: "crates/scoopc/src/typecheck/type_env.rs",
+        diagnostic_code: "scoop::typecheck::sealed_interface_must_be_empty",
+        message: "`sealed interface` body 必须为空：{fqn}",
+        markers: SEALED_INTERFACE_EMPTY_BODY_MARKERS,
+    },
+    FrontendRejectSurface {
+        gap_id: "CLOSURE_FIX §2 sealed interface supertype restriction",
+        definition_path: "crates/scoopc/src/typecheck/type_env.rs",
+        diagnostic_code: "scoop::typecheck::sealed_interface_supertype_must_be_sealed",
+        message: "`sealed interface` 只能继承其它 sealed interface：{fqn} -> {super_fqn}",
+        markers: SEALED_INTERFACE_SUPERTYPE_MUST_BE_SEALED_MARKERS,
+    },
+    FrontendRejectSurface {
+        gap_id: "CLOSURE_FIX §2 sealed interface inheritance cycle",
+        definition_path: "crates/scoopc/src/typecheck/type_env.rs",
+        diagnostic_code: "scoop::typecheck::sealed_interface_inheritance_cycle",
+        message: "`sealed interface` 继承图存在循环：{cycle}",
+        markers: SEALED_INTERFACE_INHERITANCE_CYCLE_MARKERS,
+    },
+    FrontendRejectSurface {
+        gap_id: "CLOSURE_FIX §2 sealed interface declaration mutual exclusion",
+        definition_path: "crates/scoopc/src/typecheck/type_env.rs",
+        diagnostic_code: "scoop::typecheck::sealed_interface_mutually_exclusive_bound",
+        message: "sealed marker bound 不能同时蕴涵 AnyRef 与 AnyValue：{fqn}",
+        markers: SEALED_INTERFACE_DECL_MUTUAL_EXCLUSION_MARKERS,
+    },
+    FrontendRejectSurface {
+        gap_id: "CLOSURE_FIX §2 sealed interface where-bound mutual exclusion",
+        definition_path: "crates/scoopc/src/typecheck/where_clause.rs",
+        diagnostic_code: "scoop::typecheck::sealed_interface_mutually_exclusive_bound",
+        message: "where 约束不能同时要求 `{param}` 满足 AnyRef 与 AnyValue",
+        markers: SEALED_INTERFACE_WHERE_MUTUAL_EXCLUSION_MARKERS,
+    },
+    FrontendRejectSurface {
+        gap_id: "CLOSURE_FIX §2 sealed interface runtime type position rejection",
+        definition_path: "crates/scoopc/src/typecheck/lower.rs",
+        diagnostic_code: "scoop::typecheck::sealed_interface_bound_only",
+        message: "sealed marker `{name}` 只能作为 generic/where bound 使用，不能作为运行期类型位置",
+        markers: SEALED_INTERFACE_RUNTIME_TYPE_POSITION_MARKERS,
+    },
+    FrontendRejectSurface {
+        gap_id: "CLOSURE_FIX §2 sealed interface explicit implementation rejection",
+        definition_path: "crates/scoopc/src/typecheck/interfaces.rs",
+        diagnostic_code: "scoop::typecheck::sealed_interface_bound_only",
+        message: "sealed marker `{name}` 只能作为 generic/where bound 使用，不能显式实现或继承",
+        markers: SEALED_INTERFACE_EXPLICIT_IMPLEMENTATION_MARKERS,
     },
 ];
 
@@ -461,8 +637,8 @@ const POST_UPSTREAM_VALIDATION_GUARDS: &[UpstreamGuardedSentinel] = &[
 
 const INTERNAL_BUG_SENTINEL_HITS: &[&str] = &[
     "crates/scoopc/src/llvm/codegen/mir_body/call.rs:724:            (None, CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_)) => unreachable!(",
-    "crates/scoopc/src/llvm/codegen/effect_lowered/value.rs:2407:                    _ => unreachable!(\"filtered by match\"),",
-    "crates/scoopc/src/llvm/codegen/effect_lowered/value.rs:3441:            _ => unreachable!(\"filtered by caller\"),",
+    "crates/scoopc/src/llvm/codegen/effect_lowered/value.rs:2496:                    _ => unreachable!(\"filtered by match\"),",
+    "crates/scoopc/src/llvm/codegen/effect_lowered/value.rs:3635:            _ => unreachable!(\"filtered by caller\"),",
     "crates/scoopc/src/llvm/codegen/main/alloca.rs:48:            _ => unreachable!(\"cast_float only accepts Float64/Float32\"),",
     "crates/scoopc/src/llvm/codegen/main/coerce.rs:74:                    _ => unreachable!(\"filtered by caller\"),",
     "crates/scoopc/src/llvm/codegen/main/coerce.rs:93:                _ => unreachable!(\"filtered by caller\"),",
@@ -472,10 +648,10 @@ const INTERNAL_BUG_SENTINEL_HITS: &[&str] = &[
     "crates/scoopc/src/llvm/codegen/main/coerce.rs:236:            _ => unreachable!(\"filtered by caller\"),",
     "crates/scoopc/src/mir/materialize/dispatch.rs:51:                    panic!(",
     "crates/scoopc/src/mir/materialize/output.rs:37:            panic!(",
-    "crates/scoopc/src/typecheck/lower.rs:1212:                unreachable!(",
-    "crates/scoopc/src/typecheck/lower.rs:2395:                    _ => unreachable!(\"nominal lowering produced non-nominal type\"),",
-    "crates/scoopc/src/typecheck/lower.rs:3281:                    _ => unreachable!(\"nominal lowering produced non-nominal type\"),",
-    "crates/scoopc/src/typecheck/lower.rs:3526:                unreachable!(\"is_value_only_enum implies first_super exists\");",
+    "crates/scoopc/src/typecheck/lower.rs:1268:                unreachable!(",
+    "crates/scoopc/src/typecheck/lower.rs:2502:                    _ => unreachable!(\"nominal lowering produced non-nominal type\"),",
+    "crates/scoopc/src/typecheck/lower.rs:3395:                    _ => unreachable!(\"nominal lowering produced non-nominal type\"),",
+    "crates/scoopc/src/typecheck/lower.rs:3646:                unreachable!(\"is_value_only_enum implies first_super exists\");",
     "crates/scoopc/src/typecheck/when_pat.rs:209:                    unreachable!(",
     "crates/scoopc/src/typecheck/when_pat.rs:258:                unreachable!(",
 ];
@@ -581,7 +757,7 @@ fn pipeline_user_visible_failure_policy_tracks_stale_unsupportedmainbody_counts(
             baseline.path
         );
     }
-    assert_eq!(total, 637);
+    assert_eq!(total, 638);
 }
 
 #[test]

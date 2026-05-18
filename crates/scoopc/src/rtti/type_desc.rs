@@ -2080,6 +2080,16 @@ fun takesDisposableRaise(x: Disposable<eff Raise<RuntimeError>>) {}
                 .runtime_match_type_names
                 .contains(&"rtti.Readable<Int>".to_string())
         );
+        assert!(
+            !readable_entry
+                .runtime_match_type_names
+                .contains(&"scoop.core.AnyRef".to_string())
+        );
+        assert!(
+            !readable_entry
+                .runtime_match_type_names
+                .contains(&"scoop.core.AnyValue".to_string())
+        );
         assert_eq!(
             readable_entry.runtime_match_type_ids,
             readable_entry

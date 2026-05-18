@@ -503,7 +503,7 @@ fn collect_concrete_interface_targets(types: &TypeStore, env: &TypeEnv) -> Vec<T
                     if matches!(
                         env.type_symbol(&nominal.fqn).map(|sym| sym.kind),
                         Some(TypeSymbolKind::Nominal(ast::TypeKind::Interface))
-                    )
+                    ) && !env.is_sealed_interface(&nominal.fqn)
             )
         })
         .collect();
@@ -540,7 +540,8 @@ fn collect_concrete_interface_closure(
             if matches!(
                 lower.env().type_symbol(&nominal.fqn).map(|sym| sym.kind),
                 Some(TypeSymbolKind::Nominal(ast::TypeKind::Interface))
-            ) && !out.contains(&super_ty)
+            ) && !lower.env().is_sealed_interface(&nominal.fqn)
+                && !out.contains(&super_ty)
             {
                 out.push(super_ty);
             }
@@ -881,7 +882,9 @@ fn collect_interfaces_in_type_decl(
     let name = decl.name.text(source).to_string();
     let type_fqn = join_prefix(owner_prefix, &name);
 
-    if matches!(decl.kind, ast::TypeKind::Interface) {
+    if matches!(decl.kind, ast::TypeKind::Interface)
+        && !decl.modifiers.contains(&ast::Modifier::Sealed)
+    {
         let super_interfaces = decl
             .supertypes
             .iter()
