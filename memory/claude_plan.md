@@ -33,4 +33,5 @@
 - 矩阵结构校验、`umb-audit stats/diff`、`cargo test -p scoopc audit::umb_inventory -- --nocapture`、`cargo clippy --all-targets -- -D warnings` 均通过。
 - `cargo test --all --all-targets` 首次 120 秒超时但测试仍在推进；已用 600 秒超时重跑并通过（scoopc lib 874 passed，umb-audit bin 3 passed）。
 - 已更新 `TODO.md`：`U3-T01` 标记为 `[DONE]`，顶部状态改为下一项 `U4-T01`，完成记录已写入。
-- 下一步检查 git diff/status，并提交本任务所有变更后停止。
+- 已提交本任务主体变更：`2b48a5ed [U3-T01] Add UMB spec coverage matrix`。
+- 下一步仅提交本执行记录更新，然后停止，不继续处理 `U4-T01`。
