@@ -4,7 +4,7 @@
 > 计划基线：[`PLAN.md`](./PLAN.md)
 > 上一阶段任务档案：[`TODO-1.md`](./TODO-1.md)
 > 设计与 baseline：[`UnsupportedMainBody_FIX.md`](./UnsupportedMainBody_FIX.md)、[`UnsupportedMainBody_DONE.md`](./UnsupportedMainBody_DONE.md)
-> 当前状态：P7-0-T01、P7-0-T02、P7-A1、P7-A2、P7-A3、P7-A4、P7-B1、P7-B2.1、P7-B2.2、P7-B2.3、P7-B2.4、P7-B2.5、P7-B2.6、P7-B2.7 已完成；active=633，retired=651。
+> 当前状态：P7-0-T01、P7-0-T02、P7-A1、P7-A2、P7-A3、P7-A4、P7-B1、P7-B2.1、P7-B2.2、P7-B2.3、P7-B2.4、P7-B2.5、P7-B2.6、P7-B2.7、P7-B2.8 已完成；active=615，retired=669。
 
 ## 全局约束
 
@@ -423,7 +423,7 @@ P7-0-T01 stable ID + retired ledger
   - 验证结果：`cargo run -p scoopc --bin umb-audit -- list --bucket B-33/B-34/B-35` 均通过（entries 0）；`cargo run -p scoopc --bin umb-audit -- diff` 通过（in sync，633 entries）；`cargo run -p scoopc --bin umb-audit -- stats` 通过（active=633、retired=651、initial=1,284）；`cargo test -p scoopc mir::materialize -- --nocapture` 通过（51 passed）；`cargo test -p scoopc audit:: -- --nocapture` 通过（23 passed）；`cargo test -p scoopc pipeline_user_visible_failure_policy -- --nocapture` 通过（7 passed）；`cargo run -p scoop -- test tests/fixtures/umb_fix/B-33-extern-global-funptr/` 通过（4 passed，其中 1 个 skip/pass）；`cargo run -p scoop -- test tests/fixtures/umb_fix/B-34-runtime-error-try/` 通过（3 passed）；`cargo run -p scoop -- test tests/fixtures/umb_fix/B-35-unsafe-nogc-boundary/` 通过（10 passed，其中 6 个 skip/pass）；`cargo fmt` 通过；`cargo clippy --all-targets -- -D warnings` 通过。
   - 闭合目标：满足 `PLAN.md:135-159` 与本任务完成条件；B-33/B-34/B-35 active count 为 0，extern、RuntimeError、NoGC/frame boundary contract 不再由 LLVM `UnsupportedMainBody` 兜底。
 
-### [TODO] P7-B2.8：B-08 internal/B-11 member store 与 pure/plain statement route contract
+### [DONE] P7-B2.8：B-08 internal/B-11 member store 与 pure/plain statement route contract
 
 - 参考：`PLAN.md:135-159`、`audit/strategies/B-08.md`、`audit/strategies/B-11.md`。
 - 范围：B-08 internal rows 4 entries；B-11 14 entries；合计 18 entries。
@@ -432,7 +432,15 @@ P7-0-T01 stable ID + retired ledger
 - 验证：`cargo test -p scoopc audit:: -- --nocapture`、`cargo run -p scoop -- test tests/fixtures/umb_fix/B-08-member-store/`、`cargo run -p scoop -- test tests/fixtures/umb_fix/B-11-pure-boundary/`。
 - 完成条件：B-08 internal rows 与 B-11 active count 为 0。
 - 依赖：P7-B1 推荐完成后。
-- 完成记录：待填写。
+- 完成记录：
+  - 改动范围：更新 `crates/scoopc/src/mir/materialize/validation.rs`、`crates/scoopc/src/mir/mod.rs`、`crates/scoopc/src/pipeline/hir_completeness.rs`、`crates/scoopc/src/pipeline/hir_stage.rs`、`crates/scoopc/src/llvm/codegen/mir_body/member.rs`、`crates/scoopc/src/llvm/codegen/stmt.rs`、`crates/scoopc/src/pipeline_user_visible_failure_policy.rs`；同步 `audit/UMB_inventory.csv`、`audit/UMB_retired.csv`、`audit/UMB_categories/{B-08.md,B-11.md,_overview.md}`、`audit/strategies/{B-08.md,B-11.md}`、`audit/spec_coverage_matrix.md`、B-08/B-11/B-10/B-20 fixtures 与 `tests/fixtures/umb_fix/_index.csv`；同步记录 `memory/claude_plan.md`。
+  - Retired IDs：B-08 `UMB-1132`、`UMB-1133`、`UMB-1146`、`UMB-1148`；B-11 `UMB-1250`、`UMB-1251`、`UMB-1252`、`UMB-1253`、`UMB-1254`、`UMB-1255`、`UMB-1256`、`UMB-1257`、`UMB-1258`、`UMB-1259`、`UMB-1260`、`UMB-1261`、`UMB-1262`、`UMB-1268`；数量 18；bucket `B-08`/`B-11`；class `InternalBugSentinel`。
+  - 核心决策：B-08 member-store receiver/place/value contract 进入 production MIR 与 materialized MIR verifier；B-11 local val、assignment place、mutable target、while Bool condition route contract 进入 typed HIR completeness verifier；LLVM lowering 删除对应 `UnsupportedMainBody` fallback，改为 verifier 后的 internal invariant panic/`unreachable!`。
+  - Inventory/ledger：active 633 -> 615；retired 651 -> 669；B-08 active 4 -> 0；B-11 active 14 -> 0；`InternalBugSentinel` active 430 -> 412。
+  - Stale count：tracked stale total 266 -> 262；`crates/scoopc/src/llvm/codegen/mir_body/member.rs` `UnsupportedMainBody` 25 -> 21；`stmt.rs` 14 active inventory rows -> 0（不在 tracked stale file list）。
+  - Fixture 状态：B-08 fixture coverage switched to `COVERS: NONE` after retired ledger takeover；B-11 fixtures activated and switched to retired-ledger coverage; cross-bucket B-10 fixture coverage removed retired B-11 IDs while keeping active B-10 IDs.
+  - 验证结果：`cargo run -p scoopc --bin umb-audit -- list --bucket B-08` 通过（entries 0）；`cargo run -p scoopc --bin umb-audit -- list --bucket B-11` 通过（entries 0）；`cargo run -p scoopc --bin umb-audit -- diff` 通过（in sync，615 entries）；`cargo run -p scoopc --bin umb-audit -- stats` 通过（active=615、retired=669、initial=1284）；`cargo test -p scoopc mir::materialize -- --nocapture` 通过（54 passed）；`cargo test -p scoopc pipeline::hir_stage -- --nocapture` 通过（30 passed）；`cargo test -p scoopc audit:: -- --nocapture` 通过（23 passed）；`cargo test -p scoopc pipeline_user_visible_failure_policy -- --nocapture` 通过（7 passed）；`cargo run -p scoop -- test tests/fixtures/umb_fix/B-08-member-store/` 通过（4 passed）；`cargo run -p scoop -- test tests/fixtures/umb_fix/B-11-pure-boundary/` 通过（3 passed）；`cargo fmt` 通过；`cargo clippy --all-targets -- -D warnings` 通过。
+  - 闭合目标：满足 `PLAN.md:135-159` 与本任务完成条件；B-08 internal rows 与 B-11 active count 均为 0，member-store/pure/plain statement route contract 不再由 LLVM `UnsupportedMainBody` 兜底。
 
 ### [TODO] P7-B3.1：B-32/B-31 print/panic/sysroot 与 scalar methods contract
 

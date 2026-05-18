@@ -4102,6 +4102,79 @@ fun entry(box: Box): Int {
     }
 
     #[test]
+    fn hir_statement_boundary_rejects_local_val_without_initializer() {
+        let (mut lowered, source_path) = clean_lowered_hir();
+        let stmt = stmt_with_kind(
+            &lowered,
+            StmtKind::Val(crate::hir::ValDecl {
+                span: test_span(),
+                id: Some(crate::hir::SymbolId::from_raw(42)),
+                name: Some("x".to_string()),
+                mutable: false,
+                ty: lowered.builtins.int,
+                init: None,
+            }),
+        );
+        replace_main_body_with_stmt(&mut lowered, stmt);
+
+        let err = stage_error_for(lowered, &source_path);
+        assert_eq!(err.reason(), "local val declaration missing initializer");
+        assert_eq!(err.owner(), "fun sample.main");
+        assert_eq!(err.span(), test_span());
+    }
+
+    #[test]
+    fn hir_statement_boundary_rejects_immutable_assignment_contract() {
+        let session = session();
+        let source = SourceFile::new_virtual(
+            "<mem>/hir_immutable_assignment_contract.scoop",
+            r#"package sample
+
+fun main() {
+    var x: Int = 1
+    x = 2
+}
+"#,
+        );
+        let mut lowered = crate::hir::lower_typed_for_dump(&session, &source).unwrap();
+        let contract = lowered
+            .assign_place_contracts
+            .values_mut()
+            .next()
+            .expect("assignment contract should exist");
+        contract.mutable = false;
+
+        let err = stage_error_for(lowered, source.path());
+        assert_eq!(
+            err.reason(),
+            "assignment place contract target is immutable"
+        );
+        assert_eq!(err.owner(), "fun sample.main");
+    }
+
+    #[test]
+    fn hir_statement_boundary_rejects_non_bool_while_condition() {
+        let (mut lowered, source_path) = clean_lowered_hir();
+        let cond = Expr {
+            span: test_span(),
+            ty: lowered.builtins.int,
+            kind: ExprKind::Literal(crate::hir::LiteralKind::SynthInt(1)),
+        };
+        let body = crate::hir::Block {
+            span: test_span(),
+            ty: lowered.builtins.unit,
+            stmts: Vec::new(),
+        };
+        let stmt = stmt_with_kind(&lowered, StmtKind::While { cond, body });
+        replace_main_body_with_stmt(&mut lowered, stmt);
+
+        let err = stage_error_for(lowered, &source_path);
+        assert_eq!(err.reason(), "while condition must have Bool type");
+        assert_eq!(err.owner(), "fun sample.main");
+        assert_eq!(err.span(), test_span());
+    }
+
+    #[test]
     fn hir_for_loop_lowers_custom_iterator_contracts() {
         let session = session();
         let source = SourceFile::new_virtual(

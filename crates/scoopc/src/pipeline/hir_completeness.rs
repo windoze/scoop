@@ -1,8 +1,9 @@
 use std::path::Path;
 
 use crate::hir::{
-    Block, CallArg, CallSite, ClassCtor, ClassInit, ClassInitStep, Expr, ExprKind, FunDecl,
-    HirStageError, Item, LoweredHir, ObjectInit, ObjectInitStep, Stmt, StmtKind, ValDecl,
+    AssignPlaceKind, Block, CallArg, CallSite, ClassCtor, ClassInit, ClassInitStep, Expr, ExprKind,
+    FunDecl, HirStageError, Item, LoweredHir, ObjectInit, ObjectInitStep, Stmt, StmtKind, ValDecl,
+    ValueRef,
 };
 use crate::span::Span;
 
@@ -145,6 +146,56 @@ impl<'a> HirCompletenessVerifier<'a> {
         Ok(())
     }
 
+    fn verify_local_val(
+        &self,
+        source_path: &Path,
+        val: &ValDecl,
+        owner: &str,
+    ) -> Result<(), HirStageError> {
+        if val.id.is_none() {
+            return self.fail(
+                source_path,
+                val.span,
+                "local val declaration missing symbol id",
+                owner,
+            );
+        }
+        if val.init.is_none() {
+            return self.fail(
+                source_path,
+                val.span,
+                "local val declaration missing initializer",
+                owner,
+            );
+        }
+        self.verify_val(source_path, val, owner)
+    }
+
+    fn verify_static_local_val(
+        &self,
+        source_path: &Path,
+        val: &ValDecl,
+        owner: &str,
+    ) -> Result<(), HirStageError> {
+        if val.id.is_none() {
+            return self.fail(
+                source_path,
+                val.span,
+                "local val declaration missing symbol id",
+                owner,
+            );
+        }
+        let Some(init) = &val.init else {
+            return self.fail(
+                source_path,
+                val.span,
+                "local val declaration missing initializer",
+                owner,
+            );
+        };
+        self.verify_static_init_expr(source_path, init, owner)
+    }
+
     fn verify_object_init(&self, object_init: &ObjectInit) -> Result<(), HirStageError> {
         let owner = format!("object {}", object_init.fqn);
         for step in &object_init.steps {
@@ -239,13 +290,14 @@ impl<'a> HirCompletenessVerifier<'a> {
                 self.placeholder(source_path, stmt.span, "StmtKind::Todo", kind, owner)
             }
             StmtKind::Expr(expr) => self.verify_expr(source_path, expr, owner),
-            StmtKind::Val(val) => self.verify_val(source_path, val, owner),
+            StmtKind::Val(val) => self.verify_local_val(source_path, val, owner),
             StmtKind::Assign { lhs, rhs, .. } => {
                 self.verify_assign_place_contract(source_path, stmt, owner)?;
                 self.verify_expr(source_path, lhs, owner)?;
                 self.verify_expr(source_path, rhs, owner)
             }
             StmtKind::While { cond, body } => {
+                self.verify_while_condition(source_path, stmt.span, cond, owner)?;
                 self.verify_expr(source_path, cond, owner)?;
                 self.verify_block(source_path, body, owner)
             }
@@ -270,18 +322,14 @@ impl<'a> HirCompletenessVerifier<'a> {
                 self.placeholder(source_path, stmt.span, "StmtKind::Todo", kind, owner)
             }
             StmtKind::Expr(expr) => self.verify_static_init_expr(source_path, expr, owner),
-            StmtKind::Val(val) => {
-                if let Some(init) = &val.init {
-                    self.verify_static_init_expr(source_path, init, owner)?;
-                }
-                Ok(())
-            }
+            StmtKind::Val(val) => self.verify_static_local_val(source_path, val, owner),
             StmtKind::Assign { lhs, rhs, .. } => {
                 self.verify_assign_place_contract(source_path, stmt, owner)?;
                 self.verify_static_init_expr(source_path, lhs, owner)?;
                 self.verify_static_init_expr(source_path, rhs, owner)
             }
             StmtKind::While { cond, body } => {
+                self.verify_while_condition(source_path, stmt.span, cond, owner)?;
                 self.verify_static_init_expr(source_path, cond, owner)?;
                 self.verify_static_init_block(source_path, body, owner)
             }
@@ -301,13 +349,84 @@ impl<'a> HirCompletenessVerifier<'a> {
         owner: &str,
     ) -> Result<(), HirStageError> {
         let site = CallSite::new(source_path.to_path_buf(), stmt.span);
-        if self.lowered_hir.assign_place_contracts.contains_key(&site) {
+        let Some(contract) = self.lowered_hir.assign_place_contracts.get(&site) else {
+            return self.fail(
+                source_path,
+                stmt.span,
+                "assignment statement missing typed place contract",
+                owner,
+            );
+        };
+        if !contract.mutable {
+            return self.fail(
+                source_path,
+                contract.span,
+                "assignment place contract target is immutable",
+                owner,
+            );
+        }
+        let StmtKind::Assign { lhs, .. } = &stmt.kind else {
+            return Ok(());
+        };
+        match (&lhs.kind, &contract.kind) {
+            (
+                ExprKind::VarRef(ValueRef::Local { id, .. }),
+                AssignPlaceKind::Local {
+                    id: contract_id, ..
+                },
+            ) if id == contract_id => Ok(()),
+            (
+                ExprKind::VarRef(ValueRef::TopLevel { fqn, .. }),
+                AssignPlaceKind::TopLevel {
+                    fqn: contract_fqn, ..
+                },
+            ) if fqn == contract_fqn => Ok(()),
+            (
+                ExprKind::MemberAccess { member, .. },
+                AssignPlaceKind::Member {
+                    member_fqn,
+                    resolved: Some(crate::hir::MemberRef::Value { fqn, .. }),
+                    ..
+                },
+            ) if fqn == member_fqn
+                && matches!(
+                    member.resolved.as_ref(),
+                    Some(crate::hir::MemberRef::Value { fqn: lhs_fqn, .. })
+                        if lhs_fqn == member_fqn
+                ) =>
+            {
+                Ok(())
+            }
+            (ExprKind::MemberAccess { .. }, AssignPlaceKind::Member { resolved: None, .. }) => self
+                .fail(
+                    source_path,
+                    lhs.span,
+                    "member assignment place contract target is unresolved",
+                    owner,
+                ),
+            _ => self.fail(
+                source_path,
+                lhs.span,
+                "assignment statement and typed place contract disagree",
+                owner,
+            ),
+        }
+    }
+
+    fn verify_while_condition(
+        &self,
+        source_path: &Path,
+        span: Span,
+        cond: &Expr,
+        owner: &str,
+    ) -> Result<(), HirStageError> {
+        if cond.ty == self.lowered_hir.builtins.bool_ {
             return Ok(());
         }
         self.fail(
             source_path,
-            stmt.span,
-            "assignment statement missing typed place contract",
+            span,
+            "while condition must have Bool type",
             owner,
         )
     }

@@ -7,8 +7,8 @@
 
 ## Scope
 
-P7-A2 retires the B-08 FrontendReject rows and activates the assignment/member-store frontend fixtures. The remaining B-08 InternalBugSentinel rows stay covered by `COVERS` until the later MIR/member-store verifier task retires them.
+P7-A2 retired the B-08 FrontendReject rows and activated assignment/member-store frontend fixtures. P7-B2.8 retires the remaining B-08 InternalBugSentinel rows through MIR/materialized MIR member-store verifier coverage.
 
 ## Runner Status
 
-`scoop test` recognizes `tests/fixtures/umb_fix/**`. B-08 fixtures are active after P7-A2; retired FrontendReject IDs are tracked in `audit/UMB_retired.csv` rather than fixture `COVERS` fields.
+`scoop test` recognizes `tests/fixtures/umb_fix/**`. B-08 fixtures are active; retired IDs are tracked in `audit/UMB_retired.csv` rather than fixture `COVERS` fields.

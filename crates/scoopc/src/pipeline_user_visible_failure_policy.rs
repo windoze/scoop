@@ -174,7 +174,7 @@ const STALE_UNSUPPORTED_MAIN_BODY_COUNTS: &[UnsupportedMainBodyCount] = &[
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/mir_body/member.rs",
-        expected_count: 25,
+        expected_count: 21,
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/mir_body/mod.rs",
@@ -816,13 +816,19 @@ const INTERNAL_BUG_SENTINEL_HITS: &[&str] = &[
     "crates/scoopc/src/llvm/codegen/mir_body/member.rs:85:            panic!(",
     "crates/scoopc/src/llvm/codegen/mir_body/member.rs:92:                panic!(\"codegen_mir_enum_variant_ctor_call: verifier accepted named enum ctor arg\");",
     "crates/scoopc/src/llvm/codegen/mir_body/member.rs:130:            unreachable!(",
-    "crates/scoopc/src/llvm/codegen/mir_body/member.rs:163:                panic!(",
-    "crates/scoopc/src/llvm/codegen/mir_body/member.rs:177:                panic!(",
-    "crates/scoopc/src/llvm/codegen/mir_body/member.rs:192:            .unwrap_or_else(|| panic!(\"codegen_mir_store_top_level_var: verifier accepted missing top-level var store target `{fqn}`\"));",
-    "crates/scoopc/src/llvm/codegen/mir_body/member.rs:222:                .unwrap_or_else(|| panic!(\"codegen_mir_member_place: verifier accepted missing class member receiver operand type\"));",
-    "crates/scoopc/src/llvm/codegen/mir_body/member.rs:225:                    panic!(",
-    "crates/scoopc/src/llvm/codegen/mir_body/member.rs:231:                    unreachable!(",
-    "crates/scoopc/src/llvm/codegen/mir_body/member.rs:271:            panic!(\"codegen_mir_member_place: verifier accepted member receiver slot type drift\");",
+    "crates/scoopc/src/llvm/codegen/mir_body/member.rs:136:            .unwrap_or_else(|| panic!(\"codegen_mir_store_member: verifier accepted non-codegen member store value type\"));",
+    "crates/scoopc/src/llvm/codegen/mir_body/member.rs:140:                panic!(",
+    "crates/scoopc/src/llvm/codegen/mir_body/member.rs:145:            panic!(",
+    "crates/scoopc/src/llvm/codegen/mir_body/member.rs:150:            panic!(",
+    "crates/scoopc/src/llvm/codegen/mir_body/member.rs:171:                panic!(",
+    "crates/scoopc/src/llvm/codegen/mir_body/member.rs:185:                panic!(",
+    "crates/scoopc/src/llvm/codegen/mir_body/member.rs:200:            .unwrap_or_else(|| panic!(\"codegen_mir_store_top_level_var: verifier accepted missing top-level var store target `{fqn}`\"));",
+    "crates/scoopc/src/llvm/codegen/mir_body/member.rs:230:                .unwrap_or_else(|| panic!(\"codegen_mir_member_place: verifier accepted missing class member receiver operand type\"));",
+    "crates/scoopc/src/llvm/codegen/mir_body/member.rs:233:                    panic!(",
+    "crates/scoopc/src/llvm/codegen/mir_body/member.rs:239:                    unreachable!(",
+    "crates/scoopc/src/llvm/codegen/mir_body/member.rs:272:            panic!(\"codegen_mir_member_place: verifier accepted non-local member store receiver\");",
+    "crates/scoopc/src/llvm/codegen/mir_body/member.rs:276:            panic!(\"codegen_mir_member_place: verifier accepted member receiver slot type drift\");",
+    "crates/scoopc/src/llvm/codegen/mir_body/member.rs:302:                panic!(",
     "crates/scoopc/src/llvm/codegen/mir_body/mod.rs:261:            panic!(\"mir_member_value_fqn_for_codegen: verifier accepted non-value member target\")",
     "crates/scoopc/src/llvm/codegen/mir_body/mod.rs:264:            panic!(\"mir_member_value_fqn_for_codegen: verifier accepted unresolved member target\")",
     "crates/scoopc/src/llvm/codegen/mir_body/operand.rs:350:            panic!(\"mir_closure_env_capture_element_cg_tys_from_contract: TypeStore equivalence verifier accepted unsupported closure env contract codegen type\")",
@@ -1042,7 +1048,7 @@ fn pipeline_user_visible_failure_policy_tracks_stale_unsupportedmainbody_counts(
             baseline.path
         );
     }
-    assert_eq!(total, 266);
+    assert_eq!(total, 262);
 }
 
 #[test]

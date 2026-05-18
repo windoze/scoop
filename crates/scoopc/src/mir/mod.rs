@@ -316,6 +316,15 @@ impl File {
                 value_ty,
                 ..
             } => {
+                if !matches!(receiver, Operand::Local(_)) {
+                    return Err(MirValidationError::TypeContract {
+                        fqn: fqn.to_string(),
+                        block: Some(block),
+                        span: stmt.span,
+                        surface: "member store receiver",
+                        detail: "member store receiver must be a local place",
+                    });
+                }
                 let receiver_ty = self.validate_production_operand(
                     fqn,
                     block,

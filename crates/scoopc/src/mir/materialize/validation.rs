@@ -680,6 +680,15 @@ pub(super) fn validate_materialized_statement(
                     "receiver operand type and member receiver type disagree",
                 ));
             }
+            validate_materialized_member_store_target(
+                materialized,
+                fqn,
+                block,
+                stmt.span,
+                receiver,
+                member,
+                *value_ty,
+            )?;
             validate_materialized_operand(
                 materialized,
                 fqn,
@@ -3029,6 +3038,66 @@ pub(super) fn validate_materialized_member_metadata(
     validate_materialized_member_target(materialized, fqn, block, span, member)
 }
 
+fn validate_materialized_member_store_target(
+    materialized: &MaterializedMir,
+    fqn: &str,
+    block: BasicBlockId,
+    span: Span,
+    receiver: &Operand,
+    member: &MemberAccessMetadata,
+    value_ty: TypeId,
+) -> MaterializeResult<()> {
+    if !matches!(receiver, Operand::Local(_)) {
+        return Err(materialized_type_contract_err(
+            fqn,
+            Some(block),
+            span,
+            "member store receiver",
+            "member store receiver must be a local place",
+        ));
+    }
+
+    if !matches!(
+        materialized.types.kind(member.receiver_ty),
+        TypeKind::Ref(RefTypeKind::Nominal(_))
+    ) {
+        return Err(materialized_type_contract_err(
+            fqn,
+            Some(block),
+            span,
+            "member store receiver",
+            "member store receiver must be a reference nominal type",
+        ));
+    }
+
+    let Some(MemberTarget::Value { fqn: target_fqn }) = member.resolved.as_ref() else {
+        return Ok(());
+    };
+    let Some((member_ty, mutable)) = materialized_value_member_contract(materialized, target_fqn)
+    else {
+        return Ok(());
+    };
+    if !mutable {
+        return Err(materialized_type_contract_err(
+            fqn,
+            Some(block),
+            span,
+            "member store target",
+            "member store target is immutable",
+        ));
+    }
+    if member_ty != value_ty {
+        return Err(materialized_type_contract_err(
+            fqn,
+            Some(block),
+            span,
+            "member store value",
+            "member store value type must match declared member type",
+        ));
+    }
+    Ok(())
+}
+
 fn validate_materialized_dispatch_metadata(
     _materialized: &MaterializedMir,
     fqn: &str,
@@ -3208,6 +3277,24 @@ fn materialized_declares_value_member(
     })
 }
 
+fn materialized_value_member_contract(
+    materialized: &MaterializedMir,
+    target_fqn: &str,
+) -> Option<(TypeId, bool)> {
+    let (owner_fqn, member_name) = target_fqn.rsplit_once('.')?;
+    let owner_fqn = strip_materialized_type_args(owner_fqn);
+    let normalized_target = format!("{owner_fqn}.{member_name}");
+    materialized.file.items.iter().find_map(|item| match item {
+        Item::Metadata(MetadataRoot::Nominal(metadata)) if metadata.fqn == owner_fqn => {
+            metadata_value_member_contract(&metadata.members, &normalized_target)
+        }
+        Item::Metadata(MetadataRoot::Object(metadata)) if metadata.fqn == owner_fqn => {
+            metadata_value_member_contract(&metadata.members, &normalized_target)
+        }
+        _ => None,
+    })
+}
+
 fn strip_materialized_type_args(fqn: &str) -> &str {
     fqn.split_once("::<")
         .or_else(|| fqn.split_once('<'))
@@ -3230,6 +3317,34 @@ fn metadata_declares_value_member(members: &[DeclMemberMetadata], target_fqn: &s
         DeclMemberMetadata::Fun(_)
         | DeclMemberMetadata::EnumVariant(_)
         | DeclMemberMetadata::InitBlock { .. } => false,
+    })
+}
+
+fn metadata_value_member_contract(
+    members: &[DeclMemberMetadata],
+    target_fqn: &str,
+) -> Option<(TypeId, bool)> {
+    members.iter().find_map(|member| match member {
+        DeclMemberMetadata::Field(field) if field.fqn == target_fqn => {
+            Some((field.ty, field.mutable))
+        }
+        DeclMemberMetadata::Property(prop) if prop.fqn == target_fqn => {
+            Some((prop.ty, prop.mutable))
+        }
+        DeclMemberMetadata::Nested(root) => match root.as_ref() {
+            MetadataRoot::Nominal(metadata) => {
+                metadata_value_member_contract(&metadata.members, target_fqn)
+            }
+            MetadataRoot::Object(metadata) => {
+                metadata_value_member_contract(&metadata.members, target_fqn)
+            }
+            MetadataRoot::TypeAlias(_) | MetadataRoot::ExtensionProperty(_) => None,
+        },
+        DeclMemberMetadata::Field(_)
+        | DeclMemberMetadata::Property(_)
+        | DeclMemberMetadata::Fun(_)
+        | DeclMemberMetadata::EnumVariant(_)
+        | DeclMemberMetadata::InitBlock { .. } => None,
     })
 }
 

@@ -7,8 +7,8 @@
 
 ## Scope
 
-U5-T01 creates this directory skeleton only. U5-T02 and U5-T03 must add `.scoop` fixtures and append matching `_index.csv` rows.
+P7-B2.8 retires B-11 by verifying typed HIR local val, assignment place, and while condition statement boundaries before LLVM lowering. Fixtures in this directory remain active smoke/negative coverage after the retired IDs move to `audit/UMB_retired.csv`.
 
 ## Runner Status
 
-`scoop test` recognizes `tests/fixtures/umb_fix/**`. Fixtures marked `IGNORE-UNTIL-FIX:B-11` or `ignore-until-fix:B-11` are skipped until the corresponding production fix lands.
+`scoop test` recognizes `tests/fixtures/umb_fix/**`. B-11 fixtures are active after P7-B2.8; cross-bucket B-10 coverage remains listed only for active B-10 IDs.

@@ -131,18 +131,26 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 "typecheck must reject non-writable MIR member store targets before LLVM codegen"
             );
         }
-        let _value_cg = self.cg_ty_of_mir_type(mir_types, value_ty).ok_or(
-            LlvmEmitError::UnsupportedMainBody {
-                kind: "pass MIR member store value type",
-                at: span.into(),
-            },
-        )?;
-        let _operand_cg = self.mir_operand_cg_ty(body, mir_types, value).ok_or(
-            LlvmEmitError::UnsupportedMainBody {
-                kind: "pass MIR member store operand type",
-                at: span.into(),
-            },
-        )?;
+        let value_cg = self
+            .cg_ty_of_mir_type(mir_types, value_ty)
+            .unwrap_or_else(|| panic!("codegen_mir_store_member: verifier accepted non-codegen member store value type"));
+        let operand_cg = self
+            .mir_operand_cg_ty(body, mir_types, value)
+            .unwrap_or_else(|| {
+                panic!(
+                    "codegen_mir_store_member: verifier accepted missing member store operand type"
+                )
+            });
+        if !self.cg_ty_layout_equivalent(value_cg, operand_cg) {
+            panic!(
+                "codegen_mir_store_member: verifier accepted member store value/operand type drift"
+            );
+        }
+        if !self.cg_ty_layout_equivalent(value_cg, place.field_cg) {
+            panic!(
+                "codegen_mir_store_member: verifier accepted member store field/value type drift"
+            );
+        }
 
         let value = self.codegen_mir_operand_expected(span, value, slots, Some(place.field_cg))?;
         let stored = self.coerce_value(span, value, place.field_cg)?;
@@ -261,10 +269,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         };
         let (field_idx, field_cg) = self.lookup_struct_field(struct_ty, field_fqn, span)?;
         let crate::mir::Operand::Local(local) = receiver else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "pass MIR member store receiver place",
-                at: span.into(),
-            });
+            panic!("codegen_mir_member_place: verifier accepted non-local member store receiver");
         };
         let slot = self.mir_local_slot(span, mir_ctx.slots, *local)?;
         if slot.cg_ty != CgTy::Struct(struct_ty) {
@@ -294,10 +299,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .and_then(|layout| layout.packed)
         {
             if require_writable {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "pass MIR packed struct member store",
-                    at: span.into(),
-                });
+                panic!(
+                    "codegen_mir_member_place: verifier accepted packed value-type member store"
+                );
             }
             let field_ty = self.llvm_basic_type_of(span, field_cg)?;
             let natural = self.target_data.get_abi_alignment(&field_ty);

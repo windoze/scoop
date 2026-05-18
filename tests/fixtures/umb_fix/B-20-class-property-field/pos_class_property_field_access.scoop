@@ -1,6 +1,6 @@
 // EXPECT: ok
 // SPEC: docs/spec/language_spec-part3.md#8-属性;docs/spec/language_spec-part3.md#81-基本属性;docs/spec/language_spec-part3.md#82-值类型属性;docs/spec/language_spec-part3.md#84-委托属性
-// COVERS: UMB-1132, UMB-1133, UMB-1146, UMB-1148
+// COVERS: NONE
 // BUCKETS: B-08, B-20, B-23
 // REASON: U5-T02 records the spec surface before the matching implementation gate is enabled.
 // SOURCE-FIXTURE: tests/fixtures/run-pass/struct_computed_property_getter_basic.scoop

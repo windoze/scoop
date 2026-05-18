@@ -3,9 +3,9 @@
 // EXPECT-ERROR-AT: 17:17
 // EXPECT-ERROR: 不能引用 `field`
 // SPEC: docs/spec/language_spec-part3.md#8-属性;docs/spec/language_spec-part3.md#81-基本属性;docs/spec/language_spec-part3.md#82-值类型属性;docs/spec/language_spec-part3.md#84-委托属性
-// COVERS: UMB-1132, UMB-1133, UMB-1146, UMB-1148
+// COVERS: NONE
 // BUCKETS: B-08, B-20, B-23
-// REASON: P7-A2 activates the existing property frontend gate while retired B-08 IDs move to the ledger.
+// REASON: P7-B2.8 retired B-08 internal rows; this remains active property frontend gate coverage.
 // SOURCE-FIXTURE: tests/fixtures/typecheck/class_property_computed_field_is_error.scoop
 
 package fixtures.typecheck

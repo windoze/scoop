@@ -1,8 +1,8 @@
 // EXPECT: ok
 // SPEC: docs/spec/language_spec-part3.md#2-变量绑定与赋值
-// COVERS: UMB-1132, UMB-1133, UMB-1146, UMB-1148
+// COVERS: NONE
 // BUCKETS: B-08
-// REASON: P7-A2 keeps writable local and member stores accepted after frontend gates retire stale UMB rows.
+// REASON: P7-B2.8 keeps writable local and member stores accepted after B-08 rows retire to the ledger.
 // SOURCE-FIXTURE: tests/fixtures/typecheck/var_reassign_ok.scoop
 
 package fixtures.typecheck

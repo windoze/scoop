@@ -4,29 +4,16 @@ use super::*;
 
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(super) fn codegen_val_decl(&mut self, decl: &hir::ValDecl) -> Result<(), LlvmEmitError> {
-        let Some(id) = decl.id else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "anonymous val binding",
-                at: decl.span.into(),
-            });
-        };
+        let id = decl.id.unwrap_or_else(|| {
+            panic!("codegen_val_decl: HIR verifier accepted anonymous val binding")
+        });
 
-        let target_ty = self
-            .cg_ty_of(decl.ty)
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "val type",
-                at: decl.span.into(),
-            })?;
+        let target_ty = self.expect_cg_ty_of(decl.ty, "local val declaration type");
 
-        let init = match decl.init.as_ref() {
-            Some(_) => self.codegen_decl_initializer_expr(decl, target_ty)?,
-            None => {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "val without initializer",
-                    at: decl.span.into(),
-                });
-            }
-        };
+        if decl.init.is_none() {
+            panic!("codegen_val_decl: HIR verifier accepted local val without initializer");
+        }
+        let init = self.codegen_decl_initializer_expr(decl, target_ty)?;
 
         // T0809：局部变量统一降为 alloca + store/load；`val/var` 仅在“是否允许赋值”上有差异。
         let name = decl.name.as_deref().unwrap_or("local");
@@ -60,18 +47,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         match &lhs.kind {
             hir::ExprKind::VarRef(vref) => match vref {
                 hir::ValueRef::Local { id, .. } => {
-                    let local = self.function_cx.env.get(*id).ok_or(
-                        LlvmEmitError::UnsupportedMainBody {
-                            kind: "unknown local value",
-                            at: lhs.span.into(),
-                        },
-                    )?;
+                    let local = self.function_cx.env.get(*id).unwrap_or_else(|| {
+                        panic!(
+                            "codegen_assign_stmt: HIR verifier accepted assignment to unknown local"
+                        )
+                    });
 
                     if !local.mutable {
-                        return Err(LlvmEmitError::UnsupportedMainBody {
-                            kind: "assignment to immutable local",
-                            at: eq_span.into(),
-                        });
+                        unreachable!(
+                            "typecheck must reject assignment to immutable local before LLVM codegen"
+                        );
                     }
 
                     let rhs_v = self.codegen_expr_in_expected_context(rhs, Some(local.ty))?;
@@ -93,17 +78,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 hir::ValueRef::TopLevel { fqn, .. } => {
                     if let Some(global) = self.extern_globals.get(fqn).cloned() {
                         if !global.mutable {
-                            return Err(LlvmEmitError::UnsupportedMainBody {
-                                kind: "assignment to immutable extern global",
-                                at: lhs.span.into(),
-                            });
+                            unreachable!(
+                                "typecheck must reject assignment to immutable extern global before LLVM codegen"
+                            );
                         }
                         let cg_ty =
-                            self.cg_ty_of(global.ty)
-                                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                                    kind: "extern global type",
-                                    at: global.span.into(),
-                                })?;
+                            self.expect_cg_ty_of(global.ty, "extern global assignment type");
                         let gv = self.declare_extern_global(&global)?;
                         let rhs_v = self.codegen_expr_in_expected_context(rhs, Some(cg_ty))?;
                         let _stored =
@@ -111,19 +91,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         return Ok(());
                     }
 
-                    let Some(var) = self.top_level_vars.get(fqn) else {
-                        return Err(LlvmEmitError::UnsupportedMainBody {
-                            kind: "assignment to non-local",
-                            at: lhs.span.into(),
-                        });
-                    };
+                    let var = self.top_level_vars.get(fqn).unwrap_or_else(|| {
+                        panic!("codegen_assign_stmt: HIR verifier accepted assignment to non-local top-level value `{fqn}`")
+                    });
 
-                    let cg_ty =
-                        self.cg_ty_of(var.ty)
-                            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                                kind: "top-level var type",
-                                at: var.span.into(),
-                            })?;
+                    let cg_ty = self.expect_cg_ty_of(var.ty, "top-level var assignment type");
 
                     let gv = self.declare_top_level_var_global(var)?;
                     let rhs_v = self.codegen_expr_in_expected_context(rhs, Some(cg_ty))?;
@@ -133,11 +105,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 }
             },
             hir::ExprKind::MemberAccess { receiver, member } => {
-                let Some(hir::MemberRef::Value { fqn, .. }) = member.resolved.as_ref() else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "assignment lhs member target",
-                        at: lhs.span.into(),
-                    });
+                let hir::MemberRef::Value { fqn, .. } = member.resolved.as_ref().unwrap_or_else(|| {
+                    panic!("codegen_assign_stmt: HIR verifier accepted unresolved member assignment target")
+                }) else {
+                    panic!("codegen_assign_stmt: HIR verifier accepted non-value member assignment target");
                 };
 
                 // T0125：同 codegen_member_access，使用局部变量的 hir_ty 获取精确泛型类型。
@@ -163,17 +134,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     "assign_class_field",
                 )?
                 else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "assignment lhs",
-                        at: lhs.span.into(),
-                    });
+                    panic!(
+                        "codegen_assign_stmt: HIR verifier accepted unsupported member assignment lhs"
+                    );
                 };
 
                 if !field_place.writable {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "assignment to immutable class field",
-                        at: eq_span.into(),
-                    });
+                    unreachable!(
+                        "typecheck must reject assignment to immutable class fields before LLVM codegen"
+                    );
                 }
 
                 let rhs_v =
@@ -187,10 +156,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     self.store_local_value(eq_span, field_ptr, field_place.field_cg, rhs_v)?;
                 Ok(())
             }
-            _ => Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "assignment lhs",
-                at: lhs.span.into(),
-            }),
+            _ => panic!("codegen_assign_stmt: HIR verifier accepted unsupported assignment lhs"),
         }
     }
 
@@ -272,10 +238,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         self.builder.position_at_end(cond_bb);
         let cv = self.codegen_expr_in_expected_context(cond, Some(CgTy::Bool))?;
-        let cb = cv.as_bool().ok_or(LlvmEmitError::UnsupportedMainBody {
-            kind: "while cond value",
-            at: cond.span.into(),
-        })?;
+        let cb = cv.as_bool().unwrap_or_else(|| {
+            panic!("codegen_while_stmt: HIR verifier accepted non-Bool while condition value")
+        });
         self.builder
             .build_conditional_branch(cb, body_bb, after_bb)?;
 

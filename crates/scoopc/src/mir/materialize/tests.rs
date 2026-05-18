@@ -2,7 +2,7 @@ use super::*;
 use crate::mir::{
     BasicBlock, ClassCtorCallMetadata, CtorMetadata, LocalSourceKind, MirLoweringFacts,
     MirTransportKind, RuntimeTypeDescriptorKind, RuntimeTypeStaticFold, SiteId,
-    lower_hir_file_for_dump_with_facts,
+    StoredContinuationRoutePublication, lower_hir_file_for_dump_with_facts,
 };
 use crate::session::Session;
 use crate::source::SourceFile;
@@ -1490,6 +1490,283 @@ fn materialized_mir_member_contract_rejects_unresolved_target() {
             error: crate::mir::MirValidationError::TypeContract {
                 surface: "member target",
                 detail: "member access target must be resolved before MIR codegen",
+                ..
+            },
+            ..
+        }
+    ));
+}
+
+#[test]
+fn materialized_mir_member_store_contract_rejects_non_place_receiver() {
+    let mut types = TypeStore::new();
+    let builtins = types.intern_builtins();
+    let class_fqn = "fixtures.materialize.Box";
+    let class_ty = types.intern(TypeKind::Ref(RefTypeKind::Nominal(NominalType {
+        fqn: class_fqn.to_string(),
+        args: Vec::new(),
+        eff: None,
+    })));
+    let mut body = Body::new_empty();
+    let value = body.push_local(LocalDecl {
+        span: test_span(),
+        name: Some("value".to_string()),
+        ty: builtins.int,
+        source: LocalSourceKind::CompilerTemporary,
+    });
+    let bb = body.push_block(BasicBlock {
+        is_cleanup: false,
+        stmts: vec![Statement {
+            span: test_span(),
+            kind: StatementKind::StoreMember {
+                receiver: Operand::Const(ConstValue::Unit),
+                member: MemberAccessMetadata {
+                    name: "value".to_string(),
+                    receiver_ty: class_ty,
+                    resolved: Some(MemberTarget::Value {
+                        fqn: format!("{class_fqn}.value"),
+                    }),
+                    hidden_effects: EffectRow::pure(),
+                },
+                value: Operand::Local(value),
+                value_ty: builtins.int,
+                continuation_route: StoredContinuationRoutePublication::None,
+            },
+        }],
+        terminator: Terminator {
+            span: test_span(),
+            kind: TerminatorKind::Return { value: None },
+            unwind: UnwindAction::NoUnwind,
+        },
+    });
+    body.start = bb;
+    let file = File {
+        items: vec![
+            Item::Metadata(MetadataRoot::Nominal(NominalMetadata {
+                span: test_span(),
+                fqn: class_fqn.to_string(),
+                name: "Box".to_string(),
+                kind: ast::TypeKind::Class,
+                type_params: Vec::new(),
+                supertypes: Vec::new(),
+                interfaces: Vec::new(),
+                constructors: Vec::new(),
+                members: vec![DeclMemberMetadata::Field(FieldMetadata {
+                    span: test_span(),
+                    fqn: format!("{class_fqn}.value"),
+                    name: "value".to_string(),
+                    mutable: true,
+                    ty: builtins.int,
+                    origin: crate::hir::FieldOrigin::PrimaryCtorParam,
+                })],
+            })),
+            Item::Fun(FunDecl {
+                span: test_span(),
+                fqn: "fixtures.materialize.main".to_string(),
+                name: "main".to_string(),
+                ty: builtins.unit,
+                params: Vec::new(),
+                return_ty: builtins.unit,
+                body: Some(body),
+            }),
+        ],
+    };
+    let materialized = materialized_for_test(file, types);
+
+    let err = materialized.validate_materialized().unwrap_err();
+    assert!(matches!(
+        *err,
+        MirMaterializeError::MaterializedMirValidation {
+            error: crate::mir::MirValidationError::TypeContract {
+                surface: "member store receiver",
+                detail: "member store receiver must be a local place",
+                ..
+            },
+            ..
+        }
+    ));
+}
+
+#[test]
+fn materialized_mir_member_store_contract_rejects_value_type_receiver() {
+    let mut types = TypeStore::new();
+    let builtins = types.intern_builtins();
+    let class_fqn = "fixtures.materialize.Box";
+    let mut body = Body::new_empty();
+    let receiver = body.push_local(LocalDecl {
+        span: test_span(),
+        name: Some("receiver".to_string()),
+        ty: builtins.int,
+        source: LocalSourceKind::SourceLocal,
+    });
+    let value = body.push_local(LocalDecl {
+        span: test_span(),
+        name: Some("value".to_string()),
+        ty: builtins.int,
+        source: LocalSourceKind::CompilerTemporary,
+    });
+    let bb = body.push_block(BasicBlock {
+        is_cleanup: false,
+        stmts: vec![Statement {
+            span: test_span(),
+            kind: StatementKind::StoreMember {
+                receiver: Operand::Local(receiver),
+                member: MemberAccessMetadata {
+                    name: "value".to_string(),
+                    receiver_ty: builtins.int,
+                    resolved: Some(MemberTarget::Value {
+                        fqn: format!("{class_fqn}.value"),
+                    }),
+                    hidden_effects: EffectRow::pure(),
+                },
+                value: Operand::Local(value),
+                value_ty: builtins.int,
+                continuation_route: StoredContinuationRoutePublication::None,
+            },
+        }],
+        terminator: Terminator {
+            span: test_span(),
+            kind: TerminatorKind::Return { value: None },
+            unwind: UnwindAction::NoUnwind,
+        },
+    });
+    body.start = bb;
+    let file = File {
+        items: vec![
+            Item::Metadata(MetadataRoot::Nominal(NominalMetadata {
+                span: test_span(),
+                fqn: class_fqn.to_string(),
+                name: "Box".to_string(),
+                kind: ast::TypeKind::Class,
+                type_params: Vec::new(),
+                supertypes: Vec::new(),
+                interfaces: Vec::new(),
+                constructors: Vec::new(),
+                members: vec![DeclMemberMetadata::Field(FieldMetadata {
+                    span: test_span(),
+                    fqn: format!("{class_fqn}.value"),
+                    name: "value".to_string(),
+                    mutable: true,
+                    ty: builtins.int,
+                    origin: crate::hir::FieldOrigin::PrimaryCtorParam,
+                })],
+            })),
+            Item::Fun(FunDecl {
+                span: test_span(),
+                fqn: "fixtures.materialize.main".to_string(),
+                name: "main".to_string(),
+                ty: builtins.unit,
+                params: Vec::new(),
+                return_ty: builtins.unit,
+                body: Some(body),
+            }),
+        ],
+    };
+    let materialized = materialized_for_test(file, types);
+
+    let err = materialized.validate_materialized().unwrap_err();
+    assert!(matches!(
+        *err,
+        MirMaterializeError::MaterializedMirValidation {
+            error: crate::mir::MirValidationError::TypeContract {
+                surface: "member store receiver",
+                detail: "member store receiver must be a reference nominal type",
+                ..
+            },
+            ..
+        }
+    ));
+}
+
+#[test]
+fn materialized_mir_member_store_contract_rejects_field_value_type_drift() {
+    let mut types = TypeStore::new();
+    let builtins = types.intern_builtins();
+    let class_fqn = "fixtures.materialize.Box";
+    let class_ty = types.intern(TypeKind::Ref(RefTypeKind::Nominal(NominalType {
+        fqn: class_fqn.to_string(),
+        args: Vec::new(),
+        eff: None,
+    })));
+    let mut body = Body::new_empty();
+    let receiver = body.push_local(LocalDecl {
+        span: test_span(),
+        name: Some("receiver".to_string()),
+        ty: class_ty,
+        source: LocalSourceKind::SourceLocal,
+    });
+    let value = body.push_local(LocalDecl {
+        span: test_span(),
+        name: Some("value".to_string()),
+        ty: builtins.bool_,
+        source: LocalSourceKind::CompilerTemporary,
+    });
+    let bb = body.push_block(BasicBlock {
+        is_cleanup: false,
+        stmts: vec![Statement {
+            span: test_span(),
+            kind: StatementKind::StoreMember {
+                receiver: Operand::Local(receiver),
+                member: MemberAccessMetadata {
+                    name: "value".to_string(),
+                    receiver_ty: class_ty,
+                    resolved: Some(MemberTarget::Value {
+                        fqn: format!("{class_fqn}.value"),
+                    }),
+                    hidden_effects: EffectRow::pure(),
+                },
+                value: Operand::Local(value),
+                value_ty: builtins.bool_,
+                continuation_route: StoredContinuationRoutePublication::None,
+            },
+        }],
+        terminator: Terminator {
+            span: test_span(),
+            kind: TerminatorKind::Return { value: None },
+            unwind: UnwindAction::NoUnwind,
+        },
+    });
+    body.start = bb;
+    let file = File {
+        items: vec![
+            Item::Metadata(MetadataRoot::Nominal(NominalMetadata {
+                span: test_span(),
+                fqn: class_fqn.to_string(),
+                name: "Box".to_string(),
+                kind: ast::TypeKind::Class,
+                type_params: Vec::new(),
+                supertypes: Vec::new(),
+                interfaces: Vec::new(),
+                constructors: Vec::new(),
+                members: vec![DeclMemberMetadata::Field(FieldMetadata {
+                    span: test_span(),
+                    fqn: format!("{class_fqn}.value"),
+                    name: "value".to_string(),
+                    mutable: true,
+                    ty: builtins.int,
+                    origin: crate::hir::FieldOrigin::PrimaryCtorParam,
+                })],
+            })),
+            Item::Fun(FunDecl {
+                span: test_span(),
+                fqn: "fixtures.materialize.main".to_string(),
+                name: "main".to_string(),
+                ty: builtins.unit,
+                params: Vec::new(),
+                return_ty: builtins.unit,
+                body: Some(body),
+            }),
+        ],
+    };
+    let materialized = materialized_for_test(file, types);
+
+    let err = materialized.validate_materialized().unwrap_err();
+    assert!(matches!(
+        *err,
+        MirMaterializeError::MaterializedMirValidation {
+            error: crate::mir::MirValidationError::TypeContract {
+                surface: "member store value",
+                detail: "member store value type must match declared member type",
                 ..
             },
             ..
