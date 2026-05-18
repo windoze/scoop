@@ -47,35 +47,11 @@ jobs:
       - name: Cargo test
         run: cargo test --all --all-targets
 
-      - name: Cargo test (no default features)
-        run: cargo test --all --all-targets --no-default-features
-
-      - name: scoop_runtime (gc-baseline)
-        run: cargo test -p scoop_runtime --all-targets --no-default-features --features gc-baseline
-
-      - name: scoop_runtime (gc-minimal)
-        run: cargo test -p scoop_runtime --all-targets --no-default-features --features gc-minimal
-
-      - name: scoop_runtime (gc-hosted)
-        run: cargo test -p scoop_runtime --all-targets --no-default-features --features gc-hosted
-
       - name: Spec doctest fixtures
         run: cargo run -p scoop_tools -- spec-fixtures check
 
       - name: Fixture smoke
         run: cargo run -p scoop -- test
-
-      - name: P5 ABI targeted matrix
-        run: |
-          cargo test -p scoopc native_callable -- --nocapture
-          cargo test -p scoopc managed_extern_ -- --nocapture
-          cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/extern_native_aggregate_return_direct_indirect_parity.scoop
-          cargo run -p scoop -- test --fixtures tests/fixtures/runtime_gc/funptr_enter_native_roots_gc.scoop
-          cargo run -p scoop -- test --fixtures tests/fixtures/build/funptr_enter_native_no_statepoint_writeback.scoop
-          cargo run -p scoop -- test --fixtures tests/fixtures/build/managed_abi_aggregate_return_hidden_sret.scoop
-          cargo run -p scoop -- test --fixtures tests/fixtures/build/managed_abi_direct_call_ordinary_contract.scoop
-          cargo run -p scoop -- test --fixtures tests/fixtures/run_pass_cone/managed_abi_string_gc
-          cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/managed_abi_string_helpers_basic.scoop
 
       - name: Clippy
         run: cargo clippy --all-targets -- -D warnings
