@@ -32,4 +32,6 @@
 - 自定义结构校验通过：141 个 fixture 与 141 条 index row 同步，fixture 覆盖 1213 个 UMB id，B-01 sentinel 覆盖 71 个 UMB id，合计覆盖 1284/1284；每个 bucket 都有同 bucket direct fixture 或 sentinel 指针。
 - 下一步运行验证：`cargo run -p scoop -- test tests/fixtures/umb_fix/`、`cargo test -p scoopc audit::spec_coverage -- --nocapture`、`cargo run -p scoopc --bin umb-audit -- stats`、`cargo run -p scoopc --bin umb-audit -- diff`、`cargo clippy --all-targets -- -D warnings`，必要时补充 `cargo test --all --all-targets`。
 - 验证完成：`cargo run -p scoop -- test tests/fixtures/umb_fix/` 通过（141 fixtures skipped/pass）；`cargo test -p scoopc audit::spec_coverage -- --nocapture` 通过（当前无匹配测试）；`umb-audit stats` / `diff` 通过；`cargo clippy --all-targets -- -D warnings` 通过；`cargo test --all --all-targets` 通过（scoopc 874 passed，umb-audit 3 passed，其他目标通过）。
-- 下一步更新 `TODO.md`，将 U5-T03 标记 `[DONE]` 并写入完成记录，然后检查 diff 并提交。
+- 已更新 `TODO.md`，将 U5-T03 标记 `[DONE]` 并写入完成记录。
+- 已提交本轮变更：`4ecb94d8 [U5-T03] Add UMB bucket coverage fixtures`。
+- 提交后工作区已确认 clean。本轮任务到此停止，不进入 U6-T01。
