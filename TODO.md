@@ -4,7 +4,7 @@
 > 设计基线：[`UnsupportedMainBody_FIX.md`](./UnsupportedMainBody_FIX.md)  
 > 计划基线：[`PLAN.md`](./PLAN.md)  
 > 格式参考：[`docs/archive/plans/TODO-closure-fix.md`](./docs/archive/plans/TODO-closure-fix.md)  
-> 当前状态：U6-T01 已完成；下一项 U6-T02
+> 当前状态：U0-U6 全部完成；本轮 doc-and-test only 计划已闭合
 > 执行原则：U0 必须最先完成；U1 → U2 → U3 严格串行；U4 与 U5 可在 U2/U3 稳定后并行，但 U5 的 negative fixture 必须引用 U4 已写明的 upstream gate；U6 必须最后完成。每个任务完成后必须回写“完成记录”。
 
 ## 全局约束
@@ -737,7 +737,7 @@ U0-T01 (摸底 + baseline 冻结)
   - 验证结果：`cargo test -p scoopc audit:: -- --nocapture` 通过（17 matching tests）；`cargo test -p scoopc pipeline_user_visible_failure_policy -- --nocapture` 通过（7 passed）；`cargo run -p scoop -- test tests/fixtures/umb_fix/` 通过（141 fixtures）；`cargo test --all --all-targets` 通过（scoopc 883 passed，umb-audit 6 passed，其他目标通过）；`cargo clippy --all-targets -- -D warnings` 通过。
   - 闭合目标：满足 U6-T01 对 U1-U5 数据、bucket 文档、fixture index、spec matrix、禁词和 helper sentinel coverage 的机器锁定要求；后续 U6-T02 可基于这些 baseline tests 执行退场标注与计划自检。
 
-### [TODO] U6-T02：退场标注 + 计划自检
+### [DONE] U6-T02：退场标注 + 计划自检
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §6 U6-T02、§7
@@ -764,4 +764,10 @@ U0-T01 (摸底 + baseline 冻结)
   - `UnsupportedMainBody_FIX.md` §12 标 `[DONE]`。
   - `UnsupportedMainBody_DONE.md` 占位落地。
 - 依赖：U6-T01
-- 完成记录：待填写
+- 完成记录：
+  - 改动范围：更新 `UnsupportedMainBody_FIX.md` §12，标注 `[DONE]` 并追加 `// PLAN-MD: see PLAN.md (this repo root) for execution tracking`；新增 `UnsupportedMainBody_DONE.md` 作为 P7/P8 后续退场追踪占位；更新本 TODO 顶部状态与 U6-T02 完成记录；同步更新 `memory/claude_plan.md` 的本次执行计划与进展。未修改 production LLVM codegen 或 `PLAN.md`。
+  - 核心决策：U6-T02 只执行退场标注与计划自检，不实现 P7 production 修复；`UnsupportedMainBody_DONE.md` 仅记录当前 1,284 条 inventory baseline，并引用 `UnsupportedMainBody_FIX.md` §9 与 `PLAN.md` §7 承接 P7/P8 退场标准。
+  - 资产确认：确认 `audit/UMB_inventory.csv`、`audit/UMB_inventory_schema.md`、`audit/spec_coverage_matrix.md`、36 份 `audit/UMB_categories/B-XX.md`、36 份 `audit/strategies/B-XX.md`、`tests/fixtures/umb_fix/_index.csv`、36 个 `tests/fixtures/umb_fix/B-XX-*/_README.md`、141 个 `umb_fix` fixture 和 `crates/scoopc/src/audit/**` 均已存在；`crates/scoopc/src/lib.rs` 仍以 `#[cfg(test)] mod audit;` 接入 audit module。
+  - 退场判据：`UnsupportedMainBody_FIX.md` §12 已标 `[DONE]`；`UnsupportedMainBody_DONE.md` 已落地；`PLAN.md` §7 的 10 条本计划退场判据均已由资产检查与验证命令闭合。
+  - 验证结果：`cargo test -p scoopc audit:: -- --nocapture` 通过（17 passed）；`cargo run -p scoop -- test tests/fixtures/umb_fix/` 通过（141 fixtures，runner 明确处理 `IGNORE-UNTIL-FIX` skip/pass）；`cargo test --all --all-targets` 通过（scoopc 883 passed，umb-audit 6 passed，其他目标通过）；`cargo run -p scoop -- test` 通过（fixtures: ok，1,546 checks，30 分钟超时配置）；`cargo clippy --all-targets -- -D warnings` 通过。
+  - 闭合目标：满足 U6-T02 的 P1-P6 全量交付物存在性确认、baseline audit 全绿、`umb_fix` fixture subset 通过、`UnsupportedMainBody_FIX.md` 退场标注、P7/P8 handoff 占位文件和本 TODO 最终状态回写要求；本轮 doc-and-test only 计划到此停止。

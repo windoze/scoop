@@ -635,7 +635,7 @@ P8 退场动作（一次性）：
 
 ---
 
-## 12. 本计划自身的退场条件
+## 12. [DONE] 本计划自身的退场条件
 
 当且仅当下列条件全部满足时，本计划文档可标注为 `[DONE]`：
 
@@ -647,3 +647,5 @@ P8 退场动作（一次性）：
   `IGNORE-UNTIL-FIX` 状态）；
 - 本文件第 §9 节"退场标准"被另起一份 `UnsupportedMainBody_DONE.md`
   接手追踪（即本文件只负责到 P6 完成；P7/P8 由后续文件负责）。
+
+// PLAN-MD: see PLAN.md (this repo root) for execution tracking
