@@ -960,7 +960,7 @@ C0-T01 (baseline + prerequisite inventory)
 
 ## Final Review
 
-### [TODO] C6-T01：全量回归与最终审计
+### [DONE] C6-T01：全量回归与最终审计
 
 - 参考：
   - 本文件全部任务
@@ -986,6 +986,19 @@ C0-T01 (baseline + prerequisite inventory)
 - 依赖：C5-T01
 - 完成记录：
   - 改动范围：
+    - 执行最终全量回归与审计；未修改语义代码、runtime、sysroot、fixtures、`PLAN.md` 或 `CLOSURE_FIX.md`。
+    - 更新本任务完成记录与 `memory/claude_plan.md` 进度记录。
   - 核心决策：
+    - 当前实现线已闭合；未发现需要新增前置任务的 CaptureBox 残留、sealed-interface audit 缺口、atomic-ref 覆盖缺口或 failing fixture。
+    - CaptureBox active source / fixture grep 清零；历史文档和计划记录不在本任务 active-path 审计范围内。
+    - 阶段级计划无变化，因此不更新 `PLAN.md`。
   - 验证结果：
-  - 与 `PLAN.md` / `CLOSURE_FIX.md` 对应闭合：
+    - `cargo fmt`：通过。
+    - `cargo build`：通过。
+    - `cargo test --all --all-targets`：通过；`scoopc` 测试段显示 `871 passed`。
+    - `cargo run -p scoop -- test`：通过，`fixtures: ok (1405)`。
+    - `cargo run -p scoop_tools -- spec-fixtures check`：通过，`spec fixtures: ok (1)`。
+    - `rg -n "CaptureBox|capture_box|mir_capture_box|__CaptureBox|rt_alloc_pass_mir_capture_box" crates/scoopc/src sysroot tests/fixtures`：无输出。
+    - `rg -n "sealed_interface_" crates/scoopc/src tests/fixtures`：通过；实现诊断、audit 登记与 typecheck fixture marker 均有命中。
+    - `rg -n "__atomicRef|atomic_ref|llvm_atomic_ref|Atomic<|AtomicValue" crates/scoopc/src sysroot tests/fixtures`：通过；sysroot API/unsafe intrinsic、direct HIR LLVM lowering、effect-lowered LLVM lowering、Rust LLVM test 与 build/run/typecheck fixtures 均有命中。
+  - 与 `PLAN.md` / `CLOSURE_FIX.md` 对应闭合：闭合本轮最终审计要求；closure capture 语义、sealed interface、RefCell/Box/Atomic primitives、fixtures、audit 与 spec 均已通过最终验证，阶段级计划未变化。
