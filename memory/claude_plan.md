@@ -28,4 +28,5 @@
 - Generated `audit/UMB_categories/_overview.md` and `B-01.md` through `B-36.md` from `audit/UMB_inventory.csv`.
 - Validation completed: category structure check passed, `umb-audit stats` passed, `cargo test -p scoopc audit::umb_inventory -- --nocapture` passed, and `cargo clippy --all-targets -- -D warnings` passed.
 - `TODO.md` updated to mark `U2-T01` as `[DONE]` with completion record. `PLAN.md` was not changed because phase ordering and dependencies were unchanged.
-- Next step: inspect git status/diff, then commit U2-T01 changes only.
+- Committed U2-T01 implementation as `[U2-T01] Add UMB bucket category skeletons` (`a7f24c94`).
+- Invocation complete: stop after this task; do not start U2-T02.
