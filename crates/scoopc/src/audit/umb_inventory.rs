@@ -705,10 +705,10 @@ fn spec_anchor_for(bucket: &str) -> &'static str {
             "docs/spec/language_spec-part2.md#1-类型总览;docs/spec/language_spec-part3.md#17-类型推断"
         }
         "B-03" => {
-            "docs/spec/language_spec-part3.md#4-调用参数与重载;docs/spec/language_spec-part2.md#10-function-type"
+            "docs/spec/language_spec-part3.md#4-调用参数与重载;docs/spec/language_spec-part2.md#11-function-type"
         }
         "B-04" => {
-            "docs/spec/language_spec-part3.md#5-函数声明;docs/spec/language_spec-part2.md#10-function-type"
+            "docs/spec/language_spec-part3.md#5-函数声明;docs/spec/language_spec-part2.md#11-function-type"
         }
         "B-05" => "docs/spec/language_spec-part3.md#9-控制流",
         "B-06" => {

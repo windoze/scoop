@@ -4,7 +4,7 @@
 > 设计基线：[`UnsupportedMainBody_FIX.md`](./UnsupportedMainBody_FIX.md)  
 > 计划基线：[`PLAN.md`](./PLAN.md)  
 > 格式参考：[`docs/archive/plans/TODO-closure-fix.md`](./docs/archive/plans/TODO-closure-fix.md)  
-> 当前状态：U2-T02 已完成；下一项 U3-T01
+> 当前状态：U3-T01 已完成；下一项 U4-T01
 > 执行原则：U0 必须最先完成；U1 → U2 → U3 严格串行；U4 与 U5 可在 U2/U3 稳定后并行，但 U5 的 negative fixture 必须引用 U4 已写明的 upstream gate；U6 必须最后完成。每个任务完成后必须回写“完成记录”。
 
 ## 全局约束
@@ -488,7 +488,7 @@ U0-T01 (摸底 + baseline 冻结)
 
 ## U3：P3 — Spec 覆盖矩阵
 
-### [TODO] U3-T01：编写 `audit/spec_coverage_matrix.md`
+### [DONE] U3-T01：编写 `audit/spec_coverage_matrix.md`
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §6 U3-T01
@@ -518,7 +518,13 @@ U0-T01 (摸底 + baseline 冻结)
   - spec part1-6 每个 section 有现有/新增 fixture 或明确 `INTENTIONALLY-EMPTY`。
   - 无 inventory entry 找不到 spec 锚（helper invariant 除外）。
 - 依赖：U2-T02
-- 完成记录：待填写
+- 完成记录：
+  - 改动范围：新增 `audit/spec_coverage_matrix.md`；修正 `crates/scoopc/src/audit/umb_inventory.rs` 中 B-03/B-04 的 Function Type spec anchor，并重新生成 `audit/UMB_inventory.csv`；同步更新 `audit/UMB_categories/B-03.md` 与 `audit/UMB_categories/B-04.md` 的 Spec Linkage 锚点。
+  - 核心决策：矩阵按 `docs/spec/language_spec-part1.md` 到 `part6.md` 的所有 `##` / `###` section 逐行编排，共 165 行；现有 fixture 列使用 `tests/fixtures/**` 中的代表性路径，新增 fixture 列统一写 U5 计划路径并标 `(planned)`，以便 U6 baseline test #8 后续机器扫描。
+  - 对账结果：矩阵覆盖 49 个非 helper inventory spec anchor、1,213 个非 helper inventory id；多锚 entry 按 anchor 重复列入，合计 2,098 个 anchor reference；B-01 helper invariant 71 条明确排除在 spec 矩阵外。
+  - 特殊处理：发现并修正 `docs/spec/language_spec-part2.md#10-function-type` 到当前 spec 的 `docs/spec/language_spec-part2.md#11-function-type` 锚点漂移；part4 async / structured concurrency 与 generator / yield 两行均按 spec 原句标 `INTENTIONALLY-EMPTY`，关联 B-36 并写明 `BlockedOnSpec` 与 U5 negative fixture 计划。
+  - 验证结果：自定义矩阵结构校验通过（165 rows，1,213 non-helper ids，2,098 anchor refs）；`cargo run -p scoopc --bin umb-audit -- stats` 通过（1,284 entries，missing spec/gate 均为 0）；`cargo run -p scoopc --bin umb-audit -- diff` 通过（CSV in sync）；`cargo test -p scoopc audit::umb_inventory -- --nocapture` 通过（3 passed）；`cargo clippy --all-targets -- -D warnings` 通过；`cargo test --all --all-targets` 通过（874 + 3 passed）。
+  - 闭合目标：满足 U3-T01 的 spec part1-6 覆盖矩阵、现有/新增 fixture 链接、B-36 intentionally-empty 标注、bucket 链接闭环、inventory anchor 覆盖和 U6 fixture 引用格式准备要求；后续 U4-T01 可基于矩阵中的 bucket 与 planned fixture 路径编写策略草案。
 
 ## U4：P4 — 修复策略草案
 

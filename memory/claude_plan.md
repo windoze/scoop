@@ -1,23 +1,36 @@
-执行计划
+# 当前执行计划
 
-1. 读取 `TODO.md`，按文件顺序定位第一个标题未带 `[DONE]` 的任务；不进行开放式历史问题排查。
-2. 读取该任务相关上下文，并按需查看 `PLAN.md`、最近提交和相关源码，确认任务范围、依赖和验证要求。
-3. 如果发现当前任务被具体前置问题阻塞，只在 `TODO.md` 中添加最小必要前置任务或依赖记录，提交后停止。
-4. 如果任务可直接执行，实施最小正确改动，避免规避规格或夹带无关重构。
-5. 运行当前任务要求的验证命令，并补充必要的针对性测试；若失败，修复同一根因影响的相关问题。
-6. 将当前任务标题改为 `[DONE] ...`，更新完成记录；仅当阶段级计划变化时才更新 `PLAN.md`。
-7. 提交本次任务涉及的全部变更，提交信息使用任务编号开头。
-8. 停止，不继续处理下一个任务。
+## 约束
 
-进度记录
+- `TODO.md` 是任务顺序和完成状态的权威来源。
+- 只处理第一个标题未带 `[DONE]` 的任务，完成后停止。
+- 若遇到阻塞当前任务的实现缺口或规格不匹配，先在 `TODO.md` 中插入最小必要前置任务并提交，不绕过问题。
+- 完成任务后必须更新 `TODO.md` 的任务标题和完成记录，并按需运行相关验证。
+- 仅当阶段级计划变化时更新 `PLAN.md`。
+- 最终需要提交本次变更。
 
-- 已写入初始执行计划；下一步读取 `TODO.md` 定位第一个未完成任务。
-- 已读取 `TODO.md`，第一个未完成任务为 `U2-T02：36 份 bucket md 主体`。
-- 本次执行范围固定为补齐 `audit/UMB_categories/B-01.md` 到 `B-36.md` 的主体内容、验证数字对账、更新 `TODO.md` 完成记录并提交；不处理 U3 及后续任务。
-- 已检查最近提交 `3bfd5b5a [U2-T01] Record completion progress`，没有直接声明未完成且阻塞 U2-T02 的 issue。
-- 已确认 inventory stats：1,284 entries、36 个 bucket 全部非空、missing spec/upstream gate 均为 0；当前 bucket 文档仍是 U2-T01 skeleton。
-- 正在批量生成 U2-T02 文档主体：每份 bucket md 将包含完整 inventory symptom 表、3 个源码片段、root-cause hypothesis、spec linkage、post-fix class 分布、fixture pointer 与 open questions。
-- 已生成 36 份 bucket 文档主体，并移除 skeleton 占位文字；下一步做结构和数字对账。
-- 文档结构对账通过：36 份文档、1,284 条 inventory entry、每份 3 个 source excerpt、cross-class entry split 均匹配。
-- 验证通过：`cargo run -p scoopc --bin umb-audit -- stats`、`cargo run -p scoopc --bin umb-audit -- diff`、`cargo test -p scoopc audit::umb_inventory -- --nocapture`、`cargo clippy --all-targets -- -D warnings`。
-- 已更新 `TODO.md`：`U2-T02` 标记为 `[DONE]`，完成记录写入验证结果和对账摘要，顶部状态推进到 `U3-T01`。
+## 初始步骤
+
+1. 读取 `TODO.md`，定位第一个未完成任务。
+2. 检查最近一次提交信息，判断是否有直接关联当前任务的未完成事项。
+3. 阅读当前任务相关源码、测试和文档，确认验收要求。
+4. 实现当前任务，优先采用最小且规格正确的改动。
+5. 运行当前任务要求的验证，以及必要的相关测试。
+6. 根据验证结果修复问题，或在发现真实阻塞时更新 `TODO.md` 并停止。
+7. 完成后更新 `TODO.md`：给任务标题加 `[DONE]`，补充完成记录。
+8. 运行最终必要检查，提交所有本任务相关变更。
+
+## 进度记录
+
+- 已创建本执行计划。
+- 已读取 `TODO.md`，第一个未完成任务为 `U3-T01：编写 audit/spec_coverage_matrix.md`。
+- 下一步检查最近提交是否含有与 `U3-T01` 直接相关的未完成事项，然后读取 `PLAN.md`、`UnsupportedMainBody_FIX.md`、spec 文档、inventory 与 bucket 文档。
+- 最近提交为 `[U2-T02] Complete UMB bucket analyses`，未发现需要先处理的直接未完成事项。
+- 已读取 U3 相关计划与设计段落；发现 inventory 中 `docs/spec/language_spec-part2.md#10-function-type` 已随 spec 编号漂移，当前正确锚点为 `#11-function-type`。该问题会阻塞 U3 的“无 inventory entry 找不到 spec 锚”验收，因此先作为本任务内数据修正处理。
+- 已修正 audit inventory 生成规则并重新生成 `audit/UMB_inventory.csv`；同时更新 `audit/UMB_categories/B-03.md` 与 `B-04.md` 的 Function Type 锚点。
+- 已生成 `audit/spec_coverage_matrix.md`：覆盖 spec part1-6 的 165 个 `##`/`###` section、49 个 inventory spec anchor、1,213 个非 helper inventory id；part4 async 与 generator/yield 行已标 `INTENTIONALLY-EMPTY` 并关联 B-36。
+- 下一步运行矩阵结构校验、`umb-audit stats/diff`、`cargo test -p scoopc audit::umb_inventory -- --nocapture`，再更新 `TODO.md` 完成记录。
+- 矩阵结构校验、`umb-audit stats/diff`、`cargo test -p scoopc audit::umb_inventory -- --nocapture`、`cargo clippy --all-targets -- -D warnings` 均通过。
+- `cargo test --all --all-targets` 首次 120 秒超时但测试仍在推进；已用 600 秒超时重跑并通过（scoopc lib 874 passed，umb-audit bin 3 passed）。
+- 已更新 `TODO.md`：`U3-T01` 标记为 `[DONE]`，顶部状态改为下一项 `U4-T01`，完成记录已写入。
+- 下一步检查 git diff/status，并提交本任务所有变更后停止。
