@@ -1,12 +1,11 @@
 // EXPECT: fail
-// IGNORE-UNTIL-FIX:B-05
-// EXPECT-ERROR-CODE: scoop::umb_fix::pending_gate
-// EXPECT-ERROR-AT: 1:1
-// EXPECT-ERROR: pending U5 fixture gate
+// EXPECT-ERROR-CODE: scoop::typecheck::if_branch_type_mismatch
+// EXPECT-ERROR-AT: 16:35
+// EXPECT-ERROR: 约束来源
 // SPEC: docs/spec/language_spec-part3.md#91-if
 // COVERS: NONE
 // BUCKETS: B-05
-// REASON: U5-T02 records the spec surface before the matching implementation gate is enabled.
+// REASON: P7-B2.2 keeps branch type mismatches rejected before MIR/LLVM lowering.
 // SOURCE-FIXTURE: tests/fixtures/infer/if_branch_type_mismatch_is_reported_on_branch.scoop
 
 package fixtures.infer

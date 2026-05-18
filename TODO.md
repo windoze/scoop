@@ -4,7 +4,7 @@
 > 计划基线：[`PLAN.md`](./PLAN.md)
 > 上一阶段任务档案：[`TODO-1.md`](./TODO-1.md)
 > 设计与 baseline：[`UnsupportedMainBody_FIX.md`](./UnsupportedMainBody_FIX.md)、[`UnsupportedMainBody_DONE.md`](./UnsupportedMainBody_DONE.md)
-> 当前状态：P7-0-T01、P7-0-T02、P7-A1、P7-A2、P7-A3、P7-A4、P7-B1、P7-B2.1 已完成；active=1,053，retired=231。
+> 当前状态：P7-0-T01、P7-0-T02、P7-A1、P7-A2、P7-A3、P7-A4、P7-B1、P7-B2.1、P7-B2.2 已完成；active=1,028，retired=256。
 
 ## 全局约束
 
@@ -309,7 +309,7 @@ P7-0-T01 stable ID + retired ledger
   - 验证结果：`cargo run -p scoopc --bin umb-audit -- list --bucket B-02` 通过（entries 0）；`cargo run -p scoopc --bin umb-audit -- list --bucket B-04` 通过（entries 0）；`cargo run -p scoopc --bin umb-audit -- stats` 通过（active=1,053、retired=231、initial=1,284）；`cargo run -p scoopc --bin umb-audit -- diff` 通过（in sync，1,053 entries）；`cargo test -p scoopc mir:: -- --nocapture` 通过（106 passed）；`cargo test -p scoopc audit:: -- --nocapture` 通过（23 passed）；`cargo test -p scoopc pipeline_user_visible_failure_policy -- --nocapture` 通过（7 passed）；`cargo run -p scoop -- test tests/fixtures/umb_fix/B-02-mir-local-type/` 通过（7 passed）；`cargo run -p scoop -- test tests/fixtures/umb_fix/B-04-function-signature/` 通过（3 passed）；`cargo fmt` 通过；`cargo clippy --all-targets -- -D warnings` 通过。
   - 闭合目标：满足 `PLAN.md:135-159` 与本任务完成条件；B-02/B-04 active count 为 0，local/param/return type contract 不再由 LLVM codegen 兜底。
 
-### [TODO] P7-B2.2：B-05 MIR CFG contract
+### [DONE] P7-B2.2：B-05 MIR CFG contract
 
 - 参考：`PLAN.md:135-159`、`audit/strategies/B-05.md`。
 - 范围：B-05，25 entries。
@@ -318,7 +318,15 @@ P7-0-T01 stable ID + retired ledger
 - 验证：`cargo test -p scoopc audit:: -- --nocapture`、`cargo run -p scoop -- test tests/fixtures/umb_fix/B-05-mir-cfg/`。
 - 完成条件：B-05 active count 为 0。
 - 依赖：P7-B1 推荐完成后。
-- 完成记录：待填写。
+- 完成记录：
+  - 改动范围：更新 `crates/scoopc/src/mir/mod.rs`、`crates/scoopc/src/mir/materialize/validation.rs`、`crates/scoopc/src/mir/materialize/tests.rs`、`crates/scoopc/src/pipeline/mir_stage.rs`；迁移 B-05 fallback 所在的 `crates/scoopc/src/llvm/codegen/control_flow.rs`、`crates/scoopc/src/llvm/codegen/mir_body/dispatch.rs`、`crates/scoopc/src/llvm/codegen/mir_body/terminator.rs`；同步 `audit/UMB_inventory.csv`、`audit/UMB_retired.csv`、`audit/UMB_categories/{B-05.md,B-06.md,B-10.md,B-12.md,B-20.md,B-22.md,B-23.md,B-35.md,_overview.md}`、`audit/strategies/B-05.md`、`audit/spec_coverage_matrix.md`、B-05/B-16 fixtures、`tests/fixtures/umb_fix/_index.csv`、`crates/scoopc/src/pipeline_user_visible_failure_policy.rs` 与 `memory/claude_plan.md`。
+  - Retired IDs：`UMB-0116`、`UMB-0117`、`UMB-0120`、`UMB-0190`、`UMB-0193`、`UMB-1110`、`UMB-1114`、`UMB-1115`、`UMB-1117`、`UMB-1121`、`UMB-1122`、`UMB-1125`、`UMB-1193`、`UMB-1195`、`UMB-1196`、`UMB-1198`、`UMB-1199`、`UMB-1200`、`UMB-1201`、`UMB-1202`、`UMB-1204`、`UMB-1205`、`UMB-1206`、`UMB-1208`、`UMB-1210`；数量 25；bucket `B-05`；class `InternalBugSentinel`。
+  - 核心决策：MIR production/materialized verifier 统一校验 CFG/direct-style 形状、`CondBr` Bool 条件、param/local bounds、residual interpolated-string rvalue 和 Todo rvalue；LLVM lowering 删除 B-05 `UnsupportedMainBody` fallback，改为 verifier 后的 internal invariant。
+  - Inventory/ledger：active 1,053 -> 1,028；retired 231 -> 256；B-05 active 25 -> 0；`InternalBugSentinel` active 850 -> 825。
+  - Stale count：tracked stale total 536 -> 516；`mir_body/dispatch.rs` 14 -> 7；`mir_body/terminator.rs` 16 -> 3；`control_flow.rs` active inventory rows 12 -> 7（不在 tracked stale list）。
+  - Fixture 状态：B-05 fixture directory 从 `IGNORE-UNTIL-FIX:B-05` 激活；retired IDs 改由 retired ledger 覆盖，active fixture `COVERS` 不再引用 B-05 retired IDs；B-16 cross-coverage 中的 B-05 retired IDs 已清理。
+  - 验证结果：`cargo run -p scoopc --bin umb-audit -- list --bucket B-05` 通过（entries 0）；`cargo run -p scoopc --bin umb-audit -- diff` 通过（in sync，1,028 entries）；`cargo run -p scoopc --bin umb-audit -- stats` 通过（active=1,028、retired=256、initial=1,284）；`cargo test -p scoopc mir:: -- --nocapture` 通过（110 passed）；`cargo test -p scoopc audit:: -- --nocapture` 通过（23 passed）；`cargo test -p scoopc pipeline_user_visible_failure_policy -- --nocapture` 通过（7 passed）；`cargo run -p scoop -- test tests/fixtures/umb_fix/B-05-mir-cfg/` 通过（4 passed）；`cargo fmt` 通过；`cargo clippy --all-targets -- -D warnings` 通过。
+  - 闭合目标：满足 `PLAN.md:135-159` 与本任务完成条件；B-05 active count 为 0，CFG/branch/terminator contract 不再由 LLVM codegen 兜底。
 
 ### [TODO] P7-B2.3：B-06/B-07/B-21 aggregate、pattern、field schema contract
 
@@ -539,7 +547,7 @@ P7-0-T01 stable ID + retired ledger
 
 | 阶段 | Active 目标 | Retired 目标 | 备注 |
 |---|---:|---:|---|
-| 当前 | 1,053 | 231 | P7-B2.1 完成，B-02/B-04 local/signature contract 清零 |
+| 当前 | 1,028 | 256 | P7-B2.2 完成，B-05 MIR CFG contract 清零 |
 | P7-A 完成 | 1,159 | 125 | `FrontendReject` 清零 |
 | P7-B 完成 | 203 | 1,081 | `InternalBugSentinel` 清零 |
 | P7-C 完成 | 0 | 1,284 | `RealImpl` 清零 |

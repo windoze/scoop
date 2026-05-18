@@ -207,10 +207,14 @@ impl File {
     ///
     /// Dump/debug paths may still inspect incomplete MIR, but the production stage must
     /// not successfully hand off executable placeholders or ambiguous return/site contracts.
-    pub fn validate_production(&self, unit_ty: TypeId) -> Result<(), MirValidationError> {
+    pub fn validate_production(
+        &self,
+        unit_ty: TypeId,
+        bool_ty: TypeId,
+    ) -> Result<(), MirValidationError> {
         for item in &self.items {
             match item {
-                Item::Fun(fun) => self.validate_production_fun(fun, unit_ty)?,
+                Item::Fun(fun) => self.validate_production_fun(fun, unit_ty, bool_ty)?,
                 Item::InitializerRoot(_) | Item::ExternGlobal(_) | Item::Metadata(_) => {}
                 Item::Todo { span, kind } => {
                     return Err(MirValidationError::ProductionTodo {
@@ -231,6 +235,7 @@ impl File {
         &self,
         fun: &FunDecl,
         unit_ty: TypeId,
+        bool_ty: TypeId,
     ) -> Result<(), MirValidationError> {
         let Some(body) = &fun.body else {
             return Ok(());
@@ -269,7 +274,7 @@ impl File {
                 block.terminator.span,
                 &block.terminator.unwind,
             )?;
-            self.validate_production_terminator(fun, body, block_id, block, unit_ty)?;
+            self.validate_production_terminator(fun, body, block_id, block, unit_ty, bool_ty)?;
         }
 
         Ok(())
@@ -445,6 +450,46 @@ impl File {
                 .map(Some),
             Operand::Const(_) => Ok(None),
         }
+    }
+
+    fn validate_production_bool_operand(
+        &self,
+        site: ProductionSiteContext<'_>,
+        body: &Body,
+        surface: &'static str,
+        operand: &Operand,
+        bool_ty: TypeId,
+    ) -> Result<(), MirValidationError> {
+        let operand_ty = match operand {
+            Operand::Local(local) => self.validate_production_local(
+                site.fqn,
+                Some(site.block),
+                site.span,
+                body,
+                *local,
+                surface,
+            )?,
+            Operand::Const(ConstValue::Bool(_)) => return Ok(()),
+            Operand::Const(_) => {
+                return Err(MirValidationError::TypeContract {
+                    fqn: site.fqn.to_string(),
+                    block: Some(site.block),
+                    span: site.span,
+                    surface,
+                    detail: "branch condition operand must have Bool type",
+                });
+            }
+        };
+        if operand_ty != bool_ty {
+            return Err(MirValidationError::TypeContract {
+                fqn: site.fqn.to_string(),
+                block: Some(site.block),
+                span: site.span,
+                surface,
+                detail: "branch condition operand must have Bool type",
+            });
+        }
+        Ok(())
     }
 
     fn validate_production_rvalue(
@@ -726,21 +771,13 @@ impl File {
                 }
                 Ok(())
             }
-            Rvalue::InterpolatedString { parts, .. } => {
-                for part in parts {
-                    if let InterpolatedStringPart::Expr { span, value, .. } = part {
-                        self.validate_production_operand(
-                            fqn,
-                            block,
-                            *span,
-                            body,
-                            "interpolated string value",
-                            value,
-                        )?;
-                    }
-                }
-                Ok(())
-            }
+            Rvalue::InterpolatedString { .. } => Err(MirValidationError::TypeContract {
+                fqn: fqn.to_string(),
+                block: Some(block),
+                span,
+                surface: "interpolated string",
+                detail: "interpolated strings must be desugared before MIR codegen",
+            }),
             Rvalue::TupleGet { tuple, .. } => self
                 .validate_production_operand(fqn, block, span, body, "tuple get source", tuple)
                 .map(|_| ()),
@@ -1179,6 +1216,7 @@ impl File {
         block_id: BasicBlockId,
         block: &BasicBlock,
         unit_ty: TypeId,
+        bool_ty: TypeId,
     ) -> Result<(), MirValidationError> {
         match &block.terminator.kind {
             TerminatorKind::Return { value: None } if fun.return_ty != unit_ty => {
@@ -1244,16 +1282,17 @@ impl File {
             | TerminatorKind::ResumeUnwind
             | TerminatorKind::Goto { .. }
             | TerminatorKind::Unreachable => Ok(()),
-            TerminatorKind::CondBr { cond, .. } => self
-                .validate_production_operand(
-                    &fun.fqn,
-                    block_id,
-                    block.terminator.span,
-                    body,
-                    "branch condition",
-                    cond,
-                )
-                .map(|_| ()),
+            TerminatorKind::CondBr { cond, .. } => self.validate_production_bool_operand(
+                ProductionSiteContext {
+                    fqn: &fun.fqn,
+                    block: block_id,
+                    span: block.terminator.span,
+                },
+                body,
+                "branch condition",
+                cond,
+                bool_ty,
+            ),
         }
     }
 
@@ -3213,7 +3252,7 @@ mod tests {
         };
 
         assert_eq!(
-            file.validate_production(builtins.unit),
+            file.validate_production(builtins.unit, builtins.bool_),
             Err(MirValidationError::ProductionTodo {
                 fqn: "<file>".to_string(),
                 block: None,
@@ -3242,7 +3281,7 @@ mod tests {
         );
 
         assert_eq!(
-            file.validate_production(builtins.unit),
+            file.validate_production(builtins.unit, builtins.bool_),
             Err(MirValidationError::ProductionTodo {
                 fqn: TEST_FQN.to_string(),
                 block: Some(BasicBlockId(0)),
@@ -3263,7 +3302,7 @@ mod tests {
         );
 
         assert_eq!(
-            file.validate_production(builtins.unit),
+            file.validate_production(builtins.unit, builtins.bool_),
             Err(MirValidationError::ProductionTodo {
                 fqn: TEST_FQN.to_string(),
                 block: Some(BasicBlockId(0)),
@@ -3295,7 +3334,7 @@ mod tests {
         );
 
         assert_eq!(
-            file.validate_production(builtins.unit),
+            file.validate_production(builtins.unit, builtins.bool_),
             Err(MirValidationError::TypeContract {
                 fqn: TEST_FQN.to_string(),
                 block: Some(BasicBlockId(0)),
@@ -3339,7 +3378,7 @@ mod tests {
         };
 
         assert_eq!(
-            file.validate_production(builtins.unit),
+            file.validate_production(builtins.unit, builtins.bool_),
             Err(MirValidationError::TypeContract {
                 fqn: TEST_FQN.to_string(),
                 block: None,
@@ -3370,13 +3409,79 @@ mod tests {
         let file = production_file(builtins.unit, body);
 
         assert_eq!(
-            file.validate_production(builtins.unit),
+            file.validate_production(builtins.unit, builtins.bool_),
             Err(MirValidationError::TypeContract {
                 fqn: TEST_FQN.to_string(),
                 block: Some(BasicBlockId(0)),
                 span: test_span(),
                 surface: "return value",
                 detail: "local reference is outside the body local table",
+            })
+        );
+    }
+
+    #[test]
+    fn mir_cfg_contract_rejects_non_bool_branch_condition() {
+        let mut types = TypeStore::new();
+        let builtins = types.intern_builtins();
+        let mut body = Body::new_empty();
+        let cond = body.push_local(LocalDecl {
+            span: test_span(),
+            name: Some("cond".to_string()),
+            ty: builtins.int,
+            source: LocalSourceKind::SourceLocal,
+        });
+        let bb = body.push_block(BasicBlock {
+            is_cleanup: false,
+            stmts: Vec::new(),
+            terminator: Terminator {
+                span: test_span(),
+                kind: TerminatorKind::CondBr {
+                    cond: Operand::Local(cond),
+                    then_target: BasicBlockId(0),
+                    else_target: BasicBlockId(0),
+                },
+                unwind: UnwindAction::NoUnwind,
+            },
+        });
+        body.start = bb;
+        let file = production_file(builtins.unit, body);
+
+        assert_eq!(
+            file.validate_production(builtins.unit, builtins.bool_),
+            Err(MirValidationError::TypeContract {
+                fqn: TEST_FQN.to_string(),
+                block: Some(BasicBlockId(0)),
+                span: test_span(),
+                surface: "branch condition",
+                detail: "branch condition operand must have Bool type",
+            })
+        );
+    }
+
+    #[test]
+    fn mir_cfg_contract_rejects_residual_interpolated_string_rvalue() {
+        let mut types = TypeStore::new();
+        let builtins = types.intern_builtins();
+        let file = production_file(
+            builtins.unit,
+            body_with_assign(
+                Rvalue::InterpolatedString {
+                    raw: false,
+                    parts: Vec::new(),
+                },
+                builtins.string,
+            ),
+        );
+
+        assert_eq!(
+            file.validate_production(builtins.unit, builtins.bool_),
+            Err(MirValidationError::TypeContract {
+                fqn: TEST_FQN.to_string(),
+                block: Some(BasicBlockId(0)),
+                span: test_span(),
+                surface: "interpolated string",
+                detail: "interpolated strings must be desugared before MIR codegen",
             })
         );
     }
@@ -3395,7 +3500,7 @@ mod tests {
         );
 
         assert_eq!(
-            file.validate_production(builtins.unit),
+            file.validate_production(builtins.unit, builtins.bool_),
             Err(MirValidationError::ProductionTodo {
                 fqn: TEST_FQN.to_string(),
                 block: Some(BasicBlockId(0)),
@@ -3439,7 +3544,7 @@ mod tests {
         );
 
         assert_eq!(
-            file.validate_production(builtins.unit),
+            file.validate_production(builtins.unit, builtins.bool_),
             Err(MirValidationError::ProductionTodo {
                 fqn: TEST_FQN.to_string(),
                 block: Some(BasicBlockId(0)),
@@ -3464,7 +3569,7 @@ mod tests {
         );
 
         assert_eq!(
-            file.validate_production(builtins.unit),
+            file.validate_production(builtins.unit, builtins.bool_),
             Err(MirValidationError::ProductionMissingReturnValue {
                 fqn: TEST_FQN.to_string(),
                 block: BasicBlockId(0),
@@ -3507,7 +3612,7 @@ mod tests {
         );
 
         assert_eq!(
-            file.validate_production(builtins.unit),
+            file.validate_production(builtins.unit, builtins.bool_),
             Err(MirValidationError::ProductionSiteMetadata {
                 fqn: TEST_FQN.to_string(),
                 block: BasicBlockId(0),
@@ -3542,7 +3647,7 @@ mod tests {
         );
 
         assert_eq!(
-            file.validate_production(builtins.unit),
+            file.validate_production(builtins.unit, builtins.bool_),
             Err(MirValidationError::ProductionRuntimeValueMetadata {
                 fqn: TEST_FQN.to_string(),
                 block: BasicBlockId(0),
@@ -3585,7 +3690,7 @@ mod tests {
         );
 
         assert_eq!(
-            file.validate_production(builtins.unit),
+            file.validate_production(builtins.unit, builtins.bool_),
             Err(MirValidationError::ProductionRuntimeValueMetadata {
                 fqn: TEST_FQN.to_string(),
                 block: BasicBlockId(0),
@@ -3624,7 +3729,7 @@ mod tests {
         );
 
         assert_eq!(
-            file.validate_production(builtins.unit),
+            file.validate_production(builtins.unit, builtins.bool_),
             Err(MirValidationError::ProductionRuntimeValueMetadata {
                 fqn: TEST_FQN.to_string(),
                 block: BasicBlockId(0),
@@ -3679,7 +3784,7 @@ mod tests {
         let file = production_file(builtins.unit, body);
 
         assert_eq!(
-            file.validate_production(builtins.unit),
+            file.validate_production(builtins.unit, builtins.bool_),
             Err(MirValidationError::ProductionTransportMetadata {
                 fqn: TEST_FQN.to_string(),
                 block: BasicBlockId(0),
@@ -3742,7 +3847,7 @@ mod tests {
         let file = production_file(builtins.unit, body);
 
         assert_eq!(
-            file.validate_production(builtins.unit),
+            file.validate_production(builtins.unit, builtins.bool_),
             Err(MirValidationError::ProductionTransportMetadata {
                 fqn: TEST_FQN.to_string(),
                 block: BasicBlockId(0),
@@ -3810,7 +3915,7 @@ mod tests {
         let file = production_file(builtins.unit, body);
 
         assert_eq!(
-            file.validate_production(builtins.unit),
+            file.validate_production(builtins.unit, builtins.bool_),
             Err(MirValidationError::ProductionSiteMetadata {
                 fqn: TEST_FQN.to_string(),
                 block: BasicBlockId(0),

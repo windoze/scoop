@@ -30,12 +30,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             let _hir_param = hir_fun.params.get(idx).unwrap_or_else(|| {
                 panic!("bind_mir_params: MIR verifier accepted param arity drift")
             });
-            let slot = slots.get(param.local.as_u32() as usize).copied().ok_or(
-                LlvmEmitError::UnsupportedMainBody {
-                    kind: "pass MIR param local",
-                    at: param.span.into(),
-                },
-            )?;
+            let slot = slots
+                .get(param.local.as_u32() as usize)
+                .copied()
+                .unwrap_or_else(|| {
+                    std::panic::panic_any(
+                        "bind_mir_params: MIR verifier accepted param local outside slot table",
+                    )
+                });
             let abi_ty = self
                 .equivalent_codegen_type_id(mir_types, param.ty)
                 .unwrap_or_else(|| {
@@ -45,10 +47,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             let init = if let Some(pointee_ty) = abi.pointee_ty() {
                 let param_ptr = llvm_fun
                     .get_nth_param(idx as u32 + param_offset)
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "missing pass MIR llvm param",
-                        at: param.span.into(),
-                    })?
+                    .unwrap_or_else(|| {
+                        std::panic::panic_any(
+                            "bind_mir_params: ABI declaration missing lowered LLVM parameter",
+                        )
+                    })
                     .into_pointer_value();
                 let loaded =
                     self.builder
@@ -76,12 +79,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         slots: &mut [MirLocalSlot<'ctx>],
     ) -> Result<(), LlvmEmitError> {
         for (idx, param) in mir_fun.params.iter().enumerate() {
-            let slot = slots.get(param.local.as_u32() as usize).copied().ok_or(
-                LlvmEmitError::UnsupportedMainBody {
-                    kind: "pass MIR param local",
-                    at: param.span.into(),
-                },
-            )?;
+            let slot = slots.get(param.local.as_u32() as usize).copied().unwrap_or_else(|| {
+                std::panic::panic_any("bind_mir_params_without_hir: MIR verifier accepted param local outside slot table")
+            });
             let init = if slot.cg_ty == CgTy::Unit {
                 CgValue::unit()
             } else {
@@ -207,12 +207,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 self.finish_function_return_path(terminator.span, declared_return_cg, value)
             }
             crate::mir::TerminatorKind::Goto { target } => {
-                let target_bb = llvm_blocks.get(target.as_u32() as usize).copied().ok_or(
-                    LlvmEmitError::UnsupportedMainBody {
-                        kind: "pass MIR goto target",
-                        at: terminator.span.into(),
-                    },
-                )?;
+                let target_bb = llvm_blocks
+                    .get(target.as_u32() as usize)
+                    .copied()
+                    .unwrap_or_else(|| {
+                        std::panic::panic_any(
+                            "codegen_mir_terminator: MIR verifier accepted invalid goto target",
+                        )
+                    });
                 self.builder.build_unconditional_branch(target_bb)?;
                 Ok(())
             }
@@ -224,24 +226,25 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 let cond = self
                     .codegen_mir_operand(terminator.span, cond, slots)?
                     .as_bool()
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "pass MIR branch condition",
-                        at: terminator.span.into(),
-                    })?;
+                    .unwrap_or_else(|| {
+                        std::panic::panic_any("codegen_mir_terminator: MIR verifier accepted non-Bool branch condition")
+                    });
                 let then_bb = llvm_blocks
                     .get(then_target.as_u32() as usize)
                     .copied()
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "pass MIR then target",
-                        at: terminator.span.into(),
-                    })?;
+                    .unwrap_or_else(|| {
+                        std::panic::panic_any(
+                            "codegen_mir_terminator: MIR verifier accepted invalid then target",
+                        )
+                    });
                 let else_bb = llvm_blocks
                     .get(else_target.as_u32() as usize)
                     .copied()
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "pass MIR else target",
-                        at: terminator.span.into(),
-                    })?;
+                    .unwrap_or_else(|| {
+                        std::panic::panic_any(
+                            "codegen_mir_terminator: MIR verifier accepted invalid else target",
+                        )
+                    });
                 self.builder
                     .build_conditional_branch(cond, then_bb, else_bb)?;
                 Ok(())
@@ -357,12 +360,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             crate::mir::Rvalue::StructLit { fields, .. } => {
                 self.codegen_mir_make_struct(span, fields, target_cg, slots)
             }
-            crate::mir::Rvalue::InterpolatedString { .. } => {
-                Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "interpolated string after HIR desugar",
-                    at: span.into(),
-                })
-            }
+            crate::mir::Rvalue::InterpolatedString { .. } => std::panic::panic_any(
+                "codegen_mir_rvalue: MIR verifier accepted residual interpolated string",
+            ),
             crate::mir::Rvalue::TupleGet { tuple, index } => {
                 self.codegen_mir_tuple_get(span, body, mir_types, tuple, *index, slots)
             }
@@ -438,10 +438,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             crate::mir::Rvalue::UnresolvedName { name } => {
                 self.codegen_unresolved_ident(span, name, Some(target_cg))
             }
-            crate::mir::Rvalue::Todo(_) => Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "pass MIR rvalue",
-                at: span.into(),
-            }),
+            crate::mir::Rvalue::Todo(_) => {
+                std::panic::panic_any("codegen_mir_rvalue: MIR verifier accepted Todo rvalue")
+            }
         }
     }
 
@@ -513,12 +512,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             crate::mir::Rvalue::StructLit { fields, .. } => {
                 self.codegen_mir_make_struct(span, fields, target_cg, slots)
             }
-            crate::mir::Rvalue::InterpolatedString { .. } => {
-                Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "interpolated string after HIR desugar",
-                    at: span.into(),
-                })
-            }
+            crate::mir::Rvalue::InterpolatedString { .. } => std::panic::panic_any(
+                "codegen_mir_effect_neutral_rvalue: MIR verifier accepted residual interpolated string",
+            ),
             crate::mir::Rvalue::TupleGet { tuple, index } => {
                 self.codegen_mir_tuple_get(span, body, mir_types, tuple, *index, slots)
             }
@@ -550,18 +546,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 mir_types,
                 slots,
             ),
-            crate::mir::Rvalue::Call { .. } => Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "value primitive call requires published ABI",
-                at: span.into(),
-            }),
+            crate::mir::Rvalue::Call { .. } => std::panic::panic_any(
+                "codegen_mir_effect_neutral_rvalue: value primitive call must publish ABI before codegen",
+            ),
             crate::mir::Rvalue::MakeClosure { .. } => Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "value primitive closure carrier requires published ABI",
                 at: span.into(),
             }),
-            crate::mir::Rvalue::ClassCtor { .. } => Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "value primitive class construction requires published ABI",
-                at: span.into(),
-            }),
+            crate::mir::Rvalue::ClassCtor { .. } => std::panic::panic_any(
+                "codegen_mir_effect_neutral_rvalue: value primitive class construction must publish ABI before codegen",
+            ),
             crate::mir::Rvalue::PerformResult { .. } => Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "value primitive boundary payload requires published contract",
                 at: span.into(),
@@ -569,10 +563,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             crate::mir::Rvalue::UnresolvedName { name } => {
                 self.codegen_unresolved_ident(span, name, Some(target_cg))
             }
-            crate::mir::Rvalue::Todo(_) => Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "value primitive rvalue",
-                at: span.into(),
-            }),
+            crate::mir::Rvalue::Todo(_) => std::panic::panic_any(
+                "codegen_mir_effect_neutral_rvalue: MIR verifier accepted Todo value primitive rvalue",
+            ),
         }
     }
 }

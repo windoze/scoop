@@ -21,20 +21,20 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let out_cg = if else_branch.is_none() {
             CgTy::Unit
         } else {
-            expected.or_else(|| self.cg_ty_of(out_ty)).ok_or(
-                LlvmEmitError::UnsupportedMainBody {
-                    kind: "if output type",
-                    at: span.into(),
-                },
-            )?
+            expected
+                .or_else(|| self.cg_ty_of(out_ty))
+                .unwrap_or_else(|| {
+                    std::panic::panic_any(
+                        "codegen_if_expr: verifier accepted unlowerable if output type",
+                    )
+                })
         };
 
         let cond_v = self.codegen_expr_in_expected_context(cond, Some(CgTy::Bool))?;
         let cond_v = self.coerce_value(cond.span, cond_v, CgTy::Bool)?;
-        let cond_i1 = cond_v.as_bool().ok_or(LlvmEmitError::UnsupportedMainBody {
-            kind: "if condition value",
-            at: cond.span.into(),
-        })?;
+        let cond_i1 = cond_v.as_bool().unwrap_or_else(|| {
+            std::panic::panic_any("codegen_if_expr: typecheck accepted non-Bool if condition")
+        });
 
         let func = self.expect_current_function("if expression blocks");
 
@@ -114,10 +114,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             | CgTy::Struct(_)
             | CgTy::Enum(_) => {
                 let Some(ptr) = result_ptr else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "if result slot",
-                        at: span.into(),
-                    });
+                    std::panic::panic_any(
+                        "codegen_if_expr: result-producing if must allocate result slot",
+                    )
                 };
                 let llvm_ty = self.llvm_basic_type_of(span, out_cg)?;
                 let loaded = self.builder.build_load(llvm_ty, ptr, "if_result")?;
@@ -2269,10 +2268,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         let dead_path_ty = expected_block_ty.unwrap_or(CgTy::Unit);
                         return self.default_value(stmt.span, dead_path_ty);
                     }
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "`return` inside block expression",
-                        at: stmt.span.into(),
-                    });
+                    std::panic::panic_any(
+                        "codegen_block_value_in_expected_context: typecheck accepted return outside function body",
+                    );
                 }
                 // T0141: break/continue inside block expression (must be inside a loop).
                 hir::StmtKind::Break { break_span } => {
@@ -2302,12 +2300,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     let dead_path_ty = expected_block_ty.unwrap_or(CgTy::Unit);
                     return self.default_value(*continue_span, dead_path_ty);
                 }
-                hir::StmtKind::Todo(_) => {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "statement inside block expression",
-                        at: stmt.span.into(),
-                    });
-                }
+                hir::StmtKind::Todo(_) => std::panic::panic_any(
+                    "codegen_block_value_in_expected_context: verifier accepted Todo statement",
+                ),
             }
         }
 

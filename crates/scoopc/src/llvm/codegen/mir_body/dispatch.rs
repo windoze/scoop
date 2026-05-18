@@ -147,10 +147,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             ))
         })?;
         if impl_sig.params.len() != args.len() + 1 {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "static interface dispatch arity mismatch",
-                at: span.into(),
-            });
+            std::panic::panic_any(
+                "codegen_mir_plain_static_interface_dispatch_call: MIR verifier accepted static interface arity drift",
+            );
         }
         if !allow_effect_typed_signature
             && self.known_fun_body_may_outward_effect(&impl_sig.fqn, impl_sig.ty)
@@ -262,10 +261,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     self.load_dispatch_result_from_storage(
                         span,
                         ret_cg,
-                        direct_result_storage.ok_or(LlvmEmitError::UnsupportedMainBody {
-                            kind: "static interface direct result storage",
-                            at: span.into(),
-                        })?,
+                        direct_result_storage.unwrap_or_else(|| {
+                            std::panic::panic_any(
+                                "codegen_mir_plain_static_interface_dispatch_call: direct return must publish result storage",
+                            )
+                        }),
                     )
                 }
             }
@@ -285,10 +285,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         let sig_fun = target.sig_fun();
         if sig_fun.params.len() != args.len() + 1 {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "plain dispatch arity mismatch",
-                at: span.into(),
-            });
+            std::panic::panic_any(
+                "codegen_mir_plain_dispatch_call: MIR verifier accepted dispatch arity drift",
+            );
         }
         if !allow_effect_typed_signature
             && self.known_fun_body_may_outward_effect(&sig_fun.fqn, sig_fun.ty)
@@ -320,12 +319,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 );
             }
 
-            let interface_fqn = sig_fun.fqn.rsplit_once('.').map(|(owner, _)| owner).ok_or(
-                LlvmEmitError::UnsupportedMainBody {
-                    kind: "plain interface owner fqn",
-                    at: span.into(),
-                },
-            )?;
+            let interface_fqn = sig_fun.fqn.rsplit_once('.').map(|(owner, _)| owner).unwrap_or_else(|| {
+                std::panic::panic_any(
+                    "codegen_mir_plain_dispatch_call: selected interface member must publish owner FQN",
+                )
+            });
             let receiver_value =
                 self.codegen_mir_operand_expected(span, receiver, slots, Some(CgTy::Ref))?;
             let receiver_value = self.coerce_value(span, receiver_value, CgTy::Ref)?;
@@ -490,10 +488,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 self.materialize_deferred_cg_value(
                     span,
                     "plain_dispatch_direct_result_reload",
-                    deferred_direct_result.ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "plain dispatch deferred return value",
-                        at: span.into(),
-                    })?,
+                    deferred_direct_result.unwrap_or_else(|| {
+                        std::panic::panic_any(
+                            "codegen_mir_plain_dispatch_call: direct return must publish deferred result",
+                        )
+                    }),
                 )?
             }),
         }
@@ -536,13 +535,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         class: &'b hir::ClassInit,
         ctor: &crate::mir::ClassCtorCallMetadata,
         args: &[crate::mir::CallArg],
-        kind: &'static str,
+        _kind: &'static str,
     ) -> Result<Option<&'b hir::ClassCtor>, LlvmEmitError> {
         if args.iter().any(|arg| arg.name.is_some()) || args.len() != ctor.ordered_param_count {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind,
-                at: span.into(),
-            });
+            std::panic::panic_any(
+                "selected_mir_class_ctor_from_contract: MIR verifier accepted constructor argument drift",
+            );
         }
 
         let selected_ctor = match ctor.selected_ctor_span {
@@ -567,10 +565,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         let param_count = selected_ctor.map_or(0, |ctor| ctor.params.len());
         if param_count != args.len() {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind,
-                at: span.into(),
-            });
+            std::panic::panic_any(
+                "selected_mir_class_ctor_from_contract: selected ctor arity must match lowered args",
+            );
         }
 
         Ok(selected_ctor)

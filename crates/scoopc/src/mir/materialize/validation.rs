@@ -466,7 +466,7 @@ pub(super) fn validate_materialized_fun(
     let Some(body) = &fun.body else {
         return Ok(());
     };
-    body.validate_cfg().map_err(|error| {
+    body.validate_direct_style().map_err(|error| {
         materialize_err(MirMaterializeError::MaterializedMirValidation {
             fqn: fun.fqn.clone(),
             error,
@@ -1028,12 +1028,13 @@ pub(super) fn validate_materialized_rvalue(
         Rvalue::TypeMetadataLiteral(metadata) => {
             validate_materialized_type_metadata_literal(materialized, fqn, block, span, metadata)
         }
-        Rvalue::InterpolatedString { parts, .. } => {
-            for part in parts {
-                validate_materialized_interpolated_part(materialized, fqn, block, locals, part)?;
-            }
-            Ok(())
-        }
+        Rvalue::InterpolatedString { .. } => Err(materialized_type_contract_err(
+            fqn,
+            Some(block),
+            span,
+            "interpolated string",
+            "interpolated strings must be desugared before MIR codegen",
+        )),
         Rvalue::TupleGet { tuple, .. } => validate_materialized_operand(
             materialized,
             fqn,
@@ -1582,39 +1583,6 @@ pub(super) fn validate_materialized_struct_lit_field(
     Ok(())
 }
 
-pub(super) fn validate_materialized_interpolated_part(
-    materialized: &MaterializedMir,
-    fqn: &str,
-    block: BasicBlockId,
-    locals: &[LocalDecl],
-    part: &InterpolatedStringPart,
-) -> MaterializeResult<()> {
-    match part {
-        InterpolatedStringPart::Text { .. } => Ok(()),
-        InterpolatedStringPart::Expr { span, value, ty } => {
-            validate_materialized_operand(
-                materialized,
-                fqn,
-                block,
-                *span,
-                "interpolated string value",
-                locals,
-                value,
-            )?;
-            validate_materialized_type(
-                materialized,
-                MaterializedValidationContext {
-                    fqn,
-                    block: Some(block),
-                    span: *span,
-                    surface: "interpolated string value type",
-                },
-                *ty,
-            )
-        }
-    }
-}
-
 pub(super) fn validate_materialized_terminator(
     materialized: &MaterializedMir,
     fun: &FunDecl,
@@ -1694,7 +1662,7 @@ pub(super) fn validate_materialized_terminator(
             }
             Ok(())
         }
-        TerminatorKind::CondBr { cond, .. } => validate_materialized_operand(
+        TerminatorKind::CondBr { cond, .. } => validate_materialized_bool_operand(
             materialized,
             &fun.fqn,
             block,
@@ -2227,6 +2195,59 @@ pub(super) fn validate_materialized_operand(
             },
             local_decl.ty,
         )?;
+    }
+    Ok(())
+}
+
+pub(super) fn validate_materialized_bool_operand(
+    materialized: &MaterializedMir,
+    fqn: &str,
+    block: BasicBlockId,
+    span: Span,
+    surface: &'static str,
+    locals: &[LocalDecl],
+    operand: &Operand,
+) -> MaterializeResult<()> {
+    let expected = materialized
+        .types
+        .builtins()
+        .expect("materialized MIR should always intern builtin types before validation")
+        .bool_;
+    let actual = match operand {
+        Operand::Local(local) => {
+            let local_decl =
+                validate_materialized_local(fqn, Some(block), span, surface, locals, *local)?;
+            validate_materialized_type(
+                materialized,
+                MaterializedValidationContext {
+                    fqn,
+                    block: Some(block),
+                    span,
+                    surface,
+                },
+                local_decl.ty,
+            )?;
+            local_decl.ty
+        }
+        Operand::Const(ConstValue::Bool(_)) => return Ok(()),
+        Operand::Const(_) => {
+            return Err(materialized_type_contract_err(
+                fqn,
+                Some(block),
+                span,
+                surface,
+                "branch condition operand must have Bool type",
+            ));
+        }
+    };
+    if actual != expected {
+        return Err(materialized_type_contract_err(
+            fqn,
+            Some(block),
+            span,
+            surface,
+            "branch condition operand must have Bool type",
+        ));
     }
     Ok(())
 }

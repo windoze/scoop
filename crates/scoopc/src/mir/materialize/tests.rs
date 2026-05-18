@@ -824,6 +824,115 @@ fn materialized_mir_type_contract_rejects_return_value_outside_local_table() {
 }
 
 #[test]
+fn materialized_mir_cfg_contract_rejects_non_bool_branch_condition() {
+    let mut types = TypeStore::new();
+    let builtins = types.intern_builtins();
+    let mut body = Body::new_empty();
+    let cond = body.push_local(LocalDecl {
+        span: test_span(),
+        name: Some("cond".to_string()),
+        ty: builtins.int,
+        source: LocalSourceKind::SourceLocal,
+    });
+    let bb = body.push_block(BasicBlock {
+        is_cleanup: false,
+        stmts: Vec::new(),
+        terminator: Terminator {
+            span: test_span(),
+            kind: TerminatorKind::CondBr {
+                cond: Operand::Local(cond),
+                then_target: BasicBlockId::from_raw(0),
+                else_target: BasicBlockId::from_raw(0),
+            },
+            unwind: UnwindAction::NoUnwind,
+        },
+    });
+    body.start = bb;
+    let file = File {
+        items: vec![Item::Fun(FunDecl {
+            span: test_span(),
+            fqn: "fixtures.materialize.main".to_string(),
+            name: "main".to_string(),
+            ty: builtins.unit,
+            params: Vec::new(),
+            return_ty: builtins.unit,
+            body: Some(body),
+        })],
+    };
+    let materialized = materialized_for_test(file, types);
+
+    let err = materialized.validate_materialized().unwrap_err();
+    assert!(matches!(
+        *err,
+        MirMaterializeError::MaterializedMirValidation {
+            error: crate::mir::MirValidationError::TypeContract {
+                surface: "branch condition",
+                detail: "branch condition operand must have Bool type",
+                ..
+            },
+            ..
+        }
+    ));
+}
+
+#[test]
+fn materialized_mir_cfg_contract_rejects_residual_interpolated_string() {
+    let mut types = TypeStore::new();
+    let builtins = types.intern_builtins();
+    let mut body = Body::new_empty();
+    let target = body.push_local(LocalDecl {
+        span: test_span(),
+        name: Some("message".to_string()),
+        ty: builtins.string,
+        source: LocalSourceKind::CompilerTemporary,
+    });
+    let bb = body.push_block(BasicBlock {
+        is_cleanup: false,
+        stmts: vec![Statement {
+            span: test_span(),
+            kind: StatementKind::Assign {
+                target,
+                value: Rvalue::InterpolatedString {
+                    raw: false,
+                    parts: Vec::new(),
+                },
+            },
+        }],
+        terminator: Terminator {
+            span: test_span(),
+            kind: TerminatorKind::Return { value: None },
+            unwind: UnwindAction::NoUnwind,
+        },
+    });
+    body.start = bb;
+    let file = File {
+        items: vec![Item::Fun(FunDecl {
+            span: test_span(),
+            fqn: "fixtures.materialize.main".to_string(),
+            name: "main".to_string(),
+            ty: builtins.unit,
+            params: Vec::new(),
+            return_ty: builtins.unit,
+            body: Some(body),
+        })],
+    };
+    let materialized = materialized_for_test(file, types);
+
+    let err = materialized.validate_materialized().unwrap_err();
+    assert!(matches!(
+        *err,
+        MirMaterializeError::MaterializedMirValidation {
+            error: crate::mir::MirValidationError::TypeContract {
+                surface: "interpolated string",
+                detail: "interpolated strings must be desugared before MIR codegen",
+                ..
+            },
+            ..
+        }
+    ));
+}
+
+#[test]
 fn materialized_mir_mir_materialize_generics_missing_root_reports_template_span() {
     let mut types = TypeStore::new();
     let builtins = types.intern_builtins();

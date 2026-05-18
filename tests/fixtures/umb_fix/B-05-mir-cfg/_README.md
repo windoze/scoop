@@ -7,8 +7,8 @@
 
 ## Scope
 
-U5-T01 creates this directory skeleton only. U5-T02 and U5-T03 must add `.scoop` fixtures and append matching `_index.csv` rows.
+P7-B2.2 keeps MIR CFG/start block/terminator target contracts verified before LLVM codegen. The fixtures in this directory are active regression anchors for the retired B-05 bucket.
 
 ## Runner Status
 
-`scoop test` recognizes `tests/fixtures/umb_fix/**`. Fixtures marked `IGNORE-UNTIL-FIX:B-05` or `ignore-until-fix:B-05` are skipped until the corresponding production fix lands.
+`scoop test` recognizes `tests/fixtures/umb_fix/**`. B-05 fixtures are active; retired IDs are tracked in `audit/UMB_retired.csv` rather than fixture `COVERS` headers.

@@ -170,7 +170,7 @@ const STALE_UNSUPPORTED_MAIN_BODY_COUNTS: &[UnsupportedMainBodyCount] = &[
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/mir_body/dispatch.rs",
-        expected_count: 14,
+        expected_count: 7,
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/mir_body/member.rs",
@@ -190,7 +190,7 @@ const STALE_UNSUPPORTED_MAIN_BODY_COUNTS: &[UnsupportedMainBodyCount] = &[
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/mir_body/terminator.rs",
-        expected_count: 16,
+        expected_count: 3,
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/mir_body/transport.rs",
@@ -697,13 +697,13 @@ const INTERNAL_BUG_SENTINEL_HITS: &[&str] = &[
     "crates/scoopc/src/llvm/codegen/mir_body/args.rs:23:                panic!(\"codegen_mir_class_ctor_ordered_args: MIR verifier accepted {kind}\");",
     "crates/scoopc/src/llvm/codegen/mir_body/args.rs:397:                    panic!(",
     "crates/scoopc/src/llvm/codegen/mir_body/call.rs:724:            (None, CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_)) => unreachable!(",
-    "crates/scoopc/src/llvm/codegen/mir_body/dispatch.rs:165:            panic!(",
-    "crates/scoopc/src/llvm/codegen/mir_body/dispatch.rs:384:            panic!(\"codegen_mir_plain_dispatch_call: MIR verifier accepted unsupported return type\")",
+    "crates/scoopc/src/llvm/codegen/mir_body/dispatch.rs:164:            panic!(",
+    "crates/scoopc/src/llvm/codegen/mir_body/dispatch.rs:382:            panic!(\"codegen_mir_plain_dispatch_call: MIR verifier accepted unsupported return type\")",
     "crates/scoopc/src/llvm/codegen/mir_body/member.rs:143:            unreachable!(",
     "crates/scoopc/src/llvm/codegen/mir_body/member.rs:268:                    unreachable!(",
     "crates/scoopc/src/llvm/codegen/mir_body/string.rs:15:            panic!(\"codegen_mir_unresolved_name_with_source_ty: MIR verifier accepted unsupported source type\")",
     "crates/scoopc/src/llvm/codegen/mir_body/terminator.rs:31:                panic!(\"bind_mir_params: MIR verifier accepted param arity drift\")",
-    "crates/scoopc/src/llvm/codegen/mir_body/terminator.rs:42:                    panic!(\"bind_mir_params: MIR verifier accepted unsupported param type\")",
+    "crates/scoopc/src/llvm/codegen/mir_body/terminator.rs:44:                    panic!(\"bind_mir_params: MIR verifier accepted unsupported param type\")",
     "crates/scoopc/src/llvm/codegen/mir_body/types.rs:44:                        panic!(",
     "crates/scoopc/src/llvm/codegen/mir_body/types.rs:74:            panic!(\"mir_local_storage_cg_ty: MIR verifier accepted unsupported local type\")",
     "crates/scoopc/src/llvm/codegen/effect_lowered/value.rs:2493:                    _ => unreachable!(\"filtered by match\"),",
@@ -847,7 +847,7 @@ fn pipeline_user_visible_failure_policy_tracks_stale_unsupportedmainbody_counts(
             baseline.path
         );
     }
-    assert_eq!(total, 536);
+    assert_eq!(total, 516);
 }
 
 #[test]

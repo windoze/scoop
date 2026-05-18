@@ -1,9 +1,8 @@
 // EXPECT: ok
-// IGNORE-UNTIL-FIX:B-05
 // SPEC: docs/spec/language_spec-part3.md#92-while
 // COVERS: NONE
-// BUCKETS: B-05, B-16
-// REASON: U5-T02 records the spec surface before the matching implementation gate is enabled.
+// BUCKETS: B-05
+// REASON: P7-B2.2 verifies loop CFG paths without relying on LLVM UMB fallbacks.
 // SOURCE-FIXTURE: tests/fixtures/run-pass/while_break_basic.scoop
 
 import scoop.core.*

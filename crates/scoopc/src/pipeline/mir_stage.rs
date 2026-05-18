@@ -204,15 +204,17 @@ fn collect_metadata_root_indices(file: &MirFile) -> BTreeMap<String, usize> {
     indices
 }
 
-fn validate_bodies(file: &MirFile, unit_ty: TypeId) -> Result<(), MirLowerError> {
-    file.validate_production(unit_ty)
+fn validate_bodies(file: &MirFile, unit_ty: TypeId, bool_ty: TypeId) -> Result<(), MirLowerError> {
+    file.validate_production(unit_ty, bool_ty)
         .map_err(|error| MirLowerError::InvalidMir {
             fqn: error.body_fqn().unwrap_or("<file>").to_string(),
             error: Box::new(error),
         })
 }
 
-fn lower_mir_stage_unvalidated(typed_hir_output: TypedHirStageOutput) -> (MirStageOutput, TypeId) {
+fn lower_mir_stage_unvalidated(
+    typed_hir_output: TypedHirStageOutput,
+) -> (MirStageOutput, TypeId, TypeId) {
     let facts = MirLoweringFacts::from_typed_handoff(
         typed_hir_output.lowered_hir(),
         typed_hir_output.effect_contracts(),
@@ -237,12 +239,13 @@ fn lower_mir_stage_unvalidated(typed_hir_output: TypedHirStageOutput) -> (MirSta
             materialized_mir,
         ),
         builtins.unit,
+        builtins.bool_,
     )
 }
 
 pub(crate) fn run(typed_hir_output: TypedHirStageOutput) -> Result<MirStageOutput, MirLowerError> {
-    let (output, unit_ty) = lower_mir_stage_unvalidated(typed_hir_output);
-    validate_bodies(output.file(), unit_ty)?;
+    let (output, unit_ty, bool_ty) = lower_mir_stage_unvalidated(typed_hir_output);
+    validate_bodies(output.file(), unit_ty, bool_ty)?;
     Ok(output)
 }
 
@@ -1534,7 +1537,7 @@ fun bad() {
             }],
         };
 
-        let err = super::validate_bodies(&file, builtins.unit)
+        let err = super::validate_bodies(&file, builtins.unit, builtins.bool_)
             .expect_err("production stage validator should reject item Todo");
         let rendered = err.to_string();
         assert!(rendered.contains("<file>"));
@@ -1825,7 +1828,7 @@ fun entry(): Int / Raise<Int> {
 }
 "#,
         );
-        let (file, unit_ty) = lower_with_empty_contracts(&source);
+        let (file, unit_ty, bool_ty) = lower_with_empty_contracts(&source);
         let dump = format!("{file:#?}");
         let old_reason = ["perform", " contract missing"].concat();
         assert!(
@@ -1834,7 +1837,7 @@ fun entry(): Int / Raise<Int> {
         );
 
         assert_site_metadata_error(
-            super::validate_bodies(&file, unit_ty)
+            super::validate_bodies(&file, unit_ty, bool_ty)
                 .expect_err("missing perform contract should fail stage validation"),
             MirSiteMetadataKind::Perform,
         );
@@ -1843,7 +1846,7 @@ fun entry(): Int / Raise<Int> {
     #[test]
     fn mir_effect_site_contract_missing_handle_contract_is_stage_error() {
         let source = load_fixture("mir_lowered", "handle_perform.scoop");
-        let (file, unit_ty) = lower_with_empty_contracts(&source);
+        let (file, unit_ty, bool_ty) = lower_with_empty_contracts(&source);
         let dump = format!("{file:#?}");
         let old_reason = ["handle", " contract missing"].concat();
         assert!(
@@ -1852,7 +1855,7 @@ fun entry(): Int / Raise<Int> {
         );
 
         assert_site_metadata_error(
-            super::validate_bodies(&file, unit_ty)
+            super::validate_bodies(&file, unit_ty, bool_ty)
                 .expect_err("missing handle contract should fail stage validation"),
             MirSiteMetadataKind::Handle,
         );
@@ -1925,7 +1928,9 @@ fun entry(): Int / Raise<Int> {
         );
     }
 
-    fn lower_with_empty_contracts(source: &SourceFile) -> (crate::mir::File, crate::ty::TypeId) {
+    fn lower_with_empty_contracts(
+        source: &SourceFile,
+    ) -> (crate::mir::File, crate::ty::TypeId, crate::ty::TypeId) {
         let session = session();
         let typed_hir_output = super::super::load_typed_hir_stage_output_for_dump(&session, source)
             .expect("typed HIR should pass before forged contract lowering");
@@ -1940,7 +1945,7 @@ fun entry(): Int / Raise<Int> {
             &lowered_hir.member_funs,
             &facts,
         );
-        (file, builtins.unit)
+        (file, builtins.unit, builtins.bool_)
     }
 
     fn assert_site_metadata_error(error: MirLowerError, expected_site: MirSiteMetadataKind) {
