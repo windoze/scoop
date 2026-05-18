@@ -13,13 +13,15 @@ use std::path::{Path, PathBuf};
 
 const CODEGEN_ROOT: &str = "crates/scoopc/src/llvm/codegen";
 pub(crate) const INVENTORY_PATH: &str = "audit/UMB_inventory.csv";
-const EXPECTED_ENTRY_COUNT: usize = 1_284;
+pub(crate) const EXPECTED_ENTRY_COUNT: usize = 1_284;
 // U0's broad grep counted every literal `kind:` field in codegen text. The
 // inventory scanner is constructor-scoped, so forwarded/dynamic rows are kept
 // as `DYNAMIC:*` entries and literal matching is checked within those rows.
 const EXPECTED_LITERAL_KIND_COUNT: usize = 1_241;
 const EXPECTED_DYNAMIC_KIND_COUNT: usize = 43;
 pub(crate) const CSV_HEADER: &str = "id,file,line,kind,route,surface,bucket,expected_class,spec_anchor,upstream_gate,existing_fixture,notes";
+#[cfg(test)]
+const EXPECTED_CLASSES: &[&str] = &["FrontendReject", "InternalBugSentinel", "RealImpl"];
 
 pub(crate) const VALID_BUCKETS: &[&str] = &[
     "B-01", "B-02", "B-03", "B-04", "B-05", "B-06", "B-07", "B-08", "B-09", "B-10", "B-11", "B-12",
@@ -44,15 +46,15 @@ struct SourceEntry {
 
 #[derive(Debug, Clone)]
 pub(crate) struct InventoryEntry {
-    id: String,
+    pub(crate) id: String,
     file: String,
     line: usize,
     kind: String,
     route: &'static str,
     surface: &'static str,
-    bucket: &'static str,
-    expected_class: &'static str,
-    spec_anchor: &'static str,
+    pub(crate) bucket: &'static str,
+    pub(crate) expected_class: &'static str,
+    pub(crate) spec_anchor: &'static str,
     upstream_gate: &'static str,
     existing_fixture: &'static str,
     notes: String,
@@ -148,6 +150,127 @@ fn umb_inventory_cross_references_legacy_gap_buckets() {
         observed, expected,
         "every legacy CODEGEN_GAP_INVENTORY entry should be represented in inventory notes"
     );
+}
+
+#[test]
+fn umb_inventory_buckets_total() {
+    let entries = inventory_entries();
+    validate_inventory_entries(&entries);
+    let counts = bucket_counts(&entries);
+    let mut documented_total = 0usize;
+
+    for &bucket in VALID_BUCKETS {
+        let documented = bucket_doc_entry_count(bucket);
+        let observed = counts.get(bucket).copied().unwrap_or_default();
+        assert_eq!(
+            observed, documented,
+            "{bucket} entry count drift: inventory has {observed}, bucket doc declares {documented}"
+        );
+        documented_total += documented;
+    }
+
+    assert_eq!(
+        documented_total, EXPECTED_ENTRY_COUNT,
+        "bucket docs should sum to the frozen UMB inventory baseline"
+    );
+}
+
+#[test]
+fn umb_inventory_each_entry_has_spec_anchor_or_helper_marker() {
+    let entries = inventory_entries();
+    validate_inventory_entries(&entries);
+
+    for entry in entries {
+        let anchor = entry.spec_anchor.trim();
+        if anchor == "N/A:helper-invariant" {
+            assert_eq!(
+                entry.bucket, "B-01",
+                "{} uses helper marker outside B-01",
+                entry.id
+            );
+            assert_eq!(
+                entry.expected_class, "InternalBugSentinel",
+                "{} helper marker must remain an internal sentinel",
+                entry.id
+            );
+            continue;
+        }
+
+        assert!(
+            anchor.contains("docs/spec/language_spec-part"),
+            "{} has non-helper spec_anchor `{anchor}` that does not point at the language spec",
+            entry.id
+        );
+        for spec_anchor in anchor.split(';') {
+            let Some((spec_path, fragment)) = spec_anchor.split_once('#') else {
+                panic!(
+                    "{} spec_anchor `{spec_anchor}` is missing a # fragment",
+                    entry.id
+                );
+            };
+            assert!(
+                !fragment.trim().is_empty(),
+                "{} spec_anchor `{spec_anchor}` has an empty fragment",
+                entry.id
+            );
+            assert!(
+                repo_root().join(spec_path).is_file(),
+                "{} spec_anchor `{spec_anchor}` points at a missing spec file",
+                entry.id
+            );
+        }
+    }
+}
+
+#[test]
+fn umb_inventory_class_distribution() {
+    let entries = inventory_entries();
+    validate_inventory_entries(&entries);
+    let bucket_counts = bucket_counts(&entries);
+
+    for &bucket in VALID_BUCKETS {
+        let documented = bucket_doc_class_counts(bucket);
+        let mut observed = BTreeMap::new();
+        for entry in entries.iter().filter(|entry| entry.bucket == bucket) {
+            *observed.entry(entry.expected_class).or_insert(0usize) += 1;
+        }
+
+        let documented_total = documented.values().copied().sum::<usize>();
+        assert_eq!(
+            documented_total,
+            bucket_counts.get(bucket).copied().unwrap_or_default(),
+            "{bucket} Expected Post-Fix Class table should sum to the inventory bucket count"
+        );
+
+        let d_pending = documented.get("D-pending").copied().unwrap_or_default();
+        if d_pending > 0 {
+            assert_eq!(
+                bucket, "B-36",
+                "only the spec-uncovered bucket may use D-pending in this plan"
+            );
+            assert_eq!(
+                observed.get("FrontendReject").copied().unwrap_or_default(),
+                d_pending,
+                "{bucket} D-pending rows must currently be represented as FrontendReject in CSV"
+            );
+            for &class in &["InternalBugSentinel", "RealImpl"] {
+                assert_eq!(
+                    observed.get(class).copied().unwrap_or_default(),
+                    documented.get(class).copied().unwrap_or_default(),
+                    "{bucket} current {class} count should match the bucket doc"
+                );
+            }
+            continue;
+        }
+
+        for &class in EXPECTED_CLASSES {
+            assert_eq!(
+                observed.get(class).copied().unwrap_or_default(),
+                documented.get(class).copied().unwrap_or_default(),
+                "{bucket} {class} count drift between inventory and bucket doc"
+            );
+        }
+    }
 }
 
 pub(crate) fn inventory_entries() -> Vec<InventoryEntry> {
@@ -1073,6 +1196,78 @@ fn bucket_distribution(entries: &[InventoryEntry]) -> String {
         })
         .collect::<Vec<_>>()
         .join("\n")
+}
+
+#[cfg(test)]
+fn bucket_counts(entries: &[InventoryEntry]) -> BTreeMap<&'static str, usize> {
+    let mut counts = BTreeMap::new();
+    for entry in entries {
+        *counts.entry(entry.bucket).or_insert(0) += 1;
+    }
+    counts
+}
+
+#[cfg(test)]
+fn bucket_doc_entry_count(bucket: &str) -> usize {
+    let content = read_bucket_doc(bucket);
+    let prefix = "本 bucket entry 数：";
+    let Some(line) = content.lines().find(|line| line.starts_with(prefix)) else {
+        panic!("audit/UMB_categories/{bucket}.md is missing `{prefix}`");
+    };
+    line.trim_start_matches(prefix)
+        .trim()
+        .trim_end_matches("  ")
+        .parse::<usize>()
+        .unwrap_or_else(|err| panic!("failed to parse {bucket} entry count from `{line}`: {err}"))
+}
+
+#[cfg(test)]
+fn bucket_doc_class_counts(bucket: &str) -> BTreeMap<String, usize> {
+    let content = read_bucket_doc(bucket);
+    let mut in_section = false;
+    let mut counts = BTreeMap::new();
+
+    for line in content.lines() {
+        if line == "## Expected Post-Fix Class" {
+            in_section = true;
+            continue;
+        }
+        if in_section && line.starts_with("## ") {
+            break;
+        }
+        if !in_section || !line.starts_with("| `") {
+            continue;
+        }
+
+        let cells = line
+            .trim_matches('|')
+            .split('|')
+            .map(str::trim)
+            .collect::<Vec<_>>();
+        if cells.len() < 2 {
+            continue;
+        }
+        let class = cells[0].trim_matches('`').to_string();
+        let count = cells[1].parse::<usize>().unwrap_or_else(|err| {
+            panic!("failed to parse {bucket} class count from `{line}`: {err}")
+        });
+        counts.insert(class, count);
+    }
+
+    for class in EXPECTED_CLASSES.iter().copied().chain(["D-pending"]) {
+        assert!(
+            counts.contains_key(class),
+            "{bucket} Expected Post-Fix Class table is missing `{class}`"
+        );
+    }
+    counts
+}
+
+#[cfg(test)]
+fn read_bucket_doc(bucket: &str) -> String {
+    let path = repo_root().join(format!("audit/UMB_categories/{bucket}.md"));
+    fs::read_to_string(&path)
+        .unwrap_or_else(|err| panic!("failed to read {}: {err}", path.display()))
 }
 
 #[cfg(test)]

@@ -4,7 +4,7 @@
 > 设计基线：[`UnsupportedMainBody_FIX.md`](./UnsupportedMainBody_FIX.md)  
 > 计划基线：[`PLAN.md`](./PLAN.md)  
 > 格式参考：[`docs/archive/plans/TODO-closure-fix.md`](./docs/archive/plans/TODO-closure-fix.md)  
-> 当前状态：U5-T03 已完成；下一项 U6-T01
+> 当前状态：U6-T01 已完成；下一项 U6-T02
 > 执行原则：U0 必须最先完成；U1 → U2 → U3 严格串行；U4 与 U5 可在 U2/U3 稳定后并行，但 U5 的 negative fixture 必须引用 U4 已写明的 upstream gate；U6 必须最后完成。每个任务完成后必须回写“完成记录”。
 
 ## 全局约束
@@ -695,7 +695,7 @@ U0-T01 (摸底 + baseline 冻结)
 
 ## U6：P6 — Baseline 测试与退场
 
-### [TODO] U6-T01：10 条 baseline test 落地
+### [DONE] U6-T01：10 条 baseline test 落地
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §4、§6 U6-T01
@@ -729,7 +729,13 @@ U0-T01 (摸底 + baseline 冻结)
   - 10 条 baseline test 全部存在且通过。
   - 任意 inventory 漂移、bucket md 数字漂移、fixture index 漂移、spec matrix 悬空、禁词违规都会导致测试失败。
 - 依赖：U5-T03
-- 完成记录：待填写
+- 完成记录：
+  - 改动范围：更新 `crates/scoopc/src/audit/umb_inventory.rs`，补齐 inventory/bucket/class/spec-anchor baseline tests；新增 `crates/scoopc/src/audit/spec_coverage.rs` 与 `crates/scoopc/src/audit/sentinel_tests.rs`；更新 `crates/scoopc/src/audit/mod.rs` 接入测试专用 audit module；更新 `tests/fixtures/umb_fix/B-01-builder-invariant/_README.md` 的 sentinel 状态为 `present-in-U6`。未修改 production LLVM codegen、`PLAN.md` 或 `UnsupportedMainBody_FIX.md`。
+  - 核心决策：保留 U1 已有的 `umb_inventory_csv_in_sync`，在同一 inventory scanner 上增加 bucket doc 表头计数、spec anchor/helper marker、Expected Post-Fix Class 对账；fixture/index/matrix baseline 使用 repo-root 相对路径与轻量 CSV/header parser，直接扫描 `tests/fixtures/umb_fix/**`、`audit/spec_coverage_matrix.md` 和 B-01 sentinel README，不依赖网络、交互输入或当前工作目录外文件。
+  - Baseline 覆盖：U6 要求的 10 条稳定测试均已落地：`umb_inventory_csv_in_sync`、`umb_inventory_buckets_total`、`umb_inventory_each_entry_has_spec_anchor_or_helper_marker`、`umb_inventory_class_distribution`、`umb_fix_fixture_index_in_sync`、`umb_fix_every_inventory_id_is_covered`、`umb_fix_every_bucket_has_at_least_one_pos_and_one_neg`、`umb_fix_spec_coverage_matrix_in_sync`、`umb_fix_no_forbidden_terms_in_neg_messages`、`umb_fix_helper_invariant_sentinel_tests_present`。
+  - 对账结果：inventory 仍锁定 1,284 条 entry；36 个 bucket doc entry count 与 CSV 完全一致；B-36 的 `D-pending` 文档状态与当前 CSV `FrontendReject` 表示显式对账；141 个 `umb_fix` fixture 与 `_index.csv` 一一对应；fixture/sentinel coverage 覆盖 1,284/1,284 个 inventory id；B-01 sentinel coverage 精确覆盖 71 个 helper invariant id；spec matrix 中 concrete fixture path 均解析到真实文件且无 `(planned)` 引用；negative `EXPECT-ERROR` 未包含 forbidden terms。
+  - 验证结果：`cargo test -p scoopc audit:: -- --nocapture` 通过（17 matching tests）；`cargo test -p scoopc pipeline_user_visible_failure_policy -- --nocapture` 通过（7 passed）；`cargo run -p scoop -- test tests/fixtures/umb_fix/` 通过（141 fixtures）；`cargo test --all --all-targets` 通过（scoopc 883 passed，umb-audit 6 passed，其他目标通过）；`cargo clippy --all-targets -- -D warnings` 通过。
+  - 闭合目标：满足 U6-T01 对 U1-U5 数据、bucket 文档、fixture index、spec matrix、禁词和 helper sentinel coverage 的机器锁定要求；后续 U6-T02 可基于这些 baseline tests 执行退场标注与计划自检。
 
 ### [TODO] U6-T02：退场标注 + 计划自检
 
