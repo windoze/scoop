@@ -78,23 +78,20 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
             .codegen
             .enum_layouts
             .get("scoop.core.RuntimeError")
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "RuntimeError enum layout",
-                at: self.mir_fun.span.into(),
-            })?;
+            .unwrap_or_else(|| {
+                panic!("runtime_error_unit_variant_payload: verifier accepted missing RuntimeError enum layout")
+            });
         let variant = enum_layout
             .variants
             .iter()
             .find(|variant| variant.name == variant_name)
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "RuntimeError variant layout",
-                at: self.mir_fun.span.into(),
-            })?;
-        if !variant.fields.is_empty() {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "RuntimeError payload variant arity",
-                at: self.mir_fun.span.into(),
+            .unwrap_or_else(|| {
+                panic!("runtime_error_unit_variant_payload: verifier accepted missing RuntimeError variant `{variant_name}`")
             });
+        if !variant.fields.is_empty() {
+            panic!(
+                "runtime_error_unit_variant_payload: verifier accepted RuntimeError payload variant fields"
+            );
         }
         let abi = self.abi.source_value_layout(payload_ty)?.abi();
         let raw = match abi.llvm_ty() {

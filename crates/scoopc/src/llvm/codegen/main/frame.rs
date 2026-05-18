@@ -433,10 +433,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let mut gc_leaf_slots = Vec::new();
         self.collect_gc_ptr_leaf_slots_in_spill(slot, value_ty, name_prefix, &mut gc_leaf_slots)?;
         if frame_slots.len() != gc_leaf_slots.len() {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "spill slot/frame slot count mismatch",
-                at: at.into(),
-            });
+            panic!(
+                "explicit_frame_leaf_slot_pairs_for_storage_slot: explicit frame verifier accepted spill/frame slot count mismatch"
+            );
         }
 
         Ok(gc_leaf_slots
@@ -700,10 +699,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             return self.sync_storage_slot_into_explicit_frame(at, slot, value_ty, name_prefix);
         }
         if leaves.len() != frame_slots.len() {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "value/frame slot count mismatch",
-                at: at.into(),
-            });
+            panic!(
+                "sync_basic_value_into_explicit_frame: explicit frame verifier accepted value/frame slot count mismatch"
+            );
         }
         for ((leaf, _leaf_ty), frame_slot) in leaves.into_iter().zip(frame_slots) {
             let ptr = leaf.into_pointer_value();

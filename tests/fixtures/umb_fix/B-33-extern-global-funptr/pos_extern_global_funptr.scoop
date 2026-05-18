@@ -1,9 +1,8 @@
 // EXPECT: ok
-// IGNORE-UNTIL-FIX:B-33
 // SPEC: docs/spec/language_spec-part6.md#11-顶层可变全局;docs/spec/language_spec-part6.md#14-extern-与-gc-互操作边界;docs/spec/language_spec-part6.md#16-ffi-managed-resource-release-callback;docs/spec/language_spec-part6.md#8-extern
-// COVERS: UMB-0908, UMB-0909, UMB-0937, UMB-0938, UMB-1134, UMB-1135, UMB-1136, UMB-1137
+// COVERS: NONE
 // BUCKETS: B-30, B-33
-// REASON: U5-T02 records the spec surface before the matching implementation gate is enabled.
+// REASON: P7-B2.7 retired B-33 rows; active extern global load/store smoke coverage remains.
 // SOURCE-FIXTURE: tests/fixtures/run-pass/extern_global_load_store_basic.scoop
 
 package fixtures.codegen

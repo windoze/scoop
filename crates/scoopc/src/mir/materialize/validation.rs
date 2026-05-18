@@ -4,7 +4,7 @@ use super::super::{RuntimeTypeDescriptorKind, RuntimeTypeStaticFold};
 use super::*;
 use crate::ast;
 use crate::mir::AggregateTransportKind;
-use crate::mir::{ClassCtorCallMetadata, DispatchMetadata};
+use crate::mir::{ClassCtorCallMetadata, DispatchMetadata, InitializerRootKind};
 use crate::ty::{RefTypeKind, TypeKind, ValueTypeKind};
 
 #[derive(Clone, Copy)]
@@ -236,6 +236,15 @@ pub(super) fn validate_materialized_extern_global_root(
     materialized: &MaterializedMir,
     root: &ExternGlobalRoot,
 ) -> MaterializeResult<()> {
+    if !root.initializer_absent {
+        return Err(materialized_type_contract_err(
+            &root.fqn,
+            None,
+            root.span,
+            "extern global initializer",
+            "extern global roots must not publish an initializer",
+        ));
+    }
     validate_materialized_type(
         materialized,
         MaterializedValidationContext {
@@ -1857,7 +1866,7 @@ fn validate_materialized_top_level_store_target(
     target_fqn: &str,
     value_ty: TypeId,
 ) -> MaterializeResult<()> {
-    let Some(target_ty) = materialized_top_level_value_ty(materialized, target_fqn) else {
+    let Some(target) = materialized_top_level_store_target(materialized, target_fqn) else {
         return Err(materialized_type_contract_err(
             fqn,
             Some(block),
@@ -1866,7 +1875,16 @@ fn validate_materialized_top_level_store_target(
             "top-level store target is not published in materialized metadata",
         ));
     };
-    if target_ty != value_ty {
+    if !target.mutable {
+        return Err(materialized_type_contract_err(
+            fqn,
+            Some(block),
+            span,
+            "top-level store target",
+            "top-level store target is immutable",
+        ));
+    }
+    if target.ty != value_ty {
         return Err(materialized_type_contract_err(
             fqn,
             Some(block),
@@ -1878,13 +1896,29 @@ fn validate_materialized_top_level_store_target(
     Ok(())
 }
 
-fn materialized_top_level_value_ty(
+#[derive(Clone, Copy)]
+struct MaterializedTopLevelStoreTarget {
+    ty: TypeId,
+    mutable: bool,
+}
+
+fn materialized_top_level_store_target(
     materialized: &MaterializedMir,
     target_fqn: &str,
-) -> Option<TypeId> {
+) -> Option<MaterializedTopLevelStoreTarget> {
     materialized.file.items.iter().find_map(|item| match item {
-        Item::InitializerRoot(root) if root.fqn == target_fqn => root.ty,
-        Item::ExternGlobal(root) if root.fqn == target_fqn => Some(root.ty),
+        Item::InitializerRoot(root) if root.fqn == target_fqn => {
+            root.ty.map(|ty| MaterializedTopLevelStoreTarget {
+                ty,
+                mutable: matches!(root.kind, InitializerRootKind::RuntimeMutableVar { .. }),
+            })
+        }
+        Item::ExternGlobal(root) if root.fqn == target_fqn => {
+            Some(MaterializedTopLevelStoreTarget {
+                ty: root.ty,
+                mutable: root.mutable,
+            })
+        }
         _ => None,
     })
 }

@@ -71,10 +71,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             panic!("codegen_mir_cast_as: MIR verifier accepted invalid `as` failure contract");
         };
         if error_fqn != "scoop.core.RuntimeError.ClassCastFailed" {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "MIR `as` cast runtime error contract",
-                at: span.into(),
-            });
+            panic!(
+                "codegen_mir_cast_as: MIR verifier accepted non-ClassCastFailed runtime error contract"
+            );
         }
         let crate::mir::RuntimeCastResult::Target { ty } = &metadata.result else {
             panic!("codegen_mir_cast_as: MIR verifier accepted invalid `as` result contract");

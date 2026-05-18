@@ -685,6 +685,109 @@ fn materialized_mir_mir_materialize_generics_rejects_frame_slot_type_param() {
 }
 
 #[test]
+fn materialized_mir_contract_rejects_extern_global_initializer() {
+    let mut types = TypeStore::new();
+    let builtins = types.intern_builtins();
+    let file = File {
+        items: vec![Item::ExternGlobal(ExternGlobalRoot {
+            span: test_span(),
+            fqn: "fixtures.materialize.NativeCounter".to_string(),
+            source_path: test_source_path(),
+            ty: builtins.int,
+            mutable: true,
+            symbol: "scoop_test_native_counter".to_string(),
+            linkage: crate::hir::ExternGlobalLinkage::External,
+            storage: crate::hir::TopLevelVarStorage::Global,
+            initializer_absent: false,
+            unsafe_required: true,
+        })],
+    };
+    let materialized = materialized_for_test(file, types);
+
+    let err = materialized.validate_materialized().unwrap_err();
+    assert!(matches!(
+        *err,
+        MirMaterializeError::MaterializedMirValidation {
+            error: crate::mir::MirValidationError::TypeContract {
+                surface: "extern global initializer",
+                detail: "extern global roots must not publish an initializer",
+                ..
+            },
+            ..
+        }
+    ));
+}
+
+#[test]
+fn materialized_mir_contract_rejects_immutable_extern_global_store() {
+    let mut types = TypeStore::new();
+    let builtins = types.intern_builtins();
+    let mut body = Body::new_empty();
+    let value = body.push_local(LocalDecl {
+        span: test_span(),
+        name: Some("value".to_string()),
+        ty: builtins.int,
+        source: LocalSourceKind::CompilerTemporary,
+    });
+    let bb = body.push_block(BasicBlock {
+        is_cleanup: false,
+        stmts: vec![Statement {
+            span: test_span(),
+            kind: StatementKind::StoreTopLevelVar {
+                fqn: "fixtures.materialize.NativeCounter".to_string(),
+                value: Operand::Local(value),
+                value_ty: builtins.int,
+            },
+        }],
+        terminator: Terminator {
+            span: test_span(),
+            kind: TerminatorKind::Return { value: None },
+            unwind: UnwindAction::NoUnwind,
+        },
+    });
+    body.start = bb;
+    let file = File {
+        items: vec![
+            Item::ExternGlobal(ExternGlobalRoot {
+                span: test_span(),
+                fqn: "fixtures.materialize.NativeCounter".to_string(),
+                source_path: test_source_path(),
+                ty: builtins.int,
+                mutable: false,
+                symbol: "scoop_test_native_counter".to_string(),
+                linkage: crate::hir::ExternGlobalLinkage::External,
+                storage: crate::hir::TopLevelVarStorage::Global,
+                initializer_absent: true,
+                unsafe_required: true,
+            }),
+            Item::Fun(FunDecl {
+                span: test_span(),
+                fqn: "fixtures.materialize.main".to_string(),
+                name: "main".to_string(),
+                ty: builtins.unit,
+                params: Vec::new(),
+                return_ty: builtins.unit,
+                body: Some(body),
+            }),
+        ],
+    };
+    let materialized = materialized_for_test(file, types);
+
+    let err = materialized.validate_materialized().unwrap_err();
+    assert!(matches!(
+        *err,
+        MirMaterializeError::MaterializedMirValidation {
+            error: crate::mir::MirValidationError::TypeContract {
+                surface: "top-level store target",
+                detail: "top-level store target is immutable",
+                ..
+            },
+            ..
+        }
+    ));
+}
+
+#[test]
 fn materialized_mir_type_contract_rejects_missing_operand_local() {
     let mut types = TypeStore::new();
     let builtins = types.intern_builtins();

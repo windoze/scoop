@@ -160,17 +160,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     ) -> Result<(), LlvmEmitError> {
         if let Some(global) = self.materialized_extern_global_root(fqn).cloned() {
             if !global.mutable {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "pass MIR extern global store target immutable",
-                    at: span.into(),
-                });
+                panic!(
+                    "codegen_mir_store_top_level_var: verifier accepted immutable MIR extern global store target"
+                );
             }
-            let target_cg = self
-                .cg_ty_of(global.ty)
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "pass MIR extern global store target type",
-                    at: span.into(),
-                })?;
+            let target_cg = self.expect_cg_ty_of(global.ty, "MIR extern global store target type");
             let raw = self.codegen_mir_operand_expected(span, value, slots, Some(target_cg))?;
             let stored = self.coerce_value(span, raw, target_cg)?;
             let global = self.declare_mir_extern_global(&global)?;
@@ -180,17 +174,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         if let Some(global) = self.extern_globals.get(fqn).cloned() {
             if !global.mutable {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "pass MIR extern global store target immutable",
-                    at: span.into(),
-                });
+                panic!(
+                    "codegen_mir_store_top_level_var: verifier accepted immutable HIR extern global store target"
+                );
             }
-            let target_cg = self
-                .cg_ty_of(global.ty)
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "pass MIR extern global store target type",
-                    at: span.into(),
-                })?;
+            let target_cg = self.expect_cg_ty_of(global.ty, "HIR extern global store target type");
             let raw = self.codegen_mir_operand_expected(span, value, slots, Some(target_cg))?;
             let stored = self.coerce_value(span, raw, target_cg)?;
             let global = self.declare_extern_global(&global)?;

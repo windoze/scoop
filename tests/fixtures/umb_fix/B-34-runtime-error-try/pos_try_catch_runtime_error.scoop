@@ -1,9 +1,8 @@
 // EXPECT: ok
-// IGNORE-UNTIL-FIX:B-34
 // SPEC: docs/spec/language_spec-part4.md#13-程序边界与-entry-point;docs/spec/language_spec-part4.md#8-try--catch--finally;docs/spec/language_spec-part4.md#9-runtimeerror
-// COVERS: UMB-0215, UMB-0216, UMB-0217, UMB-0218, UMB-0947, UMB-1047
+// COVERS: NONE
 // BUCKETS: B-34
-// REASON: U5-T02 records the spec surface before the matching implementation gate is enabled.
+// REASON: P7-B2.7 retired B-34 rows; active try/catch/finally runtime-error smoke coverage remains.
 // SOURCE-FIXTURE: tests/fixtures/run-pass/try_catch_finally_raise_int_basic.scoop
 
 import scoop.core.*

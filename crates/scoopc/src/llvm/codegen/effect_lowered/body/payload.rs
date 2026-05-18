@@ -383,10 +383,9 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
         let expected = self
             .codegen
             .cg_ty_of_mir_type(self.source_types, target_ty)
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "completion payload target type",
-                at: self.mir_fun.span.into(),
-            })?;
+            .unwrap_or_else(|| {
+                panic!("lower_completion_payload_as: effect verifier accepted unsupported completion payload target type")
+            });
         if expected == CgTy::Unit {
             return Ok(None);
         }

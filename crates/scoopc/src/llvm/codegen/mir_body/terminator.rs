@@ -556,10 +556,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             crate::mir::Rvalue::ClassCtor { .. } => std::panic::panic_any(
                 "codegen_mir_effect_neutral_rvalue: value primitive class construction must publish ABI before codegen",
             ),
-            crate::mir::Rvalue::PerformResult { .. } => Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "value primitive boundary payload requires published contract",
-                at: span.into(),
-            }),
+            crate::mir::Rvalue::PerformResult { .. } => std::panic::panic_any(
+                "codegen_mir_effect_neutral_rvalue: value primitive boundary payload must publish contract before codegen",
+            ),
             crate::mir::Rvalue::UnresolvedName { name } => {
                 self.codegen_unresolved_ident(span, name, Some(target_cg))
             }

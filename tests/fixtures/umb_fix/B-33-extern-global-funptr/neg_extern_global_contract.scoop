@@ -1,12 +1,11 @@
 // EXPECT: fail
-// IGNORE-UNTIL-FIX:B-33
-// EXPECT-ERROR-CODE: scoop::umb_fix::pending_gate
-// EXPECT-ERROR-AT: 1:1
-// EXPECT-ERROR: pending U5 fixture gate
+// EXPECT-ERROR-CODE: scoop::typecheck::extern_fun_effects_not_allowed
+// EXPECT-ERROR-AT: 16:25
+// EXPECT-ERROR: `@Extern` 函数不允许声明非 Pure 的 effect row
 // SPEC: docs/spec/language_spec-part6.md#11-顶层可变全局;docs/spec/language_spec-part6.md#14-extern-与-gc-互操作边界;docs/spec/language_spec-part6.md#16-ffi-managed-resource-release-callback;docs/spec/language_spec-part6.md#8-extern
-// COVERS: UMB-0908, UMB-0909, UMB-0937, UMB-0938, UMB-1134, UMB-1135, UMB-1136, UMB-1137
+// COVERS: NONE
 // BUCKETS: B-30, B-33
-// REASON: U5-T02 records the spec surface before the matching implementation gate is enabled.
+// REASON: P7-B2.7 retired B-33 rows; active frontend/typecheck gate covers invalid extern function effect contract.
 // SOURCE-FIXTURE: tests/fixtures/typecheck/extern_fun_effects_not_allowed_is_error.scoop
 
 package fixtures.typecheck

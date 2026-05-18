@@ -1,31 +1,33 @@
-# Claude Execution Plan
+# Execution Plan
 
 ## Scope
+- Work on exactly the first incomplete task in `TODO.md`.
+- Treat `TODO.md` as the authoritative task order and completion source.
+- Do not proceed to the next task after completing or blocking the current one.
 
-Execute exactly the first incomplete task in `TODO.md`, then stop after committing the completed task or any required dependency/task-list update.
-
-## Reasoning Summary
-
-`TODO.md` is the authoritative task source. I will not perform broad historical triage before selecting the first incomplete task. If a blocker directly affects that task, I will either fix it as part of the task or add the minimum prerequisite task before it and stop after committing that bookkeeping change.
-
-## Step-by-Step Plan
-
-1. Read `TODO.md` and identify the first task whose heading is not prefixed with `[DONE]`.
-2. Check the latest commit message only for unfinished issue context directly relevant to that selected task.
-3. Read the selected task details, dependencies, validation requirements, and relevant project files.
-4. Implement the selected task as written without narrowing scope or using workarounds.
-5. Add or update the smallest relevant tests/fixtures needed for the specified behavior.
-6. Run focused validation first, then broader validation required by the task and repository guidelines as feasible.
-7. If validation exposes an in-scope defect, fix the root cause and rerun relevant validation.
-8. If a concrete prerequisite blocks correct completion, update `TODO.md` with the minimum prerequisite task, update this plan file, commit the task-list change, and stop.
-9. On success, mark the selected task heading with `[DONE]` in `TODO.md` and update its completion record.
-10. Update `PLAN.md` only if the phase-level plan, dependency structure, assumptions, or completion criteria changed.
-11. Inspect the working tree and diff, then commit all intended changes with a clear task-tagged message.
-12. Stop without starting the next task.
+## Planned Steps
+1. Read `TODO.md` and identify the first heading that is not prefixed with `[DONE]`.
+2. Check recent Git context only as needed for the selected task, especially whether the latest commit mentions unfinished work directly relevant to it.
+3. Read the selected task details, dependencies, validation requirements, and relevant code/tests.
+4. Implement the task as specified, without narrowing scope or using workaround representations.
+5. If a concrete blocker prevents spec-correct implementation, update `TODO.md` with the minimum prerequisite task, keep the current task incomplete, commit that bookkeeping, and stop.
+6. Run targeted tests first, then broader required validation for the task.
+7. Fix any failures that are in scope for the current task.
+8. Mark the task title in `TODO.md` with `[DONE]` and update its completion record.
+9. Update `PLAN.md` only if phase-level sequencing, dependencies, assumptions, or completion criteria changed.
+10. Inspect Git status and diffs, then commit all intended changes with a task-specific message.
 
 ## Progress Log
-
-- Created initial execution plan before running project commands.
-- Identified first incomplete task: `P7-B2.6` for B-19/B-20/B-22/B-23 layout and member contract retirement. Latest commit is `[P7-B2.5] Retire scalar literal UMB rows`, with no directly blocking unfinished issue in the subject.
-- Implemented the first verifier/codegen pass for P7-B2.6: materialized MIR now validates class constructor, top-level store, enum payload, member target, and dispatch metadata contracts; matching LLVM fallback sites were converted to internal invariants. Focused `cargo test -p scoopc mir::materialize -- --nocapture` passed after tightening generic-owner handling.
-- Synchronized audit data for P7-B2.6: active inventory is now 652, retired ledger is 632, and B-19/B-20/B-22/B-23 active counts are 0. Activated the relevant fixture directories and fixed fixture expectations for B-19/B-20/B-22/B-23 smoke/negative coverage.
+- Initialized execution plan before reading task details.
+- Read `TODO.md`; first incomplete task is `P7-B2.7：B-33/B-34/B-35 extern、RuntimeError、NoGC/frame boundary contract`.
+- Task scope: retire 19 active `InternalBugSentinel` rows across B-33, B-34, and B-35; implement verifier/helper contracts, remove corresponding codegen fallbacks, update audit/fixtures/stale counts, validate, mark complete, and commit.
+- Relevant active rows are B-33 `UMB-0908/0909/0937/0938/1134/1135/1136/1137`, B-34 `UMB-0215/0216/0217/0218/0947/1047`, and B-35 `UMB-0827/0828/0881/0885/1209`.
+- Implementation decision: express extern initializer and store mutability in materialized MIR validation, then replace the matching LLVM fallbacks with internal invariants. RuntimeError and explicit-frame slot checks already have upstream contracts; replace only the targeted fallback sites with invariant panics and leave other active buckets untouched.
+- Implemented initial code changes in MIR validation/tests and LLVM lowering for the targeted B-33/B-34/B-35 fallback sites. Next step is formatting and targeted test runs, then audit/doc/fixture inventory updates.
+- `cargo test -p scoopc mir::materialize -- --nocapture` passed with 51 tests, including new extern global validation regressions.
+- `umb-audit diff` is in sync with 633 active entries; `umb-audit stats` reports active=633, retired=651, initial=1284; B-33/B-34/B-35 lists all report 0 entries.
+- Target fixture directories pass: B-33 (4 ok, one skipped pending calling-convention/FunPtr fixture), B-34 (3 ok), B-35 (10 ok, six skipped cross-bucket/pending low-level fixtures).
+- `cargo test -p scoopc audit:: -- --nocapture` and `cargo test -p scoopc pipeline_user_visible_failure_policy -- --nocapture` pass after audit/stale-count updates.
+- `cargo clippy --all-targets -- -D warnings` passed.
+- Updated `TODO.md`: marked P7-B2.7 `[DONE]`, added completion record, and updated active/retired status to active=633 and retired=651.
+- Re-ran `cargo test -p scoopc audit:: -- --nocapture` after doc cleanup; it passed.

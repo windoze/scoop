@@ -127,17 +127,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         initializer_absent: bool,
     ) -> Result<GlobalValue<'ctx>, LlvmEmitError> {
         if !initializer_absent {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "extern global initializer contract",
-                at: span.into(),
-            });
+            panic!("declare_extern_global_storage: verifier accepted extern global initializer");
         }
-        let cg_ty = self
-            .cg_ty_of(ty)
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "extern global type",
-                at: span.into(),
-            })?;
+        let cg_ty = self.expect_cg_ty_of(ty, "extern global storage type");
         let llvm_ty = self.llvm_basic_type_of(span, cg_ty)?;
         let gv = self
             .module

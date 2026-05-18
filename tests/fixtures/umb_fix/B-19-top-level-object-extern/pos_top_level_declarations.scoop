@@ -1,8 +1,8 @@
 // EXPECT: ok
 // SPEC: docs/spec/language_spec-part1.md#4-顶层声明;docs/spec/language_spec-part1.md#42-顶层不可变值;docs/spec/language_spec-part1.md#43-const-val
-// COVERS: UMB-0908, UMB-0909, UMB-0937, UMB-0938, UMB-1134, UMB-1135, UMB-1136, UMB-1137
+// COVERS: NONE
 // BUCKETS: B-19, B-33
-// REASON: U5-T02 records the spec surface before the matching implementation gate is enabled.
+// REASON: P7-B2.7 retired B-33 cross-coverage; this fixture remains active top-level declaration smoke coverage.
 // SOURCE-FIXTURE: tests/fixtures/run-pass/top_level_const_val_general_expr_basic.scoop
 
 import scoop.core.*

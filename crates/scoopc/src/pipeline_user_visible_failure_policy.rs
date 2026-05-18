@@ -162,7 +162,7 @@ const STALE_UNSUPPORTED_MAIN_BODY_COUNTS: &[UnsupportedMainBodyCount] = &[
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/mir_body/cast.rs",
-        expected_count: 7,
+        expected_count: 6,
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/mir_body/const_pat.rs",
@@ -174,7 +174,7 @@ const STALE_UNSUPPORTED_MAIN_BODY_COUNTS: &[UnsupportedMainBodyCount] = &[
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/mir_body/member.rs",
-        expected_count: 29,
+        expected_count: 25,
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/mir_body/mod.rs",
@@ -190,7 +190,7 @@ const STALE_UNSUPPORTED_MAIN_BODY_COUNTS: &[UnsupportedMainBodyCount] = &[
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/mir_body/terminator.rs",
-        expected_count: 3,
+        expected_count: 2,
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/mir_body/transport.rs",
@@ -222,11 +222,11 @@ const STALE_UNSUPPORTED_MAIN_BODY_COUNTS: &[UnsupportedMainBodyCount] = &[
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/effect_lowered/body/payload.rs",
-        expected_count: 2,
+        expected_count: 1,
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/effect_lowered/body/runtime_error.rs",
-        expected_count: 3,
+        expected_count: 0,
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/effect_lowered/body/states.rs",
@@ -262,7 +262,7 @@ const STALE_UNSUPPORTED_MAIN_BODY_COUNTS: &[UnsupportedMainBodyCount] = &[
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/main/declare.rs",
-        expected_count: 2,
+        expected_count: 0,
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/main/expr_op.rs",
@@ -274,7 +274,7 @@ const STALE_UNSUPPORTED_MAIN_BODY_COUNTS: &[UnsupportedMainBodyCount] = &[
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/main/frame.rs",
-        expected_count: 3,
+        expected_count: 1,
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/main/function.rs",
@@ -286,7 +286,7 @@ const STALE_UNSUPPORTED_MAIN_BODY_COUNTS: &[UnsupportedMainBodyCount] = &[
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/main/globals.rs",
-        expected_count: 2,
+        expected_count: 0,
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/main/identity.rs",
@@ -294,7 +294,7 @@ const STALE_UNSUPPORTED_MAIN_BODY_COUNTS: &[UnsupportedMainBodyCount] = &[
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/main/immut_value.rs",
-        expected_count: 2,
+        expected_count: 0,
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/main/literal.rs",
@@ -306,7 +306,7 @@ const STALE_UNSUPPORTED_MAIN_BODY_COUNTS: &[UnsupportedMainBodyCount] = &[
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/main/runtime_error.rs",
-        expected_count: 3,
+        expected_count: 2,
     },
 ];
 
@@ -757,20 +757,21 @@ const INTERNAL_BUG_SENTINEL_HITS: &[&str] = &[
     "crates/scoopc/src/llvm/codegen/mir_body/callable_lookup.rs:538:                        panic!(\"bind_mir_closure_params: MIR call ABI verifier accepted missing LLVM param\")",
     "crates/scoopc/src/llvm/codegen/mir_body/cast.rs:47:            panic!(\"codegen_mir_cast: MIR verifier accepted runtime cast metadata drift\");",
     "crates/scoopc/src/llvm/codegen/mir_body/cast.rs:71:            panic!(\"codegen_mir_cast_as: MIR verifier accepted invalid `as` failure contract\");",
-    "crates/scoopc/src/llvm/codegen/mir_body/cast.rs:80:            panic!(\"codegen_mir_cast_as: MIR verifier accepted invalid `as` result contract\");",
-    "crates/scoopc/src/llvm/codegen/mir_body/cast.rs:83:            panic!(\"codegen_mir_cast_as: MIR verifier accepted invalid `as` target contract\");",
-    "crates/scoopc/src/llvm/codegen/mir_body/cast.rs:89:                panic!(\"codegen_mir_cast_as: TypeStore equivalence verifier accepted unsupported `as` target codegen type\")",
-    "crates/scoopc/src/llvm/codegen/mir_body/cast.rs:92:            panic!(\"codegen_mir_cast_as: MIR verifier accepted unsupported `as` target type\")",
-    "crates/scoopc/src/llvm/codegen/mir_body/cast.rs:139:            panic!(\"codegen_mir_cast_asq: MIR verifier accepted invalid `as?` failure contract\");",
-    "crates/scoopc/src/llvm/codegen/mir_body/cast.rs:142:            panic!(\"codegen_mir_cast_asq: MIR verifier accepted invalid `as?` result contract\");",
-    "crates/scoopc/src/llvm/codegen/mir_body/cast.rs:145:            panic!(\"codegen_mir_cast_asq: MIR verifier accepted invalid `as?` target contract\");",
-    "crates/scoopc/src/llvm/codegen/mir_body/cast.rs:151:                panic!(\"codegen_mir_cast_asq: TypeStore equivalence verifier accepted unsupported `as?` target codegen type\")",
-    "crates/scoopc/src/llvm/codegen/mir_body/cast.rs:154:            panic!(\"codegen_mir_cast_asq: MIR verifier accepted unsupported `as?` target type\")",
-    "crates/scoopc/src/llvm/codegen/mir_body/cast.rs:165:                panic!(\"codegen_mir_cast_asq: TypeStore equivalence verifier accepted unsupported `as?` option codegen type\")",
-    "crates/scoopc/src/llvm/codegen/mir_body/cast.rs:168:            panic!(\"codegen_mir_cast_asq: MIR verifier accepted invalid `as?` result type\");",
-    "crates/scoopc/src/llvm/codegen/mir_body/cast.rs:257:            _ => panic!(",
-    "crates/scoopc/src/llvm/codegen/mir_body/cast.rs:341:            panic!(",
-    "crates/scoopc/src/llvm/codegen/mir_body/cast.rs:350:            panic!(",
+    "crates/scoopc/src/llvm/codegen/mir_body/cast.rs:74:            panic!(",
+    "crates/scoopc/src/llvm/codegen/mir_body/cast.rs:79:            panic!(\"codegen_mir_cast_as: MIR verifier accepted invalid `as` result contract\");",
+    "crates/scoopc/src/llvm/codegen/mir_body/cast.rs:82:            panic!(\"codegen_mir_cast_as: MIR verifier accepted invalid `as` target contract\");",
+    "crates/scoopc/src/llvm/codegen/mir_body/cast.rs:88:                panic!(\"codegen_mir_cast_as: TypeStore equivalence verifier accepted unsupported `as` target codegen type\")",
+    "crates/scoopc/src/llvm/codegen/mir_body/cast.rs:91:            panic!(\"codegen_mir_cast_as: MIR verifier accepted unsupported `as` target type\")",
+    "crates/scoopc/src/llvm/codegen/mir_body/cast.rs:138:            panic!(\"codegen_mir_cast_asq: MIR verifier accepted invalid `as?` failure contract\");",
+    "crates/scoopc/src/llvm/codegen/mir_body/cast.rs:141:            panic!(\"codegen_mir_cast_asq: MIR verifier accepted invalid `as?` result contract\");",
+    "crates/scoopc/src/llvm/codegen/mir_body/cast.rs:144:            panic!(\"codegen_mir_cast_asq: MIR verifier accepted invalid `as?` target contract\");",
+    "crates/scoopc/src/llvm/codegen/mir_body/cast.rs:150:                panic!(\"codegen_mir_cast_asq: TypeStore equivalence verifier accepted unsupported `as?` target codegen type\")",
+    "crates/scoopc/src/llvm/codegen/mir_body/cast.rs:153:            panic!(\"codegen_mir_cast_asq: MIR verifier accepted unsupported `as?` target type\")",
+    "crates/scoopc/src/llvm/codegen/mir_body/cast.rs:164:                panic!(\"codegen_mir_cast_asq: TypeStore equivalence verifier accepted unsupported `as?` option codegen type\")",
+    "crates/scoopc/src/llvm/codegen/mir_body/cast.rs:167:            panic!(\"codegen_mir_cast_asq: MIR verifier accepted invalid `as?` result type\");",
+    "crates/scoopc/src/llvm/codegen/mir_body/cast.rs:256:            _ => panic!(",
+    "crates/scoopc/src/llvm/codegen/mir_body/cast.rs:340:            panic!(",
+    "crates/scoopc/src/llvm/codegen/mir_body/cast.rs:349:            panic!(",
     "crates/scoopc/src/llvm/codegen/mir_body/const_pat.rs:22:                        panic!(\"codegen_mir_const: parser/typecheck accepted invalid char literal\")",
     "crates/scoopc/src/llvm/codegen/mir_body/const_pat.rs:36:                    _ => panic!(",
     "crates/scoopc/src/llvm/codegen/mir_body/const_pat.rs:52:                    _ => panic!(",
@@ -815,11 +816,13 @@ const INTERNAL_BUG_SENTINEL_HITS: &[&str] = &[
     "crates/scoopc/src/llvm/codegen/mir_body/member.rs:85:            panic!(",
     "crates/scoopc/src/llvm/codegen/mir_body/member.rs:92:                panic!(\"codegen_mir_enum_variant_ctor_call: verifier accepted named enum ctor arg\");",
     "crates/scoopc/src/llvm/codegen/mir_body/member.rs:130:            unreachable!(",
-    "crates/scoopc/src/llvm/codegen/mir_body/member.rs:204:            .unwrap_or_else(|| panic!(\"codegen_mir_store_top_level_var: verifier accepted missing top-level var store target `{fqn}`\"));",
-    "crates/scoopc/src/llvm/codegen/mir_body/member.rs:234:                .unwrap_or_else(|| panic!(\"codegen_mir_member_place: verifier accepted missing class member receiver operand type\"));",
-    "crates/scoopc/src/llvm/codegen/mir_body/member.rs:237:                    panic!(",
-    "crates/scoopc/src/llvm/codegen/mir_body/member.rs:243:                    unreachable!(",
-    "crates/scoopc/src/llvm/codegen/mir_body/member.rs:283:            panic!(\"codegen_mir_member_place: verifier accepted member receiver slot type drift\");",
+    "crates/scoopc/src/llvm/codegen/mir_body/member.rs:163:                panic!(",
+    "crates/scoopc/src/llvm/codegen/mir_body/member.rs:177:                panic!(",
+    "crates/scoopc/src/llvm/codegen/mir_body/member.rs:192:            .unwrap_or_else(|| panic!(\"codegen_mir_store_top_level_var: verifier accepted missing top-level var store target `{fqn}`\"));",
+    "crates/scoopc/src/llvm/codegen/mir_body/member.rs:222:                .unwrap_or_else(|| panic!(\"codegen_mir_member_place: verifier accepted missing class member receiver operand type\"));",
+    "crates/scoopc/src/llvm/codegen/mir_body/member.rs:225:                    panic!(",
+    "crates/scoopc/src/llvm/codegen/mir_body/member.rs:231:                    unreachable!(",
+    "crates/scoopc/src/llvm/codegen/mir_body/member.rs:271:            panic!(\"codegen_mir_member_place: verifier accepted member receiver slot type drift\");",
     "crates/scoopc/src/llvm/codegen/mir_body/mod.rs:261:            panic!(\"mir_member_value_fqn_for_codegen: verifier accepted non-value member target\")",
     "crates/scoopc/src/llvm/codegen/mir_body/mod.rs:264:            panic!(\"mir_member_value_fqn_for_codegen: verifier accepted unresolved member target\")",
     "crates/scoopc/src/llvm/codegen/mir_body/operand.rs:350:            panic!(\"mir_closure_env_capture_element_cg_tys_from_contract: TypeStore equivalence verifier accepted unsupported closure env contract codegen type\")",
@@ -830,6 +833,10 @@ const INTERNAL_BUG_SENTINEL_HITS: &[&str] = &[
     "crates/scoopc/src/llvm/codegen/mir_body/types.rs:74:            panic!(\"mir_local_storage_cg_ty: MIR verifier accepted unsupported local type\")",
     "crates/scoopc/src/llvm/codegen/mir_body/types.rs:726:                panic!(\"mir_member_receiver_codegen_type_id: verifier accepted member receiver TypeStore drift\")",
     "crates/scoopc/src/llvm/codegen/effect_lowered/body/call_invoke.rs:98:                        panic!(\"lower_dynamic_call_carrier: TypeStore equivalence verifier accepted unsupported FunPtr carrier codegen type\")",
+    "crates/scoopc/src/llvm/codegen/effect_lowered/body/payload.rs:387:                panic!(\"lower_completion_payload_as: effect verifier accepted unsupported completion payload target type\")",
+    "crates/scoopc/src/llvm/codegen/effect_lowered/body/runtime_error.rs:82:                panic!(\"runtime_error_unit_variant_payload: verifier accepted missing RuntimeError enum layout\")",
+    "crates/scoopc/src/llvm/codegen/effect_lowered/body/runtime_error.rs:89:                panic!(\"runtime_error_unit_variant_payload: verifier accepted missing RuntimeError variant `{variant_name}`\")",
+    "crates/scoopc/src/llvm/codegen/effect_lowered/body/runtime_error.rs:92:            panic!(",
     "crates/scoopc/src/llvm/codegen/effect_lowered/value.rs:2493:                    _ => unreachable!(\"filtered by match\"),",
     "crates/scoopc/src/llvm/codegen/effect_lowered/value.rs:3621:            _ => unreachable!(\"filtered by caller\"),",
     "crates/scoopc/src/llvm/codegen/main/alloca.rs:48:            _ => unreachable!(\"cast_float only accepts Float64/Float32\"),",
@@ -865,6 +872,8 @@ const INTERNAL_BUG_SENTINEL_HITS: &[&str] = &[
     "crates/scoopc/src/llvm/codegen/main/declare.rs:203:            panic!(",
     "crates/scoopc/src/llvm/codegen/main/declare.rs:327:                panic!(\"declare_materialized_top_level_fun: MIR materialize verifier accepted unsupported return type\")",
     "crates/scoopc/src/llvm/codegen/main/declare.rs:454:            panic!(\"declare_top_level_fun_callee_resume_entry: MIR signature verifier accepted unsupported return type\")",
+    "crates/scoopc/src/llvm/codegen/main/declare.rs:558:            panic!(",
+    "crates/scoopc/src/llvm/codegen/main/declare.rs:564:            panic!(",
     "crates/scoopc/src/llvm/codegen/main/expr_op.rs:75:                panic!(\"codegen_type_check_expr: typecheck gate accepted non-runtime-ref operand\");",
     "crates/scoopc/src/llvm/codegen/main/expr_op.rs:79:            panic!(\"codegen_type_check_expr: typecheck gate accepted valueless operand\");",
     "crates/scoopc/src/llvm/codegen/main/expr_op.rs:82:            panic!(\"codegen_type_check_expr: typecheck gate accepted non-pointer runtime operand\");",
@@ -894,19 +903,22 @@ const INTERNAL_BUG_SENTINEL_HITS: &[&str] = &[
     "crates/scoopc/src/llvm/codegen/main/expr_value.rs:390:                panic!(",
     "crates/scoopc/src/llvm/codegen/main/expr_value.rs:399:            panic!(",
     "crates/scoopc/src/llvm/codegen/main/expr_value.rs:433:            panic!(",
-    "crates/scoopc/src/llvm/codegen/main/frame.rs:497:                        panic!(\"rebuild_value_from_storage_slot_with_explicit_frame: explicit-frame slot metadata ended before aggregate rebuild completed\")",
-    "crates/scoopc/src/llvm/codegen/main/frame.rs:645:            panic!(",
-    "crates/scoopc/src/llvm/codegen/main/frame.rs:807:            panic!(\"finalize_function_explicit_frame_lifecycle: verifier accepted missing explicit root frame descriptor global\")",
+    "crates/scoopc/src/llvm/codegen/main/frame.rs:436:            panic!(",
+    "crates/scoopc/src/llvm/codegen/main/frame.rs:496:                        panic!(\"rebuild_value_from_storage_slot_with_explicit_frame: explicit-frame slot metadata ended before aggregate rebuild completed\")",
+    "crates/scoopc/src/llvm/codegen/main/frame.rs:644:            panic!(",
+    "crates/scoopc/src/llvm/codegen/main/frame.rs:702:            panic!(",
+    "crates/scoopc/src/llvm/codegen/main/frame.rs:805:            panic!(\"finalize_function_explicit_frame_lifecycle: verifier accepted missing explicit root frame descriptor global\")",
     "crates/scoopc/src/llvm/codegen/main/function.rs:62:                    panic!(\"emit_function_return_block: function return context must publish return alloca\")",
     "crates/scoopc/src/llvm/codegen/main/function.rs:165:            panic!(\"codegen_top_level_fun: MIR signature verifier accepted unsupported return type\")",
     "crates/scoopc/src/llvm/codegen/main/function.rs:179:                        panic!(\"codegen_top_level_fun: declared sret function must publish hidden return parameter\")",
     "crates/scoopc/src/llvm/codegen/main/gc_locals.rs:85:            panic!(\"rematerialize_ptr_in_current_block: local slot GEP must publish source type\")",
     "crates/scoopc/src/llvm/codegen/main/globals.rs:22:            panic!(\"defer_class_field_place: verifier accepted class field index drift\")",
-    "crates/scoopc/src/llvm/codegen/main/globals.rs:174:                    panic!(\"const_initializer_for_top_level_var: verifier accepted non-const Bool initializer\")",
-    "crates/scoopc/src/llvm/codegen/main/globals.rs:183:                    panic!(\"const_initializer_for_top_level_var: verifier accepted non-const Int initializer\")",
-    "crates/scoopc/src/llvm/codegen/main/globals.rs:190:                    panic!(\"const_initializer_for_top_level_var: verifier accepted non-const Float initializer\")",
-    "crates/scoopc/src/llvm/codegen/main/globals.rs:195:                panic!(\"const_initializer_for_top_level_var: verifier accepted aggregate top-level var initializer\");",
-    "crates/scoopc/src/llvm/codegen/main/globals.rs:198:                panic!(\"const_initializer_for_top_level_var: verifier accepted GC top-level var initializer\");",
+    "crates/scoopc/src/llvm/codegen/main/globals.rs:130:            panic!(\"declare_extern_global_storage: verifier accepted extern global initializer\");",
+    "crates/scoopc/src/llvm/codegen/main/globals.rs:166:                    panic!(\"const_initializer_for_top_level_var: verifier accepted non-const Bool initializer\")",
+    "crates/scoopc/src/llvm/codegen/main/globals.rs:175:                    panic!(\"const_initializer_for_top_level_var: verifier accepted non-const Int initializer\")",
+    "crates/scoopc/src/llvm/codegen/main/globals.rs:182:                    panic!(\"const_initializer_for_top_level_var: verifier accepted non-const Float initializer\")",
+    "crates/scoopc/src/llvm/codegen/main/globals.rs:187:                panic!(\"const_initializer_for_top_level_var: verifier accepted aggregate top-level var initializer\");",
+    "crates/scoopc/src/llvm/codegen/main/globals.rs:190:                panic!(\"const_initializer_for_top_level_var: verifier accepted GC top-level var initializer\");",
     "crates/scoopc/src/llvm/codegen/main/immut_value.rs:37:            panic!(\"codegen_decl_initializer_expr: typed HIR val must publish initializer\")",
     "crates/scoopc/src/llvm/codegen/main/immut_value.rs:54:            panic!(\"codegen_top_level_const_ref: verifier accepted recursive top-level const ref\");",
     "crates/scoopc/src/llvm/codegen/main/immut_value.rs:58:            panic!(\"codegen_top_level_const_ref: verifier accepted const without initializer\")",
@@ -917,7 +929,8 @@ const INTERNAL_BUG_SENTINEL_HITS: &[&str] = &[
     "crates/scoopc/src/llvm/codegen/main/literal.rs:36:                        panic!(",
     "crates/scoopc/src/llvm/codegen/main/literal.rs:40:                    panic!(\"emit_return: MIR return contract accepted missing return value\")",
     "crates/scoopc/src/llvm/codegen/main/literal.rs:79:                    panic!(",
-    "crates/scoopc/src/llvm/codegen/main/runtime_error.rs:224:            panic!(",
+    "crates/scoopc/src/llvm/codegen/main/runtime_error.rs:220:                panic!(\"emit_raise_runtime_error_variant: verifier accepted missing RuntimeError unit variant `{variant_name}`\")",
+    "crates/scoopc/src/llvm/codegen/main/runtime_error.rs:223:            panic!(",
     "crates/scoopc/src/mir/materialize/dispatch.rs:51:                    panic!(",
     "crates/scoopc/src/mir/materialize/output.rs:37:            panic!(",
     "crates/scoopc/src/typecheck/lower.rs:1268:                unreachable!(",
@@ -1029,7 +1042,7 @@ fn pipeline_user_visible_failure_policy_tracks_stale_unsupportedmainbody_counts(
             baseline.path
         );
     }
-    assert_eq!(total, 285);
+    assert_eq!(total, 266);
 }
 
 #[test]

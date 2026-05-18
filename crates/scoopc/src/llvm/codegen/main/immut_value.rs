@@ -456,12 +456,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         span: crate::span::Span,
         global: &hir::ExternGlobal,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        let cg_ty = self
-            .cg_ty_of(global.ty)
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "extern global type",
-                at: global.span.into(),
-            })?;
+        let cg_ty = self.expect_cg_ty_of(global.ty, "extern global access type");
         if cg_ty == CgTy::Unit {
             return Ok(CgValue::unit());
         }
@@ -478,12 +473,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         span: crate::span::Span,
         global: &crate::mir::ExternGlobalRoot,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        let cg_ty = self
-            .cg_ty_of(global.ty)
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "extern global type",
-                at: global.span.into(),
-            })?;
+        let cg_ty = self.expect_cg_ty_of(global.ty, "MIR extern global access type");
         if cg_ty == CgTy::Unit {
             return Ok(CgValue::unit());
         }

@@ -555,17 +555,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .explicit_frame_slot_mirrors_for(slot)
             .map(|slots| slots.to_vec());
         if explicit_frame_enabled && frame_slots.is_none() {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "spill slot explicit frame mirrors",
-                at: at.into(),
-            });
+            panic!(
+                "track_gc_root_slots_for_spill_slot: explicit frame verifier accepted missing spill slot mirrors"
+            );
         }
         let frame_slots = frame_slots.unwrap_or_default();
         if explicit_frame_enabled && frame_slots.len() != gc_leaf_slots.len() {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "spill slot/frame slot count mismatch",
-                at: at.into(),
-            });
+            panic!(
+                "track_gc_root_slots_for_spill_slot: explicit frame verifier accepted spill/frame slot count mismatch"
+            );
         }
         for (index, (slot, value_ptr_ty)) in gc_leaf_slots.into_iter().enumerate() {
             let frame_slot = frame_slots.get(index).copied().unwrap_or(slot);

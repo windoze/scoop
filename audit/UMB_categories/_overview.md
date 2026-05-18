@@ -6,9 +6,9 @@ inventory 来源：[`audit/UMB_inventory.csv`](../UMB_inventory.csv)
 
 ## Summary
 
-- Total active inventory entries: 801
+- Total active inventory entries: 633
 - Bucket range: B-01 through B-36
-- Zero-entry buckets: B-01, B-02, B-03, B-04, B-05, B-06, B-07, B-09, B-14, B-15, B-16, B-17, B-18, B-21, B-36
+- Zero-entry buckets: B-01, B-02, B-03, B-04, B-05, B-06, B-07, B-09, B-14, B-15, B-16, B-17, B-18, B-19, B-20, B-21, B-22, B-23, B-33, B-34, B-35, B-36
 - Missing `spec_anchor`: 0
 - Missing `upstream_gate`: 0
 - Decision: all 36 stable buckets are retained; no merge or split is required in U2-T01.
@@ -49,9 +49,9 @@ inventory 来源：[`audit/UMB_inventory.csv`](../UMB_inventory.csv)
 | B-30 | named / unsafe / FunPtr intrinsic | B | 117 | InternalBugSentinel=117 | DYNAMIC:kind (11)<br>funptr signature type (2)<br>funptr signature kind (2)<br>stackmap statepoint smoke arity mismatch (2)<br>stackmap statepoint smoke caller function (2) | crates/scoopc/src/llvm/codegen/intrinsics/named.rs (43)<br>crates/scoopc/src/llvm/codegen/intrinsics/builtin.rs (33)<br>crates/scoopc/src/llvm/codegen/intrinsics/sysroot.rs (15)<br>crates/scoopc/src/llvm/codegen/call/lowering.rs (7)<br>crates/scoopc/src/llvm/codegen/mir_body/call.rs (5) | CSV non-empty; body pending U2-T02. |
 | B-31 | 标量扩展方法 (Float/Int/Char/Bool/String) | B | 12 | InternalBugSentinel=12 | String.byteLength arity mismatch (1)<br>String.byteLength load type (1)<br>String.getByte arity mismatch (1)<br>String.getByte named arg (1)<br>String.getByte index value (1) | crates/scoopc/src/llvm/codegen/intrinsics/builtin.rs (12) | CSV non-empty; body pending U2-T02. |
 | B-32 | print / panic / sysroot 桥接 | B | 10 | InternalBugSentinel=10 | sysroot panic arity mismatch (1)<br>sysroot panic named arg (1)<br>sysroot panic message value (1)<br>sysroot panic message type (1)<br>sysroot print/println String arg value (1) | crates/scoopc/src/llvm/codegen/intrinsics/builtin.rs (10) | CSV non-empty; body pending U2-T02. |
-| B-33 | Extern global / FunPtr 顶层 | B | 8 | InternalBugSentinel=8 | extern global type (3)<br>pass MIR extern global store target immutable (2)<br>pass MIR extern global store target type (2)<br>extern global initializer contract (1) | crates/scoopc/src/llvm/codegen/mir_body/member.rs (4)<br>crates/scoopc/src/llvm/codegen/main/globals.rs (2)<br>crates/scoopc/src/llvm/codegen/main/immut_value.rs (2) | CSV non-empty; body pending U2-T02. |
-| B-34 | RuntimeError / try-catch-finally | B | 6 | InternalBugSentinel=6 | completion payload target type (1)<br>RuntimeError enum layout (1)<br>RuntimeError variant layout (1)<br>RuntimeError payload variant arity (1)<br>RuntimeError unit variant value (1) | crates/scoopc/src/llvm/codegen/effect_lowered/body/runtime_error.rs (3)<br>crates/scoopc/src/llvm/codegen/effect_lowered/body/payload.rs (1)<br>crates/scoopc/src/llvm/codegen/main/runtime_error.rs (1)<br>crates/scoopc/src/llvm/codegen/mir_body/cast.rs (1) | CSV non-empty; body pending U2-T02. |
-| B-35 | unsafe / NoGC / 边界 | B/C | 5 | InternalBugSentinel=5 | spill slot/frame slot count mismatch (2)<br>spill slot explicit frame mirrors (1)<br>value/frame slot count mismatch (1)<br>value primitive boundary payload requires published contract (1) | crates/scoopc/src/llvm/codegen/main/declare.rs (2)<br>crates/scoopc/src/llvm/codegen/main/frame.rs (2)<br>crates/scoopc/src/llvm/codegen/mir_body/terminator.rs (1) | CSV non-empty; cross-class split remains entry-level. |
+| B-33 | Extern global / FunPtr 顶层 | B | 0 | retired InternalBugSentinel=8 | retired: extern global type (3)<br>pass MIR extern global store target immutable (2)<br>pass MIR extern global store target type (2)<br>extern global initializer contract (1) | retired ledger: `audit/UMB_retired.csv` | P7-B2.7 retired; active CSV empty. |
+| B-34 | RuntimeError / try-catch-finally | B | 0 | retired InternalBugSentinel=6 | retired: completion payload target type (1)<br>RuntimeError enum layout (1)<br>RuntimeError variant layout (1)<br>RuntimeError payload variant arity (1)<br>RuntimeError unit variant value (1) | retired ledger: `audit/UMB_retired.csv` | P7-B2.7 retired; active CSV empty. |
+| B-35 | unsafe / NoGC / 边界 | B/C | 0 | retired InternalBugSentinel=5 | retired: spill slot/frame slot count mismatch (2)<br>spill slot explicit frame mirrors (1)<br>value/frame slot count mismatch (1)<br>value primitive boundary payload requires published contract (1) | retired ledger: `audit/UMB_retired.csv` | P7-B2.7 retired; active CSV empty. |
 | B-36 | 未定义/暂未支持的 spec surface | D | 0 | retired FrontendReject=58 | retired: DYNAMIC:kind (8)<br>scoop_alloc_typed return value (4)<br>struct type id (4)<br>enum type id (4)<br>DYNAMIC:missing_kind (2) | retired ledger: `audit/UMB_retired.csv` | P7-A4 retired; async/await and generator/yield remain frontend rejects. |
 
 ## B-01 Skeleton Sample

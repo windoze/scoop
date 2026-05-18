@@ -216,10 +216,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let variant_fqn = format!("scoop.core.RuntimeError.{variant_name}");
         let payload_value = self
             .try_codegen_qualified_enum_unit_variant_value(span, &variant_fqn)?
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "RuntimeError unit variant value",
-                at: span.into(),
-            })?;
+            .unwrap_or_else(|| {
+                panic!("emit_raise_runtime_error_variant: verifier accepted missing RuntimeError unit variant `{variant_name}`")
+            });
         let CgTy::Enum(payload_ty) = payload_value.ty else {
             panic!(
                 "emit_raise_runtime_error_variant: TypeStore equivalence verifier accepted non-enum RuntimeError payload type"
