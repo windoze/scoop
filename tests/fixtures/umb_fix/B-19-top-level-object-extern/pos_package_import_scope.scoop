@@ -1,5 +1,4 @@
 // EXPECT: ok
-// IGNORE-UNTIL-FIX:B-19
 // SPEC: docs/spec/language_spec-part1.md#2-源文件结构;docs/spec/language_spec-part1.md#21-package;docs/spec/language_spec-part1.md#22-import
 // COVERS: NONE
 // BUCKETS: B-19

@@ -105,26 +105,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 if let Some((class, field_idx, field_cg)) =
                     self.lookup_class_field_by_fqn(fqn, member.span, Some(receiver_hir_ty))?
                 {
-                    let field = class.fields.get(field_idx as usize).ok_or(
-                        LlvmEmitError::UnsupportedMainBody {
-                            kind: "class field index",
-                            at: member.span.into(),
-                        },
-                    )?;
+                    let field = class.fields.get(field_idx as usize).unwrap_or_else(|| {
+                        panic!(
+                            "codegen_addressable_place: verifier accepted class field index drift"
+                        )
+                    });
                     let recv = self.codegen_expr_in_expected_context(receiver, Some(CgTy::Ref))?;
                     let recv = self.coerce_value(receiver.span, recv, CgTy::Ref)?;
-                    let Some(raw) = recv.value else {
-                        return Err(LlvmEmitError::UnsupportedMainBody {
-                            kind: "class field receiver value",
-                            at: receiver.span.into(),
-                        });
-                    };
-                    let BasicValueEnum::PointerValue(obj_ptr) = raw else {
-                        return Err(LlvmEmitError::UnsupportedMainBody {
-                            kind: "class field receiver type",
-                            at: receiver.span.into(),
-                        });
-                    };
+                    let raw = self.expect_cg_value(recv, "addressable class field receiver");
+                    let obj_ptr =
+                        self.expect_pointer_value(raw, "addressable class field receiver");
 
                     let ptr =
                         self.codegen_class_field_ptr(member.span, &class, obj_ptr, field_idx)?;

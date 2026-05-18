@@ -597,12 +597,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             return Ok(field_cg);
         }
 
-        let receiver_cg =
-            self.cg_ty_of(receiver_type_id)
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "pass MIR member receiver type",
-                    at: span.into(),
-                })?;
+        let receiver_cg = self.expect_cg_ty_of(receiver_type_id, "MIR member field receiver type");
         let CgTy::Struct(struct_ty) = receiver_cg else {
             return Err(frontend_error(format!(
                 "pass MIR member field target `{field_fqn}` receiver_ty=t{} receiver_cg={}",
@@ -710,7 +705,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     #[allow(clippy::too_many_arguments)]
     pub(in crate::llvm::codegen) fn mir_member_receiver_codegen_type_id(
         &self,
-        span: crate::span::Span,
+        _span: crate::span::Span,
         body: &crate::mir::Body,
         mir_types: &TypeStore,
         receiver: &crate::mir::Operand,
@@ -724,12 +719,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 .unwrap_or(member.receiver_ty),
             crate::mir::Operand::Const(_) => member.receiver_ty,
         };
-        self.equivalent_codegen_type_id(mir_types, receiver_source_ty)
+        Ok(self
+            .equivalent_codegen_type_id(mir_types, receiver_source_ty)
             .or_else(|| self.equivalent_codegen_type_id(mir_types, member.receiver_ty))
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "pass MIR member receiver type",
-                at: span.into(),
-            })
+            .unwrap_or_else(|| {
+                panic!("mir_member_receiver_codegen_type_id: verifier accepted member receiver TypeStore drift")
+            }))
     }
 
     pub(in crate::llvm::codegen) fn equivalent_runtime_ref_codegen_type_id(

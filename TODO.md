@@ -4,7 +4,7 @@
 > 计划基线：[`PLAN.md`](./PLAN.md)
 > 上一阶段任务档案：[`TODO-1.md`](./TODO-1.md)
 > 设计与 baseline：[`UnsupportedMainBody_FIX.md`](./UnsupportedMainBody_FIX.md)、[`UnsupportedMainBody_DONE.md`](./UnsupportedMainBody_DONE.md)
-> 当前状态：P7-0-T01、P7-0-T02、P7-A1、P7-A2、P7-A3、P7-A4、P7-B1、P7-B2.1、P7-B2.2、P7-B2.3、P7-B2.4、P7-B2.5 已完成；active=801，retired=483。
+> 当前状态：P7-0-T01、P7-0-T02、P7-A1、P7-A2、P7-A3、P7-A4、P7-B1、P7-B2.1、P7-B2.2、P7-B2.3、P7-B2.4、P7-B2.5、P7-B2.6 已完成；active=652，retired=632。
 
 ## 全局约束
 
@@ -385,7 +385,7 @@ P7-0-T01 stable ID + retired ledger
   - 验证结果：`cargo run -p scoopc --bin umb-audit -- list --bucket B-17` 通过（entries 0）；`cargo run -p scoopc --bin umb-audit -- list --bucket B-18` 通过（entries 0）；`cargo run -p scoopc --bin umb-audit -- diff` 通过（in sync，801 entries）；`cargo run -p scoopc --bin umb-audit -- stats` 通过（active=801、retired=483、initial=1,284）；`cargo test -p scoopc audit:: -- --nocapture` 通过（23 passed）；`cargo test -p scoopc pipeline_user_visible_failure_policy -- --nocapture` 通过（7 passed）；`cargo run -p scoop -- test tests/fixtures/umb_fix/B-17-coercion-scalar/` 通过（5 passed）；`cargo run -p scoop -- test tests/fixtures/umb_fix/B-18-literals-strings/` 通过（4 passed）；`cargo fmt` 通过；`cargo clippy --all-targets -- -D warnings` 通过。
   - 闭合目标：满足 `PLAN.md:135-159` 与本任务完成条件；B-17/B-18 active count 为 0，scalar coercion/operator、literal/string contract 不再由 LLVM codegen 兜底。
 
-### [TODO] P7-B2.6：B-19/B-20/B-22/B-23 layout 与 member contract
+### [DONE] P7-B2.6：B-19/B-20/B-22/B-23 layout 与 member contract
 
 - 参考：`PLAN.md:135-159`、`audit/strategies/B-19.md`、`audit/strategies/B-20.md`、`audit/strategies/B-22.md`、`audit/strategies/B-23.md`。
 - 范围：B-19 39 entries；B-20 46 entries；B-22 40 entries；B-23 24 entries；合计 149 entries。
@@ -394,7 +394,15 @@ P7-0-T01 stable ID + retired ledger
 - 验证：`cargo test -p scoopc audit:: -- --nocapture`、`cargo run -p scoop -- test tests/fixtures/umb_fix/B-19-top-level-object-extern/`、`cargo run -p scoop -- test tests/fixtures/umb_fix/B-20-class-property-field/`、`cargo run -p scoop -- test tests/fixtures/umb_fix/B-22-enum-niche-option/`、`cargo run -p scoop -- test tests/fixtures/umb_fix/B-23-member-access/`。
 - 完成条件：B-19/B-20/B-22/B-23 active count 为 0。
 - 依赖：P7-B1 推荐完成后。
-- 完成记录：待填写。
+- 完成记录：
+  - 改动范围：更新 `crates/scoopc/src/mir/materialize/validation.rs` 与 `tests.rs`，迁移 B-19/B-20/B-22/B-23 fallback 所在的 `crates/scoopc/src/llvm/codegen/{call/lowering.rs,class_ctor.rs,control_flow.rs,enum_lowering.rs,layout.rs,main/{call.rs,expr_value.rs,frame.rs,globals.rs,immut_value.rs},mir_body/{args.rs,call.rs,dispatch.rs,member.rs,mod.rs,types.rs},object_init.rs,ty.rs}`；同步 `crates/scoopc/src/{audit/umb_inventory.rs,pipeline_user_visible_failure_policy.rs}`、`audit/UMB_inventory.csv`、`audit/UMB_retired.csv`、`audit/UMB_categories/{B-19.md,B-20.md,B-22.md,B-23.md,_overview.md}`、`audit/strategies/{B-19.md,B-20.md,B-22.md,B-23.md}`、相关 B-19/B-20/B-22/B-23 fixtures、`tests/fixtures/umb_fix/_index.csv` 与 `memory/claude_plan.md`。
+  - Retired IDs：B-19 `UMB-0036`、`UMB-0887`、`UMB-0904`、`UMB-0905`、`UMB-0906`、`UMB-0907`、`UMB-0910`、`UMB-0911`、`UMB-0912`、`UMB-0913`、`UMB-0914`、`UMB-0922`、`UMB-0923`、`UMB-0924`、`UMB-0927`、`UMB-0928`、`UMB-0929`、`UMB-0930`、`UMB-0931`、`UMB-0932`、`UMB-0933`、`UMB-0934`、`UMB-0935`、`UMB-0936`、`UMB-1138`、`UMB-1139`、`UMB-1231`、`UMB-1232`、`UMB-1233`、`UMB-1234`、`UMB-1235`、`UMB-1236`、`UMB-1237`、`UMB-1238`、`UMB-1239`、`UMB-1240`、`UMB-1241`、`UMB-1242`、`UMB-1243`；B-20 `UMB-0061`、`UMB-0062`、`UMB-0063`、`UMB-0065`、`UMB-0066`、`UMB-0067`、`UMB-0068`、`UMB-0069`、`UMB-0070`、`UMB-0071`、`UMB-0072`、`UMB-0073`、`UMB-0074`、`UMB-0075`、`UMB-0076`、`UMB-0077`、`UMB-0078`、`UMB-0079`、`UMB-0080`、`UMB-0081`、`UMB-0082`、`UMB-0083`、`UMB-0084`、`UMB-0085`、`UMB-0086`、`UMB-0087`、`UMB-0088`、`UMB-0089`、`UMB-0090`、`UMB-0091`、`UMB-0745`、`UMB-0746`、`UMB-0751`、`UMB-0781`、`UMB-0782`、`UMB-0783`、`UMB-0870`、`UMB-0871`、`UMB-0982`、`UMB-0986`、`UMB-0987`、`UMB-1004`、`UMB-1123`、`UMB-1124`、`UMB-1276`、`UMB-1277`；B-22 `UMB-0040`、`UMB-0129`、`UMB-0149`、`UMB-0153`、`UMB-0158`、`UMB-0382`、`UMB-0383`、`UMB-0384`、`UMB-0385`、`UMB-0386`、`UMB-0387`、`UMB-0388`、`UMB-0389`、`UMB-0390`、`UMB-0391`、`UMB-0392`、`UMB-0393`、`UMB-0394`、`UMB-0395`、`UMB-0396`、`UMB-0397`、`UMB-0398`、`UMB-0399`、`UMB-0400`、`UMB-0401`、`UMB-0402`、`UMB-0403`、`UMB-0404`、`UMB-0405`、`UMB-0406`、`UMB-0407`、`UMB-0408`、`UMB-0409`、`UMB-0410`、`UMB-0757`、`UMB-0758`、`UMB-1127`、`UMB-1128`、`UMB-1129`、`UMB-1280`；B-23 `UMB-0021`、`UMB-0026`、`UMB-0049`、`UMB-0060`、`UMB-0872`、`UMB-0873`、`UMB-0874`、`UMB-0875`、`UMB-0876`、`UMB-0877`、`UMB-1113`、`UMB-1118`、`UMB-1120`、`UMB-1126`、`UMB-1130`、`UMB-1140`、`UMB-1143`、`UMB-1144`、`UMB-1145`、`UMB-1147`、`UMB-1177`、`UMB-1178`、`UMB-1223`、`UMB-1224`；数量 149；bucket `B-19`/`B-20`/`B-22`/`B-23`；class `InternalBugSentinel`。
+  - 核心决策：materialized MIR verifier 统一校验 class ctor selected/ordered args、top-level store target/type、enum payload schema、member receiver/target、dispatch metadata；LLVM lowering 中对应 `UnsupportedMainBody` fallback 改为 verifier 后的 internal invariant panic/expect helper；generic owner-specialized member paths在 metadata 不落入当前 materialized file 时用 receiver/target owner contract 校验。
+  - Inventory/ledger：active 801 -> 652；retired 483 -> 632；B-19/B-20/B-22/B-23 active count 均为 0；`InternalBugSentinel` active 598 -> 449。
+  - Stale count：tracked stale total 344 -> 285；`mir_body/args.rs` 3 -> 0；`mir_body/call.rs` 14 -> 13；`mir_body/dispatch.rs` 7 -> 2；`mir_body/member.rs` 41 -> 29；`mir_body/mod.rs` 5 -> 3；`mir_body/types.rs` 2 -> 0；`main/call.rs` 11 -> 8；`main/expr_value.rs` 8 -> 0；`main/frame.rs` 4 -> 3；`main/globals.rs` 11 -> 2；`main/immut_value.rs` 15 -> 2；`class_ctor.rs`、`enum_lowering.rs`、`layout.rs`、`object_init.rs`、`ty.rs` 删除目标 inventory rows 但不在 tracked stale list。
+  - Fixture 状态：B-19/B-20/B-22/B-23 fixture directories 激活并通过；retired IDs 改由 retired ledger 覆盖，active fixture `COVERS` 不再引用 retired IDs；B-19 cone missing-entry fixture保留为 plain fixture-runner package-boundary smoke，multi-file missing-entry diagnostic 仍由源 fixture 覆盖。
+  - 验证结果：`cargo run -p scoopc --bin umb-audit -- list --bucket B-19/B-20/B-22/B-23` 均通过（entries 0）；`cargo run -p scoopc --bin umb-audit -- diff` 通过（in sync，652 entries）；`cargo run -p scoopc --bin umb-audit -- stats` 通过（active=652、retired=632、initial=1,284）；`cargo test -p scoopc mir::materialize -- --nocapture` 通过（49 passed）；`cargo test -p scoopc audit:: -- --nocapture` 通过（23 passed）；`cargo test -p scoopc pipeline_user_visible_failure_policy -- --nocapture` 通过（7 passed）；`cargo run -p scoop -- test tests/fixtures/umb_fix/B-19-top-level-object-extern/` 通过（8 passed）；`cargo run -p scoop -- test tests/fixtures/umb_fix/B-20-class-property-field/` 通过（4 passed）；`cargo run -p scoop -- test tests/fixtures/umb_fix/B-22-enum-niche-option/` 通过（4 passed）；`cargo run -p scoop -- test tests/fixtures/umb_fix/B-23-member-access/` 通过（2 passed）；`cargo fmt` 通过；`cargo clippy --all-targets -- -D warnings` 通过。
+  - 闭合目标：满足 `PLAN.md:135-159` 与本任务完成条件；B-19/B-20/B-22/B-23 active count 为 0，layout/member/enum/top-level contracts 不再由 LLVM `UnsupportedMainBody` 兜底。
 
 ### [TODO] P7-B2.7：B-33/B-34/B-35 extern、RuntimeError、NoGC/frame boundary contract
 
@@ -571,7 +579,7 @@ P7-0-T01 stable ID + retired ledger
 
 | 阶段 | Active 目标 | Retired 目标 | 备注 |
 |---|---:|---:|---|
-| 当前 | 801 | 483 | P7-B2.5 完成，B-17/B-18 scalar coercion 与 literal/string contract 清零 |
+| 当前 | 652 | 632 | P7-B2.6 完成，B-19/B-20/B-22/B-23 layout 与 member contract 清零 |
 | P7-A 完成 | 1,159 | 125 | `FrontendReject` 清零 |
 | P7-B 完成 | 203 | 1,081 | `InternalBugSentinel` 清零 |
 | P7-C 完成 | 0 | 1,284 | `RealImpl` 清零 |

@@ -1,5 +1,4 @@
 // EXPECT: ok
-// IGNORE-UNTIL-FIX:B-19
 // SPEC: docs/spec/language_spec-part1.md#3-cone-包模型的语言边界
 // COVERS: NONE
 // BUCKETS: B-19

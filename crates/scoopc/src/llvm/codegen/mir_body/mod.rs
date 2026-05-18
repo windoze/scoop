@@ -252,19 +252,17 @@ mod types;
 mod value_args;
 
 fn mir_member_value_fqn_for_codegen(
-    span: crate::span::Span,
+    _span: crate::span::Span,
     member: &crate::mir::MemberAccessMetadata,
 ) -> Result<&str, LlvmEmitError> {
     match member.resolved.as_ref() {
         Some(crate::mir::MemberTarget::Value { fqn }) => Ok(fqn.as_str()),
-        Some(_) => Err(LlvmEmitError::UnsupportedMainBody {
-            kind: "pass MIR member target is not value",
-            at: span.into(),
-        }),
-        None => Err(LlvmEmitError::UnsupportedMainBody {
-            kind: "pass MIR member target unresolved",
-            at: span.into(),
-        }),
+        Some(_) => {
+            panic!("mir_member_value_fqn_for_codegen: verifier accepted non-value member target")
+        }
+        None => {
+            panic!("mir_member_value_fqn_for_codegen: verifier accepted unresolved member target")
+        }
     }
 }
 

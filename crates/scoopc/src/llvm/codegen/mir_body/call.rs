@@ -486,10 +486,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let site = self
             .ctor_call_sites
             .get(&self.current_call_site(span)?)
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "pass MIR class ctor call site",
-                at: span.into(),
-            })?;
+            .unwrap_or_else(|| panic!("codegen_mir_class_ctor_call_at_site: verifier accepted missing class ctor call site"));
         self.codegen_mir_class_ctor_call(
             span,
             class_layout_key,

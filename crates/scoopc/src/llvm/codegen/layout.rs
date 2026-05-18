@@ -159,20 +159,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let Some(field_idx) = field_idx else {
             return Ok(None);
         };
-        let field =
-            class
-                .fields
-                .get(field_idx as usize)
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "class field index",
-                    at: at.into(),
-                })?;
-        let field_cg = self
-            .cg_ty_of(field.ty)
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "class field type",
-                at: at.into(),
-            })?;
+        let field = class.fields.get(field_idx as usize).unwrap_or_else(|| {
+            panic!("lookup_class_field_by_fqn_inner: verifier accepted class field index drift")
+        });
+        let field_cg = self.expect_cg_ty_of(field.ty, "class field layout lookup");
         Ok(Some((class, field_idx, field_cg)))
     }
 
@@ -259,10 +249,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         field_idx: u32,
     ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
         if field_idx as usize >= class.fields.len() {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "class field index out of bounds",
-                at: at.into(),
-            });
+            panic!("codegen_class_field_ptr: verifier accepted class field index out of bounds");
         }
 
         let obj_ty = self.llvm_class_object_type(at, class)?;
@@ -519,12 +506,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     None => CgEnumRepr::TaggedUnion,
                 };
 
-                let inner_cg = self
-                    .cg_ty_of(inner)
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "Option<T> inner type",
-                        at: at.into(),
-                    })?;
+                let inner_cg = self.expect_cg_ty_of(inner, "Option<T> enum layout");
                 let some_boxed = self.enum_variant_requires_boxing(at, &[inner_cg])?;
 
                 Ok(CgEnumLayout {
@@ -547,13 +529,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
             TypeKind::Value(ValueTypeKind::Nominal(nominal)) => {
                 let enum_key = self.nominal_layout_key_from_types(&nominal, types);
-                let hir_layout =
-                    self.enum_layouts
-                        .get(&enum_key)
-                        .ok_or(LlvmEmitError::UnsupportedMainBody {
-                            kind: "enum layout",
-                            at: at.into(),
-                        })?;
+                let hir_layout = self.enum_layouts.get(&enum_key).unwrap_or_else(|| {
+                    panic!("compute_cg_enum_layout: verifier accepted enum without layout metadata")
+                });
 
                 let mut repr = CgEnumRepr::TaggedUnion;
                 if let hir::EnumRepr::ValueOnly { underlying_ty_fqn } = &hir_layout.repr {

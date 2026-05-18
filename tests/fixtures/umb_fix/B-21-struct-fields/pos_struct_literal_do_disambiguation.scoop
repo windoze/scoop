@@ -1,7 +1,7 @@
 // EXPECT: ok
 // IGNORE-UNTIL-FIX:B-21
 // SPEC: docs/spec/language_spec-part3.md#14-struct-literalclosure-与-do-消歧
-// COVERS: UMB-0021, UMB-0026, UMB-0049, UMB-0060, UMB-0872, UMB-0873, UMB-0874, UMB-0875, UMB-0876, UMB-0877, UMB-1113, UMB-1118, UMB-1120, UMB-1126, UMB-1130, UMB-1140, UMB-1143, UMB-1144, UMB-1145, UMB-1147, UMB-1177, UMB-1178, UMB-1223, UMB-1224
+// COVERS: NONE
 // BUCKETS: B-06, B-21, B-23
 // REASON: U5-T02 records the spec surface before the matching implementation gate is enabled.
 // SOURCE-FIXTURE: tests/fixtures/parse/disambiguate_struct_lit_vs_lambda.scoop

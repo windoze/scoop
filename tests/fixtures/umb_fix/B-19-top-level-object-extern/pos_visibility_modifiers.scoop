@@ -1,5 +1,4 @@
 // EXPECT: ok
-// IGNORE-UNTIL-FIX:B-19
 // SPEC: docs/spec/language_spec-part1.md#41-可见性修饰符
 // COVERS: NONE
 // BUCKETS: B-19
@@ -8,9 +7,9 @@
 
 package fixtures.parse
 
-public abstract sealed class C {
+public open class C {
     internal fun f(x: Int): Int { 1 }
-    private override val p: Int = 1
+    private val p: Int = 1
 }
 
 public fun top() { }

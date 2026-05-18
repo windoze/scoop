@@ -4,7 +4,7 @@
 // EXPECT-ERROR-AT: 1:1
 // EXPECT-ERROR: pending U5 fixture gate
 // SPEC: docs/spec/language_spec-part1.md#4-顶层声明;docs/spec/language_spec-part1.md#42-顶层不可变值;docs/spec/language_spec-part1.md#43-const-val
-// COVERS: UMB-0036, UMB-0887, UMB-0904, UMB-0905, UMB-0906, UMB-0907, UMB-0908, UMB-0909, UMB-0910, UMB-0911, UMB-0912, UMB-0913, UMB-0914, UMB-0922, UMB-0923, UMB-0924, UMB-0927, UMB-0928, UMB-0929, UMB-0930, UMB-0931, UMB-0932, UMB-0933, UMB-0934, UMB-0935, UMB-0936, UMB-0937, UMB-0938, UMB-1134, UMB-1135, UMB-1136, UMB-1137, UMB-1138, UMB-1139, UMB-1231, UMB-1232, UMB-1233, UMB-1234, UMB-1235, UMB-1236, UMB-1237, UMB-1238, UMB-1239, UMB-1240, UMB-1241, UMB-1242, UMB-1243
+// COVERS: UMB-0908, UMB-0909, UMB-0937, UMB-0938, UMB-1134, UMB-1135, UMB-1136, UMB-1137
 // BUCKETS: B-19, B-33
 // REASON: U5-T02 records the spec surface before the matching implementation gate is enabled.
 // SOURCE-FIXTURE: tests/fixtures/typecheck/top_level_var_requires_threadlocal_or_global_is_error.scoop

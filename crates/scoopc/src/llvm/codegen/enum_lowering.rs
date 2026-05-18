@@ -11,27 +11,24 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         // 0-参数 enum variant 值：`None`
         let Some(CgTy::Enum(enum_ty)) = expected else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "unresolved ident without expected enum type",
-                at: span.into(),
-            });
+            panic!(
+                "codegen_unresolved_ident: typecheck accepted enum variant value without expected enum type"
+            );
         };
 
         let cg_layout = self.cg_enum_layout(span, enum_ty)?;
-        let variant = cg_layout.variants.iter().find(|v| v.name == name).ok_or(
-            LlvmEmitError::UnsupportedMainBody {
-                kind: "unknown enum variant",
-                at: span.into(),
-            },
-        )?;
+        let variant = cg_layout
+            .variants
+            .iter()
+            .find(|v| v.name == name)
+            .unwrap_or_else(|| {
+                panic!("codegen_unresolved_ident: typecheck accepted unknown enum variant `{name}`")
+            });
         let tag = variant.tag;
         let field_count = variant.fields.len();
 
         if field_count != 0 {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "non-zero-arity enum variant used as value",
-                at: span.into(),
-            });
+            panic!("codegen_unresolved_ident: typecheck accepted payload enum variant as value");
         }
 
         self.build_enum_value(span, enum_ty, tag, CgEnumPayload::default())
@@ -49,17 +46,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .variants
             .iter()
             .find(|v| v.name == variant_name)
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "unknown enum variant",
-                at: span.into(),
-            })?
+            .unwrap_or_else(|| panic!("codegen_enum_variant_ctor_call: typecheck accepted unknown enum variant `{variant_name}`"))
             .clone();
 
         if variant.fields.len() != args.len() {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "enum variant ctor arity mismatch",
-                at: span.into(),
-            });
+            panic!("codegen_enum_variant_ctor_call: typecheck accepted enum ctor arity mismatch");
         }
 
         // 先把所有实参在"字段期望类型"下 codegen 并做最小 coercion，避免后续重复走 codegen。
@@ -67,10 +58,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             Vec::with_capacity(args.len());
         for (idx, (field_cg, arg)) in variant.fields.iter().copied().zip(args.iter()).enumerate() {
             let hir::CallArg::Positional(arg_expr) = arg else {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "named enum ctor arg",
-                    at: span.into(),
-                });
+                panic!(
+                    "codegen_enum_variant_ctor_call: typecheck accepted named enum ctor arg after lowering"
+                );
             };
 
             let v = self.codegen_expr_in_expected_context(arg_expr, Some(field_cg))?;
@@ -101,17 +91,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .variants
             .iter()
             .find(|v| v.name == variant_name)
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "unknown enum variant",
-                at: span.into(),
-            })?
+            .unwrap_or_else(|| panic!("build_enum_variant_value_from_field_values: verifier accepted unknown enum variant `{variant_name}`"))
             .clone();
 
         if variant.fields.len() != field_values.len() {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "enum variant ctor arity mismatch",
-                at: span.into(),
-            });
+            panic!(
+                "build_enum_variant_value_from_field_values: verifier accepted enum ctor arity mismatch"
+            );
         }
 
         // 1) boxed variant：把 payload fields 聚合成一个 payload struct，存到栈上并把指针写入 enum payload。
@@ -146,19 +132,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 &[desc_i8.into(), size_v.into()],
                 "rt_alloc_enum_boxed_payload",
             )?;
-            let raw =
-                call.try_as_basic_value()
-                    .basic()
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "scoop_alloc_typed return value (enum boxed payload)",
-                        at: span.into(),
-                    })?;
-            let BasicValueEnum::PointerValue(raw_ptr) = raw else {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "scoop_alloc_typed return type (enum boxed payload)",
-                    at: span.into(),
-                });
-            };
+            let raw = self.expect_basic_value(call, "scoop_alloc_typed enum boxed payload");
+            let raw_ptr = self.expect_pointer_value(raw, "scoop_alloc_typed enum boxed payload");
 
             let mut payload: AggregateValueEnum<'ctx> = payload_struct_ty.get_undef().into();
             for (idx, (field_span, field_cg, deferred)) in field_values.iter().enumerate() {
@@ -170,15 +145,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 let raw = match field_cg {
                     CgTy::Unit => self.context.i8_type().const_zero().into(),
                     CgTy::Never => {
-                        return Err(LlvmEmitError::UnsupportedMainBody {
-                            kind: "enum boxed payload field (never)",
-                            at: span.into(),
-                        });
+                        panic!(
+                            "build_enum_variant_value_from_field_values: verifier accepted Never enum payload field"
+                        );
                     }
-                    _ => field_v.value.ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "enum boxed payload field value",
-                        at: span.into(),
-                    })?,
+                    _ => self.expect_cg_value(field_v, "enum boxed payload field"),
                 };
                 payload = self.builder.build_insert_value(
                     payload,
@@ -273,10 +244,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 gc_ptr: None,
             }),
             CgTy::Bool => {
-                let b = value.as_bool().ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "enum payload bool",
-                    at: at.into(),
-                })?;
+                let b = self.expect_cg_bool(value, "enum payload bool");
                 let widened =
                     self.builder
                         .build_int_z_extend(b, payload_int_ty, "enum_payload_bool")?;
@@ -286,10 +254,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 })
             }
             CgTy::Int(from) => {
-                let (v, _) = value.as_int().ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "enum payload int",
-                    at: at.into(),
-                })?;
+                let (v, _) = self.expect_cg_int(value, "enum payload int");
                 if from.bits > payload_ty.bits {
                     return Err(
                         super::composite_transport::composite_transport_codegen_guard_error(
@@ -314,18 +279,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 })
             }
             CgTy::String => {
-                let Some(raw) = value.value else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "enum payload string",
-                        at: at.into(),
-                    });
-                };
-                let BasicValueEnum::PointerValue(ptr) = raw else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "enum payload string",
-                        at: at.into(),
-                    });
-                };
+                let raw = self.expect_cg_value(value, "enum payload string");
+                let ptr = self.expect_pointer_value(raw, "enum payload string");
                 let casted = self.builder.build_pointer_cast(
                     ptr,
                     self.llvm_gc_i8_ptr_type(),
@@ -337,18 +292,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 })
             }
             CgTy::Ref => {
-                let Some(raw) = value.value else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "enum payload ref",
-                        at: at.into(),
-                    });
-                };
-                let BasicValueEnum::PointerValue(ptr) = raw else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "enum payload ref",
-                        at: at.into(),
-                    });
-                };
+                let raw = self.expect_cg_value(value, "enum payload ref");
+                let ptr = self.expect_pointer_value(raw, "enum payload ref");
                 let casted = self.builder.build_pointer_cast(
                     ptr,
                     self.llvm_gc_i8_ptr_type(),
@@ -366,12 +311,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 // - niche enum 的运行期值本身就是一个"标量存储"（ptr 或 u8）；
                 // - 因此可以映射到 tagged union 的 `{ payload_word, payload_ptr }` 载体上，
                 //   且不引入 ptr<->int 编码（GC safety）。
-                let Some(raw) = value.value else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "enum payload nested enum",
-                        at: at.into(),
-                    });
-                };
+                let raw = self.expect_cg_value(value, "enum payload nested enum");
 
                 let repr = self.cg_enum_layout(at, nested_enum_ty)?.repr;
                 match repr {
@@ -382,18 +322,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         NicheStorage::Pointer => {
                             // GC safety（T1518）：pointer niche 只允许 `None = NULL`。
                             if none_value != 0 {
-                                return Err(LlvmEmitError::UnsupportedMainBody {
-                                    kind: "nested niche enum pointer none_value (must be NULL)",
-                                    at: at.into(),
-                                });
+                                panic!(
+                                    "coerce_enum_payload: verifier accepted pointer niche with non-NULL None"
+                                );
                             }
 
-                            let BasicValueEnum::PointerValue(ptr) = raw else {
-                                return Err(LlvmEmitError::UnsupportedMainBody {
-                                    kind: "nested niche enum payload (ptr)",
-                                    at: at.into(),
-                                });
-                            };
+                            let ptr = self.expect_pointer_value(raw, "nested niche enum payload");
 
                             let casted = self.builder.build_pointer_cast(
                                 ptr,
@@ -406,12 +340,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                             })
                         }
                         NicheStorage::U8 => {
-                            let BasicValueEnum::IntValue(v) = raw else {
-                                return Err(LlvmEmitError::UnsupportedMainBody {
-                                    kind: "nested niche enum payload (u8)",
-                                    at: at.into(),
-                                });
-                            };
+                            let v = self.expect_int_value(raw, "nested niche enum payload");
                             let widened = self.builder.build_int_z_extend(
                                 v,
                                 payload_int_ty,
@@ -512,32 +441,28 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 let raw: BasicValueEnum<'ctx> = match storage {
                     NicheStorage::Pointer => {
                         if none_value != 0 {
-                            return Err(LlvmEmitError::UnsupportedMainBody {
-                                kind: "Option niche pointer none_value (must be NULL)",
-                                at: at.into(),
-                            });
+                            panic!(
+                                "build_enum_value: verifier accepted pointer niche with non-NULL None"
+                            );
                         }
 
                         // 存储类型取 `Some` variant 的字段类型（通常为指针）。
-                        let some_field = some_field.ok_or(LlvmEmitError::UnsupportedMainBody {
-                            kind: "Option niche payload type",
-                            at: at.into(),
-                        })?;
+                        let some_field = some_field.unwrap_or_else(|| {
+                            panic!("build_enum_value: verifier accepted pointer niche without Some payload type")
+                        });
                         let llvm_storage_ty = self.llvm_basic_type_of(at, some_field)?;
                         let BasicTypeEnum::PointerType(ptr_ty) = llvm_storage_ty else {
-                            return Err(LlvmEmitError::UnsupportedMainBody {
-                                kind: "Option niche storage (non-pointer)",
-                                at: at.into(),
-                            });
+                            panic!(
+                                "build_enum_value: verifier accepted pointer niche with non-pointer storage"
+                            );
                         };
 
                         match tag {
                             0 => {
                                 let Some(raw_ptr) = payload.gc_ptr else {
-                                    return Err(LlvmEmitError::UnsupportedMainBody {
-                                        kind: "Option niche Some payload missing",
-                                        at: at.into(),
-                                    });
+                                    panic!(
+                                        "build_enum_value: verifier accepted Option Some without payload"
+                                    );
                                 };
                                 self.builder
                                     .build_pointer_cast(raw_ptr, ptr_ty, "option_some_cast")?
@@ -545,10 +470,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                             }
                             1 => ptr_ty.const_null().into(),
                             _ => {
-                                return Err(LlvmEmitError::UnsupportedMainBody {
-                                    kind: "Option niche tag",
-                                    at: at.into(),
-                                });
+                                panic!(
+                                    "build_enum_value: verifier accepted invalid Option niche tag {tag}"
+                                );
                             }
                         }
                     }
@@ -602,10 +526,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let tag = variant.tag;
         let field_count = variant.fields.len();
         if field_count != 0 {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "enum variant with payload used as value",
-                at: at.into(),
-            });
+            panic!(
+                "try_codegen_qualified_enum_unit_variant_value: verifier accepted payload enum variant as value"
+            );
         }
 
         let enum_ty = self
@@ -618,10 +541,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         if nominal.fqn == owner_fqn && nominal.args.is_empty() && nominal.eff.is_none()
                 )
             })
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "enum type id for qualified variant value",
-                at: at.into(),
-            })?;
+            .unwrap_or_else(|| panic!("try_codegen_qualified_enum_unit_variant_value: verifier accepted enum variant without enum TypeId"));
 
         let v = self.build_enum_value(at, enum_ty, tag, CgEnumPayload::default())?;
         Ok(Some(v))

@@ -27,26 +27,19 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let (object_fqn, prop) = match self.lookup_object_property_by_fqn(prop_fqn) {
             Some((obj, prop)) => (obj.fqn.clone(), prop.clone()),
             None => {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "object property access (missing metadata)",
-                    at: at.into(),
-                });
+                panic!(
+                    "codegen_object_property_access: resolver accepted object property without metadata"
+                );
             }
         };
 
         if !prop.has_init {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "object property without initializer",
-                at: at.into(),
-            });
+            panic!(
+                "codegen_object_property_access: verifier accepted object property without initializer"
+            );
         }
 
-        let prop_cg = self
-            .cg_ty_of(prop.ty)
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "object property type",
-                at: at.into(),
-            })?;
+        let prop_cg = self.expect_cg_ty_of(prop.ty, "object property type");
 
         let init_fn = self.ensure_object_init_function_defined(&object_fqn)?;
         self.with_conservative_gc_local_root_spills(at, |cg| {
@@ -74,17 +67,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         prop_fqn: &str,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         let Some((_obj, prop)) = self.lookup_object_property_by_fqn(prop_fqn) else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "object property access (missing metadata)",
-                at: at.into(),
-            });
+            panic!(
+                "load_initialized_object_property_value: resolver accepted object property without metadata"
+            );
         };
-        let prop_cg = self
-            .cg_ty_of(prop.ty)
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "object property type",
-                at: at.into(),
-            })?;
+        let prop_cg = self.expect_cg_ty_of(prop.ty, "initialized object property type");
         if prop_cg == CgTy::Unit {
             return Ok(CgValue::unit());
         }
@@ -103,10 +90,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         object_fqn: &str,
     ) -> Result<FunctionValue<'ctx>, LlvmEmitError> {
         let Some(obj) = self.object_inits.get(object_fqn) else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "hidden object init bridge (missing metadata)",
-                at: crate::span::Span::new(0, 0).into(),
-            });
+            panic!(
+                "ensure_object_init_bridge_defined: verifier accepted missing object init metadata"
+            );
         };
 
         let stable_key = self.stable_object_init_key(object_fqn);
@@ -166,10 +152,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         object_fqn: &str,
     ) -> Result<FunctionValue<'ctx>, LlvmEmitError> {
         let Some(obj) = self.object_inits.get(object_fqn) else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "object init (missing metadata)",
-                at: crate::span::Span::new(0, 0).into(),
-            });
+            panic!(
+                "ensure_object_init_function_defined: verifier accepted missing object init metadata"
+            );
         };
 
         let stable_key = self.stable_object_init_key(object_fqn);
@@ -231,19 +216,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             &[guard.as_pointer_value().into()],
             "once_begin",
         )?;
-        let ret = call
-            .try_as_basic_value()
-            .basic()
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "object init once begin return value",
-                at: err_span.into(),
-            })?;
-        let BasicValueEnum::IntValue(should_init) = ret else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "object init once begin return type",
-                at: err_span.into(),
-            });
-        };
+        let ret = self.expect_basic_value(call, "object init once begin");
+        let should_init = self.expect_int_value(ret, "object init once begin");
         let i32_ty = self.context.i32_type();
         let cond = self.builder.build_int_compare(
             IntPredicate::NE,
@@ -274,18 +248,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             match step {
                 hir::ObjectInitStep::PropertyInit { name, init } => {
                     let Some(prop) = obj.properties.get(name) else {
-                        return Err(LlvmEmitError::UnsupportedMainBody {
-                            kind: "object property init (missing property)",
-                            at: init.span.into(),
-                        });
+                        panic!(
+                            "codegen_object_init_fun_body: verifier accepted object property init without property metadata"
+                        );
                     };
 
-                    let prop_cg =
-                        self.cg_ty_of(prop.ty)
-                            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                                kind: "object property init type",
-                                at: init.span.into(),
-                            })?;
+                    let prop_cg = self.expect_cg_ty_of(prop.ty, "object property init type");
 
                     let v = self.codegen_expr_in_expected_context(init, Some(prop_cg))?;
 
@@ -390,19 +358,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             &[desc_i8.into(), size_v.into()],
             "rt_alloc_object",
         )?;
-        let raw = call
-            .try_as_basic_value()
-            .basic()
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "scoop_alloc_typed return value",
-                at: at.into(),
-            })?;
-        let BasicValueEnum::PointerValue(obj_ptr) = raw else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "scoop_alloc_typed return type",
-                at: at.into(),
-            });
-        };
+        let raw = self.expect_basic_value(call, "scoop_alloc_typed object allocation");
+        let obj_ptr = self.expect_pointer_value(raw, "scoop_alloc_typed object allocation");
 
         let instance_global = self.declare_object_instance_global(object_fqn);
         let _ = self

@@ -68,41 +68,28 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         mir_types: &TypeStore,
         slots: &[MirLocalSlot<'ctx>],
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        let enum_ty = self.equivalent_codegen_type_id(mir_types, enum_ty).ok_or(
-            LlvmEmitError::UnsupportedMainBody {
-                kind: "pass MIR enum ctor type",
-                at: span.into(),
-            },
-        )?;
+        let enum_ty = self
+            .equivalent_codegen_type_id(mir_types, enum_ty)
+            .unwrap_or_else(|| panic!("codegen_mir_enum_variant_ctor_call: verifier accepted enum ctor TypeStore drift"));
         let layout = self.cg_enum_layout(span, enum_ty)?;
         let variant = layout
             .variants
             .iter()
             .find(|variant| variant.name == variant_name)
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "pass MIR unknown enum variant",
-                at: span.into(),
-            })?
+            .unwrap_or_else(|| panic!("codegen_mir_enum_variant_ctor_call: verifier accepted unknown enum variant `{variant_name}`"))
             .clone();
         if variant.fields.len() != args.len() {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "pass MIR enum variant ctor arity",
-                at: span.into(),
-            });
+            panic!("codegen_mir_enum_variant_ctor_call: verifier accepted enum ctor arity drift");
         }
         if !self.mir_enum_payload_schema_matches(mir_types, enum_ty, &variant, args, payload) {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "pass MIR enum payload schema",
-                at: span.into(),
-            });
+            panic!(
+                "codegen_mir_enum_variant_ctor_call: verifier accepted enum payload schema drift"
+            );
         }
         let mut field_values = Vec::with_capacity(args.len());
         for (idx, (field_cg, arg)) in variant.fields.iter().copied().zip(args).enumerate() {
             if arg.name.is_some() {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "pass MIR named enum ctor arg",
-                    at: span.into(),
-                });
+                panic!("codegen_mir_enum_variant_ctor_call: verifier accepted named enum ctor arg");
             }
             let value =
                 self.codegen_mir_operand_expected(arg.span, &arg.value, slots, Some(field_cg))?;
@@ -214,16 +201,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let var = self
             .top_level_vars
             .get(fqn)
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "pass MIR top-level var store target",
-                at: span.into(),
-            })?;
-        let target_cg = self
-            .cg_ty_of(var.ty)
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "pass MIR top-level var store target type",
-                at: span.into(),
-            })?;
+            .unwrap_or_else(|| panic!("codegen_mir_store_top_level_var: verifier accepted missing top-level var store target `{fqn}`"));
+        let target_cg = self.expect_cg_ty_of(var.ty, "MIR top-level var store target type");
         let raw = self.codegen_mir_operand_expected(span, value, slots, Some(target_cg))?;
         let stored = self.coerce_value(span, raw, target_cg)?;
         let global = self.declare_top_level_var_global(var)?;
@@ -252,10 +231,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         {
             let receiver_cg = self
                 .mir_operand_cg_ty(mir_ctx.body, mir_ctx.mir_types, receiver)
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "pass MIR class member receiver operand type",
-                    at: span.into(),
-                })?;
+                .unwrap_or_else(|| panic!("codegen_mir_member_place: verifier accepted missing class member receiver operand type"));
             if receiver_cg == CgTy::Ref {
                 let field = class.fields.get(field_idx as usize).unwrap_or_else(|| {
                     panic!(
@@ -275,18 +251,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     Some(CgTy::Ref),
                 )?;
                 let receiver_value = self.coerce_value(span, receiver_value, CgTy::Ref)?;
-                let Some(raw) = receiver_value.value else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "pass MIR class member receiver value",
-                        at: span.into(),
-                    });
-                };
-                let BasicValueEnum::PointerValue(obj_ptr) = raw else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "pass MIR class member receiver type",
-                        at: span.into(),
-                    });
-                };
+                let raw = self.expect_cg_value(receiver_value, "MIR class member receiver");
+                let obj_ptr = self.expect_pointer_value(raw, "MIR class member receiver");
                 let ptr = self.codegen_class_field_ptr(span, &class, obj_ptr, field_idx)?;
                 return Ok(MirMemberPlace {
                     ptr,
@@ -297,12 +263,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
         }
 
-        let receiver_cg =
-            self.cg_ty_of(receiver_type_id)
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "pass MIR member receiver type",
-                    at: span.into(),
-                })?;
+        let receiver_cg = self.expect_cg_ty_of(receiver_type_id, "MIR member receiver type");
         let CgTy::Struct(struct_ty) = receiver_cg else {
             return Err(frontend_error(format!(
                 "pass MIR member field target `{field_fqn}` receiver_ty=t{} receiver_cg={}",
@@ -319,10 +280,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         };
         let slot = self.mir_local_slot(span, mir_ctx.slots, *local)?;
         if slot.cg_ty != CgTy::Struct(struct_ty) {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "pass MIR member receiver type drift",
-                at: span.into(),
-            });
+            panic!("codegen_mir_member_place: verifier accepted member receiver slot type drift");
         }
         let local_ptr = self.local_ptr_for_use(
             span,

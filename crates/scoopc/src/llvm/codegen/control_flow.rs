@@ -366,10 +366,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                             NicheStorage::Pointer => {
                                 let ptr = subject_raw.into_pointer_value();
                                 if none_value != 0 {
-                                    return Err(LlvmEmitError::UnsupportedMainBody {
-                                        kind: "Option niche pointer none_value (must be NULL)",
-                                        at: span.into(),
-                                    });
+                                    panic!(
+                                        "codegen_when_expr: verifier accepted pointer niche with non-NULL None"
+                                    );
                                 }
                                 self.builder.build_is_null(ptr, "option_is_none")?
                             }
@@ -1031,10 +1030,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         if matches!(repr, CgEnumRepr::Niche { .. }) {
             if variant.fields.len() != 1 || field_idx != 0 {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "niche enum variant arity",
-                    at: field_span.into(),
-                });
+                panic!(
+                    "extract_matched_when_variant_field_value: verifier accepted niche enum arity drift"
+                );
             }
 
             let llvm_enum_ty = self.llvm_enum_value_type(field_span, enum_ty)?;
@@ -1133,10 +1131,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 | CgTy::Float32
                 | CgTy::Int(_)
                 | CgTy::Tuple(_)
-                | CgTy::Struct(_) => Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "niche enum payload type",
-                    at: field_span.into(),
-                }),
+                | CgTy::Struct(_) => panic!(
+                    "extract_matched_when_variant_field_value: verifier accepted unsupported niche enum payload type"
+                ),
             };
         }
 
@@ -1460,10 +1457,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     NicheStorage::Pointer => {
                         let ptr = loaded.into_pointer_value();
                         if none_value != 0 {
-                            return Err(LlvmEmitError::UnsupportedMainBody {
-                                kind: "Option niche pointer none_value (must be NULL)",
-                                at: at.into(),
-                            });
+                            panic!(
+                                "codegen_when_pat_cond_for_enum: verifier accepted pointer niche with non-NULL None"
+                            );
                         }
                         self.builder.build_is_null(ptr, "option_is_none")?
                     }

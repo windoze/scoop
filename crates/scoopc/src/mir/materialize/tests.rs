@@ -1,11 +1,12 @@
 use super::*;
 use crate::mir::{
-    BasicBlock, LocalSourceKind, MirLoweringFacts, MirTransportKind, RuntimeTypeDescriptorKind,
-    RuntimeTypeStaticFold, SiteId, lower_hir_file_for_dump_with_facts,
+    BasicBlock, ClassCtorCallMetadata, CtorMetadata, LocalSourceKind, MirLoweringFacts,
+    MirTransportKind, RuntimeTypeDescriptorKind, RuntimeTypeStaticFold, SiteId,
+    lower_hir_file_for_dump_with_facts,
 };
 use crate::session::Session;
 use crate::source::SourceFile;
-use crate::ty::TypeParamType;
+use crate::ty::{NominalType, RefTypeKind, TypeKind, TypeParamType};
 
 const SYNTHETIC_STATEMENT_TODO_REASON: &str = "synthetic statement todo";
 
@@ -1230,6 +1231,226 @@ fn materialized_mir_call_abi_rejects_direct_call_arity_drift() {
             error: crate::mir::MirValidationError::TypeContract {
                 surface: "call arguments",
                 detail: "call arguments do not bind exactly to callee parameters",
+                ..
+            },
+            ..
+        }
+    ));
+}
+
+#[test]
+fn materialized_mir_class_ctor_contract_rejects_selected_ctor_drift() {
+    let mut types = TypeStore::new();
+    let builtins = types.intern_builtins();
+    let class_fqn = "fixtures.materialize.Box";
+    let class_ty = types.intern(TypeKind::Ref(RefTypeKind::Nominal(NominalType {
+        fqn: class_fqn.to_string(),
+        args: Vec::new(),
+        eff: None,
+    })));
+    let mut body = Body::new_empty();
+    let target = body.push_local(LocalDecl {
+        span: test_span(),
+        name: Some("box".to_string()),
+        ty: class_ty,
+        source: LocalSourceKind::CompilerTemporary,
+    });
+    let bb = body.push_block(BasicBlock {
+        is_cleanup: false,
+        stmts: vec![Statement {
+            span: test_span(),
+            kind: StatementKind::Assign {
+                target,
+                value: Rvalue::ClassCtor {
+                    site_id: SiteId::from_raw(0),
+                    class_fqn: class_fqn.to_string(),
+                    ctor: ClassCtorCallMetadata {
+                        selected_ctor_span: Some(Span::new(30, 40)),
+                        ordered_param_count: 0,
+                    },
+                    args: Vec::new(),
+                    hidden_effects: EffectRow::pure(),
+                },
+            },
+        }],
+        terminator: Terminator {
+            span: test_span(),
+            kind: TerminatorKind::Return { value: None },
+            unwind: UnwindAction::NoUnwind,
+        },
+    });
+    body.start = bb;
+    let file = File {
+        items: vec![
+            Item::Metadata(MetadataRoot::Nominal(NominalMetadata {
+                span: test_span(),
+                fqn: class_fqn.to_string(),
+                name: "Box".to_string(),
+                kind: ast::TypeKind::Class,
+                type_params: Vec::new(),
+                supertypes: Vec::new(),
+                interfaces: Vec::new(),
+                constructors: vec![CtorMetadata {
+                    span: Span::new(50, 60),
+                    kind: crate::hir::ClassCtorKind::Primary,
+                    params: Vec::new(),
+                    delegation: None,
+                }],
+                members: Vec::new(),
+            })),
+            Item::Fun(FunDecl {
+                span: test_span(),
+                fqn: "fixtures.materialize.main".to_string(),
+                name: "main".to_string(),
+                ty: builtins.unit,
+                params: Vec::new(),
+                return_ty: builtins.unit,
+                body: Some(body),
+            }),
+        ],
+    };
+    let materialized = materialized_for_test(file, types);
+
+    let err = materialized.validate_materialized().unwrap_err();
+    assert!(matches!(
+        *err,
+        MirMaterializeError::MaterializedMirValidation {
+            error: crate::mir::MirValidationError::TypeContract {
+                surface: "class constructor target",
+                detail: "selected class constructor is not declared",
+                ..
+            },
+            ..
+        }
+    ));
+}
+
+#[test]
+fn materialized_mir_member_contract_rejects_unresolved_target() {
+    let mut types = TypeStore::new();
+    let builtins = types.intern_builtins();
+    let mut body = Body::new_empty();
+    let receiver = body.push_local(LocalDecl {
+        span: test_span(),
+        name: Some("receiver".to_string()),
+        ty: builtins.int,
+        source: LocalSourceKind::SourceLocal,
+    });
+    let target = body.push_local(LocalDecl {
+        span: test_span(),
+        name: Some("value".to_string()),
+        ty: builtins.int,
+        source: LocalSourceKind::CompilerTemporary,
+    });
+    let bb = body.push_block(BasicBlock {
+        is_cleanup: false,
+        stmts: vec![Statement {
+            span: test_span(),
+            kind: StatementKind::Assign {
+                target,
+                value: Rvalue::MemberAccess {
+                    site_id: None,
+                    receiver: Operand::Local(receiver),
+                    member: MemberAccessMetadata {
+                        name: "missing".to_string(),
+                        receiver_ty: builtins.int,
+                        resolved: None,
+                        hidden_effects: EffectRow::pure(),
+                    },
+                },
+            },
+        }],
+        terminator: Terminator {
+            span: test_span(),
+            kind: TerminatorKind::Return { value: None },
+            unwind: UnwindAction::NoUnwind,
+        },
+    });
+    body.start = bb;
+    let file = File {
+        items: vec![Item::Fun(FunDecl {
+            span: test_span(),
+            fqn: "fixtures.materialize.main".to_string(),
+            name: "main".to_string(),
+            ty: builtins.unit,
+            params: Vec::new(),
+            return_ty: builtins.unit,
+            body: Some(body),
+        })],
+    };
+    let materialized = materialized_for_test(file, types);
+
+    let err = materialized.validate_materialized().unwrap_err();
+    assert!(matches!(
+        *err,
+        MirMaterializeError::MaterializedMirValidation {
+            error: crate::mir::MirValidationError::TypeContract {
+                surface: "member target",
+                detail: "member access target must be resolved before MIR codegen",
+                ..
+            },
+            ..
+        }
+    ));
+}
+
+#[test]
+fn materialized_mir_enum_contract_rejects_unknown_variant_payload() {
+    let mut types = TypeStore::new();
+    let builtins = types.intern_builtins();
+    let option_int = types.ty_option(builtins.int);
+    let mut body = Body::new_empty();
+    let target = body.push_local(LocalDecl {
+        span: test_span(),
+        name: Some("opt".to_string()),
+        ty: option_int,
+        source: LocalSourceKind::CompilerTemporary,
+    });
+    let bb = body.push_block(BasicBlock {
+        is_cleanup: false,
+        stmts: vec![Statement {
+            span: test_span(),
+            kind: StatementKind::Assign {
+                target,
+                value: Rvalue::EnumVariant {
+                    enum_ty: option_int,
+                    variant_name: "Missing".to_string(),
+                    args: Vec::new(),
+                    payload: AggregateTransportMetadata {
+                        aggregate_ty: option_int,
+                        kind: crate::mir::AggregateTransportKind::EnumPayload,
+                        fields: Vec::new(),
+                    },
+                },
+            },
+        }],
+        terminator: Terminator {
+            span: test_span(),
+            kind: TerminatorKind::Return { value: None },
+            unwind: UnwindAction::NoUnwind,
+        },
+    });
+    body.start = bb;
+    let file = File {
+        items: vec![Item::Fun(FunDecl {
+            span: test_span(),
+            fqn: "fixtures.materialize.main".to_string(),
+            name: "main".to_string(),
+            ty: builtins.unit,
+            params: Vec::new(),
+            return_ty: builtins.unit,
+            body: Some(body),
+        })],
+    };
+    let materialized = materialized_for_test(file, types);
+
+    let err = materialized.validate_materialized().unwrap_err();
+    assert!(matches!(
+        *err,
+        MirMaterializeError::MaterializedMirValidation {
+            error: crate::mir::MirValidationError::ProductionTransportMetadata {
+                transport: "enum payload transport",
+                detail: "enum payload aggregate variant is not declared",
                 ..
             },
             ..

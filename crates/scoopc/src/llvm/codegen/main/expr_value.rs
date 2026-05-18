@@ -318,18 +318,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
                     let recv = self.codegen_expr_in_expected_context(receiver, Some(CgTy::Ref))?;
                     let recv = self.coerce_value(receiver.span, recv, CgTy::Ref)?;
-                    let Some(raw) = recv.value else {
-                        return Err(LlvmEmitError::UnsupportedMainBody {
-                            kind: "class field receiver value",
-                            at: receiver.span.into(),
-                        });
-                    };
-                    let BasicValueEnum::PointerValue(obj_ptr) = raw else {
-                        return Err(LlvmEmitError::UnsupportedMainBody {
-                            kind: "class field receiver type",
-                            at: receiver.span.into(),
-                        });
-                    };
+                    let raw = self.expect_cg_value(recv, "class field receiver");
+                    let obj_ptr = self.expect_pointer_value(raw, "class field receiver");
 
                     let field_ptr =
                         self.codegen_class_field_ptr(member.span, &class, obj_ptr, field_idx)?;
@@ -378,16 +368,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 // fallback：先把 receiver 降到值，再用 extractvalue 取字段。
                 let recv = self.codegen_expr(receiver)?;
                 let CgTy::Struct(struct_ty) = recv.ty else {
-                    tracing::warn!(
-                        "codegen_member_access_expr: unsupported struct receiver for member {} (resolved={:?}) -> {:?}",
-                        member.name,
-                        member.resolved,
-                        recv.ty
+                    panic!(
+                        "codegen_member_access_expr: typecheck accepted non-struct receiver for value member `{}`",
+                        member.name
                     );
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "member access receiver type",
-                        at: receiver.span.into(),
-                    });
                 };
                 let (field_idx, field_ty) =
                     self.lookup_struct_field(struct_ty, fqn, member.span)?;
@@ -395,10 +379,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     return Ok(CgValue::unit());
                 }
 
-                let raw = recv.value.ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "member access receiver value",
-                    at: receiver.span.into(),
-                })?;
+                let raw = self.expect_cg_value(recv, "struct member access receiver");
                 let struct_v = raw.into_struct_value();
                 let extracted =
                     self.builder
@@ -406,20 +387,19 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 return self.cg_value_from_loaded(member.span, field_ty, extracted);
             }
             Some(_) => {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "member access target",
-                    at: member.span.into(),
-                });
+                panic!(
+                    "codegen_member_access_expr: typecheck accepted non-value member access target"
+                );
             }
             None => {}
         }
 
         // tuple 元素访问（spec §2.3.3）：`t._0` / `t._1` / ...
         let Some(elem_idx) = parse_tuple_member_index(&member.name) else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "member access target",
-                at: member.span.into(),
-            });
+            panic!(
+                "codegen_member_access_expr: typecheck accepted unresolved member access target `{}`",
+                member.name
+            );
         };
 
         // 优先路径：`localTuple._0` —— 用 GEP 从 alloca slot 取元素。
@@ -450,15 +430,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // fallback：先把 receiver 降到值，再用 extractvalue 取元素。
         let recv = self.codegen_expr(receiver)?;
         let CgTy::Tuple(tuple_ty) = recv.ty else {
-            tracing::warn!(
-                "codegen_member_access_expr: unsupported tuple receiver for member {} -> {:?}",
-                member.name,
-                recv.ty
+            panic!(
+                "codegen_member_access_expr: typecheck accepted non-tuple receiver for tuple member `{}`",
+                member.name
             );
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "member access receiver type",
-                at: receiver.span.into(),
-            });
         };
 
         let elem_ty = self.lookup_tuple_element(tuple_ty, elem_idx, member.span)?;
@@ -466,10 +441,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             return Ok(CgValue::unit());
         }
 
-        let raw = recv.value.ok_or(LlvmEmitError::UnsupportedMainBody {
-            kind: "member access receiver value",
-            at: receiver.span.into(),
-        })?;
+        let raw = self.expect_cg_value(recv, "tuple member access receiver");
         let tuple_v = raw.into_struct_value();
         let extracted =
             self.builder

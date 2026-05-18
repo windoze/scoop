@@ -655,12 +655,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         receiver_ptr: PointerValue<'ctx>,
         source_ty: TypeId,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        let source_cg = self
-            .cg_ty_of(source_ty)
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "itable value-box receiver type",
-                at: at.into(),
-            })?;
+        let source_cg = self.expect_cg_ty_of(source_ty, "itable value-box receiver type");
         if source_cg == CgTy::Unit {
             return Ok(CgValue::unit());
         }
@@ -960,12 +955,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
             for (case, (_, case_bb)) in value_cases.iter().zip(case_bbs.iter()) {
                 self.builder.position_at_end(*case_bb);
-                let impl_sig = self.fun_index.get(case.impl_fqn.as_str()).copied().ok_or(
-                    LlvmEmitError::UnsupportedMainBody {
-                        kind: "itable value receiver target signature",
-                        at: span.into(),
-                    },
-                )?;
+                let impl_sig = self
+                    .fun_index
+                    .get(case.impl_fqn.as_str())
+                    .copied()
+                    .unwrap_or_else(|| panic!("emit_interface_dispatch_indirect_call: verifier accepted missing value receiver target signature"));
                 let receiver_value = self.load_interface_value_box_payload(
                     callee_span,
                     receiver_ptr,
@@ -1597,10 +1591,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         value: Some(BasicValueEnum::PointerValue(closure_obj_i8)),
                     } = callee_value
                     else {
-                        return Err(LlvmEmitError::UnsupportedMainBody {
-                            kind: "function value top-level type",
-                            at: callee.span.into(),
-                        });
+                        panic!(
+                            "codegen_call_impl: verifier accepted top-level function value with non-ref payload"
+                        );
                     };
                     return self.codegen_function_value_call_from_closure_obj(
                         closure_obj_i8,
@@ -1764,10 +1757,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         if let hir::ExprKind::UnresolvedIdent { name } = &callee.kind {
             let Some(CgTy::Enum(enum_ty)) = expected else {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "enum variant ctor call without expected enum type",
-                    at: callee.span.into(),
-                });
+                panic!(
+                    "codegen_call_impl: typecheck accepted enum variant ctor without expected enum type"
+                );
             };
             return self.codegen_enum_variant_ctor_call(span, enum_ty, name, args);
         }
@@ -2263,10 +2255,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let receiver_ptr = evaluated_args
             .first()
             .and_then(|arg| arg.pointer_value)
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "vtable call receiver type",
-                at: callee_span.into(),
-            })?;
+            .unwrap_or_else(|| panic!("try_codegen_class_vtable_call_impl: verifier accepted missing vtable receiver pointer"));
         let deferred_receiver =
             self.defer_gc_ref_pointer(callee_span, "vtable_call_receiver", receiver_ptr)?;
         let mut llvm_args: Vec<BasicMetadataValueEnum<'ctx>> = Vec::with_capacity(
@@ -2738,10 +2727,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let receiver_value = self.codegen_expr(receiver_expr)?;
         let receiver_value = self.coerce_value(callee_span, receiver_value, CgTy::Ref)?;
         let Some(BasicValueEnum::PointerValue(receiver_ptr)) = receiver_value.value else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "itable call receiver type",
-                at: callee_span.into(),
-            });
+            panic!(
+                "try_codegen_interface_itable_call_impl: verifier accepted non-ref itable receiver"
+            );
         };
         let deferred_receiver =
             self.defer_gc_ref_pointer(callee_span, "itable_call_receiver", receiver_ptr)?;

@@ -2,48 +2,30 @@
 
 ## Scope
 
-- Work from `TODO.md` as the source of truth.
-- Complete only the first incomplete task, then stop.
-- If the selected task is blocked by a concrete prerequisite, update `TODO.md`, commit that bookkeeping, and stop.
+Execute exactly the first incomplete task in `TODO.md`, then stop after committing the completed task or any required dependency/task-list update.
 
-## Execution Steps
+## Reasoning Summary
 
-1. Read `TODO.md` to identify the first heading not prefixed with `[DONE]`.
-2. Check recent repository context only as needed for that task, including the latest commit if it appears directly relevant.
-3. Inspect the files and tests related to the selected task.
-4. Implement the smallest spec-correct change that fully satisfies the selected task.
-5. Add or update relevant tests and fixtures.
-6. Run targeted validation first, then broader required validation from the task record.
-7. Fix any failures caused by the current task or any blocker that invalidates it.
-8. Update `TODO.md` by prefixing the completed task heading with `[DONE]` and filling its completion record.
-9. Update this plan file after key progress points or if the plan changes.
-10. Inspect `git status`, `git diff`, and recent commits before committing.
-11. Commit all intended changes for the completed task with a task-specific message.
+`TODO.md` is the authoritative task source. I will not perform broad historical triage before selecting the first incomplete task. If a blocker directly affects that task, I will either fix it as part of the task or add the minimum prerequisite task before it and stop after committing that bookkeeping change.
+
+## Step-by-Step Plan
+
+1. Read `TODO.md` and identify the first task whose heading is not prefixed with `[DONE]`.
+2. Check the latest commit message only for unfinished issue context directly relevant to that selected task.
+3. Read the selected task details, dependencies, validation requirements, and relevant project files.
+4. Implement the selected task as written without narrowing scope or using workarounds.
+5. Add or update the smallest relevant tests/fixtures needed for the specified behavior.
+6. Run focused validation first, then broader validation required by the task and repository guidelines as feasible.
+7. If validation exposes an in-scope defect, fix the root cause and rerun relevant validation.
+8. If a concrete prerequisite blocks correct completion, update `TODO.md` with the minimum prerequisite task, update this plan file, commit the task-list change, and stop.
+9. On success, mark the selected task heading with `[DONE]` in `TODO.md` and update its completion record.
+10. Update `PLAN.md` only if the phase-level plan, dependency structure, assumptions, or completion criteria changed.
+11. Inspect the working tree and diff, then commit all intended changes with a clear task-tagged message.
 12. Stop without starting the next task.
-
-## Current Status
-
-- `TODO.md` inspected.
-- First incomplete task: `P7-B2.5：B-17/B-18 scalar coercion 与 literal/string contract`.
-- Next step: inspect recent commit context and B-17/B-18 audit/codegen/verifier/fixture files only.
-
-## P7-B2.5 Working Plan
-
-1. Confirm the latest commit does not mention a directly relevant unfinished B-17/B-18 issue.
-2. Use `umb-audit list --bucket B-17` and `--bucket B-18` plus the strategy/category docs to lock the exact active IDs and source locations.
-3. Inspect existing MIR materialized verifier coverage and LLVM fallback sites for scalar coercion, equality, bool/string operators, and literal/string value loading.
-4. Add verifier/helper coverage for the whole identified B-17/B-18 contract class instead of patching individual sites.
-5. Replace retired codegen `UnsupportedMainBody` fallbacks with verifier-backed internal invariants.
-6. Update active inventory, retired ledger, bucket docs, fixture index/status, stale count baseline, and TODO completion record.
-7. Run the task-required validation and formatting/lint checks.
-8. Commit the completed P7-B2.5 change and stop.
 
 ## Progress Log
 
-- Identified active B-17 IDs: 47; active B-18 IDs: 4.
-- Replaced B-17/B-18 `UnsupportedMainBody` fallback sites with verifier/typecheck-backed internal invariants while leaving unrelated B-13/B-29 rows active.
-- Activated B-17/B-18 fixtures and corrected active negative diagnostics.
-- Targeted fixture validation passed: `cargo run -p scoop -- test tests/fixtures/umb_fix/B-17-coercion-scalar/` and `cargo run -p scoop -- test tests/fixtures/umb_fix/B-18-literals-strings/`.
-- Updated audit inventory, retired ledger, bucket docs, fixture index, stale counts, and policy sentinel baseline.
-- Final validation passed: `umb-audit diff`, `umb-audit stats`, `cargo test -p scoopc audit:: -- --nocapture`, `cargo test -p scoopc pipeline_user_visible_failure_policy -- --nocapture`, both B-17/B-18 fixture directories, `cargo fmt`, and `cargo clippy --all-targets -- -D warnings`.
-- Next step: inspect final diff/status and commit P7-B2.5.
+- Created initial execution plan before running project commands.
+- Identified first incomplete task: `P7-B2.6` for B-19/B-20/B-22/B-23 layout and member contract retirement. Latest commit is `[P7-B2.5] Retire scalar literal UMB rows`, with no directly blocking unfinished issue in the subject.
+- Implemented the first verifier/codegen pass for P7-B2.6: materialized MIR now validates class constructor, top-level store, enum payload, member target, and dispatch metadata contracts; matching LLVM fallback sites were converted to internal invariants. Focused `cargo test -p scoopc mir::materialize -- --nocapture` passed after tightening generic-owner handling.
+- Synchronized audit data for P7-B2.6: active inventory is now 652, retired ledger is 632, and B-19/B-20/B-22/B-23 active counts are 0. Activated the relevant fixture directories and fixed fixture expectations for B-19/B-20/B-22/B-23 smoke/negative coverage.

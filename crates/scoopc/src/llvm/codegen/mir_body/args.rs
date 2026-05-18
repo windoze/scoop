@@ -22,12 +22,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             if arg.name.is_some() {
                 panic!("codegen_mir_class_ctor_ordered_args: MIR verifier accepted {kind}");
             }
-            let param_cg = self
-                .cg_ty_of(param.ty)
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "class ctor param type",
-                    at: arg.span.into(),
-                })?;
+            let param_cg = self.expect_cg_ty_of(param.ty, "MIR class ctor param type");
             let value =
                 self.codegen_mir_operand_expected(arg.span, &arg.value, slots, Some(param_cg))?;
             let value = self.coerce_value(arg.span, value, param_cg)?;
@@ -167,13 +162,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 "lowered_class_ctor_obj_active_drop",
                 &deferred_obj,
             )?;
-            let active_bb_end =
-                self.builder
-                    .get_insert_block()
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "class ctor active block",
-                        at: span.into(),
-                    })?;
+            let active_bb_end = self.expect_insert_block("MIR class ctor active branch");
             self.builder.build_unconditional_branch(merge_bb)?;
 
             self.builder.position_at_end(inactive_bb);
@@ -182,13 +171,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 "lowered_class_ctor_obj_return",
                 &deferred_obj,
             )?;
-            let inactive_bb_end =
-                self.builder
-                    .get_insert_block()
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "class ctor inactive block",
-                        at: span.into(),
-                    })?;
+            let inactive_bb_end = self.expect_insert_block("MIR class ctor inactive branch");
             self.builder.build_unconditional_branch(merge_bb)?;
 
             self.builder.position_at_end(merge_bb);

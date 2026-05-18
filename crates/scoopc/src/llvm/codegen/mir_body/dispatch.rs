@@ -178,12 +178,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 None
             };
 
-        let source_cg = self
-            .cg_ty_of(source_ty)
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "static interface receiver type",
-                at: span.into(),
-            })?;
+        let source_cg = self.expect_cg_ty_of(source_ty, "static interface receiver type");
         let receiver_value =
             self.codegen_mir_operand_expected(span, receiver, slots, Some(source_cg))?;
         let receiver_value = self.coerce_value(span, receiver_value, source_cg)?;
@@ -328,10 +323,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 self.codegen_mir_operand_expected(span, receiver, slots, Some(CgTy::Ref))?;
             let receiver_value = self.coerce_value(span, receiver_value, CgTy::Ref)?;
             let Some(BasicValueEnum::PointerValue(receiver_ptr)) = receiver_value.value else {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "plain interface receiver value",
-                    at: span.into(),
-                });
+                panic!(
+                    "codegen_mir_plain_dispatch_call: verifier accepted non-ref interface receiver"
+                );
             };
             let deferred_receiver =
                 self.defer_gc_ref_pointer(span, "plain_interface_receiver", receiver_ptr)?;
@@ -411,10 +405,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let receiver_ptr = evaluated_args
             .first()
             .and_then(|arg| arg.pointer_value)
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "plain dispatch receiver value",
-                at: span.into(),
-            })?;
+            .unwrap_or_else(|| panic!("codegen_mir_plain_dispatch_call: verifier accepted missing dispatch receiver pointer"));
         let deferred_receiver = self.defer_gc_ref_pointer(
             span,
             &format!("{}_receiver", target.label().replace(' ', "_")),
@@ -531,7 +522,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     }
     pub(in crate::llvm::codegen) fn selected_mir_class_ctor_from_contract<'b>(
         &self,
-        span: crate::span::Span,
+        _span: crate::span::Span,
         class: &'b hir::ClassInit,
         ctor: &crate::mir::ClassCtorCallMetadata,
         args: &[crate::mir::CallArg],
@@ -549,17 +540,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     .ctors
                     .iter()
                     .find(|candidate| candidate.span == selected_span)
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "class ctor selected ctor contract",
-                        at: span.into(),
-                    })?,
+                    .unwrap_or_else(|| panic!("selected_mir_class_ctor_from_contract: verifier accepted missing selected ctor")),
             ),
             None if class.ctors.is_empty() => None,
             None => {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "class ctor selected ctor contract",
-                    at: span.into(),
-                });
+                panic!("selected_mir_class_ctor_from_contract: verifier accepted unselected ctor contract");
             }
         };
 

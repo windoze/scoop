@@ -41,10 +41,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             base_fqn
         };
         if !self.class_inits.contains_key(&class_fqn) {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "class ctor call candidate class",
-                at: callee_span.into(),
-            });
+            panic!("codegen_class_ctor_call: typecheck accepted class ctor without class metadata");
         }
         let class = self.class_init_layout(callee_span, &class_fqn)?;
 
@@ -80,19 +77,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             &[type_desc_i8.into(), size_v.into()],
             "rt_alloc_class",
         )?;
-        let raw = call
-            .try_as_basic_value()
-            .basic()
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "scoop_alloc_typed return value",
-                at: span.into(),
-            })?;
-        let BasicValueEnum::PointerValue(obj_ptr) = raw else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "scoop_alloc_typed return type",
-                at: span.into(),
-            });
-        };
+        let raw = self.expect_basic_value(call, "scoop_alloc_typed class allocation");
+        let obj_ptr = self.expect_pointer_value(raw, "scoop_alloc_typed class allocation");
 
         let obj_ptr_ty = self.llvm_ptr_type(self.gc_address_space());
         let typed_obj = self
@@ -184,13 +170,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 "class_ctor_obj_active_drop",
                 &deferred_obj,
             )?;
-            let active_bb_end =
-                self.builder
-                    .get_insert_block()
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "class ctor call active block",
-                        at: span.into(),
-                    })?;
+            let active_bb_end = self.expect_insert_block("class ctor call active branch");
             self.builder.build_unconditional_branch(merge_bb)?;
 
             self.builder.position_at_end(inactive_bb);
@@ -199,13 +179,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 "class_ctor_obj_return",
                 &deferred_obj,
             )?;
-            let inactive_bb_end =
-                self.builder
-                    .get_insert_block()
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "class ctor call inactive block",
-                        at: span.into(),
-                    })?;
+            let inactive_bb_end = self.expect_insert_block("class ctor call inactive branch");
             self.builder.build_unconditional_branch(merge_bb)?;
 
             self.builder.position_at_end(merge_bb);
@@ -237,7 +211,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     pub(in crate::llvm::codegen) fn pick_class_ctor_by_target<'b>(
         &self,
-        at: crate::span::Span,
+        _at: crate::span::Span,
         class: &'b hir::ClassInit,
         target_ctor_span: Option<crate::span::Span>,
         arg_count: usize,
@@ -254,10 +228,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 matching.retain(|ctor| ctor.span != exclude);
             }
             if matching.len() != 1 {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind,
-                    at: at.into(),
-                });
+                panic!("pick_class_ctor_by_target: verifier accepted {kind}");
             }
             return Ok(Some(matching[0]));
         }
@@ -266,22 +237,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             return if arg_count == 0 {
                 Ok(None)
             } else {
-                Err(LlvmEmitError::UnsupportedMainBody {
-                    kind,
-                    at: at.into(),
-                })
+                panic!("pick_class_ctor_by_target: verifier accepted {kind}")
             };
         }
 
-        Err(LlvmEmitError::UnsupportedMainBody {
-            kind,
-            at: at.into(),
-        })
+        panic!("pick_class_ctor_by_target: verifier accepted {kind}")
     }
 
     fn codegen_class_ctor_eval_args(
         &mut self,
-        at: crate::span::Span,
+        _at: crate::span::Span,
         callee_span: crate::span::Span,
         args: &[hir::CallArg],
         call_info: Option<&hir::CtorCallInfo>,
@@ -290,18 +255,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     ) -> Result<Vec<CgValue<'ctx>>, LlvmEmitError> {
         let mapping: Vec<Option<usize>> = if let Some(info) = call_info {
             if info.arg_mapping.len() != ctor_params.len() {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind,
-                    at: at.into(),
-                });
+                panic!("codegen_class_ctor_eval_args: verifier accepted {kind}");
             }
             info.arg_mapping.clone()
         } else {
             if !args.is_empty() || !ctor_params.is_empty() {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind,
-                    at: at.into(),
-                });
+                panic!("codegen_class_ctor_eval_args: verifier accepted {kind}");
             }
 
             Vec::new()
@@ -312,25 +271,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             let Some(arg_idx) = arg_idx else {
                 continue;
             };
-            let slot = arg_to_param
-                .get_mut(arg_idx)
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind,
-                    at: at.into(),
-                })?;
+            let slot = arg_to_param.get_mut(arg_idx).unwrap_or_else(|| {
+                panic!("codegen_class_ctor_eval_args: verifier accepted {kind}")
+            });
             if slot.is_some() {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind,
-                    at: at.into(),
-                });
+                panic!("codegen_class_ctor_eval_args: verifier accepted {kind}");
             }
             *slot = Some(param_idx);
         }
         if arg_to_param.iter().any(|slot| slot.is_none()) {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind,
-                at: at.into(),
-            });
+            panic!("codegen_class_ctor_eval_args: verifier accepted {kind}");
         }
 
         let mut param_values: Vec<Option<CgValue<'ctx>>> = vec![None; ctor_params.len()];
@@ -338,17 +288,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             vec![None; ctor_params.len()];
 
         for (arg_idx, arg) in args.iter().enumerate() {
-            let param_idx = arg_to_param[arg_idx].ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind,
-                at: at.into(),
-            })?;
+            let param_idx = arg_to_param[arg_idx].unwrap_or_else(|| {
+                panic!("codegen_class_ctor_eval_args: verifier accepted {kind}")
+            });
             let param = &ctor_params[param_idx];
-            let param_cg = self
-                .cg_ty_of(param.ty)
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "class ctor param type",
-                    at: callee_span.into(),
-                })?;
+            let param_cg = self.expect_cg_ty_of(param.ty, "class ctor param type");
             let expr = match arg {
                 hir::CallArg::Positional(expr) => expr,
                 hir::CallArg::Named { value, .. } => value,
@@ -401,16 +345,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     param
                         .default_value
                         .as_ref()
-                        .ok_or(LlvmEmitError::UnsupportedMainBody {
-                            kind,
-                            at: callee_span.into(),
-                        })?;
-                let param_cg =
-                    self.cg_ty_of(param.ty)
-                        .ok_or(LlvmEmitError::UnsupportedMainBody {
-                            kind: "class ctor param type",
-                            at: callee_span.into(),
-                        })?;
+                        .unwrap_or_else(|| panic!("codegen_class_ctor_eval_args: verifier accepted missing default value for {kind}"));
+                let param_cg = self.expect_cg_ty_of(param.ty, "class ctor default param type");
                 let v = match &default_value.kind {
                     hir::ExprKind::Closure(closure) => {
                         self.codegen_closure_expr(default_value.span, closure, param.ty)?
@@ -431,10 +367,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             param_values
                 .into_iter()
                 .map(|value| {
-                    value.ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind,
-                        at: at.into(),
-                    })
+                    Ok(value.unwrap_or_else(|| {
+                        panic!("codegen_class_ctor_eval_args: verifier accepted {kind}")
+                    }))
                 })
                 .collect::<Result<Vec<_>, _>>()
         })();
@@ -446,18 +381,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     fn bind_class_ctor_call_param_value(
         &mut self,
-        callee_span: crate::span::Span,
+        _callee_span: crate::span::Span,
         _kind: &'static str,
         param: &hir::ClassCtorParam,
         expr_span: crate::span::Span,
         value: CgValue<'ctx>,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        let param_cg = self
-            .cg_ty_of(param.ty)
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "class ctor param type",
-                at: callee_span.into(),
-            })?;
+        let param_cg = self.expect_cg_ty_of(param.ty, "class ctor bound param type");
         let ptr = self.create_entry_alloca(param.decl_span, &param.name, param_cg)?;
         let stored = self.store_local_value(expr_span, ptr, param_cg, value)?;
         self.function_cx.env.insert(
@@ -531,7 +461,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     fn codegen_class_ctor_run_init_steps(
         &mut self,
         span: crate::span::Span,
-        callee_span: crate::span::Span,
+        _callee_span: crate::span::Span,
         class: &hir::ClassInit,
         ctor_params: &[hir::ClassCtorParam],
     ) -> Result<(), LlvmEmitError> {
@@ -540,33 +470,23 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             if !param.is_property {
                 continue;
             }
-            let param_cg = self
-                .cg_ty_of(param.ty)
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "class ctor param type",
-                    at: callee_span.into(),
-                })?;
+            let param_cg = self.expect_cg_ty_of(param.ty, "class ctor property param type");
 
             let Some(field_fqn) = param.property_field_fqn.as_deref() else {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "class ctor param property fqn",
-                    at: callee_span.into(),
-                });
+                panic!(
+                    "codegen_class_ctor_run_init_steps: verifier accepted property param without field FQN"
+                );
             };
             let Some(field_idx) = class.field_indices.get(field_fqn).copied() else {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "class ctor param property field index",
-                    at: callee_span.into(),
-                });
+                panic!(
+                    "codegen_class_ctor_run_init_steps: verifier accepted property param field index drift"
+                );
             };
             let local =
                 self.function_cx
                     .env
                     .get(param.id)
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "class ctor param local slot",
-                        at: callee_span.into(),
-                    })?;
+                    .unwrap_or_else(|| panic!("codegen_class_ctor_run_init_steps: verifier accepted missing ctor param local slot"));
             let local_ptr =
                 self.local_ptr_for_use(span, local, &format!("class_ctor_param_{}", param.name))?;
             let loaded = self.builder.build_load(
@@ -585,23 +505,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             match step {
                 hir::ClassInitStep::PropertyInit { field_fqn, init } => {
                     let Some(field_idx) = class.field_indices.get(field_fqn).copied() else {
-                        return Err(LlvmEmitError::UnsupportedMainBody {
-                            kind: "class property init field index",
-                            at: init.span.into(),
-                        });
+                        panic!(
+                            "codegen_class_ctor_run_init_steps: verifier accepted property init field index drift"
+                        );
                     };
-                    let field = class.fields.get(field_idx as usize).ok_or(
-                        LlvmEmitError::UnsupportedMainBody {
-                            kind: "class property init field",
-                            at: init.span.into(),
-                        },
-                    )?;
-                    let field_cg =
-                        self.cg_ty_of(field.ty)
-                            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                                kind: "class property init field type",
-                                at: init.span.into(),
-                            })?;
+                    let field = class.fields.get(field_idx as usize).unwrap_or_else(|| {
+                        panic!("codegen_class_ctor_run_init_steps: verifier accepted property init field drift")
+                    });
+                    let field_cg = self.expect_cg_ty_of(field.ty, "class property init field type");
 
                     let v = self.codegen_expr_in_expected_context(init, Some(field_cg))?;
                     let obj_ptr = self.current_class_ctor_this_ptr(init.span, class)?;
@@ -669,10 +580,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         let key = (class.fqn.clone(), ctor_span);
         if !stack.insert(key.clone()) {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "class ctor delegation cycle",
-                at: callee_span.into(),
-            });
+            panic!(
+                "codegen_class_ctor_invoke_inner: typecheck accepted class ctor delegation cycle"
+            );
         }
 
         let saved_source_id = self.current_source_id;
@@ -718,19 +628,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
                 // ctor params locals（先写 locals；参数属性赋值延后到 super ctor call 之后）。
                 if args.len() != ctor_params.len() {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "class ctor call arg/param len mismatch",
-                        at: callee_span.into(),
-                    });
+                    panic!("codegen_class_ctor_invoke_inner: verifier accepted ctor arg/param length mismatch");
                 }
 
                 for (param, arg_v) in ctor_params.iter().zip(args.iter()) {
-                    let param_cg =
-                        cg.cg_ty_of(param.ty)
-                            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                                kind: "class ctor param type",
-                                at: callee_span.into(),
-                            })?;
+                    let param_cg = cg.expect_cg_ty_of(param.ty, "class ctor invoke param type");
                     let param_ptr =
                         cg.create_entry_alloca(param.decl_span, &param.name, param_cg)?;
                     let _ =
@@ -881,14 +783,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         at: crate::span::Span,
         class: &hir::ClassInit,
     ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
-        let this_local =
-            self.function_cx
-                .env
-                .get(class.this_id)
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "class ctor this local",
-                    at: at.into(),
-                })?;
+        let this_local = self.function_cx.env.get(class.this_id).unwrap_or_else(|| {
+            panic!("current_class_ctor_this_ptr: verifier accepted missing this local")
+        });
         let this_slot = self.local_ptr_for_use(at, this_local, "class_ctor_this_reload")?;
         Ok(self
             .builder

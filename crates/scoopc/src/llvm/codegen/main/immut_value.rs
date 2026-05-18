@@ -51,25 +51,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .iter()
             .any(|current| current == &top_level_const.fqn)
         {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "recursive top-level const ref",
-                at: span.into(),
-            });
+            panic!("codegen_top_level_const_ref: verifier accepted recursive top-level const ref");
         }
 
-        let init = top_level_const
-            .init
-            .as_ref()
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "top-level const without initializer",
-                at: top_level_const.span.into(),
-            })?;
-        let target_ty =
-            self.cg_ty_of(top_level_const.ty)
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "top-level const type",
-                    at: top_level_const.span.into(),
-                })?;
+        let init = top_level_const.init.as_ref().unwrap_or_else(|| {
+            panic!("codegen_top_level_const_ref: verifier accepted const without initializer")
+        });
+        let target_ty = self.expect_cg_ty_of(top_level_const.ty, "top-level const type");
         let source_id = self.source_id_for_path(top_level_const.source_path.as_path(), span)?;
         let saved_source_id = self.current_source_id;
         self.current_source_id = source_id;
@@ -180,10 +168,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         value_fqn: &str,
     ) -> Result<FunctionValue<'ctx>, LlvmEmitError> {
         let Some(value) = self.top_level_immutable_values.get(value_fqn) else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "top-level immutable value init (missing metadata)",
-                at: crate::span::Span::new(0, 0).into(),
-            });
+            panic!(
+                "ensure_top_level_immutable_value_init_function_defined: verifier accepted missing top-level immutable metadata"
+            );
         };
 
         let name = private_top_level_immutable_value_init_fn_name(
@@ -214,10 +201,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         value_fqn: &str,
     ) -> Result<FunctionValue<'ctx>, LlvmEmitError> {
         let Some(value) = self.top_level_immutable_values.get(value_fqn) else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "hidden top-level immutable init bridge (missing metadata)",
-                at: crate::span::Span::new(0, 0).into(),
-            });
+            panic!(
+                "ensure_top_level_immutable_value_init_bridge_defined: verifier accepted missing top-level immutable metadata"
+            );
         };
 
         let name = private_top_level_immutable_value_init_bridge_fn_name(
@@ -302,19 +288,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             &[guard.as_pointer_value().into()],
             "once_begin",
         )?;
-        let ret = call
-            .try_as_basic_value()
-            .basic()
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "top-level immutable value once begin return value",
-                at: err_span.into(),
-            })?;
-        let BasicValueEnum::IntValue(should_init) = ret else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "top-level immutable value once begin return type",
-                at: err_span.into(),
-            });
-        };
+        let ret = self.expect_basic_value(call, "top-level immutable once begin");
+        let should_init = self.expect_int_value(ret, "top-level immutable once begin");
         let i32_ty = self.context.i32_type();
         let cond = self.builder.build_int_compare(
             IntPredicate::NE,
@@ -330,16 +305,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let init = value
             .init
             .as_ref()
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "top-level immutable value without initializer",
-                at: value.span.into(),
-            })?;
-        let value_cg = self
-            .cg_ty_of(value.ty)
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "top-level immutable value type",
-                at: value.span.into(),
-            })?;
+            .unwrap_or_else(|| panic!("codegen_top_level_immutable_value_init_fun_body: verifier accepted immutable value without initializer"));
+        let value_cg = self.expect_cg_ty_of(value.ty, "top-level immutable value type");
         let init_value = self.codegen_initializer_expr(init, value_cg, value.ty)?;
         if let Some(global) =
             self.declare_top_level_immutable_value_global(init.span, value, value_cg)?
@@ -370,12 +337,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         at: crate::span::Span,
         value: &hir::TopLevelImmutableValue,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        let value_cg = self
-            .cg_ty_of(value.ty)
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "top-level immutable value type",
-                at: value.span.into(),
-            })?;
+        let value_cg = self.expect_cg_ty_of(value.ty, "top-level immutable value access type");
         let init_fn = self.ensure_top_level_immutable_value_init_function_defined(&value.fqn)?;
         self.with_conservative_gc_local_root_spills(at, |cg| {
             let _ = cg.builder.build_call(init_fn, &[], "top_level_val_init")?;
@@ -403,12 +365,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         at: crate::span::Span,
         value: &hir::TopLevelImmutableValue,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        let value_cg = self
-            .cg_ty_of(value.ty)
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "top-level immutable value type",
-                at: value.span.into(),
-            })?;
+        let value_cg = self.expect_cg_ty_of(value.ty, "top-level immutable initialized value type");
         self.emit_top_level_immutable_value_initialized_check(at, &value.fqn)?;
 
         if value_cg == CgTy::Unit {
@@ -456,18 +413,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         // T1023：`@ThreadLocal/@Global var` 顶层可变变量。
         let Some(var) = self.top_level_vars.get(fqn) else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "top-level value ref",
-                at: span.into(),
-            });
+            panic!(
+                "codegen_top_level_value_ref: resolver accepted unknown top-level value `{fqn}`"
+            );
         };
 
-        let cg_ty = self
-            .cg_ty_of(var.ty)
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "top-level var type",
-                at: var.span.into(),
-            })?;
+        let cg_ty = self.expect_cg_ty_of(var.ty, "top-level value ref var type");
 
         if cg_ty == CgTy::Unit {
             return Ok(CgValue::unit());

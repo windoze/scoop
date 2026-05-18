@@ -646,12 +646,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 let mut llvm_fields: Vec<BasicTypeEnum<'ctx>> =
                     Vec::with_capacity(class.fields.len());
                 for field in &class.fields {
-                    let field_cg =
-                        self.cg_ty_of(field.ty)
-                            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                                kind: "class field type",
-                                at: at.into(),
-                            })?;
+                    let field_cg = self.expect_cg_ty_of(field.ty, "class payload field type");
                     llvm_fields.push(self.llvm_basic_type_of(at, field_cg)?);
                 }
                 existing.set_body(&llvm_fields, false);
@@ -662,12 +657,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let payload_ty = self.context.opaque_struct_type(&name);
         let mut llvm_fields: Vec<BasicTypeEnum<'ctx>> = Vec::with_capacity(class.fields.len());
         for field in &class.fields {
-            let field_cg = self
-                .cg_ty_of(field.ty)
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "class field type",
-                    at: at.into(),
-                })?;
+            let field_cg = self.expect_cg_ty_of(field.ty, "class payload field type");
             llvm_fields.push(self.llvm_basic_type_of(at, field_cg)?);
         }
         payload_ty.set_body(&llvm_fields, false);
@@ -758,10 +748,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
             CgEnumRepr::Niche { storage, .. } => match storage {
                 crate::ty::layout::NicheStorage::Pointer => {
-                    let some_field = some_field.ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "Option niche payload type",
-                        at: at.into(),
-                    })?;
+                    let some_field = some_field.unwrap_or_else(|| {
+                        panic!("llvm_enum_value_type: verifier accepted pointer niche without Some payload type")
+                    });
                     Ok(self.llvm_basic_type_of(at, some_field)?)
                 }
                 crate::ty::layout::NicheStorage::U8 => Ok(self.context.i8_type().into()),

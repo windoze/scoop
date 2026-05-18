@@ -1,7 +1,6 @@
 // EXPECT: ok
-// IGNORE-UNTIL-FIX:B-20
 // SPEC: docs/spec/language_spec-part2.md#4-引用类型;docs/spec/language_spec-part2.md#41-class;docs/spec/language_spec-part2.md#43-继承与-override;docs/spec/language_spec-part2.md#44-interface;docs/spec/language_spec-part2.md#45-object-与-companion-object
-// COVERS: UMB-0036, UMB-0887, UMB-0904, UMB-0905, UMB-0906, UMB-0907, UMB-0910, UMB-0911, UMB-0912, UMB-0913, UMB-0914, UMB-0922, UMB-0923, UMB-0924, UMB-0927, UMB-0928, UMB-0929, UMB-0930, UMB-0931, UMB-0932, UMB-0933, UMB-0934, UMB-0935, UMB-0936, UMB-1138, UMB-1139, UMB-1231, UMB-1232, UMB-1233, UMB-1234, UMB-1235, UMB-1236, UMB-1237, UMB-1238, UMB-1239, UMB-1240, UMB-1241, UMB-1242, UMB-1243
+// COVERS: NONE
 // BUCKETS: B-19, B-20, B-23
 // REASON: U5-T02 records the spec surface before the matching implementation gate is enabled.
 // SOURCE-FIXTURE: tests/fixtures/run-pass/class_ctor_named_default_and_delegation_basic.scoop

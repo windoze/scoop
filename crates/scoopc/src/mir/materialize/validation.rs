@@ -4,6 +4,7 @@ use super::super::{RuntimeTypeDescriptorKind, RuntimeTypeStaticFold};
 use super::*;
 use crate::ast;
 use crate::mir::AggregateTransportKind;
+use crate::mir::{ClassCtorCallMetadata, DispatchMetadata};
 use crate::ty::{RefTypeKind, TypeKind, ValueTypeKind};
 
 #[derive(Clone, Copy)]
@@ -724,7 +725,9 @@ pub(super) fn validate_materialized_statement(
             Ok(())
         }
         StatementKind::StoreTopLevelVar {
-            value, value_ty, ..
+            fqn: target_fqn,
+            value,
+            value_ty,
         } => {
             validate_materialized_operand(
                 materialized,
@@ -734,6 +737,32 @@ pub(super) fn validate_materialized_statement(
                 "top-level store value",
                 locals,
                 value,
+            )?;
+            let operand_ty = materialized_operand_ty(
+                materialized,
+                fqn,
+                block,
+                stmt.span,
+                "top-level store value",
+                locals,
+                value,
+            )?;
+            if operand_ty.is_some_and(|ty| ty != *value_ty) {
+                return Err(materialized_type_contract_err(
+                    fqn,
+                    Some(block),
+                    stmt.span,
+                    "top-level store value",
+                    "value operand type and published top-level store type disagree",
+                ));
+            }
+            validate_materialized_top_level_store_target(
+                materialized,
+                fqn,
+                block,
+                stmt.span,
+                target_fqn,
+                *value_ty,
             )?;
             validate_materialized_type(
                 materialized,
@@ -995,11 +1024,23 @@ pub(super) fn validate_materialized_rvalue(
             )
         }
         Rvalue::ClassCtor {
+            class_fqn,
             ctor,
             args,
             hidden_effects,
             ..
         } => {
+            validate_materialized_class_ctor_contract(
+                materialized,
+                fqn,
+                block,
+                span,
+                locals,
+                class_fqn,
+                ctor,
+                args,
+                result_ty,
+            )?;
             if ctor.ordered_param_count != args.len() {
                 return Err(materialized_type_contract_err(
                     fqn,
@@ -1808,6 +1849,194 @@ pub(super) fn validate_materialized_top_level_ref(
     )
 }
 
+fn validate_materialized_top_level_store_target(
+    materialized: &MaterializedMir,
+    fqn: &str,
+    block: BasicBlockId,
+    span: Span,
+    target_fqn: &str,
+    value_ty: TypeId,
+) -> MaterializeResult<()> {
+    let Some(target_ty) = materialized_top_level_value_ty(materialized, target_fqn) else {
+        return Err(materialized_type_contract_err(
+            fqn,
+            Some(block),
+            span,
+            "top-level store target",
+            "top-level store target is not published in materialized metadata",
+        ));
+    };
+    if target_ty != value_ty {
+        return Err(materialized_type_contract_err(
+            fqn,
+            Some(block),
+            span,
+            "top-level store target",
+            "top-level store value type does not match target type",
+        ));
+    }
+    Ok(())
+}
+
+fn materialized_top_level_value_ty(
+    materialized: &MaterializedMir,
+    target_fqn: &str,
+) -> Option<TypeId> {
+    materialized.file.items.iter().find_map(|item| match item {
+        Item::InitializerRoot(root) if root.fqn == target_fqn => root.ty,
+        Item::ExternGlobal(root) if root.fqn == target_fqn => Some(root.ty),
+        _ => None,
+    })
+}
+
+#[allow(clippy::too_many_arguments)]
+fn validate_materialized_class_ctor_contract(
+    materialized: &MaterializedMir,
+    fqn: &str,
+    block: BasicBlockId,
+    span: Span,
+    locals: &[LocalDecl],
+    class_fqn: &str,
+    ctor: &ClassCtorCallMetadata,
+    args: &[CallArg],
+    result_ty: Option<TypeId>,
+) -> MaterializeResult<()> {
+    let class = materialized_class_metadata_by_fqn(materialized, class_fqn);
+    if class.is_some_and(|class| class.kind != ast::TypeKind::Class) {
+        return Err(materialized_type_contract_err(
+            fqn,
+            Some(block),
+            span,
+            "class constructor target",
+            "class constructor target must be class metadata",
+        ));
+    }
+    if let Some(result_ty) = result_ty {
+        let TypeKind::Ref(RefTypeKind::Nominal(nominal)) = materialized.types.kind(result_ty)
+        else {
+            return Err(materialized_type_contract_err(
+                fqn,
+                Some(block),
+                span,
+                "class constructor result",
+                "class constructor result target must have class reference type",
+            ));
+        };
+        if strip_materialized_type_args(&nominal.fqn) != strip_materialized_type_args(class_fqn) {
+            return Err(materialized_type_contract_err(
+                fqn,
+                Some(block),
+                span,
+                "class constructor result",
+                "class constructor result target and class metadata disagree",
+            ));
+        }
+    }
+
+    if args.iter().any(|arg| arg.name.is_some()) || args.len() != ctor.ordered_param_count {
+        return Err(materialized_type_contract_err(
+            fqn,
+            Some(block),
+            span,
+            "class constructor arguments",
+            "class constructor arguments must be ordered and complete",
+        ));
+    }
+
+    let Some(class) = class else {
+        for arg in args {
+            materialized_operand_ty(
+                materialized,
+                fqn,
+                block,
+                arg.span,
+                "class constructor argument",
+                locals,
+                &arg.value,
+            )?;
+        }
+        return Ok(());
+    };
+
+    let selected_ctor = match ctor.selected_ctor_span {
+        Some(selected_span) => {
+            let mut matches = class
+                .constructors
+                .iter()
+                .filter(|candidate| candidate.span == selected_span);
+            let selected = matches.next().ok_or_else(|| {
+                materialized_type_contract_err(
+                    fqn,
+                    Some(block),
+                    span,
+                    "class constructor target",
+                    "selected class constructor is not declared",
+                )
+            })?;
+            if matches.next().is_some() {
+                return Err(materialized_type_contract_err(
+                    fqn,
+                    Some(block),
+                    span,
+                    "class constructor target",
+                    "selected class constructor span is ambiguous",
+                ));
+            }
+            Some(selected)
+        }
+        None if class.constructors.is_empty() => None,
+        None => {
+            return Err(materialized_type_contract_err(
+                fqn,
+                Some(block),
+                span,
+                "class constructor target",
+                "class constructor target must publish a selected constructor",
+            ));
+        }
+    };
+    let params = selected_ctor.map_or([].as_slice(), |selected| selected.params.as_slice());
+    if params.len() != args.len() {
+        return Err(materialized_type_contract_err(
+            fqn,
+            Some(block),
+            span,
+            "class constructor arguments",
+            "selected constructor parameter count does not match lowered arguments",
+        ));
+    }
+    for (arg, param) in args.iter().zip(params) {
+        let arg_ty = materialized_operand_ty(
+            materialized,
+            fqn,
+            block,
+            arg.span,
+            "class constructor argument",
+            locals,
+            &arg.value,
+        )?;
+        if arg_ty.is_some_and(|ty| ty != param.ty) {
+            return Err(materialized_type_contract_err(
+                fqn,
+                Some(block),
+                arg.span,
+                "class constructor argument",
+                "class constructor argument type does not match selected parameter",
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn materialized_class_metadata_by_fqn<'a>(
+    materialized: &'a MaterializedMir,
+    class_fqn: &str,
+) -> Option<&'a NominalMetadata> {
+    materialized_nominal_metadata_by_fqn(materialized, class_fqn).or_else(|| {
+        materialized_nominal_metadata_by_fqn(materialized, strip_materialized_type_args(class_fqn))
+    })
+}
+
 pub(super) fn validate_materialized_call_args(
     materialized: &MaterializedMir,
     fqn: &str,
@@ -1889,6 +2118,24 @@ pub(super) fn validate_materialized_call_kind(
                 locals,
                 receiver,
             )?;
+            let receiver_ty = materialized_operand_ty(
+                materialized,
+                fqn,
+                block,
+                span,
+                "dispatch receiver",
+                locals,
+                receiver,
+            )?;
+            if receiver_ty.is_some_and(|ty| ty != dispatch.receiver_ty) {
+                return Err(materialized_type_contract_err(
+                    fqn,
+                    Some(block),
+                    span,
+                    "dispatch receiver",
+                    "dispatch receiver operand type and metadata disagree",
+                ));
+            }
             validate_materialized_type(
                 materialized,
                 MaterializedValidationContext {
@@ -1898,7 +2145,8 @@ pub(super) fn validate_materialized_call_kind(
                     surface: "dispatch receiver type",
                 },
                 dispatch.receiver_ty,
-            )
+            )?;
+            validate_materialized_dispatch_metadata(materialized, fqn, block, span, dispatch)
         }
         CallKind::Resume {
             continuation,
@@ -2031,7 +2279,60 @@ pub(super) fn validate_materialized_call_abi(
             result_ty,
             resume.answer_ty,
         ),
-        CallKind::Virtual { .. } | CallKind::Interface { .. } => Ok(()),
+        CallKind::Virtual { dispatch, .. } | CallKind::Interface { dispatch, .. } => {
+            let Some(member_fun) =
+                materialized_member_fun_by_fqn(materialized, &dispatch.member_fqn)
+            else {
+                if result_ty.is_some_and(|ty| {
+                    !materialized_abi_type_equivalent(materialized, ty, transport.result.source_ty)
+                }) {
+                    return Err(materialized_transport_contract_err(
+                        fqn,
+                        block,
+                        span,
+                        "call result transport",
+                        "dispatch result transport type and assignment target disagree",
+                    ));
+                }
+                return Ok(());
+            };
+            if member_fun.params.is_empty() {
+                return Err(materialized_type_contract_err(
+                    fqn,
+                    Some(block),
+                    span,
+                    "dispatch target",
+                    "dispatch target member function must publish receiver parameter",
+                ));
+            }
+            validate_materialized_callable_value_call_signature(
+                materialized,
+                fqn,
+                block,
+                span,
+                locals,
+                &crate::ty::FunctionType {
+                    receiver: None,
+                    params: member_fun.params[1..]
+                        .iter()
+                        .map(|param| param.ty)
+                        .collect(),
+                    return_ty: member_fun.return_ty,
+                    effects: EffectRow::pure(),
+                    effects_closed: true,
+                },
+                args,
+            )?;
+            validate_materialized_call_return_contract(
+                materialized,
+                fqn,
+                block,
+                span,
+                transport,
+                result_ty,
+                member_fun.return_ty,
+            )
+        }
     }
 }
 
@@ -2694,6 +2995,37 @@ pub(super) fn validate_materialized_member_metadata(
     validate_materialized_member_target(materialized, fqn, block, span, member)
 }
 
+fn validate_materialized_dispatch_metadata(
+    _materialized: &MaterializedMir,
+    fqn: &str,
+    block: BasicBlockId,
+    span: Span,
+    dispatch: &DispatchMetadata,
+) -> MaterializeResult<()> {
+    if dispatch.owner_fqn.is_empty()
+        || dispatch.member_name.is_empty()
+        || dispatch.member_fqn.is_empty()
+    {
+        return Err(materialized_type_contract_err(
+            fqn,
+            Some(block),
+            span,
+            "dispatch target",
+            "dispatch metadata must publish owner and member identity",
+        ));
+    }
+    if !dispatch.member_fqn.starts_with(&dispatch.owner_fqn) {
+        return Err(materialized_type_contract_err(
+            fqn,
+            Some(block),
+            span,
+            "dispatch target",
+            "dispatch target member does not belong to published owner",
+        ));
+    }
+    Ok(())
+}
+
 fn validate_materialized_member_target(
     materialized: &MaterializedMir,
     fqn: &str,
@@ -2701,11 +3033,45 @@ fn validate_materialized_member_target(
     span: Span,
     member: &MemberAccessMetadata,
 ) -> MaterializeResult<()> {
-    let Some(MemberTarget::Value { fqn: target_fqn }) = &member.resolved else {
-        return Ok(());
+    let target_fqn = match &member.resolved {
+        Some(MemberTarget::Value { fqn: target_fqn }) => target_fqn,
+        Some(_) => {
+            return Err(materialized_type_contract_err(
+                fqn,
+                Some(block),
+                span,
+                "member target",
+                "member access target must be a value member",
+            ));
+        }
+        None => {
+            return Err(materialized_type_contract_err(
+                fqn,
+                Some(block),
+                span,
+                "member target",
+                "member access target must be resolved before MIR codegen",
+            ));
+        }
     };
     match materialized_declares_value_member(materialized, target_fqn) {
-        Some(true) | None => return Ok(()),
+        Some(true) => return Ok(()),
+        None => {
+            if materialized_value_member_owner_matches_receiver(
+                materialized,
+                member.receiver_ty,
+                target_fqn,
+            ) {
+                return Ok(());
+            }
+            return Err(materialized_type_contract_err(
+                fqn,
+                Some(block),
+                span,
+                "member target",
+                "resolved value member owner is not declared in MIR metadata",
+            ));
+        }
         Some(false) => {}
     }
     Err(materialized_type_contract_err(
@@ -2715,6 +3081,79 @@ fn validate_materialized_member_target(
         "member target",
         "resolved value member target is not declared in MIR metadata",
     ))
+}
+
+fn materialized_value_member_owner_matches_receiver(
+    materialized: &MaterializedMir,
+    receiver_ty: TypeId,
+    target_fqn: &str,
+) -> bool {
+    let Some((owner_fqn, _)) = target_fqn.rsplit_once('.') else {
+        return false;
+    };
+    let owner_fqn = strip_materialized_type_args(owner_fqn);
+    match materialized.types.kind(receiver_ty) {
+        TypeKind::Ref(RefTypeKind::Nominal(nominal))
+        | TypeKind::Value(ValueTypeKind::Nominal(nominal)) => {
+            strip_materialized_type_args(&nominal.fqn) == owner_fqn
+        }
+        TypeKind::Ref(RefTypeKind::String) => owner_fqn == "scoop.core.String",
+        TypeKind::Value(ValueTypeKind::Bool) => owner_fqn == "scoop.core.Bool",
+        TypeKind::Value(ValueTypeKind::Char) => owner_fqn == "scoop.core.Char",
+        TypeKind::Value(ValueTypeKind::Float64) => owner_fqn == "scoop.core.Float64",
+        TypeKind::Value(ValueTypeKind::Float32) => owner_fqn == "scoop.core.Float32",
+        TypeKind::Value(ValueTypeKind::Int) => owner_fqn == "scoop.core.Int",
+        TypeKind::Value(ValueTypeKind::UInt) => owner_fqn == "scoop.core.UInt",
+        TypeKind::Value(ValueTypeKind::IntN(bits)) => owner_fqn == format!("scoop.core.Int{bits}"),
+        TypeKind::Value(ValueTypeKind::UIntN(bits)) => {
+            owner_fqn == format!("scoop.core.UInt{bits}")
+        }
+        TypeKind::Value(ValueTypeKind::Unit) => owner_fqn == "scoop.core.Unit",
+        TypeKind::Ref(RefTypeKind::Any)
+        | TypeKind::Ref(RefTypeKind::Function(_) | RefTypeKind::Union(_))
+        | TypeKind::Value(
+            ValueTypeKind::Nothing | ValueTypeKind::Option(_) | ValueTypeKind::Tuple(_),
+        )
+        | TypeKind::Param(_)
+        | TypeKind::StarProjection(_) => false,
+    }
+}
+
+fn materialized_member_fun_by_fqn<'a>(
+    materialized: &'a MaterializedMir,
+    target_fqn: &str,
+) -> Option<&'a MemberFunMetadata> {
+    let (owner_fqn, member_name) = target_fqn.rsplit_once('.')?;
+    let owner_fqn = strip_materialized_type_args(owner_fqn);
+    let normalized_target = format!("{owner_fqn}.{member_name}");
+    materialized.file.items.iter().find_map(|item| match item {
+        Item::Metadata(MetadataRoot::Nominal(metadata)) if metadata.fqn == owner_fqn => {
+            metadata_member_fun_by_fqn(&metadata.members, &normalized_target)
+        }
+        Item::Metadata(MetadataRoot::Object(metadata)) if metadata.fqn == owner_fqn => {
+            metadata_member_fun_by_fqn(&metadata.members, &normalized_target)
+        }
+        _ => None,
+    })
+}
+
+fn metadata_member_fun_by_fqn<'a>(
+    members: &'a [DeclMemberMetadata],
+    target_fqn: &str,
+) -> Option<&'a MemberFunMetadata> {
+    members.iter().find_map(|member| match member {
+        DeclMemberMetadata::Fun(fun) if fun.fqn == target_fqn => Some(fun),
+        DeclMemberMetadata::Nested(root) => match root.as_ref() {
+            MetadataRoot::Nominal(metadata) => {
+                metadata_member_fun_by_fqn(&metadata.members, target_fqn)
+            }
+            MetadataRoot::Object(metadata) => {
+                metadata_member_fun_by_fqn(&metadata.members, target_fqn)
+            }
+            MetadataRoot::TypeAlias(_) | MetadataRoot::ExtensionProperty(_) => None,
+        },
+        _ => None,
+    })
 }
 
 fn materialized_declares_value_member(

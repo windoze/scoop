@@ -1,8 +1,7 @@
 // EXPECT: fail
-// IGNORE-UNTIL-FIX:B-19
-// EXPECT-ERROR-CODE: scoop::umb_fix::pending_gate
-// EXPECT-ERROR-AT: 1:1
-// EXPECT-ERROR: pending U5 fixture gate
+// EXPECT-ERROR-CODE: scoop::typecheck::annotation_modifier_invalid_target
+// EXPECT-ERROR-AT: 13:16
+// EXPECT-ERROR: `annotation class`
 // SPEC: docs/spec/language_spec-part1.md#41-可见性修饰符
 // COVERS: NONE
 // BUCKETS: B-19

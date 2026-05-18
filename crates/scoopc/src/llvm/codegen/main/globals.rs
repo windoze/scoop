@@ -18,29 +18,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         else {
             return Ok(None);
         };
-        let field =
-            class
-                .fields
-                .get(field_idx as usize)
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "class field index",
-                    at: member_span.into(),
-                })?;
+        let field = class.fields.get(field_idx as usize).unwrap_or_else(|| {
+            panic!("defer_class_field_place: verifier accepted class field index drift")
+        });
         let writable = field.mutable;
         let recv = self.codegen_expr_in_expected_context(receiver, Some(CgTy::Ref))?;
         let recv = self.coerce_value(receiver.span, recv, CgTy::Ref)?;
-        let Some(raw) = recv.value else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "class field receiver value",
-                at: receiver.span.into(),
-            });
-        };
-        let BasicValueEnum::PointerValue(obj_ptr) = raw else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "class field receiver type",
-                at: receiver.span.into(),
-            });
-        };
+        let raw = self.expect_cg_value(recv, "class field receiver");
+        let obj_ptr = self.expect_pointer_value(raw, "class field receiver");
 
         Ok(Some(DeferredClassFieldPlace {
             class,
@@ -78,12 +63,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             return Ok(existing);
         }
 
-        let cg_ty = self
-            .cg_ty_of(v.ty)
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "top-level var type",
-                at: v.span.into(),
-            })?;
+        let cg_ty = self.expect_cg_ty_of(v.ty, "top-level var global type");
 
         let llvm_ty = self.llvm_basic_type_of(v.span, cg_ty)?;
         let gv = self.module.add_global(llvm_ty, None, &name);
@@ -190,45 +170,32 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(match cg_ty {
             CgTy::Unit | CgTy::Never => self.context.i8_type().const_int(0, false).into(),
             CgTy::Bool => {
-                let value =
-                    self.const_eval_bool_expr(init)
-                        .ok_or(LlvmEmitError::UnsupportedMainBody {
-                            kind: "top-level var initializer (bool const)",
-                            at: init.span.into(),
-                        })?;
+                let value = self.const_eval_bool_expr(init).unwrap_or_else(|| {
+                    panic!("const_initializer_for_top_level_var: verifier accepted non-const Bool initializer")
+                });
                 self.context
                     .bool_type()
                     .const_int(value as u64, false)
                     .into()
             }
             CgTy::Int(int_ty) => {
-                let bits = self.const_eval_int_expr_bits(init, int_ty)?.ok_or(
-                    LlvmEmitError::UnsupportedMainBody {
-                        kind: "top-level var initializer (int const)",
-                        at: init.span.into(),
-                    },
-                )?;
+                let bits = self.const_eval_int_expr_bits(init, int_ty)?.unwrap_or_else(|| {
+                    panic!("const_initializer_for_top_level_var: verifier accepted non-const Int initializer")
+                });
                 let value = mask_to_bits(bits, int_ty.bits) as u64;
                 self.int_type(int_ty).const_int(value, false).into()
             }
-            CgTy::Float64 | CgTy::Float32 => self.const_eval_float_expr(init, cg_ty).ok_or(
-                LlvmEmitError::UnsupportedMainBody {
-                    kind: "top-level var initializer (float const)",
-                    at: init.span.into(),
-                },
-            )?,
+            CgTy::Float64 | CgTy::Float32 => {
+                self.const_eval_float_expr(init, cg_ty).unwrap_or_else(|| {
+                    panic!("const_initializer_for_top_level_var: verifier accepted non-const Float initializer")
+                })
+            }
             // 早期阶段：仅支持"静态全零初始化"；更复杂的值类型常量构造留给后续任务补齐。
             CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "top-level var initializer (aggregate const)",
-                    at: init.span.into(),
-                });
+                panic!("const_initializer_for_top_level_var: verifier accepted aggregate top-level var initializer");
             }
             CgTy::String | CgTy::Ref => {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "top-level var initializer (non-gc-free)",
-                    at: init.span.into(),
-                });
+                panic!("const_initializer_for_top_level_var: verifier accepted GC top-level var initializer");
             }
         })
     }

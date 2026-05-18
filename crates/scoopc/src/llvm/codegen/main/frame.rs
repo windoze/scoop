@@ -803,13 +803,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             );
         }
 
-        let desc_global =
-            self.module
-                .get_global(desc_global_name)
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "explicit root frame descriptor global",
-                    at: at.into(),
-                })?;
+        let desc_global = self.module.get_global(desc_global_name).unwrap_or_else(|| {
+            panic!("finalize_function_explicit_frame_lifecycle: verifier accepted missing explicit root frame descriptor global")
+        });
         self.emit_explicit_root_frame_entry_setup(
             at,
             frame_storage,
