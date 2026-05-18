@@ -2,19 +2,22 @@
 
 生成时间：2026-05-18  
 数据文件：[`audit/UMB_inventory.csv`](./UMB_inventory.csv)  
+冻结基线：[`audit/UMB_inventory_initial.csv`](./UMB_inventory_initial.csv)
+退场 ledger：[`audit/UMB_retired.csv`](./UMB_retired.csv)
 生成/对账入口：`cargo run -p scoopc --bin umb-audit -- diff`
 
 ## 目标
 
-`audit/UMB_inventory.csv` 是 `LlvmEmitError::UnsupportedMainBody` 治理的唯一机器可读主表。每一行对应 `crates/scoopc/src/llvm/codegen/**/*.rs` 中一个 `UnsupportedMainBody { ... }` constructor，并为后续 bucket 文档、策略、fixture 和 baseline test 提供稳定引用。
+`audit/UMB_inventory.csv` 是当前 active `LlvmEmitError::UnsupportedMainBody` 治理主表。每一行对应 `crates/scoopc/src/llvm/codegen/**/*.rs` 中一个尚未 retired 的 `UnsupportedMainBody { ... }` constructor，并为后续 bucket 文档、策略、fixture 和 baseline test 提供稳定引用。`audit/UMB_inventory_initial.csv` 保留 P7 开始前的 1,284 行 immutable baseline；`audit/UMB_retired.csv` 记录已经由 production 修复退场的 initial ID。
 
 ## 排序与稳定 ID
 
 - 扫描范围固定为 `crates/scoopc/src/llvm/codegen/**/*.rs`。
-- 扫描结果按 `file + line + column` 升序排序。
-- `id` 按排序结果生成，格式为 `UMB-NNNN`，从 `UMB-0001` 开始连续编号。
-- 当前冻结总行数为 1,284 条数据行，不包含 CSV header。
-- 只有源码中的 constructor 位置发生实质变动时，才允许通过 `umb-audit diff` 暴露并重建对应 ID/行号变化。
+- `audit/UMB_inventory_initial.csv` 的 `id` 是 P7 immutable baseline，格式为 `UMB-NNNN`，从 `UMB-0001` 到 `UMB-1284` 连续编号。
+- `audit/UMB_inventory.csv` 继承 initial baseline ID；删除源码 row 后，不得按当前扫描顺序重排剩余 ID。
+- stable ID 匹配策略依次为：exact `(file,line,kind)`；唯一 `(file,kind,bucket,expected_class,surface)`；同组按 initial `old_line` 与当前 source line 升序配对。
+- 无法唯一匹配的 row 必须报错，禁止自动生成新 ID 或重号。
+- active IDs 与 retired IDs 必须互斥，二者并集必须等于 initial baseline 的 1,284 个 ID。
 
 ## CSV 格式
 
@@ -36,7 +39,7 @@ CSV escaping 规则：
 
 | 字段 | 取值域 | 合法性规则 | 对账规则 |
 |---|---|---|---|
-| `id` | `UMB-NNNN` | 必须唯一、连续、4 位数字 | `umb-audit diff` 按源码排序结果重建并比较 |
+| `id` | `UMB-NNNN` | active CSV 内必须唯一；initial baseline 内必须连续、4 位数字 | `umb-audit diff` 通过 initial/retired 继承 stable ID 后比较 |
 | `file` | 仓库相对路径 | 必须位于 `crates/scoopc/src/llvm/codegen/` 下 | 必须与扫描到的 constructor 文件一致 |
 | `line` | 1-based 正整数 | 必须是 constructor 起始行 | line drift 由 `umb-audit diff` 报告 |
 | `kind` | `kind:` 字面量或 `DYNAMIC:<expr>` | 不得为空；动态/转发式字段必须以 `DYNAMIC:` 标注 | literal kind 出现次数必须与源码 constructor-scoped 扫描一致 |
@@ -89,6 +92,18 @@ CSV escaping 规则：
 | B-34 | RuntimeError / try-catch-finally | B |
 | B-35 | unsafe / NoGC / 边界 | B/C |
 | B-36 | 未定义/暂未支持的 spec surface | D |
+
+## Retired Ledger 格式
+
+`audit/UMB_retired.csv` 表头必须严格为：
+
+```csv
+id,bucket,expected_class,file,old_line,kind,retired_by,retired_reason,retired_at_notes
+```
+
+- `id,bucket,expected_class,file,old_line,kind` 必须与 `audit/UMB_inventory_initial.csv` 中对应 initial row 一致。
+- `retired_by` 记录退场任务或提交；`retired_reason` 记录 production 修复原因。
+- 当前 P7-0-T01 状态不退场 production row，因此 ledger 只有 header，active=1,284、retired=0、initial=1,284。
 
 拆分或合并流程：
 

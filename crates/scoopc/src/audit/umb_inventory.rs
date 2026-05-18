@@ -5,14 +5,14 @@
 //! `crates/scoopc/src/llvm/codegen/**` gets a stable `UMB-NNNN` id and
 //! governance metadata used by later audit phases.
 
-#[cfg(test)]
-use std::collections::BTreeMap;
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::path::{Path, PathBuf};
 
 const CODEGEN_ROOT: &str = "crates/scoopc/src/llvm/codegen";
 pub(crate) const INVENTORY_PATH: &str = "audit/UMB_inventory.csv";
+pub(crate) const INITIAL_INVENTORY_PATH: &str = "audit/UMB_inventory_initial.csv";
+pub(crate) const RETIRED_LEDGER_PATH: &str = "audit/UMB_retired.csv";
 pub(crate) const EXPECTED_ENTRY_COUNT: usize = 1_284;
 // U0's broad grep counted every literal `kind:` field in codegen text. The
 // inventory scanner is constructor-scoped, so forwarded/dynamic rows are kept
@@ -20,6 +20,8 @@ pub(crate) const EXPECTED_ENTRY_COUNT: usize = 1_284;
 const EXPECTED_LITERAL_KIND_COUNT: usize = 1_241;
 const EXPECTED_DYNAMIC_KIND_COUNT: usize = 43;
 pub(crate) const CSV_HEADER: &str = "id,file,line,kind,route,surface,bucket,expected_class,spec_anchor,upstream_gate,existing_fixture,notes";
+pub(crate) const RETIRED_LEDGER_HEADER: &str =
+    "id,bucket,expected_class,file,old_line,kind,retired_by,retired_reason,retired_at_notes";
 #[cfg(test)]
 const EXPECTED_CLASSES: &[&str] = &["FrontendReject", "InternalBugSentinel", "RealImpl"];
 
@@ -59,6 +61,30 @@ pub(crate) struct InventoryEntry {
     existing_fixture: &'static str,
     notes: String,
     kind_source: KindSource,
+}
+
+#[derive(Debug, Clone)]
+struct InventorySnapshotEntry {
+    id: String,
+    file: String,
+    line: usize,
+    kind: String,
+    surface: String,
+    bucket: String,
+    expected_class: String,
+}
+
+#[derive(Debug, Clone)]
+struct RetiredEntry {
+    id: String,
+    bucket: String,
+    expected_class: String,
+    file: String,
+    old_line: usize,
+    kind: String,
+    retired_by: String,
+    retired_reason: String,
+    retired_at_notes: String,
 }
 
 struct Classification {
@@ -273,7 +299,120 @@ fn umb_inventory_class_distribution() {
     }
 }
 
+#[test]
+fn stable_id_matching_preserves_remaining_ids_after_simulated_deletion() {
+    let initial = vec![
+        test_snapshot_entry("UMB-0001", 10, "deleted row"),
+        test_snapshot_entry("UMB-0002", 20, "kept row a"),
+        test_snapshot_entry("UMB-0003", 30, "kept row b"),
+    ];
+    let retired = vec![test_retired_entry(&initial[0])];
+    let generated = vec![
+        test_inventory_entry(20, "kept row a"),
+        test_inventory_entry(30, "kept row b"),
+    ];
+
+    let matched = match_stable_ids(generated, &initial, &retired);
+
+    assert_eq!(
+        matched
+            .iter()
+            .map(|entry| entry.id.as_str())
+            .collect::<Vec<_>>(),
+        ["UMB-0002", "UMB-0003"]
+    );
+    validate_active_retired_partition(&matched, &initial, &retired);
+}
+
+#[test]
+fn stable_id_matching_pairs_line_drift_by_source_order() {
+    let initial = vec![
+        test_snapshot_entry("UMB-0001", 10, "same group"),
+        test_snapshot_entry("UMB-0002", 20, "same group"),
+    ];
+    let generated = vec![
+        test_inventory_entry(12, "same group"),
+        test_inventory_entry(25, "same group"),
+    ];
+
+    let matched = match_stable_ids(generated, &initial, &[]);
+
+    assert_eq!(
+        matched
+            .iter()
+            .map(|entry| (entry.id.as_str(), entry.line))
+            .collect::<Vec<_>>(),
+        [("UMB-0001", 12), ("UMB-0002", 25)]
+    );
+}
+
+#[test]
+#[should_panic(expected = "ambiguous stable ID match")]
+fn stable_id_matching_rejects_ambiguous_group_count() {
+    let initial = vec![test_snapshot_entry("UMB-0001", 10, "same group")];
+    let generated = vec![
+        test_inventory_entry(12, "same group"),
+        test_inventory_entry(25, "same group"),
+    ];
+
+    let _ = match_stable_ids(generated, &initial, &[]);
+}
+
+#[cfg(test)]
+fn test_inventory_entry(line: usize, kind: &str) -> InventoryEntry {
+    InventoryEntry {
+        id: String::new(),
+        file: "crates/scoopc/src/llvm/codegen/test.rs".to_string(),
+        line,
+        kind: kind.to_string(),
+        route: "Helper",
+        surface: "rvalue",
+        bucket: "B-10",
+        expected_class: "RealImpl",
+        spec_anchor: "docs/spec/language_spec-part4.md#3-调用效果",
+        upstream_gate: "test gate",
+        existing_fixture: "",
+        notes: "bucket_rule=effect-callable-adapter".to_string(),
+        kind_source: KindSource::Literal,
+    }
+}
+
+#[cfg(test)]
+fn test_snapshot_entry(id: &str, line: usize, kind: &str) -> InventorySnapshotEntry {
+    InventorySnapshotEntry {
+        id: id.to_string(),
+        file: "crates/scoopc/src/llvm/codegen/test.rs".to_string(),
+        line,
+        kind: kind.to_string(),
+        surface: "rvalue".to_string(),
+        bucket: "B-10".to_string(),
+        expected_class: "RealImpl".to_string(),
+    }
+}
+
+#[cfg(test)]
+fn test_retired_entry(initial: &InventorySnapshotEntry) -> RetiredEntry {
+    RetiredEntry {
+        id: initial.id.clone(),
+        bucket: initial.bucket.clone(),
+        expected_class: initial.expected_class.clone(),
+        file: initial.file.clone(),
+        old_line: initial.line,
+        kind: initial.kind.clone(),
+        retired_by: "test".to_string(),
+        retired_reason: "simulated deletion".to_string(),
+        retired_at_notes: String::new(),
+    }
+}
+
 pub(crate) fn inventory_entries() -> Vec<InventoryEntry> {
+    let generated = generated_inventory_entries();
+    let initial = read_initial_inventory_snapshot();
+    let retired = read_retired_ledger();
+    inherit_stable_ids(generated, &initial, &retired)
+}
+
+fn generated_inventory_entries() -> Vec<InventoryEntry> {
     let mut source_entries = scan_source_entries();
     source_entries.sort_by(|left, right| {
         (&left.file, left.line, left.column).cmp(&(&right.file, right.line, right.column))
@@ -281,11 +420,10 @@ pub(crate) fn inventory_entries() -> Vec<InventoryEntry> {
 
     source_entries
         .into_iter()
-        .enumerate()
-        .map(|(index, source)| {
+        .map(|source| {
             let classification = classify(&source);
             InventoryEntry {
-                id: format!("UMB-{number:04}", number = index + 1),
+                id: String::new(),
                 file: source.file.clone(),
                 line: source.line,
                 kind: source.kind.clone(),
@@ -301,6 +439,636 @@ pub(crate) fn inventory_entries() -> Vec<InventoryEntry> {
             }
         })
         .collect()
+}
+
+type ExactKey = (String, usize, String);
+type StableKey = (String, String, String, String, String);
+
+fn inherit_stable_ids(
+    generated: Vec<InventoryEntry>,
+    initial: &[InventorySnapshotEntry],
+    retired: &[RetiredEntry],
+) -> Vec<InventoryEntry> {
+    validate_initial_snapshot(initial);
+    validate_retired_ledger(retired, initial);
+    match_stable_ids(generated, initial, retired)
+}
+
+fn match_stable_ids(
+    mut generated: Vec<InventoryEntry>,
+    initial: &[InventorySnapshotEntry],
+    retired: &[RetiredEntry],
+) -> Vec<InventoryEntry> {
+    let retired_ids = retired
+        .iter()
+        .map(|entry| entry.id.as_str())
+        .collect::<BTreeSet<_>>();
+    let active_initial = initial
+        .iter()
+        .filter(|entry| !retired_ids.contains(entry.id.as_str()))
+        .collect::<Vec<_>>();
+    let mut assignments = vec![None; generated.len()];
+    let mut remaining_generated = (0..generated.len()).collect::<BTreeSet<_>>();
+    let mut remaining_initial = (0..active_initial.len()).collect::<BTreeSet<_>>();
+
+    assign_unique_exact_matches(
+        &generated,
+        &active_initial,
+        &mut assignments,
+        &mut remaining_generated,
+        &mut remaining_initial,
+    );
+    assign_unique_stable_key_matches(
+        &generated,
+        &active_initial,
+        &mut assignments,
+        &mut remaining_generated,
+        &mut remaining_initial,
+    );
+    assign_ordered_stable_key_matches(
+        &generated,
+        &active_initial,
+        &mut assignments,
+        &mut remaining_generated,
+        &mut remaining_initial,
+    );
+
+    for (entry, id) in generated.iter_mut().zip(assignments) {
+        entry.id = id.unwrap_or_else(|| {
+            panic!(
+                "failed to assign stable UMB id to {}",
+                source_entry_summary(entry)
+            )
+        });
+    }
+    validate_active_retired_partition(&generated, initial, retired);
+    generated
+}
+
+fn assign_unique_exact_matches(
+    generated: &[InventoryEntry],
+    active_initial: &[&InventorySnapshotEntry],
+    assignments: &mut [Option<String>],
+    remaining_generated: &mut BTreeSet<usize>,
+    remaining_initial: &mut BTreeSet<usize>,
+) {
+    let generated_by_exact = group_generated_by_exact(generated, remaining_generated);
+    let initial_by_exact = group_initial_by_exact(active_initial, remaining_initial);
+    let mut keys = BTreeSet::new();
+    keys.extend(generated_by_exact.keys().cloned());
+    keys.extend(initial_by_exact.keys().cloned());
+
+    for key in keys {
+        let generated_indices = generated_by_exact
+            .get(&key)
+            .map(Vec::as_slice)
+            .unwrap_or(&[]);
+        let initial_indices = initial_by_exact.get(&key).map(Vec::as_slice).unwrap_or(&[]);
+        if let ([generated_idx], [initial_idx]) = (generated_indices, initial_indices) {
+            assign_stable_id(
+                *generated_idx,
+                *initial_idx,
+                active_initial,
+                assignments,
+                remaining_generated,
+                remaining_initial,
+            );
+        }
+    }
+}
+
+fn assign_unique_stable_key_matches(
+    generated: &[InventoryEntry],
+    active_initial: &[&InventorySnapshotEntry],
+    assignments: &mut [Option<String>],
+    remaining_generated: &mut BTreeSet<usize>,
+    remaining_initial: &mut BTreeSet<usize>,
+) {
+    let generated_by_key = group_generated_by_stable_key(generated, remaining_generated);
+    let initial_by_key = group_initial_by_stable_key(active_initial, remaining_initial);
+    let mut keys = BTreeSet::new();
+    keys.extend(generated_by_key.keys().cloned());
+    keys.extend(initial_by_key.keys().cloned());
+
+    for key in keys {
+        let generated_indices = generated_by_key.get(&key).map(Vec::as_slice).unwrap_or(&[]);
+        let initial_indices = initial_by_key.get(&key).map(Vec::as_slice).unwrap_or(&[]);
+        if let ([generated_idx], [initial_idx]) = (generated_indices, initial_indices) {
+            assign_stable_id(
+                *generated_idx,
+                *initial_idx,
+                active_initial,
+                assignments,
+                remaining_generated,
+                remaining_initial,
+            );
+        }
+    }
+}
+
+fn assign_ordered_stable_key_matches(
+    generated: &[InventoryEntry],
+    active_initial: &[&InventorySnapshotEntry],
+    assignments: &mut [Option<String>],
+    remaining_generated: &mut BTreeSet<usize>,
+    remaining_initial: &mut BTreeSet<usize>,
+) {
+    let generated_by_key = group_generated_by_stable_key(generated, remaining_generated);
+    let initial_by_key = group_initial_by_stable_key(active_initial, remaining_initial);
+    let mut keys = BTreeSet::new();
+    keys.extend(generated_by_key.keys().cloned());
+    keys.extend(initial_by_key.keys().cloned());
+
+    for key in keys {
+        let generated_indices = generated_by_key.get(&key).cloned().unwrap_or_default();
+        let initial_indices = initial_by_key.get(&key).cloned().unwrap_or_default();
+        if generated_indices.is_empty() {
+            panic!(
+                "active inventory is missing unretired initial rows for {}: {}",
+                stable_key_label(&key),
+                initial_indices
+                    .iter()
+                    .map(|idx| initial_entry_summary(active_initial[*idx]))
+                    .collect::<Vec<_>>()
+                    .join("; ")
+            );
+        }
+        if initial_indices.is_empty() || generated_indices.len() != initial_indices.len() {
+            panic!(
+                "ambiguous stable ID match for {}: generated [{}], initial [{}]",
+                stable_key_label(&key),
+                generated_indices
+                    .iter()
+                    .map(|idx| source_entry_summary(&generated[*idx]))
+                    .collect::<Vec<_>>()
+                    .join("; "),
+                initial_indices
+                    .iter()
+                    .map(|idx| initial_entry_summary(active_initial[*idx]))
+                    .collect::<Vec<_>>()
+                    .join("; ")
+            );
+        }
+
+        let mut generated_sorted = generated_indices;
+        generated_sorted.sort_by(|left, right| {
+            generated[*left]
+                .line
+                .cmp(&generated[*right].line)
+                .then_with(|| generated[*left].kind.cmp(&generated[*right].kind))
+        });
+        let mut initial_sorted = initial_indices;
+        initial_sorted.sort_by(|left, right| {
+            let left_entry = active_initial[*left];
+            let right_entry = active_initial[*right];
+            left_entry
+                .line
+                .cmp(&right_entry.line)
+                .then_with(|| left_entry.id.cmp(&right_entry.id))
+        });
+
+        for (generated_idx, initial_idx) in generated_sorted.into_iter().zip(initial_sorted) {
+            assign_stable_id(
+                generated_idx,
+                initial_idx,
+                active_initial,
+                assignments,
+                remaining_generated,
+                remaining_initial,
+            );
+        }
+    }
+}
+
+fn assign_stable_id(
+    generated_idx: usize,
+    initial_idx: usize,
+    active_initial: &[&InventorySnapshotEntry],
+    assignments: &mut [Option<String>],
+    remaining_generated: &mut BTreeSet<usize>,
+    remaining_initial: &mut BTreeSet<usize>,
+) {
+    assert!(
+        remaining_generated.remove(&generated_idx),
+        "generated entry {generated_idx} was assigned more than once"
+    );
+    assert!(
+        remaining_initial.remove(&initial_idx),
+        "initial entry {initial_idx} was assigned more than once"
+    );
+    assignments[generated_idx] = Some(active_initial[initial_idx].id.clone());
+}
+
+fn group_generated_by_exact(
+    generated: &[InventoryEntry],
+    remaining: &BTreeSet<usize>,
+) -> BTreeMap<ExactKey, Vec<usize>> {
+    let mut groups = BTreeMap::new();
+    for &idx in remaining {
+        groups
+            .entry(exact_key_for_entry(&generated[idx]))
+            .or_insert_with(Vec::new)
+            .push(idx);
+    }
+    groups
+}
+
+fn group_initial_by_exact(
+    initial: &[&InventorySnapshotEntry],
+    remaining: &BTreeSet<usize>,
+) -> BTreeMap<ExactKey, Vec<usize>> {
+    let mut groups = BTreeMap::new();
+    for &idx in remaining {
+        groups
+            .entry(exact_key_for_snapshot(initial[idx]))
+            .or_insert_with(Vec::new)
+            .push(idx);
+    }
+    groups
+}
+
+fn group_generated_by_stable_key(
+    generated: &[InventoryEntry],
+    remaining: &BTreeSet<usize>,
+) -> BTreeMap<StableKey, Vec<usize>> {
+    let mut groups = BTreeMap::new();
+    for &idx in remaining {
+        groups
+            .entry(stable_key_for_entry(&generated[idx]))
+            .or_insert_with(Vec::new)
+            .push(idx);
+    }
+    groups
+}
+
+fn group_initial_by_stable_key(
+    initial: &[&InventorySnapshotEntry],
+    remaining: &BTreeSet<usize>,
+) -> BTreeMap<StableKey, Vec<usize>> {
+    let mut groups = BTreeMap::new();
+    for &idx in remaining {
+        groups
+            .entry(stable_key_for_snapshot(initial[idx]))
+            .or_insert_with(Vec::new)
+            .push(idx);
+    }
+    groups
+}
+
+fn exact_key_for_entry(entry: &InventoryEntry) -> ExactKey {
+    (entry.file.clone(), entry.line, entry.kind.clone())
+}
+
+fn exact_key_for_snapshot(entry: &InventorySnapshotEntry) -> ExactKey {
+    (entry.file.clone(), entry.line, entry.kind.clone())
+}
+
+fn stable_key_for_entry(entry: &InventoryEntry) -> StableKey {
+    (
+        entry.file.clone(),
+        entry.kind.clone(),
+        entry.bucket.to_string(),
+        entry.expected_class.to_string(),
+        entry.surface.to_string(),
+    )
+}
+
+fn stable_key_for_snapshot(entry: &InventorySnapshotEntry) -> StableKey {
+    (
+        entry.file.clone(),
+        entry.kind.clone(),
+        entry.bucket.clone(),
+        entry.expected_class.clone(),
+        entry.surface.clone(),
+    )
+}
+
+fn stable_key_label(key: &StableKey) -> String {
+    format!(
+        "file={}, kind=`{}`, bucket={}, expected_class={}, surface={}",
+        key.0, key.1, key.2, key.3, key.4
+    )
+}
+
+fn source_entry_summary(entry: &InventoryEntry) -> String {
+    format!(
+        "{}:{} {} {} `{}`",
+        entry.file, entry.line, entry.bucket, entry.expected_class, entry.kind
+    )
+}
+
+fn initial_entry_summary(entry: &InventorySnapshotEntry) -> String {
+    format!(
+        "{} {}:{} {} {} `{}`",
+        entry.id, entry.file, entry.line, entry.bucket, entry.expected_class, entry.kind
+    )
+}
+
+fn validate_initial_snapshot(initial: &[InventorySnapshotEntry]) {
+    assert_eq!(
+        initial.len(),
+        EXPECTED_ENTRY_COUNT,
+        "{INITIAL_INVENTORY_PATH} must preserve the frozen {EXPECTED_ENTRY_COUNT}-row UMB baseline"
+    );
+
+    let mut ids = BTreeSet::new();
+    for (index, entry) in initial.iter().enumerate() {
+        let expected_id = format!("UMB-{number:04}", number = index + 1);
+        assert_eq!(
+            entry.id,
+            expected_id,
+            "{INITIAL_INVENTORY_PATH} row {} must keep contiguous baseline ID {expected_id}",
+            index + 2
+        );
+        assert!(
+            ids.insert(entry.id.as_str()),
+            "duplicate initial id: {}",
+            entry.id
+        );
+        assert!(
+            VALID_BUCKETS.contains(&entry.bucket.as_str()),
+            "{} has invalid initial bucket {}",
+            entry.id,
+            entry.bucket
+        );
+        assert!(
+            matches!(
+                entry.expected_class.as_str(),
+                "FrontendReject" | "InternalBugSentinel" | "RealImpl"
+            ),
+            "{} has invalid initial expected_class {}",
+            entry.id,
+            entry.expected_class
+        );
+    }
+}
+
+fn validate_retired_ledger(retired: &[RetiredEntry], initial: &[InventorySnapshotEntry]) {
+    let initial_by_id = initial
+        .iter()
+        .map(|entry| (entry.id.as_str(), entry))
+        .collect::<BTreeMap<_, _>>();
+    let mut ids = BTreeSet::new();
+    for entry in retired {
+        assert!(
+            ids.insert(entry.id.as_str()),
+            "duplicate retired id: {}",
+            entry.id
+        );
+        let Some(initial_entry) = initial_by_id.get(entry.id.as_str()) else {
+            panic!(
+                "{} contains retired id {} that is not in {INITIAL_INVENTORY_PATH}",
+                RETIRED_LEDGER_PATH, entry.id
+            );
+        };
+        assert_eq!(
+            entry.bucket, initial_entry.bucket,
+            "{} retired bucket drift",
+            entry.id
+        );
+        assert_eq!(
+            entry.expected_class, initial_entry.expected_class,
+            "{} retired expected_class drift",
+            entry.id
+        );
+        assert_eq!(
+            entry.file, initial_entry.file,
+            "{} retired file drift",
+            entry.id
+        );
+        assert_eq!(
+            entry.old_line, initial_entry.line,
+            "{} retired old_line drift",
+            entry.id
+        );
+        assert_eq!(
+            entry.kind, initial_entry.kind,
+            "{} retired kind drift",
+            entry.id
+        );
+        assert!(
+            !entry.retired_by.trim().is_empty(),
+            "{} retired_by must identify the retiring task or commit",
+            entry.id
+        );
+        assert!(
+            !entry.retired_reason.trim().is_empty(),
+            "{} retired_reason must explain the production fix",
+            entry.id
+        );
+        assert!(
+            !entry.retired_at_notes.contains("TBD"),
+            "{} retired_at_notes must not use TBD placeholders",
+            entry.id
+        );
+    }
+}
+
+fn validate_active_retired_partition(
+    active: &[InventoryEntry],
+    initial: &[InventorySnapshotEntry],
+    retired: &[RetiredEntry],
+) {
+    let active_ids = active
+        .iter()
+        .map(|entry| entry.id.as_str())
+        .collect::<BTreeSet<_>>();
+    let retired_ids = retired
+        .iter()
+        .map(|entry| entry.id.as_str())
+        .collect::<BTreeSet<_>>();
+    let initial_ids = initial
+        .iter()
+        .map(|entry| entry.id.as_str())
+        .collect::<BTreeSet<_>>();
+
+    let overlap = active_ids
+        .intersection(&retired_ids)
+        .copied()
+        .collect::<Vec<_>>();
+    assert!(
+        overlap.is_empty(),
+        "active and retired UMB ids must be disjoint; overlap: {}",
+        overlap.join(", ")
+    );
+
+    let union = active_ids
+        .union(&retired_ids)
+        .copied()
+        .collect::<BTreeSet<_>>();
+    let missing = initial_ids.difference(&union).copied().collect::<Vec<_>>();
+    let extra = union.difference(&initial_ids).copied().collect::<Vec<_>>();
+    assert!(
+        missing.is_empty() && extra.is_empty(),
+        "active + retired UMB ids must equal {INITIAL_INVENTORY_PATH}; missing [{}], extra [{}]",
+        missing.join(", "),
+        extra.join(", ")
+    );
+}
+
+fn read_initial_inventory_snapshot() -> Vec<InventorySnapshotEntry> {
+    read_csv_records(INITIAL_INVENTORY_PATH, CSV_HEADER)
+        .into_iter()
+        .enumerate()
+        .map(|(index, record)| {
+            InventorySnapshotEntry::from_record(INITIAL_INVENTORY_PATH, index + 2, record)
+        })
+        .collect()
+}
+
+fn read_retired_ledger() -> Vec<RetiredEntry> {
+    read_csv_records(RETIRED_LEDGER_PATH, RETIRED_LEDGER_HEADER)
+        .into_iter()
+        .enumerate()
+        .map(|(index, record)| RetiredEntry::from_record(index + 2, record))
+        .collect()
+}
+
+fn read_csv_records(path_fragment: &str, expected_header: &str) -> Vec<Vec<String>> {
+    let path = repo_root().join(path_fragment);
+    let csv = fs::read_to_string(&path)
+        .unwrap_or_else(|err| panic!("failed to read {}: {err}", path.display()));
+    let mut records = parse_csv_records(&csv)
+        .unwrap_or_else(|err| panic!("failed to parse {}: {err}", path.display()));
+    assert!(!records.is_empty(), "{} is empty", path.display());
+
+    let header = records.remove(0);
+    let expected_header = expected_header
+        .split(',')
+        .map(str::to_string)
+        .collect::<Vec<_>>();
+    assert_eq!(
+        header,
+        expected_header,
+        "{} header mismatch",
+        path.display()
+    );
+    records
+}
+
+fn parse_csv_records(csv: &str) -> Result<Vec<Vec<String>>, String> {
+    let mut records = Vec::new();
+    let mut record = Vec::new();
+    let mut field = String::new();
+    let mut chars = csv.chars().peekable();
+    let mut in_quotes = false;
+    let mut saw_any = false;
+
+    while let Some(ch) = chars.next() {
+        saw_any = true;
+        if in_quotes {
+            match ch {
+                '"' if chars.peek() == Some(&'"') => {
+                    chars.next();
+                    field.push('"');
+                }
+                '"' => in_quotes = false,
+                _ => field.push(ch),
+            }
+            continue;
+        }
+
+        match ch {
+            '"' if field.is_empty() => in_quotes = true,
+            ',' => finish_csv_field(&mut record, &mut field),
+            '\n' => finish_csv_record(&mut records, &mut record, &mut field),
+            '\r' if chars.peek() == Some(&'\n') => {
+                chars.next();
+                finish_csv_record(&mut records, &mut record, &mut field);
+            }
+            '\r' => finish_csv_record(&mut records, &mut record, &mut field),
+            _ => field.push(ch),
+        }
+    }
+
+    if in_quotes {
+        return Err("unterminated quoted CSV field".to_string());
+    }
+    if saw_any && (!record.is_empty() || !field.is_empty()) {
+        finish_csv_record(&mut records, &mut record, &mut field);
+    }
+
+    Ok(records)
+}
+
+fn finish_csv_field(record: &mut Vec<String>, field: &mut String) {
+    record.push(std::mem::take(field));
+}
+
+fn finish_csv_record(records: &mut Vec<Vec<String>>, record: &mut Vec<String>, field: &mut String) {
+    finish_csv_field(record, field);
+    if record.len() != 1 || !record[0].is_empty() {
+        records.push(std::mem::take(record));
+    } else {
+        record.clear();
+    }
+}
+
+impl InventorySnapshotEntry {
+    fn from_record(path_fragment: &str, line_number: usize, record: Vec<String>) -> Self {
+        let expected_len = CSV_HEADER.split(',').count();
+        assert_eq!(
+            record.len(),
+            expected_len,
+            "{path_fragment}:{line_number} has {} fields; expected {expected_len}",
+            record.len()
+        );
+
+        Self {
+            id: record[0].clone(),
+            file: record[1].clone(),
+            line: parse_positive_usize(path_fragment, line_number, "line", &record[2]),
+            kind: record[3].clone(),
+            surface: record[5].clone(),
+            bucket: record[6].clone(),
+            expected_class: record[7].clone(),
+        }
+    }
+}
+
+impl RetiredEntry {
+    fn from_record(line_number: usize, record: Vec<String>) -> Self {
+        let expected_len = RETIRED_LEDGER_HEADER.split(',').count();
+        assert_eq!(
+            record.len(),
+            expected_len,
+            "{RETIRED_LEDGER_PATH}:{line_number} has {} fields; expected {expected_len}",
+            record.len()
+        );
+
+        Self {
+            id: record[0].clone(),
+            bucket: record[1].clone(),
+            expected_class: record[2].clone(),
+            file: record[3].clone(),
+            old_line: parse_positive_usize(
+                RETIRED_LEDGER_PATH,
+                line_number,
+                "old_line",
+                &record[4],
+            ),
+            kind: record[5].clone(),
+            retired_by: record[6].clone(),
+            retired_reason: record[7].clone(),
+            retired_at_notes: record[8].clone(),
+        }
+    }
+}
+
+fn parse_positive_usize(
+    path_fragment: &str,
+    line_number: usize,
+    field: &str,
+    value: &str,
+) -> usize {
+    let parsed = value.parse::<usize>().unwrap_or_else(|err| {
+        panic!("{path_fragment}:{line_number} has invalid {field} `{value}`: {err}")
+    });
+    assert!(
+        parsed > 0,
+        "{path_fragment}:{line_number} has non-positive {field} `{value}`"
+    );
+    parsed
 }
 
 fn scan_source_entries() -> Vec<SourceEntry> {

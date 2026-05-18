@@ -4,7 +4,7 @@
 > 计划基线：[`PLAN.md`](./PLAN.md)
 > 上一阶段任务档案：[`TODO-1.md`](./TODO-1.md)
 > 设计与 baseline：[`UnsupportedMainBody_FIX.md`](./UnsupportedMainBody_FIX.md)、[`UnsupportedMainBody_DONE.md`](./UnsupportedMainBody_DONE.md)
-> 当前状态：P7-0 待开始；production 修复尚未开始。
+> 当前状态：P7-0-T01 已完成；P7-0-T02 待开始；production 修复尚未开始。
 
 ## 全局约束
 
@@ -94,7 +94,7 @@ P7-0-T01 stable ID + retired ledger
 
 ## P7-0：Audit / Tooling 稳定化
 
-### [TODO] P7-0-T01：引入稳定 ID 与 retired ledger
+### [DONE] P7-0-T01：引入稳定 ID 与 retired ledger
 
 - 参考：`PLAN.md:47-63`。
 - 目标：删除源码 row 后，未删除的 `UMB-NNNN` 不重排。
@@ -113,7 +113,15 @@ P7-0-T01 stable ID + retired ledger
   3. `cargo test -p scoopc audit:: -- --nocapture`
 - 完成条件：当前状态 active=1,284、retired=0；新增测试覆盖“模拟删除 row 后 remaining IDs 不重排”。
 - 依赖：无。
-- 完成记录：待填写。
+- 完成记录：
+  - 改动范围：新增 `audit/UMB_inventory_initial.csv` immutable baseline、`audit/UMB_retired.csv` 空 ledger；更新 `crates/scoopc/src/audit/umb_inventory.rs` stable ID 继承/校验逻辑；更新 `audit/UMB_inventory_schema.md`；同步记录 `memory/claude_plan.md`。
+  - Retired IDs：无；数量 0；本任务不退场 production row。
+  - 核心决策：active inventory 从 initial baseline 继承 `UMB-NNNN`；匹配顺序为 exact `(file,line,kind)`、唯一 `(file,kind,bucket,expected_class,surface)`、同组按 initial/source line 顺序配对；无法唯一匹配时报错。
+  - Inventory/ledger：active 1,284 -> 1,284；retired 0 -> 0；initial baseline 1,284。
+  - Stale count：未改 production fallback，stale count 不变。
+  - Fixture 状态：未改 fixture active/ignore 状态。
+  - 验证结果：`cargo run -p scoopc --bin umb-audit -- diff` 通过（in sync，1284 entries）；`cargo run -p scoopc --bin umb-audit -- stats` 通过（total_entries=1284）；`cargo test -p scoopc audit:: -- --nocapture` 通过（20 passed）；`cargo clippy --all-targets -- -D warnings` 通过。
+  - 闭合目标：满足 `PLAN.md:47-63` 与本任务完成条件；新增测试覆盖模拟删除 row 后 remaining IDs 不重排，并覆盖 line drift 顺序配对与歧义匹配报错。
 
 ### [TODO] P7-0-T02：把 audit 常量改成退场倒计时
 
