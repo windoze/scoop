@@ -4,7 +4,7 @@
 > 设计基线：[`UnsupportedMainBody_FIX.md`](./UnsupportedMainBody_FIX.md)  
 > 计划基线：[`PLAN.md`](./PLAN.md)  
 > 格式参考：[`docs/archive/plans/TODO-closure-fix.md`](./docs/archive/plans/TODO-closure-fix.md)  
-> 当前状态：U3-T01 已完成；下一项 U4-T01
+> 当前状态：U4-T01 已完成；下一项 U5-T01
 > 执行原则：U0 必须最先完成；U1 → U2 → U3 严格串行；U4 与 U5 可在 U2/U3 稳定后并行，但 U5 的 negative fixture 必须引用 U4 已写明的 upstream gate；U6 必须最后完成。每个任务完成后必须回写“完成记录”。
 
 ## 全局约束
@@ -528,7 +528,7 @@ U0-T01 (摸底 + baseline 冻结)
 
 ## U4：P4 — 修复策略草案
 
-### [TODO] U4-T01：编写 36 份 `audit/strategies/B-XX.md`
+### [DONE] U4-T01：编写 36 份 `audit/strategies/B-XX.md`
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §6 U4-T01
@@ -560,7 +560,14 @@ U0-T01 (摸底 + baseline 冻结)
   - 每条 B 类 entry 的 `upstream_gate` 在 CSV 中已填实。
   - 每份策略有明确 fixture / baseline test 验证锚。
 - 依赖：U3-T01
-- 完成记录：待填写
+- 完成记录：
+  - 改动范围：新增 `audit/strategies/B-01.md` 到 `audit/strategies/B-36.md`；未修改 production LLVM codegen、`PLAN.md` 或 `UnsupportedMainBody_FIX.md`。
+  - 核心决策：每份 strategy 均以 `audit/UMB_inventory.csv` 的 bucket count、`expected_class` 与单一 `upstream_gate` 为唯一数据源，并引用 U2 bucket root cause、U3 planned fixture 路径和 U6 baseline test 名称；B 类 entry 当前均已有非空真实 `upstream_gate`，无需回填 CSV。
+  - A/B/C/D 路径：B-01 设计统一 helper API（`expect_insert_block`、`expect_parent_function`、`expect_entry_block`、`expect_basic_value`）；B-17 与 B-35 记录 helper-invariant 子集但保持 CSV primary gate 单一；C 类 B-10/B-12/B-13/B-24/B-25 列出最小 happy-path fixture 并要求 P7 前 `IGNORE-UNTIL-FIX:B-XX`；D 类 B-36 明确 spec follow-up 前只锁定 frontend reject。
+  - 验证锚：36 份 strategy 均包含 `上游契约`、`落地路径`、`验证锚` 三段，引用对应 `tests/fixtures/umb_fix/B-XX-*` planned fixture 或 U6 sentinel/baseline test，并列出 P7 退场需要下调的 bucket inventory count。
+  - 对账结果：自定义结构校验通过（36 docs、entry count 与 CSV 完全一致、三段均非空、均含 `Primary upstream_gate` 与 baseline test anchor、无 `TBD`/`TODO` 占位）。
+  - 验证结果：`cargo run -p scoopc --bin umb-audit -- diff` 通过（1,284 entries in sync）；`cargo run -p scoopc --bin umb-audit -- stats` 通过（missing spec/gate 均为 0，36 bucket count 与 U4 文档一致）；`cargo clippy --all-targets -- -D warnings` 通过。
+  - 闭合目标：满足 U4-T01 的 36 份 strategy 成文、B 类 gate 填实、A 类 helper 设计、C 类 happy-path fixture 标注、D 类 spec follow-up/front-end reject 策略和每份 strategy 验证锚要求；后续 U5-T01 可创建 `tests/fixtures/umb_fix/**` 目录并引用这些 strategy。
 
 ## U5：P5 — Fixture 集合
 
