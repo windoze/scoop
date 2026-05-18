@@ -22,6 +22,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
     }
 
+    #[allow(clippy::only_used_in_recursion)]
     pub(in crate::llvm::codegen) fn rematerialize_ptr_in_current_block(
         &mut self,
         at: crate::span::Span,
@@ -51,15 +52,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 let base = inst
                     .get_operand(0)
                     .and_then(|operand| operand.value())
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "local slot cast base operand",
-                        at: at.into(),
-                    })?;
+                    .expect("bitcast/addrspacecast instruction must expose its base operand");
                 let BasicValueEnum::PointerValue(base_ptr) = base else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "local slot cast base pointer type",
-                        at: at.into(),
-                    });
+                    std::panic::panic_any("bitcast/addrspacecast base operand must be a pointer");
                 };
                 let base_ptr =
                     self.rematerialize_ptr_in_current_block(at, base_ptr, &format!("{name}_base"))?;

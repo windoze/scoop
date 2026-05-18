@@ -789,17 +789,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         })?;
 
         if hidden_sret_result_ty.is_none() && !matches!(ret_cg, CgTy::Unit | CgTy::Never) {
-            let result_storage =
-                direct_result_storage.ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "itable direct result storage",
-                    at: span.into(),
-                })?;
-            let raw = call_site.try_as_basic_value().basic().ok_or(
-                LlvmEmitError::UnsupportedMainBody {
-                    kind: "itable direct return value",
-                    at: span.into(),
-                },
-            )?;
+            let result_storage = direct_result_storage.unwrap_or_else(|| {
+                panic!("emit_interface_dispatch_case_call_to_storage: call ABI verifier accepted missing direct result storage")
+            });
+            let raw = call_site.try_as_basic_value().basic().unwrap_or_else(|| {
+                panic!("emit_interface_dispatch_case_call_to_storage: call ABI verifier accepted valueless direct return")
+            });
             let result = self.cg_value_from_loaded(span, ret_cg, raw)?;
             let _ = self.store_local_value(span, result_storage, ret_cg, result)?;
         }
@@ -853,11 +848,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.builder.position_at_end(ok_bb);
 
         let ret_cg =
-            self.cg_ty_of(sig_fun.return_ty)
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "itable call return type",
-                    at: span.into(),
-                })?;
+            self.cg_ty_of(sig_fun.return_ty).unwrap_or_else(|| {
+                panic!("emit_interface_dispatch_indirect_call: call ABI verifier accepted unsupported return type")
+            });
         let hidden_sret_result_ty = self.hidden_sret_result_ty(callee_span, ret_cg)?;
         let hidden_sret_slot = if hidden_sret_result_ty.is_some() {
             Some(self.create_entry_alloca(callee_span, "itable_call_sret", ret_cg)?)
@@ -1059,10 +1052,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     self.load_dispatch_result_from_storage(
                         span,
                         ret_cg,
-                        direct_result_storage.ok_or(LlvmEmitError::UnsupportedMainBody {
-                            kind: "itable direct result storage",
-                            at: span.into(),
-                        })?,
+                        direct_result_storage.unwrap_or_else(|| {
+                            panic!("emit_interface_dispatch_indirect_call: call ABI verifier accepted missing direct result storage")
+                        }),
                     )
                 }
             }
@@ -1142,15 +1134,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     fn copy_effect_outcome_into_current_function_slot(
         &mut self,
-        at: crate::span::Span,
+        _at: crate::span::Span,
         outcome_slot: PointerValue<'ctx>,
         label: &str,
     ) -> Result<(), LlvmEmitError> {
         let Some(current_outcome_ptr) = self.function_cx.current_effect_outcome_ptr else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "ordinary effect propagation destination",
-                at: at.into(),
-            });
+            panic!(
+                "copy_effect_outcome_into_current_function_slot: call ABI verifier accepted missing effect outcome destination"
+            );
         };
         let outcome = self.builder.build_load(
             self.llvm_effect_outcome_struct_type(),
@@ -1315,10 +1306,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     let callee_value = self.coerce_value(callee.span, callee_value, CgTy::Ref)?;
                     let Some(BasicValueEnum::PointerValue(closure_obj_i8)) = callee_value.value
                     else {
-                        return Err(LlvmEmitError::UnsupportedMainBody {
-                            kind: "callable callee value type",
-                            at: callee.span.into(),
-                        });
+                        panic!(
+                            "codegen_call_expr: call ABI verifier accepted non-pointer callable callee value"
+                        );
                     };
                     return self.codegen_function_value_call_from_closure_obj(
                         closure_obj_i8,
@@ -1355,14 +1345,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         if let hir::ExprKind::VarRef(hir::ValueRef::Local { id, .. }) = &callee.kind {
-            let local =
-                self.function_cx
-                    .env
-                    .get(*id)
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "unknown local value",
-                        at: callee.span.into(),
-                    })?;
+            let local = self.function_cx.env.get(*id).unwrap_or_else(|| {
+                panic!("codegen_call_expr: call ABI verifier accepted unknown local callable")
+            });
 
             if let Some(hir_ty) = local.hir_ty {
                 if let TypeKind::Ref(RefTypeKind::Function(fun_ty)) = self.types.kind(hir_ty) {
@@ -1398,10 +1383,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     };
 
                     let CgTy::Int(int_ty) = local.ty else {
-                        return Err(LlvmEmitError::UnsupportedMainBody {
-                            kind: "funptr local cg type",
-                            at: callee.span.into(),
-                        });
+                        panic!(
+                            "codegen_call_expr: TypeStore equivalence verifier accepted FunPtr local with non-int codegen type"
+                        );
                     };
                     let local_ptr =
                         self.local_ptr_for_use(callee.span, local, "load_funptr_slot")?;
@@ -1652,10 +1636,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     let (funptr_addr, funptr_int_ty) =
                         callee_value
                             .as_int()
-                            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                                kind: "funptr top-level cg type",
-                                at: callee.span.into(),
-                            })?;
+                            .unwrap_or_else(|| {
+                                panic!("codegen_call_expr: TypeStore equivalence verifier accepted FunPtr top-level value with non-int codegen type")
+                            });
                     return self.codegen_funptr_value_call(
                         funptr_addr,
                         funptr_int_ty,
@@ -1789,10 +1772,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             return self.codegen_enum_variant_ctor_call(span, enum_ty, name, args);
         }
 
-        Err(LlvmEmitError::UnsupportedMainBody {
-            kind: "call callee",
-            at: callee.span.into(),
-        })
+        panic!("codegen_call_expr: call ABI verifier accepted unsupported callee form")
     }
 
     pub(in crate::llvm::codegen) fn codegen_top_level_fun_call_impl(
@@ -1957,17 +1937,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
         return_ty = self.canonical_builtin_signature_ty(return_ty);
         if param_names.len() != param_tys.len() {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "call signature arity mismatch",
-                at: callee_span.into(),
-            });
+            panic!(
+                "codegen_top_level_fun_call_impl: call ABI verifier accepted signature arity mismatch"
+            );
         }
 
         if args.len() != param_tys.len() {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "call arity mismatch",
-                at: span.into(),
-            });
+            panic!(
+                "codegen_top_level_fun_call_impl: call ABI verifier accepted call arity mismatch"
+            );
         }
         let native_abi = if callable_abi.uses_native_abi() {
             Some(self.classify_direct_extern_native_callable(
@@ -1990,10 +1968,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         .or_else(|| self.cg_ty_of(return_ty))
                 }
             })
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "call return type",
-                at: span.into(),
-            })?;
+            .unwrap_or_else(|| {
+                panic!("codegen_top_level_fun_call_impl: call ABI verifier accepted unsupported return type")
+            });
         let hidden_sret_result_ty = if native_abi.is_some() {
             None
         } else {
@@ -2102,10 +2079,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     self.materialize_deferred_cg_value(
                         span,
                         "call_direct_result_reload",
-                        deferred_direct_result.ok_or(LlvmEmitError::UnsupportedMainBody {
-                            kind: "call deferred return value",
-                            at: span.into(),
-                        })?,
+                        deferred_direct_result.unwrap_or_else(|| {
+                            panic!("codegen_top_level_fun_call_impl: call ABI verifier accepted missing deferred return value")
+                        }),
                     )
                 }
             }
@@ -2222,26 +2198,22 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .get(fqn)
             .or_else(|| self.fun_index.get(dispatch_fqn))
             .copied()
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "vtable call callee type",
-                at: callee_span.into(),
-            })?;
+            .unwrap_or_else(|| {
+                panic!("try_codegen_class_vtable_call_impl: call ABI verifier accepted missing vtable callee type")
+            });
         let uses_explicit_effect_hidden_abi =
             self.direct_call_abi_identity(fqn).uses_effect_bridge_abi();
 
         if args.len() != sig_fun.params.len() {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "vtable call arity mismatch",
-                at: span.into(),
-            });
+            panic!(
+                "try_codegen_class_vtable_call_impl: call ABI verifier accepted vtable call arity mismatch"
+            );
         }
 
         let ret_cg =
-            self.cg_ty_of(sig_fun.return_ty)
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "vtable call return type",
-                    at: span.into(),
-                })?;
+            self.cg_ty_of(sig_fun.return_ty).unwrap_or_else(|| {
+                panic!("try_codegen_class_vtable_call_impl: call ABI verifier accepted unsupported vtable return type")
+            });
         let hidden_sret_result_ty = self.hidden_sret_result_ty(callee_span, ret_cg)?;
         let mut llvm_param_tys: Vec<BasicMetadataTypeEnum<'ctx>> = Vec::with_capacity(
             sig_fun.params.len()
@@ -2374,10 +2346,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 self.materialize_deferred_cg_value(
                     span,
                     "vtable_call_direct_result_reload",
-                    deferred_direct_result.ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "vtable call deferred return value",
-                        at: span.into(),
-                    })?,
+                    deferred_direct_result.unwrap_or_else(|| {
+                        panic!("try_codegen_class_vtable_call_impl: call ABI verifier accepted missing deferred return value")
+                    }),
                 )?
             })),
         }
@@ -2474,10 +2445,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         let callee_span = call.callee_span;
         let CgTy::Ref = local.ty else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "function value local type",
-                at: callee_span.into(),
-            });
+            panic!(
+                "codegen_function_value_call_impl: call ABI verifier accepted non-ref function value local"
+            );
         };
 
         let llvm_local_ty = self.llvm_basic_type_of(callee_span, local.ty)?;
@@ -2504,10 +2474,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         } = call;
         let expected_arity = fun_ty.params.len() + usize::from(fun_ty.receiver.is_some());
         if args.len() != expected_arity {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "function value call arity mismatch",
-                at: span.into(),
-            });
+            panic!(
+                "codegen_function_value_call_from_closure_obj_impl: call ABI verifier accepted function-value arity mismatch"
+            );
         }
         let deferred_closure =
             self.defer_gc_ref_pointer(callee_span, "closure_call_obj", closure_obj_i8)?;
@@ -2519,10 +2488,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         let ret_cg = self
             .cg_ty_of(fun_ty.return_ty)
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "function value call return type",
-                at: callee_span.into(),
-            })?;
+            .unwrap_or_else(|| {
+                panic!("codegen_function_value_call_from_closure_obj_impl: call ABI verifier accepted unsupported function-value return type")
+            });
         let hidden_sret_result_ty = self.hidden_sret_result_ty(callee_span, ret_cg)?;
 
         let mut llvm_param_tys: Vec<BasicMetadataTypeEnum<'ctx>> = Vec::with_capacity(
@@ -2673,10 +2641,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     self.materialize_deferred_cg_value(
                         span,
                         "closure_call_direct_result_reload",
-                        deferred_direct_result.ok_or(LlvmEmitError::UnsupportedMainBody {
-                            kind: "function value deferred return value",
-                            at: span.into(),
-                        })?,
+                        deferred_direct_result.unwrap_or_else(|| {
+                            panic!("codegen_function_value_call_from_closure_obj_impl: call ABI verifier accepted missing deferred return value")
+                        }),
                     )
                 }
             }
@@ -2745,10 +2712,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             return Ok(None);
         };
         if candidates.next().is_some() {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "itable call slot ambiguous",
-                at: callee_span.into(),
-            });
+            panic!(
+                "try_codegen_interface_itable_call_impl: call ABI verifier accepted ambiguous itable slot"
+            );
         }
         let slot = first.slot;
 
@@ -2757,18 +2723,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .get(fqn)
             .or_else(|| self.fun_index.get(dispatch_fqn))
             .copied()
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "itable call callee type",
-                at: callee_span.into(),
-            })?;
+            .unwrap_or_else(|| {
+                panic!("try_codegen_interface_itable_call_impl: call ABI verifier accepted missing itable callee type")
+            });
         let uses_explicit_effect_hidden_abi =
             self.direct_call_abi_identity(fqn).uses_effect_bridge_abi();
 
         if args.len() != sig_fun.params.len() {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "itable call arity mismatch",
-                at: span.into(),
-            });
+            panic!(
+                "try_codegen_interface_itable_call_impl: call ABI verifier accepted itable call arity mismatch"
+            );
         }
 
         let receiver_value = self.codegen_expr(receiver_expr)?;

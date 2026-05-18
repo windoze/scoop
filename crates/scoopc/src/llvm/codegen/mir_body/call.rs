@@ -37,10 +37,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             crate::mir::CallKind::FunValue { callee } => {
                 let fun_ty = self
                     .mir_operand_function_type(body, mir_types, callee)
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "pass MIR function-value callee type",
-                        at: span.into(),
-                    })?;
+                    .unwrap_or_else(|| {
+                        panic!("codegen_mir_call: MIR call ABI verifier accepted non-function function-value callee")
+                    });
                 self.codegen_mir_fun_value_call(span, callee, args, &fun_ty, slots)
             }
             crate::mir::CallKind::FunPtr { callee } => {
@@ -136,147 +135,142 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .copied()
             .or_else(|| self.hir_fun_for_callable_fqn(&concrete_fqn));
         if hir_sig_fun.is_none() && materialized_sig.is_none() {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "pass MIR direct callee type",
-                at: span.into(),
-            });
+            panic!(
+                "codegen_mir_direct_call_with_policy: MIR call ABI verifier accepted missing direct callee signature"
+            );
         }
         let map_foreign_signature_ty_to_codegen =
             |cg: &Self, ty: TypeId| cg.equivalent_codegen_type_id(mir_types, ty).unwrap_or(ty);
-        let (param_names, param_tys, return_ty_for_codegen) =
-            if let Some((fun, materialized_types)) = materialized_sig.as_ref() {
-                // SAFETY: `materialized_types` points into the materialized pass view owned by the
-                // compilation-unit codegen context and outlives this call.
-                let materialized_types = unsafe { &**materialized_types };
-                let param_names = fun
-                    .params
-                    .iter()
-                    .map(|param| param.name.clone())
-                    .collect::<Vec<_>>();
-                let fallback_param_tys =
-                    fun.params.iter().map(|param| param.ty).collect::<Vec<_>>();
-                let fallback_return_ty = fun.return_ty;
-                let needs_published_sig = fallback_param_tys
-                    .iter()
-                    .any(|&ty| self.cg_ty_of_mir_type(materialized_types, ty).is_none())
-                    || self
-                        .cg_ty_of_mir_type(materialized_types, fallback_return_ty)
-                        .is_none();
-                let published_sig = if needs_published_sig {
-                    self.published_callable_signature(&concrete_fqn)
-                        .or_else(|| {
-                            (dispatch_fqn != concrete_fqn)
-                                .then(|| self.published_callable_signature(dispatch_fqn))
-                                .flatten()
-                        })
-                } else {
-                    None
-                };
-                let (param_tys, return_ty, from_foreign_store) =
-                    if let Some((param_tys, return_ty)) = published_sig {
-                        (param_tys, return_ty, true)
-                    } else {
-                        (fallback_param_tys, fallback_return_ty, false)
-                    };
-                let (param_tys, return_ty) = if from_foreign_store {
-                    (
-                        param_tys
-                            .into_iter()
-                            .map(|ty| map_foreign_signature_ty_to_codegen(self, ty))
-                            .collect::<Vec<_>>(),
-                        map_foreign_signature_ty_to_codegen(self, return_ty),
-                    )
-                } else {
-                    (param_tys, return_ty)
-                };
-                (param_names, param_tys, return_ty)
-            } else {
-                let fun = hir_sig_fun.expect("validated above");
-                let param_names = fun
-                    .params
-                    .iter()
-                    .map(|param| param.name.clone())
-                    .collect::<Vec<_>>();
-                let arg_to_param = map_mir_call_args_to_params(&fun.params, args).ok_or(
-                    LlvmEmitError::UnsupportedMainBody {
-                        kind: "pass MIR call arg binding",
-                        at: span.into(),
-                    },
-                )?;
-                let mut fallback_param_tys =
-                    fun.params.iter().map(|param| param.ty).collect::<Vec<_>>();
-                for (arg_idx, arg) in args.iter().enumerate() {
-                    let param_idx = arg_to_param[arg_idx];
-                    if self.cg_ty_of(fallback_param_tys[param_idx]).is_some() {
-                        continue;
-                    }
-                    if let Some(source_ty) = self.mir_operand_type_id(body, &arg.value)
-                        && let Some(codegen_ty) =
-                            self.equivalent_codegen_type_id(mir_types, source_ty)
-                    {
-                        fallback_param_tys[param_idx] = codegen_ty;
-                    }
-                }
-                let fallback_return_ty = fun.return_ty;
-                let needs_published_sig = fallback_param_tys
-                    .iter()
-                    .any(|&ty| self.cg_ty_of(ty).is_none())
-                    || self.cg_ty_of(fallback_return_ty).is_none();
-                let published_sig = if needs_published_sig {
-                    self.published_callable_signature(&concrete_fqn)
-                        .or_else(|| {
-                            (dispatch_fqn != concrete_fqn)
-                                .then(|| self.published_callable_signature(dispatch_fqn))
-                                .flatten()
-                        })
-                } else {
-                    None
-                };
-                let (param_tys, return_ty, from_foreign_store) =
-                    if let Some((param_tys, return_ty)) = published_sig {
-                        (param_tys, return_ty, true)
-                    } else {
-                        (fallback_param_tys, fallback_return_ty, false)
-                    };
-                let (param_tys, return_ty) = if from_foreign_store {
-                    (
-                        param_tys
-                            .into_iter()
-                            .map(|ty| map_foreign_signature_ty_to_codegen(self, ty))
-                            .collect::<Vec<_>>(),
-                        map_foreign_signature_ty_to_codegen(self, return_ty),
-                    )
-                } else {
-                    (param_tys, return_ty)
-                };
-                let param_tys = param_tys
-                    .into_iter()
-                    .map(|ty| {
-                        if self.cg_ty_of(ty).is_some() {
-                            ty
-                        } else {
-                            map_foreign_signature_ty_to_codegen(self, ty)
-                        }
+        let (param_names, param_tys, return_ty_for_codegen) = if let Some((
+            fun,
+            materialized_types,
+        )) = materialized_sig.as_ref()
+        {
+            // SAFETY: `materialized_types` points into the materialized pass view owned by the
+            // compilation-unit codegen context and outlives this call.
+            let materialized_types = unsafe { &**materialized_types };
+            let param_names = fun
+                .params
+                .iter()
+                .map(|param| param.name.clone())
+                .collect::<Vec<_>>();
+            let fallback_param_tys = fun.params.iter().map(|param| param.ty).collect::<Vec<_>>();
+            let fallback_return_ty = fun.return_ty;
+            let needs_published_sig = fallback_param_tys
+                .iter()
+                .any(|&ty| self.cg_ty_of_mir_type(materialized_types, ty).is_none())
+                || self
+                    .cg_ty_of_mir_type(materialized_types, fallback_return_ty)
+                    .is_none();
+            let published_sig = if needs_published_sig {
+                self.published_callable_signature(&concrete_fqn)
+                    .or_else(|| {
+                        (dispatch_fqn != concrete_fqn)
+                            .then(|| self.published_callable_signature(dispatch_fqn))
+                            .flatten()
                     })
-                    .collect::<Vec<_>>();
-                let return_ty = if self.cg_ty_of(return_ty).is_some() {
-                    return_ty
-                } else {
-                    map_foreign_signature_ty_to_codegen(self, return_ty)
-                };
-                (param_names, param_tys, return_ty)
+            } else {
+                None
             };
+            let (param_tys, return_ty, from_foreign_store) =
+                if let Some((param_tys, return_ty)) = published_sig {
+                    (param_tys, return_ty, true)
+                } else {
+                    (fallback_param_tys, fallback_return_ty, false)
+                };
+            let (param_tys, return_ty) = if from_foreign_store {
+                (
+                    param_tys
+                        .into_iter()
+                        .map(|ty| map_foreign_signature_ty_to_codegen(self, ty))
+                        .collect::<Vec<_>>(),
+                    map_foreign_signature_ty_to_codegen(self, return_ty),
+                )
+            } else {
+                (param_tys, return_ty)
+            };
+            (param_names, param_tys, return_ty)
+        } else {
+            let fun = hir_sig_fun.expect("validated above");
+            let param_names = fun
+                .params
+                .iter()
+                .map(|param| param.name.clone())
+                .collect::<Vec<_>>();
+            let arg_to_param = map_mir_call_args_to_params(&fun.params, args).unwrap_or_else(|| {
+                    panic!("codegen_mir_direct_call_with_policy: MIR call ABI verifier accepted arg binding drift")
+                });
+            let mut fallback_param_tys =
+                fun.params.iter().map(|param| param.ty).collect::<Vec<_>>();
+            for (arg_idx, arg) in args.iter().enumerate() {
+                let param_idx = arg_to_param[arg_idx];
+                if self.cg_ty_of(fallback_param_tys[param_idx]).is_some() {
+                    continue;
+                }
+                if let Some(source_ty) = self.mir_operand_type_id(body, &arg.value)
+                    && let Some(codegen_ty) = self.equivalent_codegen_type_id(mir_types, source_ty)
+                {
+                    fallback_param_tys[param_idx] = codegen_ty;
+                }
+            }
+            let fallback_return_ty = fun.return_ty;
+            let needs_published_sig = fallback_param_tys
+                .iter()
+                .any(|&ty| self.cg_ty_of(ty).is_none())
+                || self.cg_ty_of(fallback_return_ty).is_none();
+            let published_sig = if needs_published_sig {
+                self.published_callable_signature(&concrete_fqn)
+                    .or_else(|| {
+                        (dispatch_fqn != concrete_fqn)
+                            .then(|| self.published_callable_signature(dispatch_fqn))
+                            .flatten()
+                    })
+            } else {
+                None
+            };
+            let (param_tys, return_ty, from_foreign_store) =
+                if let Some((param_tys, return_ty)) = published_sig {
+                    (param_tys, return_ty, true)
+                } else {
+                    (fallback_param_tys, fallback_return_ty, false)
+                };
+            let (param_tys, return_ty) = if from_foreign_store {
+                (
+                    param_tys
+                        .into_iter()
+                        .map(|ty| map_foreign_signature_ty_to_codegen(self, ty))
+                        .collect::<Vec<_>>(),
+                    map_foreign_signature_ty_to_codegen(self, return_ty),
+                )
+            } else {
+                (param_tys, return_ty)
+            };
+            let param_tys = param_tys
+                .into_iter()
+                .map(|ty| {
+                    if self.cg_ty_of(ty).is_some() {
+                        ty
+                    } else {
+                        map_foreign_signature_ty_to_codegen(self, ty)
+                    }
+                })
+                .collect::<Vec<_>>();
+            let return_ty = if self.cg_ty_of(return_ty).is_some() {
+                return_ty
+            } else {
+                map_foreign_signature_ty_to_codegen(self, return_ty)
+            };
+            (param_names, param_tys, return_ty)
+        };
         if param_names.len() != param_tys.len() {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "pass MIR direct call signature arity mismatch",
-                at: span.into(),
-            });
+            panic!(
+                "codegen_mir_direct_call_with_policy: MIR call ABI verifier accepted signature arity mismatch"
+            );
         }
         if args.len() != param_tys.len() {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "pass MIR direct call arity mismatch",
-                at: span.into(),
-            });
+            panic!(
+                "codegen_mir_direct_call_with_policy: MIR call ABI verifier accepted direct call arity mismatch"
+            );
         }
 
         let native_abi = if callable_abi.uses_native_abi() {
@@ -323,10 +317,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     })
                 }
             })
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "pass MIR direct call return type",
-                at: span.into(),
-            })?;
+            .unwrap_or_else(|| {
+                panic!("codegen_mir_direct_call_with_policy: MIR call ABI verifier accepted unsupported direct call return type")
+            });
         let hidden_sret_result_ty = if native_abi.is_some() {
             None
         } else {
@@ -474,10 +467,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     self.materialize_deferred_cg_value(
                         span,
                         "pass_mir_direct_call_result_reload",
-                        deferred_direct_result.ok_or(LlvmEmitError::UnsupportedMainBody {
-                            kind: "pass MIR direct call deferred return value",
-                            at: span.into(),
-                        })?,
+                        deferred_direct_result.unwrap_or_else(|| {
+                            panic!("codegen_mir_direct_call_with_policy: MIR call ABI verifier accepted missing deferred return value")
+                        }),
                     )
                 }
             }
@@ -558,10 +550,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             self.codegen_mir_operand_expected(span, callee, slots, Some(CgTy::Ref))?;
         let callee_value = self.coerce_value(span, callee_value, CgTy::Ref)?;
         let Some(BasicValueEnum::PointerValue(closure_obj_i8)) = callee_value.value else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "pass MIR function-value callee value",
-                at: span.into(),
-            });
+            panic!(
+                "codegen_mir_fun_value_call: MIR call ABI verifier accepted non-pointer function-value callee"
+            );
         };
         self.codegen_mir_function_value_call_from_closure_obj(
             span,
@@ -670,10 +661,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         let expected_arity = fun_ty.params.len() + usize::from(fun_ty.receiver.is_some());
         if args.len() != expected_arity {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "pass MIR function-value call arity mismatch",
-                at: span.into(),
-            });
+            panic!(
+                "codegen_mir_function_value_call_from_closure_obj: MIR call ABI verifier accepted function-value arity mismatch"
+            );
         }
         let deferred_closure =
             self.defer_gc_ref_pointer(span, "pass_mir_function_value_closure", closure_obj_i8)?;
@@ -684,10 +674,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
         let ret_cg = self
             .cg_ty_of(fun_ty.return_ty)
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "pass MIR function-value call return type",
-                at: span.into(),
-            })?;
+            .unwrap_or_else(|| {
+                panic!("codegen_mir_function_value_call_from_closure_obj: MIR call ABI verifier accepted unsupported function-value return type")
+            });
         let hidden_sret_result_ty = self.hidden_sret_result_ty(span, ret_cg)?;
 
         let mut llvm_param_tys: Vec<BasicMetadataTypeEnum<'ctx>> = Vec::with_capacity(
@@ -837,10 +826,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     self.materialize_deferred_cg_value(
                         span,
                         "pass_mir_closure_call_result_reload",
-                        deferred_direct_result.ok_or(LlvmEmitError::UnsupportedMainBody {
-                            kind: "pass MIR function-value deferred return value",
-                            at: span.into(),
-                        })?,
+                        deferred_direct_result.unwrap_or_else(|| {
+                            panic!("codegen_mir_function_value_call_from_closure_obj: MIR call ABI verifier accepted missing deferred return value")
+                        }),
                     )
                 }
             }
@@ -910,10 +898,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             crate::mir::CallKind::FunValue { callee } => {
                 let fun_ty = self
                     .mir_operand_function_type(body, mir_types, callee)
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "plain function-value callee type",
-                        at: span.into(),
-                    })?;
+                    .unwrap_or_else(|| {
+                        panic!("codegen_mir_plain_dynamic_call_with_policy: MIR call ABI verifier accepted non-function plain function-value callee")
+                    });
                 if !fun_ty.effects.is_pure() {
                     match self
                         .mir_fun_value_callee_fqn(body, mir_types, callee)
@@ -982,10 +969,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 )
             }
             crate::mir::CallKind::Direct { .. } | crate::mir::CallKind::Resume { .. } => {
-                Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "plain dynamic call kind",
-                    at: span.into(),
-                })
+                panic!(
+                    "codegen_mir_plain_dynamic_call_with_policy: MIR call ABI verifier accepted unsupported plain dynamic call kind"
+                )
             }
         }
     }
@@ -1002,10 +988,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             self.codegen_mir_operand_expected(span, callee, slots, Some(CgTy::Ref))?;
         let callee_value = self.coerce_value(span, callee_value, CgTy::Ref)?;
         let Some(BasicValueEnum::PointerValue(closure_obj_i8)) = callee_value.value else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "plain function-value callee value",
-                at: span.into(),
-            });
+            panic!(
+                "codegen_mir_plain_function_value_call: MIR call ABI verifier accepted non-pointer plain function-value callee"
+            );
         };
         self.codegen_mir_plain_function_value_call_from_closure_obj(
             span,

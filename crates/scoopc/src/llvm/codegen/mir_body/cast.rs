@@ -44,10 +44,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         target_cg: CgTy,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         if metadata.test.target_ty != target_ty || metadata.test.descriptor.ty != target_ty {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "MIR runtime cast metadata",
-                at: span.into(),
-            });
+            panic!("codegen_mir_cast: MIR verifier accepted runtime cast metadata drift");
         }
         match op {
             ast::CastOp::As => self.codegen_mir_cast_as(
@@ -71,10 +68,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         target_cg: CgTy,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         let crate::mir::RuntimeCastFailure::Raise { error_fqn, .. } = &metadata.failure else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "MIR `as` cast failure contract",
-                at: span.into(),
-            });
+            panic!("codegen_mir_cast_as: MIR verifier accepted invalid `as` failure contract");
         };
         if error_fqn != "scoop.core.RuntimeError.ClassCastFailed" {
             return Err(LlvmEmitError::UnsupportedMainBody {
@@ -83,30 +77,20 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             });
         }
         let crate::mir::RuntimeCastResult::Target { ty } = &metadata.result else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "MIR `as` cast result contract",
-                at: span.into(),
-            });
+            panic!("codegen_mir_cast_as: MIR verifier accepted invalid `as` result contract");
         };
         if *ty != target_ty {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "MIR `as` cast target contract",
-                at: span.into(),
-            });
+            panic!("codegen_mir_cast_as: MIR verifier accepted invalid `as` target contract");
         }
 
         let target_codegen_ty = self
             .equivalent_runtime_ref_codegen_type_id(mir_types, target_ty)
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "MIR `as` target codegen type",
-                at: span.into(),
-            })?;
-        let expected_cg =
-            self.cg_ty_of(target_codegen_ty)
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "MIR `as` target type",
-                    at: span.into(),
-                })?;
+            .unwrap_or_else(|| {
+                panic!("codegen_mir_cast_as: TypeStore equivalence verifier accepted unsupported `as` target codegen type")
+            });
+        let expected_cg = self.cg_ty_of(target_codegen_ty).unwrap_or_else(|| {
+            panic!("codegen_mir_cast_as: MIR verifier accepted unsupported `as` target type")
+        });
         let result_cg = if target_cg == CgTy::Never {
             expected_cg
         } else {
@@ -152,36 +136,23 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         target_cg: CgTy,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         if !matches!(metadata.failure, crate::mir::RuntimeCastFailure::ReturnNone) {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "MIR `as?` cast failure contract",
-                at: span.into(),
-            });
+            panic!("codegen_mir_cast_asq: MIR verifier accepted invalid `as?` failure contract");
         }
         let crate::mir::RuntimeCastResult::Option { option_ty, some_ty } = &metadata.result else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "MIR `as?` cast result contract",
-                at: span.into(),
-            });
+            panic!("codegen_mir_cast_asq: MIR verifier accepted invalid `as?` result contract");
         };
         if *some_ty != target_ty {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "MIR `as?` cast target contract",
-                at: span.into(),
-            });
+            panic!("codegen_mir_cast_asq: MIR verifier accepted invalid `as?` target contract");
         }
 
         let target_codegen_ty = self
             .equivalent_runtime_ref_codegen_type_id(mir_types, target_ty)
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "MIR `as?` target codegen type",
-                at: span.into(),
-            })?;
-        let target_value_cg =
-            self.cg_ty_of(target_codegen_ty)
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "MIR `as?` target type",
-                    at: span.into(),
-                })?;
+            .unwrap_or_else(|| {
+                panic!("codegen_mir_cast_asq: TypeStore equivalence verifier accepted unsupported `as?` target codegen type")
+            });
+        let target_value_cg = self.cg_ty_of(target_codegen_ty).unwrap_or_else(|| {
+            panic!("codegen_mir_cast_asq: MIR verifier accepted unsupported `as?` target type")
+        });
         if !matches!(target_value_cg, CgTy::Ref | CgTy::String) {
             return Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "MIR `as?` target runtime type",
@@ -190,15 +161,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
         let option_codegen_ty = self
             .equivalent_codegen_type_id(mir_types, *option_ty)
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "MIR `as?` option codegen type",
-                at: span.into(),
-            })?;
-        if target_cg != CgTy::Enum(option_codegen_ty) {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "MIR `as?` result type",
-                at: span.into(),
+            .unwrap_or_else(|| {
+                panic!("codegen_mir_cast_asq: TypeStore equivalence verifier accepted unsupported `as?` option codegen type")
             });
+        if target_cg != CgTy::Enum(option_codegen_ty) {
+            panic!("codegen_mir_cast_asq: MIR verifier accepted invalid `as?` result type");
         }
 
         let (obj_ptr, _) = self.codegen_mir_runtime_ref_operand(span, value, slots)?;
@@ -281,16 +248,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     pub(in crate::llvm::codegen) fn runtime_cast_target_ptr_type(
         &self,
-        span: crate::span::Span,
+        _span: crate::span::Span,
         target_cg: CgTy,
     ) -> Result<inkwell::types::PointerType<'ctx>, LlvmEmitError> {
         match target_cg {
             CgTy::Ref => Ok(self.llvm_gc_i8_ptr_type()),
             CgTy::String => Ok(self.llvm_scoop_string_ptr_type()),
-            _ => Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "MIR runtime cast target type",
-                at: span.into(),
-            }),
+            _ => panic!(
+                "runtime_cast_target_ptr_type: MIR verifier accepted non-runtime-ref cast target type"
+            ),
         }
     }
 
@@ -371,18 +337,20 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         };
         let payload = self.coerce_enum_payload(span, casted, target_cg)?;
         let some_v = self.build_enum_value(span, option_ty, 0, payload)?;
-        let some_raw = some_v.value.ok_or(LlvmEmitError::UnsupportedMainBody {
-            kind: "MIR `as?` Some value",
-            at: span.into(),
-        })?;
+        let some_raw = some_v.value.unwrap_or_else(|| {
+            panic!(
+                "codegen_checked_runtime_ref_cast_option: verified Option Some produced no value"
+            )
+        });
         self.builder.build_unconditional_branch(merge_bb)?;
 
         self.builder.position_at_end(fail_bb);
         let none_v = self.build_enum_value(span, option_ty, 1, CgEnumPayload::default())?;
-        let none_raw = none_v.value.ok_or(LlvmEmitError::UnsupportedMainBody {
-            kind: "MIR `as?` None value",
-            at: span.into(),
-        })?;
+        let none_raw = none_v.value.unwrap_or_else(|| {
+            panic!(
+                "codegen_checked_runtime_ref_cast_option: verified Option None produced no value"
+            )
+        });
         self.builder.build_unconditional_branch(merge_bb)?;
 
         self.builder.position_at_end(merge_bb);

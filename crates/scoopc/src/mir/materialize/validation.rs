@@ -1,5 +1,6 @@
 //! Validation pass that walks a materialized MIR and verifies every artifact (instance keys, items, payload contracts, transports, terminators, patterns, type metadata) against the published contract before any consumer is allowed to read it.
 
+use super::super::{RuntimeTypeDescriptorKind, RuntimeTypeStaticFold};
 use super::*;
 use crate::ast;
 use crate::mir::AggregateTransportKind;
@@ -827,6 +828,25 @@ pub(super) fn validate_materialized_rvalue(
                 },
                 *test_ty,
             )?;
+            let source_ty = materialized_operand_ty(
+                materialized,
+                fqn,
+                block,
+                span,
+                "typecheck value",
+                locals,
+                value,
+            )?;
+            validate_materialized_type_test_contract(
+                materialized,
+                fqn,
+                block,
+                span,
+                source_ty,
+                *test_ty,
+                result_ty,
+                metadata,
+            )?;
             validate_materialized_type_test_metadata(
                 materialized,
                 MaterializedValidationContext {
@@ -839,6 +859,7 @@ pub(super) fn validate_materialized_rvalue(
             )
         }
         Rvalue::Cast {
+            op,
             value,
             target_ty,
             metadata,
@@ -862,6 +883,26 @@ pub(super) fn validate_materialized_rvalue(
                     surface: "cast target type",
                 },
                 *target_ty,
+            )?;
+            let source_ty = materialized_operand_ty(
+                materialized,
+                fqn,
+                block,
+                span,
+                "cast value",
+                locals,
+                value,
+            )?;
+            validate_materialized_cast_contract(
+                materialized,
+                fqn,
+                block,
+                span,
+                *op,
+                source_ty,
+                *target_ty,
+                result_ty,
+                metadata,
             )?;
             validate_materialized_cast_metadata(
                 materialized,
@@ -1005,7 +1046,18 @@ pub(super) fn validate_materialized_rvalue(
                 kind,
                 root_sets,
             )?;
-            validate_materialized_call_transport(materialized, fqn, block, span, transport)
+            validate_materialized_call_transport(materialized, fqn, block, span, transport)?;
+            validate_materialized_call_abi(
+                materialized,
+                fqn,
+                block,
+                span,
+                locals,
+                kind,
+                args,
+                transport,
+                result_ty,
+            )
         }
         Rvalue::MakeTuple {
             elements,
@@ -1866,6 +1918,408 @@ pub(super) fn validate_materialized_call_kind(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
+pub(super) fn validate_materialized_call_abi(
+    materialized: &MaterializedMir,
+    fqn: &str,
+    block: BasicBlockId,
+    span: Span,
+    locals: &[LocalDecl],
+    kind: &CallKind,
+    args: &[CallArg],
+    transport: &CallTransportMetadata,
+    result_ty: Option<TypeId>,
+) -> MaterializeResult<()> {
+    match kind {
+        CallKind::Direct { callee_fqn } => {
+            let Some(callee) = materialized_callable_by_fqn(materialized, callee_fqn) else {
+                if result_ty.is_some_and(|ty| {
+                    !materialized_abi_type_equivalent(materialized, ty, transport.result.source_ty)
+                }) {
+                    return Err(materialized_transport_contract_err(
+                        fqn,
+                        block,
+                        span,
+                        "call result transport",
+                        "call result transport type and assignment target disagree",
+                    ));
+                }
+                return Ok(());
+            };
+            validate_materialized_direct_call_signature(
+                materialized,
+                fqn,
+                block,
+                span,
+                locals,
+                callee,
+                args,
+            )?;
+            validate_materialized_call_return_contract(
+                materialized,
+                fqn,
+                block,
+                span,
+                transport,
+                result_ty,
+                callee.return_ty,
+            )
+        }
+        CallKind::Closure { callee, .. } | CallKind::FunValue { callee } => {
+            let fun_ty = materialized_operand_function_type(
+                materialized,
+                fqn,
+                block,
+                span,
+                locals,
+                "callable-value callee",
+                callee,
+            )?;
+            validate_materialized_callable_value_call_signature(
+                materialized,
+                fqn,
+                block,
+                span,
+                locals,
+                fun_ty,
+                args,
+            )?;
+            validate_materialized_call_return_contract(
+                materialized,
+                fqn,
+                block,
+                span,
+                transport,
+                result_ty,
+                fun_ty.return_ty,
+            )
+        }
+        CallKind::FunPtr { callee } => {
+            let fun_ty = materialized_operand_funptr_function_type(
+                materialized,
+                fqn,
+                block,
+                span,
+                locals,
+                callee,
+            )?;
+            validate_materialized_callable_value_call_signature(
+                materialized,
+                fqn,
+                block,
+                span,
+                locals,
+                fun_ty,
+                args,
+            )?;
+            validate_materialized_call_return_contract(
+                materialized,
+                fqn,
+                block,
+                span,
+                transport,
+                result_ty,
+                fun_ty.return_ty,
+            )
+        }
+        CallKind::Resume { resume, .. } => validate_materialized_call_return_contract(
+            materialized,
+            fqn,
+            block,
+            span,
+            transport,
+            result_ty,
+            resume.answer_ty,
+        ),
+        CallKind::Virtual { .. } | CallKind::Interface { .. } => Ok(()),
+    }
+}
+
+fn materialized_callable_by_fqn<'a>(
+    materialized: &'a MaterializedMir,
+    callee_fqn: &str,
+) -> Option<&'a FunDecl> {
+    let pass_view = materialized.pass_view();
+    pass_view.callable(callee_fqn).or_else(|| {
+        materialized.file.items.iter().find_map(|item| match item {
+            Item::Fun(fun) if fun.fqn == callee_fqn => Some(fun),
+            _ => None,
+        })
+    })
+}
+
+#[allow(clippy::too_many_arguments)]
+fn validate_materialized_direct_call_signature(
+    materialized: &MaterializedMir,
+    fqn: &str,
+    block: BasicBlockId,
+    span: Span,
+    locals: &[LocalDecl],
+    callee: &FunDecl,
+    args: &[CallArg],
+) -> MaterializeResult<()> {
+    let arg_to_param =
+        map_materialized_call_args_to_params(&callee.params, args).ok_or_else(|| {
+            materialized_type_contract_err(
+                fqn,
+                Some(block),
+                span,
+                "call arguments",
+                "call arguments do not bind exactly to callee parameters",
+            )
+        })?;
+    for (arg_index, arg) in args.iter().enumerate() {
+        let param = &callee.params[arg_to_param[arg_index]];
+        validate_materialized_call_arg_type(materialized, fqn, block, locals, arg, param.ty)?;
+    }
+    Ok(())
+}
+
+#[allow(clippy::too_many_arguments)]
+fn validate_materialized_callable_value_call_signature(
+    materialized: &MaterializedMir,
+    fqn: &str,
+    block: BasicBlockId,
+    span: Span,
+    locals: &[LocalDecl],
+    fun_ty: &crate::ty::FunctionType,
+    args: &[CallArg],
+) -> MaterializeResult<()> {
+    if args.iter().any(|arg| arg.name.is_some()) {
+        return Err(materialized_type_contract_err(
+            fqn,
+            Some(block),
+            span,
+            "call arguments",
+            "callable-value arguments must be positional",
+        ));
+    }
+    let param_tys = callable_value_param_tys(fun_ty);
+    if args.len() != param_tys.len() {
+        return Err(materialized_type_contract_err(
+            fqn,
+            Some(block),
+            span,
+            "call arguments",
+            "call argument count does not match callable type",
+        ));
+    }
+    for (arg, param_ty) in args.iter().zip(param_tys) {
+        validate_materialized_call_arg_type(materialized, fqn, block, locals, arg, param_ty)?;
+    }
+    Ok(())
+}
+
+fn callable_value_param_tys(fun_ty: &crate::ty::FunctionType) -> Vec<TypeId> {
+    fun_ty
+        .receiver
+        .into_iter()
+        .chain(fun_ty.params.iter().copied())
+        .collect()
+}
+
+fn map_materialized_call_args_to_params(params: &[Param], args: &[CallArg]) -> Option<Vec<usize>> {
+    let mut used = vec![false; params.len()];
+    let mut next_pos = 0usize;
+    let mut out = Vec::with_capacity(args.len());
+
+    for arg in args {
+        let param_idx = match arg.name.as_deref() {
+            Some(name) => params
+                .iter()
+                .enumerate()
+                .find_map(|(idx, param)| (!used[idx] && param.name == name).then_some(idx))?,
+            None => {
+                while used.get(next_pos).copied().unwrap_or(false) {
+                    next_pos += 1;
+                }
+                let idx = next_pos;
+                if idx >= params.len() {
+                    return None;
+                }
+                next_pos += 1;
+                idx
+            }
+        };
+        used[param_idx] = true;
+        out.push(param_idx);
+    }
+
+    (out.len() == params.len()).then_some(out)
+}
+
+fn validate_materialized_call_arg_type(
+    materialized: &MaterializedMir,
+    fqn: &str,
+    block: BasicBlockId,
+    locals: &[LocalDecl],
+    arg: &CallArg,
+    expected_ty: TypeId,
+) -> MaterializeResult<()> {
+    materialized_operand_ty(
+        materialized,
+        fqn,
+        block,
+        arg.span,
+        "call argument",
+        locals,
+        &arg.value,
+    )?;
+    validate_materialized_type(
+        materialized,
+        MaterializedValidationContext {
+            fqn,
+            block: Some(block),
+            span: arg.span,
+            surface: "call parameter type",
+        },
+        expected_ty,
+    )
+}
+
+fn materialized_abi_type_equivalent(
+    materialized: &MaterializedMir,
+    lhs: TypeId,
+    rhs: TypeId,
+) -> bool {
+    lhs == rhs
+        || materialized.types.kind(lhs) == materialized.types.kind(rhs)
+        || materialized.types.display(lhs).to_string()
+            == materialized.types.display(rhs).to_string()
+}
+
+fn validate_materialized_call_return_contract(
+    materialized: &MaterializedMir,
+    fqn: &str,
+    block: BasicBlockId,
+    span: Span,
+    transport: &CallTransportMetadata,
+    result_ty: Option<TypeId>,
+    expected_return_ty: TypeId,
+) -> MaterializeResult<()> {
+    let detail = if !materialized_abi_type_equivalent(
+        materialized,
+        transport.result.source_ty,
+        expected_return_ty,
+    ) {
+        Some("call result transport type does not match callee return type")
+    } else if result_ty.is_some_and(|ty| {
+        !materialized_abi_type_equivalent(materialized, ty, transport.result.source_ty)
+    }) {
+        Some("call result transport type and assignment target disagree")
+    } else if transport
+        .aggregate_return
+        .as_ref()
+        .is_some_and(|aggregate| {
+            !materialized_abi_type_equivalent(materialized, aggregate.source_ty, expected_return_ty)
+        })
+    {
+        Some("call aggregate return transport type does not match callee return type")
+    } else {
+        None
+    };
+    if let Some(detail) = detail {
+        return Err(materialized_transport_contract_err(
+            fqn,
+            block,
+            span,
+            "call result transport",
+            detail,
+        ));
+    }
+    Ok(())
+}
+
+#[allow(clippy::too_many_arguments)]
+fn materialized_operand_function_type<'a>(
+    materialized: &'a MaterializedMir,
+    fqn: &str,
+    block: BasicBlockId,
+    span: Span,
+    locals: &[LocalDecl],
+    surface: &'static str,
+    operand: &Operand,
+) -> MaterializeResult<&'a crate::ty::FunctionType> {
+    let Some(ty) =
+        materialized_operand_ty(materialized, fqn, block, span, surface, locals, operand)?
+    else {
+        return Err(materialized_type_contract_err(
+            fqn,
+            Some(block),
+            span,
+            surface,
+            "callable operand type must be known",
+        ));
+    };
+    let TypeKind::Ref(RefTypeKind::Function(fun_ty)) = materialized.types.kind(ty) else {
+        return Err(materialized_type_contract_err(
+            fqn,
+            Some(block),
+            span,
+            surface,
+            "callable operand must have function type",
+        ));
+    };
+    Ok(fun_ty)
+}
+
+fn materialized_operand_funptr_function_type<'a>(
+    materialized: &'a MaterializedMir,
+    fqn: &str,
+    block: BasicBlockId,
+    span: Span,
+    locals: &[LocalDecl],
+    operand: &Operand,
+) -> MaterializeResult<&'a crate::ty::FunctionType> {
+    let Some(ty) = materialized_operand_ty(
+        materialized,
+        fqn,
+        block,
+        span,
+        "FunPtr callee",
+        locals,
+        operand,
+    )?
+    else {
+        return Err(materialized_type_contract_err(
+            fqn,
+            Some(block),
+            span,
+            "FunPtr callee",
+            "FunPtr operand type must be known",
+        ));
+    };
+    let TypeKind::Value(ValueTypeKind::Nominal(nominal)) = materialized.types.kind(ty) else {
+        return Err(materialized_type_contract_err(
+            fqn,
+            Some(block),
+            span,
+            "FunPtr callee",
+            "FunPtr operand must have nominal FunPtr type",
+        ));
+    };
+    if nominal.fqn != "scoop.unsafe.FunPtr" || nominal.args.len() != 1 {
+        return Err(materialized_type_contract_err(
+            fqn,
+            Some(block),
+            span,
+            "FunPtr callee",
+            "FunPtr operand must publish exactly one function type argument",
+        ));
+    }
+    let TypeKind::Ref(RefTypeKind::Function(fun_ty)) = materialized.types.kind(nominal.args[0])
+    else {
+        return Err(materialized_type_contract_err(
+            fqn,
+            Some(block),
+            span,
+            "FunPtr callee",
+            "FunPtr type argument must be a function type",
+        ));
+    };
+    Ok(fun_ty)
+}
+
 pub(super) fn validate_materialized_resume_metadata(
     materialized: &MaterializedMir,
     fqn: &str,
@@ -2368,6 +2822,258 @@ pub(super) fn validate_materialized_cast_metadata(
             validate_materialized_type(materialized, ctx.with_surface("cast some type"), *some_ty)
         }
     }
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(super) fn validate_materialized_type_test_contract(
+    materialized: &MaterializedMir,
+    fqn: &str,
+    block: BasicBlockId,
+    span: Span,
+    expected_source_ty: Option<TypeId>,
+    expected_target_ty: TypeId,
+    expected_result_ty: Option<TypeId>,
+    metadata: &RuntimeTypeTestMetadata,
+) -> MaterializeResult<()> {
+    validate_materialized_runtime_type_test_contract(
+        materialized,
+        fqn,
+        block,
+        span,
+        "typecheck",
+        expected_source_ty,
+        expected_target_ty,
+        metadata,
+    )?;
+    if let Some(result_ty) = expected_result_ty {
+        let builtins = materialized
+            .types
+            .builtins()
+            .expect("materialized MIR should always intern builtin types before validation");
+        if result_ty != builtins.bool_ {
+            return Err(materialized_type_contract_err(
+                fqn,
+                Some(block),
+                span,
+                "typecheck result",
+                "typecheck result target must have Bool type",
+            ));
+        }
+    }
+    Ok(())
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(super) fn validate_materialized_cast_contract(
+    materialized: &MaterializedMir,
+    fqn: &str,
+    block: BasicBlockId,
+    span: Span,
+    op: ast::CastOp,
+    expected_source_ty: Option<TypeId>,
+    expected_target_ty: TypeId,
+    expected_result_ty: Option<TypeId>,
+    metadata: &RuntimeCastMetadata,
+) -> MaterializeResult<()> {
+    validate_materialized_runtime_type_test_contract(
+        materialized,
+        fqn,
+        block,
+        span,
+        "cast",
+        expected_source_ty,
+        expected_target_ty,
+        &metadata.test,
+    )?;
+    if !materialized_runtime_ref_codegen_supported(materialized, expected_target_ty) {
+        return Err(materialized_runtime_contract_err(
+            fqn,
+            block,
+            span,
+            "cast",
+            "cast target must have runtime-ref codegen support",
+        ));
+    }
+
+    match (op, &metadata.failure, &metadata.result) {
+        (
+            ast::CastOp::As,
+            RuntimeCastFailure::Raise { error_fqn, .. },
+            RuntimeCastResult::Target { ty },
+        ) => {
+            if error_fqn != "scoop.core.RuntimeError.ClassCastFailed" {
+                return Err(materialized_runtime_contract_err(
+                    fqn,
+                    block,
+                    span,
+                    "cast",
+                    "`as` cast must raise ClassCastFailed on failure",
+                ));
+            }
+            if *ty != expected_target_ty {
+                return Err(materialized_runtime_contract_err(
+                    fqn,
+                    block,
+                    span,
+                    "cast",
+                    "`as` cast result type must match target type",
+                ));
+            }
+            if expected_result_ty.is_some_and(|result_ty| result_ty != expected_target_ty) {
+                return Err(materialized_runtime_contract_err(
+                    fqn,
+                    block,
+                    span,
+                    "cast",
+                    "`as` cast assignment target must match target type",
+                ));
+            }
+            Ok(())
+        }
+        (
+            ast::CastOp::AsQ,
+            RuntimeCastFailure::ReturnNone,
+            RuntimeCastResult::Option { option_ty, some_ty },
+        ) => {
+            if *some_ty != expected_target_ty {
+                return Err(materialized_runtime_contract_err(
+                    fqn,
+                    block,
+                    span,
+                    "cast",
+                    "`as?` some type must match target type",
+                ));
+            }
+            let TypeKind::Value(ValueTypeKind::Option(payload_ty)) =
+                materialized.types.kind(*option_ty)
+            else {
+                return Err(materialized_runtime_contract_err(
+                    fqn,
+                    block,
+                    span,
+                    "cast",
+                    "`as?` result type must be Option<T>",
+                ));
+            };
+            if *payload_ty != *some_ty {
+                return Err(materialized_runtime_contract_err(
+                    fqn,
+                    block,
+                    span,
+                    "cast",
+                    "`as?` Option payload type must match some type",
+                ));
+            }
+            if expected_result_ty.is_some_and(|result_ty| result_ty != *option_ty) {
+                return Err(materialized_runtime_contract_err(
+                    fqn,
+                    block,
+                    span,
+                    "cast",
+                    "`as?` assignment target must match Option result type",
+                ));
+            }
+            Ok(())
+        }
+        _ => Err(materialized_runtime_contract_err(
+            fqn,
+            block,
+            span,
+            "cast",
+            "failure/result contract does not match cast operator",
+        )),
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn validate_materialized_runtime_type_test_contract(
+    materialized: &MaterializedMir,
+    fqn: &str,
+    block: BasicBlockId,
+    span: Span,
+    primitive: &'static str,
+    expected_source_ty: Option<TypeId>,
+    expected_target_ty: TypeId,
+    metadata: &RuntimeTypeTestMetadata,
+) -> MaterializeResult<()> {
+    if expected_source_ty.is_some_and(|source_ty| metadata.source_ty != source_ty) {
+        return Err(materialized_runtime_contract_err(
+            fqn,
+            block,
+            span,
+            primitive,
+            "source type and operand type disagree",
+        ));
+    }
+    if metadata.target_ty != expected_target_ty || metadata.descriptor.ty != expected_target_ty {
+        return Err(materialized_runtime_contract_err(
+            fqn,
+            block,
+            span,
+            primitive,
+            "target type and runtime descriptor disagree",
+        ));
+    }
+    if !materialized_runtime_descriptor_shape_matches(materialized, &metadata.descriptor) {
+        return Err(materialized_runtime_contract_err(
+            fqn,
+            block,
+            span,
+            primitive,
+            "runtime descriptor kind does not match target type",
+        ));
+    }
+    if metadata.static_fold == RuntimeTypeStaticFold::Dynamic
+        && !materialized_runtime_ref_codegen_supported(materialized, metadata.target_ty)
+    {
+        return Err(materialized_runtime_contract_err(
+            fqn,
+            block,
+            span,
+            primitive,
+            "dynamic runtime type-test target is not supported by codegen",
+        ));
+    }
+    Ok(())
+}
+
+fn materialized_runtime_descriptor_shape_matches(
+    materialized: &MaterializedMir,
+    descriptor: &RuntimeTypeDescriptorKey,
+) -> bool {
+    match (&descriptor.kind, materialized.types.kind(descriptor.ty)) {
+        (RuntimeTypeDescriptorKind::Any, TypeKind::Ref(RefTypeKind::Any)) => true,
+        (RuntimeTypeDescriptorKind::String, TypeKind::Ref(RefTypeKind::String)) => true,
+        (
+            RuntimeTypeDescriptorKind::Nominal { fqn, kind },
+            TypeKind::Ref(RefTypeKind::Nominal(nominal))
+            | TypeKind::Value(ValueTypeKind::Nominal(nominal)),
+        ) => {
+            nominal.fqn == *fqn
+                && kind.is_none_or(|expected| {
+                    nominal_runtime_kind(materialized, &nominal.fqn) == Some(expected)
+                })
+        }
+        (RuntimeTypeDescriptorKind::Function, TypeKind::Ref(RefTypeKind::Function(_))) => true,
+        (RuntimeTypeDescriptorKind::Option, TypeKind::Value(ValueTypeKind::Option(_))) => true,
+        (RuntimeTypeDescriptorKind::Tuple, TypeKind::Value(ValueTypeKind::Tuple(_))) => true,
+        (RuntimeTypeDescriptorKind::Value, TypeKind::Value(_)) => true,
+        (RuntimeTypeDescriptorKind::TypeParam, TypeKind::Param(_)) => true,
+        (RuntimeTypeDescriptorKind::StarProjection, TypeKind::StarProjection(_)) => true,
+        (RuntimeTypeDescriptorKind::Union, TypeKind::Ref(RefTypeKind::Union(_))) => true,
+        _ => false,
+    }
+}
+
+fn nominal_runtime_kind(materialized: &MaterializedMir, fqn: &str) -> Option<ast::TypeKind> {
+    materialized_nominal_metadata_by_fqn(materialized, fqn).map(|metadata| metadata.kind)
+}
+
+fn materialized_runtime_ref_codegen_supported(materialized: &MaterializedMir, ty: TypeId) -> bool {
+    matches!(
+        materialized.types.kind(ty),
+        TypeKind::Ref(RefTypeKind::Any | RefTypeKind::String | RefTypeKind::Nominal(_))
+    )
 }
 
 pub(super) fn validate_materialized_pattern_type_test_metadata(

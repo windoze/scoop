@@ -1,8 +1,8 @@
 // EXPECT: ok
 // SPEC: docs/spec/language_spec-part2.md#1-类型总览;docs/spec/language_spec-part2.md#93-effect-row-参数
-// COVERS: UMB-0035, UMB-0039, UMB-0195, UMB-0377, UMB-0378, UMB-0604, UMB-0718, UMB-0948, UMB-0969, UMB-1050, UMB-1055, UMB-1058, UMB-1183
+// COVERS: NONE
 // BUCKETS: B-02, B-09
-// REASON: P7-B2.1 retired B-02 rows; remaining COVERS IDs belong to still-active B-09.
+// REASON: P7-B2.1 retired B-02 rows; P7-B2.4 retired cross-covered B-09 rows.
 // SOURCE-FIXTURE: tests/fixtures/infer/subtyping_int_to_any_is_ok.scoop
 
 package fixtures.infer

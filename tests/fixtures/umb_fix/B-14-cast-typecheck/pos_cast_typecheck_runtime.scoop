@@ -1,9 +1,8 @@
 // EXPECT: ok
-// IGNORE-UNTIL-FIX:B-14
 // SPEC: docs/spec/language_spec-part3.md#11-类型测试smart-cast-与-cast;docs/spec/language_spec-part3.md#111-is--is;docs/spec/language_spec-part3.md#112-smart-cast;docs/spec/language_spec-part3.md#113-as--as;docs/spec/language_spec-part3.md#16-class-literal
-// COVERS: UMB-0830, UMB-0831, UMB-0832, UMB-0842, UMB-0844, UMB-0845, UMB-0846, UMB-0847, UMB-0850, UMB-0851, UMB-0855, UMB-0856, UMB-0895, UMB-0896, UMB-1045, UMB-1046, UMB-1048, UMB-1049, UMB-1051, UMB-1052, UMB-1053, UMB-1054, UMB-1056, UMB-1059, UMB-1064, UMB-1070, UMB-1071
+// COVERS: NONE
 // BUCKETS: B-14, B-25
-// REASON: U5-T02 records the spec surface before the matching implementation gate is enabled.
+// REASON: P7-B2.4 retired B-14 rows; fixture is active runtime cast/typecheck smoke coverage.
 // SOURCE-FIXTURE: tests/fixtures/run-pass/type_check_cast_is_as_asq_basic.scoop
 
 import scoop.core.*

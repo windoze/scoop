@@ -221,10 +221,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 at: span.into(),
             })?;
         let CgTy::Enum(payload_ty) = payload_value.ty else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "RuntimeError payload cg type",
-                at: span.into(),
-            });
+            panic!(
+                "emit_raise_runtime_error_variant: TypeStore equivalence verifier accepted non-enum RuntimeError payload type"
+            );
         };
         let payload_gc_ref = self.box_composite_effect_transport_value(
             span,

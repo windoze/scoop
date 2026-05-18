@@ -72,23 +72,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             CgTy::Ref => v,
             CgTy::String => self.coerce_value(expr.span, v, CgTy::Ref)?,
             _ => {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "type check operand (ref)",
-                    at: span.into(),
-                });
+                panic!("codegen_type_check_expr: typecheck gate accepted non-runtime-ref operand");
             }
         };
         let Some(raw) = v.value else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "type check operand value",
-                at: span.into(),
-            });
+            panic!("codegen_type_check_expr: typecheck gate accepted valueless operand");
         };
         let BasicValueEnum::PointerValue(obj_ptr) = raw else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "type check operand type",
-                at: span.into(),
-            });
+            panic!("codegen_type_check_expr: typecheck gate accepted non-pointer runtime operand");
         };
 
         let is_ok = self.codegen_ref_is_instance_of(span, obj_ptr, target_ty)?;
@@ -223,10 +214,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 at: span.into(),
             })?;
         let CgTy::Enum(option_ty) = out_cg else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "as? result type (Option<T>)",
-                at: span.into(),
-            });
+            panic!("codegen_cast_asq_expr: typecheck gate accepted non-Option `as?` result type");
         };
 
         let target_cg = self
@@ -239,10 +227,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             CgTy::Ref => self.llvm_gc_i8_ptr_type(),
             CgTy::String => self.llvm_scoop_string_ptr_type(),
             _ => {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "as? target (ref)",
-                    at: span.into(),
-                });
+                panic!(
+                    "codegen_cast_asq_expr: typecheck gate accepted non-runtime-ref `as?` target"
+                );
             }
         };
 
@@ -251,23 +238,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             CgTy::Ref => v,
             CgTy::String => self.coerce_value(expr.span, v, CgTy::Ref)?,
             _ => {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "as? operand (ref)",
-                    at: span.into(),
-                });
+                panic!(
+                    "codegen_cast_asq_expr: typecheck gate accepted non-runtime-ref `as?` operand"
+                );
             }
         };
         let Some(raw) = v.value else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "as? operand value",
-                at: span.into(),
-            });
+            panic!("codegen_cast_asq_expr: typecheck gate accepted valueless `as?` operand");
         };
         let BasicValueEnum::PointerValue(obj_ptr) = raw else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "as? operand type",
-                at: span.into(),
-            });
+            panic!("codegen_cast_asq_expr: typecheck gate accepted non-pointer `as?` operand");
         };
 
         let is_ok = self.codegen_ref_is_instance_of(span, obj_ptr, target_ty)?;
@@ -291,19 +271,17 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         };
         let payload = self.coerce_enum_payload(span, casted, target_cg)?;
         let some_v = self.build_enum_value(span, option_ty, 0, payload)?;
-        let some_raw = some_v.value.ok_or(LlvmEmitError::UnsupportedMainBody {
-            kind: "as? Some value",
-            at: span.into(),
-        })?;
+        let some_raw = some_v.value.unwrap_or_else(|| {
+            panic!("codegen_cast_asq_expr: verified Option Some produced no value")
+        });
         self.builder.build_unconditional_branch(merge_bb)?;
 
         // --- fail：None ---
         self.builder.position_at_end(fail_bb);
         let none_v = self.build_enum_value(span, option_ty, 1, CgEnumPayload::default())?;
-        let none_raw = none_v.value.ok_or(LlvmEmitError::UnsupportedMainBody {
-            kind: "as? None value",
-            at: span.into(),
-        })?;
+        let none_raw = none_v.value.unwrap_or_else(|| {
+            panic!("codegen_cast_asq_expr: verified Option None produced no value")
+        });
         self.builder.build_unconditional_branch(merge_bb)?;
 
         // --- merge ---
@@ -415,15 +393,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     return self.codegen_type_desc_chain_contains_target(at, obj, target_i8);
                 }
 
-                Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "type check target (nominal ref)",
-                    at: at.into(),
-                })
+                panic!(
+                    "codegen_ref_is_instance_of_nonnull: typecheck gate accepted unsupported nominal runtime target"
+                )
             }
-            _ => Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "type check target type",
-                at: at.into(),
-            }),
+            _ => panic!(
+                "codegen_ref_is_instance_of_nonnull: typecheck gate accepted unsupported runtime target type"
+            ),
         }
     }
 

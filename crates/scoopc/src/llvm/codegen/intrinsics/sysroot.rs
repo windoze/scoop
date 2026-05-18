@@ -81,10 +81,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         };
 
         let CgTy::Int(int_ty) = local.ty else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "funptr invoke receiver cg type",
-                at: receiver_expr.span.into(),
-            });
+            panic!(
+                "codegen_sysroot_funptr_invoke: TypeStore equivalence verifier accepted FunPtr receiver with non-int codegen type"
+            );
         };
         let local_ptr =
             self.local_ptr_for_use(receiver_expr.span, local, "load_funptr_receiver_slot")?;

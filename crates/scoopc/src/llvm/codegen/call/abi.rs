@@ -557,7 +557,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     pub(in crate::llvm::codegen) fn as_llvm_arg_value_impl(
         &self,
-        span: crate::span::Span,
+        _span: crate::span::Span,
         param_ty: CgTy,
         value: CgValue<'ctx>,
     ) -> Result<inkwell::values::BasicMetadataValueEnum<'ctx>, LlvmEmitError> {
@@ -573,10 +573,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             | CgTy::Struct(_)
             | CgTy::Enum(_) => value
                 .value
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "call arg value",
-                    at: span.into(),
-                })?
+                .unwrap_or_else(|| {
+                    panic!("as_llvm_arg_value_impl: call ABI verifier accepted valueless call arg")
+                })
                 .into(),
         })
     }
@@ -675,10 +674,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 .unwrap_or_else(|| std::panic::panic_any(kind));
             let target_cg = self
                 .cg_ty_of(param_ty)
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "call arg type",
-                    at: callee_span.into(),
-                })?;
+                .unwrap_or_else(|| {
+                    panic!("codegen_bound_call_args_impl: call ABI verifier accepted unsupported call arg type")
+                });
             let expr = match arg {
                 hir::CallArg::Positional(expr) => expr,
                 hir::CallArg::Named { value, .. } => value,
@@ -706,13 +704,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .enumerate()
             .map(|(param_idx, slot)| {
                 let (expr_span, deferred) = slot.unwrap_or_else(|| std::panic::panic_any(kind));
-                let param_ty =
-                    *param_tys
-                        .get(param_idx)
-                        .ok_or(LlvmEmitError::UnsupportedMainBody {
-                            kind: "call arg param type",
-                            at: callee_span.into(),
-                        })?;
+                let param_ty = *param_tys.get(param_idx).unwrap_or_else(|| {
+                    panic!(
+                        "codegen_bound_call_args_impl: call ABI verifier accepted param index drift"
+                    )
+                });
                 let param_abi = match abi_mode {
                     CallArgAbiMode::Native => None,
                     CallArgAbiMode::Ordinary => {

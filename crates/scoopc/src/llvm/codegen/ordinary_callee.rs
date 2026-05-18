@@ -163,10 +163,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         for local in &plan.saved_locals {
             let cg_ty = self
                 .cg_ty_of(local.ty)
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "callee suspend local type",
-                    at: at.into(),
-                })?;
+                .unwrap_or_else(|| {
+                    panic!("get_or_create_callee_suspend_state_type: MIR call ABI verifier accepted unsupported suspend local type")
+                });
             fields.push(self.llvm_basic_type_of(at, cg_ty)?);
         }
         ty.set_body(&fields, false);

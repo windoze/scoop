@@ -1,6 +1,7 @@
 use super::*;
 use crate::mir::{
-    BasicBlock, LocalSourceKind, MirLoweringFacts, lower_hir_file_for_dump_with_facts,
+    BasicBlock, LocalSourceKind, MirLoweringFacts, MirTransportKind, RuntimeTypeDescriptorKind,
+    RuntimeTypeStaticFold, SiteId, lower_hir_file_for_dump_with_facts,
 };
 use crate::session::Session;
 use crate::source::SourceFile;
@@ -1131,6 +1132,260 @@ fn materialized_mir_pattern_extract_rejects_result_type_drift() {
             error: crate::mir::MirValidationError::TypeContract {
                 surface: "pattern extract result",
                 detail: "pattern extract result type does not match assignment target",
+                ..
+            },
+            ..
+        }
+    ));
+}
+
+#[test]
+fn materialized_mir_call_abi_rejects_direct_call_arity_drift() {
+    let mut types = TypeStore::new();
+    let builtins = types.intern_builtins();
+    let mut caller_body = Body::new_empty();
+    let arg = caller_body.push_local(LocalDecl {
+        span: test_span(),
+        name: Some("arg".to_string()),
+        ty: builtins.int,
+        source: LocalSourceKind::SourceLocal,
+    });
+    let target = caller_body.push_local(LocalDecl {
+        span: test_span(),
+        name: Some("result".to_string()),
+        ty: builtins.int,
+        source: LocalSourceKind::CompilerTemporary,
+    });
+    let bb = caller_body.push_block(BasicBlock {
+        is_cleanup: false,
+        stmts: vec![Statement {
+            span: test_span(),
+            kind: StatementKind::Assign {
+                target,
+                value: Rvalue::Call {
+                    site_id: SiteId::from_raw(0),
+                    kind: CallKind::Direct {
+                        callee_fqn: "fixtures.materialize.callee".to_string(),
+                    },
+                    args: vec![CallArg {
+                        span: test_span(),
+                        name: None,
+                        value: Operand::Local(arg),
+                    }],
+                    transport: CallTransportMetadata::plain_no_outward(
+                        builtins.int,
+                        MirTransportKind::Scalar,
+                    ),
+                },
+            },
+        }],
+        terminator: Terminator {
+            span: test_span(),
+            kind: TerminatorKind::Return { value: None },
+            unwind: UnwindAction::NoUnwind,
+        },
+    });
+    caller_body.start = bb;
+    let file = File {
+        items: vec![
+            Item::Fun(FunDecl {
+                span: test_span(),
+                fqn: "fixtures.materialize.callee".to_string(),
+                name: "callee".to_string(),
+                ty: builtins.int,
+                params: vec![
+                    Param {
+                        span: test_span(),
+                        name: "x".to_string(),
+                        ty: builtins.int,
+                        local: LocalId::from_raw(0),
+                    },
+                    Param {
+                        span: test_span(),
+                        name: "y".to_string(),
+                        ty: builtins.int,
+                        local: LocalId::from_raw(1),
+                    },
+                ],
+                return_ty: builtins.int,
+                body: None,
+            }),
+            Item::Fun(FunDecl {
+                span: test_span(),
+                fqn: "fixtures.materialize.main".to_string(),
+                name: "main".to_string(),
+                ty: builtins.unit,
+                params: Vec::new(),
+                return_ty: builtins.unit,
+                body: Some(caller_body),
+            }),
+        ],
+    };
+    let materialized = materialized_for_test(file, types);
+
+    let err = materialized.validate_materialized().unwrap_err();
+    assert!(matches!(
+        *err,
+        MirMaterializeError::MaterializedMirValidation {
+            error: crate::mir::MirValidationError::TypeContract {
+                surface: "call arguments",
+                detail: "call arguments do not bind exactly to callee parameters",
+                ..
+            },
+            ..
+        }
+    ));
+}
+
+#[test]
+fn materialized_mir_typecheck_contract_rejects_non_bool_result() {
+    let mut types = TypeStore::new();
+    let builtins = types.intern_builtins();
+    let mut body = Body::new_empty();
+    let source = body.push_local(LocalDecl {
+        span: test_span(),
+        name: Some("source".to_string()),
+        ty: builtins.any,
+        source: LocalSourceKind::SourceLocal,
+    });
+    let target = body.push_local(LocalDecl {
+        span: test_span(),
+        name: Some("result".to_string()),
+        ty: builtins.int,
+        source: LocalSourceKind::CompilerTemporary,
+    });
+    let bb = body.push_block(BasicBlock {
+        is_cleanup: false,
+        stmts: vec![Statement {
+            span: test_span(),
+            kind: StatementKind::Assign {
+                target,
+                value: Rvalue::TypeCheck {
+                    value: Operand::Local(source),
+                    op: ast::TypeCheckOp::Is,
+                    test_ty: builtins.string,
+                    metadata: RuntimeTypeTestMetadata {
+                        source_ty: builtins.any,
+                        target_ty: builtins.string,
+                        descriptor: RuntimeTypeDescriptorKey {
+                            ty: builtins.string,
+                            kind: RuntimeTypeDescriptorKind::String,
+                        },
+                        static_fold: RuntimeTypeStaticFold::Dynamic,
+                        parameterized: RuntimeTypeParameterizedMatch::None,
+                    },
+                },
+            },
+        }],
+        terminator: Terminator {
+            span: test_span(),
+            kind: TerminatorKind::Return { value: None },
+            unwind: UnwindAction::NoUnwind,
+        },
+    });
+    body.start = bb;
+    let file = File {
+        items: vec![Item::Fun(FunDecl {
+            span: test_span(),
+            fqn: "fixtures.materialize.main".to_string(),
+            name: "main".to_string(),
+            ty: builtins.unit,
+            params: Vec::new(),
+            return_ty: builtins.unit,
+            body: Some(body),
+        })],
+    };
+    let materialized = materialized_for_test(file, types);
+
+    let err = materialized.validate_materialized().unwrap_err();
+    assert!(matches!(
+        *err,
+        MirMaterializeError::MaterializedMirValidation {
+            error: crate::mir::MirValidationError::TypeContract {
+                surface: "typecheck result",
+                detail: "typecheck result target must have Bool type",
+                ..
+            },
+            ..
+        }
+    ));
+}
+
+#[test]
+fn materialized_mir_cast_contract_rejects_asq_option_payload_drift() {
+    let mut types = TypeStore::new();
+    let builtins = types.intern_builtins();
+    let option_int = types.ty_option(builtins.int);
+    let mut body = Body::new_empty();
+    let source = body.push_local(LocalDecl {
+        span: test_span(),
+        name: Some("source".to_string()),
+        ty: builtins.any,
+        source: LocalSourceKind::SourceLocal,
+    });
+    let target = body.push_local(LocalDecl {
+        span: test_span(),
+        name: Some("result".to_string()),
+        ty: option_int,
+        source: LocalSourceKind::CompilerTemporary,
+    });
+    let bb = body.push_block(BasicBlock {
+        is_cleanup: false,
+        stmts: vec![Statement {
+            span: test_span(),
+            kind: StatementKind::Assign {
+                target,
+                value: Rvalue::Cast {
+                    value: Operand::Local(source),
+                    op: ast::CastOp::AsQ,
+                    target_ty: builtins.string,
+                    metadata: RuntimeCastMetadata {
+                        test: RuntimeTypeTestMetadata {
+                            source_ty: builtins.any,
+                            target_ty: builtins.string,
+                            descriptor: RuntimeTypeDescriptorKey {
+                                ty: builtins.string,
+                                kind: RuntimeTypeDescriptorKind::String,
+                            },
+                            static_fold: RuntimeTypeStaticFold::Dynamic,
+                            parameterized: RuntimeTypeParameterizedMatch::None,
+                        },
+                        failure: RuntimeCastFailure::ReturnNone,
+                        result: RuntimeCastResult::Option {
+                            option_ty: option_int,
+                            some_ty: builtins.string,
+                        },
+                    },
+                },
+            },
+        }],
+        terminator: Terminator {
+            span: test_span(),
+            kind: TerminatorKind::Return { value: None },
+            unwind: UnwindAction::NoUnwind,
+        },
+    });
+    body.start = bb;
+    let file = File {
+        items: vec![Item::Fun(FunDecl {
+            span: test_span(),
+            fqn: "fixtures.materialize.main".to_string(),
+            name: "main".to_string(),
+            ty: builtins.unit,
+            params: Vec::new(),
+            return_ty: builtins.unit,
+            body: Some(body),
+        })],
+    };
+    let materialized = materialized_for_test(file, types);
+
+    let err = materialized.validate_materialized().unwrap_err();
+    assert!(matches!(
+        *err,
+        MirMaterializeError::MaterializedMirValidation {
+            error: crate::mir::MirValidationError::ProductionRuntimeValueMetadata {
+                primitive: "cast",
+                detail: "`as?` Option payload type must match some type",
                 ..
             },
             ..

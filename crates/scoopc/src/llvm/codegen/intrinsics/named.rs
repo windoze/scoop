@@ -1112,10 +1112,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 self.equivalent_codegen_type_id(mir_types, source_ty)
                     .and_then(|ty| self.cg_ty_of(ty))
             })
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "named intrinsic MIR operand codegen type",
-                at: arg.span.into(),
-            })?;
+            .unwrap_or_else(|| {
+                panic!("lower_named_intrinsic_mir_operand: TypeStore equivalence verifier accepted unsupported named intrinsic operand codegen type")
+            });
         let value =
             self.codegen_mir_operand_expected(arg.span, &arg.value, slots, Some(operand_cg))?;
         let value = self.coerce_value(arg.span, value, operand_cg)?;

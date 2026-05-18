@@ -94,10 +94,9 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
                 let expected = self
                     .codegen
                     .cg_ty_of_mir_type(self.source_types, source_ty)
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "funptr carrier cg type",
-                        at: span.into(),
-                    })?;
+                    .unwrap_or_else(|| {
+                        panic!("lower_dynamic_call_carrier: TypeStore equivalence verifier accepted unsupported FunPtr carrier codegen type")
+                    });
                 (callee, expected)
             }
             (

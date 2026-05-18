@@ -257,12 +257,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         uses_native_abi: bool,
         source_types: &TypeStore,
     ) -> Result<Vec<EvaluatedCallArg<'ctx>>, LlvmEmitError> {
-        let arg_to_param = map_mir_call_args_to_param_names(param_names, args).ok_or(
-            LlvmEmitError::UnsupportedMainBody {
-                kind: "pass MIR call arg binding",
-                at: span.into(),
-            },
-        )?;
+        let arg_to_param = map_mir_call_args_to_param_names(param_names, args).unwrap_or_else(|| {
+            panic!("codegen_bound_mir_call_args_from_signature: MIR call ABI verifier accepted arg binding drift")
+        });
 
         let mut evaluated: Vec<Option<(crate::span::Span, DeferredCgValue<'ctx>)>> =
             vec![None; param_tys.len()];
@@ -276,10 +273,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         .and_then(|ty| self.cg_ty_of(ty))
                 })
                 .or_else(|| self.cg_ty_of(param_ty))
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "pass MIR call arg type",
-                    at: arg.span.into(),
-                })?;
+                .unwrap_or_else(|| {
+                    panic!("codegen_bound_mir_call_args_from_signature: TypeStore equivalence verifier accepted unsupported call arg type")
+                });
             let value =
                 self.codegen_mir_operand_expected(arg.span, &arg.value, slots, Some(target_cg))?;
             let coerced = self.coerce_value(arg.span, value, target_cg)?;
@@ -295,10 +291,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .into_iter()
             .enumerate()
             .map(|(param_idx, slot)| {
-                let (arg_span, deferred) = slot.ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "pass MIR call arg binding",
-                    at: span.into(),
-                })?;
+                let (arg_span, deferred) = slot.unwrap_or_else(|| {
+                    panic!("codegen_bound_mir_call_args_from_signature: MIR call ABI verifier accepted missing evaluated arg slot")
+                });
                 let param_ty = param_tys[param_idx];
                 let abi_ty = self
                     .equivalent_codegen_type_id(source_types, param_ty)
@@ -348,31 +343,25 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     pub(in crate::llvm::codegen) fn codegen_bound_materialized_mir_call_args(
         &mut self,
-        span: crate::span::Span,
+        _span: crate::span::Span,
         mir_fun: &crate::mir::FunDecl,
         mir_types: &TypeStore,
         args: &[crate::mir::CallArg],
         slots: &[MirLocalSlot<'ctx>],
         uses_native_abi: bool,
     ) -> Result<Vec<EvaluatedCallArg<'ctx>>, LlvmEmitError> {
-        let arg_to_param = map_mir_call_args_to_mir_params(&mir_fun.params, args).ok_or(
-            LlvmEmitError::UnsupportedMainBody {
-                kind: "pass MIR call arg binding",
-                at: span.into(),
-            },
-        )?;
+        let arg_to_param = map_mir_call_args_to_mir_params(&mir_fun.params, args).unwrap_or_else(|| {
+            panic!("codegen_bound_materialized_mir_call_args: MIR call ABI verifier accepted arg binding drift")
+        });
 
         let mut evaluated: Vec<Option<(crate::span::Span, DeferredCgValue<'ctx>)>> =
             vec![None; mir_fun.params.len()];
         for (arg_idx, arg) in args.iter().enumerate() {
             let param_idx = arg_to_param[arg_idx];
             let param = &mir_fun.params[param_idx];
-            let target_cg = self.cg_ty_of_mir_type(mir_types, param.ty).ok_or(
-                LlvmEmitError::UnsupportedMainBody {
-                    kind: "pass MIR call arg type",
-                    at: arg.span.into(),
-                },
-            )?;
+            let target_cg = self.cg_ty_of_mir_type(mir_types, param.ty).unwrap_or_else(|| {
+                panic!("codegen_bound_materialized_mir_call_args: TypeStore equivalence verifier accepted unsupported call arg type")
+            });
             let value =
                 self.codegen_mir_operand_expected(arg.span, &arg.value, slots, Some(target_cg))?;
             let coerced = self.coerce_value(arg.span, value, target_cg)?;
@@ -388,10 +377,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .into_iter()
             .enumerate()
             .map(|(param_idx, slot)| {
-                let (arg_span, deferred) = slot.ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "pass MIR call arg binding",
-                    at: span.into(),
-                })?;
+                let (arg_span, deferred) = slot.unwrap_or_else(|| {
+                    panic!("codegen_bound_materialized_mir_call_args: MIR call ABI verifier accepted missing evaluated arg slot")
+                });
                 let param = &mir_fun.params[param_idx];
                 let abi_ty = self.equivalent_codegen_type_id(mir_types, param.ty).unwrap_or_else(|| {
                     panic!(

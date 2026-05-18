@@ -1,12 +1,11 @@
 // EXPECT: fail
-// IGNORE-UNTIL-FIX:B-09
-// EXPECT-ERROR-CODE: scoop::umb_fix::pending_gate
-// EXPECT-ERROR-AT: 1:1
-// EXPECT-ERROR: pending U5 fixture gate
+// EXPECT-ERROR-CODE: scoop::typecheck::cyclic_type_alias
+// EXPECT-ERROR-AT: 14:11
+// EXPECT-ERROR: 循环的类型别名
 // SPEC: docs/spec/language_spec-part2.md#10-类型别名
 // COVERS: NONE
 // BUCKETS: B-09
-// REASON: U5-T02 records the spec surface before the matching implementation gate is enabled.
+// REASON: P7-B2.4 retired B-09 rows; fixture is active typealias cycle coverage.
 // SOURCE-FIXTURE: tests/fixtures/typecheck/typealias_cycle_is_error.scoop
 
 package fixtures.typecheck

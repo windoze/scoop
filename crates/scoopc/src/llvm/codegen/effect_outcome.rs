@@ -593,16 +593,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 };
                 let first_cg =
                     self.cg_ty_of(elements[0])
-                        .ok_or(LlvmEmitError::UnsupportedMainBody {
-                            kind: "task transport tuple first element codegen type",
-                            at: at.into(),
-                        })?;
+                        .unwrap_or_else(|| {
+                            panic!("decode_effect_transport_value: TypeStore equivalence verifier accepted unsupported task transport tuple first element type")
+                        });
                 let second_cg =
                     self.cg_ty_of(elements[1])
-                        .ok_or(LlvmEmitError::UnsupportedMainBody {
-                            kind: "task transport tuple second element codegen type",
-                            at: at.into(),
-                        })?;
+                        .unwrap_or_else(|| {
+                            panic!("decode_effect_transport_value: TypeStore equivalence verifier accepted unsupported task transport tuple second element type")
+                        });
                 let first = self.decode_effect_transport_value(at, word, gc_ref, first_cg)?;
                 let second = self.decode_effect_transport_value(at, word, gc_ref, second_cg)?;
                 let llvm_tuple_ty = self.llvm_tuple_type(at, tuple_ty)?;

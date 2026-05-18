@@ -1,9 +1,8 @@
 // EXPECT: ok
-// IGNORE-UNTIL-FIX:B-03
 // SPEC: docs/spec/language_spec-part3.md#172-lambda-参数推断;docs/spec/language_spec-part3.md#4-调用参数与重载;docs/spec/language_spec-part3.md#41-函数调用;docs/spec/language_spec-part3.md#42-default-arguments;docs/spec/language_spec-part3.md#43-vararg-与-spread;docs/spec/language_spec-part3.md#44-trailing-lambda;docs/spec/language_spec-part3.md#45-重载决议
-// COVERS: UMB-0011, UMB-0016, UMB-0019, UMB-0023, UMB-0024, UMB-0025, UMB-0027, UMB-0028, UMB-0030, UMB-0032, UMB-0041, UMB-0042, UMB-0043, UMB-0044, UMB-0045, UMB-0046, UMB-0047, UMB-0048, UMB-0050, UMB-0053, UMB-0054, UMB-0055, UMB-0056, UMB-0057, UMB-0058, UMB-0059, UMB-0988, UMB-0989, UMB-0990, UMB-0991, UMB-0992, UMB-0993, UMB-0996, UMB-0998, UMB-0999, UMB-1000, UMB-1001, UMB-1002, UMB-1003, UMB-1006, UMB-1010, UMB-1011, UMB-1012, UMB-1016, UMB-1021, UMB-1022, UMB-1026, UMB-1029, UMB-1030, UMB-1031, UMB-1033, UMB-1034, UMB-1038, UMB-1039, UMB-1040, UMB-1244
+// COVERS: NONE
 // BUCKETS: B-03, B-04
-// REASON: U5-T02 records the spec surface before the matching implementation gate is enabled.
+// REASON: P7-B2.4 retired B-03 rows; fixture is active function-value call ABI smoke coverage.
 // SOURCE-FIXTURE: tests/fixtures/infer/function_value_call_ok.scoop
 
 package fixtures.infer

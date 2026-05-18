@@ -346,12 +346,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         env_cg: CgTy,
         contract: &crate::mir::ClosureEnvTransportMetadata,
     ) -> Result<Vec<CgTy>, LlvmEmitError> {
-        let contract_env_cg = self.cg_ty_of_mir_type(mir_types, contract.env_ty).ok_or(
-            LlvmEmitError::UnsupportedMainBody {
-                kind: "pass MIR closure env contract codegen type",
-                at: span.into(),
-            },
-        )?;
+        let contract_env_cg = self.cg_ty_of_mir_type(mir_types, contract.env_ty).unwrap_or_else(|| {
+            panic!("mir_closure_env_capture_element_cg_tys_from_contract: TypeStore equivalence verifier accepted unsupported closure env contract codegen type")
+        });
         if contract_env_cg != env_cg {
             return Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "pass MIR closure env contract mismatch",

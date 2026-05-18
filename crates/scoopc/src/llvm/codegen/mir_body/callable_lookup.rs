@@ -212,10 +212,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             };
             owner_fqn = parent;
         }
-        Err(LlvmEmitError::UnsupportedMainBody {
-            kind: "pass MIR callable source path",
-            at: span.into(),
-        })
+        panic!(
+            "materialized_mir_callable_source_id: MIR call ABI verifier accepted callable without source path"
+        )
     }
 
     pub(in crate::llvm::codegen) fn declare_materialized_mir_closure_fun(
@@ -333,12 +332,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             )));
         }
 
-        let ret_cg = self.cg_ty_of_mir_type(mir_types, return_ty).ok_or(
-            LlvmEmitError::UnsupportedMainBody {
-                kind: "pass MIR plain return type",
-                at: mir_fun.span.into(),
-            },
-        )?;
+        let ret_cg = self.cg_ty_of_mir_type(mir_types, return_ty).unwrap_or_else(|| {
+            panic!("declare_materialized_mir_plain_fun_with_symbol: MIR call ABI verifier accepted unsupported plain return type")
+        });
         let hidden_sret_result_ty = self.hidden_sret_result_ty(mir_fun.span, ret_cg)?;
         let mut llvm_param_tys: Vec<BasicMetadataTypeEnum<'ctx>> =
             Vec::with_capacity(mir_fun.params.len() + usize::from(hidden_sret_result_ty.is_some()));
@@ -347,18 +343,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             llvm_param_tys.push(self.context.ptr_type(AddressSpace::default()).into());
         }
         for (param, param_ty) in mir_fun.params.iter().zip(param_tys.iter().copied()) {
-            let param_ty = self.equivalent_codegen_type_id(mir_types, param_ty).ok_or_else(|| {
+            let param_ty = self.equivalent_codegen_type_id(mir_types, param_ty).unwrap_or_else(|| {
                 tracing::warn!(
                     "declare_materialized_mir_plain_fun_with_symbol: unsupported param type for {} param {} -> {}",
                     mir_fun.fqn,
                     param.name,
                     mir_types.display(param_ty)
                 );
-                LlvmEmitError::UnsupportedMainBody {
-                    kind: "pass MIR plain param type",
-                    at: param.span.into(),
-                }
-            })?;
+                panic!("declare_materialized_mir_plain_fun_with_symbol: TypeStore equivalence verifier accepted unsupported plain param type")
+            });
             llvm_param_tys.push(
                 self.ordinary_param_abi(param.span, param_ty)?
                     .llvm_param_ty(),
@@ -400,11 +393,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let Some(body) = mir_fun.body.as_ref() else {
             return Ok(());
         };
-        body.validate_cfg()
-            .map_err(|_| LlvmEmitError::UnsupportedMainBody {
-                kind: "pass MIR cfg",
-                at: mir_fun.span.into(),
-            })?;
+        body.validate_cfg().unwrap_or_else(|_| {
+            panic!(
+                "codegen_materialized_mir_closure_fun: MIR call ABI verifier accepted invalid CFG"
+            )
+        });
         ensure_raw_mir_body_route_is_safe(&mir_fun.fqn, body)?;
         self.function_cx.current_callable_fqn = Some(mir_fun.fqn.clone());
 
@@ -425,10 +418,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             Some(
                 llvm_fun
                     .get_nth_param(0)
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "missing pass MIR llvm function sret param",
-                        at: mir_fun.span.into(),
-                    })?
+                    .unwrap_or_else(|| {
+                        panic!("codegen_materialized_mir_closure_fun: MIR call ABI verifier accepted missing sret param")
+                    })
                     .into_pointer_value(),
             )
         } else {
@@ -459,10 +451,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let start_bb = llvm_blocks
             .get(body.start.as_u32() as usize)
             .copied()
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "pass MIR start block",
-                at: mir_fun.span.into(),
-            })?;
+            .unwrap_or_else(|| {
+                panic!("codegen_materialized_mir_closure_fun: MIR call ABI verifier accepted missing start block")
+            });
         self.builder.build_unconditional_branch(start_bb)?;
 
         for (idx, block) in body.blocks.iter().enumerate() {
@@ -530,26 +521,22 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let _ = self.store_local_value(env_param.span, env_slot.ptr, env_slot.cg_ty, env_init)?;
 
         for (idx, param) in mir_fun.params.iter().enumerate().skip(1) {
-            let slot = slots.get(param.local.as_u32() as usize).copied().ok_or(
-                LlvmEmitError::UnsupportedMainBody {
-                    kind: "pass MIR param local",
-                    at: param.span.into(),
-                },
-            )?;
-            let param_ty = self.equivalent_codegen_type_id(mir_types, param.ty).ok_or(
-                LlvmEmitError::UnsupportedMainBody {
-                    kind: "pass MIR param type",
-                    at: param.span.into(),
-                },
-            )?;
+            let slot = slots
+                .get(param.local.as_u32() as usize)
+                .copied()
+                .unwrap_or_else(|| {
+                    panic!("bind_mir_closure_params: MIR call ABI verifier accepted missing param local slot")
+                });
+            let param_ty = self.equivalent_codegen_type_id(mir_types, param.ty).unwrap_or_else(|| {
+                panic!("bind_mir_closure_params: TypeStore equivalence verifier accepted unsupported param type")
+            });
             let abi = self.ordinary_param_abi(param.span, param_ty)?;
             let init = if let Some(pointee_ty) = abi.pointee_ty() {
                 let param_ptr = llvm_fun
                     .get_nth_param(idx as u32 + param_offset)
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "missing pass MIR llvm param",
-                        at: param.span.into(),
-                    })?
+                    .unwrap_or_else(|| {
+                        panic!("bind_mir_closure_params: MIR call ABI verifier accepted missing LLVM param")
+                    })
                     .into_pointer_value();
                 let loaded =
                     self.builder

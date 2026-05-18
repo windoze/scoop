@@ -359,12 +359,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     "codegen_mir_tuple_get: MIR verifier accepted unsupported tuple element type"
                 )
             });
-        let tuple_cg = self.mir_operand_cg_ty(body, mir_types, tuple).ok_or(
-            LlvmEmitError::UnsupportedMainBody {
-                kind: "pass MIR tuple operand cg type",
-                at: span.into(),
-            },
-        )?;
+        let tuple_cg = self.mir_operand_cg_ty(body, mir_types, tuple).unwrap_or_else(|| {
+            panic!("codegen_mir_tuple_get: TypeStore equivalence verifier accepted unsupported tuple operand codegen type")
+        });
         let value = self.codegen_mir_operand_expected(span, tuple, slots, Some(tuple_cg))?;
         let tuple_v = value
             .value
