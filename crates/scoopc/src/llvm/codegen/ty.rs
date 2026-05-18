@@ -110,16 +110,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     fn enum_layout_key(
         &self,
-        at: crate::span::Span,
+        _at: crate::span::Span,
         enum_ty: TypeId,
         unsupported_kind: &'static str,
     ) -> Result<String, LlvmEmitError> {
-        let types = self.codegen_type_store_for_type_id(enum_ty).ok_or(
-            LlvmEmitError::UnsupportedMainBody {
-                kind: unsupported_kind,
-                at: at.into(),
-            },
-        )?;
+        let types = self
+            .codegen_type_store_for_type_id(enum_ty)
+            .unwrap_or_else(|| std::panic::panic_any(unsupported_kind));
         match types.kind(enum_ty) {
             TypeKind::Value(ValueTypeKind::Option(inner)) => Ok(crate::hir::mangle_nominal_fqn(
                 "scoop.core.Option",
@@ -129,10 +126,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             TypeKind::Value(ValueTypeKind::Nominal(nominal)) => {
                 Ok(self.nominal_layout_key_from_types(nominal, types))
             }
-            _ => Err(LlvmEmitError::UnsupportedMainBody {
-                kind: unsupported_kind,
-                at: at.into(),
-            }),
+            _ => std::panic::panic_any(unsupported_kind),
         }
     }
 
@@ -516,20 +510,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     pub(super) fn llvm_struct_type(
         &mut self,
-        at: crate::span::Span,
+        _at: crate::span::Span,
         ty: TypeId,
     ) -> Result<StructType<'ctx>, LlvmEmitError> {
-        let types =
-            self.codegen_type_store_for_type_id(ty)
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "struct type id",
-                    at: at.into(),
-                })?;
+        let types = self
+            .codegen_type_store_for_type_id(ty)
+            .expect("struct TypeId must belong to a codegen TypeStore");
         let TypeKind::Value(ValueTypeKind::Nominal(nominal)) = types.kind(ty) else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "struct type id",
-                at: at.into(),
-            });
+            std::panic::panic_any("struct LLVM type lookup must receive a nominal value type");
         };
 
         // T0124：使用 mangled FQN 查找（支持泛型 struct 的具体实例化）。
@@ -537,10 +525,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let layout = self
             .struct_layouts
             .get(&key)
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "struct layout",
-                at: at.into(),
-            })?;
+            .expect("struct layout must exist before LLVM type lowering");
 
         if let Some(existing) = self.context.get_struct_type(&layout.fqn) {
             // T0119: LLVM struct 可能已由更早的 lowering 路径创建，而共享 packed-field cache
@@ -733,20 +718,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         match repr {
             CgEnumRepr::TaggedUnion => {
-                let types = self.codegen_type_store_for_type_id(ty).ok_or(
-                    LlvmEmitError::UnsupportedMainBody {
-                        kind: "enum type id",
-                        at: at.into(),
-                    },
-                )?;
+                let types = self
+                    .codegen_type_store_for_type_id(ty)
+                    .expect("enum TypeId must belong to a codegen TypeStore");
                 let fqn = match types.kind(ty) {
                     TypeKind::Value(ValueTypeKind::Option(_)) => "scoop.core.Option",
                     TypeKind::Value(ValueTypeKind::Nominal(nominal)) => nominal.fqn.as_str(),
                     _ => {
-                        return Err(LlvmEmitError::UnsupportedMainBody {
-                            kind: "enum type id",
-                            at: at.into(),
-                        });
+                        std::panic::panic_any(
+                            "enum LLVM type lookup must receive an enum value type",
+                        );
                     }
                 };
 

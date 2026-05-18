@@ -255,10 +255,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let raw = call
             .try_as_basic_value()
             .basic()
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "scoop_alloc_typed return value",
-                at: span.into(),
-            })?;
+            .expect("scoop_alloc_typed must return a closure object pointer");
         let BasicValueEnum::PointerValue(obj_i8) = raw else {
             return Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "scoop_alloc_typed return type",
@@ -340,13 +337,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 &[env_desc_i8.into(), size_v.into()],
                 "rt_alloc_closure_env",
             )?;
-            let raw =
-                call.try_as_basic_value()
-                    .basic()
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "scoop_alloc_typed return value",
-                        at: span.into(),
-                    })?;
+            let raw = call
+                .try_as_basic_value()
+                .basic()
+                .expect("scoop_alloc_typed must return a closure env pointer");
             let BasicValueEnum::PointerValue(env_i8) = raw else {
                 return Err(LlvmEmitError::UnsupportedMainBody {
                     kind: "scoop_alloc_typed return type",

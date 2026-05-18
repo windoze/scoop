@@ -331,10 +331,9 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
             } => self
                 .codegen
                 .codegen_mir_store_top_level_var(stmt.span, fqn, value, *value_ty, self.slots),
-            mir::StatementKind::Todo(_) => Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "pure statement todo",
-                at: stmt.span.into(),
-            }),
+            mir::StatementKind::Todo(_) => std::panic::panic_any(
+                "MIR verifier must reject Todo statements before effect lowering",
+            ),
         }
     }
 
@@ -1559,12 +1558,10 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
             return Ok(value);
         }
         if callee_fqn == "scoop.thread.yield" {
-            if !args.is_empty() {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "thread.yield arg contract",
-                    at: span.into(),
-                });
-            }
+            assert!(
+                args.is_empty(),
+                "typecheck must reject thread.yield arguments before LLVM codegen"
+            );
             let rt = self.codegen.declare_runtime_thread_yield();
             let _ =
                 self.codegen

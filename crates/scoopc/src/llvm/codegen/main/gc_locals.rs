@@ -37,15 +37,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 let base = inst
                     .get_operand(0)
                     .and_then(|operand| operand.value())
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "local slot load base operand",
-                        at: at.into(),
-                    })?;
+                    .expect("load instruction must expose its base operand");
                 let BasicValueEnum::PointerValue(base_ptr) = base else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "local slot load base pointer type",
-                        at: at.into(),
-                    });
+                    std::panic::panic_any("load base operand must be a pointer");
                 };
                 let base_ptr =
                     self.rematerialize_ptr_in_current_block(at, base_ptr, &format!("{name}_base"))?;
@@ -85,15 +79,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let base = inst
             .get_operand(0)
             .and_then(|operand| operand.value())
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "local slot gep base operand",
-                at: at.into(),
-            })?;
+            .expect("GEP instruction must expose its base operand");
         let BasicValueEnum::PointerValue(base_ptr) = base else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "local slot gep base pointer type",
-                at: at.into(),
-            });
+            std::panic::panic_any("GEP base operand must be a pointer");
         };
         let base_ptr =
             self.rematerialize_ptr_in_current_block(at, base_ptr, &format!("{name}_base"))?;
@@ -362,10 +350,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         match value.ty {
             CgTy::Unit => Ok(CgValue::unit()),
             CgTy::Never => Ok(CgValue::never()),
-            _ => Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "reload deferred value without clearing",
-                at: at.into(),
-            }),
+            _ => std::panic::panic_any("non-unit deferred value must have immediate or spill"),
         }
     }
 
@@ -408,10 +393,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         match value.ty {
             CgTy::Unit => Ok(CgValue::unit()),
             CgTy::Never => Ok(CgValue::never()),
-            _ => Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "materialize deferred value",
-                at: at.into(),
-            }),
+            _ => std::panic::panic_any("non-unit deferred value must have immediate or spill"),
         }
     }
 }

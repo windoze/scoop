@@ -203,16 +203,13 @@ fn ensure_raw_mir_body_route_is_safe(
 }
 
 fn mir_empty_return_contract_is_lowerable(
-    span: crate::span::Span,
+    _span: crate::span::Span,
     declared_return_cg: CgTy,
 ) -> Result<(), LlvmEmitError> {
     if matches!(declared_return_cg, CgTy::Unit) {
         return Ok(());
     }
-    Err(LlvmEmitError::UnsupportedMainBody {
-        kind: "pass MIR non-Unit empty return",
-        at: span.into(),
-    })
+    std::panic::panic_any("MIR verifier must reject non-Unit empty returns before LLVM codegen")
 }
 
 fn mir_direct_call_base_fqn(fqn: &str) -> &str {
@@ -557,10 +554,8 @@ mod tests {
     }
 
     fn assert_unsupported_kind(result: Result<(), LlvmEmitError>, expected: &'static str) {
-        match result.expect_err("helper should reject invalid member contract") {
-            LlvmEmitError::UnsupportedMainBody { kind, .. } => assert_eq!(kind, expected),
-            other => panic!("unexpected error: {other:?}"),
-        }
+        let err = result.expect_err("helper should reject invalid member contract");
+        assert_eq!(err.unsupported_main_body_kind(), Some(expected));
     }
 
     fn test_span() -> crate::span::Span {

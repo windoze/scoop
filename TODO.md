@@ -4,7 +4,7 @@
 > 计划基线：[`PLAN.md`](./PLAN.md)
 > 上一阶段任务档案：[`TODO-1.md`](./TODO-1.md)
 > 设计与 baseline：[`UnsupportedMainBody_FIX.md`](./UnsupportedMainBody_FIX.md)、[`UnsupportedMainBody_DONE.md`](./UnsupportedMainBody_DONE.md)
-> 当前状态：P7-0-T01、P7-0-T02、P7-A1、P7-A2、P7-A3 已完成；active=1,217，retired=67。
+> 当前状态：P7-0-T01、P7-0-T02、P7-A1、P7-A2、P7-A3、P7-A4 已完成；active=1,159，retired=125。
 
 ## 全局约束
 
@@ -234,7 +234,7 @@ P7-0-T01 stable ID + retired ledger
   - 验证结果：`cargo run -p scoopc --bin umb-audit -- list --bucket B-15` 通过（entries 0）；`cargo run -p scoopc --bin umb-audit -- diff` 通过（in sync，1,217 entries）；`cargo run -p scoopc --bin umb-audit -- stats` 通过（active=1,217、retired=67、initial=1,284）；`cargo test -p scoopc audit:: -- --nocapture` 通过（23 passed）；`cargo test -p scoopc pipeline_user_visible_failure_policy -- --nocapture` 通过（7 passed）；`cargo run -p scoop -- test tests/fixtures/umb_fix/B-15-when-pattern/` 通过（7 passed）；`cargo run -p scoop -- test tests/fixtures/typecheck/` 通过（493 passed）；`cargo fmt` 通过；`cargo clippy --all-targets -- -D warnings` 通过。
   - 闭合目标：满足 `PLAN.md:100-117` 与本任务完成条件；B-15 active count 为 0，`when` negative fixtures active 并通过，错误文案不含 forbidden terms。
 
-### [TODO] P7-A4：B-36 spec-uncovered surface 早拒
+### [DONE] P7-A4：B-36 spec-uncovered surface 早拒
 
 - 参考：`PLAN.md:100-117`、`audit/strategies/B-36.md`、`tests/fixtures/umb_fix/B-36-spec-uncovered/`。
 - 范围：B-36，58 entries，`FrontendReject`。
@@ -250,7 +250,15 @@ P7-0-T01 stable ID + retired ledger
   3. `cargo run -p scoop -- test tests/fixtures/umb_fix/B-36-spec-uncovered/`
 - 完成条件：B-36 active count 为 0；D 类相关 fixture active 并通过；未引入 spec 扩展。
 - 依赖：P7-0-T02。
-- 完成记录：待填写。
+- 完成记录：
+  - 改动范围：更新 `crates/scoopc/src/resolve/mod.rs`、`crates/scoopc/src/resolve/scopes.rs`、多处 `crates/scoopc/src/llvm/codegen/**` B-36 fallback、`crates/scoopc/src/pipeline_user_visible_failure_policy.rs`、`crates/scoopc/src/llvm/mod.rs`；同步 `audit/UMB_inventory.csv`、`audit/UMB_retired.csv`、`audit/UMB_categories/B-36.md`、`audit/UMB_categories/_overview.md`、`audit/strategies/B-36.md`、`audit/spec_coverage_matrix.md`、B-36 fixtures、`tests/fixtures/umb_fix/_index.csv` 与 `memory/claude_plan.md`。
+  - Retired IDs：`UMB-0005`、`UMB-0008`、`UMB-0009`、`UMB-0012`、`UMB-0013`、`UMB-0014`、`UMB-0015`、`UMB-0017`、`UMB-0018`、`UMB-0097`、`UMB-0101`、`UMB-0189`、`UMB-0225`、`UMB-0239`、`UMB-0411`、`UMB-0412`、`UMB-0413`、`UMB-0418`、`UMB-0739`、`UMB-0743`、`UMB-0744`、`UMB-0747`、`UMB-0748`、`UMB-0749`、`UMB-0756`、`UMB-0759`、`UMB-0760`、`UMB-0761`、`UMB-0768`、`UMB-0769`、`UMB-0771`、`UMB-0773`、`UMB-0818`、`UMB-0819`、`UMB-0829`、`UMB-0879`、`UMB-0886`、`UMB-0893`、`UMB-0894`、`UMB-0897`、`UMB-0898`、`UMB-0902`、`UMB-0903`、`UMB-0915`、`UMB-0916`、`UMB-1176`、`UMB-1182`、`UMB-1190`、`UMB-1197`、`UMB-1213`、`UMB-1265`、`UMB-1270`、`UMB-1271`、`UMB-1273`、`UMB-1274`、`UMB-1275`、`UMB-1278`、`UMB-1279`；数量 58；bucket `B-36`；class `FrontendReject`。
+  - 核心决策：新增 resolve 级 `async`/`await` 与 generator/`yield` spec-uncovered surface diagnostic；不扩展 spec 语义；LLVM B-36 `UnsupportedMainBody` fallback 改为上游 gate 后的 internal invariant/expectation。
+  - Inventory/ledger：active 1,217 -> 1,159；retired 67 -> 125；B-36 active 58 -> 0；`FrontendReject` active 58 -> 0。
+  - Stale count：tracked stale total 633 -> 610；`effect_lowered/value.rs` 139 -> 137；`main/alloca.rs` 7 -> 6；`main/boxing.rs` 6 -> 3；`main/context.rs` 4 -> 2；`main/declare.rs` 8 -> 7；`main/frame.rs` 12 -> 10；`main/gc_locals.rs` 11 -> 5；`main/identity.rs` 6 -> 4；`mir_body/mod.rs` 6 -> 5；`mir_body/operand.rs` 8 -> 7；`mir_body/terminator.rs` 19 -> 18；`mir_body/transport.rs` 10 -> 9。
+  - Fixture 状态：B-36 fixture directory 从 `IGNORE-UNTIL-FIX:B-36` 激活；async/await、generator/yield、spec-meta placeholder negative fixtures 使用 frontend resolve diagnostics；annotation fixtures active 但 `COVERS: NONE`；retired IDs 改由 retired ledger 覆盖，active fixture `COVERS` 不再引用 retired IDs。
+  - 验证结果：`cargo run -p scoopc --bin umb-audit -- list --bucket B-36` 通过（entries 0）；`cargo run -p scoopc --bin umb-audit -- diff` 通过（in sync，1,159 entries）；`cargo run -p scoopc --bin umb-audit -- stats` 通过（active=1,159、retired=125、initial=1,284）；`cargo test -p scoopc audit:: -- --nocapture` 通过（23 passed）；`cargo test -p scoopc pipeline_user_visible_failure_policy -- --nocapture` 通过（7 passed）；`cargo run -p scoop -- test tests/fixtures/umb_fix/B-36-spec-uncovered/` 通过（6 passed）；`cargo fmt` 通过；`cargo clippy --all-targets -- -D warnings` 通过。
+  - 闭合目标：满足 `PLAN.md:100-117` 与本任务完成条件；B-36 active count 为 0，D 类相关 fixtures active 并通过，未引入 async/generator/yield 等 spec 扩展。
 
 ## P7-B：InternalBugSentinel 退场（956 entries）
 
@@ -515,7 +523,7 @@ P7-0-T01 stable ID + retired ledger
 
 | 阶段 | Active 目标 | Retired 目标 | 备注 |
 |---|---:|---:|---|
-| 当前 | 1,277 | 7 | P7-A1 完成，B-16 retired |
+| 当前 | 1,159 | 125 | P7-A 完成，`FrontendReject` 清零 |
 | P7-A 完成 | 1,159 | 125 | `FrontendReject` 清零 |
 | P7-B 完成 | 203 | 1,081 | `InternalBugSentinel` 清零 |
 | P7-C 完成 | 0 | 1,284 | `RealImpl` 清零 |

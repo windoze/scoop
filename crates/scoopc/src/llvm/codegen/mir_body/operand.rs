@@ -427,17 +427,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     pub(in crate::llvm::codegen) fn mir_local_slot(
         &self,
-        span: crate::span::Span,
+        _span: crate::span::Span,
         slots: &[MirLocalSlot<'ctx>],
         local: crate::mir::LocalId,
     ) -> Result<MirLocalSlot<'ctx>, LlvmEmitError> {
         slots
             .get(local.as_u32() as usize)
             .copied()
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "pass MIR local",
-                at: span.into(),
-            })
+            .ok_or_else(|| std::panic::panic_any("MIR local must have an allocated slot"))
     }
 
     pub(in crate::llvm::codegen) fn load_mir_local(

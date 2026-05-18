@@ -168,10 +168,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 value,
                 value_ty,
             } => self.codegen_mir_store_top_level_var(stmt.span, fqn, value, *value_ty, slots),
-            crate::mir::StatementKind::Todo(_) => Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "pass MIR statement todo",
-                at: stmt.span.into(),
-            }),
+            crate::mir::StatementKind::Todo(_) => std::panic::panic_any(
+                "MIR verifier must reject Todo statements before LLVM codegen",
+            ),
         }
     }
 

@@ -75,16 +75,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         expr: &hir::Expr,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         match &expr.kind {
-            hir::ExprKind::Missing | hir::ExprKind::Todo(_) => {
-                Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "expression",
-                    at: expr.span.into(),
-                })
-            }
-            hir::ExprKind::UnresolvedIdent { .. } => Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "unresolved ident (missing expected type context)",
-                at: expr.span.into(),
-            }),
+            hir::ExprKind::Missing | hir::ExprKind::Todo(_) => std::panic::panic_any(
+                "frontend/HIR gate must reject missing or Todo expressions before LLVM codegen",
+            ),
+            hir::ExprKind::UnresolvedIdent { .. } => std::panic::panic_any(
+                "resolve/typecheck must reject unresolved identifiers before LLVM codegen",
+            ),
             hir::ExprKind::Literal(lit) => self.codegen_literal(expr.span, expr.ty, lit),
             hir::ExprKind::ClassLiteral(class_lit) => match class_lit.metadata_kind {
                 hir::TypeMetadataLiteralKind::TypeNameString => {
@@ -102,10 +98,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             hir::ExprKind::TupleLit { elements } => {
                 self.codegen_tuple_lit(expr.span, expr.ty, elements)
             }
-            hir::ExprKind::InterpolatedString { .. } => Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "interpolated string after HIR desugar",
-                at: expr.span.into(),
-            }),
+            hir::ExprKind::InterpolatedString { .. } => std::panic::panic_any(
+                "HIR lowering must desugar interpolated strings before LLVM codegen",
+            ),
             hir::ExprKind::Unary { .. } => Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "unary operator after HIR desugar",
                 at: expr.span.into(),
@@ -166,10 +161,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             ),
 
             // 后续任务接入 MIR/CFG codegen
-            hir::ExprKind::Closure(_) => Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "expression kind",
-                at: expr.span.into(),
-            }),
+            hir::ExprKind::Closure(_) => std::panic::panic_any(
+                "typecheck must provide an expected function type for closures before codegen",
+            ),
             hir::ExprKind::Perform {
                 effect_ty,
                 op,

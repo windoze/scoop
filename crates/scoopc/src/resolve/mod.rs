@@ -131,6 +131,22 @@ pub enum ResolveError {
         span: miette::SourceSpan,
     },
 
+    #[error("当前语言 contract 不定义 `async` / `await` 语法或内建 task runtime surface")]
+    #[diagnostic(code(scoop::resolve::async_await_surface_not_defined))]
+    AsyncAwaitSurfaceNotDefined {
+        #[label("这里使用了未定义的 async/await surface")]
+        span: miette::SourceSpan,
+    },
+
+    #[error(
+        "当前语言 contract 不定义专用 generator / `yield` 语法；请使用 effect + resuming handler"
+    )]
+    #[diagnostic(code(scoop::resolve::generator_yield_surface_not_defined))]
+    GeneratorYieldSurfaceNotDefined {
+        #[label("这里使用了未定义的 generator/yield surface")]
+        span: miette::SourceSpan,
+    },
+
     #[error("未解析的成员：{name}")]
     #[diagnostic(code(scoop::resolve::unresolved_member))]
     UnresolvedMember {

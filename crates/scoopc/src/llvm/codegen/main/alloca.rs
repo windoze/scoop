@@ -158,7 +158,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     pub(in crate::llvm::codegen) fn apply_alloca_alignment_for_ty(
         &self,
-        at: crate::span::Span,
+        _at: crate::span::Span,
         ptr: PointerValue<'ctx>,
         ty: CgTy,
     ) -> Result<(), LlvmEmitError> {
@@ -172,10 +172,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         let inst = ptr
             .as_instruction_value()
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "alloca instruction value",
-                at: at.into(),
-            })?;
+            .expect("alloca pointer must be an instruction before alignment is applied");
         inst.set_alignment(aligned)?;
         Ok(())
     }

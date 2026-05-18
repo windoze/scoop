@@ -7,8 +7,8 @@
 
 ## Scope
 
-U5-T01 creates this directory skeleton only. U5-T02 and U5-T03 must add `.scoop` fixtures and append matching `_index.csv` rows.
+P7-A4 activates this directory for spec-uncovered surfaces. Async/await and generator/yield remain intentionally undefined and must fail in frontend resolution before LLVM codegen; annotation and spec-meta files are smoke coverage without active UMB ids.
 
 ## Runner Status
 
-`scoop test` recognizes `tests/fixtures/umb_fix/**`. Fixtures marked `IGNORE-UNTIL-FIX:B-36` or `ignore-until-fix:B-36` are skipped until the corresponding production fix lands.
+`scoop test` recognizes `tests/fixtures/umb_fix/**`. B-36 fixtures are active after P7-A4; retired B-36 inventory ids are covered by `audit/UMB_retired.csv`, not active `COVERS` headers.

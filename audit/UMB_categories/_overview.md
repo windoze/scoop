@@ -6,9 +6,9 @@ inventory 来源：[`audit/UMB_inventory.csv`](../UMB_inventory.csv)
 
 ## Summary
 
-- Total active inventory entries: 1,217
+- Total active inventory entries: 1,159
 - Bucket range: B-01 through B-36
-- Zero-entry buckets: B-15, B-16
+- Zero-entry buckets: B-15, B-16, B-36
 - Missing `spec_anchor`: 0
 - Missing `upstream_gate`: 0
 - Decision: all 36 stable buckets are retained; no merge or split is required in U2-T01.
@@ -52,7 +52,7 @@ inventory 来源：[`audit/UMB_inventory.csv`](../UMB_inventory.csv)
 | B-33 | Extern global / FunPtr 顶层 | B | 8 | InternalBugSentinel=8 | extern global type (3)<br>pass MIR extern global store target immutable (2)<br>pass MIR extern global store target type (2)<br>extern global initializer contract (1) | crates/scoopc/src/llvm/codegen/mir_body/member.rs (4)<br>crates/scoopc/src/llvm/codegen/main/globals.rs (2)<br>crates/scoopc/src/llvm/codegen/main/immut_value.rs (2) | CSV non-empty; body pending U2-T02. |
 | B-34 | RuntimeError / try-catch-finally | B | 6 | InternalBugSentinel=6 | completion payload target type (1)<br>RuntimeError enum layout (1)<br>RuntimeError variant layout (1)<br>RuntimeError payload variant arity (1)<br>RuntimeError unit variant value (1) | crates/scoopc/src/llvm/codegen/effect_lowered/body/runtime_error.rs (3)<br>crates/scoopc/src/llvm/codegen/effect_lowered/body/payload.rs (1)<br>crates/scoopc/src/llvm/codegen/main/runtime_error.rs (1)<br>crates/scoopc/src/llvm/codegen/mir_body/cast.rs (1) | CSV non-empty; body pending U2-T02. |
 | B-35 | unsafe / NoGC / 边界 | B/C | 5 | InternalBugSentinel=5 | spill slot/frame slot count mismatch (2)<br>spill slot explicit frame mirrors (1)<br>value/frame slot count mismatch (1)<br>value primitive boundary payload requires published contract (1) | crates/scoopc/src/llvm/codegen/main/declare.rs (2)<br>crates/scoopc/src/llvm/codegen/main/frame.rs (2)<br>crates/scoopc/src/llvm/codegen/mir_body/terminator.rs (1) | CSV non-empty; cross-class split remains entry-level. |
-| B-36 | 未定义/暂未支持的 spec surface | D | 58 | FrontendReject=58 | DYNAMIC:kind (8)<br>scoop_alloc_typed return value (4)<br>struct type id (4)<br>enum type id (4)<br>DYNAMIC:missing_kind (2) | crates/scoopc/src/llvm/codegen/call/abi.rs (9)<br>crates/scoopc/src/llvm/codegen/layout.rs (9)<br>crates/scoopc/src/llvm/codegen/ty.rs (7)<br>crates/scoopc/src/llvm/codegen/main/gc_locals.rs (6)<br>crates/scoopc/src/llvm/codegen/expr.rs (4) | CSV non-empty; body pending U2-T02. |
+| B-36 | 未定义/暂未支持的 spec surface | D | 0 | retired FrontendReject=58 | retired: DYNAMIC:kind (8)<br>scoop_alloc_typed return value (4)<br>struct type id (4)<br>enum type id (4)<br>DYNAMIC:missing_kind (2) | retired ledger: `audit/UMB_retired.csv` | P7-A4 retired; async/await and generator/yield remain frontend rejects. |
 
 ## B-01 Skeleton Sample
 

@@ -120,12 +120,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     }
 
     pub(in crate::llvm::codegen) fn current_source(&self) -> Result<&SourceFile, LlvmEmitError> {
-        self.source_map
+        Ok(self
+            .source_map
             .source(self.current_source_id)
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "current source lookup",
-                at: crate::span::Span::new(0, 0).into(),
-            })
+            .expect("current source id must be registered before LLVM codegen"))
     }
 
     pub(in crate::llvm::codegen) fn current_call_site(
@@ -252,14 +250,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(in crate::llvm::codegen) fn source_id_for_path(
         &self,
         path: &Path,
-        at: crate::span::Span,
+        _at: crate::span::Span,
     ) -> Result<SourceId, LlvmEmitError> {
-        self.source_map
+        Ok(self
+            .source_map
             .source_id_of_path(path)
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "source file lookup",
-                at: at.into(),
-            })
+            .expect("source path must be registered before LLVM codegen"))
     }
 
     pub(in crate::llvm::codegen) fn top_level_value_ty(&self, fqn: &str) -> Option<TypeId> {

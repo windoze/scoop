@@ -1284,6 +1284,20 @@ impl<'a> BlockScopeChecker<'a> {
             return Ok(());
         }
 
+        match name {
+            "async" | "await" => {
+                return Err(ResolveError::AsyncAwaitSurfaceNotDefined {
+                    span: id.span.into(),
+                });
+            }
+            "generator" | "yield" => {
+                return Err(ResolveError::GeneratorYieldSurfaceNotDefined {
+                    span: id.span.into(),
+                });
+            }
+            _ => {}
+        }
+
         Err(ResolveError::UnresolvedValue {
             name: name.to_string(),
             span: id.span.into(),

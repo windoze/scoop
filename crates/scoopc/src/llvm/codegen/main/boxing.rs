@@ -33,10 +33,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let raw = call
             .try_as_basic_value()
             .basic()
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "scoop_alloc_typed return value",
-                at: at.into(),
-            })?;
+            .expect("scoop_alloc_typed must return a boxed Unit pointer");
 
         let BasicValueEnum::PointerValue(raw_ptr) = raw else {
             return Err(LlvmEmitError::UnsupportedMainBody {
@@ -99,10 +96,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let raw = call
             .try_as_basic_value()
             .basic()
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "scoop_alloc_typed return value",
-                at: at.into(),
-            })?;
+            .expect("scoop_alloc_typed must return a boxed Int pointer");
 
         let BasicValueEnum::PointerValue(raw_ptr) = raw else {
             return Err(LlvmEmitError::UnsupportedMainBody {
@@ -152,10 +146,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let raw = call
             .try_as_basic_value()
             .basic()
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "scoop_alloc_typed enum box return value",
-                at: at.into(),
-            })?;
+            .expect("scoop_alloc_typed must return a boxed enum pointer");
         let BasicValueEnum::PointerValue(raw_ptr) = raw else {
             return Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "scoop_alloc_typed enum box return type",

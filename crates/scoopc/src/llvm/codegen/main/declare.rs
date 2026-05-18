@@ -633,12 +633,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         match ret_cg {
             CgTy::Unit | CgTy::Never => Ok(None),
             _ => {
-                let raw = call_site.try_as_basic_value().basic().ok_or(
-                    LlvmEmitError::UnsupportedMainBody {
-                        kind: "call return value",
-                        at: at.into(),
-                    },
-                )?;
+                let raw = call_site
+                    .try_as_basic_value()
+                    .basic()
+                    .expect("non-void direct call must yield a value");
                 let value = self.cg_value_from_loaded(at, ret_cg, raw)?;
                 Ok(Some(self.defer_gc_sensitive_cg_value(at, name, value)?))
             }

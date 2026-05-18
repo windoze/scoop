@@ -145,10 +145,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let raw = call
             .try_as_basic_value()
             .basic()
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "scoop_alloc_typed value box return value",
-                at: span.into(),
-            })?;
+            .expect("scoop_alloc_typed must return a MIR value box pointer");
         let BasicValueEnum::PointerValue(obj_i8) = raw else {
             return Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "scoop_alloc_typed value box return type",

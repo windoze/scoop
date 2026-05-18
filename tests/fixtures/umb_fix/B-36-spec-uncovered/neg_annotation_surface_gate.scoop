@@ -1,12 +1,11 @@
 // EXPECT: fail
-// IGNORE-UNTIL-FIX:B-36
-// EXPECT-ERROR-CODE: scoop::umb_fix::pending_gate
-// EXPECT-ERROR-AT: 1:1
-// EXPECT-ERROR: pending U5 fixture gate
+// EXPECT-ERROR-CODE: scoop::typecheck::annotation_arg_not_const
+// EXPECT-ERROR-AT: 19:7
+// EXPECT-ERROR: 编译期常量
 // SPEC: docs/spec/language_spec-part5.md#12-注解总览;docs/spec/language_spec-part5.md#13-annotation-class;docs/spec/language_spec-part5.md#14-注解使用;docs/spec/language_spec-part5.md#141-注解目标;docs/spec/language_spec-part5.md#15-命名空间注解;docs/spec/language_spec-part5.md#16-内建注解;docs/spec/language_spec-part5.md#161-annotationtarget;docs/spec/language_spec-part5.md#162-suppress;docs/spec/language_spec-part5.md#163-experimental;docs/spec/language_spec-part5.md#17-编译期注解访问
 // COVERS: NONE
 // BUCKETS: B-30, B-36
-// REASON: U5-T02 records the spec surface before the matching implementation gate is enabled.
+// REASON: P7-A4 activates existing annotation frontend diagnostics without assigning B-36 UMB coverage.
 // SOURCE-FIXTURE: tests/fixtures/typecheck/annotation_arg_non_const_call_is_error.scoop
 
 package fixtures.typecheck

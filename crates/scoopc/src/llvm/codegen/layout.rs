@@ -31,7 +31,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     fn class_init_layout_inner(
         &mut self,
-        at: crate::span::Span,
+        _at: crate::span::Span,
         class_fqn: &str,
         visiting: &mut HashSet<String>,
     ) -> Result<hir::ClassInit, LlvmEmitError> {
@@ -46,26 +46,22 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         if !visiting.insert(class_fqn.to_string()) {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "class inheritance cycle",
-                at: at.into(),
-            });
+            std::panic::panic_any(
+                "typecheck must reject class inheritance cycles before LLVM layout",
+            );
         }
 
-        let base =
-            self.class_inits
-                .get(class_fqn)
-                .cloned()
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "class init info",
-                    at: at.into(),
-                })?;
+        let base = self
+            .class_inits
+            .get(class_fqn)
+            .cloned()
+            .expect("ClassInit must exist for layout key");
 
         let mut fields: Vec<hir::ClassField> = Vec::new();
         let mut field_indices: HashMap<String, u32> = HashMap::new();
 
         if let Some(super_fqn) = base.super_class_fqn.as_deref() {
-            let super_layout = self.class_init_layout_inner(at, super_fqn, visiting)?;
+            let super_layout = self.class_init_layout_inner(_at, super_fqn, visiting)?;
             fields.extend(super_layout.fields);
             field_indices.extend(super_layout.field_indices);
         }
@@ -195,19 +191,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &self,
         struct_ty: TypeId,
         field_fqn: &str,
-        at: crate::span::Span,
+        _at: crate::span::Span,
     ) -> Result<(u32, CgTy), LlvmEmitError> {
-        let types = self.codegen_type_store_for_type_id(struct_ty).ok_or(
-            LlvmEmitError::UnsupportedMainBody {
-                kind: "struct type id",
-                at: at.into(),
-            },
-        )?;
+        let types = self
+            .codegen_type_store_for_type_id(struct_ty)
+            .expect("struct TypeId must belong to a codegen TypeStore");
         let TypeKind::Value(ValueTypeKind::Nominal(nominal)) = types.kind(struct_ty) else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "struct type id",
-                at: at.into(),
-            });
+            std::panic::panic_any("struct layout lookup must receive a nominal value type");
         };
 
         // T0124：使用 mangled FQN 查找（支持泛型 struct 的具体实例化）。
@@ -215,10 +205,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let layout = self
             .struct_layouts
             .get(&key)
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "struct layout",
-                at: at.into(),
-            })?;
+            .expect("struct layout must exist before LLVM field lookup");
 
         let idx = layout
             .fields
@@ -517,12 +504,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         at: crate::span::Span,
         enum_ty: TypeId,
     ) -> Result<CgEnumLayout, LlvmEmitError> {
-        let types = self.codegen_type_store_for_type_id(enum_ty).ok_or(
-            LlvmEmitError::UnsupportedMainBody {
-                kind: "enum type id",
-                at: at.into(),
-            },
-        )?;
+        let types = self
+            .codegen_type_store_for_type_id(enum_ty)
+            .expect("enum TypeId must belong to a codegen TypeStore");
         let kind = types.kind(enum_ty).clone();
         match kind {
             TypeKind::Value(ValueTypeKind::Option(inner)) => {
@@ -582,18 +566,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 let mut repr = CgEnumRepr::TaggedUnion;
                 if let hir::EnumRepr::ValueOnly { underlying_ty_fqn } = &hir_layout.repr {
                     let Some(underlying_ty_fqn) = underlying_ty_fqn.as_deref() else {
-                        return Err(LlvmEmitError::UnsupportedMainBody {
-                            kind: "value-only enum underlying type",
-                            at: at.into(),
-                        });
+                        std::panic::panic_any(
+                            "typecheck must publish value-only enum underlying types before LLVM layout",
+                        );
                     };
 
                     let underlying_cg = self.cg_ty_of_type_fqn(at, Some(underlying_ty_fqn))?;
                     let CgTy::Int(underlying) = underlying_cg else {
-                        return Err(LlvmEmitError::UnsupportedMainBody {
-                            kind: "value-only enum underlying type",
-                            at: at.into(),
-                        });
+                        std::panic::panic_any(
+                            "typecheck must restrict value-only enum underlying types to integers",
+                        );
                     };
 
                     repr = CgEnumRepr::ValueOnly { underlying };
@@ -657,10 +639,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
                 Ok(CgEnumLayout { repr, variants })
             }
-            _ => Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "enum type id",
-                at: at.into(),
-            }),
+            _ => std::panic::panic_any("enum layout lookup must receive an enum value type"),
         }
     }
 

@@ -196,10 +196,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         return_ty: TypeId,
     ) -> Result<String, LlvmEmitError> {
         let TypeKind::Ref(RefTypeKind::Function(fun_ty)) = self.types.kind(fun.ty) else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "function type",
-                at: fun.span.into(),
-            });
+            std::panic::panic_any("HIR function declarations must carry function types");
         };
         let mut signature_types = self.types.clone();
         let callable_ty = signature_types.ty_function(
@@ -310,15 +307,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     pub(in crate::llvm::codegen) fn current_stable_owner_key(
         &self,
-        at: crate::span::Span,
+        _at: crate::span::Span,
         kind: &'static str,
     ) -> Result<StableDefKey, LlvmEmitError> {
-        self.function_cx.current_stable_owner_key.clone().ok_or(
-            LlvmEmitError::UnsupportedMainBody {
-                kind,
-                at: at.into(),
-            },
-        )
+        Ok(self
+            .function_cx
+            .current_stable_owner_key
+            .clone()
+            .unwrap_or_else(|| std::panic::panic_any(kind)))
     }
 
     pub(in crate::llvm::codegen) fn next_stable_child_closure_path(

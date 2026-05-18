@@ -178,11 +178,11 @@ const STALE_UNSUPPORTED_MAIN_BODY_COUNTS: &[UnsupportedMainBodyCount] = &[
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/mir_body/mod.rs",
-        expected_count: 6,
+        expected_count: 5,
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/mir_body/operand.rs",
-        expected_count: 8,
+        expected_count: 7,
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/mir_body/string.rs",
@@ -190,11 +190,11 @@ const STALE_UNSUPPORTED_MAIN_BODY_COUNTS: &[UnsupportedMainBodyCount] = &[
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/mir_body/terminator.rs",
-        expected_count: 19,
+        expected_count: 18,
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/mir_body/transport.rs",
-        expected_count: 10,
+        expected_count: 9,
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/mir_body/types.rs",
@@ -238,15 +238,15 @@ const STALE_UNSUPPORTED_MAIN_BODY_COUNTS: &[UnsupportedMainBodyCount] = &[
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/effect_lowered/value.rs",
-        expected_count: 139,
+        expected_count: 137,
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/main/alloca.rs",
-        expected_count: 7,
+        expected_count: 6,
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/main/boxing.rs",
-        expected_count: 6,
+        expected_count: 3,
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/main/call.rs",
@@ -258,11 +258,11 @@ const STALE_UNSUPPORTED_MAIN_BODY_COUNTS: &[UnsupportedMainBodyCount] = &[
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/main/context.rs",
-        expected_count: 4,
+        expected_count: 2,
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/main/declare.rs",
-        expected_count: 8,
+        expected_count: 7,
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/main/expr_op.rs",
@@ -274,7 +274,7 @@ const STALE_UNSUPPORTED_MAIN_BODY_COUNTS: &[UnsupportedMainBodyCount] = &[
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/main/frame.rs",
-        expected_count: 12,
+        expected_count: 10,
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/main/function.rs",
@@ -282,7 +282,7 @@ const STALE_UNSUPPORTED_MAIN_BODY_COUNTS: &[UnsupportedMainBodyCount] = &[
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/main/gc_locals.rs",
-        expected_count: 11,
+        expected_count: 5,
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/main/globals.rs",
@@ -290,7 +290,7 @@ const STALE_UNSUPPORTED_MAIN_BODY_COUNTS: &[UnsupportedMainBodyCount] = &[
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/main/identity.rs",
-        expected_count: 6,
+        expected_count: 4,
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/main/immut_value.rs",
@@ -507,7 +507,43 @@ const SEALED_INTERFACE_EXPLICIT_IMPLEMENTATION_MARKERS: &[SourceMarker] = &[
     },
 ];
 
+const SPEC_UNCOVERED_ASYNC_AWAIT_MARKERS: &[SourceMarker] = &[
+    SourceMarker {
+        path: "crates/scoopc/src/resolve/mod.rs",
+        marker: "AsyncAwaitSurfaceNotDefined {",
+    },
+    SourceMarker {
+        path: "tests/fixtures/umb_fix/B-36-spec-uncovered/neg_async_await_surface_rejected.scoop",
+        marker: "// EXPECT-ERROR-CODE: scoop::resolve::async_await_surface_not_defined",
+    },
+];
+
+const SPEC_UNCOVERED_GENERATOR_YIELD_MARKERS: &[SourceMarker] = &[
+    SourceMarker {
+        path: "crates/scoopc/src/resolve/mod.rs",
+        marker: "GeneratorYieldSurfaceNotDefined {",
+    },
+    SourceMarker {
+        path: "tests/fixtures/umb_fix/B-36-spec-uncovered/neg_generator_yield_surface_rejected.scoop",
+        marker: "// EXPECT-ERROR-CODE: scoop::resolve::generator_yield_surface_not_defined",
+    },
+];
+
 const FRONTEND_REJECT_SURFACES: &[FrontendRejectSurface] = &[
+    FrontendRejectSurface {
+        gap_id: "B-36 async/await intentionally undefined surface",
+        definition_path: "crates/scoopc/src/resolve/mod.rs",
+        diagnostic_code: "scoop::resolve::async_await_surface_not_defined",
+        message: "当前语言 contract 不定义 `async` / `await` 语法或内建 task runtime surface",
+        markers: SPEC_UNCOVERED_ASYNC_AWAIT_MARKERS,
+    },
+    FrontendRejectSurface {
+        gap_id: "B-36 generator/yield intentionally undefined surface",
+        definition_path: "crates/scoopc/src/resolve/mod.rs",
+        diagnostic_code: "scoop::resolve::generator_yield_surface_not_defined",
+        message: "当前语言 contract 不定义专用 generator / `yield` 语法；请使用 effect + resuming handler",
+        markers: SPEC_UNCOVERED_GENERATOR_YIELD_MARKERS,
+    },
     FrontendRejectSurface {
         gap_id: "PIPELINE_GAPS §7.1",
         definition_path: "crates/scoopc/src/typecheck/expr/error.rs",
@@ -660,8 +696,8 @@ const INTERNAL_BUG_SENTINEL_HITS: &[&str] = &[
     "crates/scoopc/src/llvm/codegen/mir_body/call.rs:724:            (None, CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_)) => unreachable!(",
     "crates/scoopc/src/llvm/codegen/mir_body/member.rs:143:            unreachable!(",
     "crates/scoopc/src/llvm/codegen/mir_body/member.rs:268:                    unreachable!(",
-    "crates/scoopc/src/llvm/codegen/effect_lowered/value.rs:2496:                    _ => unreachable!(\"filtered by match\"),",
-    "crates/scoopc/src/llvm/codegen/effect_lowered/value.rs:3635:            _ => unreachable!(\"filtered by caller\"),",
+    "crates/scoopc/src/llvm/codegen/effect_lowered/value.rs:2493:                    _ => unreachable!(\"filtered by match\"),",
+    "crates/scoopc/src/llvm/codegen/effect_lowered/value.rs:3632:            _ => unreachable!(\"filtered by caller\"),",
     "crates/scoopc/src/llvm/codegen/main/alloca.rs:48:            _ => unreachable!(\"cast_float only accepts Float64/Float32\"),",
     "crates/scoopc/src/llvm/codegen/main/call.rs:704:            unreachable!(",
     "crates/scoopc/src/llvm/codegen/main/coerce.rs:74:                    _ => unreachable!(\"filtered by caller\"),",
@@ -782,7 +818,7 @@ fn pipeline_user_visible_failure_policy_tracks_stale_unsupportedmainbody_counts(
             baseline.path
         );
     }
-    assert_eq!(total, 633);
+    assert_eq!(total, 610);
 }
 
 #[test]

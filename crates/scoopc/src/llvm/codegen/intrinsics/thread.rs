@@ -203,12 +203,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         _callee_span: crate::span::Span,
         args: &[hir::CallArg],
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        if !args.is_empty() {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "thread.yield arity mismatch",
-                at: span.into(),
-            });
-        }
+        assert!(
+            args.is_empty(),
+            "typecheck must reject thread.yield arguments before LLVM codegen"
+        );
 
         let rt = self.declare_runtime_thread_yield();
         let _ = self.build_call_preserving_gc_local_roots(span, rt, &[], "thread_yield")?;

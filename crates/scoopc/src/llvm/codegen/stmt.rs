@@ -245,10 +245,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     return Ok(());
                 }
                 hir::StmtKind::Todo(_) => {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "statement",
-                        at: stmt.span.into(),
-                    });
+                    std::panic::panic_any(
+                        "frontend/HIR gate must reject Todo statements before LLVM codegen",
+                    );
                 }
             }
         }

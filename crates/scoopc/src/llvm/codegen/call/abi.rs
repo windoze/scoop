@@ -384,10 +384,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.function_cx.current_effect_ctx_ref = Some(
             llvm_fun
                 .get_nth_param(first_hidden_param_index)
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "missing current_effect_ctx_ref param",
-                    at: at.into(),
-                })?
+                .expect("explicit-effect ABI must provide current_effect_ctx_ref parameter")
                 .into_pointer_value(),
         );
         self.function_cx.current_incoming_resume_token_ref = Some(
@@ -419,19 +416,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     pub(in crate::llvm::codegen) fn cg_value_from_llvm_param_impl(
         &self,
-        at: crate::span::Span,
+        _at: crate::span::Span,
         llvm_fun: FunctionValue<'ctx>,
         param_index: u32,
         target_ty: CgTy,
         missing_kind: &'static str,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        let raw =
-            llvm_fun
-                .get_nth_param(param_index)
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: missing_kind,
-                    at: at.into(),
-                })?;
+        let raw = llvm_fun
+            .get_nth_param(param_index)
+            .unwrap_or_else(|| std::panic::panic_any(missing_kind));
 
         Ok(match target_ty {
             CgTy::Unit => CgValue::unit(),
@@ -474,10 +467,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             let storage_ty = self.llvm_basic_type_of(at, target_ty)?;
             let ptr = llvm_fun
                 .get_nth_param(param_index)
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: missing_kind,
-                    at: at.into(),
-                })?
+                .unwrap_or_else(|| std::panic::panic_any(missing_kind))
                 .into_pointer_value();
             let frame_slots =
                 self.reserve_explicit_frame_leaf_slots_for_storage_type(at, storage_ty)?;
@@ -673,37 +663,25 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             kind,
             abi_mode,
         } = spec;
-        if param_names.len() != param_tys.len() || args.len() != param_names.len() {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind,
-                at: span.into(),
-            });
-        }
+        assert!(
+            param_names.len() == param_tys.len() && args.len() == param_names.len(),
+            "typecheck must bind call arguments before LLVM codegen at {span:?}: {kind}"
+        );
 
         let arg_to_param = self
             .map_call_args_to_params_by_name(param_names, args)
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind,
-                at: span.into(),
-            })?;
+            .unwrap_or_else(|| std::panic::panic_any(kind));
 
         let mut evaluated: Vec<Option<(crate::span::Span, DeferredCgValue<'ctx>)>> =
             vec![None; param_names.len()];
         for (arg_idx, arg) in args.iter().enumerate() {
-            let param_idx =
-                arg_to_param
-                    .get(arg_idx)
-                    .copied()
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind,
-                        at: span.into(),
-                    })?;
+            let param_idx = arg_to_param
+                .get(arg_idx)
+                .copied()
+                .unwrap_or_else(|| std::panic::panic_any(kind));
             let param_ty = *param_tys
                 .get(param_idx)
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind,
-                    at: callee_span.into(),
-                })?;
+                .unwrap_or_else(|| std::panic::panic_any(kind));
             let target_cg = self
                 .cg_ty_of(param_ty)
                 .ok_or(LlvmEmitError::UnsupportedMainBody {
@@ -728,10 +706,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             )?;
             let slot = evaluated
                 .get_mut(param_idx)
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind,
-                    at: span.into(),
-                })?;
+                .unwrap_or_else(|| std::panic::panic_any(kind));
             *slot = Some((expr.span, deferred));
         }
 
@@ -739,10 +714,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .into_iter()
             .enumerate()
             .map(|(param_idx, slot)| {
-                let (expr_span, deferred) = slot.ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind,
-                    at: span.into(),
-                })?;
+                let (expr_span, deferred) = slot.unwrap_or_else(|| std::panic::panic_any(kind));
                 let param_ty =
                     *param_tys
                         .get(param_idx)

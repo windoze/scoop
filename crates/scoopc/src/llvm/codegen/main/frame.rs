@@ -324,12 +324,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     ) -> Result<u64, LlvmEmitError> {
         let header_ty = self.llvm_explicit_root_frame_header_type();
         let size = self.target_data.get_store_size(&header_ty);
-        if size == 0 {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "explicit root frame header size",
-                at: crate::span::Span::new(0, 0).into(),
-            });
-        }
+        assert!(
+            size > 0,
+            "explicit root frame header must have non-zero size"
+        );
         Ok(size)
     }
 
@@ -801,13 +799,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let Some(frame_storage) = plan.frame_storage else {
             return Ok(());
         };
-        let frame_storage_inst =
-            frame_storage
-                .as_instruction_value()
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "explicit root frame storage alloca",
-                    at: at.into(),
-                })?;
+        let frame_storage_inst = frame_storage
+            .as_instruction_value()
+            .expect("explicit frame storage must be an alloca instruction");
         let total_words = self
             .context
             .i32_type()

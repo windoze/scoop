@@ -1,12 +1,11 @@
 // EXPECT: fail
-// IGNORE-UNTIL-FIX:B-36
-// EXPECT-ERROR-CODE: scoop::umb_fix::pending_gate
-// EXPECT-ERROR-AT: 1:1
-// EXPECT-ERROR: pending U5 fixture gate
+// EXPECT-ERROR-CODE: scoop::resolve::generator_yield_surface_not_defined
+// EXPECT-ERROR-AT: 16:5
+// EXPECT-ERROR: 不定义专用 generator / `yield`
 // SPEC: docs/spec/language_spec-part4.md#11-generator--yield-风格
-// COVERS: UMB-0005, UMB-0008, UMB-0009, UMB-0012, UMB-0013, UMB-0014, UMB-0015, UMB-0017, UMB-0018, UMB-0097, UMB-0101, UMB-0189, UMB-0225, UMB-0239, UMB-0411, UMB-0412, UMB-0413, UMB-0418, UMB-0739, UMB-0743, UMB-0744, UMB-0747, UMB-0748, UMB-0749, UMB-0756, UMB-0759, UMB-0760, UMB-0761, UMB-0768, UMB-0769, UMB-0771, UMB-0773, UMB-0818, UMB-0819, UMB-0829, UMB-0879, UMB-0886, UMB-0893, UMB-0894, UMB-0897, UMB-0898, UMB-0902, UMB-0903, UMB-0915, UMB-0916, UMB-1176, UMB-1182, UMB-1190, UMB-1197, UMB-1213, UMB-1265, UMB-1270, UMB-1271, UMB-1273, UMB-1274, UMB-1275, UMB-1278, UMB-1279
+// COVERS: NONE
 // BUCKETS: B-36
-// REASON: U5-T02 records the spec surface before the matching implementation gate is enabled.
+// REASON: P7-A4 locks the current spec contract: generator/yield syntax is intentionally undefined and rejected before codegen.
 // SOURCE-FIXTURE: generated-minimal
 
 package fixtures.umb_fix.B_36
@@ -14,5 +13,5 @@ package fixtures.umb_fix.B_36
 import scoop.core.*
 
 fun main() {
-    val marker: Int = 0
+    yield(1)
 }
