@@ -74,11 +74,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 },
             )),
             hir::LiteralKind::Int => {
-                let Some(CgTy::Int(int_ty)) = self.cg_ty_of(ty) else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "int literal type",
-                        at: span.into(),
-                    });
+                let CgTy::Int(int_ty) = self.expect_cg_ty_of(ty, "integer literal target type")
+                else {
+                    panic!(
+                        "codegen_literal: typecheck gate accepted non-integer target for int literal"
+                    )
                 };
                 let value = self.int_literal_bits_for_ty(span, int_ty)?;
                 Ok(CgValue::int(
@@ -155,13 +155,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             &[str_desc_i8.into(), size_v.into()],
             "rt_alloc_string_lit",
         )?;
-        let raw = call
-            .try_as_basic_value()
-            .basic()
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "scoop_alloc_typed return value",
-                at: span.into(),
-            })?;
+        let raw = self.expect_basic_value(call, "scoop_alloc_typed string allocation");
         let raw_ptr = self.expect_pointer_value(raw, "scoop_alloc_typed string allocation");
 
         let str_ptr_ty = self.llvm_scoop_string_ptr_type();

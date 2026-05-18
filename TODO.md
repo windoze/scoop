@@ -4,7 +4,7 @@
 > 计划基线：[`PLAN.md`](./PLAN.md)
 > 上一阶段任务档案：[`TODO-1.md`](./TODO-1.md)
 > 设计与 baseline：[`UnsupportedMainBody_FIX.md`](./UnsupportedMainBody_FIX.md)、[`UnsupportedMainBody_DONE.md`](./UnsupportedMainBody_DONE.md)
-> 当前状态：P7-0-T01、P7-0-T02、P7-A1、P7-A2、P7-A3、P7-A4、P7-B1、P7-B2.1、P7-B2.2、P7-B2.3、P7-B2.4 已完成；active=852，retired=432。
+> 当前状态：P7-0-T01、P7-0-T02、P7-A1、P7-A2、P7-A3、P7-A4、P7-B1、P7-B2.1、P7-B2.2、P7-B2.3、P7-B2.4、P7-B2.5 已完成；active=801，retired=483。
 
 ## 全局约束
 
@@ -366,7 +366,7 @@ P7-0-T01 stable ID + retired ledger
   - 验证结果：`cargo run -p scoopc --bin umb-audit -- list --bucket B-03`、`--bucket B-09`、`--bucket B-14` 均通过（entries 0）；`cargo run -p scoopc --bin umb-audit -- diff` 通过（in sync，852 entries）；`cargo run -p scoopc --bin umb-audit -- stats` 通过（active=852、retired=432、initial=1,284）；`cargo test -p scoopc mir::materialize -- --nocapture` 通过（46 passed）；`cargo test -p scoopc audit:: -- --nocapture` 通过（23 passed）；`cargo test -p scoopc pipeline_user_visible_failure_policy -- --nocapture` 通过（7 passed）；`cargo run -p scoop -- test tests/fixtures/umb_fix/B-03-call-abi/` 通过（3 passed）；`cargo run -p scoop -- test tests/fixtures/umb_fix/B-09-type-equivalence/` 通过（5 passed）；`cargo run -p scoop -- test tests/fixtures/umb_fix/B-14-cast-typecheck/` 通过（2 passed）；`cargo fmt` 通过；`cargo clippy --all-targets -- -D warnings` 通过。
   - 闭合目标：满足 `PLAN.md:135-159` 与本任务完成条件；B-03/B-09/B-14 active count 为 0，call ABI、cross-TypeStore equivalence、cast/typecheck contract 不再由 LLVM codegen 兜底。
 
-### [TODO] P7-B2.5：B-17/B-18 scalar coercion 与 literal/string contract
+### [DONE] P7-B2.5：B-17/B-18 scalar coercion 与 literal/string contract
 
 - 参考：`PLAN.md:135-159`、`audit/strategies/B-17.md`、`audit/strategies/B-18.md`。
 - 范围：B-17 47 entries；B-18 4 entries；合计 51 entries。
@@ -375,7 +375,15 @@ P7-0-T01 stable ID + retired ledger
 - 验证：`cargo test -p scoopc audit:: -- --nocapture`、`cargo run -p scoop -- test tests/fixtures/umb_fix/B-17-coercion-scalar/`、`cargo run -p scoop -- test tests/fixtures/umb_fix/B-18-literals-strings/`。
 - 完成条件：B-17/B-18 active count 为 0。
 - 依赖：P7-B1 推荐完成后。
-- 完成记录：待填写。
+- 完成记录：
+  - 改动范围：更新 `crates/scoopc/src/llvm/codegen/{effect_outcome.rs,expr.rs,main/{coerce.rs,context.rs,expr_op.rs,literal.rs}}`；同步 `audit/UMB_inventory.csv`、`audit/UMB_retired.csv`、`audit/UMB_categories/{B-10.md,B-13.md,B-17.md,B-18.md,B-29.md,_overview.md}`、`audit/strategies/{B-17.md,B-18.md}`、`audit/spec_coverage_matrix.md`、`tests/fixtures/umb_fix/_index.csv`、B-17/B-18/B-31 fixtures、`crates/scoopc/src/pipeline_user_visible_failure_policy.rs` 与 `memory/claude_plan.md`。
+  - Retired IDs：B-17 `UMB-0367`、`UMB-0368`、`UMB-0369`、`UMB-0370`、`UMB-0373`、`UMB-0414`、`UMB-0415`、`UMB-0416`、`UMB-0417`、`UMB-0787`、`UMB-0788`、`UMB-0789`、`UMB-0790`、`UMB-0791`、`UMB-0792`、`UMB-0793`、`UMB-0794`、`UMB-0795`、`UMB-0796`、`UMB-0797`、`UMB-0798`、`UMB-0799`、`UMB-0800`、`UMB-0801`、`UMB-0802`、`UMB-0803`、`UMB-0804`、`UMB-0805`、`UMB-0806`、`UMB-0807`、`UMB-0808`、`UMB-0809`、`UMB-0810`、`UMB-0811`、`UMB-0812`、`UMB-0813`、`UMB-0814`、`UMB-0815`、`UMB-0816`、`UMB-0817`、`UMB-0833`、`UMB-0834`、`UMB-0835`、`UMB-0836`、`UMB-0837`、`UMB-0841`、`UMB-0843`；B-18 `UMB-0820`、`UMB-0821`、`UMB-0940`、`UMB-0941`；数量 51；bucket `B-17`/`B-18`；class `InternalBugSentinel`。
+  - 核心决策：集中新增 `expect_cg_*`/`expect_int_value` helper 承接 scalar payload、string equality return、literal allocation return 的 internal invariant；raw HIR operator/cast fallback 改为 typecheck/HIR lowering gate 后的 panic boundary；保留 B-13/B-29 非本任务 effect transport rows active，不顺手退场。
+  - Inventory/ledger：active 852 -> 801；retired 432 -> 483；B-17 active 47 -> 0；B-18 active 4 -> 0；`InternalBugSentinel` active 649 -> 598。
+  - Stale count：tracked stale total 386 -> 344；`main/coerce.rs` 31 -> 0；`main/context.rs` 2 -> 0；`main/expr_op.rs` 7 -> 0；`main/literal.rs` 2 -> 0；`effect_outcome.rs`/`expr.rs` 删除目标 inventory rows 但不在 tracked stale list。
+  - Fixture 状态：B-17/B-18 fixture directories 从 `IGNORE-UNTIL-FIX` 激活；active fixture `COVERS` 不再引用 retired B-17/B-18 IDs；B-31 pending fixture 仅保留仍 active 的 B-31 IDs；B-18 lexical positive fixture补齐 type annotation 以满足 full fixture pipeline。
+  - 验证结果：`cargo run -p scoopc --bin umb-audit -- list --bucket B-17` 通过（entries 0）；`cargo run -p scoopc --bin umb-audit -- list --bucket B-18` 通过（entries 0）；`cargo run -p scoopc --bin umb-audit -- diff` 通过（in sync，801 entries）；`cargo run -p scoopc --bin umb-audit -- stats` 通过（active=801、retired=483、initial=1,284）；`cargo test -p scoopc audit:: -- --nocapture` 通过（23 passed）；`cargo test -p scoopc pipeline_user_visible_failure_policy -- --nocapture` 通过（7 passed）；`cargo run -p scoop -- test tests/fixtures/umb_fix/B-17-coercion-scalar/` 通过（5 passed）；`cargo run -p scoop -- test tests/fixtures/umb_fix/B-18-literals-strings/` 通过（4 passed）；`cargo fmt` 通过；`cargo clippy --all-targets -- -D warnings` 通过。
+  - 闭合目标：满足 `PLAN.md:135-159` 与本任务完成条件；B-17/B-18 active count 为 0，scalar coercion/operator、literal/string contract 不再由 LLVM codegen 兜底。
 
 ### [TODO] P7-B2.6：B-19/B-20/B-22/B-23 layout 与 member contract
 
@@ -563,7 +571,7 @@ P7-0-T01 stable ID + retired ledger
 
 | 阶段 | Active 目标 | Retired 目标 | 备注 |
 |---|---:|---:|---|
-| 当前 | 852 | 432 | P7-B2.4 完成，B-03/B-09/B-14 call ABI、TypeStore、cast contract 清零 |
+| 当前 | 801 | 483 | P7-B2.5 完成，B-17/B-18 scalar coercion 与 literal/string contract 清零 |
 | P7-A 完成 | 1,159 | 125 | `FrontendReject` 清零 |
 | P7-B 完成 | 203 | 1,081 | `InternalBugSentinel` 清零 |
 | P7-C 完成 | 0 | 1,284 | `RealImpl` 清零 |

@@ -1,9 +1,8 @@
 // EXPECT: ok
-// IGNORE-UNTIL-FIX:B-18
 // SPEC: docs/spec/language_spec-part1.md#6-字面量;docs/spec/language_spec-part1.md#61-整数字面量;docs/spec/language_spec-part1.md#62-浮点字面量;docs/spec/language_spec-part1.md#63-字符字面量;docs/spec/language_spec-part1.md#64-bool-与-unit;docs/spec/language_spec-part1.md#65-字符串字面量
-// COVERS: UMB-0820, UMB-0821, UMB-0940, UMB-0941
+// COVERS: NONE
 // BUCKETS: B-17, B-18
-// REASON: U5-T02 records the spec surface before the matching implementation gate is enabled.
+// REASON: P7-B2.5 retired B-18 rows; fixture remains active as literal/string positive coverage.
 // SOURCE-FIXTURE: tests/fixtures/run-pass/int_literal_hex_binary_basic.scoop
 
 import scoop.core.*

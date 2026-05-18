@@ -1,9 +1,8 @@
 // EXPECT: ok
-// IGNORE-UNTIL-FIX:B-17
 // SPEC: docs/spec/language_spec-part2.md#3-内建标量类型;docs/spec/language_spec-part2.md#31-bool;docs/spec/language_spec-part2.md#32-char;docs/spec/language_spec-part2.md#33-整数类型;docs/spec/language_spec-part2.md#34-浮点类型;docs/spec/language_spec-part2.md#35-string
-// COVERS: UMB-0367, UMB-0368, UMB-0369, UMB-0370, UMB-0373, UMB-0414, UMB-0415, UMB-0416, UMB-0417, UMB-0575, UMB-0576, UMB-0577, UMB-0578, UMB-0579, UMB-0580, UMB-0584, UMB-0585, UMB-0586, UMB-0587, UMB-0591, UMB-0592, UMB-0787, UMB-0788, UMB-0789, UMB-0790, UMB-0791, UMB-0792, UMB-0793, UMB-0794, UMB-0795, UMB-0796, UMB-0797, UMB-0798, UMB-0799, UMB-0800, UMB-0801, UMB-0802, UMB-0803, UMB-0804, UMB-0805, UMB-0806, UMB-0807, UMB-0808, UMB-0809, UMB-0810, UMB-0811, UMB-0812, UMB-0813, UMB-0814, UMB-0815, UMB-0816, UMB-0817, UMB-0820, UMB-0821, UMB-0833, UMB-0834, UMB-0835, UMB-0836, UMB-0837, UMB-0841, UMB-0843, UMB-0940, UMB-0941
+// COVERS: UMB-0575, UMB-0576, UMB-0577, UMB-0578, UMB-0579, UMB-0580, UMB-0584, UMB-0585, UMB-0586, UMB-0587, UMB-0591, UMB-0592
 // BUCKETS: B-17, B-18, B-31
-// REASON: U5-T02 records the spec surface before the matching implementation gate is enabled.
+// REASON: P7-B2.5 retired B-17/B-18 rows; fixture remains active and only covers still-active B-31 scalar-method rows.
 // SOURCE-FIXTURE: tests/fixtures/run-pass/operator_int_arithmetic.scoop
 
 import scoop.core.*

@@ -6,9 +6,9 @@ inventory 来源：[`audit/UMB_inventory.csv`](../UMB_inventory.csv)
 
 ## Summary
 
-- Total active inventory entries: 852
+- Total active inventory entries: 801
 - Bucket range: B-01 through B-36
-- Zero-entry buckets: B-01, B-02, B-03, B-04, B-05, B-06, B-07, B-09, B-14, B-15, B-16, B-21, B-36
+- Zero-entry buckets: B-01, B-02, B-03, B-04, B-05, B-06, B-07, B-09, B-14, B-15, B-16, B-17, B-18, B-21, B-36
 - Missing `spec_anchor`: 0
 - Missing `upstream_gate`: 0
 - Decision: all 36 stable buckets are retained; no merge or split is required in U2-T01.
@@ -33,8 +33,8 @@ inventory 来源：[`audit/UMB_inventory.csv`](../UMB_inventory.csv)
 | B-14 | Cast / TypeCheck (`as`/`as?`/`is`) | B/C | 0 | retired InternalBugSentinel=27 | retired: type check operand (ref) (1)<br>type check operand value (1)<br>type check operand type (1)<br>as? result type (Option<T>) (1)<br>as? target (ref) (1) | retired ledger: `audit/UMB_retired.csv` | P7-B2.4 retired; active CSV empty. |
 | B-15 | When / 模式匹配用户面 | B | 0 | retired FrontendReject=55 | retired: when unknown enum variant (3)<br>when variant payload field index (3)<br>when arm type mismatch (2)<br>when arm tail block (2)<br>when pattern (enum) (2) | retired ledger: `audit/UMB_retired.csv` | P7-A3 retired; active CSV empty. |
 | B-16 | 控制流 outside-of-context | B | 0 | retired FrontendReject=7 | retired: break outside loop (3)<br>continue outside loop (3)<br>return outside function with return context (1) | retired ledger: `audit/UMB_retired.csv` | P7-A1 retired; active CSV empty. |
-| B-17 | Coercion / 标量运算 | A/B | 47 | InternalBugSentinel=47 | equality lhs string value (2)<br>equality lhs string type (2)<br>equality rhs string value (2)<br>equality rhs string type (2)<br>String equals return value (2) | crates/scoopc/src/llvm/codegen/main/coerce.rs (31)<br>crates/scoopc/src/llvm/codegen/main/expr_op.rs (7)<br>crates/scoopc/src/llvm/codegen/effect_outcome.rs (5)<br>crates/scoopc/src/llvm/codegen/expr.rs (4) | CSV non-empty; cross-class split remains entry-level. |
-| B-18 | 字面量与字符串 | B | 4 | InternalBugSentinel=4 | source-backed literal span (1)<br>source-backed literal slice (1)<br>int literal type (1)<br>scoop_alloc_typed return value (1) | crates/scoopc/src/llvm/codegen/main/context.rs (2)<br>crates/scoopc/src/llvm/codegen/main/literal.rs (2) | CSV non-empty; body pending U2-T02. |
+| B-17 | Coercion / 标量运算 | A/B | 0 | retired InternalBugSentinel=47 | retired: equality lhs string value (2)<br>equality lhs string type (2)<br>equality rhs string value (2)<br>equality rhs string type (2)<br>String equals return value (2) | retired ledger: `audit/UMB_retired.csv` | P7-B2.5 retired; active CSV empty. |
+| B-18 | 字面量与字符串 | B | 0 | retired InternalBugSentinel=4 | retired: source-backed literal span (1)<br>source-backed literal slice (1)<br>int literal type (1)<br>scoop_alloc_typed return value (1) | retired ledger: `audit/UMB_retired.csv` | P7-B2.5 retired; active CSV empty. |
 | B-19 | Top-level / object init / extern global | B | 39 | InternalBugSentinel=39 | top-level immutable value type (3)<br>top-level var type (2)<br>object property access (missing metadata) (2)<br>object property type (2)<br>function value top-level type (1) | crates/scoopc/src/llvm/codegen/main/immut_value.rs (13)<br>crates/scoopc/src/llvm/codegen/object_init.rs (13)<br>crates/scoopc/src/llvm/codegen/main/globals.rs (9)<br>crates/scoopc/src/llvm/codegen/mir_body/member.rs (2)<br>crates/scoopc/src/llvm/codegen/call/lowering.rs (1) | CSV non-empty; body pending U2-T02. |
 | B-20 | Class ctor / property / 字段访问 | B | 46 | InternalBugSentinel=46 | DYNAMIC:kind (11)<br>class ctor param type (6)<br>class field type (3)<br>class field index (2)<br>class field receiver value (2) | crates/scoopc/src/llvm/codegen/class_ctor.rs (30)<br>crates/scoopc/src/llvm/codegen/layout.rs (3)<br>crates/scoopc/src/llvm/codegen/main/call.rs (3)<br>crates/scoopc/src/llvm/codegen/mir_body/args.rs (3)<br>crates/scoopc/src/llvm/codegen/main/expr_value.rs (2) | CSV non-empty; body pending U2-T02. |
 | B-21 | Struct literal / 字段层 | B | 0 | retired FrontendReject=3; retired InternalBugSentinel=3 | retired: struct field value (1)<br>pass MIR class member field index (1)<br>struct field type (1) | retired ledger: `audit/UMB_retired.csv` | P7-A2 retired frontend rows; P7-B2.3 retired internal rows. |

@@ -110,20 +110,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         expr: &hir::Expr,
         target_ty: TypeId,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        let target_cg = self
-            .cg_ty_of(target_ty)
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "cast target type",
-                at: span.into(),
-            })?;
+        let target_cg = self.expect_cg_ty_of(target_ty, "`as` cast target type");
         let target_ptr_ty = match target_cg {
             CgTy::Ref => self.llvm_gc_i8_ptr_type(),
             CgTy::String => self.llvm_scoop_string_ptr_type(),
             _ => {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "cast target (ref)",
-                    at: span.into(),
-                });
+                panic!("codegen_cast_as_expr: typecheck gate accepted non-runtime-ref target")
             }
         };
 
@@ -132,24 +124,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             CgTy::Ref => v,
             CgTy::String => self.coerce_value(expr.span, v, CgTy::Ref)?,
             _ => {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "cast operand (ref)",
-                    at: span.into(),
-                });
+                panic!("codegen_cast_as_expr: typecheck gate accepted non-runtime-ref operand")
             }
         };
-        let Some(raw) = v.value else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "cast operand value",
-                at: span.into(),
-            });
-        };
-        let BasicValueEnum::PointerValue(obj_ptr) = raw else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "cast operand type",
-                at: span.into(),
-            });
-        };
+        let obj_ptr = self.expect_cg_pointer(v, "`as` cast operand");
 
         // 运行期检查：为避免在 obj=NULL 时解引用对象头，先对 NULL 做 fail 处理。
         let is_ok = self.codegen_ref_is_instance_of(span, obj_ptr, target_ty)?;
@@ -207,22 +185,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         out_ty: TypeId,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         // `as?` 的结果类型应为 `Option<target_ty>`（或等价 nullable sugar）。
-        let out_cg = self
-            .cg_ty_of(out_ty)
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "cast result type",
-                at: span.into(),
-            })?;
+        let out_cg = self.expect_cg_ty_of(out_ty, "`as?` cast result type");
         let CgTy::Enum(option_ty) = out_cg else {
             panic!("codegen_cast_asq_expr: typecheck gate accepted non-Option `as?` result type");
         };
 
-        let target_cg = self
-            .cg_ty_of(target_ty)
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "cast target type",
-                at: span.into(),
-            })?;
+        let target_cg = self.expect_cg_ty_of(target_ty, "`as?` cast target type");
         let target_ptr_ty = match target_cg {
             CgTy::Ref => self.llvm_gc_i8_ptr_type(),
             CgTy::String => self.llvm_scoop_string_ptr_type(),

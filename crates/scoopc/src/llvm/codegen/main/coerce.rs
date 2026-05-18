@@ -7,7 +7,7 @@ use super::*;
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(in crate::llvm::codegen) fn codegen_equality(
         &mut self,
-        span: crate::span::Span,
+        _span: crate::span::Span,
         op: ast::BinaryOp,
         lhs: &hir::Expr,
         rhs: &hir::Expr,
@@ -24,44 +24,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 self.materialize_deferred_cg_value(lhs.span, "string_eq_lhs_reload", deferred_lhs)?;
 
             if matches!((lhs_v.ty, rhs_v.ty), (CgTy::String, CgTy::String)) {
-                let BasicValueEnum::PointerValue(l) =
-                    lhs_v.value.ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "equality lhs string value",
-                        at: span.into(),
-                    })?
-                else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "equality lhs string type",
-                        at: span.into(),
-                    });
-                };
-                let BasicValueEnum::PointerValue(r) =
-                    rhs_v.value.ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "equality rhs string value",
-                        at: span.into(),
-                    })?
-                else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "equality rhs string type",
-                        at: span.into(),
-                    });
-                };
+                let l = self.expect_cg_pointer(lhs_v, "string equality lhs");
+                let r = self.expect_cg_pointer(rhs_v, "string equality rhs");
                 let fn_val = self.declare_runtime_string_equals();
                 let call = self
                     .builder
                     .build_call(fn_val, &[l.into(), r.into()], "str_eq")?;
-                let raw_result = call.try_as_basic_value().basic().ok_or(
-                    LlvmEmitError::UnsupportedMainBody {
-                        kind: "String equals return value",
-                        at: span.into(),
-                    },
-                )?;
-                let BasicValueEnum::IntValue(eq_i64) = raw_result else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "String equals return type",
-                        at: span.into(),
-                    });
-                };
+                let raw_result = self.expect_basic_value(call, "String.equals equality result");
+                let eq_i64 = self.expect_int_value(raw_result, "String.equals equality result");
                 let is_eq = self.builder.build_int_compare(
                     IntPredicate::NE,
                     eq_i64,
@@ -76,10 +46,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 return Ok(CgValue::bool(result));
             }
 
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "string equality operand type",
-                at: span.into(),
-            });
+            panic!("codegen_equality: typecheck gate accepted non-string rhs for string equality");
         }
         let rhs_v = self.codegen_expr(rhs)?;
 
@@ -102,45 +69,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         // T0107: String == String — call scoop_string_equals(a, b) -> i64 (1=equal, 0=not)
         if matches!((lhs_v.ty, rhs_v.ty), (CgTy::String, CgTy::String)) {
-            let BasicValueEnum::PointerValue(l) =
-                lhs_v.value.ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "equality lhs string value",
-                    at: span.into(),
-                })?
-            else {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "equality lhs string type",
-                    at: span.into(),
-                });
-            };
-            let BasicValueEnum::PointerValue(r) =
-                rhs_v.value.ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "equality rhs string value",
-                    at: span.into(),
-                })?
-            else {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "equality rhs string type",
-                    at: span.into(),
-                });
-            };
+            let l = self.expect_cg_pointer(lhs_v, "string equality lhs");
+            let r = self.expect_cg_pointer(rhs_v, "string equality rhs");
             let fn_val = self.declare_runtime_string_equals();
             let call = self
                 .builder
                 .build_call(fn_val, &[l.into(), r.into()], "str_eq")?;
-            let raw_result =
-                call.try_as_basic_value()
-                    .basic()
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "String equals return value",
-                        at: span.into(),
-                    })?;
-            let BasicValueEnum::IntValue(eq_i64) = raw_result else {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "String equals return type",
-                    at: span.into(),
-                });
-            };
+            let raw_result = self.expect_basic_value(call, "String.equals equality result");
+            let eq_i64 = self.expect_int_value(raw_result, "String.equals equality result");
             let is_eq = self.builder.build_int_compare(
                 IntPredicate::NE,
                 eq_i64,
@@ -156,12 +92,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         if let (Some((l_raw, l_ty)), Some((r_raw, r_ty))) = (lhs_v.as_float(), rhs_v.as_float()) {
-            let float_ty = self.unify_float_cg_types(lhs, l_ty, rhs, r_ty).ok_or(
-                LlvmEmitError::UnsupportedMainBody {
-                    kind: "equality float operand type",
-                    at: span.into(),
-                },
-            )?;
+            let float_ty = self
+                .unify_float_cg_types(lhs, l_ty, rhs, r_ty)
+                .unwrap_or_else(|| {
+                    panic!("codegen_equality: typecheck gate accepted incompatible float operands")
+                });
             let l = self.cast_float(l_raw, l_ty, float_ty)?;
             let r = self.cast_float(r_raw, r_ty, float_ty)?;
             let pred = match op {
@@ -175,25 +110,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         // Int == Int（含 int literal 吸收）
-        let Some((l_raw, l_ty)) = lhs_v.as_int() else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "equality lhs",
-                at: span.into(),
-            });
-        };
-        let Some((r_raw, r_ty)) = rhs_v.as_int() else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "equality rhs",
-                at: span.into(),
-            });
-        };
+        let (l_raw, l_ty) = self.expect_cg_int(lhs_v, "integer equality lhs");
+        let (r_raw, r_ty) = self.expect_cg_int(rhs_v, "integer equality rhs");
 
-        let int_ty = unify_int_types(lhs_is_lit, l_ty, rhs_is_lit, r_ty).ok_or(
-            LlvmEmitError::UnsupportedMainBody {
-                kind: "equality operand type",
-                at: span.into(),
-            },
-        )?;
+        let int_ty = unify_int_types(lhs_is_lit, l_ty, rhs_is_lit, r_ty).unwrap_or_else(|| {
+            panic!("codegen_equality: typecheck gate accepted incompatible integer operands")
+        });
 
         let l = self.cast_int(l_raw, l_ty, int_ty)?;
         let r = self.cast_int(r_raw, r_ty, int_ty)?;
@@ -210,25 +132,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     pub(in crate::llvm::codegen) fn codegen_bool_logic(
         &mut self,
-        span: crate::span::Span,
+        _span: crate::span::Span,
         op: ast::BinaryOp,
         lhs: &hir::Expr,
         rhs: &hir::Expr,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        let l = self
-            .codegen_expr(lhs)?
-            .as_bool()
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "bool operator lhs",
-                at: span.into(),
-            })?;
-        let r = self
-            .codegen_expr(rhs)?
-            .as_bool()
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "bool operator rhs",
-                at: span.into(),
-            })?;
+        let lhs_v = self.codegen_expr(lhs)?;
+        let rhs_v = self.codegen_expr(rhs)?;
+        let l = self.expect_cg_bool(lhs_v, "bool operator lhs");
+        let r = self.expect_cg_bool(rhs_v, "bool operator rhs");
 
         let out = match op {
             ast::BinaryOp::LogAnd => self.builder.build_and(l, r, "and")?,
@@ -265,10 +177,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
             (CgTy::Bool, CgTy::Bool) => Ok(value),
             (CgTy::Bool, CgTy::Int(int_ty)) => {
-                let v = value.as_bool().ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "bool value",
-                    at: at.into(),
-                })?;
+                let v = self.expect_cg_bool(value, "Bool -> Int coercion");
                 let out =
                     self.builder
                         .build_int_z_extend(v, self.int_type(int_ty), "bool_to_int")?;
@@ -281,10 +190,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 // - 当前阶段 runtime type descriptor 仍是占位（NULL），因此这里只保证"可执行/可回归"，
                 //   不承诺后续 runtime type casts 的可观察语义；
                 // - 为复用现有 box 形态，这里把 `Bool` 扩展为 word-sized 无符号整数后按 int box 存储。
-                let v = value.as_bool().ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "bool value",
-                    at: at.into(),
-                })?;
+                let v = self.expect_cg_bool(value, "Bool -> Ref boxing coercion");
                 let word = IntTy {
                     bits: self.host.word_bit_width(),
                     signed: false,
@@ -300,10 +206,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
             (CgTy::Float64, CgTy::Float64) | (CgTy::Float32, CgTy::Float32) => Ok(value),
             (CgTy::Float64, CgTy::Float32) | (CgTy::Float32, CgTy::Float64) => {
-                let (v, from) = value.as_float().ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "float value",
-                    at: at.into(),
-                })?;
+                let (v, from) = self.expect_cg_float(value, "Float scalar coercion");
                 let out = self.cast_float(v, from, target)?;
                 Ok(CgValue::float(out, target))
             }
@@ -311,27 +214,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 if let Some(bits) = self.int_literal_bits_from_source_span_if_present(at, to)? {
                     return Ok(CgValue::int(self.int_type(to).const_int(bits, false), to));
                 }
-                let (v, _) = value.as_int().ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "int value",
-                    at: at.into(),
-                })?;
+                let (v, _) = self.expect_cg_int(value, "Int scalar coercion");
                 let out = self.cast_int(v, from, to)?;
                 Ok(CgValue::int(out, to))
             }
             (CgTy::String, CgTy::String) => Ok(value),
             (CgTy::String, CgTy::Ref) => {
-                let Some(raw) = value.value else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "string -> ref coercion value",
-                        at: at.into(),
-                    });
-                };
-                let BasicValueEnum::PointerValue(ptr) = raw else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "string -> ref coercion type",
-                        at: at.into(),
-                    });
-                };
+                let ptr = self.expect_cg_pointer(value, "String -> Ref coercion");
 
                 let casted = self.builder.build_pointer_cast(
                     ptr,
@@ -344,18 +233,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 })
             }
             (CgTy::Ref, CgTy::String) => {
-                let Some(raw) = value.value else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "ref -> string coercion value",
-                        at: at.into(),
-                    });
-                };
-                let BasicValueEnum::PointerValue(ptr) = raw else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "ref -> string coercion type",
-                        at: at.into(),
-                    });
-                };
+                let ptr = self.expect_cg_pointer(value, "Ref -> String coercion");
                 let casted = self.builder.build_pointer_cast(
                     ptr,
                     self.llvm_scoop_string_ptr_type(),
@@ -369,11 +247,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             (CgTy::Ref, CgTy::Ref) => Ok(value),
             (CgTy::Int(_), CgTy::Ref) => {
                 // T0817：值类型装箱到 `Any`（当前阶段先只支持整数族）。
-                let (raw_int, from_ty) =
-                    value.as_int().ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "int value",
-                        at: at.into(),
-                    })?;
+                let (raw_int, from_ty) = self.expect_cg_int(value, "Int -> Ref boxing coercion");
                 let boxed = self.codegen_box_int_to_ref(at, raw_int, from_ty)?;
                 Ok(CgValue {
                     ty: CgTy::Ref,
@@ -381,12 +255,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 })
             }
             (CgTy::Enum(enum_ty), CgTy::Ref) => {
-                let Some(raw) = value.value else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "enum -> ref coercion value",
-                        at: at.into(),
-                    });
-                };
+                let raw = self.expect_cg_value(value, "Enum -> Ref boxing coercion");
                 let boxed = self.codegen_box_enum_to_ref(at, enum_ty, raw)?;
                 Ok(CgValue {
                     ty: CgTy::Ref,
@@ -419,10 +288,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 {
                     Ok(coerced)
                 } else {
-                    Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "value coercion pointer-like enum",
-                        at: at.into(),
-                    })
+                    panic!(
+                        "coerce_value: typecheck gate accepted invalid pointer-like Option coercion"
+                    )
                 }
             }
             (from, to) => Err(LlvmEmitError::Frontend {
@@ -452,12 +320,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             return Ok(None);
         }
 
-        let target_inner_cg =
-            self.cg_ty_of(*target_inner)
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "Option<T> inner type",
-                    at: at.into(),
-                })?;
+        let target_inner_cg = self.expect_cg_ty_of(*target_inner, "Option<T> inner type");
 
         let Some(raw) = value.value else {
             return Ok(None);

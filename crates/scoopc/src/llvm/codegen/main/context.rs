@@ -90,6 +90,81 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
     }
 
+    /// Return an integer value, or panic with a named compiler invariant.
+    pub(in crate::llvm::codegen) fn expect_int_value(
+        &self,
+        value: BasicValueEnum<'ctx>,
+        context: &str,
+    ) -> IntValue<'ctx> {
+        match value {
+            BasicValueEnum::IntValue(value) => value,
+            _ => panic!("expect_int_value: value was not an integer while {context}"),
+        }
+    }
+
+    /// Return a lowered codegen type, or panic with a named compiler invariant.
+    pub(in crate::llvm::codegen) fn expect_cg_ty_of(&self, ty: TypeId, context: &str) -> CgTy {
+        self.cg_ty_of(ty).unwrap_or_else(|| {
+            panic!("expect_cg_ty_of: type verifier accepted a non-codegen type while {context}")
+        })
+    }
+
+    /// Return a bool CgValue payload, or panic with a named compiler invariant.
+    pub(in crate::llvm::codegen) fn expect_cg_bool(
+        &self,
+        value: CgValue<'ctx>,
+        context: &str,
+    ) -> IntValue<'ctx> {
+        value.as_bool().unwrap_or_else(|| {
+            panic!("expect_cg_bool: value was not a bool payload while {context}")
+        })
+    }
+
+    /// Return an integer CgValue payload, or panic with a named compiler invariant.
+    pub(in crate::llvm::codegen) fn expect_cg_int(
+        &self,
+        value: CgValue<'ctx>,
+        context: &str,
+    ) -> (IntValue<'ctx>, IntTy) {
+        value.as_int().unwrap_or_else(|| {
+            panic!("expect_cg_int: value was not an integer payload while {context}")
+        })
+    }
+
+    /// Return a float CgValue payload, or panic with a named compiler invariant.
+    pub(in crate::llvm::codegen) fn expect_cg_float(
+        &self,
+        value: CgValue<'ctx>,
+        context: &str,
+    ) -> (FloatValue<'ctx>, CgTy) {
+        value.as_float().unwrap_or_else(|| {
+            panic!("expect_cg_float: value was not a float payload while {context}")
+        })
+    }
+
+    /// Return a pointer CgValue payload, or panic with a named compiler invariant.
+    pub(in crate::llvm::codegen) fn expect_cg_pointer(
+        &self,
+        value: CgValue<'ctx>,
+        context: &str,
+    ) -> PointerValue<'ctx> {
+        let raw = value.value.unwrap_or_else(|| {
+            panic!("expect_cg_pointer: value did not publish a payload while {context}")
+        });
+        self.expect_pointer_value(raw, context)
+    }
+
+    /// Return any published CgValue payload, or panic with a named compiler invariant.
+    pub(in crate::llvm::codegen) fn expect_cg_value(
+        &self,
+        value: CgValue<'ctx>,
+        context: &str,
+    ) -> BasicValueEnum<'ctx> {
+        value.value.unwrap_or_else(|| {
+            panic!("expect_cg_value: value did not publish a payload while {context}")
+        })
+    }
+
     pub(in crate::llvm::codegen) fn take_function_body_cx(
         &mut self,
     ) -> FunctionBodyCodegenCx<'ctx> {
@@ -384,18 +459,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         source_id: SourceId,
         span: crate::span::Span,
     ) -> Result<&str, LlvmEmitError> {
-        let bound = self.source_map.bind_span(source_id, span).map_err(|_| {
-            LlvmEmitError::UnsupportedMainBody {
-                kind: "source-backed literal span",
-                at: span.into(),
-            }
-        })?;
-        self.source_map
-            .slice(bound)
-            .map_err(|_| LlvmEmitError::UnsupportedMainBody {
-                kind: "source-backed literal slice",
-                at: span.into(),
-            })
+        let bound = self
+            .source_map
+            .bind_span(source_id, span)
+            .unwrap_or_else(|_| {
+                panic!("source_slice_at: parser/typecheck accepted a span outside its source")
+            });
+        let slice = self.source_map.slice(bound).unwrap_or_else(|_| {
+            panic!("source_slice_at: parser/typecheck accepted an unsliceable source span")
+        });
+        Ok(slice)
     }
 
     pub(in crate::llvm::codegen) fn current_source_slice(

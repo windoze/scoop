@@ -1,17 +1,16 @@
 // EXPECT: ok
-// IGNORE-UNTIL-FIX:B-18
 // SPEC: docs/spec/language_spec-part1.md#5-词法概览;docs/spec/language_spec-part1.md#51-标识符;docs/spec/language_spec-part1.md#52-关键字;docs/spec/language_spec-part1.md#53-注释
 // COVERS: NONE
 // BUCKETS: B-18
-// REASON: U5-T02 records the spec surface before the matching implementation gate is enabled.
+// REASON: P7-B2.5 retired B-18 rows; fixture remains active as lexical positive coverage.
 // SOURCE-FIXTURE: tests/fixtures/parse/char_literal_basic.scoop
 
 package fixtures.parse
 
-val plain = 'A'
-val newline = '\n'
-val quote = '\''
-val unicode = '\u0041'
+val plain: Char = 'A'
+val newline: Char = '\n'
+val quote: Char = '\''
+val unicode: Char = '\u0041'
 
 fun classify(c: Char) {
     when (c) {

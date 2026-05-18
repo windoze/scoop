@@ -7,8 +7,8 @@
 
 ## Scope
 
-U5-T01 creates this directory skeleton only. U5-T02 and U5-T03 must add `.scoop` fixtures and append matching `_index.csv` rows.
+P7-B2.5 activates this directory as literal and string regression coverage after retiring the B-18 `UnsupportedMainBody` rows.
 
 ## Runner Status
 
-`scoop test` recognizes `tests/fixtures/umb_fix/**`. Fixtures marked `IGNORE-UNTIL-FIX:B-18` or `ignore-until-fix:B-18` are skipped until the corresponding production fix lands.
+`scoop test` recognizes `tests/fixtures/umb_fix/**`. B-18 fixtures are active; retired B-18 IDs are covered by `audit/UMB_retired.csv`.

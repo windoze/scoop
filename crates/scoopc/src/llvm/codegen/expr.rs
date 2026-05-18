@@ -101,10 +101,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             hir::ExprKind::InterpolatedString { .. } => std::panic::panic_any(
                 "HIR lowering must desugar interpolated strings before LLVM codegen",
             ),
-            hir::ExprKind::Unary { .. } => Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "unary operator after HIR desugar",
-                at: expr.span.into(),
-            }),
+            hir::ExprKind::Unary { .. } => {
+                panic!("codegen_expr: HIR lowering accepted a unary operator after desugar")
+            }
             hir::ExprKind::Binary { lhs, op, rhs, .. } => match op {
                 ast::BinaryOp::Eq | ast::BinaryOp::Ne => {
                     self.codegen_equality(expr.span, *op, lhs, rhs)
@@ -112,18 +111,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 ast::BinaryOp::LogAnd | ast::BinaryOp::LogOr => {
                     self.codegen_bool_logic(expr.span, *op, lhs, rhs)
                 }
-                ast::BinaryOp::RangeInclusive => Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "range operator",
-                    at: expr.span.into(),
-                }),
-                ast::BinaryOp::Elvis => Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "elvis operator",
-                    at: expr.span.into(),
-                }),
-                _ => Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "binary operator after HIR desugar",
-                    at: expr.span.into(),
-                }),
+                ast::BinaryOp::RangeInclusive => {
+                    panic!("codegen_expr: HIR lowering accepted a range operator")
+                }
+                ast::BinaryOp::Elvis => {
+                    panic!("codegen_expr: HIR lowering accepted an elvis operator")
+                }
+                _ => {
+                    panic!("codegen_expr: HIR lowering accepted a binary operator after desugar")
+                }
             },
             hir::ExprKind::TypeCheck {
                 expr: inner,

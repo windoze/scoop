@@ -1,12 +1,11 @@
 // EXPECT: fail
-// IGNORE-UNTIL-FIX:B-17
-// EXPECT-ERROR-CODE: scoop::umb_fix::pending_gate
-// EXPECT-ERROR-AT: 1:1
-// EXPECT-ERROR: pending U5 fixture gate
+// EXPECT-ERROR-CODE: scoop::typecheck::nogc_boxing_forbidden
+// EXPECT-ERROR-AT: 15:12
+// EXPECT-ERROR: 装箱
 // SPEC: docs/spec/language_spec-part2.md#7-装箱
 // COVERS: NONE
 // BUCKETS: B-17, B-22
-// REASON: U5-T02 records the spec surface before the matching implementation gate is enabled.
+// REASON: P7-B2.5 retired B-17 rows; fixture remains active as NoGC boxing boundary coverage.
 // SOURCE-FIXTURE: tests/fixtures/unsafe_nogc/nogc_boxing_to_any_is_error.scoop
 
 package fixtures.unsafe_nogc

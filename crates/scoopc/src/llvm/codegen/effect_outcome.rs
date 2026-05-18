@@ -384,36 +384,26 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         match value.ty {
             CgTy::Unit | CgTy::Never => Ok(i64_ty.const_zero()),
             CgTy::Bool => {
-                let raw = value.as_bool().ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "coerce bool to u64 word",
-                    at: at.into(),
-                })?;
+                let raw = self.expect_cg_bool(value, "effect transport Bool word coercion");
                 self.builder
                     .build_int_z_extend(raw, i64_ty, "bool_to_u64_word")
                     .map_err(Into::into)
             }
             CgTy::Int(from) if from.bits <= 64 => {
-                let (raw, _) = value.as_int().ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "coerce int to u64 word",
-                    at: at.into(),
-                })?;
+                let (raw, _) = self.expect_cg_int(value, "effect transport Int word coercion");
                 self.cast_int(raw, from, to)
             }
             CgTy::Float64 => {
-                let (raw, _) = value.as_float().ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "coerce f64 to u64 word",
-                    at: at.into(),
-                })?;
+                let (raw, _) =
+                    self.expect_cg_float(value, "effect transport Float64 word coercion");
                 Ok(self
                     .builder
                     .build_bit_cast(raw, i64_ty, "f64_to_u64_bits")?
                     .into_int_value())
             }
             CgTy::Float32 => {
-                let (raw, _) = value.as_float().ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "coerce f32 to u64 word",
-                    at: at.into(),
-                })?;
+                let (raw, _) =
+                    self.expect_cg_float(value, "effect transport Float32 word coercion");
                 let bits32 = self
                     .builder
                     .build_bit_cast(raw, self.context.i32_type(), "f32_to_i32_bits")?
@@ -432,10 +422,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     at: at.into(),
                 })
             }
-            CgTy::Int(_) => Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "coerce int wider than u64 to u64 word",
-                at: at.into(),
-            }),
+            CgTy::Int(_) => {
+                panic!("coerce_u64_word: verifier accepted integer wider than u64 transport word")
+            }
         }
     }
 

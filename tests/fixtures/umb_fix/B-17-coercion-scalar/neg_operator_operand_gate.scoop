@@ -1,12 +1,11 @@
 // EXPECT: fail
-// IGNORE-UNTIL-FIX:B-17
-// EXPECT-ERROR-CODE: scoop::umb_fix::pending_gate
-// EXPECT-ERROR-AT: 1:1
-// EXPECT-ERROR: pending U5 fixture gate
+// EXPECT-ERROR-CODE: scoop::typecheck::operator_overload_not_found
+// EXPECT-ERROR-AT: 21:21
+// EXPECT-ERROR: 操作符 `+` 未找到可用的重载
 // SPEC: docs/spec/language_spec-part3.md#15-operator-overloading;docs/spec/language_spec-part3.md#3-运算符优先级
-// COVERS: UMB-0367, UMB-0368, UMB-0369, UMB-0370, UMB-0373, UMB-0414, UMB-0415, UMB-0416, UMB-0417, UMB-0787, UMB-0788, UMB-0789, UMB-0790, UMB-0791, UMB-0792, UMB-0793, UMB-0794, UMB-0795, UMB-0796, UMB-0797, UMB-0798, UMB-0799, UMB-0800, UMB-0801, UMB-0802, UMB-0803, UMB-0804, UMB-0805, UMB-0806, UMB-0807, UMB-0808, UMB-0809, UMB-0810, UMB-0811, UMB-0812, UMB-0813, UMB-0814, UMB-0815, UMB-0816, UMB-0817, UMB-0833, UMB-0834, UMB-0835, UMB-0836, UMB-0837, UMB-0841, UMB-0843
+// COVERS: NONE
 // BUCKETS: B-17, B-31
-// REASON: U5-T02 records the spec surface before the matching implementation gate is enabled.
+// REASON: P7-B2.5 retired B-17 rows; fixture remains active as scalar operator frontend gate coverage.
 // SOURCE-FIXTURE: tests/fixtures/typecheck/operator_overload_plus_missing_is_error.scoop
 
 package fixtures.typecheck

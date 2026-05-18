@@ -1,9 +1,8 @@
 // EXPECT: ok
-// IGNORE-UNTIL-FIX:B-17
 // SPEC: docs/spec/language_spec-part2.md#7-装箱
 // COVERS: NONE
 // BUCKETS: B-17, B-22
-// REASON: U5-T02 records the spec surface before the matching implementation gate is enabled.
+// REASON: P7-B2.5 retired B-17 rows; fixture remains active as value boxing positive coverage.
 // SOURCE-FIXTURE: tests/fixtures/run-pass/boxing_int_to_any_basic.scoop
 
 import scoop.core.*
