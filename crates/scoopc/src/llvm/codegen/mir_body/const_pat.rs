@@ -18,12 +18,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             crate::mir::ConstValue::Char => {
                 let text = self.current_source_slice(span)?;
                 let value =
-                    crate::syntax::char_literal::parse_char_literal(text).map_err(|_| {
-                        LlvmEmitError::UnsupportedMainBody {
-                            kind: "pass MIR char literal",
-                            at: span.into(),
-                        }
-                    })?;
+                    crate::syntax::char_literal::parse_char_literal(text).unwrap_or_else(|_| {
+                        panic!("codegen_mir_const: parser/typecheck accepted invalid char literal")
+                    });
                 Ok(CgValue::int(
                     self.context.i32_type().const_int(value as u64, false),
                     IntTy {
@@ -36,12 +33,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             crate::mir::ConstValue::Int => {
                 let int_ty = match expected.or_else(|| self.cg_ty_of(self.builtins.int)) {
                     Some(CgTy::Int(int_ty)) => int_ty,
-                    _ => {
-                        return Err(LlvmEmitError::UnsupportedMainBody {
-                            kind: "pass MIR int builtin type",
-                            at: span.into(),
-                        });
-                    }
+                    _ => panic!(
+                        "codegen_mir_const: MIR verifier accepted Int literal without an Int codegen type"
+                    ),
                 };
                 let bits = match self.int_literal_bits_from_source_span_if_present(span, int_ty)? {
                     Some(bits) => bits,
@@ -55,12 +49,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             crate::mir::ConstValue::SynthInt(value) => {
                 let int_ty = match expected.or_else(|| self.cg_ty_of(self.builtins.int)) {
                     Some(CgTy::Int(int_ty)) => int_ty,
-                    _ => {
-                        return Err(LlvmEmitError::UnsupportedMainBody {
-                            kind: "pass MIR synthesized int builtin type",
-                            at: span.into(),
-                        });
-                    }
+                    _ => panic!(
+                        "codegen_mir_const: MIR verifier accepted synthesized Int without an Int codegen type"
+                    ),
                 };
                 Ok(CgValue::int(
                     self.int_type(int_ty)
@@ -139,11 +130,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 self.codegen_mir_variant_pattern_match(span, mir_types, subject, name, args)
             }
             crate::mir::Pattern::IntLit { raw } => {
-                let (value, int_ty) =
-                    subject.as_int().ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "pass MIR pattern int subject",
-                        at: span.into(),
-                    })?;
+                let (value, int_ty) = subject.as_int().unwrap_or_else(|| {
+                    panic!("codegen_mir_pattern_match_value: MIR verifier accepted Int pattern for non-int subject")
+                });
                 let expected = self.int_literal_bits_from_text_for_ty(span, raw, int_ty)?;
                 Ok(self.builder.build_int_compare(
                     IntPredicate::EQ,
@@ -153,11 +142,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 )?)
             }
             crate::mir::Pattern::CharLit { value: expected } => {
-                let (value, int_ty) =
-                    subject.as_int().ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "pass MIR pattern char subject",
-                        at: span.into(),
-                    })?;
+                let (value, int_ty) = subject.as_int().unwrap_or_else(|| {
+                    panic!("codegen_mir_pattern_match_value: MIR verifier accepted Char pattern for non-int subject")
+                });
                 Ok(self.builder.build_int_compare(
                     IntPredicate::EQ,
                     value,
@@ -167,25 +154,22 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
             crate::mir::Pattern::StringLit { value } => {
                 let CgTy::String = subject.ty else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "pass MIR pattern string subject",
-                        at: span.into(),
-                    });
+                    panic!(
+                        "codegen_mir_pattern_match_value: MIR verifier accepted String pattern for non-string subject"
+                    );
                 };
                 let Some(BasicValueEnum::PointerValue(subject_ptr)) = subject.value else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "pass MIR pattern string value",
-                        at: span.into(),
-                    });
+                    panic!(
+                        "codegen_mir_pattern_match_value: MIR verifier accepted String pattern with valueless subject"
+                    );
                 };
                 let deferred_subject =
                     self.defer_gc_ref_pointer(span, "pass_mir_pattern_str_subject", subject_ptr)?;
                 let expected = self.codegen_string_literal_from_text(span, value)?;
                 let Some(BasicValueEnum::PointerValue(expected_ptr)) = expected.value else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "pass MIR pattern string literal",
-                        at: span.into(),
-                    });
+                    panic!(
+                        "codegen_mir_pattern_match_value: string literal codegen produced no pointer"
+                    );
                 };
                 let subject_ptr = self.reload_deferred_gc_ref_without_clearing(
                     span,
@@ -198,17 +182,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     &[subject_ptr.into(), expected_ptr.into()],
                     "pass_mir_pattern_str_eq",
                 )?;
-                let raw_result = call.try_as_basic_value().basic().ok_or(
-                    LlvmEmitError::UnsupportedMainBody {
-                        kind: "pass MIR pattern string equals return value",
-                        at: span.into(),
-                    },
-                )?;
+                let raw_result = call
+                    .try_as_basic_value()
+                    .basic()
+                    .expect("runtime string equality call must return a value");
                 let BasicValueEnum::IntValue(eq_i64) = raw_result else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "pass MIR pattern string equals return type",
-                        at: span.into(),
-                    });
+                    panic!(
+                        "codegen_mir_pattern_match_value: runtime string equality must return an integer"
+                    );
                 };
                 Ok(self.builder.build_int_compare(
                     IntPredicate::NE,
@@ -220,10 +201,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             crate::mir::Pattern::BoolLit { value: expected } => {
                 let value = subject
                     .as_bool()
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "pass MIR pattern bool subject",
-                        at: span.into(),
-                    })?;
+                    .unwrap_or_else(|| panic!("codegen_mir_pattern_match_value: MIR verifier accepted Bool pattern for non-bool subject"));
                 Ok(self.builder.build_int_compare(
                     IntPredicate::EQ,
                     value,
@@ -243,22 +221,17 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         metadata: &crate::mir::RuntimePatternTypeTestMetadata,
     ) -> Result<IntValue<'ctx>, LlvmEmitError> {
         if metadata.target_ty != target_ty || metadata.descriptor.ty != target_ty {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "pass MIR pattern is metadata",
-                at: span.into(),
-            });
+            panic!(
+                "codegen_mir_is_pattern_match: MIR verifier accepted pattern metadata target drift"
+            );
         }
         let metadata_subject_ty = self
             .cg_ty_of_mir_type(mir_types, metadata.subject_ty)
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "pass MIR pattern is subject metadata",
-                at: span.into(),
-            })?;
+            .unwrap_or_else(|| panic!("codegen_mir_is_pattern_match: MIR verifier accepted unsupported pattern subject metadata type"));
         if !self.cg_ty_layout_equivalent(metadata_subject_ty, subject.ty) {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "pass MIR pattern is subject type drift",
-                at: span.into(),
-            });
+            panic!(
+                "codegen_mir_is_pattern_match: MIR verifier accepted pattern subject type drift"
+            );
         }
         match metadata.static_fold {
             crate::mir::RuntimeTypeStaticFold::AlwaysTrue => {
@@ -277,16 +250,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
         let target_ty = self
             .equivalent_runtime_ref_codegen_type_id(mir_types, metadata.target_ty)
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "pass MIR pattern is target type",
-                at: span.into(),
-            })?;
+            .unwrap_or_else(|| panic!("codegen_mir_is_pattern_match: MIR verifier accepted unsupported runtime target type"));
         let target_cg = self
             .cg_ty_of(target_ty)
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "pass MIR pattern is target type",
-                at: span.into(),
-            })?;
+            .unwrap_or_else(|| panic!("codegen_mir_is_pattern_match: MIR verifier accepted non-codegen runtime target type"));
         if !matches!(target_cg, CgTy::Ref | CgTy::String) {
             return Err(LlvmEmitError::UnsupportedMainBody {
                 kind: "pass MIR pattern is target runtime type",
@@ -298,17 +265,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             CgTy::Ref => subject,
             CgTy::String => self.coerce_value(span, subject, CgTy::Ref)?,
             _ => {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "pass MIR pattern is subject type",
-                    at: span.into(),
-                });
+                panic!(
+                    "codegen_mir_is_pattern_match: MIR verifier accepted runtime pattern over non-reference subject"
+                );
             }
         };
         let Some(BasicValueEnum::PointerValue(subject_ptr)) = subject.value else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "pass MIR pattern is subject value",
-                at: span.into(),
-            });
+            panic!(
+                "codegen_mir_is_pattern_match: MIR verifier accepted valueless runtime pattern subject"
+            );
         };
         self.codegen_ref_is_instance_of(span, subject_ptr, target_ty)
     }
@@ -321,22 +286,19 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         elements: &[crate::mir::Pattern],
     ) -> Result<IntValue<'ctx>, LlvmEmitError> {
         let CgTy::Tuple(tuple_ty) = subject.ty else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "pass MIR tuple pattern subject type",
-                at: span.into(),
-            });
+            panic!(
+                "codegen_mir_tuple_pattern_match: MIR verifier accepted tuple pattern for non-tuple subject"
+            );
         };
         let TypeKind::Value(ValueTypeKind::Tuple(tuple_elems)) = self.types.kind(tuple_ty) else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "pass MIR tuple pattern tuple type",
-                at: span.into(),
-            });
+            panic!(
+                "codegen_mir_tuple_pattern_match: MIR verifier accepted tuple pattern without tuple schema"
+            );
         };
         let Some(raw) = subject.value else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "pass MIR tuple pattern subject value",
-                at: span.into(),
-            });
+            panic!(
+                "codegen_mir_tuple_pattern_match: MIR verifier accepted valueless tuple pattern subject"
+            );
         };
         let tuple_v = raw.into_struct_value();
         let (prefix_pats, has_rest) = match elements.last() {
@@ -349,20 +311,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         if (!has_rest && pat_arity != tuple_elems.len())
             || (has_rest && pat_arity > tuple_elems.len())
         {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "pass MIR tuple pattern arity",
-                at: span.into(),
-            });
+            panic!(
+                "codegen_mir_tuple_pattern_match: MIR verifier accepted tuple pattern arity drift"
+            );
         }
 
         let mut cond = self.context.bool_type().const_int(1, false);
         for (idx, pat) in prefix_pats.iter().enumerate() {
-            let elem_ty = self.tuple_element_cg_ty(tuple_ty, idx).ok_or(
-                LlvmEmitError::UnsupportedMainBody {
-                    kind: "pass MIR tuple pattern element type",
-                    at: span.into(),
-                },
-            )?;
+            let elem_ty = self.tuple_element_cg_ty(tuple_ty, idx).unwrap_or_else(|| {
+                panic!("codegen_mir_tuple_pattern_match: MIR verifier accepted unsupported tuple pattern element type")
+            });
             let elem_value = self.extract_mir_tuple_element_value(span, tuple_v, idx, elem_ty)?;
             let elem_cond =
                 self.codegen_mir_pattern_match_value(span, mir_types, elem_value, pat)?;
@@ -382,16 +340,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         args: &[crate::mir::Pattern],
     ) -> Result<IntValue<'ctx>, LlvmEmitError> {
         let CgTy::Enum(enum_ty) = subject.ty else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "pass MIR variant pattern subject type",
-                at: span.into(),
-            });
+            panic!(
+                "codegen_mir_variant_pattern_match: MIR verifier accepted variant pattern for non-enum subject"
+            );
         };
         let Some(raw) = subject.value else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "pass MIR variant pattern subject value",
-                at: span.into(),
-            });
+            panic!(
+                "codegen_mir_variant_pattern_match: MIR verifier accepted valueless variant pattern subject"
+            );
         };
         let (repr, variant) = {
             let layout = self.cg_enum_layout(span, enum_ty)?;
@@ -401,10 +357,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 .iter()
                 .find(|variant| variant.name == variant_name)
                 .cloned()
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "pass MIR unknown enum variant",
-                    at: span.into(),
-                })?;
+                .unwrap_or_else(|| panic!("codegen_mir_variant_pattern_match: MIR verifier accepted unknown enum variant pattern"));
             (repr, variant)
         };
         let (prefix_pats, has_rest) = match args.last() {
@@ -416,10 +369,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         if (!has_rest && expected_arity != found_arity)
             || (has_rest && found_arity > expected_arity)
         {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "pass MIR variant pattern arity",
-                at: span.into(),
-            });
+            panic!(
+                "codegen_mir_variant_pattern_match: MIR verifier accepted enum variant pattern arity drift"
+            );
         }
 
         let tag = self.extract_mir_enum_tag_value(span, enum_ty, repr, raw)?;
@@ -471,13 +423,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     .build_and(payload_cond, field_cond, "pass_mir_variant_payload_and")?;
         }
 
-        let payload_tail =
-            self.builder
-                .get_insert_block()
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "pass MIR variant payload tail",
-                    at: span.into(),
-                })?;
+        let payload_tail = self.builder.get_insert_block().expect(
+            "codegen_mir_variant_pattern_match: payload match must have an insertion block",
+        );
         self.builder.build_unconditional_branch(merge_bb)?;
 
         self.builder.position_at_end(merge_bb);
@@ -502,23 +450,18 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             current = match step {
                 crate::mir::PatternBindingStep::TupleIndex(index) => {
                     let CgTy::Tuple(tuple_ty) = current.ty else {
-                        return Err(LlvmEmitError::UnsupportedMainBody {
-                            kind: "pass MIR pattern extract tuple subject type",
-                            at: span.into(),
-                        });
+                        panic!(
+                            "codegen_mir_pattern_extract: MIR verifier accepted tuple extraction from non-tuple subject"
+                        );
                     };
                     let Some(raw) = current.value else {
-                        return Err(LlvmEmitError::UnsupportedMainBody {
-                            kind: "pass MIR pattern extract tuple subject value",
-                            at: span.into(),
-                        });
+                        panic!(
+                            "codegen_mir_pattern_extract: MIR verifier accepted valueless tuple extraction subject"
+                        );
                     };
-                    let elem_ty = self.tuple_element_cg_ty(tuple_ty, *index).ok_or(
-                        LlvmEmitError::UnsupportedMainBody {
-                            kind: "pass MIR pattern extract tuple field type",
-                            at: span.into(),
-                        },
-                    )?;
+                    let elem_ty = self.tuple_element_cg_ty(tuple_ty, *index).unwrap_or_else(|| {
+                        panic!("codegen_mir_pattern_extract: MIR verifier accepted tuple extraction field drift")
+                    });
                     self.extract_mir_tuple_element_value(
                         span,
                         raw.into_struct_value(),
@@ -531,10 +474,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     field_index,
                 } => {
                     let CgTy::Enum(enum_ty) = current.ty else {
-                        return Err(LlvmEmitError::UnsupportedMainBody {
-                            kind: "pass MIR pattern extract variant subject type",
-                            at: span.into(),
-                        });
+                        panic!(
+                            "codegen_mir_pattern_extract: MIR verifier accepted variant extraction from non-enum subject"
+                        );
                     };
                     let layout = self.cg_enum_layout(span, enum_ty)?;
                     let variant = layout
@@ -542,10 +484,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         .iter()
                         .find(|item| item.name == *variant)
                         .cloned()
-                        .ok_or(LlvmEmitError::UnsupportedMainBody {
-                            kind: "pass MIR pattern extract unknown enum variant",
-                            at: span.into(),
-                        })?;
+                        .unwrap_or_else(|| panic!("codegen_mir_pattern_extract: MIR verifier accepted unknown enum variant extraction"));
                     let subject_ptr =
                         self.create_entry_alloca(span, "pass_mir_extract_subject", current.ty)?;
                     let _ = self.store_local_value(span, subject_ptr, current.ty, current)?;
@@ -581,7 +520,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     pub(in crate::llvm::codegen) fn extract_mir_enum_tag_value(
         &mut self,
-        span: crate::span::Span,
+        _span: crate::span::Span,
         enum_ty: TypeId,
         repr: CgEnumRepr,
         raw: BasicValueEnum<'ctx>,
@@ -599,10 +538,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     NicheStorage::Pointer => {
                         let ptr = raw.into_pointer_value();
                         if none_value != 0 {
-                            return Err(LlvmEmitError::UnsupportedMainBody {
-                                kind: "pass MIR niche pointer none_value",
-                                at: span.into(),
-                            });
+                            panic!(
+                                "extract_mir_enum_tag_value: enum layout verifier accepted non-null pointer niche none value"
+                            );
                         }
                         self.builder.build_is_null(ptr, "pass_mir_option_is_none")?
                     }

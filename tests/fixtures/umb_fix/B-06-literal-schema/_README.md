@@ -7,8 +7,8 @@
 
 ## Scope
 
-U5-T01 creates this directory skeleton only. U5-T02 and U5-T03 must add `.scoop` fixtures and append matching `_index.csv` rows.
+P7-B2.3 activates the B-06 aggregate/tuple/schema fixture set. Retired B-06 IDs are tracked in `audit/UMB_retired.csv`; active `COVERS` fields only keep cross-bucket IDs that still remain in inventory.
 
 ## Runner Status
 
-`scoop test` recognizes `tests/fixtures/umb_fix/**`. Fixtures marked `IGNORE-UNTIL-FIX:B-06` or `ignore-until-fix:B-06` are skipped until the corresponding production fix lands.
+`scoop test` recognizes `tests/fixtures/umb_fix/**`. B-06 fixtures are active after P7-B2.3; some rows still mention B-13/B-23 because those cross-bucket IDs remain active for later tasks.

@@ -15,10 +15,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         slots: &[MirLocalSlot<'ctx>],
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         let CgTy::Tuple(tuple_ty) = target_cg else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "pass MIR tuple target type",
-                at: span.into(),
-            });
+            panic!("codegen_mir_make_tuple: MIR verifier accepted non-tuple aggregate target type");
         };
         let (element_tys, use_primary_types) = {
             let tuple_types = self
@@ -26,18 +23,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 .unwrap_or(mir_types);
             let TypeKind::Value(ValueTypeKind::Tuple(element_tys)) = tuple_types.kind(tuple_ty)
             else {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "pass MIR tuple type",
-                    at: span.into(),
-                });
+                panic!(
+                    "codegen_mir_make_tuple: MIR verifier accepted tuple target without tuple schema"
+                );
             };
             (element_tys.clone(), std::ptr::eq(tuple_types, self.types))
         };
         if element_tys.len() != elements.len() {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "pass MIR tuple arity mismatch",
-                at: span.into(),
-            });
+            panic!("codegen_mir_make_tuple: MIR verifier accepted tuple aggregate arity drift");
         }
 
         let llvm_tuple_ty = self.llvm_tuple_type(span, tuple_ty)?;
@@ -50,10 +43,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             } else {
                 self.cg_ty_of_mir_type(mir_types, *elem_ty)
             }
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "pass MIR tuple element type",
-                at: span.into(),
-            })?;
+            .unwrap_or_else(|| {
+                panic!(
+                    "codegen_mir_make_tuple: MIR verifier accepted unsupported tuple element type"
+                )
+            });
             let value = self.codegen_mir_operand_expected(span, operand, slots, Some(elem_cg))?;
             let coerced = self.coerce_value(span, value, elem_cg)?;
             let deferred = self.defer_gc_sensitive_cg_value(
@@ -73,12 +67,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             )?;
             let raw: BasicValueEnum<'ctx> = match materialized.ty {
                 CgTy::Unit => self.context.i8_type().const_int(0, false).into(),
-                _ => materialized
-                    .value
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "pass MIR tuple element value",
-                        at: elem_span.into(),
-                    })?,
+                _ => materialized.value.unwrap_or_else(|| {
+                    panic!("codegen_mir_make_tuple: MIR verifier accepted valueless tuple element")
+                }),
             };
             agg = self
                 .builder
@@ -134,12 +125,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         mir_types: &TypeStore,
         value_ty: TypeId,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        let arg_cg = self.cg_ty_of_mir_type(mir_types, value_ty).ok_or(
-            LlvmEmitError::UnsupportedMainBody {
-                kind: "pass MIR alignOf arg type",
-                at: span.into(),
-            },
-        )?;
+        let arg_cg = self
+            .cg_ty_of_mir_type(mir_types, value_ty)
+            .unwrap_or_else(|| {
+                panic!(
+                    "codegen_mir_align_of: MIR verifier accepted unsupported alignOf argument type"
+                )
+            });
         let llvm_ty = self.llvm_basic_type_of(span, arg_cg)?;
         let align = self.abi_align_bytes_of_basic_type(llvm_ty);
         let value_word = IntTy {
@@ -246,30 +238,23 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         slots: &[MirLocalSlot<'ctx>],
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         let CgTy::Struct(struct_ty) = target_cg else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "pass MIR struct literal target type",
-                at: span.into(),
-            });
+            panic!(
+                "codegen_mir_make_struct: MIR verifier accepted non-struct aggregate target type"
+            );
         };
         let TypeKind::Value(ValueTypeKind::Nominal(nominal)) = self.types.kind(struct_ty) else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "pass MIR struct literal type",
-                at: span.into(),
-            });
+            panic!(
+                "codegen_mir_make_struct: MIR verifier accepted struct target without nominal schema"
+            );
         };
         let layout_key = self.nominal_layout_key(nominal);
-        let layout =
-            self.struct_layouts
-                .get(&layout_key)
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "pass MIR struct literal layout",
-                    at: span.into(),
-                })?;
+        let layout = self.struct_layouts.get(&layout_key).unwrap_or_else(|| {
+            panic!("codegen_mir_make_struct: MIR verifier accepted struct without layout")
+        });
         if layout.fields.len() != fields.len() {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "pass MIR struct literal field count",
-                at: span.into(),
-            });
+            panic!(
+                "codegen_mir_make_struct: MIR verifier accepted struct literal field count drift"
+            );
         }
 
         let llvm_struct_ty = self.llvm_struct_type(span, struct_ty)?;
@@ -287,10 +272,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 );
             };
             if matches.next().is_some() {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "pass MIR struct literal duplicate field",
-                    at: init.span.into(),
-                });
+                panic!(
+                    "codegen_mir_make_struct: MIR verifier accepted duplicate struct literal field"
+                );
             }
 
             let field_cg = self.cg_ty_of_layout_field(
@@ -332,12 +316,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             )?;
             let raw: BasicValueEnum<'ctx> = match materialized.ty {
                 CgTy::Unit => self.context.i8_type().const_int(0, false).into(),
-                _ => materialized
-                    .value
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "pass MIR struct literal field value",
-                        at: field_span.into(),
-                    })?,
+                _ => materialized.value.unwrap_or_else(|| {
+                    panic!("codegen_mir_make_struct: MIR verifier accepted valueless struct field")
+                }),
             };
             agg = self.builder.build_insert_value(
                 agg,
@@ -362,30 +343,22 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         index: usize,
         slots: &[MirLocalSlot<'ctx>],
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        let tuple_ty =
-            self.mir_operand_type_id(body, tuple)
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "pass MIR tuple operand type",
-                    at: span.into(),
-                })?;
+        let tuple_ty = self.mir_operand_type_id(body, tuple).unwrap_or_else(|| {
+            panic!("codegen_mir_tuple_get: MIR verifier accepted tuple get without operand type")
+        });
         let TypeKind::Value(ValueTypeKind::Tuple(elements)) = mir_types.kind(tuple_ty) else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "pass MIR tuple operand type",
-                at: span.into(),
-            });
+            panic!("codegen_mir_tuple_get: MIR verifier accepted tuple get on non-tuple type");
         };
-        let elem_ty = *elements
-            .get(index)
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "pass MIR tuple index",
-                at: span.into(),
-            })?;
-        let elem_cg = self.cg_ty_of_mir_type(mir_types, elem_ty).ok_or(
-            LlvmEmitError::UnsupportedMainBody {
-                kind: "pass MIR tuple element type",
-                at: span.into(),
-            },
-        )?;
+        let elem_ty = *elements.get(index).unwrap_or_else(|| {
+            panic!("codegen_mir_tuple_get: MIR verifier accepted tuple index drift")
+        });
+        let elem_cg = self
+            .cg_ty_of_mir_type(mir_types, elem_ty)
+            .unwrap_or_else(|| {
+                panic!(
+                    "codegen_mir_tuple_get: MIR verifier accepted unsupported tuple element type"
+                )
+            });
         let tuple_cg = self.mir_operand_cg_ty(body, mir_types, tuple).ok_or(
             LlvmEmitError::UnsupportedMainBody {
                 kind: "pass MIR tuple operand cg type",
@@ -395,10 +368,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let value = self.codegen_mir_operand_expected(span, tuple, slots, Some(tuple_cg))?;
         let tuple_v = value
             .value
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "pass MIR tuple operand value",
-                at: span.into(),
-            })?
+            .unwrap_or_else(|| {
+                panic!("codegen_mir_tuple_get: MIR verifier accepted valueless tuple operand")
+            })
             .into_struct_value();
         self.extract_mir_tuple_element_value(span, tuple_v, index, elem_cg)
     }
@@ -509,15 +481,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let raw = call
             .try_as_basic_value()
             .basic()
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "scoop_alloc_typed return value",
-                at: span.into(),
-            })?;
+            .expect("scoop_alloc_typed closure allocation must return a value");
         let BasicValueEnum::PointerValue(obj_i8) = raw else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "scoop_alloc_typed return type",
-                at: span.into(),
-            });
+            panic!("scoop_alloc_typed closure allocation must return a pointer");
         };
 
         let i8_ptr_ty = self.llvm_i8_ptr_type();
@@ -569,18 +535,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 &[env_desc_i8.into(), env_size_v.into()],
                 "rt_alloc_pass_mir_closure_env",
             )?;
-            let raw =
-                call.try_as_basic_value()
-                    .basic()
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "scoop_alloc_typed return value",
-                        at: span.into(),
-                    })?;
+            let raw = call
+                .try_as_basic_value()
+                .basic()
+                .expect("scoop_alloc_typed closure env allocation must return a value");
             let BasicValueEnum::PointerValue(env_i8) = raw else {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "scoop_alloc_typed return type",
-                    at: span.into(),
-                });
+                panic!("scoop_alloc_typed closure env allocation must return a pointer");
             };
 
             let env_ptr_ty = self.llvm_ptr_type(self.gc_address_space());

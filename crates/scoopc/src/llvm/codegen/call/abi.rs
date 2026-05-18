@@ -532,10 +532,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         name: &str,
         value: DeferredCgValue<'ctx>,
     ) -> Result<(PointerValue<'ctx>, Vec<DeferredGcSensitiveSpill<'ctx>>), LlvmEmitError> {
-        let spill = value.spill.ok_or(LlvmEmitError::UnsupportedMainBody {
-            kind: "indirect aggregate call arg spill",
-            at: at.into(),
-        })?;
+        let spill = value.spill.unwrap_or_else(|| {
+            panic!("deferred_gc_spill_slot_for_call_arg_impl: aggregate ABI verifier accepted an unspilled indirect argument")
+        });
         let slot = self.storage_slot_for_use(at, spill.slot, value.ty, name)?;
         Ok((slot, vec![spill]))
     }

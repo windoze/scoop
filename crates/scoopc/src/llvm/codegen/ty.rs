@@ -334,14 +334,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     pub(super) fn cg_ty_of_type_fqn(
         &self,
-        at: crate::span::Span,
+        _at: crate::span::Span,
         ty_fqn: Option<&str>,
     ) -> Result<CgTy, LlvmEmitError> {
         let Some(ty_fqn) = ty_fqn else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "struct field type",
-                at: at.into(),
-            });
+            panic!(
+                "cg_ty_of_type_fqn: MIR/type verifier accepted a layout field without type identity"
+            );
         };
 
         match ty_fqn {
@@ -777,17 +776,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         ty: TypeId,
     ) -> Result<StructType<'ctx>, LlvmEmitError> {
         let (elements, use_primary_types) = {
-            let tuple_types = self.codegen_type_store_for_type_id(ty).ok_or(
-                LlvmEmitError::UnsupportedMainBody {
-                    kind: "tuple type id",
-                    at: at.into(),
-                },
-            )?;
+            let tuple_types = self.codegen_type_store_for_type_id(ty).unwrap_or_else(|| {
+                panic!("llvm_tuple_type: verifier accepted tuple TypeId outside codegen TypeStore")
+            });
             let TypeKind::Value(ValueTypeKind::Tuple(elements)) = tuple_types.kind(ty) else {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "tuple type id",
-                    at: at.into(),
-                });
+                panic!(
+                    "llvm_tuple_type: MIR verifier accepted non-tuple TypeId for tuple lowering"
+                );
             };
             (elements.clone(), std::ptr::eq(tuple_types, self.types))
         };
@@ -800,16 +795,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 let tuple_types = self
                     .materialized_pass_view()
                     .map(|view| &view.materialized().types)
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "tuple type id",
-                        at: at.into(),
-                    })?;
+                    .expect("llvm_tuple_type: materialized tuple TypeId must have a materialized TypeStore");
                 self.cg_ty_of_mir_type(tuple_types, elem_ty)
             }
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "tuple element type",
-                at: at.into(),
-            })?;
+            .unwrap_or_else(|| panic!("llvm_tuple_type: MIR verifier accepted unsupported tuple element type"));
             llvm_fields.push(self.llvm_basic_type_of(at, elem_cg)?);
         }
 

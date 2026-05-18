@@ -146,7 +146,7 @@ struct UnsupportedMainBodyCount {
 const STALE_UNSUPPORTED_MAIN_BODY_COUNTS: &[UnsupportedMainBodyCount] = &[
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/mir_body/aggregates.rs",
-        expected_count: 30,
+        expected_count: 9,
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/mir_body/args.rs",
@@ -166,7 +166,7 @@ const STALE_UNSUPPORTED_MAIN_BODY_COUNTS: &[UnsupportedMainBodyCount] = &[
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/mir_body/const_pat.rs",
-        expected_count: 36,
+        expected_count: 2,
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/mir_body/dispatch.rs",
@@ -174,7 +174,7 @@ const STALE_UNSUPPORTED_MAIN_BODY_COUNTS: &[UnsupportedMainBodyCount] = &[
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/mir_body/member.rs",
-        expected_count: 42,
+        expected_count: 41,
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/mir_body/mod.rs",
@@ -270,11 +270,11 @@ const STALE_UNSUPPORTED_MAIN_BODY_COUNTS: &[UnsupportedMainBodyCount] = &[
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/main/expr_value.rs",
-        expected_count: 17,
+        expected_count: 8,
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/main/frame.rs",
-        expected_count: 6,
+        expected_count: 4,
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/main/function.rs",
@@ -692,15 +692,67 @@ const POST_UPSTREAM_VALIDATION_GUARDS: &[UpstreamGuardedSentinel] = &[
 ];
 
 const INTERNAL_BUG_SENTINEL_HITS: &[&str] = &[
-    "crates/scoopc/src/llvm/codegen/mir_body/aggregates.rs:285:                unreachable!(",
+    "crates/scoopc/src/llvm/codegen/mir_body/aggregates.rs:18:            panic!(\"codegen_mir_make_tuple: MIR verifier accepted non-tuple aggregate target type\");",
+    "crates/scoopc/src/llvm/codegen/mir_body/aggregates.rs:26:                panic!(",
+    "crates/scoopc/src/llvm/codegen/mir_body/aggregates.rs:33:            panic!(\"codegen_mir_make_tuple: MIR verifier accepted tuple aggregate arity drift\");",
+    "crates/scoopc/src/llvm/codegen/mir_body/aggregates.rs:47:                panic!(",
+    "crates/scoopc/src/llvm/codegen/mir_body/aggregates.rs:71:                    panic!(\"codegen_mir_make_tuple: MIR verifier accepted valueless tuple element\")",
+    "crates/scoopc/src/llvm/codegen/mir_body/aggregates.rs:131:                panic!(",
+    "crates/scoopc/src/llvm/codegen/mir_body/aggregates.rs:241:            panic!(",
+    "crates/scoopc/src/llvm/codegen/mir_body/aggregates.rs:246:            panic!(",
+    "crates/scoopc/src/llvm/codegen/mir_body/aggregates.rs:252:            panic!(\"codegen_mir_make_struct: MIR verifier accepted struct without layout\")",
+    "crates/scoopc/src/llvm/codegen/mir_body/aggregates.rs:255:            panic!(",
+    "crates/scoopc/src/llvm/codegen/mir_body/aggregates.rs:270:                unreachable!(",
+    "crates/scoopc/src/llvm/codegen/mir_body/aggregates.rs:275:                panic!(",
+    "crates/scoopc/src/llvm/codegen/mir_body/aggregates.rs:320:                    panic!(\"codegen_mir_make_struct: MIR verifier accepted valueless struct field\")",
+    "crates/scoopc/src/llvm/codegen/mir_body/aggregates.rs:347:            panic!(\"codegen_mir_tuple_get: MIR verifier accepted tuple get without operand type\")",
+    "crates/scoopc/src/llvm/codegen/mir_body/aggregates.rs:350:            panic!(\"codegen_mir_tuple_get: MIR verifier accepted tuple get on non-tuple type\");",
+    "crates/scoopc/src/llvm/codegen/mir_body/aggregates.rs:353:            panic!(\"codegen_mir_tuple_get: MIR verifier accepted tuple index drift\")",
+    "crates/scoopc/src/llvm/codegen/mir_body/aggregates.rs:358:                panic!(",
+    "crates/scoopc/src/llvm/codegen/mir_body/aggregates.rs:372:                panic!(\"codegen_mir_tuple_get: MIR verifier accepted valueless tuple operand\")",
+    "crates/scoopc/src/llvm/codegen/mir_body/aggregates.rs:486:            panic!(\"scoop_alloc_typed closure allocation must return a pointer\");",
+    "crates/scoopc/src/llvm/codegen/mir_body/aggregates.rs:543:                panic!(\"scoop_alloc_typed closure env allocation must return a pointer\");",
     "crates/scoopc/src/llvm/codegen/mir_body/args.rs:17:            panic!(\"codegen_mir_class_ctor_ordered_args: MIR verifier accepted {kind}\");",
     "crates/scoopc/src/llvm/codegen/mir_body/args.rs:23:                panic!(\"codegen_mir_class_ctor_ordered_args: MIR verifier accepted {kind}\");",
     "crates/scoopc/src/llvm/codegen/mir_body/args.rs:397:                    panic!(",
     "crates/scoopc/src/llvm/codegen/mir_body/call.rs:724:            (None, CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_)) => unreachable!(",
+    "crates/scoopc/src/llvm/codegen/mir_body/const_pat.rs:22:                        panic!(\"codegen_mir_const: parser/typecheck accepted invalid char literal\")",
+    "crates/scoopc/src/llvm/codegen/mir_body/const_pat.rs:36:                    _ => panic!(",
+    "crates/scoopc/src/llvm/codegen/mir_body/const_pat.rs:52:                    _ => panic!(",
+    "crates/scoopc/src/llvm/codegen/mir_body/const_pat.rs:134:                    panic!(\"codegen_mir_pattern_match_value: MIR verifier accepted Int pattern for non-int subject\")",
+    "crates/scoopc/src/llvm/codegen/mir_body/const_pat.rs:146:                    panic!(\"codegen_mir_pattern_match_value: MIR verifier accepted Char pattern for non-int subject\")",
+    "crates/scoopc/src/llvm/codegen/mir_body/const_pat.rs:157:                    panic!(",
+    "crates/scoopc/src/llvm/codegen/mir_body/const_pat.rs:162:                    panic!(",
+    "crates/scoopc/src/llvm/codegen/mir_body/const_pat.rs:170:                    panic!(",
+    "crates/scoopc/src/llvm/codegen/mir_body/const_pat.rs:190:                    panic!(",
+    "crates/scoopc/src/llvm/codegen/mir_body/const_pat.rs:204:                    .unwrap_or_else(|| panic!(\"codegen_mir_pattern_match_value: MIR verifier accepted Bool pattern for non-bool subject\"));",
+    "crates/scoopc/src/llvm/codegen/mir_body/const_pat.rs:224:            panic!(",
+    "crates/scoopc/src/llvm/codegen/mir_body/const_pat.rs:230:            .unwrap_or_else(|| panic!(\"codegen_mir_is_pattern_match: MIR verifier accepted unsupported pattern subject metadata type\"));",
+    "crates/scoopc/src/llvm/codegen/mir_body/const_pat.rs:232:            panic!(",
+    "crates/scoopc/src/llvm/codegen/mir_body/const_pat.rs:253:            .unwrap_or_else(|| panic!(\"codegen_mir_is_pattern_match: MIR verifier accepted unsupported runtime target type\"));",
+    "crates/scoopc/src/llvm/codegen/mir_body/const_pat.rs:256:            .unwrap_or_else(|| panic!(\"codegen_mir_is_pattern_match: MIR verifier accepted non-codegen runtime target type\"));",
+    "crates/scoopc/src/llvm/codegen/mir_body/const_pat.rs:268:                panic!(",
+    "crates/scoopc/src/llvm/codegen/mir_body/const_pat.rs:274:            panic!(",
+    "crates/scoopc/src/llvm/codegen/mir_body/const_pat.rs:289:            panic!(",
+    "crates/scoopc/src/llvm/codegen/mir_body/const_pat.rs:294:            panic!(",
+    "crates/scoopc/src/llvm/codegen/mir_body/const_pat.rs:299:            panic!(",
+    "crates/scoopc/src/llvm/codegen/mir_body/const_pat.rs:314:            panic!(",
+    "crates/scoopc/src/llvm/codegen/mir_body/const_pat.rs:322:                panic!(\"codegen_mir_tuple_pattern_match: MIR verifier accepted unsupported tuple pattern element type\")",
+    "crates/scoopc/src/llvm/codegen/mir_body/const_pat.rs:343:            panic!(",
+    "crates/scoopc/src/llvm/codegen/mir_body/const_pat.rs:348:            panic!(",
+    "crates/scoopc/src/llvm/codegen/mir_body/const_pat.rs:360:                .unwrap_or_else(|| panic!(\"codegen_mir_variant_pattern_match: MIR verifier accepted unknown enum variant pattern\"));",
+    "crates/scoopc/src/llvm/codegen/mir_body/const_pat.rs:372:            panic!(",
+    "crates/scoopc/src/llvm/codegen/mir_body/const_pat.rs:453:                        panic!(",
+    "crates/scoopc/src/llvm/codegen/mir_body/const_pat.rs:458:                        panic!(",
+    "crates/scoopc/src/llvm/codegen/mir_body/const_pat.rs:463:                        panic!(\"codegen_mir_pattern_extract: MIR verifier accepted tuple extraction field drift\")",
+    "crates/scoopc/src/llvm/codegen/mir_body/const_pat.rs:477:                        panic!(",
+    "crates/scoopc/src/llvm/codegen/mir_body/const_pat.rs:487:                        .unwrap_or_else(|| panic!(\"codegen_mir_pattern_extract: MIR verifier accepted unknown enum variant extraction\"));",
+    "crates/scoopc/src/llvm/codegen/mir_body/const_pat.rs:541:                            panic!(",
     "crates/scoopc/src/llvm/codegen/mir_body/dispatch.rs:164:            panic!(",
     "crates/scoopc/src/llvm/codegen/mir_body/dispatch.rs:382:            panic!(\"codegen_mir_plain_dispatch_call: MIR verifier accepted unsupported return type\")",
     "crates/scoopc/src/llvm/codegen/mir_body/member.rs:143:            unreachable!(",
-    "crates/scoopc/src/llvm/codegen/mir_body/member.rs:268:                    unreachable!(",
+    "crates/scoopc/src/llvm/codegen/mir_body/member.rs:261:                    panic!(",
+    "crates/scoopc/src/llvm/codegen/mir_body/member.rs:267:                    unreachable!(",
     "crates/scoopc/src/llvm/codegen/mir_body/string.rs:15:            panic!(\"codegen_mir_unresolved_name_with_source_ty: MIR verifier accepted unsupported source type\")",
     "crates/scoopc/src/llvm/codegen/mir_body/terminator.rs:31:                panic!(\"bind_mir_params: MIR verifier accepted param arity drift\")",
     "crates/scoopc/src/llvm/codegen/mir_body/terminator.rs:44:                    panic!(\"bind_mir_params: MIR verifier accepted unsupported param type\")",
@@ -728,7 +780,18 @@ const INTERNAL_BUG_SENTINEL_HITS: &[&str] = &[
     "crates/scoopc/src/llvm/codegen/main/declare.rs:327:                panic!(\"declare_materialized_top_level_fun: MIR materialize verifier accepted unsupported return type\")",
     "crates/scoopc/src/llvm/codegen/main/declare.rs:454:            panic!(\"declare_top_level_fun_callee_resume_entry: MIR signature verifier accepted unsupported return type\")",
     "crates/scoopc/src/llvm/codegen/main/expr_value.rs:17:                    panic!(\"codegen_var_ref: HIR verifier accepted an unbound local value\")",
-    "crates/scoopc/src/llvm/codegen/main/expr_value.rs:159:                unreachable!(",
+    "crates/scoopc/src/llvm/codegen/main/expr_value.rs:130:            panic!(\"codegen_struct_lit: typecheck accepted non-struct struct literal type\");",
+    "crates/scoopc/src/llvm/codegen/main/expr_value.rs:134:            panic!(\"codegen_struct_lit: typecheck accepted struct literal without nominal schema\");",
+    "crates/scoopc/src/llvm/codegen/main/expr_value.rs:139:            panic!(\"codegen_struct_lit: typecheck accepted struct literal without layout\")",
+    "crates/scoopc/src/llvm/codegen/main/expr_value.rs:149:                unreachable!(",
+    "crates/scoopc/src/llvm/codegen/main/expr_value.rs:199:                    panic!(\"codegen_struct_lit: typecheck accepted valueless struct field\")",
+    "crates/scoopc/src/llvm/codegen/main/expr_value.rs:220:            panic!(\"codegen_tuple_lit: typecheck accepted non-tuple tuple literal type\");",
+    "crates/scoopc/src/llvm/codegen/main/expr_value.rs:224:            panic!(\"codegen_tuple_lit: typecheck accepted tuple literal without tuple schema\");",
+    "crates/scoopc/src/llvm/codegen/main/expr_value.rs:228:            panic!(\"codegen_tuple_lit: typecheck accepted tuple literal arity drift\");",
+    "crates/scoopc/src/llvm/codegen/main/expr_value.rs:237:                panic!(\"codegen_tuple_lit: typecheck accepted unsupported tuple element type\")",
+    "crates/scoopc/src/llvm/codegen/main/expr_value.rs:263:                    panic!(\"codegen_tuple_lit: typecheck accepted valueless tuple element\")",
+    "crates/scoopc/src/llvm/codegen/main/frame.rs:497:                        panic!(\"rebuild_value_from_storage_slot_with_explicit_frame: explicit-frame slot metadata ended before aggregate rebuild completed\")",
+    "crates/scoopc/src/llvm/codegen/main/frame.rs:645:            panic!(",
     "crates/scoopc/src/llvm/codegen/main/function.rs:62:                    panic!(\"emit_function_return_block: function return context must publish return alloca\")",
     "crates/scoopc/src/llvm/codegen/main/function.rs:165:            panic!(\"codegen_top_level_fun: MIR signature verifier accepted unsupported return type\")",
     "crates/scoopc/src/llvm/codegen/main/function.rs:179:                        panic!(\"codegen_top_level_fun: declared sret function must publish hidden return parameter\")",
@@ -847,7 +910,7 @@ fn pipeline_user_visible_failure_policy_tracks_stale_unsupportedmainbody_counts(
             baseline.path
         );
     }
-    assert_eq!(total, 516);
+    assert_eq!(total, 449);
 }
 
 #[test]

@@ -286,35 +286,27 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &self,
         tuple_ty: TypeId,
         elem_idx: u32,
-        at: crate::span::Span,
+        _at: crate::span::Span,
     ) -> Result<CgTy, LlvmEmitError> {
-        let types = self.codegen_type_store_for_type_id(tuple_ty).ok_or(
-            LlvmEmitError::UnsupportedMainBody {
-                kind: "tuple type id",
-                at: at.into(),
-            },
-        )?;
-        let TypeKind::Value(ValueTypeKind::Tuple(elements)) = types.kind(tuple_ty) else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "tuple type id",
-                at: at.into(),
+        let types = self
+            .codegen_type_store_for_type_id(tuple_ty)
+            .unwrap_or_else(|| {
+                panic!(
+                    "lookup_tuple_element: verifier accepted tuple TypeId outside codegen TypeStore"
+                )
             });
+        let TypeKind::Value(ValueTypeKind::Tuple(elements)) = types.kind(tuple_ty) else {
+            panic!("lookup_tuple_element: verifier accepted non-tuple TypeId for tuple lookup");
         };
 
-        let elem_ty =
-            elements
-                .get(elem_idx as usize)
-                .copied()
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "tuple element out of bounds",
-                    at: at.into(),
-                })?;
+        let elem_ty = elements
+            .get(elem_idx as usize)
+            .copied()
+            .unwrap_or_else(|| panic!("lookup_tuple_element: verifier accepted tuple index drift"));
 
-        self.cg_ty_of(elem_ty)
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "tuple element type",
-                at: at.into(),
-            })
+        self.cg_ty_of(elem_ty).ok_or_else(|| {
+            panic!("lookup_tuple_element: verifier accepted unsupported tuple element type")
+        })
     }
 
     pub(super) fn target_layout(&self) -> TargetLayout {

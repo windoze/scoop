@@ -257,12 +257,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     at: span.into(),
                 })?;
             if receiver_cg == CgTy::Ref {
-                let field = class.fields.get(field_idx as usize).ok_or(
-                    LlvmEmitError::UnsupportedMainBody {
-                        kind: "pass MIR class member field index",
-                        at: span.into(),
-                    },
-                )?;
+                let field = class.fields.get(field_idx as usize).unwrap_or_else(|| {
+                    panic!(
+                        "codegen_mir_member_place: member verifier accepted class field index drift"
+                    )
+                });
                 if require_writable && !field.mutable {
                     // User-facing immutable member-store errors are owned by typecheck.
                     unreachable!(

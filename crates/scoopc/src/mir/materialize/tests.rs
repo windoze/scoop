@@ -933,6 +933,212 @@ fn materialized_mir_cfg_contract_rejects_residual_interpolated_string() {
 }
 
 #[test]
+fn materialized_mir_aggregate_schema_rejects_tuple_arity_drift() {
+    let mut types = TypeStore::new();
+    let builtins = types.intern_builtins();
+    let tuple_ty = types.ty_tuple(vec![builtins.int, builtins.bool_]);
+    let mut body = Body::new_empty();
+    let source = body.push_local(LocalDecl {
+        span: test_span(),
+        name: Some("source".to_string()),
+        ty: builtins.int,
+        source: LocalSourceKind::SourceLocal,
+    });
+    let target = body.push_local(LocalDecl {
+        span: test_span(),
+        name: Some("target".to_string()),
+        ty: tuple_ty,
+        source: LocalSourceKind::CompilerTemporary,
+    });
+    let bb = body.push_block(BasicBlock {
+        is_cleanup: false,
+        stmts: vec![Statement {
+            span: test_span(),
+            kind: StatementKind::Assign {
+                target,
+                value: Rvalue::MakeTuple {
+                    elements: vec![Operand::Local(source)],
+                    transport: AggregateTransportMetadata {
+                        aggregate_ty: tuple_ty,
+                        kind: crate::mir::AggregateTransportKind::Tuple,
+                        fields: vec![AggregateTransportField {
+                            index: 0,
+                            name: None,
+                            ty: builtins.int,
+                            transport: ValueTransportMetadata::plain(
+                                builtins.int,
+                                crate::mir::MirTransportKind::Scalar,
+                            ),
+                        }],
+                    },
+                },
+            },
+        }],
+        terminator: Terminator {
+            span: test_span(),
+            kind: TerminatorKind::Return { value: None },
+            unwind: UnwindAction::NoUnwind,
+        },
+    });
+    body.start = bb;
+    let file = File {
+        items: vec![Item::Fun(FunDecl {
+            span: test_span(),
+            fqn: "fixtures.materialize.main".to_string(),
+            name: "main".to_string(),
+            ty: builtins.unit,
+            params: Vec::new(),
+            return_ty: builtins.unit,
+            body: Some(body),
+        })],
+    };
+    let materialized = materialized_for_test(file, types);
+
+    let err = materialized.validate_materialized().unwrap_err();
+    assert!(matches!(
+        *err,
+        MirMaterializeError::MaterializedMirValidation {
+            error: crate::mir::MirValidationError::ProductionTransportMetadata {
+                transport: "tuple aggregate transport",
+                detail: "tuple aggregate field count does not match tuple type",
+                ..
+            },
+            ..
+        }
+    ));
+}
+
+#[test]
+fn materialized_mir_pattern_schema_rejects_tuple_arity_drift() {
+    let mut types = TypeStore::new();
+    let builtins = types.intern_builtins();
+    let tuple_ty = types.ty_tuple(vec![builtins.int]);
+    let mut body = Body::new_empty();
+    let subject = body.push_local(LocalDecl {
+        span: test_span(),
+        name: Some("subject".to_string()),
+        ty: tuple_ty,
+        source: LocalSourceKind::SourceLocal,
+    });
+    let target = body.push_local(LocalDecl {
+        span: test_span(),
+        name: Some("matched".to_string()),
+        ty: builtins.bool_,
+        source: LocalSourceKind::CompilerTemporary,
+    });
+    let bb = body.push_block(BasicBlock {
+        is_cleanup: false,
+        stmts: vec![Statement {
+            span: test_span(),
+            kind: StatementKind::Assign {
+                target,
+                value: Rvalue::PatternMatch {
+                    subject: Operand::Local(subject),
+                    pattern: Pattern::Tuple {
+                        elements: vec![Pattern::Wildcard, Pattern::Wildcard],
+                    },
+                },
+            },
+        }],
+        terminator: Terminator {
+            span: test_span(),
+            kind: TerminatorKind::Return { value: None },
+            unwind: UnwindAction::NoUnwind,
+        },
+    });
+    body.start = bb;
+    let file = File {
+        items: vec![Item::Fun(FunDecl {
+            span: test_span(),
+            fqn: "fixtures.materialize.main".to_string(),
+            name: "main".to_string(),
+            ty: builtins.unit,
+            params: Vec::new(),
+            return_ty: builtins.unit,
+            body: Some(body),
+        })],
+    };
+    let materialized = materialized_for_test(file, types);
+
+    let err = materialized.validate_materialized().unwrap_err();
+    assert!(matches!(
+        *err,
+        MirMaterializeError::MaterializedMirValidation {
+            error: crate::mir::MirValidationError::TypeContract {
+                surface: "pattern tuple arity",
+                detail: "tuple pattern arity does not match subject type",
+                ..
+            },
+            ..
+        }
+    ));
+}
+
+#[test]
+fn materialized_mir_pattern_extract_rejects_result_type_drift() {
+    let mut types = TypeStore::new();
+    let builtins = types.intern_builtins();
+    let tuple_ty = types.ty_tuple(vec![builtins.int]);
+    let mut body = Body::new_empty();
+    let subject = body.push_local(LocalDecl {
+        span: test_span(),
+        name: Some("subject".to_string()),
+        ty: tuple_ty,
+        source: LocalSourceKind::SourceLocal,
+    });
+    let target = body.push_local(LocalDecl {
+        span: test_span(),
+        name: Some("extracted".to_string()),
+        ty: builtins.bool_,
+        source: LocalSourceKind::CompilerTemporary,
+    });
+    let bb = body.push_block(BasicBlock {
+        is_cleanup: false,
+        stmts: vec![Statement {
+            span: test_span(),
+            kind: StatementKind::Assign {
+                target,
+                value: Rvalue::PatternExtract {
+                    subject: Operand::Local(subject),
+                    path: vec![crate::mir::PatternBindingStep::TupleIndex(0)],
+                },
+            },
+        }],
+        terminator: Terminator {
+            span: test_span(),
+            kind: TerminatorKind::Return { value: None },
+            unwind: UnwindAction::NoUnwind,
+        },
+    });
+    body.start = bb;
+    let file = File {
+        items: vec![Item::Fun(FunDecl {
+            span: test_span(),
+            fqn: "fixtures.materialize.main".to_string(),
+            name: "main".to_string(),
+            ty: builtins.unit,
+            params: Vec::new(),
+            return_ty: builtins.unit,
+            body: Some(body),
+        })],
+    };
+    let materialized = materialized_for_test(file, types);
+
+    let err = materialized.validate_materialized().unwrap_err();
+    assert!(matches!(
+        *err,
+        MirMaterializeError::MaterializedMirValidation {
+            error: crate::mir::MirValidationError::TypeContract {
+                surface: "pattern extract result",
+                detail: "pattern extract result type does not match assignment target",
+                ..
+            },
+            ..
+        }
+    ));
+}
+
+#[test]
 fn materialized_mir_mir_materialize_generics_missing_root_reports_template_span() {
     let mut types = TypeStore::new();
     let builtins = types.intern_builtins();

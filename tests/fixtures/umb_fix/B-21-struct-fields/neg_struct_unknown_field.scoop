@@ -3,7 +3,7 @@
 // EXPECT-ERROR-AT: 18:40
 // EXPECT-ERROR: 不存在字段
 // SPEC: docs/spec/language_spec-part2.md#51-struct
-// COVERS: UMB-0864, UMB-1141, UMB-1272
+// COVERS: NONE
 // BUCKETS: B-21
 // REASON: P7-A2 keeps unknown struct literal fields rejected before MIR/LLVM lowering.
 // SOURCE-FIXTURE: tests/fixtures/typecheck/struct_lit_unknown_field_is_error.scoop

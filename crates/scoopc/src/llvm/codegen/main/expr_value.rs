@@ -127,27 +127,17 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         fields: &[hir::StructLitField],
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         let Some(CgTy::Struct(struct_ty)) = self.cg_ty_of(ty) else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "struct literal type",
-                at: span.into(),
-            });
+            panic!("codegen_struct_lit: typecheck accepted non-struct struct literal type");
         };
 
         let TypeKind::Value(ValueTypeKind::Nominal(nominal)) = self.types.kind(struct_ty) else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "struct literal type",
-                at: span.into(),
-            });
+            panic!("codegen_struct_lit: typecheck accepted struct literal without nominal schema");
         };
 
         let layout_key = self.nominal_layout_key(nominal);
-        let layout =
-            self.struct_layouts
-                .get(&layout_key)
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "struct literal layout",
-                    at: span.into(),
-                })?;
+        let layout = self.struct_layouts.get(&layout_key).unwrap_or_else(|| {
+            panic!("codegen_struct_lit: typecheck accepted struct literal without layout")
+        });
 
         let llvm_struct_ty = self.llvm_struct_type(span, struct_ty)?;
         let mut deferred_fields: Vec<(u32, String, crate::span::Span, DeferredCgValue<'ctx>)> =
@@ -205,12 +195,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             )?;
             let raw = match materialized.ty {
                 CgTy::Unit => self.context.i8_type().const_int(0, false).into(),
-                _ => materialized
-                    .value
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "struct field value",
-                        at: field_span.into(),
-                    })?,
+                _ => materialized.value.unwrap_or_else(|| {
+                    panic!("codegen_struct_lit: typecheck accepted valueless struct field")
+                }),
             };
 
             let name = format!("insert_{field_name}");
@@ -230,24 +217,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         elements: &[hir::Expr],
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         let Some(CgTy::Tuple(tuple_ty)) = self.cg_ty_of(ty) else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "tuple literal type",
-                at: span.into(),
-            });
+            panic!("codegen_tuple_lit: typecheck accepted non-tuple tuple literal type");
         };
 
         let TypeKind::Value(ValueTypeKind::Tuple(element_tys)) = self.types.kind(tuple_ty) else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "tuple literal type",
-                at: span.into(),
-            });
+            panic!("codegen_tuple_lit: typecheck accepted tuple literal without tuple schema");
         };
 
         if element_tys.len() != elements.len() {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "tuple literal arity mismatch",
-                at: span.into(),
-            });
+            panic!("codegen_tuple_lit: typecheck accepted tuple literal arity drift");
         }
 
         let llvm_tuple_ty = self.llvm_tuple_type(span, tuple_ty)?;
@@ -255,12 +233,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             Vec::with_capacity(elements.len());
 
         for (idx, (elem_expr, elem_ty)) in elements.iter().zip(element_tys.iter()).enumerate() {
-            let elem_cg = self
-                .cg_ty_of(*elem_ty)
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "tuple element type",
-                    at: elem_expr.span.into(),
-                })?;
+            let elem_cg = self.cg_ty_of(*elem_ty).unwrap_or_else(|| {
+                panic!("codegen_tuple_lit: typecheck accepted unsupported tuple element type")
+            });
 
             // tuple 元素 initializer 也需要带 expected context：
             // 否则 `({ 11 }, 4)` 这类包含 closure literal 的 tuple 会在元素 codegen 时
@@ -284,12 +259,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             )?;
             let raw: BasicValueEnum<'ctx> = match materialized.ty {
                 CgTy::Unit => self.context.i8_type().const_int(0, false).into(),
-                _ => materialized
-                    .value
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "tuple element value",
-                        at: elem_span.into(),
-                    })?,
+                _ => materialized.value.unwrap_or_else(|| {
+                    panic!("codegen_tuple_lit: typecheck accepted valueless tuple element")
+                }),
             };
 
             let name = format!("insert_elem_{idx}");

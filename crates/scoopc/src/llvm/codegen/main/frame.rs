@@ -480,6 +480,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(Some(frame_slot))
     }
 
+    #[allow(clippy::only_used_in_recursion)]
     pub(in crate::llvm::codegen) fn rebuild_value_from_storage_slot_with_explicit_frame(
         &mut self,
         at: crate::span::Span,
@@ -492,12 +493,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(match value_ty {
             BasicTypeEnum::PointerType(ptr_ty) => {
                 if ptr_ty.get_address_space() == self.gc_address_space() {
-                    let frame_slot = frame_slots.get(*frame_index).copied().ok_or(
-                        LlvmEmitError::UnsupportedMainBody {
-                            kind: "aggregate explicit frame rebuild slot",
-                            at: at.into(),
-                        },
-                    )?;
+                    let frame_slot = frame_slots.get(*frame_index).copied().unwrap_or_else(|| {
+                        panic!("rebuild_value_from_storage_slot_with_explicit_frame: explicit-frame slot metadata ended before aggregate rebuild completed")
+                    });
                     *frame_index += 1;
                     self.builder.build_load(
                         ptr_ty,
@@ -644,10 +642,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             name_prefix,
         )?;
         if frame_index != frame_slots.len() {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "aggregate explicit frame rebuild arity",
-                at: at.into(),
-            });
+            panic!(
+                "storage_slot_for_use: explicit-frame mirror arity does not match aggregate rebuild schema"
+            );
         }
         let _ = self.builder.build_store(scratch, rebuilt)?;
         self.apply_alloca_alignment_for_ty(at, scratch, cg_ty)?;

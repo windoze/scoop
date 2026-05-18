@@ -812,10 +812,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
                 let TypeKind::Value(ValueTypeKind::Tuple(tuple_elems)) = self.types.kind(tuple_ty)
                 else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "tuple type id",
-                        at: pat.span().into(),
-                    });
+                    panic!(
+                        "when tuple binding: typecheck accepted tuple pattern without tuple schema"
+                    );
                 };
 
                 let mut has_rest = false;
@@ -1889,10 +1888,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         subject_ptr: PointerValue<'ctx>,
     ) -> Result<IntValue<'ctx>, LlvmEmitError> {
         let TypeKind::Value(ValueTypeKind::Tuple(tuple_elems)) = self.types.kind(tuple_ty) else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "tuple type id",
-                at: at.into(),
-            });
+            panic!(
+                "codegen_when_tuple_pat_cond: typecheck accepted tuple pattern without tuple schema"
+            );
         };
 
         let mut rest_idx: Option<usize> = None;
@@ -2072,10 +2070,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
                 let TypeKind::Value(ValueTypeKind::Tuple(_)) = self.types.kind(nested_tuple_ty)
                 else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "tuple type id",
-                        at: pat.span().into(),
-                    });
+                    panic!(
+                        "codegen_when_pat_cond_for_tuple_elem: typecheck accepted nested tuple pattern without tuple schema"
+                    );
                 };
 
                 // 由于 extractvalue 返回的是一个“by-value tuple struct”，我们先把它落到临时 slot，

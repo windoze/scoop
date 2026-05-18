@@ -1,6 +1,6 @@
 // EXPECT: ok
 // SPEC: docs/spec/language_spec-part2.md#51-struct
-// COVERS: UMB-0864, UMB-1141, UMB-1272
+// COVERS: NONE
 // BUCKETS: B-21
 // REASON: P7-A2 keeps valid struct field literals accepted after frontend field gates retire stale UMB rows.
 // SOURCE-FIXTURE: tests/fixtures/run-pass/struct_ctor_call_literal_equivalence_basic.scoop

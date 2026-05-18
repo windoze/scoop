@@ -1,6 +1,9 @@
 //! Validation pass that walks a materialized MIR and verifies every artifact (instance keys, items, payload contracts, transports, terminators, patterns, type metadata) against the published contract before any consumer is allowed to read it.
 
 use super::*;
+use crate::ast;
+use crate::mir::AggregateTransportKind;
+use crate::ty::{RefTypeKind, TypeKind, ValueTypeKind};
 
 #[derive(Clone, Copy)]
 pub(super) struct MaterializedValidationContext<'a> {
@@ -92,6 +95,44 @@ fn materialized_type_contract_err(
             block,
             span,
             surface,
+            detail,
+        },
+    })
+}
+
+fn materialized_transport_contract_err(
+    fqn: &str,
+    block: BasicBlockId,
+    span: Span,
+    transport: &'static str,
+    detail: &'static str,
+) -> Box<MirMaterializeError> {
+    materialize_err(MirMaterializeError::MaterializedMirValidation {
+        fqn: fqn.to_string(),
+        error: super::super::MirValidationError::ProductionTransportMetadata {
+            fqn: fqn.to_string(),
+            block,
+            span,
+            transport,
+            detail,
+        },
+    })
+}
+
+fn materialized_runtime_contract_err(
+    fqn: &str,
+    block: BasicBlockId,
+    span: Span,
+    primitive: &'static str,
+    detail: &'static str,
+) -> Box<MirMaterializeError> {
+    materialize_err(MirMaterializeError::MaterializedMirValidation {
+        fqn: fqn.to_string(),
+        error: super::super::MirValidationError::ProductionRuntimeValueMetadata {
+            fqn: fqn.to_string(),
+            block,
+            span,
+            primitive,
             detail,
         },
     })
@@ -574,7 +615,7 @@ pub(super) fn validate_materialized_statement(
 ) -> MaterializeResult<()> {
     match &stmt.kind {
         StatementKind::Assign { target, value } => {
-            validate_materialized_local(
+            let target_decl = validate_materialized_local(
                 fqn,
                 Some(block),
                 stmt.span,
@@ -589,6 +630,7 @@ pub(super) fn validate_materialized_statement(
                 stmt.span,
                 locals,
                 value,
+                Some(target_decl.ty),
                 root_sets,
             )
         }
@@ -716,6 +758,7 @@ pub(super) fn validate_materialized_statement(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(super) fn validate_materialized_rvalue(
     materialized: &MaterializedMir,
     fqn: &str,
@@ -723,6 +766,7 @@ pub(super) fn validate_materialized_rvalue(
     span: Span,
     locals: &[LocalDecl],
     value: &Rvalue,
+    result_ty: Option<TypeId>,
     root_sets: MaterializedRootSets<'_>,
 ) -> MaterializeResult<()> {
     match value {
@@ -865,6 +909,7 @@ pub(super) fn validate_materialized_rvalue(
         }
         Rvalue::EnumVariant {
             enum_ty,
+            variant_name,
             args,
             payload,
             ..
@@ -880,12 +925,31 @@ pub(super) fn validate_materialized_rvalue(
                 *enum_ty,
             )?;
             validate_materialized_call_args(materialized, fqn, block, span, locals, args)?;
-            validate_materialized_aggregate_transport(
+            let expected_fields = args
+                .iter()
+                .map(|arg| {
+                    materialized_operand_ty(
+                        materialized,
+                        fqn,
+                        block,
+                        arg.span,
+                        "enum payload argument",
+                        locals,
+                        &arg.value,
+                    )
+                    .map(|ty| (arg.name.as_deref(), ty))
+                })
+                .collect::<MaterializeResult<Vec<_>>>()?;
+            validate_materialized_aggregate_schema(
                 materialized,
                 fqn,
                 block,
                 span,
                 "enum payload transport",
+                Some(*enum_ty),
+                Some(AggregateTransportKind::EnumPayload),
+                Some(variant_name.as_str()),
+                &expected_fields,
                 payload,
             )
         }
@@ -956,12 +1020,31 @@ pub(super) fn validate_materialized_rvalue(
                 locals,
                 elements,
             )?;
-            validate_materialized_aggregate_transport(
+            let expected_fields = elements
+                .iter()
+                .map(|operand| {
+                    materialized_operand_ty(
+                        materialized,
+                        fqn,
+                        block,
+                        span,
+                        "tuple aggregate element",
+                        locals,
+                        operand,
+                    )
+                    .map(|ty| (None, ty))
+                })
+                .collect::<MaterializeResult<Vec<_>>>()?;
+            validate_materialized_aggregate_schema(
                 materialized,
                 fqn,
                 block,
                 span,
                 "tuple aggregate transport",
+                result_ty,
+                None,
+                None,
+                &expected_fields,
                 transport,
             )
         }
@@ -976,12 +1059,31 @@ pub(super) fn validate_materialized_rvalue(
                     field,
                 )?;
             }
-            validate_materialized_aggregate_transport(
+            let expected_fields = fields
+                .iter()
+                .map(|field| {
+                    materialized_operand_ty(
+                        materialized,
+                        fqn,
+                        block,
+                        field.span,
+                        "struct aggregate field",
+                        locals,
+                        &field.value,
+                    )
+                    .map(|ty| (Some(field.name.as_str()), ty))
+                })
+                .collect::<MaterializeResult<Vec<_>>>()?;
+            validate_materialized_aggregate_schema(
                 materialized,
                 fqn,
                 block,
                 span,
                 "struct aggregate transport",
+                result_ty,
+                Some(AggregateTransportKind::Struct),
+                None,
+                &expected_fields,
                 transport,
             )
         }
@@ -1054,17 +1156,46 @@ pub(super) fn validate_materialized_rvalue(
                 locals,
                 subject,
             )?;
-            validate_materialized_pattern(materialized, fqn, block, span, pattern)
+            let subject_ty = materialized_operand_ty(
+                materialized,
+                fqn,
+                block,
+                span,
+                "pattern subject",
+                locals,
+                subject,
+            )?;
+            validate_materialized_pattern(materialized, fqn, block, span, subject_ty, pattern)
         }
-        Rvalue::PatternExtract { subject, .. } => validate_materialized_operand(
-            materialized,
-            fqn,
-            block,
-            span,
-            "pattern extract subject",
-            locals,
-            subject,
-        ),
+        Rvalue::PatternExtract { subject, path } => {
+            validate_materialized_operand(
+                materialized,
+                fqn,
+                block,
+                span,
+                "pattern extract subject",
+                locals,
+                subject,
+            )?;
+            let subject_ty = materialized_operand_ty(
+                materialized,
+                fqn,
+                block,
+                span,
+                "pattern extract subject",
+                locals,
+                subject,
+            )?;
+            validate_materialized_pattern_extract_schema(
+                materialized,
+                fqn,
+                block,
+                span,
+                subject_ty,
+                path,
+                result_ty,
+            )
+        }
         Rvalue::MakeClosure {
             env,
             fn_ptr,
@@ -1222,6 +1353,228 @@ pub(super) fn validate_materialized_aggregate_transport_field(
         "aggregate transport field value",
         &field.transport,
     )
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(super) fn validate_materialized_aggregate_schema(
+    materialized: &MaterializedMir,
+    fqn: &str,
+    block: BasicBlockId,
+    span: Span,
+    surface: &'static str,
+    expected_result_ty: Option<TypeId>,
+    expected_kind: Option<AggregateTransportKind>,
+    variant_name: Option<&str>,
+    expected_fields: &[(Option<&str>, Option<TypeId>)],
+    metadata: &AggregateTransportMetadata,
+) -> MaterializeResult<()> {
+    validate_materialized_aggregate_transport(materialized, fqn, block, span, surface, metadata)?;
+
+    let detail = if expected_result_ty.is_some_and(|ty| ty != metadata.aggregate_ty) {
+        Some("aggregate transport type and result/source type disagree")
+    } else if expected_kind.is_some_and(|kind| kind != metadata.kind) {
+        Some("aggregate transport kind is wrong for this MIR node")
+    } else if metadata.fields.len() != expected_fields.len() {
+        Some("aggregate transport field count does not match lowered values")
+    } else if metadata
+        .fields
+        .iter()
+        .enumerate()
+        .any(|(index, field)| field.index != index || field.ty != field.transport.source_ty)
+    {
+        Some("aggregate transport field metadata is inconsistent")
+    } else if metadata.fields.iter().zip(expected_fields.iter()).any(
+        |(field, (expected_name, _))| {
+            expected_name.is_some_and(|name| field.name.as_deref() != Some(name))
+        },
+    ) {
+        Some("aggregate transport field name does not match lowered value")
+    } else if metadata
+        .fields
+        .iter()
+        .zip(expected_fields.iter())
+        .any(|(field, (_, expected_ty))| expected_ty.is_some_and(|ty| field.ty != ty))
+    {
+        Some("aggregate transport field type does not match lowered value")
+    } else {
+        materialized_aggregate_schema_detail(materialized, metadata, variant_name)
+    };
+
+    if let Some(detail) = detail {
+        return Err(materialized_transport_contract_err(
+            fqn, block, span, surface, detail,
+        ));
+    }
+    Ok(())
+}
+
+fn materialized_aggregate_schema_detail(
+    materialized: &MaterializedMir,
+    metadata: &AggregateTransportMetadata,
+    variant_name: Option<&str>,
+) -> Option<&'static str> {
+    match metadata.kind {
+        AggregateTransportKind::Tuple | AggregateTransportKind::ClosureEnv => {
+            let TypeKind::Value(ValueTypeKind::Tuple(elements)) =
+                materialized.types.kind(metadata.aggregate_ty)
+            else {
+                return Some("tuple aggregate type must be a tuple");
+            };
+            if metadata.fields.len() != elements.len() {
+                return Some("tuple aggregate field count does not match tuple type");
+            }
+            if metadata.kind == AggregateTransportKind::Tuple
+                && metadata.fields.iter().any(|field| field.name.is_some())
+            {
+                return Some("tuple aggregate fields must not publish names");
+            }
+            if metadata
+                .fields
+                .iter()
+                .zip(elements.iter())
+                .any(|(field, element_ty)| field.ty != *element_ty)
+            {
+                return Some("tuple aggregate field type does not match tuple type");
+            }
+            None
+        }
+        AggregateTransportKind::Struct => {
+            let TypeKind::Value(ValueTypeKind::Nominal(nominal_ty)) =
+                materialized.types.kind(metadata.aggregate_ty)
+            else {
+                return Some("struct aggregate type must be a struct nominal type");
+            };
+            let nominal = materialized_nominal_metadata_by_fqn(materialized, &nominal_ty.fqn)
+                .or_else(|| {
+                    materialized_nominal_metadata_by_fqn(
+                        materialized,
+                        strip_materialized_type_args(&nominal_ty.fqn),
+                    )
+                })?;
+            if nominal.kind != ast::TypeKind::Struct {
+                return Some("struct aggregate type must be a struct nominal type");
+            }
+            let declared_fields = nominal
+                .members
+                .iter()
+                .filter_map(|member| match member {
+                    DeclMemberMetadata::Field(field) => Some((field.name.as_str(), field.ty)),
+                    _ => None,
+                })
+                .collect::<Vec<_>>();
+            if metadata.fields.len() != declared_fields.len() {
+                return Some("struct aggregate field count does not match struct declaration");
+            }
+            for field in &metadata.fields {
+                let Some(name) = field.name.as_deref() else {
+                    return Some("struct aggregate field must publish a name");
+                };
+                let matches = declared_fields
+                    .iter()
+                    .filter(|(decl_name, _)| *decl_name == name)
+                    .count();
+                if matches == 0 {
+                    return Some("struct aggregate field name is not declared");
+                }
+                if matches > 1 {
+                    return Some("struct declaration contains duplicate aggregate field names");
+                }
+                let declared_ty = declared_fields
+                    .iter()
+                    .find_map(|(decl_name, ty)| (*decl_name == name).then_some(*ty))
+                    .expect("declared field was just found");
+                if field.ty != declared_ty {
+                    return Some("struct aggregate field type does not match struct declaration");
+                }
+                if metadata
+                    .fields
+                    .iter()
+                    .filter(|candidate| candidate.name.as_deref() == Some(name))
+                    .count()
+                    > 1
+                {
+                    return Some("struct aggregate field names must be unique");
+                }
+            }
+            None
+        }
+        AggregateTransportKind::EnumPayload => {
+            let Some(variant_name) = variant_name else {
+                return Some("enum payload aggregate must publish a variant name");
+            };
+            let Some(variant_fields) =
+                materialized_enum_variant_fields(materialized, metadata.aggregate_ty, variant_name)
+            else {
+                return Some("enum payload aggregate variant is not declared");
+            };
+            if metadata.fields.len() != variant_fields.len() {
+                return Some("enum payload field count does not match variant declaration");
+            }
+            if metadata
+                .fields
+                .iter()
+                .zip(variant_fields.iter())
+                .any(|(field, (_, ty))| field.ty != *ty)
+            {
+                return Some("enum payload field type does not match variant declaration");
+            }
+            None
+        }
+    }
+}
+
+fn materialized_nominal_metadata_for_value_type(
+    materialized: &MaterializedMir,
+    ty: TypeId,
+    kind: ast::TypeKind,
+) -> Option<&NominalMetadata> {
+    let TypeKind::Value(ValueTypeKind::Nominal(nominal)) = materialized.types.kind(ty) else {
+        return None;
+    };
+    materialized_nominal_metadata_by_fqn(materialized, &nominal.fqn)
+        .or_else(|| {
+            materialized_nominal_metadata_by_fqn(
+                materialized,
+                strip_materialized_type_args(&nominal.fqn),
+            )
+        })
+        .filter(|metadata| metadata.kind == kind)
+}
+
+fn materialized_nominal_metadata_by_fqn<'a>(
+    materialized: &'a MaterializedMir,
+    fqn: &str,
+) -> Option<&'a NominalMetadata> {
+    materialized.file.items.iter().find_map(|item| match item {
+        Item::Metadata(MetadataRoot::Nominal(metadata)) if metadata.fqn == fqn => Some(metadata),
+        _ => None,
+    })
+}
+
+fn materialized_enum_variant_fields(
+    materialized: &MaterializedMir,
+    enum_ty: TypeId,
+    variant_name: &str,
+) -> Option<Vec<(Option<String>, TypeId)>> {
+    if let TypeKind::Value(ValueTypeKind::Option(payload_ty)) = materialized.types.kind(enum_ty) {
+        return match variant_name {
+            "Some" => Some(vec![(None, *payload_ty)]),
+            "None" => Some(Vec::new()),
+            _ => None,
+        };
+    }
+    let metadata =
+        materialized_nominal_metadata_for_value_type(materialized, enum_ty, ast::TypeKind::Enum)?;
+    metadata.members.iter().find_map(|member| match member {
+        DeclMemberMetadata::EnumVariant(variant) if variant.name == variant_name => Some(
+            variant
+                .fields
+                .iter()
+                .map(|field| (Some(field.name.clone()), field.ty))
+                .collect(),
+        ),
+        _ => None,
+    })
 }
 
 pub(super) fn validate_materialized_closure_env_contract(
@@ -1883,7 +2236,74 @@ pub(super) fn validate_materialized_member_metadata(
             surface: "member hidden effects",
         },
         &member.hidden_effects,
-    )
+    )?;
+    validate_materialized_member_target(materialized, fqn, block, span, member)
+}
+
+fn validate_materialized_member_target(
+    materialized: &MaterializedMir,
+    fqn: &str,
+    block: BasicBlockId,
+    span: Span,
+    member: &MemberAccessMetadata,
+) -> MaterializeResult<()> {
+    let Some(MemberTarget::Value { fqn: target_fqn }) = &member.resolved else {
+        return Ok(());
+    };
+    match materialized_declares_value_member(materialized, target_fqn) {
+        Some(true) | None => return Ok(()),
+        Some(false) => {}
+    }
+    Err(materialized_type_contract_err(
+        fqn,
+        Some(block),
+        span,
+        "member target",
+        "resolved value member target is not declared in MIR metadata",
+    ))
+}
+
+fn materialized_declares_value_member(
+    materialized: &MaterializedMir,
+    target_fqn: &str,
+) -> Option<bool> {
+    let (owner_fqn, member_name) = target_fqn.rsplit_once('.')?;
+    let owner_fqn = strip_materialized_type_args(owner_fqn);
+    let normalized_target = format!("{owner_fqn}.{member_name}");
+    materialized.file.items.iter().find_map(|item| match item {
+        Item::Metadata(MetadataRoot::Nominal(metadata)) if metadata.fqn == owner_fqn => Some(
+            metadata_declares_value_member(&metadata.members, &normalized_target),
+        ),
+        Item::Metadata(MetadataRoot::Object(metadata)) if metadata.fqn == owner_fqn => Some(
+            metadata_declares_value_member(&metadata.members, &normalized_target),
+        ),
+        _ => None,
+    })
+}
+
+fn strip_materialized_type_args(fqn: &str) -> &str {
+    fqn.split_once("::<")
+        .or_else(|| fqn.split_once('<'))
+        .map_or(fqn, |(base, _)| base)
+}
+
+fn metadata_declares_value_member(members: &[DeclMemberMetadata], target_fqn: &str) -> bool {
+    members.iter().any(|member| match member {
+        DeclMemberMetadata::Field(field) => field.fqn == target_fqn,
+        DeclMemberMetadata::Property(prop) => prop.fqn == target_fqn,
+        DeclMemberMetadata::Nested(root) => match root.as_ref() {
+            MetadataRoot::Nominal(metadata) => {
+                metadata_declares_value_member(&metadata.members, target_fqn)
+            }
+            MetadataRoot::Object(metadata) => {
+                metadata_declares_value_member(&metadata.members, target_fqn)
+            }
+            MetadataRoot::TypeAlias(_) | MetadataRoot::ExtensionProperty(_) => false,
+        },
+        DeclMemberMetadata::Fun(_)
+        | DeclMemberMetadata::EnumVariant(_)
+        | DeclMemberMetadata::InitBlock { .. } => false,
+    })
 }
 
 pub(super) fn validate_materialized_type_test_metadata(
@@ -2082,10 +2502,29 @@ pub(super) fn validate_materialized_pattern(
     fqn: &str,
     block: BasicBlockId,
     span: Span,
+    subject_ty: Option<TypeId>,
     pattern: &Pattern,
 ) -> MaterializeResult<()> {
     match pattern {
         Pattern::Is { ty, metadata } => {
+            if subject_ty.is_some_and(|ty| metadata.subject_ty != ty) {
+                return Err(materialized_runtime_contract_err(
+                    fqn,
+                    block,
+                    span,
+                    "pattern type test",
+                    "subject type and operand type disagree",
+                ));
+            }
+            if metadata.target_ty != *ty || metadata.descriptor.ty != *ty {
+                return Err(materialized_runtime_contract_err(
+                    fqn,
+                    block,
+                    span,
+                    "pattern type test",
+                    "target type and runtime descriptor disagree",
+                ));
+            }
             validate_materialized_type(
                 materialized,
                 MaterializedValidationContext {
@@ -2119,24 +2558,323 @@ pub(super) fn validate_materialized_pattern(
         ),
         Pattern::Or { pats } => {
             for pat in pats {
-                validate_materialized_pattern(materialized, fqn, block, span, pat)?;
+                validate_materialized_pattern(materialized, fqn, block, span, subject_ty, pat)?;
             }
             Ok(())
         }
-        Pattern::Tuple { elements } | Pattern::Variant { args: elements, .. } => {
-            for pat in elements {
-                validate_materialized_pattern(materialized, fqn, block, span, pat)?;
+        Pattern::Tuple { elements } => {
+            let Some(subject_ty) = subject_ty else {
+                return Err(materialized_type_contract_err(
+                    fqn,
+                    Some(block),
+                    span,
+                    "pattern tuple subject",
+                    "tuple pattern subject type must be known",
+                ));
+            };
+            let TypeKind::Value(ValueTypeKind::Tuple(element_tys)) =
+                materialized.types.kind(subject_ty)
+            else {
+                return Err(materialized_type_contract_err(
+                    fqn,
+                    Some(block),
+                    span,
+                    "pattern tuple subject",
+                    "tuple pattern subject must have tuple type",
+                ));
+            };
+            let (prefix, has_rest) = pattern_prefix_and_rest(elements);
+            if (!has_rest && prefix.len() != element_tys.len())
+                || (has_rest && prefix.len() > element_tys.len())
+            {
+                return Err(materialized_type_contract_err(
+                    fqn,
+                    Some(block),
+                    span,
+                    "pattern tuple arity",
+                    "tuple pattern arity does not match subject type",
+                ));
+            }
+            for (pat, element_ty) in prefix.iter().zip(element_tys.iter()) {
+                validate_materialized_pattern(
+                    materialized,
+                    fqn,
+                    block,
+                    span,
+                    Some(*element_ty),
+                    pat,
+                )?;
             }
             Ok(())
         }
-        Pattern::Else
-        | Pattern::Wildcard
-        | Pattern::Rest
-        | Pattern::IntLit { .. }
-        | Pattern::CharLit { .. }
-        | Pattern::StringLit { .. }
-        | Pattern::BoolLit { .. } => Ok(()),
+        Pattern::Variant { name, args } => {
+            let Some(subject_ty) = subject_ty else {
+                return Err(materialized_type_contract_err(
+                    fqn,
+                    Some(block),
+                    span,
+                    "pattern variant subject",
+                    "variant pattern subject type must be known",
+                ));
+            };
+            let Some(variant_fields) =
+                materialized_enum_variant_fields(materialized, subject_ty, name)
+            else {
+                return Err(materialized_type_contract_err(
+                    fqn,
+                    Some(block),
+                    span,
+                    "pattern variant",
+                    "variant pattern name is not declared on subject enum",
+                ));
+            };
+            let (prefix, has_rest) = pattern_prefix_and_rest(args);
+            if (!has_rest && prefix.len() != variant_fields.len())
+                || (has_rest && prefix.len() > variant_fields.len())
+            {
+                return Err(materialized_type_contract_err(
+                    fqn,
+                    Some(block),
+                    span,
+                    "pattern variant arity",
+                    "variant pattern arity does not match subject enum",
+                ));
+            }
+            for (pat, (_, field_ty)) in prefix.iter().zip(variant_fields.iter()) {
+                validate_materialized_pattern(
+                    materialized,
+                    fqn,
+                    block,
+                    span,
+                    Some(*field_ty),
+                    pat,
+                )?;
+            }
+            Ok(())
+        }
+        Pattern::IntLit { .. } => validate_materialized_pattern_scalar_subject(
+            materialized,
+            fqn,
+            block,
+            span,
+            subject_ty,
+            "pattern int subject",
+            materialized_pattern_subject_is_int,
+        ),
+        Pattern::CharLit { .. } => validate_materialized_pattern_scalar_subject(
+            materialized,
+            fqn,
+            block,
+            span,
+            subject_ty,
+            "pattern char subject",
+            materialized_pattern_subject_is_char,
+        ),
+        Pattern::StringLit { .. } => validate_materialized_pattern_scalar_subject(
+            materialized,
+            fqn,
+            block,
+            span,
+            subject_ty,
+            "pattern string subject",
+            materialized_pattern_subject_is_string,
+        ),
+        Pattern::BoolLit { .. } => validate_materialized_pattern_scalar_subject(
+            materialized,
+            fqn,
+            block,
+            span,
+            subject_ty,
+            "pattern bool subject",
+            materialized_pattern_subject_is_bool,
+        ),
+        Pattern::Else | Pattern::Wildcard => Ok(()),
+        Pattern::Rest => Err(materialized_type_contract_err(
+            fqn,
+            Some(block),
+            span,
+            "pattern rest position",
+            "rest pattern is only valid in tuple or variant tail position",
+        )),
     }
+}
+
+fn pattern_prefix_and_rest(patterns: &[Pattern]) -> (&[Pattern], bool) {
+    match patterns.last() {
+        Some(Pattern::Rest) => (&patterns[..patterns.len().saturating_sub(1)], true),
+        _ => (patterns, false),
+    }
+}
+
+fn validate_materialized_pattern_scalar_subject(
+    materialized: &MaterializedMir,
+    fqn: &str,
+    block: BasicBlockId,
+    span: Span,
+    subject_ty: Option<TypeId>,
+    surface: &'static str,
+    predicate: fn(&MaterializedMir, TypeId) -> bool,
+) -> MaterializeResult<()> {
+    let Some(subject_ty) = subject_ty else {
+        return Err(materialized_type_contract_err(
+            fqn,
+            Some(block),
+            span,
+            surface,
+            "literal pattern subject type must be known",
+        ));
+    };
+    if !predicate(materialized, subject_ty) {
+        return Err(materialized_type_contract_err(
+            fqn,
+            Some(block),
+            span,
+            surface,
+            "literal pattern subject type is incompatible with pattern literal",
+        ));
+    }
+    Ok(())
+}
+
+fn materialized_pattern_subject_is_int(materialized: &MaterializedMir, ty: TypeId) -> bool {
+    matches!(
+        materialized.types.kind(ty),
+        TypeKind::Value(
+            ValueTypeKind::Int
+                | ValueTypeKind::UInt
+                | ValueTypeKind::IntN(_)
+                | ValueTypeKind::UIntN(_)
+        )
+    ) || materialized_nominal_value_fqn(materialized, ty).is_some_and(|fqn| {
+        fqn == "scoop.core.Int"
+            || fqn == "scoop.core.UInt"
+            || fqn == "scoop.core.UIntPtr"
+            || fqn
+                .strip_prefix("scoop.core.Int")
+                .is_some_and(|suffix| !suffix.is_empty() && suffix.parse::<u16>().is_ok())
+            || fqn
+                .strip_prefix("scoop.core.UInt")
+                .is_some_and(|suffix| !suffix.is_empty() && suffix.parse::<u16>().is_ok())
+    })
+}
+
+fn materialized_pattern_subject_is_char(materialized: &MaterializedMir, ty: TypeId) -> bool {
+    matches!(
+        materialized.types.kind(ty),
+        TypeKind::Value(ValueTypeKind::Char)
+    ) || materialized_nominal_value_fqn(materialized, ty) == Some("scoop.core.Char")
+}
+
+fn materialized_pattern_subject_is_bool(materialized: &MaterializedMir, ty: TypeId) -> bool {
+    matches!(
+        materialized.types.kind(ty),
+        TypeKind::Value(ValueTypeKind::Bool)
+    ) || materialized_nominal_value_fqn(materialized, ty) == Some("scoop.core.Bool")
+}
+
+fn materialized_pattern_subject_is_string(materialized: &MaterializedMir, ty: TypeId) -> bool {
+    matches!(
+        materialized.types.kind(ty),
+        TypeKind::Ref(RefTypeKind::String)
+    )
+}
+
+fn materialized_nominal_value_fqn(materialized: &MaterializedMir, ty: TypeId) -> Option<&str> {
+    match materialized.types.kind(ty) {
+        TypeKind::Value(ValueTypeKind::Nominal(nominal)) => Some(nominal.fqn.as_str()),
+        _ => None,
+    }
+}
+
+pub(super) fn validate_materialized_pattern_extract_schema(
+    materialized: &MaterializedMir,
+    fqn: &str,
+    block: BasicBlockId,
+    span: Span,
+    subject_ty: Option<TypeId>,
+    path: &[super::super::PatternBindingStep],
+    expected_result_ty: Option<TypeId>,
+) -> MaterializeResult<()> {
+    let Some(mut current_ty) = subject_ty else {
+        return Err(materialized_type_contract_err(
+            fqn,
+            Some(block),
+            span,
+            "pattern extract subject",
+            "pattern extract subject type must be known",
+        ));
+    };
+    for step in path {
+        current_ty = match step {
+            super::super::PatternBindingStep::TupleIndex(index) => {
+                let TypeKind::Value(ValueTypeKind::Tuple(elements)) =
+                    materialized.types.kind(current_ty)
+                else {
+                    return Err(materialized_type_contract_err(
+                        fqn,
+                        Some(block),
+                        span,
+                        "pattern extract tuple subject",
+                        "tuple extraction step requires a tuple subject type",
+                    ));
+                };
+                *elements.get(*index).ok_or_else(|| {
+                    materialized_type_contract_err(
+                        fqn,
+                        Some(block),
+                        span,
+                        "pattern extract tuple index",
+                        "tuple extraction index is outside the tuple type",
+                    )
+                })?
+            }
+            super::super::PatternBindingStep::VariantField {
+                variant,
+                field_index,
+            } => {
+                let Some(fields) =
+                    materialized_enum_variant_fields(materialized, current_ty, variant)
+                else {
+                    return Err(materialized_type_contract_err(
+                        fqn,
+                        Some(block),
+                        span,
+                        "pattern extract variant",
+                        "variant extraction step is not declared on subject enum",
+                    ));
+                };
+                fields.get(*field_index).map(|(_, ty)| *ty).ok_or_else(|| {
+                    materialized_type_contract_err(
+                        fqn,
+                        Some(block),
+                        span,
+                        "pattern extract variant field",
+                        "variant extraction field index is outside the variant payload",
+                    )
+                })?
+            }
+        };
+        validate_materialized_type(
+            materialized,
+            MaterializedValidationContext {
+                fqn,
+                block: Some(block),
+                span,
+                surface: "pattern extract field type",
+            },
+            current_ty,
+        )?;
+    }
+    if expected_result_ty.is_some_and(|ty| ty != current_ty) {
+        return Err(materialized_type_contract_err(
+            fqn,
+            Some(block),
+            span,
+            "pattern extract result",
+            "pattern extract result type does not match assignment target",
+        ));
+    }
+    Ok(())
 }
 
 pub(super) fn validate_materialized_operands(

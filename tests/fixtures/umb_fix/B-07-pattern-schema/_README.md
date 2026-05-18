@@ -7,15 +7,15 @@
 
 ## Scope
 
-U5-T03 assigns direct B-07 inventory coverage to the positive and negative pattern schema fixtures in this directory.
+P7-B2.3 activates the positive and negative pattern schema fixtures in this directory.
 
 ## Direct Coverage
 
 - Positive: `pos_pattern_destructuring.scoop`
 - Negative: `neg_pattern_schema_gate.scoop`
-- Covers: all 34 B-07 inventory ids (`UMB-1072` through `UMB-1109`, with current inventory gaps preserved).
+- Covers: no active B-07 IDs remain; retired rows live in `audit/UMB_retired.csv`.
 - Upstream gate: `typecheck pattern gate: pattern subject and clause schema are valid`.
 
 ## Runner Status
 
-`scoop test` recognizes `tests/fixtures/umb_fix/**`. Fixtures marked `IGNORE-UNTIL-FIX:B-07` or `ignore-until-fix:B-07` are skipped until the corresponding production fix lands.
+`scoop test` recognizes `tests/fixtures/umb_fix/**`. B-07 fixtures are active after P7-B2.3.
