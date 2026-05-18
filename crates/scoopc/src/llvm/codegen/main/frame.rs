@@ -181,12 +181,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &mut self,
         llvm_fun: FunctionValue<'ctx>,
     ) -> Result<(), LlvmEmitError> {
-        let entry = llvm_fun
-            .get_first_basic_block()
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "function has no entry block",
-                at: crate::span::Span::new(0, 0).into(),
-            })?;
+        let entry = self.expect_entry_block(llvm_fun, "begin_function_explicit_frame_layout");
         let entry_builder = self.context.create_builder();
         match entry.get_first_instruction() {
             Some(inst) => entry_builder.position_before(&inst),
@@ -341,19 +336,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     pub(in crate::llvm::codegen) fn explicit_root_frame_slot_pointer(
         &self,
-        at: crate::span::Span,
+        _at: crate::span::Span,
         frame_storage: PointerValue<'ctx>,
         slot_index: usize,
         _slot_ty: PointerType<'ctx>,
         name: &str,
     ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
-        let entry = frame_storage
-            .as_instruction_value()
-            .and_then(|inst| inst.get_parent())
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "explicit root frame entry block",
-                at: at.into(),
-            })?;
+        let entry = self.expect_instruction_parent_block(
+            frame_storage.as_instruction_value(),
+            "explicit root frame slot pointer",
+        );
         let builder = self.context.create_builder();
         let mut cursor = entry.get_first_instruction();
         while let Some(inst) = cursor {
@@ -833,19 +825,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     pub(in crate::llvm::codegen) fn emit_explicit_root_frame_entry_setup(
         &self,
-        at: crate::span::Span,
+        _at: crate::span::Span,
         frame_storage: PointerValue<'ctx>,
         slot_count: usize,
         desc_global: GlobalValue<'ctx>,
     ) -> Result<(), LlvmEmitError> {
         let frame_header_ty = self.llvm_explicit_root_frame_header_type();
-        let insert_block = frame_storage
-            .as_instruction_value()
-            .and_then(|inst| inst.get_parent())
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "explicit root frame entry block",
-                at: at.into(),
-            })?;
+        let insert_block = self.expect_instruction_parent_block(
+            frame_storage.as_instruction_value(),
+            "explicit root frame entry setup",
+        );
         let builder = self.context.create_builder();
         let mut cursor = insert_block.get_first_instruction();
         while let Some(inst) = cursor {
@@ -915,19 +904,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     pub(in crate::llvm::codegen) fn emit_explicit_root_frame_return_pops(
         &self,
-        at: crate::span::Span,
+        _at: crate::span::Span,
         frame_storage: PointerValue<'ctx>,
         slot_tys: &[PointerType<'ctx>],
     ) -> Result<(), LlvmEmitError> {
         let frame_header_ty = self.llvm_explicit_root_frame_header_type();
-        let function = frame_storage
-            .as_instruction_value()
-            .and_then(|inst| inst.get_parent())
-            .and_then(|bb| bb.get_parent())
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "explicit root frame parent function",
-                at: at.into(),
-            })?;
+        let function = self.expect_instruction_parent_function(
+            frame_storage.as_instruction_value(),
+            "explicit root frame return pops",
+        );
         let top_tls = self.declare_runtime_explicit_root_frame_top_tls();
         let null_gc = self.llvm_gc_i8_ptr_type().const_null();
 

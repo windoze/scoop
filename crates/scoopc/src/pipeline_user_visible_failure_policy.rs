@@ -150,7 +150,7 @@ const STALE_UNSUPPORTED_MAIN_BODY_COUNTS: &[UnsupportedMainBodyCount] = &[
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/mir_body/args.rs",
-        expected_count: 15,
+        expected_count: 14,
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/mir_body/call.rs",
@@ -158,15 +158,15 @@ const STALE_UNSUPPORTED_MAIN_BODY_COUNTS: &[UnsupportedMainBodyCount] = &[
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/mir_body/callable_lookup.rs",
-        expected_count: 21,
+        expected_count: 20,
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/mir_body/cast.rs",
-        expected_count: 28,
+        expected_count: 23,
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/mir_body/const_pat.rs",
-        expected_count: 38,
+        expected_count: 36,
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/mir_body/dispatch.rs",
@@ -174,7 +174,7 @@ const STALE_UNSUPPORTED_MAIN_BODY_COUNTS: &[UnsupportedMainBodyCount] = &[
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/mir_body/member.rs",
-        expected_count: 48,
+        expected_count: 42,
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/mir_body/mod.rs",
@@ -238,11 +238,11 @@ const STALE_UNSUPPORTED_MAIN_BODY_COUNTS: &[UnsupportedMainBodyCount] = &[
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/effect_lowered/value.rs",
-        expected_count: 137,
+        expected_count: 131,
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/main/alloca.rs",
-        expected_count: 6,
+        expected_count: 0,
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/main/boxing.rs",
@@ -266,7 +266,7 @@ const STALE_UNSUPPORTED_MAIN_BODY_COUNTS: &[UnsupportedMainBodyCount] = &[
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/main/expr_op.rs",
-        expected_count: 29,
+        expected_count: 19,
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/main/expr_value.rs",
@@ -274,7 +274,7 @@ const STALE_UNSUPPORTED_MAIN_BODY_COUNTS: &[UnsupportedMainBodyCount] = &[
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/main/frame.rs",
-        expected_count: 10,
+        expected_count: 6,
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/main/function.rs",
@@ -294,7 +294,7 @@ const STALE_UNSUPPORTED_MAIN_BODY_COUNTS: &[UnsupportedMainBodyCount] = &[
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/main/immut_value.rs",
-        expected_count: 18,
+        expected_count: 16,
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/main/literal.rs",
@@ -302,7 +302,7 @@ const STALE_UNSUPPORTED_MAIN_BODY_COUNTS: &[UnsupportedMainBodyCount] = &[
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/main/numeric.rs",
-        expected_count: 2,
+        expected_count: 0,
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/main/runtime_error.rs",
@@ -697,7 +697,7 @@ const INTERNAL_BUG_SENTINEL_HITS: &[&str] = &[
     "crates/scoopc/src/llvm/codegen/mir_body/member.rs:143:            unreachable!(",
     "crates/scoopc/src/llvm/codegen/mir_body/member.rs:268:                    unreachable!(",
     "crates/scoopc/src/llvm/codegen/effect_lowered/value.rs:2493:                    _ => unreachable!(\"filtered by match\"),",
-    "crates/scoopc/src/llvm/codegen/effect_lowered/value.rs:3632:            _ => unreachable!(\"filtered by caller\"),",
+    "crates/scoopc/src/llvm/codegen/effect_lowered/value.rs:3621:            _ => unreachable!(\"filtered by caller\"),",
     "crates/scoopc/src/llvm/codegen/main/alloca.rs:48:            _ => unreachable!(\"cast_float only accepts Float64/Float32\"),",
     "crates/scoopc/src/llvm/codegen/main/call.rs:704:            unreachable!(",
     "crates/scoopc/src/llvm/codegen/main/coerce.rs:74:                    _ => unreachable!(\"filtered by caller\"),",
@@ -706,6 +706,11 @@ const INTERNAL_BUG_SENTINEL_HITS: &[&str] = &[
     "crates/scoopc/src/llvm/codegen/main/coerce.rs:170:                _ => unreachable!(\"filtered by caller\"),",
     "crates/scoopc/src/llvm/codegen/main/coerce.rs:204:            _ => unreachable!(\"filtered by caller\"),",
     "crates/scoopc/src/llvm/codegen/main/coerce.rs:236:            _ => unreachable!(\"filtered by caller\"),",
+    "crates/scoopc/src/llvm/codegen/main/context.rs:14:            panic!(\"expect_insert_block: missing LLVM insert block while {context}\")",
+    "crates/scoopc/src/llvm/codegen/main/context.rs:25:            panic!(\"expect_parent_function: block has no parent function while {context}\")",
+    "crates/scoopc/src/llvm/codegen/main/context.rs:45:            panic!(\"expect_instruction_parent_block: instruction has no parent block while {context}\")",
+    "crates/scoopc/src/llvm/codegen/main/context.rs:66:            panic!(\"expect_entry_block: function has no entry block while {context}\")",
+    "crates/scoopc/src/llvm/codegen/main/context.rs:77:            panic!(\"expect_basic_value: call did not produce a basic value while {context}\")",
     "crates/scoopc/src/llvm/codegen/main/expr_value.rs:162:                unreachable!(",
     "crates/scoopc/src/mir/materialize/dispatch.rs:51:                    panic!(",
     "crates/scoopc/src/mir/materialize/output.rs:37:            panic!(",
@@ -818,7 +823,7 @@ fn pipeline_user_visible_failure_policy_tracks_stale_unsupportedmainbody_counts(
             baseline.path
         );
     }
-    assert_eq!(total, 610);
+    assert_eq!(total, 565);
 }
 
 #[test]

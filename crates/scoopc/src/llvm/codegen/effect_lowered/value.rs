@@ -2782,20 +2782,9 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
         success: inkwell::values::IntValue<'ctx>,
         desired: PointerValue<'ctx>,
     ) -> Result<(), LlvmEmitError> {
-        let insert_block =
-            self.codegen
-                .builder
-                .get_insert_block()
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "atomicRefCompareExchange insert block",
-                    at: span.into(),
-                })?;
-        let function = insert_block
-            .get_parent()
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "atomicRefCompareExchange parent function",
-                at: span.into(),
-            })?;
+        let function = self
+            .codegen
+            .expect_current_function("atomicRefCompareExchange barrier");
         let barrier_bb = self
             .codegen
             .context
@@ -3748,20 +3737,7 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
             self.codegen.context.i32_type().const_zero(),
             "gc_pin_ok",
         )?;
-        let insert_block =
-            self.codegen
-                .builder
-                .get_insert_block()
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "GC.pin insert block",
-                    at: span.into(),
-                })?;
-        let function = insert_block
-            .get_parent()
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "GC.pin parent function",
-                at: span.into(),
-            })?;
+        let function = self.codegen.expect_current_function("GC.pin branch blocks");
         let ok_bb = self
             .codegen
             .context
@@ -3867,20 +3843,9 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
             self.codegen.context.i32_type().const_zero(),
             "gc_unpin_ok",
         )?;
-        let insert_block =
-            self.codegen
-                .builder
-                .get_insert_block()
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "GC.unpin insert block",
-                    at: span.into(),
-                })?;
-        let function = insert_block
-            .get_parent()
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "GC.unpin parent function",
-                at: span.into(),
-            })?;
+        let function = self
+            .codegen
+            .expect_current_function("GC.unpin branch blocks");
         let ok_bb = self
             .codegen
             .context

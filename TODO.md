@@ -4,7 +4,7 @@
 > 计划基线：[`PLAN.md`](./PLAN.md)
 > 上一阶段任务档案：[`TODO-1.md`](./TODO-1.md)
 > 设计与 baseline：[`UnsupportedMainBody_FIX.md`](./UnsupportedMainBody_FIX.md)、[`UnsupportedMainBody_DONE.md`](./UnsupportedMainBody_DONE.md)
-> 当前状态：P7-0-T01、P7-0-T02、P7-A1、P7-A2、P7-A3、P7-A4 已完成；active=1,159，retired=125。
+> 当前状态：P7-0-T01、P7-0-T02、P7-A1、P7-A2、P7-A3、P7-A4、P7-B1 已完成；active=1,088，retired=196。
 
 ## 全局约束
 
@@ -28,7 +28,7 @@
 - `PLAN.md:183-206`：P7-C RealImpl 退场。
 - `PLAN.md:208-225`：P8 最终退场。
 - `PLAN.md:237-245`：总完成判据。
-- `audit/UMB_inventory.csv`：当前 active inventory，1,217 条。
+- `audit/UMB_inventory.csv`：当前 active inventory，1,088 条。
 - `audit/UMB_categories/_overview.md`：bucket entry 数和 class 分布总览。
 - `audit/UMB_categories/B-XX.md`：每 bucket symptom、root cause、fixture pointer。
 - `audit/strategies/B-XX.md`：每 bucket 上游契约和 P7 修复策略。
@@ -262,7 +262,7 @@ P7-0-T01 stable ID + retired ledger
 
 ## P7-B：InternalBugSentinel 退场（956 entries）
 
-### [TODO] P7-B1：B-01 helper invariant 统一迁移
+### [DONE] P7-B1：B-01 helper invariant 统一迁移
 
 - 参考：`PLAN.md:123-133`、`audit/strategies/B-01.md`。
 - 范围：B-01，71 entries，`InternalBugSentinel`。
@@ -280,7 +280,15 @@ P7-0-T01 stable ID + retired ledger
   4. `cargo test -p scoopc llvm -- --nocapture`
 - 完成条件：B-01 active count 为 0；B-01 sentinel test 仍证明 helper-only 覆盖闭环。
 - 依赖：P7-0-T02。
-- 完成记录：待填写。
+- 完成记录：
+  - 改动范围：新增集中 LLVM insertion/value invariant helper 于 `crates/scoopc/src/llvm/codegen/main/context.rs`；迁移 B-01 fallback 所在的 `crates/scoopc/src/llvm/codegen/{call/lowering.rs,class_ctor.rs,closure/mod.rs,control_flow.rs,effect_lowered/value.rs,gc.rs,intrinsics/atomic.rs,intrinsics/named.rs,main/alloca.rs,main/expr_op.rs,main/frame.rs,main/immut_value.rs,main/numeric.rs,mir_body/args.rs,mir_body/callable_lookup.rs,mir_body/cast.rs,mir_body/const_pat.rs,mir_body/member.rs,stmt.rs}`；同步 `audit/UMB_inventory.csv`、`audit/UMB_retired.csv`、`audit/UMB_categories/B-01.md`、`audit/UMB_categories/_overview.md`、`audit/strategies/B-01.md`、`audit/spec_coverage_matrix.md`、`tests/fixtures/umb_fix/B-01-builder-invariant/_README.md`、`crates/scoopc/src/audit/{umb_inventory.rs,spec_coverage.rs,sentinel_tests.rs}`、`crates/scoopc/src/pipeline_user_visible_failure_policy.rs`、`crates/scoopc/src/llvm/codegen/mir_body/mod.rs` 与 `memory/claude_plan.md`。
+  - Retired IDs：`UMB-0020`、`UMB-0064`、`UMB-0093`、`UMB-0118`、`UMB-0119`、`UMB-0123`、`UMB-0124`、`UMB-0163`、`UMB-0164`、`UMB-0296`、`UMB-0297`、`UMB-0344`、`UMB-0345`、`UMB-0352`、`UMB-0353`、`UMB-0433`、`UMB-0434`、`UMB-0444`、`UMB-0445`、`UMB-0456`、`UMB-0457`、`UMB-0468`、`UMB-0469`、`UMB-0479`、`UMB-0480`、`UMB-0541`、`UMB-0542`、`UMB-0607`、`UMB-0609`、`UMB-0762`、`UMB-0763`、`UMB-0764`、`UMB-0765`、`UMB-0766`、`UMB-0767`、`UMB-0838`、`UMB-0839`、`UMB-0840`、`UMB-0848`、`UMB-0849`、`UMB-0852`、`UMB-0853`、`UMB-0854`、`UMB-0857`、`UMB-0858`、`UMB-0878`、`UMB-0880`、`UMB-0888`、`UMB-0889`、`UMB-0925`、`UMB-0926`、`UMB-0943`、`UMB-0944`、`UMB-0985`、`UMB-1025`、`UMB-1065`、`UMB-1066`、`UMB-1067`、`UMB-1068`、`UMB-1069`、`UMB-1101`、`UMB-1102`、`UMB-1155`、`UMB-1156`、`UMB-1165`、`UMB-1166`、`UMB-1174`、`UMB-1175`、`UMB-1266`、`UMB-1267`、`UMB-1269`；数量 71；bucket `B-01`；class `InternalBugSentinel`。
+  - 核心决策：B-01 为内部 helper invariant，不新增用户 `.scoop` fixture；`expect_insert_block`、`expect_parent_function`、`expect_current_function`、`expect_entry_block`、`expect_basic_value` 和 explicit-frame instruction-parent helper 统一承接 panic boundary，panic 文案包含 helper 名称和上下文且不复用 UMB diagnostic；同步修正一个 stale LLVM 单测，使非 Unit empty MIR return contract 断言 internal panic 而不是旧 UMB error。
+  - Inventory/ledger：active 1,159 -> 1,088；retired 125 -> 196；B-01 active 71 -> 0；`InternalBugSentinel` active 956 -> 885。
+  - Stale count：`effect_lowered/value.rs` 137 -> 131；`main/alloca.rs` 6 -> 0；`main/expr_op.rs` 29 -> 19；`main/frame.rs` 10 -> 6；`main/immut_value.rs` 18 -> 16；`main/numeric.rs` 2 -> 0；`mir_body/args.rs` 15 -> 14；`mir_body/callable_lookup.rs` 21 -> 20；`mir_body/cast.rs` 28 -> 23；`mir_body/const_pat.rs` 38 -> 36；`mir_body/member.rs` 48 -> 42；tracked stale total 610 -> 565。
+  - Fixture 状态：B-01 继续 README/sentinel-only；`tests/fixtures/umb_fix/B-01-builder-invariant/_README.md` 状态改为 `retired-by-P7-B1`，`SENTINEL-COVERS` 仍列出 71 个 retired helper-invariant IDs；fixture coverage audit 不再把 B-01 sentinel IDs 计入 active inventory coverage。
+  - 验证结果：`cargo run -p scoopc --bin umb-audit -- list --bucket B-01` 通过（entries 0）；`cargo run -p scoopc --bin umb-audit -- diff` 通过（in sync，1,088 entries）；`cargo run -p scoopc --bin umb-audit -- stats` 通过（active=1,088、retired=196、initial=1,284）；`cargo test -p scoopc audit:: -- --nocapture` 通过（23 passed）；`cargo test -p scoopc pipeline_user_visible_failure_policy -- --nocapture` 通过（7 passed）；`cargo test -p scoopc llvm -- --nocapture` 通过（250 passed）；`cargo fmt` 通过；`cargo clippy --all-targets -- -D warnings` 通过。
+  - 闭合目标：满足 `PLAN.md:123-133` 与本任务完成条件；B-01 active count 为 0，B-01 sentinel test 仍证明 helper-only coverage 已由 retired ledger 覆盖。
 
 ### [TODO] P7-B2.1：B-02/B-04 MIR local、param、return type contract
 
@@ -523,7 +531,7 @@ P7-0-T01 stable ID + retired ledger
 
 | 阶段 | Active 目标 | Retired 目标 | 备注 |
 |---|---:|---:|---|
-| 当前 | 1,159 | 125 | P7-A 完成，`FrontendReject` 清零 |
+| 当前 | 1,088 | 196 | P7-B1 完成，B-01 helper invariant 清零 |
 | P7-A 完成 | 1,159 | 125 | `FrontendReject` 清零 |
 | P7-B 完成 | 203 | 1,081 | `InternalBugSentinel` 清零 |
 | P7-C 完成 | 0 | 1,284 | `RealImpl` 清零 |

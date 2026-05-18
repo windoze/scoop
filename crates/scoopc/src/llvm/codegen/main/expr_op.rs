@@ -163,19 +163,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // 运行期检查：为避免在 obj=NULL 时解引用对象头，先对 NULL 做 fail 处理。
         let is_ok = self.codegen_ref_is_instance_of(span, obj_ptr, target_ty)?;
 
-        let insert_block =
-            self.builder
-                .get_insert_block()
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "builder has no insert block",
-                    at: span.into(),
-                })?;
-        let func = insert_block
-            .get_parent()
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "builder has no parent function",
-                at: span.into(),
-            })?;
+        let func = self.expect_current_function("checked cast branch blocks");
 
         let ok_bb = self.context.append_basic_block(func, "cast_ok");
         let fail_bb = self.context.append_basic_block(func, "cast_fail");
@@ -198,13 +186,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             self.builder.build_unreachable()?;
             None
         } else {
-            let dead_bb =
-                self.builder
-                    .get_insert_block()
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "builder has no insert block",
-                        at: span.into(),
-                    })?;
+            let dead_bb = self.expect_insert_block("checked cast failure continuation");
             let default_ptr = target_ptr_ty.const_null();
             self.builder.build_unconditional_branch(merge_bb)?;
             Some((default_ptr, dead_bb))
@@ -290,19 +272,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         let is_ok = self.codegen_ref_is_instance_of(span, obj_ptr, target_ty)?;
 
-        let insert_block =
-            self.builder
-                .get_insert_block()
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "builder has no insert block",
-                    at: span.into(),
-                })?;
-        let func = insert_block
-            .get_parent()
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "builder has no parent function",
-                at: span.into(),
-            })?;
+        let func = self.expect_current_function("nullable cast branch blocks");
 
         let ok_bb = self.context.append_basic_block(func, "asq_ok");
         let fail_bb = self.context.append_basic_block(func, "asq_fail");
@@ -370,19 +340,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         // 对其它 target：obj 为 NULL 时直接 false，避免解引用对象头。
-        let insert_block =
-            self.builder
-                .get_insert_block()
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "builder has no insert block",
-                    at: at.into(),
-                })?;
-        let func = insert_block
-            .get_parent()
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "builder has no parent function",
-                at: at.into(),
-            })?;
+        let func = self.expect_current_function("runtime type check null split");
 
         let null_bb = self.context.append_basic_block(func, "isa_obj_null");
         let nonnull_bb = self.context.append_basic_block(func, "isa_obj_nonnull");
@@ -397,13 +355,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // nonnull -> 计算真实检查 -> done
         self.builder.position_at_end(nonnull_bb);
         let inner_ok = self.codegen_ref_is_instance_of_nonnull(at, obj, target_ty)?;
-        let after_check_bb =
-            self.builder
-                .get_insert_block()
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "builder has no insert block",
-                    at: at.into(),
-                })?;
+        let after_check_bb = self.expect_insert_block("runtime type check tail block");
         self.builder.build_unconditional_branch(done_bb)?;
 
         // done：phi 合并
@@ -478,7 +430,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     /// `class` 类型判断：检查 `obj.header.type_desc` 的 parent 链是否包含 `target_desc_i8`。
     pub(in crate::llvm::codegen) fn codegen_type_desc_chain_contains_target(
         &mut self,
-        at: crate::span::Span,
+        _at: crate::span::Span,
         obj: PointerValue<'ctx>,
         target_desc_i8: PointerValue<'ctx>,
     ) -> Result<IntValue<'ctx>, LlvmEmitError> {
@@ -498,19 +450,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .build_load(i8_ptr_ty, type_desc_ptr, "isa_type_desc")?
             .into_pointer_value();
 
-        let insert_block =
-            self.builder
-                .get_insert_block()
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "builder has no insert block",
-                    at: at.into(),
-                })?;
-        let func = insert_block
-            .get_parent()
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "builder has no parent function",
-                at: at.into(),
-            })?;
+        let insert_block = self.expect_insert_block("runtime type descriptor chain");
+        let func = self.expect_parent_function(insert_block, "runtime type descriptor chain");
 
         // while (cur != NULL) { if (cur == target) return true; cur = cur.parent; } return false
         let loop_bb = self.context.append_basic_block(func, "isa_loop");

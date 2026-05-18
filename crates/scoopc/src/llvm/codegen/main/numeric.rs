@@ -8,7 +8,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     /// 只要其中任意一个 target type id 与 `target_type_id` 相等，就判定为 true。
     pub(in crate::llvm::codegen) fn codegen_itable_contains_runtime_type_id(
         &mut self,
-        at: crate::span::Span,
+        _at: crate::span::Span,
         obj: PointerValue<'ctx>,
         target_type_id: u64,
     ) -> Result<IntValue<'ctx>, LlvmEmitError> {
@@ -46,19 +46,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .build_load(i8_ptr_ty, itable_field_ptr, "isa_iface_load_itable")?
             .into_pointer_value();
 
-        let insert_block =
-            self.builder
-                .get_insert_block()
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "builder has no insert block",
-                    at: at.into(),
-                })?;
-        let func = insert_block
-            .get_parent()
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "builder has no parent function",
-                at: at.into(),
-            })?;
+        let func = self.expect_current_function("interface runtime type id lookup");
 
         // itable == NULL -> false
         let itable_is_null = self

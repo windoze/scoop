@@ -52,11 +52,7 @@ fn umb_fix_every_inventory_id_is_covered() {
         .iter()
         .map(|entry| entry.id.clone())
         .collect::<BTreeSet<_>>();
-    let b01_ids = inventory_entries
-        .iter()
-        .filter(|entry| entry.bucket == "B-01")
-        .map(|entry| entry.id.clone())
-        .collect::<BTreeSet<_>>();
+    let retired_b01_ids = umb_inventory::retired_ids_for_bucket("B-01");
     let retired_count = umb_inventory::retired_entry_count();
 
     assert_eq!(
@@ -74,10 +70,9 @@ fn umb_fix_every_inventory_id_is_covered() {
     }
     let sentinel_ids = sentinel_coverage_ids();
     assert_eq!(
-        sentinel_ids, b01_ids,
-        "B-01 sentinel coverage must exactly match helper-invariant inventory ids"
+        sentinel_ids, retired_b01_ids,
+        "B-01 sentinel coverage must exactly match retired helper-invariant ids"
     );
-    covered.extend(sentinel_ids);
 
     assert!(
         set_difference(&inventory_ids, &covered).is_empty(),

@@ -439,19 +439,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         let subject_ptr = self.create_entry_alloca(span, "pass_mir_variant_subject", subject.ty)?;
         let _ = self.store_local_value(span, subject_ptr, subject.ty, subject)?;
-        let current_bb =
-            self.builder
-                .get_insert_block()
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "builder has no insert block",
-                    at: span.into(),
-                })?;
-        let func = current_bb
-            .get_parent()
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "builder has no parent function",
-                at: span.into(),
-            })?;
+        let current_bb = self.expect_insert_block("pass MIR variant payload match");
+        let func = self.expect_parent_function(current_bb, "pass MIR variant payload match");
         let payload_bb = self
             .context
             .append_basic_block(func, "pass_mir_variant_payload");

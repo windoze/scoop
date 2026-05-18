@@ -5,6 +5,79 @@
 use super::*;
 
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
+    /// Return the active LLVM insertion block, or panic with a named compiler invariant.
+    pub(in crate::llvm::codegen) fn expect_insert_block(
+        &self,
+        context: &str,
+    ) -> inkwell::basic_block::BasicBlock<'ctx> {
+        self.builder.get_insert_block().unwrap_or_else(|| {
+            panic!("expect_insert_block: missing LLVM insert block while {context}")
+        })
+    }
+
+    /// Return the parent function for a block, or panic with a named compiler invariant.
+    pub(in crate::llvm::codegen) fn expect_parent_function(
+        &self,
+        block: inkwell::basic_block::BasicBlock<'ctx>,
+        context: &str,
+    ) -> FunctionValue<'ctx> {
+        block.get_parent().unwrap_or_else(|| {
+            panic!("expect_parent_function: block has no parent function while {context}")
+        })
+    }
+
+    /// Return the active function implied by the insertion block.
+    pub(in crate::llvm::codegen) fn expect_current_function(
+        &self,
+        context: &str,
+    ) -> FunctionValue<'ctx> {
+        let insert_block = self.expect_insert_block(context);
+        self.expect_parent_function(insert_block, context)
+    }
+
+    /// Return an instruction's parent block, or panic with a named compiler invariant.
+    pub(in crate::llvm::codegen) fn expect_instruction_parent_block(
+        &self,
+        instruction: Option<inkwell::values::InstructionValue<'ctx>>,
+        context: &str,
+    ) -> inkwell::basic_block::BasicBlock<'ctx> {
+        instruction.and_then(|inst| inst.get_parent()).unwrap_or_else(|| {
+            panic!("expect_instruction_parent_block: instruction has no parent block while {context}")
+        })
+    }
+
+    /// Return an instruction's parent function, or panic with a named compiler invariant.
+    pub(in crate::llvm::codegen) fn expect_instruction_parent_function(
+        &self,
+        instruction: Option<inkwell::values::InstructionValue<'ctx>>,
+        context: &str,
+    ) -> FunctionValue<'ctx> {
+        let block = self.expect_instruction_parent_block(instruction, context);
+        self.expect_parent_function(block, context)
+    }
+
+    /// Return a function's entry block, or panic with a named compiler invariant.
+    pub(in crate::llvm::codegen) fn expect_entry_block(
+        &self,
+        function: FunctionValue<'ctx>,
+        context: &str,
+    ) -> inkwell::basic_block::BasicBlock<'ctx> {
+        function.get_first_basic_block().unwrap_or_else(|| {
+            panic!("expect_entry_block: function has no entry block while {context}")
+        })
+    }
+
+    /// Return a call's basic value result, or panic with a named compiler invariant.
+    pub(in crate::llvm::codegen) fn expect_basic_value(
+        &self,
+        call: CallSiteValue<'ctx>,
+        context: &str,
+    ) -> BasicValueEnum<'ctx> {
+        call.try_as_basic_value().basic().unwrap_or_else(|| {
+            panic!("expect_basic_value: call did not produce a basic value while {context}")
+        })
+    }
+
     pub(in crate::llvm::codegen) fn take_function_body_cx(
         &mut self,
     ) -> FunctionBodyCodegenCx<'ctx> {

@@ -150,13 +150,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             return Ok(existing);
         }
 
-        let saved_block =
-            self.builder
-                .get_insert_block()
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "builder has no insert block",
-                    at: span.into(),
-                })?;
+        let saved_block = self.expect_insert_block("materialized MIR closure body lookup");
         let mut child = self.fresh_child_codegen();
         child.current_source_id = child.materialized_mir_callable_source_id(fn_ptr, span)?;
         let llvm_fun = child.declare_materialized_mir_closure_fun(span, mir_fun, mir_types)?;

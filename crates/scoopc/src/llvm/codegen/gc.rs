@@ -176,19 +176,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             "gc_pin_ok",
         )?;
 
-        let insert_block =
-            self.builder
-                .get_insert_block()
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "builder has no insert block",
-                    at: span.into(),
-                })?;
-        let func = insert_block
-            .get_parent()
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "builder has no parent function",
-                at: span.into(),
-            })?;
+        let func = self.expect_current_function("GC.pin branch blocks");
 
         let ok_bb = self.context.append_basic_block(func, "gc_pin_ok_bb");
         let err_bb = self.context.append_basic_block(func, "gc_pin_err_bb");
@@ -300,19 +288,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             "gc_handle_new_ok",
         )?;
 
-        let insert_block =
-            self.builder
-                .get_insert_block()
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "builder has no insert block",
-                    at: span.into(),
-                })?;
-        let func = insert_block
-            .get_parent()
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "builder has no parent function",
-                at: span.into(),
-            })?;
+        let func = self.expect_current_function("GC.handleNew branch blocks");
 
         let ok_bb = self.context.append_basic_block(func, "gc_handle_new_ok_bb");
         let err_bb = self
@@ -448,19 +424,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .build_is_null(obj_ptr, "gc_handle_get_is_null")?;
         let ok_cond = self.builder.build_not(obj_is_null, "gc_handle_get_ok")?;
 
-        let insert_block =
-            self.builder
-                .get_insert_block()
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "builder has no insert block",
-                    at: span.into(),
-                })?;
-        let func = insert_block
-            .get_parent()
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "builder has no parent function",
-                at: span.into(),
-            })?;
+        let func = self.expect_current_function("GC.handleGet branch blocks");
 
         let ok_bb = self.context.append_basic_block(func, "gc_handle_get_ok_bb");
         let err_bb = self
@@ -585,19 +549,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             "gc_handle_drop_ok",
         )?;
 
-        let insert_block =
-            self.builder
-                .get_insert_block()
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "builder has no insert block",
-                    at: span.into(),
-                })?;
-        let func = insert_block
-            .get_parent()
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "builder has no parent function",
-                at: span.into(),
-            })?;
+        let func = self.expect_current_function("GC.handleDrop branch blocks");
 
         let ok_bb = self
             .context
@@ -710,19 +662,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             "gc_unpin_ok",
         )?;
 
-        let insert_block =
-            self.builder
-                .get_insert_block()
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "builder has no insert block",
-                    at: span.into(),
-                })?;
-        let func = insert_block
-            .get_parent()
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "builder has no parent function",
-                at: span.into(),
-            })?;
+        let func = self.expect_current_function("GC.unpin branch blocks");
 
         let ok_bb = self.context.append_basic_block(func, "gc_unpin_ok_bb");
         let err_bb = self.context.append_basic_block(func, "gc_unpin_err_bb");

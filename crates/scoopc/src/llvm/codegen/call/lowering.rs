@@ -585,15 +585,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     pub(in crate::llvm::codegen) fn current_codegen_function(
         &self,
-        at: crate::span::Span,
+        _at: crate::span::Span,
     ) -> Result<FunctionValue<'ctx>, LlvmEmitError> {
-        self.builder
-            .get_insert_block()
-            .and_then(|bb| bb.get_parent())
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "builder has no current function",
-                at: at.into(),
-            })
+        Ok(self.expect_current_function("current_codegen_function"))
     }
 
     fn materialized_owner_hir_fun_for_callable(&self, fqn: &str) -> Option<&'a hir::FunDecl> {

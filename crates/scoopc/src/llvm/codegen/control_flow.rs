@@ -36,19 +36,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             at: cond.span.into(),
         })?;
 
-        let insert_block =
-            self.builder
-                .get_insert_block()
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "builder has no insert block",
-                    at: span.into(),
-                })?;
-        let func = insert_block
-            .get_parent()
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "builder has no parent function",
-                at: span.into(),
-            })?;
+        let func = self.expect_current_function("if expression blocks");
 
         let then_bb = self.context.append_basic_block(func, "if_then");
         let else_bb = self.context.append_basic_block(func, "if_else");
@@ -157,19 +145,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let _ = self.store_local_value(span, subject_ptr, subject_ty, subject_v)?;
         let subject_llvm_ty = self.llvm_basic_type_of(span, subject_ty)?;
 
-        let insert_block =
-            self.builder
-                .get_insert_block()
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "builder has no insert block",
-                    at: span.into(),
-                })?;
-        let func = insert_block
-            .get_parent()
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "builder has no parent function",
-                at: span.into(),
-            })?;
+        let func = self.expect_current_function("when expression blocks");
 
         let merge_bb = self.context.append_basic_block(func, "when_merge");
         let arm_bbs = (0..arms.len())
@@ -1608,19 +1584,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         let repr = self.cg_enum_layout(at, enum_ty)?.repr;
-        let current_bb =
-            self.builder
-                .get_insert_block()
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "builder has no insert block",
-                    at: pat.span().into(),
-                })?;
-        let func = current_bb
-            .get_parent()
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "builder has no parent function",
-                at: pat.span().into(),
-            })?;
+        let current_bb = self.expect_insert_block("when variant payload match");
+        let func = self.expect_parent_function(current_bb, "when variant payload match");
         let payload_bb = self
             .context
             .append_basic_block(func, "when_variant_payload");

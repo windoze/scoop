@@ -303,19 +303,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         is_ok: inkwell::values::IntValue<'ctx>,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         let target_ptr_ty = self.runtime_cast_target_ptr_type(span, target_cg)?;
-        let insert_block =
-            self.builder
-                .get_insert_block()
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "builder has no insert block",
-                    at: span.into(),
-                })?;
-        let func = insert_block
-            .get_parent()
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "builder has no parent function",
-                at: span.into(),
-            })?;
+        let func = self.expect_current_function("MIR checked cast branch blocks");
 
         let ok_bb = self.context.append_basic_block(func, "mir_cast_ok");
         let fail_bb = self.context.append_basic_block(func, "mir_cast_fail");
@@ -336,13 +324,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             self.builder.build_unreachable()?;
             None
         } else {
-            let dead_bb =
-                self.builder
-                    .get_insert_block()
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "builder has no insert block",
-                        at: span.into(),
-                    })?;
+            let dead_bb = self.expect_insert_block("MIR checked cast failure continuation");
             let default_ptr = target_ptr_ty.const_null();
             self.builder.build_unconditional_branch(merge_bb)?;
             Some((default_ptr, dead_bb))
@@ -371,19 +353,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         is_ok: inkwell::values::IntValue<'ctx>,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         let target_ptr_ty = self.runtime_cast_target_ptr_type(span, target_cg)?;
-        let insert_block =
-            self.builder
-                .get_insert_block()
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "builder has no insert block",
-                    at: span.into(),
-                })?;
-        let func = insert_block
-            .get_parent()
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "builder has no parent function",
-                at: span.into(),
-            })?;
+        let func = self.expect_current_function("MIR nullable cast branch blocks");
 
         let ok_bb = self.context.append_basic_block(func, "mir_asq_ok");
         let fail_bb = self.context.append_basic_block(func, "mir_asq_fail");

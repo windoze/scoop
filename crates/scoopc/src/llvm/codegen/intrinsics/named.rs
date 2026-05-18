@@ -1186,14 +1186,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         let len_i64 = self.named_intrinsic_array_len_value(call.span, arr_ptr, layout)?;
-        let current_fn = self
-            .builder
-            .get_insert_block()
-            .and_then(|block| block.get_parent())
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "named intrinsic array_get parent function",
-                at: call.callee_span.into(),
-            })?;
+        let current_fn = self.expect_current_function("named intrinsic array_get bounds check");
         let in_bounds_bb = self
             .context
             .append_basic_block(current_fn, "array_get_in_bounds");
@@ -1289,14 +1282,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             "array_set element type",
         )?;
         let len_i64 = self.named_intrinsic_array_len_value(call.span, arr_ptr, layout)?;
-        let current_fn = self
-            .builder
-            .get_insert_block()
-            .and_then(|block| block.get_parent())
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "named intrinsic array_set parent function",
-                at: call.callee_span.into(),
-            })?;
+        let current_fn = self.expect_current_function("named intrinsic array_set bounds check");
         let in_bounds_bb = self
             .context
             .append_basic_block(current_fn, "array_set_in_bounds");

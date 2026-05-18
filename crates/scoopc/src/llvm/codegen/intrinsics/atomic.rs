@@ -643,19 +643,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         success: IntValue<'ctx>,
         desired: PointerValue<'ctx>,
     ) -> Result<(), LlvmEmitError> {
-        let insert_block =
-            self.builder
-                .get_insert_block()
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "atomicRefCompareExchange insert block",
-                    at: span.into(),
-                })?;
-        let function = insert_block
-            .get_parent()
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "atomicRefCompareExchange parent function",
-                at: span.into(),
-            })?;
+        let function = self.expect_current_function("atomicRefCompareExchange barrier");
         let barrier_bb = self
             .context
             .append_basic_block(function, "atomic_ref_cas_barrier");

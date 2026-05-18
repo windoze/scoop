@@ -6,9 +6,9 @@ inventory 来源：[`audit/UMB_inventory.csv`](../UMB_inventory.csv)
 
 ## Summary
 
-- Total active inventory entries: 1,159
+- Total active inventory entries: 1,088
 - Bucket range: B-01 through B-36
-- Zero-entry buckets: B-15, B-16, B-36
+- Zero-entry buckets: B-01, B-15, B-16, B-36
 - Missing `spec_anchor`: 0
 - Missing `upstream_gate`: 0
 - Decision: all 36 stable buckets are retained; no merge or split is required in U2-T01.
@@ -17,7 +17,7 @@ inventory 来源：[`audit/UMB_inventory.csv`](../UMB_inventory.csv)
 
 | bucket | 名称 | 一级类 | entry 数 | expected_class 分布 | 主要 kind 标签前 5 条 | 主要文件前 5 个 | 备注 |
 |---|---|---:|---:|---|---|---|---|
-| B-01 | inkwell builder bookkeeping | A | 71 | InternalBugSentinel=71 | builder has no insert block (29)<br>builder has no parent function (23)<br>function has no entry block (3)<br>atomicRefCompareExchange insert block (2)<br>atomicRefCompareExchange parent function (2) | crates/scoopc/src/llvm/codegen/gc.rs (10)<br>crates/scoopc/src/llvm/codegen/main/expr_op.rs (10)<br>crates/scoopc/src/llvm/codegen/control_flow.rs (6)<br>crates/scoopc/src/llvm/codegen/effect_lowered/value.rs (6)<br>crates/scoopc/src/llvm/codegen/main/alloca.rs (6) | CSV non-empty; B-01 skeleton sample is included below. |
+| B-01 | inkwell builder bookkeeping | A | 0 | retired InternalBugSentinel=71 | retired: builder has no insert block (29)<br>builder has no parent function (23)<br>function has no entry block (3)<br>atomicRefCompareExchange insert block (2)<br>atomicRefCompareExchange parent function (2) | retired ledger: `audit/UMB_retired.csv` | P7-B1 retired; active CSV empty. |
 | B-02 | MIR local / member 类型推断不完整 | B | 6 | InternalBugSentinel=6 | unknown local value (1)<br>local slot gep source type (1)<br>val without initializer (1)<br>MIR unresolved name source type (1)<br>pass MIR local member field type drift (1) | crates/scoopc/src/llvm/codegen/mir_body/types.rs (2)<br>crates/scoopc/src/llvm/codegen/main/expr_value.rs (1)<br>crates/scoopc/src/llvm/codegen/main/gc_locals.rs (1)<br>crates/scoopc/src/llvm/codegen/main/immut_value.rs (1)<br>crates/scoopc/src/llvm/codegen/mir_body/string.rs (1) | CSV non-empty; body pending U2-T02. |
 | B-03 | MIR direct/closure/funptr 调用 ABI 漂移 | B | 56 | InternalBugSentinel=56 | pass MIR call arg binding (5)<br>itable direct result storage (2)<br>pass MIR call arg type (2)<br>call arg value (1)<br>call arg type (1) | crates/scoopc/src/llvm/codegen/call/lowering.rs (23)<br>crates/scoopc/src/llvm/codegen/mir_body/call.rs (14)<br>crates/scoopc/src/llvm/codegen/mir_body/callable_lookup.rs (9)<br>crates/scoopc/src/llvm/codegen/mir_body/args.rs (6)<br>crates/scoopc/src/llvm/codegen/call/abi.rs (3) | CSV non-empty; body pending U2-T02. |
 | B-04 | MIR 函数签名 / 参数 / 返回类型缺失 | B | 29 | InternalBugSentinel=29 | function return type (6)<br>scoop_alloc_typed return type (6)<br>function param type (4)<br>DYNAMIC:kind (2)<br>scoop_alloc_typed enum box return type (1) | crates/scoopc/src/llvm/codegen/main/declare.rs (5)<br>crates/scoopc/src/llvm/codegen/mir_body/args.rs (5)<br>crates/scoopc/src/llvm/codegen/call/abi.rs (4)<br>crates/scoopc/src/llvm/codegen/main/boxing.rs (3)<br>crates/scoopc/src/llvm/codegen/main/function.rs (3) | CSV non-empty; body pending U2-T02. |
@@ -56,23 +56,22 @@ inventory 来源：[`audit/UMB_inventory.csv`](../UMB_inventory.csv)
 
 ## B-01 Skeleton Sample
 
-This sample shows the expected structure for U2-T02 and U4-T01 authors. It intentionally remains a skeleton: root-cause analysis, source excerpts, and final fixture references are owned by later tasks.
+This sample is retained as a historical shape reference; the live B-01 category is retired by P7-B1.
 
 # B-01 - inkwell builder bookkeeping
 
-本 bucket entry 数：71  
+本 bucket entry 数：0
 inventory 来源：audit/UMB_inventory.csv  
 生成时间：2026-05-18  
-负责人/状态：未分配 / skeleton-created; body pending U2-T02
+负责人/状态：P7-B1 / retired
 
 ## Symptom
 
-- U2-T01 summary: 71 entries; expected_class distribution: InternalBugSentinel=71.
-- U2-T02 must add the full `(id, file, line, kind, route, surface, expected_class)` table and three representative source excerpts.
+- Active summary: 0 entries; retired ledger covers the initial 71 helper-invariant IDs.
 
 ## Root Cause Hypothesis
 
-- U2-T02 owns the detailed hypothesis. This sample does not infer beyond the inventory bucket assignment.
+- LLVM insertion-context invariants are centralized in `MainCodegen::expect_*` helpers.
 
 ## Spec Linkage
 
@@ -80,16 +79,16 @@ inventory 来源：audit/UMB_inventory.csv
 
 ## Expected Post-Fix Class
 
-- Current distribution from inventory: InternalBugSentinel=71.
+- Current distribution from inventory: all classes 0 active; retired `InternalBugSentinel=71`.
 
 ## Fix Strategy Outline
 
-- U4-T01 owns the strategy detail; this section is reserved for the helper-invariant strategy outline.
+- P7-B1 migrated former B-01 `UnsupportedMainBody` sites to helper panic boundaries.
 
 ## Fixture Set Pointer
 
-- Planned fixture/sentinel path: `tests/fixtures/umb_fix/B-01-builder-invariant/`.
+- Fixture/sentinel path: `tests/fixtures/umb_fix/B-01-builder-invariant/`.
 
 ## Open Questions
 
-- Skeleton phase: no zero-entry or bucket-retention blocker found.
+- No active B-01 blocker remains.

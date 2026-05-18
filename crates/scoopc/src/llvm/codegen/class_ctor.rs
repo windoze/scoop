@@ -163,14 +163,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         if !self.ordinary_effect_propagation_enabled()
             && let Some(outcome_ptr) = self.function_cx.current_effect_outcome_ptr
         {
-            let current_fn = self
-                .builder
-                .get_insert_block()
-                .and_then(|bb| bb.get_parent())
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "class ctor call current function",
-                    at: span.into(),
-                })?;
+            let current_fn = self.expect_current_function("class ctor call current function");
             let active_bb = self
                 .context
                 .append_basic_block(current_fn, "class_ctor_call_active");

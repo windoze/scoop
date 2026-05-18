@@ -1,7 +1,5 @@
 //! Sentinel coverage checks for UMB helper-invariant buckets.
 
-use std::collections::BTreeSet;
-
 use super::spec_coverage;
 use super::umb_inventory;
 
@@ -14,8 +12,8 @@ fn umb_fix_helper_invariant_sentinel_tests_present() {
     );
     assert_eq!(
         spec_coverage::sentinel_marker_value("SENTINEL-STATUS"),
-        "present-in-U6",
-        "B-01 sentinel coverage should no longer be marked planned once U6 lands"
+        "retired-by-P7-B1",
+        "B-01 sentinel coverage should track retired helper-invariant ids after P7-B1"
     );
 
     let inventory_entries = umb_inventory::inventory_entries();
@@ -23,26 +21,15 @@ fn umb_fix_helper_invariant_sentinel_tests_present() {
         .iter()
         .filter(|entry| entry.bucket == "B-01")
         .collect::<Vec<_>>();
-    let b01_ids = b01_entries
-        .iter()
-        .map(|entry| entry.id.clone())
-        .collect::<BTreeSet<_>>();
+    assert!(
+        b01_entries.is_empty(),
+        "B-01 active inventory should be empty after P7-B1 helper migration"
+    );
+    let retired_b01_ids = umb_inventory::retired_ids_for_bucket("B-01");
     let sentinel_ids = spec_coverage::sentinel_coverage_ids();
 
     assert_eq!(
-        sentinel_ids, b01_ids,
-        "B-01 sentinel coverage must enumerate exactly the helper-invariant ids"
+        sentinel_ids, retired_b01_ids,
+        "B-01 sentinel coverage must enumerate exactly the retired helper-invariant ids"
     );
-    for entry in b01_entries {
-        assert_eq!(
-            entry.spec_anchor, "N/A:helper-invariant",
-            "{} should remain a helper-invariant entry",
-            entry.id
-        );
-        assert_eq!(
-            entry.expected_class, "InternalBugSentinel",
-            "{} should remain an internal sentinel until P7 migrates the helper",
-            entry.id
-        );
-    }
 }

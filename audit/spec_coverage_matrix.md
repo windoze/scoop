@@ -24,7 +24,7 @@
 - Non-helper active inventory ids covered by matrix anchors: 1088
 - Active inventory anchor references covered, counting multi-anchor rows: 1927
 - Distinct inventory spec anchors covered: 47
-- Helper invariant entries excluded from spec matrix: 71 (`B-01`, `N/A:helper-invariant`)
+- Helper invariant entries excluded from spec matrix: 0 active (`B-01`, `N/A:helper-invariant`); 71 retired by P7-B1 in `audit/UMB_retired.csv`
 - `INTENTIONALLY-EMPTY` rows: 2
 - Anchor drift handled in U3: `docs/spec/language_spec-part2.md#10-function-type` was corrected to `docs/spec/language_spec-part2.md#11-function-type` in the audit generator and CSV before this matrix was generated.
 

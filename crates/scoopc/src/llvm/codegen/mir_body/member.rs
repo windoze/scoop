@@ -455,19 +455,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             self.context.i64_type().const_zero(),
             "mir_gc_handle_new_ok",
         )?;
-        let insert_block =
-            self.builder
-                .get_insert_block()
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "builder has no insert block",
-                    at: span.into(),
-                })?;
-        let func = insert_block
-            .get_parent()
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "builder has no parent function",
-                at: span.into(),
-            })?;
+        let func = self.expect_current_function("MIR GC.handleNew branch blocks");
         let ok_bb = self
             .context
             .append_basic_block(func, "mir_gc_handle_new_ok_bb");
@@ -590,19 +578,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let ok_cond = self
             .builder
             .build_not(obj_is_null, "mir_gc_handle_get_ok")?;
-        let insert_block =
-            self.builder
-                .get_insert_block()
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "builder has no insert block",
-                    at: span.into(),
-                })?;
-        let func = insert_block
-            .get_parent()
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "builder has no parent function",
-                at: span.into(),
-            })?;
+        let func = self.expect_current_function("MIR GC.handleGet branch blocks");
         let ok_bb = self
             .context
             .append_basic_block(func, "mir_gc_handle_get_ok_bb");
@@ -701,19 +677,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             self.context.i32_type().const_zero(),
             "mir_gc_handle_drop_ok",
         )?;
-        let insert_block =
-            self.builder
-                .get_insert_block()
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "builder has no insert block",
-                    at: span.into(),
-                })?;
-        let func = insert_block
-            .get_parent()
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "builder has no parent function",
-                at: span.into(),
-            })?;
+        let func = self.expect_current_function("MIR GC.handleDrop branch blocks");
         let ok_bb = self
             .context
             .append_basic_block(func, "mir_gc_handle_drop_ok_bb");

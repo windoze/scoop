@@ -258,23 +258,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     pub(super) fn codegen_while_stmt(
         &mut self,
-        at: crate::span::Span,
+        _at: crate::span::Span,
         cond: &hir::Expr,
         body: &hir::Block,
     ) -> Result<(), LlvmEmitError> {
-        let insert_block =
-            self.builder
-                .get_insert_block()
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "builder has no insert block",
-                    at: at.into(),
-                })?;
-        let func = insert_block
-            .get_parent()
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "builder has no parent function",
-                at: at.into(),
-            })?;
+        let func = self.expect_current_function("while statement blocks");
 
         let cond_bb = self.context.append_basic_block(func, "while_cond");
         let body_bb = self.context.append_basic_block(func, "while_body");
@@ -304,13 +292,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         self.function_cx.loop_context_stack.pop();
 
-        let body_end =
-            self.builder
-                .get_insert_block()
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "builder has no insert block",
-                    at: at.into(),
-                })?;
+        let body_end = self.expect_insert_block("while body tail block");
         if body_end.get_terminator().is_none() {
             self.builder.build_unconditional_branch(cond_bb)?;
         }

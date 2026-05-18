@@ -91,25 +91,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
         let frame_slots = self.reserve_explicit_frame_leaf_slots_for_storage_type(at, alloca_ty)?;
         let alloca_builder = self.context.create_builder();
-        let insert_block =
-            self.builder
-                .get_insert_block()
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "builder has no insert block",
-                    at: at.into(),
-                })?;
-        let func = insert_block
-            .get_parent()
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "builder has no parent function",
-                at: at.into(),
-            })?;
-        let entry = func
-            .get_first_basic_block()
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "function has no entry block",
-                at: at.into(),
-            })?;
+        let func = self.expect_current_function("create_entry_alloca_raw");
+        let entry = self.expect_entry_block(func, "create_entry_alloca_raw");
 
         match entry.get_first_instruction() {
             Some(inst) => alloca_builder.position_before(&inst),
@@ -123,30 +106,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     pub(in crate::llvm::codegen) fn create_entry_scratch_alloca_raw(
         &self,
-        at: crate::span::Span,
+        _at: crate::span::Span,
         name: &str,
         alloca_ty: BasicTypeEnum<'ctx>,
     ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
         let alloca_builder = self.context.create_builder();
-        let insert_block =
-            self.builder
-                .get_insert_block()
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "builder has no insert block",
-                    at: at.into(),
-                })?;
-        let func = insert_block
-            .get_parent()
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "builder has no parent function",
-                at: at.into(),
-            })?;
-        let entry = func
-            .get_first_basic_block()
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "function has no entry block",
-                at: at.into(),
-            })?;
+        let func = self.expect_current_function("create_entry_scratch_alloca_raw");
+        let entry = self.expect_entry_block(func, "create_entry_scratch_alloca_raw");
 
         match entry.get_first_instruction() {
             Some(inst) => alloca_builder.position_before(&inst),

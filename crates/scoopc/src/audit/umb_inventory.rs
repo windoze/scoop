@@ -1076,6 +1076,19 @@ pub(crate) fn retired_entry_count() -> usize {
     retired.len()
 }
 
+#[allow(dead_code)]
+pub(crate) fn retired_ids_for_bucket(bucket: &str) -> BTreeSet<String> {
+    let initial = read_initial_inventory_snapshot();
+    validate_initial_snapshot(&initial);
+    let retired = read_retired_ledger();
+    validate_retired_ledger(&retired, &initial);
+    retired
+        .into_iter()
+        .filter(|entry| entry.bucket == bucket)
+        .map(|entry| entry.id)
+        .collect()
+}
+
 fn read_csv_records(path_fragment: &str, expected_header: &str) -> Vec<Vec<String>> {
     let path = repo_root().join(path_fragment);
     let csv = fs::read_to_string(&path)

@@ -102,13 +102,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // 2) 确保 closure 函数本体存在（module-level function）。
         //
         // 注意：我们会在“第一次 codegen 到该 lambda 表达式”时生成其函数体；之后复用同名符号。
-        let saved_block =
-            self.builder
-                .get_insert_block()
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "builder has no insert block",
-                    at: span.into(),
-                })?;
+        let saved_block = self.expect_insert_block("closure saved insertion block");
 
         let llvm_fun = if let Some(existing) =
             self.module.get_function(&closure_identity.body_symbol)

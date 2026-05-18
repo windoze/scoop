@@ -910,15 +910,21 @@ mod tests {
 
     #[test]
     fn mir_no_return_none_raw_codegen_rejects_non_unit_empty_return() {
-        let result = mir_empty_return_contract_is_lowerable(
-            crate::span::Span::new(0, 1),
-            CgTy::Int(IntTy {
-                bits: 64,
-                signed: true,
-            }),
-        );
+        let panic = std::panic::catch_unwind(|| {
+            let _ = mir_empty_return_contract_is_lowerable(
+                crate::span::Span::new(0, 1),
+                CgTy::Int(IntTy {
+                    bits: 64,
+                    signed: true,
+                }),
+            );
+        })
+        .expect_err("non-Unit empty MIR return should be an internal verifier invariant");
 
-        assert_unsupported_kind(result, "pass MIR non-Unit empty return");
+        assert_eq!(
+            panic.downcast_ref::<&str>().copied(),
+            Some("MIR verifier must reject non-Unit empty returns before LLVM codegen")
+        );
     }
 
     #[test]

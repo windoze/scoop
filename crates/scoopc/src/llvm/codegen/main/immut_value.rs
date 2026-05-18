@@ -108,19 +108,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         at: crate::span::Span,
         value_fqn: &str,
     ) -> Result<(), LlvmEmitError> {
-        let insert_block =
-            self.builder
-                .get_insert_block()
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "builder has no insert block",
-                    at: at.into(),
-                })?;
-        let func = insert_block
-            .get_parent()
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "builder has no parent function",
-                at: at.into(),
-            })?;
+        let func = self.expect_current_function("top-level immutable initialized check");
 
         let ready_bb = self.context.append_basic_block(func, "top_level_val_ready");
         let recursive_bb = self
