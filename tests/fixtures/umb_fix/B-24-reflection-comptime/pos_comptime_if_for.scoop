@@ -1,0 +1,27 @@
+// EXPECT: ok
+// IGNORE-UNTIL-FIX:B-24
+// SPEC: docs/spec/language_spec-part5.md#4-comptime-if;docs/spec/language_spec-part5.md#5-comptime-for
+// COVERS: NONE
+// BUCKETS: B-24
+// REASON: U5-T02 records the spec surface before the matching implementation gate is enabled.
+// SOURCE-FIXTURE: tests/fixtures/comptime/comptime_for_range_and_array_basic.scoop
+
+package fixtures.comptime_
+
+import scoop.core.*
+
+const fun lastRange(): Int {
+    comptime for (i in 1..3) { i }
+}
+
+const fun lastArray(): Int {
+    comptime for (x in [10, 20, 30]) { x }
+}
+
+const fun lastTuple(): Int {
+    comptime for (x in (7, 8, 9)) { x }
+}
+
+const val A: Int = lastRange()
+const val B: Int = lastArray()
+const val C: Int = lastTuple()

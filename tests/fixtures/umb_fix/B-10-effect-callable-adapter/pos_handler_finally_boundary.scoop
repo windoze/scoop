@@ -1,0 +1,40 @@
+// EXPECT: ok
+// IGNORE-UNTIL-FIX:B-10
+// SPEC: docs/spec/language_spec-part4.md#7-handler-的-finally
+// COVERS: NONE
+// BUCKETS: B-10, B-34
+// REASON: U5-T02 records the spec surface before the matching implementation gate is enabled.
+// SOURCE-FIXTURE: tests/fixtures/effect_lowered/handle_finally_boundary.scoop
+
+package fixtures.mir_lowered
+
+effect Step {
+    fun next(seed: Int): Int
+}
+
+fun cleanup() {}
+
+fun body_completes(): Int {
+    return handle {
+        5
+    } with {
+        Step.next(value) -> value
+    } finally {
+        cleanup()
+    }
+}
+
+fun handled_raise(): Int {
+    return handle {
+        Step.next(1)
+        0
+    } with {
+        Step.next(value) -> value + 1
+    } finally {
+        cleanup()
+    }
+}
+
+fun main(): Int {
+    return body_completes() + handled_raise()
+}

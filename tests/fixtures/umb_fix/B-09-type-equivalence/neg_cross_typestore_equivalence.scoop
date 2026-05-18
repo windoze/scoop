@@ -1,0 +1,19 @@
+// EXPECT: fail
+// IGNORE-UNTIL-FIX:B-09
+// EXPECT-ERROR-CODE: scoop::umb_fix::pending_gate
+// EXPECT-ERROR-AT: 1:1
+// EXPECT-ERROR: pending U5 fixture gate
+// SPEC: docs/spec/language_spec-part2.md#1-类型总览;docs/spec/language_spec-part2.md#93-effect-row-参数
+// COVERS: UMB-0035, UMB-0039, UMB-0195, UMB-0377, UMB-0378, UMB-0604, UMB-0718, UMB-0859, UMB-0899, UMB-0921, UMB-0948, UMB-0969, UMB-1050, UMB-1055, UMB-1058, UMB-1183, UMB-1191, UMB-1221, UMB-1222
+// BUCKETS: B-02, B-09
+// REASON: U5-T02 records the spec surface before the matching implementation gate is enabled.
+// SOURCE-FIXTURE: tests/fixtures/infer/subtyping_any_to_int_is_error.scoop
+
+package fixtures.infer
+
+import scoop.core.*
+
+fun f() {
+    val a: Any = 1
+    val b: Int = a
+}

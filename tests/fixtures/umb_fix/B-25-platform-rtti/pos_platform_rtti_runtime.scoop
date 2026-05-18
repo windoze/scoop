@@ -1,0 +1,19 @@
+// EXPECT: ok
+// IGNORE-UNTIL-FIX:B-25
+// SPEC: docs/spec/language_spec-part5.md#10-runtime-type-info;docs/spec/language_spec-part5.md#11-class-literal;docs/spec/language_spec-part5.md#9-platform-introspection
+// COVERS: UMB-1044, UMB-1057, UMB-1060, UMB-1061, UMB-1062, UMB-1063, UMB-1086, UMB-1089, UMB-1215, UMB-1216, UMB-1217, UMB-1218, UMB-1219, UMB-1220
+// BUCKETS: B-25
+// REASON: U5-T02 records the spec surface before the matching implementation gate is enabled.
+// SOURCE-FIXTURE: tests/fixtures/run-pass/get_platform_runtime_basic.scoop
+
+import scoop.core.*
+
+fun main(): Int {
+    val p: Platform = getPlatform()
+    println(p.triple != "")
+    println(p.arch != "")
+    println(p.vendor != "")
+    println(p.os != "")
+    println(p.env == p.env)
+    return 0
+}

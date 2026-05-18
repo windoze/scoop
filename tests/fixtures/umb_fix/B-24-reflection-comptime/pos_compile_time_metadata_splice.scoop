@@ -1,0 +1,21 @@
+// EXPECT: ok
+// IGNORE-UNTIL-FIX:B-24
+// SPEC: docs/spec/language_spec-part5.md#7-编译期元数据类型;docs/spec/language_spec-part5.md#8-splice-field-access
+// COVERS: NONE
+// BUCKETS: B-24
+// REASON: U5-T02 records the spec surface before the matching implementation gate is enabled.
+// SOURCE-FIXTURE: tests/fixtures/typecheck/splice_field_access_string_lit_ok.scoop
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+struct Point(val x: Int, val y: Int)
+
+fun get_x(p: Point): Int {
+    return p.["x"]
+}
+
+fun get_by_meta(p: Point): Int {
+    return p.[FieldMeta { name: "y" }]
+}

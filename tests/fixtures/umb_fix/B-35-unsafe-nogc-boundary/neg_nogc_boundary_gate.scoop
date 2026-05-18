@@ -1,0 +1,21 @@
+// EXPECT: fail
+// IGNORE-UNTIL-FIX:B-35
+// EXPECT-ERROR-CODE: scoop::umb_fix::pending_gate
+// EXPECT-ERROR-AT: 1:1
+// EXPECT-ERROR: pending U5 fixture gate
+// SPEC: docs/spec/language_spec-part6.md#4-nogc
+// COVERS: UMB-0827, UMB-0828, UMB-0881, UMB-0885, UMB-1209
+// BUCKETS: B-35
+// REASON: U5-T02 records the spec surface before the matching implementation gate is enabled.
+// SOURCE-FIXTURE: tests/fixtures/unsafe_nogc/nogc_call_non_nogc_function_is_error.scoop
+
+package fixtures.unsafe_nogc
+
+fun may_alloc(): Int {
+    return 1
+}
+
+@NoGC
+fun bad(): Int {
+    return may_alloc()
+}

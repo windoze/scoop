@@ -1,0 +1,48 @@
+// EXPECT: ok
+// IGNORE-UNTIL-FIX:B-16
+// SPEC: docs/spec/language_spec-part3.md#174-return-type-推断;docs/spec/language_spec-part3.md#94-return--break--continue
+// COVERS: UMB-0187, UMB-0188, UMB-0191, UMB-0192, UMB-0786, UMB-1263, UMB-1264
+// BUCKETS: B-16
+// REASON: U5-T02 records the spec surface before the matching implementation gate is enabled.
+// SOURCE-FIXTURE: tests/fixtures/run-pass/return_from_loop.scoop
+
+import scoop.core.*
+
+fun findFirst(target: Int): Int {
+    var i: Int = 0
+    while (i < 100) {
+        if (i * i >= target) {
+            return i
+        } else {
+            i = i + 1
+        }
+    }
+    return 0 - 1
+}
+
+fun countUntil(limit: Int): Int {
+    var count: Int = 0
+    while (true) {
+        count = count + 1
+        if (count >= limit) {
+            return count
+        } else {
+            count = count
+        }
+    }
+    return 0
+}
+
+fun main(): Int {
+    // First integer whose square >= 50 → 8 (8*8=64)
+    println(findFirst(50))
+    // First integer whose square >= 100 → 10 (10*10=100)
+    println(findFirst(100))
+    // First integer whose square >= 1 → 1
+    println(findFirst(1))
+    // countUntil
+    println(countUntil(5))
+    println(countUntil(1))
+    println("done")
+    return 0
+}

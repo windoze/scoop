@@ -1,0 +1,17 @@
+// EXPECT: ok
+// IGNORE-UNTIL-FIX:B-21
+// SPEC: docs/spec/language_spec-part2.md#8-with-copy-update
+// COVERS: NONE
+// BUCKETS: B-06, B-21
+// REASON: U5-T02 records the spec surface before the matching implementation gate is enabled.
+// SOURCE-FIXTURE: tests/fixtures/run-pass/with_update_simple.scoop
+
+import scoop.core.*
+
+struct Point(val x: Int, val y: Int)
+
+fun main(): Int {
+    val p: Point = Point { x: 1, y: 2 }
+    val p2: Point = p with { x: 5 }
+    return p2.x
+}

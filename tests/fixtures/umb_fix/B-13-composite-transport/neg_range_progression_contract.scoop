@@ -1,0 +1,28 @@
+// EXPECT: fail
+// IGNORE-UNTIL-FIX:B-13
+// EXPECT-ERROR-CODE: scoop::umb_fix::pending_gate
+// EXPECT-ERROR-AT: 1:1
+// EXPECT-ERROR: pending U5 fixture gate
+// SPEC: docs/spec/language_spec-part3.md#13-range-与-progression-语法
+// COVERS: NONE
+// BUCKETS: B-13
+// REASON: U5-T02 records the spec surface before the matching implementation gate is enabled.
+// SOURCE-FIXTURE: tests/fixtures/typecheck/for_loop_next_return_not_option_is_error.scoop
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+interface BadIterator<T> {
+    fun next(): T
+}
+
+interface HasIterator<T> {
+    fun iterator(): BadIterator<T>
+}
+
+fun use(xs: HasIterator<Int>) {
+    for (x in xs) {
+        println(x)
+    }
+}

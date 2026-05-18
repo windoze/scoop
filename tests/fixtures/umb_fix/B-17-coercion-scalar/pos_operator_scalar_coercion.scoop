@@ -1,0 +1,81 @@
+// EXPECT: ok
+// IGNORE-UNTIL-FIX:B-17
+// SPEC: docs/spec/language_spec-part3.md#15-operator-overloading;docs/spec/language_spec-part3.md#3-运算符优先级
+// COVERS: UMB-0367, UMB-0368, UMB-0369, UMB-0370, UMB-0373, UMB-0414, UMB-0415, UMB-0416, UMB-0417, UMB-0787, UMB-0788, UMB-0789, UMB-0790, UMB-0791, UMB-0792, UMB-0793, UMB-0794, UMB-0795, UMB-0796, UMB-0797, UMB-0798, UMB-0799, UMB-0800, UMB-0801, UMB-0802, UMB-0803, UMB-0804, UMB-0805, UMB-0806, UMB-0807, UMB-0808, UMB-0809, UMB-0810, UMB-0811, UMB-0812, UMB-0813, UMB-0814, UMB-0815, UMB-0816, UMB-0817, UMB-0833, UMB-0834, UMB-0835, UMB-0836, UMB-0837, UMB-0841, UMB-0843
+// BUCKETS: B-17, B-31
+// REASON: U5-T02 records the spec surface before the matching implementation gate is enabled.
+// SOURCE-FIXTURE: tests/fixtures/run-pass/operator_int_arithmetic.scoop
+
+import scoop.core.*
+
+fun main() {
+    val min: Int = -9223372036854775807 - 1
+    val max: Int = 9223372036854775807
+    val seven: Int = 7
+    val three: Int = 3
+    val zero: Int = 0
+    val one: Int = 1
+
+    val plusOp: Int = seven + three
+    val plusMethod: Int = seven.plus(three)
+    val minusOp: Int = seven - three
+    val minusMethod: Int = seven.minus(three)
+    val timesOp: Int = seven * three
+    val timesMethod: Int = seven.times(three)
+    val divOp: Int = seven / three
+    val divMethod: Int = seven.div(three)
+    val remOp: Int = seven % three
+    val remMethod: Int = seven.rem(three)
+    val maxPlusOneOp: Int = max + one
+    val maxPlusOneMethod: Int = max.plus(one)
+    val minMinusOneOp: Int = min - one
+    val minMinusOneMethod: Int = min.minus(one)
+    val minTimesTwoOp: Int = min * 2
+    val minTimesTwoMethod: Int = min.times(2)
+    val negMinOp: Int = -min
+    val negMinMethod: Int = min.unaryMinus()
+    val zeroDivOneOp: Int = zero / one
+    val zeroDivOneMethod: Int = zero.div(one)
+
+    if (!(plusOp == 10)) { panic("fixture assertion failed") }
+    if (!(plusMethod == 10)) { panic("fixture assertion failed") }
+    if (!(minusOp == 4)) { panic("fixture assertion failed") }
+    if (!(minusMethod == 4)) { panic("fixture assertion failed") }
+    if (!(timesOp == 21)) { panic("fixture assertion failed") }
+    if (!(timesMethod == 21)) { panic("fixture assertion failed") }
+    if (!(divOp == 2)) { panic("fixture assertion failed") }
+    if (!(divMethod == 2)) { panic("fixture assertion failed") }
+    if (!(remOp == 1)) { panic("fixture assertion failed") }
+    if (!(remMethod == 1)) { panic("fixture assertion failed") }
+    if (!(maxPlusOneOp == min)) { panic("fixture assertion failed") }
+    if (!(maxPlusOneMethod == min)) { panic("fixture assertion failed") }
+    if (!(minMinusOneOp == max)) { panic("fixture assertion failed") }
+    if (!(minMinusOneMethod == max)) { panic("fixture assertion failed") }
+    if (!(minTimesTwoOp == 0)) { panic("fixture assertion failed") }
+    if (!(minTimesTwoMethod == 0)) { panic("fixture assertion failed") }
+    if (!(negMinOp == min)) { panic("fixture assertion failed") }
+    if (!(negMinMethod == min)) { panic("fixture assertion failed") }
+    if (!(zeroDivOneOp == 0)) { panic("fixture assertion failed") }
+    if (!(zeroDivOneMethod == 0)) { panic("fixture assertion failed") }
+
+    println(plusOp)
+    println(plusMethod)
+    println(minusOp)
+    println(minusMethod)
+    println(timesOp)
+    println(timesMethod)
+    println(divOp)
+    println(divMethod)
+    println(remOp)
+    println(remMethod)
+    println(maxPlusOneOp)
+    println(maxPlusOneMethod)
+    println(minMinusOneOp)
+    println(minMinusOneMethod)
+    println(minTimesTwoOp)
+    println(minTimesTwoMethod)
+    println(negMinOp)
+    println(negMinMethod)
+    println(zeroDivOneOp)
+    println(zeroDivOneMethod)
+}

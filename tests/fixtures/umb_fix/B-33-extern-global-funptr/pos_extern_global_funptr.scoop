@@ -1,0 +1,22 @@
+// EXPECT: ok
+// IGNORE-UNTIL-FIX:B-33
+// SPEC: docs/spec/language_spec-part6.md#11-顶层可变全局;docs/spec/language_spec-part6.md#14-extern-与-gc-互操作边界;docs/spec/language_spec-part6.md#16-ffi-managed-resource-release-callback;docs/spec/language_spec-part6.md#8-extern
+// COVERS: UMB-0908, UMB-0909, UMB-0937, UMB-0938, UMB-1134, UMB-1135, UMB-1136, UMB-1137
+// BUCKETS: B-30, B-33
+// REASON: U5-T02 records the spec surface before the matching implementation gate is enabled.
+// SOURCE-FIXTURE: tests/fixtures/run-pass/extern_global_load_store_basic.scoop
+
+package fixtures.codegen
+
+import scoop.core.*
+
+@Extern(name = "scoop_test_extern_global_counter")
+var NativeCounter: Int
+
+fun main(): Int {
+    @Unsafe do { NativeCounter = 40 }
+    val readBack: Int = @Unsafe do { NativeCounter }
+    @Unsafe do { NativeCounter = readBack + 2 }
+    val finalValue: Int = @Unsafe do { NativeCounter }
+    return finalValue - 42
+}

@@ -1,0 +1,98 @@
+// EXPECT: ok
+// IGNORE-UNTIL-FIX:B-14
+// SPEC: docs/spec/language_spec-part3.md#11-类型测试smart-cast-与-cast;docs/spec/language_spec-part3.md#111-is--is;docs/spec/language_spec-part3.md#112-smart-cast;docs/spec/language_spec-part3.md#113-as--as;docs/spec/language_spec-part3.md#16-class-literal
+// COVERS: UMB-0830, UMB-0831, UMB-0832, UMB-0842, UMB-0844, UMB-0845, UMB-0846, UMB-0847, UMB-0850, UMB-0851, UMB-0855, UMB-0856, UMB-0895, UMB-0896, UMB-1045, UMB-1046, UMB-1048, UMB-1049, UMB-1051, UMB-1052, UMB-1053, UMB-1054, UMB-1056, UMB-1059, UMB-1064, UMB-1070, UMB-1071
+// BUCKETS: B-14, B-25
+// REASON: U5-T02 records the spec surface before the matching implementation gate is enabled.
+// SOURCE-FIXTURE: tests/fixtures/run-pass/type_check_cast_is_as_asq_basic.scoop
+
+import scoop.core.*
+
+interface IFace {
+    fun ping(): Int
+}
+
+open class Base() {
+    fun baseTag(): Int {
+        return 10
+    }
+}
+
+class Impl() : Base(), IFace {
+    fun ping(): Int {
+        println("Impl.ping")
+        return 42
+    }
+}
+
+class Other() : Base()
+
+fun printBool(label: String, b: Bool): Unit {
+    when (b) {
+        true -> println(f"{label}: true")
+        false -> println(f"{label}: false")
+    }
+}
+
+fun main(): Int {
+    val x: Any = Impl()
+
+    printBool("x is IFace", x is IFace)
+    printBool("x !is IFace", x !is IFace)
+    printBool("x is Other", x is Other)
+    printBool("x !is Other", x !is Other)
+    printBool("x is Base", x is Base)
+
+    // `as` 可能失败，因此必须在 try/catch 内使用（否则 main 不再是 Pure，typecheck 会拒绝）。
+    val _cast_iface_ok: Unit = try {
+        val i: IFace = x as IFace
+        val v: Int = i.ping()
+        println(v)
+    } catch (e: RuntimeError) {
+        println("unreachable: cast IFace")
+    }
+
+    val _cast_base_ok: Unit = try {
+        val b: Base = x as Base
+        println(b.baseTag())
+    } catch (e: RuntimeError) {
+        println("unreachable: cast Base")
+    }
+
+    val ok: IFace? = x as? IFace
+    when (ok) {
+        Some(_y) -> println("as?: IFace ok")
+        None -> println("as?: IFace bad")
+    }
+
+    val bad: Other? = x as? Other
+    when (bad) {
+        Some(_y) -> println("as?: Other bad")
+        None -> println("as?: Other ok")
+    }
+
+    val caught: Int = try {
+        val _o: Other = x as Other
+        println("unreachable")
+        0
+    } catch (e: RuntimeError) {
+        when (e) {
+            NullAssertionFailed -> {
+                println("caught: null")
+                1
+            }
+            ClassCastFailed -> {
+                println("caught: cast")
+                2
+            }
+            ContinuationAlreadyResumed -> {
+                println("caught: resumed")
+                3
+            }
+        }
+    }
+
+    println(caught)
+    println("done")
+    return 0
+}

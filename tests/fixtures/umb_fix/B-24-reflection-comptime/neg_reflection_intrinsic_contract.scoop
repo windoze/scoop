@@ -1,0 +1,24 @@
+// EXPECT: fail
+// IGNORE-UNTIL-FIX:B-24
+// EXPECT-ERROR-CODE: scoop::umb_fix::pending_gate
+// EXPECT-ERROR-AT: 1:1
+// EXPECT-ERROR: pending U5 fixture gate
+// SPEC: docs/spec/language_spec-part5.md#6-静态反射-intrinsic
+// COVERS: UMB-0568, UMB-0569, UMB-0571, UMB-0954, UMB-0956, UMB-0957
+// BUCKETS: B-24
+// REASON: U5-T02 records the spec surface before the matching implementation gate is enabled.
+// SOURCE-FIXTURE: tests/fixtures/typecheck/reflection_runtime_fallback_v0.scoop
+
+package fixtures.typecheck_
+
+import scoop.core.*
+
+struct Point(val x: Int)
+
+const val CT: String = nameOf<Point>()
+
+val RT: String = nameOf<Point>()
+fun runtime(p: Point): String {
+    val y: String = nameOf<Point>()
+    return y
+}

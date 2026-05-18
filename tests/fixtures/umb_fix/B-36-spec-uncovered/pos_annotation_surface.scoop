@@ -1,0 +1,16 @@
+// EXPECT: ok
+// IGNORE-UNTIL-FIX:B-36
+// SPEC: docs/spec/language_spec-part5.md#12-注解总览;docs/spec/language_spec-part5.md#13-annotation-class;docs/spec/language_spec-part5.md#14-注解使用;docs/spec/language_spec-part5.md#141-注解目标;docs/spec/language_spec-part5.md#15-命名空间注解;docs/spec/language_spec-part5.md#16-内建注解;docs/spec/language_spec-part5.md#161-annotationtarget;docs/spec/language_spec-part5.md#162-suppress;docs/spec/language_spec-part5.md#163-experimental;docs/spec/language_spec-part5.md#17-编译期注解访问
+// COVERS: NONE
+// BUCKETS: B-30, B-36
+// REASON: U5-T02 records the spec surface before the matching implementation gate is enabled.
+// SOURCE-FIXTURE: tests/fixtures/typecheck/annotation_class_define_and_use_ok.scoop
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+annotation class Rename(val key: String = "")
+
+@Rename("id")
+fun f() {}

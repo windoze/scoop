@@ -1,0 +1,45 @@
+// EXPECT: ok
+// IGNORE-UNTIL-FIX:B-10
+// SPEC: docs/spec/language_spec-part4.md#6-handler;docs/spec/language_spec-part4.md#61-non-resuming-handler;docs/spec/language_spec-part4.md#62-resuming-handler;docs/spec/language_spec-part4.md#63-continuation-one-shot;docs/spec/language_spec-part4.md#64-resume-payload-形状
+// COVERS: NONE
+// BUCKETS: B-10, B-34
+// REASON: U5-T02 records the spec surface before the matching implementation gate is enabled.
+// SOURCE-FIXTURE: tests/fixtures/run-pass/effect_resume_while_body_single_perform.scoop
+
+import scoop.core.*
+
+effect Yield {
+    fun next(): Int
+}
+
+fun executeCase(limit: Int): Int {
+    handle {
+        println("body_start")
+        var i: Int = 0
+        while (i < limit) {
+            println("loop_before")
+            val x: Int = Yield.next()
+            if (x == 1) {
+                println("x_ok")
+            } else {
+                println("x_bad")
+            }
+            println("loop_after")
+            i = i + 1
+        }
+        println("after_loop")
+        i
+    } with {
+        Yield.next() , k -> {
+            println("arm")
+            k.resume(1)
+        }
+    }
+}
+
+fun main() {
+    println("case_three")
+    println(executeCase(3))
+    println("case_zero")
+    println(executeCase(0))
+}

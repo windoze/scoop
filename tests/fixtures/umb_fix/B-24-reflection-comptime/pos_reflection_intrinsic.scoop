@@ -1,0 +1,23 @@
+// EXPECT: ok
+// IGNORE-UNTIL-FIX:B-24
+// SPEC: docs/spec/language_spec-part5.md#6-静态反射-intrinsic
+// COVERS: UMB-0568, UMB-0569, UMB-0571, UMB-0954, UMB-0956, UMB-0957
+// BUCKETS: B-24
+// REASON: U5-T02 records the spec surface before the matching implementation gate is enabled.
+// SOURCE-FIXTURE: tests/fixtures/comptime/reflection_intrinsics_v0_basic.scoop
+
+package fixtures.comptime_
+
+import scoop.core.*
+
+struct Point(val x: Int, val y: Int) {
+    val tag: String
+    // 计算属性：v0 的 fieldsOf 不应把它当作字段。
+    val computed: Int get() = 0
+}
+
+const val N: String = nameOf<Point>()
+const val S: Int = sizeOf<Int64>()
+const val F = fieldsOf<Point>()
+const val F0N: String = fieldsOf<Point>()._0.name
+const val F0T: String = fieldsOf<Point>()._0.type.name

@@ -1,0 +1,19 @@
+// EXPECT: fail
+// IGNORE-UNTIL-FIX:B-35
+// EXPECT-ERROR-CODE: scoop::umb_fix::pending_gate
+// EXPECT-ERROR-AT: 1:1
+// EXPECT-ERROR: pending U5 fixture gate
+// SPEC: docs/spec/language_spec-part2.md#12-gc-free-类型
+// COVERS: NONE
+// BUCKETS: B-33, B-35
+// REASON: U5-T02 records the spec surface before the matching implementation gate is enabled.
+// SOURCE-FIXTURE: tests/fixtures/unsafe_nogc/unsafe_ptr_pointee_not_gc_free_string_is_error.scoop
+
+package fixtures.unsafe_nogc
+
+import scoop.unsafe.*
+import scoop.core.*
+
+fun bad(p: Ptr<String>): Unit {
+    return ()
+}

@@ -1,0 +1,19 @@
+// EXPECT: ok
+// IGNORE-UNTIL-FIX:B-31
+// SPEC: docs/spec/language_spec-part3.md#7-extension-函数;docs/spec/language_spec-part3.md#83-extension-属性
+// COVERS: UMB-0575, UMB-0576, UMB-0577, UMB-0578, UMB-0579, UMB-0580, UMB-0584, UMB-0585, UMB-0586, UMB-0587, UMB-0591, UMB-0592
+// BUCKETS: B-23, B-31
+// REASON: U5-T02 records the spec surface before the matching implementation gate is enabled.
+// SOURCE-FIXTURE: tests/fixtures/run-pass/extension_property_getter_basic.scoop
+
+import scoop.core.*
+
+struct Point(val x: Int, val y: Int)
+
+val Point.sum: Int
+    get() = this.x + this.y
+
+fun main(): Int {
+    val p: Point = Point { x: 3, y: 4 }
+    return p.sum
+}

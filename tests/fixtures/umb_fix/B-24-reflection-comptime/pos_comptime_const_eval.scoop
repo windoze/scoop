@@ -1,0 +1,24 @@
+// EXPECT: ok
+// IGNORE-UNTIL-FIX:B-24
+// SPEC: docs/spec/language_spec-part5.md#1-编译期执行总览;docs/spec/language_spec-part5.md#142-use-site-target;docs/spec/language_spec-part5.md#3-const-val
+// COVERS: UMB-0568, UMB-0569, UMB-0571, UMB-0954, UMB-0956, UMB-0957
+// BUCKETS: B-24
+// REASON: U5-T02 records the spec surface before the matching implementation gate is enabled.
+// SOURCE-FIXTURE: tests/fixtures/comptime/const_fun_call_basic.scoop
+
+package fixtures.comptime_
+
+import scoop.core.*
+
+const fun add(a: Int, b: Int): Int {
+    val c = a + b
+    return c
+}
+
+const fun add3(x: Int): Int {
+    val y = x + 2
+    y + 1
+}
+
+const val A: Int = add(1, 2)
+const val B: Int = add3(10)

@@ -1,0 +1,14 @@
+// EXPECT: fail
+// IGNORE-UNTIL-FIX:B-19
+// EXPECT-ERROR-CODE: scoop::umb_fix::pending_gate
+// EXPECT-ERROR-AT: 1:1
+// EXPECT-ERROR: pending U5 fixture gate
+// SPEC: docs/spec/language_spec-part1.md#41-可见性修饰符
+// COVERS: NONE
+// BUCKETS: B-19
+// REASON: U5-T02 records the spec surface before the matching implementation gate is enabled.
+// SOURCE-FIXTURE: tests/fixtures/typecheck/annotation_modifier_on_fun_is_error.scoop
+
+package fixtures.typecheck
+
+annotation fun marker(): Unit {}

@@ -1,0 +1,18 @@
+// EXPECT: fail
+// IGNORE-UNTIL-FIX:B-10
+// EXPECT-ERROR-CODE: scoop::umb_fix::pending_gate
+// EXPECT-ERROR-AT: 1:1
+// EXPECT-ERROR: pending U5 fixture gate
+// SPEC: docs/spec/language_spec-part4.md#6-handler;docs/spec/language_spec-part4.md#61-non-resuming-handler;docs/spec/language_spec-part4.md#62-resuming-handler;docs/spec/language_spec-part4.md#63-continuation-one-shot;docs/spec/language_spec-part4.md#64-resume-payload-形状
+// COVERS: NONE
+// BUCKETS: B-10, B-34
+// REASON: U5-T02 records the spec surface before the matching implementation gate is enabled.
+// SOURCE-FIXTURE: tests/fixtures/typecheck/continuation_resume_requires_runtime_error_effect_is_error.scoop
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+fun bad(k: Continuation<Int, Unit, eff Pure>) {
+    k.resume(1)
+}

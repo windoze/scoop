@@ -4,7 +4,7 @@
 > 设计基线：[`UnsupportedMainBody_FIX.md`](./UnsupportedMainBody_FIX.md)  
 > 计划基线：[`PLAN.md`](./PLAN.md)  
 > 格式参考：[`docs/archive/plans/TODO-closure-fix.md`](./docs/archive/plans/TODO-closure-fix.md)  
-> 当前状态：U5-T01 已完成；下一项 U5-T02
+> 当前状态：U5-T02 已完成；下一项 U5-T03
 > 执行原则：U0 必须最先完成；U1 → U2 → U3 严格串行；U4 与 U5 可在 U2/U3 稳定后并行，但 U5 的 negative fixture 必须引用 U4 已写明的 upstream gate；U6 必须最后完成。每个任务完成后必须回写“完成记录”。
 
 ## 全局约束
@@ -610,7 +610,7 @@ U0-T01 (摸底 + baseline 冻结)
   - 验证结果：`cargo run -p scoop -- test tests/fixtures/umb_fix/` 通过（fixtures: ok, 0 checks）；`cargo test -p scoop -- fixtures -- --nocapture` 通过（58 fixture-related unit tests + filtered integration tests）；`cargo clippy --all-targets -- -D warnings` 通过；`cargo test --all --all-targets` 通过（scoopc 874 passed，umb-audit 3 passed，其他目标通过）。
   - 闭合目标：满足 U5-T01 的 36 个目录和 `_README.md`、`_index.csv` schema 表头、`IGNORE-UNTIL-FIX` 支持状态确认、必要 runner 改动落地和指定验证命令通过要求；后续 U5-T02 可开始添加 spec part1-6 fixture 主体。
 
-### [TODO] U5-T02：spec part1-6 fixture 主体
+### [DONE] U5-T02：spec part1-6 fixture 主体
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §6 U5-T02
@@ -644,7 +644,13 @@ U0-T01 (摸底 + baseline 冻结)
   - `_index.csv` 与 spec 覆盖矩阵同步。
   - 所有 active fixture 通过；ignore fixture 被 runner 正确 skip / xfail。
 - 依赖：U5-T01；U4-T01 的 gate 说明应已可引用
-- 完成记录：待填写
+- 完成记录：
+  - 改动范围：新增 `tests/fixtures/umb_fix/**` 下 139 个 `.scoop` fixture 文件，覆盖 `audit/spec_coverage_matrix.md` 中 U5-T02 的 spec part1-6 fixture 引用；同步更新 `tests/fixtures/umb_fix/_index.csv` 为 139 条数据行；更新 `audit/spec_coverage_matrix.md`，清除 U5-T02 fixture 引用的 `(planned)` 状态。未修改 production LLVM codegen、`PLAN.md` 或 `UnsupportedMainBody_FIX.md`。
+  - 核心决策：以 `audit/spec_coverage_matrix.md` 为唯一 spec-to-fixture 映射来源，将 48 组 spec-driven fixture 展开为矩阵中实际引用的 139 个 concrete fixture；fixture body 优先复用矩阵现有正/负例的源码主体，缺少现有样例时使用最小单文件主体；所有新增 fixture 先标 `IGNORE-UNTIL-FIX:B-XX`，因为本轮仍是 doc-and-test only，后续 U5-T03/P7 按 bucket gate 或 real implementation 逐步转 active。
+  - 头部与索引：每个 fixture 头部均包含 `EXPECT`、`SPEC`、`COVERS`、`BUCKETS`；negative fixture 额外包含 `EXPECT-ERROR-CODE`、`EXPECT-ERROR-AT`、`EXPECT-ERROR`、`REASON`；`_index.csv` 字段严格保持 `fixture_path,bucket,kind,spec_anchor,umb_ids,status,notes`，并与 139 个实际 `.scoop` 文件一一对应。
+  - 禁词与矩阵对账：negative `EXPECT-ERROR` 未包含 forbidden terms；`audit/spec_coverage_matrix.md` 中不再有 U5-T02 的 `(planned)` fixture 引用，机器约定改为 U5-T02 引用必须解析到真实文件。
+  - 验证结果：自定义结构校验通过（139 files / 139 index rows，缺失与额外文件均为 0，header errors 为 0）；`cargo run -p scoop -- test tests/fixtures/umb_fix/` 通过（139 fixtures skipped via `IGNORE-UNTIL-FIX`）；`cargo test -p scoopc audit::spec_coverage -- --nocapture` 通过（当前无匹配测试，0 failed）；`cargo test -p scoop -- fixtures -- --nocapture` 通过（58 fixture unit tests + filtered integration tests）；`cargo clippy --all-targets -- -D warnings` 通过；`cargo run -p scoopc --bin umb-audit -- stats` 通过；`cargo run -p scoopc --bin umb-audit -- diff` 通过（1,284 entries in sync）；`cargo test --all --all-targets` 通过（scoopc 874 passed，umb-audit 3 passed，其他目标通过）。
+  - 闭合目标：满足 U5-T02 的 spec part1-6 fixture 主体落地、positive/negative fixture 头部规范、`_index.csv` 与 spec 覆盖矩阵同步、active/ignore 状态可由 runner 验证、无 forbidden error 文案和不新增 production `UnsupportedMainBody` 站点要求；后续 U5-T03 可在此基础上添加 bucket-driven direct coverage 并把对应 fixture/sentinel 与 inventory id 覆盖闭环。
 
 ### [TODO] U5-T03：bucket-driven 直接对账 fixture
 

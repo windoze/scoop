@@ -1,0 +1,36 @@
+// EXPECT: ok
+// IGNORE-UNTIL-FIX:B-33
+// SPEC: docs/spec/language_spec-part6.md#10-clayout;docs/spec/language_spec-part6.md#17-managed-abi-状态说明;docs/spec/language_spec-part6.md#9-callingconvention
+// COVERS: NONE
+// BUCKETS: B-33, B-35
+// REASON: U5-T02 records the spec surface before the matching implementation gate is enabled.
+// SOURCE-FIXTURE: tests/fixtures/run-pass/extern_native_aggregate_return_direct_indirect_parity.scoop
+
+package fixtures.runpass
+
+import scoop.core.*
+import scoop.unsafe.*
+
+@Extern("scoop_test_make_int_pair")
+fun make_int_pair(seed: Int): (Int, Int)
+
+@Extern("scoop_test_get_make_int_pair_funptr")
+fun get_make_int_pair_funptr(): FunPtr<(Int) -> (Int, Int)>
+
+fun main(): Int {
+    @Unsafe do {
+        val direct: (Int, Int) = make_int_pair(7)
+        println(direct._0)
+        println(direct._1)
+
+        val fp: FunPtr<(Int) -> (Int, Int)> = get_make_int_pair_funptr()
+        val indirect: (Int, Int) = fp(7)
+        println(indirect._0)
+        println(indirect._1)
+
+        val invoked: (Int, Int) = fp.invoke(9)
+        println(invoked._0)
+        println(invoked._1)
+    }
+    0
+}

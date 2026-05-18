@@ -1,0 +1,18 @@
+// EXPECT: fail
+// IGNORE-UNTIL-FIX:B-05
+// EXPECT-ERROR-CODE: scoop::umb_fix::pending_gate
+// EXPECT-ERROR-AT: 1:1
+// EXPECT-ERROR: pending U5 fixture gate
+// SPEC: docs/spec/language_spec-part3.md#91-if
+// COVERS: NONE
+// BUCKETS: B-05
+// REASON: U5-T02 records the spec surface before the matching implementation gate is enabled.
+// SOURCE-FIXTURE: tests/fixtures/infer/if_branch_type_mismatch_is_reported_on_branch.scoop
+
+package fixtures.infer
+
+import scoop.core.*
+
+fun f(cond: Bool) {
+    val x: Int = if (cond) 1 else "hi"
+}

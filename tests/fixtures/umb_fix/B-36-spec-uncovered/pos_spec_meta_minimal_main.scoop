@@ -1,0 +1,9 @@
+// EXPECT: ok
+// IGNORE-UNTIL-FIX:B-36
+// SPEC: docs/spec/language_spec-part1.md#1-语言目标与非目标
+// COVERS: NONE
+// BUCKETS: B-36
+// REASON: U5-T02 records the spec surface before the matching implementation gate is enabled.
+// SOURCE-FIXTURE: tests/fixtures/spec_doctest/overview_minimal_main.scoop
+
+fun main() {}

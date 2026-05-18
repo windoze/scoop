@@ -1,0 +1,24 @@
+// EXPECT: fail
+// IGNORE-UNTIL-FIX:B-10
+// EXPECT-ERROR-CODE: scoop::umb_fix::pending_gate
+// EXPECT-ERROR-AT: 1:1
+// EXPECT-ERROR: pending U5 fixture gate
+// SPEC: docs/spec/language_spec-part4.md#122-effect-row-实参推断;docs/spec/language_spec-part4.md#4-effect-row;docs/spec/language_spec-part4.md#41-默认效果;docs/spec/language_spec-part4.md#42-row-containment;docs/spec/language_spec-part4.md#43-open-与-closed-row;docs/spec/language_spec-part4.md#5-effect-polymorphism
+// COVERS: NONE
+// BUCKETS: B-10, B-12
+// REASON: U5-T02 records the spec surface before the matching implementation gate is enabled.
+// SOURCE-FIXTURE: tests/fixtures/infer/effects/use_site_eff_row_receiver_mismatch_is_error.scoop
+
+package fixtures.infer
+
+effect Async
+
+interface Disposable<eff E = Pure>
+
+fun Disposable<eff Pure>.pureOnly(): Unit {}
+
+fun asyncDisposable(): Disposable<eff Async> { return asyncDisposable() }
+
+fun bad() {
+    asyncDisposable().pureOnly()
+}

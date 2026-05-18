@@ -1,0 +1,18 @@
+// EXPECT: fail
+// IGNORE-UNTIL-FIX:B-16
+// EXPECT-ERROR-CODE: scoop::umb_fix::pending_gate
+// EXPECT-ERROR-AT: 1:1
+// EXPECT-ERROR: pending U5 fixture gate
+// SPEC: docs/spec/language_spec-part3.md#92-while
+// COVERS: NONE
+// BUCKETS: B-05, B-16
+// REASON: U5-T02 records the spec surface before the matching implementation gate is enabled.
+// SOURCE-FIXTURE: tests/fixtures/typecheck/while_condition_not_bool_is_error.scoop
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+fun main() {
+    while (1) { }
+}

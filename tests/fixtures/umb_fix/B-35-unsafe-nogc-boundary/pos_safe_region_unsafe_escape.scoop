@@ -1,0 +1,17 @@
+// EXPECT: ok
+// IGNORE-UNTIL-FIX:B-35
+// SPEC: docs/spec/language_spec-part6.md#3-safe-region
+// COVERS: NONE
+// BUCKETS: B-35
+// REASON: U5-T02 records the spec surface before the matching implementation gate is enabled.
+// SOURCE-FIXTURE: tests/fixtures/unsafe_nogc/safe_closure_nested_unsafe_do_allows_extern_ok.scoop
+
+package fixtures.unsafe_nogc
+
+@Extern("puts")
+fun puts(value: Int): Unit
+
+@Unsafe
+fun f() {
+    val cb: () -> Unit = @Safe { @Unsafe do { puts(1) } }
+}

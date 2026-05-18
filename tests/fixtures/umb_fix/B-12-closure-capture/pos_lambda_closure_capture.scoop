@@ -1,0 +1,20 @@
+// EXPECT: ok
+// IGNORE-UNTIL-FIX:B-12
+// SPEC: docs/spec/language_spec-part3.md#6-lambda-与函数值;docs/spec/language_spec-part3.md#61-函数类型与-effect;docs/spec/language_spec-part3.md#62-函数值擦除
+// COVERS: UMB-0092, UMB-0094, UMB-0095, UMB-0096, UMB-0099, UMB-0100, UMB-0103, UMB-0104, UMB-0105, UMB-0106, UMB-0107, UMB-0108, UMB-0109, UMB-0110, UMB-0111, UMB-0112, UMB-0113, UMB-0114, UMB-0115, UMB-0917, UMB-0918, UMB-0919, UMB-0920, UMB-0971, UMB-0976, UMB-0995, UMB-1005, UMB-1013, UMB-1023, UMB-1024, UMB-1027, UMB-1028, UMB-1032, UMB-1035, UMB-1036, UMB-1037, UMB-1041, UMB-1042, UMB-1043, UMB-1184, UMB-1185, UMB-1186, UMB-1187, UMB-1188, UMB-1189, UMB-1203, UMB-1207, UMB-1225, UMB-1226, UMB-1227
+// BUCKETS: B-12
+// REASON: U5-T02 records the spec surface before the matching implementation gate is enabled.
+// SOURCE-FIXTURE: tests/fixtures/run-pass/lambda_without_expected_explicit_params_basic.scoop
+
+package fixtures.runpass
+
+import scoop.core.*
+
+fun main(): Int {
+    val zero = { 41 }
+    val sum3 = { a: Int, b: Int, c: Int -> a + b + c }
+
+    println(zero())
+    println(sum3(1, 2, 3))
+    0
+}

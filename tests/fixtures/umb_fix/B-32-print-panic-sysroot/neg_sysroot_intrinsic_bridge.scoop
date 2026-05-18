@@ -1,0 +1,14 @@
+// EXPECT: fail
+// IGNORE-UNTIL-FIX:B-32
+// EXPECT-ERROR-CODE: scoop::umb_fix::pending_gate
+// EXPECT-ERROR-AT: 1:1
+// EXPECT-ERROR: pending U5 fixture gate
+// SPEC: docs/spec/language_spec-part5.md#18-intrinsic-与-sysroot-声明
+// COVERS: UMB-0543, UMB-0544, UMB-0545, UMB-0546, UMB-0547, UMB-0548, UMB-0549, UMB-0550, UMB-0551, UMB-0552
+// BUCKETS: B-32
+// REASON: U5-T02 records the spec surface before the matching implementation gate is enabled.
+// SOURCE-FIXTURE: tests/fixtures/typecheck/allow_intrinsic_annotation_args_not_supported_is_error.scoop
+
+@file:AllowIntrinsic("test")
+
+package fixtures.typecheck

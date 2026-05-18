@@ -1,0 +1,16 @@
+// EXPECT: fail
+// IGNORE-UNTIL-FIX:B-11
+// EXPECT-ERROR-CODE: scoop::umb_fix::pending_gate
+// EXPECT-ERROR-AT: 1:1
+// EXPECT-ERROR: pending U5 fixture gate
+// SPEC: docs/spec/language_spec-part3.md#1-表达式与语句
+// COVERS: UMB-1250, UMB-1251, UMB-1252, UMB-1253, UMB-1254, UMB-1255, UMB-1256, UMB-1257, UMB-1258, UMB-1259, UMB-1260, UMB-1261, UMB-1262, UMB-1268
+// BUCKETS: B-11
+// REASON: U5-T02 records the spec surface before the matching implementation gate is enabled.
+// SOURCE-FIXTURE: tests/fixtures/parse/assignment_expression_is_error.scoop
+
+package fixtures.parse
+
+fun f(box: Box) {
+    val y = (box.value = 1)
+}

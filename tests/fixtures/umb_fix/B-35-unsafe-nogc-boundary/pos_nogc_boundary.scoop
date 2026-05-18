@@ -1,0 +1,19 @@
+// EXPECT: ok
+// IGNORE-UNTIL-FIX:B-35
+// SPEC: docs/spec/language_spec-part6.md#4-nogc
+// COVERS: UMB-0827, UMB-0828, UMB-0881, UMB-0885, UMB-1209
+// BUCKETS: B-35
+// REASON: U5-T02 records the spec surface before the matching implementation gate is enabled.
+// SOURCE-FIXTURE: tests/fixtures/unsafe_nogc/nogc_call_nogc_function_ok.scoop
+
+package fixtures.unsafe_nogc
+
+@NoGC
+fun pure_add(a: Int, b: Int): Int {
+    return a + b
+}
+
+@NoGC
+fun ok(): Int {
+    return pure_add(1, 2)
+}

@@ -1,0 +1,35 @@
+// EXPECT: ok
+// IGNORE-UNTIL-FIX:B-21
+// SPEC: docs/spec/language_spec-part2.md#51-struct
+// COVERS: UMB-0750, UMB-0863, UMB-0864, UMB-0962, UMB-1141, UMB-1272
+// BUCKETS: B-21
+// REASON: U5-T02 records the spec surface before the matching implementation gate is enabled.
+// SOURCE-FIXTURE: tests/fixtures/run-pass/struct_ctor_call_literal_equivalence_basic.scoop
+
+import scoop.core.*
+
+struct Point(val x: Int, val y: Int)
+
+struct Size {
+    val w: Int
+    val h: Int
+}
+
+fun main(): Int {
+    val fromCall: Point = Point(1, 2)
+    val fromLit: Point = Point { x: 1, y: 2 }
+    val named: Size = Size(h = 6, w = 5)
+    val lit: Size = Size { w: 5, h: 6 }
+    val code: Int = if (fromCall.x != fromLit.x) {
+        10
+    } else if (fromCall.y != fromLit.y) {
+        11
+    } else if (named.w != lit.w) {
+        12
+    } else if (named.h != lit.h) {
+        13
+    } else {
+        0
+    }
+    return code
+}

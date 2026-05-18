@@ -1,0 +1,9 @@
+// EXPECT: ok
+// IGNORE-UNTIL-FIX:B-19
+// SPEC: docs/spec/language_spec-part1.md#3-cone-包模型的语言边界
+// COVERS: NONE
+// BUCKETS: B-19
+// REASON: U5-T02 records the spec surface before the matching implementation gate is enabled.
+// SOURCE-FIXTURE: tests/fixtures/run_pass_cone/entry_package_selects_correct_main/src/main.scoop
+
+package fixtures.run_pass_cone.anchor

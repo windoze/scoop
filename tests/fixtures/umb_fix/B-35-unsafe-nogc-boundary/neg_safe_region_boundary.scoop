@@ -1,0 +1,20 @@
+// EXPECT: fail
+// IGNORE-UNTIL-FIX:B-35
+// EXPECT-ERROR-CODE: scoop::umb_fix::pending_gate
+// EXPECT-ERROR-AT: 1:1
+// EXPECT-ERROR: pending U5 fixture gate
+// SPEC: docs/spec/language_spec-part6.md#3-safe-region
+// COVERS: NONE
+// BUCKETS: B-35
+// REASON: U5-T02 records the spec surface before the matching implementation gate is enabled.
+// SOURCE-FIXTURE: tests/fixtures/unsafe_nogc/safe_closure_inside_unsafe_fun_requires_unsafe_is_error.scoop
+
+package fixtures.unsafe_nogc
+
+@Extern("puts")
+fun puts(value: Int): Unit
+
+@Unsafe
+fun f() {
+    val cb: () -> Unit = @Safe { puts(1) }
+}

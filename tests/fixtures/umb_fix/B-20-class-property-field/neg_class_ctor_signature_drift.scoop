@@ -1,0 +1,17 @@
+// EXPECT: fail
+// IGNORE-UNTIL-FIX:B-20
+// EXPECT-ERROR-CODE: scoop::umb_fix::pending_gate
+// EXPECT-ERROR-AT: 1:1
+// EXPECT-ERROR: pending U5 fixture gate
+// SPEC: docs/spec/language_spec-part2.md#42-构造器与初始化
+// COVERS: UMB-0061, UMB-0062, UMB-0063, UMB-0065, UMB-0066, UMB-0067, UMB-0068, UMB-0069, UMB-0070, UMB-0071, UMB-0072, UMB-0073, UMB-0074, UMB-0075, UMB-0076, UMB-0077, UMB-0078, UMB-0079, UMB-0080, UMB-0081, UMB-0082, UMB-0083, UMB-0084, UMB-0085, UMB-0086, UMB-0087, UMB-0088, UMB-0089, UMB-0090, UMB-0091, UMB-0745, UMB-0746, UMB-0751, UMB-0781, UMB-0782, UMB-0783, UMB-0870, UMB-0871, UMB-0982, UMB-0986, UMB-0987, UMB-1004, UMB-1123, UMB-1124, UMB-1276, UMB-1277
+// BUCKETS: B-20
+// REASON: U5-T02 records the spec surface before the matching implementation gate is enabled.
+// SOURCE-FIXTURE: tests/fixtures/parse/class_secondary_ctor_missing_body_fail.scoop
+
+package fixtures.parse
+
+class C {
+    constructor() : this()
+    val x: Int
+}

@@ -1,0 +1,67 @@
+// EXPECT: fail
+// IGNORE-UNTIL-FIX:B-13
+// EXPECT-ERROR-CODE: scoop::umb_fix::pending_gate
+// EXPECT-ERROR-AT: 1:1
+// EXPECT-ERROR: pending U5 fixture gate
+// SPEC: docs/spec/language_spec-part3.md#12-数组字面量
+// COVERS: UMB-0198, UMB-0214, UMB-0315, UMB-0364, UMB-0365, UMB-0366, UMB-0372, UMB-0374, UMB-0375, UMB-0376, UMB-0379, UMB-0380, UMB-0381, UMB-0605, UMB-0606, UMB-0608, UMB-0610, UMB-0611, UMB-0612, UMB-0630, UMB-0945, UMB-0946, UMB-1211, UMB-1212
+// BUCKETS: B-13
+// REASON: U5-T02 records the spec surface before the matching implementation gate is enabled.
+// SOURCE-FIXTURE: tests/fixtures/typecheck/literal_array_expected_type_nested_ok.scoop
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+fun takeByte(xs: Array<UInt8>): UInt8 {
+    return xs.get(0)
+}
+
+fun takeFloat(xs: Array<Float32>): Float32 {
+    return xs.get(0)
+}
+
+val topBytes: Array<UInt8> = [if (true) { 1 + 2 } else { 9 }]
+val topFloats: Array<Float32> = [when (true) {
+    true -> 1.5
+    false -> 2.5f
+}]
+
+fun retBytes(flag: Bool): Array<UInt8> {
+    return [if (flag) { 1 + 2 } else { 4 }]
+}
+
+fun retMatrix(flag: Bool): Array<Array<Float32>> {
+    return [
+        [if (flag) { 1.5 } else { 2.5f }],
+        [when (flag) {
+            true -> 3.5
+            false -> 4.5f
+        }],
+    ]
+}
+
+fun probe(flag: Bool): Bool {
+    val localBytes: Array<UInt8> = [if (flag) { 1 + 2 } else { 8 }]
+    val localFloats: Array<Float32> = [when (flag) {
+        true -> 1.5
+        false -> 2.5f
+    }]
+    val viaArgByte: UInt8 = takeByte([if (flag) { 3 } else { 4 }])
+    val viaArgFloat: Float32 = takeFloat([if (flag) { 0.25 + 0.5 } else { 1.0f }])
+    val nested: Array<Array<Float32>> = [
+        [if (flag) { 1.5 } else { 2.5f }],
+        [when (flag) {
+            true -> 3.5
+            false -> 4.5f
+        }],
+    ]
+    val viaReturn: Array<UInt8> = retBytes(true)
+
+    return localBytes.size() == 1
+        && localFloats.size() == 1
+        && viaArgByte == 3
+        && viaArgFloat > 0.0f
+        && nested.size() == 2
+        && viaReturn.size() == 1
+}

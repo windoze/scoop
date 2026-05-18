@@ -1,0 +1,19 @@
+// EXPECT: ok
+// IGNORE-UNTIL-FIX:B-22
+// SPEC: docs/spec/language_spec-part2.md#6-nullable
+// COVERS: UMB-0040, UMB-0129, UMB-0149, UMB-0153, UMB-0158, UMB-0382, UMB-0383, UMB-0384, UMB-0385, UMB-0386, UMB-0387, UMB-0388, UMB-0389, UMB-0390, UMB-0391, UMB-0392, UMB-0393, UMB-0394, UMB-0395, UMB-0396, UMB-0397, UMB-0398, UMB-0399, UMB-0400, UMB-0401, UMB-0402, UMB-0403, UMB-0404, UMB-0405, UMB-0406, UMB-0407, UMB-0408, UMB-0409, UMB-0410, UMB-0757, UMB-0758, UMB-1127, UMB-1128, UMB-1129, UMB-1280
+// BUCKETS: B-22
+// REASON: U5-T02 records the spec surface before the matching implementation gate is enabled.
+// SOURCE-FIXTURE: tests/fixtures/typecheck/nullable_sugar_to_option_ok.scoop
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+// `Int?` 应被 lowering 为 `Option<Int>`：因此把 `x` 赋给 `Option<Int>` 变量应当通过。
+val x: Int?
+val y: Option<Int> = x
+
+// `Any?` 也同理：`Any?` → `Option<Any>`。
+val a: Any?
+val b: Option<Any> = a

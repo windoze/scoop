@@ -1,0 +1,24 @@
+// EXPECT: ok
+// IGNORE-UNTIL-FIX:B-13
+// SPEC: docs/spec/language_spec-part3.md#13-range-与-progression-语法
+// COVERS: NONE
+// BUCKETS: B-13
+// REASON: U5-T02 records the spec surface before the matching implementation gate is enabled.
+// SOURCE-FIXTURE: tests/fixtures/run-pass/kotlin_ranges_progressions_basic.scoop
+
+import scoop.core.*
+
+fun main(): Int {
+    println("up")
+    val upStart: Int = 1
+    val up: IntProgression = upStart.rangeTo(5, 2)
+    up.forEach { println(it) }
+
+    println("down")
+    val downStart: Int = 5
+    val down: IntProgression = downStart.downTo(1, 2)
+    down.forEach { println(it) }
+
+    println("done")
+    return 0
+}

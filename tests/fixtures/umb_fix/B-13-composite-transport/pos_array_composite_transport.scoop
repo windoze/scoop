@@ -1,0 +1,27 @@
+// EXPECT: ok
+// IGNORE-UNTIL-FIX:B-13
+// SPEC: docs/spec/language_spec-part3.md#12-数组字面量
+// COVERS: UMB-0198, UMB-0214, UMB-0315, UMB-0364, UMB-0365, UMB-0366, UMB-0372, UMB-0374, UMB-0375, UMB-0376, UMB-0379, UMB-0380, UMB-0381, UMB-0605, UMB-0606, UMB-0608, UMB-0610, UMB-0611, UMB-0612, UMB-0630, UMB-0945, UMB-0946, UMB-1211, UMB-1212
+// BUCKETS: B-13
+// REASON: U5-T02 records the spec surface before the matching implementation gate is enabled.
+// SOURCE-FIXTURE: tests/fixtures/run-pass/array_lit_infer_string_char_float_basic.scoop
+
+import scoop.core.*
+
+fun main(): Int {
+    val names = ["a", "b", "c"]
+    println(names.size())
+    println(names.get(1))
+
+    val chars = ['a', 'b', 'c']
+    println(chars.size())
+    val last: Char = chars.get(2)
+    println(last.toInt())
+
+    val nums = [1.0, 2.0, 3.0]
+    println(nums.size())
+    println(nums.get(0).toInt())
+    println(nums.get(2).toInt())
+
+    return 0
+}

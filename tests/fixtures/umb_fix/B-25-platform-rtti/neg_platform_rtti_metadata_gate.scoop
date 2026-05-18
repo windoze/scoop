@@ -1,0 +1,21 @@
+// EXPECT: fail
+// IGNORE-UNTIL-FIX:B-25
+// EXPECT-ERROR-CODE: scoop::umb_fix::pending_gate
+// EXPECT-ERROR-AT: 1:1
+// EXPECT-ERROR: pending U5 fixture gate
+// SPEC: docs/spec/language_spec-part5.md#10-runtime-type-info;docs/spec/language_spec-part5.md#11-class-literal;docs/spec/language_spec-part5.md#9-platform-introspection
+// COVERS: UMB-1044, UMB-1057, UMB-1060, UMB-1061, UMB-1062, UMB-1063, UMB-1086, UMB-1089, UMB-1215, UMB-1216, UMB-1217, UMB-1218, UMB-1219, UMB-1220
+// BUCKETS: B-25
+// REASON: U5-T02 records the spec surface before the matching implementation gate is enabled.
+// SOURCE-FIXTURE: tests/fixtures/typecheck/get_platform_runtime_ok.scoop
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+fun runtimeUse(): String {
+    val p: Platform = getPlatform()
+    return p.os
+}
+
+val a: String = runtimeUse()

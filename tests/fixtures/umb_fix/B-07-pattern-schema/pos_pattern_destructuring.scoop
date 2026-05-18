@@ -1,0 +1,33 @@
+// EXPECT: ok
+// IGNORE-UNTIL-FIX:B-07
+// SPEC: docs/spec/language_spec-part3.md#102-解构绑定
+// COVERS: NONE
+// BUCKETS: B-06, B-07
+// REASON: U5-T02 records the spec surface before the matching implementation gate is enabled.
+// SOURCE-FIXTURE: tests/fixtures/run-pass/local_val_destructuring_tuple_struct_variant_basic.scoop
+
+import scoop.core.*
+
+struct Point {
+    val x: Int
+    val y: Int
+}
+
+fun main(): Int {
+    val pair: (Int, Int) = (1, 2)
+    val (a, b) = pair
+
+    val point: Point = Point { x: a + 10, y: b + 20 }
+    println(point.x)
+    println(point.y)
+    val Point { x, y } = point
+
+    val total: Int = x + y
+
+    println(a)
+    println(b)
+    println(x)
+    println(y)
+    println(total)
+    return 0
+}

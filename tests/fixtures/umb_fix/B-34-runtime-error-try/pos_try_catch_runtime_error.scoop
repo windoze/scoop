@@ -1,0 +1,47 @@
+// EXPECT: ok
+// IGNORE-UNTIL-FIX:B-34
+// SPEC: docs/spec/language_spec-part4.md#13-程序边界与-entry-point;docs/spec/language_spec-part4.md#8-try--catch--finally;docs/spec/language_spec-part4.md#9-runtimeerror
+// COVERS: UMB-0215, UMB-0216, UMB-0217, UMB-0218, UMB-0947, UMB-1047
+// BUCKETS: B-34
+// REASON: U5-T02 records the spec surface before the matching implementation gate is enabled.
+// SOURCE-FIXTURE: tests/fixtures/run-pass/try_catch_finally_raise_int_basic.scoop
+
+import scoop.core.*
+
+fun boom(): Int / Raise<Int> {
+    println("boom_before")
+    Raise.raise(7)
+    println("boom_after")
+    return 0
+}
+
+fun main(): Int {
+    println("case_ok")
+    val ok: Int = try {
+        println("try_ok")
+        1
+    } catch (e: Int) {
+        println("catch_ok")
+        e
+    } finally {
+        println("finally_ok")
+    }
+    println("after_ok")
+
+    println("case_raise")
+    val bad: Int = try {
+        val x: Int = boom()
+        println("unreachable")
+        x
+    } catch (e: Int) {
+        println("catch_raise")
+        println(e)
+        0
+    } finally {
+        println("finally_raise")
+    }
+    println("after_raise")
+
+    val _ = ok + bad
+    return 0
+}

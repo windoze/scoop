@@ -1,0 +1,14 @@
+// EXPECT: ok
+// IGNORE-UNTIL-FIX:B-32
+// SPEC: docs/spec/language_spec-part1.md#8-标准库排除说明
+// COVERS: UMB-0543, UMB-0544, UMB-0545, UMB-0546, UMB-0547, UMB-0548, UMB-0549, UMB-0550, UMB-0551, UMB-0552
+// BUCKETS: B-32
+// REASON: U5-T02 records the spec surface before the matching implementation gate is enabled.
+// SOURCE-FIXTURE: tests/fixtures/typecheck/println_string_ok.scoop
+
+import scoop.core.*
+
+fun f() {
+    print("hi")
+    println("hi")
+}

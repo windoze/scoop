@@ -1,0 +1,18 @@
+// EXPECT: fail
+// IGNORE-UNTIL-FIX:B-16
+// EXPECT-ERROR-CODE: scoop::umb_fix::pending_gate
+// EXPECT-ERROR-AT: 1:1
+// EXPECT-ERROR: pending U5 fixture gate
+// SPEC: docs/spec/language_spec-part3.md#174-return-type-推断;docs/spec/language_spec-part3.md#94-return--break--continue
+// COVERS: UMB-0187, UMB-0188, UMB-0191, UMB-0192, UMB-0786, UMB-1263, UMB-1264
+// BUCKETS: B-16
+// REASON: U5-T02 records the spec surface before the matching implementation gate is enabled.
+// SOURCE-FIXTURE: tests/fixtures/typecheck/continue_not_in_loop_is_error.scoop
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+fun main() {
+    continue
+}

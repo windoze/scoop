@@ -1,0 +1,16 @@
+// EXPECT: ok
+// IGNORE-UNTIL-FIX:B-35
+// SPEC: docs/spec/language_spec-part6.md#2-unsafe-context
+// COVERS: UMB-0827, UMB-0828, UMB-0881, UMB-0885, UMB-1209
+// BUCKETS: B-35
+// REASON: U5-T02 records the spec surface before the matching implementation gate is enabled.
+// SOURCE-FIXTURE: tests/fixtures/unsafe_nogc/extern_call_allowed_in_unsafe_block_ok.scoop
+
+package fixtures.unsafe_nogc
+
+@Extern("puts")
+fun puts(value: Int): Unit
+
+fun safe() {
+    @Unsafe do { puts(1) }
+}
