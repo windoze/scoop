@@ -1,0 +1,19 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::when_variant_pat_arity_mismatch
+// EXPECT-ERROR-AT: 16:5
+// EXPECT-ERROR: 参数数量不匹配
+// SPEC: docs/spec/language_spec-part3.md#10-when-与模式匹配
+// COVERS: NONE
+// BUCKETS: B-15
+// REASON: P7-A3 keeps variant payload arity mismatches rejected before MIR/LLVM lowering.
+
+package fixtures.umb_fix
+
+import scoop.core.*
+
+val opt: Option<Int> = Some(1)
+val result: Int = when (opt) {
+    Some() -> 0
+    Some(v) -> v
+    None -> 1
+}

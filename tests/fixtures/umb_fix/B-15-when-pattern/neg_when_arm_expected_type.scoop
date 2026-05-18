@@ -1,0 +1,15 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::initializer_type_mismatch
+// EXPECT-ERROR-AT: 12:19
+// EXPECT-ERROR: 初始化表达式类型不匹配
+// SPEC: docs/spec/language_spec-part3.md#10-when-与模式匹配
+// COVERS: NONE
+// BUCKETS: B-15
+// REASON: P7-A3 keeps `when` arm result type mismatches rejected before MIR/LLVM lowering.
+
+package fixtures.umb_fix
+
+val result: Int = when (true) {
+    true -> 1
+    false -> "no"
+}

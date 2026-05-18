@@ -1,0 +1,21 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::when_guard_not_bool
+// EXPECT-ERROR-AT: 17:20
+// EXPECT-ERROR: guard
+// SPEC: docs/spec/language_spec-part3.md#10-when-与模式匹配;docs/spec/language_spec-part3.md#101-穷尽性
+// COVERS: NONE
+// BUCKETS: B-15
+// REASON: P7-A3 keeps non-Bool `when` guards rejected before MIR/LLVM lowering.
+
+package fixtures.umb_fix
+
+import scoop.core.*
+
+fun main() {
+    val opt: Option<Int> = Some(1)
+    when (opt) {
+        Some(v) if v -> {}
+        Some(_) -> {}
+        None -> {}
+    }
+}

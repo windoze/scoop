@@ -7,8 +7,10 @@
 
 ## Scope
 
-U5-T01 creates this directory skeleton only. U5-T02 and U5-T03 must add `.scoop` fixtures and append matching `_index.csv` rows.
+- P7-A3 retired the B-15 `UnsupportedMainBody` rows and keeps `when` user-facing failures in typecheck.
+- Active negative fixtures cover non-exhaustiveness, non-Bool guards, unknown variants, payload arity, and result type mismatch.
+- Positive fixtures keep enum/or-pattern/guard and tuple+nested-enum `when` codegen on the normal path.
 
 ## Runner Status
 
-`scoop test` recognizes `tests/fixtures/umb_fix/**`. Fixtures marked `IGNORE-UNTIL-FIX:B-15` or `ignore-until-fix:B-15` are skipped until the corresponding production fix lands.
+Run with `cargo run -p scoop -- test tests/fixtures/umb_fix/B-15-when-pattern/`. All B-15 fixtures are active; retired B-15 IDs are covered by `audit/UMB_retired.csv` rather than fixture `COVERS` headers.

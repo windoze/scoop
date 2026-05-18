@@ -34,9 +34,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             hir::ExprKind::Block(block) => {
                 self.codegen_block_value_in_expected_context(block, expected)
             }
-            hir::ExprKind::When { subject, arms } => {
-                self.codegen_when_expr(expr.span, subject, arms, expected)
-            }
+            hir::ExprKind::When { subject, arms } => self.codegen_when_expr(
+                expr.span,
+                subject,
+                arms,
+                expected.or_else(|| self.cg_ty_of(expr.ty)),
+            ),
             hir::ExprKind::If {
                 cond,
                 then_branch,

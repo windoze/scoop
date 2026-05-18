@@ -1,0 +1,17 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::when_guard_not_bool
+// EXPECT-ERROR-AT: 13:20
+// EXPECT-ERROR: guard
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+fun main() {
+    val opt: Option<Int> = Some(1)
+    when (opt) {
+        Some(v) if v -> {}
+        Some(_) -> {}
+        None -> {}
+    }
+}

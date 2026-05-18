@@ -1426,6 +1426,19 @@ fn check_expr_stmt_with_mode(
                     mutable_bindings: &mut arm_mutable,
                     comptime_bindings: &mut arm_comptime,
                 };
+
+                if let Some(guard) = &arm.guard {
+                    let guard_ty = expr_infer_inputs_with_flow(shared, &arm_state, flow)
+                        .infer(lower, guard)?;
+                    if !is_type_assignable(guard_ty, shared.builtins.bool_, lower, shared.builtins)
+                    {
+                        return Err(ExprTypeError::WhenGuardNotBool {
+                            found: lower.fmt_type(guard_ty),
+                            span: guard.span.into(),
+                        });
+                    }
+                }
+
                 check_expr_stmt_with_mode(
                     shared,
                     &arm.body,

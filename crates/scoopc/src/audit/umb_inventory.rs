@@ -185,9 +185,15 @@ fn umb_inventory_kind_counts_match_source() {
 #[test]
 fn umb_inventory_cross_references_legacy_gap_buckets() {
     let entries = inventory_entries();
+    let retired = read_retired_ledger();
     let observed = entries
         .iter()
         .flat_map(|entry| legacy_gap_ids_from_notes(&entry.notes))
+        .chain(
+            retired
+                .iter()
+                .flat_map(|entry| legacy_gap_ids_from_notes(&entry.retired_at_notes)),
+        )
         .collect::<BTreeSet<_>>();
     let expected = LEGACY_GAP_BUCKETS
         .iter()

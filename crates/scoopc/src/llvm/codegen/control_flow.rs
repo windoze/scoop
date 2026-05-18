@@ -146,18 +146,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         expected: Option<CgTy>,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         if arms.is_empty() {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "when (no arms)",
-                at: span.into(),
-            });
+            unreachable!("typecheck must reject empty `when` before LLVM codegen");
         }
 
         let subject_v = self.codegen_expr(subject)?;
         let subject_ty = subject_v.ty;
-        let subject_raw = subject_v.value.ok_or(LlvmEmitError::UnsupportedMainBody {
-            kind: "when subject value",
-            at: subject.span.into(),
-        })?;
 
         // 将 subject 落到一个栈 slot：便于在各 arm 中做 payload 解构（避免跨 block 的 dominance 细节）。
         let subject_ptr = self.create_entry_alloca(span, "when_subject", subject_ty)?;
@@ -188,12 +181,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         let expected_out_ty = expected;
 
-        let needs_chain = arms.iter().any(|arm| {
-            arm.guard.is_some()
-                || self.when_pat_contains_or(&arm.pat)
-                || matches!(subject_ty, CgTy::Enum(_))
-                    && Self::when_variant_pat_needs_chain(&arm.pat)
-        });
+        let needs_chain = arms
+            .iter()
+            .any(|arm| arm.guard.is_some() || Self::when_pat_requires_chain(subject_ty, &arm.pat))
+            || !Self::when_subject_has_switch_dispatch(subject_ty);
 
         if needs_chain {
             // guard / or-pattern：用“链式判别 + guard 失败回落到下一个分支”的 CFG。
@@ -256,10 +247,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
                 if let Some(guard) = &arm.guard {
                     let gv = self.codegen_expr_in_expected_context(guard, Some(CgTy::Bool))?;
-                    let gb = gv.as_bool().ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "when guard value",
-                        at: guard.span.into(),
-                    })?;
+                    let gb = gv
+                        .as_bool()
+                        .expect("typecheck must reject non-Bool `when` guards before LLVM codegen");
                     self.builder
                         .build_conditional_branch(gb, arm_bbs[idx], else_bb)?;
                 } else {
@@ -296,12 +286,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     match out_ty {
                         None => out_ty = Some(v.ty),
                         Some(prev) if prev == v.ty => {}
-                        Some(_) => {
-                            return Err(LlvmEmitError::UnsupportedMainBody {
-                                kind: "when arm type mismatch",
-                                at: arm.body.span.into(),
-                            });
-                        }
+                        Some(_) => unreachable!(
+                            "typecheck must provide a common `when` result type before LLVM codegen"
+                        ),
                     }
                 } else {
                     // 已在 expected-context 下生成并按需 coercion：确保 `v.ty == expected_out_ty`。
@@ -310,13 +297,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     }
                 }
 
-                let tail_bb =
-                    self.builder
-                        .get_insert_block()
-                        .ok_or(LlvmEmitError::UnsupportedMainBody {
-                            kind: "when arm tail block",
-                            at: arm.body.span.into(),
-                        })?;
+                let tail_bb = self
+                    .builder
+                    .get_insert_block()
+                    .expect("`when` arm codegen should leave an active tail block");
                 self.builder.build_unconditional_branch(merge_bb)?;
                 self.function_cx.env.pop_scope();
 
@@ -367,6 +351,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             };
         }
 
+        let subject_raw = subject_v
+            .value
+            .expect("non-chain `when` subject must have a runtime value after typecheck");
+
         // 生成分派：enum/bool 优先降到 LLVM switch；tuple 仍用分支链并做字段比较。
         match subject_ty {
             CgTy::Enum(enum_ty) => {
@@ -376,12 +364,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         | hir::WhenPat::Wildcard { .. }
                         | hir::WhenPat::Bind { .. }
                         | hir::WhenPat::Variant { .. } => {}
-                        _ => {
-                            return Err(LlvmEmitError::UnsupportedMainBody {
-                                kind: "when pattern (enum)",
-                                at: arm.pat.span().into(),
-                            });
-                        }
+                        _ => unreachable!(
+                            "typecheck must reject non-enum `when` patterns for enum subjects"
+                        ),
                     }
                 }
 
@@ -443,10 +428,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     let Some(target_idx) =
                         self.when_first_matching_arm_for_enum_variant(arms, &variant.name)
                     else {
-                        return Err(LlvmEmitError::UnsupportedMainBody {
-                            kind: "when missing enum arm",
-                            at: span.into(),
-                        });
+                        unreachable!("typecheck must reject non-exhaustive enum `when`");
                     };
                     cases.push((tag_ty.const_int(variant.tag, false), arm_bbs[target_idx]));
                 }
@@ -462,12 +444,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         | hir::WhenPat::Wildcard { .. }
                         | hir::WhenPat::Bind { .. }
                         | hir::WhenPat::BoolLit { .. } => {}
-                        _ => {
-                            return Err(LlvmEmitError::UnsupportedMainBody {
-                                kind: "when pattern (bool)",
-                                at: arm.pat.span().into(),
-                            });
-                        }
+                        _ => unreachable!(
+                            "typecheck must reject non-Bool `when` patterns for Bool subjects"
+                        ),
                     }
                 }
 
@@ -476,16 +455,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 let default_bb = self.context.append_basic_block(func, "when_no_match");
 
                 let Some(false_idx) = self.when_first_matching_arm_for_bool(arms, false) else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "when missing bool arm (false)",
-                        at: span.into(),
-                    });
+                    unreachable!("typecheck must reject Bool `when` missing `false`");
                 };
                 let Some(true_idx) = self.when_first_matching_arm_for_bool(arms, true) else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "when missing bool arm (true)",
-                        at: span.into(),
-                    });
+                    unreachable!("typecheck must reject Bool `when` missing `true`");
                 };
 
                 let cases = [
@@ -504,12 +477,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         | hir::WhenPat::Bind { .. }
                         | hir::WhenPat::IntLit { .. }
                         | hir::WhenPat::CharLit { .. } => {}
-                        _ => {
-                            return Err(LlvmEmitError::UnsupportedMainBody {
-                                kind: "when pattern (int)",
-                                at: arm.pat.span().into(),
-                            });
-                        }
+                        _ => unreachable!(
+                            "typecheck must reject non-integer `when` patterns for integer subjects"
+                        ),
                     }
                 }
 
@@ -559,12 +529,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         | hir::WhenPat::Wildcard { .. }
                         | hir::WhenPat::Bind { .. }
                         | hir::WhenPat::StringLit { .. } => {}
-                        _ => {
-                            return Err(LlvmEmitError::UnsupportedMainBody {
-                                kind: "when pattern (string)",
-                                at: arm.pat.span().into(),
-                            });
-                        }
+                        _ => unreachable!(
+                            "typecheck must reject non-String `when` patterns for String subjects"
+                        ),
                     }
                 }
 
@@ -613,12 +580,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         | hir::WhenPat::Wildcard { .. }
                         | hir::WhenPat::Bind { .. }
                         | hir::WhenPat::Tuple { .. } => {}
-                        _ => {
-                            return Err(LlvmEmitError::UnsupportedMainBody {
-                                kind: "when pattern (tuple)",
-                                at: arm.pat.span().into(),
-                            });
-                        }
+                        _ => unreachable!(
+                            "typecheck must reject non-tuple `when` patterns for tuple subjects"
+                        ),
                     }
                 }
 
@@ -663,12 +627,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 self.builder.position_at_end(no_match_bb);
                 self.builder.build_unreachable()?;
             }
-            _ => {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "when subject type",
-                    at: subject.span.into(),
-                });
-            }
+            _ => unreachable!("non-switch `when` subjects must use the chain matcher"),
         }
 
         // 生成各 arm body，并把结果汇合到 merge。
@@ -714,12 +673,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 match out_ty {
                     None => out_ty = Some(v.ty),
                     Some(prev) if prev == v.ty => {}
-                    Some(_) => {
-                        return Err(LlvmEmitError::UnsupportedMainBody {
-                            kind: "when arm type mismatch",
-                            at: arm.body.span.into(),
-                        });
-                    }
+                    Some(_) => unreachable!(
+                        "typecheck must provide a common `when` result type before LLVM codegen"
+                    ),
                 }
             } else {
                 if let Some(target) = expected_out_ty {
@@ -727,13 +683,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 }
             }
 
-            let tail_bb =
-                self.builder
-                    .get_insert_block()
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "when arm tail block",
-                        at: arm.body.span.into(),
-                    })?;
+            let tail_bb = self
+                .builder
+                .get_insert_block()
+                .expect("`when` arm codegen should leave an active tail block");
             self.builder.build_unconditional_branch(merge_bb)?;
             self.function_cx.env.pop_scope();
 
@@ -814,10 +767,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
             hir::WhenPat::Variant { name, args, .. } => {
                 let CgTy::Enum(enum_ty) = subject_ty else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "when variant pattern subject type",
-                        at: pat.span().into(),
-                    });
+                    unreachable!(
+                        "typecheck must reject variant `when` patterns for non-enum subjects"
+                    );
                 };
 
                 let (repr, variant) = {
@@ -828,10 +780,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         .iter()
                         .find(|v| v.name == *name)
                         .cloned()
-                        .ok_or(LlvmEmitError::UnsupportedMainBody {
-                            kind: "when unknown enum variant",
-                            at: pat.span().into(),
-                        })?;
+                        .expect("typecheck must reject unknown enum variants in `when` patterns");
                     (repr, variant)
                 };
 
@@ -848,10 +797,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 if (!has_rest && expected_arity != found_arity)
                     || (has_rest && found_arity > expected_arity)
                 {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "when variant arity mismatch",
-                        at: pat.span().into(),
-                    });
+                    unreachable!("typecheck must reject enum variant arity mismatch in `when`");
                 }
 
                 if prefix_pats.is_empty() {
@@ -863,14 +809,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         continue;
                     }
 
-                    let field_cg =
-                        *variant
-                            .fields
-                            .get(idx)
-                            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                                kind: "when variant payload field index",
-                                at: arg_pat.span().into(),
-                            })?;
+                    let field_cg = *variant.fields.get(idx).expect(
+                        "typecheck must reject enum variant payload field index drift in `when`",
+                    );
                     let extracted = self.extract_matched_when_variant_field_value(
                         enum_ty,
                         repr,
@@ -889,10 +830,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
             hir::WhenPat::Tuple { elements, .. } => {
                 let CgTy::Tuple(tuple_ty) = subject_ty else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "when tuple pattern subject type",
-                        at: pat.span().into(),
-                    });
+                    unreachable!(
+                        "typecheck must reject tuple `when` patterns for non-tuple subjects"
+                    );
                 };
 
                 let TypeKind::Value(ValueTypeKind::Tuple(tuple_elems)) = self.types.kind(tuple_ty)
@@ -907,10 +847,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 for (idx, elem_pat) in elements.iter().enumerate() {
                     if matches!(elem_pat, hir::WhenPat::Rest { .. }) {
                         if idx + 1 != elements.len() {
-                            return Err(LlvmEmitError::UnsupportedMainBody {
-                                kind: "when tuple pattern rest position",
-                                at: elem_pat.span().into(),
-                            });
+                            unreachable!(
+                                "parser/typecheck must reject non-tail `..` in tuple `when` patterns"
+                            );
                         }
                         has_rest = true;
                         break;
@@ -926,10 +865,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 if (!has_rest && pat_arity != tuple_elems.len())
                     || (has_rest && pat_arity > tuple_elems.len())
                 {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "when tuple pattern arity mismatch",
-                        at: pat.span().into(),
-                    });
+                    unreachable!("typecheck must reject tuple pattern arity mismatch in `when`");
                 }
 
                 let llvm_tuple_ty = self.llvm_tuple_type(at, tuple_ty)?;
@@ -1075,14 +1011,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         field_span: crate::span::Span,
         subject_ptr: PointerValue<'ctx>,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        let field_cg =
-            *variant
-                .fields
-                .get(field_idx)
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "when variant payload field index",
-                    at: field_span.into(),
-                })?;
+        let field_cg = *variant
+            .fields
+            .get(field_idx)
+            .expect("typecheck must reject enum variant payload field index drift in `when`");
 
         if variant.boxed {
             let llvm_enum_ty = self
@@ -1162,19 +1094,17 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         } => match storage {
                             NicheStorage::Pointer => {
                                 if none_value != 0 {
-                                    return Err(LlvmEmitError::UnsupportedMainBody {
-                                        kind: "when payload nested niche pointer none_value (must be NULL)",
-                                        at: field_span.into(),
-                                    });
+                                    unreachable!(
+                                        "nested pointer niche layout should use NULL none_value"
+                                    );
                                 }
 
                                 let llvm_nested =
                                     self.llvm_enum_value_type(field_span, nested_enum_ty)?;
                                 let BasicTypeEnum::PointerType(ptr_ty) = llvm_nested else {
-                                    return Err(LlvmEmitError::UnsupportedMainBody {
-                                        kind: "when payload nested niche storage (non-pointer)",
-                                        at: field_span.into(),
-                                    });
+                                    unreachable!(
+                                        "nested pointer niche layout should lower to pointer storage"
+                                    );
                                 };
 
                                 let casted = self.builder.build_pointer_cast(
@@ -1191,10 +1121,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                                 let llvm_nested =
                                     self.llvm_enum_value_type(field_span, nested_enum_ty)?;
                                 let BasicTypeEnum::IntType(int_ty) = llvm_nested else {
-                                    return Err(LlvmEmitError::UnsupportedMainBody {
-                                        kind: "when payload nested niche storage (non-int)",
-                                        at: field_span.into(),
-                                    });
+                                    unreachable!(
+                                        "nested integer niche layout should lower to integer storage"
+                                    );
                                 };
 
                                 let raw = loaded.into_int_value();
@@ -1323,19 +1252,17 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     } => match storage {
                         NicheStorage::Pointer => {
                             if none_value != 0 {
-                                return Err(LlvmEmitError::UnsupportedMainBody {
-                                    kind: "when payload nested niche pointer none_value (must be NULL)",
-                                    at: field_span.into(),
-                                });
+                                unreachable!(
+                                    "nested pointer niche layout should use NULL none_value"
+                                );
                             }
 
                             let llvm_nested =
                                 self.llvm_enum_value_type(field_span, nested_enum_ty)?;
                             let BasicTypeEnum::PointerType(ptr_ty) = llvm_nested else {
-                                return Err(LlvmEmitError::UnsupportedMainBody {
-                                    kind: "when payload nested niche storage (non-pointer)",
-                                    at: field_span.into(),
-                                });
+                                unreachable!(
+                                    "nested pointer niche layout should lower to pointer storage"
+                                );
                             };
 
                             let casted = self.builder.build_pointer_cast(
@@ -1352,10 +1279,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                             let llvm_nested =
                                 self.llvm_enum_value_type(field_span, nested_enum_ty)?;
                             let BasicTypeEnum::IntType(int_ty) = llvm_nested else {
-                                return Err(LlvmEmitError::UnsupportedMainBody {
-                                    kind: "when payload nested niche storage (non-int)",
-                                    at: field_span.into(),
-                                });
+                                unreachable!(
+                                    "nested integer niche layout should lower to integer storage"
+                                );
                             };
 
                             let v = self.builder.build_int_truncate(
@@ -1390,22 +1316,22 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
     }
 
-    pub(super) fn when_pat_contains_or(&self, pat: &hir::WhenPat) -> bool {
-        match pat {
-            hir::WhenPat::Or { .. } => true,
-            hir::WhenPat::Tuple { elements, .. } => {
-                elements.iter().any(|p| self.when_pat_contains_or(p))
-            }
-            hir::WhenPat::Variant { args, .. } => args.iter().any(|p| self.when_pat_contains_or(p)),
-            _ => false,
-        }
+    fn when_subject_has_switch_dispatch(subject_ty: CgTy) -> bool {
+        matches!(
+            subject_ty,
+            CgTy::Enum(_) | CgTy::Bool | CgTy::Int(_) | CgTy::String | CgTy::Tuple(_)
+        )
     }
 
-    fn when_variant_pat_needs_chain(pat: &hir::WhenPat) -> bool {
+    fn when_pat_requires_chain(subject_ty: CgTy, pat: &hir::WhenPat) -> bool {
         match pat {
-            hir::WhenPat::Variant { args, .. } => {
+            hir::WhenPat::Or { .. } | hir::WhenPat::Is { .. } => true,
+            hir::WhenPat::Variant { args, .. } if matches!(subject_ty, CgTy::Enum(_)) => {
                 args.iter().any(Self::when_variant_arg_needs_payload_match)
             }
+            hir::WhenPat::Tuple { elements, .. } => elements
+                .iter()
+                .any(|elem| Self::when_pat_requires_chain(subject_ty, elem)),
             _ => false,
         }
     }
@@ -1431,6 +1357,29 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         pat: &hir::WhenPat,
         subject_ptr: PointerValue<'ctx>,
     ) -> Result<IntValue<'ctx>, LlvmEmitError> {
+        match pat {
+            hir::WhenPat::Else { .. }
+            | hir::WhenPat::Wildcard { .. }
+            | hir::WhenPat::Bind { .. } => return Ok(self.const_when_bool(true)),
+            hir::WhenPat::Or { pats, .. } => {
+                let mut cond = self.const_when_bool(false);
+                for p in pats {
+                    let c = self.codegen_when_pat_cond(at, subject_ty, p, subject_ptr)?;
+                    cond = self.builder.build_or(cond, c, "when_or")?;
+                }
+                return Ok(cond);
+            }
+            hir::WhenPat::Is { ty, .. } => {
+                return self.codegen_when_is_pat_cond(at, subject_ty, *ty, subject_ptr);
+            }
+            hir::WhenPat::Tuple { elements, .. }
+                if subject_ty == CgTy::Unit && elements.is_empty() =>
+            {
+                return Ok(self.const_when_bool(true));
+            }
+            _ => {}
+        }
+
         match subject_ty {
             CgTy::Enum(enum_ty) => {
                 self.codegen_when_pat_cond_for_enum(at, enum_ty, pat, subject_ptr)
@@ -1441,10 +1390,67 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             CgTy::Tuple(tuple_ty) => {
                 self.codegen_when_pat_cond_for_tuple(at, tuple_ty, pat, subject_ptr)
             }
-            _ => Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "when subject type",
-                at: at.into(),
-            }),
+            _ => unreachable!(
+                "typecheck must reject unsupported `when` pattern for this subject type"
+            ),
+        }
+    }
+
+    fn const_when_bool(&self, value: bool) -> IntValue<'ctx> {
+        self.context.bool_type().const_int(value as u64, false)
+    }
+
+    fn codegen_when_is_pat_cond(
+        &mut self,
+        at: crate::span::Span,
+        subject_ty: CgTy,
+        target_ty: TypeId,
+        subject_ptr: PointerValue<'ctx>,
+    ) -> Result<IntValue<'ctx>, LlvmEmitError> {
+        if target_ty == self.builtins.any {
+            return Ok(self.const_when_bool(true));
+        }
+        if target_ty == self.builtins.nothing {
+            return Ok(self.const_when_bool(false));
+        }
+        if subject_ty == CgTy::String && target_ty == self.builtins.string {
+            return Ok(self.const_when_bool(true));
+        }
+
+        match subject_ty {
+            CgTy::Ref => {
+                let raw = self
+                    .builder
+                    .build_load(self.llvm_gc_i8_ptr_type(), subject_ptr, "load_when_is_ref")?
+                    .into_pointer_value();
+                self.codegen_ref_is_instance_of(at, raw, target_ty)
+            }
+            CgTy::String => {
+                let raw = self
+                    .builder
+                    .build_load(
+                        self.llvm_scoop_string_ptr_type(),
+                        subject_ptr,
+                        "load_when_is_string",
+                    )?
+                    .into_pointer_value();
+                let as_ref = self.coerce_value(
+                    at,
+                    CgValue {
+                        ty: CgTy::String,
+                        value: Some(raw.into()),
+                    },
+                    CgTy::Ref,
+                )?;
+                let Some(BasicValueEnum::PointerValue(ptr)) = as_ref.value else {
+                    unreachable!("String-to-Ref coercion should produce a pointer value");
+                };
+                self.codegen_ref_is_instance_of(at, ptr, target_ty)
+            }
+            _ => Ok(self.const_when_bool(
+                self.cg_ty_of(target_ty)
+                    .is_some_and(|target_cg| target_cg == subject_ty),
+            )),
         }
     }
 
@@ -1526,10 +1532,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             | hir::WhenPat::Bind { .. } => Ok(self.context.bool_type().const_int(1, false)),
             hir::WhenPat::Variant { name, .. } => {
                 let Some(_variant) = variants.iter().find(|v| v.name == *name) else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "when unknown enum variant",
-                        at: pat.span().into(),
-                    });
+                    unreachable!("typecheck must reject unknown enum variants in `when` patterns");
                 };
 
                 // `T4011b`：or-pattern 内的 variant 分支也必须复用完整的 payload
@@ -1558,10 +1561,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 }
                 Ok(cond)
             }
-            _ => Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "when pattern (enum)",
-                at: pat.span().into(),
-            }),
+            _ => unreachable!("typecheck must reject non-enum `when` patterns for enum subjects"),
         }
     }
 
@@ -1579,10 +1579,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         };
 
         let Some(variant) = variants.iter().find(|v| v.name == *name).cloned() else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "when unknown enum variant",
-                at: pat.span().into(),
-            });
+            unreachable!("typecheck must reject unknown enum variants in `when` patterns");
         };
 
         let (prefix_pats, has_rest) = match args.last() {
@@ -1595,10 +1592,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         if (!has_rest && expected_arity != found_arity)
             || (has_rest && found_arity > expected_arity)
         {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "when variant arity mismatch",
-                at: pat.span().into(),
-            });
+            unreachable!("typecheck must reject enum variant arity mismatch in `when`");
         }
 
         let expected = tag.get_type().const_int(variant.tag, false);
@@ -1648,10 +1642,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             let field_cg = *variant
                 .fields
                 .get(idx)
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "when variant payload field index",
-                    at: arg_pat.span().into(),
-                })?;
+                .expect("typecheck must reject enum variant payload field index drift in `when`");
             let extracted = self.extract_matched_when_variant_field_value(
                 enum_ty,
                 repr,
@@ -1669,13 +1660,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     .build_and(payload_cond, field_cond, "when_variant_payload_and")?;
         }
 
-        let payload_tail =
-            self.builder
-                .get_insert_block()
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "when variant payload tail block",
-                    at: pat.span().into(),
-                })?;
+        let payload_tail = self
+            .builder
+            .get_insert_block()
+            .expect("variant payload pattern codegen should leave an active tail block");
         self.builder.build_unconditional_branch(merge_bb)?;
 
         self.builder.position_at_end(merge_bb);
@@ -1729,10 +1717,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 }
                 Ok(cond)
             }
-            _ => Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "when pattern (bool)",
-                at: pat.span().into(),
-            }),
+            _ => unreachable!("typecheck must reject non-Bool `when` patterns for Bool subjects"),
         }
     }
 
@@ -1791,10 +1776,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 }
                 Ok(cond)
             }
-            _ => Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "when pattern (int)",
-                at: pat.span().into(),
-            }),
+            _ => unreachable!(
+                "typecheck must reject non-integer `when` patterns for integer subjects"
+            ),
         }
     }
 
@@ -1832,10 +1816,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 let deferred_value = self.defer_gc_ref_pointer(at, "when_str_subject", value)?;
                 let expected = self.codegen_string_literal_from_text(*span, expected_text)?;
                 let Some(BasicValueEnum::PointerValue(expected_ptr)) = expected.value else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "when string pattern literal value",
-                        at: (*span).into(),
-                    });
+                    unreachable!("string literal codegen should produce a pointer value");
                 };
                 let value = self.reload_deferred_gc_ref_without_clearing(
                     at,
@@ -1848,17 +1829,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     &[value.into(), expected_ptr.into()],
                     "when_str_eq",
                 )?;
-                let raw_result = call.try_as_basic_value().basic().ok_or(
-                    LlvmEmitError::UnsupportedMainBody {
-                        kind: "when string equals return value",
-                        at: at.into(),
-                    },
-                )?;
+                let raw_result = call
+                    .try_as_basic_value()
+                    .basic()
+                    .expect("runtime string equality should return an integer value");
                 let BasicValueEnum::IntValue(eq_i64) = raw_result else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "when string equals return type",
-                        at: at.into(),
-                    });
+                    unreachable!("runtime string equality should return an integer value");
                 };
                 Ok(self.builder.build_int_compare(
                     IntPredicate::NE,
@@ -1875,10 +1851,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 }
                 Ok(cond)
             }
-            _ => Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "when pattern (string)",
-                at: pat.span().into(),
-            }),
+            _ => {
+                unreachable!("typecheck must reject non-String `when` patterns for String subjects")
+            }
         }
     }
 
@@ -1904,10 +1879,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 }
                 Ok(cond)
             }
-            _ => Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "when pattern (tuple)",
-                at: pat.span().into(),
-            }),
+            _ => unreachable!("typecheck must reject non-tuple `when` patterns for tuple subjects"),
         }
     }
 
@@ -1970,20 +1942,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         if let Some(rest) = rest_idx
             && rest + 1 != elements.len()
         {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "when tuple pattern rest position",
-                at: elements[rest].span().into(),
-            });
+            unreachable!("parser/typecheck must reject non-tail `..` in tuple `when` patterns");
         }
 
         let pat_arity = rest_idx.unwrap_or(elements.len());
         if (rest_idx.is_none() && pat_arity != tuple_elems.len())
             || (rest_idx.is_some() && pat_arity > tuple_elems.len())
         {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "when tuple pattern arity mismatch",
-                at: at.into(),
-            });
+            unreachable!("typecheck must reject tuple pattern arity mismatch in `when`");
         }
 
         let llvm_tuple_ty = self.llvm_tuple_type(at, tuple_ty)?;
@@ -2016,12 +1982,31 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             hir::WhenPat::Wildcard { .. }
             | hir::WhenPat::Bind { .. }
             | hir::WhenPat::Rest { .. } => Ok(self.context.bool_type().const_int(1, false)),
+            hir::WhenPat::Or { pats, .. } => {
+                let mut cond = self.const_when_bool(false);
+                for p in pats {
+                    let c = self.codegen_when_pat_cond_for_tuple_elem(
+                        at, tuple_ty, elem_idx, elem_ty, tuple_v, p,
+                    )?;
+                    cond = self.builder.build_or(cond, c, "when_tuple_or")?;
+                }
+                Ok(cond)
+            }
+            hir::WhenPat::Is { .. } | hir::WhenPat::Variant { .. } => {
+                let raw = self.builder.build_extract_value(
+                    tuple_v,
+                    elem_idx as u32,
+                    "when_tuple_elem",
+                )?;
+                let value = self.cg_value_from_loaded(pat.span(), elem_ty, raw)?;
+                let tmp_name = format!("when_tuple_nested_{}_{}", tuple_ty.as_u32(), elem_idx);
+                self.codegen_when_pat_cond_for_extracted_value(at, pat, elem_ty, value, &tmp_name)
+            }
             hir::WhenPat::BoolLit { value, .. } => {
                 let CgTy::Bool = elem_ty else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "when tuple elem bool pattern type",
-                        at: pat.span().into(),
-                    });
+                    unreachable!(
+                        "typecheck must reject Bool tuple subpatterns for non-Bool elements"
+                    );
                 };
                 let raw = self
                     .builder
@@ -2039,10 +2024,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 raw: expected_text, ..
             } => {
                 let CgTy::Int(int_ty) = elem_ty else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "when tuple elem int pattern type",
-                        at: pat.span().into(),
-                    });
+                    unreachable!(
+                        "typecheck must reject integer tuple subpatterns for non-integer elements"
+                    );
                 };
                 let raw = self
                     .builder
@@ -2060,10 +2044,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
             hir::WhenPat::CharLit { value, .. } => {
                 let CgTy::Int(int_ty) = elem_ty else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "when tuple elem char pattern type",
-                        at: pat.span().into(),
-                    });
+                    unreachable!(
+                        "typecheck must reject Char tuple subpatterns for non-Char elements"
+                    );
                 };
                 let raw = self
                     .builder
@@ -2079,10 +2062,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
             hir::WhenPat::StringLit { span, value } => {
                 let CgTy::String = elem_ty else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "when tuple elem string pattern type",
-                        at: pat.span().into(),
-                    });
+                    unreachable!(
+                        "typecheck must reject String tuple subpatterns for non-String elements"
+                    );
                 };
                 let raw = self
                     .builder
@@ -2092,10 +2074,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     self.defer_gc_ref_pointer(*span, "when_tuple_str_subject", raw)?;
                 let expected = self.codegen_string_literal_from_text(*span, value)?;
                 let Some(BasicValueEnum::PointerValue(expected_ptr)) = expected.value else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "when tuple elem string pattern literal value",
-                        at: (*span).into(),
-                    });
+                    unreachable!("string literal codegen should produce a pointer value");
                 };
                 let raw = self.reload_deferred_gc_ref_without_clearing(
                     *span,
@@ -2108,17 +2087,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     &[raw.into(), expected_ptr.into()],
                     "when_tuple_str_eq",
                 )?;
-                let raw_result = call.try_as_basic_value().basic().ok_or(
-                    LlvmEmitError::UnsupportedMainBody {
-                        kind: "when tuple string equals return value",
-                        at: (*span).into(),
-                    },
-                )?;
+                let raw_result = call
+                    .try_as_basic_value()
+                    .basic()
+                    .expect("runtime string equality should return an integer value");
                 let BasicValueEnum::IntValue(eq_i64) = raw_result else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "when tuple string equals return type",
-                        at: (*span).into(),
-                    });
+                    unreachable!("runtime string equality should return an integer value");
                 };
                 Ok(self.builder.build_int_compare(
                     IntPredicate::NE,
@@ -2129,10 +2103,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
             hir::WhenPat::Tuple { elements, .. } => {
                 let CgTy::Tuple(nested_tuple_ty) = elem_ty else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "when tuple elem tuple pattern type",
-                        at: pat.span().into(),
-                    });
+                    unreachable!("typecheck must reject tuple subpatterns for non-tuple elements");
                 };
 
                 let TypeKind::Value(ValueTypeKind::Tuple(_)) = self.types.kind(nested_tuple_ty)
@@ -2156,10 +2127,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 let _ = self.store_local_value(at, tmp_ptr, elem_ty, nested_value)?;
                 self.codegen_when_tuple_pat_cond(at, nested_tuple_ty, elements, tmp_ptr)
             }
-            _ => Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "when tuple pattern",
-                at: pat.span().into(),
-            }),
+            _ => unreachable!("typecheck must reject unsupported tuple subpatterns in `when`"),
         }
     }
 

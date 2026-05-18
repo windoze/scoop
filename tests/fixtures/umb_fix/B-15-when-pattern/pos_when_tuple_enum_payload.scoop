@@ -1,0 +1,18 @@
+// EXPECT: ok
+// SPEC: docs/spec/language_spec-part3.md#10-when-与模式匹配;docs/spec/language_spec-part3.md#101-穷尽性
+// COVERS: NONE
+// BUCKETS: B-15
+// REASON: P7-A3 keeps tuple patterns with nested enum payload patterns on the verified codegen path.
+
+import scoop.core.*
+
+fun main(): Int {
+    val pair: (Option<Int>, Bool) = (Some(1), true)
+    val result: Int = when (pair) {
+        (Some(v), true) -> v;
+        (Some(_), false) -> 2;
+        (None, true) -> 3;
+        (None, false) -> 4;
+    }
+    return result
+}

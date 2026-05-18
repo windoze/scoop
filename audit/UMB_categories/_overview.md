@@ -6,9 +6,9 @@ inventory 来源：[`audit/UMB_inventory.csv`](../UMB_inventory.csv)
 
 ## Summary
 
-- Total active inventory entries: 1,272
+- Total active inventory entries: 1,217
 - Bucket range: B-01 through B-36
-- Zero-entry buckets: none
+- Zero-entry buckets: B-15, B-16
 - Missing `spec_anchor`: 0
 - Missing `upstream_gate`: 0
 - Decision: all 36 stable buckets are retained; no merge or split is required in U2-T01.
@@ -31,7 +31,7 @@ inventory 来源：[`audit/UMB_inventory.csv`](../UMB_inventory.csv)
 | B-12 | Closure / lambda / capture 表达 | C | 50 | RealImpl=50 | capture local not found (3)<br>capture local type (3)<br>capture local (non-scalar) (3)<br>lambda return type (2)<br>capture type (2) | crates/scoopc/src/llvm/codegen/closure/mod.rs (19)<br>crates/scoopc/src/llvm/codegen/mir_body/callable_lookup.rs (11)<br>crates/scoopc/src/llvm/codegen/mir_body/operand.rs (6)<br>crates/scoopc/src/llvm/codegen/main/identity.rs (4)<br>crates/scoopc/src/llvm/codegen/mir_body/call.rs (3) | CSV non-empty; body pending U2-T02. |
 | B-13 | 数组 / 复合 transport metadata | C | 24 | RealImpl=24 | composed call replay block (1)<br>task transport resume payload type (1)<br>task transport operand source type (1)<br>task transport tuple value (1)<br>task transport tuple type (1) | crates/scoopc/src/llvm/codegen/effect_outcome.rs (10)<br>crates/scoopc/src/llvm/codegen/intrinsics/named.rs (7)<br>crates/scoopc/src/llvm/codegen/main/runtime_error.rs (2)<br>crates/scoopc/src/llvm/codegen/mir_body/transport.rs (2)<br>crates/scoopc/src/llvm/codegen/effect_lowered/body/composed_call.rs (1) | CSV non-empty; body pending U2-T02. |
 | B-14 | Cast / TypeCheck (`as`/`as?`/`is`) | B/C | 27 | InternalBugSentinel=27 | type check operand (ref) (1)<br>type check operand value (1)<br>type check operand type (1)<br>as? result type (Option<T>) (1)<br>as? target (ref) (1) | crates/scoopc/src/llvm/codegen/mir_body/cast.rs (13)<br>crates/scoopc/src/llvm/codegen/main/expr_op.rs (12)<br>crates/scoopc/src/llvm/codegen/main/gc_locals.rs (2) | CSV non-empty; cross-class split remains entry-level. |
-| B-15 | When / 模式匹配用户面 | B | 55 | FrontendReject=55 | when unknown enum variant (3)<br>when variant payload field index (3)<br>when arm type mismatch (2)<br>when arm tail block (2)<br>when pattern (enum) (2) | crates/scoopc/src/llvm/codegen/control_flow.rs (55) | CSV non-empty; body pending U2-T02. |
+| B-15 | When / 模式匹配用户面 | B | 0 | retired FrontendReject=55 | retired: when unknown enum variant (3)<br>when variant payload field index (3)<br>when arm type mismatch (2)<br>when arm tail block (2)<br>when pattern (enum) (2) | retired ledger: `audit/UMB_retired.csv` | P7-A3 retired; active CSV empty. |
 | B-16 | 控制流 outside-of-context | B | 0 | retired FrontendReject=7 | retired: break outside loop (3)<br>continue outside loop (3)<br>return outside function with return context (1) | retired ledger: `audit/UMB_retired.csv` | P7-A1 retired; active CSV empty. |
 | B-17 | Coercion / 标量运算 | A/B | 47 | InternalBugSentinel=47 | equality lhs string value (2)<br>equality lhs string type (2)<br>equality rhs string value (2)<br>equality rhs string type (2)<br>String equals return value (2) | crates/scoopc/src/llvm/codegen/main/coerce.rs (31)<br>crates/scoopc/src/llvm/codegen/main/expr_op.rs (7)<br>crates/scoopc/src/llvm/codegen/effect_outcome.rs (5)<br>crates/scoopc/src/llvm/codegen/expr.rs (4) | CSV non-empty; cross-class split remains entry-level. |
 | B-18 | 字面量与字符串 | B | 4 | InternalBugSentinel=4 | source-backed literal span (1)<br>source-backed literal slice (1)<br>int literal type (1)<br>scoop_alloc_typed return value (1) | crates/scoopc/src/llvm/codegen/main/context.rs (2)<br>crates/scoopc/src/llvm/codegen/main/literal.rs (2) | CSV non-empty; body pending U2-T02. |

@@ -1,0 +1,22 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::when_variant_pat_unknown_variant
+// EXPECT-ERROR-AT: 19:5
+// EXPECT-ERROR: 未找到匹配的 variant
+// SPEC: docs/spec/language_spec-part3.md#10-when-与模式匹配
+// COVERS: NONE
+// BUCKETS: B-15
+// REASON: P7-A3 keeps unknown enum variants rejected before MIR/LLVM lowering.
+
+package fixtures.umb_fix
+
+enum Choice {
+    Hit(val value: Int),
+    Miss,
+}
+
+val choice: Choice = Hit(1)
+val result: Int = when (choice) {
+    Other -> 0
+    Hit(v) -> v
+    Miss -> 1
+}
