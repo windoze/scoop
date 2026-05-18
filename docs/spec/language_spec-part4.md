@@ -56,7 +56,9 @@ fun fetchData(): String / Raise<IOError> {
 - 若没有 handler，效果成为 unhandled effect，必须由函数签名 required effect row 表示。
 - 若 unhandled effect 到达程序边界，well-typed 程序应已阻止；实现可将其作为运行期 panic。
 
-注：当前版本不定义内建 task runtime surface，也不定义 `async` / `await`、用户可见 `spawn` / `join` 等语法；这些属于后续库/语言设计话题，不影响本部分对一般 effect/continuation 的规则。
+注：
+- 当前版本不定义内建 task runtime surface，也不定义 `async` / `await`、用户可见 `spawn` / `join` 等语法；这些属于后续库/语言设计话题，不影响本部分对一般 effect/continuation 的规则。
+- 在目前实现中，`perform` 关键字可省略，此处可暂时保持现状，留待后续设计决定是否强制要求 `perform` 以提高可读性。
 
 ## 4. Effect row
 
@@ -82,7 +84,7 @@ Effect row 是编译期集合表达式：
 
 - `+` 满足结合律、交换律、幂等律。
 - `Pure` 是单位元。
-- Row 只存在于编译期。
+- 泛型 effect 不做逆变或协变处理；Emit<Any> 不包含 Emit<String>，反之亦然。
 
 ### 4.1 默认效果
 
@@ -120,7 +122,7 @@ Closed row 使用 `!`：
 
 ```kotlin
 fun main(): Unit / Pure!
-extern fun ffi_read_file(path: Ptr<Byte>): Bytes / IO!
+fun readFile(path: String): Bytes / IO!
 ```
 
 规则：
@@ -157,7 +159,6 @@ fun <T, eff E = Pure> using(
 - `<eff E>` 引入 row 变量。
 - Row 变量可出现在函数 effect annotation 和函数类型 effect annotation 中。
 - Row 实参由调用点显式给出或由 lambda body required effects 推断。
-- Effect 参数不影响运行期布局和单态化。
 
 Override 规则：
 
@@ -225,7 +226,7 @@ handle {
 - `k.resume(payload...)` 恢复 computation。
 - 若恢复后的 computation 正常完成 delimiter，`k.resume(...)` 返回 delimiter answer。
 - 若恢复过程中再次通过另一个 resuming handler suspend，会捕获 fresh continuation；`k.resume(...)` 本身仍只返回最终 answer 或 raise。
-- Continuation 可立即恢复、保存后恢复、或从另一个 OS 线程恢复。
+- Continuation 可立即恢复、或保存后在别处恢复。
 - Continuation 是高级控制流 API；普通库抽象应优先暴露常规函数/对象接口，而不是把 raw continuation 当默认 API。
 
 旧式 `Effect.op(args) -> resume { ... }` 语法已移除。
@@ -248,61 +249,7 @@ handle {
 - Tuple payload 的命名参数可用 `a0`、`a1` 等。
 - 兼容单 payload 形式 `k.resume(value)`；对 tuple 表示传入 tuple 值本身。
 
-## 7. 动态 dispatch 规则
-
-效果 dispatch 按动态 handler 栈进行。
-
-定义：
-
-- Effect operation：`Raise.raise`、`Emit.emit` 等限定 operation 名。
-- Handler instance：一次进入 `handle` 表达式产生的动态 handler。
-- Active handler：当前 computation 动态作用域内的 handler。
-- Handled set：handler `with { ... }` 中 arm 覆盖的 operation 集合。
-
-执行 `perform E.op(args...)`：
-
-1. 从左到右求值 `args...`。
-2. 找到最近的 active handler instance，其 handled set 包含 `E.op`。
-3. 只派发给这个最近匹配 handler。
-4. 若没有匹配 handler，效果向外传播为 unhandled effect。
-
-### 7.1 Handler arm body 不在本 handler dispatch 作用域内
-
-规范规则：
-
-- handler arm body 求值期间，选中该 arm 的 handler instance 在 effect dispatch 时视为 inactive。
-
-后果：
-
-- 如果 arm body 再次 perform 同一个 operation，不会重新进入自己，而是派发给外层匹配 handler 或继续 unhandled。
-
-示例：
-
-```kotlin
-handle {
-    handle {
-        perform Raise.raise("inner")
-    } with {
-        Raise.raise(e), k -> {
-            perform Raise.raise("from arm") // 目标是外层 handler
-        }
-    }
-} with {
-    Raise.raise(e) -> println(e)
-}
-```
-
-### 7.2 Continuation 与动态上下文
-
-Continuation 捕获 suspend 点的动态 effect context。调用 `k.resume(...)` 时：
-
-- 恢复后的 computation 在 captured context 下运行。
-- 即使从另一 OS 线程 resume，也不使用该线程当时的 ambient handler 栈。
-- 当恢复进入同一 handler 的 arm body 时，该 handler 对自己的 arm body 仍按 “inactive” 规则处理。
-
-实现可用显式 context 对象、continuation-owned state machine 或其它私有机制；这些不改变语言语义。
-
-## 8. Handler 的 finally
+## 7. Handler 的 finally
 
 `handle` 可带 `finally`：
 
@@ -323,7 +270,7 @@ handle {
 - 如果 `finally` 自身执行效果或 raise，其 required effects 按普通规则进入外层上下文。
 - Continuation resume 和再次 suspend 必须保持 cleanup 正确执行；具体 state machine 是实现细节。
 
-## 9. `try` / `catch` / `finally`
+## 8. `try` / `catch` / `finally`
 
 `try` 是 `Raise` effect 的语法糖：
 
@@ -360,7 +307,7 @@ handle {
 - `finally` 可选。
 - `try` 表达式类型由 try body 和 catch body 的 LUB 决定，再考虑 `finally` 的控制流。
 
-## 10. RuntimeError
+## 9. RuntimeError
 
 部分语言结构可在运行期失败，统一用 `Raise<RuntimeError>` 表达：
 
@@ -381,7 +328,7 @@ enum RuntimeError {
 
 `panic(message: String): Nothing` 可作为不可恢复 trap；它不替代上述可表达为 effect 的运行期错误。
 
-## 11. Async / structured concurrency surface（当前未定义）
+## 10. Async / structured concurrency surface（当前未定义）
 
 当前版本不定义内建 task runtime surface，也不定义 `async` / `await` 语法、用户可见 `spawn` / `join` 语法或公共 executor API。
 
@@ -395,7 +342,7 @@ enum RuntimeError {
 
 这些能力在当前仓库中只保留为历史设计背景，见根目录 `ASYNC_REFACTOR.md` 与 `SCOOP_FULL_SPEC.md` 的相关说明。
 
-## 12. Generator / Yield 风格
+## 11. Generator / Yield 风格
 
 语言不提供专用 generator 语法；可用 resuming handler 建模：
 
@@ -427,7 +374,7 @@ handle {
 
 序列类型和集合接口属于标准库范围。
 
-## 13. Required effect 推断
+## 12. Required effect 推断
 
 每个表达式有 required effect row。
 
@@ -441,14 +388,14 @@ handle {
 - Handler arm body 中执行的效果贡献到外层上下文，因为 arm body 不在该 handler 自己的 dispatch scope 内。
 - `finally` 中执行的效果贡献到外层上下文。
 
-### 13.1 Lambda effect 推断
+### 12.1 Lambda effect 推断
 
 Lambda 的 effect row：
 
 - 有期望函数类型时，检查 body required effects `R_body ⊆ R_expected`。
 - 无期望 row 时，推断为 body 中所有未处理效果的最小 row。
 
-### 13.2 Effect row 实参推断
+### 12.2 Effect row 实参推断
 
 当函数参数类型含 row 变量：
 
@@ -458,7 +405,7 @@ fun <T, eff E> run(block: () -> T / E): T / E
 
 调用时 `E` 可由 lambda body required effects 推断。推断也会使用 nominal 类型中的 `eff` 实参约束。
 
-### 13.3 函数 effect 检查
+### 12.3 函数 effect 检查
 
 对显式 row `R_decl`：
 
@@ -506,7 +453,7 @@ fun noEffect(): Unit / Raise<String> {
 }
 ```
 
-## 14. 程序边界与 Entry Point
+## 13. 程序边界与 Entry Point
 
 Entry point 是由运行时直接调用、没有显式用户调用点的函数。独立可执行程序通常使用 `main`。
 
@@ -546,4 +493,3 @@ fun main(): Int {
 - `args` 携带原生可执行程序 argv。
 - 包含 `argv[0]`，即可执行文件名/路径。
 - 这不是 Kotlin/Java 只暴露用户参数的约定。
-- 没有单独语言级 `process.args()` API。

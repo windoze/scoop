@@ -1,1004 +1,696 @@
-# TODO（closure capture 语义修正 + sealed interface + shared-state primitives）
+# TODO（UnsupportedMainBody 收口计划，doc-and-test only）
 
 > 生成时间：2026-05-18  
-> 设计基线：[`CLOSURE_FIX.md`](./CLOSURE_FIX.md)  
+> 设计基线：[`UnsupportedMainBody_FIX.md`](./UnsupportedMainBody_FIX.md)  
 > 计划基线：[`PLAN.md`](./PLAN.md)  
-> 格式参考：[`docs/archive/plans/TODO-stable-id.md`](./docs/archive/plans/TODO-stable-id.md)  
-> 当前状态：C4-T01D 已完成
-> 执行原则：C0 必须最先完成；C1/C3 与 C2 两条实现线可按依赖并行，但单个任务完成时不得留下仓库内 failing fixture；每个任务完成后必须回写“完成记录”。
+> 格式参考：[`docs/archive/plans/TODO-closure-fix.md`](./docs/archive/plans/TODO-closure-fix.md)  
+> 当前状态：待开始  
+> 执行原则：U0 必须最先完成；U1 → U2 → U3 严格串行；U4 与 U5 可在 U2/U3 稳定后并行，但 U5 的 negative fixture 必须引用 U4 已写明的 upstream gate；U6 必须最后完成。每个任务完成后必须回写“完成记录”。
 
 ## 全局约束
 
-- [`CLOSURE_FIX.md`](./CLOSURE_FIX.md) 是本轮唯一设计基线；[`PLAN.md`](./PLAN.md) 是本轮唯一计划基线。若实现过程中要改变 closure capture 语义、`sealed interface` 边界或 Atomic API 形态，必须先更新设计/计划文档，再继续编码。
-- closure capture 最终语义必须保持：构造点 by-value snapshot；value type 复制值；ref type 复制 managed pointer；closure env 构造后不可变；lambda 内 captured 名字等价于本次 call frame 的局部变量。
-- 外层 `val x` 捕获到 lambda 内是 immutable local；外层 `var x` 捕获到 lambda 内是 mutable local；lambda 内 rebind 只写本次调用 frame，不影响外层，也不在多次调用之间持久。
-- Scoop 不做 Kotlin 式隐式 boxing。需要与外层共享 mutable 状态或让 closure 实例持有跨调用状态时，用户必须显式使用 `RefCell<T>` / `Atomic<...>` 等库类型。
-- 删除 CaptureBox 时必须删除整套后门：`Rvalue::CaptureBoxNew/Get/Set`、`MirTransportKind::CaptureBox`、`CaptureBoxTransportMetadata`、`scoop.__CaptureBox`、`mir_capture_box_type_desc`、`rt_alloc_pass_mir_capture_box` 以及所有对应 dump/test 断言。
-- 必须保留 HIR `Capture.mutable` 字段（`crates/scoopc/src/hir/mod.rs:573-578`）。它不再表示“需要隐式 box”，而是传递外层 binding mutability，供 closure body codegen 把 env-load 后的本地 alloca 标记为可 rebind。
-- `sealed interface` 是独立 marker 构造，与普通 `interface` 正交。body 必须为空；起步只允许 sysroot 定义；只能作为 generic bound；不允许 runtime type test/cast、binding/param/return type、type argument 或显式实现。
-- `AnyRef` / `AnyValue` 是互斥 marker。`class` 自动满足 `AnyRef`；`struct` / `tuple` / `enum` / 内建标量自动满足 `AnyValue`；marker 登记只进入编译期 metadata，不进入 instance layout、itable、vtable 或 type descriptor。
-- `sealed interface` 之间允许继承，但只能继承其它 sealed interface；必须在登记阶段计算传递闭包，并在定义点拒绝循环、非 sealed supertype、同时继承互斥 marker。
-- `RefCell<T>` / `Box<T>` 是普通 sysroot class，T 无 bound。`AtomicInt` / `AtomicBool` / `Atomic<T: AnyRef>` / `AtomicValue<T: AnyValue>` 是用户可见库类型；`AtomicValue<T>::cas` 的 expected 必须是 `Box<T>`，不是 `T`。
-- 仓库尚无发布版本，本轮不添加 backward compatibility 分支；旧 MIR variant、旧 descriptor、旧 fixture expect 可以直接删除/刷新。
-- 任何任务如果新增或修改 `SCOOP_FULL_SPEC.md` 里的 fixture code block，必须运行 `cargo run -p scoop_tools -- spec-fixtures sync`，然后运行 `cargo run -p scoop_tools -- spec-fixtures check`。
-- 每个任务完成后必须回写：改动范围、核心决策、验证结果、与 `PLAN.md` / `CLOSURE_FIX.md` 闭合的目标或验收项。
+- [`UnsupportedMainBody_FIX.md`](./UnsupportedMainBody_FIX.md) 是本轮唯一设计基线；[`PLAN.md`](./PLAN.md) 是本轮唯一执行计划基线。若要改变 bucket 编号、inventory schema、fixture 头部规范、P1-P6 范围或 doc-and-test only 边界，必须先更新这两个基线文档，再继续执行任务。
+- 本计划是 **doc-and-test only**。允许产出 `.md`、`.scoop` fixture、`.stdout` / `.stderr` golden、`.csv` / `.json` inventory 数据、`#[cfg(test)]` audit 单元测试，以及 fixture runner / audit CLI 这类 test infrastructure。禁止在本计划内修 production LLVM codegen 的 `UnsupportedMainBody` 站点。
+- 每一处 `LlvmEmitError::UnsupportedMainBody` 必须在 `audit/UMB_inventory.csv` 中拿到稳定 `UMB-NNNN` ID、唯一 bucket、`expected_class`、`spec_anchor`（helper invariant 除外）和 `upstream_gate`（B 类必须填实）。禁止 `bucket=TBD`、`expected_class=TBD` 合入。
+- `expected_class` 只能是 `FrontendReject`、`InternalBugSentinel`、`RealImpl`，D 类 spec 缺口可在 bucket 文档中标 `D-pending`，但 CSV 中仍需明确当前治理路径。
+- 不允许“兜底报错”继续扩散。执行本 TODO 时不得新增 `UnsupportedMainBody { kind: ... }` 站点，不得在 fixture 的 `EXPECT-ERROR` 文案中出现 `后端`、`backend`、`LLVM`、`codegen`、`UnsupportedMainBody`。
+- 仓库内不得留下 failing fixture。`tests/fixtures/umb_fix/**` 的 fixture 要么 active 并通过，要么显式标记 `IGNORE-UNTIL-FIX:B-XX` / `ignore-until-fix:B-XX` 并由 runner 自动 skip / xfail。若现有 runner 不支持该标记，U5-T01 必须先补 test infrastructure。
+- `crates/scoopc/src/audit/` 必须受 `#[cfg(test)]` 限定，不得进入 production codegen 链路。若改成独立 crate，必须是 workspace dev-dependency only。
+- `audit/` 是仓库根文档和数据目录；`crates/scoopc/src/audit/` 是 Rust test module。两者不要混用。
+- 每个任务完成后必须回写：改动范围、核心决策、验证结果、与 `PLAN.md` / `UnsupportedMainBody_FIX.md` 闭合的目标或验收项。
+
+## 已知基线漂移风险
+
+- `PLAN.md:23-35` 与 `UnsupportedMainBody_FIX.md:19-29` 记录的设计基线是：`UnsupportedMainBody {` 在 `crates/scoopc/src/llvm/codegen/` 下 1,277 处、60 个文件、964 个不同 `kind:` 标签、825 个单次出现标签，`STALE_UNSUPPORTED_MAIN_BODY_COUNTS` 为 637。
+- 本 TODO 生成时，粗粒度命令 `rg -n 'UnsupportedMainBody \{' crates/scoopc/src/llvm/codegen | wc -l` 观察到 1,284 处，`rg -l ... | wc -l` 观察到 61 个文件。
+- 当前 `crates/scoopc/src/pipeline_user_visible_failure_policy.rs:739-760` 的冻结测试断言 `total == 638`，不是 `PLAN.md` 里写的 637。
+- U0-T01 必须把这些数字逐项复算并决定：如果当前源码确已漂移，就同步更新 `PLAN.md` / `UnsupportedMainBody_FIX.md` 的基线；如果只是统计口径不同，就在 U0 完成记录中写明精确口径，并让 U1 脚本采用该口径。
 
 ## 固定定位清单
 
-### Frontend / Typecheck 入口
+### 设计与计划文件
 
-- `crates/scoopc/src/ast/mod.rs:554-569`：`Modifier::Sealed` 已存在；无需新增 keyword，只需在 typecheck 识别 `sealed interface`。
-- `crates/scoopc/src/parser/decls.rs:94-103`：`parse_decl_prefix` 已把 `sealed` 解析为 modifier。
-- `crates/scoopc/src/parser/decls.rs:1344-1406`：`parse_type_decl` 已能解析 `interface` 与 `: supertype` 列表；`sealed interface I : J, K` 语法应主要复用这里。
-- `crates/scoopc/src/parser/cursor.rs:549,568`：`Keyword::Sealed` / `Keyword::Interface` 已是 keyword（见 `PLAN.md` §1.3）。
-- `crates/scoopc/src/source.rs:13-17,35-37,86-94`：`SourceOrigin::Sysroot` / `SourceFile::is_sysroot()` 可用于 sealed interface “sysroot only” gate。
-- `crates/scoopc/src/resolve/mod.rs:238-257`：`ModifierSet` 已记录 `sealed`，resolver symbol 上已有 modifier 位。
-- `crates/scoopc/src/resolve/mod.rs:1699-1772`：`check_file_headers` 解析 type/header/signature type refs；适合放 early 语义 gate 的前置解析配合。
-- `crates/scoopc/src/resolve/scopes.rs:178-293`：type body 中成员解析；如 sealed interface body 非空需要在 typecheck 侧拒绝，不要只靠 resolver。
-- `crates/scoopc/src/typecheck/type_env.rs:132-183`：`TypeSymbol` 当前记录 nominal kind、type params、where constraints、decl_file；sealed marker metadata 可在这里扩展或建立并行表。
-- `crates/scoopc/src/typecheck/type_env.rs:481-492`：已有 direct supertypes 查询 API。
-- `crates/scoopc/src/typecheck/type_env.rs:673-785`：`collect_type_decl` 收集 nominal type、where constraints、direct supertypes；sealed marker 识别、sysroot-only 记录、super marker 边表可从这里接入。
-- `crates/scoopc/src/typecheck/lower.rs:43-233`：`TypeLowerError` 诊断 enum；新增 bound-only / sealed marker misuse 错误码可放这里或新增专用 error enum 后接入 pipeline。
-- `crates/scoopc/src/typecheck/lower.rs:2240-2399` 与 `3120-3219`：名义类型 lowering；当前普通 `interface` 会降为 `TypeKind::Ref(RefTypeKind::Nominal(...))`。sealed marker 非 bound 用法必须在这些路径或调用方上游拒绝，避免被降成 runtime ref type。
-- `crates/scoopc/src/typecheck/lower.rs:2403-2462`：where constraint 满足性检查；`AnyRef` / `AnyValue` bound 查询应接入这里或同一层级的 bound checking。
-- `crates/scoopc/src/typecheck/interfaces.rs:29-92`：现有 interface 诊断；新增 sealed interface supertype / explicit implementation reject 可扩展这里或拆新模块。
-- `crates/scoopc/src/typecheck/interfaces.rs:119-263`：当前 `interface` 只检查 supertypes 都是 interface；sealed interface 需要覆盖“只能继承 sealed interface”的更严格规则。
-- `crates/scoopc/src/typecheck/expr/infer.rs:187-246`：`as` / `as?` / `is` expression typecheck 入口；sealed marker runtime cast/test reject 要在这里或调用 helper 中落地。
-- `crates/scoopc/src/typecheck/when_pat.rs:303-341`：`when (x) { is T -> ... }` target 检查；sealed marker `is AnyRef` / `is AnyValue` reject 要覆盖这里。
-- `crates/scoopc/src/typecheck/expr/error.rs:660-700,977-999`：泛型约束与 runtime cast/test 相关诊断已有样式；新增 sealed marker 诊断使用 `scoop::typecheck::sealed_interface_*` 前缀。
-- `crates/scoopc/src/pipeline_user_visible_failure_policy.rs:390-426`：`FRONTEND_REJECT_SURFACES` 当前只登记 5 类 frontend reject；C4/C5 需登记 sealed-interface 新增 rejects。
+- `UnsupportedMainBody_FIX.md:1-13`：本轮终态目标与 doc-and-test only 范围。
+- `UnsupportedMainBody_FIX.md:31-49`：三类治理路径与禁止“兜底报错”的硬约束。
+- `UnsupportedMainBody_FIX.md:83-133`：P1 inventory 目标、产出位置与 CSV schema。
+- `UnsupportedMainBody_FIX.md:136-210`：P2 bucket 分类和每个 bucket 文档必须包含的七段。
+- `UnsupportedMainBody_FIX.md:214-266`：P3 spec 覆盖矩阵要求。
+- `UnsupportedMainBody_FIX.md:269-337`：P4 修复策略模板与 A/B/C/D 类特殊规则。
+- `UnsupportedMainBody_FIX.md:340-509`：P5 fixture 目录、`_index.csv` schema、fixture 头部规范、48 条 spec-driven fixture 与第 49 条 bucket-driven 对账要求。
+- `UnsupportedMainBody_FIX.md:512-544`：P6 10 条 baseline test。
+- `UnsupportedMainBody_FIX.md:548-571`：本计划阶段必须交付的文件总清单。
+- `UnsupportedMainBody_FIX.md:575-599`：P7/P8 后续退场标准，本 TODO 不实现 production 修复，只给后续计划留可验证输入。
+- `UnsupportedMainBody_FIX.md:638-649`：本计划自身退场条件。
+- `PLAN.md:9-20`：工作原则，尤其 doc-and-test only、inventory 唯一真值、无临时 failing fixture、`crates/scoopc/src/audit/` 必须 `#[cfg(test)]`。
+- `PLAN.md:21-72`：当前判断、基线表、既有资产和 36 个 bucket 候选概览。
+- `PLAN.md:73-85`：设计目标。
+- `PLAN.md:86-132`：inventory schema、bucket 编号、fixture 命名约束。
+- `PLAN.md:134-151`：10 条 baseline test 名称与不变量。
+- `PLAN.md:153-176`：U0-U6 顺序总览与依赖。
+- `PLAN.md:178-408`：各任务详细计划，本文 TODO 按该段拆解。
+- `PLAN.md:410-425`：本计划退场判据。
+- `PLAN.md:427-460`：兼容性、迁移影响、风险与对策。
 
-### Closure / CaptureBox 入口
+### 错误定义、现有审计与冻结基线
 
-- `crates/scoopc/src/hir/mod.rs:565-578`：`Capture { mutable }` 必须保留，但注释需要从“box 实现别名语义”改为“传递外层 mutability 给 per-call local”。
-- `crates/scoopc/src/hir/lower/util/closures.rs:7-36`：`compute_closure_captures` 从 `local_mutability` 写入 `Capture.mutable`；逻辑应保留。
-- `crates/scoopc/src/hir/lower/util/closures.rs:227-241`：收集 local capture 初值 `mutable: false`，随后统一补 mutability；逻辑应保留。
-- `crates/scoopc/src/mir/lower/post_helpers.rs:93-233`：`boxed_symbols_in_block/expr` 当前专为 nested mutable capture 隐式 boxing 服务；删除 CaptureBox 后应删除或改名为不再服务 box 的逻辑。
-- `crates/scoopc/src/mir/lower/fn_lowering_basic.rs:705-731`：外层 `var` 被 capture 时改写为 `CaptureBoxNew`；必须删掉，改回普通 local alloca。
-- `crates/scoopc/src/mir/lower/fn_lowering_basic.rs:791-804`：对 boxed symbol 的赋值改写为 `CaptureBoxSet`；必须删掉，改为普通 `assign_use_to_local`。
-- `crates/scoopc/src/mir/lower/fn_lowering_call.rs:610-624`：`capture_box_contract`；删除。
-- `crates/scoopc/src/mir/lower/fn_lowering_call.rs:626-660`：`closure_env_contract` 对 `capture.mutable` 使用 `MirTransportKind::CaptureBox`；必须改成所有 capture 都使用 `transport_kind_for_ty(capture.ty)` + closure capture boxing metadata。
-- `crates/scoopc/src/mir/lower/fn_lowering_effect.rs:137-144`：`capture_box_ty` 构造 `scoop.__CaptureBox<T>`；删除。
-- `crates/scoopc/src/mir/lower/fn_lowering_effect.rs:1060-1099`：`lower_var_ref` 对 boxed symbol 生成 `CaptureBoxGet`；删除，普通 local 直接返回。
-- `crates/scoopc/src/mir/lower/fn_lowering_effect.rs:1242-1286`：closure fun lowering 当前把 mutable capture 重新塞进 `boxed_symbols`；删除该行为，捕获字段 TupleGet 后 local 应是普通可写 local。
-- `crates/scoopc/src/llvm/codegen/closure/mod.rs:97-101`：当前拒绝 mutable capture；修复后该 guard 不应拒绝合法输入。可删除 guard，或改成内部 bug sentinel（若保留 unreachable，须登记到 `INTERNAL_BUG_SENTINEL_HITS`）。
-- `crates/scoopc/src/llvm/codegen/closure/mod.rs:625-678`：inner-side capture binding 已是“env field load -> entry alloca”；`mutable: false` 必须改为 `mutable: cap.mutable`。
-- `crates/scoopc/src/llvm/codegen/effect_lowered/value.rs:107-148`：effect-lowered Rvalue CaptureBox 分支；删除并同步 per-call local 语义。
+- `crates/scoopc/src/llvm/mod.rs:161-169`：`LlvmEmitError::UnsupportedMainBody { kind, at }` 定义，诊断码 `scoop::llvm::unsupported_main_body`。
+- `crates/scoopc/src/pipeline_user_visible_failure_policy.rs:11-91`：`FAILURE_POLICY_AUDIT_FILES`，当前 failure policy 审计根集合。U6 的 audit 测试可以复用这些路径，也可以明确说明为何使用更宽的 `crates/scoopc/src/llvm/codegen/**`。
+- `crates/scoopc/src/pipeline_user_visible_failure_policy.rs:93-103`：`FAILURE_KEYWORDS` 与 `FRONTEND_REJECT_FORBIDDEN_TERMS`。U5/U6 禁词测试必须复用或复制同一组禁词。
+- `crates/scoopc/src/pipeline_user_visible_failure_policy.rs:141-311`：`STALE_UNSUPPORTED_MAIN_BODY_COUNTS`。当前 listed production source 总数为 638（见同文件 `assert_eq!(total, 638)`）。
+- `crates/scoopc/src/pipeline_user_visible_failure_policy.rs:510-602`：当前已冻结的 frontend reject surfaces，包含上一轮 sealed interface gate。新增 UMB negative fixture 不应把错误文案写成 backend unsupported。
+- `crates/scoopc/src/pipeline_user_visible_failure_policy.rs:604-657`：当前 stale unsupported marker 空表、post-upstream guards 和 internal bug sentinel hits。
+- `crates/scoopc/src/pipeline_user_visible_failure_policy.rs:659-812`：现有 failure policy audit tests，可作为 U6 baseline test 的风格参考。
+- `crates/scoopc/src/llvm/codegen_gap_inventory.rs:1-35`：现有 codegen-stage gap inventory 数据结构。
+- `crates/scoopc/src/llvm/codegen_gap_inventory.rs:51-241`：当前 `CODEGEN_GAP_INVENTORY` 21 entries。U1/U2 必须与新的 `audit/UMB_inventory.csv` 做交叉引用，不要把这个旧表当全量 inventory。
+- `docs/archive/designs/PIPELINE_GAPS.md`：历史 gap ledger，本轮只引用；P8 退场后才追加终态段落。
 
-### CaptureBox 当前命中快照
+### 需要新增或填充的目标路径
 
-以下为本文件生成时 `rg -c "CaptureBox|capture_box|mir_capture_box|__CaptureBox" crates/scoopc/src tests/fixtures sysroot` 的关键结果。C2 完成后，`crates/scoopc/src` 中这些命中应为 0，除非完成记录明确说明某个旧名字只保留在历史文档或迁移注释中。
+- `audit/`：仓库根数据目录，目前不存在。U0 只创建空目录和 `.gitkeep`；U1 开始放真实产出。
+- `audit/_baseline_files.txt`：U0 产出，记录当前命中 `UnsupportedMainBody` 的 codegen 文件清单和粗分组。
+- `audit/_baseline_sampling.md`：U0 产出，记录 10 个抽样 entry 的 root cause 预演；U1 完成后可归档。
+- `audit/UMB_inventory.csv`：U1 主表。
+- `audit/UMB_inventory_schema.md`：U1 schema 文档。
+- `audit/UMB_categories/_overview.md`：U2 bucket 总览。
+- `audit/UMB_categories/B-01.md` 到 `audit/UMB_categories/B-36.md`：U2 bucket 文档。
+- `audit/spec_coverage_matrix.md`：U3 spec 覆盖矩阵。
+- `audit/strategies/B-01.md` 到 `audit/strategies/B-36.md`：U4 修复策略草案。
+- `tests/fixtures/umb_fix/_index.csv`：U5 fixture index。
+- `tests/fixtures/umb_fix/B-01-builder-invariant/` 到 `tests/fixtures/umb_fix/B-36-<slug>/`：U5 fixture 目录。
+- `crates/scoopc/src/audit/umb_inventory.rs`：U6 测试 #1-#4；若 U1 就写入，必须确保 `#[cfg(test)]`。
+- `crates/scoopc/src/audit/sentinel_tests.rs`：U6 测试 #10。
+- `crates/scoopc/src/audit/spec_coverage.rs`：U6 测试 #5-#9。
+- `UnsupportedMainBody_DONE.md`：U6-T02 退场占位文件。
 
-| 路径 | 当前命中数 | 处理方向 |
-|---|---:|---|
-| `crates/scoopc/src/mir/mod.rs` | 13 | 删除 Rvalue variants 与 validate arm |
-| `crates/scoopc/src/mir/transport.rs` | 2 | 删除 transport kind 与 metadata |
-| `crates/scoopc/src/mir/lower/mod.rs` | 1 | 删除 import/field 依赖 |
-| `crates/scoopc/src/mir/lower/entry.rs` | 1 | 删除 `CAPTURE_BOX_FQN` |
-| `crates/scoopc/src/mir/lower/fn_lowering_basic.rs` | 5 | 删除 outer local boxing 与 assignment rewrite |
-| `crates/scoopc/src/mir/lower/fn_lowering_call.rs` | 4 | 删除 capture_box_contract 与 CaptureBox env transport |
-| `crates/scoopc/src/mir/lower/fn_lowering_effect.rs` | 4 | 删除 `capture_box_ty` / get path / closure-fun boxed capture path |
-| `crates/scoopc/src/mir/lower/post_helpers.rs` | 46 | 删除/重写 boxed_symbols collector |
-| `crates/scoopc/src/mir/closure_simplify.rs` | 3 | 删除 CaptureBox arm |
-| `crates/scoopc/src/mir/escape.rs` | 3 | 删除 CaptureBox arm |
-| `crates/scoopc/src/mir/inline.rs` | 15 | 删除 CaptureBox clone/rewrite arm |
-| `crates/scoopc/src/mir/summary.rs` | 8 | 删除 CaptureBox summary arm |
-| `crates/scoopc/src/mir/dump.rs` | 16 | 删除 CaptureBox dump text |
-| `crates/scoopc/src/mir/materialize/mod.rs` | 1 | 删除 metadata import |
-| `crates/scoopc/src/mir/materialize/rewrite.rs` | 8 | 删除 rewrite_capture_box_contract |
-| `crates/scoopc/src/mir/materialize/validation.rs` | 8 | 删除 validate_materialized_capture_box_contract |
-| `crates/scoopc/src/mir/materialize/utils.rs` | 3 | 删除 helper |
-| `crates/scoopc/src/effect_facts/builder.rs` | 6 | 删除 CaptureBox fact handling |
-| `crates/scoopc/src/effect_lowered/frame.rs` | 3 | 删除 CaptureBox frame metadata |
-| `crates/scoopc/src/effect_lowered/segment.rs` | 3 | 删除 CaptureBox segment metadata |
-| `crates/scoopc/src/effect_lowered/materialize/classification.rs` | 6 | 删除 CaptureBox classification |
-| `crates/scoopc/src/llvm/reachability.rs` | 9 | 删除 CaptureBox reachability handling |
-| `crates/scoopc/src/llvm/codegen/composite_transport.rs` | 12 | 删除 CaptureBox transport verification/gap |
-| `crates/scoopc/src/llvm/codegen/effect_lowered/value.rs` | 3 | 删除 effect-lowered Rvalue lowering |
-| `crates/scoopc/src/llvm/codegen/mir_body/aggregates.rs` | 24 | 删除 MIR capture box allocation/get/set codegen |
-| `crates/scoopc/src/llvm/codegen/mir_body/mod.rs` | 4 | 删除 dispatch to capture box codegen |
-| `crates/scoopc/src/llvm/codegen/mir_body/operand.rs` | 5 | 删除 operand special casing |
-| `crates/scoopc/src/llvm/codegen/mir_body/terminator.rs` | 12 | 删除 call entries expecting capture boxes |
-| `crates/scoopc/src/llvm/codegen/mir_body/value_args.rs` | 5 | 删除 `mir_capture_box_type_desc` descriptor helper |
-| `crates/scoopc/src/pipeline/mir_stage.rs` | 14 | 更新 tests/assertions that expect CaptureBox |
-| `crates/scoopc/src/pipeline/llvm_codegen_stage.rs` | 4 | 更新 LLVM pipeline tests expecting capture box alloc/type desc |
-| `crates/scoopc/src/stable_id.rs` | 2 | 删除只服务 capture-box descriptor 的 stable-id role，如无其它引用 |
+### Rust module / bin 接入点
 
-受 CaptureBox 删除影响的 fixture snapshot：
+- `crates/scoopc/src/lib.rs:53-57`：当前已有 `#[cfg(test)] mod pipeline_gap_audit;` 与 `#[cfg(test)] mod pipeline_user_visible_failure_policy;`。新增 `audit` module 时应放在这里附近，并保持 `#[cfg(test)]`。
+- `crates/scoopc/Cargo.toml:27-30`：当前只有 `[[bin]] name = "scoopc"`。若实现 `cargo run -p scoopc --bin umb-audit -- list/diff/stats`，需新增 `[[bin]]`，并明确它是 audit/test-only 工具；若选择独立 `crates/scoopc-audit/`，必须 workspace dev-only 并在完成记录写明原因。
+- `crates/scoopc/src/bin/scoopc.rs`：现有 compiler bin，不要把 `umb-audit` 子命令混入 production `scoopc` CLI，除非文档明确说明它不参与 codegen 链路。
 
-- `tests/fixtures/mir/closure_capture_var.mir`
-- `tests/fixtures/mir/closure_capture_var.actual.mir`
-- `tests/fixtures/mir/closure_capture_var.actual.raw.mir`
-- `tests/fixtures/mir_lowered/aggregate_transport.mir`
-- `tests/fixtures/mir_lowered/aggregate_transport.actual.mir`
-- `tests/fixtures/mir_lowered/aggregate_transport.actual.raw.mir`
-- `tests/fixtures/mir_lowered/assignment_places.mir`
-- `tests/fixtures/mir_lowered/assignment_places.actual.mir`
-- `tests/fixtures/mir_lowered/assignment_places.actual.raw.mir`
+### Fixture runner 和 expectation 现状
 
-Closure 相关运行/GC fixture 必须保留并回归：
+- `crates/scoop/src/fixtures/mod.rs:1-37`：当前 fixture phase 路由说明。一级目录 `tests/fixtures/umb_fix/` 目前会被识别为 phase 但没有实现，U5-T01 必须决定是新增 phase、映射到现有 phase，还是让 audit tests 直接扫描 `_index.csv`。
+- `crates/scoop/src/fixtures/mod.rs:158-260`：`plan_targets` 会递归收集 `.scoop` 文件，并跳过 multi/cone 特殊目录。U5-T01 若新增 `umb_fix` 目录，要避免它被“未知 phase”误跑失败。
+- `crates/scoop/src/fixtures/mod.rs:430-559`：run_pass_cone 处理 `EXPECT: pass/fail` 的方式，可参考其 “fail 仍走内部 build 并断言稳定错误码” 逻辑。
+- `crates/scoop/src/fixtures/mod.rs:3001-3033`：`assert_diagnostic_matches` 支持 `EXPECT-ERROR-CODE`、`EXPECT-ERROR-AT`、`EXPECT-ERROR`。
+- `crates/scoop/src/fixtures/expectations.rs:1-28`：目前支持的 fixture 头部指令。当前没有 `IGNORE-UNTIL-FIX` / `ignore-until-fix` 支持。
+- `crates/scoop/src/fixtures/expectations.rs:62-233`：`FixtureExpectation::from_source` 只扫描文件头前 32 行注释。U5 新增 `COVERS`、`BUCKETS`、`SPEC`、`REASON`、`IGNORE-UNTIL-FIX` 时要么扩展 parser，要么由 U6 audit scanner 单独解析。
+- 当前全仓 `rg -n "IGNORE-UNTIL-FIX|ignore-until-fix"` 只在 `PLAN.md` 与 `UnsupportedMainBody_FIX.md` 中命中，runner 尚未支持该机制。
 
-- `tests/fixtures/run-pass/closure_env_composite_capture_basic.scoop`
-- `tests/fixtures/runtime_gc/gc_trace_closure_capture_string_basic.scoop`
-- `tests/fixtures/runtime_gc/gc_move_enum_maybe_ref_closure_capture_basic.scoop`
-- `tests/fixtures/run-pass/effect_indirect_perform_materialized_mir_closure_basic.scoop`
-- `tests/fixtures/run-pass/effect_indirect_perform_nonresuming_closure.scoop`
-- `tests/fixtures/run-pass/effect_escape_continuation_indirect_perform_closure.scoop`
-- `tests/fixtures/run-pass/effect_escape_continuation_indirect_perform_closure_locals.scoop`
-- `tests/fixtures/run-pass/effect_escape_continuation_indirect_perform_closure_tail_return_string.scoop`
-- `tests/fixtures/build/safepoint_non_escaping_closure_basic.scoop`
+### Spec 与既有 fixture 位置
 
-### Atomic / GC Barrier 当前入口
+- `docs/spec/language_spec-part1.md` 到 `docs/spec/language_spec-part6.md`：U3 spec 覆盖矩阵唯一规范来源。
+- `tests/fixtures/parse/**`：parse phase。
+- `tests/fixtures/resolve/**`、`tests/fixtures/resolve_multi/**`、`tests/fixtures/resolve_cone/**`：resolve phase。
+- `tests/fixtures/typecheck/**`、`tests/fixtures/typecheck_multi/**`、`tests/fixtures/typecheck_cone/**`、`tests/fixtures/typecheck_cone_archive/**`、`tests/fixtures/unsafe_nogc/**`：typecheck / unsafe gate phase。
+- `tests/fixtures/infer/**`：infer phase。
+- `tests/fixtures/comptime/**`：const/comptime phase。
+- `tests/fixtures/build/**`：build phase，可用 `BUILD-LLVM-CONTAINS` / `BUILD-LLVM-NOT-CONTAINS`。
+- `tests/fixtures/run-pass/**`、`tests/fixtures/codegen/**`、`tests/fixtures/runtime_gc/**`、`tests/fixtures/run_pass_cone/**`：run-pass / executable phase。
+- `tests/fixtures/hir/**`、`tests/fixtures/mir/**`、`tests/fixtures/mir_lowered/**`、`tests/fixtures/effect_facts/**`、`tests/fixtures/effect_lowered/**`、`tests/fixtures/scoopir/**`：dump / golden phase。
 
-- `sysroot/scoop.unsafe/unsafe.scoop:151-175`：当前只有内部 `__AtomicInt` typealias 与 `__atomicIntLoad/Store/CompareExchange` 三个 intrinsic，memory order 固定 SeqCst。
-- `crates/scoopc/src/typecheck/lower.rs:2264-2278,3133-3143`：`scoop.unsafe.__AtomicInt` 在 type lowering 中等同 `Int`。
-- `crates/scoopc/src/hir/lower/main/impl_lowering.rs:1819-1820` 与 `crates/scoopc/src/hir/lower/util/generic_layouts.rs:70-78`：HIR/layout lowering 同样把 `__AtomicInt` 当作 `Int`。
-- `crates/scoopc/src/llvm/codegen/intrinsics/atomic.rs:14-338`：direct HIR LLVM lowering 的 atomic-int intrinsic 实现。
-- `crates/scoopc/src/llvm/codegen/main/call.rs:20-166`：atomic intrinsic lvalue address extraction；支持 local、top-level var、class field、struct field。
-- `crates/scoopc/src/llvm/codegen/effect_lowered/value.rs:2218-2345`：effect-lowered atomic-int intrinsic 实现。
-- `crates/scoopc/src/llvm/codegen/call/lowering.rs:1594-1595`：atomic-int intrinsic dispatch 入口。
-- `crates/scoopc/src/llvm/codegen/gc.rs:2039-2070`：`store_gc_pointer_slot_with_write_barrier` helper；atomic-ref store/CAS 成功写入 ref 时需要遵守同一 GC barrier 语义。
-- `crates/scoopc/src/llvm/codegen/runtime_abi.rs:535-558`：runtime write barrier declaration，signature 为 `void* scoop_gc_write_barrier(void* slot_addr, void* value)`。
-- `runtime/c/scoop_gc_backend_immix.c:1879-1909`、`runtime/c/scoop_gc_backend_minimal.c:134`、`runtime/c/scoop_gc_backend_hosted.c:143`、`runtime/c/scoop_gc.c:236`：runtime barrier implementations。
-- 当前 `rg -n "__atomicRef|atomic_ref|AtomicRef|atomicRef" crates/scoopc/src sysroot runtime tests/fixtures` 无命中；`Atomic<T: AnyRef>` 需要新增 atomic-ref lowering 或明确用现有机制无法表达的 gap。
-- 现有 atomic fixtures：`tests/fixtures/run-pass/unsafe_atomic_int_basic.scoop`、`tests/fixtures/run-pass/unsafe_atomic_int_field_lvalue_basic.scoop`、`tests/fixtures/build/unsafe_atomic_int_top_level_storage_llvm.scoop`、`tests/fixtures/build/unsafe_atomic_int_field_lvalue_llvm.scoop`、`tests/fixtures/runtime_gc/gc_stw_cross_thread_roots_basic.scoop`。
+### 当前 `UnsupportedMainBody` 粗粒度命中快照
 
-### Sysroot 名字现状
+以下为本 TODO 生成时 `rg -c 'UnsupportedMainBody \{' crates/scoopc/src/llvm/codegen` 的输出。U1 的正式 inventory 必须用脚本重建并以 CSV 为准；此表只用于减少初始定位搜索。
 
-- `sysroot/scoop.core/core.scoop` 当前有 `Any`、`Hashable`、`ToString`、`String`、`Array<T>`、`MutableArray<T>`、`List<T>`、`MutableList<T>`、`Unit`、`Nothing`、标量整数/浮点/字符/布尔、`Option<T>`、`Continuation<...>`、`RuntimeError`、`Raise<...>` 等。
-- `sysroot/scoop.unsafe/unsafe.scoop` 当前有 `Ptr<T>`、`FunPtr<F>`、`__AtomicInt`。
-- sysroot 当前没有 `AnyRef`、`AnyValue`、`RefCell`、`Box`、`AtomicInt`、`AtomicBool`、`Atomic<T>`、`AtomicValue<T>` 同名声明。
-- fixtures 中有大量本地 `Box` 类型声明，这不阻塞 sysroot `scoop.core.Box`，但新增 fixture 要避免与本地 `Box` 重名导致诊断噪音。
+| 路径 | 当前命中数 |
+|---|---:|
+| `crates/scoopc/src/llvm/codegen/effect_lowered/value.rs` | 139 |
+| `crates/scoopc/src/llvm/codegen/effect_lowered/body/payload.rs` | 2 |
+| `crates/scoopc/src/llvm/codegen/effect_lowered/body/main_entry.rs` | 9 |
+| `crates/scoopc/src/llvm/codegen/effect_lowered/body/runtime_error.rs` | 3 |
+| `crates/scoopc/src/llvm/codegen/effect_lowered/body/main_carrier.rs` | 5 |
+| `crates/scoopc/src/llvm/codegen/effect_lowered/body/states.rs` | 5 |
+| `crates/scoopc/src/llvm/codegen/effect_lowered/body/call_invoke.rs` | 4 |
+| `crates/scoopc/src/llvm/codegen/effect_lowered/body/wrapper.rs` | 1 |
+| `crates/scoopc/src/llvm/codegen/effect_lowered/body/composed_call.rs` | 2 |
+| `crates/scoopc/src/llvm/codegen/layout.rs` | 19 |
+| `crates/scoopc/src/llvm/codegen/enum_lowering.rs` | 29 |
+| `crates/scoopc/src/llvm/codegen/ordinary_callee.rs` | 6 |
+| `crates/scoopc/src/llvm/codegen/class_ctor.rs` | 31 |
+| `crates/scoopc/src/llvm/codegen/stmt.rs` | 20 |
+| `crates/scoopc/src/llvm/codegen/object_init.rs` | 13 |
+| `crates/scoopc/src/llvm/codegen/gc.rs` | 70 |
+| `crates/scoopc/src/llvm/codegen/ty.rs` | 15 |
+| `crates/scoopc/src/llvm/codegen/intrinsics/sysroot.rs` | 16 |
+| `crates/scoopc/src/llvm/codegen/intrinsics/named.rs` | 55 |
+| `crates/scoopc/src/llvm/codegen/intrinsics/builtin.rs` | 58 |
+| `crates/scoopc/src/llvm/codegen/main/coerce.rs` | 31 |
+| `crates/scoopc/src/llvm/codegen/mir_body/const_pat.rs` | 38 |
+| `crates/scoopc/src/llvm/codegen/intrinsics/atomic.rs` | 51 |
+| `crates/scoopc/src/llvm/codegen/main/identity.rs` | 6 |
+| `crates/scoopc/src/llvm/codegen/control_flow.rs` | 78 |
+| `crates/scoopc/src/llvm/codegen/main/context.rs` | 4 |
+| `crates/scoopc/src/llvm/codegen/mir_body/args.rs` | 15 |
+| `crates/scoopc/src/llvm/codegen/intrinsics/sync.rs` | 53 |
+| `crates/scoopc/src/llvm/codegen/main/numeric.rs` | 2 |
+| `crates/scoopc/src/llvm/codegen/mir_body/transport.rs` | 10 |
+| `crates/scoopc/src/llvm/codegen/main/function.rs` | 3 |
+| `crates/scoopc/src/llvm/codegen/mir_body/string.rs` | 1 |
+| `crates/scoopc/src/llvm/codegen/main/expr_value.rs` | 19 |
+| `crates/scoopc/src/llvm/codegen/effect_outcome.rs` | 18 |
+| `crates/scoopc/src/llvm/codegen/main/declare.rs` | 8 |
+| `crates/scoopc/src/llvm/codegen/mir_body/value_args.rs` | 6 |
+| `crates/scoopc/src/llvm/codegen/mir_body/aggregates.rs` | 31 |
+| `crates/scoopc/src/llvm/codegen/main/boxing.rs` | 6 |
+| `crates/scoopc/src/llvm/codegen/intrinsics/thread.rs` | 18 |
+| `crates/scoopc/src/llvm/codegen/closure/mod.rs` | 24 |
+| `crates/scoopc/src/llvm/codegen/mir_body/callable_lookup.rs` | 21 |
+| `crates/scoopc/src/llvm/codegen/main/expr_op.rs` | 29 |
+| `crates/scoopc/src/llvm/codegen/main/gc_locals.rs` | 11 |
+| `crates/scoopc/src/llvm/codegen/main/literal.rs` | 4 |
+| `crates/scoopc/src/llvm/codegen/mir_body/mod.rs` | 7 |
+| `crates/scoopc/src/llvm/codegen/main/runtime_error.rs` | 4 |
+| `crates/scoopc/src/llvm/codegen/mir_body/terminator.rs` | 19 |
+| `crates/scoopc/src/llvm/codegen/main/alloca.rs` | 7 |
+| `crates/scoopc/src/llvm/codegen/mir_body/call.rs` | 28 |
+| `crates/scoopc/src/llvm/codegen/main/immut_value.rs` | 18 |
+| `crates/scoopc/src/llvm/codegen/main/call.rs` | 12 |
+| `crates/scoopc/src/llvm/codegen/expr.rs` | 11 |
+| `crates/scoopc/src/llvm/codegen/mir_body/types.rs` | 4 |
+| `crates/scoopc/src/llvm/codegen/main/globals.rs` | 11 |
+| `crates/scoopc/src/llvm/codegen/mir_body/dispatch.rs` | 16 |
+| `crates/scoopc/src/llvm/codegen/call/abi.rs` | 19 |
+| `crates/scoopc/src/llvm/codegen/main/frame.rs` | 12 |
+| `crates/scoopc/src/llvm/codegen/mir_body/cast.rs` | 28 |
+| `crates/scoopc/src/llvm/codegen/mir_body/operand.rs` | 8 |
+| `crates/scoopc/src/llvm/codegen/call/lowering.rs` | 41 |
+| `crates/scoopc/src/llvm/codegen/mir_body/member.rs` | 50 |
+
+### 当前 stale production count 快照
+
+以下来自 `crates/scoopc/src/pipeline_user_visible_failure_policy.rs:146-311`。该表统计 production source text 中的 `UnsupportedMainBody` 字符串，不等同于上面的全 codegen 粗粒度表。
+
+| 路径 | 冻结数 |
+|---|---:|
+| `crates/scoopc/src/llvm/codegen/mir_body/aggregates.rs` | 31 |
+| `crates/scoopc/src/llvm/codegen/mir_body/args.rs` | 15 |
+| `crates/scoopc/src/llvm/codegen/mir_body/call.rs` | 28 |
+| `crates/scoopc/src/llvm/codegen/mir_body/callable_lookup.rs` | 21 |
+| `crates/scoopc/src/llvm/codegen/mir_body/cast.rs` | 28 |
+| `crates/scoopc/src/llvm/codegen/mir_body/const_pat.rs` | 38 |
+| `crates/scoopc/src/llvm/codegen/mir_body/dispatch.rs` | 16 |
+| `crates/scoopc/src/llvm/codegen/mir_body/member.rs` | 50 |
+| `crates/scoopc/src/llvm/codegen/mir_body/mod.rs` | 6 |
+| `crates/scoopc/src/llvm/codegen/mir_body/operand.rs` | 8 |
+| `crates/scoopc/src/llvm/codegen/mir_body/string.rs` | 1 |
+| `crates/scoopc/src/llvm/codegen/mir_body/terminator.rs` | 19 |
+| `crates/scoopc/src/llvm/codegen/mir_body/transport.rs` | 10 |
+| `crates/scoopc/src/llvm/codegen/mir_body/types.rs` | 4 |
+| `crates/scoopc/src/llvm/codegen/mir_body/value_args.rs` | 6 |
+| `crates/scoopc/src/llvm/codegen/effect_lowered/body/call_invoke.rs` | 4 |
+| `crates/scoopc/src/llvm/codegen/effect_lowered/body/composed_call.rs` | 2 |
+| `crates/scoopc/src/llvm/codegen/effect_lowered/body/main_carrier.rs` | 5 |
+| `crates/scoopc/src/llvm/codegen/effect_lowered/body/main_entry.rs` | 9 |
+| `crates/scoopc/src/llvm/codegen/effect_lowered/body/payload.rs` | 2 |
+| `crates/scoopc/src/llvm/codegen/effect_lowered/body/runtime_error.rs` | 3 |
+| `crates/scoopc/src/llvm/codegen/effect_lowered/body/states.rs` | 5 |
+| `crates/scoopc/src/llvm/codegen/effect_lowered/body/wrapper.rs` | 1 |
+| `crates/scoopc/src/llvm/codegen/effect_lowered/value.rs` | 139 |
+| `crates/scoopc/src/llvm/codegen/main/alloca.rs` | 7 |
+| `crates/scoopc/src/llvm/codegen/main/boxing.rs` | 6 |
+| `crates/scoopc/src/llvm/codegen/main/call.rs` | 12 |
+| `crates/scoopc/src/llvm/codegen/main/coerce.rs` | 31 |
+| `crates/scoopc/src/llvm/codegen/main/context.rs` | 4 |
+| `crates/scoopc/src/llvm/codegen/main/declare.rs` | 8 |
+| `crates/scoopc/src/llvm/codegen/main/expr_op.rs` | 29 |
+| `crates/scoopc/src/llvm/codegen/main/expr_value.rs` | 19 |
+| `crates/scoopc/src/llvm/codegen/main/frame.rs` | 12 |
+| `crates/scoopc/src/llvm/codegen/main/function.rs` | 3 |
+| `crates/scoopc/src/llvm/codegen/main/gc_locals.rs` | 11 |
+| `crates/scoopc/src/llvm/codegen/main/globals.rs` | 11 |
+| `crates/scoopc/src/llvm/codegen/main/identity.rs` | 6 |
+| `crates/scoopc/src/llvm/codegen/main/immut_value.rs` | 18 |
+| `crates/scoopc/src/llvm/codegen/main/literal.rs` | 4 |
+| `crates/scoopc/src/llvm/codegen/main/numeric.rs` | 2 |
+| `crates/scoopc/src/llvm/codegen/main/runtime_error.rs` | 4 |
+
+## Bucket 稳定清单
+
+除非 U1 inventory 完成后证明确需拆分或合并，否则 `B-01` 到 `B-36` 编号不得变更。
+
+| Bucket | 名称 | 一级类 |
+|---|---|---|
+| B-01 | inkwell builder bookkeeping | A |
+| B-02 | MIR local / member 类型推断不完整 | B |
+| B-03 | MIR direct/closure/funptr 调用 ABI 漂移 | B |
+| B-04 | MIR 函数签名 / 参数 / 返回类型缺失 | B |
+| B-05 | MIR CFG / start block / goto target 异常 | B |
+| B-06 | MIR struct/tuple/enum 字面量 schema 漂移 | B |
+| B-07 | MIR pattern 子句 schema 漂移 | B |
+| B-08 | MIR 成员存取 / 赋值合法性 | B |
+| B-09 | Cross-TypeStore equivalence 不闭合 | B/C |
+| B-10 | Effect-typed callable adapter / ABI routing | C |
+| B-11 | Pure / plain statement 边界路由 | B |
+| B-12 | Closure / lambda / capture 表达 | C |
+| B-13 | 数组 / 复合 transport metadata | C |
+| B-14 | Cast / TypeCheck (`as`/`as?`/`is`) | B/C |
+| B-15 | When / 模式匹配用户面 | B |
+| B-16 | 控制流 outside-of-context | B |
+| B-17 | Coercion / 标量运算 | A/B |
+| B-18 | 字面量与字符串 | B |
+| B-19 | Top-level / object init / extern global | B |
+| B-20 | Class ctor / property / 字段访问 | B |
+| B-21 | Struct literal / 字段层 | B |
+| B-22 | Enum 布局 / niche / Option | B |
+| B-23 | Member access — 通用 | B |
+| B-24 | Reflection / comptime intrinsic | C/D |
+| B-25 | Platform / RTTI intrinsic | B/C |
+| B-26 | atomic intrinsic 系列 | B |
+| B-27 | sync intrinsic 系列 | B |
+| B-28 | thread intrinsic 系列 | B |
+| B-29 | GC intrinsic 系列 | B |
+| B-30 | named / unsafe / FunPtr intrinsic | B |
+| B-31 | 标量扩展方法 (Float/Int/Char/Bool/String) | B |
+| B-32 | print / panic / sysroot 桥接 | B |
+| B-33 | Extern global / FunPtr 顶层 | B |
+| B-34 | RuntimeError / try-catch-finally | B |
+| B-35 | unsafe / NoGC / 边界 | B/C |
+| B-36 | 未定义/暂未支持的 spec surface | D |
 
 ## 顺序总览
 
 ```text
-C0-T01 (baseline + prerequisite inventory)
-  ├─> C1-T01 (sealed interface frontend/type metadata)
-  │     └─> C1-T02 (AnyRef / AnyValue sysroot markers)
-  │           └─> C3-T02 (Atomic family)
-  │                 ↑
-  │                 C3-T01 (RefCell / Box)
-  │
-  └─> C2-T01A..C2-T01E (delete CaptureBox by subsystem)
-        └─> C2-T02 (closure inner mutable per-call local)
-              └─> C4-T01A..C4-T01D (fixtures)
-                    └─> C4-T02 (audit baselines)
-                          └─> C5-T01 (spec / docs)
+U0-T01 (摸底 + baseline 冻结)
+  └─> U1-T01 (inventory 脚本 + CSV)
+        └─> U1-T02 (schema + 索引子命令)
+              └─> U2-T01 (bucket 分组 + 表头声明)
+                    └─> U2-T02 (36 份 bucket md 主体)
+                          └─> U3-T01 (spec 覆盖矩阵)
+                                └─> U4-T01 (36 份策略草案)
+                                      └─> U5-T01 (fixture 目录 + _index.csv)
+                                            └─> U5-T02 (spec part 1-6 fixture 主体)
+                                                  └─> U5-T03 (bucket-driven 直接对账 fixture)
+                                                        └─> U6-T01 (10 条 baseline test)
+                                                              └─> U6-T02 (退场标注 + 计划自检)
 ```
 
-## C0：冻结 baseline + 摸底先决
+## U0：摸底 + baseline 冻结
 
-### [DONE] C0-T01：建立本轮 baseline、确认先决事实与 fixture 分类
+### [TODO] U0-T01：现状摸底与基线冻结
 
 - 参考：
-  - [`PLAN.md`](./PLAN.md) §7 C0
-  - [`CLOSURE_FIX.md`](./CLOSURE_FIX.md) §5.1
-  - 本文件“固定定位清单”
+  - [`PLAN.md`](./PLAN.md) §1、§6 U0
+  - [`UnsupportedMainBody_FIX.md`](./UnsupportedMainBody_FIX.md) §0
+  - 本文件“固定定位清单”和“已知基线漂移风险”
 - 目标：
-  - 在正式修改前记录当前可运行 baseline、CaptureBox 命中、closure-dependent fixture、atomic-ref 缺口、sysroot 名字冲突与 audit 基线影响面。
-  - 给后续 C1/C2/C3 任务提供不用重复搜索的事实清单。
+  - 在正式生成 inventory 前，确认当前源码中的计数口径、文件清单、冻结 stale count、现有 gap inventory 和 runner 能力。
+  - 将后续 U1-U6 需要的初始事实落地到 `audit/_baseline_files.txt` 与 `audit/_baseline_sampling.md`，避免每个任务重复全仓搜索。
 - 必须实现的内容：
-  1. 运行并记录当前测试 baseline：`cargo build`、`cargo test --all --all-targets`、`cargo run -p scoop -- test`。
-  2. 复核 CaptureBox 命中清单：运行 `rg -n "CaptureBox|capture_box|mir_capture_box|__CaptureBox" crates/scoopc/src tests/fixtures sysroot`，将新增/减少的命中写入完成记录。
-  3. 分类 closure-dependent fixtures：至少覆盖本文件列出的 MIR snapshot、run-pass closure、effect closure、runtime_gc closure、build closure fixture。
-  4. 确认 atomic-ref 现状：运行 `rg -n "__atomicRef|atomic_ref|AtomicRef|atomicRef" crates/scoopc/src sysroot runtime tests/fixtures`；当前预期无命中。
-  5. 确认 sysroot 名字：运行 `rg -n "^\s*(class|struct|interface|sealed interface|typealias|enum|object|effect)\s+(AnyRef|AnyValue|RefCell|Box|Atomic(Int|Bool|Value)?|Atomic)\b" sysroot tests/fixtures`；当前预期 sysroot 无冲突，fixtures 有本地 `Box`。
-  6. 评估 `pipeline_user_visible_failure_policy.rs`：记录 CaptureBox 删除会影响哪些 `STALE_UNSUPPORTED_MAIN_BODY_COUNTS` 条目，尤其 `mir_body/aggregates.rs`、`mir_body/terminator.rs`、`mir_body/value_args.rs`、`effect_lowered/value.rs`。
+  1. 创建仓库根 `audit/` 目录和 `audit/.gitkeep`。本任务不创建正式 inventory / bucket / strategy / fixture 主体。
+  2. 复算 `PLAN.md:23-35` 的基线表，至少包含总 `UnsupportedMainBody` constructor 数、命中文件数、`kind:` 标签去重数、单次出现 `kind:` 标签数、`STALE_UNSUPPORTED_MAIN_BODY_COUNTS` 总数、`CODEGEN_GAP_INVENTORY` entry 数。
+  3. 明确统计口径：是否只统计 `crates/scoopc/src/llvm/codegen/**`，是否排除 `#[cfg(test)]` 之后内容，是否统计 helper path，是否统计 `LlvmEmitError::UnsupportedMainBody {` 与裸 `UnsupportedMainBody {` 两种形式。
+  4. 把命中 `UnsupportedMainBody` 的 codegen 文件清单写入 `audit/_baseline_files.txt`，字段至少为 `path,umb_constructor_count,route_guess,notes`。`route_guess` 使用 `RawMirLlvm` / `EffectLoweredLlvm` / `Both` / `Helper`。
+  5. 从四个一级类 A/B/C/D 各抽至少 2 个 entry，合计 10 个，写入 `audit/_baseline_sampling.md`。每个样本包含 `file:line`、`kind`、候选 bucket、root cause hypothesis、预期治理类、相关 spec 或 `N/A:helper-invariant`。
+  6. 复核 `crates/scoopc/src/llvm/codegen_gap_inventory.rs` 的 21 entries，记录哪些 gap 已能映射到 B-XX，哪些需要 `notes` 标第二候选。
+  7. 复核 fixture runner 是否支持 `IGNORE-UNTIL-FIX`。当前预期：`crates/scoop/src/fixtures/expectations.rs` 尚无该支持；若未支持，将 “runner 扩展” 明确列入 U5-T01。
+  8. 处理已知漂移：若实测数字与 `PLAN.md` / `UnsupportedMainBody_FIX.md` 不一致，必须同步更新这两个文档的基线数字，或在 `audit/_baseline_sampling.md` 写明为什么统计口径不同且后续采用哪一种。
 - 必须遵从的约束：
-  - 本任务不改语义代码；只允许补充 `TODO.md` 完成记录或新增纯审计说明。
-  - 如果 baseline 已经失败，必须记录失败命令、失败 fixture/test 名与是否与本轮相关；不得顺手修无关问题。
-- 验证：
+  - 不修改 production codegen。
+  - 不手写正式 `audit/UMB_inventory.csv`，正式 CSV 必须由 U1 脚本产生。
+  - 若 baseline 命令失败，记录命令、失败信息与是否阻塞 U1；不得顺手修无关问题。
+- 建议验证命令：
   1. `cargo build`
   2. `cargo test --all --all-targets`
   3. `cargo run -p scoop -- test`
-  4. 上述 `rg` 审计命令
+  4. `rg -n 'UnsupportedMainBody \{' crates/scoopc/src/llvm/codegen`
+  5. `rg -c 'UnsupportedMainBody \{' crates/scoopc/src/llvm/codegen`
+  6. `cargo test -p scoopc pipeline_user_visible_failure_policy -- --nocapture`
 - 完成条件：
-  - 完成记录中有 baseline 结果、CaptureBox 命中摘要、closure fixture 分类、atomic-ref 缺口、sysroot 名字确认、audit 基线影响面。
+  - `audit/.gitkeep`、`audit/_baseline_files.txt`、`audit/_baseline_sampling.md` 落地。
+  - 完成记录包含最终采用的 baseline 数字、统计口径、漂移处理结论、runner 支持状态、gap inventory 对账摘要。
 - 依赖：无
-- 完成记录：
-  - 改动范围：只更新本任务完成记录与 `memory/claude_plan.md` 进度；未修改语义代码、fixture expect 或 `PLAN.md`。
-  - 核心决策：
-    - 当前 baseline 全绿；没有发现阻塞 C1/C2/C3 的现有 failing test 或 failing fixture。
-    - CaptureBox 命中与本文件“CaptureBox 当前命中快照”一致；没有新增 source 命中，`sysroot` 无 CaptureBox 命中。
-    - closure-dependent fixtures 分类如下：MIR snapshot 为 `tests/fixtures/mir/closure_capture_var.*`、`tests/fixtures/mir_lowered/aggregate_transport.*`、`tests/fixtures/mir_lowered/assignment_places.*`；run-pass closure 为 `closure_env_composite_capture_basic.scoop`；effect closure 为 `effect_indirect_perform_materialized_mir_closure_basic.scoop`、`effect_indirect_perform_nonresuming_closure.scoop`、`effect_escape_continuation_indirect_perform_closure*.scoop`；runtime_gc closure 为 `gc_trace_closure_capture_string_basic.scoop`、`gc_move_enum_maybe_ref_closure_capture_basic.scoop`；build closure 为 `safepoint_non_escaping_closure_basic.scoop`。
-    - atomic-ref 现状确认：`__atomicRef` / `atomic_ref` / `AtomicRef` / `atomicRef` 当前无命中，C3-T02 仍需新增 atomic-ref primitive 或等价 lowering。
-    - sysroot 名字确认：`sysroot` 当前没有 `AnyRef`、`AnyValue`、`RefCell`、`Box`、`AtomicInt`、`AtomicBool`、`Atomic<T>`、`AtomicValue<T>` 声明；`tests/fixtures/**` 中存在多处本地 `Box` 类型，后续新增 fixture 需避免本地重名噪音。
-    - `pipeline_user_visible_failure_policy.rs` 影响面：当前 `STALE_UNSUPPORTED_MAIN_BODY_COUNTS` 中相关条目为 `mir_body/aggregates.rs = 42`、`mir_body/terminator.rs = 19`、`mir_body/value_args.rs = 6`、`effect_lowered/value.rs = 126`。CaptureBox 删除预计会移除 `aggregates.rs` 中 capture-box new/get/set helper 内 11 个 `UnsupportedMainBody` 站点；`terminator.rs` 的 CaptureBox arms 只是派发到 helper，`value_args.rs` 的 capture-box descriptor helper 与 `effect_lowered/value.rs` 的 `rvalue_mentions_local` arms 不直接贡献 `UnsupportedMainBody` 计数。
-  - 验证结果：
-    - `cargo build`：通过。
-    - `cargo test --all --all-targets`：通过，命令整体退出成功；`scoopc` 测试段显示 856 passed。
-    - `cargo run -p scoop -- test`：通过，`1340/1340` fixtures PASS，`fixtures: ok (1377)`。
-    - `rg -n "CaptureBox|capture_box|mir_capture_box|__CaptureBox" crates/scoopc/src tests/fixtures sysroot`：通过；source counts 与快照一致，fixture 命中集中在已列出的 MIR snapshot。
-    - `rg -n "__atomicRef|atomic_ref|AtomicRef|atomicRef" crates/scoopc/src sysroot runtime tests/fixtures`：无输出。
-    - `rg -n '^\s*(class|struct|interface|sealed interface|typealias|enum|object|effect)\s+(AnyRef|AnyValue|RefCell|Box|Atomic(Int|Bool|Value)?|Atomic)\b' sysroot tests/fixtures`：仅 fixture-local `Box` 声明命中，`sysroot` 无命中。
-  - 与 `PLAN.md` / `CLOSURE_FIX.md` 对应闭合：闭合 `PLAN.md` §7 C0 与 `CLOSURE_FIX.md` §5.1 的 baseline / 先决事实摸底要求；阶段级计划未变化。
+- 完成记录：待填写
 
-## C1：类型系统底座
+## U1：P1 — Inventory 快照
 
-### [DONE] C1-T01：引入 `sealed interface` frontend 语义、marker metadata 与自动登记
+### [TODO] U1-T01：inventory 脚本 + CSV 主表
 
 - 参考：
-  - [`PLAN.md`](./PLAN.md) §4、§7 C1-T01
-  - [`CLOSURE_FIX.md`](./CLOSURE_FIX.md) §2
-  - 本文件“Frontend / Typecheck 入口”
+  - [`PLAN.md`](./PLAN.md) §3.1、§6 U1-T01
+  - [`UnsupportedMainBody_FIX.md`](./UnsupportedMainBody_FIX.md) §2
+  - U0 的 `audit/_baseline_files.txt` 与 `audit/_baseline_sampling.md`
 - 目标：
-  - 把 parser 已能表达的 `sealed interface` 从“普通 interface + sealed modifier”升级为独立 marker 构造。
-  - 支持 marker 继承、传递闭包、按 nominal kind 自动满足 `AnyRef` / `AnyValue`，并拒绝所有非 bound 用法。
+  - 用可重复脚本从源码重建 `audit/UMB_inventory.csv`，让每一处 `UnsupportedMainBody` 有稳定 ID、bucket、class、spec 锚和 upstream gate。
 - 必须实现的内容：
-  1. 在 type metadata 中记录 sealed marker：至少能回答某 FQN 是否 sealed interface、direct sealed super markers、transitive sealed marker closure、互斥 marker 集合。
-  2. 在 typecheck 中识别 `decl.kind == Interface && decl.modifiers.contains(Sealed)` 为 sealed marker。
-  3. body-empty gate：`sealed interface I { fun foo() }`、property、nested type/object、enum variant、init block 等任意 body member 都报 `scoop::typecheck::sealed_interface_must_be_empty`。
-  4. sysroot-only gate：`!source.is_sysroot()` 的 sealed interface 定义报 `scoop::typecheck::sealed_interface_user_definition_not_allowed`。
-  5. supertype gate：sealed interface 只能继承 sealed interface；继承普通 `interface`、`class`、`struct`、`enum`、`effect` 或带 ctor args 都报 `scoop::typecheck::sealed_interface_supertype_must_be_sealed`。
-  6. cycle gate：拒绝 `sealed interface I : I` 与构造性循环 `A : B; B : A`，错误码 `scoop::typecheck::sealed_interface_inheritance_cycle`。
-  7. mutually-exclusive gate：`AnyRef + AnyValue` 或 marker 定义同时蕴涵这两个祖先时，报 `scoop::typecheck::sealed_interface_mutually_exclusive_bound`。
-  8. bound-only gate：sealed marker 名只允许出现在 generic bound / where bound 右侧；禁止 binding type、param type、return type、type argument、`is`/`when is`、`as`/`as?`、显式 supertype/implements。
-  9. 自动登记：class -> `AnyRef`；struct/tuple/enum/内建标量 -> `AnyValue`；登记时加入 marker supertype 传递闭包；runtime metadata 不变。
-  10. 泛型约束检查：`where T: AnyRef` / `where T: AnyValue` 对 concrete type arg 查询自动登记集合；type param 未具体化时按现有 where 逻辑保守延后。
+  1. 新增 `crates/scoopc/src/audit/umb_inventory.rs`，并确保整个 audit module 只在 `#[cfg(test)]` 下编译。
+  2. 实现源码扫描逻辑，按 U0 决定的统计口径查找每一处 `UnsupportedMainBody` constructor，并提取 `file`、1-based `line`、`kind` 字面量、route、surface。
+  3. 按 `file+line` 稳定排序生成 `UMB-NNNN`。编号一旦落入 CSV，后续只允许在源码行实质变动时按脚本重排并记录原因。
+  4. 生成 `audit/UMB_inventory.csv`，字段必须严格为 `id,file,line,kind,route,surface,bucket,expected_class,spec_anchor,upstream_gate,existing_fixture,notes`。
+  5. 每条 entry 的 `bucket` 必须属于 B-01 到 B-36；若某 entry 无法归类，不允许写 `TBD` 后合入，必须先补 bucket 决策。
+  6. 每条 entry 的 `expected_class` 必须是 `FrontendReject` / `InternalBugSentinel` / `RealImpl`。D 类缺口用 `notes` 或 bucket md 标 `D-pending`，CSV 仍给出当前治理路径。
+  7. 每条非 helper invariant entry 的 `spec_anchor` 必须非空；helper invariant 使用 `N/A:helper-invariant`。
+  8. B 类 entry 的 `upstream_gate` 可以在 U1 初版先写候选，但 U4-T01 完成前必须全部填实；若 U1 已能确认，直接填真实 gate。
+  9. 脚本必须验证 CSV 行数等于源码扫描 entry 数，每个 `kind` 在 CSV 中出现次数等于源码中出现次数。
+  10. 与 `crates/scoopc/src/llvm/codegen_gap_inventory.rs` 做交叉引用：旧 gap entry 能映射的写入 `notes` 或 `existing_fixture`，不能映射的写入 U1 完成记录。
 - 必须遵从的约束：
-  - 不要新增关键字；继续使用 `Modifier::Sealed` + `TypeKind::Interface`。
-  - 不要把 sealed marker 降成 `TypeKind::Ref(RefTypeKind::Nominal(...))` 后在 runtime 使用；非 bound 用法应提前拒绝。
-  - 不要把 sealed marker 放进 interface itable/vtable/class layout/type descriptor。
-  - 不要复用普通 interface implementation 检查来要求 class/struct 显式实现 marker；marker 满足关系由 compiler 自动登记。
+  - 不用手维护 CSV 行数；CSV 由脚本生成或校验。
+  - 不新增 production `UnsupportedMainBody`。
+  - 不为了让 CSV 好看而改源码行号或移动 codegen。
 - 验证：
-  1. 新增/更新 Rust 单元测试覆盖 sealed marker metadata、inheritance closure、mutual exclusion、bound satisfaction。
-  2. `cargo test -p scoopc sealed -- --nocapture`（若测试名采用 `sealed_*`）。
-  3. `cargo test -p scoopc typecheck -- --nocapture`。
-  4. `cargo build`。
+  1. `cargo test -p scoopc audit::umb_inventory -- --nocapture`
+  2. `cargo test -p scoopc pipeline_user_visible_failure_policy -- --nocapture`
+  3. 运行 U1 脚本的 CSV diff 检查，确认源码和 `audit/UMB_inventory.csv` 同步。
 - 完成条件：
-  - `AnyRef` / `AnyValue` 尚未加入 sysroot 前，compiler 已能识别 sysroot sealed marker 定义并对测试用虚拟 sysroot source 执行全部 gate。
-- 依赖：C0-T01
-- 完成记录：
-  - 改动范围：
-    - `TypeEnv` 新增 sealed marker metadata：`is_sealed_interface`、direct sealed supers、transitive closure 与 `AnyRef` / `AnyValue` 互斥检查。
-    - type lowering 新增 sealed marker bound-only 语境；generic/where bound 右侧允许 marker，普通 binding/param/return/typealias/type argument/cast/type-test 等运行期类型位置报 `scoop::typecheck::sealed_interface_bound_only`。
-    - interface 检查拒绝 class/struct/enum/object/普通 interface 显式实现或继承 sealed marker；sealed marker 定义自身的图形合法性由 `TypeEnv` 检查。
-    - where 约束满足性接入自动 marker 满足关系：ref types 满足 `AnyRef`，value types（含 tuple/struct/enum/内建值类型）满足 `AnyValue`，并沿 marker super closure 查询。
-    - cone external type symbol 注入同步补齐 `TypeSymbol::is_sealed_interface = false`。
-  - 核心决策：
-    - sealed marker 仍复用 parser 的 `Modifier::Sealed + TypeKind::Interface` surface，但在 type metadata 中作为 compile-time-only marker 单独登记，不进入 runtime interface lowering、itable、vtable、layout 或 type descriptor。
-    - marker 定义 gate 放在 type-env 收集/重建阶段，确保 sysroot-only、body-empty、supertype sealed-only、cycle 与互斥 marker 能在任何后续 lowering 前失败。
-    - bound lowering 只允许顶层 marker bound；marker 出现在 type argument 或其它嵌套 runtime type position 仍按 bound-only 违规拒绝。
-    - C1-T01 不向 sysroot 添加 `AnyRef` / `AnyValue`；测试使用 virtual sysroot source 验证 compiler 已能识别 sysroot sealed marker 定义。
-  - 验证结果：
-    - `cargo test -p scoopc sealed -- --nocapture`：通过，9 个 sealed 定向测试通过。
-    - `cargo test -p scoopc typecheck -- --nocapture`：通过，39 个 typecheck 相关测试通过。
-    - `cargo build`：通过。
-    - `cargo clippy --all-targets -- -D warnings`：通过。
-  - 与 `PLAN.md` / `CLOSURE_FIX.md` 对应闭合：闭合 `PLAN.md` §4 / §7 C1-T01 与 `CLOSURE_FIX.md` §2 的 sealed marker 前端语义、metadata、bound-only gate、自动 `AnyRef` / `AnyValue` 满足关系底座；阶段级计划未变化。
+  - `audit/UMB_inventory.csv` 落地，行数等于 U0 冻结的正式 entry 数。
+  - `bucket=TBD`、`expected_class=TBD` 不存在。
+  - 每个 `kind` 字面量源码出现次数与 CSV 出现次数一致。
+- 依赖：U0-T01
+- 完成记录：待填写
 
-### [DONE] C1-T02：在 sysroot 添加 `AnyRef` / `AnyValue`
+### [TODO] U1-T02：inventory schema 文档 + 索引子命令
 
 - 参考：
-  - [`PLAN.md`](./PLAN.md) §4.4、§7 C1-T02
-  - [`CLOSURE_FIX.md`](./CLOSURE_FIX.md) §2.5
+  - [`PLAN.md`](./PLAN.md) §3.1、§6 U1-T02
+  - [`UnsupportedMainBody_FIX.md`](./UnsupportedMainBody_FIX.md) §2.3-§2.5
+  - `crates/scoopc/Cargo.toml:27-30`
 - 目标：
-  - 在 `scoop.core` 发布两个起步 sealed marker，供 C3 Atomic bound 使用。
+  - 让 inventory 数据格式可人工 review、可机器 diff，并提供 `list` / `diff` / `stats` 三个入口。
 - 必须实现的内容：
-  1. 在 `sysroot/scoop.core/core.scoop` 或新文件 `sysroot/scoop.core/sealed_markers.scoop` 添加：
-
-     ```scoop
-     sealed interface AnyRef
-     sealed interface AnyValue
-     ```
-
-  2. 若新建 sysroot 文件，确认 sysroot loader/index 会加载该文件；否则直接放入 `core.scoop` root types 附近（当前 `interface Any` 在 `core.scoop:30`）。
-  3. 更新/新增 sysroot type env tests，确认 `scoop.core.AnyRef` / `scoop.core.AnyValue` 可解析、互斥、无 runtime layout/itable side effect。
+  1. 写 `audit/UMB_inventory_schema.md`，逐字段定义取值域、合法性规则、排序规则、CSV escaping 规则和对账规则。
+  2. 在 schema 文档中复制 B-01 到 B-36 的合法 bucket 表，说明拆分 / 合并流程必须同步更新 `PLAN.md` 与 `UnsupportedMainBody_FIX.md`。
+  3. 实现 `umb-audit list`：按 bucket / file / class 列 entry，至少支持 `--bucket B-XX`。
+  4. 实现 `umb-audit diff`：重扫源码并与 `audit/UMB_inventory.csv` 比较；输出新增、删除、line drift、kind drift、field drift。
+  5. 实现 `umb-audit stats`：输出每 bucket entry 数、每 class entry 数、每 file entry 数、无 spec anchor 数、无 upstream gate 数。
+  6. 选择 CLI 落地方式：新增 `cargo run -p scoopc --bin umb-audit -- ...`，或建立 dev-only `crates/scoopc-audit/`。完成记录必须写明选择理由。
+  7. 如果新增 `[[bin]]`，不得破坏现有 `scoopc` bin；如果需要 `required-features`，需记录 LLVM 依赖要求。
 - 必须遵从的约束：
-  - 起步不引入 `PlainValue`、`Struct`、`Tuple`、`Enum`、`Primitive`、`WordFit` 等子 marker。
-  - `AnyRef` / `AnyValue` 不能有 body，不能继承普通 `Any` 或 `Hashable`。
+  - `umb-audit` 不参与 production codegen；如果无法严格隔离，必须改为 test-only module + cargo test 入口。
+  - `diff` 子命令必须是 CI 可用的非交互命令。
 - 验证：
-  1. `cargo test -p scoopc sysroot_type_env -- --nocapture`
-  2. `cargo test -p scoopc sealed -- --nocapture`
-  3. `cargo build`
+  1. `cargo run -p scoopc --bin umb-audit -- list --bucket B-02`
+  2. `cargo run -p scoopc --bin umb-audit -- diff`
+  3. `cargo run -p scoopc --bin umb-audit -- stats`
+  4. `cargo test -p scoopc audit::umb_inventory -- --nocapture`
 - 完成条件：
-  - 用户源码中可在 generic bound 写 `T: AnyRef` / `T: AnyValue`；其它位置使用会按 C1-T01 gate 报错。
-- 依赖：C1-T01
-- 完成记录：
-  - 改动范围：
-    - 在 `sysroot/scoop.core/core.scoop` Root types 区域新增空 `sealed interface AnyRef` 与 `sealed interface AnyValue`。
-    - 在 `crates/scoopc/src/typecheck/type_env.rs` 增加真实 sysroot 测试，覆盖 marker 注册、空 super closure、`AnyRef` / `AnyValue` 互斥、未写入 ordinary runtime supertype 图，以及用户源码中 `T: AnyRef` / `T: AnyValue` generic bound 使用。
-    - 未修改 `PLAN.md`、`CLOSURE_FIX.md` 或 runtime/codegen；未新增 sysroot 文件，因此无需调整 sysroot loader。
-  - 核心决策：
-    - 直接把两个 marker 放入现有 `core.scoop` 的 Root types 附近，复用 C1-T01 已实现的 sysroot-only sealed marker metadata 与 bound-only gate。
-    - `AnyRef` / `AnyValue` 起步保持无 body、无 supertype，不继承普通 `Any` / `Hashable`，也不引入其它子 marker。
-    - 测试通过 `TypeEnv` 的 sealed marker 表与 ordinary `supertypes` 图分离来确认 marker 不作为 runtime interface supertype/itable 入口记录。
-  - 验证结果：
-    - `cargo test -p scoopc sysroot_type_env -- --nocapture`：通过，4 个 sysroot type env 定向测试通过。
-    - `cargo test -p scoopc sealed -- --nocapture`：通过，9 个 sealed 定向测试通过。
-    - `cargo build`：通过。
-    - `cargo clippy --all-targets -- -D warnings`：通过。
-  - 与 `PLAN.md` / `CLOSURE_FIX.md` 对应闭合：闭合 `PLAN.md` §4.4 / §7 C1-T02 与 `CLOSURE_FIX.md` §2.5 的 sysroot `AnyRef` / `AnyValue` marker 发布要求；阶段级计划未变化。
+  - `audit/UMB_inventory_schema.md` 落地且字段完整。
+  - 三个子命令在当前 checkout 跑通，`diff` 无漂移。
+  - U6 baseline test #1 可直接复用此逻辑。
+- 依赖：U1-T01
+- 完成记录：待填写
 
-## C2：closure capture 修复
+## U2：P2 — 成因分析与 Bucket 文档
 
-### [DONE] C2-T01A：删除 MIR core 中的 CaptureBox 类型与 transport 模型
+### [TODO] U2-T01：bucket 分组确认 + md 表头声明
 
 - 参考：
-  - [`PLAN.md`](./PLAN.md) §7 C2-T01
-  - 本文件“CaptureBox 当前命中快照”
+  - [`PLAN.md`](./PLAN.md) §1.4、§6 U2-T01
+  - [`UnsupportedMainBody_FIX.md`](./UnsupportedMainBody_FIX.md) §3.2-§3.4
+  - `audit/UMB_inventory.csv`
 - 目标：
-  - 先从 MIR 数据模型层删除 CaptureBox variant/metadata，让后续子系统编译错误指向真实依赖。
+  - 把 U1 inventory 汇总到 bucket 维度，固定 36 份 bucket 文档骨架和总览数字。
 - 必须实现的内容：
-  1. `crates/scoopc/src/mir/mod.rs`：删除 `Rvalue::CaptureBoxNew/Get/Set` 及 validation/requirements arm。
-  2. `crates/scoopc/src/mir/transport.rs`：删除 `MirTransportKind::CaptureBox` 与 `CaptureBoxTransportMetadata`。
-  3. `crates/scoopc/src/mir/lower/mod.rs`、`mir/materialize/mod.rs`、其它 import 处删除 `CaptureBoxTransportMetadata`。
-  4. `crates/scoopc/src/stable_id.rs` 中若存在只服务 `mir_capture_box_type_desc` 的 role/key，删除或确认无 source 引用。
+  1. 新建 `audit/UMB_categories/`。
+  2. 生成 `audit/UMB_categories/_overview.md`，表格列为 `bucket / 名称 / 一级类 / entry 数 / expected_class 分布 / 主要 kind 标签前 5 条 / 主要文件前 5 个 / 备注`。
+  3. 创建 `audit/UMB_categories/B-01.md` 到 `B-36.md`，每份包含七段标题：`Symptom`、`Root Cause Hypothesis`、`Spec Linkage`、`Expected Post-Fix Class`、`Fix Strategy Outline`、`Fixture Set Pointer`、`Open Questions`。
+  4. 每份 bucket md 顶部必须声明 `本 bucket entry 数：N`、`inventory 来源：audit/UMB_inventory.csv`、`生成时间`、`负责人/状态`。
+  5. 任一 bucket entry 数为 0 时，不得静默保留空 bucket。必须决定保留理由、合并或拆分，并同步更新 `PLAN.md` §1.4 与 `UnsupportedMainBody_FIX.md` §3.2。
+  6. `_overview.md` 必须给出一个完整 B-01 样例，供多人并行写 U2-T02 / U4-T01 时保持格式。
 - 必须遵从的约束：
-  - 不要删除 `ClosureCaptureTransportMetadata.mutable`。
-  - 不要把 CaptureBox 改名为别的隐式 box；本任务是删除，不是重实现。
+  - 本任务只创建骨架和总览，不编造 root cause 主体。
+  - 数字以 `audit/UMB_inventory.csv` 为唯一来源。
 - 验证：
-  1. `cargo build -p scoopc`，预期初次可能暴露下游编译错误；本任务完成时必须通过。
-  2. `rg -n "CaptureBoxTransportMetadata|MirTransportKind::CaptureBox|Rvalue::CaptureBox" crates/scoopc/src/mir crates/scoopc/src/stable_id.rs`
+  1. `cargo run -p scoopc --bin umb-audit -- stats`
+  2. `cargo test -p scoopc audit::umb_inventory -- --nocapture`
+  3. 手工确认 36 份 `audit/UMB_categories/B-XX.md` 全部存在。
 - 完成条件：
-  - MIR core 不再定义 CaptureBox model。
-- 依赖：C0-T01
-- 完成记录：
-  - 改动范围：
-    - 删除 MIR core 中的 `Rvalue::CaptureBoxNew/Get/Set`、`MirTransportKind::CaptureBox` 与 `CaptureBoxTransportMetadata`，并清理 `stable_id.rs` 中只服务 `mir_capture_box_type_desc` 的测试角色。
-    - 为保证 `cargo build -p scoopc` 通过，删除由 core model 移除直接暴露出的下游引用：MIR lowering 不再构造/读取/写入 CaptureBox，MIR analysis/dump/materialize/effect facts/effect-lowered/LLVM codegen 不再匹配 CaptureBox rvalue 或 transport kind。
-    - 更新受编译影响的 Rust 测试断言，使其验证 captured mutable local 保持普通 local assignment、closure env 保留 capture mutability/boxing metadata，且 LLVM closure env lowering 不再产生 capture-box allocation/type descriptor。
-  - 核心决策：
-    - 不引入替代隐式 box、shim 或兼容分支；删除 core model 后所有 capture 都继续通过普通 value transport 与 `ClosureCaptureTransportMetadata.mutable` 表达。
-    - `ClosureCaptureTransportMetadata.mutable` 保留，用于后续 C2-T02 把 closure body 内的 env-load local 标记为可 rebind。
-    - `stable_rtti_derived_type_key` 仍保留给 MIR value box descriptor 使用，只移除 capture-box 专用派生 role 覆盖。
-  - 验证结果：
-    - `cargo build -p scoopc`：通过。
-    - `rg -n "CaptureBoxTransportMetadata|MirTransportKind::CaptureBox|Rvalue::CaptureBox" crates/scoopc/src/mir crates/scoopc/src/stable_id.rs`：无输出。
-    - `cargo test -p scoopc mir_place_contract_lowers_assignment_places -- --nocapture`：通过。
-    - `cargo test -p scoopc mir_aggregate_transport_records_composite_contracts -- --nocapture`：通过。
-    - `cargo test -p scoopc llvm_closure_env_transport -- --nocapture`：通过。
-    - `cargo clippy -p scoopc --all-targets -- -D warnings`：通过。
-  - 与 `PLAN.md` / `CLOSURE_FIX.md` 对应闭合：闭合 `PLAN.md` §7 C2-T01 的 MIR core model 删除入口，以及 `CLOSURE_FIX.md` 中“删除 CaptureBox 后门”的 MIR core/transport 部分；阶段级计划未变化。
+  - `_overview.md` 每个 bucket entry 数与 CSV 完全一致。
+  - 36 份骨架 md 全部存在且标题一致。
+- 依赖：U1-T02
+- 完成记录：待填写
 
-### [DONE] C2-T01B：删除 MIR lowering 中的隐式 CaptureBox 生成与读写
+### [TODO] U2-T02：36 份 bucket md 主体
 
 - 参考：
-  - [`PLAN.md`](./PLAN.md) §7 C2-T01
-  - `crates/scoopc/src/mir/lower/fn_lowering_basic.rs:705-731,791-804`
-  - `crates/scoopc/src/mir/lower/fn_lowering_call.rs:610-660`
-  - `crates/scoopc/src/mir/lower/fn_lowering_effect.rs:137-144,1060-1099,1242-1286`
-  - `crates/scoopc/src/mir/lower/post_helpers.rs:93-233`
+  - [`PLAN.md`](./PLAN.md) §6 U2-T02
+  - [`UnsupportedMainBody_FIX.md`](./UnsupportedMainBody_FIX.md) §3.3
+  - `audit/UMB_categories/_overview.md`
 - 目标：
-  - MIR lowering 按 snapshot semantics 生成普通 local/env transport，不再为 mutable capture 创建 shared box。
+  - 为每个 bucket 写完整成因分析，让后续 U4/U5/P7 不需要再从零读 codegen。
 - 必须实现的内容：
-  1. `lower_val_stmt` 中 captured mutable local 走普通 `push_named_local(decl.ty)` + init assign。
-  2. assignment to local 不再检查 `boxed_symbols`，统一写普通 local。
-  3. local var ref 不再生成 `CaptureBoxGet`，直接返回 local。
-  4. closure env contract：所有 capture 根据 `capture.ty` 用普通 transport；mutable 只保留在 `ClosureCaptureTransportMetadata.mutable` 字段。
-  5. closure function lowering：env TupleGet 后插入普通 local；不要把 `cap.mutable` 插入 `boxed_symbols`。
-  6. 删除 `capture_box_ty`、`capture_box_contract`、`CAPTURE_BOX_FQN`、`boxed_symbols_in_*` 或改成无 CaptureBox 用途的逻辑。
-  7. 更新 HIR `Capture.mutable` 注释，明确该字段服务 per-call local mutability。
+  1. `Symptom`：从 CSV 抽出该 bucket 下所有 `(id, file, line, kind, route, surface, expected_class)`，直接贴表。不得只写摘要。
+  2. `Symptom`：附 3 个最具代表性的源码片段，每个片段含上下文 ±10 行、对应 `UMB-NNNN`、为何代表该 bucket。
+  3. `Root Cause Hypothesis`：说明上游哪个阶段的什么不变量缺失，例如 typecheck gate、HIR lowering contract、MIR strict verifier、materialize contract、codegen helper invariant。
+  4. `Spec Linkage`：列出所有相关 `docs/spec/language_spec-partN.md#...` 锚；helper invariant 使用 `N/A:helper-invariant` 并说明原因。
+  5. `Expected Post-Fix Class`：分表列 `FrontendReject` / `InternalBugSentinel` / `RealImpl` / `D-pending` 数量，合计必须等于本 bucket entry 数。
+  6. `Fix Strategy Outline`：一句话高层策略；详细策略留给 U4-T01。
+  7. `Fixture Set Pointer`：预留 `tests/fixtures/umb_fix/B-XX-<slug>/`，U5 完成后回填具体 fixture。
+  8. `Open Questions`：记录 spec 沉默、bucket 边界争议、upstream gate 尚未存在等问题。
+  9. 对跨类 bucket（B-09、B-14、B-17、B-24、B-25、B-35）必须按 entry 级别拆分 class，不能只给 bucket 级 class。
 - 必须遵从的约束：
-  - 外层 `var` 捕获仍应允许 lambda 内 rebind；不要误改成 immutable。
-  - 外层 local 自身不受 lambda 内 rebind 影响。
-  - nested closure 也不能重新引入 box；每层 closure 都是构造点 snapshot + per-call local。
+  - 不修改 production codegen。
+  - 不把 `UnsupportedMainBody` 文案带进用户可见 fixture 错误消息。
+  - 不把无法判断的内容留成 `TBD`；如果确有未知，写入 `Open Questions` 并给出阻塞谁。
 - 验证：
-  1. `cargo build -p scoopc`
-  2. `rg -n "boxed_symbols|CaptureBoxNew|CaptureBoxGet|CaptureBoxSet|scoop\.__CaptureBox" crates/scoopc/src/mir/lower crates/scoopc/src/hir`
-  3. `cargo test -p scoopc mir_place_contract_lowers_assignment_places -- --nocapture` 更新断言后通过。
-  4. `cargo test -p scoopc mir_aggregate_transport_records_composite_contracts -- --nocapture` 更新断言后通过。
+  1. `cargo run -p scoopc --bin umb-audit -- stats`
+  2. `cargo test -p scoopc audit::umb_inventory -- --nocapture`
+  3. 后续 U6 baseline test #2-#4 草稿可对 36 份 md 做数字对账。
 - 完成条件：
-  - MIR lowering 不再产生 CaptureBox，且 mutable capture metadata 仍保留到 closure env contract。
-- 依赖：C2-T01A
-- 完成记录：
-  - 改动范围：
-    - 复核 `crates/scoopc/src/mir/lower` 中的 MIR lowering：captured mutable local 已走普通 local allocation / assignment / local ref，closure env contract 已按 `capture.ty` 使用普通 transport，并通过 `ClosureCaptureTransportMetadata.mutable` 保留 mutability metadata。
-    - 复核 closure function lowering：env `TupleGet` 后直接写入普通 local，未重新引入 `boxed_symbols` 或 CaptureBox 路径。
-    - 更新 `crates/scoopc/src/hir/mod.rs` 与 `crates/scoopc/src/hir/lower/mod.rs` 注释，移除旧的 capture box / alias 语义描述，改为 per-call local rebind 语义。
-    - 未修改 `PLAN.md` 或 `CLOSURE_FIX.md`；阶段级计划未变化。
-  - 核心决策：
-    - 不引入替代隐式 box、shim 或兼容分支；mutable capture 继续按构造点 snapshot 进入 closure env，closure body 内只获得本次调用 frame 的普通可重绑 local。
-    - `Capture.mutable` 与 `ClosureCaptureTransportMetadata.mutable` 继续保留，作为后续 inner-side per-call local mutability 的输入，而不是共享 mutable state 的实现机制。
-    - C2-T01A 已删除 MIR core model 后暴露的 lowering 代码依赖；本任务以 scoped 审计、注释修正和定向验证收口 MIR lowering 层。
-  - 验证结果：
-    - `cargo build -p scoopc`：通过。
-    - `rg -n 'boxed_symbols|CaptureBoxNew|CaptureBoxGet|CaptureBoxSet|scoop\.__CaptureBox' crates/scoopc/src/mir/lower crates/scoopc/src/hir`：无输出。
-    - `cargo test -p scoopc mir_place_contract_lowers_assignment_places -- --nocapture`：通过，1 个定向测试通过。
-    - `cargo test -p scoopc mir_aggregate_transport_records_composite_contracts -- --nocapture`：通过，1 个定向测试通过。
-    - `cargo clippy -p scoopc --all-targets -- -D warnings`：通过。
-  - 与 `PLAN.md` / `CLOSURE_FIX.md` 对应闭合：闭合 `PLAN.md` §7 C2-T01 的 MIR lowering 删除入口，以及 `CLOSURE_FIX.md` 中删除 CaptureBox 后门、保持 closure env snapshot + per-call local 语义的 MIR lowering 部分；阶段级计划未变化。
+  - 36 份 bucket md 全部成文。
+  - 每个 bucket md 的 class 分布数字之和等于 CSV 中该 bucket entry 数。
+  - 每条 inventory entry 能在对应 bucket md 的 symptom 表中找到。
+- 依赖：U2-T01
+- 完成记录：待填写
 
-### [DONE] C2-T01C：删除 MIR 分析、dump、materialize、effect facts 中的 CaptureBox arm
+## U3：P3 — Spec 覆盖矩阵
+
+### [TODO] U3-T01：编写 `audit/spec_coverage_matrix.md`
 
 - 参考：
-  - [`PLAN.md`](./PLAN.md) §7 C2-T01
-  - 本文件“CaptureBox 当前命中快照”
+  - [`PLAN.md`](./PLAN.md) §6 U3-T01
+  - [`UnsupportedMainBody_FIX.md`](./UnsupportedMainBody_FIX.md) §4
+  - `docs/spec/language_spec-part1.md` 到 `docs/spec/language_spec-part6.md`
+  - `audit/UMB_inventory.csv` 与 `audit/UMB_categories/B-XX.md`
 - 目标：
-  - 让 MIR 后续 pass 只处理普通 closure env/value transport，不再有 CaptureBox 特例。
+  - 建立 spec section、现有 fixture、新增 fixture、bucket、inventory entry 的双向回链。
 - 必须实现的内容：
-  1. `crates/scoopc/src/mir/closure_simplify.rs`、`escape.rs`、`inline.rs`、`summary.rs`：删除 CaptureBox arm。
-  2. `crates/scoopc/src/mir/dump.rs`：删除 `capture_box_new/get/set` dump 文本和 `capture_box_transport_text`。
-  3. `crates/scoopc/src/mir/materialize/rewrite.rs`：删除 `rewrite_capture_box_contract`。
-  4. `crates/scoopc/src/mir/materialize/validation.rs`：删除 `validate_materialized_capture_box_contract`。
-  5. `crates/scoopc/src/mir/materialize/utils.rs`：删除 CaptureBox helper。
-  6. `crates/scoopc/src/effect_facts/builder.rs`：删除 CaptureBox Rvalue handling。
-  7. `crates/scoopc/src/effect_lowered/frame.rs`、`segment.rs`、`materialize/classification.rs`：删除 CaptureBox references。
+  1. 新建 `audit/spec_coverage_matrix.md`，按 part1 到 part6 编排。
+  2. 每个 spec section 一行，列为 `Spec 锚 / 语法特性 / 现有正例 / 现有负例 / 新增正例 / 新增负例 / 关联 buckets / 关联 UMB ids / 备注`。
+  3. 扫现有 fixture 目录，尽量填充“现有正例 / 现有负例”。优先使用固定定位清单里的 phase 目录，不要重新猜 runner 路由。
+  4. 对 U5 将新增但尚未存在的 fixture，在“新增正例 / 新增负例”中写计划路径占位，例如 `tests/fixtures/umb_fix/B-15-when-pattern/pos_when_enum_exhaustive.scoop (planned)`。
+  5. `audit/UMB_inventory.csv` 中每条非 helper invariant entry 的 `spec_anchor` 必须能在矩阵中找到对应行。
+  6. spec part4 中 async / generator / yield 等未定义区域必须写 `INTENTIONALLY-EMPTY: <spec 原句引用>`，并关联 B-36 或相应 D 类 bucket。
+  7. 若 spec 沉默但 codegen 有 entry，矩阵备注写 `BlockedOnSpec`，U5 写 frontend-reject negative fixture，U4 策略归 D 类或 B/D 过渡。
+  8. 为 U6 test #8 准备可机器扫描的 fixture 引用格式，不要只写自然语言。
 - 必须遵从的约束：
-  - 普通 `ClosureEnvTransportMetadata`、`MirBoxingReason::ClosureCapture`（用于 composite env boxing）不要误删。
-  - effect facts 对 closure/env/call ABI 的其它语义保持不变。
+  - 不修改 spec 文档本身。
+  - 不为了覆盖矩阵而新增不可运行 fixture；新增 fixture 留给 U5。
 - 验证：
-  1. `cargo build -p scoopc`
-  2. `rg -n "CaptureBox|capture_box|mir_capture_box|__CaptureBox" crates/scoopc/src/mir crates/scoopc/src/effect_facts crates/scoopc/src/effect_lowered`
-  3. `cargo test -p scoopc mir -- --nocapture`
-  4. `cargo test -p scoopc effect_facts -- --nocapture`
+  1. `cargo run -p scoopc --bin umb-audit -- stats`
+  2. 手工检查矩阵中每个 bucket 链接都存在。
+  3. 后续 U6 baseline test #8 草稿能解析矩阵中的 fixture 引用。
 - 完成条件：
-  - MIR analysis/materialize/effect_facts 不再含 CaptureBox 特例。
-- 依赖：C2-T01B
-- 完成记录：
-  - 改动范围：
-    - 审计 `crates/scoopc/src/mir/{closure_simplify.rs,escape.rs,inline.rs,summary.rs,dump.rs,materialize/*}`、`crates/scoopc/src/effect_facts/builder.rs` 与 `crates/scoopc/src/effect_lowered/{frame.rs,segment.rs,materialize/classification.rs}`；这些 MIR analysis / dump / materialize / effect facts / effect-lowered 分类路径已无 CaptureBox arm 或 helper。
-    - 修正 `crates/scoopc/src/mir/escape.rs` 的模块注释，移除旧的 “capture box” 逃逸形态描述，改为普通 aggregate / storage location 表述。
-    - 未修改语义代码、fixture expect、`PLAN.md` 或 `CLOSURE_FIX.md`；阶段级计划未变化。
-  - 核心决策：
-    - C2-T01A/B 已在删除 MIR core model 与 lowering 时提前移除了本任务覆盖层的大部分编译期 CaptureBox 分支；本任务以目标层审计和残留注释清理收口。
-    - 保留普通 closure env transport、`ClosureCaptureTransportMetadata.mutable` 与 `MirBoxingReason::ClosureCapture` 的 composite env boxing 语义；未引入替代隐式 box、shim 或兼容路径。
-    - effect facts 与 effect-lowered frame/segment/classification 继续只依据普通 MIR rvalue、closure env、call ABI 与 storage 语义工作，不再识别 CaptureBox 特例。
-  - 验证结果：
-    - `cargo build -p scoopc`：通过。
-    - `rg -n "CaptureBox|capture_box|mir_capture_box|__CaptureBox" crates/scoopc/src/mir crates/scoopc/src/effect_facts crates/scoopc/src/effect_lowered`：无输出。
-    - `cargo test -p scoopc mir -- --nocapture`：通过，158 个 MIR 相关定向测试通过。
-    - `cargo test -p scoopc effect_facts -- --nocapture`：通过，41 个 effect facts 相关定向测试通过。
-    - `cargo clippy -p scoopc --all-targets -- -D warnings`：通过。
-  - 与 `PLAN.md` / `CLOSURE_FIX.md` 对应闭合：闭合 `PLAN.md` §7 C2-T01 的 MIR analysis / materialize / effect facts 删除入口，以及 `CLOSURE_FIX.md` 中删除 CaptureBox 后门、只保留普通 closure env/value transport 的对应要求；阶段级计划未变化。
+  - `audit/spec_coverage_matrix.md` 落地。
+  - spec part1-6 每个 section 有现有/新增 fixture 或明确 `INTENTIONALLY-EMPTY`。
+  - 无 inventory entry 找不到 spec 锚（helper invariant 除外）。
+- 依赖：U2-T02
+- 完成记录：待填写
 
-### [DONE] C2-T01D：删除 LLVM / effect-lowered codegen 中的 CaptureBox lowering
+## U4：P4 — 修复策略草案
+
+### [TODO] U4-T01：编写 36 份 `audit/strategies/B-XX.md`
 
 - 参考：
-  - [`PLAN.md`](./PLAN.md) §7 C2-T01
-  - `crates/scoopc/src/llvm/codegen/mir_body/aggregates.rs`
-  - `crates/scoopc/src/llvm/codegen/mir_body/{mod,operand,terminator,value_args}.rs`
-  - `crates/scoopc/src/llvm/codegen/effect_lowered/value.rs`
-  - `crates/scoopc/src/llvm/codegen/composite_transport.rs`
-  - `crates/scoopc/src/llvm/reachability.rs`
+  - [`PLAN.md`](./PLAN.md) §6 U4-T01
+  - [`UnsupportedMainBody_FIX.md`](./UnsupportedMainBody_FIX.md) §5
+  - `audit/UMB_categories/B-XX.md`
+  - `audit/spec_coverage_matrix.md`
 - 目标：
-  - LLVM 层完全不知道 CaptureBox；closure env 仍是 descriptor-backed GC object，env fields 构造后只读。
+  - 为 P7 production 修复提前定义每个 bucket 的 upstream contract、落地路径和验证锚，但本任务不实现 production 修复。
 - 必须实现的内容：
-  1. `mir_body/aggregates.rs`：删除 `mir_capture_box_inner_type_id`、`codegen_mir_capture_box_new/get/set`。
-  2. `mir_body/value_args.rs`：删除 `get_or_create_mir_capture_box_type_desc_global` 与 `mir_capture_box_type_desc` stable role。
-  3. `mir_body/mod.rs`、`operand.rs`、`terminator.rs`：删除 CaptureBox dispatch/special-case。
-  4. `effect_lowered/value.rs`：删除 CaptureBox Rvalue lowering；保留 atomic-int 与其它 unrelated intrinsic lowering。
-  5. `composite_transport.rs`：删除 CaptureBox transport kind、verification、gap id。
-  6. `llvm/reachability.rs`：删除 CaptureBox reachability branch。
-  7. `pipeline/llvm_codegen_stage.rs:1660-1692` 中期待 `rt_alloc_pass_mir_capture_box` / descriptor 的测试改为验证没有 capture-box allocation，且 closure env descriptor/GC trace 仍存在。
+  1. 新建 `audit/strategies/`。
+  2. 创建 `audit/strategies/B-01.md` 到 `B-36.md`。
+  3. 每份策略包含三段固定标题：`上游契约`、`落地路径`、`验证锚`。
+  4. `上游契约` 明确责任阶段：`typecheck`、`hir`、`mir`、`mir.materialize`、`strict verifier`、`codegen helper` 之一或组合。B 类每条 entry 必须唯一 gate。
+  5. `落地路径` 按 A/B/C/D 分类写清：A 类抽 helper / `unreachable!`，B 类 explicit reject / verifier baseline / codegen sentinel，C 类 fixture 驱动 real impl，D 类先 spec follow-up 或 frontend reject。
+  6. `验证锚` 引用 U5 fixture 计划路径、U6 baseline test、退场计数器、需要下调的 inventory / stale count。
+  7. A 类 bucket（B-01、B-17 部分、B-35 部分）必须设计统一 helper。建议命名从 `UnsupportedMainBody_FIX.md` §5.2 取：`MainCodegen::expect_insert_block`、`expect_parent_function`、`expect_entry_block`、`expect_basic_value`。
+  8. B 类 entry 的 `upstream_gate` 必须同步回填到 `audit/UMB_inventory.csv`，不允许 U4 完成后仍有 B 类 gate 为空或 `TBD`。
+  9. C 类 bucket 必须列出最小 happy-path fixture 名称，并标明在 P7 修复前需 `IGNORE-UNTIL-FIX:B-XX`。
+  10. D 类 bucket 必须列出 spec follow-up 阻塞点，并说明当前 negative fixture 应锁定的 frontend reject 诊断。
 - 必须遵从的约束：
-  - 不要删除 closure env allocation/descriptor：`rt_alloc_pass_mir_closure_env` 应保留。
-  - 不要破坏 composite capture of structs/tuples/enums；删除的是 mutable capture box，不是 closure env composite transport。
+  - 策略文档不是 production 修改许可。本任务不得删除或改写 codegen `UnsupportedMainBody`。
+  - 不把同一 entry 分配给多个 primary gate；第二候选只写 `notes`。
 - 验证：
-  1. `cargo build -p scoopc`
-  2. `rg -n "CaptureBox|capture_box|mir_capture_box|__CaptureBox|rt_alloc_pass_mir_capture_box" crates/scoopc/src/llvm crates/scoopc/src/pipeline`
-  3. `cargo test -p scoopc closure_env_transport -- --nocapture`
-  4. `cargo test -p scoopc composite_transport -- --nocapture`
-  5. `cargo test -p scoopc llvm -- --nocapture`
+  1. `cargo run -p scoopc --bin umb-audit -- diff`
+  2. `cargo run -p scoopc --bin umb-audit -- stats`
+  3. 检查 36 份 strategy md 均存在且三段不空白。
 - 完成条件：
-  - LLVM direct MIR 与 effect-lowered 两条路径均无 CaptureBox lowering。
-- 依赖：C2-T01C
-- 完成记录：
-  - 改动范围：
-    - 审计 `crates/scoopc/src/llvm/codegen/mir_body/{aggregates.rs,mod.rs,operand.rs,terminator.rs,value_args.rs}`、`crates/scoopc/src/llvm/codegen/effect_lowered/value.rs`、`crates/scoopc/src/llvm/codegen/composite_transport.rs`、`crates/scoopc/src/llvm/reachability.rs` 与 `crates/scoopc/src/pipeline/llvm_codegen_stage.rs`；LLVM direct MIR 与 effect-lowered 路径已无 CaptureBox lowering / dispatch / reachability / composite transport 分支。
-    - 更新 `llvm_codegen_stage.rs` 的 closure env transport 测试：继续验证 emitted IR 不含 legacy mutable-capture heap allocation / descriptor marker，同时不在 source 中保留 CaptureBox spellings，使本任务的 source grep gate 能清零。
-    - 更新 `mir_body/value_args.rs` 模块注释，移除过期的 capture-box metadata 描述；保留 closure env descriptor 与 MIR value-box metadata 语义。
-    - 未修改 `PLAN.md`、`CLOSURE_FIX.md`、runtime、sysroot 或 fixture expect；阶段级计划未变化。
-  - 核心决策：
-    - 不引入替代隐式 box、shim 或兼容分支；LLVM 层只保留普通 closure env allocation / descriptor、value-box descriptor 与 composite capture transport。
-    - `rt_alloc_pass_mir_closure_env` 与 closure env composite descriptor / GC trace 断言继续保留，确保删除的是 mutable capture box lowering，而不是 closure env runtime object。
-    - 负向 IR 检查使用运行期拼接 legacy marker 的方式，避免源码中继续出现被任务审计命令禁止的 CaptureBox spelling。
-  - 验证结果：
-    - `cargo build -p scoopc`：通过。
-    - `rg -n "CaptureBox|capture_box|mir_capture_box|__CaptureBox|rt_alloc_pass_mir_capture_box" crates/scoopc/src/llvm crates/scoopc/src/pipeline`：无输出。
-    - `cargo test -p scoopc closure_env_transport -- --nocapture`：通过，1 个定向测试通过。
-    - `cargo test -p scoopc composite_transport -- --nocapture`：通过，6 个相关测试通过。
-    - `cargo test -p scoopc llvm -- --nocapture`：通过，248 个 LLVM 相关测试通过。
-    - `cargo clippy -p scoopc --all-targets -- -D warnings`：通过。
-  - 与 `PLAN.md` / `CLOSURE_FIX.md` 对应闭合：闭合 `PLAN.md` §7 C2-T01 的 LLVM / effect-lowered CaptureBox 删除入口，以及 `CLOSURE_FIX.md` 中删除 CaptureBox 后门、保留 descriptor-backed closure env 的 LLVM backend 部分；阶段级计划未变化。
+  - 36 份策略 md 全部成文。
+  - 每条 B 类 entry 的 `upstream_gate` 在 CSV 中已填实。
+  - 每份策略有明确 fixture / baseline test 验证锚。
+- 依赖：U3-T01
+- 完成记录：待填写
 
-### [DONE] C2-T01E：收口 CaptureBox 删除后的全仓审计
+## U5：P5 — Fixture 集合
+
+### [TODO] U5-T01：fixture 目录骨架 + `_index.csv` + runner 支持确认
 
 - 参考：
-  - [`PLAN.md`](./PLAN.md) §7 C2-T01
-  - 本文件“CaptureBox 当前命中快照”
+  - [`PLAN.md`](./PLAN.md) §3.3、§6 U5-T01、§8、§9
+  - [`UnsupportedMainBody_FIX.md`](./UnsupportedMainBody_FIX.md) §6.1、§6.3、§6.5
+  - `crates/scoop/src/fixtures/mod.rs:1-37`
+  - `crates/scoop/src/fixtures/expectations.rs:1-28`
 - 目标：
-  - 确认 source 层 CaptureBox 已彻底删除，剩余只允许在历史文档、计划或完成记录中出现。
+  - 建立 `tests/fixtures/umb_fix/**` 的目录、索引和 skip / xfail 机制，确保后续 fixture 不会以未知 phase 或临时 failing 形式污染仓库。
 - 必须实现的内容：
-  1. 更新 `crates/scoopc/src/pipeline/mir_stage.rs` 中期待 CaptureBox 的测试，改为验证 mutable capture 不产生 CaptureBox 且普通 assignment/member/global store 仍正确。
-  2. 更新或删除其它 source-level test helper 中的 CaptureBox 字符串。
-  3. 运行全仓搜索并记录剩余命中：`rg -n "CaptureBox|capture_box|mir_capture_box|__CaptureBox|rt_alloc_pass_mir_capture_box" crates/scoopc/src sysroot tests/fixtures`。
-  4. 对 `tests/fixtures/**` 中仍保留的旧 expect 标记列入 C4-T01A 的 fixture regen 清单。
+  1. 创建 `tests/fixtures/umb_fix/`。
+  2. 创建 `tests/fixtures/umb_fix/_index.csv`，表头严格为 `fixture_path,bucket,kind,spec_anchor,umb_ids,status,notes`。
+  3. 创建 36 个 bucket 目录，slug 建议：`B-01-builder-invariant`、`B-02-mir-local-type`、`B-03-call-abi`、`B-04-function-signature`、`B-05-mir-cfg`、`B-06-literal-schema`、`B-07-pattern-schema`、`B-08-member-store`、`B-09-type-equivalence`、`B-10-effect-callable-adapter`、`B-11-pure-boundary`、`B-12-closure-capture`、`B-13-composite-transport`、`B-14-cast-typecheck`、`B-15-when-pattern`、`B-16-control-flow-context`、`B-17-coercion-scalar`、`B-18-literals-strings`、`B-19-top-level-object-extern`、`B-20-class-property-field`、`B-21-struct-fields`、`B-22-enum-niche-option`、`B-23-member-access`、`B-24-reflection-comptime`、`B-25-platform-rtti`、`B-26-atomic-intrinsics`、`B-27-sync-intrinsics`、`B-28-thread-intrinsics`、`B-29-gc-intrinsics`、`B-30-named-unsafe-funptr`、`B-31-scalar-methods`、`B-32-print-panic-sysroot`、`B-33-extern-global-funptr`、`B-34-runtime-error-try`、`B-35-unsafe-nogc-boundary`、`B-36-spec-uncovered`。
+  4. 每个目录创建 `_README.md`，链接对应 `audit/UMB_categories/B-XX.md`、`audit/strategies/B-XX.md`、`audit/spec_coverage_matrix.md` 行和 `_index.csv` 条目说明。
+  5. 确认现有 runner 对 `tests/fixtures/umb_fix/**` 的行为。当前预期没有专门 phase，也没有 `IGNORE-UNTIL-FIX` parser 支持。
+  6. 如果 runner 不支持，新增 test infrastructure：让 `cargo run -p scoop -- test tests/fixtures/umb_fix/` 能识别 `IGNORE-UNTIL-FIX:B-XX` 并 skip / xfail，且 unknown phase 不失败。
+  7. 若选择不让 fixture runner 直接跑 `umb_fix`，必须让 U6 audit tests 完整验证 `_index.csv`、文件存在性、active/ignore 状态，并确保 `cargo run -p scoop -- test tests/fixtures/umb_fix/` 按 PLAN 退场要求可通过。
+  8. 在 `_index.csv` 先填 skeleton / planned 条目时，`status` 只能是 `active` 或 `ignore-until-fix:B-XX`。
 - 必须遵从的约束：
-  - 不要在 C2-T01E 直接手改大量 fixture snapshot；fixture 刷新集中放 C4。
-  - 如果必须临时更新测试以通过 Rust test，可只更新 Rust tests，不更新 fixture expect。
+  - 不创建会失败但未标 ignore 的 fixture。
+  - 不让 `umb_fix` 目录被现有 runner 作为未知 phase 直接失败。
+  - 任何 runner 改动仅限 test infrastructure，不得改变 production compiler semantics。
 - 验证：
-  1. `cargo build -p scoopc`
-  2. `cargo test -p scoopc mir_place_contract -- --nocapture`
-  3. `cargo test -p scoopc aggregate_transport -- --nocapture`
-  4. `rg -n "CaptureBox|capture_box|mir_capture_box|__CaptureBox|rt_alloc_pass_mir_capture_box" crates/scoopc/src sysroot`
+  1. `cargo run -p scoop -- test tests/fixtures/umb_fix/`
+  2. `cargo test -p scoop -- fixtures -- --nocapture`
+  3. 后续 U6 test #5 草稿能扫描 `_index.csv` 与目录。
 - 完成条件：
-  - `crates/scoopc/src` 与 `sysroot` 中无 CaptureBox source references；fixture references 已全部列入 C4 刷新清单。
-- 依赖：C2-T01D
-- 完成记录：
-  - 改动范围：
-    - 审计 `crates/scoopc/src/pipeline/mir_stage.rs`：source-level Rust tests 已不再期待 CaptureBox，`mir_place_contract_lowers_assignment_places` 验证 captured mutable local 是普通 assignable local，`mir_aggregate_transport_records_composite_contracts` 验证 closure env 与 mutable capture metadata 仍存在。
-    - 审计 `crates/scoopc/src` 与 `sysroot`：无 `CaptureBox` / `capture_box` / `mir_capture_box` / `__CaptureBox` / `rt_alloc_pass_mir_capture_box` source references。
-    - 审计 `tests/fixtures`：旧 expect 仅剩在 `tests/fixtures/mir/closure_capture_var.*`、`tests/fixtures/mir_lowered/aggregate_transport.*`、`tests/fixtures/mir_lowered/assignment_places.*`，已明确归入 C4-T01A 的 fixture refresh 范围；本任务未手改 fixture snapshot。
-    - 更新 `memory/claude_plan.md` 进度；未修改 `PLAN.md` 或 `CLOSURE_FIX.md`。
-  - 核心决策：
-    - C2-T01A..D 已完成 source 层删除；C2-T01E 不引入新的语义代码或 fixture 快照刷新，只做 source-level 测试收口、全仓审计和后续 fixture refresh 清单确认。
-    - 保留 C4-T01A 集中刷新 MIR snapshots 的排序，避免在 C2 阶段提前手改大量 fixture expect。
-  - 验证结果：
-    - `cargo build -p scoopc`：通过。
-    - `cargo test -p scoopc mir_place_contract -- --nocapture`：通过，2 个定向测试通过。
-    - `cargo test -p scoopc aggregate_transport -- --nocapture`：通过，4 个相关测试通过。
-    - `rg -n "CaptureBox|capture_box|mir_capture_box|__CaptureBox|rt_alloc_pass_mir_capture_box" crates/scoopc/src sysroot`：无输出。
-    - `rg -n "CaptureBox|capture_box|mir_capture_box|__CaptureBox|rt_alloc_pass_mir_capture_box" crates/scoopc/src sysroot tests/fixtures`：仅 fixture 旧 expect 命中；命中文件为 `closure_capture_var.{mir,actual.mir,actual.raw.mir}`、`aggregate_transport.{mir,actual.mir,actual.raw.mir}`、`assignment_places.{mir,actual.mir,actual.raw.mir}`。
-    - `cargo clippy -p scoopc --all-targets -- -D warnings`：通过。
-  - 与 `PLAN.md` / `CLOSURE_FIX.md` 对应闭合：闭合 `PLAN.md` §7 C2-T01 的 CaptureBox 删除收口审计，以及 `CLOSURE_FIX.md` 中“删除 CaptureBox 后门”对 source/sysroot 清零与 fixture 刷新延期到 C4 的要求；阶段级计划未变化。
+  - 36 个目录和 `_README.md` 全部存在。
+  - `_index.csv` 表头与 schema 一致。
+  - `IGNORE-UNTIL-FIX` 支持状态明确；若需要 runner 改动，已落地并验证。
+- 依赖：U4-T01 可先行；U3-T01 必须已完成
+- 完成记录：待填写
 
-### [DONE] C2-T02：修 closure inner-mutable per-call local bug
+### [TODO] U5-T02：spec part1-6 fixture 主体
 
 - 参考：
-  - [`PLAN.md`](./PLAN.md) §7 C2-T02
-  - [`CLOSURE_FIX.md`](./CLOSURE_FIX.md) §1.4
-  - `crates/scoopc/src/llvm/codegen/closure/mod.rs:97-101,625-678`
+  - [`PLAN.md`](./PLAN.md) §6 U5-T02
+  - [`UnsupportedMainBody_FIX.md`](./UnsupportedMainBody_FIX.md) §6.3-§6.5
+  - `audit/spec_coverage_matrix.md`
+  - `audit/strategies/B-XX.md`
 - 目标：
-  - 让 captured `var` 在 lambda 内成为本次调用 frame 的 mutable local，可 rebind，但每次调用从 env snapshot 重新 load。
+  - 按 spec part1-6 落地 48 组 fixture，补齐语言特性的正/负例覆盖。
 - 必须实现的内容：
-  1. `closure/mod.rs:675`：`mutable: false` 改为 `mutable: cap.mutable`。
-  2. `closure/mod.rs:97-101`：删除“mutable capture not supported” guard，或改为内部不变量 sentinel；若选择 `unreachable!`，必须在 C4-T02 登记 `INTERNAL_BUG_SENTINEL_HITS`。
-  3. effect-lowered closure binding 路径做等价修复：env-load 后创建 per-call alloca，并用 capture mutability 设置 local writable 状态。
-  4. direct MIR body 路径如有 capture binding local metadata，也同步使用 `cap.mutable`。
+  1. Part 1：整型 / 浮点 / 字符 / 字符串 / 插值 / `\u{...}`；包声明 + cone 边界；顶层声明全覆盖。
+  2. Part 2：标量值类型 + 装箱；引用类型；值类型 nominal；Option niche；泛型；类型别名；function type；GC-free；`with` copy-update。
+  3. Part 3：运算符优先级；函数定义；lambda；extension fun；属性；控制流；when；`as` / `as?` / `is`；数组；range；struct literal / `do`；operator overloading；class literal；类型推断。
+  4. Part 4：effect 声明；effect row；handler；handler finally；try/catch/finally；required effect 推断；四种合法 main；async / generator / yield 反样本。
+  5. Part 5：`const fun` / `const val`；`comptime if/for`；reflection intrinsic；splice field；Platform；RTTI；annotation；`@Intrinsic`。
+  6. Part 6：unsafe block；safe region；`@NoGC`；raw pointer；FFI；GC.handle*。
+  7. 每组 fixture 至少 1 个 positive 和 1 个 negative，除非 spec 明确该形态总是合法；例外必须在矩阵备注和 fixture index 中写明。
+  8. 每个 fixture 文件头必须包含 `EXPECT`、`SPEC`、`COVERS`、`BUCKETS`，negative 还必须包含 `EXPECT-ERROR-CODE`、`EXPECT-ERROR-AT`、`EXPECT-ERROR`、`REASON`。
+  9. 每新增一个 fixture，必须同步更新 `tests/fixtures/umb_fix/_index.csv` 和 `audit/spec_coverage_matrix.md`。
+  10. C 类 happy-path fixture 在 P7 修复前必须标 `IGNORE-UNTIL-FIX:B-XX`，index 中 `status=ignore-until-fix:B-XX`。
 - 必须遵从的约束：
-  - 修复后 mutable capture 是合法用户代码，不应再触发 `UnsupportedMainBody`。
-  - closure env 字段仍 immutable，不要引入 env field store 或 GC write barrier。
-  - rebind 不得写回 outer local，也不得跨调用持久。
+  - 不使用 sysroot 之外尚未定义的库 API。
+  - fixture 间不要互相 import，保持单文件可读。
+  - negative fixture 文案不得包含 forbidden terms。
+  - 不新增 production `UnsupportedMainBody` 站点。
 - 验证：
-  1. 新增临时/正式 run-pass 前，至少用 Rust/LLVM 定向测试覆盖 `var x; val f = { x = x + 1; x }; f(); f()` 语义。
-  2. `cargo test -p scoopc closure -- --nocapture`
-  3. `cargo build -p scoopc`
-  4. 后续 C4 fixtures 必须补 run-pass 正样本。
+  1. `cargo run -p scoop -- test tests/fixtures/umb_fix/`
+  2. `cargo test -p scoopc audit::spec_coverage -- --nocapture`（若 U6 草稿已存在）
+  3. 对涉及 build/run 的 fixture，按 phase 补充 `cargo run -p scoop -- test tests/fixtures/build/` 或 `tests/fixtures/run-pass/` 定向命令。
 - 完成条件：
-  - lambda 内 captured `var` 可 rebind；无 CaptureBox；语义是 per-call reset。
-- 依赖：C2-T01E
-- 完成记录：
-  - 改动范围：
-    - `crates/scoopc/src/llvm/codegen/closure/mod.rs` 删除 direct HIR closure 对 mutable capture 的 `UnsupportedMainBody` 拒绝分支，并把 `Capture.mutable` 随 capture binding 传入 closure body binding。
-    - closure body 从 env field load 后创建的 entry alloca 现在按 `cap.mutable` 设置 `CgLocal.mutable`，让 captured `var` 在本次调用 frame 内可 rebind；env field 仍只在 closure 构造时写入。
-    - 新增 `pipeline::mir_stage::tests::mir_closure_mutable_capture_lowers_to_per_call_local`，检查 `var x; val f = { x = x + 1; x }` lowering 为 env snapshot -> per-call local，且 closure body 不写回 `$env`。
-    - 新增 `pipeline::llvm_codegen_stage::tests::llvm_closure_mutable_capture_reloads_env_into_per_call_local`，检查 LLVM closure body 每次调用从 env field reload，并且 rebind 不 store 回 closure env field。
-    - `cargo fmt` 同步格式化了若干既有长 import / match 表达式所在文件：`llvm/codegen/composite_transport.rs`、`mir/dump.rs`、`mir/lower/fn_lowering_effect.rs`、`mir/lower/mod.rs`、`mir/materialize/mod.rs`；未改变语义。
-    - 更新 `memory/claude_plan.md` 进度；未修改 `PLAN.md` 或 `CLOSURE_FIX.md`。
-  - 核心决策：
-    - 不引入替代隐式 box、env field store、GC write barrier 或兼容 shim；mutable capture 仍是构造点 snapshot，closure body 内只是普通 per-call local rebind。
-    - effect-lowered / materialized MIR 路径已由 MIR closure function 的 `$env` 参数、`TupleGet` 解包和普通 MIR local assignment 表达同一语义；本任务补定向测试锁住该路径，而不是新增 MIR local mutability metadata。
-    - 删除 mutable-capture guard 而非改成 internal sentinel，因此 C4-T02 不需要为该 guard 登记 `INTERNAL_BUG_SENTINEL_HITS`。
-  - 验证结果：
-    - `cargo fmt`：通过。
-    - `cargo test -p scoopc closure -- --nocapture`：通过，30 个 closure 相关测试通过。
-    - `cargo build -p scoopc`：通过。
-    - `cargo clippy -p scoopc --all-targets -- -D warnings`：通过。
-  - 与 `PLAN.md` / `CLOSURE_FIX.md` 对应闭合：闭合 `PLAN.md` §7 C2-T02 与 `CLOSURE_FIX.md` §1.4 的 closure inner mutable per-call local 修复要求；阶段级计划未变化。
+  - 48 组 spec fixture 全部落地，或有明确 spec-always-legal / intentionally-empty 记录。
+  - `_index.csv` 与 spec 覆盖矩阵同步。
+  - 所有 active fixture 通过；ignore fixture 被 runner 正确 skip / xfail。
+- 依赖：U5-T01；U4-T01 的 gate 说明应已可引用
+- 完成记录：待填写
 
-## C3：配套库类型
-
-### [DONE] C3-T01：在 sysroot 添加 `RefCell<T>` / `Box<T>`
+### [TODO] U5-T03：bucket-driven 直接对账 fixture
 
 - 参考：
-  - [`PLAN.md`](./PLAN.md) §5、§7 C3-T01
-  - [`CLOSURE_FIX.md`](./CLOSURE_FIX.md) §3
+  - [`PLAN.md`](./PLAN.md) §6 U5-T03
+  - [`UnsupportedMainBody_FIX.md`](./UnsupportedMainBody_FIX.md) §6.2、§6.4 第 49 条
+  - `audit/UMB_inventory.csv`
+  - `audit/UMB_categories/B-XX.md`
+  - `audit/strategies/B-XX.md`
 - 目标：
-  - 提供 closure 显式共享 mutable 状态的最小库出口，以及 `AtomicValue<T>` 所需 immutable heap wrapper。
+  - 确保每个 bucket 至少有专门 fixture，每个 inventory id 都能被 fixture 或 sentinel test 覆盖。
 - 必须实现的内容：
-  1. 在 `sysroot/scoop.core/` 添加普通 class：
-
-     ```scoop
-     class RefCell<T>(initial: T) {
-         var value: T = initial
-     }
-
-     class Box<T>(val value: T)
-     ```
-
-  2. 若放入新文件，确认 sysroot loader/index 包含该文件；否则放入 `core.scoop` root/container 类型附近。
-  3. 新增/更新 sysroot tests，确认 `RefCell<Int>` 可构造、`value` 可读写，`Box<Int>.value` 可读不可写。
+  1. 对 B-01 到 B-36，每个 bucket 至少新增或指定 1 条专属 fixture。
+  2. 每条 fixture 顶部 `// COVERS:` 列出该 fixture 驱动消除的 `UMB-NNNN` 列表。
+  3. `_index.csv` 的 `umb_ids` 字段必须与 fixture 头部 `COVERS` 完全一致。
+  4. 一条 fixture 可以覆盖多个 entry；优先多对一以控制文件数量。U5-T03 完成记录必须统计平均覆盖率。
+  5. A 类 helper invariant 无法从用户 fixture 直接构造时，需在 `_index.csv` 或 bucket README 中指向 U6 `sentinel_tests.rs`，并在 `status` / `notes` 说明。
+  6. B 类 negative fixture 必须验证 U4 指定的 upstream gate，错误码和位置稳定。
+  7. C 类 positive fixture 必须标 `IGNORE-UNTIL-FIX:B-XX`，直到 P7 实现后再转 active。
+  8. D 类 fixture 标 `D-pending` 或 frontend reject，且矩阵中有 `INTENTIONALLY-EMPTY` 或 `BlockedOnSpec` 说明。
+  9. 每新增 fixture 必须回填 `audit/UMB_categories/B-XX.md` 的 `Fixture Set Pointer` 和 `audit/strategies/B-XX.md` 的 `验证锚`。
 - 必须遵从的约束：
-  - `RefCell` 是单线程 mutable cell，不提供原子语义。
-  - `Box` 是不可变 wrapper，不要为了 `AtomicValue` 加 `var value`。
-  - 不要加任何 compiler intrinsic；这两个类型应走现有 class/field 机制。
+  - 不为了覆盖 UMB id 构造非法但无 stable diagnostic 的 fixture。
+  - 不把 `UnsupportedMainBody` 暴露给 fixture 期望输出。
 - 验证：
-  1. `cargo build`
-  2. `cargo run -p scoop -- test`（C4 前可先用最小临时 fixture/定向测试）
+  1. `cargo run -p scoop -- test tests/fixtures/umb_fix/`
+  2. `cargo test -p scoopc audit::spec_coverage -- --nocapture`（若 U6 草稿已存在）
+  3. `cargo run -p scoopc --bin umb-audit -- stats`
 - 完成条件：
-  - sysroot 中可用 `RefCell<T>` / `Box<T>`，且不需要 compiler 特例。
-- 依赖：C0-T01
-- 完成记录：
-  - 改动范围：
-    - 在 `sysroot/scoop.core/core.scoop` 新增普通 sysroot class：`RefCell<T>(initial: T) { var value: T = initial }` 与 `Box<T>(val value: T)`。
-    - 新增 `typecheck::type_env::tests::sysroot_type_env_contains_refcell_box_classes`，确认两个类型作为普通泛型 class 进入 sysroot type env，且不是 sealed marker。
-    - 新增 `tests/fixtures/run-pass/sysroot_refcell_box_basic.scoop` / `.stdout`，覆盖 `RefCell<Int>` 构造、`value` 读写与 `Box<Int>.value` 读取。
-    - 新增 `tests/fixtures/typecheck/sysroot_box_value_assign_is_error.scoop`，确认 `Box.value` 是 `val` 字段，赋值报 `scoop::typecheck::assignment_target_not_mutable`。
-    - 修复 `crates/scoopc/src/llvm/codegen/layout.rs` 的 class field fallback lookup：只允许扫描字段所属 class 或其泛型实例，避免新增 `scoop.core.Box.value` 后把本地 `struct Box.value` / `Entry.value` 等同名 value 字段误判为 class field。
-    - 更新 5 个 HIR golden 中的 sysroot target span，收口 C1 sysroot marker 插入后遗留的 span drift；未修改 `PLAN.md` 或 `CLOSURE_FIX.md`。
-  - 核心决策：
-    - `RefCell` / `Box` 均走现有 class、constructor 与 field 机制；不新增 intrinsic、runtime ABI、layout 特例或 compiler shim。
-    - `RefCell<T>` 是单线程 mutable cell，仅提供一个普通 `var value` 字段；不提供原子或并发语义。
-    - `Box<T>` 保持不可变 heap wrapper，`value` 使用 `val`，为后续 `AtomicValue<T>` 的 snapshot / CAS expected 形态提供普通库类型。
-    - `RefCell` / `Box` 放在 `core.scoop` 文件尾部，避免再次移动既有 sysroot 声明 span 并扩大 HIR snapshot churn。
-  - 验证结果：
-    - `cargo build`：通过。
-    - `cargo test -p scoopc sysroot_type_env -- --nocapture`：通过，5 个 sysroot type env 相关测试通过。
-    - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/sysroot_box_value_assign_is_error.scoop --exit-on-failure`：通过。
-    - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/sysroot_refcell_box_basic.scoop --exit-on-failure`：通过。
-    - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/struct_generic_member_access_result_type_basic.scoop --exit-on-failure`：通过，覆盖本地 `struct Box` 不被 sysroot `Box` 干扰。
-    - `cargo run -p scoop -- test --fixtures tests/fixtures/build/array_intrinsic_composite_copy_set.scoop --exit-on-failure`：通过，覆盖同名 `value` 字段不被 class fallback 误匹配。
-    - `cargo run -p scoop -- test --fixtures tests/fixtures/hir --exit-on-failure`：通过，26 个 HIR fixtures 通过。
-    - `cargo clippy --all-targets -- -D warnings`：通过。
-    - `cargo run -p scoop -- test`：已运行；除 `C4-T01A` 已登记的 3 个 CaptureBox MIR snapshot 刷新目标外，其余通过（`3/1342` failed, `1339/1342` passed, `1376` checks passed）。剩余失败为 `tests/fixtures/mir/closure_capture_var.scoop`、`tests/fixtures/mir_lowered/aggregate_transport.scoop`、`tests/fixtures/mir_lowered/assignment_places.scoop`，与本任务实现无关，且已由 `C4-T01A` 明确排队刷新。
-  - 与 `PLAN.md` / `CLOSURE_FIX.md` 对应闭合：闭合 `PLAN.md` §5 / §7 C3-T01 与 `CLOSURE_FIX.md` §3 的 `RefCell<T>` / `Box<T>` 普通库类型要求；阶段级计划未变化。
+  - 每个 bucket 至少一条专属 fixture 或 sentinel test 指针。
+  - 每个 inventory id 至少出现在一条 `COVERS` 或 sentinel coverage 记录中；D 类例外必须显式标注。
+  - `_index.csv`、bucket md、strategy md、spec matrix 互相闭环。
+- 依赖：U5-T02；U4-T01
+- 完成记录：待填写
 
-### [DONE] C3-T02：在 sysroot/compiler 添加 `Atomic` 一族
+## U6：P6 — Baseline 测试与退场
+
+### [TODO] U6-T01：10 条 baseline test 落地
 
 - 参考：
-  - [`PLAN.md`](./PLAN.md) §5、§7 C3-T02
-  - [`CLOSURE_FIX.md`](./CLOSURE_FIX.md) §3
-  - 本文件“Atomic / GC Barrier 当前入口”
+  - [`PLAN.md`](./PLAN.md) §4、§6 U6-T01
+  - [`UnsupportedMainBody_FIX.md`](./UnsupportedMainBody_FIX.md) §7
+  - `crates/scoopc/src/pipeline_user_visible_failure_policy.rs:659-812`
 - 目标：
-  - 发布用户可见 atomic shared-state primitives：`AtomicInt`、`AtomicBool`、`Atomic<T: AnyRef>`、`AtomicValue<T: AnyValue>`。
+  - 用 Rust baseline tests 把 U1-U5 的所有数据、文档和 fixture 互相锁住。
 - 必须实现的内容：
-  1. `AtomicInt`：class 内部持有 `var raw: __AtomicInt` 或等价 field，methods `load/store/cas/exchange` 复用 `scoop.unsafe.__atomicInt*`。
-  2. `AtomicBool`：复用 atomic-int field intrinsic；bool 存储编码必须明确为 0/1，返回 `Bool`。
-  3. 新增 atomic-ref primitive：设计并实现作用于 class ref-typed field 的 `__atomicRefLoad/Store/CompareExchange` 或等价 compiler intrinsic；必须在 direct HIR LLVM 与 effect-lowered LLVM 两条路径支持。
-  4. atomic-ref store/CAS 成功写入 ref 时必须遵守 GC barrier 协议；参考 `store_gc_pointer_slot_with_write_barrier` 与 runtime `scoop_gc_write_barrier`。
-  5. `Atomic<T: AnyRef>`：class 内部持有 ref field，`load/store/cas/exchange` 使用 atomic-ref primitive，`cas` 是 pointer-identity CAS。
-  6. `AtomicValue<T: AnyValue>`：内部使用 `Atomic<Box<T>>`；`load()` 返回 `box.value`；`store(v)` 构造新 `Box(v)`；`snapshot(): Box<T>`；`cas(expected: Box<T>, desired: T): Bool`；`exchange(v): T`。
-  7. 确认 `<T: AnyRef>` / `<T: AnyValue>` bound 依赖 C1-T02 的 marker 满足关系，而不是普通 interface implementation。
+  1. `crates/scoopc/src/audit/umb_inventory.rs` 实现 `umb_inventory_csv_in_sync`：CSV 与源码 grep 重建结果完全一致，行数等于 U0/U1 冻结值。
+  2. 同文件实现 `umb_inventory_buckets_total`：每个 bucket entry 数等于 bucket md 表头声明，总和等于冻结值。
+  3. 同文件实现 `umb_inventory_each_entry_has_spec_anchor_or_helper_marker`。
+  4. 同文件实现 `umb_inventory_class_distribution`：三类 entry 数与 bucket md `Expected Post-Fix Class` 对账。
+  5. `crates/scoopc/src/audit/spec_coverage.rs` 实现 `umb_fix_fixture_index_in_sync`：`_index.csv` 与实际文件扫描一致。
+  6. 同文件实现 `umb_fix_every_inventory_id_is_covered`：每个 `UMB-NNNN` 至少被 fixture `COVERS` 或 sentinel coverage 覆盖，D 类例外。
+  7. 同文件实现 `umb_fix_every_bucket_has_at_least_one_pos_and_one_neg`：A 类只要求 sentinel test，不强制 negative fixture。
+  8. 同文件实现 `umb_fix_spec_coverage_matrix_in_sync`：矩阵中 fixture 引用真实存在，planned 状态在 U5 完成后必须清空或转 ignore/active。
+  9. 同文件实现 `umb_fix_no_forbidden_terms_in_neg_messages`：negative `EXPECT-ERROR` 不含 forbidden terms。
+  10. `crates/scoopc/src/audit/sentinel_tests.rs` 实现 `umb_fix_helper_invariant_sentinel_tests_present`：每个 A 类 bucket 至少一个 `#[should_panic]` 或等价 sentinel test。
+  11. 在 `crates/scoopc/src/lib.rs` 中以 `#[cfg(test)]` 接入 audit module。
+  12. 若 U1 已实现部分测试，本任务负责补齐、改名为计划中的稳定测试名，并使 `cargo test -p scoopc audit::` 全绿。
 - 必须遵从的约束：
-  - 起步不做 `AtomicFloat32`、`AtomicFloat64`、`AtomicInt32`、`AtomicInt64`。
-  - 不要让 `AtomicValue<T>::cas` 接受 `expected: T`；必须是 `expected: Box<T>`。
-  - 如果 atomic-ref intrinsic 需要新增 unsafe sysroot 声明，应放在 `scoop.unsafe` 内部命名，不直接暴露给用户 API。
-  - `Atomic<T: AnyRef>` 不应接受 value type；`AtomicValue<T: AnyValue>` 不应接受 class/ref type。
+  - baseline test 不得依赖网络、当前工作目录以外文件或交互输入。
+  - 测试失败消息必须指出具体文件、bucket、UMB id 或 fixture path。
+  - 不通过放宽断言掩盖 U1-U5 数据不一致；发现不一致应修数据或文档。
 - 验证：
-  1. `cargo build`
-  2. 定向 LLVM tests：atomic-ref load/store/cas 生成 atomic instruction，并在 store/CAS 成功路径调用/遵守 GC barrier。
-  3. `cargo run -p scoop -- test`。
-  4. C4-T01D 中新增 Atomic fixtures 后全量通过。
+  1. `cargo test -p scoopc audit:: -- --nocapture`
+  2. `cargo test -p scoopc pipeline_user_visible_failure_policy -- --nocapture`
+  3. `cargo run -p scoop -- test tests/fixtures/umb_fix/`
+  4. `cargo test --all --all-targets`
 - 完成条件：
-  - 四类 Atomic API 均可从用户代码调用；bound 正确；atomic-ref 不绕过 GC barrier。
-- 依赖：C1-T02、C3-T01
-- 完成记录：
-  - 改动范围：
-    - 在 `sysroot/scoop.unsafe/unsafe.scoop` 新增内部 generic atomic-ref intrinsic：`__atomicRefLoad<T: AnyRef>`、`__atomicRefStore<T: AnyRef>`、`__atomicRefCompareExchange<T: AnyRef>`。
-    - 在 `sysroot/scoop.core/core.scoop` 发布用户 API：`AtomicInt`、`AtomicBool`、`Atomic<T> where T: AnyRef`、`AtomicValue<T> where T: AnyValue`；`AtomicValue<T>::cas` 使用 `expected: Box<T>`。
-    - LLVM direct HIR 与 effect-lowered 两条路径都新增 atomic-ref lowering；load/store/cmpxchg 生成 pointer atomic instruction，store 与 CAS 成功路径调用 GC write barrier 协议。
-    - 新增 null-slot GC barrier helper，避免 atomic-ref 写入后由 runtime barrier 再执行非原子 slot 写。
-    - 修复泛型 class concrete `ClassInit` 生成时未替换 initializer / ctor body 内嵌套 type param 的缺口，避免 `AtomicValue<T>` 中的 `Atomic<Box<T>>` 残留 `T` 到 codegen。
-    - 支持 qualified nominal constructor call（例如 `scoop.core.Box(...)`）的 typecheck、HIR call-site contract 与 direct HIR codegen，避免 sysroot 内部 `Box` 被用户本地同名类型干扰。
-    - 更新旧 sysroot overlay fixtures，补齐 `AnyRef` / `AnyValue` marker；新增 atomic API run-pass / bound-reject fixtures 与 atomic-ref LLVM unit test。
-  - 核心决策：
-    - `AtomicInt` 复用现有 `__AtomicInt` / `__atomicInt*` primitive；`AtomicBool` 明确编码为 `0/1` 并复用 atomic-int primitive。
-    - `Atomic<T: AnyRef>` 内部持有普通 `var raw: T`，以 internal `__atomicRef*` 执行 pointer-identity load/store/CAS；unsafe primitive 不作为用户 API 暴露。
-    - `AtomicValue<T: AnyValue>` 内部使用 `Atomic<scoop.core.Box<T>>`，`snapshot()` 返回 `Box<T>`，`load()` 返回 `box.value`，`cas(expected: Box<T>, desired: T)` 构造新 `Box` 作为 desired。
-    - atomic-ref store 与 CAS 成功后调用 `scoop_gc_write_barrier(null, desired)`，让 runtime 执行 ref promotion / safepoint 协议，但不通过 barrier 非原子写回 atomic slot。
-    - 不引入 backward compatibility、shim 或 fixture-only 特例；qualified constructor support 作为通用语言/前端能力补齐。
-  - 验证结果：
-    - `cargo build`：通过。
-    - `cargo clippy --all-targets -- -D warnings`：通过。
-    - `cargo test -p scoopc llvm_atomic_ref_uses_atomic_instructions_and_gc_barrier -- --nocapture`：通过。
-    - `cargo test -p scoopc generic -- --nocapture`：通过，57 个 generic 相关测试通过。
-    - `cargo test -p scoopc llvm -- --nocapture`：通过，250 个 LLVM 相关测试通过。
-    - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/sysroot_atomic_basic.scoop --exit-on-failure`：通过。
-    - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/sysroot_atomic_ref_rejects_value_type.scoop --exit-on-failure`：通过。
-    - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/sysroot_atomic_value_rejects_ref_type.scoop --exit-on-failure`：通过。
-    - `cargo run -p scoop -- test --fixtures tests/fixtures/build/sysroot_overlay_core_array_interface_bridge.scoop --exit-on-failure`：通过。
-    - `cargo run -p scoop -- test`：已运行；除 `C4-T01A` 已登记的 3 个 CaptureBox MIR snapshot 刷新目标外，其余通过（`3/1345` failed, `1342/1345` passed, `1379` checks passed）。剩余失败为 `tests/fixtures/mir/closure_capture_var.scoop`、`tests/fixtures/mir_lowered/aggregate_transport.scoop`、`tests/fixtures/mir_lowered/assignment_places.scoop`，与本任务实现无关，且已由 `C4-T01A` 明确排队刷新。
-    - `cargo test --all --all-targets`：已运行；唯一失败为 `fixtures::tests::run_all_recreates_session_between_independent_fixtures`，失败原因同样是已登记的 `C4-T01A` `mir_lowered/aggregate_transport` snapshot mismatch；其它 Rust tests 通过。
-  - 与 `PLAN.md` / `CLOSURE_FIX.md` 对应闭合：闭合 `PLAN.md` §5 / §7 C3-T02 与 `CLOSURE_FIX.md` §3 的 Atomic shared-state primitives 要求；阶段级计划未变化。
+  - 10 条 baseline test 全部存在且通过。
+  - 任意 inventory 漂移、bucket md 数字漂移、fixture index 漂移、spec matrix 悬空、禁词违规都会导致测试失败。
+- 依赖：U5-T03
+- 完成记录：待填写
 
-## C4：fixtures + audit
-
-### [DONE] C4-T01A：刷新受 CaptureBox 删除影响的 MIR fixtures
+### [TODO] U6-T02：退场标注 + 计划自检
 
 - 参考：
-  - [`PLAN.md`](./PLAN.md) §7 C4-T01
-  - 本文件“CaptureBox 当前命中快照” fixture 列表
+  - [`PLAN.md`](./PLAN.md) §6 U6-T02、§7
+  - [`UnsupportedMainBody_FIX.md`](./UnsupportedMainBody_FIX.md) §12
 - 目标：
-  - 让 MIR / mir_lowered snapshots 反映新语义：无 `CaptureBoxNew/Get/Set`、无 `MirTransportKind::CaptureBox`、无 `scoop.__CaptureBox`。
+  - 完成本轮 doc-and-test only 计划的交付闭环，并把 P7/P8 production 修复移交给 `UnsupportedMainBody_DONE.md`。
 - 必须实现的内容：
-  1. 刷新 `tests/fixtures/mir/closure_capture_var.*`。
-  2. 刷新 `tests/fixtures/mir_lowered/aggregate_transport.*`。
-  3. 刷新 `tests/fixtures/mir_lowered/assignment_places.*`。
-  4. C2-T01E 审计确认剩余 fixture 旧 expect 仅限上述三个 `.*` 组；若刷新前又发现其它 fixture 包含 CaptureBox，也一并刷新。
-  5. 确认 `closure_capture_var.hir` 仍保留 `mutable: true` capture 信息。
+  1. 确认 `audit/UMB_inventory.csv`、`audit/UMB_inventory_schema.md`、36 份 bucket md、36 份 strategy md、spec matrix、`tests/fixtures/umb_fix/**`、`crates/scoopc/src/audit/**` 全部存在。
+  2. 确认 `cargo test -p scoopc audit::` 全绿。
+  3. 确认 `cargo run -p scoop -- test tests/fixtures/umb_fix/` 通过，允许 `IGNORE-UNTIL-FIX` 但必须由 runner 明确 skip / xfail。
+  4. 在 `UnsupportedMainBody_FIX.md` §12 标注 `[DONE]`，并按 `PLAN.md:400` 追加 `// PLAN-MD: see PLAN.md (this repo root) for execution tracking` 或等价说明。若该注释格式不适合 Markdown，先更新 `PLAN.md` 再执行。
+  5. 创建 `UnsupportedMainBody_DONE.md`，只写头部、P7/P8 退场标准引用和当前 inventory count，不实现 production 修复计划细节。
+  6. 最终更新本 `TODO.md` 顶部“当前状态”为完成，并在 U6-T02 完成记录中列出全量验证命令结果。
 - 必须遵从的约束：
-  - 不要删除能跑通且仍有语义价值的 fixtures；只刷新 expect。
-  - `assignment_places` 仍要覆盖 top-level var store、extern/global store、member store；只是去掉 CaptureBox 断言。
+  - 不在 U6-T02 顺手删除或改写 production `UnsupportedMainBody`。
+  - 如果任何退场判据未满足，不得把 `UnsupportedMainBody_FIX.md` 标 `[DONE]`。
 - 验证：
-  1. `cargo run -p scoop -- test`
-  2. `rg -n "CaptureBox|MirTransportKind::CaptureBox|scoop\.__CaptureBox" tests/fixtures/mir tests/fixtures/mir_lowered`
-- 完成条件：
-  - MIR fixture 中无 CaptureBox 旧文本，fixture suite 通过。
-- 依赖：C2-T02
-- 完成记录：
-  - 改动范围：
-    - 刷新 `tests/fixtures/mir/closure_capture_var.{mir,actual.mir,actual.raw.mir}`，移除旧 `scoop.__CaptureBox<Int>` local / env / get / set snapshot，改为普通 `Int` capture 与 per-call local assignment。
-    - 刷新 `tests/fixtures/mir_lowered/aggregate_transport.{mir,actual.mir,actual.raw.mir}`，其中 closure capture 部分不再使用 CaptureBox transport，`counter` 以普通 `Int` 进入 closure env，并保留 `ClosureCaptureTransportMetadata.mutable: true`。
-    - 刷新 `tests/fixtures/mir_lowered/assignment_places.{mir,actual.mir,actual.raw.mir}`，保留 top-level var store、extern/global store、member store 覆盖，同时把 captured mutable local 从 CaptureBox snapshot 改为普通 `Int` env snapshot。
-    - 确认 `tests/fixtures/hir/closure_capture_var.hir` 仍保留两处 `Capture { mutable: true }` 信息；未修改 fixture source、`PLAN.md` 或 `CLOSURE_FIX.md`。
-  - 核心决策：
-    - 只刷新受 C2 删除 CaptureBox 后语义变化影响的 MIR golden / actual snapshot，不删除仍有语义价值的 fixtures，也不修改 `.scoop` 输入。
-    - 保留 `assignment_places` 对普通 local assignment、top-level/global/extern store、member store 的覆盖；仅移除旧隐式 CaptureBox 断言。
-    - 新 snapshot 明确记录 closure env 构造点 by-value snapshot 与 mutable capture metadata，但不再出现 `CaptureBox` / `MirTransportKind::CaptureBox` / `scoop.__CaptureBox` 文本。
-  - 验证结果：
-    - `cargo run -p scoop -- test --fixtures tests/fixtures/mir/closure_capture_var.scoop --exit-on-failure`：通过，1 个 check。
-    - `cargo run -p scoop -- test --fixtures tests/fixtures/mir_lowered/aggregate_transport.scoop --exit-on-failure`：通过，1 个 check。
-    - `cargo run -p scoop -- test --fixtures tests/fixtures/mir_lowered/assignment_places.scoop --exit-on-failure`：通过，1 个 check。
-    - `cargo run -p scoop -- test`：通过，`fixtures: ok (1382)`。
-    - `rg -n "CaptureBox|MirTransportKind::CaptureBox|scoop\.__CaptureBox" tests/fixtures/mir tests/fixtures/mir_lowered`：无输出。
-    - `cargo clippy --all-targets -- -D warnings`：通过。
-  - 与 `PLAN.md` / `CLOSURE_FIX.md` 对应闭合：闭合 `PLAN.md` §7 C4-T01 中 CaptureBox 删除后 MIR / mir_lowered fixture 刷新要求，以及 `CLOSURE_FIX.md` 对“无隐式 CaptureBox、closure env snapshot + per-call local”语义的 fixture 回归要求；阶段级计划未变化。
-
-### [DONE] C4-T01B：新增 closure capture 新语义正样本 fixtures
-
-- 参考：
-  - [`PLAN.md`](./PLAN.md) §7 C4-T01
-  - [`CLOSURE_FIX.md`](./CLOSURE_FIX.md) §1.1、§6
-- 目标：
-  - 用可运行 fixtures 区分旧 Kotlin-style implicit box 语义与新 per-call reset 语义。
-- 必须实现的内容：
-  1. 新增 per-call reset fixture：`var x = 0; val f = { x = x + 1; x }; val a = f(); val b = f();`，验证 `a == b`。
-  2. 新增 outer unaffected fixture：lambda 内 rebind captured `var` 后，外层 `x` 仍为原值。
-  3. 新增 ref capture heap mutation fixture：捕获 class ref，lambda 修改对象字段，外层通过同一对象看到修改。
-  4. 新增 `RefCell` 显式共享 makeCounter fixture：`val n = RefCell(0)`，多次调用累加。
-  5. 保留 `tests/fixtures/run-pass/closure_env_composite_capture_basic.scoop`，但不要把它当作区分性样本。
-- 必须遵从的约束：
-  - 正样本应放在最小相关 phase，优先 `tests/fixtures/run-pass/`；如果只验证 MIR 形态，可另加 `mir`/`mir_lowered`。
-  - 输出/exit code 必须明确区分旧新语义，避免只调用一次 closure。
-- 验证：
-  1. `cargo run -p scoop -- test`
-  2. 定向运行新增 fixture（若 scoop CLI 支持单 fixture 参数，则在完成记录写具体命令）。
-- 完成条件：
-  - 新 closure 语义有运行级回归覆盖。
-- 依赖：C2-T02、C3-T01
-- 完成记录：
-  - 改动范围：
-    - 新增 `tests/fixtures/run-pass/closure_capture_var_per_call_reset.scoop`，覆盖 captured `var` 在 closure 多次调用之间按 env snapshot 重新初始化，预期 `a == b`。
-    - 新增 `tests/fixtures/run-pass/closure_capture_var_outer_unaffected.scoop`，覆盖 lambda 内 rebind captured `var` 不回写外层 binding。
-    - 新增 `tests/fixtures/run-pass/closure_capture_ref_heap_mutation.scoop`，覆盖 class ref capture 复制 managed pointer，lambda 通过同一对象字段写入后外层可见。
-    - 新增 `tests/fixtures/run-pass/closure_capture_refcell_make_counter.scoop`，覆盖显式 `RefCell<Int>` 作为共享 mutable state 的 makeCounter 模式。
-    - 未修改语义代码、`PLAN.md` 或 `CLOSURE_FIX.md`。
-  - 核心决策：
-    - 四个样本均放在最小相关 phase `tests/fixtures/run-pass/`，以运行结果而不是 MIR 形态验证用户可见语义。
-    - 使用独立 fixture 和 `EXPECT-EXIT`，让 per-call reset、outer unaffected、heap object mutation、explicit `RefCell` sharing 各自有清晰失败信号。
-    - `closure_capture_var_per_call_reset` 调用 closure 两次并期望 `11`；旧隐式 box 语义会得到 `12`，因此能区分旧新语义。
-    - `closure_capture_var_outer_unaffected` 期望 `59`；旧隐式 box 若回写外层 binding 会得到 `99`。
-  - 验证结果：
-    - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/closure_capture_var_per_call_reset.scoop --exit-on-failure`：通过，1 个 check。
-    - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/closure_capture_var_outer_unaffected.scoop --exit-on-failure`：通过，1 个 check。
-    - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/closure_capture_ref_heap_mutation.scoop --exit-on-failure`：通过，1 个 check。
-    - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/closure_capture_refcell_make_counter.scoop --exit-on-failure`：通过，1 个 check。
-    - `cargo run -p scoop -- test`：通过，`fixtures: ok (1386)`。
-    - `cargo clippy --all-targets -- -D warnings`：通过。
-  - 与 `PLAN.md` / `CLOSURE_FIX.md` 对应闭合：闭合 `PLAN.md` §7 C4-T01 与 `CLOSURE_FIX.md` §1.1、§6/T-G 中 closure capture 正样本要求；阶段级计划未变化。
-
-### [DONE] C4-T01C：新增 sealed interface frontend reject / accept fixtures
-
-- 参考：
-  - [`PLAN.md`](./PLAN.md) §4.1、§7 C4-T01
-  - C1-T01 错误码列表
-- 目标：
-  - 每条 sealed interface 语言边界都有 fixture 覆盖，并能登记到 audit 表。
-- 必须实现的内容：
-  1. 正样本：`class C<T: AnyRef>`、`fun f<T: AnyValue>(x: T): T`、组合 bound `T: AnyRef + Hashable`（若普通 interface bound 支持组合）。
-  2. 反样本：`val v: AnyRef = ...`。
-  3. 反样本：`fun f(x: AnyRef)`。
-  4. 反样本：`fun f(): AnyRef`。
-  5. 反样本：`val xs: List<AnyRef>`。
-  6. 反样本：`class C : AnyRef`。
-  7. 反样本：`struct S : AnyValue`。
-  8. 反样本：`when (x) { is AnyRef -> ... }`。
-  9. 反样本：`x as AnyRef` 与/或 `x as? AnyRef`。
-  10. 反样本：用户模块中 `sealed interface UserMarker`。
-  11. 反样本：`sealed interface NotEmpty { fun foo() }`。
-  12. 反样本：`<T: AnyRef + AnyValue>`。
-  13. 反样本：`sealed interface I : AnyRef, AnyValue`。
-  14. 反样本：`sealed interface I : NormalInterface`、`sealed interface I : SomeClass`。
-  15. 反样本：`sealed interface I : I` 与两节点 cycle。
-- 必须遵从的约束：
-  - 每个 reject fixture 必须有 `EXPECT-ERROR-CODE`，使用 `scoop::typecheck::sealed_interface_*`。
-  - 如果某些语法当前 parser 不支持，应记录为 parser 限制，不要伪造 typecheck fixture。
-- 验证：
-  1. `cargo run -p scoop -- test`
-  2. `rg -n "sealed_interface_" tests/fixtures/typecheck crates/scoopc/src/pipeline_user_visible_failure_policy.rs`
-- 完成条件：
-  - sealed interface 的全部 frontend reject 都有 fixture 覆盖。
-- 依赖：C1-T02
-- 完成记录：
-  - 改动范围：
-    - 新增 `tests/fixtures/typecheck/sealed_interface_bounds_accept_ok.scoop`，覆盖 `AnyRef` / `AnyValue` 作为 generic/where bound 的正样本，以及 `AnyRef` + 普通 `Hashable` interface 多约束正样本。
-    - 新增 16 个 sealed interface reject fixtures，覆盖 binding type、param type、return type、type argument、显式 class/struct supertype、`when is` pattern、`as` cast、用户源码定义、互斥 where bound、非空 body、互斥 sysroot marker、非 sealed supertype（普通 interface / class）、self-cycle 与 two-node cycle。
-    - 为需要以 sysroot origin 触发的定义形态错误新增 6 个 companion sysroot overlay 文件；用户源码中的 `sealed interface UserMarker` 仍直接覆盖 sysroot-only gate。
-    - 未修改 compiler/runtime/sysroot 语义代码；未修改 `PLAN.md` 或 `CLOSURE_FIX.md`。
-  - 核心决策：
-    - accept/reject 样本均放在最小相关 phase `tests/fixtures/typecheck/`，所有 reject fixture 都含 `EXPECT-ERROR-CODE: scoop::typecheck::sealed_interface_*`。
-    - 当前 parser 不支持内联 `<T: Bound>` type param bound，也不支持 `T: AnyRef + Hashable` 这种 `+` intersection bound 语法；正样本使用现有 `where T: ...` 与重复 where constraint 表达同等已实现语义，未伪造 typecheck fixture。
-    - `sealed interface` 的 body、supertype、cycle 与 sysroot marker 互斥检查必须从 sysroot source 触发；这些 fixture 使用 companion `.sysroot/` overlay 添加额外 sysroot 文件，避免被 user-definition gate 抢先拦截。
-    - `pipeline_user_visible_failure_policy.rs` 审计表不在本任务更新；C4-T02 已明确负责登记 sealed-interface frontend reject surfaces。
-  - 验证结果：
-    - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck --exit-on-failure`：通过，`fixtures: ok (491)`。
-    - `cargo run -p scoop -- test`：通过，`fixtures: ok (1403)`。
-    - `rg -n "sealed_interface_" tests/fixtures/typecheck crates/scoopc/src/pipeline_user_visible_failure_policy.rs`：通过；新增 fixture marker 均可定位，`pipeline_user_visible_failure_policy.rs` 等待 C4-T02 登记。
-    - `cargo clippy --all-targets -- -D warnings`：通过。
-  - 与 `PLAN.md` / `CLOSURE_FIX.md` 对应闭合：闭合 `PLAN.md` §4.1 / §7 C4-T01 与 `CLOSURE_FIX.md` §2 的 sealed interface frontend accept/reject fixture 覆盖要求；阶段级计划未变化。
-
-### [DONE] C4-T01D：新增 shared-state primitive fixtures
-
-- 参考：
-  - [`PLAN.md`](./PLAN.md) §5、§7 C4-T01
-  - [`CLOSURE_FIX.md`](./CLOSURE_FIX.md) §3
-- 目标：
-  - 覆盖 `RefCell`、`Box`、`AtomicInt`、`AtomicBool`、`Atomic<T: AnyRef>`、`AtomicValue<T: AnyValue>` 的最小用户可见行为。
-- 必须实现的内容：
-  1. `RefCell<T>`：构造、读、写、closure 中显式共享累加。
-  2. `Box<T>`：构造、读 value、拒绝写 value（如已有 val field reject fixture 可复用）。
-  3. `AtomicInt`：load/store/cas/exchange 单线程 run-pass。
-  4. `AtomicBool`：load/store/cas/exchange 单线程 run-pass，验证 bool 编码往返。
-  5. `Atomic<MyClass>`：load/store/cas pointer identity；CAS expected 旧对象成功/失败都覆盖。
-  6. `AtomicValue<MyStruct>`：snapshot/load/store/cas/exchange；CAS expected 必须是 `Box<MyStruct>`。
-  7. bound 反样本：`Atomic<Int>` 应拒绝，`AtomicValue<MyClass>` 应拒绝。
-- 必须遵从的约束：
-  - Atomic fixtures 不要依赖并发调度；本轮只需单线程原子语义与 lowering。
-  - atomic-ref 相关 LLVM build fixture 应验证 atomic instruction 与 GC barrier 关键形态，但避免锁死不稳定 private symbol spelling。
-- 验证：
-  1. `cargo run -p scoop -- test`
-  2. `cargo test -p scoopc atomic -- --nocapture`
-- 完成条件：
-  - shared-state primitive 有运行级和必要 LLVM 级回归覆盖。
-- 依赖：C3-T02
-- 完成记录：
-  - 改动范围：
-    - 扩展 `tests/fixtures/run-pass/sysroot_atomic_basic.scoop` / `.stdout`，在既有 `AtomicInt`、`AtomicBool`、`Atomic<Node>`、`AtomicValue<Pair>` run-pass 覆盖上补齐 CAS 失败路径，尤其覆盖 `Atomic<Node>` pointer identity 的 expected-old-object 失败与 expected-current-object 成功。
-    - 新增 `tests/fixtures/typecheck/sysroot_atomic_value_cas_expected_requires_box.scoop`，确认 `AtomicValue<T>::cas` 的 `expected` 不能传 `T`，必须传 `Box<T>`。
-    - 新增 `tests/fixtures/build/sysroot_atomic_ref_llvm.scoop`，通过用户可见 `Atomic<T: AnyRef>` API 检查 LLVM IR 中的 pointer atomic load/store/CAS 与 GC write barrier 调用形态。
-    - 复用既有 `sysroot_refcell_box_basic.scoop`、`closure_capture_refcell_make_counter.scoop`、`sysroot_box_value_assign_is_error.scoop`、`sysroot_atomic_ref_rejects_value_type.scoop`、`sysroot_atomic_value_rejects_ref_type.scoop` 覆盖 `RefCell` / `Box` 基本行为与 atomic bound 反样本；未修改语义代码、`PLAN.md` 或 `CLOSURE_FIX.md`。
-  - 核心决策：
-    - Atomic fixture 继续保持单线程，验证 API 语义、CAS 成功/失败与 lowering 形态，不引入并发调度依赖。
-    - atomic-ref LLVM fixture 使用稳定的 IR 指令/运行时 barrier 关键形态断言，不锁死 hash 后缀等 private symbol spelling。
-    - `AtomicValue<T>::cas(expected: T, ...)` 当前经成员调用重载解析报 `scoop::typecheck::no_matching_overload`，fixture 按现有调用诊断表述锁定该用户可见错误。
-  - 验证结果：
-    - `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/sysroot_atomic_basic.scoop --exit-on-failure`：通过，1 个 check。
-    - `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/sysroot_atomic_value_cas_expected_requires_box.scoop --exit-on-failure`：通过，1 个 check。
-    - `cargo run -p scoop -- test --fixtures tests/fixtures/build/sysroot_atomic_ref_llvm.scoop --exit-on-failure`：通过，1 个 check。
-    - `cargo test -p scoopc atomic -- --nocapture`：通过，1 个 atomic 相关 Rust 测试通过。
-    - `cargo run -p scoop -- test`：通过，`fixtures: ok (1405)`。
-    - `cargo clippy --all-targets -- -D warnings`：通过。
-  - 与 `PLAN.md` / `CLOSURE_FIX.md` 对应闭合：闭合 `PLAN.md` §5 / §7 C4-T01 与 `CLOSURE_FIX.md` §3 的 shared-state primitive 用户可见 fixture 覆盖要求；阶段级计划未变化。
-
-### [DONE] C4-T02：更新 user-visible failure / frontend reject audit 基线
-
-- 参考：
-  - [`PLAN.md`](./PLAN.md) §7 C4-T02
-  - `crates/scoopc/src/pipeline_user_visible_failure_policy.rs:146-311,390-426,462-481`
-- 目标：
-  - CaptureBox 删除与 sealed-interface 新增 rejects 后，pipeline audit 表不再反映旧世界。
-- 必须实现的内容：
-  1. 重算 `STALE_UNSUPPORTED_MAIN_BODY_COUNTS`。CaptureBox 删除后，重点复查 `mir_body/aggregates.rs`、`mir_body/terminator.rs`、`mir_body/value_args.rs`、`effect_lowered/value.rs`。
-  2. 如果 C2-T02 选择 `unreachable!` guard 方案，把对应行加入 `INTERNAL_BUG_SENTINEL_HITS`；如果删除 guard，则无需新增 sentinel。
-  3. 在 `FRONTEND_REJECT_SURFACES` 登记 sealed-interface rejects：错误码、定义位置、fixture marker。
-  4. 确认 `STALE_USER_VISIBLE_UNSUPPORTED_MARKERS` 仍为空或有明确理由。
-- 必须遵从的约束：
-  - 不要通过放宽 audit test 掩盖真实 stale user-visible `UnsupportedMainBody`。
-  - 每个新增 frontend reject 都必须能在 source marker 和 fixture marker 中定位。
-- 验证：
-  1. `cargo test -p scoopc pipeline_user_visible_failure_policy -- --nocapture`
-  2. `cargo test -p scoopc`
-  3. `cargo run -p scoop -- test`
-- 完成条件：
-  - Audit 基线与当前代码/fixture 完全一致。
-- 依赖：C4-T01A、C4-T01C、C4-T01D
-- 完成记录：
-  - 改动范围：
-    - 更新 `crates/scoopc/src/pipeline_user_visible_failure_policy.rs` 的 audit 基线：`STALE_UNSUPPORTED_MAIN_BODY_COUNTS` 中 `mir_body/aggregates.rs` 从 42 调整为 31、`mir_body/operand.rs` 从 9 调整为 8、`effect_lowered/value.rs` 从 126 调整为 139，总数从 637 调整为 638；`mir_body/terminator.rs` 与 `mir_body/value_args.rs` 复查后保持 19 / 6。
-    - 刷新 `INTERNAL_BUG_SENTINEL_HITS` 中因前序实现插入代码导致漂移的行号；C2-T02 已删除 mutable-capture guard，本任务未新增 internal sentinel。
-    - 在 `FRONTEND_REJECT_SURFACES` 登记 8 组 sealed-interface frontend rejects，覆盖 sysroot-only、empty body、sealed-only supertype、inheritance cycle、声明级互斥 marker、where-bound 互斥 marker、runtime type position bound-only、显式实现/继承 bound-only，并逐项绑定 source marker 与 fixture marker。
-    - 确认 `STALE_USER_VISIBLE_UNSUPPORTED_MARKERS` 仍为空。
-    - 修复验证中暴露的 sealed marker runtime metadata 泄漏：`itable` runtime interface target / closure / metadata 收集不再把 `sealed interface` 当作运行期 interface；RTTI 测试新增断言，确保 `scoop.core.AnyRef` / `scoop.core.AnyValue` 不进入 runtime match names。
-    - 更新 `memory/claude_plan.md` 进度；未修改 `PLAN.md` 或 `CLOSURE_FIX.md`。
-  - 核心决策：
-    - Audit baseline 只反映当前实现事实，不通过放宽测试或登记 stale marker 来掩盖真实 `UnsupportedMainBody`；CaptureBox 删除影响的 stale count 按实际 source 重新冻结。
-    - Sealed-interface diagnostics 按实际定义面分组登记：同一错误码在 type lowering、interface checking、type env 与 where clause 中有不同用户可见消息时分别记录 surface。
-    - `AnyRef` / `AnyValue` 是 compile-time-only sealed markers；它们可以参与 bound satisfaction，但不能进入 runtime interface index、itable、type descriptor 或 RTTI runtime-match target。
-  - 验证结果：
-    - `cargo fmt`：通过。
-    - `cargo test -p scoopc pipeline_user_visible_failure_policy -- --nocapture`：通过，7 个 audit policy 测试通过。
-    - `cargo test -p scoopc dump_rtti_class_itable_entries_preserve_parameterized_runtime_match_metadata -- --nocapture`：通过，1 个 RTTI 定向回归测试通过。
-    - `cargo test -p scoopc`：通过，871 个测试通过。
-    - `cargo run -p scoop -- test`：通过，`fixtures: ok (1405)`。
-    - `cargo clippy --all-targets -- -D warnings`：通过。
-  - 与 `PLAN.md` / `CLOSURE_FIX.md` 对应闭合：闭合 `PLAN.md` §7 C4-T02 的 user-visible failure / frontend reject audit 基线更新要求，并补齐 `CLOSURE_FIX.md` §2 对 sealed marker 不进入 runtime metadata / itable / type descriptor 的约束；阶段级计划未变化。
-
-## C5：文档 / spec 收尾
-
-### [DONE] C5-T01：更新 spec、迁移说明与设计文档状态
-
-- 参考：
-  - [`PLAN.md`](./PLAN.md) §7 C5
-  - [`CLOSURE_FIX.md`](./CLOSURE_FIX.md) §6、§7
-- 目标：
-  - 把已实现语义写入用户可见 spec，并把设计讨论文档转为历史记录。
-- 必须实现的内容：
-  1. `SCOOP_FULL_SPEC.md`：增加 closure capture 默认语义条目，覆盖 by-value snapshot、per-call reset、ref capture heap sharing、显式 `RefCell` / `Atomic` 共享出口。
-  2. `SCOOP_FULL_SPEC.md`：增加 `sealed interface` 章节，覆盖 empty body、sysroot-only、bound-only、inheritance、mutual exclusion、runtime invisible。
-  3. `SCOOP_FULL_SPEC.md` 或 release/migration note：说明 Kotlin makeCounter 模式迁移到 `RefCell`。
-  4. `CLOSURE_FIX.md` 文件头部添加“实现进度跟踪移交至 PLAN.md / TODO.md；本文档保留为设计讨论历史记录”。
-  5. 若 spec code block 绑定 fixtures，运行 spec fixture sync/check。
-- 必须遵从的约束：
-  - 不要把未来 derived interface / sub-marker / AtomicFloat 等未实现内容写成已支持。
-  - `MANAGED_ABI.md` 默认不需要改；CaptureBox 不是 managed ABI surface。只有实现过程中确实改变 runtime ABI 时才更新。
-- 验证：
-  1. `cargo run -p scoop_tools -- spec-fixtures sync`（仅当 spec fixture block 有变化）
-  2. `cargo run -p scoop_tools -- spec-fixtures check`
-  3. `cargo run -p scoop -- test`
-- 完成条件：
-  - 用户可见 spec 与已实现行为一致，设计文档状态清楚。
-- 依赖：C4-T02
-- 完成记录：
-  - 改动范围：
-    - `SCOOP_FULL_SPEC.md` 新增 sealed interface marker 规范，覆盖 empty body、sysroot-only、bound-only、继承/循环/互斥、`AnyRef` / `AnyValue` 自动满足关系与 runtime-invisible 约束。
-    - `SCOOP_FULL_SPEC.md` 新增 closure capture 规范，覆盖构造点 by-value snapshot、value/ref capture 差异、closure env 构造后不可变、captured `var` per-call reset、outer binding 不受 lambda 内 rebind 影响。
-    - `SCOOP_FULL_SPEC.md` 新增 shared-state API 摘要与 Kotlin-style `makeCounter` 迁移说明，明确 `RefCell<T>` / `Atomic*` 是显式共享 mutable state 出口，`AtomicValue<T>::cas` 的 expected 为 `Box<T>`。
-    - `CLOSURE_FIX.md` 文件头部标记实现进度跟踪已移交至 `PLAN.md` / `TODO.md`，本文档保留为设计讨论历史记录。
-    - 更新 `memory/claude_plan.md` 进度；未修改 `PLAN.md`、`MANAGED_ABI.md`、语义代码、runtime、sysroot 或 fixture。
-  - 核心决策：
-    - 本任务只做用户可见文档收口，不改变阶段级计划；`PLAN.md` 无需更新。
-    - `SCOOP_FULL_SPEC.md` 示例不新增 `// FIXTURE:` doctest block，因此无需运行 `spec-fixtures sync`；仍运行 `spec-fixtures check` 确认现有 spec fixture 集合一致。
-    - sealed interface 文档按当前实现语法使用 `where T: AnyRef` / `where T: AnyValue`，不把当前 parser 尚未支持的 inline type-parameter bound 语法写成已支持。
-    - 迁移说明直接放入 `SCOOP_FULL_SPEC.md` 的 closure 章节，而不是新增独立 release note 文件。
-  - 验证结果：
-    - `cargo run -p scoop_tools -- spec-fixtures check`：通过，`spec fixtures: ok (1)`。
-    - `cargo run -p scoop -- test`：通过，`fixtures: ok (1405)`。
-    - `cargo clippy --all-targets -- -D warnings`：通过。
-  - 与 `PLAN.md` / `CLOSURE_FIX.md` 对应闭合：闭合 `PLAN.md` §7 C5 与 `CLOSURE_FIX.md` §6 / §7 的 spec、迁移说明和设计文档状态收尾要求；阶段级计划未变化。
-
-## Final Review
-
-### [DONE] C6-T01：全量回归与最终审计
-
-- 参考：
-  - 本文件全部任务
-  - [`PLAN.md`](./PLAN.md) §9 风险
-- 目标：
-  - 合并两条实现线后做最终验证，确保没有隐式 CaptureBox、没有未登记 frontend reject、没有 failing fixture。
-- 必须实现的内容：
-  1. 全量运行：`cargo fmt`、`cargo build`、`cargo test --all --all-targets`、`cargo run -p scoop -- test`。
-  2. spec fixture check：`cargo run -p scoop_tools -- spec-fixtures check`。
-  3. CaptureBox final grep：`rg -n "CaptureBox|capture_box|mir_capture_box|__CaptureBox|rt_alloc_pass_mir_capture_box" crates/scoopc/src sysroot tests/fixtures`，预期只允许历史文档/TODO/PLAN 命中，不允许 source/active fixture 命中。
-  4. sealed-interface final grep：`rg -n "sealed_interface_" crates/scoopc/src tests/fixtures`，确认每个错误码有实现和 fixture。
-  5. atomic-ref final grep：确认 atomic-ref intrinsic/API 在 direct HIR LLVM 与 effect-lowered LLVM 两条路径均有测试覆盖。
-- 必须遵从的约束：
-  - 不要在 final review 阶段新增大功能；发现真实缺口则插入新的前置任务并回写原因。
-- 验证：
-  1. `cargo fmt`
-  2. `cargo build`
+  1. `cargo test -p scoopc audit:: -- --nocapture`
+  2. `cargo run -p scoop -- test tests/fixtures/umb_fix/`
   3. `cargo test --all --all-targets`
   4. `cargo run -p scoop -- test`
-  5. `cargo run -p scoop_tools -- spec-fixtures check`
 - 完成条件：
-  - 本轮可以归档：closure capture 语义、sealed interface、RefCell/Box/Atomic primitives、fixtures、audit、spec 全部闭合。
-- 依赖：C5-T01
-- 完成记录：
-  - 改动范围：
-    - 执行最终全量回归与审计；未修改语义代码、runtime、sysroot、fixtures、`PLAN.md` 或 `CLOSURE_FIX.md`。
-    - 更新本任务完成记录与 `memory/claude_plan.md` 进度记录。
-  - 核心决策：
-    - 当前实现线已闭合；未发现需要新增前置任务的 CaptureBox 残留、sealed-interface audit 缺口、atomic-ref 覆盖缺口或 failing fixture。
-    - CaptureBox active source / fixture grep 清零；历史文档和计划记录不在本任务 active-path 审计范围内。
-    - 阶段级计划无变化，因此不更新 `PLAN.md`。
-  - 验证结果：
-    - `cargo fmt`：通过。
-    - `cargo build`：通过。
-    - `cargo test --all --all-targets`：通过；`scoopc` 测试段显示 `871 passed`。
-    - `cargo run -p scoop -- test`：通过，`fixtures: ok (1405)`。
-    - `cargo run -p scoop_tools -- spec-fixtures check`：通过，`spec fixtures: ok (1)`。
-    - `rg -n "CaptureBox|capture_box|mir_capture_box|__CaptureBox|rt_alloc_pass_mir_capture_box" crates/scoopc/src sysroot tests/fixtures`：无输出。
-    - `rg -n "sealed_interface_" crates/scoopc/src tests/fixtures`：通过；实现诊断、audit 登记与 typecheck fixture marker 均有命中。
-    - `rg -n "__atomicRef|atomic_ref|llvm_atomic_ref|Atomic<|AtomicValue" crates/scoopc/src sysroot tests/fixtures`：通过；sysroot API/unsafe intrinsic、direct HIR LLVM lowering、effect-lowered LLVM lowering、Rust LLVM test 与 build/run/typecheck fixtures 均有命中。
-  - 与 `PLAN.md` / `CLOSURE_FIX.md` 对应闭合：闭合本轮最终审计要求；closure capture 语义、sealed interface、RefCell/Box/Atomic primitives、fixtures、audit 与 spec 均已通过最终验证，阶段级计划未变化。
+  - `PLAN.md` §7 的 10 条判据全部满足。
+  - `UnsupportedMainBody_FIX.md` §12 标 `[DONE]`。
+  - `UnsupportedMainBody_DONE.md` 占位落地。
+- 依赖：U6-T01
+- 完成记录：待填写

@@ -260,7 +260,7 @@ fun <T, eff E> run(block: () -> T / E): T / E {
 
 ### 6.2 函数值擦除
 
-Effect row 仅存在于编译期。函数值 cast/boxing 到 `Any` 只允许 closed pure 函数类型：
+函数值 cast/boxing 到 `Any` 只允许 closed pure 函数类型：
 
 ```kotlin
 val ok: (Int) -> String / Pure! = { x -> x.toString() }
@@ -520,7 +520,6 @@ when (point) {
 - `enum`
 - `Bool`
 - `Option<T>`
-- `Result<T, E>`
 - 由上述类型组成的 tuple/nested pattern
 
 非穷尽类型必须有 `else` 或 `_`：
@@ -648,6 +647,7 @@ a step n
 - 这些结构可作为 `for` 的 iterable。
 
 具体 range 类型、边界溢出规则、性能和完整 API 由标准库定义。可移植语言语义只依赖它们满足 `for` 迭代协议。
+`until`、`downTo` 和 `step` 属于标准库 API，不属于本文档涵盖范围，此处仅为示例。
 
 ## 14. Struct literal、Closure 与 `do` 消歧
 
@@ -697,6 +697,8 @@ Scoop 支持 Kotlin 风格 operator overloading，通过约定函数名解析：
 - 是否要求显式 `operator` 修饰符由实现阶段决定；本规范只固定语义映射。
 
 ## 16. Class literal
+
+（暂定规范，不要求实现）
 
 Class literal 写作：
 

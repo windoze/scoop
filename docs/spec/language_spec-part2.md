@@ -632,7 +632,6 @@ val d2: Disposable<eff (Async + Raise<IOError>)> = ...
 - 一个泛型列表最多有一个 `eff` 子句。
 - `eff` 子句必须出现在最后。
 - 本草案中 `eff` 子句一次只引入或提供一个 effect row 参数。
-- Effect row 参数仅在编译期存在；它不影响布局、运行期类型 identity 或单态化代码生成。
 
 Effect row 语义见第 4 部分。
 
