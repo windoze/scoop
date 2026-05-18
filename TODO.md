@@ -4,7 +4,7 @@
 > 设计基线：[`UnsupportedMainBody_FIX.md`](./UnsupportedMainBody_FIX.md)  
 > 计划基线：[`PLAN.md`](./PLAN.md)  
 > 格式参考：[`docs/archive/plans/TODO-closure-fix.md`](./docs/archive/plans/TODO-closure-fix.md)  
-> 当前状态：U1-T02 已完成；下一项 U2-T01
+> 当前状态：U2-T01 已完成；下一项 U2-T02
 > 执行原则：U0 必须最先完成；U1 → U2 → U3 严格串行；U4 与 U5 可在 U2/U3 稳定后并行，但 U5 的 negative fixture 必须引用 U4 已写明的 upstream gate；U6 必须最后完成。每个任务完成后必须回写“完成记录”。
 
 ## 全局约束
@@ -413,7 +413,7 @@ U0-T01 (摸底 + baseline 冻结)
 
 ## U2：P2 — 成因分析与 Bucket 文档
 
-### [TODO] U2-T01：bucket 分组确认 + md 表头声明
+### [DONE] U2-T01：bucket 分组确认 + md 表头声明
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §1.4、§6 U2-T01
@@ -439,7 +439,13 @@ U0-T01 (摸底 + baseline 冻结)
   - `_overview.md` 每个 bucket entry 数与 CSV 完全一致。
   - 36 份骨架 md 全部存在且标题一致。
 - 依赖：U1-T02
-- 完成记录：待填写
+- 完成记录：
+  - 改动范围：新增 `audit/UMB_categories/_overview.md`；新增 `audit/UMB_categories/B-01.md` 到 `audit/UMB_categories/B-36.md` 的 bucket 文档骨架。
+  - 核心决策：以 `audit/UMB_inventory.csv` 为唯一来源汇总 1,284 条 inventory entry；B-01 到 B-36 全部非空，因此保留既有 36 个稳定 bucket，不做合并、拆分或重编号；U2-T01 只写骨架与总览，不编造 root cause 主体。
+  - 总览内容：`_overview.md` 包含 `bucket / 名称 / 一级类 / entry 数 / expected_class 分布 / 主要 kind 标签前 5 条 / 主要文件前 5 个 / 备注` 表，并给出完整 B-01 骨架样例，供 U2-T02 / U4-T01 保持格式一致。
+  - bucket 骨架：36 份 `B-XX.md` 顶部均声明 `本 bucket entry 数`、`inventory 来源`、`生成时间`、`负责人/状态`，并包含七段固定标题 `Symptom`、`Root Cause Hypothesis`、`Spec Linkage`、`Expected Post-Fix Class`、`Fix Strategy Outline`、`Fixture Set Pointer`、`Open Questions`。
+  - 验证结果：自定义结构校验脚本通过（36 bucket docs，1,284 total entries）；`cargo run -p scoopc --bin umb-audit -- stats` 通过（missing spec/gate 均为 0，36 个 bucket 全部非空）；`cargo test -p scoopc audit::umb_inventory -- --nocapture` 通过（3 passed）；手工通过 `glob audit/UMB_categories/*.md` 确认 `_overview.md` 与 36 份 `B-XX.md` 全部存在；`cargo clippy --all-targets -- -D warnings` 通过。
+  - 闭合目标：满足 U2-T01 的 category 目录、bucket 总览、36 份骨架、表头声明、非空 bucket 决策和 CSV 数字对账要求；后续 U2-T02 可在这些骨架内补齐 symptom 表、源码片段和 root cause 主体。
 
 ### [TODO] U2-T02：36 份 bucket md 主体
 

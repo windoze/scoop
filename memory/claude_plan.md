@@ -1,29 +1,31 @@
-## Current Invocation Plan
+# Current Invocation Plan
 
-Status: selected task U1-T02.
+## Scope
 
-Scope: Complete exactly the first incomplete task from `TODO.md`, then stop after committing the result.
+- Follow `TODO.md` as the source of truth.
+- Identify and complete exactly the first incomplete task.
+- Stop after committing that task or, if blocked, after recording the minimum prerequisite task and committing the bookkeeping change.
 
-Execution plan:
+## Execution Plan
 
-1. Read `TODO.md` first and identify the first task whose title is not prefixed with `[DONE]`.
-2. Check the latest commit message only for unfinished work directly relevant to that selected task.
-3. Read the selected task details, dependencies, validation requirements, and any nearby context needed to implement it correctly.
-4. Inspect the minimal relevant code and tests for the selected task.
-5. Implement the task completely, avoiding workarounds or spec deviations.
-6. Run targeted validation first, then broader required validation from the task entry.
-7. If a concrete blocker prevents correct implementation, update `TODO.md` with the minimum prerequisite task, commit that bookkeeping, and stop.
-8. If the task is completed, mark its title `[DONE]` in `TODO.md` and update its completion record.
-9. Run final verification appropriate to the changed files.
-10. Commit all relevant changes with a descriptive task-tagged message.
+1. Read `TODO.md` and identify the first task whose title is not prefixed with `[DONE]`.
+2. Check the latest commit message only for unfinished work directly relevant to that task.
+3. Inspect the task requirements, dependencies, affected code, and existing tests/fixtures.
+4. Implement the smallest spec-correct change that fully satisfies the current task.
+5. Add or update focused tests/fixtures required by the task.
+6. Run the task-specified validation plus relevant targeted checks; fix failures that are in scope.
+7. Update this file after key progress points and plan changes.
+8. Mark the task title `[DONE]` in `TODO.md` and update its completion record.
+9. Update `PLAN.md` only if phase-level sequencing, dependencies, or completion criteria changed.
+10. Commit all relevant uncommitted changes with a descriptive task-tagged commit message.
 11. Stop without starting the next task.
 
-Progress log:
+## Current Status
 
-- Created this plan before reading project task files or running commands.
-- Read `TODO.md` and selected the first incomplete task: `U1-T02：inventory schema 文档 + 索引子命令`.
-- Next checks are limited to the latest commit message and files directly needed for U1-T02.
-- Latest commit was `[U1-T01] Generate UnsupportedMainBody inventory`; no explicit unfinished issue was found.
-- Implemented the planned U1-T02 artifacts in draft: schema document, `umb-audit` bin target, and shared access to the U1 inventory scanner.
-- Validation passed for `umb-audit list --bucket B-02`, `umb-audit diff`, `umb-audit stats`, `cargo test -p scoopc audit::umb_inventory -- --nocapture`, and `cargo clippy --all-targets -- -D warnings`.
-- Updated `TODO.md` to mark U1-T02 `[DONE]` and record the completion details.
+- First incomplete task identified: `U2-T01：bucket 分组确认 + md 表头声明`.
+- Latest commit: `[U1-T02] Add UMB inventory audit CLI`; no directly unfinished U2 blocker found.
+- `umb-audit stats` currently reports 1,284 total entries, 36 non-empty buckets, and zero missing spec/gate fields.
+- Generated `audit/UMB_categories/_overview.md` and `B-01.md` through `B-36.md` from `audit/UMB_inventory.csv`.
+- Validation completed: category structure check passed, `umb-audit stats` passed, `cargo test -p scoopc audit::umb_inventory -- --nocapture` passed, and `cargo clippy --all-targets -- -D warnings` passed.
+- `TODO.md` updated to mark `U2-T01` as `[DONE]` with completion record. `PLAN.md` was not changed because phase ordering and dependencies were unchanged.
+- Next step: inspect git status/diff, then commit U2-T01 changes only.
