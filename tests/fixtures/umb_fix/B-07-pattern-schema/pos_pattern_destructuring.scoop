@@ -1,9 +1,9 @@
 // EXPECT: ok
 // IGNORE-UNTIL-FIX:B-07
-// SPEC: docs/spec/language_spec-part3.md#102-解构绑定
-// COVERS: NONE
-// BUCKETS: B-06, B-07
-// REASON: U5-T02 records the spec surface before the matching implementation gate is enabled.
+// SPEC: docs/spec/language_spec-part3.md#10-when-与模式匹配;docs/spec/language_spec-part3.md#102-解构绑定
+// COVERS: UMB-1072, UMB-1073, UMB-1074, UMB-1075, UMB-1076, UMB-1077, UMB-1078, UMB-1079, UMB-1080, UMB-1081, UMB-1082, UMB-1083, UMB-1084, UMB-1085, UMB-1087, UMB-1088, UMB-1090, UMB-1091, UMB-1092, UMB-1093, UMB-1094, UMB-1095, UMB-1096, UMB-1097, UMB-1098, UMB-1099, UMB-1100, UMB-1103, UMB-1104, UMB-1105, UMB-1106, UMB-1107, UMB-1108, UMB-1109
+// BUCKETS: B-07
+// REASON: U5-T03 bucket-driven direct coverage for the pattern schema gate.
 // SOURCE-FIXTURE: tests/fixtures/run-pass/local_val_destructuring_tuple_struct_variant_basic.scoop
 
 import scoop.core.*

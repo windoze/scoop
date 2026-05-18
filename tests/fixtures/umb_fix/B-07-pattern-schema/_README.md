@@ -7,7 +7,14 @@
 
 ## Scope
 
-U5-T01 creates this directory skeleton only. U5-T02 and U5-T03 must add `.scoop` fixtures and append matching `_index.csv` rows.
+U5-T03 assigns direct B-07 inventory coverage to the positive and negative pattern schema fixtures in this directory.
+
+## Direct Coverage
+
+- Positive: `pos_pattern_destructuring.scoop`
+- Negative: `neg_pattern_schema_gate.scoop`
+- Covers: all 34 B-07 inventory ids (`UMB-1072` through `UMB-1109`, with current inventory gaps preserved).
+- Upstream gate: `typecheck pattern gate: pattern subject and clause schema are valid`.
 
 ## Runner Status
 

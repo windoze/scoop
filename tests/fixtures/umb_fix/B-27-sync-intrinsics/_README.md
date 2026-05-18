@@ -7,7 +7,14 @@
 
 ## Scope
 
-U5-T01 creates this directory skeleton only. U5-T02 and U5-T03 must add `.scoop` fixtures and append matching `_index.csv` rows.
+U5-T03 adds the B-27 negative gate fixture so the sync intrinsic bucket has both positive and negative coverage.
+
+## Direct Coverage
+
+- Positive: `pos_sync_intrinsics.scoop`
+- Negative: `neg_sync_intrinsic_gate.scoop`
+- Covers: all 58 B-27 inventory ids in the negative fixture; the positive fixture also covers related sync/thread/sysroot ids shared with adjacent buckets.
+- Upstream gate: `intrinsic resolver gate: sync primitive calls match sysroot runtime contract`.
 
 ## Runner Status
 

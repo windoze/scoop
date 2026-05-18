@@ -4,7 +4,7 @@
 > 设计基线：[`UnsupportedMainBody_FIX.md`](./UnsupportedMainBody_FIX.md)  
 > 计划基线：[`PLAN.md`](./PLAN.md)  
 > 格式参考：[`docs/archive/plans/TODO-closure-fix.md`](./docs/archive/plans/TODO-closure-fix.md)  
-> 当前状态：U5-T02 已完成；下一项 U5-T03
+> 当前状态：U5-T03 已完成；下一项 U6-T01
 > 执行原则：U0 必须最先完成；U1 → U2 → U3 严格串行；U4 与 U5 可在 U2/U3 稳定后并行，但 U5 的 negative fixture 必须引用 U4 已写明的 upstream gate；U6 必须最后完成。每个任务完成后必须回写“完成记录”。
 
 ## 全局约束
@@ -652,7 +652,7 @@ U0-T01 (摸底 + baseline 冻结)
   - 验证结果：自定义结构校验通过（139 files / 139 index rows，缺失与额外文件均为 0，header errors 为 0）；`cargo run -p scoop -- test tests/fixtures/umb_fix/` 通过（139 fixtures skipped via `IGNORE-UNTIL-FIX`）；`cargo test -p scoopc audit::spec_coverage -- --nocapture` 通过（当前无匹配测试，0 failed）；`cargo test -p scoop -- fixtures -- --nocapture` 通过（58 fixture unit tests + filtered integration tests）；`cargo clippy --all-targets -- -D warnings` 通过；`cargo run -p scoopc --bin umb-audit -- stats` 通过；`cargo run -p scoopc --bin umb-audit -- diff` 通过（1,284 entries in sync）；`cargo test --all --all-targets` 通过（scoopc 874 passed，umb-audit 3 passed，其他目标通过）。
   - 闭合目标：满足 U5-T02 的 spec part1-6 fixture 主体落地、positive/negative fixture 头部规范、`_index.csv` 与 spec 覆盖矩阵同步、active/ignore 状态可由 runner 验证、无 forbidden error 文案和不新增 production `UnsupportedMainBody` 站点要求；后续 U5-T03 可在此基础上添加 bucket-driven direct coverage 并把对应 fixture/sentinel 与 inventory id 覆盖闭环。
 
-### [TODO] U5-T03：bucket-driven 直接对账 fixture
+### [DONE] U5-T03：bucket-driven 直接对账 fixture
 
 - 参考：
   - [`PLAN.md`](./PLAN.md) §6 U5-T03
@@ -684,7 +684,14 @@ U0-T01 (摸底 + baseline 冻结)
   - 每个 inventory id 至少出现在一条 `COVERS` 或 sentinel coverage 记录中；D 类例外必须显式标注。
   - `_index.csv`、bucket md、strategy md、spec matrix 互相闭环。
 - 依赖：U5-T02；U4-T01
-- 完成记录：待填写
+- 完成记录：
+  - 改动范围：新增 `tests/fixtures/umb_fix/B-23-member-access/pos_member_access_dispatch.scoop` 与 `tests/fixtures/umb_fix/B-27-sync-intrinsics/neg_sync_intrinsic_gate.scoop`；更新 B-07/B-23/B-27 fixture 头部、`tests/fixtures/umb_fix/_index.csv`、`audit/spec_coverage_matrix.md`、36 份 bucket doc 的 `Fixture Set Pointer`、相关 strategy doc 与 B-01/B-07/B-23/B-27 README。未修改 production LLVM codegen、`PLAN.md` 或 `UnsupportedMainBody_FIX.md`。
+  - 核心决策：B-01 是 helper invariant，用户 `.scoop` 无法直接构造 invalid LLVM insertion context，因此不创建假 fixture；改由 `tests/fixtures/umb_fix/B-01-builder-invariant/_README.md` 的 `SENTINEL-COVERS` 指向 U6 `sentinel_tests.rs`。B-07/B-23 改为同目录 direct `COVERS`，B-27 按 strategy 补 negative gate fixture。
+  - 覆盖结果：`_index.csv` 现有 141 条 fixture row，对应 141 个实际 `.scoop` 文件；fixture header 覆盖 1,213 个 unique UMB id，B-01 sentinel record 覆盖 71 个 helper invariant id，合计覆盖 1,284/1,284 个 inventory id；每个 bucket 至少有 1 条同 bucket direct fixture 或 sentinel 指针。
+  - 平均覆盖率：93 个非 `NONE` fixture header 共记录 3,967 个 `UMB-` reference，平均 42.66 个 reference/fixture；若把 B-01 sentinel 作为 1 个 coverage anchor 计入，则 94 个 anchor 共 4,038 个 reference，平均 42.96 个 reference/anchor。
+  - 文档闭环：`audit/UMB_categories/B-XX.md` 不再保留 U2 skeleton 的 `Planned fixture directory` / `U5 should add` 指针；category doc 统一指向 `_index.csv` 与 fixture `// COVERS:` 对账；B-01 明确 sentinel-only；spec matrix 已加入 B-07/B-23/B-27 的 U5-T03 fixture 引用。
+  - 验证结果：自定义 U5-T03 结构校验通过（141 files / 141 index rows，1284/1284 ids covered，matrix fixture paths resolve，negative forbidden terms 为 0）；`cargo run -p scoop -- test tests/fixtures/umb_fix/` 通过（141 fixtures skipped/pass）；`cargo test -p scoopc audit::spec_coverage -- --nocapture` 通过（当前 0 matching tests）；`cargo run -p scoopc --bin umb-audit -- stats` 通过（1,284 entries，missing spec/gate 均为 0）；`cargo run -p scoopc --bin umb-audit -- diff` 通过（CSV in sync）；`cargo clippy --all-targets -- -D warnings` 通过；`cargo test --all --all-targets` 通过（scoopc 874 passed，umb-audit 3 passed，其他目标通过）。
+  - 闭合目标：满足 U5-T03 的每 bucket direct fixture/sentinel、fixture `COVERS` 与 `_index.csv` 对账、B-01 sentinel 指针、B-27 negative gate fixture、bucket/strategy/spec matrix 回填、无 forbidden error 文案和不新增 production `UnsupportedMainBody` 站点要求；后续 U6-T01 可实现 baseline tests 来机器锁定这些不变量。
 
 ## U6：P6 — Baseline 测试与退场
 
