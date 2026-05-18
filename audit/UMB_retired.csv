@@ -1,1 +1,8 @@
 id,bucket,expected_class,file,old_line,kind,retired_by,retired_reason,retired_at_notes
+UMB-0187,B-16,FrontendReject,crates/scoopc/src/llvm/codegen/control_flow.rs,2232,break outside loop,P7-A1,frontend control-flow context reject,typecheck rejects break outside loops before LLVM codegen
+UMB-0188,B-16,FrontendReject,crates/scoopc/src/llvm/codegen/control_flow.rs,2243,continue outside loop,P7-A1,frontend control-flow context reject,typecheck rejects continue outside loops before LLVM codegen
+UMB-0191,B-16,FrontendReject,crates/scoopc/src/llvm/codegen/control_flow.rs,2346,break outside loop,P7-A1,frontend control-flow context reject,typecheck rejects break outside loops before LLVM codegen
+UMB-0192,B-16,FrontendReject,crates/scoopc/src/llvm/codegen/control_flow.rs,2358,continue outside loop,P7-A1,frontend control-flow context reject,typecheck rejects continue outside loops before LLVM codegen
+UMB-0786,B-16,FrontendReject,crates/scoopc/src/llvm/codegen/main/call.rs,706,return outside function with return context,P7-A1,frontend control-flow context reject,typecheck rejects return outside named function bodies before LLVM codegen
+UMB-1263,B-16,FrontendReject,crates/scoopc/src/llvm/codegen/stmt.rs,223,break outside loop,P7-A1,frontend control-flow context reject,typecheck rejects break outside loops before LLVM codegen
+UMB-1264,B-16,FrontendReject,crates/scoopc/src/llvm/codegen/stmt.rs,235,continue outside loop,P7-A1,frontend control-flow context reject,typecheck rejects continue outside loops before LLVM codegen

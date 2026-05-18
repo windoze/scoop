@@ -697,16 +697,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     /// Stores the return value into the function-level return alloca and branches to the return BB.
     pub(in crate::llvm::codegen) fn codegen_early_return(
         &mut self,
-        span: crate::span::Span,
+        _span: crate::span::Span,
         value: Option<&hir::Expr>,
     ) -> Result<(), LlvmEmitError> {
-        let return_ctx =
-            self.function_cx
-                .return_context
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "return outside function with return context",
-                    at: span.into(),
-                })?;
+        let return_ctx = self.function_cx.return_context.unwrap_or_else(|| {
+            unreachable!(
+                "typecheck must reject `return` outside function bodies before LLVM codegen"
+            )
+        });
         let declared_return_cg = self.function_cx.current_fun_return_ty.unwrap_or(CgTy::Unit);
 
         match value {

@@ -1,12 +1,11 @@
 // EXPECT: fail
-// IGNORE-UNTIL-FIX:B-16
-// EXPECT-ERROR-CODE: scoop::umb_fix::pending_gate
-// EXPECT-ERROR-AT: 1:1
-// EXPECT-ERROR: pending U5 fixture gate
+// EXPECT-ERROR-CODE: scoop::typecheck::break_not_in_loop
+// EXPECT-ERROR-AT: 16:5
+// EXPECT-ERROR: `break` 只能出现在循环体内
 // SPEC: docs/spec/language_spec-part3.md#9-控制流;docs/spec/language_spec-part3.md#93-for
 // COVERS: UMB-0116, UMB-0117, UMB-0120, UMB-0190, UMB-0193, UMB-1110, UMB-1114, UMB-1115, UMB-1117, UMB-1121, UMB-1122, UMB-1125, UMB-1193, UMB-1195, UMB-1196, UMB-1198, UMB-1199, UMB-1200, UMB-1201, UMB-1202, UMB-1204, UMB-1205, UMB-1206, UMB-1208, UMB-1210
 // BUCKETS: B-05, B-16
-// REASON: U5-T02 records the spec surface before the matching implementation gate is enabled.
+// REASON: P7-A1 keeps break outside loop rejected before MIR/LLVM lowering.
 // SOURCE-FIXTURE: tests/fixtures/typecheck/break_not_in_loop_is_error.scoop
 
 package fixtures.typecheck

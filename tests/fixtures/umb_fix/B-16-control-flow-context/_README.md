@@ -7,8 +7,8 @@
 
 ## Scope
 
-U5-T01 creates this directory skeleton only. U5-T02 and U5-T03 must add `.scoop` fixtures and append matching `_index.csv` rows.
+P7-A1 retires the B-16 `UnsupportedMainBody` rows and activates this directory. The negative fixtures assert typecheck/front-end diagnostics for invalid `break`, `continue`, and `return` contexts; the positive fixture keeps valid loop/return lowering covered.
 
 ## Runner Status
 
-`scoop test` recognizes `tests/fixtures/umb_fix/**`. Fixtures marked `IGNORE-UNTIL-FIX:B-16` or `ignore-until-fix:B-16` are skipped until the corresponding production fix lands.
+`scoop test` recognizes `tests/fixtures/umb_fix/**`. B-16 fixtures are active after P7-A1; retired IDs are tracked in `audit/UMB_retired.csv` rather than fixture `COVERS` fields.

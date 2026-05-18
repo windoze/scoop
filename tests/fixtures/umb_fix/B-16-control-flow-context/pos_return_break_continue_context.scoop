@@ -1,9 +1,8 @@
 // EXPECT: ok
-// IGNORE-UNTIL-FIX:B-16
 // SPEC: docs/spec/language_spec-part3.md#174-return-type-推断;docs/spec/language_spec-part3.md#94-return--break--continue
-// COVERS: UMB-0187, UMB-0188, UMB-0191, UMB-0192, UMB-0786, UMB-1263, UMB-1264
+// COVERS: NONE
 // BUCKETS: B-16
-// REASON: U5-T02 records the spec surface before the matching implementation gate is enabled.
+// REASON: P7-A1 keeps valid return/break/continue contexts lowering after B-16 sentinels retire.
 // SOURCE-FIXTURE: tests/fixtures/run-pass/return_from_loop.scoop
 
 import scoop.core.*

@@ -1,51 +1,33 @@
-## Execution Plan
+# Execution Plan
 
-Status: initialized.
+## Scope
 
-I will follow the repository task workflow and complete exactly the first incomplete task in `TODO.md`, then stop after committing the result.
+- Work from `TODO.md` as the authoritative task list.
+- Identify the first task whose heading is not prefixed with `[DONE]`.
+- Complete exactly that one task, then stop.
+- Do not perform broad historical triage before selecting the current task.
 
-Steps:
+## Planned Steps
 
-1. Read `TODO.md` first and identify the first task whose heading is not prefixed with `[DONE]`.
-2. Check the latest commit only for unfinished work directly relevant to that task.
-3. Inspect the task requirements, dependencies, and validation instructions.
-4. Implement the task as written, without weakening scope or using workaround fixtures.
-5. Run the relevant targeted tests, then broader validation if required by the task.
-6. If a real blocker prevents spec-correct completion, update `TODO.md` with the minimum prerequisite task, keep the current task incomplete, commit that bookkeeping, and stop.
-7. If completed, update `TODO.md` by prefixing the task heading with `[DONE]` and filling in the completion record.
-8. Update this file at key milestones.
-9. Review git status/diff/log, stage only intended files, commit with a task-tagged message, and stop.
+1. Read `TODO.md` to find the first incomplete task and its validation requirements.
+2. Inspect only the files and recent context needed for that task, including the latest commit if it explicitly affects the selected task.
+3. Implement the task directly unless a concrete prerequisite or blocker makes correct implementation impossible.
+4. If a prerequisite blocker is found, update `TODO.md` with the minimum prerequisite task, keep the current task incomplete, commit the bookkeeping change, and stop.
+5. Run the task-specific tests first, then broader relevant validation required by the task.
+6. Fix failures that are in scope for the current task rather than working around them.
+7. Mark the completed task heading in `TODO.md` with `[DONE]` and update its completion record.
+8. Update this plan file as key steps complete or if the plan changes.
+9. Inspect git status and diff, then commit all intended changes with a task-specific commit message.
+10. Stop without starting the next task.
 
-Selected task: `P7-0-T02：把 audit 常量改成退场倒计时`.
+## Progress Log
 
-Latest commit check: `419e3b25 [P7-0-T01] Add stable UMB inventory IDs`; it is the direct prerequisite and does not indicate unfinished relevant work.
-
-Task-specific plan:
-
-1. Inspect `umb_inventory` audit code, `umb-audit` CLI output, and user-visible failure policy tests.
-2. Replace fixed active/kind assertions with countdown-safe active/retired/initial accounting while preserving `INITIAL_ENTRY_COUNT` for `active + retired == initial`.
-3. Ensure stats output includes active, retired, initial, by_class, and by_bucket.
-4. Ensure diff reports concrete inventory drift instead of failing merely because active rows fall below initial.
-5. Improve audit failure messages with actionable ID, bucket, and file context.
-6. Run the task-required validation commands.
-7. Mark `P7-0-T02` `[DONE]`, fill its completion record, commit, and stop.
-
-Progress update:
-
-- Selected and scoped `P7-0-T02` only.
-- Replaced fixed active-count and fixed literal/dynamic-kind assertions with current active inventory counting.
-- Added explicit active + retired = initial countdown checks using `INITIAL_ENTRY_COUNT = 1_284`.
-- Updated `umb-audit stats` to print active, retired, and initial counts.
-- Added diff-mode stable ID matching so `umb-audit diff` can report unretired source additions/deletions instead of panicking solely because active rows are below the initial baseline.
-
-Final task progress before commit:
-
-- `TODO.md` now marks `P7-0-T02` as `[DONE]` and records scope, decisions, inventory/ledger status, and validation results.
-- Validation passed:
-  - `cargo run -p scoopc --bin umb-audit -- stats`
-  - `cargo run -p scoopc --bin umb-audit -- diff`
-  - `cargo test -p scoopc audit:: -- --nocapture`
-  - `cargo test -p scoopc pipeline_user_visible_failure_policy -- --nocapture`
-  - `cargo clippy --all-targets -- -D warnings`
-
-Current next action: inspect git status/diff/log, stage intended files, commit `P7-0-T02`, and stop.
+- Initial execution plan recorded before inspecting `TODO.md`.
+- Identified first incomplete task: `P7-A1：B-16 控制流 outside-of-context 早拒`.
+- Next step: lock the B-16 UMB IDs and inspect only the frontend/typecheck/codegen paths needed for `break`, `continue`, and `return` outside valid contexts.
+- Locked B-16 IDs: `UMB-0187`, `UMB-0188`, `UMB-0191`, `UMB-0192`, `UMB-0786`, `UMB-1263`, `UMB-1264`.
+- Confirmed existing frontend/typecheck gates: `BreakNotInLoop`, `ContinueNotInLoop`, and `ReturnNotInFunctionBody` reject the relevant illegal contexts before MIR/LLVM lowering.
+- Editing plan: replace the seven B-16 `UnsupportedMainBody` constructors with upstream-gated unreachable invariants, then retire the seven IDs in inventory/ledger and activate the B-16 fixtures.
+- Implemented P7-A1: removed all seven B-16 `UnsupportedMainBody` constructors, retired the IDs in `audit/UMB_retired.csv`, set B-16 active inventory to 0, activated B-16 fixtures, and updated TODO completion records.
+- Validation completed: B-16 list entries 0; UMB diff/stats in sync with active 1,277 and retired 7; audit tests, failure-policy tests, B-16 fixture suite, and clippy all passed.
+- Next step: inspect git status/diff and commit the P7-A1 changes, then stop.

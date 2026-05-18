@@ -2228,23 +2228,25 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 }
                 // T0141: break/continue in function-level block (inside a loop).
                 hir::StmtKind::Break { break_span } => {
-                    let loop_ctx = self.function_cx.loop_context_stack.last().ok_or(
-                        LlvmEmitError::UnsupportedMainBody {
-                            kind: "break outside loop",
-                            at: (*break_span).into(),
+                    let loop_ctx = self.function_cx.loop_context_stack.last().unwrap_or_else(
+                        || {
+                            unreachable!(
+                                "typecheck must reject `break` outside loops before LLVM codegen"
+                            )
                         },
-                    )?;
+                    );
                     self.builder.build_unconditional_branch(loop_ctx.break_bb)?;
                     self.function_cx.env.pop_scope();
                     return self.default_value(*break_span, declared_return_ty);
                 }
                 hir::StmtKind::Continue { continue_span } => {
-                    let loop_ctx = self.function_cx.loop_context_stack.last().ok_or(
-                        LlvmEmitError::UnsupportedMainBody {
-                            kind: "continue outside loop",
-                            at: (*continue_span).into(),
+                    let loop_ctx = self.function_cx.loop_context_stack.last().unwrap_or_else(
+                        || {
+                            unreachable!(
+                                "typecheck must reject `continue` outside loops before LLVM codegen"
+                            )
                         },
-                    )?;
+                    );
                     self.builder
                         .build_unconditional_branch(loop_ctx.continue_bb)?;
                     self.function_cx.env.pop_scope();
@@ -2342,24 +2344,26 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 }
                 // T0141: break/continue inside block expression (must be inside a loop).
                 hir::StmtKind::Break { break_span } => {
-                    let loop_ctx = self.function_cx.loop_context_stack.last().ok_or(
-                        LlvmEmitError::UnsupportedMainBody {
-                            kind: "break outside loop",
-                            at: (*break_span).into(),
+                    let loop_ctx = self.function_cx.loop_context_stack.last().unwrap_or_else(
+                        || {
+                            unreachable!(
+                                "typecheck must reject `break` outside loops before LLVM codegen"
+                            )
                         },
-                    )?;
+                    );
                     self.builder.build_unconditional_branch(loop_ctx.break_bb)?;
                     self.function_cx.env.pop_scope();
                     let dead_path_ty = expected_block_ty.unwrap_or(CgTy::Unit);
                     return self.default_value(*break_span, dead_path_ty);
                 }
                 hir::StmtKind::Continue { continue_span } => {
-                    let loop_ctx = self.function_cx.loop_context_stack.last().ok_or(
-                        LlvmEmitError::UnsupportedMainBody {
-                            kind: "continue outside loop",
-                            at: (*continue_span).into(),
+                    let loop_ctx = self.function_cx.loop_context_stack.last().unwrap_or_else(
+                        || {
+                            unreachable!(
+                                "typecheck must reject `continue` outside loops before LLVM codegen"
+                            )
                         },
-                    )?;
+                    );
                     self.builder
                         .build_unconditional_branch(loop_ctx.continue_bb)?;
                     self.function_cx.env.pop_scope();

@@ -250,7 +250,7 @@ const STALE_UNSUPPORTED_MAIN_BODY_COUNTS: &[UnsupportedMainBodyCount] = &[
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/main/call.rs",
-        expected_count: 12,
+        expected_count: 11,
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/main/coerce.rs",
@@ -633,6 +633,10 @@ const POST_UPSTREAM_VALIDATION_GUARDS: &[UpstreamGuardedSentinel] = &[
         site: "crates/scoopc/src/typecheck/when_pat.rs::WhenPat::Variant type-arg arity guard",
         upstream_gate: "enum_instance_from_type produces enum_args from the same nominal instance whose declaration we just looked up; arity matches by construction",
     },
+    UpstreamGuardedSentinel {
+        site: "crates/scoopc/src/llvm/codegen/main/call.rs::codegen_early_return",
+        upstream_gate: "typecheck::expr::stmt rejects return outside the immediately enclosing named function via ReturnNotInFunctionBody",
+    },
 ];
 
 const INTERNAL_BUG_SENTINEL_HITS: &[&str] = &[
@@ -640,6 +644,7 @@ const INTERNAL_BUG_SENTINEL_HITS: &[&str] = &[
     "crates/scoopc/src/llvm/codegen/effect_lowered/value.rs:2496:                    _ => unreachable!(\"filtered by match\"),",
     "crates/scoopc/src/llvm/codegen/effect_lowered/value.rs:3635:            _ => unreachable!(\"filtered by caller\"),",
     "crates/scoopc/src/llvm/codegen/main/alloca.rs:48:            _ => unreachable!(\"cast_float only accepts Float64/Float32\"),",
+    "crates/scoopc/src/llvm/codegen/main/call.rs:704:            unreachable!(",
     "crates/scoopc/src/llvm/codegen/main/coerce.rs:74:                    _ => unreachable!(\"filtered by caller\"),",
     "crates/scoopc/src/llvm/codegen/main/coerce.rs:93:                _ => unreachable!(\"filtered by caller\"),",
     "crates/scoopc/src/llvm/codegen/main/coerce.rs:153:                _ => unreachable!(\"filtered by caller\"),",
@@ -757,7 +762,7 @@ fn pipeline_user_visible_failure_policy_tracks_stale_unsupportedmainbody_counts(
             baseline.path
         );
     }
-    assert_eq!(total, 638);
+    assert_eq!(total, 637);
 }
 
 #[test]

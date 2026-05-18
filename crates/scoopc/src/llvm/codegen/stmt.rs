@@ -218,25 +218,27 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     return Ok(());
                 }
                 // T0141: break — branch to the innermost loop's after-BB.
-                hir::StmtKind::Break { break_span } => {
-                    let loop_ctx = self.function_cx.loop_context_stack.last().ok_or(
-                        LlvmEmitError::UnsupportedMainBody {
-                            kind: "break outside loop",
-                            at: (*break_span).into(),
+                hir::StmtKind::Break { break_span: _ } => {
+                    let loop_ctx = self.function_cx.loop_context_stack.last().unwrap_or_else(
+                        || {
+                            unreachable!(
+                                "typecheck must reject `break` outside loops before LLVM codegen"
+                            )
                         },
-                    )?;
+                    );
                     self.builder.build_unconditional_branch(loop_ctx.break_bb)?;
                     self.function_cx.env.pop_scope();
                     return Ok(());
                 }
                 // T0141: continue — branch to the innermost loop's cond-BB.
-                hir::StmtKind::Continue { continue_span } => {
-                    let loop_ctx = self.function_cx.loop_context_stack.last().ok_or(
-                        LlvmEmitError::UnsupportedMainBody {
-                            kind: "continue outside loop",
-                            at: (*continue_span).into(),
+                hir::StmtKind::Continue { continue_span: _ } => {
+                    let loop_ctx = self.function_cx.loop_context_stack.last().unwrap_or_else(
+                        || {
+                            unreachable!(
+                                "typecheck must reject `continue` outside loops before LLVM codegen"
+                            )
                         },
-                    )?;
+                    );
                     self.builder
                         .build_unconditional_branch(loop_ctx.continue_bb)?;
                     self.function_cx.env.pop_scope();

@@ -4,7 +4,7 @@
 > 计划基线：[`PLAN.md`](./PLAN.md)
 > 上一阶段任务档案：[`TODO-1.md`](./TODO-1.md)
 > 设计与 baseline：[`UnsupportedMainBody_FIX.md`](./UnsupportedMainBody_FIX.md)、[`UnsupportedMainBody_DONE.md`](./UnsupportedMainBody_DONE.md)
-> 当前状态：P7-0-T01、P7-0-T02 已完成；production 修复尚未开始。
+> 当前状态：P7-0-T01、P7-0-T02、P7-A1 已完成；active=1,277，retired=7。
 
 ## 全局约束
 
@@ -153,7 +153,7 @@ P7-0-T01 stable ID + retired ledger
 
 ## P7-A：FrontendReject 退场（125 entries）
 
-### [TODO] P7-A1：B-16 控制流 outside-of-context 早拒
+### [DONE] P7-A1：B-16 控制流 outside-of-context 早拒
 
 - 参考：`PLAN.md:96-117`、`audit/strategies/B-16.md`、`audit/UMB_categories/B-16.md`。
 - 范围：B-16，7 entries，`FrontendReject`。
@@ -170,7 +170,15 @@ P7-0-T01 stable ID + retired ledger
   4. `cargo run -p scoop -- test tests/fixtures/umb_fix/B-16-control-flow-context/`
 - 完成条件：B-16 active count 为 0；相关 negative fixture active 并通过。
 - 依赖：P7-0-T02。
-- 完成记录：待填写。
+- 完成记录：
+  - 改动范围：更新 `crates/scoopc/src/llvm/codegen/control_flow.rs`、`crates/scoopc/src/llvm/codegen/stmt.rs`、`crates/scoopc/src/llvm/codegen/main/call.rs`、`crates/scoopc/src/pipeline_user_visible_failure_policy.rs`；同步 `audit/UMB_inventory.csv`、`audit/UMB_retired.csv`、`audit/UMB_categories/B-16.md`、`audit/UMB_categories/_overview.md`、`audit/strategies/B-16.md`、`audit/spec_coverage_matrix.md`；激活并扩充 `tests/fixtures/umb_fix/B-16-control-flow-context/` 与 `_index.csv`；同步记录 `memory/claude_plan.md`。
+  - Retired IDs：`UMB-0187`、`UMB-0188`、`UMB-0191`、`UMB-0192`、`UMB-0786`、`UMB-1263`、`UMB-1264`；数量 7；bucket `B-16`；class `FrontendReject`。
+  - 核心决策：复用既有 `BreakNotInLoop`、`ContinueNotInLoop`、`ReturnNotInFunctionBody` frontend/typecheck gate；LLVM lowering 删除 B-16 `UnsupportedMainBody` fallback，改为上游 gate 后的 `unreachable!` invariant。
+  - Inventory/ledger：active 1,284 -> 1,277；retired 0 -> 7；B-16 active 7 -> 0。
+  - Stale count：`crates/scoopc/src/llvm/codegen/main/call.rs` `UnsupportedMainBody` 12 -> 11；tracked stale total 638 -> 637。
+  - Fixture 状态：B-16 fixture directory 从 `IGNORE-UNTIL-FIX:B-16` 激活；新增 `neg_return_in_lambda_context.scoop`；B-16 retired IDs 改由 retired ledger 覆盖，active fixture `COVERS` 不再引用 retired IDs。
+  - 验证结果：`cargo run -p scoopc --bin umb-audit -- list --bucket B-16` 通过（entries 0）；`cargo run -p scoopc --bin umb-audit -- diff` 通过（in sync，1,277 entries）；`cargo run -p scoopc --bin umb-audit -- stats` 通过（active=1,277、retired=7、initial=1,284）；`cargo test -p scoopc audit:: -- --nocapture` 通过（23 passed）；`cargo test -p scoopc pipeline_user_visible_failure_policy -- --nocapture` 通过（7 passed）；`cargo run -p scoop -- test tests/fixtures/umb_fix/B-16-control-flow-context/` 通过（5 passed）；`cargo clippy --all-targets -- -D warnings` 通过。
+  - 闭合目标：满足 `PLAN.md:96-117` 与本任务完成条件；B-16 active count 为 0，相关 negative fixture active 并通过。
 
 ### [TODO] P7-A2：B-08/B-21 成员写入与 struct 字段负例早拒
 
@@ -491,7 +499,7 @@ P7-0-T01 stable ID + retired ledger
 
 | 阶段 | Active 目标 | Retired 目标 | 备注 |
 |---|---:|---:|---|
-| 当前 | 1,284 | 0 | P7-0 前 baseline |
+| 当前 | 1,277 | 7 | P7-A1 完成，B-16 retired |
 | P7-A 完成 | 1,159 | 125 | `FrontendReject` 清零 |
 | P7-B 完成 | 203 | 1,081 | `InternalBugSentinel` 清零 |
 | P7-C 完成 | 0 | 1,284 | `RealImpl` 清零 |

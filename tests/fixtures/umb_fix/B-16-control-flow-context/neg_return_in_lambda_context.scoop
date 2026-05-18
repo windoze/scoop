@@ -1,0 +1,16 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::return_not_in_function_body
+// EXPECT-ERROR-AT: 15:7
+// EXPECT-ERROR: 命名函数体内
+// SPEC: docs/spec/language_spec-part3.md#94-return--break--continue
+// COVERS: NONE
+// BUCKETS: B-16
+// REASON: P7-A1 keeps return outside the immediately enclosing named function rejected before MIR/LLVM lowering.
+
+package fixtures.umb_fix
+
+import scoop.core.*
+
+fun f() {
+    { return 1 }
+}
