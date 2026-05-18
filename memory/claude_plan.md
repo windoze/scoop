@@ -52,4 +52,6 @@
 - `cargo run -p scoop -- test` passed with `fixtures: ok (1405)`.
 - `cargo clippy --all-targets -- -D warnings` passed.
 - `TODO.md` updated: `C4-T02` is marked `[DONE]` with completion record.
-- Next step: commit all task-related changes and stop.
+- Task changes were committed as `8dc91edc` (`[C4-T02] Update failure audit baseline`).
+- Working tree was clean after the task commit.
+- Stop after this task; do not start `C5-T01` in this invocation.
