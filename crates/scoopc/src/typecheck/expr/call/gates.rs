@@ -88,6 +88,129 @@ pub(super) fn check_var_param_lvalue_gate(
     Ok(())
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum AtomicTargetMode {
+    ReadOnly,
+    ReadWrite,
+}
+
+pub(super) fn check_atomic_intrinsic_target_gate(
+    inputs: ExprInferInputs<'_>,
+    callee_fqn: &str,
+    call_args: &[CallArgInfo<'_>],
+    mapping_pairs: &[(usize, usize)],
+    lower: &TypeLowering<'_>,
+) -> Result<(), ExprTypeError> {
+    let Some(mode) = atomic_intrinsic_target_mode(callee_fqn) else {
+        return Ok(());
+    };
+    let Some((_, arg_idx)) = mapping_pairs.iter().find(|(param_idx, _)| *param_idx == 0) else {
+        return Ok(());
+    };
+    let Some(arg) = call_args.get(*arg_idx) else {
+        return Ok(());
+    };
+
+    if !is_atomic_addressable_lvalue(arg.expr, lower) {
+        return Err(ExprTypeError::AtomicIntrinsicTargetRequiresLValue {
+            callee: callee_fqn.to_string(),
+            span: arg.expr.span.into(),
+        });
+    }
+
+    if mode == AtomicTargetMode::ReadWrite && !is_atomic_target_writable(inputs, arg.expr, lower) {
+        return Err(ExprTypeError::AtomicIntrinsicTargetNotWritable {
+            callee: callee_fqn.to_string(),
+            span: arg.expr.span.into(),
+        });
+    }
+
+    Ok(())
+}
+
+fn atomic_intrinsic_target_mode(callee_fqn: &str) -> Option<AtomicTargetMode> {
+    match atomic_intrinsic_base_fqn(callee_fqn) {
+        "scoop.unsafe.__atomicIntLoad" | "scoop.unsafe.__atomicRefLoad" => {
+            Some(AtomicTargetMode::ReadOnly)
+        }
+        "scoop.unsafe.__atomicIntStore"
+        | "scoop.unsafe.__atomicIntCompareExchange"
+        | "scoop.unsafe.__atomicRefStore"
+        | "scoop.unsafe.__atomicRefCompareExchange" => Some(AtomicTargetMode::ReadWrite),
+        _ => None,
+    }
+}
+
+fn atomic_intrinsic_base_fqn(fqn: &str) -> &str {
+    fqn.split("::<")
+        .next()
+        .unwrap_or(fqn)
+        .split("$overload")
+        .next()
+        .unwrap_or(fqn)
+}
+
+fn is_atomic_addressable_lvalue(expr: &ast::Expr, lower: &TypeLowering<'_>) -> bool {
+    match &expr.kind {
+        ast::ExprKind::Ident(id) => id.resolved.is_some(),
+        ast::ExprKind::MemberAccess { member, .. } => {
+            atomic_member_value_fqn(member, lower).is_some()
+        }
+        _ => false,
+    }
+}
+
+fn atomic_member_value_fqn<'a>(
+    member: &'a ast::MemberIdent,
+    lower: &'a TypeLowering<'_>,
+) -> Option<&'a str> {
+    let resolved = lower
+        .typechecked_member_resolution(member.span)
+        .or(member.resolved.as_ref())?;
+    match resolved {
+        ast::ResolvedMemberRef::Value { fqn } => Some(fqn.as_str()),
+        _ => None,
+    }
+}
+
+fn is_atomic_target_writable(
+    inputs: ExprInferInputs<'_>,
+    expr: &ast::Expr,
+    lower: &TypeLowering<'_>,
+) -> bool {
+    match &expr.kind {
+        ast::ExprKind::Ident(id) => match id.resolved.as_ref() {
+            Some(ast::ResolvedValueRef::Local { decl_span, .. }) => inputs
+                .mutable_bindings
+                .is_none_or(|mutable| mutable.contains(decl_span)),
+            Some(ast::ResolvedValueRef::TopLevel { fqn }) => lower.is_top_level_value_mutable(fqn),
+            None => false,
+        },
+        ast::ExprKind::MemberAccess { receiver, member } => {
+            let Some(fqn) = atomic_member_value_fqn(member, lower) else {
+                return false;
+            };
+            let Some(receiver_ty) = lower.inferred_expr_ty(receiver.span) else {
+                return inputs
+                    .member_mutabilities
+                    .and_then(|mutabilities| mutabilities.get(fqn).copied())
+                    .unwrap_or(false);
+            };
+            match lower.type_kind(receiver_ty) {
+                TypeKind::Ref(RefTypeKind::Nominal(_)) => inputs
+                    .member_mutabilities
+                    .and_then(|mutabilities| mutabilities.get(fqn).copied())
+                    .unwrap_or(false),
+                TypeKind::Value(ValueTypeKind::Nominal(_)) => {
+                    is_atomic_target_writable(inputs, receiver, lower)
+                }
+                _ => false,
+            }
+        }
+        _ => false,
+    }
+}
+
 pub(in crate::typecheck::expr) fn check_nogc_call_gate(
     callee_fqn: &str,
     sig: &FunSigOwned,

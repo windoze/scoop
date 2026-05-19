@@ -1,0 +1,17 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::atomic_intrinsic_target_requires_lvalue
+// EXPECT-ERROR-AT: 15:42
+// EXPECT-ERROR: 第一个参数必须是可寻址变量
+// SPEC: docs/spec/language_spec-part6.md#15-internal-atomic-value-types
+// COVERS: NONE
+// BUCKETS: B-26
+// REASON: P7-B3.3 active frontend gate smoke for raw atomic target addressability.
+
+import scoop.core.*
+import scoop.unsafe.*
+
+fun main() {
+    @Unsafe do {
+        val value: Int = __atomicIntLoad(1)
+    }
+}

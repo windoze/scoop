@@ -1677,6 +1677,10 @@ impl<'a> TypeLowering<'a> {
         self.inferred_expr_tys.insert(span, ty);
     }
 
+    pub(super) fn inferred_expr_ty(&self, span: Span) -> Option<TypeId> {
+        self.inferred_expr_tys.get(&span).copied()
+    }
+
     pub(super) fn record_inferred_binding_ty(&mut self, span: Span, ty: TypeId) {
         self.inferred_binding_tys.insert(span, ty);
     }
@@ -1725,6 +1729,13 @@ impl<'a> TypeLowering<'a> {
         }
         self.typechecked_member_resolutions
             .insert(member_span, resolved);
+    }
+
+    pub(super) fn typechecked_member_resolution(
+        &self,
+        member_span: Span,
+    ) -> Option<&ast::ResolvedMemberRef> {
+        self.typechecked_member_resolutions.get(&member_span)
     }
 
     pub(super) fn record_splice_field_contract(

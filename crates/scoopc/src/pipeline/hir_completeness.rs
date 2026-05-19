@@ -376,6 +376,16 @@ impl<'a> HirCompletenessVerifier<'a> {
                 },
             ) if id == contract_id => Ok(()),
             (
+                ExprKind::VarRef(ValueRef::Local {
+                    name, decl_span, ..
+                }),
+                AssignPlaceKind::Local {
+                    name: contract_name,
+                    decl_span: contract_decl_span,
+                    ..
+                },
+            ) if name == contract_name && decl_span == contract_decl_span => Ok(()),
+            (
                 ExprKind::VarRef(ValueRef::TopLevel { fqn, .. }),
                 AssignPlaceKind::TopLevel {
                     fqn: contract_fqn, ..

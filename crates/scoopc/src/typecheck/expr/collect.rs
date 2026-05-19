@@ -232,6 +232,7 @@ fn infer_top_level_unannotated_value_types_in_file(
             source: file_info.source,
             builtins,
             locals: &empty_locals,
+            mutable_bindings: None,
             lambda_this_decl_span: None,
             comptime_bindings: None,
             top_level_types: out,

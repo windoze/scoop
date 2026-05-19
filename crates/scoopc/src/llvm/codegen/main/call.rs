@@ -24,14 +24,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     ) -> Result<AddressablePlace<'ctx>, LlvmEmitError> {
         match &expr.kind {
             hir::ExprKind::VarRef(hir::ValueRef::Local { id, .. }) => {
-                let local =
-                    self.function_cx
-                        .env
-                        .get(*id)
-                        .ok_or(LlvmEmitError::UnsupportedMainBody {
-                            kind: "atomicInt lvalue local",
-                            at: expr.span.into(),
-                        })?;
+                let local = self.function_cx.env.get(*id).unwrap_or_else(|| {
+                    self.panic_verified_intrinsic_contract(
+                        "codegen_addressable_place",
+                        "local target missing from function environment",
+                    )
+                });
 
                 let ptr = self.local_ptr_for_use(expr.span, local, "atomic_int_slot")?;
                 Ok(AddressablePlace {
@@ -43,12 +41,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             hir::ExprKind::VarRef(hir::ValueRef::TopLevel { fqn, .. }) => {
                 if let Some(global) = self.materialized_extern_global_root(fqn).cloned() {
                     let gv = self.declare_mir_extern_global(&global)?;
-                    let cg_ty =
-                        self.cg_ty_of(global.ty)
-                            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                                kind: "atomicInt extern global type",
-                                at: expr.span.into(),
-                            })?;
+                    let cg_ty = self.expect_cg_ty_of(global.ty, "addressable extern global");
                     return Ok(AddressablePlace {
                         ptr: gv.as_pointer_value(),
                         ty: cg_ty,
@@ -58,12 +51,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
                 if let Some(global) = self.extern_globals.get(fqn).cloned() {
                     let gv = self.declare_extern_global(&global)?;
-                    let cg_ty =
-                        self.cg_ty_of(global.ty)
-                            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                                kind: "atomicInt extern global type",
-                                at: expr.span.into(),
-                            })?;
+                    let cg_ty = self.expect_cg_ty_of(global.ty, "addressable extern global");
                     return Ok(AddressablePlace {
                         ptr: gv.as_pointer_value(),
                         ty: cg_ty,
@@ -72,19 +60,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 }
 
                 let Some(var) = self.top_level_vars.get(fqn) else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "atomicInt lvalue top-level var",
-                        at: expr.span.into(),
-                    });
+                    self.panic_verified_intrinsic_contract(
+                        "codegen_addressable_place",
+                        "top-level target metadata missing",
+                    );
                 };
 
                 let gv = self.declare_top_level_var_global(var)?;
-                let cg_ty = self
-                    .cg_ty_of(var.ty)
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "atomicInt top-level var type",
-                        at: expr.span.into(),
-                    })?;
+                let cg_ty = self.expect_cg_ty_of(var.ty, "addressable top-level var");
                 Ok(AddressablePlace {
                     ptr: gv.as_pointer_value(),
                     ty: cg_ty,
@@ -93,10 +76,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
             hir::ExprKind::MemberAccess { receiver, member } => {
                 let Some(hir::MemberRef::Value { fqn, .. }) = member.resolved.as_ref() else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "atomicInt target must be an lvalue",
-                        at: expr.span.into(),
-                    });
+                    self.panic_verified_intrinsic_contract(
+                        "codegen_addressable_place",
+                        "member target is not a value",
+                    );
                 };
 
                 let receiver_hir_ty = self
@@ -127,10 +110,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
                 let base = self.codegen_addressable_place(receiver)?;
                 let CgTy::Struct(struct_ty) = base.ty else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "atomicInt target must be an lvalue",
-                        at: expr.span.into(),
-                    });
+                    self.panic_verified_intrinsic_contract(
+                        "codegen_addressable_place",
+                        "member receiver is not addressable struct storage",
+                    );
                 };
 
                 let (field_idx, field_ty) =
@@ -148,10 +131,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     writable: base.writable,
                 })
             }
-            _ => Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "atomicInt target must be an lvalue",
-                at: expr.span.into(),
-            }),
+            _ => self.panic_verified_intrinsic_contract(
+                "codegen_addressable_place",
+                "target is not an addressable lvalue",
+            ),
         }
     }
 

@@ -7,8 +7,8 @@
 
 ## Scope
 
-U5-T01 creates this directory skeleton only. U5-T02 and U5-T03 must add `.scoop` fixtures and append matching `_index.csv` rows.
+P7-B3.3 retired all B-26 atomic intrinsic `UnsupportedMainBody` rows. The fixtures in this directory are active smoke coverage for the raw atomic positive path, the `AtomicValue<T>` value-bound negative gate, and raw atomic target lvalue/mutability gates.
 
 ## Runner Status
 
-`scoop test` recognizes `tests/fixtures/umb_fix/**`. Fixtures marked `IGNORE-UNTIL-FIX:B-26` or `ignore-until-fix:B-26` are skipped until the corresponding production fix lands.
+`scoop test` recognizes `tests/fixtures/umb_fix/**`. B-26 retired IDs are tracked in `audit/UMB_retired.csv`; fixture `COVERS` fields use `NONE` after retired-ledger takeover.

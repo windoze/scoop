@@ -401,6 +401,22 @@ pub enum ExprTypeError {
         span: miette::SourceSpan,
     },
 
+    #[error("atomic intrinsic `{callee}` 的第一个参数必须是可寻址变量（lvalue）")]
+    #[diagnostic(code(scoop::typecheck::atomic_intrinsic_target_requires_lvalue))]
+    AtomicIntrinsicTargetRequiresLValue {
+        callee: String,
+        #[label("这里需要可寻址变量")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("atomic intrinsic `{callee}` 的第一个参数必须是可写目标")]
+    #[diagnostic(code(scoop::typecheck::atomic_intrinsic_target_not_writable))]
+    AtomicIntrinsicTargetNotWritable {
+        callee: String,
+        #[label("这里需要可写目标")]
+        span: miette::SourceSpan,
+    },
+
     #[error("使用 unsafe 指针原语需要 unsafe context：{primitive}")]
     #[diagnostic(code(scoop::typecheck::unsafe_ptr_primitive_requires_unsafe))]
     UnsafePtrPrimitiveRequiresUnsafeContext {

@@ -1,0 +1,18 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::atomic_intrinsic_target_not_writable
+// EXPECT-ERROR-AT: 16:26
+// EXPECT-ERROR: 第一个参数必须是可写目标
+// SPEC: docs/spec/language_spec-part6.md#15-internal-atomic-value-types
+// COVERS: NONE
+// BUCKETS: B-26
+// REASON: P7-B3.3 active frontend gate smoke for raw atomic write target mutability.
+
+import scoop.core.*
+import scoop.unsafe.*
+
+fun main() {
+    @Unsafe do {
+        val cell: __AtomicInt = 0
+        __atomicIntStore(cell, 1)
+    }
+}

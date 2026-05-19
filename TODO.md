@@ -4,7 +4,7 @@
 > 计划基线：[`PLAN.md`](./PLAN.md)
 > 上一阶段任务档案：[`TODO-1.md`](./TODO-1.md)
 > 设计与 baseline：[`UnsupportedMainBody_FIX.md`](./UnsupportedMainBody_FIX.md)、[`UnsupportedMainBody_DONE.md`](./UnsupportedMainBody_DONE.md)
-> 当前状态：P7-0-T01、P7-0-T02、P7-A1、P7-A2、P7-A3、P7-A4、P7-B1、P7-B2.1、P7-B2.2、P7-B2.3、P7-B2.4、P7-B2.5、P7-B2.6、P7-B2.7、P7-B2.8、P7-B3.1、P7-B3.2 已完成；active=515，retired=769。
+> 当前状态：P7-0-T01、P7-0-T02、P7-A1、P7-A2、P7-A3、P7-A4、P7-B1、P7-B2.1、P7-B2.2、P7-B2.3、P7-B2.4、P7-B2.5、P7-B2.6、P7-B2.7、P7-B2.8、P7-B3.1、P7-B3.2、P7-B3.3 已完成；active=413，retired=871。
 
 ## 全局约束
 
@@ -478,7 +478,7 @@ P7-0-T01 stable ID + retired ledger
   - 验证结果：`cargo run -p scoopc --bin umb-audit -- list --bucket B-27` 通过（entries 0）；`cargo run -p scoopc --bin umb-audit -- list --bucket B-28` 通过（entries 0）；`cargo run -p scoopc --bin umb-audit -- diff` 通过（in sync，515 entries）；`cargo run -p scoopc --bin umb-audit -- stats` 通过（active=515、retired=769、initial=1284）；`cargo test -p scoopc audit:: -- --nocapture` 通过（23 passed）；`cargo test -p scoopc pipeline_user_visible_failure_policy -- --nocapture` 通过（7 passed）；`cargo run -p scoop -- test tests/fixtures/umb_fix/B-27-sync-intrinsics/` 通过（2 passed）；`cargo run -p scoop -- test tests/fixtures/umb_fix/B-28-thread-intrinsics/` 通过（2 passed）；`cargo check -p scoopc` 通过；`cargo fmt` 通过；`cargo clippy --all-targets -- -D warnings` 通过。
   - 闭合目标：满足 `PLAN.md:161-181` 与本任务完成条件；B-28/B-27 active count 均为 0，thread/sync intrinsic receiver、arity、return type、destroy/create contract 不再由 LLVM `UnsupportedMainBody` 兜底。
 
-### [TODO] P7-B3.3：B-26 atomic intrinsic contract
+### [DONE] P7-B3.3：B-26 atomic intrinsic contract
 
 - 参考：`PLAN.md:161-181`、`audit/strategies/B-26.md`。
 - 范围：B-26，102 entries。
@@ -487,7 +487,15 @@ P7-0-T01 stable ID + retired ledger
 - 验证：`cargo test -p scoopc audit:: -- --nocapture`、`cargo run -p scoop -- test tests/fixtures/umb_fix/B-26-atomic-intrinsics/`。
 - 完成条件：B-26 active count 为 0。
 - 依赖：P7-B1 推荐完成后。
-- 完成记录：待填写。
+- 完成记录：
+  - 改动范围：更新 `crates/scoopc/src/llvm/codegen/intrinsics/atomic.rs`、`crates/scoopc/src/llvm/codegen/effect_lowered/value.rs`、`crates/scoopc/src/llvm/codegen/main/call.rs`、`crates/scoopc/src/typecheck/expr/call/{dispatch.rs,gates.rs}`、`crates/scoopc/src/typecheck/expr/{error.rs,mod.rs,stmt.rs,entry.rs,collect.rs}`、`crates/scoopc/src/typecheck/lower.rs`、`crates/scoopc/src/pipeline/hir_completeness.rs`、`crates/scoopc/src/pipeline_user_visible_failure_policy.rs`；同步 `audit/UMB_inventory.csv`、`audit/UMB_retired.csv`、`audit/UMB_categories/{B-26.md,_overview.md}`、`audit/strategies/B-26.md`、`audit/spec_coverage_matrix.md`、B-26 fixtures、`tests/fixtures/umb_fix/_index.csv` 与 `memory/claude_plan.md`。
+  - Retired IDs：`UMB-0255`..`UMB-0273`、`UMB-0287`..`UMB-0295`、`UMB-0298`..`UMB-0314`、`UMB-0492`..`UMB-0540`、`UMB-0775`..`UMB-0780`、`UMB-0784`..`UMB-0785`；数量 102；bucket `B-26`；class `InternalBugSentinel`。
+  - 核心决策：raw `__atomicInt*`/`__atomicRef*` 第一实参 addressability 与写目标 mutability 进入 typecheck gate；HIR/effect-lowered atomic lowering 的 arity、target/value/return/ordering drift 改为 verified intrinsic/internal invariant；同步修复泛型 HIR assignment side table 中模板 local id 与实例化 local id 漂移的 verifier 匹配，避免 `Atomic<T>.exchange` 误报。
+  - Inventory/ledger：active 515 -> 413；retired 769 -> 871；B-26 active 102 -> 0；`InternalBugSentinel` active 312 -> 210。
+  - Stale count：`crates/scoopc/src/llvm/codegen/effect_lowered/value.rs` `UnsupportedMainBody` 123 -> 78；`crates/scoopc/src/llvm/codegen/main/call.rs` 8 -> 0；tracked stale total 254 -> 201；`intrinsics/atomic.rs` 49 rows退场但不在 tracked stale file list。
+  - Fixture 状态：B-26 fixture directory 从 `IGNORE-UNTIL-FIX:B-26` 激活；新增 raw atomic target lvalue/mutability negative fixtures；retired IDs 改由 retired ledger 覆盖，active fixture `COVERS` 改为 `NONE`。
+  - 验证结果：`cargo run -p scoopc --bin umb-audit -- list --bucket B-26` 通过（entries 0）；`cargo run -p scoopc --bin umb-audit -- diff` 通过（in sync，413 entries）；`cargo run -p scoopc --bin umb-audit -- stats` 通过（active=413、retired=871、initial=1284）；`cargo test -p scoopc audit:: -- --nocapture` 通过（23 passed）；`cargo test -p scoopc pipeline_user_visible_failure_policy -- --nocapture` 通过（7 passed）；`cargo run -p scoop -- test tests/fixtures/umb_fix/B-26-atomic-intrinsics/` 通过（4 passed）；`cargo run -p scoop -- test tests/fixtures/run-pass/unsafe_atomic_int_basic.scoop`、`unsafe_atomic_int_field_lvalue_basic.scoop`、`sysroot_atomic_basic.scoop` 均通过；`cargo run -p scoop -- test tests/fixtures/typecheck/sysroot_atomic_value_rejects_ref_type.scoop` 通过；`cargo fmt` 通过；`cargo clippy --all-targets -- -D warnings` 通过。
+  - 闭合目标：满足 `PLAN.md:161-181` 与本任务完成条件；B-26 active count 为 0，atomic intrinsic target mutability、width、ordering、return contract 不再由 LLVM `UnsupportedMainBody` 兜底。
 
 ### [TODO] P7-B3.4：B-29 GC intrinsic contract
 
@@ -611,7 +619,7 @@ P7-0-T01 stable ID + retired ledger
 
 | 阶段 | Active 目标 | Retired 目标 | 备注 |
 |---|---:|---:|---|
-| 当前 | 515 | 769 | P7-B3.2 完成，B-28/B-27 thread/sync intrinsic contract 清零 |
+| 当前 | 413 | 871 | P7-B3.3 完成，B-26 atomic intrinsic contract 清零 |
 | P7-A 完成 | 1,159 | 125 | `FrontendReject` 清零 |
 | P7-B 完成 | 203 | 1,081 | `InternalBugSentinel` 清零 |
 | P7-C 完成 | 0 | 1,284 | `RealImpl` 清零 |

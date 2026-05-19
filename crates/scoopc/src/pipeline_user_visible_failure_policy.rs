@@ -238,7 +238,7 @@ const STALE_UNSUPPORTED_MAIN_BODY_COUNTS: &[UnsupportedMainBodyCount] = &[
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/effect_lowered/value.rs",
-        expected_count: 123,
+        expected_count: 78,
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/main/alloca.rs",
@@ -250,7 +250,7 @@ const STALE_UNSUPPORTED_MAIN_BODY_COUNTS: &[UnsupportedMainBodyCount] = &[
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/main/call.rs",
-        expected_count: 8,
+        expected_count: 0,
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/main/coerce.rs",
@@ -843,11 +843,11 @@ const INTERNAL_BUG_SENTINEL_HITS: &[&str] = &[
     "crates/scoopc/src/llvm/codegen/effect_lowered/body/runtime_error.rs:82:                panic!(\"runtime_error_unit_variant_payload: verifier accepted missing RuntimeError enum layout\")",
     "crates/scoopc/src/llvm/codegen/effect_lowered/body/runtime_error.rs:89:                panic!(\"runtime_error_unit_variant_payload: verifier accepted missing RuntimeError variant `{variant_name}`\")",
     "crates/scoopc/src/llvm/codegen/effect_lowered/body/runtime_error.rs:92:            panic!(",
-    "crates/scoopc/src/llvm/codegen/effect_lowered/value.rs:2478:                    _ => unreachable!(\"filtered by match\"),",
-    "crates/scoopc/src/llvm/codegen/effect_lowered/value.rs:3606:            _ => unreachable!(\"filtered by caller\"),",
+    "crates/scoopc/src/llvm/codegen/effect_lowered/value.rs:2474:                    _ => unreachable!(\"filtered by match\"),",
+    "crates/scoopc/src/llvm/codegen/effect_lowered/value.rs:3564:            _ => unreachable!(\"filtered by caller\"),",
     "crates/scoopc/src/llvm/codegen/main/alloca.rs:48:            _ => unreachable!(\"cast_float only accepts Float64/Float32\"),",
-    "crates/scoopc/src/llvm/codegen/main/call.rs:109:                        panic!(",
-    "crates/scoopc/src/llvm/codegen/main/call.rs:694:            unreachable!(",
+    "crates/scoopc/src/llvm/codegen/main/call.rs:92:                        panic!(",
+    "crates/scoopc/src/llvm/codegen/main/call.rs:677:            unreachable!(",
     "crates/scoopc/src/llvm/codegen/main/coerce.rs:44:                    _ => unreachable!(\"filtered by caller\"),",
     "crates/scoopc/src/llvm/codegen/main/coerce.rs:49:            panic!(\"codegen_equality: typecheck gate accepted non-string rhs for string equality\");",
     "crates/scoopc/src/llvm/codegen/main/coerce.rs:60:                _ => unreachable!(\"filtered by caller\"),",
@@ -940,9 +940,9 @@ const INTERNAL_BUG_SENTINEL_HITS: &[&str] = &[
     "crates/scoopc/src/mir/materialize/dispatch.rs:51:                    panic!(",
     "crates/scoopc/src/mir/materialize/output.rs:37:            panic!(",
     "crates/scoopc/src/typecheck/lower.rs:1268:                unreachable!(",
-    "crates/scoopc/src/typecheck/lower.rs:2502:                    _ => unreachable!(\"nominal lowering produced non-nominal type\"),",
-    "crates/scoopc/src/typecheck/lower.rs:3395:                    _ => unreachable!(\"nominal lowering produced non-nominal type\"),",
-    "crates/scoopc/src/typecheck/lower.rs:3646:                unreachable!(\"is_value_only_enum implies first_super exists\");",
+    "crates/scoopc/src/typecheck/lower.rs:2513:                    _ => unreachable!(\"nominal lowering produced non-nominal type\"),",
+    "crates/scoopc/src/typecheck/lower.rs:3406:                    _ => unreachable!(\"nominal lowering produced non-nominal type\"),",
+    "crates/scoopc/src/typecheck/lower.rs:3657:                unreachable!(\"is_value_only_enum implies first_super exists\");",
     "crates/scoopc/src/typecheck/when_pat.rs:209:                    unreachable!(",
     "crates/scoopc/src/typecheck/when_pat.rs:258:                unreachable!(",
 ];
@@ -1048,7 +1048,7 @@ fn pipeline_user_visible_failure_policy_tracks_stale_unsupportedmainbody_counts(
             baseline.path
         );
     }
-    assert_eq!(total, 254);
+    assert_eq!(total, 201);
 }
 
 #[test]

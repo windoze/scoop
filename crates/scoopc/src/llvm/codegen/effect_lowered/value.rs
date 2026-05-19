@@ -2195,7 +2195,7 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
 
     fn lower_atomic_int_intrinsic(
         &mut self,
-        span: Span,
+        _span: Span,
         callee_fqn: &str,
         args: &[mir::CallArg],
     ) -> Result<Option<CgValue<'ctx>>, LlvmEmitError> {
@@ -2206,58 +2206,56 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
         match callee_fqn {
             "scoop.unsafe.__atomicIntLoad" => {
                 if args.len() != 1 || args[0].name.is_some() {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "atomicIntLoad arg contract",
-                        at: span.into(),
-                    });
+                    self.codegen.panic_verified_intrinsic_contract(
+                        "effect_lowered_atomic_int_load",
+                        "argument binding drift",
+                    );
                 }
                 let (ptr, int_ty) =
                     self.atomic_int_lvalue_ptr(&args[0].value, args[0].span, false)?;
                 if int_ty != atomic_word {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "atomicIntLoad target width",
-                        at: args[0].span.into(),
-                    });
+                    self.codegen.panic_verified_intrinsic_contract(
+                        "effect_lowered_atomic_int_load",
+                        "target width drift",
+                    );
                 }
                 let loaded = self.codegen.builder.build_load(
                     self.codegen.int_type(atomic_word),
                     ptr,
                     "atomic_int_load",
                 )?;
-                let inst =
-                    loaded
-                        .as_instruction_value()
-                        .ok_or(LlvmEmitError::UnsupportedMainBody {
-                            kind: "atomicIntLoad load instruction",
-                            at: args[0].span.into(),
-                        })?;
+                let inst = loaded.as_instruction_value().unwrap_or_else(|| {
+                    self.codegen.panic_verified_intrinsic_contract(
+                        "effect_lowered_atomic_int_load",
+                        "load instruction missing",
+                    )
+                });
                 inst.set_atomic_ordering(AtomicOrdering::SequentiallyConsistent)
-                    .map_err(|_| LlvmEmitError::UnsupportedMainBody {
-                        kind: "atomicIntLoad set ordering",
-                        at: args[0].span.into(),
-                    })?;
-                let BasicValueEnum::IntValue(raw) = loaded else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "atomicIntLoad return type",
-                        at: args[0].span.into(),
+                    .unwrap_or_else(|_| {
+                        self.codegen.panic_verified_intrinsic_contract(
+                            "effect_lowered_atomic_int_load",
+                            "failed to set atomic ordering",
+                        )
                     });
-                };
+                let raw = self
+                    .codegen
+                    .expect_int_value(loaded, "effect_lowered_atomic_int_load return");
                 Ok(Some(CgValue::int(raw, atomic_word)))
             }
             "scoop.unsafe.__atomicIntStore" => {
                 if args.len() != 2 || args.iter().any(|arg| arg.name.is_some()) {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "atomicIntStore arg contract",
-                        at: span.into(),
-                    });
+                    self.codegen.panic_verified_intrinsic_contract(
+                        "effect_lowered_atomic_int_store",
+                        "argument binding drift",
+                    );
                 }
                 let (ptr, int_ty) =
                     self.atomic_int_lvalue_ptr(&args[0].value, args[0].span, true)?;
                 if int_ty != atomic_word {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "atomicIntStore target width",
-                        at: args[0].span.into(),
-                    });
+                    self.codegen.panic_verified_intrinsic_contract(
+                        "effect_lowered_atomic_int_store",
+                        "target width drift",
+                    );
                 }
                 let value = self.codegen.codegen_mir_operand_expected(
                     args[1].span,
@@ -2268,33 +2266,34 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
                 let value =
                     self.codegen
                         .coerce_value(args[1].span, value, CgTy::Int(atomic_word))?;
-                let (raw, from) = value.as_int().ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "atomicIntStore value",
-                    at: args[1].span.into(),
-                })?;
+                let (raw, from) = self
+                    .codegen
+                    .expect_cg_int(value, "effect_lowered_atomic_int_store value");
                 let raw = self.codegen.cast_int(raw, from, atomic_word)?;
                 let inst = self.codegen.builder.build_store(ptr, raw)?;
                 inst.set_atomic_ordering(AtomicOrdering::SequentiallyConsistent)
-                    .map_err(|_| LlvmEmitError::UnsupportedMainBody {
-                        kind: "atomicIntStore set ordering",
-                        at: span.into(),
-                    })?;
+                    .unwrap_or_else(|_| {
+                        self.codegen.panic_verified_intrinsic_contract(
+                            "effect_lowered_atomic_int_store",
+                            "failed to set atomic ordering",
+                        )
+                    });
                 Ok(Some(CgValue::unit()))
             }
             "scoop.unsafe.__atomicIntCompareExchange" => {
                 if args.len() != 3 || args.iter().any(|arg| arg.name.is_some()) {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "atomicIntCompareExchange arg contract",
-                        at: span.into(),
-                    });
+                    self.codegen.panic_verified_intrinsic_contract(
+                        "effect_lowered_atomic_int_cmpxchg",
+                        "argument binding drift",
+                    );
                 }
                 let (ptr, int_ty) =
                     self.atomic_int_lvalue_ptr(&args[0].value, args[0].span, true)?;
                 if int_ty != atomic_word {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "atomicIntCompareExchange target width",
-                        at: args[0].span.into(),
-                    });
+                    self.codegen.panic_verified_intrinsic_contract(
+                        "effect_lowered_atomic_int_cmpxchg",
+                        "target width drift",
+                    );
                 }
                 let expected =
                     self.atomic_int_operand(args[1].span, &args[1].value, atomic_word)?;
@@ -2310,12 +2309,9 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
                     .codegen
                     .builder
                     .build_extract_value(cx, 1, "cmpxchg_success")?;
-                let BasicValueEnum::IntValue(ok) = success else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "atomicIntCompareExchange success type",
-                        at: span.into(),
-                    });
-                };
+                let ok = self
+                    .codegen
+                    .expect_int_value(success, "effect_lowered_atomic_int_cmpxchg success");
                 Ok(Some(CgValue::bool(ok)))
             }
             _ => Ok(None),
@@ -2324,17 +2320,17 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
 
     fn lower_atomic_ref_intrinsic(
         &mut self,
-        span: Span,
+        _span: Span,
         callee_fqn: &str,
         args: &[mir::CallArg],
     ) -> Result<Option<CgValue<'ctx>>, LlvmEmitError> {
         match intrinsic_base_fqn(callee_fqn) {
             "scoop.unsafe.__atomicRefLoad" => {
                 if args.len() != 1 || args[0].name.is_some() {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "atomicRefLoad arg contract",
-                        at: span.into(),
-                    });
+                    self.codegen.panic_verified_intrinsic_contract(
+                        "effect_lowered_atomic_ref_load",
+                        "argument binding drift",
+                    );
                 }
                 let (ptr, storage_ty) =
                     self.atomic_ref_lvalue_place(&args[0].value, args[0].span, false)?;
@@ -2343,18 +2339,19 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
                     .codegen
                     .builder
                     .build_load(llvm_ty, ptr, "atomic_ref_load")?;
-                let inst =
-                    loaded
-                        .as_instruction_value()
-                        .ok_or(LlvmEmitError::UnsupportedMainBody {
-                            kind: "atomicRefLoad load instruction",
-                            at: args[0].span.into(),
-                        })?;
+                let inst = loaded.as_instruction_value().unwrap_or_else(|| {
+                    self.codegen.panic_verified_intrinsic_contract(
+                        "effect_lowered_atomic_ref_load",
+                        "load instruction missing",
+                    )
+                });
                 inst.set_atomic_ordering(AtomicOrdering::SequentiallyConsistent)
-                    .map_err(|_| LlvmEmitError::UnsupportedMainBody {
-                        kind: "atomicRefLoad set ordering",
-                        at: args[0].span.into(),
-                    })?;
+                    .unwrap_or_else(|_| {
+                        self.codegen.panic_verified_intrinsic_contract(
+                            "effect_lowered_atomic_ref_load",
+                            "failed to set atomic ordering",
+                        )
+                    });
                 Ok(Some(CgValue {
                     ty: storage_ty,
                     value: Some(loaded),
@@ -2362,30 +2359,32 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
             }
             "scoop.unsafe.__atomicRefStore" => {
                 if args.len() != 2 || args.iter().any(|arg| arg.name.is_some()) {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "atomicRefStore arg contract",
-                        at: span.into(),
-                    });
+                    self.codegen.panic_verified_intrinsic_contract(
+                        "effect_lowered_atomic_ref_store",
+                        "argument binding drift",
+                    );
                 }
                 let (ptr, storage_ty) =
                     self.atomic_ref_lvalue_place(&args[0].value, args[0].span, true)?;
                 let raw = self.atomic_ref_operand(args[1].span, &args[1].value, storage_ty)?;
                 let inst = self.codegen.builder.build_store(ptr, raw)?;
                 inst.set_atomic_ordering(AtomicOrdering::SequentiallyConsistent)
-                    .map_err(|_| LlvmEmitError::UnsupportedMainBody {
-                        kind: "atomicRefStore set ordering",
-                        at: span.into(),
-                    })?;
+                    .unwrap_or_else(|_| {
+                        self.codegen.panic_verified_intrinsic_contract(
+                            "effect_lowered_atomic_ref_store",
+                            "failed to set atomic ordering",
+                        )
+                    });
                 self.codegen
                     .promote_gc_pointer_with_write_barrier(args[1].span, raw)?;
                 Ok(Some(CgValue::unit()))
             }
             "scoop.unsafe.__atomicRefCompareExchange" => {
                 if args.len() != 3 || args.iter().any(|arg| arg.name.is_some()) {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "atomicRefCompareExchange arg contract",
-                        at: span.into(),
-                    });
+                    self.codegen.panic_verified_intrinsic_contract(
+                        "effect_lowered_atomic_ref_cmpxchg",
+                        "argument binding drift",
+                    );
                 }
                 let (ptr, storage_ty) =
                     self.atomic_ref_lvalue_place(&args[0].value, args[0].span, true)?;
@@ -2402,12 +2401,9 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
                     .codegen
                     .builder
                     .build_extract_value(cx, 1, "cmpxchg_success")?;
-                let BasicValueEnum::IntValue(ok) = success else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "atomicRefCompareExchange success type",
-                        at: span.into(),
-                    });
-                };
+                let ok = self
+                    .codegen
+                    .expect_int_value(success, "effect_lowered_atomic_ref_cmpxchg success");
                 self.atomic_ref_cas_barrier(args[2].span, ok, desired)?;
                 Ok(Some(CgValue::bool(ok)))
             }
@@ -2640,10 +2636,9 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
         let value = self
             .codegen
             .coerce_value(span, value, CgTy::Int(atomic_word))?;
-        let (raw, from) = value.as_int().ok_or(LlvmEmitError::UnsupportedMainBody {
-            kind: "atomicInt operand",
-            at: span.into(),
-        })?;
+        let (raw, from) = self
+            .codegen
+            .expect_cg_int(value, "effect_lowered_atomic_int_operand");
         self.codegen.cast_int(raw, from, atomic_word)
     }
 
@@ -2660,19 +2655,19 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
         LlvmEmitError,
     > {
         let mir::Operand::Local(local) = operand else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "atomicInt target operand",
-                at: span.into(),
-            });
+            self.codegen.panic_verified_intrinsic_contract(
+                "effect_lowered_atomic_int_lvalue_ptr",
+                "target operand is not local",
+            );
         };
         if let Some((ptr, field_cg)) =
             self.atomic_member_place_for_local(*local, span, require_writable)?
         {
             let CgTy::Int(int_ty) = field_cg else {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "atomicInt target type",
-                    at: span.into(),
-                });
+                self.codegen.panic_verified_intrinsic_contract(
+                    "effect_lowered_atomic_int_lvalue_ptr",
+                    "member target is not an integer slot",
+                );
             };
             return Ok((ptr, int_ty));
         }
@@ -2680,10 +2675,10 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
             self.atomic_top_level_place_for_local(*local, span, require_writable)?
         {
             let CgTy::Int(int_ty) = cg_ty else {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "atomicInt target type",
-                    at: span.into(),
-                });
+                self.codegen.panic_verified_intrinsic_contract(
+                    "effect_lowered_atomic_int_lvalue_ptr",
+                    "top-level target is not an integer slot",
+                );
             };
             return Ok((ptr, int_ty));
         }
@@ -2691,10 +2686,10 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
         if let CgTy::Int(int_ty) = slot.cg_ty {
             return Ok((slot.ptr, int_ty));
         }
-        Err(LlvmEmitError::UnsupportedMainBody {
-            kind: "atomicInt target place",
-            at: span.into(),
-        })
+        self.codegen.panic_verified_intrinsic_contract(
+            "effect_lowered_atomic_int_lvalue_ptr",
+            "local target is not an integer slot",
+        )
     }
 
     fn atomic_ref_lvalue_place(
@@ -2704,10 +2699,10 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
         require_writable: bool,
     ) -> Result<(PointerValue<'ctx>, CgTy), LlvmEmitError> {
         let mir::Operand::Local(local) = operand else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "atomicRef target operand",
-                at: span.into(),
-            });
+            self.codegen.panic_verified_intrinsic_contract(
+                "effect_lowered_atomic_ref_lvalue_place",
+                "target operand is not local",
+            );
         };
         if let Some((ptr, cg_ty)) =
             self.atomic_member_place_for_local(*local, span, require_writable)?
@@ -2736,29 +2731,19 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
             Some(storage_ty),
         )?;
         let value = self.codegen.coerce_value(span, value, storage_ty)?;
-        let Some(raw) = value.value else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "atomicRef operand",
-                at: span.into(),
-            });
-        };
-        let BasicValueEnum::PointerValue(ptr) = raw else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "atomicRef operand",
-                at: span.into(),
-            });
-        };
-        Ok(ptr)
+        Ok(self
+            .codegen
+            .expect_cg_pointer(value, "effect_lowered_atomic_ref_operand"))
     }
 
-    fn atomic_ref_storage_ty(&self, span: Span, cg_ty: CgTy) -> Result<CgTy, LlvmEmitError> {
+    fn atomic_ref_storage_ty(&self, _span: Span, cg_ty: CgTy) -> Result<CgTy, LlvmEmitError> {
         if matches!(cg_ty, CgTy::Ref | CgTy::String) {
             return Ok(cg_ty);
         }
-        Err(LlvmEmitError::UnsupportedMainBody {
-            kind: "atomicRef target type",
-            at: span.into(),
-        })
+        self.codegen.panic_verified_intrinsic_contract(
+            "effect_lowered_atomic_ref_storage_ty",
+            "target is not a ref storage type",
+        )
     }
 
     fn atomic_ref_cas_barrier(
@@ -2794,7 +2779,7 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
     fn atomic_top_level_place_for_local(
         &mut self,
         local: LocalId,
-        span: Span,
+        _span: Span,
         require_writable: bool,
     ) -> Result<Option<(PointerValue<'ctx>, CgTy)>, LlvmEmitError> {
         // `TopLevelRef` 作为 atomic intrinsic 的 target 时必须保留静态存储地址，
@@ -2805,36 +2790,28 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
 
         if let Some(global) = self.codegen.materialized_extern_global_root(&fqn).cloned() {
             if require_writable && !global.mutable {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "atomicInt immutable extern global",
-                    at: span.into(),
-                });
+                self.codegen.panic_verified_intrinsic_contract(
+                    "effect_lowered_atomic_top_level_place_for_local",
+                    "extern global target is not writable",
+                );
             }
-            let cg_ty =
-                self.codegen
-                    .cg_ty_of(global.ty)
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "atomicInt extern global type",
-                        at: span.into(),
-                    })?;
+            let cg_ty = self
+                .codegen
+                .expect_cg_ty_of(global.ty, "effect_lowered_atomic extern global");
             let gv = self.codegen.declare_mir_extern_global(&global)?;
             return Ok(Some((gv.as_pointer_value(), cg_ty)));
         }
 
         if let Some(global) = self.codegen.extern_globals.get(&fqn).cloned() {
             if require_writable && !global.mutable {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "atomicInt immutable extern global",
-                    at: span.into(),
-                });
+                self.codegen.panic_verified_intrinsic_contract(
+                    "effect_lowered_atomic_top_level_place_for_local",
+                    "extern global target is not writable",
+                );
             }
-            let cg_ty =
-                self.codegen
-                    .cg_ty_of(global.ty)
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "atomicInt extern global type",
-                        at: span.into(),
-                    })?;
+            let cg_ty = self
+                .codegen
+                .expect_cg_ty_of(global.ty, "effect_lowered_atomic extern global");
             let gv = self.codegen.declare_extern_global(&global)?;
             return Ok(Some((gv.as_pointer_value(), cg_ty)));
         }
@@ -2844,11 +2821,7 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
         };
         let cg_ty = self
             .codegen
-            .cg_ty_of(var.ty)
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "atomicInt top-level var type",
-                at: span.into(),
-            })?;
+            .expect_cg_ty_of(var.ty, "effect_lowered_atomic top-level var");
         let gv = self.codegen.declare_top_level_var_global(&var)?;
         Ok(Some((gv.as_pointer_value(), cg_ty)))
     }
@@ -2895,34 +2868,28 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
         member: &mir::MemberAccessMetadata,
         require_writable: bool,
     ) -> Result<(PointerValue<'ctx>, CgTy), LlvmEmitError> {
-        let field_fqn = Self::atomic_member_value_fqn(span, member)?;
+        let field_fqn = self.atomic_member_value_fqn(member);
         let receiver_type_id =
             self.atomic_member_receiver_codegen_type_id(span, receiver, member)?;
-        let receiver_cg =
-            self.codegen
-                .cg_ty_of(receiver_type_id)
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "atomicInt member receiver type",
-                    at: span.into(),
-                })?;
+        let receiver_cg = self
+            .codegen
+            .expect_cg_ty_of(receiver_type_id, "effect_lowered_atomic member receiver");
         if let Some((class, field_idx, field_cg)) =
             self.codegen
                 .lookup_class_field_by_fqn(field_fqn, span, Some(receiver_type_id))?
             && receiver_cg == CgTy::Ref
         {
-            let field =
-                class
-                    .fields
-                    .get(field_idx as usize)
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "atomicInt class field index",
-                        at: span.into(),
-                    })?;
+            let field = class.fields.get(field_idx as usize).unwrap_or_else(|| {
+                self.codegen.panic_verified_intrinsic_contract(
+                    "effect_lowered_atomic_member_place",
+                    "class field index drift",
+                )
+            });
             if require_writable && !field.mutable {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "atomicInt immutable class field",
-                    at: span.into(),
-                });
+                self.codegen.panic_verified_intrinsic_contract(
+                    "effect_lowered_atomic_member_place",
+                    "class field target is not writable",
+                );
             }
             let receiver_value = self.codegen.codegen_mir_operand_expected(
                 span,
@@ -2931,18 +2898,9 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
                 Some(CgTy::Ref),
             )?;
             let receiver_value = self.codegen.coerce_value(span, receiver_value, CgTy::Ref)?;
-            let Some(raw) = receiver_value.value else {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "atomicInt class receiver value",
-                    at: span.into(),
-                });
-            };
-            let BasicValueEnum::PointerValue(obj_ptr) = raw else {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "atomicInt class receiver type",
-                    at: span.into(),
-                });
-            };
+            let obj_ptr = self
+                .codegen
+                .expect_cg_pointer(receiver_value, "effect_lowered_atomic class receiver");
             let ptr = self
                 .codegen
                 .codegen_class_field_ptr(span, &class, obj_ptr, field_idx)?;
@@ -2950,10 +2908,10 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
         }
 
         let CgTy::Struct(struct_ty) = receiver_cg else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "atomicInt member field target",
-                at: span.into(),
-            });
+            self.codegen.panic_verified_intrinsic_contract(
+                "effect_lowered_atomic_member_place",
+                "member receiver is not class ref or struct",
+            );
         };
         let (field_idx, field_cg) = self
             .codegen
@@ -2978,35 +2936,35 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
         require_writable: bool,
     ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
         let mir::Operand::Local(local) = receiver else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "atomicInt struct receiver place",
-                at: span.into(),
-            });
+            self.codegen.panic_verified_intrinsic_contract(
+                "effect_lowered_atomic_struct_receiver_ptr",
+                "struct receiver operand is not local",
+            );
         };
         if let Some((ptr, cg_ty)) =
             self.atomic_member_place_for_local(*local, span, require_writable)?
         {
             if cg_ty != CgTy::Struct(struct_ty) {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "atomicInt struct receiver type drift",
-                    at: span.into(),
-                });
+                self.codegen.panic_verified_intrinsic_contract(
+                    "effect_lowered_atomic_struct_receiver_ptr",
+                    "nested struct receiver type drift",
+                );
             }
             return Ok(ptr);
         }
         let slot = self.codegen.mir_local_slot(span, self.slots, *local)?;
         if slot.cg_ty != CgTy::Struct(struct_ty) {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "atomicInt struct receiver slot type",
-                at: span.into(),
-            });
+            self.codegen.panic_verified_intrinsic_contract(
+                "effect_lowered_atomic_struct_receiver_ptr",
+                "struct receiver slot type drift",
+            );
         }
         Ok(slot.ptr)
     }
 
     fn atomic_member_receiver_codegen_type_id(
         &self,
-        span: Span,
+        _span: Span,
         receiver: &mir::Operand,
         member: &mir::MemberAccessMetadata,
     ) -> Result<TypeId, LlvmEmitError> {
@@ -3019,32 +2977,32 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
                 .unwrap_or(member.receiver_ty),
             mir::Operand::Const(_) => member.receiver_ty,
         };
-        self.codegen
+        Ok(self
+            .codegen
             .equivalent_codegen_type_id(self.source_types, receiver_source_ty)
             .or_else(|| {
                 self.codegen
                     .equivalent_codegen_type_id(self.source_types, member.receiver_ty)
             })
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "atomicInt member receiver type",
-                at: span.into(),
-            })
+            .unwrap_or_else(|| {
+                self.codegen.panic_verified_intrinsic_contract(
+                    "effect_lowered_atomic_member_receiver_codegen_type_id",
+                    "receiver type has no codegen equivalent",
+                )
+            }))
     }
 
-    fn atomic_member_value_fqn(
-        span: Span,
-        member: &mir::MemberAccessMetadata,
-    ) -> Result<&str, LlvmEmitError> {
+    fn atomic_member_value_fqn<'b>(&self, member: &'b mir::MemberAccessMetadata) -> &'b str {
         match member.resolved.as_ref() {
-            Some(mir::MemberTarget::Value { fqn }) => Ok(fqn.as_str()),
-            Some(_) => Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "atomicInt member target is not value",
-                at: span.into(),
-            }),
-            None => Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "atomicInt member target unresolved",
-                at: span.into(),
-            }),
+            Some(mir::MemberTarget::Value { fqn }) => fqn.as_str(),
+            Some(_) => self.codegen.panic_verified_intrinsic_contract(
+                "effect_lowered_atomic_member_value_fqn",
+                "member target is not a value",
+            ),
+            None => self.codegen.panic_verified_intrinsic_contract(
+                "effect_lowered_atomic_member_value_fqn",
+                "member target is unresolved",
+            ),
         }
     }
 

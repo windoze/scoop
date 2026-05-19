@@ -199,6 +199,7 @@ struct ExprInferInputs<'a> {
     source: &'a SourceFile,
     builtins: BuiltinTypes,
     locals: &'a HashMap<Span, TypeId>,
+    mutable_bindings: Option<&'a HashSet<Span>>,
     /// 当前 lambda body 中“隐式 receiver this”的 decl span。
     ///
     /// 说明：
@@ -224,6 +225,7 @@ impl<'a> ExprInferInputs<'a> {
             source: self.source,
             builtins: self.builtins,
             locals,
+            mutable_bindings: self.mutable_bindings,
             lambda_this_decl_span: self.lambda_this_decl_span,
             comptime_bindings: self.comptime_bindings,
             top_level_types: self.top_level_types,
@@ -243,6 +245,7 @@ impl<'a> ExprInferInputs<'a> {
             source: self.source,
             builtins: self.builtins,
             locals: self.locals,
+            mutable_bindings: self.mutable_bindings,
             lambda_this_decl_span,
             comptime_bindings: self.comptime_bindings,
             top_level_types: self.top_level_types,

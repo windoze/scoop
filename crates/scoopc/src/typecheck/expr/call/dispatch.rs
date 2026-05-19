@@ -583,6 +583,14 @@ pub(in crate::typecheck::expr) fn infer_call_expr_type(
                     });
                 }
 
+                check_atomic_intrinsic_target_gate(
+                    inputs,
+                    &callee_fqn,
+                    &call_args,
+                    &mapping_pairs,
+                    lower,
+                )?;
+
                 // required effects（T0509/§14.7.1）：调用一个带 effect row 的函数，需要把该 row 计入当前函数体的 required effects。
                 let type_param_bindings = type_param_bindings_from_sig(&sig.type_params, lower);
                 let eff_bindings: Vec<(String, EffectRow)> = sig

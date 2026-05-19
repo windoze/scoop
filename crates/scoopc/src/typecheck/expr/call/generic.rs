@@ -995,6 +995,7 @@ pub(super) fn try_infer_where_bound_method_call(
         source,
         builtins,
         locals,
+        mutable_bindings: None,
         lambda_this_decl_span: None,
         comptime_bindings: None,
         top_level_types,
