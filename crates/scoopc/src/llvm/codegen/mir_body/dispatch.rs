@@ -154,10 +154,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         if !allow_effect_typed_signature
             && self.known_fun_body_may_outward_effect(&impl_sig.fqn, impl_sig.ty)
         {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "static interface dispatch target may outward-effect",
-                at: span.into(),
-            });
+            panic!(
+                "codegen_mir_plain_static_interface_dispatch_call: effect boundary router accepted outward-effect static dispatch target in plain lowering at {span:?}"
+            );
         }
 
         let ret_cg = self.cg_ty_of(impl_sig.return_ty).unwrap_or_else(|| {
@@ -287,10 +286,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         if !allow_effect_typed_signature
             && self.known_fun_body_may_outward_effect(&sig_fun.fqn, sig_fun.ty)
         {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "plain dispatch target may outward-effect",
-                at: span.into(),
-            });
+            panic!(
+                "codegen_mir_plain_dispatch_call: effect boundary router accepted outward-effect dispatch target in plain lowering at {span:?}"
+            );
         }
 
         if let PlainDispatchTarget::Interface {

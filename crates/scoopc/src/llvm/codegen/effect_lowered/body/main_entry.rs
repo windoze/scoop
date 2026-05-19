@@ -456,11 +456,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             ))
         })?;
         let mir_types = &pass_view.materialized().types;
-        body.validate_cfg()
-            .map_err(|_| LlvmEmitError::UnsupportedMainBody {
-                kind: "plain callable cfg",
-                at: mir_fun.span.into(),
-            })?;
+        body.validate_cfg().unwrap_or_else(|err| {
+            panic!(
+                "codegen_plain_callable_entry: plain callable verifier accepted invalid CFG for `{}` at {:?}: {err}",
+                callable.root_fqn(),
+                mir_fun.span
+            )
+        });
         self.verify_mir_body_composite_transport_contract(
             callable.root_fqn(),
             mir_fun.span,
@@ -479,12 +481,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.builder.position_at_end(entry);
         self.begin_function_explicit_frame_layout(function)?;
 
-        let declared_return_cg = self.cg_ty_of_mir_type(mir_types, mir_fun.return_ty).ok_or(
-            LlvmEmitError::UnsupportedMainBody {
-                kind: "plain callable return type",
-                at: mir_fun.span.into(),
-            },
-        )?;
+        let declared_return_cg = self.cg_ty_of_mir_type(mir_types, mir_fun.return_ty).unwrap_or_else(|| {
+            panic!(
+                "codegen_plain_callable_entry: plain callable verifier accepted non-codegen return type for `{}` at {:?}",
+                callable.root_fqn(),
+                mir_fun.span
+            )
+        });
         self.function_cx.current_fun_return_ty = Some(declared_return_cg);
         let uses_hidden_sret = self
             .hidden_sret_result_ty(mir_fun.span, declared_return_cg)?
@@ -493,10 +496,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             Some(
                 function
                     .get_nth_param(0)
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "missing plain llvm function sret param",
-                        at: mir_fun.span.into(),
-                    })?
+                    .unwrap_or_else(|| {
+                        panic!(
+                            "codegen_plain_callable_entry: plain callable ABI accepted missing sret param for `{}` at {:?}",
+                            callable.root_fqn(),
+                            mir_fun.span
+                        )
+                    })
                     .into_pointer_value(),
             )
         } else {
@@ -586,10 +592,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let start_bb = llvm_blocks
             .get(body.start.as_u32() as usize)
             .copied()
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "plain callable start block",
-                at: mir_fun.span.into(),
-            })?;
+            .unwrap_or_else(|| {
+                panic!(
+                    "codegen_plain_callable_entry: plain callable verifier accepted missing start block bb{} for `{}` at {:?}",
+                    body.start.as_u32(),
+                    callable.root_fqn(),
+                    mir_fun.span
+                )
+            });
         self.builder.build_unconditional_branch(start_bb)?;
 
         for (idx, block) in body.blocks.iter().enumerate() {
@@ -666,12 +676,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 self.finish_function_return_path(terminator.span, declared_return_cg, value)
             }
             mir::TerminatorKind::Goto { target } => {
-                let target_bb = llvm_blocks.get(target.as_u32() as usize).copied().ok_or(
-                    LlvmEmitError::UnsupportedMainBody {
-                        kind: "plain goto target",
-                        at: terminator.span.into(),
-                    },
-                )?;
+                let target_bb = llvm_blocks
+                    .get(target.as_u32() as usize)
+                    .copied()
+                    .unwrap_or_else(|| {
+                        panic!(
+                            "codegen_plain_terminator: plain callable verifier accepted missing goto target bb{} at {:?}",
+                            target.as_u32(),
+                            terminator.span
+                        )
+                    });
                 self.builder.build_unconditional_branch(target_bb)?;
                 Ok(())
             }
@@ -683,24 +697,32 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 let cond = self
                     .codegen_mir_operand(terminator.span, cond, slots)?
                     .as_bool()
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "plain branch condition",
-                        at: terminator.span.into(),
-                    })?;
+                    .unwrap_or_else(|| {
+                        panic!(
+                            "codegen_plain_terminator: plain callable verifier accepted non-bool branch condition at {:?}",
+                            terminator.span
+                        )
+                    });
                 let then_bb = llvm_blocks
                     .get(then_target.as_u32() as usize)
                     .copied()
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "plain then target",
-                        at: terminator.span.into(),
-                    })?;
+                    .unwrap_or_else(|| {
+                        panic!(
+                            "codegen_plain_terminator: plain callable verifier accepted missing then target bb{} at {:?}",
+                            then_target.as_u32(),
+                            terminator.span
+                        )
+                    });
                 let else_bb = llvm_blocks
                     .get(else_target.as_u32() as usize)
                     .copied()
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "plain else target",
-                        at: terminator.span.into(),
-                    })?;
+                    .unwrap_or_else(|| {
+                        panic!(
+                            "codegen_plain_terminator: plain callable verifier accepted missing else target bb{} at {:?}",
+                            else_target.as_u32(),
+                            terminator.span
+                        )
+                    });
                 self.builder
                     .build_conditional_branch(cond, then_bb, else_bb)?;
                 Ok(())
@@ -712,10 +734,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             mir::TerminatorKind::Perform { .. }
             | mir::TerminatorKind::ResumeUnwind
             | mir::TerminatorKind::Handle { .. }
-            | mir::TerminatorKind::Todo(_) => Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "plain callable effect/control terminator",
-                at: terminator.span.into(),
-            }),
+            | mir::TerminatorKind::Todo(_) => panic!(
+                "codegen_plain_terminator: effect/control terminator reached plain callable lowering at {:?}",
+                terminator.span
+            ),
         }
     }
 }

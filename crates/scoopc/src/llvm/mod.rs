@@ -213,14 +213,6 @@ pub enum LlvmEmitError {
 }
 
 impl LlvmEmitError {
-    #[cfg(test)]
-    pub(crate) fn unsupported_main_body_kind(&self) -> Option<&'static str> {
-        match self {
-            LlvmEmitError::UnsupportedMainBody { kind, .. } => Some(kind),
-            _ => None,
-        }
-    }
-
     pub(crate) fn invalid_literal(
         source: &SourceFile,
         span: Span,

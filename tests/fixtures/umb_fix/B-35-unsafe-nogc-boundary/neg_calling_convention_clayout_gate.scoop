@@ -1,12 +1,11 @@
 // EXPECT: fail
-// IGNORE-UNTIL-FIX:B-35
-// EXPECT-ERROR-CODE: scoop::umb_fix::pending_gate
-// EXPECT-ERROR-AT: 1:1
-// EXPECT-ERROR: pending U5 fixture gate
+// EXPECT-ERROR-CODE: scoop::typecheck::extern_fun_scoop_abi_calling_convention_not_supported
+// EXPECT-ERROR-AT: 16:2
+// EXPECT-ERROR: `abi = "scoop"` 当前不支持 `@CallingConvention`
 // SPEC: docs/spec/language_spec-part6.md#10-clayout;docs/spec/language_spec-part6.md#17-managed-abi-状态说明;docs/spec/language_spec-part6.md#9-callingconvention
 // COVERS: NONE
 // BUCKETS: B-33, B-35
-// REASON: U5-T02 records the spec surface before the matching implementation gate is enabled.
+// REASON: P7-C5 final UMB cleanup activates the real calling-convention frontend gate.
 // SOURCE-FIXTURE: tests/fixtures/typecheck/extern_fun_scoop_abi_calling_convention_is_error.scoop
 
 package fixtures.typecheck

@@ -56,10 +56,12 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
             let param_cg = self
                 .codegen
                 .cg_ty_of_mir_type(self.source_types, param.ty)
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "direct param type",
-                    at: param.span.into(),
-                })?;
+                .unwrap_or_else(|| {
+                    panic!(
+                        "bind_direct_args: direct entry ABI verifier accepted non-codegen param type at {:?}",
+                        param.span
+                    )
+                });
             let value = if let Some(env_component_count) = lambda_env_component_count {
                 if index == 0 {
                     if env_component_count == 0 {
@@ -197,10 +199,11 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
             let elem_cg = self
                 .codegen
                 .cg_ty_of_mir_type(self.source_types, *elem_ty)
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "direct tuple param element type",
-                    at: span.into(),
-                })?;
+                .unwrap_or_else(|| {
+                    panic!(
+                        "bind_direct_tuple_param_from_components: direct entry ABI verifier accepted non-codegen tuple element type at {span:?}"
+                    )
+                });
             let raw = match self.extract_direct_arg_component(
                 entry_symbol,
                 args_layout,
@@ -286,17 +289,22 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
                 .body
                 .blocks
                 .get(slice.block_id().as_u32() as usize)
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "source slice block",
-                    at: self.mir_fun.span.into(),
-                })?;
+                .unwrap_or_else(|| {
+                    panic!(
+                        "lower_state_source_slices: late-lowered verifier accepted missing source block bb{} in `{}`",
+                        slice.block_id().as_u32(),
+                        self.mir_fun.fqn
+                    )
+                });
             for stmt_index in slice.start_statement_index()..slice.end_statement_index() {
-                let stmt = block.stmts.get(stmt_index as usize).ok_or(
-                    LlvmEmitError::UnsupportedMainBody {
-                        kind: "source slice statement",
-                        at: self.mir_fun.span.into(),
-                    },
-                )?;
+                let stmt = block.stmts.get(stmt_index as usize).unwrap_or_else(|| {
+                    panic!(
+                        "lower_state_source_slices: late-lowered verifier accepted missing source statement bb{} stmt{} in `{}`",
+                        slice.block_id().as_u32(),
+                        stmt_index,
+                        self.mir_fun.fqn
+                    )
+                });
                 let classification = self
                     .callable
                     .source_statement_classification(*slice, stmt_index)
@@ -358,10 +366,13 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
                 let cond = self
                     .load_local_value(self.mir_fun.span, *cond_local)?
                     .as_bool()
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "state branch condition",
-                        at: self.mir_fun.span.into(),
-                    })?;
+                    .unwrap_or_else(|| {
+                        panic!(
+                            "lower_state_terminator: late-lowered verifier accepted non-bool state branch condition local{} in `{}`",
+                            cond_local.as_u32(),
+                            self.mir_fun.fqn
+                        )
+                    });
                 self.codegen.builder.build_conditional_branch(
                     cond,
                     self.state_block(*then_state)?,

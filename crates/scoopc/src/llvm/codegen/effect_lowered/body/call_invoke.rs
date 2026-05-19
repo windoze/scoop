@@ -85,12 +85,11 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
                 DynamicInvokeCarrierLayout::ClosureObject(_),
             ) => (callee, CgTy::Ref),
             (mir::CallKind::FunPtr { callee }, DynamicInvokeCarrierLayout::FunPtr(_)) => {
-                let source_ty = self.body_operand_source_ty(callee).ok_or(
-                    LlvmEmitError::UnsupportedMainBody {
-                        kind: "funptr carrier source type",
-                        at: span.into(),
-                    },
-                )?;
+                let source_ty = self.body_operand_source_ty(callee).unwrap_or_else(|| {
+                    panic!(
+                        "lower_dynamic_call_carrier: dynamic invoke verifier accepted missing FunPtr carrier source type at {span:?}"
+                    )
+                });
                 let expected = self
                     .codegen
                     .cg_ty_of_mir_type(self.source_types, source_ty)
@@ -106,10 +105,11 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
                 let expected = self
                     .codegen
                     .cg_ty_of_mir_type(self.source_types, dispatch.receiver_ty())
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "virtual receiver type",
-                        at: span.into(),
-                    })?;
+                    .unwrap_or_else(|| {
+                        panic!(
+                            "lower_dynamic_call_carrier: dynamic invoke verifier accepted non-codegen virtual receiver type at {span:?}"
+                        )
+                    });
                 (receiver, expected)
             }
             (
@@ -119,10 +119,11 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
                 let expected = self
                     .codegen
                     .cg_ty_of_mir_type(self.source_types, dispatch.receiver_ty())
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "interface receiver type",
-                        at: span.into(),
-                    })?;
+                    .unwrap_or_else(|| {
+                        panic!(
+                            "lower_dynamic_call_carrier: dynamic invoke verifier accepted non-codegen interface receiver type at {span:?}"
+                        )
+                    });
                 (receiver, expected)
             }
             _ => {

@@ -368,10 +368,9 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
             && self.unresolved_fun_value_callee_name(callee).is_some()
         {
             let _ = (args, target_ty);
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "enum variant call requires MIR enum payload schema",
-                at: span.into(),
-            });
+            panic!(
+                "lower_effect_neutral_rvalue: materialized MIR verifier accepted unresolved enum variant call without payload schema at {span:?}"
+            );
         }
         if let mir::Rvalue::Use(mir::Operand::Local(source_local))
         | mir::Rvalue::Transport {
@@ -385,10 +384,11 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
             let env_cg = self
                 .codegen
                 .mir_operand_cg_ty(self.body, self.source_types, &env)
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "effect-typed closure coercion env type",
-                    at: span.into(),
-                })?;
+                .unwrap_or_else(|| {
+                    panic!(
+                        "lower_effect_neutral_rvalue: closure adapter verifier accepted non-codegen closure env type at {span:?}"
+                    )
+                });
             return self.codegen.codegen_mir_make_closure_with_target_fn_ptr(
                 span,
                 &env,
@@ -417,10 +417,11 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
                 let env_cg = self
                     .codegen
                     .mir_operand_cg_ty(self.body, self.source_types, env)
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "pure closure carrier env type",
-                        at: span.into(),
-                    })?;
+                    .unwrap_or_else(|| {
+                        panic!(
+                            "lower_effect_neutral_rvalue: closure verifier accepted non-codegen carrier env type at {span:?}"
+                        )
+                    });
                 if let Some(adapter) =
                     self.maybe_build_effect_typed_closure_target_fn_ptr(span, target_local, fn_ptr)?
                 {
@@ -745,10 +746,9 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
             .codegen
             .equivalent_codegen_function_type(self.source_types, surface_fun_ty)
         else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "effect-typed closure surface function type",
-                at: span.into(),
-            });
+            panic!(
+                "maybe_build_effect_typed_closure_target_fn_ptr_for_source_ty: TypeStore equivalence verifier accepted non-codegen effect-typed surface function at {span:?}"
+            );
         };
         if fun_ty.effects.is_pure() {
             return Ok(None);
@@ -804,12 +804,11 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
             return Ok(());
         };
         let layout_key = self.codegen.nominal_layout_key(nominal);
-        let layout = self.codegen.struct_layouts.get(&layout_key).ok_or(
-            LlvmEmitError::UnsupportedMainBody {
-                kind: "struct closure adapter layout",
-                at: span.into(),
-            },
-        )?;
+        let layout = self.codegen.struct_layouts.get(&layout_key).unwrap_or_else(|| {
+            panic!(
+                "install_effect_typed_closure_target_overrides_for_struct_fields: layout verifier accepted missing struct layout at {span:?}"
+            )
+        });
         for layout_field in &layout.fields {
             let Some(init) = fields.iter().find(|field| field.name == layout_field.name) else {
                 continue;
@@ -927,12 +926,10 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
             Some(CgTy::Ref),
         )?;
         let closure = self.codegen.coerce_value(span, closure, CgTy::Ref)?;
-        let Some(BasicValueEnum::PointerValue(raw_closure)) = closure.value else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "struct closure adapter value",
-                at: span.into(),
-            });
-        };
+        let raw_closure = self.codegen.expect_cg_pointer(
+            closure,
+            "store_closure_dynamic_entry struct closure adapter value",
+        );
         let closure_ptr = self.codegen.cast_ptr(
             raw_closure,
             self.codegen.llvm_ptr_type(self.codegen.gc_address_space()),
@@ -1140,10 +1137,11 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
 
         let carrier = function
             .get_nth_param(0)
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "effect-typed plain adapter carrier param",
-                at: span.into(),
-            })?
+            .unwrap_or_else(|| {
+                panic!(
+                    "define_effect_typed_plain_closure_adapter: closure adapter ABI accepted missing carrier param at {span:?}"
+                )
+            })
             .into_pointer_value();
         let closure_ptr = self.codegen.cast_ptr(
             carrier,
@@ -1180,10 +1178,11 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
 
         let mut call_args = Vec::<BasicMetadataValueEnum<'ctx>>::new();
         let sret_result_slot = if uses_hidden_sret {
-            let result_ty = complete_payload_ty.ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "effect-typed plain adapter sret payload type",
-                at: span.into(),
-            })?;
+            let result_ty = complete_payload_ty.unwrap_or_else(|| {
+                panic!(
+                    "define_effect_typed_plain_closure_adapter: closure adapter ABI accepted hidden sret without Complete payload type at {span:?}"
+                )
+            });
             let slot =
                 self.codegen
                     .create_entry_alloca_raw(span, "adapter_plain_sret", result_ty)?;
@@ -1227,12 +1226,11 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
                 )?;
                 payload
             } else {
-                let payload = call.try_as_basic_value().basic().ok_or(
-                    LlvmEmitError::UnsupportedMainBody {
-                        kind: "effect-typed plain adapter plain return value",
-                        at: span.into(),
-                    },
-                )?;
+                let payload = call.try_as_basic_value().basic().unwrap_or_else(|| {
+                    panic!(
+                        "define_effect_typed_plain_closure_adapter: closure adapter ABI accepted valueless plain return at {span:?}"
+                    )
+                });
                 if payload.get_type() != expected_payload_ty {
                     return Err(frontend_error(format!(
                         "effect-typed plain adapter `{}` direct payload type drift: expected {:?}, got {:?}",
@@ -1348,10 +1346,11 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
         let mut call_args = vec![
             function
                 .get_nth_param(0)
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "effect-typed closure adapter carrier param",
-                    at: span.into(),
-                })?
+                .unwrap_or_else(|| {
+                    panic!(
+                        "define_effect_typed_effectful_closure_adapter: closure adapter ABI accepted missing carrier param at {span:?}"
+                    )
+                })
                 .into(),
         ];
         if let Some(explicit_args) = function.get_nth_param(1) {
@@ -1373,10 +1372,11 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
         let step = call
             .try_as_basic_value()
             .basic()
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "effect-typed closure adapter source carrier return",
-                at: span.into(),
-            })?;
+            .unwrap_or_else(|| {
+                panic!(
+                    "define_effect_typed_effectful_closure_adapter: source carrier entry returned no Step value at {span:?}"
+                )
+            });
         let step = if source_step_schema == adapter.return_step_schema {
             step
         } else {
@@ -1410,10 +1410,11 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
         }
         let raw = function
             .get_nth_param(1)
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "effect-typed plain adapter args payload",
-                at: span.into(),
-            })?;
+            .unwrap_or_else(|| {
+                panic!(
+                    "adapter_explicit_args: closure adapter ABI accepted missing args payload param at {span:?}"
+                )
+            });
         match layout.kind() {
             SourceAbiLayoutKind::Scalar => Ok(vec![raw.into()]),
             SourceAbiLayoutKind::Tuple => {
@@ -1495,10 +1496,9 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
                 );
             }
             mir::CallKind::Resume { .. } => {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "pure statement resume call requires boundary lowering",
-                    at: span.into(),
-                });
+                panic!(
+                    "lower_pure_direct_call: resume call reached effect-neutral lowering at {span:?}; boundary lowering must route it"
+                );
             }
         };
         match callee_fqn.as_str() {
@@ -1576,10 +1576,10 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
         }
         if callee_fqn == "scoop.core.getPlatform" {
             if !args.is_empty() {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "getPlatform intrinsic arity",
-                    at: span.into(),
-                });
+                self.codegen.panic_verified_intrinsic_contract(
+                    "effect-lowered getPlatform",
+                    "argument count drift",
+                );
             }
             return self.codegen.codegen_platform_literal(span, target_cg);
         }
@@ -1693,10 +1693,9 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
             }
         };
         if sig_fun.body.is_none() {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "pure statement declaration-only direct call",
-                at: span.into(),
-            });
+            panic!(
+                "lower_pure_direct_call: declaration-only callable `{callee_fqn}` reached effect-lowered direct call at {span:?}"
+            );
         }
         if self
             .abi
@@ -1717,10 +1716,9 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
             .codegen
             .known_fun_body_may_outward_effect(callee_fqn, sig_fun.ty)
         {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "pure statement effectful direct call requires boundary lowering",
-                at: span.into(),
-            });
+            panic!(
+                "lower_pure_direct_call: outward-effect callable `{callee_fqn}` reached effect-neutral direct call at {span:?}; boundary lowering must route it"
+            );
         }
         let layout = self.abi.callable_layout_by_root_fqn(callee_fqn)?;
         let entry = layout.direct_entry();
@@ -2139,12 +2137,12 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
         expected: usize,
     ) -> Result<(), LlvmEmitError> {
         if args.len() != expected || args.iter().any(|arg| arg.name.is_some()) {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "sync intrinsic arg contract",
-                at: span.into(),
-            });
+            self.codegen.panic_verified_intrinsic_contract(
+                "effect-lowered sync intrinsic",
+                "argument count or named argument drift",
+            );
         }
-        let _ = dispatch_fqn;
+        let _ = (span, dispatch_fqn);
         Ok(())
     }
 
@@ -2160,12 +2158,9 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
             Some(CgTy::Ref),
         )?;
         let value = self.codegen.coerce_value(arg.span, value, CgTy::Ref)?;
-        let Some(BasicValueEnum::PointerValue(ptr)) = value.value else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "sync intrinsic ref arg",
-                at: arg.span.into(),
-            });
-        };
+        let ptr = self
+            .codegen
+            .expect_cg_pointer(value, "effect-lowered sync intrinsic ref arg");
         let _ = dispatch_fqn;
         Ok(ptr)
     }
@@ -2176,20 +2171,14 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
         dispatch_fqn: &str,
         call: CallSiteValue<'ctx>,
     ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
-        let raw = call
-            .try_as_basic_value()
-            .basic()
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "sync intrinsic return value",
-                at: span.into(),
-            })?;
-        let BasicValueEnum::PointerValue(ptr) = raw else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "sync intrinsic return type",
-                at: span.into(),
-            });
-        };
+        let raw = self
+            .codegen
+            .expect_basic_value(call, "effect-lowered sync intrinsic return value");
+        let ptr = self
+            .codegen
+            .expect_pointer_value(raw, "effect-lowered sync intrinsic return type");
         let _ = dispatch_fqn;
+        let _ = span;
         Ok(ptr)
     }
 
@@ -2424,10 +2413,10 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
             return Ok(None);
         }
         if args.len() != 1 || args[0].name.is_some() {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "toInt arg contract",
-                at: span.into(),
-            });
+            self.codegen.panic_verified_intrinsic_contract(
+                "effect-lowered toInt intrinsic",
+                "argument count or named argument drift",
+            );
         }
         let arg = &args[0];
         let value_ty = self.required_operand_source_ty(&arg.value, arg.span)?;
@@ -2435,10 +2424,12 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
             .codegen
             .cg_ty_of_mir_type(self.source_types, value_ty)
             .or_else(|| self.operand_slot_cg_ty(&arg.value))
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "toInt receiver type",
-                at: arg.span.into(),
-            })?;
+            .unwrap_or_else(|| {
+                panic!(
+                    "lower_to_int_intrinsic: intrinsic verifier accepted non-codegen receiver type at {:?}",
+                    arg.span
+                )
+            });
         let value = self.codegen.codegen_mir_operand_expected(
             arg.span,
             &arg.value,
@@ -2462,12 +2453,14 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
         match value.ty {
             CgTy::String => Ok(None),
             CgTy::Float64 | CgTy::Float32 => {
-                let Some(BasicValueEnum::FloatValue(float_val)) = value.value else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "Float.toInt receiver value",
-                        at: arg.span.into(),
-                    });
-                };
+                let float_val = self
+                    .codegen
+                    .expect_float_value(value.value.unwrap_or_else(|| {
+                        panic!(
+                            "lower_to_int_intrinsic: Float.toInt receiver did not publish a value at {:?}",
+                            arg.span
+                        )
+                    }), "Float.toInt receiver value");
                 let rt = match value.ty {
                     CgTy::Float64 => self.codegen.declare_runtime_float64_to_int(),
                     CgTy::Float32 => self.codegen.declare_runtime_float32_to_int(),
@@ -2479,18 +2472,12 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
                     &[float_val.into()],
                     "rt_float_to_int",
                 )?;
-                let raw = call.try_as_basic_value().basic().ok_or(
-                    LlvmEmitError::UnsupportedMainBody {
-                        kind: "Float.toInt return value",
-                        at: span.into(),
-                    },
-                )?;
-                let BasicValueEnum::IntValue(int64_val) = raw else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "Float.toInt return type",
-                        at: span.into(),
-                    });
-                };
+                let raw = self
+                    .codegen
+                    .expect_basic_value(call, "Float.toInt runtime return value");
+                let int64_val = self
+                    .codegen
+                    .expect_int_value(raw, "Float.toInt runtime return type");
                 let runtime_int = CgValue::int(
                     int64_val,
                     super::super::types::IntTy {
@@ -2502,10 +2489,9 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
                     .coerce_value(span, runtime_int, int_ty)
                     .map(Some)
             }
-            _ => Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "toInt unsupported receiver type",
-                at: span.into(),
-            }),
+            _ => panic!(
+                "lower_to_int_intrinsic: intrinsic verifier accepted unsupported toInt receiver type at {span:?}"
+            ),
         }
     }
 
@@ -2519,10 +2505,10 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
             return Ok(None);
         }
         if args.len() != 1 || args[0].name.is_some() {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "hash arg contract",
-                at: span.into(),
-            });
+            self.codegen.panic_verified_intrinsic_contract(
+                "effect-lowered hash intrinsic",
+                "argument count or named argument drift",
+            );
         }
 
         let arg = &args[0];
@@ -2530,10 +2516,12 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
         let value_cg = self
             .codegen
             .cg_ty_of_mir_type(self.source_types, value_ty)
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "hash receiver type",
-                at: arg.span.into(),
-            })?;
+            .unwrap_or_else(|| {
+                panic!(
+                    "lower_hash_intrinsic: intrinsic verifier accepted non-codegen receiver type at {:?}",
+                    arg.span
+                )
+            });
         let value = self.codegen.codegen_mir_operand_expected(
             arg.span,
             &arg.value,
@@ -2545,12 +2533,15 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
         let i64_ty = self.codegen.context.i64_type();
         match self.source_types.kind(value_ty) {
             TypeKind::Value(ValueTypeKind::Char) => {
-                let Some(BasicValueEnum::IntValue(codepoint)) = value.value else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "Char.hash receiver value",
-                        at: arg.span.into(),
-                    });
-                };
+                let codepoint = self.codegen.expect_int_value(
+                    value.value.unwrap_or_else(|| {
+                        panic!(
+                            "lower_hash_intrinsic: Char.hash receiver did not publish a value at {:?}",
+                            arg.span
+                        )
+                    }),
+                    "Char.hash receiver value",
+                );
                 let widened =
                     self.codegen
                         .builder
@@ -2566,36 +2557,38 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
                         signed: true,
                     });
                     let value = self.codegen.coerce_value(arg.span, value, int64)?;
-                    let Some(BasicValueEnum::IntValue(raw)) = value.value else {
-                        return Err(LlvmEmitError::UnsupportedMainBody {
-                            kind: "Int.hash receiver value",
-                            at: arg.span.into(),
-                        });
-                    };
+                    let raw = self.codegen.expect_int_value(
+                        value.value.unwrap_or_else(|| {
+                            panic!(
+                                "lower_hash_intrinsic: Int.hash receiver did not publish a value at {:?}",
+                                arg.span
+                            )
+                        }),
+                        "Int.hash receiver value",
+                    );
                     self.codegen.codegen_i64_hash_value(raw).map(Some)
                 }
                 CgTy::Float64 | CgTy::Float32 => self
                     .codegen
                     .codegen_float_hash_value(arg.span, value)
                     .map(Some),
-                _ => Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "hash unsupported receiver type",
-                    at: span.into(),
-                }),
+                _ => panic!(
+                    "lower_hash_intrinsic: intrinsic verifier accepted unsupported hash receiver type at {span:?}"
+                ),
             },
         }
     }
 
     fn lower_panic_call(
         &mut self,
-        span: Span,
+        _span: Span,
         args: &[mir::CallArg],
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         if args.len() != 1 || args[0].name.is_some() {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "panic arg contract",
-                at: span.into(),
-            });
+            self.codegen.panic_verified_intrinsic_contract(
+                "effect-lowered panic intrinsic",
+                "argument count or named argument drift",
+            );
         }
         let arg = &args[0];
         let message = self.codegen.codegen_mir_operand_expected(
@@ -2605,12 +2598,9 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
             Some(CgTy::String),
         )?;
         let message = self.codegen.coerce_value(arg.span, message, CgTy::String)?;
-        let Some(BasicValueEnum::PointerValue(message_ptr)) = message.value else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "panic message value",
-                at: arg.span.into(),
-            });
-        };
+        let message_ptr = self
+            .codegen
+            .expect_cg_pointer(message, "effect-lowered panic message value");
         let runtime = self.codegen.declare_runtime_panic();
         let _ = self.codegen.build_call_preserving_gc_local_roots(
             arg.span,
@@ -3069,29 +3059,27 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
             return Ok(None);
         };
         if !fun_ty.effects.is_pure() {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "top-level FunPtr effect-typed direct call",
-                at: span.into(),
-            });
+            panic!(
+                "lower_top_level_funptr_direct_call: effect-typed top-level FunPtr `{callable_fqn}` reached effect-neutral direct call at {span:?}"
+            );
         }
         let value = self
             .codegen
             .top_level_immutable_values
             .get(callable_fqn)
             .cloned()
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "top-level FunPtr value metadata",
-                at: span.into(),
-            })?;
+            .unwrap_or_else(|| {
+                panic!(
+                    "lower_top_level_funptr_direct_call: immutable value verifier accepted missing FunPtr metadata for `{callable_fqn}` at {span:?}"
+                )
+            });
         let funptr = self
             .codegen
             .codegen_top_level_immutable_value_access(span, &value)?;
-        let Some(BasicValueEnum::IntValue(funptr_addr)) = funptr.value else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "top-level FunPtr value",
-                at: span.into(),
-            });
-        };
+        let funptr_addr = self
+            .codegen
+            .expect_cg_int(funptr, "top-level FunPtr value")
+            .0;
 
         let mut source_arg_tys = Vec::new();
         if let Some(receiver_ty) = fun_ty.receiver {
@@ -3105,10 +3093,9 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
                 .map(|(index, ty)| (format!("a{index}"), *ty)),
         );
         if args.len() != source_arg_tys.len() {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "top-level FunPtr direct call arity",
-                at: span.into(),
-            });
+            panic!(
+                "lower_top_level_funptr_direct_call: FunPtr call verifier accepted arity drift for `{callable_fqn}` at {span:?}"
+            );
         }
         let mut ordered_args = vec![None; source_arg_tys.len()];
         let mut next_positional = 0usize;
@@ -3117,20 +3104,22 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
                 source_arg_tys
                     .iter()
                     .position(|(param_name, _)| param_name == name)
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "top-level FunPtr named arg",
-                        at: arg.span.into(),
-                    })?
+                    .unwrap_or_else(|| {
+                        panic!(
+                            "lower_top_level_funptr_direct_call: FunPtr call verifier accepted unknown named argument `{name}` at {:?}",
+                            arg.span
+                        )
+                    })
             } else {
                 let index = next_positional;
                 next_positional += 1;
                 index
             };
             if index >= ordered_args.len() || ordered_args[index].replace(arg).is_some() {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "top-level FunPtr arg mapping",
-                    at: arg.span.into(),
-                });
+                panic!(
+                    "lower_top_level_funptr_direct_call: FunPtr call verifier accepted duplicate/out-of-range argument at {:?}",
+                    arg.span
+                );
             }
         }
 
@@ -3141,15 +3130,17 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
             let param_cg =
                 self.codegen
                     .cg_ty_of(*source_ty)
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "top-level FunPtr param type",
-                        at: span.into(),
-                    })?;
+                    .unwrap_or_else(|| {
+                        panic!(
+                            "lower_top_level_funptr_direct_call: FunPtr call verifier accepted non-codegen param type at {span:?}"
+                        )
+                    });
             llvm_param_tys.push(self.codegen.llvm_basic_type_of(span, param_cg)?.into());
-            let arg = ordered_args[index].ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "top-level FunPtr missing arg",
-                at: span.into(),
-            })?;
+            let arg = ordered_args[index].unwrap_or_else(|| {
+                panic!(
+                    "lower_top_level_funptr_direct_call: FunPtr call verifier accepted missing argument {index} at {span:?}"
+                )
+            });
             let value = self.codegen.codegen_mir_operand_expected(
                 arg.span,
                 &arg.value,
@@ -3157,20 +3148,20 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
                 Some(param_cg),
             )?;
             let value = self.codegen.coerce_value(arg.span, value, param_cg)?;
-            let raw = value.value.ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "top-level FunPtr arg value",
-                at: arg.span.into(),
-            })?;
+            let raw = self
+                .codegen
+                .expect_cg_value(value, "top-level FunPtr arg value");
             llvm_args.push(raw.into());
         }
 
         let ret_cg =
             self.codegen
                 .cg_ty_of(fun_ty.return_ty)
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "top-level FunPtr return type",
-                    at: span.into(),
-                })?;
+                .unwrap_or_else(|| {
+                    panic!(
+                        "lower_top_level_funptr_direct_call: FunPtr call verifier accepted non-codegen return type at {span:?}"
+                    )
+                });
         let llvm_fun_ty = match ret_cg {
             CgTy::Unit | CgTy::Never => self
                 .codegen
@@ -3198,12 +3189,9 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
             CgTy::Unit => Ok(Some(CgValue::unit())),
             CgTy::Never => Ok(Some(CgValue::never())),
             _ => {
-                let raw = call_site.try_as_basic_value().basic().ok_or(
-                    LlvmEmitError::UnsupportedMainBody {
-                        kind: "top-level FunPtr return value",
-                        at: span.into(),
-                    },
-                )?;
+                let raw = self
+                    .codegen
+                    .expect_basic_value(call_site, "top-level FunPtr return value");
                 Ok(Some(self.codegen.cg_value_from_loaded(span, ret_cg, raw)?))
             }
         }
@@ -3246,30 +3234,27 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
         fun_ty: &crate::ty::FunctionType,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         if !fun_ty.effects.is_pure() {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "top-level function-value effect-typed direct call",
-                at: span.into(),
-            });
+            panic!(
+                "lower_top_level_function_value_direct_call: effect-typed top-level function value `{callable_fqn}` reached effect-neutral direct call at {span:?}"
+            );
         }
         let value = self
             .codegen
             .top_level_immutable_values
             .get(callable_fqn)
             .cloned()
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "top-level function-value metadata",
-                at: span.into(),
-            })?;
+            .unwrap_or_else(|| {
+                panic!(
+                    "lower_top_level_function_value_direct_call: immutable value verifier accepted missing function-value metadata for `{callable_fqn}` at {span:?}"
+                )
+            });
         let callee = self
             .codegen
             .codegen_top_level_immutable_value_access(span, &value)?;
         let callee = self.codegen.coerce_value(span, callee, CgTy::Ref)?;
-        let Some(BasicValueEnum::PointerValue(closure_obj_i8)) = callee.value else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "top-level function-value value",
-                at: span.into(),
-            });
-        };
+        let closure_obj_i8 = self
+            .codegen
+            .expect_cg_pointer(callee, "top-level function-value value");
         self.codegen
             .codegen_mir_plain_function_value_call_from_closure_obj(
                 span,
@@ -3310,12 +3295,7 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
             CgTy::String | CgTy::Ref => value,
             _ => self.codegen.coerce_value(span, value, CgTy::String)?,
         };
-        let Some(BasicValueEnum::PointerValue(ptr)) = value.value else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind,
-                at: span.into(),
-            });
-        };
+        let ptr = self.codegen.expect_cg_pointer(value, kind);
         Ok(ptr)
     }
 
@@ -3326,10 +3306,10 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
         target_cg: CgTy,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         if args.len() != 1 || args[0].name.is_some() {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "core byteLength arg contract",
-                at: span.into(),
-            });
+            self.codegen.panic_verified_intrinsic_contract(
+                "effect-lowered core.byteLength",
+                "argument count or named argument drift",
+            );
         }
 
         let receiver = self.codegen.codegen_mir_operand_expected(
@@ -3351,12 +3331,9 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
             len_ptr,
             "core_byte_length",
         )?;
-        let BasicValueEnum::IntValue(result) = raw else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "core byteLength load type",
-                at: span.into(),
-            });
-        };
+        let result = self
+            .codegen
+            .expect_int_value(raw, "core byteLength load type");
         let value = CgValue::int(
             result,
             IntTy {
@@ -3374,10 +3351,10 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
         target_cg: CgTy,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         if args.len() != 2 || args.iter().any(|arg| arg.name.is_some()) {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "core getByte arg contract",
-                at: span.into(),
-            });
+            self.codegen.panic_verified_intrinsic_contract(
+                "effect-lowered core.getByte",
+                "argument count or named argument drift",
+            );
         }
 
         let receiver = self.codegen.codegen_mir_operand_expected(
@@ -3397,12 +3374,10 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
                 signed: true,
             })),
         )?;
-        let Some(BasicValueEnum::IntValue(index_int)) = index.value else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "core getByte index value",
-                at: args[1].span.into(),
-            });
-        };
+        let index_int = self
+            .codegen
+            .expect_cg_int(index, "core getByte index value")
+            .0;
 
         let i64_ty = self.codegen.context.i64_type();
         let i8_ty = self.codegen.context.i8_type();
@@ -3528,24 +3503,26 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
         target_cg: CgTy,
     ) -> Result<Option<CgValue<'ctx>>, LlvmEmitError> {
         let [arg] = args else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "Float extension intrinsic arity",
-                at: span.into(),
-            });
+            self.codegen.panic_verified_intrinsic_contract(
+                "effect-lowered Float extension intrinsic",
+                "argument count drift",
+            );
         };
         if arg.name.is_some() {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "Float extension intrinsic named arg",
-                at: arg.span.into(),
-            });
+            self.codegen.panic_verified_intrinsic_contract(
+                "effect-lowered Float extension intrinsic",
+                "named argument drift",
+            );
         }
         let arg_cg = self
             .codegen
             .mir_operand_cg_ty(self.body, self.source_types, &arg.value)
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "Float extension intrinsic arg type",
-                at: arg.span.into(),
-            })?;
+            .unwrap_or_else(|| {
+                panic!(
+                    "maybe_lower_float_ext_call: intrinsic verifier accepted non-codegen Float extension arg type at {:?}",
+                    arg.span
+                )
+            });
         if !matches!(arg_cg, CgTy::Float64 | CgTy::Float32) {
             return Ok(None);
         }
@@ -3571,7 +3548,7 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
 
     fn lower_internal_print_string(
         &mut self,
-        span: Span,
+        _span: Span,
         callee_fqn: &str,
         args: &[mir::CallArg],
     ) -> Result<Option<CgValue<'ctx>>, LlvmEmitError> {
@@ -3581,10 +3558,10 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
             _ => return Ok(None),
         };
         if args.len() != 1 || args[0].name.is_some() {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "internal print string arg contract",
-                at: span.into(),
-            });
+            self.codegen.panic_verified_intrinsic_contract(
+                "effect-lowered internal print string",
+                "argument count or named argument drift",
+            );
         }
         let arg = &args[0];
         let value = self.codegen.codegen_mir_operand_expected(
@@ -3594,12 +3571,9 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
             Some(CgTy::String),
         )?;
         let value = self.codegen.coerce_value(arg.span, value, CgTy::String)?;
-        let Some(BasicValueEnum::PointerValue(str_ptr)) = value.value else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "internal print string arg value",
-                at: arg.span.into(),
-            });
-        };
+        let str_ptr = self
+            .codegen
+            .expect_cg_pointer(value, "internal print string arg value");
         let runtime = self.codegen.declare_runtime_print_like(runtime_name);
         let _ = self.codegen.build_call_preserving_gc_local_roots(
             arg.span,
@@ -3876,10 +3850,9 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
         name: &str,
     ) -> Result<Option<BasicValueEnum<'ctx>>, LlvmEmitError> {
         if args.iter().any(|arg| arg.name.is_some()) {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "named call arg",
-                at: span.into(),
-            });
+            panic!(
+                "pack_call_args_for_invoke_args_tuple: effect call ABI verifier accepted named argument before canonicalization at {span:?}"
+            );
         }
         let layout = self.abi.source_value_layout(invoke_args_tuple_ty)?;
         if layout.abi().is_elided() {
@@ -3899,10 +3872,12 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
                 let expected = self
                     .codegen
                     .cg_ty_of_mir_type(self.source_types, layout.source_ty())
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "scalar call arg type",
-                        at: arg.span.into(),
-                    })?;
+                    .unwrap_or_else(|| {
+                        panic!(
+                            "pack_call_args_for_invoke_args_tuple: scalar call ABI accepted non-codegen arg type at {:?}",
+                            arg.span
+                        )
+                    });
                 let value = self.codegen.codegen_mir_operand_expected(
                     arg.span,
                     &arg.value,
@@ -3910,12 +3885,9 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
                     Some(expected),
                 )?;
                 let value = self.codegen.coerce_value(arg.span, value, expected)?;
-                Ok(Some(value.value.ok_or(
-                    LlvmEmitError::UnsupportedMainBody {
-                        kind: "scalar call arg value",
-                        at: arg.span.into(),
-                    },
-                )?))
+                Ok(Some(
+                    self.codegen.expect_cg_value(value, "scalar call arg value"),
+                ))
             }
             SourceAbiLayoutKind::Tuple => {
                 if args.len() == 1
@@ -3948,10 +3920,12 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
                     let expected = self
                         .codegen
                         .cg_ty_of_mir_type(self.source_types, field.source_ty())
-                        .ok_or(LlvmEmitError::UnsupportedMainBody {
-                            kind: "tuple call arg type",
-                            at: arg.span.into(),
-                        })?;
+                        .unwrap_or_else(|| {
+                            panic!(
+                                "pack_call_args_for_invoke_args_tuple: tuple call ABI accepted non-codegen arg type at {:?}",
+                                arg.span
+                            )
+                        });
                     let value = self.codegen.codegen_mir_operand_expected(
                         arg.span,
                         &arg.value,
@@ -3959,10 +3933,7 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
                         Some(expected),
                     )?;
                     let value = self.codegen.coerce_value(arg.span, value, expected)?;
-                    let raw = value.value.ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "tuple call arg value",
-                        at: arg.span.into(),
-                    })?;
+                    let raw = self.codegen.expect_cg_value(value, "tuple call arg value");
                     aggregate = self
                         .codegen
                         .builder
@@ -4078,10 +4049,11 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
         let expected = self
             .codegen
             .cg_ty_of_mir_type(self.source_types, source.source_ty())
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "operand source type",
-                at: span.into(),
-            })?;
+            .unwrap_or_else(|| {
+                panic!(
+                    "lower_operand_source: late-lowered verifier accepted non-codegen operand source type at {span:?}"
+                )
+            });
         let operand = match source.value() {
             LateLoweredOperandValueSource::Local(local) => mir::Operand::Local(*local),
             LateLoweredOperandValueSource::Const(value) => mir::Operand::Const(value.clone()),

@@ -382,19 +382,21 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.function_cx.current_incoming_resume_token_ref = Some(
             llvm_fun
                 .get_nth_param(first_hidden_param_index + 1)
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "missing incoming_resume_token_ref param",
-                    at: at.into(),
-                })?
+                .unwrap_or_else(|| {
+                    panic!(
+                        "bind_explicit_effect_hidden_abi_slots: effect ABI verifier accepted missing incoming_resume_token_ref param at {at:?}"
+                    )
+                })
                 .into_pointer_value(),
         );
         self.function_cx.current_effect_outcome_ptr = Some(
             llvm_fun
                 .get_nth_param(first_hidden_param_index + 2)
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "missing effect outcome param",
-                    at: at.into(),
-                })?
+                .unwrap_or_else(|| {
+                    panic!(
+                        "bind_explicit_effect_hidden_abi_slots: effect ABI verifier accepted missing effect outcome param at {at:?}"
+                    )
+                })
                 .into_pointer_value(),
         );
         Ok(())

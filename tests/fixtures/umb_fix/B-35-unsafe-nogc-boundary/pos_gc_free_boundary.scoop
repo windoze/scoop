@@ -1,9 +1,8 @@
 // EXPECT: ok
-// IGNORE-UNTIL-FIX:B-35
 // SPEC: docs/spec/language_spec-part2.md#12-gc-free-类型
 // COVERS: NONE
 // BUCKETS: B-33, B-35
-// REASON: U5-T02 records the spec surface before the matching implementation gate is enabled.
+// REASON: P7-C5 final UMB cleanup activates the GC-free pointer positive fixture.
 // SOURCE-FIXTURE: tests/fixtures/unsafe_nogc/unsafe_ptr_pointee_gc_free_int_ok.scoop
 
 package fixtures.unsafe_nogc

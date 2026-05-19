@@ -273,24 +273,21 @@ fn mir_store_member_continuation_route_is_lowerable(
 ) -> Result<(), LlvmEmitError> {
     match continuation_route {
         crate::mir::StoredContinuationRoutePublication::Ambiguous => {
-            Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "pass MIR ambiguous member continuation route",
-                at: span.into(),
-            })
+            panic!(
+                "mir_store_member_continuation_route_is_lowerable: materialized MIR verifier accepted ambiguous member continuation route at {span:?}"
+            );
         }
         crate::mir::StoredContinuationRoutePublication::None => Ok(()),
         crate::mir::StoredContinuationRoutePublication::Unique(route) => {
             let Some(local) = body.locals.get(route.source_local.as_u32() as usize) else {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "pass MIR member continuation route missing source local",
-                    at: span.into(),
-                });
+                panic!(
+                    "mir_store_member_continuation_route_is_lowerable: materialized MIR verifier accepted missing continuation route source local at {span:?}"
+                );
             };
             if local.ty != route.source_ty {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "pass MIR member continuation route source type drift",
-                    at: span.into(),
-                });
+                panic!(
+                    "mir_store_member_continuation_route_is_lowerable: materialized MIR verifier accepted continuation route source type drift at {span:?}"
+                );
             }
             Ok(())
         }
@@ -549,11 +546,6 @@ mod tests {
             }
             other => panic!("unexpected error: {other:?}"),
         }
-    }
-
-    fn assert_unsupported_kind(result: Result<(), LlvmEmitError>, expected: &'static str) {
-        let err = result.expect_err("helper should reject invalid member contract");
-        assert_eq!(err.unsupported_main_body_kind(), Some(expected));
     }
 
     fn test_span() -> crate::span::Span {
@@ -846,22 +838,32 @@ mod tests {
             hidden_effects: crate::ty::EffectRow::pure(),
         };
 
-        let result =
-            mir_member_value_fqn_for_codegen(crate::span::Span::new(0, 1), &member).map(|_| ());
-
-        assert_unsupported_kind(result, "pass MIR member target unresolved");
+        let panic = std::panic::catch_unwind(|| {
+            let _ = mir_member_value_fqn_for_codegen(crate::span::Span::new(0, 1), &member);
+        })
+        .expect_err("unresolved member metadata should be an internal verifier invariant");
+        assert_eq!(
+            panic.downcast_ref::<&str>().copied(),
+            Some("mir_member_value_fqn_for_codegen: verifier accepted unresolved member target")
+        );
     }
 
     #[test]
     fn mir_store_member_codegen_rejects_ambiguous_continuation_route() {
         let body = crate::mir::Body::new_empty();
-        let result = mir_store_member_continuation_route_is_lowerable(
-            crate::span::Span::new(0, 1),
-            &body,
-            &crate::mir::StoredContinuationRoutePublication::Ambiguous,
+        let panic = std::panic::catch_unwind(|| {
+            let _ = mir_store_member_continuation_route_is_lowerable(
+                crate::span::Span::new(0, 1),
+                &body,
+                &crate::mir::StoredContinuationRoutePublication::Ambiguous,
+            );
+        })
+        .expect_err("ambiguous continuation route should be an internal verifier invariant");
+        assert!(
+            panic
+                .downcast_ref::<String>()
+                .is_some_and(|message| message.contains("ambiguous member continuation route"))
         );
-
-        assert_unsupported_kind(result, "pass MIR ambiguous member continuation route");
     }
 
     #[test]
@@ -889,20 +891,24 @@ mod tests {
         );
         assert!(ok.is_ok());
 
-        let drift = mir_store_member_continuation_route_is_lowerable(
-            crate::span::Span::new(0, 1),
-            &body,
-            &crate::mir::StoredContinuationRoutePublication::Unique(
-                crate::mir::StoredContinuationValueRoute {
-                    source_local,
-                    source_ty: builtins.int,
-                    path: Vec::new(),
-                },
-            ),
-        );
-        assert_unsupported_kind(
-            drift,
-            "pass MIR member continuation route source type drift",
+        let panic = std::panic::catch_unwind(|| {
+            let _ = mir_store_member_continuation_route_is_lowerable(
+                crate::span::Span::new(0, 1),
+                &body,
+                &crate::mir::StoredContinuationRoutePublication::Unique(
+                    crate::mir::StoredContinuationValueRoute {
+                        source_local,
+                        source_ty: builtins.int,
+                        path: Vec::new(),
+                    },
+                ),
+            );
+        })
+        .expect_err("continuation source type drift should be an internal verifier invariant");
+        assert!(
+            panic
+                .downcast_ref::<String>()
+                .is_some_and(|message| message.contains("source type drift"))
         );
     }
 

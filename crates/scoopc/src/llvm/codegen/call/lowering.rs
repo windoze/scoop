@@ -758,10 +758,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             llvm_args.push(slot.into());
         }
         if uses_explicit_effect_hidden_abi {
-            let outcome_slot = effect_outcome_slot.ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "itable effect outcome slot",
-                at: span.into(),
-            })?;
+            let outcome_slot = effect_outcome_slot.unwrap_or_else(|| {
+                panic!(
+                    "emit_interface_dispatch_case_call_to_storage: effect ABI verifier accepted missing outcome slot at {span:?}"
+                )
+            });
             llvm_args.push(self.current_effect_ctx_arg().into());
             llvm_args.push(self.llvm_gc_i8_ptr_type().const_null().into());
             llvm_args.push(outcome_slot.into());
@@ -1255,10 +1256,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .continuation_resume_call_sites
             .contains(&self.current_call_site(span)?)
         {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "Continuation.resume lowering",
-                at: span.into(),
-            });
+            panic!(
+                "codegen_call_impl: Continuation.resume call site reached raw HIR lowering at {span:?}; effect boundary lowering must route it"
+            );
         }
 
         if let Some(value) =

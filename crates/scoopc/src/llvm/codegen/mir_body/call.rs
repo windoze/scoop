@@ -873,16 +873,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     match self.mir_callable_fqn_may_outward_effect(fn_ptr) {
                         Some(false) => {}
                         Some(true) => {
-                            return Err(LlvmEmitError::UnsupportedMainBody {
-                                kind: "plain closure call target may outward-effect",
-                                at: span.into(),
-                            });
+                            panic!(
+                                "codegen_mir_plain_dynamic_call_with_policy: effect boundary router accepted outward-effect closure target in plain lowering at {span:?}"
+                            );
                         }
                         None => {
-                            return Err(LlvmEmitError::UnsupportedMainBody {
-                                kind: "plain closure call effect-typed surface requires adapter",
-                                at: span.into(),
-                            });
+                            panic!(
+                                "codegen_mir_plain_dynamic_call_with_policy: effect-typed closure surface reached plain lowering without adapter at {span:?}"
+                            );
                         }
                     }
                 }
@@ -901,16 +899,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     {
                         Some(false) => {}
                         Some(true) => {
-                            return Err(LlvmEmitError::UnsupportedMainBody {
-                                kind: "plain function-value call target may outward-effect",
-                                at: span.into(),
-                            });
+                            panic!(
+                                "codegen_mir_plain_dynamic_call_with_policy: effect boundary router accepted outward-effect function-value target in plain lowering at {span:?}"
+                            );
                         }
                         None => {
-                            return Err(LlvmEmitError::UnsupportedMainBody {
-                                kind: "plain function-value call effect-typed surface requires adapter",
-                                at: span.into(),
-                            });
+                            panic!(
+                                "codegen_mir_plain_dynamic_call_with_policy: effect-typed function-value surface reached plain lowering without adapter at {span:?}"
+                            );
                         }
                     }
                 }
@@ -923,12 +919,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         panic!(
                             "codegen_mir_plain_call: materialized MIR verifier accepted non-FunPtr plain callee type"
                         )
-                    });
+                });
                 if !fun_ty.effects.is_pure() {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "plain FunPtr call effect-typed surface requires adapter",
-                        at: span.into(),
-                    });
+                    panic!(
+                        "codegen_mir_plain_dynamic_call_with_policy: effect-typed FunPtr surface reached plain lowering without adapter at {span:?}"
+                    );
                 }
                 self.codegen_mir_funptr_value_call(
                     span,

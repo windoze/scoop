@@ -484,10 +484,12 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
         let payload_cg =
             self.codegen
                 .cg_ty_of(payload_ty)
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "default Complete payload type",
-                    at: self.mir_fun.span.into(),
-                })?;
+                .unwrap_or_else(|| {
+                    panic!(
+                        "complete_payload_or_default: Step layout verifier accepted non-codegen Complete payload type in `{}`",
+                        self.mir_fun.fqn
+                    )
+                });
         Ok(self
             .codegen
             .default_value(self.mir_fun.span, payload_cg)?

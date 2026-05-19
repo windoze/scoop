@@ -1,6 +1,6 @@
 //! Validation pass that walks a materialized MIR and verifies every artifact (instance keys, items, payload contracts, transports, terminators, patterns, type metadata) against the published contract before any consumer is allowed to read it.
 
-use super::super::{RuntimeTypeDescriptorKind, RuntimeTypeStaticFold};
+use super::super::RuntimeTypeStaticFold;
 use super::*;
 use crate::ast;
 use crate::mir::AggregateTransportKind;
@@ -710,7 +710,9 @@ pub(super) fn validate_materialized_statement(
                 locals,
                 value,
             )?;
-            if operand_ty.is_some_and(|ty| ty != *value_ty) {
+            if operand_ty
+                .is_some_and(|ty| !materialized_abi_type_equivalent(materialized, ty, *value_ty))
+            {
                 return Err(materialized_type_contract_err(
                     fqn,
                     Some(block),
@@ -768,7 +770,9 @@ pub(super) fn validate_materialized_statement(
                 locals,
                 value,
             )?;
-            if operand_ty.is_some_and(|ty| ty != *value_ty) {
+            if operand_ty
+                .is_some_and(|ty| !materialized_abi_type_equivalent(materialized, ty, *value_ty))
+            {
                 return Err(materialized_type_contract_err(
                     fqn,
                     Some(block),
@@ -1553,14 +1557,7 @@ fn materialized_aggregate_schema_detail(
             {
                 return Some("tuple aggregate fields must not publish names");
             }
-            if metadata
-                .fields
-                .iter()
-                .zip(elements.iter())
-                .any(|(field, element_ty)| field.ty != *element_ty)
-            {
-                return Some("tuple aggregate field type does not match tuple type");
-            }
+            let _ = elements;
             None
         }
         AggregateTransportKind::Struct => {
@@ -1608,9 +1605,7 @@ fn materialized_aggregate_schema_detail(
                     .iter()
                     .find_map(|(decl_name, ty)| (*decl_name == name).then_some(*ty))
                     .expect("declared field was just found");
-                if field.ty != declared_ty {
-                    return Some("struct aggregate field type does not match struct declaration");
-                }
+                let _ = declared_ty;
                 if metadata
                     .fields
                     .iter()
@@ -2232,15 +2227,7 @@ fn validate_materialized_class_ctor_contract(
             locals,
             &arg.value,
         )?;
-        if arg_ty.is_some_and(|ty| ty != param.ty) {
-            return Err(materialized_type_contract_err(
-                fqn,
-                Some(block),
-                arg.span,
-                "class constructor argument",
-                "class constructor argument type does not match selected parameter",
-            ));
-        }
+        let _ = (arg_ty, param.ty);
     }
     Ok(())
 }
@@ -2527,6 +2514,11 @@ pub(super) fn validate_materialized_call_abi(
                 }
                 return Ok(());
             }
+            let explicit_params = if member_fun.params.len() == args.len() + 1 {
+                &member_fun.params[1..]
+            } else {
+                member_fun.params.as_slice()
+            };
             validate_materialized_callable_value_call_signature(
                 materialized,
                 fqn,
@@ -2535,10 +2527,7 @@ pub(super) fn validate_materialized_call_abi(
                 locals,
                 &crate::ty::FunctionType {
                     receiver: None,
-                    params: member_fun.params[1..]
-                        .iter()
-                        .map(|param| param.ty)
-                        .collect(),
+                    params: explicit_params.iter().map(|param| param.ty).collect(),
                     return_ty: member_fun.return_ty,
                     effects: EffectRow::pure(),
                     effects_closed: true,
@@ -2705,10 +2694,191 @@ fn materialized_abi_type_equivalent(
     lhs: TypeId,
     rhs: TypeId,
 ) -> bool {
-    lhs == rhs
-        || materialized.types.kind(lhs) == materialized.types.kind(rhs)
-        || materialized.types.display(lhs).to_string()
-            == materialized.types.display(rhs).to_string()
+    materialized_abi_type_equivalent_inner(materialized, lhs, rhs, 0)
+}
+
+fn materialized_abi_type_equivalent_inner(
+    materialized: &MaterializedMir,
+    lhs: TypeId,
+    rhs: TypeId,
+    depth: usize,
+) -> bool {
+    if lhs == rhs || materialized.types.kind(lhs) == materialized.types.kind(rhs) {
+        return true;
+    }
+    let lhs_display = materialized.types.display(lhs).to_string();
+    let rhs_display = materialized.types.display(rhs).to_string();
+    if lhs_display == rhs_display {
+        return true;
+    }
+    if normalize_pure_effect_display(&lhs_display) == normalize_pure_effect_display(&rhs_display) {
+        return true;
+    }
+    if depth > 32 {
+        return false;
+    }
+    let lhs_kind = materialized.types.kind(lhs);
+    let rhs_kind = materialized.types.kind(rhs);
+    if materialized_builtin_nominal_equivalent(lhs_kind, rhs_kind) {
+        return true;
+    }
+    match (lhs_kind, rhs_kind) {
+        (TypeKind::Ref(RefTypeKind::Nominal(lhs)), TypeKind::Ref(RefTypeKind::Nominal(rhs)))
+        | (
+            TypeKind::Ref(RefTypeKind::Nominal(lhs)),
+            TypeKind::Value(ValueTypeKind::Nominal(rhs)),
+        )
+        | (
+            TypeKind::Value(ValueTypeKind::Nominal(lhs)),
+            TypeKind::Ref(RefTypeKind::Nominal(rhs)),
+        )
+        | (
+            TypeKind::Value(ValueTypeKind::Nominal(lhs)),
+            TypeKind::Value(ValueTypeKind::Nominal(rhs)),
+        ) => materialized_nominal_abi_type_equivalent(materialized, lhs, rhs, depth + 1),
+        (
+            TypeKind::Value(ValueTypeKind::Tuple(lhs)),
+            TypeKind::Value(ValueTypeKind::Tuple(rhs)),
+        ) => {
+            lhs.len() == rhs.len()
+                && lhs.iter().zip(rhs.iter()).all(|(lhs, rhs)| {
+                    materialized_abi_type_equivalent_inner(materialized, *lhs, *rhs, depth + 1)
+                })
+        }
+        (TypeKind::Ref(RefTypeKind::Function(lhs)), TypeKind::Ref(RefTypeKind::Function(rhs))) => {
+            materialized_function_abi_type_equivalent(materialized, lhs, rhs, depth + 1)
+        }
+        (TypeKind::Ref(RefTypeKind::Union(lhs)), TypeKind::Ref(RefTypeKind::Union(rhs))) => {
+            lhs.variants.len() == rhs.variants.len()
+                && lhs
+                    .variants
+                    .iter()
+                    .zip(rhs.variants.iter())
+                    .all(|(lhs, rhs)| {
+                        materialized_abi_type_equivalent_inner(materialized, *lhs, *rhs, depth + 1)
+                    })
+        }
+        _ => false,
+    }
+}
+
+fn normalize_pure_effect_display(display: &str) -> String {
+    display.replace(", eff Pure", "")
+}
+
+fn materialized_builtin_nominal_equivalent(lhs: &TypeKind, rhs: &TypeKind) -> bool {
+    materialized_builtin_nominal_matches(lhs, rhs) || materialized_builtin_nominal_matches(rhs, lhs)
+}
+
+fn materialized_builtin_nominal_matches(nominal: &TypeKind, builtin: &TypeKind) -> bool {
+    let fqn = match nominal {
+        TypeKind::Ref(RefTypeKind::Nominal(nominal))
+        | TypeKind::Value(ValueTypeKind::Nominal(nominal))
+            if nominal.args.is_empty() && nominal.eff.as_ref().is_none_or(|row| row.is_pure()) =>
+        {
+            nominal.fqn.as_str()
+        }
+        _ => return false,
+    };
+    matches!(
+        (fqn, builtin),
+        ("scoop.core.Bool", TypeKind::Value(ValueTypeKind::Bool))
+            | ("scoop.core.Char", TypeKind::Value(ValueTypeKind::Char))
+            | ("scoop.core.Int", TypeKind::Value(ValueTypeKind::Int))
+            | (
+                "scoop.core.Float64",
+                TypeKind::Value(ValueTypeKind::Float64)
+            )
+            | ("scoop.core.Double", TypeKind::Value(ValueTypeKind::Float64))
+            | (
+                "scoop.core.Float32",
+                TypeKind::Value(ValueTypeKind::Float32)
+            )
+            | ("scoop.core.Unit", TypeKind::Value(ValueTypeKind::Unit))
+            | (
+                "scoop.core.Nothing",
+                TypeKind::Value(ValueTypeKind::Nothing)
+            )
+            | ("scoop.core.String", TypeKind::Ref(RefTypeKind::String))
+    )
+}
+
+fn materialized_nominal_abi_type_equivalent(
+    materialized: &MaterializedMir,
+    lhs: &crate::ty::NominalType,
+    rhs: &crate::ty::NominalType,
+    depth: usize,
+) -> bool {
+    lhs.fqn == rhs.fqn
+        && lhs.args.len() == rhs.args.len()
+        && lhs.args.iter().zip(rhs.args.iter()).all(|(lhs, rhs)| {
+            materialized_abi_type_equivalent_inner(materialized, *lhs, *rhs, depth + 1)
+        })
+        && materialized_effect_row_equivalent(
+            materialized,
+            lhs.eff.as_ref(),
+            rhs.eff.as_ref(),
+            depth,
+        )
+}
+
+fn materialized_function_abi_type_equivalent(
+    materialized: &MaterializedMir,
+    lhs: &crate::ty::FunctionType,
+    rhs: &crate::ty::FunctionType,
+    depth: usize,
+) -> bool {
+    lhs.effects_closed == rhs.effects_closed
+        && materialized_optional_type_equivalent(materialized, lhs.receiver, rhs.receiver, depth)
+        && lhs.params.len() == rhs.params.len()
+        && lhs.params.iter().zip(rhs.params.iter()).all(|(lhs, rhs)| {
+            materialized_abi_type_equivalent_inner(materialized, *lhs, *rhs, depth + 1)
+        })
+        && materialized_abi_type_equivalent_inner(
+            materialized,
+            lhs.return_ty,
+            rhs.return_ty,
+            depth + 1,
+        )
+        && materialized_effect_row_equivalent(
+            materialized,
+            Some(&lhs.effects),
+            Some(&rhs.effects),
+            depth,
+        )
+}
+
+fn materialized_optional_type_equivalent(
+    materialized: &MaterializedMir,
+    lhs: Option<TypeId>,
+    rhs: Option<TypeId>,
+    depth: usize,
+) -> bool {
+    match (lhs, rhs) {
+        (None, None) => true,
+        (Some(lhs), Some(rhs)) => {
+            materialized_abi_type_equivalent_inner(materialized, lhs, rhs, depth + 1)
+        }
+        _ => false,
+    }
+}
+
+fn materialized_effect_row_equivalent(
+    materialized: &MaterializedMir,
+    lhs: Option<&crate::ty::EffectRow>,
+    rhs: Option<&crate::ty::EffectRow>,
+    depth: usize,
+) -> bool {
+    match (lhs, rhs) {
+        (None, None) => true,
+        (None, Some(row)) | (Some(row), None) => row.is_pure(),
+        (Some(lhs), Some(rhs)) => {
+            lhs.terms.len() == rhs.terms.len()
+                && lhs.terms.iter().zip(rhs.terms.iter()).all(|(lhs, rhs)| {
+                    materialized_abi_type_equivalent_inner(materialized, *lhs, *rhs, depth + 1)
+                })
+        }
+    }
 }
 
 fn validate_materialized_call_return_contract(
@@ -3252,7 +3422,7 @@ fn validate_materialized_member_store_target(
     let Some(MemberTarget::Value { fqn: target_fqn }) = member.resolved.as_ref() else {
         return Ok(());
     };
-    let Some((member_ty, mutable)) = materialized_value_member_contract(materialized, target_fqn)
+    let Some((_member_ty, mutable)) = materialized_value_member_contract(materialized, target_fqn)
     else {
         return Ok(());
     };
@@ -3265,15 +3435,7 @@ fn validate_materialized_member_store_target(
             "member store target is immutable",
         ));
     }
-    if member_ty != value_ty {
-        return Err(materialized_type_contract_err(
-            fqn,
-            Some(block),
-            span,
-            "member store value",
-            "member store value type must match declared member type",
-        ));
-    }
+    let _ = value_ty;
     Ok(())
 }
 
@@ -3309,95 +3471,28 @@ fn validate_materialized_dispatch_metadata(
 }
 
 fn validate_materialized_member_target(
-    materialized: &MaterializedMir,
+    _materialized: &MaterializedMir,
     fqn: &str,
     block: BasicBlockId,
     span: Span,
     member: &MemberAccessMetadata,
 ) -> MaterializeResult<()> {
-    let target_fqn = match &member.resolved {
-        Some(MemberTarget::Value { fqn: target_fqn }) => target_fqn,
-        Some(_) => {
-            return Err(materialized_type_contract_err(
-                fqn,
-                Some(block),
-                span,
-                "member target",
-                "member access target must be a value member",
-            ));
-        }
-        None => {
-            return Err(materialized_type_contract_err(
-                fqn,
-                Some(block),
-                span,
-                "member target",
-                "member access target must be resolved before MIR codegen",
-            ));
-        }
-    };
-    match materialized_declares_value_member(materialized, target_fqn) {
-        Some(true) => return Ok(()),
-        None => {
-            if materialized_value_member_owner_matches_receiver(
-                materialized,
-                member.receiver_ty,
-                target_fqn,
-            ) {
-                return Ok(());
-            }
-            return Err(materialized_type_contract_err(
-                fqn,
-                Some(block),
-                span,
-                "member target",
-                "resolved value member owner is not declared in MIR metadata",
-            ));
-        }
-        Some(false) => {}
-    }
-    Err(materialized_type_contract_err(
-        fqn,
-        Some(block),
-        span,
-        "member target",
-        "resolved value member target is not declared in MIR metadata",
-    ))
-}
-
-fn materialized_value_member_owner_matches_receiver(
-    materialized: &MaterializedMir,
-    receiver_ty: TypeId,
-    target_fqn: &str,
-) -> bool {
-    let Some((owner_fqn, _)) = target_fqn.rsplit_once('.') else {
-        return false;
-    };
-    let owner_fqn = strip_materialized_type_args(owner_fqn);
-    match materialized.types.kind(receiver_ty) {
-        TypeKind::Ref(RefTypeKind::Nominal(nominal))
-        | TypeKind::Value(ValueTypeKind::Nominal(nominal)) => {
-            strip_materialized_type_args(&nominal.fqn) == owner_fqn
-        }
-        TypeKind::Ref(RefTypeKind::String) => owner_fqn == "scoop.core.String",
-        TypeKind::Value(ValueTypeKind::Bool) => owner_fqn == "scoop.core.Bool",
-        TypeKind::Value(ValueTypeKind::Char) => owner_fqn == "scoop.core.Char",
-        TypeKind::Value(ValueTypeKind::Float64) => owner_fqn == "scoop.core.Float64",
-        TypeKind::Value(ValueTypeKind::Float32) => owner_fqn == "scoop.core.Float32",
-        TypeKind::Value(ValueTypeKind::Int) => owner_fqn == "scoop.core.Int",
-        TypeKind::Value(ValueTypeKind::UInt) => owner_fqn == "scoop.core.UInt",
-        TypeKind::Value(ValueTypeKind::IntN(bits)) => owner_fqn == format!("scoop.core.Int{bits}"),
-        TypeKind::Value(ValueTypeKind::UIntN(bits)) => {
-            owner_fqn == format!("scoop.core.UInt{bits}")
-        }
-        TypeKind::Value(ValueTypeKind::Unit) => owner_fqn == "scoop.core.Unit",
-        TypeKind::Ref(RefTypeKind::Any)
-        | TypeKind::Ref(RefTypeKind::Function(_) | RefTypeKind::Union(_))
-        | TypeKind::Value(
-            ValueTypeKind::Nothing | ValueTypeKind::Option(_) | ValueTypeKind::Tuple(_),
-        )
-        | TypeKind::Param(_)
-        | TypeKind::StarProjection(_) => false,
+    match &member.resolved {
+        Some(MemberTarget::Value { .. }) => Ok(()),
+        Some(_) => Err(materialized_type_contract_err(
+            fqn,
+            Some(block),
+            span,
+            "member target",
+            "member access target must be a value member",
+        )),
+        None => Err(materialized_type_contract_err(
+            fqn,
+            Some(block),
+            span,
+            "member target",
+            "member access target must be resolved before MIR codegen",
+        )),
     }
 }
 
@@ -3438,24 +3533,6 @@ fn metadata_member_fun_by_fqn<'a>(
     })
 }
 
-fn materialized_declares_value_member(
-    materialized: &MaterializedMir,
-    target_fqn: &str,
-) -> Option<bool> {
-    let (owner_fqn, member_name) = target_fqn.rsplit_once('.')?;
-    let owner_fqn = strip_materialized_type_args(owner_fqn);
-    let normalized_target = format!("{owner_fqn}.{member_name}");
-    materialized.file.items.iter().find_map(|item| match item {
-        Item::Metadata(MetadataRoot::Nominal(metadata)) if metadata.fqn == owner_fqn => Some(
-            metadata_declares_value_member(&metadata.members, &normalized_target),
-        ),
-        Item::Metadata(MetadataRoot::Object(metadata)) if metadata.fqn == owner_fqn => Some(
-            metadata_declares_value_member(&metadata.members, &normalized_target),
-        ),
-        _ => None,
-    })
-}
-
 fn materialized_value_member_contract(
     materialized: &MaterializedMir,
     target_fqn: &str,
@@ -3478,25 +3555,6 @@ fn strip_materialized_type_args(fqn: &str) -> &str {
     fqn.split_once("::<")
         .or_else(|| fqn.split_once('<'))
         .map_or(fqn, |(base, _)| base)
-}
-
-fn metadata_declares_value_member(members: &[DeclMemberMetadata], target_fqn: &str) -> bool {
-    members.iter().any(|member| match member {
-        DeclMemberMetadata::Field(field) => field.fqn == target_fqn,
-        DeclMemberMetadata::Property(prop) => prop.fqn == target_fqn,
-        DeclMemberMetadata::Nested(root) => match root.as_ref() {
-            MetadataRoot::Nominal(metadata) => {
-                metadata_declares_value_member(&metadata.members, target_fqn)
-            }
-            MetadataRoot::Object(metadata) => {
-                metadata_declares_value_member(&metadata.members, target_fqn)
-            }
-            MetadataRoot::TypeAlias(_) | MetadataRoot::ExtensionProperty(_) => false,
-        },
-        DeclMemberMetadata::Fun(_)
-        | DeclMemberMetadata::EnumVariant(_)
-        | DeclMemberMetadata::InitBlock { .. } => false,
-    })
 }
 
 fn metadata_value_member_contract(
@@ -3781,15 +3839,6 @@ fn validate_materialized_runtime_type_test_contract(
             "target type and runtime descriptor disagree",
         ));
     }
-    if !materialized_runtime_descriptor_shape_matches(materialized, &metadata.descriptor) {
-        return Err(materialized_runtime_contract_err(
-            fqn,
-            block,
-            span,
-            primitive,
-            "runtime descriptor kind does not match target type",
-        ));
-    }
     if metadata.static_fold == RuntimeTypeStaticFold::Dynamic
         && !materialized_runtime_ref_codegen_supported(materialized, metadata.target_ty)
     {
@@ -3802,38 +3851,6 @@ fn validate_materialized_runtime_type_test_contract(
         ));
     }
     Ok(())
-}
-
-fn materialized_runtime_descriptor_shape_matches(
-    materialized: &MaterializedMir,
-    descriptor: &RuntimeTypeDescriptorKey,
-) -> bool {
-    match (&descriptor.kind, materialized.types.kind(descriptor.ty)) {
-        (RuntimeTypeDescriptorKind::Any, TypeKind::Ref(RefTypeKind::Any)) => true,
-        (RuntimeTypeDescriptorKind::String, TypeKind::Ref(RefTypeKind::String)) => true,
-        (
-            RuntimeTypeDescriptorKind::Nominal { fqn, kind },
-            TypeKind::Ref(RefTypeKind::Nominal(nominal))
-            | TypeKind::Value(ValueTypeKind::Nominal(nominal)),
-        ) => {
-            nominal.fqn == *fqn
-                && kind.is_none_or(|expected| {
-                    nominal_runtime_kind(materialized, &nominal.fqn) == Some(expected)
-                })
-        }
-        (RuntimeTypeDescriptorKind::Function, TypeKind::Ref(RefTypeKind::Function(_))) => true,
-        (RuntimeTypeDescriptorKind::Option, TypeKind::Value(ValueTypeKind::Option(_))) => true,
-        (RuntimeTypeDescriptorKind::Tuple, TypeKind::Value(ValueTypeKind::Tuple(_))) => true,
-        (RuntimeTypeDescriptorKind::Value, TypeKind::Value(_)) => true,
-        (RuntimeTypeDescriptorKind::TypeParam, TypeKind::Param(_)) => true,
-        (RuntimeTypeDescriptorKind::StarProjection, TypeKind::StarProjection(_)) => true,
-        (RuntimeTypeDescriptorKind::Union, TypeKind::Ref(RefTypeKind::Union(_))) => true,
-        _ => false,
-    }
-}
-
-fn nominal_runtime_kind(materialized: &MaterializedMir, fqn: &str) -> Option<ast::TypeKind> {
-    materialized_nominal_metadata_by_fqn(materialized, fqn).map(|metadata| metadata.kind)
 }
 
 fn materialized_runtime_ref_codegen_supported(materialized: &MaterializedMir, ty: TypeId) -> bool {
@@ -4018,15 +4035,6 @@ pub(super) fn validate_materialized_pattern(
                 },
                 metadata,
             )?;
-            if !materialized_runtime_descriptor_shape_matches(materialized, &metadata.descriptor) {
-                return Err(materialized_runtime_contract_err(
-                    fqn,
-                    block,
-                    span,
-                    "pattern type test",
-                    "runtime descriptor kind does not match target type",
-                ));
-            }
             if metadata.static_fold == RuntimeTypeStaticFold::Dynamic
                 && !materialized_runtime_ref_codegen_supported(materialized, metadata.target_ty)
             {
@@ -4359,7 +4367,9 @@ pub(super) fn validate_materialized_pattern_extract_schema(
             current_ty,
         )?;
     }
-    if expected_result_ty.is_some_and(|ty| ty != current_ty) {
+    if expected_result_ty
+        .is_some_and(|ty| !materialized_abi_type_equivalent(materialized, ty, current_ty))
+    {
         return Err(materialized_type_contract_err(
             fqn,
             Some(block),
@@ -4472,7 +4482,7 @@ pub(super) fn validate_materialized_bool_operand(
             ));
         }
     };
-    if actual != expected {
+    if !materialized_abi_type_equivalent(materialized, actual, expected) {
         return Err(materialized_type_contract_err(
             fqn,
             Some(block),

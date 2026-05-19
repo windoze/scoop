@@ -428,10 +428,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     ) -> Result<bool, LlvmEmitError> {
         let cg_ty =
             self.cg_ty_of_mir_type(source_types, ty)
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "carrier arg type",
-                    at: span.into(),
-                })?;
+                .unwrap_or_else(|| {
+                    panic!(
+                        "source_type_is_elided: carrier ABI verifier accepted non-codegen source type at {span:?}"
+                    )
+                });
         let llvm_ty = self.llvm_basic_type_of(span, cg_ty)?;
         Ok(self.target_data.get_store_size(&llvm_ty) == 0)
     }
@@ -449,37 +450,39 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 mir_fun.fqn
             )));
         };
-        let env_cg = self.cg_ty_of_mir_type(source_types, env_param.ty).ok_or(
-            LlvmEmitError::UnsupportedMainBody {
-                kind: "closure env type",
-                at: env_param.span.into(),
-            },
-        )?;
+        let env_cg = self.cg_ty_of_mir_type(source_types, env_param.ty).unwrap_or_else(|| {
+            panic!(
+                "load_closure_env_components: closure ABI verifier accepted non-codegen env type at {:?}",
+                env_param.span
+            )
+        });
         if env_cg == CgTy::Unit {
             return Ok(Vec::new());
         }
         let CgTy::Tuple(tuple_ty) = env_cg else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "closure env payload shape",
-                at: env_param.span.into(),
-            });
+            panic!(
+                "load_closure_env_components: closure ABI verifier accepted non-tuple env payload at {:?}",
+                env_param.span
+            );
         };
         let TypeKind::Value(ValueTypeKind::Tuple(elements)) = self.types.kind(tuple_ty) else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "closure env tuple type",
-                at: env_param.span.into(),
-            });
+            panic!(
+                "load_closure_env_components: closure ABI verifier accepted non-tuple env type id at {:?}",
+                env_param.span
+            );
         };
         let capture_cgs = elements
             .iter()
             .map(|ty| {
                 self.cg_ty_of(*ty)
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "closure env capture type",
-                        at: env_param.span.into(),
+                    .unwrap_or_else(|| {
+                        panic!(
+                            "load_closure_env_components: closure ABI verifier accepted non-codegen capture type at {:?}",
+                            env_param.span
+                        )
                     })
             })
-            .collect::<Result<Vec<_>, _>>()?;
+            .collect::<Vec<_>>();
         let env_obj_ty =
             self.closure_env_object_type(env_param.span, &mir_fun.fqn, &capture_cgs)?;
         let env_i8 = self.load_closure_env_ref(closure_obj_i8)?;

@@ -1,12 +1,11 @@
 // EXPECT: fail
-// IGNORE-UNTIL-FIX:B-35
-// EXPECT-ERROR-CODE: scoop::umb_fix::pending_gate
-// EXPECT-ERROR-AT: 1:1
-// EXPECT-ERROR: pending U5 fixture gate
+// EXPECT-ERROR-CODE: scoop::typecheck::ptr_pointee_must_be_gc_free
+// EXPECT-ERROR-AT: 16:16
+// EXPECT-ERROR: GC-free
 // SPEC: docs/spec/language_spec-part2.md#12-gc-free-类型
 // COVERS: NONE
 // BUCKETS: B-33, B-35
-// REASON: U5-T02 records the spec surface before the matching implementation gate is enabled.
+// REASON: P7-C5 final UMB cleanup activates the real GC-free pointer frontend gate.
 // SOURCE-FIXTURE: tests/fixtures/unsafe_nogc/unsafe_ptr_pointee_not_gc_free_string_is_error.scoop
 
 package fixtures.unsafe_nogc

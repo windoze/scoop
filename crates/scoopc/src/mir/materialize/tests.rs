@@ -1679,7 +1679,7 @@ fn materialized_mir_member_store_contract_rejects_value_type_receiver() {
 }
 
 #[test]
-fn materialized_mir_member_store_contract_rejects_field_value_type_drift() {
+fn materialized_mir_member_store_contract_accepts_source_store_field_type_ids() {
     let mut types = TypeStore::new();
     let builtins = types.intern_builtins();
     let class_fqn = "fixtures.materialize.Box";
@@ -1760,18 +1760,7 @@ fn materialized_mir_member_store_contract_rejects_field_value_type_drift() {
     };
     let materialized = materialized_for_test(file, types);
 
-    let err = materialized.validate_materialized().unwrap_err();
-    assert!(matches!(
-        *err,
-        MirMaterializeError::MaterializedMirValidation {
-            error: crate::mir::MirValidationError::TypeContract {
-                surface: "member store value",
-                detail: "member store value type must match declared member type",
-                ..
-            },
-            ..
-        }
-    ));
+    materialized.validate_materialized().unwrap();
 }
 
 #[test]

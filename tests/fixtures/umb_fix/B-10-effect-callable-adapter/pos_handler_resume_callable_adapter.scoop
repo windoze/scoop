@@ -1,9 +1,8 @@
 // EXPECT: ok
-// IGNORE-UNTIL-FIX:B-10
 // SPEC: docs/spec/language_spec-part4.md#6-handler;docs/spec/language_spec-part4.md#61-non-resuming-handler;docs/spec/language_spec-part4.md#62-resuming-handler;docs/spec/language_spec-part4.md#63-continuation-one-shot;docs/spec/language_spec-part4.md#64-resume-payload-形状
 // COVERS: NONE
 // BUCKETS: B-10, B-34
-// REASON: U5-T02 records the spec surface before the matching implementation gate is enabled.
+// REASON: P7-C5 retired B-10 rows; fixture remains active as continuation resume adapter coverage.
 // SOURCE-FIXTURE: tests/fixtures/run-pass/effect_resume_while_body_single_perform.scoop
 
 import scoop.core.*

@@ -258,18 +258,18 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     ) -> Result<(), LlvmEmitError> {
         let site = &plan.resume_sites[site_index];
         for local_plan in &site.saved_locals {
-            let cg_ty = self
-                .cg_ty_of(local_plan.ty)
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "callee resume local type",
-                    at: at.into(),
-                })?;
+            let cg_ty = self.cg_ty_of(local_plan.ty).unwrap_or_else(|| {
+                panic!(
+                    "emit_callee_suspend_resume_site_prologue: callee suspend verifier accepted non-codegen saved local type at {at:?}"
+                )
+            });
             let field_index = self
                 .callee_suspend_saved_local_field_index(plan, local_plan.id)
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "callee resume local field index",
-                    at: at.into(),
-                })?;
+                .unwrap_or_else(|| {
+                    panic!(
+                        "emit_callee_suspend_resume_site_prologue: callee suspend verifier accepted missing saved local field index at {at:?}"
+                    )
+                });
             let field_ptr = self.builder.build_struct_gep(
                 resume_state.state_ty,
                 resume_state.state_ptr,
@@ -310,12 +310,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             );
         }
 
-        let resume_slot_cg_ty =
-            self.cg_ty_of(site.resume_slot_ty)
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "callee resume slot type",
-                    at: at.into(),
-                })?;
+        let resume_slot_cg_ty = self.cg_ty_of(site.resume_slot_ty).unwrap_or_else(|| {
+            panic!(
+                "emit_callee_suspend_resume_site_prologue: callee suspend verifier accepted non-codegen resume slot type at {at:?}"
+            )
+        });
         let resume_slot_value = self.decode_effect_transport_value(
             at,
             resume_state.resume_word,
@@ -525,10 +524,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 Some(
                     resume_fun
                         .get_nth_param(0)
-                        .ok_or(LlvmEmitError::UnsupportedMainBody {
-                            kind: "missing callee resume sret param",
-                            at: at.into(),
-                        })?
+                        .unwrap_or_else(|| {
+                            panic!(
+                                "codegen_callee_resume_entry_function: callee resume ABI accepted missing sret param at {at:?}"
+                            )
+                        })
                         .into_pointer_value(),
                 )
             } else {
@@ -544,12 +544,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             self.function_cx.env.push_scope();
             let (return_bb, return_alloca) =
                 self.setup_function_return_context(at, resume_fun, declared_return_cg)?;
-            let incoming_resume_token = self.function_cx.current_incoming_resume_token_ref.ok_or(
-                LlvmEmitError::UnsupportedMainBody {
-                    kind: "missing incoming resume token ref",
-                    at: at.into(),
-                },
-            )?;
+            let incoming_resume_token = self
+                .function_cx
+                .current_incoming_resume_token_ref
+                .unwrap_or_else(|| {
+                    panic!(
+                        "codegen_callee_resume_entry_function: callee resume ABI accepted missing incoming resume token ref at {at:?}"
+                    )
+                });
             let base_env = self.function_cx.env.clone();
 
             self.with_callee_suspend_lowering(Some(plan.clone()), Some(resume_fun), |cg| {

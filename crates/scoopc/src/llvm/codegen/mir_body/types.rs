@@ -170,7 +170,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             (CgTy::Tuple(lhs), CgTy::Tuple(rhs))
             | (CgTy::Struct(lhs), CgTy::Struct(rhs))
             | (CgTy::Enum(lhs), CgTy::Enum(rhs)) => {
-                self.types.display(lhs).to_string() == self.types.display(rhs).to_string()
+                let lhs = self.types.display(lhs).to_string();
+                let rhs = self.types.display(rhs).to_string();
+                lhs == rhs || lhs.replace(", eff Pure", "") == rhs.replace(", eff Pure", "")
             }
             _ => false,
         }

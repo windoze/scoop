@@ -487,10 +487,14 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
                 block
                     .stmts
                     .get(stmt_index as usize)
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "composed call replay statement",
-                        at: self.mir_fun.span.into(),
-                    })?;
+                    .unwrap_or_else(|| {
+                        panic!(
+                            "replay_call_boundary_prefix: late-lowered verifier accepted missing replay statement bb{} stmt{} in `{}`",
+                            source_slice.block_id().as_u32(),
+                            stmt_index,
+                            self.mir_fun.fqn
+                        )
+                    });
             let classification = self
                 .callable
                 .source_statement_classification(source_slice, stmt_index)

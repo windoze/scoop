@@ -1,14 +1,19 @@
 // EXPECT: ok
-// IGNORE-UNTIL-FIX:B-21
 // SPEC: docs/spec/language_spec-part3.md#14-struct-literalclosure-与-do-消歧
 // COVERS: NONE
 // BUCKETS: B-06, B-21, B-23
-// REASON: U5-T02 records the spec surface before the matching implementation gate is enabled.
+// REASON: P7-C5 final UMB cleanup activates this previously parse-only disambiguation fixture.
 // SOURCE-FIXTURE: tests/fixtures/parse/disambiguate_struct_lit_vs_lambda.scoop
 
 package fixtures.parse
 
-val p = Point { x: 1 }
-val y = list.map { it }
+struct Point(val x: Int)
 
-fun main() {}
+fun apply(v: Int, f: (Int) -> Int): Int {
+    return f(v)
+}
+
+fun main() {
+    val p: Point = Point { x: 1 }
+    val y: Int = apply(1, { it: Int -> it })
+}

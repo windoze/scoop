@@ -7,8 +7,8 @@
 
 ## Scope
 
-U5-T01 creates this directory skeleton only. U5-T02 and U5-T03 must add `.scoop` fixtures and append matching `_index.csv` rows.
+P7-C5 activates this fixture directory for the retired B-10 effect callable adapter / ABI routing implementation. Retired UMB IDs are covered by `audit/UMB_retired.csv`; active fixture headers use `COVERS: NONE`.
 
 ## Runner Status
 
-`scoop test` recognizes `tests/fixtures/umb_fix/**`. Fixtures marked `IGNORE-UNTIL-FIX:B-10` or `ignore-until-fix:B-10` are skipped until the corresponding production fix lands.
+`scoop test` recognizes `tests/fixtures/umb_fix/**`. This directory must remain active; no fixture here should be marked `IGNORE-UNTIL-FIX:B-10`.

@@ -6,9 +6,9 @@ inventory 来源：[`audit/UMB_inventory.csv`](../UMB_inventory.csv)
 
 ## Summary
 
-- Total active inventory entries: 109
+- Total active inventory entries: 0
 - Bucket range: B-01 through B-36
-- Zero-entry buckets: B-01, B-02, B-03, B-04, B-05, B-06, B-07, B-08, B-09, B-11, B-12, B-13, B-14, B-15, B-16, B-17, B-18, B-19, B-20, B-21, B-22, B-23, B-24, B-25, B-26, B-27, B-28, B-29, B-30, B-31, B-32, B-33, B-34, B-35, B-36
+- Zero-entry buckets: B-01, B-02, B-03, B-04, B-05, B-06, B-07, B-08, B-09, B-10, B-11, B-12, B-13, B-14, B-15, B-16, B-17, B-18, B-19, B-20, B-21, B-22, B-23, B-24, B-25, B-26, B-27, B-28, B-29, B-30, B-31, B-32, B-33, B-34, B-35, B-36
 - Missing `spec_anchor`: 0
 - Missing `upstream_gate`: 0
 - Decision: all 36 stable buckets are retained; no merge or split is required in U2-T01.
@@ -26,7 +26,7 @@ inventory 来源：[`audit/UMB_inventory.csv`](../UMB_inventory.csv)
 | B-07 | MIR pattern 子句 schema 漂移 | B | 0 | retired InternalBugSentinel=34 | retired: pass MIR pattern is target type (2)<br>pass MIR char literal (1)<br>pass MIR int builtin type (1)<br>pass MIR synthesized int builtin type (1)<br>pass MIR pattern int subject (1) | retired ledger: `audit/UMB_retired.csv` | P7-B2.3 retired; active CSV empty. |
 | B-08 | MIR 成员存取 / 赋值合法性 | B | 0 | retired FrontendReject=2; retired InternalBugSentinel=4 | retired: pass MIR member store value type (1)<br>pass MIR member store operand type (1)<br>pass MIR member store receiver place (1)<br>pass MIR packed struct member store (1) | retired ledger: `audit/UMB_retired.csv` | P7-A2 retired frontend writability rows; P7-B2.8 retired internal verifier rows. |
 | B-09 | Cross-TypeStore equivalence 不闭合 | B/C | 0 | retired InternalBugSentinel=13 | retired: funptr local cg type (1)<br>funptr top-level cg type (1)<br>funptr carrier cg type (1)<br>task transport tuple first element codegen type (1)<br>task transport tuple second element codegen type (1) | retired ledger: `audit/UMB_retired.csv` | P7-B2.4 retired; active CSV empty. |
-| B-10 | Effect-typed callable adapter / ABI routing | C | 109 | RealImpl=109 | missing incoming_resume_token_ref param (1)<br>missing effect outcome param (1)<br>itable effect outcome slot (1)<br>Continuation.resume lowering (1)<br>funptr carrier source type (1) | crates/scoopc/src/llvm/codegen/effect_lowered/value.rs (63)<br>crates/scoopc/src/llvm/codegen/effect_lowered/body/main_entry.rs (9)<br>crates/scoopc/src/llvm/codegen/effect_lowered/body/main_carrier.rs (5)<br>crates/scoopc/src/llvm/codegen/effect_lowered/body/states.rs (5)<br>crates/scoopc/src/llvm/codegen/mir_body/call.rs (5) | CSV non-empty; body pending U2-T02. |
+| B-10 | Effect-typed callable adapter / ABI routing | C | 0 | retired RealImpl=109 | retired: missing incoming_resume_token_ref param (1)<br>missing effect outcome param (1)<br>itable effect outcome slot (1)<br>Continuation.resume lowering (1)<br>funptr carrier source type (1) | retired ledger: `audit/UMB_retired.csv` | P7-C5 retired effect callable adapter / ABI routing rows; active CSV empty. |
 | B-11 | Pure / plain statement 边界路由 | B | 0 | retired InternalBugSentinel=14 | retired: assignment lhs (2)<br>anonymous val binding (1)<br>val type (1)<br>val without initializer (1)<br>unknown local value (1) | retired ledger: `audit/UMB_retired.csv` | P7-B2.8 retired HIR/MIR statement boundary rows. |
 | B-12 | Closure / lambda / capture 表达 | C | 0 | retired RealImpl=50 | retired: capture local not found (3)<br>capture local type (3)<br>capture local (non-scalar) (3)<br>lambda return type (2)<br>capture type (2) | retired ledger: `audit/UMB_retired.csv` | P7-C4 retired closure/lambda/capture implementation rows. |
 | B-13 | 数组 / 复合 transport metadata | C | 0 | retired RealImpl=24 | retired: composed call replay block (1)<br>task transport resume payload type (1)<br>task transport operand source type (1)<br>task transport tuple value (1)<br>task transport tuple type (1) | retired ledger: `audit/UMB_retired.csv` | P7-C3 retired array/composite transport metadata rows. |

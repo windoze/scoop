@@ -4,7 +4,7 @@
 > 计划基线：[`PLAN.md`](./PLAN.md)
 > 上一阶段任务档案：[`TODO-1.md`](./TODO-1.md)
 > 设计与 baseline：[`UnsupportedMainBody_FIX.md`](./UnsupportedMainBody_FIX.md)、[`UnsupportedMainBody_DONE.md`](./UnsupportedMainBody_DONE.md)
-> 当前状态：P7-0-T01、P7-0-T02、P7-A1、P7-A2、P7-A3、P7-A4、P7-B1、P7-B2.1、P7-B2.2、P7-B2.3、P7-B2.4、P7-B2.5、P7-B2.6、P7-B2.7、P7-B2.8、P7-B3.1、P7-B3.2、P7-B3.3、P7-B3.4、P7-B3.5、P7-C1、P7-C2、P7-C3、P7-C4 已完成；active=109，retired=1175。
+> 当前状态：P7-0-T01、P7-0-T02、P7-A1、P7-A2、P7-A3、P7-A4、P7-B1、P7-B2.1、P7-B2.2、P7-B2.3、P7-B2.4、P7-B2.5、P7-B2.6、P7-B2.7、P7-B2.8、P7-B3.1、P7-B3.2、P7-B3.3、P7-B3.4、P7-B3.5、P7-C1、P7-C2、P7-C3、P7-C4、P7-C5 已完成；active=0，retired=1284。
 
 ## 全局约束
 
@@ -613,7 +613,7 @@ P7-0-T01 stable ID + retired ledger
   - 验证结果：`cargo run -p scoopc --bin umb-audit -- list --bucket B-12` 通过（entries 0）；`cargo run -p scoopc --bin umb-audit -- diff` 通过（in sync，109 entries）；`cargo run -p scoopc --bin umb-audit -- stats` 通过（active=109、retired=1175、initial=1284）；`cargo test -p scoopc audit:: -- --nocapture` 通过（23 passed）；`cargo test -p scoopc pipeline_user_visible_failure_policy -- --nocapture` 通过（7 passed）；`cargo test -p scoopc mir::materialize -- --nocapture` 通过（54 passed）；`cargo run -p scoop -- test tests/fixtures/umb_fix/B-12-closure-capture/` 通过（2 passed）；`cargo run -p scoop -- test tests/fixtures/run-pass/closure_env_composite_capture_basic.scoop` 通过（1 passed）；`cargo run -p scoop -- test tests/fixtures/run-pass/` 仍失败（307/416 passed，109 failed），抽样 `effect_escape_continuation_resume_string.scoop`、`effect_escape_continuation_indirect_perform_closure_locals.scoop`、`effect_escape_continuation_indirect_perform_closure_tail_return_string.scoop` 在 clean `HEAD` worktree 同样失败，判定为非 P7-C4 引入的历史/future-task failures；`cargo fmt` 通过；`cargo clippy --all-targets -- -D warnings` 通过。
   - 闭合目标：满足 `PLAN.md:183-206` 与本任务完成条件；B-12 active count 为 0，B-12 positive fixture active 并通过，closure env、mutable/non-scalar capture、callable lookup 与 lambda return happy paths 不再由 LLVM `UnsupportedMainBody` 兜底。
 
-### [TODO] P7-C5：B-10 Effect-typed callable adapter / ABI routing 实现
+### [DONE] P7-C5：B-10 Effect-typed callable adapter / ABI routing 实现
 
 - 参考：`PLAN.md:183-206`、`audit/strategies/B-10.md`。
 - 范围：B-10，109 entries，`RealImpl`。
@@ -622,7 +622,15 @@ P7-0-T01 stable ID + retired ledger
 - 验证：`cargo test -p scoopc audit:: -- --nocapture`、`cargo run -p scoop -- test tests/fixtures/umb_fix/B-10-effect-callable-adapter/`、`cargo run -p scoop -- test tests/fixtures/effect_lowered/`、`cargo run -p scoop -- test`。
 - 完成条件：B-10 active count 为 0；B-10 positive fixture active 并通过；`tests/fixtures/umb_fix/**` 不再有 `IGNORE-UNTIL-FIX`。
 - 依赖：P7-C1、P7-C2、P7-C3、P7-C4；B-03/B-09/B-13 contract 稳定后再推进。
-- 完成记录：待填写。
+- 完成记录：
+  - 改动范围：更新 `crates/scoopc/src/llvm/codegen/{call/{abi.rs,lowering.rs},expr.rs,effect_lowered/{body/{call_invoke.rs,composed_call.rs,main_carrier.rs,main_entry.rs,states.rs,wrapper.rs},value.rs},mir_body/{call.rs,dispatch.rs,member.rs,mod.rs,types.rs},ordinary_callee.rs}`、`crates/scoopc/src/mir/{mod.rs,materialize/{validation.rs,tests.rs}}`、`crates/scoopc/src/pipeline_user_visible_failure_policy.rs`；同步 `audit/UMB_inventory.csv`、`audit/UMB_retired.csv`、`audit/UMB_categories/{B-10.md,_overview.md}`、`audit/strategies/B-10.md`、`audit/spec_coverage_matrix.md`、B-10/B-21/B-33/B-35 fixtures、`tests/fixtures/umb_fix/_index.csv` 与 `memory/claude_plan.md`。
+  - Retired IDs：`UMB-0006`、`UMB-0007`、`UMB-0022`、`UMB-0029`、`UMB-0194`、`UMB-0196`、`UMB-0197`、`UMB-0199`..`UMB-0213`、`UMB-0219`..`UMB-0224`、`UMB-0226`..`UMB-0238`、`UMB-0240`..`UMB-0242`、`UMB-0251`..`UMB-0254`、`UMB-0274`..`UMB-0286`、`UMB-0316`..`UMB-0339`、`UMB-0358`..`UMB-0363`、`UMB-0419`..`UMB-0421`、`UMB-1014`、`UMB-1015`、`UMB-1017`、`UMB-1018`、`UMB-1020`、`UMB-1111`、`UMB-1116`、`UMB-1179`..`UMB-1181`、`UMB-1245`..`UMB-1249`；数量 109；bucket `B-10`；class `RealImpl`。
+  - 核心决策：B-10 production `UnsupportedMainBody` constructor 全部移除；effect callable adapter、plain/effectful closure adapter、continuation carrier、resume token、effect outcome ABI slot、surface/plain callable routing 走真实 lowering 或 verifier-backed internal invariant；补齐跨 TypeStore/default `eff Pure` 等价判断，避免合法 effect/closure/continuation 路径被 materialized verifier 误拒。
+  - Inventory/ledger：active 109 -> 0；retired 1175 -> 1284；B-10 active 109 -> 0；`RealImpl` active 109 -> 0；P7-A/P7-B/P7-C active inventory 全部清零。
+  - Stale count：tracked stale total 97 -> 0；`mir_body/call.rs` 5 -> 0；`mir_body/dispatch.rs` 2 -> 0；`mir_body/mod.rs` 3 -> 0；`effect_lowered/body/call_invoke.rs` 3 -> 0；`effect_lowered/body/composed_call.rs` 1 -> 0；`effect_lowered/body/main_carrier.rs` 5 -> 0；`effect_lowered/body/main_entry.rs` 9 -> 0；`effect_lowered/body/states.rs` 5 -> 0；`effect_lowered/body/wrapper.rs` 1 -> 0；`effect_lowered/value.rs` 63 -> 0。
+  - Fixture 状态：B-10 fixture directory 从 `IGNORE-UNTIL-FIX:B-10` 激活；B-21/B-33/B-35 residual `umb_fix` ignored fixtures 同步激活；`tests/fixtures/umb_fix/**` 不再包含 `IGNORE-UNTIL-FIX`；B-10 active fixture `COVERS` 改为 `NONE`，retired IDs 由 retired ledger 覆盖。
+  - 验证结果：`cargo run -p scoopc --bin umb-audit -- list --bucket B-10` 通过（entries 0）；`cargo run -p scoopc --bin umb-audit -- stats` 通过（active=0、retired=1284、initial=1284）；`cargo run -p scoopc --bin umb-audit -- diff` 通过（in sync，0 entries）；`cargo test -p scoopc audit:: -- --nocapture` 通过（23 passed）；`cargo test -p scoopc pipeline_user_visible_failure_policy -- --nocapture` 通过（7 passed）；`cargo run -p scoop -- test tests/fixtures/umb_fix/B-10-effect-callable-adapter/` 通过（7 passed）；`cargo run -p scoop -- test tests/fixtures/effect_lowered/` 通过（10 passed）；`cargo run -p scoop -- test tests/fixtures/umb_fix/` 通过（152 passed，无 skip）；`cargo run -p scoop -- test tests/fixtures/run-pass/ --exit-on-failure` 通过（416 passed）；`cargo run -p scoop -- test` 通过（fixtures ok，1558 checks）；`cargo test --all --all-targets` 通过；`cargo fmt` 通过；`cargo clippy --all-targets -- -D warnings` 通过。
+  - 闭合目标：满足 `PLAN.md:183-206` 与本任务完成条件；B-10 active count 为 0，B-10 positive fixtures active 并通过，`tests/fixtures/umb_fix/**` 无 `IGNORE-UNTIL-FIX`，P7-C `RealImpl` active count 清零。
 
 ## P8：最终退场
 
@@ -667,7 +675,7 @@ P7-0-T01 stable ID + retired ledger
 
 | 阶段 | Active 目标 | Retired 目标 | 备注 |
 |---|---:|---:|---|
-| 当前 | 109 | 1175 | P7-C4 完成，B-12 Closure / lambda / capture 清零；P7-B InternalBugSentinel 清零 |
+| 当前 | 0 | 1284 | P7-C5 完成，B-10 Effect callable adapter / ABI routing 清零；P7-C RealImpl 清零 |
 | P7-A 完成 | 1,159 | 125 | `FrontendReject` 清零 |
 | P7-B 完成 | 203 | 1,081 | `InternalBugSentinel` 清零 |
 | P7-C 完成 | 0 | 1,284 | `RealImpl` 清零 |

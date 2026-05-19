@@ -1,9 +1,8 @@
 // EXPECT: ok
-// IGNORE-UNTIL-FIX:B-21
 // SPEC: docs/spec/language_spec-part2.md#5-值类型
 // COVERS: NONE
 // BUCKETS: B-06, B-13
-// REASON: P7-C3 retired B-13 rows; fixture remains ignored for its existing B-21 lifecycle status.
+// REASON: P7-C5 final UMB cleanup activates this previously retired-ledger-only fixture.
 // SOURCE-FIXTURE: tests/fixtures/run-pass/struct_ctor_call_literal_equivalence_basic.scoop
 
 import scoop.core.*
