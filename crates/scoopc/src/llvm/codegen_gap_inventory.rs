@@ -56,7 +56,7 @@ pub(crate) const CODEGEN_GAP_INVENTORY: &[CodegenGapEntry] = &[
         UpstreamMirContract,
         true,
         false,
-        "UnsupportedMainBody / production MIR contract guard / pass MIR Todo"
+        "production MIR contract guard / pass MIR Todo"
     ),
     gap!(
         "PIPELINE_GAPS §3.1",
@@ -633,11 +633,7 @@ mod tests {
             .collect::<Vec<_>>()
             .join("\n");
 
-        for needle in [
-            "UnsupportedMainBody",
-            "pass MIR",
-            "runtime cast/typecheck metadata",
-        ] {
+        for needle in ["pass MIR", "runtime cast/typecheck metadata"] {
             assert!(
                 triggers.contains(needle),
                 "inventory trigger list should cover `{needle}`"

@@ -4,7 +4,7 @@
 > 计划基线：[`PLAN.md`](./PLAN.md)
 > 上一阶段任务档案：[`TODO-1.md`](./TODO-1.md)
 > 设计与 baseline：[`UnsupportedMainBody_FIX.md`](./UnsupportedMainBody_FIX.md)、[`UnsupportedMainBody_DONE.md`](./UnsupportedMainBody_DONE.md)
-> 当前状态：P7-0-T01、P7-0-T02、P7-A1、P7-A2、P7-A3、P7-A4、P7-B1、P7-B2.1、P7-B2.2、P7-B2.3、P7-B2.4、P7-B2.5、P7-B2.6、P7-B2.7、P7-B2.8、P7-B3.1、P7-B3.2、P7-B3.3、P7-B3.4、P7-B3.5、P7-C1、P7-C2、P7-C3、P7-C4、P7-C5 已完成；active=0，retired=1284。
+> 当前状态：P7-0-T01、P7-0-T02、P7-A1、P7-A2、P7-A3、P7-A4、P7-B1、P7-B2.1、P7-B2.2、P7-B2.3、P7-B2.4、P7-B2.5、P7-B2.6、P7-B2.7、P7-B2.8、P7-B3.1、P7-B3.2、P7-B3.3、P7-B3.4、P7-B3.5、P7-C1、P7-C2、P7-C3、P7-C4、P7-C5、P8-T01 已完成；active=0，retired=1284；`LlvmEmitError::UnsupportedMainBody` 已删除，待 P8-T02 归档。
 
 ## 全局约束
 
@@ -634,7 +634,7 @@ P7-0-T01 stable ID + retired ledger
 
 ## P8：最终退场
 
-### [TODO] P8-T01：删除 `LlvmEmitError::UnsupportedMainBody` enum variant
+### [DONE] P8-T01：删除 `LlvmEmitError::UnsupportedMainBody` enum variant
 
 - 参考：`PLAN.md:208-225`。
 - 触发条件：`umb-audit stats` 显示 active=0、retired=1,284。
@@ -650,7 +650,15 @@ P7-0-T01 stable ID + retired ledger
   3. `cargo test --all --all-targets`
 - 完成条件：UMB enum variant 已删除；stale unsupported total 为 0 或历史测试已归档。
 - 依赖：P7-A、P7-B、P7-C 全部完成。
-- 完成记录：待填写。
+- 完成记录：
+  - 改动范围：更新 `crates/scoopc/src/llvm/mod.rs`、`crates/scoopc/src/llvm/codegen_gap_inventory.rs`、`crates/scoopc/src/pipeline_user_visible_failure_policy.rs`、`TODO.md` 与 `memory/claude_plan.md`。
+  - Retired IDs：无新增；数量 0；P8-T01 不 retire production row，沿用 P7-C5 后 active=0、retired=1284 的 ledger 状态。
+  - 核心决策：物理删除 `LlvmEmitError::UnsupportedMainBody` enum variant 与 `scoop::llvm::unsupported_main_body` diagnostic mapping；清理 LLVM gap inventory 中旧 `UnsupportedMainBody` trigger；删除 `pipeline_user_visible_failure_policy` 中已归零的 per-file stale UMB count table 和历史计数测试，保留长期 failure-policy guard。
+  - Inventory/ledger：active 0 -> 0；retired 1284 -> 1284；initial 1284。
+  - Stale count：`STALE_UNSUPPORTED_MAIN_BODY_COUNTS` 历史计数表与对应测试已删除；`rg -n "UnsupportedMainBody" crates/scoopc/src/llvm` 无命中。
+  - Fixture 状态：未改 fixture active/ignore 状态；P8-T02 继续负责最终归档和 `umb_fix` fixture 总确认。
+  - 验证结果：`cargo run -p scoopc --bin umb-audit -- stats` 通过（active=0、retired=1284、initial=1284）；`cargo run -p scoopc --bin umb-audit -- diff` 通过（in sync，0 entries）；`rg -n "UnsupportedMainBody" crates/scoopc/src/llvm` 无命中；`cargo test -p scoopc pipeline_user_visible_failure_policy -- --nocapture` 通过（6 passed）；`cargo test --all --all-targets` 通过；`cargo fmt` 通过；`cargo clippy --all-targets -- -D warnings` 通过。
+  - 闭合目标：满足 `PLAN.md:208-225` 中 P8-T01 要求；UMB enum variant 已删除，相关 diagnostic mapping 已删除，stale unsupported 历史计数测试已清理。
 
 ### [TODO] P8-T02：归档 audit ledger 并更新 DONE 记录
 
@@ -675,7 +683,7 @@ P7-0-T01 stable ID + retired ledger
 
 | 阶段 | Active 目标 | Retired 目标 | 备注 |
 |---|---:|---:|---|
-| 当前 | 0 | 1284 | P7-C5 完成，B-10 Effect callable adapter / ABI routing 清零；P7-C RealImpl 清零 |
+| 当前 | 0 | 1284 | P8-T01 完成，`LlvmEmitError::UnsupportedMainBody` enum variant 已删除；待 P8-T02 归档 |
 | P7-A 完成 | 1,159 | 125 | `FrontendReject` 清零 |
 | P7-B 完成 | 203 | 1,081 | `InternalBugSentinel` 清零 |
 | P7-C 完成 | 0 | 1,284 | `RealImpl` 清零 |

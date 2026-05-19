@@ -2,7 +2,7 @@
 //!
 //! This module freezes three boundaries for follow-up tasks:
 //! - explicit frontend rejects for inputs outside the current language contract;
-//! - stale user-visible unsupported buckets that later tasks must eliminate;
+//! - already-cleared user-visible unsupported buckets that must stay cleared;
 //! - internal bug sentinels that may remain only as impossible-state guards.
 
 use std::fs;
@@ -90,16 +90,10 @@ const FAILURE_POLICY_AUDIT_FILES: &[&str] = &[
     "crates/scoopc/src/typecheck/structs.rs",
 ];
 
-const FAILURE_KEYWORDS: &[&str] = &[
-    "UnsupportedMainBody",
-    "Unsupported",
-    "todo!",
-    "panic!",
-    "unreachable!",
-];
+const FAILURE_KEYWORDS: &[&str] = &["Unsupported", "todo!", "panic!", "unreachable!"];
 
 const FRONTEND_REJECT_FORBIDDEN_TERMS: &[&str] =
-    &["后端", "backend", "LLVM", "codegen", "UnsupportedMainBody"];
+    &["后端", "backend", "LLVM", "codegen", "Unsupported"];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum FailureClassification {
@@ -134,179 +128,7 @@ const FAILURE_CLASSIFICATION_RULES: &[FailureClassificationRule] = &[
     },
     FailureClassificationRule {
         name: "stale user-visible failure",
-        meaning: "User-visible `Unsupported*` buckets that later tasks must replace with a real implementation, verifier failure, or earlier frontend reject.",
-    },
-];
-
-struct UnsupportedMainBodyCount {
-    path: &'static str,
-    expected_count: usize,
-}
-
-const STALE_UNSUPPORTED_MAIN_BODY_COUNTS: &[UnsupportedMainBodyCount] = &[
-    UnsupportedMainBodyCount {
-        path: "crates/scoopc/src/llvm/codegen/mir_body/aggregates.rs",
-        expected_count: 0,
-    },
-    UnsupportedMainBodyCount {
-        path: "crates/scoopc/src/llvm/codegen/mir_body/args.rs",
-        expected_count: 0,
-    },
-    UnsupportedMainBodyCount {
-        path: "crates/scoopc/src/llvm/codegen/mir_body/call.rs",
-        expected_count: 0,
-    },
-    UnsupportedMainBodyCount {
-        path: "crates/scoopc/src/llvm/codegen/mir_body/callable_lookup.rs",
-        expected_count: 0,
-    },
-    UnsupportedMainBodyCount {
-        path: "crates/scoopc/src/llvm/codegen/mir_body/cast.rs",
-        expected_count: 0,
-    },
-    UnsupportedMainBodyCount {
-        path: "crates/scoopc/src/llvm/codegen/mir_body/const_pat.rs",
-        expected_count: 0,
-    },
-    UnsupportedMainBodyCount {
-        path: "crates/scoopc/src/llvm/codegen/mir_body/dispatch.rs",
-        expected_count: 0,
-    },
-    UnsupportedMainBodyCount {
-        path: "crates/scoopc/src/llvm/codegen/mir_body/member.rs",
-        expected_count: 0,
-    },
-    UnsupportedMainBodyCount {
-        path: "crates/scoopc/src/llvm/codegen/mir_body/mod.rs",
-        expected_count: 0,
-    },
-    UnsupportedMainBodyCount {
-        path: "crates/scoopc/src/llvm/codegen/mir_body/operand.rs",
-        expected_count: 0,
-    },
-    UnsupportedMainBodyCount {
-        path: "crates/scoopc/src/llvm/codegen/mir_body/string.rs",
-        expected_count: 0,
-    },
-    UnsupportedMainBodyCount {
-        path: "crates/scoopc/src/llvm/codegen/mir_body/terminator.rs",
-        expected_count: 0,
-    },
-    UnsupportedMainBodyCount {
-        path: "crates/scoopc/src/llvm/codegen/mir_body/transport.rs",
-        expected_count: 0,
-    },
-    UnsupportedMainBodyCount {
-        path: "crates/scoopc/src/llvm/codegen/mir_body/types.rs",
-        expected_count: 0,
-    },
-    UnsupportedMainBodyCount {
-        path: "crates/scoopc/src/llvm/codegen/mir_body/value_args.rs",
-        expected_count: 0,
-    },
-    UnsupportedMainBodyCount {
-        path: "crates/scoopc/src/llvm/codegen/effect_lowered/body/call_invoke.rs",
-        expected_count: 0,
-    },
-    UnsupportedMainBodyCount {
-        path: "crates/scoopc/src/llvm/codegen/effect_lowered/body/composed_call.rs",
-        expected_count: 0,
-    },
-    UnsupportedMainBodyCount {
-        path: "crates/scoopc/src/llvm/codegen/effect_lowered/body/main_carrier.rs",
-        expected_count: 0,
-    },
-    UnsupportedMainBodyCount {
-        path: "crates/scoopc/src/llvm/codegen/effect_lowered/body/main_entry.rs",
-        expected_count: 0,
-    },
-    UnsupportedMainBodyCount {
-        path: "crates/scoopc/src/llvm/codegen/effect_lowered/body/payload.rs",
-        expected_count: 0,
-    },
-    UnsupportedMainBodyCount {
-        path: "crates/scoopc/src/llvm/codegen/effect_lowered/body/runtime_error.rs",
-        expected_count: 0,
-    },
-    UnsupportedMainBodyCount {
-        path: "crates/scoopc/src/llvm/codegen/effect_lowered/body/states.rs",
-        expected_count: 0,
-    },
-    UnsupportedMainBodyCount {
-        path: "crates/scoopc/src/llvm/codegen/effect_lowered/body/wrapper.rs",
-        expected_count: 0,
-    },
-    UnsupportedMainBodyCount {
-        path: "crates/scoopc/src/llvm/codegen/effect_lowered/value.rs",
-        expected_count: 0,
-    },
-    UnsupportedMainBodyCount {
-        path: "crates/scoopc/src/llvm/codegen/main/alloca.rs",
-        expected_count: 0,
-    },
-    UnsupportedMainBodyCount {
-        path: "crates/scoopc/src/llvm/codegen/main/boxing.rs",
-        expected_count: 0,
-    },
-    UnsupportedMainBodyCount {
-        path: "crates/scoopc/src/llvm/codegen/main/call.rs",
-        expected_count: 0,
-    },
-    UnsupportedMainBodyCount {
-        path: "crates/scoopc/src/llvm/codegen/main/coerce.rs",
-        expected_count: 0,
-    },
-    UnsupportedMainBodyCount {
-        path: "crates/scoopc/src/llvm/codegen/main/context.rs",
-        expected_count: 0,
-    },
-    UnsupportedMainBodyCount {
-        path: "crates/scoopc/src/llvm/codegen/main/declare.rs",
-        expected_count: 0,
-    },
-    UnsupportedMainBodyCount {
-        path: "crates/scoopc/src/llvm/codegen/main/expr_op.rs",
-        expected_count: 0,
-    },
-    UnsupportedMainBodyCount {
-        path: "crates/scoopc/src/llvm/codegen/main/expr_value.rs",
-        expected_count: 0,
-    },
-    UnsupportedMainBodyCount {
-        path: "crates/scoopc/src/llvm/codegen/main/frame.rs",
-        expected_count: 0,
-    },
-    UnsupportedMainBodyCount {
-        path: "crates/scoopc/src/llvm/codegen/main/function.rs",
-        expected_count: 0,
-    },
-    UnsupportedMainBodyCount {
-        path: "crates/scoopc/src/llvm/codegen/main/gc_locals.rs",
-        expected_count: 0,
-    },
-    UnsupportedMainBodyCount {
-        path: "crates/scoopc/src/llvm/codegen/main/globals.rs",
-        expected_count: 0,
-    },
-    UnsupportedMainBodyCount {
-        path: "crates/scoopc/src/llvm/codegen/main/identity.rs",
-        expected_count: 0,
-    },
-    UnsupportedMainBodyCount {
-        path: "crates/scoopc/src/llvm/codegen/main/immut_value.rs",
-        expected_count: 0,
-    },
-    UnsupportedMainBodyCount {
-        path: "crates/scoopc/src/llvm/codegen/main/literal.rs",
-        expected_count: 0,
-    },
-    UnsupportedMainBodyCount {
-        path: "crates/scoopc/src/llvm/codegen/main/numeric.rs",
-        expected_count: 0,
-    },
-    UnsupportedMainBodyCount {
-        path: "crates/scoopc/src/llvm/codegen/main/runtime_error.rs",
-        expected_count: 0,
+        meaning: "Previously user-visible `Unsupported*` buckets must stay replaced by real implementations, verifier failures, or earlier frontend rejects.",
     },
 ];
 
@@ -1103,13 +925,7 @@ fn pipeline_user_visible_failure_policy_records_scope_keywords_and_rules() {
     );
     assert_eq!(
         FAILURE_KEYWORDS,
-        [
-            "UnsupportedMainBody",
-            "Unsupported",
-            "todo!",
-            "panic!",
-            "unreachable!",
-        ]
+        ["Unsupported", "todo!", "panic!", "unreachable!"]
     );
 
     println!("audit files:\n{}", FAILURE_POLICY_AUDIT_FILES.join("\n"));
@@ -1156,31 +972,6 @@ fn pipeline_user_visible_failure_policy_freezes_frontend_reject_surfaces() {
             surface.gap_id, surface.diagnostic_code, surface.message
         );
     }
-}
-
-#[test]
-fn pipeline_user_visible_failure_policy_tracks_stale_unsupportedmainbody_counts() {
-    let mut total = 0usize;
-    for baseline in STALE_UNSUPPORTED_MAIN_BODY_COUNTS {
-        let observed = production_source_text(baseline.path)
-            .match_indices("UnsupportedMainBody")
-            .count();
-        assert_eq!(
-            observed,
-            baseline.expected_count,
-            "{} count drifted in {}",
-            FailureClassification::StaleUserVisibleFailure.as_str(),
-            baseline.path
-        );
-        total += observed;
-        println!(
-            "{}: {} UnsupportedMainBody hits in {}",
-            FailureClassification::StaleUserVisibleFailure.as_str(),
-            observed,
-            baseline.path
-        );
-    }
-    assert_eq!(total, 0);
 }
 
 #[test]
