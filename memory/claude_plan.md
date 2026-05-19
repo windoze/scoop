@@ -1,23 +1,26 @@
-执行计划
+# 执行计划
 
-状态：已确定当前任务。
+本文件记录本轮调用的可公开执行计划与进度。不会包含私有推理链；只记录可审查的操作步骤、决策依据和关键结果。
 
-计划：
-1. 读取 `TODO.md`，按文件顺序找到第一个标题未带 `[DONE]` 的任务。
-2. 检查最近提交是否明确提到与该任务直接相关的未完成问题；如有，作为当前任务范围或在 `TODO.md` 中补充前置依赖。
-3. 阅读该任务涉及的代码、测试和文档，只做与当前任务相关的上下文调查。
-4. 若任务可直接完成，则实现最小且完整的变更；若发现阻塞性的缺失功能或规格不匹配，则在 `TODO.md` 中插入最小前置任务并停止。
-5. 运行任务要求的验证命令和必要的回归测试；遇到失败则修复当前任务范围内的问题并重测。
-6. 任务完成后，将该任务标题加上 `[DONE]`，更新完成记录；仅当阶段级计划发生变化时才更新 `PLAN.md`。
-7. 检查工作区差异，提交本次任务涉及的所有未提交文件，提交信息使用任务编号开头。
-8. 完成一个任务后停止，不继续处理后续任务。
+## 当前计划
 
-进度记录：
-- 已创建初始执行计划。
-- 已读取 `TODO.md`，第一个未完成任务为 `P1-T03：删除或改写 archive fixtures 与 archive-only tests`。
-- 已检查最近提交摘要，最新提交为 `[P1-T02] Remove archive dependency build flow`，未发现需要先处理的直接未完成事项。
-- 当前任务重点：移除 `tests/fixtures/typecheck_cone_archive/**` 对 active fixture suite 的影响，并删除或禁用 `crates/scoop/src/fixtures/mod.rs` 中 archive fixture runner active path。
-- 调查结论：`deps_visibility_filter` 与 `typealias_export_generic` 可改写为 source-only `typecheck_cone` fixtures；`program_boundary_export_entry_points` 可改写为 manifest-backed `run_pass_cone` fixtures；`deps_api_injection`、`annotation_retention_export`、`pre_specialize_*` 覆盖旧 `.cone` API/metadata 注入，删除不迁移。
-- 已完成实现草稿：删除 `tests/fixtures/typecheck_cone_archive/**` 文件，新增 source-only 替代 fixtures，并从 active fixture routing 中移除 `typecheck_cone_archive`；历史 archive runner helper 以 `#[cfg(any())]` 隔离，不能被 `scoop test` 路由调用。
-- 已完成验证：定向迁移 fixtures、retired archive path、`cargo test -p scoop --bin scoop`、`cargo test -p scoopc cone:: -- --nocapture`、`cargo build`、`cargo clippy --all-targets -- -D warnings`、完整 `cargo run -p scoop -- test`、`cargo test --all --all-targets` 均通过。
-- 已更新 `TODO.md`：将 `P1-T03` 标记为 `[DONE]`，补充完成记录、fixture 删除/改写理由和验证结果；`PLAN.md` 无阶段级变化，未更新。
+1. 读取 `TODO.md`，按标题是否带 `[DONE]` 判定第一个未完成任务。
+2. 读取该任务相关上下文；仅在必要时查看 `PLAN.md`、最近提交和相关代码/测试。
+3. 如该任务可直接完成，实施最小正确改动，并避免规避语言/运行时/规格缺口。
+4. 运行任务要求的验证命令和必要的回归测试；若发现阻塞当前任务的真实缺口，先修复，或在 `TODO.md` 中插入最小前置任务后停止。
+5. 更新 `TODO.md`，在完成任务标题前加 `[DONE]` 并填写完成记录；只有阶段级计划变化时才更新 `PLAN.md`。
+6. 检查工作区差异，提交本轮所有相关改动，然后停止，不继续下一个任务。
+
+## 进度
+
+- 已创建本轮执行计划，下一步读取 `TODO.md` 确认第一个未完成任务。
+- 已确认第一个未完成任务为 `P2-T01`：`@Extern` 支持 `callingConvention` property。
+- 下一步检查最近提交是否有直接相关未完成事项，并阅读注解解析/typecheck/HIR/codegen中现有 calling convention 路径。
+- 最近提交为 `P1-T03` archive fixture 退场，未发现直接相关未完成事项。
+- 已发现 `ExternFun.calling_convention` 目前从叠加的 `@CallingConvention` 读取；本轮改为从 `@Extern(..., callingConvention = "...")` 读取，并新增旧叠加写法的稳定拒绝。
+- 已完成第一轮实现编辑：typecheck 接受/校验 `callingConvention` 属性，`abi = "scoop"` 属性形态拒绝，旧 `@Extern + @CallingConvention` 叠加写法拒绝，HIR side table 从 `@Extern` 属性保存 calling convention；已新增 parse/typecheck fixtures 和 HIR 单测。
+- 已通过：`cargo fmt`、`cargo test -p scoopc hir_collects_extern_calling_convention_property -- --nocapture`、`cargo test -p scoopc typecheck::annotations -- --nocapture`（0 个匹配单测）、新增 parse fixture 定向运行、`tests/fixtures/typecheck/` 目录运行（496 checks）。
+- `cargo test --all --all-targets` 首次发现 UMB fixture 必须保留 `EXPECT-ERROR-AT`，已补回新诊断位置并通过 `cargo test -p scoopc audit::spec_coverage::umb_fix_fixture_index_in_sync -- --nocapture`。
+- 已通过全量验证：`cargo build`、`cargo clippy --all-targets -- -D warnings`、重跑 `cargo test --all --all-targets`（905 passed）、`cargo run -p scoop -- test`（1556 checks）。
+- 已更新 `TODO.md`：任务索引与标题均将 `P2-T01` 标为 `[DONE]`，当前状态推进到 `P2-T02`，并补充完成记录；`PLAN.md` 无阶段级变更。
+- 提交前检查确认工作区只包含本轮 `P2-T01` 相关代码、fixtures、`TODO.md` 与本计划文件改动；下一步提交。

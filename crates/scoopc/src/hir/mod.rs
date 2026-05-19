@@ -1128,10 +1128,10 @@ impl CallableAbiIdentity {
 pub struct ExternFun {
     pub abi: ExternAbi,
     pub symbol: String,
-    /// `@CallingConvention("...")`（可选）：用于覆盖默认 C ABI（spec §15.5.4）。
+    /// `@Extern(..., callingConvention = "...")`（可选）：用于覆盖默认 C ABI（spec §15.5.4）。
     ///
     /// 说明：当前阶段后端只保证 `ExternAbi::C` 下的 `c/cdecl`；`ExternAbi::Scoop` 会在前端直接拒绝
-    /// `@CallingConvention`，其它 calling convention 的支持留待后续扩展。
+    /// `callingConvention`，其它 calling convention 的支持留待后续扩展。
     pub calling_convention: Option<String>,
     /// `@Extern(lib = "...")`（可选）：需要链接的外部库名（传递给链接器作为 `-l<name>`）。
     ///

@@ -1,0 +1,8 @@
+// EXPECT: pass
+
+package fixtures.parse
+
+import scoop.core.*
+
+@Extern(name = "native_add", abi = "c", callingConvention = "cdecl")
+fun nativeAdd(lhs: Int, rhs: Int): Int

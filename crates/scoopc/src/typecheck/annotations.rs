@@ -95,6 +95,7 @@ enum MissingRegularBodyPolicy {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 struct ParsedExternAnnotationArgs {
     abi: ExternAbi,
+    calling_convention_span: Option<Span>,
 }
 
 #[derive(Debug, Error, Diagnostic)]
@@ -210,7 +211,7 @@ pub enum AnnotationError {
     },
 
     #[error(
-        "`@Extern` 仅支持：无参 / 单个字符串位置参数 / 命名参数 `name`、`lib`、`abi`（字符串字面量；`abi` 仅限函数声明）"
+        "`@Extern` 仅支持：无参 / 单个字符串位置参数 / 命名参数 `name`、`lib`，以及函数声明上的 `abi`、`callingConvention`（字符串字面量）"
     )]
     #[diagnostic(code(scoop::typecheck::extern_annotation_args_invalid))]
     ExternAnnotationArgsInvalid {
@@ -238,6 +239,15 @@ pub enum AnnotationError {
     #[diagnostic(code(scoop::typecheck::extern_annotation_abi_only_supported_on_functions))]
     ExternAnnotationAbiOnlySupportedOnFunctions {
         #[label("这里不能写 `abi = ...`")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("`@Extern` 的 `callingConvention` 参数当前只支持函数声明")]
+    #[diagnostic(code(
+        scoop::typecheck::extern_annotation_calling_convention_only_supported_on_functions
+    ))]
+    ExternAnnotationCallingConventionOnlySupportedOnFunctions {
+        #[label("这里不能写 `callingConvention = ...`")]
         span: miette::SourceSpan,
     },
 
@@ -316,11 +326,20 @@ pub enum AnnotationError {
     },
 
     #[error(
-        "`abi = \"scoop\"` 当前不支持 `@CallingConvention`；Managed ABI 不是 machine calling convention 扩展点"
+        "`abi = \"scoop\"` 当前不支持 `callingConvention`；Managed ABI 不是 machine calling convention 扩展点"
     )]
     #[diagnostic(code(scoop::typecheck::extern_fun_scoop_abi_calling_convention_not_supported))]
     ExternFunScoopAbiCallingConventionNotSupported {
-        #[label("这里的 `@CallingConvention` 对 `abi = \"scoop\"` 无效")]
+        #[label("这里的 `callingConvention` 对 `abi = \"scoop\"` 无效")]
+        span: miette::SourceSpan,
+    },
+
+    #[error(
+        "`@Extern` 函数不再支持单独叠加 `@CallingConvention`；请改用 `@Extern(..., callingConvention = \"...\")`"
+    )]
+    #[diagnostic(code(scoop::typecheck::extern_fun_calling_convention_annotation_not_allowed))]
+    ExternFunCallingConventionAnnotationNotAllowed {
+        #[label("这里的 calling convention 必须写在 `@Extern` 参数中")]
         span: miette::SourceSpan,
     },
 
@@ -2197,8 +2216,8 @@ fn check_builtin_annotations_on_fun_decl(
 ) -> Result<(), AnnotationError> {
     let flags = BuiltinAnnotationFlags::from_annotations(source, &fun.annotations);
     let fun_name = source.slice(fun.name.span).to_string();
-    let mut extern_abi = None;
-    let mut calling_convention_span = None;
+    let mut extern_args = None;
+    let mut standalone_calling_convention_span = None;
 
     // 1) `@Unsafe/@NoGC` 当前不支持参数；`@Extern` 支持最小 FFI 形态参数；
     //    `@Intrinsic` 继续支持 legacy 零参数形态，并新增 `@Intrinsic("name")`。
@@ -2208,19 +2227,16 @@ fn check_builtin_annotations_on_fun_decl(
         };
         match kind {
             BuiltinAnnotationKind::Extern => {
-                extern_abi = Some(
-                    check_extern_builtin_annotation_args(
-                        source,
-                        ann,
-                        ExternAnnotationTarget::Function,
-                    )?
-                    .abi,
-                );
+                extern_args = Some(check_extern_builtin_annotation_args(
+                    source,
+                    ann,
+                    ExternAnnotationTarget::Function,
+                )?);
             }
             BuiltinAnnotationKind::CallingConvention => {
                 check_calling_convention_builtin_annotation_args(source, ann)?;
                 let (_, name_span) = annotation_name_and_span(source, ann);
-                calling_convention_span = Some(name_span);
+                standalone_calling_convention_span = Some(name_span);
             }
             BuiltinAnnotationKind::AllowIntrinsic => {
                 let (_, name_span) = annotation_name_and_span(source, ann);
@@ -2286,7 +2302,16 @@ fn check_builtin_annotations_on_fun_decl(
     }
 
     if flags.is_extern {
-        let extern_abi = extern_abi.unwrap_or_default();
+        if let Some(span) = standalone_calling_convention_span {
+            return Err(
+                AnnotationError::ExternFunCallingConventionAnnotationNotAllowed {
+                    span: span.into(),
+                },
+            );
+        }
+
+        let extern_args = extern_args.unwrap_or_default();
+        let extern_abi = extern_args.abi;
 
         // 3) `@Extern`：`@Unsafe/@NoGC` 由 ABI 决定，不能再显式叠加。
         check_extern_fun_modifier_contract(source, &fun.annotations, extern_abi)?;
@@ -2312,7 +2337,7 @@ fn check_builtin_annotations_on_fun_decl(
                 check_extern_fun_signature_matches_native_abi(source, fun, lower)?;
             }
             ExternAbi::Scoop => {
-                if let Some(span) = calling_convention_span {
+                if let Some(span) = extern_args.calling_convention_span {
                     return Err(
                         AnnotationError::ExternFunScoopAbiCallingConventionNotSupported {
                             span: span.into(),
@@ -2708,11 +2733,17 @@ fn check_calling_convention_builtin_annotation_args(
         });
     };
 
+    check_calling_convention_name(&name, value.span)?;
+
+    Ok(())
+}
+
+fn check_calling_convention_name(name: &str, span: Span) -> Result<(), AnnotationError> {
     let normalized = name.trim().to_ascii_lowercase();
     if normalized != "c" && normalized != "cdecl" {
         return Err(AnnotationError::CallingConventionNotSupported {
-            name,
-            span: value.span.into(),
+            name: name.to_string(),
+            span: span.into(),
         });
     }
 
@@ -2974,6 +3005,7 @@ fn check_extern_builtin_annotation_args(
     let mut name_arg: Option<Span> = None;
     let mut lib_arg: Option<Span> = None;
     let mut abi_arg: Option<Span> = None;
+    let mut calling_convention_arg: Option<Span> = None;
     let mut seen_named = false;
     let mut parsed = ParsedExternAnnotationArgs::default();
 
@@ -3070,6 +3102,29 @@ fn check_extern_builtin_annotation_args(
                 };
                 abi_arg = Some(key_span);
                 parsed.abi = abi;
+            }
+            "callingConvention" => {
+                if calling_convention_arg.is_some() {
+                    return Err(AnnotationError::ExternAnnotationArgDuplicate {
+                        param: "callingConvention",
+                        span: key_span.into(),
+                    });
+                }
+                if target != ExternAnnotationTarget::Function {
+                    return Err(
+                        AnnotationError::ExternAnnotationCallingConventionOnlySupportedOnFunctions {
+                            span: key_span.into(),
+                        },
+                    );
+                }
+                let Some(convention_name) = extract_string_literal_text(source, value) else {
+                    return Err(AnnotationError::ExternAnnotationArgsInvalid {
+                        span: value.span.into(),
+                    });
+                };
+                check_calling_convention_name(&convention_name, value.span)?;
+                calling_convention_arg = Some(key_span);
+                parsed.calling_convention_span = Some(value.span);
             }
             _ => {
                 return Err(AnnotationError::ExternAnnotationArgsInvalid {

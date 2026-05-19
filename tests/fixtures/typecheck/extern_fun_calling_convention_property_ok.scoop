@@ -1,0 +1,11 @@
+// EXPECT: pass
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+@Extern(name = "native_add_c", abi = "c", callingConvention = "C")
+fun nativeAddC(lhs: Int, rhs: Int): Int
+
+@Extern(name = "native_add_cdecl", callingConvention = "cdecl")
+fun nativeAddCdecl(lhs: Int, rhs: Int): Int

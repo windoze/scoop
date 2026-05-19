@@ -1,7 +1,7 @@
 // EXPECT: fail
 // EXPECT-ERROR-CODE: scoop::typecheck::extern_fun_scoop_abi_calling_convention_not_supported
-// EXPECT-ERROR-AT: 16:2
-// EXPECT-ERROR: `abi = "scoop"` 当前不支持 `@CallingConvention`
+// EXPECT-ERROR-AT: 15:66
+// EXPECT-ERROR: `abi = "scoop"` 当前不支持 `callingConvention`
 // SPEC: docs/spec/language_spec-part6.md#10-clayout;docs/spec/language_spec-part6.md#17-managed-abi-状态说明;docs/spec/language_spec-part6.md#9-callingconvention
 // COVERS: NONE
 // BUCKETS: B-33, B-35
@@ -12,6 +12,5 @@ package fixtures.typecheck
 
 import scoop.core.*
 
-@Extern("managed_add", abi = "scoop")
-@CallingConvention("cdecl")
+@Extern(name = "managed_add", abi = "scoop", callingConvention = "cdecl")
 fun managedAdd(x: Int): Int

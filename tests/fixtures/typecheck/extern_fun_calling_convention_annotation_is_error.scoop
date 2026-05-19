@@ -1,0 +1,11 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::extern_fun_calling_convention_annotation_not_allowed
+// EXPECT-ERROR: `@Extern` 函数不再支持单独叠加 `@CallingConvention`
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+@Extern("native_add")
+@CallingConvention("cdecl")
+fun nativeAdd(lhs: Int, rhs: Int): Int

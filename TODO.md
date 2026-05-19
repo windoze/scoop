@@ -3,7 +3,7 @@
 > 生成时间：2026-05-19
 > 设计基线：[`SYSROOT_RESHAPE_R2.md`](./SYSROOT_RESHAPE_R2.md)
 > 计划基线：[`PLAN.md`](./PLAN.md)
-> 当前状态：`P1-T03` 已完成；下一任务为 `P2-T01`。
+> 当前状态：`P2-T01` 已完成；下一任务为 `P2-T02`。
 > 执行原则：严格按 P0 -> P10 顺序推进；同一阶段内可按任务依赖拆 PR，但每个任务完成后必须保持仓库无 failing fixture，并回写完成记录。
 
 ## 全局约束
@@ -92,7 +92,7 @@ P0 baseline freeze
 | `P1-T01` | [DONE] | P1 | 禁用/删除 `scoop package` archive CLI |
 | `P1-T02` | [DONE] | P1 | 移除 normal build 的 `.cone` dependency flow |
 | `P1-T03` | [DONE] | P1 | 删除或改写 archive fixtures 与 archive-only tests |
-| `P2-T01` | [TODO] | P2 | `@Extern` 支持 `callingConvention` property |
+| `P2-T01` | [DONE] | P2 | `@Extern` 支持 `callingConvention` property |
 | `P2-T02` | [TODO] | P2 | 有 body 的 `@CallingConvention` 生成 object-level native callable symbol |
 | `P2-T03` | [TODO] | P2 | 支持 `Any as?` closed Pure function runtime cast |
 | `P3-T01` | [TODO] | P3 | `Cone.toml` 解析 `kind = bin/lib/syslib` |
@@ -211,7 +211,7 @@ P0 baseline freeze
 - 与 `PLAN.md` / `SYSROOT_RESHAPE_R2.md` 闭合项：满足 P1 中“删除或重写 `tests/fixtures/typecheck_cone_archive/**`，archive fixture 不再作为 active suite 依赖 `.cone`”以及“archive-only tests 删除或明确标记为 future isolated”的要求；未改变阶段级计划或设计基线。
 - 验证结果：`cargo fmt` 通过；`cargo run -p scoop -- test tests/fixtures/typecheck_cone/deps_visibility_filter` 通过（4 checks）；`cargo run -p scoop -- test tests/fixtures/typecheck_cone/typealias_export_generic` 通过（2 checks）；五个 `run_pass_cone/export_entry_point*` 定向 fixture 均通过；`cargo run -p scoop -- test tests/fixtures/typecheck_cone_archive/` 通过（0 checks）；`cargo test -p scoop --bin scoop` 通过（118 passed）；`cargo test -p scoopc cone:: -- --nocapture` 通过（19 passed）；`cargo build` 通过；`cargo clippy --all-targets -- -D warnings` 通过；`cargo run -p scoop -- test` 通过（fixtures: ok，1552 checks）；`cargo test --all --all-targets` 通过（Rust tests: ok，包含 `scoopc` 904 tests）。
 
-## P2-T01：`@Extern` 支持 `callingConvention` property
+## [DONE] P2-T01：`@Extern` 支持 `callingConvention` property
 
 - 参考：`PLAN.md` §5、`SYSROOT_RESHAPE_R2.md` §6。
 - 目标：外部函数导入的 machine calling convention 由 `@Extern(..., callingConvention = "...")` 表达。
@@ -223,6 +223,15 @@ P0 baseline freeze
   4. 外部函数上单独叠加 `@CallingConvention` 的旧用法改为拒绝或迁移到新语义，避免两处声明冲突。
 - 验证：新增 parser/typecheck fixtures；`cargo test -p scoopc typecheck::annotations -- --nocapture`。
 - 完成条件：外部 C symbol 的 symbol name、boundary ABI、machine calling convention 都由 `@Extern` 单点表达。
+
+### 完成记录（2026-05-20）
+
+- 改动范围：`crates/scoopc/src/typecheck/annotations.rs`、`crates/scoopc/src/hir/mod.rs`、`crates/scoopc/src/hir/lower/util/annotations.rs`、`crates/scoopc/src/hir/lower/main/tests.rs`、新增/更新 parse/typecheck/UMB fixtures；未修改 `PLAN.md`。
+- 核心决策：`@Extern` 现在接受 `callingConvention = "..."` 字符串 property，并复用当前支持集 `"c"` / `"cdecl"`；HIR `ExternFun.calling_convention` 改由 `@Extern` property 保存，不再从叠加的 `@CallingConvention` 读取。
+- 语义门禁：`@Extern(abi = "c", callingConvention = "C"/"cdecl")` 通过并保存 machine calling convention；省略 `abi` 时仍默认 C ABI；`@Extern(abi = "scoop", callingConvention = ...)` 稳定拒绝；旧 `@Extern` 函数单独叠加 `@CallingConvention` 稳定拒绝，避免 boundary ABI 与 machine calling convention 两处声明冲突。
+- Fixture / tests：新增 `tests/fixtures/parse/extern_fun_calling_convention_property.scoop`、`tests/fixtures/typecheck/extern_fun_calling_convention_property_ok.scoop`、`extern_fun_calling_convention_invalid_is_error.scoop`、`extern_fun_calling_convention_annotation_is_error.scoop`；更新 `extern_fun_scoop_abi_calling_convention_is_error.scoop` 与对应 UMB fixture 为新 property 形态；新增 HIR 单测确认 side table 保存 `callingConvention`。
+- 与 `PLAN.md` / `SYSROOT_RESHAPE_R2.md` 闭合项：满足 P2 中“`@Extern` 拥有 `name`、`abi` 和可选 `callingConvention`”以及“`@Extern` 和 `@CallingConvention` 互斥”的要求；有 body 的 `@CallingConvention` 语义仍留给 `P2-T02`。
+- 验证结果：`cargo fmt` 通过；`cargo test -p scoopc hir_collects_extern_calling_convention_property -- --nocapture` 通过；`cargo test -p scoopc typecheck::annotations -- --nocapture` 通过（0 个匹配单测）；`cargo run -p scoop -- test tests/fixtures/parse/extern_fun_calling_convention_property.scoop` 通过；`cargo run -p scoop -- test tests/fixtures/typecheck/` 通过（496 checks）；`cargo build` 通过；`cargo clippy --all-targets -- -D warnings` 通过；`cargo test --all --all-targets` 通过（905 passed）；`cargo run -p scoop -- test` 通过（1556 checks）。
 
 ## P2-T02：有 body 的 `@CallingConvention` 生成 object-level native callable symbol
 

@@ -472,6 +472,7 @@ pub(in crate::hir::lower) struct ExternAnnotationArgs {
     pub(in crate::hir::lower) name: Option<String>,
     pub(in crate::hir::lower) lib: Option<String>,
     pub(in crate::hir::lower) abi: ExternAbi,
+    pub(in crate::hir::lower) calling_convention: Option<String>,
 }
 
 pub(in crate::hir::lower) fn parse_extern_annotation_args(
@@ -512,6 +513,9 @@ pub(in crate::hir::lower) fn parse_extern_annotation_args(
                         out.abi = abi;
                     }
                 }
+                "callingConvention" => {
+                    out.calling_convention = parse_string_literal_utf8(text).ok();
+                }
                 _ => {}
             }
             continue;
@@ -542,13 +546,6 @@ pub(in crate::hir::lower) fn extern_fun_of_decl(
     // - `@Extern` 在语义上由 typecheck 校验（参数个数/类型等）；
     // - HIR lowering 只做“提取已校验信息”的 best-effort，避免把错误传播面扩到 HIR/LLVM 层。
     let name = fun.name.text(source);
-    let calling_convention = fun.annotations.iter().find_map(|ann| {
-        if !is_builtin_calling_convention_annotation(source, ann) {
-            return None;
-        }
-        parse_calling_convention_annotation_arg(source, ann)
-    });
-
     for ann in &fun.annotations {
         if !is_builtin_extern_annotation(source, ann) {
             continue;
@@ -561,7 +558,7 @@ pub(in crate::hir::lower) fn extern_fun_of_decl(
         return Some(ExternFun {
             abi: args.abi,
             symbol,
-            calling_convention: calling_convention.clone(),
+            calling_convention: args.calling_convention,
             lib: args.lib,
         });
     }

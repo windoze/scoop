@@ -1,0 +1,10 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::calling_convention_not_supported
+// EXPECT-ERROR: 暂不支持的 calling convention：swift
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+@Extern(name = "native_add", abi = "c", callingConvention = "swift")
+fun nativeAdd(lhs: Int, rhs: Int): Int

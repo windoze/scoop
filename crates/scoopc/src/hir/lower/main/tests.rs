@@ -1115,6 +1115,33 @@ fun managedEcho(value: String): String
         extern_fun.callable_abi_identity(),
         crate::hir::CallableAbiIdentity::ManagedExtern
     );
+    assert_eq!(extern_fun.calling_convention, None);
+}
+
+#[test]
+fn hir_collects_extern_calling_convention_property() {
+    let sess = session();
+    let src = SourceFile::new_virtual(
+        "<mem>/hir_collects_extern_calling_convention_property.scoop",
+        r#"
+package fixtures.hir
+
+import scoop.core.*
+
+@Extern(name = "native_add", abi = "c", callingConvention = "cdecl")
+fun nativeAdd(lhs: Int, rhs: Int): Int
+"#,
+    );
+
+    let lowered = lower_typed_single_source_file(&sess, &src);
+    let extern_fun = lowered
+        .extern_funs
+        .get("fixtures.hir.nativeAdd")
+        .expect("expected extern fun side-table entry");
+
+    assert_eq!(extern_fun.abi, crate::hir::ExternAbi::C);
+    assert_eq!(extern_fun.symbol, "native_add");
+    assert_eq!(extern_fun.calling_convention.as_deref(), Some("cdecl"));
 }
 
 #[test]
