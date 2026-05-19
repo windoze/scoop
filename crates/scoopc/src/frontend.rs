@@ -280,13 +280,26 @@ pub fn load_project_input_from_path(
 
     if input.is_dir() {
         let pkg = crate::cone::load_cone_source_package(input)?;
+        if pkg.manifest.cone.kind != ConeKind::Bin {
+            return Err(miette::miette!(
+                "只有 `bin` cone 可作为 executable consumer 输入；`{}` 声明为 `{}` cone",
+                pkg.manifest.cone.name,
+                pkg.manifest.cone.kind
+            ));
+        }
+        let main = pkg.main.as_ref().ok_or_else(|| {
+            miette::miette!(
+                "内部错误：`bin` cone package 缺少入口锚点：{}",
+                pkg.root.display()
+            )
+        })?;
         let mut sources = support_sources;
         let support_len = sources.len();
         sources.reserve(pkg.sources.len());
         let mut main_index = None;
         for (idx, path) in pkg.sources.iter().enumerate() {
             let source = SourceFile::load(path)?;
-            if source.path() == pkg.main.as_path() {
+            if source.path() == main.as_path() {
                 main_index = Some(support_len + idx);
             }
             sources.push(source);
@@ -295,7 +308,7 @@ pub fn load_project_input_from_path(
         let main_index = main_index.ok_or_else(|| {
             miette::miette!(
                 "cone package 的 main 未出现在 sources 列表中：{}",
-                pkg.main.display()
+                main.display()
             )
         })?;
         let project_source_indices = (support_len..sources.len()).collect::<Vec<_>>();
@@ -770,4 +783,122 @@ pub(crate) fn load_default_support_sources(
         });
     }
     Ok(out)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::parser::parse_file;
+    use crate::resolve::IndexedFile;
+
+    fn bin_manifest(name: &str) -> ConeManifest {
+        ConeManifest {
+            cone: ConeSection {
+                name: name.to_string(),
+                version: "0.0.0".to_string(),
+                kind: ConeKind::Bin,
+            },
+            dependencies: Default::default(),
+            pre_specialize_functions: Vec::new(),
+            pre_specialize_types: Vec::new(),
+            export_entry_points: Vec::new(),
+            selectors: Vec::new(),
+            native_build: ConeNativeBuildConfig::default(),
+        }
+    }
+
+    #[test]
+    fn entry_selection_rejects_dependency_main_without_consumer_main() {
+        let consumer = SourceFile::new_virtual(
+            "/tmp/scoop-entry-consumer/src/anchor.scoop",
+            "package fixtures.entry.consumer\nfun anchor() {}\n",
+        );
+        let dep = SourceFile::new_virtual(
+            "/tmp/scoop-entry-lib/src/main.scoop",
+            "package fixtures.entry.lib\nfun main() {}\n",
+        );
+        let asts = vec![parse_file(&consumer).unwrap(), parse_file(&dep).unwrap()];
+        let mut index = Index::build_with_cones(&[
+            IndexedFile {
+                cone: ConeId::new(1),
+                source: &consumer,
+                file: &asts[0],
+            },
+            IndexedFile {
+                cone: ConeId::new(2),
+                source: &dep,
+                file: &asts[1],
+            },
+        ])
+        .unwrap();
+        let mut input = ProjectInput::new_explicit(
+            vec![consumer, dep],
+            vec![0],
+            0,
+            PathBuf::from("/tmp/scoop-entry-consumer"),
+            bin_manifest("fixture-entry-consumer"),
+            Some("fixtures.entry.lib".to_string()),
+        );
+
+        let err = select_cone_entry_main(&mut input, &asts, &mut index).unwrap_err();
+        let diag = err.downcast::<EntryPackageMainNotInConsumerCone>().unwrap();
+
+        assert_eq!(diag.entry_package, "fixtures.entry.lib");
+        assert!(
+            diag.decl_file
+                .ends_with("/tmp/scoop-entry-lib/src/main.scoop")
+        );
+    }
+
+    #[test]
+    fn entry_selection_prefers_consumer_main_over_dependency_same_fqn() {
+        let anchor = SourceFile::new_virtual(
+            "/tmp/scoop-entry-consumer/src/main.scoop",
+            "package fixtures.entry.anchor\nfun anchor() {}\n",
+        );
+        let consumer = SourceFile::new_virtual(
+            "/tmp/scoop-entry-consumer/src/selected.scoop",
+            "package fixtures.entry.app\nfun main() {}\n",
+        );
+        let dep = SourceFile::new_virtual(
+            "/tmp/scoop-entry-lib/src/main.scoop",
+            "package fixtures.entry.app\nfun main() {}\n",
+        );
+        let asts = vec![
+            parse_file(&anchor).unwrap(),
+            parse_file(&consumer).unwrap(),
+            parse_file(&dep).unwrap(),
+        ];
+        let mut index = Index::build_with_cones(&[
+            IndexedFile {
+                cone: ConeId::new(2),
+                source: &dep,
+                file: &asts[2],
+            },
+            IndexedFile {
+                cone: ConeId::new(1),
+                source: &anchor,
+                file: &asts[0],
+            },
+            IndexedFile {
+                cone: ConeId::new(1),
+                source: &consumer,
+                file: &asts[1],
+            },
+        ])
+        .unwrap();
+        let mut input = ProjectInput::new_explicit(
+            vec![anchor, consumer, dep],
+            vec![0, 1],
+            0,
+            PathBuf::from("/tmp/scoop-entry-consumer"),
+            bin_manifest("fixture-entry-consumer"),
+            Some("fixtures.entry.app".to_string()),
+        );
+
+        select_cone_entry_main(&mut input, &asts, &mut index).unwrap();
+
+        assert_eq!(input.main_index(), 1);
+        assert_eq!(index.runtime_entry_point(), Some("fixtures.entry.app.main"));
+    }
 }

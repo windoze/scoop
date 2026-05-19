@@ -3,7 +3,7 @@
 //! 目标：把一个 cone root 目录（含 `Cone.toml`）解析为：
 //! - manifest（name/version/kind/deps）；
 //! - sources 列表（当前规则：`src/**/*.scoop`）；
-//! - 可执行入口（当前规则：`src/main.scoop`）。
+//! - 可执行入口（`bin` cone 规则：`src/main.scoop`）。
 //!
 //! 说明：
 //! - 本模块只负责“目录结构 → 路径列表”的确定性规则；
@@ -14,7 +14,7 @@ use std::path::{Path, PathBuf};
 
 use miette::{Context as _, IntoDiagnostic as _, Result, miette};
 
-use super::manifest::{CONE_TOML_FILE_NAME, ConeManifest};
+use super::manifest::{CONE_TOML_FILE_NAME, ConeKind, ConeManifest};
 
 /// cone 源码目录名（约定：`<cone-root>/src/**.scoop`）。
 pub const CONE_SRC_DIR_NAME: &str = "src";
@@ -34,16 +34,17 @@ pub struct ConeSourcePackage {
     pub src_root: PathBuf,
     /// `src/` 下发现的全部 `.scoop` 源文件路径（已 canonicalize，稳定排序）。
     pub sources: Vec<PathBuf>,
-    /// `src/main.scoop` 的路径（已 canonicalize）。
-    pub main: PathBuf,
+    /// `bin` cone 的 `src/main.scoop` 路径（已 canonicalize）。`lib/syslib` 不拥有入口锚点。
+    pub main: Option<PathBuf>,
 }
 
-/// 从一个 cone root 目录加载“源级包”的 sources 列表与 main 入口。
+/// 从一个 cone root 目录加载“源级包”的 sources 列表与可选 entry anchor。
 ///
 /// 当前阶段规则（T1102）：
 /// - `Cone.toml` 必须位于 root 目录下；
-/// - sources = `root/src/**/*.scoop`（递归）；
-/// - main = `root/src/main.scoop`（必须存在且是文件）。
+/// - sources = `root/src/**/*.scoop`（递归，且非空）；
+/// - `bin` cone 必须有 `root/src/main.scoop`；
+/// - `lib/syslib` cone 不要求 `root/src/main.scoop`，即使存在也只是普通 source。
 ///
 /// 平台选择器（T1111，spec §13.9）：
 /// - 初始 source set 仍为 `src/**/*.scoop`；
@@ -101,17 +102,22 @@ pub fn load_cone_source_package_for_platform(
         .into_diagnostic()
         .wrap_err_with(|| format!("无法定位 src 目录：{}", src_root.display()))?;
 
-    let main = src_root.join(CONE_MAIN_FILE_NAME);
-    if !main.is_file() {
-        return Err(miette!(
-            "cone package 缺少入口文件 `{CONE_MAIN_FILE_NAME}`：{}",
-            main.display()
-        ));
-    }
-    let main = main
-        .canonicalize()
-        .into_diagnostic()
-        .wrap_err_with(|| format!("无法定位 main.scoop：{}", main.display()))?;
+    let main = if manifest.cone.kind == ConeKind::Bin {
+        let main = src_root.join(CONE_MAIN_FILE_NAME);
+        if !main.is_file() {
+            return Err(miette!(
+                "`bin` cone package 缺少入口文件 `{CONE_MAIN_FILE_NAME}`：{}",
+                main.display()
+            ));
+        }
+        Some(
+            main.canonicalize()
+                .into_diagnostic()
+                .wrap_err_with(|| format!("无法定位 main.scoop：{}", main.display()))?,
+        )
+    } else {
+        None
+    };
 
     let mut sources = Vec::new();
     collect_scoop_files(&src_root, &mut sources)?;
@@ -134,15 +140,22 @@ pub fn load_cone_source_package_for_platform(
     }
     canonical_sources.sort();
 
-    // main 必须在 sources 列表里（正常情况下 collect 会包含它；这里做一次防御性校验）。
-    if !canonical_sources.iter().any(|p| p == &main) {
+    // `bin` 的入口锚点必须在 sources 列表里；`lib/syslib` 中同名文件只是普通 source。
+    if let Some(main) = main.as_ref()
+        && !canonical_sources.iter().any(|p| p == main)
+    {
         canonical_sources.push(main.clone());
         canonical_sources.sort();
     }
 
     let all_sources = build_source_map(&root, &canonical_sources)?;
-    let selected_sources =
-        apply_platform_selectors(&all_sources, &manifest, target_platform, &root, &main)?;
+    let selected_sources = apply_platform_selectors(
+        &all_sources,
+        &manifest,
+        target_platform,
+        &root,
+        main.as_deref(),
+    )?;
 
     Ok(ConeSourcePackage {
         root,
@@ -218,7 +231,7 @@ fn apply_platform_selectors(
     manifest: &ConeManifest,
     target_platform: &str,
     root: &Path,
-    main: &Path,
+    main: Option<&Path>,
 ) -> Result<Vec<PathBuf>> {
     let mut selected = all_sources.clone();
 
@@ -253,11 +266,13 @@ fn apply_platform_selectors(
         }
     }
 
-    let main_rel = normalize_rel_path_forward_slashes(root, main)?;
-    if !selected.contains_key(&main_rel) {
-        return Err(miette!(
-            "platform selector 将入口文件从 sources 中移除了（platform={target_platform}，main={main_rel}）"
-        ));
+    if let Some(main) = main {
+        let main_rel = normalize_rel_path_forward_slashes(root, main)?;
+        if !selected.contains_key(&main_rel) {
+            return Err(miette!(
+                "platform selector 将入口文件从 sources 中移除了（platform={target_platform}，main={main_rel}）"
+            ));
+        }
     }
 
     if selected.is_empty() {
@@ -406,6 +421,145 @@ mod tests {
             .iter()
             .map(|p| normalize_rel_path_forward_slashes(&pkg.root, p).unwrap())
             .collect()
+    }
+
+    struct TempCone {
+        root: PathBuf,
+    }
+
+    impl TempCone {
+        fn new(label: &str) -> Self {
+            let unique = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos();
+            let root = std::env::temp_dir().join(format!(
+                "scoopc_cone_package_{label}_{}_{}",
+                std::process::id(),
+                unique
+            ));
+            std::fs::create_dir_all(root.join(CONE_SRC_DIR_NAME)).unwrap();
+            Self { root }
+        }
+
+        fn write_manifest(&self, kind: ConeKind, extra: &str) {
+            std::fs::write(
+                self.root.join(CONE_TOML_FILE_NAME),
+                format!(
+                    "[cone]\nname = \"fixture-{}\"\nversion = \"0.0.0\"\nkind = \"{}\"\n{}",
+                    kind.as_str(),
+                    kind.as_str(),
+                    extra
+                ),
+            )
+            .unwrap();
+        }
+
+        fn write_source(&self, rel: &str, text: &str) {
+            let path = self.root.join(rel);
+            if let Some(parent) = path.parent() {
+                std::fs::create_dir_all(parent).unwrap();
+            }
+            std::fs::write(path, text).unwrap();
+        }
+    }
+
+    impl Drop for TempCone {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.root);
+        }
+    }
+
+    #[test]
+    fn lib_cone_without_main_loads_sources_ok() {
+        let cone = TempCone::new("lib_without_main");
+        cone.write_manifest(ConeKind::Lib, "");
+        cone.write_source(
+            "src/api.scoop",
+            "package fixture.lib\npublic fun value(): Int = 1\n",
+        );
+
+        let pkg = load_cone_source_package(&cone.root).unwrap();
+
+        assert_eq!(pkg.manifest.cone.kind, ConeKind::Lib);
+        assert!(pkg.main.is_none());
+        assert_eq!(rel_sources(&pkg), vec!["src/api.scoop"]);
+    }
+
+    #[test]
+    fn syslib_cone_without_main_loads_sources_ok() {
+        let cone = TempCone::new("syslib_without_main");
+        cone.write_manifest(ConeKind::Syslib, "");
+        cone.write_source(
+            "src/sys.scoop",
+            "package fixture.syslib\npublic fun token(): Int = 1\n",
+        );
+
+        let pkg = load_cone_source_package(&cone.root).unwrap();
+
+        assert_eq!(pkg.manifest.cone.kind, ConeKind::Syslib);
+        assert!(pkg.main.is_none());
+        assert_eq!(rel_sources(&pkg), vec!["src/sys.scoop"]);
+    }
+
+    #[test]
+    fn bin_cone_without_main_is_error() {
+        let cone = TempCone::new("bin_without_main");
+        cone.write_manifest(ConeKind::Bin, "");
+        cone.write_source("src/util.scoop", "package fixture.bin\nfun helper() {}\n");
+
+        let err = load_cone_source_package(&cone.root)
+            .unwrap_err()
+            .to_string();
+
+        assert!(
+            err.contains("`bin` cone package 缺少入口文件"),
+            "unexpected error: {err}"
+        );
+    }
+
+    #[test]
+    fn lib_main_named_file_is_not_entry_anchor() {
+        let cone = TempCone::new("lib_main_named_file");
+        cone.write_manifest(
+            ConeKind::Lib,
+            r#"
+[[select]]
+when = { platform = "test-platform" }
+exclude = ["src/main.scoop"]
+"#,
+        );
+        cone.write_source("src/api.scoop", "package fixture.lib\nfun api() {}\n");
+        cone.write_source("src/main.scoop", "package fixture.lib\nfun main() {}\n");
+
+        let pkg = load_cone_source_package_for_platform(&cone.root, "test-platform").unwrap();
+
+        assert!(pkg.main.is_none());
+        assert_eq!(rel_sources(&pkg), vec!["src/api.scoop"]);
+    }
+
+    #[test]
+    fn bin_selector_cannot_remove_main_anchor() {
+        let cone = TempCone::new("bin_selector_removes_main");
+        cone.write_manifest(
+            ConeKind::Bin,
+            r#"
+[[select]]
+when = { platform = "test-platform" }
+exclude = ["src/main.scoop"]
+"#,
+        );
+        cone.write_source("src/api.scoop", "package fixture.bin\nfun api() {}\n");
+        cone.write_source("src/main.scoop", "package fixture.bin\nfun main() {}\n");
+
+        let err = load_cone_source_package_for_platform(&cone.root, "test-platform")
+            .unwrap_err()
+            .to_string();
+
+        assert!(
+            err.contains("platform selector 将入口文件从 sources 中移除了"),
+            "unexpected error: {err}"
+        );
     }
 
     #[test]

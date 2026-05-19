@@ -3,7 +3,7 @@
 > 生成时间：2026-05-19
 > 设计基线：[`SYSROOT_RESHAPE_R2.md`](./SYSROOT_RESHAPE_R2.md)
 > 计划基线：[`PLAN.md`](./PLAN.md)
-> 当前状态：`P3-T01` 已完成；下一任务为 `P3-T02`。
+> 当前状态：`P3-T02` 已完成；下一任务为 `P3-T03`。
 > 执行原则：严格按 P0 -> P10 顺序推进；同一阶段内可按任务依赖拆 PR，但每个任务完成后必须保持仓库无 failing fixture，并回写完成记录。
 
 ## 全局约束
@@ -96,7 +96,7 @@ P0 baseline freeze
 | `P2-T02` | [DONE] | P2 | 有 body 的 `@CallingConvention` 生成 object-level native callable symbol |
 | `P2-T03` | [DONE] | P2 | 支持 `Any as?` closed Pure function runtime cast |
 | `P3-T01` | [DONE] | P3 | `Cone.toml` 解析 `kind = bin/lib/syslib` |
-| `P3-T02` | [TODO] | P3 | `lib/syslib` 无 entry point 加载规则 |
+| `P3-T02` | [DONE] | P3 | `lib/syslib` 无 entry point 加载规则 |
 | `P3-T03` | [TODO] | P3 | `syslib` path trust gate 与 intrinsic privilege gate |
 | `P4-T01` | [TODO] | P4 | 重排 sysroot 到 `sysroot/lib/<cone>/src` |
 | `P4-T02` | [TODO] | P4 | sysroot loader 改为加载 `sysroot/lib/*/Cone.toml` |
@@ -300,7 +300,7 @@ P0 baseline freeze
 - 与 `PLAN.md` / `SYSROOT_RESHAPE_R2.md` 闭合项：满足 P3 中“`ConeManifest` 解析 `[cone].kind`，允许值仅为 `bin`、`lib`、`syslib`，并用 enum 表达 cone kind”的要求；`lib/syslib` 无 entry 和 `syslib` path trust gate 仍按 `P3-T02` / `P3-T03` 推进。
 - 验证结果：`cargo fmt` 通过；`rg --files-without-match '^kind =' -g 'Cone.toml'` 无输出；`cargo test -p scoopc cone::manifest -- --nocapture` 通过（10 passed）；`cargo test -p scoopc cone::package -- --nocapture` 通过（2 passed）；`cargo test -p scoop --bin scoop` 通过（118 passed）；`cargo build` 通过；`cargo clippy --all-targets -- -D warnings` 通过；`cargo test --all --all-targets` 通过（Rust tests: ok，包含 `scoopc` 909 tests）；`cargo run -p scoop -- test` 通过（fixtures: ok，1562 checks）。
 
-## P3-T02：`lib/syslib` 无 entry point 加载规则
+## [DONE] P3-T02：`lib/syslib` 无 entry point 加载规则
 
 - 参考：`PLAN.md` §6。
 - 目标：`lib` 和 `syslib` source package 不再要求 `src/main.scoop`。
@@ -311,6 +311,16 @@ P0 baseline freeze
   3. 依赖 `lib` 中存在 `main` 时不能被 consumer `bin` 误选。
 - 验证：loader tests；source dependency negative fixture。
 - 完成条件：source library cone 能作为 dependency 存在而不带 entry point。
+
+### 完成记录（2026-05-20）
+
+- 改动范围：`crates/scoopc/src/cone/package.rs`、`crates/scoopc/src/frontend.rs`；更新 `memory/claude_plan.md` 执行记录；未修改 `PLAN.md` 或 `SYSROOT_RESHAPE_R2.md`。
+- 核心决策：`ConeSourcePackage.main` 改为 `Option<PathBuf>`，仅 `kind = "bin"` 要求并保存 `src/main.scoop` entry anchor；`lib` / `syslib` 只要求 `src/**/*.scoop` 非空，`src/main.scoop` 若存在也只是普通 source，platform selector 也只对 `bin` 的 main anchor 做不可移除校验。
+- Frontend 入口规则：目录输入作为 executable consumer 时仍必须是 `bin` cone；`frontend` 对 `pkg.main` 做 `bin` 专属校验后再建立 `ProjectInput`，避免 `lib/syslib` 无 main 时进入 executable entry 选择路径。
+- Source dependency entry 覆盖：新增 `frontend` 单元回归，使用 resolver 中不同 `ConeId` 的 synthetic dependency source 验证 dependency `main` 不会被当成 consumer entry；当 consumer 和 dependency 存在同 FQN `main` 时，entry selection 仍选择 consumer cone 的 overload。完整 source path dependency fixture 仍由已排期的 `P5-T01` / `P5-T02` source cone graph 任务承接。
+- Loader tests：新增 `lib` 无 main 成功、`syslib` 无 main 成功、`bin` 无 main 稳定失败、`lib` 中 main 命名文件非 entry anchor、`bin` selector 不可移除 main anchor 覆盖。
+- 与 `PLAN.md` / `SYSROOT_RESHAPE_R2.md` 闭合项：满足 P3 中“`load_cone_source_package` 允许 `lib/syslib` 无 `src/main.scoop`”和“`bin` 仍要求 entry point”的要求；`syslib` path trust gate 与 intrinsic privilege gate 仍按 `P3-T03` 推进；source graph / path dependency 的端到端 fixture 仍按 P5 任务推进，未改变阶段级计划。
+- 验证结果：`cargo fmt` 通过；`cargo test -p scoopc cone::package -- --nocapture` 通过（7 passed）；`cargo test -p scoopc frontend::tests -- --nocapture` 通过（2 passed）；`cargo build` 通过；`cargo clippy --all-targets -- -D warnings` 通过；`cargo test --all --all-targets` 通过（Rust tests: ok，包含 `scoopc` 916 tests）；`cargo run -p scoop -- test` 通过（fixtures: ok，1562 checks）。
 
 ## P3-T03：`syslib` path trust gate 与 intrinsic privilege gate
 
