@@ -3631,22 +3631,21 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
         args: &[mir::CallArg],
         target_cg: CgTy,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        if args.len() != 1 || args[0].name.is_some() {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "GC.pin arg contract",
-                at: span.into(),
-            });
-        }
+        let arg = self.codegen.expect_mir_positional_intrinsic_arg(
+            args,
+            1,
+            0,
+            "GC.pin effect-lowered lowering",
+        );
         let CgTy::Struct(pinned_ty) = target_cg else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "GC.pin target type",
-                at: span.into(),
-            });
+            self.codegen.panic_verified_intrinsic_contract(
+                "GC.pin effect-lowered lowering",
+                "target is not a Pinned struct",
+            );
         };
         let (field_idx, field_cg_ty) =
             self.codegen
                 .lookup_struct_field(pinned_ty, "scoop.core.Pinned.value", span)?;
-        let arg = &args[0];
         let obj = self.codegen.codegen_mir_operand_expected(
             arg.span,
             &arg.value,
@@ -3655,24 +3654,21 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
         )?;
         let obj = self.codegen.coerce_value(arg.span, obj, field_cg_ty)?;
         let obj_ref = self.codegen.coerce_value(arg.span, obj, CgTy::Ref)?;
-        let Some(BasicValueEnum::PointerValue(obj_ptr)) = obj_ref.value else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "GC.pin arg value",
-                at: arg.span.into(),
-            });
-        };
+        let obj_ptr = self
+            .codegen
+            .expect_cg_pointer(obj_ref, "GC.pin effect-lowered argument");
 
         let rt_pin = self.codegen.declare_runtime_gc_pin();
         let call = self
             .codegen
             .builder
             .build_call(rt_pin, &[obj_ptr.into()], "gc_pin")?;
-        let Some(BasicValueEnum::IntValue(ok_i32)) = call.try_as_basic_value().basic() else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "GC.pin return type",
-                at: span.into(),
-            });
-        };
+        let raw = self
+            .codegen
+            .expect_basic_value(call, "GC.pin effect-lowered runtime return");
+        let ok_i32 = self
+            .codegen
+            .expect_int_value(raw, "GC.pin effect-lowered runtime return");
 
         let ok_cond = self.codegen.builder.build_int_compare(
             IntPredicate::NE,
@@ -3705,10 +3701,9 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
         let mut agg: AggregateValueEnum<'ctx> = llvm_struct_ty.get_undef().into();
         let raw_field: BasicValueEnum<'ctx> = match field_cg_ty {
             CgTy::Unit => self.codegen.context.i8_type().const_int(0, false).into(),
-            _ => obj.value.ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "GC.pin field value",
-                at: arg.span.into(),
-            })?,
+            _ => self
+                .codegen
+                .expect_cg_value(obj, "GC.pin effect-lowered Pinned.value field"),
         };
         agg = self
             .codegen
@@ -3728,28 +3723,27 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
         span: Span,
         args: &[mir::CallArg],
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        if args.len() != 1 || args[0].name.is_some() {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "GC.unpin arg contract",
-                at: span.into(),
-            });
-        }
-        let arg = &args[0];
+        let arg = self.codegen.expect_mir_positional_intrinsic_arg(
+            args,
+            1,
+            0,
+            "GC.unpin effect-lowered lowering",
+        );
         let pinned = self
             .codegen
             .codegen_mir_operand_expected(arg.span, &arg.value, self.slots, None)?;
         let CgTy::Struct(pinned_ty) = pinned.ty else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "GC.unpin arg type",
-                at: arg.span.into(),
-            });
+            self.codegen.panic_verified_intrinsic_contract(
+                "GC.unpin effect-lowered lowering",
+                "argument is not a Pinned struct",
+            );
         };
-        let Some(BasicValueEnum::StructValue(struct_v)) = pinned.value else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "GC.unpin arg value",
-                at: arg.span.into(),
-            });
-        };
+        let raw = self
+            .codegen
+            .expect_cg_value(pinned, "GC.unpin effect-lowered argument");
+        let struct_v = self
+            .codegen
+            .expect_struct_value(raw, "GC.unpin effect-lowered argument");
         let (field_idx, field_cg_ty) =
             self.codegen
                 .lookup_struct_field(pinned_ty, "scoop.core.Pinned.value", arg.span)?;
@@ -3761,24 +3755,21 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
             .codegen
             .cg_value_from_loaded(arg.span, field_cg_ty, extracted)?;
         let field_ref = self.codegen.coerce_value(arg.span, field, CgTy::Ref)?;
-        let Some(BasicValueEnum::PointerValue(obj_ptr)) = field_ref.value else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "GC.unpin value",
-                at: arg.span.into(),
-            });
-        };
+        let obj_ptr = self
+            .codegen
+            .expect_cg_pointer(field_ref, "GC.unpin effect-lowered Pinned.value field");
 
         let rt_unpin = self.codegen.declare_runtime_gc_unpin();
         let call = self
             .codegen
             .builder
             .build_call(rt_unpin, &[obj_ptr.into()], "gc_unpin")?;
-        let Some(BasicValueEnum::IntValue(ok_i32)) = call.try_as_basic_value().basic() else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "GC.unpin return type",
-                at: span.into(),
-            });
-        };
+        let raw = self
+            .codegen
+            .expect_basic_value(call, "GC.unpin effect-lowered runtime return");
+        let ok_i32 = self
+            .codegen
+            .expect_int_value(raw, "GC.unpin effect-lowered runtime return");
 
         let ok_cond = self.codegen.builder.build_int_compare(
             IntPredicate::NE,

@@ -4,7 +4,10 @@ use super::super::{RuntimeTypeDescriptorKind, RuntimeTypeStaticFold};
 use super::*;
 use crate::ast;
 use crate::mir::AggregateTransportKind;
-use crate::mir::{ClassCtorCallMetadata, DispatchMetadata, InitializerRootKind};
+use crate::mir::{
+    ClassCtorCallMetadata, DispatchMetadata, GcIntrinsicOperation, GcIntrinsicPairing,
+    GcRootLifetime, InitializerRootKind,
+};
 use crate::ty::{RefTypeKind, TypeKind, ValueTypeKind};
 
 #[derive(Clone, Copy)]
@@ -1116,6 +1119,17 @@ pub(super) fn validate_materialized_rvalue(
                 args,
                 transport,
                 result_ty,
+            )?;
+            validate_materialized_gc_intrinsic_contract(
+                materialized,
+                fqn,
+                block,
+                span,
+                locals,
+                kind,
+                args,
+                transport,
+                result_ty,
             )
         }
         Rvalue::MakeTuple {
@@ -1761,6 +1775,166 @@ pub(super) fn validate_materialized_call_transport(
         validate_materialized_gc_intrinsic_transport(materialized, fqn, block, span, gc)?;
     }
     Ok(())
+}
+
+fn materialized_gc_intrinsic_operation(callee_fqn: &str) -> Option<GcIntrinsicOperation> {
+    match callee_fqn {
+        "scoop.core.GC.pin" => Some(GcIntrinsicOperation::Pin),
+        "scoop.core.GC.unpin" => Some(GcIntrinsicOperation::Unpin),
+        "scoop.core.GC.handleNew" => Some(GcIntrinsicOperation::HandleNew),
+        "scoop.core.GC.handleGet" => Some(GcIntrinsicOperation::HandleGet),
+        "scoop.core.GC.handleDrop" => Some(GcIntrinsicOperation::HandleDrop),
+        _ => None,
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(super) fn validate_materialized_gc_intrinsic_contract(
+    materialized: &MaterializedMir,
+    fqn: &str,
+    block: BasicBlockId,
+    span: Span,
+    locals: &[LocalDecl],
+    kind: &CallKind,
+    args: &[CallArg],
+    transport: &CallTransportMetadata,
+    result_ty: Option<TypeId>,
+) -> MaterializeResult<()> {
+    let direct_operation = match kind {
+        CallKind::Direct { callee_fqn } => materialized_gc_intrinsic_operation(callee_fqn),
+        CallKind::Closure { .. }
+        | CallKind::FunValue { .. }
+        | CallKind::FunPtr { .. }
+        | CallKind::Virtual { .. }
+        | CallKind::Interface { .. }
+        | CallKind::Resume { .. } => None,
+    };
+
+    let Some(gc) = &transport.gc else {
+        if direct_operation.is_some() {
+            return Err(materialized_transport_contract_err(
+                fqn,
+                block,
+                span,
+                "GC intrinsic",
+                "GC intrinsic call is missing pin/handle policy metadata",
+            ));
+        }
+        return Ok(());
+    };
+
+    if direct_operation.is_some() {
+        if args.len() != 1 || args[0].name.is_some() {
+            return Err(materialized_type_contract_err(
+                fqn,
+                Some(block),
+                span,
+                "GC intrinsic call arguments",
+                "GC intrinsic calls must have one positional argument",
+            ));
+        }
+        let arg_ty = materialized_operand_ty(
+            materialized,
+            fqn,
+            block,
+            args[0].span,
+            "GC intrinsic argument",
+            locals,
+            &args[0].value,
+        )?;
+        if arg_ty
+            .is_some_and(|ty| !materialized_abi_type_equivalent(materialized, ty, gc.subject_ty))
+        {
+            return Err(materialized_transport_contract_err(
+                fqn,
+                block,
+                args[0].span,
+                "GC intrinsic",
+                "GC intrinsic argument type and subject metadata disagree",
+            ));
+        }
+    }
+
+    let Some(expected_operation) = materialized_gc_intrinsic_operation(&gc.callee_fqn) else {
+        return Err(materialized_transport_contract_err(
+            fqn,
+            block,
+            span,
+            "GC intrinsic",
+            "GC intrinsic metadata is missing callee identity",
+        ));
+    };
+
+    let detail = if direct_operation.is_some_and(|operation| operation != expected_operation) {
+        Some("direct GC call metadata does not match callee")
+    } else if gc.operation != expected_operation {
+        Some("GC intrinsic operation does not match callee")
+    } else if !gc.unsafe_required {
+        Some("GC intrinsic metadata must preserve unsafe requirement")
+    } else if gc.subject.source_ty != gc.subject_ty {
+        Some("GC intrinsic subject transport type disagrees with subject type")
+    } else if result_ty.is_some_and(|ty| {
+        !materialized_abi_type_equivalent(materialized, ty, transport.result.source_ty)
+    }) {
+        Some("GC intrinsic result transport type disagrees with assignment target")
+    } else {
+        match gc.operation {
+            GcIntrinsicOperation::Pin
+                if gc.root_lifetime != GcRootLifetime::PinnedUntilUnpin
+                    || gc.pairing != GcIntrinsicPairing::PinMustPairUnpin
+                    || gc.token_ty.is_none()
+                    || result_ty.is_some_and(|ty| gc.token_ty != Some(ty)) =>
+            {
+                Some("GC.pin metadata must publish pinned lifetime and unpin pairing")
+            }
+            GcIntrinsicOperation::Unpin
+                if gc.root_lifetime != GcRootLifetime::EndsPinnedRoot
+                    || gc.pairing != GcIntrinsicPairing::UnpinMatchesPin =>
+            {
+                Some("GC.unpin metadata must publish pinned-root release pairing")
+            }
+            GcIntrinsicOperation::HandleNew
+                if gc.root_lifetime != GcRootLifetime::StableHandleUntilDrop
+                    || gc.pairing != GcIntrinsicPairing::HandleNewMustPairDrop
+                    || gc.token_ty.is_none()
+                    || result_ty.is_some_and(|ty| gc.token_ty != Some(ty)) =>
+            {
+                Some("GC.handleNew metadata must publish stable-handle lifetime and drop pairing")
+            }
+            GcIntrinsicOperation::HandleGet
+                if gc.root_lifetime != GcRootLifetime::BorrowedFromStableHandle
+                    || gc.pairing != GcIntrinsicPairing::HandleGetRequiresLiveHandle =>
+            {
+                Some("GC.handleGet metadata must require a live stable handle")
+            }
+            GcIntrinsicOperation::HandleDrop
+                if gc.root_lifetime != GcRootLifetime::EndsStableHandle
+                    || gc.pairing != GcIntrinsicPairing::HandleDropMatchesHandleNew =>
+            {
+                Some("GC.handleDrop metadata must publish stable-handle release pairing")
+            }
+            _ => None,
+        }
+    };
+
+    if let Some(detail) = detail {
+        return Err(materialized_transport_contract_err(
+            fqn,
+            block,
+            span,
+            "GC intrinsic",
+            detail,
+        ));
+    }
+
+    validate_materialized_value_transport(
+        materialized,
+        fqn,
+        block,
+        span,
+        "GC intrinsic subject transport",
+        &gc.subject,
+    )
 }
 
 pub(super) fn validate_materialized_gc_intrinsic_transport(

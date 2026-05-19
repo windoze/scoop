@@ -110,24 +110,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         args: &[hir::CallArg],
         expected: Option<CgTy>,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        if args.len() != 1 {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "GC.pin arity mismatch",
-                at: span.into(),
-            });
-        }
-        let hir::CallArg::Positional(obj_expr) = &args[0] else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "GC.pin named arg",
-                at: span.into(),
-            });
-        };
+        let obj_expr = self.expect_hir_positional_intrinsic_arg(args, 1, 0, "GC.pin HIR lowering");
 
         let Some(CgTy::Struct(pinned_ty)) = expected else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "GC.pin call without expected pinned type",
-                at: callee_span.into(),
-            });
+            self.panic_verified_intrinsic_contract(
+                "GC.pin HIR lowering",
+                "missing expected Pinned result type",
+            );
         };
 
         let (field_idx, field_cg_ty) =
@@ -138,36 +127,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         // 运行期 pin 需要 `void*`：统一使用 `i8*`。
         let obj_ref = self.coerce_value(obj_expr.span, obj_v, CgTy::Ref)?;
-        let Some(obj_raw) = obj_ref.value else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "GC.pin arg value",
-                at: obj_expr.span.into(),
-            });
-        };
-        let BasicValueEnum::PointerValue(obj_ptr) = obj_raw else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "GC.pin arg type",
-                at: obj_expr.span.into(),
-            });
-        };
+        let obj_ptr = self.expect_cg_pointer(obj_ref, "GC.pin argument");
 
         let rt_pin = self.declare_runtime_gc_pin();
         let call = self
             .builder
             .build_call(rt_pin, &[obj_ptr.into()], "gc_pin")?;
-        let raw = call
-            .try_as_basic_value()
-            .basic()
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "GC.pin return value",
-                at: span.into(),
-            })?;
-        let BasicValueEnum::IntValue(ok_i32) = raw else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "GC.pin return type",
-                at: span.into(),
-            });
-        };
+        let raw = self.expect_basic_value(call, "GC.pin runtime return");
+        let ok_i32 = self.expect_int_value(raw, "GC.pin runtime return");
 
         let ok_cond = self.builder.build_int_compare(
             IntPredicate::NE,
@@ -194,10 +161,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let mut agg: AggregateValueEnum<'ctx> = llvm_struct_ty.get_undef().into();
         let raw_field: BasicValueEnum<'ctx> = match field_cg_ty {
             CgTy::Unit => self.context.i8_type().const_int(0, false).into(),
-            _ => obj_v.value.ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "GC.pin field value",
-                at: obj_expr.span.into(),
-            })?,
+            _ => self.expect_cg_value(obj_v, "GC.pin Pinned.value field"),
         };
         agg = self
             .builder
@@ -219,67 +183,35 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         args: &[hir::CallArg],
         expected: Option<CgTy>,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        if args.len() != 1 {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "GC.handleNew arity mismatch",
-                at: span.into(),
-            });
-        }
-        let hir::CallArg::Positional(obj_expr) = &args[0] else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "GC.handleNew named arg",
-                at: span.into(),
-            });
-        };
+        let obj_expr =
+            self.expect_hir_positional_intrinsic_arg(args, 1, 0, "GC.handleNew HIR lowering");
 
         let Some(CgTy::Struct(handle_ty)) = expected else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "GC.handleNew call without expected handle type",
-                at: callee_span.into(),
-            });
+            self.panic_verified_intrinsic_contract(
+                "GC.handleNew HIR lowering",
+                "missing expected GcHandle result type",
+            );
         };
 
         let (field_idx, field_cg_ty) =
             self.lookup_struct_field(handle_ty, "scoop.core.GcHandle.raw", callee_span)?;
         let CgTy::Int(field_int_ty) = field_cg_ty else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "GC.handleNew raw field type",
-                at: callee_span.into(),
-            });
+            self.panic_verified_intrinsic_contract(
+                "GC.handleNew HIR lowering",
+                "GcHandle.raw field is not an integer",
+            );
         };
 
         let obj_v = self.codegen_expr_in_expected_context(obj_expr, Some(CgTy::Ref))?;
         let obj_ref = self.coerce_value(obj_expr.span, obj_v, CgTy::Ref)?;
-        let Some(obj_raw) = obj_ref.value else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "GC.handleNew arg value",
-                at: obj_expr.span.into(),
-            });
-        };
-        let BasicValueEnum::PointerValue(obj_ptr) = obj_raw else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "GC.handleNew arg type",
-                at: obj_expr.span.into(),
-            });
-        };
+        let obj_ptr = self.expect_cg_pointer(obj_ref, "GC.handleNew argument");
 
         let rt_handle_new = self.declare_runtime_gc_handle_new();
         let call = self
             .builder
             .build_call(rt_handle_new, &[obj_ptr.into()], "gc_handle_new")?;
-        let raw = call
-            .try_as_basic_value()
-            .basic()
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "GC.handleNew return value",
-                at: span.into(),
-            })?;
-        let BasicValueEnum::IntValue(handle_i64) = raw else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "GC.handleNew return type",
-                at: span.into(),
-            });
-        };
+        let raw = self.expect_basic_value(call, "GC.handleNew runtime return");
+        let handle_i64 = self.expect_int_value(raw, "GC.handleNew runtime return");
 
         let ok_cond = self.builder.build_int_compare(
             IntPredicate::NE,
@@ -336,38 +268,18 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         args: &[hir::CallArg],
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         let _ = callee_span;
-        if args.len() != 1 {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "GC.handleGet arity mismatch",
-                at: span.into(),
-            });
-        }
-        let hir::CallArg::Positional(handle_expr) = &args[0] else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "GC.handleGet named arg",
-                at: span.into(),
-            });
-        };
+        let handle_expr =
+            self.expect_hir_positional_intrinsic_arg(args, 1, 0, "GC.handleGet HIR lowering");
 
         let handle_v = self.codegen_expr(handle_expr)?;
         let CgTy::Struct(handle_ty) = handle_v.ty else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "GC.handleGet arg type",
-                at: handle_expr.span.into(),
-            });
+            self.panic_verified_intrinsic_contract(
+                "GC.handleGet HIR lowering",
+                "argument is not a GcHandle struct",
+            );
         };
-        let Some(raw) = handle_v.value else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "GC.handleGet arg value",
-                at: handle_expr.span.into(),
-            });
-        };
-        let BasicValueEnum::StructValue(struct_v) = raw else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "GC.handleGet arg value type",
-                at: handle_expr.span.into(),
-            });
-        };
+        let raw = self.expect_cg_value(handle_v, "GC.handleGet argument");
+        let struct_v = self.expect_struct_value(raw, "GC.handleGet argument");
 
         let (field_idx, field_cg_ty) =
             self.lookup_struct_field(handle_ty, "scoop.core.GcHandle.raw", handle_expr.span)?;
@@ -377,23 +289,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let field_v = self.cg_value_from_loaded(handle_expr.span, field_cg_ty, extracted)?;
 
         let CgTy::Int(field_int_ty) = field_cg_ty else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "GC.handleGet raw field type",
-                at: handle_expr.span.into(),
-            });
+            self.panic_verified_intrinsic_contract(
+                "GC.handleGet HIR lowering",
+                "GcHandle.raw field is not an integer",
+            );
         };
-        let Some(field_raw) = field_v.value else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "GC.handleGet raw value",
-                at: handle_expr.span.into(),
-            });
-        };
-        let BasicValueEnum::IntValue(handle_word) = field_raw else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "GC.handleGet raw value type",
-                at: handle_expr.span.into(),
-            });
-        };
+        let field_raw = self.expect_cg_value(field_v, "GC.handleGet raw handle field");
+        let handle_word = self.expect_int_value(field_raw, "GC.handleGet raw handle field");
 
         let to_i64 = IntTy {
             bits: 64,
@@ -405,19 +307,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let call = self
             .builder
             .build_call(rt_handle_get, &[handle_i64.into()], "gc_handle_get")?;
-        let raw = call
-            .try_as_basic_value()
-            .basic()
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "GC.handleGet return value",
-                at: span.into(),
-            })?;
-        let BasicValueEnum::PointerValue(obj_ptr) = raw else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "GC.handleGet return type",
-                at: span.into(),
-            });
-        };
+        let raw = self.expect_basic_value(call, "GC.handleGet runtime return");
+        let obj_ptr = self.expect_pointer_value(raw, "GC.handleGet runtime return");
 
         let obj_is_null = self
             .builder
@@ -459,38 +350,18 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         args: &[hir::CallArg],
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         let _ = callee_span;
-        if args.len() != 1 {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "GC.handleDrop arity mismatch",
-                at: span.into(),
-            });
-        }
-        let hir::CallArg::Positional(handle_expr) = &args[0] else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "GC.handleDrop named arg",
-                at: span.into(),
-            });
-        };
+        let handle_expr =
+            self.expect_hir_positional_intrinsic_arg(args, 1, 0, "GC.handleDrop HIR lowering");
 
         let handle_v = self.codegen_expr(handle_expr)?;
         let CgTy::Struct(handle_ty) = handle_v.ty else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "GC.handleDrop arg type",
-                at: handle_expr.span.into(),
-            });
+            self.panic_verified_intrinsic_contract(
+                "GC.handleDrop HIR lowering",
+                "argument is not a GcHandle struct",
+            );
         };
-        let Some(raw) = handle_v.value else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "GC.handleDrop arg value",
-                at: handle_expr.span.into(),
-            });
-        };
-        let BasicValueEnum::StructValue(struct_v) = raw else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "GC.handleDrop arg value type",
-                at: handle_expr.span.into(),
-            });
-        };
+        let raw = self.expect_cg_value(handle_v, "GC.handleDrop argument");
+        let struct_v = self.expect_struct_value(raw, "GC.handleDrop argument");
 
         let (field_idx, field_cg_ty) =
             self.lookup_struct_field(handle_ty, "scoop.core.GcHandle.raw", handle_expr.span)?;
@@ -500,23 +371,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let field_v = self.cg_value_from_loaded(handle_expr.span, field_cg_ty, extracted)?;
 
         let CgTy::Int(field_int_ty) = field_cg_ty else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "GC.handleDrop raw field type",
-                at: handle_expr.span.into(),
-            });
+            self.panic_verified_intrinsic_contract(
+                "GC.handleDrop HIR lowering",
+                "GcHandle.raw field is not an integer",
+            );
         };
-        let Some(field_raw) = field_v.value else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "GC.handleDrop raw value",
-                at: handle_expr.span.into(),
-            });
-        };
-        let BasicValueEnum::IntValue(handle_word) = field_raw else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "GC.handleDrop raw value type",
-                at: handle_expr.span.into(),
-            });
-        };
+        let field_raw = self.expect_cg_value(field_v, "GC.handleDrop raw handle field");
+        let handle_word = self.expect_int_value(field_raw, "GC.handleDrop raw handle field");
 
         let to_i64 = IntTy {
             bits: 64,
@@ -528,19 +389,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let call =
             self.builder
                 .build_call(rt_handle_drop, &[handle_i64.into()], "gc_handle_drop")?;
-        let raw = call
-            .try_as_basic_value()
-            .basic()
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "GC.handleDrop return value",
-                at: span.into(),
-            })?;
-        let BasicValueEnum::IntValue(ok_i32) = raw else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "GC.handleDrop return type",
-                at: span.into(),
-            });
-        };
+        let raw = self.expect_basic_value(call, "GC.handleDrop runtime return");
+        let ok_i32 = self.expect_int_value(raw, "GC.handleDrop runtime return");
 
         let ok_cond = self.builder.build_int_compare(
             IntPredicate::NE,
@@ -583,38 +433,18 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         args: &[hir::CallArg],
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         let _ = callee_span;
-        if args.len() != 1 {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "GC.unpin arity mismatch",
-                at: span.into(),
-            });
-        }
-        let hir::CallArg::Positional(pinned_expr) = &args[0] else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "GC.unpin named arg",
-                at: span.into(),
-            });
-        };
+        let pinned_expr =
+            self.expect_hir_positional_intrinsic_arg(args, 1, 0, "GC.unpin HIR lowering");
 
         let pinned_v = self.codegen_expr(pinned_expr)?;
         let CgTy::Struct(pinned_ty) = pinned_v.ty else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "GC.unpin arg type",
-                at: pinned_expr.span.into(),
-            });
+            self.panic_verified_intrinsic_contract(
+                "GC.unpin HIR lowering",
+                "argument is not a Pinned struct",
+            );
         };
-        let Some(raw) = pinned_v.value else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "GC.unpin arg value",
-                at: pinned_expr.span.into(),
-            });
-        };
-        let BasicValueEnum::StructValue(struct_v) = raw else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "GC.unpin arg value type",
-                at: pinned_expr.span.into(),
-            });
-        };
+        let raw = self.expect_cg_value(pinned_v, "GC.unpin argument");
+        let struct_v = self.expect_struct_value(raw, "GC.unpin argument");
 
         let (field_idx, field_cg_ty) =
             self.lookup_struct_field(pinned_ty, "scoop.core.Pinned.value", pinned_expr.span)?;
@@ -624,36 +454,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let field_v = self.cg_value_from_loaded(pinned_expr.span, field_cg_ty, extracted)?;
         let field_ref = self.coerce_value(pinned_expr.span, field_v, CgTy::Ref)?;
 
-        let Some(field_raw) = field_ref.value else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "GC.unpin value",
-                at: pinned_expr.span.into(),
-            });
-        };
-        let BasicValueEnum::PointerValue(obj_ptr) = field_raw else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "GC.unpin value type",
-                at: pinned_expr.span.into(),
-            });
-        };
+        let obj_ptr = self.expect_cg_pointer(field_ref, "GC.unpin Pinned.value field");
 
         let rt_unpin = self.declare_runtime_gc_unpin();
         let call = self
             .builder
             .build_call(rt_unpin, &[obj_ptr.into()], "gc_unpin")?;
-        let raw = call
-            .try_as_basic_value()
-            .basic()
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "GC.unpin return value",
-                at: span.into(),
-            })?;
-        let BasicValueEnum::IntValue(ok_i32) = raw else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "GC.unpin return type",
-                at: span.into(),
-            });
-        };
+        let raw = self.expect_basic_value(call, "GC.unpin runtime return");
+        let ok_i32 = self.expect_int_value(raw, "GC.unpin runtime return");
 
         let ok_cond = self.builder.build_int_compare(
             IntPredicate::NE,
@@ -872,10 +680,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                             )
                         })
                         .transpose()?
-                        .ok_or(LlvmEmitError::UnsupportedMainBody {
-                            kind: "local explicit frame root slot",
-                            at: at.into(),
-                        })?
+                        .unwrap_or_else(|| {
+                            panic!(
+                                "collect_conservative_gc_root_slots: explicit-frame verifier accepted missing local root mirror"
+                            )
+                        })
                 } else {
                     slot_ptr
                 };
@@ -1088,7 +897,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     pub(super) fn collect_gc_ptr_offsets_in_basic_type(
         &self,
-        at: crate::span::Span,
+        _at: crate::span::Span,
         ty: BasicTypeEnum<'ctx>,
         base_off: u64,
         out: &mut Vec<u64>,
@@ -1105,13 +914,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 }
                 let fields = st.get_field_types();
                 for (idx, field_ty) in fields.into_iter().enumerate() {
-                    let off = self.target_data.offset_of_element(&st, idx as u32).ok_or(
-                        LlvmEmitError::UnsupportedMainBody {
-                            kind: "type descriptor field offset",
-                            at: at.into(),
-                        },
-                    )?;
-                    self.collect_gc_ptr_offsets_in_basic_type(at, field_ty, base_off + off, out)?;
+                    let off = self
+                        .target_data
+                        .offset_of_element(&st, idx as u32)
+                        .unwrap_or_else(|| {
+                            panic!(
+                                "collect_gc_ptr_offsets_in_basic_type: target data omitted struct field offset"
+                            )
+                        });
+                    self.collect_gc_ptr_offsets_in_basic_type(_at, field_ty, base_off + off, out)?;
                 }
             }
             BasicTypeEnum::ArrayType(arr) => {
@@ -1120,7 +931,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 let len = arr.len() as u64;
                 for i in 0..len {
                     let elem_off = base_off + i.saturating_mul(stride);
-                    self.collect_gc_ptr_offsets_in_basic_type(at, elem, elem_off, out)?;
+                    self.collect_gc_ptr_offsets_in_basic_type(_at, elem, elem_off, out)?;
                 }
             }
             BasicTypeEnum::IntType(_)
@@ -1869,10 +1680,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let ptr = self.rematerialize_ptr_in_current_block(at, ptr, "store_local_slot")?;
 
         if value.ty != ty && value.ty != CgTy::Never {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "store exact value type mismatch",
-                at: at.into(),
-            });
+            panic!("store_local_value_exact: verifier accepted store value type drift");
         }
 
         match ty {
@@ -1890,12 +1698,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             | CgTy::Ref
             | CgTy::Tuple(_)
             | CgTy::Struct(_) => {
-                let Some(raw) = value.value else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "store value",
-                        at: at.into(),
-                    });
-                };
+                let raw = self.expect_cg_value(value, "store_local_value_exact scalar/aggregate");
                 // T1412d：当写入目标位于 GC heap（addrspace(1)）且写入值为 GC ref 时，
                 // 必须走统一写屏障 hook，避免形成 old→nursery 指针（minor GC 的关键前置条件）。
                 //
@@ -1903,12 +1706,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 if ptr.get_type().get_address_space() == self.gc_address_space()
                     && needs_write_barrier_for_value_ty(self, at, ty)?
                 {
-                    let BasicValueEnum::PointerValue(value_ptr) = raw else {
-                        return Err(LlvmEmitError::UnsupportedMainBody {
-                            kind: "write barrier value type (ptr)",
-                            at: at.into(),
-                        });
-                    };
+                    let value_ptr = self.expect_pointer_value(raw, "write barrier value");
 
                     self.store_gc_pointer_slot_with_write_barrier(at, ptr, value_ptr)?;
                 } else {
@@ -1936,12 +1734,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 }
             }
             CgTy::Enum(enum_ty) => {
-                let Some(raw) = value.value else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "store value",
-                        at: at.into(),
-                    });
-                };
+                let raw = self.expect_cg_value(value, "store_local_value_exact enum");
 
                 if self.try_store_heap_tagged_union_enum_exact(at, ptr, enum_ty, raw)? {
                     return Ok(value);
@@ -1950,12 +1743,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 if ptr.get_type().get_address_space() == self.gc_address_space()
                     && needs_write_barrier_for_value_ty(self, at, ty)?
                 {
-                    let BasicValueEnum::PointerValue(value_ptr) = raw else {
-                        return Err(LlvmEmitError::UnsupportedMainBody {
-                            kind: "write barrier value type (ptr)",
-                            at: at.into(),
-                        });
-                    };
+                    let value_ptr = self.expect_pointer_value(raw, "enum write barrier value");
 
                     self.store_gc_pointer_slot_with_write_barrier(at, ptr, value_ptr)?;
                 } else {
@@ -2047,12 +1835,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             return Ok(false);
         }
 
-        let BasicValueEnum::StructValue(enum_raw) = raw else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "tagged union enum heap store",
-                at: at.into(),
-            });
-        };
+        let enum_raw = self.expect_struct_value(raw, "tagged union enum heap store");
 
         let llvm_enum_ty = self.llvm_enum_value_type(at, enum_ty)?.into_struct_type();
         let gc_ptr_slot = self
@@ -2069,32 +1852,17 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let gc_ptr = self
             .builder
             .build_extract_value(enum_raw, 2, "enum_payload_ptr")?;
-        let BasicValueEnum::PointerValue(gc_ptr) = gc_ptr else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "tagged union enum gc payload field",
-                at: at.into(),
-            });
-        };
+        let gc_ptr = self.expect_pointer_value(gc_ptr, "tagged union enum GC payload field");
         self.store_gc_pointer_slot_with_write_barrier(at, gc_ptr_slot, gc_ptr)?;
 
         let word = self
             .builder
             .build_extract_value(enum_raw, 1, "enum_payload_word")?;
-        let BasicValueEnum::IntValue(word) = word else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "tagged union enum word payload field",
-                at: at.into(),
-            });
-        };
+        let word = self.expect_int_value(word, "tagged union enum word payload field");
         let _ = self.builder.build_store(word_slot, word)?;
 
         let tag = self.builder.build_extract_value(enum_raw, 0, "enum_tag")?;
-        let BasicValueEnum::IntValue(tag) = tag else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "tagged union enum tag field",
-                at: at.into(),
-            });
-        };
+        let tag = self.expect_int_value(tag, "tagged union enum tag field");
         let _ = self.builder.build_store(tag_slot, tag)?;
 
         Ok(true)

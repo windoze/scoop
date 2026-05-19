@@ -7,8 +7,8 @@
 
 ## Scope
 
-U5-T01 creates this directory skeleton only. U5-T02 and U5-T03 must add `.scoop` fixtures and append matching `_index.csv` rows.
+P7-B3.4 retires the B-29 GC intrinsic contract rows. These fixtures remain active smoke coverage for the positive pin/handle path and the negative `GC.pin` ref-type gate; retired ID coverage lives in `audit/UMB_retired.csv`.
 
 ## Runner Status
 
-`scoop test` recognizes `tests/fixtures/umb_fix/**`. Fixtures marked `IGNORE-UNTIL-FIX:B-29` or `ignore-until-fix:B-29` are skipped until the corresponding production fix lands.
+`scoop test` recognizes `tests/fixtures/umb_fix/**`. B-29 fixtures are active after P7-B3.4.

@@ -102,6 +102,18 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
     }
 
+    /// Return a struct value, or panic with a named compiler invariant.
+    pub(in crate::llvm::codegen) fn expect_struct_value(
+        &self,
+        value: BasicValueEnum<'ctx>,
+        context: &str,
+    ) -> inkwell::values::StructValue<'ctx> {
+        match value {
+            BasicValueEnum::StructValue(value) => value,
+            _ => panic!("expect_struct_value: value was not a struct while {context}"),
+        }
+    }
+
     /// Return a lowered codegen type, or panic with a named compiler invariant.
     pub(in crate::llvm::codegen) fn expect_cg_ty_of(&self, ty: TypeId, context: &str) -> CgTy {
         self.cg_ty_of(ty).unwrap_or_else(|| {

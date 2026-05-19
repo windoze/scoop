@@ -301,18 +301,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             return Ok(loaded.into_pointer_value());
         }
 
-        let Some(raw) = value.immediate else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "deferred gc ref reload",
-                at: at.into(),
-            });
-        };
-        let BasicValueEnum::PointerValue(ptr) = raw else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "deferred gc ref reload type",
-                at: at.into(),
-            });
-        };
+        let raw = value.immediate.unwrap_or_else(|| {
+            panic!(
+                "reload_deferred_gc_ref_without_clearing: deferred GC ref verifier accepted missing immediate/spill"
+            )
+        });
+        let ptr = self.expect_pointer_value(raw, "deferred GC ref reload");
         Ok(ptr)
     }
 

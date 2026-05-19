@@ -349,55 +349,33 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         slots: &[MirLocalSlot<'ctx>],
         expected: Option<CgTy>,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        if args.len() != 1 || args[0].name.is_some() {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "MIR GC.handleNew arg contract",
-                at: span.into(),
-            });
-        }
+        let arg = self.expect_mir_positional_intrinsic_arg(args, 1, 0, "MIR GC.handleNew lowering");
         let Some(CgTy::Struct(handle_ty)) = expected else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "MIR GC.handleNew call without expected handle type",
-                at: span.into(),
-            });
+            self.panic_verified_intrinsic_contract(
+                "MIR GC.handleNew lowering",
+                "missing expected GcHandle result type",
+            );
         };
         let (field_idx, field_cg_ty) =
             self.lookup_struct_field(handle_ty, "scoop.core.GcHandle.raw", span)?;
         let CgTy::Int(field_int_ty) = field_cg_ty else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "MIR GC.handleNew raw field type",
-                at: span.into(),
-            });
+            self.panic_verified_intrinsic_contract(
+                "MIR GC.handleNew lowering",
+                "GcHandle.raw field is not an integer",
+            );
         };
 
-        let arg = &args[0];
         let obj_v =
             self.codegen_mir_operand_expected(arg.span, &arg.value, slots, Some(CgTy::Ref))?;
         let obj_ref = self.coerce_value(arg.span, obj_v, CgTy::Ref)?;
-        let Some(BasicValueEnum::PointerValue(obj_ptr)) = obj_ref.value else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "MIR GC.handleNew arg value",
-                at: arg.span.into(),
-            });
-        };
+        let obj_ptr = self.expect_cg_pointer(obj_ref, "MIR GC.handleNew argument");
 
         let rt_handle_new = self.declare_runtime_gc_handle_new();
         let call =
             self.builder
                 .build_call(rt_handle_new, &[obj_ptr.into()], "mir_gc_handle_new")?;
-        let raw = call
-            .try_as_basic_value()
-            .basic()
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "MIR GC.handleNew return value",
-                at: span.into(),
-            })?;
-        let BasicValueEnum::IntValue(handle_i64) = raw else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "MIR GC.handleNew return type",
-                at: span.into(),
-            });
-        };
+        let raw = self.expect_basic_value(call, "MIR GC.handleNew runtime return");
+        let handle_i64 = self.expect_int_value(raw, "MIR GC.handleNew runtime return");
         let ok_cond = self.builder.build_int_compare(
             IntPredicate::NE,
             handle_i64,
@@ -450,33 +428,23 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         slots: &[MirLocalSlot<'ctx>],
         expected: Option<CgTy>,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        if args.len() != 1 || args[0].name.is_some() {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "MIR GC.handleGet arg contract",
-                at: span.into(),
-            });
-        }
+        let arg = self.expect_mir_positional_intrinsic_arg(args, 1, 0, "MIR GC.handleGet lowering");
         if expected.is_some_and(|ty| ty != CgTy::Ref) {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "MIR GC.handleGet target type",
-                at: span.into(),
-            });
+            self.panic_verified_intrinsic_contract(
+                "MIR GC.handleGet lowering",
+                "target type is not Ref",
+            );
         }
 
-        let arg = &args[0];
         let handle_v = self.codegen_mir_operand(arg.span, &arg.value, slots)?;
         let CgTy::Struct(handle_ty) = handle_v.ty else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "MIR GC.handleGet arg type",
-                at: arg.span.into(),
-            });
+            self.panic_verified_intrinsic_contract(
+                "MIR GC.handleGet lowering",
+                "argument is not a GcHandle struct",
+            );
         };
-        let Some(BasicValueEnum::StructValue(struct_v)) = handle_v.value else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "MIR GC.handleGet arg value",
-                at: arg.span.into(),
-            });
-        };
+        let raw = self.expect_cg_value(handle_v, "MIR GC.handleGet argument");
+        let struct_v = self.expect_struct_value(raw, "MIR GC.handleGet argument");
         let (field_idx, field_cg_ty) =
             self.lookup_struct_field(handle_ty, "scoop.core.GcHandle.raw", arg.span)?;
         let extracted =
@@ -484,17 +452,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 .build_extract_value(struct_v, field_idx, "mir_gc_handle_raw")?;
         let field_v = self.cg_value_from_loaded(arg.span, field_cg_ty, extracted)?;
         let CgTy::Int(field_int_ty) = field_cg_ty else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "MIR GC.handleGet raw field type",
-                at: arg.span.into(),
-            });
+            self.panic_verified_intrinsic_contract(
+                "MIR GC.handleGet lowering",
+                "GcHandle.raw field is not an integer",
+            );
         };
-        let Some(BasicValueEnum::IntValue(handle_word)) = field_v.value else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "MIR GC.handleGet raw value",
-                at: arg.span.into(),
-            });
-        };
+        let field_raw = self.expect_cg_value(field_v, "MIR GC.handleGet raw handle field");
+        let handle_word = self.expect_int_value(field_raw, "MIR GC.handleGet raw handle field");
         let handle_i64 = self.cast_int(
             handle_word,
             field_int_ty,
@@ -507,19 +471,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let call =
             self.builder
                 .build_call(rt_handle_get, &[handle_i64.into()], "mir_gc_handle_get")?;
-        let raw = call
-            .try_as_basic_value()
-            .basic()
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "MIR GC.handleGet return value",
-                at: span.into(),
-            })?;
-        let BasicValueEnum::PointerValue(obj_ptr) = raw else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "MIR GC.handleGet return type",
-                at: span.into(),
-            });
-        };
+        let raw = self.expect_basic_value(call, "MIR GC.handleGet runtime return");
+        let obj_ptr = self.expect_pointer_value(raw, "MIR GC.handleGet runtime return");
 
         let obj_is_null = self
             .builder
@@ -557,26 +510,17 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         args: &[crate::mir::CallArg],
         slots: &[MirLocalSlot<'ctx>],
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        if args.len() != 1 || args[0].name.is_some() {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "MIR GC.handleDrop arg contract",
-                at: span.into(),
-            });
-        }
-        let arg = &args[0];
+        let arg =
+            self.expect_mir_positional_intrinsic_arg(args, 1, 0, "MIR GC.handleDrop lowering");
         let handle_v = self.codegen_mir_operand(arg.span, &arg.value, slots)?;
         let CgTy::Struct(handle_ty) = handle_v.ty else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "MIR GC.handleDrop arg type",
-                at: arg.span.into(),
-            });
+            self.panic_verified_intrinsic_contract(
+                "MIR GC.handleDrop lowering",
+                "argument is not a GcHandle struct",
+            );
         };
-        let Some(BasicValueEnum::StructValue(struct_v)) = handle_v.value else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "MIR GC.handleDrop arg value",
-                at: arg.span.into(),
-            });
-        };
+        let raw = self.expect_cg_value(handle_v, "MIR GC.handleDrop argument");
+        let struct_v = self.expect_struct_value(raw, "MIR GC.handleDrop argument");
         let (field_idx, field_cg_ty) =
             self.lookup_struct_field(handle_ty, "scoop.core.GcHandle.raw", arg.span)?;
         let extracted =
@@ -584,17 +528,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 .build_extract_value(struct_v, field_idx, "mir_gc_handle_raw")?;
         let field_v = self.cg_value_from_loaded(arg.span, field_cg_ty, extracted)?;
         let CgTy::Int(field_int_ty) = field_cg_ty else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "MIR GC.handleDrop raw field type",
-                at: arg.span.into(),
-            });
+            self.panic_verified_intrinsic_contract(
+                "MIR GC.handleDrop lowering",
+                "GcHandle.raw field is not an integer",
+            );
         };
-        let Some(BasicValueEnum::IntValue(handle_word)) = field_v.value else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "MIR GC.handleDrop raw value",
-                at: arg.span.into(),
-            });
-        };
+        let field_raw = self.expect_cg_value(field_v, "MIR GC.handleDrop raw handle field");
+        let handle_word = self.expect_int_value(field_raw, "MIR GC.handleDrop raw handle field");
         let handle_i64 = self.cast_int(
             handle_word,
             field_int_ty,
@@ -607,19 +547,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let call =
             self.builder
                 .build_call(rt_handle_drop, &[handle_i64.into()], "mir_gc_handle_drop")?;
-        let raw = call
-            .try_as_basic_value()
-            .basic()
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "MIR GC.handleDrop return value",
-                at: span.into(),
-            })?;
-        let BasicValueEnum::IntValue(ok_i32) = raw else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "MIR GC.handleDrop return type",
-                at: span.into(),
-            });
-        };
+        let raw = self.expect_basic_value(call, "MIR GC.handleDrop runtime return");
+        let ok_i32 = self.expect_int_value(raw, "MIR GC.handleDrop runtime return");
         let ok_cond = self.builder.build_int_compare(
             IntPredicate::NE,
             ok_i32,

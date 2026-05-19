@@ -46,6 +46,34 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         expr
     }
 
+    pub(in crate::llvm::codegen) fn expect_mir_intrinsic_arity(
+        &self,
+        args: &[crate::mir::CallArg],
+        expected: usize,
+        context: &'static str,
+    ) {
+        if args.len() != expected {
+            self.panic_verified_intrinsic_contract(context, "argument count drift");
+        }
+    }
+
+    pub(in crate::llvm::codegen) fn expect_mir_positional_intrinsic_arg<'b>(
+        &self,
+        args: &'b [crate::mir::CallArg],
+        expected: usize,
+        index: usize,
+        context: &'static str,
+    ) -> &'b crate::mir::CallArg {
+        self.expect_mir_intrinsic_arity(args, expected, context);
+        let Some(arg) = args.get(index) else {
+            self.panic_verified_intrinsic_contract(context, "argument index drift");
+        };
+        if arg.name.is_some() {
+            self.panic_verified_intrinsic_contract(context, "named argument drift");
+        }
+        arg
+    }
+
     pub(in crate::llvm::codegen) fn expect_nominal_ref_type_fqn<'b>(
         &self,
         types: &'b TypeStore,

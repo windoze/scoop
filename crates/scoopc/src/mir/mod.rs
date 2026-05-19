@@ -609,7 +609,7 @@ impl File {
                         &array.element,
                     )?;
                 }
-                self.validate_gc_intrinsic_transport(site, kind, result_ty, transport)?;
+                self.validate_gc_intrinsic_transport(site, kind, args, result_ty, transport)?;
                 Ok(())
             }
             Rvalue::EnumVariant {
@@ -869,6 +869,7 @@ impl File {
         &self,
         site: ProductionSiteContext<'_>,
         kind: &CallKind,
+        args: &[CallArg],
         result_ty: Option<TypeId>,
         transport: &CallTransportMetadata,
     ) -> Result<(), MirValidationError> {
@@ -895,6 +896,16 @@ impl File {
             return Ok(());
         };
 
+        if direct_operation.is_some() && (args.len() != 1 || args[0].name.is_some()) {
+            return Err(MirValidationError::TypeContract {
+                fqn: site.fqn.to_string(),
+                block: Some(site.block),
+                span: site.span,
+                surface: "GC intrinsic call arguments",
+                detail: "GC intrinsic calls must have one positional argument",
+            });
+        }
+
         let Some(expected_operation) = gc_intrinsic_operation(&gc.callee_fqn) else {
             return Err(MirValidationError::ProductionTransportMetadata {
                 fqn: site.fqn.to_string(),
@@ -920,7 +931,8 @@ impl File {
                 GcIntrinsicOperation::Pin
                     if gc.root_lifetime != GcRootLifetime::PinnedUntilUnpin
                         || gc.pairing != GcIntrinsicPairing::PinMustPairUnpin
-                        || gc.token_ty.is_none() =>
+                        || gc.token_ty.is_none()
+                        || result_ty.is_some_and(|ty| gc.token_ty != Some(ty)) =>
                 {
                     Some("GC.pin metadata must publish pinned lifetime and unpin pairing")
                 }
@@ -933,7 +945,8 @@ impl File {
                 GcIntrinsicOperation::HandleNew
                     if gc.root_lifetime != GcRootLifetime::StableHandleUntilDrop
                         || gc.pairing != GcIntrinsicPairing::HandleNewMustPairDrop
-                        || gc.token_ty.is_none() =>
+                        || gc.token_ty.is_none()
+                        || result_ty.is_some_and(|ty| gc.token_ty != Some(ty)) =>
                 {
                     Some(
                         "GC.handleNew metadata must publish stable-handle lifetime and drop pairing",

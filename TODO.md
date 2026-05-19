@@ -4,7 +4,7 @@
 > 计划基线：[`PLAN.md`](./PLAN.md)
 > 上一阶段任务档案：[`TODO-1.md`](./TODO-1.md)
 > 设计与 baseline：[`UnsupportedMainBody_FIX.md`](./UnsupportedMainBody_FIX.md)、[`UnsupportedMainBody_DONE.md`](./UnsupportedMainBody_DONE.md)
-> 当前状态：P7-0-T01、P7-0-T02、P7-A1、P7-A2、P7-A3、P7-A4、P7-B1、P7-B2.1、P7-B2.2、P7-B2.3、P7-B2.4、P7-B2.5、P7-B2.6、P7-B2.7、P7-B2.8、P7-B3.1、P7-B3.2、P7-B3.3 已完成；active=413，retired=871。
+> 当前状态：P7-0-T01、P7-0-T02、P7-A1、P7-A2、P7-A3、P7-A4、P7-B1、P7-B2.1、P7-B2.2、P7-B2.3、P7-B2.4、P7-B2.5、P7-B2.6、P7-B2.7、P7-B2.8、P7-B3.1、P7-B3.2、P7-B3.3、P7-B3.4 已完成；active=320，retired=964。
 
 ## 全局约束
 
@@ -497,7 +497,7 @@ P7-0-T01 stable ID + retired ledger
   - 验证结果：`cargo run -p scoopc --bin umb-audit -- list --bucket B-26` 通过（entries 0）；`cargo run -p scoopc --bin umb-audit -- diff` 通过（in sync，413 entries）；`cargo run -p scoopc --bin umb-audit -- stats` 通过（active=413、retired=871、initial=1284）；`cargo test -p scoopc audit:: -- --nocapture` 通过（23 passed）；`cargo test -p scoopc pipeline_user_visible_failure_policy -- --nocapture` 通过（7 passed）；`cargo run -p scoop -- test tests/fixtures/umb_fix/B-26-atomic-intrinsics/` 通过（4 passed）；`cargo run -p scoop -- test tests/fixtures/run-pass/unsafe_atomic_int_basic.scoop`、`unsafe_atomic_int_field_lvalue_basic.scoop`、`sysroot_atomic_basic.scoop` 均通过；`cargo run -p scoop -- test tests/fixtures/typecheck/sysroot_atomic_value_rejects_ref_type.scoop` 通过；`cargo fmt` 通过；`cargo clippy --all-targets -- -D warnings` 通过。
   - 闭合目标：满足 `PLAN.md:161-181` 与本任务完成条件；B-26 active count 为 0，atomic intrinsic target mutability、width、ordering、return contract 不再由 LLVM `UnsupportedMainBody` 兜底。
 
-### [TODO] P7-B3.4：B-29 GC intrinsic contract
+### [DONE] P7-B3.4：B-29 GC intrinsic contract
 
 - 参考：`PLAN.md:161-181`、`audit/strategies/B-29.md`。
 - 范围：B-29，93 entries。
@@ -506,7 +506,15 @@ P7-0-T01 stable ID + retired ledger
 - 验证：`cargo test -p scoopc audit:: -- --nocapture`、`cargo run -p scoop -- test tests/fixtures/umb_fix/B-29-gc-intrinsics/`、`cargo test -p scoop_runtime -- --nocapture`。
 - 完成条件：B-29 active count 为 0。
 - 依赖：P7-B1 推荐完成后。
-- 完成记录：待填写。
+- 完成记录：
+  - 改动范围：更新 `crates/scoopc/src/llvm/codegen/{gc.rs,effect_outcome.rs,effect_lowered/value.rs,intrinsics/{mod.rs,named.rs},main/{context.rs,frame.rs,gc_locals.rs},mir_body/member.rs}`、`crates/scoopc/src/mir/{mod.rs,materialize/validation.rs}`、`crates/scoopc/src/pipeline_user_visible_failure_policy.rs`；同步 `audit/UMB_inventory.csv`、`audit/UMB_retired.csv`、`audit/UMB_categories/{B-29.md,_overview.md}`、`audit/strategies/B-29.md`、`audit/spec_coverage_matrix.md`、B-29 fixtures、`tests/fixtures/umb_fix/_index.csv` 与 `memory/claude_plan.md`。
+  - Retired IDs：`UMB-0340`、`UMB-0341`、`UMB-0342`、`UMB-0343`、`UMB-0346`、`UMB-0347`、`UMB-0348`、`UMB-0349`、`UMB-0350`、`UMB-0351`、`UMB-0371`、`UMB-0426`、`UMB-0427`、`UMB-0428`、`UMB-0429`、`UMB-0430`、`UMB-0431`、`UMB-0432`、`UMB-0435`、`UMB-0436`、`UMB-0437`、`UMB-0438`、`UMB-0439`、`UMB-0440`、`UMB-0441`、`UMB-0442`、`UMB-0443`、`UMB-0446`、`UMB-0447`、`UMB-0448`、`UMB-0449`、`UMB-0450`、`UMB-0451`、`UMB-0452`、`UMB-0453`、`UMB-0454`、`UMB-0455`、`UMB-0458`、`UMB-0459`、`UMB-0460`、`UMB-0461`、`UMB-0462`、`UMB-0463`、`UMB-0464`、`UMB-0465`、`UMB-0466`、`UMB-0467`、`UMB-0470`、`UMB-0471`、`UMB-0472`、`UMB-0473`、`UMB-0474`、`UMB-0475`、`UMB-0476`、`UMB-0477`、`UMB-0478`、`UMB-0481`、`UMB-0482`、`UMB-0483`、`UMB-0484`、`UMB-0485`、`UMB-0486`、`UMB-0487`、`UMB-0488`、`UMB-0489`、`UMB-0490`、`UMB-0491`、`UMB-0644`、`UMB-0654`、`UMB-0882`、`UMB-0900`、`UMB-0901`、`UMB-1149`、`UMB-1150`、`UMB-1151`、`UMB-1152`、`UMB-1153`、`UMB-1154`、`UMB-1157`、`UMB-1158`、`UMB-1159`、`UMB-1160`、`UMB-1161`、`UMB-1162`、`UMB-1163`、`UMB-1164`、`UMB-1167`、`UMB-1168`、`UMB-1169`、`UMB-1170`、`UMB-1171`、`UMB-1172`、`UMB-1173`；数量 93；bucket `B-29`；class `InternalBugSentinel`。
+  - 核心决策：复用 typecheck 的 `GC.pin`/`GC.unpin`/`GC.handle*` 用户面签名和 unsafe/NoGC gate；MIR production/materialized verifier 补齐 GC intrinsic argument shape、subject transport、token/result、root lifetime 和 pairing contract；LLVM HIR/MIR/effect-lowered/named intrinsic/frame/write-barrier paths 改为 `expect_*` / verified intrinsic panic boundary。
+  - Inventory/ledger：active 413 -> 320；retired 871 -> 964；B-29 active 93 -> 0；`InternalBugSentinel` active 210 -> 117。
+  - Stale count：tracked stale total 201 -> 167；`effect_lowered/value.rs` 78 -> 68；`mir_body/member.rs` 21 -> 0；`main/frame.rs` 1 -> 0；`main/gc_locals.rs` 2 -> 0；`gc.rs` 另删除 56 个 active inventory rows、`intrinsics/named.rs` 删除 2 rows、`effect_outcome.rs` 删除 1 row（这些文件不在 tracked stale list）。
+  - Fixture 状态：B-29 fixture directory 从 `IGNORE-UNTIL-FIX:B-29` 激活；positive/negative fixtures 均 active；`COVERS` 改为 `NONE`，retired IDs 由 retired ledger 覆盖。
+  - 验证结果：`cargo run -p scoopc --bin umb-audit -- list --bucket B-29` 通过（entries 0）；`cargo run -p scoopc --bin umb-audit -- diff` 通过（in sync，320 entries）；`cargo run -p scoopc --bin umb-audit -- stats` 通过（active=320、retired=964、initial=1284）；`cargo test -p scoopc audit:: -- --nocapture` 通过（23 passed）；`cargo test -p scoopc pipeline_user_visible_failure_policy -- --nocapture` 通过（7 passed）；`cargo test -p scoopc mir::materialize -- --nocapture` 通过（54 passed）；`cargo run -p scoop -- test tests/fixtures/umb_fix/B-29-gc-intrinsics/` 通过（2 passed）；`cargo test -p scoop_runtime -- --nocapture` 通过；`cargo fmt` 通过；`cargo clippy --all-targets -- -D warnings` 通过。
+  - 闭合目标：满足 `PLAN.md:161-181` 与本任务完成条件；B-29 active count 为 0，GC.handleNew/handleGet/handleDrop/pin/unpin 类型、frame/root 和 runtime contract 不再由 LLVM `UnsupportedMainBody` 兜底。
 
 ### [TODO] P7-B3.5：B-30 named/unsafe/FunPtr/stackmap intrinsic contract
 
@@ -619,7 +627,7 @@ P7-0-T01 stable ID + retired ledger
 
 | 阶段 | Active 目标 | Retired 目标 | 备注 |
 |---|---:|---:|---|
-| 当前 | 413 | 871 | P7-B3.3 完成，B-26 atomic intrinsic contract 清零 |
+| 当前 | 320 | 964 | P7-B3.4 完成，B-29 GC intrinsic contract 清零 |
 | P7-A 完成 | 1,159 | 125 | `FrontendReject` 清零 |
 | P7-B 完成 | 203 | 1,081 | `InternalBugSentinel` 清零 |
 | P7-C 完成 | 0 | 1,284 | `RealImpl` 清零 |

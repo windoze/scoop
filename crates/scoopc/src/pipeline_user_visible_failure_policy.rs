@@ -174,7 +174,7 @@ const STALE_UNSUPPORTED_MAIN_BODY_COUNTS: &[UnsupportedMainBodyCount] = &[
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/mir_body/member.rs",
-        expected_count: 21,
+        expected_count: 0,
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/mir_body/mod.rs",
@@ -238,7 +238,7 @@ const STALE_UNSUPPORTED_MAIN_BODY_COUNTS: &[UnsupportedMainBodyCount] = &[
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/effect_lowered/value.rs",
-        expected_count: 78,
+        expected_count: 68,
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/main/alloca.rs",
@@ -274,7 +274,7 @@ const STALE_UNSUPPORTED_MAIN_BODY_COUNTS: &[UnsupportedMainBodyCount] = &[
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/main/frame.rs",
-        expected_count: 1,
+        expected_count: 0,
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/main/function.rs",
@@ -282,7 +282,7 @@ const STALE_UNSUPPORTED_MAIN_BODY_COUNTS: &[UnsupportedMainBodyCount] = &[
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/main/gc_locals.rs",
-        expected_count: 2,
+        expected_count: 0,
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/main/globals.rs",
@@ -865,14 +865,15 @@ const INTERNAL_BUG_SENTINEL_HITS: &[&str] = &[
     "crates/scoopc/src/llvm/codegen/main/context.rs:77:            panic!(\"expect_basic_value: call did not produce a basic value while {context}\")",
     "crates/scoopc/src/llvm/codegen/main/context.rs:89:            _ => panic!(\"expect_pointer_value: value was not a pointer while {context}\"),",
     "crates/scoopc/src/llvm/codegen/main/context.rs:101:            _ => panic!(\"expect_int_value: value was not an integer while {context}\"),",
-    "crates/scoopc/src/llvm/codegen/main/context.rs:108:            panic!(\"expect_cg_ty_of: type verifier accepted a non-codegen type while {context}\")",
-    "crates/scoopc/src/llvm/codegen/main/context.rs:119:            panic!(\"expect_cg_bool: value was not a bool payload while {context}\")",
-    "crates/scoopc/src/llvm/codegen/main/context.rs:130:            panic!(\"expect_cg_int: value was not an integer payload while {context}\")",
-    "crates/scoopc/src/llvm/codegen/main/context.rs:141:            panic!(\"expect_cg_float: value was not a float payload while {context}\")",
-    "crates/scoopc/src/llvm/codegen/main/context.rs:152:            panic!(\"expect_cg_pointer: value did not publish a payload while {context}\")",
-    "crates/scoopc/src/llvm/codegen/main/context.rs:164:            panic!(\"expect_cg_value: value did not publish a payload while {context}\")",
-    "crates/scoopc/src/llvm/codegen/main/context.rs:466:                panic!(\"source_slice_at: parser/typecheck accepted a span outside its source\")",
-    "crates/scoopc/src/llvm/codegen/main/context.rs:469:            panic!(\"source_slice_at: parser/typecheck accepted an unsliceable source span\")",
+    "crates/scoopc/src/llvm/codegen/main/context.rs:113:            _ => panic!(\"expect_struct_value: value was not a struct while {context}\"),",
+    "crates/scoopc/src/llvm/codegen/main/context.rs:120:            panic!(\"expect_cg_ty_of: type verifier accepted a non-codegen type while {context}\")",
+    "crates/scoopc/src/llvm/codegen/main/context.rs:131:            panic!(\"expect_cg_bool: value was not a bool payload while {context}\")",
+    "crates/scoopc/src/llvm/codegen/main/context.rs:142:            panic!(\"expect_cg_int: value was not an integer payload while {context}\")",
+    "crates/scoopc/src/llvm/codegen/main/context.rs:153:            panic!(\"expect_cg_float: value was not a float payload while {context}\")",
+    "crates/scoopc/src/llvm/codegen/main/context.rs:164:            panic!(\"expect_cg_pointer: value did not publish a payload while {context}\")",
+    "crates/scoopc/src/llvm/codegen/main/context.rs:176:            panic!(\"expect_cg_value: value did not publish a payload while {context}\")",
+    "crates/scoopc/src/llvm/codegen/main/context.rs:478:                panic!(\"source_slice_at: parser/typecheck accepted a span outside its source\")",
+    "crates/scoopc/src/llvm/codegen/main/context.rs:481:            panic!(\"source_slice_at: parser/typecheck accepted an unsliceable source span\")",
     "crates/scoopc/src/llvm/codegen/main/declare.rs:67:                panic!(",
     "crates/scoopc/src/llvm/codegen/main/declare.rs:200:                panic!(\"declare_top_level_fun_with_signature_override: MIR signature verifier accepted unsupported return type\")",
     "crates/scoopc/src/llvm/codegen/main/declare.rs:203:            panic!(",
@@ -910,14 +911,16 @@ const INTERNAL_BUG_SENTINEL_HITS: &[&str] = &[
     "crates/scoopc/src/llvm/codegen/main/expr_value.rs:399:            panic!(",
     "crates/scoopc/src/llvm/codegen/main/expr_value.rs:433:            panic!(",
     "crates/scoopc/src/llvm/codegen/main/frame.rs:436:            panic!(",
-    "crates/scoopc/src/llvm/codegen/main/frame.rs:496:                        panic!(\"rebuild_value_from_storage_slot_with_explicit_frame: explicit-frame slot metadata ended before aggregate rebuild completed\")",
-    "crates/scoopc/src/llvm/codegen/main/frame.rs:644:            panic!(",
-    "crates/scoopc/src/llvm/codegen/main/frame.rs:702:            panic!(",
-    "crates/scoopc/src/llvm/codegen/main/frame.rs:805:            panic!(\"finalize_function_explicit_frame_lifecycle: verifier accepted missing explicit root frame descriptor global\")",
+    "crates/scoopc/src/llvm/codegen/main/frame.rs:472:            panic!(",
+    "crates/scoopc/src/llvm/codegen/main/frame.rs:495:                        panic!(\"rebuild_value_from_storage_slot_with_explicit_frame: explicit-frame slot metadata ended before aggregate rebuild completed\")",
+    "crates/scoopc/src/llvm/codegen/main/frame.rs:643:            panic!(",
+    "crates/scoopc/src/llvm/codegen/main/frame.rs:701:            panic!(",
+    "crates/scoopc/src/llvm/codegen/main/frame.rs:804:            panic!(\"finalize_function_explicit_frame_lifecycle: verifier accepted missing explicit root frame descriptor global\")",
     "crates/scoopc/src/llvm/codegen/main/function.rs:62:                    panic!(\"emit_function_return_block: function return context must publish return alloca\")",
     "crates/scoopc/src/llvm/codegen/main/function.rs:165:            panic!(\"codegen_top_level_fun: MIR signature verifier accepted unsupported return type\")",
     "crates/scoopc/src/llvm/codegen/main/function.rs:179:                        panic!(\"codegen_top_level_fun: declared sret function must publish hidden return parameter\")",
     "crates/scoopc/src/llvm/codegen/main/gc_locals.rs:85:            panic!(\"rematerialize_ptr_in_current_block: local slot GEP must publish source type\")",
+    "crates/scoopc/src/llvm/codegen/main/gc_locals.rs:305:            panic!(",
     "crates/scoopc/src/llvm/codegen/main/globals.rs:22:            panic!(\"defer_class_field_place: verifier accepted class field index drift\")",
     "crates/scoopc/src/llvm/codegen/main/globals.rs:130:            panic!(\"declare_extern_global_storage: verifier accepted extern global initializer\");",
     "crates/scoopc/src/llvm/codegen/main/globals.rs:166:                    panic!(\"const_initializer_for_top_level_var: verifier accepted non-const Bool initializer\")",
@@ -1048,7 +1051,7 @@ fn pipeline_user_visible_failure_policy_tracks_stale_unsupportedmainbody_counts(
             baseline.path
         );
     }
-    assert_eq!(total, 201);
+    assert_eq!(total, 167);
 }
 
 #[test]

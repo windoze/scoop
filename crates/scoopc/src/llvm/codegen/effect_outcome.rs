@@ -412,10 +412,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     .build_int_z_extend(bits32, i64_ty, "i32_to_u64_word")
                     .map_err(Into::into)
             }
-            CgTy::String | CgTy::Ref => Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "coerce gc ref to u64 word",
-                at: at.into(),
-            }),
+            CgTy::String | CgTy::Ref => {
+                panic!("coerce_u64_word: verifier accepted GC ref as scalar transport word")
+            }
             CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
                 Err(LlvmEmitError::UnsupportedMainBody {
                     kind: "coerce composite value to u64 word",

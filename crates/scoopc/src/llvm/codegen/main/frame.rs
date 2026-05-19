@@ -469,10 +469,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             return Ok(None);
         }
         if pairs.len() != 1 {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "single gc ptr explicit frame reload slot",
-                at: at.into(),
-            });
+            panic!(
+                "explicit_frame_single_gc_ptr_reload_slot_for_storage_slot: explicit-frame verifier accepted multiple reload slots for a single GC pointer"
+            );
         }
 
         let (_, _, frame_slot) = pairs.remove(0);

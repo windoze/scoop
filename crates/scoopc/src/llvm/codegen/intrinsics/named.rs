@@ -2790,10 +2790,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
             NamedIntrinsicRuntimeTy::GcRef => {
                 let coerced = self.coerce_value(operand.span, operand.value, CgTy::Ref)?;
-                coerced.value.ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "named runtime intrinsic GC ref operand value",
-                    at: operand.span.into(),
-                })?
+                self.expect_cg_value(coerced, "named runtime intrinsic GC ref operand")
             }
             NamedIntrinsicRuntimeTy::RawPtr => {
                 let raw = operand
@@ -2931,14 +2928,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 })
             }
             NamedIntrinsicRuntimeTy::GcRef => {
-                let value = call_site
-                    .try_as_basic_value()
-                    .basic()
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "named runtime intrinsic GC ref return value",
-                        at: span.into(),
-                    })?
-                    .into_pointer_value();
+                let raw =
+                    self.expect_basic_value(call_site, "named runtime intrinsic GC ref return");
+                let value = self.expect_pointer_value(raw, "named runtime intrinsic GC ref return");
                 Ok(CgValue {
                     ty: CgTy::Ref,
                     value: Some(value.into()),
