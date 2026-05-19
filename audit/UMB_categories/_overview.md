@@ -6,9 +6,9 @@ inventory 来源：[`audit/UMB_inventory.csv`](../UMB_inventory.csv)
 
 ## Summary
 
-- Total active inventory entries: 197
+- Total active inventory entries: 183
 - Bucket range: B-01 through B-36
-- Zero-entry buckets: B-01, B-02, B-03, B-04, B-05, B-06, B-07, B-08, B-09, B-11, B-14, B-15, B-16, B-17, B-18, B-19, B-20, B-21, B-22, B-23, B-24, B-26, B-27, B-28, B-29, B-30, B-31, B-32, B-33, B-34, B-35, B-36
+- Zero-entry buckets: B-01, B-02, B-03, B-04, B-05, B-06, B-07, B-08, B-09, B-11, B-14, B-15, B-16, B-17, B-18, B-19, B-20, B-21, B-22, B-23, B-24, B-25, B-26, B-27, B-28, B-29, B-30, B-31, B-32, B-33, B-34, B-35, B-36
 - Missing `spec_anchor`: 0
 - Missing `upstream_gate`: 0
 - Decision: all 36 stable buckets are retained; no merge or split is required in U2-T01.
@@ -41,7 +41,7 @@ inventory 来源：[`audit/UMB_inventory.csv`](../UMB_inventory.csv)
 | B-22 | Enum 布局 / niche / Option | B | 0 | retired InternalBugSentinel=40 | retired: Option niche pointer none_value (must be NULL) (3)<br>unknown enum variant (3)<br>enum variant ctor arity mismatch (2)<br>enum payload string (2)<br>enum payload ref (2) | retired ledger: `audit/UMB_retired.csv` | P7-B2.6 retired; active CSV empty. |
 | B-23 | Member access - 通用 | B | 0 | retired InternalBugSentinel=24 | retired: pass MIR member receiver type (3)<br>member access receiver type (2)<br>member access receiver value (2)<br>member access target (2)<br>itable value-box receiver type (1) | retired ledger: `audit/UMB_retired.csv` | P7-B2.6 retired; active CSV empty. |
 | B-24 | Reflection / comptime intrinsic | C/D | 0 | retired RealImpl=6 | retired: sizeOf() arity mismatch (1)<br>sizeOf() arg type (1)<br>reflection intrinsic call binding (1)<br>pass MIR sizeOf arg type (1)<br>pass MIR kindOf arg type (1) | retired ledger: `audit/UMB_retired.csv` | P7-C1 retired reflection/comptime intrinsic rows. |
-| B-25 | Platform / RTTI intrinsic | B/C | 14 | RealImpl=14 | MIR runtime type-check metadata (1)<br>MIR `as?` target runtime type (1)<br>MIR runtime type descriptor (1)<br>MIR runtime type target (1)<br>MIR runtime type operand (1) | crates/scoopc/src/llvm/codegen/mir_body/cast.rs (6)<br>crates/scoopc/src/llvm/codegen/mir_body/transport.rs (6)<br>crates/scoopc/src/llvm/codegen/mir_body/const_pat.rs (2) | CSV non-empty; cross-class split remains entry-level. |
+| B-25 | Platform / RTTI intrinsic | B/C | 0 | retired RealImpl=14 | retired: MIR runtime type-check metadata (1)<br>MIR `as?` target runtime type (1)<br>MIR runtime type descriptor (1)<br>MIR runtime type target (1)<br>MIR runtime type operand (1) | retired ledger: `audit/UMB_retired.csv` | P7-C2 retired Platform/RTTI intrinsic rows. |
 | B-26 | atomic intrinsic 系列 | B | 0 | retired InternalBugSentinel=102 | retired: atomicInt target type (5)<br>atomicInt extern global type (4)<br>atomicInt requires mutable lvalue (3)<br>atomicInt target width (3)<br>atomicRef requires mutable lvalue (3) | retired ledger: `audit/UMB_retired.csv` | P7-B3.3 retired atomic intrinsic contract rows. |
 | B-27 | sync intrinsic 系列 | B | 0 | retired InternalBugSentinel=58 | retired: sync.Once.isDone return value (2)<br>sync.Once.isDone return type (2)<br>sync.destroy receiver nominal (2)<br>sync.destroy receiver source type (1)<br>sync.destroy receiver nominal type (1) | retired ledger: `audit/UMB_retired.csv` | P7-B3.2 retired sync intrinsic contract rows. |
 | B-28 | thread intrinsic 系列 | B | 0 | retired InternalBugSentinel=20 | retired: thread.currentId return value (2)<br>thread.currentId return type (2)<br>thread.sleepMillis value (1)<br>thread.threadSpawn arity mismatch (1)<br>thread.threadSpawn named arg (block) (1) | retired ledger: `audit/UMB_retired.csv` | P7-B3.2 retired thread intrinsic contract rows. |

@@ -4,7 +4,7 @@
 > 计划基线：[`PLAN.md`](./PLAN.md)
 > 上一阶段任务档案：[`TODO-1.md`](./TODO-1.md)
 > 设计与 baseline：[`UnsupportedMainBody_FIX.md`](./UnsupportedMainBody_FIX.md)、[`UnsupportedMainBody_DONE.md`](./UnsupportedMainBody_DONE.md)
-> 当前状态：P7-0-T01、P7-0-T02、P7-A1、P7-A2、P7-A3、P7-A4、P7-B1、P7-B2.1、P7-B2.2、P7-B2.3、P7-B2.4、P7-B2.5、P7-B2.6、P7-B2.7、P7-B2.8、P7-B3.1、P7-B3.2、P7-B3.3、P7-B3.4、P7-B3.5、P7-C1 已完成；active=197，retired=1087。
+> 当前状态：P7-0-T01、P7-0-T02、P7-A1、P7-A2、P7-A3、P7-A4、P7-B1、P7-B2.1、P7-B2.2、P7-B2.3、P7-B2.4、P7-B2.5、P7-B2.6、P7-B2.7、P7-B2.8、P7-B3.1、P7-B3.2、P7-B3.3、P7-B3.4、P7-B3.5、P7-C1、P7-C2 已完成；active=183，retired=1101。
 
 ## 全局约束
 
@@ -556,7 +556,7 @@ P7-0-T01 stable ID + retired ledger
   - 验证结果：`cargo run -p scoopc --bin umb-audit -- list --bucket B-24` 通过（entries 0）；`cargo run -p scoopc --bin umb-audit -- diff` 通过（in sync，197 entries）；`cargo run -p scoopc --bin umb-audit -- stats` 通过（active=197、retired=1087、initial=1284）；`cargo run -p scoop -- test tests/fixtures/umb_fix/B-24-reflection-comptime/` 通过（11 passed）；`cargo test -p scoopc audit:: -- --nocapture` 通过（23 passed）；`cargo test -p scoopc pipeline_user_visible_failure_policy -- --nocapture` 通过（7 passed）；`cargo fmt` 通过；`cargo clippy --all-targets -- -D warnings` 通过。
   - 闭合目标：满足 `PLAN.md:183-206` 与本任务完成条件；B-24 active count 为 0，B-24 positive fixtures active 并通过，supported reflection/comptime intrinsic happy path 不再由 LLVM `UnsupportedMainBody` 兜底。
 
-### [TODO] P7-C2：B-25 Platform / RTTI intrinsic 实现
+### [DONE] P7-C2：B-25 Platform / RTTI intrinsic 实现
 
 - 参考：`PLAN.md:183-206`、`audit/strategies/B-25.md`。
 - 范围：B-25，14 entries，`RealImpl`。
@@ -565,7 +565,15 @@ P7-0-T01 stable ID + retired ledger
 - 验证：`cargo test -p scoopc audit:: -- --nocapture`、`cargo run -p scoop -- test tests/fixtures/umb_fix/B-25-platform-rtti/`。
 - 完成条件：B-25 active count 为 0；B-25 positive fixture active 并通过。
 - 依赖：P7-C1 推荐完成后；B-14/B-22/B-23 contract 稳定后更安全。
-- 完成记录：待填写。
+- 完成记录：
+  - 改动范围：更新 `crates/scoopc/src/llvm/codegen/mir_body/{cast.rs,const_pat.rs,transport.rs}`、`crates/scoopc/src/mir/materialize/validation.rs`、`crates/scoopc/src/pipeline_user_visible_failure_policy.rs`；同步 `audit/UMB_inventory.csv`、`audit/UMB_retired.csv`、`audit/UMB_categories/{B-25.md,_overview.md}`、`audit/strategies/B-25.md`、`audit/spec_coverage_matrix.md`、B-25 fixtures、`tests/fixtures/umb_fix/_index.csv`、`TODO.md` 与 `memory/claude_plan.md`。
+  - Retired IDs：`UMB-1044`、`UMB-1057`、`UMB-1060`、`UMB-1061`、`UMB-1062`、`UMB-1063`、`UMB-1086`、`UMB-1089`、`UMB-1215`、`UMB-1216`、`UMB-1217`、`UMB-1218`、`UMB-1219`、`UMB-1220`；数量 14；bucket `B-25`；class `RealImpl`。
+  - 核心决策：复用 materialized MIR runtime type/cast verifier 与 TypeStore equivalence gate；为 `is` pattern 补齐 runtime descriptor shape 与 dynamic codegen support 校验；MIR `is`/`as?`/pattern RTTI 和 `getPlatform()` Platform literal lowering 删除 B-25 `UnsupportedMainBody` fallback，改为 verifier/sysroot contract 后的 internal invariant panic，同时保留真实 runtime descriptor 和 Platform field materialization。
+  - Inventory/ledger：active 197 -> 183；retired 1087 -> 1101；B-25 active 14 -> 0；`RealImpl` active 197 -> 183。
+  - Stale count：tracked stale total 149 -> 135；`crates/scoopc/src/llvm/codegen/mir_body/cast.rs` `UnsupportedMainBody` 6 -> 0；`const_pat.rs` 2 -> 0；`transport.rs` 8 -> 2。
+  - Fixture 状态：B-25 fixture directory 从 `IGNORE-UNTIL-FIX:B-25` 激活；`pos_platform_rtti_runtime.scoop` 扩展为同时覆盖 `getPlatform()`、`is`、`!is`、`as?` 与 `is` pattern；negative fixture 改为 active frontend/typecheck invalid cast gate；active fixture `COVERS` 改为 `NONE`，retired IDs 由 retired ledger 覆盖。
+  - 验证结果：`cargo run -p scoopc --bin umb-audit -- list --bucket B-25` 通过（entries 0）；`cargo run -p scoopc --bin umb-audit -- diff` 通过（in sync，183 entries）；`cargo run -p scoopc --bin umb-audit -- stats` 通过（active=183、retired=1101、initial=1284）；`cargo test -p scoopc audit:: -- --nocapture` 通过（23 passed）；`cargo test -p scoopc pipeline_user_visible_failure_policy -- --nocapture` 通过（7 passed）；`cargo test -p scoopc mir::materialize -- --nocapture` 通过（54 passed）；`cargo run -p scoop -- test tests/fixtures/umb_fix/B-25-platform-rtti/` 通过（2 passed）；`cargo run -p scoop -- test tests/fixtures/umb_fix/B-14-cast-typecheck/pos_cast_typecheck_runtime.scoop` 通过（1 passed）；`cargo fmt` 通过；`cargo clippy --all-targets -- -D warnings` 通过。
+  - 闭合目标：满足 `PLAN.md:183-206` 与本任务完成条件；B-25 active count 为 0，B-25 positive fixture active 并通过，Platform / RTTI happy paths 不再由 LLVM `UnsupportedMainBody` 兜底。
 
 ### [TODO] P7-C3：B-13 数组 / 复合 transport metadata 实现
 
@@ -643,7 +651,7 @@ P7-0-T01 stable ID + retired ledger
 
 | 阶段 | Active 目标 | Retired 目标 | 备注 |
 |---|---:|---:|---|
-| 当前 | 197 | 1087 | P7-C1 完成，B-24 Reflection / comptime intrinsic 清零；P7-B InternalBugSentinel 清零 |
+| 当前 | 183 | 1101 | P7-C2 完成，B-25 Platform / RTTI intrinsic 清零；P7-B InternalBugSentinel 清零 |
 | P7-A 完成 | 1,159 | 125 | `FrontendReject` 清零 |
 | P7-B 完成 | 203 | 1,081 | `InternalBugSentinel` 清零 |
 | P7-C 完成 | 0 | 1,284 | `RealImpl` 清零 |

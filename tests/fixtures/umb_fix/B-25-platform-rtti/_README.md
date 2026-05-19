@@ -7,8 +7,8 @@
 
 ## Scope
 
-U5-T01 creates this directory skeleton only. U5-T02 and U5-T03 must add `.scoop` fixtures and append matching `_index.csv` rows.
+P7-C2 activates this fixture set for Platform and RTTI runtime lowering. The positive fixture exercises `getPlatform()`, `is`, `!is`, `as?`, and `is` patterns; the negative fixture keeps invalid runtime-cast metadata on the frontend/typecheck path.
 
 ## Runner Status
 
-`scoop test` recognizes `tests/fixtures/umb_fix/**`. Fixtures marked `IGNORE-UNTIL-FIX:B-25` or `ignore-until-fix:B-25` are skipped until the corresponding production fix lands.
+`scoop test` recognizes `tests/fixtures/umb_fix/**`. B-25 rows are retired by P7-C2 and this directory is active.

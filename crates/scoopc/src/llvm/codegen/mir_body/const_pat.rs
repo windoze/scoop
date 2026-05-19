@@ -243,10 +243,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             crate::mir::RuntimeTypeStaticFold::Dynamic => {}
         }
         if !self.runtime_pattern_type_descriptor_is_codegen_supported(mir_types, metadata) {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "pass MIR pattern is runtime type descriptor",
-                at: span.into(),
-            });
+            panic!(
+                "codegen_mir_is_pattern_match: MIR verifier accepted unsupported runtime pattern descriptor"
+            );
         }
         let target_ty = self
             .equivalent_runtime_ref_codegen_type_id(mir_types, metadata.target_ty)
@@ -255,10 +254,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .cg_ty_of(target_ty)
             .unwrap_or_else(|| panic!("codegen_mir_is_pattern_match: MIR verifier accepted non-codegen runtime target type"));
         if !matches!(target_cg, CgTy::Ref | CgTy::String) {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "pass MIR pattern is target runtime type",
-                at: span.into(),
-            });
+            panic!(
+                "codegen_mir_is_pattern_match: MIR verifier accepted unsupported runtime pattern target type"
+            );
         }
 
         let subject = match subject.ty {

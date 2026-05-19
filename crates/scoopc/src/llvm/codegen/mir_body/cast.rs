@@ -17,10 +17,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         slots: &[MirLocalSlot<'ctx>],
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         if metadata.target_ty != test_ty || metadata.descriptor.ty != test_ty {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "MIR runtime type-check metadata",
-                at: span.into(),
-            });
+            panic!(
+                "codegen_mir_type_check: MIR verifier accepted runtime type-check metadata drift"
+            );
         }
         let is_ok =
             self.codegen_mir_runtime_type_test_is_ok(span, value, metadata, mir_types, slots)?;
@@ -153,10 +152,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             panic!("codegen_mir_cast_asq: MIR verifier accepted unsupported `as?` target type")
         });
         if !matches!(target_value_cg, CgTy::Ref | CgTy::String) {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "MIR `as?` target runtime type",
-                at: span.into(),
-            });
+            panic!(
+                "codegen_mir_cast_asq: MIR verifier accepted unsupported `as?` runtime target type"
+            );
         }
         let option_codegen_ty = self
             .equivalent_codegen_type_id(mir_types, *option_ty)
@@ -204,17 +202,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         if !self.runtime_type_descriptor_is_codegen_supported(mir_types, metadata) {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "MIR runtime type descriptor",
-                at: span.into(),
-            });
+            panic!(
+                "codegen_mir_runtime_type_test_is_ok: MIR verifier accepted unsupported runtime type descriptor"
+            );
         }
         let target_ty = self
             .equivalent_runtime_ref_codegen_type_id(mir_types, metadata.target_ty)
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "MIR runtime type target",
-                at: span.into(),
-            })?;
+            .unwrap_or_else(|| panic!("codegen_mir_runtime_type_test_is_ok: TypeStore equivalence verifier accepted unsupported runtime type target"));
         let (obj_ptr, _) = self.codegen_mir_runtime_ref_operand(span, value, slots)?;
         self.codegen_ref_is_instance_of(span, obj_ptr, target_ty)
     }
@@ -230,17 +224,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             CgTy::Ref => value,
             CgTy::String => self.coerce_value(span, value, CgTy::Ref)?,
             _ => {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "MIR runtime type operand",
-                    at: span.into(),
-                });
+                panic!(
+                    "codegen_mir_runtime_ref_operand: MIR verifier accepted runtime type operand with non-reference codegen type"
+                );
             }
         };
         let Some(BasicValueEnum::PointerValue(obj_ptr)) = value.value else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "MIR runtime type operand value",
-                at: span.into(),
-            });
+            panic!(
+                "codegen_mir_runtime_ref_operand: MIR verifier accepted valueless runtime type operand"
+            );
         };
         Ok((obj_ptr, value))
     }

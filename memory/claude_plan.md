@@ -24,6 +24,16 @@
 
 ## Progress Log
 
+- New invocation started on 2026-05-19. Plan: re-read `TODO.md` as the task source of truth, select the first heading without `[DONE]`, inspect only directly relevant context, implement or record a concrete prerequisite blocker, validate, update task records, commit, and stop.
+- Read `TODO.md`; first incomplete task is `P7-C2: B-25 Platform / RTTI intrinsic 实现`.
+- Immediate execution plan for P7-C2: check latest commit for directly relevant unfinished notes, list active B-25 rows, inspect B-25 strategy/category docs and fixtures, inspect RTTI/type-test/as? lowering sites, implement real RTTI metadata/runtime type lowering or add a concrete prerequisite if blocked, validate B-25/audit/policy/clippy, mark TODO complete, commit, and stop.
+- Latest commit is `[P7-C1] Retire reflection comptime UMB rows`; no directly relevant unfinished B-25 note was found.
+- B-25 active IDs are `UMB-1044`, `UMB-1057`, `UMB-1060`, `UMB-1061`, `UMB-1062`, `UMB-1063`, `UMB-1086`, `UMB-1089`, `UMB-1215`, `UMB-1216`, `UMB-1217`, `UMB-1218`, `UMB-1219`, and `UMB-1220`.
+- Implementation focus: retire B-25 `UnsupportedMainBody` fallbacks in MIR runtime type/cast/pattern and getPlatform literal lowering by relying on materialized MIR / sysroot contracts and preserving real runtime descriptor/platform codegen; expand B-25 fixture coverage to exercise both RTTI and Platform paths.
+- Implemented B-25 production changes: runtime type/cast/pattern and getPlatform UMB fallbacks now route to verifier/sysroot invariant panics; materialized MIR pattern type-test validation now checks descriptor shape and dynamic codegen support; B-25 fixtures are active and the directory passes.
+- Updated B-25 audit data: removed 14 active rows from `audit/UMB_inventory.csv`, appended them to `audit/UMB_retired.csv`, updated B-25 category/strategy/overview/spec matrix/fixture index, and adjusted stale UMB baseline from 149 to 135.
+- Validation completed: `umb-audit list --bucket B-25`, `umb-audit diff`, `umb-audit stats`, `cargo test -p scoopc audit:: -- --nocapture`, `cargo test -p scoopc pipeline_user_visible_failure_policy -- --nocapture`, `cargo test -p scoopc mir::materialize -- --nocapture`, B-25 fixture directory, B-14 RTTI smoke fixture, `cargo fmt`, and `cargo clippy --all-targets -- -D warnings` all pass.
+- Updated `TODO.md` to mark P7-C2 `[DONE]` with completion record and current active=183/retired=1101 status.
 - Initialized execution plan before reading project task files.
 - Read `TODO.md`; first incomplete task is `P7-C1: B-24 Reflection / comptime intrinsic 实现`.
 - Next focus: inspect recent git context, B-24 inventory/category/strategy docs, B-24 fixtures, and the reflection/comptime intrinsic code paths before editing.

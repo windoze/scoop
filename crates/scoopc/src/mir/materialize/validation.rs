@@ -4012,7 +4012,28 @@ pub(super) fn validate_materialized_pattern(
                     surface: "pattern type-test metadata",
                 },
                 metadata,
-            )
+            )?;
+            if !materialized_runtime_descriptor_shape_matches(materialized, &metadata.descriptor) {
+                return Err(materialized_runtime_contract_err(
+                    fqn,
+                    block,
+                    span,
+                    "pattern type test",
+                    "runtime descriptor kind does not match target type",
+                ));
+            }
+            if metadata.static_fold == RuntimeTypeStaticFold::Dynamic
+                && !materialized_runtime_ref_codegen_supported(materialized, metadata.target_ty)
+            {
+                return Err(materialized_runtime_contract_err(
+                    fqn,
+                    block,
+                    span,
+                    "pattern type test",
+                    "dynamic runtime pattern target is not supported by codegen",
+                ));
+            }
+            Ok(())
         }
         Pattern::Bind { ty, .. } => validate_materialized_type(
             materialized,

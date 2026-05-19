@@ -205,32 +205,25 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         target_cg: CgTy,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         let CgTy::Struct(struct_ty) = target_cg else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "getPlatform intrinsic result type",
-                at: span.into(),
-            });
+            panic!(
+                "codegen_platform_literal: sysroot contract accepted non-struct Platform result type"
+            );
         };
         let TypeKind::Value(ValueTypeKind::Nominal(nominal)) = self.types.kind(struct_ty) else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "getPlatform intrinsic nominal Platform type",
-                at: span.into(),
-            });
+            panic!(
+                "codegen_platform_literal: sysroot contract accepted non-nominal Platform result type"
+            );
         };
         if nominal.fqn != "scoop.core.Platform" {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "getPlatform intrinsic Platform target",
-                at: span.into(),
-            });
+            panic!("codegen_platform_literal: sysroot contract accepted non-Platform result type");
         }
 
         let layout_key = self.nominal_layout_key(nominal);
-        let layout =
-            self.struct_layouts
-                .get(&layout_key)
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "getPlatform intrinsic Platform layout",
-                    at: span.into(),
-                })?;
+        let layout = self.struct_layouts.get(&layout_key).unwrap_or_else(|| {
+            panic!(
+                "codegen_platform_literal: struct layout contract accepted missing Platform layout"
+            )
+        });
         let llvm_struct_ty = self.llvm_struct_type(span, struct_ty)?;
         let (arch, vendor, os, env) = decompose_target_triple(&self.host.triple);
         let field_values = [
@@ -247,10 +240,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             let (_, text) = field_values
                 .iter()
                 .find(|(name, _)| *name == layout_field.name)
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "getPlatform intrinsic Platform field",
-                    at: span.into(),
-                })?;
+                .unwrap_or_else(|| {
+                    panic!("codegen_platform_literal: sysroot contract accepted unknown Platform field `{}`", layout_field.name)
+                });
             let field_cg =
                 self.cg_ty_of_layout_field(span, layout_field.ty, layout_field.ty_fqn.as_deref())?;
             let value = self.codegen_string_literal_from_text(span, text)?;
@@ -280,12 +272,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 &format!("get_platform_field_reload_{idx}"),
                 deferred,
             )?;
-            let raw = materialized
-                .value
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "getPlatform intrinsic field value",
-                    at: span.into(),
-                })?;
+            let raw = materialized.value.unwrap_or_else(|| {
+                panic!("codegen_platform_literal: verified Platform field materialized without LLVM value")
+            });
             agg = self.builder.build_insert_value(
                 agg,
                 raw,

@@ -1,12 +1,25 @@
 // EXPECT: ok
-// IGNORE-UNTIL-FIX:B-25
 // SPEC: docs/spec/language_spec-part5.md#10-runtime-type-info;docs/spec/language_spec-part5.md#11-class-literal;docs/spec/language_spec-part5.md#9-platform-introspection
-// COVERS: UMB-1044, UMB-1057, UMB-1060, UMB-1061, UMB-1062, UMB-1063, UMB-1086, UMB-1089, UMB-1215, UMB-1216, UMB-1217, UMB-1218, UMB-1219, UMB-1220
+// COVERS: NONE
 // BUCKETS: B-25
-// REASON: U5-T02 records the spec surface before the matching implementation gate is enabled.
-// SOURCE-FIXTURE: tests/fixtures/run-pass/get_platform_runtime_basic.scoop
+// REASON: P7-C2 retired B-25 rows; active smoke covers getPlatform, runtime type tests, as?, and is-pattern lowering.
+// SOURCE-FIXTURE: tests/fixtures/run-pass/get_platform_runtime_basic.scoop;tests/fixtures/umb_fix/B-14-cast-typecheck/pos_cast_typecheck_runtime.scoop
 
 import scoop.core.*
+
+interface Marker {
+    fun tag(): Int
+}
+
+open class Base()
+
+class Impl() : Base(), Marker {
+    fun tag(): Int {
+        return 42
+    }
+}
+
+class Other()
 
 fun main(): Int {
     val p: Platform = getPlatform()
@@ -15,5 +28,21 @@ fun main(): Int {
     println(p.vendor != "")
     println(p.os != "")
     println(p.env == p.env)
+
+    val x: Any = Impl()
+    println(x is Marker)
+    println(x !is Other)
+
+    val maybe: Marker? = x as? Marker
+    when (maybe) {
+        Some(m) -> println(m.tag())
+        None -> println(0)
+    }
+
+    val patternResult: Int = when (x) {
+        is Marker -> 1
+        else -> 0
+    }
+    println(patternResult)
     return 0
 }
