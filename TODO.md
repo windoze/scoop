@@ -3,7 +3,7 @@
 > 生成时间：2026-05-19
 > 设计基线：[`SYSROOT_RESHAPE_R2.md`](./SYSROOT_RESHAPE_R2.md)
 > 计划基线：[`PLAN.md`](./PLAN.md)
-> 当前状态：`P0-T01` 已完成；下一任务为 `P1-T01`。
+> 当前状态：`P1-T01` 已完成；下一任务为 `P1-T02`。
 > 执行原则：严格按 P0 -> P10 顺序推进；同一阶段内可按任务依赖拆 PR，但每个任务完成后必须保持仓库无 failing fixture，并回写完成记录。
 
 ## 全局约束
@@ -89,7 +89,7 @@ P0 baseline freeze
 | ID | 状态 | 阶段 | 标题 |
 | --- | --- | --- | --- |
 | `P0-T01` | [DONE] | P0 | 冻结 R2 baseline 与迁移清单 |
-| `P1-T01` | [TODO] | P1 | 禁用/删除 `scoop package` archive CLI |
+| `P1-T01` | [DONE] | P1 | 禁用/删除 `scoop package` archive CLI |
 | `P1-T02` | [TODO] | P1 | 移除 normal build 的 `.cone` dependency flow |
 | `P1-T03` | [TODO] | P1 | 删除或改写 archive fixtures 与 archive-only tests |
 | `P2-T01` | [TODO] | P2 | `@Extern` 支持 `callingConvention` property |
@@ -147,7 +147,7 @@ P0 baseline freeze
 - 与计划/设计闭合：已覆盖 `PLAN.md` §3 和 `SYSROOT_RESHAPE_R2.md` §0-§2 所要求的旧 archive、sysroot privilege、runtime-core 外溢和 current-cone native-build 基线；未发现需要更新 `PLAN.md` 的阶段级依赖变化。
 - 验证结果：`cargo build` 通过；`cargo test --all --all-targets` 通过；`cargo run -p scoop -- test` 通过（fixtures: ok，1558 checks）；额外运行 `cargo clippy --all-targets -- -D warnings` 通过。
 
-## P1-T01：禁用/删除 `scoop package` archive CLI
+## [DONE] P1-T01：禁用/删除 `scoop package` archive CLI
 
 - 参考：`PLAN.md` §4。
 - 目标：让当前 `.cone` archive 不再被呈现为可用发布能力。
@@ -158,6 +158,14 @@ P0 baseline freeze
   3. 更新相关 CLI tests / help 文案。
 - 验证：`cargo test -p scoop package -- --nocapture` 或对应 CLI tests；`cargo build`。
 - 完成条件：用户不能通过 normal CLI 生成看似可用的 `.cone` 依赖包。
+
+### 完成记录（2026-05-20）
+
+- 改动范围：`crates/scoop/src/commands/package.rs`、`crates/scoop/src/cli.rs`；未修改 archive writer/reader future helper 代码，未改变 normal build dependency flow，未更新 `PLAN.md`。
+- 核心决策：保留 `scoop package` 解析入口以提供稳定 diagnostic，但命令实现不再 canonicalize 输入、不创建输出目录、不调用 `write_cone_archive_v0`，因此 normal CLI 不能写出 `.cone` archive。
+- Help / tests：`package` help 文案改为说明 `.cone` archive packaging 在 source-only cone redesign 期间暂不支持；原写 archive 的 package 单元测试改为断言稳定 unsupported diagnostic 和不写出 `.cone` 文件。
+- 与 `PLAN.md` / `SYSROOT_RESHAPE_R2.md` 闭合项：满足 P1 中“`scoop package` 要么删除子命令，要么改为稳定 diagnostic”的要求；P1 后续 `.cone` build consume flow 与 archive fixtures 退场仍由 `P1-T02` / `P1-T03` 处理。
+- 验证结果：`cargo fmt` 通过；`cargo build` 通过；`cargo test -p scoop package -- --nocapture` 首次与并行 build 争用后超时，重跑通过（6 passed, 0 failed）；`cargo clippy --all-targets -- -D warnings` 通过。
 
 ## P1-T02：移除 normal build 的 `.cone` dependency flow
 

@@ -202,11 +202,11 @@ pub enum Command {
         args: Vec<String>,
     },
 
-    /// 打包 cone 包为 `.cone` 归档（v0：只写包）
+    /// `.cone` archive packaging is temporarily unsupported during source-only cone redesign
     Package {
         /// 输入包目录（包含 `Cone.toml`）
         input: PathBuf,
-        /// 输出 `.cone` 文件路径
+        /// 输出 `.cone` 文件路径（当前不会写出）
         #[arg(short, long)]
         output: Option<PathBuf>,
     },
@@ -217,7 +217,7 @@ mod tests {
     use std::path::PathBuf;
 
     use super::{Args, Command};
-    use clap::Parser as _;
+    use clap::{CommandFactory as _, Parser as _};
 
     #[test]
     fn effect_pipeline_selector_removed_for_scoop_cli() {
@@ -480,5 +480,17 @@ mod tests {
     fn test_command_rejects_conflicting_run_profile_flags() {
         let err = Args::try_parse_from(["scoop", "run", "--debug", "--release"]).unwrap_err();
         assert_eq!(err.kind(), clap::error::ErrorKind::ArgumentConflict);
+    }
+
+    #[test]
+    fn package_help_mentions_archive_is_unsupported() {
+        let mut cmd = Args::command();
+        let help = cmd
+            .find_subcommand_mut("package")
+            .unwrap()
+            .render_long_help()
+            .to_string();
+
+        assert!(help.contains("temporarily unsupported"));
     }
 }

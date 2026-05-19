@@ -1,40 +1,28 @@
-# 当前执行计划
+# Claude Execution Plan
 
-## 约束说明
+## 当前目标
 
-- 我会记录可审阅的执行计划、关键决策、进度和验证结果。
-- 不会记录不可公开的逐字内部推理；如遇计划变更，会在本文件更新可检查的原因和下一步。
+- 按 `TODO.md` 的顺序完成第一个标题未带 `[DONE]` 的任务，然后停止。
+- `TODO.md` 是任务状态、依赖、验证要求和完成记录的唯一权威来源。
+- 若当前任务被具体前置缺陷阻塞，只添加最小必要前置任务、提交该任务列表更新并停止。
 
-## 初始步骤
+## 执行步骤
 
-1. 读取 `TODO.md`，按文件顺序找到第一个标题未带 `[DONE]` 的任务。
-2. 检查最近提交信息，仅在其明确提到与当前任务直接相关的未完成问题时，把它纳入当前任务或作为前置项记录到 `TODO.md`。
-3. 阅读当前任务的要求、依赖和验证标准，必要时查看相关代码、测试和规格。
-4. 若任务可直接完成，则实现最小正确改动，并补充或更新相关测试/fixture。
-5. 运行任务要求的验证命令；若失败，修复相关问题并重新验证。
-6. 完成后更新 `TODO.md`：在任务标题前加 `[DONE]`，并填写完成记录。
-7. 仅当阶段级计划、依赖或完成标准发生变化时更新 `PLAN.md`。
-8. 提交本次任务涉及的所有变更，提交信息包含任务编号和简要说明。
-9. 完成首个未完成任务后停止，不继续处理后续任务。
+1. 读取 `TODO.md`，识别第一个未完成任务；必要时查看最近提交是否提到与该任务直接相关的未完成问题。
+2. 阅读当前任务涉及的说明、依赖、完成标准和验证要求，只围绕该任务建立上下文。
+3. 检查相关代码、测试和夹具，确认需要修改的最小范围。
+4. 实现任务要求；如果发现阻塞当前任务的规格不匹配或缺失能力，优先修复，或将其作为前置任务写入 `TODO.md` 后停止。
+5. 运行任务要求的验证命令及必要的相关测试；若失败，定位并修复后重跑。
+6. 更新 `TODO.md`：将完成任务标题加上 `[DONE]`，补充完成记录和验证结果；仅当阶段级计划变化时才更新 `PLAN.md`。
+7. 运行提交前检查：查看 `git status`、`git diff`、最近提交，并只提交本次任务相关变更。
+8. 使用清晰的任务编号提交信息创建 Git commit，然后停止，不继续下一个任务。
 
-## 当前状态
+## 进度记录
 
-- 已读取 `TODO.md`，首个未完成任务为 `P0-T01：冻结 R2 baseline 与迁移清单`。
-- 已对照 `PLAN.md`，该任务属于基线冻结和迁移清单记录，不应拆分。
-- 最近提交为 `f8a6260a Update plan`，未发现明确提到与 `P0-T01` 直接相关的未完成事项。
-- 已完成 P0 审计取证：
-  - archive active path：`scoop package` CLI、`build/deps.rs` 的 `.cone` 搜索、`ProjectContext`/`run_frontend` 的 `ConeArchiveApi` 注入、`typecheck_cone_archive` fixture runner、`api.scoopir` export/consume。
-  - sysroot privilege active path：`SourceOrigin::Sysroot`、`SourceFile::is_sysroot()`、`@file:AllowIntrinsic`、`check_intrinsic_builtin_annotation_gate`、sealed marker 的 `source.is_sysroot()` gate。
-  - runtime 外溢：`scoop_thread_*`、`scoop_sync_*`、`scoop_test_*`、`scoop_once_*` 仍在 runtime C 和 allowlist 中。
-  - native-build 基线：`Cone.toml[native-build]` 已解析，driver 只编译当前显式 cone 的 C/C++ sources，`c_sources_extern_call_basic` 为 C source 端到端 fixture。
-- 下一步：更新 `TODO.md` 的 P0 完成记录，运行验证命令后再将任务标记为 `[DONE]` 并提交。
-
-## 验证进度
-
-- `cargo build` 通过。
-- `cargo test --all --all-targets` 通过（904 个 `scoopc` 单测通过，完整输出由工具截断保存）。
-- `cargo run -p scoop -- test` 通过（fixtures: ok，1558 checks）。
-- `cargo clippy --all-targets -- -D warnings` 通过。
-- 已写入 `TODO.md` 完成记录，并将 `P0-T01` 标记为 `[DONE]`。
-- 已检查 `git status --short`、`git diff -- TODO.md memory/claude_plan.md` 和 `git log --oneline -10`；当前仅有 `TODO.md` 与 `memory/claude_plan.md` 两个本任务相关变更。
-- 下一步：提交 `P0-T01` 基线冻结记录。
+- 已写入初始执行计划；下一步读取 `TODO.md` 识别首个未完成任务。
+- 已识别首个未完成任务：`P1-T01`，目标是禁用或删除 normal CLI 中的 `scoop package` archive 发布能力。最新提交 `P0-T01` 未提出与该任务直接相关的未完成前置问题。
+- 下一步检查 CLI 定义、command dispatch、package 命令实现与相关测试/help 文案，然后采用最小变更让用户无法通过 normal CLI 生成看似可用的 `.cone` 包。
+- 已将 `scoop package` 改为稳定 unsupported 诊断，并更新 CLI help 文案与 package 相关单元测试；下一步格式化并运行指定验证。
+- 验证已完成：`cargo fmt`、`cargo build`、`cargo test -p scoop package -- --nocapture` 重跑通过、`cargo clippy --all-targets -- -D warnings` 通过。
+- 已回写 `TODO.md`：`P1-T01` 标记为 `[DONE]`，当前状态推进到 `P1-T02`，并补充完成记录。
+- 已完成提交前检查并暂存本任务相关文件；下一步创建 `P1-T01` 提交后停止。
