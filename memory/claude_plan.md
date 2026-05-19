@@ -1,35 +1,40 @@
-# Claude Execution Plan
+# 当前执行计划
 
-## Scope
+## 约束说明
 
-- Follow `TODO.md` as the authoritative task list.
-- Complete exactly the first task whose title is not prefixed with `[DONE]`, then stop.
-- Do not perform broad historical triage before selecting the current task.
-- Do not use workarounds for spec mismatches; if a prerequisite blocker is discovered, record it in `TODO.md`, commit that bookkeeping, and stop.
+- 我会记录可审阅的执行计划、关键决策、进度和验证结果。
+- 不会记录不可公开的逐字内部推理；如遇计划变更，会在本文件更新可检查的原因和下一步。
 
-## Step-By-Step Plan
+## 初始步骤
 
-1. Inspect `TODO.md` and identify the first incomplete task by heading/title prefix.
-2. Check the latest commit message only for unfinished work directly relevant to that task.
-3. Read the task body, dependencies, validation requirements, and any completion record.
-4. Inspect the relevant source, tests, fixtures, and documentation needed for that task.
-5. Implement the smallest complete spec-correct change for the selected task.
-6. Add or update focused tests/fixtures required by the task.
-7. Run targeted validation first, then broader required validation from the task.
-8. Fix any failures caused by the task work; if a real prerequisite blocker appears, update `TODO.md` accordingly and stop after committing.
-9. Mark the completed task title in `TODO.md` with `[DONE]` and update its completion record.
-10. Run final formatting/linting/tests appropriate to the task.
-11. Review `git status`, `git diff`, and recent commits; commit all intended changes with a descriptive task-tagged message.
-12. Stop without starting the next task.
+1. 读取 `TODO.md`，按文件顺序找到第一个标题未带 `[DONE]` 的任务。
+2. 检查最近提交信息，仅在其明确提到与当前任务直接相关的未完成问题时，把它纳入当前任务或作为前置项记录到 `TODO.md`。
+3. 阅读当前任务的要求、依赖和验证标准，必要时查看相关代码、测试和规格。
+4. 若任务可直接完成，则实现最小正确改动，并补充或更新相关测试/fixture。
+5. 运行任务要求的验证命令；若失败，修复相关问题并重新验证。
+6. 完成后更新 `TODO.md`：在任务标题前加 `[DONE]`，并填写完成记录。
+7. 仅当阶段级计划、依赖或完成标准发生变化时更新 `PLAN.md`。
+8. 提交本次任务涉及的所有变更，提交信息包含任务编号和简要说明。
+9. 完成首个未完成任务后停止，不继续处理后续任务。
 
-## Progress Log
+## 当前状态
 
-- Initial plan recorded before running repository inspection commands.
-- Selected current task: `P8-T02` (`归档 audit ledger 并更新 DONE 记录`) from `TODO.md` lines 663-680.
-- Task requirements: archive UMB audit ledger/materials, remove or reshape UMB-only audit tooling/tests while keeping durable coverage, confirm all `umb_fix` fixtures are active, update `UnsupportedMainBody_DONE.md`, update `TODO.md`, validate, commit, then stop.
-- Latest commit checked: `604d490e [P8-T01] Remove unsupported main body variant`; no extra unfinished issue was identified for P8-T02.
-- Pre-cleanup `umb-audit stats` confirmed active=0, retired=1284, initial=1284.
-- Implemented initial P8 cleanup: archived the UMB ledger/empty inventory/schema under `docs/archive/audits/unsupported-main-body/`, removed `umb-audit` and UMB inventory-generation tests, and reshaped the remaining audit module into long-term `umb_fix` fixture coverage checks.
-- Targeted audit validation passed: `cargo test -p scoopc audit:: -- --nocapture` (12 passed).
-- Required P8-T02 validation passed: `cargo run -p scoop -- test tests/fixtures/umb_fix/` (152 passed), `cargo test --all --all-targets`, `cargo run -p scoop -- test` (1558 checks), and `cargo clippy --all-targets -- -D warnings`.
-- Final records updated: `UnsupportedMainBody_DONE.md` records P8 completion and archive locations; `TODO.md` marks `P8-T02` as `[DONE]`; final `PLAN.md` and `TODO.md` copies archived under `docs/archive/plans/`.
+- 已读取 `TODO.md`，首个未完成任务为 `P0-T01：冻结 R2 baseline 与迁移清单`。
+- 已对照 `PLAN.md`，该任务属于基线冻结和迁移清单记录，不应拆分。
+- 最近提交为 `f8a6260a Update plan`，未发现明确提到与 `P0-T01` 直接相关的未完成事项。
+- 已完成 P0 审计取证：
+  - archive active path：`scoop package` CLI、`build/deps.rs` 的 `.cone` 搜索、`ProjectContext`/`run_frontend` 的 `ConeArchiveApi` 注入、`typecheck_cone_archive` fixture runner、`api.scoopir` export/consume。
+  - sysroot privilege active path：`SourceOrigin::Sysroot`、`SourceFile::is_sysroot()`、`@file:AllowIntrinsic`、`check_intrinsic_builtin_annotation_gate`、sealed marker 的 `source.is_sysroot()` gate。
+  - runtime 外溢：`scoop_thread_*`、`scoop_sync_*`、`scoop_test_*`、`scoop_once_*` 仍在 runtime C 和 allowlist 中。
+  - native-build 基线：`Cone.toml[native-build]` 已解析，driver 只编译当前显式 cone 的 C/C++ sources，`c_sources_extern_call_basic` 为 C source 端到端 fixture。
+- 下一步：更新 `TODO.md` 的 P0 完成记录，运行验证命令后再将任务标记为 `[DONE]` 并提交。
+
+## 验证进度
+
+- `cargo build` 通过。
+- `cargo test --all --all-targets` 通过（904 个 `scoopc` 单测通过，完整输出由工具截断保存）。
+- `cargo run -p scoop -- test` 通过（fixtures: ok，1558 checks）。
+- `cargo clippy --all-targets -- -D warnings` 通过。
+- 已写入 `TODO.md` 完成记录，并将 `P0-T01` 标记为 `[DONE]`。
+- 已检查 `git status --short`、`git diff -- TODO.md memory/claude_plan.md` 和 `git log --oneline -10`；当前仅有 `TODO.md` 与 `memory/claude_plan.md` 两个本任务相关变更。
+- 下一步：提交 `P0-T01` 基线冻结记录。

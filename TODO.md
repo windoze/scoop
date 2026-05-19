@@ -3,7 +3,7 @@
 > 生成时间：2026-05-19
 > 设计基线：[`SYSROOT_RESHAPE_R2.md`](./SYSROOT_RESHAPE_R2.md)
 > 计划基线：[`PLAN.md`](./PLAN.md)
-> 当前状态：全部任务待开始。
+> 当前状态：`P0-T01` 已完成；下一任务为 `P1-T01`。
 > 执行原则：严格按 P0 -> P10 顺序推进；同一阶段内可按任务依赖拆 PR，但每个任务完成后必须保持仓库无 failing fixture，并回写完成记录。
 
 ## 全局约束
@@ -88,7 +88,7 @@ P0 baseline freeze
 
 | ID | 状态 | 阶段 | 标题 |
 | --- | --- | --- | --- |
-| `P0-T01` | [TODO] | P0 | 冻结 R2 baseline 与迁移清单 |
+| `P0-T01` | [DONE] | P0 | 冻结 R2 baseline 与迁移清单 |
 | `P1-T01` | [TODO] | P1 | 禁用/删除 `scoop package` archive CLI |
 | `P1-T02` | [TODO] | P1 | 移除 normal build 的 `.cone` dependency flow |
 | `P1-T03` | [TODO] | P1 | 删除或改写 archive fixtures 与 archive-only tests |
@@ -122,7 +122,7 @@ P0 baseline freeze
 
 ---
 
-## P0-T01：冻结 R2 baseline 与迁移清单
+## [DONE] P0-T01：冻结 R2 baseline 与迁移清单
 
 - 参考：`PLAN.md` §3、`SYSROOT_RESHAPE_R2.md` §0-§2。
 - 目标：在删除旧 archive 和重排 sysroot 前，固定现状与迁移范围。
@@ -134,6 +134,18 @@ P0 baseline freeze
   4. 记录 current-cone native-build 能力与 fixture：`tests/fixtures/run_pass_cone/c_sources_extern_call_basic/`。
 - 验证：`cargo build`、`cargo test --all --all-targets`、`cargo run -p scoop -- test`。
 - 完成条件：本任务末尾有完成记录，后续 P1-P10 触碰文件簇清晰。
+
+### 完成记录（2026-05-20）
+
+- 改动范围：仅冻结和记录 R2 基线；未改编译器/runtime 行为，未删除或改写 fixture；`PLAN.md` 和 `SYSROOT_RESHAPE_R2.md` 的阶段级计划未变化。
+- Archive active path 基线：`crates/scoop/src/cli.rs` 仍暴露 `scoop package`；`crates/scoop/src/commands/mod.rs` 仍 dispatch 到 `crates/scoop/src/commands/package.rs::run`；`crates/scoopc/src/cone/archive.rs` 写出 `Cone.toml`、`api.scoopir`、`SOURCES_SHA256` 等 archive entries；`crates/scoop/src/commands/build/deps.rs` 仍通过 `SCOOP_CONE_PATH`、`cone/`、`deps/` 和 consumer root 搜索 `.cone`；`crates/scoopc/src/frontend.rs::ProjectContext` / `run_frontend` 仍携带并注入 `Vec<ConeArchiveApi>`；`crates/scoopc/src/cone/consume.rs` 仍实现 `ConeArchiveApi`、`load_cone_archive_api`、`inject_cone_dependency_public_api` 与 `api.scoopir` consume；`crates/scoop/src/fixtures/mod.rs` 仍把 `tests/fixtures/typecheck_cone_archive/**` 作为真实 `.cone` 注入 suite 运行。
+- Sysroot privilege 基线：`crates/scoopc/src/source.rs` 仍以 `SourceOrigin::Sysroot` / `SourceFile::is_sysroot()` 表示 sysroot 来源；`crates/scoopc/src/sysroot/mod.rs` 仍递归收集 sysroot/overlay 下 `.scoop` 并用 `SourceFile::load_sysroot` 加载；`crates/scoopc/src/frontend.rs::load_default_support_sources` 仍把 sysroot files 作为 support sources 加入输入；`crates/scoopc/src/typecheck/builtin_annotations.rs` 仍识别 `@file:AllowIntrinsic`；`crates/scoopc/src/typecheck/annotations.rs::check_intrinsic_builtin_annotation_gate` 仍允许 `file_allows_intrinsic || source_is_sysroot(source)`；`crates/scoopc/src/typecheck/type_env.rs::check_sealed_interface_decl_shape` 仍用 `source.is_sysroot()` 限制 sealed marker 定义。
+- Runtime-core 外溢基线：`runtime/c/scoop_runtime_api.h` allowlist 仍登记 `scoop_once_begin/end/guard_canonicalize`、`scoop_sync_mutex_*`、`scoop_sync_condvar_*`、`scoop_sync_once_*`、大量 `scoop_test_*`、以及 user-level `scoop_thread_spawn/join/yield/sleep_millis/current_id` 等符号；实现集中在 `runtime/c/scoop_once.c`、`runtime/c/scoop_sync.c`、`runtime/c/scoop_test.c`、`runtime/c/scoop_thread.c`，并由 `crates/scoopc/src/llvm/codegen/runtime_symbols.rs` / `runtime_abi.rs` 等 active codegen 路径引用。
+- Current-cone native-build 基线：`crates/scoopc/src/cone/manifest.rs` 已解析 `[native-build]` 的 `c-sources`、`c-flags`、`cxx-sources`、`cxx-flags`、`linker`、`link-flags`；`crates/scoop/src/commands/build.rs` 仅当 `front.input().is_explicit_cone()` 时编译当前 consumer cone 的 C/C++ sources 并透传 link flags；`tests/fixtures/run_pass_cone/c_sources_extern_call_basic/` 以 `native/add.c` + `@Extern(name = "cone_add_int")` 覆盖当前显式 cone 的 C source 编译/链接/run 能力。
+- 后续触碰文件簇：P1 聚焦 `scoop` CLI/package/build deps、`scoopc::frontend`、`scoopc::cone::{archive,consume,scoopir}` 和 `typecheck_cone_archive` fixtures；P2 聚焦 `typecheck/annotations.rs`、`hir` ABI fields、LLVM call/declare ABI、parser/typecheck/build fixtures；P3 聚焦 `cone/manifest.rs`、`cone/package.rs`、frontend entry selection、syslib trust/intrinsic gates；P4 聚焦 `sysroot/` layout、`sysroot/mod.rs`、overlay fixtures；P5 聚焦 source cone graph、`ProjectInput/ProjectContext`、resolver/typecheck/codegen cone identity；P6 聚焦 auto dependency/prelude lists 和 `resolve/imports.rs`；P7 聚焦 `commands/build.rs`、`toolchain.rs` 和 all-loaded-cone native build fixtures；P8 聚焦 `runtime/c/` headers/sources、sysroot cone `native/` ownership 和 runtime allowlist tests；P9 聚焦 LLVM object/top-level init codegen、entry emission 和 once runtime 退场；P10 聚焦全仓旧模型 grep、`SCOOP_FULL_SPEC.md` 与最终验证。
+- 核心决策：`P0-T01` 是基线冻结任务，不拆分，不引入 workaround，不修改阶段级计划；archive fixture 删除/改写留给 P1，sysroot/source cone/trust 语义迁移留给 P3-P6，native/runtime 迁移留给 P7-P9。
+- 与计划/设计闭合：已覆盖 `PLAN.md` §3 和 `SYSROOT_RESHAPE_R2.md` §0-§2 所要求的旧 archive、sysroot privilege、runtime-core 外溢和 current-cone native-build 基线；未发现需要更新 `PLAN.md` 的阶段级依赖变化。
+- 验证结果：`cargo build` 通过；`cargo test --all --all-targets` 通过；`cargo run -p scoop -- test` 通过（fixtures: ok，1558 checks）；额外运行 `cargo clippy --all-targets -- -D warnings` 通过。
 
 ## P1-T01：禁用/删除 `scoop package` archive CLI
 
