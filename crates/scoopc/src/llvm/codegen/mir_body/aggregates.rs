@@ -658,23 +658,22 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         slots: &[MirLocalSlot<'ctx>],
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         let Some((receiver_arg, call_args)) = args.split_first() else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "pass MIR FunPtr invoke arity mismatch",
-                at: span.into(),
-            });
+            panic!(
+                "codegen_mir_funptr_invoke_call: materialized MIR verifier accepted missing FunPtr receiver"
+            );
         };
         if receiver_arg.name.is_some() {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "pass MIR FunPtr invoke receiver binding",
-                at: receiver_arg.span.into(),
-            });
+            panic!(
+                "codegen_mir_funptr_invoke_call: materialized MIR verifier accepted named FunPtr receiver"
+            );
         }
         let fun_ty = self
             .mir_operand_funptr_function_type(body, mir_types, &receiver_arg.value)
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "pass MIR FunPtr invoke receiver type",
-                at: receiver_arg.span.into(),
-            })?;
+            .unwrap_or_else(|| {
+                panic!(
+                    "codegen_mir_funptr_invoke_call: materialized MIR verifier accepted non-FunPtr receiver type"
+                )
+            });
         self.codegen_mir_funptr_value_call(
             span,
             &receiver_arg.value,

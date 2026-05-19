@@ -3815,20 +3815,14 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
         match callee_fqn {
             "scoop.runtime.test.__scoop_stackmap_statepoint_smoke" => {
                 if !args.is_empty() {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "stackmap statepoint smoke arity mismatch",
-                        at: span.into(),
-                    });
+                    self.codegen.panic_verified_intrinsic_contract(
+                        "effect-lowered stackmap statepoint smoke",
+                        "argument list drift",
+                    );
                 }
                 let current_fun = self
                     .codegen
-                    .builder
-                    .get_insert_block()
-                    .and_then(|bb| bb.get_parent())
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "stackmap statepoint smoke caller function",
-                        at: span.into(),
-                    })?;
+                    .expect_current_function("effect-lowered stackmap statepoint smoke");
                 current_fun.set_gc("statepoint-example");
 
                 let runtime = self.codegen.declare_runtime_stackmap_statepoint_smoke();
@@ -3838,18 +3832,12 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
                     &[],
                     "stackmap_statepoint_smoke",
                 )?;
-                let raw = call.try_as_basic_value().basic().ok_or(
-                    LlvmEmitError::UnsupportedMainBody {
-                        kind: "stackmap statepoint smoke return value",
-                        at: span.into(),
-                    },
-                )?;
-                let BasicValueEnum::IntValue(raw_int) = raw else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "stackmap statepoint smoke return type",
-                        at: span.into(),
-                    });
-                };
+                let raw = self
+                    .codegen
+                    .expect_basic_value(call, "effect-lowered stackmap statepoint smoke return");
+                let raw_int = self
+                    .codegen
+                    .expect_int_value(raw, "effect-lowered stackmap statepoint smoke return");
                 let from = IntTy {
                     bits: 64,
                     signed: true,

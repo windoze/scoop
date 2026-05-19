@@ -410,10 +410,7 @@ fn lower_dummy_ir<'a, 'ctx>(
     call: LoweredNamedIntrinsicCall<'ctx>,
 ) -> Result<CgValue<'ctx>, LlvmEmitError> {
     if call.operands.len() != 1 {
-        return Err(LlvmEmitError::UnsupportedMainBody {
-            kind: "named intrinsic dummy_ir operand arity",
-            at: call.callee_span.into(),
-        });
+        cg.panic_verified_intrinsic_contract("named intrinsic dummy_ir", "operand arity drift");
     }
     let word_ty = cg.context.custom_width_int_type(cg.host.word_bit_width());
     let value = word_ty.const_int(41, false);
@@ -1008,12 +1005,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         match entry.lowering_mode {
             NamedIntrinsicLoweringMode::IrEmission => {
-                let lower = lookup_named_intrinsic_ir_rule(entry.name).ok_or(
-                    LlvmEmitError::UnsupportedMainBody {
-                        kind: "named intrinsic IR rule lookup",
-                        at: call.callee_span.into(),
-                    },
-                )?;
+                let lower = lookup_named_intrinsic_ir_rule(entry.name).unwrap_or_else(|| {
+                    self.panic_verified_intrinsic_contract(
+                        "codegen_named_intrinsic_call",
+                        "missing IR emission rule",
+                    )
+                });
                 lower(self, call)
             }
             NamedIntrinsicLoweringMode::RuntimeCall => {
@@ -1100,12 +1097,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         mir_types: &TypeStore,
         slots: &[MirLocalSlot<'ctx>],
     ) -> Result<LoweredNamedIntrinsicOperand<'ctx>, LlvmEmitError> {
-        let source_ty = self.mir_operand_type_id(body, &arg.value).ok_or(
-            LlvmEmitError::UnsupportedMainBody {
-                kind: "named intrinsic MIR operand type",
-                at: arg.span.into(),
-            },
-        )?;
+        let source_ty = self
+            .mir_operand_type_id(body, &arg.value)
+            .unwrap_or_else(|| {
+                self.panic_verified_intrinsic_contract(
+                    "lower_named_intrinsic_mir_operand",
+                    "missing MIR operand type",
+                )
+            });
         let operand_cg = self
             .cg_ty_of_mir_type(mir_types, source_ty)
             .or_else(|| {
@@ -1467,10 +1466,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         call: LoweredNamedIntrinsicCall<'ctx>,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         if call.operands.len() != 1 {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "named intrinsic unsafe ref passthrough operand arity",
-                at: call.callee_span.into(),
-            });
+            self.panic_verified_intrinsic_contract(
+                "unsafe ref passthrough named intrinsic",
+                "operand arity drift",
+            );
         }
         self.coerce_value(call.operands[0].span, call.operands[0].value, CgTy::Ref)
     }
@@ -1480,10 +1479,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         call: LoweredNamedIntrinsicCall<'ctx>,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         if call.operands.len() != 1 {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "named intrinsic unsafe value-to-any operand arity",
-                at: call.callee_span.into(),
-            });
+            self.panic_verified_intrinsic_contract(
+                "unsafe value-to-any named intrinsic",
+                "operand arity drift",
+            );
         }
         let operand = &call.operands[0];
         match operand.value.ty {
@@ -1502,10 +1501,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         call: LoweredNamedIntrinsicCall<'ctx>,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         if call.operands.len() != 1 {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "named intrinsic unsafe value-to-word operand arity",
-                at: call.callee_span.into(),
-            });
+            self.panic_verified_intrinsic_contract(
+                "unsafe value-to-word named intrinsic",
+                "operand arity drift",
+            );
         }
         let operand = &call.operands[0];
         let word_ty = IntTy {
@@ -1516,36 +1515,31 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let raw = match operand.value.ty {
             CgTy::Unit | CgTy::Never => word_llvm_ty.const_zero(),
             CgTy::Bool => {
-                let value = operand
-                    .value
-                    .as_bool()
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "named intrinsic unsafe value-to-word bool value",
-                        at: operand.span.into(),
-                    })?;
+                let value = operand.value.as_bool().unwrap_or_else(|| {
+                    self.panic_verified_intrinsic_contract(
+                        "unsafe value-to-word named intrinsic",
+                        "Bool operand payload drift",
+                    )
+                });
                 self.builder
                     .build_int_z_extend(value, word_llvm_ty, "unsafe_bool_to_word")?
             }
             CgTy::Int(from_ty) => {
-                let (value, _) =
-                    operand
-                        .value
-                        .as_int()
-                        .ok_or(LlvmEmitError::UnsupportedMainBody {
-                            kind: "named intrinsic unsafe value-to-word int value",
-                            at: operand.span.into(),
-                        })?;
+                let (value, _) = operand.value.as_int().unwrap_or_else(|| {
+                    self.panic_verified_intrinsic_contract(
+                        "unsafe value-to-word named intrinsic",
+                        "Int operand payload drift",
+                    )
+                });
                 self.cast_int(value, from_ty, word_ty)?
             }
             CgTy::Float32 => {
-                let (value, _) =
-                    operand
-                        .value
-                        .as_float()
-                        .ok_or(LlvmEmitError::UnsupportedMainBody {
-                            kind: "named intrinsic unsafe value-to-word float32 value",
-                            at: operand.span.into(),
-                        })?;
+                let (value, _) = operand.value.as_float().unwrap_or_else(|| {
+                    self.panic_verified_intrinsic_contract(
+                        "unsafe value-to-word named intrinsic",
+                        "Float32 operand payload drift",
+                    )
+                });
                 let bits = self
                     .builder
                     .build_bit_cast(value, self.context.i32_type(), "unsafe_f32_bits")?
@@ -1560,14 +1554,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 )?
             }
             CgTy::Float64 => {
-                let (value, _) =
-                    operand
-                        .value
-                        .as_float()
-                        .ok_or(LlvmEmitError::UnsupportedMainBody {
-                            kind: "named intrinsic unsafe value-to-word float64 value",
-                            at: operand.span.into(),
-                        })?;
+                let (value, _) = operand.value.as_float().unwrap_or_else(|| {
+                    self.panic_verified_intrinsic_contract(
+                        "unsafe value-to-word named intrinsic",
+                        "Float64 operand payload drift",
+                    )
+                });
                 let bits = self
                     .builder
                     .build_bit_cast(value, self.context.i64_type(), "unsafe_f64_bits")?
@@ -1584,10 +1576,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             CgTy::String | CgTy::Ref => {
                 let value = self.coerce_value(operand.span, operand.value, CgTy::Ref)?;
                 let Some(BasicValueEnum::PointerValue(ptr)) = value.value else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "named intrinsic unsafe value-to-word ref value",
-                        at: operand.span.into(),
-                    });
+                    self.panic_verified_intrinsic_contract(
+                        "unsafe value-to-word named intrinsic",
+                        "Ref operand payload drift",
+                    );
                 };
                 self.unsafe_ptr_to_word(ptr, "unsafe_ref_to_word")?
             }
@@ -1609,10 +1601,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         call: LoweredNamedIntrinsicCall<'ctx>,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         if call.operands.len() != 1 {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "named intrinsic unsafe value-slot operand arity",
-                at: call.callee_span.into(),
-            });
+            self.panic_verified_intrinsic_contract(
+                "unsafe value-slot named intrinsic",
+                "operand arity drift",
+            );
         }
         let operand = &call.operands[0];
         let word_ty = IntTy {
@@ -2169,10 +2161,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         if call.operands.len() == expected {
             return Ok(());
         }
-        Err(LlvmEmitError::UnsupportedMainBody {
-            kind,
-            at: call.callee_span.into(),
-        })
+        self.panic_verified_intrinsic_contract("named intrinsic operand arity", kind)
     }
 
     fn named_intrinsic_int_operand(
@@ -2180,13 +2169,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         operand: &LoweredNamedIntrinsicOperand<'ctx>,
         kind: &'static str,
     ) -> Result<(IntValue<'ctx>, IntTy), LlvmEmitError> {
-        operand
-            .value
-            .as_int()
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind,
-                at: operand.span.into(),
-            })
+        operand.value.as_int().ok_or_else(|| {
+            self.panic_verified_intrinsic_contract("named intrinsic int operand", kind)
+        })
     }
 
     fn named_intrinsic_bool_operand(
@@ -2194,13 +2179,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         operand: &LoweredNamedIntrinsicOperand<'ctx>,
         kind: &'static str,
     ) -> Result<IntValue<'ctx>, LlvmEmitError> {
-        operand
-            .value
-            .as_bool()
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind,
-                at: operand.span.into(),
-            })
+        operand.value.as_bool().ok_or_else(|| {
+            self.panic_verified_intrinsic_contract("named intrinsic bool operand", kind)
+        })
     }
 
     fn named_intrinsic_float_operand(
@@ -2208,13 +2189,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         operand: &LoweredNamedIntrinsicOperand<'ctx>,
         kind: &'static str,
     ) -> Result<(FloatValue<'ctx>, CgTy), LlvmEmitError> {
-        operand
-            .value
-            .as_float()
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind,
-                at: operand.span.into(),
-            })
+        operand.value.as_float().ok_or_else(|| {
+            self.panic_verified_intrinsic_contract("named intrinsic float operand", kind)
+        })
     }
 
     fn named_intrinsic_char_operand(
@@ -2288,10 +2265,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
         let value = self.coerce_value(operand.span, operand.value, CgTy::Ref)?;
         let Some(BasicValueEnum::PointerValue(ptr)) = value.value else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind,
-                at: operand.span.into(),
-            });
+            self.panic_verified_intrinsic_contract("named intrinsic array receiver", kind);
         };
         Ok(ptr)
     }
@@ -2310,10 +2284,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }),
         )?;
         let Some((raw, from)) = value.as_int() else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind,
-                at: operand.span.into(),
-            });
+            self.panic_verified_intrinsic_contract("named intrinsic array index", kind);
         };
         self.cast_int(
             raw,
@@ -2327,7 +2298,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     fn named_intrinsic_array_element_cg_ty(
         &self,
-        span: crate::span::Span,
+        _span: crate::span::Span,
         receiver: &LoweredNamedIntrinsicOperand<'ctx>,
         fallback_elem_ty: Option<TypeId>,
         kind: &'static str,
@@ -2343,16 +2314,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 _ => None,
             })
             .or(fallback_elem_ty)
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
+            .unwrap_or_else(|| {
+                self.panic_verified_intrinsic_contract("named intrinsic array element type", kind)
+            });
+        let elem_cg = self.cg_ty_of(elem_ty).unwrap_or_else(|| {
+            self.panic_verified_intrinsic_contract(
+                "named intrinsic array element codegen type",
                 kind,
-                at: span.into(),
-            })?;
-        let elem_cg = self
-            .cg_ty_of(elem_ty)
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind,
-                at: span.into(),
-            })?;
+            )
+        });
         Ok((elem_ty, elem_cg))
     }
 
@@ -2619,29 +2589,29 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         entry: &NamedIntrinsicAuditEntry,
         call: LoweredNamedIntrinsicCall<'ctx>,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        let symbol = entry
-            .runtime_symbol
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "named runtime intrinsic symbol metadata",
-                at: call.callee_span.into(),
-            })?;
-        let signature = entry
-            .runtime_signature
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "named runtime intrinsic signature metadata",
-                at: call.callee_span.into(),
-            })?;
-        let _reason = entry
-            .runtime_reason
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "named runtime intrinsic reason metadata",
-                at: call.callee_span.into(),
-            })?;
+        let symbol = entry.runtime_symbol.unwrap_or_else(|| {
+            self.panic_verified_intrinsic_contract(
+                "named runtime intrinsic",
+                "missing runtime symbol metadata",
+            )
+        });
+        let signature = entry.runtime_signature.unwrap_or_else(|| {
+            self.panic_verified_intrinsic_contract(
+                "named runtime intrinsic",
+                "missing runtime signature metadata",
+            )
+        });
+        let _reason = entry.runtime_reason.unwrap_or_else(|| {
+            self.panic_verified_intrinsic_contract(
+                "named runtime intrinsic",
+                "missing runtime reason metadata",
+            )
+        });
         if call.operands.len() != signature.params.len() {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "named runtime intrinsic operand arity",
-                at: call.callee_span.into(),
-            });
+            self.panic_verified_intrinsic_contract(
+                "named runtime intrinsic",
+                "operand arity drift",
+            );
         }
 
         let runtime = self.declare_named_intrinsic_runtime_symbol(symbol, signature)?;
@@ -2686,10 +2656,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     ) -> Result<BasicMetadataTypeEnum<'ctx>, LlvmEmitError> {
         Ok(self
             .named_intrinsic_runtime_basic_ty(ty)?
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "named runtime intrinsic void parameter type",
-                at: crate::span::Span::new(0, 0).into(),
-            })?
+            .unwrap_or_else(|| {
+                self.panic_verified_intrinsic_contract(
+                    "named runtime intrinsic metadata",
+                    "void parameter type",
+                )
+            })
             .into())
     }
 
@@ -2722,10 +2694,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     ) -> Result<BasicMetadataValueEnum<'ctx>, LlvmEmitError> {
         let value = match target_ty {
             NamedIntrinsicRuntimeTy::Void => {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "named runtime intrinsic void operand",
-                    at: operand.span.into(),
-                });
+                self.panic_verified_intrinsic_contract(
+                    "named runtime intrinsic argument",
+                    "void operand",
+                );
             }
             NamedIntrinsicRuntimeTy::I32 => {
                 let target = CgTy::Int(IntTy {
@@ -2733,10 +2705,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     signed: true,
                 });
                 let coerced = self.coerce_value(operand.span, operand.value, target)?;
-                coerced.value.ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "named runtime intrinsic i32 operand value",
-                    at: operand.span.into(),
-                })?
+                self.expect_cg_value(coerced, "named runtime intrinsic i32 operand")
             }
             NamedIntrinsicRuntimeTy::I64 => {
                 let target = CgTy::Int(IntTy {
@@ -2744,10 +2713,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     signed: true,
                 });
                 let coerced = self.coerce_value(operand.span, operand.value, target)?;
-                coerced.value.ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "named runtime intrinsic i64 operand value",
-                    at: operand.span.into(),
-                })?
+                self.expect_cg_value(coerced, "named runtime intrinsic i64 operand")
             }
             NamedIntrinsicRuntimeTy::WordInt | NamedIntrinsicRuntimeTy::WordUInt => {
                 let target = CgTy::Int(IntTy {
@@ -2755,51 +2721,31 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     signed: matches!(target_ty, NamedIntrinsicRuntimeTy::WordInt),
                 });
                 let coerced = self.coerce_value(operand.span, operand.value, target)?;
-                coerced.value.ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "named runtime intrinsic word operand value",
-                    at: operand.span.into(),
-                })?
+                self.expect_cg_value(coerced, "named runtime intrinsic word operand")
             }
             NamedIntrinsicRuntimeTy::Bool => {
                 let coerced = self.coerce_value(operand.span, operand.value, CgTy::Bool)?;
-                coerced.value.ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "named runtime intrinsic bool operand value",
-                    at: operand.span.into(),
-                })?
+                self.expect_cg_value(coerced, "named runtime intrinsic bool operand")
             }
             NamedIntrinsicRuntimeTy::Float32 => {
                 let coerced = self.coerce_value(operand.span, operand.value, CgTy::Float32)?;
-                coerced.value.ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "named runtime intrinsic f32 operand value",
-                    at: operand.span.into(),
-                })?
+                self.expect_cg_value(coerced, "named runtime intrinsic f32 operand")
             }
             NamedIntrinsicRuntimeTy::Float64 => {
                 let coerced = self.coerce_value(operand.span, operand.value, CgTy::Float64)?;
-                coerced.value.ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "named runtime intrinsic f64 operand value",
-                    at: operand.span.into(),
-                })?
+                self.expect_cg_value(coerced, "named runtime intrinsic f64 operand")
             }
             NamedIntrinsicRuntimeTy::StringRef => {
                 let coerced = self.coerce_value(operand.span, operand.value, CgTy::String)?;
-                coerced.value.ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "named runtime intrinsic string operand value",
-                    at: operand.span.into(),
-                })?
+                self.expect_cg_value(coerced, "named runtime intrinsic string operand")
             }
             NamedIntrinsicRuntimeTy::GcRef => {
                 let coerced = self.coerce_value(operand.span, operand.value, CgTy::Ref)?;
                 self.expect_cg_value(coerced, "named runtime intrinsic GC ref operand")
             }
             NamedIntrinsicRuntimeTy::RawPtr => {
-                let raw = operand
-                    .value
-                    .value
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "named runtime intrinsic raw pointer operand value",
-                        at: operand.span.into(),
-                    })?;
+                let raw = self
+                    .expect_cg_value(operand.value, "named runtime intrinsic raw pointer operand");
                 match raw {
                     inkwell::values::BasicValueEnum::PointerValue(ptr) => self
                         .builder
@@ -2810,10 +2756,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         )?
                         .into(),
                     _ => {
-                        return Err(LlvmEmitError::UnsupportedMainBody {
-                            kind: "named runtime intrinsic raw pointer operand type",
-                            at: operand.span.into(),
-                        });
+                        self.panic_verified_intrinsic_contract(
+                            "named runtime intrinsic argument",
+                            "raw pointer operand type drift",
+                        );
                     }
                 }
             }
@@ -2823,21 +2769,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     fn named_intrinsic_runtime_result(
         &self,
-        span: crate::span::Span,
+        _span: crate::span::Span,
         call_site: inkwell::values::CallSiteValue<'ctx>,
         result_ty: NamedIntrinsicRuntimeTy,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         match result_ty {
             NamedIntrinsicRuntimeTy::Void => Ok(CgValue::unit()),
             NamedIntrinsicRuntimeTy::I32 => {
-                let value = call_site
-                    .try_as_basic_value()
-                    .basic()
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "named runtime intrinsic i32 return value",
-                        at: span.into(),
-                    })?
-                    .into_int_value();
+                let raw = self.expect_basic_value(call_site, "named runtime intrinsic i32 return");
+                let value = self.expect_int_value(raw, "named runtime intrinsic i32 return");
                 Ok(CgValue::int(
                     value,
                     IntTy {
@@ -2847,14 +2787,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 ))
             }
             NamedIntrinsicRuntimeTy::I64 => {
-                let value = call_site
-                    .try_as_basic_value()
-                    .basic()
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "named runtime intrinsic i64 return value",
-                        at: span.into(),
-                    })?
-                    .into_int_value();
+                let raw = self.expect_basic_value(call_site, "named runtime intrinsic i64 return");
+                let value = self.expect_int_value(raw, "named runtime intrinsic i64 return");
                 Ok(CgValue::int(
                     value,
                     IntTy {
@@ -2864,14 +2798,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 ))
             }
             NamedIntrinsicRuntimeTy::WordInt | NamedIntrinsicRuntimeTy::WordUInt => {
-                let value = call_site
-                    .try_as_basic_value()
-                    .basic()
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "named runtime intrinsic word return value",
-                        at: span.into(),
-                    })?
-                    .into_int_value();
+                let raw = self.expect_basic_value(call_site, "named runtime intrinsic word return");
+                let value = self.expect_int_value(raw, "named runtime intrinsic word return");
                 Ok(CgValue::int(
                     value,
                     IntTy {
@@ -2881,47 +2809,24 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 ))
             }
             NamedIntrinsicRuntimeTy::Bool => {
-                let value = call_site
-                    .try_as_basic_value()
-                    .basic()
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "named runtime intrinsic bool return value",
-                        at: span.into(),
-                    })?
-                    .into_int_value();
+                let raw = self.expect_basic_value(call_site, "named runtime intrinsic bool return");
+                let value = self.expect_int_value(raw, "named runtime intrinsic bool return");
                 Ok(CgValue::bool(value))
             }
             NamedIntrinsicRuntimeTy::Float32 => {
-                let value = call_site
-                    .try_as_basic_value()
-                    .basic()
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "named runtime intrinsic f32 return value",
-                        at: span.into(),
-                    })?
-                    .into_float_value();
+                let raw = self.expect_basic_value(call_site, "named runtime intrinsic f32 return");
+                let value = self.expect_float_value(raw, "named runtime intrinsic f32 return");
                 Ok(CgValue::float(value, CgTy::Float32))
             }
             NamedIntrinsicRuntimeTy::Float64 => {
-                let value = call_site
-                    .try_as_basic_value()
-                    .basic()
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "named runtime intrinsic f64 return value",
-                        at: span.into(),
-                    })?
-                    .into_float_value();
+                let raw = self.expect_basic_value(call_site, "named runtime intrinsic f64 return");
+                let value = self.expect_float_value(raw, "named runtime intrinsic f64 return");
                 Ok(CgValue::float(value, CgTy::Float64))
             }
             NamedIntrinsicRuntimeTy::StringRef => {
-                let value = call_site
-                    .try_as_basic_value()
-                    .basic()
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "named runtime intrinsic string return value",
-                        at: span.into(),
-                    })?
-                    .into_pointer_value();
+                let raw =
+                    self.expect_basic_value(call_site, "named runtime intrinsic string return");
+                let value = self.expect_pointer_value(raw, "named runtime intrinsic string return");
                 Ok(CgValue {
                     ty: CgTy::String,
                     value: Some(value.into()),
@@ -2937,14 +2842,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 })
             }
             NamedIntrinsicRuntimeTy::RawPtr => {
-                let value = call_site
-                    .try_as_basic_value()
-                    .basic()
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "named runtime intrinsic raw pointer return value",
-                        at: span.into(),
-                    })?
-                    .into_pointer_value();
+                let raw = self
+                    .expect_basic_value(call_site, "named runtime intrinsic raw pointer return");
+                let value =
+                    self.expect_pointer_value(raw, "named runtime intrinsic raw pointer return");
                 Ok(CgValue {
                     ty: CgTy::Ref,
                     value: Some(

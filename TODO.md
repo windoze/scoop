@@ -4,7 +4,7 @@
 > 计划基线：[`PLAN.md`](./PLAN.md)
 > 上一阶段任务档案：[`TODO-1.md`](./TODO-1.md)
 > 设计与 baseline：[`UnsupportedMainBody_FIX.md`](./UnsupportedMainBody_FIX.md)、[`UnsupportedMainBody_DONE.md`](./UnsupportedMainBody_DONE.md)
-> 当前状态：P7-0-T01、P7-0-T02、P7-A1、P7-A2、P7-A3、P7-A4、P7-B1、P7-B2.1、P7-B2.2、P7-B2.3、P7-B2.4、P7-B2.5、P7-B2.6、P7-B2.7、P7-B2.8、P7-B3.1、P7-B3.2、P7-B3.3、P7-B3.4 已完成；active=320，retired=964。
+> 当前状态：P7-0-T01、P7-0-T02、P7-A1、P7-A2、P7-A3、P7-A4、P7-B1、P7-B2.1、P7-B2.2、P7-B2.3、P7-B2.4、P7-B2.5、P7-B2.6、P7-B2.7、P7-B2.8、P7-B3.1、P7-B3.2、P7-B3.3、P7-B3.4、P7-B3.5 已完成；active=203，retired=1081。
 
 ## 全局约束
 
@@ -516,7 +516,7 @@ P7-0-T01 stable ID + retired ledger
   - 验证结果：`cargo run -p scoopc --bin umb-audit -- list --bucket B-29` 通过（entries 0）；`cargo run -p scoopc --bin umb-audit -- diff` 通过（in sync，320 entries）；`cargo run -p scoopc --bin umb-audit -- stats` 通过（active=320、retired=964、initial=1284）；`cargo test -p scoopc audit:: -- --nocapture` 通过（23 passed）；`cargo test -p scoopc pipeline_user_visible_failure_policy -- --nocapture` 通过（7 passed）；`cargo test -p scoopc mir::materialize -- --nocapture` 通过（54 passed）；`cargo run -p scoop -- test tests/fixtures/umb_fix/B-29-gc-intrinsics/` 通过（2 passed）；`cargo test -p scoop_runtime -- --nocapture` 通过；`cargo fmt` 通过；`cargo clippy --all-targets -- -D warnings` 通过。
   - 闭合目标：满足 `PLAN.md:161-181` 与本任务完成条件；B-29 active count 为 0，GC.handleNew/handleGet/handleDrop/pin/unpin 类型、frame/root 和 runtime contract 不再由 LLVM `UnsupportedMainBody` 兜底。
 
-### [TODO] P7-B3.5：B-30 named/unsafe/FunPtr/stackmap intrinsic contract
+### [DONE] P7-B3.5：B-30 named/unsafe/FunPtr/stackmap intrinsic contract
 
 - 参考：`PLAN.md:161-181`、`audit/strategies/B-30.md`。
 - 范围：B-30，117 entries。
@@ -525,7 +525,15 @@ P7-0-T01 stable ID + retired ledger
 - 验证：`cargo test -p scoopc audit:: -- --nocapture`、`cargo run -p scoop -- test tests/fixtures/umb_fix/B-30-named-unsafe-funptr/`、`cargo run -p scoop -- test tests/fixtures/unsafe_nogc/`。
 - 完成条件：B-30 active count 为 0。
 - 依赖：P7-B1 推荐完成后；B-35 完成后更安全。
-- 完成记录：待填写。
+- 完成记录：
+  - 改动范围：更新 `crates/scoopc/src/llvm/codegen/{call/lowering.rs,gc.rs,effect_lowered/value.rs,intrinsics/{builtin.rs,named.rs,sysroot.rs},mir_body/{aggregates.rs,call.rs,value_args.rs},main/context.rs}`；同步 `audit/UMB_inventory.csv`、`audit/UMB_retired.csv`、`audit/UMB_categories/{B-29.md,B-30.md,_overview.md}`、`audit/strategies/B-30.md`、`audit/spec_coverage_matrix.md`、B-30/B-35 fixtures、`tests/fixtures/umb_fix/_index.csv`、`crates/scoopc/src/pipeline_user_visible_failure_policy.rs` 与 `memory/claude_plan.md`。
+  - Retired IDs：`UMB-0031`、`UMB-0033`、`UMB-0034`、`UMB-0037`、`UMB-0038`、`UMB-0051`、`UMB-0052`、`UMB-0354`..`UMB-0357`、`UMB-0422`..`UMB-0425`、`UMB-0553`..`UMB-0567`、`UMB-0570`、`UMB-0572`..`UMB-0574`、`UMB-0581`..`UMB-0583`、`UMB-0588`..`UMB-0590`、`UMB-0593`..`UMB-0603`、`UMB-0613`..`UMB-0629`、`UMB-0631`..`UMB-0643`、`UMB-0645`..`UMB-0653`、`UMB-0655`、`UMB-0709`..`UMB-0717`、`UMB-0719`..`UMB-0724`、`UMB-0977`..`UMB-0979`、`UMB-0997`、`UMB-1007`..`UMB-1009`、`UMB-1019`、`UMB-1228`..`UMB-1230`；数量 117；bucket `B-30`；class `InternalBugSentinel`。
+  - 核心决策：复用 typecheck 的 `FunPtr<F>` signature/unsafe context gate、generic replay gate、named intrinsic metadata contract 与 materialized MIR FunPtr call verifier；LLVM HIR/MIR/effect-lowered lowering 删除 B-30 `UnsupportedMainBody` fallback，改为 `panic_verified_intrinsic_contract`、`expect_*` helper 或明确 internal invariant panic。
+  - Inventory/ledger：active 320 -> 203；retired 964 -> 1081；B-30 active 117 -> 0；`InternalBugSentinel` active 117 -> 0；P7-B `InternalBugSentinel` 退场完成，剩余 active 均为 P7-C `RealImpl`。
+  - Stale count：tracked stale total 167 -> 152；`effect_lowered/value.rs` 68 -> 64；`mir_body/aggregates.rs` 8 -> 5；`mir_body/call.rs` 13 -> 8；`mir_body/value_args.rs` 6 -> 3；`intrinsics/named.rs`、`intrinsics/builtin.rs`、`intrinsics/sysroot.rs`、`call/lowering.rs`、`gc.rs` 删除目标 B-30 rows 但不在 tracked stale list。
+  - Fixture 状态：B-30 fixture directory 从 `IGNORE-UNTIL-FIX:B-30` 激活；B-30 fixtures 与 B-35 raw-pointer cross fixture 的 `COVERS` 改为 `NONE`，retired IDs 由 retired ledger 覆盖。
+  - 验证结果：`cargo run -p scoopc --bin umb-audit -- list --bucket B-30` 通过（entries 0）；`cargo run -p scoopc --bin umb-audit -- stats` 通过（active=203、retired=1081、initial=1284）；`cargo run -p scoopc --bin umb-audit -- diff` 通过（in sync，203 entries）；`cargo check -p scoopc` 通过；`cargo test -p scoopc audit:: -- --nocapture` 通过（23 passed）；`cargo test -p scoopc pipeline_user_visible_failure_policy -- --nocapture` 通过（7 passed）；`cargo run -p scoop -- test tests/fixtures/umb_fix/B-30-named-unsafe-funptr/` 通过（4 passed）；`cargo run -p scoop -- test tests/fixtures/unsafe_nogc/` 通过（34 passed）；`cargo run -p scoop -- test tests/fixtures/umb_fix/B-35-unsafe-nogc-boundary/` 通过（10 passed，其中 4 个 skip/pass）；`cargo fmt` 通过；`cargo clippy --all-targets -- -D warnings` 通过。
+  - 闭合目标：满足 `PLAN.md:161-181` 与本任务完成条件；B-30 active count 为 0，named/unsafe/FunPtr/stackmap intrinsic contract 不再由 LLVM `UnsupportedMainBody` 兜底，P7-B `InternalBugSentinel` active count 清零。
 
 ## P7-C：RealImpl 退场（203 entries）
 
@@ -627,7 +635,7 @@ P7-0-T01 stable ID + retired ledger
 
 | 阶段 | Active 目标 | Retired 目标 | 备注 |
 |---|---:|---:|---|
-| 当前 | 320 | 964 | P7-B3.4 完成，B-29 GC intrinsic contract 清零 |
+| 当前 | 203 | 1081 | P7-B3.5 完成，B-30 named/unsafe/FunPtr/stackmap intrinsic contract 清零；P7-B InternalBugSentinel 清零 |
 | P7-A 完成 | 1,159 | 125 | `FrontendReject` 清零 |
 | P7-B 完成 | 203 | 1,081 | `InternalBugSentinel` 清零 |
 | P7-C 完成 | 0 | 1,284 | `RealImpl` 清零 |

@@ -1,67 +1,45 @@
 // EXPECT: ok
-// IGNORE-UNTIL-FIX:B-30
 // SPEC: docs/spec/language_spec-part6.md#5-raw-pointer;docs/spec/language_spec-part6.md#6-uintptr-与指针整数转换
-// COVERS: UMB-0031, UMB-0033, UMB-0034, UMB-0037, UMB-0038, UMB-0051, UMB-0052, UMB-0354, UMB-0355, UMB-0356, UMB-0357, UMB-0422, UMB-0423, UMB-0424, UMB-0425, UMB-0553, UMB-0554, UMB-0555, UMB-0556, UMB-0557, UMB-0558, UMB-0559, UMB-0560, UMB-0561, UMB-0562, UMB-0563, UMB-0564, UMB-0565, UMB-0566, UMB-0567, UMB-0570, UMB-0572, UMB-0573, UMB-0574, UMB-0581, UMB-0582, UMB-0583, UMB-0588, UMB-0589, UMB-0590, UMB-0593, UMB-0594, UMB-0595, UMB-0596, UMB-0597, UMB-0598, UMB-0599, UMB-0600, UMB-0601, UMB-0602, UMB-0603, UMB-0613, UMB-0614, UMB-0615, UMB-0616, UMB-0617, UMB-0618, UMB-0619, UMB-0620, UMB-0621, UMB-0622, UMB-0623, UMB-0624, UMB-0625, UMB-0626, UMB-0627, UMB-0628, UMB-0629, UMB-0631, UMB-0632, UMB-0633, UMB-0634, UMB-0635, UMB-0636, UMB-0637, UMB-0638, UMB-0639, UMB-0640, UMB-0641, UMB-0642, UMB-0643, UMB-0645, UMB-0646, UMB-0647, UMB-0648, UMB-0649, UMB-0650, UMB-0651, UMB-0652, UMB-0653, UMB-0655, UMB-0709, UMB-0710, UMB-0711, UMB-0712, UMB-0713, UMB-0714, UMB-0715, UMB-0716, UMB-0717, UMB-0719, UMB-0720, UMB-0721, UMB-0722, UMB-0723, UMB-0724, UMB-0977, UMB-0978, UMB-0979, UMB-0997, UMB-1007, UMB-1008, UMB-1009, UMB-1019, UMB-1228, UMB-1229, UMB-1230
+// COVERS: NONE
 // BUCKETS: B-30, B-35
-// REASON: U5-T02 records the spec surface before the matching implementation gate is enabled.
+// REASON: P7-B3.5 retired B-30 rows; B-35 rows are already retired by P7-B2.7.
 // SOURCE-FIXTURE: tests/fixtures/run-pass/string_unsafe_slice_bytes.scoop
 
 import scoop.core.*
 
 fun main() {
-    // ── Basic slicing ──
-
-    // Slice "World" from "Hello, World!"
     val s: String = "Hello, World!"
     val world: String = @Unsafe do { s.unsafeSliceBytes(7, 5) }
     println(world)
 
-    // Slice "Hello" from the beginning
     val hello: String = @Unsafe do { s.unsafeSliceBytes(0, 5) }
     println(hello)
 
-    // Slice single character
     val comma: String = @Unsafe do { s.unsafeSliceBytes(5, 1) }
     println(comma)
 
-    // ── Empty slices ──
-
-    // Zero-length slice
     val empty: String = @Unsafe do { s.unsafeSliceBytes(0, 0) }
     println(empty.byteLength())
 
-    // Negative length → empty
     val neg: String = @Unsafe do { s.unsafeSliceBytes(0, -1) }
     println(neg.byteLength())
 
-    // ── Edge cases (defensive clamping) ──
-
-    // Offset beyond length → empty
     val beyond: String = @Unsafe do { s.unsafeSliceBytes(100, 5) }
     println(beyond.byteLength())
 
-    // Slice extends past end → clamped
     val clamped: String = @Unsafe do { s.unsafeSliceBytes(7, 100) }
     println(clamped)
 
-    // Negative offset → clamped to 0
     val negOff: String = @Unsafe do { s.unsafeSliceBytes(-1, 5) }
     println(negOff)
-
-    // ── Full string slice ──
 
     val full: String = @Unsafe do { s.unsafeSliceBytes(0, 13) }
     println(full)
 
-    // ── Using with byteLength ──
-
     val msg: String = "abcdef"
     val len: Int = msg.byteLength()
-    // Slice last 3 bytes
     val tail: String = @Unsafe do { msg.unsafeSliceBytes(len - 3, 3) }
     println(tail)
-
-    // ── Verify content via getByte ──
 
     val sliced: String = @Unsafe do { s.unsafeSliceBytes(0, 3) }
     println(sliced.getByte(0))

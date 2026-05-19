@@ -102,6 +102,18 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
     }
 
+    /// Return a float value, or panic with a named compiler invariant.
+    pub(in crate::llvm::codegen) fn expect_float_value(
+        &self,
+        value: BasicValueEnum<'ctx>,
+        context: &str,
+    ) -> FloatValue<'ctx> {
+        match value {
+            BasicValueEnum::FloatValue(value) => value,
+            _ => panic!("expect_float_value: value was not a float while {context}"),
+        }
+    }
+
     /// Return a struct value, or panic with a named compiler invariant.
     pub(in crate::llvm::codegen) fn expect_struct_value(
         &self,

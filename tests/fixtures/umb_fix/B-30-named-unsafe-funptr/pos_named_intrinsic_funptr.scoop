@@ -1,9 +1,8 @@
 // EXPECT: ok
-// IGNORE-UNTIL-FIX:B-30
 // SPEC: docs/spec/language_spec-part5.md#18-intrinsic-与-sysroot-声明
 // COVERS: NONE
 // BUCKETS: B-30
-// REASON: P7-B3.1 retired B-32 cross-coverage rows; B-30 named intrinsic coverage remains pending.
+// REASON: P7-B3.5 retired B-30 rows; coverage is owned by the retired ledger.
 // SOURCE-FIXTURE: tests/fixtures/run-pass/intrinsic_named_runtime_fun_basic.scoop
 
 @file:AllowIntrinsic

@@ -87,7 +87,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     pub(in crate::llvm::codegen) fn codegen_mir_funptr_value_args(
         &mut self,
-        span: crate::span::Span,
+        _span: crate::span::Span,
         fun_ty: &crate::ty::FunctionType,
         args: &[crate::mir::CallArg],
         mir_types: &TypeStore,
@@ -95,12 +95,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     ) -> Result<Vec<EvaluatedCallArg<'ctx>>, LlvmEmitError> {
         let param_names = self.callable_value_param_names(fun_ty);
         let param_tys = self.callable_value_param_tys(fun_ty);
-        let arg_to_param = map_mir_call_args_to_param_names(&param_names, args).ok_or(
-            LlvmEmitError::UnsupportedMainBody {
-                kind: "pass MIR FunPtr call arg binding",
-                at: span.into(),
-            },
-        )?;
+        let arg_to_param = map_mir_call_args_to_param_names(&param_names, args).unwrap_or_else(|| {
+            panic!(
+                "codegen_mir_funptr_value_args: materialized MIR verifier accepted invalid FunPtr argument binding"
+            )
+        });
 
         let mut evaluated: Vec<Option<(crate::span::Span, DeferredCgValue<'ctx>)>> =
             vec![None; param_tys.len()];
@@ -109,10 +108,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             let target_cg = self
                 .cg_ty_of_mir_type(mir_types, param_tys[param_idx])
                 .or_else(|| self.cg_ty_of(param_tys[param_idx]))
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "pass MIR FunPtr call arg type",
-                    at: arg.span.into(),
-                })?;
+                .unwrap_or_else(|| {
+                    panic!(
+                        "codegen_mir_funptr_value_args: materialized MIR verifier accepted unsupported FunPtr argument type"
+                    )
+                });
             let value =
                 self.codegen_mir_operand_expected(arg.span, &arg.value, slots, Some(target_cg))?;
             let coerced = self.coerce_value(arg.span, value, target_cg)?;
@@ -128,10 +128,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .into_iter()
             .enumerate()
             .map(|(param_idx, slot)| {
-                let (arg_span, deferred) = slot.ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "pass MIR FunPtr call arg binding",
-                    at: span.into(),
-                })?;
+                let (arg_span, deferred) = slot.unwrap_or_else(|| {
+                    panic!(
+                        "codegen_mir_funptr_value_args: materialized MIR verifier accepted missing FunPtr argument slot"
+                    )
+                });
                 let (materialized, cleanup_spills) = self
                     .materialize_deferred_cg_value_for_call_arg(
                         arg_span,

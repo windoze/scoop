@@ -152,22 +152,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(in crate::llvm::codegen) fn codegen_sysroot_to_int_ext(
         &mut self,
         span: crate::span::Span,
-        callee_span: crate::span::Span,
+        _callee_span: crate::span::Span,
         args: &[hir::CallArg],
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        if args.len() != 1 {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "toInt ext arity",
-                at: span.into(),
-            });
-        }
-
-        let hir::CallArg::Positional(expr) = &args[0] else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "toInt ext named arg",
-                at: callee_span.into(),
-            });
-        };
+        let expr = self.expect_hir_positional_intrinsic_arg(args, 1, 0, "toInt extension lowering");
 
         if self.expr_is_builtin_char(expr) {
             return self.codegen_char_method_to_int(expr);
@@ -176,10 +164,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let recv = self.codegen_expr(expr)?;
         match recv.ty {
             CgTy::Float64 | CgTy::Float32 => self.codegen_float_to_int_value(span, expr.span, recv),
-            _ => Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "toInt ext unsupported CgTy",
-                at: span.into(),
-            }),
+            _ => self.panic_verified_builtin_contract(
+                "codegen_sysroot_to_int_ext",
+                "unsupported receiver codegen type",
+            ),
         }
     }
 
@@ -190,22 +178,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(in crate::llvm::codegen) fn codegen_sysroot_hash_ext(
         &mut self,
         span: crate::span::Span,
-        callee_span: crate::span::Span,
+        _callee_span: crate::span::Span,
         args: &[hir::CallArg],
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        if args.len() != 1 {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "hash ext arity",
-                at: span.into(),
-            });
-        }
-
-        let hir::CallArg::Positional(expr) = &args[0] else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "hash ext named arg",
-                at: callee_span.into(),
-            });
-        };
+        let expr = self.expect_hir_positional_intrinsic_arg(args, 1, 0, "hash extension lowering");
 
         if self.expr_is_builtin_char(expr) {
             return self.codegen_char_method_hash(span, expr);
@@ -215,100 +191,65 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         match recv.ty {
             CgTy::Int(_) => self.codegen_int_method_hash(span, expr),
             CgTy::Float64 | CgTy::Float32 => self.codegen_float_hash_value(expr.span, recv),
-            _ => Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "hash ext unsupported CgTy",
-                at: span.into(),
-            }),
+            _ => self.panic_verified_builtin_contract(
+                "codegen_sysroot_hash_ext",
+                "unsupported receiver codegen type",
+            ),
         }
     }
 
     pub(in crate::llvm::codegen) fn codegen_sysroot_abs_ext(
         &mut self,
-        span: crate::span::Span,
-        callee_span: crate::span::Span,
+        _span: crate::span::Span,
+        _callee_span: crate::span::Span,
         args: &[hir::CallArg],
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        if args.len() != 1 {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "abs ext arity",
-                at: span.into(),
-            });
-        }
-
-        let hir::CallArg::Positional(expr) = &args[0] else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "abs ext named arg",
-                at: callee_span.into(),
-            });
-        };
+        let expr = self.expect_hir_positional_intrinsic_arg(args, 1, 0, "abs extension lowering");
 
         let recv = self.codegen_expr(expr)?;
         match recv.ty {
             CgTy::Float64 | CgTy::Float32 => self.codegen_float_abs_value(expr.span, recv),
-            _ => Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "abs ext unsupported CgTy",
-                at: span.into(),
-            }),
+            _ => self.panic_verified_builtin_contract(
+                "codegen_sysroot_abs_ext",
+                "unsupported receiver codegen type",
+            ),
         }
     }
 
     pub(in crate::llvm::codegen) fn codegen_sysroot_is_nan_ext(
         &mut self,
-        span: crate::span::Span,
-        callee_span: crate::span::Span,
+        _span: crate::span::Span,
+        _callee_span: crate::span::Span,
         args: &[hir::CallArg],
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        if args.len() != 1 {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "isNaN ext arity",
-                at: span.into(),
-            });
-        }
-
-        let hir::CallArg::Positional(expr) = &args[0] else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "isNaN ext named arg",
-                at: callee_span.into(),
-            });
-        };
+        let expr = self.expect_hir_positional_intrinsic_arg(args, 1, 0, "isNaN extension lowering");
 
         let recv = self.codegen_expr(expr)?;
         match recv.ty {
             CgTy::Float64 | CgTy::Float32 => self.codegen_float_is_nan_value(expr.span, recv),
-            _ => Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "isNaN ext unsupported CgTy",
-                at: span.into(),
-            }),
+            _ => self.panic_verified_builtin_contract(
+                "codegen_sysroot_is_nan_ext",
+                "unsupported receiver codegen type",
+            ),
         }
     }
 
     pub(in crate::llvm::codegen) fn codegen_sysroot_is_infinite_ext(
         &mut self,
-        span: crate::span::Span,
-        callee_span: crate::span::Span,
+        _span: crate::span::Span,
+        _callee_span: crate::span::Span,
         args: &[hir::CallArg],
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        if args.len() != 1 {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "isInfinite ext arity",
-                at: span.into(),
-            });
-        }
-
-        let hir::CallArg::Positional(expr) = &args[0] else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "isInfinite ext named arg",
-                at: callee_span.into(),
-            });
-        };
+        let expr =
+            self.expect_hir_positional_intrinsic_arg(args, 1, 0, "isInfinite extension lowering");
 
         let recv = self.codegen_expr(expr)?;
         match recv.ty {
             CgTy::Float64 | CgTy::Float32 => self.codegen_float_is_infinite_value(expr.span, recv),
-            _ => Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "isInfinite ext unsupported CgTy",
-                at: span.into(),
-            }),
+            _ => self.panic_verified_builtin_contract(
+                "codegen_sysroot_is_infinite_ext",
+                "unsupported receiver codegen type",
+            ),
         }
     }
 
@@ -348,12 +289,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         span: crate::span::Span,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         let source_ty = self.reflection_type_arg_for_current_call(span, "alignOf")?;
-        let arg_cg = self
-            .cg_ty_of(source_ty)
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "alignOf() arg type",
-                at: span.into(),
-            })?;
+        let arg_cg = self.expect_cg_ty_of(source_ty, "alignOf reflection type argument");
         let llvm_ty = self.llvm_basic_type_of(span, arg_cg)?;
         let align = self.abi_align_bytes_of_basic_type(llvm_ty);
         let value_word = IntTy {
@@ -428,14 +364,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 at: span.into(),
             },
         )?;
-        binding
-            .type_args
-            .first()
-            .copied()
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: name,
-                at: span.into(),
-            })
+        Ok(binding.type_args.first().copied().unwrap_or_else(|| {
+            self.panic_verified_builtin_contract("reflection_type_arg_for_current_call", name)
+        }))
     }
 
     fn array_elem_kind_for_type_id(&self, ty: TypeId) -> u64 {
@@ -485,7 +416,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     /// Codegen for String byte-level substrate methods.
     pub(in crate::llvm::codegen) fn codegen_string_method(
         &mut self,
-        span: crate::span::Span,
+        _span: crate::span::Span,
         receiver: &hir::Expr,
         method_name: &str,
         args: &[hir::CallArg],
@@ -493,18 +424,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // Evaluate receiver as String pointer.
         let recv = self.codegen_expr_in_expected_context(receiver, Some(CgTy::String))?;
         let coerced = self.coerce_value(receiver.span, recv, CgTy::String)?;
-        let Some(raw) = coerced.value else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "String method receiver value",
-                at: receiver.span.into(),
-            });
-        };
-        let BasicValueEnum::PointerValue(recv_ptr) = raw else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "String method receiver type",
-                at: receiver.span.into(),
-            });
-        };
+        let raw = self.expect_cg_value(coerced, "String method receiver");
+        let recv_ptr = self.expect_pointer_value(raw, "String method receiver");
         let deferred_recv = self.defer_gc_sensitive_cg_value(
             receiver.span,
             &format!("string_method_{method_name}_recv"),
@@ -695,10 +616,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     },
                 ))
             }
-            _ => Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "unknown String method",
-                at: span.into(),
-            }),
+            _ => self
+                .panic_verified_builtin_contract("codegen_string_method", "unknown String method"),
         }
     }
 
@@ -713,18 +632,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             &format!("string_method_{method_name}_recv_reload"),
             deferred,
         )?;
-        let Some(raw) = reloaded.value else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "String method receiver reload value",
-                at: at.into(),
-            });
-        };
-        let BasicValueEnum::PointerValue(reloaded_ptr) = raw else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "String method receiver reload type",
-                at: at.into(),
-            });
-        };
+        let raw = self.expect_cg_value(reloaded, "String method receiver reload");
+        let reloaded_ptr = self.expect_pointer_value(raw, "String method receiver reload");
         Ok(reloaded_ptr)
     }
 
@@ -847,26 +756,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     fn unpack_float_cg_value(
         &self,
         recv: CgValue<'ctx>,
-        at: crate::span::Span,
+        _at: crate::span::Span,
         kind: &'static str,
     ) -> Result<(FloatValue<'ctx>, CgTy), LlvmEmitError> {
         if !matches!(recv.ty, CgTy::Float64 | CgTy::Float32) {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind,
-                at: at.into(),
-            });
+            self.panic_verified_builtin_contract("unpack_float_cg_value", kind);
         }
-        let Some(raw) = recv.value else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind,
-                at: at.into(),
-            });
-        };
+        let raw = self.expect_cg_value(recv, "unpack float codegen value");
         let BasicValueEnum::FloatValue(float_val) = raw else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind,
-                at: at.into(),
-            });
+            self.panic_verified_builtin_contract("unpack_float_cg_value", kind);
         };
         Ok((float_val, recv.ty))
     }
@@ -931,10 +829,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     "f64_hash_bits",
                 )?;
                 let BasicValueEnum::IntValue(bits) = raw else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "Float64.hash bits type",
-                        at: receiver_span.into(),
-                    });
+                    self.panic_verified_builtin_contract(
+                        "codegen_float_hash_value",
+                        "Float64.hash bitcast did not produce integer bits",
+                    );
                 };
                 bits
             }
@@ -945,10 +843,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     "f32_hash_bits",
                 )?;
                 let BasicValueEnum::IntValue(bits32) = raw else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "Float32.hash bits type",
-                        at: receiver_span.into(),
-                    });
+                    self.panic_verified_builtin_contract(
+                        "codegen_float_hash_value",
+                        "Float32.hash bitcast did not produce integer bits",
+                    );
                 };
                 self.builder
                     .build_int_z_extend(bits32, self.context.i64_type(), "f32_hash_zext")?
@@ -973,10 +871,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     "f64_abs_bits",
                 )?;
                 let BasicValueEnum::IntValue(bits) = raw else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "Float64.abs bits type",
-                        at: receiver_span.into(),
-                    });
+                    self.panic_verified_builtin_contract(
+                        "codegen_float_abs_value",
+                        "Float64.abs bitcast did not produce integer bits",
+                    );
                 };
                 let masked = self.builder.build_and(
                     bits,
@@ -989,10 +887,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     self.builder
                         .build_bit_cast(masked, self.context.f64_type(), "f64_abs")?;
                 let BasicValueEnum::FloatValue(abs_val) = raw else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "Float64.abs return type",
-                        at: receiver_span.into(),
-                    });
+                    self.panic_verified_builtin_contract(
+                        "codegen_float_abs_value",
+                        "Float64.abs bitcast did not produce float result",
+                    );
                 };
                 Ok(CgValue::float(abs_val, CgTy::Float64))
             }
@@ -1003,10 +901,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     "f32_abs_bits",
                 )?;
                 let BasicValueEnum::IntValue(bits) = raw else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "Float32.abs bits type",
-                        at: receiver_span.into(),
-                    });
+                    self.panic_verified_builtin_contract(
+                        "codegen_float_abs_value",
+                        "Float32.abs bitcast did not produce integer bits",
+                    );
                 };
                 let masked = self.builder.build_and(
                     bits,
@@ -1017,10 +915,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     self.builder
                         .build_bit_cast(masked, self.context.f32_type(), "f32_abs")?;
                 let BasicValueEnum::FloatValue(abs_val) = raw else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "Float32.abs return type",
-                        at: receiver_span.into(),
-                    });
+                    self.panic_verified_builtin_contract(
+                        "codegen_float_abs_value",
+                        "Float32.abs bitcast did not produce float result",
+                    );
                 };
                 Ok(CgValue::float(abs_val, CgTy::Float32))
             }
@@ -1063,10 +961,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     "f64_inf_bits",
                 )?;
                 let BasicValueEnum::IntValue(bits) = raw else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "Float64.isInfinite bits type",
-                        at: receiver_span.into(),
-                    });
+                    self.panic_verified_builtin_contract(
+                        "codegen_float_is_infinite_value",
+                        "Float64.isInfinite bitcast did not produce integer bits",
+                    );
                 };
                 let is_inf = self.builder.build_int_compare(
                     IntPredicate::EQ,
@@ -1090,10 +988,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     "f32_inf_bits",
                 )?;
                 let BasicValueEnum::IntValue(bits) = raw else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "Float32.isInfinite bits type",
-                        at: receiver_span.into(),
-                    });
+                    self.panic_verified_builtin_contract(
+                        "codegen_float_is_infinite_value",
+                        "Float32.isInfinite bitcast did not produce integer bits",
+                    );
                 };
                 let is_inf = self.builder.build_int_compare(
                     IntPredicate::EQ,

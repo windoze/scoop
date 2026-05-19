@@ -43,10 +43,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // statepoint lowering so the object file contains a real stackmap record.
         if fqn == "scoop.runtime.test.__scoop_stackmap_statepoint_smoke" {
             if !args.is_empty() {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "stackmap statepoint smoke arity mismatch",
-                    at: span.into(),
-                });
+                self.panic_verified_intrinsic_contract(
+                    "stackmap statepoint smoke HIR lowering",
+                    "argument list drift",
+                );
             }
 
             // 重要：
@@ -55,14 +55,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             //   恢复 LLVM statepoint GC strategy，让调用点重新产出真实 statepoint/stackmap record；
             // - 这里只给显式调用该 helper 的函数开启该策略，避免把默认 explicit-root-frame 路线
             //   再次退回到隐式 stackmap 依赖。
-            let current_fun = self
-                .builder
-                .get_insert_block()
-                .and_then(|bb| bb.get_parent())
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "stackmap statepoint smoke caller function",
-                    at: span.into(),
-                })?;
+            let current_fun =
+                self.expect_current_function("stackmap statepoint smoke HIR lowering");
             current_fun.set_gc("statepoint-example");
 
             // 该 helper 仍必须经 ordinary managed runtime call 进入 IR；不能走 `@Extern` 的
@@ -74,19 +68,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 &[],
                 "stackmap_statepoint_smoke",
             )?;
-            let raw =
-                call.try_as_basic_value()
-                    .basic()
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "stackmap statepoint smoke return value",
-                        at: span.into(),
-                    })?;
-            let BasicValueEnum::IntValue(raw_int) = raw else {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "stackmap statepoint smoke return type",
-                    at: span.into(),
-                });
-            };
+            let raw = self.expect_basic_value(call, "stackmap statepoint smoke runtime return");
+            let raw_int = self.expect_int_value(raw, "stackmap statepoint smoke runtime return");
 
             let from = IntTy {
                 bits: 64,

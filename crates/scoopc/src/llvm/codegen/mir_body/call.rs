@@ -45,10 +45,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             crate::mir::CallKind::FunPtr { callee } => {
                 let fun_ty = self
                     .mir_operand_funptr_function_type(body, mir_types, callee)
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "pass MIR FunPtr callee type",
-                        at: span.into(),
-                    })?;
+                    .unwrap_or_else(|| {
+                        panic!(
+                            "codegen_mir_call: materialized MIR verifier accepted non-FunPtr callee type"
+                        )
+                    });
                 self.codegen_mir_funptr_value_call(
                     span,
                     callee,
@@ -573,19 +574,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         let (_body, mir_types, slots) = mir_ctx;
         let callee_value = self.codegen_mir_operand(span, callee, slots)?;
-        let (funptr_addr, funptr_int_ty) =
-            callee_value
-                .as_int()
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "pass MIR FunPtr callee value",
-                    at: span.into(),
-                })?;
+        let (funptr_addr, funptr_int_ty) = callee_value.as_int().unwrap_or_else(|| {
+            panic!(
+                "codegen_mir_funptr_value_call: materialized MIR verifier accepted non-int FunPtr callee value"
+            )
+        });
         let expected_arity = fun_ty.params.len() + usize::from(fun_ty.receiver.is_some());
         if args.len() != expected_arity {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "pass MIR FunPtr call arity mismatch",
-                at: span.into(),
-            });
+            panic!(
+                "codegen_mir_funptr_value_call: materialized MIR verifier accepted arity mismatch"
+            );
         }
 
         let param_tys = self.callable_value_param_tys(fun_ty);
@@ -638,10 +636,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             _ => self.materialize_deferred_cg_value(
                 span,
                 "pass_mir_funptr_call_result_reload",
-                deferred_direct_result.ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "pass MIR FunPtr deferred return value",
-                    at: span.into(),
-                })?,
+                deferred_direct_result.unwrap_or_else(|| {
+                    panic!(
+                        "codegen_mir_funptr_value_call: materialized MIR verifier accepted missing deferred return value"
+                    )
+                }),
             ),
         }
     }
@@ -923,10 +922,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             crate::mir::CallKind::FunPtr { callee } => {
                 let fun_ty = self
                     .mir_operand_funptr_function_type(body, mir_types, callee)
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "plain FunPtr callee type",
-                        at: span.into(),
-                    })?;
+                    .unwrap_or_else(|| {
+                        panic!(
+                            "codegen_mir_plain_call: materialized MIR verifier accepted non-FunPtr plain callee type"
+                        )
+                    });
                 if !fun_ty.effects.is_pure() {
                     return Err(LlvmEmitError::UnsupportedMainBody {
                         kind: "plain FunPtr call effect-typed surface requires adapter",

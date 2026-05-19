@@ -16,68 +16,64 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // 约束（v0）：
         // - receiver 必须是局部变量引用（需要借助 env.local.hir_ty 取回 `FunPtr<F>` 的精确签名）。
         let Some((receiver_arg, call_args)) = args.split_first() else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "funptr invoke arity mismatch",
-                at: span.into(),
-            });
+            self.panic_verified_intrinsic_contract(
+                "FunPtr.invoke HIR lowering",
+                "missing receiver",
+            );
         };
 
         let hir::CallArg::Positional(receiver_expr) = receiver_arg else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "funptr invoke receiver (named arg)",
-                at: span.into(),
-            });
+            self.panic_verified_intrinsic_contract(
+                "FunPtr.invoke HIR lowering",
+                "named receiver argument",
+            );
         };
 
         let hir::ExprKind::VarRef(hir::ValueRef::Local { id, .. }) = &receiver_expr.kind else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "funptr invoke receiver (non-local)",
-                at: receiver_expr.span.into(),
-            });
+            self.panic_verified_intrinsic_contract(
+                "FunPtr.invoke HIR lowering",
+                "receiver is not a local FunPtr binding",
+            );
         };
 
-        let local = self
-            .function_cx
-            .env
-            .get(*id)
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "unknown local funptr receiver",
-                at: receiver_expr.span.into(),
-            })?;
+        let local = self.function_cx.env.get(*id).unwrap_or_else(|| {
+            self.panic_verified_intrinsic_contract(
+                "FunPtr.invoke HIR lowering",
+                "unknown local receiver",
+            )
+        });
 
         let Some(hir_ty) = local.hir_ty else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "funptr invoke receiver type",
-                at: receiver_expr.span.into(),
-            });
+            self.panic_verified_intrinsic_contract(
+                "FunPtr.invoke HIR lowering",
+                "receiver is missing HIR type",
+            );
         };
 
         let TypeKind::Value(ValueTypeKind::Nominal(nominal)) = self.types.kind(hir_ty) else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "funptr invoke receiver kind",
-                at: receiver_expr.span.into(),
-            });
+            self.panic_verified_intrinsic_contract(
+                "FunPtr.invoke HIR lowering",
+                "receiver HIR type is not nominal FunPtr",
+            );
         };
         if nominal.fqn != "scoop.unsafe.FunPtr" {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "funptr invoke receiver kind",
-                at: receiver_expr.span.into(),
-            });
+            self.panic_verified_intrinsic_contract(
+                "FunPtr.invoke HIR lowering",
+                "receiver HIR type is not scoop.unsafe.FunPtr",
+            );
         }
 
-        let sig_ty = nominal
-            .args
-            .first()
-            .copied()
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "funptr invoke signature type",
-                at: receiver_expr.span.into(),
-            })?;
+        let sig_ty = nominal.args.first().copied().unwrap_or_else(|| {
+            self.panic_verified_intrinsic_contract(
+                "FunPtr.invoke HIR lowering",
+                "missing function signature type argument",
+            )
+        });
         let TypeKind::Ref(RefTypeKind::Function(fun_ty)) = self.types.kind(sig_ty) else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "funptr invoke signature kind",
-                at: receiver_expr.span.into(),
-            });
+            self.panic_verified_intrinsic_contract(
+                "FunPtr.invoke HIR lowering",
+                "signature type argument is not a function type",
+            );
         };
 
         let CgTy::Int(int_ty) = local.ty else {
@@ -110,29 +106,20 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     pub(in crate::llvm::codegen) fn codegen_sysroot_funptr_to_uintptr(
         &mut self,
-        span: crate::span::Span,
+        _span: crate::span::Span,
         _callee_span: crate::span::Span,
         args: &[hir::CallArg],
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        if args.len() != 1 {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "funptrToUIntPtr arity mismatch",
-                at: span.into(),
-            });
-        }
-
-        let hir::CallArg::Positional(expr) = &args[0] else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "funptrToUIntPtr named arg",
-                at: span.into(),
-            });
-        };
+        let expr =
+            self.expect_hir_positional_intrinsic_arg(args, 1, 0, "funptrToUIntPtr HIR lowering");
 
         let v = self.codegen_expr(expr)?;
-        let (raw, from_ty) = v.as_int().ok_or(LlvmEmitError::UnsupportedMainBody {
-            kind: "funptrToUIntPtr arg type",
-            at: expr.span.into(),
-        })?;
+        let (raw, from_ty) = v.as_int().unwrap_or_else(|| {
+            self.panic_verified_intrinsic_contract(
+                "funptrToUIntPtr HIR lowering",
+                "argument did not lower to integer payload",
+            )
+        });
 
         let to_ty = IntTy {
             bits: self.host.word_bit_width(),
@@ -144,29 +131,20 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     pub(in crate::llvm::codegen) fn codegen_sysroot_uintptr_to_funptr(
         &mut self,
-        span: crate::span::Span,
+        _span: crate::span::Span,
         _callee_span: crate::span::Span,
         args: &[hir::CallArg],
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        if args.len() != 1 {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "uintPtrToFunPtr arity mismatch",
-                at: span.into(),
-            });
-        }
-
-        let hir::CallArg::Positional(expr) = &args[0] else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "uintPtrToFunPtr named arg",
-                at: span.into(),
-            });
-        };
+        let expr =
+            self.expect_hir_positional_intrinsic_arg(args, 1, 0, "uintPtrToFunPtr HIR lowering");
 
         let v = self.codegen_expr(expr)?;
-        let (raw, from_ty) = v.as_int().ok_or(LlvmEmitError::UnsupportedMainBody {
-            kind: "uintPtrToFunPtr arg type",
-            at: expr.span.into(),
-        })?;
+        let (raw, from_ty) = v.as_int().unwrap_or_else(|| {
+            self.panic_verified_intrinsic_contract(
+                "uintPtrToFunPtr HIR lowering",
+                "argument did not lower to integer payload",
+            )
+        });
 
         let to_ty = IntTy {
             bits: self.host.word_bit_width(),

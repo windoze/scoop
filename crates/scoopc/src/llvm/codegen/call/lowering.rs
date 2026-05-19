@@ -1317,13 +1317,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 }
                 CallableCallee::FunPtr(fun_ty) => {
                     let callee_value = self.codegen_expr(callee)?;
-                    let (funptr_addr, funptr_int_ty) =
-                        callee_value
-                            .as_int()
-                            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                                kind: "funptr callee value type",
-                                at: callee.span.into(),
-                            })?;
+                    let (funptr_addr, funptr_int_ty) = callee_value.as_int().unwrap_or_else(|| {
+                        panic!(
+                            "codegen_call_expr: FunPtr call contract accepted non-int callee value"
+                        )
+                    });
                     return self.codegen_funptr_value_call(
                         funptr_addr,
                         funptr_int_ty,
@@ -1362,18 +1360,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 if let TypeKind::Value(ValueTypeKind::Nominal(nominal)) = self.types.kind(hir_ty)
                     && nominal.fqn == "scoop.unsafe.FunPtr"
                 {
-                    let sig_ty = nominal.args.first().copied().ok_or(
-                        LlvmEmitError::UnsupportedMainBody {
-                            kind: "funptr signature type",
-                            at: callee.span.into(),
-                        },
-                    )?;
+                    let sig_ty = nominal.args.first().copied().unwrap_or_else(|| {
+                        panic!(
+                            "codegen_call_expr: FunPtr typecheck gate accepted missing function signature type argument"
+                        )
+                    });
                     let TypeKind::Ref(RefTypeKind::Function(fun_ty)) = self.types.kind(sig_ty)
                     else {
-                        return Err(LlvmEmitError::UnsupportedMainBody {
-                            kind: "funptr signature kind",
-                            at: callee.span.into(),
-                        });
+                        panic!(
+                            "codegen_call_expr: FunPtr typecheck gate accepted non-function signature type argument"
+                        );
                     };
 
                     let CgTy::Int(int_ty) = local.ty else {
@@ -1611,18 +1607,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     self.types.kind(callee_hir_ty)
                     && nominal.fqn == "scoop.unsafe.FunPtr"
                 {
-                    let sig_ty = nominal.args.first().copied().ok_or(
-                        LlvmEmitError::UnsupportedMainBody {
-                            kind: "funptr signature type",
-                            at: callee.span.into(),
-                        },
-                    )?;
+                    let sig_ty = nominal.args.first().copied().unwrap_or_else(|| {
+                        panic!(
+                            "codegen_call_impl: FunPtr typecheck gate accepted missing function signature type argument"
+                        )
+                    });
                     let TypeKind::Ref(RefTypeKind::Function(fun_ty)) = self.types.kind(sig_ty)
                     else {
-                        return Err(LlvmEmitError::UnsupportedMainBody {
-                            kind: "funptr signature kind",
-                            at: callee.span.into(),
-                        });
+                        panic!(
+                            "codegen_call_impl: FunPtr typecheck gate accepted non-function signature type argument"
+                        );
                     };
 
                     let callee_value = self.codegen_top_level_value_ref(callee.span, fqn)?;
@@ -2357,10 +2351,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         } = call;
         let expected_arity = fun_ty.params.len() + usize::from(fun_ty.receiver.is_some());
         if args.len() != expected_arity {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "funptr call arity mismatch",
-                at: span.into(),
-            });
+            panic!(
+                "codegen_funptr_value_call_impl: FunPtr call ABI verifier accepted arity mismatch"
+            );
         }
 
         let param_tys = self.callable_value_param_tys(fun_ty);
@@ -2419,10 +2412,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             _ => self.materialize_deferred_cg_value(
                 span,
                 "funptr_call_direct_result_reload",
-                deferred_direct_result.ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "funptr call deferred return value",
-                    at: span.into(),
-                })?,
+                deferred_direct_result.unwrap_or_else(|| {
+                    panic!(
+                        "codegen_funptr_value_call_impl: FunPtr call ABI verifier accepted missing deferred return value"
+                    )
+                }),
             ),
         }
     }

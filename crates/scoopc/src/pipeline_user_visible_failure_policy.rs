@@ -146,7 +146,7 @@ struct UnsupportedMainBodyCount {
 const STALE_UNSUPPORTED_MAIN_BODY_COUNTS: &[UnsupportedMainBodyCount] = &[
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/mir_body/aggregates.rs",
-        expected_count: 8,
+        expected_count: 5,
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/mir_body/args.rs",
@@ -154,7 +154,7 @@ const STALE_UNSUPPORTED_MAIN_BODY_COUNTS: &[UnsupportedMainBodyCount] = &[
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/mir_body/call.rs",
-        expected_count: 13,
+        expected_count: 8,
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/mir_body/callable_lookup.rs",
@@ -202,7 +202,7 @@ const STALE_UNSUPPORTED_MAIN_BODY_COUNTS: &[UnsupportedMainBodyCount] = &[
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/mir_body/value_args.rs",
-        expected_count: 6,
+        expected_count: 3,
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/effect_lowered/body/call_invoke.rs",
@@ -238,7 +238,7 @@ const STALE_UNSUPPORTED_MAIN_BODY_COUNTS: &[UnsupportedMainBodyCount] = &[
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/effect_lowered/value.rs",
-        expected_count: 68,
+        expected_count: 64,
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/main/alloca.rs",
@@ -721,6 +721,9 @@ const INTERNAL_BUG_SENTINEL_HITS: &[&str] = &[
     "crates/scoopc/src/llvm/codegen/mir_body/aggregates.rs:369:                panic!(\"codegen_mir_tuple_get: MIR verifier accepted valueless tuple operand\")",
     "crates/scoopc/src/llvm/codegen/mir_body/aggregates.rs:483:            panic!(\"scoop_alloc_typed closure allocation must return a pointer\");",
     "crates/scoopc/src/llvm/codegen/mir_body/aggregates.rs:540:                panic!(\"scoop_alloc_typed closure env allocation must return a pointer\");",
+    "crates/scoopc/src/llvm/codegen/mir_body/aggregates.rs:661:            panic!(",
+    "crates/scoopc/src/llvm/codegen/mir_body/aggregates.rs:666:            panic!(",
+    "crates/scoopc/src/llvm/codegen/mir_body/aggregates.rs:673:                panic!(",
     "crates/scoopc/src/llvm/codegen/mir_body/args.rs:17:            panic!(\"codegen_mir_class_ctor_ordered_args: MIR verifier accepted {kind}\");",
     "crates/scoopc/src/llvm/codegen/mir_body/args.rs:23:                panic!(\"codegen_mir_class_ctor_ordered_args: MIR verifier accepted {kind}\");",
     "crates/scoopc/src/llvm/codegen/mir_body/args.rs:244:            panic!(\"codegen_bound_mir_call_args_from_signature: MIR call ABI verifier accepted arg binding drift\")",
@@ -731,19 +734,24 @@ const INTERNAL_BUG_SENTINEL_HITS: &[&str] = &[
     "crates/scoopc/src/llvm/codegen/mir_body/args.rs:364:                    panic!(\"codegen_bound_materialized_mir_call_args: MIR call ABI verifier accepted missing evaluated arg slot\")",
     "crates/scoopc/src/llvm/codegen/mir_body/args.rs:368:                    panic!(",
     "crates/scoopc/src/llvm/codegen/mir_body/call.rs:41:                        panic!(\"codegen_mir_call: MIR call ABI verifier accepted non-function function-value callee\")",
-    "crates/scoopc/src/llvm/codegen/mir_body/call.rs:138:            panic!(",
-    "crates/scoopc/src/llvm/codegen/mir_body/call.rs:201:                    panic!(\"codegen_mir_direct_call_with_policy: MIR call ABI verifier accepted arg binding drift\")",
-    "crates/scoopc/src/llvm/codegen/mir_body/call.rs:266:            panic!(",
-    "crates/scoopc/src/llvm/codegen/mir_body/call.rs:271:            panic!(",
-    "crates/scoopc/src/llvm/codegen/mir_body/call.rs:321:                panic!(\"codegen_mir_direct_call_with_policy: MIR call ABI verifier accepted unsupported direct call return type\")",
-    "crates/scoopc/src/llvm/codegen/mir_body/call.rs:471:                            panic!(\"codegen_mir_direct_call_with_policy: MIR call ABI verifier accepted missing deferred return value\")",
-    "crates/scoopc/src/llvm/codegen/mir_body/call.rs:489:            .unwrap_or_else(|| panic!(\"codegen_mir_class_ctor_call_at_site: verifier accepted missing class ctor call site\"));",
-    "crates/scoopc/src/llvm/codegen/mir_body/call.rs:550:            panic!(",
-    "crates/scoopc/src/llvm/codegen/mir_body/call.rs:661:            panic!(",
-    "crates/scoopc/src/llvm/codegen/mir_body/call.rs:675:                panic!(\"codegen_mir_function_value_call_from_closure_obj: MIR call ABI verifier accepted unsupported function-value return type\")",
-    "crates/scoopc/src/llvm/codegen/mir_body/call.rs:710:            (None, CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_)) => unreachable!(",
-    "crates/scoopc/src/llvm/codegen/mir_body/call.rs:827:                            panic!(\"codegen_mir_function_value_call_from_closure_obj: MIR call ABI verifier accepted missing deferred return value\")",
-    "crates/scoopc/src/llvm/codegen/mir_body/call.rs:899:                        panic!(\"codegen_mir_plain_dynamic_call_with_policy: MIR call ABI verifier accepted non-function plain function-value callee\")",
+    "crates/scoopc/src/llvm/codegen/mir_body/call.rs:49:                        panic!(",
+    "crates/scoopc/src/llvm/codegen/mir_body/call.rs:139:            panic!(",
+    "crates/scoopc/src/llvm/codegen/mir_body/call.rs:202:                    panic!(\"codegen_mir_direct_call_with_policy: MIR call ABI verifier accepted arg binding drift\")",
+    "crates/scoopc/src/llvm/codegen/mir_body/call.rs:267:            panic!(",
+    "crates/scoopc/src/llvm/codegen/mir_body/call.rs:272:            panic!(",
+    "crates/scoopc/src/llvm/codegen/mir_body/call.rs:322:                panic!(\"codegen_mir_direct_call_with_policy: MIR call ABI verifier accepted unsupported direct call return type\")",
+    "crates/scoopc/src/llvm/codegen/mir_body/call.rs:472:                            panic!(\"codegen_mir_direct_call_with_policy: MIR call ABI verifier accepted missing deferred return value\")",
+    "crates/scoopc/src/llvm/codegen/mir_body/call.rs:490:            .unwrap_or_else(|| panic!(\"codegen_mir_class_ctor_call_at_site: verifier accepted missing class ctor call site\"));",
+    "crates/scoopc/src/llvm/codegen/mir_body/call.rs:551:            panic!(",
+    "crates/scoopc/src/llvm/codegen/mir_body/call.rs:578:            panic!(",
+    "crates/scoopc/src/llvm/codegen/mir_body/call.rs:584:            panic!(",
+    "crates/scoopc/src/llvm/codegen/mir_body/call.rs:640:                    panic!(",
+    "crates/scoopc/src/llvm/codegen/mir_body/call.rs:660:            panic!(",
+    "crates/scoopc/src/llvm/codegen/mir_body/call.rs:674:                panic!(\"codegen_mir_function_value_call_from_closure_obj: MIR call ABI verifier accepted unsupported function-value return type\")",
+    "crates/scoopc/src/llvm/codegen/mir_body/call.rs:709:            (None, CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_)) => unreachable!(",
+    "crates/scoopc/src/llvm/codegen/mir_body/call.rs:826:                            panic!(\"codegen_mir_function_value_call_from_closure_obj: MIR call ABI verifier accepted missing deferred return value\")",
+    "crates/scoopc/src/llvm/codegen/mir_body/call.rs:898:                        panic!(\"codegen_mir_plain_dynamic_call_with_policy: MIR call ABI verifier accepted non-function plain function-value callee\")",
+    "crates/scoopc/src/llvm/codegen/mir_body/call.rs:926:                        panic!(",
     "crates/scoopc/src/llvm/codegen/mir_body/call.rs:969:                panic!(",
     "crates/scoopc/src/llvm/codegen/mir_body/call.rs:988:            panic!(",
     "crates/scoopc/src/llvm/codegen/mir_body/callable_lookup.rs:215:        panic!(",
@@ -838,6 +846,9 @@ const INTERNAL_BUG_SENTINEL_HITS: &[&str] = &[
     "crates/scoopc/src/llvm/codegen/mir_body/types.rs:44:                        panic!(",
     "crates/scoopc/src/llvm/codegen/mir_body/types.rs:74:            panic!(\"mir_local_storage_cg_ty: MIR verifier accepted unsupported local type\")",
     "crates/scoopc/src/llvm/codegen/mir_body/types.rs:726:                panic!(\"mir_member_receiver_codegen_type_id: verifier accepted member receiver TypeStore drift\")",
+    "crates/scoopc/src/llvm/codegen/mir_body/value_args.rs:99:            panic!(",
+    "crates/scoopc/src/llvm/codegen/mir_body/value_args.rs:112:                    panic!(",
+    "crates/scoopc/src/llvm/codegen/mir_body/value_args.rs:132:                    panic!(",
     "crates/scoopc/src/llvm/codegen/effect_lowered/body/call_invoke.rs:98:                        panic!(\"lower_dynamic_call_carrier: TypeStore equivalence verifier accepted unsupported FunPtr carrier codegen type\")",
     "crates/scoopc/src/llvm/codegen/effect_lowered/body/payload.rs:387:                panic!(\"lower_completion_payload_as: effect verifier accepted unsupported completion payload target type\")",
     "crates/scoopc/src/llvm/codegen/effect_lowered/body/runtime_error.rs:82:                panic!(\"runtime_error_unit_variant_payload: verifier accepted missing RuntimeError enum layout\")",
@@ -865,15 +876,16 @@ const INTERNAL_BUG_SENTINEL_HITS: &[&str] = &[
     "crates/scoopc/src/llvm/codegen/main/context.rs:77:            panic!(\"expect_basic_value: call did not produce a basic value while {context}\")",
     "crates/scoopc/src/llvm/codegen/main/context.rs:89:            _ => panic!(\"expect_pointer_value: value was not a pointer while {context}\"),",
     "crates/scoopc/src/llvm/codegen/main/context.rs:101:            _ => panic!(\"expect_int_value: value was not an integer while {context}\"),",
-    "crates/scoopc/src/llvm/codegen/main/context.rs:113:            _ => panic!(\"expect_struct_value: value was not a struct while {context}\"),",
-    "crates/scoopc/src/llvm/codegen/main/context.rs:120:            panic!(\"expect_cg_ty_of: type verifier accepted a non-codegen type while {context}\")",
-    "crates/scoopc/src/llvm/codegen/main/context.rs:131:            panic!(\"expect_cg_bool: value was not a bool payload while {context}\")",
-    "crates/scoopc/src/llvm/codegen/main/context.rs:142:            panic!(\"expect_cg_int: value was not an integer payload while {context}\")",
-    "crates/scoopc/src/llvm/codegen/main/context.rs:153:            panic!(\"expect_cg_float: value was not a float payload while {context}\")",
-    "crates/scoopc/src/llvm/codegen/main/context.rs:164:            panic!(\"expect_cg_pointer: value did not publish a payload while {context}\")",
-    "crates/scoopc/src/llvm/codegen/main/context.rs:176:            panic!(\"expect_cg_value: value did not publish a payload while {context}\")",
-    "crates/scoopc/src/llvm/codegen/main/context.rs:478:                panic!(\"source_slice_at: parser/typecheck accepted a span outside its source\")",
-    "crates/scoopc/src/llvm/codegen/main/context.rs:481:            panic!(\"source_slice_at: parser/typecheck accepted an unsliceable source span\")",
+    "crates/scoopc/src/llvm/codegen/main/context.rs:113:            _ => panic!(\"expect_float_value: value was not a float while {context}\"),",
+    "crates/scoopc/src/llvm/codegen/main/context.rs:125:            _ => panic!(\"expect_struct_value: value was not a struct while {context}\"),",
+    "crates/scoopc/src/llvm/codegen/main/context.rs:132:            panic!(\"expect_cg_ty_of: type verifier accepted a non-codegen type while {context}\")",
+    "crates/scoopc/src/llvm/codegen/main/context.rs:143:            panic!(\"expect_cg_bool: value was not a bool payload while {context}\")",
+    "crates/scoopc/src/llvm/codegen/main/context.rs:154:            panic!(\"expect_cg_int: value was not an integer payload while {context}\")",
+    "crates/scoopc/src/llvm/codegen/main/context.rs:165:            panic!(\"expect_cg_float: value was not a float payload while {context}\")",
+    "crates/scoopc/src/llvm/codegen/main/context.rs:176:            panic!(\"expect_cg_pointer: value did not publish a payload while {context}\")",
+    "crates/scoopc/src/llvm/codegen/main/context.rs:188:            panic!(\"expect_cg_value: value did not publish a payload while {context}\")",
+    "crates/scoopc/src/llvm/codegen/main/context.rs:490:                panic!(\"source_slice_at: parser/typecheck accepted a span outside its source\")",
+    "crates/scoopc/src/llvm/codegen/main/context.rs:493:            panic!(\"source_slice_at: parser/typecheck accepted an unsliceable source span\")",
     "crates/scoopc/src/llvm/codegen/main/declare.rs:67:                panic!(",
     "crates/scoopc/src/llvm/codegen/main/declare.rs:200:                panic!(\"declare_top_level_fun_with_signature_override: MIR signature verifier accepted unsupported return type\")",
     "crates/scoopc/src/llvm/codegen/main/declare.rs:203:            panic!(",
@@ -1051,7 +1063,7 @@ fn pipeline_user_visible_failure_policy_tracks_stale_unsupportedmainbody_counts(
             baseline.path
         );
     }
-    assert_eq!(total, 167);
+    assert_eq!(total, 152);
 }
 
 #[test]
