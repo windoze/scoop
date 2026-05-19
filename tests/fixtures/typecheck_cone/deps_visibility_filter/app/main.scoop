@@ -1,0 +1,11 @@
+// EXPECT: pass
+// 目标：consumer cone 只能使用依赖 cone 的 public API。
+
+package fixtures.typecheck_cone.deps_visibility_filter.app
+
+import scoop.core.*
+import fixtures.typecheck_cone.deps_visibility_filter.lib.*
+
+public fun main() / Pure! {
+    val t: PublicToken = makePublicToken(1)
+}

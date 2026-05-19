@@ -724,9 +724,10 @@ mod tests {
         builder.finish().unwrap();
     }
 
+    // P1-T03：`.cone` consume 不再参与 active dependency flow；这些测试只覆盖保留的 future helper。
     #[test]
-    fn read_cone_api_scoopir_allows_current_version() {
-        let dir = make_temp_dir("read_cone_api_scoopir_allows_current_version");
+    fn future_archive_read_cone_api_scoopir_allows_current_version() {
+        let dir = make_temp_dir("future_archive_read_cone_api_scoopir_allows_current_version");
         let cone_path = dir.join("dep.cone");
 
         let api_json = format!(
@@ -750,8 +751,10 @@ mod tests {
     }
 
     #[test]
-    fn read_cone_api_scoopir_rejects_newer_version_with_stable_code() {
-        let dir = make_temp_dir("read_cone_api_scoopir_rejects_newer_version_with_stable_code");
+    fn future_archive_read_cone_api_scoopir_rejects_newer_version_with_stable_code() {
+        let dir = make_temp_dir(
+            "future_archive_read_cone_api_scoopir_rejects_newer_version_with_stable_code",
+        );
         let cone_path = dir.join("dep.cone");
 
         let api_json = format!(

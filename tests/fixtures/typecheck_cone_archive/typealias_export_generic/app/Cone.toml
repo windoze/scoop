@@ -1,7 +1,0 @@
-[cone]
-name = "fixture-typealias-app"
-version = "0.0.0"
-
-[dependencies]
-fixture-typealias-lib = "0.0.0"
-

@@ -21,7 +21,6 @@
 //! - `tests/fixtures/resolve_cone/<case>/<cone>/**` → resolve（多 cone：每个 cone 子目录作为独立可见性边界）
 //! - `tests/fixtures/typecheck_multi/<case>/**` → typecheck（多文件编译单元：按目录为单位）
 //! - `tests/fixtures/typecheck_cone/<case>/<cone>/**` → typecheck（多 cone：每个 cone 子目录作为独立可见性边界）
-//! - `tests/fixtures/typecheck_cone_archive/<case>/<pkg>/**` → typecheck（真实 `.cone` 依赖：先打包依赖，再注入 `api.scoopir`）
 //! - `tests/fixtures/unsafe_nogc/**` → typecheck（系统编程通道：unsafe/NoGC/extern 的静态门禁）
 //! - `tests/fixtures/comptime/**` → comptime（执行 `const val` 常量折叠并与 `.comptime` golden 比对）
 //! - `tests/fixtures/codegen/**` / `tests/fixtures/run-pass/**` → run-pass
@@ -162,7 +161,6 @@ pub fn plan_targets(fixtures_root: &Path) -> Result<Vec<PlannedFixtureTarget>> {
         || is_resolve_cone_case_root(fixtures_root)
         || is_typecheck_multi_case_root(fixtures_root)
         || is_typecheck_cone_case_root(fixtures_root)
-        || is_typecheck_cone_archive_case_root(fixtures_root)
         || is_run_pass_cone_case_root(fixtures_root)
     {
         return Ok(vec![PlannedFixtureTarget {
@@ -182,9 +180,6 @@ pub fn plan_targets(fixtures_root: &Path) -> Result<Vec<PlannedFixtureTarget>> {
     let typecheck_multi_cases = collect_typecheck_multi_cases(&typecheck_multi_root)?;
     let typecheck_cone_root = fixtures_root.join("typecheck_cone");
     let typecheck_cone_cases = collect_typecheck_cone_cases(&typecheck_cone_root)?;
-    let typecheck_cone_archive_root = fixtures_root.join("typecheck_cone_archive");
-    let typecheck_cone_archive_cases =
-        collect_typecheck_cone_archive_cases(&typecheck_cone_archive_root)?;
     let run_pass_cone_root = run_pass_cone_root(fixtures_root);
     let run_pass_cone_cases = collect_run_pass_cone_cases(&run_pass_cone_root)?;
 
@@ -201,9 +196,6 @@ pub fn plan_targets(fixtures_root: &Path) -> Result<Vec<PlannedFixtureTarget>> {
     }
     if typecheck_cone_root.is_dir() {
         skip_dirs.push(typecheck_cone_root.as_path());
-    }
-    if typecheck_cone_archive_root.is_dir() {
-        skip_dirs.push(typecheck_cone_archive_root.as_path());
     }
     if run_pass_cone_root.is_dir() {
         skip_dirs.push(run_pass_cone_root.as_path());
@@ -242,12 +234,6 @@ pub fn plan_targets(fixtures_root: &Path) -> Result<Vec<PlannedFixtureTarget>> {
             path: case_dir,
         });
     }
-    for case_dir in typecheck_cone_archive_cases {
-        targets.push(PlannedFixtureTarget {
-            display: display_target(fixtures_root, &case_dir),
-            path: case_dir,
-        });
-    }
     for case_dir in run_pass_cone_cases {
         targets.push(PlannedFixtureTarget {
             display: display_target(fixtures_root, &case_dir),
@@ -255,7 +241,10 @@ pub fn plan_targets(fixtures_root: &Path) -> Result<Vec<PlannedFixtureTarget>> {
         });
     }
 
-    if targets.is_empty() && is_under_umb_fix_dir(fixtures_root) {
+    if targets.is_empty()
+        && (is_under_umb_fix_dir(fixtures_root)
+            || is_retired_typecheck_cone_archive_root(fixtures_root))
+    {
         return Ok(targets);
     }
 
@@ -325,19 +314,6 @@ pub fn run_all(
         return run_typecheck_cone_case(&session, case_root, fixtures_root)
             .wrap_err_with(|| format!("typecheck_cone case 失败：{}", fixtures_root.display()));
     }
-    if is_typecheck_cone_archive_case_root(fixtures_root) {
-        let session =
-            new_fixture_session(session_options_for_target(&session_options, fixtures_root))?;
-        let case_root = fixtures_root.parent().unwrap_or(fixtures_root);
-        return run_typecheck_cone_archive_case(&session, case_root, fixtures_root).wrap_err_with(
-            || {
-                format!(
-                    "typecheck_cone_archive case 失败：{}",
-                    fixtures_root.display()
-                )
-            },
-        );
-    }
     if is_run_pass_cone_case_root(fixtures_root) {
         let run_pass_cone_root = fixtures_root.parent().unwrap_or(fixtures_root);
         return run_run_pass_cone_case(
@@ -376,6 +352,11 @@ fn is_under_umb_fix_dir(path: &Path) -> bool {
         .any(|name| name == std::ffi::OsStr::new("umb_fix"))
 }
 
+fn is_retired_typecheck_cone_archive_root(path: &Path) -> bool {
+    path.file_name()
+        .is_some_and(|name| name == std::ffi::OsStr::new("typecheck_cone_archive"))
+}
+
 fn is_resolve_multi_case_root(fixtures_root: &Path) -> bool {
     fixtures_root.is_dir() && has_parent_dir_name(fixtures_root, "resolve_multi")
 }
@@ -390,10 +371,6 @@ fn is_typecheck_multi_case_root(fixtures_root: &Path) -> bool {
 
 fn is_typecheck_cone_case_root(fixtures_root: &Path) -> bool {
     fixtures_root.is_dir() && has_parent_dir_name(fixtures_root, "typecheck_cone")
-}
-
-fn is_typecheck_cone_archive_case_root(fixtures_root: &Path) -> bool {
-    fixtures_root.is_dir() && has_parent_dir_name(fixtures_root, "typecheck_cone_archive")
 }
 
 fn is_run_pass_cone_case_root(fixtures_root: &Path) -> bool {
@@ -866,52 +843,6 @@ struct TypecheckConeCaseTooSmall {
 struct TypecheckConeConeEmpty {
     fixture: String,
     cone: String,
-}
-
-#[derive(Debug, Error, Diagnostic)]
-#[error("typecheck_cone_archive case 需要至少 2 个 package 子目录（fixture: {fixture}）")]
-#[diagnostic(code(scoop::fixtures::typecheck_cone_archive_case_too_small))]
-struct TypecheckConeArchiveCaseTooSmall {
-    fixture: String,
-}
-
-#[derive(Debug, Error, Diagnostic)]
-#[error("typecheck_cone_archive case 需要且仅需要 1 个 consumer package（fixture: {fixture}）")]
-#[diagnostic(code(scoop::fixtures::typecheck_cone_archive_consumer_not_unique))]
-struct TypecheckConeArchiveConsumerNotUnique {
-    fixture: String,
-}
-
-#[derive(Debug, Error, Diagnostic)]
-#[error("EXPECT-MONOMORPH-HIT 不匹配：期望 {expected}，但得到 {found}")]
-#[diagnostic(code(scoop::fixtures::monomorph_hit_mismatch))]
-struct MonomorphHitMismatch {
-    expected: usize,
-    found: usize,
-}
-
-#[derive(Debug, Error, Diagnostic)]
-#[error("EXPECT-MONOMORPH-MISS 不匹配：期望 {expected}，但得到 {found}")]
-#[diagnostic(code(scoop::fixtures::monomorph_miss_mismatch))]
-struct MonomorphMissMismatch {
-    expected: usize,
-    found: usize,
-}
-
-#[derive(Debug, Error, Diagnostic)]
-#[error("EXPECT-TYPE-MONOMORPH-HIT 不匹配：期望 {expected}，但得到 {found}")]
-#[diagnostic(code(scoop::fixtures::type_monomorph_hit_mismatch))]
-struct TypeMonomorphHitMismatch {
-    expected: usize,
-    found: usize,
-}
-
-#[derive(Debug, Error, Diagnostic)]
-#[error("EXPECT-TYPE-MONOMORPH-MISS 不匹配：期望 {expected}，但得到 {found}")]
-#[diagnostic(code(scoop::fixtures::type_monomorph_miss_mismatch))]
-struct TypeMonomorphMissMismatch {
-    expected: usize,
-    found: usize,
 }
 
 #[derive(Debug, Error, Diagnostic)]
@@ -2480,6 +2411,8 @@ fn run_typecheck_cone_case(
 ///   - `resolve::Index`（import/name resolution）
 ///   - `typecheck::TypeEnv`（TypeRef lowering）
 /// - 最后仅对 consumer package 的源文件运行 typecheck pipeline，并按文件头注释断言 pass/fail
+// P1-T03：`.cone` archive fixture suite 已从 active runner 路由退场；该历史 helper 不参与构建路径。
+#[cfg(any())]
 fn run_typecheck_cone_archive_case(
     session: &scoopc::session::Session,
     fixtures_root: &Path,
@@ -3280,29 +3213,6 @@ fn collect_typecheck_cone_cases(typecheck_cone_root: &Path) -> Result<Vec<PathBu
     Ok(cases)
 }
 
-fn collect_typecheck_cone_archive_cases(
-    typecheck_cone_archive_root: &Path,
-) -> Result<Vec<PathBuf>> {
-    if !typecheck_cone_archive_root.is_dir() {
-        return Ok(Vec::new());
-    }
-
-    let mut cases = Vec::new();
-    for entry in std::fs::read_dir(typecheck_cone_archive_root)
-        .into_diagnostic()
-        .wrap_err_with(|| format!("无法读取目录：{}", typecheck_cone_archive_root.display()))?
-    {
-        let entry = entry.into_diagnostic()?;
-        let path = entry.path();
-        if entry.file_type().into_diagnostic()?.is_dir() && !is_fixture_sysroot_overlay_dir(&path) {
-            cases.push(path);
-        }
-    }
-
-    cases.sort();
-    Ok(cases)
-}
-
 fn collect_run_pass_cone_cases(run_pass_cone_root: &Path) -> Result<Vec<PathBuf>> {
     if !run_pass_cone_root.is_dir() {
         return Ok(Vec::new());
@@ -3727,21 +3637,6 @@ val bad: Int = Box("oops").bodyCopy
         )
         .unwrap();
         assert_eq!(ok, 3);
-    }
-
-    #[test]
-    fn run_all_treats_typecheck_cone_archive_case_root_as_single_case() {
-        let case_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("../../tests/fixtures/typecheck_cone_archive/deps_api_injection");
-
-        let ok = run_all(
-            &case_dir,
-            None,
-            scoopc::session::SessionOptions::new(),
-            &RunPassEnvOverrides::new(),
-        )
-        .unwrap();
-        assert_eq!(ok, 1);
     }
 
     #[test]

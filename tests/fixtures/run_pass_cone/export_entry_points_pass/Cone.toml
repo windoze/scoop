@@ -1,0 +1,9 @@
+[cone]
+name = "fixture-export-entry-points-pass"
+version = "0.0.0"
+
+[entry-points]
+exports = [
+  "fixtures.run_pass_cone.export_entry_points_pass.export_ok",
+  "fixtures.run_pass_cone.export_entry_points_pass.export_ok2",
+]

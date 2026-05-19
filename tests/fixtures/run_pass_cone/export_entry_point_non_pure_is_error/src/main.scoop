@@ -1,0 +1,16 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::export_entry_point_must_be_pure
+// EXPECT-ERROR: 导出入口
+// EXPECT-ERROR-AT: 10:32
+
+package fixtures.run_pass_cone.export_entry_point_non_pure_is_error
+
+import scoop.core.*
+
+public fun export_non_pure() / Raise<Int> {
+    ()
+}
+
+public fun main() / Pure! {
+    ()
+}

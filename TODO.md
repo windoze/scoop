@@ -3,7 +3,7 @@
 > 生成时间：2026-05-19
 > 设计基线：[`SYSROOT_RESHAPE_R2.md`](./SYSROOT_RESHAPE_R2.md)
 > 计划基线：[`PLAN.md`](./PLAN.md)
-> 当前状态：`P1-T02` 已完成；下一任务为 `P1-T03`。
+> 当前状态：`P1-T03` 已完成；下一任务为 `P2-T01`。
 > 执行原则：严格按 P0 -> P10 顺序推进；同一阶段内可按任务依赖拆 PR，但每个任务完成后必须保持仓库无 failing fixture，并回写完成记录。
 
 ## 全局约束
@@ -91,7 +91,7 @@ P0 baseline freeze
 | `P0-T01` | [DONE] | P0 | 冻结 R2 baseline 与迁移清单 |
 | `P1-T01` | [DONE] | P1 | 禁用/删除 `scoop package` archive CLI |
 | `P1-T02` | [DONE] | P1 | 移除 normal build 的 `.cone` dependency flow |
-| `P1-T03` | [TODO] | P1 | 删除或改写 archive fixtures 与 archive-only tests |
+| `P1-T03` | [DONE] | P1 | 删除或改写 archive fixtures 与 archive-only tests |
 | `P2-T01` | [TODO] | P2 | `@Extern` 支持 `callingConvention` property |
 | `P2-T02` | [TODO] | P2 | 有 body 的 `@CallingConvention` 生成 object-level native callable symbol |
 | `P2-T03` | [TODO] | P2 | 支持 `Any as?` closed Pure function runtime cast |
@@ -189,7 +189,7 @@ P0 baseline freeze
 - 验证结果：`cargo fmt` 通过；grep 确认 Rust 源码中无 `SCOOP_CONE_PATH` / `load_dependency_graph`，`crates/scoop/src/commands` 中无 `ConeArchiveApi` / `load_cone_archive_api` / `inject_cone_dependency_public_api`，`crates/scoopc/src/frontend.rs` 中无 archive API 符号；`cargo test -p scoop --bin scoop build_cone_package_ignores_archive_dependencies_in_normal_path -- --nocapture` 通过；`cargo build` 通过；`cargo clippy --all-targets -- -D warnings` 通过；`cargo test -p scoop --bin scoop` 通过（121 passed）。
 - 备注：一次未限定 `--bin scoop` 的 filtered test 在目标单元测试已通过后继续启动无关 integration test binary 并超过 120s；随后用限定命令重跑目标测试通过。
 
-## P1-T03：删除或改写 archive fixtures 与 archive-only tests
+## [DONE] P1-T03：删除或改写 archive fixtures 与 archive-only tests
 
 - 参考：`PLAN.md` §4。
 - 目标：移除 `.cone` archive fixture 对 active test suite 的影响。
@@ -200,6 +200,16 @@ P0 baseline freeze
   3. 删除 archive fixture runner active path 或改为 future-disabled。
 - 验证：`cargo run -p scoop -- test tests/fixtures/typecheck_cone_archive/` 不再作为 active archive suite；`cargo run -p scoop -- test`。
 - 完成条件：仓库无 active fixture 依赖 `.cone` archive。
+
+### 完成记录（2026-05-20）
+
+- 改动范围：`crates/scoop/src/fixtures/mod.rs`、`crates/scoop/src/fixtures/expectations.rs`、`crates/scoopc/src/cone/consume.rs`、`tests/fixtures/typecheck_cone/**`、`tests/fixtures/run_pass_cone/**`、删除 `tests/fixtures/typecheck_cone_archive/**` 的旧 `.cone` fixture 文件；未修改 `PLAN.md`。
+- 核心决策：`typecheck_cone_archive` 从 active fixture routing 中退场，目录只保留 `README.md` 作为 retired marker；`cargo run -p scoop -- test tests/fixtures/typecheck_cone_archive/` 现在返回 0 checks，不再打包或读取 `.cone`。
+- Fixture 删除/改写：`deps_visibility_filter` 改写为 source-only `tests/fixtures/typecheck_cone/deps_visibility_filter/`，保留 public/internal/private 跨 cone 可见性覆盖；`typealias_export_generic` 改写为 source-only `tests/fixtures/typecheck_cone/typealias_export_generic/`，保留跨 cone typealias 与泛型实例化覆盖；`program_boundary_export_entry_points` 改写为 manifest-backed `tests/fixtures/run_pass_cone/export_entry_point*/`，保留多导出入口 pass、缺失 closed Pure row、open row、non-Pure row、未声明 Raise 的诊断覆盖。
+- Fixture 删除理由：`deps_api_injection` 的被测对象是旧 `.cone` `api.scoopir` 依赖注入本身，已随 archive active path 退场删除；`annotation_retention_export` 覆盖 `.cone` 导出 retention 过滤，属于旧 archive API 表面，删除；`pre_specialize_id_int` 与 `pre_specialize_type_box_int` 覆盖 `.cone` archive pre-specialize metadata 命中统计，删除，同时移除仅供这些 archive fixtures 使用的 `EXPECT-MONOMORPH-*` / `EXPECT-TYPE-MONOMORPH-*` expectation 解析测试。
+- Archive-only tests：`crates/scoopc/src/cone/consume.rs` 中保留的 `.cone` reader 单测已重命名并注释为 future isolated archive helper tests，不参与 active dependency/build/fixture flow。
+- 与 `PLAN.md` / `SYSROOT_RESHAPE_R2.md` 闭合项：满足 P1 中“删除或重写 `tests/fixtures/typecheck_cone_archive/**`，archive fixture 不再作为 active suite 依赖 `.cone`”以及“archive-only tests 删除或明确标记为 future isolated”的要求；未改变阶段级计划或设计基线。
+- 验证结果：`cargo fmt` 通过；`cargo run -p scoop -- test tests/fixtures/typecheck_cone/deps_visibility_filter` 通过（4 checks）；`cargo run -p scoop -- test tests/fixtures/typecheck_cone/typealias_export_generic` 通过（2 checks）；五个 `run_pass_cone/export_entry_point*` 定向 fixture 均通过；`cargo run -p scoop -- test tests/fixtures/typecheck_cone_archive/` 通过（0 checks）；`cargo test -p scoop --bin scoop` 通过（118 passed）；`cargo test -p scoopc cone:: -- --nocapture` 通过（19 passed）；`cargo build` 通过；`cargo clippy --all-targets -- -D warnings` 通过；`cargo run -p scoop -- test` 通过（fixtures: ok，1552 checks）；`cargo test --all --all-targets` 通过（Rust tests: ok，包含 `scoopc` 904 tests）。
 
 ## P2-T01：`@Extern` 支持 `callingConvention` property
 

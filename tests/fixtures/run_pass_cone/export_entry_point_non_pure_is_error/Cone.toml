@@ -1,0 +1,8 @@
+[cone]
+name = "fixture-export-entry-point-non-pure-is-error"
+version = "0.0.0"
+
+[entry-points]
+exports = [
+  "fixtures.run_pass_cone.export_entry_point_non_pure_is_error.export_non_pure",
+]

@@ -1,8 +1,0 @@
-[cone]
-name = "fixture-lib"
-version = "0.0.0"
-
-[pre-specialize]
-# T1109：类型实例预生成并导出到 `.cone`。
-types = ["fixtures.t1109.lib.Box<Int>"]
-

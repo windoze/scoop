@@ -21,10 +21,6 @@
 //! - `// BUILD-LLVM-CONTAINS: <substring>`（build fixtures：断言 `--emit-llvm` 产物包含子串；可重复）
 //! - `// BUILD-LLVM-REGEX: <regex>`（build fixtures：断言 `--emit-llvm` 产物匹配 regex；可重复）
 //! - `// BUILD-LLVM-NOT-CONTAINS: <substring>`（build fixtures：断言 `--emit-llvm` 产物不包含子串；可重复）
-//! - `// EXPECT-MONOMORPH-HIT: <n>`（cone fixtures：期望命中 pre-specialize 的实例数量）
-//! - `// EXPECT-MONOMORPH-MISS: <n>`（cone fixtures：期望需要本地生成的实例数量）
-//! - `// EXPECT-TYPE-MONOMORPH-HIT: <n>`（cone fixtures：期望命中 pre-specialize 的类型实例数量）
-//! - `// EXPECT-TYPE-MONOMORPH-MISS: <n>`（cone fixtures：期望需要本地生成的类型实例数量）
 //! - `// IGNORE-UNTIL-FIX:B-XX` / `// ignore-until-fix:B-XX`（UMB fixtures：跳过待修复用例）
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -54,10 +50,6 @@ pub struct FixtureExpectation<'a> {
     pub run_stackmaps_records_gt: Option<u32>,
     pub expect_exit: Option<i32>,
     pub timeout_ms: Option<u64>,
-    pub expect_monomorph_hit: Option<usize>,
-    pub expect_monomorph_miss: Option<usize>,
-    pub expect_type_monomorph_hit: Option<usize>,
-    pub expect_type_monomorph_miss: Option<usize>,
     pub ignore_until_fix: Option<&'a str>,
 }
 
@@ -83,10 +75,6 @@ impl<'a> FixtureExpectation<'a> {
         let mut run_stackmaps_records_gt = None;
         let mut expect_exit = None;
         let mut timeout_ms = None;
-        let mut expect_monomorph_hit = None;
-        let mut expect_monomorph_miss = None;
-        let mut expect_type_monomorph_hit = None;
-        let mut expect_type_monomorph_miss = None;
         let mut ignore_until_fix = None;
 
         // 只扫描开头若干行，避免把正文里的 `// EXPECT:` 误判为指令。
@@ -191,22 +179,6 @@ impl<'a> FixtureExpectation<'a> {
                 timeout_ms = rest.trim().parse::<u64>().ok();
             }
 
-            if let Some(rest) = directive.strip_prefix("EXPECT-MONOMORPH-HIT:") {
-                expect_monomorph_hit = rest.trim().parse::<usize>().ok();
-            }
-
-            if let Some(rest) = directive.strip_prefix("EXPECT-MONOMORPH-MISS:") {
-                expect_monomorph_miss = rest.trim().parse::<usize>().ok();
-            }
-
-            if let Some(rest) = directive.strip_prefix("EXPECT-TYPE-MONOMORPH-HIT:") {
-                expect_type_monomorph_hit = rest.trim().parse::<usize>().ok();
-            }
-
-            if let Some(rest) = directive.strip_prefix("EXPECT-TYPE-MONOMORPH-MISS:") {
-                expect_type_monomorph_miss = rest.trim().parse::<usize>().ok();
-            }
-
             if let Some(rest) = directive
                 .strip_prefix("IGNORE-UNTIL-FIX:")
                 .or_else(|| directive.strip_prefix("ignore-until-fix:"))
@@ -238,10 +210,6 @@ impl<'a> FixtureExpectation<'a> {
             run_stackmaps_records_gt,
             expect_exit,
             timeout_ms,
-            expect_monomorph_hit,
-            expect_monomorph_miss,
-            expect_type_monomorph_hit,
-            expect_type_monomorph_miss,
             ignore_until_fix,
         }
     }
@@ -290,10 +258,6 @@ mod tests {
         assert_eq!(exp.run_stackmaps_records_gt, None);
         assert_eq!(exp.expect_exit, None);
         assert_eq!(exp.timeout_ms, None);
-        assert_eq!(exp.expect_monomorph_hit, None);
-        assert_eq!(exp.expect_monomorph_miss, None);
-        assert_eq!(exp.expect_type_monomorph_hit, None);
-        assert_eq!(exp.expect_type_monomorph_miss, None);
     }
 
     #[test]
@@ -320,10 +284,6 @@ mod tests {
         assert_eq!(exp.run_stackmaps_records_gt, None);
         assert_eq!(exp.expect_exit, None);
         assert_eq!(exp.timeout_ms, None);
-        assert_eq!(exp.expect_monomorph_hit, None);
-        assert_eq!(exp.expect_monomorph_miss, None);
-        assert_eq!(exp.expect_type_monomorph_hit, None);
-        assert_eq!(exp.expect_type_monomorph_miss, None);
     }
 
     #[test]
@@ -364,10 +324,6 @@ mod tests {
         assert_eq!(exp.run_stderr_contains, None);
         assert_eq!(exp.expect_exit, None);
         assert_eq!(exp.timeout_ms, None);
-        assert_eq!(exp.expect_monomorph_hit, None);
-        assert_eq!(exp.expect_monomorph_miss, None);
-        assert_eq!(exp.expect_type_monomorph_hit, None);
-        assert_eq!(exp.expect_type_monomorph_miss, None);
     }
 
     #[test]
@@ -430,23 +386,5 @@ mod tests {
         );
         assert_eq!(exp.run_mode, Some("dump-stackmaps"));
         assert_eq!(exp.run_stackmaps_records_gt, Some(0));
-    }
-
-    #[test]
-    fn parse_monomorph_expectations() {
-        let exp = FixtureExpectation::from_source(
-            "// EXPECT-MONOMORPH-HIT: 2\n// EXPECT-MONOMORPH-MISS: 1\nfun main() {}\n",
-        );
-        assert_eq!(exp.expect_monomorph_hit, Some(2));
-        assert_eq!(exp.expect_monomorph_miss, Some(1));
-    }
-
-    #[test]
-    fn parse_type_monomorph_expectations() {
-        let exp = FixtureExpectation::from_source(
-            "// EXPECT-TYPE-MONOMORPH-HIT: 1\n// EXPECT-TYPE-MONOMORPH-MISS: 3\nfun main() {}\n",
-        );
-        assert_eq!(exp.expect_type_monomorph_hit, Some(1));
-        assert_eq!(exp.expect_type_monomorph_miss, Some(3));
     }
 }

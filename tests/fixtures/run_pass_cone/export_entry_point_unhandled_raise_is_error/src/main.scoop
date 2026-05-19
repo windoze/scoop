@@ -1,0 +1,16 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::required_effect_not_declared
+// EXPECT-ERROR: 缺少效果声明
+// EXPECT-ERROR-AT: 11:5
+
+package fixtures.run_pass_cone.export_entry_point_unhandled_raise_is_error
+
+import scoop.core.*
+
+public fun export_unhandled_raise() / Pure! {
+    Raise.raise(1)
+}
+
+public fun main() / Pure! {
+    ()
+}

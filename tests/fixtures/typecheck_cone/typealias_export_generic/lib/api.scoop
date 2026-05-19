@@ -1,0 +1,12 @@
+// EXPECT: pass
+// 目标：source-only 多 cone fixture 保留跨 cone typealias 展开与泛型实例化覆盖。
+
+package fixtures.typecheck_cone.typealias_export_generic.lib
+
+import scoop.core.*
+
+public typealias UserId = Int
+public typealias Handler<T> = (T) -> Unit
+
+public fun takes(h: Handler<UserId>) / Pure! {
+}

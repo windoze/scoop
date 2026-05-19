@@ -1,8 +1,0 @@
-// EXPECT: pass
-
-package fixtures.typecheck_cone_archive.program_boundary_export_entry_points.lib
-
-public fun lib_util() {
-    ()
-}
-

@@ -1,8 +1,0 @@
-[cone]
-name = "fixture-lib"
-version = "0.0.0"
-
-[pre-specialize]
-# T1108：函数实例预编译（当前阶段只做函数；类型实例留给 T1109）。
-functions = ["fixtures.t1108.lib.id<Int>"]
-

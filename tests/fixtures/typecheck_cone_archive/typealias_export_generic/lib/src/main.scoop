@@ -1,4 +1,0 @@
-// 说明：本 cone 作为依赖被打包为 `.cone`；本文件仅用于满足 `load_cone_source_package` 的入口要求。
-
-package fixtures.typecheck_cone_archive.typealias_export_generic.lib
-

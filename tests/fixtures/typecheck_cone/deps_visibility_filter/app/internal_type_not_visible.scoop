@@ -1,0 +1,12 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::resolve::not_visible
+// EXPECT-ERROR-CONTAINS: internal
+// EXPECT-ERROR-AT: 10:17
+
+package fixtures.typecheck_cone.deps_visibility_filter.app
+
+import scoop.core.*
+
+public fun f(x: fixtures.typecheck_cone.deps_visibility_filter.lib.InternalToken) / Pure! {
+    ()
+}

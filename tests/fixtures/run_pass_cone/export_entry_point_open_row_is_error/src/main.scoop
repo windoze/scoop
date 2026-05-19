@@ -1,0 +1,16 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::export_entry_point_must_be_closed_pure
+// EXPECT-ERROR: 闭合 effect row
+// EXPECT-ERROR-AT: 10:32
+
+package fixtures.run_pass_cone.export_entry_point_open_row_is_error
+
+import scoop.core.*
+
+public fun export_open_row() / Pure {
+    ()
+}
+
+public fun main() / Pure! {
+    ()
+}

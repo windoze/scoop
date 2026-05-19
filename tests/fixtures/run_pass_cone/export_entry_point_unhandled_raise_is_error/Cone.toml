@@ -1,0 +1,8 @@
+[cone]
+name = "fixture-export-entry-point-unhandled-raise-is-error"
+version = "0.0.0"
+
+[entry-points]
+exports = [
+  "fixtures.run_pass_cone.export_entry_point_unhandled_raise_is_error.export_unhandled_raise",
+]

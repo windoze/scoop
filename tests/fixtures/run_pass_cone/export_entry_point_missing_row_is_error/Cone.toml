@@ -1,0 +1,8 @@
+[cone]
+name = "fixture-export-entry-point-missing-row-is-error"
+version = "0.0.0"
+
+[entry-points]
+exports = [
+  "fixtures.run_pass_cone.export_entry_point_missing_row_is_error.export_missing_row",
+]

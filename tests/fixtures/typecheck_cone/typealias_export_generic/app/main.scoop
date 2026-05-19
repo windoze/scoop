@@ -1,0 +1,13 @@
+// EXPECT: pass
+
+package fixtures.typecheck_cone.typealias_export_generic.app
+
+import scoop.core.*
+import fixtures.typecheck_cone.typealias_export_generic.lib.*
+
+public fun use(h: Handler<UserId>) / Pure! {
+}
+
+public fun main() / Pure! {
+    val id: UserId = 1
+}
