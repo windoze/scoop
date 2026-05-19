@@ -1,12 +1,11 @@
 // EXPECT: fail
-// IGNORE-UNTIL-FIX:B-27
-// EXPECT-ERROR-CODE: scoop::umb_fix::pending_gate
-// EXPECT-ERROR-AT: 1:1
-// EXPECT-ERROR: pending U5 fixture gate
+// EXPECT-ERROR-CODE: scoop::typecheck::call_arity_mismatch
+// EXPECT-ERROR-AT: 16:5
+// EXPECT-ERROR: 参数数量不匹配
 // SPEC: docs/spec/language_spec-part6.md#1-低层边界总览;docs/spec/language_spec-part6.md#18-与标准库的关系
-// COVERS: UMB-0246, UMB-0247, UMB-0248, UMB-0249, UMB-0250, UMB-0656, UMB-0657, UMB-0658, UMB-0659, UMB-0660, UMB-0661, UMB-0662, UMB-0663, UMB-0664, UMB-0665, UMB-0666, UMB-0667, UMB-0668, UMB-0669, UMB-0670, UMB-0671, UMB-0672, UMB-0673, UMB-0674, UMB-0675, UMB-0676, UMB-0677, UMB-0678, UMB-0679, UMB-0680, UMB-0681, UMB-0682, UMB-0683, UMB-0684, UMB-0685, UMB-0686, UMB-0687, UMB-0688, UMB-0689, UMB-0690, UMB-0691, UMB-0692, UMB-0693, UMB-0694, UMB-0695, UMB-0696, UMB-0697, UMB-0698, UMB-0699, UMB-0700, UMB-0701, UMB-0702, UMB-0703, UMB-0704, UMB-0705, UMB-0706, UMB-0707, UMB-0708
+// COVERS: NONE
 // BUCKETS: B-27
-// REASON: U5-T03 bucket-driven negative coverage for the sync intrinsic contract gate.
+// REASON: P7-B3.2 retired B-27 rows; this fixture keeps the sync arity gate active.
 // SOURCE-FIXTURE: tests/fixtures/typecheck/std_sync_api_surface_ok.scoop
 
 import scoop.core.*

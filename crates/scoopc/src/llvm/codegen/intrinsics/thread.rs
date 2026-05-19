@@ -9,19 +9,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         _callee_span: crate::span::Span,
         args: &[hir::CallArg],
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        if args.len() != 1 {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "thread.threadSpawn arity mismatch",
-                at: span.into(),
-            });
-        }
-
-        let hir::CallArg::Positional(block_expr) = &args[0] else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "thread.threadSpawn named arg (block)",
-                at: span.into(),
-            });
-        };
+        let block_expr =
+            self.expect_hir_positional_intrinsic_arg(args, 1, 0, "codegen_sysroot_thread_spawn");
 
         let block_v = match &block_expr.kind {
             hir::ExprKind::Closure(closure) => {
@@ -29,29 +18,18 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 // - `thread.spawn` 的参数类型在 sysroot 中固定为 `() -> Unit / Pure!`；
                 // - 与 `sync.Once.run` 一致：为了在 early stage 稳定 codegen，这里从 `TypeStore` 中
                 //   查找一个"无参、返回 Unit、Pure"的函数类型作为 expected context。
-                let expected_fun_ty = self.lookup_pure_unit_closure_type().ok_or(
-                    LlvmEmitError::UnsupportedMainBody {
-                        kind: "thread.threadSpawn block fun type",
-                        at: block_expr.span.into(),
-                    },
-                )?;
+                let expected_fun_ty = self.lookup_pure_unit_closure_type().unwrap_or_else(|| {
+                    self.panic_verified_intrinsic_contract(
+                        "codegen_sysroot_thread_spawn",
+                        "missing Pure Unit closure type",
+                    )
+                });
                 self.codegen_closure_expr(block_expr.span, closure, expected_fun_ty)?
             }
             _ => self.codegen_expr(block_expr)?,
         };
         let block_v = self.coerce_value(block_expr.span, block_v, CgTy::Ref)?;
-        let Some(block_raw) = block_v.value else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "thread.threadSpawn block value",
-                at: block_expr.span.into(),
-            });
-        };
-        let BasicValueEnum::PointerValue(block_obj_i8) = block_raw else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "thread.threadSpawn block type",
-                at: block_expr.span.into(),
-            });
-        };
+        let block_obj_i8 = self.expect_cg_pointer(block_v, "codegen_sysroot_thread_spawn block");
 
         // 抽取 closure object：`{ header, env_ptr, fn_ptr }`，把 env 与 typed fn 指针传给 runtime。
         let closure_ty = self.llvm_closure_object_type();
@@ -89,19 +67,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             &[env_ptr.into(), start_fn_ptr.into()],
             "thread_spawn",
         )?;
-        let raw = call
-            .try_as_basic_value()
-            .basic()
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "thread.threadSpawn return value",
-                at: span.into(),
-            })?;
-        let BasicValueEnum::PointerValue(thread_ptr) = raw else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "thread.threadSpawn return type",
-                at: span.into(),
-            });
-        };
+        let raw = self.expect_basic_value(call, "codegen_sysroot_thread_spawn return");
+        let thread_ptr = self.expect_pointer_value(raw, "codegen_sysroot_thread_spawn return");
 
         Ok(CgValue {
             ty: CgTy::Ref,
@@ -115,34 +82,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         _callee_span: crate::span::Span,
         args: &[hir::CallArg],
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        if args.len() != 1 {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "thread.Thread.join arity mismatch",
-                at: span.into(),
-            });
-        }
-
-        let hir::CallArg::Positional(recv_expr) = &args[0] else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "thread.Thread.join named arg (receiver)",
-                at: span.into(),
-            });
-        };
+        let recv_expr =
+            self.expect_hir_positional_intrinsic_arg(args, 1, 0, "codegen_sysroot_thread_join");
 
         let recv_v = self.codegen_expr_in_expected_context(recv_expr, Some(CgTy::Ref))?;
         let recv_v = self.coerce_value(recv_expr.span, recv_v, CgTy::Ref)?;
-        let Some(recv_raw) = recv_v.value else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "thread.Thread.join receiver value",
-                at: recv_expr.span.into(),
-            });
-        };
-        let BasicValueEnum::PointerValue(recv_ptr) = recv_raw else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "thread.Thread.join receiver type",
-                at: recv_expr.span.into(),
-            });
-        };
+        let recv_ptr = self.expect_cg_pointer(recv_v, "codegen_sysroot_thread_join receiver");
 
         let rt = self.declare_runtime_thread_join();
         let _ =
@@ -156,19 +101,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         _callee_span: crate::span::Span,
         args: &[hir::CallArg],
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        if args.len() != 1 {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "thread.sleepMillis arity mismatch",
-                at: span.into(),
-            });
-        }
-
-        let hir::CallArg::Positional(ms_expr) = &args[0] else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "thread.sleepMillis named arg",
-                at: span.into(),
-            });
-        };
+        let ms_expr = self.expect_hir_positional_intrinsic_arg(
+            args,
+            1,
+            0,
+            "codegen_sysroot_thread_sleep_millis",
+        );
 
         let value_word = IntTy {
             bits: self.host.word_bit_width(),
@@ -176,10 +114,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         };
         let ms_v = self.codegen_expr_in_expected_context(ms_expr, Some(CgTy::Int(value_word)))?;
         let ms_v = self.coerce_value(ms_expr.span, ms_v, CgTy::Int(value_word))?;
-        let (ms_raw, ms_from) = ms_v.as_int().ok_or(LlvmEmitError::UnsupportedMainBody {
-            kind: "thread.sleepMillis ms value",
-            at: ms_expr.span.into(),
-        })?;
+        let (ms_raw, ms_from) = self.expect_cg_int(ms_v, "codegen_sysroot_thread_sleep_millis ms");
 
         let ms_to = IntTy {
             bits: 64,
@@ -215,32 +150,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     pub(in crate::llvm::codegen) fn codegen_sysroot_thread_current_id(
         &mut self,
-        span: crate::span::Span,
+        _span: crate::span::Span,
         _callee_span: crate::span::Span,
         args: &[hir::CallArg],
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        if !args.is_empty() {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "thread.currentId arity mismatch",
-                at: span.into(),
-            });
-        }
+        self.expect_hir_intrinsic_arity(args, 0, "codegen_sysroot_thread_current_id");
 
         let rt = self.declare_runtime_thread_current_id();
         let call = self.builder.build_call(rt, &[], "thread_current_id")?;
-        let raw = call
-            .try_as_basic_value()
-            .basic()
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "thread.currentId return value",
-                at: span.into(),
-            })?;
-        let BasicValueEnum::IntValue(raw_i64) = raw else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "thread.currentId return type",
-                at: span.into(),
-            });
-        };
+        let raw = self.expect_basic_value(call, "codegen_sysroot_thread_current_id return");
+        let raw_i64 = self.expect_int_value(raw, "codegen_sysroot_thread_current_id return");
 
         let from = IntTy {
             bits: 64,

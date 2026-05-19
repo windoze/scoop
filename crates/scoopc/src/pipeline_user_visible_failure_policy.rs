@@ -238,7 +238,7 @@ const STALE_UNSUPPORTED_MAIN_BODY_COUNTS: &[UnsupportedMainBodyCount] = &[
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/effect_lowered/value.rs",
-        expected_count: 131,
+        expected_count: 123,
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/main/alloca.rs",
@@ -843,8 +843,8 @@ const INTERNAL_BUG_SENTINEL_HITS: &[&str] = &[
     "crates/scoopc/src/llvm/codegen/effect_lowered/body/runtime_error.rs:82:                panic!(\"runtime_error_unit_variant_payload: verifier accepted missing RuntimeError enum layout\")",
     "crates/scoopc/src/llvm/codegen/effect_lowered/body/runtime_error.rs:89:                panic!(\"runtime_error_unit_variant_payload: verifier accepted missing RuntimeError variant `{variant_name}`\")",
     "crates/scoopc/src/llvm/codegen/effect_lowered/body/runtime_error.rs:92:            panic!(",
-    "crates/scoopc/src/llvm/codegen/effect_lowered/value.rs:2493:                    _ => unreachable!(\"filtered by match\"),",
-    "crates/scoopc/src/llvm/codegen/effect_lowered/value.rs:3621:            _ => unreachable!(\"filtered by caller\"),",
+    "crates/scoopc/src/llvm/codegen/effect_lowered/value.rs:2478:                    _ => unreachable!(\"filtered by match\"),",
+    "crates/scoopc/src/llvm/codegen/effect_lowered/value.rs:3606:            _ => unreachable!(\"filtered by caller\"),",
     "crates/scoopc/src/llvm/codegen/main/alloca.rs:48:            _ => unreachable!(\"cast_float only accepts Float64/Float32\"),",
     "crates/scoopc/src/llvm/codegen/main/call.rs:109:                        panic!(",
     "crates/scoopc/src/llvm/codegen/main/call.rs:694:            unreachable!(",
@@ -1048,7 +1048,7 @@ fn pipeline_user_visible_failure_policy_tracks_stale_unsupportedmainbody_counts(
             baseline.path
         );
     }
-    assert_eq!(total, 262);
+    assert_eq!(total, 254);
 }
 
 #[test]

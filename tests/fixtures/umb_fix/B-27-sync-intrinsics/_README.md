@@ -7,15 +7,15 @@
 
 ## Scope
 
-U5-T03 adds the B-27 negative gate fixture so the sync intrinsic bucket has both positive and negative coverage.
+P7-B3.2 keeps active positive and negative coverage for the sync intrinsic contract after retiring the B-27 inventory rows.
 
 ## Direct Coverage
 
 - Positive: `pos_sync_intrinsics.scoop`
 - Negative: `neg_sync_intrinsic_gate.scoop`
-- Covers: all 58 B-27 inventory ids in the negative fixture; the positive fixture also covers related sync/thread/sysroot ids shared with adjacent buckets.
+- Retired rows: all 58 B-27 IDs are tracked in `audit/UMB_retired.csv`.
 - Upstream gate: `intrinsic resolver gate: sync primitive calls match sysroot runtime contract`.
 
 ## Runner Status
 
-`scoop test` recognizes `tests/fixtures/umb_fix/**`. Fixtures marked `IGNORE-UNTIL-FIX:B-27` or `ignore-until-fix:B-27` are skipped until the corresponding production fix lands.
+`scoop test` recognizes `tests/fixtures/umb_fix/**`. B-27 fixtures are active after P7-B3.2.

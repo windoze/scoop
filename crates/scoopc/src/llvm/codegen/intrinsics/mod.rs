@@ -1,8 +1,60 @@
 //! Builtin and sysroot intrinsic lowering split out of `codegen/mod.rs`.
 
+use super::*;
+
 mod atomic;
 mod builtin;
 mod named;
 mod sync;
 mod sysroot;
 mod thread;
+
+impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
+    pub(in crate::llvm::codegen) fn panic_verified_intrinsic_contract(
+        &self,
+        context: &'static str,
+        detail: &'static str,
+    ) -> ! {
+        panic!("{context}: verified intrinsic contract was violated: {detail}")
+    }
+
+    pub(in crate::llvm::codegen) fn expect_hir_intrinsic_arity(
+        &self,
+        args: &[hir::CallArg],
+        expected: usize,
+        context: &'static str,
+    ) {
+        if args.len() != expected {
+            self.panic_verified_intrinsic_contract(context, "argument count drift");
+        }
+    }
+
+    pub(in crate::llvm::codegen) fn expect_hir_positional_intrinsic_arg<'b>(
+        &self,
+        args: &'b [hir::CallArg],
+        expected: usize,
+        index: usize,
+        context: &'static str,
+    ) -> &'b hir::Expr {
+        self.expect_hir_intrinsic_arity(args, expected, context);
+        let Some(arg) = args.get(index) else {
+            self.panic_verified_intrinsic_contract(context, "argument index drift");
+        };
+        let hir::CallArg::Positional(expr) = arg else {
+            self.panic_verified_intrinsic_contract(context, "named argument drift");
+        };
+        expr
+    }
+
+    pub(in crate::llvm::codegen) fn expect_nominal_ref_type_fqn<'b>(
+        &self,
+        types: &'b TypeStore,
+        ty: TypeId,
+        context: &'static str,
+    ) -> &'b str {
+        let TypeKind::Ref(RefTypeKind::Nominal(nominal)) = types.kind(ty) else {
+            self.panic_verified_intrinsic_contract(context, "receiver is not a nominal ref");
+        };
+        nominal.fqn.as_str()
+    }
+}

@@ -5,32 +5,16 @@ use super::super::*;
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(in crate::llvm::codegen) fn codegen_sysroot_sync_mutex_create(
         &mut self,
-        span: crate::span::Span,
+        _span: crate::span::Span,
         _callee_span: crate::span::Span,
         args: &[hir::CallArg],
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        if !args.is_empty() {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "sync.mutexCreate arity mismatch",
-                at: span.into(),
-            });
-        }
+        self.expect_hir_intrinsic_arity(args, 0, "codegen_sysroot_sync_mutex_create");
 
         let rt = self.declare_runtime_sync_mutex_create();
         let call = self.builder.build_call(rt, &[], "sync_mutex_create")?;
-        let raw = call
-            .try_as_basic_value()
-            .basic()
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "sync.mutexCreate return value",
-                at: span.into(),
-            })?;
-        let BasicValueEnum::PointerValue(ptr) = raw else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "sync.mutexCreate return type",
-                at: span.into(),
-            });
-        };
+        let raw = self.expect_basic_value(call, "codegen_sysroot_sync_mutex_create return");
+        let ptr = self.expect_pointer_value(raw, "codegen_sysroot_sync_mutex_create return");
 
         Ok(CgValue {
             ty: CgTy::Ref,
@@ -40,38 +24,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     pub(in crate::llvm::codegen) fn codegen_sysroot_sync_mutex_lock(
         &mut self,
-        span: crate::span::Span,
+        _span: crate::span::Span,
         _callee_span: crate::span::Span,
         args: &[hir::CallArg],
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        if args.len() != 1 {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "sync.Mutex.lock arity mismatch",
-                at: span.into(),
-            });
-        }
-
-        let hir::CallArg::Positional(recv_expr) = &args[0] else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "sync.Mutex.lock named arg (receiver)",
-                at: span.into(),
-            });
-        };
+        let recv_expr =
+            self.expect_hir_positional_intrinsic_arg(args, 1, 0, "codegen_sysroot_sync_mutex_lock");
 
         let recv_v = self.codegen_expr_in_expected_context(recv_expr, Some(CgTy::Ref))?;
         let recv_v = self.coerce_value(recv_expr.span, recv_v, CgTy::Ref)?;
-        let Some(recv_raw) = recv_v.value else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "sync.Mutex.lock receiver value",
-                at: recv_expr.span.into(),
-            });
-        };
-        let BasicValueEnum::PointerValue(recv_ptr) = recv_raw else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "sync.Mutex.lock receiver type",
-                at: recv_expr.span.into(),
-            });
-        };
+        let recv_ptr = self.expect_cg_pointer(recv_v, "codegen_sysroot_sync_mutex_lock receiver");
 
         let rt = self.declare_runtime_sync_mutex_lock();
         let _ = self
@@ -82,38 +44,20 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     pub(in crate::llvm::codegen) fn codegen_sysroot_sync_mutex_unlock(
         &mut self,
-        span: crate::span::Span,
+        _span: crate::span::Span,
         _callee_span: crate::span::Span,
         args: &[hir::CallArg],
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        if args.len() != 1 {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "sync.Mutex.unlock arity mismatch",
-                at: span.into(),
-            });
-        }
-
-        let hir::CallArg::Positional(recv_expr) = &args[0] else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "sync.Mutex.unlock named arg (receiver)",
-                at: span.into(),
-            });
-        };
+        let recv_expr = self.expect_hir_positional_intrinsic_arg(
+            args,
+            1,
+            0,
+            "codegen_sysroot_sync_mutex_unlock",
+        );
 
         let recv_v = self.codegen_expr_in_expected_context(recv_expr, Some(CgTy::Ref))?;
         let recv_v = self.coerce_value(recv_expr.span, recv_v, CgTy::Ref)?;
-        let Some(recv_raw) = recv_v.value else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "sync.Mutex.unlock receiver value",
-                at: recv_expr.span.into(),
-            });
-        };
-        let BasicValueEnum::PointerValue(recv_ptr) = recv_raw else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "sync.Mutex.unlock receiver type",
-                at: recv_expr.span.into(),
-            });
-        };
+        let recv_ptr = self.expect_cg_pointer(recv_v, "codegen_sysroot_sync_mutex_unlock receiver");
 
         let rt = self.declare_runtime_sync_mutex_unlock();
         let _ = self
@@ -124,32 +68,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     pub(in crate::llvm::codegen) fn codegen_sysroot_sync_condvar_create(
         &mut self,
-        span: crate::span::Span,
+        _span: crate::span::Span,
         _callee_span: crate::span::Span,
         args: &[hir::CallArg],
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        if !args.is_empty() {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "sync.condVarCreate arity mismatch",
-                at: span.into(),
-            });
-        }
+        self.expect_hir_intrinsic_arity(args, 0, "codegen_sysroot_sync_condvar_create");
 
         let rt = self.declare_runtime_sync_condvar_create();
         let call = self.builder.build_call(rt, &[], "sync_condvar_create")?;
-        let raw = call
-            .try_as_basic_value()
-            .basic()
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "sync.condVarCreate return value",
-                at: span.into(),
-            })?;
-        let BasicValueEnum::PointerValue(ptr) = raw else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "sync.condVarCreate return type",
-                at: span.into(),
-            });
-        };
+        let raw = self.expect_basic_value(call, "codegen_sysroot_sync_condvar_create return");
+        let ptr = self.expect_pointer_value(raw, "codegen_sysroot_sync_condvar_create return");
 
         Ok(CgValue {
             ty: CgTy::Ref,
@@ -159,59 +87,30 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     pub(in crate::llvm::codegen) fn codegen_sysroot_sync_condvar_wait(
         &mut self,
-        span: crate::span::Span,
+        _span: crate::span::Span,
         _callee_span: crate::span::Span,
         args: &[hir::CallArg],
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        if args.len() != 2 {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "sync.CondVar.wait arity mismatch",
-                at: span.into(),
-            });
-        }
-
-        let hir::CallArg::Positional(cv_expr) = &args[0] else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "sync.CondVar.wait named arg (receiver)",
-                at: span.into(),
-            });
-        };
-        let hir::CallArg::Positional(mutex_expr) = &args[1] else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "sync.CondVar.wait named arg (mutex)",
-                at: span.into(),
-            });
-        };
+        let cv_expr = self.expect_hir_positional_intrinsic_arg(
+            args,
+            2,
+            0,
+            "codegen_sysroot_sync_condvar_wait",
+        );
+        let mutex_expr = self.expect_hir_positional_intrinsic_arg(
+            args,
+            2,
+            1,
+            "codegen_sysroot_sync_condvar_wait",
+        );
 
         let cv_v = self.codegen_expr_in_expected_context(cv_expr, Some(CgTy::Ref))?;
         let cv_v = self.coerce_value(cv_expr.span, cv_v, CgTy::Ref)?;
-        let Some(cv_raw) = cv_v.value else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "sync.CondVar.wait receiver value",
-                at: cv_expr.span.into(),
-            });
-        };
-        let BasicValueEnum::PointerValue(cv_ptr) = cv_raw else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "sync.CondVar.wait receiver type",
-                at: cv_expr.span.into(),
-            });
-        };
+        let cv_ptr = self.expect_cg_pointer(cv_v, "codegen_sysroot_sync_condvar_wait receiver");
 
         let m_v = self.codegen_expr_in_expected_context(mutex_expr, Some(CgTy::Ref))?;
         let m_v = self.coerce_value(mutex_expr.span, m_v, CgTy::Ref)?;
-        let Some(m_raw) = m_v.value else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "sync.CondVar.wait mutex value",
-                at: mutex_expr.span.into(),
-            });
-        };
-        let BasicValueEnum::PointerValue(m_ptr) = m_raw else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "sync.CondVar.wait mutex type",
-                at: mutex_expr.span.into(),
-            });
-        };
+        let m_ptr = self.expect_cg_pointer(m_v, "codegen_sysroot_sync_condvar_wait mutex");
 
         let rt = self.declare_runtime_sync_condvar_wait();
         let _ = self
@@ -222,38 +121,21 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     pub(in crate::llvm::codegen) fn codegen_sysroot_sync_condvar_notify_one(
         &mut self,
-        span: crate::span::Span,
+        _span: crate::span::Span,
         _callee_span: crate::span::Span,
         args: &[hir::CallArg],
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        if args.len() != 1 {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "sync.CondVar.notifyOne arity mismatch",
-                at: span.into(),
-            });
-        }
-
-        let hir::CallArg::Positional(cv_expr) = &args[0] else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "sync.CondVar.notifyOne named arg (receiver)",
-                at: span.into(),
-            });
-        };
+        let cv_expr = self.expect_hir_positional_intrinsic_arg(
+            args,
+            1,
+            0,
+            "codegen_sysroot_sync_condvar_notify_one",
+        );
 
         let cv_v = self.codegen_expr_in_expected_context(cv_expr, Some(CgTy::Ref))?;
         let cv_v = self.coerce_value(cv_expr.span, cv_v, CgTy::Ref)?;
-        let Some(cv_raw) = cv_v.value else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "sync.CondVar.notifyOne receiver value",
-                at: cv_expr.span.into(),
-            });
-        };
-        let BasicValueEnum::PointerValue(cv_ptr) = cv_raw else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "sync.CondVar.notifyOne receiver type",
-                at: cv_expr.span.into(),
-            });
-        };
+        let cv_ptr =
+            self.expect_cg_pointer(cv_v, "codegen_sysroot_sync_condvar_notify_one receiver");
 
         let rt = self.declare_runtime_sync_condvar_notify_one();
         let _ = self
@@ -264,38 +146,21 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     pub(in crate::llvm::codegen) fn codegen_sysroot_sync_condvar_notify_all(
         &mut self,
-        span: crate::span::Span,
+        _span: crate::span::Span,
         _callee_span: crate::span::Span,
         args: &[hir::CallArg],
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        if args.len() != 1 {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "sync.CondVar.notifyAll arity mismatch",
-                at: span.into(),
-            });
-        }
-
-        let hir::CallArg::Positional(cv_expr) = &args[0] else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "sync.CondVar.notifyAll named arg (receiver)",
-                at: span.into(),
-            });
-        };
+        let cv_expr = self.expect_hir_positional_intrinsic_arg(
+            args,
+            1,
+            0,
+            "codegen_sysroot_sync_condvar_notify_all",
+        );
 
         let cv_v = self.codegen_expr_in_expected_context(cv_expr, Some(CgTy::Ref))?;
         let cv_v = self.coerce_value(cv_expr.span, cv_v, CgTy::Ref)?;
-        let Some(cv_raw) = cv_v.value else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "sync.CondVar.notifyAll receiver value",
-                at: cv_expr.span.into(),
-            });
-        };
-        let BasicValueEnum::PointerValue(cv_ptr) = cv_raw else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "sync.CondVar.notifyAll receiver type",
-                at: cv_expr.span.into(),
-            });
-        };
+        let cv_ptr =
+            self.expect_cg_pointer(cv_v, "codegen_sysroot_sync_condvar_notify_all receiver");
 
         let rt = self.declare_runtime_sync_condvar_notify_all();
         let _ = self
@@ -306,32 +171,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     pub(in crate::llvm::codegen) fn codegen_sysroot_sync_once_create(
         &mut self,
-        span: crate::span::Span,
+        _span: crate::span::Span,
         _callee_span: crate::span::Span,
         args: &[hir::CallArg],
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        if !args.is_empty() {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "sync.onceCreate arity mismatch",
-                at: span.into(),
-            });
-        }
+        self.expect_hir_intrinsic_arity(args, 0, "codegen_sysroot_sync_once_create");
 
         let rt = self.declare_runtime_sync_once_create();
         let call = self.builder.build_call(rt, &[], "sync_once_create")?;
-        let raw = call
-            .try_as_basic_value()
-            .basic()
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "sync.onceCreate return value",
-                at: span.into(),
-            })?;
-        let BasicValueEnum::PointerValue(ptr) = raw else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "sync.onceCreate return type",
-                at: span.into(),
-            });
-        };
+        let raw = self.expect_basic_value(call, "codegen_sysroot_sync_once_create return");
+        let ptr = self.expect_pointer_value(raw, "codegen_sysroot_sync_once_create return");
 
         Ok(CgValue {
             ty: CgTy::Ref,
@@ -341,101 +190,46 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     pub(in crate::llvm::codegen) fn codegen_sysroot_sync_once_is_done(
         &mut self,
-        span: crate::span::Span,
+        _span: crate::span::Span,
         _callee_span: crate::span::Span,
         args: &[hir::CallArg],
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        if args.len() != 1 {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "sync.Once.isDone arity mismatch",
-                at: span.into(),
-            });
-        }
-
-        let hir::CallArg::Positional(recv_expr) = &args[0] else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "sync.Once.isDone named arg (receiver)",
-                at: span.into(),
-            });
-        };
+        let recv_expr = self.expect_hir_positional_intrinsic_arg(
+            args,
+            1,
+            0,
+            "codegen_sysroot_sync_once_is_done",
+        );
 
         let recv_v = self.codegen_expr_in_expected_context(recv_expr, Some(CgTy::Ref))?;
         let recv_v = self.coerce_value(recv_expr.span, recv_v, CgTy::Ref)?;
-        let Some(recv_raw) = recv_v.value else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "sync.Once.isDone receiver value",
-                at: recv_expr.span.into(),
-            });
-        };
-        let BasicValueEnum::PointerValue(recv_ptr) = recv_raw else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "sync.Once.isDone receiver type",
-                at: recv_expr.span.into(),
-            });
-        };
+        let recv_ptr = self.expect_cg_pointer(recv_v, "codegen_sysroot_sync_once_is_done receiver");
 
         let rt = self.declare_runtime_sync_once_is_done();
         let call = self
             .builder
             .build_call(rt, &[recv_ptr.into()], "sync_once_is_done")?;
-        let raw = call
-            .try_as_basic_value()
-            .basic()
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "sync.Once.isDone return value",
-                at: span.into(),
-            })?;
-        let BasicValueEnum::IntValue(done_i1) = raw else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "sync.Once.isDone return type",
-                at: span.into(),
-            });
-        };
+        let raw = self.expect_basic_value(call, "codegen_sysroot_sync_once_is_done return");
+        let done_i1 = self.expect_int_value(raw, "codegen_sysroot_sync_once_is_done return");
 
         Ok(CgValue::bool(done_i1))
     }
 
     pub(in crate::llvm::codegen) fn codegen_sysroot_sync_once_run(
         &mut self,
-        span: crate::span::Span,
+        _span: crate::span::Span,
         _callee_span: crate::span::Span,
         args: &[hir::CallArg],
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         // `fun Once.run(block: () -> Unit): Unit`：`args = [once, block]`
-        if args.len() != 2 {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "sync.Once.run arity mismatch",
-                at: span.into(),
-            });
-        }
-
-        let hir::CallArg::Positional(once_expr) = &args[0] else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "sync.Once.run named arg (receiver)",
-                at: span.into(),
-            });
-        };
-        let hir::CallArg::Positional(block_expr) = &args[1] else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "sync.Once.run named arg (block)",
-                at: span.into(),
-            });
-        };
+        let once_expr =
+            self.expect_hir_positional_intrinsic_arg(args, 2, 0, "codegen_sysroot_sync_once_run");
+        let block_expr =
+            self.expect_hir_positional_intrinsic_arg(args, 2, 1, "codegen_sysroot_sync_once_run");
 
         let once_v = self.codegen_expr_in_expected_context(once_expr, Some(CgTy::Ref))?;
         let once_v = self.coerce_value(once_expr.span, once_v, CgTy::Ref)?;
-        let Some(once_raw) = once_v.value else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "sync.Once.run receiver value",
-                at: once_expr.span.into(),
-            });
-        };
-        let BasicValueEnum::PointerValue(once_ptr) = once_raw else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "sync.Once.run receiver type",
-                at: once_expr.span.into(),
-            });
-        };
+        let once_ptr = self.expect_cg_pointer(once_v, "codegen_sysroot_sync_once_run receiver");
         let deferred_once =
             self.defer_gc_ref_pointer(once_expr.span, "sync_once_run_receiver", once_ptr)?;
 
@@ -447,29 +241,18 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 // - 同时 HIR v0 对 closure expr 的 `ty` 也不总是可用作 expected type（需要 MIR/CFG 才能更稳）。
                 //
                 // 因此这里从 `TypeStore` 中查找一个"无参、返回 Unit、Pure"的函数类型作为 expected context。
-                let expected_fun_ty = self.lookup_pure_unit_closure_type().ok_or(
-                    LlvmEmitError::UnsupportedMainBody {
-                        kind: "sync.Once.run block fun type",
-                        at: block_expr.span.into(),
-                    },
-                )?;
+                let expected_fun_ty = self.lookup_pure_unit_closure_type().unwrap_or_else(|| {
+                    self.panic_verified_intrinsic_contract(
+                        "codegen_sysroot_sync_once_run",
+                        "missing Pure Unit closure type",
+                    )
+                });
                 self.codegen_closure_expr(block_expr.span, closure, expected_fun_ty)?
             }
             _ => self.codegen_expr(block_expr)?,
         };
         let block_v = self.coerce_value(block_expr.span, block_v, CgTy::Ref)?;
-        let Some(block_raw) = block_v.value else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "sync.Once.run block value",
-                at: block_expr.span.into(),
-            });
-        };
-        let BasicValueEnum::PointerValue(block_obj_i8) = block_raw else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "sync.Once.run block type",
-                at: block_expr.span.into(),
-            });
-        };
+        let block_obj_i8 = self.expect_cg_pointer(block_v, "codegen_sysroot_sync_once_run block");
 
         // 抽取 closure object：`{ header, env_ptr, fn_ptr }`，把 env 与 typed fn 指针传给 runtime。
         let closure_ty = self.llvm_closure_object_type();
@@ -522,66 +305,40 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     pub(in crate::llvm::codegen) fn codegen_sysroot_sync_destroy(
         &mut self,
-        span: crate::span::Span,
+        _span: crate::span::Span,
         _callee_span: crate::span::Span,
         args: &[hir::CallArg],
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        if args.len() != 1 {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "sync.destroy arity mismatch",
-                at: span.into(),
-            });
-        }
-
-        let hir::CallArg::Positional(recv_expr) = &args[0] else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "sync.destroy named arg (receiver)",
-                at: span.into(),
-            });
-        };
+        let recv_expr =
+            self.expect_hir_positional_intrinsic_arg(args, 1, 0, "codegen_sysroot_sync_destroy");
 
         // `destroy` 为 overload set：根据 receiver 的名义类型分派到不同 runtime 符号。
         // generic helper/method 体内的 `carrier.lock.destroy()` 往往以 member access 作为
         // receiver，因此这里需要和其它 builtin/member call 一样优先恢复 concrete type，
         // 不能只依赖局部 VarRef 或宽化后的 `expr.ty`。
-        let recv_hir_ty = self.resolve_expr_concrete_type(recv_expr).ok_or(
-            LlvmEmitError::UnsupportedMainBody {
-                kind: "sync.destroy receiver hir type",
-                at: recv_expr.span.into(),
-            },
-        )?;
-
-        let TypeKind::Ref(RefTypeKind::Nominal(nominal)) = self.types.kind(recv_hir_ty) else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "sync.destroy receiver type kind",
-                at: recv_expr.span.into(),
+        let recv_hir_ty = self
+            .resolve_expr_concrete_type(recv_expr)
+            .unwrap_or_else(|| {
+                self.panic_verified_intrinsic_contract(
+                    "codegen_sysroot_sync_destroy",
+                    "receiver concrete type missing",
+                )
             });
-        };
+        let nominal_fqn = self
+            .expect_nominal_ref_type_fqn(self.types, recv_hir_ty, "codegen_sysroot_sync_destroy")
+            .to_owned();
 
         let recv_v = self.codegen_expr_in_expected_context(recv_expr, Some(CgTy::Ref))?;
         let recv_v = self.coerce_value(recv_expr.span, recv_v, CgTy::Ref)?;
-        let Some(recv_raw) = recv_v.value else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "sync.destroy receiver value",
-                at: recv_expr.span.into(),
-            });
-        };
-        let BasicValueEnum::PointerValue(recv_ptr) = recv_raw else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "sync.destroy receiver type",
-                at: recv_expr.span.into(),
-            });
-        };
+        let recv_ptr = self.expect_cg_pointer(recv_v, "codegen_sysroot_sync_destroy receiver");
 
-        let rt = match nominal.fqn.as_str() {
+        let rt = match nominal_fqn.as_str() {
             "scoop.sync.Mutex" => self.declare_runtime_sync_mutex_destroy(),
             "scoop.sync.CondVar" => self.declare_runtime_sync_condvar_destroy(),
-            _ => {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "sync.destroy receiver nominal",
-                    at: recv_expr.span.into(),
-                });
-            }
+            _ => self.panic_verified_intrinsic_contract(
+                "codegen_sysroot_sync_destroy",
+                "unsupported destroy receiver nominal",
+            ),
         };
         let _ = self
             .builder

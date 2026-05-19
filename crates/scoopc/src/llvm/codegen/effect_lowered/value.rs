@@ -1851,10 +1851,9 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
                 let value = self
                     .codegen
                     .coerce_value(args[0].span, value, CgTy::Int(word))?;
-                let (raw, from) = value.as_int().ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "thread.sleepMillis value",
-                    at: args[0].span.into(),
-                })?;
+                let (raw, from) = self
+                    .codegen
+                    .expect_cg_int(value, "lower_thread_sleep_millis value");
                 let ms = self.codegen.cast_int(
                     raw,
                     from,
@@ -1881,25 +1880,22 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
                     &[],
                     "thread_current_id",
                 )?;
-                let raw = call.try_as_basic_value().basic().ok_or(
-                    LlvmEmitError::UnsupportedMainBody {
-                        kind: "thread.currentId return value",
-                        at: span.into(),
-                    },
-                )?;
-                let BasicValueEnum::IntValue(id) = raw else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "thread.currentId return type",
-                        at: span.into(),
-                    });
+                let raw = self
+                    .codegen
+                    .expect_basic_value(call, "lower_thread_current_id return");
+                let id = self
+                    .codegen
+                    .expect_int_value(raw, "lower_thread_current_id return");
+                let from = IntTy {
+                    bits: 64,
+                    signed: true,
                 };
-                Ok(Some(CgValue::int(
-                    id,
-                    IntTy {
-                        bits: 64,
-                        signed: false,
-                    },
-                )))
+                let to = IntTy {
+                    bits: self.codegen.host.word_bit_width(),
+                    signed: true,
+                };
+                let casted = self.codegen.cast_int(id, from, to)?;
+                Ok(Some(CgValue::int(casted, to)))
             }
             "scoop.thread.yield" => {
                 self.expect_sync_arity(span, dispatch_fqn, args, 0)?;
@@ -2030,18 +2026,12 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
                     &[once.into()],
                     "sync_once_is_done",
                 )?;
-                let raw = call.try_as_basic_value().basic().ok_or(
-                    LlvmEmitError::UnsupportedMainBody {
-                        kind: "sync.Once.isDone return value",
-                        at: span.into(),
-                    },
-                )?;
-                let BasicValueEnum::IntValue(done) = raw else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "sync.Once.isDone return type",
-                        at: span.into(),
-                    });
-                };
+                let raw = self
+                    .codegen
+                    .expect_basic_value(call, "lower_sync_once_is_done return");
+                let done = self
+                    .codegen
+                    .expect_int_value(raw, "lower_sync_once_is_done return");
                 Ok(Some(CgValue::bool(done)))
             }
             "scoop.sync.run" => {
@@ -2110,29 +2100,24 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
             }
             "scoop.sync.destroy" => {
                 self.expect_sync_arity(span, dispatch_fqn, args, 1)?;
-                let recv_ty = self.operand_source_ty(&args[0].value).ok_or(
-                    LlvmEmitError::UnsupportedMainBody {
-                        kind: "sync.destroy receiver source type",
-                        at: args[0].span.into(),
-                    },
-                )?;
-                let TypeKind::Ref(RefTypeKind::Nominal(nominal)) = self.source_types.kind(recv_ty)
-                else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "sync.destroy receiver nominal type",
-                        at: args[0].span.into(),
-                    });
-                };
+                let recv_ty = self.operand_source_ty(&args[0].value).unwrap_or_else(|| {
+                    self.codegen.panic_verified_intrinsic_contract(
+                        "lower_sync_destroy",
+                        "receiver source type missing",
+                    )
+                });
+                let nominal_fqn = self
+                    .codegen
+                    .expect_nominal_ref_type_fqn(self.source_types, recv_ty, "lower_sync_destroy")
+                    .to_owned();
                 let recv = self.lower_sync_ref_arg(dispatch_fqn, &args[0])?;
-                let rt = match nominal.fqn.as_str() {
+                let rt = match nominal_fqn.as_str() {
                     "scoop.sync.Mutex" => self.codegen.declare_runtime_sync_mutex_destroy(),
                     "scoop.sync.CondVar" => self.codegen.declare_runtime_sync_condvar_destroy(),
-                    _ => {
-                        return Err(LlvmEmitError::UnsupportedMainBody {
-                            kind: "sync.destroy receiver nominal",
-                            at: args[0].span.into(),
-                        });
-                    }
+                    _ => self.codegen.panic_verified_intrinsic_contract(
+                        "lower_sync_destroy",
+                        "unsupported destroy receiver nominal",
+                    ),
                 };
                 let _ = self.codegen.build_call_preserving_gc_local_roots(
                     span,
