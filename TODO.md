@@ -3,7 +3,7 @@
 > 生成时间：2026-05-19
 > 设计基线：[`SYSROOT_RESHAPE_R2.md`](./SYSROOT_RESHAPE_R2.md)
 > 计划基线：[`PLAN.md`](./PLAN.md)
-> 当前状态：`P2-T02` 已完成；下一任务为 `P2-T03`。
+> 当前状态：`P2-T03` 已完成；下一任务为 `P3-T01`。
 > 执行原则：严格按 P0 -> P10 顺序推进；同一阶段内可按任务依赖拆 PR，但每个任务完成后必须保持仓库无 failing fixture，并回写完成记录。
 
 ## 全局约束
@@ -94,7 +94,7 @@ P0 baseline freeze
 | `P1-T03` | [DONE] | P1 | 删除或改写 archive fixtures 与 archive-only tests |
 | `P2-T01` | [DONE] | P2 | `@Extern` 支持 `callingConvention` property |
 | `P2-T02` | [DONE] | P2 | 有 body 的 `@CallingConvention` 生成 object-level native callable symbol |
-| `P2-T03` | [TODO] | P2 | 支持 `Any as?` closed Pure function runtime cast |
+| `P2-T03` | [DONE] | P2 | 支持 `Any as?` closed Pure function runtime cast |
 | `P3-T01` | [TODO] | P3 | `Cone.toml` 解析 `kind = bin/lib/syslib` |
 | `P3-T02` | [TODO] | P3 | `lib/syslib` 无 entry point 加载规则 |
 | `P3-T03` | [TODO] | P3 | `syslib` path trust gate 与 intrinsic privilege gate |
@@ -256,7 +256,7 @@ P0 baseline freeze
 - 与 `PLAN.md` / `SYSROOT_RESHAPE_R2.md` 闭合项：满足 P2 中“`@CallingConvention` 用于有 body 的 Scoop 函数生成 object-level native callable symbol”、“与 `@Extern` 互斥”、“C ABI / GC-free surface gate”和“不表示 package/dylib export”的要求；未发现需要改变阶段级计划或设计基线的 blocker。
 - 验证结果：`cargo fmt` 通过；`cargo test -p scoopc hir_collects_native_callable_body_symbol -- --nocapture` 通过；`cargo run -p scoop -- test tests/fixtures/build/calling_convention_body_symbol_emit_llvm.scoop` 通过；`cargo run -p scoop -- test tests/fixtures/typecheck/` 通过（498 checks）；`cargo run -p scoop -- test tests/fixtures/run_pass_cone/c_sources_calling_convention_body_link` 通过；`cargo build` 通过；`cargo clippy --all-targets -- -D warnings` 通过；`cargo test --all --all-targets` 首次 120s 超时，600s 重跑通过；`cargo run -p scoop -- test` 通过（fixtures: ok，1560 checks）。
 
-## P2-T03：支持 `Any as?` closed Pure function runtime cast
+## [DONE] P2-T03：支持 `Any as?` closed Pure function runtime cast
 
 - 参考：`PLAN.md` §5、`SYSROOT_RESHAPE_R2.md` §6。
 - 目标：补齐 `Any -> () -> Unit / Pure!` 方向的 runtime cast，支撑 thread entry Scoop shim。
@@ -269,6 +269,16 @@ P0 baseline freeze
   5. 成功 cast 后按普通 function value 调用路径调用。
 - 验证：新增 run-pass/typecheck fixture：Pure closure -> Any -> `as? () -> Unit / Pure!` -> call；新增 effectful negative fixture。
 - 完成条件：thread entry 可在 Scoop 代码中从 `GcHandle` 恢复 closure 并安全调用。
+
+### 完成记录（2026-05-20）
+
+- 改动范围：`crates/scoopc/src/typecheck/expr/infer.rs`、`typecheck/expr/error.rs`、LLVM closure/type-test/MIR codegen 与 validation、failure-policy audit、相关 typecheck/run-pass fixtures；未修改 `PLAN.md`。
+- 核心决策：`Any as? (...)->R / Pure!` 现在作为唯一支持的 function runtime cast 进入 typecheck；`Any as`、open Pure function target、effectful function target 继续稳定拒绝。闭合性是编译期门禁，不进入 runtime descriptor key；runtime signature descriptor 只区分 receiver/参数/返回形状。
+- Runtime descriptor：closure allocation 不再只写统一 `ScoopClosure` descriptor，而是写 signature-specific closure descriptor，并以统一 `ScoopClosure` descriptor 作为 parent；`codegen_ref_is_instance_of_nonnull` 对 function target 使用同一 signature descriptor 做 type-desc chain 检查。
+- MIR 支持：runtime type descriptor/codegen support 与 materialized validation 将 `RuntimeTypeDescriptorKind::Function` 视为支持的 runtime-ref target；MIR closure allocation 从 materialized closure callable 的 env 后参数与 return type 生成 runtime signature descriptor，避免 open/closed Pure 静态差异破坏 runtime cast。
+- Fixture / tests：删除旧的 `fn_type_cast_closed_pure_asq_is_error.scoop`，新增 `fn_type_cast_closed_pure_asq_ok.scoop`；新增 `fn_type_cast_any_to_effectful_asq_is_error.scoop`；新增 `tests/fixtures/run_pass_cone/fn_any_asq_closed_pure_call/`，覆盖 Pure closure -> Any -> `as? () -> Unit / Pure!` -> call，并用 `(Int) -> Unit / Pure!` 目标验证不同函数签名不会误匹配。
+- 与 `PLAN.md` / `SYSROOT_RESHAPE_R2.md` 闭合项：满足 P2 中“补齐 `Any as? closed Pure function type`”、“继续拒绝 effectful function target”和“function/closure runtime cast 增加 signature-specific runtime descriptor”的要求；未发现需要改变阶段级计划或设计基线的 blocker。
+- 验证结果：`cargo fmt` 通过；新 run-pass/typecheck 定向 fixtures 通过；`cargo run -p scoop -- test tests/fixtures/typecheck/` 通过（499 checks）；`cargo test -p scoopc mir_value_primitives_reject_open_function_type_cast_before_mir -- --nocapture` 通过；`cargo test -p scoopc pipeline_user_visible_failure_policy -- --nocapture` 通过；`cargo build` 通过；`cargo clippy --all-targets -- -D warnings` 通过；`cargo test --all --all-targets` 首次 600s 超时后以 1200s 重跑通过；`cargo run -p scoop -- test` 通过（fixtures: ok，1562 checks）。
 
 ## P3-T01：`Cone.toml` 解析 `kind = bin/lib/syslib`
 

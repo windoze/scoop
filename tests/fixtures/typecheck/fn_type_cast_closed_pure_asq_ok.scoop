@@ -1,0 +1,13 @@
+// EXPECT: pass
+// 目标：P2-T03：闭合纯函数值擦除到 `Any` 后，可用 `as?` 恢复为相同函数签名。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+fun ok() {
+    val f: () -> Int / Pure! = { 1 }
+    val a: Any = f
+    val g: (() -> Int / Pure!)? = a as? (() -> Int / Pure!)
+    val _ = g
+}

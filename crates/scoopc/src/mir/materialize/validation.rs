@@ -3856,7 +3856,12 @@ fn validate_materialized_runtime_type_test_contract(
 fn materialized_runtime_ref_codegen_supported(materialized: &MaterializedMir, ty: TypeId) -> bool {
     matches!(
         materialized.types.kind(ty),
-        TypeKind::Ref(RefTypeKind::Any | RefTypeKind::String | RefTypeKind::Nominal(_))
+        TypeKind::Ref(
+            RefTypeKind::Any
+                | RefTypeKind::String
+                | RefTypeKind::Function(_)
+                | RefTypeKind::Nominal(_)
+        )
     )
 }
 

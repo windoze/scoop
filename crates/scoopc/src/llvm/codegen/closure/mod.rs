@@ -221,7 +221,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         let size_v = self.context.i64_type().const_int(obj_size_bytes, false);
 
-        let closure_desc = self.get_or_create_closure_object_type_desc_global(span)?;
+        let closure_desc =
+            self.get_or_create_closure_object_type_desc_global(span, expected_fun_ty)?;
         let closure_desc_i8 = self.builder.build_pointer_cast(
             closure_desc.as_pointer_value(),
             self.llvm_i8_ptr_type(),

@@ -329,6 +329,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 let target_i8 = desc.as_pointer_value().const_cast(self.llvm_i8_ptr_type());
                 self.codegen_type_desc_chain_contains_target(at, obj, target_i8)
             }
+            TypeKind::Ref(RefTypeKind::Function(_)) => {
+                let desc = self.get_or_create_closure_object_type_desc_global(at, target_ty)?;
+                let target_i8 = desc.as_pointer_value().const_cast(self.llvm_i8_ptr_type());
+                self.codegen_type_desc_chain_contains_target(at, obj, target_i8)
+            }
             TypeKind::Ref(RefTypeKind::Nominal(nominal)) => {
                 // interface：用 itable 中预计算的 runtime target match 集判断是否可赋值到目标实例。
                 if self.interfaces.contains_key(&nominal.fqn) {

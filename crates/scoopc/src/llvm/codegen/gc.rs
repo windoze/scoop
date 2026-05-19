@@ -1458,7 +1458,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(Some(gv))
     }
 
-    pub(super) fn get_or_create_closure_object_type_desc_global(
+    fn get_or_create_closure_runtime_type_desc_global(
         &mut self,
         at: crate::span::Span,
     ) -> Result<GlobalValue<'ctx>, LlvmEmitError> {
@@ -1479,6 +1479,92 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             itable: None,
             vtable: None,
         })
+    }
+
+    pub(super) fn get_or_create_closure_object_type_desc_global(
+        &mut self,
+        at: crate::span::Span,
+        fun_ty: TypeId,
+    ) -> Result<GlobalValue<'ctx>, LlvmEmitError> {
+        let (receiver, params, return_ty) = match self.types.kind(fun_ty) {
+            TypeKind::Ref(RefTypeKind::Function(fun)) => {
+                (fun.receiver, fun.params.clone(), fun.return_ty)
+            }
+            _ => {
+                panic!(
+                    "get_or_create_closure_object_type_desc_global: expected function target type"
+                );
+            }
+        };
+        self.get_or_create_closure_object_type_desc_for_signature(at, receiver, &params, return_ty)
+    }
+
+    pub(super) fn get_or_create_closure_object_type_desc_for_signature(
+        &mut self,
+        at: crate::span::Span,
+        receiver: Option<TypeId>,
+        params: &[TypeId],
+        return_ty: TypeId,
+    ) -> Result<GlobalValue<'ctx>, LlvmEmitError> {
+        let base_type_key = self.closure_runtime_signature_type_key(receiver, params, return_ty)?;
+        let key = CanonicalTextKey::new(base_type_key.clone());
+        let global_name = PrivateSymbolMangler.mangle("closure_type_desc", &key);
+        if let Some(existing) = self.module.get_global(&global_name) {
+            return Ok(existing);
+        }
+
+        let obj_ty = self.llvm_closure_object_type();
+        let trace_start_offset_bytes = self.target_data.offset_of_element(&obj_ty, 1).unwrap_or(0);
+        let parent = self.get_or_create_closure_runtime_type_desc_global(at)?;
+        let type_id_key = stable_rtti_derived_type_key("closure_type_desc", &base_type_key);
+        self.get_or_create_type_descriptor_global(TypeDescriptorSpec {
+            at,
+            global_name: &global_name,
+            type_id_key: type_id_key.as_str(),
+            obj_ty,
+            trace_start_offset_bytes,
+            parent: Some(parent),
+            itable: None,
+            vtable: None,
+        })
+    }
+
+    fn closure_runtime_signature_type_key(
+        &self,
+        receiver: Option<TypeId>,
+        params: &[TypeId],
+        return_ty: TypeId,
+    ) -> Result<String, LlvmEmitError> {
+        let mut key = String::from("closure.fn(");
+        if let Some(receiver) = receiver {
+            key.push_str("receiver=");
+            key.push_str(&self.canonical_type_key_text_for_codegen(
+                receiver,
+                "closure runtime receiver signature",
+            )?);
+            key.push(';');
+        }
+        key.push_str("params=[");
+        for (idx, param) in params.iter().copied().enumerate() {
+            if idx != 0 {
+                key.push(',');
+            }
+            key.push_str(
+                &self.canonical_type_key_text_for_codegen(
+                    param,
+                    "closure runtime param signature",
+                )?,
+            );
+        }
+        key.push_str("];return=");
+        key.push_str(
+            &self.canonical_type_key_text_for_codegen(
+                return_ty,
+                "closure runtime return signature",
+            )?,
+        );
+        key.push(')');
+        Ok(key)
     }
 
     pub(super) fn get_or_create_closure_env_type_desc_global(

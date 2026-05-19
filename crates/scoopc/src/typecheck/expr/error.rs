@@ -998,7 +998,7 @@ pub enum ExprTypeError {
     },
 
     #[error(
-        "当前语言 contract 下，显式 `as`/`as?` 不接受函数类型的 runtime cast：{from} -> {to}；请改用函数子类型/coercion，或先包进 nominal wrapper"
+        "当前语言 contract 下，除 `Any as? (...)->R / Pure!` 外不接受函数类型的 runtime cast：{from} -> {to}；请改用函数子类型/coercion，或先包进 nominal wrapper"
     )]
     #[diagnostic(code(scoop::typecheck::function_type_cast_not_supported))]
     FunctionTypeCastNotSupported {

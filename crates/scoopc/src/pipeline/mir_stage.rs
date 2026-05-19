@@ -1144,23 +1144,23 @@ fun main(): Int {
     }
 
     #[test]
-    fn mir_value_primitives_reject_unsupported_function_type_cast_before_mir() {
+    fn mir_value_primitives_reject_open_function_type_cast_before_mir() {
         let session = session();
         let source = SourceFile::new_virtual(
-            "<mem>/unsupported_function_type_cast.scoop",
+            "<mem>/open_function_type_cast.scoop",
             r#"package sample
 import scoop.core.*
 
 fun bad() {
     val f: () -> Int / Pure! = { 1 }
     val a: Any = f
-    val g: (() -> Int / Pure!)? = a as? (() -> Int / Pure!)
+    val g: (() -> Int / Pure)? = a as? (() -> Int / Pure)
     val _ = g
 }
 "#,
         );
         let err = super::super::load_typed_hir_stage_output_for_dump(&session, &source)
-            .expect_err("function type runtime cast must be rejected before MIR");
+            .expect_err("open function type runtime cast must be rejected before MIR");
         let report = format!("{err:?}");
         assert!(
             report.contains("FunctionTypeCastNotSupported")

@@ -1,0 +1,15 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::effectful_function_type_cast_not_supported
+// EXPECT-ERROR: 带非 `Pure` effect row 的函数类型不能参与显式 `as`/`as?`
+// EXPECT-ERROR-AT: 13:52
+// 目标：P2-T03：`Any as?` 只支持闭合 Pure 函数目标，effectful 函数目标继续稳定拒绝。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+fun bad() {
+    val a: Any = "not a function"
+    val g: (() -> Unit / Raise<RuntimeError>)? = a as? (() -> Unit / Raise<RuntimeError>)
+    val _ = g
+}

@@ -467,7 +467,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let closure_obj_ty = self.llvm_closure_object_type();
         let obj_size_bytes = self.target_data.get_store_size(&closure_obj_ty);
         let size_v = self.context.i64_type().const_int(obj_size_bytes, false);
-        let closure_desc = self.get_or_create_closure_object_type_desc_global(span)?;
+        let closure_desc = self.get_or_create_mir_closure_object_type_desc_global(span, fn_ptr)?;
         let closure_desc_i8 = self.builder.build_pointer_cast(
             closure_desc.as_pointer_value(),
             self.llvm_i8_ptr_type(),
@@ -687,5 +687,59 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             &fun_ty,
             (body, mir_types, slots),
         )
+    }
+
+    fn get_or_create_mir_closure_object_type_desc_global(
+        &mut self,
+        span: crate::span::Span,
+        fn_ptr: &str,
+    ) -> Result<GlobalValue<'ctx>, LlvmEmitError> {
+        if let Some((callable_types, callable)) = self.materialized_mir_callable(fn_ptr) {
+            let mut params = Vec::with_capacity(callable.params.len().saturating_sub(1));
+            let mut value_params = callable.params.iter().skip(1).peekable();
+            let receiver = if value_params
+                .peek()
+                .is_some_and(|param| param.name == "this")
+            {
+                let Some(receiver) = value_params.next() else {
+                    return Err(frontend_error(format!(
+                        "closure allocation at {span:?} lost receiver parameter after peek"
+                    )));
+                };
+                Some(self.mir_closure_signature_type_id(span, callable_types, receiver.ty)?)
+            } else {
+                None
+            };
+            for param in value_params {
+                params.push(self.mir_closure_signature_type_id(span, callable_types, param.ty)?);
+            }
+            let return_ty =
+                self.mir_closure_signature_type_id(span, callable_types, callable.return_ty)?;
+            return self.get_or_create_closure_object_type_desc_for_signature(
+                span, receiver, &params, return_ty,
+            );
+        }
+
+        let Some(fun_ty) = self.fun_index.get(fn_ptr).map(|fun| fun.ty) else {
+            return Err(frontend_error(format!(
+                "closure allocation at {span:?} cannot find callable signature `{fn_ptr}`"
+            )));
+        };
+        self.get_or_create_closure_object_type_desc_global(span, fun_ty)
+    }
+
+    fn mir_closure_signature_type_id(
+        &self,
+        span: crate::span::Span,
+        callable_types: &TypeStore,
+        source_ty: TypeId,
+    ) -> Result<TypeId, LlvmEmitError> {
+        let Some(codegen_ty) = self.equivalent_codegen_type_id(callable_types, source_ty) else {
+            return Err(frontend_error(format!(
+                "closure allocation at {span:?} cannot map MIR signature type {} to codegen TypeStore",
+                callable_types.display(source_ty)
+            )));
+        };
+        Ok(codegen_ty)
     }
 }

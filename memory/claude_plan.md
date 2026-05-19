@@ -1,36 +1,55 @@
-# 当前执行计划
+# Claude Execution Plan
 
-## 约束
-- 只处理 `TODO.md` 中第一个标题未带 `[DONE]` 的任务，完成后停止。
-- `TODO.md` 是任务顺序、依赖、验证要求和完成记录的唯一权威来源。
-- 不做开放式历史问题扫描；只处理当前任务直接相关或阻塞的问题。
-- 如遇到阻塞当前任务的缺失功能、规格不符或实现边界，先在 `TODO.md` 中插入最小必要前置任务并停止。
-- 完成后需要更新 `TODO.md`，运行相关验证，并提交 Git commit。
+## Scope
 
-## 步骤
-1. 读取 `TODO.md`，定位第一个标题没有 `[DONE]` 前缀的任务。
-2. 查看该任务的依赖、验收标准和完成记录；必要时查看最近提交是否提到与该任务直接相关的未完成问题。
-3. 基于任务内容读取相关代码、测试和文档，确认最小正确实现范围。
-4. 实现当前任务；如果发现阻塞任务的规格缺口或前置依赖，更新 `TODO.md` 并停止。
-5. 添加或更新最贴近该任务的测试/fixture。
-6. 运行任务要求的验证命令和必要的补充测试；如失败则修复并重跑。
-7. 将当前任务标题标记为 `[DONE]`，更新完成记录。
-8. 检查工作区差异，确保只包含本任务相关变更。
-9. 按仓库风格创建包含本任务变更的 Git commit。
-10. 停止，不继续下一个任务。
+- Follow `TODO.md` as the authoritative task list.
+- Identify the first task whose heading is not prefixed with `[DONE]`.
+- Complete exactly that one task, then stop.
+- If a concrete blocker prevents completion, update `TODO.md` with the minimum required prerequisite task, commit that bookkeeping, and stop.
 
-## 进度
-- 已写入初始执行计划。
-- 已读取 `TODO.md`，第一个未完成任务为 `P2-T02`：有 body 的 `@CallingConvention` 生成 object-level native callable symbol。
-- 当前只围绕 `P2-T02` 检查相关近期提交、实现入口、测试和验证命令。
-- 设计决策：`@CallingConvention` body 函数继续保留普通 managed Scoop ABI 入口；LLVM 后端额外生成一个 C ABI wrapper/object symbol，wrapper 直接调用普通入口，不插入 `enter_native` / `leave_native`。
-- 待实现项：新增 HIR side table 记录 `@CallingConvention` body 函数；typecheck 对 effect/generic/GC ref native surface 做 gate；LLVM 根据 side table emit wrapper；添加 IR、typecheck negative 和 cone-local C link/run fixture。
-- 已完成初版代码改动：新增 `NativeCallableFunIndex`，lowering 收集 `@CallingConvention` body metadata，typecheck 支持 `name` + `convention` 参数并添加 native surface/effect/generic gate，LLVM emit C ABI wrapper symbol。
-- 已添加定向 fixture：IR symbol 检查、GC ref/effect negative、cone-local C object 链接引用 wrapper symbol。
-- 定向验证已通过：HIR side-table 单测、`calling_convention_body_symbol_emit_llvm` build fixture、完整 `tests/fixtures/typecheck/`、`run_pass_cone/c_sources_calling_convention_body_link`。
-- 当前进入仓库级验证：`cargo build`、`cargo clippy --all-targets -- -D warnings`、`cargo test --all --all-targets`、完整 fixture suite。
-- 仓库级验证完成：`cargo build`、`cargo clippy --all-targets -- -D warnings`、`cargo test --all --all-targets`、`cargo run -p scoop -- test` 均通过；首次 `cargo test --all --all-targets` 使用 120s 超时不足，已用 600s 重跑通过。
-- 下一步：回写 `TODO.md`，将 `P2-T02` 标记 `[DONE]` 并记录完成范围和验证结果。
-- 已回写 `TODO.md`：`P2-T02` 标记为 `[DONE]`，任务索引状态更新为 `[DONE]`，当前状态更新为下一任务 `P2-T03`，并补充完成记录。
-- 下一步：检查 git diff/status，确认变更范围后提交。
-- 最终补充验证完成：后端 duplicate-symbol 诊断调整后，定向 build/run-pass-cone fixture、`cargo clippy --all-targets -- -D warnings`、`cargo test --all --all-targets`、`cargo run -p scoop -- test` 已全部重跑通过。
+## Execution Steps
+
+1. Read `TODO.md` and identify the first incomplete task.
+2. Check recent git context only as needed for that selected task.
+3. Inspect the relevant source, fixtures, tests, and task requirements.
+4. Implement the selected task without workarounds or scope narrowing.
+5. Add or update tests/fixtures required by the task.
+6. Run targeted validation first, then broader validation required by the task.
+7. Update `TODO.md` by prefixing the completed task heading with `[DONE]` and filling its completion record.
+8. Update this file when key steps complete or if the plan changes.
+9. Inspect git status/diff/log, then commit all intended task changes with a descriptive task-tagged message.
+10. Stop after the commit.
+
+## Current Status
+
+- Plan initialized before repository inspection.
+- First incomplete task identified: `P2-T03` (`Any as?` closed Pure function runtime cast).
+- Latest commit is `[P2-T02] Emit native callable body symbols`; no explicit unfinished issue was found in the recent commit subject list.
+- Initial worktree change is this plan file only.
+- Relevant implementation findings:
+  - Typecheck currently rejects all function runtime casts via `check_function_type_cast_boundary`.
+  - Closure allocation currently writes a single `ScoopClosure` runtime descriptor.
+  - Runtime `is_instance` checks do not handle `RefTypeKind::Function` targets.
+- Implementation plan refined:
+  - Allow only `Any as?` to closed `Pure!` function targets; keep effectful and unsupported function casts rejected.
+  - Generate signature-specific closure object type descriptors and use them for closure allocation.
+  - Add function-target descriptor checks to runtime ref instance checks and MIR validation/codegen support.
+  - Add/adjust fixtures for positive closed Pure cast/call, signature mismatch, and effectful target rejection.
+- Implementation progress:
+  - Typecheck now allows `Any as?` to closed Pure function targets and still rejects effectful/open/unsupported function casts.
+  - Closure descriptors now use runtime signatures (receiver/params/return) instead of a single `ScoopClosure` descriptor; open/closed Pure rows share the same runtime signature key because effect closure-ness is compile-time-only.
+  - Runtime instance checks now handle function targets; MIR validation/codegen marks function runtime descriptors as supported.
+  - Added run-pass and typecheck fixtures for successful cast/call, signature mismatch, and effectful target rejection.
+  - Targeted fixture and failure-policy validations have passed after fixing descriptor/signature issues.
+- Validation progress:
+  - `cargo fmt` passed.
+  - Targeted new fixtures passed.
+  - `cargo run -p scoop -- test tests/fixtures/typecheck/` passed (499 checks).
+  - `cargo build` passed.
+  - `cargo clippy --all-targets -- -D warnings` passed.
+  - `cargo test --all --all-targets` first hit the 600s timeout after many passing tests; rerun with 1200s timeout passed.
+  - `cargo run -p scoop -- test` passed (1562 checks).
+  - After the receiver-signature refinement, targeted run-pass, failure-policy audit, clippy, `cargo test --all --all-targets`, and full fixture suite were rerun and passed.
+- TODO bookkeeping:
+  - `P2-T03` is marked `[DONE]` in `TODO.md` with completion notes and validation results.
+  - `TODO.md` current-status line now points to `P3-T01` as the next task.

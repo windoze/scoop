@@ -168,7 +168,7 @@ const FUNCTION_TYPE_CAST_MARKERS: &[SourceMarker] = &[
     },
     SourceMarker {
         path: "crates/scoopc/src/pipeline/mir_stage.rs",
-        marker: "fn mir_value_primitives_reject_unsupported_function_type_cast_before_mir()",
+        marker: "fn mir_value_primitives_reject_open_function_type_cast_before_mir()",
     },
 ];
 
@@ -377,7 +377,7 @@ const FRONTEND_REJECT_SURFACES: &[FrontendRejectSurface] = &[
         gap_id: "PIPELINE_GAPS §7.2",
         definition_path: "crates/scoopc/src/typecheck/expr/error.rs",
         diagnostic_code: "scoop::typecheck::function_type_cast_not_supported",
-        message: "当前语言 contract 下，显式 `as`/`as?` 不接受函数类型的 runtime cast：{from} -> {to}；请改用函数子类型/coercion，或先包进 nominal wrapper",
+        message: "当前语言 contract 下，除 `Any as? (...)->R / Pure!` 外不接受函数类型的 runtime cast：{from} -> {to}；请改用函数子类型/coercion，或先包进 nominal wrapper",
         markers: FUNCTION_TYPE_CAST_MARKERS,
     },
     FrontendRejectSurface {
@@ -716,7 +716,7 @@ const INTERNAL_BUG_SENTINEL_HITS: &[&str] = &[
     "crates/scoopc/src/llvm/codegen/mir_body/transport.rs:277:                panic!(\"codegen_platform_literal: verified Platform field materialized without LLVM value\")",
     "crates/scoopc/src/llvm/codegen/mir_body/types.rs:44:                        panic!(",
     "crates/scoopc/src/llvm/codegen/mir_body/types.rs:74:            panic!(\"mir_local_storage_cg_ty: MIR verifier accepted unsupported local type\")",
-    "crates/scoopc/src/llvm/codegen/mir_body/types.rs:728:                panic!(\"mir_member_receiver_codegen_type_id: verifier accepted member receiver TypeStore drift\")",
+    "crates/scoopc/src/llvm/codegen/mir_body/types.rs:730:                panic!(\"mir_member_receiver_codegen_type_id: verifier accepted member receiver TypeStore drift\")",
     "crates/scoopc/src/llvm/codegen/mir_body/value_args.rs:18:            panic!(\"codegen_mir_callable_value_args: MIR call ABI verifier accepted invalid closure argument binding\")",
     "crates/scoopc/src/llvm/codegen/mir_body/value_args.rs:42:                    panic!(\"codegen_mir_callable_value_args: MIR call ABI verifier accepted missing closure argument\")",
     "crates/scoopc/src/llvm/codegen/mir_body/value_args.rs:90:            panic!(",
@@ -840,8 +840,8 @@ const INTERNAL_BUG_SENTINEL_HITS: &[&str] = &[
     "crates/scoopc/src/llvm/codegen/main/expr_op.rs:218:            panic!(\"codegen_cast_asq_expr: typecheck gate accepted non-pointer `as?` operand\");",
     "crates/scoopc/src/llvm/codegen/main/expr_op.rs:243:            panic!(\"codegen_cast_asq_expr: verified Option Some produced no value\")",
     "crates/scoopc/src/llvm/codegen/main/expr_op.rs:251:            panic!(\"codegen_cast_asq_expr: verified Option None produced no value\")",
-    "crates/scoopc/src/llvm/codegen/main/expr_op.rs:364:                panic!(",
-    "crates/scoopc/src/llvm/codegen/main/expr_op.rs:368:            _ => panic!(",
+    "crates/scoopc/src/llvm/codegen/main/expr_op.rs:369:                panic!(",
+    "crates/scoopc/src/llvm/codegen/main/expr_op.rs:373:            _ => panic!(",
     "crates/scoopc/src/llvm/codegen/main/expr_value.rs:17:                    panic!(\"codegen_var_ref: HIR verifier accepted an unbound local value\")",
     "crates/scoopc/src/llvm/codegen/main/expr_value.rs:130:            panic!(\"codegen_struct_lit: typecheck accepted non-struct struct literal type\");",
     "crates/scoopc/src/llvm/codegen/main/expr_value.rs:134:            panic!(\"codegen_struct_lit: typecheck accepted struct literal without nominal schema\");",

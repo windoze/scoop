@@ -1,0 +1,24 @@
+// EXPECT: pass
+// RUN-STDOUT: out.stdout.txt
+// 目标：P2-T03：闭合 Pure 函数值可经 Any as? 恢复调用，且不同函数签名的 descriptor 不互相匹配。
+
+package fixtures.run_pass_cone.fn_any_asq_closed_pure_call
+
+import scoop.core.*
+
+public fun main() / Pure! {
+    val entry: () -> Unit / Pure! = { println("called") }
+    val erased: Any = entry
+
+    val restored: (() -> Unit / Pure!)? = erased as? (() -> Unit / Pure!)
+    when (restored) {
+        Some(f) -> f()
+        None -> println("missing")
+    }
+
+    val wrong: ((Int) -> Unit / Pure!)? = erased as? ((Int) -> Unit / Pure!)
+    when (wrong) {
+        Some(_f) -> println("signature-bug")
+        None -> println("signature-mismatch")
+    }
+}

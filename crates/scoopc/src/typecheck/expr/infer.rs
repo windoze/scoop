@@ -196,7 +196,7 @@ pub(super) fn infer_expr_type(
             // spec §7.5：effects 是纯编译期信息，运行时不携带也无法验证；
             // 因此除 `(...)->R / Pure!` 外的函数值不允许擦除/转换为 `Any`（T0632）。
             check_fn_value_to_any_erasure_gate(from_ty, target_ty, *op_span, lower, builtins)?;
-            check_function_type_cast_boundary(from_ty, target_ty, *op_span, lower, builtins)?;
+            check_function_type_cast_boundary(from_ty, target_ty, *op, *op_span, lower, builtins)?;
 
             if !is_cast_allowed(from_ty, target_ty, lower, builtins) {
                 return Err(ExprTypeError::InvalidCast {
@@ -3160,12 +3160,17 @@ fn parse_with_update_tuple_member_index(text: &str) -> Option<usize> {
 fn check_function_type_cast_boundary(
     from: TypeId,
     to: TypeId,
+    op: ast::CastOp,
     at: Span,
     lower: &TypeLowering<'_>,
     builtins: BuiltinTypes,
 ) -> Result<(), ExprTypeError> {
     // 唯一保留的显式 cast 特例：闭合纯函数值可显式擦除到 `Any`。
     if is_closed_pure_function_to_any_erasure(from, to, lower, builtins) {
+        return Ok(());
+    }
+
+    if op == ast::CastOp::AsQ && from == builtins.any && is_closed_pure_function_type(to, lower) {
         return Ok(());
     }
 
@@ -3208,6 +3213,10 @@ fn is_closed_pure_function_to_any_erasure(
         return false;
     };
     fun.effects.is_pure() && fun.effects_closed
+}
+
+fn is_closed_pure_function_type(ty: TypeId, lower: &TypeLowering<'_>) -> bool {
+    direct_function_type(ty, lower).is_some_and(|fun| fun.effects.is_pure() && fun.effects_closed)
 }
 
 fn direct_function_type(ty: TypeId, lower: &TypeLowering<'_>) -> Option<crate::ty::FunctionType> {

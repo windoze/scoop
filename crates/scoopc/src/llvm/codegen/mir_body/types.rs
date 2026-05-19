@@ -458,6 +458,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         if !matches!(
             metadata.descriptor.kind,
             crate::mir::RuntimeTypeDescriptorKind::Any
+                | crate::mir::RuntimeTypeDescriptorKind::Function
                 | crate::mir::RuntimeTypeDescriptorKind::String
                 | crate::mir::RuntimeTypeDescriptorKind::Nominal { .. }
         ) {
@@ -476,6 +477,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         if !matches!(
             metadata.descriptor.kind,
             crate::mir::RuntimeTypeDescriptorKind::Any
+                | crate::mir::RuntimeTypeDescriptorKind::Function
                 | crate::mir::RuntimeTypeDescriptorKind::String
                 | crate::mir::RuntimeTypeDescriptorKind::Nominal { .. }
         ) {
