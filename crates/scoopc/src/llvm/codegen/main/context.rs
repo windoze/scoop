@@ -577,7 +577,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         span: crate::span::Span,
         int_ty: IntTy,
     ) -> Result<Option<u64>, LlvmEmitError> {
-        let Ok(text) = self.current_source_slice(span) else {
+        let Ok(bound) = self.source_map.bind_span(self.current_source_id, span) else {
+            return Ok(None);
+        };
+        let Ok(text) = self.source_map.slice(bound) else {
             return Ok(None);
         };
         let source = self.current_source()?;

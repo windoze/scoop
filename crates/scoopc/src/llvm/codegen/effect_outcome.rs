@@ -315,30 +315,35 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             && matches!(second, CgTy::Ref | CgTy::String)
     }
 
+    fn composite_effect_transport_source_ty(
+        &self,
+        source_ty: Option<TypeId>,
+        cg_ty: CgTy,
+        context: &str,
+    ) -> TypeId {
+        source_ty.unwrap_or_else(|| match cg_ty {
+            CgTy::Tuple(ty) | CgTy::Struct(ty) | CgTy::Enum(ty) => ty,
+            _ => panic!(
+                "composite_effect_transport_source_ty: non-composite value reached composite transport while {context}"
+            ),
+        })
+    }
+
     pub(in crate::llvm::codegen) fn split_task_transport_tuple_value(
         &mut self,
-        at: crate::span::Span,
+        _at: crate::span::Span,
         transport: CgValue<'ctx>,
     ) -> Result<ValueTransportParts<'ctx>, LlvmEmitError> {
         let CgTy::Tuple(tuple_ty) = transport.ty else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "task transport tuple value",
-                at: at.into(),
-            });
+            panic!("split_task_transport_tuple_value: verifier accepted non-tuple task transport")
         };
         if !self.is_task_transport_tuple_ty(tuple_ty) {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "task transport tuple type",
-                at: at.into(),
-            });
+            panic!(
+                "split_task_transport_tuple_value: verifier accepted invalid task transport tuple type"
+            )
         }
-        let Some(raw) = transport.value else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "task transport tuple raw value",
-                at: at.into(),
-            });
-        };
-        let tuple = raw.into_struct_value();
+        let raw = self.expect_cg_value(transport, "task transport tuple raw value");
+        let tuple = self.expect_struct_value(raw, "task transport tuple raw value");
         let word_raw = self
             .builder
             .build_extract_value(tuple, 0, "task_transport_word")?
@@ -372,7 +377,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     pub(in crate::llvm::codegen) fn coerce_u64_word(
         &mut self,
-        at: crate::span::Span,
+        _at: crate::span::Span,
         value: CgValue<'ctx>,
     ) -> Result<IntValue<'ctx>, LlvmEmitError> {
         let to = IntTy {
@@ -416,10 +421,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 panic!("coerce_u64_word: verifier accepted GC ref as scalar transport word")
             }
             CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
-                Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "coerce composite value to u64 word",
-                    at: at.into(),
-                })
+                panic!(
+                    "coerce_u64_word: verifier accepted composite value as scalar transport word"
+                )
             }
             CgTy::Int(_) => {
                 panic!("coerce_u64_word: verifier accepted integer wider than u64 transport word")
@@ -445,24 +449,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
             CgTy::Ref => Ok(ValueTransportParts {
                 word: self.context.i64_type().const_zero(),
-                gc_ref: value
-                    .value
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "effect transport ref value",
-                        at: at.into(),
-                    })?
-                    .into_pointer_value(),
+                gc_ref: self.expect_cg_pointer(value, "effect transport ref value"),
             }),
             CgTy::String => Ok(ValueTransportParts {
                 word: self.context.i64_type().const_zero(),
                 gc_ref: self.builder.build_pointer_cast(
-                    value
-                        .value
-                        .ok_or(LlvmEmitError::UnsupportedMainBody {
-                            kind: "effect transport string value",
-                            at: at.into(),
-                        })?
-                        .into_pointer_value(),
+                    self.expect_cg_pointer(value, "effect transport string value"),
                     self.llvm_gc_i8_ptr_type(),
                     &format!("{name}_string_ref"),
                 )?,
@@ -471,10 +463,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 word: self.context.i64_type().const_zero(),
                 gc_ref: self.box_composite_effect_transport_value(
                     at,
-                    source_ty.ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "effect transport composite source type",
-                        at: at.into(),
-                    })?,
+                    self.composite_effect_transport_source_ty(
+                        source_ty,
+                        value.ty,
+                        "encoding effect transport composite value",
+                    ),
                     value,
                     name,
                 )?,
@@ -592,14 +585,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 let first = self.decode_effect_transport_value(at, word, gc_ref, first_cg)?;
                 let second = self.decode_effect_transport_value(at, word, gc_ref, second_cg)?;
                 let llvm_tuple_ty = self.llvm_tuple_type(at, tuple_ty)?;
-                let first_raw = first.value.ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "task transport tuple first raw value",
-                    at: at.into(),
-                })?;
-                let second_raw = second.value.ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "task transport tuple second raw value",
-                    at: at.into(),
-                })?;
+                let first_raw = self.expect_cg_value(first, "task transport tuple first raw value");
+                let second_raw =
+                    self.expect_cg_value(second, "task transport tuple second raw value");
                 let mut tuple = llvm_tuple_ty.get_undef();
                 tuple = self
                     .builder
@@ -618,10 +606,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 ty: target,
                 value: Some(self.load_composite_effect_transport_value(
                     at,
-                    source_ty.ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "decode effect transport composite source type",
-                        at: at.into(),
-                    })?,
+                    self.composite_effect_transport_source_ty(
+                        source_ty,
+                        target,
+                        "decoding effect transport composite value",
+                    ),
                     target,
                     gc_ref,
                     "effect_transport_composite",

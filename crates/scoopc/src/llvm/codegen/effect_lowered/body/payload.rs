@@ -76,10 +76,11 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
                 let resume_cg = self
                     .codegen
                     .cg_ty_of_mir_type(self.source_types, resume_tuple_ty)
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "task transport resume payload type",
-                        at: self.mir_fun.span.into(),
-                    })?;
+                    .unwrap_or_else(|| {
+                        panic!(
+                            "store_resume_payload_to_binding: materialized verifier accepted task transport resume payload without codegen type"
+                        )
+                    });
                 let slot = self.codegen.mir_local_slot(
                     self.mir_fun.span,
                     &self.slots,

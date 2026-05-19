@@ -1,9 +1,9 @@
-// EXPECT: ok
-// IGNORE-UNTIL-FIX:B-13
+// EXPECT: pass
+// RUN-STDOUT: pos_range_progression_for.stdout
 // SPEC: docs/spec/language_spec-part3.md#13-range-与-progression-语法
 // COVERS: NONE
 // BUCKETS: B-13
-// REASON: U5-T02 records the spec surface before the matching implementation gate is enabled.
+// REASON: P7-C3 keeps range/progression transport on the active runtime codegen path.
 // SOURCE-FIXTURE: tests/fixtures/run-pass/kotlin_ranges_progressions_basic.scoop
 
 import scoop.core.*

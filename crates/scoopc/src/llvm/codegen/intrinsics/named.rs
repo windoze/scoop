@@ -1129,12 +1129,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         call: LoweredNamedIntrinsicCall<'ctx>,
         layout: NamedIntrinsicArrayLayout,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        if call.operands.len() != 1 {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "named intrinsic array_size operand arity",
-                at: call.callee_span.into(),
-            });
-        }
+        self.named_intrinsic_require_arity(&call, 1, "named intrinsic array_size operand arity")?;
         let receiver = &call.operands[0];
         let arr_ptr = self.named_intrinsic_array_receiver_ptr(receiver, "array_size receiver")?;
         let len_i64 = self.named_intrinsic_array_len_value(call.span, arr_ptr, layout)?;
@@ -1163,12 +1158,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         call: LoweredNamedIntrinsicCall<'ctx>,
         layout: NamedIntrinsicArrayLayout,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        if call.operands.len() != 2 {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "named intrinsic array_get operand arity",
-                at: call.callee_span.into(),
-            });
-        }
+        self.named_intrinsic_require_arity(&call, 2, "named intrinsic array_get operand arity")?;
         let receiver = &call.operands[0];
         let index = &call.operands[1];
         let arr_ptr = self.named_intrinsic_array_receiver_ptr(receiver, "array_get receiver")?;
@@ -1262,12 +1252,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         call: LoweredNamedIntrinsicCall<'ctx>,
         layout: NamedIntrinsicArrayLayout,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        if call.operands.len() != 3 {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "named intrinsic array_set operand arity",
-                at: call.callee_span.into(),
-            });
-        }
+        self.named_intrinsic_require_arity(&call, 3, "named intrinsic array_set operand arity")?;
         let receiver = &call.operands[0];
         let index = &call.operands[1];
         let value_operand = &call.operands[2];
@@ -1324,12 +1309,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             if matches!(elem_cg, CgTy::Ref | CgTy::String) {
                 let value = self.coerce_value(value_operand.span, value_operand.value, elem_cg)?;
                 let value = self.coerce_value(value_operand.span, value, CgTy::Ref)?;
-                let Some(BasicValueEnum::PointerValue(value_ptr)) = value.value else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "named intrinsic array_set ref value",
-                        at: value_operand.span.into(),
-                    });
-                };
+                let value_ptr =
+                    self.expect_cg_pointer(value, "named intrinsic array_set ref value");
                 match layout {
                     NamedIntrinsicArrayLayout::Inline => {
                         self.store_gc_pointer_slot_with_write_barrier(
@@ -1417,12 +1398,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 }
             } else {
                 let value = self.coerce_value(value_operand.span, value_operand.value, elem_cg)?;
-                let Some(raw) = value.value else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "named intrinsic array_set scalar value",
-                        at: value_operand.span.into(),
-                    });
-                };
+                let raw = self.expect_cg_value(value, "named intrinsic array_set scalar value");
                 let _ = self.builder.build_store(slot_ptr, raw)?;
             }
         }
@@ -1437,12 +1413,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         call: LoweredNamedIntrinsicCall<'ctx>,
         layout: NamedIntrinsicArrayLayout,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        if call.operands.len() != 1 {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "named intrinsic array_data_ptr operand arity",
-                at: call.callee_span.into(),
-            });
-        }
+        self.named_intrinsic_require_arity(
+            &call,
+            1,
+            "named intrinsic array_data_ptr operand arity",
+        )?;
         let receiver = &call.operands[0];
         let arr_ptr =
             self.named_intrinsic_array_receiver_ptr(receiver, "array_data_ptr receiver")?;
@@ -2417,10 +2392,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 let llvm_ty = self.llvm_basic_type_of(span, elem_cg)?;
                 Ok(self.store_size_bytes_of_basic_type(llvm_ty))
             }
-            CgTy::Never => Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "named intrinsic array element stride",
-                at: span.into(),
-            }),
+            CgTy::Never => self.panic_verified_intrinsic_contract(
+                "named intrinsic array element stride",
+                "array element type is Never",
+            ),
         }
     }
 

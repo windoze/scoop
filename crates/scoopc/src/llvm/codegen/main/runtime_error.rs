@@ -135,19 +135,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             &[box_desc_i8.into(), size_v.into()],
             &format!("rt_alloc_{label}"),
         )?;
-        let raw = call
-            .try_as_basic_value()
-            .basic()
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "effect transport value box return value",
-                at: at.into(),
-            })?;
-        let BasicValueEnum::PointerValue(obj_i8) = raw else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "effect transport value box return type",
-                at: at.into(),
-            });
-        };
+        let raw = self.expect_basic_value(call, "effect transport value box allocation");
+        let obj_i8 = self.expect_pointer_value(raw, "effect transport value box allocation");
 
         let obj_ptr_ty = self.llvm_ptr_type(self.gc_address_space());
         let obj_ptr =

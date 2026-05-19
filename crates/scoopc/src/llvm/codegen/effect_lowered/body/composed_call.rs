@@ -477,10 +477,11 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
             .body
             .blocks
             .get(source_slice.block_id().as_u32() as usize)
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "composed call replay block",
-                at: self.mir_fun.span.into(),
-            })?;
+            .unwrap_or_else(|| {
+                panic!(
+                    "replay_call_boundary_prefix: late-lowered source slice references a missing block"
+                )
+            });
         for stmt_index in source_slice.start_statement_index()..statement_index {
             let stmt =
                 block

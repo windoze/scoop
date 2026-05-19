@@ -3009,13 +3009,14 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
     fn required_operand_source_ty(
         &self,
         operand: &mir::Operand,
-        span: Span,
+        _span: Span,
     ) -> Result<TypeId, LlvmEmitError> {
-        self.operand_source_ty(operand)
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "task transport operand source type",
-                at: span.into(),
-            })
+        Ok(self.operand_source_ty(operand).unwrap_or_else(|| {
+            self.codegen.panic_verified_intrinsic_contract(
+                "required_operand_source_ty",
+                "task transport operand source type is missing",
+            )
+        }))
     }
 
     fn resolved_fun_value_callee_fqn(&self, callee: &mir::Operand) -> Option<&str> {

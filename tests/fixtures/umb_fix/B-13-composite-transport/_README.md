@@ -7,8 +7,8 @@
 
 ## Scope
 
-U5-T01 creates this directory skeleton only. U5-T02 and U5-T03 must add `.scoop` fixtures and append matching `_index.csv` rows.
+P7-C3 retired the B-13 production fallbacks and keeps this directory as active coverage for array/composite transport metadata, task transport tuple paths, and range/progression fixtures.
 
 ## Runner Status
 
-`scoop test` recognizes `tests/fixtures/umb_fix/**`. Fixtures marked `IGNORE-UNTIL-FIX:B-13` or `ignore-until-fix:B-13` are skipped until the corresponding production fix lands.
+`scoop test` recognizes `tests/fixtures/umb_fix/**`. B-13 fixtures are active; retired UMB IDs are covered by `audit/UMB_retired.csv`, so fixture `COVERS` headers use `NONE`.

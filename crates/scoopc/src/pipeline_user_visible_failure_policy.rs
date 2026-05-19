@@ -194,7 +194,7 @@ const STALE_UNSUPPORTED_MAIN_BODY_COUNTS: &[UnsupportedMainBodyCount] = &[
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/mir_body/transport.rs",
-        expected_count: 2,
+        expected_count: 0,
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/mir_body/types.rs",
@@ -210,7 +210,7 @@ const STALE_UNSUPPORTED_MAIN_BODY_COUNTS: &[UnsupportedMainBodyCount] = &[
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/effect_lowered/body/composed_call.rs",
-        expected_count: 2,
+        expected_count: 1,
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/effect_lowered/body/main_carrier.rs",
@@ -222,7 +222,7 @@ const STALE_UNSUPPORTED_MAIN_BODY_COUNTS: &[UnsupportedMainBodyCount] = &[
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/effect_lowered/body/payload.rs",
-        expected_count: 1,
+        expected_count: 0,
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/effect_lowered/body/runtime_error.rs",
@@ -238,7 +238,7 @@ const STALE_UNSUPPORTED_MAIN_BODY_COUNTS: &[UnsupportedMainBodyCount] = &[
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/effect_lowered/value.rs",
-        expected_count: 64,
+        expected_count: 63,
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/main/alloca.rs",
@@ -306,7 +306,7 @@ const STALE_UNSUPPORTED_MAIN_BODY_COUNTS: &[UnsupportedMainBodyCount] = &[
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/main/runtime_error.rs",
-        expected_count: 2,
+        expected_count: 0,
     },
 ];
 
@@ -851,12 +851,13 @@ const INTERNAL_BUG_SENTINEL_HITS: &[&str] = &[
     "crates/scoopc/src/llvm/codegen/mir_body/string.rs:15:            panic!(\"codegen_mir_unresolved_name_with_source_ty: MIR verifier accepted unsupported source type\")",
     "crates/scoopc/src/llvm/codegen/mir_body/terminator.rs:31:                panic!(\"bind_mir_params: MIR verifier accepted param arity drift\")",
     "crates/scoopc/src/llvm/codegen/mir_body/terminator.rs:44:                    panic!(\"bind_mir_params: MIR verifier accepted unsupported param type\")",
-    "crates/scoopc/src/llvm/codegen/mir_body/transport.rs:208:            panic!(",
-    "crates/scoopc/src/llvm/codegen/mir_body/transport.rs:213:            panic!(",
-    "crates/scoopc/src/llvm/codegen/mir_body/transport.rs:218:            panic!(\"codegen_platform_literal: sysroot contract accepted non-Platform result type\");",
-    "crates/scoopc/src/llvm/codegen/mir_body/transport.rs:223:            panic!(",
-    "crates/scoopc/src/llvm/codegen/mir_body/transport.rs:244:                    panic!(\"codegen_platform_literal: sysroot contract accepted unknown Platform field `{}`\", layout_field.name)",
-    "crates/scoopc/src/llvm/codegen/mir_body/transport.rs:276:                panic!(\"codegen_platform_literal: verified Platform field materialized without LLVM value\")",
+    "crates/scoopc/src/llvm/codegen/mir_body/transport.rs:72:            panic!(",
+    "crates/scoopc/src/llvm/codegen/mir_body/transport.rs:209:            panic!(",
+    "crates/scoopc/src/llvm/codegen/mir_body/transport.rs:214:            panic!(",
+    "crates/scoopc/src/llvm/codegen/mir_body/transport.rs:219:            panic!(\"codegen_platform_literal: sysroot contract accepted non-Platform result type\");",
+    "crates/scoopc/src/llvm/codegen/mir_body/transport.rs:224:            panic!(",
+    "crates/scoopc/src/llvm/codegen/mir_body/transport.rs:245:                    panic!(\"codegen_platform_literal: sysroot contract accepted unknown Platform field `{}`\", layout_field.name)",
+    "crates/scoopc/src/llvm/codegen/mir_body/transport.rs:277:                panic!(\"codegen_platform_literal: verified Platform field materialized without LLVM value\")",
     "crates/scoopc/src/llvm/codegen/mir_body/types.rs:44:                        panic!(",
     "crates/scoopc/src/llvm/codegen/mir_body/types.rs:74:            panic!(\"mir_local_storage_cg_ty: MIR verifier accepted unsupported local type\")",
     "crates/scoopc/src/llvm/codegen/mir_body/types.rs:726:                panic!(\"mir_member_receiver_codegen_type_id: verifier accepted member receiver TypeStore drift\")",
@@ -864,12 +865,14 @@ const INTERNAL_BUG_SENTINEL_HITS: &[&str] = &[
     "crates/scoopc/src/llvm/codegen/mir_body/value_args.rs:112:                    panic!(",
     "crates/scoopc/src/llvm/codegen/mir_body/value_args.rs:132:                    panic!(",
     "crates/scoopc/src/llvm/codegen/effect_lowered/body/call_invoke.rs:98:                        panic!(\"lower_dynamic_call_carrier: TypeStore equivalence verifier accepted unsupported FunPtr carrier codegen type\")",
-    "crates/scoopc/src/llvm/codegen/effect_lowered/body/payload.rs:387:                panic!(\"lower_completion_payload_as: effect verifier accepted unsupported completion payload target type\")",
+    "crates/scoopc/src/llvm/codegen/effect_lowered/body/composed_call.rs:481:                panic!(",
+    "crates/scoopc/src/llvm/codegen/effect_lowered/body/payload.rs:80:                        panic!(",
+    "crates/scoopc/src/llvm/codegen/effect_lowered/body/payload.rs:388:                panic!(\"lower_completion_payload_as: effect verifier accepted unsupported completion payload target type\")",
     "crates/scoopc/src/llvm/codegen/effect_lowered/body/runtime_error.rs:82:                panic!(\"runtime_error_unit_variant_payload: verifier accepted missing RuntimeError enum layout\")",
     "crates/scoopc/src/llvm/codegen/effect_lowered/body/runtime_error.rs:89:                panic!(\"runtime_error_unit_variant_payload: verifier accepted missing RuntimeError variant `{variant_name}`\")",
     "crates/scoopc/src/llvm/codegen/effect_lowered/body/runtime_error.rs:92:            panic!(",
     "crates/scoopc/src/llvm/codegen/effect_lowered/value.rs:2474:                    _ => unreachable!(\"filtered by match\"),",
-    "crates/scoopc/src/llvm/codegen/effect_lowered/value.rs:3564:            _ => unreachable!(\"filtered by caller\"),",
+    "crates/scoopc/src/llvm/codegen/effect_lowered/value.rs:3565:            _ => unreachable!(\"filtered by caller\"),",
     "crates/scoopc/src/llvm/codegen/main/alloca.rs:48:            _ => unreachable!(\"cast_float only accepts Float64/Float32\"),",
     "crates/scoopc/src/llvm/codegen/main/call.rs:92:                        panic!(",
     "crates/scoopc/src/llvm/codegen/main/call.rs:677:            unreachable!(",
@@ -964,8 +967,8 @@ const INTERNAL_BUG_SENTINEL_HITS: &[&str] = &[
     "crates/scoopc/src/llvm/codegen/main/literal.rs:36:                        panic!(",
     "crates/scoopc/src/llvm/codegen/main/literal.rs:40:                    panic!(\"emit_return: MIR return contract accepted missing return value\")",
     "crates/scoopc/src/llvm/codegen/main/literal.rs:79:                    panic!(",
-    "crates/scoopc/src/llvm/codegen/main/runtime_error.rs:220:                panic!(\"emit_raise_runtime_error_variant: verifier accepted missing RuntimeError unit variant `{variant_name}`\")",
-    "crates/scoopc/src/llvm/codegen/main/runtime_error.rs:223:            panic!(",
+    "crates/scoopc/src/llvm/codegen/main/runtime_error.rs:209:                panic!(\"emit_raise_runtime_error_variant: verifier accepted missing RuntimeError unit variant `{variant_name}`\")",
+    "crates/scoopc/src/llvm/codegen/main/runtime_error.rs:212:            panic!(",
     "crates/scoopc/src/mir/materialize/dispatch.rs:51:                    panic!(",
     "crates/scoopc/src/mir/materialize/output.rs:37:            panic!(",
     "crates/scoopc/src/typecheck/lower.rs:1268:                unreachable!(",
@@ -1077,7 +1080,7 @@ fn pipeline_user_visible_failure_policy_tracks_stale_unsupportedmainbody_counts(
             baseline.path
         );
     }
-    assert_eq!(total, 135);
+    assert_eq!(total, 128);
 }
 
 #[test]

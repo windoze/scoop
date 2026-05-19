@@ -4,7 +4,7 @@
 > 计划基线：[`PLAN.md`](./PLAN.md)
 > 上一阶段任务档案：[`TODO-1.md`](./TODO-1.md)
 > 设计与 baseline：[`UnsupportedMainBody_FIX.md`](./UnsupportedMainBody_FIX.md)、[`UnsupportedMainBody_DONE.md`](./UnsupportedMainBody_DONE.md)
-> 当前状态：P7-0-T01、P7-0-T02、P7-A1、P7-A2、P7-A3、P7-A4、P7-B1、P7-B2.1、P7-B2.2、P7-B2.3、P7-B2.4、P7-B2.5、P7-B2.6、P7-B2.7、P7-B2.8、P7-B3.1、P7-B3.2、P7-B3.3、P7-B3.4、P7-B3.5、P7-C1、P7-C2 已完成；active=183，retired=1101。
+> 当前状态：P7-0-T01、P7-0-T02、P7-A1、P7-A2、P7-A3、P7-A4、P7-B1、P7-B2.1、P7-B2.2、P7-B2.3、P7-B2.4、P7-B2.5、P7-B2.6、P7-B2.7、P7-B2.8、P7-B3.1、P7-B3.2、P7-B3.3、P7-B3.4、P7-B3.5、P7-C1、P7-C2、P7-C3 已完成；active=159，retired=1125。
 
 ## 全局约束
 
@@ -575,7 +575,7 @@ P7-0-T01 stable ID + retired ledger
   - 验证结果：`cargo run -p scoopc --bin umb-audit -- list --bucket B-25` 通过（entries 0）；`cargo run -p scoopc --bin umb-audit -- diff` 通过（in sync，183 entries）；`cargo run -p scoopc --bin umb-audit -- stats` 通过（active=183、retired=1101、initial=1284）；`cargo test -p scoopc audit:: -- --nocapture` 通过（23 passed）；`cargo test -p scoopc pipeline_user_visible_failure_policy -- --nocapture` 通过（7 passed）；`cargo test -p scoopc mir::materialize -- --nocapture` 通过（54 passed）；`cargo run -p scoop -- test tests/fixtures/umb_fix/B-25-platform-rtti/` 通过（2 passed）；`cargo run -p scoop -- test tests/fixtures/umb_fix/B-14-cast-typecheck/pos_cast_typecheck_runtime.scoop` 通过（1 passed）；`cargo fmt` 通过；`cargo clippy --all-targets -- -D warnings` 通过。
   - 闭合目标：满足 `PLAN.md:183-206` 与本任务完成条件；B-25 active count 为 0，B-25 positive fixture active 并通过，Platform / RTTI happy paths 不再由 LLVM `UnsupportedMainBody` 兜底。
 
-### [TODO] P7-C3：B-13 数组 / 复合 transport metadata 实现
+### [DONE] P7-C3：B-13 数组 / 复合 transport metadata 实现
 
 - 参考：`PLAN.md:183-206`、`audit/strategies/B-13.md`。
 - 范围：B-13，24 entries，`RealImpl`。
@@ -584,7 +584,15 @@ P7-0-T01 stable ID + retired ledger
 - 验证：`cargo test -p scoopc audit:: -- --nocapture`、`cargo run -p scoop -- test tests/fixtures/umb_fix/B-13-composite-transport/`。
 - 完成条件：B-13 active count 为 0；B-13 positive fixture active 并通过。
 - 依赖：B-03/B-09/B-14 contract 稳定后更安全。
-- 完成记录：待填写。
+- 完成记录：
+  - 改动范围：更新 `crates/scoopc/src/llvm/codegen/{effect_outcome.rs,effect_lowered/{body/{composed_call.rs,payload.rs},value.rs},intrinsics/named.rs,main/{context.rs,runtime_error.rs},mir_body/transport.rs}`、`crates/scoopc/src/pipeline_user_visible_failure_policy.rs`；同步 `audit/UMB_inventory.csv`、`audit/UMB_retired.csv`、`audit/UMB_categories/{B-13.md,_overview.md}`、`audit/strategies/B-13.md`、`audit/spec_coverage_matrix.md`、B-13 fixtures、B-06/B-21 cross-coverage fixtures、`tests/fixtures/umb_fix/_index.csv` 与 `memory/claude_plan.md`。
+  - Retired IDs：`UMB-0198`、`UMB-0214`、`UMB-0315`、`UMB-0364`、`UMB-0365`、`UMB-0366`、`UMB-0372`、`UMB-0374`、`UMB-0375`、`UMB-0376`、`UMB-0379`、`UMB-0380`、`UMB-0381`、`UMB-0605`、`UMB-0606`、`UMB-0608`、`UMB-0610`、`UMB-0611`、`UMB-0612`、`UMB-0630`、`UMB-0945`、`UMB-0946`、`UMB-1211`、`UMB-1212`；数量 24；bucket `B-13`；class `RealImpl`。
+  - 核心决策：为 array/composite transport 使用 descriptor-backed lowering；task transport tuple encode/decode、resume payload、composed-call replay source block、array intrinsic arity/value/stride 和 composite effect payload boxing 改为真实 lowering 或 verified invariant；Float value erasure 走 MIR value box；optional int-literal source-span probe 对合成 span 返回 `None`，避免合法 composite transport 路径触发 source-slice invariant。
+  - Inventory/ledger：active 183 -> 159；retired 1101 -> 1125；B-13 active 24 -> 0；`RealImpl` active 183 -> 159。
+  - Stale count：tracked stale total 135 -> 128；`effect_lowered/value.rs` 64 -> 63；`effect_lowered/body/composed_call.rs` 2 -> 1；`effect_lowered/body/payload.rs` 1 -> 0；`mir_body/transport.rs` 2 -> 0；`main/runtime_error.rs` 2 -> 0；`effect_outcome.rs` 与 `intrinsics/named.rs` 删除目标 B-13 rows 但不在 tracked stale list。
+  - Fixture 状态：B-13 fixture directory active；新增 runtime stdout golden files；B-13 active fixture `COVERS` 改为 `NONE`，retired IDs 由 retired ledger 覆盖；B-06/B-21 cross-coverage 清理 retired B-13 IDs。
+  - 验证结果：`cargo run -p scoopc --bin umb-audit -- list --bucket B-13` 通过（entries 0）；`cargo run -p scoopc --bin umb-audit -- diff` 通过（in sync，159 entries）；`cargo run -p scoopc --bin umb-audit -- stats` 通过（active=159、retired=1125、initial=1284）；`cargo test -p scoopc audit:: -- --nocapture` 通过（23 passed）；`cargo test -p scoopc pipeline_user_visible_failure_policy -- --nocapture` 通过（7 passed）；`cargo run -p scoop -- test tests/fixtures/umb_fix/B-13-composite-transport/` 通过（4 passed）；`cargo fmt` 通过；`cargo clippy --all-targets -- -D warnings` 通过。
+  - 闭合目标：满足 `PLAN.md:183-206` 与本任务完成条件；B-13 active count 为 0，B-13 positive fixtures active 并通过，task transport tuple、resume payload、composed call replay block 和 array metadata 不再由 LLVM `UnsupportedMainBody` 兜底。
 
 ### [TODO] P7-C4：B-12 Closure / lambda / capture 实现
 

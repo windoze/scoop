@@ -3,9 +3,9 @@
 // EXPECT-ERROR-AT: 15:21
 // EXPECT-ERROR: 初始化表达式类型不匹配
 // SPEC: docs/spec/language_spec-part2.md#5-值类型
-// COVERS: UMB-0198, UMB-0214, UMB-0315, UMB-0364, UMB-0365, UMB-0366, UMB-0372, UMB-0374, UMB-0375, UMB-0376, UMB-0379, UMB-0380, UMB-0381, UMB-0605, UMB-0606, UMB-0608, UMB-0610, UMB-0611, UMB-0612, UMB-0630, UMB-0945, UMB-0946, UMB-1211, UMB-1212
+// COVERS: NONE
 // BUCKETS: B-06, B-13
-// REASON: P7-B2.3 retired B-06 aggregate schema rows; remaining COVERS IDs belong to active B-13 composite transport work.
+// REASON: P7-B2.3 retired B-06 rows and P7-C3 retired B-13 rows; fixture remains frontend aggregate-schema coverage.
 // SOURCE-FIXTURE: tests/fixtures/typecheck/tuple_literal_type_mismatch_is_error.scoop
 
 package fixtures.typecheck

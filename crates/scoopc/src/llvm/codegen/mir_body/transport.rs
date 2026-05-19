@@ -69,10 +69,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             if source_cg == CgTy::String {
                 return self.coerce_value(span, source, CgTy::String);
             }
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "MIR transport to String requires ordinary ToString lowering",
-                at: span.into(),
-            });
+            panic!(
+                "codegen_mir_value_transport: MIR transport to String reached LLVM without ordinary ToString lowering"
+            );
         }
         if target_cg != CgTy::Ref {
             return Err(super::composite_transport::composite_transport_gate_error(
@@ -94,17 +93,19 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 .codegen_mir_composite_value_box(
                     span, value, source_ty, source_cg, body, mir_types, slots,
                 ),
+            CgTy::Float64 | CgTy::Float32 => self.codegen_mir_composite_value_box(
+                span, value, source_ty, source_cg, body, mir_types, slots,
+            ),
             CgTy::Unit | CgTy::Bool | CgTy::Int(_) | CgTy::String | CgTy::Ref | CgTy::Enum(_) => {
                 let source =
                     self.codegen_mir_operand_expected(span, value, slots, Some(source_cg))?;
                 let source = self.coerce_value(span, source, source_cg)?;
                 self.coerce_value(span, source, CgTy::Ref)
             }
-            CgTy::Float64 | CgTy::Float32 | CgTy::Never => {
-                Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "value erasure transport source kind",
-                    at: span.into(),
-                })
+            CgTy::Never => {
+                let source =
+                    self.codegen_mir_operand_expected(span, value, slots, Some(source_cg))?;
+                self.coerce_value(span, source, CgTy::Ref)
             }
         }
     }
