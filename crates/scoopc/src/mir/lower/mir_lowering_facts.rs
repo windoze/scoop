@@ -9,7 +9,7 @@ impl MirLoweringFacts {
         lowered: &hir::LoweredHir,
         default_source_path: &std::path::Path,
     ) -> Result<Self, hir::HirLowerError> {
-        let mut facts = Self::from_hir_side_tables_and_resume_spans(
+        let facts = Self::from_hir_side_tables_and_resume_spans(
             &lowered.dispatch_call_sites,
             lowered
                 .continuation_resume_call_sites
@@ -33,34 +33,7 @@ impl MirLoweringFacts {
 
         let contracts = TypedHirEffectContracts::from_lowered_hir(lowered, default_source_path)
             .map_err(hir::HirLowerError::from)?;
-        facts.top_level_init_roots = contracts.top_level_init_roots().to_vec();
-        facts.extern_global_contracts = contracts.extern_global_contracts().to_vec();
-        for (call_site, contract) in contracts.continuation_resume_sites() {
-            facts.resume_sites.insert(
-                call_site.clone(),
-                ResumeCallInfo {
-                    receiver_route: contract.receiver_route(),
-                    payload_arg_indices: contract.payload_arg_indices().to_vec(),
-                    metadata: ResumeMetadata {
-                        continuation_ty: contract.receiver_ty(),
-                        resume_ty: contract.resume_ty(),
-                        answer_ty: contract.answer_ty(),
-                        return_ty: contract.return_ty(),
-                        out_effects: contract.out_effects().clone(),
-                        runtime_error_effect_ty: contract.runtime_error_effect_ty(),
-                        suspends_outward: !contract.out_effects().is_pure(),
-                    },
-                },
-            );
-        }
-        facts
-            .call_sites
-            .extend(contracts.call_site_contracts().clone());
-        facts
-            .assign_places
-            .extend(contracts.assign_place_contracts().clone());
-
-        Ok(facts)
+        Ok(facts.with_typed_contracts(&contracts))
     }
 
     pub(crate) fn from_typed_handoff(

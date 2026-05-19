@@ -4,7 +4,7 @@
 > 计划基线：[`PLAN.md`](./PLAN.md)
 > 上一阶段任务档案：[`TODO-1.md`](./TODO-1.md)
 > 设计与 baseline：[`UnsupportedMainBody_FIX.md`](./UnsupportedMainBody_FIX.md)、[`UnsupportedMainBody_DONE.md`](./UnsupportedMainBody_DONE.md)
-> 当前状态：P7-0-T01、P7-0-T02、P7-A1、P7-A2、P7-A3、P7-A4、P7-B1、P7-B2.1、P7-B2.2、P7-B2.3、P7-B2.4、P7-B2.5、P7-B2.6、P7-B2.7、P7-B2.8、P7-B3.1、P7-B3.2、P7-B3.3、P7-B3.4、P7-B3.5、P7-C1、P7-C2、P7-C3 已完成；active=159，retired=1125。
+> 当前状态：P7-0-T01、P7-0-T02、P7-A1、P7-A2、P7-A3、P7-A4、P7-B1、P7-B2.1、P7-B2.2、P7-B2.3、P7-B2.4、P7-B2.5、P7-B2.6、P7-B2.7、P7-B2.8、P7-B3.1、P7-B3.2、P7-B3.3、P7-B3.4、P7-B3.5、P7-C1、P7-C2、P7-C3、P7-C4 已完成；active=109，retired=1175。
 
 ## 全局约束
 
@@ -594,7 +594,7 @@ P7-0-T01 stable ID + retired ledger
   - 验证结果：`cargo run -p scoopc --bin umb-audit -- list --bucket B-13` 通过（entries 0）；`cargo run -p scoopc --bin umb-audit -- diff` 通过（in sync，159 entries）；`cargo run -p scoopc --bin umb-audit -- stats` 通过（active=159、retired=1125、initial=1284）；`cargo test -p scoopc audit:: -- --nocapture` 通过（23 passed）；`cargo test -p scoopc pipeline_user_visible_failure_policy -- --nocapture` 通过（7 passed）；`cargo run -p scoop -- test tests/fixtures/umb_fix/B-13-composite-transport/` 通过（4 passed）；`cargo fmt` 通过；`cargo clippy --all-targets -- -D warnings` 通过。
   - 闭合目标：满足 `PLAN.md:183-206` 与本任务完成条件；B-13 active count 为 0，B-13 positive fixtures active 并通过，task transport tuple、resume payload、composed call replay block 和 array metadata 不再由 LLVM `UnsupportedMainBody` 兜底。
 
-### [TODO] P7-C4：B-12 Closure / lambda / capture 实现
+### [DONE] P7-C4：B-12 Closure / lambda / capture 实现
 
 - 参考：`PLAN.md:183-206`、`audit/strategies/B-12.md`。
 - 范围：B-12，50 entries，`RealImpl`。
@@ -603,7 +603,15 @@ P7-0-T01 stable ID + retired ledger
 - 验证：`cargo test -p scoopc audit:: -- --nocapture`、`cargo run -p scoop -- test tests/fixtures/umb_fix/B-12-closure-capture/`、`cargo run -p scoop -- test tests/fixtures/run-pass/`。
 - 完成条件：B-12 active count 为 0；B-12 positive fixture active 并通过。
 - 依赖：B-03/B-09/B-13 contract 稳定后更安全。
-- 完成记录：待填写。
+- 完成记录：
+  - 改动范围：更新 `crates/scoopc/src/llvm/codegen/{closure/mod.rs,main/identity.rs,mir_body/{aggregates.rs,call.rs,callable_lookup.rs,operand.rs,terminator.rs,value_args.rs}}`、`crates/scoopc/src/mir/{lower/mir_lowering_facts.rs,materialize/{generic_mir.rs,instance.rs,run.rs,validation.rs}}`、`crates/scoopc/src/pipeline_user_visible_failure_policy.rs`；同步 `audit/UMB_inventory.csv`、`audit/UMB_retired.csv`、`audit/UMB_categories/{B-10.md,B-12.md,_overview.md}`、`audit/strategies/B-12.md`、`audit/spec_coverage_matrix.md`、B-12 fixtures、`tests/fixtures/umb_fix/_index.csv` 与 `memory/claude_plan.md`。
+  - Retired IDs：`UMB-0092`、`UMB-0094`..`UMB-0096`、`UMB-0099`..`UMB-0100`、`UMB-0103`..`UMB-0115`、`UMB-0917`..`UMB-0920`、`UMB-0971`、`UMB-0976`、`UMB-0995`、`UMB-1005`、`UMB-1013`、`UMB-1023`..`UMB-1024`、`UMB-1027`..`UMB-1028`、`UMB-1032`、`UMB-1035`..`UMB-1037`、`UMB-1041`..`UMB-1043`、`UMB-1184`..`UMB-1189`、`UMB-1203`、`UMB-1207`、`UMB-1225`..`UMB-1227`；数量 50；bucket `B-12`；class `RealImpl`。
+  - 核心决策：closure object/env 使用 GC-managed object layout；direct HIR lambda 与 materialized MIR closure 统一发布 stable closure identity、env layout、callable lookup 和 hidden-sret/ordinary param ABI；non-scalar capture 通过 env object field 与 tuple/composite transport descriptor 真实 lower；materialized MIR 保留非泛型 metadata 子树用于 composite capture validation，并在 metadata 未发布 receiver ABI param 时退回到结果 transport 校验。
+  - Inventory/ledger：active 159 -> 109；retired 1125 -> 1175；B-12 active 50 -> 0；`RealImpl` active 159 -> 109。
+  - Stale count：tracked stale total 128 -> 97；`mir_body/aggregates.rs` 2 -> 0；`mir_body/callable_lookup.rs` 11 -> 0；`mir_body/operand.rs` 6 -> 0；`mir_body/terminator.rs` 2 -> 0；`mir_body/value_args.rs` 3 -> 0；`mir_body/call.rs` active B-12 rows retired but B-10 rows remain active at 5；`closure/mod.rs` 与 `main/identity.rs` 删除目标 B-12 inventory rows 但不在 tracked stale list。
+  - Fixture 状态：B-12 fixture directory active；`pos_lambda_closure_capture.scoop` 使用 stdout golden；`neg_lambda_capture_contract.scoop` 保持 active typecheck negative coverage；B-12 active fixture `COVERS` 改为 `NONE`，retired IDs 由 retired ledger 覆盖。
+  - 验证结果：`cargo run -p scoopc --bin umb-audit -- list --bucket B-12` 通过（entries 0）；`cargo run -p scoopc --bin umb-audit -- diff` 通过（in sync，109 entries）；`cargo run -p scoopc --bin umb-audit -- stats` 通过（active=109、retired=1175、initial=1284）；`cargo test -p scoopc audit:: -- --nocapture` 通过（23 passed）；`cargo test -p scoopc pipeline_user_visible_failure_policy -- --nocapture` 通过（7 passed）；`cargo test -p scoopc mir::materialize -- --nocapture` 通过（54 passed）；`cargo run -p scoop -- test tests/fixtures/umb_fix/B-12-closure-capture/` 通过（2 passed）；`cargo run -p scoop -- test tests/fixtures/run-pass/closure_env_composite_capture_basic.scoop` 通过（1 passed）；`cargo run -p scoop -- test tests/fixtures/run-pass/` 仍失败（307/416 passed，109 failed），抽样 `effect_escape_continuation_resume_string.scoop`、`effect_escape_continuation_indirect_perform_closure_locals.scoop`、`effect_escape_continuation_indirect_perform_closure_tail_return_string.scoop` 在 clean `HEAD` worktree 同样失败，判定为非 P7-C4 引入的历史/future-task failures；`cargo fmt` 通过；`cargo clippy --all-targets -- -D warnings` 通过。
+  - 闭合目标：满足 `PLAN.md:183-206` 与本任务完成条件；B-12 active count 为 0，B-12 positive fixture active 并通过，closure env、mutable/non-scalar capture、callable lookup 与 lambda return happy paths 不再由 LLVM `UnsupportedMainBody` 兜底。
 
 ### [TODO] P7-C5：B-10 Effect-typed callable adapter / ABI routing 实现
 
@@ -659,7 +667,7 @@ P7-0-T01 stable ID + retired ledger
 
 | 阶段 | Active 目标 | Retired 目标 | 备注 |
 |---|---:|---:|---|
-| 当前 | 183 | 1101 | P7-C2 完成，B-25 Platform / RTTI intrinsic 清零；P7-B InternalBugSentinel 清零 |
+| 当前 | 109 | 1175 | P7-C4 完成，B-12 Closure / lambda / capture 清零；P7-B InternalBugSentinel 清零 |
 | P7-A 完成 | 1,159 | 125 | `FrontendReject` 清零 |
 | P7-B 完成 | 203 | 1,081 | `InternalBugSentinel` 清零 |
 | P7-C 完成 | 0 | 1,284 | `RealImpl` 清零 |

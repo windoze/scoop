@@ -350,23 +350,20 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             panic!("mir_closure_env_capture_element_cg_tys_from_contract: TypeStore equivalence verifier accepted unsupported closure env contract codegen type")
         });
         if contract_env_cg != env_cg {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "pass MIR closure env contract mismatch",
-                at: span.into(),
-            });
+            panic!(
+                "mir_closure_env_capture_element_cg_tys_from_contract: MIR verifier accepted closure env contract type drift"
+            )
         }
 
-        let capture_field_cgs = self.mir_closure_env_capture_element_cg_tys(env_cg).ok_or(
-            LlvmEmitError::UnsupportedMainBody {
-                kind: "pass MIR closure env shape",
-                at: span.into(),
-            },
-        )?;
-        if capture_field_cgs.len() != contract.captures.len() {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "pass MIR closure env capture schema arity",
-                at: span.into(),
+        let capture_field_cgs = self
+            .mir_closure_env_capture_element_cg_tys(env_cg)
+            .unwrap_or_else(|| {
+                panic!("mir_closure_env_capture_element_cg_tys_from_contract: MIR verifier accepted non-tuple closure env")
             });
+        if capture_field_cgs.len() != contract.captures.len() {
+            panic!(
+                "mir_closure_env_capture_element_cg_tys_from_contract: MIR verifier accepted closure env capture arity drift"
+            )
         }
 
         let env_transport = crate::mir::ValueTransportMetadata {
@@ -386,12 +383,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let env_element_tys = match mir_types.kind(contract.env_ty) {
             TypeKind::Value(ValueTypeKind::Unit) => &[][..],
             TypeKind::Value(ValueTypeKind::Tuple(elements)) => elements.as_slice(),
-            _ => {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "pass MIR closure env contract shape",
-                    at: span.into(),
-                });
-            }
+            _ => panic!(
+                "mir_closure_env_capture_element_cg_tys_from_contract: MIR verifier accepted non-tuple closure env contract"
+            ),
         };
 
         for (index, capture) in contract.captures.iter().enumerate() {
@@ -399,17 +393,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 env_element_tys
                     .get(index)
                     .copied()
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "pass MIR closure env capture schema element",
-                        at: capture.decl_span.into(),
-                    })?;
+                    .unwrap_or_else(|| {
+                        panic!("mir_closure_env_capture_element_cg_tys_from_contract: MIR verifier accepted missing closure env capture element")
+                    });
             if mir_types.display(capture.transport.source_ty).to_string()
                 != mir_types.display(env_element_ty).to_string()
             {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "pass MIR closure env capture schema type",
-                    at: capture.decl_span.into(),
-                });
+                panic!(
+                    "mir_closure_env_capture_element_cg_tys_from_contract: MIR verifier accepted closure env capture type drift"
+                )
             }
             self.get_or_create_value_composite_transport_descriptor_global(
                 body_fqn,

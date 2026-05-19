@@ -28,10 +28,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             crate::mir::CallKind::Closure { callee, fn_ptr } => {
                 let fun_ty = self
                     .mir_operand_function_type(body, mir_types, callee)
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "pass MIR closure callee type",
-                        at: span.into(),
-                    })?;
+                    .unwrap_or_else(|| {
+                        panic!("codegen_mir_call: MIR call ABI verifier accepted non-function closure callee")
+                    });
                 self.codegen_mir_closure_call(span, callee, fn_ptr, args, &fun_ty, slots)
             }
             crate::mir::CallKind::FunValue { callee } => {
@@ -521,10 +520,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             self.codegen_mir_operand_expected(span, callee, slots, Some(CgTy::Ref))?;
         let callee_value = self.coerce_value(span, callee_value, CgTy::Ref)?;
         let Some(BasicValueEnum::PointerValue(closure_obj_i8)) = callee_value.value else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "pass MIR closure callee value",
-                at: span.into(),
-            });
+            panic!(
+                "codegen_mir_closure_call: MIR call ABI verifier accepted non-pointer closure callee"
+            )
         };
         self.codegen_mir_function_value_call_from_closure_obj(
             span,
@@ -860,10 +858,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             crate::mir::CallKind::Closure { callee, fn_ptr } => {
                 let fun_ty = self
                     .mir_operand_function_type(body, mir_types, callee)
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "plain closure callee type",
-                        at: span.into(),
-                    })?;
+                    .unwrap_or_else(|| {
+                        panic!("codegen_mir_plain_dynamic_call_with_policy: MIR verifier accepted non-function plain closure callee")
+                    });
                 if !fun_ty.effects.is_pure() {
                     if self.plain_callable_carrier_fallback_allowed(
                         CallableCarrierKind::ClosureObject,

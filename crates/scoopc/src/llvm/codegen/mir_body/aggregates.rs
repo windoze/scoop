@@ -443,10 +443,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         target_fn_ptr: Option<PointerValue<'ctx>>,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         if target_cg != CgTy::Ref {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "pass MIR closure target type",
-                at: span.into(),
-            });
+            panic!(
+                "codegen_mir_make_closure_impl: MIR verifier accepted non-reference closure target"
+            )
         }
 
         let capture_field_cgs = self.mir_closure_env_capture_element_cg_tys_from_contract(
@@ -559,10 +558,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             )?;
             let tuple_v = env_value
                 .value
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "pass MIR closure env value",
-                    at: span.into(),
-                })?
+                .unwrap_or_else(|| {
+                    panic!(
+                        "codegen_mir_make_closure_impl: MIR verifier accepted non-value closure env"
+                    )
+                })
                 .into_struct_value();
             for (idx, field_cg) in capture_field_cgs.iter().enumerate() {
                 let env_ptr = self.reload_deferred_gc_ref_without_clearing(

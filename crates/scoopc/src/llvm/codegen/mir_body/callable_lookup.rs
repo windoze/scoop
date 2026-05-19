@@ -131,17 +131,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         span: crate::span::Span,
         fn_ptr: &str,
     ) -> Result<FunctionValue<'ctx>, LlvmEmitError> {
-        let (mir_types, mir_fun) =
-            self.materialized_mir_callable(fn_ptr)
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "pass MIR closure function",
-                    at: span.into(),
-                })?;
+        let (mir_types, mir_fun) = self.materialized_mir_callable(fn_ptr).unwrap_or_else(|| {
+            panic!("ensure_materialized_mir_closure_callable_defined: missing materialized closure callable")
+        });
         if !mir_fun.name.starts_with("$lambda") {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "pass MIR closure function",
-                at: span.into(),
-            });
+            panic!(
+                "ensure_materialized_mir_closure_callable_defined: callable is not a closure body"
+            )
         }
         let body_symbol = self.materialized_mir_closure_body_symbol(fn_ptr, mir_fun.span)?;
         if let Some(existing) = self.module.get_function(&body_symbol)
@@ -258,12 +254,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             )));
         }
 
-        let ret_cg = self.cg_ty_of_mir_type(mir_types, return_ty).ok_or(
-            LlvmEmitError::UnsupportedMainBody {
-                kind: "pass MIR closure return type",
-                at: mir_fun.span.into(),
-            },
-        )?;
+        let ret_cg = self.cg_ty_of_mir_type(mir_types, return_ty).unwrap_or_else(|| {
+            panic!("declare_materialized_mir_closure_fun_with_signature: MIR verifier accepted unsupported closure return type")
+        });
         let hidden_sret_result_ty = self.hidden_sret_result_ty(span, ret_cg)?;
         // 这里发布的是 plain callable ABI 的 closure body symbol；effect-step callable surface
         // 由 stage-owned direct/dynamic entry shell 单独承载，不应再为 plain entry 混入 hidden ABI。
@@ -277,10 +270,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         for (param, param_ty) in mir_fun.params.iter().skip(1).zip(param_tys.iter().skip(1)) {
             let param_ty = self
                 .equivalent_codegen_type_id(mir_types, *param_ty)
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "pass MIR closure param type",
-                    at: param.span.into(),
-                })?;
+                .unwrap_or_else(|| {
+                    panic!("declare_materialized_mir_closure_fun_with_signature: TypeStore equivalence verifier accepted unsupported closure param type")
+                });
             llvm_param_tys.push(
                 self.ordinary_param_abi(param.span, param_ty)?
                     .llvm_param_ty(),
@@ -401,12 +393,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         ensure_raw_mir_body_route_is_safe(&mir_fun.fqn, body)?;
         self.function_cx.current_callable_fqn = Some(mir_fun.fqn.clone());
 
-        let declared_return_cg = self.cg_ty_of_mir_type(mir_types, mir_fun.return_ty).ok_or(
-            LlvmEmitError::UnsupportedMainBody {
-                kind: "pass MIR closure return type",
-                at: mir_fun.span.into(),
-            },
-        )?;
+        let declared_return_cg = self
+            .cg_ty_of_mir_type(mir_types, mir_fun.return_ty)
+            .unwrap_or_else(|| {
+                panic!("codegen_materialized_mir_closure_fun: MIR verifier accepted unsupported closure return type")
+            });
         let entry = self.context.append_basic_block(llvm_fun, "entry");
         self.builder.position_at_end(entry);
         self.begin_function_explicit_frame_layout(llvm_fun)?;
@@ -491,26 +482,20 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         param_offset: u32,
         slots: &mut [MirLocalSlot<'ctx>],
     ) -> Result<(), LlvmEmitError> {
-        let env_param = mir_fun
-            .params
-            .first()
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "pass MIR closure env param",
-                at: mir_fun.span.into(),
-            })?;
+        let env_param = mir_fun.params.first().unwrap_or_else(|| {
+            panic!("bind_mir_closure_params: MIR verifier accepted closure without env param")
+        });
         if env_param.name != "$env" {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "pass MIR closure env param",
-                at: env_param.span.into(),
-            });
+            panic!(
+                "bind_mir_closure_params: MIR verifier accepted closure first param not named `$env`"
+            )
         }
         let env_slot = slots
             .get(env_param.local.as_u32() as usize)
             .copied()
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "pass MIR closure env local",
-                at: env_param.span.into(),
-            })?;
+            .unwrap_or_else(|| {
+                panic!("bind_mir_closure_params: MIR verifier accepted missing env local slot")
+            });
         let env_init = self.codegen_mir_closure_env_param(
             env_param.span,
             &mir_fun.fqn,
@@ -567,18 +552,18 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         match env_cg {
             CgTy::Unit => Ok(CgValue::unit()),
             CgTy::Tuple(tuple_ty) => {
-                let capture_field_cgs = self.mir_closure_env_capture_element_cg_tys(env_cg).ok_or(
-                    LlvmEmitError::UnsupportedMainBody {
-                        kind: "pass MIR closure env shape",
-                        at: span.into(),
-                    },
-                )?;
+                let capture_field_cgs = self
+                    .mir_closure_env_capture_element_cg_tys(env_cg)
+                    .unwrap_or_else(|| {
+                        panic!("codegen_mir_closure_env_param: MIR verifier accepted non-tuple closure env")
+                    });
                 let env_arg = llvm_fun
                     .get_nth_param(param_index)
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "missing pass MIR closure env param",
-                        at: span.into(),
-                    })?
+                    .unwrap_or_else(|| {
+                        panic!(
+                            "codegen_mir_closure_env_param: declared closure ABI without env param"
+                        )
+                    })
                     .into_pointer_value();
                 let closure_key =
                     self.stable_closure_key_for_materialized_callable(fn_ptr, span)?;
@@ -616,10 +601,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     value: Some(agg.as_basic_value_enum()),
                 })
             }
-            _ => Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "pass MIR closure env type",
-                at: span.into(),
-            }),
+            _ => panic!(
+                "codegen_mir_closure_env_param: MIR verifier accepted unsupported closure env type"
+            ),
         }
     }
 

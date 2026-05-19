@@ -197,7 +197,7 @@ impl MirInstanceMaterializer {
         let pass_callable_families =
             MaterializedCallableFamilies::from_inputs(pass_callable_family_inputs);
 
-        let mut items = Vec::new();
+        let mut items = self.non_fun_items.clone();
         for key in &materialized_instance_keys {
             let mut family = self
                 .materialized

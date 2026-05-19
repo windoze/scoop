@@ -2,6 +2,38 @@
 
 use super::*;
 
+fn filter_materialized_metadata_root(root: &MetadataRoot) -> Option<MetadataRoot> {
+    match root {
+        MetadataRoot::TypeAlias(alias) => alias.type_params.is_empty().then(|| root.clone()),
+        MetadataRoot::Nominal(nominal) => {
+            if !nominal.type_params.is_empty() {
+                return None;
+            }
+            let mut nominal = nominal.clone();
+            nominal.members = filter_materialized_decl_members(&nominal.members);
+            Some(MetadataRoot::Nominal(nominal))
+        }
+        MetadataRoot::Object(object) => {
+            let mut object = object.clone();
+            object.members = filter_materialized_decl_members(&object.members);
+            Some(MetadataRoot::Object(object))
+        }
+        MetadataRoot::ExtensionProperty(prop) => prop.type_params.is_empty().then(|| root.clone()),
+    }
+}
+
+fn filter_materialized_decl_members(members: &[DeclMemberMetadata]) -> Vec<DeclMemberMetadata> {
+    members
+        .iter()
+        .filter_map(|member| match member {
+            DeclMemberMetadata::Fun(fun) if !fun.type_params.is_empty() => None,
+            DeclMemberMetadata::Nested(root) => filter_materialized_metadata_root(root)
+                .map(|root| DeclMemberMetadata::Nested(Box::new(root))),
+            _ => Some(member.clone()),
+        })
+        .collect()
+}
+
 impl MirInstanceMaterializer {
     pub(super) fn new(
         generic_file: File,
@@ -38,9 +70,18 @@ impl MirInstanceMaterializer {
             request_root_fun_keys,
         } = construction_inputs;
         let mut generic_funs = Vec::new();
+        let mut non_fun_items = Vec::new();
         for item in &generic_file.items {
-            if let Item::Fun(fun) = item {
-                generic_funs.push(fun.clone());
+            match item {
+                Item::Fun(fun) => generic_funs.push(fun.clone()),
+                Item::Metadata(root) => {
+                    if let Some(root) = filter_materialized_metadata_root(root) {
+                        non_fun_items.push(Item::Metadata(root));
+                    }
+                }
+                Item::InitializerRoot(_) | Item::ExternGlobal(_) | Item::Todo { .. } => {
+                    non_fun_items.push(item.clone());
+                }
             }
         }
         let mut member_value_tys = collect_member_value_type_infos(&generic_file);
@@ -312,6 +353,7 @@ impl MirInstanceMaterializer {
             opt_level,
             known_receiver_subclasses,
             direct_subclasses,
+            non_fun_items,
             class_vtables,
             interfaces,
             class_itables,

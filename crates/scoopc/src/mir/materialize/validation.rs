@@ -2514,13 +2514,18 @@ pub(super) fn validate_materialized_call_abi(
                 return Ok(());
             };
             if member_fun.params.is_empty() {
-                return Err(materialized_type_contract_err(
-                    fqn,
-                    Some(block),
-                    span,
-                    "dispatch target",
-                    "dispatch target member function must publish receiver parameter",
-                ));
+                if result_ty.is_some_and(|ty| {
+                    !materialized_abi_type_equivalent(materialized, ty, transport.result.source_ty)
+                }) {
+                    return Err(materialized_transport_contract_err(
+                        fqn,
+                        block,
+                        span,
+                        "call result transport",
+                        "dispatch result transport type and assignment target disagree",
+                    ));
+                }
+                return Ok(());
             }
             validate_materialized_callable_value_call_signature(
                 materialized,

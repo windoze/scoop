@@ -82,10 +82,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         expected_fun_ty: TypeId,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         let TypeKind::Ref(RefTypeKind::Function(fun_ty)) = self.types.kind(expected_fun_ty) else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "lambda without expected function type",
-                at: span.into(),
-            });
+            panic!(
+                "codegen_closure_expr: typecheck must publish a function type for lambda expressions"
+            )
         };
 
         // 1) 确定参数绑定（显式 params 或 Kotlin-like 隐式 `it`）。
@@ -110,12 +109,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             existing
         } else {
             let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
-            let ret_cg =
-                self.cg_ty_of(fun_ty.return_ty)
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "lambda return type",
-                        at: span.into(),
-                    })?;
+            let ret_cg = self.expect_cg_ty_of(fun_ty.return_ty, "lambda return type");
             let callee_suspend_plan = self.build_closure_callee_suspend_plan(
                 closure,
                 closure_identity.callable_fqn.as_str(),
@@ -191,18 +185,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             let mut capture_bindings: Vec<(hir::SymbolId, String, TypeId, bool)> =
                 Vec::with_capacity(captures.len());
             for cap in &captures {
-                let Some(local) = self.function_cx.env.get(cap.id) else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "capture local not found",
-                        at: cap.decl_span.into(),
-                    });
-                };
-                let Some(ty_id) = local.hir_ty else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "capture local type",
-                        at: cap.decl_span.into(),
-                    });
-                };
+                let local = self.function_cx.env.get(cap.id).unwrap_or_else(|| {
+                    panic!("codegen_closure_expr: resolver/typecheck accepted capture without local binding")
+                });
+                let ty_id = local.hir_ty.unwrap_or_else(|| {
+                    panic!("codegen_closure_expr: typecheck accepted capture without HIR type")
+                });
                 capture_bindings.push((cap.id, cap.name.clone(), ty_id, cap.mutable));
             }
 
@@ -285,18 +273,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             let mut capture_bindings: Vec<(hir::SymbolId, String, TypeId, bool)> =
                 Vec::with_capacity(captures.len());
             for cap in &captures {
-                let Some(local) = self.function_cx.env.get(cap.id) else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "capture local not found",
-                        at: cap.decl_span.into(),
-                    });
-                };
-                let Some(ty_id) = local.hir_ty else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "capture local type",
-                        at: cap.decl_span.into(),
-                    });
-                };
+                let local = self.function_cx.env.get(cap.id).unwrap_or_else(|| {
+                    panic!("codegen_closure_expr: resolver/typecheck accepted capture without local binding")
+                });
+                let ty_id = local.hir_ty.unwrap_or_else(|| {
+                    panic!("codegen_closure_expr: typecheck accepted capture without HIR type")
+                });
                 capture_bindings.push((cap.id, cap.name.clone(), ty_id, cap.mutable));
             }
 
@@ -333,28 +315,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             let deferred_env = self.defer_gc_ref_pointer(span, "closure_env_root", env_ptr)?;
 
             for (idx, (id, name, ty_id, _mutable)) in capture_bindings.iter().enumerate() {
-                let Some(local) = self.function_cx.env.get(*id) else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "capture local not found",
-                        at: span.into(),
-                    });
-                };
+                let local = self.function_cx.env.get(*id).unwrap_or_else(|| {
+                    panic!("codegen_closure_expr: resolver/typecheck accepted capture without local binding")
+                });
 
-                let cg_ty = self
-                    .cg_ty_of(*ty_id)
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "capture local type",
-                        at: span.into(),
-                    })?;
-                if !matches!(
-                    cg_ty,
-                    CgTy::Unit | CgTy::Bool | CgTy::Int(_) | CgTy::String | CgTy::Ref
-                ) {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "capture local (non-scalar)",
-                        at: span.into(),
-                    });
-                }
+                let cg_ty = self.expect_cg_ty_of(*ty_id, "closure capture local type");
 
                 let llvm_ty = self.llvm_basic_type_of(span, cg_ty)?;
                 let local_ptr =
@@ -447,7 +412,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     fn closure_param_bindings(
         &self,
-        at: crate::span::Span,
+        _at: crate::span::Span,
         closure: &hir::ClosureExpr,
         fun_ty: &crate::ty::FunctionType,
     ) -> Result<ClosureParamBindings, LlvmEmitError> {
@@ -458,12 +423,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 let receiver_param = explicit_params.remove(receiver_idx);
                 Some((receiver_param.id, "this".to_string(), receiver_ty))
             } else {
-                let Some(receiver_idx) = captures.iter().position(|c| c.name == "this") else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "receiver lambda missing this binder",
-                        at: at.into(),
+                let receiver_idx = captures
+                    .iter()
+                    .position(|c| c.name == "this")
+                    .unwrap_or_else(|| {
+                        panic!("closure_param_bindings: typecheck accepted receiver lambda without `this` binder")
                     });
-                };
                 let receiver_capture = captures.remove(receiver_idx);
                 Some((receiver_capture.id, "this".to_string(), receiver_ty))
             }
@@ -491,12 +456,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         // 隐式 `it`：`{ body }` + expected `(T) -> R`
         if explicit_params.is_empty() && fun_ty.params.len() == 1 {
-            let Some(it_idx) = captures.iter().position(|c| c.name == "it") else {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "implicit it lambda missing it binder",
-                    at: at.into(),
+            let it_idx = captures
+                .iter()
+                .position(|c| c.name == "it")
+                .unwrap_or_else(|| {
+                    panic!("closure_param_bindings: typecheck accepted implicit-it lambda without `it` binder")
                 });
-            };
             let it_cap = captures.remove(it_idx);
 
             let params = vec![(it_cap.id, "it".to_string(), fun_ty.params[0])];
@@ -507,10 +472,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             });
         }
 
-        Err(LlvmEmitError::UnsupportedMainBody {
-            kind: "lambda param arity mismatch",
-            at: at.into(),
-        })
+        panic!("closure_param_bindings: typecheck accepted lambda parameter arity mismatch")
     }
 
     fn codegen_closure_fun_body(
@@ -531,12 +493,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.function_cx.env.push_scope();
 
         // 入口的返回类型由期望函数类型决定（用于 Raise 的“早退默认值”）。
-        let declared_return_cg =
-            self.cg_ty_of(fun_ty.return_ty)
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "lambda return type",
-                    at: closure.span.into(),
-                })?;
+        let declared_return_cg = self.expect_cg_ty_of(fun_ty.return_ty, "lambda return type");
         self.function_cx.current_fun_return_ty = Some(declared_return_cg);
         let uses_hidden_sret = self
             .hidden_sret_result_ty(closure.span, declared_return_cg)?
@@ -547,10 +504,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             Some(
                 spec.llvm_fun
                     .get_nth_param(0)
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "missing llvm lambda sret param",
-                        at: closure.span.into(),
-                    })?
+                    .unwrap_or_else(|| {
+                        panic!("codegen_closure_fun_body: declared lambda sret ABI without LLVM sret param")
+                    })
                     .into_pointer_value(),
             )
         } else {
@@ -572,10 +528,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             let env_i8 = spec
                 .llvm_fun
                 .get_nth_param(env_param_index)
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "missing llvm lambda env param",
-                    at: closure.span.into(),
-                })?
+                .unwrap_or_else(|| {
+                    panic!(
+                        "codegen_closure_fun_body: declared lambda closure ABI without env param"
+                    )
+                })
                 .into_pointer_value();
 
             let env_ty = self.llvm_closure_env_type(
@@ -589,21 +546,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 .build_pointer_cast(env_i8, env_ptr_ty, "closure_env_ptr")?;
 
             for (idx, (id, name, ty_id, mutable)) in spec.capture_bindings.iter().enumerate() {
-                let target_ty =
-                    self.cg_ty_of(*ty_id)
-                        .ok_or(LlvmEmitError::UnsupportedMainBody {
-                            kind: "capture type",
-                            at: closure.span.into(),
-                        })?;
-                if !matches!(
-                    target_ty,
-                    CgTy::Unit | CgTy::Bool | CgTy::Int(_) | CgTy::String | CgTy::Ref
-                ) {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "capture local (non-scalar)",
-                        at: closure.span.into(),
-                    });
-                }
+                let target_ty = self.expect_cg_ty_of(*ty_id, "closure capture type");
 
                 let llvm_ty = self.llvm_basic_type_of(closure.span, target_ty)?;
                 let field_gep = self.builder.build_struct_gep(
@@ -734,21 +677,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let mut fields: Vec<BasicTypeEnum<'ctx>> = Vec::with_capacity(1 + capture_bindings.len());
         fields.push(header_ty.into());
         for (_id, _name, ty_id, _mutable) in capture_bindings {
-            let cg_ty = self
-                .cg_ty_of(*ty_id)
-                .ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "capture type",
-                    at: at.into(),
-                })?;
-            if !matches!(
-                cg_ty,
-                CgTy::Unit | CgTy::Bool | CgTy::Int(_) | CgTy::String | CgTy::Ref
-            ) {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "capture local (non-scalar)",
-                    at: at.into(),
-                });
-            }
+            let cg_ty = self.expect_cg_ty_of(*ty_id, "closure env capture field type");
             fields.push(self.llvm_basic_type_of(at, cg_ty)?);
         }
         env_ty.set_body(&fields, false);

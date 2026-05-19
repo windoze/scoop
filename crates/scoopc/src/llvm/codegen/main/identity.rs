@@ -349,30 +349,21 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(in crate::llvm::codegen) fn stable_closure_key_for_materialized_callable(
         &self,
         callable_fqn: &str,
-        at: crate::span::Span,
+        _at: crate::span::Span,
     ) -> Result<StableClosureKey, LlvmEmitError> {
-        let Some((_, mir_fun)) = self.materialized_mir_callable(callable_fqn) else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "materialized MIR closure stable key",
-                at: at.into(),
-            });
-        };
+        let (_, mir_fun) = self.materialized_mir_callable(callable_fqn).unwrap_or_else(|| {
+            panic!("stable_closure_key_for_materialized_callable: materialized pass view accepted missing closure callable")
+        });
         if !mir_fun.name.starts_with("$lambda") {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "materialized MIR closure stable key",
-                at: at.into(),
-            });
+            panic!("stable_closure_key_for_materialized_callable: callable is not a closure body")
         }
         let mut owner_callable_fqn = callable_fqn;
         while let Some((parent, _)) = owner_callable_fqn.rsplit_once(".$lambda") {
             owner_callable_fqn = parent;
         }
-        let owner_fun = self.hir_fun_for_callable_fqn(owner_callable_fqn).ok_or(
-            LlvmEmitError::UnsupportedMainBody {
-                kind: "materialized MIR closure owner",
-                at: at.into(),
-            },
-        )?;
+        let owner_fun = self.hir_fun_for_callable_fqn(owner_callable_fqn).unwrap_or_else(|| {
+            panic!("stable_closure_key_for_materialized_callable: materialized closure lacks HIR owner")
+        });
         let lexical_path = hir::stable_closure_lexical_path_in_fun(owner_fun, mir_fun.span)
             .ok_or_else(|| LlvmEmitError::Frontend {
                 message: format!(
@@ -404,15 +395,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     pub(in crate::llvm::codegen) fn direct_hir_closure_callable_fqn(
         &self,
-        at: crate::span::Span,
+        _at: crate::span::Span,
         closure: &hir::ClosureExpr,
     ) -> Result<String, LlvmEmitError> {
-        let owner_fqn = self.function_cx.current_callable_fqn.as_deref().ok_or(
-            LlvmEmitError::UnsupportedMainBody {
-                kind: "closure callable owner fqn",
-                at: at.into(),
-            },
-        )?;
+        let owner_fqn = self.function_cx.current_callable_fqn.as_deref().unwrap_or_else(|| {
+            panic!("direct_hir_closure_callable_fqn: closure codegen requires current callable owner")
+        });
         Ok(format!("{owner_fqn}.$lambda{}", closure.id.as_u32()))
     }
 }

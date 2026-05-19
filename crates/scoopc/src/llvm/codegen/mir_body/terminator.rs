@@ -371,12 +371,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 fn_ptr,
                 env_contract,
             } => {
-                let env_cg = self.mir_operand_cg_ty(body, mir_types, env).ok_or(
-                    LlvmEmitError::UnsupportedMainBody {
-                        kind: "pass MIR closure env type",
-                        at: span.into(),
-                    },
-                )?;
+                let env_cg = self.mir_operand_cg_ty(body, mir_types, env).unwrap_or_else(|| {
+                        panic!("codegen_mir_rvalue: MIR verifier accepted closure env without codegen type")
+                    });
                 self.codegen_mir_make_closure(
                     span,
                     env,
@@ -549,10 +546,25 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             crate::mir::Rvalue::Call { .. } => std::panic::panic_any(
                 "codegen_mir_effect_neutral_rvalue: value primitive call must publish ABI before codegen",
             ),
-            crate::mir::Rvalue::MakeClosure { .. } => Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "value primitive closure carrier requires published ABI",
-                at: span.into(),
-            }),
+            crate::mir::Rvalue::MakeClosure {
+                env,
+                fn_ptr,
+                env_contract,
+            } => {
+                let env_cg = self.mir_operand_cg_ty(body, mir_types, env).unwrap_or_else(|| {
+                    panic!("codegen_mir_effect_neutral_rvalue: MIR verifier accepted closure env without codegen type")
+                });
+                self.codegen_mir_make_closure(
+                    span,
+                    env,
+                    fn_ptr,
+                    env_contract,
+                    mir_types,
+                    env_cg,
+                    target_cg,
+                    slots,
+                )
+            }
             crate::mir::Rvalue::ClassCtor { .. } => std::panic::panic_any(
                 "codegen_mir_effect_neutral_rvalue: value primitive class construction must publish ABI before codegen",
             ),

@@ -14,23 +14,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     ) -> Result<Vec<EvaluatedCallArg<'ctx>>, LlvmEmitError> {
         let param_names = self.callable_value_param_names(fun_ty);
         let param_tys = self.callable_value_param_tys(fun_ty);
-        let arg_to_param = map_mir_call_args_to_param_names(&param_names, args).ok_or(
-            LlvmEmitError::UnsupportedMainBody {
-                kind: "pass MIR closure call arg binding",
-                at: span.into(),
-            },
-        )?;
+        let arg_to_param = map_mir_call_args_to_param_names(&param_names, args).unwrap_or_else(|| {
+            panic!("codegen_mir_callable_value_args: MIR call ABI verifier accepted invalid closure argument binding")
+        });
 
         let mut evaluated: Vec<Option<(crate::span::Span, DeferredCgValue<'ctx>)>> =
             vec![None; param_tys.len()];
         for (arg_idx, arg) in args.iter().enumerate() {
             let param_idx = arg_to_param[arg_idx];
-            let target_cg =
-                self.cg_ty_of(param_tys[param_idx])
-                    .ok_or(LlvmEmitError::UnsupportedMainBody {
-                        kind: "pass MIR closure call arg type",
-                        at: arg.span.into(),
-                    })?;
+            let target_cg = self.expect_cg_ty_of(param_tys[param_idx], "closure call arg type");
             let value =
                 self.codegen_mir_operand_expected(arg.span, &arg.value, slots, Some(target_cg))?;
             let coerced = self.coerce_value(arg.span, value, target_cg)?;
@@ -46,10 +38,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .into_iter()
             .enumerate()
             .map(|(param_idx, slot)| {
-                let (arg_span, deferred) = slot.ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "pass MIR closure call arg binding",
-                    at: span.into(),
-                })?;
+                let (arg_span, deferred) = slot.unwrap_or_else(|| {
+                    panic!("codegen_mir_callable_value_args: MIR call ABI verifier accepted missing closure argument")
+                });
                 let param_ty = param_tys[param_idx];
                 let param_abi = self.ordinary_param_abi(span, param_ty)?;
                 if param_abi.pointee_ty().is_some() {
