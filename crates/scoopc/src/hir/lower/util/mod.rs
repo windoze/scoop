@@ -32,9 +32,10 @@ use super::super::{
     CtorCallInfo, CtorCallSiteIndex, EFFECT_ROW_PARAM_DECL_FILE, EnumLayout, EnumLayoutIndex,
     EnumRepr, EnumVariantFieldLayout, EnumVariantLayout, Expr, ExprKind, ExternAbi, ExternFun,
     ExternFunIndex, HandleArm, HandleBinder, HandleExpr, HandleOp, InterpolatedStringPart,
-    LiteralKind, MemberAccess, MemberRef, ObjectInit, ObjectInitIndex, ObjectInitStep,
-    ObjectProperty, Param, Stmt, StmtKind, StructCLayout, StructFieldLayout, StructLayout,
-    StructLayoutIndex, StructLitField, SymbolId, ValDecl, ValueRef, WhenArm, WhenPat,
+    LiteralKind, MemberAccess, MemberRef, NativeCallableFun, NativeCallableFunIndex, ObjectInit,
+    ObjectInitIndex, ObjectInitStep, ObjectProperty, Param, Stmt, StmtKind, StructCLayout,
+    StructFieldLayout, StructLayout, StructLayoutIndex, StructLitField, SymbolId, ValDecl,
+    ValueRef, WhenArm, WhenPat,
 };
 
 pub(crate) type GenericTemplateSymbolSuffixIndex = HashMap<TemplateKey, String>;

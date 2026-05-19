@@ -467,6 +467,106 @@ pub(in crate::hir::lower) fn collect_extern_funs(
     out
 }
 
+pub(in crate::hir::lower) fn collect_native_callable_funs(
+    source: &SourceFile,
+    file: &ast::File,
+) -> NativeCallableFunIndex {
+    let pkg_prefix = package_prefix(source, file.package.as_ref());
+    let mut out: NativeCallableFunIndex = HashMap::new();
+
+    for item in &file.items {
+        match item {
+            ast::Item::Fun(fun) => {
+                collect_native_callable_fun_decl(source, fun, &pkg_prefix, &mut out);
+            }
+            ast::Item::Type(decl) => {
+                collect_native_callable_funs_in_type_decl(source, decl, &pkg_prefix, &mut out);
+            }
+            ast::Item::Object(obj) => {
+                collect_native_callable_funs_in_object_decl(source, obj, &pkg_prefix, &mut out);
+            }
+            ast::Item::TypeAlias(_)
+            | ast::Item::ExtensionProperty(_)
+            | ast::Item::Val(_)
+            | ast::Item::ComptimeIf(_) => {}
+        }
+    }
+
+    out
+}
+
+fn collect_native_callable_funs_in_type_decl(
+    source: &SourceFile,
+    decl: &ast::TypeDecl,
+    owner_prefix: &str,
+    out: &mut NativeCallableFunIndex,
+) {
+    let owner_fqn = join_prefix(owner_prefix, decl.name.text(source));
+    let Some(body) = &decl.body else { return };
+
+    for member in &body.members {
+        match member {
+            ast::TypeMember::Fun(fun) => {
+                collect_native_callable_fun_decl(source, fun, &owner_fqn, out);
+            }
+            ast::TypeMember::Type(nested) => {
+                collect_native_callable_funs_in_type_decl(source, nested, &owner_fqn, out);
+            }
+            ast::TypeMember::Object(obj) => {
+                collect_native_callable_funs_in_object_decl(source, obj, &owner_fqn, out);
+            }
+            ast::TypeMember::EnumVariant(_)
+            | ast::TypeMember::Property(_)
+            | ast::TypeMember::InitBlock(_)
+            | ast::TypeMember::SecondaryCtor(_) => {}
+        }
+    }
+}
+
+fn collect_native_callable_funs_in_object_decl(
+    source: &SourceFile,
+    obj: &ast::ObjectDecl,
+    owner_prefix: &str,
+    out: &mut NativeCallableFunIndex,
+) {
+    let Some(obj_name) = object_decl_name(source, obj) else {
+        return;
+    };
+    let owner_fqn = join_prefix(owner_prefix, &obj_name);
+    let Some(body) = &obj.body else { return };
+
+    for member in &body.members {
+        match member {
+            ast::TypeMember::Fun(fun) => {
+                collect_native_callable_fun_decl(source, fun, &owner_fqn, out);
+            }
+            ast::TypeMember::Type(nested) => {
+                collect_native_callable_funs_in_type_decl(source, nested, &owner_fqn, out);
+            }
+            ast::TypeMember::Object(nested) => {
+                collect_native_callable_funs_in_object_decl(source, nested, &owner_fqn, out);
+            }
+            ast::TypeMember::EnumVariant(_)
+            | ast::TypeMember::Property(_)
+            | ast::TypeMember::InitBlock(_)
+            | ast::TypeMember::SecondaryCtor(_) => {}
+        }
+    }
+}
+
+fn collect_native_callable_fun_decl(
+    source: &SourceFile,
+    fun: &ast::FunDecl,
+    owner_prefix: &str,
+    out: &mut NativeCallableFunIndex,
+) {
+    let name = fun.name.text(source).to_string();
+    let Some(native_callable) = native_callable_fun_of_decl(source, fun, &name) else {
+        return;
+    };
+    out.insert(join_prefix(owner_prefix, &name), native_callable);
+}
+
 #[derive(Debug, Default, Clone)]
 pub(in crate::hir::lower) struct ExternAnnotationArgs {
     pub(in crate::hir::lower) name: Option<String>,
@@ -560,6 +660,28 @@ pub(in crate::hir::lower) fn extern_fun_of_decl(
             symbol,
             calling_convention: args.calling_convention,
             lib: args.lib,
+        });
+    }
+
+    None
+}
+
+pub(in crate::hir::lower) fn native_callable_fun_of_decl(
+    source: &SourceFile,
+    fun: &ast::FunDecl,
+    default_symbol: &str,
+) -> Option<NativeCallableFun> {
+    for ann in &fun.annotations {
+        if !is_builtin_calling_convention_annotation(source, ann) {
+            continue;
+        }
+
+        let args = parse_calling_convention_annotation_args(source, ann);
+        let calling_convention = args.convention?;
+        let symbol = args.symbol.unwrap_or_else(|| default_symbol.to_string());
+        return Some(NativeCallableFun {
+            symbol,
+            calling_convention,
         });
     }
 
@@ -736,6 +858,58 @@ pub(in crate::hir::lower) fn is_builtin_calling_convention_annotation(
         segs.as_slice(),
         ["CallingConvention"] | ["scoop", "core", "CallingConvention"]
     )
+}
+
+#[derive(Debug, Default, Clone)]
+pub(in crate::hir::lower) struct CallingConventionAnnotationArgs {
+    pub(in crate::hir::lower) symbol: Option<String>,
+    pub(in crate::hir::lower) convention: Option<String>,
+}
+
+pub(in crate::hir::lower) fn parse_calling_convention_annotation_args(
+    source: &SourceFile,
+    ann: &ast::AnnotationUse,
+) -> CallingConventionAnnotationArgs {
+    let mut out = CallingConventionAnnotationArgs::default();
+    let mut seen_named = false;
+
+    for arg in &ann.args {
+        let (key, value) = match &arg.name {
+            Some(name_id) => (Some(name_id.text(source)), Some(&arg.value)),
+            None => match &arg.value.kind {
+                ast::ExprKind::Assign { lhs, rhs, .. } => match &lhs.kind {
+                    ast::ExprKind::Ident(id) => (Some(source.slice(id.span)), Some(rhs.as_ref())),
+                    _ => (None, None),
+                },
+                _ => (None, Some(&arg.value)),
+            },
+        };
+
+        if let (Some(key), Some(value)) = (key, value) {
+            seen_named = true;
+            if !matches!(value.kind, ast::ExprKind::StringLit) {
+                continue;
+            }
+            let text = source.slice(value.span);
+            match key {
+                "name" => out.symbol = parse_string_literal_utf8(text).ok(),
+                "convention" => out.convention = parse_string_literal_utf8(text).ok(),
+                _ => {}
+            }
+            continue;
+        }
+
+        if seen_named
+            || out.convention.is_some()
+            || !matches!(arg.value.kind, ast::ExprKind::StringLit)
+        {
+            continue;
+        }
+        let text = source.slice(arg.value.span);
+        out.convention = parse_string_literal_utf8(text).ok();
+    }
+
+    out
 }
 
 pub(in crate::hir::lower) fn parse_calling_convention_annotation_arg(

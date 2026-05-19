@@ -260,6 +260,7 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
 
     // T1006：收集 `@Extern` 外部函数的符号名与 ABI（side table；不影响 dump-hir 输出）。
     let extern_funs = collect_extern_funs(source, &ast);
+    let native_callable_funs = collect_native_callable_funs(source, &ast);
     let extern_libs = collect_extern_libs(&pairs);
 
     // T0811：早期 LLVM codegen 需要知道 struct 的字段顺序与字段类型，用于生成字段 GEP 索引。
@@ -324,6 +325,7 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
         struct_layouts,
         enum_layouts,
         extern_funs,
+        native_callable_funs,
         extern_globals,
         extern_libs,
         top_level_vars,

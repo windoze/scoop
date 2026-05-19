@@ -522,6 +522,7 @@ fn build_module_from_codegen_entry_with_root_selector<'ctx>(
             direct_supertypes: &lowered.direct_supertypes,
             builtins: lowered.builtins,
             extern_funs: &lowered.extern_funs,
+            native_callable_funs: &lowered.native_callable_funs,
             fun_index: &fun_index,
             materialized_pass_view,
             published_late_lowered_program: abi_program.or(Some(late_lowered_program)),
@@ -640,6 +641,7 @@ fn build_module_from_codegen_entry_with_root_selector<'ctx>(
         abi_pass_view,
         &abi_query,
     )?;
+    declare.codegen_native_callable_body_symbols(&abi_query)?;
 
     fn callable_base_fqn(fqn: &str) -> &str {
         let base = fqn.rsplit_once("::<").map(|(base, _)| base).unwrap_or(fqn);

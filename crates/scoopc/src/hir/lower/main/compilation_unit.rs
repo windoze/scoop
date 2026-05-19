@@ -189,6 +189,7 @@ pub fn lower_for_compilation_unit_with_stable_cone_key(
     with_update_contracts.extend(side_table_with_update_contracts);
     assign_place_contracts.extend(side_table_assign_place_contracts);
     let extern_funs = collect_extern_funs(source, file);
+    let native_callable_funs = collect_native_callable_funs(source, file);
     let extern_libs = collect_extern_libs(compilation_unit);
     let mut struct_layouts = collect_struct_layouts(compilation_unit, index, &mut types);
     let mut enum_layouts = collect_enum_layouts(compilation_unit, index, &mut types);
@@ -232,6 +233,7 @@ pub fn lower_for_compilation_unit_with_stable_cone_key(
         struct_layouts,
         enum_layouts,
         extern_funs,
+        native_callable_funs,
         extern_globals,
         extern_libs,
         top_level_vars,
@@ -736,6 +738,10 @@ pub(crate) fn lower_for_compilation_unit_multi_files_internal<'a>(
         .iter()
         .flat_map(|(source, file)| collect_extern_funs(source, file))
         .collect();
+    let native_callable_funs = files_to_lower
+        .iter()
+        .flat_map(|(source, file)| collect_native_callable_funs(source, file))
+        .collect();
     let extern_libs = collect_extern_libs(compilation_unit);
     let mut struct_layouts = collect_struct_layouts(compilation_unit, index, &mut types);
     let mut enum_layouts = collect_enum_layouts(compilation_unit, index, &mut types);
@@ -953,6 +959,7 @@ pub(crate) fn lower_for_compilation_unit_multi_files_internal<'a>(
         struct_layouts,
         enum_layouts,
         extern_funs,
+        native_callable_funs,
         extern_globals,
         extern_libs,
         top_level_vars,

@@ -1,0 +1,14 @@
+// EXPECT: fail
+// EXPECT-ERROR: `@CallingConvention` 函数的 native ABI 签名只接受当前 native value surface
+// EXPECT-ERROR-CODE: scoop::typecheck::calling_convention_fun_signature_not_supported_by_native_abi
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+@CallingConvention(name = "scoop_bad_gc_ref_entry", convention = "C")
+fun badGcRefEntry(message: String): Int {
+    return 0
+}
+
+fun main() {}

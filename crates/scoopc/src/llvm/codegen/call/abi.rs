@@ -210,6 +210,23 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.classify_native_callable_impl(span, param_tys, return_ty, NativeCallableOrigin::FunPtr)
     }
 
+    pub(in crate::llvm::codegen) fn classify_native_callable_body_symbol_impl(
+        &mut self,
+        span: crate::span::Span,
+        param_tys: &[TypeId],
+        return_ty: TypeId,
+        calling_convention: &str,
+    ) -> Result<NativeCallableAbi<'ctx>, LlvmEmitError> {
+        let mut abi = self.classify_native_callable_impl(
+            span,
+            param_tys,
+            return_ty,
+            NativeCallableOrigin::FunPtr,
+        )?;
+        abi.call_convention = self.llvm_call_convention_for_name(calling_convention);
+        Ok(abi)
+    }
+
     pub(in crate::llvm::codegen) fn emit_native_callable_call_impl(
         &mut self,
         at: crate::span::Span,

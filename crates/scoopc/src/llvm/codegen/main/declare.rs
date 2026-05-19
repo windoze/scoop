@@ -649,4 +649,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
         Ok(())
     }
+
+    pub(in crate::llvm::codegen) fn llvm_call_convention_for_name(&self, name: &str) -> u32 {
+        match name.trim().to_ascii_lowercase().as_str() {
+            "c" | "cdecl" => 0,
+            // 其它 calling convention 名称留到后续任务再补齐（spec §15.5.4）。
+            _ => 0,
+        }
+    }
 }

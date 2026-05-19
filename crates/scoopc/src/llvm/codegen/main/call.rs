@@ -699,4 +699,19 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .build_unconditional_branch(return_ctx.return_bb)?;
         Ok(())
     }
+
+    pub(in crate::llvm::codegen) fn classify_native_callable_body_symbol(
+        &mut self,
+        span: crate::span::Span,
+        param_tys: &[TypeId],
+        return_ty: TypeId,
+        calling_convention: &str,
+    ) -> Result<NativeCallableAbi<'ctx>, LlvmEmitError> {
+        self.classify_native_callable_body_symbol_impl(
+            span,
+            param_tys,
+            return_ty,
+            calling_convention,
+        )
+    }
 }

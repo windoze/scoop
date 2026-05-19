@@ -1,0 +1,17 @@
+// EXPECT: pass
+// ARGS: --emit-llvm
+// BUILD-LLVM-CONTAINS: define i64 @scoop_native_add_for_c(
+// BUILD-LLVM-CONTAINS: native_to_plain
+// BUILD-LLVM-NOT-CONTAINS: @scoop_enter_native(
+// BUILD-LLVM-NOT-CONTAINS: @scoop_leave_native(
+
+package fixtures.build
+
+import scoop.core.*
+
+@CallingConvention(name = "scoop_native_add_for_c", convention = "C")
+fun nativeAddForC(a: Int, b: Int): Int {
+    return a + b
+}
+
+fun main() / Pure! {}

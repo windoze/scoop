@@ -1174,6 +1174,19 @@ impl ExternAbi {
 /// `fun FQN -> ExternFun` 的索引（由 HIR lowering 构建，供后端查询）。
 pub type ExternFunIndex = HashMap<String, ExternFun>;
 
+/// 有 body 的 `@CallingConvention` 函数发布的 object-level native callable symbol。
+///
+/// 该 symbol 只用于同一最终链接产物内的 native object 调用，不表示 package/dylib export，
+/// 也不改变 Scoop 代码内对该函数的 ordinary managed ABI 调用方式。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NativeCallableFun {
+    pub symbol: String,
+    pub calling_convention: String,
+}
+
+/// `fun FQN -> NativeCallableFun` 的索引（由 HIR lowering 构建，供 LLVM 后端生成 wrapper）。
+pub type NativeCallableFunIndex = HashMap<String, NativeCallableFun>;
+
 /// 外部顶层变量（`@Extern val/var`）的 HIR handoff contract。
 ///
 /// 说明：该 side table 把外部符号、链接语义与 unsafe access requirement 显式交给后续阶段，

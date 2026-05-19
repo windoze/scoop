@@ -98,6 +98,11 @@ struct ParsedExternAnnotationArgs {
     calling_convention_span: Option<Span>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+struct ParsedCallingConventionAnnotationArgs {
+    convention_span: Option<Span>,
+}
+
 #[derive(Debug, Error, Diagnostic)]
 pub enum AnnotationError {
     #[error("`annotation` 关键字只能用于 `annotation class` 声明，但这里出现在 {found} 上")]
@@ -251,7 +256,9 @@ pub enum AnnotationError {
         span: miette::SourceSpan,
     },
 
-    #[error("`@CallingConvention` 仅支持：单个字符串位置参数 / 命名参数 `name`（字符串字面量）")]
+    #[error(
+        "`@CallingConvention` 仅支持：单个字符串位置参数，或命名参数 `convention` 与可选 `name`（字符串字面量）"
+    )]
     #[diagnostic(code(scoop::typecheck::calling_convention_annotation_args_invalid))]
     CallingConventionAnnotationArgsInvalid {
         #[label("这里")]
@@ -263,6 +270,47 @@ pub enum AnnotationError {
     CallingConventionNotSupported {
         name: String,
         #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("`@CallingConvention` 函数必须提供函数体：{fun_name}")]
+    #[diagnostic(code(scoop::typecheck::calling_convention_fun_must_have_body))]
+    CallingConventionFunMustHaveBody {
+        fun_name: String,
+        #[label("这里需要函数体")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("`@CallingConvention` 当前不支持泛型函数")]
+    #[diagnostic(code(scoop::typecheck::calling_convention_fun_generics_not_supported))]
+    CallingConventionFunGenericsNotSupported {
+        #[label("这里的类型参数不在当前支持范围内")]
+        span: miette::SourceSpan,
+    },
+
+    #[error(
+        "`@CallingConvention` 函数的 native ABI 签名只接受当前 native value surface：标量、`UIntPtr`、`Ptr<T>`、纯 `FunPtr<F>` token、tuple，以及 `@CLayout` struct；不接受 {found}"
+    )]
+    #[diagnostic(code(
+        scoop::typecheck::calling_convention_fun_signature_not_supported_by_native_abi
+    ))]
+    CallingConventionFunSignatureNotSupportedByNativeAbi {
+        found: String,
+        #[label("这里的类型不在当前 native ABI contract 中")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("`@CallingConvention` 函数不允许声明非 Pure 的 effect row")]
+    #[diagnostic(code(scoop::typecheck::calling_convention_fun_effects_not_allowed))]
+    CallingConventionFunEffectsNotAllowed {
+        #[label("native callable object symbol 必须是 Pure（或省略 effect row）")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("`@CallingConvention` 函数不允许声明 effect row 参数")]
+    #[diagnostic(code(scoop::typecheck::calling_convention_fun_eff_param_not_allowed))]
+    CallingConventionFunEffParamNotAllowed {
+        #[label("native callable object symbol 不能依赖 effect 多态")]
         span: miette::SourceSpan,
     },
 
@@ -2217,7 +2265,8 @@ fn check_builtin_annotations_on_fun_decl(
     let flags = BuiltinAnnotationFlags::from_annotations(source, &fun.annotations);
     let fun_name = source.slice(fun.name.span).to_string();
     let mut extern_args = None;
-    let mut standalone_calling_convention_span = None;
+    let mut calling_convention_args = None;
+    let mut calling_convention_annotation_span = None;
 
     // 1) `@Unsafe/@NoGC` 当前不支持参数；`@Extern` 支持最小 FFI 形态参数；
     //    `@Intrinsic` 继续支持 legacy 零参数形态，并新增 `@Intrinsic("name")`。
@@ -2234,9 +2283,10 @@ fn check_builtin_annotations_on_fun_decl(
                 )?);
             }
             BuiltinAnnotationKind::CallingConvention => {
-                check_calling_convention_builtin_annotation_args(source, ann)?;
+                let args = check_calling_convention_builtin_annotation_args(source, ann)?;
                 let (_, name_span) = annotation_name_and_span(source, ann);
-                standalone_calling_convention_span = Some(name_span);
+                calling_convention_args = Some(args);
+                calling_convention_annotation_span = Some(name_span);
             }
             BuiltinAnnotationKind::AllowIntrinsic => {
                 let (_, name_span) = annotation_name_and_span(source, ann);
@@ -2302,7 +2352,7 @@ fn check_builtin_annotations_on_fun_decl(
     }
 
     if flags.is_extern {
-        if let Some(span) = standalone_calling_convention_span {
+        if let Some(span) = calling_convention_annotation_span {
             return Err(
                 AnnotationError::ExternFunCallingConventionAnnotationNotAllowed {
                     span: span.into(),
@@ -2348,6 +2398,8 @@ fn check_builtin_annotations_on_fun_decl(
                 check_extern_fun_signature_matches_scoop_abi_v1(source, fun, lower)?;
             }
         }
+    } else if let Some(args) = calling_convention_args {
+        check_calling_convention_fun_contract(source, fun, lower, args)?;
     }
 
     Ok(())
@@ -2563,6 +2615,98 @@ fn check_extern_fun_signature_matches_native_abi(
     Ok(())
 }
 
+fn check_calling_convention_fun_contract(
+    source: &SourceFile,
+    fun: &ast::FunDecl,
+    lower: &mut TypeLowering<'_>,
+    _args: ParsedCallingConventionAnnotationArgs,
+) -> Result<(), AnnotationError> {
+    if matches!(fun.body, ast::FunBody::Missing) {
+        let fun_name = source.slice(fun.name.span).to_string();
+        return Err(AnnotationError::CallingConventionFunMustHaveBody {
+            fun_name,
+            span: fun.name.span.into(),
+        });
+    }
+
+    if let Some(type_param) = fun.type_params.first() {
+        return Err(AnnotationError::CallingConventionFunGenericsNotSupported {
+            span: type_param.span.into(),
+        });
+    }
+
+    check_calling_convention_fun_effect_contract(fun)?;
+    check_calling_convention_fun_signature_matches_native_abi(source, fun, lower)
+}
+
+fn check_calling_convention_fun_effect_contract(fun: &ast::FunDecl) -> Result<(), AnnotationError> {
+    if let Some(eff_param) = &fun.eff_param {
+        return Err(AnnotationError::CallingConventionFunEffParamNotAllowed {
+            span: eff_param.span.into(),
+        });
+    }
+
+    if let Some(effects) = &fun.effects
+        && !effects.terms.is_empty()
+    {
+        return Err(AnnotationError::CallingConventionFunEffectsNotAllowed {
+            span: effects.span.into(),
+        });
+    }
+
+    Ok(())
+}
+
+fn check_calling_convention_fun_signature_matches_native_abi(
+    source: &SourceFile,
+    fun: &ast::FunDecl,
+    lower: &mut TypeLowering<'_>,
+) -> Result<(), AnnotationError> {
+    if let Some(receiver) = fun.receiver.as_ref() {
+        check_calling_convention_type_ref_matches_native_abi(source, receiver, lower)?;
+    }
+
+    for p in &fun.params {
+        let Some(ty_ref) = p.ty.as_ref() else {
+            continue;
+        };
+        check_calling_convention_type_ref_matches_native_abi(source, ty_ref, lower)?;
+    }
+
+    if let Some(ret_ty_ref) = fun.return_ty.as_ref() {
+        check_calling_convention_type_ref_matches_native_abi(source, ret_ty_ref, lower)?;
+    }
+
+    Ok(())
+}
+
+fn check_calling_convention_type_ref_matches_native_abi(
+    _source: &SourceFile,
+    ty_ref: &ast::TypeRef,
+    lower: &mut TypeLowering<'_>,
+) -> Result<(), AnnotationError> {
+    let ty = match lower.lower_type_ref(ty_ref) {
+        Ok(ty) => ty,
+        Err(_e) => return Ok(()),
+    };
+
+    let is_native_abi = match lower.is_native_abi_value_type(ty) {
+        Ok(v) => v,
+        Err(_e) => return Ok(()),
+    };
+
+    if is_native_abi {
+        return Ok(());
+    }
+
+    Err(
+        AnnotationError::CallingConventionFunSignatureNotSupportedByNativeAbi {
+            found: lower.fmt_type(ty),
+            span: ty_ref.span().into(),
+        },
+    )
+}
+
 fn check_extern_abi_type_ref_matches_native_abi(
     _source: &SourceFile,
     ty_ref: &ast::TypeRef,
@@ -2696,46 +2840,90 @@ fn check_builtin_annotations_on_top_level_val_decl(
 fn check_calling_convention_builtin_annotation_args(
     source: &SourceFile,
     ann: &ast::AnnotationUse,
-) -> Result<(), AnnotationError> {
-    if ann.args.len() != 1 {
+) -> Result<ParsedCallingConventionAnnotationArgs, AnnotationError> {
+    if ann.args.is_empty() {
         return Err(AnnotationError::CallingConventionAnnotationArgsInvalid {
             span: ann.span.into(),
         });
     }
 
-    let arg = &ann.args[0];
-    let (key, key_span, value) = match &arg.name {
-        Some(name_id) => (Some(name_id.text(source)), name_id.span, &arg.value),
-        None => match &arg.value.kind {
-            ast::ExprKind::Assign { lhs, rhs, .. } => {
-                let ast::ExprKind::Ident(id) = &lhs.kind else {
-                    return Err(AnnotationError::CallingConventionAnnotationArgsInvalid {
-                        span: lhs.span.into(),
-                    });
-                };
-                (Some(source.slice(id.span)), id.span, rhs.as_ref())
-            }
-            _ => (None, arg.span, &arg.value),
-        },
-    };
+    let mut parsed = ParsedCallingConventionAnnotationArgs::default();
+    let mut convention_arg: Option<Span> = None;
+    let mut name_arg: Option<Span> = None;
+    let mut seen_named = false;
 
-    if let Some(key) = key
-        && key != "name"
-    {
+    for arg in &ann.args {
+        let (key, key_span, value) = match &arg.name {
+            Some(name_id) => (Some(name_id.text(source)), name_id.span, &arg.value),
+            None => match &arg.value.kind {
+                ast::ExprKind::Assign { lhs, rhs, .. } => {
+                    let ast::ExprKind::Ident(id) = &lhs.kind else {
+                        return Err(AnnotationError::CallingConventionAnnotationArgsInvalid {
+                            span: lhs.span.into(),
+                        });
+                    };
+                    (Some(source.slice(id.span)), id.span, rhs.as_ref())
+                }
+                _ => {
+                    if seen_named || convention_arg.is_some() {
+                        return Err(AnnotationError::CallingConventionAnnotationArgsInvalid {
+                            span: arg.span.into(),
+                        });
+                    }
+                    let Some(name) = extract_string_literal_text(source, &arg.value) else {
+                        return Err(AnnotationError::CallingConventionAnnotationArgsInvalid {
+                            span: arg.value.span.into(),
+                        });
+                    };
+                    check_calling_convention_name(&name, arg.value.span)?;
+                    convention_arg = Some(arg.span);
+                    parsed.convention_span = Some(arg.value.span);
+                    continue;
+                }
+            },
+        };
+
+        seen_named = true;
+        let Some(value_text) = extract_string_literal_text(source, value) else {
+            return Err(AnnotationError::CallingConventionAnnotationArgsInvalid {
+                span: value.span.into(),
+            });
+        };
+
+        match key {
+            Some("name") => {
+                if name_arg.is_some() {
+                    return Err(AnnotationError::CallingConventionAnnotationArgsInvalid {
+                        span: key_span.into(),
+                    });
+                }
+                name_arg = Some(key_span);
+            }
+            Some("convention") => {
+                if convention_arg.is_some() {
+                    return Err(AnnotationError::CallingConventionAnnotationArgsInvalid {
+                        span: key_span.into(),
+                    });
+                }
+                check_calling_convention_name(&value_text, value.span)?;
+                convention_arg = Some(key_span);
+                parsed.convention_span = Some(value.span);
+            }
+            _ => {
+                return Err(AnnotationError::CallingConventionAnnotationArgsInvalid {
+                    span: key_span.into(),
+                });
+            }
+        }
+    }
+
+    if parsed.convention_span.is_none() {
         return Err(AnnotationError::CallingConventionAnnotationArgsInvalid {
-            span: key_span.into(),
+            span: ann.span.into(),
         });
     }
 
-    let Some(name) = extract_string_literal_text(source, value) else {
-        return Err(AnnotationError::CallingConventionAnnotationArgsInvalid {
-            span: value.span.into(),
-        });
-    };
-
-    check_calling_convention_name(&name, value.span)?;
-
-    Ok(())
+    Ok(parsed)
 }
 
 fn check_calling_convention_name(name: &str, span: Span) -> Result<(), AnnotationError> {

@@ -44,16 +44,16 @@ use super::super::effect_outcome::{EffectOutcomeTag, ValueTransportParts};
 use super::super::mir_body::{MirLocalSlot, collect_mir_local_uses};
 use super::super::types::{CgTy, CgValue};
 use super::super::{
-    CallableCarrierKind, EFFECT_INSTANCE_KEY_RAISE_RUNTIME_ERROR, MainCodegen, TypeDescriptorSpec,
-    private_closure_env_type_name,
+    CallableCarrierKind, EFFECT_INSTANCE_KEY_RAISE_RUNTIME_ERROR, MainCodegen, NativeCallableAbi,
+    TypeDescriptorSpec, private_closure_env_type_name,
 };
 use super::stable_naming;
 use super::types::{
     CallTargetQuery, CallableEntryLayout, CallableLayout, ContinuationSurfaceResumeDispatchTarget,
     ContinuationSurfaceResumeLayout, DynamicInvokeCarrierLayout, DynamicInvokeLayout, FrameLayout,
     HandleContinuationBinderLayout, HandlePayloadBinderLayout, LocalRuntimeErrorTerminalAction,
-    PlainCallableLayout, ProgramAbiQuery, SourceAbiLayout, SourceAbiLayoutKind, StepCaseLayout,
-    StepLayout, StepVariantLayout,
+    PlainCallableEntryLayout, PlainCallableLayout, ProgramAbiQuery, SourceAbiLayout,
+    SourceAbiLayoutKind, StepCaseLayout, StepLayout, StepVariantLayout,
 };
 use super::value::ValuePrimitives;
 
@@ -420,6 +420,7 @@ mod lower_source;
 mod main_carrier;
 mod main_entry;
 mod main_resume;
+mod native_callable;
 mod payload;
 mod runtime_error;
 mod runtime_types;

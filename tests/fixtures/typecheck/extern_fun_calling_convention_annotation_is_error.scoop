@@ -7,5 +7,5 @@ package fixtures.typecheck
 import scoop.core.*
 
 @Extern("native_add")
-@CallingConvention("cdecl")
+@CallingConvention(name = "native_add_object", convention = "C")
 fun nativeAdd(lhs: Int, rhs: Int): Int

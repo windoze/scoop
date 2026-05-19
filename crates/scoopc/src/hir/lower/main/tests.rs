@@ -1145,6 +1145,35 @@ fun nativeAdd(lhs: Int, rhs: Int): Int
 }
 
 #[test]
+fn hir_collects_native_callable_body_symbol() {
+    let sess = session();
+    let src = SourceFile::new_virtual(
+        "<mem>/hir_collects_native_callable_body_symbol.scoop",
+        r#"
+package fixtures.hir
+
+import scoop.core.*
+
+@CallingConvention(name = "scoop_native_add_for_c", convention = "C")
+fun nativeAddForC(lhs: Int, rhs: Int): Int {
+    return lhs + rhs
+}
+
+fun main() {}
+"#,
+    );
+
+    let lowered = lower_typed_single_source_file(&sess, &src);
+    let native_callable = lowered
+        .native_callable_funs
+        .get("fixtures.hir.nativeAddForC")
+        .expect("expected native callable side-table entry");
+
+    assert_eq!(native_callable.symbol, "scoop_native_add_for_c");
+    assert_eq!(native_callable.calling_convention, "C");
+}
+
+#[test]
 fn hir_comptime_expands_block_if_for_and_package_if() {
     let sess = session();
     let src = SourceFile::new_virtual(

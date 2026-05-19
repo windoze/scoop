@@ -3,7 +3,7 @@
 > 生成时间：2026-05-19
 > 设计基线：[`SYSROOT_RESHAPE_R2.md`](./SYSROOT_RESHAPE_R2.md)
 > 计划基线：[`PLAN.md`](./PLAN.md)
-> 当前状态：`P2-T01` 已完成；下一任务为 `P2-T02`。
+> 当前状态：`P2-T02` 已完成；下一任务为 `P2-T03`。
 > 执行原则：严格按 P0 -> P10 顺序推进；同一阶段内可按任务依赖拆 PR，但每个任务完成后必须保持仓库无 failing fixture，并回写完成记录。
 
 ## 全局约束
@@ -93,7 +93,7 @@ P0 baseline freeze
 | `P1-T02` | [DONE] | P1 | 移除 normal build 的 `.cone` dependency flow |
 | `P1-T03` | [DONE] | P1 | 删除或改写 archive fixtures 与 archive-only tests |
 | `P2-T01` | [DONE] | P2 | `@Extern` 支持 `callingConvention` property |
-| `P2-T02` | [TODO] | P2 | 有 body 的 `@CallingConvention` 生成 object-level native callable symbol |
+| `P2-T02` | [DONE] | P2 | 有 body 的 `@CallingConvention` 生成 object-level native callable symbol |
 | `P2-T03` | [TODO] | P2 | 支持 `Any as?` closed Pure function runtime cast |
 | `P3-T01` | [TODO] | P3 | `Cone.toml` 解析 `kind = bin/lib/syslib` |
 | `P3-T02` | [TODO] | P3 | `lib/syslib` 无 entry point 加载规则 |
@@ -233,7 +233,7 @@ P0 baseline freeze
 - 与 `PLAN.md` / `SYSROOT_RESHAPE_R2.md` 闭合项：满足 P2 中“`@Extern` 拥有 `name`、`abi` 和可选 `callingConvention`”以及“`@Extern` 和 `@CallingConvention` 互斥”的要求；有 body 的 `@CallingConvention` 语义仍留给 `P2-T02`。
 - 验证结果：`cargo fmt` 通过；`cargo test -p scoopc hir_collects_extern_calling_convention_property -- --nocapture` 通过；`cargo test -p scoopc typecheck::annotations -- --nocapture` 通过（0 个匹配单测）；`cargo run -p scoop -- test tests/fixtures/parse/extern_fun_calling_convention_property.scoop` 通过；`cargo run -p scoop -- test tests/fixtures/typecheck/` 通过（496 checks）；`cargo build` 通过；`cargo clippy --all-targets -- -D warnings` 通过；`cargo test --all --all-targets` 通过（905 passed）；`cargo run -p scoop -- test` 通过（1556 checks）。
 
-## P2-T02：有 body 的 `@CallingConvention` 生成 object-level native callable symbol
+## [DONE] P2-T02：有 body 的 `@CallingConvention` 生成 object-level native callable symbol
 
 - 参考：`PLAN.md` §5、`SYSROOT_RESHAPE_R2.md` §6。
 - 目标：Scoop 函数可生成 object-level native callable symbol，供 cone-local C 调用，但不表示 dylib/package export。
@@ -246,6 +246,15 @@ P0 baseline freeze
   5. `@Extern` 与 `@CallingConvention` 同时出现稳定拒绝。
 - 验证：新增 build/IR fixture 检查 symbol/callconv；新增 negative fixtures 覆盖互斥和 GC ref 参数拒绝。
 - 完成条件：cone-local C 可以链接调用 compiler 生成的 C-callable Scoop body function。
+
+### 完成记录（2026-05-20）
+
+- 改动范围：`crates/scoopc/src/typecheck/annotations.rs`、HIR lowering side table、LLVM codegen native callable wrapper emission、`llvm/emit.rs` 调用入口、相关 HIR 单测与 build/typecheck/run-pass-cone fixtures；未修改 `PLAN.md`。
+- 核心决策：`@CallingConvention(name = "...", convention = "C")` 用于有 body 的普通 Scoop 函数时，不改变该函数的 ordinary managed Scoop ABI；后端额外生成 object-level C ABI wrapper symbol，wrapper 直接调用 plain managed entry，不插入 `scoop_enter_native` / `scoop_leave_native`，native caller 需自行满足 GC attach 等运行时前提。
+- 语义门禁：`@Extern` 与 `@CallingConvention` 同时出现继续稳定拒绝；`@CallingConvention` body 函数必须有 body、非泛型、无 effect row/effect row 参数，且 receiver/参数/返回值必须属于当前 native value surface（标量、`UIntPtr`、`Ptr<T>`、纯 `FunPtr<F>` token、tuple、`@CLayout` struct）。
+- Fixture / tests：新增 HIR 单测 `hir_collects_native_callable_body_symbol`；新增 `tests/fixtures/build/calling_convention_body_symbol_emit_llvm.scoop` 检查 wrapper symbol、plain call 和无 enter/leave native；新增 `calling_convention_body_gc_ref_param_is_error.scoop`、`calling_convention_body_effect_row_is_error.scoop`；更新互斥 fixture 为 `name` + `convention` 形态；新增 `tests/fixtures/run_pass_cone/c_sources_calling_convention_body_link/`，通过 cone-local C object 对 generated symbol 的引用证明链接可解析。
+- 与 `PLAN.md` / `SYSROOT_RESHAPE_R2.md` 闭合项：满足 P2 中“`@CallingConvention` 用于有 body 的 Scoop 函数生成 object-level native callable symbol”、“与 `@Extern` 互斥”、“C ABI / GC-free surface gate”和“不表示 package/dylib export”的要求；未发现需要改变阶段级计划或设计基线的 blocker。
+- 验证结果：`cargo fmt` 通过；`cargo test -p scoopc hir_collects_native_callable_body_symbol -- --nocapture` 通过；`cargo run -p scoop -- test tests/fixtures/build/calling_convention_body_symbol_emit_llvm.scoop` 通过；`cargo run -p scoop -- test tests/fixtures/typecheck/` 通过（498 checks）；`cargo run -p scoop -- test tests/fixtures/run_pass_cone/c_sources_calling_convention_body_link` 通过；`cargo build` 通过；`cargo clippy --all-targets -- -D warnings` 通过；`cargo test --all --all-targets` 首次 120s 超时，600s 重跑通过；`cargo run -p scoop -- test` 通过（fixtures: ok，1560 checks）。
 
 ## P2-T03：支持 `Any as?` closed Pure function runtime cast
 

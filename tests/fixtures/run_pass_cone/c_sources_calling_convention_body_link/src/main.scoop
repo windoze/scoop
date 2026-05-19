@@ -1,0 +1,15 @@
+// EXPECT: pass
+// RUN-STDOUT: out.stdout.txt
+
+package fixtures.run_pass_cone.c_sources_calling_convention_body_link
+
+import scoop.core.*
+
+@CallingConvention(name = "scoop_native_double_for_c", convention = "C")
+fun nativeDoubleForC(value: Int): Int {
+    return value + value
+}
+
+public fun main() / Pure! {
+    println(nativeDoubleForC(21))
+}
