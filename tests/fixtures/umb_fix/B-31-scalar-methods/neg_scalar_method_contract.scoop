@@ -1,12 +1,11 @@
 // EXPECT: fail
-// IGNORE-UNTIL-FIX:B-31
-// EXPECT-ERROR-CODE: scoop::umb_fix::pending_gate
-// EXPECT-ERROR-AT: 1:1
-// EXPECT-ERROR: pending U5 fixture gate
+// EXPECT-ERROR-CODE: scoop::typecheck::binary_op_operand_type_mismatch
+// EXPECT-ERROR-AT: 16:20
+// EXPECT-ERROR: 二元运算符 `<` 的操作数类型不匹配
 // SPEC: docs/spec/language_spec-part2.md#3-内建标量类型;docs/spec/language_spec-part2.md#31-bool;docs/spec/language_spec-part2.md#32-char;docs/spec/language_spec-part2.md#33-整数类型;docs/spec/language_spec-part2.md#34-浮点类型;docs/spec/language_spec-part2.md#35-string
-// COVERS: UMB-0575, UMB-0576, UMB-0577, UMB-0578, UMB-0579, UMB-0580, UMB-0584, UMB-0585, UMB-0586, UMB-0587, UMB-0591, UMB-0592
+// COVERS: NONE
 // BUCKETS: B-17, B-18, B-31
-// REASON: B-17/B-18 retired by P7-B2.5; B-31 scalar-method rows remain pending.
+// REASON: P7-B3.1 retired B-31 rows; scalar operator mistakes remain frontend/typecheck diagnostics.
 // SOURCE-FIXTURE: tests/fixtures/typecheck/literal_compare_bool_is_error.scoop
 
 package fixtures.typecheck

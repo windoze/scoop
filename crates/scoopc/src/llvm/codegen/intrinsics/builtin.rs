@@ -6,37 +6,34 @@ use crate::mir;
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(in crate::llvm::codegen) fn codegen_sysroot_panic(
         &mut self,
-        span: crate::span::Span,
+        _span: crate::span::Span,
         callee_span: crate::span::Span,
         args: &[hir::CallArg],
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         if args.len() != 1 {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "sysroot panic arity mismatch",
-                at: span.into(),
-            });
+            self.panic_verified_builtin_contract(
+                "codegen_sysroot_panic",
+                "malformed panic argument list",
+            );
         }
 
         let hir::CallArg::Positional(message_expr) = &args[0] else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "sysroot panic named arg",
-                at: span.into(),
-            });
+            self.panic_verified_builtin_contract("codegen_sysroot_panic", "named panic argument");
         };
 
         let message_v = self.codegen_expr_in_expected_context(message_expr, Some(CgTy::String))?;
         let message_v = self.coerce_value(message_expr.span, message_v, CgTy::String)?;
         let Some(raw) = message_v.value else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "sysroot panic message value",
-                at: message_expr.span.into(),
-            });
+            self.panic_verified_builtin_contract(
+                "codegen_sysroot_panic",
+                "missing panic String value",
+            );
         };
         let BasicValueEnum::PointerValue(message_ptr) = raw else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "sysroot panic message type",
-                at: message_expr.span.into(),
-            });
+            self.panic_verified_builtin_contract(
+                "codegen_sysroot_panic",
+                "non-pointer panic String value",
+            );
         };
 
         let rt_fun = self.declare_runtime_panic();
@@ -74,10 +71,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let value = self.codegen_expr_in_expected_context(expr, Some(CgTy::String))?;
         let value = self.coerce_value(expr.span, value, CgTy::String)?;
         let Some(BasicValueEnum::PointerValue(str_ptr)) = value.value else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "sysroot print/println String arg value",
-                at: expr.span.into(),
-            });
+            self.panic_verified_builtin_contract(
+                "try_codegen_sysroot_print_string_like",
+                "non-pointer print/println String value",
+            );
         };
         let rt_fun = self.declare_runtime_print_like(rt_name);
         let _ = self.build_call_preserving_gc_local_roots(
@@ -95,7 +92,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     /// 接受一个 String 参数并映射到 runtime 的 `scoop_print` / `scoop_println`。
     pub(in crate::llvm::codegen) fn codegen_sysroot_internal_print_string(
         &mut self,
-        span: crate::span::Span,
+        _span: crate::span::Span,
         _callee_span: crate::span::Span,
         fqn: &str,
         args: &[hir::CallArg],
@@ -104,40 +101,40 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             "scoop.core.__scoop_print_string" => "scoop_print",
             "scoop.core.__scoop_println_string" => "scoop_println",
             _ => {
-                return Err(LlvmEmitError::UnsupportedMainBody {
-                    kind: "__scoop_print_string fqn",
-                    at: span.into(),
-                });
+                self.panic_verified_builtin_contract(
+                    "codegen_sysroot_internal_print_string",
+                    "unknown internal print fqn",
+                );
             }
         };
 
         if args.len() != 1 {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "__scoop_print_string arity",
-                at: span.into(),
-            });
+            self.panic_verified_builtin_contract(
+                "codegen_sysroot_internal_print_string",
+                "malformed internal print argument list",
+            );
         }
 
         let hir::CallArg::Positional(expr) = &args[0] else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "__scoop_print_string named arg",
-                at: span.into(),
-            });
+            self.panic_verified_builtin_contract(
+                "codegen_sysroot_internal_print_string",
+                "named internal print argument",
+            );
         };
 
         let val = self.codegen_expr(expr)?;
         let coerced = self.coerce_value(expr.span, val, CgTy::String)?;
         let Some(raw) = coerced.value else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "__scoop_print_string arg value",
-                at: expr.span.into(),
-            });
+            self.panic_verified_builtin_contract(
+                "codegen_sysroot_internal_print_string",
+                "missing internal print String value",
+            );
         };
         let BasicValueEnum::PointerValue(str_ptr) = raw else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "__scoop_print_string arg type",
-                at: expr.span.into(),
-            });
+            self.panic_verified_builtin_contract(
+                "codegen_sysroot_internal_print_string",
+                "non-pointer internal print String value",
+            );
         };
         let rt_fun = self.declare_runtime_print_like(rt_name);
         let _ = self.build_call_preserving_gc_local_roots(
@@ -526,10 +523,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     deferred_recv.clone(),
                 )?;
                 if !args.is_empty() {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "String.byteLength arity mismatch",
-                        at: span.into(),
-                    });
+                    self.panic_verified_builtin_contract(
+                        "codegen_string_method",
+                        "String.byteLength argument list drift",
+                    );
                 }
                 let scoop_str_ty = self.llvm_scoop_string_type();
                 let len_ptr = self.builder.build_struct_gep(
@@ -542,10 +539,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     self.builder
                         .build_load(self.context.i64_type(), len_ptr, "str_byte_length")?;
                 let BasicValueEnum::IntValue(iv) = len_val else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "String.byteLength load type",
-                        at: span.into(),
-                    });
+                    self.panic_verified_builtin_contract(
+                        "codegen_string_method",
+                        "String.byteLength non-int load",
+                    );
                 };
                 Ok(CgValue::int(
                     iv,
@@ -558,16 +555,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             // T0120: String.getByte(index) — 1 Int arg → Int (inline LLVM IR: bounds-checked byte read)
             "getByte" => {
                 if args.len() != 1 {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "String.getByte arity mismatch",
-                        at: span.into(),
-                    });
+                    self.panic_verified_builtin_contract(
+                        "codegen_string_method",
+                        "String.getByte argument list drift",
+                    );
                 }
                 let hir::CallArg::Positional(idx_expr) = &args[0] else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "String.getByte named arg",
-                        at: span.into(),
-                    });
+                    self.panic_verified_builtin_contract(
+                        "codegen_string_method",
+                        "String.getByte named index argument",
+                    );
                 };
                 let idx = self.codegen_expr_in_expected_context(
                     idx_expr,
@@ -576,15 +573,17 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         signed: true,
                     })),
                 )?;
-                let idx_val = idx.value.ok_or(LlvmEmitError::UnsupportedMainBody {
-                    kind: "String.getByte index value",
-                    at: span.into(),
-                })?;
+                let idx_val = idx.value.unwrap_or_else(|| {
+                    self.panic_verified_builtin_contract(
+                        "codegen_string_method",
+                        "missing String.getByte index value",
+                    )
+                });
                 let BasicValueEnum::IntValue(idx_int) = idx_val else {
-                    return Err(LlvmEmitError::UnsupportedMainBody {
-                        kind: "String.getByte index type",
-                        at: span.into(),
-                    });
+                    self.panic_verified_builtin_contract(
+                        "codegen_string_method",
+                        "non-int String.getByte index value",
+                    );
                 };
                 let recv_ptr = self.materialize_gc_sensitive_string_method_receiver(
                     receiver.span,
@@ -758,16 +757,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         });
         let recv = self.codegen_expr_in_expected_context(receiver, Some(char_ty))?;
         let Some(raw) = recv.value else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "Char.hash receiver value",
-                at: receiver.span.into(),
-            });
+            self.panic_verified_builtin_contract(
+                "codegen_char_method_hash",
+                "missing Char.hash receiver value",
+            );
         };
         let BasicValueEnum::IntValue(codepoint) = raw else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "Char.hash receiver type",
-                at: receiver.span.into(),
-            });
+            self.panic_verified_builtin_contract(
+                "codegen_char_method_hash",
+                "non-int Char.hash receiver value",
+            );
         };
         let widened = self.builder.build_int_z_extend(
             codepoint,
@@ -794,16 +793,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let recv = self.codegen_expr_in_expected_context(receiver, Some(int_cg_ty))?;
         let coerced = self.coerce_value(receiver.span, recv, int_cg_ty)?;
         let Some(raw) = coerced.value else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "Int.hash receiver value",
-                at: receiver.span.into(),
-            });
+            self.panic_verified_builtin_contract(
+                "codegen_int_method_hash",
+                "missing Int.hash receiver value",
+            );
         };
         let BasicValueEnum::IntValue(x) = raw else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "Int.hash receiver type",
-                at: receiver.span.into(),
-            });
+            self.panic_verified_builtin_contract(
+                "codegen_int_method_hash",
+                "non-int Int.hash receiver value",
+            );
         };
 
         self.codegen_i64_hash_value(x)
@@ -888,18 +887,17 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let call = self
             .builder
             .build_call(rt_fun, &[float_val.into()], "rt_float_to_int")?;
-        let ret = call
-            .try_as_basic_value()
-            .basic()
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "Float.toInt return value",
-                at: span.into(),
-            })?;
+        let ret = call.try_as_basic_value().basic().unwrap_or_else(|| {
+            self.panic_verified_builtin_contract(
+                "codegen_float_to_int_value",
+                "missing Float.toInt runtime return value",
+            )
+        });
         let BasicValueEnum::IntValue(int64_val) = ret else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "Float.toInt return type",
-                at: span.into(),
-            });
+            self.panic_verified_builtin_contract(
+                "codegen_float_to_int_value",
+                "non-int Float.toInt runtime return value",
+            );
         };
         let runtime_int = CgValue::int(
             int64_val,
@@ -1107,6 +1105,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
             _ => unreachable!("Float.abs preserves float CgTy"),
         }
+    }
+
+    fn panic_verified_builtin_contract(&self, context: &'static str, detail: &'static str) -> ! {
+        panic!("{context}: upstream builtin contract verifier accepted {detail}")
     }
 
     pub(in crate::llvm::codegen) fn store_size_bytes_of_basic_type(
