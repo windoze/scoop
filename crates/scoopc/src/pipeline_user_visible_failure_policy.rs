@@ -146,7 +146,7 @@ struct UnsupportedMainBodyCount {
 const STALE_UNSUPPORTED_MAIN_BODY_COUNTS: &[UnsupportedMainBodyCount] = &[
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/mir_body/aggregates.rs",
-        expected_count: 5,
+        expected_count: 2,
     },
     UnsupportedMainBodyCount {
         path: "crates/scoopc/src/llvm/codegen/mir_body/args.rs",
@@ -705,25 +705,25 @@ const INTERNAL_BUG_SENTINEL_HITS: &[&str] = &[
     "crates/scoopc/src/llvm/codegen/mir_body/aggregates.rs:33:            panic!(\"codegen_mir_make_tuple: MIR verifier accepted tuple aggregate arity drift\");",
     "crates/scoopc/src/llvm/codegen/mir_body/aggregates.rs:47:                panic!(",
     "crates/scoopc/src/llvm/codegen/mir_body/aggregates.rs:71:                    panic!(\"codegen_mir_make_tuple: MIR verifier accepted valueless tuple element\")",
-    "crates/scoopc/src/llvm/codegen/mir_body/aggregates.rs:131:                panic!(",
-    "crates/scoopc/src/llvm/codegen/mir_body/aggregates.rs:241:            panic!(",
-    "crates/scoopc/src/llvm/codegen/mir_body/aggregates.rs:246:            panic!(",
-    "crates/scoopc/src/llvm/codegen/mir_body/aggregates.rs:252:            panic!(\"codegen_mir_make_struct: MIR verifier accepted struct without layout\")",
-    "crates/scoopc/src/llvm/codegen/mir_body/aggregates.rs:255:            panic!(",
-    "crates/scoopc/src/llvm/codegen/mir_body/aggregates.rs:270:                unreachable!(",
-    "crates/scoopc/src/llvm/codegen/mir_body/aggregates.rs:275:                panic!(",
-    "crates/scoopc/src/llvm/codegen/mir_body/aggregates.rs:320:                    panic!(\"codegen_mir_make_struct: MIR verifier accepted valueless struct field\")",
-    "crates/scoopc/src/llvm/codegen/mir_body/aggregates.rs:347:            panic!(\"codegen_mir_tuple_get: MIR verifier accepted tuple get without operand type\")",
-    "crates/scoopc/src/llvm/codegen/mir_body/aggregates.rs:350:            panic!(\"codegen_mir_tuple_get: MIR verifier accepted tuple get on non-tuple type\");",
-    "crates/scoopc/src/llvm/codegen/mir_body/aggregates.rs:353:            panic!(\"codegen_mir_tuple_get: MIR verifier accepted tuple index drift\")",
-    "crates/scoopc/src/llvm/codegen/mir_body/aggregates.rs:358:                panic!(",
-    "crates/scoopc/src/llvm/codegen/mir_body/aggregates.rs:363:            panic!(\"codegen_mir_tuple_get: TypeStore equivalence verifier accepted unsupported tuple operand codegen type\")",
-    "crates/scoopc/src/llvm/codegen/mir_body/aggregates.rs:369:                panic!(\"codegen_mir_tuple_get: MIR verifier accepted valueless tuple operand\")",
-    "crates/scoopc/src/llvm/codegen/mir_body/aggregates.rs:483:            panic!(\"scoop_alloc_typed closure allocation must return a pointer\");",
-    "crates/scoopc/src/llvm/codegen/mir_body/aggregates.rs:540:                panic!(\"scoop_alloc_typed closure env allocation must return a pointer\");",
-    "crates/scoopc/src/llvm/codegen/mir_body/aggregates.rs:661:            panic!(",
-    "crates/scoopc/src/llvm/codegen/mir_body/aggregates.rs:666:            panic!(",
-    "crates/scoopc/src/llvm/codegen/mir_body/aggregates.rs:673:                panic!(",
+    "crates/scoopc/src/llvm/codegen/mir_body/aggregates.rs:133:                panic!(",
+    "crates/scoopc/src/llvm/codegen/mir_body/aggregates.rs:247:            panic!(",
+    "crates/scoopc/src/llvm/codegen/mir_body/aggregates.rs:252:            panic!(",
+    "crates/scoopc/src/llvm/codegen/mir_body/aggregates.rs:258:            panic!(\"codegen_mir_make_struct: MIR verifier accepted struct without layout\")",
+    "crates/scoopc/src/llvm/codegen/mir_body/aggregates.rs:261:            panic!(",
+    "crates/scoopc/src/llvm/codegen/mir_body/aggregates.rs:276:                unreachable!(",
+    "crates/scoopc/src/llvm/codegen/mir_body/aggregates.rs:281:                panic!(",
+    "crates/scoopc/src/llvm/codegen/mir_body/aggregates.rs:326:                    panic!(\"codegen_mir_make_struct: MIR verifier accepted valueless struct field\")",
+    "crates/scoopc/src/llvm/codegen/mir_body/aggregates.rs:353:            panic!(\"codegen_mir_tuple_get: MIR verifier accepted tuple get without operand type\")",
+    "crates/scoopc/src/llvm/codegen/mir_body/aggregates.rs:356:            panic!(\"codegen_mir_tuple_get: MIR verifier accepted tuple get on non-tuple type\");",
+    "crates/scoopc/src/llvm/codegen/mir_body/aggregates.rs:359:            panic!(\"codegen_mir_tuple_get: MIR verifier accepted tuple index drift\")",
+    "crates/scoopc/src/llvm/codegen/mir_body/aggregates.rs:364:                panic!(",
+    "crates/scoopc/src/llvm/codegen/mir_body/aggregates.rs:369:            panic!(\"codegen_mir_tuple_get: TypeStore equivalence verifier accepted unsupported tuple operand codegen type\")",
+    "crates/scoopc/src/llvm/codegen/mir_body/aggregates.rs:375:                panic!(\"codegen_mir_tuple_get: MIR verifier accepted valueless tuple operand\")",
+    "crates/scoopc/src/llvm/codegen/mir_body/aggregates.rs:489:            panic!(\"scoop_alloc_typed closure allocation must return a pointer\");",
+    "crates/scoopc/src/llvm/codegen/mir_body/aggregates.rs:546:                panic!(\"scoop_alloc_typed closure env allocation must return a pointer\");",
+    "crates/scoopc/src/llvm/codegen/mir_body/aggregates.rs:667:            panic!(",
+    "crates/scoopc/src/llvm/codegen/mir_body/aggregates.rs:672:            panic!(",
+    "crates/scoopc/src/llvm/codegen/mir_body/aggregates.rs:679:                panic!(",
     "crates/scoopc/src/llvm/codegen/mir_body/args.rs:17:            panic!(\"codegen_mir_class_ctor_ordered_args: MIR verifier accepted {kind}\");",
     "crates/scoopc/src/llvm/codegen/mir_body/args.rs:23:                panic!(\"codegen_mir_class_ctor_ordered_args: MIR verifier accepted {kind}\");",
     "crates/scoopc/src/llvm/codegen/mir_body/args.rs:244:            panic!(\"codegen_bound_mir_call_args_from_signature: MIR call ABI verifier accepted arg binding drift\")",
@@ -1063,7 +1063,7 @@ fn pipeline_user_visible_failure_policy_tracks_stale_unsupportedmainbody_counts(
             baseline.path
         );
     }
-    assert_eq!(total, 152);
+    assert_eq!(total, 149);
 }
 
 #[test]

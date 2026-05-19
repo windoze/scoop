@@ -1,9 +1,9 @@
 // EXPECT: ok
-// IGNORE-UNTIL-FIX:B-24
+// UMB-FIX-PHASE: comptime
 // SPEC: docs/spec/language_spec-part5.md#6-静态反射-intrinsic
-// COVERS: UMB-0568, UMB-0569, UMB-0571, UMB-0954, UMB-0956, UMB-0957
+// COVERS: NONE
 // BUCKETS: B-24
-// REASON: U5-T02 records the spec surface before the matching implementation gate is enabled.
+// REASON: P7-C1 implements reflection/comptime intrinsic lowering; retired IDs are covered by audit/UMB_retired.csv.
 // SOURCE-FIXTURE: tests/fixtures/comptime/reflection_intrinsics_v0_basic.scoop
 
 package fixtures.comptime_
@@ -18,6 +18,6 @@ struct Point(val x: Int, val y: Int) {
 
 const val N: String = nameOf<Point>()
 const val S: Int = sizeOf<Int64>()
-const val F = fieldsOf<Point>()
+const val F: ComptimeList<FieldMeta> = fieldsOf<Point>()
 const val F0N: String = fieldsOf<Point>()._0.name
 const val F0T: String = fieldsOf<Point>()._0.type.name

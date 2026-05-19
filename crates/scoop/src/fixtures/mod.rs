@@ -743,6 +743,10 @@ fn umb_fix_fixture(
     exp: &FixtureExpectation<'_>,
     run_pass_env: &RunPassEnvOverrides,
 ) -> std::result::Result<(), Box<dyn miette::Diagnostic>> {
+    if umb_fix_requested_phase(source, "comptime") {
+        return comptime_fixture(session, source, path);
+    }
+
     if is_umb_fix_build_fixture(exp) {
         return build_fixture(session, rel, path, opt_level, exp);
     }
@@ -759,6 +763,20 @@ fn umb_fix_fixture(
     }
 
     typecheck_fixture(session, source, exp)
+}
+
+fn umb_fix_requested_phase(source: &scoopc::source::SourceFile, expected: &str) -> bool {
+    for line in source.text().lines() {
+        let trimmed = line.trim_start();
+        if !trimmed.starts_with("//") {
+            break;
+        }
+        let directive = trimmed.trim_start_matches("//").trim();
+        if let Some(phase) = directive.strip_prefix("UMB-FIX-PHASE:") {
+            return phase.trim() == expected;
+        }
+    }
+    false
 }
 
 fn is_umb_fix_build_fixture(exp: &FixtureExpectation<'_>) -> bool {

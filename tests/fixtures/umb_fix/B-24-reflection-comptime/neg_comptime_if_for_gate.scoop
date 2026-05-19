@@ -1,12 +1,12 @@
 // EXPECT: fail
-// IGNORE-UNTIL-FIX:B-24
-// EXPECT-ERROR-CODE: scoop::umb_fix::pending_gate
-// EXPECT-ERROR-AT: 1:1
-// EXPECT-ERROR: pending U5 fixture gate
+// UMB-FIX-PHASE: comptime
+// EXPECT-ERROR-CODE: scoop::comptime::operand_type_mismatch
+// EXPECT-ERROR-AT: 17:18
+// EXPECT-ERROR: 期望 Bool
 // SPEC: docs/spec/language_spec-part5.md#4-comptime-if;docs/spec/language_spec-part5.md#5-comptime-for
 // COVERS: NONE
 // BUCKETS: B-24
-// REASON: U5-T02 records the spec surface before the matching implementation gate is enabled.
+// REASON: P7-C1 keeps non-Bool comptime-if conditions rejected during const evaluation.
 // SOURCE-FIXTURE: tests/fixtures/comptime/comptime_if_condition_not_bool_is_error.scoop
 
 package fixtures.comptime_

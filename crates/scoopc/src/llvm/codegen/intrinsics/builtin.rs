@@ -256,24 +256,29 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(in crate::llvm::codegen) fn codegen_sysroot_size_of(
         &mut self,
         span: crate::span::Span,
-        callee_span: crate::span::Span,
+        _callee_span: crate::span::Span,
         args: &[hir::CallArg],
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        // 语义：`sizeOf(x)` 在 HIR-compatible path 返回静态类型的目标 ABI store size。
-        let [hir::CallArg::Positional(expr)] = args else {
-            return Err(LlvmEmitError::UnsupportedMainBody {
-                kind: "sizeOf() arity mismatch",
-                at: span.into(),
-            });
+        // `sizeOf<T>()` consumes the published type argument; the legacy value overloads
+        // still consume the value expression's static type without evaluating the value.
+        let (source_ty, type_span) = match args {
+            [] => (
+                self.reflection_type_arg_for_current_call(span, "sizeOf")?,
+                span,
+            ),
+            [hir::CallArg::Positional(expr)] => (expr.ty, expr.span),
+            [hir::CallArg::Named { .. }] => self.panic_verified_builtin_contract(
+                "codegen_sysroot_size_of",
+                "named sizeOf argument drift",
+            ),
+            _ => self.panic_verified_builtin_contract(
+                "codegen_sysroot_size_of",
+                "sizeOf argument count drift",
+            ),
         };
 
-        let arg_cg = self
-            .cg_ty_of(expr.ty)
-            .ok_or(LlvmEmitError::UnsupportedMainBody {
-                kind: "sizeOf() arg type",
-                at: callee_span.into(),
-            })?;
-        let llvm_ty = self.llvm_basic_type_of(expr.span, arg_cg)?;
+        let arg_cg = self.expect_cg_ty_of(source_ty, "sizeOf reflection type argument");
+        let llvm_ty = self.llvm_basic_type_of(type_span, arg_cg)?;
         let bytes = self.store_size_bytes_of_basic_type(llvm_ty);
 
         let value_word = IntTy {
@@ -358,12 +363,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         span: crate::span::Span,
         name: &'static str,
     ) -> Result<TypeId, LlvmEmitError> {
-        let binding = self.current_top_level_fun_call_binding(span)?.ok_or(
-            LlvmEmitError::UnsupportedMainBody {
-                kind: "reflection intrinsic call binding",
-                at: span.into(),
-            },
-        )?;
+        let binding = self
+            .current_top_level_fun_call_binding(span)?
+            .unwrap_or_else(|| {
+                self.panic_verified_builtin_contract(
+                    "reflection_type_arg_for_current_call",
+                    "missing reflection intrinsic call binding",
+                )
+            });
         Ok(binding.type_args.first().copied().unwrap_or_else(|| {
             self.panic_verified_builtin_contract("reflection_type_arg_for_current_call", name)
         }))

@@ -1,33 +1,38 @@
 # Claude Execution Plan
 
-本文件记录本次调用的可审查执行计划与进度更新；不包含私密逐步推理。
+## Scope
 
-## 当前任务
+- Source of truth: `TODO.md` for task ordering, task body, dependencies, validation requirements, and completion records.
+- Phase context: `PLAN.md` only if the selected task changes phase-level sequencing, dependencies, assumptions, or completion criteria.
+- Current invocation goal: complete exactly the first incomplete task in `TODO.md`, commit it, then stop.
 
-`P7-B3.5：B-30 named/unsafe/FunPtr/stackmap intrinsic contract`
+## Execution Plan
 
-## 执行计划
+1. Read `TODO.md` first and identify the first task whose heading is not prefixed with `[DONE]`.
+2. Check recent git context only as needed, especially whether the latest commit explicitly mentions an unfinished issue directly relevant to that selected task.
+3. Read the selected task body, dependencies, validation requirements, and any relevant completion notes.
+4. Inspect only the code, fixtures, docs, and tests needed to implement that task without broad historical triage.
+5. If the selected task has a concrete blocker or missing prerequisite, update `TODO.md` with the minimum required prerequisite task in dependency order, record the blocker here, commit, and stop.
+6. Otherwise, implement the selected task with small targeted patches.
+7. Add or update the smallest relevant tests/fixtures required by the task.
+8. Run task-specific validation first, then broader validation required by the task or affected code paths.
+9. Fix any failures that are in scope for the selected task and repeat validation until passing.
+10. Mark the task heading in `TODO.md` with `[DONE]` and update its completion record with implementation and validation details.
+11. Update `PLAN.md` only if the task changed phase-level plan details.
+12. Inspect git status and diff, then commit all intended changes with a task-specific commit message.
+13. Stop after the commit without starting the next task.
 
-1. 确认 `TODO.md` 中首个未完成任务为 P7-B3.5，并检查最近提交是否明确留下与 B-30 直接相关的未完成问题。
-2. 阅读 B-30 的 audit category、strategy、fixture README/index 和 active inventory rows，锁定 117 个待 retire `UMB-NNNN` 的具体 source 位置。
-3. 检查 named intrinsic、unsafe/FunPtr、uintPtr/funptr conversion、stackmap/statepoint 相关 codegen/typecheck/MIR contract，判断是否存在必须先记录的 spec blocker。
-4. 若不存在 blocker，按 B-30 的 `InternalBugSentinel` 路径补齐签名/receiver/arity/value/return/stackmap statepoint contract；删除对应 `UnsupportedMainBody` fallback，改为 verifier 后的内部 invariant、`expect_*` 或明确 panic boundary。
-5. 同步更新 `audit/UMB_inventory.csv`、`audit/UMB_retired.csv`、B-30 category/strategy/overview/spec matrix、fixture coverage/index 和 `pipeline_user_visible_failure_policy` stale count。
-6. 运行要求验证：`cargo test -p scoopc audit:: -- --nocapture`、`cargo run -p scoop -- test tests/fixtures/umb_fix/B-30-named-unsafe-funptr/`、`cargo run -p scoop -- test tests/fixtures/unsafe_nogc/`。
-7. 运行必要补充验证：`cargo run -p scoopc --bin umb-audit -- list --bucket B-30`、`cargo run -p scoopc --bin umb-audit -- diff`、`cargo run -p scoopc --bin umb-audit -- stats`、`cargo test -p scoopc pipeline_user_visible_failure_policy -- --nocapture`、`cargo fmt`、`cargo clippy --all-targets -- -D warnings`。
-8. 更新 `TODO.md`：将 P7-B3.5 标记 `[DONE]` 并填写完成记录；如阶段计划未变化，不更新 `PLAN.md`。
-9. 检查 git 状态和 diff，提交本任务相关所有改动，然后停止。
+## Progress Log
 
-## 进度
-
-- 已读取 `TODO.md`，首个未完成任务为 `P7-B3.5：B-30 named/unsafe/FunPtr/stackmap intrinsic contract`。
-- 已写入本次 P7-B3.5 执行计划；下一步检查最近提交与工作区状态，仅纳入与 B-30 直接相关的问题。
-- 最近提交为 `[P7-B3.4] Retire GC intrinsic UMB rows`，未发现明确指向 B-30 的未完成项；工作区初始仅有本计划文件改动。
-- 已定位 B-30 的 117 个 active rows，覆盖 named/runtime intrinsic、builtin scalar/String helper、FunPtr HIR/MIR call、uintPtr/funptr conversion 与 stackmap smoke helper。
-- 已将 B-30 相关 LLVM fallback 改为现有 typecheck/MIR/intrinsic contract 之后的内部 invariant、`expect_*` 或 `panic_verified_intrinsic_contract`；保留 B-10/B-12/B-13/B-24 等后续任务 rows 不动。
-- `cargo check -p scoopc` 已通过；下一步同步 inventory/retired ledger、fixture coverage、stale count 和文档。
-- 已同步 `audit/UMB_retired.csv`、重新生成 active inventory，并更新 B-30 category/strategy/overview、spec matrix、fixture headers/index、B-35 cross fixture 和 stale count。
-- `umb-audit list --bucket B-30` 显示 0 entries；`umb-audit stats` 显示 active=203、retired=1081、initial=1284；`umb-audit diff` 已通过。
-- 已完成验证：`cargo check -p scoopc`、`cargo test -p scoopc audit:: -- --nocapture`、`cargo test -p scoopc pipeline_user_visible_failure_policy -- --nocapture`、B-30 fixtures、`tests/fixtures/unsafe_nogc/`、B-35 cross fixtures、`cargo fmt`、`cargo clippy --all-targets -- -D warnings` 均通过。
-- 已更新 `TODO.md`：`P7-B3.5` 标记 `[DONE]`，完成记录已写入；当前统计 active=203、retired=1081。
-- 下一步检查 git status/diff/log，确认变更范围后提交本任务。
+- Initialized execution plan before reading project task files.
+- Read `TODO.md`; first incomplete task is `P7-C1: B-24 Reflection / comptime intrinsic 实现`.
+- Next focus: inspect recent git context, B-24 inventory/category/strategy docs, B-24 fixtures, and the reflection/comptime intrinsic code paths before editing.
+- Latest commit is `[P7-B3.5] Retire named unsafe FunPtr UMB rows`; no explicit unfinished B-24 issue was found.
+- B-24 active IDs are `UMB-0568`, `UMB-0569`, `UMB-0571`, `UMB-0954`, `UMB-0956`, and `UMB-0957`.
+- Implementation focus: replace B-24 `UnsupportedMainBody` fallbacks in HIR and MIR reflection/comptime intrinsic lowering with verified contract handling and real size/kind/desc lowering.
+- Implemented the codegen change: HIR `sizeOf` now consumes type arguments for `sizeOf<T>()` and legacy value overloads use static value type; MIR `sizeOf`/`kindOf`/`descOf` unsupported type drift now routes to verified intrinsic contract panic boundaries instead of UMB diagnostics.
+- `umb-audit diff` now reports exactly the six B-24 rows as deleted; next step is to retire those rows in audit data and activate B-24 fixtures.
+- Added `umb_fix` comptime routing for fixtures that need const-eval diagnostics, activated B-24 fixtures, and added a B-24 runtime codegen smoke for `sizeOf`/`kindOf`/`descOf`.
+- Updated inventory and retired ledger; `umb-audit diff` is in sync with active=197 and retired=1087.
+- Validation completed: B-24 list is empty; B-24 fixture directory passes; `umb-audit diff`/`stats`, `cargo test -p scoopc audit:: -- --nocapture`, `cargo test -p scoopc pipeline_user_visible_failure_policy -- --nocapture`, `cargo fmt`, and `cargo clippy --all-targets -- -D warnings` pass.
+- Updated `TODO.md` to mark P7-C1 `[DONE]` with completion record.

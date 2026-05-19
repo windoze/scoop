@@ -1,0 +1,47 @@
+// EXPECT: pass
+// RUN-STDOUT: pos_reflection_codegen.stdout
+// SPEC: docs/spec/language_spec-part5.md#6-静态反射-intrinsic
+// COVERS: NONE
+// BUCKETS: B-24
+// REASON: P7-C1 exercises sizeOf/kindOf/descOf through runtime codegen after retiring B-24 UMB fallbacks.
+
+package fixtures.umb_fix
+
+import scoop.core.*
+
+struct Point(val x: Int, val y: Int)
+enum Color { Red, Blue }
+enum MaybeInt { Some(val value: Int), None }
+
+const val INT64_BYTES: Int = sizeOf<Int64>()
+const val POINT_KIND: Int = kindOf<Point>()
+const val COLOR_KIND: Int = kindOf<Color>()
+const val MAYBE_INT_KIND: Int = kindOf<MaybeInt>()
+const val INT_DESC: UIntPtr = descOf<Int>()
+
+fun main(): Int {
+    if (INT64_BYTES != 8) {
+        panic("const sizeOf mismatch")
+    }
+    if (POINT_KIND != ARRAY_ELEM_KIND_COMPOSITE) {
+        panic("const kindOf struct mismatch")
+    }
+    if (COLOR_KIND != ARRAY_ELEM_KIND_WORD) {
+        panic("const kindOf enum word mismatch")
+    }
+    if (MAYBE_INT_KIND != ARRAY_ELEM_KIND_COMPOSITE) {
+        panic("const kindOf enum composite mismatch")
+    }
+
+    val runtimeSize: Int = sizeOf<Int64>()
+    if (runtimeSize != INT64_BYTES) {
+        panic("runtime sizeOf mismatch")
+    }
+    val runtimeKind: Int = kindOf<Point>()
+    if (runtimeKind != ARRAY_ELEM_KIND_COMPOSITE) {
+        panic("runtime kindOf mismatch")
+    }
+    val runtimeDesc: UIntPtr = descOf<Point>()
+    println("B24 reflection codegen ok")
+    return 0
+}

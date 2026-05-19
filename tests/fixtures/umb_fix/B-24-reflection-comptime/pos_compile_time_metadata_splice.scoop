@@ -1,9 +1,8 @@
 // EXPECT: ok
-// IGNORE-UNTIL-FIX:B-24
 // SPEC: docs/spec/language_spec-part5.md#7-编译期元数据类型;docs/spec/language_spec-part5.md#8-splice-field-access
 // COVERS: NONE
 // BUCKETS: B-24
-// REASON: U5-T02 records the spec surface before the matching implementation gate is enabled.
+// REASON: P7-C1 activates the compile-time metadata splice fixture surface.
 // SOURCE-FIXTURE: tests/fixtures/typecheck/splice_field_access_string_lit_ok.scoop
 
 package fixtures.typecheck

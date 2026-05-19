@@ -4,7 +4,7 @@
 > 计划基线：[`PLAN.md`](./PLAN.md)
 > 上一阶段任务档案：[`TODO-1.md`](./TODO-1.md)
 > 设计与 baseline：[`UnsupportedMainBody_FIX.md`](./UnsupportedMainBody_FIX.md)、[`UnsupportedMainBody_DONE.md`](./UnsupportedMainBody_DONE.md)
-> 当前状态：P7-0-T01、P7-0-T02、P7-A1、P7-A2、P7-A3、P7-A4、P7-B1、P7-B2.1、P7-B2.2、P7-B2.3、P7-B2.4、P7-B2.5、P7-B2.6、P7-B2.7、P7-B2.8、P7-B3.1、P7-B3.2、P7-B3.3、P7-B3.4、P7-B3.5 已完成；active=203，retired=1081。
+> 当前状态：P7-0-T01、P7-0-T02、P7-A1、P7-A2、P7-A3、P7-A4、P7-B1、P7-B2.1、P7-B2.2、P7-B2.3、P7-B2.4、P7-B2.5、P7-B2.6、P7-B2.7、P7-B2.8、P7-B3.1、P7-B3.2、P7-B3.3、P7-B3.4、P7-B3.5、P7-C1 已完成；active=197，retired=1087。
 
 ## 全局约束
 
@@ -537,7 +537,7 @@ P7-0-T01 stable ID + retired ledger
 
 ## P7-C：RealImpl 退场（203 entries）
 
-### [TODO] P7-C1：B-24 Reflection / comptime intrinsic 实现
+### [DONE] P7-C1：B-24 Reflection / comptime intrinsic 实现
 
 - 参考：`PLAN.md:183-206`、`audit/strategies/B-24.md`。
 - 范围：B-24，6 entries，`RealImpl`。
@@ -546,7 +546,15 @@ P7-0-T01 stable ID + retired ledger
 - 验证：`cargo test -p scoopc audit:: -- --nocapture`、`cargo run -p scoop -- test tests/fixtures/umb_fix/B-24-reflection-comptime/`。
 - 完成条件：B-24 active count 为 0；B-24 positive fixture active 并通过。
 - 依赖：P7-0-T02；相关 B 类 verifier 完成后更安全。
-- 完成记录：待填写。
+- 完成记录：
+  - 改动范围：更新 `crates/scoopc/src/llvm/codegen/intrinsics/builtin.rs`、`crates/scoopc/src/llvm/codegen/mir_body/aggregates.rs`、`crates/scoop/src/fixtures/mod.rs`、`crates/scoopc/src/pipeline_user_visible_failure_policy.rs`；同步 `audit/UMB_inventory.csv`、`audit/UMB_retired.csv`、`audit/UMB_categories/{B-12.md,B-24.md,_overview.md}`、`audit/strategies/B-24.md`、`audit/spec_coverage_matrix.md`、B-24 fixtures、`tests/fixtures/umb_fix/_index.csv`、`TODO.md` 与 `memory/claude_plan.md`。
+  - Retired IDs：`UMB-0568`、`UMB-0569`、`UMB-0571`、`UMB-0954`、`UMB-0956`、`UMB-0957`；数量 6；bucket `B-24`；class `RealImpl`。
+  - 核心决策：`sizeOf<T>()` 使用 typed call-site 的 type argument 走真实静态 size lowering，legacy `sizeOf(value)` 继续只消费 value 的静态类型；HIR/MIR `sizeOf`/`kindOf`/`descOf` type/binding drift 改为 verified intrinsic contract panic boundary，不再暴露 UMB diagnostic；`umb_fix` 增加 `UMB-FIX-PHASE: comptime` 以激活 B-24 const-eval 正/负例。
+  - Inventory/ledger：active 203 -> 197；retired 1081 -> 1087；B-24 active 6 -> 0；`RealImpl` active 203 -> 197。
+  - Stale count：tracked stale total 152 -> 149；`crates/scoopc/src/llvm/codegen/mir_body/aggregates.rs` `UnsupportedMainBody` 5 -> 2；`intrinsics/builtin.rs` 另删除 3 个 B-24 inventory rows（不在 tracked stale list）。
+  - Fixture 状态：B-24 fixture directory 从 `IGNORE-UNTIL-FIX:B-24` 激活；新增 `pos_reflection_codegen.scoop` runtime codegen smoke 与 comptime golden files；active fixture `COVERS` 改为 `NONE`，retired IDs 由 retired ledger 覆盖。
+  - 验证结果：`cargo run -p scoopc --bin umb-audit -- list --bucket B-24` 通过（entries 0）；`cargo run -p scoopc --bin umb-audit -- diff` 通过（in sync，197 entries）；`cargo run -p scoopc --bin umb-audit -- stats` 通过（active=197、retired=1087、initial=1284）；`cargo run -p scoop -- test tests/fixtures/umb_fix/B-24-reflection-comptime/` 通过（11 passed）；`cargo test -p scoopc audit:: -- --nocapture` 通过（23 passed）；`cargo test -p scoopc pipeline_user_visible_failure_policy -- --nocapture` 通过（7 passed）；`cargo fmt` 通过；`cargo clippy --all-targets -- -D warnings` 通过。
+  - 闭合目标：满足 `PLAN.md:183-206` 与本任务完成条件；B-24 active count 为 0，B-24 positive fixtures active 并通过，supported reflection/comptime intrinsic happy path 不再由 LLVM `UnsupportedMainBody` 兜底。
 
 ### [TODO] P7-C2：B-25 Platform / RTTI intrinsic 实现
 
@@ -635,7 +643,7 @@ P7-0-T01 stable ID + retired ledger
 
 | 阶段 | Active 目标 | Retired 目标 | 备注 |
 |---|---:|---:|---|
-| 当前 | 203 | 1081 | P7-B3.5 完成，B-30 named/unsafe/FunPtr/stackmap intrinsic contract 清零；P7-B InternalBugSentinel 清零 |
+| 当前 | 197 | 1087 | P7-C1 完成，B-24 Reflection / comptime intrinsic 清零；P7-B InternalBugSentinel 清零 |
 | P7-A 完成 | 1,159 | 125 | `FrontendReject` 清零 |
 | P7-B 完成 | 203 | 1,081 | `InternalBugSentinel` 清零 |
 | P7-C 完成 | 0 | 1,284 | `RealImpl` 清零 |

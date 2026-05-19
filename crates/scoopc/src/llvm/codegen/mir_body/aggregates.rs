@@ -88,12 +88,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         mir_types: &TypeStore,
         value_ty: TypeId,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        let arg_cg = self.cg_ty_of_mir_type(mir_types, value_ty).ok_or(
-            LlvmEmitError::UnsupportedMainBody {
-                kind: "pass MIR sizeOf arg type",
-                at: span.into(),
-            },
-        )?;
+        let arg_cg = self
+            .cg_ty_of_mir_type(mir_types, value_ty)
+            .unwrap_or_else(|| {
+                self.panic_verified_intrinsic_contract(
+                    "codegen_mir_size_of",
+                    "unsupported sizeOf argument type",
+                )
+            });
         let llvm_ty = self.llvm_basic_type_of(span, arg_cg)?;
         let bytes = self.store_size_bytes_of_basic_type(llvm_ty);
         let value_word = IntTy {
@@ -148,12 +150,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         mir_types: &TypeStore,
         value_ty: TypeId,
     ) -> Result<u64, LlvmEmitError> {
-        let arg_cg = self.cg_ty_of_mir_type(mir_types, value_ty).ok_or(
-            LlvmEmitError::UnsupportedMainBody {
-                kind: "pass MIR kindOf arg type",
-                at: span.into(),
-            },
-        )?;
+        let arg_cg = self
+            .cg_ty_of_mir_type(mir_types, value_ty)
+            .unwrap_or_else(|| {
+                self.panic_verified_intrinsic_contract(
+                    "mir_array_elem_kind",
+                    "unsupported kindOf argument type",
+                )
+            });
         match arg_cg {
             CgTy::String | CgTy::Ref => Ok(2),
             CgTy::Unit
@@ -189,12 +193,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             bits: self.host.word_bit_width(),
             signed: false,
         };
-        let arg_cg = self.cg_ty_of_mir_type(mir_types, value_ty).ok_or(
-            LlvmEmitError::UnsupportedMainBody {
-                kind: "pass MIR descOf arg type",
-                at: span.into(),
-            },
-        )?;
+        let arg_cg = self
+            .cg_ty_of_mir_type(mir_types, value_ty)
+            .unwrap_or_else(|| {
+                self.panic_verified_intrinsic_contract(
+                    "codegen_mir_desc_of",
+                    "unsupported descOf argument type",
+                )
+            });
         if !matches!(arg_cg, CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_)) {
             return Ok(CgValue::int(
                 self.int_type(value_word).const_zero(),
