@@ -1,28 +1,31 @@
-# Claude Execution Plan
+# Claude 执行计划
 
-## 当前目标
+## 范围
 
-- 按 `TODO.md` 的顺序完成第一个标题未带 `[DONE]` 的任务，然后停止。
-- `TODO.md` 是任务状态、依赖、验证要求和完成记录的唯一权威来源。
-- 若当前任务被具体前置缺陷阻塞，只添加最小必要前置任务、提交该任务列表更新并停止。
+- 只处理 `TODO.md` 中第一个未完成任务。
+- 以 `TODO.md` 作为任务顺序、依赖、验证要求和完成状态的唯一来源。
+- 完成该任务后停止；若被具体前置问题阻塞，则只添加/提交必要前置任务并停止。
 
 ## 执行步骤
 
-1. 读取 `TODO.md`，识别第一个未完成任务；必要时查看最近提交是否提到与该任务直接相关的未完成问题。
-2. 阅读当前任务涉及的说明、依赖、完成标准和验证要求，只围绕该任务建立上下文。
-3. 检查相关代码、测试和夹具，确认需要修改的最小范围。
-4. 实现任务要求；如果发现阻塞当前任务的规格不匹配或缺失能力，优先修复，或将其作为前置任务写入 `TODO.md` 后停止。
-5. 运行任务要求的验证命令及必要的相关测试；若失败，定位并修复后重跑。
-6. 更新 `TODO.md`：将完成任务标题加上 `[DONE]`，补充完成记录和验证结果；仅当阶段级计划变化时才更新 `PLAN.md`。
-7. 运行提交前检查：查看 `git status`、`git diff`、最近提交，并只提交本次任务相关变更。
-8. 使用清晰的任务编号提交信息创建 Git commit，然后停止，不继续下一个任务。
+1. 读取 `TODO.md`，识别标题未加 `[DONE]` 的第一个任务。
+2. 仅检查最新提交中是否有与该任务直接相关的未完成事项。
+3. 阅读该任务要求，并检查最小相关代码范围。
+4. 按规格实现任务，不使用 workaround，不弱化行为。
+5. 添加或更新该任务所需的聚焦测试/夹具。
+6. 运行任务指定验证，以及必要的相关目标测试。
+7. 如果验证暴露阻塞当前任务的实现/规格缺口，则在 `TODO.md` 添加最小前置任务，保持当前任务未完成，提交后停止。
+8. 如果任务完成，则在 `TODO.md` 标题中加 `[DONE]` 并补充完成记录。
+9. 文档回写后运行最终相关验证。
+10. 检查 git status/diff/log，只提交本任务相关改动。
+11. 提交后停止，不开始下一个任务。
 
 ## 进度记录
 
-- 已写入初始执行计划；下一步读取 `TODO.md` 识别首个未完成任务。
-- 已识别首个未完成任务：`P1-T01`，目标是禁用或删除 normal CLI 中的 `scoop package` archive 发布能力。最新提交 `P0-T01` 未提出与该任务直接相关的未完成前置问题。
-- 下一步检查 CLI 定义、command dispatch、package 命令实现与相关测试/help 文案，然后采用最小变更让用户无法通过 normal CLI 生成看似可用的 `.cone` 包。
-- 已将 `scoop package` 改为稳定 unsupported 诊断，并更新 CLI help 文案与 package 相关单元测试；下一步格式化并运行指定验证。
-- 验证已完成：`cargo fmt`、`cargo build`、`cargo test -p scoop package -- --nocapture` 重跑通过、`cargo clippy --all-targets -- -D warnings` 通过。
-- 已回写 `TODO.md`：`P1-T01` 标记为 `[DONE]`，当前状态推进到 `P1-T02`，并补充完成记录。
-- 已完成提交前检查并暂存本任务相关文件；下一步创建 `P1-T01` 提交后停止。
+- 已在任务发现前写入初始计划。
+- 已选择第一个未完成任务：`P1-T02`（`移除 normal build 的 .cone dependency flow`）。
+- 直接目标：从 normal `scoop build/run` 和 frontend active path 中移除 `.cone` archive dependency 搜索、加载和注入，并用目标 grep 与 `cargo build` 验证。
+- 检查发现 active flow：`commands/build/deps.rs` 搜索 `SCOOP_CONE_PATH` / `cone` / `deps`，`load_build_context_with_options` 加载 archive deps，`ProjectContext` 携带 `Vec<ConeArchiveApi>`，`run_frontend` 注入 archive public API。
+- 编辑计划：删除 active build dependency loader 模块，将 `ProjectContext` 简化为 input-only，移除 frontend 注入，并把消费 archive 的 build 测试替换为 negative/no-consume 断言。
+- 实现完成：从 active build 删除 `commands/build/deps.rs`，`ProjectContext` 改为 input-only，frontend archive 注入已移除，并新增 build 单元测试证明 manifest dependency 旁的无效 `.cone` 会被 normal build 忽略。
+- 验证完成：grep 确认 Rust 源码中无 `SCOOP_CONE_PATH` / `load_dependency_graph`，`crates/scoop/src/commands` 中无 archive API 符号，`frontend.rs` 中无 archive API 符号；`cargo fmt`、限定目标单元测试、`cargo build`、`cargo clippy --all-targets -- -D warnings`、`cargo test -p scoop --bin scoop` 均通过。

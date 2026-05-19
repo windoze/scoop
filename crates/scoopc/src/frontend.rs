@@ -4,7 +4,7 @@ use miette::{Context as _, Diagnostic, IntoDiagnostic as _, Result};
 use thiserror::Error;
 
 use crate::ast;
-use crate::cone::{ConeArchiveApi, ConeManifest, ConeNativeBuildConfig, ConeSection};
+use crate::cone::{ConeManifest, ConeNativeBuildConfig, ConeSection};
 use crate::opt::OptLevel;
 use crate::resolve::{ConeId, Index, IndexedFile};
 use crate::session::{Session, SessionOptions};
@@ -141,24 +141,19 @@ impl ProjectInput {
 #[derive(Debug, Clone)]
 pub struct ProjectContext {
     input: ProjectInput,
-    deps: Vec<ConeArchiveApi>,
 }
 
 impl ProjectContext {
-    pub fn new(input: ProjectInput, deps: Vec<ConeArchiveApi>) -> Self {
-        Self { input, deps }
+    pub fn new(input: ProjectInput) -> Self {
+        Self { input }
     }
 
     pub fn input(&self) -> &ProjectInput {
         &self.input
     }
 
-    pub fn deps(&self) -> &[ConeArchiveApi] {
-        &self.deps
-    }
-
-    pub fn into_parts(self) -> (ProjectInput, Vec<ConeArchiveApi>) {
-        (self.input, self.deps)
+    pub fn into_input(self) -> ProjectInput {
+        self.input
     }
 }
 
@@ -349,20 +344,14 @@ pub fn prepare_virtual_cone_context_with_options(
     source: SourceFile,
     session_options: &SessionOptions,
 ) -> Result<ProjectContext> {
-    prepare_virtual_cone_input_with_options(source, session_options)
-        .map(|input| ProjectContext::new(input, Vec::new()))
+    prepare_virtual_cone_input_with_options(source, session_options).map(ProjectContext::new)
 }
 
 pub fn run_project_frontend(session: &Session, context: ProjectContext) -> Result<FrontendOutput> {
-    let (input, deps) = context.into_parts();
-    run_frontend(session, input, &deps)
+    run_frontend(session, context.into_input())
 }
 
-pub fn run_frontend(
-    session: &Session,
-    mut input: ProjectInput,
-    deps: &[ConeArchiveApi],
-) -> Result<FrontendOutput> {
+pub fn run_frontend(session: &Session, mut input: ProjectInput) -> Result<FrontendOutput> {
     if input.sources.is_empty() {
         return Err(miette::miette!("内部错误：frontend 输入 sources 为空"));
     }
@@ -418,10 +407,6 @@ pub fn run_frontend(
     index.set_export_entry_points(input.cone_manifest.export_entry_points.clone());
 
     let mut env = TypeEnv::from_sysroot(session.sysroot(), &index).map_err(miette::Report::from)?;
-    for (next_dep_cone, dep) in (2_u32..).zip(deps.iter()) {
-        let dep_cone = ConeId::new(next_dep_cone);
-        crate::cone::inject_cone_dependency_public_api(&mut index, &mut env, dep_cone, dep)?;
-    }
 
     select_cone_entry_main(&mut input, &asts, &mut index)?;
 

@@ -3,7 +3,7 @@
 > 生成时间：2026-05-19
 > 设计基线：[`SYSROOT_RESHAPE_R2.md`](./SYSROOT_RESHAPE_R2.md)
 > 计划基线：[`PLAN.md`](./PLAN.md)
-> 当前状态：`P1-T01` 已完成；下一任务为 `P1-T02`。
+> 当前状态：`P1-T02` 已完成；下一任务为 `P1-T03`。
 > 执行原则：严格按 P0 -> P10 顺序推进；同一阶段内可按任务依赖拆 PR，但每个任务完成后必须保持仓库无 failing fixture，并回写完成记录。
 
 ## 全局约束
@@ -38,12 +38,12 @@
 - `crates/scoopc/src/cone/package.rs`：source package 加载，当前要求 `src/main.scoop`。
 - `crates/scoopc/src/cone/archive.rs` / `consume.rs` / `scoopir/*`：`.cone` archive 写入/读取/API 注入路径。
 - `crates/scoop/src/commands/package.rs`：`scoop package` archive CLI。
-- `crates/scoop/src/commands/build/deps.rs`：当前 `.cone` dependency 搜索和加载。
+- `crates/scoop/src/commands/build.rs`：normal build context；P1-T02 后不再加载 `.cone` dependency graph。
 
 ### Sysroot / frontend
 
 - `crates/scoopc/src/sysroot/mod.rs`：当前递归扫描 sysroot `.scoop` 文件。
-- `crates/scoopc/src/frontend.rs`：support sources、`ProjectInput` / `ProjectContext`、archive deps 注入。
+- `crates/scoopc/src/frontend.rs`：support sources、`ProjectInput` / input-only `ProjectContext`、entry selection。
 - `crates/scoopc/src/resolve/imports.rs`：自动 prelude star imports。
 - `crates/scoopc/src/source.rs`：`SourceOrigin::Sysroot` / `SourceFile::is_sysroot()`。
 
@@ -90,7 +90,7 @@ P0 baseline freeze
 | --- | --- | --- | --- |
 | `P0-T01` | [DONE] | P0 | 冻结 R2 baseline 与迁移清单 |
 | `P1-T01` | [DONE] | P1 | 禁用/删除 `scoop package` archive CLI |
-| `P1-T02` | [TODO] | P1 | 移除 normal build 的 `.cone` dependency flow |
+| `P1-T02` | [DONE] | P1 | 移除 normal build 的 `.cone` dependency flow |
 | `P1-T03` | [TODO] | P1 | 删除或改写 archive fixtures 与 archive-only tests |
 | `P2-T01` | [TODO] | P2 | `@Extern` 支持 `callingConvention` property |
 | `P2-T02` | [TODO] | P2 | 有 body 的 `@CallingConvention` 生成 object-level native callable symbol |
@@ -167,7 +167,7 @@ P0 baseline freeze
 - 与 `PLAN.md` / `SYSROOT_RESHAPE_R2.md` 闭合项：满足 P1 中“`scoop package` 要么删除子命令，要么改为稳定 diagnostic”的要求；P1 后续 `.cone` build consume flow 与 archive fixtures 退场仍由 `P1-T02` / `P1-T03` 处理。
 - 验证结果：`cargo fmt` 通过；`cargo build` 通过；`cargo test -p scoop package -- --nocapture` 首次与并行 build 争用后超时，重跑通过（6 passed, 0 failed）；`cargo clippy --all-targets -- -D warnings` 通过。
 
-## P1-T02：移除 normal build 的 `.cone` dependency flow
+## [DONE] P1-T02：移除 normal build 的 `.cone` dependency flow
 
 - 参考：`PLAN.md` §4。
 - 目标：normal `scoop build/run` 不再从 `.cone` archive 读取 dependency API。
@@ -179,6 +179,15 @@ P0 baseline freeze
   4. 保留 future/debug 代码时必须隔离，不能参与 build/run。
 - 验证：grep active build path 中 `ConeArchiveApi`、`load_cone_archive_api`、`SCOOP_CONE_PATH`；`cargo build`。
 - 完成条件：normal build/frontend 不依赖 archive API 注入。
+
+### 完成记录（2026-05-20）
+
+- 改动范围：`crates/scoop/src/commands/build.rs`、删除 `crates/scoop/src/commands/build/deps.rs`、`crates/scoopc/src/frontend.rs`；未修改 `PLAN.md`，未删除 archive writer/reader future helper，未处理 archive fixture suite（留给 `P1-T03`）。
+- 核心决策：normal `scoop build/run` 不再解析 manifest `[dependencies]` 为 `.cone` archive graph，不再搜索 `SCOOP_CONE_PATH` / `cone/` / `deps/`，`ProjectContext` 改为 input-only，`run_frontend` 不再接收 `Vec<ConeArchiveApi>` 或调用 `inject_cone_dependency_public_api`。
+- 测试更新：删除原本证明 normal build 可消费 `.cone` 的 build 单元测试；新增 `build_cone_package_ignores_archive_dependencies_in_normal_path`，用 manifest dependency + 无效 `.cone` 文件证明 normal build 不读取 archive。
+- 与 `PLAN.md` / `SYSROOT_RESHAPE_R2.md` 闭合项：满足 P1 中“移除 normal build `.cone` dependency flow”的要求；source-only dependency graph、source path dependency、archive fixture 删除/改写仍按后续 `P1-T03` / `P5-*` 任务推进。
+- 验证结果：`cargo fmt` 通过；grep 确认 Rust 源码中无 `SCOOP_CONE_PATH` / `load_dependency_graph`，`crates/scoop/src/commands` 中无 `ConeArchiveApi` / `load_cone_archive_api` / `inject_cone_dependency_public_api`，`crates/scoopc/src/frontend.rs` 中无 archive API 符号；`cargo test -p scoop --bin scoop build_cone_package_ignores_archive_dependencies_in_normal_path -- --nocapture` 通过；`cargo build` 通过；`cargo clippy --all-targets -- -D warnings` 通过；`cargo test -p scoop --bin scoop` 通过（121 passed）。
+- 备注：一次未限定 `--bin scoop` 的 filtered test 在目标单元测试已通过后继续启动无关 integration test binary 并超过 120s；随后用限定命令重跑目标测试通过。
 
 ## P1-T03：删除或改写 archive fixtures 与 archive-only tests
 

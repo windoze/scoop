@@ -6,7 +6,6 @@
 //! - 生成最小 object（当前阶段仍是固定 `main → ret 0`）；
 //! - 调用 clang 链接 object + 早期 C runtime，产出可执行文件。
 
-mod deps;
 mod incremental;
 pub(crate) mod layout;
 
@@ -365,12 +364,7 @@ fn load_build_context_with_options(
     session_options: &SessionOptions,
 ) -> Result<BuildContext> {
     let input = load_build_input_with_options(input, entry_package_override, session_options)?;
-    let deps = if input.is_explicit_cone() {
-        deps::load_dependency_graph(input.cone_manifest(), input.cone_root())?
-    } else {
-        Vec::new()
-    };
-    Ok(BuildContext::new(input, deps))
+    Ok(BuildContext::new(input))
 }
 
 fn default_output_path_for_input_and_emit(
@@ -733,37 +727,8 @@ version = "0.0.0"
     }
 
     #[test]
-    fn build_cone_package_can_load_cone_deps_for_frontend() {
+    fn build_cone_package_ignores_archive_dependencies_in_normal_path() {
         let dir = tempdir().unwrap();
-
-        // 1) 准备一个被依赖的 lib cone（用于打成 `.cone`）。
-        let lib = dir.path().join("lib");
-        let lib_src = lib.join("src");
-        std::fs::create_dir_all(&lib_src).unwrap();
-        std::fs::write(
-            lib.join("Cone.toml"),
-            r#"
-[cone]
-name = "fixture-lib"
-version = "0.0.0"
-"#,
-        )
-        .unwrap();
-        std::fs::write(
-            lib_src.join("api.scoop"),
-            r#"
-package fixtures.t1107.lib
-
-import scoop.core.*
-
-public struct Token(val value: Int)
-"#,
-        )
-        .unwrap();
-        // 说明：cone source package 约定必须存在 `src/main.scoop`（即使它只是库）。
-        std::fs::write(lib_src.join("main.scoop"), "package fixtures.t1107.lib\n").unwrap();
-
-        // 2) 准备一个 consumer app cone：依赖 `fixture-lib`，并在类型层引用 Token。
         let app = dir.path().join("app");
         let app_src = app.join("src");
         let app_cone = app.join("cone");
@@ -787,11 +752,6 @@ fixture-lib = "0.0.0"
 package fixtures.t1107.app
 
 import scoop.core.*
-import fixtures.t1107.lib.*
-
-public fun unused(x: Token): Int / Pure! {
-    1
-}
 
 public fun main() / Pure! {
     println("ok")
@@ -799,12 +759,11 @@ public fun main() / Pure! {
 "#,
         )
         .unwrap();
-
-        // 3) 把 lib 打成 `.cone` 放到 `app/cone/`，让 build 在默认搜索路径下可找到。
-        let session = scoopc::session::Session::new().unwrap();
-        let pkg = scoopc::cone::load_cone_source_package(&lib).unwrap();
-        let out_cone = app_cone.join("fixture-lib-0.0.0.cone");
-        scoopc::cone::write_cone_archive_v0(&session, &pkg, &out_cone).unwrap();
+        std::fs::write(
+            app_cone.join("fixture-lib-0.0.0.cone"),
+            b"not a cone archive",
+        )
+        .unwrap();
 
         let out = dir.path().join("out").join("a");
         super::run(app, Some(out), super::BuildOptions::default()).unwrap();
@@ -824,87 +783,6 @@ public fun main() / Pure! {
 
         let status = std::process::Command::new(&out).status().unwrap();
         assert!(status.success(), "可执行文件应返回 0");
-    }
-
-    #[cfg(all(feature = "llvm", not(windows)))]
-    #[test]
-    fn build_cone_package_with_cone_deps_produces_exe_and_stdout_ok() {
-        let dir = tempdir().unwrap();
-
-        let lib = dir.path().join("lib");
-        let lib_src = lib.join("src");
-        std::fs::create_dir_all(&lib_src).unwrap();
-        std::fs::write(
-            lib.join("Cone.toml"),
-            r#"
-[cone]
-name = "fixture-lib"
-version = "0.0.0"
-"#,
-        )
-        .unwrap();
-        std::fs::write(
-            lib_src.join("api.scoop"),
-            r#"
-package fixtures.t1107.lib
-
-import scoop.core.*
-
-public struct Token(val value: Int)
-"#,
-        )
-        .unwrap();
-        std::fs::write(lib_src.join("main.scoop"), "package fixtures.t1107.lib\n").unwrap();
-
-        let app = dir.path().join("app");
-        let app_src = app.join("src");
-        let app_cone = app.join("cone");
-        std::fs::create_dir_all(&app_src).unwrap();
-        std::fs::create_dir_all(&app_cone).unwrap();
-        std::fs::write(
-            app.join("Cone.toml"),
-            r#"
-[cone]
-name = "fixture-app"
-version = "0.0.0"
-
-[dependencies]
-fixture-lib = "0.0.0"
-"#,
-        )
-        .unwrap();
-        std::fs::write(
-            app_src.join("main.scoop"),
-            r#"
-package fixtures.t1107.app
-
-import scoop.core.*
-import fixtures.t1107.lib.*
-
-public fun unused(x: Token): Int / Pure! {
-    1
-}
-
-public fun main() / Pure! {
-    println("ok")
-}
-"#,
-        )
-        .unwrap();
-
-        let session = scoopc::session::Session::new().unwrap();
-        let pkg = scoopc::cone::load_cone_source_package(&lib).unwrap();
-        let out_cone = app_cone.join("fixture-lib-0.0.0.cone");
-        scoopc::cone::write_cone_archive_v0(&session, &pkg, &out_cone).unwrap();
-
-        let out = dir.path().join("out").join("a");
-        super::run(app, Some(out.clone()), super::BuildOptions::default()).unwrap();
-        assert!(out.is_file(), "build 应写出可执行文件");
-
-        let output = std::process::Command::new(&out).output().unwrap();
-        assert!(output.status.success(), "可执行文件应返回 0");
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        assert_eq!(stdout, "ok\n");
     }
 
     #[cfg(feature = "llvm")]
@@ -1077,10 +955,6 @@ version = "0.0.0"
         assert!(
             build_context.input().is_virtual_cone(),
             "裸文件输入即使位于 cone root 下，也必须保持 virtual-cone contract"
-        );
-        assert!(
-            build_context.deps().is_empty(),
-            "virtual-cone contract 不应偷偷解析 explicit cone 依赖"
         );
         assert_eq!(
             build_context.input().mir_request_source_paths(),
