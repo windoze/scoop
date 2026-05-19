@@ -18,4 +18,4 @@ U5-T03 assigns direct B-23 inventory coverage to the positive and negative membe
 
 ## Runner Status
 
-`scoop test` recognizes `tests/fixtures/umb_fix/**`. Fixtures marked `IGNORE-UNTIL-FIX:B-23` or `ignore-until-fix:B-23` are skipped until the corresponding production fix lands.
+`scoop test` recognizes `tests/fixtures/umb_fix/**`. All B-23 fixtures are active after P8 and must remain runnable.

@@ -11,4 +11,4 @@ U5-T01 creates this directory skeleton only. U5-T02 and U5-T03 must add `.scoop`
 
 ## Runner Status
 
-`scoop test` recognizes `tests/fixtures/umb_fix/**`. Fixtures marked `IGNORE-UNTIL-FIX:B-30` or `ignore-until-fix:B-30` are skipped until the corresponding production fix lands.
+`scoop test` recognizes `tests/fixtures/umb_fix/**`. All B-30 fixtures are active after P8 and must remain runnable.

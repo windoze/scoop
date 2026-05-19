@@ -1,24 +1,30 @@
-//! Baseline tests for the UMB fixture set and spec coverage matrix.
+//! Long-term coverage checks for the `tests/fixtures/umb_fix` fixture set.
 //!
-//! These tests intentionally scan repository data files as text. They lock the
-//! doc-and-test governance artifacts together without entering production
-//! codegen paths.
+//! The retired UMB inventory ledger is archived after P8. These tests keep the
+//! fixture coverage invariants that remain useful after the production fallback
+//! and inventory-generation tooling are gone.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use super::umb_inventory::{self, VALID_BUCKETS};
-
 const UMB_FIX_ROOT: &str = "tests/fixtures/umb_fix";
 const FIXTURE_INDEX_PATH: &str = "tests/fixtures/umb_fix/_index.csv";
 const SPEC_COVERAGE_MATRIX_PATH: &str = "audit/spec_coverage_matrix.md";
-const SENTINEL_README_PATH: &str = "tests/fixtures/umb_fix/B-01-builder-invariant/_README.md";
+const B01_README_PATH: &str = "tests/fixtures/umb_fix/B-01-builder-invariant/_README.md";
+const ARCHIVED_LEDGER_PATH: &str = "docs/archive/audits/unsupported-main-body/UMB_retired.csv";
 const EXPECTED_FIXTURE_INDEX_HEADER: &str =
     "fixture_path,bucket,kind,spec_anchor,umb_ids,status,notes";
 const HEADER_SCAN_LINES: usize = 32;
 const FORBIDDEN_NEGATIVE_TERMS: &[&str] =
     &["后端", "backend", "LLVM", "codegen", "UnsupportedMainBody"];
+const XFAIL_DIRECTIVES: &[&str] = &["XFAIL", "EXPECT-FAIL", "EXPECT-FAILURE"];
+
+const VALID_BUCKETS: &[&str] = &[
+    "B-01", "B-02", "B-03", "B-04", "B-05", "B-06", "B-07", "B-08", "B-09", "B-10", "B-11", "B-12",
+    "B-13", "B-14", "B-15", "B-16", "B-17", "B-18", "B-19", "B-20", "B-21", "B-22", "B-23", "B-24",
+    "B-25", "B-26", "B-27", "B-28", "B-29", "B-30", "B-31", "B-32", "B-33", "B-34", "B-35", "B-36",
+];
 
 #[test]
 fn umb_fix_fixture_index_in_sync() {
@@ -46,47 +52,60 @@ fn umb_fix_fixture_index_in_sync() {
 }
 
 #[test]
-fn umb_fix_every_inventory_id_is_covered() {
-    let inventory_entries = umb_inventory::inventory_entries();
-    let inventory_ids = inventory_entries
-        .iter()
-        .map(|entry| entry.id.clone())
-        .collect::<BTreeSet<_>>();
-    let retired_b01_ids = umb_inventory::retired_ids_for_bucket("B-01");
-    let retired_count = umb_inventory::retired_entry_count();
+fn umb_fix_all_fixture_rows_are_active() {
+    let mut ignored = Vec::new();
+    let mut xfailed = Vec::new();
 
-    assert_eq!(
-        inventory_ids.len() + retired_count,
-        umb_inventory::INITIAL_ENTRY_COUNT,
-        "fixture coverage audit countdown mismatch: active {} + retired {} must equal initial {}",
-        inventory_ids.len(),
-        retired_count,
-        umb_inventory::INITIAL_ENTRY_COUNT
-    );
-
-    let mut covered = BTreeSet::new();
     for entry in fixture_index_entries() {
-        covered.extend(parse_umb_id_list(&entry.umb_ids, &entry.fixture_path));
+        assert_eq!(
+            entry.status, "active",
+            "{} must remain active after P8",
+            entry.fixture_path
+        );
+
+        let headers = FixtureHeaders::from_fixture(&entry.fixture_path);
+        if let Some(bucket) = headers.ignore_until_fix.as_deref() {
+            ignored.push(format!("{} ({bucket})", entry.fixture_path));
+        }
+        for directive in XFAIL_DIRECTIVES {
+            if !headers.directive_values(directive).is_empty() {
+                xfailed.push(format!("{} ({directive})", entry.fixture_path));
+            }
+        }
     }
-    let sentinel_ids = sentinel_coverage_ids();
-    assert_eq!(
-        sentinel_ids, retired_b01_ids,
-        "B-01 sentinel coverage must exactly match retired helper-invariant ids"
-    );
 
     assert!(
-        set_difference(&inventory_ids, &covered).is_empty(),
-        "active inventory ids without fixture or sentinel coverage: {}",
-        summarize_inventory_id_difference(
-            &set_difference(&inventory_ids, &covered),
-            &inventory_entries
-        )
+        ignored.is_empty(),
+        "umb_fix fixtures must not use IGNORE-UNTIL-FIX after P8: {}",
+        ignored.join(", ")
     );
     assert!(
-        set_difference(&covered, &inventory_ids).is_empty(),
-        "fixture or sentinel coverage references unknown inventory ids: {}",
-        set_difference(&covered, &inventory_ids).join(", ")
+        xfailed.is_empty(),
+        "umb_fix fixtures must not use xfail directives after P8: {}",
+        xfailed.join(", ")
     );
+}
+
+#[test]
+fn umb_fix_index_no_longer_tracks_live_umb_ids() {
+    for entry in fixture_index_entries() {
+        assert!(
+            parse_umb_id_list(&entry.umb_ids, &entry.fixture_path).is_empty(),
+            "{} must use COVERS: NONE after the UMB ledger is archived",
+            entry.fixture_path
+        );
+
+        let headers = FixtureHeaders::from_fixture(&entry.fixture_path);
+        assert!(
+            parse_umb_id_list(
+                headers.require_single("COVERS", &entry.fixture_path),
+                &entry.fixture_path,
+            )
+            .is_empty(),
+            "{} must not retain live UMB id coverage after P8",
+            entry.fixture_path
+        );
+    }
 }
 
 #[test]
@@ -102,9 +121,10 @@ fn umb_fix_every_bucket_has_at_least_one_pos_and_one_neg() {
 
     for &bucket in VALID_BUCKETS {
         if bucket == "B-01" {
-            assert!(
-                !sentinel_coverage_ids().is_empty(),
-                "B-01 is sentinel-only and must retain a sentinel coverage record"
+            assert_eq!(
+                sentinel_marker_value("SENTINEL-COVERS"),
+                format!("ARCHIVED: {ARCHIVED_LEDGER_PATH}"),
+                "B-01 sentinel coverage must point at the archived retired ledger"
             );
             continue;
         }
@@ -121,6 +141,31 @@ fn umb_fix_every_bucket_has_at_least_one_pos_and_one_neg() {
             "{bucket} must have at least one negative umb_fix fixture"
         );
     }
+}
+
+#[test]
+fn umb_fix_builder_invariant_readme_records_archive() {
+    let sentinel = sentinel_marker_value("SENTINEL");
+    assert!(
+        sentinel.contains(
+            "crates/scoopc/src/audit/spec_coverage.rs::umb_fix_builder_invariant_readme_records_archive"
+        ),
+        "B-01 README should point at this sentinel test, got `{sentinel}`"
+    );
+    assert_eq!(
+        sentinel_marker_value("SENTINEL-STATUS"),
+        "archived-by-P8-T02",
+        "B-01 sentinel coverage should be archived after P8-T02"
+    );
+    assert_eq!(
+        sentinel_marker_value("SENTINEL-COVERS"),
+        format!("ARCHIVED: {ARCHIVED_LEDGER_PATH}"),
+        "B-01 retired ids must be discoverable in the archived ledger"
+    );
+    assert!(
+        repo_path(ARCHIVED_LEDGER_PATH).is_file(),
+        "B-01 archived ledger path is missing: {ARCHIVED_LEDGER_PATH}"
+    );
 }
 
 #[test]
@@ -154,23 +199,6 @@ fn umb_fix_spec_coverage_matrix_in_sync() {
             "{SPEC_COVERAGE_MATRIX_PATH} references missing bucket doc `{bucket_link}`"
         );
     }
-
-    let mut missing = Vec::new();
-    for entry in umb_inventory::inventory_entries()
-        .into_iter()
-        .filter(|entry| entry.spec_anchor != "N/A:helper-invariant")
-    {
-        for anchor in entry.spec_anchor.split(';') {
-            if !matrix.contains(anchor) {
-                missing.push(format!("{} {anchor}", entry.id));
-            }
-        }
-    }
-    assert!(
-        missing.is_empty(),
-        "inventory spec anchors missing from {SPEC_COVERAGE_MATRIX_PATH}: {}",
-        missing.join(", ")
-    );
 }
 
 #[test]
@@ -199,15 +227,8 @@ fn umb_fix_no_forbidden_terms_in_neg_messages() {
     }
 }
 
-pub(crate) fn sentinel_coverage_ids() -> BTreeSet<String> {
-    let value = sentinel_marker_value("SENTINEL-COVERS");
-    parse_umb_id_list(&value, SENTINEL_README_PATH)
-        .into_iter()
-        .collect()
-}
-
-pub(crate) fn sentinel_marker_value(marker: &str) -> String {
-    let path = repo_path(SENTINEL_README_PATH);
+fn sentinel_marker_value(marker: &str) -> String {
+    let path = repo_path(B01_README_PATH);
     let content = fs::read_to_string(&path)
         .unwrap_or_else(|err| panic!("failed to read {}: {err}", path.display()));
     let prefix = format!("- {marker}:");
@@ -270,9 +291,18 @@ fn validate_fixture_index_entry(entry: &FixtureIndexEntry) {
         "{} has empty notes in {FIXTURE_INDEX_PATH}",
         entry.fixture_path
     );
-    assert_valid_status(entry);
+    assert_eq!(
+        entry.status, "active",
+        "{} has non-active status `{}` in {FIXTURE_INDEX_PATH}",
+        entry.fixture_path, entry.status
+    );
 
     let headers = FixtureHeaders::from_fixture(&entry.fixture_path);
+    assert!(
+        headers.ignore_until_fix.is_none(),
+        "{} still contains IGNORE-UNTIL-FIX after P8",
+        entry.fixture_path
+    );
     for key in ["EXPECT", "SPEC", "COVERS", "BUCKETS"] {
         headers.require_single(key, &entry.fixture_path);
     }
@@ -296,7 +326,7 @@ fn validate_fixture_index_entry(entry: &FixtureIndexEntry) {
     assert_eq!(
         parse_umb_id_list(
             headers.require_single("COVERS", &entry.fixture_path),
-            &entry.fixture_path
+            &entry.fixture_path,
         ),
         parse_umb_id_list(&entry.umb_ids, &entry.fixture_path),
         "{} COVERS header drifted from {FIXTURE_INDEX_PATH}",
@@ -311,31 +341,6 @@ fn validate_fixture_index_entry(entry: &FixtureIndexEntry) {
             entry.fixture_path
         );
     }
-
-    let expected_ignore = entry.status.strip_prefix("ignore-until-fix:");
-    assert_eq!(
-        headers.ignore_until_fix.as_deref(),
-        expected_ignore,
-        "{} ignore status drifted between header and {FIXTURE_INDEX_PATH}",
-        entry.fixture_path
-    );
-}
-
-fn assert_valid_status(entry: &FixtureIndexEntry) {
-    if entry.status == "active" {
-        return;
-    }
-    let Some(bucket) = entry.status.strip_prefix("ignore-until-fix:") else {
-        panic!(
-            "{} has invalid status `{}` in {FIXTURE_INDEX_PATH}",
-            entry.fixture_path, entry.status
-        );
-    };
-    assert_eq!(
-        bucket, entry.bucket,
-        "{} ignore-until-fix status should name its primary bucket",
-        entry.fixture_path
-    );
 }
 
 fn actual_fixture_paths() -> BTreeSet<String> {
@@ -492,41 +497,21 @@ fn set_difference(left: &BTreeSet<String>, right: &BTreeSet<String>) -> Vec<Stri
     left.difference(right).cloned().collect()
 }
 
-fn summarize_inventory_id_difference(
-    ids: &[String],
-    inventory_entries: &[umb_inventory::InventoryEntry],
-) -> String {
-    let by_id = inventory_entries
-        .iter()
-        .map(|entry| (entry.id.as_str(), entry))
-        .collect::<BTreeMap<_, _>>();
-    ids.iter()
-        .map(|id| {
-            by_id
-                .get(id.as_str())
-                .map(|entry| {
-                    format!(
-                        "{} {}:{} {} {} `{}`",
-                        entry.id,
-                        entry.file,
-                        entry.line,
-                        entry.bucket,
-                        entry.expected_class,
-                        entry.kind
-                    )
-                })
-                .unwrap_or_else(|| id.clone())
-        })
-        .collect::<Vec<_>>()
-        .join(", ")
+fn repo_path(path: &str) -> PathBuf {
+    repo_root().join(path)
 }
 
-fn repo_path(path: &str) -> PathBuf {
-    umb_inventory::repo_root().join(path)
+fn repo_root() -> PathBuf {
+    let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    manifest_dir
+        .parent()
+        .and_then(Path::parent)
+        .expect("scoopc crate should live under <repo>/crates/scoopc")
+        .to_path_buf()
 }
 
 fn repo_relative_path(path: &Path) -> String {
-    path.strip_prefix(umb_inventory::repo_root())
+    path.strip_prefix(repo_root())
         .unwrap_or_else(|err| panic!("{} is outside repo root: {err}", path.display()))
         .to_string_lossy()
         .replace('\\', "/")
