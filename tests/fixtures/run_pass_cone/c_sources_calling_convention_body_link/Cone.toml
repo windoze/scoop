@@ -1,6 +1,7 @@
 [cone]
 name = "fixture-c-sources-calling-convention-body-link"
 version = "0.0.0"
+kind = "bin"
 
 [native-build]
 c-sources = ["native/call_entry.c"]

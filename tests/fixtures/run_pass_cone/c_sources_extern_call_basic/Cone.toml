@@ -1,8 +1,8 @@
 [cone]
 name = "fixture-c-sources-extern-call-basic"
 version = "0.0.0"
+kind = "bin"
 
 [native-build]
 c-sources = ["native/add.c"]
 c-flags = ["-O0"]
-

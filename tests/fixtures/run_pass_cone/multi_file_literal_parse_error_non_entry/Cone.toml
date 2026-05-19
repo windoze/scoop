@@ -1,3 +1,4 @@
 [cone]
 name = "fixture-multi-file-literal-parse-error-non-entry"
 version = "0.0.0"
+kind = "bin"

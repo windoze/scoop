@@ -1,7 +1,7 @@
 //! Cone 的“源级包（source package）”加载（T1102）。
 //!
 //! 目标：把一个 cone root 目录（含 `Cone.toml`）解析为：
-//! - manifest（name/version/deps）；
+//! - manifest（name/version/kind/deps）；
 //! - sources 列表（当前规则：`src/**/*.scoop`）；
 //! - 可执行入口（当前规则：`src/main.scoop`）。
 //!

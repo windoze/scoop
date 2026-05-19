@@ -1,3 +1,4 @@
 [cone]
 name = "fixture-top-level-val-pattern-multi-file-basic"
 version = "0.0.0"
+kind = "bin"

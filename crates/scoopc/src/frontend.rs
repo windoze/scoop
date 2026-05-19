@@ -4,7 +4,7 @@ use miette::{Context as _, Diagnostic, IntoDiagnostic as _, Result};
 use thiserror::Error;
 
 use crate::ast;
-use crate::cone::{ConeManifest, ConeNativeBuildConfig, ConeSection};
+use crate::cone::{ConeKind, ConeManifest, ConeNativeBuildConfig, ConeSection};
 use crate::opt::OptLevel;
 use crate::resolve::{ConeId, Index, IndexedFile};
 use crate::session::{Session, SessionOptions};
@@ -619,6 +619,7 @@ fn default_virtual_cone_manifest(source: &SourceFile) -> ConeManifest {
         cone: ConeSection {
             name,
             version: "0.0.0".to_string(),
+            kind: ConeKind::Bin,
         },
         dependencies: Default::default(),
         pre_specialize_functions: Vec::new(),

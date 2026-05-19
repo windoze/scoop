@@ -1,6 +1,7 @@
 [cone]
 name = "fixture-selectors-basic"
 version = "0.0.0"
+kind = "bin"
 
 # 该 fixture 用于回归 spec §13.9：`[[select]]` 按 platform 对 sources 做 include/exclude。
 #

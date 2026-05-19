@@ -4,7 +4,7 @@
 //! - T1110：补齐 `[[select]]`（platform selector）解析：规范 §13.9。
 //!
 //! 设计取舍（T1101）：
-//! - 只解析 `[cone].name/[cone].version` 与 `[dependencies]`；
+//! - 只解析 `[cone].name/[cone].version/[cone].kind` 与 `[dependencies]`；
 //! - 其它字段（例如 `scoop/ir_version/targets/pre-specialize`）后续任务再补齐；
 //! - T0629b：额外解析可选的 `[entry-points].exports`（库导出入口 / host entry points）。
 //! - T1112：额外解析可选的 `[native-build]`（生成最终可执行文件的 native build 配置）。
@@ -19,11 +19,48 @@ use crate::opt::OptLevel;
 /// `Cone.toml` 的固定文件名。
 pub const CONE_TOML_FILE_NAME: &str = "Cone.toml";
 
-/// `[cone]` 段（T1101：只保留 name/version）。
+/// Cone 的构建/加载类别。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum ConeKind {
+    Bin,
+    Lib,
+    Syslib,
+}
+
+impl ConeKind {
+    /// 解析 manifest 中的 `[cone].kind` 字符串。
+    pub fn parse(value: &str) -> Result<Self> {
+        match value {
+            "bin" => Ok(Self::Bin),
+            "lib" => Ok(Self::Lib),
+            "syslib" => Ok(Self::Syslib),
+            other => Err(miette!(
+                "`[cone].kind` 必须是 `bin`、`lib` 或 `syslib`，但得到 `{other}`"
+            )),
+        }
+    }
+
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Bin => "bin",
+            Self::Lib => "lib",
+            Self::Syslib => "syslib",
+        }
+    }
+}
+
+impl std::fmt::Display for ConeKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+/// `[cone]` 段。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ConeSection {
     pub name: String,
     pub version: String,
+    pub kind: ConeKind,
 }
 
 /// `[[select]]`：平台选择器的 `when` 条件（spec §13.9）。
@@ -131,6 +168,9 @@ impl ConeManifest {
         let version = get_required_string(cone, "version")
             .wrap_err("读取 `[cone].version` 失败")?
             .to_owned();
+        let kind =
+            ConeKind::parse(get_required_string(cone, "kind").wrap_err("读取 `[cone].kind` 失败")?)
+                .wrap_err("读取 `[cone].kind` 失败")?;
 
         let dependencies = match root.get("dependencies") {
             None => BTreeMap::new(),
@@ -158,7 +198,11 @@ impl ConeManifest {
         let native_build = parse_native_build(root)?;
 
         Ok(Self {
-            cone: ConeSection { name, version },
+            cone: ConeSection {
+                name,
+                version,
+                kind,
+            },
             dependencies,
             pre_specialize_functions,
             pre_specialize_types,
@@ -552,6 +596,7 @@ mod tests {
 [cone]
 name = "scoop-http"
 version = "2.1.0"
+kind = "bin"
 
 [dependencies]
 scoop-core = "1.0.0"
@@ -562,6 +607,7 @@ scoop-io = "1.2.0"
 
         assert_eq!(manifest.cone.name, "scoop-http");
         assert_eq!(manifest.cone.version, "2.1.0");
+        assert_eq!(manifest.cone.kind, ConeKind::Bin);
         assert_eq!(
             manifest.dependencies.get("scoop-core").map(String::as_str),
             Some("1.0.0")
@@ -578,12 +624,67 @@ scoop-io = "1.2.0"
     }
 
     #[test]
+    fn parse_cone_kind_variants_ok() {
+        for (kind_text, expected) in [
+            ("bin", ConeKind::Bin),
+            ("lib", ConeKind::Lib),
+            ("syslib", ConeKind::Syslib),
+        ] {
+            let manifest = ConeManifest::parse_str(&format!(
+                r#"
+[cone]
+name = "fixture"
+version = "0.0.0"
+kind = "{kind_text}"
+"#
+            ))
+            .unwrap();
+
+            assert_eq!(manifest.cone.kind, expected);
+        }
+    }
+
+    #[test]
+    fn parse_cone_kind_rejects_invalid_kind() {
+        let err = ConeManifest::parse_str(
+            r#"
+[cone]
+name = "fixture"
+version = "0.0.0"
+kind = "plugin"
+"#,
+        )
+        .unwrap_err();
+
+        let text = format!("{err:?}");
+        assert!(text.contains("`[cone].kind`"));
+        assert!(text.contains("plugin"));
+    }
+
+    #[test]
+    fn parse_cone_kind_is_required() {
+        let err = ConeManifest::parse_str(
+            r#"
+[cone]
+name = "fixture"
+version = "0.0.0"
+"#,
+        )
+        .unwrap_err();
+
+        let text = format!("{err:?}");
+        assert!(text.contains("读取 `[cone].kind` 失败"));
+        assert!(text.contains("缺少字段 `kind`"));
+    }
+
+    #[test]
     fn parse_entry_points_exports_ok() {
         let manifest = ConeManifest::parse_str(
             r#"
 [cone]
 name = "fixture"
 version = "0.0.0"
+kind = "bin"
 
 [entry-points]
 exports = ["a.b.init", "a.b.entry"]
@@ -601,6 +702,7 @@ exports = ["a.b.init", "a.b.entry"]
 [cone]
 name = "fixture"
 version = "0.0.0"
+kind = "bin"
 
 [pre-specialize]
 functions = ["a.b.id<Int>", "a.b.id<String>"]
@@ -624,6 +726,7 @@ types = ["a.b.List<Int>"]
 [cone]
 name = "fixture"
 version = "0.0.0"
+kind = "bin"
 
 [native-build]
 entry-package = "my.app"
@@ -661,6 +764,7 @@ link-flags = ["-Wl,-dead_strip"]
 [cone]
 name = "fixture"
 version = "0.0.0"
+kind = "bin"
 
 [native_build]
 entry_package = "my.app"
@@ -695,6 +799,7 @@ link_flags = ["-Wl,-dead_strip"]
 [cone]
 name = "fixture"
 version = "0.0.0"
+kind = "bin"
 
 [[select]]
 when = { platform = "linux-x64" }

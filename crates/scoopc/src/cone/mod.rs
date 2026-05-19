@@ -1,7 +1,7 @@
 //! Cone（包/稳定 IR/分发）相关基础设施。
 //!
 //! 当前阶段已落地：
-//! - T1101：`Cone.toml` 的最小解析（name/version/deps）；
+//! - T1101：`Cone.toml` 的最小解析（name/version/kind/deps）；
 //! - T1102：source package 的加载规则（cone root → sources 列表 + main 入口定位）。
 
 pub mod annotations;
@@ -26,7 +26,7 @@ pub use consume::{
     read_cone_api_scoopir_from_archive, read_cone_manifest_from_archive,
 };
 pub use manifest::{
-    CONE_TOML_FILE_NAME, ConeManifest, ConeNativeBuildConfig, ConeSection,
+    CONE_TOML_FILE_NAME, ConeKind, ConeManifest, ConeNativeBuildConfig, ConeSection,
     discover_cone_manifest_path, discover_cone_root,
 };
 pub use package::{

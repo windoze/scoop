@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use crate::cone::{ConeManifest, ConeNativeBuildConfig, ConeSection};
+use crate::cone::{ConeKind, ConeManifest, ConeNativeBuildConfig, ConeSection};
 use crate::hir::lower_for_dump;
 use crate::session::Session;
 use crate::source::SourceFile;
@@ -13,6 +13,7 @@ fn test_manifest(name: &str) -> ConeManifest {
         cone: ConeSection {
             name: name.to_string(),
             version: "0.1.0".to_string(),
+            kind: ConeKind::Bin,
         },
         dependencies: Default::default(),
         pre_specialize_functions: Vec::new(),

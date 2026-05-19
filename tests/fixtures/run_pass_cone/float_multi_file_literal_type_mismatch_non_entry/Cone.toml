@@ -1,3 +1,4 @@
 [cone]
 name = "fixture-float-multi-file-literal-type-mismatch-non-entry"
 version = "0.0.0"
+kind = "bin"

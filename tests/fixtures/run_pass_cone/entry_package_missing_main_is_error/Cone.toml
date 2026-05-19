@@ -1,7 +1,7 @@
 [cone]
 name = "fixture-entry-package-missing-main-is-error"
 version = "0.0.0"
+kind = "bin"
 
 [native-build]
 entry-package = "fixtures.run_pass_cone.missing"
-

@@ -715,6 +715,7 @@ fun main(): Int {
 [cone]
 name = "fixture-pkg"
 version = "0.0.0"
+kind = "bin"
 "#,
         )
         .unwrap();
@@ -740,6 +741,7 @@ version = "0.0.0"
 [cone]
 name = "fixture-app"
 version = "0.0.0"
+kind = "bin"
 
 [dependencies]
 fixture-lib = "0.0.0"
@@ -888,6 +890,7 @@ public fun main() / Pure! {
 [cone]
 name = "fixture-request-roots"
 version = "0.0.0"
+kind = "bin"
 "#,
         )
         .unwrap();
@@ -933,6 +936,7 @@ version = "0.0.0"
 [cone]
 name = "fixture-file-mode"
 version = "0.0.0"
+kind = "bin"
 "#,
         )
         .unwrap();
@@ -1044,6 +1048,7 @@ fun main(): Int {
 [cone]
 name = "fixture-entry-roots"
 version = "0.0.0"
+kind = "bin"
 "#,
         )
         .unwrap();

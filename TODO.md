@@ -3,7 +3,7 @@
 > 生成时间：2026-05-19
 > 设计基线：[`SYSROOT_RESHAPE_R2.md`](./SYSROOT_RESHAPE_R2.md)
 > 计划基线：[`PLAN.md`](./PLAN.md)
-> 当前状态：`P2-T03` 已完成；下一任务为 `P3-T01`。
+> 当前状态：`P3-T01` 已完成；下一任务为 `P3-T02`。
 > 执行原则：严格按 P0 -> P10 顺序推进；同一阶段内可按任务依赖拆 PR，但每个任务完成后必须保持仓库无 failing fixture，并回写完成记录。
 
 ## 全局约束
@@ -95,7 +95,7 @@ P0 baseline freeze
 | `P2-T01` | [DONE] | P2 | `@Extern` 支持 `callingConvention` property |
 | `P2-T02` | [DONE] | P2 | 有 body 的 `@CallingConvention` 生成 object-level native callable symbol |
 | `P2-T03` | [DONE] | P2 | 支持 `Any as?` closed Pure function runtime cast |
-| `P3-T01` | [TODO] | P3 | `Cone.toml` 解析 `kind = bin/lib/syslib` |
+| `P3-T01` | [DONE] | P3 | `Cone.toml` 解析 `kind = bin/lib/syslib` |
 | `P3-T02` | [TODO] | P3 | `lib/syslib` 无 entry point 加载规则 |
 | `P3-T03` | [TODO] | P3 | `syslib` path trust gate 与 intrinsic privilege gate |
 | `P4-T01` | [TODO] | P4 | 重排 sysroot 到 `sysroot/lib/<cone>/src` |
@@ -280,7 +280,7 @@ P0 baseline freeze
 - 与 `PLAN.md` / `SYSROOT_RESHAPE_R2.md` 闭合项：满足 P2 中“补齐 `Any as? closed Pure function type`”、“继续拒绝 effectful function target”和“function/closure runtime cast 增加 signature-specific runtime descriptor”的要求；未发现需要改变阶段级计划或设计基线的 blocker。
 - 验证结果：`cargo fmt` 通过；新 run-pass/typecheck 定向 fixtures 通过；`cargo run -p scoop -- test tests/fixtures/typecheck/` 通过（499 checks）；`cargo test -p scoopc mir_value_primitives_reject_open_function_type_cast_before_mir -- --nocapture` 通过；`cargo test -p scoopc pipeline_user_visible_failure_policy -- --nocapture` 通过；`cargo build` 通过；`cargo clippy --all-targets -- -D warnings` 通过；`cargo test --all --all-targets` 首次 600s 超时后以 1200s 重跑通过；`cargo run -p scoop -- test` 通过（fixtures: ok，1562 checks）。
 
-## P3-T01：`Cone.toml` 解析 `kind = bin/lib/syslib`
+## [DONE] P3-T01：`Cone.toml` 解析 `kind = bin/lib/syslib`
 
 - 参考：`PLAN.md` §6。
 - 目标：manifest 层正式表达 cone kind。
@@ -291,6 +291,14 @@ P0 baseline freeze
   3. 明确缺失 kind 策略。推荐主线要求显式 kind；如临时默认 `bin`，必须在完成记录中登记后续退场。
 - 验证：manifest parser unit tests 覆盖三种 kind、非法 kind、缺失 kind。
 - 完成条件：后续 loader/build 不再用目录形态猜测 cone kind。
+
+### 完成记录（2026-05-20）
+
+- 改动范围：`crates/scoopc/src/cone/manifest.rs`、`crates/scoopc/src/cone/mod.rs`、`crates/scoopc/src/frontend.rs`、`crates/scoopc/src/stable_id.rs`、`crates/scoopc/src/cone/scoopir/tests.rs`、`crates/scoop/src/commands/{build,new}.rs`、`crates/scoop/src/commands/build/incremental.rs`、`crates/scoop/src/fixtures/mod.rs`、`crates/scoop/tests/t1124_incremental_cone_run.rs`、仓库内现有 `Cone.toml` fixtures/testdata；未修改 `PLAN.md`。
+- 核心决策：新增 `ConeKind::{Bin, Lib, Syslib}`，`[cone].kind` 只接受 `"bin"`、`"lib"`、`"syslib"`；缺失 `kind` 稳定报错，不引入临时 `bin` 默认，因此没有后续默认值退场项。
+- Fixture / 模板更新：现有 source-cone fixtures/testdata 和 `scoop new` 模板均显式写入 `kind = "bin"`；临时测试中动态生成的 `Cone.toml` 同步补齐 `version` 与 `kind`，保证 active loader/build path 不再依赖目录形态或隐式默认判断 cone kind。
+- 与 `PLAN.md` / `SYSROOT_RESHAPE_R2.md` 闭合项：满足 P3 中“`ConeManifest` 解析 `[cone].kind`，允许值仅为 `bin`、`lib`、`syslib`，并用 enum 表达 cone kind”的要求；`lib/syslib` 无 entry 和 `syslib` path trust gate 仍按 `P3-T02` / `P3-T03` 推进。
+- 验证结果：`cargo fmt` 通过；`rg --files-without-match '^kind =' -g 'Cone.toml'` 无输出；`cargo test -p scoopc cone::manifest -- --nocapture` 通过（10 passed）；`cargo test -p scoopc cone::package -- --nocapture` 通过（2 passed）；`cargo test -p scoop --bin scoop` 通过（118 passed）；`cargo build` 通过；`cargo clippy --all-targets -- -D warnings` 通过；`cargo test --all --all-targets` 通过（Rust tests: ok，包含 `scoopc` 909 tests）；`cargo run -p scoop -- test` 通过（fixtures: ok，1562 checks）。
 
 ## P3-T02：`lib/syslib` 无 entry point 加载规则
 

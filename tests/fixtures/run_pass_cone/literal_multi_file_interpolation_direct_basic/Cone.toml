@@ -1,3 +1,4 @@
 [cone]
 name = "fixture-literal-multi-file-interpolation-direct-basic"
 version = "0.0.0"
+kind = "bin"

@@ -1,3 +1,4 @@
 [cone]
 name = "fixture-char-multi-file-runtime-api"
 version = "0.0.0"
+kind = "bin"

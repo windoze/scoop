@@ -1145,7 +1145,7 @@ mod tests {
     use std::path::PathBuf;
 
     use super::*;
-    use crate::cone::{ConeManifest, ConeNativeBuildConfig, ConeSection};
+    use crate::cone::{ConeKind, ConeManifest, ConeNativeBuildConfig, ConeSection};
     use crate::span::Span;
 
     fn test_manifest(name: &str, version: &str) -> ConeManifest {
@@ -1153,6 +1153,7 @@ mod tests {
             cone: ConeSection {
                 name: name.to_string(),
                 version: version.to_string(),
+                kind: ConeKind::Bin,
             },
             dependencies: Default::default(),
             pre_specialize_functions: Vec::new(),

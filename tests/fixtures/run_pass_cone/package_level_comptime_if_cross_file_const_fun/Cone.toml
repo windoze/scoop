@@ -1,3 +1,4 @@
 [cone]
 name = "fixture-package-level-comptime-if-cross-file-const-fun"
 version = "0.0.0"
+kind = "bin"

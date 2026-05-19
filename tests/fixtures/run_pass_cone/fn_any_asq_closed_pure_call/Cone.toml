@@ -1,3 +1,4 @@
 [cone]
 name = "fixture-fn-any-asq-closed-pure-call"
 version = "0.0.0"
+kind = "bin"

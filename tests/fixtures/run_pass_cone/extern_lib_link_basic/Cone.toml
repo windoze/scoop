@@ -1,3 +1,4 @@
 [cone]
 name = "fixture-extern-lib-link-basic"
 version = "0.0.0"
+kind = "bin"

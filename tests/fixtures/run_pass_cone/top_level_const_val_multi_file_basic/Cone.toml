@@ -1,3 +1,4 @@
 [cone]
 name = "fixture-top-level-const-val-multi-file-basic"
 version = "0.0.0"
+kind = "bin"

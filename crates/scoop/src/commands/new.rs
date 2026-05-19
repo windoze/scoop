@@ -106,6 +106,7 @@ fn cone_toml_template(name: &str) -> String {
         r#"[cone]
 name = "{name}"
 version = "0.1.0"
+kind = "bin"
 
 [dependencies]
 scoop-core = "0.1.0"
@@ -222,6 +223,10 @@ mod tests {
         assert!(
             cone_toml.contains("name = \"hello_world\""),
             "Cone.toml 应包含项目名，实际：{cone_toml}"
+        );
+        assert!(
+            cone_toml.contains("kind = \"bin\""),
+            "新建应用项目应显式声明 bin cone kind，实际：{cone_toml}"
         );
 
         let main_scoop =

@@ -1,6 +1,7 @@
 [cone]
 name = "fixture-managed-abi-string-gc"
 version = "0.0.0"
+kind = "bin"
 
 [entry-points]
 exports = [

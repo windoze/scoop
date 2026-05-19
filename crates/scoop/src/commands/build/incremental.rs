@@ -296,6 +296,7 @@ mod tests {
 [cone]
 name = "fixture-incremental"
 version = "0.0.0"
+kind = "bin"
 "#,
         )
         .unwrap();

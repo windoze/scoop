@@ -1,6 +1,7 @@
 [cone]
 name = "fixture-export-entry-point-non-pure-is-error"
 version = "0.0.0"
+kind = "bin"
 
 [entry-points]
 exports = [

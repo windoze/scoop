@@ -1,4 +1,4 @@
 [cone]
 name = "fixture-run-auto-build-and-run"
 version = "0.0.0"
-
+kind = "bin"

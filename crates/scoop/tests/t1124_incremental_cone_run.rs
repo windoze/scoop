@@ -21,6 +21,7 @@ fn scoop_run_cache_hit_skips_build_and_runs_program() {
 [cone]
 name = "fixture-incremental"
 version = "0.0.0"
+kind = "bin"
 "#,
     )
     .unwrap();

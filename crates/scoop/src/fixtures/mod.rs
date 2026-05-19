@@ -3403,7 +3403,11 @@ mod tests {
         let case_dir = dir.path().join("run_pass_cone").join("cone_case");
         let src_dir = case_dir.join("src");
         fs::create_dir_all(&src_dir).unwrap();
-        fs::write(case_dir.join("Cone.toml"), "[cone]\nname = \"cone-case\"\n").unwrap();
+        fs::write(
+            case_dir.join("Cone.toml"),
+            "[cone]\nname = \"cone-case\"\nversion = \"0.0.0\"\nkind = \"bin\"\n",
+        )
+        .unwrap();
         fs::write(
             src_dir.join("main.scoop"),
             "// EXPECT: pass\npackage fixtures.run_pass_cone.case\npublic fun main() / Pure! {}",

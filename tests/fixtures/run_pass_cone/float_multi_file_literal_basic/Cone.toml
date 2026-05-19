@@ -1,3 +1,4 @@
 [cone]
 name = "fixture-float-multi-file-literal-basic"
 version = "0.0.0"
+kind = "bin"
