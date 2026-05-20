@@ -499,6 +499,7 @@ fn build_module_from_codegen_entry_with_root_selector<'ctx>(
             source_map,
             entry_source_id,
             stable_cone_key: &lowered.stable_cone_key,
+            source_cones: &lowered.source_cones,
             stable_type_param_keys: &lowered.stable_type_param_keys,
             types: &lowered.types,
             struct_layouts: &lowered.struct_layouts,

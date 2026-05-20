@@ -13,8 +13,9 @@ use miette::{Context as _, IntoDiagnostic as _, Result, miette};
 use crate::cone::{
     ConeDependencySpec, ConeKind, ConeManifest, ConeNativeBuildConfig, ConeSourcePackage,
 };
-use crate::resolve::ConeId;
+use crate::resolve::{ConeId, ConeInfo};
 use crate::source::SourceFile;
+use crate::stable_id::StableConeKey;
 
 pub const CONSUMER_CONE_ID: ConeId = ConeId::new(1);
 const FIRST_NON_CONSUMER_CONE_ID: u32 = 2;
@@ -35,6 +36,37 @@ pub enum SourceConeTrust {
 impl SourceConeTrust {
     pub fn is_trusted_syslib(self) -> bool {
         self == Self::TrustedSyslib
+    }
+}
+
+/// Authoritative cone metadata for a source file after the source cone graph is flattened.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SourceConeInfo {
+    pub id: ConeId,
+    pub kind: ConeKind,
+    pub stable_key: StableConeKey,
+    pub trust: SourceConeTrust,
+}
+
+impl SourceConeInfo {
+    pub fn from_node(node: &SourceConeNode) -> Self {
+        Self {
+            id: node.id,
+            kind: node.kind,
+            stable_key: StableConeKey::from_manifest(&node.manifest),
+            trust: node.trust,
+        }
+    }
+
+    pub fn resolver_info(&self) -> ConeInfo {
+        ConeInfo {
+            id: self.id,
+            kind: self.kind,
+        }
+    }
+
+    pub fn is_trusted_syslib(&self) -> bool {
+        self.trust.is_trusted_syslib()
     }
 }
 

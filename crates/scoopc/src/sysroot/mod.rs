@@ -105,7 +105,19 @@ impl Sysroot {
                 .collect::<Vec<_>>();
             let indexed_sources = source_clones
                 .iter()
-                .map(|source| (crate::resolve::ConeId::DEFAULT, source))
+                .map(|source| {
+                    (
+                        crate::resolve::ConeInfo {
+                            id: crate::resolve::ConeId::DEFAULT,
+                            kind: if source.is_trusted_syslib() {
+                                crate::cone::ConeKind::Syslib
+                            } else {
+                                crate::cone::ConeKind::Lib
+                            },
+                        },
+                        source,
+                    )
+                })
                 .collect::<Vec<_>>();
             let mut ast_refs = files
                 .iter_mut()

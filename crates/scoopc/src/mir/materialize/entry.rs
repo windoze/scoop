@@ -55,12 +55,17 @@ pub(crate) fn materialize_compilation_unit_from_typechecked_inputs(
 ) -> MaterializeResult<MaterializedMir> {
     let super::super::MaterializeCompilationUnitOptions {
         stable_cone_key,
+        source_cones,
         request_source_paths,
         request_root_mode,
         opt_level,
     } = options;
-    let template_catalog =
-        collect_generic_template_infos(&stable_cone_key, index, compilation_unit);
+    let template_catalog = collect_generic_template_infos_with_source_cones(
+        &stable_cone_key,
+        source_cones,
+        index,
+        compilation_unit,
+    );
     let callable_body_infos = collect_callable_body_infos(compilation_unit);
     // materialized callee 可能定义在 helper/sysroot 等“非请求源文件”中，因此 generic
     // template lowering 与 site binding 收集都必须覆盖完整 compilation unit；调用方只需通过
@@ -75,6 +80,11 @@ pub(crate) fn materialize_compilation_unit_from_typechecked_inputs(
         type_env,
         typecheck_types,
     )?;
+    lowered_hir.source_cones.extend(
+        source_cones
+            .iter()
+            .map(|(path, info)| (path.clone(), info.clone())),
+    );
     let request_root_fun_keys =
         collect_request_root_fun_keys(&lowered_hir, request_source_paths, index, request_root_mode);
     let request_sources = request_source_paths.iter().cloned().collect::<HashSet<_>>();

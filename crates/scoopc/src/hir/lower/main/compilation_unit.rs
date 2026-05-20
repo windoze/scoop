@@ -222,10 +222,18 @@ pub fn lower_for_compilation_unit_with_stable_cone_key(
     ));
     let call_arg_bindings = collect_call_arg_bindings(&[(source, file)]);
     let stable_type_param_keys = collect_stable_type_param_keys(compilation_unit, &stable_cone_key);
+    let no_source_cone_overrides = HashMap::new();
+    let source_cones = source_cones_for_lowering(
+        compilation_unit,
+        index,
+        &stable_cone_key,
+        &no_source_cone_overrides,
+    );
 
     Ok(LoweredHir {
         file: file_hir,
         stable_cone_key,
+        source_cones,
         stable_type_param_keys,
         member_funs,
         materialized_mir: None,
@@ -349,6 +357,7 @@ pub fn lower_for_compilation_unit_multi_files_via_mir_instance_collection_with_o
         .iter()
         .map(|(source, _)| source.path().to_path_buf())
         .collect::<Vec<_>>();
+    let source_cones = HashMap::new();
     lower_for_compilation_unit_multi_files_via_mir_instance_collection_with_request_sources(
         index,
         compilation_unit,
@@ -361,6 +370,7 @@ pub fn lower_for_compilation_unit_multi_files_via_mir_instance_collection_with_o
                 files_to_lower.first().map(|(source, _)| *source),
                 compilation_unit,
             ),
+            source_cones: &source_cones,
             request_source_paths: &request_source_paths,
             request_root_mode: crate::mir::MaterializeRequestRootMode::RequestSources,
             opt_level,
@@ -370,6 +380,7 @@ pub fn lower_for_compilation_unit_multi_files_via_mir_instance_collection_with_o
 
 pub struct MirInstanceCollectionOptions<'a> {
     pub stable_cone_key: StableConeKey,
+    pub source_cones: &'a HashMap<std::path::PathBuf, crate::cone::SourceConeInfo>,
     pub request_source_paths: &'a [std::path::PathBuf],
     pub request_root_mode: crate::mir::MaterializeRequestRootMode<'a>,
     pub opt_level: crate::opt::OptLevel,
@@ -400,6 +411,7 @@ pub fn lower_for_compilation_unit_multi_files_via_mir_instance_collection_with_r
 ) -> Result<LoweredHir, Box<crate::mir::MirMaterializeError>> {
     let MirInstanceCollectionOptions {
         stable_cone_key,
+        source_cones,
         request_source_paths,
         request_root_mode,
         opt_level,
@@ -413,6 +425,7 @@ pub fn lower_for_compilation_unit_multi_files_via_mir_instance_collection_with_r
             monomorph_requests,
             crate::mir::MaterializeCompilationUnitOptions {
                 stable_cone_key: stable_cone_key.clone(),
+                source_cones,
                 request_source_paths,
                 request_root_mode,
                 opt_level,
@@ -430,7 +443,8 @@ pub fn lower_for_compilation_unit_multi_files_via_mir_instance_collection_with_r
             &materialized.instance_keys,
             &materialized.types,
             true,
-        ),
+        )
+        .with_source_cones(source_cones),
     )?;
     for ty in materialized.types.iter_ids() {
         let _ = lowered.types.re_intern_from(&materialized.types, ty);
@@ -473,6 +487,7 @@ pub(crate) enum CompilationUnitInstanceMode<'a> {
 
 pub(crate) struct CompilationUnitLoweringOptions<'a> {
     pub(crate) stable_cone_key: StableConeKey,
+    pub(crate) source_cones: HashMap<std::path::PathBuf, crate::cone::SourceConeInfo>,
     pub(crate) instance_mode: CompilationUnitInstanceMode<'a>,
     pub(crate) devirtualize_dispatch_calls: bool,
     pub(crate) runtime_comptime_plans:
@@ -483,6 +498,7 @@ impl<'a> CompilationUnitLoweringOptions<'a> {
     pub(crate) fn direct_lowered_hir(stable_cone_key: StableConeKey) -> Self {
         Self {
             stable_cone_key,
+            source_cones: HashMap::new(),
             instance_mode: CompilationUnitInstanceMode::DirectLoweredHir,
             devirtualize_dispatch_calls: false,
             runtime_comptime_plans: empty_runtime_comptime_plans(),
@@ -497,6 +513,7 @@ impl<'a> CompilationUnitLoweringOptions<'a> {
     ) -> Self {
         Self {
             stable_cone_key,
+            source_cones: HashMap::new(),
             instance_mode: CompilationUnitInstanceMode::ExplicitMirInstances {
                 instance_keys,
                 instance_types,
@@ -509,6 +526,7 @@ impl<'a> CompilationUnitLoweringOptions<'a> {
     pub(crate) fn generic_template_only(stable_cone_key: StableConeKey) -> Self {
         Self {
             stable_cone_key,
+            source_cones: HashMap::new(),
             instance_mode: CompilationUnitInstanceMode::GenericTemplateOnly,
             devirtualize_dispatch_calls: false,
             runtime_comptime_plans: empty_runtime_comptime_plans(),
@@ -523,6 +541,14 @@ impl<'a> CompilationUnitLoweringOptions<'a> {
         >,
     ) -> Self {
         self.runtime_comptime_plans = runtime_comptime_plans;
+        self
+    }
+
+    pub(crate) fn with_source_cones(
+        mut self,
+        source_cones: &HashMap<std::path::PathBuf, crate::cone::SourceConeInfo>,
+    ) -> Self {
+        self.source_cones = source_cones.clone();
         self
     }
 
@@ -556,6 +582,33 @@ pub(crate) fn virtual_stable_cone_key_for_sources(
         .unwrap_or_else(|| StableConeKey::new("virtual-cone", "0.0.0"))
 }
 
+fn source_cones_for_lowering(
+    compilation_unit: &[(&SourceFile, &ast::File)],
+    index: &Index,
+    fallback_stable_cone_key: &StableConeKey,
+    overrides: &HashMap<std::path::PathBuf, crate::cone::SourceConeInfo>,
+) -> HashMap<std::path::PathBuf, crate::cone::SourceConeInfo> {
+    let mut out = HashMap::new();
+    for (source, _) in compilation_unit {
+        let path = source.path().to_path_buf();
+        let info = overrides.get(&path).cloned().unwrap_or_else(|| {
+            let cone = index.cone_info_of_source(source);
+            crate::cone::SourceConeInfo {
+                id: cone.id,
+                kind: cone.kind,
+                stable_key: fallback_stable_cone_key.clone(),
+                trust: if source.is_trusted_syslib() {
+                    crate::cone::SourceConeTrust::TrustedSyslib
+                } else {
+                    crate::cone::SourceConeTrust::Untrusted
+                },
+            }
+        });
+        out.insert(path, info);
+    }
+    out
+}
+
 pub(crate) fn lower_for_compilation_unit_multi_files_internal<'a>(
     index: &Index,
     compilation_unit: &[(&SourceFile, &ast::File)],
@@ -568,6 +621,7 @@ pub(crate) fn lower_for_compilation_unit_multi_files_internal<'a>(
     let materialize_direct_call_targets = options.materialize_direct_call_targets();
     let CompilationUnitLoweringOptions {
         stable_cone_key,
+        source_cones: source_cone_overrides,
         instance_mode,
         devirtualize_dispatch_calls,
         runtime_comptime_plans,
@@ -948,10 +1002,17 @@ pub(crate) fn lower_for_compilation_unit_multi_files_internal<'a>(
     ));
     let call_arg_bindings = collect_call_arg_bindings(files_to_lower);
     let stable_type_param_keys = collect_stable_type_param_keys(compilation_unit, &stable_cone_key);
+    let source_cones = source_cones_for_lowering(
+        compilation_unit,
+        index,
+        &stable_cone_key,
+        &source_cone_overrides,
+    );
 
     Ok(LoweredHir {
         file: file_hir,
         stable_cone_key,
+        source_cones,
         stable_type_param_keys,
         member_funs,
         materialized_mir: None,

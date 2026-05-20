@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 use miette::{Context as _, Diagnostic, IntoDiagnostic as _, Result};
@@ -8,9 +9,11 @@ use crate::ast;
 use crate::cone::{
     CONSUMER_CONE_ID, SourceConeDependencyEdge, SourceConeNode, SourceConeRole, SourceConeTrust,
 };
-use crate::cone::{ConeKind, ConeManifest, ConeNativeBuildConfig, ConeSection, SourceConeGraph};
+use crate::cone::{
+    ConeKind, ConeManifest, ConeNativeBuildConfig, ConeSection, SourceConeGraph, SourceConeInfo,
+};
 use crate::opt::OptLevel;
-use crate::resolve::{ConeId, Index, IndexedFile};
+use crate::resolve::{ConeId, ConeInfo, Index, IndexedFile};
 use crate::session::{Session, SessionOptions};
 use crate::source::{SourceFile, SourceId, SourceMap};
 use crate::ty::TypeStore;
@@ -34,6 +37,8 @@ pub struct ProjectInput {
     sources: Vec<SourceFile>,
     /// `sources` 中每个 source 的 owning cone id，与 `sources` 下标一一对应。
     source_cone_ids: Vec<ConeId>,
+    /// `sources` 中每个 source 的 authoritative cone metadata，与 `sources` 下标一一对应。
+    source_cone_infos: Vec<SourceConeInfo>,
     /// 当前 project（consumer cone）自身的源文件在 `sources` 中的下标。
     project_source_indices: Vec<usize>,
     consumer_cone_id: ConeId,
@@ -70,10 +75,12 @@ impl ProjectInput {
 
         let mut sources = Vec::new();
         let mut source_cone_ids = Vec::new();
+        let mut source_cone_infos = Vec::new();
         let mut project_source_indices = Vec::new();
         let mut main_index = None;
 
         for node in graph.nodes() {
+            let cone_info = SourceConeInfo::from_node(node);
             for source in &node.sources {
                 let idx = sources.len();
                 if node.id == consumer_cone_id {
@@ -84,6 +91,7 @@ impl ProjectInput {
                 }
                 sources.push(source.clone());
                 source_cone_ids.push(node.id);
+                source_cone_infos.push(cone_info.clone());
             }
         }
 
@@ -98,6 +106,7 @@ impl ProjectInput {
             graph,
             sources,
             source_cone_ids,
+            source_cone_infos,
             project_source_indices,
             main_index,
             cone_anchor_main_index: main_index,
@@ -120,18 +129,31 @@ impl ProjectInput {
         entry_package_override: Option<String>,
     ) -> Self {
         let mut source_cone_ids = Vec::with_capacity(sources.len());
+        let mut source_cone_infos = Vec::with_capacity(sources.len());
         let mut consumer_sources = Vec::new();
         let mut graph_nodes = Vec::new();
         let mut next_dep_id = 2;
         for (idx, source) in sources.iter().enumerate() {
             if project_source_indices.contains(&idx) {
                 source_cone_ids.push(CONSUMER_CONE_ID);
+                source_cone_infos.push(SourceConeInfo {
+                    id: CONSUMER_CONE_ID,
+                    kind: cone_manifest.cone.kind,
+                    stable_key: crate::stable_id::StableConeKey::from_manifest(&cone_manifest),
+                    trust: SourceConeTrust::Untrusted,
+                });
                 consumer_sources.push(source.clone());
             } else {
                 let dep_id = ConeId::new(next_dep_id);
                 next_dep_id += 1;
                 source_cone_ids.push(dep_id);
                 let manifest = synthetic_manifest_for_source(source, ConeKind::Lib);
+                source_cone_infos.push(SourceConeInfo {
+                    id: dep_id,
+                    kind: manifest.cone.kind,
+                    stable_key: crate::stable_id::StableConeKey::from_manifest(&manifest),
+                    trust: SourceConeTrust::Untrusted,
+                });
                 graph_nodes.push(SourceConeNode {
                     id: dep_id,
                     role: SourceConeRole::LocalDependency,
@@ -172,6 +194,7 @@ impl ProjectInput {
             graph,
             sources,
             source_cone_ids,
+            source_cone_infos,
             project_source_indices,
             main_index,
             cone_anchor_main_index: main_index,
@@ -194,6 +217,26 @@ impl ProjectInput {
 
     pub fn source_cone_id(&self, source_index: usize) -> ConeId {
         self.source_cone_ids[source_index]
+    }
+
+    pub fn source_cone_kind(&self, source_index: usize) -> ConeKind {
+        self.source_cone_infos[source_index].kind
+    }
+
+    pub fn source_cone_info(&self, source_index: usize) -> &SourceConeInfo {
+        &self.source_cone_infos[source_index]
+    }
+
+    pub fn source_cone_info_map(&self) -> HashMap<PathBuf, SourceConeInfo> {
+        self.sources
+            .iter()
+            .zip(self.source_cone_infos.iter())
+            .map(|(source, info)| (source.path().to_path_buf(), info.clone()))
+            .collect()
+    }
+
+    pub fn source_resolver_cone_info(&self, source_index: usize) -> ConeInfo {
+        self.source_cone_info(source_index).resolver_info()
     }
 
     pub fn consumer_cone_id(&self) -> ConeId {
@@ -469,9 +512,14 @@ pub fn run_frontend(session: &Session, mut input: ProjectInput) -> Result<Fronte
     }
 
     {
-        let source_refs = input.sources.iter().collect::<Vec<_>>();
+        let source_refs = input
+            .sources
+            .iter()
+            .enumerate()
+            .map(|(idx, source)| (input.source_resolver_cone_info(idx), source))
+            .collect::<Vec<_>>();
         let mut ast_refs = asts.iter_mut().collect::<Vec<_>>();
-        crate::comptime::trim_package_level_comptime_ifs_in_compilation_unit(
+        crate::comptime::trim_package_level_comptime_ifs_in_cone_info_compilation_unit(
             session.sysroot(),
             &source_refs,
             &mut ast_refs,
@@ -495,6 +543,11 @@ pub fn run_frontend(session: &Session, mut input: ProjectInput) -> Result<Fronte
         }
         indexed.push(IndexedFile {
             cone: ConeId::new(0),
+            cone_kind: if f.source.is_trusted_syslib() {
+                ConeKind::Syslib
+            } else {
+                ConeKind::Lib
+            },
             source: &f.source,
             file: &f.ast,
         });
@@ -502,6 +555,7 @@ pub fn run_frontend(session: &Session, mut input: ProjectInput) -> Result<Fronte
     for (source_index, (source, ast)) in input.sources.iter().zip(asts.iter()).enumerate() {
         indexed.push(IndexedFile {
             cone: input.source_cone_id(source_index),
+            cone_kind: input.source_cone_kind(source_index),
             source,
             file: ast,
         });
@@ -653,6 +707,7 @@ pub fn lower_hir_for_codegen_with_request_root_mode(
     let request_source_paths = front.input.mir_request_source_paths();
     let stable_cone_key =
         crate::stable_id::StableConeKey::from_manifest(front.input.cone_manifest());
+    let source_cones = front.input.source_cone_info_map();
     let entry_main_fqn = front.input.entry_main_fqn.clone().unwrap_or_else(|| {
         let source = front.input.main_source();
         let ast = &front.asts[front.input.main_index];
@@ -676,6 +731,7 @@ pub fn lower_hir_for_codegen_with_request_root_mode(
         &front.typecheck_types,
         hir::MirInstanceCollectionOptions {
             stable_cone_key,
+            source_cones: &source_cones,
             request_source_paths: &request_source_paths,
             request_root_mode,
             opt_level,
@@ -937,6 +993,12 @@ mod tests {
                 .any(|&id| id != input.consumer_cone_id()),
             "sysroot graph sources must not be flattened into the consumer cone id"
         );
+        let source_cone_info_map = input.source_cone_info_map();
+        for (idx, source) in input.sources.iter().enumerate() {
+            let info = input.source_cone_info(idx);
+            assert_eq!(source_cone_info_map[source.path()].id, info.id);
+            assert_eq!(input.source_cone_kind(idx), info.kind);
+        }
     }
 
     #[test]
@@ -953,11 +1015,13 @@ mod tests {
         let mut index = Index::build_with_cones(&[
             IndexedFile {
                 cone: ConeId::new(1),
+                cone_kind: ConeKind::Bin,
                 source: &consumer,
                 file: &asts[0],
             },
             IndexedFile {
                 cone: ConeId::new(2),
+                cone_kind: ConeKind::Lib,
                 source: &dep,
                 file: &asts[1],
             },
@@ -1004,16 +1068,19 @@ mod tests {
         let mut index = Index::build_with_cones(&[
             IndexedFile {
                 cone: ConeId::new(2),
+                cone_kind: ConeKind::Lib,
                 source: &dep,
                 file: &asts[2],
             },
             IndexedFile {
                 cone: ConeId::new(1),
+                cone_kind: ConeKind::Bin,
                 source: &anchor,
                 file: &asts[0],
             },
             IndexedFile {
                 cone: ConeId::new(1),
+                cone_kind: ConeKind::Bin,
                 source: &consumer,
                 file: &asts[1],
             },

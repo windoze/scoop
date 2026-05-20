@@ -21,7 +21,7 @@
 use std::cell::{Cell, RefCell};
 use std::collections::{HashMap, HashSet};
 use std::ops::Deref;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
 use inkwell::AddressSpace;
@@ -53,6 +53,7 @@ use inkwell::values::IntValue;
 use inkwell::values::PointerValue;
 
 use crate::ast;
+use crate::cone::SourceConeInfo;
 use crate::effect::state_machine::CalleeSuspendPlan;
 use crate::expr_facts::ExprFactResolver;
 use crate::hir;
@@ -467,6 +468,7 @@ pub(crate) struct CompilationUnitCodegenCx<'a, 'ctx> {
     source_map: &'a SourceMap,
     entry_source_id: SourceId,
     stable_cone_key: &'a StableConeKey,
+    source_cones: &'a HashMap<PathBuf, SourceConeInfo>,
     stable_type_param_keys: &'a HashMap<TypeParamType, StableTypeParamKey>,
     types: &'a TypeStore,
     struct_layouts: &'a hir::StructLayoutIndex,
@@ -774,6 +776,7 @@ pub(super) struct CompilationUnitCodegenInputs<'a, 'ctx> {
     pub(super) source_map: &'a SourceMap,
     pub(super) entry_source_id: SourceId,
     pub(super) stable_cone_key: &'a StableConeKey,
+    pub(super) source_cones: &'a HashMap<PathBuf, SourceConeInfo>,
     pub(super) stable_type_param_keys: &'a HashMap<TypeParamType, StableTypeParamKey>,
     pub(super) types: &'a TypeStore,
     pub(super) struct_layouts: &'a hir::StructLayoutIndex,
@@ -828,6 +831,7 @@ impl<'a, 'ctx> CompilationUnitCodegenCx<'a, 'ctx> {
             source_map,
             entry_source_id,
             stable_cone_key,
+            source_cones,
             stable_type_param_keys,
             types,
             struct_layouts,
@@ -869,6 +873,7 @@ impl<'a, 'ctx> CompilationUnitCodegenCx<'a, 'ctx> {
             source_map,
             entry_source_id,
             stable_cone_key,
+            source_cones,
             stable_type_param_keys,
             types,
             struct_layouts,

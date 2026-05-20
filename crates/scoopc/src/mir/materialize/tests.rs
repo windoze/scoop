@@ -2672,6 +2672,7 @@ return 0
         .map(|(source, ast)| (source, ast))
         .collect::<Vec<_>>();
     let request_source_paths = vec![main_source.path().to_path_buf()];
+    let source_cones = HashMap::new();
     let lowered =
         crate::hir::lower_for_compilation_unit_multi_files_via_mir_instance_collection_with_request_sources(
         &index,
@@ -2682,6 +2683,7 @@ return 0
         &types,
         crate::hir::MirInstanceCollectionOptions {
             stable_cone_key: StableConeKey::for_virtual_source_path(main_source.path()),
+            source_cones: &source_cones,
             request_source_paths: &request_source_paths,
             request_root_mode: crate::mir::MaterializeRequestRootMode::RequestSources,
             opt_level: OptLevel::O2,

@@ -19,7 +19,10 @@ use std::path::PathBuf;
 use miette::Diagnostic;
 use thiserror::Error;
 
-use crate::{ast, intrinsics::best_effort_intrinsic_entry_name, source::SourceFile, span::Span};
+use crate::{
+    ast, cone::ConeKind, intrinsics::best_effort_intrinsic_entry_name, source::SourceFile,
+    span::Span,
+};
 
 pub(crate) use imports::add_auto_prelude_star_imports;
 pub use imports::{ImportNamespace, ImportTable};
@@ -198,6 +201,14 @@ pub enum ResolveError {
         #[label("这里")]
         span: miette::SourceSpan,
     },
+
+    #[error("同一个 cone id {cone} 被登记为多个 kind：{first} 与 {second}")]
+    #[diagnostic(code(scoop::resolve::conflicting_cone_kind))]
+    ConflictingConeKind {
+        cone: u32,
+        first: ConeKind,
+        second: ConeKind,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -226,6 +237,20 @@ impl ConeId {
     pub const fn as_u32(self) -> u32 {
         self.0
     }
+}
+
+/// Resolver-visible cone metadata attached to every indexed source file.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ConeInfo {
+    pub id: ConeId,
+    pub kind: ConeKind,
+}
+
+impl ConeInfo {
+    pub const DEFAULT: ConeInfo = ConeInfo {
+        id: ConeId::DEFAULT,
+        kind: ConeKind::Bin,
+    };
 }
 
 /// 可见性（visibility）。
@@ -537,6 +562,10 @@ pub struct Index {
     packages: HashSet<String>,
     /// 每个源文件所属的 cone（用于可见性过滤）。
     file_cones: HashMap<PathBuf, ConeId>,
+    /// 每个源文件所属 cone 的 id/kind（用于后续 typecheck/codegen 查询）。
+    file_cone_infos: HashMap<PathBuf, ConeInfo>,
+    /// 每个 cone id 的 kind；由 indexed file 输入显式提供。
+    cone_kinds: HashMap<ConeId, ConeKind>,
     /// runtime entry point：可执行入口函数（`fun main`）。
     ///
     /// 说明（T1113）：
@@ -580,6 +609,7 @@ pub struct Index {
 #[derive(Debug, Clone, Copy)]
 pub struct IndexedFile<'a> {
     pub cone: ConeId,
+    pub cone_kind: ConeKind,
     pub source: &'a SourceFile,
     pub file: &'a ast::File,
 }
@@ -597,6 +627,7 @@ impl Index {
             .iter()
             .map(|(source, file)| IndexedFile {
                 cone: ConeId::DEFAULT,
+                cone_kind: ConeKind::Bin,
                 source,
                 file,
             })
@@ -607,15 +638,75 @@ impl Index {
     pub fn build_with_cones(files: &[IndexedFile<'_>]) -> Result<Self, ResolveError> {
         let mut index = Index::default();
         for f in files {
+            index.register_cone_kind(f.cone, f.cone_kind)?;
             index
                 .file_cones
                 .insert(f.source.path().to_path_buf(), f.cone);
+            index.file_cone_infos.insert(
+                f.source.path().to_path_buf(),
+                ConeInfo {
+                    id: f.cone,
+                    kind: f.cone_kind,
+                },
+            );
             index.add_file_in_cone(f.cone, f.source, f.file)?;
         }
         index.collect_extension_funs(files);
         index.collect_extension_properties(files);
         index.collect_direct_supertypes(files);
         Ok(index)
+    }
+
+    fn register_cone_kind(&mut self, cone: ConeId, kind: ConeKind) -> Result<(), ResolveError> {
+        if cone == ConeId::DEFAULT {
+            self.cone_kinds.entry(cone).or_insert(kind);
+            return Ok(());
+        }
+        if let Some(prev) = self.cone_kinds.get(&cone).copied() {
+            if prev != kind {
+                return Err(ResolveError::ConflictingConeKind {
+                    cone: cone.as_u32(),
+                    first: prev,
+                    second: kind,
+                });
+            }
+        } else {
+            self.cone_kinds.insert(cone, kind);
+        }
+        Ok(())
+    }
+
+    pub fn cone_info(&self, cone: ConeId) -> ConeInfo {
+        ConeInfo {
+            id: cone,
+            kind: self.cone_kinds.get(&cone).copied().unwrap_or(ConeKind::Bin),
+        }
+    }
+
+    pub fn cone_kind(&self, cone: ConeId) -> ConeKind {
+        self.cone_info(cone).kind
+    }
+
+    pub fn cone_info_of_source(&self, source: &SourceFile) -> ConeInfo {
+        self.file_cone_infos
+            .get(source.path())
+            .copied()
+            .unwrap_or(ConeInfo::DEFAULT)
+    }
+
+    pub fn symbol_cone_info(&self, symbol: &Symbol) -> ConeInfo {
+        self.cone_info(symbol.decl_cone)
+    }
+
+    pub fn symbol_owner_cone_info(&self, fqn: &str, kind: SymbolKind) -> Option<ConeInfo> {
+        let syms = self.by_fqn.get(fqn)?;
+        match kind {
+            SymbolKind::Fun => syms
+                .fun
+                .first()
+                .map(|fun| self.symbol_cone_info(&fun.symbol)),
+            _ => syms.get(kind).map(|sym| self.symbol_cone_info(sym)),
+        }
     }
 
     /// 设置“导出入口（export entry points）”集合（T0629b）。
@@ -867,10 +958,7 @@ impl Index {
     }
 
     pub(crate) fn cone_of_source(&self, source: &SourceFile) -> ConeId {
-        self.file_cones
-            .get(source.path())
-            .copied()
-            .unwrap_or(ConeId::DEFAULT)
+        self.cone_info_of_source(source).id
     }
 
     /// 返回当前编译单元的“consumer cone”（用于 program boundary / entry point 规则）。
@@ -1674,7 +1762,11 @@ fn visibility_from_modifiers(
     Ok(found.unwrap_or(Visibility::Public))
 }
 
-fn is_symbol_visible_from(use_cone: ConeId, use_source: &SourceFile, symbol: &Symbol) -> bool {
+pub(crate) fn is_symbol_visible_from(
+    use_cone: ConeId,
+    use_source: &SourceFile,
+    symbol: &Symbol,
+) -> bool {
     match symbol.visibility {
         Visibility::Public => true,
         Visibility::Internal => symbol.decl_cone == use_cone,
@@ -2444,6 +2536,42 @@ mod tests {
 
         let err = Index::build(&[(&src, &ast)]).unwrap_err();
         assert!(matches!(err, ResolveError::InvalidVisibility { .. }));
+    }
+
+    #[test]
+    fn indexed_files_preserve_cone_kind_and_symbol_owner() {
+        let dep =
+            SourceFile::new_virtual("/tmp/scoop-resolve-dep.scoop", "package dep\nstruct Box {}");
+        let app =
+            SourceFile::new_virtual("/tmp/scoop-resolve-app.scoop", "package app\nfun main() {}");
+        let dep_ast = parse_file(&dep).unwrap();
+        let app_ast = parse_file(&app).unwrap();
+
+        let index = Index::build_with_cones(&[
+            IndexedFile {
+                cone: ConeId::new(2),
+                cone_kind: ConeKind::Lib,
+                source: &dep,
+                file: &dep_ast,
+            },
+            IndexedFile {
+                cone: ConeId::new(1),
+                cone_kind: ConeKind::Bin,
+                source: &app,
+                file: &app_ast,
+            },
+        ])
+        .unwrap();
+
+        assert_eq!(index.cone_info_of_source(&dep).kind, ConeKind::Lib);
+        assert_eq!(index.cone_info_of_source(&app).kind, ConeKind::Bin);
+        assert_eq!(
+            index.symbol_owner_cone_info("dep.Box", SymbolKind::Type),
+            Some(ConeInfo {
+                id: ConeId::new(2),
+                kind: ConeKind::Lib,
+            })
+        );
     }
 
     #[test]

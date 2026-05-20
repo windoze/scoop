@@ -13,7 +13,9 @@ use miette::Diagnostic;
 use thiserror::Error;
 
 use crate::ast;
-use crate::resolve::{ImportTable, Index, Visibility, add_auto_prelude_star_imports};
+use crate::resolve::{
+    ConeInfo, ImportTable, Index, add_auto_prelude_star_imports, is_symbol_visible_from,
+};
 use crate::source::SourceFile;
 use crate::span::Span;
 use crate::sysroot::Sysroot;
@@ -241,6 +243,7 @@ pub struct DirectSupertypeInfo {
 pub struct FileTypeContext {
     pub pkg_prefix: String,
     pub imports: ImportTable,
+    pub cone: ConeInfo,
 }
 
 /// `typealias` 的声明信息（用于 typecheck 阶段展开别名）。
@@ -516,6 +519,17 @@ impl TypeEnv {
         self.file_ctx.get(path)
     }
 
+    /// 返回给定源文件的 owner cone metadata。
+    pub fn file_cone_info(&self, path: &Path) -> Option<ConeInfo> {
+        self.file_type_context(path).map(|ctx| ctx.cone)
+    }
+
+    /// 返回某个 type symbol 的 owner cone metadata。
+    pub fn type_symbol_owner_cone_info(&self, fqn: &str) -> Option<ConeInfo> {
+        let sym = self.type_symbol(fqn)?;
+        self.file_cone_info(&sym.decl_file)
+    }
+
     /// 按 FQN 查询 typealias 的声明信息（用于别名展开与循环检测）。
     pub fn type_alias(&self, fqn: &str) -> Option<&TypeAliasInfo> {
         self.type_aliases.get(fqn)
@@ -662,11 +676,13 @@ impl TypeEnv {
             .or_insert_with(|| file.clone());
 
         let pkg_prefix = package_prefix(source, file.package.as_ref());
+        let cone = index.cone_info_of_source(source);
         self.file_ctx
             .entry(source.path().to_path_buf())
             .or_insert_with(|| FileTypeContext {
                 pkg_prefix: pkg_prefix.clone(),
                 imports: build_import_table_best_effort(source, file, index),
+                cone,
             });
 
         for item in &file.items {
@@ -1584,7 +1600,7 @@ fn build_import_table_best_effort(
         // 只把确实存在且在当前文件可见的 type symbol 写入 type 命名空间的显式 import 表。
         if let Some(syms) = index.by_fqn.get(&path)
             && let Some(sym) = syms.ty.as_ref()
-            && is_symbol_visible_from(source, sym)
+            && is_symbol_visible_from(index.cone_of_source(source), source, sym)
         {
             table.ty.explicit.entry(local).or_default().push(path);
         }
@@ -1599,13 +1615,6 @@ fn build_import_table_best_effort(
     }
 
     table
-}
-
-fn is_symbol_visible_from(source: &SourceFile, symbol: &crate::resolve::Symbol) -> bool {
-    match symbol.visibility {
-        Visibility::Public | Visibility::Internal => true,
-        Visibility::Private => symbol.decl_file == source.path(),
-    }
 }
 
 #[cfg(test)]
@@ -1628,6 +1637,54 @@ mod tests {
         let env = TypeEnv::from_sysroot(sess.sysroot(), &index).unwrap();
 
         assert_eq!(env.type_param_count("scoop.core.Option"), Some(1));
+    }
+
+    #[test]
+    fn type_env_import_context_filters_internal_types_by_cone() {
+        let dep = SourceFile::new_virtual(
+            "/tmp/scoop-type-env-dep.scoop",
+            "package dep\ninternal struct Hidden {}\npublic struct Shown {}\n",
+        );
+        let app = SourceFile::new_virtual(
+            "/tmp/scoop-type-env-app.scoop",
+            "package app\nimport dep.Hidden\nimport dep.Shown\nfun main() {}\n",
+        );
+        let dep_ast = crate::parser::parse_file(&dep).unwrap();
+        let app_ast = crate::parser::parse_file(&app).unwrap();
+        let index = Index::build_with_cones(&[
+            crate::resolve::IndexedFile {
+                cone: crate::resolve::ConeId::new(2),
+                cone_kind: crate::cone::ConeKind::Lib,
+                source: &dep,
+                file: &dep_ast,
+            },
+            crate::resolve::IndexedFile {
+                cone: crate::resolve::ConeId::new(1),
+                cone_kind: crate::cone::ConeKind::Bin,
+                source: &app,
+                file: &app_ast,
+            },
+        ])
+        .unwrap();
+
+        let mut env = TypeEnv::default();
+        env.extend_from_file(&dep, &dep_ast, &index).unwrap();
+        env.extend_from_file(&app, &app_ast, &index).unwrap();
+        let app_ctx = env.file_type_context(app.path()).unwrap();
+
+        assert_eq!(app_ctx.cone.kind, crate::cone::ConeKind::Bin);
+        assert!(!app_ctx.imports.ty.explicit.contains_key("Hidden"));
+        assert_eq!(
+            app_ctx.imports.ty.explicit.get("Shown"),
+            Some(&vec!["dep.Shown".to_string()])
+        );
+        assert_eq!(
+            env.type_symbol_owner_cone_info("dep.Hidden"),
+            Some(crate::resolve::ConeInfo {
+                id: crate::resolve::ConeId::new(2),
+                kind: crate::cone::ConeKind::Lib,
+            })
+        );
     }
 
     #[test]

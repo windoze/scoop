@@ -58,7 +58,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &mut self,
         v: &hir::TopLevelVar,
     ) -> Result<GlobalValue<'ctx>, LlvmEmitError> {
-        let name = private_top_level_var_global_name(&self.stable_top_level_var_key(&v.fqn));
+        let name = private_top_level_var_global_name(
+            &self.stable_top_level_var_key_for_source_path(v.source_path.as_path(), &v.fqn),
+        );
         if let Some(existing) = self.module.get_global(&name) {
             return Ok(existing);
         }

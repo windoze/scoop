@@ -19,6 +19,33 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Self::new(self.shared)
     }
 
+    pub(in crate::llvm::codegen) fn source_cone_info_for_path(
+        &self,
+        path: &Path,
+    ) -> Option<&SourceConeInfo> {
+        self.shared.source_cones.get(path)
+    }
+
+    pub(in crate::llvm::codegen) fn current_source_cone_info(&self) -> Option<&SourceConeInfo> {
+        let source = self.source_map.source(self.current_source_id)?;
+        self.source_cone_info_for_path(source.path())
+    }
+
+    pub(in crate::llvm::codegen) fn stable_cone_key_for_source_path(
+        &self,
+        path: &Path,
+    ) -> &StableConeKey {
+        self.source_cone_info_for_path(path)
+            .map(|info| &info.stable_key)
+            .unwrap_or(self.stable_cone_key)
+    }
+
+    pub(in crate::llvm::codegen) fn stable_cone_key_for_current_source(&self) -> &StableConeKey {
+        self.current_source_cone_info()
+            .map(|info| &info.stable_key)
+            .unwrap_or(self.stable_cone_key)
+    }
+
     pub(in crate::llvm::codegen) fn stable_def_key_for_current_cone(
         &self,
         namespace: StableDefNamespace,
@@ -26,7 +53,23 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         declaration_kind: &str,
     ) -> StableDefKey {
         StableDefKey::new(
-            self.stable_cone_key.clone(),
+            self.stable_cone_key_for_current_source().clone(),
+            namespace,
+            owner_path,
+            declaration_kind,
+            None,
+        )
+    }
+
+    pub(in crate::llvm::codegen) fn stable_def_key_for_source_path(
+        &self,
+        source_path: &Path,
+        namespace: StableDefNamespace,
+        owner_path: &str,
+        declaration_kind: &str,
+    ) -> StableDefKey {
+        StableDefKey::new(
+            self.stable_cone_key_for_source_path(source_path).clone(),
             namespace,
             owner_path,
             declaration_kind,
@@ -45,6 +88,19 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         )
     }
 
+    pub(in crate::llvm::codegen) fn stable_top_level_immutable_value_key_for_source_path(
+        &self,
+        source_path: &Path,
+        value_fqn: &str,
+    ) -> StableDefKey {
+        self.stable_def_key_for_source_path(
+            source_path,
+            StableDefNamespace::Value,
+            value_fqn,
+            "top_level_value",
+        )
+    }
+
     pub(in crate::llvm::codegen) fn stable_top_level_init_key(
         &self,
         value_fqn: &str,
@@ -56,8 +112,34 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         )
     }
 
+    pub(in crate::llvm::codegen) fn stable_top_level_init_key_for_source_path(
+        &self,
+        source_path: &Path,
+        value_fqn: &str,
+    ) -> StableDefKey {
+        self.stable_def_key_for_source_path(
+            source_path,
+            StableDefNamespace::TopLevelInit,
+            value_fqn,
+            "top_level_init",
+        )
+    }
+
     pub(in crate::llvm::codegen) fn stable_top_level_var_key(&self, var_fqn: &str) -> StableDefKey {
         self.stable_def_key_for_current_cone(StableDefNamespace::Value, var_fqn, "top_level_var")
+    }
+
+    pub(in crate::llvm::codegen) fn stable_top_level_var_key_for_source_path(
+        &self,
+        source_path: &Path,
+        var_fqn: &str,
+    ) -> StableDefKey {
+        self.stable_def_key_for_source_path(
+            source_path,
+            StableDefNamespace::Value,
+            var_fqn,
+            "top_level_var",
+        )
     }
 
     pub(in crate::llvm::codegen) fn stable_nominal_type_key(
@@ -109,6 +191,23 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         callable_ty: TypeId,
         types: &TypeStore,
     ) -> Result<StableDefKey, LlvmEmitError> {
+        self.stable_def_key_for_callable_signature_in_cone(
+            self.stable_cone_key_for_current_source(),
+            owner_path,
+            declaration_kind,
+            callable_ty,
+            types,
+        )
+    }
+
+    pub(in crate::llvm::codegen) fn stable_def_key_for_callable_signature_in_cone(
+        &self,
+        stable_cone_key: &StableConeKey,
+        owner_path: &str,
+        declaration_kind: &str,
+        callable_ty: TypeId,
+        types: &TypeStore,
+    ) -> Result<StableDefKey, LlvmEmitError> {
         let signature_key = canonical_callable_signature_key(
             types,
             callable_ty,
@@ -123,7 +222,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             ),
         })?;
         Ok(StableDefKey::new(
-            self.stable_cone_key.clone(),
+            stable_cone_key.clone(),
             StableDefNamespace::Fun,
             callable_export_readable_path(owner_path),
             declaration_kind,
@@ -173,7 +272,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             )?;
             return Ok(symbol);
         }
-        let stable_key = self.stable_def_key_for_callable_signature(
+        let stable_key = self.stable_def_key_for_callable_signature_in_cone(
+            self.stable_cone_key_for_source_path(fun.source_path.as_path()),
             &fun.fqn,
             "non_generic_callable",
             fun.ty,
@@ -212,7 +312,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .collect::<Vec<_>>()
             .join(", ");
         let return_ty_text = signature_types.display(return_ty).to_string();
-        let stable_key = self.stable_def_key_for_callable_signature(
+        let stable_key = self.stable_def_key_for_callable_signature_in_cone(
+            self.stable_cone_key_for_source_path(fun.source_path.as_path()),
             owner_path,
             "non_generic_callable",
             callable_ty,
@@ -385,10 +486,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             return Ok(StableClosureKey::new(stable_instance, lexical_path));
         }
 
-        let owner_key = self.stable_def_key_for_current_cone(
+        let owner_key = StableDefKey::new(
+            self.stable_cone_key_for_source_path(owner_fun.source_path.as_path())
+                .clone(),
             StableDefNamespace::Fun,
             &owner_fun.fqn,
             "top_level_fun",
+            None,
         );
         Ok(StableClosureKey::new(&owner_key, lexical_path))
     }

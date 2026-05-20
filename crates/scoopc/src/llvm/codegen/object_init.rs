@@ -409,6 +409,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     }
 
     fn stable_object_init_key(&self, object_fqn: &str) -> StableDefKey {
+        if let Some(obj) = self.object_inits.get(object_fqn) {
+            return self.stable_def_key_for_source_path(
+                obj.source_path.as_path(),
+                StableDefNamespace::ObjectInit,
+                object_fqn,
+                "object_init",
+            );
+        }
         self.stable_def_key_for_current_cone(
             StableDefNamespace::ObjectInit,
             object_fqn,
@@ -417,6 +425,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     }
 
     fn stable_object_property_key(&self, prop_fqn: &str) -> StableDefKey {
+        if let Some((object_fqn, _)) = prop_fqn.rsplit_once('.')
+            && let Some(obj) = self.object_inits.get(object_fqn)
+        {
+            return self.stable_def_key_for_source_path(
+                obj.source_path.as_path(),
+                StableDefNamespace::Value,
+                prop_fqn,
+                "object_property",
+            );
+        }
         self.stable_def_key_for_current_cone(StableDefNamespace::Value, prop_fqn, "object_property")
     }
 

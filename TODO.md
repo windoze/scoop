@@ -3,7 +3,7 @@
 > 生成时间：2026-05-19
 > 设计基线：[`SYSROOT_RESHAPE_R2.md`](./SYSROOT_RESHAPE_R2.md)
 > 计划基线：[`PLAN.md`](./PLAN.md)
-> 当前状态：`P5-T02` 已完成；下一任务为 `P5-T03`。
+> 当前状态：`P5-T03` 已完成；下一任务为 `P5-T04`。
 > 执行原则：严格按 P0 -> P10 顺序推进；同一阶段内可按任务依赖拆 PR，但每个任务完成后必须保持仓库无 failing fixture，并回写完成记录。
 
 ## 全局约束
@@ -103,7 +103,7 @@ P0 baseline freeze
 | `P4-T03` | [DONE] | P4 | sysroot overlay 迁移到 `overlay/lib/<cone>/...` |
 | `P5-T01` | [DONE] | P5 | 引入 source cone graph 数据结构 |
 | `P5-T02` | [DONE] | P5 | 支持本地 source path dependency fixtures |
-| `P5-T03` | [TODO] | P5 | 保留 cone identity/kind 到 resolver/typecheck/codegen |
+| `P5-T03` | [DONE] | P5 | 保留 cone identity/kind 到 resolver/typecheck/codegen |
 | `P5-T04` | [TODO] | P5 | 生成 per-cone init routine 与 final system entry 调用骨架 |
 | `P6-T01` | [TODO] | P6 | 实现 auto dependency cone 列表 |
 | `P6-T02` | [TODO] | P6 | 实现 prelude package 列表并与 auto dependency 解耦 |
@@ -460,7 +460,7 @@ P0 baseline freeze
 - Fixture 删除/改写：无删除；新增 source-only fixtures，不依赖 `.cone` archive。
 - 验证结果：`cargo fmt` 通过；`cargo test -p scoopc cone::manifest -- --nocapture` 通过（12 passed）；`cargo test -p scoopc cone::graph -- --nocapture` 通过（4 passed）；`cargo test -p scoop incremental -- --nocapture` 通过（2 passed）；三个新增 `run_pass_cone/source_path_dependency_*` 定向 fixtures 均通过；`cargo run -p scoop -- test tests/fixtures/run_pass_cone/` 通过（32 checks）；`cargo build` 通过；`cargo clippy --all-targets -- -D warnings` 通过；`cargo test --all --all-targets` 通过（Rust tests: ok，包含 `scoopc` 927 passed）；`cargo run -p scoop -- test` 通过（fixtures: ok，1566 checks）。
 
-## P5-T03：保留 cone identity/kind 到 resolver/typecheck/codegen
+## [DONE] P5-T03：保留 cone identity/kind 到 resolver/typecheck/codegen
 
 - 参考：`PLAN.md` §8。
 - 目标：flatten 成 compilation unit 后仍不丢 cone 边界。
@@ -471,6 +471,15 @@ P0 baseline freeze
   3. codegen 可访问当前 callable/source 所属 cone，用于 stable identity、native ownership、init routine。
 - 验证：unit tests 和 source dependency fixtures。
 - 完成条件：visibility、syslib privilege、native ownership 不依赖文件路径猜测。
+
+### 完成记录（2026-05-20）
+
+- 改动范围：`SourceConeInfo` 元数据 handoff、`ProjectInput` flatten 结果、`resolve::IndexedFile` / `Index`、`TypeEnv` 文件上下文、package-level comptime trim、HIR/MIR materialization options、LLVM codegen context、fixture runner 的 cone-aware indexing；未修改 `PLAN.md` 或 `SYSROOT_RESHAPE_R2.md`。
+- 核心决策：flatten 后每个 source 都携带 owner `ConeId`、`ConeKind`、stable cone key 与 trust；`IndexedFile` 必须显式提供 `cone_kind`；`Index` 保存 file/cone metadata，并暴露 source/symbol owner cone 查询；`TypeEnv` 文件上下文保留 cone metadata，显式 import/type lowering 复用 resolver 的 cone-aware visibility，不再把 `internal` 当作跨 cone 可见。
+- Codegen handoff：`LoweredHir`、MIR materialization 与 LLVM `CompilationUnitCodegenCx` 现在保留 `source_path -> SourceConeInfo`；generic template stable key、top-level var/immutable value/object init 等 stable identity 使用声明源所属 cone，而不是调用点或路径猜测。完整 fixture 过程中发现 `intrinsic_synthetic_property_basic` 暴露了调用点 source 误用于 sysroot top-level storage 的问题，已改为按 declaration source 取 stable cone key。
+- Fixture / tests：新增 resolver/type_env/frontend 单元覆盖 source cone kind、symbol owner cone 查询、跨 cone internal import 过滤与 `ProjectInput` source cone map；未删除或改写 fixture。
+- 与 `PLAN.md` / `SYSROOT_RESHAPE_R2.md` 闭合项：满足 P5 中“flatten 后不丢 cone 边界”、“resolver/typecheck 可查询 symbol owner cone”、“codegen 可访问 callable/source 所属 cone”的要求；per-cone init routine skeleton 仍按 `P5-T04` 推进。
+- 验证结果：`cargo fmt` 通过；`cargo check -p scoopc` 通过；`cargo test -p scoopc indexed_files_preserve_cone_kind_and_symbol_owner -- --nocapture` 通过；`cargo test -p scoopc type_env_import_context_filters_internal_types_by_cone -- --nocapture` 通过；`cargo test -p scoopc project_input_is_derived_from_source_cone_graph -- --nocapture` 通过；三个 `run_pass_cone/source_path_dependency_*` 定向 fixtures 均通过；`cargo test -p scoop --bin scoop` 通过（119 passed）；`cargo run -p scoop -- test tests/fixtures/run-pass/intrinsic_synthetic_property_basic.scoop` 通过；`cargo run -p scoop -- test` 通过（fixtures: ok，1566 checks）；`cargo test -p scoopc` 通过（929 passed）；`cargo clippy --all-targets -- -D warnings` 通过。
 
 ## P5-T04：生成 per-cone init routine 与 final system entry 调用骨架
 

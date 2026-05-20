@@ -164,7 +164,7 @@ pub fn eval_const_bindings_in_compilation_unit<'a>(
         let indexed_sources = trim_sources
             .iter()
             .copied()
-            .map(|source| (crate::resolve::ConeId::DEFAULT, source))
+            .map(|source| (crate::resolve::ConeInfo::DEFAULT, source))
             .collect::<Vec<_>>();
         trim_package_level_comptime_ifs_in_indexed_compilation_unit(
             &[],
@@ -326,29 +326,38 @@ pub fn trim_package_level_comptime_ifs_in_compilation_unit(
     sources: &[&SourceFile],
     files: &mut [&mut ast::File],
 ) -> Result<(), ConstEvalError> {
+    let indexed_sources = sources
+        .iter()
+        .copied()
+        .map(|source| (crate::resolve::ConeInfo::DEFAULT, source))
+        .collect::<Vec<_>>();
+    trim_package_level_comptime_ifs_in_cone_info_compilation_unit(sysroot, &indexed_sources, files)
+}
+
+pub fn trim_package_level_comptime_ifs_in_cone_info_compilation_unit(
+    sysroot: &crate::sysroot::Sysroot,
+    sources: &[(crate::resolve::ConeInfo, &SourceFile)],
+    files: &mut [&mut ast::File],
+) -> Result<(), ConstEvalError> {
     let ambient_files = sysroot
         .index_files()
         .filter(|file| {
             !sources
                 .iter()
-                .any(|source| source.path() == file.source.path())
+                .any(|(_, source)| source.path() == file.source.path())
         })
         .map(|file| crate::resolve::IndexedFile {
             cone: crate::resolve::ConeId::DEFAULT,
+            cone_kind: if file.source.is_trusted_syslib() {
+                crate::cone::ConeKind::Syslib
+            } else {
+                crate::cone::ConeKind::Lib
+            },
             source: &file.source,
             file: &file.ast,
         })
         .collect::<Vec<_>>();
-    let indexed_sources = sources
-        .iter()
-        .copied()
-        .map(|source| (crate::resolve::ConeId::DEFAULT, source))
-        .collect::<Vec<_>>();
-    trim_package_level_comptime_ifs_in_indexed_compilation_unit(
-        &ambient_files,
-        &indexed_sources,
-        files,
-    )
+    trim_package_level_comptime_ifs_in_indexed_compilation_unit(&ambient_files, sources, files)
 }
 
 /// 在共享 visible-unit / cone 上下文中裁剪 package-level `comptime if`。
@@ -359,7 +368,7 @@ pub fn trim_package_level_comptime_ifs_in_compilation_unit(
 /// - `sources` 携带 cone id，用于让 pre-trim probe 与正式 build/typecheck 的可见性边界保持一致。
 pub fn trim_package_level_comptime_ifs_in_indexed_compilation_unit(
     ambient_files: &[crate::resolve::IndexedFile<'_>],
-    sources: &[(crate::resolve::ConeId, &SourceFile)],
+    sources: &[(crate::resolve::ConeInfo, &SourceFile)],
     files: &mut [&mut ast::File],
 ) -> Result<(), ConstEvalError> {
     assert_eq!(
@@ -556,7 +565,7 @@ fn build_visible_file_for_binding_refresh(
 
 struct CompilationUnitTrimContext<'a> {
     ambient_files: &'a [crate::resolve::IndexedFile<'a>],
-    sources: &'a [(crate::resolve::ConeId, &'a SourceFile)],
+    sources: &'a [(crate::resolve::ConeInfo, &'a SourceFile)],
     visible_files: &'a [ast::File],
     current_file_idx: usize,
 }
@@ -588,7 +597,8 @@ impl<'a> CompilationUnitTrimContext<'a> {
         indexed.extend(self.ambient_files.iter().copied());
         for ((cone, source), ast) in self.sources.iter().copied().zip(probe_asts.iter()) {
             indexed.push(crate::resolve::IndexedFile {
-                cone,
+                cone: cone.id,
+                cone_kind: cone.kind,
                 source,
                 file: ast,
             });

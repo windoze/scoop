@@ -74,8 +74,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &self,
         value_fqn: &str,
     ) -> GlobalValue<'ctx> {
+        let value = self
+            .top_level_immutable_values
+            .get(value_fqn)
+            .expect("declare_top_level_immutable_value_guard: verifier accepted missing top-level immutable metadata");
         let name = private_top_level_immutable_value_guard_global_name(
-            &self.stable_top_level_init_key(value_fqn),
+            &self.stable_top_level_init_key_for_source_path(value.source_path.as_path(), value_fqn),
         );
         if let Some(existing) = self.module.get_global(&name) {
             return existing;
@@ -143,7 +147,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         let name = private_top_level_immutable_value_global_name(
-            &self.stable_top_level_immutable_value_key(&value.fqn),
+            &self.stable_top_level_immutable_value_key_for_source_path(
+                value.source_path.as_path(),
+                &value.fqn,
+            ),
         );
         if let Some(existing) = self.module.get_global(&name) {
             return Ok(Some(existing));
@@ -174,7 +181,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         };
 
         let name = private_top_level_immutable_value_init_fn_name(
-            &self.stable_top_level_init_key(value_fqn),
+            &self.stable_top_level_init_key_for_source_path(value.source_path.as_path(), value_fqn),
         );
         let fn_ty = self.context.void_type().fn_type(&[], false);
         let llvm_fun =
@@ -207,7 +214,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         };
 
         let name = private_top_level_immutable_value_init_bridge_fn_name(
-            &self.stable_top_level_init_key(value_fqn),
+            &self.stable_top_level_init_key_for_source_path(value.source_path.as_path(), value_fqn),
         );
         let fn_ty = self.llvm_effect_outcome_struct_type().fn_type(&[], false);
         let llvm_fun =
@@ -267,7 +274,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .map(|init| init.span)
             .unwrap_or(value.span);
         self.current_source_id = self.source_id_for_path(value.source_path.as_path(), err_span)?;
-        let stable_key = self.stable_top_level_init_key(&value.fqn);
+        let stable_key =
+            self.stable_top_level_init_key_for_source_path(value.source_path.as_path(), &value.fqn);
         self.enter_root_callable_identity(
             private_top_level_immutable_value_init_fn_name(&stable_key),
             stable_key,
@@ -315,7 +323,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 self.store_local_value(init.span, global.as_pointer_value(), value_cg, init_value)?;
             let storage_ty = self.llvm_basic_type_of(init.span, value_cg)?;
             let global_name = private_top_level_immutable_value_global_name(
-                &self.stable_top_level_immutable_value_key(&value.fqn),
+                &self.stable_top_level_immutable_value_key_for_source_path(
+                    value.source_path.as_path(),
+                    &value.fqn,
+                ),
             );
             self.register_global_root_if_needed(init.span, global, &global_name, storage_ty)?;
         }

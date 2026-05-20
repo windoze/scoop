@@ -315,9 +315,24 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
     let call_arg_bindings = collect_call_arg_bindings(&[(source, &ast)]);
     let stable_type_param_keys =
         collect_stable_type_param_keys(&[(source, &ast)], &stable_cone_key);
+    let mut source_cones = HashMap::new();
+    source_cones.insert(
+        source.path().to_path_buf(),
+        crate::cone::SourceConeInfo {
+            id: index.cone_of_source(source),
+            kind: index.cone_kind(index.cone_of_source(source)),
+            stable_key: stable_cone_key.clone(),
+            trust: if source.is_trusted_syslib() {
+                crate::cone::SourceConeTrust::TrustedSyslib
+            } else {
+                crate::cone::SourceConeTrust::Untrusted
+            },
+        },
+    );
     Ok(LoweredHir {
         file,
         stable_cone_key,
+        source_cones,
         stable_type_param_keys,
         member_funs,
         materialized_mir: None,

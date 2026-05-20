@@ -2199,6 +2199,11 @@ fn run_resolve_cone_case(
             .index_files()
             .map(|file| scoopc::resolve::IndexedFile {
                 cone: scoopc::resolve::ConeId::DEFAULT,
+                cone_kind: if file.source.is_trusted_syslib() {
+                    scoopc::cone::ConeKind::Syslib
+                } else {
+                    scoopc::cone::ConeKind::Lib
+                },
                 source: &file.source,
                 file: &file.ast,
             })
@@ -2209,7 +2214,15 @@ fn run_resolve_cone_case(
             .collect::<Vec<_>>();
         let indexed_sources = source_entries
             .iter()
-            .map(|(cone, source)| (*cone, source))
+            .map(|(cone, source)| {
+                (
+                    scoopc::resolve::ConeInfo {
+                        id: *cone,
+                        kind: scoopc::cone::ConeKind::Lib,
+                    },
+                    source,
+                )
+            })
             .collect::<Vec<_>>();
         let mut ast_refs = files
             .iter_mut()
@@ -2227,6 +2240,11 @@ fn run_resolve_cone_case(
     for f in session.sysroot().index_files() {
         indexed.push(scoopc::resolve::IndexedFile {
             cone: scoopc::resolve::ConeId::new(0),
+            cone_kind: if f.source.is_trusted_syslib() {
+                scoopc::cone::ConeKind::Syslib
+            } else {
+                scoopc::cone::ConeKind::Lib
+            },
             source: &f.source,
             file: &f.ast,
         });
@@ -2234,6 +2252,7 @@ fn run_resolve_cone_case(
     for f in &files {
         indexed.push(scoopc::resolve::IndexedFile {
             cone: f.cone,
+            cone_kind: scoopc::cone::ConeKind::Lib,
             source: &f.source,
             file: &f.ast,
         });
@@ -2344,6 +2363,11 @@ fn run_typecheck_cone_case(
             .index_files()
             .map(|file| scoopc::resolve::IndexedFile {
                 cone: scoopc::resolve::ConeId::DEFAULT,
+                cone_kind: if file.source.is_trusted_syslib() {
+                    scoopc::cone::ConeKind::Syslib
+                } else {
+                    scoopc::cone::ConeKind::Lib
+                },
                 source: &file.source,
                 file: &file.ast,
             })
@@ -2354,7 +2378,15 @@ fn run_typecheck_cone_case(
             .collect::<Vec<_>>();
         let indexed_sources = source_entries
             .iter()
-            .map(|(cone, source)| (*cone, source))
+            .map(|(cone, source)| {
+                (
+                    scoopc::resolve::ConeInfo {
+                        id: *cone,
+                        kind: scoopc::cone::ConeKind::Lib,
+                    },
+                    source,
+                )
+            })
             .collect::<Vec<_>>();
         let mut ast_refs = files
             .iter_mut()
@@ -2372,6 +2404,11 @@ fn run_typecheck_cone_case(
     for f in session.sysroot().index_files() {
         indexed.push(scoopc::resolve::IndexedFile {
             cone: scoopc::resolve::ConeId::new(0),
+            cone_kind: if f.source.is_trusted_syslib() {
+                scoopc::cone::ConeKind::Syslib
+            } else {
+                scoopc::cone::ConeKind::Lib
+            },
             source: &f.source,
             file: &f.ast,
         });
@@ -2379,6 +2416,7 @@ fn run_typecheck_cone_case(
     for f in &files {
         indexed.push(scoopc::resolve::IndexedFile {
             cone: f.cone,
+            cone_kind: scoopc::cone::ConeKind::Lib,
             source: &f.source,
             file: &f.ast,
         });

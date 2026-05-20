@@ -263,20 +263,39 @@ pub(super) fn collect_generic_templates_from_type_body(
     }
 }
 
+#[cfg(test)]
 pub(super) fn collect_generic_template_infos(
     stable_cone_key: &StableConeKey,
     index: &Index,
     compilation_unit: &[(&SourceFile, &ast::File)],
 ) -> Vec<GenericTemplateInfo> {
+    collect_generic_template_infos_with_source_cones(
+        stable_cone_key,
+        &HashMap::new(),
+        index,
+        compilation_unit,
+    )
+}
+
+pub(super) fn collect_generic_template_infos_with_source_cones(
+    stable_cone_key: &StableConeKey,
+    source_cones: &HashMap<PathBuf, crate::cone::SourceConeInfo>,
+    index: &Index,
+    compilation_unit: &[(&SourceFile, &ast::File)],
+) -> Vec<GenericTemplateInfo> {
     let mut out = Vec::new();
     for (source, file) in compilation_unit {
+        let source_stable_cone_key = source_cones
+            .get(source.path())
+            .map(|info| &info.stable_key)
+            .unwrap_or(stable_cone_key);
         let pkg_prefix = package_prefix(source, file.package.as_ref());
         for item in &file.items {
             match item {
                 ast::Item::Fun(fun) => {
                     push_generic_template_info(
                         &mut out,
-                        stable_cone_key,
+                        source_stable_cone_key,
                         source,
                         file,
                         index,
@@ -293,7 +312,7 @@ pub(super) fn collect_generic_template_infos(
                     };
                     collect_generic_templates_from_type_body(
                         &mut out,
-                        stable_cone_key,
+                        source_stable_cone_key,
                         source,
                         file,
                         index,
@@ -322,7 +341,7 @@ pub(super) fn collect_generic_template_infos(
                     };
                     collect_generic_templates_from_type_body(
                         &mut out,
-                        stable_cone_key,
+                        source_stable_cone_key,
                         source,
                         file,
                         index,

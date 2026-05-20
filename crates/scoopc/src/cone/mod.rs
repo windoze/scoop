@@ -28,7 +28,7 @@ pub use consume::{
 };
 pub use graph::{
     CONSUMER_CONE_ID, SourceConeDependencyEdge, SourceConeDependencyKind, SourceConeGraph,
-    SourceConeNode, SourceConeRole, SourceConeTrust,
+    SourceConeInfo, SourceConeNode, SourceConeRole, SourceConeTrust,
 };
 pub use manifest::{
     CONE_TOML_FILE_NAME, ConeDependencySpec, ConeKind, ConeManifest, ConeNativeBuildConfig,

@@ -227,13 +227,26 @@ pub fn build_pre_specialize_file_for_cone_sources(
             .iter()
             .map(|file| IndexedFile {
                 cone: ConeId::DEFAULT,
+                cone_kind: if file.source.is_trusted_syslib() {
+                    crate::cone::ConeKind::Syslib
+                } else {
+                    crate::cone::ConeKind::Lib
+                },
                 source: &file.source,
                 file: &file.ast,
             })
             .collect::<Vec<_>>();
         let indexed_sources = sources
             .iter()
-            .map(|source| (ConeId::new(1), source))
+            .map(|source| {
+                (
+                    crate::resolve::ConeInfo {
+                        id: ConeId::new(1),
+                        kind: manifest.cone.kind,
+                    },
+                    source,
+                )
+            })
             .collect::<Vec<_>>();
         let mut ast_refs = asts.iter_mut().collect::<Vec<_>>();
         crate::comptime::trim_package_level_comptime_ifs_in_indexed_compilation_unit(
@@ -249,6 +262,11 @@ pub fn build_pre_specialize_file_for_cone_sources(
     for f in session.sysroot().index_files() {
         indexed.push(IndexedFile {
             cone: ConeId::new(0),
+            cone_kind: if f.source.is_trusted_syslib() {
+                crate::cone::ConeKind::Syslib
+            } else {
+                crate::cone::ConeKind::Lib
+            },
             source: &f.source,
             file: &f.ast,
         });
@@ -256,6 +274,7 @@ pub fn build_pre_specialize_file_for_cone_sources(
     for (source, ast) in sources.iter().zip(asts.iter()) {
         indexed.push(IndexedFile {
             cone: ConeId::new(1),
+            cone_kind: manifest.cone.kind,
             source,
             file: ast,
         });

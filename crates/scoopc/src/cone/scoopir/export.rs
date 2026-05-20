@@ -146,19 +146,36 @@ pub fn export_public_api_for_cone_sources(
             .iter()
             .map(|file| crate::resolve::IndexedFile {
                 cone: crate::resolve::ConeId::DEFAULT,
+                cone_kind: if file.source.is_trusted_syslib() {
+                    crate::cone::ConeKind::Syslib
+                } else {
+                    crate::cone::ConeKind::Lib
+                },
                 source: &file.source,
                 file: &file.ast,
             })
             .collect::<Vec<_>>();
         let mut indexed_sources = support_sources
             .iter()
-            .map(|source| (crate::resolve::ConeId::new(1), source))
+            .map(|source| {
+                (
+                    crate::resolve::ConeInfo {
+                        id: crate::resolve::ConeId::new(1),
+                        kind: crate::cone::ConeKind::Lib,
+                    },
+                    source,
+                )
+            })
             .collect::<Vec<_>>();
-        indexed_sources.extend(
-            sources
-                .iter()
-                .map(|source| (crate::resolve::ConeId::new(1), source)),
-        );
+        indexed_sources.extend(sources.iter().map(|source| {
+            (
+                crate::resolve::ConeInfo {
+                    id: crate::resolve::ConeId::new(1),
+                    kind: manifest.cone.kind,
+                },
+                source,
+            )
+        }));
         let mut ast_refs = support_asts.iter_mut().collect::<Vec<_>>();
         ast_refs.extend(asts.iter_mut());
         crate::comptime::trim_package_level_comptime_ifs_in_indexed_compilation_unit(
@@ -174,6 +191,11 @@ pub fn export_public_api_for_cone_sources(
     for f in &session.sysroot().files {
         indexed.push(crate::resolve::IndexedFile {
             cone: crate::resolve::ConeId::new(0),
+            cone_kind: if f.source.is_trusted_syslib() {
+                crate::cone::ConeKind::Syslib
+            } else {
+                crate::cone::ConeKind::Lib
+            },
             source: &f.source,
             file: &f.ast,
         });
@@ -181,6 +203,7 @@ pub fn export_public_api_for_cone_sources(
     for (source, ast) in support_sources.iter().zip(support_asts.iter()) {
         indexed.push(crate::resolve::IndexedFile {
             cone: crate::resolve::ConeId::new(1),
+            cone_kind: crate::cone::ConeKind::Lib,
             source,
             file: ast,
         });
@@ -188,6 +211,7 @@ pub fn export_public_api_for_cone_sources(
     for (source, ast) in sources.iter().zip(asts.iter()) {
         indexed.push(crate::resolve::IndexedFile {
             cone: crate::resolve::ConeId::new(1),
+            cone_kind: manifest.cone.kind,
             source,
             file: ast,
         });

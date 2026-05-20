@@ -88,6 +88,7 @@ pub enum MaterializeRequestRootMode<'a> {
 
 pub(crate) struct MaterializeCompilationUnitOptions<'a> {
     pub stable_cone_key: StableConeKey,
+    pub source_cones: &'a HashMap<PathBuf, crate::cone::SourceConeInfo>,
     pub request_source_paths: &'a [std::path::PathBuf],
     pub request_root_mode: MaterializeRequestRootMode<'a>,
     pub opt_level: crate::opt::OptLevel,
@@ -120,6 +121,7 @@ pub(crate) fn materialize_compilation_unit_from_typechecked_inputs(
         monomorph_requests,
         MaterializeCompilationUnitOptions {
             stable_cone_key,
+            source_cones: &HashMap::new(),
             request_source_paths,
             request_root_mode: MaterializeRequestRootMode::RequestSources,
             opt_level: crate::opt::OptLevel::O0,
@@ -153,6 +155,7 @@ pub(crate) fn materialize_compilation_unit_from_typechecked_inputs_with_opt_leve
         monomorph_requests,
         MaterializeCompilationUnitOptions {
             stable_cone_key,
+            source_cones: &HashMap::new(),
             request_source_paths,
             request_root_mode: MaterializeRequestRootMode::RequestSources,
             opt_level,

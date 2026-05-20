@@ -14,7 +14,7 @@ use thiserror::Error;
 
 use crate::ast;
 use crate::monomorph::{MonomorphKey, MonomorphRequest, MonomorphSymbol};
-use crate::resolve::{ConstructorKind, ImportTable, Index, Visibility};
+use crate::resolve::{ConstructorKind, ImportTable, Index};
 use crate::source::SourceFile;
 use crate::span::Span;
 use crate::ty::{
@@ -4074,7 +4074,11 @@ impl<'a> TypeLowering<'a> {
             let Some(sym) = syms.ty.as_ref() else {
                 continue;
             };
-            if is_symbol_visible_from(self.source, sym) {
+            if crate::resolve::is_symbol_visible_from(
+                self.index.cone_of_source(self.source),
+                self.source,
+                sym,
+            ) {
                 return Ok(fqn);
             }
         }
@@ -4129,7 +4133,11 @@ impl<'a> TypeLowering<'a> {
             let Some(sym) = syms.ty.as_ref() else {
                 continue;
             };
-            if is_symbol_visible_from(self.source, sym) {
+            if crate::resolve::is_symbol_visible_from(
+                self.index.cone_of_source(self.source),
+                self.source,
+                sym,
+            ) {
                 return Ok(fqn);
             }
         }
@@ -4273,13 +4281,6 @@ fn find_type_decl_in_object_decl<'a>(
     }
 
     None
-}
-
-fn is_symbol_visible_from(source: &SourceFile, symbol: &crate::resolve::Symbol) -> bool {
-    match symbol.visibility {
-        Visibility::Public | Visibility::Internal => true,
-        Visibility::Private => symbol.decl_file == source.path(),
-    }
 }
 
 fn package_prefix(source: &SourceFile, pkg: Option<&ast::PackageDecl>) -> String {
