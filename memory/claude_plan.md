@@ -1,36 +1,41 @@
 # Claude Execution Plan
 
-## Scope
+## Current Invocation
 
-- Follow `TODO.md` as the authoritative task list.
-- Identify the first task whose heading is not prefixed with `[DONE]`.
-- Complete exactly that one task, then stop after committing.
-- Do not perform open-ended triage beyond issues that directly block the selected task.
+Goal: complete exactly the first incomplete task in `TODO.md`, verify it, mark it `[DONE]`, commit the result, and stop.
 
-## Step-by-Step Plan
+## Execution Plan
 
-1. Read `TODO.md` first and identify the first incomplete task by heading prefix.
-2. Inspect the selected task's requirements, dependencies, completion record, and validation instructions.
-3. Check the latest commit only for unfinished work directly relevant to the selected task.
-4. Inspect the minimum relevant code, fixtures, and tests needed to implement the selected task correctly.
-5. If a concrete prerequisite or spec mismatch blocks the task, update `TODO.md` with the minimum prerequisite task, commit that bookkeeping, and stop.
-6. Otherwise, implement the task with the smallest correct code and fixture changes.
-7. Run targeted validation first, then any broader validation required by the task.
-8. Fix any regressions or warnings introduced by the task.
-9. Update `TODO.md` by prefixing the completed task heading with `[DONE]` and filling its completion record.
-10. Update this plan file when key steps complete or if the plan changes.
-11. Review `git status`, `git diff`, and recent commits before committing.
-12. Commit all task-related changes with a descriptive message.
-13. Stop without starting the next task.
+1. Read `TODO.md` to identify the first task whose title is not prefixed with `[DONE]`.
+2. Check the latest commit message only for unfinished work directly relevant to that selected task.
+3. Read the selected task body, dependencies, validation requirements, and any nearby completion records.
+4. Inspect only the code and tests relevant to the selected task.
+5. Implement the smallest spec-correct change that fully completes the selected task.
+6. Run targeted validation first, then any broader validation required by the task.
+7. If validation exposes a blocking implementation/spec gap for the current task, add the minimum prerequisite task to `TODO.md`, keep the current task incomplete, commit that bookkeeping, and stop.
+8. If the task is completed, update `TODO.md` by prefixing the task title with `[DONE]` and filling in the completion record.
+9. Update this file after key milestones or if the plan changes.
+10. Inspect git status and diff, then commit all changes relevant to this invocation with a descriptive task-tagged commit message.
+11. Stop without starting the next task.
 
 ## Progress Log
 
-- Initialized execution plan before reading project files or running commands.
-- Read `TODO.md`; selected first incomplete task `P1-T03`.
-- Read `TODO-2.md`; task scope is migrating `types` to `scoopc_types`, establishing initial `scoopc_ids` primitives, keeping `TemplateKey` / `InstanceKey` MIR-internal, and validating authoritative definitions.
-- Checked latest commit `f38166b5 [P1-T02R] Review span and source migration`; it does not identify an unfinished issue that changes the selected task scope.
-- Moved `ty` and layout authoritative definitions into `scoopc_types`; `scoopc::ty` is now a re-export adapter.
-- Added initial `scoopc_ids` primitives for stable hash/key traits, manglers, canonical text helpers, `SiteId`, and a future `BodyVersionKey` extension point; `mir::SiteId` now re-exports the base type.
-- Updated `scoopc::stable_id` to consume `scoopc_types` and re-export identity primitives from `scoopc_ids`; type-aware canonical encoding remains in the facade because it combines ids with the migrated type universe and still has `StableConeKey::from_manifest` tied to the not-yet-migrated project model.
-- Validation passed: `cargo fmt`, `cargo test -p scoopc_types`, `cargo test -p scoopc_ids`, `cargo test --all --all-targets --no-default-features`, `cargo run -p scoop_tools -- dependency-gate`, `cargo tree -p scoopc_types`, `cargo tree -p scoopc_ids`, `cargo clippy --all-targets -- -D warnings`, and authoritative-definition searches.
-- Marked `P1-T03` as `[DONE]` in `TODO.md` and `TODO-2.md` with completion record.
+- Started invocation and created this execution plan before reading project task files or running commands.
+- Identified first incomplete task: `P1-T03R` review for the `types` / `ids` migration.
+- Latest commit is `[P1-T03] Migrate types and identity primitives`, directly relevant to this review task.
+- Review scope is limited to the P1-T03 migration boundary, required files, dependency direction, and task-specified validation.
+- Manual review found no blocking code changes needed: authoritative `TypeId` / `TypeStore` / `EffectRow` definitions are in `scoopc_types`, authoritative `SiteId` is in `scoopc_ids`, and `TemplateKey` / `InstanceKey` remain MIR materialization internals.
+- Dependency review shows `scoopc_types -> scoopc_span` and `scoopc_ids -> scoopc_span` only, with no stage/fact/backend/facade dependencies.
+- Validation completed so far: `cargo fmt`, `cargo test -p scoopc_types`, `cargo test -p scoopc_ids`, `cargo tree -p scoopc_types`, `cargo tree -p scoopc_ids`, `cargo run -p scoop_tools -- dependency-gate`, and `cargo test --all --all-targets --no-default-features`.
+- Final validation also passed: `cargo clippy --all-targets -- -D warnings`.
+- Updated `TODO.md` and `TODO-2.md` to mark `P1-T03R` as `[DONE]` with review conclusion, validation commands, and residual risks.
+
+## Previous Invocation Snapshot
+
+The previous committed snapshot recorded completion of `P1-T03`:
+
+- Selected first incomplete task `P1-T03`.
+- Moved `ty` and layout authoritative definitions into `scoopc_types`; `scoopc::ty` became a re-export adapter.
+- Added initial `scoopc_ids` primitives for stable hash/key traits, manglers, canonical text helpers, `SiteId`, and future `BodyVersionKey` extension point; `mir::SiteId` became a re-export of the base type.
+- Updated `scoopc::stable_id` to consume `scoopc_types` and re-export identity primitives from `scoopc_ids`; type-aware canonical encoding remained in the facade pending project model migration.
+- Validation passed for that task and `P1-T03` was marked `[DONE]` in `TODO.md` and `TODO-2.md`.

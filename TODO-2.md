@@ -271,7 +271,7 @@
   - 验证命令：`cargo fmt`；`cargo test -p scoopc_types`；`cargo test -p scoopc_ids`；`cargo test --all --all-targets --no-default-features`；`cargo run -p scoop_tools -- dependency-gate`；`cargo tree -p scoopc_types`；`cargo tree -p scoopc_ids`；`cargo clippy --all-targets -- -D warnings`；搜索 `pub struct TypeId|pub struct TypeStore|pub struct EffectRow|pub struct SiteId`；搜索 `TemplateKey` / `InstanceKey` 未出现在 `scoopc_ids`。
   - 残余风险：`scoopc::stable_id` 仍承载 type-aware canonical encoder 与 `StableConeKey::from_manifest` adapter，这是 P1-T04 project model/cone graph 迁移前的有意边界；全仓调用点仍大量通过迁移期 `crate::ty` / `crate::stable_id` 路径引用基础类型和 primitives，后续 P1 清场任务会继续收敛直接依赖基础 crate 的调用面。
 
-## [TODO] P1-T03R：Review `types` / `ids` 迁移结果
+## [DONE] P1-T03R：Review `types` / `ids` 迁移结果
 
 - 参考：P1-T03。
 - 重点：
@@ -293,7 +293,13 @@
   - review 结论明确写出：types/ids 基础层满足后续 fact crate 自包含要求，或列出阻塞项并在本 review 内修复。
 - 依赖：P1-T03
 - 完成记录：
-  - 待填写。
+  - 复查范围：复查 `crates/scoopc_types/`、`crates/scoopc_ids/`、`crates/scoopc/src/ty/mod.rs`、`crates/scoopc/src/stable_id.rs`、`crates/scoopc/src/mir/mod.rs`、`crates/scoopc/src/mir/materialize/mod.rs` 与 `crates/scoopc/src/llvm/codegen/ty.rs`；搜索 `TypeId` / `TypeStore` / `EffectRow` / `SiteId` / `TemplateKey` / `InstanceKey` authoritative 定义。
+  - review 结论：`TypeId`、`TypeStore`、`EffectRow` 只在 `scoopc_types` 定义，`scoopc::ty` 只是迁移期 re-export adapter；`SiteId` 只在 `scoopc_ids` 定义，并经 `scoopc::stable_id` / `scoopc::mir` re-export 供迁移期调用点使用；未发现重复 type universe、等价 ID 转换层或事实 crate 需要依赖 `scoopc` facade 的阻塞项。
+  - `stable_id` 结论：`stable_id` 已从 `scoopc_types` / `scoopc_ids` 消费基础类型和 stable hash/key primitives，不再依赖 `crate::ty` / `crate::span` 私有定义；`StableConeKey::from_manifest(...)` 与 type-aware canonical encoder 暂留 `scoopc` facade，原因仍是 `ConeManifest` / project model 尚属 P1-T04 迁移范围。
+  - MIR 内部键结论：`TemplateKey` / `InstanceKey` 仍只定义在 `crates/scoopc/src/mir/materialize/mod.rs`，没有进入 `scoopc_ids`；exported identity 继续通过 stable key surface 表达，符合 P1-T03 的 MIR materialization internal boundary。
+  - 依赖方向结论：`cargo tree -p scoopc_types` 仅显示 `scoopc_types -> scoopc_span`；`cargo tree -p scoopc_ids` 仅显示 `scoopc_ids -> scoopc_span` 与 `sha2`；`dependency-gate` 报告 5 个基础 crate 均未依赖 `scoopc` facade、stage/fact/backend crate 或工具 crate。
+  - 验证命令：`cargo fmt`；`cargo test -p scoopc_types`；`cargo test -p scoopc_ids`；`cargo test --all --all-targets --no-default-features`；`cargo run -p scoop_tools -- dependency-gate`；`cargo tree -p scoopc_types`；`cargo tree -p scoopc_ids`；`cargo clippy --all-targets -- -D warnings`；搜索 `pub (struct|enum|type) (TypeId|TypeStore|EffectRow|SiteId)\b`；搜索 `pub (struct|enum|type) (TemplateKey|InstanceKey)\b`。
+  - 残余风险：全仓仍存在通过迁移期 `crate::ty` / `crate::stable_id` / `crate::mir::SiteId` 路径访问基础类型的调用点，这是 P1 允许的 adapter 状态；`StableConeKey::from_manifest(...)` 的最终外提依赖后续 P1-T04 project model / cone graph 迁移。
 
 ## [TODO] P1-T04：迁移 project model、cone graph 与 resolver cone identity
 
