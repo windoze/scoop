@@ -18,3 +18,5 @@
 进度更新：已将 TODO-2.md 细化为 6 个 P1 实现任务和 6 个 review 任务，并在 TODO.md 索引中把 TODO-2-INIT 标记为完成、插入 P1-T01 到 P1-T06R。下一步复读文档变更并运行文档级校验。
 
 进度更新：已复读 TODO-2.md / TODO.md 变更并运行 `git diff --check`，未发现空白错误。下一步执行提交前的 git 状态、diff 与最近提交检查，然后提交本次 TODO-2-INIT 文档变更。
+
+进度更新：已提交本次 TODO-2-INIT 文档变更，提交为 `8ca9d7f1 [TODO-2-INIT] Detail P1 task package`。本次 invocation 到此停止，不继续处理 P1-T01。
