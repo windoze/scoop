@@ -73,7 +73,7 @@
   - 验证命令：`cargo fmt`；`cargo test -p scoopc --no-default-features parser`；`cargo test -p scoopc --no-default-features session`；`cargo run -p scoop -- test`；`cargo clippy --all-targets -- -D warnings`；搜索 `Item::ComptimeIf|ComptimeIfItem|trim_package_level_comptime` 于 `crates/` 和 `tests/` 均无命中。
   - 残余风险：归档文档和当前 TODO 任务说明中仍保留历史 package-level comptime 文字；这是历史/计划记录，不是活跃实现。顶层 `comptime if` 仍作为失败 fixture 源码出现，用于断言普通 parse 失败路径。
 
-## [TODO] P0-T01R：Review package-level comptime 删除结果
+## [DONE] P0-T01R：Review package-level comptime 删除结果
 
 - 参考：P0-T01。
 - 重点：
@@ -100,7 +100,12 @@
   - review 结论明确写出：package-level comptime 裁剪路径已经物理消失，且没有用新 reject/兼容分支替代。
 - 依赖：P0-T01
 - 完成记录：
-  - 待填写。
+  - 复查范围：逐项复查了 `ast`、parser file-level item 解析、session/sysroot/frontend、HIR/MIR/effect facts、cone visibility/pre-specialize/ScoopIR export 等 P0-T01R 指定位置，并检查了 package-level comptime fixtures 的现状。
+  - Review 结论：package-level `Item::ComptimeIf` / `ComptimeIfItem*` AST/parser surface 和 `trim_package_level_comptime*` 裁剪函数、导出、调用点已经从活跃源码物理消失；没有发现静默忽略 `Item::ComptimeIf` 的兼容分支，也没有新增专门 unsupported/reject 路径替代旧 surface。
+  - Fixture 结论：指定的 package-level comptime fixtures 均改为普通 parse-fail 路径；旧跨文件/cone package-level trimming fixture 目录不存在。
+  - 保留命中说明：`ComptimeIf` 仍在 AST/parser statement-level comptime 中出现，属于后续 `P0-T02` 范围；当前 TODO、memory 和归档文档中的 package-level comptime 文字属于任务/历史记录；失败 fixtures 中的源码文本用于断言普通 parse 失败。
+  - 验证命令：`cargo fmt`；`cargo test -p scoopc --no-default-features parser`；`cargo test -p scoopc --no-default-features session`；`cargo run -p scoop -- test`；`cargo clippy --all-targets -- -D warnings`；搜索 `Item::ComptimeIf|ComptimeIfItem|trim_package_level_comptime` 于 `crates/` 和 `tests/` 无命中；搜索 `package-level comptime|ComptimeIfItem|trim_package_level_comptime|Item::ComptimeIf` 仅命中 TODO/memory/归档文档。
+  - 残余风险：无与 package-level comptime 删除相关的活跃实现风险；statement-level comptime/runtime plan 和 Scoop `const` surface 仍按 `P0-T02`/`P0-T03` 处理。
 
 ## [TODO] P0-T02：删除 statement-level `comptime if/for` 与 runtime comptime plan
 
