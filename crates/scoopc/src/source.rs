@@ -16,12 +16,19 @@ pub enum SourceOrigin {
     Sysroot,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SourceTrust {
+    Untrusted,
+    TrustedSyslib,
+}
+
 /// 单个源文件。
 #[derive(Debug, Clone)]
 pub struct SourceFile {
     path: PathBuf,
     text: String,
     origin: SourceOrigin,
+    trust: SourceTrust,
     /// 每一行起始的字节偏移（包含第 0 行的 0）。
     line_starts: Vec<usize>,
 }
@@ -36,7 +43,19 @@ impl SourceFile {
         Self::load_with_origin(path, SourceOrigin::Sysroot)
     }
 
+    pub fn load_trusted_syslib(path: impl AsRef<Path>) -> Result<Self> {
+        Self::load_with_origin_and_trust(path, SourceOrigin::Sysroot, SourceTrust::TrustedSyslib)
+    }
+
     pub fn load_with_origin(path: impl AsRef<Path>, origin: SourceOrigin) -> Result<Self> {
+        Self::load_with_origin_and_trust(path, origin, SourceTrust::Untrusted)
+    }
+
+    pub fn load_with_origin_and_trust(
+        path: impl AsRef<Path>,
+        origin: SourceOrigin,
+        trust: SourceTrust,
+    ) -> Result<Self> {
         let path = path.as_ref().to_path_buf();
         let text = std::fs::read_to_string(&path)
             .map_err(|e| miette!("读取源文件失败：{}: {}", path.display(), e))?;
@@ -47,6 +66,7 @@ impl SourceFile {
             path,
             text,
             origin,
+            trust,
             line_starts,
         })
     }
@@ -61,12 +81,31 @@ impl SourceFile {
         text: impl Into<String>,
         origin: SourceOrigin,
     ) -> Self {
+        Self::new_virtual_with_origin_and_trust(path, text, origin, SourceTrust::Untrusted)
+    }
+
+    pub fn new_virtual_trusted_syslib(path: impl Into<PathBuf>, text: impl Into<String>) -> Self {
+        Self::new_virtual_with_origin_and_trust(
+            path,
+            text,
+            SourceOrigin::Sysroot,
+            SourceTrust::TrustedSyslib,
+        )
+    }
+
+    pub fn new_virtual_with_origin_and_trust(
+        path: impl Into<PathBuf>,
+        text: impl Into<String>,
+        origin: SourceOrigin,
+        trust: SourceTrust,
+    ) -> Self {
         let text = text.into();
         let line_starts = compute_line_starts(&text);
         Self {
             path: path.into(),
             text,
             origin,
+            trust,
             line_starts,
         }
     }
@@ -83,12 +122,14 @@ impl SourceFile {
         self.origin
     }
 
+    pub fn is_trusted_syslib(&self) -> bool {
+        self.trust == SourceTrust::TrustedSyslib
+    }
+
     /// 标识该 file 是否来自标准 cone（sysroot）。
     ///
-    /// **语义边界**：从 P12 起，本标志的唯一行为影响是自动开启
-    /// `@file:AllowIntrinsic` gate。这是标准 cone 作者撰写 intrinsic 声明的便利
-    /// 特权，不是语言后门。其它位置（typecheck body 缺失策略、AST stripping、
-    /// 编译列表过滤等）已经统一对待 sysroot 与用户 file。
+    /// **语义边界**：该标志只描述物理来源。语言特权必须查询
+    /// [`SourceFile::is_trusted_syslib`]，不能由 `SourceOrigin::Sysroot` 直接授予。
     pub fn is_sysroot(&self) -> bool {
         self.origin == SourceOrigin::Sysroot
     }
@@ -369,6 +410,7 @@ mod tests {
             path: PathBuf::from("<mem>"),
             text: "a\nbcd\nef".to_string(),
             origin: SourceOrigin::User,
+            trust: SourceTrust::Untrusted,
             line_starts: compute_line_starts("a\nbcd\nef"),
         };
 
@@ -385,6 +427,7 @@ mod tests {
             path: PathBuf::from("<mem>"),
             text: "a中b".to_string(),
             origin: SourceOrigin::User,
+            trust: SourceTrust::Untrusted,
             line_starts: compute_line_starts("a中b"),
         };
 

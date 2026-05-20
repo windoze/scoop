@@ -1,0 +1,18 @@
+package fixtures.runpass
+
+import scoop.core.*
+
+interface DummyIter {
+    fun token(): Int
+}
+
+@Intrinsic
+class Container<T>(seed: T) : DummyIter {
+    override fun token(): Int {
+        return 29
+    }
+
+    fun echo(value: T): T {
+        return value
+    }
+}

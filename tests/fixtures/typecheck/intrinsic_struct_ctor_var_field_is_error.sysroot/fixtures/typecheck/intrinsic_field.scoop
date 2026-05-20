@@ -1,0 +1,6 @@
+package fixtures.typecheck
+
+import scoop.core.*
+
+@Intrinsic
+struct NativeBits(var value: Int)

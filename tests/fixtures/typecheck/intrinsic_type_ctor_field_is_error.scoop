@@ -2,11 +2,6 @@
 // EXPECT-ERROR-CODE: scoop::typecheck::intrinsic_type_field_not_supported
 // EXPECT-ERROR: `@Intrinsic` 类型不能声明字段：fixtures.typecheck.NativeBox.value
 
-@file:AllowIntrinsic
-
 package fixtures.typecheck
 
 import scoop.core.*
-
-@Intrinsic
-class NativeBox(val value: Int)

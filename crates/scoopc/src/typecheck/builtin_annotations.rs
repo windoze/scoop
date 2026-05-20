@@ -132,7 +132,10 @@ pub(crate) fn builtin_annotation_kind(
     }
 }
 
-/// 当前文件是否显式通过 `@file:AllowIntrinsic` 打开用户态 intrinsic 声明 gate。
+/// 当前文件是否声明了 `@file:AllowIntrinsic`。
+///
+/// 该注解本身只允许出现在 trusted `syslib` source 中；真正的权限判断在
+/// `typecheck::annotations` 中基于 `SourceFile::is_trusted_syslib` 完成。
 pub(crate) fn file_allows_intrinsic(source: &SourceFile, anns: &[ast::AnnotationUse]) -> bool {
     anns.iter().any(|ann| {
         builtin_annotation_kind(source, ann) == Some(BuiltinAnnotationKind::AllowIntrinsic)

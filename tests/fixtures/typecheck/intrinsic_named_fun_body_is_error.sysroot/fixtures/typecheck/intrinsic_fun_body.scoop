@@ -1,0 +1,8 @@
+package fixtures.typecheck
+
+import scoop.core.*
+
+@Intrinsic("dummy_runtime")
+fun foo(): Int {
+    return 0
+}

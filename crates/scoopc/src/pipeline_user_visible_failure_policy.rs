@@ -405,7 +405,7 @@ const FRONTEND_REJECT_SURFACES: &[FrontendRejectSurface] = &[
         gap_id: "CLOSURE_FIX §2 sealed interface sysroot-only definition",
         definition_path: "crates/scoopc/src/typecheck/type_env.rs",
         diagnostic_code: "scoop::typecheck::sealed_interface_user_definition_not_allowed",
-        message: "`sealed interface` 只能在 sysroot 中定义：{fqn}",
+        message: "`sealed interface` 只能在 trusted `syslib` cone 中定义：{fqn}",
         markers: SEALED_INTERFACE_USER_DEFINITION_MARKERS,
     },
     FrontendRejectSurface {

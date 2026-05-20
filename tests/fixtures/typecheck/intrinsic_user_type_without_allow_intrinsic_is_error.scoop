@@ -1,6 +1,6 @@
 // EXPECT: fail
-// EXPECT-ERROR-CODE: scoop::typecheck::intrinsic_user_decl_requires_allow_intrinsic
-// EXPECT-ERROR: 用户源码中的 类型 不能直接声明 `@Intrinsic`
+// EXPECT-ERROR-CODE: scoop::typecheck::intrinsic_decl_requires_trusted_syslib
+// EXPECT-ERROR: 类型 `fixtures.typecheck.NativeToken` 只能在 trusted `syslib` cone 中声明 `@Intrinsic`
 
 package fixtures.typecheck
 

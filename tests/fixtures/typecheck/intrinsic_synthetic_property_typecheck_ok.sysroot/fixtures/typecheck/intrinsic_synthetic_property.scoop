@@ -1,0 +1,33 @@
+package fixtures.typecheck
+
+import scoop.core.*
+
+@Intrinsic
+class NativeBox() {
+    @Intrinsic("dummy_ir")
+    fun nativeSeed(): Int
+
+    val answer: Int
+        get() = this.nativeSeed() + 1
+
+    var stored: Int
+        get() = 0
+        set(value) { }
+}
+
+@Intrinsic
+struct NativePoint() {
+    fun base(): Int {
+        return 3
+    }
+
+    val computed: Int
+        get() = this.base() + 4
+}
+
+fun use(box: NativeBox, point: NativePoint) {
+    val answer: Int = box.answer
+    box.stored = answer
+    val stored: Int = box.stored
+    val computed: Int = point.computed
+}

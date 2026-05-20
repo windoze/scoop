@@ -2,7 +2,7 @@ use super::*;
 
 fn emit_named_intrinsic_test_ir(source_name: &str, body: &str) -> String {
     let session = Session::new().unwrap();
-    let source = SourceFile::new_virtual(source_name, body);
+    let source = SourceFile::new_virtual_trusted_syslib(source_name, body);
     emit_minimal_main_ir(&session, &source).unwrap()
 }
 

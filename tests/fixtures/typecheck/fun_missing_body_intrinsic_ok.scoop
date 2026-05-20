@@ -1,11 +1,6 @@
 // EXPECT: pass
 // P4-T01q: `@Intrinsic` declarations are one of the three allowed no-body forms.
 
-@file:AllowIntrinsic
-
 package fixtures.typecheck
 
 import scoop.core.*
-
-@Intrinsic
-fun compilerProvided(): Int

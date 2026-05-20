@@ -3,26 +3,9 @@
 // P4-T01g：`@Intrinsic class<T>` 实现 interface 时，subclass-typed receiver 应能直接调用
 // interface 的未 override default body，而不需要先 cast 到 interface。
 
-@file:AllowIntrinsic
-
 package fixtures.runpass
 
 import scoop.core.*
-
-interface Tagged {
-    fun tag(): Int {
-        return 5
-    }
-
-    fun describe(): Int
-}
-
-@Intrinsic
-class Container<T>(seed: T) : Tagged {
-    override fun describe(): Int {
-        return 9
-    }
-}
 
 fun main(): Int {
     val c: Container<Int> = Container(42)

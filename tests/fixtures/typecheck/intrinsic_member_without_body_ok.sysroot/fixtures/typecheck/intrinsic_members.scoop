@@ -1,0 +1,18 @@
+package fixtures.typecheck
+
+import scoop.core.*
+
+class NativeClass() {
+    @Intrinsic
+    fun seed(): Int
+}
+
+struct NativeStruct() {
+    @Intrinsic
+    fun seed(): Int
+}
+
+object NativeObject {
+    @Intrinsic
+    fun seed(): Int
+}

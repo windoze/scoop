@@ -2,11 +2,6 @@
 // EXPECT-ERROR-CODE: scoop::typecheck::unknown_intrinsic_table_entry
 // EXPECT-ERROR: `@Intrinsic("not_in_table")` 未命中编译器 intrinsic 表
 
-@file:AllowIntrinsic
-
 package fixtures.typecheck
 
 import scoop.core.*
-
-@Intrinsic("not_in_table")
-fun foo(): Int

@@ -317,11 +317,11 @@ pub enum TypeEnvError {
         first: miette::SourceSpan,
     },
 
-    #[error("`sealed interface` 只能在 sysroot 中定义：{fqn}")]
+    #[error("`sealed interface` 只能在 trusted `syslib` cone 中定义：{fqn}")]
     #[diagnostic(code(scoop::typecheck::sealed_interface_user_definition_not_allowed))]
     SealedInterfaceUserDefinitionNotAllowed {
         fqn: String,
-        #[label("这里定义了用户级 sealed interface")]
+        #[label("这里需要 trusted `syslib` 身份")]
         span: miette::SourceSpan,
     },
 
@@ -1117,7 +1117,7 @@ impl TypeEnv {
         fqn: &str,
         decl: &ast::TypeDecl,
     ) -> Result<(), TypeEnvError> {
-        if !source.is_sysroot() {
+        if !source.is_trusted_syslib() {
             return Err(TypeEnvError::SealedInterfaceUserDefinitionNotAllowed {
                 fqn: fqn.to_string(),
                 span: decl.name.span.into(),
@@ -1822,7 +1822,11 @@ class Box<T> where T: Show {}
         text: &str,
         origin: SourceOrigin,
     ) -> (SourceFile, ast::File) {
-        let source = SourceFile::new_virtual_with_origin(path, text, origin);
+        let source = if origin == SourceOrigin::Sysroot {
+            SourceFile::new_virtual_trusted_syslib(path, text)
+        } else {
+            SourceFile::new_virtual_with_origin(path, text, origin)
+        };
         let ast = sess.parse(&source).unwrap();
         (source, ast)
     }

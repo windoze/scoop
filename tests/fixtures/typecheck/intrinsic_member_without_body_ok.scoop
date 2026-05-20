@@ -2,23 +2,6 @@
 // P4-T01p: member-position `@Intrinsic` methods may be declaration-only; only
 // method bodies are rejected by `intrinsic_fun_must_have_no_body`.
 
-@file:AllowIntrinsic
-
 package fixtures.typecheck
 
 import scoop.core.*
-
-class NativeClass() {
-    @Intrinsic
-    fun seed(): Int
-}
-
-struct NativeStruct() {
-    @Intrinsic
-    fun seed(): Int
-}
-
-object NativeObject {
-    @Intrinsic
-    fun seed(): Int
-}

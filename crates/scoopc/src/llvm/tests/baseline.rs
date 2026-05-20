@@ -370,7 +370,7 @@ fun main(): Int {
 #[test]
 pub(super) fn intrinsic_value_box_interface_itable_points_directly_to_struct_body_method_symbol() {
     let session = Session::new().unwrap();
-    let source = SourceFile::new_virtual(
+    let source = SourceFile::new_virtual_trusted_syslib(
         "<mem>/p4_t01c_intrinsic_value_box_itable.scoop",
         r#"
 @file:AllowIntrinsic
@@ -541,7 +541,7 @@ pub(super) fn overlay_core_intrinsic_scalar_tostring_dispatch_publishes_override
 #[test]
 pub(super) fn named_intrinsic_dummy_ir_method_call_does_not_materialize_method_symbol() {
     let session = Session::new().unwrap();
-    let source = SourceFile::new_virtual(
+    let source = SourceFile::new_virtual_trusted_syslib(
         "<mem>/p4_t01d_named_intrinsic_dummy_ir.scoop",
         r#"
 @file:AllowIntrinsic
@@ -594,7 +594,7 @@ fun main(): Int {
 #[test]
 pub(super) fn named_intrinsic_dummy_runtime_fun_call_lowers_to_runtime_symbol() {
     let session = Session::new().unwrap();
-    let source = SourceFile::new_virtual(
+    let source = SourceFile::new_virtual_trusted_syslib(
         "<mem>/p4_t01d_named_intrinsic_dummy_runtime.scoop",
         r#"
 @file:AllowIntrinsic

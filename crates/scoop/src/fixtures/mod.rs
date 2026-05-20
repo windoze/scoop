@@ -1831,6 +1831,8 @@ fn typecheck_fixture(
     let mut types = scoopc::ty::TypeStore::new();
     let builtins = types.intern_builtins();
 
+    typecheck_sysroot_overlay_files(session, &index, &env, &mut types, builtins)?;
+
     scoopc::typecheck::check_file_annotations(
         source,
         &ast,
@@ -1909,6 +1911,105 @@ fn typecheck_fixture(
     // T0449：计算 enum/Option 的布局元数据（niche/boxing/lint）。
     scoopc::typecheck::check_file_type_layouts(&index, &env, &mut types, builtins)
         .map_err(box_diagnostic)?;
+
+    Ok(())
+}
+
+fn typecheck_sysroot_overlay_files(
+    session: &scoopc::session::Session,
+    index: &scoopc::resolve::Index,
+    env: &scoopc::typecheck::TypeEnv,
+    types: &mut scoopc::ty::TypeStore,
+    builtins: scoopc::ty::BuiltinTypes,
+) -> std::result::Result<(), Box<dyn miette::Diagnostic>> {
+    let Some(overlay_root) = session.options().sysroot_overlay() else {
+        return Ok(());
+    };
+    let overlay_root = overlay_root
+        .canonicalize()
+        .into_diagnostic()
+        .map_err(box_report)?;
+
+    for file in session.sysroot().index_files() {
+        if !file.source.path().starts_with(&overlay_root) {
+            continue;
+        }
+
+        let source = &file.source;
+        let mut ast = file.ast.clone();
+        scoopc::typecheck::check_file_headers(source, &ast).map_err(box_diagnostic)?;
+        scoopc::typecheck::check_file_struct_decls(source, &ast).map_err(box_diagnostic)?;
+        let headers =
+            scoopc::resolve::check_file_headers(source, &ast, index).map_err(box_diagnostic)?;
+        scoopc::resolve::check_file_bodies(source, &mut ast, index, &headers)
+            .map_err(box_diagnostic)?;
+
+        scoopc::typecheck::check_file_annotations(
+            source,
+            &ast,
+            index,
+            &headers.imports,
+            env,
+            types,
+            builtins,
+        )
+        .map_err(box_diagnostic)?;
+        scoopc::typecheck::check_file_properties(source, &ast, index, env)
+            .map_err(box_boxed_diagnostic)?;
+        scoopc::typecheck::check_file_inheritance(source, &ast, index).map_err(box_diagnostic)?;
+        scoopc::typecheck::check_file_interfaces(source, &ast, index, env)
+            .map_err(box_diagnostic)?;
+        scoopc::typecheck::check_file_override_effects(
+            source,
+            &ast,
+            index,
+            &headers.imports,
+            env,
+            types,
+            builtins,
+        )
+        .map_err(box_boxed_diagnostic)?;
+        scoopc::typecheck::check_file_type_refs(
+            source,
+            &ast,
+            index,
+            &headers.imports,
+            env,
+            types,
+            builtins,
+        )
+        .map_err(box_diagnostic)?;
+        scoopc::typecheck::check_file_where_clauses(
+            source,
+            &ast,
+            index,
+            &headers.imports,
+            env,
+            types,
+            builtins,
+        )
+        .map_err(box_diagnostic)?;
+        scoopc::typecheck::check_file_overload_conflicts(
+            source,
+            &ast,
+            index,
+            &headers.imports,
+            env,
+            types,
+            builtins,
+        )
+        .map_err(box_diagnostic)?;
+        scoopc::typecheck::check_file_exprs(
+            source,
+            &ast,
+            index,
+            &headers.imports,
+            env,
+            types,
+            builtins,
+        )
+        .map_err(box_diagnostic)?;
+    }
 
     Ok(())
 }

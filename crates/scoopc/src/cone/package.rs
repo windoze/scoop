@@ -42,6 +42,7 @@ pub struct ConeSourcePackage {
 ///
 /// 当前阶段规则（T1102）：
 /// - `Cone.toml` 必须位于 root 目录下；
+/// - `kind = "syslib"` 只允许出现在 `<sysroot>/lib/<cone.name>/Cone.toml`；
 /// - sources = `root/src/**/*.scoop`（递归，且非空）；
 /// - `bin` cone 必须有 `root/src/main.scoop`；
 /// - `lib/syslib` cone 不要求 `root/src/main.scoop`，即使存在也只是普通 source。
@@ -67,6 +68,18 @@ pub fn load_cone_source_package_for_platform(
     root: impl AsRef<Path>,
     target_platform: &str,
 ) -> Result<ConeSourcePackage> {
+    load_cone_source_package_for_platform_with_sysroot_root(
+        root,
+        target_platform,
+        &crate::sysroot::Sysroot::default_path(),
+    )
+}
+
+fn load_cone_source_package_for_platform_with_sysroot_root(
+    root: impl AsRef<Path>,
+    target_platform: &str,
+    sysroot_root: &Path,
+) -> Result<ConeSourcePackage> {
     let root = root.as_ref();
     let root = root
         .canonicalize()
@@ -89,6 +102,7 @@ pub fn load_cone_source_package_for_platform(
         .into_diagnostic()
         .wrap_err_with(|| format!("无法定位 Cone.toml：{}", manifest_path.display()))?;
     let manifest = ConeManifest::load_from_path(&manifest_path)?;
+    validate_syslib_package_path(&root, &manifest, sysroot_root)?;
 
     let src_root = root.join(CONE_SRC_DIR_NAME);
     if !src_root.is_dir() {
@@ -165,6 +179,35 @@ pub fn load_cone_source_package_for_platform(
         sources: selected_sources,
         main,
     })
+}
+
+fn validate_syslib_package_path(
+    root: &Path,
+    manifest: &ConeManifest,
+    sysroot_root: &Path,
+) -> Result<()> {
+    if manifest.cone.kind != ConeKind::Syslib {
+        return Ok(());
+    }
+
+    let sysroot_root = sysroot_root
+        .canonicalize()
+        .into_diagnostic()
+        .wrap_err_with(|| format!("无法定位 sysroot 目录：{}", sysroot_root.display()))?;
+    let expected_root = sysroot_root.join("lib").join(&manifest.cone.name);
+    let expected_for_compare = expected_root
+        .canonicalize()
+        .unwrap_or_else(|_| expected_root.clone());
+    if root == expected_for_compare {
+        return Ok(());
+    }
+
+    Err(miette!(
+        "`syslib` cone 只能位于 `sysroot/lib/<cone.fqn>/` 下：`{}` 声明为 `syslib`，但当前 root 是 `{}`，期望 `{}`",
+        manifest.cone.name,
+        root.display(),
+        expected_root.display()
+    ))
 }
 
 fn collect_scoop_files(dir: &Path, out: &mut Vec<PathBuf>) -> Result<()> {
@@ -425,29 +468,43 @@ mod tests {
 
     struct TempCone {
         root: PathBuf,
+        cleanup_root: PathBuf,
+        sysroot_root: Option<PathBuf>,
     }
 
     impl TempCone {
         fn new(label: &str) -> Self {
-            let unique = std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_nanos();
-            let root = std::env::temp_dir().join(format!(
-                "scoopc_cone_package_{label}_{}_{}",
-                std::process::id(),
-                unique
-            ));
+            let base = temp_base(label);
+            std::fs::create_dir_all(base.join(CONE_SRC_DIR_NAME)).unwrap();
+            Self {
+                root: base.clone(),
+                cleanup_root: base,
+                sysroot_root: None,
+            }
+        }
+
+        fn new_sysroot_lib(label: &str, cone_name: &str) -> Self {
+            let base = temp_base(label);
+            let sysroot_root = base.join("sysroot");
+            let root = sysroot_root.join("lib").join(cone_name);
             std::fs::create_dir_all(root.join(CONE_SRC_DIR_NAME)).unwrap();
-            Self { root }
+            Self {
+                root,
+                cleanup_root: base,
+                sysroot_root: Some(sysroot_root),
+            }
         }
 
         fn write_manifest(&self, kind: ConeKind, extra: &str) {
+            self.write_manifest_named(&format!("fixture-{}", kind.as_str()), kind, extra);
+        }
+
+        fn write_manifest_named(&self, name: &str, kind: ConeKind, extra: &str) {
             std::fs::write(
                 self.root.join(CONE_TOML_FILE_NAME),
                 format!(
-                    "[cone]\nname = \"fixture-{}\"\nversion = \"0.0.0\"\nkind = \"{}\"\n{}",
-                    kind.as_str(),
+                    "[cone]\nname = \"{}\"\nversion = \"0.0.0\"\nkind = \"{}\"\n{}",
+                    name,
                     kind.as_str(),
                     extra
                 ),
@@ -464,9 +521,21 @@ mod tests {
         }
     }
 
+    fn temp_base(label: &str) -> PathBuf {
+        let unique = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        std::env::temp_dir().join(format!(
+            "scoopc_cone_package_{label}_{}_{}",
+            std::process::id(),
+            unique
+        ))
+    }
+
     impl Drop for TempCone {
         fn drop(&mut self) {
-            let _ = std::fs::remove_dir_all(&self.root);
+            let _ = std::fs::remove_dir_all(&self.cleanup_root);
         }
     }
 
@@ -488,18 +557,42 @@ mod tests {
 
     #[test]
     fn syslib_cone_without_main_loads_sources_ok() {
-        let cone = TempCone::new("syslib_without_main");
-        cone.write_manifest(ConeKind::Syslib, "");
+        let cone = TempCone::new_sysroot_lib("syslib_without_main", "fixture-syslib");
+        cone.write_manifest_named("fixture-syslib", ConeKind::Syslib, "");
         cone.write_source(
             "src/sys.scoop",
             "package fixture.syslib\npublic fun token(): Int = 1\n",
         );
 
-        let pkg = load_cone_source_package(&cone.root).unwrap();
+        let pkg = load_cone_source_package_for_platform_with_sysroot_root(
+            &cone.root,
+            &host_target_platform_id(),
+            cone.sysroot_root.as_deref().unwrap(),
+        )
+        .unwrap();
 
         assert_eq!(pkg.manifest.cone.kind, ConeKind::Syslib);
         assert!(pkg.main.is_none());
         assert_eq!(rel_sources(&pkg), vec!["src/sys.scoop"]);
+    }
+
+    #[test]
+    fn user_path_syslib_cone_is_rejected() {
+        let cone = TempCone::new("user_syslib_rejected");
+        cone.write_manifest_named("fixture-user-syslib", ConeKind::Syslib, "");
+        cone.write_source(
+            "src/sys.scoop",
+            "package fixture.syslib\npublic fun token(): Int = 1\n",
+        );
+
+        let err = load_cone_source_package(&cone.root)
+            .unwrap_err()
+            .to_string();
+
+        assert!(
+            err.contains("`syslib` cone 只能位于 `sysroot/lib/<cone.fqn>/` 下"),
+            "unexpected error: {err}"
+        );
     }
 
     #[test]

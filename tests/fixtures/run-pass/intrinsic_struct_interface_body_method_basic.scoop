@@ -4,22 +4,9 @@
 // 对 value-type receiver 的 interface dispatch 仍必须走现有 metadata-driven itable 路径，
 // 而不是要求新增任何按类型名分支。
 
-@file:AllowIntrinsic
-
 package fixtures.runpass
 
 import scoop.core.*
-
-interface DummyIface {
-    fun m(): Int
-}
-
-@Intrinsic
-struct Dummy() : DummyIface {
-    override fun m(): Int {
-        return 41
-    }
-}
 
 fun read(it: DummyIface): Int {
     return it.m()

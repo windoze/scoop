@@ -1,0 +1,4 @@
+[cone]
+name = "fixture-user-syslib-kind-is-error"
+version = "0.0.0"
+kind = "syslib"

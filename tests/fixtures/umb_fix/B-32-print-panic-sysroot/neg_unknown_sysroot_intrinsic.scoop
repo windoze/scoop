@@ -1,6 +1,6 @@
 // EXPECT: fail
 // EXPECT-ERROR-CODE: scoop::typecheck::unknown_intrinsic_table_entry
-// EXPECT-ERROR-AT: 17:12
+// EXPECT-ERROR-AT: 2:45
 // EXPECT-ERROR: `@Intrinsic("not_in_table")` 未命中编译器 intrinsic 表
 // SPEC: docs/spec/language_spec-part1.md#8-标准库排除说明
 // COVERS: NONE
@@ -8,11 +8,6 @@
 // REASON: P7-B3.1 retired B-32 rows; unknown intrinsic names remain frontend/typecheck diagnostics.
 // SOURCE-FIXTURE: tests/fixtures/typecheck/intrinsic_named_fun_unknown_table_entry_is_error.scoop
 
-@file:AllowIntrinsic
-
 package fixtures.typecheck
 
 import scoop.core.*
-
-@Intrinsic("not_in_table")
-fun foo(): Int

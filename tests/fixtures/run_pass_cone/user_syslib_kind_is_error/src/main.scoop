@@ -1,0 +1,10 @@
+// EXPECT: fail
+// EXPECT-ERROR: `syslib` cone 只能位于 `sysroot/lib/<cone.fqn>/` 下
+
+package fixtures.run_pass_cone.user_syslib_kind_is_error
+
+import scoop.core.*
+
+public fun main() / Pure! {
+    ()
+}

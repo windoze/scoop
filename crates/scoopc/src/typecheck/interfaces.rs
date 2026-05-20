@@ -672,7 +672,7 @@ mod tests {
     use crate::parser::parse_file;
     use crate::resolve::{self, Index};
     use crate::session::{Session, SessionOptions};
-    use crate::source::{SourceFile, SourceOrigin};
+    use crate::source::SourceFile;
     use crate::typecheck;
 
     fn setup_interface_check(source_text: &str) -> (SourceFile, ast::File, Index, TypeEnv) {
@@ -727,7 +727,7 @@ class Fake() : Continuation<Int, Unit, eff Pure> {
 
     #[test]
     fn sealed_interface_typecheck_rejects_explicit_marker_implementation() {
-        let marker_source = SourceFile::new_virtual_with_origin(
+        let marker_source = SourceFile::new_virtual_trusted_syslib(
             "<sealed-marker-sysroot>",
             r#"
 package scoop.core
@@ -735,7 +735,6 @@ package scoop.core
 sealed interface AnyRef
 sealed interface AnyValue
 "#,
-            SourceOrigin::Sysroot,
         );
         let marker_ast = parse_file(&marker_source).expect("parse markers");
         let source = SourceFile::new_virtual(

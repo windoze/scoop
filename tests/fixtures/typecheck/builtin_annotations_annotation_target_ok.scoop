@@ -1,8 +1,6 @@
 // EXPECT: pass
 // 目标：T1013/T4012b1 内建注解 + `AnnotationTarget` 声明面可用，
-// 并对 `@Target` 参数与 `@file:AllowIntrinsic` gate 做最小合法性检查（合法 case）。
-
-@file:AllowIntrinsic
+// 并对 `@Target` 参数做最小合法性检查（合法 case）。
 
 package fixtures.typecheck
 
@@ -14,12 +12,6 @@ annotation class Column(val name: String)
 
 @TailRec
 fun f(x: Int): Int { return x }
-
-@Intrinsic
-fun compilerProvided(x: Int): Int
-
-@Intrinsic
-struct NativeToken
 
 @Suppress("deprecated")
 fun g() {}

@@ -1,0 +1,13 @@
+package fixtures.typecheck
+
+import scoop.core.*
+
+interface NativeIface {
+    fun ping(): Int
+}
+
+@Intrinsic
+class NativeClass() : NativeIface {
+    @Extern("native_ping")
+    override fun ping(): Int
+}

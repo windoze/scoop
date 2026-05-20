@@ -2,18 +2,6 @@
 // EXPECT-ERROR-CODE: scoop::typecheck::intrinsic_type_interface_override_must_be_bodied_regular_method
 // EXPECT-ERROR: `@Intrinsic` 类型的 interface override 必须是带 body 的普通 method
 
-@file:AllowIntrinsic
-
 package fixtures.typecheck
 
 import scoop.core.*
-
-interface NativeIface {
-    fun ping(): Int
-}
-
-@Intrinsic
-class NativeClass() : NativeIface {
-    @Extern("native_ping")
-    override fun ping(): Int
-}

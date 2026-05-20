@@ -1,0 +1,3 @@
+@file:AllowIntrinsic("test")
+
+package fixtures.typecheck.syslib

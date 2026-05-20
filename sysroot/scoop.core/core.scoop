@@ -451,8 +451,8 @@ annotation class Inline
 // `@AllowIntrinsic`：文件 / 模块级 gate。
 //
 // 说明：
-// - 默认情况下，`@Intrinsic` declaration surface 由 sysroot 持有；
-// - 用户源码若确实需要声明 intrinsic surface，必须先通过 `@file:AllowIntrinsic` 显式开门。
+// - `@Intrinsic` declaration surface 只允许 trusted `syslib` source 持有；
+// - 用户源码和普通 `lib` cone 不能通过文件级注解打开 intrinsic 权限。
 annotation class AllowIntrinsic
 annotation class Deprecated(val message: String = "", val replaceWith: String = "")
 // `@Suppress`：warning suppression surface。

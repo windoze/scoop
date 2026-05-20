@@ -518,17 +518,25 @@ pub enum AnnotationError {
         span: miette::SourceSpan,
     },
 
-    #[error("用户源码中的 {decl_kind} 不能直接声明 `@Intrinsic`：{decl_name}")]
+    #[error("{decl_kind} `{decl_name}` 只能在 trusted `syslib` cone 中声明 `@Intrinsic`")]
     #[diagnostic(
-        code(scoop::typecheck::intrinsic_user_decl_requires_allow_intrinsic),
-        help(
-            "如确有需要，请先在文件开头标注 `@file:AllowIntrinsic`；sysroot 仍默认允许 `@Intrinsic` 声明"
-        )
+        code(scoop::typecheck::intrinsic_decl_requires_trusted_syslib),
+        help("`@Intrinsic` 是 compiler surface 特权，不能由用户源码或普通 `lib` cone 自行开启")
     )]
-    IntrinsicUserDeclRequiresAllowIntrinsic {
+    IntrinsicDeclRequiresTrustedSyslib {
         decl_kind: &'static str,
         decl_name: String,
-        #[label("这里的 `@Intrinsic` 需要文件级 gate")]
+        #[label("这里需要 trusted `syslib` 身份")]
+        span: miette::SourceSpan,
+    },
+
+    #[error("`@file:AllowIntrinsic` 只能在 trusted `syslib` cone 中使用")]
+    #[diagnostic(
+        code(scoop::typecheck::allow_intrinsic_requires_trusted_syslib),
+        help("普通用户源码和普通 `lib` cone 不能通过文件级注解获得 intrinsic 声明权限")
+    )]
+    AllowIntrinsicRequiresTrustedSyslib {
+        #[label("这里需要 trusted `syslib` 身份")]
         span: miette::SourceSpan,
     },
 
@@ -2229,8 +2237,13 @@ fn check_builtin_annotations_on_file(
         };
         match kind {
             BuiltinAnnotationKind::AllowIntrinsic => {
+                let (_, name_span) = annotation_name_and_span(source, ann);
+                if !source.is_trusted_syslib() {
+                    return Err(AnnotationError::AllowIntrinsicRequiresTrustedSyslib {
+                        span: name_span.into(),
+                    });
+                }
                 if !ann.args.is_empty() {
-                    let (_, name_span) = annotation_name_and_span(source, ann);
                     return Err(AnnotationError::BuiltinAnnotationArgsNotSupported {
                         annotation: format!("@{}", kind.name()),
                         span: name_span.into(),
@@ -3415,35 +3428,21 @@ fn check_builtin_annotations_on_type_decl(
 
 fn check_intrinsic_builtin_annotation_gate(
     source: &SourceFile,
-    file_allows_intrinsic: bool,
+    _file_allows_intrinsic: bool,
     ann: &ast::AnnotationUse,
     decl_kind: &'static str,
     decl_name: &str,
 ) -> Result<(), AnnotationError> {
-    if file_allows_intrinsic || source_is_sysroot(source) {
+    if source.is_trusted_syslib() {
         return Ok(());
     }
 
     let (_, name_span) = annotation_name_and_span(source, ann);
-    Err(AnnotationError::IntrinsicUserDeclRequiresAllowIntrinsic {
+    Err(AnnotationError::IntrinsicDeclRequiresTrustedSyslib {
         decl_kind,
         decl_name: decl_name.to_string(),
         span: name_span.into(),
     })
-}
-
-fn source_is_sysroot(source: &SourceFile) -> bool {
-    source.is_sysroot()
-        || source
-            .path()
-            .components()
-            .any(|component| component.as_os_str() == std::ffi::OsStr::new("sysroot"))
-        || source.path().components().any(|component| {
-            component
-                .as_os_str()
-                .to_str()
-                .is_some_and(|name| name.ends_with(".sysroot"))
-        })
 }
 
 fn check_builtin_annotations_on_object_decl(

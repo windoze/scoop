@@ -2,17 +2,6 @@
 // EXPECT-ERROR-CODE: scoop::typecheck::fun_must_have_body
 // EXPECT-ERROR: 普通成员函数必须提供函数体
 
-@file:AllowIntrinsic
-
 package fixtures.typecheck
 
 import scoop.core.*
-
-interface NativeIface {
-    fun ping(): Int
-}
-
-@Intrinsic
-class NativeClass() : NativeIface {
-    override fun ping(): Int
-}

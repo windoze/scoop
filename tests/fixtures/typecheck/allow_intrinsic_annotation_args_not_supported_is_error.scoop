@@ -2,7 +2,6 @@
 // EXPECT-ERROR-CODE: scoop::typecheck::builtin_annotation_args_not_supported
 // EXPECT-ERROR: `@AllowIntrinsic` 暂不支持参数
 
-@file:AllowIntrinsic("test")
-
 package fixtures.typecheck
 
+import scoop.core.*

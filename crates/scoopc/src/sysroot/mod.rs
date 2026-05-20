@@ -60,7 +60,7 @@ impl Sysroot {
 
         let mut files = Vec::new();
         for path in paths {
-            let source = SourceFile::load_sysroot(&path)?;
+            let source = SourceFile::load_trusted_syslib(&path)?;
             let ast = crate::parser::parse_file(&source)
                 .wrap_err_with(|| format!("解析 sysroot 文件失败：{}", path.display()))?;
             files.push(SysrootFile { path, source, ast });
@@ -248,7 +248,7 @@ mod tests {
         let mut violations = Vec::new();
 
         for path in collect_merged_sysroot_paths(&root, None).unwrap() {
-            let source = SourceFile::load_sysroot(&path).unwrap();
+            let source = SourceFile::load_trusted_syslib(&path).unwrap();
             let file = crate::parser::parse_file(&source).unwrap();
             parsed_files.push((path, source, file));
         }

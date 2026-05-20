@@ -2,17 +2,9 @@
 // P4-T01d：method-level `@Intrinsic("dummy_ir")` 应按共享 intrinsic 表直接发 IR，
 // 而不是回退到 declaration-only method symbol。
 
-@file:AllowIntrinsic
-
 package fixtures.runpass
 
 import scoop.core.*
-
-@Intrinsic
-class Vec<T>(seed: T) {
-    @Intrinsic("dummy_ir")
-    fun foo(): Int
-}
 
 fun main(): Int {
     val ints: Vec<Int> = Vec(1)

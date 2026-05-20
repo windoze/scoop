@@ -1,0 +1,6 @@
+package fixtures.runpass
+
+import scoop.core.*
+
+@Intrinsic("dummy_runtime")
+fun bar(): Int

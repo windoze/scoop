@@ -1,0 +1,14 @@
+package fixtures.typecheck
+
+import scoop.core.*
+
+interface NativeIface {
+    fun seed(): Int
+}
+
+class NativeClass() : NativeIface {
+    @Intrinsic
+    override fun seed(): Int {
+        return 0
+    }
+}

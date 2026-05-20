@@ -3,26 +3,9 @@
 // P4-T01c：generic `@Intrinsic class` 的 ordinary method body 必须沿用现有 generic class member path，
 // 同时允许 override interface method 与独立 instance method 共存。
 
-@file:AllowIntrinsic
-
 package fixtures.runpass
 
 import scoop.core.*
-
-interface DummyIter {
-    fun token(): Int
-}
-
-@Intrinsic
-class Container<T>(seed: T) : DummyIter {
-    override fun token(): Int {
-        return 29
-    }
-
-    fun echo(value: T): T {
-        return value
-    }
-}
 
 fun read(it: DummyIter): Int {
     return it.token()

@@ -1,0 +1,10 @@
+package fixtures.typecheck
+
+import scoop.core.*
+
+class NativeClass() {
+    @Intrinsic("dummy_ir")
+    fun seed(): Int {
+        return 0
+    }
+}

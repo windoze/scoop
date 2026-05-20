@@ -290,11 +290,11 @@ mod tests {
 
     use crate::parser::parse_file;
     use crate::resolve::Index;
-    use crate::source::{SourceFile, SourceOrigin};
+    use crate::source::SourceFile;
 
     #[test]
     fn sealed_interface_where_clause_rejects_anyref_anyvalue_mix() {
-        let marker_source = SourceFile::new_virtual_with_origin(
+        let marker_source = SourceFile::new_virtual_trusted_syslib(
             "<sealed-marker-sysroot>",
             r#"
 package scoop.core
@@ -302,7 +302,6 @@ package scoop.core
 sealed interface AnyRef
 sealed interface AnyValue
 "#,
-            SourceOrigin::Sysroot,
         );
         let marker_ast = parse_file(&marker_source).expect("parse markers");
         let source = SourceFile::new_virtual(

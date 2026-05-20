@@ -4,39 +4,9 @@
 // P4-T01n: synthetic properties on `@Intrinsic` class/struct should lower through the
 // same getter/setter callable path as ordinary computed properties.
 
-@file:AllowIntrinsic
-
 package fixtures.runpass
 
 import scoop.core.*
-
-@Global
-var LastWritten: Int = 0
-
-@Intrinsic
-class NativeCell() {
-    @Intrinsic("dummy_ir")
-    fun seed(): Int
-
-    val answer: Int
-        get() = this.seed() + 1
-
-    var stored: Int
-        get() = LastWritten
-        set(value) {
-            LastWritten = value + 2
-        }
-}
-
-@Intrinsic
-struct NativeCounter() {
-    fun base(): Int {
-        return 20
-    }
-
-    val doubled: Int
-        get() = this.base() + 2
-}
 
 fun main(): Int {
     val cell: NativeCell = NativeCell()

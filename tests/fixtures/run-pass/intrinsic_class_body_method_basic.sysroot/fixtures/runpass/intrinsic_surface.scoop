@@ -1,0 +1,10 @@
+package fixtures.runpass
+
+import scoop.core.*
+
+@Intrinsic
+class Helper() {
+    fun value(): Int {
+        return 7
+    }
+}

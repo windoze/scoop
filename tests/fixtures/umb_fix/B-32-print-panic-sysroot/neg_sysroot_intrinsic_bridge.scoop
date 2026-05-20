@@ -1,13 +1,11 @@
 // EXPECT: fail
 // EXPECT-ERROR-CODE: scoop::typecheck::builtin_annotation_args_not_supported
-// EXPECT-ERROR-AT: 11:7
+// EXPECT-ERROR-AT: 1:7
 // EXPECT-ERROR: `@AllowIntrinsic` 暂不支持参数
 // SPEC: docs/spec/language_spec-part5.md#18-intrinsic-与-sysroot-声明
 // COVERS: NONE
 // BUCKETS: B-32
 // REASON: P7-B3.1 retired B-32 rows; malformed intrinsic bridge annotations remain frontend/typecheck diagnostics.
 // SOURCE-FIXTURE: tests/fixtures/typecheck/allow_intrinsic_annotation_args_not_supported_is_error.scoop
-
-@file:AllowIntrinsic("test")
 
 package fixtures.typecheck

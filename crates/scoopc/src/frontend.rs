@@ -777,7 +777,7 @@ pub(crate) fn load_default_support_sources(
     let mut out = Vec::with_capacity(support_paths.len());
     for (path, is_sysroot) in support_paths {
         out.push(if is_sysroot {
-            SourceFile::load_sysroot(&path)?
+            SourceFile::load_trusted_syslib(&path)?
         } else {
             SourceFile::load(&path)?
         });

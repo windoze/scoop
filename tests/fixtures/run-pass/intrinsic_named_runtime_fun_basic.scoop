@@ -2,14 +2,9 @@
 // P4-T01d：`@Intrinsic("dummy_runtime")` 应走 RuntimeCall entry，而不是生成对 declaration-only
 // Scoop 函数 body 的调用。
 
-@file:AllowIntrinsic
-
 package fixtures.runpass
 
 import scoop.core.*
-
-@Intrinsic("dummy_runtime")
-fun bar(): Int
 
 fun main(): Int {
     val first = bar()

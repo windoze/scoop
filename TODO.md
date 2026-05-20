@@ -3,7 +3,7 @@
 > 生成时间：2026-05-19
 > 设计基线：[`SYSROOT_RESHAPE_R2.md`](./SYSROOT_RESHAPE_R2.md)
 > 计划基线：[`PLAN.md`](./PLAN.md)
-> 当前状态：`P3-T02` 已完成；下一任务为 `P3-T03`。
+> 当前状态：`P3-T03` 已完成；下一任务为 `P4-T01`。
 > 执行原则：严格按 P0 -> P10 顺序推进；同一阶段内可按任务依赖拆 PR，但每个任务完成后必须保持仓库无 failing fixture，并回写完成记录。
 
 ## 全局约束
@@ -97,7 +97,7 @@ P0 baseline freeze
 | `P2-T03` | [DONE] | P2 | 支持 `Any as?` closed Pure function runtime cast |
 | `P3-T01` | [DONE] | P3 | `Cone.toml` 解析 `kind = bin/lib/syslib` |
 | `P3-T02` | [DONE] | P3 | `lib/syslib` 无 entry point 加载规则 |
-| `P3-T03` | [TODO] | P3 | `syslib` path trust gate 与 intrinsic privilege gate |
+| `P3-T03` | [DONE] | P3 | `syslib` path trust gate 与 intrinsic privilege gate |
 | `P4-T01` | [TODO] | P4 | 重排 sysroot 到 `sysroot/lib/<cone>/src` |
 | `P4-T02` | [TODO] | P4 | sysroot loader 改为加载 `sysroot/lib/*/Cone.toml` |
 | `P4-T03` | [TODO] | P4 | sysroot overlay 迁移到 `overlay/lib/<cone>/...` |
@@ -322,7 +322,7 @@ P0 baseline freeze
 - 与 `PLAN.md` / `SYSROOT_RESHAPE_R2.md` 闭合项：满足 P3 中“`load_cone_source_package` 允许 `lib/syslib` 无 `src/main.scoop`”和“`bin` 仍要求 entry point”的要求；`syslib` path trust gate 与 intrinsic privilege gate 仍按 `P3-T03` 推进；source graph / path dependency 的端到端 fixture 仍按 P5 任务推进，未改变阶段级计划。
 - 验证结果：`cargo fmt` 通过；`cargo test -p scoopc cone::package -- --nocapture` 通过（7 passed）；`cargo test -p scoopc frontend::tests -- --nocapture` 通过（2 passed）；`cargo build` 通过；`cargo clippy --all-targets -- -D warnings` 通过；`cargo test --all --all-targets` 通过（Rust tests: ok，包含 `scoopc` 916 tests）；`cargo run -p scoop -- test` 通过（fixtures: ok，1562 checks）。
 
-## P3-T03：`syslib` path trust gate 与 intrinsic privilege gate
+## [DONE] P3-T03：`syslib` path trust gate 与 intrinsic privilege gate
 
 - 参考：`PLAN.md` §6、`SYSROOT_RESHAPE_R2.md` §8。
 - 目标：把 sysroot-origin 特权迁移到 trusted `syslib` cone。
@@ -334,6 +334,16 @@ P0 baseline freeze
   4. sealed marker 等 sysroot-only gate 改为 syslib-only gate。
 - 验证：用户 cone 自声明 syslib negative fixture；普通 lib 声明 intrinsic negative fixture；syslib 声明 intrinsic positive fixture。
 - 完成条件：`SourceOrigin::Sysroot` 不再直接授予语言特权。
+
+### 完成记录（2026-05-20）
+
+- 改动范围：`SourceFile` 增加显式 `SourceTrust::TrustedSyslib`；sysroot/session/frontend support source loading 改为显式加载 trusted syslib source；`typecheck/annotations.rs` 与 sealed marker gate 改查 `is_trusted_syslib()`；`cone/package.rs` 增加 `kind = "syslib"` 的 `sysroot/lib/<cone.fqn>/` path gate；fixture runner 对 companion `.sysroot` overlay source 执行 typecheck，以便 trusted syslib overlay fixtures 覆盖 annotation/intrinsic 诊断；未修改 `PLAN.md` 或 `SYSROOT_RESHAPE_R2.md`。
+- 核心决策：`SourceOrigin::Sysroot` 仅保留物理来源含义，不再直接授予 `@Intrinsic`、`@file:AllowIntrinsic` 或 sealed marker 定义权限；`@file:AllowIntrinsic` 本身也只能出现在 trusted `syslib` source 中，普通用户源码不能用文件级 gate 自行开权。
+- Path trust gate：`load_cone_source_package` 对用户/外部路径下的 `kind = "syslib"` 给出稳定 diagnostic；新增 `run_pass_cone/user_syslib_kind_is_error` 覆盖用户 cone 自声明 `syslib` 被拒；单元测试覆盖 trusted sysroot lib path 下的 `syslib` package 仍可无 main 加载。
+- Fixture 改写：原用户源码中直接声明 `@Intrinsic` / `@file:AllowIntrinsic` 的 typecheck、run-pass、UMB fixtures 改为由 companion `.sysroot` trusted syslib overlay 持有 intrinsic surface，用户 fixture 只消费这些 surface；用户未获 trusted syslib 身份时的 intrinsic declaration negative fixtures 更新为 `intrinsic_decl_requires_trusted_syslib`；`@file:AllowIntrinsic` malformed-args fixture 保留在 trusted syslib overlay 中覆盖参数诊断。
+- HIR golden 更新：sysroot `AllowIntrinsic` 注释收口后，`scoop.core.Int.plus` / `Int.equals` 的 source spans 改变，已同步相关 HIR golden 的 `target_decl_span`。
+- 与 `PLAN.md` / `SYSROOT_RESHAPE_R2.md` 闭合项：满足 P3 中“`syslib` path gate”、“普通用户 cone 无法 self-elevate 到 `syslib`”、“普通 source/lib 不能声明 intrinsic”、“trusted syslib 可声明 intrinsic”和“sealed marker 改为 syslib-only gate”的要求；P4 的物理 sysroot layout 迁移仍按后续任务推进。
+- 验证结果：`cargo fmt` 通过；`cargo test -p scoopc cone::package -- --nocapture` 通过（8 passed）；`cargo test -p scoopc typecheck::type_env -- --nocapture` 通过（13 passed）；`cargo test -p scoopc named_intrinsic -- --nocapture` 通过（8 passed）；`cargo test -p scoop --bin scoop` 通过（118 passed）；`cargo build` 通过；`cargo clippy --all-targets -- -D warnings` 通过；`cargo test --all --all-targets` 通过（917 passed）；`cargo run -p scoop -- test tests/fixtures/typecheck/` 通过（499 checks）；`cargo run -p scoop -- test tests/fixtures/run-pass/` 通过（416 checks）；`cargo run -p scoop -- test tests/fixtures/umb_fix/` 通过（152 checks）；`cargo run -p scoop -- test` 通过（fixtures: ok，1563 checks）。
 
 ## P4-T01：重排 sysroot 到 `sysroot/lib/<cone>/src`
 

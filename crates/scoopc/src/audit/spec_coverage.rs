@@ -361,6 +361,13 @@ fn collect_scoop_files(dir: &Path, paths: &mut Vec<PathBuf>) {
             .unwrap_or_else(|err| panic!("failed to read entry in {}: {err}", dir.display()))
             .path();
         if path.is_dir() {
+            if path
+                .file_name()
+                .and_then(|name| name.to_str())
+                .is_some_and(|name| name.ends_with(".sysroot"))
+            {
+                continue;
+            }
             collect_scoop_files(&path, paths);
         } else if path
             .extension()

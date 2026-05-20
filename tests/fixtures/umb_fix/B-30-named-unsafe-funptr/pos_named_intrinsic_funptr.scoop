@@ -5,14 +5,9 @@
 // REASON: P7-B3.5 retired B-30 rows; coverage is owned by the retired ledger.
 // SOURCE-FIXTURE: tests/fixtures/run-pass/intrinsic_named_runtime_fun_basic.scoop
 
-@file:AllowIntrinsic
-
 package fixtures.runpass
 
 import scoop.core.*
-
-@Intrinsic("dummy_runtime")
-fun bar(): Int
 
 fun main(): Int {
     val first = bar()

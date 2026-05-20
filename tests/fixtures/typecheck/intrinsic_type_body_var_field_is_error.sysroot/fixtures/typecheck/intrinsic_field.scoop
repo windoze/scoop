@@ -1,0 +1,8 @@
+package fixtures.typecheck
+
+import scoop.core.*
+
+@Intrinsic
+class NativeBox() {
+    var value: Int = 1
+}
