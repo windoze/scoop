@@ -123,7 +123,7 @@
   - 验证命令：`cargo fmt`；`cargo check --workspace --no-default-features`；`cargo run -p scoop_tools -- dependency-gate`；`cargo clippy --all-targets -- -D warnings`；`cargo test -p scoop_tools dependency_gate`。
   - 残余风险：基础 crate 当前仍是壳层，实际 `Span` / source / type / ID / project model authoritative 定义尚未迁移；这是后续 P1-T02 到 P1-T04 的范围，P1-T01 未引入重复定义或桥接转换。
 
-## [TODO] P1-T01R：Review 基础 crate 壳层与依赖门禁
+## [DONE] P1-T01R：Review 基础 crate 壳层与依赖门禁
 
 - 参考：P1-T01。
 - 重点：
@@ -143,7 +143,11 @@
   - review 结论明确写出：基础 crate 壳层和依赖门禁满足 P1 crate DAG 约束，或列出阻塞项并在本 review 内修复。
 - 依赖：P1-T01
 - 完成记录：
-  - 待填写。
+  - 复查范围：确认 root workspace 已包含 `scoopc_span`、`scoopc_source`、`scoopc_types`、`scoopc_ids`、`scoopc_project_model`；复查 5 个基础 crate 的 `Cargo.toml` / `src/lib.rs`、`scoopc` facade anchor、`README.md` crate 概览和 `tools/scoop_tools` 的 `dependency-gate` 实现。
+  - review 结论：P1-T01 的基础 crate 壳层满足当前 P1 crate DAG 约束；基础 crate 当前只包含 crate-level 职责文档和 `#![forbid(unsafe_code)]`，没有误放 HIR/MIR/effect/LIR/codegen 或 fact 类型；`scoopc::base::{span, source, types, ids, project_model}` 只是迁移期 facade anchor，没有复制 authoritative 定义。
+  - 依赖门禁结论：`dependency-gate` 从每个基础 crate 的 `cargo tree` 视角拒绝依赖 `scoopc` facade、driver/runtime/tool、列出的 stage/fact/backend crate 名称，以及违反 P1 基础 crate 方向的 later-base 依赖；额外 `cargo tree -p ...` 检查显示 5 个基础 crate 当前均无依赖。
+  - 验证命令：`cargo fmt`；`cargo check --workspace --no-default-features`；`cargo run -p scoop_tools -- dependency-gate`；`cargo clippy --all-targets -- -D warnings`；`cargo test -p scoop_tools dependency_gate`；`cargo tree -p scoopc_span`；`cargo tree -p scoopc_source`；`cargo tree -p scoopc_types`；`cargo tree -p scoopc_ids`；`cargo tree -p scoopc_project_model`。
+  - 残余风险：基础 crate 仍是壳层，实际 `Span` / source / type / ID / project model authoritative 定义尚未迁移；这是后续 `P1-T02` 到 `P1-T04` 的既定范围，本 review 未发现阻塞 `P1-T02` 的依赖或命名问题。
 
 ## [TODO] P1-T02：迁移 `span` 与 `source` 基础设施
 

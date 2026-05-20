@@ -42,7 +42,7 @@
 | P0-T04R | [DONE] | [`TODO-1.md`](./TODO-1.md#done-p0-t04rreview-p0-全包完成度) | Review P0 全包完成度 |
 | TODO-2-INIT | [DONE] | [`TODO-2.md`](./TODO-2.md#done-todo-2-init初始化并细化本任务包) | 分析 P1 需求，生成 `TODO-2.md` 详细任务列表并更新本索引 |
 | P1-T01 | [DONE] | [`TODO-2.md`](./TODO-2.md#done-p1-t01建立基础-crate-壳层与依赖门禁) | 建立基础 crate 壳层与依赖门禁 |
-| P1-T01R | [TODO] | [`TODO-2.md`](./TODO-2.md#todo-p1-t01rreview-基础-crate-壳层与依赖门禁) | Review 基础 crate 壳层与依赖门禁 |
+| P1-T01R | [DONE] | [`TODO-2.md`](./TODO-2.md#done-p1-t01rreview-基础-crate-壳层与依赖门禁) | Review 基础 crate 壳层与依赖门禁 |
 | P1-T02 | [TODO] | [`TODO-2.md`](./TODO-2.md#todo-p1-t02迁移-span-与-source-基础设施) | 迁移 `span` 与 `source` 基础设施 |
 | P1-T02R | [TODO] | [`TODO-2.md`](./TODO-2.md#todo-p1-t02rreview-span--source-迁移结果) | Review `span` / `source` 迁移结果 |
 | P1-T03 | [TODO] | [`TODO-2.md`](./TODO-2.md#todo-p1-t03迁移-types-并建立-ids-基础身份层) | 迁移 `types` 并建立 `ids` 基础身份层 |
