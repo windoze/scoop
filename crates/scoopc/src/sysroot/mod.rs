@@ -129,7 +129,7 @@ impl Sysroot {
     }
 }
 
-/// 收集所有 sysroot source cone 源文件路径，供 build pipeline 作为 support sources 加入 `input.sources`。
+/// 收集所有 sysroot source cone 源文件路径，供 build pipeline 加入 build-closure source view。
 pub fn collect_sysroot_files(
     root: &Path,
     overlay_root: Option<&Path>,

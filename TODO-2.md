@@ -382,7 +382,7 @@
   - 验证命令：`cargo fmt`；`cargo test -p scoopc_project_model`；`cargo test -p scoopc --no-default-features source_cone_graph`；`cargo test --all --all-targets --no-default-features`；`cargo run -p scoop_tools -- dependency-gate`；`cargo tree -p scoopc_project_model`；`cargo clippy --all-targets -- -D warnings`；搜索 `pub (struct|enum|type) (ConeId|ConeInfo|SourceConeGraph|SourceConeInfo)`；搜索 `pub enum ConeKind|pub struct ConeManifest|pub struct ConeNativeBuildConfig|pub struct ConeSourcePackage|pub enum OptLevel|pub struct StableConeKey`；搜索旧路径 `resolve::ConeId|resolve::ConeInfo|crate::resolve::ConeId|crate::resolve::ConeInfo|SourceConeGraph::load_|ConeManifest::load_from`。
   - 残余风险：P1-T05 仍需把 frontend facade 的 whole-build flatten 过渡输入收口为明确 cone-level compilation unit API；本 review 未发现阻塞 P1-T05 的 project model / cone graph 迁移问题。
 
-## [TODO] P1-T05：固定 cone-level compilation unit facade API
+## [DONE] P1-T05：固定 cone-level compilation unit facade API
 
 - 参考：
   - `PLAN.md` §1.4、§4/P1
@@ -426,7 +426,13 @@
   - 生产路径即使内部仍有过渡 flatten worker，也不再把 whole build closure 暴露为一个 compilation unit。
 - 依赖：P1-T04R
 - 完成记录：
-  - 待填写。
+  - 改动范围：`scoopc_project_model::graph` 新增 `SourceConeCompilationUnit` 视图，并通过 `SourceConeGraph::compilation_units()` / `consumer_compilation_unit()` 暴露 dependency-before-consumer 的 cone-level compilation unit 遍历；`scoopc::cone` facade 同步 re-export。
+  - frontend facade：`ProjectInput` 的 flatten source 字段收口为 build-closure source view，新增 `build_closure_sources()`、`compilation_units()`、`consumer_compilation_unit()`、`consumer_source_paths()`；旧 `sources()` 仅保留为 build-closure alias，并明确不能解释为一个 compilation unit。
+  - AST handoff：`AstStageOutput` 降级为单文件 worker/dump helper；新增 `AstCompilationUnitOutput` 与 `load_ast_compilation_unit_stage_output(...)`，production frontend 现在按 source-cone compilation unit 遍历解析 AST，再进入现有 resolver/typecheck 过渡路径。
+  - metadata 来源：HIR/MIR/codegen 前置 lowering 的 `stable_cone_key`、`source_cones`、request source paths 改为来自 consumer unit / project model API；`SourceConeInfo` map 由 compilation-unit 视图生成，不再由 whole-build flatten 语义直接定义。
+  - 测试覆盖：新增 synthetic virtual consumer cone、显式多文件同 cone unit 稳定遍历、dependency cone before consumer、cone-level AST handoff 测试；保留单文件 AST dump/helper 路径测试。
+  - 验证命令：`cargo fmt --check`；`cargo test -p scoopc_project_model`；`cargo test -p scoopc --no-default-features frontend`；`cargo test -p scoopc --no-default-features pipeline`；`cargo test --all --all-targets --no-default-features`；`cargo run -p scoop -- test --fixtures tests/fixtures/build`；`cargo clippy --all-targets -- -D warnings`；搜索 `single file compilation unit|single-source compilation unit|current compilation unit.*sources|AstStageOutput`。
+  - 残余风险：frontend 内部仍以现有 resolver/typecheck/HIR 过渡实现一次处理 build closure；本任务已把公开 facade 与 AST handoff 提升到 cone unit，真正的 AST -> HIR semantic frontend barrier 和 facts 输出拆分仍属于后续 P2 范围。
 
 ## [TODO] P1-T05R：Review cone-level compilation unit API
 

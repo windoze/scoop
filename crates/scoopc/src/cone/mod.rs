@@ -27,9 +27,10 @@ pub use consume::{
     read_cone_api_scoopir_from_archive, read_cone_manifest_from_archive,
 };
 pub use graph::{
-    CONSUMER_CONE_ID, ConeId, ConeInfo, SourceConeDependencyEdge, SourceConeDependencyKind,
-    SourceConeGraph, SourceConeInfo, SourceConeNode, SourceConeRole, SourceConeTrust,
-    load_source_cone_graph_for_consumer_package, load_source_cone_graph_for_virtual_consumer,
+    CONSUMER_CONE_ID, ConeId, ConeInfo, SourceConeCompilationUnit, SourceConeDependencyEdge,
+    SourceConeDependencyKind, SourceConeGraph, SourceConeInfo, SourceConeNode, SourceConeRole,
+    SourceConeTrust, load_source_cone_graph_for_consumer_package,
+    load_source_cone_graph_for_virtual_consumer,
 };
 pub use manifest::{
     CONE_TOML_FILE_NAME, ConeDependencySpec, ConeKind, ConeManifest, ConeNativeBuildConfig,

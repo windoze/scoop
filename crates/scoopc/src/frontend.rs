@@ -7,12 +7,13 @@ use thiserror::Error;
 use crate::ast;
 #[cfg(test)]
 use crate::cone::{
-    CONSUMER_CONE_ID, SourceConeDependencyEdge, SourceConeNode, SourceConeRole, SourceConeTrust,
+    CONSUMER_CONE_ID, SourceConeDependencyEdge, SourceConeDependencyKind, SourceConeNode,
+    SourceConeRole, SourceConeTrust,
 };
 use crate::cone::{
-    ConeId, ConeInfo, ConeKind, ConeManifest, ConeNativeBuildConfig, ConeSection, SourceConeGraph,
-    SourceConeInfo, load_source_cone_graph_for_consumer_package,
-    load_source_cone_graph_for_virtual_consumer,
+    ConeId, ConeInfo, ConeKind, ConeManifest, ConeNativeBuildConfig, ConeSection,
+    SourceConeCompilationUnit, SourceConeGraph, SourceConeInfo,
+    load_source_cone_graph_for_consumer_package, load_source_cone_graph_for_virtual_consumer,
 };
 #[cfg(feature = "llvm")]
 use crate::opt::OptLevel;
@@ -36,17 +37,20 @@ pub enum ConeProjectKind {
 #[derive(Debug, Clone)]
 pub struct ProjectInput {
     graph: SourceConeGraph,
-    /// 当前编译单元的全部源文件，由 source cone graph 按 DAG order 扁平化得到。
-    sources: Vec<SourceFile>,
-    /// `sources` 中每个 source 的 owning cone id，与 `sources` 下标一一对应。
+    /// Build-closure source view flattened from the source-cone graph in DAG order.
+    ///
+    /// This is not a compilation unit. Use `compilation_units()` or
+    /// `consumer_compilation_unit()` when a caller needs cone-level semantics.
+    build_closure_sources: Vec<SourceFile>,
+    /// `build_closure_sources` 中每个 source 的 owning cone id，与下标一一对应。
     source_cone_ids: Vec<ConeId>,
-    /// `sources` 中每个 source 的 authoritative cone metadata，与 `sources` 下标一一对应。
+    /// `build_closure_sources` 中每个 source 的 authoritative cone metadata，与下标一一对应。
     source_cone_infos: Vec<SourceConeInfo>,
-    /// 当前 project（consumer cone）自身的源文件在 `sources` 中的下标。
+    /// consumer cone 自身的源文件在 `build_closure_sources` 中的下标。
     #[allow(dead_code)]
-    project_source_indices: Vec<usize>,
+    consumer_source_indices: Vec<usize>,
     consumer_cone_id: ConeId,
-    /// 当前运行入口 `fun main` 所在源文件在 `sources` 中的下标。
+    /// 当前运行入口 `fun main` 所在源文件在 `build_closure_sources` 中的下标。
     main_index: usize,
     /// 当前 project 的锚点 main 文件下标。
     ///
@@ -77,23 +81,23 @@ impl ProjectInput {
             )
         })?;
 
-        let mut sources = Vec::new();
+        let mut build_closure_sources = Vec::new();
         let mut source_cone_ids = Vec::new();
         let mut source_cone_infos = Vec::new();
-        let mut project_source_indices = Vec::new();
+        let mut consumer_source_indices = Vec::new();
         let mut main_index = None;
 
         for node in graph.nodes() {
             let cone_info = SourceConeInfo::from_node(node);
             for source in &node.sources {
-                let idx = sources.len();
+                let idx = build_closure_sources.len();
                 if node.id == consumer_cone_id {
-                    project_source_indices.push(idx);
+                    consumer_source_indices.push(idx);
                     if source.path() == entry_main.as_path() {
                         main_index = Some(idx);
                     }
                 }
-                sources.push(source.clone());
+                build_closure_sources.push(source.clone());
                 source_cone_ids.push(node.id);
                 source_cone_infos.push(cone_info.clone());
             }
@@ -108,10 +112,10 @@ impl ProjectInput {
 
         Ok(Self {
             graph,
-            sources,
+            build_closure_sources,
             source_cone_ids,
             source_cone_infos,
-            project_source_indices,
+            consumer_source_indices,
             main_index,
             cone_anchor_main_index: main_index,
             consumer_cone_id,
@@ -125,20 +129,20 @@ impl ProjectInput {
 
     #[cfg(test)]
     fn new_explicit(
-        sources: Vec<SourceFile>,
-        project_source_indices: Vec<usize>,
+        build_closure_sources: Vec<SourceFile>,
+        consumer_source_indices: Vec<usize>,
         main_index: usize,
         cone_root: PathBuf,
         cone_manifest: ConeManifest,
         entry_package_override: Option<String>,
     ) -> Self {
-        let mut source_cone_ids = Vec::with_capacity(sources.len());
-        let mut source_cone_infos = Vec::with_capacity(sources.len());
+        let mut source_cone_ids = Vec::with_capacity(build_closure_sources.len());
+        let mut source_cone_infos = Vec::with_capacity(build_closure_sources.len());
         let mut consumer_sources = Vec::new();
         let mut graph_nodes = Vec::new();
         let mut next_dep_id = 2;
-        for (idx, source) in sources.iter().enumerate() {
-            if project_source_indices.contains(&idx) {
+        for (idx, source) in build_closure_sources.iter().enumerate() {
+            if consumer_source_indices.contains(&idx) {
                 source_cone_ids.push(CONSUMER_CONE_ID);
                 source_cone_infos.push(SourceConeInfo {
                     id: CONSUMER_CONE_ID,
@@ -187,7 +191,7 @@ impl ProjectInput {
             manifest: cone_manifest.clone(),
             trust: SourceConeTrust::Untrusted,
             sources: consumer_sources,
-            entry_main: sources
+            entry_main: build_closure_sources
                 .get(main_index)
                 .map(|source| source.path().to_path_buf()),
             dependencies: Vec::new(),
@@ -196,10 +200,10 @@ impl ProjectInput {
             .expect("synthetic ProjectInput graph should be valid");
         Self {
             graph,
-            sources,
+            build_closure_sources,
             source_cone_ids,
             source_cone_infos,
-            project_source_indices,
+            consumer_source_indices,
             main_index,
             cone_anchor_main_index: main_index,
             consumer_cone_id: CONSUMER_CONE_ID,
@@ -211,12 +215,28 @@ impl ProjectInput {
         }
     }
 
+    pub fn build_closure_sources(&self) -> &[SourceFile] {
+        &self.build_closure_sources
+    }
+
+    /// Legacy alias for the build-closure source view.
+    ///
+    /// This slice can span multiple source cones. It must not be interpreted as
+    /// one compilation unit; use `compilation_units()` for cone-level work.
     pub fn sources(&self) -> &[SourceFile] {
-        &self.sources
+        self.build_closure_sources()
     }
 
     pub fn graph(&self) -> &SourceConeGraph {
         &self.graph
+    }
+
+    pub fn compilation_units(&self) -> impl Iterator<Item = SourceConeCompilationUnit<'_>> {
+        self.graph.compilation_units()
+    }
+
+    pub fn consumer_compilation_unit(&self) -> SourceConeCompilationUnit<'_> {
+        self.graph.consumer_compilation_unit()
     }
 
     pub fn source_cone_id(&self, source_index: usize) -> ConeId {
@@ -232,11 +252,14 @@ impl ProjectInput {
     }
 
     pub fn source_cone_info_map(&self) -> HashMap<PathBuf, SourceConeInfo> {
-        self.sources
-            .iter()
-            .zip(self.source_cone_infos.iter())
-            .map(|(source, info)| (source.path().to_path_buf(), info.clone()))
-            .collect()
+        let mut out = HashMap::new();
+        for unit in self.compilation_units() {
+            let info = unit.source_cone_info();
+            for source in unit.sources() {
+                out.insert(source.path().to_path_buf(), info.clone());
+            }
+        }
+        out
     }
 
     pub fn source_resolver_cone_info(&self, source_index: usize) -> ConeInfo {
@@ -248,7 +271,7 @@ impl ProjectInput {
     }
 
     pub fn main_source(&self) -> &SourceFile {
-        &self.sources[self.main_index]
+        &self.build_closure_sources[self.main_index]
     }
 
     pub fn main_index(&self) -> usize {
@@ -281,10 +304,14 @@ impl ProjectInput {
 
     #[cfg(feature = "llvm")]
     pub fn mir_request_source_paths(&self) -> Vec<PathBuf> {
-        self.project_source_indices
+        self.consumer_source_paths()
+    }
+
+    pub fn consumer_source_paths(&self) -> Vec<PathBuf> {
+        self.consumer_compilation_unit()
+            .sources()
             .iter()
-            .copied()
-            .map(|idx| self.sources[idx].path().to_path_buf())
+            .map(|source| source.path().to_path_buf())
             .collect()
     }
 }
@@ -506,19 +533,21 @@ pub fn run_project_frontend(session: &Session, context: ProjectContext) -> Resul
 }
 
 pub fn run_frontend(session: &Session, mut input: ProjectInput) -> Result<FrontendOutput> {
-    if input.sources.is_empty() {
-        return Err(miette::miette!("内部错误：frontend 输入 sources 为空"));
+    if input.build_closure_sources.is_empty() {
+        return Err(miette::miette!(
+            "内部错误：frontend 输入 build closure sources 为空"
+        ));
     }
 
-    let mut asts = Vec::with_capacity(input.sources.len());
-    for source in &input.sources {
-        let ast = crate::pipeline::load_ast_stage_output_for_dump(session, source)
-            .map(crate::pipeline::AstStageOutput::into_ast)
+    let mut asts = Vec::with_capacity(input.build_closure_sources.len());
+    for unit in input.compilation_units() {
+        let unit_output = crate::pipeline::load_ast_compilation_unit_stage_output(session, unit)
             .map_err(miette::Report::from)?;
-        asts.push(ast);
+        asts.extend(unit_output.into_asts());
     }
+    debug_assert_eq!(asts.len(), input.build_closure_sources.len());
 
-    for (source, ast) in input.sources.iter().zip(asts.iter()) {
+    for (source, ast) in input.build_closure_sources.iter().zip(asts.iter()) {
         crate::typecheck::check_file_headers(source, ast).map_err(miette::Report::from)?;
         crate::typecheck::check_file_struct_decls(source, ast).map_err(miette::Report::from)?;
     }
@@ -526,7 +555,7 @@ pub fn run_frontend(session: &Session, mut input: ProjectInput) -> Result<Fronte
     let mut indexed: Vec<IndexedFile<'_>> = Vec::new();
     for f in &session.sysroot().files {
         if input
-            .sources
+            .build_closure_sources
             .iter()
             .any(|source| source.path() == f.source.path())
         {
@@ -543,7 +572,12 @@ pub fn run_frontend(session: &Session, mut input: ProjectInput) -> Result<Fronte
             file: &f.ast,
         });
     }
-    for (source_index, (source, ast)) in input.sources.iter().zip(asts.iter()).enumerate() {
+    for (source_index, (source, ast)) in input
+        .build_closure_sources
+        .iter()
+        .zip(asts.iter())
+        .enumerate()
+    {
         indexed.push(IndexedFile {
             cone: input.source_cone_id(source_index),
             cone_kind: input.source_cone_kind(source_index),
@@ -559,14 +593,14 @@ pub fn run_frontend(session: &Session, mut input: ProjectInput) -> Result<Fronte
 
     select_cone_entry_main(&mut input, &asts, &mut index)?;
 
-    let mut headers = Vec::with_capacity(input.sources.len());
-    for (source, ast) in input.sources.iter().zip(asts.iter()) {
+    let mut headers = Vec::with_capacity(input.build_closure_sources.len());
+    for (source, ast) in input.build_closure_sources.iter().zip(asts.iter()) {
         let h = crate::resolve::check_file_headers(source, ast, &index)
             .map_err(miette::Report::from)?;
         headers.push(h);
     }
     for ((source, ast), h) in input
-        .sources
+        .build_closure_sources
         .iter()
         .zip(asts.iter_mut())
         .zip(headers.iter())
@@ -574,7 +608,7 @@ pub fn run_frontend(session: &Session, mut input: ProjectInput) -> Result<Fronte
         crate::resolve::check_file_bodies(source, ast, &index, h).map_err(miette::Report::from)?;
     }
 
-    for (source, ast) in input.sources.iter().zip(asts.iter()) {
+    for (source, ast) in input.build_closure_sources.iter().zip(asts.iter()) {
         env.extend_from_file(source, ast, &index)
             .map_err(miette::Report::from)?;
     }
@@ -587,13 +621,17 @@ pub fn run_frontend(session: &Session, mut input: ProjectInput) -> Result<Fronte
 
     #[cfg(feature = "llvm")]
     let file_iter = input
-        .sources
+        .build_closure_sources
         .iter()
         .zip(asts.iter())
         .zip(headers.iter())
         .enumerate();
     #[cfg(not(feature = "llvm"))]
-    let file_iter = input.sources.iter().zip(asts.iter()).zip(headers.iter());
+    let file_iter = input
+        .build_closure_sources
+        .iter()
+        .zip(asts.iter())
+        .zip(headers.iter());
 
     for item in file_iter {
         #[cfg(feature = "llvm")]
@@ -632,7 +670,7 @@ pub fn run_frontend(session: &Session, mut input: ProjectInput) -> Result<Fronte
         {
             // Support sources can contain generic calls inside reachable non-generic bodies
             // (for example sysroot class initializers).  Collect their call-site bindings too;
-            // the MIR materializer still filters initial roots by `project_source_indices`.
+            // the MIR materializer still filters initial roots by consumer cone sources.
             let requests = crate::typecheck::check_file_exprs_with_monomorph_requests(
                 source, ast, &index, &h.imports, &env, &mut types, builtins,
             )
@@ -673,31 +711,39 @@ pub fn lower_hir_for_codegen_with_request_root_mode(
     opt_level: OptLevel,
     request_root_mode: MirRequestRootMode,
 ) -> Result<hir::LoweredHir> {
-    let mut unit: Vec<(&SourceFile, &ast::File)> = Vec::new();
+    let mut lowering_context_files: Vec<(&SourceFile, &ast::File)> = Vec::new();
     for f in &session.sysroot().files {
         if front
             .input
-            .sources
+            .build_closure_sources
             .iter()
             .any(|source| source.path() == f.source.path())
         {
             continue;
         }
-        unit.push((&f.source, &f.ast));
+        lowering_context_files.push((&f.source, &f.ast));
     }
-    for (source, ast) in front.input.sources.iter().zip(front.asts.iter()) {
-        unit.push((source, ast));
+    for (source, ast) in front
+        .input
+        .build_closure_sources
+        .iter()
+        .zip(front.asts.iter())
+    {
+        lowering_context_files.push((source, ast));
     }
 
     let files_to_lower = front
         .input
-        .sources
+        .build_closure_sources
         .iter()
         .zip(front.asts.iter())
         .collect::<Vec<_>>();
     let request_source_paths = front.input.mir_request_source_paths();
-    let stable_cone_key =
-        crate::stable_id::StableConeKey::from_manifest(front.input.cone_manifest());
+    let stable_cone_key = front
+        .input
+        .consumer_compilation_unit()
+        .source_cone_info()
+        .stable_key;
     let source_cones = front.input.source_cone_info_map();
     let entry_main_fqn = front.input.entry_main_fqn.clone().unwrap_or_else(|| {
         let source = front.input.main_source();
@@ -715,7 +761,7 @@ pub fn lower_hir_for_codegen_with_request_root_mode(
 
     hir::lower_for_compilation_unit_multi_files_via_mir_instance_collection_with_request_sources(
         &front.index,
-        &unit,
+        &lowering_context_files,
         &files_to_lower,
         &front.monomorph_requests,
         Some(&front.type_env),
@@ -735,7 +781,7 @@ pub fn build_source_map(session: &Session, input: &ProjectInput) -> (SourceMap, 
     let mut source_map = SourceMap::new();
     for file in &session.sysroot().files {
         if input
-            .sources
+            .build_closure_sources
             .iter()
             .any(|source| source.path() == file.source.path())
         {
@@ -745,7 +791,7 @@ pub fn build_source_map(session: &Session, input: &ProjectInput) -> (SourceMap, 
     }
 
     let mut entry_source_id = None;
-    for (idx, source) in input.sources.iter().enumerate() {
+    for (idx, source) in input.build_closure_sources.iter().enumerate() {
         let source_id = source_map.add_source_clone(source);
         if idx == input.main_index {
             entry_source_id = Some(source_id);
@@ -809,7 +855,12 @@ fn find_consumer_package_decl_span(
     asts: &[ast::File],
     entry_package: &str,
 ) -> miette::SourceSpan {
-    for (source_idx, (source, file)) in input.sources.iter().zip(asts.iter()).enumerate() {
+    for (source_idx, (source, file)) in input
+        .build_closure_sources
+        .iter()
+        .zip(asts.iter())
+        .enumerate()
+    {
         if input.source_cone_id(source_idx) != input.consumer_cone_id {
             continue;
         }
@@ -841,7 +892,7 @@ fn select_cone_entry_main(
     } else if let Some(v) = input.cone_manifest.native_build.entry_package.as_deref() {
         v.trim().to_string()
     } else {
-        let anchor_source = &input.sources[input.cone_anchor_main_index];
+        let anchor_source = &input.build_closure_sources[input.cone_anchor_main_index];
         let anchor_file = &asts[input.cone_anchor_main_index];
         package_prefix(anchor_source, anchor_file.package.as_ref())
     };
@@ -863,13 +914,13 @@ fn select_cone_entry_main(
     if let Some(overload) = overload_in_consumer {
         let decl_file = overload.symbol.decl_file.as_path();
         let Some((idx, _)) = input
-            .sources
+            .build_closure_sources
             .iter()
             .enumerate()
             .find(|(_idx, s)| s.path() == decl_file)
         else {
             return Err(miette::miette!(
-                "内部错误：入口 main 源文件未在 sources 列表中：{}",
+                "内部错误：入口 main 源文件未在 build closure source view 中：{}",
                 decl_file.display()
             ));
         };
@@ -952,6 +1003,30 @@ mod tests {
         }
     }
 
+    fn graph_node(
+        id: ConeId,
+        role: SourceConeRole,
+        manifest: ConeManifest,
+        root: &str,
+        sources: Vec<SourceFile>,
+        entry_main: Option<PathBuf>,
+        dependencies: Vec<SourceConeDependencyEdge>,
+    ) -> SourceConeNode {
+        SourceConeNode {
+            id,
+            role,
+            root: PathBuf::from(root),
+            manifest_path: PathBuf::new(),
+            kind: manifest.cone.kind,
+            native_build: manifest.native_build.clone(),
+            manifest,
+            trust: SourceConeTrust::Untrusted,
+            sources,
+            entry_main,
+            dependencies,
+        }
+    }
+
     #[test]
     fn project_input_is_derived_from_source_cone_graph() {
         let source = SourceFile::new_virtual(
@@ -973,7 +1048,7 @@ mod tests {
         );
         assert!(
             input
-                .project_source_indices
+                .consumer_source_indices
                 .iter()
                 .all(|&idx| input.source_cone_id(idx) == input.consumer_cone_id()),
             "consumer sources must keep the graph consumer cone id"
@@ -986,11 +1061,158 @@ mod tests {
             "sysroot graph sources must not be flattened into the consumer cone id"
         );
         let source_cone_info_map = input.source_cone_info_map();
-        for (idx, source) in input.sources.iter().enumerate() {
+        for (idx, source) in input.build_closure_sources().iter().enumerate() {
             let info = input.source_cone_info(idx);
             assert_eq!(source_cone_info_map[source.path()].id, info.id);
             assert_eq!(input.source_cone_kind(idx), info.kind);
         }
+    }
+
+    #[test]
+    fn virtual_file_input_is_synthetic_consumer_compilation_unit() {
+        let source = SourceFile::new_virtual(
+            "/tmp/scoop-virtual-consumer-main.scoop",
+            "package fixtures.virtual_consumer\nfun main() {}\n",
+        );
+
+        let input = prepare_virtual_cone_input(source).unwrap();
+        let consumer_unit = input.consumer_compilation_unit();
+
+        assert_eq!(consumer_unit.id(), input.consumer_cone_id());
+        assert_eq!(consumer_unit.role(), SourceConeRole::Consumer);
+        assert_eq!(consumer_unit.sources().len(), 1);
+        assert_eq!(
+            input.consumer_source_paths(),
+            vec![PathBuf::from("/tmp/scoop-virtual-consumer-main.scoop")]
+        );
+        assert!(
+            input
+                .compilation_units()
+                .any(|unit| unit.id() != input.consumer_cone_id()),
+            "virtual single-file input must still be a synthetic consumer cone inside the source graph"
+        );
+    }
+
+    #[test]
+    fn explicit_multi_file_cone_is_one_compilation_unit_with_stable_source_order() {
+        let first = SourceFile::new_virtual(
+            "/tmp/scoop-explicit-unit/src/a.scoop",
+            "package fixtures.explicit_unit\nfun a() {}\n",
+        );
+        let second = SourceFile::new_virtual(
+            "/tmp/scoop-explicit-unit/src/b.scoop",
+            "package fixtures.explicit_unit\nfun main() {}\n",
+        );
+        let graph = SourceConeGraph::from_nodes(
+            vec![graph_node(
+                CONSUMER_CONE_ID,
+                SourceConeRole::Consumer,
+                bin_manifest("fixture-explicit-unit"),
+                "/tmp/scoop-explicit-unit",
+                vec![first, second],
+                Some(PathBuf::from("/tmp/scoop-explicit-unit/src/b.scoop")),
+                Vec::new(),
+            )],
+            CONSUMER_CONE_ID,
+        )
+        .unwrap();
+
+        let input = ProjectInput::from_graph(graph, ConeProjectKind::Explicit, None).unwrap();
+        let consumer_unit = input.consumer_compilation_unit();
+        let unit_paths = consumer_unit
+            .sources()
+            .iter()
+            .map(|source| source.path().to_path_buf())
+            .collect::<Vec<_>>();
+
+        assert_eq!(input.compilation_units().count(), 1);
+        assert_eq!(
+            unit_paths,
+            vec![
+                PathBuf::from("/tmp/scoop-explicit-unit/src/a.scoop"),
+                PathBuf::from("/tmp/scoop-explicit-unit/src/b.scoop"),
+            ]
+        );
+        assert_eq!(input.consumer_source_paths(), unit_paths);
+        assert_eq!(
+            input.main_source().path(),
+            Path::new("/tmp/scoop-explicit-unit/src/b.scoop")
+        );
+        assert!(
+            input
+                .consumer_source_indices
+                .iter()
+                .all(|&idx| input.source_cone_id(idx) == CONSUMER_CONE_ID)
+        );
+    }
+
+    #[test]
+    fn compilation_units_follow_dependency_before_consumer_order() {
+        let dep_id = ConeId::new(2);
+        let dep = SourceFile::new_virtual(
+            "/tmp/scoop-unit-dep/src/lib.scoop",
+            "package fixtures.unit_dep\nfun dep() {}\n",
+        );
+        let consumer = SourceFile::new_virtual(
+            "/tmp/scoop-unit-app/src/main.scoop",
+            "package fixtures.unit_app\nfun main() {}\n",
+        );
+        let graph = SourceConeGraph::from_nodes(
+            vec![
+                graph_node(
+                    CONSUMER_CONE_ID,
+                    SourceConeRole::Consumer,
+                    bin_manifest("fixture-unit-app"),
+                    "/tmp/scoop-unit-app",
+                    vec![consumer],
+                    Some(PathBuf::from("/tmp/scoop-unit-app/src/main.scoop")),
+                    vec![SourceConeDependencyEdge {
+                        target: dep_id,
+                        kind: SourceConeDependencyKind::LocalSource,
+                    }],
+                ),
+                graph_node(
+                    dep_id,
+                    SourceConeRole::LocalDependency,
+                    bin_manifest("fixture-unit-dep"),
+                    "/tmp/scoop-unit-dep",
+                    vec![dep],
+                    None,
+                    Vec::new(),
+                ),
+            ],
+            CONSUMER_CONE_ID,
+        )
+        .unwrap();
+
+        let input = ProjectInput::from_graph(graph, ConeProjectKind::Explicit, None).unwrap();
+        let units = input.compilation_units().collect::<Vec<_>>();
+
+        assert_eq!(
+            units
+                .iter()
+                .map(|unit| unit.node().manifest.cone.name.as_str())
+                .collect::<Vec<_>>(),
+            vec!["fixture-unit-dep", "fixture-unit-app"]
+        );
+        assert_eq!(
+            input
+                .consumer_compilation_unit()
+                .dependency_cone_ids()
+                .collect::<Vec<_>>(),
+            vec![dep_id]
+        );
+        assert_eq!(
+            input
+                .build_closure_sources()
+                .iter()
+                .map(|source| source.path().to_path_buf())
+                .collect::<Vec<_>>(),
+            vec![
+                PathBuf::from("/tmp/scoop-unit-dep/src/lib.scoop"),
+                PathBuf::from("/tmp/scoop-unit-app/src/main.scoop"),
+            ]
+        );
     }
 
     #[test]

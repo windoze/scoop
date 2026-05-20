@@ -179,6 +179,79 @@ pub struct SourceConeGraph {
     consumer: ConeId,
 }
 
+/// View of one source cone as the source-level compilation unit.
+///
+/// A unit contains every Scoop source file owned by one cone. Dependency edges
+/// identify the cones whose already-published API/facts are available before
+/// this unit is compiled; the graph guarantees dependency units are yielded
+/// before consumers.
+#[derive(Debug, Clone, Copy)]
+pub struct SourceConeCompilationUnit<'a> {
+    node: &'a SourceConeNode,
+}
+
+impl<'a> SourceConeCompilationUnit<'a> {
+    fn new(node: &'a SourceConeNode) -> Self {
+        Self { node }
+    }
+
+    /// Return the graph node backing this unit for adapter code that still needs
+    /// manifest or native-build details during P1 migration.
+    pub fn node(&self) -> &'a SourceConeNode {
+        self.node
+    }
+
+    /// Return the per-project cone id for this compilation unit.
+    pub fn id(&self) -> ConeId {
+        self.node.id
+    }
+
+    /// Return this unit's role in the source-cone graph.
+    pub fn role(&self) -> SourceConeRole {
+        self.node.role
+    }
+
+    /// Return the cone kind declared by this unit's manifest.
+    pub fn kind(&self) -> ConeKind {
+        self.node.kind
+    }
+
+    /// Return the cone root path.
+    pub fn root(&self) -> &'a Path {
+        self.node.root.as_path()
+    }
+
+    /// Return all Scoop sources owned by this cone in stable traversal order.
+    pub fn sources(&self) -> &'a [SourceFile] {
+        &self.node.sources
+    }
+
+    /// Return the entry anchor source path for consumer cones, when one exists.
+    pub fn entry_main(&self) -> Option<&'a Path> {
+        self.node.entry_main.as_deref()
+    }
+
+    /// Return the dependency edges whose targets are available before this unit.
+    pub fn dependencies(&self) -> &'a [SourceConeDependencyEdge] {
+        &self.node.dependencies
+    }
+
+    /// Return only dependency cone ids, preserving validated dependency order.
+    pub fn dependency_cone_ids(&self) -> impl Iterator<Item = ConeId> + 'a {
+        self.node.dependencies.iter().map(|edge| edge.target)
+    }
+
+    /// Return source metadata shared by every source file owned by this unit.
+    pub fn source_cone_info(&self) -> SourceConeInfo {
+        SourceConeInfo::from_node(self.node)
+    }
+
+    /// Return whether this unit is the graph's consumer cone.
+    pub fn is_consumer(&self) -> bool {
+        self.node.role == SourceConeRole::Consumer
+    }
+}
+
 impl SourceConeGraph {
     /// Validate graph membership and return nodes in dependency-before-consumer topo order.
     pub fn from_nodes(mut nodes: Vec<SourceConeNode>, consumer: ConeId) -> Result<Self> {
@@ -253,6 +326,11 @@ impl SourceConeGraph {
         &self.nodes
     }
 
+    /// Return source-level compilation units in dependency-before-consumer order.
+    pub fn compilation_units(&self) -> impl Iterator<Item = SourceConeCompilationUnit<'_>> {
+        self.nodes.iter().map(SourceConeCompilationUnit::new)
+    }
+
     /// Return the validated consumer cone id.
     pub fn consumer_id(&self) -> ConeId {
         self.consumer
@@ -264,6 +342,11 @@ impl SourceConeGraph {
             .iter()
             .find(|node| node.id == self.consumer)
             .expect("validated source cone graph should contain consumer")
+    }
+
+    /// Return the source-level compilation unit for the validated consumer cone.
+    pub fn consumer_compilation_unit(&self) -> SourceConeCompilationUnit<'_> {
+        SourceConeCompilationUnit::new(self.consumer())
     }
 }
 

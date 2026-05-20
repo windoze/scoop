@@ -1,29 +1,31 @@
 # 执行计划
 
-## 当前约束
-- 以 `TODO.md` 为唯一任务顺序与完成状态来源。
-- 只处理第一个标题未带 `[DONE]` 的任务，完成后提交并停止。
-- 不做开放式历史问题扫描；只处理当前任务及其直接阻塞项。
-- 若发现阻塞当前任务的规格/实现缺口，先在 `TODO.md` 中加入最小必要前置任务并提交后停止。
+## 当前状态
 
-## 步骤
-1. 读取 `TODO.md`，定位第一个未完成任务，并记录任务编号、要求、依赖和验证命令。
-2. 查看最近提交，仅判断是否有明确提到与该任务直接相关的未完成问题。
-3. 根据任务内容阅读最小必要的相关代码、文档和测试。
-4. 若任务可直接完成，实施最小正确改动并添加或更新相应测试/fixture。
-5. 运行任务要求的验证命令；必要时运行相关定向测试，修复失败直到通过。
-6. 更新 `TODO.md`：给已完成任务标题加 `[DONE]`，并填写完成记录。
-7. 仅当阶段级计划、依赖或完成标准变化时更新 `PLAN.md`。
-8. 更新本文件记录关键进展与最终验证结果。
-9. 检查 `git status`、`git diff` 和最近提交，确认只提交本次相关变更。
-10. 使用符合仓库风格的提交信息提交所有本任务相关改动，然后停止。
+- 已读取 `TODO.md` 和 `TODO-2.md`。
+- 第一个未完成任务是 `P1-T05：固定 cone-level compilation unit facade API`。
+- 最近提交为 `[P1-T04R] Review project model migration`，未直接声明与 `P1-T05` 相关的未完成阻塞项。
+- 已检查 `frontend.rs`、`pipeline/ast_stage.rs`、`pipeline/mod.rs`、driver/session/HIR/MIR/LLVM 入口和 `scoopc_project_model::graph`。
+- 发现当前主要缺口：`ProjectInput` 内部字段/注释仍将 graph 扁平化 sources 描述为“当前编译单元”，`AstStageOutput` 仍是单文件正式 handoff 形状，HIR/MIR lowering 仍直接从 flatten sources 推导 request/source cone metadata。
+- 已完成第一轮实现编辑：`scoopc_project_model` 新增 `SourceConeCompilationUnit` 视图；`pipeline` 新增 cone-level `AstCompilationUnitOutput`；`frontend` 将 flatten source 字段改为 build-closure source view，并新增 compilation-unit / consumer-unit API 和测试。
+- 已完成验证：`cargo fmt --check`、`cargo test -p scoopc_project_model`、`cargo test -p scoopc --no-default-features frontend`、`cargo test -p scoopc --no-default-features pipeline`、`cargo test --all --all-targets --no-default-features`、`cargo run -p scoop -- test --fixtures tests/fixtures/build`、`cargo clippy --all-targets -- -D warnings` 均通过；按要求搜索 compilation-unit 相关关键词，剩余 `AstStageOutput` 命中为单文件 worker/dump helper 与 cone-level wrapper 内部成员。
+- 已更新 `TODO.md` 和 `TODO-2.md`：`P1-T05` 标记为 `[DONE]` 并填写完成记录。
 
-## 进展记录
-- 初始计划已写入，尚未读取 `TODO.md`。
-- 已读取 `TODO.md` 和 `TODO-2.md`，第一个未完成任务是 `P1-T04R：Review project model 与 cone graph 迁移结果`。
-- 本次任务类型为 review：需要复查 P1-T04 的迁移范围、依赖方向、cone identity 归属和 SourceConeGraph 语义；若发现阻塞项就在本 review 内修复，否则更新完成记录并提交。
-- 最近提交为 `[P1-T04] Migrate project model and cone identity`，未包含明确未完成项；初始工作区只有本计划文件变更。
-- 已复查 authoritative 定义搜索：`ConeId` / `ConeInfo` / `SourceConeGraph` / `SourceConeInfo` 只在 `scoopc_project_model/src/graph.rs` 定义；未发现 `resolve::ConeId` / `resolve::ConeInfo` 旧路径命中。
-- 已完成验证：`cargo fmt`、`cargo test -p scoopc_project_model`、`cargo test -p scoopc --no-default-features source_cone_graph`、`cargo test --all --all-targets --no-default-features`、`cargo run -p scoop_tools -- dependency-gate`、`cargo tree -p scoopc_project_model`、authoritative 定义/旧路径搜索、`cargo clippy --all-targets -- -D warnings`。
-- Review 结论：project model / cone graph 迁移满足 P1 crate DAG 与 cone DAG 语义，未发现需要代码修复或新增前置任务的阻塞项；下一步更新 TODO 完成记录并提交。
-- 已更新 `TODO.md` 与 `TODO-2.md`，将 `P1-T04R` 标记为 `[DONE]` 并填写 review 完成记录；`git diff --check` 通过。
+## 步骤计划
+
+1. 读取 `TODO.md`，按文件顺序找到第一个标题未以 `[DONE]` 标记的任务。
+2. 检查最近提交是否明确提到与该任务直接相关的未完成问题。
+3. 阅读 `frontend.rs`、`pipeline/ast_stage.rs`、`pipeline/mod.rs`、driver/session/HIR/MIR/codegen 相关入口，确认现有 flatten build-closure 输入与 source-cone metadata 流向。
+4. 设计并实现最小的 cone-level compilation unit facade/API：明确 build graph、cone unit、source file 三者边界；提供拓扑顺序遍历和 consumer 定位；让 AST handoff 能表达 cone unit。
+5. 调整 HIR/MIR/codegen metadata 来源，使公开路径来自 cone unit / project model API，避免把 whole-build flatten 暴露为 compilation unit。
+6. 增加覆盖 synthetic consumer 单文件、多文件同 cone 稳定遍历、dependency-before-consumer 的测试。
+7. 运行 `cargo fmt`、P1-T05 指定测试和必要补充验证；修复直接相关问题。
+8. 在 `TODO.md` 与 `TODO-2.md` 中标记 `P1-T05` 为 `[DONE]` 并填写完成记录；仅在阶段计划变化时更新 `PLAN.md`。
+9. 检查 `git status`、`git diff`、最近提交，提交本次任务涉及的所有更改。
+10. 完成一个任务后停止，不继续处理下一项。
+
+## 约束
+
+- 不绕过规格不一致或实现缺口；若阻塞当前任务，则添加最小必要前置任务并停止。
+- 不修改或回滚无关的用户更改。
+- 后续每完成关键步骤或调整计划都会更新本文件。

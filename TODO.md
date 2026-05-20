@@ -49,7 +49,7 @@
 | P1-T03R | [DONE] | [`TODO-2.md`](./TODO-2.md#done-p1-t03rreview-types--ids-迁移结果) | Review `types` / `ids` 迁移结果 |
 | P1-T04 | [DONE] | [`TODO-2.md`](./TODO-2.md#done-p1-t04迁移-project-modelcone-graph-与-resolver-cone-identity) | 迁移 project model、cone graph 与 resolver cone identity |
 | P1-T04R | [DONE] | [`TODO-2.md`](./TODO-2.md#done-p1-t04rreview-project-model-与-cone-graph-迁移结果) | Review project model 与 cone graph 迁移结果 |
-| P1-T05 | [TODO] | [`TODO-2.md`](./TODO-2.md#todo-p1-t05固定-cone-level-compilation-unit-facade-api) | 固定 cone-level compilation unit facade API |
+| P1-T05 | [DONE] | [`TODO-2.md`](./TODO-2.md#done-p1-t05固定-cone-level-compilation-unit-facade-api) | 固定 cone-level compilation unit facade API |
 | P1-T05R | [TODO] | [`TODO-2.md`](./TODO-2.md#todo-p1-t05rreview-cone-level-compilation-unit-api) | Review cone-level compilation unit API |
 | P1-T06 | [TODO] | [`TODO-2.md`](./TODO-2.md#todo-p1-t06p1-全包清场文档同步与依赖审计) | P1 全包清场、文档同步与依赖审计 |
 | P1-T06R | [TODO] | [`TODO-2.md`](./TODO-2.md#todo-p1-t06rreview-p1-全包完成度) | Review P1 全包完成度 |

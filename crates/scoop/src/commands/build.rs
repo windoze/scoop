@@ -48,7 +48,7 @@ fn find_warning_source<'a>(
 ) -> Option<&'a scoopc::source::SourceFile> {
     front
         .input()
-        .sources()
+        .build_closure_sources()
         .iter()
         .find(|source| source.path() == path)
         .or_else(|| {
@@ -1198,7 +1198,7 @@ kind = "bin"
         assert!(
             front
                 .input()
-                .sources()
+                .build_closure_sources()
                 .iter()
                 .all(|source| source.path() != helper.as_path()),
             "bare file -> project frontend 不应自动把同 cone 的其它源文件塞进 context"

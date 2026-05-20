@@ -14,10 +14,11 @@ mod hir_stage;
 mod llvm_codegen_stage;
 mod mir_stage;
 
+use crate::cone::SourceConeCompilationUnit;
 use crate::session::Session;
 use crate::source::SourceFile;
 
-pub use ast_stage::AstStageOutput;
+pub use ast_stage::{AstCompilationUnitOutput, AstStageOutput};
 pub use effect_facts_stage::EffectFactsStageOutput;
 pub use effect_lowering_stage::EffectLoweredStageOutput;
 pub use hir_stage::{
@@ -52,6 +53,13 @@ pub fn load_ast_stage_output_for_dump<'a>(
     source: &'a SourceFile,
 ) -> Result<AstStageOutput<'a>, crate::parser::ParseError> {
     ast_stage::run(session, source)
+}
+
+pub fn load_ast_compilation_unit_stage_output<'a>(
+    session: &Session,
+    unit: SourceConeCompilationUnit<'a>,
+) -> Result<AstCompilationUnitOutput<'a>, crate::parser::ParseError> {
+    ast_stage::run_compilation_unit(session, unit)
 }
 
 pub fn load_typed_hir_stage_output_for_dump(

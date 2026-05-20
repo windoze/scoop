@@ -9,8 +9,9 @@ use crate::cone::{ConeDependencySpec, ConeKind, ConeManifest, ConeSourcePackage}
 use crate::source::SourceFile;
 
 pub use scoopc_project_model::{
-    CONSUMER_CONE_ID, ConeId, ConeInfo, SourceConeDependencyEdge, SourceConeDependencyKind,
-    SourceConeGraph, SourceConeInfo, SourceConeNode, SourceConeRole, SourceConeTrust,
+    CONSUMER_CONE_ID, ConeId, ConeInfo, SourceConeCompilationUnit, SourceConeDependencyEdge,
+    SourceConeDependencyKind, SourceConeGraph, SourceConeInfo, SourceConeNode, SourceConeRole,
+    SourceConeTrust,
 };
 
 const FIRST_NON_CONSUMER_CONE_ID: u32 = 2;

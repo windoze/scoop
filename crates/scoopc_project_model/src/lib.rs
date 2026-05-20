@@ -14,9 +14,9 @@ pub mod opt;
 pub mod package;
 
 pub use graph::{
-    CONSUMER_CONE_ID, ConeId, ConeInfo, SourceConeDependencyEdge, SourceConeDependencyKind,
-    SourceConeGraph, SourceConeInfo, SourceConeNode, SourceConeRole, SourceConeTrust,
-    StableConeKey,
+    CONSUMER_CONE_ID, ConeId, ConeInfo, SourceConeCompilationUnit, SourceConeDependencyEdge,
+    SourceConeDependencyKind, SourceConeGraph, SourceConeInfo, SourceConeNode, SourceConeRole,
+    SourceConeTrust, StableConeKey,
 };
 pub use manifest::{
     CONE_TOML_FILE_NAME, ConeDependencySpec, ConeKind, ConeManifest, ConeNativeBuildConfig,
