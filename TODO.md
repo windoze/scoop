@@ -3,7 +3,7 @@
 > 生成时间：2026-05-19
 > 设计基线：[`SYSROOT_RESHAPE_R2.md`](./SYSROOT_RESHAPE_R2.md)
 > 计划基线：[`PLAN.md`](./PLAN.md)
-> 当前状态：`P4-T01` 已完成；下一任务为 `P4-T02`。
+> 当前状态：`P4-T02` 已完成；下一任务为 `P4-T03`。
 > 执行原则：严格按 P0 -> P10 顺序推进；同一阶段内可按任务依赖拆 PR，但每个任务完成后必须保持仓库无 failing fixture，并回写完成记录。
 
 ## 全局约束
@@ -99,7 +99,7 @@ P0 baseline freeze
 | `P3-T02` | [DONE] | P3 | `lib/syslib` 无 entry point 加载规则 |
 | `P3-T03` | [DONE] | P3 | `syslib` path trust gate 与 intrinsic privilege gate |
 | `P4-T01` | [DONE] | P4 | 重排 sysroot 到 `sysroot/lib/<cone>/src` |
-| `P4-T02` | [TODO] | P4 | sysroot loader 改为加载 `sysroot/lib/*/Cone.toml` |
+| `P4-T02` | [DONE] | P4 | sysroot loader 改为加载 `sysroot/lib/*/Cone.toml` |
 | `P4-T03` | [TODO] | P4 | sysroot overlay 迁移到 `overlay/lib/<cone>/...` |
 | `P5-T01` | [TODO] | P5 | 引入 source cone graph 数据结构 |
 | `P5-T02` | [TODO] | P5 | 支持本地 source path dependency fixtures |
@@ -367,7 +367,7 @@ P0 baseline freeze
 - 与 `PLAN.md` / `SYSROOT_RESHAPE_R2.md` 闭合项：满足 P4 中“内置 cones 位于 `sysroot/lib/`，每个 cone 拥有 `Cone.toml` 和 `src/` 目录”以及“创建 `sysroot/bin`、`sysroot/docs` 保留目录”的要求；P4-T02 的 loader manifest discovery 与 P4-T03 的 overlay merge 语义尚未改变。
 - 验证结果：布局检查确认 `sysroot/scoop.*/*.scoop` 和 active `.sysroot/scoop.core/*.scoop` 均已清空，`sysroot/lib/*/src/*.scoop` 有 10 个源文件，`sysroot/lib/*/Cone.toml` 有 8 个 manifest；`cargo fmt` 通过；`cargo build` 通过；`cargo test -p scoopc sysroot -- --nocapture` 通过（20 passed）；`cargo run -p scoop -- test tests/fixtures/build/` 通过（47 checks）；`cargo run -p scoop -- test tests/fixtures/typecheck/` 通过（499 checks）；`cargo clippy --all-targets -- -D warnings` 通过；完整 `cargo run -p scoop -- test` 首次因 5 个 HIR golden span 漂移失败，更新 golden 后 `cargo run -p scoop -- test tests/fixtures/hir/` 通过（26 checks），重跑完整 fixture suite 通过（fixtures: ok，1563 checks）；`cargo test --all --all-targets` 通过（Rust tests: ok，包含 `scoopc` 917 tests）。
 
-## P4-T02：sysroot loader 改为加载 `sysroot/lib/*/Cone.toml`
+## [DONE] P4-T02：sysroot loader 改为加载 `sysroot/lib/*/Cone.toml`
 
 - 参考：`PLAN.md` §7。
 - 目标：sysroot loader 不再递归扫描整个 `sysroot/**/*.scoop`。
@@ -379,6 +379,16 @@ P0 baseline freeze
   4. 更新 sysroot unit tests。
 - 验证：新增 `sysroot/docs/foo.scoop` 不加载测试；`cargo test -p scoopc sysroot -- --nocapture`。
 - 完成条件：sysroot loading 基于 cone manifest，不基于盲递归 `.scoop` 搜索。
+
+### 完成记录（2026-05-20）
+
+- 改动范围：`crates/scoopc/src/sysroot/mod.rs`、`crates/scoopc/src/cone/package.rs`、`crates/scoopc/src/frontend.rs`、`memory/claude_plan.md`；未修改 `PLAN.md` 或 `SYSROOT_RESHAPE_R2.md`。
+- 核心决策：base sysroot loader 改为只枚举 `sysroot/lib/*/Cone.toml`，并对每个 manifest 所在 cone root 调用 source cone package loader，因此 base sysroot sources 来自 `src/**/*.scoop`、platform selector 与 `lib/syslib` 无 entry point 规则，而不是从 `sysroot/**/*.scoop` 盲递归收集。
+- Trust 语义：sysroot source 的 `SourceOrigin::Sysroot` 仍表示物理来源；`trusted syslib` 权限现在由该 cone manifest 的 `kind = "syslib"` 决定，`kind = "lib"` 的 sysroot source 以 sysroot origin 加载但不授予 `@Intrinsic` / sealed marker 等 syslib 特权。
+- Overlay 边界：为避免抢做 `P4-T03`，本任务只把 base sysroot discovery 切到 manifest-based source cone rules；新布局 overlay 路径位于已知 `lib/<cone>/...` 时按 owning cone manifest kind 继承 trust，旧式未知 overlay 兼容扫描和旧 overlay fixture 迁移仍由 `P4-T03` 处理。
+- Tests：新增/更新 sysroot 单元测试，覆盖 `sysroot/docs/foo.scoop` 不进入 `Sysroot::files` 或 support sources、manifest kind 控制 source trust、新 `lib/<cone>/src` layout 下的 overlay replacement，以及 overlay 新增到已知 `lib` cone 的 source 不获得 trusted syslib 权限。
+- 与 `PLAN.md` / `SYSROOT_RESHAPE_R2.md` 闭合项：满足 P4 中“`Sysroot::default_path()` 仍指向 sysroot umbrella，但 loader 只扫描 `sysroot/lib/*/Cone.toml`”、“`sysroot/bin` / `sysroot/docs` 不参与 source loading”和“不再递归扫描任意 base `sysroot/**/*.scoop`”的要求；overlay mirror / cone-relative replacement 仍按 `P4-T03` 推进，阶段级计划未变化。
+- 验证结果：`cargo fmt` 通过；`cargo test -p scoopc sysroot -- --nocapture` 首次在 lib tests 全通过后因 120s timeout 停在后续 test binary，600s 重跑通过（22 passed）；`cargo build` 通过；`cargo clippy --all-targets -- -D warnings` 通过；`cargo test --all --all-targets` 通过（919 passed）；`cargo run -p scoop -- test` 通过（fixtures: ok，1563 checks）。
 
 ## P4-T03：sysroot overlay 迁移到 `overlay/lib/<cone>/...`
 

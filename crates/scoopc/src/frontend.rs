@@ -763,23 +763,25 @@ pub(crate) fn load_default_support_sources(
         .canonicalize()
         .into_diagnostic()
         .wrap_err("无法定位 sysroot 目录（T0143）")?;
-    let mut sysroot_paths = Vec::new();
-    crate::sysroot::collect_sysroot_files(
+    let sysroot_entries = crate::sysroot::collect_sysroot_source_entries(
         &sysroot_root,
         session_options.sysroot_overlay(),
-        &mut sysroot_paths,
     )?;
 
-    support_paths.extend(sysroot_paths.into_iter().map(|path| (path, true)));
+    support_paths.extend(
+        sysroot_entries
+            .into_iter()
+            .map(|entry| (entry.path, entry.trusted_syslib)),
+    );
 
     support_paths.sort_by(|(lhs, _), (rhs, _)| lhs.cmp(rhs));
 
     let mut out = Vec::with_capacity(support_paths.len());
-    for (path, is_sysroot) in support_paths {
-        out.push(if is_sysroot {
+    for (path, trusted_syslib) in support_paths {
+        out.push(if trusted_syslib {
             SourceFile::load_trusted_syslib(&path)?
         } else {
-            SourceFile::load(&path)?
+            SourceFile::load_sysroot(&path)?
         });
     }
     Ok(out)

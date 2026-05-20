@@ -75,7 +75,7 @@ pub fn load_cone_source_package_for_platform(
     )
 }
 
-fn load_cone_source_package_for_platform_with_sysroot_root(
+pub(crate) fn load_cone_source_package_for_platform_with_sysroot_root(
     root: impl AsRef<Path>,
     target_platform: &str,
     sysroot_root: &Path,
@@ -432,7 +432,7 @@ fn tokenize_glob(pattern: &str) -> Vec<GlobToken> {
 /// 说明：
 /// - v0 阶段只支持 host target（与 TODO T0803 的范围一致）；
 /// - 该 id 使用 spec 中的 `linux-x64` / `macos-arm64` / `windows-x64` 命名风格（spec §13.7/§13.9）。
-fn host_target_platform_id() -> String {
+pub(crate) fn host_target_platform_id() -> String {
     // 说明：不要使用 `CARGO_CFG_TARGET_*`：
     // - 这些环境变量通常只在 build script（build.rs）环境中可用；
     // - 在普通 crate 编译单元里，`option_env!()` 往往拿不到，从而退化成 `unknown-unknown`。

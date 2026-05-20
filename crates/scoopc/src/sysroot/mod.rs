@@ -1,16 +1,21 @@
 //! Sysroot 加载。
 //!
-//! Sysroot 是一组 `.scoop` 源文件，描述编译器内建的 API 表面：
+//! Sysroot 是一组内置 source cones，描述编译器内建的 API 表面：
 //! - 对编译器：提供内建类型/函数/效果的签名来源
 //! - 对工具链：LSP/文档可从 sysroot 读取类型信息
 //!
-//! 当前阶段：只实现“定位目录 + 读取 `.scoop` + 调用 parser”。
+//! 当前阶段：通过 `sysroot/lib/*/Cone.toml` 发现内置 source cones，
+//! 并复用普通 source cone package 规则收集 `src/**/*.scoop`。
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 use miette::{Context as _, IntoDiagnostic as _, Result, miette};
 
+use crate::cone::manifest::{CONE_TOML_FILE_NAME, ConeKind};
+use crate::cone::package::{
+    host_target_platform_id, load_cone_source_package_for_platform_with_sysroot_root,
+};
 use crate::source::SourceFile;
 
 /// 外部 driver 可通过该环境变量为单次构建注入 sysroot overlay。
@@ -28,6 +33,12 @@ pub struct SysrootFile {
     pub path: PathBuf,
     pub source: SourceFile,
     pub ast: crate::ast::File,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct SysrootSourceEntry {
+    pub path: PathBuf,
+    pub trusted_syslib: bool,
 }
 
 impl Sysroot {
@@ -50,17 +61,18 @@ impl Sysroot {
         overlay_root: Option<&Path>,
     ) -> Result<Self> {
         let root = canonicalize_sysroot_root(root.as_ref(), "sysroot")?;
-        let paths = collect_merged_sysroot_paths(&root, overlay_root)?;
-        if paths.is_empty() {
+        let entries = collect_merged_sysroot_entries(&root, overlay_root)?;
+        if entries.is_empty() {
             return Err(miette!(
-                "sysroot 目录下没有 .scoop 文件：{}",
+                "sysroot/lib 下没有可加载的 source cone：{}",
                 root.display()
             ));
         }
 
         let mut files = Vec::new();
-        for path in paths {
-            let source = SourceFile::load_trusted_syslib(&path)?;
+        for entry in entries {
+            let path = entry.path;
+            let source = load_sysroot_source(&path, entry.trusted_syslib)?;
             let ast = crate::parser::parse_file(&source)
                 .wrap_err_with(|| format!("解析 sysroot 文件失败：{}", path.display()))?;
             files.push(SysrootFile { path, source, ast });
@@ -95,28 +107,46 @@ impl Sysroot {
     }
 }
 
-/// 收集所有 sysroot 源文件路径，供 build pipeline 作为 support sources 加入 `input.sources`。
+/// 收集所有 sysroot source cone 源文件路径，供 build pipeline 作为 support sources 加入 `input.sources`。
 pub fn collect_sysroot_files(
     root: &Path,
     overlay_root: Option<&Path>,
     out: &mut Vec<PathBuf>,
 ) -> Result<()> {
     let root = canonicalize_sysroot_root(root, "sysroot")?;
-    out.extend(collect_merged_sysroot_paths(&root, overlay_root)?);
+    out.extend(
+        collect_merged_sysroot_entries(&root, overlay_root)?
+            .into_iter()
+            .map(|entry| entry.path),
+    );
     Ok(())
 }
 
-fn collect_merged_sysroot_paths(root: &Path, overlay_root: Option<&Path>) -> Result<Vec<PathBuf>> {
-    let mut merged = BTreeMap::new();
+pub(crate) fn collect_sysroot_source_entries(
+    root: &Path,
+    overlay_root: Option<&Path>,
+) -> Result<Vec<SysrootSourceEntry>> {
+    let root = canonicalize_sysroot_root(root, "sysroot")?;
+    collect_merged_sysroot_entries(&root, overlay_root)
+}
 
-    let mut base_paths = Vec::new();
-    collect_scoop_files(root, &mut base_paths)?;
-    for path in base_paths {
-        let rel = path
+fn collect_merged_sysroot_entries(
+    root: &Path,
+    overlay_root: Option<&Path>,
+) -> Result<Vec<SysrootSourceEntry>> {
+    let mut merged = BTreeMap::new();
+    let mut trust_by_cone_root = BTreeMap::new();
+
+    for entry in collect_sysroot_cone_source_entries(root)? {
+        let rel = entry
+            .path
             .strip_prefix(root)
             .expect("sysroot file should be under canonical root")
             .to_path_buf();
-        merged.insert(rel, path);
+        if let Some(cone_root_rel) = sysroot_lib_cone_root_rel(&rel) {
+            trust_by_cone_root.insert(cone_root_rel, entry.trusted_syslib);
+        }
+        merged.insert(rel, entry);
     }
 
     if let Some(overlay_root) = overlay_root {
@@ -128,11 +158,108 @@ fn collect_merged_sysroot_paths(root: &Path, overlay_root: Option<&Path>) -> Res
                 .strip_prefix(&overlay_root)
                 .expect("overlay file should be under canonical overlay root")
                 .to_path_buf();
-            merged.insert(rel, path);
+            let trusted_syslib = merged
+                .get(&rel)
+                .map(|entry: &SysrootSourceEntry| entry.trusted_syslib)
+                .or_else(|| {
+                    sysroot_lib_cone_root_rel(&rel)
+                        .and_then(|cone_root_rel| trust_by_cone_root.get(&cone_root_rel).copied())
+                })
+                .unwrap_or(true);
+            merged.insert(
+                rel,
+                SysrootSourceEntry {
+                    path,
+                    trusted_syslib,
+                },
+            );
         }
     }
 
     Ok(merged.into_values().collect())
+}
+
+fn sysroot_lib_cone_root_rel(rel: &Path) -> Option<PathBuf> {
+    let mut components = rel.components();
+    let lib = components.next()?;
+    if lib.as_os_str() != "lib" {
+        return None;
+    }
+    let cone = components.next()?;
+    Some(PathBuf::from("lib").join(Path::new(cone.as_os_str())))
+}
+
+fn collect_sysroot_cone_source_entries(root: &Path) -> Result<Vec<SysrootSourceEntry>> {
+    let manifest_paths = collect_sysroot_cone_manifest_paths(root)?;
+    let target_platform = host_target_platform_id();
+    let mut entries = Vec::new();
+
+    for manifest_path in manifest_paths {
+        let cone_root = manifest_path
+            .parent()
+            .expect("Cone.toml path should have a cone root parent");
+        let package = load_cone_source_package_for_platform_with_sysroot_root(
+            cone_root,
+            &target_platform,
+            root,
+        )?;
+        let trusted_syslib = package.manifest.cone.kind == ConeKind::Syslib;
+        entries.extend(package.sources.into_iter().map(|path| SysrootSourceEntry {
+            path,
+            trusted_syslib,
+        }));
+    }
+
+    entries.sort_by(|lhs, rhs| lhs.path.cmp(&rhs.path));
+    Ok(entries)
+}
+
+fn collect_sysroot_cone_manifest_paths(root: &Path) -> Result<Vec<PathBuf>> {
+    let lib_root = root.join("lib");
+    if !lib_root.is_dir() {
+        return Err(miette!(
+            "sysroot 缺少 `lib` 目录，无法发现 source cones：{}",
+            lib_root.display()
+        ));
+    }
+
+    let mut manifests = Vec::new();
+    for entry in std::fs::read_dir(&lib_root)
+        .into_diagnostic()
+        .wrap_err_with(|| format!("无法读取 sysroot lib 目录：{}", lib_root.display()))?
+    {
+        let entry = entry.into_diagnostic()?;
+        let path = entry.path();
+        if !entry.file_type().into_diagnostic()?.is_dir() {
+            continue;
+        }
+
+        let manifest_path = path.join(CONE_TOML_FILE_NAME);
+        if manifest_path.is_file() {
+            manifests.push(
+                manifest_path
+                    .canonicalize()
+                    .into_diagnostic()
+                    .wrap_err_with(|| {
+                        format!(
+                            "无法定位 sysroot cone manifest：{}",
+                            manifest_path.display()
+                        )
+                    })?,
+            );
+        }
+    }
+
+    manifests.sort();
+    Ok(manifests)
+}
+
+fn load_sysroot_source(path: &Path, trusted_syslib: bool) -> Result<SourceFile> {
+    if trusted_syslib {
+        SourceFile::load_trusted_syslib(path)
+    } else {
+        SourceFile::load_sysroot(path)
+    }
 }
 
 fn canonicalize_sysroot_root(root: &Path, label: &str) -> Result<PathBuf> {
@@ -204,6 +331,16 @@ mod tests {
         std::fs::write(path, text).unwrap();
     }
 
+    fn write_sysroot_cone_manifest(root: &Path, name: &str, kind: ConeKind) {
+        write_file(
+            &root.join("lib").join(name).join(CONE_TOML_FILE_NAME),
+            &format!(
+                "[cone]\nname = \"{name}\"\nversion = \"0.0.0\"\nkind = \"{}\"\n",
+                kind.as_str()
+            ),
+        );
+    }
+
     #[test]
     fn load_default_sysroot() {
         // 单元测试运行时工作目录通常是 workspace 根目录。
@@ -247,8 +384,9 @@ mod tests {
         let mut parsed_files = Vec::new();
         let mut violations = Vec::new();
 
-        for path in collect_merged_sysroot_paths(&root, None).unwrap() {
-            let source = SourceFile::load_trusted_syslib(&path).unwrap();
+        for entry in collect_merged_sysroot_entries(&root, None).unwrap() {
+            let path = entry.path;
+            let source = load_sysroot_source(&path, entry.trusted_syslib).unwrap();
             let file = crate::parser::parse_file(&source).unwrap();
             parsed_files.push((path, source, file));
         }
@@ -269,9 +407,24 @@ mod tests {
         let root = make_temp_dir("overlay_all_support_sources");
         let base_root = root.0.join("base");
         let overlay_root = root.0.join("overlay");
-        let base_core = base_root.join("scoop.core").join("core.scoop");
-        let overlay_core = overlay_root.join("scoop.core").join("core.scoop");
-        let unsafe_file = base_root.join("scoop.unsafe").join("unsafe.scoop");
+        let base_core = base_root
+            .join("lib")
+            .join("scoop.core")
+            .join("src")
+            .join("core.scoop");
+        let overlay_core = overlay_root
+            .join("lib")
+            .join("scoop.core")
+            .join("src")
+            .join("core.scoop");
+        let unsafe_file = base_root
+            .join("lib")
+            .join("scoop.unsafe")
+            .join("src")
+            .join("unsafe.scoop");
+
+        write_sysroot_cone_manifest(&base_root, "scoop.core", ConeKind::Syslib);
+        write_sysroot_cone_manifest(&base_root, "scoop.unsafe", ConeKind::Syslib);
 
         write_file(
             &base_core,
@@ -294,6 +447,105 @@ mod tests {
         let mut support_sources = Vec::new();
         collect_sysroot_files(&base_root, Some(&overlay_root), &mut support_sources).unwrap();
         assert_eq!(support_sources, vec![overlay_core, unsafe_file]);
+    }
+
+    #[test]
+    fn sysroot_docs_scoop_files_are_ignored() {
+        let root = make_temp_dir("docs_ignored");
+        let base_root = root.0.join("base");
+        let core_file = base_root
+            .join("lib")
+            .join("scoop.core")
+            .join("src")
+            .join("core.scoop");
+        let docs_file = base_root.join("docs").join("foo.scoop");
+
+        write_sysroot_cone_manifest(&base_root, "scoop.core", ConeKind::Syslib);
+        write_file(
+            &core_file,
+            "package scoop.core\n@Intrinsic class Array<T>\ninterface Any\n",
+        );
+        write_file(&docs_file, "package docs\nfun shouldNotLoad(): Int = 1\n");
+
+        let sysroot = Sysroot::load_from(&base_root).unwrap();
+        let core_file = core_file.canonicalize().unwrap();
+        let docs_file = docs_file.canonicalize().unwrap();
+
+        assert_eq!(sysroot.files.len(), 1);
+        assert!(sysroot.files.iter().any(|file| file.path == core_file));
+        assert!(!sysroot.files.iter().any(|file| file.path == docs_file));
+
+        let mut support_sources = Vec::new();
+        collect_sysroot_files(&base_root, None, &mut support_sources).unwrap();
+        assert_eq!(support_sources, vec![core_file]);
+    }
+
+    #[test]
+    fn sysroot_manifest_kind_controls_source_trust() {
+        let root = make_temp_dir("manifest_kind_trust");
+        let base_root = root.0.join("base");
+        let core_file = base_root
+            .join("lib")
+            .join("scoop.core")
+            .join("src")
+            .join("core.scoop");
+        let string_file = base_root
+            .join("lib")
+            .join("scoop.lang.string")
+            .join("src")
+            .join("lang_string.scoop");
+
+        write_sysroot_cone_manifest(&base_root, "scoop.core", ConeKind::Syslib);
+        write_sysroot_cone_manifest(&base_root, "scoop.lang.string", ConeKind::Lib);
+        write_file(
+            &core_file,
+            "package scoop.core\n@Intrinsic class Array<T>\ninterface Any\n",
+        );
+        write_file(
+            &string_file,
+            "package scoop.lang.string\npublic class StringBuilder\n",
+        );
+
+        let sysroot = Sysroot::load_from(&base_root).unwrap();
+        let core_file = core_file.canonicalize().unwrap();
+        let string_file = string_file.canonicalize().unwrap();
+
+        let core = sysroot
+            .files
+            .iter()
+            .find(|file| file.path == core_file)
+            .unwrap();
+        let string = sysroot
+            .files
+            .iter()
+            .find(|file| file.path == string_file)
+            .unwrap();
+
+        assert!(core.source.is_trusted_syslib());
+        assert!(string.source.is_sysroot());
+        assert!(!string.source.is_trusted_syslib());
+
+        let overlay_root = root.0.join("overlay");
+        let string_overlay_extra = overlay_root
+            .join("lib")
+            .join("scoop.lang.string")
+            .join("src")
+            .join("extra.scoop");
+        write_file(
+            &string_overlay_extra,
+            "package scoop.lang.string\npublic fun overlayStringToken(): Int = 1\n",
+        );
+
+        let overlaid = Sysroot::load_from_with_overlay(&base_root, Some(&overlay_root)).unwrap();
+        let string_overlay_extra = string_overlay_extra.canonicalize().unwrap();
+        let extra = overlaid
+            .files
+            .iter()
+            .find(|file| file.path == string_overlay_extra)
+            .unwrap();
+
+        assert!(extra.source.is_sysroot());
+        assert!(!extra.source.is_trusted_syslib());
     }
 
     #[test]
