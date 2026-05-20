@@ -160,7 +160,7 @@
   - 验证命令：`cargo fmt`；`cargo test -p scoopc --no-default-features parser`；`cargo test -p scoopc --no-default-features hir`；`cargo test -p scoopc --no-default-features mir`；`cargo test -p scoopc --no-default-features comptime`；`cargo clippy --all-targets -- -D warnings`；`cargo run -p scoop -- test --fixtures tests/fixtures/parse/comptime_syntax_basic.scoop`；`cargo run -p scoop -- test --fixtures tests/fixtures/comptime/literal_const_comptime_matrix.scoop`；`cargo run -p scoop -- test --fixtures tests/fixtures/comptime/float_literal_basic.scoop`；搜索 `StmtKind::Comptime|ComptimeFor|RuntimeComptimePlan|parse_comptime_stmt` 于 `crates/scoopc/src` 无命中。
   - 残余风险：package-level comptime parse-fail fixtures 仍包含顶层 `comptime if` 源码，用于 P0-T01 删除结果回归；Scoop `const` surface/evaluator 与反射相关 `comptime` 命名仍按 `P0-T03`/`P0-T04` 清理。
 
-## [TODO] P0-T02R：Review statement-level comptime 删除结果
+## [DONE] P0-T02R：Review statement-level comptime 删除结果
 
 - 参考：P0-T02。
 - 重点：
@@ -182,7 +182,12 @@
   - review 结论明确写出：statement-level comptime surface 和 runtime plan 已全部移除，且没有迁移成其它阶段特判。
 - 依赖：P0-T02
 - 完成记录：
-  - 待填写。
+  - 复查范围：逐项复查了 AST statement surface、statement parser、parser tests、const/comptime interpreter、typecheck statement/lowering、HIR statement lowering、MIR materialization templates，以及 P0-T02 删除后仍可能出现 statement-level comptime/splice 兼容逻辑的位置。
+  - Review 结论：活跃源码中未发现 `StmtKind::Comptime*`、`ComptimeFor`、`RuntimeComptimePlan`、`parse_comptime_stmt`、`plan_comptime_*` 或 `ComptimeIf`/`ComptimeFor` AST/parser/runtime plan 残留；statement-level `comptime if/for` surface 和 runtime comptime plan 已物理删除，没有迁移成 typecheck/HIR/MIR 的新特判。
+  - 修正项：清理了 `crates/scoopc/src/ast/mod.rs` 中 `splice_field_contracts` 注释对已删除 comptime 展开值的过时描述；HIR lowering 现在只消费 typecheck 发布的 splice field contract。
+  - Fixture 结论：旧 HIR/MIR/runtime comptime 控制流与 splice fixtures 已不存在；`tests/fixtures/parse/comptime_syntax_basic.scoop` 保留为普通 parse-fail fixture。额外搜索到的 `comptime if` fixtures 只属于 P0-T01 的 package-level parse-fail 回归，不表示 statement-level surface 可用。
+  - 验证命令：`cargo fmt`；`cargo test -p scoopc --no-default-features parser`；`cargo test -p scoopc --no-default-features hir`；`cargo test -p scoopc --no-default-features mir`；`cargo test -p scoopc --no-default-features comptime`；`cargo clippy --all-targets -- -D warnings`；`cargo run -p scoop -- test --fixtures tests/fixtures/parse/comptime_syntax_basic.scoop`；`cargo run -p scoop -- test --fixtures tests/fixtures/comptime/literal_const_comptime_matrix.scoop`；`cargo run -p scoop -- test --fixtures tests/fixtures/comptime/float_literal_basic.scoop`；搜索 `StmtKind::Comptime|ComptimeFor|RuntimeComptimePlan|parse_comptime_stmt` 于 `crates/scoopc/src` 无命中，搜索 `comptime for|comptime if|RuntimeComptimePlan|ComptimeFor|StmtKind::Comptime` 于 `crates/scoopc/src` 无命中。
+  - 残余风险：Scoop `const` surface、const evaluator、reflection/comptime 命名和相关 fixtures 仍按 `P0-T03`/`P0-T04` 处理；当前 review 未提前删除这些后续任务范围。
 
 ## [TODO] P0-T03：删除 Scoop `const` surface、const evaluator 与跨阶段 const hooks
 

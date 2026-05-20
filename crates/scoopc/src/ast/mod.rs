@@ -83,7 +83,7 @@ pub struct File {
     /// typecheck 确认的 splice field contract（按整个 `receiver.[field]` 表达式 span 索引）。
     ///
     /// 说明：`value.[field]` 必须在进入 HIR 前解析为静态字段名与字段类型；HIR lowering
-    /// 只消费这里的 contract 或 comptime 展开值，不再保留 `splice_field` placeholder。
+    /// 只消费这里的 contract，不再保留 `splice_field` placeholder。
     pub(crate) splice_field_contracts: RefCell<HashMap<Span, SpliceFieldContract>>,
     /// typecheck 确认的 `with` copy-update contract（按整个 `base with { ... }` 表达式 span 索引）。
     ///
