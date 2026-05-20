@@ -3,6 +3,7 @@
 //
 // T1313：标准 delegated properties（spec §10.4）
 // - lazy 的 initializer 只应在首次访问时执行一次，后续访问走缓存。
+// SYSROOT-DEPS: scoop.sync
 
 import scoop.core.*
 import scoop.delegates.*

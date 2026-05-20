@@ -62,7 +62,9 @@ fn normal_build_does_not_export_runtime_test_helpers() {
 
     let symbols = nm_global_symbols(&output_exe);
     assert!(
-        !symbols.contains("scoop_test_") && !symbols.contains("scoop_runtime_test_sync"),
-        "ordinary runtime link should not export runtime test helpers:\n{symbols}"
+        !symbols.contains("scoop_test_")
+            && !symbols.contains("scoop_runtime_test_sync")
+            && !symbols.contains("scoop_sync_"),
+        "ordinary runtime link should not export migrated runtime helpers:\n{symbols}"
     );
 }

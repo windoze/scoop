@@ -73,6 +73,17 @@ typedef struct ScoopString ScoopString;
 typedef struct ScoopArray ScoopArray;
 typedef struct ScoopMutableArray ScoopMutableArray;
 
+// Opaque prefix for GC-managed objects allocated by cone-local native code.
+// Native code may embed this as the first field when calling `scoop_alloc_typed`,
+// but must not inspect or mutate the reserved words.
+typedef struct ScoopObjectHeader {
+  uintptr_t _scoop_runtime_private_next;
+  uintptr_t _scoop_runtime_private_type_desc;
+  uint64_t _scoop_runtime_private_size_bytes;
+  uint32_t _scoop_runtime_private_flags;
+  uint32_t _scoop_runtime_private_mark;
+} ScoopObjectHeader;
+
 #define SCOOP_ARRAY_ELEM_KIND_UNKNOWN 0u
 #define SCOOP_ARRAY_ELEM_KIND_WORD 1u
 #define SCOOP_ARRAY_ELEM_KIND_REF 2u

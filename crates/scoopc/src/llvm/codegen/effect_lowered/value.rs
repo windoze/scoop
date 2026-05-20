@@ -1917,122 +1917,7 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
         args: &[mir::CallArg],
     ) -> Result<Option<CgValue<'ctx>>, LlvmEmitError> {
         match dispatch_fqn {
-            "scoop.sync.mutexCreate" => {
-                self.expect_sync_arity(span, dispatch_fqn, args, 0)?;
-                let rt = self.codegen.declare_runtime_sync_mutex_create();
-                let call = self
-                    .codegen
-                    .builder
-                    .build_call(rt, &[], "sync_mutex_create")?;
-                Ok(Some(CgValue {
-                    ty: CgTy::Ref,
-                    value: Some(self.sync_ref_return_value(span, dispatch_fqn, call)?.into()),
-                }))
-            }
-            "scoop.sync.lock" => {
-                self.expect_sync_arity(span, dispatch_fqn, args, 1)?;
-                let recv = self.lower_sync_ref_arg(dispatch_fqn, &args[0])?;
-                let rt = self.codegen.declare_runtime_sync_mutex_lock();
-                let _ = self.codegen.build_call_preserving_gc_local_roots(
-                    span,
-                    rt,
-                    &[recv.into()],
-                    "sync_mutex_lock",
-                )?;
-                Ok(Some(CgValue::unit()))
-            }
-            "scoop.sync.unlock" => {
-                self.expect_sync_arity(span, dispatch_fqn, args, 1)?;
-                let recv = self.lower_sync_ref_arg(dispatch_fqn, &args[0])?;
-                let rt = self.codegen.declare_runtime_sync_mutex_unlock();
-                let _ = self.codegen.build_call_preserving_gc_local_roots(
-                    span,
-                    rt,
-                    &[recv.into()],
-                    "sync_mutex_unlock",
-                )?;
-                Ok(Some(CgValue::unit()))
-            }
-            "scoop.sync.condVarCreate" => {
-                self.expect_sync_arity(span, dispatch_fqn, args, 0)?;
-                let rt = self.codegen.declare_runtime_sync_condvar_create();
-                let call = self
-                    .codegen
-                    .builder
-                    .build_call(rt, &[], "sync_condvar_create")?;
-                Ok(Some(CgValue {
-                    ty: CgTy::Ref,
-                    value: Some(self.sync_ref_return_value(span, dispatch_fqn, call)?.into()),
-                }))
-            }
-            "scoop.sync.wait" => {
-                self.expect_sync_arity(span, dispatch_fqn, args, 2)?;
-                let cv = self.lower_sync_ref_arg(dispatch_fqn, &args[0])?;
-                let mutex = self.lower_sync_ref_arg(dispatch_fqn, &args[1])?;
-                let rt = self.codegen.declare_runtime_sync_condvar_wait();
-                let _ = self.codegen.build_call_preserving_gc_local_roots(
-                    span,
-                    rt,
-                    &[cv.into(), mutex.into()],
-                    "sync_condvar_wait",
-                )?;
-                Ok(Some(CgValue::unit()))
-            }
-            "scoop.sync.notifyOne" => {
-                self.expect_sync_arity(span, dispatch_fqn, args, 1)?;
-                let cv = self.lower_sync_ref_arg(dispatch_fqn, &args[0])?;
-                let rt = self.codegen.declare_runtime_sync_condvar_notify_one();
-                let _ = self.codegen.build_call_preserving_gc_local_roots(
-                    span,
-                    rt,
-                    &[cv.into()],
-                    "sync_condvar_notify_one",
-                )?;
-                Ok(Some(CgValue::unit()))
-            }
-            "scoop.sync.notifyAll" => {
-                self.expect_sync_arity(span, dispatch_fqn, args, 1)?;
-                let cv = self.lower_sync_ref_arg(dispatch_fqn, &args[0])?;
-                let rt = self.codegen.declare_runtime_sync_condvar_notify_all();
-                let _ = self.codegen.build_call_preserving_gc_local_roots(
-                    span,
-                    rt,
-                    &[cv.into()],
-                    "sync_condvar_notify_all",
-                )?;
-                Ok(Some(CgValue::unit()))
-            }
-            "scoop.sync.onceCreate" => {
-                self.expect_sync_arity(span, dispatch_fqn, args, 0)?;
-                let rt = self.codegen.declare_runtime_sync_once_create();
-                let call = self
-                    .codegen
-                    .builder
-                    .build_call(rt, &[], "sync_once_create")?;
-                Ok(Some(CgValue {
-                    ty: CgTy::Ref,
-                    value: Some(self.sync_ref_return_value(span, dispatch_fqn, call)?.into()),
-                }))
-            }
-            "scoop.sync.isDone" => {
-                self.expect_sync_arity(span, dispatch_fqn, args, 1)?;
-                let once = self.lower_sync_ref_arg(dispatch_fqn, &args[0])?;
-                let rt = self.codegen.declare_runtime_sync_once_is_done();
-                let call = self.codegen.build_call_preserving_gc_local_roots(
-                    span,
-                    rt,
-                    &[once.into()],
-                    "sync_once_is_done",
-                )?;
-                let raw = self
-                    .codegen
-                    .expect_basic_value(call, "lower_sync_once_is_done return");
-                let done = self
-                    .codegen
-                    .expect_int_value(raw, "lower_sync_once_is_done return");
-                Ok(Some(CgValue::bool(done)))
-            }
-            "scoop.sync.run" => {
+            "scoop.sync.__scoop_sync_once_run" => {
                 self.expect_sync_arity(span, dispatch_fqn, args, 2)?;
                 let once = self.lower_sync_ref_arg(dispatch_fqn, &args[0])?;
                 let deferred_once = self.codegen.defer_gc_ref_pointer(
@@ -2096,35 +1981,6 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
                 )?;
                 Ok(Some(CgValue::unit()))
             }
-            "scoop.sync.destroy" => {
-                self.expect_sync_arity(span, dispatch_fqn, args, 1)?;
-                let recv_ty = self.operand_source_ty(&args[0].value).unwrap_or_else(|| {
-                    self.codegen.panic_verified_intrinsic_contract(
-                        "lower_sync_destroy",
-                        "receiver source type missing",
-                    )
-                });
-                let nominal_fqn = self
-                    .codegen
-                    .expect_nominal_ref_type_fqn(self.source_types, recv_ty, "lower_sync_destroy")
-                    .to_owned();
-                let recv = self.lower_sync_ref_arg(dispatch_fqn, &args[0])?;
-                let rt = match nominal_fqn.as_str() {
-                    "scoop.sync.Mutex" => self.codegen.declare_runtime_sync_mutex_destroy(),
-                    "scoop.sync.CondVar" => self.codegen.declare_runtime_sync_condvar_destroy(),
-                    _ => self.codegen.panic_verified_intrinsic_contract(
-                        "lower_sync_destroy",
-                        "unsupported destroy receiver nominal",
-                    ),
-                };
-                let _ = self.codegen.build_call_preserving_gc_local_roots(
-                    span,
-                    rt,
-                    &[recv.into()],
-                    "sync_destroy",
-                )?;
-                Ok(Some(CgValue::unit()))
-            }
             _ => Ok(None),
         }
     }
@@ -2173,10 +2029,10 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
     ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
         let raw = self
             .codegen
-            .expect_basic_value(call, "effect-lowered sync intrinsic return value");
+            .expect_basic_value(call, "effect-lowered runtime ref return value");
         let ptr = self
             .codegen
-            .expect_pointer_value(raw, "effect-lowered sync intrinsic return type");
+            .expect_pointer_value(raw, "effect-lowered runtime ref return type");
         let _ = dispatch_fqn;
         let _ = span;
         Ok(ptr)

@@ -1,9 +1,12 @@
 // Scoop sysroot: sync surface（std v3，early stage）
 //
 // 说明：
-// - 该模块提供标准库 `scoop.sync` 的最小声明表面。
-// - 当前阶段只固定 names/signatures，供 resolver/typecheck/工具链使用；
-// - 真实实现将由 stdlib + runtime/LLVM 映射逐步补齐。
+// - public API 尽量保留为 Scoop wrapper；
+// - 底层 native primitive 归 `scoop.sync` cone-local native-build 所有；
+// - create/destroy/lock/wait 等 primitive 使用 managed Scoop ABI，因为 native
+//   helper 需要创建 GC-managed wrapper object 并安装 release hook 来覆盖 GC cleanup；
+// - `Once.run` 暂时保留一个 private intrinsic adapter，用于把 closure object 拆成
+//   native env/function pointer，等通用 callable ABI 可表达该形状后再退场。
 
 package scoop.sync
 
@@ -12,9 +15,9 @@ import scoop.core.*
 /// 互斥锁（opaque handle；语义由 std/runtime 约定）。
 ///
 /// 说明：
-/// - 当前阶段先以引用类型承载，避免把底层句柄暴露为值类型导致 copy/析构语义复杂化；
+/// - 当前阶段以引用类型承载，避免把底层句柄暴露为值类型导致 copy/析构语义复杂化；
 /// - `destroy()` 仍是“提前释放平台资源”的显式路径；
-/// - 若对象在未显式 `destroy()` 的情况下变为不可达，runtime 会在 GC sweep 前做受限 cleanup。
+/// - 若对象在未显式 `destroy()` 的情况下变为不可达，native release hook 会在 GC sweep 前做受限 cleanup。
 class Mutex
 
 /// 条件变量（与 `Mutex` 配对使用）。
@@ -26,54 +29,98 @@ class Once
 // --- Mutex ---
 
 /// 创建一个新的互斥锁。
-@Intrinsic
-fun mutexCreate(): Mutex
+@Extern(name = "scoop_sync_mutex_create", abi = "scoop")
+private fun __scoop_sync_mutex_create(): Mutex
+
+fun mutexCreate(): Mutex {
+    return __scoop_sync_mutex_create()
+}
 
 /// 加锁（可能阻塞）。
-@Intrinsic
-fun Mutex.lock(): Unit
+@Extern(name = "scoop_sync_mutex_lock", abi = "scoop")
+private fun __scoop_sync_mutex_lock(mutex: Mutex): Unit
+
+fun Mutex.lock(): Unit {
+    __scoop_sync_mutex_lock(this)
+}
 
 /// 解锁。
-@Intrinsic
-fun Mutex.unlock(): Unit
+@Extern(name = "scoop_sync_mutex_unlock", abi = "scoop")
+private fun __scoop_sync_mutex_unlock(mutex: Mutex): Unit
+
+fun Mutex.unlock(): Unit {
+    __scoop_sync_mutex_unlock(this)
+}
 
 /// 销毁互斥锁（early stage：显式提前释放；若未显式调用，runtime 会在对象不可达后做 sweep cleanup）。
-@Intrinsic
-fun Mutex.destroy(): Unit
+@Extern(name = "scoop_sync_mutex_destroy", abi = "scoop")
+private fun __scoop_sync_mutex_destroy(mutex: Mutex): Unit
+
+fun Mutex.destroy(): Unit {
+    __scoop_sync_mutex_destroy(this)
+}
 
 // --- CondVar ---
 
 /// 创建一个新的条件变量。
-@Intrinsic
-fun condVarCreate(): CondVar
+@Extern(name = "scoop_sync_condvar_create", abi = "scoop")
+private fun __scoop_sync_condvar_create(): CondVar
+
+fun condVarCreate(): CondVar {
+    return __scoop_sync_condvar_create()
+}
 
 /// 在条件变量上等待：
 /// - 会原子地解锁 `mutex` 并阻塞；
 /// - 被唤醒后在返回前重新加锁 `mutex`（语义由平台 backend 决定）。
-@Intrinsic
-fun CondVar.wait(mutex: Mutex): Unit
+@Extern(name = "scoop_sync_condvar_wait", abi = "scoop")
+private fun __scoop_sync_condvar_wait(condVar: CondVar, mutex: Mutex): Unit
+
+fun CondVar.wait(mutex: Mutex): Unit {
+    __scoop_sync_condvar_wait(this, mutex)
+}
 
 /// 唤醒一个等待者（若存在）。
-@Intrinsic
-fun CondVar.notifyOne(): Unit
+@Extern(name = "scoop_sync_condvar_notify_one", abi = "scoop")
+private fun __scoop_sync_condvar_notify_one(condVar: CondVar): Unit
+
+fun CondVar.notifyOne(): Unit {
+    __scoop_sync_condvar_notify_one(this)
+}
 
 /// 唤醒所有等待者（若存在）。
-@Intrinsic
-fun CondVar.notifyAll(): Unit
+@Extern(name = "scoop_sync_condvar_notify_all", abi = "scoop")
+private fun __scoop_sync_condvar_notify_all(condVar: CondVar): Unit
+
+fun CondVar.notifyAll(): Unit {
+    __scoop_sync_condvar_notify_all(this)
+}
 
 /// 销毁条件变量（显式提前释放；若未显式调用，runtime 会在对象不可达后做 sweep cleanup）。
-@Intrinsic
-fun CondVar.destroy(): Unit
+@Extern(name = "scoop_sync_condvar_destroy", abi = "scoop")
+private fun __scoop_sync_condvar_destroy(condVar: CondVar): Unit
+
+fun CondVar.destroy(): Unit {
+    __scoop_sync_condvar_destroy(this)
+}
 
 // --- Once ---
 
 /// 创建一个新的 once 标记。
-@Intrinsic
-fun onceCreate(): Once
+@Extern(name = "scoop_sync_once_create", abi = "scoop")
+private fun __scoop_sync_once_create(): Once
+
+fun onceCreate(): Once {
+    return __scoop_sync_once_create()
+}
 
 /// 返回该 once 是否已完成。
-@Intrinsic
-fun Once.isDone(): Bool
+@Extern(name = "scoop_sync_once_is_done", abi = "scoop")
+private fun __scoop_sync_once_is_done(once: Once): Bool
+
+fun Once.isDone(): Bool {
+    return __scoop_sync_once_is_done(this)
+}
 
 /// 执行一次：若尚未完成，则运行 `block` 并把 once 标记为完成；否则直接返回。
 ///
@@ -81,4 +128,8 @@ fun Once.isDone(): Bool
 /// - 该 API 的具体内存序与并发语义由 std/runtime 逐步固化；当前仅提供声明面；
 /// - `Once` 自身没有显式 `destroy()` API，但其内部平台资源会在对象不可达后由 runtime sweep cleanup。
 @Intrinsic
-fun Once.run(block: () -> Unit): Unit
+private fun __scoop_sync_once_run(once: Once, block: () -> Unit): Unit
+
+fun Once.run(block: () -> Unit): Unit {
+    __scoop_sync_once_run(this, block)
+}

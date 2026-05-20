@@ -1,34 +1,32 @@
-# 执行计划
+## Current Invocation Plan
 
-## 当前约束
+Scope: Complete exactly the first incomplete task in `TODO.md`, then stop after committing the result.
 
-- 以 `TODO.md` 为任务顺序和完成状态的唯一来源。
-- 只完成第一个未标记 `[DONE]` 的任务，完成后提交并停止。
-- 若发现当前任务存在必须先修复的阻塞问题，则在 `TODO.md` 中加入最小必要前置任务，提交后停止。
-- 不使用规避方案；相关规范不匹配必须修复或记录为前置任务。
+Constraints:
+- `TODO.md` is the authoritative task source and completion state is determined only by `[DONE]` in task headings.
+- Do not skip review tasks or tasks with partial completion notes.
+- Do not use workarounds for missing or broken spec behavior; add a prerequisite task if a real blocker is found.
+- Update `PLAN.md` only if phase-level sequencing or dependencies change.
+- Mark the completed task with `[DONE]` and update its completion record before committing.
+- Run relevant validation, including broader checks when practical.
 
-## 步骤
+Step-by-step plan:
+1. Read `TODO.md` first and identify the first heading not prefixed with `[DONE]`.
+2. Inspect that task's details, dependencies, validation requirements, and relevant nearby context.
+3. Check the latest commit only for directly relevant unfinished issues if the task points to or appears affected by one.
+4. Examine the minimum relevant code and fixtures needed to understand and implement the task.
+5. Implement the task directly and spec-correctly, using small targeted patches.
+6. Add or update tests/fixtures required by the task.
+7. Run task-specific validation and then broader validation as required by the task and repository guidance.
+8. If a blocker prevents spec-correct completion, update `TODO.md` with the minimum prerequisite task, record the blocker here, commit, and stop.
+9. If validation passes, update `TODO.md` by prefixing the task heading with `[DONE]` and filling in the completion record.
+10. Review `git status`, `git diff`, and recent log, then commit all intended task changes with a task-tagged message.
+11. Stop without starting the next task.
 
-1. 读取 `TODO.md`，定位第一个标题未带 `[DONE]` 的任务。
-2. 检查最近提交是否明确提到与该任务直接相关的未完成问题。
-3. 阅读该任务相关代码、测试和文档，确认验收要求。
-4. 实现当前任务或必要的阻塞修复。
-5. 运行与任务相关的测试；如有失败，定位并修复。
-6. 更新 `TODO.md`：给完成任务标题加 `[DONE]`，并补充完成记录；仅在阶段计划变化时更新 `PLAN.md`。
-7. 运行必要的最终验证。
-8. 检查 `git status`、`git diff`、最近提交，提交本次任务相关改动。
-9. 停止，不继续下一个任务。
-
-## 进度记录
-
-- 已创建初始执行计划；下一步读取 `TODO.md` 定位首个未完成任务。
-- 已读取 `TODO.md`，首个未完成任务为 `P8-T02：迁移 scoop.runtime.test native helpers`。
-- 下一步检查最近提交是否有直接相关未完成事项，并阅读 P8 计划与现有 `scoop_test_*` 实现。
-- 最近提交 `f441c04b [P8-T01] Establish public runtime header` 未在提交信息中声明未完成事项。
-- 已确认普通程序当前仍链接多类 `scoop_test_*`：`runtime/c/scoop_test.c`、GC backend 内部 smoke、sync destroy 计数、thread spawn gate。
-- 实施重点调整为：先把独立 `scoop_test.c` helper 挂到 `scoop.runtime.test` cone 的 native-build，再处理 runtime core 中仍导出的 test-only 符号，最后用普通程序 `nm` 检查无 `scoop_test_*`。
-- 已完成迁移：`scoop.runtime.test` 现在通过 cone native-build 编译 `native/scoop_test.c`；普通 runtime 编译排除 GC test helpers，sync test counters 由 test cone override hook 提供，thread spawn gate test exports 删除。
-- 已完成验证：runtime GC fixtures、run-pass suite、full fixture suite、runtime allowlist、普通链接符号检查、`cargo build`、`cargo clippy --all-targets -- -D warnings`、`cargo test --all --all-targets` 均通过。
-- 下一步更新 `TODO.md` 标记 `P8-T02` 完成并写入完成记录，然后提交。
-- 已更新 `TODO.md`：`P8-T02` 标记为 `[DONE]`，顶部状态更新为下一任务 `P8-T03`，并补充完整完成记录。
-- 下一步检查 git status/diff/log，确认只提交本任务相关改动。
+Progress:
+- Plan initialized before reading task files or running repository commands.
+- First incomplete task identified: `P8-T03` (`迁移 scoop.sync native implementation`).
+- Current focus: migrate `scoop.sync` native C ownership out of runtime core into the sysroot cone native-build path, update allowlist/tests, and stop after committing this task only.
+- Implementation in progress: moved sync native ownership to `sysroot/lib/scoop.sync/native/`, added `native-build` metadata, converted most public sync API calls to Scoop wrappers over private `@Extern(abi = "scoop")` primitives, kept only the private `Once.run` closure adapter as an intrinsic, and removed sync symbols from the runtime core allowlist.
+- Validation completed: sync and run-pass fixtures passed, runtime allowlist passed, ordinary link symbol regression passed, `cargo build`, `cargo clippy --all-targets -- -D warnings`, `cargo test --all --all-targets`, and full `cargo run -p scoop -- test` passed.
+- Completion bookkeeping completed: `TODO.md` now marks `P8-T03` as `[DONE]` with a completion record and next task `P8-T04`.

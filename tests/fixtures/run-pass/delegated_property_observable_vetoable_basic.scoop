@@ -4,6 +4,7 @@
 // T1313：标准 delegated properties（spec §10.4）
 // - observable：每次写入触发回调（old/new）
 // - vetoable：写入前触发回调，返回 false 时拒绝更新
+// SYSROOT-DEPS: scoop.sync
 
 import scoop.core.*
 import scoop.delegates.*

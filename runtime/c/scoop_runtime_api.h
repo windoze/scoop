@@ -98,18 +98,6 @@
   X(scoop_string_from_string_array) \
   X(scoop_string_to_float64) \
   X(scoop_string_unsafe_slice_bytes) \
-  X(scoop_sync_condvar_create) \
-  X(scoop_sync_condvar_destroy) \
-  X(scoop_sync_condvar_notify_all) \
-  X(scoop_sync_condvar_notify_one) \
-  X(scoop_sync_condvar_wait) \
-  X(scoop_sync_mutex_create) \
-  X(scoop_sync_mutex_destroy) \
-  X(scoop_sync_mutex_lock) \
-  X(scoop_sync_mutex_unlock) \
-  X(scoop_sync_once_create) \
-  X(scoop_sync_once_is_done) \
-  X(scoop_sync_once_run) \
   X(scoop_thread_current_id) \
   X(scoop_thread_is_registered) \
   X(scoop_thread_join) \

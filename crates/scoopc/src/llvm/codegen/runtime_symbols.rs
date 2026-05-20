@@ -23,17 +23,6 @@ pub(super) const SCOOP_FLOAT64_TO_INT: &str = "scoop_float64_to_int";
 pub(super) const SCOOP_TEST_STACKMAP_STATEPOINT_SMOKE: &str =
     "scoop_test_stackmap_statepoint_smoke";
 pub(super) const SCOOP_STRING_EQUALS: &str = "scoop_string_equals";
-pub(super) const SCOOP_SYNC_CONDVAR_CREATE: &str = "scoop_sync_condvar_create";
-pub(super) const SCOOP_SYNC_CONDVAR_DESTROY: &str = "scoop_sync_condvar_destroy";
-pub(super) const SCOOP_SYNC_CONDVAR_NOTIFY_ALL: &str = "scoop_sync_condvar_notify_all";
-pub(super) const SCOOP_SYNC_CONDVAR_NOTIFY_ONE: &str = "scoop_sync_condvar_notify_one";
-pub(super) const SCOOP_SYNC_CONDVAR_WAIT: &str = "scoop_sync_condvar_wait";
-pub(super) const SCOOP_SYNC_MUTEX_CREATE: &str = "scoop_sync_mutex_create";
-pub(super) const SCOOP_SYNC_MUTEX_DESTROY: &str = "scoop_sync_mutex_destroy";
-pub(super) const SCOOP_SYNC_MUTEX_LOCK: &str = "scoop_sync_mutex_lock";
-pub(super) const SCOOP_SYNC_MUTEX_UNLOCK: &str = "scoop_sync_mutex_unlock";
-pub(super) const SCOOP_SYNC_ONCE_CREATE: &str = "scoop_sync_once_create";
-pub(super) const SCOOP_SYNC_ONCE_IS_DONE: &str = "scoop_sync_once_is_done";
 pub(super) const SCOOP_SYNC_ONCE_RUN: &str = "scoop_sync_once_run";
 pub(super) const SCOOP_THREAD_CURRENT_ID: &str = "scoop_thread_current_id";
 pub(super) const SCOOP_THREAD_JOIN: &str = "scoop_thread_join";

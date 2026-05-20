@@ -18,7 +18,6 @@ fn main() {
     println!("cargo:rerun-if-changed=../../runtime/c/scoop_stackmap.c");
     println!("cargo:rerun-if-changed=../../runtime/c/scoop_stackmap.h");
     println!("cargo:rerun-if-changed=../../runtime/c/scoop_array.c");
-    println!("cargo:rerun-if-changed=../../runtime/c/scoop_sync.c");
     println!("cargo:rerun-if-changed=../../runtime/c/scoop_thread.c");
     println!("cargo:rerun-if-changed=../../runtime/c/scoop_once.c");
     println!("cargo:rerun-if-changed=../../runtime/c/scoop_gc.c");
@@ -59,12 +58,10 @@ fn main() {
     build
         .compiler("clang")
         .define("SCOOP_GC_BACKEND", gc_backend_define)
-        .define("SCOOP_RUNTIME_NO_SYNC_TEST_HOOKS", "1")
         .define("SCOOP_RUNTIME_NO_GC_TEST_HELPERS", "1")
         .file("../../runtime/c/scoop_runtime.c")
         .file("../../runtime/c/scoop_stackmap.c")
         .file("../../runtime/c/scoop_array.c")
-        .file("../../runtime/c/scoop_sync.c")
         .file("../../runtime/c/scoop_thread.c")
         .file("../../runtime/c/scoop_once.c")
         .file("../../runtime/c/scoop_gc_common.c")
@@ -100,7 +97,6 @@ fn main() {
         .file("../../runtime/c/scoop_runtime.c")
         .file("../../runtime/c/scoop_stackmap.c")
         .file("../../runtime/c/scoop_array.c")
-        .file("../../runtime/c/scoop_sync.c")
         .file("../../runtime/c/scoop_thread.c")
         .file("../../runtime/c/scoop_once.c")
         .file("../../runtime/c/scoop_gc_common.c")

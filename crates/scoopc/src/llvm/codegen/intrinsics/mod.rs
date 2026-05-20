@@ -73,16 +73,4 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
         arg
     }
-
-    pub(in crate::llvm::codegen) fn expect_nominal_ref_type_fqn<'b>(
-        &self,
-        types: &'b TypeStore,
-        ty: TypeId,
-        context: &'static str,
-    ) -> &'b str {
-        let TypeKind::Ref(RefTypeKind::Nominal(nominal)) = types.kind(ty) else {
-            self.panic_verified_intrinsic_contract(context, "receiver is not a nominal ref");
-        };
-        nominal.fqn.as_str()
-    }
 }

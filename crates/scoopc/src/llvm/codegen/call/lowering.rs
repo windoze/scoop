@@ -1511,38 +1511,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             {
                 return self.codegen_sysroot_is_infinite_ext(span, callee.span, args);
             }
-            if dispatch_fqn == "scoop.sync.mutexCreate" {
-                return self.codegen_sysroot_sync_mutex_create(span, callee.span, args);
-            }
-            if dispatch_fqn == "scoop.sync.lock" {
-                return self.codegen_sysroot_sync_mutex_lock(span, callee.span, args);
-            }
-            if dispatch_fqn == "scoop.sync.unlock" {
-                return self.codegen_sysroot_sync_mutex_unlock(span, callee.span, args);
-            }
-            if dispatch_fqn == "scoop.sync.condVarCreate" {
-                return self.codegen_sysroot_sync_condvar_create(span, callee.span, args);
-            }
-            if dispatch_fqn == "scoop.sync.wait" {
-                return self.codegen_sysroot_sync_condvar_wait(span, callee.span, args);
-            }
-            if dispatch_fqn == "scoop.sync.notifyOne" {
-                return self.codegen_sysroot_sync_condvar_notify_one(span, callee.span, args);
-            }
-            if dispatch_fqn == "scoop.sync.notifyAll" {
-                return self.codegen_sysroot_sync_condvar_notify_all(span, callee.span, args);
-            }
-            if dispatch_fqn == "scoop.sync.onceCreate" {
-                return self.codegen_sysroot_sync_once_create(span, callee.span, args);
-            }
-            if dispatch_fqn == "scoop.sync.isDone" {
-                return self.codegen_sysroot_sync_once_is_done(span, callee.span, args);
-            }
-            if dispatch_fqn == "scoop.sync.run" {
+            if dispatch_fqn == "scoop.sync.__scoop_sync_once_run" {
                 return self.codegen_sysroot_sync_once_run(span, callee.span, args);
-            }
-            if dispatch_fqn == "scoop.sync.destroy" {
-                return self.codegen_sysroot_sync_destroy(span, callee.span, args);
             }
             if dispatch_fqn == "scoop.thread.threadSpawn" {
                 return self.codegen_sysroot_thread_spawn(span, callee.span, args);
