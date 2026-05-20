@@ -480,30 +480,8 @@ fn run_codegen_and_link(
 
     let (extra_objs, use_cxx_linker_driver) = compile_native_build_sources(front, &work_dir)?;
 
-    // T1114：把 Cone.toml 的 `native-build.linker/link-flags` 透传到最终链接命令。
-    let mut linker = front
-        .input()
-        .is_explicit_cone()
-        .then(|| front.input().cone_manifest().native_build.linker.as_deref())
-        .flatten();
-    if use_cxx_linker_driver && linker.is_none() {
-        // 默认策略（v0）：仅在用户启用 `cxx-sources` 时才切换到 C++ driver，
-        // 以避免在纯 C/纯 Scoop 场景引入额外工具链依赖。
-        linker = Some("clang++");
-    }
-    let options = crate::toolchain::LinkOptions {
-        linker,
-        link_flags: if front.input().is_explicit_cone() {
-            front
-                .input()
-                .cone_manifest()
-                .native_build
-                .link_flags
-                .as_slice()
-        } else {
-            &[]
-        },
-    };
+    let link_plan = native_link_plan(front.input().graph(), use_cxx_linker_driver)?;
+    let options = link_plan.options();
     let mut objs: Vec<PathBuf> = Vec::with_capacity(1 + extra_objs.len());
     objs.push(obj.clone());
     objs.extend(extra_objs);
@@ -567,6 +545,54 @@ fn compile_native_build_sources(
     }
 
     Ok((extra_objs, use_cxx_linker_driver))
+}
+
+#[cfg(feature = "llvm")]
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct NativeLinkPlan {
+    linker: Option<String>,
+    link_flags: Vec<String>,
+}
+
+#[cfg(feature = "llvm")]
+impl NativeLinkPlan {
+    fn options(&self) -> crate::toolchain::LinkOptions<'_> {
+        crate::toolchain::LinkOptions {
+            linker: self.linker.as_deref(),
+            link_flags: &self.link_flags,
+        }
+    }
+}
+
+#[cfg(feature = "llvm")]
+/// Builds the final native linker configuration from every loaded source cone.
+fn native_link_plan(
+    graph: &scoopc::cone::SourceConeGraph,
+    use_cxx_linker_driver: bool,
+) -> Result<NativeLinkPlan> {
+    let mut linker: Option<(String, String)> = None;
+    let mut link_flags = Vec::new();
+
+    for node in graph.nodes() {
+        if let Some(candidate) = node.native_build.linker.as_deref() {
+            if let Some((existing, owner)) = &linker {
+                if existing != candidate {
+                    return Err(miette::miette!(
+                        "loaded source cones declare conflicting `[native-build].linker` values: `{owner}` uses `{existing}`, `{}` uses `{candidate}`",
+                        node.manifest.cone.name
+                    ));
+                }
+            } else {
+                linker = Some((candidate.to_owned(), node.manifest.cone.name.clone()));
+            }
+        }
+        link_flags.extend(node.native_build.link_flags.iter().cloned());
+    }
+
+    let linker = linker
+        .map(|(linker, _owner)| linker)
+        .or_else(|| use_cxx_linker_driver.then(|| "clang++".to_string()));
+    Ok(NativeLinkPlan { linker, link_flags })
 }
 
 #[cfg(feature = "llvm")]
@@ -682,6 +708,189 @@ fun main(): Int {
 "#,
         )
         .unwrap();
+    }
+
+    #[cfg(feature = "llvm")]
+    fn native_link_plan_node(
+        id: u32,
+        role: scoopc::cone::SourceConeRole,
+        name: &str,
+        link_flags: &[&str],
+        linker: Option<&str>,
+        cxx_sources: &[&str],
+        dependency_ids: &[u32],
+    ) -> scoopc::cone::SourceConeNode {
+        let kind = if role == scoopc::cone::SourceConeRole::Consumer {
+            scoopc::cone::ConeKind::Bin
+        } else {
+            scoopc::cone::ConeKind::Lib
+        };
+        let native_build = scoopc::cone::ConeNativeBuildConfig {
+            cxx_sources: cxx_sources
+                .iter()
+                .map(|value| (*value).to_string())
+                .collect(),
+            linker: linker.map(str::to_string),
+            link_flags: link_flags
+                .iter()
+                .map(|value| (*value).to_string())
+                .collect(),
+            ..scoopc::cone::ConeNativeBuildConfig::default()
+        };
+        let manifest = scoopc::cone::ConeManifest {
+            cone: scoopc::cone::ConeSection {
+                name: name.to_string(),
+                version: "0.0.0".to_string(),
+                kind,
+            },
+            dependencies: Default::default(),
+            pre_specialize_functions: Vec::new(),
+            pre_specialize_types: Vec::new(),
+            export_entry_points: Vec::new(),
+            selectors: Vec::new(),
+            native_build,
+        };
+        let root = PathBuf::from(format!("/tmp/{name}"));
+        let source_path = root.join("src/main.scoop");
+
+        scoopc::cone::SourceConeNode {
+            id: scoopc::resolve::ConeId::new(id),
+            role,
+            root: root.clone(),
+            manifest_path: root.join(scoopc::cone::CONE_TOML_FILE_NAME),
+            kind,
+            native_build: manifest.native_build.clone(),
+            manifest,
+            trust: scoopc::cone::SourceConeTrust::Untrusted,
+            sources: vec![scoopc::source::SourceFile::new_virtual(
+                source_path.clone(),
+                format!("package {name}\nfun marker() {{}}\n"),
+            )],
+            entry_main: (role == scoopc::cone::SourceConeRole::Consumer).then_some(source_path),
+            dependencies: dependency_ids
+                .iter()
+                .map(|id| scoopc::cone::SourceConeDependencyEdge {
+                    target: scoopc::resolve::ConeId::new(*id),
+                    kind: scoopc::cone::SourceConeDependencyKind::LocalSource,
+                })
+                .collect(),
+        }
+    }
+
+    #[cfg(feature = "llvm")]
+    #[test]
+    fn native_link_plan_collects_link_flags_in_graph_dag_order() {
+        let consumer = native_link_plan_node(
+            1,
+            scoopc::cone::SourceConeRole::Consumer,
+            "fixture.app",
+            &["-Wl,app"],
+            None,
+            &[],
+            &[3],
+        );
+        let dep_b = native_link_plan_node(
+            3,
+            scoopc::cone::SourceConeRole::LocalDependency,
+            "fixture.dep_b",
+            &["-Wl,dep-b"],
+            None,
+            &[],
+            &[2],
+        );
+        let dep_a = native_link_plan_node(
+            2,
+            scoopc::cone::SourceConeRole::LocalDependency,
+            "fixture.dep_a",
+            &["-Wl,dep-a"],
+            None,
+            &[],
+            &[],
+        );
+        let graph = scoopc::cone::SourceConeGraph::from_nodes(
+            vec![consumer, dep_b, dep_a],
+            scoopc::resolve::ConeId::new(1),
+        )
+        .unwrap();
+
+        let plan = super::native_link_plan(&graph, false).unwrap();
+
+        assert_eq!(plan.linker, None);
+        assert_eq!(
+            plan.link_flags,
+            vec![
+                "-Wl,dep-a".to_string(),
+                "-Wl,dep-b".to_string(),
+                "-Wl,app".to_string(),
+            ]
+        );
+    }
+
+    #[cfg(feature = "llvm")]
+    #[test]
+    fn native_link_plan_uses_loaded_cone_linker_and_rejects_conflicts() {
+        let consumer = native_link_plan_node(
+            1,
+            scoopc::cone::SourceConeRole::Consumer,
+            "fixture.app",
+            &[],
+            Some("clang"),
+            &[],
+            &[2],
+        );
+        let dep = native_link_plan_node(
+            2,
+            scoopc::cone::SourceConeRole::LocalDependency,
+            "fixture.dep",
+            &[],
+            Some("clang++"),
+            &[],
+            &[],
+        );
+        let graph = scoopc::cone::SourceConeGraph::from_nodes(
+            vec![consumer, dep],
+            scoopc::resolve::ConeId::new(1),
+        )
+        .unwrap();
+
+        let err = super::native_link_plan(&graph, false).unwrap_err();
+        assert!(
+            err.to_string()
+                .contains("conflicting `[native-build].linker`"),
+            "unexpected diagnostic: {err:?}"
+        );
+    }
+
+    #[cfg(feature = "llvm")]
+    #[test]
+    fn native_link_plan_defaults_to_cxx_driver_for_loaded_dependency_cxx() {
+        let consumer = native_link_plan_node(
+            1,
+            scoopc::cone::SourceConeRole::Consumer,
+            "fixture.app",
+            &[],
+            None,
+            &[],
+            &[2],
+        );
+        let dep = native_link_plan_node(
+            2,
+            scoopc::cone::SourceConeRole::LocalDependency,
+            "fixture.dep",
+            &[],
+            None,
+            &["native/compute.cpp"],
+            &[],
+        );
+        let graph = scoopc::cone::SourceConeGraph::from_nodes(
+            vec![consumer, dep],
+            scoopc::resolve::ConeId::new(1),
+        )
+        .unwrap();
+
+        let plan = super::native_link_plan(&graph, true).unwrap();
+
+        assert_eq!(plan.linker.as_deref(), Some("clang++"));
     }
 
     #[test]

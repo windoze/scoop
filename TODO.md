@@ -3,7 +3,7 @@
 > 生成时间：2026-05-19
 > 设计基线：[`SYSROOT_RESHAPE_R2.md`](./SYSROOT_RESHAPE_R2.md)
 > 计划基线：[`PLAN.md`](./PLAN.md)
-> 当前状态：`P7-T01` 已完成；下一任务为 `P7-T02`。
+> 当前状态：`P7-T02` 已完成；下一任务为 `P8-T01`。
 > 执行原则：严格按 P0 -> P10 顺序推进；同一阶段内可按任务依赖拆 PR，但每个任务完成后必须保持仓库无 failing fixture，并回写完成记录。
 
 ## 全局约束
@@ -108,7 +108,7 @@ P0 baseline freeze
 | `P6-T01` | [DONE] | P6 | 实现 auto dependency cone 列表 |
 | `P6-T02` | [DONE] | P6 | 实现 prelude package 列表并与 auto dependency 解耦 |
 | `P7-T01` | [DONE] | P7 | 将 native-build 扩展到所有 loaded source cones |
-| `P7-T02` | [TODO] | P7 | dependency cone C++/link-flags/linker driver 覆盖 |
+| `P7-T02` | [DONE] | P7 | dependency cone C++/link-flags/linker driver 覆盖 |
 | `P8-T01` | [TODO] | P8 | 建立公开 `scoop_runtime.h` runtime core header |
 | `P8-T02` | [TODO] | P8 | 迁移 `scoop.runtime.test` native helpers |
 | `P8-T03` | [TODO] | P8 | 迁移 `scoop.sync` native implementation |
@@ -570,7 +570,7 @@ P0 baseline freeze
 - 与 `PLAN.md` / `SYSROOT_RESHAPE_R2.md` 闭合项：满足 P7 中“native build 输入扩展为 source cone graph 全部节点”、“source 路径按 owning cone root 解析”、“object 命名带 cone identity”、“flags 只作用于 owning cone”和“复用现有 current-cone native-build 能力”的要求；dependency cone `link-flags` 顺序、dependency `linker` 覆盖与专门 C++/link-flags fixtures 仍按 `P7-T02` 推进。
 - 验证结果：`cargo fmt` 通过；`cargo run -p scoop -- test tests/fixtures/run_pass_cone/dependency_c_sources_extern_call` 通过；`cargo run -p scoop -- test tests/fixtures/run_pass_cone/c_sources_extern_call_basic` 通过；`cargo test -p scoop incremental -- --nocapture` 通过（3 passed）；`cargo build` 通过；`cargo clippy --all-targets -- -D warnings` 通过；`cargo test --all --all-targets` 通过；`cargo run -p scoop -- test tests/fixtures/run_pass_cone/` 通过（34 checks）；`cargo run -p scoop -- test` 通过（fixtures: ok，1573 checks）。
 
-## P7-T02：dependency cone C++/link-flags/linker driver 覆盖
+## [DONE] P7-T02：dependency cone C++/link-flags/linker driver 覆盖
 
 - 参考：`PLAN.md` §10。
 - 目标：dependency cone 的 C++ 和 link flags 参与最终链接决策。
@@ -581,6 +581,16 @@ P0 baseline freeze
   3. duplicate symbol 等 linker 错误不被隐藏。
 - 验证：dependency C++ fixture、dependency link-flags fixture。
 - 完成条件：native build graph 从编译到最终链接完整覆盖 loaded cones。
+
+### 完成记录（2026-05-20）
+
+- 改动范围：`crates/scoop/src/commands/build.rs` 的最终链接配置改为从 `front.input().graph().nodes()` 派生；新增 `NativeLinkPlan`、graph DAG 顺序 link flags 收集、loaded cone linker 冲突诊断；新增 P7-T02 `run_pass_cone` fixtures；未修改 `PLAN.md` 或 `SYSROOT_RESHAPE_R2.md`。
+- 核心决策：所有 loaded source cones 的 `native-build.link-flags` 按 source cone graph dependency-topological order 稳定追加到最终链接命令；任一 loaded cone 的 `cxx-sources` 会在无显式 linker 时选择默认 `clang++` linker driver；显式 `native-build.linker` 可来自任一 loaded cone，但多个不同 linker 值会稳定报错，避免静默选择错误 driver。
+- Duplicate symbol 行为：driver 继续只给 native object 文件名加 cone identity，不改写 native symbols；新增 duplicate symbol fixture 证明 consumer/dependency native objects 中的同名 C symbol 会直接暴露为 `scoop::toolchain::link_failed`，不会被静默隐藏或重命名。
+- Fixture 覆盖：新增 `dependency_cxx_sources_extern_call_cpp_stdlib`，其中 dependency `lib` 声明 C++ source 并使用 C++ stdlib，证明 dependency C++ source 会触发 C++ linker driver 并成功运行；新增 `dependency_link_flags_are_forwarded`，用 dependency `link-flags` 中的 sentinel linker flag 证明 dependency link flags 进入最终链接命令；新增 `dependency_duplicate_native_symbol_is_link_error` 覆盖 duplicate native symbol link diagnostic。
+- Rust tests：新增 `native_link_plan_collects_link_flags_in_graph_dag_order`、`native_link_plan_uses_loaded_cone_linker_and_rejects_conflicts`、`native_link_plan_defaults_to_cxx_driver_for_loaded_dependency_cxx`，覆盖链接计划的顺序、显式 linker 合并和 dependency C++ 默认 driver。
+- 与 `PLAN.md` / `SYSROOT_RESHAPE_R2.md` 闭合项：满足 P7 中“Link flags 按 dependency-topological order 稳定追加”、“C++ source 存在时最终 linker driver 选择规则覆盖 dependency cone”和“duplicate symbol 等 linker 错误直接暴露”的要求；native build graph 从编译到最终链接已覆盖 loaded cones，阶段级计划未变化。
+- 验证结果：`cargo fmt` 通过；`cargo test -p scoop native_link_plan -- --nocapture` 通过（3 passed）；`cargo run -p scoop -- test tests/fixtures/run_pass_cone/` 通过（37 checks）；`cargo build` 通过；`cargo clippy --all-targets -- -D warnings` 通过；`cargo test --all --all-targets` 通过（Rust tests: ok，包含 `scoopc` 932 passed）；`cargo run -p scoop -- test` 通过（fixtures: ok，1576 checks）。
 
 ## P8-T01：建立公开 `scoop_runtime.h` runtime core header
 

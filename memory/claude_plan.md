@@ -1,35 +1,33 @@
-# Claude 执行计划
+# 执行计划
 
-## 范围
+## 约束
 
-- 以 `TODO.md` 作为权威任务清单。
-- 只完成第一个标题未带 `[DONE]` 的任务，然后停止。
-- 选定当前任务前不做开放式历史问题扫描。
-- 本文件只记录可执行计划和进度检查点；不记录隐藏推理链。
+- `TODO.md` 是任务顺序、完成状态、依赖和验证要求的唯一权威来源。
+- 本次只完成第一个标题未带 `[DONE]` 的任务，然后停止。
+- 不做开放式历史问题扫描；只处理当前任务直接需要或阻塞的事项。
+- 若发现当前任务存在必须先解决的具体前置缺口，更新 `TODO.md` 插入最少前置任务、保持当前任务未完成、提交后停止。
+- 不采用规避、缩小夹具、特判或偏离规范的做法。
+- `PLAN.md` 仅在阶段级计划、依赖或完成标准发生真实变化时更新。
 
-## 初始计划
+## 步骤
 
-1. 读取 `TODO.md`，按标题前缀确认第一个未完成任务。
-2. 只检查最新提交中是否有与该任务直接相关的未完成事项。
-3. 阅读选定任务的细节、依赖、验证要求和完成记录要求。
-4. 只检查该任务需要的代码、测试、fixture、文档和任务说明。
-5. 按任务要求实现，不缩小范围，不使用 workaround。
-6. 若正确实现被具体 blocker 或缺失前置项阻塞，则在 `TODO.md` 添加最小前置任务，保持当前任务未完成，提交该任务清单变更后停止。
-7. 先运行定向验证，再运行任务要求的更宽验证。
-8. 修复当前任务范围内的回归或 warning。
-9. 将任务标题标记为 `[DONE]`，并更新完成记录。
-10. 只有阶段级顺序、依赖、假设或完成条件变化时才更新 `PLAN.md`。
-11. 检查 `git status`、`git diff` 和最近提交；用清晰的任务标签提交所有相关变更。
-12. 提交后停止，并报告完成任务和验证结果。
+1. 读取 `TODO.md`，找出第一个标题未带 `[DONE]` 的任务，并记录其要求、依赖和验证命令。
+2. 检查最近提交是否明确提到与该任务直接相关的未完成问题；若有，将其纳入当前任务或作为前置任务记录。
+3. 基于任务要求只收集必要上下文，定位相关代码、测试和夹具。
+4. 按最小正确改动实现任务；编辑前后保持 `memory/claude_plan.md` 同步记录关键进展。
+5. 运行任务要求的验证和相关回归测试；若失败，修复真实根因并复测。
+6. 完成后更新 `TODO.md`：在任务标题前加 `[DONE]`，并填写完成记录、验证结果和关键实现说明。
+7. 检查工作区差异，确保未误改无关文件；如当前任务完成，提交所有本次任务相关改动。
+8. 提交后停止，不继续处理下一个任务。
 
-## 进度
+## 当前状态
 
-- 2026-05-20：已在任务选择和实现前写入初始执行计划。
-- 2026-05-20：已从 `TODO.md` 选定第一个未完成任务 `P7-T01`：将 `native-build` 扩展到所有 loaded source cones。
-- 2026-05-20：下一步检查 P7 计划段落、最新提交、现有 build/toolchain native-build 代码和 source cone graph API，然后新增 dependency-lib native fixture 并定向验证。
-- 2026-05-20：最新提交是 `[P6-T02] Implement prelude package list`；没有直接阻塞 `P7-T01` 的未完成最新提交事项。
-- 2026-05-20：实现计划已细化：把 `commands/build.rs` 中 consumer-only native 编译替换为 source cone graph node 遍历；object 名包含 cone id/name；每个 node 的 C/C++ flags 只作用于本 node；新增 `bin` 依赖拥有 `native/add.c` 的 `lib` 的 `run_pass_cone` fixture。
-- 2026-05-20：新增范围内 cache 正确性步骤：将 graph native C/C++ source 输入纳入 cone build fingerprint，避免 dependency native 变更错误命中增量缓存。
-- 2026-05-20：实现检查点已通过定向验证：新增 dependency native fixture、既有 consumer native fixture、incremental fingerprint 单测均通过。下一步运行更宽的 build/lint/fixture 验证。
-- 2026-05-20：更宽验证已通过：`cargo build`、`cargo clippy --all-targets -- -D warnings`、`cargo test --all --all-targets`、`cargo run -p scoop -- test tests/fixtures/run_pass_cone/` 和完整 `cargo run -p scoop -- test`。
-- 2026-05-20：`TODO.md` 已更新：将 `P7-T01` 标记为 `[DONE]`，写入完成记录，并将下一任务设为 `P7-T02`。`PLAN.md` 未修改，因为阶段级计划没有变化。
+- 已读取 `TODO.md`，确认第一个标题未带 `[DONE]` 的任务是 `P7-T02：dependency cone C++/link-flags/linker driver 覆盖`。
+- 任务要求：任一 loaded cone 有 `cxx-sources` 时默认 C++ linker driver 生效；各 cone `link-flags` 按 dependency-topological order 稳定追加；duplicate symbol 等 linker 错误不得被隐藏；新增 dependency C++ fixture 与 dependency link-flags fixture。
+- 最近提交为 `[P7-T01] Extend native build to loaded cones`，无额外未完成事项说明。
+- 当前实现差距：`compile_native_build_sources` 已遍历 `front.input().graph().nodes()` 编译所有 loaded cone 的 C/C++ objects；但 `run_codegen_and_link` 的 `native-build.linker` 与 `link-flags` 仍只取 consumer cone manifest。
+- 调整计划：新增 graph-based native link plan，按 graph DAG 顺序收集每个 loaded cone 的 `link-flags`；显式 `linker` 从 loaded cones 统一解析并拒绝冲突；无显式 linker 且任一 loaded cone 有 C++ source 时默认使用 `clang++`；新增 dependency C++ run-pass fixture、dependency link-flags forwarding negative fixture 和 link plan 单元测试。
+- 已实施：`run_codegen_and_link` 使用 `native_link_plan`；新增单元测试覆盖 DAG link flags 顺序、loaded cone linker 冲突诊断、dependency C++ 默认 `clang++`；新增 `dependency_cxx_sources_extern_call_cpp_stdlib`、`dependency_link_flags_are_forwarded`、`dependency_duplicate_native_symbol_is_link_error` fixtures。
+- 验证已通过：`cargo fmt`；`cargo test -p scoop native_link_plan -- --nocapture`；`cargo run -p scoop -- test tests/fixtures/run_pass_cone/`（37 checks）；`cargo build`；`cargo clippy --all-targets -- -D warnings`；`cargo test --all --all-targets`；`cargo run -p scoop -- test`（1576 checks）。
+- 已更新 `TODO.md`：`P7-T02` 标为 `[DONE]`，完成记录包含改动范围、核心决策、fixture 覆盖和验证结果。
+- 下一步：检查 `git status`、`git diff`、最近提交记录，确认差异只包含本任务改动后提交。

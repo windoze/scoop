@@ -1,0 +1,5 @@
+package fixtures.run_pass_cone.dependency_duplicate_native_symbol_is_link_error.lib
+
+public fun unused(): Int / Pure! {
+    return 0
+}

@@ -1,0 +1,7 @@
+[cone]
+name = "fixture-dependency-cxx-sources-extern-call-cpp-stdlib"
+version = "0.0.0"
+kind = "bin"
+
+[dependencies]
+"fixture-dependency-cxx-sources-extern-call-cpp-stdlib-lib" = { path = "deps/fixture.lib" }

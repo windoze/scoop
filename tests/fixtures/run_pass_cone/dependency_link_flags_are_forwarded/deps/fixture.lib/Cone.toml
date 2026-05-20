@@ -1,0 +1,7 @@
+[cone]
+name = "fixture-dependency-link-flags-are-forwarded-lib"
+version = "0.0.0"
+kind = "lib"
+
+[native-build]
+link-flags = ["-Wl,--scoop-p7-t02-link-flag-sentinel"]

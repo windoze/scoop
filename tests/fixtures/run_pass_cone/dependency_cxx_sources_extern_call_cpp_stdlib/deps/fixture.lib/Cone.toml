@@ -1,0 +1,8 @@
+[cone]
+name = "fixture-dependency-cxx-sources-extern-call-cpp-stdlib-lib"
+version = "0.0.0"
+kind = "lib"
+
+[native-build]
+cxx-sources = ["native/compute.cpp"]
+cxx-flags = ["-O0"]

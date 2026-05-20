@@ -1,0 +1,7 @@
+[cone]
+name = "fixture-dependency-link-flags-are-forwarded"
+version = "0.0.0"
+kind = "bin"
+
+[dependencies]
+"fixture-dependency-link-flags-are-forwarded-lib" = { path = "deps/fixture.lib" }

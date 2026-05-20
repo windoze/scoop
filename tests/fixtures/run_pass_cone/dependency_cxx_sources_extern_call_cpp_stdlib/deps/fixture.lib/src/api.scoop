@@ -1,0 +1,10 @@
+package fixtures.run_pass_cone.dependency_cxx_sources_extern_call_cpp_stdlib.lib
+
+import scoop.core.*
+
+@Extern(name = "dependency_cone_cpp_compute")
+fun dependency_cone_cpp_compute(a: Int, b: Int): Int
+
+public fun dependencyCppCompute(a: Int, b: Int): Int / Pure! {
+    return @Unsafe do { dependency_cone_cpp_compute(a, b) }
+}

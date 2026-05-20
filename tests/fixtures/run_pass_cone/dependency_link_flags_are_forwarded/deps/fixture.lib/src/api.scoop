@@ -1,0 +1,5 @@
+package fixtures.run_pass_cone.dependency_link_flags_are_forwarded.lib
+
+public fun unused(): Int / Pure! {
+    return 0
+}

@@ -1,0 +1,10 @@
+[cone]
+name = "fixture-dependency-duplicate-native-symbol-is-link-error"
+version = "0.0.0"
+kind = "bin"
+
+[dependencies]
+"fixture-dependency-duplicate-native-symbol-is-link-error-lib" = { path = "deps/fixture.lib" }
+
+[native-build]
+c-sources = ["native/dup.c"]
