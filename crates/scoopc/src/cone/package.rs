@@ -14,29 +14,9 @@ use std::path::{Path, PathBuf};
 
 use miette::{Context as _, IntoDiagnostic as _, Result, miette};
 
-use super::manifest::{CONE_TOML_FILE_NAME, ConeKind, ConeManifest};
+use super::manifest::{CONE_TOML_FILE_NAME, ConeKind, ConeManifest, load_cone_manifest_from_path};
 
-/// cone 源码目录名（约定：`<cone-root>/src/**.scoop`）。
-pub const CONE_SRC_DIR_NAME: &str = "src";
-
-/// cone 可执行入口文件名（约定：`<cone-root>/src/main.scoop`）。
-pub const CONE_MAIN_FILE_NAME: &str = "main.scoop";
-
-/// 一个“源级 cone 包”的加载结果（目录结构 + manifest + sources）。
-#[derive(Debug, Clone)]
-pub struct ConeSourcePackage {
-    /// cone root（包含 `Cone.toml` 的目录，已 canonicalize）。
-    pub root: PathBuf,
-    /// `Cone.toml` 的路径（已 canonicalize）。
-    pub manifest_path: PathBuf,
-    pub manifest: ConeManifest,
-    /// `src/` 目录路径（已 canonicalize）。
-    pub src_root: PathBuf,
-    /// `src/` 下发现的全部 `.scoop` 源文件路径（已 canonicalize，稳定排序）。
-    pub sources: Vec<PathBuf>,
-    /// `bin` cone 的 `src/main.scoop` 路径（已 canonicalize）。`lib/syslib` 不拥有入口锚点。
-    pub main: Option<PathBuf>,
-}
+pub use scoopc_project_model::{CONE_MAIN_FILE_NAME, CONE_SRC_DIR_NAME, ConeSourcePackage};
 
 /// 从一个 cone root 目录加载“源级包”的 sources 列表与可选 entry anchor。
 ///
@@ -101,7 +81,7 @@ pub(crate) fn load_cone_source_package_for_platform_with_sysroot_root(
         .canonicalize()
         .into_diagnostic()
         .wrap_err_with(|| format!("无法定位 Cone.toml：{}", manifest_path.display()))?;
-    let manifest = ConeManifest::load_from_path(&manifest_path)?;
+    let manifest = load_cone_manifest_from_path(&manifest_path)?;
     validate_syslib_package_path(&root, &manifest, sysroot_root)?;
 
     let src_root = root.join(CONE_SRC_DIR_NAME);

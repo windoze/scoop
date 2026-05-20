@@ -155,7 +155,7 @@ fn run_for_exit_code(
             run_executable(&exe, args)
         }
         RunInput::ConeRoot(cone_root) => {
-            let manifest = scoopc::cone::ConeManifest::load_from_dir(&cone_root)?;
+            let manifest = scoopc::cone::load_cone_manifest_from_dir(&cone_root)?;
             let exe = super::build::layout::cone_exe_path(
                 &cone_root,
                 None,

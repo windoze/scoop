@@ -17,12 +17,10 @@ use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 
 use miette::Diagnostic;
+use scoopc_project_model::{ConeId, ConeInfo, ConeKind};
 use thiserror::Error;
 
-use crate::{
-    ast, cone::ConeKind, intrinsics::best_effort_intrinsic_entry_name, source::SourceFile,
-    span::Span,
-};
+use crate::{ast, intrinsics::best_effort_intrinsic_entry_name, source::SourceFile, span::Span};
 
 pub(crate) use imports::add_prelude_star_imports;
 pub use imports::{ImportNamespace, ImportTable};
@@ -220,41 +218,6 @@ pub enum SymbolKind {
     Fun,
     Type,
     Value,
-}
-
-/// Cone（编译包/分发单元）标识。
-///
-/// 说明：
-/// - 该概念用于实现 `internal` 的“仅 cone 内可见”语义（spec §13.6）。
-/// - 当前阶段 cone 仍是一个轻量概念：在同一次编译/resolve 构建的 `Index` 中，
-///   不同 cone 只是用于可见性过滤与 fixtures 模拟依赖边界。
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct ConeId(u32);
-
-impl ConeId {
-    pub const DEFAULT: ConeId = ConeId(0);
-
-    pub const fn new(raw: u32) -> ConeId {
-        ConeId(raw)
-    }
-
-    pub const fn as_u32(self) -> u32 {
-        self.0
-    }
-}
-
-/// Resolver-visible cone metadata attached to every indexed source file.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct ConeInfo {
-    pub id: ConeId,
-    pub kind: ConeKind,
-}
-
-impl ConeInfo {
-    pub const DEFAULT: ConeInfo = ConeInfo {
-        id: ConeId::DEFAULT,
-        kind: ConeKind::Bin,
-    };
 }
 
 /// 可见性（visibility）。
@@ -984,7 +947,7 @@ impl Index {
                 continue;
             }
             min = Some(match min {
-                Some(prev) if prev.0 <= cone.0 => prev,
+                Some(prev) if prev <= cone => prev,
                 _ => cone,
             });
         }

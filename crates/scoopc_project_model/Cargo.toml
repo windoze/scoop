@@ -4,3 +4,8 @@ version.workspace = true
 edition.workspace = true
 
 [dependencies]
+miette = { version = "7.6.0", features = ["fancy"] }
+scoopc_ids = { path = "../scoopc_ids" }
+scoopc_source = { path = "../scoopc_source" }
+thiserror = "2.0.12"
+toml = "0.8.23"

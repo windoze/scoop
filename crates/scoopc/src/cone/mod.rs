@@ -27,12 +27,14 @@ pub use consume::{
     read_cone_api_scoopir_from_archive, read_cone_manifest_from_archive,
 };
 pub use graph::{
-    CONSUMER_CONE_ID, SourceConeDependencyEdge, SourceConeDependencyKind, SourceConeGraph,
-    SourceConeInfo, SourceConeNode, SourceConeRole, SourceConeTrust,
+    CONSUMER_CONE_ID, ConeId, ConeInfo, SourceConeDependencyEdge, SourceConeDependencyKind,
+    SourceConeGraph, SourceConeInfo, SourceConeNode, SourceConeRole, SourceConeTrust,
+    load_source_cone_graph_for_consumer_package, load_source_cone_graph_for_virtual_consumer,
 };
 pub use manifest::{
     CONE_TOML_FILE_NAME, ConeDependencySpec, ConeKind, ConeManifest, ConeNativeBuildConfig,
-    ConeSection, discover_cone_manifest_path, discover_cone_root,
+    ConeSection, ConeSelectEntry, ConeSelectWhen, discover_cone_manifest_path, discover_cone_root,
+    load_cone_manifest_from_dir, load_cone_manifest_from_path,
 };
 pub use package::{
     CONE_MAIN_FILE_NAME, CONE_SRC_DIR_NAME, ConeSourcePackage, load_cone_source_package,

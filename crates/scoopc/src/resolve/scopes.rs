@@ -13,10 +13,12 @@
 
 use std::collections::{HashMap, HashSet, VecDeque};
 
+use scoopc_project_model::ConeId;
+
 use crate::{ast, source::SourceFile, span::Span};
 
 use super::{
-    ConeId, ImportTable, Index, ResolveError, SymbolKind, Visibility, is_symbol_visible_from,
+    ImportTable, Index, ResolveError, SymbolKind, Visibility, is_symbol_visible_from,
     package_prefix,
 };
 

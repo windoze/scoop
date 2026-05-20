@@ -1,465 +1,292 @@
-//! Source cone graph construction.
-//!
-//! The graph is the authoritative project input for source-only builds.  The
-//! frontend may still flatten graph sources into one compilation unit, but the
-//! graph preserves each file's owning cone, kind, trust, native-build metadata,
-//! and dependency edges.
+//! Filesystem/sysroot adapter for source cone graph construction.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
 use miette::{Context as _, IntoDiagnostic as _, Result, miette};
 
-use crate::cone::{
-    ConeDependencySpec, ConeKind, ConeManifest, ConeNativeBuildConfig, ConeSourcePackage,
-};
-use crate::resolve::{ConeId, ConeInfo};
+use crate::cone::{ConeDependencySpec, ConeKind, ConeManifest, ConeSourcePackage};
 use crate::source::SourceFile;
-use crate::stable_id::StableConeKey;
 
-pub const CONSUMER_CONE_ID: ConeId = ConeId::new(1);
+pub use scoopc_project_model::{
+    CONSUMER_CONE_ID, ConeId, ConeInfo, SourceConeDependencyEdge, SourceConeDependencyKind,
+    SourceConeGraph, SourceConeInfo, SourceConeNode, SourceConeRole, SourceConeTrust,
+};
+
 const FIRST_NON_CONSUMER_CONE_ID: u32 = 2;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum SourceConeRole {
-    SysrootAuto,
-    LocalDependency,
-    Consumer,
+/// Load the source cone graph for an on-disk consumer package and its dependencies.
+pub fn load_source_cone_graph_for_consumer_package(
+    consumer: ConeSourcePackage,
+    sysroot_root: &Path,
+    sysroot_overlay: Option<&Path>,
+    local_dependency_roots: &[PathBuf],
+    extra_sysroot_dependencies: &[String],
+) -> Result<SourceConeGraph> {
+    let all_sysroot_packages =
+        crate::sysroot::collect_sysroot_source_cone_packages(sysroot_root, sysroot_overlay)?;
+    let sysroot_names = crate::sysroot::sysroot_source_cone_names(&all_sysroot_packages);
+    let local_dependencies = collect_local_dependency_closure(&consumer, local_dependency_roots)?;
+    let explicit_sysroot_dependencies = collect_explicit_sysroot_dependency_names(
+        std::iter::once(&consumer).chain(local_dependencies.iter()),
+        &sysroot_names,
+        extra_sysroot_dependencies,
+    )?;
+    let sysroot_packages = crate::sysroot::select_auto_sysroot_source_cone_packages(
+        all_sysroot_packages,
+        &explicit_sysroot_dependencies,
+    )?;
+    source_cone_graph_from_packages_with_extra_consumer_roots(
+        sysroot_packages,
+        local_dependencies,
+        consumer,
+        local_dependency_roots,
+    )
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum SourceConeTrust {
-    Untrusted,
-    TrustedSyslib,
-}
-
-impl SourceConeTrust {
-    pub fn is_trusted_syslib(self) -> bool {
-        self == Self::TrustedSyslib
+/// Load the source cone graph for a synthetic single-file consumer input.
+pub fn load_source_cone_graph_for_virtual_consumer(
+    source: SourceFile,
+    root: PathBuf,
+    manifest: ConeManifest,
+    sysroot_root: &Path,
+    sysroot_overlay: Option<&Path>,
+    extra_sysroot_dependencies: &[String],
+) -> Result<SourceConeGraph> {
+    let sysroot_packages = crate::sysroot::collect_auto_sysroot_source_cone_packages(
+        sysroot_root,
+        sysroot_overlay,
+        extra_sysroot_dependencies,
+    )?;
+    let mut nodes = Vec::with_capacity(sysroot_packages.len() + 1);
+    let mut sysroot_ids = Vec::with_capacity(sysroot_packages.len());
+    let sysroot_ids_by_name = sysroot_packages
+        .iter()
+        .enumerate()
+        .map(|(offset, package)| {
+            (
+                package.manifest.cone.name.clone(),
+                ConeId::new(FIRST_NON_CONSUMER_CONE_ID + offset as u32),
+            )
+        })
+        .collect::<BTreeMap<_, _>>();
+    for (offset, package) in sysroot_packages.into_iter().enumerate() {
+        let id = ConeId::new(FIRST_NON_CONSUMER_CONE_ID + offset as u32);
+        sysroot_ids.push(id);
+        let mut node = source_cone_node_from_sysroot_package(id, package)?;
+        node.dependencies.extend(sysroot_dependency_edges(
+            &node.manifest,
+            &sysroot_ids_by_name,
+        )?);
+        nodes.push(node);
     }
+
+    let mut consumer = source_cone_node_from_virtual_consumer(source, root, manifest);
+    consumer
+        .dependencies
+        .extend(sysroot_ids.into_iter().map(|id| SourceConeDependencyEdge {
+            target: id,
+            kind: SourceConeDependencyKind::SysrootAuto,
+        }));
+    nodes.push(consumer);
+    SourceConeGraph::from_nodes(nodes, CONSUMER_CONE_ID)
 }
 
-/// Authoritative cone metadata for a source file after the source cone graph is flattened.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct SourceConeInfo {
-    pub id: ConeId,
-    pub kind: ConeKind,
-    pub stable_key: StableConeKey,
-    pub trust: SourceConeTrust,
-}
-
-impl SourceConeInfo {
-    pub fn from_node(node: &SourceConeNode) -> Self {
-        Self {
-            id: node.id,
-            kind: node.kind,
-            stable_key: StableConeKey::from_manifest(&node.manifest),
-            trust: node.trust,
-        }
-    }
-
-    pub fn resolver_info(&self) -> ConeInfo {
-        ConeInfo {
-            id: self.id,
-            kind: self.kind,
-        }
-    }
-
-    pub fn is_trusted_syslib(&self) -> bool {
-        self.trust.is_trusted_syslib()
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum SourceConeDependencyKind {
-    SysrootAuto,
-    LocalSource,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct SourceConeDependencyEdge {
-    pub target: ConeId,
-    pub kind: SourceConeDependencyKind,
-}
-
-#[derive(Debug, Clone)]
-pub struct SourceConeNode {
-    pub id: ConeId,
-    pub role: SourceConeRole,
-    pub root: PathBuf,
-    pub manifest_path: PathBuf,
-    pub manifest: ConeManifest,
-    pub kind: ConeKind,
-    pub native_build: ConeNativeBuildConfig,
-    pub trust: SourceConeTrust,
-    pub sources: Vec<SourceFile>,
-    pub entry_main: Option<PathBuf>,
-    pub dependencies: Vec<SourceConeDependencyEdge>,
-}
-
-impl SourceConeNode {
-    fn from_sysroot_package(
-        id: ConeId,
-        package: crate::sysroot::SysrootSourceConePackage,
-    ) -> Result<Self> {
-        let trust = if package.trusted_syslib {
-            SourceConeTrust::TrustedSyslib
+fn source_cone_node_from_sysroot_package(
+    id: ConeId,
+    package: crate::sysroot::SysrootSourceConePackage,
+) -> Result<SourceConeNode> {
+    let trust = if package.trusted_syslib {
+        SourceConeTrust::TrustedSyslib
+    } else {
+        SourceConeTrust::Untrusted
+    };
+    let mut sources = Vec::with_capacity(package.sources.len());
+    for path in &package.sources {
+        sources.push(if trust.is_trusted_syslib() {
+            SourceFile::load_trusted_syslib(path)?
         } else {
-            SourceConeTrust::Untrusted
-        };
-        let mut sources = Vec::with_capacity(package.sources.len());
-        for path in &package.sources {
-            sources.push(if trust.is_trusted_syslib() {
-                SourceFile::load_trusted_syslib(path)?
-            } else {
-                SourceFile::load_sysroot(path)?
-            });
-        }
-
-        let kind = package.manifest.cone.kind;
-        let native_build = package.manifest.native_build.clone();
-        Ok(Self {
-            id,
-            role: SourceConeRole::SysrootAuto,
-            root: package.root,
-            manifest_path: package.manifest_path,
-            manifest: package.manifest,
-            kind,
-            native_build,
-            trust,
-            sources,
-            entry_main: None,
-            dependencies: Vec::new(),
-        })
-    }
-
-    fn from_source_package(
-        id: ConeId,
-        role: SourceConeRole,
-        package: ConeSourcePackage,
-    ) -> Result<Self> {
-        let mut sources = Vec::with_capacity(package.sources.len());
-        for path in &package.sources {
-            sources.push(SourceFile::load(path)?);
-        }
-
-        let kind = package.manifest.cone.kind;
-        let native_build = package.manifest.native_build.clone();
-        Ok(Self {
-            id,
-            role,
-            root: package.root,
-            manifest_path: package.manifest_path,
-            manifest: package.manifest,
-            kind,
-            native_build,
-            trust: SourceConeTrust::Untrusted,
-            sources,
-            entry_main: package.main,
-            dependencies: Vec::new(),
-        })
-    }
-
-    fn from_virtual_consumer(source: SourceFile, root: PathBuf, manifest: ConeManifest) -> Self {
-        let kind = manifest.cone.kind;
-        let native_build = manifest.native_build.clone();
-        let entry_main = Some(source.path().to_path_buf());
-        Self {
-            id: CONSUMER_CONE_ID,
-            role: SourceConeRole::Consumer,
-            root,
-            manifest_path: PathBuf::new(),
-            manifest,
-            kind,
-            native_build,
-            trust: SourceConeTrust::Untrusted,
-            sources: vec![source],
-            entry_main,
-            dependencies: Vec::new(),
-        }
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct SourceConeGraph {
-    nodes: Vec<SourceConeNode>,
-    consumer: ConeId,
-}
-
-impl SourceConeGraph {
-    pub fn load_for_consumer_package(
-        consumer: ConeSourcePackage,
-        sysroot_root: &Path,
-        sysroot_overlay: Option<&Path>,
-        local_dependency_roots: &[PathBuf],
-        extra_sysroot_dependencies: &[String],
-    ) -> Result<Self> {
-        let all_sysroot_packages =
-            crate::sysroot::collect_sysroot_source_cone_packages(sysroot_root, sysroot_overlay)?;
-        let sysroot_names = crate::sysroot::sysroot_source_cone_names(&all_sysroot_packages);
-        let local_dependencies =
-            collect_local_dependency_closure(&consumer, local_dependency_roots)?;
-        let explicit_sysroot_dependencies = collect_explicit_sysroot_dependency_names(
-            std::iter::once(&consumer).chain(local_dependencies.iter()),
-            &sysroot_names,
-            extra_sysroot_dependencies,
-        )?;
-        let sysroot_packages = crate::sysroot::select_auto_sysroot_source_cone_packages(
-            all_sysroot_packages,
-            &explicit_sysroot_dependencies,
-        )?;
-        Self::from_packages_with_extra_consumer_roots(
-            sysroot_packages,
-            local_dependencies,
-            consumer,
-            local_dependency_roots,
-        )
-    }
-
-    pub fn load_for_virtual_consumer(
-        source: SourceFile,
-        root: PathBuf,
-        manifest: ConeManifest,
-        sysroot_root: &Path,
-        sysroot_overlay: Option<&Path>,
-        extra_sysroot_dependencies: &[String],
-    ) -> Result<Self> {
-        let sysroot_packages = crate::sysroot::collect_auto_sysroot_source_cone_packages(
-            sysroot_root,
-            sysroot_overlay,
-            extra_sysroot_dependencies,
-        )?;
-        let mut nodes = Vec::with_capacity(sysroot_packages.len() + 1);
-        let mut sysroot_ids = Vec::with_capacity(sysroot_packages.len());
-        let sysroot_ids_by_name = sysroot_packages
-            .iter()
-            .enumerate()
-            .map(|(offset, package)| {
-                (
-                    package.manifest.cone.name.clone(),
-                    ConeId::new(FIRST_NON_CONSUMER_CONE_ID + offset as u32),
-                )
-            })
-            .collect::<BTreeMap<_, _>>();
-        for (offset, package) in sysroot_packages.into_iter().enumerate() {
-            let id = ConeId::new(FIRST_NON_CONSUMER_CONE_ID + offset as u32);
-            sysroot_ids.push(id);
-            let mut node = SourceConeNode::from_sysroot_package(id, package)?;
-            node.dependencies.extend(sysroot_dependency_edges(
-                &node.manifest,
-                &sysroot_ids_by_name,
-            )?);
-            nodes.push(node);
-        }
-
-        let mut consumer = SourceConeNode::from_virtual_consumer(source, root, manifest);
-        consumer
-            .dependencies
-            .extend(sysroot_ids.into_iter().map(|id| SourceConeDependencyEdge {
-                target: id,
-                kind: SourceConeDependencyKind::SysrootAuto,
-            }));
-        nodes.push(consumer);
-        Self::from_nodes(nodes, CONSUMER_CONE_ID)
-    }
-
-    #[cfg_attr(not(test), allow(dead_code))]
-    pub(crate) fn from_packages(
-        sysroot_packages: Vec<crate::sysroot::SysrootSourceConePackage>,
-        local_dependencies: Vec<ConeSourcePackage>,
-        consumer: ConeSourcePackage,
-    ) -> Result<Self> {
-        Self::from_packages_with_extra_consumer_roots(
-            sysroot_packages,
-            local_dependencies,
-            consumer,
-            &[],
-        )
-    }
-
-    fn from_packages_with_extra_consumer_roots(
-        sysroot_packages: Vec<crate::sysroot::SysrootSourceConePackage>,
-        mut local_dependencies: Vec<ConeSourcePackage>,
-        consumer: ConeSourcePackage,
-        extra_consumer_dependency_roots: &[PathBuf],
-    ) -> Result<Self> {
-        local_dependencies.sort_by(|lhs, rhs| {
-            lhs.manifest
-                .cone
-                .name
-                .cmp(&rhs.manifest.cone.name)
-                .then_with(|| lhs.root.cmp(&rhs.root))
+            SourceFile::load_sysroot(path)?
         });
+    }
 
-        let sysroot_names = crate::sysroot::sysroot_source_cone_names(&sysroot_packages);
-        collect_explicit_sysroot_dependency_names(
-            std::iter::once(&consumer).chain(local_dependencies.iter()),
-            &sysroot_names,
-            &[],
-        )?;
+    let kind = package.manifest.cone.kind;
+    let native_build = package.manifest.native_build.clone();
+    Ok(SourceConeNode {
+        id,
+        role: SourceConeRole::SysrootAuto,
+        root: package.root,
+        manifest_path: package.manifest_path,
+        manifest: package.manifest,
+        kind,
+        native_build,
+        trust,
+        sources,
+        entry_main: None,
+        dependencies: Vec::new(),
+    })
+}
 
-        let local_dependency_ids = local_dependency_ids(
-            &local_dependencies,
-            FIRST_NON_CONSUMER_CONE_ID + sysroot_packages.len() as u32,
-        )?;
+fn source_cone_node_from_source_package(
+    id: ConeId,
+    role: SourceConeRole,
+    package: ConeSourcePackage,
+) -> Result<SourceConeNode> {
+    let mut sources = Vec::with_capacity(package.sources.len());
+    for path in &package.sources {
+        sources.push(SourceFile::load(path)?);
+    }
 
-        let mut nodes = Vec::with_capacity(sysroot_packages.len() + local_dependencies.len() + 1);
-        let mut sysroot_ids = Vec::with_capacity(sysroot_packages.len());
-        let sysroot_count = sysroot_packages.len();
-        let sysroot_ids_by_name = sysroot_packages
-            .iter()
-            .enumerate()
-            .map(|(offset, package)| {
-                (
-                    package.manifest.cone.name.clone(),
-                    ConeId::new(FIRST_NON_CONSUMER_CONE_ID + offset as u32),
-                )
-            })
-            .collect::<BTreeMap<_, _>>();
+    let kind = package.manifest.cone.kind;
+    let native_build = package.manifest.native_build.clone();
+    Ok(SourceConeNode {
+        id,
+        role,
+        root: package.root,
+        manifest_path: package.manifest_path,
+        manifest: package.manifest,
+        kind,
+        native_build,
+        trust: SourceConeTrust::Untrusted,
+        sources,
+        entry_main: package.main,
+        dependencies: Vec::new(),
+    })
+}
 
-        for (offset, package) in sysroot_packages.into_iter().enumerate() {
-            let id = ConeId::new(FIRST_NON_CONSUMER_CONE_ID + offset as u32);
-            sysroot_ids.push(id);
-            let mut node = SourceConeNode::from_sysroot_package(id, package)?;
-            node.dependencies.extend(sysroot_dependency_edges(
-                &node.manifest,
-                &sysroot_ids_by_name,
-            )?);
-            nodes.push(node);
-        }
+fn source_cone_node_from_virtual_consumer(
+    source: SourceFile,
+    root: PathBuf,
+    manifest: ConeManifest,
+) -> SourceConeNode {
+    let kind = manifest.cone.kind;
+    let native_build = manifest.native_build.clone();
+    let entry_main = Some(source.path().to_path_buf());
+    SourceConeNode {
+        id: CONSUMER_CONE_ID,
+        role: SourceConeRole::Consumer,
+        root,
+        manifest_path: PathBuf::new(),
+        manifest,
+        kind,
+        native_build,
+        trust: SourceConeTrust::Untrusted,
+        sources: vec![source],
+        entry_main,
+        dependencies: Vec::new(),
+    }
+}
 
-        for (offset, package) in local_dependencies.into_iter().enumerate() {
-            let id = ConeId::new(FIRST_NON_CONSUMER_CONE_ID + sysroot_count as u32 + offset as u32);
-            let mut node =
-                SourceConeNode::from_source_package(id, SourceConeRole::LocalDependency, package)?;
-            node.dependencies
-                .extend(
-                    sysroot_ids
-                        .iter()
-                        .copied()
-                        .map(|id| SourceConeDependencyEdge {
-                            target: id,
-                            kind: SourceConeDependencyKind::SysrootAuto,
-                        }),
-                );
-            node.dependencies.extend(local_source_dependency_edges(
-                &node.manifest.cone.name,
-                &node.root,
-                &node.manifest.dependencies,
-                &local_dependency_ids,
-            )?);
-            nodes.push(node);
-        }
+#[cfg_attr(not(test), allow(dead_code))]
+fn source_cone_graph_from_packages(
+    sysroot_packages: Vec<crate::sysroot::SysrootSourceConePackage>,
+    local_dependencies: Vec<ConeSourcePackage>,
+    consumer: ConeSourcePackage,
+) -> Result<SourceConeGraph> {
+    source_cone_graph_from_packages_with_extra_consumer_roots(
+        sysroot_packages,
+        local_dependencies,
+        consumer,
+        &[],
+    )
+}
 
-        let mut consumer = SourceConeNode::from_source_package(
-            CONSUMER_CONE_ID,
-            SourceConeRole::Consumer,
-            consumer,
-        )?;
-        consumer
-            .dependencies
-            .extend(sysroot_ids.into_iter().map(|id| SourceConeDependencyEdge {
-                target: id,
-                kind: SourceConeDependencyKind::SysrootAuto,
-            }));
-        consumer.dependencies.extend(local_source_dependency_edges(
-            &consumer.manifest.cone.name,
-            &consumer.root,
-            &consumer.manifest.dependencies,
+fn source_cone_graph_from_packages_with_extra_consumer_roots(
+    sysroot_packages: Vec<crate::sysroot::SysrootSourceConePackage>,
+    mut local_dependencies: Vec<ConeSourcePackage>,
+    consumer: ConeSourcePackage,
+    extra_consumer_dependency_roots: &[PathBuf],
+) -> Result<SourceConeGraph> {
+    local_dependencies.sort_by(|lhs, rhs| {
+        lhs.manifest
+            .cone
+            .name
+            .cmp(&rhs.manifest.cone.name)
+            .then_with(|| lhs.root.cmp(&rhs.root))
+    });
+
+    let sysroot_names = crate::sysroot::sysroot_source_cone_names(&sysroot_packages);
+    collect_explicit_sysroot_dependency_names(
+        std::iter::once(&consumer).chain(local_dependencies.iter()),
+        &sysroot_names,
+        &[],
+    )?;
+
+    let local_dependency_ids = local_dependency_ids(
+        &local_dependencies,
+        FIRST_NON_CONSUMER_CONE_ID + sysroot_packages.len() as u32,
+    )?;
+
+    let mut nodes = Vec::with_capacity(sysroot_packages.len() + local_dependencies.len() + 1);
+    let mut sysroot_ids = Vec::with_capacity(sysroot_packages.len());
+    let sysroot_count = sysroot_packages.len();
+    let sysroot_ids_by_name = sysroot_packages
+        .iter()
+        .enumerate()
+        .map(|(offset, package)| {
+            (
+                package.manifest.cone.name.clone(),
+                ConeId::new(FIRST_NON_CONSUMER_CONE_ID + offset as u32),
+            )
+        })
+        .collect::<BTreeMap<_, _>>();
+
+    for (offset, package) in sysroot_packages.into_iter().enumerate() {
+        let id = ConeId::new(FIRST_NON_CONSUMER_CONE_ID + offset as u32);
+        sysroot_ids.push(id);
+        let mut node = source_cone_node_from_sysroot_package(id, package)?;
+        node.dependencies.extend(sysroot_dependency_edges(
+            &node.manifest,
+            &sysroot_ids_by_name,
+        )?);
+        nodes.push(node);
+    }
+
+    for (offset, package) in local_dependencies.into_iter().enumerate() {
+        let id = ConeId::new(FIRST_NON_CONSUMER_CONE_ID + sysroot_count as u32 + offset as u32);
+        let mut node =
+            source_cone_node_from_source_package(id, SourceConeRole::LocalDependency, package)?;
+        node.dependencies.extend(
+            sysroot_ids
+                .iter()
+                .copied()
+                .map(|id| SourceConeDependencyEdge {
+                    target: id,
+                    kind: SourceConeDependencyKind::SysrootAuto,
+                }),
+        );
+        node.dependencies.extend(local_source_dependency_edges(
+            &node.manifest.cone.name,
+            &node.root,
+            &node.manifest.dependencies,
             &local_dependency_ids,
         )?);
-        consumer
-            .dependencies
-            .extend(extra_local_source_dependency_edges(
-                extra_consumer_dependency_roots,
-                &local_dependency_ids,
-            )?);
-        nodes.push(consumer);
-
-        Self::from_nodes(nodes, CONSUMER_CONE_ID)
+        nodes.push(node);
     }
 
-    pub fn from_nodes(mut nodes: Vec<SourceConeNode>, consumer: ConeId) -> Result<Self> {
-        if nodes.is_empty() {
-            return Err(miette!("source cone graph 至少需要一个 node"));
-        }
+    let mut consumer =
+        source_cone_node_from_source_package(CONSUMER_CONE_ID, SourceConeRole::Consumer, consumer)?;
+    consumer
+        .dependencies
+        .extend(sysroot_ids.into_iter().map(|id| SourceConeDependencyEdge {
+            target: id,
+            kind: SourceConeDependencyKind::SysrootAuto,
+        }));
+    consumer.dependencies.extend(local_source_dependency_edges(
+        &consumer.manifest.cone.name,
+        &consumer.root,
+        &consumer.manifest.dependencies,
+        &local_dependency_ids,
+    )?);
+    consumer
+        .dependencies
+        .extend(extra_local_source_dependency_edges(
+            extra_consumer_dependency_roots,
+            &local_dependency_ids,
+        )?);
+    nodes.push(consumer);
 
-        for node in &mut nodes {
-            if node.sources.is_empty() {
-                return Err(miette!(
-                    "source cone graph node `{}` 没有 sources",
-                    node.manifest.cone.name
-                ));
-            }
-            node.dependencies.sort_by_key(|edge| edge.target);
-            node.dependencies.dedup_by_key(|edge| edge.target);
-        }
-
-        let mut by_id = BTreeMap::new();
-        for (idx, node) in nodes.iter().enumerate() {
-            if by_id.insert(node.id, idx).is_some() {
-                return Err(miette!(
-                    "source cone graph 出现重复 cone id：{}",
-                    node.id.as_u32()
-                ));
-            }
-        }
-        let Some(&consumer_idx) = by_id.get(&consumer) else {
-            return Err(miette!(
-                "source cone graph 缺少 consumer cone id：{}",
-                consumer.as_u32()
-            ));
-        };
-        if nodes[consumer_idx].role != SourceConeRole::Consumer {
-            return Err(miette!(
-                "source cone graph consumer id {} 指向的 node 不是 consumer",
-                consumer.as_u32()
-            ));
-        }
-        let consumer_count = nodes
-            .iter()
-            .filter(|node| node.role == SourceConeRole::Consumer)
-            .count();
-        if consumer_count != 1 {
-            return Err(miette!(
-                "source cone graph 必须恰好包含一个 consumer node，但得到 {consumer_count} 个"
-            ));
-        }
-
-        for node in &nodes {
-            for edge in &node.dependencies {
-                if !by_id.contains_key(&edge.target) {
-                    return Err(miette!(
-                        "source cone graph node `{}` 依赖未知 cone id {}",
-                        node.manifest.cone.name,
-                        edge.target.as_u32()
-                    ));
-                }
-            }
-        }
-
-        let order = topo_order(&nodes, &by_id)?;
-        let ordered_nodes = order.into_iter().map(|idx| nodes[idx].clone()).collect();
-        Ok(Self {
-            nodes: ordered_nodes,
-            consumer,
-        })
-    }
-
-    pub fn nodes(&self) -> &[SourceConeNode] {
-        &self.nodes
-    }
-
-    pub fn consumer_id(&self) -> ConeId {
-        self.consumer
-    }
-
-    pub fn consumer(&self) -> &SourceConeNode {
-        self.nodes
-            .iter()
-            .find(|node| node.id == self.consumer)
-            .expect("validated source cone graph should contain consumer")
-    }
+    SourceConeGraph::from_nodes(nodes, CONSUMER_CONE_ID)
 }
 
 fn collect_local_dependency_closure(
@@ -709,76 +536,6 @@ fn canonicalize_dependency_root(owner_name: &str, root: &Path, dep_name: &str) -
     Ok(root)
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum VisitState {
-    Visiting,
-    Done,
-}
-
-fn topo_order(nodes: &[SourceConeNode], by_id: &BTreeMap<ConeId, usize>) -> Result<Vec<usize>> {
-    let mut ids = nodes.iter().map(|node| node.id).collect::<Vec<_>>();
-    ids.sort_by(|lhs, rhs| {
-        node_order_key(&nodes[by_id[lhs]]).cmp(&node_order_key(&nodes[by_id[rhs]]))
-    });
-
-    let mut states = BTreeMap::new();
-    let mut ordered = Vec::with_capacity(nodes.len());
-    for id in ids {
-        visit(id, nodes, by_id, &mut states, &mut ordered)?;
-    }
-    Ok(ordered)
-}
-
-fn visit(
-    id: ConeId,
-    nodes: &[SourceConeNode],
-    by_id: &BTreeMap<ConeId, usize>,
-    states: &mut BTreeMap<ConeId, VisitState>,
-    ordered: &mut Vec<usize>,
-) -> Result<()> {
-    match states.get(&id).copied() {
-        Some(VisitState::Done) => return Ok(()),
-        Some(VisitState::Visiting) => {
-            return Err(miette!(
-                "source cone graph dependency cycle reaches cone id {}",
-                id.as_u32()
-            ));
-        }
-        None => {}
-    }
-
-    states.insert(id, VisitState::Visiting);
-    let idx = by_id[&id];
-    let mut deps = nodes[idx]
-        .dependencies
-        .iter()
-        .map(|edge| edge.target)
-        .collect::<Vec<_>>();
-    deps.sort_by(|lhs, rhs| {
-        node_order_key(&nodes[by_id[lhs]]).cmp(&node_order_key(&nodes[by_id[rhs]]))
-    });
-    for dep in deps {
-        visit(dep, nodes, by_id, states, ordered)?;
-    }
-    states.insert(id, VisitState::Done);
-    ordered.push(idx);
-    Ok(())
-}
-
-fn node_order_key(node: &SourceConeNode) -> (u8, &str, &Path, u32) {
-    let role = match node.role {
-        SourceConeRole::SysrootAuto => 0,
-        SourceConeRole::LocalDependency => 1,
-        SourceConeRole::Consumer => 2,
-    };
-    (
-        role,
-        node.manifest.cone.name.as_str(),
-        node.root.as_path(),
-        node.id.as_u32(),
-    )
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -837,32 +594,7 @@ mod tests {
             pre_specialize_types: Vec::new(),
             export_entry_points: Vec::new(),
             selectors: Vec::new(),
-            native_build: ConeNativeBuildConfig::default(),
-        }
-    }
-
-    fn virtual_node(
-        id: ConeId,
-        role: SourceConeRole,
-        name: &str,
-        deps: Vec<SourceConeDependencyEdge>,
-    ) -> SourceConeNode {
-        let manifest = empty_manifest(name, ConeKind::Lib);
-        SourceConeNode {
-            id,
-            role,
-            root: PathBuf::from(format!("/tmp/{name}")),
-            manifest_path: PathBuf::new(),
-            kind: manifest.cone.kind,
-            native_build: manifest.native_build.clone(),
-            manifest,
-            trust: SourceConeTrust::Untrusted,
-            sources: vec![SourceFile::new_virtual(
-                format!("/tmp/{name}/src/lib.scoop"),
-                format!("package {name}\nfun marker() {{}}\n"),
-            )],
-            entry_main: None,
-            dependencies: deps,
+            native_build: Default::default(),
         }
     }
 
@@ -878,6 +610,7 @@ mod tests {
         let thread = sysroot.join("lib").join("scoop.thread");
         let sync = sysroot.join("lib").join("scoop.sync");
         let runtime_test = sysroot.join("lib").join("scoop.runtime.test");
+
         write_manifest(
             &core,
             "scoop.core",
@@ -953,8 +686,8 @@ mod tests {
         );
 
         let consumer = load_cone_source_package(&app).unwrap();
-        let graph =
-            SourceConeGraph::load_for_consumer_package(consumer, &sysroot, None, &[], &[]).unwrap();
+        let graph = load_source_cone_graph_for_consumer_package(consumer, &sysroot, None, &[], &[])
+            .unwrap();
 
         let names = graph
             .nodes()
@@ -1019,36 +752,6 @@ mod tests {
     }
 
     #[test]
-    fn source_cone_graph_toposorts_dependencies_before_consumer() {
-        let dep_id = ConeId::new(2);
-        let consumer_id = CONSUMER_CONE_ID;
-        let consumer = virtual_node(
-            consumer_id,
-            SourceConeRole::Consumer,
-            "fixture.app",
-            vec![SourceConeDependencyEdge {
-                target: dep_id,
-                kind: SourceConeDependencyKind::LocalSource,
-            }],
-        );
-        let dep = virtual_node(
-            dep_id,
-            SourceConeRole::LocalDependency,
-            "fixture.dep",
-            Vec::new(),
-        );
-
-        let graph = SourceConeGraph::from_nodes(vec![consumer, dep], consumer_id).unwrap();
-        let names = graph
-            .nodes()
-            .iter()
-            .map(|node| node.manifest.cone.name.as_str())
-            .collect::<Vec<_>>();
-
-        assert_eq!(names, vec!["fixture.dep", "fixture.app"]);
-    }
-
-    #[test]
     fn source_cone_graph_rejects_version_dependency_in_active_source_path() {
         let temp = make_temp_dir("version_dep_rejected");
         let app = temp.0.join("fixture.app");
@@ -1064,7 +767,7 @@ mod tests {
         );
 
         let consumer = load_cone_source_package(&app).unwrap();
-        let err = SourceConeGraph::from_packages(Vec::new(), Vec::new(), consumer)
+        let err = source_cone_graph_from_packages(Vec::new(), Vec::new(), consumer)
             .unwrap_err()
             .to_string();
 
@@ -1075,31 +778,13 @@ mod tests {
     }
 
     #[test]
-    fn source_cone_graph_rejects_cycles() {
-        let a_id = CONSUMER_CONE_ID;
-        let b_id = ConeId::new(2);
-        let a = virtual_node(
-            a_id,
-            SourceConeRole::Consumer,
-            "fixture.a",
-            vec![SourceConeDependencyEdge {
-                target: b_id,
-                kind: SourceConeDependencyKind::LocalSource,
-            }],
-        );
-        let b = virtual_node(
-            b_id,
-            SourceConeRole::LocalDependency,
-            "fixture.b",
-            vec![SourceConeDependencyEdge {
-                target: a_id,
-                kind: SourceConeDependencyKind::LocalSource,
-            }],
-        );
+    fn virtual_consumer_node_uses_project_model_identity() {
+        let source = SourceFile::new_virtual("/tmp/main.scoop", "package fixture\nfun main() {}\n");
+        let manifest = empty_manifest("fixture.virtual", ConeKind::Bin);
+        let node = source_cone_node_from_virtual_consumer(source, PathBuf::from("/tmp"), manifest);
 
-        let err = SourceConeGraph::from_nodes(vec![a, b], a_id)
-            .unwrap_err()
-            .to_string();
-        assert!(err.contains("dependency cycle"), "unexpected error: {err}");
+        assert_eq!(node.id, CONSUMER_CONE_ID);
+        assert_eq!(node.role, SourceConeRole::Consumer);
+        assert_eq!(SourceConeInfo::from_node(&node).id, CONSUMER_CONE_ID);
     }
 }

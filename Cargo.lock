@@ -706,6 +706,13 @@ dependencies = [
 [[package]]
 name = "scoopc_project_model"
 version = "0.1.0"
+dependencies = [
+ "miette",
+ "scoopc_ids",
+ "scoopc_source",
+ "thiserror",
+ "toml",
+]
 
 [[package]]
 name = "scoopc_source"

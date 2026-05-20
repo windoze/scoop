@@ -19,9 +19,10 @@ use miette::{Context as _, Diagnostic, IntoDiagnostic as _, Result, miette};
 use thiserror::Error;
 
 use crate::ast;
+use crate::cone::ConeId;
 use crate::resolve::{
-    BuiltinFunFlags, ConeId, ExtensionFunSymbol, FunOverload, FunSig, ModifierSet, ParamSig,
-    Symbol, SymbolKind, TypeParamSig, Visibility,
+    BuiltinFunFlags, ExtensionFunSymbol, FunOverload, FunSig, ModifierSet, ParamSig, Symbol,
+    SymbolKind, TypeParamSig, Visibility,
 };
 use crate::source::SourceFile;
 use crate::span::Span;

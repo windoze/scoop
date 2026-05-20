@@ -2,7 +2,8 @@ use std::collections::{HashMap, HashSet};
 use std::path::Path;
 
 use crate::ast;
-use crate::resolve::{ConeId, ConstructorOverload, FunOverload, Visibility};
+use crate::cone::ConeId;
+use crate::resolve::{ConstructorOverload, FunOverload, Visibility};
 use crate::source::SourceFile;
 use crate::span::Span;
 use crate::ty::{BuiltinTypes, EffectRow, RefTypeKind, TypeId, TypeKind, ValueTypeKind};

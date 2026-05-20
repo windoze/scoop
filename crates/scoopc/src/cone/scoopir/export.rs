@@ -143,7 +143,7 @@ pub fn export_public_api_for_cone_sources(
     let mut indexed: Vec<crate::resolve::IndexedFile<'_>> = Vec::new();
     for f in &session.sysroot().files {
         indexed.push(crate::resolve::IndexedFile {
-            cone: crate::resolve::ConeId::new(0),
+            cone: crate::cone::ConeId::new(0),
             cone_kind: if f.source.is_trusted_syslib() {
                 crate::cone::ConeKind::Syslib
             } else {
@@ -155,7 +155,7 @@ pub fn export_public_api_for_cone_sources(
     }
     for (source, ast) in support_sources.iter().zip(support_asts.iter()) {
         indexed.push(crate::resolve::IndexedFile {
-            cone: crate::resolve::ConeId::new(1),
+            cone: crate::cone::ConeId::new(1),
             cone_kind: crate::cone::ConeKind::Lib,
             source,
             file: ast,
@@ -163,7 +163,7 @@ pub fn export_public_api_for_cone_sources(
     }
     for (source, ast) in sources.iter().zip(asts.iter()) {
         indexed.push(crate::resolve::IndexedFile {
-            cone: crate::resolve::ConeId::new(1),
+            cone: crate::cone::ConeId::new(1),
             cone_kind: manifest.cone.kind,
             source,
             file: ast,

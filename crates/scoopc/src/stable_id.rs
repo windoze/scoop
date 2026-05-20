@@ -6,11 +6,9 @@
 //! `Debug` output, or path/span text as the authoritative identity input.
 
 use std::collections::HashMap;
-use std::path::Path;
 
 use thiserror::Error;
 
-use crate::cone::ConeManifest;
 use scoopc_types::{
     EffectRow, NominalType, RefTypeKind, TypeId, TypeKind, TypeParamType, TypeStore, UnionType,
     ValueTypeKind,
@@ -22,51 +20,9 @@ pub use scoopc_ids::{
     canonical_record, stable_digest, stable_dump_label, stable_hash64, stable_hash128_hex,
     stable_local_label, stable_rtti_type_id,
 };
+pub use scoopc_project_model::StableConeKey;
 
 const MAX_CANONICAL_DEPTH: usize = 64;
-
-/// Semantic cone identity derived from `Cone.toml` instead of `ConeId`.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct StableConeKey {
-    name: String,
-    version: String,
-}
-
-impl StableConeKey {
-    pub fn new(name: impl Into<String>, version: impl Into<String>) -> Self {
-        Self {
-            name: name.into(),
-            version: version.into(),
-        }
-    }
-
-    pub fn from_manifest(manifest: &ConeManifest) -> Self {
-        Self::new(&manifest.cone.name, &manifest.cone.version)
-    }
-
-    pub fn for_virtual_source_path(path: &Path) -> Self {
-        let name = path
-            .file_stem()
-            .and_then(|stem| stem.to_str())
-            .filter(|stem| !stem.is_empty())
-            .unwrap_or("virtual-cone");
-        Self::new(name, "0.0.0")
-    }
-
-    pub fn name(&self) -> &str {
-        &self.name
-    }
-
-    pub fn version(&self) -> &str {
-        &self.version
-    }
-}
-
-impl StableCanonicalKey for StableConeKey {
-    fn canonical_text(&self) -> String {
-        canonical_record("cone", [self.name.clone(), self.version.clone()])
-    }
-}
 
 /// Export-visible declaration namespaces kept distinct by stable-id.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

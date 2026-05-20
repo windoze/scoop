@@ -754,7 +754,7 @@ fun main(): Int {
         let source_path = root.join("src/main.scoop");
 
         scoopc::cone::SourceConeNode {
-            id: scoopc::resolve::ConeId::new(id),
+            id: scoopc::cone::ConeId::new(id),
             role,
             root: root.clone(),
             manifest_path: root.join(scoopc::cone::CONE_TOML_FILE_NAME),
@@ -770,7 +770,7 @@ fun main(): Int {
             dependencies: dependency_ids
                 .iter()
                 .map(|id| scoopc::cone::SourceConeDependencyEdge {
-                    target: scoopc::resolve::ConeId::new(*id),
+                    target: scoopc::cone::ConeId::new(*id),
                     kind: scoopc::cone::SourceConeDependencyKind::LocalSource,
                 })
                 .collect(),
@@ -809,7 +809,7 @@ fun main(): Int {
         );
         let graph = scoopc::cone::SourceConeGraph::from_nodes(
             vec![consumer, dep_b, dep_a],
-            scoopc::resolve::ConeId::new(1),
+            scoopc::cone::ConeId::new(1),
         )
         .unwrap();
 
@@ -849,7 +849,7 @@ fun main(): Int {
         );
         let graph = scoopc::cone::SourceConeGraph::from_nodes(
             vec![consumer, dep],
-            scoopc::resolve::ConeId::new(1),
+            scoopc::cone::ConeId::new(1),
         )
         .unwrap();
 
@@ -884,7 +884,7 @@ fun main(): Int {
         );
         let graph = scoopc::cone::SourceConeGraph::from_nodes(
             vec![consumer, dep],
-            scoopc::resolve::ConeId::new(1),
+            scoopc::cone::ConeId::new(1),
         )
         .unwrap();
 

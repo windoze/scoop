@@ -455,7 +455,7 @@ fn run_run_pass_cone_case(
         // - 在 build 目录为空时自动构建并运行（默认 debug）；
         // - `--release` 时运行 release 产物（输出目录不同）。
         let cone_root = case_dir.canonicalize().into_diagnostic()?;
-        let manifest = scoopc::cone::ConeManifest::load_from_dir(&cone_root)?;
+        let manifest = scoopc::cone::load_cone_manifest_from_dir(&cone_root)?;
 
         // fixtures 需要自清理：先尽力清掉旧 build 产物，避免“上一次残留”影响本次断言。
         let build_root = cone_root.join("build");
@@ -1954,7 +1954,7 @@ fn run_resolve_cone_case(
     }
 
     struct ConeFile {
-        cone: scoopc::resolve::ConeId,
+        cone: scoopc::cone::ConeId,
         source: scoopc::source::SourceFile,
         ast: scoopc::ast::File,
     }
@@ -1982,7 +1982,7 @@ fn run_resolve_cone_case(
         }
 
         // cone id 0 保留给 sysroot；fixture 的 cone 从 1 开始稳定分配（按目录名排序）。
-        let cone_id = scoopc::resolve::ConeId::new((idx as u32) + 1);
+        let cone_id = scoopc::cone::ConeId::new((idx as u32) + 1);
 
         for path in paths {
             let source = scoopc::source::SourceFile::load(&path)?;
@@ -1999,7 +1999,7 @@ fn run_resolve_cone_case(
     let mut indexed: Vec<scoopc::resolve::IndexedFile<'_>> = Vec::new();
     for f in session.sysroot().index_files() {
         indexed.push(scoopc::resolve::IndexedFile {
-            cone: scoopc::resolve::ConeId::new(0),
+            cone: scoopc::cone::ConeId::new(0),
             cone_kind: if f.source.is_trusted_syslib() {
                 scoopc::cone::ConeKind::Syslib
             } else {
@@ -2075,7 +2075,7 @@ fn run_typecheck_cone_case(
     }
 
     struct ConeFile {
-        cone: scoopc::resolve::ConeId,
+        cone: scoopc::cone::ConeId,
         source: scoopc::source::SourceFile,
         ast: scoopc::ast::File,
     }
@@ -2103,7 +2103,7 @@ fn run_typecheck_cone_case(
         }
 
         // cone id 0 保留给 sysroot；fixture 的 cone 从 1 开始稳定分配（按目录名排序）。
-        let cone_id = scoopc::resolve::ConeId::new((idx as u32) + 1);
+        let cone_id = scoopc::cone::ConeId::new((idx as u32) + 1);
 
         for path in paths {
             let source = scoopc::source::SourceFile::load(&path)?;
@@ -2120,7 +2120,7 @@ fn run_typecheck_cone_case(
     let mut indexed: Vec<scoopc::resolve::IndexedFile<'_>> = Vec::new();
     for f in session.sysroot().index_files() {
         indexed.push(scoopc::resolve::IndexedFile {
-            cone: scoopc::resolve::ConeId::new(0),
+            cone: scoopc::cone::ConeId::new(0),
             cone_kind: if f.source.is_trusted_syslib() {
                 scoopc::cone::ConeKind::Syslib
             } else {
@@ -2352,14 +2352,14 @@ fn run_typecheck_cone_archive_case(
     let mut indexed: Vec<scoopc::resolve::IndexedFile<'_>> = Vec::new();
     for f in session.sysroot().index_files() {
         indexed.push(scoopc::resolve::IndexedFile {
-            cone: scoopc::resolve::ConeId::new(0),
+            cone: scoopc::cone::ConeId::new(0),
             source: &f.source,
             file: &f.ast,
         });
     }
     for (source, ast) in sources.iter().zip(asts.iter()) {
         indexed.push(scoopc::resolve::IndexedFile {
-            cone: scoopc::resolve::ConeId::new(1),
+            cone: scoopc::cone::ConeId::new(1),
             source,
             file: ast,
         });
@@ -2401,7 +2401,7 @@ fn run_typecheck_cone_archive_case(
         };
 
         let dep = scoopc::cone::load_cone_archive_api(path)?;
-        let dep_cone = scoopc::resolve::ConeId::new(next_dep_cone);
+        let dep_cone = scoopc::cone::ConeId::new(next_dep_cone);
         scoopc::cone::inject_cone_dependency_public_api(&mut index, &mut env, dep_cone, &dep)?;
         if let Some(file) = dep.pre_specialize.as_ref() {
             pre_specialized_fun_keys.extend(file.fun_key_set());

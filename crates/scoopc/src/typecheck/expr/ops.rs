@@ -1,5 +1,6 @@
 use crate::ast;
-use crate::resolve::{ConeId, Visibility};
+use crate::cone::ConeId;
+use crate::resolve::Visibility;
 use crate::source::SourceFile;
 use crate::span::Span;
 use crate::syntax::float_literal::{FloatLiteralSuffix, parse_float_literal};

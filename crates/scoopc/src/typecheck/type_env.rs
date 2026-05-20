@@ -13,9 +13,8 @@ use miette::Diagnostic;
 use thiserror::Error;
 
 use crate::ast;
-use crate::resolve::{
-    ConeInfo, ImportTable, Index, add_prelude_star_imports, is_symbol_visible_from,
-};
+use crate::cone::ConeInfo;
+use crate::resolve::{ImportTable, Index, add_prelude_star_imports, is_symbol_visible_from};
 use crate::source::SourceFile;
 use crate::span::Span;
 use crate::sysroot::Sysroot;
@@ -1650,13 +1649,13 @@ mod tests {
         let app_ast = crate::parser::parse_file(&app).unwrap();
         let index = Index::build_with_cones(&[
             crate::resolve::IndexedFile {
-                cone: crate::resolve::ConeId::new(2),
+                cone: crate::cone::ConeId::new(2),
                 cone_kind: crate::cone::ConeKind::Lib,
                 source: &dep,
                 file: &dep_ast,
             },
             crate::resolve::IndexedFile {
-                cone: crate::resolve::ConeId::new(1),
+                cone: crate::cone::ConeId::new(1),
                 cone_kind: crate::cone::ConeKind::Bin,
                 source: &app,
                 file: &app_ast,
@@ -1677,8 +1676,8 @@ mod tests {
         );
         assert_eq!(
             env.type_symbol_owner_cone_info("dep.Hidden"),
-            Some(crate::resolve::ConeInfo {
-                id: crate::resolve::ConeId::new(2),
+            Some(crate::cone::ConeInfo {
+                id: crate::cone::ConeId::new(2),
                 kind: crate::cone::ConeKind::Lib,
             })
         );

@@ -1,12 +1,26 @@
 //! Stage-independent project, source-cone, and compilation-unit model.
 //!
-//! This base crate will own project membership, source-cone graph data,
-//! compilation-unit membership, source trust, and dependency topology checks. It
-//! may depend on source, type, and ID base crates as those definitions migrate,
-//! but it must not depend on `scoopc`, filesystem/session loaders, stage crates,
-//! fact crates, backend crates, or repository tools.
-//!
-//! P1-T01 provides only the shell and dependency boundary; later P1 tasks move
-//! the authoritative project/cone model here.
+//! This base crate owns project membership, source-cone graph data, source
+//! trust, dependency topology checks, and backend-neutral manifest settings. The
+//! `scoopc` facade may provide filesystem/session adapters, but it must not
+//! duplicate these definitions or make this crate depend on stage/fact/backend
+//! crates.
 
 #![forbid(unsafe_code)]
+
+pub mod graph;
+pub mod manifest;
+pub mod opt;
+pub mod package;
+
+pub use graph::{
+    CONSUMER_CONE_ID, ConeId, ConeInfo, SourceConeDependencyEdge, SourceConeDependencyKind,
+    SourceConeGraph, SourceConeInfo, SourceConeNode, SourceConeRole, SourceConeTrust,
+    StableConeKey,
+};
+pub use manifest::{
+    CONE_TOML_FILE_NAME, ConeDependencySpec, ConeKind, ConeManifest, ConeNativeBuildConfig,
+    ConeSection, ConeSelectEntry, ConeSelectWhen,
+};
+pub use opt::{InvalidOptLevel, OptLevel};
+pub use package::{CONE_MAIN_FILE_NAME, CONE_SRC_DIR_NAME, ConeSourcePackage};

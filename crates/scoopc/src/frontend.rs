@@ -10,11 +10,13 @@ use crate::cone::{
     CONSUMER_CONE_ID, SourceConeDependencyEdge, SourceConeNode, SourceConeRole, SourceConeTrust,
 };
 use crate::cone::{
-    ConeKind, ConeManifest, ConeNativeBuildConfig, ConeSection, SourceConeGraph, SourceConeInfo,
+    ConeId, ConeInfo, ConeKind, ConeManifest, ConeNativeBuildConfig, ConeSection, SourceConeGraph,
+    SourceConeInfo, load_source_cone_graph_for_consumer_package,
+    load_source_cone_graph_for_virtual_consumer,
 };
 #[cfg(feature = "llvm")]
 use crate::opt::OptLevel;
-use crate::resolve::{ConeId, ConeInfo, Index, IndexedFile};
+use crate::resolve::{Index, IndexedFile};
 use crate::session::{Session, SessionOptions};
 use crate::source::{SourceFile, SourceId, SourceMap};
 use crate::ty::TypeStore;
@@ -427,7 +429,7 @@ pub fn load_project_input_from_path(
         let source = SourceFile::load(input)?;
         let virtual_root = source.path().to_path_buf();
         let manifest = default_virtual_cone_manifest(&source);
-        let graph = SourceConeGraph::load_for_virtual_consumer(
+        let graph = load_source_cone_graph_for_virtual_consumer(
             source,
             virtual_root,
             manifest,
@@ -447,7 +449,7 @@ pub fn load_project_input_from_path(
                 pkg.manifest.cone.kind
             ));
         }
-        let graph = SourceConeGraph::load_for_consumer_package(
+        let graph = load_source_cone_graph_for_consumer_package(
             pkg,
             &sysroot_root,
             session_options.sysroot_overlay(),
@@ -477,7 +479,7 @@ pub fn prepare_virtual_cone_input_with_options(
         .canonicalize()
         .into_diagnostic()
         .wrap_err("无法定位 sysroot 目录（source cone graph）")?;
-    let graph = SourceConeGraph::load_for_virtual_consumer(
+    let graph = load_source_cone_graph_for_virtual_consumer(
         source,
         virtual_root,
         manifest,

@@ -15,7 +15,8 @@ use std::collections::HashSet;
 use miette::{Context as _, IntoDiagnostic as _, Result};
 use serde::{Deserialize, Serialize};
 
-use crate::resolve::{ConeId, Index, IndexedFile, Visibility};
+use crate::cone::ConeId;
+use crate::resolve::{Index, IndexedFile, Visibility};
 use crate::session::Session;
 use crate::source::SourceFile;
 

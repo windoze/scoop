@@ -18,9 +18,10 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use crate::ast;
+use crate::cone::ConeId;
 use crate::hir;
 use crate::mir;
-use crate::resolve::{ConeId, Index, IndexedFile};
+use crate::resolve::{Index, IndexedFile};
 use crate::session::Session;
 use crate::source::SourceFile;
 use crate::stable_id::StableConeKey;
