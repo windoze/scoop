@@ -1,0 +1,4 @@
+[cone]
+name = "scoop.unsafe"
+version = "0.0.0"
+kind = "syslib"

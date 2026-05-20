@@ -892,7 +892,7 @@ fn try_eval_string_method_intrinsic(
             ConstValue::String(s)
         }
         "hash" => {
-            // FNV-1a（与 sysroot/scoop.core/string.scoop 的 __scoop_string_hash 一致）。
+            // FNV-1a（与 sysroot/lib/scoop.core/src/string.scoop 的 __scoop_string_hash 一致）。
             check_arity(0)?;
             let bytes = s.as_bytes();
             if bytes.is_empty() {
@@ -984,7 +984,7 @@ fn try_eval_string_method_intrinsic(
             let to = arg_int(1)?;
             let bytes = s.as_bytes();
             let len = bytes.len() as i64;
-            // 与 sysroot/scoop.core/string.scoop 语义一致：clamp 到 [0, len]。
+            // 与 sysroot/lib/scoop.core/src/string.scoop 语义一致：clamp 到 [0, len]。
             let start = from.max(0).min(len) as usize;
             let end = to.max(start as i64).min(len) as usize;
             let slice = &bytes[start..end];
@@ -1169,7 +1169,7 @@ fn const_float_hash_i64(value: ConstFloat) -> i64 {
     bits as i64
 }
 
-/// 字节级 indexOf（与 sysroot/scoop.core/string.scoop 语义一致）。
+/// 字节级 indexOf（与 sysroot/lib/scoop.core/src/string.scoop 语义一致）。
 fn string_index_of(haystack: &str, needle: &str) -> i64 {
     let h = haystack.as_bytes();
     let n = needle.as_bytes();
@@ -1188,7 +1188,7 @@ fn string_index_of(haystack: &str, needle: &str) -> i64 {
     -1
 }
 
-/// 字节级 split（与 sysroot/scoop.core/string.scoop 语义一致）。
+/// 字节级 split（与 sysroot/lib/scoop.core/src/string.scoop 语义一致）。
 fn string_split(s: &str, delim: &str) -> Vec<String> {
     if s.is_empty() {
         return vec![String::new()];
@@ -1214,7 +1214,7 @@ fn string_split(s: &str, delim: &str) -> Vec<String> {
     parts
 }
 
-/// 字节级 compareTo（与 sysroot/scoop.core/string.scoop 的 __scoop_string_compare_to 一致）。
+/// 字节级 compareTo（与 sysroot/lib/scoop.core/src/string.scoop 的 __scoop_string_compare_to 一致）。
 fn string_compare_to(a: &str, b: &str) -> i64 {
     let ab = a.as_bytes();
     let bb = b.as_bytes();
@@ -1228,7 +1228,7 @@ fn string_compare_to(a: &str, b: &str) -> i64 {
     (ab.len() as i64) - (bb.len() as i64)
 }
 
-/// 按 ASCII 空白字符 trim（与 sysroot/scoop.core/string.scoop 一致：空格/Tab/CR/LF/VT/FF）。
+/// 按 ASCII 空白字符 trim（与 sysroot/lib/scoop.core/src/string.scoop 一致：空格/Tab/CR/LF/VT/FF）。
 fn string_trim_ascii_ws(s: &str) -> String {
     string_trim_end_ascii_ws(&string_trim_start_ascii_ws(s))
 }
@@ -1251,7 +1251,7 @@ fn string_trim_end_ascii_ws(s: &str) -> String {
     String::from_utf8_lossy(&b[..end]).into_owned()
 }
 
-/// 与 sysroot/scoop.core/string.scoop 的 trimStart/trimEnd 一致：space(32) + [9..13]。
+/// 与 sysroot/lib/scoop.core/src/string.scoop 的 trimStart/trimEnd 一致：space(32) + [9..13]。
 fn is_ascii_ws(b: u8) -> bool {
     b == 32 || (9..=13).contains(&b)
 }
@@ -1522,7 +1522,7 @@ fn is_blank_line(bytes: &[u8], start: usize, end: usize) -> bool {
 
 /// `trimIndent()`：去掉所有行的公共缩进，并剥离首尾空白行（spec §8.4）。
 ///
-/// 该实现与 `sysroot/scoop.core/string.scoop:__scoop_string_trim_indent` 保持一致：
+/// 该实现与 `sysroot/lib/scoop.core/src/string.scoop:__scoop_string_trim_indent` 保持一致：
 /// - 按 `\n` 分割行，并对每行剥离末尾 `\r`（兼容 CRLF）；
 /// - 缩进仅识别 ASCII 空格/Tab；
 /// - 空白行判定把 `\r` 也视为可忽略空白；

@@ -556,8 +556,8 @@ pub(in crate::hir::lower) fn collect_generic_fun_instantiations(
                 continue;
             }
             if matches!(fun.body, ast::FunBody::Missing) {
-                // T4016T2: `sysroot/scoop.core/core.scoop` 会保留 declaration-only surface，而真实实现体位于
-                // `sysroot/scoop.task/task.scoop` 等可编译源。generic fixed-point 发现器只应索引“可实例化的实现体”，
+                // T4016T2: `sysroot/lib/scoop.core/src/core.scoop` 会保留 declaration-only surface，而真实实现体位于
+                // `sysroot/lib/scoop.task/src/task.scoop` 等可编译源。generic fixed-point 发现器只应索引“可实例化的实现体”，
                 // 否则像 `scoop.core.step` 这类符号会因为 declaration + implementation 双候选而被误判成 overload。
                 continue;
             }

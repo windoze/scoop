@@ -3,7 +3,7 @@
 > 生成时间：2026-05-19
 > 设计基线：[`SYSROOT_RESHAPE_R2.md`](./SYSROOT_RESHAPE_R2.md)
 > 计划基线：[`PLAN.md`](./PLAN.md)
-> 当前状态：`P3-T03` 已完成；下一任务为 `P4-T01`。
+> 当前状态：`P4-T01` 已完成；下一任务为 `P4-T02`。
 > 执行原则：严格按 P0 -> P10 顺序推进；同一阶段内可按任务依赖拆 PR，但每个任务完成后必须保持仓库无 failing fixture，并回写完成记录。
 
 ## 全局约束
@@ -98,7 +98,7 @@ P0 baseline freeze
 | `P3-T01` | [DONE] | P3 | `Cone.toml` 解析 `kind = bin/lib/syslib` |
 | `P3-T02` | [DONE] | P3 | `lib/syslib` 无 entry point 加载规则 |
 | `P3-T03` | [DONE] | P3 | `syslib` path trust gate 与 intrinsic privilege gate |
-| `P4-T01` | [TODO] | P4 | 重排 sysroot 到 `sysroot/lib/<cone>/src` |
+| `P4-T01` | [DONE] | P4 | 重排 sysroot 到 `sysroot/lib/<cone>/src` |
 | `P4-T02` | [TODO] | P4 | sysroot loader 改为加载 `sysroot/lib/*/Cone.toml` |
 | `P4-T03` | [TODO] | P4 | sysroot overlay 迁移到 `overlay/lib/<cone>/...` |
 | `P5-T01` | [TODO] | P5 | 引入 source cone graph 数据结构 |
@@ -345,7 +345,7 @@ P0 baseline freeze
 - 与 `PLAN.md` / `SYSROOT_RESHAPE_R2.md` 闭合项：满足 P3 中“`syslib` path gate”、“普通用户 cone 无法 self-elevate 到 `syslib`”、“普通 source/lib 不能声明 intrinsic”、“trusted syslib 可声明 intrinsic”和“sealed marker 改为 syslib-only gate”的要求；P4 的物理 sysroot layout 迁移仍按后续任务推进。
 - 验证结果：`cargo fmt` 通过；`cargo test -p scoopc cone::package -- --nocapture` 通过（8 passed）；`cargo test -p scoopc typecheck::type_env -- --nocapture` 通过（13 passed）；`cargo test -p scoopc named_intrinsic -- --nocapture` 通过（8 passed）；`cargo test -p scoop --bin scoop` 通过（118 passed）；`cargo build` 通过；`cargo clippy --all-targets -- -D warnings` 通过；`cargo test --all --all-targets` 通过（917 passed）；`cargo run -p scoop -- test tests/fixtures/typecheck/` 通过（499 checks）；`cargo run -p scoop -- test tests/fixtures/run-pass/` 通过（416 checks）；`cargo run -p scoop -- test tests/fixtures/umb_fix/` 通过（152 checks）；`cargo run -p scoop -- test` 通过（fixtures: ok，1563 checks）。
 
-## P4-T01：重排 sysroot 到 `sysroot/lib/<cone>/src`
+## [DONE] P4-T01：重排 sysroot 到 `sysroot/lib/<cone>/src`
 
 - 参考：`PLAN.md` §7。
 - 目标：把现有内置 sysroot 文件迁移到真实 cone source layout。
@@ -357,6 +357,15 @@ P0 baseline freeze
   4. 创建保留目录 `sysroot/bin/`、`sysroot/docs/`，但不参与加载。
 - 验证：文件布局检查；`cargo build`。
 - 完成条件：所有内置标准库源码位于 `sysroot/lib/<cone>/src`。
+
+### 完成记录（2026-05-20）
+
+- 改动范围：迁移现有 10 个内置 sysroot `.scoop` 源文件到 `sysroot/lib/<cone>/src/`；为 8 个现有 sysroot cone 添加 `Cone.toml`；新增 `sysroot/bin/.gitkeep` 与 `sysroot/docs/.gitkeep` 保留目录；同步 active `.sysroot/lib/scoop.core/src/*.scoop` overlay fixture 路径、相关源码注释与 HIR golden；更新本任务记录和后续 P8 sysroot 路径引用；未修改 `PLAN.md` 或 `SYSROOT_RESHAPE_R2.md`。
+- 核心决策：`Cone.toml` 先保持最小 `[cone]` metadata，不在 P4-T01 提前引入 manifest dependency edges；source cone graph、auto dependency 与 prelude dependency 语义仍由 P5/P6 任务落地。
+- kind 分类：`scoop.core`、`scoop.unsafe`、`scoop.collections`、`scoop.delegates`、`scoop.thread`、`scoop.sync`、`scoop.runtime.test` 按保守策略设为 `syslib`；`scoop.lang.string` 当前只使用普通 Scoop 与 `@Extern`，设为 `lib`。
+- Fixture 迁移说明：旧 base path 改为 `sysroot/lib/scoop.core/src/core.scoop` 后，原 `.sysroot/scoop.core/*.scoop` overlay 不再能按相对路径替换 base core 文件；本任务同步迁移这些 active overlay fixture 到 `.sysroot/lib/scoop.core/src/*.scoop`，避免生成重复 core surface。P4-T03 仍负责把 loader/overlay 规则整体改为 manifest/cone-relative 规则。
+- 与 `PLAN.md` / `SYSROOT_RESHAPE_R2.md` 闭合项：满足 P4 中“内置 cones 位于 `sysroot/lib/`，每个 cone 拥有 `Cone.toml` 和 `src/` 目录”以及“创建 `sysroot/bin`、`sysroot/docs` 保留目录”的要求；P4-T02 的 loader manifest discovery 与 P4-T03 的 overlay merge 语义尚未改变。
+- 验证结果：布局检查确认 `sysroot/scoop.*/*.scoop` 和 active `.sysroot/scoop.core/*.scoop` 均已清空，`sysroot/lib/*/src/*.scoop` 有 10 个源文件，`sysroot/lib/*/Cone.toml` 有 8 个 manifest；`cargo fmt` 通过；`cargo build` 通过；`cargo test -p scoopc sysroot -- --nocapture` 通过（20 passed）；`cargo run -p scoop -- test tests/fixtures/build/` 通过（47 checks）；`cargo run -p scoop -- test tests/fixtures/typecheck/` 通过（499 checks）；`cargo clippy --all-targets -- -D warnings` 通过；完整 `cargo run -p scoop -- test` 首次因 5 个 HIR golden span 漂移失败，更新 golden 后 `cargo run -p scoop -- test tests/fixtures/hir/` 通过（26 checks），重跑完整 fixture suite 通过（fixtures: ok，1563 checks）；`cargo test --all --all-targets` 通过（Rust tests: ok，包含 `scoopc` 917 tests）。
 
 ## P4-T02：sysroot loader 改为加载 `sysroot/lib/*/Cone.toml`
 
@@ -502,7 +511,7 @@ P0 baseline freeze
 
 - 参考：`PLAN.md` §11。
 - 目标：test-only helper 不再随普通 runtime core 链接。
-- 当前实现入口：`runtime/c/scoop_test.c`、`sysroot/scoop.runtime.test`、runtime allowlist、runtime_gc fixtures。
+- 当前实现入口：`runtime/c/scoop_test.c`、`sysroot/lib/scoop.runtime.test/src/runtime_test.scoop`、runtime allowlist、runtime_gc fixtures。
 - 必须实现：
   1. 将 `scoop_test_*` native code 迁到 `sysroot/lib/scoop.runtime.test/native/`。
   2. `scoop.runtime.test` 不进入默认 auto dependency。
@@ -515,9 +524,9 @@ P0 baseline freeze
 
 - 参考：`PLAN.md` §11。
 - 目标：Mutex/CondVar/user-visible Once native implementation 归 `scoop.sync` cone。
-- 当前实现入口：`runtime/c/scoop_sync.c`、`sysroot/scoop.sync/sync.scoop`、`llvm/codegen/intrinsics/sync.rs`。
+- 当前实现入口：`runtime/c/scoop_sync.c`、`sysroot/lib/scoop.sync/src/sync.scoop`、`llvm/codegen/intrinsics/sync.rs`。
 - 必须实现：
-  1. 将 sync native C 迁到 `scoop.sync/native/`。
+  1. 将 sync native C 迁到 `sysroot/lib/scoop.sync/native/`。
   2. 能用 C ABI + GC-free handle 表达的底层 primitive 优先转 C ABI。
   3. 必须 managed ABI 的 helper 说明原因，并使用 `scoop_runtime.h`。
   4. public Scoop API 尽量用 Scoop wrapper 表达，不把整个 API 都写成 FFI。
@@ -529,9 +538,9 @@ P0 baseline freeze
 
 - 参考：`PLAN.md` §11、`SYSROOT_RESHAPE_R2.md` §6-§7。
 - 目标：user-level thread API 归 `scoop.thread` cone，runtime core 只保留 GC thread lifecycle substrate。
-- 当前实现入口：`runtime/c/scoop_thread.c`、`sysroot/scoop.thread/thread.scoop`、`llvm/codegen/intrinsics/thread.rs`。
+- 当前实现入口：`runtime/c/scoop_thread.c`、`sysroot/lib/scoop.thread/src/thread.scoop`、`llvm/codegen/intrinsics/thread.rs`。
 - 必须实现：
-  1. 将 thread native C 迁到 `scoop.thread/native/`。
+  1. 将 thread native C 迁到 `sysroot/lib/scoop.thread/native/`。
   2. C entry trampoline：attach current OS thread -> call `@CallingConvention` Scoop thread entry object symbol -> normal detach。
   3. Fatal trap 直接 abort，不承诺 detach/recovery。
   4. Closure/userdata 通过 GC handle raw token 传递，不裸传 GC ref。
@@ -544,10 +553,10 @@ P0 baseline freeze
 
 - 参考：`PLAN.md` §11。
 - 目标：按 ownership 迁移 string-from-array 等 helper，并完成 runtime core allowlist 收口。
-- 当前实现入口：`runtime/c/scoop_runtime.c` string helpers、`sysroot/scoop.lang.string`、runtime allowlist。
+- 当前实现入口：`runtime/c/scoop_runtime.c` string helpers、`sysroot/lib/scoop.lang.string/src/lang_string.scoop`、runtime allowlist。
 - 必须实现：
   1. 对 string helpers 做 ownership 分类：core substrate vs `scoop.lang.string` helper。
-  2. 迁移属于 `scoop.lang.string` 的 native code 到该 cone。
+  2. 迁移属于 `scoop.lang.string` 的 native code 到 `sysroot/lib/scoop.lang.string/native/`。
   3. 保留 runtime core 中确属 canonical String object/type descriptor substrate 的部分。
   4. 更新 `scoop_runtime_api.h` allowlist 和 tests。
 - 验证：string/lang fixtures、runtime export allowlist test、普通 link smoke。

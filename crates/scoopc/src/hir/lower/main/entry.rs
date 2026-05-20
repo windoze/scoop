@@ -228,7 +228,7 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
         )
     };
 
-    // T4016T2：sysroot/scoop.task/task.scoop 这类“实现文件依赖同编译单元里的声明元数据”的路径，
+    // T4016T2：sysroot/lib/scoop.task/src/task.scoop 这类“实现文件依赖同编译单元里的声明元数据”的路径，
     // 需要从整个 compilation unit 收集 object/class side tables，而不是只看当前 lowering 的文件。
     let (
         object_inits,

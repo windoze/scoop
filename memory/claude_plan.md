@@ -1,34 +1,32 @@
-# Claude 执行计划
+# 当前执行计划
 
-我不能记录私密逐步推理链；本文件记录可审计的执行计划、关键决策和进度。
+## 原则
 
-## 当前目标
+- 以 `TODO.md` 为唯一任务顺序来源，先识别第一个标题未带 `[DONE]` 的任务。
+- 本轮只完成第一个未完成任务；完成后更新记录、提交 Git，并停止。
+- 如果遇到阻塞当前任务的规范不匹配、缺失功能或实现边界，不做绕路；在 `TODO.md` 中添加最小必要前置任务并提交后停止。
+- 不把内部推理过程写入日志；本文件记录可审查的计划、依据、进度和验证结果。
 
-- 按 `TODO.md` 的权威顺序，只完成第一个标题未带 `[DONE]` 的任务，完成后更新记录、验证并提交，然后停止。
-- 当前任务：`P3-T03`，实现 `syslib` path trust gate 与 intrinsic privilege gate。
-- 范围约束：不跳过 review 任务，不为方便拆分任务，不用 fixture-only hack 或弱化规格的方式绕过缺失实现。
+## 步骤
 
-## 执行步骤
+1. 读取 `TODO.md`，定位第一个未完成任务及其验证要求。
+2. 查看最近提交信息，判断是否有明确提到且直接关联该任务的未完成事项。
+3. 按任务要求阅读相关代码、规格和测试，确认实现边界。
+4. 进行最小正确实现；如需修改计划或完成关键步骤，同步更新本文件。
+5. 运行任务要求的验证，以及必要的相关测试和格式/编译检查。
+6. 更新 `TODO.md`：给完成的任务标题加 `[DONE]`，并补全完成记录；仅在阶段计划变化时更新 `PLAN.md`。
+7. 检查 `git status`、`git diff`、最近提交记录，确认只提交本轮相关变更。
+8. 使用清晰任务编号提交，提交后停止，不处理下一个任务。
 
-1. 读取 `TODO.md`，确认首个未完成任务及其验证要求。
-2. 查看最近提交，只处理与当前任务直接相关的未完成问题。
-3. 检查 `source.rs`、sysroot loading、annotation gate、sealed marker gate、cone package loader 和相关 fixtures。
-4. 实现显式 trusted `syslib` source trust，移除 `SourceOrigin::Sysroot` 对语言特权的直接授权。
-5. 增加 `kind = "syslib"` 的 `sysroot/lib/<cone.fqn>/` path gate，并覆盖用户路径自声明 `syslib` 的拒绝行为。
-6. 更新 intrinsic / `@file:AllowIntrinsic` / sealed marker fixtures，使 trusted syslib surface 由 `.sysroot` overlay 或 sysroot source 承载，用户 source 只消费或触发未授权诊断。
-7. 运行定向测试、全量 Rust 测试、clippy 和完整 fixture suite。
-8. 在 `TODO.md` 标记当前任务 `[DONE]` 并填写完成记录；不更新 `PLAN.md`，因为阶段级计划未变化。
-9. 检查最终 diff/status/log，提交本次任务所有相关变更后停止。
+## 当前状态
 
-## 进度记录
-
-- 已确认首个未完成任务为 `P3-T03`。
-- 最近提交为 `[P3-T02] Allow lib cones without main`，未发现改变当前任务范围的未完成事项。
-- 已实现 `SourceTrust::TrustedSyslib`，sysroot/frontend support source loading 显式赋予 trusted syslib trust。
-- 已将 `@Intrinsic`、`@file:AllowIntrinsic` 和 sealed marker gate 改为查询 `SourceFile::is_trusted_syslib()`，不再查询 `SourceOrigin::Sysroot` 或路径片段作为语言特权。
-- 已为 `load_cone_source_package` 添加 `syslib` path gate：用户/外部路径下的 `kind = "syslib"` 会被稳定拒绝，trusted sysroot lib path 在单测中保留无 main 加载能力。
-- 已更新 typecheck/run-pass/UMB intrinsic fixtures：trusted syslib declarations 移到 companion `.sysroot` overlay，用户 fixture 不再直接通过 `@file:AllowIntrinsic` 自行开权。
-- 已更新 HIR golden 中受 sysroot 注释收口影响的 `target_decl_span`。
-- 已更新 `TODO.md`：任务索引和标题均将 `P3-T03` 标记为 `[DONE]`，并写入完成记录。
-- 验证已完成：`cargo fmt`、`cargo build`、`cargo clippy --all-targets -- -D warnings`、`cargo test --all --all-targets`、定向 fixture suites 和完整 `cargo run -p scoop -- test` 均通过。
-- 下一步：提交本次任务变更，然后停止。
+- 已读取 `TODO.md`，第一个未完成任务是 `P4-T01：重排 sysroot 到 sysroot/lib/<cone>/src`。
+- 最近提交是 `[P3-T03] Enforce trusted syslib privileges`，未在提交标题中暴露与 `P4-T01` 直接相关的未完成事项。
+- 已将现有 sysroot `.scoop` 源码移动到 `sysroot/lib/<cone>/src/`，并为每个现有 sysroot cone 添加 `Cone.toml`。
+- kind 分类：`scoop.core`、`scoop.unsafe`、`scoop.collections`、`scoop.delegates`、`scoop.thread`、`scoop.sync`、`scoop.runtime.test` 先按保守策略设为 `syslib`；`scoop.lang.string` 当前只使用普通 Scoop 与 `@Extern`，设为 `lib`。
+- 为避免现有 overlay fixture 在 base path 变化后不再替换 `scoop.core/src/core.scoop`，已同步把 active `.sysroot/scoop.core/*.scoop` overlay 移到 `.sysroot/lib/scoop.core/src/*.scoop`。
+- 验证进展：`cargo build`、`cargo test -p scoopc sysroot -- --nocapture`、`cargo run -p scoop -- test tests/fixtures/build/`、`cargo run -p scoop -- test tests/fixtures/typecheck/`、`cargo clippy --all-targets -- -D warnings` 已通过。
+- 完整 fixture 首次运行发现 5 个 HIR golden 仅因 `sysroot/lib/scoop.core/src/print.scoop` 注释路径更新导致 core declaration span 后移 8 字节失败；已同步对应 `.hir` golden，下一步重跑 HIR 与完整 fixture suite。
+- HIR fixture 分组重跑通过；完整 fixture suite 重跑通过（1563 checks）；`cargo test --all --all-targets` 通过。
+- `TODO.md` 已将 `P4-T01` 标记为 `[DONE]`，补全完成记录，并把后续 P8 任务中的 sysroot 入口路径更新为 `sysroot/lib/<cone>/src/...` / `native/`。
+- 下一步检查 git diff/status 并提交本轮变更。
