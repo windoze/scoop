@@ -37,7 +37,7 @@
 | P0-T02 | [DONE] | [`TODO-1.md`](./TODO-1.md#done-p0-t02删除-statement-level-comptime-iffor-与-runtime-comptime-plan) | 删除 statement-level `comptime if/for` 与 runtime comptime plan |
 | P0-T02R | [DONE] | [`TODO-1.md`](./TODO-1.md#done-p0-t02rreview-statement-level-comptime-删除结果) | Review statement-level comptime 删除结果 |
 | P0-T03 | [DONE] | [`TODO-1.md`](./TODO-1.md#done-p0-t03删除-scoop-const-surfaceconst-evaluator-与跨阶段-const-hooks) | 删除 Scoop `const` surface、const evaluator 与跨阶段 const hooks |
-| P0-T03R | [TODO] | [`TODO-1.md`](./TODO-1.md#todo-p0-t03rreview-const-surface-与-evaluator-删除结果) | Review `const` surface 与 evaluator 删除结果 |
+| P0-T03R | [DONE] | [`TODO-1.md`](./TODO-1.md#done-p0-t03rreview-const-surface-与-evaluator-删除结果) | Review `const` surface 与 evaluator 删除结果 |
 | P0-T04 | [TODO] | [`TODO-1.md`](./TODO-1.md#todo-p0-t04p0-全仓清场与文档同步) | P0 全仓清场与文档同步 |
 | P0-T04R | [TODO] | [`TODO-1.md`](./TODO-1.md#todo-p0-t04rreview-p0-全包完成度) | Review P0 全包完成度 |
 | TODO-2-INIT | [TODO] | [`TODO-2.md`](./TODO-2.md#todo-todo-2-init初始化并细化本任务包) | 分析 P1 需求，生成 `TODO-2.md` 详细任务列表并更新本索引 |
