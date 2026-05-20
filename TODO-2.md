@@ -350,7 +350,7 @@
   - 验证命令：`cargo fmt`；`cargo test -p scoopc_project_model`；`cargo test --all --all-targets --no-default-features`；`cargo run -p scoop_tools -- dependency-gate`；`cargo tree -p scoopc_project_model`；`cargo clippy --all-targets -- -D warnings`；搜索 `pub struct ConeId|pub struct ConeInfo|pub struct SourceConeGraph|pub struct SourceConeInfo`；搜索 `pub enum ConeKind|pub struct ConeManifest|pub struct ConeNativeBuildConfig|pub struct ConeSourcePackage|pub enum OptLevel|pub struct StableConeKey`；搜索旧路径 `resolve::ConeId|resolve::ConeInfo|crate::resolve::Cone|SourceConeGraph::load_|ConeManifest::load_from`。
   - 残余风险：生产 frontend 仍在后续 P1-T05 范围内使用 flatten 后的 build closure 作为过渡输入；本任务只迁移 project/cone 模型和 identity owner，未提前实现 cone-level compilation unit facade。`scoopc::cone` 仍保留 filesystem/sysroot loader adapter，这是 P1-T04 明确允许的迁移边界。
 
-## [TODO] P1-T04R：Review project model 与 cone graph 迁移结果
+## [DONE] P1-T04R：Review project model 与 cone graph 迁移结果
 
 - 参考：P1-T04。
 - 重点：
@@ -374,7 +374,13 @@
   - review 结论明确写出：project model 和 cone graph 迁移满足 P1 crate DAG 与 cone DAG 语义，或列出阻塞项并在本 review 内修复。
 - 依赖：P1-T04
 - 完成记录：
-  - 待填写。
+  - 复查范围：复查 `crates/scoopc_project_model/`、`crates/scoopc/src/cone/`、`crates/scoopc/src/resolve/mod.rs`、`crates/scoopc/src/frontend.rs`、`crates/scoopc/src/typecheck/type_env.rs`，并搜索 HIR/MIR/LLVM 中的 `SourceConeInfo` / `StableConeKey` / cone identity 调用点。
+  - review 结论：project model 只承载 stage-independent manifest、source package data、cone identity、stable cone key 和 source-cone graph topo validation；`scoopc::cone` 中保留的是 filesystem/sysroot loader adapter，没有让基础 crate 反向依赖 facade、resolver、typecheck、HIR/MIR/LIR/LLVM 或 fact/backend crate。
+  - identity 结论：`ConeId`、`ConeInfo`、`SourceConeGraph`、`SourceConeInfo`、`ConeKind`、`ConeManifest`、`ConeNativeBuildConfig`、`ConeSourcePackage`、`OptLevel`、`StableConeKey` 的 authoritative 定义均位于 `scoopc_project_model`；resolver/typecheck/frontend/HIR/MIR/LLVM 通过 project model 或 `scoopc::cone` / `scoopc::stable_id` re-export 消费同一套 identity，未发现旧 `resolve::ConeId` / `resolve::ConeInfo` owner 路径。
+  - graph 语义结论：`SourceConeGraph::from_nodes` 仍覆盖 dependency-before-consumer topo order、cycle reject、unknown dependency reject 和 single consumer uniqueness；adapter 测试覆盖 sysroot/local dependency/consumer DAG order 与 virtual consumer project-model identity。
+  - 依赖方向结论：`cargo run -p scoop_tools -- dependency-gate` 报告 `scoopc_project_model` 的 base deps 为 `scoopc_ids`、`scoopc_source`、`scoopc_span`；`cargo tree -p scoopc_project_model` 未出现 `scoopc` facade 或 stage/fact/backend crate。
+  - 验证命令：`cargo fmt`；`cargo test -p scoopc_project_model`；`cargo test -p scoopc --no-default-features source_cone_graph`；`cargo test --all --all-targets --no-default-features`；`cargo run -p scoop_tools -- dependency-gate`；`cargo tree -p scoopc_project_model`；`cargo clippy --all-targets -- -D warnings`；搜索 `pub (struct|enum|type) (ConeId|ConeInfo|SourceConeGraph|SourceConeInfo)`；搜索 `pub enum ConeKind|pub struct ConeManifest|pub struct ConeNativeBuildConfig|pub struct ConeSourcePackage|pub enum OptLevel|pub struct StableConeKey`；搜索旧路径 `resolve::ConeId|resolve::ConeInfo|crate::resolve::ConeId|crate::resolve::ConeInfo|SourceConeGraph::load_|ConeManifest::load_from`。
+  - 残余风险：P1-T05 仍需把 frontend facade 的 whole-build flatten 过渡输入收口为明确 cone-level compilation unit API；本 review 未发现阻塞 P1-T05 的 project model / cone graph 迁移问题。
 
 ## [TODO] P1-T05：固定 cone-level compilation unit facade API
 
