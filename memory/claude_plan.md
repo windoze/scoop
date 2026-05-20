@@ -1,32 +1,31 @@
-# 当前执行计划
+# Claude 执行计划
 
-## 目标
+## 范围
 
-本轮只完成 `TODO.md` 中第一个标题未带 `[DONE]` 的任务，完成后更新任务记录、验证、提交并停止。
+- 以 `TODO.md` 作为权威任务列表。
+- 定位第一个标题未带 `[DONE]` 的任务。
+- 只完成该任务，提交后停止，不继续下一个任务。
 
-## 步骤
+## 执行步骤
 
-1. 读取 `TODO.md`，按现有顺序定位第一个未完成任务。
-2. 检查最近提交是否明确提到与该任务直接相关的未完成问题；只处理会阻塞当前任务的问题。
-3. 阅读当前任务涉及的代码、测试、规格和说明，确认实现边界与验证要求。
-4. 如发现当前任务必须依赖未跟踪的前置修复，则用最少的新前置任务更新 `TODO.md`，提交后停止。
-5. 否则实现当前任务，保持改动最小且符合现有代码风格。
-6. 运行当前任务要求的验证命令和必要的相关测试；如失败，修复后重跑。
-7. 在 `TODO.md` 中把当前任务标题前缀改为 `[DONE]`，并更新完成记录。
-8. 检查工作区差异，确保只包含本轮应提交的内容。
-9. 按仓库约定提交所有本轮相关改动。
-10. 停止，不继续处理下一个任务。
+1. 读取 `TODO.md`，确认第一个未完成任务及其验证要求。
+2. 按任务说明检查最近提交，只处理与当前任务直接相关的未完成问题。
+3. 只阅读实现当前任务所需的代码、测试和设计说明。
+4. 按规格实现任务，不引入 workaround 或削弱行为。
+5. 先运行定向验证，再运行任务或仓库要求的更广验证。
+6. 在 `TODO.md` 中给完成任务标题添加 `[DONE]`，并填写完成记录。
+7. 关键步骤完成或计划变化时更新本文件。
+8. 提交前检查 `git status`、`git diff` 和最近提交记录。
+9. 用清晰的任务标签提交本任务全部相关改动。
+10. 停止，不开始 `TODO.md` 中的下一个任务。
 
-## 进度记录
+## 进度
 
-- 已创建本计划文件，下一步读取 `TODO.md` 定位当前任务。
-- 已读取 `TODO.md`，第一个未完成任务为 `P5-T03：保留 cone identity/kind 到 resolver/typecheck/codegen`。
-- 下一步检查最近提交和当前实现入口：`resolve::ConeId`、`IndexedFile`、`TypeEnv`、HIR lowering setup、LLVM codegen inputs。
-- 最近提交为 `af06e63f [P5-T02] Support source path dependencies`，没有额外阻塞当前任务的未完成提示。
-- 已完成上下文检查：当前已有 per-source `ConeId` 和 visibility 过滤，但 `ConeKind`/stable cone identity 未贯穿 `IndexedFile`、`Index`、`TypeEnv`、HIR lowering 与 LLVM codegen context；部分 typecheck helper 仍把 `internal` 当作跨 cone 可见。
-- 当前编辑计划：新增 source cone metadata handoff，扩展 resolver/typecheck 查询 API，修正 typecheck visibility helper，并把 source cone map 传到 HIR/MIR/LLVM 以供 stable identity/native ownership/init routine 查询。
-- 已完成第一轮代码编辑：source cone metadata 已进入 `ProjectInput`、`IndexedFile`/`Index`、`TypeEnv`、HIR lowering、MIR materialization options 和 LLVM codegen context；typecheck type lowering / import context 已改用 resolver 的 cone-aware visibility。
-- 下一步运行格式化与定向检查，按编译错误继续修正。
-- 验证中发现完整 fixture suite 的 `run-pass/intrinsic_synthetic_property_basic.scoop` 暴露 source-aware stable key 迁移缺口：top-level storage/object stable key 不能使用调用点 source。已修正为按 declaration source 所属 cone 取 stable key。
-- 已完成最终验证：`cargo test -p scoopc`、`cargo test -p scoop --bin scoop`、`cargo clippy --all-targets -- -D warnings`、完整 `cargo run -p scoop -- test` 均通过。
-- 已更新 `TODO.md`，`P5-T03` 标记为 `[DONE]` 并写入完成记录。下一步检查 git diff/status 并提交本轮改动。
+- 已记录初始执行计划。
+- 已读取 `TODO.md`；第一个未完成任务是 `P5-T04`：生成 per-cone init routine 与 final system entry 调用骨架。
+- 最近提交为 `[P5-T03] Preserve cone identity through compilation`，属于相关背景，但没有记录会阻塞 `P5-T04` 的未完成事项。
+- 实现路径：从已按 source cone graph 扁平化的 source 顺序派生 linked cone 顺序，生成稳定 internal cone init stub，并在 runtime 初始化后、用户 `main` 调用前发出 final entry 调用。
+- 已实现 cone init routine plan、稳定 internal stub emission，以及 `main` wrapper 中用户入口前的 cone init 调用。
+- 已新增 LLVM build fixture `tests/fixtures/build/per_cone_init_routine_emit_llvm.scoop`，检查 stub 定义和调用顺序。
+- 验证已完成：定向 fixture、build fixture suite、`cargo build`、`cargo clippy --all-targets -- -D warnings`、`cargo test --all --all-targets` 和完整 `cargo run -p scoop -- test` 均通过；期间更新了 entry-wrapper 单测，使其在统计用户 entry 调用时忽略 compiler-private cone init calls。
+- 已更新 `TODO.md`：`P5-T04` 标记为 `[DONE]`，当前状态改为下一任务 `P6-T01`，并写入完成记录。

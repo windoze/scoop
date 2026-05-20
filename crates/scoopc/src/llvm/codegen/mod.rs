@@ -554,6 +554,25 @@ struct FunctionBodyCodegenCx<'ctx> {
     top_level_const_eval_stack: Vec<String>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum ConeInitRootKind {
+    TopLevelImmutableValue,
+    TopLevelVar,
+}
+
+#[derive(Debug, Clone)]
+pub(super) struct ConeInitRoot {
+    kind: ConeInitRootKind,
+    fqn: String,
+}
+
+#[derive(Debug, Clone)]
+pub(super) struct ConeInitRoutinePlan {
+    cone: SourceConeInfo,
+    function_name: String,
+    roots: Vec<ConeInitRoot>,
+}
+
 /// ordinary callee suspend/resume lowering 的专属运行态。
 ///
 /// 这组状态只在“普通函数体需要把 perform 外传到外层 state-machine，再由 resume thunk
@@ -908,6 +927,105 @@ impl<'a, 'ctx> CompilationUnitCodegenCx<'a, 'ctx> {
         }
     }
 
+    pub(super) fn cone_init_routine_plans(&self) -> Vec<ConeInitRoutinePlan> {
+        let source_order = self
+            .source_map
+            .sources()
+            .enumerate()
+            .map(|(idx, source)| (source.path().to_path_buf(), idx))
+            .collect::<HashMap<_, _>>();
+
+        let mut plans = Vec::new();
+        let mut seen_cones = HashSet::new();
+        for source in self.source_map.sources() {
+            let Some(info) = self.source_cones.get(source.path()) else {
+                continue;
+            };
+            if !seen_cones.insert(info.id) {
+                continue;
+            }
+
+            let function_name = private_cone_init_fn_name(&info.stable_key);
+            let roots = self.cone_init_roots_for(info, &source_order);
+            plans.push(ConeInitRoutinePlan {
+                cone: info.clone(),
+                function_name,
+                roots,
+            });
+        }
+        plans
+    }
+
+    fn cone_init_roots_for(
+        &self,
+        cone: &SourceConeInfo,
+        source_order: &HashMap<PathBuf, usize>,
+    ) -> Vec<ConeInitRoot> {
+        #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+        enum RootSortKind {
+            TopLevelImmutableValue,
+            TopLevelVar,
+        }
+
+        struct PendingRoot {
+            order: usize,
+            span_start: usize,
+            kind: RootSortKind,
+            fqn: String,
+        }
+
+        let source_sort_key = |path: &Path| source_order.get(path).copied().unwrap_or(usize::MAX);
+        let owner_is_cone = |path: &Path| {
+            self.source_cones
+                .get(path)
+                .is_some_and(|info| info.id == cone.id)
+        };
+
+        let mut roots = Vec::new();
+        roots.extend(
+            self.top_level_immutable_values
+                .values()
+                .filter(|value| owner_is_cone(value.source_path.as_path()))
+                .map(|value| PendingRoot {
+                    order: source_sort_key(value.source_path.as_path()),
+                    span_start: value.span.start,
+                    kind: RootSortKind::TopLevelImmutableValue,
+                    fqn: value.fqn.clone(),
+                }),
+        );
+        roots.extend(
+            self.top_level_vars
+                .values()
+                .filter(|var| owner_is_cone(var.source_path.as_path()))
+                .map(|var| PendingRoot {
+                    order: source_sort_key(var.source_path.as_path()),
+                    span_start: var.span.start,
+                    kind: RootSortKind::TopLevelVar,
+                    fqn: var.fqn.clone(),
+                }),
+        );
+        roots.sort_by(|lhs, rhs| {
+            lhs.order
+                .cmp(&rhs.order)
+                .then_with(|| lhs.span_start.cmp(&rhs.span_start))
+                .then_with(|| lhs.kind.cmp(&rhs.kind))
+                .then_with(|| lhs.fqn.cmp(&rhs.fqn))
+        });
+
+        roots
+            .into_iter()
+            .map(|root| ConeInitRoot {
+                kind: match root.kind {
+                    RootSortKind::TopLevelImmutableValue => {
+                        ConeInitRootKind::TopLevelImmutableValue
+                    }
+                    RootSortKind::TopLevelVar => ConeInitRootKind::TopLevelVar,
+                },
+                fqn: root.fqn,
+            })
+            .collect()
+    }
+
     /// 为单个顶层函数、closure body、wrapper 或 init body 构造新的函数级 codegen。
     ///
     /// 新实例会重置函数级局部状态，但继续复用编译单元级共享输入与共享事实。
@@ -989,6 +1107,12 @@ fn private_top_level_immutable_value_global_name(stable_key: &StableDefKey) -> S
 
 fn private_top_level_var_global_name(stable_key: &StableDefKey) -> String {
     PrivateSymbolMangler.mangle("top_level_var", stable_key)
+}
+
+fn private_cone_init_fn_name(stable_key: &StableConeKey) -> String {
+    let readable = sanitize_llvm_ident(stable_key.name());
+    let hash = PrivateSymbolMangler.hash_suffix("cone_init", stable_key);
+    format!("__scoop_priv0__cone_init__{readable}__h{hash}")
 }
 
 fn pointer_value_key<'ctx>(ptr: PointerValue<'ctx>) -> usize {

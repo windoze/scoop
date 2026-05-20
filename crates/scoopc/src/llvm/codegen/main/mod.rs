@@ -15,6 +15,7 @@ mod alloca;
 mod boxing;
 mod call;
 mod coerce;
+mod cone_init;
 mod const_eval;
 mod context;
 mod declare;

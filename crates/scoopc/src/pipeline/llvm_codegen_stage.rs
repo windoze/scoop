@@ -1472,6 +1472,13 @@ fun main(): Int {
             .collect()
     }
 
+    fn ir_function_defined_non_cone_init_call_targets(ir: &str, function_ir: &str) -> Vec<String> {
+        ir_function_defined_call_targets(ir, function_ir)
+            .into_iter()
+            .filter(|target| !target.starts_with("__scoop_priv0__cone_init__"))
+            .collect()
+    }
+
     fn ir_line_mentions_symbol(line: &str, symbol_name: &str) -> bool {
         line.contains(&format!("@{symbol_name}")) || line.contains(&format!("@\"{symbol_name}\""))
     }
@@ -1808,7 +1815,7 @@ fun main(): Int {
         .unwrap();
 
         let main = ir_function_body(&ir, "define i32 @main(");
-        let main_defined_calls = ir_function_defined_call_targets(&ir, &main);
+        let main_defined_calls = ir_function_defined_non_cone_init_call_targets(&ir, &main);
         assert!(
             main_defined_calls.len() == 1,
             "C main wrapper should forward to exactly one defined entry shell instead of a legacy callable ABI: {:?}\n{main}",
@@ -1842,7 +1849,7 @@ fun main(): Int {
             "dynamic entry should forward through the published direct entry:\n{dynamic}"
         );
 
-        let main_calls = ir_function_defined_call_targets(&ir, &main);
+        let main_calls = ir_function_defined_non_cone_init_call_targets(&ir, &main);
         assert!(
             main_calls.len() == 1 && main_calls[0] == direct_entry_symbol,
             "C main wrapper should call the direct entry, not the legacy function ABI:\n{main}"
@@ -1879,7 +1886,7 @@ fun main(): Int {
         let ir = emit_ir_for_source_with_entry(array_string_main_source(), "main_argv.ll", None)
             .expect("argv ABI should lower through the plain entry ABI");
         let main = ir_function_body(&ir, "define i32 @main(");
-        let main_defined_calls = ir_function_defined_call_targets(&ir, &main);
+        let main_defined_calls = ir_function_defined_non_cone_init_call_targets(&ir, &main);
         assert_eq!(
             main_defined_calls.len(),
             1,

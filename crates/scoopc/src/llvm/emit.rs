@@ -643,6 +643,8 @@ fn build_module_from_codegen_entry_with_root_selector<'ctx>(
         &abi_query,
     )?;
     declare.codegen_native_callable_body_symbols(&abi_query)?;
+    let cone_init_plans = unit_codegen.cone_init_routine_plans();
+    let cone_init_routines = declare.ensure_cone_init_routines_defined(&cone_init_plans)?;
 
     fn callable_base_fqn(fqn: &str) -> &str {
         let base = fqn.rsplit_once("::<").map(|(base, _)| base).unwrap_or(fqn);
@@ -717,6 +719,7 @@ fn build_module_from_codegen_entry_with_root_selector<'ctx>(
 
         let mut main_codegen = unit_codegen.fresh_main_codegen();
         main_codegen.begin_function_explicit_frame_layout(main)?;
+        main_codegen.emit_cone_init_calls(&cone_init_routines)?;
 
         let entry_argv_array = match arg_shape {
             EntryMainArgShape::None => None,

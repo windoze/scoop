@@ -3,7 +3,7 @@
 > 生成时间：2026-05-19
 > 设计基线：[`SYSROOT_RESHAPE_R2.md`](./SYSROOT_RESHAPE_R2.md)
 > 计划基线：[`PLAN.md`](./PLAN.md)
-> 当前状态：`P5-T03` 已完成；下一任务为 `P5-T04`。
+> 当前状态：`P5-T04` 已完成；下一任务为 `P6-T01`。
 > 执行原则：严格按 P0 -> P10 顺序推进；同一阶段内可按任务依赖拆 PR，但每个任务完成后必须保持仓库无 failing fixture，并回写完成记录。
 
 ## 全局约束
@@ -104,7 +104,7 @@ P0 baseline freeze
 | `P5-T01` | [DONE] | P5 | 引入 source cone graph 数据结构 |
 | `P5-T02` | [DONE] | P5 | 支持本地 source path dependency fixtures |
 | `P5-T03` | [DONE] | P5 | 保留 cone identity/kind 到 resolver/typecheck/codegen |
-| `P5-T04` | [TODO] | P5 | 生成 per-cone init routine 与 final system entry 调用骨架 |
+| `P5-T04` | [DONE] | P5 | 生成 per-cone init routine 与 final system entry 调用骨架 |
 | `P6-T01` | [TODO] | P6 | 实现 auto dependency cone 列表 |
 | `P6-T02` | [TODO] | P6 | 实现 prelude package 列表并与 auto dependency 解耦 |
 | `P7-T01` | [TODO] | P7 | 将 native-build 扩展到所有 loaded source cones |
@@ -481,7 +481,7 @@ P0 baseline freeze
 - 与 `PLAN.md` / `SYSROOT_RESHAPE_R2.md` 闭合项：满足 P5 中“flatten 后不丢 cone 边界”、“resolver/typecheck 可查询 symbol owner cone”、“codegen 可访问 callable/source 所属 cone”的要求；per-cone init routine skeleton 仍按 `P5-T04` 推进。
 - 验证结果：`cargo fmt` 通过；`cargo check -p scoopc` 通过；`cargo test -p scoopc indexed_files_preserve_cone_kind_and_symbol_owner -- --nocapture` 通过；`cargo test -p scoopc type_env_import_context_filters_internal_types_by_cone -- --nocapture` 通过；`cargo test -p scoopc project_input_is_derived_from_source_cone_graph -- --nocapture` 通过；三个 `run_pass_cone/source_path_dependency_*` 定向 fixtures 均通过；`cargo test -p scoop --bin scoop` 通过（119 passed）；`cargo run -p scoop -- test tests/fixtures/run-pass/intrinsic_synthetic_property_basic.scoop` 通过；`cargo run -p scoop -- test` 通过（fixtures: ok，1566 checks）；`cargo test -p scoopc` 通过（929 passed）；`cargo clippy --all-targets -- -D warnings` 通过。
 
-## P5-T04：生成 per-cone init routine 与 final system entry 调用骨架
+## [DONE] P5-T04：生成 per-cone init routine 与 final system entry 调用骨架
 
 - 参考：`PLAN.md` §8、§12。
 - 目标：先建立按 cone DAG 调 init routine 的结构，为 P9 eager init 落地做准备。
@@ -493,6 +493,15 @@ P0 baseline freeze
   4. 初期 routine 可为空或只承接现有逻辑，但结构必须稳定。
 - 验证：LLVM IR fixture 检查 init routine 和 call order。
 - 完成条件：P9 可在该骨架上替换 top-level lazy init。
+
+### 完成记录（2026-05-20）
+
+- 改动范围：`crates/scoopc/src/llvm/codegen/mod.rs` 新增 linked cone init routine plan 与 top-level init root collection；新增 `crates/scoopc/src/llvm/codegen/main/cone_init.rs` 生成 compiler-private per-cone init stub 并提供 final entry 调用；`crates/scoopc/src/llvm/emit.rs` 在 C `main` wrapper 中于 runtime init 后、用户 `main` 前按 source cone DAG 顺序调用所有 linked cone init routines；`crates/scoopc/src/pipeline/llvm_codegen_stage.rs` 的 entry-wrapper 单测 helper 过滤 compiler-private cone init 调用；新增 `tests/fixtures/build/per_cone_init_routine_emit_llvm.scoop`。
+- 核心决策：本任务只建立 P9 可替换的稳定骨架，不提前移除 top-level lazy/once init；routine plan 已按 graph-flattened source order 去重 linked cones，并按 source order + span + kind + FQN 收集本 cone 的 top-level immutable values 与 top-level vars，routine body当前为空 stub。
+- Final entry 顺序：`scoop_runtime_init` 之后先调用 linked cones 的 `__scoop_priv0__cone_init__<cone>__h...` internal routines，再构造 argv array（如需要）并进入用户 `main`，因此 P9 后续可在这些 routine 内填入 eager top-level init 而不改变 entry 调用结构。
+- Fixture 覆盖：新增 LLVM build fixture 检查 `scoop.core`、`scoop.lang.string` 和 consumer cone init routine 定义，并用 regex 检查 final entry 中 cone init calls 出现在 `%plain_main = call` 之前；无删除或改写旧 fixture。
+- 与 `PLAN.md` / `SYSROOT_RESHAPE_R2.md` 闭合项：满足 P5 中“收集每个 linked source cone 的 top-level initializer roots”、“为每个 linked source cone 生成独立 cone init routine”和“final system entry 按 source cone DAG 调用 init routines 后进入用户 main”的骨架要求；P9 的 object once、top-level eager init body、once helper 退场和 top-level var storage 语义仍按后续任务推进，阶段级计划未变化。
+- 验证结果：`cargo fmt` 通过；`cargo run -p scoop -- test tests/fixtures/build/per_cone_init_routine_emit_llvm.scoop` 通过；`cargo run -p scoop -- test tests/fixtures/build/` 通过（48 checks）；`cargo test -p scoopc llvm_function_abi_entry_shells_use_direct_entry -- --nocapture` 与 `cargo test -p scoopc llvm_main_wrapper_passes_array_string_argv_to_plain_entry -- --nocapture` 通过；`cargo clippy --all-targets -- -D warnings` 通过；`cargo test --all --all-targets` 通过（Rust tests: ok，包含 `scoopc` 929 passed）；`cargo run -p scoop -- test` 通过（fixtures: ok，1567 checks）；`cargo build` 通过。
 
 ## P6-T01：实现 auto dependency cone 列表
 
