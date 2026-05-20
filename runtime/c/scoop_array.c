@@ -739,6 +739,21 @@ void *scoop_mutable_array_new(uint32_t elem_kind,
   return (void *)arr;
 }
 
+uint64_t scoop_mutable_array_len(const void *mutable_array) {
+  const ScoopMutableArray *arr = (const ScoopMutableArray *)mutable_array;
+  return arr == 0 ? 0 : arr->len;
+}
+
+uint32_t scoop_mutable_array_elem_kind(const void *mutable_array) {
+  const ScoopMutableArray *arr = (const ScoopMutableArray *)mutable_array;
+  return arr == 0 ? SCOOP_ARRAY_ELEM_KIND_UNKNOWN : arr->elem_kind;
+}
+
+uint64_t scoop_mutable_array_elem_size(const void *mutable_array) {
+  const ScoopMutableArray *arr = (const ScoopMutableArray *)mutable_array;
+  return arr == 0 ? 0 : arr->elem_size_bytes;
+}
+
 void scoop_mutable_array_push_word(void *mutable_array, uint64_t value) {
   ScoopMutableArray *arr = (ScoopMutableArray *)mutable_array;
   uint8_t *slot = scoop_mutable_array_next_slot(arr, SCOOP_ARRAY_ELEM_KIND_WORD);
@@ -786,8 +801,8 @@ void scoop_mutable_array_push_composite(void *mutable_array,
       0);
 }
 
-const void *scoop_mutable_array_to_array_data(void *mutable_array) {
-  ScoopMutableArray *arr = (ScoopMutableArray *)mutable_array;
+const void *scoop_mutable_array_to_array_data(const void *mutable_array) {
+  const ScoopMutableArray *arr = (const ScoopMutableArray *)mutable_array;
   if (arr == 0) {
     return 0;
   }

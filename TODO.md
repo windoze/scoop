@@ -3,7 +3,7 @@
 > 生成时间：2026-05-19
 > 设计基线：[`SYSROOT_RESHAPE_R2.md`](./SYSROOT_RESHAPE_R2.md)
 > 计划基线：[`PLAN.md`](./PLAN.md)
-> 当前状态：`P8-T04` 已完成；下一任务为 `P8-T05`。
+> 当前状态：`P8-T05` 已完成；下一任务为 `P9-T01`。
 > 执行原则：严格按 P0 -> P10 顺序推进；同一阶段内可按任务依赖拆 PR，但每个任务完成后必须保持仓库无 failing fixture，并回写完成记录。
 
 ## 全局约束
@@ -113,7 +113,7 @@ P0 baseline freeze
 | `P8-T02` | [DONE] | P8 | 迁移 `scoop.runtime.test` native helpers |
 | `P8-T03` | [DONE] | P8 | 迁移 `scoop.sync` native implementation |
 | `P8-T04` | [DONE] | P8 | 迁移 `scoop.thread` native implementation 与 thread entry trampoline |
-| `P8-T05` | [TODO] | P8 | 迁移 string/native helper 边界并收窄 runtime allowlist |
+| `P8-T05` | [DONE] | P8 | 迁移 string/native helper 边界并收窄 runtime allowlist |
 | `P9-T01` | [TODO] | P9 | Object once 改为 LLVM atomics + TLS init-frame stack |
 | `P9-T02` | [TODO] | P9 | Top-level `val` / annotated `var` 改为 per-cone eager init |
 | `P9-T03` | [TODO] | P9 | top-level `var` annotation gate 与 storage 语义 |
@@ -687,7 +687,7 @@ P0 baseline freeze
 - 与 `PLAN.md` / `SYSROOT_RESHAPE_R2.md` 闭合项：满足 P8 中“user-level thread API 迁到 owning cone native source”、“closure/userdata 通过 GC handle token”、“thread entry trampoline attach -> call `@CallingConvention` Scoop symbol -> normal detach”、“runtime core 只保留 GC thread lifecycle substrate”和“runtime allowlist 删除迁出 thread symbols”的要求；string/native helper 边界和最终 allowlist 收口继续由 `P8-T05` 处理。
 - 验证结果：`cargo fmt` 通过；`cargo build` 通过；`cargo clippy --all-targets -- -D warnings` 通过；`cargo test -p scoop_runtime --lib abi_exports_allowlist -- --nocapture` 通过；`cargo test -p scoop --test p8_runtime_migration -- --nocapture` 通过；定向 thread/typecheck/runtime_gc/run_pass_cone/UMB fixtures 通过；`cargo test --all --all-targets` 通过（Rust tests: ok，包含 `scoopc` 932 passed）；`cargo run -p scoop -- test` 通过（fixtures: ok，1577 checks）。
 
-## P8-T05：迁移 string/native helper 边界并收窄 runtime allowlist
+## [DONE] P8-T05：迁移 string/native helper 边界并收窄 runtime allowlist
 
 - 参考：`PLAN.md` §11。
 - 目标：按 ownership 迁移 string-from-array 等 helper，并完成 runtime core allowlist 收口。
@@ -699,6 +699,16 @@ P0 baseline freeze
   4. 更新 `scoop_runtime_api.h` allowlist 和 tests。
 - 验证：string/lang fixtures、runtime export allowlist test、普通 link smoke。
 - 完成条件：runtime core 只保留必要 string substrate，不承载高层 string cone FFI。
+
+### 完成记录（2026-05-20）
+
+- 改动范围：新增 `sysroot/lib/scoop.lang.string/native/scoop_lang_string.c` 并在 `sysroot/lib/scoop.lang.string/Cone.toml` 声明 `[native-build]`；`runtime/c/scoop_runtime.c` 删除 `scoop_string_from_byte_array`、`scoop_string_from_char_array`、`scoop_string_from_string_array` 和 unused `scoop_string_to_float64` runtime-core 实现；`runtime/c/include/scoop_runtime.h` 与 `runtime/c/scoop_array.c` 暴露必要 `MutableArray` 元数据访问和 `String` byte/owned-bytes substrate；`runtime/c/scoop_runtime_api.h` 同步收窄 allowlist；更新 P8 symbol regression 与 runtime string substrate tests；未修改 `PLAN.md` 或 `SYSROOT_RESHAPE_R2.md`。
+- 核心决策：runtime core 保留 canonical `String` type descriptor、owned byte buffer 构造、byte length/data accessors、compiler/`scoop.core` 仍需的 primitive-to-string、concat/equality/unsafe-slice、entry argv/print/panic substrate；数组转字符串属于 `scoop.lang.string` helper，由该 cone 的 native-build object 提供，不再作为 runtime core ABI。
+- Native 边界：`scoop.lang.string` native source 只 include 公开 `<scoop_runtime.h>` 和 C 标准库头；通过公开 `scoop_mutable_array_len/elem_kind/elem_size/to_array_data`、`scoop_string_byte_length/bytes/from_owned_bytes`、`scoop_pin/unpin` 访问 runtime substrate，不 include `runtime/c` private headers。
+- Allowlist 收口：runtime core allowlist 删除 migrated high-level symbols `scoop_string_from_byte_array`、`scoop_string_from_char_array`、`scoop_string_from_string_array` 和未使用的 `scoop_string_to_float64`；新增的 allowlist entries 仅为必要 core substrate accessors，并新增单测确保 migrated string cone helpers 不回到 runtime core allowlist。
+- Test / fixture 更新：删除不再属于 runtime core 的 `string_from_array_runtime` integration test，改为 `string_core_runtime` 覆盖 core string substrate；现有 `lang_string_builder_basic` fixture 继续覆盖 Byte/Char/StringBuilder 路径并证明 migrated native helper 由 `scoop.lang.string` cone 编译链接；普通 link symbol regression 增加 `scoop_string_to_float64` 不应出现的断言。
+- 与 `PLAN.md` / `SYSROOT_RESHAPE_R2.md` 闭合项：满足 P8 中“按 ownership 迁移 string helper”、“保留 canonical String object/type descriptor substrate”、“每迁出一组 symbols 同步更新 runtime allowlist”和“runtime core 不承载高层 string cone FFI”的要求；P9 的 once/top-level eager init 仍按后续任务推进，阶段级计划未变化。
+- 验证结果：`cargo fmt` 通过；`cargo build` 通过；`cargo clippy --all-targets -- -D warnings` 通过；`cargo test -p scoop_runtime --lib abi_exports_allowlist -- --nocapture` 通过；`cargo test -p scoop_runtime --test string_core_runtime -- --nocapture` 通过；`cargo test -p scoop --test p8_runtime_migration -- --nocapture` 通过；定向 string/lang fixtures `lang_string_builder_basic`、`stdlib_string_basic`、`stdlib_string_methods_extended`、`lang_string_helpers_auto_prelude`、`fstring_desugar_basic` 均通过；`cargo test --all --all-targets` 通过（Rust tests: ok，包含 `scoopc` 932 passed）；`cargo run -p scoop -- test` 通过（fixtures: ok，1577 checks）。
 
 ## P9-T01：Object once 改为 LLVM atomics + TLS init-frame stack
 

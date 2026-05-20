@@ -4,6 +4,7 @@ package scoop.lang.string
 
 import scoop.core.*
 
+// These helpers are implemented by this cone's native-build source, not runtime core.
 @Extern(name = "scoop_string_from_byte_array", abi = "scoop")
 private fun __scoop_lang_string_from_byte_array_unchecked(bytes: MutableArray<Byte>): String
 

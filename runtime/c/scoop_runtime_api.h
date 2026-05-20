@@ -61,7 +61,10 @@
   X(scoop_handle_get) \
   X(scoop_handle_new) \
   X(scoop_leave_native) \
+  X(scoop_mutable_array_elem_kind) \
+  X(scoop_mutable_array_elem_size) \
   X(scoop_mutable_array_freeze) \
+  X(scoop_mutable_array_len) \
   X(scoop_mutable_array_new) \
   X(scoop_mutable_array_push_composite) \
   X(scoop_mutable_array_push_ref) \
@@ -91,12 +94,11 @@
   X(scoop_composite_drop) \
   X(scoop_composite_trace) \
   X(scoop_int_to_string) \
+  X(scoop_string_byte_length) \
+  X(scoop_string_bytes) \
   X(scoop_string_concat) \
   X(scoop_string_equals) \
-  X(scoop_string_from_byte_array) \
-  X(scoop_string_from_char_array) \
-  X(scoop_string_from_string_array) \
-  X(scoop_string_to_float64) \
+  X(scoop_string_from_owned_bytes) \
   X(scoop_string_unsafe_slice_bytes) \
   X(scoop_thread_is_registered) \
   X(scoop_thread_register) \

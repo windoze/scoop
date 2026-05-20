@@ -1,7 +1,7 @@
 // Scoop C runtime generic substrate.
 //
 // 当前文件只保留 target-shape 主线仍需要的通用 substrate：
-// - GC / 线程注册 / 显式 root frame / 分配与字符串 helper
+// - GC / 线程注册 / 显式 root frame / 分配与字符串底层 substrate
 // - 不再承载 continuation / effect policy source of truth
 
 #include <stdint.h>
@@ -14,7 +14,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "scoop_array_internal.h"
 #include "scoop_gc.h"
 #include "scoop_gc_backend.h"
 #include "scoop_gc_immix_internal.h"
@@ -103,10 +102,9 @@ const ScoopTypeDescriptor __scoop_type_desc_runtime__ScoopString = {
     .vtable = 0,
 };
 
-// 前置声明：String helper（定义在文件后部）。
+// 前置声明：String substrate（定义在文件后部）。
 static const ScoopString *scoop_string_empty(void);
 static const ScoopString *scoop_string_from_static_bytes(const uint8_t *value, uint64_t len);
-static const ScoopString *scoop_string_from_owned_bytes(uint8_t *value, uint64_t len);
 
 // 通用分配入口由 runtime substrate 提供；这里保留中性前置声明，供 typed/string helpers 复用。
 void *scoop_alloc(uint64_t size);
@@ -769,7 +767,7 @@ static const ScoopString *scoop_string_from_static_bytes(const uint8_t *value, u
   return out_str;
 }
 
-static const ScoopString *scoop_string_from_owned_bytes(uint8_t *value, uint64_t len) {
+const ScoopString *scoop_string_from_owned_bytes(uint8_t *value, uint64_t len) {
   if (len == 0) {
     free(value);
     return scoop_string_empty();
@@ -787,6 +785,14 @@ static const ScoopString *scoop_string_from_owned_bytes(uint8_t *value, uint64_t
   out_str->len = len;
   out_str->data = value;
   return out_str;
+}
+
+uint64_t scoop_string_byte_length(const ScoopString *value) {
+  return value == 0 ? 0 : value->len;
+}
+
+const uint8_t *scoop_string_bytes(const ScoopString *value) {
+  return value == 0 ? 0 : value->data;
 }
 
 static const ScoopString *scoop_string_from_cstr(const char *value) {
@@ -902,8 +908,8 @@ void *scoop_entry_argv_array(int32_t argc, const char **argv) {
 // --- std v2：Text 基础（T1810）---
 //
 // 说明：runtime 只保留 String allocation/copy/equality/slice 与少量 compiler-synthesis
-// formatting substrate；public `String.*` helper 归属 sysroot body，不再在这里作为整批
-// helper 实现。
+// formatting substrate；`scoop.lang.string` 的数组转字符串等 native helper 由该 cone 的
+// native-build source 提供，不再作为 runtime core ABI 导出。
 
 // T0122: substring/starts_with/ends_with/index_of/contains/split
 // 已迁移到 sysroot/string.scoop（纯 Scoop 实现）。
@@ -931,19 +937,6 @@ static uint32_t scoop_normalize_unicode_scalar(int32_t codepoint) {
     return 0xFFFDu;
   }
   return cp;
-}
-
-static uint64_t scoop_utf8_len_for_scalar(uint32_t cp) {
-  if (cp <= 0x7Fu) {
-    return 1;
-  }
-  if (cp <= 0x7FFu) {
-    return 2;
-  }
-  if (cp <= 0xFFFFu) {
-    return 3;
-  }
-  return 4;
 }
 
 static uint8_t *scoop_emit_utf8_scalar(uint32_t cp, uint8_t *out) {
@@ -985,147 +978,6 @@ const ScoopString *scoop_char_to_string(int32_t codepoint) {
   uint64_t len = (uint64_t)(end - buf);
 
   return scoop_string_from_bytes(buf, len);
-}
-
-static void scoop_string_from_array_trap(const char *symbol) {
-  (void)fprintf(stderr, "scoop runtime trap: invalid argument to %s\n", symbol);
-  exit(3);
-}
-
-static void scoop_require_mutable_array_shape(const ScoopMutableArray *arr,
-                                              uint32_t elem_kind,
-                                              uint64_t elem_size,
-                                              const char *symbol) {
-  if (arr == 0 || arr->elem_kind != elem_kind || arr->elem_size_bytes != elem_size ||
-      (arr->len > 0 && arr->data == 0)) {
-    scoop_string_from_array_trap(symbol);
-  }
-}
-
-const ScoopString *scoop_string_from_byte_array(ScoopMutableArray *bytes) {
-  scoop_require_mutable_array_shape(
-      bytes,
-      SCOOP_ARRAY_ELEM_KIND_WORD,
-      1u,
-      "scoop_string_from_byte_array");
-  if (bytes->len == 0) {
-    scoop_pin((void *)bytes);
-    const ScoopString *empty = scoop_string_empty();
-    scoop_unpin((void *)bytes);
-    return empty;
-  }
-  if (bytes->len > (uint64_t)SIZE_MAX) {
-    return 0;
-  }
-
-  uint8_t *out = (uint8_t *)malloc((size_t)bytes->len);
-  if (out == 0) {
-    return 0;
-  }
-
-  scoop_pin((void *)bytes);
-  (void)memcpy(out, bytes->data, (size_t)bytes->len);
-  const ScoopString *result = scoop_string_from_owned_bytes(out, bytes->len);
-  scoop_unpin((void *)bytes);
-  return result;
-}
-
-const ScoopString *scoop_string_from_char_array(ScoopMutableArray *chars) {
-  scoop_require_mutable_array_shape(
-      chars,
-      SCOOP_ARRAY_ELEM_KIND_WORD,
-      4u,
-      "scoop_string_from_char_array");
-
-  scoop_pin((void *)chars);
-  uint64_t total = 0;
-  for (uint64_t i = 0; i < chars->len; i++) {
-    uint32_t raw = 0;
-    (void)memcpy(&raw, chars->data + (i * 4u), sizeof(raw));
-    uint64_t encoded_len = scoop_utf8_len_for_scalar(scoop_normalize_unicode_scalar((int32_t)raw));
-    if (UINT64_MAX - total < encoded_len) {
-      scoop_unpin((void *)chars);
-      return 0;
-    }
-    total += encoded_len;
-  }
-  if (total > (uint64_t)SIZE_MAX) {
-    scoop_unpin((void *)chars);
-    return 0;
-  }
-  if (total == 0) {
-    const ScoopString *empty = scoop_string_empty();
-    scoop_unpin((void *)chars);
-    return empty;
-  }
-
-  uint8_t *out = (uint8_t *)malloc((size_t)total);
-  if (out == 0) {
-    scoop_unpin((void *)chars);
-    return 0;
-  }
-  uint8_t *cursor = out;
-  for (uint64_t i = 0; i < chars->len; i++) {
-    uint32_t raw = 0;
-    (void)memcpy(&raw, chars->data + (i * 4u), sizeof(raw));
-    uint32_t cp = scoop_normalize_unicode_scalar((int32_t)raw);
-    cursor = scoop_emit_utf8_scalar(cp, cursor);
-  }
-
-  const ScoopString *result = scoop_string_from_owned_bytes(out, total);
-  scoop_unpin((void *)chars);
-  return result;
-}
-
-const ScoopString *scoop_string_from_string_array(ScoopMutableArray *parts) {
-  scoop_require_mutable_array_shape(
-      parts,
-      SCOOP_ARRAY_ELEM_KIND_REF,
-      (uint64_t)sizeof(void *),
-      "scoop_string_from_string_array");
-
-  scoop_pin((void *)parts);
-  uint64_t total = 0;
-  for (uint64_t i = 0; i < parts->len; i++) {
-    const ScoopString *part = 0;
-    (void)memcpy(&part, parts->data + (i * sizeof(void *)), sizeof(part));
-    if (part == 0 || part->len == 0) {
-      continue;
-    }
-    if (part->data == 0 || UINT64_MAX - total < part->len) {
-      scoop_string_from_array_trap("scoop_string_from_string_array");
-    }
-    total += part->len;
-  }
-  if (total > (uint64_t)SIZE_MAX) {
-    scoop_unpin((void *)parts);
-    return 0;
-  }
-  if (total == 0) {
-    const ScoopString *empty = scoop_string_empty();
-    scoop_unpin((void *)parts);
-    return empty;
-  }
-
-  uint8_t *out = (uint8_t *)malloc((size_t)total);
-  if (out == 0) {
-    scoop_unpin((void *)parts);
-    return 0;
-  }
-  uint64_t offset = 0;
-  for (uint64_t i = 0; i < parts->len; i++) {
-    const ScoopString *part = 0;
-    (void)memcpy(&part, parts->data + (i * sizeof(void *)), sizeof(part));
-    if (part == 0 || part->len == 0) {
-      continue;
-    }
-    (void)memcpy(out + offset, part->data, (size_t)part->len);
-    offset += part->len;
-  }
-
-  const ScoopString *result = scoop_string_from_owned_bytes(out, total);
-  scoop_unpin((void *)parts);
-  return result;
 }
 
 // scoop_int_to_string：将 int64_t 转换为十进制字符串表示。
@@ -1210,28 +1062,6 @@ int64_t scoop_float64_to_int(double value) {
 // scoop_float32_to_int：float -> Int，NaN 返回 0，越界时饱和到 int64 边界。
 int64_t scoop_float32_to_int(float value) {
   return scoop_float_to_int_common((double)value);
-}
-
-// scoop_string_to_float64：为后续 String.toFloat64() 预留 runtime 符号。
-// v0 语义：解析失败时返回 0.0；仅接受当前字节串前缀中的合法十进制浮点表示。
-double scoop_string_to_float64(const ScoopString *s) {
-  if (s == 0 || s->data == 0 || s->len == 0) {
-    return 0.0;
-  }
-
-  uint64_t len = s->len;
-  if (len > 127) len = 127;
-
-  char buf[128];
-  (void)memcpy(buf, s->data, (size_t)len);
-  buf[len] = '\0';
-
-  char *endptr = 0;
-  double result = strtod(buf, &endptr);
-  if (endptr == buf) {
-    return 0.0;
-  }
-  return result;
 }
 
 // ---------------------------------------------------------------------------

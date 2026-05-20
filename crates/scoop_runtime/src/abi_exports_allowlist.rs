@@ -139,6 +139,22 @@ fn parse_defined_export_symbols(nm_stdout: &str) -> BTreeSet<String> {
 }
 
 #[test]
+fn migrated_string_cone_helpers_are_not_runtime_core_exports() {
+    let allowlist = parse_allowlist_symbols();
+    for symbol in [
+        "scoop_string_from_byte_array",
+        "scoop_string_from_char_array",
+        "scoop_string_from_string_array",
+        "scoop_string_to_float64",
+    ] {
+        assert!(
+            !allowlist.contains(symbol),
+            "{symbol} should belong to scoop.lang.string native code, not runtime core"
+        );
+    }
+}
+
+#[test]
 fn runtime_exports_must_be_allowlisted() {
     let allowlist = parse_allowlist_symbols();
     assert!(

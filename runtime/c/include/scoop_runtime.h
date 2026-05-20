@@ -124,16 +124,19 @@ void scoop_composite_copy(const ScoopCompositeTransportDescriptor *descriptor,
 void scoop_composite_drop(const ScoopCompositeTransportDescriptor *descriptor, void *value);
 
 void *scoop_mutable_array_new(uint32_t elem_kind,
-                              uint64_t elem_size,
-                              uint64_t elem_align,
-                              const void *elem_desc,
-                              uint64_t capacity);
+                               uint64_t elem_size,
+                               uint64_t elem_align,
+                               const void *elem_desc,
+                               uint64_t capacity);
+uint64_t scoop_mutable_array_len(const void *mutable_array);
+uint32_t scoop_mutable_array_elem_kind(const void *mutable_array);
+uint64_t scoop_mutable_array_elem_size(const void *mutable_array);
 void scoop_mutable_array_push_word(void *mutable_array, uint64_t value);
 void scoop_mutable_array_push_ref(void *mutable_array, void *value);
 void scoop_mutable_array_push_composite(void *mutable_array,
-                                        const void *slot_ptr,
-                                        uint64_t elem_size);
-const void *scoop_mutable_array_to_array_data(void *mutable_array);
+                                         const void *slot_ptr,
+                                         uint64_t elem_size);
+const void *scoop_mutable_array_to_array_data(const void *mutable_array);
 void *scoop_mutable_array_freeze(void *mutable_array);
 
 void scoop_print(const ScoopString *value);
@@ -144,9 +147,13 @@ void *scoop_entry_argv_array(int32_t argc, const char **argv);
 
 const ScoopString *scoop_string_concat(const ScoopString *a, const ScoopString *b);
 int64_t scoop_string_equals(const ScoopString *a, const ScoopString *b);
+uint64_t scoop_string_byte_length(const ScoopString *value);
+const uint8_t *scoop_string_bytes(const ScoopString *value);
+// Takes ownership of a malloc/free-compatible byte buffer.
+const ScoopString *scoop_string_from_owned_bytes(uint8_t *bytes, uint64_t len);
 const ScoopString *scoop_string_unsafe_slice_bytes(const ScoopString *source,
-                                                   int64_t byte_offset,
-                                                   int64_t byte_length);
+                                                    int64_t byte_offset,
+                                                    int64_t byte_length);
 
 #ifdef __cplusplus
 }
