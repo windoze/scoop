@@ -3,7 +3,7 @@
 > 生成时间：2026-05-19
 > 设计基线：[`SYSROOT_RESHAPE_R2.md`](./SYSROOT_RESHAPE_R2.md)
 > 计划基线：[`PLAN.md`](./PLAN.md)
-> 当前状态：`P5-T01` 已完成；下一任务为 `P5-T02`。
+> 当前状态：`P5-T02` 已完成；下一任务为 `P5-T03`。
 > 执行原则：严格按 P0 -> P10 顺序推进；同一阶段内可按任务依赖拆 PR，但每个任务完成后必须保持仓库无 failing fixture，并回写完成记录。
 
 ## 全局约束
@@ -102,7 +102,7 @@ P0 baseline freeze
 | `P4-T02` | [DONE] | P4 | sysroot loader 改为加载 `sysroot/lib/*/Cone.toml` |
 | `P4-T03` | [DONE] | P4 | sysroot overlay 迁移到 `overlay/lib/<cone>/...` |
 | `P5-T01` | [DONE] | P5 | 引入 source cone graph 数据结构 |
-| `P5-T02` | [TODO] | P5 | 支持本地 source path dependency fixtures |
+| `P5-T02` | [DONE] | P5 | 支持本地 source path dependency fixtures |
 | `P5-T03` | [TODO] | P5 | 保留 cone identity/kind 到 resolver/typecheck/codegen |
 | `P5-T04` | [TODO] | P5 | 生成 per-cone init routine 与 final system entry 调用骨架 |
 | `P6-T01` | [TODO] | P6 | 实现 auto dependency cone 列表 |
@@ -435,7 +435,7 @@ P0 baseline freeze
 - Fixture 删除/改写：无。
 - 验证结果：`cargo fmt` 通过；`cargo test -p scoopc cone::graph -- --nocapture` 通过（3 passed）；`cargo test -p scoopc frontend::tests -- --nocapture` 通过（3 passed）；`cargo test -p scoopc sysroot -- --nocapture` 通过（24 passed）；`cargo test -p scoop --bin scoop build_frontend -- --nocapture` 通过（8 passed）；`cargo clippy --all-targets -- -D warnings` 通过；`cargo test --all --all-targets` 通过（Rust tests: ok，包含 `scoopc` 924 passed）；`cargo run -p scoop -- test` 通过（fixtures: ok，1563 checks）；`cargo build` 通过。
 
-## P5-T02：支持本地 source path dependency fixtures
+## [DONE] P5-T02：支持本地 source path dependency fixtures
 
 - 参考：`PLAN.md` §8。
 - 目标：为 source-only dependency 提供最小可测试路径。
@@ -447,6 +447,18 @@ P0 baseline freeze
   4. dependency internal/private 不可见。
 - 验证：source dependency positive fixture、internal visibility negative fixture。
 - 完成条件：不依赖 `.cone` 也能覆盖跨 cone source dependency。
+
+### 完成记录（2026-05-20）
+
+- 改动范围：`Cone.toml` manifest parser、source cone graph 本地 dependency closure、build incremental fingerprint、archive-ignore 单元测试、`run_pass_cone` source path dependency fixtures；未修改 `PLAN.md` 或 `SYSROOT_RESHAPE_R2.md`。
+- 核心决策：本轮最小 path dependency 语法为 `[dependencies]` 中的 `"cone.name" = { path = "relative/path" }`；`path` 相对声明方 cone root，必须加载到同名 `lib` cone。旧字符串版本依赖仍可被 parser 保存为 `Version`，但 active source cone graph 稳定拒绝，避免继续伪装成 `.cone`/registry dependency。
+- Graph / build 行为：`SourceConeGraph::load_for_consumer_package` 现在从 consumer 和本地 dependency manifests 递归加载 local path dependency closure，并为 consumer/local deps 建立 `LocalSource` edges；dependency sources 以独立 cone id 进入 resolver/typecheck/codegen，保留 public/internal/private 可见性边界。
+- Incremental 修正：cone build fingerprint schema 升到 v2，并纳入本地 path dependency 的 `Cone.toml` 与 `.scoop` sources，避免 dependency source 改动后默认 `scoop run` 误判 cache hit。
+- Fixture 覆盖：新增 `run_pass_cone/source_path_dependency_public_call`，证明 `bin` cone 可通过本地 `lib` source dependency 调用 public API 并完成 codegen/run；新增 `source_path_dependency_internal_hidden` 与 `source_path_dependency_private_hidden`，证明 dependency internal/private symbols 对 consumer 不可见。
+- Archive 退场闭合：原 `build_cone_package_ignores_archive_dependencies_in_normal_path` 单测改为 `build_cone_package_ignores_archive_files_in_normal_path`，继续证明 normal build 不读取 `cone/*.cone` 文件；不再用字符串 `[dependencies]` 伪装 archive dependency。
+- 与 `PLAN.md` / `SYSROOT_RESHAPE_R2.md` 闭合项：满足 P5 中“依赖图初期至少支持 sysroot auto dependencies 和本地 path dependencies”、“source dependency fixture 调用 public 函数”、“internal visibility fixture”和“Cone visibility 不因 graph flatten 丢失边界”的要求；更深层 cone identity/kind 向 resolver/typecheck/codegen API 暴露仍按 `P5-T03` 推进。
+- Fixture 删除/改写：无删除；新增 source-only fixtures，不依赖 `.cone` archive。
+- 验证结果：`cargo fmt` 通过；`cargo test -p scoopc cone::manifest -- --nocapture` 通过（12 passed）；`cargo test -p scoopc cone::graph -- --nocapture` 通过（4 passed）；`cargo test -p scoop incremental -- --nocapture` 通过（2 passed）；三个新增 `run_pass_cone/source_path_dependency_*` 定向 fixtures 均通过；`cargo run -p scoop -- test tests/fixtures/run_pass_cone/` 通过（32 checks）；`cargo build` 通过；`cargo clippy --all-targets -- -D warnings` 通过；`cargo test --all --all-targets` 通过（Rust tests: ok，包含 `scoopc` 927 passed）；`cargo run -p scoop -- test` 通过（fixtures: ok，1566 checks）。
 
 ## P5-T03：保留 cone identity/kind 到 resolver/typecheck/codegen
 

@@ -1,0 +1,7 @@
+[cone]
+name = "fixture-source-path-dependency-internal-hidden"
+version = "0.0.0"
+kind = "bin"
+
+[dependencies]
+"fixture-source-path-dependency-internal-hidden-lib" = { path = "deps/fixture.lib" }

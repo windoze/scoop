@@ -112,14 +112,39 @@ pub struct ConeNativeBuildConfig {
     pub link_flags: Vec<String>,
 }
 
+/// `[dependencies]` 中的单个依赖声明。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ConeDependencySpec {
+    /// 旧 manifest parser 保留的版本要求；source-only active path 暂不解析 registry 依赖。
+    Version(String),
+    /// 本地 source cone 依赖，路径相对当前 cone root。
+    LocalPath { path: String },
+}
+
+impl ConeDependencySpec {
+    pub fn version_req(&self) -> Option<&str> {
+        match self {
+            Self::Version(req) => Some(req),
+            Self::LocalPath { .. } => None,
+        }
+    }
+
+    pub fn local_path(&self) -> Option<&str> {
+        match self {
+            Self::Version(_) => None,
+            Self::LocalPath { path } => Some(path),
+        }
+    }
+}
+
 /// `Cone.toml` 的最小可用 manifest。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ConeManifest {
     pub cone: ConeSection,
-    /// 依赖（cone name → 版本要求）。
+    /// 依赖（cone name → dependency spec）。
     ///
-    /// 注意：T1101 先把版本要求当作纯字符串保存，不做 semver/范围解析。
-    pub dependencies: BTreeMap<String, String>,
+    /// 当前 source-only active path 只消费 `LocalPath`；`Version` 仅作为旧语法解析保留。
+    pub dependencies: BTreeMap<String, ConeDependencySpec>,
     /// pre-specialize：需要预编译的“常用单态化实例”（T1108）。
     ///
     /// v0 约定：
@@ -172,25 +197,7 @@ impl ConeManifest {
             ConeKind::parse(get_required_string(cone, "kind").wrap_err("读取 `[cone].kind` 失败")?)
                 .wrap_err("读取 `[cone].kind` 失败")?;
 
-        let dependencies = match root.get("dependencies") {
-            None => BTreeMap::new(),
-            Some(value) => {
-                let table = value
-                    .as_table()
-                    .ok_or_else(|| miette!("`[dependencies]` 必须是 table"))?;
-
-                let mut out = BTreeMap::new();
-                for (dep_name, dep_value) in table {
-                    let req = dep_value.as_str().ok_or_else(|| {
-                        miette!(
-                            "`[dependencies].{dep_name}` 必须是字符串版本要求（例如 \"1.0.0\"）"
-                        )
-                    })?;
-                    out.insert(dep_name.to_owned(), req.to_owned());
-                }
-                out
-            }
-        };
+        let dependencies = parse_dependencies(root)?;
 
         let export_entry_points = parse_export_entry_points(root)?;
         let (pre_specialize_functions, pre_specialize_types) = parse_pre_specialize(root)?;
@@ -267,6 +274,72 @@ fn get_required_string<'a>(table: &'a toml::Table, key: &str) -> Result<&'a str>
         .ok_or_else(|| miette!("缺少字段 `{key}`"))?
         .as_str()
         .ok_or_else(|| miette!("字段 `{key}` 必须是字符串"))
+}
+
+fn parse_dependencies(root: &toml::Table) -> Result<BTreeMap<String, ConeDependencySpec>> {
+    let Some(value) = root.get("dependencies") else {
+        return Ok(BTreeMap::new());
+    };
+    let table = value
+        .as_table()
+        .ok_or_else(|| miette!("`[dependencies]` 必须是 table"))?;
+
+    let mut out = BTreeMap::new();
+    for (dep_name, dep_value) in table {
+        let spec = parse_dependency_spec(dep_name, dep_value)?;
+        out.insert(dep_name.to_owned(), spec);
+    }
+    Ok(out)
+}
+
+fn parse_dependency_spec(dep_name: &str, value: &toml::Value) -> Result<ConeDependencySpec> {
+    if let Some(req) = value.as_str() {
+        return Ok(ConeDependencySpec::Version(req.to_owned()));
+    }
+
+    let Some(table) = value.as_table() else {
+        return Err(miette!(
+            "`[dependencies].{dep_name}` 必须是字符串版本要求或 inline table（例如 {{ path = \"../dep\" }}）"
+        ));
+    };
+
+    let path = get_required_string(table, "path")
+        .wrap_err_with(|| format!("读取 `[dependencies].{dep_name}.path` 失败"))?;
+    let path = normalize_local_dependency_path(path)
+        .wrap_err_with(|| format!("解析 `[dependencies].{dep_name}.path` 失败"))?;
+
+    Ok(ConeDependencySpec::LocalPath { path })
+}
+
+fn normalize_local_dependency_path(value: &str) -> Result<String> {
+    let value = value.trim();
+    if value.is_empty() {
+        return Err(miette!("路径不能为空"));
+    }
+
+    let value = value.replace('\\', "/");
+    if value.starts_with('/') {
+        return Err(miette!("本地 dependency path 必须是相对路径：{value}"));
+    }
+    if value.len() >= 2 {
+        let bytes = value.as_bytes();
+        if bytes[1] == b':' && bytes[0].is_ascii_alphabetic() {
+            return Err(miette!("本地 dependency path 不允许使用盘符路径：{value}"));
+        }
+    }
+
+    let mut parts = Vec::new();
+    for part in value.split('/') {
+        if part.is_empty() || part == "." {
+            continue;
+        }
+        parts.push(part);
+    }
+    if parts.is_empty() {
+        return Err(miette!("路径不能为空"));
+    }
+
+    Ok(parts.join("/"))
 }
 
 fn parse_export_entry_points(root: &toml::Table) -> Result<Vec<String>> {
@@ -609,11 +682,17 @@ scoop-io = "1.2.0"
         assert_eq!(manifest.cone.version, "2.1.0");
         assert_eq!(manifest.cone.kind, ConeKind::Bin);
         assert_eq!(
-            manifest.dependencies.get("scoop-core").map(String::as_str),
+            manifest
+                .dependencies
+                .get("scoop-core")
+                .and_then(ConeDependencySpec::version_req),
             Some("1.0.0")
         );
         assert_eq!(
-            manifest.dependencies.get("scoop-io").map(String::as_str),
+            manifest
+                .dependencies
+                .get("scoop-io")
+                .and_then(ConeDependencySpec::version_req),
             Some("1.2.0")
         );
         assert!(manifest.pre_specialize_functions.is_empty());
@@ -621,6 +700,58 @@ scoop-io = "1.2.0"
         assert!(manifest.export_entry_points.is_empty());
         assert!(manifest.selectors.is_empty());
         assert_eq!(manifest.native_build, ConeNativeBuildConfig::default());
+    }
+
+    #[test]
+    fn parse_local_path_dependency_ok() {
+        let manifest = ConeManifest::parse_str(
+            r#"
+[cone]
+name = "fixture.app"
+version = "0.0.0"
+kind = "bin"
+
+[dependencies]
+"fixture.lib" = { path = "../fixture.lib" }
+"fixture.util" = { path = "./deps//util" }
+"#,
+        )
+        .unwrap();
+
+        assert_eq!(
+            manifest
+                .dependencies
+                .get("fixture.lib")
+                .and_then(ConeDependencySpec::local_path),
+            Some("../fixture.lib")
+        );
+        assert_eq!(
+            manifest
+                .dependencies
+                .get("fixture.util")
+                .and_then(ConeDependencySpec::local_path),
+            Some("deps/util")
+        );
+    }
+
+    #[test]
+    fn parse_local_path_dependency_rejects_absolute_path() {
+        let err = ConeManifest::parse_str(
+            r#"
+[cone]
+name = "fixture.app"
+version = "0.0.0"
+kind = "bin"
+
+[dependencies]
+"fixture.lib" = { path = "/tmp/fixture.lib" }
+"#,
+        )
+        .unwrap_err();
+
+        let text = format!("{err:?}");
+        assert!(text.contains("[dependencies].fixture.lib.path"));
+        assert!(text.contains("相对路径"));
     }
 
     #[test]

@@ -18,7 +18,7 @@ use sha2::{Digest as _, Sha256};
 use scoopc::opt::OptLevel;
 
 pub(crate) const BUILD_JSON_FILE_NAME: &str = "build.json";
-pub(crate) const BUILD_JSON_SCHEMA_VERSION: u32 = 1;
+pub(crate) const BUILD_JSON_SCHEMA_VERSION: u32 = 2;
 
 /// 本次 build 的输入 fingerprint（v1）。
 ///
@@ -29,6 +29,7 @@ pub(crate) struct BuildFingerprint {
     pub(crate) fingerprint: String,
     pub(crate) cone_toml_sha256: String,
     pub(crate) cone_sources_sha256: String,
+    pub(crate) local_dependency_sources_sha256: String,
     pub(crate) sysroot_sources_sha256: String,
     pub(crate) runtime_sources_sha256: String,
     pub(crate) toolchain_sha256: String,
@@ -39,6 +40,7 @@ pub(crate) struct BuildFingerprint {
 /// 最低要求（TODO T1124）：至少包含
 /// - `Cone.toml`
 /// - `src/**/*.scoop`
+/// - 本地 source path dependency 的 `Cone.toml` 与 sources
 /// - 关键 build flags（profile/entry-package）
 /// - 工具链版本
 ///
@@ -54,14 +56,23 @@ pub(crate) fn compute_cone_build_fingerprint(
     opt_level: OptLevel,
 ) -> Result<BuildFingerprint> {
     let pkg = scoopc::cone::load_cone_source_package(cone_root)?;
-
-    let cone_toml_sha256 = sha256_file(&pkg.manifest_path)?;
-    let cone_sources_sha256 = sha256_for_files(&pkg.root, &pkg.sources)?;
-
     let sysroot_root = scoopc::sysroot::Sysroot::default_path()
         .canonicalize()
         .into_diagnostic()
         .wrap_err("无法定位 sysroot 目录（用于增量 fingerprint）")?;
+    let graph =
+        scoopc::cone::SourceConeGraph::load_for_consumer_package(pkg, &sysroot_root, None, &[])?;
+    let consumer = graph.consumer();
+
+    let cone_toml_sha256 = sha256_file(&consumer.manifest_path)?;
+    let consumer_sources = consumer
+        .sources
+        .iter()
+        .map(|source| source.path().to_path_buf())
+        .collect::<Vec<_>>();
+    let cone_sources_sha256 = sha256_for_files(&consumer.root, &consumer_sources)?;
+    let local_dependency_sources_sha256 = sha256_for_local_dependency_nodes(&graph)?;
+
     let sysroot_sources = collect_scoop_files_sorted(&sysroot_root)?;
     let sysroot_sources_sha256 = sha256_for_files(&sysroot_root, &sysroot_sources)?;
 
@@ -95,6 +106,9 @@ pub(crate) fn compute_cone_build_fingerprint(
     hasher.update(b"cone_sources=");
     hasher.update(cone_sources_sha256.as_bytes());
     hasher.update(b"\n");
+    hasher.update(b"local_dependencies=");
+    hasher.update(local_dependency_sources_sha256.as_bytes());
+    hasher.update(b"\n");
     hasher.update(b"sysroot=");
     hasher.update(sysroot_sources_sha256.as_bytes());
     hasher.update(b"\n");
@@ -111,6 +125,7 @@ pub(crate) fn compute_cone_build_fingerprint(
         fingerprint,
         cone_toml_sha256,
         cone_sources_sha256,
+        local_dependency_sources_sha256,
         sysroot_sources_sha256,
         runtime_sources_sha256,
         toolchain_sha256,
@@ -158,6 +173,7 @@ pub(crate) fn write_build_json(
         "inputs": {
             "cone_toml_sha256": fp.cone_toml_sha256,
             "cone_sources_sha256": fp.cone_sources_sha256,
+            "local_dependency_sources_sha256": fp.local_dependency_sources_sha256,
             "sysroot_sources_sha256": fp.sysroot_sources_sha256,
             "runtime_sources_sha256": fp.runtime_sources_sha256,
             "toolchain_sha256": fp.toolchain_sha256,
@@ -190,6 +206,38 @@ fn sha256_for_files(root: &Path, files: &[PathBuf]) -> Result<String> {
     for path in files {
         let rel = normalize_rel_path_forward_slashes(root, path)?;
         entries.push((rel, path.to_path_buf()));
+    }
+    entries.sort_by(|(a, _), (b, _)| a.cmp(b));
+
+    let mut hasher = Sha256::new();
+    for (rel, abs) in entries {
+        let file_hash = sha256_file(&abs)?;
+        hasher.update(rel.as_bytes());
+        hasher.update(b"\n");
+        hasher.update(file_hash.as_bytes());
+        hasher.update(b"\n");
+    }
+    Ok(hex_lower(&hasher.finalize()))
+}
+
+fn sha256_for_local_dependency_nodes(graph: &scoopc::cone::SourceConeGraph) -> Result<String> {
+    let mut entries: Vec<(String, PathBuf)> = Vec::new();
+    for node in graph.nodes() {
+        if node.role != scoopc::cone::SourceConeRole::LocalDependency {
+            continue;
+        }
+
+        entries.push((
+            format!("{}/Cone.toml", node.manifest.cone.name),
+            node.manifest_path.clone(),
+        ));
+        for source in &node.sources {
+            let rel = normalize_rel_path_forward_slashes(&node.root, source.path())?;
+            entries.push((
+                format!("{}/{}", node.manifest.cone.name, rel),
+                source.path().to_path_buf(),
+            ));
+        }
     }
     entries.sort_by(|(a, _), (b, _)| a.cmp(b));
 
@@ -315,5 +363,58 @@ kind = "bin"
         std::fs::write(root.join("src/main.scoop"), "fun main() { }\n").unwrap();
         let fp2 = compute_cone_build_fingerprint(&root, "debug", None, OptLevel::O0).unwrap();
         assert_ne!(fp1.fingerprint, fp2.fingerprint);
+    }
+
+    #[test]
+    fn fingerprint_changes_on_local_dependency_source_update() {
+        let dir = tempdir().unwrap();
+        let root = dir.path().join("app");
+        let dep = root.join("deps").join("lib");
+        std::fs::create_dir_all(root.join("src")).unwrap();
+        std::fs::create_dir_all(dep.join("src")).unwrap();
+
+        std::fs::write(
+            root.join("Cone.toml"),
+            r#"
+[cone]
+name = "fixture-incremental-app"
+version = "0.0.0"
+kind = "bin"
+
+[dependencies]
+"fixture-incremental-lib" = { path = "deps/lib" }
+"#,
+        )
+        .unwrap();
+        std::fs::write(root.join("src/main.scoop"), "fun main() {}\n").unwrap();
+        std::fs::write(
+            dep.join("Cone.toml"),
+            r#"
+[cone]
+name = "fixture-incremental-lib"
+version = "0.0.0"
+kind = "lib"
+"#,
+        )
+        .unwrap();
+        std::fs::write(
+            dep.join("src/api.scoop"),
+            "package dep\nfun value(): Int { return 1 }\n",
+        )
+        .unwrap();
+
+        let fp1 = compute_cone_build_fingerprint(&root, "debug", None, OptLevel::O0).unwrap();
+        std::fs::write(
+            dep.join("src/api.scoop"),
+            "package dep\nfun value(): Int { return 2 }\n",
+        )
+        .unwrap();
+        let fp2 = compute_cone_build_fingerprint(&root, "debug", None, OptLevel::O0).unwrap();
+
+        assert_ne!(fp1.fingerprint, fp2.fingerprint);
+        assert_ne!(
+            fp1.local_dependency_sources_sha256,
+            fp2.local_dependency_sources_sha256
+        );
     }
 }

@@ -31,8 +31,8 @@ pub use graph::{
     SourceConeNode, SourceConeRole, SourceConeTrust,
 };
 pub use manifest::{
-    CONE_TOML_FILE_NAME, ConeKind, ConeManifest, ConeNativeBuildConfig, ConeSection,
-    discover_cone_manifest_path, discover_cone_root,
+    CONE_TOML_FILE_NAME, ConeDependencySpec, ConeKind, ConeManifest, ConeNativeBuildConfig,
+    ConeSection, discover_cone_manifest_path, discover_cone_root,
 };
 pub use package::{
     CONE_MAIN_FILE_NAME, CONE_SRC_DIR_NAME, ConeSourcePackage, load_cone_source_package,

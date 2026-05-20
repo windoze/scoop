@@ -728,7 +728,7 @@ kind = "bin"
     }
 
     #[test]
-    fn build_cone_package_ignores_archive_dependencies_in_normal_path() {
+    fn build_cone_package_ignores_archive_files_in_normal_path() {
         let dir = tempdir().unwrap();
         let app = dir.path().join("app");
         let app_src = app.join("src");
@@ -743,8 +743,6 @@ name = "fixture-app"
 version = "0.0.0"
 kind = "bin"
 
-[dependencies]
-fixture-lib = "0.0.0"
 "#,
         )
         .unwrap();

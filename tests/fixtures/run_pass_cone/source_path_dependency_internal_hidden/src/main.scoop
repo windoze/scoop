@@ -1,0 +1,12 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::resolve::not_visible
+// EXPECT-ERROR-CONTAINS: internal
+
+package fixtures.run_pass_cone.source_path_dependency_internal_hidden.app
+
+import scoop.core.*
+import fixtures.run_pass_cone.source_path_dependency_internal_hidden.lib.*
+
+fun main() {
+    println(hiddenValue())
+}

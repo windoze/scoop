@@ -1,0 +1,5 @@
+package fixtures.run_pass_cone.source_path_dependency_internal_hidden.lib
+
+internal fun hiddenValue(): Int {
+    return 7
+}

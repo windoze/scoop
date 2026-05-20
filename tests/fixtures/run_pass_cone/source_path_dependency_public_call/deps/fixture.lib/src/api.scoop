@@ -1,0 +1,5 @@
+package fixtures.run_pass_cone.source_path_dependency_public_call.lib
+
+public fun dependencyValue(): Int {
+    return 42
+}

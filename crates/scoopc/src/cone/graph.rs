@@ -8,9 +8,11 @@
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
-use miette::{Result, miette};
+use miette::{Context as _, IntoDiagnostic as _, Result, miette};
 
-use crate::cone::{ConeKind, ConeManifest, ConeNativeBuildConfig, ConeSourcePackage};
+use crate::cone::{
+    ConeDependencySpec, ConeKind, ConeManifest, ConeNativeBuildConfig, ConeSourcePackage,
+};
 use crate::resolve::ConeId;
 use crate::source::SourceFile;
 
@@ -161,11 +163,14 @@ impl SourceConeGraph {
     ) -> Result<Self> {
         let sysroot_packages =
             crate::sysroot::collect_sysroot_source_cone_packages(sysroot_root, sysroot_overlay)?;
-        let mut local_dependencies = Vec::with_capacity(local_dependency_roots.len());
-        for root in local_dependency_roots {
-            local_dependencies.push(crate::cone::load_cone_source_package(root)?);
-        }
-        Self::from_packages(sysroot_packages, local_dependencies, consumer)
+        let local_dependencies =
+            collect_local_dependency_closure(&consumer, local_dependency_roots)?;
+        Self::from_packages_with_extra_consumer_roots(
+            sysroot_packages,
+            local_dependencies,
+            consumer,
+            local_dependency_roots,
+        )
     }
 
     pub fn load_for_virtual_consumer(
@@ -196,10 +201,25 @@ impl SourceConeGraph {
         Self::from_nodes(nodes, CONSUMER_CONE_ID)
     }
 
+    #[cfg_attr(not(test), allow(dead_code))]
     pub(crate) fn from_packages(
+        sysroot_packages: Vec<crate::sysroot::SysrootSourceConePackage>,
+        local_dependencies: Vec<ConeSourcePackage>,
+        consumer: ConeSourcePackage,
+    ) -> Result<Self> {
+        Self::from_packages_with_extra_consumer_roots(
+            sysroot_packages,
+            local_dependencies,
+            consumer,
+            &[],
+        )
+    }
+
+    fn from_packages_with_extra_consumer_roots(
         sysroot_packages: Vec<crate::sysroot::SysrootSourceConePackage>,
         mut local_dependencies: Vec<ConeSourcePackage>,
         consumer: ConeSourcePackage,
+        extra_consumer_dependency_roots: &[PathBuf],
     ) -> Result<Self> {
         local_dependencies.sort_by(|lhs, rhs| {
             lhs.manifest
@@ -209,9 +229,13 @@ impl SourceConeGraph {
                 .then_with(|| lhs.root.cmp(&rhs.root))
         });
 
+        let local_dependency_ids = local_dependency_ids(
+            &local_dependencies,
+            FIRST_NON_CONSUMER_CONE_ID + sysroot_packages.len() as u32,
+        )?;
+
         let mut nodes = Vec::with_capacity(sysroot_packages.len() + local_dependencies.len() + 1);
         let mut sysroot_ids = Vec::with_capacity(sysroot_packages.len());
-        let mut local_dependency_ids = Vec::with_capacity(local_dependencies.len());
         let sysroot_count = sysroot_packages.len();
 
         for (offset, package) in sysroot_packages.into_iter().enumerate() {
@@ -222,7 +246,6 @@ impl SourceConeGraph {
 
         for (offset, package) in local_dependencies.into_iter().enumerate() {
             let id = ConeId::new(FIRST_NON_CONSUMER_CONE_ID + sysroot_count as u32 + offset as u32);
-            local_dependency_ids.push(id);
             let mut node =
                 SourceConeNode::from_source_package(id, SourceConeRole::LocalDependency, package)?;
             node.dependencies
@@ -235,6 +258,12 @@ impl SourceConeGraph {
                             kind: SourceConeDependencyKind::SysrootAuto,
                         }),
                 );
+            node.dependencies.extend(local_source_dependency_edges(
+                &node.manifest.cone.name,
+                &node.root,
+                &node.manifest.dependencies,
+                &local_dependency_ids,
+            )?);
             nodes.push(node);
         }
 
@@ -249,16 +278,18 @@ impl SourceConeGraph {
                 target: id,
                 kind: SourceConeDependencyKind::SysrootAuto,
             }));
+        consumer.dependencies.extend(local_source_dependency_edges(
+            &consumer.manifest.cone.name,
+            &consumer.root,
+            &consumer.manifest.dependencies,
+            &local_dependency_ids,
+        )?);
         consumer
             .dependencies
-            .extend(
-                local_dependency_ids
-                    .into_iter()
-                    .map(|id| SourceConeDependencyEdge {
-                        target: id,
-                        kind: SourceConeDependencyKind::LocalSource,
-                    }),
-            );
+            .extend(extra_local_source_dependency_edges(
+                extra_consumer_dependency_roots,
+                &local_dependency_ids,
+            )?);
         nodes.push(consumer);
 
         Self::from_nodes(nodes, CONSUMER_CONE_ID)
@@ -345,6 +376,194 @@ impl SourceConeGraph {
             .find(|node| node.id == self.consumer)
             .expect("validated source cone graph should contain consumer")
     }
+}
+
+fn collect_local_dependency_closure(
+    consumer: &ConeSourcePackage,
+    extra_roots: &[PathBuf],
+) -> Result<Vec<ConeSourcePackage>> {
+    let mut packages_by_root = BTreeMap::<PathBuf, ConeSourcePackage>::new();
+    for (dep_name, root) in local_path_dependency_roots(consumer)? {
+        collect_local_dependency_package(
+            root,
+            Some((consumer.manifest.cone.name.as_str(), dep_name.as_str())),
+            &mut packages_by_root,
+        )?;
+    }
+    for root in extra_roots {
+        let root = canonicalize_dependency_root(
+            &consumer.manifest.cone.name,
+            root,
+            "显式 local dependency root",
+        )?;
+        collect_local_dependency_package(root, None, &mut packages_by_root)?;
+    }
+
+    Ok(packages_by_root.into_values().collect())
+}
+
+fn collect_local_dependency_package(
+    root: PathBuf,
+    expected: Option<(&str, &str)>,
+    packages_by_root: &mut BTreeMap<PathBuf, ConeSourcePackage>,
+) -> Result<()> {
+    if let Some(existing) = packages_by_root.get(&root) {
+        validate_local_dependency_package(expected, existing)?;
+        return Ok(());
+    }
+
+    let package = crate::cone::load_cone_source_package(&root)?;
+    validate_local_dependency_package(expected, &package)?;
+    packages_by_root.insert(package.root.clone(), package.clone());
+
+    for (dep_name, dep_root) in local_path_dependency_roots(&package)? {
+        collect_local_dependency_package(
+            dep_root,
+            Some((package.manifest.cone.name.as_str(), dep_name.as_str())),
+            packages_by_root,
+        )?;
+    }
+
+    Ok(())
+}
+
+fn validate_local_dependency_package(
+    expected: Option<(&str, &str)>,
+    package: &ConeSourcePackage,
+) -> Result<()> {
+    if package.manifest.cone.kind != ConeKind::Lib {
+        return Err(miette!(
+            "本地 source path dependency `{}` 必须声明为 `lib` cone，但当前为 `{}`",
+            package.manifest.cone.name,
+            package.manifest.cone.kind
+        ));
+    }
+
+    if let Some((owner_name, expected_name)) = expected
+        && package.manifest.cone.name != expected_name
+    {
+        return Err(miette!(
+            "`{owner_name}` 的本地 dependency `{expected_name}` 指向 cone `{}`，dependency key 必须匹配被加载 cone 的 name",
+            package.manifest.cone.name
+        ));
+    }
+
+    Ok(())
+}
+
+fn local_dependency_ids(
+    local_dependencies: &[ConeSourcePackage],
+    first_id: u32,
+) -> Result<BTreeMap<PathBuf, ConeId>> {
+    let mut ids = BTreeMap::new();
+    for (offset, package) in local_dependencies.iter().enumerate() {
+        let id = ConeId::new(first_id + offset as u32);
+        if ids.insert(package.root.clone(), id).is_some() {
+            return Err(miette!(
+                "source cone graph 出现重复本地 dependency root：{}",
+                package.root.display()
+            ));
+        }
+    }
+    Ok(ids)
+}
+
+fn local_source_dependency_edges(
+    owner_name: &str,
+    owner_root: &Path,
+    dependencies: &BTreeMap<String, ConeDependencySpec>,
+    local_dependency_ids: &BTreeMap<PathBuf, ConeId>,
+) -> Result<Vec<SourceConeDependencyEdge>> {
+    let mut out = Vec::new();
+    for (_dep_name, root) in local_path_dependency_roots_for(owner_name, owner_root, dependencies)?
+    {
+        let Some(target) = local_dependency_ids.get(&root).copied() else {
+            return Err(miette!(
+                "source cone graph 缺少本地 dependency node：{} 依赖 {}",
+                owner_name,
+                root.display()
+            ));
+        };
+        out.push(SourceConeDependencyEdge {
+            target,
+            kind: SourceConeDependencyKind::LocalSource,
+        });
+    }
+    Ok(out)
+}
+
+fn extra_local_source_dependency_edges(
+    extra_roots: &[PathBuf],
+    local_dependency_ids: &BTreeMap<PathBuf, ConeId>,
+) -> Result<Vec<SourceConeDependencyEdge>> {
+    let mut out = Vec::new();
+    for root in extra_roots {
+        let root = root
+            .canonicalize()
+            .into_diagnostic()
+            .wrap_err_with(|| format!("无法定位显式 local dependency root：{}", root.display()))?;
+        let Some(target) = local_dependency_ids.get(&root).copied() else {
+            return Err(miette!(
+                "source cone graph 缺少显式本地 dependency node：{}",
+                root.display()
+            ));
+        };
+        out.push(SourceConeDependencyEdge {
+            target,
+            kind: SourceConeDependencyKind::LocalSource,
+        });
+    }
+    Ok(out)
+}
+
+fn local_path_dependency_roots(package: &ConeSourcePackage) -> Result<Vec<(String, PathBuf)>> {
+    local_path_dependency_roots_for(
+        &package.manifest.cone.name,
+        &package.root,
+        &package.manifest.dependencies,
+    )
+}
+
+fn local_path_dependency_roots_for(
+    owner_name: &str,
+    owner_root: &Path,
+    dependencies: &BTreeMap<String, ConeDependencySpec>,
+) -> Result<Vec<(String, PathBuf)>> {
+    let mut out = Vec::new();
+    for (dep_name, spec) in dependencies {
+        match spec {
+            ConeDependencySpec::LocalPath { path } => {
+                let root = owner_root.join(path);
+                let root = canonicalize_dependency_root(owner_name, &root, dep_name)?;
+                out.push((dep_name.clone(), root));
+            }
+            ConeDependencySpec::Version(req) => {
+                return Err(miette!(
+                    "source cone graph 暂只支持本地 path dependency；`{}` 的 `[dependencies].{}` 使用了版本要求 `{}`",
+                    owner_name,
+                    dep_name,
+                    req
+                ));
+            }
+        }
+    }
+    Ok(out)
+}
+
+fn canonicalize_dependency_root(owner_name: &str, root: &Path, dep_name: &str) -> Result<PathBuf> {
+    let root = root.canonicalize().into_diagnostic().wrap_err_with(|| {
+        format!(
+            "无法定位 `{owner_name}` 的本地 dependency `{dep_name}`：{}",
+            root.display()
+        )
+    })?;
+    if !root.is_dir() {
+        return Err(miette!(
+            "`{owner_name}` 的本地 dependency `{dep_name}` 不是目录：{}",
+            root.display()
+        ));
+    }
+    Ok(root)
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -542,7 +761,7 @@ mod tests {
             &app,
             "fixture.app",
             ConeKind::Bin,
-            "[dependencies]\n\"fixture.util\" = \"0.0.0\"\n",
+            "[dependencies]\n\"fixture.util\" = { path = \"../fixture.util\" }\n",
         );
         write_file(
             &app.join("src").join("main.scoop"),
@@ -550,13 +769,8 @@ mod tests {
         );
 
         let consumer = load_cone_source_package(&app).unwrap();
-        let graph = SourceConeGraph::load_for_consumer_package(
-            consumer,
-            &sysroot,
-            None,
-            std::slice::from_ref(&dep),
-        )
-        .unwrap();
+        let graph =
+            SourceConeGraph::load_for_consumer_package(consumer, &sysroot, None, &[]).unwrap();
 
         let names = graph
             .nodes()
@@ -642,6 +856,32 @@ mod tests {
             .collect::<Vec<_>>();
 
         assert_eq!(names, vec!["fixture.dep", "fixture.app"]);
+    }
+
+    #[test]
+    fn source_cone_graph_rejects_version_dependency_in_active_source_path() {
+        let temp = make_temp_dir("version_dep_rejected");
+        let app = temp.0.join("fixture.app");
+        write_manifest(
+            &app,
+            "fixture.app",
+            ConeKind::Bin,
+            "[dependencies]\n\"fixture.lib\" = \"0.0.0\"\n",
+        );
+        write_file(
+            &app.join("src").join("main.scoop"),
+            "package fixture.app\nfun main(): Int = 0\n",
+        );
+
+        let consumer = load_cone_source_package(&app).unwrap();
+        let err = SourceConeGraph::from_packages(Vec::new(), Vec::new(), consumer)
+            .unwrap_err()
+            .to_string();
+
+        assert!(
+            err.contains("暂只支持本地 path dependency"),
+            "unexpected error: {err}"
+        );
     }
 
     #[test]
