@@ -149,7 +149,7 @@
   - 验证命令：`cargo fmt`；`cargo check --workspace --no-default-features`；`cargo run -p scoop_tools -- dependency-gate`；`cargo clippy --all-targets -- -D warnings`；`cargo test -p scoop_tools dependency_gate`；`cargo tree -p scoopc_span`；`cargo tree -p scoopc_source`；`cargo tree -p scoopc_types`；`cargo tree -p scoopc_ids`；`cargo tree -p scoopc_project_model`。
   - 残余风险：基础 crate 仍是壳层，实际 `Span` / source / type / ID / project model authoritative 定义尚未迁移；这是后续 `P1-T02` 到 `P1-T04` 的既定范围，本 review 未发现阻塞 `P1-T02` 的依赖或命名问题。
 
-## [TODO] P1-T02：迁移 `span` 与 `source` 基础设施
+## [DONE] P1-T02：迁移 `span` 与 `source` 基础设施
 
 - 参考：
   - 本文件“触碰面基线 / `span` / `source`”
@@ -188,7 +188,11 @@
   - 下游代码无需桥接或转换即可共享同一基础类型。
 - 依赖：P1-T01R
 - 完成记录：
-  - 待填写。
+  - 改动范围：`Span` authoritative 定义迁入 `crates/scoopc_span/src/lib.rs`，保留 `miette::SourceSpan` 转换能力并补充基础单元测试；`SourceOrigin`、`SourceTrust`、`SourceFile`、`SourceId`、`SourceMapSpan`、`SourceLocation`、`SourceMap` 及原 source map 行列/UTF-8 boundary 测试迁入 `crates/scoopc_source/src/lib.rs`。
+  - 核心决策：`scoopc_source` 只依赖 `scoopc_span` 和 `miette`；`crates/scoopc/src/span.rs` 与 `crates/scoopc/src/source.rs` 只保留 re-export adapter，因此旧 `scoopc::{span, source}` 路径与新基础 crate 路径共享同一套类型，没有桥接转换或重复 authoritative 定义。
+  - 依赖方向：本次新增基础依赖为 `scoopc_source -> scoopc_span`，符合 P1 base crate DAG；`dependency-gate` 报告 `scoopc_source` 的 base deps 仅为 `scoopc_span`。
+  - 验证命令：`cargo fmt`；`cargo test -p scoopc_span`；`cargo test -p scoopc_source`；`cargo test --all --all-targets --no-default-features`（首次 10 分钟外层超时中断后以 30 分钟超时重跑通过）；`cargo clippy --all-targets -- -D warnings`；`cargo run -p scoop_tools -- dependency-gate`；`cargo tree -p scoopc_source`；搜索 `pub struct Span|pub struct SourceFile|pub struct SourceId|pub struct SourceMap`。
+  - 残余风险：全仓调用点仍大量经由迁移期 `scoopc::span` / `scoopc::source` 路径引用基础类型；这是 P1 允许的 adapter 状态，后续清场任务可逐步改为直接依赖基础 crate。
 
 ## [TODO] P1-T02R：Review `span` / `source` 迁移结果
 
