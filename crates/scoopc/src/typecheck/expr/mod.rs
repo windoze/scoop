@@ -207,7 +207,6 @@ struct ExprInferInputs<'a> {
     /// - receiver lambda 会在按 expected function type 类型检查 body 时写入该字段；
     /// - 嵌套普通 lambda 会继承外层 receiver lambda 的 `this`，嵌套 receiver lambda 则会覆盖它。
     lambda_this_decl_span: Option<Span>,
-    comptime_bindings: Option<&'a HashSet<Span>>,
     top_level_types: &'a HashMap<String, TypeId>,
     top_level_funs: &'a HashMap<String, Vec<FunSigOwned>>,
     member_mutabilities: Option<&'a HashMap<String, bool>>,
@@ -227,7 +226,6 @@ impl<'a> ExprInferInputs<'a> {
             locals,
             mutable_bindings: self.mutable_bindings,
             lambda_this_decl_span: self.lambda_this_decl_span,
-            comptime_bindings: self.comptime_bindings,
             top_level_types: self.top_level_types,
             top_level_funs: self.top_level_funs,
             member_mutabilities: self.member_mutabilities,
@@ -247,7 +245,6 @@ impl<'a> ExprInferInputs<'a> {
             locals: self.locals,
             mutable_bindings: self.mutable_bindings,
             lambda_this_decl_span,
-            comptime_bindings: self.comptime_bindings,
             top_level_types: self.top_level_types,
             top_level_funs: self.top_level_funs,
             member_mutabilities: self.member_mutabilities,

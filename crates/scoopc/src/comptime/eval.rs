@@ -480,8 +480,7 @@ pub(crate) fn eval_const_expr_flow_with_host(
         }
         ast::ExprKind::ArrayLit { elements } => {
             // v0：编译期执行侧先把 array literal 视为“可迭代的常量序列”。
-            // 目前 ConstValue 未区分 tuple/array（两者都用 Tuple 承载），
-            // 主要用于 `comptime for` 的迭代对象（T1207）。
+            // 目前 ConstValue 未区分 tuple/array（两者都用 Tuple 承载）。
             let mut out: Vec<ConstValue> = Vec::with_capacity(elements.len());
             for e in elements {
                 out.push(eval_value!(ctx, host, e));
@@ -1010,7 +1009,7 @@ fn try_eval_string_method_intrinsic(
 
 /// Float builtin 方法 intrinsics（T0148d-3）。
 ///
-/// 目标：让 `const val` / `comptime if` / `const fun` 能在编译期直接执行
+/// 目标：让 `const val` / `const fun` 能在编译期直接执行
 /// `Float.toInt()/toString()/hash()/abs()/isNaN()/isInfinite()`，避免掉到模糊的
 /// “generic call callee / expression kind” 路径。
 fn try_eval_float_method_intrinsic(

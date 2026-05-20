@@ -529,10 +529,6 @@ struct HirLowering<'a> {
     materialize_direct_call_targets: bool,
     /// 是否在 explicit MIR instance lowering 的 HIR 兼容前端上执行 exact-receiver devirtualization。
     devirtualize_dispatch_calls: bool,
-    /// typed HIR 的语句级 `comptime` 展开计划。
-    runtime_comptime_plan: Option<&'a crate::comptime::RuntimeComptimePlan>,
-    /// 当前 `comptime for` 展开迭代中的编译期值绑定（decl span -> const value）。
-    comptime_value_scopes: Vec<HashMap<Span, crate::comptime::ConstValue>>,
     /// 当前展开体中需要重映射的局部声明 span，避免同一源码 body 多次 unroll 后局部 SymbolId 冲突。
     local_decl_span_overrides: Vec<HashMap<Span, Span>>,
     /// lowering 过程中发现的第一个 typed HIR contract 错误。
@@ -560,7 +556,6 @@ struct HirLoweringSetup<'a> {
     class_itables: &'a crate::itable::ClassItableIndex,
     materialize_direct_call_targets: bool,
     devirtualize_dispatch_calls: bool,
-    runtime_comptime_plan: Option<&'a crate::comptime::RuntimeComptimePlan>,
 }
 
 #[derive(Clone)]

@@ -1847,8 +1847,8 @@ pub enum ExprKind {
     /// Splice 字段访问：`receiver.[field]`（spec §6.4）。
     ///
     /// 说明：
-    /// - 该语法用于在 `comptime` 语境下通过 `FieldMeta` 动态选择字段；
-    /// - 当前阶段仅做语法建模；合法性（只能用于 `comptime for` 且 `field` 为 `FieldMeta`）由后续阶段实现。
+    /// - 该语法用于通过静态字段名或字段描述符选择字段；
+    /// - typecheck 必须在进入 HIR 前发布字段 contract。
     SpliceField {
         receiver: Box<Expr>,
         field: Box<Expr>,
@@ -2211,37 +2211,6 @@ pub struct StructPatternField {
     pub value: Option<Box<Pattern>>,
 }
 
-/// `comptime if` 语句（spec §6.3）。
-///
-/// 说明：分支裁剪与“未选中分支不做类型检查”等语义由后续阶段实现；当前阶段仅做语法建模。
-#[derive(Debug, Clone)]
-pub struct ComptimeIf {
-    pub span: Span,
-    pub comptime_span: Span,
-    pub if_span: Span,
-    pub cond: Expr,
-    pub then_branch: Block,
-    pub else_branch: Option<Box<ComptimeIfElse>>,
-}
-
-#[derive(Debug, Clone)]
-pub enum ComptimeIfElse {
-    Block(Block),
-    If(Box<ComptimeIf>),
-}
-
-/// `comptime for (x in xs) { ... }` 语句（spec §6.3）。
-#[derive(Debug, Clone)]
-pub struct ComptimeFor {
-    pub span: Span,
-    pub comptime_span: Span,
-    pub for_span: Span,
-    pub binder: Ident,
-    pub in_span: Span,
-    pub iter: Expr,
-    pub body: Block,
-}
-
 /// `for (x in xs) { ... }` 语句（Kotlin-like，Appendix B.12）。
 ///
 /// 说明：
@@ -2346,17 +2315,6 @@ pub enum StmtKind {
     },
     /// `for (x in xs) { ... }`（Appendix B.12）。
     For(ForStmt),
-    /// `comptime { ... }` 执行块（spec §6）。
-    ///
-    /// 说明：当前阶段仅做语法建模；真正的编译期执行入口在后续阶段实现（见 TODO T12xx）。
-    ComptimeBlock {
-        comptime_span: Span,
-        body: Block,
-    },
-    /// `comptime if (...) { ... } else ...`（spec §6.3）。
-    ComptimeIf(ComptimeIf),
-    /// `comptime for (x in xs) { ... }`（spec §6.3）。
-    ComptimeFor(ComptimeFor),
     Missing,
 }
 

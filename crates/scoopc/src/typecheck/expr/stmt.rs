@@ -89,7 +89,6 @@ pub(super) struct StmtExprState<'a> {
     pub(super) locals: &'a mut HashMap<Span, TypeId>,
     pub(super) stable_bindings: &'a mut HashSet<Span>,
     pub(super) mutable_bindings: &'a mut HashSet<Span>,
-    pub(super) comptime_bindings: &'a mut HashSet<Span>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -133,7 +132,6 @@ where
         locals,
         mutable_bindings: None,
         lambda_this_decl_span: None,
-        comptime_bindings: None,
         top_level_types: shared.top_level_types,
         top_level_funs: shared.top_level_funs,
         member_mutabilities: Some(shared.member_mutabilities),
@@ -157,7 +155,6 @@ where
         locals: state.locals,
         mutable_bindings: Some(state.mutable_bindings),
         lambda_this_decl_span: flow.lambda_this_decl_span,
-        comptime_bindings: Some(state.comptime_bindings),
         top_level_types: shared.top_level_types,
         top_level_funs: shared.top_level_funs,
         member_mutabilities: Some(shared.member_mutabilities),
@@ -180,8 +177,6 @@ fn check_lambda_expr_stmt_body(
     let mut lambda_locals = state.locals.clone();
     let mut lambda_stable = state.stable_bindings.clone();
     let mut lambda_mutable = state.mutable_bindings.clone();
-    let mut lambda_comptime = state.comptime_bindings.clone();
-
     // required effects（T0604）：lambda body 的 effect 属于该函数值，不计入外层函数立即执行的 effects。
     lower.with_effect_collection_suspended(|lower| {
         // `@NoGC`：lambda body 并不在外层函数执行时立即运行，不能把 `@NoGC` 的限制“向内传播”。
@@ -191,7 +186,6 @@ fn check_lambda_expr_stmt_body(
                     locals: &mut lambda_locals,
                     stable_bindings: &mut lambda_stable,
                     mutable_bindings: &mut lambda_mutable,
-                    comptime_bindings: &mut lambda_comptime,
                 };
                 check_expr_stmt_with_mode(
                     shared,
@@ -599,8 +593,6 @@ pub(super) fn check_fun_body_exprs(
             let mut stable_bindings: HashSet<Span> = HashSet::new();
             // 可赋值（mutable）的绑定：当前阶段仅覆盖局部 `var`。
             let mut mutable_bindings: HashSet<Span> = HashSet::new();
-            let mut comptime_bindings: HashSet<Span> = HashSet::new();
-
             // 扩展函数：为 `this` 注入隐式绑定（resolver 将 `this` 解析到 receiver 的 decl_span）。
             if let Some(receiver) = &fun.receiver {
                 let receiver_ty = lower.lower_type_ref(receiver)?;
@@ -681,7 +673,6 @@ pub(super) fn check_fun_body_exprs(
                                 locals: &mut locals,
                                 stable_bindings: &mut stable_bindings,
                                 mutable_bindings: &mut mutable_bindings,
-                                comptime_bindings: &mut comptime_bindings,
                             };
                             try_infer_fun_return_ty_from_block(shared, b, lower, &mut state, 0)?
                         }
@@ -724,7 +715,6 @@ pub(super) fn check_fun_body_exprs(
                         locals: &mut locals,
                         stable_bindings: &mut stable_bindings,
                         mutable_bindings: &mut mutable_bindings,
-                        comptime_bindings: &mut comptime_bindings,
                     };
                     check_block_exprs(
                         shared,
@@ -1095,93 +1085,6 @@ fn check_stmt_exprs_with_mode(
             *state.stable_bindings = saved_stable;
             *state.mutable_bindings = saved_mutable;
         }
-        ast::StmtKind::ComptimeBlock { body, .. } => {
-            check_block_exprs_with_mode(shared, body, lower, state, flow, call_mode)?;
-        }
-        ast::StmtKind::ComptimeIf(ci) => {
-            check_block_exprs_with_mode(shared, &ci.then_branch, lower, state, flow, call_mode)?;
-            if let Some(else_branch) = &ci.else_branch {
-                match &**else_branch {
-                    ast::ComptimeIfElse::Block(b) => {
-                        check_block_exprs_with_mode(shared, b, lower, state, flow, call_mode)?
-                    }
-                    ast::ComptimeIfElse::If(next) => {
-                        // 递归跟进 else-if 链。
-                        let mut cur: &ast::ComptimeIf = next;
-                        loop {
-                            check_block_exprs_with_mode(
-                                shared,
-                                &cur.then_branch,
-                                lower,
-                                state,
-                                flow,
-                                call_mode,
-                            )?;
-                            match &cur.else_branch {
-                                Some(e) => match &**e {
-                                    ast::ComptimeIfElse::Block(b) => {
-                                        check_block_exprs_with_mode(
-                                            shared, b, lower, state, flow, call_mode,
-                                        )?;
-                                        break;
-                                    }
-                                    ast::ComptimeIfElse::If(next) => cur = next,
-                                },
-                                None => break,
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        ast::StmtKind::ComptimeFor(cf) => {
-            let iter_ty =
-                expr_infer_inputs_with_flow(shared, state, flow).infer(lower, &cf.iter)?;
-            let elem_ty = match lower.type_kind(iter_ty) {
-                TypeKind::Value(ValueTypeKind::Tuple(elements)) => {
-                    elements.first().copied().unwrap_or(shared.builtins.any)
-                }
-                _ => try_extract_nominal_fqn_and_args(iter_ty, lower)
-                    .and_then(|(iter_fqn, iter_args)| {
-                        if iter_fqn == "scoop.core.Array"
-                            || iter_fqn == "scoop.core.MutableArray"
-                            || iter_fqn == "scoop.core.ComptimeList"
-                        {
-                            Some(iter_args.first().copied().unwrap_or(shared.builtins.any))
-                        } else {
-                            scalar_progression_element_ty(&iter_fqn, shared.builtins, lower)
-                        }
-                    })
-                    .unwrap_or(shared.builtins.any),
-            };
-
-            let saved_locals = state.locals.clone();
-            let saved_stable = state.stable_bindings.clone();
-            let saved_mutable = state.mutable_bindings.clone();
-            let saved_comptime = state.comptime_bindings.clone();
-
-            state.locals.insert(cf.binder.span, elem_ty);
-            state.stable_bindings.insert(cf.binder.span);
-            state.comptime_bindings.insert(cf.binder.span);
-
-            check_block_exprs_with_mode(
-                shared,
-                &cf.body,
-                lower,
-                state,
-                StmtExprFlow {
-                    loop_depth: flow.loop_depth + 1,
-                    expected_return_ty: flow.expected_return_ty,
-                    lambda_this_decl_span: flow.lambda_this_decl_span,
-                },
-                call_mode,
-            )?;
-
-            *state.locals = saved_locals;
-            *state.stable_bindings = saved_stable;
-            *state.mutable_bindings = saved_mutable;
-            *state.comptime_bindings = saved_comptime;
-        }
         ast::StmtKind::Empty | ast::StmtKind::Missing => {}
     }
 
@@ -1405,7 +1308,6 @@ fn check_expr_stmt_with_mode(
                 let mut arm_locals = state.locals.clone();
                 let mut arm_stable = state.stable_bindings.clone();
                 let mut arm_mutable = state.mutable_bindings.clone();
-                let mut arm_comptime = state.comptime_bindings.clone();
 
                 if let Some(subject_ty) = subject_ty {
                     let bindings = when_pat::infer_when_pat_bindings(
@@ -1426,7 +1328,6 @@ fn check_expr_stmt_with_mode(
                     locals: &mut arm_locals,
                     stable_bindings: &mut arm_stable,
                     mutable_bindings: &mut arm_mutable,
-                    comptime_bindings: &mut arm_comptime,
                 };
 
                 if let Some(guard) = &arm.guard {
@@ -1562,7 +1463,6 @@ fn check_if_expr_stmt(
     let mut then_locals = state.locals.clone();
     let mut then_stable = state.stable_bindings.clone();
     let mut then_mutable = state.mutable_bindings.clone();
-    let mut then_comptime = state.comptime_bindings.clone();
     if let Some(smart_cast) = smart_cast
         && smart_cast.narrow_in_then
     {
@@ -1572,7 +1472,6 @@ fn check_if_expr_stmt(
         locals: &mut then_locals,
         stable_bindings: &mut then_stable,
         mutable_bindings: &mut then_mutable,
-        comptime_bindings: &mut then_comptime,
     };
     check_expr_stmt_with_mode(
         shared,
@@ -1588,7 +1487,6 @@ fn check_if_expr_stmt(
         let mut else_locals = state.locals.clone();
         let mut else_stable = state.stable_bindings.clone();
         let mut else_mutable = state.mutable_bindings.clone();
-        let mut else_comptime = state.comptime_bindings.clone();
         if let Some(smart_cast) = smart_cast
             && !smart_cast.narrow_in_then
         {
@@ -1599,7 +1497,6 @@ fn check_if_expr_stmt(
             locals: &mut else_locals,
             stable_bindings: &mut else_stable,
             mutable_bindings: &mut else_mutable,
-            comptime_bindings: &mut else_comptime,
         };
         check_expr_stmt_with_mode(
             shared,

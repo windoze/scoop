@@ -543,7 +543,7 @@ fn infer_tuple_lit_expr_type_in_expected_context(
 ///   - `val/var` / 普通表达式（包含 AST 形态的 `lhs = rhs` 赋值表达式）；
 ///   - `while` / `for`；
 ///   - `return` / `break` / `continue`（结果类型视为 `Nothing`）。
-/// - `comptime` / `missing` 仍不属于这里的 runtime block-expression 子集。
+/// - `missing` 仍不属于这里的 runtime block-expression 子集。
 fn infer_block_value_type(
     inputs: ExprInferInputs<'_>,
     block: &ast::Block,
@@ -573,10 +573,6 @@ fn infer_block_value_type_with_expected(
     let mut block_locals = inputs.locals.clone();
     let mut stable_bindings: HashSet<Span> = HashSet::new();
     let mut mutable_bindings: HashSet<Span> = HashSet::new();
-    let mut comptime_bindings: HashSet<Span> = inputs
-        .comptime_bindings
-        .cloned()
-        .unwrap_or_else(HashSet::new);
     let empty_member_mutabilities: HashMap<String, bool> = HashMap::new();
     let shared = StmtExprShared {
         source: inputs.source,
@@ -608,7 +604,6 @@ fn infer_block_value_type_with_expected(
                     locals: &mut block_locals,
                     stable_bindings: &mut stable_bindings,
                     mutable_bindings: &mut mutable_bindings,
-                    comptime_bindings: &mut comptime_bindings,
                 };
                 check_local_val_decl_exprs(shared, v, lower, &mut state, flow)?;
             }
@@ -653,7 +648,6 @@ fn infer_block_value_type_with_expected(
                     locals: &mut block_locals,
                     stable_bindings: &mut stable_bindings,
                     mutable_bindings: &mut mutable_bindings,
-                    comptime_bindings: &mut comptime_bindings,
                 };
                 check_stmt_exprs(shared, stmt, lower, &mut state, flow)?;
                 if normal_completion_reachable && is_last {
@@ -667,7 +661,6 @@ fn infer_block_value_type_with_expected(
                     locals: &mut block_locals,
                     stable_bindings: &mut stable_bindings,
                     mutable_bindings: &mut mutable_bindings,
-                    comptime_bindings: &mut comptime_bindings,
                 };
                 check_stmt_exprs(shared, stmt, lower, &mut state, flow)?;
                 if normal_completion_reachable {
@@ -678,14 +671,6 @@ fn infer_block_value_type_with_expected(
             ast::StmtKind::Missing => {
                 return Err(ExprTypeError::UnsupportedExpr {
                     kind: "block expression（missing stmt）",
-                    span: stmt.span.into(),
-                });
-            }
-            ast::StmtKind::ComptimeBlock { .. }
-            | ast::StmtKind::ComptimeIf(_)
-            | ast::StmtKind::ComptimeFor(_) => {
-                return Err(ExprTypeError::UnsupportedExpr {
-                    kind: "block expression（comptime stmt）",
                     span: stmt.span.into(),
                 });
             }

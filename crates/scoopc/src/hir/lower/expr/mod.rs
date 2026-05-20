@@ -261,17 +261,6 @@ fn find_ctor_params_with_type_params(
     None
 }
 
-fn const_value_splice_field_name(value: &crate::comptime::ConstValue) -> Option<String> {
-    match value {
-        crate::comptime::ConstValue::String(name) => Some(name.clone()),
-        crate::comptime::ConstValue::Struct(value) => match value.fields.get("name") {
-            Some(crate::comptime::ConstValue::String(name)) => Some(name.clone()),
-            _ => None,
-        },
-        _ => None,
-    }
-}
-
 mod canonical_call;
 mod main_lower;
 mod members;

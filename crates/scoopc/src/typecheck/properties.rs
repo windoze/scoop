@@ -836,36 +836,7 @@ fn field_use_span_in_stmt(
         }
         ast::StmtKind::For(f) => field_use_span_in_expr(source, backing_field_decl_span, &f.iter)
             .or_else(|| field_use_span_in_block(source, backing_field_decl_span, &f.body)),
-        ast::StmtKind::ComptimeBlock { body, .. } => {
-            field_use_span_in_block(source, backing_field_decl_span, body)
-        }
-        ast::StmtKind::ComptimeIf(ci) => {
-            field_use_span_in_comptime_if(source, backing_field_decl_span, ci)
-        }
-        ast::StmtKind::ComptimeFor(cf) => {
-            field_use_span_in_expr(source, backing_field_decl_span, &cf.iter)
-                .or_else(|| field_use_span_in_block(source, backing_field_decl_span, &cf.body))
-        }
     }
-}
-
-fn field_use_span_in_comptime_if(
-    source: &SourceFile,
-    backing_field_decl_span: Span,
-    ci: &ast::ComptimeIf,
-) -> Option<Span> {
-    field_use_span_in_expr(source, backing_field_decl_span, &ci.cond)
-        .or_else(|| field_use_span_in_block(source, backing_field_decl_span, &ci.then_branch))
-        .or_else(|| {
-            ci.else_branch.as_ref().and_then(|b| match b.as_ref() {
-                ast::ComptimeIfElse::Block(block) => {
-                    field_use_span_in_block(source, backing_field_decl_span, block)
-                }
-                ast::ComptimeIfElse::If(inner) => {
-                    field_use_span_in_comptime_if(source, backing_field_decl_span, inner)
-                }
-            })
-        })
 }
 
 fn field_use_span_in_expr(

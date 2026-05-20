@@ -169,7 +169,6 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
                 class_itables: &class_itables,
                 materialize_direct_call_targets: false,
                 devirtualize_dispatch_calls: false,
-                runtime_comptime_plan: None,
             },
         );
         let file = ctx.lower_file();
@@ -459,16 +458,6 @@ pub fn lower_typed_for_dump(
     }
     compilation_unit.push((source, &ast));
     let files_to_lower = [(source, &ast)];
-    let runtime_comptime_plan = crate::comptime::plan_runtime_comptime_in_file(
-        source,
-        &ast,
-        &compilation_unit,
-        &typecheck_types,
-    )?;
-    let mut runtime_comptime_plans = HashMap::new();
-    if !runtime_comptime_plan.is_empty() {
-        runtime_comptime_plans.insert(source.path().to_path_buf(), runtime_comptime_plan);
-    }
 
     lower_for_compilation_unit_multi_files_internal(
         &index,
@@ -479,7 +468,6 @@ pub fn lower_typed_for_dump(
         &typecheck_types,
         CompilationUnitLoweringOptions::generic_template_only(
             StableConeKey::for_virtual_source_path(source.path()),
-        )
-        .with_runtime_comptime_plans(&runtime_comptime_plans),
+        ),
     )
 }

@@ -3523,34 +3523,6 @@ fun get_y(p: Point): Int { return p.[FieldMeta { name: "y" }] }
     }
 
     #[test]
-    fn hir_splice_field_lowers_reflection_loop_field_meta() {
-        let session = session();
-        let source = SourceFile::new_virtual(
-            "<mem>/hir_splice_field_loop.scoop",
-            r#"package sample
-import scoop.core.*
-struct Point(val x: Int, val y: Int)
-fun visit(p: Point) {
-    comptime for (field in fieldsOf<Point>()) {
-        val value = p.[field]
-    }
-}
-"#,
-        );
-
-        let output = run(&session, &source).expect("comptime FieldMeta binder should lower to HIR");
-        let dump = output.stable_dump();
-        assert!(
-            !dump.contains("splice_field"),
-            "dump must not contain splice Todo: {dump}"
-        );
-        assert!(
-            dump.contains("fqn: \"sample.Point.x\"") && dump.contains("fqn: \"sample.Point.y\""),
-            "reflection loop should unroll splice fields to concrete accesses: {dump}"
-        );
-    }
-
-    #[test]
     fn hir_splice_field_reports_non_static_field_name() {
         let session = session();
         let source = SourceFile::new_virtual(

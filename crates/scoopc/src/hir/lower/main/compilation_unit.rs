@@ -120,7 +120,6 @@ pub fn lower_for_compilation_unit_with_stable_cone_key(
                 class_itables: &class_itables,
                 materialize_direct_call_targets: true,
                 devirtualize_dispatch_calls: false,
-                runtime_comptime_plan: None,
             },
         );
         let file_hir = ctx.lower_file();
@@ -490,8 +489,6 @@ pub(crate) struct CompilationUnitLoweringOptions<'a> {
     pub(crate) source_cones: HashMap<std::path::PathBuf, crate::cone::SourceConeInfo>,
     pub(crate) instance_mode: CompilationUnitInstanceMode<'a>,
     pub(crate) devirtualize_dispatch_calls: bool,
-    pub(crate) runtime_comptime_plans:
-        &'a HashMap<std::path::PathBuf, crate::comptime::RuntimeComptimePlan>,
 }
 
 impl<'a> CompilationUnitLoweringOptions<'a> {
@@ -501,7 +498,6 @@ impl<'a> CompilationUnitLoweringOptions<'a> {
             source_cones: HashMap::new(),
             instance_mode: CompilationUnitInstanceMode::DirectLoweredHir,
             devirtualize_dispatch_calls: false,
-            runtime_comptime_plans: empty_runtime_comptime_plans(),
         }
     }
 
@@ -519,7 +515,6 @@ impl<'a> CompilationUnitLoweringOptions<'a> {
                 instance_types,
             },
             devirtualize_dispatch_calls,
-            runtime_comptime_plans: empty_runtime_comptime_plans(),
         }
     }
 
@@ -529,19 +524,7 @@ impl<'a> CompilationUnitLoweringOptions<'a> {
             source_cones: HashMap::new(),
             instance_mode: CompilationUnitInstanceMode::GenericTemplateOnly,
             devirtualize_dispatch_calls: false,
-            runtime_comptime_plans: empty_runtime_comptime_plans(),
         }
-    }
-
-    pub(crate) fn with_runtime_comptime_plans(
-        mut self,
-        runtime_comptime_plans: &'a HashMap<
-            std::path::PathBuf,
-            crate::comptime::RuntimeComptimePlan,
-        >,
-    ) -> Self {
-        self.runtime_comptime_plans = runtime_comptime_plans;
-        self
     }
 
     pub(crate) fn with_source_cones(
@@ -558,14 +541,6 @@ impl<'a> CompilationUnitLoweringOptions<'a> {
             CompilationUnitInstanceMode::GenericTemplateOnly
         )
     }
-}
-
-pub(crate) fn empty_runtime_comptime_plans()
--> &'static HashMap<std::path::PathBuf, crate::comptime::RuntimeComptimePlan> {
-    static EMPTY: std::sync::OnceLock<
-        HashMap<std::path::PathBuf, crate::comptime::RuntimeComptimePlan>,
-    > = std::sync::OnceLock::new();
-    EMPTY.get_or_init(HashMap::new)
 }
 
 pub(crate) fn virtual_stable_cone_key_for_sources(
@@ -624,7 +599,6 @@ pub(crate) fn lower_for_compilation_unit_multi_files_internal<'a>(
         source_cones: source_cone_overrides,
         instance_mode,
         devirtualize_dispatch_calls,
-        runtime_comptime_plans,
     } = options;
     let type_kinds = collect_type_decl_kinds(compilation_unit);
     let nominal_variances = collect_nominal_variances(compilation_unit);
@@ -716,7 +690,6 @@ pub(crate) fn lower_for_compilation_unit_multi_files_internal<'a>(
                     class_itables: &class_itables,
                     materialize_direct_call_targets,
                     devirtualize_dispatch_calls,
-                    runtime_comptime_plan: runtime_comptime_plans.get(source.path()),
                 },
             );
             let file_hir = ctx.lower_file();

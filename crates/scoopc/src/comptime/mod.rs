@@ -8,8 +8,8 @@
 //!     不允许声明 `<eff ...>` effect-row 参数
 //! - `const val` initializer 的常量折叠（用于 fixtures 回归）
 //! - 普通 `if` / `do` / 局部 `val/var` / assignment / `while` / `for` / `break` / `continue`
-//!   与 `comptime { ... }` / `comptime if` / `comptime for` 的解释执行
-//! - 为后续 `const fun` 解释器与 `comptime { ... }` 执行提供可复用的底座；
+//!   的解释执行
+//! - 为后续 `const fun` 解释器提供可复用的底座；
 //! - 在不依赖 LLVM 后端的前端阶段完成常量求值与错误诊断。
 //!
 //! 非目标（留给后续子任务 T1204+）：
@@ -23,8 +23,8 @@ mod value;
 
 pub use eval::{ConstEvalCtx, ConstEvalError, eval_const_expr};
 pub use interpreter::{
-    ConstBinding, ConstEvalOptions, RuntimeComptimePlan, eval_const_bindings_in_compilation_unit,
-    eval_const_bindings_in_file, plan_runtime_comptime_in_file,
+    ConstBinding, ConstEvalOptions, eval_const_bindings_in_compilation_unit,
+    eval_const_bindings_in_file,
 };
 pub use value::{
     ConstEnum, ConstFloat, ConstFloatTy, ConstInt, ConstIntTy, ConstStruct, ConstValue,

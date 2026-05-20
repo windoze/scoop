@@ -583,7 +583,6 @@ pub(in crate::hir::lower) fn with_signature_lowering_ctx<T>(
             class_itables: &class_itables,
             materialize_direct_call_targets: false,
             devirtualize_dispatch_calls: false,
-            runtime_comptime_plan: None,
         },
     );
     f(&mut ctx)

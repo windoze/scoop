@@ -61,7 +61,6 @@ impl<'a> HirLowering<'a> {
             class_itables,
             materialize_direct_call_targets,
             devirtualize_dispatch_calls,
-            runtime_comptime_plan,
         } = setup;
         Self {
             source,
@@ -104,8 +103,6 @@ impl<'a> HirLowering<'a> {
             class_itables,
             materialize_direct_call_targets,
             devirtualize_dispatch_calls,
-            runtime_comptime_plan,
-            comptime_value_scopes: Vec::new(),
             local_decl_span_overrides: Vec::new(),
             stage_error: None,
         }
@@ -166,32 +163,6 @@ impl<'a> HirLowering<'a> {
         let result = f(self);
         let _ = self.local_decl_span_overrides.pop();
         result
-    }
-
-    pub(crate) fn with_comptime_value_binding<T>(
-        &mut self,
-        decl_span: Span,
-        value: crate::comptime::ConstValue,
-        f: impl FnOnce(&mut Self) -> T,
-    ) -> T {
-        let mut scope = HashMap::new();
-        scope.insert(decl_span, value);
-        self.comptime_value_scopes.push(scope);
-        let result = f(self);
-        let _ = self.comptime_value_scopes.pop();
-        result
-    }
-
-    pub(crate) fn comptime_value_for_decl_span(
-        &self,
-        decl_span: Span,
-    ) -> Option<&crate::comptime::ConstValue> {
-        for scope in self.comptime_value_scopes.iter().rev() {
-            if let Some(value) = scope.get(&decl_span) {
-                return Some(value);
-            }
-        }
-        None
     }
 
     pub(crate) fn record_when_pat_binding_ty(&mut self, decl_span: Span, ty: TypeId) {

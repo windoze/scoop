@@ -122,7 +122,6 @@ pub(crate) fn lower_fun_with_bindings_and_mir_facts(
             class_itables,
             materialize_direct_call_targets,
             devirtualize_dispatch_calls,
-            runtime_comptime_plan: None,
         },
     );
     let type_bindings = type_bindings.into_iter().collect::<Vec<_>>();
@@ -229,7 +228,6 @@ pub(crate) fn lower_member_fun_with_bindings(
             class_itables,
             materialize_direct_call_targets,
             devirtualize_dispatch_calls,
-            runtime_comptime_plan: None,
         },
     );
     // 先绑定 owner type params（例如 class Box<T> 的 T → Int），
@@ -323,7 +321,6 @@ pub(crate) fn lower_value_property_getter_with_type_bindings(
             class_itables,
             materialize_direct_call_targets,
             devirtualize_dispatch_calls,
-            runtime_comptime_plan: None,
         },
     );
     let owner_type_bindings = owner_type_bindings.into_iter().collect::<Vec<_>>();

@@ -952,8 +952,6 @@ fn check_class_member_fun_body_exprs(
             let mut locals: HashMap<Span, TypeId> = HashMap::new();
             let mut stable_bindings: HashSet<Span> = HashSet::new();
             let mut mutable_bindings: HashSet<Span> = HashSet::new();
-            let mut comptime_bindings: HashSet<Span> = HashSet::new();
-
             // `this`：resolver 使用 `decl.name.span` 作为 decl_span。
             locals.insert(shared.this_decl_span, shared.this_ty);
             stable_bindings.insert(shared.this_decl_span);
@@ -1031,7 +1029,6 @@ fn check_class_member_fun_body_exprs(
                                 locals: &mut locals,
                                 stable_bindings: &mut stable_bindings,
                                 mutable_bindings: &mut mutable_bindings,
-                                comptime_bindings: &mut comptime_bindings,
                             };
                             try_infer_fun_return_ty_from_block(
                                 shared.stmt_shared(),
@@ -1058,7 +1055,6 @@ fn check_class_member_fun_body_exprs(
                         locals: &mut locals,
                         stable_bindings: &mut stable_bindings,
                         mutable_bindings: &mut mutable_bindings,
-                        comptime_bindings: &mut comptime_bindings,
                     };
                     check_block_exprs(
                         shared.stmt_shared(),
@@ -1470,14 +1466,12 @@ fn check_class_init_block_exprs(
     lower: &mut TypeLowering<'_>,
 ) -> Result<(), ExprTypeError> {
     let (mut locals, mut stable_bindings, mut mutable_bindings) = class_init_locals(shared, lower)?;
-    let mut comptime_bindings: HashSet<Span> = HashSet::new();
 
     // init block 不是函数体：`return` 在此处无意义，因此 expected_return_ty = None。
     let mut state = StmtExprState {
         locals: &mut locals,
         stable_bindings: &mut stable_bindings,
         mutable_bindings: &mut mutable_bindings,
-        comptime_bindings: &mut comptime_bindings,
     };
     check_block_exprs(
         shared.stmt_shared(),
@@ -1504,13 +1498,11 @@ fn check_object_init_block_exprs(
     let mut locals: HashMap<Span, TypeId> = HashMap::new();
     let mut stable_bindings: HashSet<Span> = HashSet::new();
     let mut mutable_bindings: HashSet<Span> = HashSet::new();
-    let mut comptime_bindings: HashSet<Span> = HashSet::new();
 
     let mut state = StmtExprState {
         locals: &mut locals,
         stable_bindings: &mut stable_bindings,
         mutable_bindings: &mut mutable_bindings,
-        comptime_bindings: &mut comptime_bindings,
     };
     let result = check_block_exprs(
         shared.stmt_shared(),
@@ -1610,7 +1602,6 @@ fn check_class_secondary_ctor_exprs(
     }
 
     let (mut locals, mut stable_bindings, mut mutable_bindings) = class_init_locals(shared, lower)?;
-    let mut comptime_bindings: HashSet<Span> = HashSet::new();
 
     // 次构造器参数：作为函数参数语义处理（稳定绑定；不可赋值）。
     for p in &ctor.params {
@@ -1627,7 +1618,6 @@ fn check_class_secondary_ctor_exprs(
         locals: &mut locals,
         stable_bindings: &mut stable_bindings,
         mutable_bindings: &mut mutable_bindings,
-        comptime_bindings: &mut comptime_bindings,
     };
     check_block_exprs(
         shared.stmt_shared(),
@@ -1706,7 +1696,6 @@ fn check_top_level_val_initializer(
                 locals: &empty_locals,
                 mutable_bindings: None,
                 lambda_this_decl_span: None,
-                comptime_bindings: None,
                 top_level_types,
                 top_level_funs,
                 member_mutabilities: None,
@@ -1721,7 +1710,6 @@ fn check_top_level_val_initializer(
                 locals: &empty_locals,
                 mutable_bindings: None,
                 lambda_this_decl_span: None,
-                comptime_bindings: None,
                 top_level_types,
                 top_level_funs,
                 member_mutabilities: None,

@@ -663,15 +663,6 @@ fn collect_stmt_warning_suppressions(
         ast::StmtKind::For(for_stmt) => {
             collect_for_stmt_warning_suppressions(source, for_stmt, file, out)
         }
-        ast::StmtKind::ComptimeBlock { body, .. } => {
-            collect_block_warning_suppressions(source, body, file, out)
-        }
-        ast::StmtKind::ComptimeIf(ci) => {
-            collect_comptime_if_warning_suppressions(source, ci, file, out)
-        }
-        ast::StmtKind::ComptimeFor(cf) => {
-            collect_comptime_for_warning_suppressions(source, cf, file, out)
-        }
     }
 }
 
@@ -701,45 +692,6 @@ fn collect_for_stmt_warning_suppressions(
 ) {
     collect_expr_warning_suppressions(source, &for_stmt.iter, file, out);
     collect_block_warning_suppressions(source, &for_stmt.body, file, out);
-}
-
-fn collect_comptime_if_warning_suppressions(
-    source: &SourceFile,
-    comptime_if: &ast::ComptimeIf,
-    file: &std::path::Path,
-    out: &mut Vec<WarningSuppression>,
-) {
-    collect_expr_warning_suppressions(source, &comptime_if.cond, file, out);
-    collect_block_warning_suppressions(source, &comptime_if.then_branch, file, out);
-    if let Some(else_branch) = &comptime_if.else_branch {
-        collect_comptime_else_warning_suppressions(source, else_branch, file, out);
-    }
-}
-
-fn collect_comptime_else_warning_suppressions(
-    source: &SourceFile,
-    else_branch: &ast::ComptimeIfElse,
-    file: &std::path::Path,
-    out: &mut Vec<WarningSuppression>,
-) {
-    match else_branch {
-        ast::ComptimeIfElse::Block(block) => {
-            collect_block_warning_suppressions(source, block, file, out)
-        }
-        ast::ComptimeIfElse::If(ci) => {
-            collect_comptime_if_warning_suppressions(source, ci, file, out)
-        }
-    }
-}
-
-fn collect_comptime_for_warning_suppressions(
-    source: &SourceFile,
-    comptime_for: &ast::ComptimeFor,
-    file: &std::path::Path,
-    out: &mut Vec<WarningSuppression>,
-) {
-    collect_expr_warning_suppressions(source, &comptime_for.iter, file, out);
-    collect_block_warning_suppressions(source, &comptime_for.body, file, out);
 }
 
 fn collect_expr_warning_suppressions(

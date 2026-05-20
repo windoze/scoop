@@ -1,5 +1,5 @@
 // EXPECT: pass
-// 目标：T0148d-1 comptime：Float 字面量、Float32 绑定归一化、基础算术/比较 与 comptime if。
+// 目标：T0148d-1 comptime：Float 字面量、Float32 绑定归一化、基础算术/比较与普通 if。
 
 package fixtures.comptime_
 
@@ -11,7 +11,7 @@ const fun bump(x: Float32): Float32 {
 }
 
 const fun choose(flag: Float64): Int {
-    comptime if (flag > 1.0) {
+    if (flag > 1.0) {
         1
     } else {
         0

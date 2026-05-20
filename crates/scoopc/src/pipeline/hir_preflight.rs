@@ -10,11 +10,6 @@ use super::{MirStageOutput, TypedHirStageOutput, load_typed_hir_stage_output_for
 const HIR_COMPLETENESS_FIXTURES: &[HirCompletenessFixture] = &[
     HirCompletenessFixture {
         phase: "hir",
-        name: "lowered_comptime_control_flow.scoop",
-        requirements: &[],
-    },
-    HirCompletenessFixture {
-        phase: "hir",
         name: "lowered_decl_graph.scoop",
         requirements: &[RequiredHirContract::DeclarationGraph],
     },
@@ -90,17 +85,9 @@ const HIR_COMPLETENESS_FIXTURES: &[HirCompletenessFixture] = &[
 
 const HIR_ORIGIN_MIR_FALLBACK_REASONS: &[&str] = &[
     "ExprKind::Missing",
-    "Item::Todo(comptime_if_item)",
     "StmtKind::Todo(missing_stmt)",
-    "StmtKind::Todo(comptime_block)",
-    "StmtKind::Todo(comptime_if)",
-    "StmtKind::Todo(comptime_for)",
     "StmtKind::Todo(for_custom_iterator)",
-    "comptime_if_item",
     "missing_stmt",
-    "comptime_block",
-    "comptime_if",
-    "comptime_for",
     "for_custom_iterator",
     "array_lit",
     "spread_arg",
@@ -194,59 +181,6 @@ fn hir_preflight_checks_completeness_fixtures_and_mir_smoke() {
         mir_smoke_count,
         HIR_COMPLETENESS_FIXTURES.len(),
         "all legal typed-HIR completeness fixtures must run strict MIR smoke"
-    );
-}
-
-#[test]
-fn mir_comptime_splice_class_literal_and_with_update_preclosure() {
-    let session = session();
-    let fixture = HirCompletenessFixture {
-        phase: "mir_lowered",
-        name: "comptime_splice_class_with_update.scoop",
-        requirements: &[
-            RequiredHirContract::DeclarationGraph,
-            RequiredHirContract::WithUpdate,
-        ],
-    };
-    let source = fixture.load();
-
-    let typed_hir = run_typed_hir_preflight(&session, &source, fixture);
-    let hir_dump = typed_hir.stable_dump();
-    for forbidden in [
-        "ComptimeBlock",
-        "ComptimeIf",
-        "ComptimeFor",
-        "Todo(\"comptime_block\"",
-        "Todo(\"comptime_if\"",
-        "Todo(\"comptime_for\"",
-    ] {
-        assert!(
-            !hir_dump.contains(forbidden),
-            "comptime surface `{forbidden}` must be expanded before MIR for `{}`",
-            fixture.label()
-        );
-    }
-
-    let output = super::load_direct_style_mir_stage_output_for_dump(&session, &source)
-        .unwrap_or_else(|err| panic!("MIR preclosure fixture should pass: {err:?}"));
-    assert_no_hir_origin_mir_fallbacks(&output, fixture);
-
-    let dump = format!("{:#?}", output.file());
-    assert!(
-        !dump.contains("Todo"),
-        "MIR-T04 fixture must not contain placeholder Todo: {dump}"
-    );
-    assert!(
-        dump.contains("TypeMetadataLiteral"),
-        "class literal policy should lower to a MIR type metadata literal: {dump}"
-    );
-    assert!(
-        dump.contains("MemberAccess"),
-        "splice field access should become concrete member access: {dump}"
-    );
-    assert!(
-        dump.contains("StructLit") && dump.contains("MakeTuple") && dump.contains("EnumVariant"),
-        "with-update should lower struct, tuple, and enum transports into concrete MIR: {dump}"
     );
 }
 

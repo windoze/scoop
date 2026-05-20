@@ -753,142 +753,6 @@ const val X: Int = loop()
 }
 
 #[test]
-fn const_eval_comptime_block_and_if_executes_selected_branch_only() {
-    let ty = ConstIntTy::host_word(true);
-
-    // 未选中分支包含除以 0：只要 comptime if 正确裁剪分支，就不应报错。
-    let consts = eval_file_consts(
-        r#"
-const fun choose(flag: Bool): Int {
-    comptime {
-        comptime if (flag) {
-            10 + 1
-        } else {
-            1 / 0
-        }
-    }
-}
-
-const val A: Int = choose(true)
-"#,
-    );
-
-    assert_eq!(
-        consts,
-        vec![ConstBinding {
-            name: "A".to_string(),
-            value: mk_int(ty, 11),
-        }]
-    );
-}
-
-#[test]
-fn const_eval_comptime_if_supports_else_if_chain() {
-    let ty = ConstIntTy::host_word(true);
-
-    let consts = eval_file_consts(
-        r#"
-const fun pick(x: Int): Int {
-    comptime if (x == 0) {
-        0
-    } else comptime if (x == 1) {
-        10
-    } else {
-        20
-    }
-}
-
-const val A: Int = pick(0)
-const val B: Int = pick(1)
-const val C: Int = pick(2)
-"#,
-    );
-
-    assert_eq!(
-        consts,
-        vec![
-            ConstBinding {
-                name: "A".to_string(),
-                value: mk_int(ty, 0),
-            },
-            ConstBinding {
-                name: "B".to_string(),
-                value: mk_int(ty, 10),
-            },
-            ConstBinding {
-                name: "C".to_string(),
-                value: mk_int(ty, 20),
-            },
-        ]
-    );
-}
-
-#[test]
-fn const_eval_comptime_if_condition_must_be_bool() {
-    let sysroot = load_sysroot();
-    let source = SourceFile::new_virtual(
-        "<mem>",
-        r#"
-const fun bad(): Int {
-    comptime if (1) { 1 } else { 2 }
-}
-
-const val X: Int = bad()
-"#
-        .to_string(),
-    );
-    let file = parser::parse_file(&source).expect("parse");
-    let err = eval_const_bindings_in_file(&sysroot, &source, &file).unwrap_err();
-    assert_eq!(
-        err.code().unwrap().to_string(),
-        "scoop::comptime::operand_type_mismatch"
-    );
-}
-
-#[test]
-fn const_eval_comptime_for_supports_range_and_array_and_tuple() {
-    let ty = ConstIntTy::host_word(true);
-
-    let consts = eval_file_consts(
-        r#"
-const fun lastRange(): Int {
-    comptime for (i in 1..3) { i }
-}
-
-const fun lastArray(): Int {
-    comptime for (x in [10, 20, 30]) { x }
-}
-
-const fun lastTuple(): Int {
-    comptime for (x in (7, 8, 9)) { x }
-}
-
-const val A: Int = lastRange()
-const val B: Int = lastArray()
-const val C: Int = lastTuple()
-"#,
-    );
-
-    assert_eq!(
-        consts,
-        vec![
-            ConstBinding {
-                name: "A".to_string(),
-                value: mk_int(ty, 3),
-            },
-            ConstBinding {
-                name: "B".to_string(),
-                value: mk_int(ty, 30),
-            },
-            ConstBinding {
-                name: "C".to_string(),
-                value: mk_int(ty, 9),
-            },
-        ]
-    );
-}
-
-#[test]
 fn const_eval_ordinary_control_flow_locals_and_loops_match_fixture_behavior() {
     let int_ty = ConstIntTy::host_word(true);
     let sysroot = load_sysroot();
@@ -950,24 +814,22 @@ fn const_eval_ordinary_control_flow_locals_and_loops_match_fixture_behavior() {
 }
 
 #[test]
-fn const_eval_literal_matrix_across_const_fun_const_val_and_comptime_paths() {
+fn const_eval_literal_matrix_across_const_fun_and_const_val_paths() {
     let ty = ConstIntTy::host_word(true);
 
     let consts = eval_file_consts(
         r#"
 const fun chooseInt(flag: Bool): Int {
-    comptime {
-        val base: Int = 0x20
-        comptime if (flag) {
-            base + 0b1010
-        } else {
-            base - 1
-        }
+    val base: Int = 0x20
+    if (flag) {
+        base + 0b1010
+    } else {
+        base - 1
     }
 }
 
 const fun chooseBool(flag: Bool): Bool {
-    comptime if (flag) {
+    if (flag) {
         true
     } else {
         false
@@ -975,7 +837,7 @@ const fun chooseBool(flag: Bool): Bool {
 }
 
 const fun chooseChar(flag: Bool): Char {
-    comptime if (flag) {
+    if (flag) {
         'A'
     } else {
         '\n'
@@ -983,38 +845,34 @@ const fun chooseChar(flag: Bool): Char {
 }
 
 const fun chooseFloat(flag: Bool): Float32 {
-    comptime {
-        val base: Float32 = 1.5
-        comptime if (flag) {
-            base + 0.25f
-        } else {
-            base + 0.75f
-        }
+    val base: Float32 = 1.5
+    if (flag) {
+        base + 0.25f
+    } else {
+        base + 0.75f
     }
 }
 
 const fun emitUnit(flag: Bool): Unit {
-    comptime {
-        comptime if (flag) {
-            ()
-        } else {
-            ()
-        }
+    if (flag) {
+        ()
+    } else {
+        ()
     }
 }
 
 const fun lastArray(): Int {
-    comptime {
-        val xs = [0x1, 0b10, 3]
-        comptime for (x in xs) { x }
+    val xs = [0x1, 0b10, 3]
+    var last: Int = 0
+    for (x in xs) {
+        last = x
     }
+    return last
 }
 
 const fun lastTuple(): Int {
-    comptime {
-        val xs = (4, 5, 6)
-        comptime for (x in xs) { x }
-    }
+    val xs = (4, 5, 6)
+    return xs._2
 }
 
 const val PICK_INT: Int = chooseInt(true)

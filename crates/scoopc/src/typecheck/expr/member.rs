@@ -4,7 +4,7 @@ use crate::ast;
 use crate::resolve::Visibility;
 use crate::span::Span;
 use crate::syntax::string_literal::{StringLiteralParseError, parse_string_literal_utf8};
-use crate::ty::{BuiltinTypes, RefTypeKind, TypeId, TypeKind, ValueTypeKind};
+use crate::ty::{RefTypeKind, TypeId, TypeKind, ValueTypeKind};
 
 use super::infer::ExpectedTypeFrom;
 use super::util::package_prefix;
@@ -161,8 +161,7 @@ pub(super) fn infer_splice_field_expr_type(
 ) -> Result<TypeId, ExprTypeError> {
     // splice 字段访问：`receiver.[field]`（spec §6.4）
     //
-    // HIR-T04：进入 HIR 前必须得到静态字段 contract；只有 comptime for binder
-    // 这类字段名会在 runtime comptime expansion 中变成具体 FieldMeta 值，因此允许暂缓到 HIR lowering。
+    // HIR lowering 只消费这里发布的静态字段 contract，不再接受后续阶段补算字段名。
     let receiver_ty = inputs.infer(lower, receiver)?;
 
     let field_name = match infer_static_splice_field_name(inputs, field, lower)? {
@@ -202,16 +201,10 @@ fn infer_static_splice_field_name(
         )?),
         _ => {
             // 仍然递归 typecheck `field`，保证其中的表达式错误不会被“跳过”吞掉。
-            let field_ty = inputs.infer(lower, field)?;
-            if is_comptime_splice_field_binding(inputs, field)
-                && is_splice_field_descriptor_ty(field_ty, lower, inputs.builtins)
-            {
-                Ok(None)
-            } else {
-                Err(ExprTypeError::SpliceFieldNameNotStatic {
-                    span: field.span.into(),
-                })
-            }
+            let _ = inputs.infer(lower, field)?;
+            Err(ExprTypeError::SpliceFieldNameNotStatic {
+                span: field.span.into(),
+            })
         }
     }
 }
@@ -284,33 +277,6 @@ fn resolve_splice_field_target(
         .unwrap_or(field_ty);
 
     Ok((receiver_fqn, field_ty))
-}
-
-fn is_comptime_splice_field_binding(inputs: ExprInferInputs<'_>, field: &ast::Expr) -> bool {
-    let ast::ExprKind::Ident(id) = &field.kind else {
-        return false;
-    };
-    let Some(ast::ResolvedValueRef::Local { decl_span, .. }) = id.resolved.as_ref() else {
-        return false;
-    };
-    inputs
-        .comptime_bindings
-        .is_some_and(|bindings| bindings.contains(decl_span))
-}
-
-fn is_splice_field_descriptor_ty(
-    ty: TypeId,
-    lower: &TypeLowering<'_>,
-    builtins: BuiltinTypes,
-) -> bool {
-    ty == builtins.string
-        || ty == builtins.any
-        || matches!(
-            lower.type_kind(ty),
-            TypeKind::Value(ValueTypeKind::Nominal(n))
-                | TypeKind::Ref(RefTypeKind::Nominal(n))
-                if n.fqn == "scoop.core.FieldMeta" || n.fqn == "FieldMeta"
-        )
 }
 
 fn infer_splice_field_descriptor_name(
