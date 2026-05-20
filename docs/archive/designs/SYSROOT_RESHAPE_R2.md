@@ -1,5 +1,7 @@
 # Sysroot Reshape R2
 
+> 归档说明：本文为归档前的根目录 `SYSROOT_RESHAPE_R2.md`。
+
 > Created: 2026-05-19
 > Status: design draft
 > Scope: source-only cone model, sysroot layout, standard cone privileges, native FFI ownership, and core object initialization semantics.
