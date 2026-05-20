@@ -4,7 +4,7 @@
 > 计划基线：[`PLAN.md`](./PLAN.md)
 > 设计基线：[`PIPELINE_REFACTOR.md`](./PIPELINE_REFACTOR.md)
 > 审计基线：[`PIPELINE-CLEANUP.md`](./PIPELINE-CLEANUP.md)
-> 当前状态：任务包已划分；`TODO-1.md` 已细化，其它任务包暂为范围说明。
+> 当前状态：任务包已划分；`TODO-1.md` 与 `TODO-2.md` 已细化，其它任务包暂为范围说明。
 
 ## 总原则
 
@@ -22,7 +22,7 @@
 | 包 | 文件 | 覆盖 PLAN 阶段 | 目标 | 当前细化状态 |
 | --- | --- | --- | --- | --- |
 | 1 | [`TODO-1.md`](./TODO-1.md) | P0 | 删除现有 comptime/const surface 与实现，清空后续边界条件 | 已细化 |
-| 2 | [`TODO-2.md`](./TODO-2.md) | P1 | 固定基础 crate 壳层、cone-level compilation unit 和 source-cone DAG 语义 | 暂为范围说明 |
+| 2 | [`TODO-2.md`](./TODO-2.md) | P1 | 固定基础 crate 壳层、cone-level compilation unit 和 source-cone DAG 语义 | 已细化 |
 | 3 | [`TODO-3.md`](./TODO-3.md) | P2 | 建立 `AST -> HIR` semantic frontend barrier 和独立 `hir_facts` | 暂为范围说明 |
 | 4 | [`TODO-4.md`](./TODO-4.md) | P3 | 收口 MIR stage 输出，建立 `mir_facts` 与 MIR pass pipeline | 暂为范围说明 |
 | 5 | [`TODO-5.md`](./TODO-5.md) | P4-P5 | 纯化 effect facts，正式收实 LIR 输出和 LIR optimization family | 暂为范围说明 |
@@ -40,7 +40,19 @@
 | P0-T03R | [DONE] | [`TODO-1.md`](./TODO-1.md#done-p0-t03rreview-const-surface-与-evaluator-删除结果) | Review `const` surface 与 evaluator 删除结果 |
 | P0-T04 | [DONE] | [`TODO-1.md`](./TODO-1.md#done-p0-t04p0-全仓清场与文档同步) | P0 全仓清场与文档同步 |
 | P0-T04R | [DONE] | [`TODO-1.md`](./TODO-1.md#done-p0-t04rreview-p0-全包完成度) | Review P0 全包完成度 |
-| TODO-2-INIT | [TODO] | [`TODO-2.md`](./TODO-2.md#todo-todo-2-init初始化并细化本任务包) | 分析 P1 需求，生成 `TODO-2.md` 详细任务列表并更新本索引 |
+| TODO-2-INIT | [DONE] | [`TODO-2.md`](./TODO-2.md#done-todo-2-init初始化并细化本任务包) | 分析 P1 需求，生成 `TODO-2.md` 详细任务列表并更新本索引 |
+| P1-T01 | [TODO] | [`TODO-2.md`](./TODO-2.md#todo-p1-t01建立基础-crate-壳层与依赖门禁) | 建立基础 crate 壳层与依赖门禁 |
+| P1-T01R | [TODO] | [`TODO-2.md`](./TODO-2.md#todo-p1-t01rreview-基础-crate-壳层与依赖门禁) | Review 基础 crate 壳层与依赖门禁 |
+| P1-T02 | [TODO] | [`TODO-2.md`](./TODO-2.md#todo-p1-t02迁移-span-与-source-基础设施) | 迁移 `span` 与 `source` 基础设施 |
+| P1-T02R | [TODO] | [`TODO-2.md`](./TODO-2.md#todo-p1-t02rreview-span--source-迁移结果) | Review `span` / `source` 迁移结果 |
+| P1-T03 | [TODO] | [`TODO-2.md`](./TODO-2.md#todo-p1-t03迁移-types-并建立-ids-基础身份层) | 迁移 `types` 并建立 `ids` 基础身份层 |
+| P1-T03R | [TODO] | [`TODO-2.md`](./TODO-2.md#todo-p1-t03rreview-types--ids-迁移结果) | Review `types` / `ids` 迁移结果 |
+| P1-T04 | [TODO] | [`TODO-2.md`](./TODO-2.md#todo-p1-t04迁移-project-modelcone-graph-与-resolver-cone-identity) | 迁移 project model、cone graph 与 resolver cone identity |
+| P1-T04R | [TODO] | [`TODO-2.md`](./TODO-2.md#todo-p1-t04rreview-project-model-与-cone-graph-迁移结果) | Review project model 与 cone graph 迁移结果 |
+| P1-T05 | [TODO] | [`TODO-2.md`](./TODO-2.md#todo-p1-t05固定-cone-level-compilation-unit-facade-api) | 固定 cone-level compilation unit facade API |
+| P1-T05R | [TODO] | [`TODO-2.md`](./TODO-2.md#todo-p1-t05rreview-cone-level-compilation-unit-api) | Review cone-level compilation unit API |
+| P1-T06 | [TODO] | [`TODO-2.md`](./TODO-2.md#todo-p1-t06p1-全包清场文档同步与依赖审计) | P1 全包清场、文档同步与依赖审计 |
+| P1-T06R | [TODO] | [`TODO-2.md`](./TODO-2.md#todo-p1-t06rreview-p1-全包完成度) | Review P1 全包完成度 |
 | TODO-3-INIT | [TODO] | [`TODO-3.md`](./TODO-3.md#todo-todo-3-init初始化并细化本任务包) | 分析 P2 需求，生成 `TODO-3.md` 详细任务列表并更新本索引 |
 | TODO-4-INIT | [TODO] | [`TODO-4.md`](./TODO-4.md#todo-todo-4-init初始化并细化本任务包) | 分析 P3 需求，生成 `TODO-4.md` 详细任务列表并更新本索引 |
 | TODO-5-INIT | [TODO] | [`TODO-5.md`](./TODO-5.md#todo-todo-5-init初始化并细化本任务包) | 分析 P4-P5 需求，生成 `TODO-5.md` 详细任务列表并更新本索引 |

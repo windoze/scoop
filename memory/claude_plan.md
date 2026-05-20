@@ -1,29 +1,20 @@
-# Claude Execution Plan
+执行计划摘要
 
-I cannot record private chain-of-thought. This file records the actionable execution plan, decisions, and progress for the current invocation.
+1. 读取 TODO.md，按文件顺序识别第一个标题未带 `[DONE]` 的任务。
+2. 查看最近提交信息，仅判断是否有与该任务直接相关的未完成事项。
+3. 阅读当前任务相关的说明、依赖、验证要求和必要代码区域。
+4. 按任务要求实现最小但完整的变更；若发现阻塞该任务的规格或实现缺口，先把最小前置任务写入 TODO.md 并停止。
+5. 运行任务要求的验证命令和必要的针对性测试，修复由本任务引入或暴露且阻塞任务完成的问题。
+6. 更新 TODO.md：在完成任务标题前加 `[DONE]`，并填写完成记录；仅在阶段计划实际变化时更新 PLAN.md。
+7. 检查工作区差异，提交本次任务相关的全部变更。
+8. 完成一个任务后停止，不继续处理下一个任务。
 
-## Initial Plan
+当前状态：计划已初始化，下一步读取 TODO.md 并识别第一个未完成任务。
 
-1. Read `TODO.md` first to identify the first task whose heading is not prefixed with `[DONE]`.
-2. Check the latest commit message only for unfinished work that is directly relevant to that first incomplete task.
-3. Read the selected task body, dependencies, validation requirements, and completion-record expectations.
-4. Inspect only the code and fixtures needed for that task.
-5. Implement the task as written, without narrowing scope or using fixture-only workarounds.
-6. If a concrete prerequisite or spec mismatch blocks the task, update `TODO.md` with the minimum prerequisite task, commit that bookkeeping, and stop.
-7. Run focused validation first, then any required broader validation listed by the task.
-8. Mark exactly the selected task complete by prefixing its title with `[DONE]` and updating its completion record.
-9. Inspect `git status`, `git diff`, and recent commits before committing.
-10. Commit all intended changes for this invocation with a descriptive task-tagged message, then stop.
+进度更新：已识别第一个未完成任务为 TODO-2-INIT。最近提交为 `[P0-T04R] Review P0 cleanup completion`，未显示当前任务的直接未完成事项。下一步读取 TODO-2.md、PLAN.md 与相关设计/审计文档，提取 P1 任务拆分依据。
 
-## Progress
+进度更新：已完成 P1 资料和代码触碰面抽查。关键现状：`span`、`source`、`ty`、`stable_id`、`cone`、`frontend` 仍在 `scoopc` 内；`SourceConeGraph` 已有拓扑排序和 cone metadata，但 `run_frontend` 仍 flatten 整个 graph；`AstStageOutput` 仍是单文件 handoff；`ConeId`/`ConeInfo` 仍位于 resolver。下一步编辑 TODO-2.md 和 TODO.md，生成 P1 实现任务及 review 任务。
 
-- Plan file initialized before running repository commands.
-- First incomplete task identified: `P0-T04R` in `TODO-1.md` (`Review P0 全包完成度`).
-- Latest commit is `[P0-T04] Complete P0 cleanup`; it is directly relevant as the implementation under review but does not itself mention an unfinished issue.
-- Next step: perform the P0 review by checking required paths, classifying legacy surface search results, running required validation, then update the review completion record and commit.
-- Review search/classification pass completed: no old `ConstEval`, `const fun`, `const val`, `Modifier::Const`, `Keyword::Const`, `is_const`, trimming, runtime comptime plan, or comptime AST/lowering identifiers were found in active `crates/scoopc/src`, `sysroot`, `stdlib`, or build overlays. Remaining active `comptime` hits are the lexer reserved tombstone, parser recovery/display/test, and parse-fail regression fixtures.
-- Spot checks completed: `tests/fixtures/parse/comptime_syntax_basic.scoop` and `tests/fixtures/parse/package_level_comptime_if_basic.scoop` assert ordinary parse failures; the sysroot and one build overlay expose reflection helpers as ordinary `@Intrinsic fun` returning `MetaList<T>`, not old `const fun` / `ComptimeList`.
-- Review found one stale non-language reference in `tools/scoop_tools/src/fixtures_matrix.rs`: the stdlib reflection coverage domain still matched old `comptime_*` fixture prefixes. Updated it to the current `reflection_` prefix so active tooling no longer refers to old comptime reflection fixture names.
-- Because a file changed after the first validation run, required validation was rerun after this fix.
-- Validation rerun completed successfully: `cargo fmt`, `cargo test --all --all-targets --no-default-features`, `cargo run -p scoop -- test`, `cargo run -p scoop_tools -- spec-fixtures check`, `cargo clippy --all-targets -- -D warnings`, and legacy surface searches.
-- `TODO.md` and `TODO-1.md` updated to mark `P0-T04R` as `[DONE]`; `PLAN.md` top status updated to show P0 review complete and P1/TODO-2 initialization as the next step.
+进度更新：已将 TODO-2.md 细化为 6 个 P1 实现任务和 6 个 review 任务，并在 TODO.md 索引中把 TODO-2-INIT 标记为完成、插入 P1-T01 到 P1-T06R。下一步复读文档变更并运行文档级校验。
+
+进度更新：已复读 TODO-2.md / TODO.md 变更并运行 `git diff --check`，未发现空白错误。下一步执行提交前的 git 状态、diff 与最近提交检查，然后提交本次 TODO-2-INIT 文档变更。
