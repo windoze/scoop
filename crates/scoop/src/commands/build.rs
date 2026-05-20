@@ -478,49 +478,7 @@ fn run_codegen_and_link(
         scoopc::pipeline::LlvmArtifactKind::Object,
     )?;
 
-    // T1115：cone native build 的 `c-sources/c-flags`：
-    // - 额外把用户声明的 C 源文件编译成 `.o`；
-    // - `c-flags` 仅作用于这些 user sources（不影响 runtime/c 的编译选项）。
-    let mut extra_objs: Vec<PathBuf> = Vec::new();
-    let mut use_cxx_linker_driver = false;
-    if front.input().is_explicit_cone() {
-        let root = front.input().cone_root();
-        let manifest = front.input().cone_manifest();
-        if !manifest.native_build.c_sources.is_empty() {
-            extra_objs.reserve(manifest.native_build.c_sources.len());
-            for (idx, rel) in manifest.native_build.c_sources.iter().enumerate() {
-                let src = root.join(rel);
-                let out_obj = work_dir.join(layout::obj_file_name(&format!("cone_c_{idx}")));
-                crate::toolchain::compile_c_source_to_obj(
-                    root,
-                    &src,
-                    &out_obj,
-                    &manifest.native_build.c_flags,
-                )?;
-                extra_objs.push(out_obj);
-            }
-        }
-
-        // T1116：cone native build 的 `cxx-sources/cxx-flags`：
-        // - 额外把用户声明的 C++ 源文件编译成 `.o`；
-        // - `cxx-flags` 仅作用于这些 user sources；
-        // - 当存在 C++ 源码时，最终链接默认使用 C++ driver（见下方 link options）。
-        if !manifest.native_build.cxx_sources.is_empty() {
-            use_cxx_linker_driver = true;
-            extra_objs.reserve(manifest.native_build.cxx_sources.len());
-            for (idx, rel) in manifest.native_build.cxx_sources.iter().enumerate() {
-                let src = root.join(rel);
-                let out_obj = work_dir.join(layout::obj_file_name(&format!("cone_cxx_{idx}")));
-                crate::toolchain::compile_cxx_source_to_obj(
-                    root,
-                    &src,
-                    &out_obj,
-                    &manifest.native_build.cxx_flags,
-                )?;
-                extra_objs.push(out_obj);
-            }
-        }
-    }
+    let (extra_objs, use_cxx_linker_driver) = compile_native_build_sources(front, &work_dir)?;
 
     // T1114：把 Cone.toml 的 `native-build.linker/link-flags` 透传到最终链接命令。
     let mut linker = front
@@ -562,6 +520,70 @@ fn run_codegen_and_link(
         let _ = std::fs::remove_dir_all(&work_dir);
     }
     Ok(())
+}
+
+#[cfg(feature = "llvm")]
+/// Compiles C/C++ sources declared by every loaded source cone into object files.
+fn compile_native_build_sources(
+    front: &FrontendOutput,
+    work_dir: &Path,
+) -> Result<(Vec<PathBuf>, bool)> {
+    let mut extra_objs = Vec::new();
+    let mut use_cxx_linker_driver = false;
+
+    for node in front.input().graph().nodes() {
+        let native_build = &node.native_build;
+        let prefix = native_obj_prefix(node);
+
+        // Native flags are cone-local: each node owns both the source path base
+        // and the flags used for its declared native sources.
+        extra_objs.reserve(native_build.c_sources.len() + native_build.cxx_sources.len());
+        for (idx, rel) in native_build.c_sources.iter().enumerate() {
+            let src = node.root.join(rel);
+            let out_obj = work_dir.join(layout::obj_file_name(&format!("{prefix}_c_{idx}")));
+            crate::toolchain::compile_c_source_to_obj(
+                &node.root,
+                &src,
+                &out_obj,
+                &native_build.c_flags,
+            )?;
+            extra_objs.push(out_obj);
+        }
+
+        if !native_build.cxx_sources.is_empty() {
+            use_cxx_linker_driver = true;
+        }
+        for (idx, rel) in native_build.cxx_sources.iter().enumerate() {
+            let src = node.root.join(rel);
+            let out_obj = work_dir.join(layout::obj_file_name(&format!("{prefix}_cxx_{idx}")));
+            crate::toolchain::compile_cxx_source_to_obj(
+                &node.root,
+                &src,
+                &out_obj,
+                &native_build.cxx_flags,
+            )?;
+            extra_objs.push(out_obj);
+        }
+    }
+
+    Ok((extra_objs, use_cxx_linker_driver))
+}
+
+#[cfg(feature = "llvm")]
+/// Returns a filesystem-safe object-file prefix for one source cone graph node.
+fn native_obj_prefix(node: &scoopc::cone::SourceConeNode) -> String {
+    let mut name = String::with_capacity(node.manifest.cone.name.len());
+    for ch in node.manifest.cone.name.chars() {
+        if ch.is_ascii_alphanumeric() {
+            name.push(ch);
+        } else {
+            name.push('_');
+        }
+    }
+    if name.is_empty() {
+        name.push_str("anonymous");
+    }
+    format!("cone{}_{}", node.id.as_u32(), name)
 }
 
 #[cfg(all(feature = "llvm", test))]

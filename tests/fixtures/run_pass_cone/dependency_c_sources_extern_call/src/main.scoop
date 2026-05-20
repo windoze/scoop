@@ -1,0 +1,11 @@
+// EXPECT: pass
+// RUN-STDOUT: out.stdout.txt
+
+package fixtures.run_pass_cone.dependency_c_sources_extern_call.app
+
+import scoop.core.*
+import fixtures.run_pass_cone.dependency_c_sources_extern_call.lib.*
+
+public fun main() / Pure! {
+    println(dependencyAdd(39, 3))
+}

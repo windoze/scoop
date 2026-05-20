@@ -1,0 +1,7 @@
+[cone]
+name = "fixture-dependency-c-sources-extern-call"
+version = "0.0.0"
+kind = "bin"
+
+[dependencies]
+"fixture-dependency-c-sources-extern-call-lib" = { path = "deps/fixture.lib" }

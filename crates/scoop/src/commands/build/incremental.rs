@@ -18,9 +18,9 @@ use sha2::{Digest as _, Sha256};
 use scoopc::opt::OptLevel;
 
 pub(crate) const BUILD_JSON_FILE_NAME: &str = "build.json";
-pub(crate) const BUILD_JSON_SCHEMA_VERSION: u32 = 2;
+pub(crate) const BUILD_JSON_SCHEMA_VERSION: u32 = 3;
 
-/// 本次 build 的输入 fingerprint（v1）。
+/// 本次 build 的输入 fingerprint。
 ///
 /// - `fingerprint`：最终用于 cache 命中的总 fingerprint。
 /// - 其它字段：用于调试/排查“为什么没命中缓存”的原因（不会参与命中判断）。
@@ -30,6 +30,7 @@ pub(crate) struct BuildFingerprint {
     pub(crate) cone_toml_sha256: String,
     pub(crate) cone_sources_sha256: String,
     pub(crate) local_dependency_sources_sha256: String,
+    pub(crate) native_sources_sha256: String,
     pub(crate) sysroot_sources_sha256: String,
     pub(crate) runtime_sources_sha256: String,
     pub(crate) toolchain_sha256: String,
@@ -46,6 +47,7 @@ pub(crate) struct BuildFingerprint {
 ///
 /// 这里额外纳入：
 /// - sysroot（`sysroot/*.scoop`）
+/// - loaded source cones 声明的 native C/C++ sources
 /// - C runtime（`runtime/c/**`）
 ///
 /// 原因：这些文件会影响最终产物，但通常不会改变 `scoop` 可执行文件本体。
@@ -77,6 +79,7 @@ pub(crate) fn compute_cone_build_fingerprint(
         .collect::<Vec<_>>();
     let cone_sources_sha256 = sha256_for_files(&consumer.root, &consumer_sources)?;
     let local_dependency_sources_sha256 = sha256_for_local_dependency_nodes(&graph)?;
+    let native_sources_sha256 = sha256_for_native_build_sources(&graph)?;
 
     let sysroot_sources = collect_scoop_files_sorted(&sysroot_root)?;
     let sysroot_sources_sha256 = sha256_for_files(&sysroot_root, &sysroot_sources)?;
@@ -95,7 +98,7 @@ pub(crate) fn compute_cone_build_fingerprint(
 
     // 总 fingerprint：把所有“会影响产物”的输入摘要与关键 flags 组合在一起。
     let mut hasher = Sha256::new();
-    hasher.update(b"scoop.build.fingerprint.v1\n");
+    hasher.update(b"scoop.build.fingerprint.v3\n");
     hasher.update(b"profile=");
     hasher.update(profile.as_bytes());
     hasher.update(b"\n");
@@ -114,6 +117,9 @@ pub(crate) fn compute_cone_build_fingerprint(
     hasher.update(b"local_dependencies=");
     hasher.update(local_dependency_sources_sha256.as_bytes());
     hasher.update(b"\n");
+    hasher.update(b"native_sources=");
+    hasher.update(native_sources_sha256.as_bytes());
+    hasher.update(b"\n");
     hasher.update(b"sysroot=");
     hasher.update(sysroot_sources_sha256.as_bytes());
     hasher.update(b"\n");
@@ -131,6 +137,7 @@ pub(crate) fn compute_cone_build_fingerprint(
         cone_toml_sha256,
         cone_sources_sha256,
         local_dependency_sources_sha256,
+        native_sources_sha256,
         sysroot_sources_sha256,
         runtime_sources_sha256,
         toolchain_sha256,
@@ -179,6 +186,7 @@ pub(crate) fn write_build_json(
             "cone_toml_sha256": fp.cone_toml_sha256,
             "cone_sources_sha256": fp.cone_sources_sha256,
             "local_dependency_sources_sha256": fp.local_dependency_sources_sha256,
+            "native_sources_sha256": fp.native_sources_sha256,
             "sysroot_sources_sha256": fp.sysroot_sources_sha256,
             "runtime_sources_sha256": fp.runtime_sources_sha256,
             "toolchain_sha256": fp.toolchain_sha256,
@@ -241,6 +249,48 @@ fn sha256_for_local_dependency_nodes(graph: &scoopc::cone::SourceConeGraph) -> R
             entries.push((
                 format!("{}/{}", node.manifest.cone.name, rel),
                 source.path().to_path_buf(),
+            ));
+        }
+    }
+    entries.sort_by(|(a, _), (b, _)| a.cmp(b));
+
+    let mut hasher = Sha256::new();
+    for (rel, abs) in entries {
+        let file_hash = sha256_file(&abs)?;
+        hasher.update(rel.as_bytes());
+        hasher.update(b"\n");
+        hasher.update(file_hash.as_bytes());
+        hasher.update(b"\n");
+    }
+    Ok(hex_lower(&hasher.finalize()))
+}
+
+fn sha256_for_native_build_sources(graph: &scoopc::cone::SourceConeGraph) -> Result<String> {
+    let mut entries: Vec<(String, PathBuf)> = Vec::new();
+    for node in graph.nodes() {
+        let native_build = &node.native_build;
+        if native_build.c_sources.is_empty() && native_build.cxx_sources.is_empty() {
+            continue;
+        }
+
+        entries.push((
+            format!("{}/Cone.toml", node.manifest.cone.name),
+            node.manifest_path.clone(),
+        ));
+        for rel in &native_build.c_sources {
+            let path = node.root.join(rel);
+            let rel = normalize_rel_path_forward_slashes(&node.root, &path)?;
+            entries.push((
+                format!("{}/native-build/c/{rel}", node.manifest.cone.name),
+                path,
+            ));
+        }
+        for rel in &native_build.cxx_sources {
+            let path = node.root.join(rel);
+            let rel = normalize_rel_path_forward_slashes(&node.root, &path)?;
+            entries.push((
+                format!("{}/native-build/cxx/{rel}", node.manifest.cone.name),
+                path,
             ));
         }
     }
@@ -421,5 +471,64 @@ kind = "lib"
             fp1.local_dependency_sources_sha256,
             fp2.local_dependency_sources_sha256
         );
+    }
+
+    #[test]
+    fn fingerprint_changes_on_local_dependency_native_source_update() {
+        let dir = tempdir().unwrap();
+        let root = dir.path().join("app");
+        let dep = root.join("deps").join("lib");
+        std::fs::create_dir_all(root.join("src")).unwrap();
+        std::fs::create_dir_all(dep.join("src")).unwrap();
+        std::fs::create_dir_all(dep.join("native")).unwrap();
+
+        std::fs::write(
+            root.join("Cone.toml"),
+            r#"
+[cone]
+name = "fixture-incremental-native-app"
+version = "0.0.0"
+kind = "bin"
+
+[dependencies]
+"fixture-incremental-native-lib" = { path = "deps/lib" }
+"#,
+        )
+        .unwrap();
+        std::fs::write(root.join("src/main.scoop"), "fun main() {}\n").unwrap();
+        std::fs::write(
+            dep.join("Cone.toml"),
+            r#"
+[cone]
+name = "fixture-incremental-native-lib"
+version = "0.0.0"
+kind = "lib"
+
+[native-build]
+c-sources = ["native/add.c"]
+"#,
+        )
+        .unwrap();
+        std::fs::write(
+            dep.join("src/api.scoop"),
+            "package dep\nfun value(): Int { return 1 }\n",
+        )
+        .unwrap();
+        std::fs::write(
+            dep.join("native/add.c"),
+            "int dep_add(void) { return 1; }\n",
+        )
+        .unwrap();
+
+        let fp1 = compute_cone_build_fingerprint(&root, "debug", None, OptLevel::O0).unwrap();
+        std::fs::write(
+            dep.join("native/add.c"),
+            "int dep_add(void) { return 2; }\n",
+        )
+        .unwrap();
+        let fp2 = compute_cone_build_fingerprint(&root, "debug", None, OptLevel::O0).unwrap();
+
+        assert_ne!(fp1.fingerprint, fp2.fingerprint);
+        assert_ne!(fp1.native_sources_sha256, fp2.native_sources_sha256);
     }
 }

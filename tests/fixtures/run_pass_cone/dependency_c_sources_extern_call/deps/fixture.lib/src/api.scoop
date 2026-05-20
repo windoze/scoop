@@ -1,0 +1,10 @@
+package fixtures.run_pass_cone.dependency_c_sources_extern_call.lib
+
+import scoop.core.*
+
+@Extern(name = "dependency_cone_add_int")
+fun dependency_cone_add_int(a: Int, b: Int): Int
+
+public fun dependencyAdd(a: Int, b: Int): Int / Pure! {
+    return @Unsafe do { dependency_cone_add_int(a, b) }
+}

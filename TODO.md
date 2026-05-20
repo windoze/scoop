@@ -3,7 +3,7 @@
 > 生成时间：2026-05-19
 > 设计基线：[`SYSROOT_RESHAPE_R2.md`](./SYSROOT_RESHAPE_R2.md)
 > 计划基线：[`PLAN.md`](./PLAN.md)
-> 当前状态：`P6-T02` 已完成；下一任务为 `P7-T01`。
+> 当前状态：`P7-T01` 已完成；下一任务为 `P7-T02`。
 > 执行原则：严格按 P0 -> P10 顺序推进；同一阶段内可按任务依赖拆 PR，但每个任务完成后必须保持仓库无 failing fixture，并回写完成记录。
 
 ## 全局约束
@@ -107,7 +107,7 @@ P0 baseline freeze
 | `P5-T04` | [DONE] | P5 | 生成 per-cone init routine 与 final system entry 调用骨架 |
 | `P6-T01` | [DONE] | P6 | 实现 auto dependency cone 列表 |
 | `P6-T02` | [DONE] | P6 | 实现 prelude package 列表并与 auto dependency 解耦 |
-| `P7-T01` | [TODO] | P7 | 将 native-build 扩展到所有 loaded source cones |
+| `P7-T01` | [DONE] | P7 | 将 native-build 扩展到所有 loaded source cones |
 | `P7-T02` | [TODO] | P7 | dependency cone C++/link-flags/linker driver 覆盖 |
 | `P8-T01` | [TODO] | P8 | 建立公开 `scoop_runtime.h` runtime core header |
 | `P8-T02` | [TODO] | P8 | 迁移 `scoop.runtime.test` native helpers |
@@ -547,7 +547,7 @@ P0 baseline freeze
 - Fixture 删除/改写：无删除；仅新增 source-only typecheck fixtures。
 - 验证结果：`cargo fmt` 通过；`cargo test -p scoopc prelude -- --nocapture` 通过（4 passed）；三个新增 typecheck fixtures 定向验证均通过；`cargo run -p scoop -- test tests/fixtures/typecheck/` 通过（503 checks）；`cargo build` 通过；`cargo clippy --all-targets -- -D warnings` 通过；`cargo test --all --all-targets` 通过（Rust tests: ok，包含 `scoopc` 932 passed）；`cargo run -p scoop -- test` 通过（fixtures: ok，1572 checks）。
 
-## P7-T01：将 native-build 扩展到所有 loaded source cones
+## [DONE] P7-T01：将 native-build 扩展到所有 loaded source cones
 
 - 参考：`PLAN.md` §10。
 - 目标：所有 loaded source cones 的 C/C++ sources 都会编译和链接。
@@ -560,6 +560,15 @@ P0 baseline freeze
   5. 复用 current-cone native-build 能力，并推广到 all loaded cones。
 - 验证：`bin` 依赖 `lib`，`lib/native/add.c` 被编译链接并运行。
 - 完成条件：cone-local FFI 不再局限 consumer executable cone。
+
+### 完成记录（2026-05-20）
+
+- 改动范围：`crates/scoop/src/commands/build.rs` 的 native-build 编译阶段改为遍历 `front.input().graph().nodes()`；`crates/scoop/src/commands/build/incremental.rs` 将 loaded source cones 声明的 native C/C++ sources 纳入 cone build fingerprint；新增 `tests/fixtures/run_pass_cone/dependency_c_sources_extern_call/`；未修改 `PLAN.md` 或 `SYSROOT_RESHAPE_R2.md`。
+- 核心决策：复用现有 current-cone C/C++ 编译 helper，把 source path base 改为 owning cone root；C/C++ flags 只传给 owning cone 声明的对应 sources；native object 输出名包含 graph cone id 和 sanitized cone name，避免不同 cone 的 native source object 名冲突；任一 loaded cone 声明 `cxx-sources` 时继续触发默认 C++ linker driver 选择。
+- Incremental：build fingerprint schema 升为 3，并记录 `native_sources_sha256`，覆盖 consumer/local dependency/sysroot loaded nodes 的 native source 内容与带 native-build 的 manifest，避免 dependency native source 修改后错误复用旧 executable。
+- Fixture：新增 `dependency_c_sources_extern_call`，其中 `bin` 通过 source path dependency 依赖 `lib`，`lib` 在 `[native-build].c-sources` 声明 `native/add.c`，`bin` 调用 dependency cone 中包装的 `@Extern` C symbol 并输出 `42`；无 fixture 删除或改写。
+- 与 `PLAN.md` / `SYSROOT_RESHAPE_R2.md` 闭合项：满足 P7 中“native build 输入扩展为 source cone graph 全部节点”、“source 路径按 owning cone root 解析”、“object 命名带 cone identity”、“flags 只作用于 owning cone”和“复用现有 current-cone native-build 能力”的要求；dependency cone `link-flags` 顺序、dependency `linker` 覆盖与专门 C++/link-flags fixtures 仍按 `P7-T02` 推进。
+- 验证结果：`cargo fmt` 通过；`cargo run -p scoop -- test tests/fixtures/run_pass_cone/dependency_c_sources_extern_call` 通过；`cargo run -p scoop -- test tests/fixtures/run_pass_cone/c_sources_extern_call_basic` 通过；`cargo test -p scoop incremental -- --nocapture` 通过（3 passed）；`cargo build` 通过；`cargo clippy --all-targets -- -D warnings` 通过；`cargo test --all --all-targets` 通过；`cargo run -p scoop -- test tests/fixtures/run_pass_cone/` 通过（34 checks）；`cargo run -p scoop -- test` 通过（fixtures: ok，1573 checks）。
 
 ## P7-T02：dependency cone C++/link-flags/linker driver 覆盖
 
