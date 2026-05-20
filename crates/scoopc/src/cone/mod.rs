@@ -7,6 +7,7 @@
 pub mod annotations;
 pub mod archive;
 pub mod consume;
+pub mod graph;
 pub mod manifest;
 pub mod package;
 pub mod pre_specialize;
@@ -24,6 +25,10 @@ pub use archive::{
 pub use consume::{
     ConeArchiveApi, inject_cone_dependency_public_api, load_cone_archive_api,
     read_cone_api_scoopir_from_archive, read_cone_manifest_from_archive,
+};
+pub use graph::{
+    CONSUMER_CONE_ID, SourceConeDependencyEdge, SourceConeDependencyKind, SourceConeGraph,
+    SourceConeNode, SourceConeRole, SourceConeTrust,
 };
 pub use manifest::{
     CONE_TOML_FILE_NAME, ConeKind, ConeManifest, ConeNativeBuildConfig, ConeSection,

@@ -3,7 +3,7 @@
 > 生成时间：2026-05-19
 > 设计基线：[`SYSROOT_RESHAPE_R2.md`](./SYSROOT_RESHAPE_R2.md)
 > 计划基线：[`PLAN.md`](./PLAN.md)
-> 当前状态：`P4-T03` 已完成；下一任务为 `P5-T01`。
+> 当前状态：`P5-T01` 已完成；下一任务为 `P5-T02`。
 > 执行原则：严格按 P0 -> P10 顺序推进；同一阶段内可按任务依赖拆 PR，但每个任务完成后必须保持仓库无 failing fixture，并回写完成记录。
 
 ## 全局约束
@@ -101,7 +101,7 @@ P0 baseline freeze
 | `P4-T01` | [DONE] | P4 | 重排 sysroot 到 `sysroot/lib/<cone>/src` |
 | `P4-T02` | [DONE] | P4 | sysroot loader 改为加载 `sysroot/lib/*/Cone.toml` |
 | `P4-T03` | [DONE] | P4 | sysroot overlay 迁移到 `overlay/lib/<cone>/...` |
-| `P5-T01` | [TODO] | P5 | 引入 source cone graph 数据结构 |
+| `P5-T01` | [DONE] | P5 | 引入 source cone graph 数据结构 |
 | `P5-T02` | [TODO] | P5 | 支持本地 source path dependency fixtures |
 | `P5-T03` | [TODO] | P5 | 保留 cone identity/kind 到 resolver/typecheck/codegen |
 | `P5-T04` | [TODO] | P5 | 生成 per-cone init routine 与 final system entry 调用骨架 |
@@ -412,7 +412,7 @@ P0 baseline freeze
 - 与 `PLAN.md` / `SYSROOT_RESHAPE_R2.md` 闭合项：满足 P4 中“`SCOOP_SYSROOT_OVERLAY` 镜像 `lib/<cone>/...` 结构”、“overlay replacement 按 cone/file-relative paths，而非盲递归 source collection”和“旧 overlay 结构不再是 active path”的要求；阶段级计划未变化。
 - 验证结果：`cargo fmt` 通过；`cargo test -p scoopc sysroot -- --nocapture` 通过（23 passed，重跑后无 warning）；`cargo run -p scoop -- test tests/fixtures/build/` 通过（47 checks）；`cargo run -p scoop -- test tests/fixtures/typecheck/` 通过（499 checks）；`cargo run -p scoop -- test tests/fixtures/run-pass/` 通过（416 checks）；`cargo run -p scoop -- test tests/fixtures/umb_fix/B-30-named-unsafe-funptr/` 通过（4 checks）；`cargo run -p scoop -- test tests/fixtures/umb_fix/B-32-print-panic-sysroot/` 通过（3 checks）；`cargo build` 通过；`cargo clippy --all-targets -- -D warnings` 通过；`cargo test --all --all-targets` 通过（920 passed）；`cargo run -p scoop -- test` 通过（fixtures: ok，1563 checks）。
 
-## P5-T01：引入 source cone graph 数据结构
+## [DONE] P5-T01：引入 source cone graph 数据结构
 
 - 参考：`PLAN.md` §8。
 - 目标：用 source cone graph 替代 support sources + current project 的扁平输入。
@@ -423,6 +423,17 @@ P0 baseline freeze
   3. 保留 deterministic DAG order。
 - 验证：unit tests 构造 graph 并检查 order/kind/source set。
 - 完成条件：frontend/build 能接收 source cone graph 作为 authoritative input。
+
+### 完成记录（2026-05-20）
+
+- 改动范围：新增 `crates/scoopc/src/cone/graph.rs` 并导出 source cone graph API；`sysroot/mod.rs` 增加按 cone/manifest 分组的 sysroot source package collection；`frontend.rs` 改为从 `SourceConeGraph` 派生 `ProjectInput`，并在 resolver index 构建、entry selection、source map/lowering 输入中保留 per-source owning cone id；`pipeline/mod.rs` 文案同步为 graph-based project input；未修改 `PLAN.md` 或 `SYSROOT_RESHAPE_R2.md`。
+- 核心决策：`SourceConeGraph` 的 node 保存 `root`、`manifest_path`、`manifest`、`kind`、`native_build`、`trust`、`sources`、`entry_main` 与 dependency edges；graph 使用 dependencies-before-dependent 的 deterministic DAG order，consumer 固定为 `ConeId(1)`，sysroot auto cones 和本地 source dependency cones 使用稳定非 consumer cone id，避免 graph flatten 后把 sysroot/dependency sources 误标成 consumer cone。
+- Frontend/build 接入：`load_project_input_from_path` 和 virtual-cone preparation 现在先加载 sysroot auto cone nodes，再加载 consumer node，并通过 graph 生成扁平 compilation unit；`run_frontend` 构建 `IndexedFile` 时使用每个 source 的 graph cone id，`select_cone_entry_main` 改查 graph consumer cone id，不再硬编码 `ConeId(1)` 或靠路径猜测 consumer ownership。
+- Source graph 覆盖：graph builder 当前支持默认 sysroot auto cones、consumer `bin` cone、显式传入的 local source dependency cone roots，并记录 `SysrootAuto` / `LocalSource` dependency edges；本轮不抢做 `P5-T02` 的 manifest path dependency syntax 或 fixture runner 约定。
+- Tests：新增 `cone::graph` 单元测试覆盖 sysroot/local dependency/consumer DAG order、kind/source set/native-build/trust metadata、dependency-before-consumer topo sort 与 cycle rejection；新增 `frontend` 单元测试证明 `ProjectInput` 来源于 graph，且 sysroot sources 不再被 flatten 到 consumer cone id。
+- 与 `PLAN.md` / `SYSROOT_RESHAPE_R2.md` 闭合项：满足 P5 中“引入 source cone graph 数据结构”、“节点包含 root/manifest/kind/source set/native build config/trust status/dependency edges”、“支持 sysroot auto cones、consumer cone、local source dependency cones”和“frontend/build 接收 source cone graph 作为 authoritative input”的要求；source path dependency fixture、resolver/typecheck/codegen 更深层 cone identity 保留、per-cone init routine 仍按 `P5-T02` / `P5-T03` / `P5-T04` 推进。
+- Fixture 删除/改写：无。
+- 验证结果：`cargo fmt` 通过；`cargo test -p scoopc cone::graph -- --nocapture` 通过（3 passed）；`cargo test -p scoopc frontend::tests -- --nocapture` 通过（3 passed）；`cargo test -p scoopc sysroot -- --nocapture` 通过（24 passed）；`cargo test -p scoop --bin scoop build_frontend -- --nocapture` 通过（8 passed）；`cargo clippy --all-targets -- -D warnings` 通过；`cargo test --all --all-targets` 通过（Rust tests: ok，包含 `scoopc` 924 passed）；`cargo run -p scoop -- test` 通过（fixtures: ok，1563 checks）；`cargo build` 通过。
 
 ## P5-T02：支持本地 source path dependency fixtures
 

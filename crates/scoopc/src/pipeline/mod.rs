@@ -203,7 +203,7 @@ pub fn emit_virtual_cone_llvm_artifact_to_file(
 /// 以 authoritative project context（`FrontendOutput`）发射 LLVM artifact。
 ///
 /// 这条入口对应 `scoop` -> `scoopc` 的 project build contract：上层驱动负责先确定
-/// `ProjectInput + deps`，`scoopc` 负责消费完整 context 运行 frontend/lowering/codegen。
+/// source cone graph project input，`scoopc` 负责消费完整 context 运行 frontend/lowering/codegen。
 pub fn emit_project_llvm_artifact_to_file(
     session: &Session,
     front: &crate::frontend::FrontendOutput,

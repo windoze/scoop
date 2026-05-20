@@ -12,7 +12,7 @@ use std::path::{Path, PathBuf};
 
 use miette::{Context as _, IntoDiagnostic as _, Result, miette};
 
-use crate::cone::manifest::{CONE_TOML_FILE_NAME, ConeKind};
+use crate::cone::manifest::{CONE_TOML_FILE_NAME, ConeKind, ConeManifest};
 use crate::cone::package::{
     CONE_SRC_DIR_NAME, host_target_platform_id,
     load_cone_source_package_for_platform_with_sysroot_root,
@@ -42,9 +42,21 @@ pub(crate) struct SysrootSourceEntry {
     pub trusted_syslib: bool,
 }
 
+#[derive(Debug, Clone)]
+pub(crate) struct SysrootSourceConePackage {
+    pub root: PathBuf,
+    pub manifest_path: PathBuf,
+    pub manifest: ConeManifest,
+    pub trusted_syslib: bool,
+    pub sources: Vec<PathBuf>,
+}
+
 #[derive(Debug)]
 struct SysrootConeSourceSet {
+    root: PathBuf,
     root_rel: PathBuf,
+    manifest_path: PathBuf,
+    manifest: ConeManifest,
     trusted_syslib: bool,
     sources: Vec<PathBuf>,
 }
@@ -138,17 +150,22 @@ pub(crate) fn collect_sysroot_source_entries(
     collect_merged_sysroot_entries(&root, overlay_root)
 }
 
-fn collect_merged_sysroot_entries(
+pub(crate) fn collect_sysroot_source_cone_packages(
     root: &Path,
     overlay_root: Option<&Path>,
-) -> Result<Vec<SysrootSourceEntry>> {
-    let mut merged = BTreeMap::new();
-    let source_sets = collect_sysroot_cone_source_sets(root)?;
+) -> Result<Vec<SysrootSourceConePackage>> {
+    let root = canonicalize_sysroot_root(root, "sysroot")?;
+    let source_sets = collect_sysroot_cone_source_sets(&root)?;
+    let overlay_root = overlay_root
+        .map(|overlay_root| canonicalize_sysroot_root(overlay_root, "sysroot overlay"))
+        .transpose()?;
+    let mut out = Vec::with_capacity(source_sets.len());
 
-    for source_set in &source_sets {
+    for source_set in source_sets {
+        let mut merged = BTreeMap::new();
         for path in &source_set.sources {
             let rel = path
-                .strip_prefix(root)
+                .strip_prefix(&root)
                 .expect("sysroot file should be under canonical root")
                 .to_path_buf();
             merged.insert(
@@ -159,16 +176,41 @@ fn collect_merged_sysroot_entries(
                 },
             );
         }
+
+        if let Some(overlay_root) = overlay_root.as_deref() {
+            merge_overlay_cone_sources(overlay_root, &source_set, &mut merged)?;
+        }
+
+        out.push(SysrootSourceConePackage {
+            root: source_set.root,
+            manifest_path: source_set.manifest_path,
+            manifest: source_set.manifest,
+            trusted_syslib: source_set.trusted_syslib,
+            sources: merged.into_values().map(|entry| entry.path).collect(),
+        });
     }
 
-    if let Some(overlay_root) = overlay_root {
-        let overlay_root = canonicalize_sysroot_root(overlay_root, "sysroot overlay")?;
-        for source_set in &source_sets {
-            merge_overlay_cone_sources(&overlay_root, source_set, &mut merged)?;
+    Ok(out)
+}
+
+fn collect_merged_sysroot_entries(
+    root: &Path,
+    overlay_root: Option<&Path>,
+) -> Result<Vec<SysrootSourceEntry>> {
+    let source_sets = collect_sysroot_source_cone_packages(root, overlay_root)?;
+    let source_count = source_sets.iter().map(|set| set.sources.len()).sum();
+    let mut entries = Vec::with_capacity(source_count);
+
+    for source_set in &source_sets {
+        for path in &source_set.sources {
+            entries.push(SysrootSourceEntry {
+                path: path.clone(),
+                trusted_syslib: source_set.trusted_syslib,
+            });
         }
     }
 
-    Ok(merged.into_values().collect())
+    Ok(entries)
 }
 
 fn merge_overlay_cone_sources(
@@ -225,7 +267,10 @@ fn collect_sysroot_cone_source_sets(root: &Path) -> Result<Vec<SysrootConeSource
         )?;
         let trusted_syslib = package.manifest.cone.kind == ConeKind::Syslib;
         source_sets.push(SysrootConeSourceSet {
+            root: package.root,
             root_rel,
+            manifest_path: package.manifest_path,
+            manifest: package.manifest,
             trusted_syslib,
             sources: package.sources,
         });

@@ -4,7 +4,11 @@ use miette::{Context as _, Diagnostic, IntoDiagnostic as _, Result};
 use thiserror::Error;
 
 use crate::ast;
-use crate::cone::{ConeKind, ConeManifest, ConeNativeBuildConfig, ConeSection};
+#[cfg(test)]
+use crate::cone::{
+    CONSUMER_CONE_ID, SourceConeDependencyEdge, SourceConeNode, SourceConeRole, SourceConeTrust,
+};
+use crate::cone::{ConeKind, ConeManifest, ConeNativeBuildConfig, ConeSection, SourceConeGraph};
 use crate::opt::OptLevel;
 use crate::resolve::{ConeId, Index, IndexedFile};
 use crate::session::{Session, SessionOptions};
@@ -25,10 +29,14 @@ pub enum ConeProjectKind {
 
 #[derive(Debug, Clone)]
 pub struct ProjectInput {
-    /// 当前编译单元的全部源文件：support sources + 当前 project sources。
+    graph: SourceConeGraph,
+    /// 当前编译单元的全部源文件，由 source cone graph 按 DAG order 扁平化得到。
     sources: Vec<SourceFile>,
+    /// `sources` 中每个 source 的 owning cone id，与 `sources` 下标一一对应。
+    source_cone_ids: Vec<ConeId>,
     /// 当前 project（consumer cone）自身的源文件在 `sources` 中的下标。
     project_source_indices: Vec<usize>,
+    consumer_cone_id: ConeId,
     /// 当前运行入口 `fun main` 所在源文件在 `sources` 中的下标。
     main_index: usize,
     /// 当前 project 的锚点 main 文件下标。
@@ -44,6 +52,65 @@ pub struct ProjectInput {
 }
 
 impl ProjectInput {
+    fn from_graph(
+        graph: SourceConeGraph,
+        project_kind: ConeProjectKind,
+        entry_package_override: Option<String>,
+    ) -> Result<Self> {
+        let consumer = graph.consumer();
+        let consumer_cone_id = graph.consumer_id();
+        let cone_root = consumer.root.clone();
+        let cone_manifest = consumer.manifest.clone();
+        let entry_main = consumer.entry_main.as_ref().ok_or_else(|| {
+            miette::miette!(
+                "consumer cone `{}` 缺少入口锚点",
+                consumer.manifest.cone.name
+            )
+        })?;
+
+        let mut sources = Vec::new();
+        let mut source_cone_ids = Vec::new();
+        let mut project_source_indices = Vec::new();
+        let mut main_index = None;
+
+        for node in graph.nodes() {
+            for source in &node.sources {
+                let idx = sources.len();
+                if node.id == consumer_cone_id {
+                    project_source_indices.push(idx);
+                    if source.path() == entry_main.as_path() {
+                        main_index = Some(idx);
+                    }
+                }
+                sources.push(source.clone());
+                source_cone_ids.push(node.id);
+            }
+        }
+
+        let main_index = main_index.ok_or_else(|| {
+            miette::miette!(
+                "consumer cone 的入口锚点未出现在 graph sources 中：{}",
+                entry_main.display()
+            )
+        })?;
+
+        Ok(Self {
+            graph,
+            sources,
+            source_cone_ids,
+            project_source_indices,
+            main_index,
+            cone_anchor_main_index: main_index,
+            consumer_cone_id,
+            project_kind,
+            cone_root,
+            cone_manifest,
+            entry_package_override,
+            entry_main_fqn: None,
+        })
+    }
+
+    #[cfg(test)]
     fn new_explicit(
         sources: Vec<SourceFile>,
         project_source_indices: Vec<usize>,
@@ -52,11 +119,63 @@ impl ProjectInput {
         cone_manifest: ConeManifest,
         entry_package_override: Option<String>,
     ) -> Self {
+        let mut source_cone_ids = Vec::with_capacity(sources.len());
+        let mut consumer_sources = Vec::new();
+        let mut graph_nodes = Vec::new();
+        let mut next_dep_id = 2;
+        for (idx, source) in sources.iter().enumerate() {
+            if project_source_indices.contains(&idx) {
+                source_cone_ids.push(CONSUMER_CONE_ID);
+                consumer_sources.push(source.clone());
+            } else {
+                let dep_id = ConeId::new(next_dep_id);
+                next_dep_id += 1;
+                source_cone_ids.push(dep_id);
+                let manifest = synthetic_manifest_for_source(source, ConeKind::Lib);
+                graph_nodes.push(SourceConeNode {
+                    id: dep_id,
+                    role: SourceConeRole::LocalDependency,
+                    root: source
+                        .path()
+                        .parent()
+                        .map(Path::to_path_buf)
+                        .unwrap_or_else(|| source.path().to_path_buf()),
+                    manifest_path: PathBuf::new(),
+                    kind: manifest.cone.kind,
+                    native_build: manifest.native_build.clone(),
+                    manifest,
+                    trust: SourceConeTrust::Untrusted,
+                    sources: vec![source.clone()],
+                    entry_main: None,
+                    dependencies: Vec::<SourceConeDependencyEdge>::new(),
+                });
+            }
+        }
+        graph_nodes.push(SourceConeNode {
+            id: CONSUMER_CONE_ID,
+            role: SourceConeRole::Consumer,
+            root: cone_root.clone(),
+            manifest_path: cone_root.join(crate::cone::CONE_TOML_FILE_NAME),
+            kind: cone_manifest.cone.kind,
+            native_build: cone_manifest.native_build.clone(),
+            manifest: cone_manifest.clone(),
+            trust: SourceConeTrust::Untrusted,
+            sources: consumer_sources,
+            entry_main: sources
+                .get(main_index)
+                .map(|source| source.path().to_path_buf()),
+            dependencies: Vec::new(),
+        });
+        let graph = SourceConeGraph::from_nodes(graph_nodes, CONSUMER_CONE_ID)
+            .expect("synthetic ProjectInput graph should be valid");
         Self {
+            graph,
             sources,
+            source_cone_ids,
             project_source_indices,
             main_index,
             cone_anchor_main_index: main_index,
+            consumer_cone_id: CONSUMER_CONE_ID,
             project_kind: ConeProjectKind::Explicit,
             cone_root,
             cone_manifest,
@@ -65,27 +184,20 @@ impl ProjectInput {
         }
     }
 
-    fn new_virtual(
-        sources: Vec<SourceFile>,
-        main_index: usize,
-        cone_root: PathBuf,
-        cone_manifest: ConeManifest,
-    ) -> Self {
-        Self {
-            sources,
-            project_source_indices: vec![main_index],
-            main_index,
-            cone_anchor_main_index: main_index,
-            project_kind: ConeProjectKind::Virtual,
-            cone_root,
-            cone_manifest,
-            entry_package_override: None,
-            entry_main_fqn: None,
-        }
-    }
-
     pub fn sources(&self) -> &[SourceFile] {
         &self.sources
+    }
+
+    pub fn graph(&self) -> &SourceConeGraph {
+        &self.graph
+    }
+
+    pub fn source_cone_id(&self, source_index: usize) -> ConeId {
+        self.source_cone_ids[source_index]
+    }
+
+    pub fn consumer_cone_id(&self) -> ConeId {
+        self.consumer_cone_id
     }
 
     pub fn main_source(&self) -> &SourceFile {
@@ -261,21 +373,23 @@ pub fn load_project_input_from_path(
     entry_package_override: Option<String>,
     session_options: &SessionOptions,
 ) -> Result<ProjectInput> {
-    let support_sources = load_default_support_sources(session_options)?;
+    let sysroot_root = crate::sysroot::Sysroot::default_path()
+        .canonicalize()
+        .into_diagnostic()
+        .wrap_err("无法定位 sysroot 目录（source cone graph）")?;
 
     if input.is_file() {
-        let mut sources = support_sources;
-        let main_index = sources.len();
         let source = SourceFile::load(input)?;
         let virtual_root = source.path().to_path_buf();
         let manifest = default_virtual_cone_manifest(&source);
-        sources.push(source);
-        return Ok(ProjectInput::new_virtual(
-            sources,
-            main_index,
+        let graph = SourceConeGraph::load_for_virtual_consumer(
+            source,
             virtual_root,
             manifest,
-        ));
+            &sysroot_root,
+            session_options.sysroot_overlay(),
+        )?;
+        return ProjectInput::from_graph(graph, ConeProjectKind::Virtual, None);
     }
 
     if input.is_dir() {
@@ -287,39 +401,13 @@ pub fn load_project_input_from_path(
                 pkg.manifest.cone.kind
             ));
         }
-        let main = pkg.main.as_ref().ok_or_else(|| {
-            miette::miette!(
-                "内部错误：`bin` cone package 缺少入口锚点：{}",
-                pkg.root.display()
-            )
-        })?;
-        let mut sources = support_sources;
-        let support_len = sources.len();
-        sources.reserve(pkg.sources.len());
-        let mut main_index = None;
-        for (idx, path) in pkg.sources.iter().enumerate() {
-            let source = SourceFile::load(path)?;
-            if source.path() == main.as_path() {
-                main_index = Some(support_len + idx);
-            }
-            sources.push(source);
-        }
-
-        let main_index = main_index.ok_or_else(|| {
-            miette::miette!(
-                "cone package 的 main 未出现在 sources 列表中：{}",
-                main.display()
-            )
-        })?;
-        let project_source_indices = (support_len..sources.len()).collect::<Vec<_>>();
-        return Ok(ProjectInput::new_explicit(
-            sources,
-            project_source_indices,
-            main_index,
-            pkg.root,
-            pkg.manifest,
-            entry_package_override,
-        ));
+        let graph = SourceConeGraph::load_for_consumer_package(
+            pkg,
+            &sysroot_root,
+            session_options.sysroot_overlay(),
+            &[],
+        )?;
+        return ProjectInput::from_graph(graph, ConeProjectKind::Explicit, entry_package_override);
     }
 
     Err(miette::miette!(
@@ -336,17 +424,20 @@ pub fn prepare_virtual_cone_input_with_options(
     source: SourceFile,
     session_options: &SessionOptions,
 ) -> Result<ProjectInput> {
-    let mut sources = load_default_support_sources(session_options)?;
-    let main_index = sources.len();
     let virtual_root = source.path().to_path_buf();
     let manifest = default_virtual_cone_manifest(&source);
-    sources.push(source);
-    Ok(ProjectInput::new_virtual(
-        sources,
-        main_index,
+    let sysroot_root = crate::sysroot::Sysroot::default_path()
+        .canonicalize()
+        .into_diagnostic()
+        .wrap_err("无法定位 sysroot 目录（source cone graph）")?;
+    let graph = SourceConeGraph::load_for_virtual_consumer(
+        source,
         virtual_root,
         manifest,
-    ))
+        &sysroot_root,
+        session_options.sysroot_overlay(),
+    )?;
+    ProjectInput::from_graph(graph, ConeProjectKind::Virtual, None)
 }
 
 pub fn prepare_virtual_cone_context(source: SourceFile) -> Result<ProjectContext> {
@@ -408,9 +499,9 @@ pub fn run_frontend(session: &Session, mut input: ProjectInput) -> Result<Fronte
             file: &f.ast,
         });
     }
-    for (source, ast) in input.sources.iter().zip(asts.iter()) {
+    for (source_index, (source, ast)) in input.sources.iter().zip(asts.iter()).enumerate() {
         indexed.push(IndexedFile {
-            cone: ConeId::new(1),
+            cone: input.source_cone_id(source_index),
             source,
             file: ast,
         });
@@ -621,6 +712,10 @@ pub fn build_source_map(session: &Session, input: &ProjectInput) -> (SourceMap, 
 }
 
 fn default_virtual_cone_manifest(source: &SourceFile) -> ConeManifest {
+    synthetic_manifest_for_source(source, ConeKind::Bin)
+}
+
+fn synthetic_manifest_for_source(source: &SourceFile, kind: ConeKind) -> ConeManifest {
     let name = source
         .path()
         .file_stem()
@@ -632,7 +727,7 @@ fn default_virtual_cone_manifest(source: &SourceFile) -> ConeManifest {
         cone: ConeSection {
             name,
             version: "0.0.0".to_string(),
-            kind: ConeKind::Bin,
+            kind,
         },
         dependencies: Default::default(),
         pre_specialize_functions: Vec::new(),
@@ -667,8 +762,8 @@ fn find_consumer_package_decl_span(
     asts: &[ast::File],
     entry_package: &str,
 ) -> miette::SourceSpan {
-    for (source, file) in input.sources.iter().zip(asts.iter()) {
-        if !source.path().starts_with(&input.cone_root) {
+    for (source_idx, (source, file)) in input.sources.iter().zip(asts.iter()).enumerate() {
+        if input.source_cone_id(source_idx) != input.consumer_cone_id {
             continue;
         }
         let Some(pkg) = file.package.as_ref() else {
@@ -708,7 +803,7 @@ fn select_cone_entry_main(
     index.set_runtime_entry_point(entry_main_fqn.clone());
     input.entry_main_fqn = Some(entry_main_fqn.clone());
 
-    let consumer_cone = ConeId::new(1);
+    let consumer_cone = input.consumer_cone_id();
 
     let overload_in_consumer = index.by_fqn.get(&entry_main_fqn).and_then(|syms| {
         syms.fun.iter().find(|o| {
@@ -807,6 +902,41 @@ mod tests {
             selectors: Vec::new(),
             native_build: ConeNativeBuildConfig::default(),
         }
+    }
+
+    #[test]
+    fn project_input_is_derived_from_source_cone_graph() {
+        let source = SourceFile::new_virtual(
+            "/tmp/scoop-source-graph-main.scoop",
+            "package fixtures.source_graph\nfun main() {}\n",
+        );
+
+        let input = prepare_virtual_cone_input(source).unwrap();
+        let graph = input.graph();
+
+        assert_eq!(graph.consumer_id(), input.consumer_cone_id());
+        assert_eq!(graph.consumer().role, SourceConeRole::Consumer);
+        assert!(
+            graph
+                .nodes()
+                .iter()
+                .any(|node| node.role == SourceConeRole::SysrootAuto),
+            "virtual project input should include sysroot auto cones in the source graph"
+        );
+        assert!(
+            input
+                .project_source_indices
+                .iter()
+                .all(|&idx| input.source_cone_id(idx) == input.consumer_cone_id()),
+            "consumer sources must keep the graph consumer cone id"
+        );
+        assert!(
+            input
+                .source_cone_ids
+                .iter()
+                .any(|&id| id != input.consumer_cone_id()),
+            "sysroot graph sources must not be flattened into the consumer cone id"
+        );
     }
 
     #[test]

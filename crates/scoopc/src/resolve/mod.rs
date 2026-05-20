@@ -213,14 +213,18 @@ pub enum SymbolKind {
 /// - 该概念用于实现 `internal` 的“仅 cone 内可见”语义（spec §13.6）。
 /// - 当前阶段 cone 仍是一个轻量概念：在同一次编译/resolve 构建的 `Index` 中，
 ///   不同 cone 只是用于可见性过滤与 fixtures 模拟依赖边界。
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ConeId(u32);
 
 impl ConeId {
     pub const DEFAULT: ConeId = ConeId(0);
 
-    pub fn new(raw: u32) -> ConeId {
+    pub const fn new(raw: u32) -> ConeId {
         ConeId(raw)
+    }
+
+    pub const fn as_u32(self) -> u32 {
+        self.0
     }
 }
 
