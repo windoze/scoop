@@ -100,6 +100,7 @@ void scoop_gc_thread_detach_current(void);
 
 void scoop_enter_native(void ***root_slots, uint32_t root_slots_len);
 void scoop_leave_native(void);
+void scoop_gc_safepoint_poll(void);
 
 void *scoop_alloc(uint64_t size_bytes);
 void *scoop_alloc_typed(const ScoopTypeDescriptor *type_desc, uint64_t size_bytes);

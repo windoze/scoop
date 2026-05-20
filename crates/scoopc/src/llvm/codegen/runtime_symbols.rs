@@ -24,9 +24,4 @@ pub(super) const SCOOP_TEST_STACKMAP_STATEPOINT_SMOKE: &str =
     "scoop_test_stackmap_statepoint_smoke";
 pub(super) const SCOOP_STRING_EQUALS: &str = "scoop_string_equals";
 pub(super) const SCOOP_SYNC_ONCE_RUN: &str = "scoop_sync_once_run";
-pub(super) const SCOOP_THREAD_CURRENT_ID: &str = "scoop_thread_current_id";
-pub(super) const SCOOP_THREAD_JOIN: &str = "scoop_thread_join";
-pub(super) const SCOOP_THREAD_SLEEP_MILLIS: &str = "scoop_thread_sleep_millis";
-pub(super) const SCOOP_THREAD_SPAWN: &str = "scoop_thread_spawn";
-pub(super) const SCOOP_THREAD_YIELD: &str = "scoop_thread_yield";
 pub(super) const SCOOP_UNPIN: &str = "scoop_unpin";

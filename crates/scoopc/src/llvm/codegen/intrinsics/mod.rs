@@ -7,7 +7,6 @@ mod builtin;
 mod named;
 mod sync;
 mod sysroot;
-mod thread;
 
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(in crate::llvm::codegen) fn panic_verified_intrinsic_contract(

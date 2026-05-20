@@ -64,7 +64,12 @@ fn normal_build_does_not_export_runtime_test_helpers() {
     assert!(
         !symbols.contains("scoop_test_")
             && !symbols.contains("scoop_runtime_test_sync")
-            && !symbols.contains("scoop_sync_"),
+            && !symbols.contains("scoop_sync_")
+            && !symbols.contains("scoop_thread_spawn")
+            && !symbols.contains("scoop_thread_join")
+            && !symbols.contains("scoop_thread_yield")
+            && !symbols.contains("scoop_thread_sleep_millis")
+            && !symbols.contains("scoop_thread_current_id"),
         "ordinary runtime link should not export migrated runtime helpers:\n{symbols}"
     );
 }

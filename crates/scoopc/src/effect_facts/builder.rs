@@ -2824,11 +2824,6 @@ fn is_plain_compiler_intrinsic(callable_fqn: &str) -> bool {
             | "scoop.sync.isDone"
             | "scoop.sync.run"
             | "scoop.sync.destroy"
-            | "scoop.thread.threadSpawn"
-            | "scoop.thread.join"
-            | "scoop.thread.sleepMillis"
-            | "scoop.thread.currentId"
-            | "scoop.thread.yield"
     )
 }
 

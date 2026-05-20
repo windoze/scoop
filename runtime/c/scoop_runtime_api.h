@@ -98,14 +98,9 @@
   X(scoop_string_from_string_array) \
   X(scoop_string_to_float64) \
   X(scoop_string_unsafe_slice_bytes) \
-  X(scoop_thread_current_id) \
   X(scoop_thread_is_registered) \
-  X(scoop_thread_join) \
   X(scoop_thread_register) \
-  X(scoop_thread_sleep_millis) \
-  X(scoop_thread_spawn) \
   X(scoop_thread_unregister) \
-  X(scoop_thread_yield) \
   X(scoop_unpin)
 
 #endif // SCOOP_RUNTIME_API_H

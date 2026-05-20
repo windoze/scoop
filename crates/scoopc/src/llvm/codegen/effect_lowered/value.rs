@@ -12,8 +12,8 @@ use std::collections::{BTreeSet, HashSet};
 use inkwell::module::Linkage;
 use inkwell::types::{BasicType, BasicTypeEnum, FunctionType};
 use inkwell::values::{
-    AggregateValueEnum, BasicMetadataValueEnum, BasicValue, BasicValueEnum, CallSiteValue,
-    FunctionValue, PointerValue,
+    AggregateValueEnum, BasicMetadataValueEnum, BasicValue, BasicValueEnum, FunctionValue,
+    PointerValue,
 };
 use inkwell::{AddressSpace, AtomicOrdering, IntPredicate};
 
@@ -1557,17 +1557,6 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
         {
             return Ok(value);
         }
-        if callee_fqn == "scoop.thread.yield" {
-            assert!(
-                args.is_empty(),
-                "typecheck must reject thread.yield arguments before LLVM codegen"
-            );
-            let rt = self.codegen.declare_runtime_thread_yield();
-            let _ =
-                self.codegen
-                    .build_call_preserving_gc_local_roots(span, rt, &[], "thread_yield")?;
-            return Ok(CgValue::unit());
-        }
         if let Some(value) = self.lower_atomic_int_intrinsic(span, callee_fqn, args)? {
             return Ok(value);
         }
@@ -1588,9 +1577,6 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
         }
         let dispatch_fqn = direct_call_dispatch_fqn(callee_fqn);
         if let Some(value) = self.lower_sync_intrinsic(span, dispatch_fqn, args)? {
-            return Ok(value);
-        }
-        if let Some(value) = self.lower_thread_intrinsic(span, dispatch_fqn, args)? {
             return Ok(value);
         }
         if dispatch_fqn == "scoop.unsafe.invoke" {
@@ -1764,152 +1750,6 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
         self.extract_pure_call_complete(span, layout.step_schema(), step, target_cg)
     }
 
-    fn lower_thread_intrinsic(
-        &mut self,
-        span: Span,
-        dispatch_fqn: &str,
-        args: &[mir::CallArg],
-    ) -> Result<Option<CgValue<'ctx>>, LlvmEmitError> {
-        match dispatch_fqn {
-            "scoop.thread.threadSpawn" => {
-                self.expect_sync_arity(span, dispatch_fqn, args, 1)?;
-                let block = self.lower_sync_ref_arg(dispatch_fqn, &args[0])?;
-                let closure_ty = self.codegen.llvm_closure_object_type();
-                let closure_ptr_ty = self.codegen.llvm_ptr_type(self.codegen.gc_address_space());
-                let closure_ptr = self.codegen.builder.build_pointer_cast(
-                    block,
-                    closure_ptr_ty,
-                    "thread_block_ptr",
-                )?;
-                let i8_ptr_ty = self.codegen.llvm_i8_ptr_type();
-                let env_gep = self.codegen.builder.build_struct_gep(
-                    closure_ty,
-                    closure_ptr,
-                    1,
-                    "thread_env_gep",
-                )?;
-                let fn_gep = self.codegen.builder.build_struct_gep(
-                    closure_ty,
-                    closure_ptr,
-                    2,
-                    "thread_fn_gep",
-                )?;
-                let env_ptr = self
-                    .codegen
-                    .builder
-                    .build_load(i8_ptr_ty, env_gep, "thread_env")?
-                    .into_pointer_value();
-                let fn_ptr_raw = self
-                    .codegen
-                    .builder
-                    .build_load(i8_ptr_ty, fn_gep, "thread_fn_raw")?
-                    .into_pointer_value();
-                let start_fn_ptr_ty = self.codegen.llvm_ptr_type(AddressSpace::default());
-                let start_fn_ptr = self.codegen.builder.build_pointer_cast(
-                    fn_ptr_raw,
-                    start_fn_ptr_ty,
-                    "thread_fn_typed",
-                )?;
-                let rt = self.codegen.declare_runtime_thread_spawn();
-                let call = self.codegen.build_call_preserving_gc_local_roots(
-                    span,
-                    rt,
-                    &[env_ptr.into(), start_fn_ptr.into()],
-                    "thread_spawn",
-                )?;
-                Ok(Some(CgValue {
-                    ty: CgTy::Ref,
-                    value: Some(self.sync_ref_return_value(span, dispatch_fqn, call)?.into()),
-                }))
-            }
-            "scoop.thread.join" => {
-                self.expect_sync_arity(span, dispatch_fqn, args, 1)?;
-                let thread = self.lower_sync_ref_arg(dispatch_fqn, &args[0])?;
-                let rt = self.codegen.declare_runtime_thread_join();
-                let _ = self.codegen.build_call_preserving_gc_local_roots(
-                    span,
-                    rt,
-                    &[thread.into()],
-                    "thread_join",
-                )?;
-                Ok(Some(CgValue::unit()))
-            }
-            "scoop.thread.sleepMillis" => {
-                self.expect_sync_arity(span, dispatch_fqn, args, 1)?;
-                let word = IntTy {
-                    bits: self.codegen.host.word_bit_width(),
-                    signed: true,
-                };
-                let value = self.codegen.codegen_mir_operand_expected(
-                    args[0].span,
-                    &args[0].value,
-                    self.slots,
-                    Some(CgTy::Int(word)),
-                )?;
-                let value = self
-                    .codegen
-                    .coerce_value(args[0].span, value, CgTy::Int(word))?;
-                let (raw, from) = self
-                    .codegen
-                    .expect_cg_int(value, "lower_thread_sleep_millis value");
-                let ms = self.codegen.cast_int(
-                    raw,
-                    from,
-                    IntTy {
-                        bits: 64,
-                        signed: true,
-                    },
-                )?;
-                let rt = self.codegen.declare_runtime_thread_sleep_millis();
-                let _ = self.codegen.build_call_preserving_gc_local_roots(
-                    span,
-                    rt,
-                    &[ms.into()],
-                    "thread_sleep_millis",
-                )?;
-                Ok(Some(CgValue::unit()))
-            }
-            "scoop.thread.currentId" => {
-                self.expect_sync_arity(span, dispatch_fqn, args, 0)?;
-                let rt = self.codegen.declare_runtime_thread_current_id();
-                let call = self.codegen.build_call_preserving_gc_local_roots(
-                    span,
-                    rt,
-                    &[],
-                    "thread_current_id",
-                )?;
-                let raw = self
-                    .codegen
-                    .expect_basic_value(call, "lower_thread_current_id return");
-                let id = self
-                    .codegen
-                    .expect_int_value(raw, "lower_thread_current_id return");
-                let from = IntTy {
-                    bits: 64,
-                    signed: true,
-                };
-                let to = IntTy {
-                    bits: self.codegen.host.word_bit_width(),
-                    signed: true,
-                };
-                let casted = self.codegen.cast_int(id, from, to)?;
-                Ok(Some(CgValue::int(casted, to)))
-            }
-            "scoop.thread.yield" => {
-                self.expect_sync_arity(span, dispatch_fqn, args, 0)?;
-                let rt = self.codegen.declare_runtime_thread_yield();
-                let _ = self.codegen.build_call_preserving_gc_local_roots(
-                    span,
-                    rt,
-                    &[],
-                    "thread_yield",
-                )?;
-                Ok(Some(CgValue::unit()))
-            }
-            _ => Ok(None),
-        }
-    }
-
     fn lower_sync_intrinsic(
         &mut self,
         span: Span,
@@ -2018,23 +1858,6 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
             .codegen
             .expect_cg_pointer(value, "effect-lowered sync intrinsic ref arg");
         let _ = dispatch_fqn;
-        Ok(ptr)
-    }
-
-    fn sync_ref_return_value(
-        &self,
-        span: Span,
-        dispatch_fqn: &str,
-        call: CallSiteValue<'ctx>,
-    ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
-        let raw = self
-            .codegen
-            .expect_basic_value(call, "effect-lowered runtime ref return value");
-        let ptr = self
-            .codegen
-            .expect_pointer_value(raw, "effect-lowered runtime ref return type");
-        let _ = dispatch_fqn;
-        let _ = span;
         Ok(ptr)
     }
 

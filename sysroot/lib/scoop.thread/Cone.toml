@@ -2,3 +2,6 @@
 name = "scoop.thread"
 version = "0.0.0"
 kind = "syslib"
+
+[native-build]
+c-sources = ["native/scoop_thread.c"]

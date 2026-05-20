@@ -149,6 +149,46 @@ pub(super) fn collect_request_root_fun_keys(
         }
     }
 
+    // Native object symbols emitted for `@CallingConvention` bodies may be called
+    // only from cone-local native objects, so ordinary source reachability cannot
+    // discover them. Treat every annotated body as a materialization root.
+    for item in &lowered_hir.file.items {
+        let crate::hir::Item::Fun(fun) = item else {
+            continue;
+        };
+        if !lowered_hir.native_callable_funs.contains_key(&fun.fqn) {
+            continue;
+        }
+        if out
+            .iter()
+            .any(|root| root.source_path == fun.source_path && root.span == fun.span)
+        {
+            continue;
+        }
+        out.push(RequestRootFunKey {
+            source_path: fun.source_path.clone(),
+            fqn: fun.fqn.clone(),
+            span: fun.span,
+        });
+    }
+
+    for fun in &lowered_hir.member_funs {
+        if !lowered_hir.native_callable_funs.contains_key(&fun.fqn) {
+            continue;
+        }
+        if out
+            .iter()
+            .any(|root| root.source_path == fun.source_path && root.span == fun.span)
+        {
+            continue;
+        }
+        out.push(RequestRootFunKey {
+            source_path: fun.source_path.clone(),
+            fqn: fun.fqn.clone(),
+            span: fun.span,
+        });
+    }
+
     out
 }
 

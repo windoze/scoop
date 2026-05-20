@@ -3,7 +3,7 @@
 > 生成时间：2026-05-19
 > 设计基线：[`SYSROOT_RESHAPE_R2.md`](./SYSROOT_RESHAPE_R2.md)
 > 计划基线：[`PLAN.md`](./PLAN.md)
-> 当前状态：`P8-T03` 已完成；下一任务为 `P8-T04`。
+> 当前状态：`P8-T04` 已完成；下一任务为 `P8-T05`。
 > 执行原则：严格按 P0 -> P10 顺序推进；同一阶段内可按任务依赖拆 PR，但每个任务完成后必须保持仓库无 failing fixture，并回写完成记录。
 
 ## 全局约束
@@ -112,7 +112,7 @@ P0 baseline freeze
 | `P8-T01` | [DONE] | P8 | 建立公开 `scoop_runtime.h` runtime core header |
 | `P8-T02` | [DONE] | P8 | 迁移 `scoop.runtime.test` native helpers |
 | `P8-T03` | [DONE] | P8 | 迁移 `scoop.sync` native implementation |
-| `P8-T04` | [TODO] | P8 | 迁移 `scoop.thread` native implementation 与 thread entry trampoline |
+| `P8-T04` | [DONE] | P8 | 迁移 `scoop.thread` native implementation 与 thread entry trampoline |
 | `P8-T05` | [TODO] | P8 | 迁移 string/native helper 边界并收窄 runtime allowlist |
 | `P9-T01` | [TODO] | P9 | Object once 改为 LLVM atomics + TLS init-frame stack |
 | `P9-T02` | [TODO] | P9 | Top-level `val` / annotated `var` 改为 per-cone eager init |
@@ -661,7 +661,7 @@ P0 baseline freeze
 - 与 `PLAN.md` / `SYSROOT_RESHAPE_R2.md` 闭合项：满足 P8 中“`Mutex`、`CondVar`、user-visible `Once` 迁到 owning cone native source”、“每迁出一组 symbols 同步更新 runtime allowlist”、“普通 hello-world 不包含 migrated sync symbols”和“显式依赖 `scoop.sync` 的程序仍能运行 sync fixtures”的要求；`scoop.thread` user-level native implementation 和 string/native helper 迁移仍按 `P8-T04` / `P8-T05` 推进。
 - 验证结果：`cargo fmt` 通过；`cargo run -p scoop -- test tests/fixtures/run-pass/std_sync_basic.scoop` 通过；`cargo run -p scoop -- test tests/fixtures/run-pass/sync_gc_release_task_like_object_basic.scoop` 通过；三个补 `SYSROOT-DEPS` 的 delegated-property fixtures 定向通过；`cargo run -p scoop -- test tests/fixtures/typecheck/std_sync_api_surface_ok.scoop` 通过；`cargo run -p scoop -- test tests/fixtures/umb_fix/B-27-sync-intrinsics/` 通过；`cargo run -p scoop -- test tests/fixtures/run-pass/` 通过（416 checks）；`cargo test -p scoop_runtime --lib abi_exports_allowlist -- --nocapture` 通过且 allowlist 中无 `scoop_sync_*`；`cargo test -p scoop --test p8_runtime_migration -- --nocapture` 通过；`cargo build` 通过；`cargo clippy --all-targets -- -D warnings` 通过；`cargo test --all --all-targets` 首次 1200s 超时，修正 audit baseline 后以 1800s 重跑通过（Rust tests: ok，包含 `scoopc` 932 passed）；`cargo run -p scoop -- test` 通过（fixtures: ok，1577 checks）。
 
-## P8-T04：迁移 `scoop.thread` native implementation 与 thread entry trampoline
+## [DONE] P8-T04：迁移 `scoop.thread` native implementation 与 thread entry trampoline
 
 - 参考：`PLAN.md` §11、`SYSROOT_RESHAPE_R2.md` §6-§7。
 - 目标：user-level thread API 归 `scoop.thread` cone，runtime core 只保留 GC thread lifecycle substrate。
@@ -675,6 +675,17 @@ P0 baseline freeze
   6. runtime allowlist 删除 user-level `scoop_thread_spawn/join/sleep/currentId/yield` core exports。
 - 验证：thread fixtures 通过；普通不依赖 thread 程序不链接 thread native objects。
 - 完成条件：runtime core 不再实现 user-level thread API。
+
+### 完成记录（2026-05-20）
+
+- 改动范围：`scoop.thread` sysroot surface 从 `@Intrinsic` 改为 public Scoop wrappers + private `@Extern(abi = "scoop")` native primitives；新增 `sysroot/lib/scoop.thread/native/scoop_thread.c` 并在 `sysroot/lib/scoop.thread/Cone.toml` 声明 `[native-build]`；删除旧 runtime core active source `runtime/c/scoop_thread.c`；`crates/scoop_runtime/build.rs` 不再编译 thread implementation；`runtime/c/scoop_runtime_api.h` 删除 user-level `scoop_thread_spawn/join/yield/sleep_millis/current_id` exports；`scoop_runtime.h` 公开 `scoop_gc_safepoint_poll` 供 migrated thread native `yield` 使用；移除 LLVM thread intrinsic lowering/runtime symbol declarations；更新 P8 normal-link symbol regression 和 failure-policy audit baseline；未修改 `PLAN.md` 或 `SYSROOT_RESHAPE_R2.md`。
+- 核心决策：`threadSpawn(block)` 在 Scoop wrapper 中创建 `GcHandle`，只把 `GcHandle.raw` 作为 word-sized userdata token 交给 cone-local C；native code 不再裸持有 closure GC ref，也不再从 compiler intrinsic 中拆 closure env/fn pointer。
+- Thread entry trampoline：cone-local C 在新 OS thread entry 中调用 `scoop_gc_thread_attach_current()`，再调用 `@CallingConvention(name = "scoop_thread_entry_trampoline", convention = "C")` Scoop body symbol；该 Scoop body 用 `GC.handleGet` + `Any as? (() -> Unit / Pure!)` 恢复闭合 pure entry 并调用；正常返回后 C 侧 drop handle 并 `scoop_gc_thread_detach_current()`；fatal trap/panic 仍直接 abort，不承诺 detach/recovery。
+- Runtime/core 边界：runtime core 继续保留 `scoop_thread_register/unregister/is_registered` 和公开 `scoop_gc_thread_attach_current/detach_current` 作为 GC thread lifecycle substrate；`join` / `sleepMillis` 在 cone native 中围绕阻塞 OS 调用执行 `scoop_enter_native` / `scoop_leave_native`，`yield` 保留 safepoint poll。
+- Compiler 修正：发现未被 ordinary Scoop call graph 直接引用的 `@CallingConvention` body 可能只被 native object 引用，原 materialization roots 会漏掉其 plain callable body；本任务将所有 `@CallingConvention` body 作为 MIR materialization roots，避免 native-callable object symbols 依赖源码层 keepalive workaround。
+- Fixture / tests：thread API surface、pure-entry gate、basic thread run-pass、cross-thread GC roots、explicit sysroot thread dependency、B-28 thread UMB fixtures 和 P8 symbol regression 均通过；普通不依赖 thread 的 build 产物不再导出 user-level `scoop_thread_*` migrated symbols。
+- 与 `PLAN.md` / `SYSROOT_RESHAPE_R2.md` 闭合项：满足 P8 中“user-level thread API 迁到 owning cone native source”、“closure/userdata 通过 GC handle token”、“thread entry trampoline attach -> call `@CallingConvention` Scoop symbol -> normal detach”、“runtime core 只保留 GC thread lifecycle substrate”和“runtime allowlist 删除迁出 thread symbols”的要求；string/native helper 边界和最终 allowlist 收口继续由 `P8-T05` 处理。
+- 验证结果：`cargo fmt` 通过；`cargo build` 通过；`cargo clippy --all-targets -- -D warnings` 通过；`cargo test -p scoop_runtime --lib abi_exports_allowlist -- --nocapture` 通过；`cargo test -p scoop --test p8_runtime_migration -- --nocapture` 通过；定向 thread/typecheck/runtime_gc/run_pass_cone/UMB fixtures 通过；`cargo test --all --all-targets` 通过（Rust tests: ok，包含 `scoopc` 932 passed）；`cargo run -p scoop -- test` 通过（fixtures: ok，1577 checks）。
 
 ## P8-T05：迁移 string/native helper 边界并收窄 runtime allowlist
 

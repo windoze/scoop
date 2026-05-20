@@ -1514,21 +1514,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             if dispatch_fqn == "scoop.sync.__scoop_sync_once_run" {
                 return self.codegen_sysroot_sync_once_run(span, callee.span, args);
             }
-            if dispatch_fqn == "scoop.thread.threadSpawn" {
-                return self.codegen_sysroot_thread_spawn(span, callee.span, args);
-            }
-            if dispatch_fqn == "scoop.thread.join" {
-                return self.codegen_sysroot_thread_join(span, callee.span, args);
-            }
-            if dispatch_fqn == "scoop.thread.sleepMillis" {
-                return self.codegen_sysroot_thread_sleep_millis(span, callee.span, args);
-            }
-            if dispatch_fqn == "scoop.thread.yield" {
-                return self.codegen_sysroot_thread_yield(span, callee.span, args);
-            }
-            if dispatch_fqn == "scoop.thread.currentId" {
-                return self.codegen_sysroot_thread_current_id(span, callee.span, args);
-            }
             if dispatch_fqn.starts_with("scoop.unsafe.__atomicInt") {
                 return self.codegen_sysroot_atomic_int_intrinsics(
                     span,
