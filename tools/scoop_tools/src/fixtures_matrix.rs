@@ -382,11 +382,7 @@ const STDLIB_DOMAINS: &[(&str, &str, &[&str])] = &[
         ],
     ),
     ("19", "Test utilities", &["std_test_"]),
-    (
-        "20",
-        "Reflection",
-        &["comptime_reflect", "comptime_fields", "comptime_variants"],
-    ),
+    ("20", "Reflection", &["reflection_"]),
 ];
 
 /// 按 stdlib 领域扫描 `run-pass/` 下的 fixture 覆盖度。

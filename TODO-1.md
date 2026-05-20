@@ -325,7 +325,7 @@
   - 验证命令：`cargo fmt`；`cargo test -p scoopc --no-default-features parser`；`cargo test -p scoopc --no-default-features typecheck`；`cargo test --all --all-targets --no-default-features`；`cargo run -p scoop -- test`；`cargo run -p scoop_tools -- spec-fixtures check`；`cargo clippy --all-targets -- -D warnings`；全仓旧 surface 搜索 `comptime|Comptime|ConstEval|const fun|const val|Modifier::Const|Keyword::Const|\bis_const\b`（排除 `.git`/`target` 后按上述分类复核）。
   - 残余风险：旧 surface 删除回归 fixtures 仍刻意包含源码文本；归档文档和历史审计 CSV 不改写历史。下一步 `P0-T04R` 需复核 P0 包是否可进入 `TODO-2.md`。
 
-## [TODO] P0-T04R：Review P0 全包完成度
+## [DONE] P0-T04R：Review P0 全包完成度
 
 - 参考：P0-T01 到 P0-T04 的所有完成记录。
 - 重点：
@@ -349,4 +349,11 @@
   - review 结论明确写出：P0 完成，可以进入 `TODO-2.md`；或列出阻塞项并在本 review 内修复。
 - 依赖：P0-T04
 - 完成记录：
-  - 待填写。
+  - 复查范围：复核了 `P0-T01` 到 `P0-T04` 完成记录，并按本任务要求检查 `crates/scoopc/src/`、`sysroot/`、`stdlib/`、`tests/fixtures/`、`PLAN.md`、`PIPELINE_REFACTOR.md`、`PIPELINE-CLEANUP.md`；额外复核了 active spec/audit 文档、build sysroot overlays 与 `tools/scoop_tools` 中会影响 P0 清场一致性的覆盖矩阵。
+  - Review 结论：P0 满足 `PLAN.md` §4/P0 完成标准，正式 pipeline 中不再保留旧 comptime/const surface、const evaluator、package-level trimming、runtime comptime plan 或跨阶段兼容特判；`PIPELINE_REFACTOR.md` 主线阶段图不依赖现存 comptime 特例，可以安全进入 `TODO-2.md` / P1。
+  - 修正项：发现并修复 `tools/scoop_tools/src/fixtures_matrix.rs` 的 stdlib Reflection domain 仍匹配旧 `comptime_reflect` / `comptime_fields` / `comptime_variants` fixture 前缀；已改为当前 `reflection_` 前缀，避免 active tooling 继续引用旧 comptime reflection fixture 命名。
+  - 抽查结论：`tests/fixtures/parse/comptime_syntax_basic.scoop` 与 `tests/fixtures/parse/package_level_comptime_if_basic.scoop` 均断言普通 `scoop::parse::expected` 失败，不存在静默兼容；`sysroot/lib/scoop.core/src/core.scoop` 与 `tests/fixtures/build/intrinsic_sysroot_overlay_scalar_tostring_basic.sysroot/lib/scoop.core/src/core.scoop` 中原反射 helper 已是普通 `@Intrinsic fun` + `MetaList<T>` 形状，未保留 `const fun` / `const val` / `ComptimeList`。
+  - 允许命中分类：活跃 Rust 代码中仅剩 `Keyword::Comptime`、lexer 映射、parser recovery/display 与 parser 删除回归测试，作为 reserved tombstone 和普通 parse-fail 回归；`tests/fixtures/parse|resolve|typecheck|scoopir/package_level_comptime*` 与 `parse/comptime_syntax_basic.scoop` 是旧 surface 删除回归 fixtures；`PLAN.md`、`PIPELINE_REFACTOR.md`、`TODO*`、`memory`、`docs/archive/**`、`audit/UMB_retired.csv` 和 `audit/UMB_inventory_initial.csv` 中的命中是计划/任务/历史记录。`ConstEval`、`const fun`、`const val`、`Modifier::Const`、`Keyword::Const`、`is_const`、`ComptimeList`、`RuntimeComptimePlan`、`trim_package_level_comptime`、`Item::ComptimeIf`、`StmtKind::Comptime`、`ComptimeFor`、`parse_comptime_stmt` 在活跃 `crates/scoopc/src`、`sysroot`、`stdlib`、fixtures/build overlays、README、active spec docs 与 `tools/scoop_tools` 中无旧 surface 命中。
+  - `PIPELINE-CLEANUP.md` 判定：该文档仍是 pipeline 边界审计基线，未发现旧 comptime/const surface 残留需要更新；P0 review 未改变阶段计划或 crate/fact DAG 假设。
+  - 验证命令：`cargo fmt`；`cargo test --all --all-targets --no-default-features`；`cargo run -p scoop -- test`；`cargo run -p scoop_tools -- spec-fixtures check`；`cargo clippy --all-targets -- -D warnings`；全仓旧 surface 搜索 `comptime|Comptime|ConstEval|const fun|const val|Modifier::Const|Keyword::Const|\bis_const\b|ComptimeList`（排除 `.git`、`target`、`memory`、`docs/archive` 与 TODO 历史记录后按上述分类复核）；额外搜索 `comptime_reflect|comptime_fields|comptime_variants|ComptimeList` 确认旧反射 fixture/tooling 命名仅剩历史记录。
+  - 残余风险：旧 surface 删除回归 fixtures 仍刻意包含源码文本；`Keyword::Comptime` 仍作为 reserved tombstone 保留，避免旧 `comptime if` 退化为 identifier + 普通 `if` 的误解析。归档文档和历史审计 CSV 不改写历史。

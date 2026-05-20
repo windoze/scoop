@@ -7,7 +7,7 @@
 > - [`docs/archive/designs/SYSROOT_RESHAPE_R2.md`](./docs/archive/designs/SYSROOT_RESHAPE_R2.md)
 > - [`docs/archive/plans/PLAN-sysroot-reshape-r2.md`](./docs/archive/plans/PLAN-sysroot-reshape-r2.md)
 > - [`docs/archive/plans/TODO-sysroot-reshape-r2.md`](./docs/archive/plans/TODO-sysroot-reshape-r2.md)
-> 当前状态：P0 清场已完成，待执行 P0-T04R review
+> 当前状态：P0 清场与 P0-T04R review 已完成；下一步进入 `TODO-2.md` / P1 初始化
 
 ## 0. 目标
 
