@@ -3,7 +3,7 @@
 > 生成时间：2026-05-19
 > 设计基线：[`SYSROOT_RESHAPE_R2.md`](./SYSROOT_RESHAPE_R2.md)
 > 计划基线：[`PLAN.md`](./PLAN.md)
-> 当前状态：`P8-T01` 已完成；下一任务为 `P8-T02`。
+> 当前状态：`P8-T02` 已完成；下一任务为 `P8-T03`。
 > 执行原则：严格按 P0 -> P10 顺序推进；同一阶段内可按任务依赖拆 PR，但每个任务完成后必须保持仓库无 failing fixture，并回写完成记录。
 
 ## 全局约束
@@ -110,7 +110,7 @@ P0 baseline freeze
 | `P7-T01` | [DONE] | P7 | 将 native-build 扩展到所有 loaded source cones |
 | `P7-T02` | [DONE] | P7 | dependency cone C++/link-flags/linker driver 覆盖 |
 | `P8-T01` | [DONE] | P8 | 建立公开 `scoop_runtime.h` runtime core header |
-| `P8-T02` | [TODO] | P8 | 迁移 `scoop.runtime.test` native helpers |
+| `P8-T02` | [DONE] | P8 | 迁移 `scoop.runtime.test` native helpers |
 | `P8-T03` | [TODO] | P8 | 迁移 `scoop.sync` native implementation |
 | `P8-T04` | [TODO] | P8 | 迁移 `scoop.thread` native implementation 与 thread entry trampoline |
 | `P8-T05` | [TODO] | P8 | 迁移 string/native helper 边界并收窄 runtime allowlist |
@@ -615,7 +615,7 @@ P0 baseline freeze
 - 与 `PLAN.md` / `SYSROOT_RESHAPE_R2.md` 闭合项：满足 P8 中“建立稳定 runtime-core public headers”、“暴露 GC thread lifecycle substrate”、“cone native sources should be self-contained except for stable runtime-core public headers”和“native build 自动获得公开 include path”的要求；`scoop.runtime.test`、`scoop.sync`、`scoop.thread` 与 string helper 的实际迁移仍按 `P8-T02`-`P8-T05` 推进，阶段级计划未变化。
 - 验证结果：`cargo fmt` 通过；`cargo test -p scoop native_compile_commands_include_public_runtime_header_dir -- --nocapture` 通过；`cargo test -p scoop_runtime --lib abi_exports_allowlist -- --nocapture` 通过（一次未加 `--lib` 的 filtered run 在目标单测通过后继续启动无关 test binary 并超时，已用限定命令重跑通过）；`cargo run -p scoop -- test tests/fixtures/run_pass_cone/public_runtime_header_include` 通过；`cargo build` 通过；`cargo clippy --all-targets -- -D warnings` 通过；`cargo test --all --all-targets` 首次 1200s 超时后以 1800s 重跑通过（Rust tests: ok，包含 `scoopc` 932 passed）；`cargo run -p scoop -- test` 通过（fixtures: ok，1577 checks）。
 
-## P8-T02：迁移 `scoop.runtime.test` native helpers
+## [DONE] P8-T02：迁移 `scoop.runtime.test` native helpers
 
 - 参考：`PLAN.md` §11。
 - 目标：test-only helper 不再随普通 runtime core 链接。
@@ -627,6 +627,15 @@ P0 baseline freeze
   4. runtime allowlist 删除迁出 symbols。
 - 验证：runtime/test helper fixtures 通过；普通 hello-world 链接不含 `scoop_test_*`。
 - 完成条件：test-only ABI 不再污染 normal runtime core。
+
+### 完成记录（2026-05-20）
+
+- 改动范围：`runtime/c/scoop_test.c` 迁移为 `sysroot/lib/scoop.runtime.test/native/scoop_test.c`；`sysroot/lib/scoop.runtime.test/Cone.toml` 增加 `[native-build]`；`runtime/c/scoop_runtime_api.h` 删除 `scoop_test_*` runtime-core allowlist entries；`runtime/c/scoop_sync.c` 改为由 `scoop.runtime.test` native object override hidden weak cleanup hooks；`runtime/c/scoop_thread.c` 删除未使用的 test-only thread spawn gate exports；`runtime/c/scoop_gc_backend_immix.c` 的 GC backend internal smoke helpers 在普通 runtime 编译中由 `SCOOP_RUNTIME_NO_GC_TEST_HELPERS` 排除；`crates/scoop/src/toolchain.rs` 对 normal user runtime build 定义该排除宏；`crates/scoop_runtime/build.rs` 的 core `scooprt` 也排除 test helpers，并单独构建 test-only `scooprt_test_core` 供 runtime integration tests 链接；相关 fixtures 显式声明 `SYSROOT-DEPS: scoop.runtime.test`；新增 `crates/scoop/tests/p8_runtime_migration.rs` 普通链接符号回归；未修改 `PLAN.md` 或 `SYSROOT_RESHAPE_R2.md`。
+- 核心决策：`scoop.runtime.test` 继续不进入默认 auto dependency；所有需要 `scoop_test_*` standalone helper 的运行 fixtures 通过 `SYSROOT-DEPS` 显式加载该 cone，使 helper native object 只在 opt-in 测试程序中编译链接。`scoop_runtime` crate 的 GC/STW 内部 smoke tests 不再通过 core `scooprt` ABI 暴露 test symbols，而是显式链接独立 test-only runtime archive，保持 runtime allowlist 与 normal user-program link 清洁。
+- Sync/GC test helper 边界：sync destroy counters 的 public test symbols 移到 `scoop.runtime.test` native file；runtime core 只保留 hidden weak no-op hook，普通链接产物不导出该 hook，显式链接 test cone 时由 test native object 覆盖并计数。GC backend internal smoke helpers 依赖 backend 静态 STW state，不能作为 cone native object 直接访问，因此普通 runtime 编译排除它们，runtime crate integration tests 使用 test-only archive 覆盖该内部测试面。
+- Fixture 更新：为直接链接 `scoop_test_*` 的 run-pass/runtime_gc fixtures 增加显式 `SYSROOT-DEPS: scoop.runtime.test`；`intrinsic_named_runtime_fun_basic` 也显式加载 test cone 以提供 named intrinsic dummy runtime symbol；因 fixture 注释插入导致 span 漂移，同步更新 `callable_value_and_top_level_funptr_named_args_keep_binding_order_in_mir` 的精确 span 断言。
+- 与 `PLAN.md` / `SYSROOT_RESHAPE_R2.md` 闭合项：满足 P8 中“`scoop.runtime.test` 不进入普通 auto dependency”、“测试 fixture 显式依赖或由 harness 注入”、“Runtime allowlist 每迁出一组 symbols 就同步更新”和“普通程序最终链接输入不包含 `scoop_test_*` migrated symbols”的要求；`scoop.sync` / `scoop.thread` user-level native implementation 迁移仍按 `P8-T03` / `P8-T04` 推进，阶段级计划未变化。
+- 验证结果：`cargo run -p scoop -- test tests/fixtures/runtime_gc` 通过（26 checks）；`cargo run -p scoop -- test tests/fixtures/run-pass` 通过（416 checks）；`cargo run -p scoop -- test` 通过（fixtures: ok，1577 checks）；`cargo test -p scoop_runtime --lib abi_exports_allowlist -- --nocapture` 通过且 allowlist 中无 `scoop_test_*`；`cargo test -p scoop_runtime --test explicit_root_frame --test unwind_capture --test gc_stack_walking_ctx --test gc_stack_walking_unwind --test gc_stackmap_roots_enum --test gc_stackmap_multiframe_keepalive -- --nocapture` 通过；`cargo test -p scoop --test p8_runtime_migration -- --nocapture` 通过；普通 `auto_prelude_core_basic.scoop` 构建产物经 `nm -g` 检查无 `scoop_test_` / `scoop_runtime_test_sync`；`cargo build` 通过；`cargo clippy --all-targets -- -D warnings` 通过；`cargo test --all --all-targets` 通过（Rust tests: ok，包含 `scoopc` 932 passed）。
 
 ## P8-T03：迁移 `scoop.sync` native implementation
 

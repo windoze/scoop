@@ -110,39 +110,6 @@
   X(scoop_sync_once_create) \
   X(scoop_sync_once_is_done) \
   X(scoop_sync_once_run) \
-  X(scoop_test_add_int) \
-  X(scoop_test_extern_global_counter) \
-  X(scoop_test_explicit_root_frame_enter_native_smoke) \
-  X(scoop_test_explicit_root_frame_root_map_smoke) \
-  X(scoop_test_explicit_root_frame_top) \
-  X(scoop_test_gc_collect_in_native) \
-  X(scoop_test_gc_native_sleep_entered) \
-  X(scoop_test_gc_native_sleep_reset) \
-  X(scoop_test_gc_sleep_in_native_ms) \
-  X(scoop_test_gc_stackmap_multiframe_keepalive) \
-  X(scoop_test_gc_stackmap_roots_enum_smoke) \
-  X(scoop_test_gc_stack_walking_ctx_smoke) \
-  X(scoop_test_gc_stack_walking_unwind_smoke) \
-  X(scoop_test_get_add_int_funptr) \
-  X(scoop_test_get_gc_collect_in_native_funptr) \
-  X(scoop_test_get_make_int_pair_funptr) \
-  X(scoop_test_handle_token_slot_reset) \
-  X(scoop_test_handle_token_slot_store) \
-  X(scoop_test_handle_token_slot_take) \
-  X(scoop_test_handle_get_object_addr) \
-  X(scoop_test_make_int_pair) \
-  X(scoop_test_named_intrinsic_dummy_runtime) \
-  X(scoop_test_sync_condvar_destroy_count) \
-  X(scoop_test_sync_destroy_counts_reset) \
-  X(scoop_test_sync_mutex_destroy_count) \
-  X(scoop_test_sync_once_destroy_count) \
-  X(scoop_test_stackmap_statepoint_smoke) \
-  X(scoop_test_thread_spawn_gate_enable) \
-  X(scoop_test_thread_spawn_gate_entered) \
-  X(scoop_test_thread_spawn_gate_release) \
-  X(scoop_test_thread_spawn_gate_reset) \
-  X(scoop_test_unwind_capture_ips) \
-  X(scoop_test_unwind_dump_frames_and_stackmap_hits) \
   X(scoop_thread_current_id) \
   X(scoop_thread_is_registered) \
   X(scoop_thread_join) \

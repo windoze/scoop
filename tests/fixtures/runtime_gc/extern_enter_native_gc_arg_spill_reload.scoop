@@ -2,6 +2,7 @@
 // ENV: SCOOP_GC_MOVE=1
 // RUN-STDOUT: extern_enter_native_roots_gc.stdout.txt
 // 目标：T1510c1：extern/native 调用若出现在外层表达式的后续子表达式中，先前求值的 GC 值也必须经由 slot reload，而不能继续保留 stale SSA。
+// SYSROOT-DEPS: scoop.runtime.test
 
 package fixtures.runtime_gc
 

@@ -1,5 +1,6 @@
 // EXPECT: pass
 // 回归：`@Extern var` 继续按外部 C storage contract 做 load/store。
+// SYSROOT-DEPS: scoop.runtime.test
 
 package fixtures.codegen
 

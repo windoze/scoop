@@ -3,6 +3,7 @@
 // EXPECT-EXIT: 0
 //
 // P2-T01：direct `@Extern` 与 native `FunPtr` 对同一 aggregate-return helper 应共享 target native ABI。
+// SYSROOT-DEPS: scoop.runtime.test
 
 package fixtures.runpass
 

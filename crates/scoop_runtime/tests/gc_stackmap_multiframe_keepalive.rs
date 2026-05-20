@@ -1,7 +1,6 @@
-// 强制链接本 package 的 `scoop_runtime` crate，确保其 build.rs 输出的 native link args 生效。
-use scoop_runtime as _;
-use scoop_runtime::gc_backend::{GC_BACKEND, GC_CAPABILITIES};
+mod common;
 
+#[link(name = "scooprt_test_core", kind = "static")]
 unsafe extern "C" {
     fn scoop_test_gc_stackmap_multiframe_keepalive() -> isize;
 }
@@ -13,8 +12,12 @@ unsafe extern "C" {
 )]
 fn gc_stackmap_multiframe_keepalive() {
     assert!(
-        std::hint::black_box(GC_CAPABILITIES.stw && GC_CAPABILITIES.multi_thread_roots_enum),
-        "该测试要求 STW + 多线程 roots 枚举能力；当前 backend={GC_BACKEND:?}, caps={GC_CAPABILITIES:?}"
+        std::hint::black_box(
+            common::gc_supports_stw() && common::gc_supports_multi_thread_roots_enum()
+        ),
+        "该测试要求 STW + 多线程 roots 枚举能力；当前 backend={}, caps={}",
+        common::gc_backend_name(),
+        common::gc_capabilities_debug()
     );
 
     let rc = unsafe { scoop_test_gc_stackmap_multiframe_keepalive() };

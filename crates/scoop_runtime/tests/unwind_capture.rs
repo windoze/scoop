@@ -1,6 +1,4 @@
-// 强制链接本 package 的 `scoop_runtime` crate，确保其 build.rs 输出的 native link args 生效。
-use scoop_runtime as _;
-
+#[link(name = "scooprt_test_core", kind = "static")]
 unsafe extern "C" {
     fn scoop_test_unwind_capture_ips(out_ips: *mut usize, out_cap: u32, skip_frames: u32) -> u32;
     fn scoop_test_unwind_dump_frames_and_stackmap_hits() -> isize;

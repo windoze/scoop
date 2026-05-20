@@ -5,6 +5,7 @@
 // - 顶层命名 `val` 上的函数值可直接调用；
 // - 顶层 pattern binder 产出的函数值可直接调用；
 // - 顶层 `FunPtr` direct call 不再只在局部 `val fp = ...` 形态下可用。
+// SYSROOT-DEPS: scoop.runtime.test
 
 import scoop.core.*
 import scoop.unsafe.*

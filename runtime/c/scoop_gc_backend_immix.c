@@ -405,6 +405,8 @@ static void scoop_gc_stop_the_world_end_unlocked(void) {
   (void)pthread_cond_broadcast(&scoop_gc_stw_cond);
 }
 
+#if !defined(SCOOP_RUNTIME_NO_GC_TEST_HELPERS)
+
 typedef struct ScoopTestGcCtxWorkerArgs {
   uint32_t *stop;
   uint64_t *poll_count;
@@ -1668,6 +1670,8 @@ done_unlock:
   scoop_thread_unregister();
   return rc;
 }
+
+#endif // !defined(SCOOP_RUNTIME_NO_GC_TEST_HELPERS)
 
 void scoop_gc_thread_register(ScoopThreadTls *tls) {
   if (tls == 0) {

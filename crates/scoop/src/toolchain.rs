@@ -417,6 +417,7 @@ fn link_command_with_runtime(
     let linker = options.linker.unwrap_or("clang");
     let mut cmd = Command::new(linker);
     cmd.arg("-DSCOOP_GC_BACKEND=3");
+    cmd.arg("-DSCOOP_RUNTIME_NO_GC_TEST_HELPERS=1");
     push_build_profile_and_target_defines(&mut cmd);
     for obj in objs {
         cmd.arg(obj);
@@ -522,7 +523,10 @@ pub fn compile_runtime_c_sources_to_obj_dir(
         };
 
         // runtime/c 编译需要固定 GC backend（与旧的“直接把 runtime 源码交给 linker driver”一致）。
-        let flags = [String::from("-DSCOOP_GC_BACKEND=3")];
+        let flags = [
+            String::from("-DSCOOP_GC_BACKEND=3"),
+            String::from("-DSCOOP_RUNTIME_NO_GC_TEST_HELPERS=1"),
+        ];
         let out_obj = output_dir.join(obj_name);
         compile_c_source_to_obj(&runtime_dir, src, &out_obj, &flags)?;
         out.push(out_obj);

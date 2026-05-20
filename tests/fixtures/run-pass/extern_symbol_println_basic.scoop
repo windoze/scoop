@@ -4,6 +4,7 @@
 // 目标：T1006 `@Extern("symbol")` 的符号名映射 + C ABI。
 // - 通过 `@Extern("scoop_test_add_int")` 直接调用 runtime 的测试符号（C ABI）。
 // - 调用点必须处于 `@Unsafe do { ... }`（`@Extern` 调用门禁）。
+// SYSROOT-DEPS: scoop.runtime.test
 
 import scoop.core.*
 

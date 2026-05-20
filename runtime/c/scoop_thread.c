@@ -47,44 +47,6 @@ typedef struct ScoopThreadStartArgs {
   uint32_t env_is_pinned;
 } ScoopThreadStartArgs;
 
-static uint32_t scoop_test_thread_spawn_gate_enabled_flag = 0;
-static uint32_t scoop_test_thread_spawn_gate_entered_flag = 0;
-static uint32_t scoop_test_thread_spawn_gate_released_flag = 0;
-
-void scoop_test_thread_spawn_gate_reset(void) {
-  __atomic_store_n(&scoop_test_thread_spawn_gate_enabled_flag, 0u, __ATOMIC_SEQ_CST);
-  __atomic_store_n(&scoop_test_thread_spawn_gate_entered_flag, 0u, __ATOMIC_SEQ_CST);
-  __atomic_store_n(&scoop_test_thread_spawn_gate_released_flag, 0u, __ATOMIC_SEQ_CST);
-}
-
-void scoop_test_thread_spawn_gate_enable(void) {
-  __atomic_store_n(&scoop_test_thread_spawn_gate_entered_flag, 0u, __ATOMIC_SEQ_CST);
-  __atomic_store_n(&scoop_test_thread_spawn_gate_released_flag, 0u, __ATOMIC_SEQ_CST);
-  __atomic_store_n(&scoop_test_thread_spawn_gate_enabled_flag, 1u, __ATOMIC_SEQ_CST);
-}
-
-intptr_t scoop_test_thread_spawn_gate_entered(void) {
-  return (intptr_t)__atomic_load_n(&scoop_test_thread_spawn_gate_entered_flag,
-                                   __ATOMIC_SEQ_CST);
-}
-
-void scoop_test_thread_spawn_gate_release(void) {
-  __atomic_store_n(&scoop_test_thread_spawn_gate_released_flag, 1u, __ATOMIC_SEQ_CST);
-}
-
-static void scoop_test_thread_spawn_gate_wait_if_enabled(void) {
-  if (__atomic_load_n(&scoop_test_thread_spawn_gate_enabled_flag, __ATOMIC_SEQ_CST) == 0u) {
-    return;
-  }
-
-  __atomic_store_n(&scoop_test_thread_spawn_gate_entered_flag, 1u, __ATOMIC_SEQ_CST);
-  while (__atomic_load_n(&scoop_test_thread_spawn_gate_released_flag, __ATOMIC_SEQ_CST) == 0u) {
-    scoop_platform_thread_yield();
-  }
-
-  __atomic_store_n(&scoop_test_thread_spawn_gate_enabled_flag, 0u, __ATOMIC_SEQ_CST);
-}
-
 static void *scoop_thread_entry(void *arg) {
   if (arg == 0) {
     return 0;
@@ -96,7 +58,6 @@ static void *scoop_thread_entry(void *arg) {
   uint32_t env_is_pinned = args->env_is_pinned;
   free(args);
 
-  scoop_test_thread_spawn_gate_wait_if_enabled();
   scoop_thread_register();
   // `threadSpawn { ... }` 的 env 直到 child 线程注册前都只保存在 malloc args 里；
   // 该区域不受 GC 枚举，因此必须把 pin 保留到这里，等 compiled closure 以参数形式接手。

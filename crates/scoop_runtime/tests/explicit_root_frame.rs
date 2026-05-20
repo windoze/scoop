@@ -1,5 +1,4 @@
-use scoop_runtime as _;
-
+#[link(name = "scooprt_test_core", kind = "static")]
 unsafe extern "C" {
     fn scoop_runtime_init();
     fn scoop_thread_register();

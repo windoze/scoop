@@ -236,6 +236,40 @@ intptr_t scoop_test_named_intrinsic_dummy_runtime(void) {
   return scoop_test_named_intrinsic_dummy_runtime_counter;
 }
 
+static uint64_t scoop_test_sync_mutex_destroy_calls = 0;
+static uint64_t scoop_test_sync_condvar_destroy_calls = 0;
+static uint64_t scoop_test_sync_once_destroy_calls = 0;
+
+void scoop_runtime_test_sync_mutex_destroyed(void) {
+  (void)__atomic_fetch_add(&scoop_test_sync_mutex_destroy_calls, 1u, __ATOMIC_SEQ_CST);
+}
+
+void scoop_runtime_test_sync_condvar_destroyed(void) {
+  (void)__atomic_fetch_add(&scoop_test_sync_condvar_destroy_calls, 1u, __ATOMIC_SEQ_CST);
+}
+
+void scoop_runtime_test_sync_once_destroyed(void) {
+  (void)__atomic_fetch_add(&scoop_test_sync_once_destroy_calls, 1u, __ATOMIC_SEQ_CST);
+}
+
+void scoop_test_sync_destroy_counts_reset(void) {
+  __atomic_store_n(&scoop_test_sync_mutex_destroy_calls, 0u, __ATOMIC_SEQ_CST);
+  __atomic_store_n(&scoop_test_sync_condvar_destroy_calls, 0u, __ATOMIC_SEQ_CST);
+  __atomic_store_n(&scoop_test_sync_once_destroy_calls, 0u, __ATOMIC_SEQ_CST);
+}
+
+intptr_t scoop_test_sync_mutex_destroy_count(void) {
+  return (intptr_t)__atomic_load_n(&scoop_test_sync_mutex_destroy_calls, __ATOMIC_SEQ_CST);
+}
+
+intptr_t scoop_test_sync_condvar_destroy_count(void) {
+  return (intptr_t)__atomic_load_n(&scoop_test_sync_condvar_destroy_calls, __ATOMIC_SEQ_CST);
+}
+
+intptr_t scoop_test_sync_once_destroy_count(void) {
+  return (intptr_t)__atomic_load_n(&scoop_test_sync_once_destroy_calls, __ATOMIC_SEQ_CST);
+}
+
 // 返回 `scoop_test_add_int` 的函数地址，作为 `FunPtr<(Int, Int) -> Int>` 的 runtime 落点。
 //
 // 说明：

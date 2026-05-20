@@ -11,6 +11,7 @@
 // - `when` pattern binder；
 // - 顶层 `FunPtr` direct call；
 // - 上述调用统一使用 receiver + named args。
+// SYSROOT-DEPS: scoop.runtime.test
 
 import scoop.core.*
 import scoop.unsafe.*

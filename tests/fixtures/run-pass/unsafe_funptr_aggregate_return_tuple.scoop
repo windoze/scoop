@@ -3,6 +3,7 @@
 // EXPECT-EXIT: 0
 //
 // T0154：`FunPtr` 间接调用支持 aggregate 返回值（tuple）。
+// SYSROOT-DEPS: scoop.runtime.test
 
 package fixtures.runpass
 

@@ -33,13 +33,13 @@ fn main() {
     println!("cargo:rerun-if-changed=../../runtime/c/scoop_gc_immix_internal.h");
     println!("cargo:rerun-if-changed=../../runtime/c/scoop_root_frame.h");
     println!("cargo:rerun-if-changed=../../runtime/c/scoop_tls_internal.h");
-    println!("cargo:rerun-if-changed=../../runtime/c/scoop_test.c");
     println!("cargo:rerun-if-changed=../../runtime/c/platform/platform.h");
     println!("cargo:rerun-if-changed=../../runtime/c/platform/platform_posix.c");
     println!("cargo:rerun-if-changed=../../runtime/c/platform/platform_win32.c");
     println!("cargo:rerun-if-changed=../../runtime/c/platform/unwind.h");
     println!("cargo:rerun-if-changed=../../runtime/c/platform/unwind_posix.c");
     println!("cargo:rerun-if-changed=../../runtime/c/platform/unwind_win32.c");
+    println!("cargo:rerun-if-changed=../../sysroot/lib/scoop.runtime.test/native/scoop_test.c");
 
     // `scoop_once_guard_canonicalize` 在 Linux 需要链接 libdl。
     // macOS 的 dlsym/dlerror 位于 libSystem，无需额外 link-lib。
@@ -59,6 +59,8 @@ fn main() {
     build
         .compiler("clang")
         .define("SCOOP_GC_BACKEND", gc_backend_define)
+        .define("SCOOP_RUNTIME_NO_SYNC_TEST_HOOKS", "1")
+        .define("SCOOP_RUNTIME_NO_GC_TEST_HELPERS", "1")
         .file("../../runtime/c/scoop_runtime.c")
         .file("../../runtime/c/scoop_stackmap.c")
         .file("../../runtime/c/scoop_array.c")
@@ -66,7 +68,6 @@ fn main() {
         .file("../../runtime/c/scoop_thread.c")
         .file("../../runtime/c/scoop_once.c")
         .file("../../runtime/c/scoop_gc_common.c")
-        .file("../../runtime/c/scoop_test.c")
         .warnings(true)
         .extra_warnings(true);
 
@@ -88,6 +89,41 @@ fn main() {
     }
 
     build.compile("scooprt");
+
+    // A few runtime integration tests exercise GC internals that are intentionally
+    // excluded from the core `scooprt` ABI and normal user-program links.
+    let mut test_core = cc::Build::new();
+    test_core
+        .compiler("clang")
+        .define("SCOOP_GC_BACKEND", gc_backend_define)
+        .include("../../runtime/c")
+        .file("../../runtime/c/scoop_runtime.c")
+        .file("../../runtime/c/scoop_stackmap.c")
+        .file("../../runtime/c/scoop_array.c")
+        .file("../../runtime/c/scoop_sync.c")
+        .file("../../runtime/c/scoop_thread.c")
+        .file("../../runtime/c/scoop_once.c")
+        .file("../../runtime/c/scoop_gc_common.c")
+        .file("../../sysroot/lib/scoop.runtime.test/native/scoop_test.c")
+        .warnings(true)
+        .extra_warnings(true)
+        .cargo_metadata(false);
+    match gc_backend {
+        1 => {
+            test_core.file("../../runtime/c/scoop_gc.c");
+        }
+        2 => {
+            test_core.file("../../runtime/c/scoop_gc_backend_minimal.c");
+        }
+        3 => {
+            test_core.file("../../runtime/c/scoop_gc_backend_immix.c");
+        }
+        4 => {
+            test_core.file("../../runtime/c/scoop_gc_backend_hosted.c");
+        }
+        _ => unreachable!("invalid gc backend id: {gc_backend}"),
+    }
+    test_core.compile("scooprt_test_core");
 }
 
 fn resolve_gc_backend() -> u8 {

@@ -2,3 +2,7 @@
 name = "scoop.runtime.test"
 version = "0.0.0"
 kind = "syslib"
+
+[native-build]
+c-sources = ["native/scoop_test.c"]
+c-flags = ["-I../../../runtime/c"]

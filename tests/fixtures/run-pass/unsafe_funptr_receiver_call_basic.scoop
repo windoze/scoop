@@ -5,6 +5,7 @@
 // - `FunPtr<T.(A) -> R>` 不再在类型 lowering 阶段被提前拒绝；
 // - direct call `fp(receiver, arg)` 与 `.invoke(receiver, arg)` 统一按“receiver 作为第 0 个实参”执行；
 // - `.invoke(...)` 在 receiver 形态下继续只接受位置实参。
+// SYSROOT-DEPS: scoop.runtime.test
 
 import scoop.core.*
 import scoop.unsafe.*

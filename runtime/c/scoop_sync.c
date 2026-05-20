@@ -36,28 +36,33 @@ void scoop_thread_register(void);
 void scoop_enter_native(void ***root_slots, uint32_t root_slots_len);
 void scoop_leave_native(void);
 
-// --- Test-only destroy counters ---
+// Optional test-cone hooks. Hidden weak no-op definitions keep ordinary programs
+// free of test exports, while `scoop.runtime.test` can override them when linked.
+#if defined(SCOOP_RUNTIME_NO_SYNC_TEST_HOOKS)
+static void scoop_runtime_test_sync_mutex_destroyed(void) {}
+static void scoop_runtime_test_sync_condvar_destroyed(void) {}
+static void scoop_runtime_test_sync_once_destroyed(void) {}
+#elif defined(__clang__) || defined(__GNUC__)
+#define SCOOP_SYNC_TEST_HOOK __attribute__((weak, visibility("hidden")))
+SCOOP_SYNC_TEST_HOOK void scoop_runtime_test_sync_mutex_destroyed(void) {}
+SCOOP_SYNC_TEST_HOOK void scoop_runtime_test_sync_condvar_destroyed(void) {}
+SCOOP_SYNC_TEST_HOOK void scoop_runtime_test_sync_once_destroyed(void) {}
+#else
+static void scoop_runtime_test_sync_mutex_destroyed(void) {}
+static void scoop_runtime_test_sync_condvar_destroyed(void) {}
+static void scoop_runtime_test_sync_once_destroyed(void) {}
+#endif
 
-static uint64_t scoop_test_sync_mutex_destroy_calls = 0;
-static uint64_t scoop_test_sync_condvar_destroy_calls = 0;
-static uint64_t scoop_test_sync_once_destroy_calls = 0;
-
-void scoop_test_sync_destroy_counts_reset(void) {
-  __atomic_store_n(&scoop_test_sync_mutex_destroy_calls, 0u, __ATOMIC_SEQ_CST);
-  __atomic_store_n(&scoop_test_sync_condvar_destroy_calls, 0u, __ATOMIC_SEQ_CST);
-  __atomic_store_n(&scoop_test_sync_once_destroy_calls, 0u, __ATOMIC_SEQ_CST);
+static void scoop_sync_test_mutex_destroyed(void) {
+  scoop_runtime_test_sync_mutex_destroyed();
 }
 
-intptr_t scoop_test_sync_mutex_destroy_count(void) {
-  return (intptr_t)__atomic_load_n(&scoop_test_sync_mutex_destroy_calls, __ATOMIC_SEQ_CST);
+static void scoop_sync_test_condvar_destroyed(void) {
+  scoop_runtime_test_sync_condvar_destroyed();
 }
 
-intptr_t scoop_test_sync_condvar_destroy_count(void) {
-  return (intptr_t)__atomic_load_n(&scoop_test_sync_condvar_destroy_calls, __ATOMIC_SEQ_CST);
-}
-
-intptr_t scoop_test_sync_once_destroy_count(void) {
-  return (intptr_t)__atomic_load_n(&scoop_test_sync_once_destroy_calls, __ATOMIC_SEQ_CST);
+static void scoop_sync_test_once_destroyed(void) {
+  scoop_runtime_test_sync_once_destroyed();
 }
 
 // --- Mutex ---
@@ -91,7 +96,7 @@ static void scoop_sync_mutex_destroy_impl(ScoopSyncMutex *m) {
   native->initialized = 0;
   free(native);
   m->native = 0;
-  (void)__atomic_fetch_add(&scoop_test_sync_mutex_destroy_calls, 1u, __ATOMIC_SEQ_CST);
+  scoop_sync_test_mutex_destroyed();
 }
 
 static void scoop_sync_mutex_release(void *object) {
@@ -219,7 +224,7 @@ static void scoop_sync_condvar_destroy_impl(ScoopSyncCondVar *cv) {
   native->initialized = 0;
   free(native);
   cv->native = 0;
-  (void)__atomic_fetch_add(&scoop_test_sync_condvar_destroy_calls, 1u, __ATOMIC_SEQ_CST);
+  scoop_sync_test_condvar_destroyed();
 }
 
 static void scoop_sync_condvar_release(void *object) {
@@ -388,7 +393,7 @@ static void scoop_sync_once_destroy_impl(ScoopSyncOnce *o) {
   (void)memset(&native->owner, 0, sizeof(native->owner));
   free(native);
   o->native = 0;
-  (void)__atomic_fetch_add(&scoop_test_sync_once_destroy_calls, 1u, __ATOMIC_SEQ_CST);
+  scoop_sync_test_once_destroyed();
 }
 
 static void scoop_sync_once_release(void *object) {

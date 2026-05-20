@@ -532,18 +532,18 @@ pub(super) fn callable_value_and_top_level_funptr_named_args_keep_binding_order_
         .expect("main should enter caller-side pass candidates");
 
     assert_eq!(
-        call_arg_spans_at_stmt(main_mir, crate::span::Span::new(1442, 1469)),
+        call_arg_spans_at_stmt(main_mir, crate::span::Span::new(1478, 1505)),
         vec![
-            crate::span::Span::new(1463, 1468),
-            crate::span::Span::new(1449, 1450)
+            crate::span::Span::new(1499, 1504),
+            crate::span::Span::new(1485, 1486)
         ],
         "named receiver callable-value call should reorder args to receiver-then-a0 in MIR"
     );
     assert_eq!(
-        call_arg_spans_at_stmt(main_mir, crate::span::Span::new(1770, 1797)),
+        call_arg_spans_at_stmt(main_mir, crate::span::Span::new(1806, 1833)),
         vec![
-            crate::span::Span::new(1795, 1796),
-            crate::span::Span::new(1781, 1782)
+            crate::span::Span::new(1831, 1832),
+            crate::span::Span::new(1817, 1818)
         ],
         "top-level FunPtr named direct call should reorder args to receiver-then-a0 in MIR"
     );

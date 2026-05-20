@@ -2,6 +2,7 @@
 // RUN-STDOUT: unsafe_funptr_extern_call_basic.stdout
 //
 // 目标：T1026 `FunPtr<F>`：从 `@Extern` 获取函数指针并通过 `fp(args...)` 调用。
+// SYSROOT-DEPS: scoop.runtime.test
 
 import scoop.core.*
 import scoop.unsafe.*

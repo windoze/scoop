@@ -7,6 +7,7 @@
 // - runtime 低层 `scoop_handle_get/drop` 对 stale token 返回 NULL/0；
 // - 语言级 `GC.handleGet/handleDrop` 则把该 lookup failure 视为运行时错误；
 // - 这里模拟：native 仍握着旧 raw token，但 Scoop 已先取消注册并 `handleDrop`。
+// SYSROOT-DEPS: scoop.runtime.test
 
 package fixtures.codegen
 
