@@ -8,6 +8,7 @@
 // 关键点：
 // - A：boxed variant（payload 为 GC-managed heap object，内部含 String ref）；
 // - B：纯标量 variant；切换到 B 时必须保证 enum 的 ref slots 为 NULL（避免 GC roots 误扫/UB）。
+// SYSROOT-DEPS: scoop.runtime.test
 
 package fixtures.codegen
 

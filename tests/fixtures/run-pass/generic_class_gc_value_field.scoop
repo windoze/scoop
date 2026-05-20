@@ -8,6 +8,7 @@
 // - class Holder<T>(val v: T) instantiated with Int (value type)
 // - GC trace bitmap should be empty for value-only payload
 // - Holder<Int> and Holder<String> in same program (different trace bitmaps)
+// SYSROOT-DEPS: scoop.runtime.test
 
 import scoop.core.*
 import scoop.runtime.test.*

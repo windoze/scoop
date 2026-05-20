@@ -827,6 +827,20 @@ mod tests {
         Session::with_options(SessionOptions::new()).unwrap()
     }
 
+    fn session_for_source(source: &SourceFile) -> Session {
+        let mut deps = Vec::new();
+        if source.text().contains("import scoop.runtime.test.*") {
+            deps.push("scoop.runtime.test");
+        }
+        if source.text().contains("import scoop.sync.*") {
+            deps.push("scoop.sync");
+        }
+        if source.text().contains("import scoop.thread.*") {
+            deps.push("scoop.thread");
+        }
+        Session::with_options(SessionOptions::new().with_extra_sysroot_dependencies(deps)).unwrap()
+    }
+
     fn test_lock() -> std::sync::MutexGuard<'static, ()> {
         static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
         LOCK.get_or_init(|| Mutex::new(()))
@@ -1500,7 +1514,7 @@ fun main(): Int {
         crate::source::SourceId,
         crate::hir::LoweredHir,
     ) {
-        let session = session();
+        let session = session_for_source(&source);
         let context =
             crate::frontend::prepare_virtual_cone_context_with_options(source, session.options())
                 .unwrap();

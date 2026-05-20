@@ -1106,8 +1106,11 @@ fun helperOnly(): Int {
         let input = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("../../tests/fixtures/run-pass/std_sync_basic.scoop");
 
-        let session = scoopc::session::Session::new().unwrap();
-        let build_context = super::load_build_context(&input, None).unwrap();
+        let session_options =
+            scoopc::session::SessionOptions::new().with_extra_sysroot_dependencies(["scoop.sync"]);
+        let session = scoopc::session::Session::with_options(session_options.clone()).unwrap();
+        let build_context =
+            super::load_build_context_with_options(&input, None, &session_options).unwrap();
         let front = super::run_frontend(&session, build_context).unwrap();
         let lowered = super::lower_main_hir_for_build(&session, &front, OptLevel::O0).unwrap();
 

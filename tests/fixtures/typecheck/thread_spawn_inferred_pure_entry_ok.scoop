@@ -1,4 +1,5 @@
 // EXPECT: pass
+// SYSROOT-DEPS: scoop.thread
 
 package fixtures.typecheck
 

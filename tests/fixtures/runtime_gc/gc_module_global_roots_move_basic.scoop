@@ -11,6 +11,7 @@
 // - top-level immutable backing global（direct ref）：`savedCell`；
 // - top-level immutable backing global（aggregate with nested ref）：`savedWrap`；
 // - moving GC 后重新从这些模块级全局槽读取值，仍应得到正确对象与字段内容。
+// SYSROOT-DEPS: scoop.runtime.test
 
 package fixtures.codegen
 

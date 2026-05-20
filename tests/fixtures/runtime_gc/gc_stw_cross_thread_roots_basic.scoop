@@ -10,6 +10,7 @@
 // - worker 线程只通过其局部变量 `x` 保活一个字符串；
 // - main 线程在 worker 就绪后触发一次 `__scoop_gc_collect()`；
 // - 期望：GC 通过 STW park + roots 枚举正确保活 worker 的 `x`，程序不崩溃且输出稳定。
+// SYSROOT-DEPS: scoop.runtime.test scoop.thread
 
 package fixtures.codegen
 

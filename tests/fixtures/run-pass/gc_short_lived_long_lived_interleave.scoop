@@ -7,6 +7,7 @@
 // - Short-lived garbage objects are created in loops/functions and become unreachable.
 // - GC is triggered periodically, must collect garbage while preserving long-lived objects.
 // - Exercises the GC's ability to distinguish live roots from dead allocations under stress.
+// SYSROOT-DEPS: scoop.runtime.test
 
 import scoop.core.*
 import scoop.runtime.test.*

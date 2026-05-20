@@ -5,6 +5,7 @@
 // - 分配 1 个 live 对象（`Any` 装箱）
 // - 通过 runtime debug helper 制造大量垃圾对象（不写入 roots）
 // - 手动触发一次 `__scoop_gc_collect()`，应回收垃圾对象但保留 live 对象
+// SYSROOT-DEPS: scoop.runtime.test
 
 import scoop.core.*
 import scoop.runtime.test.*

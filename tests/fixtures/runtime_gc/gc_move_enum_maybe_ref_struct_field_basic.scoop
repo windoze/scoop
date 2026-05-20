@@ -9,6 +9,7 @@
 // - `struct Wrap { e: E }`：值类型字段中嵌入 enum；
 // - `class Holder { w: Wrap }`：heap 对象字段中嵌入值类型，需递归扫描 enum 的 ref slots；
 // - moving GC 后，读取/解构 enum（含 boxed variant payload）仍正确。
+// SYSROOT-DEPS: scoop.runtime.test
 
 package fixtures.codegen
 

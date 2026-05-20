@@ -4,6 +4,7 @@
 // 目标：GC-FIX Phase C2a（SROA）
 // - struct（值类型）里包含 `String` ref 字段时，即使只以“整体 struct”跨越 `__scoop_gc_collect()`，
 //   也必须被 statepoint/stackmap roots 枚举到，不需要在源码里手工提取字段 keepalive。
+// SYSROOT-DEPS: scoop.runtime.test
 
 import scoop.core.*
 import scoop.runtime.test.*

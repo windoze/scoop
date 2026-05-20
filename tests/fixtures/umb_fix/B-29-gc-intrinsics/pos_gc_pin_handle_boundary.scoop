@@ -4,6 +4,7 @@
 // BUCKETS: B-29
 // REASON: P7-B3.4 retired B-29 rows; coverage is owned by the retired ledger.
 // SOURCE-FIXTURE: tests/fixtures/run-pass/gc_pin_unpin_basic.scoop
+// SYSROOT-DEPS: scoop.runtime.test
 
 import scoop.core.*
 import scoop.runtime.test.*

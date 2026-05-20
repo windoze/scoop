@@ -8,6 +8,7 @@
 //! - `// EXPECT-ERROR-AT: <line>:<col>`（1-based）
 //! - `// ARGS: <args...>`（按空白分割，原样传递给 driver/编译器阶段）
 //! - `// ENV: KEY=VALUE`（可重复；按空白分割多个 `KEY=VALUE`）
+//! - `// SYSROOT-DEPS: <cone> ...`（fixture 显式加载额外 sysroot cones）
 //! - `// EXPECT-AST: <file>`（parse fixtures：将 AST dump 与 golden 文件做全文比对）
 //! - `// RUN-STDOUT: <file>`（run-pass fixtures：stdout golden）
 //! - `// RUN-STDERR: <file>`（run-pass fixtures：stderr golden）
@@ -37,6 +38,7 @@ pub struct FixtureExpectation<'a> {
     pub error_at: Option<(usize, usize)>,
     pub args: Vec<String>,
     pub env: Vec<(String, String)>,
+    pub sysroot_deps: Vec<String>,
     pub ast_golden: Option<&'a str>,
     pub build_llvm_contains: Vec<&'a str>,
     pub build_llvm_regex: Vec<&'a str>,
@@ -62,6 +64,7 @@ impl<'a> FixtureExpectation<'a> {
         let mut error_at = None;
         let mut args = Vec::new();
         let mut env = Vec::new();
+        let mut sysroot_deps = Vec::new();
         let mut ast_golden = None;
         let mut build_llvm_contains = Vec::new();
         let mut build_llvm_regex = Vec::new();
@@ -116,6 +119,10 @@ impl<'a> FixtureExpectation<'a> {
             if let Some(rest) = directive.strip_prefix("ENV:") {
                 let rest = rest.trim();
                 env.extend(parse_env_kv_pairs(rest));
+            }
+
+            if let Some(rest) = directive.strip_prefix("SYSROOT-DEPS:") {
+                sysroot_deps.extend(parse_sysroot_deps(rest.trim()));
             }
 
             if let Some(rest) = directive.strip_prefix("EXPECT-AST:") {
@@ -197,6 +204,7 @@ impl<'a> FixtureExpectation<'a> {
             error_at,
             args,
             env,
+            sysroot_deps,
             ast_golden,
             build_llvm_contains,
             build_llvm_regex,
@@ -232,6 +240,13 @@ fn parse_env_kv_pairs(s: &str) -> impl Iterator<Item = (String, String)> + '_ {
     })
 }
 
+fn parse_sysroot_deps(s: &str) -> impl Iterator<Item = String> + '_ {
+    s.split(|ch: char| ch == ',' || ch.is_whitespace())
+        .map(str::trim)
+        .filter(|part| !part.is_empty())
+        .map(ToOwned::to_owned)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -245,6 +260,7 @@ mod tests {
         assert_eq!(exp.error_at, None);
         assert!(exp.args.is_empty());
         assert!(exp.env.is_empty());
+        assert!(exp.sysroot_deps.is_empty());
         assert_eq!(exp.ast_golden, None);
         assert!(exp.build_llvm_contains.is_empty());
         assert!(exp.build_llvm_regex.is_empty());
@@ -337,6 +353,21 @@ mod tests {
                 ("FOO".to_string(), "bar".to_string()),
                 ("BAZ".to_string(), "qux".to_string()),
                 ("EMPTY".to_string(), "".to_string()),
+            ]
+        );
+    }
+
+    #[test]
+    fn parse_sysroot_deps() {
+        let exp = FixtureExpectation::from_source(
+            "// SYSROOT-DEPS: scoop.thread, scoop.sync scoop.runtime.test\nfun main() {}\n",
+        );
+        assert_eq!(
+            exp.sysroot_deps,
+            vec![
+                "scoop.thread".to_string(),
+                "scoop.sync".to_string(),
+                "scoop.runtime.test".to_string(),
             ]
         );
     }

@@ -1,5 +1,6 @@
 // EXPECT: pass
 // 目标：T1319a 在 sysroot 中新增 `scoop.sync` 的最小 API 声明面（只声明）。
+// SYSROOT-DEPS: scoop.sync
 
 package fixtures.typecheck
 

@@ -8,6 +8,7 @@
 // - Multiple generic class instances created in sequence
 // - Ref-type fields (String) that must survive GC across allocation points
 // - Holder<String> with multiple live instances + GC stress
+// SYSROOT-DEPS: scoop.runtime.test
 
 import scoop.core.*
 import scoop.runtime.test.*

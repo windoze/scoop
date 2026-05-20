@@ -10,6 +10,7 @@
 // - class Outer { pair: Pair, name: String }  (heap object with value struct containing refs)
 // - All levels built across function boundaries, with GC triggers at each step.
 // - Verifies that GC correctly traces through: Outer -> Pair (value) -> Inner (ref) -> Tag (value) -> String (ref).
+// SYSROOT-DEPS: scoop.runtime.test
 
 import scoop.core.*
 import scoop.runtime.test.*

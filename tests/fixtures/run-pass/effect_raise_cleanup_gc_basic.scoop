@@ -2,6 +2,7 @@
 // RUN-STDOUT: effect_raise_cleanup_gc_basic.stdout
 // - 最小回归：本层 catch 吃掉 `Raise.raise(...)` 后，隐藏 continuation / effect frame
 //   不能继续作为 GC roots 泄漏到后续 `__scoop_gc_collect()`。
+// SYSROOT-DEPS: scoop.runtime.test
 
 import scoop.core.*
 import scoop.runtime.test.*

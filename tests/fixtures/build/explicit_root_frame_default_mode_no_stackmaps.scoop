@@ -11,6 +11,7 @@
 // - synthetic entry `main` 也要接入 explicit root frame，而不是靠旧 stackmap 兜底；
 // - 默认 LLVM IR 不再打 statepoint GC strategy；
 // - 默认 LLVM IR 不再包含 statepoint/stackmap intrinsics。
+// SYSROOT-DEPS: scoop.runtime.test
 
 package fixtures.build
 

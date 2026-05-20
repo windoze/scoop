@@ -147,6 +147,12 @@ pub(crate) fn apply_session_options_to_command(
     if let Some(overlay_root) = session_options.sysroot_overlay() {
         cmd.env(scoopc::sysroot::SYSROOT_OVERLAY_ENV, overlay_root);
     }
+    if !session_options.extra_sysroot_dependencies().is_empty() {
+        cmd.env(
+            scoopc::session::SYSROOT_DEPENDENCIES_ENV,
+            session_options.extra_sysroot_dependencies().join(","),
+        );
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -443,6 +449,8 @@ fn run_run_pass_cone_case(
 
     let source = scoopc::source::SourceFile::load(&expect_file_path)?;
     let exp = FixtureExpectation::from_source(source.text());
+    let session_options =
+        session_options.with_extra_sysroot_dependencies(exp.sysroot_deps.iter().cloned());
 
     let result: std::result::Result<(), Box<dyn miette::Diagnostic>> = (|| {
         // T1123：cone 项目目录下的 `scoop run` 应能：
@@ -642,6 +650,17 @@ fn run_one(
 ) -> Result<()> {
     let source = scoopc::source::SourceFile::load(path)?;
     let exp = FixtureExpectation::from_source(source.text());
+    let fixture_session_storage;
+    let session = if exp.sysroot_deps.is_empty() {
+        session
+    } else {
+        let options = session
+            .options()
+            .clone()
+            .with_extra_sysroot_dependencies(exp.sysroot_deps.iter().cloned());
+        fixture_session_storage = new_fixture_session(options)?;
+        &fixture_session_storage
+    };
     // T0102/T0107：`// ARGS:`/`RUN-STDOUT`/`EXPECT-EXIT`/`TIMEOUT` 等指令会被解析并结构化存储；
     // 当前阶段只有部分 phase 会消费它们（例如 build phase 会消费 emit 相关 ARGS，run-pass 会消费 env/stdout/stderr 等）。
 

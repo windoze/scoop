@@ -17,21 +17,38 @@ use crate::resolve::{Index, ResolveError};
 use crate::source::SourceFile;
 use crate::sysroot::Sysroot;
 
+/// 外部 driver 可通过该环境变量为单次构建显式加载额外 sysroot cones。
+pub const SYSROOT_DEPENDENCIES_ENV: &str = "SCOOP_SYSROOT_DEPS";
+
 /// 会话构造时一次性收口的配置项。
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct SessionOptions {
     sysroot_overlay: Option<PathBuf>,
+    extra_sysroot_dependencies: Vec<String>,
 }
 
 impl SessionOptions {
     pub const fn new() -> Self {
         Self {
             sysroot_overlay: None,
+            extra_sysroot_dependencies: Vec::new(),
         }
     }
 
     pub fn with_sysroot_overlay(mut self, overlay_root: impl Into<PathBuf>) -> Self {
         self.sysroot_overlay = Some(overlay_root.into());
+        self
+    }
+
+    pub fn with_extra_sysroot_dependencies<I, S>(mut self, dependencies: I) -> Self
+    where
+        I: IntoIterator<Item = S>,
+        S: Into<String>,
+    {
+        self.extra_sysroot_dependencies
+            .extend(dependencies.into_iter().map(Into::into));
+        self.extra_sysroot_dependencies.sort();
+        self.extra_sysroot_dependencies.dedup();
         self
     }
 
@@ -41,12 +58,29 @@ impl SessionOptions {
                 .filter(|value| !value.is_empty())
                 .map(PathBuf::from);
         }
+        if let Some(value) = std::env::var_os(SYSROOT_DEPENDENCIES_ENV)
+            && let Some(value) = value.to_str()
+        {
+            self = self.with_extra_sysroot_dependencies(parse_sysroot_dependency_env(value));
+        }
         self
     }
 
     pub fn sysroot_overlay(&self) -> Option<&Path> {
         self.sysroot_overlay.as_deref()
     }
+
+    pub fn extra_sysroot_dependencies(&self) -> &[String] {
+        &self.extra_sysroot_dependencies
+    }
+}
+
+fn parse_sysroot_dependency_env(value: &str) -> impl Iterator<Item = String> + '_ {
+    value
+        .split(|ch: char| ch == ',' || ch.is_whitespace())
+        .map(str::trim)
+        .filter(|part| !part.is_empty())
+        .map(ToOwned::to_owned)
 }
 
 #[derive(Debug, Error, miette::Diagnostic)]
@@ -79,9 +113,12 @@ impl Session {
 
     /// 使用显式 session options 创建会话。
     pub fn with_options(options: SessionOptions) -> Result<Self> {
-        let sysroot =
-            Sysroot::load_from_with_overlay(Sysroot::default_path(), options.sysroot_overlay())
-                .wrap_err("加载默认 sysroot 失败")?;
+        let sysroot = Sysroot::load_auto_from_with_overlay_and_dependencies(
+            Sysroot::default_path(),
+            options.sysroot_overlay(),
+            options.extra_sysroot_dependencies(),
+        )
+        .wrap_err("加载默认 sysroot 失败")?;
         Ok(Self { options, sysroot })
     }
 
@@ -171,6 +208,61 @@ mod tests {
         let index = sess.build_top_level_index(&[src]).unwrap();
         assert!(index.by_fqn.contains_key("scoop.core.Any"));
         assert!(index.by_fqn.contains_key("a.main"));
+    }
+
+    #[test]
+    fn session_auto_sysroot_excludes_opt_in_cones_by_default() {
+        let sess = Session::new().unwrap();
+
+        let packages = sess
+            .sysroot()
+            .index_files()
+            .filter_map(|file| {
+                file.ast.package.as_ref().map(|package| {
+                    package
+                        .path
+                        .iter()
+                        .map(|segment| file.source.slice(segment.span))
+                        .collect::<Vec<_>>()
+                        .join(".")
+                })
+            })
+            .collect::<std::collections::BTreeSet<_>>();
+
+        assert!(packages.contains("scoop.core"));
+        assert!(packages.contains("scoop.lang.string"));
+        assert!(packages.contains("scoop.collections"));
+        assert!(packages.contains("scoop.delegates"));
+        assert!(packages.contains("scoop.unsafe"));
+        assert!(!packages.contains("scoop.thread"));
+        assert!(!packages.contains("scoop.sync"));
+        assert!(!packages.contains("scoop.runtime.test"));
+    }
+
+    #[test]
+    fn session_extra_sysroot_dependencies_load_opt_in_cones() {
+        let sess = Session::with_options(
+            SessionOptions::new().with_extra_sysroot_dependencies(["scoop.thread"]),
+        )
+        .unwrap();
+
+        let packages = sess
+            .sysroot()
+            .index_files()
+            .filter_map(|file| {
+                file.ast.package.as_ref().map(|package| {
+                    package
+                        .path
+                        .iter()
+                        .map(|segment| file.source.slice(segment.span))
+                        .collect::<Vec<_>>()
+                        .join(".")
+                })
+            })
+            .collect::<std::collections::BTreeSet<_>>();
+
+        assert!(packages.contains("scoop.thread"));
+        assert!(!packages.contains("scoop.sync"));
     }
 
     #[test]

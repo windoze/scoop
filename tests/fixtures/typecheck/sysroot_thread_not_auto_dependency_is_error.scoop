@@ -1,0 +1,8 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::resolve::unresolved_import
+
+package fixtures.typecheck.sysroot_thread_not_auto_dependency
+
+import scoop.thread.*
+
+fun main() {}

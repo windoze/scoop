@@ -12,6 +12,7 @@
 //   - pinned 对象地址稳定（不应被搬迁）；
 //   - 未 pinned 对象会被搬迁（handle 指向地址发生变化）；
 //   - pin 计数（pin 两次/unpin 一次）期间对象仍保持 pinned。
+// SYSROOT-DEPS: scoop.runtime.test
 
 package fixtures.codegen
 

@@ -8,6 +8,7 @@
 // - 普通 Scoop class 字段直接持有 `Mutex` / `CondVar` / `Once`；
 // - 对象丢弃并触发 `__scoop_gc_collect()` 后，sync 资源会被 cleanup；
 // - 显式 `destroy()` 仍然可提前释放平台资源，且 GC sweep 不会对同一对象 double-destroy。
+// SYSROOT-DEPS: scoop.runtime.test scoop.sync
 
 import scoop.core.*
 import scoop.runtime.test.*

@@ -4,6 +4,7 @@
 // - property initializer 中触发 Raise.raise，外层 try/catch 捕获后继续执行
 // - ctor call 临时 GC frame 必须在 unwind 路径 pop，否则失败构造的对象会被错误保留为 root，
 //   `__scoop_gc_collect()` 后 heap object count 不会回落
+// SYSROOT-DEPS: scoop.runtime.test
 
 import scoop.core.*
 import scoop.runtime.test.*

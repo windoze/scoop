@@ -4,6 +4,7 @@
 // 目标：GC-FIX Phase C2c：println/字符串构造/格式化在 statepoint 下稳定工作（移除临时绕路）。
 // - println(Int) 走 String 构造路径（format + malloc + scoop_alloc_typed）；
 // - 字符串字面量与 f-string 在 GC safepoint 下可用。
+// SYSROOT-DEPS: scoop.runtime.test
 
 import scoop.core.*
 import scoop.runtime.test.*

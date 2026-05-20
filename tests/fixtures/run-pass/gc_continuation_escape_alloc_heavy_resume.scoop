@@ -10,6 +10,7 @@
 //   collection while ContState is live.
 // - Verifies all previously-created Records survive post-resume GC pressure.
 // - Exercises: ContState with growing set of live GC refs + allocation-heavy post-resume paths.
+// SYSROOT-DEPS: scoop.runtime.test
 
 import scoop.core.*
 import scoop.runtime.test.*

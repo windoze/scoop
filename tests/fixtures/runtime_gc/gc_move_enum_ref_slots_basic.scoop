@@ -5,6 +5,7 @@
 // - enum 值在栈 spill 与 heap 字段中都能被 roots/bitmap 扫描；
 // - boxed variant 的 payload 需要是 GC-managed heap object（其内部 refs 也能被 trace bitmap 扫描）；
 // - moving/compaction 后继续读取与解构 enum 不应出现悬挂指针。
+// SYSROOT-DEPS: scoop.runtime.test
 
 package fixtures.codegen
 

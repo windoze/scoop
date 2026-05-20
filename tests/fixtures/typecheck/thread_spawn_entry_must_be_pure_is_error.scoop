@@ -1,6 +1,7 @@
 // EXPECT: fail
 // EXPECT-ERROR-CODE: scoop::typecheck::thread_spawn_entry_must_be_pure
 // EXPECT-ERROR: `scoop.thread.threadSpawn` 的线程入口必须在静态上等价于 `Pure!`
+// SYSROOT-DEPS: scoop.thread
 
 package fixtures.typecheck
 

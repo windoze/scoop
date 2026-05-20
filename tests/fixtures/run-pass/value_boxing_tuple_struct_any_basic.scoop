@@ -1,5 +1,6 @@
 // EXPECT: pass
 // 目标：CG-T04b tuple/struct value erasure boxing 走 GC-managed boxed transport。
+// SYSROOT-DEPS: scoop.runtime.test
 
 import scoop.core.*
 import scoop.runtime.test.*

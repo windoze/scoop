@@ -4,6 +4,7 @@
 // 目标：T1507a
 // - `Array<String>` 的元素槽位必须被 GC 扫描（runtime array descriptor + trace_fn）。
 // - 仅通过 array 元素持有两个字符串，在 `__scoop_gc_collect()` 后仍可读取并打印。
+// SYSROOT-DEPS: scoop.runtime.test
 
 import scoop.core.*
 import scoop.runtime.test.*

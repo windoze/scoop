@@ -4,6 +4,7 @@
 // 目标：GC pin/unpin 语言层 API（sysroot + codegen → runtime）的稳定支持面回归。
 // - `GC.pin(obj)`：把 heap 对象加入 runtime 的 pinned roots（即使没有栈 roots 也应保活）
 // - `GC.unpin(pinned)`：解除 pin；在仍有 roots 的情况下对象仍可访问
+// SYSROOT-DEPS: scoop.runtime.test
 
 import scoop.core.*
 import scoop.runtime.test.*

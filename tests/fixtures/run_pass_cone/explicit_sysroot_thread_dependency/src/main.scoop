@@ -1,0 +1,15 @@
+// EXPECT: pass
+// RUN-STDOUT: stdout.txt
+// SYSROOT-DEPS: scoop.thread
+
+package fixtures.run_pass_cone.explicit_sysroot_thread_dependency
+
+import scoop.thread.*
+
+fun main() {
+    val tid = currentId()
+    when (tid == 0) {
+        true -> println("thread unsupported")
+        false -> println("thread loaded")
+    }
+}

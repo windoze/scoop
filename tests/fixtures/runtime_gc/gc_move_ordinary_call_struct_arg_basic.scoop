@@ -6,6 +6,7 @@
 //
 // T4016T7a：ordinary/statepoint 调用把含 GC refs 的 aggregate 参数传给 callee 后，
 // callee 在 GC 之后继续读取该参数，仍必须看到 relocate 后的新 payload。
+// SYSROOT-DEPS: scoop.runtime.test
 
 package fixtures.codegen
 

@@ -7,7 +7,7 @@
 //! 当前阶段：通过 `sysroot/lib/*/Cone.toml` 发现内置 source cones，
 //! 并复用普通 source cone package 规则收集 `src/**/*.scoop`。
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
 use miette::{Context as _, IntoDiagnostic as _, Result, miette};
@@ -21,6 +21,14 @@ use crate::source::SourceFile;
 
 /// 外部 driver 可通过该环境变量为单次构建注入 sysroot overlay。
 pub const SYSROOT_OVERLAY_ENV: &str = "SCOOP_SYSROOT_OVERLAY";
+
+/// 普通编译默认自动加载的 sysroot cones。
+pub const DEFAULT_AUTO_DEPENDENCY_CONES: [&str; 4] = [
+    "scoop.core",
+    "scoop.lang.string",
+    "scoop.collections",
+    "scoop.delegates",
+];
 
 /// sysroot 中的所有文件都以完整 AST 参与声明索引与 support-source 编译。
 #[derive(Debug)]
@@ -82,6 +90,21 @@ impl Sysroot {
     ) -> Result<Self> {
         let root = canonicalize_sysroot_root(root.as_ref(), "sysroot")?;
         let entries = collect_merged_sysroot_entries(&root, overlay_root)?;
+        Self::load_from_entries(root, entries)
+    }
+
+    pub fn load_auto_from_with_overlay_and_dependencies(
+        root: impl AsRef<Path>,
+        overlay_root: Option<&Path>,
+        extra_dependency_names: &[String],
+    ) -> Result<Self> {
+        let root = canonicalize_sysroot_root(root.as_ref(), "sysroot")?;
+        let entries =
+            collect_auto_sysroot_source_entries(&root, overlay_root, extra_dependency_names)?;
+        Self::load_from_entries(root, entries)
+    }
+
+    fn load_from_entries(root: PathBuf, entries: Vec<SysrootSourceEntry>) -> Result<Self> {
         if entries.is_empty() {
             return Err(miette!(
                 "sysroot/lib 下没有可加载的 source cone：{}",
@@ -154,14 +177,6 @@ pub fn collect_sysroot_files(
     Ok(())
 }
 
-pub(crate) fn collect_sysroot_source_entries(
-    root: &Path,
-    overlay_root: Option<&Path>,
-) -> Result<Vec<SysrootSourceEntry>> {
-    let root = canonicalize_sysroot_root(root, "sysroot")?;
-    collect_merged_sysroot_entries(&root, overlay_root)
-}
-
 pub(crate) fn collect_sysroot_source_cone_packages(
     root: &Path,
     overlay_root: Option<&Path>,
@@ -203,6 +218,118 @@ pub(crate) fn collect_sysroot_source_cone_packages(
     }
 
     Ok(out)
+}
+
+pub(crate) fn collect_auto_sysroot_source_cone_packages(
+    root: &Path,
+    overlay_root: Option<&Path>,
+    extra_dependency_names: &[String],
+) -> Result<Vec<SysrootSourceConePackage>> {
+    let packages = collect_sysroot_source_cone_packages(root, overlay_root)?;
+    select_auto_sysroot_source_cone_packages(packages, extra_dependency_names)
+}
+
+pub(crate) fn collect_auto_sysroot_source_entries(
+    root: &Path,
+    overlay_root: Option<&Path>,
+    extra_dependency_names: &[String],
+) -> Result<Vec<SysrootSourceEntry>> {
+    let source_sets =
+        collect_auto_sysroot_source_cone_packages(root, overlay_root, extra_dependency_names)?;
+    let source_count = source_sets.iter().map(|set| set.sources.len()).sum();
+    let mut entries = Vec::with_capacity(source_count);
+
+    for source_set in &source_sets {
+        for path in &source_set.sources {
+            entries.push(SysrootSourceEntry {
+                path: path.clone(),
+                trusted_syslib: source_set.trusted_syslib,
+            });
+        }
+    }
+
+    Ok(entries)
+}
+
+pub(crate) fn select_auto_sysroot_source_cone_packages(
+    packages: Vec<SysrootSourceConePackage>,
+    extra_dependency_names: &[String],
+) -> Result<Vec<SysrootSourceConePackage>> {
+    let mut packages_by_name = BTreeMap::new();
+    for package in packages {
+        let name = package.manifest.cone.name.clone();
+        if packages_by_name.insert(name.clone(), package).is_some() {
+            return Err(miette!("sysroot source cone name 重复：{name}"));
+        }
+    }
+
+    let mut states = BTreeMap::new();
+    let mut selected = Vec::new();
+    for name in DEFAULT_AUTO_DEPENDENCY_CONES {
+        visit_sysroot_dependency(name, &packages_by_name, &mut states, &mut selected)?;
+    }
+    for name in extra_dependency_names {
+        visit_sysroot_dependency(name, &packages_by_name, &mut states, &mut selected)?;
+    }
+
+    let mut out = Vec::with_capacity(selected.len());
+    for name in selected {
+        out.push(
+            packages_by_name
+                .get(&name)
+                .expect("selected sysroot cone should exist")
+                .clone(),
+        );
+    }
+    Ok(out)
+}
+
+pub(crate) fn sysroot_source_cone_names(packages: &[SysrootSourceConePackage]) -> BTreeSet<String> {
+    packages
+        .iter()
+        .map(|package| package.manifest.cone.name.clone())
+        .collect()
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum SysrootDependencyVisitState {
+    Visiting,
+    Done,
+}
+
+fn visit_sysroot_dependency(
+    name: &str,
+    packages_by_name: &BTreeMap<String, SysrootSourceConePackage>,
+    states: &mut BTreeMap<String, SysrootDependencyVisitState>,
+    selected: &mut Vec<String>,
+) -> Result<()> {
+    match states.get(name).copied() {
+        Some(SysrootDependencyVisitState::Done) => return Ok(()),
+        Some(SysrootDependencyVisitState::Visiting) => {
+            return Err(miette!(
+                "sysroot source cone dependency cycle reaches `{name}`"
+            ));
+        }
+        None => {}
+    }
+
+    let package = packages_by_name
+        .get(name)
+        .ok_or_else(|| miette!("sysroot dependency `{name}` 未找到对应 source cone"))?;
+    let dependency_names = package
+        .manifest
+        .dependencies
+        .keys()
+        .cloned()
+        .collect::<Vec<_>>();
+
+    states.insert(name.to_string(), SysrootDependencyVisitState::Visiting);
+    for dependency_name in dependency_names {
+        visit_sysroot_dependency(&dependency_name, packages_by_name, states, selected)?;
+    }
+    states.insert(name.to_string(), SysrootDependencyVisitState::Done);
+    selected.push(name.to_string());
+    Ok(())
 }
 
 fn collect_merged_sysroot_entries(

@@ -25,6 +25,7 @@
 // 该用例继续保留显式 `__scoop_gc_collect()`，用于稳定覆盖“worker 线程退出后 thread list
 // 收缩 + main 线程显式 GC + 下一次 cross-thread resume”这一时序；同时通过 fixture 级
 // `SCOOP_GC_STRESS=1` 让 worker 内 resumed 路径上的分配也参与压力回归。
+// SYSROOT-DEPS: scoop.runtime.test scoop.thread
 
 import scoop.core.*
 import scoop.runtime.test.*

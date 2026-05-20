@@ -10,6 +10,7 @@
 // - worker 线程通过 `@Extern` 进入 native，并在 native 内阻塞一段时间；
 // - main 线程在确认 worker 已进入 native 后触发一次 `__scoop_gc_collect()`；
 // - 期望：GC 不会等待 InNative 线程 park（避免死锁），并能通过 `native_roots` 保活 call-site 的 `x`。
+// SYSROOT-DEPS: scoop.runtime.test scoop.thread
 
 package fixtures.codegen
 

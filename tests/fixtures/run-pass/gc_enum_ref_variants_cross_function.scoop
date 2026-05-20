@@ -7,6 +7,7 @@
 // - Factory functions create enum values and containers, passing them across boundaries.
 // - GC triggers between creation/consumption to verify enum ref fields are correctly traced.
 // - Exercises the GC's enum slot scanning (variant discriminant + ref field offsets).
+// SYSROOT-DEPS: scoop.runtime.test
 
 import scoop.core.*
 import scoop.runtime.test.*

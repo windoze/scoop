@@ -7,6 +7,7 @@
 // - Factory functions create objects; caller wires them into a graph.
 // - GC triggers between graph construction steps.
 // - Verifies that all inter-object references (class->class, class->String) survive GC.
+// SYSROOT-DEPS: scoop.runtime.test
 
 import scoop.core.*
 import scoop.runtime.test.*

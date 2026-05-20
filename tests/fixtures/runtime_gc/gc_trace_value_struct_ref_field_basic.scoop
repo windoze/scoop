@@ -12,6 +12,7 @@
 //   因此这里不覆盖 “struct -> Any boxing” 路径；本用例聚焦于 stack/heap 的 ref 扫描。
 // - 注意：目前 resolver 对链式 member access（例如 `h.w.s`）的二段解析仍有 gap；
 //   因此 heap 路径通过引入中间局部变量（`val w2: Wrap = h.w`）再访问字段。
+// SYSROOT-DEPS: scoop.runtime.test
 
 package fixtures.codegen
 

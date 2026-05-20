@@ -8,6 +8,7 @@
 // - Multiple factory calls build up a set of live structs, each holding distinct Strings.
 // - GC stress forces collection on every allocation; if struct ref fields are not traced
 //   correctly across function call boundaries, String fields will be corrupted.
+// SYSROOT-DEPS: scoop.runtime.test
 
 import scoop.core.*
 import scoop.runtime.test.*

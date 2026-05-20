@@ -3,6 +3,7 @@
 // T1327b：类初始化期间 Raise/effect unwinding cleanup
 // - init block 中触发 Raise.raise，外层 try/catch 捕获后继续执行
 // - ctor call 临时 GC frame 必须在 unwind 路径 pop，避免失败构造对象被错误保留为 root
+// SYSROOT-DEPS: scoop.runtime.test
 
 import scoop.core.*
 import scoop.runtime.test.*

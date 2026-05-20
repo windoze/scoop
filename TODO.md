@@ -3,7 +3,7 @@
 > 生成时间：2026-05-19
 > 设计基线：[`SYSROOT_RESHAPE_R2.md`](./SYSROOT_RESHAPE_R2.md)
 > 计划基线：[`PLAN.md`](./PLAN.md)
-> 当前状态：`P5-T04` 已完成；下一任务为 `P6-T01`。
+> 当前状态：`P6-T01` 已完成；下一任务为 `P6-T02`。
 > 执行原则：严格按 P0 -> P10 顺序推进；同一阶段内可按任务依赖拆 PR，但每个任务完成后必须保持仓库无 failing fixture，并回写完成记录。
 
 ## 全局约束
@@ -105,7 +105,7 @@ P0 baseline freeze
 | `P5-T02` | [DONE] | P5 | 支持本地 source path dependency fixtures |
 | `P5-T03` | [DONE] | P5 | 保留 cone identity/kind 到 resolver/typecheck/codegen |
 | `P5-T04` | [DONE] | P5 | 生成 per-cone init routine 与 final system entry 调用骨架 |
-| `P6-T01` | [TODO] | P6 | 实现 auto dependency cone 列表 |
+| `P6-T01` | [DONE] | P6 | 实现 auto dependency cone 列表 |
 | `P6-T02` | [TODO] | P6 | 实现 prelude package 列表并与 auto dependency 解耦 |
 | `P7-T01` | [TODO] | P7 | 将 native-build 扩展到所有 loaded source cones |
 | `P7-T02` | [TODO] | P7 | dependency cone C++/link-flags/linker driver 覆盖 |
@@ -503,7 +503,7 @@ P0 baseline freeze
 - 与 `PLAN.md` / `SYSROOT_RESHAPE_R2.md` 闭合项：满足 P5 中“收集每个 linked source cone 的 top-level initializer roots”、“为每个 linked source cone 生成独立 cone init routine”和“final system entry 按 source cone DAG 调用 init routines 后进入用户 main”的骨架要求；P9 的 object once、top-level eager init body、once helper 退场和 top-level var storage 语义仍按后续任务推进，阶段级计划未变化。
 - 验证结果：`cargo fmt` 通过；`cargo run -p scoop -- test tests/fixtures/build/per_cone_init_routine_emit_llvm.scoop` 通过；`cargo run -p scoop -- test tests/fixtures/build/` 通过（48 checks）；`cargo test -p scoopc llvm_function_abi_entry_shells_use_direct_entry -- --nocapture` 与 `cargo test -p scoopc llvm_main_wrapper_passes_array_string_argv_to_plain_entry -- --nocapture` 通过；`cargo clippy --all-targets -- -D warnings` 通过；`cargo test --all --all-targets` 通过（Rust tests: ok，包含 `scoopc` 929 passed）；`cargo run -p scoop -- test` 通过（fixtures: ok，1567 checks）；`cargo build` 通过。
 
-## P6-T01：实现 auto dependency cone 列表
+## [DONE] P6-T01：实现 auto dependency cone 列表
 
 - 参考：`PLAN.md` §9。
 - 目标：自动加载基础标准 cones，但不自动 import 它们的短名。
@@ -515,6 +515,15 @@ P0 baseline freeze
   4. `scoop.unsafe` 优先作为 `scoop.core` manifest dependency；如临时 auto-load，记录退场。
 - 验证：未显式依赖 thread/sync 时不可解析其短名且不链接其 native objects。
 - 完成条件：auto dependency 只负责加载/编译/链接，不影响短名 import。
+
+### 完成记录（2026-05-20）
+
+- 改动范围：`sysroot` 增加默认 auto dependency cone 选择与 manifest dependency 闭包；`SourceConeGraph` 改为只加载 auto cones、显式 sysroot dependencies 和本地 source dependencies；`SessionOptions` 增加额外 sysroot dependency 注入；fixture runner 与相关 Rust tests 显式声明 `scoop.thread`、`scoop.sync`、`scoop.runtime.test` 依赖；`scoop.core` manifest 声明对 `scoop.unsafe` 的依赖；新增默认排除与显式 thread dependency fixtures；未修改 `PLAN.md` 或 `SYSROOT_RESHAPE_R2.md`。
+- 核心决策：默认 auto dependency 固定为 `scoop.core`、`scoop.lang.string`、`scoop.collections`、`scoop.delegates`；`scoop.unsafe` 不作为用户-facing auto dependency，而由 `scoop.core` 的 sysroot manifest dependency 进入 loaded closure；`scoop.thread`、`scoop.sync`、`scoop.runtime.test` 默认不加载，必须通过 manifest dependency、`SessionOptions` 或 fixture `SYSROOT-DEPS` 测试注入显式 opt-in。
+- 显式依赖与去重：consumer/local source manifest 中的 version dependency 若命中 sysroot cone name，则作为显式 sysroot dependency 加载并与 auto closure 按 cone name 去重；未知 version dependency 仍稳定拒绝，保留 source-only path/installed sysroot dependency 边界。
+- Fixture / tests：新增 `tests/fixtures/typecheck/sysroot_thread_not_auto_dependency_is_error.scoop` 覆盖未显式依赖 `scoop.thread` 时 import 失败；新增 `tests/fixtures/run_pass_cone/explicit_sysroot_thread_dependency/` 覆盖 manifest 显式依赖后可 import/run；现有需要 opt-in cones 的 standalone fixtures 增加 `SYSROOT-DEPS`，`managed_abi_string_gc` cone fixture 增加 manifest dependency；相关 Rust LLVM/codegen tests 改为按测试 source import 显式构造 session deps。
+- 与 `PLAN.md` / `SYSROOT_RESHAPE_R2.md` 闭合项：满足 P6 中“auto dependency 只负责加载/编译/链接，不影响短名 import”、“`thread` / `sync` / `runtime.test` 不进入默认 auto dependency”、“显式 dependency 与 auto dependency 去重”和“`scoop.unsafe` 优先作为 `scoop.core` manifest dependency”的要求；prelude package 配置错误与 non-prelude auto dependency short-name 语义仍按 `P6-T02` 推进。
+- 验证结果：`cargo fmt` 通过；`cargo build` 通过；`cargo clippy --all-targets -- -D warnings` 通过；`cargo test --all --all-targets` 通过；`cargo run -p scoop -- test` 通过（fixtures: ok，1569 checks）；定向验证覆盖 `cone::graph`、`session`、fixture expectation parser、默认 thread import negative、显式 thread dependency run-pass-cone、`typecheck`、`run-pass`、`runtime_gc`、`run_pass_cone`、`build` 与 B-27/B-28/B-29 UMB fixtures。
 
 ## P6-T02：实现 prelude package 列表并与 auto dependency 解耦
 

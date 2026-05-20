@@ -183,11 +183,15 @@ fn single_pipeline_runs_multi_type_param_effect_payload_dispatch_cli() {
 fn single_pipeline_runs_raise_cleanup_gc_cli() {
     let fixture = workspace_path("tests/fixtures/run-pass/effect_raise_cleanup_gc_basic.scoop");
 
-    let output = run_scoop([
-        OsStr::new("run"),
-        OsStr::new("--no-incremental"),
-        fixture.as_os_str(),
-    ]);
+    let output = Command::new(scoop_bin())
+        .env("SCOOP_SYSROOT_DEPS", "scoop.runtime.test")
+        .args([
+            OsStr::new("run"),
+            OsStr::new("--no-incremental"),
+            fixture.as_os_str(),
+        ])
+        .output()
+        .unwrap();
 
     assert!(
         output.status.success(),

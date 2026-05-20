@@ -7,6 +7,7 @@
 // - vetoable：写入前触发回调；返回 false 时拒绝更新；并发下 veto 失败分支不应污染可见值
 //
 // 说明：为保持 stdout golden 稳定，这里用 `scoop.sync` 控制两个线程的写入顺序。
+// SYSROOT-DEPS: scoop.thread scoop.sync
 
 import scoop.core.*
 import scoop.delegates.*

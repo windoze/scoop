@@ -5,6 +5,7 @@
 // - class 对象持有 ref 字段时，GC 必须能通过 type_desc trace bitmap 扫描到字段并保活引用对象。
 // - 当前阶段尚未支持 class 字段的 member access codegen（见 TODO T1509），因此用 heap object count
 //   来做可观测回归：若 field 未被扫描，boxed int 会被回收，count 会从 2 回落到 1。
+// SYSROOT-DEPS: scoop.runtime.test
 
 import scoop.core.*
 import scoop.runtime.test.*

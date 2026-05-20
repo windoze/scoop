@@ -8,6 +8,7 @@
 // - native 侧只长期保存 `GcHandle.raw`，不保存对象地址，也不要求对象保持 pinned；
 // - callback 到来时再把 raw token 回传给 Scoop，重新包装成 `GcHandle` 后执行 `handleGet`；
 // - 对象若需要短时裸地址借出，应在 `handleGet` 之后另行 pin，而不是把 `Pinned` 当长期 token。
+// SYSROOT-DEPS: scoop.runtime.test
 
 package fixtures.codegen
 

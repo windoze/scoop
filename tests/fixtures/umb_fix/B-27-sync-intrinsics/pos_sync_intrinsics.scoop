@@ -4,6 +4,7 @@
 // BUCKETS: B-27
 // REASON: P7-B3.2 retired B-27 rows; coverage is now tracked by the retired ledger.
 // SOURCE-FIXTURE: tests/fixtures/run-pass/std_sync_basic.scoop
+// SYSROOT-DEPS: scoop.sync
 
 import scoop.core.*
 import scoop.sync.*

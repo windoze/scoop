@@ -431,6 +431,7 @@ pub fn load_project_input_from_path(
             manifest,
             &sysroot_root,
             session_options.sysroot_overlay(),
+            session_options.extra_sysroot_dependencies(),
         )?;
         return ProjectInput::from_graph(graph, ConeProjectKind::Virtual, None);
     }
@@ -449,6 +450,7 @@ pub fn load_project_input_from_path(
             &sysroot_root,
             session_options.sysroot_overlay(),
             &[],
+            session_options.extra_sysroot_dependencies(),
         )?;
         return ProjectInput::from_graph(graph, ConeProjectKind::Explicit, entry_package_override);
     }
@@ -479,6 +481,7 @@ pub fn prepare_virtual_cone_input_with_options(
         manifest,
         &sysroot_root,
         session_options.sysroot_overlay(),
+        session_options.extra_sysroot_dependencies(),
     )?;
     ProjectInput::from_graph(graph, ConeProjectKind::Virtual, None)
 }
@@ -914,9 +917,10 @@ pub(crate) fn load_default_support_sources(
         .canonicalize()
         .into_diagnostic()
         .wrap_err("无法定位 sysroot 目录（T0143）")?;
-    let sysroot_entries = crate::sysroot::collect_sysroot_source_entries(
+    let sysroot_entries = crate::sysroot::collect_auto_sysroot_source_entries(
         &sysroot_root,
         session_options.sysroot_overlay(),
+        session_options.extra_sysroot_dependencies(),
     )?;
 
     support_paths.extend(

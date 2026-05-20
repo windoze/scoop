@@ -60,8 +60,13 @@ pub(crate) fn compute_cone_build_fingerprint(
         .canonicalize()
         .into_diagnostic()
         .wrap_err("无法定位 sysroot 目录（用于增量 fingerprint）")?;
-    let graph =
-        scoopc::cone::SourceConeGraph::load_for_consumer_package(pkg, &sysroot_root, None, &[])?;
+    let graph = scoopc::cone::SourceConeGraph::load_for_consumer_package(
+        pkg,
+        &sysroot_root,
+        None,
+        &[],
+        &[],
+    )?;
     let consumer = graph.consumer();
 
     let cone_toml_sha256 = sha256_file(&consumer.manifest_path)?;

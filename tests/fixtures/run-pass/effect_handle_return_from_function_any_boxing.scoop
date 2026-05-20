@@ -4,6 +4,7 @@
 // T3016R：handle 内的 function-return 必须继续走普通函数返回的 coercion 合同。
 // 这里 `return 1` 需要按 `Any` 返回类型执行 `Int -> Any` boxing；否则 boxed object
 // 不会作为真正的函数返回值保活，GC 后 heap object count 会错误回落到 0。
+// SYSROOT-DEPS: scoop.runtime.test
 
 import scoop.core.*
 import scoop.runtime.test.*

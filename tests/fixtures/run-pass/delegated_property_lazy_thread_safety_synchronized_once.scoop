@@ -8,6 +8,7 @@
 //
 // 说明：当前 LLVM codegen 尚不支持 `object` 成员赋值（assignment lhs 为 member access），
 // 当前改用 `scoop.sync` 显式 barrier / result slot 来表达同样的并发断言。
+// SYSROOT-DEPS: scoop.thread scoop.sync
 
 import scoop.core.*
 import scoop.delegates.*

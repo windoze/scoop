@@ -7,6 +7,7 @@
 // - Cross-function array passing and reading exercises element scanning.
 // Note: SCOOP_GC_STRESS=1 is not used here due to a known Array<String>+gc_collect
 // interaction issue; explicit __scoop_gc_collect() is used instead.
+// SYSROOT-DEPS: scoop.runtime.test
 
 import scoop.core.*
 import scoop.runtime.test.*

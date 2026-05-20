@@ -2,6 +2,7 @@
 // EXPECT-EXIT: 0
 //
 // 回归：带 payload 的 enum 值擦除必须继续走显式 boxed carrier 路径。
+// SYSROOT-DEPS: scoop.runtime.test
 
 import scoop.core.*
 import scoop.runtime.test.*

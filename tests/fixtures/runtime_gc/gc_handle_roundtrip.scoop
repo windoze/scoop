@@ -2,6 +2,7 @@
 // ENV: SCOOP_GC_MOVE=1
 // RUN-STDOUT: gc_handle_roundtrip.stdout.txt
 // 目标：T1510b：stable GC handle sysroot intrinsics（GC.handleNew/handleGet/handleDrop）。
+// SYSROOT-DEPS: scoop.runtime.test
 
 package fixtures.codegen
 

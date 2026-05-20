@@ -14,6 +14,7 @@
 // - root `x` 只存在于 main 的局部变量；
 // - GC 在更深层调用触发（leaf → `__scoop_gc_collect()`）；
 // - GC 后：用 main 的局部变量 `x` 再创建 handle 必须成功（否则说明 spill slot 未被原地写回更新）。
+// SYSROOT-DEPS: scoop.runtime.test
 
 package fixtures.codegen
 

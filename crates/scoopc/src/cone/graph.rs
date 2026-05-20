@@ -5,7 +5,7 @@
 //! graph preserves each file's owning cone, kind, trust, native-build metadata,
 //! and dependency edges.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
 use miette::{Context as _, IntoDiagnostic as _, Result, miette};
@@ -192,11 +192,22 @@ impl SourceConeGraph {
         sysroot_root: &Path,
         sysroot_overlay: Option<&Path>,
         local_dependency_roots: &[PathBuf],
+        extra_sysroot_dependencies: &[String],
     ) -> Result<Self> {
-        let sysroot_packages =
+        let all_sysroot_packages =
             crate::sysroot::collect_sysroot_source_cone_packages(sysroot_root, sysroot_overlay)?;
+        let sysroot_names = crate::sysroot::sysroot_source_cone_names(&all_sysroot_packages);
         let local_dependencies =
             collect_local_dependency_closure(&consumer, local_dependency_roots)?;
+        let explicit_sysroot_dependencies = collect_explicit_sysroot_dependency_names(
+            std::iter::once(&consumer).chain(local_dependencies.iter()),
+            &sysroot_names,
+            extra_sysroot_dependencies,
+        )?;
+        let sysroot_packages = crate::sysroot::select_auto_sysroot_source_cone_packages(
+            all_sysroot_packages,
+            &explicit_sysroot_dependencies,
+        )?;
         Self::from_packages_with_extra_consumer_roots(
             sysroot_packages,
             local_dependencies,
@@ -211,15 +222,34 @@ impl SourceConeGraph {
         manifest: ConeManifest,
         sysroot_root: &Path,
         sysroot_overlay: Option<&Path>,
+        extra_sysroot_dependencies: &[String],
     ) -> Result<Self> {
-        let sysroot_packages =
-            crate::sysroot::collect_sysroot_source_cone_packages(sysroot_root, sysroot_overlay)?;
+        let sysroot_packages = crate::sysroot::collect_auto_sysroot_source_cone_packages(
+            sysroot_root,
+            sysroot_overlay,
+            extra_sysroot_dependencies,
+        )?;
         let mut nodes = Vec::with_capacity(sysroot_packages.len() + 1);
         let mut sysroot_ids = Vec::with_capacity(sysroot_packages.len());
+        let sysroot_ids_by_name = sysroot_packages
+            .iter()
+            .enumerate()
+            .map(|(offset, package)| {
+                (
+                    package.manifest.cone.name.clone(),
+                    ConeId::new(FIRST_NON_CONSUMER_CONE_ID + offset as u32),
+                )
+            })
+            .collect::<BTreeMap<_, _>>();
         for (offset, package) in sysroot_packages.into_iter().enumerate() {
             let id = ConeId::new(FIRST_NON_CONSUMER_CONE_ID + offset as u32);
             sysroot_ids.push(id);
-            nodes.push(SourceConeNode::from_sysroot_package(id, package)?);
+            let mut node = SourceConeNode::from_sysroot_package(id, package)?;
+            node.dependencies.extend(sysroot_dependency_edges(
+                &node.manifest,
+                &sysroot_ids_by_name,
+            )?);
+            nodes.push(node);
         }
 
         let mut consumer = SourceConeNode::from_virtual_consumer(source, root, manifest);
@@ -261,6 +291,13 @@ impl SourceConeGraph {
                 .then_with(|| lhs.root.cmp(&rhs.root))
         });
 
+        let sysroot_names = crate::sysroot::sysroot_source_cone_names(&sysroot_packages);
+        collect_explicit_sysroot_dependency_names(
+            std::iter::once(&consumer).chain(local_dependencies.iter()),
+            &sysroot_names,
+            &[],
+        )?;
+
         let local_dependency_ids = local_dependency_ids(
             &local_dependencies,
             FIRST_NON_CONSUMER_CONE_ID + sysroot_packages.len() as u32,
@@ -269,11 +306,26 @@ impl SourceConeGraph {
         let mut nodes = Vec::with_capacity(sysroot_packages.len() + local_dependencies.len() + 1);
         let mut sysroot_ids = Vec::with_capacity(sysroot_packages.len());
         let sysroot_count = sysroot_packages.len();
+        let sysroot_ids_by_name = sysroot_packages
+            .iter()
+            .enumerate()
+            .map(|(offset, package)| {
+                (
+                    package.manifest.cone.name.clone(),
+                    ConeId::new(FIRST_NON_CONSUMER_CONE_ID + offset as u32),
+                )
+            })
+            .collect::<BTreeMap<_, _>>();
 
         for (offset, package) in sysroot_packages.into_iter().enumerate() {
             let id = ConeId::new(FIRST_NON_CONSUMER_CONE_ID + offset as u32);
             sysroot_ids.push(id);
-            nodes.push(SourceConeNode::from_sysroot_package(id, package)?);
+            let mut node = SourceConeNode::from_sysroot_package(id, package)?;
+            node.dependencies.extend(sysroot_dependency_edges(
+                &node.manifest,
+                &sysroot_ids_by_name,
+            )?);
+            nodes.push(node);
         }
 
         for (offset, package) in local_dependencies.into_iter().enumerate() {
@@ -434,6 +486,51 @@ fn collect_local_dependency_closure(
     Ok(packages_by_root.into_values().collect())
 }
 
+fn collect_explicit_sysroot_dependency_names<'a>(
+    packages: impl Iterator<Item = &'a ConeSourcePackage>,
+    sysroot_names: &BTreeSet<String>,
+    extra_sysroot_dependencies: &[String],
+) -> Result<Vec<String>> {
+    let mut out = BTreeSet::new();
+    for name in extra_sysroot_dependencies {
+        out.insert(name.clone());
+    }
+
+    for package in packages {
+        for (dep_name, spec) in &package.manifest.dependencies {
+            match spec {
+                ConeDependencySpec::Version(req) => {
+                    if sysroot_names.contains(dep_name) {
+                        out.insert(dep_name.clone());
+                    } else {
+                        return Err(unsupported_version_dependency_error(
+                            &package.manifest.cone.name,
+                            dep_name,
+                            req,
+                        ));
+                    }
+                }
+                ConeDependencySpec::LocalPath { .. } => {}
+            }
+        }
+    }
+
+    Ok(out.into_iter().collect())
+}
+
+fn unsupported_version_dependency_error(
+    owner_name: &str,
+    dep_name: &str,
+    req: &str,
+) -> miette::Report {
+    miette!(
+        "source cone graph 暂只支持本地 path dependency 或已安装 sysroot source dependency；`{}` 的 `[dependencies].{}` 使用了版本要求 `{}`",
+        owner_name,
+        dep_name,
+        req
+    )
+}
+
 fn collect_local_dependency_package(
     root: PathBuf,
     expected: Option<(&str, &str)>,
@@ -524,6 +621,27 @@ fn local_source_dependency_edges(
     Ok(out)
 }
 
+fn sysroot_dependency_edges(
+    manifest: &ConeManifest,
+    sysroot_ids_by_name: &BTreeMap<String, ConeId>,
+) -> Result<Vec<SourceConeDependencyEdge>> {
+    let mut out = Vec::new();
+    for dep_name in manifest.dependencies.keys() {
+        let Some(target) = sysroot_ids_by_name.get(dep_name).copied() else {
+            return Err(miette!(
+                "sysroot source cone graph 缺少 `{}` 的 dependency `{}`",
+                manifest.cone.name,
+                dep_name
+            ));
+        };
+        out.push(SourceConeDependencyEdge {
+            target,
+            kind: SourceConeDependencyKind::SysrootAuto,
+        });
+    }
+    Ok(out)
+}
+
 fn extra_local_source_dependency_edges(
     extra_roots: &[PathBuf],
     local_dependency_ids: &BTreeMap<PathBuf, ConeId>,
@@ -569,14 +687,7 @@ fn local_path_dependency_roots_for(
                 let root = canonicalize_dependency_root(owner_name, &root, dep_name)?;
                 out.push((dep_name.clone(), root));
             }
-            ConeDependencySpec::Version(req) => {
-                return Err(miette!(
-                    "source cone graph 暂只支持本地 path dependency；`{}` 的 `[dependencies].{}` 使用了版本要求 `{}`",
-                    owner_name,
-                    dep_name,
-                    req
-                ));
-            }
+            ConeDependencySpec::Version(_) => {}
         }
     }
     Ok(out)
@@ -760,16 +871,57 @@ mod tests {
         let temp = make_temp_dir("load_graph");
         let sysroot = temp.0.join("sysroot");
         let core = sysroot.join("lib").join("scoop.core");
+        let unsafe_cone = sysroot.join("lib").join("scoop.unsafe");
+        let collections = sysroot.join("lib").join("scoop.collections");
+        let delegates = sysroot.join("lib").join("scoop.delegates");
         let string = sysroot.join("lib").join("scoop.lang.string");
-        write_manifest(&core, "scoop.core", ConeKind::Syslib, "");
+        let thread = sysroot.join("lib").join("scoop.thread");
+        let sync = sysroot.join("lib").join("scoop.sync");
+        let runtime_test = sysroot.join("lib").join("scoop.runtime.test");
+        write_manifest(
+            &core,
+            "scoop.core",
+            ConeKind::Syslib,
+            "[dependencies]\n\"scoop.unsafe\" = \"0.0.0\"\n",
+        );
+        write_manifest(&unsafe_cone, "scoop.unsafe", ConeKind::Syslib, "");
+        write_manifest(&collections, "scoop.collections", ConeKind::Lib, "");
+        write_manifest(&delegates, "scoop.delegates", ConeKind::Syslib, "");
         write_manifest(&string, "scoop.lang.string", ConeKind::Lib, "");
+        write_manifest(&thread, "scoop.thread", ConeKind::Syslib, "");
+        write_manifest(&sync, "scoop.sync", ConeKind::Syslib, "");
+        write_manifest(&runtime_test, "scoop.runtime.test", ConeKind::Syslib, "");
         write_file(
             &core.join("src").join("core.scoop"),
             "package scoop.core\n@Intrinsic class Array<T>\ninterface Any\n",
         );
         write_file(
+            &unsafe_cone.join("src").join("unsafe.scoop"),
+            "package scoop.unsafe\n@Intrinsic class Ptr<T>\n",
+        );
+        write_file(
+            &collections.join("src").join("collections.scoop"),
+            "package scoop.collections\npublic interface Iterable<T>\n",
+        );
+        write_file(
+            &delegates.join("src").join("delegates.scoop"),
+            "package scoop.delegates\npublic interface ReadOnlyProperty<T, V>\n",
+        );
+        write_file(
             &string.join("src").join("lang_string.scoop"),
             "package scoop.lang.string\npublic class StringBuilder\n",
+        );
+        write_file(
+            &thread.join("src").join("thread.scoop"),
+            "package scoop.thread\npublic fun currentId(): Int = 0\n",
+        );
+        write_file(
+            &sync.join("src").join("sync.scoop"),
+            "package scoop.sync\npublic class Mutex\n",
+        );
+        write_file(
+            &runtime_test.join("src").join("runtime_test.scoop"),
+            "package scoop.runtime.test\npublic fun collect(): Unit {}\n",
         );
 
         let dep = temp.0.join("fixture.util");
@@ -802,7 +954,7 @@ mod tests {
 
         let consumer = load_cone_source_package(&app).unwrap();
         let graph =
-            SourceConeGraph::load_for_consumer_package(consumer, &sysroot, None, &[]).unwrap();
+            SourceConeGraph::load_for_consumer_package(consumer, &sysroot, None, &[], &[]).unwrap();
 
         let names = graph
             .nodes()
@@ -812,12 +964,18 @@ mod tests {
         assert_eq!(
             names,
             vec![
+                "scoop.collections",
+                "scoop.unsafe",
                 "scoop.core",
+                "scoop.delegates",
                 "scoop.lang.string",
                 "fixture.util",
                 "fixture.app",
             ]
         );
+        assert!(!names.contains(&"scoop.thread"));
+        assert!(!names.contains(&"scoop.sync"));
+        assert!(!names.contains(&"scoop.runtime.test"));
 
         let core_node = graph
             .nodes()
@@ -851,7 +1009,7 @@ mod tests {
         assert_eq!(consumer.id, CONSUMER_CONE_ID);
         assert_eq!(consumer.kind, ConeKind::Bin);
         assert_eq!(consumer.role, SourceConeRole::Consumer);
-        assert_eq!(consumer.dependencies.len(), 3);
+        assert_eq!(consumer.dependencies.len(), 6);
         assert!(
             consumer
                 .entry_main

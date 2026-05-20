@@ -9,6 +9,7 @@
 // - GC trace bitmap must include the ref field
 // - GC collect after construction must not corrupt the object
 // - Multiple Holder<String> instances to stress GC
+// SYSROOT-DEPS: scoop.runtime.test
 
 import scoop.core.*
 import scoop.runtime.test.*

@@ -5,6 +5,7 @@
 // - stackmap spill slots（statepoint + gc.relocate）必须被原地写回新地址；
 // - heap 内引用字段（type descriptor trace bitmap）必须被修复；
 // - GC 结束后继续执行不得出现悬挂指针。
+// SYSROOT-DEPS: scoop.runtime.test
 
 package fixtures.codegen
 

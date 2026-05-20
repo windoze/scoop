@@ -8,6 +8,7 @@
 //   - Mutex：create/lock/unlock/destroy 不崩溃；
 //   - CondVar：create/notify/destroy 不崩溃（wait 的阻塞/唤醒语义由后续 thread API 用例覆盖）；
 //   - Once：run 只执行一次（同线程重复调用应直接返回）。
+// SYSROOT-DEPS: scoop.sync
 
 import scoop.core.*
 import scoop.sync.*

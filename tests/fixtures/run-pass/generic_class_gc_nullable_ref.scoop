@@ -9,6 +9,7 @@
 // - Niche optimization: Option<String> uses null pointer for None
 // - GC trace must handle nullable field correctly (skip null, trace non-null)
 // - Multiple instances with Some/None values + GC pressure
+// SYSROOT-DEPS: scoop.runtime.test
 
 import scoop.core.*
 import scoop.runtime.test.*

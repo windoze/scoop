@@ -4,6 +4,7 @@
 // T1512b：单线程 roots/heap 扫描最小覆盖（Array<String> 元素槽位）。
 // - 仅通过 array 元素持有两个字符串；
 // - `__scoop_gc_collect()` 后仍可读取并打印。
+// SYSROOT-DEPS: scoop.runtime.test
 
 package fixtures.codegen
 

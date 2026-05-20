@@ -136,6 +136,21 @@ use object::ObjectSymbol;
 use object::SymbolKind;
 use object::SymbolScope;
 
+fn session_for_source(source: &SourceFile) -> Session {
+    let mut deps = Vec::new();
+    if source.text().contains("import scoop.runtime.test.*") {
+        deps.push("scoop.runtime.test");
+    }
+    if source.text().contains("import scoop.sync.*") {
+        deps.push("scoop.sync");
+    }
+    if source.text().contains("import scoop.thread.*") {
+        deps.push("scoop.thread");
+    }
+
+    Session::with_options(SessionOptions::new().with_extra_sysroot_dependencies(deps)).unwrap()
+}
+
 // stable-id 审计只允许 identity surface 变化；行为语义必须保持等价。
 const STABLE_ID_ALLOWED_SURFACE_CHANGES: &[&str] = &[
     "symbol 文本",

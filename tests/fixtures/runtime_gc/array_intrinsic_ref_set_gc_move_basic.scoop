@@ -1,4 +1,5 @@
 // EXPECT: pass
+// SYSROOT-DEPS: scoop.runtime.test
 
 package fixtures.runtime_gc
 

@@ -1,12 +1,13 @@
 // EXPECT: fail
 // EXPECT-ERROR-CODE: scoop::typecheck::thread_spawn_entry_must_be_pure
-// EXPECT-ERROR-AT: 24:25
+// EXPECT-ERROR-AT: 25:25
 // EXPECT-ERROR: `scoop.thread.threadSpawn` 的线程入口必须在静态上等价于 `Pure!`
 // SPEC: docs/spec/language_spec-part6.md#1-低层边界总览;docs/spec/language_spec-part6.md#18-与标准库的关系
 // COVERS: NONE
 // BUCKETS: B-28
 // REASON: P7-B3.2 retired B-28 rows; this fixture keeps the threadSpawn typecheck gate active.
 // SOURCE-FIXTURE: tests/fixtures/typecheck/thread_spawn_entry_must_be_pure_is_error.scoop
+// SYSROOT-DEPS: scoop.thread
 
 package fixtures.typecheck
 

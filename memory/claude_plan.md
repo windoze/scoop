@@ -1,31 +1,29 @@
-# Claude 执行计划
+# Claude Execution Plan
 
-## 范围
+## Scope
 
-- 以 `TODO.md` 作为权威任务列表。
-- 定位第一个标题未带 `[DONE]` 的任务。
-- 只完成该任务，提交后停止，不继续下一个任务。
+This file records the actionable plan and progress for the current invocation. It intentionally contains concise, auditable reasoning and steps rather than private chain-of-thought.
 
-## 执行步骤
+## Plan
 
-1. 读取 `TODO.md`，确认第一个未完成任务及其验证要求。
-2. 按任务说明检查最近提交，只处理与当前任务直接相关的未完成问题。
-3. 只阅读实现当前任务所需的代码、测试和设计说明。
-4. 按规格实现任务，不引入 workaround 或削弱行为。
-5. 先运行定向验证，再运行任务或仓库要求的更广验证。
-6. 在 `TODO.md` 中给完成任务标题添加 `[DONE]`，并填写完成记录。
-7. 关键步骤完成或计划变化时更新本文件。
-8. 提交前检查 `git status`、`git diff` 和最近提交记录。
-9. 用清晰的任务标签提交本任务全部相关改动。
-10. 停止，不开始 `TODO.md` 中的下一个任务。
+1. Read `TODO.md` first and identify the first task whose heading is not prefixed with `[DONE]`.
+2. Check the latest commit only for unfinished work directly relevant to that selected task.
+3. Read the selected task details, dependencies, validation requirements, and nearby context.
+4. Inspect only the code, fixtures, and documentation needed to implement that task correctly.
+5. Implement the task without narrowing scope or using workaround behavior.
+6. Run the task-specified validation and any focused tests needed for confidence; fix failures that are in scope.
+7. Update `TODO.md` by prefixing the completed task title with `[DONE]` and adding a completion record.
+8. Update this file when key steps complete or if the plan changes.
+9. Review the worktree, commit all files relevant to this invocation with a clear task-tagged message, and stop without starting the next task.
 
-## 进度
+## Progress
 
-- 已记录初始执行计划。
-- 已读取 `TODO.md`；第一个未完成任务是 `P5-T04`：生成 per-cone init routine 与 final system entry 调用骨架。
-- 最近提交为 `[P5-T03] Preserve cone identity through compilation`，属于相关背景，但没有记录会阻塞 `P5-T04` 的未完成事项。
-- 实现路径：从已按 source cone graph 扁平化的 source 顺序派生 linked cone 顺序，生成稳定 internal cone init stub，并在 runtime 初始化后、用户 `main` 调用前发出 final entry 调用。
-- 已实现 cone init routine plan、稳定 internal stub emission，以及 `main` wrapper 中用户入口前的 cone init 调用。
-- 已新增 LLVM build fixture `tests/fixtures/build/per_cone_init_routine_emit_llvm.scoop`，检查 stub 定义和调用顺序。
-- 验证已完成：定向 fixture、build fixture suite、`cargo build`、`cargo clippy --all-targets -- -D warnings`、`cargo test --all --all-targets` 和完整 `cargo run -p scoop -- test` 均通过；期间更新了 entry-wrapper 单测，使其在统计用户 entry 调用时忽略 compiler-private cone init calls。
-- 已更新 `TODO.md`：`P5-T04` 标记为 `[DONE]`，当前状态改为下一任务 `P6-T01`，并写入完成记录。
+- Initialized plan for this invocation.
+- Read `TODO.md`; first incomplete task is `P6-T01` (`实现 auto dependency cone 列表`).
+- Checked latest commit `65fab627 [P5-T04] Generate per-cone init routines`; no explicitly unfinished issue in the commit subject blocks `P6-T01`.
+- Inspected `PLAN.md` §9 and the current source cone graph/sysroot/frontend paths.
+- Implementation approach: introduce the fixed default auto dependency list (`scoop.core`, `scoop.lang.string`, `scoop.collections`, `scoop.delegates`), load `scoop.unsafe` through a `scoop.core` manifest dependency, support explicit sysroot dependencies for opt-in cones, and update fixtures/tests so `scoop.thread`, `scoop.sync`, and `scoop.runtime.test` are not loaded by default.
+- Implemented the auto sysroot dependency closure, session/fixture extra sysroot dependency injection, and initial fixtures; `cargo check -p scoopc` and `cargo check -p scoop` pass after formatting.
+- Focused validation passed for graph/session/fixture expectation unit tests, default thread exclusion, explicit thread dependency, `typecheck`, `run-pass`, `runtime_gc`, `run_pass_cone`, `build`, and affected UMB fixture subsets. Fixed one build unit test to declare the explicit `scoop.sync` sysroot dependency it relies on.
+- Full validation passed: `cargo build`, `cargo clippy --all-targets -- -D warnings`, `cargo test --all --all-targets`, and `cargo run -p scoop -- test` (fixtures: ok, 1569 checks).
+- Updated `TODO.md` to mark `P6-T01` done and record the implementation/validation summary. Next step is to review the worktree and commit this invocation only.

@@ -1,3 +1,4 @@
+// SYSROOT-DEPS: scoop.runtime.test
 package fixtures.run_pass_cone.managed_abi_string_gc
 
 import scoop.core.*

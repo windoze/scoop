@@ -9,6 +9,7 @@
 // - Array uses compiler-specialized path; verify it works within generic class
 // - GC interaction: Array<Int> is a GC-managed object, trace must include it
 // - Wrapper with multiple different type args in same program
+// SYSROOT-DEPS: scoop.runtime.test
 
 import scoop.core.*
 import scoop.runtime.test.*

@@ -7,3 +7,6 @@ kind = "bin"
 exports = [
   "fixtures.run_pass_cone.managed_abi_string_gc.helper",
 ]
+
+[dependencies]
+"scoop.runtime.test" = "0.0.0"

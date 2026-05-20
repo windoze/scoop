@@ -24,7 +24,7 @@ fun main() {
 }
 "#,
     );
-    let session = Session::new().unwrap();
+    let session = session_for_source(&source);
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
     let keep_ir = function_ir_matching(
         &ir,
@@ -85,7 +85,7 @@ fun main() {
 }
 "#,
     );
-    let session = Session::new().unwrap();
+    let session = session_for_source(&source);
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
     let label_ir = function_ir_matching(
         &ir,
@@ -148,7 +148,7 @@ fun main() {
 }
 "#,
     );
-    let session = Session::new().unwrap();
+    let session = session_for_source(&source);
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
     let keep_ir = function_ir_matching(
         &ir,
@@ -201,7 +201,7 @@ fun main() {
 }
 "#,
     );
-    let session = Session::new().unwrap();
+    let session = session_for_source(&source);
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
     let entry_ir = function_ir_matching(
         &ir,
@@ -248,7 +248,7 @@ fun main() {
 }
 "#,
     );
-    let session = Session::new().unwrap();
+    let session = session_for_source(&source);
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
     let lambda_ir = function_ir_matching(
         &ir,
@@ -302,7 +302,7 @@ fun main() {
 }
 "#,
     );
-    let session = Session::new().unwrap();
+    let session = session_for_source(&source);
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
     let make_ir = function_ir_matching(
         &ir,
@@ -366,7 +366,7 @@ fun main() {
 }
 "#,
     );
-    let session = Session::new().unwrap();
+    let session = session_for_source(&source);
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
     let run_ir = function_ir_matching(
         &ir,
@@ -432,7 +432,7 @@ fun main() {
 }
 "#,
     );
-    let session = Session::new().unwrap();
+    let session = session_for_source(&source);
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
     let run_ir = function_ir_matching(
         &ir,
@@ -494,7 +494,7 @@ fun main() {
 }
 "#,
     );
-    let session = Session::new().unwrap();
+    let session = session_for_source(&source);
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
     let run_ir = function_ir_matching(
         &ir,
@@ -555,7 +555,7 @@ fun main(): Int {
 }
 "#,
     );
-    let session = Session::new().unwrap();
+    let session = session_for_source(&source);
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
     let go_ir = function_ir_matching(&ir, "managed outward payload helper", |header, function| {
         !header.contains("@main(")
@@ -608,7 +608,7 @@ fun main(): Int {
 }
 "#,
     );
-    let session = Session::new().unwrap();
+    let session = session_for_source(&source);
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
     let stop_ir =
         function_ir_matching(&ir, "never-returning managed helper", |header, function| {
@@ -683,7 +683,7 @@ fun main(): Int {
 }
 "#,
     );
-    let session = Session::new().unwrap();
+    let session = session_for_source(&source);
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
 
     assert!(
@@ -729,7 +729,7 @@ fun main(): Int {
 }
 "#,
     );
-    let session = Session::new().unwrap();
+    let session = session_for_source(&source);
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
     let explode_ir = function_ir_matching(
         &ir,
@@ -778,7 +778,7 @@ fun main() {
 }
 "#,
     );
-    let session = Session::new().unwrap();
+    let session = session_for_source(&source);
     let context = Context::create();
     let module = build_minimal_main_module(&session, &source, &context).unwrap();
     let ir = module.print_to_string().to_string();
@@ -843,7 +843,7 @@ fun main() {
 }
 "#,
     );
-    let session = Session::new().unwrap();
+    let session = session_for_source(&source);
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
     let use_it_ir = function_ir_matching(
         &ir,
@@ -886,7 +886,7 @@ fun main() {
 }
 "#,
     );
-    let session = Session::new().unwrap();
+    let session = session_for_source(&source);
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
     let init_ir = function_ir_matching(
         &ir,
@@ -937,7 +937,7 @@ fun main(): Int {
 }
 "#,
     );
-    let session = Session::new().unwrap();
+    let session = session_for_source(&source);
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
     let go_ir = function_ir_matching(
         &ir,
@@ -989,7 +989,7 @@ fun main() {
 }
 "#,
     );
-    let session = Session::new().unwrap();
+    let session = session_for_source(&source);
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
 
     assert!(
@@ -1003,7 +1003,7 @@ pub(super) fn materialized_gc_array_fixture_keeps_string_locals_for_println_stri
     let fixture = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("../../tests/fixtures/run-pass/gc_array_class_elements_cross_function.scoop");
     let source = SourceFile::load(&fixture).unwrap();
-    let session = Session::new().unwrap();
+    let session = session_for_source(&source);
     let codegen_unit = frontend::prepare_single_file_codegen_unit(&session, &source).unwrap();
     let pass_view = codegen_unit
         .lowered
@@ -1069,7 +1069,7 @@ pub(super) fn production_codegen_string_builder_fixture_materializes_mutable_arr
     let fixture = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("../../tests/fixtures/run-pass/lang_string_builder_basic.scoop");
     let source = SourceFile::load(&fixture).unwrap();
-    let session = Session::new().unwrap();
+    let session = session_for_source(&source);
     let codegen_unit =
         frontend::prepare_single_file_codegen_unit_with_opt_level(&session, &source, OptLevel::O0)
             .unwrap();
@@ -1144,7 +1144,7 @@ pub(super) fn production_codegen_uint8_array_numeric_elements_keep_scalar_transp
     let fixture = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("../../tests/fixtures/run-pass/literal_numeric_expected_type_absorption_basic.scoop");
     let source = SourceFile::load(&fixture).unwrap();
-    let session = Session::new().unwrap();
+    let session = session_for_source(&source);
     let codegen_unit =
         frontend::prepare_single_file_codegen_unit_with_opt_level(&session, &source, OptLevel::O0)
             .unwrap();

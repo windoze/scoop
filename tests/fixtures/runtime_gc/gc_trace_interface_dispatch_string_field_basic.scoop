@@ -4,6 +4,7 @@
 // T1512b：单线程 roots/heap 扫描最小覆盖（interface + class + String）。
 // - `IFace` 作为 roots slot：GC 必须扫描到 itable 形式的 ref root。
 // - `Impl.s: String` 作为 heap field：GC 必须通过 type descriptor trace 保活字段引用。
+// SYSROOT-DEPS: scoop.runtime.test
 
 package fixtures.codegen
 

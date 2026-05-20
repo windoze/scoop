@@ -10,6 +10,7 @@
 // 覆盖点：
 // - closure env（heap object）直接捕获 enum value；
 // - moving GC 后，closure 中读取与解构 enum（含 boxed variant payload）仍正确。
+// SYSROOT-DEPS: scoop.runtime.test
 
 package fixtures.codegen
 

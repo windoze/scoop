@@ -1,0 +1,7 @@
+[cone]
+name = "fixtures.run_pass_cone.explicit_sysroot_thread_dependency"
+version = "0.0.0"
+kind = "bin"
+
+[dependencies]
+"scoop.thread" = "0.0.0"

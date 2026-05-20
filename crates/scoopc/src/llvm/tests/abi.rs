@@ -24,7 +24,7 @@ fun main() {
 "#,
     );
 
-    let session = Session::new().unwrap();
+    let session = session_for_source(&source);
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
     let entry_ir = function_ir_matching(
         &ir,
@@ -91,7 +91,7 @@ fun main(): Int {
 "#,
     );
 
-    let session = Session::new().unwrap();
+    let session = session_for_source(&source);
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
     let entry_ir = function_ir_matching(
         &ir,
@@ -147,7 +147,7 @@ fun main() {
 "#,
     );
 
-    let session = Session::new().unwrap();
+    let session = session_for_source(&source);
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
     let entry_ir =
         function_ir_matching(&ir, "native funptr boundary helper", |header, function| {
@@ -222,7 +222,7 @@ fun main(): Int {
 "#,
     );
 
-    let session = Session::new().unwrap();
+    let session = session_for_source(&source);
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
     let entry_ir = function_ir_matching(
         &ir,
@@ -272,7 +272,7 @@ fun main(): Int {
 "#,
     );
 
-    let session = Session::new().unwrap();
+    let session = session_for_source(&source);
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
 
     let substring_ir = function_ir_matching(
@@ -314,7 +314,7 @@ fun main() {
 "#,
     );
 
-    let session = Session::new().unwrap();
+    let session = session_for_source(&source);
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
 
     let int_to_string_ir =
@@ -366,7 +366,7 @@ fun main() {
 "#,
     );
 
-    let session = Session::new().unwrap();
+    let session = session_for_source(&source);
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
     let call_ir = function_ir_matching(
         &ir,
@@ -418,7 +418,7 @@ fun main(): Int {
 "#,
     );
 
-    let session = Session::new().unwrap();
+    let session = session_for_source(&source);
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
     let call_ir = function_ir_matching(
         &ir,
@@ -527,7 +527,7 @@ fun main(): Int {
 "#,
     );
 
-    let session = Session::new().unwrap();
+    let session = session_for_source(&source);
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
     let helper_ir = function_ir_matching(
         &ir,
@@ -589,7 +589,7 @@ fun main(): Int {
 "#,
     );
 
-    let session = Session::new().unwrap();
+    let session = session_for_source(&source);
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
     let helper_ir =
         function_ir_matching(&ir, "itable dispatch outward helper", |header, function| {
@@ -639,7 +639,7 @@ fun main(): Int {
 "#,
     );
 
-    let session = Session::new().unwrap();
+    let session = session_for_source(&source);
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
     let helper_ir = function_ir_matching(
         &ir,
@@ -680,7 +680,7 @@ fun main(): Int {
 "#,
     );
 
-    let session = Session::new().unwrap();
+    let session = session_for_source(&source);
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
     let helper_ir = function_ir_matching(
         &ir,
@@ -719,7 +719,7 @@ fun main(): Int {
 "#,
     );
 
-    let session = Session::new().unwrap();
+    let session = session_for_source(&source);
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
     let helper_ir = function_ir_matching(
         &ir,
@@ -759,7 +759,7 @@ fun main(): Int {
 "#,
     );
 
-    let session = Session::new().unwrap();
+    let session = session_for_source(&source);
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
     let helper_ir = function_ir_matching(
         &ir,
@@ -796,7 +796,7 @@ fun main(): Int {
 "#,
     );
 
-    let session = Session::new().unwrap();
+    let session = session_for_source(&source);
     let context = Context::create();
     let module = build_minimal_main_module(&session, &source, &context).unwrap();
     let ir = module.print_to_string().to_string();
@@ -880,7 +880,7 @@ fun main(): Int {
 "#,
     );
 
-    let session = Session::new().unwrap();
+    let session = session_for_source(&source);
     let ir = emit_minimal_main_ir(&session, &source)
         .expect("generic class init cleanup path 应可为 type-driven private box 命名生成 IR");
 
@@ -918,7 +918,7 @@ fun main() {
 }
 "#,
     );
-    let session = Session::new().unwrap();
+    let session = session_for_source(&source);
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
     let keep_ir = function_ir_matching(
         &ir,
@@ -979,7 +979,7 @@ fun main(): Int {
 "#,
     );
 
-    let session = Session::new().unwrap();
+    let session = session_for_source(&source);
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
 
     assert!(
@@ -1016,7 +1016,7 @@ fun main(): Int {
 "#,
     );
 
-    let session = Session::new().unwrap();
+    let session = session_for_source(&source);
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
 
     assert!(
@@ -1053,7 +1053,7 @@ fun main(): Int {
 "#,
     );
 
-    let session = Session::new().unwrap();
+    let session = session_for_source(&source);
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
 
     assert!(
@@ -1089,7 +1089,7 @@ fun main(): Int {
 "#,
     );
 
-    let session = Session::new().unwrap();
+    let session = session_for_source(&source);
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
 
     let (_receiver_local, singleton_slot_symbol) = ir
@@ -1168,7 +1168,7 @@ fun main(): Int {
 "#,
     );
 
-    let session = Session::new().unwrap();
+    let session = session_for_source(&source);
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
 
     assert!(
@@ -1214,7 +1214,7 @@ fun main(): Int {
 "#,
     );
 
-    let session = Session::new().unwrap();
+    let session = session_for_source(&source);
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
 
     assert!(
@@ -1264,7 +1264,7 @@ fun main(): Int {
 "#,
     );
 
-    let session = Session::new().unwrap();
+    let session = session_for_source(&source);
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
 
     assert!(
@@ -1311,7 +1311,7 @@ fun main(): Int {
 "#,
     );
 
-    let session = Session::new().unwrap();
+    let session = session_for_source(&source);
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
     let main_ir = function_ir_matching(&ir, "mutable array size main", |_, function| {
         stable_id_symbol_mentions_fqn(
@@ -1347,7 +1347,7 @@ fun main(): Int {
 "#,
     );
 
-    let session = Session::new().unwrap();
+    let session = session_for_source(&source);
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
     let main_ir = function_ir_matching(&ir, "mutable array get main", |_, function| {
         stable_id_symbol_mentions_fqn(
@@ -1385,7 +1385,7 @@ fun main(): Int {
 "#,
     );
 
-    let session = Session::new().unwrap();
+    let session = session_for_source(&source);
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
     let main_ir = function_ir_matching(&ir, "mutable array set ref main", |_, function| {
         stable_id_symbol_mentions_fqn(
@@ -1419,7 +1419,7 @@ fun main(): Int {
 "#,
     );
 
-    let session = Session::new().unwrap();
+    let session = session_for_source(&source);
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
     let main_ir = function_ir_matching(&ir, "array size inline main", |_, function| {
         stable_id_symbol_mentions_fqn(
@@ -1440,7 +1440,6 @@ fun main(): Int {
 
 #[test]
 pub(super) fn array_redundant_get_o2_cses_direct_load() {
-    let session = Session::new().unwrap();
     let source = SourceFile::new_virtual(
         "<mem>/p4_t01e_array_cse_o2.scoop",
         r#"
@@ -1456,6 +1455,7 @@ fun main(): Int {
 }
 "#,
     );
+    let session = session_for_source(&source);
 
     let context = Context::create();
     let ir = build_minimal_main_module_with_opt_level(&session, &source, &context, OptLevel::O2)
@@ -1503,7 +1503,7 @@ fun main(): Int {
 "#,
     );
 
-    let session = Session::new().unwrap();
+    let session = session_for_source(&source);
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
 
     assert!(
@@ -1533,7 +1533,7 @@ fun main(): Int {
 #[test]
 pub(super) fn missing_main_is_reported() {
     let source = SourceFile::new_virtual("<mem>", "package a\nfun not_main() {}");
-    let session = Session::new().unwrap();
+    let session = session_for_source(&source);
     let err = emit_minimal_main_ir(&session, &source).unwrap_err();
 
     assert!(
@@ -1549,7 +1549,7 @@ pub(super) fn minimal_main_obj_written_is_non_empty() {
     let output = dir.join("main.o");
 
     let source = SourceFile::new_virtual("<mem>", "package a\nfun main() {}");
-    let session = Session::new().unwrap();
+    let session = session_for_source(&source);
     emit_minimal_main_obj_to_file(&session, &source, &output).unwrap();
 
     let size = std::fs::metadata(&output).unwrap().len();
@@ -1576,7 +1576,7 @@ fun main() {
 }
 "#,
     );
-    let session = Session::new().unwrap();
+    let session = session_for_source(&source);
     emit_minimal_main_obj_to_file(&session, &source, &output).unwrap();
 
     let bytes = std::fs::read(&output).unwrap();
@@ -1615,7 +1615,7 @@ fun main(): Unit {
 }
 "#,
     );
-    let session = Session::new().unwrap();
+    let session = session_for_source(&source);
     emit_minimal_main_obj_to_file(&session, &source, &output).unwrap();
 
     let bytes = std::fs::read(&output).unwrap();
@@ -1643,7 +1643,7 @@ fun main(): Int {
 }
 "#,
     );
-    let session = Session::new().unwrap();
+    let session = session_for_source(&source);
 
     let context = Context::create();
     let module = build_minimal_main_module(&session, &source, &context).unwrap();
@@ -1682,7 +1682,7 @@ fun main(): Int {
 }
 "#,
     );
-    let session = Session::new().unwrap();
+    let session = session_for_source(&source);
 
     let context = Context::create();
     let module = build_minimal_main_module(&session, &source, &context).unwrap();
@@ -1720,7 +1720,7 @@ fun main(): Int {
 }
 "#,
     );
-    let session = Session::new().unwrap();
+    let session = session_for_source(&source);
     emit_minimal_main_obj_to_file(&session, &source, &output).unwrap();
 
     let bytes = std::fs::read(&output).unwrap();
@@ -1739,7 +1739,7 @@ pub(super) fn minimal_main_asm_written_is_non_empty() {
     let output = dir.join("main.s");
 
     let source = SourceFile::new_virtual("<mem>", "package a\nfun main() {}");
-    let session = Session::new().unwrap();
+    let session = session_for_source(&source);
     emit_minimal_main_asm_to_file(&session, &source, &output).unwrap();
 
     let size = std::fs::metadata(&output).unwrap().len();
@@ -1768,7 +1768,7 @@ fun main() {
 }
 "#,
     );
-    let session = Session::new().unwrap();
+    let session = session_for_source(&source);
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
     let keep_ir = function_ir_matching(
         &ir,
