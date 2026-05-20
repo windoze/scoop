@@ -4,31 +4,30 @@
 
 - Follow `TODO.md` as the authoritative task list.
 - Complete exactly the first task whose heading is not prefixed with `[DONE]`.
-- Stop after implementing, validating, documenting completion, and committing that one task.
+- Stop after implementing, validating, documenting, and committing that one task.
 
-## Step-By-Step Plan
+## Execution Plan
 
-1. Inspect `TODO.md` to identify the first incomplete task by heading prefix.
-2. Review the selected task details, dependencies, validation requirements, and completion record.
-3. Check the latest commit only for unfinished work directly relevant to the selected task.
-4. Inspect the minimum relevant source, fixture, and test files needed to implement the task correctly.
-5. If a concrete blocker or missing prerequisite prevents spec-correct completion, update `TODO.md` with the minimum prerequisite task, commit that bookkeeping, and stop.
-6. Otherwise, implement the selected task with focused, incremental edits.
-7. Add or update the smallest relevant tests/fixtures required by the task.
-8. Run targeted validation first, then broader validation required by the task and repository guidelines.
-9. Fix any failures introduced by this work and rerun the relevant validation.
-10. Mark the selected task title in `TODO.md` with `[DONE]` and update its completion record.
-11. Update this progress file as key steps complete or if the plan changes.
-12. Review `git status`, `git diff`, and recent commits before committing.
-13. Commit all task-related changes with a clear task-tagged message.
-14. Stop without starting the next task.
+1. Read `TODO.md` to identify the first incomplete task and its validation requirements.
+2. Check the latest commit only for directly relevant unfinished work after the task is identified.
+3. Inspect the smallest necessary code and fixture areas for the selected task.
+4. Implement the task without narrowing scope or introducing workarounds.
+5. Run the task-specific tests first, then broader required validation if specified by the task.
+6. If a concrete blocking prerequisite is discovered, update `TODO.md` with the minimum prerequisite task, keep the current task incomplete, commit the bookkeeping change, and stop.
+7. If the task is completed, mark its heading with `[DONE]`, update its completion record, and avoid changing `PLAN.md` unless phase-level sequencing changed.
+8. Inspect git status and diff, then commit all intended changes with a task-specific message.
 
-## Progress
+## Progress Log
 
-- Initial execution plan written before repository inspection.
-- Selected first incomplete task: `P1-T02` from `TODO-2.md`, indexed by `TODO.md`.
-- Task goal: move authoritative `Span` into `scoopc_span`, move source identity/map types into `scoopc_source`, and leave `scoopc::{span, source}` as re-export adapters without duplicate definitions.
-- Latest commit checked: `796a3f1a [P1-T01R] Review base crate dependency gate`; no directly stated unfinished blocker was found.
-- Implementation started: added required base-crate dependencies, moved `Span` and source/source-map definitions into `scoopc_span` and `scoopc_source`, and converted old `scoopc` modules to re-export adapters.
-- Validation completed: `cargo fmt`, target base-crate tests, workspace tests without default features, clippy with `-D warnings`, dependency gate, `cargo tree -p scoopc_source`, and authoritative definition grep all passed.
-- Bookkeeping completed: `TODO.md` and `TODO-2.md` now mark `P1-T02` as `[DONE]` with completion notes.
+- Initialized plan before reading `TODO.md`.
+- Identified first incomplete task: `P1-T02R` in `TODO-2.md`.
+- Latest commit subject is `[P1-T02] Migrate span and source base crates`; no unfinished issue is explicit in the visible subject, so the review proceeds against that migration.
+- Current review will check duplicate authoritative definitions, base crate dependency direction, specified call surfaces, and P1-T02 validation commands.
+- File review so far: authoritative `Span` is in `scoopc_span`; authoritative `SourceFile` / `SourceId` / `SourceMap` are in `scoopc_source`; `crates/scoopc/src/span.rs` and `crates/scoopc/src/source.rs` are re-export adapters.
+- Next step: run P1-T02R validation commands and dependency-tree checks before updating TODO completion records.
+- Validation passed: `cargo fmt`; `cargo test -p scoopc_span`; `cargo test -p scoopc_source`; `cargo test --all --all-targets --no-default-features`; `cargo clippy --all-targets -- -D warnings`; `cargo tree -p scoopc_source`; `cargo run -p scoop_tools -- dependency-gate`; authoritative-definition search.
+- Next step: mark `P1-T02R` as `[DONE]` in both TODO indexes and record the review conclusion.
+- Updated `TODO.md` and `TODO-2.md`: `P1-T02R` is marked `[DONE]` with review conclusion, validation commands, dependency direction, and residual risk.
+- Next step: inspect git status/diff/log, run whitespace diff check, then commit the review bookkeeping.
+- Pre-commit inspection completed: only `TODO.md`, `TODO-2.md`, and this progress file are modified; `git diff --check` passed.
+- Next step: commit the completed `P1-T02R` review task and stop.

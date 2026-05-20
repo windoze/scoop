@@ -194,7 +194,7 @@
   - 验证命令：`cargo fmt`；`cargo test -p scoopc_span`；`cargo test -p scoopc_source`；`cargo test --all --all-targets --no-default-features`（首次 10 分钟外层超时中断后以 30 分钟超时重跑通过）；`cargo clippy --all-targets -- -D warnings`；`cargo run -p scoop_tools -- dependency-gate`；`cargo tree -p scoopc_source`；搜索 `pub struct Span|pub struct SourceFile|pub struct SourceId|pub struct SourceMap`。
   - 残余风险：全仓调用点仍大量经由迁移期 `scoopc::span` / `scoopc::source` 路径引用基础类型；这是 P1 允许的 adapter 状态，后续清场任务可逐步改为直接依赖基础 crate。
 
-## [TODO] P1-T02R：Review `span` / `source` 迁移结果
+## [DONE] P1-T02R：Review `span` / `source` 迁移结果
 
 - 参考：P1-T02。
 - 重点：
@@ -217,7 +217,12 @@
   - review 结论明确写出：`span` / `source` 已成为基础 crate authoritative 类型，且迁移没有改变 source/diagnostic 行为。
 - 依赖：P1-T02
 - 完成记录：
-  - 待填写。
+  - 复查范围：复查 `crates/scoopc_span/`、`crates/scoopc_source/`、`crates/scoopc/src/span.rs`、`crates/scoopc/src/source.rs`、`crates/scoopc/src/lib.rs`、`crates/scoopc/src/frontend.rs`、`crates/scoopc/src/session/mod.rs` 与 `crates/scoopc/src/sysroot/mod.rs`；全仓搜索 `Span` / `SourceFile` / `SourceId` / `SourceMap` authoritative 定义。
+  - review 结论：`Span` 的 authoritative 定义只在 `scoopc_span`；`SourceFile`、`SourceId`、`SourceMap` 及相关 source map 类型只在 `scoopc_source`；`scoopc::span` / `scoopc::source` 仅为迁移期 re-export adapter，没有桥接转换或重复类型。
+  - 依赖方向结论：`scoopc_source` 只依赖 `scoopc_span` 和 `miette`，`cargo tree -p scoopc_source` 未出现 `scoopc`、parser、resolve、typecheck、HIR/MIR/LIR/codegen 或 fact/backend 依赖；`dependency-gate` 报告 `scoopc_source` 的 base deps 仅为 `scoopc_span`。
+  - 行为结论：基础 crate 单元测试与全 workspace no-default-features 测试覆盖 diagnostics/source map/UTF-8 boundary 行为，未发现迁移导致的 source/diagnostic 行为退化。
+  - 验证命令：`cargo fmt`；`cargo test -p scoopc_span`；`cargo test -p scoopc_source`；`cargo test --all --all-targets --no-default-features`；`cargo clippy --all-targets -- -D warnings`；`cargo tree -p scoopc_source`；`cargo run -p scoop_tools -- dependency-gate`；搜索 `pub struct Span|pub struct SourceFile|pub struct SourceId|pub struct SourceMap`。
+  - 残余风险：全仓仍大量通过旧 `crate::span` / `crate::source` 路径引用基础类型，这是 P1 允许的迁移期 adapter 状态；后续 P1 清场任务可继续收敛直接依赖基础 crate 的调用面。
 
 ## [TODO] P1-T03：迁移 `types` 并建立 `ids` 基础身份层
 
