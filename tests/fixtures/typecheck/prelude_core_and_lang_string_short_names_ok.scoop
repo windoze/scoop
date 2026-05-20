@@ -1,0 +1,8 @@
+// EXPECT: pass
+// P6-T02: prelude packages expose short names independently of auto dependency loading.
+
+package fixtures.typecheck.prelude_core_and_lang_string_short_names_ok
+
+fun build(builder: StringBuilder): String {
+    return builder.add("ok").toString()
+}

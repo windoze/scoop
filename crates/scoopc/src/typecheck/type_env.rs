@@ -14,7 +14,7 @@ use thiserror::Error;
 
 use crate::ast;
 use crate::resolve::{
-    ConeInfo, ImportTable, Index, add_auto_prelude_star_imports, is_symbol_visible_from,
+    ConeInfo, ImportTable, Index, add_prelude_star_imports, is_symbol_visible_from,
 };
 use crate::source::SourceFile;
 use crate::span::Span;
@@ -1574,7 +1574,7 @@ fn build_import_table_best_effort(
     index: &Index,
 ) -> ImportTable {
     let mut table = ImportTable::default();
-    add_auto_prelude_star_imports(&mut table);
+    add_prelude_star_imports(&mut table);
 
     for import in &file.imports {
         let path = import

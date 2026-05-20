@@ -12,7 +12,12 @@ use crate::{ast, source::SourceFile, span::Span};
 
 use super::{Index, ResolveError, SymbolKind};
 
-const AUTO_PRELUDE_STAR_IMPORTS: [&str; 2] = ["scoop.core", "scoop.lang.string"];
+/// Packages whose public names are implicitly visible through star imports.
+///
+/// This list is intentionally separate from sysroot auto dependencies: auto
+/// dependencies decide what is loaded/compiled, while prelude packages decide
+/// which loaded packages get short-name visibility.
+const PRELUDE_STAR_IMPORTS: [&str; 2] = ["scoop.core", "scoop.lang.string"];
 
 /// 按命名空间拆分后的 import 表。
 ///
@@ -44,12 +49,8 @@ impl ImportTable {
     ) -> Result<Self, ResolveError> {
         let mut table = ImportTable::default();
 
-        add_auto_prelude_star_imports(&mut table);
-        if auto_prelude_is_available(index) {
-            for path in auto_prelude_star_imports() {
-                validate_star_import(index, path, Span::synthetic_prelude())?;
-            }
-        }
+        add_prelude_star_imports(&mut table);
+        validate_prelude_packages_loaded(index)?;
 
         // T0315/T1310：import alias 需要参与冲突检查。
         // 规则：
@@ -113,22 +114,32 @@ impl ImportTable {
     }
 }
 
-pub(crate) fn auto_prelude_star_imports() -> &'static [&'static str] {
-    &AUTO_PRELUDE_STAR_IMPORTS
+pub(crate) fn prelude_star_imports() -> &'static [&'static str] {
+    &PRELUDE_STAR_IMPORTS
 }
 
-pub(crate) fn add_auto_prelude_star_imports(table: &mut ImportTable) {
+pub(crate) fn add_prelude_star_imports(table: &mut ImportTable) {
     table.star.extend(
-        auto_prelude_star_imports()
+        prelude_star_imports()
             .iter()
             .map(|path| (*path).to_string()),
     );
 }
 
-fn auto_prelude_is_available(index: &Index) -> bool {
-    AUTO_PRELUDE_STAR_IMPORTS
-        .iter()
-        .all(|path| index.has_importable_prefix(path))
+pub(crate) fn validate_prelude_packages_loaded(index: &Index) -> Result<(), ResolveError> {
+    if !index.requires_prelude_packages() {
+        return Ok(());
+    }
+
+    for package in PRELUDE_STAR_IMPORTS {
+        if !index.has_importable_prefix(package) {
+            return Err(ResolveError::PreludePackageNotLoaded {
+                package: package.to_string(),
+            });
+        }
+    }
+
+    Ok(())
 }
 
 fn validate_star_import(index: &Index, path: &str, span: Span) -> Result<(), ResolveError> {
@@ -231,7 +242,7 @@ mod tests {
     }
 
     #[test]
-    fn auto_prelude_injects_core_for_user_file() {
+    fn prelude_injects_core_and_lang_string_for_user_file() {
         let (core, core_ast, lang_string, lang_string_ast) = prelude_sysroot_sources();
         let user = SourceFile::new_virtual("<user>", "package app\nfun use() {}");
         let user_ast = parse_file(&user).unwrap();
@@ -251,7 +262,7 @@ mod tests {
     }
 
     #[test]
-    fn auto_prelude_injects_for_sysroot_file() {
+    fn prelude_injects_for_sysroot_file() {
         let (core, core_ast, lang_string, lang_string_ast) = prelude_sysroot_sources();
         let index = Index::build(&[(&core, &core_ast), (&lang_string, &lang_string_ast)]).unwrap();
         let table = ImportTable::build(&lang_string, &lang_string_ast, &index).unwrap();
@@ -263,7 +274,7 @@ mod tests {
     }
 
     #[test]
-    fn auto_prelude_dedup_with_explicit_user_import() {
+    fn prelude_dedup_with_explicit_user_import() {
         let (core, core_ast, lang_string, lang_string_ast) = prelude_sysroot_sources();
         let user = SourceFile::new_virtual(
             "<user>",
@@ -286,7 +297,24 @@ mod tests {
     }
 
     #[test]
+    fn prelude_package_missing_is_compiler_configuration_error() {
+        let (core, core_ast, _lang_string, _lang_string_ast) = prelude_sysroot_sources();
+        let user = SourceFile::new_virtual("<user>", "package app\nfun use() {}");
+        let user_ast = parse_file(&user).unwrap();
+
+        let index = Index::build(&[(&core, &core_ast), (&user, &user_ast)]).unwrap();
+        let err = ImportTable::build(&user, &user_ast, &index).unwrap_err();
+
+        assert!(matches!(
+            err,
+            ResolveError::PreludePackageNotLoaded { package }
+                if package == "scoop.lang.string"
+        ));
+    }
+
+    #[test]
     fn import_table_separates_type_and_value_explicit_imports() {
+        let (core, core_ast, lang_string, lang_string_ast) = prelude_sysroot_sources();
         let s1 = SourceFile::new_virtual(
             "<a>",
             "package a\nstruct Foo {}\nstruct Both {}\nfun bar() {}\nfun Both() {}",
@@ -298,7 +326,13 @@ mod tests {
         let a1 = parse_file(&s1).unwrap();
         let a2 = parse_file(&s2).unwrap();
 
-        let index = Index::build(&[(&s1, &a1), (&s2, &a2)]).unwrap();
+        let index = Index::build(&[
+            (&core, &core_ast),
+            (&lang_string, &lang_string_ast),
+            (&s1, &a1),
+            (&s2, &a2),
+        ])
+        .unwrap();
         let table = ImportTable::build(&s2, &a2, &index).unwrap();
 
         assert_eq!(
@@ -340,6 +374,7 @@ mod tests {
 
     #[test]
     fn import_table_uses_alias_as_local_name() {
+        let (core, core_ast, lang_string, lang_string_ast) = prelude_sysroot_sources();
         let s1 = SourceFile::new_virtual("<a>", "package a\nstruct Foo {}\nfun bar() {}");
         let s2 = SourceFile::new_virtual(
             "<b>",
@@ -348,7 +383,13 @@ mod tests {
         let a1 = parse_file(&s1).unwrap();
         let a2 = parse_file(&s2).unwrap();
 
-        let index = Index::build(&[(&s1, &a1), (&s2, &a2)]).unwrap();
+        let index = Index::build(&[
+            (&core, &core_ast),
+            (&lang_string, &lang_string_ast),
+            (&s1, &a1),
+            (&s2, &a2),
+        ])
+        .unwrap();
         let table = ImportTable::build(&s2, &a2, &index).unwrap();
 
         assert_eq!(
@@ -366,6 +407,7 @@ mod tests {
 
     #[test]
     fn import_alias_conflicts_with_another_import_is_error() {
+        let (core, core_ast, lang_string, lang_string_ast) = prelude_sysroot_sources();
         let s1 = SourceFile::new_virtual("<a>", "package a\nstruct Foo {}\nstruct Bar {}");
         let s2 = SourceFile::new_virtual(
             "<b>",
@@ -374,7 +416,13 @@ mod tests {
         let a1 = parse_file(&s1).unwrap();
         let a2 = parse_file(&s2).unwrap();
 
-        let index = Index::build(&[(&s1, &a1), (&s2, &a2)]).unwrap();
+        let index = Index::build(&[
+            (&core, &core_ast),
+            (&lang_string, &lang_string_ast),
+            (&s1, &a1),
+            (&s2, &a2),
+        ])
+        .unwrap();
         let err = ImportTable::build(&s2, &a2, &index).unwrap_err();
 
         assert!(matches!(err, ResolveError::DuplicateDefinition { .. }));
@@ -382,6 +430,7 @@ mod tests {
 
     #[test]
     fn import_alias_can_be_shadowed_by_local_top_level() {
+        let (core, core_ast, lang_string, lang_string_ast) = prelude_sysroot_sources();
         let s1 = SourceFile::new_virtual("<a>", "package a\nstruct Foo {}");
         let s2 = SourceFile::new_virtual(
             "<b>",
@@ -390,7 +439,13 @@ mod tests {
         let a1 = parse_file(&s1).unwrap();
         let a2 = parse_file(&s2).unwrap();
 
-        let index = Index::build(&[(&s1, &a1), (&s2, &a2)]).unwrap();
+        let index = Index::build(&[
+            (&core, &core_ast),
+            (&lang_string, &lang_string_ast),
+            (&s1, &a1),
+            (&s2, &a2),
+        ])
+        .unwrap();
         let table = ImportTable::build(&s2, &a2, &index).unwrap();
 
         // alias 与本地声明同名在此阶段允许：由后续解析规则决定 shadowing（T1310）。

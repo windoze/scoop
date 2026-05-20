@@ -1,0 +1,8 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::resolve::unresolved_type
+// EXPECT-ERROR: 未解析的类型：Iterable
+// P6-T02: scoop.collections is an auto dependency but not a prelude package.
+
+package fixtures.typecheck.auto_dependency_collections_short_name_not_prelude_is_error
+
+fun consume(items: Iterable<Int>): Unit {}

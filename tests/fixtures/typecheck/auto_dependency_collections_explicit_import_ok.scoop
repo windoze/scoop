@@ -1,0 +1,8 @@
+// EXPECT: pass
+// P6-T02: non-prelude auto dependencies become short-name visible only through explicit imports.
+
+package fixtures.typecheck.auto_dependency_collections_explicit_import_ok
+
+import scoop.collections.*
+
+fun consume(items: Iterable<Int>): Unit {}

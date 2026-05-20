@@ -1,29 +1,31 @@
-# Claude Execution Plan
+# 当前执行计划
 
-## Scope
+说明：我不能记录完整的私人推理链；本文件记录可审计的执行计划、关键依据、进度和验证步骤。
 
-This file records the actionable plan and progress for the current invocation. It intentionally contains concise, auditable reasoning and steps rather than private chain-of-thought.
+## 目标
 
-## Plan
+- 按 `TODO.md` 的顺序识别第一个标题未带 `[DONE]` 的任务。
+- 只完成该一个任务；完成后更新 `TODO.md`、运行相关验证、提交 Git，然后停止。
 
-1. Read `TODO.md` first and identify the first task whose heading is not prefixed with `[DONE]`.
-2. Check the latest commit only for unfinished work directly relevant to that selected task.
-3. Read the selected task details, dependencies, validation requirements, and nearby context.
-4. Inspect only the code, fixtures, and documentation needed to implement that task correctly.
-5. Implement the task without narrowing scope or using workaround behavior.
-6. Run the task-specified validation and any focused tests needed for confidence; fix failures that are in scope.
-7. Update `TODO.md` by prefixing the completed task title with `[DONE]` and adding a completion record.
-8. Update this file when key steps complete or if the plan changes.
-9. Review the worktree, commit all files relevant to this invocation with a clear task-tagged message, and stop without starting the next task.
+## 步骤
 
-## Progress
+1. 阅读 `TODO.md`，确认第一个未完成任务及其依赖、验收标准和完成记录要求。
+2. 查看最近提交信息，判断是否明确提到与该任务直接相关的未完成问题。
+3. 按任务要求检查相关源码、测试、fixture 和文档，避免开放式历史问题扫描。
+4. 如果发现阻塞当前任务的真实前置缺口，更新 `TODO.md` 添加最小必要前置任务并提交后停止。
+5. 如果可直接执行，实施最小正确代码/测试/文档变更。
+6. 运行该任务要求的验证命令；若失败，修复同一根因下的相关问题并重跑验证。
+7. 将任务标题加 `[DONE]`，更新完成记录；仅在阶段计划变化时更新 `PLAN.md`。
+8. 检查 `git status`、`git diff`、最近提交，提交本次任务涉及的全部未提交变更。
+9. 停止，不处理下一个任务。
 
-- Initialized plan for this invocation.
-- Read `TODO.md`; first incomplete task is `P6-T01` (`实现 auto dependency cone 列表`).
-- Checked latest commit `65fab627 [P5-T04] Generate per-cone init routines`; no explicitly unfinished issue in the commit subject blocks `P6-T01`.
-- Inspected `PLAN.md` §9 and the current source cone graph/sysroot/frontend paths.
-- Implementation approach: introduce the fixed default auto dependency list (`scoop.core`, `scoop.lang.string`, `scoop.collections`, `scoop.delegates`), load `scoop.unsafe` through a `scoop.core` manifest dependency, support explicit sysroot dependencies for opt-in cones, and update fixtures/tests so `scoop.thread`, `scoop.sync`, and `scoop.runtime.test` are not loaded by default.
-- Implemented the auto sysroot dependency closure, session/fixture extra sysroot dependency injection, and initial fixtures; `cargo check -p scoopc` and `cargo check -p scoop` pass after formatting.
-- Focused validation passed for graph/session/fixture expectation unit tests, default thread exclusion, explicit thread dependency, `typecheck`, `run-pass`, `runtime_gc`, `run_pass_cone`, `build`, and affected UMB fixture subsets. Fixed one build unit test to declare the explicit `scoop.sync` sysroot dependency it relies on.
-- Full validation passed: `cargo build`, `cargo clippy --all-targets -- -D warnings`, `cargo test --all --all-targets`, and `cargo run -p scoop -- test` (fixtures: ok, 1569 checks).
-- Updated `TODO.md` to mark `P6-T01` done and record the implementation/validation summary. Next step is to review the worktree and commit this invocation only.
+## 进度
+
+- 已创建本计划文件，下一步读取 `TODO.md` 并定位第一个未完成任务。
+- 已确认第一个未完成任务为 `P6-T02`：实现 prelude package 列表并与 auto dependency 解耦。
+- 最近提交为 `[P6-T01] Implement sysroot auto dependencies`，未在提交标题中暴露新的未完成 blocker；后续只检查与 `P6-T02` 直接相关的 resolver/import 与 sysroot dependency 配置。
+- 代码检查发现 resolver 已硬编码 `scoop.core` / `scoop.lang.string` 自动 star import，但缺少 prelude package 未加载时的稳定 compiler-configuration diagnostic；auto dependency 中的 `scoop.collections` / `scoop.delegates` 也需要明确 fixture 证明不会自动短名可见。
+- 执行方案更新：在 `resolve::imports` 中引入明确 prelude package 列表与校验错误，更新 direct type-resolution 使用同一列表，补充单元测试和 typecheck fixtures 后运行定向及全量验证。
+- 已完成实现：prelude list 固定为 `scoop.core` / `scoop.lang.string`；完整编译配置下缺失 prelude cone 会报 `scoop::resolve::prelude_package_not_loaded`；新增 fixtures 覆盖 prelude 正向、`scoop.collections` 非 prelude 短名负向和显式 import 正向。
+- 已完成验证：`cargo fmt`、`cargo test -p scoopc prelude -- --nocapture`、新增 fixtures 定向验证、`cargo run -p scoop -- test tests/fixtures/typecheck/`、`cargo build`、`cargo clippy --all-targets -- -D warnings`、`cargo test --all --all-targets`、`cargo run -p scoop -- test` 均通过。
+- 已更新 `TODO.md`，将 `P6-T02` 标记为 `[DONE]` 并写入完成记录；下一步检查 git diff/status 后提交本任务变更。

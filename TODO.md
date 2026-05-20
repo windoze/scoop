@@ -3,7 +3,7 @@
 > 生成时间：2026-05-19
 > 设计基线：[`SYSROOT_RESHAPE_R2.md`](./SYSROOT_RESHAPE_R2.md)
 > 计划基线：[`PLAN.md`](./PLAN.md)
-> 当前状态：`P6-T01` 已完成；下一任务为 `P6-T02`。
+> 当前状态：`P6-T02` 已完成；下一任务为 `P7-T01`。
 > 执行原则：严格按 P0 -> P10 顺序推进；同一阶段内可按任务依赖拆 PR，但每个任务完成后必须保持仓库无 failing fixture，并回写完成记录。
 
 ## 全局约束
@@ -106,7 +106,7 @@ P0 baseline freeze
 | `P5-T03` | [DONE] | P5 | 保留 cone identity/kind 到 resolver/typecheck/codegen |
 | `P5-T04` | [DONE] | P5 | 生成 per-cone init routine 与 final system entry 调用骨架 |
 | `P6-T01` | [DONE] | P6 | 实现 auto dependency cone 列表 |
-| `P6-T02` | [TODO] | P6 | 实现 prelude package 列表并与 auto dependency 解耦 |
+| `P6-T02` | [DONE] | P6 | 实现 prelude package 列表并与 auto dependency 解耦 |
 | `P7-T01` | [TODO] | P7 | 将 native-build 扩展到所有 loaded source cones |
 | `P7-T02` | [TODO] | P7 | dependency cone C++/link-flags/linker driver 覆盖 |
 | `P8-T01` | [TODO] | P8 | 建立公开 `scoop_runtime.h` runtime core header |
@@ -525,7 +525,7 @@ P0 baseline freeze
 - 与 `PLAN.md` / `SYSROOT_RESHAPE_R2.md` 闭合项：满足 P6 中“auto dependency 只负责加载/编译/链接，不影响短名 import”、“`thread` / `sync` / `runtime.test` 不进入默认 auto dependency”、“显式 dependency 与 auto dependency 去重”和“`scoop.unsafe` 优先作为 `scoop.core` manifest dependency”的要求；prelude package 配置错误与 non-prelude auto dependency short-name 语义仍按 `P6-T02` 推进。
 - 验证结果：`cargo fmt` 通过；`cargo build` 通过；`cargo clippy --all-targets -- -D warnings` 通过；`cargo test --all --all-targets` 通过；`cargo run -p scoop -- test` 通过（fixtures: ok，1569 checks）；定向验证覆盖 `cone::graph`、`session`、fixture expectation parser、默认 thread import negative、显式 thread dependency run-pass-cone、`typecheck`、`run-pass`、`runtime_gc`、`run_pass_cone`、`build` 与 B-27/B-28/B-29 UMB fixtures。
 
-## P6-T02：实现 prelude package 列表并与 auto dependency 解耦
+## [DONE] P6-T02：实现 prelude package 列表并与 auto dependency 解耦
 
 - 参考：`PLAN.md` §9。
 - 目标：自动 `import scoop.core.*` 与 `import scoop.lang.string.*`，并证明非 prelude auto dependency 不自动短名可见。
@@ -536,6 +536,16 @@ P0 baseline freeze
   3. auto dependency 中非 prelude package 的短名不可见，显式 import 后可见。
 - 验证：prelude positive fixture；non-prelude auto dependency short-name negative fixture。
 - 完成条件：auto dependency 与 prelude package 语义完全分离。
+
+### 完成记录（2026-05-20）
+
+- 改动范围：`resolve/imports.rs` 引入明确 prelude package star-import 列表并与 sysroot auto dependency 常量分离；`resolve::Index` 记录完整 compiler configuration 是否必须校验 prelude cones；`ResolveError` 新增 `scoop::resolve::prelude_package_not_loaded` 配置错误；`typecheck/type_env.rs` 同步使用新的 prelude 注入入口；新增 P6-T02 typecheck fixtures；未修改 `PLAN.md` 或 `SYSROOT_RESHAPE_R2.md`。
+- 核心决策：prelude packages 固定为 `scoop.core` 与 `scoop.lang.string`，只决定短名 star-import 可见性；sysroot auto dependencies 仍由 `DEFAULT_AUTO_DEPENDENCY_CONES` 控制加载/编译/链接，`scoop.collections` 与 `scoop.delegates` 不因 auto dependency 身份获得短名可见性。
+- 配置错误：当 index 代表完整编译配置（含 sysroot source 或显式 cone graph）时，resolver 构建 import table 会校验所有 prelude packages 已加载；缺失时稳定报 `scoop::resolve::prelude_package_not_loaded`，避免把破损 sysroot/driver 配置误报为用户代码的普通 unresolved import。
+- Fixture / tests：新增 `prelude_core_and_lang_string_short_names_ok.scoop` 覆盖 `scoop.core` / `scoop.lang.string` 短名 prelude；新增 `auto_dependency_collections_short_name_not_prelude_is_error.scoop` 证明 auto dependency `scoop.collections` 不自动短名可见；新增 `auto_dependency_collections_explicit_import_ok.scoop` 证明显式 `import scoop.collections.*` 后可见；新增 resolver 单测覆盖 prelude 缺失配置错误。
+- 与 `PLAN.md` / `SYSROOT_RESHAPE_R2.md` 闭合项：满足 P6 中“auto dependency 只负责加载/编译/链接，prelude 只决定短名可见性”、“prelude packages 初始为 `scoop.core` / `scoop.lang.string`”、“prelude 所属 cone 未加载报 compiler configuration error”以及“非 prelude auto dependency 短名不可见、显式 import 后可见”的要求；阶段级计划未变化。
+- Fixture 删除/改写：无删除；仅新增 source-only typecheck fixtures。
+- 验证结果：`cargo fmt` 通过；`cargo test -p scoopc prelude -- --nocapture` 通过（4 passed）；三个新增 typecheck fixtures 定向验证均通过；`cargo run -p scoop -- test tests/fixtures/typecheck/` 通过（503 checks）；`cargo build` 通过；`cargo clippy --all-targets -- -D warnings` 通过；`cargo test --all --all-targets` 通过（Rust tests: ok，包含 `scoopc` 932 passed）；`cargo run -p scoop -- test` 通过（fixtures: ok，1572 checks）。
 
 ## P7-T01：将 native-build 扩展到所有 loaded source cones
 

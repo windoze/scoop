@@ -24,7 +24,7 @@ use crate::{
     span::Span,
 };
 
-pub(crate) use imports::add_auto_prelude_star_imports;
+pub(crate) use imports::add_prelude_star_imports;
 pub use imports::{ImportNamespace, ImportTable};
 use scopes::check_block_scopes;
 
@@ -209,6 +209,10 @@ pub enum ResolveError {
         first: ConeKind,
         second: ConeKind,
     },
+
+    #[error("编译器配置错误：prelude package `{package}` 所属 cone 未加载")]
+    #[diagnostic(code(scoop::resolve::prelude_package_not_loaded))]
+    PreludePackageNotLoaded { package: String },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -566,6 +570,8 @@ pub struct Index {
     file_cone_infos: HashMap<PathBuf, ConeInfo>,
     /// 每个 cone id 的 kind；由 indexed file 输入显式提供。
     cone_kinds: HashMap<ConeId, ConeKind>,
+    /// 当前 index 是否代表完整 compiler configuration，需要校验 prelude cones 已加载。
+    prelude_required: bool,
     /// runtime entry point：可执行入口函数（`fun main`）。
     ///
     /// 说明（T1113）：
@@ -636,7 +642,12 @@ impl Index {
     }
 
     pub fn build_with_cones(files: &[IndexedFile<'_>]) -> Result<Self, ResolveError> {
-        let mut index = Index::default();
+        let mut index = Index {
+            prelude_required: files
+                .iter()
+                .any(|f| f.cone != ConeId::DEFAULT || f.source.is_sysroot()),
+            ..Default::default()
+        };
         for f in files {
             index.register_cone_kind(f.cone, f.cone_kind)?;
             index
@@ -742,6 +753,10 @@ impl Index {
 
         let prefix = format!("{path}.");
         self.by_fqn.keys().any(|fqn| fqn.starts_with(&prefix))
+    }
+
+    pub(crate) fn requires_prelude_packages(&self) -> bool {
+        self.prelude_required
     }
 
     fn collect_extension_funs(&mut self, files: &[IndexedFile<'_>]) {
@@ -1024,7 +1039,7 @@ impl Index {
         // 3) 对单段名字，应用 import 规则（显式 import / star import）
         if segments.len() == 1 {
             let name = segments[0];
-            for prefix in imports::auto_prelude_star_imports() {
+            for prefix in imports::prelude_star_imports() {
                 candidates.push(format!("{prefix}.{name}"));
             }
 
