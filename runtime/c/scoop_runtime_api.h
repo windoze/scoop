@@ -100,6 +100,11 @@
   X(scoop_string_equals) \
   X(scoop_string_from_owned_bytes) \
   X(scoop_string_unsafe_slice_bytes) \
+  X(scoop_test_explicit_root_frame_enter_native_smoke) \
+  X(scoop_test_gc_stack_walking_ctx_smoke) \
+  X(scoop_test_gc_stack_walking_unwind_smoke) \
+  X(scoop_test_gc_stackmap_multiframe_keepalive) \
+  X(scoop_test_gc_stackmap_roots_enum_smoke) \
   X(scoop_thread_is_registered) \
   X(scoop_thread_register) \
   X(scoop_thread_unregister) \

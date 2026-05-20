@@ -79,7 +79,7 @@ CSV escaping 规则：
 | B-21 | Struct literal / 字段层 | B |
 | B-22 | Enum 布局 / niche / Option | B |
 | B-23 | Member access - 通用 | B |
-| B-24 | Reflection / comptime intrinsic | C/D |
+| B-24 | Reflection / static metadata intrinsic | C/D |
 | B-25 | Platform / RTTI intrinsic | B/C |
 | B-26 | atomic intrinsic 系列 | B |
 | B-27 | sync intrinsic 系列 | B |

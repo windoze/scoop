@@ -8,7 +8,7 @@
 //!
 //! v0 约定：
 //! - 仅导出 **ConePreserved**（`@Retention("cone")`）的 public annotation classes；
-//! - `@Retention("comptime")`（以及未显式标记 retention 的注解类）视为 comptime-only，不导出；
+//! - `@Retention("local")`（以及未显式标记 retention 的注解类）视为 local-only，不导出；
 //! - 注解参数签名（`annotation class A(val x: Int)`）暂不导出：下游将保守地拒绝带参数的跨包注解使用。
 
 use std::collections::HashSet;

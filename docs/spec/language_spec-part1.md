@@ -2,7 +2,7 @@
 
 版本：0.1 草案
 
-本文档组把 `SCOOP_FULL_SPEC.md` 中的语言规范整理为中文分卷，并把原文中“遵循 Kotlin 语义”的部分展开为 Scoop 自身规范。本文档组只覆盖语言本体：语法、类型系统、效果系统、编译期能力、注解、FFI/unsafe 边界和程序入口。标准库 API 设计不在本文档组范围内；只有当某个语法必须依赖核心类型名时，才说明该核心类型在语言层面的契约。
+本文档组把 `SCOOP_FULL_SPEC.md` 中的语言规范整理为中文分卷，并把原文中“遵循 Kotlin 语义”的部分展开为 Scoop 自身规范。本文档组只覆盖语言本体：语法、类型系统、效果系统、静态反射、注解、FFI/unsafe 边界和程序入口。标准库 API 设计不在本文档组范围内；只有当某个语法必须依赖核心类型名时，才说明该核心类型在语言层面的契约。
 
 分卷：
 
@@ -10,7 +10,7 @@
 - 第 2 部分：类型系统、泛型与名义结构
 - 第 3 部分：表达式、函数、属性、模式匹配与推断
 - 第 4 部分：效果系统与异常语法糖
-- 第 5 部分：编译期执行、静态反射与注解
+- 第 5 部分：静态反射与注解
 - 第 6 部分：unsafe、FFI、GC 互操作与程序边界
 
 ## 1. 语言目标与非目标
@@ -21,7 +21,7 @@ Scoop 是静态类型、GC 管理内存的编程语言。它提供 Kotlin 风格
 - GC 管理的引用类型：`class`、`interface`、`object`、装箱后的值类型。
 - 泛型单态化：泛型按具体类型实例生成专门代码。
 - 代数效果系统：统一表达错误、异步、生成器和自定义控制流效果。
-- 编译期执行与静态反射：`const fun`、`comptime`、反射 intrinsic。
+- 静态反射 intrinsic 与注解元数据。
 - 明确的低层边界：`@Unsafe`、`@NoGC`、`@Extern`、`@CLayout`、GC pin/handle。
 
 本规范不定义完整标准库。集合操作、IO、线程、时间、路径、网络、测试框架等库 API 的可用性、签名和性能语义由标准库规范另行定义。本文只定义语言语法、类型规则，以及语法糖需要依赖的最小核心类型契约。
@@ -33,7 +33,7 @@ Scoop 是静态类型、GC 管理内存的编程语言。它提供 Kotlin 风格
 1. 可选的文件级注解，例如 `@file:Suppress("deprecated")`。
 2. 可选的 `package` 指令。
 3. 零个或多个 `import` 指令。
-4. 零个或多个顶层声明，或顶层 `comptime if`。
+4. 零个或多个顶层声明。
 
 示例：
 
@@ -45,7 +45,7 @@ package app.main
 import scoop.core.*
 import app.model.User as AppUser
 
-const val Version: Int = 1
+val Version: Int = 1
 
 fun main(): Int / Pure! {
     return 0
@@ -99,15 +99,13 @@ Scoop 包称为 Cone。语言层面需要固定以下内容：
 源文件顶层允许：
 
 - `fun`
-- `const fun`
-- `val` / `const val`
+- `val`
 - 受限的 `var`
 - `class` / `interface` / `struct` / `enum`
 - `effect`
 - `object`
 - `annotation class`
 - `typealias`
-- 顶层 `comptime if`
 
 顶层不允许普通语句；例如顶层 `return` 是语法错误。
 
@@ -144,7 +142,7 @@ val next: Int = base + 1
 - 多次读取同一顶层 `val` 不会重复执行 initializer。
 - 顶层 `val` 可被其它顶层 initializer、函数体和对象初始化过程读取。
 - 顶层 `val` 初始化期间若递归读取自身，必须作为运行期错误处理，不能静默返回未初始化值。
-- initializer 可以执行普通运行期计算；它不是 `const val`，不会自动内联成编译期常量。
+- initializer 可以执行普通运行期计算；它不会自动内联成编译器常量。
 - 简单顶层 `val name = expr` 需要显式类型注解：`val name: T = expr`。
 - 顶层解构 `val pattern = expr` 可以从 initializer 推断整体类型；也可以写整体类型注解：`val (a, b): (Int, Int) = expr`。
 
@@ -159,23 +157,23 @@ val Point { x, y }: Point = Point { x: sum, y: 1 }
 
 顶层 `var` 见第 6 部分的全局可变状态规则；普通无标注顶层 `var` 是编译错误。
 
-### 4.3 `const val`
+### 4.3 顶层可变值
 
-`const val` 是编译期常量声明：
+顶层 `var` 只允许用于显式声明的全局存储：
 
 ```kotlin
-const fun triple(x: Int): Int = x + x + x
+@Global
+var counter: Int = 0
 
-const val Base: Int = 3
-const val Value: Int = triple(Base)
+@ThreadLocal
+var threadCounter: Int = 0
 ```
 
 规则：
 
-- initializer 必须可在编译期求值。
-- `const val` 可被普通运行期代码读取；读取结果是已嵌入的常量值。
-- `const val` 可作为 `comptime`、注解参数和其它编译期常量表达式的输入。
-- `const val` 的类型必须可在编译期表示；完整规则见第 5 部分。
+- 顶层 `var` 必须显式标注 `@Global` 或 `@ThreadLocal`。
+- 顶层 `var` 的类型必须满足第 6 部分定义的低层全局存储约束。
+- 未标注的顶层 `var` 是编译错误。
 
 ## 5. 词法概览
 
@@ -192,10 +190,10 @@ const val Value: Int = triple(Base)
 语言关键字包括：
 
 ```text
-public internal private open abstract sealed inline override const vararg annotation
+public internal private open abstract sealed inline override vararg annotation
 package import typealias fun val var class interface struct enum effect object companion
 handle with perform try catch finally
-do return comptime if else when for in out where while break continue is as as?
+do return if else when for in out where while break continue is as as?
 ```
 
 说明：
@@ -348,7 +346,7 @@ val text = f"""
 """.trimIndent()
 ```
 
-`trimIndent()` 是字符串上的 `const fun`。当 receiver 是编译期常量时在编译期执行；否则按普通运行期函数调用处理。字符串 API 的完整标准库形态不在本文档范围内。
+`trimIndent()` 是字符串标准库函数。字符串 API 的完整标准库形态不在本文档范围内。
 
 ## 7. 名称与作用域
 

@@ -98,27 +98,25 @@ impl AnnotationTargetKind {
 /// 注解保留策略（spec §15.5 `@Retention(policy)`，T1016a）。
 ///
 /// 当前阶段只定义两档：
-/// - `ComptimeOnly`：仅编译期可见；
+/// - `LocalOnly`：只在当前源码边界内可见，不导出到 `.cone`；
 /// - `ConePreserved`：会被导出到 `.cone`（导出行为由后续任务 T1016b 实现）。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AnnotationRetentionPolicy {
-    ComptimeOnly,
+    LocalOnly,
     ConePreserved,
 }
 
 impl AnnotationRetentionPolicy {
     pub fn as_str(self) -> &'static str {
         match self {
-            AnnotationRetentionPolicy::ComptimeOnly => "comptime",
+            AnnotationRetentionPolicy::LocalOnly => "local",
             AnnotationRetentionPolicy::ConePreserved => "cone",
         }
     }
 
     pub fn parse(text: &str) -> Option<Self> {
         match text {
-            "comptime" | "comptime-only" | "comptime_only" => {
-                Some(AnnotationRetentionPolicy::ComptimeOnly)
-            }
+            "local" | "local-only" | "local_only" => Some(AnnotationRetentionPolicy::LocalOnly),
             "cone" | "cone-preserved" | "cone_preserved" => {
                 Some(AnnotationRetentionPolicy::ConePreserved)
             }
@@ -1538,7 +1536,7 @@ fn extract_string_literal_text(source: &SourceFile, expr: &ast::Expr) -> Option<
     if !matches!(expr.kind, ast::ExprKind::StringLit) {
         return None;
     }
-    // 当前 AST 的 StringLit 仅保留 span；这里做最小切片解析即可满足 `"cone"` / `"comptime"`。
+    // 当前 AST 的 StringLit 仅保留 span；这里做最小切片解析即可满足 `"cone"` / `"local"`。
     let raw = source.slice(expr.span);
     let s = raw
         .strip_prefix("\"\"\"")

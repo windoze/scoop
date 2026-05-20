@@ -277,7 +277,7 @@
   - 验证命令：`cargo fmt`；`cargo check -p scoopc --no-default-features`；`cargo check -p scoop --no-default-features`；`cargo test -p scoopc --no-default-features parser`；`cargo test -p scoopc --no-default-features resolve`；`cargo test -p scoopc --no-default-features typecheck`；`cargo test -p scoopc --no-default-features hir`；`cargo test -p scoopc --no-default-features mir`；`cargo test -p scoopc --no-default-features audit`；`cargo test -p scoop --no-default-features fixtures`；`cargo run -p scoop --no-default-features -- test --fixtures tests/fixtures/parse/comptime_syntax_basic.scoop`；`cargo run -p scoop --no-default-features -- test --fixtures tests/fixtures/typecheck/reflection_runtime_fallback_v0.scoop`；`cargo run -p scoop --no-default-features -- test --fixtures tests/fixtures/hir/lowered_top_level_init.scoop`；`SCOOP_FIXTURE_REPRO_DIR=1 cargo run -p scoop --no-default-features -- test --fixtures tests/fixtures/mir_lowered/top_level_roots.scoop`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/reflection_kind_desc_basic.scoop`；`cargo run -p scoop -- test --fixtures tests/fixtures/build/intrinsic_sysroot_overlay_scalar_tostring_basic.scoop`；`cargo run -p scoop -- test --fixtures tests/fixtures/build/sysroot_overlay_core_array_interface_bridge.scoop`；`cargo clippy --all-targets -- -D warnings`。
   - 残余风险：`Keyword::Comptime`、annotation retention 的 `ComptimeOnly` 命名、旧 parse-fail comptime fixtures 和文档/注释中的 compile-time metadata 文字仍按后续 `P0-T04` 全仓清场任务统一处理；当前 review 未发现与 Scoop `const` surface/evaluator 删除相关的活跃实现风险。
 
-## [TODO] P0-T04：P0 全仓清场与文档同步
+## [DONE] P0-T04：P0 全仓清场与文档同步
 
 - 参考：
   - `PLAN.md` §4/P0、§6
@@ -316,7 +316,14 @@
   - 后续 `TODO-2.md` 可以在不考虑旧 comptime 特例的前提下建立基础 crate 和 cone compilation unit model。
 - 依赖：P0-T03R
 - 完成记录：
-  - 待填写。
+  - 改动范围：完成 P0 全仓清场，更新 `README.md`、`docs/spec/language_spec-part1.md`、`docs/spec/language_spec-part2.md`、`docs/spec/language_spec-part5.md`、`SCOOP_FULL_SPEC.md`、B-24 audit 文档和 spec coverage matrix，使活跃文档不再描述旧编译期执行 surface；`PLAN.md` 顶部状态更新为 P0 清场完成、待 review。
+  - Sysroot/fixtures：主 sysroot 与 build sysroot overlays 将旧反射元数据列表类型改为 `MetaList<T>`，反射 intrinsic 签名同步为普通 `@Intrinsic fun` 形状；新增 `typecheck/annotation_retention_local_policy_ok.scoop` 覆盖 `@Retention("local")`；删除空的旧 `run_pass_cone/top_level_const_val_multi_file_basic` fixture 目录，并刷新受 sysroot span/声明面影响的 3 个 HIR golden。
+  - 核心决策：`comptime` 保留为 lexer reserved keyword tombstone，仅用于让旧 statement/package 形状继续走普通 parse-fail 路径；未恢复 AST、parser surface、lowering、裁剪、const evaluator 或专门 unsupported diagnostic。移除该关键字会把 `comptime if` 误解析成 identifier 表达式 + 普通 `if`，因此不符合 P0 删除语义。
+  - 额外验证修正：修复全量验证中暴露的既有阻塞项：`run_fixture_command_timeout_kills_descendants` 改为父 shell 立即记录 descendant pid 并放宽 timeout，避免并发测试下的时序失败；runtime no-default baseline capability 判定与测试 ABI allowlist 同步，使 `cargo test --all --all-targets --no-default-features` 可稳定通过；同步 `pipeline_user_visible_failure_policy` sentinel line baseline。
+  - 允许命中分类：活跃源码中仅剩 `Keyword::Comptime` / lexer 映射 / parser 测试作为 reserved tombstone 与删除回归；`tests/fixtures/parse|resolve|typecheck|scoopir/package_level_comptime*` 和 `parse/comptime_syntax_basic.scoop` 是旧 surface 删除回归 fixtures；`audit/UMB_retired.csv`、`audit/UMB_inventory_initial.csv`、`TODO*`、`memory` 与 `docs/archive/**` 中的命中是历史/任务记录。`ConstEval`、`const fun`、`const val`、`Modifier::Const`、`Keyword::Const`、`is_const`、`ComptimeList` 在活跃源码、sysroot、fixtures、README 和 active spec docs 中无命中。
+  - `PIPELINE-CLEANUP.md` 判定：该审计文档本身未包含旧 surface 命中，本任务改为更新 B-24 audit category/strategy、coverage matrix 和 active spec 文档；`PIPELINE_REFACTOR.md` 主线仍只记录“移除旧 surface”的阶段设计，不依赖任何现存 comptime 特例，未改变阶段计划。
+  - 验证命令：`cargo fmt`；`cargo test -p scoopc --no-default-features parser`；`cargo test -p scoopc --no-default-features typecheck`；`cargo test --all --all-targets --no-default-features`；`cargo run -p scoop -- test`；`cargo run -p scoop_tools -- spec-fixtures check`；`cargo clippy --all-targets -- -D warnings`；全仓旧 surface 搜索 `comptime|Comptime|ConstEval|const fun|const val|Modifier::Const|Keyword::Const|\bis_const\b`（排除 `.git`/`target` 后按上述分类复核）。
+  - 残余风险：旧 surface 删除回归 fixtures 仍刻意包含源码文本；归档文档和历史审计 CSV 不改写历史。下一步 `P0-T04R` 需复核 P0 包是否可进入 `TODO-2.md`。
 
 ## [TODO] P0-T04R：Review P0 全包完成度
 

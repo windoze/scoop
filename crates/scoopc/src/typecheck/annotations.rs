@@ -567,7 +567,7 @@ pub enum AnnotationError {
         span: miette::SourceSpan,
     },
 
-    #[error("非法的 Retention policy：{policy}（仅支持 \"comptime\" / \"cone\"）")]
+    #[error("非法的 Retention policy：{policy}（仅支持 \"local\" / \"cone\"）")]
     #[diagnostic(code(scoop::typecheck::invalid_annotation_retention_policy))]
     InvalidAnnotationRetentionPolicy {
         policy: String,

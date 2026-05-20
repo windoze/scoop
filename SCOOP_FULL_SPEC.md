@@ -1073,118 +1073,56 @@ When a `Unit`-returning `main` returns normally, the process exit code defaults 
 
 For the `args` forms, `args` carries the native executable argv as-is, including `argv[0]` (the executable name/path). This is intentionally not the Kotlin/Java convention of exposing only user-supplied arguments. argv enters through the program boundary directly; there is no separate `scoop.process.args()` sysroot API.
 
-## 6. Compile-time Evaluation and Static Reflection
+## 6. Static Reflection and Metadata
 
 ### 6.1 Overview
 
-Scoop provides compile-time evaluation capabilities through `const fun` (compile-time evaluable functions) and `comptime` blocks (compile-time execution contexts). Combined with compiler-intrinsic reflection functions, this enables type-safe code generation without a separate macro system.
+Scoop 0.1 keeps compiler-owned static reflection intrinsics for type names, layout information, and limited declaration metadata. The current language does not define a general source-expansion or interpreter-execution syntax.
 
-### 6.2 `const fun`
+Static reflection intrinsics are ordinary `@Intrinsic fun` declarations in the sysroot. The compiler may lower them from type arguments and published metadata during HIR, MIR, or codegen.
 
-A function marked `const` can be evaluated at compile time. It can also be called at runtime — `const` is a capability marker, not a restriction.
-
-```kotlin
-const fun add(a: Int, b: Int): Int = a + b
-
-// Compile-time evaluation
-const val X = add(1, 2)  // evaluated to 3 at compile time
-
-// Runtime call — also valid
-val y = add(a, b)
-```
-
-`const fun` has a declaration-level purity contract:
-
-- Its own effect row must be omitted, or explicitly declared as `/ Pure` or `/ Pure!`.
-- It must not declare effect-row parameters such as `<eff E = ...>`.
-- In other words, `const fun` is currently **not** an effect-polymorphic declaration surface.
-
-This rule applies even though a `const fun` may also be called at runtime. The `const` marker promises that the declaration remains compatible with compile-time execution; supporting effectful or effect-polymorphic `const fun` is deferred until the language can specify a coherent pure-compatible subset across the spec, type checker, and comptime interpreter.
-
-#### Allowed in `const fun`:
-
-- Calling other `const fun`
-- Calling compiler intrinsic functions (`fieldsOf`, `nameOf`, `sizeOf`, etc.)
-- Local `var` / `val` bindings
-- Control flow: `if`, `when`, `for`, `while`
-- All value type operations (arithmetic, string operations, struct/tuple/enum construction)
-- `String` operations — although `String` is a reference type at runtime, it has value-type semantics (immutable, content-equality) and is specially handled during compile-time evaluation
-- `comptime for` / `comptime if`
-
-#### Prohibited in `const fun`:
-
-- Calling non-`const` functions
-- Any non-`Pure` effect contract on the declaration itself (including non-`Pure` effect rows and effect-row parameters)
-- Any effectful execution in the body (IO, Async, Raise, etc.)
-- Accessing global mutable state
-- Creating reference type instances (class instances require heap allocation, unavailable at compile time) — exception: `String` is allowed (see above)
-- Closures / lambdas (capturing environment makes compile-time analysis intractable — whether a closure fully satisfies `const` semantics depends on its capture set, which is difficult to verify statically)
-
-### 6.3 `comptime` Blocks
-
-`comptime for` and `comptime if` are compile-time control flow constructs. They are evaluated (unrolled/resolved) during compilation.
-
-#### `comptime for`
-
-Iterates over compile-time lists (e.g., type fields, enum variants). The loop body is unrolled at compile time, generating one copy per iteration.
+### 6.2 Compiler Intrinsic Reflection Functions
 
 ```kotlin
-fun <T> debugPrint(value: T) {
-    print(f"{nameOf<T>()}(")
-    comptime for (field in fieldsOf<T>()) {
-        print(f"{field.name}={value.[field]}, ")
-    }
-    println(")")
-}
+@Intrinsic
+fun <T> nameOf(): String
 
-// For debugPrint<Point>, compiler unrolls to:
-// fun debugPrint_Point(value: Point) {
-//     print("Point(")
-//     print("x=${value.x}, ")
-//     print("y=${value.y}, ")
-//     println(")")
-// }
+@Intrinsic
+fun <T> sizeOf(): Int
+
+@Intrinsic
+fun <T> alignOf(): Int
+
+@Intrinsic
+fun <T> kindOf(): Int
+
+@Intrinsic
+fun <T> descOf(): UIntPtr
+
+@Intrinsic
+fun <T> fieldsOf(): MetaList<FieldMeta>
+@Intrinsic
+fun <T> variantsOf(): MetaList<VariantMeta>
+@Intrinsic
+fun <T> superTypesOf(): MetaList<TypeMeta>
+@Intrinsic
+fun <T> annotationsOf(): MetaList<AnnotationMeta>
+@Intrinsic
+fun paramsOf(fn: FunctionMeta): MetaList<ParamMeta>
 ```
 
-#### `comptime if`
+Rules:
 
-Compile-time conditional. Branches not taken are eliminated entirely — they are not type-checked.
+- Reflection intrinsics must be provided by the compiler or trusted sysroot declarations.
+- Type arguments must be known at the call site.
+- `sizeOf<T>()` and `alignOf<T>()` return target ABI layout values.
+- `kindOf<T>()` returns the stable layout classification exposed by the sysroot.
+- `descOf<T>()` returns a runtime type descriptor address; types that do not need descriptors may use `0`.
+- Metadata-list intrinsics return `MetaList<T>` containers; their collection API is a sysroot/toolchain contract.
 
-```kotlin
-fun <T> serialize(value: T): ByteArray {
-    comptime if (T is struct) {
-        // struct serialization logic
-        ...
-    } else comptime if (T is enum) {
-        // enum serialization logic
-        ...
-    } else {
-        // fallback
-        ...
-    }
-}
-```
+### 6.3 Platform Introspection
 
-### 6.4 Compiler Intrinsic Reflection Functions
-
-The following functions are compiler builtins. They are implicitly `const` and return compile-time data structures.
-
-#### Type Introspection
-
-```kotlin
-const fun fieldsOf<T>(): ComptimeList<FieldMeta>       // struct/class fields
-const fun variantsOf<T>(): ComptimeList<VariantMeta>    // enum variants
-const fun nameOf<T>(): String                            // type name
-const fun sizeOf<T>(): Int                               // size in bytes
-const fun alignOf<T>(): Int                              // alignment in bytes
-const fun superTypesOf<T>(): ComptimeList<TypeMeta>     // parent types/interfaces
-const fun annotationsOf<T>(): ComptimeList<AnnotationMeta>  // type-level annotations (§15.6)
-const fun paramsOf(fn: FunctionMeta): ComptimeList<ParamMeta>  // function parameters
-```
-
-#### Platform Introspection
-
-The sysroot defines a `Platform` value type that represents a target platform using an LLVM triple and its decomposed components:
+The sysroot defines a `Platform` value type that represents a platform using an LLVM triple and decomposed fields:
 
 ```kotlin
 struct Platform {
@@ -1195,133 +1133,71 @@ struct Platform {
     val env: String
 }
 
-// Available at both comptime and runtime.
-const fun getPlatform(): Platform
+@Intrinsic
+fun getPlatform(): Platform
 ```
 
-Semantics:
+`Platform.triple` follows LLVM target triple conventions. Validation details are implementation-defined.
 
-- When evaluated at **compile time** (e.g. inside `comptime { ... }`, or in a `const val` initializer), `getPlatform()` returns the **compilation target** platform.
-- When called at **runtime**, `getPlatform()` returns the platform of the **current execution environment**.
-
-The canonical format of `Platform.triple` follows the LLVM target triple conventions (implementation-defined validation).
-
-#### Compile-time Metadata Types
+### 6.4 Static Metadata Types
 
 ```kotlin
+class MetaList<T>
+
 struct FieldMeta {
     val name: String,
     val type: TypeMeta,
     val index: Int,
-    val annotations: ComptimeList<AnnotationMeta>   // field-level annotations (§15.6)
+    val annotations: MetaList<AnnotationMeta>
 }
 
 struct VariantMeta {
     val name: String,
-    val fields: ComptimeList<FieldMeta>,
+    val fields: MetaList<FieldMeta>,
     val index: Int,
-    val annotations: ComptimeList<AnnotationMeta>   // variant-level annotations (§15.6)
+    val annotations: MetaList<AnnotationMeta>
 }
 
 struct TypeMeta {
     val name: String,
-    val kind: TypeKind,   // Struct, Enum, Class, Interface, Tuple, Primitive
-    val annotations: ComptimeList<AnnotationMeta>   // type-level annotations (§15.6)
+    val kind: TypeKind,
+    val annotations: MetaList<AnnotationMeta>
 }
 
 struct ParamMeta {
     val name: String,
     val type: TypeMeta,
     val index: Int,
-    val annotations: ComptimeList<AnnotationMeta>   // parameter-level annotations (§15.6)
+    val annotations: MetaList<AnnotationMeta>
 }
 
 struct FunctionMeta {
-    val name: String,
-    val params: ComptimeList<ParamMeta>,
-    val returnType: TypeMeta,
-    val annotations: ComptimeList<AnnotationMeta>   // function-level annotations (§15.6)
+    val name: String
 }
 ```
-
-`ComptimeList<T>` is a compile-time-only list type. It exists only during compilation and cannot appear in runtime code.
 
 `AnnotationMeta` and `AnnotationArgMeta` are defined in §15.6.
 
-#### Splice Operator
+### 6.5 Splice Field Access
 
-The `.[field]` operator accesses a value's field using a compile-time `FieldMeta` reference:
+The `.[field]` operator accesses a statically known field:
 
 ```kotlin
-comptime for (field in fieldsOf<T>()) {
-    val fieldValue = value.[field]   // access field dynamically at compile time
+fun getByName(p: Point): Int {
+    return p.["x"]
+}
+
+fun getByMeta(p: Point, field: FieldMeta): Int {
+    return p.[field]
 }
 ```
 
-This is only valid inside `comptime for` blocks where `field` is a `FieldMeta` from the current iteration.
+Rules:
 
-#### Runtime Fallback (No Special-Case)
-
-Reflection intrinsics are `const fun` (§6.2): they may be evaluated at compile time when their inputs are compile-time constants, and otherwise remain normal runtime calls.
-
-- If evaluated in a compile-time context (e.g. a `const val` initializer), the compiler executes the intrinsic and embeds the result.
-- If the receiver / inputs are runtime values, the call falls back to a normal runtime call.
-- This is not special-cased for reflection; it follows the standard `const fun` evaluation rules from §6.2.
-
-```kotlin
-struct Point(val x: Int)
-
-const val CT: String = nameOf<Point>()      // compile-time evaluation
-
-fun runtime(p: Point): String {
-    val rt: String = nameOf<Point>()        // normal runtime call (semantically the same)
-    return rt
-}
-```
-
-### 6.5 Complete Example: Generic JSON Serialization
-
-```kotlin
-const fun formatFieldName(name: String): String = f"\"{name}\""
-
-fun <T> toJson(value: T): String {
-    comptime if (T is struct) {
-        return buildString {
-            append("{")
-            var first = true
-            comptime for (field in fieldsOf<T>()) {
-                if (!first) append(",")
-                first = false
-                append(formatFieldName(field.name))
-                append(":")
-                append(toJson(value.[field]))
-            }
-            append("}")
-        }
-    } else comptime if (T is enum) {
-        comptime for (variant in variantsOf<T>()) {
-            when (value) {
-                variant -> {
-                    return buildString {
-                        append(f"{{\"type\":\"{variant.name}\"")
-                        comptime for (field in variant.fields) {
-                            append(f",\"{field.name}\":")
-                            append(toJson(value.[field]))
-                        }
-                        append("}")
-                    }
-                }
-            }
-        }
-    } else comptime if (T == String) {
-        return f"\"{value}\""
-    } else comptime if (T == Int || T == Long || T == Float || T == Double) {
-        return value.toString()
-    } else comptime if (T == Bool) {
-        return if (value) "true" else "false"
-    }
-}
-```
+- `field` may be a string literal or a `FieldMeta` whose `name` is statically known.
+- The compiler lowers `value.[field]` to a concrete field access and publishes a static field contract.
+- Using a non-field metadata value or an unknown field is a compile error.
+- This operator does not provide dynamic runtime field lookup.
 
 ### 6.6 Runtime Type Info (RTTI)
 
@@ -1334,7 +1210,7 @@ someObj as User                      // unsafe cast (§4.4)
 someObj as? User                     // safe cast, returns User? (§4.4)
 ```
 
-Full runtime reflection (dynamic field access, dynamic method invocation, dynamic instance creation) is **not provided**. Use compile-time reflection and `const fun` for all code generation needs.
+Full runtime reflection (dynamic field access, dynamic method invocation, dynamic instance creation) is **not provided**. Use compiler-owned static reflection intrinsics for metadata-driven code paths.
 
 ## 7. Functions
 
@@ -1498,7 +1374,7 @@ In ordinary expression position:
 - A bare `{ ... }` is always a closure literal.
 - A plain local block used for scoping or to compute a value must be written `do { ... }`.
 - `TypeName { field: expr, ... }` remains a struct literal (§2.3.1); the type name / constructor before `{` disambiguates it from a closure literal.
-- Constructs that introduce their own braced bodies (`if`, `when`, `handle`, `try`, `comptime`, declarations, etc.) are unaffected; this rule only governs ordinary brace-delimited expression/block forms.
+- Constructs that introduce their own braced bodies (`if`, `when`, `handle`, `try`, declarations, etc.) are unaffected; this rule only governs ordinary brace-delimited expression/block forms.
 
 Examples:
 
@@ -1666,7 +1542,7 @@ val raw = f"""
 
 ### 8.4 `trimIndent()`
 
-`trimIndent()` is a `const fun` on `String` that removes common leading whitespace from all lines and strips the first/last blank lines. It is the standard companion to raw strings.
+`trimIndent()` is a standard `String` function that removes common leading whitespace from all lines and strips the first/last blank lines. It is the standard companion to raw strings.
 
 ```kotlin
 val sql = """
@@ -1677,9 +1553,7 @@ val sql = """
 // Result: "SELECT *\nFROM users\nWHERE id = 1"
 ```
 
-- When the receiver is a **compile-time constant** (string literal, `const val`, `const fun` return value), `trimIndent()` is evaluated at compile time — zero runtime cost.
-- When the receiver is a **runtime value**, it falls back to a normal runtime call.
-- This is not special-cased in the compiler — it follows the standard `const fun` evaluation rules from Section 6.2.
+- Implementations may fold raw string literals as an optimization, but the language semantics are the ordinary runtime `String` call.
 
 ## 9. Variable Binding
 
@@ -1930,7 +1804,7 @@ A Scoop package is called a **Cone**. A compiled `.cone` file is a binary archiv
 example.cone (archive)
 ├── CONE_META              # Package metadata (name, version, deps, target, ir_version)
 ├── api.scoopir            # Public API signatures + type definitions (non-executable)
-├── generics.scoopir       # Generic / const fun bodies in Scoop IR (non-executable)
+├── generics.scoopir       # Generic bodies in Scoop IR (non-executable)
 ├── sort.o                 # Non-generic function — precompiled machine code
 ├── hash.o                 # Non-generic function — precompiled machine code
 ├── list_int.o             # Pre-specialized List<Int> (optional)
@@ -1941,8 +1815,8 @@ example.cone (archive)
 | Component | Purpose | Executable? |
 |---|---|---|
 | `CONE_META` | Package info, dependency resolution | No |
-| `api.scoopir` | Type checking, IDE support, comptime metadata (FieldMeta etc.) | No |
-| `generics.scoopir` | Consumer compiler monomorphizes generics and evaluates `const fun` from this | No |
+| `api.scoopir` | Type checking, IDE support, static metadata (FieldMeta etc.) | No |
+| `generics.scoopir` | Consumer compiler monomorphizes generics from this | No |
 | `*.o` (non-generic) | Directly linkable machine code | Yes |
 | `*.o` (pre-specialized) | Pre-compiled common monomorphization instances | Yes |
 
@@ -1959,7 +1833,7 @@ Consumer compiler
 │   ├── Check if .cone has a pre-compiled .o for this type combination
 │   │   ├── Yes → use it directly (e.g., List<Int> → list_int.o)
 │   │   └── No  → read IR from generics.scoopir, monomorphize, compile to new .o
-│   └── Evaluate any const fun from generics.scoopir as needed
+│   └── Compile required generic instances from generics.scoopir as needed
 │
 ├── 3. Link
 │   ├── Pre-compiled .o files from .cone (direct link, no recompilation)
@@ -2368,9 +2242,9 @@ This approach handles subtyping, bounded polymorphism, and overload resolution i
 
 ### 15.1 Overview
 
-Annotations attach **compile-time metadata** to declarations (functions, types, fields, parameters, properties). They are used by the compiler for built-in behavior (`@Intrinsic`, `@Extern`, `@Inline`, `@Deprecated`, `@Suppress`, `@Experimental`) and by user code for compile-time metaprogramming via `comptime` (§6).
+Annotations attach **static metadata** to declarations (functions, types, fields, parameters, properties). They are used by the compiler for built-in behavior (`@Intrinsic`, `@Extern`, `@Inline`, `@Deprecated`, `@Suppress`, `@Experimental`) and by tools or static reflection (§6).
 
-Annotations are declared with `annotation class`, but this is **not** a general nominal-class feature. Annotation declarations exist only to define a marker name plus optional compile-time payload. Annotation values exist only at compile time; they have no runtime representation and do not introduce extra control-flow semantics.
+Annotations are declared with `annotation class`, but this is **not** a general nominal-class feature. Annotation declarations exist only to define a marker name plus optional static payload. Annotation values have no runtime object representation and do not introduce extra control-flow semantics.
 
 ### 15.2 Annotation Class Declaration
 
@@ -2403,7 +2277,7 @@ annotation class Unsafe
 - Annotation classes cannot have supertypes, type bodies, secondary constructors, methods, computed properties, or implement interfaces.
 - Annotation classes cannot be instantiated with constructor syntax outside of annotation position (`@Name(...)`).
 
-Annotation class primary-constructor `val` parameters define the annotation's **compile-time payload fields**. At compile time, an annotation instance conceptually has a value for each such field, either from the use-site arguments or from the field's default value.
+Annotation class primary-constructor `val` parameters define the annotation's **static payload fields**. An annotation instance conceptually has a value for each such field, either from the use-site arguments or from the field's default value.
 
 ### 15.3 Annotation Usage
 
@@ -2488,7 +2362,7 @@ The compiler recognizes the following annotations (declared in the `core` sysroo
 | `@TailRec` | Functions | Asserts tail-call optimization; compiler error if not tail-recursive |
 | `@AllowIntrinsic` | Modules/files | Permits `@Intrinsic` declarations in user code |
 | `@Suppress(warnings...)` | Expressions, declarations, files | Suppresses specific compiler warnings |
-| `@Experimental(feature = "...")` | Functions, types, properties, modules/files | Reserved compile-time feature-gate marker; current compilers only validate its surface |
+| `@Experimental(feature = "...")` | Functions, types, properties, modules/files | Reserved feature-gate marker; current compilers only validate its surface |
 | `@CLayout(aligned?, packed?)` | Structs | Forces C-compatible field layout for FFI and optionally customizes alignment/packing (see §15.5.2) |
 | `@ThreadLocal` | Global variables | Declares a mutable global GC-free variable as thread-local storage (TLS) (see §15.5.3) |
 | `@Global` | Global variables | Declares a mutable global GC-free variable as process-global storage (see §15.5.3) |
@@ -2497,7 +2371,7 @@ The compiler recognizes the following annotations (declared in the `core` sysroo
 | `@Unsafe` | Functions, expressions | Enables unsafe raw memory operations (pointer arithmetic, unchecked loads/stores) within an unsafe context (see §15.9) |
 | `@Safe` | Functions, expressions | Marks a region as safe (unsafe primitives forbidden) even inside an enclosing unsafe context (see §15.9.5) |
 | `@Target(targets...)` | Annotation classes | Restricts which declaration kinds an annotation can appear on |
-| `@Retention(policy)` | Annotation classes | Controls whether annotation is available at comptime only or preserved in `.cone` |
+| `@Retention(policy)` | Annotation classes | Controls whether annotation metadata remains local or is preserved in `.cone` |
 
 The `@Target` annotation uses `AnnotationTarget` enum values:
 
@@ -2511,7 +2385,12 @@ enum AnnotationTarget {
 annotation class Column(val name: String)
 ```
 
-`@Suppress` is a built-in compile-time warning suppression marker. Current contract:
+`@Retention(policy)` currently accepts:
+
+- `"local"`: metadata remains local to the current source boundary and is not exported to `.cone`. This is the default.
+- `"cone"`: metadata is preserved in `.cone` so downstream cones can observe it.
+
+`@Suppress` is a built-in warning suppression marker. Current contract:
 
 - Arguments must be one or more positional string literals; named arguments are not supported.
 - `@file:Suppress(...)` suppresses matching warnings for the whole file.
@@ -2519,7 +2398,7 @@ annotation class Column(val name: String)
 - Expression `@Suppress(...) expr` suppresses matching warnings emitted while checking that expression.
 - Current stable warning codes are `deprecated`, `enum-size-disparity`, and `redundant-when-else`.
 
-`@Experimental` is a reserved built-in compile-time feature-gate marker. Current contract:
+`@Experimental` is a reserved built-in feature-gate marker. Current contract:
 
 - Allowed targets are functions, types, properties, and modules/files (`@file:Experimental(feature = "...")`).
 - The use-site shape is fixed to `@Experimental(feature = "...")`; `feature` must be a string literal.
@@ -2624,7 +2503,7 @@ Rules:
 - A `@ThreadLocal` variable has a distinct instance per OS thread (TLS).
 - A `@Global` variable has a single instance shared by all threads.
 
-Initialization of global variables is implementation-defined. This specification recommends restricting `@ThreadLocal`/`@Global` initializers to compile-time constants for the early runtime.
+Initialization of global variables is implementation-defined. This specification recommends keeping `@ThreadLocal`/`@Global` initializers to static literal forms for the early runtime.
 
 #### 15.5.4 `@CallingConvention` (Calling Convention)
 
@@ -2638,18 +2517,20 @@ fun messageBoxA(hwnd: UIntPtr, text: Ptr<Byte>, caption: Ptr<Byte>, flags: UInt3
 
 The set of supported calling convention names is implementation-defined. The default calling convention is the platform C ABI. `@CallingConvention` does not switch a declaration into managed external ABI mode, has no separate `abi` parameter, and is invalid on `@Extern(..., abi = "scoop")`. `FunPtr<F>` remains a native/C-ABI callable token.
 
-### 15.6 Compile-time Annotation Access
+### 15.6 Static Annotation Metadata
 
-Annotations are accessible via compile-time reflection (§6) on **all annotatable elements**. Every compile-time metadata struct carries an `annotations` field:
+Annotations are accessible via static reflection (§6) on **all annotatable elements**. Every static metadata struct carries an `annotations` field:
 
 ```kotlin
 // ── Intrinsics for querying annotations ──
 
 // Annotations on a type (struct, class, enum, interface)
-const fun annotationsOf<T>(): ComptimeList<AnnotationMeta>
+@Intrinsic
+fun <T> annotationsOf(): MetaList<AnnotationMeta>
 
 // Annotations on a specific function (by reference)
-const fun annotationsOf(fun: FunctionMeta): ComptimeList<AnnotationMeta>
+@Intrinsic
+fun annotationsOf(fn: FunctionMeta): MetaList<AnnotationMeta>
 
 // ── Metadata structs (see §6.4) — all carry annotations ──
 
@@ -2657,46 +2538,46 @@ struct FieldMeta {
     val name: String
     val type: TypeMeta
     val index: Int
-    val annotations: ComptimeList<AnnotationMeta>
+    val annotations: MetaList<AnnotationMeta>
 }
 
 struct VariantMeta {
     val name: String
-    val fields: ComptimeList<FieldMeta>
+    val fields: MetaList<FieldMeta>
     val index: Int
-    val annotations: ComptimeList<AnnotationMeta>
+    val annotations: MetaList<AnnotationMeta>
 }
 
 struct TypeMeta {
     val name: String
     val kind: TypeKind
-    val annotations: ComptimeList<AnnotationMeta>
+    val annotations: MetaList<AnnotationMeta>
 }
 
 struct ParamMeta {
     val name: String
     val type: TypeMeta
     val index: Int
-    val annotations: ComptimeList<AnnotationMeta>
+    val annotations: MetaList<AnnotationMeta>
 }
 
 struct FunctionMeta {
     val name: String
-    val params: ComptimeList<ParamMeta>
+    val params: MetaList<ParamMeta>
     val returnType: TypeMeta
-    val annotations: ComptimeList<AnnotationMeta>
+    val annotations: MetaList<AnnotationMeta>
 }
 
 // ── Annotation metadata ──
 
 struct AnnotationMeta {
     val name: String                              // e.g. "Serialization.Rename"
-    val args: ComptimeList<AnnotationArgMeta>     // resolved named arguments (including defaults)
+    val args: MetaList<AnnotationArgMeta>         // resolved named arguments (including defaults)
 }
 
 struct AnnotationArgMeta {
     val name: String
-    val value: Any   // compile-time constant value
+    val value: Any   // static annotation argument value
 }
 ```
 
@@ -2705,70 +2586,12 @@ struct AnnotationArgMeta {
 | Element | How to access annotations |
 |---|---|
 | Type (struct/class/enum/interface) | `annotationsOf<T>()` |
-| Field | `field.annotations` inside `comptime for (field in fieldsOf<T>())` |
-| Enum variant | `variant.annotations` inside `comptime for (variant in variantsOf<T>())` |
-| Function parameter | `param.annotations` inside `comptime for (param in paramsOf(fn))` |
+| Field | `field.annotations` on `FieldMeta` |
+| Enum variant | `variant.annotations` on `VariantMeta` |
+| Function parameter | `param.annotations` on `ParamMeta` |
 | Function | `annotationsOf(fn)` where `fn` is a `FunctionMeta` |
 
-**Checking for a specific annotation:**
-
-```kotlin
-const fun hasAnnotation(annotations: ComptimeList<AnnotationMeta>, name: String): Bool {
-    comptime for (ann in annotations) {
-        comptime if (ann.name == name) { return true }
-    }
-    return false
-}
-
-const fun getAnnotation(annotations: ComptimeList<AnnotationMeta>, name: String): AnnotationMeta? {
-    comptime for (ann in annotations) {
-        comptime if (ann.name == name) { return ann }
-    }
-    return null
-}
-```
-
-**Example: annotation-driven serialization**
-
-```kotlin
-fun <T> toJsonKey(field: FieldMeta): String {
-    comptime for (ann in field.annotations) {
-        comptime if (ann.name == "Serialization.Rename") {
-            return ann.args[0].value as String
-        }
-    }
-    return field.name  // default: use field name
-}
-
-fun <T> shouldSerialize(field: FieldMeta): Bool {
-    comptime for (ann in field.annotations) {
-        comptime if (ann.name == "Serialization.Ignore") {
-            return false
-        }
-    }
-    return true
-}
-
-fun <T> toJson(value: T): String {
-    comptime if (T is struct) {
-        return buildString {
-            append("{")
-            var first = true
-            comptime for (field in fieldsOf<T>()) {
-                comptime if (shouldSerialize<T>(field)) {
-                    if (!first) append(",")
-                    first = false
-                    val key = toJsonKey<T>(field)
-                    append(f"\"{key}\":")
-                    append(toJson(value.[field]))
-                }
-            }
-            append("}")
-        }
-    }
-    // ...
-}
-```
+Metadata-list traversal APIs are sysroot/toolchain contracts. This section only fixes the metadata shape and names.
 
 ### 15.7 `@Intrinsic` and Sysroot Declarations
 

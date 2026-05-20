@@ -1,0 +1,12 @@
+// EXPECT: pass
+// 目标：`@Retention("local")` 是默认本地保留策略的显式写法。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+@Retention("local")
+annotation class LocalOnly
+
+@LocalOnly
+fun marked() {}

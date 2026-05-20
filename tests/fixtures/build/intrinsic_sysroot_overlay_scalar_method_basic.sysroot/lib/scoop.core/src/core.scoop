@@ -156,7 +156,7 @@ fun <T> MutableArray<T>.freeze(): Array<T> {
     return @Unsafe do { __scoop_unsafe_array_cast<T>(raw) }
 }
 
-class ComptimeList<T>
+class MetaList<T>
 struct Unit
 enum Nothing
 
@@ -253,28 +253,28 @@ enum TypeKind {
 struct TypeMeta {
     val name: String
     val kind: TypeKind
-    val annotations: ComptimeList<AnnotationMeta>
+    val annotations: MetaList<AnnotationMeta>
 }
 
 struct FieldMeta {
     val name: String
     val type: TypeMeta
     val index: Int
-    val annotations: ComptimeList<AnnotationMeta>
+    val annotations: MetaList<AnnotationMeta>
 }
 
 struct VariantMeta {
     val name: String
-    val fields: ComptimeList<FieldMeta>
+    val fields: MetaList<FieldMeta>
     val index: Int
-    val annotations: ComptimeList<AnnotationMeta>
+    val annotations: MetaList<AnnotationMeta>
 }
 
 struct ParamMeta {
     val name: String
     val type: TypeMeta
     val index: Int
-    val annotations: ComptimeList<AnnotationMeta>
+    val annotations: MetaList<AnnotationMeta>
 }
 
 struct PropertyMeta {
@@ -289,7 +289,7 @@ struct FunctionMeta {
 
 struct AnnotationMeta {
     val name: String
-    val args: ComptimeList<AnnotationArgMeta>
+    val args: MetaList<AnnotationArgMeta>
 }
 
 struct AnnotationArgMeta {
@@ -341,15 +341,15 @@ fun <T> kindOf(): Int
 @Intrinsic
 fun <T> descOf(): UIntPtr
 @Intrinsic
-fun <T> fieldsOf(): ComptimeList<FieldMeta>
+fun <T> fieldsOf(): MetaList<FieldMeta>
 @Intrinsic
-fun <T> variantsOf(): ComptimeList<VariantMeta>
+fun <T> variantsOf(): MetaList<VariantMeta>
 @Intrinsic
-fun <T> superTypesOf(): ComptimeList<TypeMeta>
+fun <T> superTypesOf(): MetaList<TypeMeta>
 @Intrinsic
-fun <T> annotationsOf(): ComptimeList<AnnotationMeta>
+fun <T> annotationsOf(): MetaList<AnnotationMeta>
 @Intrinsic
-fun paramsOf(fn: FunctionMeta): ComptimeList<ParamMeta>
+fun paramsOf(fn: FunctionMeta): MetaList<ParamMeta>
 
 val ARRAY_ELEM_KIND_WORD: Int = 1
 val ARRAY_ELEM_KIND_REF: Int = 2

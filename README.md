@@ -5,11 +5,11 @@ Scoop 是一个 Kotlin 风格的静态类型语言，目标是：
 - 真正的值类型（struct/enum/tuple，copy 语义、不可变）
 - 代数效果系统（统一可挂起操作、错误处理、控制流）
 - 泛型单态化（monomorphization）
-- 编译期执行与静态反射（`const fun` / `comptime`）
+- 静态反射 intrinsic 与注解元数据
 - LLVM 后端（Rust `inkwell`），自带运行时与 GC（长期 C runtime/GC；平台差异隔离在 `runtime/c`）
 
 语言规范见 `SCOOP_FULL_SPEC.md`，实现路线图见 `PLAN.md`。
-当前 `const fun` 的声明级合同保持保守纯计算：只能省略 effect row，或显式写 `/ Pure` / `/ Pure!`，不支持 `<eff ...>`。
+当前 pipeline refactor 的 P0 阶段已移除旧编译期执行 surface；反射能力保留为 sysroot `@Intrinsic` 声明。
 Kotlin runtime / Scoop core runtime gap 的能力矩阵审计见 `KOTLIN_RUNTIME_GAP_AUDIT.md`（T1314）。
 标准库（std）分层与 capability matrix 设计见 `STDLIB_DESIGN.md`（T1316）。
 effect lowering 的统一状态机设计基线见 `docs/effect_unified_state_machine.md`（T2003u1）。

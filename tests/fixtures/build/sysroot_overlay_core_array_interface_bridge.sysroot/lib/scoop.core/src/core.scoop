@@ -228,9 +228,9 @@ fun <T> MutableArray<T>.freeze(): Array<T> {
 // 编译期列表（spec §6.4）。
 //
 // 说明：
-// - 该类型用于承载反射 intrinsics（`fieldsOf`/`variantsOf`/...）返回的"编译期数据结构"；
-// - v0 阶段先把它作为纯声明面，具体可迭代/索引语义由后续 comptime 执行与 lowering 补齐。
-class ComptimeList<T>
+// - 该类型用于承载反射 intrinsics（`fieldsOf`/`variantsOf`/...）返回的静态元数据集合；
+// - v0 阶段先把它作为纯声明面，具体可迭代/索引语义由后续反射元数据 lowering 补齐。
+class MetaList<T>
 struct Unit
 enum Nothing
 
@@ -381,7 +381,7 @@ struct Pinned(val value: Any)
 //
 // 说明：
 // - 这些类型只在编译期可用：
-//   - 反射 intrinsics（如 `fieldsOf<T>()`）会返回它们的 `ComptimeList<...>`；
+//   - 反射 intrinsics（如 `fieldsOf<T>()`）会返回它们的 `MetaList<...>`；
 //   - delegated properties lowering 会把 `PropertyMeta` 作为隐式参数传给 `getValue/setValue`（spec §10.4）。
 // - 当前阶段已实现"可回归的最小集合"（T1208/T1209/T1215）：
 //   - `TypeMeta`：类型名 + kind + 注解列表
@@ -403,28 +403,28 @@ enum TypeKind {
 struct TypeMeta {
     val name: String
     val kind: TypeKind
-    val annotations: ComptimeList<AnnotationMeta>
+    val annotations: MetaList<AnnotationMeta>
 }
 
 struct FieldMeta {
     val name: String
     val type: TypeMeta
     val index: Int
-    val annotations: ComptimeList<AnnotationMeta>
+    val annotations: MetaList<AnnotationMeta>
 }
 
 struct VariantMeta {
     val name: String
-    val fields: ComptimeList<FieldMeta>
+    val fields: MetaList<FieldMeta>
     val index: Int
-    val annotations: ComptimeList<AnnotationMeta>
+    val annotations: MetaList<AnnotationMeta>
 }
 
 struct ParamMeta {
     val name: String
     val type: TypeMeta
     val index: Int
-    val annotations: ComptimeList<AnnotationMeta>
+    val annotations: MetaList<AnnotationMeta>
 }
 
 struct PropertyMeta {
@@ -446,12 +446,12 @@ struct FunctionMeta {
 // Compile-time annotation metadata（spec §15.6）。
 //
 // 说明：
-// - 用于在编译期读取注解名与参数（`annotationsOf<T>()` 等）；参数值为 compile-time constant；
-// - v0 阶段先要求"注解名 + compile-time constant 参数"可回归：字面量/常量表达式/数组字面量/enum 常量/class literal；
+// - 用于读取注解名与参数（`annotationsOf<T>()` 等）；参数值为静态注解参数；
+// - v0 阶段先要求"注解名 + 静态参数"可回归：字面量/数组字面量/enum 常量/class literal；
 // - 更复杂的表达式（例如函数调用、运行期依赖值）与跨 cone 导出规则后续补齐。
 struct AnnotationMeta {
     val name: String
-    val args: ComptimeList<AnnotationArgMeta>
+    val args: MetaList<AnnotationArgMeta>
 }
 
 struct AnnotationArgMeta {
@@ -502,7 +502,7 @@ typealias UIntPtr = UInt
 //
 // 说明：
 // - 泛型反射 intrinsic 由编译器在运行期 lowering 中识别；
-// - 当前阶段（TODO T12xx）尚未实现 comptime 执行链路；同时 typecheck 的"跨文件泛型函数签名 lowering"
+// - 当前阶段（TODO T12xx）尚未实现完整反射元数据执行链路；同时 typecheck 的"跨文件泛型函数签名 lowering"
 //   也未补齐，因此这里先用一组 overload 作为最小可调用表面：
 //   - `sizeOf(1)` / `sizeOf("s")`
 // - 该声明仅用于工具链可见性与类型检查；实现由编译器在 codegen 阶段内建 lowering 提供（见 TODO T1007）。
@@ -527,15 +527,15 @@ fun <T> kindOf(): Int
 @Intrinsic
 fun <T> descOf(): UIntPtr
 @Intrinsic
-fun <T> fieldsOf(): ComptimeList<FieldMeta>
+fun <T> fieldsOf(): MetaList<FieldMeta>
 @Intrinsic
-fun <T> variantsOf(): ComptimeList<VariantMeta>
+fun <T> variantsOf(): MetaList<VariantMeta>
 @Intrinsic
-fun <T> superTypesOf(): ComptimeList<TypeMeta>
+fun <T> superTypesOf(): MetaList<TypeMeta>
 @Intrinsic
-fun <T> annotationsOf(): ComptimeList<AnnotationMeta>
+fun <T> annotationsOf(): MetaList<AnnotationMeta>
 @Intrinsic
-fun paramsOf(fn: FunctionMeta): ComptimeList<ParamMeta>
+fun paramsOf(fn: FunctionMeta): MetaList<ParamMeta>
 
 val ARRAY_ELEM_KIND_WORD: Int = 1
 val ARRAY_ELEM_KIND_REF: Int = 2

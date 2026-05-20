@@ -3204,9 +3204,9 @@ mod tests {
 
         const STMT_REASONS: &[&str] = &[
             "missing_stmt",
-            "comptime_block",
-            "comptime_if",
-            "comptime_for",
+            "removed_block_surface",
+            "removed_if_surface",
+            "removed_for_surface",
             "for_custom_iterator",
         ];
         for reason in STMT_REASONS {
@@ -3222,7 +3222,7 @@ mod tests {
             assert_eq!(err.source_path(), source_path.as_path());
         }
 
-        const ITEM_REASONS: &[&str] = &["comptime_if_item"];
+        const ITEM_REASONS: &[&str] = &["removed_item_surface"];
         for reason in ITEM_REASONS {
             let (mut lowered, source_path) = clean_lowered_hir();
             lowered.file.items = vec![Item::Todo {

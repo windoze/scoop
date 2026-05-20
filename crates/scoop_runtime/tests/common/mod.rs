@@ -10,12 +10,21 @@ pub(crate) fn gc_backend_name() -> &'static str {
     }
 }
 
+fn gc_is_baseline_like() -> bool {
+    cfg!(feature = "gc-baseline")
+        || !cfg!(any(
+            feature = "gc-immix",
+            feature = "gc-hosted",
+            feature = "gc-minimal"
+        ))
+}
+
 pub(crate) fn gc_supports_stw() -> bool {
-    cfg!(any(feature = "gc-baseline", feature = "gc-immix"))
+    gc_is_baseline_like() || cfg!(feature = "gc-immix")
 }
 
 pub(crate) fn gc_supports_multi_thread_roots_enum() -> bool {
-    cfg!(any(feature = "gc-baseline", feature = "gc-immix"))
+    gc_is_baseline_like() || cfg!(feature = "gc-immix")
 }
 
 pub(crate) fn gc_capabilities_debug() -> String {

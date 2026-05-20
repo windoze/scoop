@@ -1289,13 +1289,13 @@ mod tests {
         let fixture_path = dir.join("hello.scoop");
         let pid_path = dir.join("descendant.pid");
 
-        std::fs::write(&fixture_path, "// TIMEOUT: 50\nfun main() {}\n").unwrap();
+        std::fs::write(&fixture_path, "// TIMEOUT: 200\nfun main() {}\n").unwrap();
 
-        let exp = FixtureExpectation::from_source("// TIMEOUT: 50\n");
+        let exp = FixtureExpectation::from_source("// TIMEOUT: 200\n");
         let cmd = {
             let mut cmd = Command::new("sh");
             cmd.arg("-c").arg(format!(
-                "sh -c 'echo $$ > \"{}\"; sleep 2' & wait",
+                "sleep 2 & echo $! > \"{}\"; wait",
                 pid_path.display()
             ));
             cmd

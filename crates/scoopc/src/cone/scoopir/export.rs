@@ -272,12 +272,12 @@ fn export_public_types_for_source(
             scoop_ir_export_err(ScoopIrExportError::MissingTypeSymbol { fqn: fqn.clone() })
         })?;
 
-        // T1016b：comptime-only annotation classes 不导出到 `.cone` 的 public API。
+        // T1016b：local-only annotation classes 不导出到 `.cone` 的 public API。
         //
         // 说明：
-        // - annotation class 默认视为 comptime-only，只有显式标记 `@Retention("cone")`
+        // - annotation class 默认视为 local-only，只有显式标记 `@Retention("cone")`
         //   才会跨 cone 导出；
-        // - 该过滤会让下游 `.cone` 依赖无法引用 comptime-only 注解类（符合“不可见”的语义边界）。
+        // - 该过滤会让下游 `.cone` 依赖无法引用 local-only 注解类（符合“不可见”的语义边界）。
         if symbol.is_annotation_class
             && symbol.annotation_retention != Some(AnnotationRetentionPolicy::ConePreserved)
         {
