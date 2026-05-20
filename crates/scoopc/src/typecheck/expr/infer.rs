@@ -348,12 +348,6 @@ pub(super) fn infer_expr_type(
             ),
         },
         ast::ExprKind::Lambda(lam) => {
-            if lower.in_const_context() {
-                return Err(ExprTypeError::ConstFunLambdaNotAllowed {
-                    span: expr.span.into(),
-                });
-            }
-
             infer_lambda_expr_type_without_expected(inputs, expr, lam, lower)
         }
         ast::ExprKind::TypeApply { .. } => {
@@ -1863,17 +1857,11 @@ pub(super) fn infer_expr_type_in_expected_context(
     //
     // 说明：lambda 的参数类型通常由“期望的函数类型”向下传播而来，因此这里在存在 expected type 时
     // 优先尝试用该信息推断 lambda 的参数类型与返回类型。
-    if let ast::ExprKind::Lambda(lam) = &expr.kind {
-        if lower.in_const_context() {
-            return Err(ExprTypeError::ConstFunLambdaNotAllowed {
-                span: expr.span.into(),
-            });
-        }
-        if let Some(ty) =
+    if let ast::ExprKind::Lambda(lam) = &expr.kind
+        && let Some(ty) =
             try_infer_lambda_expr_type_by_expected(inputs, expr, lam, expected_ty, lower)?
-        {
-            return Ok(ty);
-        }
+    {
+        return Ok(ty);
     }
 
     if let ast::ExprKind::Unary {

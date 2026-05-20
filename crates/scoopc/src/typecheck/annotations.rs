@@ -1307,7 +1307,6 @@ fn modifier_name(modifier: ast::Modifier) -> &'static str {
         ast::Modifier::Abstract => "abstract",
         ast::Modifier::Sealed => "sealed",
         ast::Modifier::Override => "override",
-        ast::Modifier::Const => "const",
         ast::Modifier::Annotation => "annotation",
     }
 }

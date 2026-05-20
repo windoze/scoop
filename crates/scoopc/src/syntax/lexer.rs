@@ -218,7 +218,6 @@ impl<'a> Lexer<'a> {
             "sealed" => Some(Keyword::Sealed),
             "inline" => Some(Keyword::Inline),
             "override" => Some(Keyword::Override),
-            "const" => Some(Keyword::Const),
             "vararg" => Some(Keyword::Vararg),
             "annotation" => Some(Keyword::Annotation),
             "package" => Some(Keyword::Package),

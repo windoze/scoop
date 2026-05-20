@@ -144,7 +144,6 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
         mut assign_place_contracts,
         top_level_vars,
         extern_globals,
-        top_level_consts,
         top_level_immutable_values,
         when_pat_binding_tys,
     ) = {
@@ -189,7 +188,6 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
         let assign_place_contracts = std::mem::take(&mut ctx.assign_place_contracts);
         let top_level_vars = std::mem::take(&mut ctx.top_level_vars);
         let extern_globals = std::mem::take(&mut ctx.extern_globals);
-        let top_level_consts = std::mem::take(&mut ctx.top_level_consts);
         let top_level_immutable_values = std::mem::take(&mut ctx.top_level_immutable_values);
         let when_pat_binding_tys = std::mem::take(&mut ctx.when_pat_binding_tys);
         (
@@ -203,7 +201,6 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
             assign_place_contracts,
             top_level_vars,
             extern_globals,
-            top_level_consts,
             top_level_immutable_values,
             when_pat_binding_tys,
         )
@@ -325,7 +322,6 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
         extern_globals,
         extern_libs,
         top_level_vars,
-        top_level_consts,
         top_level_immutable_values,
         top_level_fun_call_sites,
         call_arg_bindings,

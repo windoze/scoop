@@ -40,36 +40,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.codegen_initializer_expr(init, target_ty, decl.ty)
     }
 
-    pub(in crate::llvm::codegen) fn codegen_top_level_const_ref(
-        &mut self,
-        span: crate::span::Span,
-        top_level_const: &hir::TopLevelConst,
-    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        if self
-            .function_cx
-            .top_level_const_eval_stack
-            .iter()
-            .any(|current| current == &top_level_const.fqn)
-        {
-            panic!("codegen_top_level_const_ref: verifier accepted recursive top-level const ref");
-        }
-
-        let init = top_level_const.init.as_ref().unwrap_or_else(|| {
-            panic!("codegen_top_level_const_ref: verifier accepted const without initializer")
-        });
-        let target_ty = self.expect_cg_ty_of(top_level_const.ty, "top-level const type");
-        let source_id = self.source_id_for_path(top_level_const.source_path.as_path(), span)?;
-        let saved_source_id = self.current_source_id;
-        self.current_source_id = source_id;
-        self.function_cx
-            .top_level_const_eval_stack
-            .push(top_level_const.fqn.clone());
-        let result = self.codegen_initializer_expr(init, target_ty, top_level_const.ty);
-        self.function_cx.top_level_const_eval_stack.pop();
-        self.current_source_id = saved_source_id;
-        result
-    }
-
     pub(in crate::llvm::codegen) fn declare_top_level_immutable_value_guard(
         &self,
         value_fqn: &str,
@@ -404,10 +374,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // - 运行期用一个 module-local 的唯一地址作为"单例实例指针"（ref type）。
         if self.object_inits.contains_key(fqn) {
             return self.codegen_object_value_access(span, fqn);
-        }
-
-        if let Some(top_level_const) = self.top_level_consts.get(fqn).cloned() {
-            return self.codegen_top_level_const_ref(span, &top_level_const);
         }
 
         if let Some(value) = self.top_level_immutable_values.get(fqn).cloned() {

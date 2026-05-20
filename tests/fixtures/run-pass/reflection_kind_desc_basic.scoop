@@ -2,12 +2,12 @@ struct Point(val x: Int, val y: Int)
 enum Color { Red, Blue }
 enum MaybeInt { Some(val value: Int), None }
 
-const val WORD_KIND: Int = kindOf<Int>()
-const val REF_KIND: Int = kindOf<String>()
-const val COMPOSITE_KIND: Int = kindOf<Point>()
-const val ENUM_WORD_KIND: Int = kindOf<Color>()
-const val ENUM_COMPOSITE_KIND: Int = kindOf<MaybeInt>()
-const val INT_DESC: UIntPtr = descOf<Int>()
+val WORD_KIND: Int = kindOf<Int>()
+val REF_KIND: Int = kindOf<String>()
+val COMPOSITE_KIND: Int = kindOf<Point>()
+val ENUM_WORD_KIND: Int = kindOf<Color>()
+val ENUM_COMPOSITE_KIND: Int = kindOf<MaybeInt>()
+val INT_DESC: UIntPtr = descOf<Int>()
 
 fun main() {
     if (WORD_KIND != ARRAY_ELEM_KIND_WORD) {

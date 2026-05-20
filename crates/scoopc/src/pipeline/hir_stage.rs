@@ -174,7 +174,6 @@ impl TopLevelInitRootContract {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TopLevelInitRootKind {
-    ConstVal,
     RuntimeImmutableVal,
     RuntimeMutableVar {
         storage: crate::hir::TopLevelVarStorage,
@@ -510,7 +509,6 @@ pub enum TypedIntrinsicKind {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum IntrinsicAllowedContext {
-    ComptimeAndRuntime,
     RuntimeOnly,
 }
 
@@ -562,15 +560,7 @@ impl TypedIntrinsicKind {
     }
 
     pub fn allowed_context(&self) -> IntrinsicAllowedContext {
-        match self {
-            Self::Reflection { .. } | Self::Platform { .. } => {
-                IntrinsicAllowedContext::ComptimeAndRuntime
-            }
-            Self::Gc { .. }
-            | Self::Runtime { .. }
-            | Self::Compiler { .. }
-            | Self::NamedTable { .. } => IntrinsicAllowedContext::RuntimeOnly,
-        }
+        IntrinsicAllowedContext::RuntimeOnly
     }
 
     pub fn runtime_fallback(&self) -> IntrinsicRuntimeFallback {
@@ -1439,13 +1429,6 @@ impl<'a> ContractCollector<'a> {
             .map(|global| global.source_path.clone())
             .or_else(|| {
                 self.lowered_hir
-                    .top_level_consts
-                    .values()
-                    .find(|konst| konst.span == val.span)
-                    .map(|konst| konst.source_path.clone())
-            })
-            .or_else(|| {
-                self.lowered_hir
                     .top_level_immutable_values
                     .values()
                     .find(|value| value.span == val.span)
@@ -2215,23 +2198,6 @@ fn collect_top_level_init_roots(lowered_hir: &LoweredHir) -> Vec<TopLevelInitRoo
     let lowered_object_fqns = lowered_object_decl_fqns(lowered_hir);
     let mut roots = Vec::new();
 
-    for konst in lowered_hir.top_level_consts.values() {
-        roots.push(TopLevelInitRootContract {
-            fqn: konst.fqn.clone(),
-            source_path: konst.source_path.clone(),
-            span: konst.span,
-            kind: TopLevelInitRootKind::ConstVal,
-            ty: Some(konst.ty),
-            initializer_ty: konst.init.as_ref().map(|init| init.ty),
-            has_initializer: konst.init.is_some(),
-            dependencies: dependencies_for_expr(
-                konst.fqn.as_str(),
-                konst.init.as_ref(),
-                &dependency_kinds,
-            ),
-        });
-    }
-
     for value in lowered_hir.top_level_immutable_values.values() {
         roots.push(TopLevelInitRootContract {
             fqn: value.fqn.clone(),
@@ -2340,9 +2306,6 @@ fn top_level_dependency_kinds(
     lowered_hir: &LoweredHir,
 ) -> HashMap<String, TopLevelInitDependencyKind> {
     let mut out = HashMap::new();
-    for fqn in lowered_hir.top_level_consts.keys() {
-        out.insert(fqn.clone(), TopLevelInitDependencyKind::TopLevelValue);
-    }
     for fqn in lowered_hir.top_level_immutable_values.keys() {
         out.insert(fqn.clone(), TopLevelInitDependencyKind::TopLevelValue);
     }
@@ -4278,7 +4241,7 @@ fun main(): Int {
 
 import scoop.core.*
 
-const val Base: Int = 1
+val Base: Int = 1
 val Runtime: Int = Base + 1
 
 @Global
@@ -4298,7 +4261,7 @@ fun main() {}
         let output = run(&session, &source).expect("top-level init roots should lower");
         let roots = output.effect_contracts().top_level_init_roots();
         assert!(roots.iter().any(|root| {
-            root.fqn() == "sample.Base" && root.kind() == TopLevelInitRootKind::ConstVal
+            root.fqn() == "sample.Base" && root.kind() == TopLevelInitRootKind::RuntimeImmutableVal
         }));
         assert!(roots.iter().any(|root| {
             root.fqn() == "sample.Runtime"
@@ -4388,7 +4351,7 @@ fun runtime(): String {
             "class literal metadata kind missing: {dump}"
         );
         assert!(
-            dump.contains("intrinsic_allowed_context: ComptimeAndRuntime"),
+            dump.contains("intrinsic_allowed_context: RuntimeOnly"),
             "intrinsic allowed context missing: {dump}"
         );
         assert!(
@@ -4411,10 +4374,7 @@ fun runtime(): String {
             match function.fqn() {
                 "scoop.core.nameOf" => {
                     saw_name_of = true;
-                    assert_eq!(
-                        kind.allowed_context(),
-                        IntrinsicAllowedContext::ComptimeAndRuntime
-                    );
+                    assert_eq!(kind.allowed_context(), IntrinsicAllowedContext::RuntimeOnly);
                     assert_eq!(
                         kind.runtime_fallback(),
                         IntrinsicRuntimeFallback::NormalRuntimeCall
@@ -4422,10 +4382,7 @@ fun runtime(): String {
                 }
                 "scoop.core.sizeOf" => {
                     saw_size_of = true;
-                    assert_eq!(
-                        kind.allowed_context(),
-                        IntrinsicAllowedContext::ComptimeAndRuntime
-                    );
+                    assert_eq!(kind.allowed_context(), IntrinsicAllowedContext::RuntimeOnly);
                     assert_eq!(
                         kind.runtime_fallback(),
                         IntrinsicRuntimeFallback::NormalRuntimeCall
@@ -4433,10 +4390,7 @@ fun runtime(): String {
                 }
                 "scoop.core.getPlatform" => {
                     saw_get_platform = true;
-                    assert_eq!(
-                        kind.allowed_context(),
-                        IntrinsicAllowedContext::ComptimeAndRuntime
-                    );
+                    assert_eq!(kind.allowed_context(), IntrinsicAllowedContext::RuntimeOnly);
                     assert_eq!(
                         kind.runtime_fallback(),
                         IntrinsicRuntimeFallback::PlatformQuery

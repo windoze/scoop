@@ -369,7 +369,6 @@ fn generic_materializer_for_body_with_template(
             lowered_top_level_fun_call_bindings: HashMap::new(),
             ctor_call_sites: HashMap::new(),
             top_level_vars: HashMap::new(),
-            top_level_consts: HashMap::new(),
             top_level_immutable_values: HashMap::new(),
             object_inits: HashMap::new(),
             class_inits: HashMap::new(),
@@ -2022,7 +2021,6 @@ fn materialized_mir_mir_materialize_generics_missing_root_reports_template_span(
             lowered_top_level_fun_call_bindings: HashMap::new(),
             ctor_call_sites: HashMap::new(),
             top_level_vars: HashMap::new(),
-            top_level_consts: HashMap::new(),
             top_level_immutable_values: HashMap::new(),
             object_inits: HashMap::new(),
             class_inits: HashMap::new(),
@@ -2118,7 +2116,6 @@ fn mir_materialize_generics_missing_template_reports_call_site() {
             lowered_top_level_fun_call_bindings: HashMap::new(),
             ctor_call_sites: HashMap::new(),
             top_level_vars: HashMap::new(),
-            top_level_consts: HashMap::new(),
             top_level_immutable_values: HashMap::new(),
             object_inits: HashMap::new(),
             class_inits: HashMap::new(),
@@ -2800,7 +2797,6 @@ return 0
     );
     append_unreachable_id_call_to_main(&mut generic_file, builtins);
     let top_level_vars = lowered_hir.top_level_vars.clone();
-    let top_level_consts = lowered_hir.top_level_consts.clone();
     let top_level_immutable_values = lowered_hir.top_level_immutable_values.clone();
     let object_inits = lowered_hir.object_inits.clone();
     let class_inits = lowered_hir.class_inits.clone();
@@ -2830,7 +2826,6 @@ return 0
             lowered_top_level_fun_call_bindings,
             ctor_call_sites,
             top_level_vars,
-            top_level_consts,
             top_level_immutable_values,
             object_inits,
             class_inits,
@@ -3787,7 +3782,6 @@ println(holder.node.tag.score)
         &facts,
     );
     let top_level_vars = lowered_hir.top_level_vars.clone();
-    let top_level_consts = lowered_hir.top_level_consts.clone();
     let top_level_immutable_values = lowered_hir.top_level_immutable_values.clone();
     let object_inits = lowered_hir.object_inits.clone();
     let class_inits = lowered_hir.class_inits.clone();
@@ -3816,7 +3810,6 @@ println(holder.node.tag.score)
             lowered_top_level_fun_call_bindings,
             ctor_call_sites,
             top_level_vars,
-            top_level_consts,
             top_level_immutable_values,
             object_inits,
             class_inits,
@@ -4122,7 +4115,6 @@ return read(ints) + read(texts)
         &facts,
     );
     let top_level_vars = lowered_hir.top_level_vars.clone();
-    let top_level_consts = lowered_hir.top_level_consts.clone();
     let top_level_immutable_values = lowered_hir.top_level_immutable_values.clone();
     let object_inits = lowered_hir.object_inits.clone();
     let class_inits = lowered_hir.class_inits.clone();
@@ -4151,7 +4143,6 @@ return read(ints) + read(texts)
             lowered_top_level_fun_call_bindings,
             ctor_call_sites,
             top_level_vars,
-            top_level_consts,
             top_level_immutable_values,
             object_inits,
             class_inits,

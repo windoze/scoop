@@ -29,23 +29,23 @@ File {
         Metadata(
             Object(
                 ObjectMetadata {
-                    span: 264..346,
+                    span: 258..340,
                     fqn: "mir_lowered.top_level_roots.Registry",
                     name: "Registry",
                     kind: Object,
                     supertypes: [],
                     interfaces: [],
                     initializer_root: "mir_lowered.top_level_roots.Registry",
-                    members: [Field(FieldMetadata { span: 290..295, fqn: "mir_lowered.top_level_roots.Registry.count", name: "count", mutable: false, ty: Int, origin: BodyProperty }), Fun(MemberFunMetadata { span: 315..344, fqn: "mir_lowered.top_level_roots.Registry.touch", name: "touch", type_params: [], params: [], return_ty: Int })],
+                    members: [Field(FieldMetadata { span: 284..289, fqn: "mir_lowered.top_level_roots.Registry.count", name: "count", mutable: false, ty: Int, origin: BodyProperty }), Fun(MemberFunMetadata { span: 309..338, fqn: "mir_lowered.top_level_roots.Registry.touch", name: "touch", type_params: [], params: [], return_ty: Int })],
                 },
             ),
         ),
         InitializerRoot(
             InitializerRoot {
-                span: 118..141,
+                span: 118..135,
                 fqn: "mir_lowered.top_level_roots.Base",
                 source_path: "tests/fixtures/mir_lowered/top_level_roots.scoop",
-                kind: ConstVal,
+                kind: RuntimeImmutableVal,
                 ty: Some(Int),
                 initializer_transport: None,
                 has_initializer: true,
@@ -55,7 +55,7 @@ File {
         ),
         InitializerRoot(
             InitializerRoot {
-                span: 171..205,
+                span: 165..199,
                 fqn: "mir_lowered.top_level_roots.Counter",
                 source_path: "tests/fixtures/mir_lowered/top_level_roots.scoop",
                 kind: RuntimeMutableVar { storage: Global },
@@ -68,7 +68,7 @@ File {
         ),
         InitializerRoot(
             InitializerRoot {
-                span: 264..346,
+                span: 258..340,
                 fqn: "mir_lowered.top_level_roots.Registry",
                 source_path: "tests/fixtures/mir_lowered/top_level_roots.scoop",
                 kind: ObjectSingleton,
@@ -81,7 +81,7 @@ File {
         ),
         InitializerRoot(
             InitializerRoot {
-                span: 142..169,
+                span: 136..163,
                 fqn: "mir_lowered.top_level_roots.Runtime",
                 source_path: "tests/fixtures/mir_lowered/top_level_roots.scoop",
                 kind: RuntimeImmutableVal,
@@ -94,7 +94,7 @@ File {
         ),
         ExternGlobal(
             ExternGlobalRoot {
-                span: 207..262,
+                span: 201..256,
                 fqn: "mir_lowered.top_level_roots.NativeCounter",
                 source_path: "tests/fixtures/mir_lowered/top_level_roots.scoop",
                 ty: Int,
@@ -108,7 +108,7 @@ File {
         ),
         Fun(
             FunDecl {
-                span: 348..361,
+                span: 342..355,
                 fqn: "mir_lowered.top_level_roots.main",
                 name: "main",
                 ty: () -> Unit / Pure,
@@ -119,37 +119,37 @@ File {
                         locals: [],
                         blocks: [
                             BasicBlock {
-                                label: bb#h88dcebade9a8b640a29ce2713be441b5,
+                                label: bb#h47c733429ce77f4f991a59315d0ec4d8,
                                 is_cleanup: false,
                                 stmts: [],
-                                terminator: Terminator { span: 348..361, kind: Return { value: None }, unwind: NoUnwind },
+                                terminator: Terminator { span: 342..355, kind: Return { value: None }, unwind: NoUnwind },
                             },
                         ],
-                        start: bb#h88dcebade9a8b640a29ce2713be441b5,
+                        start: bb#h47c733429ce77f4f991a59315d0ec4d8,
                     }
                 ),
             },
         ),
         Fun(
             FunDecl {
-                span: 315..344,
+                span: 309..338,
                 fqn: "mir_lowered.top_level_roots.Registry.touch",
                 name: "touch",
                 ty: (mir_lowered.top_level_roots.Registry) -> Int / Pure,
-                params: [Param { span: 271..279, name: "this", ty: mir_lowered.top_level_roots.Registry, local: local#h8e4c90ba2c4bbb894ab98b33b68eb4ab }],
+                params: [Param { span: 265..273, name: "this", ty: mir_lowered.top_level_roots.Registry, local: local#heb14311fae90d300b06c0db38743e520 }],
                 return_ty: Int,
                 body: Some(
                     Body {
-                        locals: [LocalDecl { label: local#h8e4c90ba2c4bbb894ab98b33b68eb4ab, span: 271..279, name: Some("this"), ty: mir_lowered.top_level_roots.Registry, source: SourceLocal }, LocalDecl { label: local#hd4c3266359822c8d0fe2bc2f9f0a29da, span: 341..342, name: Some("tmp0"), ty: Int, source: CompilerTemporary }, LocalDecl { label: local#h42cba5229a767300b79d57dae8495e07, span: 332..344, name: Some("tmp1"), ty: Unit, source: CompilerTemporary }],
+                        locals: [LocalDecl { label: local#heb14311fae90d300b06c0db38743e520, span: 265..273, name: Some("this"), ty: mir_lowered.top_level_roots.Registry, source: SourceLocal }, LocalDecl { label: local#h8cfad64a45662ee9f64f25a4c882020e, span: 335..336, name: Some("tmp0"), ty: Int, source: CompilerTemporary }, LocalDecl { label: local#hadea92432670126367a0719278ebace4, span: 326..338, name: Some("tmp1"), ty: Unit, source: CompilerTemporary }],
                         blocks: [
                             BasicBlock {
-                                label: bb#h08acc6d193d4f8793ae857e193fafcd6,
+                                label: bb#h529007d9a41e7f0e516b4524c2b877ef,
                                 is_cleanup: false,
-                                stmts: [Statement { span: 341..342, kind: Assign { target: local#hd4c3266359822c8d0fe2bc2f9f0a29da, value: Use(Const(Int)) } }],
-                                terminator: Terminator { span: 334..342, kind: Return { value: Some(Local(local#hd4c3266359822c8d0fe2bc2f9f0a29da)) }, unwind: NoUnwind },
+                                stmts: [Statement { span: 335..336, kind: Assign { target: local#h8cfad64a45662ee9f64f25a4c882020e, value: Use(Const(Int)) } }],
+                                terminator: Terminator { span: 328..336, kind: Return { value: Some(Local(local#h8cfad64a45662ee9f64f25a4c882020e)) }, unwind: NoUnwind },
                             },
                         ],
-                        start: bb#h08acc6d193d4f8793ae857e193fafcd6,
+                        start: bb#h529007d9a41e7f0e516b4524c2b877ef,
                     }
                 ),
             },

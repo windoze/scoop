@@ -42,9 +42,6 @@ pub enum EffectFactsError {
     Parse(#[from] crate::parser::ParseError),
 
     #[error(transparent)]
-    Comptime(#[from] crate::comptime::ConstEvalError),
-
-    #[error(transparent)]
     TypeEnv(#[from] Box<crate::typecheck::TypeEnvError>),
 
     #[error(transparent)]

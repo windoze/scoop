@@ -1,2 +1,0 @@
-DIRECT = "a\n  b\nc"
-VIA_FUN = "a\n  b\nc"

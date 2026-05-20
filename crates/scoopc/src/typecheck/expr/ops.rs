@@ -9,7 +9,7 @@ use crate::ty::{
 };
 
 use super::call::{
-    CallArgInfo, CallArgKind, GenericArgConstraint, InstantiatedFunSig, check_const_fun_call_gate,
+    CallArgInfo, CallArgKind, GenericArgConstraint, InstantiatedFunSig,
     check_fn_value_to_any_erasure_gate, check_nogc_boxing_gate, check_nogc_call_gate,
     check_unsafe_call_gate, combined_member_instance_type_args, instantiate_fun_sig_for_call,
     map_call_args_to_params_with_defaults, substitute_type_args_in_effect_row, type_param_name,
@@ -475,7 +475,6 @@ pub(super) fn collect_member_method_signatures_from_index(
             decl_span: o.symbol.span,
             decl_file: o.symbol.decl_file.clone(),
             is_extension: false,
-            is_const: o.sig.is_const,
             is_unsafe: o.sig.builtin_flags.is_unsafe,
             is_nogc: o.sig.builtin_flags.is_nogc,
             is_extern: o.sig.builtin_flags.is_extern,
@@ -696,7 +695,6 @@ fn record_scalar_operator_method_binding(
 
         check_unsafe_call_gate(&callee_fqn, &sig, call_site_span, lower)?;
         check_nogc_call_gate(&callee_fqn, &sig, call_site_span, lower)?;
-        check_const_fun_call_gate(&callee_fqn, &sig, call_site_span, lower)?;
 
         let args_match = explicit_args
             .iter()
@@ -874,10 +872,9 @@ pub(super) fn infer_unary_expr_type(
                 });
             };
 
-            // operator method 调用：禁止 unsafe/nogc/const 门禁绕过，沿用普通调用的 gate。
+            // operator method 调用：禁止 unsafe/nogc 门禁绕过，沿用普通调用的 gate。
             check_unsafe_call_gate(&callee_fqn, &sig, op_span, lower)?;
             check_nogc_call_gate(&callee_fqn, &sig, op_span, lower)?;
-            check_const_fun_call_gate(&callee_fqn, &sig, op_span, lower)?;
 
             // required effects：把被调用方法的 effect row 计入当前函数体的 performed effects。
             record_member_method_effects_as_performed(
@@ -915,9 +912,7 @@ pub(super) fn infer_operator_overload_binary_expr_type(
 
     // T0123：String `+` 走内建字符串拼接规则，而不是用户态 operator overloading。
     //
-    // 说明：
-    // - comptime evaluator 已支持 `ConstValue::String + ConstValue::String`；
-    // - 这里补齐前端静态类型规则，避免在 const fun / const val / 普通表达式里被误当成整数加法。
+    // 说明：这里补齐前端静态类型规则，避免在普通表达式里被误当成整数加法。
     if op == ast::BinaryOp::Add && lhs_ty == inputs.builtins.string {
         let rhs_ty = inputs.infer(lower, rhs)?;
         if rhs_ty == inputs.builtins.string {
@@ -1196,10 +1191,9 @@ pub(super) fn infer_operator_overload_binary_expr_type(
 
     let mut matched: Vec<(FunSigOwned, InstantiatedFunSig)> = Vec::new();
     for sig in sigs.iter() {
-        // operator method 调用：禁止 unsafe/nogc/const 门禁绕过，沿用普通调用的 gate。
+        // operator method 调用：禁止 unsafe/nogc 门禁绕过，沿用普通调用的 gate。
         check_unsafe_call_gate(&callee_fqn, sig, binary_expr.span, lower)?;
         check_nogc_call_gate(&callee_fqn, sig, binary_expr.span, lower)?;
-        check_const_fun_call_gate(&callee_fqn, sig, binary_expr.span, lower)?;
 
         let Some(mapping) = map_call_args_to_params_with_defaults(
             &call_args,
@@ -1649,7 +1643,6 @@ fn infer_compare_to_overload_binary_expr_type(
 
         check_unsafe_call_gate(&callee_fqn, sig, binary_expr.span, lower)?;
         check_nogc_call_gate(&callee_fqn, sig, binary_expr.span, lower)?;
-        check_const_fun_call_gate(&callee_fqn, sig, binary_expr.span, lower)?;
 
         let Some(mapping) = map_call_args_to_params_with_defaults(
             &call_args,

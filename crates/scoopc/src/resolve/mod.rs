@@ -408,13 +408,6 @@ fn builtin_fun_flags_from_annotations(
 #[derive(Debug, Clone)]
 pub struct FunSig {
     pub kind: ast::FunDeclKind,
-    /// 是否为 `const fun`（spec §6.2）。
-    ///
-    /// 说明：
-    /// - 该标记用于让后续 typecheck/lowering 在**不依赖 AST** 的情况下判断“跨文件调用点”
-    ///   是否允许出现在 `const fun` 语境中；
-    /// - `const fun` 的更完整静态约束由 typecheck 负责（TODO T1211）。
-    pub is_const: bool,
     pub receiver: Option<ast::TypeRef>,
     pub type_params: Vec<TypeParamSig>,
     pub eff_param: Option<ast::EffectRowParam>,
@@ -1668,7 +1661,6 @@ impl Index {
 
         let sig = FunSig {
             kind: fun.kind,
-            is_const: fun.modifiers.contains(&ast::Modifier::Const),
             receiver: fun.receiver.clone(),
             type_params: fun
                 .type_params

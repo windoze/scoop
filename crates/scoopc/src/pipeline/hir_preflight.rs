@@ -14,11 +14,6 @@ const HIR_COMPLETENESS_FIXTURES: &[HirCompletenessFixture] = &[
         requirements: &[RequiredHirContract::DeclarationGraph],
     },
     HirCompletenessFixture {
-        phase: "comptime",
-        name: "splice_field_access_v0_basic.scoop",
-        requirements: &[RequiredHirContract::DeclarationGraph],
-    },
-    HirCompletenessFixture {
         phase: "hir",
         name: "lowered_call_args.scoop",
         requirements: &[RequiredHirContract::CallSite],

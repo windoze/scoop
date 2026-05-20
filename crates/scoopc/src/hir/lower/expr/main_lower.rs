@@ -721,7 +721,6 @@ impl<'a> HirLowering<'a> {
                 .try_lower_top_level_fun_value_expr(e, expected)
                 .unwrap_or_else(|| {
                     // v0：HIR 暂不承载显式类型实参；先把它视为 callee 的透明包装。
-                    // 反射 intrinsics 的 type args 语义目前由 comptime 解释器消费（T1204）。
                     let inner = self.lower_expr(pkg_prefix, callee);
                     (inner.kind, inner.ty)
                 }),

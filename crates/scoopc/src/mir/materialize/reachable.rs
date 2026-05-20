@@ -351,25 +351,6 @@ impl MirInstanceMaterializer {
         self.scan_reachable_static_init_expr(var.source_path.as_path(), &init, out)
     }
 
-    pub(super) fn scan_reachable_top_level_const(
-        &mut self,
-        fqn: &str,
-        out: &mut Vec<InstanceKey>,
-    ) -> MaterializeResult<()> {
-        if !self.scanned_top_level_consts.insert(fqn.to_string()) {
-            return Ok(());
-        }
-        let Some(konst) = self.top_level_consts.get(fqn).cloned() else {
-            return Ok(());
-        };
-        let Some(init) = konst.init else {
-            return Ok(());
-        };
-        self.reachable_request_stmt_spans
-            .push((konst.source_path.clone(), init.span));
-        self.scan_reachable_static_init_expr(konst.source_path.as_path(), &init, out)
-    }
-
     pub(super) fn scan_reachable_object_init(
         &mut self,
         fqn: &str,
@@ -419,7 +400,6 @@ impl MirInstanceMaterializer {
         if let Some(reachable_fun) = self.resolve_non_generic_fun_body_by_fqn(source_path, fqn) {
             self.scan_reachable_non_generic_fun(&reachable_fun, out)?;
         }
-        self.scan_reachable_top_level_const(fqn, out)?;
         self.scan_reachable_top_level_var(fqn, out)?;
         self.scan_reachable_top_level_immutable_value_inner(fqn, out)?;
         self.scan_reachable_object_init(fqn, out)

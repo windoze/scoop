@@ -1,7 +1,0 @@
-UPPER_A = 'A'
-ESCAPED_NL = '\n'
-CODE_A = 65
-CODE_Z = 90
-EQ_A = true
-ORDER_A_B = true
-ORDER_B_A = true

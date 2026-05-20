@@ -9,7 +9,6 @@
 //! - resolve fixtures（最小名字绑定：import + TypeRef 解析）
 //! - typecheck fixtures（T0403：TypeRef lowering + 泛型 arity 检查）
 //! - infer fixtures（T05：类型推断阶段；当前先复用 typecheck pipeline，逐步打开更多推断能力）
-//! - comptime fixtures：执行 `const val` 的常量折叠（`const fun` 解释器 v0，T1202c）
 //! - build fixtures：调用 `scoop build`（产出 `.ll`/`.o`/`.s` 等单文件，用于排查）
 //! - run-pass fixtures：通过 `scoop run` 真正执行，并做 stdout/stderr golden 比对（需要启用 `scoop` 的 `llvm` feature）
 //!
@@ -22,7 +21,6 @@
 //! - `tests/fixtures/typecheck_multi/<case>/**` → typecheck（多文件编译单元：按目录为单位）
 //! - `tests/fixtures/typecheck_cone/<case>/<cone>/**` → typecheck（多 cone：每个 cone 子目录作为独立可见性边界）
 //! - `tests/fixtures/unsafe_nogc/**` → typecheck（系统编程通道：unsafe/NoGC/extern 的静态门禁）
-//! - `tests/fixtures/comptime/**` → comptime（执行 `const val` 常量折叠并与 `.comptime` golden 比对）
 //! - `tests/fixtures/codegen/**` / `tests/fixtures/run-pass/**` → run-pass
 //! - `tests/fixtures/runtime_gc/**` → run-pass
 //! - `tests/fixtures/run_pass_cone/<case>/**` → run-pass（cone 包：以目录为单位 build + exec）
@@ -677,7 +675,6 @@ fn run_one(
         Some(name) if name == "resolve" => FixturePhase::Resolve,
         Some(name) if name == "typecheck" || name == "unsafe_nogc" => FixturePhase::Typecheck,
         Some(name) if name == "infer" => FixturePhase::Infer,
-        Some(name) if name == "comptime" => FixturePhase::Comptime,
         Some(name) if name == "codegen" || name == "run-pass" || name == "runtime_gc" => {
             FixturePhase::RunPass
         }
@@ -696,7 +693,6 @@ fn run_one(
         FixturePhase::Resolve => resolve_fixture(session, &source),
         FixturePhase::Typecheck => typecheck_fixture(session, &source, &exp),
         FixturePhase::Infer => infer_fixture(session, &source, &exp),
-        FixturePhase::Comptime => comptime_fixture(session, &source, path),
         FixturePhase::RunPass => run_pass::run_fixture(
             rel,
             path,
@@ -739,10 +735,6 @@ fn umb_fix_fixture(
     exp: &FixtureExpectation<'_>,
     run_pass_env: &RunPassEnvOverrides,
 ) -> std::result::Result<(), Box<dyn miette::Diagnostic>> {
-    if umb_fix_requested_phase(source, "comptime") {
-        return comptime_fixture(session, source, path);
-    }
-
     if is_umb_fix_build_fixture(exp) {
         return build_fixture(session, rel, path, opt_level, exp);
     }
@@ -759,20 +751,6 @@ fn umb_fix_fixture(
     }
 
     typecheck_fixture(session, source, exp)
-}
-
-fn umb_fix_requested_phase(source: &scoopc::source::SourceFile, expected: &str) -> bool {
-    for line in source.text().lines() {
-        let trimmed = line.trim_start();
-        if !trimmed.starts_with("//") {
-            break;
-        }
-        let directive = trimmed.trim_start_matches("//").trim();
-        if let Some(phase) = directive.strip_prefix("UMB-FIX-PHASE:") {
-            return phase.trim() == expected;
-        }
-    }
-    false
 }
 
 fn is_umb_fix_build_fixture(exp: &FixtureExpectation<'_>) -> bool {
@@ -805,7 +783,6 @@ enum FixturePhase {
     Resolve,
     Typecheck,
     Infer,
-    Comptime,
     RunPass,
     Hir,
     Mir,
@@ -886,24 +863,6 @@ struct AstGoldenReadFailed {
 #[error("AST snapshot 与 golden 不一致：{path}（fixture: {fixture}）")]
 #[diagnostic(code(scoop::fixtures::ast_golden_mismatch))]
 struct AstGoldenMismatch {
-    path: String,
-    fixture: String,
-}
-
-#[derive(Debug, Error, Diagnostic)]
-#[error("无法读取 comptime golden 文件：{path}（fixture: {fixture}）")]
-#[diagnostic(code(scoop::fixtures::comptime_golden_read_failed))]
-struct ComptimeGoldenReadFailed {
-    path: String,
-    fixture: String,
-    #[source]
-    source: std::io::Error,
-}
-
-#[derive(Debug, Error, Diagnostic)]
-#[error("comptime snapshot 与 golden 不一致：{path}（fixture: {fixture}）")]
-#[diagnostic(code(scoop::fixtures::comptime_golden_mismatch))]
-struct ComptimeGoldenMismatch {
     path: String,
     fixture: String,
 }
@@ -1397,141 +1356,6 @@ fn parse_fixture(
     }
 
     Ok(())
-}
-
-fn comptime_fixture(
-    session: &scoopc::session::Session,
-    source: &scoopc::source::SourceFile,
-    fixture_path: &Path,
-) -> std::result::Result<(), Box<dyn miette::Diagnostic>> {
-    let ast = parse_file_via_ast_stage(session, source).map_err(box_diagnostic)?;
-    let bindings = scoopc::comptime::eval_const_bindings_in_file(session.sysroot(), source, &ast)
-        .map_err(box_diagnostic)?;
-
-    let actual = normalize_newlines(&format_const_bindings_for_fixture(&bindings));
-
-    let golden_path = fixture_path.with_extension("comptime");
-    let expected_raw = std::fs::read_to_string(&golden_path).map_err(|e| {
-        box_diagnostic(ComptimeGoldenReadFailed {
-            path: golden_path.display().to_string(),
-            fixture: fixture_path.display().to_string(),
-            source: e,
-        })
-    })?;
-    let expected = normalize_newlines(&expected_raw);
-
-    if expected != actual {
-        return Err(box_diagnostic(ComptimeGoldenMismatch {
-            path: golden_path.display().to_string(),
-            fixture: fixture_path.display().to_string(),
-        }));
-    }
-
-    Ok(())
-}
-
-fn format_const_bindings_for_fixture(bindings: &[scoopc::comptime::ConstBinding]) -> String {
-    let mut out = String::new();
-    for b in bindings {
-        out.push_str(&b.name);
-        out.push_str(" = ");
-        out.push_str(&format_const_value_for_fixture(&b.value));
-        out.push('\n');
-    }
-    out
-}
-
-fn format_const_value_for_fixture(v: &scoopc::comptime::ConstValue) -> String {
-    use scoopc::comptime::{ConstEnum, ConstStruct, ConstValue};
-
-    match v {
-        ConstValue::Unit => "()".to_string(),
-        ConstValue::Bool(b) => b.to_string(),
-        ConstValue::Char(ch) => format!("{ch:?}"),
-        ConstValue::Int(i) => {
-            if i.ty.signed {
-                i.as_i128().to_string()
-            } else {
-                i.as_u128().to_string()
-            }
-        }
-        ConstValue::Float(f) => format_const_float_for_fixture(*f),
-        ConstValue::String(s) => format!("{s:?}"),
-        ConstValue::Tuple(items) => {
-            let inner = items
-                .iter()
-                .map(format_const_value_for_fixture)
-                .collect::<Vec<_>>()
-                .join(", ");
-            format!("({inner})")
-        }
-        ConstValue::Struct(ConstStruct { ty, fields }) => {
-            if fields.is_empty() {
-                return format!("{ty} {{}}");
-            }
-            let inner = fields
-                .iter()
-                .map(|(k, v)| format!("{k}: {}", format_const_value_for_fixture(v)))
-                .collect::<Vec<_>>()
-                .join(", ");
-            format!("{ty} {{ {inner} }}")
-        }
-        ConstValue::Enum(ConstEnum {
-            ty,
-            variant,
-            payload,
-        }) => {
-            let mut out = String::new();
-            if let Some(ty) = ty {
-                out.push_str(ty);
-                out.push('.');
-            }
-            out.push_str(variant);
-            if !payload.is_empty() {
-                let inner = payload
-                    .iter()
-                    .map(format_const_value_for_fixture)
-                    .collect::<Vec<_>>()
-                    .join(", ");
-                out.push('(');
-                out.push_str(&inner);
-                out.push(')');
-            }
-            out
-        }
-    }
-}
-
-fn format_const_float_for_fixture(f: scoopc::comptime::ConstFloat) -> String {
-    match f {
-        scoopc::comptime::ConstFloat::Float64(bits) => {
-            normalize_float_text(f64::from_bits(bits).to_string(), f64::from_bits(bits))
-        }
-        scoopc::comptime::ConstFloat::Float32(bits) => {
-            let value = f32::from_bits(bits);
-            format!(
-                "{}f32",
-                normalize_float_text(value.to_string(), f64::from(value))
-            )
-        }
-    }
-}
-
-fn normalize_float_text(mut text: String, value: f64) -> String {
-    if value.is_nan() {
-        return "NaN".to_string();
-    }
-    if value.is_infinite() {
-        return if value.is_sign_negative() {
-            "-Infinity".to_string()
-        } else {
-            "Infinity".to_string()
-        };
-    }
-    if !text.contains('.') && !text.contains('e') && !text.contains('E') {
-        text.push_str(".0");
-    }
-    text
 }
 
 fn hir_fixture(
@@ -3290,7 +3114,6 @@ fn is_phase_dir_name(name: &std::ffi::OsStr) -> bool {
                 | "typecheck"
                 | "unsafe_nogc"
                 | "infer"
-                | "comptime"
                 | "codegen"
                 | "run-pass"
                 | "runtime_gc"

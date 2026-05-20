@@ -55,19 +55,6 @@ impl<'a> HirCompletenessVerifier<'a> {
             }
         }
 
-        let mut consts = self
-            .lowered_hir
-            .top_level_consts
-            .values()
-            .collect::<Vec<_>>();
-        consts.sort_by(|lhs, rhs| lhs.fqn.cmp(&rhs.fqn));
-        for konst in consts {
-            let owner = format!("top-level const {}", konst.fqn);
-            if let Some(init) = &konst.init {
-                self.verify_static_init_expr(&konst.source_path, init, &owner)?;
-            }
-        }
-
         let mut values = self
             .lowered_hir
             .top_level_immutable_values

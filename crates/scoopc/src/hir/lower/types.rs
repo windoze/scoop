@@ -27,7 +27,7 @@ use super::super::{
     CtorCallSiteIndex, DirectSupertypesIndex, EnumLayoutIndex, ExternFunIndex, ExternGlobalIndex,
     File, FunDecl, NativeCallableFunIndex, NominalKindIndex, NominalVarianceIndex,
     NonPureContinuationResumeCallSiteIndex, ObjectInitIndex, StructLayoutIndex, SymbolId,
-    TopLevelConstIndex, TopLevelFunCallSiteIndex, TopLevelImmutableValueIndex, TopLevelVarIndex,
+    TopLevelFunCallSiteIndex, TopLevelImmutableValueIndex, TopLevelVarIndex,
     WhenPatBindingTypeIndex, WithUpdateSiteIndex,
 };
 
@@ -215,10 +215,6 @@ pub enum HirLowerError {
 
     #[error(transparent)]
     #[diagnostic(transparent)]
-    Comptime(#[from] crate::comptime::ConstEvalError),
-
-    #[error(transparent)]
-    #[diagnostic(transparent)]
     Resolve(#[from] ResolveError),
 
     #[error(transparent)]
@@ -358,8 +354,6 @@ pub struct LoweredHir {
     pub extern_libs: Vec<String>,
     /// 顶层可变全局变量信息（`@ThreadLocal/@Global`），供后端生成静态存储（TODO T1023）。
     pub top_level_vars: TopLevelVarIndex,
-    /// 顶层 `const val` 信息；供后端在表达式位置内联 initializer。
-    pub top_level_consts: TopLevelConstIndex,
     /// 普通顶层 immutable value 信息；供后端生成 once-init + 稳定读取主线。
     pub top_level_immutable_values: TopLevelImmutableValueIndex,
     /// typecheck 已确认的 direct-call target 绑定（`source_path + expr span`）。
@@ -499,7 +493,6 @@ impl LoweredHir {
             extern_globals: self.extern_globals.clone(),
             extern_libs: self.extern_libs.clone(),
             top_level_vars: self.top_level_vars.clone(),
-            top_level_consts: self.top_level_consts.clone(),
             top_level_immutable_values: self.top_level_immutable_values.clone(),
             top_level_fun_call_sites: self.top_level_fun_call_sites.clone(),
             call_arg_bindings: self.call_arg_bindings.clone(),

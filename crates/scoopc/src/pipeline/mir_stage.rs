@@ -396,7 +396,7 @@ import scoop.core.*
 typealias Alias = Int
 struct Point(val x: Int)
 
-const val Base: Int = 1
+val Base: Int = 1
 val Runtime: Int = Base + 1
 
 @Global

@@ -1178,7 +1178,6 @@ pub(super) fn try_infer_where_bound_method_call(
 
             check_unsafe_call_gate(&method_fqn, cand, call_expr.span, lower)?;
             check_nogc_call_gate(&method_fqn, cand, call_expr.span, lower)?;
-            check_const_fun_call_gate(&method_fqn, cand, call_expr.span, lower)?;
             emit_deprecated_call_warning(&method_fqn, cand, call_expr.span, lower);
 
             let type_param_bindings = type_param_bindings_from_sig(&cand.type_params, lower);

@@ -1498,7 +1498,6 @@ pub struct InitializerRoot {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum InitializerRootKind {
-    ConstVal,
     RuntimeImmutableVal,
     RuntimeMutableVar {
         storage: crate::hir::TopLevelVarStorage,

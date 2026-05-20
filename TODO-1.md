@@ -189,7 +189,7 @@
   - 验证命令：`cargo fmt`；`cargo test -p scoopc --no-default-features parser`；`cargo test -p scoopc --no-default-features hir`；`cargo test -p scoopc --no-default-features mir`；`cargo test -p scoopc --no-default-features comptime`；`cargo clippy --all-targets -- -D warnings`；`cargo run -p scoop -- test --fixtures tests/fixtures/parse/comptime_syntax_basic.scoop`；`cargo run -p scoop -- test --fixtures tests/fixtures/comptime/literal_const_comptime_matrix.scoop`；`cargo run -p scoop -- test --fixtures tests/fixtures/comptime/float_literal_basic.scoop`；搜索 `StmtKind::Comptime|ComptimeFor|RuntimeComptimePlan|parse_comptime_stmt` 于 `crates/scoopc/src` 无命中，搜索 `comptime for|comptime if|RuntimeComptimePlan|ComptimeFor|StmtKind::Comptime` 于 `crates/scoopc/src` 无命中。
   - 残余风险：Scoop `const` surface、const evaluator、reflection/comptime 命名和相关 fixtures 仍按 `P0-T03`/`P0-T04` 处理；当前 review 未提前删除这些后续任务范围。
 
-## [TODO] P0-T03：删除 Scoop `const` surface、const evaluator 与跨阶段 const hooks
+## [DONE] P0-T03：删除 Scoop `const` surface、const evaluator 与跨阶段 const hooks
 
 - 参考：
   - `PLAN.md` §1.6、§4/P0
@@ -237,7 +237,13 @@
   - HIR/MIR/codegen 不再通过旧 const-eval 结果获取语义。
 - 依赖：P0-T02R
 - 完成记录：
-  - 待填写。
+  - 改动范围：删除了 Scoop `const` modifier 的 lexer/parser/AST surface，删除 resolver/typecheck 中的 `is_const` 签名位、const-only context、const fun call/boxing/ctor/lambda gates，以及 HIR/MIR/LLVM 中的 top-level `const val` side table、initializer root kind、reachability/codegen 内联路径。
+  - Evaluator：删除 `crates/scoopc/src/comptime/` 模块和 `pub mod comptime` 导出，移除了 session/HIR/MIR/effect-facts/RTTI 中 `ConstEvalError` 传播包装；`scoop test` 不再提供 `comptime` fixture phase。
+  - Sysroot/fixtures：主 sysroot 与 sysroot overlays 中 reflection/platform intrinsics 改为普通运行期 `@Intrinsic fun` surface，`ARRAY_ELEM_KIND_*` 改为普通顶层 `val`；删除旧 `tests/fixtures/comptime/**`、B-24 comptime/const UMB fixtures、`const_fun_*` typecheck/HIR fixtures、top-level const run-pass/cone fixtures，并把仍有价值的 reflection/top-level-init fixtures改写为普通 `val`/runtime intrinsic 形状。
+  - Audit/docs 同步：更新 UMB fixture index、spec coverage matrix 和 active audit bucket列表，使删除的 B-24/comptime fixtures 不再作为活跃 coverage；`PLAN.md` 未改，因为 P0 阶段目标和依赖未变化。
+  - 保留命中说明：Rust 语言自身的 `const` / `const fn`、MIR `Operand::Const` / `ConstValue` 字面量表示、LLVM constant initializer/helper、annotation retention policy 中的 `comptime` 字符串，以及 P0-T01/P0-T02 留下的普通 parse-fail `comptime` token/fixture不属于 Scoop `const fun` / `const val` surface 或 const evaluator。
+  - 验证命令：`cargo fmt`；`cargo check -p scoopc --no-default-features`；`cargo check -p scoop --no-default-features`；`cargo test -p scoopc --no-default-features parser`；`cargo test -p scoopc --no-default-features resolve`；`cargo test -p scoopc --no-default-features typecheck`；`cargo test -p scoopc --no-default-features hir`；`cargo test -p scoopc --no-default-features mir`；`cargo test -p scoopc --no-default-features audit`；`cargo test -p scoop --no-default-features fixtures`；`cargo run -p scoop --no-default-features -- test --fixtures tests/fixtures/parse/comptime_syntax_basic.scoop`；`cargo run -p scoop --no-default-features -- test --fixtures tests/fixtures/typecheck/reflection_runtime_fallback_v0.scoop`；`cargo run -p scoop --no-default-features -- test --fixtures tests/fixtures/hir/lowered_top_level_init.scoop`；`SCOOP_FIXTURE_REPRO_DIR=1 cargo run -p scoop --no-default-features -- test --fixtures tests/fixtures/mir_lowered/top_level_roots.scoop`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/reflection_kind_desc_basic.scoop`；`cargo run -p scoop -- test --fixtures tests/fixtures/build/intrinsic_sysroot_overlay_scalar_tostring_basic.scoop`；`cargo run -p scoop -- test --fixtures tests/fixtures/build/sysroot_overlay_core_array_interface_bridge.scoop`；`cargo clippy --all-targets -- -D warnings`；搜索 `pub mod comptime|ConstEval|Modifier::Const|Keyword::Const|\bis_const\b|const fun|const val` 于 `crates/`、`sysroot/`、`tests/fixtures/` 无活跃旧 surface 命中。
+  - 残余风险：仓库文档、TODO 和归档设计中仍有历史 `const`/`comptime` 文字；P0-T04 负责全仓文档清场。`Keyword::Comptime`、annotation retention 的 `ComptimeOnly` 命名和 package/statement-level `comptime` parse-fail 回归仍按 P0-T04/P0-T04R 统一复查。
 
 ## [TODO] P0-T03R：Review `const` surface 与 evaluator 删除结果
 

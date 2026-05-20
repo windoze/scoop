@@ -66,7 +66,6 @@ pub(super) struct MaterializerConstructionInputs<'a> {
         HashMap<SourceSiteKey, ast::TopLevelFunCallBinding>,
     pub(super) ctor_call_sites: crate::hir::CtorCallSiteIndex,
     pub(super) top_level_vars: crate::hir::TopLevelVarIndex,
-    pub(super) top_level_consts: crate::hir::TopLevelConstIndex,
     pub(super) top_level_immutable_values: crate::hir::TopLevelImmutableValueIndex,
     pub(super) object_inits: crate::hir::ObjectInitIndex,
     pub(super) class_inits: crate::hir::ClassInitIndex,

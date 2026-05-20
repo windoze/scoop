@@ -82,7 +82,6 @@ impl<'a> HirLowering<'a> {
             assign_place_contracts: HashMap::new(),
             top_level_vars: HashMap::new(),
             extern_globals: HashMap::new(),
-            top_level_consts: HashMap::new(),
             top_level_immutable_values: HashMap::new(),
             when_pat_binding_tys: HashMap::new(),
             symbols: SymbolInterner::default(),
@@ -588,7 +587,6 @@ impl<'a> HirLowering<'a> {
             });
         }
 
-        let is_const_fun = fun.modifiers.contains(&ast::Modifier::Const);
         let return_ty = fun
             .return_ty
             .as_ref()
@@ -624,7 +622,6 @@ impl<'a> HirLowering<'a> {
             fqn,
             name,
             source_path: self.source.path().to_path_buf(),
-            is_const: is_const_fun,
             ty,
             params,
             return_ty,
@@ -715,7 +712,6 @@ impl<'a> HirLowering<'a> {
             fqn,
             name,
             source_path: self.source.path().to_path_buf(),
-            is_const: false,
             ty,
             params,
             return_ty,
@@ -775,7 +771,6 @@ impl<'a> HirLowering<'a> {
             });
         }
 
-        let is_const_fun = fun.modifiers.contains(&ast::Modifier::Const);
         let return_ty = fun
             .return_ty
             .as_ref()
@@ -811,7 +806,6 @@ impl<'a> HirLowering<'a> {
             fqn,
             name,
             source_path: self.source.path().to_path_buf(),
-            is_const: is_const_fun,
             ty,
             params,
             return_ty,
@@ -900,7 +894,6 @@ impl<'a> HirLowering<'a> {
             fqn,
             name,
             source_path: self.source.path().to_path_buf(),
-            is_const: false,
             ty,
             params,
             return_ty,
@@ -1008,7 +1001,6 @@ impl<'a> HirLowering<'a> {
             fqn,
             name,
             source_path: self.source.path().to_path_buf(),
-            is_const: false,
             ty,
             params,
             return_ty,
@@ -1078,7 +1070,6 @@ impl<'a> HirLowering<'a> {
             });
         }
 
-        let is_const_fun = fun.modifiers.contains(&ast::Modifier::Const);
         let return_ty = fun
             .return_ty
             .as_ref()
@@ -1108,7 +1099,6 @@ impl<'a> HirLowering<'a> {
             fqn,
             name,
             source_path: self.source.path().to_path_buf(),
-            is_const: is_const_fun,
             ty,
             params,
             return_ty,
@@ -1171,7 +1161,6 @@ impl<'a> HirLowering<'a> {
             });
         }
 
-        let is_const_fun = fun.modifiers.contains(&ast::Modifier::Const);
         let return_ty = fun
             .return_ty
             .as_ref()
@@ -1205,7 +1194,6 @@ impl<'a> HirLowering<'a> {
             fqn,
             name,
             source_path: self.source.path().to_path_buf(),
-            is_const: is_const_fun,
             ty,
             params,
             return_ty,
@@ -1281,7 +1269,6 @@ impl<'a> HirLowering<'a> {
             fqn,
             name,
             source_path: self.source.path().to_path_buf(),
-            is_const: false,
             ty,
             params,
             return_ty,
@@ -1599,17 +1586,6 @@ impl<'a> HirLowering<'a> {
                             .unwrap_or(TopLevelVarStorage::Global),
                         initializer_absent: v.init.is_none(),
                         unsafe_required: true,
-                    },
-                );
-            } else if v.modifiers.contains(&ast::Modifier::Const) && v.kind == ast::ValKind::Val {
-                self.top_level_consts.insert(
-                    fqn.clone(),
-                    crate::hir::TopLevelConst {
-                        fqn: fqn.clone(),
-                        source_path: self.source.path().to_path_buf(),
-                        span: v.span,
-                        ty,
-                        init: init.clone(),
                     },
                 );
             } else if v.kind == ast::ValKind::Val {

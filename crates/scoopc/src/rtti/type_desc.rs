@@ -189,10 +189,6 @@ pub enum TypeDescError {
 
     #[error(transparent)]
     #[diagnostic(transparent)]
-    Comptime(#[from] crate::comptime::ConstEvalError),
-
-    #[error(transparent)]
-    #[diagnostic(transparent)]
     Resolve(#[from] ResolveError),
 
     #[error(transparent)]

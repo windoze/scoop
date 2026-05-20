@@ -1078,7 +1078,6 @@ pub(super) fn infer_member_call_expr_type(
 
             check_unsafe_call_gate(fqn, chosen.sig, call_expr.span, lower)?;
             check_nogc_call_gate(fqn, chosen.sig, call_expr.span, lower)?;
-            check_const_fun_call_gate(fqn, chosen.sig, call_expr.span, lower)?;
             emit_deprecated_call_warning(fqn, chosen.sig, call_expr.span, lower);
             let chosen_call_args = if chosen.used_unit_sugar {
                 let sugar_call_args = sugar_call_args
@@ -1519,7 +1518,6 @@ pub(super) fn infer_member_call_expr_type(
     if ext_candidates.len() == 1 {
         check_unsafe_call_gate(&callee_fqn, sig, call_expr.span, lower)?;
         check_nogc_call_gate(&callee_fqn, sig, call_expr.span, lower)?;
-        check_const_fun_call_gate(&callee_fqn, sig, call_expr.span, lower)?;
         emit_deprecated_call_warning(&callee_fqn, sig, call_expr.span, lower);
         let expected_args = sig.params.len().saturating_sub(1);
 
@@ -2573,7 +2571,6 @@ pub(super) fn infer_member_call_expr_type(
 
     check_unsafe_call_gate(&callee_fqn, chosen.sig, call_expr.span, lower)?;
     check_nogc_call_gate(&callee_fqn, chosen.sig, call_expr.span, lower)?;
-    check_const_fun_call_gate(&callee_fqn, chosen.sig, call_expr.span, lower)?;
     emit_deprecated_call_warning(&callee_fqn, chosen.sig, call_expr.span, lower);
 
     // `@NoGC`：已知分配点（boxing）门禁（receiver + 显式实参）。

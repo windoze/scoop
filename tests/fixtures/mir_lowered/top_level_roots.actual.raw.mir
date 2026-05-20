@@ -86,7 +86,7 @@ File {
         Metadata(
             Object(
                 ObjectMetadata {
-                    span: 264..346,
+                    span: 258..340,
                     fqn: "mir_lowered.top_level_roots.Registry",
                     name: "Registry",
                     kind: Object,
@@ -96,7 +96,7 @@ File {
                     members: [
                         Field(
                             FieldMetadata {
-                                span: 290..295,
+                                span: 284..289,
                                 fqn: "mir_lowered.top_level_roots.Registry.count",
                                 name: "count",
                                 mutable: false,
@@ -108,7 +108,7 @@ File {
                         ),
                         Fun(
                             MemberFunMetadata {
-                                span: 315..344,
+                                span: 309..338,
                                 fqn: "mir_lowered.top_level_roots.Registry.touch",
                                 name: "touch",
                                 type_params: [],
@@ -124,10 +124,10 @@ File {
         ),
         InitializerRoot(
             InitializerRoot {
-                span: 118..141,
+                span: 118..135,
                 fqn: "mir_lowered.top_level_roots.Base",
                 source_path: "/Volumes/Data/home/chenxu/repos/scoop/tests/fixtures/mir_lowered/top_level_roots.scoop",
-                kind: ConstVal,
+                kind: RuntimeImmutableVal,
                 ty: Some(
                     TypeId(
                         5,
@@ -143,7 +143,7 @@ File {
         ),
         InitializerRoot(
             InitializerRoot {
-                span: 171..205,
+                span: 165..199,
                 fqn: "mir_lowered.top_level_roots.Counter",
                 source_path: "/Volumes/Data/home/chenxu/repos/scoop/tests/fixtures/mir_lowered/top_level_roots.scoop",
                 kind: RuntimeMutableVar {
@@ -169,7 +169,7 @@ File {
         ),
         InitializerRoot(
             InitializerRoot {
-                span: 264..346,
+                span: 258..340,
                 fqn: "mir_lowered.top_level_roots.Registry",
                 source_path: "/Volumes/Data/home/chenxu/repos/scoop/tests/fixtures/mir_lowered/top_level_roots.scoop",
                 kind: ObjectSingleton,
@@ -189,7 +189,7 @@ File {
         ),
         InitializerRoot(
             InitializerRoot {
-                span: 142..169,
+                span: 136..163,
                 fqn: "mir_lowered.top_level_roots.Runtime",
                 source_path: "/Volumes/Data/home/chenxu/repos/scoop/tests/fixtures/mir_lowered/top_level_roots.scoop",
                 kind: RuntimeImmutableVal,
@@ -213,7 +213,7 @@ File {
         ),
         ExternGlobal(
             ExternGlobalRoot {
-                span: 207..262,
+                span: 201..256,
                 fqn: "mir_lowered.top_level_roots.NativeCounter",
                 source_path: "/Volumes/Data/home/chenxu/repos/scoop/tests/fixtures/mir_lowered/top_level_roots.scoop",
                 ty: TypeId(
@@ -229,7 +229,7 @@ File {
         ),
         Fun(
             FunDecl {
-                span: 348..361,
+                span: 342..355,
                 fqn: "mir_lowered.top_level_roots.main",
                 name: "main",
                 ty: TypeId(
@@ -247,7 +247,7 @@ File {
                                 is_cleanup: false,
                                 stmts: [],
                                 terminator: Terminator {
-                                    span: 348..361,
+                                    span: 342..355,
                                     kind: Return {
                                         value: None,
                                     },
@@ -262,7 +262,7 @@ File {
         ),
         Fun(
             FunDecl {
-                span: 315..344,
+                span: 309..338,
                 fqn: "mir_lowered.top_level_roots.Registry.touch",
                 name: "touch",
                 ty: TypeId(
@@ -270,7 +270,7 @@ File {
                 ),
                 params: [
                     Param {
-                        span: 271..279,
+                        span: 265..273,
                         name: "this",
                         ty: TypeId(
                             11,
@@ -285,7 +285,7 @@ File {
                     Body {
                         locals: [
                             LocalDecl {
-                                span: 271..279,
+                                span: 265..273,
                                 name: Some(
                                     "this",
                                 ),
@@ -295,7 +295,7 @@ File {
                                 source: SourceLocal,
                             },
                             LocalDecl {
-                                span: 341..342,
+                                span: 335..336,
                                 name: Some(
                                     "tmp0",
                                 ),
@@ -305,7 +305,7 @@ File {
                                 source: CompilerTemporary,
                             },
                             LocalDecl {
-                                span: 332..344,
+                                span: 326..338,
                                 name: Some(
                                     "tmp1",
                                 ),
@@ -320,7 +320,7 @@ File {
                                 is_cleanup: false,
                                 stmts: [
                                     Statement {
-                                        span: 341..342,
+                                        span: 335..336,
                                         kind: Assign {
                                             target: l1,
                                             value: Use(
@@ -332,7 +332,7 @@ File {
                                     },
                                 ],
                                 terminator: Terminator {
-                                    span: 334..342,
+                                    span: 328..336,
                                     kind: Return {
                                         value: Some(
                                             Local(

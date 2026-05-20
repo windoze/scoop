@@ -1,4 +1,4 @@
-//! Call-site gate checks: unsafe, var-param lvalue, nogc, const-fun, deprecated, fn-value-to-Any erasure.
+//! Call-site gate checks: unsafe, var-param lvalue, nogc, deprecated, fn-value-to-Any erasure.
 
 #![allow(dead_code)]
 
@@ -239,50 +239,6 @@ pub(in crate::typecheck::expr) fn check_nogc_call_gate(
     })
 }
 
-pub(in crate::typecheck::expr) fn check_const_fun_call_gate(
-    callee_fqn: &str,
-    sig: &FunSigOwned,
-    call_span: Span,
-    lower: &TypeLowering<'_>,
-) -> Result<(), ExprTypeError> {
-    if !lower.in_const_context() {
-        return Ok(());
-    }
-
-    // spec §6.2：`const fun` 允许调用：
-    // - 其它 `const fun`
-    // - 编译器 intrinsics（即便 sysroot 声明未显式标记为 const）
-    //
-    // 另外，部分 sysroot API 虽然在源代码上是普通函数声明，
-    // 但 const/comptime 解释器会直接以内建逻辑执行，不会真的进入其函数体。
-    // 这些调用点在前端 const gate 上也必须视为“编译器 intrinsic”同类目标，
-    // 否则 compilation-unit 级 typecheck 会先把它们误拒绝。
-    if sig.is_const || sig.is_intrinsic || is_const_eval_builtin_fun(callee_fqn) {
-        return Ok(());
-    }
-
-    Err(ExprTypeError::ConstFunCallForbidden {
-        callee: callee_fqn.to_string(),
-        span: call_span.into(),
-    })
-}
-
-pub(super) fn is_const_eval_builtin_fun(callee_fqn: &str) -> bool {
-    matches!(
-        callee_fqn,
-        "scoop.lang.string.substring"
-            | "scoop.core.String.trimIndent"
-            | "scoop.lang.string.indexOf"
-            | "scoop.lang.string.contains"
-            | "scoop.lang.string.startsWith"
-            | "scoop.lang.string.endsWith"
-            | "scoop.lang.string.split"
-            | "scoop.lang.string.trimStart"
-            | "scoop.lang.string.trimEnd"
-            | "scoop.lang.string.trim"
-    )
-}
-
 pub(super) fn emit_deprecated_call_warning(
     callee_fqn: &str,
     sig: &FunSigOwned,
@@ -327,8 +283,7 @@ pub(in crate::typecheck::expr) fn check_nogc_boxing_gate(
     lower: &TypeLowering<'_>,
     builtins: BuiltinTypes,
 ) -> Result<(), ExprTypeError> {
-    let forbid_alloc = lower.in_nogc_context() || lower.in_const_context();
-    if !forbid_alloc {
+    if !lower.in_nogc_context() {
         return Ok(());
     }
 
@@ -352,15 +307,7 @@ pub(in crate::typecheck::expr) fn check_nogc_boxing_gate(
         return Ok(());
     }
 
-    if lower.in_nogc_context() {
-        return Err(ExprTypeError::NoGcBoxingForbidden {
-            from: lower.fmt_type(found),
-            to: lower.fmt_type(expected),
-            span: at.into(),
-        });
-    }
-
-    Err(ExprTypeError::ConstFunBoxingForbidden {
+    Err(ExprTypeError::NoGcBoxingForbidden {
         from: lower.fmt_type(found),
         to: lower.fmt_type(expected),
         span: at.into(),

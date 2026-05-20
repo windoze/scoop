@@ -297,8 +297,6 @@ pub struct FunDecl {
     pub name: String,
     /// 声明所在源文件路径；供多文件 codegen 在需要回查源码文本时确定所属文件。
     pub source_path: PathBuf,
-    /// 是否为 `const fun`（spec §6.2）。
-    pub is_const: bool,
     /// 函数本身的类型（函数类型）。
     pub ty: TypeId,
     pub params: Vec<Param>,
@@ -308,17 +306,10 @@ pub struct FunDecl {
 
 impl fmt::Debug for FunDecl {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        // 说明：
-        // - 该 Debug 输出用于 `scoop dump-hir` 与 `tests/fixtures/hir/*.hir` golden 回归；
-        // - 为保持现有输出稳定，`is_const=false` 时不打印该字段；
-        // - 当 `is_const=true` 时才显式输出，便于后续 comptime/解释器阶段接入。
         let mut s = f.debug_struct("FunDecl");
         s.field("span", &self.span);
         s.field("fqn", &self.fqn);
         s.field("name", &self.name);
-        if self.is_const {
-            s.field("is_const", &true);
-        }
         s.field("ty", &self.ty);
         s.field("params", &self.params);
         s.field("return_ty", &self.return_ty);
@@ -1241,28 +1232,10 @@ pub enum TopLevelVarStorage {
 /// `var FQN -> TopLevelVar` 的索引（由 HIR lowering 构建，供后端查询）。
 pub type TopLevelVarIndex = HashMap<String, TopLevelVar>;
 
-/// 顶层 `const val` 的最小后端视图。
-///
-/// 说明：
-/// - 当前只为 LLVM codegen 提供“按声明类型内联 initializer”所需的信息；
-/// - 保持独立 side table，避免把 `source_path` / `is_const` 等后端细节塞回通用 `ValDecl`。
-#[derive(Debug, Clone)]
-pub struct TopLevelConst {
-    pub fqn: String,
-    /// 声明所在源文件路径；供多文件 codegen 在回查字面量原文时切换 source context。
-    pub source_path: PathBuf,
-    pub span: Span,
-    pub ty: TypeId,
-    pub init: Option<Expr>,
-}
-
-/// `const val FQN -> TopLevelConst` 的索引（由 HIR lowering 构建，供后端查询）。
-pub type TopLevelConstIndex = HashMap<String, TopLevelConst>;
-
 /// 普通顶层 immutable value（非 `const` 的 `val`）的最小后端视图。
 ///
 /// 说明：
-/// - 与 `TopLevelConst` 不同，这类绑定需要运行期“一次初始化 + 后续稳定读取”语义；
+/// - 这类绑定需要运行期“一次初始化 + 后续稳定读取”语义；
 /// - 保持独立 side table，避免把 once-init / backing global 等后端细节塞回通用 `ValDecl`；
 /// - 后续顶层 pattern binding 可复用同一表示，为每个 binder 建立一条记录。
 #[derive(Debug, Clone)]

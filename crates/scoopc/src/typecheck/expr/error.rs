@@ -451,54 +451,6 @@ pub enum ExprTypeError {
         span: miette::SourceSpan,
     },
 
-    #[error("const fun 只能调用 const fun/编译器 intrinsic：{callee}")]
-    #[diagnostic(code(scoop::typecheck::const_fun_call_forbidden))]
-    ConstFunCallForbidden {
-        callee: String,
-        #[label("这里")]
-        span: miette::SourceSpan,
-    },
-
-    #[error("const fun 中不允许使用闭包/lambda")]
-    #[diagnostic(code(scoop::typecheck::const_fun_lambda_not_allowed))]
-    ConstFunLambdaNotAllowed {
-        #[label("这里")]
-        span: miette::SourceSpan,
-    },
-
-    #[error("const fun 中不允许调用函数值/闭包：{callee}")]
-    #[diagnostic(code(scoop::typecheck::const_fun_function_value_call_not_allowed))]
-    ConstFunFunctionValueCallNotAllowed {
-        callee: String,
-        #[label("这里")]
-        span: miette::SourceSpan,
-    },
-
-    #[error("const fun 中不允许调用函数指针：{callee}")]
-    #[diagnostic(code(scoop::typecheck::const_fun_funptr_call_not_allowed))]
-    ConstFunFunPtrCallNotAllowed {
-        callee: String,
-        #[label("这里")]
-        span: miette::SourceSpan,
-    },
-
-    #[error("const fun 中禁止装箱（可能堆分配）：{from} -> {to}")]
-    #[diagnostic(code(scoop::typecheck::const_fun_boxing_forbidden))]
-    ConstFunBoxingForbidden {
-        from: String,
-        to: String,
-        #[label("这里")]
-        span: miette::SourceSpan,
-    },
-
-    #[error("const fun 中不允许构造引用类型实例（class）：{ty}")]
-    #[diagnostic(code(scoop::typecheck::const_fun_ref_type_construction_not_allowed))]
-    ConstFunRefTypeConstructionNotAllowed {
-        ty: String,
-        #[label("这里")]
-        span: miette::SourceSpan,
-    },
-
     #[error("GC.pin 的参数必须是可追踪的引用类型（heap/box 对象），当前得到：{found}")]
     #[diagnostic(code(scoop::typecheck::gc_pin_requires_ref))]
     GcPinRequiresRefType {

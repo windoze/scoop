@@ -1,20 +1,20 @@
 // EXPECT: ok
-// SPEC: docs/spec/language_spec-part1.md#4-顶层声明;docs/spec/language_spec-part1.md#42-顶层不可变值;docs/spec/language_spec-part1.md#43-const-val
+// SPEC: docs/spec/language_spec-part1.md#4-顶层声明;docs/spec/language_spec-part1.md#42-顶层不可变值
 // COVERS: NONE
 // BUCKETS: B-19, B-33
 // REASON: P7-B2.7 retired B-33 cross-coverage; this fixture remains active top-level declaration smoke coverage.
-// SOURCE-FIXTURE: tests/fixtures/run-pass/top_level_const_val_general_expr_basic.scoop
+// SOURCE-FIXTURE: tests/fixtures/run-pass/top_level_val_runtime_read_basic.scoop
 
 import scoop.core.*
 
-const fun triple(x: Int): Int {
+fun triple(x: Int): Int {
     return x + x + x
 }
 
-const val BASE: Int = 1 + 2
-const val DOUBLE: Int = BASE + BASE
-const val VIA_FUN: Int = triple(BASE)
-const val LABEL: String = "top".concat("-level const")
+val BASE: Int = 1 + 2
+val DOUBLE: Int = BASE + BASE
+val VIA_FUN: Int = triple(BASE)
+val LABEL: String = "top".concat("-level val")
 
 fun main(): Int {
     println(BASE)

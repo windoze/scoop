@@ -378,7 +378,6 @@ pub(super) fn collect_top_level_fun_signatures(
             // spec §7.4：扩展函数编译为普通静态函数：receiver 作为第一个参数。
             // typecheck 阶段也沿用这一“降糖”形式，便于统一调用检查逻辑。
             let is_extension = fun.receiver.is_some();
-            let is_const = fun.modifiers.contains(&ast::Modifier::Const);
             if let Some(receiver) = &fun.receiver {
                 // receiver 本身没有名字；这里用占位符保持与 `params` 对齐。
                 param_names.push("<receiver>".to_string());
@@ -458,7 +457,6 @@ pub(super) fn collect_top_level_fun_signatures(
                 decl_span,
                 decl_file: source.path().to_path_buf(),
                 is_extension,
-                is_const,
                 is_unsafe: builtin_flags.is_unsafe,
                 is_nogc: builtin_flags.is_nogc,
                 is_extern: builtin_flags.is_extern,
@@ -518,7 +516,6 @@ pub(super) fn collect_top_level_fun_signatures(
                 decl_span,
                 decl_file: source.path().to_path_buf(),
                 is_extension: true,
-                is_const: false,
                 is_unsafe: false,
                 is_nogc: false,
                 is_extern: false,

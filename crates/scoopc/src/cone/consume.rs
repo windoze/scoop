@@ -354,7 +354,6 @@ pub fn inject_cone_dependency_public_api(
             },
             sig: FunSig {
                 kind,
-                is_const: false,
                 receiver,
                 type_params,
                 eff_param: None,
@@ -479,7 +478,6 @@ fn inject_non_public_symbols_into_index(
                     },
                     sig: FunSig {
                         kind: ast::FunDeclKind::Regular,
-                        is_const: false,
                         receiver: None,
                         type_params: Vec::new(),
                         eff_param: None,

@@ -285,9 +285,6 @@ impl<'a> HirDumpRenderer<'a> {
         self.field_debug("span", &fun.span);
         self.field_debug("fqn", &fun.fqn);
         self.field_debug("name", &fun.name);
-        if fun.is_const {
-            self.field_bool("is_const", true);
-        }
         self.field_type("ty", fun.ty);
         self.open_list_field("params");
         for param in &fun.params {

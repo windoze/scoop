@@ -94,7 +94,6 @@ pub(crate) fn materialize_compilation_unit_from_typechecked_inputs(
         collect_lowered_top_level_fun_call_bindings(&lowered_hir);
     let ctor_call_sites = lowered_hir.ctor_call_sites.clone();
     let top_level_vars = lowered_hir.top_level_vars.clone();
-    let top_level_consts = lowered_hir.top_level_consts.clone();
     let top_level_immutable_values = lowered_hir.top_level_immutable_values.clone();
     let object_inits = lowered_hir.object_inits.clone();
     let class_inits = lowered_hir.class_inits.clone();
@@ -157,7 +156,6 @@ pub(crate) fn materialize_compilation_unit_from_typechecked_inputs(
                 lowered_top_level_fun_call_bindings,
                 ctor_call_sites,
                 top_level_vars,
-                top_level_consts,
                 top_level_immutable_values,
                 object_inits,
                 class_inits,

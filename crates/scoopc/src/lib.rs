@@ -9,7 +9,6 @@
 //! `scoop`（driver）crate 只负责命令行与调度。
 
 pub mod ast;
-pub mod comptime;
 pub mod cone;
 pub(crate) mod devirtualize;
 pub mod driver_cli;

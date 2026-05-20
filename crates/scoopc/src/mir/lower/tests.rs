@@ -50,7 +50,7 @@ package sample
 
 import scoop.core.*
 
-const val Base: Int = 1
+val Base: Int = 1
 val Runtime: Int = Base + 1
 
 @Global

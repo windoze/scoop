@@ -532,7 +532,7 @@ pub(super) fn try_infer_qualified_nominal_constructor_call_expr_type(
         Ok(fqn) => fqn,
         Err(_) => return Ok(None),
     };
-    let Some(TypeSymbolKind::Nominal(kind @ (ast::TypeKind::Class | ast::TypeKind::Struct))) =
+    let Some(TypeSymbolKind::Nominal(ast::TypeKind::Class | ast::TypeKind::Struct)) =
         lower.env().type_symbol(&owner_fqn).map(|sym| sym.kind)
     else {
         return Ok(None);
@@ -601,13 +601,6 @@ pub(super) fn try_infer_qualified_nominal_constructor_call_expr_type(
         };
         matched.swap_remove(idx)
     };
-
-    if lower.in_const_context() && matches!(kind, ast::TypeKind::Class) {
-        return Err(ExprTypeError::ConstFunRefTypeConstructionNotAllowed {
-            ty: callee_name,
-            span: call_expr.span.into(),
-        });
-    }
 
     lower.record_typechecked_ctor_call_binding(
         call_expr.span,
@@ -755,18 +748,6 @@ pub(super) fn infer_nominal_constructor_call_expr_type(
         };
         matched.swap_remove(idx)
     };
-
-    let chosen_kind = ctor_owners
-        .iter()
-        .find_map(|(owner_fqn, kind)| (owner_fqn == &chosen.owner_fqn).then_some(*kind))
-        .expect("chosen ctor owner kind should exist");
-
-    if lower.in_const_context() && matches!(chosen_kind, ast::TypeKind::Class) {
-        return Err(ExprTypeError::ConstFunRefTypeConstructionNotAllowed {
-            ty: source.slice(callee.span).to_string(),
-            span: call_expr.span.into(),
-        });
-    }
 
     lower.record_typechecked_ctor_call_binding(
         call_expr.span,

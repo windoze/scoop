@@ -512,7 +512,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         };
         (self.object_inits.contains_key(fqn)
             || self.lookup_object_property_by_fqn(fqn).is_some()
-            || self.top_level_consts.contains_key(fqn)
             || self.top_level_immutable_values.contains_key(fqn)
             || self.top_level_vars.contains_key(fqn)
             || self.has_extern_global_contract(fqn)
@@ -532,9 +531,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
         if let Some((_object, prop)) = self.lookup_object_property_by_fqn(fqn) {
             return self.cg_ty_of(prop.ty);
-        }
-        if let Some(value) = self.top_level_consts.get(fqn) {
-            return self.cg_ty_of(value.ty);
         }
         if let Some(value) = self.top_level_immutable_values.get(fqn) {
             return self.cg_ty_of(value.ty);

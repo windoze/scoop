@@ -129,9 +129,9 @@ pub struct File {
     ///
     /// 说明：
     /// - 记录普通顶层函数调用在 overload resolution / 泛型实例化之后最终选中的声明；
-    /// - 供后续需要“重放 typecheck 最终决议”的阶段复用（例如 const/comptime 解释器），
+    /// - 供后续需要“重放 typecheck 最终决议”的阶段复用，
     ///   避免重新按简单名字或 arity 猜测调用目标；
-    /// - `type_args` 保留调用点最终的实例化结果，便于后续 generic const fun 接线。
+    /// - `type_args` 保留调用点最终的实例化结果，便于后续 generic callable 接线。
     pub(crate) top_level_fun_call_bindings: RefCell<HashMap<Span, TopLevelFunCallBinding>>,
     /// typecheck 确认的调用实参 canonical binding（按调用 span 索引）。
     ///
@@ -531,10 +531,6 @@ pub enum Modifier {
     Sealed,
     // misc
     Override,
-    /// 编译期可求值/可用于编译期执行的标记（spec §6）。
-    ///
-    /// 说明：当前阶段仅做语法层解析与存储；语义检查与执行由后续阶段实现。
-    Const,
     /// 注解类标记：`annotation class`（spec §15.2）。
     ///
     /// 说明：
@@ -1798,7 +1794,7 @@ pub enum ExprKind {
     ///
     /// 说明：
     /// - 当前阶段把它视为“编译期可用的类型名常量”，供注解参数等语境使用；
-    /// - 更完整的 TypeMeta/反射语义由后续 comptime/reflection 任务落地（T1204/T1208）。
+    /// - 更完整的 TypeMeta/反射语义由后续 reflection 任务落地。
     ClassLit {
         ty: TypeRef,
     },

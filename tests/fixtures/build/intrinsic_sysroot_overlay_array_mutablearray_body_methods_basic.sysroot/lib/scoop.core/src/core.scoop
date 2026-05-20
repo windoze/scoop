@@ -326,29 +326,29 @@ fun sizeOf(value: Int): Int
 fun sizeOf(value: String): Int
 
 @Intrinsic
-const fun <T> nameOf(): String
+fun <T> nameOf(): String
 @Intrinsic
-const fun <T> sizeOf(): Int
+fun <T> sizeOf(): Int
 @Intrinsic
-const fun <T> alignOf(): Int
+fun <T> alignOf(): Int
 @Intrinsic
-const fun <T> kindOf(): Int
+fun <T> kindOf(): Int
 @Intrinsic
-const fun <T> descOf(): UIntPtr
+fun <T> descOf(): UIntPtr
 @Intrinsic
-const fun <T> fieldsOf(): ComptimeList<FieldMeta>
+fun <T> fieldsOf(): ComptimeList<FieldMeta>
 @Intrinsic
-const fun <T> variantsOf(): ComptimeList<VariantMeta>
+fun <T> variantsOf(): ComptimeList<VariantMeta>
 @Intrinsic
-const fun <T> superTypesOf(): ComptimeList<TypeMeta>
+fun <T> superTypesOf(): ComptimeList<TypeMeta>
 @Intrinsic
-const fun <T> annotationsOf(): ComptimeList<AnnotationMeta>
+fun <T> annotationsOf(): ComptimeList<AnnotationMeta>
 @Intrinsic
-const fun paramsOf(fn: FunctionMeta): ComptimeList<ParamMeta>
+fun paramsOf(fn: FunctionMeta): ComptimeList<ParamMeta>
 
-const val ARRAY_ELEM_KIND_WORD: Int = 1
-const val ARRAY_ELEM_KIND_REF: Int = 2
-const val ARRAY_ELEM_KIND_COMPOSITE: Int = 3
+val ARRAY_ELEM_KIND_WORD: Int = 1
+val ARRAY_ELEM_KIND_REF: Int = 2
+val ARRAY_ELEM_KIND_COMPOSITE: Int = 3
 
 struct Platform {
     val triple: String
@@ -359,7 +359,7 @@ struct Platform {
 }
 
 @Intrinsic
-const fun getPlatform(): Platform
+fun getPlatform(): Platform
 
 enum Option<T> {
     Some(val value: T),

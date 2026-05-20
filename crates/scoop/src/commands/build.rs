@@ -350,7 +350,7 @@ fn load_build_input_with_options(
     scoopc::frontend::load_project_input_from_path(input, entry_package_override, session_options)
 }
 
-#[cfg_attr(not(test), allow(dead_code))]
+#[allow(dead_code)]
 fn load_build_context(
     input: &Path,
     entry_package_override: Option<String>,

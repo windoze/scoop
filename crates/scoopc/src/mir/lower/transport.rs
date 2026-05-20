@@ -138,7 +138,6 @@ pub(in crate::mir::lower) fn lower_initializer_root_kind(
     kind: TopLevelInitRootKind,
 ) -> InitializerRootKind {
     match kind {
-        TopLevelInitRootKind::ConstVal => InitializerRootKind::ConstVal,
         TopLevelInitRootKind::RuntimeImmutableVal => InitializerRootKind::RuntimeImmutableVal,
         TopLevelInitRootKind::RuntimeMutableVar { storage } => {
             InitializerRootKind::RuntimeMutableVar { storage }

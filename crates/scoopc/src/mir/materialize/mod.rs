@@ -279,10 +279,6 @@ pub enum MirMaterializeError {
 
     #[error(transparent)]
     #[diagnostic(transparent)]
-    Comptime(#[from] crate::comptime::ConstEvalError),
-
-    #[error(transparent)]
-    #[diagnostic(transparent)]
     Resolve(#[from] ResolveError),
 
     #[error(transparent)]
@@ -432,12 +428,6 @@ impl From<crate::hir::HirLowerError> for Box<MirMaterializeError> {
 
 impl From<ParseError> for Box<MirMaterializeError> {
     fn from(error: ParseError) -> Self {
-        materialize_err(MirMaterializeError::from(error))
-    }
-}
-
-impl From<crate::comptime::ConstEvalError> for Box<MirMaterializeError> {
-    fn from(error: crate::comptime::ConstEvalError) -> Self {
         materialize_err(MirMaterializeError::from(error))
     }
 }

@@ -941,11 +941,6 @@ fn check_class_member_fun_body_exprs(
     if nogc_ctx_pushed {
         lower.push_nogc_context();
     }
-    let const_ctx_pushed = fun.modifiers.contains(&ast::Modifier::Const);
-    if const_ctx_pushed {
-        lower.push_const_context();
-    }
-
     lower.begin_effect_collection();
     let body_result: Result<(), ExprTypeError> = {
         let check_body = |lower: &mut TypeLowering<'_>| -> Result<(), ExprTypeError> {
@@ -1097,9 +1092,6 @@ fn check_class_member_fun_body_exprs(
     };
     if eff_binding_pushed {
         lower.pop_effect_row_param_binding();
-    }
-    if const_ctx_pushed {
-        lower.pop_const_context();
     }
     if nogc_ctx_pushed {
         lower.pop_nogc_context();

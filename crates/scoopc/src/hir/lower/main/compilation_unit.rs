@@ -95,7 +95,6 @@ pub fn lower_for_compilation_unit_with_stable_cone_key(
         mut assign_place_contracts,
         top_level_vars,
         extern_globals,
-        top_level_consts,
         top_level_immutable_values,
         when_pat_binding_tys,
     ) = {
@@ -140,7 +139,6 @@ pub fn lower_for_compilation_unit_with_stable_cone_key(
         let assign_place_contracts = std::mem::take(&mut ctx.assign_place_contracts);
         let top_level_vars = std::mem::take(&mut ctx.top_level_vars);
         let extern_globals = std::mem::take(&mut ctx.extern_globals);
-        let top_level_consts = std::mem::take(&mut ctx.top_level_consts);
         let top_level_immutable_values = std::mem::take(&mut ctx.top_level_immutable_values);
         let when_pat_binding_tys = std::mem::take(&mut ctx.when_pat_binding_tys);
         (
@@ -154,7 +152,6 @@ pub fn lower_for_compilation_unit_with_stable_cone_key(
             assign_place_contracts,
             top_level_vars,
             extern_globals,
-            top_level_consts,
             top_level_immutable_values,
             when_pat_binding_tys,
         )
@@ -244,7 +241,6 @@ pub fn lower_for_compilation_unit_with_stable_cone_key(
         extern_globals,
         extern_libs,
         top_level_vars,
-        top_level_consts,
         top_level_immutable_values,
         top_level_fun_call_sites,
         call_arg_bindings,
@@ -649,7 +645,6 @@ pub(crate) fn lower_for_compilation_unit_multi_files_internal<'a>(
         NonPureContinuationResumeCallSiteIndex::new();
     let mut top_level_vars: crate::hir::TopLevelVarIndex = HashMap::new();
     let mut extern_globals: crate::hir::ExternGlobalIndex = HashMap::new();
-    let mut top_level_consts: crate::hir::TopLevelConstIndex = HashMap::new();
     let mut top_level_immutable_values: crate::hir::TopLevelImmutableValueIndex = HashMap::new();
     let mut when_pat_binding_tys: crate::hir::WhenPatBindingTypeIndex = HashMap::new();
 
@@ -665,7 +660,6 @@ pub(crate) fn lower_for_compilation_unit_multi_files_internal<'a>(
             file_assign_place_contracts,
             file_top_level_vars,
             file_extern_globals,
-            file_top_level_consts,
             file_top_level_immutable_values,
             file_when_pat_binding_tys,
         ) = {
@@ -712,7 +706,6 @@ pub(crate) fn lower_for_compilation_unit_multi_files_internal<'a>(
             let file_assign_place_contracts = std::mem::take(&mut ctx.assign_place_contracts);
             let file_top_level_vars = std::mem::take(&mut ctx.top_level_vars);
             let file_extern_globals = std::mem::take(&mut ctx.extern_globals);
-            let file_top_level_consts = std::mem::take(&mut ctx.top_level_consts);
             let file_top_level_immutable_values =
                 std::mem::take(&mut ctx.top_level_immutable_values);
             let file_when_pat_binding_tys = std::mem::take(&mut ctx.when_pat_binding_tys);
@@ -727,7 +720,6 @@ pub(crate) fn lower_for_compilation_unit_multi_files_internal<'a>(
                 file_assign_place_contracts,
                 file_top_level_vars,
                 file_extern_globals,
-                file_top_level_consts,
                 file_top_level_immutable_values,
                 file_when_pat_binding_tys,
             )
@@ -752,7 +744,6 @@ pub(crate) fn lower_for_compilation_unit_multi_files_internal<'a>(
 
         top_level_vars.extend(file_top_level_vars);
         extern_globals.extend(file_extern_globals);
-        top_level_consts.extend(file_top_level_consts);
         top_level_immutable_values.extend(file_top_level_immutable_values);
         when_pat_binding_tys.extend(file_when_pat_binding_tys);
         member_funs.extend(file_member_funs);
@@ -997,7 +988,6 @@ pub(crate) fn lower_for_compilation_unit_multi_files_internal<'a>(
         extern_globals,
         extern_libs,
         top_level_vars,
-        top_level_consts,
         top_level_immutable_values,
         top_level_fun_call_sites,
         call_arg_bindings,

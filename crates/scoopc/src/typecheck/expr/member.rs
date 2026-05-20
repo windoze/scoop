@@ -431,9 +431,6 @@ fn infer_member_access_with_receiver_ty(
             //
             // 说明：
             // - tuple 并非名义类型，因此 resolver 阶段无法像 `Point.x` 一样写回成员 FQN；
-            // - `ComptimeList<T>` 也没有普通成员声明，但 reflection/comptime surface 会把
-            //   `_0/_1/...` 用作最小索引语法；这里同样按 receiver 的推导类型给出元素类型，
-            //   具体越界检查留给后续常量求值。
             let Some(receiver_ty) = receiver_ty else {
                 return Err(ExprTypeError::UnsupportedExpr {
                     kind: "member access（未 resolve）",
@@ -448,14 +445,6 @@ fn infer_member_access_with_receiver_ty(
                     span: member.span.into(),
                 });
             };
-
-            if let Some(elem_ty) = comptime_list_element_type(receiver_ty, lower) {
-                let _ = idx;
-                return Ok(MemberAccessInference {
-                    ty: elem_ty,
-                    resolved: None,
-                });
-            }
 
             let TypeKind::Value(ValueTypeKind::Tuple(elements)) = lower.type_kind(receiver_ty)
             else {
@@ -739,18 +728,6 @@ fn find_extension_property_candidate(
     candidates.sort();
     candidates.dedup();
     candidates.into_iter().next()
-}
-
-fn comptime_list_element_type(receiver_ty: TypeId, lower: &TypeLowering<'_>) -> Option<TypeId> {
-    match lower.type_kind(receiver_ty) {
-        TypeKind::Value(ValueTypeKind::Nominal(nominal))
-        | TypeKind::Ref(RefTypeKind::Nominal(nominal))
-            if nominal.fqn == "scoop.core.ComptimeList" =>
-        {
-            nominal.args.first().copied()
-        }
-        _ => None,
-    }
 }
 
 fn parse_tuple_member_index(text: &str) -> Option<usize> {

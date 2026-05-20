@@ -1,5 +1,0 @@
-N = "Point"
-S = 8
-F = (FieldMeta { annotations: (), index: 0, name: "x", type: TypeMeta { annotations: (AnnotationMeta { args: (), name: "Intrinsic" }), kind: TypeKind.Struct, name: "Int" } }, FieldMeta { annotations: (), index: 1, name: "y", type: TypeMeta { annotations: (AnnotationMeta { args: (), name: "Intrinsic" }), kind: TypeKind.Struct, name: "Int" } }, FieldMeta { annotations: (), index: 2, name: "tag", type: TypeMeta { annotations: (AnnotationMeta { args: (), name: "Intrinsic" }), kind: TypeKind.Class, name: "String" } })
-F0N = "x"
-F0T = "Int"

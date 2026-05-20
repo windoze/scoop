@@ -41,6 +41,7 @@ pub struct ProjectInput {
     /// `sources` 中每个 source 的 authoritative cone metadata，与 `sources` 下标一一对应。
     source_cone_infos: Vec<SourceConeInfo>,
     /// 当前 project（consumer cone）自身的源文件在 `sources` 中的下标。
+    #[allow(dead_code)]
     project_source_indices: Vec<usize>,
     consumer_cone_id: ConeId,
     /// 当前运行入口 `fun main` 所在源文件在 `sources` 中的下标。

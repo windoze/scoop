@@ -1400,12 +1400,11 @@ fun <eff E = Pure> ULongProgression.forEach(action: (ULong) -> Unit / E): Unit /
     return ()
 }
 
-// Compiler intrinsics（spec §15.7 / §6.4）。
+// Compiler intrinsics（spec §15.7）。
 //
 // 说明：
-// - 规范中的 `sizeOf<T>()` 是隐式 `const fun` 的反射 intrinsic；
-// - 当前阶段尚未实现完整 comptime 执行链路；同时 typecheck 的"跨文件泛型函数签名 lowering"
-//   也未补齐，因此这里先用一组 overload 作为最小可调用表面：
+// - 泛型反射 intrinsic 由编译器在运行期 lowering 中识别；
+// - typecheck 的"跨文件泛型函数签名 lowering"也未补齐，因此这里先用一组 overload 作为最小可调用表面：
 //   - `sizeOf(1)` / `sizeOf("s")`
 // - 该声明仅用于工具链可见性与类型检查；实现由编译器在 codegen 阶段内建 lowering 提供。
 @Intrinsic
@@ -1413,41 +1412,41 @@ fun sizeOf(value: Int): Int
 @Intrinsic
 fun sizeOf(value: String): Int
 
-// Reflection intrinsics v0（spec §6.4）。
+// Reflection intrinsics v0。
 //
 // 说明：
-// - 这些函数在规范中"隐式 const"，这里显式标记为 `const fun` 便于工具链与 typecheck 识别；
-// - 当前阶段 `fieldsOf<T>()` 返回 `FieldMeta` 列表（由编译器在 comptime 执行时内建实现）。
+// - 这些函数只保留运行期 intrinsic surface；旧 compile-time evaluator 已删除。
+// - 当前阶段 `fieldsOf<T>()` 返回 `FieldMeta` 列表。
 @Intrinsic
-const fun <T> nameOf(): String
+fun <T> nameOf(): String
 @Intrinsic
-const fun <T> sizeOf(): Int
+fun <T> sizeOf(): Int
 @Intrinsic
-const fun <T> alignOf(): Int
+fun <T> alignOf(): Int
 @Intrinsic
-const fun <T> kindOf(): Int
+fun <T> kindOf(): Int
 @Intrinsic
-const fun <T> descOf(): UIntPtr
+fun <T> descOf(): UIntPtr
 @Intrinsic
-const fun <T> fieldsOf(): ComptimeList<FieldMeta>
+fun <T> fieldsOf(): ComptimeList<FieldMeta>
 @Intrinsic
-const fun <T> variantsOf(): ComptimeList<VariantMeta>
+fun <T> variantsOf(): ComptimeList<VariantMeta>
 @Intrinsic
-const fun <T> superTypesOf(): ComptimeList<TypeMeta>
+fun <T> superTypesOf(): ComptimeList<TypeMeta>
 @Intrinsic
-const fun <T> annotationsOf(): ComptimeList<AnnotationMeta>
+fun <T> annotationsOf(): ComptimeList<AnnotationMeta>
 @Intrinsic
-const fun paramsOf(fn: FunctionMeta): ComptimeList<ParamMeta>
+fun paramsOf(fn: FunctionMeta): ComptimeList<ParamMeta>
 
-const val ARRAY_ELEM_KIND_WORD: Int = 1
-const val ARRAY_ELEM_KIND_REF: Int = 2
-const val ARRAY_ELEM_KIND_COMPOSITE: Int = 3
+val ARRAY_ELEM_KIND_WORD: Int = 1
+val ARRAY_ELEM_KIND_REF: Int = 2
+val ARRAY_ELEM_KIND_COMPOSITE: Int = 3
 
 // Platform Introspection（spec §6.4）。
 //
 // 说明：
 // - `Platform` 表示一个平台选择器（LLVM target triple + 拆分字段）；
-// - `getPlatform()` 既可在 comptime 求值，也可在运行期查询当前执行环境；
+// - `getPlatform()` 在运行期查询当前执行环境；
 // - 当前阶段先只保证 host target 可回归，交叉编译与更严格校验后续补齐。
 struct Platform {
     val triple: String
@@ -1458,7 +1457,7 @@ struct Platform {
 }
 
 @Intrinsic
-const fun getPlatform(): Platform
+fun getPlatform(): Platform
 
 // Option / nullable sugar
 enum Option<T> {

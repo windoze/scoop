@@ -1,4 +1,0 @@
-A = (AnnotationMeta { args: (AnnotationArgMeta { name: "msg", value: "x" }), name: "Anno" })
-A0N = "Anno"
-A0AN = "msg"
-A0AV = "x"

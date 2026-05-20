@@ -192,7 +192,6 @@ pub(in crate::typecheck::expr) fn infer_call_expr_type(
             if direct_call_candidates.len() == 1 {
                 check_unsafe_call_gate(&callee_fqn, sig, call_expr.span, lower)?;
                 check_nogc_call_gate(&callee_fqn, sig, call_expr.span, lower)?;
-                check_const_fun_call_gate(&callee_fqn, sig, call_expr.span, lower)?;
                 emit_deprecated_call_warning(&callee_fqn, sig, call_expr.span, lower);
                 let used_unit_sugar = can_use_zero_arg_unit_call_sugar(
                     args,
@@ -1121,7 +1120,6 @@ pub(in crate::typecheck::expr) fn infer_call_expr_type(
 
             check_unsafe_call_gate(&callee_fqn, chosen.sig, call_expr.span, lower)?;
             check_nogc_call_gate(&callee_fqn, chosen.sig, call_expr.span, lower)?;
-            check_const_fun_call_gate(&callee_fqn, chosen.sig, call_expr.span, lower)?;
             emit_deprecated_call_warning(&callee_fqn, chosen.sig, call_expr.span, lower);
             let chosen_call_args = if chosen.used_unit_sugar {
                 sugar_call_args

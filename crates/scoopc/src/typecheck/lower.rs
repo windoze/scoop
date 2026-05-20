@@ -477,7 +477,7 @@ pub(crate) struct TypeLowering<'a> {
     warning_emission_enabled: bool,
     /// effect 收集的“抑制深度”：
     /// - 进入 lambda body 时会暂时抑制（lambda 的 effect 属于函数值本身，而非外层函数立即执行的效果）。
-    /// - 未来若引入更多“非立即执行”的语境（例如 `const`/comptime），同样可复用该机制。
+    /// - 未来若引入更多“非立即执行”的语境，同样可复用该机制。
     effect_collection_suspend_depth: usize,
     /// 记录（effect TypeId, perform span）。
     performed_effects: Vec<(TypeId, Span)>,
@@ -566,7 +566,7 @@ pub(crate) struct TypeLowering<'a> {
     ///
     /// 用途：
     /// - 记录普通顶层函数调用在 overload resolution / 泛型实例化之后的最终声明目标；
-    /// - 供 const/comptime 等后续阶段按 typecheck 最终决议重放调用，而不是重新按名字/arity 猜测。
+    /// - 供后续阶段按 typecheck 最终决议重放调用，而不是重新按名字/arity 猜测。
     top_level_fun_call_bindings: HashMap<Span, ast::TopLevelFunCallBinding>,
     /// typecheck 选中的 canonical call-arg binding。
     ///
@@ -615,13 +615,6 @@ pub(crate) struct TypeLowering<'a> {
     /// - 目前我们只实现最小静态门禁（调用点/已知装箱点），更完整分析留给后续任务；
     /// - 使用 depth 而不是 bool，便于未来扩展局部 `@NoGC { ... }` 或其它可嵌套语境。
     nogc_context_depth: usize,
-
-    /// `const fun` 上下文深度（TODO T1211）。
-    ///
-    /// 说明：
-    /// - `const fun` 的限制更接近”编译期可执行”的静态门禁（禁止调用非 const、禁止闭包、禁止分配等）；
-    /// - 使用 depth 而不是 bool，便于未来扩展局部 `const { ... }` / `comptime` 等可嵌套语境。
-    const_context_depth: usize,
 
     /// `where` 约束 bound 作用域栈（T0130）。
     ///
@@ -731,7 +724,6 @@ impl<'a> TypeLowering<'a> {
             type_instantiation_requests: None,
             unsafe_context_depth: 0,
             nogc_context_depth: 0,
-            const_context_depth: 0,
             where_bound_scopes: Vec::new(),
             annotation_type_usage_depth: 0,
             sealed_marker_bound_usage_depth: 0,
@@ -896,19 +888,6 @@ impl<'a> TypeLowering<'a> {
         let out = f(self);
         self.nogc_context_depth = saved;
         out
-    }
-
-    pub(super) fn push_const_context(&mut self) {
-        self.const_context_depth += 1;
-    }
-
-    pub(super) fn pop_const_context(&mut self) {
-        debug_assert!(self.const_context_depth > 0);
-        self.const_context_depth = self.const_context_depth.saturating_sub(1);
-    }
-
-    pub(super) fn in_const_context(&self) -> bool {
-        self.const_context_depth > 0
     }
 
     /// 推入一层 where 约束 bound 作用域（T0130）。

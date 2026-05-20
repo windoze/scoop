@@ -1,31 +1,33 @@
-# Execution Plan
+# Claude Execution Plan
 
 ## Scope
 
-- Source of truth: `TODO.md` and `TODO-1.md`.
-- First incomplete task: `P0-T02R`, `Review statement-level comptime 删除结果`.
-- Goal for this invocation: complete exactly `P0-T02R`, update completion records, commit, and stop.
-- If review finds a concrete blocker in the `P0-T02` deletion work, fix it within this review when feasible; if it cannot be fixed correctly in this invocation, add the minimum prerequisite task before `P0-T02R`, keep `P0-T02R` incomplete, commit the bookkeeping, and stop.
-- This file records task understanding, execution steps, milestone updates, validation results, and blockers. It does not record private reasoning.
+- Current invocation goal: complete exactly the first incomplete task in `TODO.md`, then stop.
+- Source of truth: `TODO.md` for task order, dependencies, validation, and completion records.
+- `PLAN.md` will only be changed if phase-level sequencing or completion criteria change.
+- This file records the actionable plan and progress summary for auditability; it does not include private chain-of-thought.
 
 ## Step-by-Step Plan
 
-1. Check the latest commit message for any unfinished issue directly relevant to `P0-T02R`.
-2. Inspect the required review locations from `TODO-1.md`: AST, statement parser, parser tests, comptime interpreter, typecheck lowering, MIR materialization templates, and HIR lowering.
-3. Search active source and fixtures for `comptime for`, `comptime if`, `RuntimeComptimePlan`, `ComptimeFor`, `StmtKind::Comptime`, and the P0-T02 required search terms.
-4. Confirm whether statement-level comptime surface/runtime plan are physically removed rather than replaced by dedicated reject/compatibility branches or migrated into HIR/MIR/typecheck special cases.
-5. If residual active implementation code is found, remove or correct it as part of this review, then repeat the targeted inspection.
-6. Run P0-T02 validation commands: `cargo fmt`, `cargo test -p scoopc --no-default-features parser`, `cargo test -p scoopc --no-default-features hir`, `cargo test -p scoopc --no-default-features mir`, and the required active-source searches.
-7. Also run the P0-T02 completion-record validation that is relevant for review when feasible: `cargo test -p scoopc --no-default-features comptime`, `cargo clippy --all-targets -- -D warnings`, and the listed fixture checks.
-8. Update `TODO.md` and `TODO-1.md` by marking `P0-T02R` as `[DONE]` and filling the completion record with review scope, conclusions, validation commands, and residual risks.
-9. Commit all relevant changes with a `P0-T02R` message and stop without starting `P0-T03`.
+1. Read `TODO.md` first and identify the first task whose heading is not prefixed with `[DONE]`.
+2. Inspect the latest commit only for directly relevant unfinished work, if needed for that task.
+3. Read the task body carefully, including dependencies, acceptance criteria, and validation commands.
+4. Inspect the relevant code and fixtures for the selected task only; avoid broad unrelated triage.
+5. Implement the task as written, using the smallest correct changes and no workaround or spec deviation.
+6. If a concrete blocker or missing prerequisite prevents correct implementation, update `TODO.md` with the minimum prerequisite task in the correct order, leave the current task incomplete, commit, and stop.
+7. Run targeted tests first, then any task-required validation; fix failures that are in scope.
+8. Update `TODO.md` by prefixing the completed task heading with `[DONE]` and filling/updating its completion record.
+9. Run formatting or final validation relevant to the changed files.
+10. Inspect `git status`, `git diff`, and recent log before committing.
+11. Commit all intended changes with a descriptive task-tagged message.
+12. Stop without starting the next task.
 
-## Progress
+## Progress Log
 
-- Initial task identification complete: `P0-T02R` is the first incomplete task in `TODO.md` and `TODO-1.md`.
-- Execution plan updated before running code or build/test commands for this invocation.
-- Latest commit checked: `b650bee3 [P0-T02] Remove statement-level comptime`; it directly corresponds to the implementation under review and does not mention an unfinished issue that changes `P0-T02R` scope.
-- Review inspection so far found no active `StmtKind::Comptime*`, `ComptimeFor`, `RuntimeComptimePlan`, or `parse_comptime_stmt` residuals in `crates/scoopc/src`.
-- A stale `splice_field_contracts` comment still mentioned comptime expansion values even though HIR lowering now consumes only the typecheck contract; the comment was corrected in `crates/scoopc/src/ast/mod.rs`.
-- Validation passed: `cargo fmt`; `cargo test -p scoopc --no-default-features parser`; `cargo test -p scoopc --no-default-features hir`; `cargo test -p scoopc --no-default-features mir`; `cargo test -p scoopc --no-default-features comptime`; `cargo clippy --all-targets -- -D warnings`; and the three targeted fixture runs from the P0-T02 completion record.
-- Completion bookkeeping complete: `P0-T02R` is marked `[DONE]` in `TODO.md` and `TODO-1.md`, with review conclusions, validation commands, fixture classification, and residual risks recorded.
+- Initialized plan before reading repository task files or running commands.
+- Identified first incomplete task from `TODO.md`: `P0-T03` in `TODO-1.md`.
+- Explored `P0-T03` scope: old Scoop `const` surface spans lexer/parser/AST, resolver/typecheck `is_const` gates, deleted `comptime` evaluator module, HIR/MIR/codegen top-level `const val` side tables, sysroot/fixture references.
+- Starting implementation with the language surface and evaluator removal, then using targeted compile/test feedback to finish cross-stage cleanup.
+- Removed old const-eval fixture routes and deleted obsolete `tests/fixtures/comptime` and B-24 comptime/const fixtures; rewrote remaining sysroot/runtime reflection references to ordinary runtime intrinsic or top-level `val` surface.
+- Validation completed: formatter, no-default scoopc stage tests, audit tests, fixture-runner tests, selected parse/typecheck/HIR/MIR/run-pass/build fixtures, strict clippy, and old-surface searches all passed after fixes.
+- Marked `P0-T03` as `[DONE]` in `TODO.md` and `TODO-1.md` with completion record; `PLAN.md` did not need changes.

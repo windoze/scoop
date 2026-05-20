@@ -43,12 +43,6 @@ impl ProgramFacts {
             .map(|(fqn, var)| (fqn.clone(), var.ty))
             .chain(
                 lowered
-                    .top_level_consts
-                    .iter()
-                    .map(|(fqn, value)| (fqn.clone(), value.ty)),
-            )
-            .chain(
-                lowered
                     .top_level_immutable_values
                     .iter()
                     .map(|(fqn, value)| (fqn.clone(), value.ty)),

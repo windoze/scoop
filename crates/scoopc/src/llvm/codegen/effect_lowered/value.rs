@@ -239,7 +239,6 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
                 }
                 if let mir::Rvalue::TopLevelRef(mir::TopLevelRef { fqn, .. }) = rvalue
                     && !self.codegen.object_inits.contains_key(fqn)
-                    && !self.codegen.top_level_consts.contains_key(fqn)
                     && !self.codegen.top_level_immutable_values.contains_key(fqn)
                     && !self.codegen.top_level_vars.contains_key(fqn)
                     && !self.codegen.has_extern_global_contract(fqn)
@@ -649,7 +648,6 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
         };
         self.codegen.object_inits.contains_key(fqn)
             || self.codegen.lookup_object_property_by_fqn(fqn).is_some()
-            || self.codegen.top_level_consts.contains_key(fqn)
             || self.codegen.top_level_immutable_values.contains_key(fqn)
             || self.codegen.top_level_vars.contains_key(fqn)
             || self.codegen.has_extern_global_contract(fqn)

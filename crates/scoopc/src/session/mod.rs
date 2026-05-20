@@ -11,7 +11,6 @@ use std::path::{Path, PathBuf};
 use miette::{Context as _, Result};
 use thiserror::Error;
 
-use crate::comptime::ConstEvalError;
 use crate::parser::{ParseError, parse_file};
 use crate::resolve::{Index, ResolveError};
 use crate::source::SourceFile;
@@ -88,10 +87,6 @@ pub enum SessionError {
     #[error(transparent)]
     #[diagnostic(transparent)]
     Parse(#[from] ParseError),
-
-    #[error(transparent)]
-    #[diagnostic(transparent)]
-    Comptime(#[from] ConstEvalError),
 
     #[error(transparent)]
     #[diagnostic(transparent)]

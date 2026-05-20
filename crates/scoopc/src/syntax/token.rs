@@ -45,7 +45,6 @@ pub enum Keyword {
     Sealed,
     Inline,
     Override,
-    Const,
     /// `vararg`（Appendix B.5.5）。
     ///
     /// 说明：该关键字目前仅在“形参位置”作为修饰符使用；语义由 typecheck 负责。

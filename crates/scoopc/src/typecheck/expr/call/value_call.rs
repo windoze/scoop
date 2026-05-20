@@ -14,14 +14,6 @@ pub(super) fn infer_function_type_call_expr_type(
 ) -> Result<TypeId, ExprTypeError> {
     let builtins = inputs.builtins;
 
-    // spec §6.2：`const fun` 禁止闭包/lambda；因此也禁止调用"函数值"（无论其来源是参数还是局部绑定）。
-    if lower.in_const_context() {
-        return Err(ExprTypeError::ConstFunFunctionValueCallNotAllowed {
-            callee: callee_name.to_string(),
-            span: call_expr.span.into(),
-        });
-    }
-
     // `@NoGC`：保守门禁。
     //
     // 说明：当前阶段我们无法证明"某个函数值/闭包"是否为 `@NoGC`，
@@ -236,13 +228,6 @@ pub(super) fn infer_funptr_type_call_expr_type(
 ) -> Result<TypeId, ExprTypeError> {
     let builtins = inputs.builtins;
 
-    if lower.in_const_context() {
-        return Err(ExprTypeError::ConstFunFunPtrCallNotAllowed {
-            callee: callee_name.to_string(),
-            span: call_expr.span.into(),
-        });
-    }
-
     if !lower.in_unsafe_context() {
         return Err(ExprTypeError::FunPtrCallRequiresUnsafeContext {
             callee: callee_name.to_string(),
@@ -452,8 +437,7 @@ pub(super) fn collect_top_level_fun_signatures_from_index(
 
     fn fun_overload_sig_key(o: &crate::resolve::FunOverload, decl_source: &SourceFile) -> String {
         let mut out = String::new();
-        out.push_str(if o.sig.is_const { "const" } else { "fun" });
-        out.push('|');
+        out.push_str("fun|");
         for p in &o.sig.type_params {
             out.push_str(&p.name);
             out.push(',');
@@ -690,7 +674,6 @@ pub(super) fn collect_top_level_fun_signatures_from_index(
             decl_span: o.symbol.span,
             decl_file: o.symbol.decl_file.clone(),
             is_extension,
-            is_const: o.sig.is_const,
             is_unsafe: o.sig.builtin_flags.is_unsafe,
             is_nogc: o.sig.builtin_flags.is_nogc,
             is_extern: o.sig.builtin_flags.is_extern,

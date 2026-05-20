@@ -23,7 +23,6 @@ pub(super) struct ReachabilityInputs<'a> {
     pub(super) ctor_call_sites: &'a hir::CtorCallSiteIndex,
     pub(super) types: &'a TypeStore,
     pub(super) top_level_vars: &'a hir::TopLevelVarIndex,
-    pub(super) top_level_consts: &'a hir::TopLevelConstIndex,
     pub(super) top_level_immutable_values: &'a hir::TopLevelImmutableValueIndex,
     pub(super) extern_globals: &'a hir::ExternGlobalIndex,
     pub(super) object_inits: &'a hir::ObjectInitIndex,
@@ -45,7 +44,6 @@ pub(super) fn collect_reachable_top_level_funs<'a>(
         ctor_call_sites,
         types,
         top_level_vars,
-        top_level_consts,
         top_level_immutable_values,
         extern_globals,
         object_inits,
@@ -61,7 +59,6 @@ pub(super) fn collect_reachable_top_level_funs<'a>(
         ctor_call_sites,
         types,
         top_level_vars,
-        top_level_consts,
         top_level_immutable_values,
         extern_globals,
         object_inits,
@@ -73,7 +70,6 @@ pub(super) fn collect_reachable_top_level_funs<'a>(
         ctor_queue: VecDeque::new(),
         scanned_class_init_steps: HashSet::new(),
         scanned_top_level_vars: HashSet::new(),
-        scanned_top_level_consts: HashSet::new(),
         scanned_top_level_immutable_values: HashSet::new(),
         scanned_object_inits: HashSet::new(),
         current_source_path: None,
@@ -130,7 +126,6 @@ struct ReachabilityCollector<'a> {
     ctor_call_sites: &'a hir::CtorCallSiteIndex,
     types: &'a TypeStore,
     top_level_vars: &'a hir::TopLevelVarIndex,
-    top_level_consts: &'a hir::TopLevelConstIndex,
     top_level_immutable_values: &'a hir::TopLevelImmutableValueIndex,
     extern_globals: &'a hir::ExternGlobalIndex,
     object_inits: &'a hir::ObjectInitIndex,
@@ -144,7 +139,6 @@ struct ReachabilityCollector<'a> {
 
     scanned_class_init_steps: HashSet<String>,
     scanned_top_level_vars: HashSet<String>,
-    scanned_top_level_consts: HashSet<String>,
     scanned_top_level_immutable_values: HashSet<String>,
     scanned_object_inits: HashSet<String>,
     current_source_path: Option<PathBuf>,
@@ -183,20 +177,6 @@ impl<'a> ReachabilityCollector<'a> {
         if self.seen_calls.insert(fqn.clone()) {
             self.fun_queue.push_back(fqn);
         }
-    }
-
-    fn scan_top_level_const(&mut self, fqn: &str) {
-        if !self.scanned_top_level_consts.insert(fqn.to_string()) {
-            return;
-        }
-        let Some(top_level_const) = self.top_level_consts.get(fqn).cloned() else {
-            return;
-        };
-        self.with_source_path(top_level_const.source_path.as_path(), |this| {
-            if let Some(init) = top_level_const.init.as_ref() {
-                this.scan_expr(init);
-            }
-        });
     }
 
     fn scan_top_level_var(&mut self, fqn: &str) {
@@ -248,7 +228,6 @@ impl<'a> ReachabilityCollector<'a> {
     }
 
     fn scan_top_level_value_ref(&mut self, fqn: &str) {
-        self.scan_top_level_const(fqn);
         self.scan_top_level_immutable_value(fqn);
         self.scan_top_level_var(fqn);
         self.scan_object_init(fqn);
@@ -525,7 +504,6 @@ impl<'a> ReachabilityCollector<'a> {
                     } => true,
                     mir::Rvalue::TopLevelRef(mir::TopLevelRef { fqn, .. }) => {
                         self.object_inits.contains_key(fqn)
-                            || self.top_level_consts.contains_key(fqn)
                             || self.top_level_immutable_values.contains_key(fqn)
                             || self.top_level_vars.contains_key(fqn)
                             || self.extern_globals.contains_key(fqn)

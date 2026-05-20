@@ -60,7 +60,6 @@ impl MirInstanceMaterializer {
             lowered_top_level_fun_call_bindings,
             ctor_call_sites,
             top_level_vars,
-            top_level_consts,
             top_level_immutable_values,
             object_inits,
             class_inits,
@@ -371,7 +370,6 @@ impl MirInstanceMaterializer {
             direct_call_bindings,
             ctor_call_sites,
             top_level_vars,
-            top_level_consts,
             top_level_immutable_values,
             object_inits,
             class_inits,
@@ -389,7 +387,6 @@ impl MirInstanceMaterializer {
             reachable_request_call_sites: HashSet::new(),
             reachable_request_stmt_spans: Vec::new(),
             scanned_top_level_vars: HashSet::new(),
-            scanned_top_level_consts: HashSet::new(),
             scanned_top_level_immutable_values: HashSet::new(),
             scanned_object_inits: HashSet::new(),
             scanned_class_inits: HashSet::new(),
@@ -418,15 +415,10 @@ impl MirInstanceMaterializer {
 
     pub(super) fn collect_top_level_value_tys(&self) -> HashMap<String, TypeId> {
         let mut tys = self
-            .top_level_consts
+            .top_level_immutable_values
             .iter()
             .map(|(fqn, value)| (fqn.clone(), value.ty))
             .collect::<HashMap<_, _>>();
-        tys.extend(
-            self.top_level_immutable_values
-                .iter()
-                .map(|(fqn, value)| (fqn.clone(), value.ty)),
-        );
         tys.extend(
             self.top_level_vars
                 .iter()

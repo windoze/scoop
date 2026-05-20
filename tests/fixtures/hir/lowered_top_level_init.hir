@@ -2,7 +2,7 @@ File {
     decls: [
         Object(
             ObjectDecl {
-                span: 356..402,
+                span: 350..396,
                 fqn: "fixtures.hir_init.Holder",
                 name: "Holder",
                 kind: Object,
@@ -14,7 +14,7 @@ File {
                 members: [
                     Field(
                         FieldDecl {
-                            span: 380..385,
+                            span: 374..379,
                             fqn: "fixtures.hir_init.Holder.value",
                             name: "value",
                             mutable: false,
@@ -29,14 +29,14 @@ File {
     items: [
         Val(
             ValDecl {
-                span: 210..233,
-                label: sym#h005ca3534e38f560e7968c3cd5880e28,
+                span: 210..227,
+                label: sym#h761f814d2544296472c261e4cad94c53,
                 name: "Base",
                 mutable: false,
                 ty: Int,
                 init: Some(
                     Expr {
-                        span: 232..233,
+                        span: 226..227,
                         ty: Int,
                         kind: Literal(Int),
                     }
@@ -45,19 +45,19 @@ File {
         ),
         Val(
             ValDecl {
-                span: 234..261,
-                label: sym#h911197f5ef68aab1acc0be5473f780c5,
+                span: 228..255,
+                label: sym#hebf1cb3d29c7f365b503b75606484bec,
                 name: "Runtime",
                 mutable: false,
                 ty: Int,
                 init: Some(
                     Expr {
-                        span: 253..261,
+                        span: 247..255,
                         ty: Int,
                         kind: Call {
                             callee:
                                 Expr {
-                                    span: 253..261,
+                                    span: 247..255,
                                     ty: Any,
                                     kind: VarRef(
                                         TopLevel {
@@ -68,7 +68,7 @@ File {
                             args: [
                                 Positional(
                                     Expr {
-                                        span: 253..257,
+                                        span: 247..251,
                                         ty: Int,
                                         kind: VarRef(
                                             TopLevel {
@@ -79,7 +79,7 @@ File {
                                 ),
                                 Positional(
                                     Expr {
-                                        span: 260..261,
+                                        span: 254..255,
                                         ty: Int,
                                         kind: Literal(Int),
                                     }
@@ -92,14 +92,14 @@ File {
         ),
         Val(
             ValDecl {
-                span: 263..297,
-                label: sym#h3a94524b71584f224b59306a1b7a1b76,
+                span: 257..291,
+                label: sym#h9105a5ffcaa41556934f56f2a41c1b55,
                 name: "Counter",
                 mutable: true,
                 ty: Int,
                 init: Some(
                     Expr {
-                        span: 290..297,
+                        span: 284..291,
                         ty: Int,
                         kind: VarRef(
                             TopLevel {
@@ -112,8 +112,8 @@ File {
         ),
         Val(
             ValDecl {
-                span: 299..354,
-                label: sym#ha278be6f9112a89bf744517130513209,
+                span: 293..348,
+                label: sym#h4dea29b29a0911d631075dfe20a1fb5b,
                 name: "NativeCounter",
                 mutable: true,
                 ty: Int,
@@ -122,7 +122,7 @@ File {
         ),
         Fun(
             FunDecl {
-                span: 404..417,
+                span: 398..411,
                 fqn: "fixtures.hir_init.main",
                 name: "main",
                 ty: () -> Unit / Pure,
@@ -131,7 +131,7 @@ File {
                 return_ty: Unit,
                 body: Some(
                     Block {
-                        span: 415..417,
+                        span: 409..411,
                         ty: Unit,
                         stmts: [
                         ],
@@ -146,7 +146,7 @@ File {
 TypedHirEffectContracts {
     function_effects: [
         FunctionEffectContract {
-            span: 404..417,
+            span: 398..411,
             fqn: "fixtures.hir_init.main",
             return_ty: Unit,
             allowed_effects: Pure,
@@ -155,13 +155,13 @@ TypedHirEffectContracts {
     ],
     call_site_kinds: [
         TypedCallSiteContract {
-            span: 253..261,
+            span: 247..255,
             kind: DirectTopLevel,
         },
     ],
     call_site_contracts: [
         CallSiteContract {
-            span: 253..261,
+            span: 247..255,
             kind: DirectTopLevel,
             target_fqn: "scoop.core.Int.plus",
             target_decl_span: None,
@@ -175,9 +175,9 @@ TypedHirEffectContracts {
     ],
     top_level_init_roots: [
         TopLevelInitRootContract {
-            span: 210..233,
+            span: 210..227,
             fqn: "fixtures.hir_init.Base",
-            kind: ConstVal,
+            kind: RuntimeImmutableVal,
             ty: Int,
             initializer_ty: Int,
             has_initializer: true,
@@ -185,7 +185,7 @@ TypedHirEffectContracts {
             ],
         },
         TopLevelInitRootContract {
-            span: 263..297,
+            span: 257..291,
             fqn: "fixtures.hir_init.Counter",
             kind: RuntimeMutableVar { storage: Global },
             ty: Int,
@@ -199,7 +199,7 @@ TypedHirEffectContracts {
             ],
         },
         TopLevelInitRootContract {
-            span: 356..402,
+            span: 350..396,
             fqn: "fixtures.hir_init.Holder",
             kind: ObjectSingleton,
             ty: None,
@@ -213,7 +213,7 @@ TypedHirEffectContracts {
             ],
         },
         TopLevelInitRootContract {
-            span: 234..261,
+            span: 228..255,
             fqn: "fixtures.hir_init.Runtime",
             kind: RuntimeImmutableVal,
             ty: Int,
@@ -229,7 +229,7 @@ TypedHirEffectContracts {
     ],
     extern_global_contracts: [
         ExternGlobalContract {
-            span: 299..354,
+            span: 293..348,
             fqn: "fixtures.hir_init.NativeCounter",
             symbol: "native_counter",
             linkage: External,

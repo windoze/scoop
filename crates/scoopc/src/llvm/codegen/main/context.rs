@@ -451,7 +451,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     .map(|global| global.ty)
             })
             .or_else(|| self.extern_globals.get(fqn).map(|global| global.ty))
-            .or_else(|| self.top_level_consts.get(fqn).map(|value| value.ty))
             .or_else(|| {
                 self.top_level_immutable_values
                     .get(fqn)

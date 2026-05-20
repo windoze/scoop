@@ -474,7 +474,6 @@ pub(crate) struct CompilationUnitCodegenCx<'a, 'ctx> {
     struct_layouts: &'a hir::StructLayoutIndex,
     enum_layouts: &'a hir::EnumLayoutIndex,
     top_level_vars: &'a hir::TopLevelVarIndex,
-    top_level_consts: &'a hir::TopLevelConstIndex,
     top_level_immutable_values: &'a hir::TopLevelImmutableValueIndex,
     top_level_fun_call_sites: &'a hir::TopLevelFunCallSiteIndex,
     extern_globals: &'a hir::ExternGlobalIndex,
@@ -551,7 +550,6 @@ struct FunctionBodyCodegenCx<'ctx> {
     current_incoming_resume_token_ref: Option<PointerValue<'ctx>>,
     current_effect_outcome_ptr: Option<PointerValue<'ctx>>,
     local_effect_escape_targets: Vec<inkwell::basic_block::BasicBlock<'ctx>>,
-    top_level_const_eval_stack: Vec<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -801,7 +799,6 @@ pub(super) struct CompilationUnitCodegenInputs<'a, 'ctx> {
     pub(super) struct_layouts: &'a hir::StructLayoutIndex,
     pub(super) enum_layouts: &'a hir::EnumLayoutIndex,
     pub(super) top_level_vars: &'a hir::TopLevelVarIndex,
-    pub(super) top_level_consts: &'a hir::TopLevelConstIndex,
     pub(super) top_level_immutable_values: &'a hir::TopLevelImmutableValueIndex,
     pub(super) top_level_fun_call_sites: &'a hir::TopLevelFunCallSiteIndex,
     pub(super) extern_globals: &'a hir::ExternGlobalIndex,
@@ -856,7 +853,6 @@ impl<'a, 'ctx> CompilationUnitCodegenCx<'a, 'ctx> {
             struct_layouts,
             enum_layouts,
             top_level_vars,
-            top_level_consts,
             top_level_immutable_values,
             top_level_fun_call_sites,
             extern_globals,
@@ -898,7 +894,6 @@ impl<'a, 'ctx> CompilationUnitCodegenCx<'a, 'ctx> {
             struct_layouts,
             enum_layouts,
             top_level_vars,
-            top_level_consts,
             top_level_immutable_values,
             top_level_fun_call_sites,
             extern_globals,
