@@ -1,7 +1,8 @@
-// 目标：T1220c：ScoopIR 导出应基于裁剪后的顶层声明集合：
-// - 未选中分支的 `public` 符号不应出现在 `.scoopir.json` 中。
-//
-// 说明：使用 `comptime if (true)` 强制选择 true 分支，false 分支声明应被裁剪且不可导出。
+// EXPECT: fail
+// EXPECT-ERROR: 顶层声明
+// EXPECT-ERROR-CODE: scoop::parse::expected
+// EXPECT-ERROR-AT: 9:1
+// 目标：package-level `comptime if` 不再进入 ScoopIR 导出前裁剪路径。
 
 package fixtures.scoopir
 
@@ -10,4 +11,3 @@ comptime if (true) {
 } else {
     public fun <T> notChosen(x: T): T { x }
 }
-

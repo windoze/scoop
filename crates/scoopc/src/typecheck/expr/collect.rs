@@ -656,8 +656,7 @@ fn collect_member_mutabilities_in_file(
             ast::Item::Fun(_)
             | ast::Item::Val(_)
             | ast::Item::ExtensionProperty(_)
-            | ast::Item::TypeAlias(_)
-            | ast::Item::ComptimeIf(_) => {}
+            | ast::Item::TypeAlias(_) => {}
         }
     }
 }
@@ -843,8 +842,7 @@ pub(super) fn collect_struct_field_types(
             ast::Item::Fun(_)
             | ast::Item::Val(_)
             | ast::Item::ExtensionProperty(_)
-            | ast::Item::TypeAlias(_)
-            | ast::Item::ComptimeIf(_) => {}
+            | ast::Item::TypeAlias(_) => {}
         }
     }
 
@@ -972,8 +970,7 @@ fn collect_struct_field_types_in_foreign_file(
             ast::Item::Fun(_)
             | ast::Item::Val(_)
             | ast::Item::ExtensionProperty(_)
-            | ast::Item::TypeAlias(_)
-            | ast::Item::ComptimeIf(_) => {}
+            | ast::Item::TypeAlias(_) => {}
         }
     }
 

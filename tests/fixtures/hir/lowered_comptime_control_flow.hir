@@ -2,14 +2,14 @@ File {
     items: [
         Val(
             ValDecl {
-                span: 205..236,
-                label: sym#h8dccd6f610cff3e7c74951da04669484,
+                span: 175..206,
+                label: sym#h2417d9447faf44a8db8cfcc14686f5f4,
                 name: "ENABLED",
                 mutable: false,
                 ty: Bool,
                 init: Some(
                     Expr {
-                        span: 231..236,
+                        span: 201..206,
                         ty: Bool,
                         kind: Literal(Bool(false)),
                     }
@@ -18,7 +18,7 @@ File {
         ),
         Fun(
             FunDecl {
-                span: 263..302,
+                span: 208..247,
                 fqn: "fixtures.hir_comptime.packageSelected",
                 name: "packageSelected",
                 ty: () -> Int / Pure,
@@ -27,16 +27,16 @@ File {
                 return_ty: Int,
                 body: Some(
                     Block {
-                        span: 290..302,
+                        span: 235..247,
                         ty: Unit,
                         stmts: [
                             Stmt {
-                                span: 292..300,
+                                span: 237..245,
                                 ty: Nothing,
                                 kind: Return {
                                     value: Some(
                                         Expr {
-                                            span: 299..300,
+                                            span: 244..245,
                                             ty: Int,
                                             kind: Literal(Int),
                                         }
@@ -50,7 +50,7 @@ File {
         ),
         Fun(
             FunDecl {
-                span: 359..421,
+                span: 249..311,
                 fqn: "fixtures.hir_comptime.fromBlock",
                 name: "fromBlock",
                 ty: () -> Int / Pure,
@@ -59,16 +59,16 @@ File {
                 return_ty: Int,
                 body: Some(
                     Block {
-                        span: 380..421,
+                        span: 270..311,
                         ty: Unit,
                         stmts: [
                             Stmt {
-                                span: 405..413,
+                                span: 295..303,
                                 ty: Nothing,
                                 kind: Return {
                                     value: Some(
                                         Expr {
-                                            span: 412..413,
+                                            span: 302..303,
                                             ty: Int,
                                             kind: Literal(Int),
                                         }
@@ -82,7 +82,7 @@ File {
         ),
         Fun(
             FunDecl {
-                span: 423..533,
+                span: 313..423,
                 fqn: "fixtures.hir_comptime.selectedBranch",
                 name: "selectedBranch",
                 ty: () -> Int / Pure,
@@ -91,16 +91,16 @@ File {
                 return_ty: Int,
                 body: Some(
                     Block {
-                        span: 449..533,
+                        span: 339..423,
                         ty: Unit,
                         stmts: [
                             Stmt {
-                                span: 517..525,
+                                span: 407..415,
                                 ty: Nothing,
                                 kind: Return {
                                     value: Some(
                                         Expr {
-                                            span: 524..525,
+                                            span: 414..415,
                                             ty: Int,
                                             kind: Literal(Int),
                                         }
@@ -114,7 +114,7 @@ File {
         ),
         Fun(
             FunDecl {
-                span: 535..653,
+                span: 425..543,
                 fqn: "fixtures.hir_comptime.unrolled",
                 name: "unrolled",
                 ty: () -> Int / Pure,
@@ -123,22 +123,22 @@ File {
                 return_ty: Int,
                 body: Some(
                     Block {
-                        span: 555..653,
+                        span: 445..543,
                         ty: Unit,
                         stmts: [
                             Stmt {
-                                span: 561..577,
+                                span: 451..467,
                                 ty: Unit,
                                 kind: Val(
                                     ValDecl {
-                                        span: 561..577,
-                                        label: sym#hbcc7b4279cd49eae231ec32c193679b6,
+                                        span: 451..467,
+                                        label: sym#h69a4a0b2c3bfb040361b58fa5ec796a2,
                                         name: "acc",
                                         mutable: true,
                                         ty: Int,
                                         init: Some(
                                             Expr {
-                                                span: 576..577,
+                                                span: 466..467,
                                                 ty: Int,
                                                 kind: Literal(Int),
                                             }
@@ -147,30 +147,30 @@ File {
                                 ),
                             },
                             Stmt {
-                                span: 617..630,
+                                span: 507..520,
                                 ty: Unit,
                                 kind: Assign {
                                     lhs:
                                         Expr {
-                                            span: 617..620,
+                                            span: 507..510,
                                             ty: Int,
                                             kind: VarRef(
                                                 Local {
-                                                    label: sym#hbcc7b4279cd49eae231ec32c193679b6,
+                                                    label: sym#h69a4a0b2c3bfb040361b58fa5ec796a2,
                                                     name: "acc",
-                                                    decl_span: 565..568,
+                                                    decl_span: 455..458,
                                                 }
                                             ),
                                         }
-                                    eq_span: 621..622,
+                                    eq_span: 511..512,
                                     rhs:
                                         Expr {
-                                            span: 623..630,
+                                            span: 513..520,
                                             ty: Int,
                                             kind: Call {
                                                 callee:
                                                     Expr {
-                                                        span: 623..630,
+                                                        span: 513..520,
                                                         ty: Any,
                                                         kind: VarRef(
                                                             TopLevel {
@@ -181,20 +181,20 @@ File {
                                                 args: [
                                                     Positional(
                                                         Expr {
-                                                            span: 623..626,
+                                                            span: 513..516,
                                                             ty: Int,
                                                             kind: VarRef(
                                                                 Local {
-                                                                    label: sym#hbcc7b4279cd49eae231ec32c193679b6,
+                                                                    label: sym#h69a4a0b2c3bfb040361b58fa5ec796a2,
                                                                     name: "acc",
-                                                                    decl_span: 565..568,
+                                                                    decl_span: 455..458,
                                                                 }
                                                             ),
                                                         }
                                                     ),
                                                     Positional(
                                                         Expr {
-                                                            span: 629..630,
+                                                            span: 519..520,
                                                             ty: Int,
                                                             kind: Literal(Int),
                                                         }
@@ -205,30 +205,30 @@ File {
                                 },
                             },
                             Stmt {
-                                span: 617..630,
+                                span: 507..520,
                                 ty: Unit,
                                 kind: Assign {
                                     lhs:
                                         Expr {
-                                            span: 617..620,
+                                            span: 507..510,
                                             ty: Int,
                                             kind: VarRef(
                                                 Local {
-                                                    label: sym#hbcc7b4279cd49eae231ec32c193679b6,
+                                                    label: sym#h69a4a0b2c3bfb040361b58fa5ec796a2,
                                                     name: "acc",
-                                                    decl_span: 565..568,
+                                                    decl_span: 455..458,
                                                 }
                                             ),
                                         }
-                                    eq_span: 621..622,
+                                    eq_span: 511..512,
                                     rhs:
                                         Expr {
-                                            span: 623..630,
+                                            span: 513..520,
                                             ty: Int,
                                             kind: Call {
                                                 callee:
                                                     Expr {
-                                                        span: 623..630,
+                                                        span: 513..520,
                                                         ty: Any,
                                                         kind: VarRef(
                                                             TopLevel {
@@ -239,20 +239,20 @@ File {
                                                 args: [
                                                     Positional(
                                                         Expr {
-                                                            span: 623..626,
+                                                            span: 513..516,
                                                             ty: Int,
                                                             kind: VarRef(
                                                                 Local {
-                                                                    label: sym#hbcc7b4279cd49eae231ec32c193679b6,
+                                                                    label: sym#h69a4a0b2c3bfb040361b58fa5ec796a2,
                                                                     name: "acc",
-                                                                    decl_span: 565..568,
+                                                                    decl_span: 455..458,
                                                                 }
                                                             ),
                                                         }
                                                     ),
                                                     Positional(
                                                         Expr {
-                                                            span: 629..630,
+                                                            span: 519..520,
                                                             ty: Int,
                                                             kind: Literal(Int),
                                                         }
@@ -263,30 +263,30 @@ File {
                                 },
                             },
                             Stmt {
-                                span: 617..630,
+                                span: 507..520,
                                 ty: Unit,
                                 kind: Assign {
                                     lhs:
                                         Expr {
-                                            span: 617..620,
+                                            span: 507..510,
                                             ty: Int,
                                             kind: VarRef(
                                                 Local {
-                                                    label: sym#hbcc7b4279cd49eae231ec32c193679b6,
+                                                    label: sym#h69a4a0b2c3bfb040361b58fa5ec796a2,
                                                     name: "acc",
-                                                    decl_span: 565..568,
+                                                    decl_span: 455..458,
                                                 }
                                             ),
                                         }
-                                    eq_span: 621..622,
+                                    eq_span: 511..512,
                                     rhs:
                                         Expr {
-                                            span: 623..630,
+                                            span: 513..520,
                                             ty: Int,
                                             kind: Call {
                                                 callee:
                                                     Expr {
-                                                        span: 623..630,
+                                                        span: 513..520,
                                                         ty: Any,
                                                         kind: VarRef(
                                                             TopLevel {
@@ -297,20 +297,20 @@ File {
                                                 args: [
                                                     Positional(
                                                         Expr {
-                                                            span: 623..626,
+                                                            span: 513..516,
                                                             ty: Int,
                                                             kind: VarRef(
                                                                 Local {
-                                                                    label: sym#hbcc7b4279cd49eae231ec32c193679b6,
+                                                                    label: sym#h69a4a0b2c3bfb040361b58fa5ec796a2,
                                                                     name: "acc",
-                                                                    decl_span: 565..568,
+                                                                    decl_span: 455..458,
                                                                 }
                                                             ),
                                                         }
                                                     ),
                                                     Positional(
                                                         Expr {
-                                                            span: 629..630,
+                                                            span: 519..520,
                                                             ty: Int,
                                                             kind: Literal(Int),
                                                         }
@@ -321,18 +321,18 @@ File {
                                 },
                             },
                             Stmt {
-                                span: 641..651,
+                                span: 531..541,
                                 ty: Nothing,
                                 kind: Return {
                                     value: Some(
                                         Expr {
-                                            span: 648..651,
+                                            span: 538..541,
                                             ty: Int,
                                             kind: VarRef(
                                                 Local {
-                                                    label: sym#hbcc7b4279cd49eae231ec32c193679b6,
+                                                    label: sym#h69a4a0b2c3bfb040361b58fa5ec796a2,
                                                     name: "acc",
-                                                    decl_span: 565..568,
+                                                    decl_span: 455..458,
                                                 }
                                             ),
                                         }
@@ -346,7 +346,7 @@ File {
         ),
         Fun(
             FunDecl {
-                span: 655..758,
+                span: 545..648,
                 fqn: "fixtures.hir_comptime.returnsIterationValue",
                 name: "returnsIterationValue",
                 ty: () -> Int / Pure,
@@ -355,16 +355,16 @@ File {
                 return_ty: Int,
                 body: Some(
                     Block {
-                        span: 688..758,
+                        span: 578..648,
                         ty: Unit,
                         stmts: [
                             Stmt {
-                                span: 729..737,
+                                span: 619..627,
                                 ty: Nothing,
                                 kind: Return {
                                     value: Some(
                                         Expr {
-                                            span: 736..737,
+                                            span: 626..627,
                                             ty: Int,
                                             kind: Literal(SynthInt(1)),
                                         }
@@ -372,12 +372,12 @@ File {
                                 },
                             },
                             Stmt {
-                                span: 729..737,
+                                span: 619..627,
                                 ty: Nothing,
                                 kind: Return {
                                     value: Some(
                                         Expr {
-                                            span: 736..737,
+                                            span: 626..627,
                                             ty: Int,
                                             kind: Literal(SynthInt(2)),
                                         }
@@ -385,12 +385,12 @@ File {
                                 },
                             },
                             Stmt {
-                                span: 729..737,
+                                span: 619..627,
                                 ty: Nothing,
                                 kind: Return {
                                     value: Some(
                                         Expr {
-                                            span: 736..737,
+                                            span: 626..627,
                                             ty: Int,
                                             kind: Literal(SynthInt(3)),
                                         }
@@ -398,12 +398,12 @@ File {
                                 },
                             },
                             Stmt {
-                                span: 748..756,
+                                span: 638..646,
                                 ty: Nothing,
                                 kind: Return {
                                     value: Some(
                                         Expr {
-                                            span: 755..756,
+                                            span: 645..646,
                                             ty: Int,
                                             kind: Literal(Int),
                                         }
@@ -422,35 +422,35 @@ File {
 TypedHirEffectContracts {
     function_effects: [
         FunctionEffectContract {
-            span: 359..421,
+            span: 249..311,
             fqn: "fixtures.hir_comptime.fromBlock",
             return_ty: Int,
             allowed_effects: Pure,
             effects_closed: false,
         },
         FunctionEffectContract {
-            span: 263..302,
+            span: 208..247,
             fqn: "fixtures.hir_comptime.packageSelected",
             return_ty: Int,
             allowed_effects: Pure,
             effects_closed: false,
         },
         FunctionEffectContract {
-            span: 655..758,
+            span: 545..648,
             fqn: "fixtures.hir_comptime.returnsIterationValue",
             return_ty: Int,
             allowed_effects: Pure,
             effects_closed: false,
         },
         FunctionEffectContract {
-            span: 423..533,
+            span: 313..423,
             fqn: "fixtures.hir_comptime.selectedBranch",
             return_ty: Int,
             allowed_effects: Pure,
             effects_closed: false,
         },
         FunctionEffectContract {
-            span: 535..653,
+            span: 425..543,
             fqn: "fixtures.hir_comptime.unrolled",
             return_ty: Int,
             allowed_effects: Pure,
@@ -459,13 +459,13 @@ TypedHirEffectContracts {
     ],
     call_site_kinds: [
         TypedCallSiteContract {
-            span: 623..630,
+            span: 513..520,
             kind: Intrinsic,
         },
     ],
     call_site_contracts: [
         CallSiteContract {
-            span: 623..630,
+            span: 513..520,
             kind: Intrinsic,
             intrinsic_kind: NamedTable { entry_name: "int_plus", uses_runtime_call: false },
             intrinsic_allowed_context: RuntimeOnly,
@@ -480,11 +480,11 @@ TypedHirEffectContracts {
     ],
     assign_place_contracts: [
         AssignPlaceContract {
-            span: 617..630,
+            span: 507..520,
             kind: Local,
-            label: sym#h9b9190b968878bde0d671baa98606c89,
+            label: sym#h4ca8ca9ec652a63763870d8c300b28e7,
             name: "acc",
-            decl_span: 565..568,
+            decl_span: 455..458,
             place_ty: Int,
             value_ty: Int,
             mutable: true,
@@ -494,7 +494,7 @@ TypedHirEffectContracts {
     ],
     top_level_init_roots: [
         TopLevelInitRootContract {
-            span: 205..236,
+            span: 175..206,
             fqn: "fixtures.hir_comptime.ENABLED",
             kind: ConstVal,
             ty: Bool,

@@ -433,16 +433,6 @@ fn find_top_level_call_in_expr<'a>(expr: &'a Expr, fqn: &str) -> Option<&'a Expr
 
 fn lower_typed_single_source_file(sess: &Session, source: &SourceFile) -> LoweredHir {
     let mut ast = parse_file(source).unwrap();
-    {
-        let sources = [source];
-        let mut files = [&mut ast];
-        crate::comptime::trim_package_level_comptime_ifs_in_compilation_unit(
-            sess.sysroot(),
-            &sources,
-            &mut files,
-        )
-        .unwrap();
-    }
 
     typecheck::check_file_headers(source, &ast).unwrap();
     typecheck::check_file_struct_decls(source, &ast).unwrap();
@@ -1364,6 +1354,7 @@ fun main(): Int {
     );
 }
 
+#[cfg(feature = "llvm")]
 fn lower_typed_single_source_file_via_mir_instance_collection(
     sess: &Session,
     source: &SourceFile,
@@ -1382,6 +1373,7 @@ fn lower_typed_single_source_file_via_mir_instance_collection(
 }
 
 #[test]
+#[cfg(feature = "llvm")]
 fn compilation_unit_via_mir_instances_materializes_non_intrinsic_direct_call_targets() {
     let sess = Session::new().unwrap();
     let source = SourceFile::new_virtual(
@@ -1439,6 +1431,7 @@ fun main(): Int {
 }
 
 #[test]
+#[cfg(feature = "llvm")]
 fn compilation_unit_via_mir_instances_keeps_overloaded_generic_identity_distinct() {
     let sess = Session::new().unwrap();
     let source = SourceFile::new_virtual(
@@ -1582,6 +1575,7 @@ fun main(): Int {
 }
 
 #[test]
+#[cfg(feature = "llvm")]
 fn compilation_unit_via_mir_instances_keeps_overloaded_generic_identity_path_stable() {
     let sess = Session::new().unwrap();
     let program = r#"
@@ -2494,16 +2488,6 @@ fn lower_for_compilation_unit_multi_files_preserves_safe_member_access_resolutio
         .join("../../tests/fixtures/run-pass/safe_member_access_ref_and_extension_basic.scoop");
     let source = SourceFile::load(&fixture_path).unwrap();
     let mut ast = parse_file(&source).unwrap();
-    {
-        let sources = [&source];
-        let mut files = [&mut ast];
-        crate::comptime::trim_package_level_comptime_ifs_in_compilation_unit(
-            sess.sysroot(),
-            &sources,
-            &mut files,
-        )
-        .unwrap();
-    }
 
     typecheck::check_file_headers(&source, &ast).unwrap();
     typecheck::check_file_struct_decls(&source, &ast).unwrap();
@@ -2967,6 +2951,7 @@ fun use() {
 }
 
 #[test]
+#[cfg(feature = "llvm")]
 fn via_mir_instance_collection_materializes_generic_value_property_getter_target() {
     let sess = Session::new().unwrap();
     let source = SourceFile::new_virtual(

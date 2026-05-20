@@ -136,8 +136,6 @@ fn collect_items(
             ast::Item::Object(obj) => {
                 collect_object_decl(source, obj, prefix, lower, funs_by_fqn, ctors_by_type)?
             }
-            // T1220a：package-level comptime if 在进入 overload 检查之前应被裁剪（TODO T1220b）。
-            ast::Item::ComptimeIf(_) => {}
         }
     }
     Ok(())

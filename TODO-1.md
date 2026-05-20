@@ -16,7 +16,7 @@
 - 如果某个 `const` 命中只表示普通 global data initializer、Rust 常量、测试常量或 LLVM target helper，必须保留并在完成记录中说明判定。
 - 每个任务完成后，在该任务的“完成记录”下写明改动范围、核心决策、验证命令和残余风险。
 
-## [TODO] P0-T01：删除 package-level `comptime if` item 与裁剪路径
+## [DONE] P0-T01：删除 package-level `comptime if` item 与裁剪路径
 
 - 参考：
   - `PLAN.md` §1.6、§4/P0
@@ -66,7 +66,12 @@
   - 旧 fixtures 不再验证“未选分支被裁掉”。
 - 依赖：无
 - 完成记录：
-  - 待填写。
+  - 改动范围：删除了 `Item::ComptimeIf`、`ItemBlock`、`ComptimeIfItem*` AST surface，删除 parser 的 package-level `comptime if` item 入口，并移除了 `trim_package_level_comptime_ifs*` 实现、导出和所有 pipeline/sysroot/cone/HIR/MIR/effect/fixture 调用点。
+  - 核心决策：顶层 `comptime` 不再作为合法 item 起始，也没有新增专门 unsupported diagnostic；旧 surface 现在通过普通 parse expected 错误暴露。statement-level `comptime if/for` 与 Scoop `const` surface 仍按 P0-T02/P0-T03 保留。
+  - Fixtures：旧 package-level trimming pass fixtures 已改为普通 parse-fail fixtures；专门验证跨文件/跨 cone trimming 的旧目录级 fixtures 已删除；混合 HIR/MIR fixtures 改为直接声明原被选中分支并更新 golden。
+  - 额外修正：为保证 P0-T01 指定的 `--no-default-features` 验证可运行，补齐了 LLVM-gated HIR tests/API re-export gating，并清理了本次删除裁剪调用后产生的 unused warnings。
+  - 验证命令：`cargo fmt`；`cargo test -p scoopc --no-default-features parser`；`cargo test -p scoopc --no-default-features session`；`cargo run -p scoop -- test`；`cargo clippy --all-targets -- -D warnings`；搜索 `Item::ComptimeIf|ComptimeIfItem|trim_package_level_comptime` 于 `crates/` 和 `tests/` 均无命中。
+  - 残余风险：归档文档和当前 TODO 任务说明中仍保留历史 package-level comptime 文字；这是历史/计划记录，不是活跃实现。顶层 `comptime if` 仍作为失败 fixture 源码出现，用于断言普通 parse 失败路径。
 
 ## [TODO] P0-T01R：Review package-level comptime 删除结果
 

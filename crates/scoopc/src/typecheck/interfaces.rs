@@ -117,8 +117,7 @@ pub fn check_file_interfaces(
             ast::Item::TypeAlias(_)
             | ast::Item::Fun(_)
             | ast::Item::Val(_)
-            | ast::Item::ExtensionProperty(_)
-            | ast::Item::ComptimeIf(_) => {}
+            | ast::Item::ExtensionProperty(_) => {}
         }
     }
     Ok(())

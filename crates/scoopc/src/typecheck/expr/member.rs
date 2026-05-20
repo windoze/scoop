@@ -943,8 +943,7 @@ fn find_type_decl_by_fqn<'a>(
             ast::Item::Fun(_)
             | ast::Item::Val(_)
             | ast::Item::ExtensionProperty(_)
-            | ast::Item::TypeAlias(_)
-            | ast::Item::ComptimeIf(_) => {}
+            | ast::Item::TypeAlias(_) => {}
         }
     }
 

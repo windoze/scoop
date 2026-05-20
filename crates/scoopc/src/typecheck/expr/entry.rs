@@ -436,9 +436,7 @@ fn check_file_exprs_pass(
                 &pkg_prefix,
                 &mut lower,
             )?,
-            ast::Item::ExtensionProperty(_)
-            | ast::Item::TypeAlias(_)
-            | ast::Item::ComptimeIf(_) => {}
+            ast::Item::ExtensionProperty(_) | ast::Item::TypeAlias(_) => {}
         }
     }
 

@@ -1707,17 +1707,7 @@ fn scoopir_fixture(
     fixture_path: &Path,
 ) -> std::result::Result<(), Box<dyn miette::Diagnostic>> {
     // v0：导出 public type/fun header，不包含函数体。
-    let mut ast = parse_file_via_ast_stage(session, source).map_err(box_diagnostic)?;
-    {
-        let sources = [source];
-        let mut files = [&mut ast];
-        scoopc::comptime::trim_package_level_comptime_ifs_in_compilation_unit(
-            session.sysroot(),
-            &sources,
-            &mut files,
-        )
-        .map_err(box_diagnostic)?;
-    }
+    let ast = parse_file_via_ast_stage(session, source).map_err(box_diagnostic)?;
 
     let mut pairs: Vec<(&scoopc::source::SourceFile, &scoopc::ast::File)> = Vec::new();
     for f in session.sysroot().index_files() {
@@ -1769,16 +1759,6 @@ fn resolve_fixture(
     source: &scoopc::source::SourceFile,
 ) -> std::result::Result<(), Box<dyn miette::Diagnostic>> {
     let mut ast = parse_file_via_ast_stage(session, source).map_err(box_diagnostic)?;
-    {
-        let sources = [source];
-        let mut files = [&mut ast];
-        scoopc::comptime::trim_package_level_comptime_ifs_in_compilation_unit(
-            session.sysroot(),
-            &sources,
-            &mut files,
-        )
-        .map_err(box_diagnostic)?;
-    }
 
     let mut pairs: Vec<(&scoopc::source::SourceFile, &scoopc::ast::File)> = Vec::new();
     for f in session.sysroot().index_files() {
@@ -1797,16 +1777,6 @@ fn typecheck_fixture(
     exp: &FixtureExpectation<'_>,
 ) -> std::result::Result<(), Box<dyn miette::Diagnostic>> {
     let mut ast = parse_file_via_ast_stage(session, source).map_err(box_diagnostic)?;
-    {
-        let sources = [source];
-        let mut files = [&mut ast];
-        scoopc::comptime::trim_package_level_comptime_ifs_in_compilation_unit(
-            session.sysroot(),
-            &sources,
-            &mut files,
-        )
-        .map_err(box_diagnostic)?;
-    }
 
     // 先运行不依赖 resolver/index 的 typecheck 预检查：
     // - T0404：声明头类型注解的最小约束
@@ -2096,16 +2066,6 @@ fn run_resolve_multi_case(
         sources.push(source);
         asts.push(ast);
     }
-    {
-        let source_refs = sources.iter().collect::<Vec<_>>();
-        let mut ast_refs = asts.iter_mut().collect::<Vec<_>>();
-        scoopc::comptime::trim_package_level_comptime_ifs_in_compilation_unit(
-            session.sysroot(),
-            &source_refs,
-            &mut ast_refs,
-        )
-        .map_err(miette::Report::new)?;
-    }
 
     let mut pairs: Vec<(&scoopc::source::SourceFile, &scoopc::ast::File)> = Vec::new();
     for f in session.sysroot().index_files() {
@@ -2210,49 +2170,6 @@ fn run_resolve_cone_case(
             });
             ok += 1;
         }
-    }
-
-    {
-        let ambient_files = session
-            .sysroot()
-            .index_files()
-            .map(|file| scoopc::resolve::IndexedFile {
-                cone: scoopc::resolve::ConeId::DEFAULT,
-                cone_kind: if file.source.is_trusted_syslib() {
-                    scoopc::cone::ConeKind::Syslib
-                } else {
-                    scoopc::cone::ConeKind::Lib
-                },
-                source: &file.source,
-                file: &file.ast,
-            })
-            .collect::<Vec<_>>();
-        let source_entries = files
-            .iter()
-            .map(|file| (file.cone, file.source.clone()))
-            .collect::<Vec<_>>();
-        let indexed_sources = source_entries
-            .iter()
-            .map(|(cone, source)| {
-                (
-                    scoopc::resolve::ConeInfo {
-                        id: *cone,
-                        kind: scoopc::cone::ConeKind::Lib,
-                    },
-                    source,
-                )
-            })
-            .collect::<Vec<_>>();
-        let mut ast_refs = files
-            .iter_mut()
-            .map(|file| &mut file.ast)
-            .collect::<Vec<_>>();
-        scoopc::comptime::trim_package_level_comptime_ifs_in_indexed_compilation_unit(
-            &ambient_files,
-            &indexed_sources,
-            &mut ast_refs,
-        )
-        .map_err(miette::Report::new)?;
     }
 
     let mut indexed: Vec<scoopc::resolve::IndexedFile<'_>> = Vec::new();
@@ -2374,49 +2291,6 @@ fn run_typecheck_cone_case(
             });
             ok += 1;
         }
-    }
-
-    {
-        let ambient_files = session
-            .sysroot()
-            .index_files()
-            .map(|file| scoopc::resolve::IndexedFile {
-                cone: scoopc::resolve::ConeId::DEFAULT,
-                cone_kind: if file.source.is_trusted_syslib() {
-                    scoopc::cone::ConeKind::Syslib
-                } else {
-                    scoopc::cone::ConeKind::Lib
-                },
-                source: &file.source,
-                file: &file.ast,
-            })
-            .collect::<Vec<_>>();
-        let source_entries = files
-            .iter()
-            .map(|file| (file.cone, file.source.clone()))
-            .collect::<Vec<_>>();
-        let indexed_sources = source_entries
-            .iter()
-            .map(|(cone, source)| {
-                (
-                    scoopc::resolve::ConeInfo {
-                        id: *cone,
-                        kind: scoopc::cone::ConeKind::Lib,
-                    },
-                    source,
-                )
-            })
-            .collect::<Vec<_>>();
-        let mut ast_refs = files
-            .iter_mut()
-            .map(|file| &mut file.ast)
-            .collect::<Vec<_>>();
-        scoopc::comptime::trim_package_level_comptime_ifs_in_indexed_compilation_unit(
-            &ambient_files,
-            &indexed_sources,
-            &mut ast_refs,
-        )
-        .map_err(miette::Report::new)?;
     }
 
     let mut indexed: Vec<scoopc::resolve::IndexedFile<'_>> = Vec::new();
@@ -2648,16 +2522,6 @@ fn run_typecheck_cone_archive_case(
         let ast = parse_file_via_ast_stage(session, &source).map_err(miette::Report::new)?;
         sources.push(source);
         asts.push(ast);
-    }
-    {
-        let source_refs = sources.iter().collect::<Vec<_>>();
-        let mut ast_refs = asts.iter_mut().collect::<Vec<_>>();
-        scoopc::comptime::trim_package_level_comptime_ifs_in_compilation_unit(
-            session.sysroot(),
-            &source_refs,
-            &mut ast_refs,
-        )
-        .map_err(miette::Report::new)?;
     }
 
     // 先构建 Index：sysroot + consumer sources（cone=1）。
@@ -3022,16 +2886,6 @@ fn run_typecheck_multi_case(
         let ast = parse_file_via_ast_stage(session, &source).map_err(miette::Report::new)?;
         sources.push(source);
         asts.push(ast);
-    }
-    {
-        let source_refs = sources.iter().collect::<Vec<_>>();
-        let mut ast_refs = asts.iter_mut().collect::<Vec<_>>();
-        scoopc::comptime::trim_package_level_comptime_ifs_in_compilation_unit(
-            session.sysroot(),
-            &source_refs,
-            &mut ast_refs,
-        )
-        .map_err(miette::Report::new)?;
     }
 
     // 先构建单一 Index（sysroot + case）。

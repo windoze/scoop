@@ -142,7 +142,7 @@ pub(in crate::hir::lower) fn collect_stable_type_param_keys_in_item(
             stable_cone_key,
             out,
         ),
-        ast::Item::Val(_) | ast::Item::ComptimeIf(_) => {}
+        ast::Item::Val(_) => {}
     }
 }
 
@@ -351,8 +351,7 @@ pub(in crate::hir::lower) fn collect_direct_supertypes(
                 ast::Item::Fun(_)
                 | ast::Item::Val(_)
                 | ast::Item::ExtensionProperty(_)
-                | ast::Item::TypeAlias(_)
-                | ast::Item::ComptimeIf(_) => {}
+                | ast::Item::TypeAlias(_) => {}
             }
         }
     }
@@ -463,8 +462,7 @@ pub(in crate::hir::lower) fn collect_object_inits(
             ast::Item::Fun(_)
             | ast::Item::Val(_)
             | ast::Item::ExtensionProperty(_)
-            | ast::Item::TypeAlias(_)
-            | ast::Item::ComptimeIf(_) => {}
+            | ast::Item::TypeAlias(_) => {}
         }
     }
 
@@ -655,8 +653,7 @@ pub(in crate::hir::lower) fn collect_class_inits(
             ast::Item::Fun(_)
             | ast::Item::Val(_)
             | ast::Item::ExtensionProperty(_)
-            | ast::Item::TypeAlias(_)
-            | ast::Item::ComptimeIf(_) => {}
+            | ast::Item::TypeAlias(_) => {}
         }
     }
     ctx.record_missing_assign_place_contracts_in_class_inits(&out);

@@ -1,25 +1,27 @@
-# 执行计划
+# Current Invocation Plan
 
-> 说明：本文件记录可审计的执行计划与进度更新，不包含隐私推理链。
+I will follow `TODO.md` as the source of truth and complete exactly the first task whose heading is not prefixed with `[DONE]`.
 
-## 当前计划
+Execution plan:
 
-1. 读取 `TODO.md`，按标题是否带 `[DONE]` 判断第一个未完成任务。
-2. 读取该任务相关上下文，必要时查看 `PLAN.md`、最新提交和相关源码/测试，但不做开放式历史问题扫描。
-3. 按任务要求实现或修复；若发现阻塞当前任务的规范/实现缺口，则在 `TODO.md` 插入最小必要前置任务并停止。
-4. 运行与当前任务直接相关的测试；如有必要再运行更广范围验证，修复由当前任务引入或暴露且阻塞任务的失败。
-5. 更新 `TODO.md`：完成时在任务标题加 `[DONE]` 并填写完成记录；仅当阶段计划变化时更新 `PLAN.md`。
-6. 检查工作区差异，提交本次任务相关变更，然后停止，不继续下一个任务。
+1. Read `TODO.md` and identify the first incomplete task, treating only headings prefixed with `[DONE]` as complete.
+2. Inspect the latest commit message only for directly relevant unfinished work that affects that selected task.
+3. Read the selected task details and any relevant source, fixtures, or tests needed to implement it without broad unrelated triage.
+4. Implement the task as specified, avoiding workaround behavior or weakened fixture shapes.
+5. If a concrete blocker prevents spec-correct implementation, update `TODO.md` with the minimum prerequisite task, keep the current task incomplete, commit that bookkeeping, and stop.
+6. Run the task-specified validation and any targeted tests needed for confidence; fix failures that are in scope.
+7. Mark the completed task heading in `TODO.md` with `[DONE]` and update its completion record.
+8. Update this progress file after key milestones or plan changes.
+9. Inspect git status and diffs, then commit all changes relevant to this invocation with a descriptive task-tagged message.
+10. Stop after the single selected task is completed or after committing any required blocker/task-list update.
 
-## 进度
+Progress log:
 
-- 已写入初始计划，下一步读取 `TODO.md` 确认第一个未完成任务。
-- 已确认第一个未完成任务为 `P8-T05：迁移 string/native helper 边界并收窄 runtime allowlist`。
-- 下一步检查最新提交与工作区状态，然后梳理 `runtime/c/scoop_runtime.c`、`sysroot/lib/scoop.lang.string/src/lang_string.scoop` 和 runtime allowlist 中的 string helper 归属。
-- 最新提交 `[P8-T04] Migrate scoop.thread native implementation` 未声明直接相关未完成事项；工作区除本计划文件外无其它修改。
-- P8-T05 实施边界：保留 runtime core 中的 canonical `String` descriptor、基础分配/字节访问 substrate、compiler/`scoop.core` 仍需的 primitive-to-string、concat/equality/slice；将 `scoop_string_from_byte_array`、`scoop_string_from_char_array`、`scoop_string_from_string_array` 迁到 `scoop.lang.string` native cone；删除未使用的 `scoop_string_to_float64` runtime-core export。
-- 已实施核心迁移草案：新增 `scoop.lang.string/native/scoop_lang_string.c` 和该 cone 的 `[native-build]`；runtime core 暴露最小 String/MutableArray substrate accessors；runtime allowlist 移除数组转字符串和 unused `scoop_string_to_float64`，新增必要底层 accessors。
-- 定向验证通过：runtime allowlist 单测、runtime string substrate integration test、`lang_string_builder_basic`、`stdlib_string_basic`、`stdlib_string_methods_extended`、`lang_string_helpers_auto_prelude`、`fstring_desugar_basic`、P8 normal-link symbol regression。
-- 全量验证通过：`cargo fmt`、`cargo build`、`cargo clippy --all-targets -- -D warnings`、`cargo test --all --all-targets`、`cargo run -p scoop -- test`。
-- 已更新 `TODO.md`：`P8-T05` 标记为 `[DONE]`，任务索引与当前状态改为下一任务 `P9-T01`，并写入完成记录；`PLAN.md` 未变更。
-- 已检查工作区差异，准备提交本次 `P8-T05` 相关变更。
+- Plan initialized before reading task files or running commands.
+- Selected first incomplete task: `P0-T01` from `TODO.md` / `TODO-1.md`.
+- Latest commit is `2adc7b50 Update plan`; it does not identify a directly relevant unfinished issue for `P0-T01`.
+- Current focus: remove package-level `comptime if` AST/parser surface and all package-level trimming paths, then update fixtures/tests and task records.
+- Removed the AST/parser package-level `comptime if` surface and deleted the trim implementation/export from `comptime`; remaining work is to remove call sites and stale match branches throughout the pipeline and fixtures.
+- Removed all active Rust references to `Item::ComptimeIf`, `ComptimeIfItem`, and `trim_package_level_comptime*`; old package-level fixtures are now either ordinary parse-fail fixtures or deleted when they existed only to verify trimming.
+- Validation completed: `cargo fmt`, `cargo test -p scoopc --no-default-features parser`, `cargo test -p scoopc --no-default-features session`, `cargo run -p scoop -- test`, `cargo clippy --all-targets -- -D warnings`, plus active source searches for removed package-level comptime identifiers.
+- Marked `P0-T01` done in `TODO.md` and `TODO-1.md` with completion notes. Next step is git diff/status review and commit.

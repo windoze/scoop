@@ -308,25 +308,6 @@ pub(super) fn collect_dump_materialization_inputs(
         collect_monomorph_keys: true,
     });
 
-    {
-        let trim_sources = prepared_files
-            .iter()
-            .filter(|file| file.extend_type_env)
-            .map(|file| file.source.clone())
-            .collect::<Vec<_>>();
-        let sources = trim_sources.iter().collect::<Vec<_>>();
-        let mut files = prepared_files
-            .iter_mut()
-            .filter(|file| file.extend_type_env)
-            .map(|file| &mut file.ast)
-            .collect::<Vec<_>>();
-        crate::comptime::trim_package_level_comptime_ifs_in_compilation_unit(
-            session.sysroot(),
-            &sources,
-            &mut files,
-        )?;
-    }
-
     for file in &prepared_files {
         typecheck::check_file_headers(&file.source, &file.ast)?;
         typecheck::check_file_struct_decls(&file.source, &file.ast)?;

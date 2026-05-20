@@ -156,15 +156,6 @@ impl Session {
             let ast = parse_file(s)?;
             asts.push(ast);
         }
-        {
-            let source_refs = sources.iter().collect::<Vec<_>>();
-            let mut ast_refs = asts.iter_mut().collect::<Vec<_>>();
-            crate::comptime::trim_package_level_comptime_ifs_in_compilation_unit(
-                self.sysroot(),
-                &source_refs,
-                &mut ast_refs,
-            )?;
-        }
 
         let mut pairs: Vec<(&SourceFile, &crate::ast::File)> = Vec::new();
         for f in self.sysroot.index_files() {
@@ -263,21 +254,5 @@ mod tests {
 
         assert!(packages.contains("scoop.thread"));
         assert!(!packages.contains("scoop.sync"));
-    }
-
-    #[test]
-    fn build_top_level_index_trims_package_level_comptime_if_across_source_set() {
-        let sess = Session::new().unwrap();
-        let defs = SourceFile::new_virtual(
-            "<defs>",
-            "package a\nimport scoop.core.*\nconst fun truthy<T>(value: T): Bool { return true }\n",
-        );
-        let main = SourceFile::new_virtual(
-            "<main>",
-            "package a\nimport scoop.core.*\ncomptime if (truthy<Int>(1)) {\n    fun selected() {}\n}\n",
-        );
-
-        let index = sess.build_top_level_index(&[defs, main]).unwrap();
-        assert!(index.by_fqn.contains_key("a.selected"));
     }
 }

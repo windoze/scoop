@@ -351,10 +351,7 @@ pub(super) fn collect_generic_template_infos_with_source_cones(
                         obj.body.as_ref(),
                     );
                 }
-                ast::Item::TypeAlias(_)
-                | ast::Item::ComptimeIf(_)
-                | ast::Item::ExtensionProperty(_)
-                | ast::Item::Val(_) => {}
+                ast::Item::TypeAlias(_) | ast::Item::ExtensionProperty(_) | ast::Item::Val(_) => {}
             }
         }
     }
@@ -538,10 +535,7 @@ pub(super) fn collect_callable_body_infos(
                         obj.body.as_ref(),
                     );
                 }
-                ast::Item::TypeAlias(_)
-                | ast::Item::ComptimeIf(_)
-                | ast::Item::ExtensionProperty(_)
-                | ast::Item::Val(_) => {}
+                ast::Item::TypeAlias(_) | ast::Item::ExtensionProperty(_) | ast::Item::Val(_) => {}
             }
         }
     }

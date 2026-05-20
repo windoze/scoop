@@ -75,8 +75,7 @@ pub(crate) fn collect_computed_property_accessor_fqns(
                 ast::Item::Fun(_)
                 | ast::Item::Val(_)
                 | ast::Item::ExtensionProperty(_)
-                | ast::Item::TypeAlias(_)
-                | ast::Item::ComptimeIf(_) => {}
+                | ast::Item::TypeAlias(_) => {}
             }
         }
     }

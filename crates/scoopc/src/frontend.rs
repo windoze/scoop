@@ -12,6 +12,7 @@ use crate::cone::{
 use crate::cone::{
     ConeKind, ConeManifest, ConeNativeBuildConfig, ConeSection, SourceConeGraph, SourceConeInfo,
 };
+#[cfg(feature = "llvm")]
 use crate::opt::OptLevel;
 use crate::resolve::{ConeId, ConeInfo, Index, IndexedFile};
 use crate::session::{Session, SessionOptions};
@@ -512,22 +513,6 @@ pub fn run_frontend(session: &Session, mut input: ProjectInput) -> Result<Fronte
             .map(crate::pipeline::AstStageOutput::into_ast)
             .map_err(miette::Report::from)?;
         asts.push(ast);
-    }
-
-    {
-        let source_refs = input
-            .sources
-            .iter()
-            .enumerate()
-            .map(|(idx, source)| (input.source_resolver_cone_info(idx), source))
-            .collect::<Vec<_>>();
-        let mut ast_refs = asts.iter_mut().collect::<Vec<_>>();
-        crate::comptime::trim_package_level_comptime_ifs_in_cone_info_compilation_unit(
-            session.sysroot(),
-            &source_refs,
-            &mut ast_refs,
-        )
-        .map_err(miette::Report::from)?;
     }
 
     for (source, ast) in input.sources.iter().zip(asts.iter()) {

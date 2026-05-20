@@ -455,9 +455,6 @@ fn collect_item_warning_suppressions(
         }
         ast::Item::Type(decl) => collect_type_decl_warning_suppressions(source, decl, file, out),
         ast::Item::Object(obj) => collect_object_decl_warning_suppressions(source, obj, file, out),
-        ast::Item::ComptimeIf(ci) => {
-            collect_comptime_if_item_warning_suppressions(source, ci, file, out)
-        }
     }
 }
 
@@ -704,39 +701,6 @@ fn collect_for_stmt_warning_suppressions(
 ) {
     collect_expr_warning_suppressions(source, &for_stmt.iter, file, out);
     collect_block_warning_suppressions(source, &for_stmt.body, file, out);
-}
-
-fn collect_comptime_if_item_warning_suppressions(
-    source: &SourceFile,
-    comptime_if: &ast::ComptimeIfItem,
-    file: &std::path::Path,
-    out: &mut Vec<WarningSuppression>,
-) {
-    collect_expr_warning_suppressions(source, &comptime_if.cond, file, out);
-    for item in &comptime_if.then_branch.items {
-        collect_item_warning_suppressions(source, item, file, out);
-    }
-    if let Some(else_branch) = &comptime_if.else_branch {
-        collect_comptime_if_item_else_warning_suppressions(source, else_branch, file, out);
-    }
-}
-
-fn collect_comptime_if_item_else_warning_suppressions(
-    source: &SourceFile,
-    else_branch: &ast::ComptimeIfItemElse,
-    file: &std::path::Path,
-    out: &mut Vec<WarningSuppression>,
-) {
-    match else_branch {
-        ast::ComptimeIfItemElse::Block(block) => {
-            for item in &block.items {
-                collect_item_warning_suppressions(source, item, file, out);
-            }
-        }
-        ast::ComptimeIfItemElse::If(ci) => {
-            collect_comptime_if_item_warning_suppressions(source, ci, file, out)
-        }
-    }
 }
 
 fn collect_comptime_if_warning_suppressions(

@@ -191,8 +191,7 @@ pub fn collect_interfaces_and_class_itables(
                 ast::Item::Fun(_)
                 | ast::Item::Val(_)
                 | ast::Item::ExtensionProperty(_)
-                | ast::Item::TypeAlias(_)
-                | ast::Item::ComptimeIf(_) => {}
+                | ast::Item::TypeAlias(_) => {}
             }
         }
     }
@@ -242,8 +241,7 @@ pub fn collect_runtime_interfaces_and_class_itables_with_env(
                 ast::Item::Fun(_)
                 | ast::Item::Val(_)
                 | ast::Item::ExtensionProperty(_)
-                | ast::Item::TypeAlias(_)
-                | ast::Item::ComptimeIf(_) => {}
+                | ast::Item::TypeAlias(_) => {}
             }
         }
     }

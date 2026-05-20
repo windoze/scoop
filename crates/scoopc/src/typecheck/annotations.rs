@@ -824,8 +824,6 @@ pub fn check_file_annotations(
                     file_allows_intrinsic,
                 )?;
             }
-            // T1220a：package-level comptime if 在进入 typecheck 之前应被裁剪（TODO T1220b）。
-            ast::Item::ComptimeIf(_ci) => {}
         }
     }
 

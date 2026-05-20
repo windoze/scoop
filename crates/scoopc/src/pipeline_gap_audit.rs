@@ -233,6 +233,7 @@ fn repo_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
 }
 
+#[cfg(feature = "llvm")]
 fn expected_lines(expected: &[&str]) -> Vec<String> {
     expected.iter().map(|line| (*line).to_string()).collect()
 }

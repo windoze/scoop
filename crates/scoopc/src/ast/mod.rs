@@ -459,12 +459,6 @@ pub struct ImportDecl {
 pub enum Item {
     TypeAlias(Box<TypeAliasDecl>),
     Fun(Box<FunDecl>),
-    /// package 顶层 `comptime if`（条件编译）：块内为“顶层 items 列表”。
-    ///
-    /// 说明：
-    /// - 该节点只承载语法结构；真正的“分支裁剪/选择”发生在 resolver 之前（TODO T1220b）。
-    /// - 块内不允许出现语句/表达式；若出现应在 parse 阶段报错（TODO T1220a）。
-    ComptimeIf(Box<ComptimeIfItem>),
     /// 顶层扩展属性声明（spec §10.3）。
     ///
     /// 语法形态示例：
@@ -478,37 +472,6 @@ pub enum Item {
     Type(Box<TypeDecl>),
     Object(Box<ObjectDecl>),
     Val(Box<ValDecl>),
-}
-
-/// 顶层 item 块：`{ <item>* }`。
-///
-/// 与普通 `Block { stmts }` 的区别：
-/// - `ItemBlock` 只出现在“package-level comptime if”的分支里；
-/// - 其中的元素必须是顶层 items（fun/class/val/...），不允许语句/表达式。
-#[derive(Debug, Clone)]
-pub struct ItemBlock {
-    pub span: Span,
-    pub items: Vec<Item>,
-}
-
-/// package-level `comptime if (...) { ... } else ...`。
-///
-/// 注意：语句级 `comptime if` 使用的是 `StmtKind::ComptimeIf(ComptimeIf)`；
-/// 这里的 `ComptimeIfItem` 用于顶层 item 列表的条件编译。
-#[derive(Debug, Clone)]
-pub struct ComptimeIfItem {
-    pub span: Span,
-    pub comptime_span: Span,
-    pub if_span: Span,
-    pub cond: Expr,
-    pub then_branch: ItemBlock,
-    pub else_branch: Option<Box<ComptimeIfItemElse>>,
-}
-
-#[derive(Debug, Clone)]
-pub enum ComptimeIfItemElse {
-    Block(ItemBlock),
-    If(Box<ComptimeIfItem>),
 }
 
 /// 类型别名声明：`typealias Name = Type`（Appendix B.10）。

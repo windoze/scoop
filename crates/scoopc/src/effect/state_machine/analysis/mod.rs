@@ -39,6 +39,7 @@ mod suspend_paths;
 pub(crate) use arm_scope::*;
 pub(crate) use builder::*;
 pub(crate) use collect::*;
+#[cfg(feature = "llvm")]
 pub(crate) use direct_step::build_ordinary_callee_suspend_plan_with_context;
 pub(crate) use plan_state::*;
 pub(crate) use rewrite::*;

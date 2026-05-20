@@ -1,9 +1,0 @@
-// EXPECT: pass
-
-package fixtures.typecheck_cone.package_level_comptime_if_cross_cone_const_fun.lib
-
-import scoop.core.*
-
-public const fun truthy<T>(value: T): Bool {
-    return true
-}

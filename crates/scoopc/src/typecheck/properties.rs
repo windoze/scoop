@@ -248,8 +248,7 @@ pub fn check_file_properties(
             ast::Item::TypeAlias(_)
             | ast::Item::Fun(_)
             | ast::Item::Object(_)
-            | ast::Item::Val(_)
-            | ast::Item::ComptimeIf(_) => {}
+            | ast::Item::Val(_) => {}
         }
     }
     Ok(())

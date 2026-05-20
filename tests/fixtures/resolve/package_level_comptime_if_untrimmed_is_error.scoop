@@ -1,12 +1,10 @@
 // EXPECT: fail
-// EXPECT-ERROR-CODE: scoop::comptime::unknown_ident
-// EXPECT-ERROR: FLAG
-// EXPECT-ERROR-AT: 11:14
-// 目标：package-level `comptime if` 不能未裁剪进入 HIR；无法常量求值时必须给 frontend diagnostic。
+// EXPECT-ERROR: 顶层声明
+// EXPECT-ERROR-CODE: scoop::parse::expected
+// EXPECT-ERROR-AT: 9:1
+// 目标：package-level `comptime if` surface 已删除，不再存在 untrimmed frontend diagnostic。
 
 package fixtures.resolve
-
-val FLAG: Bool = true
 
 comptime if (FLAG) {
     fun selected() {}

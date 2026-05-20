@@ -1,5 +1,8 @@
-// EXPECT: pass
-// 目标：T1220b 顶层 `comptime if` 在 index/resolve 前裁剪，选中分支的声明应可被正常引用。
+// EXPECT: fail
+// EXPECT-ERROR: 顶层声明
+// EXPECT-ERROR-CODE: scoop::parse::expected
+// EXPECT-ERROR-AT: 9:1
+// 目标：package-level `comptime if` 不再进入 index/resolve 裁剪路径。
 
 package fixtures.resolve
 
@@ -12,4 +15,3 @@ comptime if (true) {
 }
 
 fun use() { foo() }
-

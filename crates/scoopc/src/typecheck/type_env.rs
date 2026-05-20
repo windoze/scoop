@@ -771,7 +771,6 @@ impl TypeEnv {
                         AnnotationTargetKind::Property,
                     );
                 }
-                ast::Item::ComptimeIf(_) => {}
             }
         }
 

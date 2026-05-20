@@ -2182,17 +2182,10 @@ impl EffectFactsTypeContext {
         }
         let index = session.build_top_level_index(&sources)?;
 
-        let mut parsed_files = sources
+        let parsed_files = sources
             .iter()
             .map(|source| session.parse(source))
             .collect::<Result<Vec<_>, _>>()?;
-        let source_refs = sources.iter().collect::<Vec<_>>();
-        let mut ast_refs = parsed_files.iter_mut().collect::<Vec<_>>();
-        crate::comptime::trim_package_level_comptime_ifs_in_compilation_unit(
-            session.sysroot(),
-            &source_refs,
-            &mut ast_refs,
-        )?;
 
         let mut env = TypeEnv::from_sysroot(session.sysroot(), &index)
             .map_err(|error| EffectFactsError::TypeEnv(Box::new(error)))?;
@@ -3309,8 +3302,7 @@ fn collect_direct_subclasses(
                 ast::Item::Fun(_)
                 | ast::Item::Val(_)
                 | ast::Item::ExtensionProperty(_)
-                | ast::Item::TypeAlias(_)
-                | ast::Item::ComptimeIf(_) => {}
+                | ast::Item::TypeAlias(_) => {}
             }
         }
     }

@@ -1074,8 +1074,7 @@ pub(in crate::hir::lower) fn collect_explicit_member_templates_in_items<'a>(
             ast::Item::Fun(_)
             | ast::Item::Val(_)
             | ast::Item::ExtensionProperty(_)
-            | ast::Item::TypeAlias(_)
-            | ast::Item::ComptimeIf(_) => {}
+            | ast::Item::TypeAlias(_) => {}
         }
     }
 }

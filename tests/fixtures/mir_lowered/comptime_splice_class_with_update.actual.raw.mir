@@ -3,7 +3,7 @@ File {
         Metadata(
             Nominal(
                 NominalMetadata {
-                    span: 229..265,
+                    span: 149..185,
                     fqn: "mir_lowered.comptime_splice_class_with_update.Point",
                     name: "Point",
                     kind: Struct,
@@ -12,11 +12,11 @@ File {
                     interfaces: [],
                     constructors: [
                         CtorMetadata {
-                            span: 241..265,
+                            span: 161..185,
                             kind: Primary,
                             params: [
                                 CtorParamMetadata {
-                                    span: 246..247,
+                                    span: 166..167,
                                     name: "x",
                                     ty: TypeId(
                                         5,
@@ -27,7 +27,7 @@ File {
                                     ),
                                 },
                                 CtorParamMetadata {
-                                    span: 258..259,
+                                    span: 178..179,
                                     name: "y",
                                     ty: TypeId(
                                         5,
@@ -44,7 +44,7 @@ File {
                     members: [
                         Field(
                             FieldMetadata {
-                                span: 246..247,
+                                span: 166..167,
                                 fqn: "mir_lowered.comptime_splice_class_with_update.Point.x",
                                 name: "x",
                                 mutable: false,
@@ -56,7 +56,7 @@ File {
                         ),
                         Field(
                             FieldMetadata {
-                                span: 258..259,
+                                span: 178..179,
                                 fqn: "mir_lowered.comptime_splice_class_with_update.Point.y",
                                 name: "y",
                                 mutable: false,
@@ -73,7 +73,7 @@ File {
         Metadata(
             Nominal(
                 NominalMetadata {
-                    span: 267..332,
+                    span: 187..252,
                     fqn: "mir_lowered.comptime_splice_class_with_update.Result",
                     name: "Result",
                     kind: Enum,
@@ -84,12 +84,12 @@ File {
                     members: [
                         EnumVariant(
                             EnumVariantMetadata {
-                                span: 285..305,
+                                span: 205..225,
                                 fqn: "mir_lowered.comptime_splice_class_with_update.Result.Ok",
                                 name: "Ok",
                                 fields: [
                                     FieldMetadata {
-                                        span: 292..297,
+                                        span: 212..217,
                                         fqn: "mir_lowered.comptime_splice_class_with_update.Result.Ok.point",
                                         name: "point",
                                         mutable: false,
@@ -103,12 +103,12 @@ File {
                         ),
                         EnumVariant(
                             EnumVariantMetadata {
-                                span: 311..329,
+                                span: 231..249,
                                 fqn: "mir_lowered.comptime_splice_class_with_update.Result.Err",
                                 name: "Err",
                                 fields: [
                                     FieldMetadata {
-                                        span: 319..323,
+                                        span: 239..243,
                                         fqn: "mir_lowered.comptime_splice_class_with_update.Result.Err.code",
                                         name: "code",
                                         mutable: false,
@@ -145,7 +145,7 @@ File {
         ),
         Fun(
             FunDecl {
-                span: 133..172,
+                span: 108..147,
                 fqn: "mir_lowered.comptime_splice_class_with_update.packageSelected",
                 name: "packageSelected",
                 ty: TypeId(
@@ -159,7 +159,7 @@ File {
                     Body {
                         locals: [
                             LocalDecl {
-                                span: 169..170,
+                                span: 144..145,
                                 name: Some(
                                     "tmp0",
                                 ),
@@ -169,7 +169,7 @@ File {
                                 source: CompilerTemporary,
                             },
                             LocalDecl {
-                                span: 160..172,
+                                span: 135..147,
                                 name: Some(
                                     "tmp1",
                                 ),
@@ -184,7 +184,7 @@ File {
                                 is_cleanup: false,
                                 stmts: [
                                     Statement {
-                                        span: 169..170,
+                                        span: 144..145,
                                         kind: Assign {
                                             target: l0,
                                             value: Use(
@@ -196,7 +196,7 @@ File {
                                     },
                                 ],
                                 terminator: Terminator {
-                                    span: 162..170,
+                                    span: 137..145,
                                     kind: Return {
                                         value: Some(
                                             Local(
@@ -215,7 +215,7 @@ File {
         ),
         Fun(
             FunDecl {
-                span: 334..444,
+                span: 254..364,
                 fqn: "mir_lowered.comptime_splice_class_with_update.selectedBranch",
                 name: "selectedBranch",
                 ty: TypeId(
@@ -229,7 +229,7 @@ File {
                     Body {
                         locals: [
                             LocalDecl {
-                                span: 405..406,
+                                span: 325..326,
                                 name: Some(
                                     "tmp0",
                                 ),
@@ -239,7 +239,7 @@ File {
                                 source: CompilerTemporary,
                             },
                             LocalDecl {
-                                span: 360..444,
+                                span: 280..364,
                                 name: Some(
                                     "tmp1",
                                 ),
@@ -254,7 +254,7 @@ File {
                                 is_cleanup: false,
                                 stmts: [
                                     Statement {
-                                        span: 405..406,
+                                        span: 325..326,
                                         kind: Assign {
                                             target: l0,
                                             value: Use(
@@ -266,7 +266,7 @@ File {
                                     },
                                 ],
                                 terminator: Terminator {
-                                    span: 398..406,
+                                    span: 318..326,
                                     kind: Return {
                                         value: Some(
                                             Local(
@@ -285,7 +285,7 @@ File {
         ),
         Fun(
             FunDecl {
-                span: 446..564,
+                span: 366..484,
                 fqn: "mir_lowered.comptime_splice_class_with_update.unrolled",
                 name: "unrolled",
                 ty: TypeId(
@@ -299,7 +299,7 @@ File {
                     Body {
                         locals: [
                             LocalDecl {
-                                span: 472..488,
+                                span: 392..408,
                                 name: Some(
                                     "acc",
                                 ),
@@ -309,7 +309,7 @@ File {
                                 source: SourceLocal,
                             },
                             LocalDecl {
-                                span: 487..488,
+                                span: 407..408,
                                 name: Some(
                                     "tmp0",
                                 ),
@@ -319,7 +319,7 @@ File {
                                 source: CompilerTemporary,
                             },
                             LocalDecl {
-                                span: 534..541,
+                                span: 454..461,
                                 name: Some(
                                     "tmp1",
                                 ),
@@ -329,7 +329,7 @@ File {
                                 source: CompilerTemporary,
                             },
                             LocalDecl {
-                                span: 540..541,
+                                span: 460..461,
                                 name: Some(
                                     "tmp2",
                                 ),
@@ -339,7 +339,7 @@ File {
                                 source: CompilerTemporary,
                             },
                             LocalDecl {
-                                span: 534..541,
+                                span: 454..461,
                                 name: Some(
                                     "tmp3",
                                 ),
@@ -349,7 +349,7 @@ File {
                                 source: CompilerTemporary,
                             },
                             LocalDecl {
-                                span: 540..541,
+                                span: 460..461,
                                 name: Some(
                                     "tmp4",
                                 ),
@@ -359,7 +359,7 @@ File {
                                 source: CompilerTemporary,
                             },
                             LocalDecl {
-                                span: 534..541,
+                                span: 454..461,
                                 name: Some(
                                     "tmp5",
                                 ),
@@ -369,7 +369,7 @@ File {
                                 source: CompilerTemporary,
                             },
                             LocalDecl {
-                                span: 540..541,
+                                span: 460..461,
                                 name: Some(
                                     "tmp6",
                                 ),
@@ -379,7 +379,7 @@ File {
                                 source: CompilerTemporary,
                             },
                             LocalDecl {
-                                span: 466..564,
+                                span: 386..484,
                                 name: Some(
                                     "tmp7",
                                 ),
@@ -394,7 +394,7 @@ File {
                                 is_cleanup: false,
                                 stmts: [
                                     Statement {
-                                        span: 487..488,
+                                        span: 407..408,
                                         kind: Assign {
                                             target: l1,
                                             value: Use(
@@ -405,7 +405,7 @@ File {
                                         },
                                     },
                                     Statement {
-                                        span: 472..488,
+                                        span: 392..408,
                                         kind: Assign {
                                             target: l0,
                                             value: Use(
@@ -416,7 +416,7 @@ File {
                                         },
                                     },
                                     Statement {
-                                        span: 540..541,
+                                        span: 460..461,
                                         kind: Assign {
                                             target: l3,
                                             value: Use(
@@ -427,22 +427,58 @@ File {
                                         },
                                     },
                                     Statement {
-                                        span: 534..541,
+                                        span: 454..461,
                                         kind: Assign {
                                             target: l2,
-                                            value: Binary {
-                                                lhs: Local(
-                                                    l0,
-                                                ),
-                                                op: Add,
-                                                rhs: Local(
-                                                    l3,
-                                                ),
+                                            value: Call {
+                                                site_id: site0,
+                                                kind: Direct {
+                                                    callee_fqn: "scoop.core.Int.plus",
+                                                },
+                                                args: [
+                                                    CallArg {
+                                                        span: 454..457,
+                                                        name: None,
+                                                        value: Local(
+                                                            l0,
+                                                        ),
+                                                    },
+                                                    CallArg {
+                                                        span: 460..461,
+                                                        name: None,
+                                                        value: Local(
+                                                            l3,
+                                                        ),
+                                                    },
+                                                ],
+                                                transport: CallTransportMetadata {
+                                                    result: ValueTransportMetadata {
+                                                        source_ty: TypeId(
+                                                            5,
+                                                        ),
+                                                        kind: Scalar,
+                                                        requirements: MirTransportRequirements {
+                                                            trace: false,
+                                                            copy: true,
+                                                            drop: false,
+                                                        },
+                                                        boxing: None,
+                                                    },
+                                                    aggregate_return: None,
+                                                    array: None,
+                                                    gc: None,
+                                                    abi: CallAbiHandoffMetadata {
+                                                        callable_abi_kind: DeferredToEffectFacts,
+                                                        resolved_outward_cases: [],
+                                                        impl_plan: DeferredToEffectFacts,
+                                                        adapter_required: false,
+                                                    },
+                                                },
                                             },
                                         },
                                     },
                                     Statement {
-                                        span: 528..541,
+                                        span: 448..461,
                                         kind: Assign {
                                             target: l0,
                                             value: Use(
@@ -453,7 +489,7 @@ File {
                                         },
                                     },
                                     Statement {
-                                        span: 540..541,
+                                        span: 460..461,
                                         kind: Assign {
                                             target: l5,
                                             value: Use(
@@ -464,22 +500,58 @@ File {
                                         },
                                     },
                                     Statement {
-                                        span: 534..541,
+                                        span: 454..461,
                                         kind: Assign {
                                             target: l4,
-                                            value: Binary {
-                                                lhs: Local(
-                                                    l0,
-                                                ),
-                                                op: Add,
-                                                rhs: Local(
-                                                    l5,
-                                                ),
+                                            value: Call {
+                                                site_id: site1,
+                                                kind: Direct {
+                                                    callee_fqn: "scoop.core.Int.plus",
+                                                },
+                                                args: [
+                                                    CallArg {
+                                                        span: 454..457,
+                                                        name: None,
+                                                        value: Local(
+                                                            l0,
+                                                        ),
+                                                    },
+                                                    CallArg {
+                                                        span: 460..461,
+                                                        name: None,
+                                                        value: Local(
+                                                            l5,
+                                                        ),
+                                                    },
+                                                ],
+                                                transport: CallTransportMetadata {
+                                                    result: ValueTransportMetadata {
+                                                        source_ty: TypeId(
+                                                            5,
+                                                        ),
+                                                        kind: Scalar,
+                                                        requirements: MirTransportRequirements {
+                                                            trace: false,
+                                                            copy: true,
+                                                            drop: false,
+                                                        },
+                                                        boxing: None,
+                                                    },
+                                                    aggregate_return: None,
+                                                    array: None,
+                                                    gc: None,
+                                                    abi: CallAbiHandoffMetadata {
+                                                        callable_abi_kind: DeferredToEffectFacts,
+                                                        resolved_outward_cases: [],
+                                                        impl_plan: DeferredToEffectFacts,
+                                                        adapter_required: false,
+                                                    },
+                                                },
                                             },
                                         },
                                     },
                                     Statement {
-                                        span: 528..541,
+                                        span: 448..461,
                                         kind: Assign {
                                             target: l0,
                                             value: Use(
@@ -490,7 +562,7 @@ File {
                                         },
                                     },
                                     Statement {
-                                        span: 540..541,
+                                        span: 460..461,
                                         kind: Assign {
                                             target: l7,
                                             value: Use(
@@ -501,22 +573,58 @@ File {
                                         },
                                     },
                                     Statement {
-                                        span: 534..541,
+                                        span: 454..461,
                                         kind: Assign {
                                             target: l6,
-                                            value: Binary {
-                                                lhs: Local(
-                                                    l0,
-                                                ),
-                                                op: Add,
-                                                rhs: Local(
-                                                    l7,
-                                                ),
+                                            value: Call {
+                                                site_id: site2,
+                                                kind: Direct {
+                                                    callee_fqn: "scoop.core.Int.plus",
+                                                },
+                                                args: [
+                                                    CallArg {
+                                                        span: 454..457,
+                                                        name: None,
+                                                        value: Local(
+                                                            l0,
+                                                        ),
+                                                    },
+                                                    CallArg {
+                                                        span: 460..461,
+                                                        name: None,
+                                                        value: Local(
+                                                            l7,
+                                                        ),
+                                                    },
+                                                ],
+                                                transport: CallTransportMetadata {
+                                                    result: ValueTransportMetadata {
+                                                        source_ty: TypeId(
+                                                            5,
+                                                        ),
+                                                        kind: Scalar,
+                                                        requirements: MirTransportRequirements {
+                                                            trace: false,
+                                                            copy: true,
+                                                            drop: false,
+                                                        },
+                                                        boxing: None,
+                                                    },
+                                                    aggregate_return: None,
+                                                    array: None,
+                                                    gc: None,
+                                                    abi: CallAbiHandoffMetadata {
+                                                        callable_abi_kind: DeferredToEffectFacts,
+                                                        resolved_outward_cases: [],
+                                                        impl_plan: DeferredToEffectFacts,
+                                                        adapter_required: false,
+                                                    },
+                                                },
                                             },
                                         },
                                     },
                                     Statement {
-                                        span: 528..541,
+                                        span: 448..461,
                                         kind: Assign {
                                             target: l0,
                                             value: Use(
@@ -528,7 +636,7 @@ File {
                                     },
                                 ],
                                 terminator: Terminator {
-                                    span: 552..562,
+                                    span: 472..482,
                                     kind: Return {
                                         value: Some(
                                             Local(
@@ -547,7 +655,7 @@ File {
         ),
         Fun(
             FunDecl {
-                span: 566..649,
+                span: 486..569,
                 fqn: "mir_lowered.comptime_splice_class_with_update.spliceField",
                 name: "spliceField",
                 ty: TypeId(
@@ -555,7 +663,7 @@ File {
                 ),
                 params: [
                     Param {
-                        span: 582..583,
+                        span: 502..503,
                         name: "p",
                         ty: TypeId(
                             11,
@@ -570,7 +678,7 @@ File {
                     Body {
                         locals: [
                             LocalDecl {
-                                span: 582..583,
+                                span: 502..503,
                                 name: Some(
                                     "p",
                                 ),
@@ -580,7 +688,7 @@ File {
                                 source: SourceLocal,
                             },
                             LocalDecl {
-                                span: 610..647,
+                                span: 530..567,
                                 name: Some(
                                     "tmp0",
                                 ),
@@ -590,7 +698,7 @@ File {
                                 source: CompilerTemporary,
                             },
                             LocalDecl {
-                                span: 610..617,
+                                span: 530..537,
                                 name: Some(
                                     "tmp1",
                                 ),
@@ -600,7 +708,7 @@ File {
                                 source: CompilerTemporary,
                             },
                             LocalDecl {
-                                span: 620..647,
+                                span: 540..567,
                                 name: Some(
                                     "tmp2",
                                 ),
@@ -610,7 +718,7 @@ File {
                                 source: CompilerTemporary,
                             },
                             LocalDecl {
-                                span: 597..649,
+                                span: 517..569,
                                 name: Some(
                                     "tmp3",
                                 ),
@@ -625,7 +733,7 @@ File {
                                 is_cleanup: false,
                                 stmts: [
                                     Statement {
-                                        span: 610..617,
+                                        span: 530..537,
                                         kind: Assign {
                                             target: l2,
                                             value: MemberAccess {
@@ -651,7 +759,7 @@ File {
                                         },
                                     },
                                     Statement {
-                                        span: 620..647,
+                                        span: 540..567,
                                         kind: Assign {
                                             target: l3,
                                             value: MemberAccess {
@@ -677,23 +785,59 @@ File {
                                         },
                                     },
                                     Statement {
-                                        span: 610..647,
+                                        span: 530..567,
                                         kind: Assign {
                                             target: l1,
-                                            value: Binary {
-                                                lhs: Local(
-                                                    l2,
-                                                ),
-                                                op: Add,
-                                                rhs: Local(
-                                                    l3,
-                                                ),
+                                            value: Call {
+                                                site_id: site0,
+                                                kind: Direct {
+                                                    callee_fqn: "scoop.core.Int.plus",
+                                                },
+                                                args: [
+                                                    CallArg {
+                                                        span: 530..537,
+                                                        name: None,
+                                                        value: Local(
+                                                            l2,
+                                                        ),
+                                                    },
+                                                    CallArg {
+                                                        span: 540..567,
+                                                        name: None,
+                                                        value: Local(
+                                                            l3,
+                                                        ),
+                                                    },
+                                                ],
+                                                transport: CallTransportMetadata {
+                                                    result: ValueTransportMetadata {
+                                                        source_ty: TypeId(
+                                                            5,
+                                                        ),
+                                                        kind: Scalar,
+                                                        requirements: MirTransportRequirements {
+                                                            trace: false,
+                                                            copy: true,
+                                                            drop: false,
+                                                        },
+                                                        boxing: None,
+                                                    },
+                                                    aggregate_return: None,
+                                                    array: None,
+                                                    gc: None,
+                                                    abi: CallAbiHandoffMetadata {
+                                                        callable_abi_kind: DeferredToEffectFacts,
+                                                        resolved_outward_cases: [],
+                                                        impl_plan: DeferredToEffectFacts,
+                                                        adapter_required: false,
+                                                    },
+                                                },
                                             },
                                         },
                                     },
                                 ],
                                 terminator: Terminator {
-                                    span: 603..647,
+                                    span: 523..567,
                                     kind: Return {
                                         value: Some(
                                             Local(
@@ -712,7 +856,7 @@ File {
         ),
         Fun(
             FunDecl {
-                span: 651..702,
+                span: 571..622,
                 fqn: "mir_lowered.comptime_splice_class_with_update.className",
                 name: "className",
                 ty: TypeId(
@@ -726,7 +870,7 @@ File {
                     Body {
                         locals: [
                             LocalDecl {
-                                span: 688..700,
+                                span: 608..620,
                                 name: Some(
                                     "tmp0",
                                 ),
@@ -736,7 +880,7 @@ File {
                                 source: CompilerTemporary,
                             },
                             LocalDecl {
-                                span: 675..702,
+                                span: 595..622,
                                 name: Some(
                                     "tmp1",
                                 ),
@@ -751,7 +895,7 @@ File {
                                 is_cleanup: false,
                                 stmts: [
                                     Statement {
-                                        span: 688..700,
+                                        span: 608..620,
                                         kind: Assign {
                                             target: l0,
                                             value: TypeMetadataLiteral(
@@ -769,7 +913,7 @@ File {
                                     },
                                 ],
                                 terminator: Terminator {
-                                    span: 681..700,
+                                    span: 601..620,
                                     kind: Return {
                                         value: Some(
                                             Local(
@@ -788,7 +932,7 @@ File {
         ),
         Fun(
             FunDecl {
-                span: 704..768,
+                span: 624..688,
                 fqn: "mir_lowered.comptime_splice_class_with_update.updateStruct",
                 name: "updateStruct",
                 ty: TypeId(
@@ -796,7 +940,7 @@ File {
                 ),
                 params: [
                     Param {
-                        span: 721..722,
+                        span: 641..642,
                         name: "p",
                         ty: TypeId(
                             11,
@@ -811,7 +955,7 @@ File {
                     Body {
                         locals: [
                             LocalDecl {
-                                span: 721..722,
+                                span: 641..642,
                                 name: Some(
                                     "p",
                                 ),
@@ -821,7 +965,7 @@ File {
                                 source: SourceLocal,
                             },
                             LocalDecl {
-                                span: 753..757,
+                                span: 673..677,
                                 name: Some(
                                     "$with_base",
                                 ),
@@ -831,7 +975,7 @@ File {
                                 source: SourceLocal,
                             },
                             LocalDecl {
-                                span: 763..764,
+                                span: 683..684,
                                 name: Some(
                                     "__with_update_value_0",
                                 ),
@@ -841,7 +985,7 @@ File {
                                 source: SourceLocal,
                             },
                             LocalDecl {
-                                span: 763..764,
+                                span: 683..684,
                                 name: Some(
                                     "tmp0",
                                 ),
@@ -851,7 +995,7 @@ File {
                                 source: CompilerTemporary,
                             },
                             LocalDecl {
-                                span: 751..766,
+                                span: 671..686,
                                 name: Some(
                                     "tmp1",
                                 ),
@@ -861,7 +1005,7 @@ File {
                                 source: CompilerTemporary,
                             },
                             LocalDecl {
-                                span: 753..757,
+                                span: 673..677,
                                 name: Some(
                                     "tmp2",
                                 ),
@@ -871,7 +1015,7 @@ File {
                                 source: CompilerTemporary,
                             },
                             LocalDecl {
-                                span: 738..768,
+                                span: 658..688,
                                 name: Some(
                                     "tmp3",
                                 ),
@@ -886,7 +1030,7 @@ File {
                                 is_cleanup: false,
                                 stmts: [
                                     Statement {
-                                        span: 753..757,
+                                        span: 673..677,
                                         kind: Assign {
                                             target: l1,
                                             value: Use(
@@ -897,7 +1041,7 @@ File {
                                         },
                                     },
                                     Statement {
-                                        span: 763..764,
+                                        span: 683..684,
                                         kind: Assign {
                                             target: l3,
                                             value: Use(
@@ -908,7 +1052,7 @@ File {
                                         },
                                     },
                                     Statement {
-                                        span: 763..764,
+                                        span: 683..684,
                                         kind: Assign {
                                             target: l2,
                                             value: Use(
@@ -919,7 +1063,7 @@ File {
                                         },
                                     },
                                     Statement {
-                                        span: 753..757,
+                                        span: 673..677,
                                         kind: Assign {
                                             target: l5,
                                             value: MemberAccess {
@@ -945,20 +1089,20 @@ File {
                                         },
                                     },
                                     Statement {
-                                        span: 751..766,
+                                        span: 671..686,
                                         kind: Assign {
                                             target: l4,
                                             value: StructLit {
                                                 fields: [
                                                     StructLitField {
-                                                        span: 763..764,
+                                                        span: 683..684,
                                                         name: "x",
                                                         value: Local(
                                                             l2,
                                                         ),
                                                     },
                                                     StructLitField {
-                                                        span: 753..757,
+                                                        span: 673..677,
                                                         name: "y",
                                                         value: Local(
                                                             l5,
@@ -1020,7 +1164,7 @@ File {
                                     },
                                 ],
                                 terminator: Terminator {
-                                    span: 744..766,
+                                    span: 664..686,
                                     kind: Return {
                                         value: Some(
                                             Local(
@@ -1039,7 +1183,7 @@ File {
         ),
         Fun(
             FunDecl {
-                span: 770..880,
+                span: 690..800,
                 fqn: "mir_lowered.comptime_splice_class_with_update.updateTuple",
                 name: "updateTuple",
                 ty: TypeId(
@@ -1047,7 +1191,7 @@ File {
                 ),
                 params: [
                     Param {
-                        span: 786..790,
+                        span: 706..710,
                         name: "pair",
                         ty: TypeId(
                             16,
@@ -1062,7 +1206,7 @@ File {
                     Body {
                         locals: [
                             LocalDecl {
-                                span: 786..790,
+                                span: 706..710,
                                 name: Some(
                                     "pair",
                                 ),
@@ -1072,7 +1216,7 @@ File {
                                 source: SourceLocal,
                             },
                             LocalDecl {
-                                span: 852..856,
+                                span: 772..776,
                                 name: Some(
                                     "$with_base",
                                 ),
@@ -1082,7 +1226,7 @@ File {
                                 source: SourceLocal,
                             },
                             LocalDecl {
-                                span: 865..866,
+                                span: 785..786,
                                 name: Some(
                                     "__with_update_value_1",
                                 ),
@@ -1092,7 +1236,7 @@ File {
                                 source: SourceLocal,
                             },
                             LocalDecl {
-                                span: 865..866,
+                                span: 785..786,
                                 name: Some(
                                     "tmp0",
                                 ),
@@ -1102,7 +1246,7 @@ File {
                                 source: CompilerTemporary,
                             },
                             LocalDecl {
-                                span: 875..876,
+                                span: 795..796,
                                 name: Some(
                                     "__with_update_value_2",
                                 ),
@@ -1112,7 +1256,7 @@ File {
                                 source: SourceLocal,
                             },
                             LocalDecl {
-                                span: 875..876,
+                                span: 795..796,
                                 name: Some(
                                     "tmp1",
                                 ),
@@ -1122,7 +1266,7 @@ File {
                                 source: CompilerTemporary,
                             },
                             LocalDecl {
-                                span: 847..878,
+                                span: 767..798,
                                 name: Some(
                                     "tmp2",
                                 ),
@@ -1132,7 +1276,7 @@ File {
                                 source: CompilerTemporary,
                             },
                             LocalDecl {
-                                span: 847..878,
+                                span: 767..798,
                                 name: Some(
                                     "tmp3",
                                 ),
@@ -1142,7 +1286,7 @@ File {
                                 source: CompilerTemporary,
                             },
                             LocalDecl {
-                                span: 852..856,
+                                span: 772..776,
                                 name: Some(
                                     "tmp4",
                                 ),
@@ -1152,7 +1296,7 @@ File {
                                 source: CompilerTemporary,
                             },
                             LocalDecl {
-                                span: 852..856,
+                                span: 772..776,
                                 name: Some(
                                     "tmp5",
                                 ),
@@ -1162,7 +1306,7 @@ File {
                                 source: CompilerTemporary,
                             },
                             LocalDecl {
-                                span: 847..878,
+                                span: 767..798,
                                 name: Some(
                                     "tmp6",
                                 ),
@@ -1172,7 +1316,7 @@ File {
                                 source: CompilerTemporary,
                             },
                             LocalDecl {
-                                span: 852..856,
+                                span: 772..776,
                                 name: Some(
                                     "tmp7",
                                 ),
@@ -1182,7 +1326,7 @@ File {
                                 source: CompilerTemporary,
                             },
                             LocalDecl {
-                                span: 852..856,
+                                span: 772..776,
                                 name: Some(
                                     "tmp8",
                                 ),
@@ -1192,7 +1336,7 @@ File {
                                 source: CompilerTemporary,
                             },
                             LocalDecl {
-                                span: 834..880,
+                                span: 754..800,
                                 name: Some(
                                     "tmp9",
                                 ),
@@ -1207,7 +1351,7 @@ File {
                                 is_cleanup: false,
                                 stmts: [
                                     Statement {
-                                        span: 852..856,
+                                        span: 772..776,
                                         kind: Assign {
                                             target: l1,
                                             value: Use(
@@ -1218,7 +1362,7 @@ File {
                                         },
                                     },
                                     Statement {
-                                        span: 865..866,
+                                        span: 785..786,
                                         kind: Assign {
                                             target: l3,
                                             value: Use(
@@ -1229,7 +1373,7 @@ File {
                                         },
                                     },
                                     Statement {
-                                        span: 865..866,
+                                        span: 785..786,
                                         kind: Assign {
                                             target: l2,
                                             value: Use(
@@ -1240,7 +1384,7 @@ File {
                                         },
                                     },
                                     Statement {
-                                        span: 875..876,
+                                        span: 795..796,
                                         kind: Assign {
                                             target: l5,
                                             value: Use(
@@ -1251,7 +1395,7 @@ File {
                                         },
                                     },
                                     Statement {
-                                        span: 875..876,
+                                        span: 795..796,
                                         kind: Assign {
                                             target: l4,
                                             value: Use(
@@ -1262,7 +1406,7 @@ File {
                                         },
                                     },
                                     Statement {
-                                        span: 852..856,
+                                        span: 772..776,
                                         kind: Assign {
                                             target: l9,
                                             value: TupleGet {
@@ -1274,7 +1418,7 @@ File {
                                         },
                                     },
                                     Statement {
-                                        span: 852..856,
+                                        span: 772..776,
                                         kind: Assign {
                                             target: l8,
                                             value: MemberAccess {
@@ -1300,20 +1444,20 @@ File {
                                         },
                                     },
                                     Statement {
-                                        span: 847..878,
+                                        span: 767..798,
                                         kind: Assign {
                                             target: l7,
                                             value: StructLit {
                                                 fields: [
                                                     StructLitField {
-                                                        span: 865..866,
+                                                        span: 785..786,
                                                         name: "x",
                                                         value: Local(
                                                             l2,
                                                         ),
                                                     },
                                                     StructLitField {
-                                                        span: 852..856,
+                                                        span: 772..776,
                                                         name: "y",
                                                         value: Local(
                                                             l8,
@@ -1374,7 +1518,7 @@ File {
                                         },
                                     },
                                     Statement {
-                                        span: 852..856,
+                                        span: 772..776,
                                         kind: Assign {
                                             target: l12,
                                             value: TupleGet {
@@ -1386,7 +1530,7 @@ File {
                                         },
                                     },
                                     Statement {
-                                        span: 852..856,
+                                        span: 772..776,
                                         kind: Assign {
                                             target: l11,
                                             value: TupleGet {
@@ -1398,7 +1542,7 @@ File {
                                         },
                                     },
                                     Statement {
-                                        span: 847..878,
+                                        span: 767..798,
                                         kind: Assign {
                                             target: l10,
                                             value: MakeTuple {
@@ -1460,7 +1604,7 @@ File {
                                         },
                                     },
                                     Statement {
-                                        span: 847..878,
+                                        span: 767..798,
                                         kind: Assign {
                                             target: l6,
                                             value: MakeTuple {
@@ -1523,7 +1667,7 @@ File {
                                     },
                                 ],
                                 terminator: Terminator {
-                                    span: 840..878,
+                                    span: 760..798,
                                     kind: Return {
                                         value: Some(
                                             Local(
@@ -1542,7 +1686,7 @@ File {
         ),
         Fun(
             FunDecl {
-                span: 882..968,
+                span: 802..888,
                 fqn: "mir_lowered.comptime_splice_class_with_update.updateEnum",
                 name: "updateEnum",
                 ty: TypeId(
@@ -1550,7 +1694,7 @@ File {
                 ),
                 params: [
                     Param {
-                        span: 897..898,
+                        span: 817..818,
                         name: "r",
                         ty: TypeId(
                             18,
@@ -1565,7 +1709,7 @@ File {
                     Body {
                         locals: [
                             LocalDecl {
-                                span: 897..898,
+                                span: 817..818,
                                 name: Some(
                                     "r",
                                 ),
@@ -1575,7 +1719,7 @@ File {
                                 source: SourceLocal,
                             },
                             LocalDecl {
-                                span: 931..935,
+                                span: 851..855,
                                 name: Some(
                                     "$with_base",
                                 ),
@@ -1585,7 +1729,7 @@ File {
                                 source: SourceLocal,
                             },
                             LocalDecl {
-                                span: 950..951,
+                                span: 870..871,
                                 name: Some(
                                     "__with_update_value_3",
                                 ),
@@ -1595,7 +1739,7 @@ File {
                                 source: SourceLocal,
                             },
                             LocalDecl {
-                                span: 950..951,
+                                span: 870..871,
                                 name: Some(
                                     "tmp0",
                                 ),
@@ -1605,7 +1749,7 @@ File {
                                 source: CompilerTemporary,
                             },
                             LocalDecl {
-                                span: 963..964,
+                                span: 883..884,
                                 name: Some(
                                     "__with_update_value_4",
                                 ),
@@ -1615,7 +1759,7 @@ File {
                                 source: SourceLocal,
                             },
                             LocalDecl {
-                                span: 963..964,
+                                span: 883..884,
                                 name: Some(
                                     "tmp1",
                                 ),
@@ -1625,7 +1769,7 @@ File {
                                 source: CompilerTemporary,
                             },
                             LocalDecl {
-                                span: 929..966,
+                                span: 849..886,
                                 name: Some(
                                     "tmp2",
                                 ),
@@ -1635,7 +1779,7 @@ File {
                                 source: CompilerTemporary,
                             },
                             LocalDecl {
-                                span: 929..966,
+                                span: 849..886,
                                 name: Some(
                                     "tmp3",
                                 ),
@@ -1645,7 +1789,7 @@ File {
                                 source: CompilerTemporary,
                             },
                             LocalDecl {
-                                span: 979..980,
+                                span: 899..900,
                                 name: Some(
                                     "__with_enum_field_5",
                                 ),
@@ -1655,7 +1799,7 @@ File {
                                 source: SourceLocal,
                             },
                             LocalDecl {
-                                span: 929..966,
+                                span: 849..886,
                                 name: Some(
                                     "tmp4",
                                 ),
@@ -1665,7 +1809,7 @@ File {
                                 source: CompilerTemporary,
                             },
                             LocalDecl {
-                                span: 929..966,
+                                span: 849..886,
                                 name: Some(
                                     "tmp5",
                                 ),
@@ -1675,7 +1819,7 @@ File {
                                 source: CompilerTemporary,
                             },
                             LocalDecl {
-                                span: 931..935,
+                                span: 851..855,
                                 name: Some(
                                     "tmp6",
                                 ),
@@ -1685,7 +1829,7 @@ File {
                                 source: CompilerTemporary,
                             },
                             LocalDecl {
-                                span: 929..966,
+                                span: 849..886,
                                 name: Some(
                                     "tmp7",
                                 ),
@@ -1695,7 +1839,7 @@ File {
                                 source: CompilerTemporary,
                             },
                             LocalDecl {
-                                span: 981..982,
+                                span: 901..902,
                                 name: Some(
                                     "__with_enum_field_6",
                                 ),
@@ -1705,7 +1849,7 @@ File {
                                 source: SourceLocal,
                             },
                             LocalDecl {
-                                span: 929..966,
+                                span: 849..886,
                                 name: Some(
                                     "tmp8",
                                 ),
@@ -1715,7 +1859,7 @@ File {
                                 source: CompilerTemporary,
                             },
                             LocalDecl {
-                                span: 916..968,
+                                span: 836..888,
                                 name: Some(
                                     "tmp9",
                                 ),
@@ -1730,7 +1874,7 @@ File {
                                 is_cleanup: false,
                                 stmts: [
                                     Statement {
-                                        span: 931..935,
+                                        span: 851..855,
                                         kind: Assign {
                                             target: l1,
                                             value: Use(
@@ -1741,7 +1885,7 @@ File {
                                         },
                                     },
                                     Statement {
-                                        span: 950..951,
+                                        span: 870..871,
                                         kind: Assign {
                                             target: l3,
                                             value: Use(
@@ -1752,7 +1896,7 @@ File {
                                         },
                                     },
                                     Statement {
-                                        span: 950..951,
+                                        span: 870..871,
                                         kind: Assign {
                                             target: l2,
                                             value: Use(
@@ -1763,7 +1907,7 @@ File {
                                         },
                                     },
                                     Statement {
-                                        span: 963..964,
+                                        span: 883..884,
                                         kind: Assign {
                                             target: l5,
                                             value: Use(
@@ -1774,7 +1918,7 @@ File {
                                         },
                                     },
                                     Statement {
-                                        span: 963..964,
+                                        span: 883..884,
                                         kind: Assign {
                                             target: l4,
                                             value: Use(
@@ -1785,7 +1929,7 @@ File {
                                         },
                                     },
                                     Statement {
-                                        span: 931..935,
+                                        span: 851..855,
                                         kind: Assign {
                                             target: l7,
                                             value: PatternMatch {
@@ -1808,7 +1952,7 @@ File {
                                     },
                                 ],
                                 terminator: Terminator {
-                                    span: 929..966,
+                                    span: 849..886,
                                     kind: CondBr {
                                         cond: Local(
                                             l7,
@@ -1823,7 +1967,7 @@ File {
                                 is_cleanup: false,
                                 stmts: [],
                                 terminator: Terminator {
-                                    span: 922..966,
+                                    span: 842..886,
                                     kind: Return {
                                         value: Some(
                                             Local(
@@ -1838,7 +1982,7 @@ File {
                                 is_cleanup: false,
                                 stmts: [
                                     Statement {
-                                        span: 931..935,
+                                        span: 851..855,
                                         kind: Assign {
                                             target: l12,
                                             value: PatternMatch {
@@ -1861,7 +2005,7 @@ File {
                                     },
                                 ],
                                 terminator: Terminator {
-                                    span: 929..966,
+                                    span: 849..886,
                                     kind: CondBr {
                                         cond: Local(
                                             l12,
@@ -1876,7 +2020,7 @@ File {
                                 is_cleanup: false,
                                 stmts: [
                                     Statement {
-                                        span: 979..980,
+                                        span: 899..900,
                                         kind: Assign {
                                             target: l8,
                                             value: PatternExtract {
@@ -1893,7 +2037,7 @@ File {
                                         },
                                     },
                                     Statement {
-                                        span: 931..935,
+                                        span: 851..855,
                                         kind: Assign {
                                             target: l11,
                                             value: MemberAccess {
@@ -1919,20 +2063,20 @@ File {
                                         },
                                     },
                                     Statement {
-                                        span: 929..966,
+                                        span: 849..886,
                                         kind: Assign {
                                             target: l10,
                                             value: StructLit {
                                                 fields: [
                                                     StructLitField {
-                                                        span: 950..951,
+                                                        span: 870..871,
                                                         name: "x",
                                                         value: Local(
                                                             l2,
                                                         ),
                                                     },
                                                     StructLitField {
-                                                        span: 931..935,
+                                                        span: 851..855,
                                                         name: "y",
                                                         value: Local(
                                                             l11,
@@ -1993,7 +2137,7 @@ File {
                                         },
                                     },
                                     Statement {
-                                        span: 929..966,
+                                        span: 849..886,
                                         kind: Assign {
                                             target: l9,
                                             value: EnumVariant {
@@ -2003,7 +2147,7 @@ File {
                                                 variant_name: "Ok",
                                                 args: [
                                                     CallArg {
-                                                        span: 929..966,
+                                                        span: 849..886,
                                                         name: None,
                                                         value: Local(
                                                             l10,
@@ -2041,7 +2185,7 @@ File {
                                         },
                                     },
                                     Statement {
-                                        span: 929..966,
+                                        span: 849..886,
                                         kind: Assign {
                                             target: l6,
                                             value: Use(
@@ -2053,7 +2197,7 @@ File {
                                     },
                                 ],
                                 terminator: Terminator {
-                                    span: 929..966,
+                                    span: 849..886,
                                     kind: Goto {
                                         target: bb1,
                                     },
@@ -2064,7 +2208,7 @@ File {
                                 is_cleanup: false,
                                 stmts: [],
                                 terminator: Terminator {
-                                    span: 929..966,
+                                    span: 849..886,
                                     kind: Unreachable,
                                     unwind: NoUnwind,
                                 },
@@ -2073,7 +2217,7 @@ File {
                                 is_cleanup: false,
                                 stmts: [
                                     Statement {
-                                        span: 981..982,
+                                        span: 901..902,
                                         kind: Assign {
                                             target: l13,
                                             value: PatternExtract {
@@ -2090,7 +2234,7 @@ File {
                                         },
                                     },
                                     Statement {
-                                        span: 929..966,
+                                        span: 849..886,
                                         kind: Assign {
                                             target: l14,
                                             value: EnumVariant {
@@ -2100,7 +2244,7 @@ File {
                                                 variant_name: "Err",
                                                 args: [
                                                     CallArg {
-                                                        span: 963..964,
+                                                        span: 883..884,
                                                         name: None,
                                                         value: Local(
                                                             l4,
@@ -2138,7 +2282,7 @@ File {
                                         },
                                     },
                                     Statement {
-                                        span: 929..966,
+                                        span: 849..886,
                                         kind: Assign {
                                             target: l6,
                                             value: Use(
@@ -2150,7 +2294,7 @@ File {
                                     },
                                 ],
                                 terminator: Terminator {
-                                    span: 929..966,
+                                    span: 849..886,
                                     kind: Goto {
                                         target: bb1,
                                     },

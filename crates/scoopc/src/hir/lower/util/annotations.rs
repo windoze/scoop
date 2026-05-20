@@ -227,8 +227,7 @@ pub(in crate::hir::lower) fn collect_delegated_properties<'a>(
                 ast::Item::Fun(_)
                 | ast::Item::Val(_)
                 | ast::Item::ExtensionProperty(_)
-                | ast::Item::TypeAlias(_)
-                | ast::Item::ComptimeIf(_) => {}
+                | ast::Item::TypeAlias(_) => {}
             }
         }
     }
@@ -485,10 +484,7 @@ pub(in crate::hir::lower) fn collect_native_callable_funs(
             ast::Item::Object(obj) => {
                 collect_native_callable_funs_in_object_decl(source, obj, &pkg_prefix, &mut out);
             }
-            ast::Item::TypeAlias(_)
-            | ast::Item::ExtensionProperty(_)
-            | ast::Item::Val(_)
-            | ast::Item::ComptimeIf(_) => {}
+            ast::Item::TypeAlias(_) | ast::Item::ExtensionProperty(_) | ast::Item::Val(_) => {}
         }
     }
 
@@ -739,8 +735,6 @@ pub(in crate::hir::lower) fn collect_extern_libs_in_file(
             ast::Item::Object(obj) => {
                 collect_extern_libs_in_object_decl(source, obj, out);
             }
-            // T1220a：package-level comptime if 在进入后续阶段前应被裁剪（TODO T1220b）。
-            ast::Item::ComptimeIf(_ci) => {}
         }
     }
 }

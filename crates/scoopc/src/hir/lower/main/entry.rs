@@ -48,24 +48,6 @@ pub(crate) fn load_dump_support_asts(
 pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredHir, HirLowerError> {
     let mut ast = parse_file(source)?;
     let mut support_asts = load_dump_support_asts(session, source)?;
-    {
-        let support_sources = support_asts
-            .iter()
-            .map(|(source, _)| source.clone())
-            .collect::<Vec<_>>();
-        let mut sources = support_sources.iter().collect::<Vec<_>>();
-        sources.push(source);
-        let mut files = support_asts
-            .iter_mut()
-            .map(|(_, ast)| ast)
-            .collect::<Vec<_>>();
-        files.push(&mut ast);
-        crate::comptime::trim_package_level_comptime_ifs_in_compilation_unit(
-            session.sysroot(),
-            &sources,
-            &mut files,
-        )?;
-    }
 
     let index = {
         // 注意：`check_file_bodies` 需要 `&mut ast`，因此这里把构建 index 的临时借用放在独立作用域中，
@@ -383,24 +365,6 @@ pub fn lower_typed_for_dump(
 ) -> Result<LoweredHir, HirLowerError> {
     let mut ast = parse_file(source)?;
     let mut support_asts = load_dump_support_asts(session, source)?;
-    {
-        let support_sources = support_asts
-            .iter()
-            .map(|(source, _)| source.clone())
-            .collect::<Vec<_>>();
-        let mut sources = support_sources.iter().collect::<Vec<_>>();
-        sources.push(source);
-        let mut files = support_asts
-            .iter_mut()
-            .map(|(_, ast)| ast)
-            .collect::<Vec<_>>();
-        files.push(&mut ast);
-        crate::comptime::trim_package_level_comptime_ifs_in_compilation_unit(
-            session.sysroot(),
-            &sources,
-            &mut files,
-        )?;
-    }
 
     for (support_source, support_ast) in &support_asts {
         crate::typecheck::check_file_headers(support_source, support_ast)?;

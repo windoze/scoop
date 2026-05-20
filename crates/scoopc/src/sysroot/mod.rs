@@ -121,39 +121,6 @@ impl Sysroot {
             files.push(SysrootFile { path, source, ast });
         }
 
-        {
-            let source_clones = files
-                .iter()
-                .map(|file| file.source.clone())
-                .collect::<Vec<_>>();
-            let indexed_sources = source_clones
-                .iter()
-                .map(|source| {
-                    (
-                        crate::resolve::ConeInfo {
-                            id: crate::resolve::ConeId::DEFAULT,
-                            kind: if source.is_trusted_syslib() {
-                                crate::cone::ConeKind::Syslib
-                            } else {
-                                crate::cone::ConeKind::Lib
-                            },
-                        },
-                        source,
-                    )
-                })
-                .collect::<Vec<_>>();
-            let mut ast_refs = files
-                .iter_mut()
-                .map(|file| &mut file.ast)
-                .collect::<Vec<_>>();
-            crate::comptime::trim_package_level_comptime_ifs_in_indexed_compilation_unit(
-                &[],
-                &indexed_sources,
-                &mut ast_refs,
-            )
-            .wrap_err("裁剪 sysroot compilation-unit 的 package-level comptime if 失败")?;
-        }
-
         Ok(Self { root, files })
     }
 
@@ -845,10 +812,7 @@ mod tests {
                         path, source, file, obj, violations,
                     );
                 }
-                ast::Item::TypeAlias(_)
-                | ast::Item::ExtensionProperty(_)
-                | ast::Item::Val(_)
-                | ast::Item::ComptimeIf(_) => {}
+                ast::Item::TypeAlias(_) | ast::Item::ExtensionProperty(_) | ast::Item::Val(_) => {}
             }
         }
     }
@@ -991,13 +955,6 @@ mod tests {
                 .body
                 .as_ref()
                 .is_some_and(|body| body.members.iter().any(type_member_has_any_block_fun)),
-            ast::Item::ComptimeIf(item) => {
-                item.then_branch.items.iter().any(item_has_any_block_fun)
-                    || item
-                        .else_branch
-                        .as_deref()
-                        .is_some_and(comptime_else_has_any_block_fun)
-            }
             ast::Item::TypeAlias(_) | ast::Item::ExtensionProperty(_) | ast::Item::Val(_) => false,
         }
     }
@@ -1017,19 +974,6 @@ mod tests {
             | ast::TypeMember::Property(_)
             | ast::TypeMember::SecondaryCtor(_)
             | ast::TypeMember::InitBlock(_) => false,
-        }
-    }
-
-    fn comptime_else_has_any_block_fun(else_branch: &ast::ComptimeIfItemElse) -> bool {
-        match else_branch {
-            ast::ComptimeIfItemElse::Block(block) => block.items.iter().any(item_has_any_block_fun),
-            ast::ComptimeIfItemElse::If(item) => {
-                item.then_branch.items.iter().any(item_has_any_block_fun)
-                    || item
-                        .else_branch
-                        .as_deref()
-                        .is_some_and(comptime_else_has_any_block_fun)
-            }
         }
     }
 

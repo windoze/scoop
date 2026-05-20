@@ -139,53 +139,6 @@ pub fn export_public_api_for_cone_sources(
         let ast = crate::parser::parse_file(source).map_err(miette::Report::from)?;
         support_asts.push(ast);
     }
-    {
-        let ambient_files = session
-            .sysroot()
-            .files
-            .iter()
-            .map(|file| crate::resolve::IndexedFile {
-                cone: crate::resolve::ConeId::DEFAULT,
-                cone_kind: if file.source.is_trusted_syslib() {
-                    crate::cone::ConeKind::Syslib
-                } else {
-                    crate::cone::ConeKind::Lib
-                },
-                source: &file.source,
-                file: &file.ast,
-            })
-            .collect::<Vec<_>>();
-        let mut indexed_sources = support_sources
-            .iter()
-            .map(|source| {
-                (
-                    crate::resolve::ConeInfo {
-                        id: crate::resolve::ConeId::new(1),
-                        kind: crate::cone::ConeKind::Lib,
-                    },
-                    source,
-                )
-            })
-            .collect::<Vec<_>>();
-        indexed_sources.extend(sources.iter().map(|source| {
-            (
-                crate::resolve::ConeInfo {
-                    id: crate::resolve::ConeId::new(1),
-                    kind: manifest.cone.kind,
-                },
-                source,
-            )
-        }));
-        let mut ast_refs = support_asts.iter_mut().collect::<Vec<_>>();
-        ast_refs.extend(asts.iter_mut());
-        crate::comptime::trim_package_level_comptime_ifs_in_indexed_compilation_unit(
-            &ambient_files,
-            &indexed_sources,
-            &mut ast_refs,
-        )
-        .map_err(miette::Report::from)?;
-    }
-
     // 2) index：sysroot cone=0，当前 cone=1（与 `scoop build` 对齐）。
     let mut indexed: Vec<crate::resolve::IndexedFile<'_>> = Vec::new();
     for f in &session.sysroot().files {

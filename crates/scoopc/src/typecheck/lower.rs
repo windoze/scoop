@@ -337,9 +337,6 @@ pub fn check_file_type_refs(
             ast::Item::Object(obj) => {
                 ctx.check_object_decl_headers(obj)?;
             }
-            // T1220a：package-level comptime if 在进入 typecheck 之前应被裁剪（TODO T1220b）。
-            // 这里先忽略，避免在尚未接入裁剪逻辑前引入非预期崩溃。
-            ast::Item::ComptimeIf(_) => {}
         }
     }
 
@@ -417,8 +414,6 @@ pub fn check_file_type_refs_with_type_instantiation_keys(
             ast::Item::Object(obj) => {
                 ctx.check_object_decl_headers(obj)?;
             }
-            // T1220a：package-level comptime if 在进入 typecheck 之前应被裁剪（TODO T1220b）。
-            ast::Item::ComptimeIf(_) => {}
         }
     }
 
@@ -4175,8 +4170,7 @@ fn find_type_decl_by_fqn<'a>(
             ast::Item::TypeAlias(_)
             | ast::Item::Fun(_)
             | ast::Item::Val(_)
-            | ast::Item::ExtensionProperty(_)
-            | ast::Item::ComptimeIf(_) => {}
+            | ast::Item::ExtensionProperty(_) => {}
         }
     }
 

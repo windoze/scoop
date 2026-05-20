@@ -1,5 +1,0 @@
-package fixtures.run_pass_cone.package_level_comptime_if_cross_file_const_fun
-
-public const fun enabled(x: Int): Bool {
-    return x == 1
-}

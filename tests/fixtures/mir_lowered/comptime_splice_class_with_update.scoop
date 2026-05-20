@@ -4,11 +4,7 @@ import scoop.core.*
 
 const val ENABLED: Bool = true
 
-comptime if (true) {
-    fun packageSelected(): Int { return 1 }
-} else {
-    fun packageSelected(): Int { return 2 }
-}
+fun packageSelected(): Int { return 1 }
 
 struct Point(val x: Int, val y: Int)
 

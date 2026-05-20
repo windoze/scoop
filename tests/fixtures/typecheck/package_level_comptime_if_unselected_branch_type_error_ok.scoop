@@ -1,5 +1,8 @@
-// EXPECT: pass
-// 目标：T1220b 顶层 `comptime if` 未选中分支不进入 typecheck：允许包含明显的类型错误。
+// EXPECT: fail
+// EXPECT-ERROR: 顶层声明
+// EXPECT-ERROR-CODE: scoop::parse::expected
+// EXPECT-ERROR-AT: 11:1
+// 目标：package-level `comptime if` 不再进入 typecheck 前裁剪路径。
 
 package fixtures.typecheck
 
@@ -12,4 +15,3 @@ comptime if (true) {
 }
 
 fun use(): Int { return foo() }
-

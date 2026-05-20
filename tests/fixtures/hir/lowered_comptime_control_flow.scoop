@@ -1,16 +1,12 @@
 // EXPECT: pass
 // EXPECT-HIR: lowered_comptime_control_flow.hir
-// 目标：HIR-T03，typed HIR 阶段展开 runtime comptime block/if/for 与 package-level comptime if。
+// 目标：HIR-T03，typed HIR 阶段展开 runtime comptime block/if/for。
 
 package fixtures.hir_comptime
 
 const val ENABLED: Bool = false
 
-comptime if (true) {
-    fun packageSelected(): Int { return 3 }
-} else {
-    fun packageSelected(): Int { return 4 }
-}
+fun packageSelected(): Int { return 3 }
 
 fun fromBlock(): Int {
     comptime {
