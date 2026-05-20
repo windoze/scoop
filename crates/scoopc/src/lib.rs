@@ -10,10 +10,11 @@
 
 /// Migration anchors for stage-independent base crates.
 ///
-/// `scoopc::{span, source}` are re-export adapters over their base crates;
-/// `ty`, `stable_id`, and `cone` remain on the facade until their dedicated P1
-/// migration tasks move those definitions. New stage/fact crates should depend
-/// on the base crates directly instead of depending on this facade.
+/// `scoopc::{span, source, ty}` are re-export adapters over their base crates;
+/// `stable_id` re-exports the first identity primitives from `scoopc_ids` while
+/// keeping type-aware canonical encoders on the facade until the remaining P1
+/// project-model migration lands. New stage/fact crates should depend on the
+/// base crates directly instead of depending on this facade.
 pub mod base {
     pub use scoopc_ids as ids;
     pub use scoopc_project_model as project_model;

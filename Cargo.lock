@@ -698,6 +698,10 @@ dependencies = [
 [[package]]
 name = "scoopc_ids"
 version = "0.1.0"
+dependencies = [
+ "scoopc_span",
+ "sha2",
+]
 
 [[package]]
 name = "scoopc_project_model"
@@ -721,6 +725,9 @@ dependencies = [
 [[package]]
 name = "scoopc_types"
 version = "0.1.0"
+dependencies = [
+ "scoopc_span",
+]
 
 [[package]]
 name = "semver"

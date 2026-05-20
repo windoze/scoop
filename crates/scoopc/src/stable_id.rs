@@ -8,68 +8,22 @@
 use std::collections::HashMap;
 use std::path::Path;
 
-use sha2::{Digest, Sha256};
 use thiserror::Error;
 
 use crate::cone::ConeManifest;
-use crate::span::Span;
-use crate::ty::{
+use scoopc_types::{
     EffectRow, NominalType, RefTypeKind, TypeId, TypeKind, TypeParamType, TypeStore, UnionType,
     ValueTypeKind,
 };
 
+pub use scoopc_ids::{
+    AbiMangler, AbiSymbolKind, BodyVersionKey, CanonicalTextKey, PrivateSymbolMangler, SiteId,
+    StableCallSiteKey, StableCanonicalKey, StableHashScope, StableSymbolKey, canonical_list,
+    canonical_record, stable_digest, stable_dump_label, stable_hash64, stable_hash128_hex,
+    stable_local_label, stable_rtti_type_id,
+};
+
 const MAX_CANONICAL_DEPTH: usize = 64;
-
-/// Versioned hash scopes shared by ABI, private symbols, RTTI, and dumps.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum StableHashScope {
-    AbiV0,
-    PrivateV0,
-    RttiV0,
-    DumpV0,
-}
-
-impl StableHashScope {
-    /// Returns the fixed textual prefix mandated by `STABLE_ID.md`.
-    pub const fn prefix(self) -> &'static str {
-        match self {
-            Self::AbiV0 => "abi0:",
-            Self::PrivateV0 => "priv0:",
-            Self::RttiV0 => "rtti0:",
-            Self::DumpV0 => "dump0:",
-        }
-    }
-}
-
-/// Common trait implemented by every stable identity key.
-pub trait StableCanonicalKey {
-    fn canonical_text(&self) -> String;
-}
-
-/// Ad-hoc stable key wrapper for call sites that already computed canonical text.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct CanonicalTextKey(String);
-
-impl CanonicalTextKey {
-    pub fn new(text: impl Into<String>) -> Self {
-        Self(text.into())
-    }
-
-    pub fn as_str(&self) -> &str {
-        &self.0
-    }
-}
-
-impl StableCanonicalKey for CanonicalTextKey {
-    fn canonical_text(&self) -> String {
-        self.0.clone()
-    }
-}
-
-/// Stable keys that can also contribute a human-readable symbol prefix.
-pub trait StableSymbolKey: StableCanonicalKey {
-    fn readable_path(&self) -> &str;
-}
 
 /// Semantic cone identity derived from `Cone.toml` instead of `ConeId`.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -369,46 +323,6 @@ impl StableSymbolKey for StableClosureKey {
     }
 }
 
-/// Stable local call-site identity for dump labels and private helpers.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct StableCallSiteKey {
-    owner_canonical_text: String,
-    source_path: String,
-    span: Span,
-    site_kind: String,
-}
-
-impl StableCallSiteKey {
-    pub fn new(
-        owner: &impl StableCanonicalKey,
-        source_path: impl Into<String>,
-        span: Span,
-        site_kind: impl Into<String>,
-    ) -> Self {
-        Self {
-            owner_canonical_text: owner.canonical_text(),
-            source_path: source_path.into(),
-            span,
-            site_kind: site_kind.into(),
-        }
-    }
-}
-
-impl StableCanonicalKey for StableCallSiteKey {
-    fn canonical_text(&self) -> String {
-        canonical_record(
-            "call_site",
-            [
-                self.owner_canonical_text.clone(),
-                self.source_path.clone(),
-                self.span.start.to_string(),
-                self.span.end.to_string(),
-                self.site_kind.clone(),
-            ],
-        )
-    }
-}
-
 /// Stable effect step schema identity.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct StableEffectSchemaKey {
@@ -584,109 +498,6 @@ impl StableCanonicalKey for StableFrameSlotKey {
     }
 }
 
-/// ABI-visible symbol namespaces defined by the shared mangler.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum AbiSymbolKind {
-    Fun,
-    Global,
-    Type,
-}
-
-impl AbiSymbolKind {
-    const fn as_str(self) -> &'static str {
-        match self {
-            Self::Fun => "fun",
-            Self::Global => "global",
-            Self::Type => "type",
-        }
-    }
-}
-
-/// Shared exported-symbol mangler.
-#[derive(Debug, Default, Clone, Copy)]
-pub struct AbiMangler;
-
-impl AbiMangler {
-    pub fn mangle<K>(self, kind: AbiSymbolKind, key: &K) -> String
-    where
-        K: StableSymbolKey + ?Sized,
-    {
-        let canonical = key.canonical_text();
-        let readable = sanitize_symbol_component(key.readable_path());
-        format!(
-            "__scoop_abi0_{}__{}__h{}",
-            kind.as_str(),
-            readable,
-            stable_hash128_hex(StableHashScope::AbiV0, &canonical)
-        )
-    }
-
-    pub fn fun_symbol<K>(self, key: &K) -> String
-    where
-        K: StableSymbolKey + ?Sized,
-    {
-        self.mangle(AbiSymbolKind::Fun, key)
-    }
-
-    pub fn global_symbol<K>(self, key: &K) -> String
-    where
-        K: StableSymbolKey + ?Sized,
-    {
-        self.mangle(AbiSymbolKind::Global, key)
-    }
-
-    pub fn type_symbol<K>(self, key: &K) -> String
-    where
-        K: StableSymbolKey + ?Sized,
-    {
-        self.mangle(AbiSymbolKind::Type, key)
-    }
-}
-
-/// Shared compiler-private symbol mangler.
-#[derive(Debug, Default, Clone, Copy)]
-pub struct PrivateSymbolMangler;
-
-impl PrivateSymbolMangler {
-    fn canonical_private_text<K>(role: &str, key: &K) -> (String, String)
-    where
-        K: StableCanonicalKey + ?Sized,
-    {
-        let role = sanitize_symbol_component(role);
-        let canonical = canonical_record("private", [role.clone(), key.canonical_text()]);
-        (role, canonical)
-    }
-
-    pub fn mangle<K>(self, role: &str, key: &K) -> String
-    where
-        K: StableCanonicalKey + ?Sized,
-    {
-        let (role, canonical) = Self::canonical_private_text(role, key);
-        format!(
-            "__scoop_priv0__{}__h{}",
-            role,
-            stable_hash128_hex(StableHashScope::PrivateV0, &canonical)
-        )
-    }
-
-    pub fn hash_suffix<K>(self, role: &str, key: &K) -> String
-    where
-        K: StableCanonicalKey + ?Sized,
-    {
-        let (_, canonical) = Self::canonical_private_text(role, key);
-        stable_hash128_hex(StableHashScope::PrivateV0, &canonical)
-    }
-
-    pub fn type_name<K>(self, family: &str, role: &str, key: &K) -> String
-    where
-        K: StableCanonicalKey + ?Sized,
-    {
-        let family = sanitize_symbol_component(family);
-        let hash = self.hash_suffix(role, key);
-        format!("scoop.lowered.{family}__h{hash}")
-    }
-}
-
 /// Stable type-parameter identity used by canonical type text.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct StableTypeParamKey {
@@ -822,34 +633,6 @@ where
     ))
 }
 
-/// Hashes canonical text with a fixed version prefix using SHA-256.
-pub fn stable_digest(scope: StableHashScope, canonical_text: &str) -> [u8; 32] {
-    let mut hasher = Sha256::new();
-    hasher.update(scope.prefix().as_bytes());
-    hasher.update(canonical_text.as_bytes());
-    hasher.finalize().into()
-}
-
-/// Returns the linker-visible 128-bit truncated hash as lowercase hex.
-pub fn stable_hash128_hex(scope: StableHashScope, canonical_text: &str) -> String {
-    let digest = stable_digest(scope, canonical_text);
-    hex_lower(&digest[..16])
-}
-
-/// Returns the runtime-only 64-bit truncated hash.
-pub fn stable_hash64(scope: StableHashScope, canonical_text: &str) -> u64 {
-    let digest = stable_digest(scope, canonical_text);
-    let bytes: [u8; 8] = digest[..8]
-        .try_into()
-        .expect("sha256 output is always 32 bytes");
-    u64::from_le_bytes(bytes)
-}
-
-/// Shared RTTI type-id helper for descriptor names and runtime-match type names.
-pub fn stable_rtti_type_id(canonical_name: &str) -> u64 {
-    stable_hash64(StableHashScope::RttiV0, canonical_name)
-}
-
 /// Canonical RTTI identity key for a semantic type.
 pub fn stable_rtti_type_key_for_type<R>(
     types: &TypeStore,
@@ -899,22 +682,6 @@ pub fn stable_template_symbol_suffix(template: &StableTemplateKey) -> String {
         "{:016x}",
         stable_hash64(StableHashScope::AbiV0, &template.canonical_text())
     )
-}
-
-/// Builds a short dump label from a semantic role plus canonical text.
-pub fn stable_dump_label(role: &str, canonical_text: &str) -> String {
-    format!(
-        "{role}#h{}",
-        stable_hash128_hex(StableHashScope::DumpV0, canonical_text)
-    )
-}
-
-/// Builds a short stable local label directly from a stable key.
-pub fn stable_local_label<K>(role: &str, key: &K) -> String
-where
-    K: StableCanonicalKey + ?Sized,
-{
-    stable_dump_label(role, &key.canonical_text())
 }
 
 struct CanonicalEncoder<'a, R: ?Sized> {
@@ -1067,16 +834,6 @@ where
     }
 }
 
-fn hex_lower(bytes: &[u8]) -> String {
-    const HEX: &[u8; 16] = b"0123456789abcdef";
-    let mut out = String::with_capacity(bytes.len() * 2);
-    for byte in bytes {
-        out.push(HEX[(byte >> 4) as usize] as char);
-        out.push(HEX[(byte & 0x0f) as usize] as char);
-    }
-    out
-}
-
 fn canonical_nominal_text(fqn: &str, args: Option<&str>, eff: Option<&str>) -> String {
     let mut encoded = format!("N({fqn}");
     if args.is_some() || eff.is_some() {
@@ -1099,46 +856,6 @@ fn canonical_nominal_text(fqn: &str, args: Option<&str>, eff: Option<&str>) -> S
     encoded
 }
 
-pub(crate) fn canonical_record<I>(tag: &str, parts: I) -> String
-where
-    I: IntoIterator<Item = String>,
-{
-    let mut out = String::new();
-    out.push_str(tag);
-    out.push('(');
-    let mut first = true;
-    for part in parts {
-        if !first {
-            out.push(';');
-        }
-        first = false;
-        out.push_str(&part.len().to_string());
-        out.push(':');
-        out.push_str(&part);
-    }
-    out.push(')');
-    out
-}
-
-pub(crate) fn canonical_list(parts: &[String]) -> String {
-    canonical_record("list", parts.iter().cloned())
-}
-
-fn sanitize_symbol_component(text: &str) -> String {
-    let mut out = String::with_capacity(text.len().max(4));
-    for ch in text.chars() {
-        if ch.is_ascii_alphanumeric() || ch == '_' {
-            out.push(ch);
-        } else {
-            out.push('_');
-        }
-    }
-    if out.is_empty() {
-        out.push_str("anon");
-    }
-    out
-}
-
 #[cfg(test)]
 mod tests {
     use std::path::Path;
@@ -1146,7 +863,7 @@ mod tests {
 
     use super::*;
     use crate::cone::{ConeKind, ConeManifest, ConeNativeBuildConfig, ConeSection};
-    use crate::span::Span;
+    use scoopc_span::Span;
 
     fn test_manifest(name: &str, version: &str) -> ConeManifest {
         ConeManifest {

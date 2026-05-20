@@ -59,6 +59,7 @@ pub use pass_view::{
     MaterializedMirPassArtifacts, MaterializedMirPassView, MaterializedPassCallableFamilyView,
     MaterializedPassCallableView,
 };
+pub use scoopc_ids::SiteId;
 pub(crate) use summary::{
     DeclOnlySummaryInput, InstanceRootSummaryInput, build_materialized_summary_table,
     summarize_pass_rewritten_fun,
@@ -1750,33 +1751,6 @@ impl LocalId {
 impl fmt::Debug for LocalId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "l{}", self.0)
-    }
-}
-
-/// 一个 MIR body 内稳定的 effect/call site 身份。
-///
-/// 约定：
-/// - `SiteId` 只要求在同一个 `Body` 内唯一；
-/// - lowering 初始分配时按源码/构造顺序单调递增；
-/// - 后续 MIR pass 若克隆出新的 `Call` / `Perform` / `Handle` 节点，应为克隆体分配新的
-///   `SiteId`，避免与原节点冲突；
-/// - 未来 site-level side table 可以用 `(callable/body identity, SiteId)` 作为稳定键。
-#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct SiteId(u32);
-
-impl SiteId {
-    pub(crate) const fn from_raw(raw: u32) -> Self {
-        Self(raw)
-    }
-
-    pub fn as_u32(self) -> u32 {
-        self.0
-    }
-}
-
-impl fmt::Debug for SiteId {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "site{}", self.0)
     }
 }
 
