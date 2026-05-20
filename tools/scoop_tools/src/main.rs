@@ -4,6 +4,7 @@
 //! - 把 “规范/fixtures/实现” 三者联动起来，避免文档漂移
 //! - 提供可在 CI 强制执行的一致性检查（check mode）
 
+mod dependency_gate;
 mod fixtures_matrix;
 mod safepoint_baseline;
 mod spec_fixtures;
@@ -58,6 +59,9 @@ enum Command {
 
     /// 生成当前 safepoint / gc-live roots 基线报告（自动构建内置 workload）
     SafepointBaseline,
+
+    /// 检查 pipeline 基础 crate 没有反向依赖 facade/stage/fact crate
+    DependencyGate,
 }
 
 fn main() -> Result<()> {
@@ -107,6 +111,11 @@ fn main() -> Result<()> {
         Command::SafepointBaseline => {
             let report = safepoint_baseline::run().wrap_err("safepoint baseline 生成失败")?;
             eprintln!("{report}");
+        }
+
+        Command::DependencyGate => {
+            let report = dependency_gate::run().wrap_err("pipeline 基础 crate 依赖门禁失败")?;
+            eprintln!("{}", report.render());
         }
     }
 

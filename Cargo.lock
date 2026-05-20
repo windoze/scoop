@@ -681,6 +681,11 @@ dependencies = [
  "llvm-sys",
  "miette",
  "object",
+ "scoopc_ids",
+ "scoopc_project_model",
+ "scoopc_source",
+ "scoopc_span",
+ "scoopc_types",
  "serde",
  "serde_json",
  "sha2",
@@ -689,6 +694,26 @@ dependencies = [
  "toml",
  "tracing",
 ]
+
+[[package]]
+name = "scoopc_ids"
+version = "0.1.0"
+
+[[package]]
+name = "scoopc_project_model"
+version = "0.1.0"
+
+[[package]]
+name = "scoopc_source"
+version = "0.1.0"
+
+[[package]]
+name = "scoopc_span"
+version = "0.1.0"
+
+[[package]]
+name = "scoopc_types"
+version = "0.1.0"
 
 [[package]]
 name = "semver"

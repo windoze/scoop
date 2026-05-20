@@ -10,6 +10,11 @@ default = ["llvm"]
 llvm = ["dep:inkwell", "dep:llvm-sys"]
 
 [dependencies]
+scoopc_ids = { path = "../scoopc_ids" }
+scoopc_project_model = { path = "../scoopc_project_model" }
+scoopc_source = { path = "../scoopc_source" }
+scoopc_span = { path = "../scoopc_span" }
+scoopc_types = { path = "../scoopc_types" }
 miette = { version = "7.6.0", features = ["fancy"] }
 thiserror = "2.0.12"
 tracing = "0.1.40"

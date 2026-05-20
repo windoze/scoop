@@ -8,6 +8,20 @@
 //!
 //! `scoop`（driver）crate 只负责命令行与调度。
 
+/// Migration anchors for stage-independent base crates.
+///
+/// Existing `scoopc::{span, source, ty, stable_id, cone}` modules remain the
+/// authoritative definitions until their dedicated P1 migration tasks move the
+/// types into these crates. New stage/fact crates should depend on the base
+/// crates directly instead of depending on this facade.
+pub mod base {
+    pub use scoopc_ids as ids;
+    pub use scoopc_project_model as project_model;
+    pub use scoopc_source as source;
+    pub use scoopc_span as span;
+    pub use scoopc_types as types;
+}
+
 pub mod ast;
 pub mod cone;
 pub(crate) mod devirtualize;

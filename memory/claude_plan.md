@@ -1,22 +1,26 @@
-执行计划摘要
+# Execution Plan
 
-1. 读取 TODO.md，按文件顺序识别第一个标题未带 `[DONE]` 的任务。
-2. 查看最近提交信息，仅判断是否有与该任务直接相关的未完成事项。
-3. 阅读当前任务相关的说明、依赖、验证要求和必要代码区域。
-4. 按任务要求实现最小但完整的变更；若发现阻塞该任务的规格或实现缺口，先把最小前置任务写入 TODO.md 并停止。
-5. 运行任务要求的验证命令和必要的针对性测试，修复由本任务引入或暴露且阻塞任务完成的问题。
-6. 更新 TODO.md：在完成任务标题前加 `[DONE]`，并填写完成记录；仅在阶段计划实际变化时更新 PLAN.md。
-7. 检查工作区差异，提交本次任务相关的全部变更。
-8. 完成一个任务后停止，不继续处理下一个任务。
+## Constraints
+- `TODO.md` is the source of truth for task order, requirements, dependencies, validation, and completion records.
+- Complete exactly the first task whose heading is not prefixed with `[DONE]`, then stop.
+- Do not work around spec or implementation gaps; if a blocker prevents correct execution, add the minimum prerequisite task in `TODO.md`, commit, and stop.
+- Update `PLAN.md` only if phase-level sequencing, dependencies, assumptions, or completion criteria change.
+- Keep this file updated when the plan changes or key steps complete.
 
-当前状态：计划已初始化，下一步读取 TODO.md 并识别第一个未完成任务。
+## Step-by-Step Plan
+1. Read `TODO.md` and identify the first incomplete task by heading prefix.
+2. Inspect only the files and context needed for that task, including the latest commit if it directly mentions unfinished work relevant to the task.
+3. Implement the task as written, preserving existing design and avoiding workaround behavior.
+4. Add or update focused tests/fixtures required by the task.
+5. Run the task-specified validation commands and any directly relevant checks; fix failures in scope.
+6. Update `TODO.md` by prefixing the completed task heading with `[DONE]` and filling its completion record, or record a concrete prerequisite/blocker if completion is impossible.
+7. Update this plan file with completed key steps and any plan changes.
+8. Inspect git status/diff/log, stage intended files, and commit the task result with a clear task-tagged message.
+9. Stop without starting the next task.
 
-进度更新：已识别第一个未完成任务为 TODO-2-INIT。最近提交为 `[P0-T04R] Review P0 cleanup completion`，未显示当前任务的直接未完成事项。下一步读取 TODO-2.md、PLAN.md 与相关设计/审计文档，提取 P1 任务拆分依据。
-
-进度更新：已完成 P1 资料和代码触碰面抽查。关键现状：`span`、`source`、`ty`、`stable_id`、`cone`、`frontend` 仍在 `scoopc` 内；`SourceConeGraph` 已有拓扑排序和 cone metadata，但 `run_frontend` 仍 flatten 整个 graph；`AstStageOutput` 仍是单文件 handoff；`ConeId`/`ConeInfo` 仍位于 resolver。下一步编辑 TODO-2.md 和 TODO.md，生成 P1 实现任务及 review 任务。
-
-进度更新：已将 TODO-2.md 细化为 6 个 P1 实现任务和 6 个 review 任务，并在 TODO.md 索引中把 TODO-2-INIT 标记为完成、插入 P1-T01 到 P1-T06R。下一步复读文档变更并运行文档级校验。
-
-进度更新：已复读 TODO-2.md / TODO.md 变更并运行 `git diff --check`，未发现空白错误。下一步执行提交前的 git 状态、diff 与最近提交检查，然后提交本次 TODO-2-INIT 文档变更。
-
-进度更新：已提交本次 TODO-2-INIT 文档变更，提交为 `8ca9d7f1 [TODO-2-INIT] Detail P1 task package`。本次 invocation 到此停止，不继续处理 P1-T01。
+## Progress
+- Initial execution plan written.
+- Identified `P1-T01` as the first incomplete task: create base crate shells, wire `scoopc` facade dependencies/re-exports, add a dependency gate, update docs, validate, then mark only this task complete.
+- Implemented `P1-T01`: added 5 base crate shells, `scoopc::base` facade anchors, `scoop_tools dependency-gate`, and README crate overview.
+- Validation completed successfully: `cargo fmt`, `cargo check --workspace --no-default-features`, `cargo run -p scoop_tools -- dependency-gate`, `cargo clippy --all-targets -- -D warnings`, and `cargo test -p scoop_tools dependency_gate`.
+- Updated `TODO.md` and `TODO-2.md` to mark only `P1-T01` as `[DONE]` with a completion record.

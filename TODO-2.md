@@ -80,7 +80,7 @@
   - 未展开风险：`stable_id.rs` 的完整外提同时涉及 type canonical encoding 和 `ConeManifest`，因此必须等 types/project model 迁移后完成；production frontend 可能仍在过渡期一次处理整个 build closure，但 P1 任务要求 API 和命名明确区分 build graph 与 cone-level compilation unit，不能继续把 flatten 后的 `sources` 描述为一个大 compilation unit。
   - 验证命令：文档任务仅需检查 markdown/TODO 一致性；本次执行使用 `git diff --check`。
 
-## [TODO] P1-T01：建立基础 crate 壳层与依赖门禁
+## [DONE] P1-T01：建立基础 crate 壳层与依赖门禁
 
 - 参考：
   - `PLAN.md` §1.2、§4/P1
@@ -117,7 +117,11 @@
   - 依赖门禁能明确证明基础 crate 未反向依赖 stage/fact/facade。
 - 依赖：TODO-2-INIT
 - 完成记录：
-  - 待填写。
+  - 改动范围：新增 workspace 基础 crate 壳层 `scoopc_span`、`scoopc_source`、`scoopc_types`、`scoopc_ids`、`scoopc_project_model`；`scoopc` 增加对这些 crate 的 path 依赖，并通过 `scoopc::base::{span, source, types, ids, project_model}` 预留迁移期 facade anchor；`README.md` 增加 workspace/crate 概览；`scoop_tools` 增加 `dependency-gate` 命令。
+  - 核心决策：P1-T01 不迁移业务类型，现有 `scoopc::{span, source, ty, stable_id, cone}` 仍是 authoritative 定义，后续 P1 迁移任务再把定义物理移动到基础 crate；基础 crate 壳层暂不引入互相依赖，允许方向由依赖门禁编码并在后续迁移时逐步落地。
+  - 依赖门禁：`cargo run -p scoop_tools -- dependency-gate` 对 5 个基础 crate 分别运行 `cargo tree`，拒绝依赖 `scoopc` facade、driver/runtime/tool、目标 stage/fact crate 名称，以及违反 P1 基础 crate 方向的 later-base 依赖；单元测试覆盖 parser、允许方向、反向依赖 `scoopc` 和 later-base 依赖检测。
+  - 验证命令：`cargo fmt`；`cargo check --workspace --no-default-features`；`cargo run -p scoop_tools -- dependency-gate`；`cargo clippy --all-targets -- -D warnings`；`cargo test -p scoop_tools dependency_gate`。
+  - 残余风险：基础 crate 当前仍是壳层，实际 `Span` / source / type / ID / project model authoritative 定义尚未迁移；这是后续 P1-T02 到 P1-T04 的范围，P1-T01 未引入重复定义或桥接转换。
 
 ## [TODO] P1-T01R：Review 基础 crate 壳层与依赖门禁
 

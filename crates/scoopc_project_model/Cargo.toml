@@ -1,0 +1,6 @@
+[package]
+name = "scoopc_project_model"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]

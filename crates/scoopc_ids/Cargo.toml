@@ -1,0 +1,6 @@
+[package]
+name = "scoopc_ids"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
