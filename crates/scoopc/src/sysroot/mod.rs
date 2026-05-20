@@ -14,7 +14,8 @@ use miette::{Context as _, IntoDiagnostic as _, Result, miette};
 
 use crate::cone::manifest::{CONE_TOML_FILE_NAME, ConeKind};
 use crate::cone::package::{
-    host_target_platform_id, load_cone_source_package_for_platform_with_sysroot_root,
+    CONE_SRC_DIR_NAME, host_target_platform_id,
+    load_cone_source_package_for_platform_with_sysroot_root,
 };
 use crate::source::SourceFile;
 
@@ -39,6 +40,13 @@ pub struct SysrootFile {
 pub(crate) struct SysrootSourceEntry {
     pub path: PathBuf,
     pub trusted_syslib: bool,
+}
+
+#[derive(Debug)]
+struct SysrootConeSourceSet {
+    root_rel: PathBuf,
+    trusted_syslib: bool,
+    sources: Vec<PathBuf>,
 }
 
 impl Sysroot {
@@ -135,83 +143,96 @@ fn collect_merged_sysroot_entries(
     overlay_root: Option<&Path>,
 ) -> Result<Vec<SysrootSourceEntry>> {
     let mut merged = BTreeMap::new();
-    let mut trust_by_cone_root = BTreeMap::new();
+    let source_sets = collect_sysroot_cone_source_sets(root)?;
 
-    for entry in collect_sysroot_cone_source_entries(root)? {
-        let rel = entry
-            .path
-            .strip_prefix(root)
-            .expect("sysroot file should be under canonical root")
-            .to_path_buf();
-        if let Some(cone_root_rel) = sysroot_lib_cone_root_rel(&rel) {
-            trust_by_cone_root.insert(cone_root_rel, entry.trusted_syslib);
+    for source_set in &source_sets {
+        for path in &source_set.sources {
+            let rel = path
+                .strip_prefix(root)
+                .expect("sysroot file should be under canonical root")
+                .to_path_buf();
+            merged.insert(
+                rel,
+                SysrootSourceEntry {
+                    path: path.clone(),
+                    trusted_syslib: source_set.trusted_syslib,
+                },
+            );
         }
-        merged.insert(rel, entry);
     }
 
     if let Some(overlay_root) = overlay_root {
         let overlay_root = canonicalize_sysroot_root(overlay_root, "sysroot overlay")?;
-        let mut overlay_paths = Vec::new();
-        collect_scoop_files(&overlay_root, &mut overlay_paths)?;
-        for path in overlay_paths {
-            let rel = path
-                .strip_prefix(&overlay_root)
-                .expect("overlay file should be under canonical overlay root")
-                .to_path_buf();
-            let trusted_syslib = merged
-                .get(&rel)
-                .map(|entry: &SysrootSourceEntry| entry.trusted_syslib)
-                .or_else(|| {
-                    sysroot_lib_cone_root_rel(&rel)
-                        .and_then(|cone_root_rel| trust_by_cone_root.get(&cone_root_rel).copied())
-                })
-                .unwrap_or(true);
-            merged.insert(
-                rel,
-                SysrootSourceEntry {
-                    path,
-                    trusted_syslib,
-                },
-            );
+        for source_set in &source_sets {
+            merge_overlay_cone_sources(&overlay_root, source_set, &mut merged)?;
         }
     }
 
     Ok(merged.into_values().collect())
 }
 
-fn sysroot_lib_cone_root_rel(rel: &Path) -> Option<PathBuf> {
-    let mut components = rel.components();
-    let lib = components.next()?;
-    if lib.as_os_str() != "lib" {
-        return None;
+fn merge_overlay_cone_sources(
+    overlay_root: &Path,
+    source_set: &SysrootConeSourceSet,
+    merged: &mut BTreeMap<PathBuf, SysrootSourceEntry>,
+) -> Result<()> {
+    let overlay_cone_root = overlay_root.join(&source_set.root_rel);
+    let overlay_src_root = overlay_cone_root.join(CONE_SRC_DIR_NAME);
+    if !overlay_src_root.is_dir() {
+        return Ok(());
     }
-    let cone = components.next()?;
-    Some(PathBuf::from("lib").join(Path::new(cone.as_os_str())))
+
+    let mut overlay_paths = Vec::new();
+    collect_scoop_files(&overlay_src_root, &mut overlay_paths)?;
+    for path in overlay_paths {
+        let path = path
+            .canonicalize()
+            .into_diagnostic()
+            .wrap_err_with(|| format!("无法定位 sysroot overlay 源文件：{}", path.display()))?;
+        let rel_inside_cone = path
+            .strip_prefix(&overlay_cone_root)
+            .expect("overlay source should be under the overlay cone root");
+        let rel = source_set.root_rel.join(rel_inside_cone);
+        merged.insert(
+            rel,
+            SysrootSourceEntry {
+                path,
+                trusted_syslib: source_set.trusted_syslib,
+            },
+        );
+    }
+
+    Ok(())
 }
 
-fn collect_sysroot_cone_source_entries(root: &Path) -> Result<Vec<SysrootSourceEntry>> {
+fn collect_sysroot_cone_source_sets(root: &Path) -> Result<Vec<SysrootConeSourceSet>> {
     let manifest_paths = collect_sysroot_cone_manifest_paths(root)?;
     let target_platform = host_target_platform_id();
-    let mut entries = Vec::new();
+    let mut source_sets = Vec::new();
 
     for manifest_path in manifest_paths {
         let cone_root = manifest_path
             .parent()
             .expect("Cone.toml path should have a cone root parent");
+        let root_rel = cone_root
+            .strip_prefix(root)
+            .expect("sysroot cone root should be under canonical root")
+            .to_path_buf();
         let package = load_cone_source_package_for_platform_with_sysroot_root(
             cone_root,
             &target_platform,
             root,
         )?;
         let trusted_syslib = package.manifest.cone.kind == ConeKind::Syslib;
-        entries.extend(package.sources.into_iter().map(|path| SysrootSourceEntry {
-            path,
+        source_sets.push(SysrootConeSourceSet {
+            root_rel,
             trusted_syslib,
-        }));
+            sources: package.sources,
+        });
     }
 
-    entries.sort_by(|lhs, rhs| lhs.path.cmp(&rhs.path));
-    Ok(entries)
+    source_sets.sort_by(|lhs, rhs| lhs.root_rel.cmp(&rhs.root_rel));
+    Ok(source_sets)
 }
 
 fn collect_sysroot_cone_manifest_paths(root: &Path) -> Result<Vec<PathBuf>> {
@@ -447,6 +468,47 @@ mod tests {
         let mut support_sources = Vec::new();
         collect_sysroot_files(&base_root, Some(&overlay_root), &mut support_sources).unwrap();
         assert_eq!(support_sources, vec![overlay_core, unsafe_file]);
+    }
+
+    #[test]
+    fn legacy_overlay_paths_outside_lib_cones_are_ignored() {
+        let root = make_temp_dir("legacy_overlay_ignored");
+        let base_root = root.0.join("base");
+        let overlay_root = root.0.join("overlay");
+        let base_core = base_root
+            .join("lib")
+            .join("scoop.core")
+            .join("src")
+            .join("core.scoop");
+        let legacy_overlay = overlay_root
+            .join("fixtures")
+            .join("typecheck")
+            .join("intrinsic_surface.scoop");
+        let overlay_docs = overlay_root.join("docs").join("ignored.scoop");
+
+        write_sysroot_cone_manifest(&base_root, "scoop.core", ConeKind::Syslib);
+        write_file(
+            &base_core,
+            "package scoop.core\n@Intrinsic class Array<T>\ninterface Any\n",
+        );
+        write_file(
+            &legacy_overlay,
+            "package fixtures.typecheck\n@Intrinsic fun legacy(): Int\n",
+        );
+        write_file(
+            &overlay_docs,
+            "package docs\nfun shouldNotLoad(): Int = 1\n",
+        );
+
+        let sysroot = Sysroot::load_from_with_overlay(&base_root, Some(&overlay_root)).unwrap();
+        let base_core = base_core.canonicalize().unwrap();
+        let legacy_overlay = legacy_overlay.canonicalize().unwrap();
+        let overlay_docs = overlay_docs.canonicalize().unwrap();
+
+        assert_eq!(sysroot.files.len(), 1);
+        assert!(sysroot.files.iter().any(|file| file.path == base_core));
+        assert!(!sysroot.files.iter().any(|file| file.path == legacy_overlay));
+        assert!(!sysroot.files.iter().any(|file| file.path == overlay_docs));
     }
 
     #[test]
