@@ -3,7 +3,7 @@
 > 生成时间：2026-05-19
 > 设计基线：[`SYSROOT_RESHAPE_R2.md`](./SYSROOT_RESHAPE_R2.md)
 > 计划基线：[`PLAN.md`](./PLAN.md)
-> 当前状态：`P7-T02` 已完成；下一任务为 `P8-T01`。
+> 当前状态：`P8-T01` 已完成；下一任务为 `P8-T02`。
 > 执行原则：严格按 P0 -> P10 顺序推进；同一阶段内可按任务依赖拆 PR，但每个任务完成后必须保持仓库无 failing fixture，并回写完成记录。
 
 ## 全局约束
@@ -109,7 +109,7 @@ P0 baseline freeze
 | `P6-T02` | [DONE] | P6 | 实现 prelude package 列表并与 auto dependency 解耦 |
 | `P7-T01` | [DONE] | P7 | 将 native-build 扩展到所有 loaded source cones |
 | `P7-T02` | [DONE] | P7 | dependency cone C++/link-flags/linker driver 覆盖 |
-| `P8-T01` | [TODO] | P8 | 建立公开 `scoop_runtime.h` runtime core header |
+| `P8-T01` | [DONE] | P8 | 建立公开 `scoop_runtime.h` runtime core header |
 | `P8-T02` | [TODO] | P8 | 迁移 `scoop.runtime.test` native helpers |
 | `P8-T03` | [TODO] | P8 | 迁移 `scoop.sync` native implementation |
 | `P8-T04` | [TODO] | P8 | 迁移 `scoop.thread` native implementation 与 thread entry trampoline |
@@ -592,7 +592,7 @@ P0 baseline freeze
 - 与 `PLAN.md` / `SYSROOT_RESHAPE_R2.md` 闭合项：满足 P7 中“Link flags 按 dependency-topological order 稳定追加”、“C++ source 存在时最终 linker driver 选择规则覆盖 dependency cone”和“duplicate symbol 等 linker 错误直接暴露”的要求；native build graph 从编译到最终链接已覆盖 loaded cones，阶段级计划未变化。
 - 验证结果：`cargo fmt` 通过；`cargo test -p scoop native_link_plan -- --nocapture` 通过（3 passed）；`cargo run -p scoop -- test tests/fixtures/run_pass_cone/` 通过（37 checks）；`cargo build` 通过；`cargo clippy --all-targets -- -D warnings` 通过；`cargo test --all --all-targets` 通过（Rust tests: ok，包含 `scoopc` 932 passed）；`cargo run -p scoop -- test` 通过（fixtures: ok，1576 checks）。
 
-## P8-T01：建立公开 `scoop_runtime.h` runtime core header
+## [DONE] P8-T01：建立公开 `scoop_runtime.h` runtime core header
 
 - 参考：`SYSROOT_RESHAPE_R2.md` §7、`PLAN.md` §11。
 - 目标：给 cone-local C FFI 提供稳定 runtime core 入口，避免每个 FFI hack private runtime layout。
@@ -605,6 +605,15 @@ P0 baseline freeze
   5. Cone native build 自动加入公开 header include path。
 - 验证：cone-local C fixture include `scoop_runtime.h` 编译通过。
 - 完成条件：迁移后的 cone native C 不再 include runtime private headers，除明确 syslib/core substrate 例外。
+
+### 完成记录（2026-05-20）
+
+- 改动范围：新增 `runtime/c/include/scoop_runtime.h` 作为 cone-local native sources 的公开 runtime core header；`toolchain.rs` 对 C/C++ native-build 编译命令自动加入该公开 include 目录；`runtime/c/scoop_runtime.c` 增加 `scoop_gc_thread_attach_current` / `scoop_gc_thread_detach_current` substrate wrapper；`runtime/c/scoop_runtime_api.h` allowlist 同步新增这两个 runtime core exports；新增 `run_pass_cone/public_runtime_header_include` fixture；未修改 `PLAN.md` 或 `SYSROOT_RESHAPE_R2.md`。
+- 核心决策：公开 header 暴露 GC thread attach/detach、native transition、GC handle/pin、alloc/type descriptor、composite transport、global root、必要 string/array helper declarations；`String` / `Array` / `MutableArray` 仅作为 opaque runtime refs 出现在函数签名中，不暴露 Immix heap/backend、object header heap-link fields、thread list、platform backend、private root frame/TLS 等 runtime private internals。旧 `runtime/c/scoop_runtime_api.h` 继续只作为 export allowlist，不作为 include header。
+- Native build 接入：cone C/C++ compile command 统一追加 `-I runtime/c/include`，因此普通 consumer cone 与 dependency cone 的 `native-build.c-sources` / `cxx-sources` 都可直接 `#include <scoop_runtime.h>`，无需 include `runtime/c` private headers。
+- Fixture 覆盖：新增 fixture 的 cone-local C source include `<scoop_runtime.h>`，并通过公开 surface 调用 attach、mutable array helper、GC handle helper，同时只引用 detach wrapper 函数指针，不在 managed entry thread 中执行 detach；该 fixture 证明公开 header 能由 cone native-build 编译、链接并运行。
+- 与 `PLAN.md` / `SYSROOT_RESHAPE_R2.md` 闭合项：满足 P8 中“建立稳定 runtime-core public headers”、“暴露 GC thread lifecycle substrate”、“cone native sources should be self-contained except for stable runtime-core public headers”和“native build 自动获得公开 include path”的要求；`scoop.runtime.test`、`scoop.sync`、`scoop.thread` 与 string helper 的实际迁移仍按 `P8-T02`-`P8-T05` 推进，阶段级计划未变化。
+- 验证结果：`cargo fmt` 通过；`cargo test -p scoop native_compile_commands_include_public_runtime_header_dir -- --nocapture` 通过；`cargo test -p scoop_runtime --lib abi_exports_allowlist -- --nocapture` 通过（一次未加 `--lib` 的 filtered run 在目标单测通过后继续启动无关 test binary 并超时，已用限定命令重跑通过）；`cargo run -p scoop -- test tests/fixtures/run_pass_cone/public_runtime_header_include` 通过；`cargo build` 通过；`cargo clippy --all-targets -- -D warnings` 通过；`cargo test --all --all-targets` 首次 1200s 超时后以 1800s 重跑通过（Rust tests: ok，包含 `scoopc` 932 passed）；`cargo run -p scoop -- test` 通过（fixtures: ok，1577 checks）。
 
 ## P8-T02：迁移 `scoop.runtime.test` native helpers
 

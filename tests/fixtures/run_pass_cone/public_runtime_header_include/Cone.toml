@@ -1,0 +1,8 @@
+[cone]
+name = "fixture-public-runtime-header-include"
+version = "0.0.0"
+kind = "bin"
+
+[native-build]
+c-sources = ["native/runtime_header_probe.c"]
+c-flags = ["-O0"]

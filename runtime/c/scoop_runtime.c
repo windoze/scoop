@@ -435,6 +435,14 @@ void scoop_thread_unregister(void) {
   scoop_tls._reserved_u32_2 = 0;
 }
 
+void scoop_gc_thread_attach_current(void) {
+  scoop_thread_register();
+}
+
+void scoop_gc_thread_detach_current(void) {
+  scoop_thread_unregister();
+}
+
 // 运行时初始化（后续可由编译器生成的 main 调用）
 void scoop_runtime_init(void) {
   (void)pthread_mutex_lock(&scoop_rt_init_lock);

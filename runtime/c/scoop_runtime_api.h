@@ -48,7 +48,9 @@
   X(scoop_gc_safepoint) \
   X(scoop_gc_safepoint_poll) \
   X(scoop_gc_self_check) \
+  X(scoop_gc_thread_attach_current) \
   X(scoop_gc_thread_clear_managed_root_snapshot_current) \
+  X(scoop_gc_thread_detach_current) \
   X(scoop_gc_thread_register) \
   X(scoop_gc_thread_unregister) \
   X(scoop_gc_try_collect_minor) \

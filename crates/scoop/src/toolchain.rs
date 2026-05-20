@@ -212,6 +212,7 @@ fn compile_c_command_to_obj(
     let mut cmd = Command::new(compiler);
     cmd.current_dir(cone_root);
     cmd.arg("-c");
+    cmd.arg("-I").arg(runtime_public_include_dir());
     for flag in c_flags {
         if flag.trim().is_empty() {
             continue;
@@ -292,6 +293,7 @@ fn compile_cxx_command_to_obj(
     let mut cmd = Command::new(compiler);
     cmd.current_dir(cone_root);
     cmd.arg("-c");
+    cmd.arg("-I").arg(runtime_public_include_dir());
     for flag in cxx_flags {
         if flag.trim().is_empty() {
             continue;
@@ -489,6 +491,10 @@ fn link_command(
 
 fn runtime_c_dir() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../runtime/c")
+}
+
+fn runtime_public_include_dir() -> PathBuf {
+    runtime_c_dir().join("include")
 }
 
 /// 将 runtime/c 的全部 C 源码预编译为 object 文件，写入给定目录。
@@ -795,6 +801,33 @@ mod tests {
             assert!(
                 args.iter().any(|a| a == &expected),
                 "compile C++ command 应包含 {expected}，实际：{args:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn native_compile_commands_include_public_runtime_header_dir() {
+        let dir = tempfile::tempdir().unwrap();
+        let cone_root = dir.path();
+        let c_source = cone_root.join("main.c");
+        let cxx_source = cone_root.join("main.cpp");
+        let output_obj = cone_root.join("main.o");
+        std::fs::write(&c_source, "int f(void) { return 0; }\n").unwrap();
+        std::fs::write(&cxx_source, "int f() { return 0; }\n").unwrap();
+
+        let include_dir = runtime_public_include_dir().to_string_lossy().to_string();
+        for cmd in [
+            compile_c_command_to_obj(cone_root, &c_source, &output_obj, &[]),
+            compile_cxx_command_to_obj(cone_root, &cxx_source, &output_obj, &[]),
+        ] {
+            let args = cmd
+                .get_args()
+                .map(|a| a.to_string_lossy().to_string())
+                .collect::<Vec<_>>();
+            assert!(
+                args.windows(2)
+                    .any(|pair| pair[0] == "-I" && pair[1] == include_dir),
+                "native compile command should include public runtime header dir {include_dir}, actual: {args:?}"
             );
         }
     }

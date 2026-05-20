@@ -1,0 +1,15 @@
+// EXPECT: pass
+// RUN-STDOUT: out.stdout.txt
+
+package fixtures.run_pass_cone.public_runtime_header_include
+
+import scoop.core.*
+
+@Extern(name = "runtime_header_probe")
+fun runtimeHeaderProbe(): Int
+
+public fun main() / Pure! {
+    @Unsafe do {
+        println(runtimeHeaderProbe())
+    }
+}
