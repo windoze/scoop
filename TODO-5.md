@@ -478,7 +478,7 @@ P5 需要把这条隐式 opt helper 提升为正式 LIR optimization family：�
   - 验证命令：`cargo fmt`；`cargo check -p scoopc_lir_facts`；`cargo test -p scoopc_lir_facts`（首次与并行 `cargo check` 争用 cargo lock 后超时，单独重跑通过）；`cargo test -p scoopc --no-default-features effect_lowering_stage`；`cargo run -p scoop_tools -- dependency-gate`；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
   - 残余风险：`LirFacts` 仍是 P5-T01 壳层，只覆盖 summary/callable inventory；plain/effect-step callable ABI、dynamic invoke、dispatch owner/slot、continuation/resume publication 和 codegen-neutral ABI query 切换仍按顺序留给 P5-T02/P5-T03。
 
-## [TODO] P5-T01R：Review `lir_facts` crate 与 LIR output 壳层
+## [DONE] P5-T01R：Review `lir_facts` crate 与 LIR output 壳层
 
 - 参考：P5-T01。
 - 重点：
@@ -499,7 +499,13 @@ P5 需要把这条隐式 opt helper 提升为正式 LIR optimization family：�
   - review 结论明确写出：LIR output 壳层和 `lir_facts` crate 满足 P5/Pipeline 边界，或列出阻塞项并在本 review 内修复。
 - 依赖：P5-T01
 - 完成记录：
-  - 待填写。
+  - Review 结论：LIR output 壳层和 `scoopc_lir_facts` crate 满足 P5/Pipeline 边界；`LirStageOutput` 发布 `LateLoweredProgram` 与 `LirFacts`，不嵌套 P3 `MirStageOutput` 或 P4 `EffectFactsStageOutput` wrapper。
+  - 依赖边界：复查 workspace / `scoopc` manifests、`crates/scoopc_lir_facts/` 与 dependency gate；`cargo tree -p scoopc_lir_facts` 确认该 fact crate 只依赖 `scoopc_ids`、`scoopc_project_model` 及其基础依赖 `scoopc_source` / `scoopc_span`，未依赖 `scoopc` facade、MIR/effect/LIR stage、backend crate 或其它 fact crate。
+  - output 边界：`LirStageOutput` 字段为 `lir`、`lir_facts` 与显式 `LirStageContext`；该 context 仅为当前 LLVM/query 兼容保留 `MaterializedMir` / `MirFacts` / `MaterializedEffectFacts`，不是上游 stage output 嵌套。旧 `EffectLoweredStageOutput` 仅作为迁移别名保留，公开 API 和 stable dump 均以 `LirStageOutput` / `lir_facts` / `post_opt_lir` 表达 LIR stage 语义。
+  - LIR 本体发布：`LateLoweredProgram` 文档、`LirStageOutput::lir()` / `program()` 和 dump 命令均把当前 post-opt late-lowered program 作为正式 LIR 本体发布；后续任务应在该结构和 `LirFacts` 内补齐 contracts，而不是另起临时 IR。
+  - 复查范围：检查了 `Cargo.toml`、`crates/scoopc/Cargo.toml`、`crates/scoopc_lir_facts/`、`crates/scoopc/src/pipeline/effect_lowering_stage.rs`、`crates/scoopc/src/effect_lowered/`、`tools/scoop_tools/src/dependency_gate.rs`、`README.md` 与 dump 命令测试。
+  - 验证命令：`cargo fmt`；`cargo check -p scoopc_lir_facts`；`cargo test -p scoopc_lir_facts`；`cargo test -p scoopc --no-default-features effect_lowering_stage`；`cargo run -p scoop_tools -- dependency-gate`；`cargo tree -p scoopc_lir_facts`；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
+  - 残余风险：`LirFacts` 仍是 P5-T01 壳层，只覆盖 summary/callable inventory；plain/effect-step callable ABI、dynamic invoke、dispatch owner/slot、continuation/resume publication 与 codegen-neutral query/accessor 清理仍按顺序留给 P5-T02/P5-T03。
 
 ## [TODO] P5-T02：发布 LIR callable、dynamic invoke、dispatch 与 resume contracts
 
