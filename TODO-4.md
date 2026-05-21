@@ -2,24 +2,92 @@
 
 > 生成时间：2026-05-21
 > 计划基线：[`PLAN.md`](./PLAN.md) §4/P3
+> 设计基线：[`PIPELINE_REFACTOR.md`](./PIPELINE_REFACTOR.md)
+> 审计基线：[`PIPELINE-CLEANUP.md`](./PIPELINE-CLEANUP.md)
 > 索引：[`TODO.md`](./TODO.md)
-> 当前状态：范围说明，待 `TODO-3.md` 完成后细化。
+> 顺序约束：严格按本文件任务顺序推进；每个实现任务后必须执行紧随其后的 review 任务。
+> 本包目标：把 MIR 从 materialization 附带物收口成正式阶段输出，发布独立 `mir_facts` / pass artifacts 查询面，并把现有 MIR 优化重排成显式 pass pipeline。
 
-## 范围
+## 全局约束
 
-- 收口 `MirStageOutput`，使其只发布 MIR-owned 产物。
-- 在 P2 已清理 HIR source-site contract 泄漏的基础上，继续收口 optional `MaterializedMir`、root inventories、snapshot binding 与 pass artifacts。
-- 建立独立 `mir_facts` / pass artifacts 查询面。
-- 把 escape analysis、devirtualization、summary-driven inlining、closure simplification、cleanup / summary refresh 重排成显式 MIR pass pipeline。
-- 删除 HIR 层 dispatch 去虚化。
+- 本包只处理 `PLAN.md` 的 P3：`MirStageOutput`、`mir_facts`、MIR-owned root inventories / snapshot binding / pass artifacts，以及普通调用图/实例级 MIR pass pipeline；不得提前把 P4 effect facts purity、P5 LIR output、P6 global init model 或 P7 backend cleanup 塞进本包。
+- `MirStageOutput = { mir, mir_facts }` 语义必须成立；`mir` 是 MIR stage 自己的 authoritative IR/handoff，`mir_facts` 是 MIR stage 发布的独立事实产品。后续阶段需要 MIR root inventory、snapshot binding、pass artifacts 或 MIR-derived global facts 时，应显式消费 `mir_facts` 或 MIR pass query surface，不能从 `MaterializedMir`、P4/P5 wrapper 或 HIR scaffold 重新推导同一事实。
+- `mir_facts` 必须是独立 fact crate 或等价独立数据产品；fact crate 只能依赖基础 crate，不得依赖 `scoopc` facade、HIR/MIR/effect/LIR/codegen stage crate 或其它 fact crate。当前 `TemplateKey` / `InstanceKey` 是 MIR materialization 内部键，不能被 fact crate 当作跨阶段基础 ID 直接外露。
+- MIR pass 的 owner 必须唯一。普通 dispatch 去虚化、summary-driven inlining、escape analysis、closure simplification、cleanup / summary refresh 都属于 MIR 或 MIR facts；HIR 不承载 optimization pass，codegen 不得被 P3 新增为普通语义优化 fallback。
+- HIR 仍可以发布 dispatch source-site typed contract，但不得把 exact-receiver 去虚化结果写入 HIR 输出；P3 完成后，HIR 层 `devirtualize_dispatch_calls` 必须被删除或退化为不执行优化的兼容参数，并由 review 证明不会改变 HIR 语义。
+- P3 可以保留 P4/P5/P7 后续任务仍会清理的 nested wrapper / HIR scaffold 过渡输入，但不得新增新的上游整包回看，也不得把这些过渡输入描述为最终合法边界。
+- 每个任务完成后，在该任务的“完成记录”下写明改动范围、核心决策、验证命令和残余风险。
 
-## 细化要求
+## 触碰面基线
 
-- 每个小阶段后必须插入独立 review 任务。
-- 细化时必须列出 `MirStageOutput` 当前字段、构造点和所有下游读取点。
-- MIR 去虚化/内联必须只有一个 authoritative owner。
+本节是 `TODO-4-INIT` 的仓库搜索记录，后续 P3 任务应优先从这些位置开始，不再重复做开放式仓库搜索。
 
-## [TODO] TODO-4-INIT：初始化并细化本任务包
+### `MirStageOutput` 当前字段、构造点与读取点
+
+`MirStageOutput` 定义在 `crates/scoopc/src/pipeline/mir_stage.rs:28-35`，构造入口是 `MirStageOutput::new(...)`。生产 direct-style MIR 构造点是 `crates/scoopc/src/pipeline/mir_stage.rs:204-228`，该路径先从 `HirFacts` 构造 `MirLoweringFacts`，再调用 `lower_hir_file_for_dump_with_facts(...)` 生成 `LoweredMir`，最后用 `MaterializedMir = None` 构造 stage output。
+
+| 字段 / 查询面 | 当前职责 | 构造 / 写入点 | 主要读取点 | P3 处理方向 |
+| --- | --- | --- | --- | --- |
+| `lowered_mir: LoweredMir` | direct-style MIR file + 对应 `TypeStore` | `MirStageOutput::new(...)`；`lower_mir_stage_unvalidated(...)` | `file()`、`types()`、`stable_dump()`、`into_lowered_mir()`；MIR stage tests；effect facts stage `file()` 间接读取 | 收口为 MIR output 的 direct-style 组成部分，不再让 root inventory 旁路存放在 `MirStageOutput` 字段中 |
+| `callable_body_indices: BTreeMap<String, usize>` | callable body root inventory | `collect_callable_body_indices(...)` 从 `LoweredMir.file.items` 扫描 | `callable_body_fqns()`、`callable_body()`；MIR tests / preflight | 迁入 `mir_facts` root inventory，`MirStageOutput` 查询方法改为委托 facts |
+| `initializer_root_indices: BTreeMap<String, usize>` | top-level initializer/value root inventory | `collect_initializer_root_indices(...)` | `initializer_root_fqns()`、`initializer_root()`；MIR tests /后续 global init 输入 | 迁入 `mir_facts` root inventory，后续 P6 再闭合 init model |
+| `global_root_indices: BTreeMap<String, usize>` | `@Extern` global root inventory | `collect_global_root_indices(...)` | `global_root_fqns()`、`extern_global_root()` | 迁入 `mir_facts` extern/global root inventory |
+| `metadata_root_indices: BTreeMap<String, usize>` | type/object/typealias metadata root inventory | `collect_metadata_root_indices(...)` | `metadata_root_fqns()`、`metadata_root()` | 迁入 `mir_facts` metadata root inventory |
+| `materialized_mir: Option<MaterializedMir>` | optional canonical materialized MIR snapshot | `with_materialized_mir(...)`；`pipeline/mod.rs:128-131`；`llvm_codegen_stage.rs:139-141`；多处 tests | `materialized_mir()`、`materialized_mir_mut()`；P4 `effect_facts_stage.rs:47-55,91-143`；P5 wrapper；LLVM/codegen 经 P5 wrapper 回看 pass view | 消除 P4 输入的 optional gap；改成 MIR-owned canonical snapshot / pass artifacts handoff，并发布 snapshot binding |
+
+主要 direct downstream：`crates/scoopc/src/pipeline/mod.rs:80-165`、`crates/scoopc/src/pipeline/effect_facts_stage.rs:22-68,85-145`、`crates/scoopc/src/pipeline/effect_lowering_stage.rs:44-68,82-137`、`crates/scoopc/src/pipeline/llvm_codegen_stage.rs:126-160`、`crates/scoopc/src/pipeline/hir_preflight.rs:345-*`、`crates/scoopc/src/llvm/emit.rs:134-157`、`crates/scoopc/src/llvm/codegen/mod.rs:497-506,1038-1048`。
+
+主要 indirect downstream（通过 `EffectFactsStageOutput` / `EffectLoweredStageOutput` / `MaterializedMirPassView`）：`crates/scoopc/src/effect_lowered/{ir.rs,segment.rs,frame.rs,materialize/tests.rs}`、`crates/scoopc/src/effect_facts/solver.rs`、`crates/scoopc/src/effect_facts/builder.rs`、`crates/scoopc/src/effect/state_machine/analysis/suspend_call.rs`、`crates/scoopc/src/llvm/codegen/{ordinary_callee.rs,main/context.rs,call/lowering.rs,main/identity.rs,main/declare.rs,mir_body/callable_lookup.rs,ty.rs}`、`crates/scoopc/src/llvm/reachability.rs`。
+
+### `LoweredMir` 当前字段、构造点与读取点
+
+`LoweredMir` 定义在 `crates/scoopc/src/mir/lower/entry.rs:24-31`。
+
+| 字段 | 当前职责 | 构造点 | 主要读取点 | P3 处理方向 |
+| --- | --- | --- | --- | --- |
+| `file: File` | generic direct-style MIR compilation unit | `mir/lower/entry.rs:66-82` 的 `lower_for_dump(...)`；`pipeline/mir_stage.rs:204-218`；MIR/effect facts/layout tests scaffolding | `MirStageOutput::file()`、root inventory collection、stable dump、materialization input、MIR validation/tests | 继续作为 MIR IR 本体；不把 downstream facts 重复塞在 `File` 外的并列 map 中 |
+| `types: TypeStore` | MIR 节点 `TypeId` 解码/展示使用的 type context | 同上 | `MirStageOutput::types()`、stable dump、effect facts/LIR/codegen 的 type lookup 过渡路径 | 保持单一 type universe；P3 不引入第二套 `TypeStore`，后续 LIR/codegen type handoff 由 P5/P7 收口 |
+
+`LoweredMir` 的长期问题不是字段过多，而是 `MirStageOutput` 目前把它与 root indices 和 optional `MaterializedMir` 并列暴露。P3 应明确 direct-style MIR、canonical materialized snapshot 和 MIR facts 的关系，而不是让下游自行选择 source-of-truth。
+
+### `MaterializedMir` / pass artifacts 当前字段、构造点与读取点
+
+`MaterializedMir` 定义在 `crates/scoopc/src/mir/materialize/mod.rs:142-159`，主构造点是 `MirInstanceMaterializer::run(...)` 中的 `MaterializedMir { ... }`（`crates/scoopc/src/mir/materialize/run.rs:242-256`）。入口包括 `materialize_for_dump_with_opt_level(...)`（`crates/scoopc/src/mir/materialize/entry.rs:14-39`）、`materialize_compilation_unit_from_typechecked_inputs(...)`（`entry.rs:48-172`）和 `crate::mir::materialize_compilation_unit_from_typechecked_inputs_with_opt_level(...)` wrappers。
+
+| 字段 / 查询面 | 当前职责 | 构造 / 写入点 | 主要读取点 | P3 处理方向 |
+| --- | --- | --- | --- | --- |
+| `file: File` | raw materialized MIR bodies | `MirInstanceMaterializer::run(...)` 的 `items` | raw dump/tests、`callable_view()`、部分 LIR/codegen fallback | 保留为 raw materialized snapshot；production canonical 读取应走 pass view / MIR facts |
+| `types: TypeStore` | materialized snapshot type context | materializer 持有并移动进输出 | effect facts builder 当前可变写入；LIR/codegen type lookup | P3 记录 snapshot type context 绑定；P4 再处理 effect facts mutating type context |
+| `instance_keys: Vec<InstanceKey>` | materialized + declaration-only instance inventory | materializer worklist + decl-only 合并 | `callable_view()`、dump/tests、stable instance key lookup | 作为 MIR-owned instance family inventory 发布，fact crate 不直接外露内部 `InstanceKey` |
+| `summaries: MaterializedMirSummaries` | raw per-instance summary | `build_materialized_summary_table(...)` | raw callable view/tests；pass artifacts initial publication | 作为 raw materialization summary；canonical post-pass summary 走 pass artifacts |
+| `top_level_value_tys` | top-level value type lookup | `collect_top_level_value_tys()` | effect/codegen helper | 若下游长期需要，归入 MIR facts 或 HIR facts owner；P3 不新增并列 owner |
+| `stable_cone_key`、`stable_instance_keys`、`stable_template_keys`、`nongeneric_callable_signature_keys` | stable identity / symbol bridge | materialization inputs and stable-id helpers | codegen symbols、ABI identity、tests | 通过 `scoopc_ids` 稳定身份表达跨阶段 facts；不要把内部 `TemplateKey` / `InstanceKey` 直接放入 fact crate |
+| `opt_level` | 当前 snapshot 的 MIR opt level | materialization options | effect facts solver、P5 stable dump | 进入 snapshot binding / pass pipeline metadata |
+| `callable_families` | raw instance family -> callable FQN 映射 | `MaterializedCallableFamilies::from_inputs(...)` | raw callable view、pass artifacts initial publication | canonical family mapping 由 pass artifacts 发布 |
+| `pass_artifacts: MaterializedMirPassArtifacts` | canonical post-pass callable body / summary / family / escape facts side table | `MaterializedMirPassArtifacts::from_initial_publication(...)`；`inline.rs`、`escape.rs`、`closure_simplify.rs` 写入 | `MaterializedMir::pass_view()`；effect facts builder；LIR builder；LLVM codegen/reachability | 抽成正式 MIR pass artifacts 查询面，并由 `mir_facts` 发布 binding / dump / verifier |
+| `caller_side_pass_candidates` | request-root reachable non-generic caller body candidates | materializer 收集 | inline/escape/closure simplification | 纳入 pass pipeline context，而不是长期裸露为 ad-hoc candidate list |
+
+`MaterializedMirPassArtifacts` 定义在 `crates/scoopc/src/mir/pass_view.rs:20-36`，字段包括 `callable_bodies_by_fqn`、`callable_families`、`instance_keys`、`summaries`、`escape_facts`、`overridden_body_fqns`、`overridden_summary_instances`。它通过 `replace_callable_body(...)`、`set_instance_summary(...)`、`replace_callable_family(...)`、`set_escape_facts(...)` 被当前 pass 修改，并通过 `MaterializedMirPassView` 暴露 `callable(...)`、`owner_of_callable(...)`、`instance(...)`、`root_body(...)`、`root_summary(...)`、`escape_facts()`。
+
+### 当前 MIR pass 入口与执行顺序
+
+现有 MIR pass 并没有独立 pipeline driver，而是内嵌在 `crates/scoopc/src/mir/materialize/run.rs:257-268` 的 materializer 尾部：
+
+1. materialization worklist 完成后构造 raw `MaterializedMir`、raw summaries、initial pass artifacts。
+2. 若 `opt_level.enables_summary_driven_mir_inlining()`，运行 `mir/inline.rs::run_summary_driven_inlining(...)`。该 pass 迭代最多 4 轮，写入 `replace_callable_body(...)` 与 `set_instance_summary(...)`。
+3. 若 `opt_level.enables_mir_escape_analysis()`，运行 `mir/escape.rs::run_escape_analysis(...)`。该 analysis 写入 `MaterializedMirPassArtifacts::set_escape_facts(...)`。
+4. 随后运行 `mir/closure_simplify.rs::run_non_escaping_closure_simplification(...)`。若有 rewrite，写入 callable body / summary，并再次运行 escape analysis 刷新 escape facts。
+5. 最后调用 `materialized.validate_materialized()?`。
+
+当前缺口：
+
+- dispatch 去虚化不是显式 pass，而是内嵌在 `mir/materialize/rewrite.rs:1052-1110` 的 instance rewrite 过程中。
+- HIR 层仍有 `devirtualize_dispatch_calls` 开关和 exact-receiver 去虚化路径，主要在 `hir/lower/expr/main_lower.rs:964-1000,1051-1079`、`hir/lower/main/compilation_unit.rs`、`hir/lower/util/*`、`hir/lower/main/impl_lowering.rs`。
+- codegen / reachability 仍有去虚化残留，主要在 `llvm/codegen/call/lowering.rs:2623-2643` 与 `llvm/reachability.rs:831-*`；这些属于 P7 cleanup，但 P3 不得新增或依赖它们作为 MIR pass fallback。
+- cleanup / summary refresh 目前散在 pass 内部：`inline.rs` 和 `closure_simplify.rs` 对 rewritten body 调用 `summarize_pass_rewritten_fun(...)`，没有显式全局 cleanup / summary refresh pass。
+- escape analysis 当前按 opt level gate 运行；目标上应作为 MIR analysis / facts always-on，closure simplification 可继续 opt-level gate。
+
+## [DONE] TODO-4-INIT：初始化并细化本任务包
 
 - 目标：
   - 分析 `PLAN.md` §4/P3、`PIPELINE_REFACTOR.md` 和当前 MIR materialization/pass/output 的真实边界；
@@ -35,5 +103,474 @@
   - `TODO-4.md` 不再只是范围说明，而是包含可直接执行的详细任务列表；
   - `TODO.md` 的具体任务索引已经同步反映 `TODO-4.md` 的新任务和 `[TODO]` 状态；
   - 本任务完成记录说明 MIR pipeline 拆分依据和仍需确认的下游兼容风险。
+- 依赖：P2-T07R
+- 完成记录：
+  - 拆分依据：P3 的依赖顺序由当前输出混合方式决定，先建立独立 `mir_facts` 数据产品，再把 direct-style root inventories 迁入 facts，随后固定 canonical materialized snapshot / pass artifacts 查询面，最后把现有 pass 从 materializer 尾部和 HIR exact-receiver 路径迁入显式 MIR pass pipeline。
+  - 触碰面记录：已在本文件“触碰面基线”中记录 `MirStageOutput`、`LoweredMir`、`MaterializedMir`、root inventories、pass artifacts 的字段/构造点/读取点，以及 inline、escape、closure simplification、devirtualization、summary refresh 的当前入口和顺序。
+  - 任务结构：新增 7 个实现阶段和 7 个 review 阶段：`mir_facts` crate 与事实模型、root inventories 迁移、snapshot binding / pass artifacts 查询面、downstream MIR query 切换、显式 MIR pass pipeline、dispatch 去虚化 owner 迁移、P3 全包清场。
+  - 核心决策：`MaterializedMirPassArtifacts` 已经是事实上的 canonical pass side table，但它还挂在 `MaterializedMir` 内部；P3 任务将把它提升为 MIR-owned 查询面并绑定到 `mir_facts`。`TemplateKey` / `InstanceKey` 继续视为 MIR 内部键，跨阶段 facts 必须使用基础 stable identity 或新建 stage-independent key。
+  - 未展开风险：P4/P5/P7 仍会继续清理 `EffectFactsStageOutput` / `EffectLoweredStageOutput` 的 nested upstream bundle 和 LLVM HIR scaffold；P3 只负责确保它们读取的是 MIR stage 发布的 authoritative MIR handoff，不在本包内承诺完成 LIR/codegen 自足输入。codegen/reachability 中的去虚化残留按 `PLAN.md` P7 处理，但 P3 必须删除 HIR 层去虚化并阻止新的 HIR optimization owner。
+  - 验证命令：文档/计划任务仅需检查 markdown/TODO 一致性；本次执行使用 `git diff --check`。
+
+## [TODO] P3-T01：建立 `mir_facts` crate 与 MIR facts 数据模型
+
+- 参考：
+  - `PLAN.md` §1.2、§1.3、§4/P3
+  - `PIPELINE_REFACTOR.md` “fact crate 必须自包含”“MIR stage”“优化框架”
+  - 本文件“触碰面基线”
+- 目标：
+  - 在 workspace 中加入独立 `scoopc_mir_facts` 数据产品；
+  - 定义 `MirFacts` 顶层结构、root inventory、snapshot binding、pass artifacts metadata、dump/verifier skeleton；
+  - 固定 fact crate 只能依赖基础 crate 的 DAG 门禁。
+- 必须检查和修改的主要位置：
+  - `Cargo.toml`
+  - `crates/scoopc/Cargo.toml`
+  - 新增 `crates/scoopc_mir_facts/`
+  - `tools/scoop_tools` dependency gate
+  - `README.md` workspace/crate 概览
+- 必须实现的内容：
+  1. 新建 `scoopc_mir_facts` crate，至少包含 crate-level 职责文档、`#![forbid(unsafe_code)]`、`MirFacts` 顶层类型、空 verifier/dump skeleton 和单元测试。
+  2. 将 `MirFacts` 初始划分为 root inventories、materialized snapshot binding、instance/callable family inventory、pass artifact metadata、MIR pass pipeline metadata 这几组模块或子结构。
+  3. 只使用 `scoopc_span`、`scoopc_source`、`scoopc_types`、`scoopc_ids`、`scoopc_project_model` 中的基础类型表达 identity/type/span/cone 信息；不得引用 `crate::mir`、`crate::hir`、`MaterializedMir`、`TemplateKey`、`InstanceKey` 或 backend ABI 类型。
+  4. 如现有基础 ID 不足以表达 snapshot/callable/body identity，先在 `scoopc_ids` 中新增 stage-independent key；不得把 MIR 内部 key 泄漏进 fact crate。
+  5. 更新依赖门禁，使 `scoopc_mir_facts` 作为 fact crate 被检查，拒绝依赖 `scoopc` facade、stage/backend crate 或其它 fact crate。
+  6. 在 `scoopc` facade 中只添加必要依赖或 re-export anchor，不迁移业务事实内容。
+- 禁止事项：
+  - 禁止让 `scoopc_mir_facts` 依赖 `scoopc`、`scoopc_hir_facts`、MIR stage 类型或 backend 类型。
+  - 禁止把 `MaterializedMir`、`MaterializedMirPassView`、`FunDecl`、`File` 或 `Body` 放入 fact crate。
+  - 禁止复制 `TypeStore` 或引入第二套 type universe。
+- 验证：
+  1. `cargo fmt`
+  2. `cargo check -p scoopc_mir_facts`
+  3. `cargo test -p scoopc_mir_facts`
+  4. `cargo run -p scoop_tools -- dependency-gate`
+  5. `cargo clippy --all-targets -- -D warnings`
+- 完成条件：
+  - `scoopc_mir_facts` 可独立编译和测试；
+  - dependency gate 能证明该 fact crate 未依赖 facade、stage crate、backend crate 或其它 fact crate；
+  - `MirFacts` 模型已能承接后续 root inventory、snapshot binding 和 pass artifacts 迁移任务。
+- 依赖：TODO-4-INIT
+- 完成记录：
+  - 待填写。
+
+## [TODO] P3-T01R：Review `mir_facts` crate 与事实模型
+
+- 参考：P3-T01。
+- 重点：
+  - `scoopc_mir_facts` 是否满足 fact crate 自包含约束；
+  - `MirFacts` 分类是否覆盖本文件触碰面基线中的 root inventory、snapshot binding、instance family、pass artifacts 和 pass pipeline metadata；
+  - dependency gate 是否能阻止 fact crate 依赖 `scoopc`、HIR/MIR stage、其它 fact crate 或 backend crate。
+- 必须复查的范围：
+  - `Cargo.toml`
+  - `crates/scoopc_mir_facts/`
+  - `crates/scoopc_ids/` 中本任务新增的 stable identity
+  - `crates/scoopc/Cargo.toml`
+  - `tools/scoop_tools`
+  - `README.md`
+- 验证：
+  - 重新运行 P3-T01 的所有验证；
+  - 额外运行 `cargo tree -p scoopc_mir_facts`，确认只出现允许的基础依赖。
+- 完成条件：
+  - review 结论明确写出：`mir_facts` crate 壳层满足 P3/Pipeline fact DAG 约束，或列出阻塞项并在本 review 内修复。
+- 依赖：P3-T01
+- 完成记录：
+  - 待填写。
+
+## [TODO] P3-T02：迁移 MIR-owned root inventories 到 `mir_facts`
+
+- 参考：
+  - 本文件“`MirStageOutput` 当前字段、构造点与读取点”
+  - `crates/scoopc/src/pipeline/mir_stage.rs`
+- 目标：
+  - 将 `callable_body_indices`、`initializer_root_indices`、`global_root_indices`、`metadata_root_indices` 从 `MirStageOutput` 私有字段迁入 `MirFacts`；
+  - 让 `MirStageOutput` 发布 `mir_facts()`，并把现有 root query 方法改成委托 facts + MIR file；
+  - 保持 direct-style MIR dump 和现有 fixtures 稳定，除非 facts dump 边界变化需要同步更新。
+- 必须检查和修改的主要位置：
+  - `crates/scoopc/src/pipeline/mir_stage.rs`
+  - `crates/scoopc_mir_facts/`
+  - `crates/scoopc/src/mir/dump.rs`
+  - `crates/scoopc/src/pipeline/hir_preflight.rs`
+  - `tests/fixtures/mir_lowered/`、`tests/fixtures/mir/` 中依赖 root inventory 输出的 fixture
+- 必须实现的内容：
+  1. 在 `MirFacts` 中实现 root inventory 数据结构，覆盖 callable body、initializer root、extern/global root、metadata root 的 stable identity、FQN、source/span/type 参考和必要 kind。
+  2. 在 MIR stage 构造时从 `LoweredMir.file` 构建 `MirFacts`，并由 `MirStageOutput` 保存为唯一 root inventory owner。
+  3. 删除 `MirStageOutput` 中四个 root index 字段，或将其降为 `MirFacts` 内部实现细节；不得保留两套并列 authoritative map。
+  4. 更新 `callable_body_fqns()`、`callable_body()`、`initializer_root_fqns()`、`initializer_root()`、`global_root_fqns()`、`extern_global_root()`、`metadata_root_fqns()`、`metadata_root()` 等查询方法，使它们通过 `MirFacts` 定位 MIR item。
+  5. 更新 stable dump / tests，使 MIR 本体与 MIR facts 的边界清晰可见。
+- 禁止事项：
+  - 禁止让下游直接重新扫描 `MirFile.items` 来替代 `MirFacts` root inventory。
+  - 禁止把 HIR facts 或 HIR side table 重新打包进 `MirFacts`。
+  - 禁止为了兼容旧测试保留重复 root map。
+- 验证：
+  1. `cargo fmt`
+  2. `cargo test -p scoopc_mir_facts`
+  3. `cargo test -p scoopc --no-default-features mir_stage`
+  4. `cargo test -p scoopc --no-default-features hir_preflight`
+  5. `cargo run -p scoop -- test --fixtures tests/fixtures/mir_lowered`
+  6. `cargo clippy --all-targets -- -D warnings`
+- 完成条件：
+  - MIR root inventories 的唯一 owner 是 `MirFacts`；
+  - `MirStageOutput` 的 root query surface 仍可用但不再持有独立 root maps；
+  - direct-style MIR dump / tests 能证明 facts 与 MIR item 对齐。
+- 依赖：P3-T01R
+- 完成记录：
+  - 待填写。
+
+## [TODO] P3-T02R：Review MIR root inventory 迁移结果
+
+- 参考：P3-T02。
+- 重点：
+  - `MirStageOutput` 是否不再并列持有 root inventory map；
+  - `MirFacts` root inventory 是否覆盖 callable/initializer/global/metadata roots；
+  - 下游查询是否通过 `mir_facts()` 或委托方法，而不是重新扫描 `MirFile`。
+- 必须复查的范围：
+  - `crates/scoopc/src/pipeline/mir_stage.rs`
+  - `crates/scoopc_mir_facts/`
+  - `crates/scoopc/src/pipeline/hir_preflight.rs`
+  - MIR dump / fixture 更新
+- 验证：
+  - 重新运行 P3-T02 的所有验证；
+  - 额外搜索 `callable_body_indices|initializer_root_indices|global_root_indices|metadata_root_indices`，确认活跃源码中不再有 `MirStageOutput` 并列字段。
+- 完成条件：
+  - review 结论明确写出：root inventories 已由 `MirFacts` 唯一发布，或列出阻塞项并在本 review 内修复。
+- 依赖：P3-T02
+- 完成记录：
+  - 待填写。
+
+## [TODO] P3-T03：固定 canonical materialized snapshot binding 与 pass artifacts 查询面
+
+- 参考：
+  - 本文件“`MaterializedMir` / pass artifacts 当前字段、构造点与读取点”
+  - `crates/scoopc/src/mir/materialize/run.rs`
+  - `crates/scoopc/src/mir/pass_view.rs`
+  - `crates/scoopc/src/pipeline/effect_facts_stage.rs`
+- 目标：
+  - 让交给 P4 的 `MirStageOutput` 必然携带完整 canonical materialized MIR handoff，不再以 `Option<MaterializedMir>` 作为 P4 输入边界；
+  - 将 snapshot binding、opt level、instance family inventory 和 pass artifacts metadata 作为 MIR-owned facts/query surface 发布；
+  - 保留 direct-style MIR dump helper，但避免把“无 materialized snapshot 的 output”传入 effect facts/LIR 生产路径。
+- 必须检查和修改的主要位置：
+  - `crates/scoopc/src/pipeline/mir_stage.rs`
+  - `crates/scoopc/src/pipeline/mod.rs`
+  - `crates/scoopc/src/pipeline/effect_facts_stage.rs`
+  - `crates/scoopc/src/mir/materialize/{entry.rs,run.rs,mod.rs}`
+  - `crates/scoopc/src/mir/pass_view.rs`
+  - `crates/scoopc_mir_facts/`
+- 必须实现的内容：
+  1. 引入明确的 MIR output/handoff 结构，区分 direct-style MIR、canonical materialized snapshot、pass artifacts query surface 和 `MirFacts`，并让 `MirStageOutput` 对 P4 发布完整 handoff。
+  2. 消除 `EffectFactsStageOutput` 构造路径上的 `MissingMaterializedMirSnapshot` 正常错误分支；若无 snapshot，应在进入 P4 前被视为 MIR stage 内部 invariant violation。
+  3. 在 `MirFacts` 中记录 snapshot binding：opt level、snapshot identity、query surface、canonical body FQN 集合、instance/family inventory、pass artifact revision 或等价稳定描述。
+  4. 将 `MaterializedMirPassArtifacts` 的 metadata / dump / verifier 接到 MIR facts 或 MIR pass query surface，避免 P4/P5 把 `MaterializedMir` 当作唯一事实入口。
+  5. 更新 dump/test helper 命名，使 direct-style-only helper 与 P4-ready MIR stage output helper 不再混淆。
+- 禁止事项：
+  - 禁止让 P4/effect facts stage 在边界内重新 materialize MIR 或补挂 snapshot。
+  - 禁止保留“传入 `None`，P4 自己决定怎么办”的生产路径。
+  - 禁止把 pass artifacts metadata 放进 effect facts 或 LIR output 中冒充 MIR owner。
+- 验证：
+  1. `cargo fmt`
+  2. `cargo test -p scoopc --no-default-features mir_stage`
+  3. `cargo test -p scoopc --no-default-features effect_facts_stage`
+  4. `cargo test -p scoopc --no-default-features effect_lowering_stage`
+  5. `cargo run -p scoop -- test --fixtures tests/fixtures/effect_facts`
+  6. `cargo clippy --all-targets -- -D warnings`
+- 完成条件：
+  - P4-ready `MirStageOutput` 必然包含 canonical materialized snapshot / pass artifacts handoff；
+  - snapshot binding 与 pass artifacts metadata 由 MIR stage/facts 发布；
+  - effect facts stage 不再把 missing snapshot 当作可恢复输入形态。
+- 依赖：P3-T02R
+- 完成记录：
+  - 待填写。
+
+## [TODO] P3-T03R：Review MIR snapshot binding 与 pass artifacts 查询面
+
+- 参考：P3-T03。
+- 重点：
+  - P4 输入是否不再是 optional materialized snapshot；
+  - snapshot binding / pass artifacts metadata 是否归属 MIR stage/facts；
+  - direct-style dump helper 是否没有被误当成 P4-ready stage output。
+- 必须复查的范围：
+  - `crates/scoopc/src/pipeline/mir_stage.rs`
+  - `crates/scoopc/src/pipeline/effect_facts_stage.rs`
+  - `crates/scoopc/src/mir/materialize/`
+  - `crates/scoopc/src/mir/pass_view.rs`
+  - `crates/scoopc_mir_facts/`
+- 验证：
+  - 重新运行 P3-T03 的所有验证；
+  - 额外搜索 `MissingMaterializedMirSnapshot|materialized_mir: Option|materialized_mir_mut`，确认命中只剩不破坏 P3 边界的测试/过渡说明或被明确记录为 P4 前置清理项。
+- 完成条件：
+  - review 结论明确写出：canonical snapshot/pass artifacts 已成为 MIR-owned handoff，或列出阻塞项并在本 review 内修复。
+- 依赖：P3-T03
+- 完成记录：
+  - 待填写。
+
+## [TODO] P3-T04：切换下游 MIR 查询到 `mir_facts` / pass artifacts surface
+
+- 参考：
+  - 本文件“主要 indirect downstream”
+  - `crates/scoopc/src/pipeline/effect_facts_stage.rs`
+  - `crates/scoopc/src/pipeline/effect_lowering_stage.rs`
+  - `crates/scoopc/src/effect_lowered/builder.rs`
+- 目标：
+  - 让 effect facts stage、LIR builder 和现有 LLVM bridge 读取 MIR root/pass 信息时走 MIR stage 发布的 query surface；
+  - 将当前 LIR stage 现场重算的 MIR-derived global facts（例如 nominal direct supertypes）迁回 `mir_facts`；
+  - 不在本任务内拆除 P4/P5/P7 的 nested wrapper，但要避免继续扩散 raw `MaterializedMir` / `MaterializedMirPassView` 作为万能查询入口。
+- 必须检查和修改的主要位置：
+  - `crates/scoopc/src/pipeline/effect_facts_stage.rs`
+  - `crates/scoopc/src/pipeline/effect_lowering_stage.rs:85-97,119-131`
+  - `crates/scoopc/src/effect_lowered/builder.rs`
+  - `crates/scoopc/src/effect_lowered/{ir.rs,segment.rs,frame.rs}`
+  - `crates/scoopc/src/effect_facts/{builder.rs,solver.rs}`
+  - `crates/scoopc/src/llvm/{emit.rs,codegen/**,reachability.rs}` 中经 P5 wrapper 读取 MIR pass view 的位置
+- 必须实现的内容：
+  1. 为 downstream 提供窄 MIR query surface：root inventory、canonical callable body、summary、family、escape facts、snapshot binding、MIR-derived nominal metadata。
+  2. 将 `effect_lowering_stage` 中 `collect_nominal_direct_supertypes_from_mir_file(...)` 这类 LIR 现场重算迁到 MIR facts，LIR 只读取已发布事实。
+  3. 更新 effect facts builder / LIR builder，使其输入签名尽量表达为 `MirFacts` + canonical pass query，而不是裸 `MaterializedMir`。
+  4. 对暂时不能切掉的 raw pass-view 读取，新增明确 TODO/完成记录说明其归属 P4/P5/P7，且不得作为新任务的正常扩展点。
+  5. 更新 tests，覆盖 downstream 不再重扫 MIR file 生成已迁移 facts。
+- 禁止事项：
+  - 禁止在 LIR/effect facts/codegen 中重新构造与 `MirFacts` 同职责的 fact table。
+  - 禁止把 `MirFacts` 复制进 `EffectFactsStageOutput` 或 `EffectLoweredStageOutput` 当作 nested upstream bundle 的新变体。
+  - 禁止为了快速通过测试而让 `mir_facts` 和旧 raw view 同时回答同一问题。
+- 验证：
+  1. `cargo fmt`
+  2. `cargo test -p scoopc --no-default-features effect_facts_stage`
+  3. `cargo test -p scoopc --no-default-features effect_lowering_stage`
+  4. `cargo test -p scoopc --no-default-features effect_lowered`
+  5. `cargo run -p scoop -- test --fixtures tests/fixtures/effect_lowered`
+  6. `cargo clippy --all-targets -- -D warnings`
+- 完成条件：
+  - 已迁移的 MIR-derived facts 只有 MIR stage/facts 一个 owner；
+  - downstream 读取 root/pass 信息时优先走 MIR query surface；
+  - 剩余 raw pass-view 读取被明确限制为 P4/P5/P7 过渡风险，不阻塞 P3 继续推进。
+- 依赖：P3-T03R
+- 完成记录：
+  - 待填写。
+
+## [TODO] P3-T04R：Review downstream MIR query 切换结果
+
+- 参考：P3-T04。
+- 重点：
+  - LIR/effect facts 是否停止现场重算已归属 MIR 的 facts；
+  - downstream 是否通过 MIR query surface 读取 root/pass 信息；
+  - 是否新增了 `MirFacts` 与 raw pass view 并列回答同一问题的双轨。
+- 必须复查的范围：
+  - P3-T04 修改过的 effect facts / LIR / LLVM bridge 文件
+  - `crates/scoopc_mir_facts/`
+  - `crates/scoopc/src/pipeline/effect_lowering_stage.rs`
+- 验证：
+  - 重新运行 P3-T04 的所有验证；
+  - 额外搜索 `collect_nominal_direct_supertypes_from_mir_file|materialized_pass_view\(`，确认剩余命中均有合理 owner 或后续阶段归属说明。
+- 完成条件：
+  - review 结论明确写出：downstream 已切到 MIR-owned query surface，或列出阻塞项并在本 review 内修复。
+- 依赖：P3-T04
+- 完成记录：
+  - 待填写。
+
+## [TODO] P3-T05：建立显式 MIR pass pipeline 与 refresh 顺序
+
+- 参考：
+  - 本文件“当前 MIR pass 入口与执行顺序”
+  - `crates/scoopc/src/mir/materialize/run.rs`
+  - `crates/scoopc/src/mir/{inline.rs,escape.rs,closure_simplify.rs,summary.rs,pass_view.rs}`
+- 目标：
+  - 将 materializer 尾部隐式 pass 调度抽成显式 MIR pass pipeline；
+  - 固定 pass 顺序、opt-level gate、analysis refresh 和 summary refresh 规则；
+  - 让 pass artifacts 的 mutation 都通过统一 pipeline context 发生。
+- 必须检查和修改的主要位置：
+  - 新增或重构 `crates/scoopc/src/mir/pass_pipeline.rs`
+  - `crates/scoopc/src/mir/materialize/run.rs`
+  - `crates/scoopc/src/mir/inline.rs`
+  - `crates/scoopc/src/mir/escape.rs`
+  - `crates/scoopc/src/mir/closure_simplify.rs`
+  - `crates/scoopc/src/mir/summary.rs`
+  - `crates/scoopc/src/mir/pass_view.rs`
+- 必须实现的内容：
+  1. 引入 `MirPassPipeline` 或等价 driver，显式列出 pass schedule、输入、输出、opt-level gate 和 refresh 条件。
+  2. 将现有 summary-driven inlining、escape analysis、closure simplification 从 `MirInstanceMaterializer::run(...)` 尾部移入 pipeline driver。
+  3. 将 escape analysis 改为 MIR analysis / facts owner：目标上 always-on；如果实现中必须保留 opt-level gate，必须在完成记录中说明 blocker 并新增前置任务，不能悄悄改变目标。
+  4. 将 cleanup / summary refresh 明确为 pipeline step 或 helper，不再让每个 pass 私下决定是否刷新 summary。
+  5. 在 `mir_facts` 或 stable dump 中记录 pass pipeline metadata，至少能看出哪些 pass 运行、哪些 pass 改写了 body/summary、escape facts 对应哪个 pass revision。
+  6. 保持 raw materialized MIR 与 pass artifacts 分层，不把 pass rewrite 写回 raw `MaterializedMir.file`。
+- 禁止事项：
+  - 禁止继续在 `MirInstanceMaterializer::run(...)` 尾部直接硬编码 pass 顺序。
+  - 禁止 pass 直接扫描 HIR 或 codegen state。
+  - 禁止为修测试把 pass rewrite 写回 raw materialized MIR。
+- 验证：
+  1. `cargo fmt`
+  2. `cargo test -p scoopc --no-default-features mir::pass_view`
+  3. `cargo test -p scoopc --no-default-features mir::inline`
+  4. `cargo test -p scoopc --no-default-features mir::escape`
+  5. `cargo test -p scoopc --no-default-features mir::closure_simplify`
+  6. `cargo run -p scoop -- test --fixtures tests/fixtures/mir_materialized`
+  7. `cargo clippy --all-targets -- -D warnings`
+- 完成条件：
+  - MIR pass 调度有单一显式 owner；
+  - inline / escape / closure simplification / cleanup / summary refresh 的顺序可由代码和 dump 验证；
+  - materializer 只负责构造初始 materialized snapshot 和调用 pipeline，不再隐式持有 pass policy。
+- 依赖：P3-T04R
+- 完成记录：
+  - 待填写。
+
+## [TODO] P3-T05R：Review 显式 MIR pass pipeline
+
+- 参考：P3-T05。
+- 重点：
+  - pass schedule 是否有单一 owner；
+  - escape analysis 是否成为 MIR analysis / facts，而不是可选优化附属品；
+  - summary refresh / cleanup 是否显式，不再散落在 materializer 尾部或 pass 私有逻辑里。
+- 必须复查的范围：
+  - `crates/scoopc/src/mir/pass_pipeline.rs` 或等价新模块
+  - `crates/scoopc/src/mir/materialize/run.rs`
+  - `crates/scoopc/src/mir/{inline.rs,escape.rs,closure_simplify.rs,summary.rs,pass_view.rs}`
+  - `crates/scoopc_mir_facts/` pass metadata
+- 验证：
+  - 重新运行 P3-T05 的所有验证；
+  - 额外搜索 `run_summary_driven_inlining\(|run_escape_analysis\(|run_non_escaping_closure_simplification\(`，确认调度入口只由 MIR pass pipeline 控制。
+- 完成条件：
+  - review 结论明确写出：MIR pass pipeline 已显式化且符合 P3 owner 约束，或列出阻塞项并在本 review 内修复。
+- 依赖：P3-T05
+- 完成记录：
+  - 待填写。
+
+## [TODO] P3-T06：迁移 dispatch 去虚化到 MIR pass 并删除 HIR owner
+
+- 参考：
+  - `PIPELINE_REFACTOR.md` “HIR 中的 dispatch 去虚化”“MIR devirtualization”
+  - 本文件“当前 MIR pass 入口与执行顺序”
+  - `crates/scoopc/src/mir/materialize/rewrite.rs:1052-1110`
+  - `crates/scoopc/src/hir/lower/expr/main_lower.rs:964-1000,1051-1079`
+- 目标：
+  - 将 virtual/interface dispatch exact-receiver 去虚化从 materialization rewrite 与 HIR lowering 开关中迁入显式 MIR pass；
+  - 删除 HIR 层 `devirtualize_dispatch_calls` owner，使 HIR 一律保留 dynamic dispatch 语义与 source-site dispatch contract；
+  - 保证 MIR devirtualization 是普通语义去虚化的唯一 authoritative owner。
+- 必须检查和修改的主要位置：
+  - `crates/scoopc/src/mir/materialize/rewrite.rs`
+  - `crates/scoopc/src/mir/pass_pipeline.rs` 或等价新模块
+  - `crates/scoopc/src/devirtualize.rs`
+  - `crates/scoopc/src/hir/lower/{mod.rs,expr/main_lower.rs,main/compilation_unit.rs,main/impl_lowering.rs,util/**}`
+  - `crates/scoopc/src/frontend.rs`
+  - `crates/scoopc/src/cone/pre_specialize.rs`
+  - `crates/scoopc/src/mir/materialize/tests.rs`
+  - `crates/scoopc/src/monomorph/lower.rs`
+- 必须实现的内容：
+  1. 新增 MIR devirtualization pass，输入为 canonical pass-visible MIR + MIR/HIR facts 中已经发布的 dispatch metadata，输出为 pass artifacts 中 rewritten callable body / refreshed summary。
+  2. 从 `mir/materialize/rewrite.rs` 中移除 virtual/interface call 物化期间直接改写为 `CallKind::Direct` 的逻辑；materialization 只应做 substitution / instance discovery，不承担优化 owner。
+  3. 删除或无害化 HIR lowering 中的 `devirtualize_dispatch_calls` 参数和调用点，确保 HIR output 保留 `CallKind::Virtual` / `CallKind::Interface` 对应语义。
+  4. 更新 tests/fixtures：原本断言 HIR/monomorph lowering 已去虚化的测试必须改为断言 MIR pass 后去虚化；不得用 wrapper 或 narrower fixture 避开 broken path。
+  5. 明确记录 codegen/reachability 中仍存在的去虚化残留归属 P7，不允许 P3 新增依赖这些残留的行为。
+- 禁止事项：
+  - 禁止保留 HIR `devirtualize_dispatch_calls: true` 路径作为优化 owner。
+  - 禁止在 codegen 中新增新的 devirtualization fallback 来弥补 MIR pass。
+  - 禁止只迁移 virtual 或只迁移 interface；两类 dispatch 必须作为同一 root cause 处理。
+- 验证：
+  1. `cargo fmt`
+  2. `cargo test -p scoopc --no-default-features hir`
+  3. `cargo test -p scoopc --no-default-features mir::materialize`
+  4. `cargo test -p scoopc --no-default-features monomorph`
+  5. `cargo run -p scoop -- test --fixtures tests/fixtures/mir_materialized`
+  6. 搜索 `devirtualize_dispatch_calls`，活跃源码中不得再有执行优化的路径。
+  7. `cargo clippy --all-targets -- -D warnings`
+- 完成条件：
+  - virtual/interface devirtualization 的 ordinary owner 是显式 MIR pass；
+  - HIR lowering 不再执行 dispatch 去虚化；
+  - materialization rewrite 不再把 devirtualization 藏在 substitution 流程里。
+- 依赖：P3-T05R
+- 完成记录：
+  - 待填写。
+
+## [TODO] P3-T06R：Review dispatch 去虚化 owner 迁移结果
+
+- 参考：P3-T06。
+- 重点：
+  - HIR 是否保留 dynamic dispatch 语义且不再有 devirtualization 开关；
+  - MIR devirtualization 是否由显式 pass pipeline 调度；
+  - materialization rewrite 是否只做 substitution / instance discovery，不再做优化改写。
+- 必须复查的范围：
+  - `crates/scoopc/src/mir/pass_pipeline.rs` 或等价新模块
+  - `crates/scoopc/src/mir/materialize/rewrite.rs`
+  - `crates/scoopc/src/hir/lower/**`
+  - `crates/scoopc/src/frontend.rs`
+  - `crates/scoopc/src/cone/pre_specialize.rs`
+  - `crates/scoopc/src/mir/materialize/tests.rs`
+  - `crates/scoopc/src/monomorph/lower.rs`
+- 验证：
+  - 重新运行 P3-T06 的所有验证；
+  - 额外搜索 `try_devirtualize_dispatch_target\(`，确认非测试活跃调用点只位于 MIR pass 或明确归属 P7 的 backend residual。
+- 完成条件：
+  - review 结论明确写出：普通 dispatch 去虚化已由 MIR pass 唯一拥有，或列出阻塞项并在本 review 内修复。
+- 依赖：P3-T06
+- 完成记录：
+  - 待填写。
+
+## [TODO] P3-T07：P3 全包清场、文档同步与依赖审计
+
+- 参考：
+  - `PLAN.md` §4/P3、§5
+  - `PIPELINE_REFACTOR.md` “MIR stage”“优化框架”“stage output wrapper 规则”
+  - `PIPELINE-CLEANUP.md` P3/P4/P19 当前有效结论
+- 目标：
+  - 对 P3 全部改动做收口审计；
+  - 确认 `MirStageOutput = { mir, mir_facts }` 语义成立；
+  - 同步文档、fixtures、dependency gate 与 TODO 完成记录，明确剩余 P4/P5/P7 风险不属于 P3 未完成项。
+- 必须检查和修改的主要位置：
+  - `TODO-4.md`
+  - `TODO.md`
+  - `PLAN.md`（仅当阶段级计划实际变化）
+  - `PIPELINE_REFACTOR.md` / `PIPELINE-CLEANUP.md` 中 P3 状态说明
+  - `README.md` crate 概览
+  - `tools/scoop_tools` dependency gate
+  - `crates/scoopc/src/pipeline/{mir_stage.rs,effect_facts_stage.rs,effect_lowering_stage.rs,llvm_codegen_stage.rs}`
+  - `crates/scoopc/src/mir/`
+- 必须实现的内容：
+  1. 全仓搜索并记录 P3 关键边界：`MirStageOutput` 不嵌套 HIR output，不把 root inventory / pass artifacts 留在并列 ad-hoc 字段中；`mir_facts` 是 MIR facts owner。
+  2. 搜索 `materialized_pass_view()`、`MaterializedMirPassView`、`MaterializedMirPassArtifacts`、`try_devirtualize_dispatch_target(...)`、`devirtualize_dispatch_calls`，区分已清理、P4/P5/P7 过渡残留和测试命中。
+  3. 更新 `PIPELINE-CLEANUP.md` P3 状态，把已解决项标记为历史，保留 P4/P5/P7 后续问题。
+  4. 更新 `README.md` / dependency gate 文档，使 `scoopc_mir_facts` 和 MIR pass pipeline 角色可见。
+  5. 运行 P3 包验收验证，并在完成记录中列出命令、结果和残余风险。
+- 禁止事项：
+  - 禁止把 P4/P5/P7 未做的 nested output/backend cleanup 伪装成 P3 已完成；必须准确记录后续风险。
+  - 禁止更新 `PLAN.md` 作为普通执行日志；只有阶段级计划改变才允许修改。
+  - 禁止保留 HIR devirtualization 或 MIR pass 双 owner 作为“后续再说”的 P3 残留。
+- 验证：
+  1. `cargo fmt`
+  2. `cargo test -p scoopc_mir_facts`
+  3. `cargo test -p scoopc --no-default-features mir_stage`
+  4. `cargo test -p scoopc --no-default-features effect_facts_stage`
+  5. `cargo test -p scoopc --no-default-features effect_lowering_stage`
+  6. `cargo run -p scoop_tools -- dependency-gate`
+  7. `cargo run -p scoop -- test --fixtures tests/fixtures/mir_lowered`
+  8. `cargo run -p scoop -- test --fixtures tests/fixtures/mir_materialized`
+  9. `cargo clippy --all-targets -- -D warnings`
+- 完成条件：
+  - `MirStageOutput = { mir, mir_facts }` 语义成立；
+  - MIR root inventories、snapshot binding、pass artifacts 和 MIR pass metadata 均有 MIR owner；
+  - ordinary devirtualization / inlining / escape / closure simplification / refresh 由显式 MIR pass pipeline 调度；
+  - P4/P5/P7 的剩余问题在文档中被准确保留，且不阻塞进入 `TODO-5.md`。
+- 依赖：P3-T06R
+- 完成记录：
+  - 待填写。
+
+## [TODO] P3-T07R：Review P3 全包完成度
+
+- 参考：P3-T07。
+- 重点：
+  - P3 是否真正满足 `PLAN.md` 的 MIR boundary + MIR pass pipeline 完成标准；
+  - 是否还有 HIR 层 dispatch 去虚化、MIR pass 隐式 materializer 尾部调度、root inventory / pass artifacts 双 owner；
+  - `TODO.md` / `TODO-4.md` / cleanup 文档是否准确反映 P3 完成和 P4/P5/P7 剩余边界。
+- 必须复查的范围：
+  - P3-T01 到 P3-T07 的全部改动
+  - `crates/scoopc_mir_facts/`
+  - `crates/scoopc/src/mir/`
+  - `crates/scoopc/src/pipeline/`
+  - `PIPELINE_REFACTOR.md`
+  - `PIPELINE-CLEANUP.md`
+  - `TODO.md` / `TODO-4.md`
+  - `README.md`
+- 验证：
+  - 重新运行 P3-T07 的所有验证；
+  - 如时间允许，运行 `cargo test --all --all-targets`；
+  - 搜索 `devirtualize_dispatch_calls|callable_body_indices|initializer_root_indices|global_root_indices|metadata_root_indices|MissingMaterializedMirSnapshot`，确认无 P3 违规残留。
+- 完成条件：
+  - review 结论明确写出：P3 全包满足 MIR owner、output boundary 和 pass pipeline 约束，或列出阻塞项并在本 review 内修复。
+- 依赖：P3-T07
 - 完成记录：
   - 待填写。

@@ -4,7 +4,7 @@
 > 计划基线：[`PLAN.md`](./PLAN.md)
 > 设计基线：[`PIPELINE_REFACTOR.md`](./PIPELINE_REFACTOR.md)
 > 审计基线：[`PIPELINE-CLEANUP.md`](./PIPELINE-CLEANUP.md)
-> 当前状态：任务包已划分；`TODO-1.md`、`TODO-2.md` 与 `TODO-3.md` 已细化，其它任务包暂为范围说明。
+> 当前状态：任务包已划分；`TODO-1.md`、`TODO-2.md`、`TODO-3.md` 与 `TODO-4.md` 已细化，其它任务包暂为范围说明。
 
 ## 总原则
 
@@ -24,7 +24,7 @@
 | 1 | [`TODO-1.md`](./TODO-1.md) | P0 | 删除现有 comptime/const surface 与实现，清空后续边界条件 | 已细化 |
 | 2 | [`TODO-2.md`](./TODO-2.md) | P1 | 固定基础 crate 壳层、cone-level compilation unit 和 source-cone DAG 语义 | 已细化 |
 | 3 | [`TODO-3.md`](./TODO-3.md) | P2 | 建立 `AST -> HIR` semantic frontend barrier 和独立 `hir_facts` | 已细化 |
-| 4 | [`TODO-4.md`](./TODO-4.md) | P3 | 收口 MIR stage 输出，建立 `mir_facts` 与 MIR pass pipeline | 暂为范围说明 |
+| 4 | [`TODO-4.md`](./TODO-4.md) | P3 | 收口 MIR stage 输出，建立 `mir_facts` 与 MIR pass pipeline | 已细化 |
 | 5 | [`TODO-5.md`](./TODO-5.md) | P4-P5 | 纯化 effect facts，正式收实 LIR 输出和 LIR optimization family | 暂为范围说明 |
 | 6 | [`TODO-6.md`](./TODO-6.md) | P6-P8 | 闭合 global init model，清理 LLVM backend 输入边界，并做最终验证 | 暂为范围说明 |
 
@@ -68,7 +68,21 @@
 | P2-T06R | [DONE] | [`TODO-3.md`](./TODO-3.md#done-p2-t06rreview-hir-semantic-barrier-与错误边界) | Review HIR semantic barrier 与错误边界 |
 | P2-T07 | [DONE] | [`TODO-3.md`](./TODO-3.md#done-p2-t07p2-全包清场文档同步与依赖审计) | P2 全包清场、文档同步与依赖审计 |
 | P2-T07R | [DONE] | [`TODO-3.md`](./TODO-3.md#done-p2-t07rreview-p2-全包完成度) | Review P2 全包完成度 |
-| TODO-4-INIT | [TODO] | [`TODO-4.md`](./TODO-4.md#todo-todo-4-init初始化并细化本任务包) | 分析 P3 需求，生成 `TODO-4.md` 详细任务列表并更新本索引 |
+| TODO-4-INIT | [DONE] | [`TODO-4.md`](./TODO-4.md#done-todo-4-init初始化并细化本任务包) | 分析 P3 需求，生成 `TODO-4.md` 详细任务列表并更新本索引 |
+| P3-T01 | [TODO] | [`TODO-4.md`](./TODO-4.md#todo-p3-t01建立-mir_facts-crate-与-mir-facts-数据模型) | 建立 `mir_facts` crate 与 MIR facts 数据模型 |
+| P3-T01R | [TODO] | [`TODO-4.md`](./TODO-4.md#todo-p3-t01rreview-mir_facts-crate-与事实模型) | Review `mir_facts` crate 与事实模型 |
+| P3-T02 | [TODO] | [`TODO-4.md`](./TODO-4.md#todo-p3-t02迁移-mir-owned-root-inventories-到-mir_facts) | 迁移 MIR-owned root inventories 到 `mir_facts` |
+| P3-T02R | [TODO] | [`TODO-4.md`](./TODO-4.md#todo-p3-t02rreview-mir-root-inventory-迁移结果) | Review MIR root inventory 迁移结果 |
+| P3-T03 | [TODO] | [`TODO-4.md`](./TODO-4.md#todo-p3-t03固定-canonical-materialized-snapshot-binding-与-pass-artifacts-查询面) | 固定 canonical materialized snapshot binding 与 pass artifacts 查询面 |
+| P3-T03R | [TODO] | [`TODO-4.md`](./TODO-4.md#todo-p3-t03rreview-mir-snapshot-binding-与-pass-artifacts-查询面) | Review MIR snapshot binding 与 pass artifacts 查询面 |
+| P3-T04 | [TODO] | [`TODO-4.md`](./TODO-4.md#todo-p3-t04切换下游-mir-查询到-mir_facts--pass-artifacts-surface) | 切换下游 MIR 查询到 `mir_facts` / pass artifacts surface |
+| P3-T04R | [TODO] | [`TODO-4.md`](./TODO-4.md#todo-p3-t04rreview-downstream-mir-query-切换结果) | Review downstream MIR query 切换结果 |
+| P3-T05 | [TODO] | [`TODO-4.md`](./TODO-4.md#todo-p3-t05建立显式-mir-pass-pipeline-与-refresh-顺序) | 建立显式 MIR pass pipeline 与 refresh 顺序 |
+| P3-T05R | [TODO] | [`TODO-4.md`](./TODO-4.md#todo-p3-t05rreview-显式-mir-pass-pipeline) | Review 显式 MIR pass pipeline |
+| P3-T06 | [TODO] | [`TODO-4.md`](./TODO-4.md#todo-p3-t06迁移-dispatch-去虚化到-mir-pass-并删除-hir-owner) | 迁移 dispatch 去虚化到 MIR pass 并删除 HIR owner |
+| P3-T06R | [TODO] | [`TODO-4.md`](./TODO-4.md#todo-p3-t06rreview-dispatch-去虚化-owner-迁移结果) | Review dispatch 去虚化 owner 迁移结果 |
+| P3-T07 | [TODO] | [`TODO-4.md`](./TODO-4.md#todo-p3-t07p3-全包清场文档同步与依赖审计) | P3 全包清场、文档同步与依赖审计 |
+| P3-T07R | [TODO] | [`TODO-4.md`](./TODO-4.md#todo-p3-t07rreview-p3-全包完成度) | Review P3 全包完成度 |
 | TODO-5-INIT | [TODO] | [`TODO-5.md`](./TODO-5.md#todo-todo-5-init初始化并细化本任务包) | 分析 P4-P5 需求，生成 `TODO-5.md` 详细任务列表并更新本索引 |
 | TODO-6-INIT | [TODO] | [`TODO-6.md`](./TODO-6.md#todo-todo-6-init初始化并细化本任务包) | 分析 P6-P8 需求，生成 `TODO-6.md` 详细任务列表并更新本索引 |
 
