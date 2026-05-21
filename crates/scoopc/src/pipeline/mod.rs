@@ -22,7 +22,6 @@ pub use ast_stage::{AstCompilationUnitOutput, AstStageOutput};
 pub use effect_facts_stage::EffectFactsStageOutput;
 pub use effect_lowering_stage::EffectLoweredStageOutput;
 pub use hir_stage::HirStageOutput;
-#[cfg(test)]
 pub(crate) use hir_stage::build_hir_declaration_facts_for_migration;
 pub(crate) use hir_stage::{
     CallArgBindingContract, CallArgElementContract, CallArgParamContract,

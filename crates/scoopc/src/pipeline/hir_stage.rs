@@ -20,8 +20,8 @@ use scoopc_hir_facts::{
     bridge::TypedContractBridgeFacts,
     common::FactIdentity,
     declarations::{
-        CallableDeclarationFact, DeclarationFacts, EnumVariantDeclarationFact,
-        FieldDeclarationFact, FieldOwnerKind, NominalDeclarationFact,
+        CallableDeclarationFact, DeclarationFacts, DispatchSlotFact, DispatchTableFact,
+        EnumVariantDeclarationFact, FieldDeclarationFact, FieldOwnerKind, NominalDeclarationFact,
         NominalKind as HirFactNominalKind, TypeParameterFact, Variance as HirFactVariance,
     },
     globals::{
@@ -1348,7 +1348,6 @@ fn build_hir_facts(
     Ok(facts)
 }
 
-#[cfg(test)]
 pub(crate) fn build_hir_declaration_facts_for_migration(
     lowered_hir: &LoweredHir,
     source_path: &Path,
@@ -1427,6 +1426,7 @@ fn populate_declaration_facts(facts: &mut DeclarationFacts, lowered_hir: &Lowere
     collect_missing_nominal_side_table_facts(facts, lowered_hir);
     collect_callable_declaration_facts(facts, lowered_hir);
     collect_layout_field_facts(facts, lowered_hir);
+    collect_dispatch_declaration_facts(facts, lowered_hir);
 
     facts
         .nominals
@@ -1827,6 +1827,94 @@ fn populate_native_extern_facts(facts: &mut HirFacts, lowered_hir: &LoweredHir) 
         .sort_by(|lhs, rhs| lhs.name.cmp(&rhs.name));
 }
 
+/// Publish source-level dispatch tables without exposing backend vtable/itable types.
+fn collect_dispatch_declaration_facts(facts: &mut DeclarationFacts, lowered_hir: &LoweredHir) {
+    facts.dispatch.vtables = lowered_hir
+        .class_vtables
+        .iter()
+        .map(|(class_fqn, slots)| DispatchTableFact {
+            owner: CanonicalTextKey::new(class_fqn.as_str()),
+            slots: slots
+                .iter()
+                .map(|slot| DispatchSlotFact {
+                    index: slot.slot,
+                    declaration: CanonicalTextKey::new(slot.impl_member_fqn.as_str()),
+                    signature_ty: callable_type_by_dispatch_shape(
+                        lowered_hir,
+                        &slot.impl_member_fqn,
+                        slot.params_len,
+                        slot.has_receiver,
+                    ),
+                })
+                .collect(),
+        })
+        .collect();
+    facts
+        .dispatch
+        .vtables
+        .sort_by(|lhs, rhs| lhs.owner.as_str().cmp(rhs.owner.as_str()));
+
+    let mut interface_tables = lowered_hir
+        .interfaces
+        .iter()
+        .map(|(interface_fqn, interface)| DispatchTableFact {
+            owner: CanonicalTextKey::new(interface_fqn.as_str()),
+            slots: interface
+                .method_slots
+                .iter()
+                .map(|slot| DispatchSlotFact {
+                    index: slot.slot,
+                    declaration: CanonicalTextKey::new(slot.member_fqn.as_str()),
+                    signature_ty: callable_type_by_dispatch_shape(
+                        lowered_hir,
+                        &slot.member_fqn,
+                        slot.params_len,
+                        slot.has_receiver,
+                    ),
+                })
+                .collect(),
+        })
+        .collect::<Vec<_>>();
+    interface_tables.extend(
+        lowered_hir
+            .class_itables
+            .iter()
+            .flat_map(|(class_fqn, entries)| {
+                entries.iter().map(move |entry| DispatchTableFact {
+                    owner: CanonicalTextKey::new(format!(
+                        "{} implements {}",
+                        class_fqn, entry.interface_type_name
+                    )),
+                    slots: entry
+                        .method_impl_fqns
+                        .iter()
+                        .enumerate()
+                        .filter(|(_, impl_fqn)| !impl_fqn.is_empty())
+                        .map(|(index, impl_fqn)| DispatchSlotFact {
+                            index: u32::try_from(index).unwrap_or(u32::MAX),
+                            declaration: CanonicalTextKey::new(impl_fqn.as_str()),
+                            signature_ty: lowered_hir
+                                .interfaces
+                                .get(&entry.interface_fqn)
+                                .and_then(|interface| interface.method_slots.get(index))
+                                .map(|slot| {
+                                    callable_type_by_dispatch_shape(
+                                        lowered_hir,
+                                        impl_fqn,
+                                        slot.params_len,
+                                        slot.has_receiver,
+                                    )
+                                })
+                                .unwrap_or_else(|| callable_type_by_fqn(lowered_hir, impl_fqn)),
+                        })
+                        .collect(),
+                })
+            }),
+    );
+    interface_tables.sort_by(|lhs, rhs| lhs.owner.as_str().cmp(rhs.owner.as_str()));
+    facts.dispatch.interface_tables = interface_tables;
+}
+
 #[derive(Clone)]
 struct CallableSignature {
     receiver_ty: Option<TypeId>,
@@ -1838,7 +1926,7 @@ struct CallableSignature {
 fn callable_declaration_fact(lowered_hir: &LoweredHir, fun: &FunDecl) -> CallableDeclarationFact {
     let signature = callable_signature_from_fun(lowered_hir, fun);
     CallableDeclarationFact {
-        identity: fact_identity("callable", &fun.fqn, lowered_hir),
+        identity: callable_fact_identity(fun, lowered_hir),
         receiver_ty: signature.receiver_ty,
         parameter_tys: signature.parameter_tys,
         return_ty: signature.return_ty,
@@ -1846,6 +1934,22 @@ fn callable_declaration_fact(lowered_hir: &LoweredHir, fun: &FunDecl) -> Callabl
         type_params: Vec::new(),
         has_body: fun.body.is_some(),
     }
+}
+
+/// Callable overloads share display FQNs, so the stable fact key includes source position.
+fn callable_fact_identity(fun: &FunDecl, lowered_hir: &LoweredHir) -> FactIdentity {
+    FactIdentity::new(
+        CanonicalTextKey::new(format!(
+            "callable:{}:{}:{}..{}",
+            fun.source_path.display(),
+            fun.fqn,
+            fun.span.start,
+            fun.span.end
+        )),
+        &fun.fqn,
+        lowered_hir.stable_cone_key.clone(),
+        None,
+    )
 }
 
 fn callable_signature_by_fqn(lowered_hir: &LoweredHir, fqn: &str) -> CallableSignature {
@@ -1870,6 +1974,64 @@ fn callable_signature_by_fqn(lowered_hir: &LoweredHir, fqn: &str) -> CallableSig
             return_ty: lowered_hir.builtins.unit,
             effects: EffectRow::pure(),
         })
+}
+
+fn callable_type_by_fqn(lowered_hir: &LoweredHir, fqn: &str) -> TypeId {
+    lowered_hir
+        .file
+        .items
+        .iter()
+        .find_map(|item| match item {
+            Item::Fun(fun) if fun.fqn == fqn => Some(fun.ty),
+            _ => None,
+        })
+        .or_else(|| {
+            lowered_hir
+                .member_funs
+                .iter()
+                .find(|fun| fun.fqn == fqn)
+                .map(|fun| fun.ty)
+        })
+        .unwrap_or(lowered_hir.builtins.unit)
+}
+
+fn callable_type_by_dispatch_shape(
+    lowered_hir: &LoweredHir,
+    fqn: &str,
+    params_len: u32,
+    has_receiver: bool,
+) -> TypeId {
+    callable_funs_by_fqn(lowered_hir, fqn)
+        .find(|fun| {
+            fun.params.len() == params_len as usize
+                && function_type_has_receiver(&lowered_hir.types, fun.ty) == has_receiver
+        })
+        .map(|fun| fun.ty)
+        .unwrap_or_else(|| callable_type_by_fqn(lowered_hir, fqn))
+}
+
+fn callable_funs_by_fqn<'a>(
+    lowered_hir: &'a LoweredHir,
+    fqn: &'a str,
+) -> impl Iterator<Item = &'a FunDecl> {
+    lowered_hir
+        .file
+        .items
+        .iter()
+        .filter_map(move |item| match item {
+            Item::Fun(fun) if fun.fqn == fqn => Some(fun),
+            _ => None,
+        })
+        .chain(
+            lowered_hir
+                .member_funs
+                .iter()
+                .filter(move |fun| fun.fqn == fqn),
+        )
+}
+
+fn function_type_has_receiver(types: &TypeStore, ty: TypeId) -> bool {
+    matches!(types.kind(ty), TypeKind::Ref(RefTypeKind::Function(fun)) if fun.receiver.is_some())
 }
 
 fn callable_signature_from_fun(lowered_hir: &LoweredHir, fun: &FunDecl) -> CallableSignature {
@@ -4735,6 +4897,7 @@ fun entry(box: Box): Int {
 
         let facts = crate::mir::MirLoweringFacts::from_typed_handoff(
             output.lowered_hir(),
+            output.hir_facts(),
             output.typed_contracts_for_migration(),
         );
         let mut types = output.lowered_hir().types.clone();

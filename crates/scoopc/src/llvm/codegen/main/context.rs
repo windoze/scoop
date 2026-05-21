@@ -443,19 +443,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     }
 
     pub(in crate::llvm::codegen) fn top_level_value_ty(&self, fqn: &str) -> Option<TypeId> {
-        self.top_level_vars
-            .get(fqn)
-            .map(|var| var.ty)
+        let facts = HirFactResolver::new(self.types, self.hir_facts.as_ref());
+        facts
+            .top_level_value_ty(fqn)
             .or_else(|| {
                 self.materialized_extern_global_root(fqn)
                     .map(|global| global.ty)
             })
-            .or_else(|| self.extern_globals.get(fqn).map(|global| global.ty))
-            .or_else(|| {
-                self.top_level_immutable_values
-                    .get(fqn)
-                    .map(|value| value.ty)
-            })
+            .or_else(|| facts.extern_global_ty(fqn))
     }
 
     pub(in crate::llvm::codegen) fn materialized_extern_global_root(
@@ -474,7 +469,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     }
 
     pub(in crate::llvm::codegen) fn has_extern_global_contract(&self, fqn: &str) -> bool {
-        self.materialized_extern_global_root(fqn).is_some() || self.extern_globals.contains_key(fqn)
+        let facts = HirFactResolver::new(self.types, self.hir_facts.as_ref());
+        self.materialized_extern_global_root(fqn).is_some() || facts.has_extern_global(fqn)
     }
 
     pub(in crate::llvm::codegen) fn source_slice_at(

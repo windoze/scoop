@@ -187,7 +187,7 @@ File {
 
 
 hir_facts {
-  declarations: nominals=75, callables=4, fields=44, enum_variants=24, vtables=0, itables=0
+  declarations: nominals=75, callables=4, fields=44, enum_variants=24, vtables=55, itables=32
   source_sites: calls=0, args=0, assigns=0, updates=0, effects=0, resumes=0, patterns=0
   globals: roots=1, object_inits=1, class_inits=23
   native: extern_funs=0, native_callables=0, extern_globals=0, extern_libs=0

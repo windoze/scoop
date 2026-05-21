@@ -10,6 +10,7 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::ast;
+use crate::expr_facts::HirFactResolver;
 use crate::hir;
 use crate::pipeline::{
     CallArgBindingContract, CallArgParamContract, ContinuationResumeReceiverRoute,
@@ -24,6 +25,7 @@ use crate::ty::{
     BuiltinTypes, EffectRow, RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind,
     is_builtin_scalar_nominal_value_type,
 };
+use scoopc_hir_facts::HirFacts;
 
 use super::{
     AccessorMetadata, AggregateTransportField, AggregateTransportKind, AggregateTransportMetadata,

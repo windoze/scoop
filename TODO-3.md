@@ -414,7 +414,7 @@
   - 搜索结论：`ProgramFacts::from_lowered`、`program_facts.` 以及 `LoweredHir.*struct_layouts|LoweredHir.*object_inits` 在 Rust 源码中无命中；剩余 `TODO-3.md` 命中是历史任务描述与本验证项。
   - 残余风险：`SourceSiteMigrationFacts` 仍从 `LoweredHir` 复制 ctor/resume call-site facts，这是 P2-T05 的明确迁移范围；LLVM codegen 仍持有部分 layout/codegen compatibility side table 用于实际 lowering，不再作为 `ProgramFacts` 式 declaration/entity 查询 owner。
 
-## [TODO] P2-T04R：Review declaration/entity facts 迁移结果
+## [DONE] P2-T04R：Review declaration/entity facts 迁移结果
 
 - 参考：P2-T04。
 - 重点：
@@ -435,7 +435,13 @@
   - review 结论明确写出：declaration/entity facts 已收口到 `HirFacts`，或列出阻塞项并在本 review 内修复。
 - 依赖：P2-T04
 - 完成记录：
-  - 待填写。
+  - 复查范围：已复查 `crates/scoopc_hir_facts/`、已删除的 `crates/scoopc/src/program_facts.rs` 路径、`expr_facts.rs`、effect analysis、LLVM emit/codegen handoff、`mir/lower/mir_lowering_facts.rs`、HIR fixture dump 与 dependency gate。
+  - review 结论：declaration/entity/global/native facts 的 authoritative query surface 已收口到 `HirFacts`；`ProgramFacts` / `program_facts` 在 Rust 源码中无命中；`ExprFactResolver`、effect shared analysis、MIR lowering 的 member/nominal/enum facts、LLVM effect-instance classification 与 top-level/extern type 查询均显式消费 `HirFacts`。
+  - 修复情况：补齐 `HirFacts` dispatch/interface table 发布；将 `MirLoweringFacts` 的 member value type、nominal kind、enum payload kind 构造改为从 `HirFacts` 派生；将 LLVM codegen 的 effect nominal 收集和 top-level/extern value type/contract 查询改为走 `HirFactResolver`；修正 callable fact identity，使重载函数不会产生重复 fact key；同步 HIR fixture 中的 dispatch fact 计数；更新 internal-bug sentinel 审计期望。
+  - 搜索结论：`ProgramFacts::from_lowered|program_facts\.`、`LoweredHir.*struct_layouts|LoweredHir.*object_inits`、`with_member_value_types|with_nominal_kinds|with_enum_payload_kinds` 均无命中；`DispatchTableFact|dispatch\.vtables|interface_tables` 只命中 fact 模型、dump 与 HIR stage 发布点。剩余 `lowered.(...)` 命中已分类为 HIR facts 构建、hidden-init effect body scan、LLVM/RTTI codegen compatibility side table 或测试 scaffolding，不再是 `ProgramFacts` 式 declaration/entity authoritative 查询面。
+  - 依赖结论：`cargo tree -p scoopc_hir_facts` 显示 `scoopc_hir_facts` 仅依赖基础 crate 及其外部依赖；`scoop_tools dependency-gate` 通过，确认 fact crate 未依赖 `scoopc` facade、stage/backend crate 或其它 fact crate。
+  - 验证命令：`cargo fmt`；`cargo test -p scoopc_hir_facts`；`cargo test -p scoopc --no-default-features expr_facts`；`cargo test -p scoopc --no-default-features effect`；`cargo test -p scoopc --no-default-features hir_stage`；`cargo test -p scoopc --no-default-features mir_stage`；`cargo run -p scoop -- test --fixtures tests/fixtures/hir`；`cargo test --all --all-targets --no-default-features`；`cargo run -p scoop_tools -- dependency-gate`；`cargo tree -p scoopc_hir_facts`；`cargo clippy --all-targets -- -D warnings`；`git diff --check`；上述 review 搜索。
+  - 残余风险：`SourceSiteMigrationFacts` 与 `TypedHirEffectContracts` 仍是 P2-T05 的 source-site contract 迁移范围；LLVM/RTTI 仍保留若干 HIR side table 作为实际 body/layout/codegen compatibility 输入，但 declaration/entity 查询 owner 不再是 `ProgramFacts` 或现场重建的 duplicate fact surface。
 
 ## [TODO] P2-T05：迁移 source-site typed contracts 并删除 fallback 双轨
 

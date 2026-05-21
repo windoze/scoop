@@ -217,6 +217,7 @@ fn validate_bodies(file: &MirFile, unit_ty: TypeId, bool_ty: TypeId) -> Result<(
 fn lower_mir_stage_unvalidated(hir_output: HirStageOutput) -> (MirStageOutput, TypeId, TypeId) {
     let facts = MirLoweringFacts::from_typed_handoff(
         hir_output.lowered_hir(),
+        hir_output.hir_facts(),
         hir_output.typed_contracts_for_migration(),
     );
     let effect_contracts = hir_output.typed_contracts_for_migration().clone();

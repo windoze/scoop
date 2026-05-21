@@ -4,10 +4,10 @@
 //! 收口成 backend-agnostic 的公共 helper，避免 LLVM generic lowering 与
 //! effect/state-machine shared analysis 各自维护一套平行实现。
 
-use crate::hir;
 use crate::ty::{RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind};
+use crate::{ast, hir};
 use scoopc_hir_facts::HirFacts;
-use scoopc_hir_facts::declarations::FieldOwnerKind;
+use scoopc_hir_facts::declarations::{FieldOwnerKind, NominalKind};
 use scoopc_hir_facts::globals::GlobalRootKind;
 
 /// 返回一个 HIR type 是否已经足够精确，可直接作为 concrete type 使用。
@@ -52,6 +52,25 @@ impl<'a> HirFactResolver<'a> {
                 ) && root.identity.display_name == fqn
             })
             .and_then(|root| root.ty)
+    }
+
+    #[cfg(feature = "llvm")]
+    pub(crate) fn extern_global_ty(&self, fqn: &str) -> Option<TypeId> {
+        self.hir_facts
+            .native
+            .extern_globals
+            .iter()
+            .find(|global| global.identity.display_name == fqn)
+            .map(|global| global.ty)
+    }
+
+    #[cfg(feature = "llvm")]
+    pub(crate) fn has_extern_global(&self, fqn: &str) -> bool {
+        self.hir_facts
+            .native
+            .extern_globals
+            .iter()
+            .any(|global| global.identity.display_name == fqn)
     }
 
     pub(crate) fn object_property_ty(&self, fqn: &str) -> Option<TypeId> {
@@ -99,6 +118,65 @@ impl<'a> HirFactResolver<'a> {
         self.hir_facts.globals.roots.iter().any(|root| {
             root.kind == GlobalRootKind::TopLevelVal && root.identity.display_name == fqn
         })
+    }
+
+    pub(crate) fn member_value_tys(&self) -> Vec<(String, TypeId)> {
+        self.hir_facts
+            .declarations
+            .fields
+            .iter()
+            .filter(|field| {
+                matches!(
+                    field.owner_kind,
+                    FieldOwnerKind::Struct | FieldOwnerKind::Class | FieldOwnerKind::Object
+                )
+            })
+            .map(|field| (field.identity.display_name.clone(), field.ty))
+            .collect()
+    }
+
+    pub(crate) fn nominal_kinds(&self) -> Vec<(String, ast::TypeKind)> {
+        self.hir_facts
+            .declarations
+            .nominals
+            .iter()
+            .filter_map(|nominal| {
+                let kind = match nominal.kind {
+                    NominalKind::Struct => ast::TypeKind::Struct,
+                    NominalKind::Enum => ast::TypeKind::Enum,
+                    NominalKind::Class => ast::TypeKind::Class,
+                    NominalKind::Interface => ast::TypeKind::Interface,
+                    NominalKind::Effect => ast::TypeKind::Effect,
+                    NominalKind::Object => return None,
+                };
+                Some((nominal.identity.display_name.clone(), kind))
+            })
+            .collect()
+    }
+
+    pub(crate) fn enum_payload_kinds(&self) -> Vec<(String, bool)> {
+        self.hir_facts
+            .declarations
+            .nominals
+            .iter()
+            .filter(|nominal| nominal.kind == NominalKind::Enum)
+            .map(|nominal| {
+                let enum_fqn = nominal.identity.display_name.as_str();
+                let has_payload = self
+                    .hir_facts
+                    .declarations
+                    .enum_variants
+                    .iter()
+                    .filter(|variant| variant.enum_owner.as_str() == enum_fqn)
+                    .any(|variant| {
+                        self.hir_facts.declarations.fields.iter().any(|field| {
+                            field.owner_kind == FieldOwnerKind::EnumVariant
+                                && field.owner.as_str() == variant.identity.display_name
+                        })
+                    });
+                (nominal.identity.display_name.clone(), has_payload)
+            })
+            .collect()
     }
 
     fn resolve_struct_field_ty(&self, receiver_ty: TypeId, field_fqn: &str) -> Option<TypeId> {

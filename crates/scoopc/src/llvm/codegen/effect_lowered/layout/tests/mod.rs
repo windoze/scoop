@@ -75,6 +75,7 @@ fn build_fixture_inputs_from_source(source: SourceFile) -> FixtureAbiInputs {
     let hir_compat_scaffold = typed_hir_output.lowered_hir().clone();
     let facts = MirLoweringFacts::from_typed_handoff(
         typed_hir_output.lowered_hir(),
+        typed_hir_output.hir_facts(),
         typed_hir_output.typed_contracts_for_migration(),
     );
     let effect_contracts = typed_hir_output.typed_contracts_for_migration().clone();

@@ -9,35 +9,18 @@ impl MirLoweringFacts {
         lowered: &hir::LoweredHir,
         default_source_path: &std::path::Path,
     ) -> Result<Self, hir::HirLowerError> {
-        let facts = Self::from_hir_side_tables_and_resume_spans(
-            &lowered.dispatch_call_sites,
-            lowered
-                .continuation_resume_call_sites
-                .iter()
-                .map(|site| site.span),
-            lowered
-                .non_pure_continuation_resume_call_sites
-                .iter()
-                .map(|site| site.span),
-            &lowered.effect_op_call_sites,
-            &lowered.when_pat_binding_tys,
-            &lowered.top_level_fun_call_sites,
-        )
-        .with_call_arg_bindings(lowered)
-        .with_member_value_types(lowered)
-        .with_nominal_kinds(lowered)
-        .with_enum_payload_kinds(lowered)
-        .with_class_ctor_call_sites(lowered)
-        .with_continuation_identity_return_funs(lowered)
-        .with_class_ctor_hidden_effects(lowered);
-
         let contracts = TypedHirEffectContracts::from_lowered_hir(lowered, default_source_path)
             .map_err(hir::HirLowerError::from)?;
-        Ok(facts.with_typed_contracts(&contracts))
+        let hir_facts = crate::pipeline::build_hir_declaration_facts_for_migration(
+            lowered,
+            default_source_path,
+        )?;
+        Ok(Self::from_typed_handoff(lowered, &hir_facts, &contracts))
     }
 
     pub(crate) fn from_typed_handoff(
         lowered: &hir::LoweredHir,
+        hir_facts: &HirFacts,
         contracts: &TypedHirEffectContracts,
     ) -> Self {
         let mut facts = Self::default();
@@ -61,9 +44,7 @@ impl MirLoweringFacts {
             .extend(lowered.top_level_fun_call_sites.clone());
         facts = facts
             .with_call_arg_bindings(lowered)
-            .with_member_value_types(lowered)
-            .with_nominal_kinds(lowered)
-            .with_enum_payload_kinds(lowered)
+            .with_declaration_facts(&lowered.types, hir_facts)
             .with_class_ctor_call_sites(lowered)
             .with_continuation_identity_return_funs(lowered)
             .with_class_ctor_hidden_effects(lowered);
@@ -127,36 +108,15 @@ impl MirLoweringFacts {
         self
     }
 
-    pub(in crate::mir::lower) fn with_member_value_types(
+    pub(in crate::mir::lower) fn with_declaration_facts(
         mut self,
-        lowered: &hir::LoweredHir,
+        types: &TypeStore,
+        hir_facts: &HirFacts,
     ) -> Self {
-        for class in lowered.class_inits.values() {
-            for field in &class.fields {
-                if Self::member_fqn_matches_owner(&field.fqn, &class.fqn) {
-                    self.member_value_tys
-                        .entry(field.fqn.clone())
-                        .or_insert(field.ty);
-                }
-            }
-        }
-
-        for layout in lowered.struct_layouts.values() {
-            for field in &layout.fields {
-                if let Some(ty) = field.ty
-                    && Self::member_fqn_matches_owner(&field.fqn, &layout.fqn)
-                {
-                    self.member_value_tys.entry(field.fqn.clone()).or_insert(ty);
-                }
-            }
-        }
-
-        for object in lowered.object_inits.values() {
-            for property in object.properties.values() {
-                self.member_value_tys
-                    .insert(format!("{}.{}", object.fqn, property.name), property.ty);
-            }
-        }
+        let facts = HirFactResolver::new(types, hir_facts);
+        self.member_value_tys.extend(facts.member_value_tys());
+        self.nominal_kinds.extend(facts.nominal_kinds());
+        self.enum_has_payload.extend(facts.enum_payload_kinds());
 
         self
     }
@@ -174,43 +134,12 @@ impl MirLoweringFacts {
         self
     }
 
-    pub(in crate::mir::lower) fn member_fqn_matches_owner(
-        member_fqn: &str,
-        owner_fqn: &str,
-    ) -> bool {
-        member_fqn
-            .strip_prefix(owner_fqn)
-            .is_some_and(|suffix| suffix.starts_with('.'))
-    }
-
     pub(in crate::mir::lower) fn with_class_ctor_call_sites(
         mut self,
         lowered: &hir::LoweredHir,
     ) -> Self {
         self.class_ctor_call_sites
             .extend(lowered.ctor_call_sites.clone());
-        self
-    }
-
-    pub(in crate::mir::lower) fn with_nominal_kinds(mut self, lowered: &hir::LoweredHir) -> Self {
-        self.nominal_kinds.extend(lowered.nominal_kinds.clone());
-        self
-    }
-
-    pub(in crate::mir::lower) fn with_enum_payload_kinds(
-        mut self,
-        lowered: &hir::LoweredHir,
-    ) -> Self {
-        self.enum_has_payload
-            .extend(lowered.enum_layouts.iter().map(|(fqn, layout)| {
-                (
-                    fqn.clone(),
-                    layout
-                        .variants
-                        .iter()
-                        .any(|variant| !variant.fields.is_empty()),
-                )
-            }));
         self
     }
 

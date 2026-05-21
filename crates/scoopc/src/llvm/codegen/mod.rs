@@ -55,7 +55,7 @@ use inkwell::values::PointerValue;
 use crate::ast;
 use crate::cone::SourceConeInfo;
 use crate::effect::state_machine::CalleeSuspendPlan;
-use crate::expr_facts::ExprFactResolver;
+use crate::expr_facts::{ExprFactResolver, HirFactResolver};
 use crate::hir;
 use crate::llvm::target::HostTargetInfo;
 use crate::source::{SourceFile, SourceId, SourceMap};
@@ -73,7 +73,7 @@ use crate::ty::{
     BuiltinTypes, NominalType, RefTypeKind, TypeId, TypeKind, TypeParamType, TypeStore,
     ValueTypeKind,
 };
-use scoopc_hir_facts::HirFacts;
+use scoopc_hir_facts::{HirFacts, declarations::NominalKind as HirFactNominalKind};
 
 use super::LlvmEmitError;
 
@@ -758,15 +758,22 @@ const EFFECT_INSTANCE_KEY_RAISE_RUNTIME_ERROR: u32 = u32::MAX;
 
 fn collect_known_effect_instance_types_by_effect_fqn(
     types: &TypeStore,
-    nominal_kinds: &hir::NominalKindIndex,
+    hir_facts: &HirFacts,
 ) -> HashMap<String, Vec<TypeId>> {
     let mut by_effect_fqn: HashMap<String, Vec<TypeId>> = HashMap::new();
+    let effect_fqns = hir_facts
+        .declarations
+        .nominals
+        .iter()
+        .filter(|nominal| nominal.kind == HirFactNominalKind::Effect)
+        .map(|nominal| nominal.identity.display_name.as_str())
+        .collect::<HashSet<_>>();
 
     for type_id in types.iter_ids() {
         let TypeKind::Ref(RefTypeKind::Nominal(nominal)) = types.kind(type_id) else {
             continue;
         };
-        if !matches!(nominal_kinds.get(&nominal.fqn), Some(ast::TypeKind::Effect)) {
+        if !effect_fqns.contains(nominal.fqn.as_str()) {
             continue;
         }
         by_effect_fqn
@@ -883,7 +890,7 @@ impl<'a, 'ctx> CompilationUnitCodegenCx<'a, 'ctx> {
             effect_op_tags,
         } = inputs;
         let known_effect_instances_by_effect_fqn =
-            collect_known_effect_instance_types_by_effect_fqn(types, nominal_kinds);
+            collect_known_effect_instance_types_by_effect_fqn(types, hir_facts.as_ref());
         Self {
             context,
             module,
