@@ -524,7 +524,7 @@
   - 验证命令：`cargo fmt`；`cargo test -p scoopc_hir_facts`；`cargo test -p scoopc --no-default-features hir_preflight`；`cargo test -p scoopc --no-default-features mir_lowering_facts`；`cargo test -p scoopc --no-default-features hir_stage`；`cargo test -p scoopc --no-default-features mir_stage`；`cargo run -p scoop -- test --fixtures tests/fixtures/hir`；`cargo run -p scoop -- test --fixtures tests/fixtures/typecheck`；`cargo run -p scoop -- test --fixtures tests/fixtures/mir`；`cargo test --all --all-targets --no-default-features`；`cargo run -p scoop_tools -- dependency-gate`；`cargo tree -p scoopc_hir_facts`；`cargo clippy --all-targets -- -D warnings`；`git diff --check`；搜索 `FallbackSideTables|fallback_perform|fallback_resume|TypedHirEffectContracts|typed_contracts_for_migration|typed_contract_bridge|contract_bridge|SourceSiteMigrationFacts|source_site_migration_facts|MirSiteContractSource|MirLoweringFacts::from_lowered_hir|build_hir_facts_for_migration|build_hir_declaration_facts_for_migration|lower_malformed_resume_call|lower_handle_contract_from_hir|op_fqn: String::new`。
   - 残余风险：`CollectedHirContracts` 仍作为 HIR stage 内部构建 helper 和单元测试观测面存在，但不再作为 dump/MIR handoff 的 authoritative source-site fact surface；hidden init effect analysis 仍需要读取 HIR body/global init scaffold 来计算 effect row，这属于后续 P3/P4 MIR/effect 边界继续收口的输入形状问题，不是 source-site typed contract fallback 双轨。
 
-## [TODO] P2-T06：收口 HIR semantic barrier legality gate 与错误边界
+## [DONE] P2-T06：收口 HIR semantic barrier legality gate 与错误边界
 
 - 参考：
   - `PLAN.md` §1.5、§4/P2、§6
@@ -569,7 +569,12 @@
   - 后续阶段不再承担普通源码语义错误检查职责。
 - 依赖：P2-T05R
 - 完成记录：
-  - 待填写。
+  - 改动范围：补强 `scoopc_hir_facts` verifier、HIR preflight、HIR stage 单测、typecheck fixture 和 `pipeline_user_visible_failure_policy` 审计；未改变 P2 阶段顺序或 `PLAN.md`。
+  - legality gate：`@CallingConvention` generic body 继续由 `typecheck/annotations.rs` 在前端拒绝，本任务新增 `tests/fixtures/typecheck/calling_convention_body_generic_is_error.scoop` 固定错误码 `scoop::typecheck::calling_convention_fun_generics_not_supported`，并把该 gate 纳入 user-visible failure policy 的 frontend reject surfaces。
+  - global roots：`HirFacts` verifier 现在拒绝 non-monomorphic global root、缺少 storage policy 的 top-level `var` root，以及携带 storage policy 的非 `var` root；HIR preflight 对 `lowered_top_level_init.scoop` 增加 global root legality 检查；HIR stage 单测覆盖 top-level `val`、`@Global var`、`@ThreadLocal var` 和 `object` roots 都以 monomorphic、合法 storage policy 形态发布。
+  - 错误边界：`pipeline_user_visible_failure_policy` 现在显式记录 P2 declaration legality frontend rejects，并把 HIR 之后允许的 failure class 收口为 internal bug/impossible-state sentinel、output drift verifier failure，以及 environment/toolchain/link/runtime path。
+  - 验证命令：`cargo fmt`；`cargo test -p scoopc_hir_facts`；`cargo test -p scoopc --no-default-features hir_preflight`；`cargo test -p scoopc --no-default-features pipeline_user_visible_failure_policy`；`cargo test -p scoopc --no-default-features typecheck`；`cargo test -p scoopc --no-default-features hir_stage`；`cargo run -p scoop -- test --fixtures tests/fixtures/typecheck`；`cargo run -p scoop -- test --fixtures tests/fixtures/hir`；`cargo clippy --all-targets -- -D warnings`。
+  - 残余风险：当前 AST/parser surface 仍不提供 object/top-level `val`/`var` type params；本任务用 HIR facts verifier 和 stage tests 防止后续路径发布 generic global root。P2-T07 仍需做全包清场与旧名称/文档审计。
 
 ## [TODO] P2-T06R：Review HIR semantic barrier 与错误边界
 

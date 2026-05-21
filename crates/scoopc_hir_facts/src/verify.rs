@@ -8,6 +8,7 @@ use scoopc_ids::SiteId;
 
 use crate::HirFacts;
 use crate::common::FactIdentity;
+use crate::globals::GlobalRootKind;
 
 /// Result type returned by HIR fact verification.
 pub type Result<T> = std::result::Result<T, VerifyError>;
@@ -18,6 +19,9 @@ pub enum VerifyError {
     DuplicateFactIdentity(String),
     DuplicateSourceSite { owner: String, site: SiteId },
     DuplicateSourceContract { contract: &'static str, key: String },
+    GenericGlobalRoot(String),
+    TopLevelVarMissingStoragePolicy(String),
+    NonVarGlobalRootHasStoragePolicy(String),
 }
 
 impl fmt::Display for VerifyError {
@@ -32,6 +36,18 @@ impl fmt::Display for VerifyError {
             Self::DuplicateSourceContract { contract, key } => {
                 write!(f, "duplicate HIR {contract} source contract `{key}`")
             }
+            Self::GenericGlobalRoot(key) => write!(
+                f,
+                "HIR global root `{key}` was published without monomorphic legality"
+            ),
+            Self::TopLevelVarMissingStoragePolicy(key) => write!(
+                f,
+                "HIR top-level var root `{key}` was published without a storage policy"
+            ),
+            Self::NonVarGlobalRootHasStoragePolicy(key) => write!(
+                f,
+                "HIR non-var global root `{key}` was published with a storage policy"
+            ),
         }
     }
 }
@@ -41,8 +57,34 @@ impl Error for VerifyError {}
 /// Verify facts that are already grouped by the HIR barrier.
 pub fn verify_hir_facts(facts: &HirFacts) -> Result<()> {
     verify_unique_fact_identities(facts)?;
+    verify_global_root_legality(facts)?;
     verify_unique_source_sites(facts)?;
     verify_unique_source_contracts(facts)?;
+    Ok(())
+}
+
+fn verify_global_root_legality(facts: &HirFacts) -> Result<()> {
+    for root in &facts.globals.roots {
+        let key = root.identity.canonical_text().to_string();
+        if !root.monomorphic {
+            return Err(VerifyError::GenericGlobalRoot(key));
+        }
+
+        match root.kind {
+            GlobalRootKind::TopLevelVar if root.storage.is_none() => {
+                return Err(VerifyError::TopLevelVarMissingStoragePolicy(key));
+            }
+            GlobalRootKind::TopLevelVal | GlobalRootKind::ObjectSingleton
+                if root.storage.is_some() =>
+            {
+                return Err(VerifyError::NonVarGlobalRootHasStoragePolicy(key));
+            }
+            GlobalRootKind::TopLevelVal
+            | GlobalRootKind::TopLevelVar
+            | GlobalRootKind::ObjectSingleton => {}
+        }
+    }
+
     Ok(())
 }
 

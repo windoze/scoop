@@ -7143,21 +7143,82 @@ fun runtime(): String {
             root.kind == GlobalRootKind::TopLevelVal
                 && root.identity.display_name == "fixtures.hir_init.Base"
                 && root.ty.is_some()
+                && root.monomorphic
+                && root.storage.is_none()
         }));
         assert!(facts.globals.roots.iter().any(|root| {
             root.kind == GlobalRootKind::TopLevelVar
                 && root.identity.display_name == "fixtures.hir_init.Counter"
                 && root.storage == Some(GlobalStoragePolicy::Global)
+                && root.monomorphic
         }));
         assert!(facts.globals.roots.iter().any(|root| {
             root.kind == GlobalRootKind::ObjectSingleton
                 && root.identity.display_name == "fixtures.hir_init.Holder"
+                && root.monomorphic
+                && root.storage.is_none()
         }));
         assert!(facts.native.extern_globals.iter().any(|global| {
             global.identity.display_name == "fixtures.hir_init.NativeCounter"
                 && global.symbol == "native_counter"
                 && global.mutable
         }));
+    }
+
+    #[test]
+    fn hir_facts_publish_only_monomorphic_global_roots_with_resolved_storage() {
+        let session = session();
+        let source = SourceFile::new_virtual(
+            "<mem>/hir_global_root_legality.scoop",
+            r#"
+package fixtures.hir_global_barrier
+
+import scoop.core.*
+
+val Immutable: Int = 1
+
+@Global
+var Shared: Int = 0
+
+@ThreadLocal
+var Local: Int = 0
+
+object Singleton {
+    val value: Int = Immutable
+}
+
+fun main() {}
+"#,
+        );
+
+        let output = run(&session, &source).unwrap();
+        let roots = &output.hir_facts().globals.roots;
+
+        assert!(roots.iter().all(|root| root.monomorphic));
+        assert!(
+            roots
+                .iter()
+                .all(|root| !root.identity.display_name.contains('<'))
+        );
+        assert!(roots.iter().any(|root| {
+            root.kind == GlobalRootKind::TopLevelVar
+                && root.identity.display_name == "fixtures.hir_global_barrier.Shared"
+                && root.storage == Some(GlobalStoragePolicy::Global)
+        }));
+        assert!(roots.iter().any(|root| {
+            root.kind == GlobalRootKind::TopLevelVar
+                && root.identity.display_name == "fixtures.hir_global_barrier.Local"
+                && root.storage == Some(GlobalStoragePolicy::ThreadLocal)
+        }));
+
+        for root in roots {
+            match root.kind {
+                GlobalRootKind::TopLevelVar => assert!(root.storage.is_some()),
+                GlobalRootKind::TopLevelVal | GlobalRootKind::ObjectSingleton => {
+                    assert!(root.storage.is_none())
+                }
+            }
+        }
     }
 
     #[test]

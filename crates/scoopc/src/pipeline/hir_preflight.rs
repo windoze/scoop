@@ -101,6 +101,7 @@ const HIR_COMPLETENESS_FIXTURES: &[HirCompletenessFixture] = &[
         requirements: &[
             RequiredHirContract::TopLevelInitRoot,
             RequiredHirContract::ExternGlobal,
+            RequiredHirContract::GlobalRootLegality,
         ],
     },
 ];
@@ -174,6 +175,7 @@ enum RequiredHirContract {
     PatternBinding,
     TopLevelInitRoot,
     ExternGlobal,
+    GlobalRootLegality,
 }
 
 impl fmt::Display for RequiredHirContract {
@@ -193,6 +195,7 @@ impl fmt::Display for RequiredHirContract {
             Self::PatternBinding => f.write_str("when pattern binding contract"),
             Self::TopLevelInitRoot => f.write_str("top-level init root"),
             Self::ExternGlobal => f.write_str("extern global contract"),
+            Self::GlobalRootLegality => f.write_str("legal global root facts"),
         }
     }
 }
@@ -295,6 +298,24 @@ fn assert_required_contract(
             .is_empty(),
         RequiredHirContract::ExternGlobal => {
             !output.hir_facts().source_sites.extern_globals.is_empty()
+        }
+        RequiredHirContract::GlobalRootLegality => {
+            let roots = &output.hir_facts().globals.roots;
+            !roots.is_empty()
+                && roots.iter().all(|root| {
+                    if !root.monomorphic {
+                        return false;
+                    }
+                    match root.kind {
+                        scoopc_hir_facts::globals::GlobalRootKind::TopLevelVar => {
+                            root.storage.is_some()
+                        }
+                        scoopc_hir_facts::globals::GlobalRootKind::TopLevelVal
+                        | scoopc_hir_facts::globals::GlobalRootKind::ObjectSingleton => {
+                            root.storage.is_none()
+                        }
+                    }
+                })
         }
     };
 

@@ -66,7 +66,7 @@ mod tests {
 
     use super::*;
     use crate::common::FactIdentity;
-    use crate::globals::{GlobalRootFact, GlobalRootKind};
+    use crate::globals::{GlobalRootFact, GlobalRootKind, GlobalStoragePolicy};
     use crate::verify::VerifyError;
 
     #[test]
@@ -95,6 +95,39 @@ mod tests {
         assert_eq!(
             err,
             VerifyError::DuplicateFactIdentity("app.main".to_string())
+        );
+    }
+
+    #[test]
+    fn verifier_rejects_illegal_global_root_facts() {
+        let mut types = TypeStore::new();
+        let unit = types.intern(TypeKind::Value(ValueTypeKind::Unit));
+
+        let mut generic_root = global_root("app.Root", unit);
+        generic_root.monomorphic = false;
+        let mut facts = HirFacts::new();
+        facts.globals.roots.push(generic_root);
+        assert_eq!(
+            facts.verify().unwrap_err(),
+            VerifyError::GenericGlobalRoot("app.Root".to_string())
+        );
+
+        let mut var_without_storage = global_root("app.Counter", unit);
+        var_without_storage.kind = GlobalRootKind::TopLevelVar;
+        let mut facts = HirFacts::new();
+        facts.globals.roots.push(var_without_storage);
+        assert_eq!(
+            facts.verify().unwrap_err(),
+            VerifyError::TopLevelVarMissingStoragePolicy("app.Counter".to_string())
+        );
+
+        let mut val_with_storage = global_root("app.Immutable", unit);
+        val_with_storage.storage = Some(GlobalStoragePolicy::Global);
+        let mut facts = HirFacts::new();
+        facts.globals.roots.push(val_with_storage);
+        assert_eq!(
+            facts.verify().unwrap_err(),
+            VerifyError::NonVarGlobalRootHasStoragePolicy("app.Immutable".to_string())
         );
     }
 

@@ -99,6 +99,8 @@ const FRONTEND_REJECT_FORBIDDEN_TERMS: &[&str] =
 enum FailureClassification {
     FrontendReject,
     InternalBugSentinel,
+    OutputDrift,
+    EnvironmentToolchainLinkRuntime,
     StaleUserVisibleFailure,
 }
 
@@ -107,10 +109,18 @@ impl FailureClassification {
         match self {
             Self::FrontendReject => "frontend reject",
             Self::InternalBugSentinel => "internal bug sentinel",
+            Self::OutputDrift => "output drift",
+            Self::EnvironmentToolchainLinkRuntime => "environment/toolchain/link/runtime path",
             Self::StaleUserVisibleFailure => "stale user-visible failure",
         }
     }
 }
+
+const POST_HIR_ALLOWED_FAILURE_CLASSIFICATIONS: &[FailureClassification] = &[
+    FailureClassification::InternalBugSentinel,
+    FailureClassification::OutputDrift,
+    FailureClassification::EnvironmentToolchainLinkRuntime,
+];
 
 struct FailureClassificationRule {
     name: &'static str,
@@ -125,6 +135,14 @@ const FAILURE_CLASSIFICATION_RULES: &[FailureClassificationRule] = &[
     FailureClassificationRule {
         name: "internal bug sentinel",
         meaning: "`panic!`/`unreachable!` may remain only as impossible-state guards after upstream contracts hold.",
+    },
+    FailureClassificationRule {
+        name: "output drift",
+        meaning: "Post-HIR verifiers may fail when a later stage's output drifts away from the already-accepted HIR facts contract.",
+    },
+    FailureClassificationRule {
+        name: "environment/toolchain/link/runtime path",
+        meaning: "Toolchain, linker, runtime, and execution-environment failures may remain outside the HIR semantic barrier.",
     },
     FailureClassificationRule {
         name: "stale user-visible failure",
@@ -206,6 +224,28 @@ const STRUCT_MUTABLE_FIELD_MARKERS: &[SourceMarker] = &[
     SourceMarker {
         path: "tests/fixtures/typecheck/struct_field_must_be_val_is_error.scoop",
         marker: "// EXPECT-ERROR: 当前语言 contract 下，struct 字段必须是 `val`，不允许 `var`",
+    },
+];
+
+const CALLING_CONVENTION_GENERIC_MARKERS: &[SourceMarker] = &[
+    SourceMarker {
+        path: "crates/scoopc/src/typecheck/annotations.rs",
+        marker: "AnnotationError::CallingConventionFunGenericsNotSupported {",
+    },
+    SourceMarker {
+        path: "tests/fixtures/typecheck/calling_convention_body_generic_is_error.scoop",
+        marker: "// EXPECT-ERROR-CODE: scoop::typecheck::calling_convention_fun_generics_not_supported",
+    },
+];
+
+const TOP_LEVEL_VAR_STORAGE_POLICY_MARKERS: &[SourceMarker] = &[
+    SourceMarker {
+        path: "crates/scoopc/src/typecheck/annotations.rs",
+        marker: "AnnotationError::TopLevelVarRequiresThreadLocalOrGlobal {",
+    },
+    SourceMarker {
+        path: "tests/fixtures/typecheck/top_level_var_requires_threadlocal_or_global_is_error.scoop",
+        marker: "// EXPECT-ERROR-CODE: scoop::typecheck::top_level_var_requires_threadlocal_or_global",
     },
 ];
 
@@ -400,6 +440,20 @@ const FRONTEND_REJECT_SURFACES: &[FrontendRejectSurface] = &[
         diagnostic_code: "scoop::typecheck::struct_field_must_be_val",
         message: "当前语言 contract 下，struct 字段必须是 `val`，不允许 `var`：{struct_fqn}.{field}",
         markers: STRUCT_MUTABLE_FIELD_MARKERS,
+    },
+    FrontendRejectSurface {
+        gap_id: "P2 HIR barrier @CallingConvention non-generic gate",
+        definition_path: "crates/scoopc/src/typecheck/annotations.rs",
+        diagnostic_code: "scoop::typecheck::calling_convention_fun_generics_not_supported",
+        message: "`@CallingConvention` 当前不支持泛型函数",
+        markers: CALLING_CONVENTION_GENERIC_MARKERS,
+    },
+    FrontendRejectSurface {
+        gap_id: "P2 HIR barrier top-level var storage policy gate",
+        definition_path: "crates/scoopc/src/typecheck/annotations.rs",
+        diagnostic_code: "scoop::typecheck::top_level_var_requires_threadlocal_or_global",
+        message: "顶层 `var` 必须显式标注 `@ThreadLocal` 或 `@Global`：{var_name}",
+        markers: TOP_LEVEL_VAR_STORAGE_POLICY_MARKERS,
     },
     FrontendRejectSurface {
         gap_id: "CLOSURE_FIX §2 sealed interface sysroot-only definition",
@@ -918,7 +972,17 @@ fn pipeline_user_visible_failure_policy_records_scope_keywords_and_rules() {
         vec![
             FailureClassification::FrontendReject.as_str(),
             FailureClassification::InternalBugSentinel.as_str(),
+            FailureClassification::OutputDrift.as_str(),
+            FailureClassification::EnvironmentToolchainLinkRuntime.as_str(),
             FailureClassification::StaleUserVisibleFailure.as_str(),
+        ]
+    );
+    assert_eq!(
+        POST_HIR_ALLOWED_FAILURE_CLASSIFICATIONS,
+        &[
+            FailureClassification::InternalBugSentinel,
+            FailureClassification::OutputDrift,
+            FailureClassification::EnvironmentToolchainLinkRuntime,
         ]
     );
     assert_eq!(
@@ -933,6 +997,14 @@ fn pipeline_user_visible_failure_policy_records_scope_keywords_and_rules() {
         FAILURE_CLASSIFICATION_RULES
             .iter()
             .map(|rule| format!("{}: {}", rule.name, rule.meaning))
+            .collect::<Vec<_>>()
+            .join("\n")
+    );
+    println!(
+        "post-HIR allowed failure classes:\n{}",
+        POST_HIR_ALLOWED_FAILURE_CLASSIFICATIONS
+            .iter()
+            .map(|class| class.as_str())
             .collect::<Vec<_>>()
             .join("\n")
     );

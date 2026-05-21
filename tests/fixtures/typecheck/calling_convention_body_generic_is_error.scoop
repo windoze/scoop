@@ -1,0 +1,15 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::calling_convention_fun_generics_not_supported
+// EXPECT-ERROR: `@CallingConvention` 当前不支持泛型函数
+// 目标：`@CallingConvention` body function 的 non-generic gate 必须在 typecheck/HIR barrier 前拒绝。
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+@CallingConvention(name = "scoop_bad_generic_entry", convention = "C")
+fun <T> badGenericEntry(value: Int): Int {
+    return value
+}
+
+fun main() {}

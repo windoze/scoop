@@ -1,32 +1,49 @@
-# Claude Execution Plan
+# Execution Plan
 
-## Scope
+I cannot record private chain-of-thought, but this file will track the concrete execution plan, decisions, and progress for this invocation.
 
-- Follow `TODO.md` as the authoritative task list.
-- Identify and complete exactly the first incomplete task whose heading is not prefixed with `[DONE]`.
-- Stop after completing and committing that task, or after committing a required prerequisite/blocker update if the task cannot be completed as written.
+1. Read `TODO.md` first and identify the first task whose heading is not prefixed with `[DONE]`.
+2. Check the latest commit only for an explicitly unfinished issue that is directly relevant to that task.
+3. Inspect the task's referenced code, fixtures, and validation requirements.
+4. Implement the task as written, without narrowing scope or using workaround behavior.
+5. Run the task-specific validation, then broader relevant tests if needed.
+6. Update `TODO.md` by prefixing the task heading with `[DONE]` and filling in the completion record.
+7. Update this file whenever a key step completes or the plan changes.
+8. Commit all intended changes for this task with a task-tagged commit message, then stop.
 
-## Execution Plan
+## Progress
 
-1. Read `TODO.md` to locate the first incomplete task and capture its requirements, dependencies, validation steps, and completion-record expectations.
-2. Check the latest commit only for unfinished issues directly relevant to the selected task.
-3. Inspect only the code, fixtures, docs, and tests needed for the selected task.
-4. Implement the task as written without narrowing scope or introducing workarounds.
-5. If a spec mismatch or missing prerequisite blocks correct implementation, update `TODO.md` with the minimal prerequisite task in dependency order, keep the current task incomplete, commit that bookkeeping change, and stop.
-6. Run the task-specific validation required by `TODO.md`, plus any directly relevant focused tests.
-7. Fix any regressions introduced while completing the task and rerun validation.
-8. Mark the task heading in `TODO.md` with `[DONE]` and update its completion record.
-9. Run final relevant checks needed for confidence.
-10. Inspect git status/diff/log, then commit all intended task changes with a descriptive task-tagged message.
-11. Stop without starting the next task.
+- Initial plan recorded before project inspection.
+- Identified the first incomplete task from `TODO.md`: `P2-T06` in `TODO-3.md`.
+- Checked the latest commit (`[P2-T05R] Review source-site contract migration`); it does not mention an unfinished issue directly relevant to `P2-T06`.
 
-## Progress Log
+## Current Task: P2-T06
 
-- Initialized plan before reading task details or running code/commands.
-- Read `TODO.md`; first incomplete task is `P2-T05R` in `TODO-3.md`, a review task for source-site contract migration. Latest commit is `c94064a0 [P2-T05] Migrate source-site contracts to HirFacts`, directly relevant to the review.
-- P2-T05R review found blocking issues to fix in this review: lingering `LoweredHir`-to-facts migration paths for MIR lowering helpers, effect-site placeholder fallback branches, incomplete verifier/preflight coverage for source-site contract classes, and incomplete payload/dump authority for some `HirFacts.source_sites` data.
-- Revised execution plan: inspect the affected source sections, remove or narrow the legacy paths, make missing effect contracts fail before fallback MIR construction, expand `HirFacts` verification/preflight coverage, move detailed source-site dump to authoritative `HirFacts`, update fixtures/tests, then run P2-T05 validation plus the extra all-targets no-default-features test required by P2-T05R.
-- Implemented P2-T05R fixes: source-site payload completeness, verifier/preflight coverage, `HirFacts`-based detailed HIR dump, MIR lowering no-fallback errors for missing effect contracts, and removal of `MirLoweringFacts::from_lowered_hir(...)` call paths.
-- Regenerated HIR golden fixtures and added `with_update_struct_field` HIR fixture for non-empty with-update contract coverage.
-- Validation completed successfully: `cargo fmt`; focused `scoopc_hir_facts`, `hir_preflight`, `mir_lowering_facts`, `hir_stage`, `mir_stage`; HIR/typecheck/MIR fixtures; `cargo test --all --all-targets --no-default-features`; dependency gate; `cargo tree -p scoopc_hir_facts`; old bridge keyword search; `cargo clippy --all-targets -- -D warnings`; `git diff --check`.
-- Updated `TODO.md` and `TODO-3.md` to mark `P2-T05R` as `[DONE]` and record review findings, fixes, validation, and residual risk.
+Planned execution:
+
+1. Inspect existing legality checks, HIR facts publication, HIR preflight, and user-visible failure policy tests.
+2. Add or tighten barrier checks only where current code allows a spec-invalid declaration to pass beyond HIR/typecheck.
+3. Add fixtures/tests proving `@CallingConvention` generics and top-level `var` without storage policy are rejected before MIR/codegen, and legal global roots publish resolved storage policy without generic identity.
+4. Update the policy test to make allowed post-HIR failure classes explicit.
+5. Run the P2-T06 validation commands, fix regressions, then mark `P2-T06` done in both TODO indexes and commit.
+
+## Implementation Progress
+
+- Added structural `HirFacts` verifier checks for global root monomorphism and top-level var storage policy legality.
+- Added HIR/preflight tests proving legal global roots are monomorphic and mutable roots carry resolved storage policy.
+- Added a typecheck fixture for generic `@CallingConvention` body rejection.
+- Updated the user-visible failure policy audit to include the P2 declaration legality gates and explicit post-HIR allowed failure classes.
+
+## Validation Progress
+
+- Ran `cargo fmt`.
+- Ran `cargo test -p scoopc_hir_facts`.
+- Ran `cargo test -p scoopc --no-default-features hir_preflight`.
+- Ran `cargo test -p scoopc --no-default-features pipeline_user_visible_failure_policy`.
+- Ran `cargo test -p scoopc --no-default-features typecheck`.
+- Ran `cargo test -p scoopc --no-default-features hir_stage`.
+- Ran `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck`.
+- Ran `cargo run -p scoop -- test --fixtures tests/fixtures/hir`.
+- Ran `cargo clippy --all-targets -- -D warnings`.
+- Marked `P2-T06` as `[DONE]` in `TODO.md` and `TODO-3.md`, with a completion record.
+- Ran `git diff --check` successfully.
