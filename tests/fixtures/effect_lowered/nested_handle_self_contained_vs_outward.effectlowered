@@ -1,4 +1,4 @@
-EffectLoweredStageOutput
+LirStageOutput
 opt_level: O2
 snapshot_binding:
   query_surface: PassView
@@ -6,7 +6,26 @@ snapshot_binding:
   canonical_body_fqns:
     - sample.nested_may_suspend_outward
     - sample.nested_self_contained
-post_opt_program:
+lir_facts:
+lir_facts {
+  opt_level: O2
+  summary: callables=2 step_types=2 dynamic_invokes=0 dispatches=0 resume_packings=4 continuation_objects=2 surface_resume_dispatches=6
+  callables=2
+    - callable=sample.nested_self_contained kind=Plain control_body=true key=lir_callable(instance(141:template(127:def(56:cone(39:nested_handle_self_contained_vs_outward;5:0.0.0);3:fun;28:sample.nested_self_contained;21:materialized_callable));6:list();6:list()),body#1)
+      plain_abi: function_ty=t97 params=0 return=t5 body_slices=8 call_sites=1
+      plain_local_effect_control: step#1 states=10 boundaries=1 continuation_object=cont_obj#1
+    - callable=sample.nested_may_suspend_outward kind=EffectStep control_body=true key=lir_callable(instance(146:template(132:def(56:cone(39:nested_handle_self_contained_vs_outward;5:0.0.0);3:fun;33:sample.nested_may_suspend_outward;21:materialized_callable));6:list();6:list()),body#0)
+      effect_step_abi: step#0 invoke_args=t2 entry=st0 complete=st1 states=15 boundaries=4 continuation_object=cont_obj#0
+  step_types=2
+    - step#0 invoke_args=t2 complete=t5 continuation_obj=t450 cases=3
+    - step#1 invoke_args=t2 complete=t5 continuation_obj=t453 cases=3
+  dynamic_invoke_contracts=0
+  dispatch_contracts=0
+  resume_packing_contracts=4
+  continuation_object_contracts=2
+  surface_resume_dispatch_contracts=6
+}
+post_opt_lir:
 LateLoweredProgram
   step_type_count: 2
   resume_packing_interface_count: 4

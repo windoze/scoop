@@ -1,4 +1,4 @@
-EffectLoweredStageOutput
+LirStageOutput
 opt_level: O2
 snapshot_binding:
   query_surface: PassView
@@ -8,7 +8,27 @@ snapshot_binding:
     - a.id
     - a.main
     - a.main.$lambda0
-post_opt_program:
+lir_facts:
+lir_facts {
+  opt_level: O2
+  summary: callables=4 step_types=0 dynamic_invokes=0 dispatches=0 resume_packings=0 continuation_objects=0 surface_resume_dispatches=0
+  callables=4
+    - callable=a.id kind=Plain control_body=false key=lir_callable(instance(101:template(88:def(42:cone(25:direct_and_fun_value_call;5:0.0.0);3:fun;4:a.id;21:materialized_callable));6:list();6:list()),body#1)
+      plain_abi: function_ty=t44 params=1 return=t5 body_slices=1 call_sites=0
+    - callable=a.main kind=Plain control_body=false key=lir_callable(instance(103:template(90:def(42:cone(25:direct_and_fun_value_call;5:0.0.0);3:fun;6:a.main;21:materialized_callable));6:list();6:list()),body#2)
+      plain_abi: function_ty=t97 params=0 return=t5 body_slices=1 call_sites=0
+    - callable=a.callFn kind=Plain control_body=false key=lir_callable(instance(105:template(92:def(42:cone(25:direct_and_fun_value_call;5:0.0.0);3:fun;8:a.callFn;21:materialized_callable));6:list();6:list()),body#0)
+      plain_abi: function_ty=t445 params=2 return=t5 body_slices=1 call_sites=1
+    - callable=a.main.$lambda0 kind=Plain control_body=false key=lir_callable(instance(114:template(100:def(42:cone(25:direct_and_fun_value_call;5:0.0.0);3:fun;15:a.main.$lambda0;21:materialized_callable));6:list();6:list()),body#3)
+      plain_abi: function_ty=t0 params=2 return=t5 body_slices=1 call_sites=0
+  step_types=0
+  dynamic_invoke_contracts=0
+  dispatch_contracts=0
+  resume_packing_contracts=0
+  continuation_object_contracts=0
+  surface_resume_dispatch_contracts=0
+}
+post_opt_lir:
 LateLoweredProgram
   step_type_count: 0
   resume_packing_interface_count: 0

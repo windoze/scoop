@@ -6,3 +6,4 @@ edition.workspace = true
 [dependencies]
 scoopc_ids = { path = "../scoopc_ids" }
 scoopc_project_model = { path = "../scoopc_project_model" }
+scoopc_types = { path = "../scoopc_types" }

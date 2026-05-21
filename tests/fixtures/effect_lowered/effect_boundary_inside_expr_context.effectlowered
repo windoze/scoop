@@ -1,4 +1,4 @@
-EffectLoweredStageOutput
+LirStageOutput
 opt_level: O2
 snapshot_binding:
   query_surface: PassView
@@ -7,7 +7,27 @@ snapshot_binding:
     - fixtures.mir_lowered.box_int
     - fixtures.mir_lowered.cleanup
     - fixtures.mir_lowered.main
-post_opt_program:
+lir_facts:
+lir_facts {
+  opt_level: O2
+  summary: callables=3 step_types=1 dynamic_invokes=0 dispatches=0 resume_packings=3 continuation_objects=1 surface_resume_dispatches=3
+  callables=3
+    - callable=fixtures.mir_lowered.main kind=Plain control_body=true key=lir_callable(instance(134:template(120:def(52:cone(35:effect_boundary_inside_expr_context;5:0.0.0);3:fun;25:fixtures.mir_lowered.main;21:materialized_callable));6:list();6:list()),body#2)
+      plain_abi: function_ty=t97 params=0 return=t5 body_slices=32 call_sites=8
+      plain_local_effect_control: step#2 states=34 boundaries=4 continuation_object=cont_obj#0
+    - callable=fixtures.mir_lowered.box_int kind=Plain control_body=false key=lir_callable(instance(137:template(123:def(52:cone(35:effect_boundary_inside_expr_context;5:0.0.0);3:fun;28:fixtures.mir_lowered.box_int;21:materialized_callable));6:list();6:list()),body#0)
+      plain_abi: function_ty=t44 params=1 return=t5 body_slices=1 call_sites=0
+    - callable=fixtures.mir_lowered.cleanup kind=Plain control_body=false key=lir_callable(instance(137:template(123:def(52:cone(35:effect_boundary_inside_expr_context;5:0.0.0);3:fun;28:fixtures.mir_lowered.cleanup;21:materialized_callable));6:list();6:list()),body#1)
+      plain_abi: function_ty=t445 params=0 return=t2 body_slices=1 call_sites=0
+  step_types=1
+    - step#2 invoke_args=t2 complete=t5 continuation_obj=t453 cases=3
+  dynamic_invoke_contracts=0
+  dispatch_contracts=0
+  resume_packing_contracts=3
+  continuation_object_contracts=1
+  surface_resume_dispatch_contracts=3
+}
+post_opt_lir:
 LateLoweredProgram
   step_type_count: 1
   resume_packing_interface_count: 3

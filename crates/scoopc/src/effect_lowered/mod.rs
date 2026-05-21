@@ -245,6 +245,9 @@ pub enum EffectLoweringError {
 
     #[error("late-lowering stage 在 `{root_fqn}` 上找不到已 intern 的 builtin 类型集合")]
     MissingBuiltinTypes { root_fqn: String },
+
+    #[error("late-lowering stage 无法发布 LIR facts contract：{detail}")]
+    InvalidLirFactsContract { detail: String },
 }
 
 impl From<crate::effect_facts::EffectFactsError> for EffectLoweringError {

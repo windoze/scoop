@@ -100,6 +100,38 @@ impl DispatchDevirtualizationFacts {
                 .unwrap_or(target),
         )
     }
+
+    pub(crate) fn virtual_method_slot(
+        &self,
+        dispatch: &DispatchMetadata,
+        explicit_arg_count: usize,
+    ) -> Option<u32> {
+        let mut candidates = self
+            .class_vtables
+            .get(&dispatch.owner_fqn)?
+            .iter()
+            .filter(|slot| {
+                slot.name == dispatch.member_name && slot.params_len == explicit_arg_count as u32
+            });
+        let first = candidates.next()?;
+        candidates.next().is_none().then_some(first.slot)
+    }
+
+    pub(crate) fn interface_method_slot(
+        &self,
+        dispatch: &DispatchMetadata,
+        explicit_arg_count: usize,
+    ) -> Option<(u64, u32)> {
+        let iface = self.interfaces.get(&dispatch.owner_fqn)?;
+        let mut candidates = iface.method_slots.iter().filter(|slot| {
+            slot.member_fqn == dispatch.member_fqn && slot.params_len == explicit_arg_count as u32
+        });
+        let first = candidates.next()?;
+        candidates
+            .next()
+            .is_none()
+            .then_some((iface.interface_id, first.slot))
+    }
 }
 
 struct DispatchTargetLookup<'a> {

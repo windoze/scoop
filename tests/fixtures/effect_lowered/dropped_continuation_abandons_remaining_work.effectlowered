@@ -1,4 +1,4 @@
-EffectLoweredStageOutput
+LirStageOutput
 opt_level: O2
 snapshot_binding:
   query_surface: PassView
@@ -7,7 +7,26 @@ snapshot_binding:
     - sample.cleanup
     - sample.helper
     - sample.main
-post_opt_program:
+lir_facts:
+lir_facts {
+  opt_level: O2
+  summary: callables=3 step_types=1 dynamic_invokes=0 dispatches=0 resume_packings=1 continuation_objects=1 surface_resume_dispatches=2
+  callables=3
+    - callable=sample.main kind=Plain control_body=false key=lir_callable(instance(129:template(115:def(61:cone(44:dropped_continuation_abandons_remaining_work;5:0.0.0);3:fun;11:sample.main;21:materialized_callable));6:list();6:list()),body#2)
+      plain_abi: function_ty=t97 params=0 return=t5 body_slices=1 call_sites=0
+    - callable=sample.helper kind=EffectStep control_body=true key=lir_callable(instance(131:template(117:def(61:cone(44:dropped_continuation_abandons_remaining_work;5:0.0.0);3:fun;13:sample.helper;21:materialized_callable));6:list();6:list()),body#1)
+      effect_step_abi: step#1 invoke_args=t5 entry=st0 complete=st1 states=10 boundaries=1 continuation_object=cont_obj#0
+    - callable=sample.cleanup kind=Plain control_body=false key=lir_callable(instance(132:template(118:def(61:cone(44:dropped_continuation_abandons_remaining_work;5:0.0.0);3:fun;14:sample.cleanup;21:materialized_callable));6:list();6:list()),body#0)
+      plain_abi: function_ty=t445 params=0 return=t2 body_slices=1 call_sites=0
+  step_types=1
+    - step#1 invoke_args=t5 complete=t5 continuation_obj=t452 cases=3
+  dynamic_invoke_contracts=0
+  dispatch_contracts=0
+  resume_packing_contracts=1
+  continuation_object_contracts=1
+  surface_resume_dispatch_contracts=2
+}
+post_opt_lir:
 LateLoweredProgram
   step_type_count: 1
   resume_packing_interface_count: 1

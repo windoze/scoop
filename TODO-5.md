@@ -507,7 +507,7 @@ P5 需要把这条隐式 opt helper 提升为正式 LIR optimization family：�
   - 验证命令：`cargo fmt`；`cargo check -p scoopc_lir_facts`；`cargo test -p scoopc_lir_facts`；`cargo test -p scoopc --no-default-features effect_lowering_stage`；`cargo run -p scoop_tools -- dependency-gate`；`cargo tree -p scoopc_lir_facts`；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
   - 残余风险：`LirFacts` 仍是 P5-T01 壳层，只覆盖 summary/callable inventory；plain/effect-step callable ABI、dynamic invoke、dispatch owner/slot、continuation/resume publication 与 codegen-neutral query/accessor 清理仍按顺序留给 P5-T02/P5-T03。
 
-## [TODO] P5-T02：发布 LIR callable、dynamic invoke、dispatch 与 resume contracts
+## [DONE] P5-T02：发布 LIR callable、dynamic invoke、dispatch 与 resume contracts
 
 - 参考：
   - 本文件“effect_lowered 当前输出结构、构造点与 LIR fact/query 候选项”
@@ -547,7 +547,12 @@ P5 需要把这条隐式 opt helper 提升为正式 LIR optimization family：�
   - 后续 codegen-neutral query 切换不需要重新设计 LIR 数据模型。
 - 依赖：P5-T01R
 - 完成记录：
-  - 待填写。
+  - 改动范围：扩展 `scoopc_lir_facts` 数据产品，新增 callable ABI/body-version、plain call-site/source-slice、effect-step control-body、step type、dynamic invoke、dispatch owner/slot、resume packing、continuation object 与 surface-resume dispatch contracts；`scoopc_lir_facts` 现在依赖基础 `scoopc_types` 以发布 backend-neutral `TypeId` refs。
+  - 生产发布路径：新增 `pipeline::lir_facts_builder`，在 `LirStageOutput` 构造时从 post-opt `LateLoweredProgram`、显式 MIR handoff 和 P4 effect facts handoff 构造 `LirFacts`；动态调用和 dispatch contract 在 P5 发布，后续 P5-T03 可切换 codegen-neutral query 而不重新设计 facts 模型。
+  - contract 决策：plain callable 发布 ordinary ABI、body source slices、plain call-site contracts 和可选本地 effect/control body；effect-step callable 发布 step schema binding、dynamic invoke entry、state/frame/boundary/resume query keys、continuation object 和 resume packings；virtual/interface dispatch contract 发布 owner/member/receiver、slot、interface id 与 candidate targets；continuation/resume facts 发布 packing completeness、surface/internal resume body、one-shot runtime-error publication 和 surface-resume inventory summary。
+  - verifier/dump：`LirFacts::verify()` 现在检查 summary count、callable root/stable key、control-body step/object/packing references、dynamic invoke owner/target step/dispatch references、continuation object packing references 与 surface-resume out-step references；stable dump 新增 step/dynamic/dispatch/resume/continuation/surface-resume contract 分组，effect-lowered goldens 已同步。
+  - 验证命令：`cargo fmt`；`cargo check -p scoopc_lir_facts`；`cargo test -p scoopc_lir_facts`；`cargo test -p scoopc --no-default-features effect_lowered`；`cargo run -p scoop -- test --fixtures tests/fixtures/effect_lowered`；`cargo run -p scoop_tools -- dependency-gate`；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
+  - 残余风险：P5-T03 仍需把 LLVM/codegen-neutral ABI materialization 的读取点切到 `LIR + lir_facts` 并删除 `LirStageOutput` 的上游 compatibility accessors；本任务只发布生产 facts，不提前清理 P7/P6 backend physical layout residual。
 
 ## [TODO] P5-T02R：Review LIR contract 与 facts 完整度
 

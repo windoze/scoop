@@ -13,14 +13,37 @@ use std::collections::BTreeMap;
 use scoopc_ids::StableLirCallableKey;
 use scoopc_project_model::OptLevel;
 
+pub mod contract;
 pub mod dump;
 pub mod verify;
+
+pub use contract::*;
 
 /// Complete LIR fact product published by the LIR stage.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LirFacts {
     pub summary: LirStageSummary,
-    pub callables: BTreeMap<StableLirCallableKey, LirCallableSummary>,
+    pub callables: BTreeMap<StableLirCallableKey, LirCallableFacts>,
+    pub step_types: BTreeMap<LirStepSchemaKey, LirStepTypeFacts>,
+    pub dynamic_invokes: BTreeMap<LirDynamicInvokeKey, LirDynamicInvokeContract>,
+    pub dispatches: BTreeMap<LirDispatchKey, LirDispatchContract>,
+    pub resume_packings: BTreeMap<LirResumePackingKey, LirResumePackingFacts>,
+    pub continuation_objects: BTreeMap<LirContinuationObjectKey, LirContinuationObjectFacts>,
+    pub surface_resume_dispatches:
+        BTreeMap<LirContinuationSchemaKey, LirSurfaceResumeDispatchFacts>,
+}
+
+/// Grouped LIR facts used to construct a complete product.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct LirFactGroups {
+    pub callables: BTreeMap<StableLirCallableKey, LirCallableFacts>,
+    pub step_types: BTreeMap<LirStepSchemaKey, LirStepTypeFacts>,
+    pub dynamic_invokes: BTreeMap<LirDynamicInvokeKey, LirDynamicInvokeContract>,
+    pub dispatches: BTreeMap<LirDispatchKey, LirDispatchContract>,
+    pub resume_packings: BTreeMap<LirResumePackingKey, LirResumePackingFacts>,
+    pub continuation_objects: BTreeMap<LirContinuationObjectKey, LirContinuationObjectFacts>,
+    pub surface_resume_dispatches:
+        BTreeMap<LirContinuationSchemaKey, LirSurfaceResumeDispatchFacts>,
 }
 
 impl LirFacts {
@@ -29,15 +52,27 @@ impl LirFacts {
         Self {
             summary: LirStageSummary::new(opt_level),
             callables: BTreeMap::new(),
+            step_types: BTreeMap::new(),
+            dynamic_invokes: BTreeMap::new(),
+            dispatches: BTreeMap::new(),
+            resume_packings: BTreeMap::new(),
+            continuation_objects: BTreeMap::new(),
+            surface_resume_dispatches: BTreeMap::new(),
         }
     }
 
     /// Build a fact product from already materialized LIR fact groups.
-    pub fn from_parts(
-        summary: LirStageSummary,
-        callables: BTreeMap<StableLirCallableKey, LirCallableSummary>,
-    ) -> Self {
-        Self { summary, callables }
+    pub fn from_parts(summary: LirStageSummary, groups: LirFactGroups) -> Self {
+        Self {
+            summary,
+            callables: groups.callables,
+            step_types: groups.step_types,
+            dynamic_invokes: groups.dynamic_invokes,
+            dispatches: groups.dispatches,
+            resume_packings: groups.resume_packings,
+            continuation_objects: groups.continuation_objects,
+            surface_resume_dispatches: groups.surface_resume_dispatches,
+        }
     }
 
     /// Return whether all currently published LIR fact groups are empty.
@@ -48,6 +83,12 @@ impl LirFacts {
             && self.summary.resume_packing_count == 0
             && self.summary.continuation_object_count == 0
             && self.summary.surface_resume_dispatch_count == 0
+            && self.step_types.is_empty()
+            && self.dynamic_invokes.is_empty()
+            && self.dispatches.is_empty()
+            && self.resume_packings.is_empty()
+            && self.continuation_objects.is_empty()
+            && self.surface_resume_dispatches.is_empty()
     }
 
     /// Verify structural invariants before handing facts to later stages.
@@ -107,47 +148,51 @@ impl Default for LirStageSummary {
     }
 }
 
-/// Backend-neutral callable kind published by LIR facts.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum LirCallableKind {
-    Plain,
-    EffectStep,
-}
-
-/// Minimal callable inventory entry published by the P5 output shell.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct LirCallableSummary {
-    root_fqn: String,
-    kind: LirCallableKind,
-    has_control_body: bool,
-}
-
-impl LirCallableSummary {
-    pub fn new(root_fqn: impl Into<String>, kind: LirCallableKind, has_control_body: bool) -> Self {
-        Self {
-            root_fqn: root_fqn.into(),
-            kind,
-            has_control_body,
-        }
-    }
-
-    pub fn root_fqn(&self) -> &str {
-        &self.root_fqn
-    }
-
-    pub fn kind(&self) -> LirCallableKind {
-        self.kind
-    }
-
-    pub fn has_control_body(&self) -> bool {
-        self.has_control_body
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::verify::VerifyError;
+    use scoopc_ids::BodyVersionKey;
+    use scoopc_types::{TypeId, TypeStore};
+
+    fn ty(raw: u32) -> TypeId {
+        let mut types = TypeStore::new();
+        let builtins = types.intern_builtins();
+        match raw {
+            1 => builtins.any,
+            2 => builtins.unit,
+            3 => builtins.string,
+            4 => builtins.int,
+            _ => builtins.nothing,
+        }
+    }
+
+    fn body_version(owner: &StableLirCallableKey) -> LirBodyVersionFacts {
+        LirBodyVersionFacts {
+            key: BodyVersionKey::new(owner, "plain", 0),
+            impl_plan: "NoOutward".to_string(),
+            needs_reentry: false,
+            allowed_effect_terms: Vec::new(),
+        }
+    }
+
+    fn plain_callable(root_fqn: &str) -> LirCallableFacts {
+        let key = StableLirCallableKey::new(format!("lir(instance({root_fqn}))"), root_fqn);
+        LirCallableFacts {
+            root_fqn: root_fqn.to_string(),
+            stable_instance_key: key.as_str().to_string(),
+            body_version: body_version(&key),
+            resolved_outward_cases: Vec::new(),
+            contract: LirCallableContract::Plain(Box::new(LirPlainCallableFacts {
+                function_ty: ty(1),
+                param_tys: Vec::new(),
+                return_ty: ty(2),
+                body_slices: Vec::new(),
+                call_sites: Vec::new(),
+                local_effect_control: None,
+            })),
+        }
+    }
 
     #[test]
     fn empty_lir_facts_verify_and_dump_group_boundaries() {
@@ -167,9 +212,15 @@ mod tests {
         let mut callables = BTreeMap::new();
         callables.insert(
             StableLirCallableKey::new("lir(instance(app.main))", "app.main"),
-            LirCallableSummary::new("app.main", LirCallableKind::Plain, false),
+            plain_callable("app.main"),
         );
-        let facts = LirFacts::from_parts(LirStageSummary::new(OptLevel::O0), callables);
+        let facts = LirFacts::from_parts(
+            LirStageSummary::new(OptLevel::O0),
+            LirFactGroups {
+                callables,
+                ..LirFactGroups::default()
+            },
+        );
 
         assert_eq!(
             facts.verify().unwrap_err(),
@@ -182,13 +233,102 @@ mod tests {
 
     #[test]
     fn verifier_accepts_callable_inventory_summary() {
+        let callable_key = StableLirCallableKey::new("lir(instance(app.main))", "app.main");
+        let step_schema = LirStepSchemaKey::new(0);
+        let object_id = LirContinuationObjectKey::new(0);
         let mut callables = BTreeMap::new();
         callables.insert(
-            StableLirCallableKey::new("lir(instance(app.main))", "app.main"),
-            LirCallableSummary::new("app.main", LirCallableKind::EffectStep, true),
+            callable_key.clone(),
+            LirCallableFacts {
+                root_fqn: "app.main".to_string(),
+                stable_instance_key: callable_key.as_str().to_string(),
+                body_version: LirBodyVersionFacts {
+                    key: BodyVersionKey::new(&callable_key, "effect_step", 0),
+                    impl_plan: "CanonicalFull".to_string(),
+                    needs_reentry: true,
+                    allowed_effect_terms: Vec::new(),
+                },
+                resolved_outward_cases: Vec::new(),
+                contract: LirCallableContract::EffectStep(Box::new(LirEffectStepCallableFacts {
+                    step_schema,
+                    dynamic_invoke_entry: LirCallableDynamicInvokeEntryFacts {
+                        invoke_args_tuple_ty: ty(1),
+                        step_schema,
+                        entry_state: LirStateKey::new(0),
+                        complete_state: LirStateKey::new(1),
+                    },
+                    control_body: LirControlBodyFacts {
+                        step_schema,
+                        state_graph: LirStateGraphFacts {
+                            entry_state: LirStateKey::new(0),
+                            complete_state: LirStateKey::new(1),
+                            cleanup_state: None,
+                            drop_state: None,
+                            states: vec![LirStateKey::new(0), LirStateKey::new(1)],
+                        },
+                        frame_schema: LirFrameSchemaFacts {
+                            slots: Vec::new(),
+                            resume_payload_bindings: Vec::new(),
+                            completion_payload_bindings: Vec::new(),
+                        },
+                        boundary_map: LirBoundaryMapFacts {
+                            boundaries: Vec::new(),
+                        },
+                        resume_state_map: LirResumeStateMapFacts {
+                            entries: Vec::new(),
+                        },
+                        source_statement_count: 0,
+                        continuation_object: object_id,
+                        resume_packings: Vec::new(),
+                    },
+                })),
+            },
+        );
+        let mut step_types = BTreeMap::new();
+        step_types.insert(
+            step_schema,
+            LirStepTypeFacts {
+                step_schema,
+                invoke_args_tuple_ty: ty(1),
+                complete_ty: ty(2),
+                continuation_obj_ty: ty(3),
+                cases: Vec::new(),
+            },
+        );
+        let mut continuation_objects = BTreeMap::new();
+        continuation_objects.insert(
+            object_id,
+            LirContinuationObjectFacts {
+                object_id,
+                owner_body_version: BodyVersionKey::new(&callable_key, "effect_step", 0),
+                continuation_obj_ty: ty(3),
+                implemented_packings: Vec::new(),
+                surface_resumes: Vec::new(),
+                methods: Vec::new(),
+            },
         );
         let summary = LirStageSummary::new(OptLevel::O2).with_counts(1, 1, 0, 1, 1);
-        let facts = LirFacts::from_parts(summary, callables);
+        let facts = LirFacts::from_parts(
+            summary,
+            LirFactGroups {
+                callables,
+                step_types,
+                continuation_objects,
+                surface_resume_dispatches: BTreeMap::from([(
+                    LirContinuationSchemaKey::new(0),
+                    LirSurfaceResumeDispatchFacts {
+                        continuation_schema: LirContinuationSchemaKey::new(0),
+                        resume_tuple_ty: ty(4),
+                        answer_ty: ty(2),
+                        out_step_schema: step_schema,
+                        source_kind: LirSurfaceResumeDispatchSourceKind::Unreachable,
+                        publication_count: 0,
+                        wrapper_projection_count: 0,
+                    },
+                )]),
+                ..LirFactGroups::default()
+            },
+        );
 
         assert!(facts.verify().is_ok());
         assert!(facts.dump().contains("callable=app.main kind=EffectStep"));

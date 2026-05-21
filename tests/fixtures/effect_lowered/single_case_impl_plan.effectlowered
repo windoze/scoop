@@ -1,11 +1,26 @@
-EffectLoweredStageOutput
+LirStageOutput
 opt_level: O2
 snapshot_binding:
   query_surface: PassView
   instance_count: 1
   canonical_body_fqns:
     - sample.leaf
-post_opt_program:
+lir_facts:
+lir_facts {
+  opt_level: O2
+  summary: callables=1 step_types=1 dynamic_invokes=0 dispatches=0 resume_packings=1 continuation_objects=1 surface_resume_dispatches=2
+  callables=1
+    - callable=sample.leaf kind=EffectStep control_body=true key=lir_callable(instance(105:template(92:def(38:cone(21:single_case_impl_plan;5:0.0.0);3:fun;11:sample.leaf;21:materialized_callable));6:list();6:list()),body#0)
+      effect_step_abi: step#0 invoke_args=t2 entry=st0 complete=st1 states=4 boundaries=1 continuation_object=cont_obj#0
+  step_types=1
+    - step#0 invoke_args=t2 complete=t2 continuation_obj=t449 cases=2
+  dynamic_invoke_contracts=0
+  dispatch_contracts=0
+  resume_packing_contracts=1
+  continuation_object_contracts=1
+  surface_resume_dispatch_contracts=2
+}
+post_opt_lir:
 LateLoweredProgram
   step_type_count: 1
   resume_packing_interface_count: 1

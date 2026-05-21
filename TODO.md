@@ -94,7 +94,7 @@
 | P4-T04R | [DONE] | [`TODO-5.md`](./TODO-5.md#done-p4-t04rreview-p4-全包完成度) | Review P4 全包完成度 |
 | P5-T01 | [DONE] | [`TODO-5.md`](./TODO-5.md#done-p5-t01建立-scoopc_lir_facts-crate-与正式-lirstageoutput-壳层) | 建立 `scoopc_lir_facts` crate 与正式 `LirStageOutput` 壳层 |
 | P5-T01R | [DONE] | [`TODO-5.md`](./TODO-5.md#done-p5-t01rreview-lir_facts-crate-与-lir-output-壳层) | Review `lir_facts` crate 与 LIR output 壳层 |
-| P5-T02 | [TODO] | [`TODO-5.md`](./TODO-5.md#todo-p5-t02发布-lir-callabledynamic-invokedispatch-与-resume-contracts) | 发布 LIR callable、dynamic invoke、dispatch 与 resume contracts |
+| P5-T02 | [DONE] | [`TODO-5.md`](./TODO-5.md#done-p5-t02发布-lir-callabledynamic-invokedispatch-与-resume-contracts) | 发布 LIR callable、dynamic invoke、dispatch 与 resume contracts |
 | P5-T02R | [TODO] | [`TODO-5.md`](./TODO-5.md#todo-p5-t02rreview-lir-contract-与-facts-完整度) | Review LIR contract 与 facts 完整度 |
 | P5-T03 | [TODO] | [`TODO-5.md`](./TODO-5.md#todo-p5-t03切换-codegen-neutral-abiquery-surface-到-lir--lir_facts) | 切换 codegen-neutral ABI/query surface 到 `LIR + lir_facts` |
 | P5-T03R | [TODO] | [`TODO-5.md`](./TODO-5.md#todo-p5-t03rreview-codegen-neutral-query-切换结果) | Review codegen-neutral query 切换结果 |

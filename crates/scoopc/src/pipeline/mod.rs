@@ -10,6 +10,7 @@ mod hir_completeness;
 #[cfg(test)]
 mod hir_preflight;
 mod hir_stage;
+mod lir_facts_builder;
 #[cfg(feature = "llvm")]
 mod llvm_codegen_stage;
 mod mir_stage;

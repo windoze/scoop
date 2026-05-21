@@ -1,16 +1,13 @@
-use std::collections::BTreeMap;
 use std::fmt::Write;
 
-use crate::effect_facts::{CallableAbiKind, MaterializedEffectFacts, MirSnapshotBinding};
+use crate::effect_facts::{MaterializedEffectFacts, MirSnapshotBinding};
 use crate::effect_lowered::{
     EffectLoweringError, LateLoweredOptOptions, LateLoweredProgram, LateLoweredProgramBuilder,
     optimize_program, optimize_program_with_options,
 };
 use crate::mir::{MaterializedMir, MaterializedMirPassView};
-use crate::opt::OptLevel;
 use crate::ty::TypeStore;
-use scoopc_ids::{StableCanonicalKey, StableLirCallableKey, StableSymbolKey};
-use scoopc_lir_facts::{LirCallableKind, LirCallableSummary, LirFacts, LirStageSummary};
+use scoopc_lir_facts::LirFacts;
 use scoopc_mir_facts::MirFacts;
 
 use super::{EffectFactsStageOutput, MirStageOutput};
@@ -177,7 +174,12 @@ pub(crate) fn run(input: EffectLoweringStageInput) -> Result<LirStageOutput, Eff
         )
         .build()?,
     );
-    let lir_facts = build_lir_facts(&lir, mir_stage_output.materialized_mir().opt_level());
+    let lir_facts = super::lir_facts_builder::build_lir_facts(
+        &lir,
+        mir_stage_output.materialized_mir(),
+        effect_facts_stage_output.effect_facts(),
+        mir_stage_output.materialized_mir().opt_level(),
+    )?;
     Ok(LirStageOutput::new(
         lir,
         lir_facts,
@@ -215,51 +217,18 @@ fn run_with_opt_options(
         .build()?,
         opt_options,
     );
-    let lir_facts = build_lir_facts(&lir, mir_stage_output.materialized_mir().opt_level());
+    let lir_facts = super::lir_facts_builder::build_lir_facts(
+        &lir,
+        mir_stage_output.materialized_mir(),
+        effect_facts_stage_output.effect_facts(),
+        mir_stage_output.materialized_mir().opt_level(),
+    )?;
     Ok(LirStageOutput::new(
         lir,
         lir_facts,
         mir_stage_output,
         effect_facts_stage_output,
     ))
-}
-
-fn build_lir_facts(lir: &LateLoweredProgram, opt_level: OptLevel) -> LirFacts {
-    let summary = LirStageSummary::new(opt_level).with_counts(
-        lir.callables().len(),
-        lir.step_types().len(),
-        lir.resume_packings().len(),
-        lir.continuation_objects().len(),
-        lir.surface_resume_dispatch_inventory().len(),
-    );
-    let callables = lir
-        .callables()
-        .iter()
-        .enumerate()
-        .map(|(index, callable)| {
-            let stable_instance_key = callable.stable_instance_key();
-            let key = StableLirCallableKey::new(
-                format!(
-                    "lir_callable({},body#{index})",
-                    stable_instance_key.canonical_text()
-                ),
-                stable_instance_key.readable_path(),
-            );
-            let kind = match callable.call_abi_kind() {
-                CallableAbiKind::Plain => LirCallableKind::Plain,
-                CallableAbiKind::EffectStep => LirCallableKind::EffectStep,
-            };
-            (
-                key,
-                LirCallableSummary::new(callable.root_fqn(), kind, callable.has_control_body()),
-            )
-        })
-        .collect::<BTreeMap<_, _>>();
-    let facts = LirFacts::from_parts(summary, callables);
-    facts
-        .verify()
-        .expect("LIR stage must publish structurally valid LIR facts");
-    facts
 }
 
 fn render_stage_output(output: &LirStageOutput) -> String {
@@ -308,6 +277,7 @@ mod tests {
     use crate::opt::OptLevel;
     use crate::session::{Session, SessionOptions};
     use crate::source::SourceFile;
+    use scoopc_lir_facts::{LirCallSiteKind, LirCallableContract};
 
     fn session() -> Session {
         Session::with_options(SessionOptions::new()).unwrap()
@@ -414,6 +384,45 @@ fun leaf(): Unit / Ping {
             include_str!(
                 "../../../../tests/fixtures/effect_lowered/dynamic_fallback_widening.scoop"
             ),
+        )
+    }
+
+    fn dispatch_and_resume_fixture_source() -> SourceFile {
+        SourceFile::new_virtual(
+            "<mem>/dispatch_and_resume_call.scoop",
+            r#"
+package sample
+
+open class Base() {
+    open fun ping(): Int {
+        return 1
+    }
+}
+
+class Derived() : Base() {
+    override fun ping(): Int {
+        return 2
+    }
+}
+
+interface IFace {
+    fun foo(): Int
+}
+
+class Impl() : IFace {
+    fun foo(): Int {
+        return 3
+    }
+}
+
+fun callVirtual(b: Base): Int {
+    return b.ping()
+}
+
+fun callInterface(i: IFace): Int {
+    return i.foo()
+}
+"#,
         )
     }
 
@@ -613,6 +622,61 @@ fun leaf(): Unit / Ping {
                 "dynamic fallback dump 应直接暴露 authoritative per-op/per-schema contract: {needle}\n{dump}"
             );
         }
+    }
+
+    #[test]
+    fn effect_lowered_lir_facts_publish_dynamic_invoke_and_resume_contracts() {
+        let session = session();
+        let source = dynamic_fallback_fixture_source();
+        let output = super::run(stage_input_for_source(&session, &source)).unwrap();
+        let facts = output.lir_facts();
+
+        assert!(!facts.step_types.is_empty());
+        assert!(!facts.dynamic_invokes.is_empty());
+        assert!(!facts.resume_packings.is_empty());
+        assert!(!facts.continuation_objects.is_empty());
+        assert!(!facts.surface_resume_dispatches.is_empty());
+        let call_value = facts
+            .callables
+            .values()
+            .find(|callable| callable.root_fqn() == "sample.callValue")
+            .expect("callValue callable facts should be published");
+        let LirCallableContract::EffectStep(effect) = &call_value.contract else {
+            panic!("callValue should publish an effect-step ABI contract");
+        };
+        assert_eq!(effect.step_schema, effect.dynamic_invoke_entry.step_schema);
+        assert_eq!(effect.control_body.continuation_object.as_u32() as usize, 0);
+        assert!(facts.verify().is_ok());
+    }
+
+    #[test]
+    fn effect_lowered_lir_facts_publish_plain_dispatch_contracts() {
+        let session = session();
+        let source = dispatch_and_resume_fixture_source();
+        let output = super::run(stage_input_for_source(&session, &source)).unwrap();
+        let facts = output.lir_facts();
+
+        assert!(facts.dispatches.values().any(|dispatch| {
+            dispatch.kind == LirCallSiteKind::Virtual
+                && dispatch.owner_fqn == "sample.Base"
+                && dispatch.member_name == "ping"
+        }));
+        assert!(facts.dispatches.values().any(|dispatch| {
+            dispatch.kind == LirCallSiteKind::Interface
+                && dispatch.owner_fqn == "sample.IFace"
+                && dispatch.member_name == "foo"
+                && dispatch.interface_id.is_some()
+        }));
+        let call_virtual = facts
+            .callables
+            .values()
+            .find(|callable| callable.root_fqn() == "sample.callVirtual")
+            .expect("callVirtual callable facts should be published");
+        let LirCallableContract::Plain(plain) = &call_virtual.contract else {
+            panic!("callVirtual should publish a plain ABI contract");
+        };
+        assert!(plain.call_sites.iter().any(|site| site.dispatch.is_some()));
+        assert!(facts.verify().is_ok());
     }
 
     #[test]

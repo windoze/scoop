@@ -732,6 +732,7 @@ version = "0.1.0"
 dependencies = [
  "scoopc_ids",
  "scoopc_project_model",
+ "scoopc_types",
 ]
 
 [[package]]
