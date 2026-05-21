@@ -335,7 +335,7 @@
   - 验证命令：`cargo fmt`；`cargo test -p scoopc --no-default-features hir_stage`；`cargo test -p scoopc --no-default-features mir_stage`；`cargo test -p scoopc hir_stage`；`cargo test -p scoopc mir_stage`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/stage_handoff_generic_materialization.scoop`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`；`cargo test --all --all-targets --no-default-features --quiet`；`cargo clippy --all-targets -- -D warnings`；上述搜索命令。
   - 残余风险：LLVM backend 仍保留 HIR compatibility scaffold 读取 declaration/layout 等非 effect side table；这不再携带 MIR/pass artifacts，但 declaration/entity facts 迁移仍由 P2-T04 继续处理，source-site contract bridge 清理由 P2-T05 继续处理。
 
-## [TODO] P2-T03R：Review HIR/MIR 单向边界
+## [DONE] P2-T03R：Review HIR/MIR 单向边界
 
 - 参考：P2-T03。
 - 重点：
@@ -354,7 +354,13 @@
   - review 结论明确写出：`AST/HIR -> MIR` 单向边界在代码路径上成立，或列出阻塞项并在本 review 内修复。
 - 依赖：P2-T03
 - 完成记录：
-  - 待填写。
+  - 复查范围：已复查 `crates/scoopc/src/hir/lower/`、`crates/scoopc/src/hir/mod.rs`、`crates/scoopc/src/pipeline/hir_stage.rs`、`frontend.rs`、`pipeline/{mir_stage,effect_facts_stage,effect_lowering_stage,llvm_codegen_stage}.rs`、`llvm/{emit,frontend}.rs` 与 build/run production 入口。
+  - review 结论：`AST/HIR -> MIR` 单向边界在代码路径上成立。`LoweredHir` 和 `HirStageOutput` 不再携带 `MaterializedMir`、pass view 或 materialized accessor；HIR lowering 中未发现调用 MIR materializer 的路径。
+  - handoff 结论：production codegen 先由 frontend/project pipeline 生成分离的 `CodegenLoweringOutput = { lowered_hir, materialized_mir }`，LLVM stage 再把 `materialized_mir` 显式挂到 `MirStageOutput`，effect facts / late lowering / LLVM emit 均从 post-MIR stage handoff 读取 canonical pass view，而不是从 HIR bundle 回取。
+  - 搜索结论：`materialized_mir|materialized_pass_view|clone_hir_compat_scaffold_without_materialized_mir` 在 `crates/scoopc/src/hir` 中无命中；`materialized_mir|materialized_pass_view|MaterializedMir|MaterializedMirPassView` 在 `pipeline/hir_stage.rs` 中无命中；`lower_for_compilation_unit_multi_files_via_mir_instance_collection|MirInstanceCollectionOptions|into_materialized_mir` 在 `crates/scoopc/src` 中无命中；`materialize_compilation_unit_from_typechecked_inputs|materialize_for_dump|MaterializedMir|MaterializedMirPassView|pass_view\(` 在 `crates/scoopc/src/hir/lower` 中无命中。
+  - 注意项：`hir/lower/main/tests.rs` 仍有仅测试辅助函数名 `lower_typed_single_source_file_via_mir_instance_collection`，它通过 frontend 获取分离 handoff 后只返回 `lowered_hir`；该路径不是 HIR lowering API，也不把 MIR/pass artifact 挂回 HIR 输出。
+  - 验证命令：`cargo fmt`；`cargo test -p scoopc --no-default-features hir_stage`；`cargo test -p scoopc --no-default-features mir_stage`；`cargo test --all --all-targets --no-default-features`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`；`cargo run -p scoop -- test --fixtures tests/fixtures/build/emit_llvm_basic.scoop`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/stage_handoff_generic_materialization.scoop`；`cargo clippy --all-targets -- -D warnings`；上述边界搜索。
+  - 残余风险：P2-T04/P2-T05 仍需迁移 declaration/entity facts 与 source-site typed contracts；当前 review 未发现与 P2-T03R 相关的阻塞项。
 
 ## [TODO] P2-T04：迁移 declaration/entity facts 并收口 `ProgramFacts`
 

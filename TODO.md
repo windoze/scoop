@@ -59,7 +59,7 @@
 | P2-T02 | [DONE] | [`TODO-3.md`](./TODO-3.md#done-p2-t02固定-hirstageoutput--hir-hir_facts--输出形状) | 固定 `HirStageOutput = { hir, hir_facts }` 输出形状 |
 | P2-T02R | [DONE] | [`TODO-3.md`](./TODO-3.md#done-p2-t02rreview-hir-stage-output-形状) | Review HIR stage output 形状 |
 | P2-T03 | [DONE] | [`TODO-3.md`](./TODO-3.md#done-p2-t03移除-hir-反向携带-mir-materialization) | 移除 HIR 反向携带 MIR materialization |
-| P2-T03R | [TODO] | [`TODO-3.md`](./TODO-3.md#todo-p2-t03rreview-hirmir-单向边界) | Review HIR/MIR 单向边界 |
+| P2-T03R | [DONE] | [`TODO-3.md`](./TODO-3.md#done-p2-t03rreview-hirmir-单向边界) | Review HIR/MIR 单向边界 |
 | P2-T04 | [TODO] | [`TODO-3.md`](./TODO-3.md#todo-p2-t04迁移-declarationentity-facts-并收口-programfacts) | 迁移 declaration/entity facts 并收口 `ProgramFacts` |
 | P2-T04R | [TODO] | [`TODO-3.md`](./TODO-3.md#todo-p2-t04rreview-declarationentity-facts-迁移结果) | Review declaration/entity facts 迁移结果 |
 | P2-T05 | [TODO] | [`TODO-3.md`](./TODO-3.md#todo-p2-t05迁移-source-site-typed-contracts-并删除-fallback-双轨) | 迁移 source-site typed contracts 并删除 fallback 双轨 |
