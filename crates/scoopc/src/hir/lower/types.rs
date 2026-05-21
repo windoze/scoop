@@ -1,7 +1,8 @@
-//! HIR lowering 的共享类型与 side tables。
+//! HIR lowering 的共享类型与 HIR-owned compatibility side tables。
 //!
 //! 该模块只放“跨多处 lowering 逻辑共享”的定义（例如 `LoweredHir`、默认参数信息、delegated property 信息），
 //! 以便后续把 `expr/stmt/block/sugar` 等实现分拆到独立文件时，避免循环依赖与 `pub(crate)` 漫延。
+//! 跨阶段 semantic facts 的正式发布面是 `HirFacts`，不是这些 lowering side table。
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -306,18 +307,20 @@ impl From<ExprTypeError> for HirLowerError {
 /// 一次 lowering 的产物：HIR + 对应的 `TypeStore`。
 ///
 /// 说明：HIR 节点里的 `TypeId` 仅在同一个 `TypeStore` 里可解码/展示。
+/// 后续 stage 需要的源码语义事实由 `HirStageOutput::hir_facts()` 发布；这里保留的
+/// side table 只服务 HIR lowering、测试 scaffolding，以及尚待 P7 清理的 LLVM compatibility path。
 #[derive(Debug, Clone)]
 pub struct LoweredHir {
     pub file: File,
-    /// 当前 lowering 的 authoritative cone identity。
+    /// 当前 lowering 已解析的 cone identity。
     ///
     /// 用途：
     /// - 让后续 LLVM / RTTI / stable-id 迁移继续沿用 lowering 已解析好的 cone 语义身份；
     /// - 避免 backend 再从 source path 临时猜一个 cone key。
     pub stable_cone_key: StableConeKey,
-    /// Authoritative source path -> owning cone metadata handoff.
+    /// source path -> owning cone metadata 的 lowering 缓存；跨阶段正式查询使用 `HirFacts`。
     pub source_cones: HashMap<PathBuf, SourceConeInfo>,
-    /// 声明级 type/effect 参数到 stable owner/index key 的 authoritative 映射。
+    /// 声明级 type/effect 参数到 stable owner/index key 的 lowering 缓存。
     pub stable_type_param_keys: HashMap<TypeParamType, StableTypeParamKey>,
     /// member `fun` 与值类型 computed property getter 降为可 codegen 的“顶层函数形态”。
     ///

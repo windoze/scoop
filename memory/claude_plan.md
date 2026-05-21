@@ -1,33 +1,34 @@
-# 当前执行计划
+# Claude Execution Plan
 
-## 约束
+This file records the auditable execution plan and progress for the current invocation. It intentionally contains a concise rationale and step-by-step plan, not private chain-of-thought.
 
-- 以 `TODO.md` 为唯一任务顺序与完成状态来源。
-- 只处理第一个未在标题中标记 `[DONE]` 的任务，完成后停止。
-- 如遇到阻塞当前任务的规格不符、缺失功能或实现边界，先把最小必要前置任务写入 `TODO.md` 并提交，然后停止。
-- 不通过降低范围、改夹具形状、特殊绕过或临时兼容层来完成任务。
-- 仅在阶段级计划、依赖或完成标准变化时更新 `PLAN.md`。
+## Current Objective
 
-## 步骤
+Complete exactly the first incomplete task in `TODO.md`, then stop after verification, documentation updates, and a Git commit.
 
-1. 读取 `TODO.md`，按文件顺序定位第一个标题未带 `[DONE]` 的任务。
-2. 检查最近一次提交信息，判断是否明确提到与该任务直接相关的未完成问题。
-3. 阅读该任务的要求、依赖、验证条件与完成记录，确定需要修改的最小代码区域。
-4. 实施任务；若发现任务被具体前置问题阻塞，则更新 `TODO.md` 记录该前置任务并停止。
-5. 运行任务要求的验证命令；必要时补充相关定向测试，修复验证中暴露的当前任务范围内问题。
-6. 将任务标题加上 `[DONE]`，更新 `TODO.md` 的完成记录；只在确有阶段级变化时更新 `PLAN.md`。
-7. 检查工作区差异，确保未误改无关内容。
-8. 提交本次任务相关全部变更，提交信息使用任务编号和简洁描述。
-9. 完成后停止，不继续下一个任务。
+## Step-by-Step Plan
 
-## 进度
+1. Read `TODO.md` first and identify the first task whose title is not prefixed with `[DONE]`.
+2. Inspect the task body, dependencies, validation requirements, and completion-record expectations.
+3. Check the latest commit only for directly relevant unfinished issue references, without doing broad historical triage.
+4. Examine the smallest relevant code, fixture, and test areas needed for the selected task.
+5. Implement the selected task as specified, avoiding workarounds or weakened fixture shapes.
+6. If a concrete blocker or missing prerequisite prevents spec-correct implementation, update `TODO.md` with the minimum prerequisite task, update this plan, commit that bookkeeping, and stop.
+7. Run targeted validation first, then broader validation required by the task or affected code.
+8. Fix any task-relevant failures discovered during validation.
+9. Mark the completed task title in `TODO.md` with `[DONE]` and update its completion record.
+10. Update `PLAN.md` only if phase-level sequencing, dependencies, assumptions, or completion criteria changed.
+11. Review the final diff and Git status, then commit all intended changes with a task-specific message.
+12. Stop without starting the next task.
 
-- 已创建本计划文件，下一步读取 `TODO.md` 定位当前任务。
-- 已定位第一个未完成任务：`P2-T06R`，即 review `P2-T06` 的 HIR semantic barrier 与错误边界。
-- 最近提交为 `[P2-T06] Tighten HIR barrier legality gates`，与本 review 直接相关；当前不需要插入额外前置任务。
-- 下一步复查最近提交改动、相关 typecheck/pipeline/facts 代码和 fixture 覆盖，再运行 P2-T06R 要求的验证命令。
-- 已复查主要改动面：`typecheck/annotations.rs` 的既有前端 gate、`hir_facts` verifier、`hir_preflight`、`hir_stage` facts 发布测试、failure policy 和新增/既有 fixtures。
-- 暂未发现需要先插入前置任务的阻塞项；进入验证阶段。
-- 已完成验证：P2-T06R 要求的单元测试、typecheck/HIR fixture、三项定向抽查、clippy 和 `git diff --check` 均通过。
-- 已将 `P2-T06R` 在 `TODO.md` 与 `TODO-3.md` 标记为 `[DONE]`，并填写 review 完成记录。
-- 下一步检查最终 diff/status 后提交本次任务变更。
+## Progress Log
+
+- Initial plan recorded before reading task details or running commands.
+- Read `TODO.md`; first incomplete task is `P2-T07` in `TODO-3.md`.
+- Read `TODO-3.md`; `P2-T07` requires P2 cleanup, documentation sync, dependency audit, full validation, and TODO completion updates. Latest commit is `P2-T06R` and does not introduce a directly relevant unfinished prerequisite.
+- Completed initial cleanup audit: old `TypedHirEffectContracts` / `ProgramFacts` / `FallbackSideTables` names are absent from production Rust code; remaining `materialized_mir` / `materialized_pass_view` hits belong to MIR/P4+ handoff paths or tests, not HIR output APIs. Began documentation/comment cleanup for P2 closeout and P3 entry wording.
+- Updated P2 closeout documentation in `README.md`, `PIPELINE_REFACTOR.md`, `PIPELINE-CLEANUP.md`, `PLAN.md`, `TODO-4.md`, and comments in the HIR/HIR-facts code so current docs no longer describe deleted HIR typed/fallback bridges as active P3 input.
+- Full fixture validation exposed a task-blocking materialized MIR failure for array literal synthetic `mutableArrayNew<T>` calls. Fixed HIR lowering side-table publication so synthetic array helper calls (`mutableArrayNew`, `push`, `freeze`) carry inferred type arguments into HIR facts / materialization bindings; targeted array fixtures now pass.
+- Fixed two additional validation blockers found by the full suite: de-duplicated enum variant / layout facts in `HirFacts`, and made materialization drop no-op value-erasure transports after generic substitution. Updated affected HIR/MIR goldens.
+- Final validation passed: `cargo fmt`, `cargo test -p scoopc_hir_facts`, `cargo test --all --all-targets --no-default-features`, `cargo run -p scoop -- test`, `cargo run -p scoop_tools -- spec-fixtures check`, `cargo run -p scoop_tools -- dependency-gate`, `cargo clippy --all-targets -- -D warnings`, `cargo tree -p scoopc_hir_facts`, `git diff --check`, and P2 cleanup keyword searches.
+- Marked `P2-T07` as `[DONE]` in `TODO.md` and `TODO-3.md`; completion record now documents cleanup scope, validation, search classification, dependency audit, and residual P3+ risks.

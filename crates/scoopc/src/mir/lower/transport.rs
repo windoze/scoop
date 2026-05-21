@@ -94,7 +94,7 @@ pub(crate) fn mir_transport_requirements(
     }
 }
 
-pub(in crate::mir::lower) fn erasure_boxing_reason(
+pub(in crate::mir) fn erasure_boxing_reason(
     builtins: BuiltinTypes,
     types: &TypeStore,
     source_ty: TypeId,

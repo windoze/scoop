@@ -1297,7 +1297,7 @@ AST stage 应发布：
 1. 解析完成的 AST compilation unit。
 2. 每个 AST 文件的稳定 source identity、文件顺序和 compilation-unit membership。
 
-这里的重点是“compilation unit”，而不是单文件 worker 包装。P1 已保留 `AstStageOutput` 作为 dump/helper worker，并新增 `AstCompilationUnitOutput` 作为 cone-level AST handoff；后续 P2 应在这个 handoff 上建立 HIR barrier 与 facts。
+这里的重点是“compilation unit”，而不是单文件 worker 包装。P1 已保留 `AstStageOutput` 作为 dump/helper worker，并新增 `AstCompilationUnitOutput` 作为 cone-level AST handoff；P2 已在后续 HIR stage handoff 中固定 `HirStageOutput = { hir, hir_facts }`。
 
 #### 应发布的 facts
 
@@ -1315,12 +1315,12 @@ AST stage 原则上不需要复杂的全局 semantic facts。
 2. 不依赖 name resolution 后的信息。
 3. 只描述 parser 能确定的 header surface。
 
-#### P1 后仍需补齐什么
+#### P1/P2 后仍需补齐什么
 
 当前最明显的问题是：
 
 1. `AstCompilationUnitOutput` 已能表达 cone-level AST handoff，但它还没有发布独立 parser-owned facts。
-2. production frontend 仍让 resolver/typecheck/HIR 过渡路径消费 build closure；P2 需要把 `AST -> HIR` 收口成正式 cone-level semantic barrier。
+2. production frontend 仍让 resolver/typecheck/HIR 过渡路径消费 build closure；P2 已收口 HIR barrier 与 `hir_facts`，后续若要完全物理拆分 cone-level orchestration，需要在后续阶段单独处理。
 
 ### HIR stage
 
@@ -1372,38 +1372,20 @@ HIR stage 应发布两类且互不重叠的 facts。
 
 如果下游分析仍需要 HIR 级共享事实，那它也应该由 HIR stage 正式发布一套不与上面重复的 `hir_facts`，而不是由更后面的阶段从 `LoweredHir` 现场再组装一次。
 
-#### 当前完整输出还缺什么
+#### P2 收口结果
 
-当前 HIR stage 最缺的是统一、非重叠的 facts 输出面。
+当前 HIR stage 已经发布独立 `scoopc_hir_facts::HirFacts`，公开 handoff 形状为
+`HirStageOutput = { hir, hir_facts }`。
 
-现在的事实被拆散在：
+P2 已完成以下收口：
 
-1. `LoweredHir` side table
-2. `TypedHirEffectContracts`
-3. 后续重建的 `ProgramFacts`
+1. `LoweredHir` 不再携带 canonical MIR snapshot / pass view。
+2. `TypedHirEffectContracts` 与 `ProgramFacts` 已从生产代码删除，不再作为并行 fact owner。
+3. declaration/entity/global/native facts 与 source-site typed contracts 都由 `HirFacts` 发布和校验。
+4. `MirLoweringFacts` 从 `HirFacts` 派生输入，不再保留 typed/fallback 双轨。
+5. `@CallingConvention` non-generic、global roots monomorphic、top-level `var` storage policy gate 已固定在 HIR/typecheck 屏障内。
 
-这意味着同一类职责被多处重复发布和复制，后续阶段自然会混用。
-
-具体证据：
-
-1. `crates/scoopc/src/hir/lower/types.rs:360-409`
-2. `crates/scoopc/src/pipeline/hir_stage.rs:1233-1255,1301-1313`
-3. `crates/scoopc/src/program_facts.rs:18-31,39-147`
-
-另外，当前 `LoweredHir` 已经开始显式发布一部分本应进入稳定 HIR handoff 的全局上下文，例如：
-
-1. `source_cones`
-2. `native_callable_funs`
-
-见 `crates/scoopc/src/hir/lower/types.rs:322-350`。
-
-这说明当前代码已经在向“HIR 必须发布更完整的 cone/decl/global metadata”这个方向移动，但它们还没有被系统化收口成独立 `hir_facts`。
-
-另外，`TypedHirStageOutput` 仍以单个 `source_path` 为锚，而不是显式的 compilation-unit context。
-见 `crates/scoopc/src/pipeline/hir_stage.rs:1234-1238,1273-1275`。
-
-最后，HIR stage 输出不应再携带 MIR 产物；当前 `LoweredHir` 仍挂着 `materialized_mir`。
-见 `crates/scoopc/src/hir/lower/types.rs:329-337,421-467`。
+仍暂留的 `LoweredHir` side table 属于 HIR body inventory、type context、lowering helper 或 LLVM compatibility scaffold；它们不能被当作跨阶段 authoritative semantic facts。P7 backend cleanup 前，LLVM 仍可读取这类 scaffold，但共享源码语义查询必须走 `HirFacts`。
 
 ### MIR stage
 
@@ -1436,19 +1418,13 @@ MIR stage 应发布 MIR-owned facts，而不是继续转发 HIR typed contracts�
 
 #### 当前完整输出还缺什么
 
-当前 MIR stage 最缺的是单一 authoritative MIR handoff。
+P3 的入口已经不再有 HIR typed-contract 泄漏；`MirStageOutput` 当前主要混合的是：
 
-现在的 `MirStageOutput` 仍混有：
+1. direct-style `LoweredMir`
+2. MIR-owned root indices / callable body inventory
+3. optional canonical `MaterializedMir`
 
-1. `LoweredMir`
-2. `Option<MaterializedMir>`
-3. `TypedHirEffectContracts`
-
-见 `crates/scoopc/src/pipeline/mir_stage.rs:13-27,29-37,68-84`。
-
-这意味着 MIR stage 输出还不是“只发布 MIR 和 MIR facts”，而是在继续把 HIR facts 带给后面。
-
-此外，当前还缺少正式的 stage-owned `materialized_pass_view()` / snapshot-binding facts crate；下游仍需要从 `MaterializedMir` 或更后阶段包装里回拿。
+这仍不是最终的 `MirStageOutput = { mir, mir_facts }`。P3 需要把 root inventories、snapshot binding、pass artifacts 和 instance-family 查询面收口成 MIR-owned facts，并让后续阶段只消费 MIR stage 的窄 handoff，而不是继续从 `MaterializedMir` 或更后阶段包装里回拿 `materialized_pass_view()`。
 
 还有一类问题是：有些 MIR-derived facts 仍未作为 MIR stage 输出发布，而是在 LIR stage 里重算。
 见 `crates/scoopc/src/pipeline/effect_lowering_stage.rs:85-97,119-131`。
@@ -1579,17 +1555,18 @@ LIR facts 至少应包含：
 
 ### 第二阶段：让现有输出停止跨阶段嵌套
 
-1. `LoweredHir` 去掉 `materialized_mir`。
-2. `MirStageOutput` 去掉 `TypedHirEffectContracts`。
-3. `EffectFactsStageOutput` 去掉对整份 `MirStageOutput` 的长期嵌套。
-4. `EffectLoweredStageOutput` 去掉对整份 `EffectFactsStageOutput` 的长期嵌套。
+1. `LoweredHir` 去掉 `materialized_mir`。（P2 已完成）
+2. `MirStageOutput` 不再泄漏 HIR source-site contracts。（P2 已完成）
+3. `MirStageOutput` 继续收口为 `{ mir, mir_facts }`，把 optional materialized snapshot / pass artifacts 变成 MIR-owned handoff。
+4. `EffectFactsStageOutput` 去掉对整份 `MirStageOutput` 的长期嵌套。
+5. `EffectLoweredStageOutput` 去掉对整份 `EffectFactsStageOutput` 的长期嵌套。
 
 这一步的目标是先让 stage output 长成正确的“外形”。即使内部还有旧实现，也不能继续把上一阶段整包暴露给下游。
 
 ### 第三阶段：收口 facts 的 owner
 
-1. 把当前重叠在 `LoweredHir` / `TypedHirEffectContracts` / `ProgramFacts` 中的事实重新分配 owner。
-2. 把当前 `MirLoweringFacts` 里的 typed/fallback 双轨合同合并成单一 authoritative 输入。
+1. HIR declaration/source-site facts 已重新分配到 `HirFacts`。（P2 已完成）
+2. `MirLoweringFacts` 的 source-site input 已合并成从 `HirFacts` 派生的单一路径。（P2 已完成）
 3. 把当前在 LIR stage 里重算的 MIR-derived global facts 挪回 MIR stage 或其 fact crate。
 
 这一步的目标是让“每一类事实只在一个地方定义和验证”。
@@ -1623,8 +1600,8 @@ LIR facts 至少应包含：
 
 ## 当前状态总结
 
-当前实现离这个目标还有明显距离，但方向已经可以确定：
+当前实现离最终目标还有明显距离，但 P2 已经完成 HIR barrier 与 `hir_facts` 收口，接下来重点转入 P3：
 
 1. `effect_lowered` 继续被视为正式 LIR。
-2. 接下来优先做的不是 LLVM 文件切分，而是阶段输出、fact owner 和 crate DAG 的收口。
-3. 只要 stage output 还在嵌套上游整包、fact table 还在重叠发布、后端还在回看 HIR/MIR，这轮重构就还没有到可以稳定扩展 backend 的程度。
+2. P3 优先收口 MIR stage output、`mir_facts` 与 MIR pass pipeline，而不是提前做 LLVM 文件切分。
+3. 只要 stage output 还在嵌套上游整包、MIR/effect/LIR facts owner 还未收口、后端还在回看 HIR/MIR，这轮重构就还没有到可以稳定扩展 backend 的程度。

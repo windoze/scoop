@@ -604,7 +604,7 @@
   - 验证命令：`cargo fmt`；`cargo test -p scoopc_hir_facts`；`cargo test -p scoopc --no-default-features hir_preflight`；`cargo test -p scoopc --no-default-features pipeline_user_visible_failure_policy`；`cargo test -p scoopc --no-default-features typecheck`；`cargo test -p scoopc --no-default-features hir_stage`；`cargo run -p scoop -- test --fixtures tests/fixtures/typecheck`；`cargo run -p scoop -- test --fixtures tests/fixtures/hir`；`cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/calling_convention_body_generic_is_error.scoop`；`cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/top_level_var_requires_threadlocal_or_global_is_error.scoop`；`cargo run -p scoop -- test --fixtures tests/fixtures/hir/lowered_top_level_init.scoop`；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
   - 残余风险：当前 review 范围不包含 P2 全包旧名称/重复 facts 清场；该工作仍由后续 `P2-T07` 处理。
 
-## [TODO] P2-T07：P2 全包清场、文档同步与依赖审计
+## [DONE] P2-T07：P2 全包清场、文档同步与依赖审计
 
 - 参考：
   - P2-T01 到 P2-T06R 的完成记录
@@ -639,7 +639,13 @@
   - P3 可以直接在 `HIR + hir_facts` 输入上收口 MIR boundary。
 - 依赖：P2-T06R
 - 完成记录：
-  - 待填写。
+  - 改动范围：同步 `README.md`、`PIPELINE_REFACTOR.md`、`PIPELINE-CLEANUP.md`、`PLAN.md` 的当前阶段描述和 `TODO-4.md` 的 P3 入口范围；收紧 `LoweredHir` / `HirStageOutput` / `scoopc_hir_facts` 注释，明确 `HirFacts` 是 HIR semantic facts 的正式发布面，`LoweredHir` 仅保留 HIR body inventory、type context、lowering helper 和 P7 前 LLVM compatibility scaffold。
+  - 清场修复：全量 fixture 验证暴露了三个阻塞当前 P2 清场验收的真实问题，已一并修复：数组字面量合成的 `mutableArrayNew` / `push` / `freeze` call-site binding 现在发布推导出的 type args；`HirFacts` declaration/layout 事实构建会去重 enum variant / field facts，避免 `LoweredHir` decl 与 layout side table 重复发布同一 fact identity；materialized MIR generic substitution 后会重新校验 value-erasure boxing intent，并把不再需要 boxing 的 `Transport` rvalue 收缩为普通 `Use`。
+  - P3 入口结论：`MirStageOutput` / MIR lowering 入口只从 `HirStageOutput` 读取 HIR 本体与 `hir_facts()`；`MirLoweringFacts::from_hir_facts(...)` 是 source-site contract input 的单一路径。`TODO-4.md` 已改为从 optional `MaterializedMir`、root inventories、snapshot binding 与 pass artifacts 收口开始，不再把旧 HIR typed contract 泄漏列为 P3 当前输入。
+  - 依赖审计：`scoopc_hir_facts` 的直接 workspace 依赖仍仅为 `scoopc_ids`、`scoopc_project_model`、`scoopc_source`、`scoopc_span`、`scoopc_types`；`scoop_tools dependency-gate` 与 `cargo tree -p scoopc_hir_facts` 均确认未依赖 `scoopc` facade、stage/backend crate 或其它 fact crate。
+  - 搜索结论：`TypedHirEffectContracts|ProgramFacts|FallbackSideTables|typed_contract_bridge|contract_bridge|SourceSiteMigrationFacts|source_site_migration_facts|MirSiteContractSource|MirLoweringFacts::from_lowered_hir|build_hir_facts_for_migration|build_hir_declaration_facts_for_migration|lower_handle_contract_from_hir|lower_malformed_resume_call|fallback_perform|fallback_resume` 在 `crates/**/*.rs` 中无命中；`materialized_mir|materialized_pass_view|MaterializedMir|MaterializedMirPassView|pass_view\(` 在 `crates/scoopc/src/hir/**/*.rs` 中无命中。当前 markdown 命中均为历史任务记录、P2 已解决说明或 P3+ MIR/effect/LIR/codegen handoff 描述；tests 中旧 typed/fallback/bridge 关键词无命中。
+  - 验证命令：`cargo fmt`；`cargo test -p scoopc_hir_facts`；`cargo test --all --all-targets --no-default-features`；`cargo run -p scoop -- test`；`cargo run -p scoop_tools -- spec-fixtures check`；`cargo run -p scoop_tools -- dependency-gate`；`cargo clippy --all-targets -- -D warnings`；`cargo tree -p scoopc_hir_facts`；`git diff --check`；上述 P2 清场关键词搜索。完整 fixture suite 最终结果为 `fixtures: ok (1528)`。
+  - 残余风险：LLVM backend 仍通过 `LoweredHir` compatibility scaffold 读取部分 layout/body/codegen 输入，但它不再是跨阶段 source semantic fact owner；`MirStageOutput` 的 optional materialized snapshot/pass artifacts、effect facts/LIR output 嵌套和 backend HIR/MIR 回看继续由 P3-P7 处理。`docs/archive/**` 中保留历史设计/计划旧名称，不作为当前实现边界。
 
 ## [TODO] P2-T07R：Review P2 全包完成度
 

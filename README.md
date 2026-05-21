@@ -9,8 +9,8 @@ Scoop 是一个 Kotlin 风格的静态类型语言，目标是：
 - LLVM 后端（Rust `inkwell`），自带运行时与 GC（长期 C runtime/GC；平台差异隔离在 `runtime/c`）
 
 语言规范见 `SCOOP_FULL_SPEC.md`，实现路线图见 `PLAN.md`。
-当前 pipeline refactor 的 P0 阶段已移除旧编译期执行 surface；P1 阶段已建立基础 crate 层与 cone-level compilation unit facade。反射能力保留为 sysroot `@Intrinsic` 声明。
-P2 阶段开始建立独立 `scoopc_hir_facts` 数据产品，用于承载 HIR semantic barrier 后发布给 MIR/effect/LIR/backend 的源码语义事实。
+当前 pipeline refactor 的 P0 阶段已移除旧编译期执行 surface，P1 阶段已建立基础 crate 层与 cone-level compilation unit facade，P2 阶段已把 `AST -> HIR` 收口为发布 `HirStageOutput = { hir, hir_facts }` 的 semantic barrier。反射能力保留为 sysroot `@Intrinsic` 声明。
+独立 `scoopc_hir_facts` 数据产品现在承载 HIR barrier 后发布给 MIR/effect/LIR/backend 的源码语义事实；P3 将在此输入上继续收口 MIR stage output 与 MIR pass pipeline。
 Kotlin runtime / Scoop core runtime gap 的能力矩阵审计见 `KOTLIN_RUNTIME_GAP_AUDIT.md`（T1314）。
 标准库（std）分层与 capability matrix 设计见 `STDLIB_DESIGN.md`（T1316）。
 effect lowering 的统一状态机设计基线见 `docs/effect_unified_state_machine.md`（T2003u1）。

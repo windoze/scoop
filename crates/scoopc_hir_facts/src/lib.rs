@@ -33,7 +33,7 @@ pub struct HirFacts {
 }
 
 impl HirFacts {
-    /// Create an empty fact product for incremental migration and tests.
+    /// Create an empty fact product for tests and staged construction.
     pub fn new() -> Self {
         Self::default()
     }

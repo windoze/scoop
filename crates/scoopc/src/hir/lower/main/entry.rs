@@ -287,6 +287,7 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
     let mut top_level_fun_call_sites = collect_top_level_fun_call_sites(&[(source, &ast)]);
     top_level_fun_call_sites.extend(collect_synthetic_named_intrinsic_call_sites_for_file(
         &index,
+        &types,
         &file,
         &member_funs,
     ));

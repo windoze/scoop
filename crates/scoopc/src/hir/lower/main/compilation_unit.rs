@@ -213,6 +213,7 @@ pub fn lower_for_compilation_unit_with_stable_cone_key(
     let mut top_level_fun_call_sites = collect_top_level_fun_call_sites(&[(source, file)]);
     top_level_fun_call_sites.extend(collect_synthetic_named_intrinsic_call_sites_for_file(
         index,
+        &types,
         &file_hir,
         &member_funs,
     ));
@@ -888,6 +889,7 @@ pub(crate) fn lower_for_compilation_unit_multi_files_internal<'a>(
     let file_hir = File { decls, items };
     top_level_fun_call_sites.extend(collect_synthetic_named_intrinsic_call_sites_for_file(
         index,
+        &types,
         &file_hir,
         &member_funs,
     ));

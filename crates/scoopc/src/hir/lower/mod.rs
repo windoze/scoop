@@ -68,6 +68,7 @@ fn collect_top_level_fun_call_sites(
 
 fn collect_synthetic_named_intrinsic_call_sites(
     index: &Index,
+    types: &TypeStore,
     funs: &[FunDecl],
 ) -> crate::hir::TopLevelFunCallSiteIndex {
     let mut sites = HashMap::new();
@@ -75,6 +76,7 @@ fn collect_synthetic_named_intrinsic_call_sites(
         if let Some(body) = &fun.body {
             collect_synthetic_named_intrinsic_call_sites_in_block(
                 index,
+                types,
                 &fun.source_path,
                 body,
                 &mut sites,
@@ -86,6 +88,7 @@ fn collect_synthetic_named_intrinsic_call_sites(
 
 fn collect_synthetic_named_intrinsic_call_sites_for_file(
     index: &Index,
+    types: &TypeStore,
     file: &File,
     member_funs: &[FunDecl],
 ) -> crate::hir::TopLevelFunCallSiteIndex {
@@ -98,11 +101,12 @@ fn collect_synthetic_named_intrinsic_call_sites_for_file(
         })
         .collect::<Vec<_>>();
     funs.extend(member_funs.iter().cloned());
-    collect_synthetic_named_intrinsic_call_sites(index, &funs)
+    collect_synthetic_named_intrinsic_call_sites(index, types, &funs)
 }
 
 fn collect_synthetic_named_intrinsic_call_sites_in_block(
     index: &Index,
+    types: &TypeStore,
     source_path: &std::path::Path,
     block: &Block,
     sites: &mut crate::hir::TopLevelFunCallSiteIndex,
@@ -111,6 +115,7 @@ fn collect_synthetic_named_intrinsic_call_sites_in_block(
         match &stmt.kind {
             StmtKind::Expr(expr) => collect_synthetic_named_intrinsic_call_sites_in_expr(
                 index,
+                types,
                 source_path,
                 expr,
                 sites,
@@ -119,6 +124,7 @@ fn collect_synthetic_named_intrinsic_call_sites_in_block(
                 if let Some(init) = &val.init {
                     collect_synthetic_named_intrinsic_call_sites_in_expr(
                         index,
+                        types,
                         source_path,
                         init,
                         sites,
@@ -129,6 +135,7 @@ fn collect_synthetic_named_intrinsic_call_sites_in_block(
                 if let Some(value) = value {
                     collect_synthetic_named_intrinsic_call_sites_in_expr(
                         index,
+                        types,
                         source_path,
                         value,
                         sites,
@@ -138,12 +145,14 @@ fn collect_synthetic_named_intrinsic_call_sites_in_block(
             StmtKind::Assign { lhs, rhs, .. } => {
                 collect_synthetic_named_intrinsic_call_sites_in_expr(
                     index,
+                    types,
                     source_path,
                     lhs,
                     sites,
                 );
                 collect_synthetic_named_intrinsic_call_sites_in_expr(
                     index,
+                    types,
                     source_path,
                     rhs,
                     sites,
@@ -152,12 +161,14 @@ fn collect_synthetic_named_intrinsic_call_sites_in_block(
             StmtKind::While { cond, body } => {
                 collect_synthetic_named_intrinsic_call_sites_in_expr(
                     index,
+                    types,
                     source_path,
                     cond,
                     sites,
                 );
                 collect_synthetic_named_intrinsic_call_sites_in_block(
                     index,
+                    types,
                     source_path,
                     body,
                     sites,
@@ -173,23 +184,33 @@ fn collect_synthetic_named_intrinsic_call_sites_in_block(
 
 fn collect_synthetic_named_intrinsic_call_sites_in_expr(
     index: &Index,
+    types: &TypeStore,
     source_path: &std::path::Path,
     expr: &Expr,
     sites: &mut crate::hir::TopLevelFunCallSiteIndex,
 ) {
     match &expr.kind {
         ExprKind::Call { callee, args } => {
-            if let Some(binding) = named_intrinsic_binding_for_callee(index, callee) {
+            if let Some(binding) = named_intrinsic_binding_for_callee(index, callee).or_else(|| {
+                synthetic_array_helper_binding_for_call(index, types, expr, callee, args)
+            }) {
                 sites
                     .entry(CallSite::new(source_path.to_path_buf(), expr.span))
                     .or_insert(binding);
             }
-            collect_synthetic_named_intrinsic_call_sites_in_expr(index, source_path, callee, sites);
+            collect_synthetic_named_intrinsic_call_sites_in_expr(
+                index,
+                types,
+                source_path,
+                callee,
+                sites,
+            );
             for arg in args {
                 match arg {
                     CallArg::Positional(value) | CallArg::Named { value, .. } => {
                         collect_synthetic_named_intrinsic_call_sites_in_expr(
                             index,
+                            types,
                             source_path,
                             value,
                             sites,
@@ -204,26 +225,50 @@ fn collect_synthetic_named_intrinsic_call_sites_in_expr(
         | ExprKind::Cast { expr: receiver, .. } => {
             collect_synthetic_named_intrinsic_call_sites_in_expr(
                 index,
+                types,
                 source_path,
                 receiver,
                 sites,
             );
         }
         ExprKind::Binary { lhs, rhs, .. } => {
-            collect_synthetic_named_intrinsic_call_sites_in_expr(index, source_path, lhs, sites);
-            collect_synthetic_named_intrinsic_call_sites_in_expr(index, source_path, rhs, sites);
+            collect_synthetic_named_intrinsic_call_sites_in_expr(
+                index,
+                types,
+                source_path,
+                lhs,
+                sites,
+            );
+            collect_synthetic_named_intrinsic_call_sites_in_expr(
+                index,
+                types,
+                source_path,
+                rhs,
+                sites,
+            );
         }
-        ExprKind::Block(block) => {
-            collect_synthetic_named_intrinsic_call_sites_in_block(index, source_path, block, sites)
-        }
+        ExprKind::Block(block) => collect_synthetic_named_intrinsic_call_sites_in_block(
+            index,
+            types,
+            source_path,
+            block,
+            sites,
+        ),
         ExprKind::If {
             cond,
             then_branch,
             else_branch,
         } => {
-            collect_synthetic_named_intrinsic_call_sites_in_expr(index, source_path, cond, sites);
             collect_synthetic_named_intrinsic_call_sites_in_expr(
                 index,
+                types,
+                source_path,
+                cond,
+                sites,
+            );
+            collect_synthetic_named_intrinsic_call_sites_in_expr(
+                index,
+                types,
                 source_path,
                 then_branch,
                 sites,
@@ -231,6 +276,7 @@ fn collect_synthetic_named_intrinsic_call_sites_in_expr(
             if let Some(else_branch) = else_branch {
                 collect_synthetic_named_intrinsic_call_sites_in_expr(
                     index,
+                    types,
                     source_path,
                     else_branch,
                     sites,
@@ -240,6 +286,7 @@ fn collect_synthetic_named_intrinsic_call_sites_in_expr(
         ExprKind::When { subject, arms } => {
             collect_synthetic_named_intrinsic_call_sites_in_expr(
                 index,
+                types,
                 source_path,
                 subject,
                 sites,
@@ -248,6 +295,7 @@ fn collect_synthetic_named_intrinsic_call_sites_in_expr(
                 if let Some(guard) = &arm.guard {
                     collect_synthetic_named_intrinsic_call_sites_in_expr(
                         index,
+                        types,
                         source_path,
                         guard,
                         sites,
@@ -255,6 +303,7 @@ fn collect_synthetic_named_intrinsic_call_sites_in_expr(
                 }
                 collect_synthetic_named_intrinsic_call_sites_in_expr(
                     index,
+                    types,
                     source_path,
                     &arm.body,
                     sites,
@@ -265,6 +314,7 @@ fn collect_synthetic_named_intrinsic_call_sites_in_expr(
             for field in fields {
                 collect_synthetic_named_intrinsic_call_sites_in_expr(
                     index,
+                    types,
                     source_path,
                     &field.value,
                     sites,
@@ -275,6 +325,7 @@ fn collect_synthetic_named_intrinsic_call_sites_in_expr(
             for element in elements {
                 collect_synthetic_named_intrinsic_call_sites_in_expr(
                     index,
+                    types,
                     source_path,
                     element,
                     sites,
@@ -283,6 +334,7 @@ fn collect_synthetic_named_intrinsic_call_sites_in_expr(
         }
         ExprKind::Closure(closure) => collect_synthetic_named_intrinsic_call_sites_in_expr(
             index,
+            types,
             source_path,
             &closure.body,
             sites,
@@ -290,6 +342,7 @@ fn collect_synthetic_named_intrinsic_call_sites_in_expr(
         ExprKind::Handle(handle) => {
             collect_synthetic_named_intrinsic_call_sites_in_block(
                 index,
+                types,
                 source_path,
                 &handle.body,
                 sites,
@@ -297,6 +350,7 @@ fn collect_synthetic_named_intrinsic_call_sites_in_expr(
             for arm in &handle.arms {
                 collect_synthetic_named_intrinsic_call_sites_in_expr(
                     index,
+                    types,
                     source_path,
                     &arm.body,
                     sites,
@@ -305,6 +359,7 @@ fn collect_synthetic_named_intrinsic_call_sites_in_expr(
             if let Some(finally) = &handle.finally {
                 collect_synthetic_named_intrinsic_call_sites_in_block(
                     index,
+                    types,
                     source_path,
                     finally,
                     sites,
@@ -317,6 +372,7 @@ fn collect_synthetic_named_intrinsic_call_sites_in_expr(
                     CallArg::Positional(value) | CallArg::Named { value, .. } => {
                         collect_synthetic_named_intrinsic_call_sites_in_expr(
                             index,
+                            types,
                             source_path,
                             value,
                             sites,
@@ -330,6 +386,7 @@ fn collect_synthetic_named_intrinsic_call_sites_in_expr(
                 if let super::InterpolatedStringPart::Expr { expr } = part {
                     collect_synthetic_named_intrinsic_call_sites_in_expr(
                         index,
+                        types,
                         source_path,
                         expr,
                         sites,
@@ -371,6 +428,79 @@ fn named_intrinsic_binding_for_callee(
         type_args: Vec::new(),
         eff_args: Vec::new(),
     })
+}
+
+fn synthetic_array_helper_binding_for_call(
+    index: &Index,
+    types: &TypeStore,
+    expr: &Expr,
+    callee: &Expr,
+    args: &[CallArg],
+) -> Option<ast::TopLevelFunCallBinding> {
+    let ExprKind::VarRef(ValueRef::TopLevel { fqn, .. }) = &callee.kind else {
+        return None;
+    };
+    let type_args = synthetic_array_helper_type_args(types, fqn, expr.ty, args)?;
+    if type_args.is_empty() {
+        return None;
+    }
+    let overload = index
+        .by_fqn
+        .get(fqn)?
+        .fun
+        .iter()
+        .find(|overload| !overload.sig.type_params.is_empty())?;
+
+    Some(ast::TopLevelFunCallBinding {
+        fqn: fqn.clone(),
+        decl_file: overload.symbol.decl_file.clone(),
+        decl_span: overload.symbol.span,
+        is_intrinsic: false,
+        intrinsic_entry_name: None,
+        type_args,
+        eff_args: Vec::new(),
+    })
+}
+
+fn synthetic_array_helper_type_args(
+    types: &TypeStore,
+    fqn: &str,
+    result_ty: TypeId,
+    args: &[CallArg],
+) -> Option<Vec<TypeId>> {
+    let ty = match fqn {
+        "scoop.core.mutableArrayNew" => {
+            nominal_type_arg(types, result_ty, "scoop.core.MutableArray")
+        }
+        "scoop.core.freeze" => args
+            .first()
+            .and_then(|arg| nominal_type_arg(types, call_arg_ty(arg), "scoop.core.MutableArray"))
+            .or_else(|| nominal_type_arg(types, result_ty, "scoop.core.Array")),
+        "scoop.core.push" => args
+            .first()
+            .and_then(|arg| nominal_type_arg(types, call_arg_ty(arg), "scoop.core.MutableArray"))
+            .or_else(|| args.get(1).map(call_arg_ty)),
+        _ => None,
+    }?;
+    Some(vec![ty])
+}
+
+fn call_arg_ty(arg: &CallArg) -> TypeId {
+    match arg {
+        CallArg::Positional(expr) | CallArg::Named { value: expr, .. } => expr.ty,
+    }
+}
+
+fn nominal_type_arg(types: &TypeStore, ty: TypeId, expected_fqn: &str) -> Option<TypeId> {
+    match types.kind(ty) {
+        TypeKind::Ref(RefTypeKind::Nominal(nominal))
+        | TypeKind::Value(ValueTypeKind::Nominal(nominal))
+            if nominal.fqn == expected_fqn && nominal.args.len() == 1 =>
+        {
+            nominal.args.first().copied()
+        }
+        _ => None,
+    }
 }
 
 fn collect_top_level_fun_call_sites_with_type_remap(

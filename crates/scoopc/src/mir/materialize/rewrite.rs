@@ -803,9 +803,15 @@ impl MirInstanceMaterializer {
     ) -> MaterializeResult<()> {
         match value {
             Rvalue::Use(operand) => *operand = self.rewrite_operand(operand.clone()),
-            Rvalue::Transport { value, transport } => {
-                *value = self.rewrite_operand(value.clone());
+            Rvalue::Transport {
+                value: operand,
+                transport,
+            } => {
+                *operand = self.rewrite_operand(operand.clone());
                 self.rewrite_value_transport(transport, ctx.substitution);
+                if transport.boxing.is_none() {
+                    *value = Rvalue::Use(operand.clone());
+                }
             }
             Rvalue::TopLevelRef(top) => {
                 if let Some(rewritten) = rewrite_family_symbol_name(
@@ -1857,6 +1863,24 @@ impl MirInstanceMaterializer {
             boxing.target_ty = boxing
                 .target_ty
                 .map(|ty| substitute_type_and_effect_params(&mut self.types, ty, substitution));
+        }
+        if let Some(boxing) = &mut transport.boxing
+            && matches!(
+                boxing.reason,
+                super::super::MirBoxingReason::AnyErasure
+                    | super::super::MirBoxingReason::RefErasure
+            )
+            && let Some(target_ty) = boxing.target_ty
+        {
+            match super::super::lower::erasure_boxing_reason(
+                self.builtins,
+                &self.types,
+                boxing.source_ty,
+                target_ty,
+            ) {
+                Some(reason) => boxing.reason = reason,
+                None => transport.boxing = None,
+            }
         }
     }
 

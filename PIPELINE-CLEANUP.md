@@ -1,17 +1,14 @@
 # Pipeline Cleanup 分析报告
 
-## 本次复核结论
+## P2-T07 状态更新
 
-本次按当前代码重新抽查后，报告需要做的修改主要有两类：
+当前代码已完成 P2 HIR barrier / `hir_facts` 收口：`HirStageOutput = { hir, hir_facts }` 是正式 HIR handoff，`scoopc_hir_facts` 是 declaration/entity/global/native/source-site facts 的 owner，`TypedHirEffectContracts`、`ProgramFacts`、source-site fallback 双轨和 HIR-carried MIR snapshot 已从生产代码移除。
 
-1. 把“多个阶段发布的 fact table 职责重叠，并被下游混合/替代使用”提升为显式问题，而不是只作为边界模糊的附带现象。
-2. 把“effect 命名已经覆盖非 effect 语义”的问题单独列出来，避免命名继续掩盖真实职责边界。
+因此，本报告中的 P1/P2/P16/P17/P18 是已解决的历史问题；保留它们是为了说明原始 cleanup 背景和验证 P2 清场结果。当前仍然成立、并进入 P3+ 的主结论是：
 
-除此之外，原报告关于以下主结论在当前代码上仍然成立：
-
-1. 生产 HIR lowering 仍反向依赖 MIR materialization。
-2. `llvm_codegen_stage` 仍会从 `LoweredHir` 重新驱动 MIR/effect-facts/effect-lowering。
-3. codegen 仍在主线上混用 HIR、raw MIR、late-lowered program 和多套 fact/type 查询面。
+1. `llvm_codegen_stage` 仍会从 HIR compatibility scaffold 驱动 MIR/effect-facts/effect-lowering，而不是只消费一个已由上游传入的后端 handoff。
+2. codegen 仍在主线上混用 HIR scaffold、MIR/pass view、late-lowered program 和多套后续 fact/type 查询面。
+3. effect facts / LIR / codegen 的 stage output 仍存在上游整包回看，需要在 P3-P7 继续收口。
 
 ## 目标边界
 
@@ -141,10 +138,10 @@ fact crate 明确禁止依赖：
 2. 如果为了 project/multi-file pipeline 需要轻量 facts，它们也只能是 parser-owned 的 header/stub facts：
    package/import surface、顶层声明 stub、源文件归属的 source-cone/project 信息。
 
-P1 后仍需补齐什么：
+P1/P2 后仍需补齐什么：
 
 1. `AstCompilationUnitOutput` 已作为 cone-level AST handoff 存在，`AstStageOutput` 只保留为单文件 worker / dump helper。
-2. production frontend 仍让 resolver/typecheck/HIR 过渡路径消费 build closure；P2 需要在 cone-level AST handoff 上建立正式 HIR barrier 与 `hir_facts`。
+2. production frontend 仍让 resolver/typecheck/HIR 过渡路径消费 build closure；P2 已固定 HIR barrier 与 `hir_facts` handoff，彻底物理拆分 cone-level orchestration 仍属于后续 pipeline 收口。
 
 ### HIR stage
 
@@ -166,20 +163,12 @@ P1 后仍需补齐什么：
 3. 若下游分析仍需要 HIR 级共享事实，应由 HIR stage 正式发布一套不与上面重复的
    declaration/program facts，而不是由更后面的阶段从 `LoweredHir` 现场重建。
 
-当前“完整输出”还少什么：
+P2 收口结果：
 
-1. 缺少统一、非重叠的 HIR facts 输出面；当前事实被拆散在 `LoweredHir` side table、
-   `TypedHirEffectContracts` 和后续重建的 `ProgramFacts` 之间。
-   见 `crates/scoopc/src/hir/lower/types.rs:360-409`、
-   `crates/scoopc/src/pipeline/hir_stage.rs:1233-1255,1301-1313`、
-   `crates/scoopc/src/program_facts.rs:18-31,39-147`。
-   另外，当前 `LoweredHir` 已经开始显式发布 `source_cones` 与 `native_callable_funs` 这类更完整的 cone/decl metadata，
-   但它们仍只是 side table，还没有收口成独立 `hir_facts`。
-   见 `crates/scoopc/src/hir/lower/types.rs:322-350`。
-2. `TypedHirStageOutput` 仍以单个 `source_path` 为锚，而不是显式的 compilation-unit context。
-   见 `crates/scoopc/src/pipeline/hir_stage.rs:1234-1238,1273-1275`。
-3. HIR stage 输出不应再携带 MIR 产物；当前 `LoweredHir` 仍挂着 `materialized_mir`。
-   见 `crates/scoopc/src/hir/lower/types.rs:329-337,421-467`。
+1. `HirStageOutput` 已公开为 HIR 本体 + `HirFacts`。
+2. declaration/entity/global/native/source-site typed contracts 已迁入 `scoopc_hir_facts`，并由独立 verifier/dump 覆盖。
+3. `LoweredHir` 不再携带 MIR 产物，也不再与 `TypedHirEffectContracts` / `ProgramFacts` 并行发布同一类事实。
+4. 仍保留的 `LoweredHir` side table 是 HIR body inventory、type context、lowering helper 或 LLVM compatibility scaffold；跨阶段源码语义查询必须以 `HirFacts` 为 owner。
 
 ### MIR stage
 
@@ -200,11 +189,8 @@ P1 后仍需补齐什么：
 
 当前“完整输出”还少什么：
 
-1. 缺少单一 authoritative MIR handoff；当前 `MirStageOutput` 仍混有
-   `LoweredMir + optional MaterializedMir + leaked TypedHirEffectContracts`。
-   见 `crates/scoopc/src/pipeline/mir_stage.rs:13-27,29-37,68-84`。
-2. 缺少正式的 stage-owned `materialized_pass_view()` / snapshot-binding 查询面；
-   当前下游需要从 `MaterializedMir` 或更后阶段包装里回拿。
+1. `MirStageOutput` 已不再泄漏 HIR typed contracts，但仍混合 direct-style `LoweredMir`、MIR-owned root indices 和 optional `MaterializedMir`。
+2. 缺少正式的 `mir_facts` / snapshot-binding / pass-artifacts 查询面；当前下游仍需要从 `MaterializedMir` 或更后阶段包装里回拿 `materialized_pass_view()`。
 3. 有些 MIR-derived facts 仍未作为 MIR stage 输出发布，而是在 LIR stage 里重算。
    见 `crates/scoopc/src/pipeline/effect_lowering_stage.rs:85-97,119-131`。
 
@@ -269,46 +255,48 @@ P1 后仍需补齐什么：
 
 ## 当前有效结构
 
-当前生产路径并不是线性的 `AST -> HIR -> MIR -> effect facts -> LIR -> codegen`，而更接近：
+当前生产路径已经不再让 HIR lowering 反向携带 MIR snapshot，但仍不是完全线性的
+`AST -> HIR -> MIR -> effect facts -> LIR -> codegen`。现在更接近：
 
 ```text
 frontend/typecheck
   -> lower_hir_for_codegen_with_request_root_mode(...)
-    -> HIR lowering 期间先做 MIR instance/materialization
-    -> LoweredHir { materialized_mir: Some(...) }
+    -> CodegenLoweringOutput { lowered_hir, materialized_mir }
   -> llvm_codegen_stage::run(...)
-    -> 从 LoweredHir 重新构造 TypedHirStageOutput
-    -> 重新运行 MIR stage
-    -> 重新运行 effect-facts stage
-    -> 重新运行 effect-lowering stage
+    -> 从 LoweredHir 构造 HirStageOutput { hir, hir_facts }
+    -> 运行 MIR stage，并显式挂入 MIR-owned materialized snapshot
+    -> 运行 effect-facts stage
+    -> 运行 effect-lowering stage
     -> 同时保留一份 hir_compat_scaffold
   -> llvm::emit(...)
-    -> 同时消费 HIR scaffold / pass-view / effect facts / late-lowered program / ABI visibility variant
+    -> 同时消费 HIR scaffold / HirFacts / pass-view / effect facts / late-lowered program / ABI visibility variant
 ```
 
 这意味着当前实现里同时存在：
 
-1. HIR 反向依赖 MIR。
-2. MIR stage 输出继续携带 HIR 合同。
-3. codegen stage 重新驱动上游阶段。
-4. codegen 同时消费多套跨阶段输入。
-5. 仍有一批生产路径直接在 codegen 中跑 HIR-only lowering。
-6. 多个阶段/阶段输出发布的全局 fact table 职责重叠，并被下游混合使用。
+1. codegen stage 仍是后半条 pipeline 的 orchestrator，而不是只消费已经构造好的后端 handoff。
+2. `MirStageOutput` 仍未收口成 `{ mir, mir_facts }`，materialized snapshot/pass artifacts 仍以临时形态暴露。
+3. codegen 同时消费多套跨阶段输入。
+4. 仍有一批生产路径直接在 codegen 中跑 HIR-only lowering。
+5. P4/P5/P7 范围内仍有后续 fact table / stage output 的职责重叠和整包回看。
 
 ## 问题清单
 
-### P1. 生产 HIR lowering 反向依赖 MIR materialization
+### P1. 生产 HIR lowering 反向依赖 MIR materialization（P2 已解决）
 
 位置：
 
 - `crates/scoopc/src/frontend.rs:521-580`
 - `crates/scoopc/src/hir/lower/main/compilation_unit.rs:387-437`
 
-现状：
+历史现状：
 
-- `lower_hir_for_codegen_with_request_root_mode(...)` 并不是“先得 HIR，再往后走”。
-- 它会进入 `lower_for_compilation_unit_multi_files_via_mir_instance_collection_with_request_sources(...)`。
-- 这个 HIR lowering 入口在内部先调用 `mir::materialize_compilation_unit_from_typechecked_inputs_with_options(...)`，拿到 materialized MIR 和 instance keys，再把这些信息反灌到 `LoweredHir`。
+- `lower_hir_for_codegen_with_request_root_mode(...)` 曾在 HIR lowering 入口内部先调用 MIR materialization，再把 snapshot 反灌到 `LoweredHir`。
+
+P2 结果：
+
+- production codegen handoff 已拆为 `CodegenLoweringOutput { lowered_hir, materialized_mir }`。
+- canonical materialized MIR 作为单独 MIR-owned handoff 返回，不再挂回 `LoweredHir`。
 
 为什么是问题：
 
@@ -317,7 +305,7 @@ frontend/typecheck
 
 ---
 
-### P2. `LoweredHir` 挂住了 canonical MIR snapshot / pass view
+### P2. `LoweredHir` 挂住了 canonical MIR snapshot / pass view（P2 已解决）
 
 位置：
 
@@ -325,11 +313,14 @@ frontend/typecheck
 - `crates/scoopc/src/hir/lower/types.rs:421-467`
 - `crates/scoopc/src/hir/lower/types.rs:470-499`
 
-现状：
+历史现状：
 
-- `LoweredHir` 内部持有 `materialized_mir: Option<crate::mir::MaterializedMir>`。
-- 它还公开了 `materialized_mir()`、`materialized_callable_view()`、`materialized_pass_view()`、`materialized_mir_mut()` 等接口。
-- 同时又保留了 `clone_hir_compat_scaffold_without_materialized_mir()`，说明当前实现自己也承认这是一个过渡性混合对象。
+- `LoweredHir` 曾持有 `materialized_mir`，并公开 `materialized_mir()` / `materialized_pass_view()` 等接口。
+
+P2 结果：
+
+- 这些字段、accessor 与 `clone_hir_compat_scaffold_without_materialized_mir()` 均已删除。
+- `materialized_mir` / `materialized_pass_view` 在当前代码中的合法命中属于 MIR/effect/LIR/codegen 之后的 handoff，不属于 HIR output API。
 
 为什么是问题：
 
@@ -338,7 +329,7 @@ frontend/typecheck
 
 ---
 
-### P3. `MirStageOutput` 同时暴露 HIR 合同和两套 MIR 视图
+### P3. `MirStageOutput` 同时暴露 HIR 合同和两套 MIR 视图（HIR 合同泄漏已解决，MIR handoff 仍待 P3 收口）
 
 位置：
 
@@ -350,19 +341,18 @@ frontend/typecheck
 现状：
 
 - `MirStageOutput` 里既有 `lowered_mir: LoweredMir`，又有 `materialized_mir: Option<MaterializedMir>`。
-- 它还继续对下游暴露 `effect_contracts: TypedHirEffectContracts`。
-- 这些 HIR 合同虽然是 MIR lowering 合法输入，但它们不该继续穿过 MIR stage 暴露给 P4/P5/P6。
+- HIR source-site contracts 已在 P2 迁入 `HirFacts` 并由 MIR lowering 消费，`MirStageOutput` 不再继续向 P4/P5/P6 暴露旧 HIR typed contract payload。
 
 为什么是问题：
 
-- MIR stage 输出现在不是一个单一的 MIR handoff，而是：
-  `direct-style MIR + optional canonical materialized MIR + leaked HIR contracts`。
+- MIR stage 输出现在还不是一个单一的 MIR handoff，而是：
+  `direct-style MIR + root inventories + optional canonical materialized MIR`。
 - 这使得 P4 之后的阶段天然面临多 source-of-truth。
 
 说明：
 
 - MIR stage 消费 HIR-derived fact table 本身不是问题。
-- 问题在于这些 HIR 合同没有被 MIR stage 吃干抹净，而是继续向下泄漏。
+- HIR contract 泄漏已由 P2 修复；P3 剩余问题是把 materialized snapshot、root inventory 和 pass artifacts 收进 MIR-owned facts / handoff。
 
 ---
 
@@ -426,7 +416,7 @@ frontend/typecheck
 现状：
 
 - `run_effect_lowered_stage_from_lowered_hir(...)` 会：
-  `LoweredHir -> TypedHirStageOutput::new(...) -> mir_stage::run(...) -> build_effect_facts_stage_output(...) -> build_effect_lowered_stage_output(...)`。
+  `LoweredHir -> HirStageOutput::new(...) -> mir_stage::run(...) -> build_effect_facts_stage_output(...) -> build_effect_lowered_stage_output(...)`。
 - 然后 `llvm_codegen_stage::run(...)` 再把 `hir_compat_scaffold` 和 `effect_lowered_stage_output` 一起打包。
 
 为什么是问题：
@@ -490,12 +480,13 @@ frontend/typecheck
 现状：
 
 - `LlvmCodegenStageOutput` 明确保留 `hir_compat_scaffold`。
-- `emit.rs` 在真正建 module 的时候，还会做 `ProgramFacts::from_lowered(lowered)`。
+- `ProgramFacts::from_lowered(lowered)` 已删除；`emit.rs` / LLVM codegen 现在显式接收 `HirFacts`。
+- 但 `hir_compat_scaffold` 仍为若干 LLVM layout、top-level init 和 HIR-only lowering path 提供过渡输入。
 
 为什么是问题：
 
-- 如果 codegen 真正只消费 `MIR + effect facts + codegen-owned facts`，这里就不应再从 HIR 现场拼 `ProgramFacts`。
-- 这说明 HIR 仍然是 codegen 的真实输入之一，而不仅是历史包袱。
+- 如果 codegen 真正只消费 `LIR + LIR facts + base context`，这里就不应再需要 HIR scaffold。
+- P2 已清理 `ProgramFacts` 重建问题；剩余问题归属 P7 backend cleanup，而不是 HIR facts owner 重叠。
 
 ---
 
@@ -581,7 +572,7 @@ frontend/typecheck
 
 现状：
 
-- `MainCodegen` 会从当前 function env 里的 `hir_ty`、`ProgramFacts`、`materialized_pass_view()` 现场组装 `EffectAnalysisCtx`。
+- `MainCodegen` 会从当前 function env 里的 `hir_ty`、`HirFacts` / `ExprFactResolver`、`materialized_pass_view()` 现场组装 `EffectAnalysisCtx`。
 
 为什么是问题：
 
@@ -693,7 +684,7 @@ frontend/typecheck
 
 ---
 
-### P16. HIR stage 同时发布多套职责重叠的全局合同/side table
+### P16. HIR stage 同时发布多套职责重叠的全局合同/side table（P2 已解决）
 
 位置：
 
@@ -701,16 +692,14 @@ frontend/typecheck
 - `crates/scoopc/src/pipeline/hir_stage.rs:879-978`
 - `crates/scoopc/src/mir/lower/mir_lowering_facts.rs:39-71`
 
-现状：
+历史现状：
 
-- `LoweredHir` 自己就发布了很多全局 side table：
-  `top_level_fun_call_sites`、`call_arg_bindings`、`with_update_contracts`、`assign_place_contracts`、
-  `ctor_call_sites`、`dispatch_call_sites`、`effect_op_call_sites`、`continuation_resume_call_sites`、
-  `when_pat_binding_tys` 等。
-- 同时，HIR stage 又额外发布 `TypedHirEffectContracts`，其中包含：
-  `continuation_resume_sites`、`perform_sites`、`handle_sites`、`call_site_contracts`、
-  `with_update_contracts`、`assign_place_contracts`、`top_level_init_roots`、`extern_global_contracts`。
-- MIR lowering 的 `MirLoweringFacts::from_typed_handoff(...)` 明确会同时从 `LoweredHir` side table 和 `TypedHirEffectContracts` 组装事实层。
+- `LoweredHir` side table、HIR stage typed contracts 和后续 fact adapter 曾同时描述调用点、perform/resume/handle、assignment place、top-level init/extern root 等职责。
+
+P2 结果：
+
+- `scoopc_hir_facts::HirFacts.source_sites` 现在是 source-site typed contracts 的唯一发布面。
+- HIR stage 内部 collector 只负责构建 `HirFacts`；后续 stage 不直接消费内部 collector 或 `LoweredHir` source-site side table。
 
 为什么是问题：
 
@@ -720,13 +709,12 @@ frontend/typecheck
 
 结论：
 
-- `LoweredHir` 和 `TypedHirEffectContracts` 之间需要明确切分：
-  哪些是 HIR 本体/语法 lowering 必需的 side table，哪些是 HIR stage 对下游发布的 authoritative 合同。
-- 不应继续让两边都发布同一职责的事实。
+- 对下游发布的 authoritative 合同已经切到 `HirFacts`。
+- `LoweredHir` 仍保留的表必须被视为 HIR lowering/helper 或 LLVM compatibility scaffold，不是跨阶段 fact owner。
 
 ---
 
-### P17. MIR lowering 内部已经把两套合同当成“可替代输入”
+### P17. MIR lowering 内部已经把两套合同当成“可替代输入”（P2 已解决）
 
 位置：
 
@@ -739,14 +727,14 @@ frontend/typecheck
 - `crates/scoopc/src/mir/lower/fn_lowering_effect.rs:250-260`
 - `crates/scoopc/src/mir/lower/fn_lowering_basic.rs:187-213`
 
-现状：
+历史现状：
 
-- `MirLoweringFacts` 里显式存在 `MirSiteContractSource::{FallbackSideTables, Typed}`。
-- `from_lowered_hir(...)` 先从 HIR side table 构造 fallback facts，再调用 `with_typed_contracts(...)` 覆盖它。
-- `with_typed_contracts(...)` 会清空 `fallback_resume_site_spans`、`fallback_perform_sites` 等旧表，再把 typed 合同拷进去。
-- `canonicalize_perform_args(...)` 先尝试 `perform_metadata(...)`，typed 缺失时再退到 `fallback_perform_site_info(...)`。
-- `lower_handle_expr(...)` 在没有 typed handle site 且未启用 typed contracts 时，会退回 `lower_handle_contract_from_hir(...)`。
-- `continue_after_placeholder_effect_terminator_if_needed(...)` 也按 `uses_typed_contracts()` 走两种不同语义路径。
+- `MirLoweringFacts` 曾显式存在 typed/fallback 双轨，并允许 MIR lowering 在缺少 typed contract 时回扫 HIR side table。
+
+P2 结果：
+
+- `MirLoweringFacts::from_hir_facts(...)` 是 source-site input 的单一路径。
+- 旧 `FallbackSideTables`、typed bridge、source-site migration adapter 和缺 contract fallback lowering 已删除。
 
 为什么是问题：
 
@@ -765,7 +753,7 @@ frontend/typecheck
 
 ---
 
-### P18. `ProgramFacts` 与 `LoweredHir` side table 职责重叠，LLVM codegen 同时持有并混用两者
+### P18. `ProgramFacts` 与 `LoweredHir` side table 职责重叠，LLVM codegen 同时持有并混用两者（P2 已解决）
 
 位置：
 
@@ -780,25 +768,25 @@ frontend/typecheck
 - `crates/scoopc/src/expr_facts.rs:107-118`
 - `crates/scoopc/src/expr_facts.rs:141-158`
 
-现状：
+历史现状：
 
-- `ProgramFacts` 是从 `LoweredHir` 复制出来的一套共享事实，内容包括：
-  `ctor_call_targets`、`continuation_resume_call_sites`、top-level value types、object property types、
-  struct/class field types、class super keys 等。
-- 但 LLVM codegen 的 `CompilationUnitCodegenCx` 又同时直接持有原始 `LoweredHir` side table：
-  `top_level_vars`、`object_inits`、`class_inits`、`ctor_call_sites`、`continuation_resume_call_sites` 等，
-  还额外持有一个 `program_facts: Rc<ProgramFacts>`。
-- 下游里一部分逻辑直接查原始 HIR side table，另一部分逻辑通过 `ExprFactResolver` 查 `ProgramFacts`。
+- `ProgramFacts` 曾从 `LoweredHir` 复制 top-level value、object property、struct/class field、class super、ctor/resume 等事实，并与 LLVM 直接读取 HIR side table 并存。
 
-为什么是问题：
+P2 结果：
+
+- `ProgramFacts` 已删除。
+- `ExprFactResolver` / `HirFactResolver`、effect analysis 和 LLVM codegen 的 declaration/entity 查询改为消费 `HirFacts`。
+- LLVM 仍持有 `LoweredHir` compatibility scaffold，但该 scaffold 不再与 `ProgramFacts` 形成重复 authoritative 查询面。
+
+为什么曾是问题：
 
 - 这里已经形成两套都能回答“top-level 值类型/字段类型/ctor target/resume site”问题的事实层。
 - 这会让下游自然产生“查哪张都行”的混用习惯，而不是依赖单一 authoritative fact source。
 
 结论：
 
-- 如果 `ProgramFacts` 是共享事实层，就应逐步替代重叠的 HIR side table 读取，而不是并存。
-- 如果某些信息必须保留在 `LoweredHir`，就应避免 `ProgramFacts` 再复制同一职责。
+- P2 选择删除 `ProgramFacts`，以 `HirFacts` 作为共享事实层。
+- 若后续必须继续保留 `LoweredHir` compatibility scaffold，不能再复制出第二套同职责 facts。
 
 ---
 
@@ -840,15 +828,15 @@ frontend/typecheck
 
 ### 1. 先修正大方向上的反向依赖
 
-1. 让生产 HIR lowering 不再依赖 MIR instance/materialization。
-2. 从 `LoweredHir` 移除 `materialized_mir` / `materialized_pass_view`。
-3. 让 `MirStageOutput` 只暴露 MIR 自己的 authoritative handoff，不再继续携带 HIR 合同。
+1. 让生产 HIR lowering 不再依赖 MIR instance/materialization。（P2 已完成）
+2. 从 `LoweredHir` 移除 `materialized_mir` / `materialized_pass_view`。（P2 已完成）
+3. 让 `MirStageOutput` 只暴露 MIR 自己的 authoritative handoff，不再继续携带 HIR 合同。（HIR 合同泄漏已由 P2 清理；MIR-owned handoff 继续由 P3 收口）
 
 ### 2. 让 stage 输入变严格
 
 1. `effect_facts` 只接受完整的 MIR stage 输出，不再在边界内自动补挂 materialized MIR。
 2. `codegen` 只接受 `effect facts` 之后的单一 authoritative handoff，不再重跑 MIR / effect-facts / effect-lowering。
-3. 收口每一阶段发布的 fact table 职责，禁止 typed/fallback、HIR/program_facts、program/effect_facts/pass_view 这类可替代或并行查询面。
+3. 收口每一阶段发布的 fact table 职责；HIR/source-site 与 `ProgramFacts` 重叠已由 P2 清理，P3+ 继续处理 program/effect_facts/pass_view 这类可替代或并行查询面。
 
 ### 3. 把 `effect_lowered` 收实为正式 LIR stage
 
@@ -884,14 +872,14 @@ frontend/typecheck
 
 ## 结论
 
-当前最核心的问题不是“文件太长”，而是 pipeline graph 不是单向图。
+当前最核心的问题不是“文件太长”，而是 P3 之后的 pipeline graph 仍未完全单向。
 
 最大的三个结构性问题是：
 
-1. 生产 HIR lowering 已经反向依赖 MIR materialization。
+1. `MirStageOutput` 仍未收口成 `{ mir, mir_facts }`，materialized snapshot/pass artifacts 还不是独立 MIR-owned fact handoff。
 2. codegen stage 会重新驱动 MIR / effect-facts / effect-lowering，而不是只消费它们的输出。
-3. production backend 仍在主线上混用 HIR、raw MIR、late-lowered program 和多套 fact/type universe。
+3. production backend 仍在主线上混用 HIR scaffold、raw MIR、late-lowered program 和多套 fact/type universe。
 
-其中一个贯穿全线的次级根因是：多张 fact table 的职责没有被切开，导致 fallback、复制、嵌套打包和下游混用都在持续发生。
+其中一个贯穿全线的次级根因是：P3 之后的多张 fact table / stage output 职责仍未完全切开，导致嵌套打包和下游混用继续发生。P2 已经把 HIR/source-site facts 收口到 `HirFacts`，后续不得重新引入 HIR fallback 或重复 owner。
 
 只要这三件事不先收口，后面无论是继续拆 LLVM codegen、还是引入新的 backend，都会继续被“跨阶段回看”和“多 authoritative 输入”拖住。

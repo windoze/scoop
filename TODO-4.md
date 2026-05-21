@@ -8,7 +8,7 @@
 ## 范围
 
 - 收口 `MirStageOutput`，使其只发布 MIR-owned 产物。
-- 删除 `TypedHirEffectContracts` 向 MIR stage 输出的泄漏。
+- 在 P2 已清理 HIR source-site contract 泄漏的基础上，继续收口 optional `MaterializedMir`、root inventories、snapshot binding 与 pass artifacts。
 - 建立独立 `mir_facts` / pass artifacts 查询面。
 - 把 escape analysis、devirtualization、summary-driven inlining、closure simplification、cleanup / summary refresh 重排成显式 MIR pass pipeline。
 - 删除 HIR 层 dispatch 去虚化。
@@ -26,7 +26,7 @@
   - 生成本任务包的详细任务列表，覆盖 `MirStageOutput` 收口、`mir_facts`、pass artifacts 查询面和显式 MIR pass pipeline；
   - 更新 `TODO.md` 的具体任务索引，用新生成的任务替换或扩展 `TODO-4-INIT` 所在索引行。
 - 必须实现的内容：
-  1. 列出 `MirStageOutput`、`LoweredMir`、`MaterializedMir`、`TypedHirEffectContracts` 的当前字段、构造点和下游读取点。
+  1. 列出 `MirStageOutput`、`LoweredMir`、`MaterializedMir`、当前 MIR-owned root inventories / pass artifacts 的字段、构造点和下游读取点。
   2. 列出现有 escape analysis、devirtualization、inlining、closure simplification 和 cleanup/summary refresh 的入口与执行顺序。
   3. 把 P3 拆成数量适中的实现小阶段，每个阶段必须有明确目标、修改范围、验证命令和完成条件。
   4. 在每个实现小阶段后插入独立 review 任务，review 任务必须复审前一阶段是否满足 MIR owner 和输出边界约束。

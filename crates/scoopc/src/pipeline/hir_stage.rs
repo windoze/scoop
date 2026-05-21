@@ -1019,7 +1019,7 @@ impl CollectedHirContracts {
         &self.extern_global_contracts
     }
 
-    /// 以稳定顺序渲染内部 collector；只作为迁移期调试辅助，正式 dump 使用 `HirFacts`。
+    /// 以稳定顺序渲染内部 collector；只作为单测调试辅助，正式 dump 使用 `HirFacts`。
     #[allow(dead_code)]
     pub fn stable_dump(&self, types: &TypeStore) -> String {
         let mut out = String::new();
@@ -1907,12 +1907,11 @@ fn format_hir_fact_payload(
 ///
 /// 本阶段固定如下 invariants，供 P2/P3 及后续阶段直接消费：
 /// - 输出已经过 resolver + typecheck，可直接视为 typed HIR handoff；
-/// - 对外 handoff 由 HIR 本体与 `hir_facts` 组成；迁移期 typed contract bridge
-///   只能经由 `hir_facts()` 入口被后续 stage 审计和消费；
+/// - 对外 handoff 由 HIR 本体与完整 `hir_facts` 组成，后续 stage 只能经由
+///   `hir_facts()` 入口审计和消费 HIR semantic facts；
 /// - `dump-hir` 必须优先消费这一 stage 输出，而不是 legacy
 ///   `hir::lower_for_dump(...)`；
-/// - `hir_facts` 是后续 P2 事实迁移的单一入口；当前仍保留的 typed contract
-///   物理表只是迁移 bridge，不能作为公开 stage output 名义。
+/// - 内部 `CollectedHirContracts` 只用于构建/测试 `HirFacts`，不能作为公开 stage output。
 #[derive(Debug)]
 pub struct HirStageOutput {
     lowered_hir: LoweredHir,
@@ -1967,7 +1966,8 @@ impl HirStageOutput {
         &self.source_path
     }
 
-    /// 以稳定文本渲染 HIR stage dump：先打印 HIR `File`，再追加 HIR facts 与迁移 bridge。
+    /// 以稳定文本渲染 HIR stage dump：先打印 HIR `File`，再追加 `HirFacts` 摘要与详细
+    /// source-site facts。
     pub fn stable_dump(&self) -> String {
         let mut out =
             crate::hir::stable_dump_file(self.hir_file(), self.types(), self.source_path());
@@ -3022,18 +3022,33 @@ fn collect_callable_declaration_facts(facts: &mut DeclarationFacts, lowered_hir:
 }
 
 fn collect_layout_field_facts(facts: &mut DeclarationFacts, lowered_hir: &LoweredHir) {
+    let mut existing_fields = facts
+        .fields
+        .iter()
+        .map(|fact| fact.identity.canonical_text().to_string())
+        .collect::<HashSet<_>>();
+    let mut existing_enum_variants = facts
+        .enum_variants
+        .iter()
+        .map(|fact| fact.identity.canonical_text().to_string())
+        .collect::<HashSet<_>>();
+
     for (layout_key, layout) in &lowered_hir.struct_layouts {
         for field in &layout.fields {
             if let Some(ty) = field.ty {
-                facts.fields.push(field_declaration_fact(
-                    lowered_hir,
-                    "struct_field",
-                    &field.fqn,
-                    layout_key,
-                    FieldOwnerKind::Struct,
-                    &field.name,
-                    ty,
-                ));
+                push_unique_field_fact(
+                    &mut facts.fields,
+                    &mut existing_fields,
+                    field_declaration_fact(
+                        lowered_hir,
+                        "struct_field",
+                        &field.fqn,
+                        layout_key,
+                        FieldOwnerKind::Struct,
+                        &field.name,
+                        ty,
+                    ),
+                );
             }
         }
     }
@@ -3041,13 +3056,17 @@ fn collect_layout_field_facts(facts: &mut DeclarationFacts, lowered_hir: &Lowere
     for (enum_key, layout) in &lowered_hir.enum_layouts {
         for variant in &layout.variants {
             let variant_fqn = format!("{enum_key}.{}", variant.name);
-            facts.enum_variants.push(EnumVariantDeclarationFact {
-                identity: fact_identity("enum_variant", &variant_fqn, lowered_hir),
-                enum_owner: CanonicalTextKey::new(enum_key),
-                name: variant.name.clone(),
-                tag: variant.tag,
-                source: None,
-            });
+            push_unique_enum_variant_fact(
+                &mut facts.enum_variants,
+                &mut existing_enum_variants,
+                EnumVariantDeclarationFact {
+                    identity: fact_identity("enum_variant", &variant_fqn, lowered_hir),
+                    enum_owner: CanonicalTextKey::new(enum_key),
+                    name: variant.name.clone(),
+                    tag: variant.tag,
+                    source: None,
+                },
+            );
             for (index, field) in variant.fields.iter().enumerate() {
                 if let Some(ty) = field.ty {
                     let field_name = if field.name.is_empty() {
@@ -3056,15 +3075,19 @@ fn collect_layout_field_facts(facts: &mut DeclarationFacts, lowered_hir: &Lowere
                         field.name.clone()
                     };
                     let field_fqn = format!("{variant_fqn}.{field_name}");
-                    facts.fields.push(field_declaration_fact(
-                        lowered_hir,
-                        "enum_variant_field",
-                        &field_fqn,
-                        &variant_fqn,
-                        FieldOwnerKind::EnumVariant,
-                        &field_name,
-                        ty,
-                    ));
+                    push_unique_field_fact(
+                        &mut facts.fields,
+                        &mut existing_fields,
+                        field_declaration_fact(
+                            lowered_hir,
+                            "enum_variant_field",
+                            &field_fqn,
+                            &variant_fqn,
+                            FieldOwnerKind::EnumVariant,
+                            &field_name,
+                            ty,
+                        ),
+                    );
                 }
             }
         }
@@ -3097,6 +3120,26 @@ fn collect_layout_field_facts(facts: &mut DeclarationFacts, lowered_hir: &Lowere
                 property.ty,
             ));
         }
+    }
+}
+
+fn push_unique_field_fact(
+    facts: &mut Vec<FieldDeclarationFact>,
+    existing: &mut HashSet<String>,
+    fact: FieldDeclarationFact,
+) {
+    if existing.insert(fact.identity.canonical_text().to_string()) {
+        facts.push(fact);
+    }
+}
+
+fn push_unique_enum_variant_fact(
+    facts: &mut Vec<EnumVariantDeclarationFact>,
+    existing: &mut HashSet<String>,
+    fact: EnumVariantDeclarationFact,
+) {
+    if existing.insert(fact.identity.canonical_text().to_string()) {
+        facts.push(fact);
     }
 }
 
