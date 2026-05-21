@@ -4,7 +4,7 @@
 > 计划基线：[`PLAN.md`](./PLAN.md)
 > 设计基线：[`PIPELINE_REFACTOR.md`](./PIPELINE_REFACTOR.md)
 > 审计基线：[`PIPELINE-CLEANUP.md`](./PIPELINE-CLEANUP.md)
-> 当前状态：任务包已划分；`TODO-1.md`、`TODO-2.md`、`TODO-3.md` 与 `TODO-4.md` 已细化，其它任务包暂为范围说明。
+> 当前状态：任务包已划分；`TODO-1.md`、`TODO-2.md`、`TODO-3.md`、`TODO-4.md` 与 `TODO-5.md` 已细化，其它任务包暂为范围说明。
 
 ## 总原则
 
@@ -25,7 +25,7 @@
 | 2 | [`TODO-2.md`](./TODO-2.md) | P1 | 固定基础 crate 壳层、cone-level compilation unit 和 source-cone DAG 语义 | 已细化 |
 | 3 | [`TODO-3.md`](./TODO-3.md) | P2 | 建立 `AST -> HIR` semantic frontend barrier 和独立 `hir_facts` | 已细化 |
 | 4 | [`TODO-4.md`](./TODO-4.md) | P3 | 收口 MIR stage 输出，建立 `mir_facts` 与 MIR pass pipeline | 已细化 |
-| 5 | [`TODO-5.md`](./TODO-5.md) | P4-P5 | 纯化 effect facts，正式收实 LIR 输出和 LIR optimization family | 暂为范围说明 |
+| 5 | [`TODO-5.md`](./TODO-5.md) | P4-P5 | 纯化 effect facts，正式收实 LIR 输出和 LIR optimization family | 已细化 |
 | 6 | [`TODO-6.md`](./TODO-6.md) | P6-P8 | 闭合 global init model，清理 LLVM backend 输入边界，并做最终验证 | 暂为范围说明 |
 
 ## 具体任务索引
@@ -83,7 +83,25 @@
 | P3-T06R | [DONE] | [`TODO-4.md`](./TODO-4.md#done-p3-t06rreview-dispatch-去虚化-owner-迁移结果) | Review dispatch 去虚化 owner 迁移结果 |
 | P3-T07 | [DONE] | [`TODO-4.md`](./TODO-4.md#done-p3-t07p3-全包清场文档同步与依赖审计) | P3 全包清场、文档同步与依赖审计 |
 | P3-T07R | [DONE] | [`TODO-4.md`](./TODO-4.md#done-p3-t07rreview-p3-全包完成度) | Review P3 全包完成度 |
-| TODO-5-INIT | [TODO] | [`TODO-5.md`](./TODO-5.md#todo-todo-5-init初始化并细化本任务包) | 分析 P4-P5 需求，生成 `TODO-5.md` 详细任务列表并更新本索引 |
+| TODO-5-INIT | [DONE] | [`TODO-5.md`](./TODO-5.md#done-todo-5-init初始化并细化本任务包) | 分析 P4-P5 需求，生成 `TODO-5.md` 详细任务列表并更新本索引 |
+| P4-T01 | [TODO] | [`TODO-5.md`](./TODO-5.md#todo-p4-t01建立独立-scoopc_effect_facts-crate-与事实数据模型) | 建立独立 `scoopc_effect_facts` crate 与事实数据模型 |
+| P4-T01R | [TODO] | [`TODO-5.md`](./TODO-5.md#todo-p4-t01rreview-scoopc_effect_facts-crate-与事实模型) | Review `scoopc_effect_facts` crate 与事实模型 |
+| P4-T02 | [TODO] | [`TODO-5.md`](./TODO-5.md#todo-p4-t02只读化-effect-facts-builder-与-effect-owned-type-context) | 只读化 effect facts builder 与 effect-owned type context |
+| P4-T02R | [TODO] | [`TODO-5.md`](./TODO-5.md#todo-p4-t02rreview-effect-facts-只读化结果) | Review effect facts 只读化结果 |
+| P4-T03 | [TODO] | [`TODO-5.md`](./TODO-5.md#todo-p4-t03收口-effectfactsstageoutput-与-p5-输入边界) | 收口 `EffectFactsStageOutput` 与 P5 输入边界 |
+| P4-T03R | [TODO] | [`TODO-5.md`](./TODO-5.md#todo-p4-t03rreview-effectfactsstageoutput-收口结果) | Review `EffectFactsStageOutput` 收口结果 |
+| P4-T04 | [TODO] | [`TODO-5.md`](./TODO-5.md#todo-p4-t04p4-全包清场文档同步与依赖审计) | P4 全包清场、文档同步与依赖审计 |
+| P4-T04R | [TODO] | [`TODO-5.md`](./TODO-5.md#todo-p4-t04rreview-p4-全包完成度) | Review P4 全包完成度 |
+| P5-T01 | [TODO] | [`TODO-5.md`](./TODO-5.md#todo-p5-t01建立-scoopc_lir_facts-crate-与正式-lirstageoutput-壳层) | 建立 `scoopc_lir_facts` crate 与正式 `LirStageOutput` 壳层 |
+| P5-T01R | [TODO] | [`TODO-5.md`](./TODO-5.md#todo-p5-t01rreview-lir_facts-crate-与-lir-output-壳层) | Review `lir_facts` crate 与 LIR output 壳层 |
+| P5-T02 | [TODO] | [`TODO-5.md`](./TODO-5.md#todo-p5-t02发布-lir-callabledynamic-invokedispatch-与-resume-contracts) | 发布 LIR callable、dynamic invoke、dispatch 与 resume contracts |
+| P5-T02R | [TODO] | [`TODO-5.md`](./TODO-5.md#todo-p5-t02rreview-lir-contract-与-facts-完整度) | Review LIR contract 与 facts 完整度 |
+| P5-T03 | [TODO] | [`TODO-5.md`](./TODO-5.md#todo-p5-t03切换-codegen-neutral-abiquery-surface-到-lir--lir_facts) | 切换 codegen-neutral ABI/query surface 到 `LIR + lir_facts` |
+| P5-T03R | [TODO] | [`TODO-5.md`](./TODO-5.md#todo-p5-t03rreview-codegen-neutral-query-切换结果) | Review codegen-neutral query 切换结果 |
+| P5-T04 | [TODO] | [`TODO-5.md`](./TODO-5.md#todo-p5-t04建立正式-lir-optimization-family-与-pass-pipeline) | 建立正式 LIR optimization family 与 pass pipeline |
+| P5-T04R | [TODO] | [`TODO-5.md`](./TODO-5.md#todo-p5-t04rreview-lir-optimization-family) | Review LIR optimization family |
+| P5-T05 | [TODO] | [`TODO-5.md`](./TODO-5.md#todo-p5-t05p5-全包清场文档同步与依赖审计) | P5 全包清场、文档同步与依赖审计 |
+| P5-T05R | [TODO] | [`TODO-5.md`](./TODO-5.md#todo-p5-t05rreview-p5-全包完成度) | Review P5 全包完成度 |
 | TODO-6-INIT | [TODO] | [`TODO-6.md`](./TODO-6.md#todo-todo-6-init初始化并细化本任务包) | 分析 P6-P8 需求，生成 `TODO-6.md` 详细任务列表并更新本索引 |
 
 ## 包间验收门禁
