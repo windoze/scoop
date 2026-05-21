@@ -298,7 +298,7 @@
   - 验证命令：`cargo fmt`；`cargo test -p scoopc_mir_facts`；`cargo test -p scoopc --no-default-features mir_stage`；`cargo test -p scoopc --no-default-features effect_facts_stage`；`cargo test -p scoopc --no-default-features effect_lowering_stage`；`cargo run -p scoop -- test --fixtures tests/fixtures/effect_facts`；`cargo clippy --all-targets -- -D warnings`。
   - 残余风险：P3-T03 只固定 P4 输入 handoff 和 MIR-owned metadata 发布；downstream 仍有 raw `MaterializedMirPassView` / nested wrapper 过渡读取，按 P3-T04/P4/P5/P7 继续收口。effect facts builder 仍会在 P4 内部为 compiler runtime error schema 扩展 snapshot type context，这不是缺失 snapshot fallback，后续 effect facts purity 任务继续处理。
 
-## [TODO] P3-T03R：Review MIR snapshot binding 与 pass artifacts 查询面
+## [DONE] P3-T03R：Review MIR snapshot binding 与 pass artifacts 查询面
 
 - 参考：P3-T03。
 - 重点：
@@ -318,7 +318,12 @@
   - review 结论明确写出：canonical snapshot/pass artifacts 已成为 MIR-owned handoff，或列出阻塞项并在本 review 内修复。
 - 依赖：P3-T03
 - 完成记录：
-  - 待填写。
+  - 改动范围：复查 `P3-T03` 的 MIR stage handoff、effect facts stage 输入、materialized MIR/pass view、`scoopc_mir_facts` snapshot/pass artifact metadata 与 pipeline helper 命名；review 未发现需要修复的代码问题，本次只更新任务状态、完成记录和执行计划记录。
+  - review 结论：P4 输入不再是 optional materialized snapshot；`MirStageOutput` 持有 mandatory canonical `MaterializedMir`，`EffectFactsStageOutput` / effect facts stage 只接受 P3 的 P4-ready handoff，并通过 `materialized_mir()` / `materialized_pass_view()` 读取 canonical snapshot。`MissingMaterializedMirSnapshot`、`materialized_mir: Option`、`materialized_mir_mut` 在活跃 Rust 源码中无命中。
+  - MIR facts 结论：`MirStageOutput::from_direct_style(...)` 在构造 P4-ready handoff 时发布 snapshot binding、canonical body FQN 集合、instance/family inventory、pass artifact revision、summary artifact 和 escape-facts artifact metadata；`scoopc_mir_facts` verifier 会校验 canonical snapshot binding 与 artifact key 唯一性。
+  - helper 边界结论：`DirectStyleMirStageOutput` 明确是 direct-style dump/validation helper，`load_direct_style_mir_stage_output_for_dump(...)` 与 `load_p4_ready_mir_stage_output_for_dump(...)` 命名和返回类型已分离；direct-style helper 没有被 P4/effect facts 生产路径当成 P4-ready output 使用。
+  - 验证命令：`cargo fmt`；`cargo test -p scoopc_mir_facts`；`cargo test -p scoopc --no-default-features mir_stage`；`cargo test -p scoopc --no-default-features effect_facts_stage`；`cargo test -p scoopc --no-default-features effect_lowering_stage`；`cargo run -p scoop -- test --fixtures tests/fixtures/effect_facts`；`cargo clippy --all-targets -- -D warnings`；额外使用仓库搜索确认 `MissingMaterializedMirSnapshot|materialized_mir: Option|materialized_mir_mut` 在活跃 Rust 源码中无命中，并运行 `git diff --check`。
+  - 残余风险：effect facts builder 仍会在 P4 内部扩展 materialized snapshot type context，且 downstream raw pass-view / nested wrapper 过渡读取仍按 `P3-T04`、P4/P5/P7 后续任务收口；这些不构成 P3-T03R 阻塞项。
 
 ## [TODO] P3-T04：切换下游 MIR 查询到 `mir_facts` / pass artifacts surface
 
