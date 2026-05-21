@@ -156,7 +156,7 @@
   - 验证命令：`cargo fmt`；`cargo check -p scoopc_mir_facts`；`cargo test -p scoopc_mir_facts`；`cargo run -p scoop_tools -- dependency-gate`；`cargo clippy --all-targets -- -D warnings`；额外运行 `cargo test -p scoopc_ids` 与 `cargo test -p scoop_tools dependency_gate` 覆盖新增基础 key 和门禁测试。
   - 残余风险：当前 facts crate 仍是数据模型壳层；P3-T02 负责把现有 root inventory 构造迁入 `MirFacts`，P3-T03 之后负责把 canonical snapshot / pass artifacts 与真实 MIR stage handoff 接起来。当前 verifier/dump 只做结构性 skeleton 检查，不替代后续迁移验证。
 
-## [TODO] P3-T01R：Review `mir_facts` crate 与事实模型
+## [DONE] P3-T01R：Review `mir_facts` crate 与事实模型
 
 - 参考：P3-T01。
 - 重点：
@@ -177,7 +177,11 @@
   - review 结论明确写出：`mir_facts` crate 壳层满足 P3/Pipeline fact DAG 约束，或列出阻塞项并在本 review 内修复。
 - 依赖：P3-T01
 - 完成记录：
-  - 待填写。
+  - 改动范围：复查 `P3-T01` 建立的 `scoopc_mir_facts` crate、`scoopc_ids::StageArtifactKey`、`scoopc` facade anchor、workspace/README 条目和 `tools/scoop_tools` dependency gate；review 未发现需要修复的代码问题，本次只更新任务状态与完成记录。
+  - review 结论：`scoopc_mir_facts` 当前仅直接依赖 `scoopc_span`、`scoopc_source`、`scoopc_types`、`scoopc_ids`、`scoopc_project_model`，源码未引用 `scoopc` facade、HIR/MIR stage 类型、其它 fact crate、backend/LLVM 类型、`TemplateKey` 或 `InstanceKey`。`MirFacts` 已按 root inventories、materialized snapshot binding、instance/callable family inventory、pass artifact metadata、MIR pass pipeline metadata 分组，覆盖 P3-T01 要求的事实模型壳层。
+  - dependency gate 结论：`FACT_CRATES` 已包含 `scoopc_mir_facts`，门禁会拒绝 fact crate 依赖 facade、driver/runtime/tool、stage/backend crate 或其它 fact crate；`cargo tree -p scoopc_mir_facts` 的 workspace 依赖只包含允许的基础 crate。
+  - 验证命令：`cargo fmt`；`cargo check -p scoopc_mir_facts`；`cargo test -p scoopc_mir_facts`；`cargo run -p scoop_tools -- dependency-gate`；`cargo clippy --all-targets -- -D warnings`；`cargo tree -p scoopc_mir_facts`；额外复跑 `cargo test -p scoopc_ids` 与 `cargo test -p scoop_tools dependency_gate`。
+  - 残余风险：当前 crate 仍是数据模型与 verifier/dump skeleton；实际 root inventory 构造、canonical snapshot/pass artifacts 绑定和下游查询切换仍由后续 `P3-T02` 到 `P3-T04` 完成。
 
 ## [TODO] P3-T02：迁移 MIR-owned root inventories 到 `mir_facts`
 
