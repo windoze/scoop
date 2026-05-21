@@ -31,4 +31,5 @@
 - 已实施：`MaterializedEffectFacts` 现在携带 `EffectOwnedTypeContext`；builder 和 stage 已去除 P4 对 MIR snapshot 的可变借用；新增 stage 级测试对比 P4 前后 snapshot binding、pass artifacts metadata 和 MIR `TypeStore`。
 - 已验证：`cargo fmt`、effect facts stage/effect facts 单测、effect facts/effect lowered 夹具、effect lowered 单测、`cargo clippy --all-targets -- -D warnings`、`git diff --check` 均通过。
 - 已完成记录：`TODO.md` 与 `TODO-5.md` 已将 `P4-T02` 标记为 `[DONE]`，并填写完成记录。
-- 下一步：提交本次 `P4-T02` 变更后停止，不继续处理 `P4-T02R`。
+- 已提交：`baf9c471 [P4-T02] Make effect facts builder read-only`。
+- 当前结论：本次调用已完成 `P4-T02`，停止，不继续处理 `P4-T02R`。
