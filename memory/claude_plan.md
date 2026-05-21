@@ -1,49 +1,33 @@
-# Execution Plan
+# 当前执行计划
 
-I cannot record private chain-of-thought, but this file will track the concrete execution plan, decisions, and progress for this invocation.
+## 约束
 
-1. Read `TODO.md` first and identify the first task whose heading is not prefixed with `[DONE]`.
-2. Check the latest commit only for an explicitly unfinished issue that is directly relevant to that task.
-3. Inspect the task's referenced code, fixtures, and validation requirements.
-4. Implement the task as written, without narrowing scope or using workaround behavior.
-5. Run the task-specific validation, then broader relevant tests if needed.
-6. Update `TODO.md` by prefixing the task heading with `[DONE]` and filling in the completion record.
-7. Update this file whenever a key step completes or the plan changes.
-8. Commit all intended changes for this task with a task-tagged commit message, then stop.
+- 以 `TODO.md` 为唯一任务顺序与完成状态来源。
+- 只处理第一个未在标题中标记 `[DONE]` 的任务，完成后停止。
+- 如遇到阻塞当前任务的规格不符、缺失功能或实现边界，先把最小必要前置任务写入 `TODO.md` 并提交，然后停止。
+- 不通过降低范围、改夹具形状、特殊绕过或临时兼容层来完成任务。
+- 仅在阶段级计划、依赖或完成标准变化时更新 `PLAN.md`。
 
-## Progress
+## 步骤
 
-- Initial plan recorded before project inspection.
-- Identified the first incomplete task from `TODO.md`: `P2-T06` in `TODO-3.md`.
-- Checked the latest commit (`[P2-T05R] Review source-site contract migration`); it does not mention an unfinished issue directly relevant to `P2-T06`.
+1. 读取 `TODO.md`，按文件顺序定位第一个标题未带 `[DONE]` 的任务。
+2. 检查最近一次提交信息，判断是否明确提到与该任务直接相关的未完成问题。
+3. 阅读该任务的要求、依赖、验证条件与完成记录，确定需要修改的最小代码区域。
+4. 实施任务；若发现任务被具体前置问题阻塞，则更新 `TODO.md` 记录该前置任务并停止。
+5. 运行任务要求的验证命令；必要时补充相关定向测试，修复验证中暴露的当前任务范围内问题。
+6. 将任务标题加上 `[DONE]`，更新 `TODO.md` 的完成记录；只在确有阶段级变化时更新 `PLAN.md`。
+7. 检查工作区差异，确保未误改无关内容。
+8. 提交本次任务相关全部变更，提交信息使用任务编号和简洁描述。
+9. 完成后停止，不继续下一个任务。
 
-## Current Task: P2-T06
+## 进度
 
-Planned execution:
-
-1. Inspect existing legality checks, HIR facts publication, HIR preflight, and user-visible failure policy tests.
-2. Add or tighten barrier checks only where current code allows a spec-invalid declaration to pass beyond HIR/typecheck.
-3. Add fixtures/tests proving `@CallingConvention` generics and top-level `var` without storage policy are rejected before MIR/codegen, and legal global roots publish resolved storage policy without generic identity.
-4. Update the policy test to make allowed post-HIR failure classes explicit.
-5. Run the P2-T06 validation commands, fix regressions, then mark `P2-T06` done in both TODO indexes and commit.
-
-## Implementation Progress
-
-- Added structural `HirFacts` verifier checks for global root monomorphism and top-level var storage policy legality.
-- Added HIR/preflight tests proving legal global roots are monomorphic and mutable roots carry resolved storage policy.
-- Added a typecheck fixture for generic `@CallingConvention` body rejection.
-- Updated the user-visible failure policy audit to include the P2 declaration legality gates and explicit post-HIR allowed failure classes.
-
-## Validation Progress
-
-- Ran `cargo fmt`.
-- Ran `cargo test -p scoopc_hir_facts`.
-- Ran `cargo test -p scoopc --no-default-features hir_preflight`.
-- Ran `cargo test -p scoopc --no-default-features pipeline_user_visible_failure_policy`.
-- Ran `cargo test -p scoopc --no-default-features typecheck`.
-- Ran `cargo test -p scoopc --no-default-features hir_stage`.
-- Ran `cargo run -p scoop -- test --fixtures tests/fixtures/typecheck`.
-- Ran `cargo run -p scoop -- test --fixtures tests/fixtures/hir`.
-- Ran `cargo clippy --all-targets -- -D warnings`.
-- Marked `P2-T06` as `[DONE]` in `TODO.md` and `TODO-3.md`, with a completion record.
-- Ran `git diff --check` successfully.
+- 已创建本计划文件，下一步读取 `TODO.md` 定位当前任务。
+- 已定位第一个未完成任务：`P2-T06R`，即 review `P2-T06` 的 HIR semantic barrier 与错误边界。
+- 最近提交为 `[P2-T06] Tighten HIR barrier legality gates`，与本 review 直接相关；当前不需要插入额外前置任务。
+- 下一步复查最近提交改动、相关 typecheck/pipeline/facts 代码和 fixture 覆盖，再运行 P2-T06R 要求的验证命令。
+- 已复查主要改动面：`typecheck/annotations.rs` 的既有前端 gate、`hir_facts` verifier、`hir_preflight`、`hir_stage` facts 发布测试、failure policy 和新增/既有 fixtures。
+- 暂未发现需要先插入前置任务的阻塞项；进入验证阶段。
+- 已完成验证：P2-T06R 要求的单元测试、typecheck/HIR fixture、三项定向抽查、clippy 和 `git diff --check` 均通过。
+- 已将 `P2-T06R` 在 `TODO.md` 与 `TODO-3.md` 标记为 `[DONE]`，并填写 review 完成记录。
+- 下一步检查最终 diff/status 后提交本次任务变更。

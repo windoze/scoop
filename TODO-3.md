@@ -576,7 +576,7 @@
   - 验证命令：`cargo fmt`；`cargo test -p scoopc_hir_facts`；`cargo test -p scoopc --no-default-features hir_preflight`；`cargo test -p scoopc --no-default-features pipeline_user_visible_failure_policy`；`cargo test -p scoopc --no-default-features typecheck`；`cargo test -p scoopc --no-default-features hir_stage`；`cargo run -p scoop -- test --fixtures tests/fixtures/typecheck`；`cargo run -p scoop -- test --fixtures tests/fixtures/hir`；`cargo clippy --all-targets -- -D warnings`。
   - 残余风险：当前 AST/parser surface 仍不提供 object/top-level `val`/`var` type params；本任务用 HIR facts verifier 和 stage tests 防止后续路径发布 generic global root。P2-T07 仍需做全包清场与旧名称/文档审计。
 
-## [TODO] P2-T06R：Review HIR semantic barrier 与错误边界
+## [DONE] P2-T06R：Review HIR semantic barrier 与错误边界
 
 - 参考：P2-T06。
 - 重点：
@@ -596,7 +596,13 @@
   - review 结论明确写出：HIR semantic barrier 与 declaration legality gate 满足 P2 约束，或列出阻塞项并在本 review 内修复。
 - 依赖：P2-T06
 - 完成记录：
-  - 待填写。
+  - 复查范围：已复查 `P2-T06` 最近提交、`crates/scoopc/src/typecheck/annotations.rs`、`crates/scoopc/src/pipeline/hir_preflight.rs`、`crates/scoopc/src/pipeline/hir_stage.rs`、`crates/scoopc/src/pipeline_user_visible_failure_policy.rs`、`crates/scoopc_hir_facts/src/{lib.rs,verify.rs,globals.rs}` 以及相关 typecheck/HIR fixtures。
+  - legality gate 结论：`@CallingConvention` generic 函数和缺少 `@Global` / `@ThreadLocal` 的 top-level `var` 均由前端 typecheck/HIR barrier fixture 固定拒绝；合法 global root facts 只发布 monomorphic root，且 top-level `var` 必须携带已解析 storage policy，top-level `val` / object root 不携带 storage policy。
+  - 错误边界结论：`pipeline_user_visible_failure_policy` 已把 P2 declaration legality 纳入 frontend reject surface，并把 HIR 之后允许的失败类别限制为 internal bug/impossible-state sentinel、output drift verifier failure 与 environment/toolchain/link/runtime path；review 未发现后续阶段继续承担普通源码语义错误的新增阻塞点。
+  - fixtures 结论：失败侧覆盖 `calling_convention_body_generic_is_error.scoop` 与 `top_level_var_requires_threadlocal_or_global_is_error.scoop`；成功侧覆盖 `lowered_top_level_init.scoop/.hir` 和 HIR stage global root facts 单测。额外抽查三类 fixture 均通过。
+  - 修复情况：review 未发现需要在本任务内修复的阻塞项；未修改实现代码。
+  - 验证命令：`cargo fmt`；`cargo test -p scoopc_hir_facts`；`cargo test -p scoopc --no-default-features hir_preflight`；`cargo test -p scoopc --no-default-features pipeline_user_visible_failure_policy`；`cargo test -p scoopc --no-default-features typecheck`；`cargo test -p scoopc --no-default-features hir_stage`；`cargo run -p scoop -- test --fixtures tests/fixtures/typecheck`；`cargo run -p scoop -- test --fixtures tests/fixtures/hir`；`cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/calling_convention_body_generic_is_error.scoop`；`cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/top_level_var_requires_threadlocal_or_global_is_error.scoop`；`cargo run -p scoop -- test --fixtures tests/fixtures/hir/lowered_top_level_init.scoop`；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
+  - 残余风险：当前 review 范围不包含 P2 全包旧名称/重复 facts 清场；该工作仍由后续 `P2-T07` 处理。
 
 ## [TODO] P2-T07：P2 全包清场、文档同步与依赖审计
 
