@@ -554,7 +554,7 @@ P5 需要把这条隐式 opt helper 提升为正式 LIR optimization family：�
   - 验证命令：`cargo fmt`；`cargo check -p scoopc_lir_facts`；`cargo test -p scoopc_lir_facts`；`cargo test -p scoopc --no-default-features effect_lowered`；`cargo run -p scoop -- test --fixtures tests/fixtures/effect_lowered`；`cargo run -p scoop_tools -- dependency-gate`；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
   - 残余风险：P5-T03 仍需把 LLVM/codegen-neutral ABI materialization 的读取点切到 `LIR + lir_facts` 并删除 `LirStageOutput` 的上游 compatibility accessors；本任务只发布生产 facts，不提前清理 P7/P6 backend physical layout residual。
 
-## [TODO] P5-T02R：Review LIR contract 与 facts 完整度
+## [DONE] P5-T02R：Review LIR contract 与 facts 完整度
 
 - 参考：P5-T02。
 - 重点：
@@ -573,7 +573,12 @@ P5 需要把这条隐式 opt helper 提升为正式 LIR optimization family：�
   - review 结论明确写出：LIR facts/query layer 足以支撑 P5/P7 codegen handoff，或列出阻塞项并在本 review 内修复。
 - 依赖：P5-T02
 - 完成记录：
-  - 待填写。
+  - Review 结论：LIR facts/query layer 足以支撑 P5/P7 codegen handoff 的下一步切换；`LirFacts` 已覆盖 callable inventory、plain callable ABI/source/call-site contracts、effect-step state/frame/boundary/resume query keys、dynamic invoke、dispatch owner/slot、resume packing、continuation object 与 surface-resume dispatch facts。
+  - 完整度复查：plain callable 与 effect-step callable 均从 post-opt `LateLoweredProgram` 生产 facts；dynamic invoke 与 dispatch contracts 在 `pipeline::lir_facts_builder` 中由显式 MIR handoff / P4 effect facts handoff 构造并通过 `LirFacts::verify()` 校验，LLVM 侧不需要重新设计这些 codegen-neutral contract 才能进入 P5-T03。
+  - 构造路径复查：搜索 `LateLoweredProgramBuilder::from_canonical_inputs` 后确认两个生产路径 `effect_lowering_stage::run` / `run_with_opt_options` 都在 builder 输出后同步构造 `LirFacts`；其余匹配是 raw-program 单元测试、materialize 测试和 LLVM layout 测试 helper，不是未发布 facts 的 alternate stage output。
+  - 复查范围：检查了 `crates/scoopc_lir_facts/`、`crates/scoopc/src/pipeline/lir_facts_builder.rs`、`crates/scoopc/src/pipeline/effect_lowering_stage.rs`、`crates/scoopc/src/effect_lowered/`、`crates/scoopc/src/mir/dispatch_devirtualize.rs` 与 effect-lowered fixture goldens；未发现需要在本 review 内修复的阻塞项。
+  - 验证命令：`cargo fmt`；`cargo check -p scoopc_lir_facts`；`cargo test -p scoopc_lir_facts`；`cargo test -p scoopc --no-default-features effect_lowered`；`cargo run -p scoop -- test --fixtures tests/fixtures/effect_lowered`；`cargo run -p scoop_tools -- dependency-gate`；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
+  - 残余风险：`LirStageOutput` 仍保留 P5-T03 明确要求删除的上游 compatibility accessors，LLVM physical layout / HIR scaffold / global init residual 仍按 TODO-6/P7 处理；本 review 未把这些后续范围描述为 P5-T02 的 contract 缺口。
 
 ## [TODO] P5-T03：切换 codegen-neutral ABI/query surface 到 `LIR + lir_facts`
 
