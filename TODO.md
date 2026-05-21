@@ -71,7 +71,7 @@
 | TODO-4-INIT | [DONE] | [`TODO-4.md`](./TODO-4.md#done-todo-4-init初始化并细化本任务包) | 分析 P3 需求，生成 `TODO-4.md` 详细任务列表并更新本索引 |
 | P3-T01 | [DONE] | [`TODO-4.md`](./TODO-4.md#done-p3-t01建立-mir_facts-crate-与-mir-facts-数据模型) | 建立 `mir_facts` crate 与 MIR facts 数据模型 |
 | P3-T01R | [DONE] | [`TODO-4.md`](./TODO-4.md#done-p3-t01rreview-mir_facts-crate-与事实模型) | Review `mir_facts` crate 与事实模型 |
-| P3-T02 | [TODO] | [`TODO-4.md`](./TODO-4.md#todo-p3-t02迁移-mir-owned-root-inventories-到-mir_facts) | 迁移 MIR-owned root inventories 到 `mir_facts` |
+| P3-T02 | [DONE] | [`TODO-4.md`](./TODO-4.md#done-p3-t02迁移-mir-owned-root-inventories-到-mir_facts) | 迁移 MIR-owned root inventories 到 `mir_facts` |
 | P3-T02R | [TODO] | [`TODO-4.md`](./TODO-4.md#todo-p3-t02rreview-mir-root-inventory-迁移结果) | Review MIR root inventory 迁移结果 |
 | P3-T03 | [TODO] | [`TODO-4.md`](./TODO-4.md#todo-p3-t03固定-canonical-materialized-snapshot-binding-与-pass-artifacts-查询面) | 固定 canonical materialized snapshot binding 与 pass artifacts 查询面 |
 | P3-T03R | [TODO] | [`TODO-4.md`](./TODO-4.md#todo-p3-t03rreview-mir-snapshot-binding-与-pass-artifacts-查询面) | Review MIR snapshot binding 与 pass artifacts 查询面 |

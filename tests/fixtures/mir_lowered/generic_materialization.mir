@@ -278,3 +278,30 @@ File {
     ],
 }
 
+
+mir_facts {
+  roots: callable_bodies=8, initializers=1, extern_globals=0, metadata_roots=4
+  callable_bodies {
+    - item=12 fqn=mir_lowered.generic_materialization.Box.pair kind=callable_body span=463..554
+    - item=13 fqn=mir_lowered.generic_materialization.Tools.choose kind=callable_body span=607..663
+    - item=6 fqn=mir_lowered.generic_materialization.capture kind=callable_body span=261..363
+    - item=7 fqn=mir_lowered.generic_materialization.capture.$lambda0 kind=callable_body span=334..343
+    - item=8 fqn=mir_lowered.generic_materialization.effectExt kind=callable_body span=365..428
+    - item=9 fqn=mir_lowered.generic_materialization.entry kind=callable_body span=667..1050
+    - item=10 fqn=mir_lowered.generic_materialization.main kind=callable_body span=1052..1084
+    - item=5 fqn=mir_lowered.generic_materialization.top kind=callable_body span=196..259
+  }
+  initializers {
+    - item=4 fqn=mir_lowered.generic_materialization.Tools kind=initializer source_path=tests/fixtures/mir_lowered/generic_materialization.scoop span=588..665 initializer_kind=object_singleton has_initializer=false dependencies=0
+  }
+  metadata_roots {
+    - item=0 fqn=mir_lowered.generic_materialization.Boom kind=metadata span=158..194 metadata_kind=nominal
+    - item=1 fqn=mir_lowered.generic_materialization.Box kind=metadata span=430..556 metadata_kind=nominal
+    - item=2 fqn=mir_lowered.generic_materialization.Holder kind=metadata span=558..586 metadata_kind=nominal
+    - item=3 fqn=mir_lowered.generic_materialization.Tools kind=metadata span=588..665 metadata_kind=object
+  }
+  snapshots: canonical=<none>, snapshots=0
+  families: instances=0, callable_families=0
+  pass_artifacts: revisions=0, callable_body_overrides=0, summaries=0, escape_facts=0
+  pass_pipeline: runs=0
+}

@@ -183,7 +183,7 @@
   - 验证命令：`cargo fmt`；`cargo check -p scoopc_mir_facts`；`cargo test -p scoopc_mir_facts`；`cargo run -p scoop_tools -- dependency-gate`；`cargo clippy --all-targets -- -D warnings`；`cargo tree -p scoopc_mir_facts`；额外复跑 `cargo test -p scoopc_ids` 与 `cargo test -p scoop_tools dependency_gate`。
   - 残余风险：当前 crate 仍是数据模型与 verifier/dump skeleton；实际 root inventory 构造、canonical snapshot/pass artifacts 绑定和下游查询切换仍由后续 `P3-T02` 到 `P3-T04` 完成。
 
-## [TODO] P3-T02：迁移 MIR-owned root inventories 到 `mir_facts`
+## [DONE] P3-T02：迁移 MIR-owned root inventories 到 `mir_facts`
 
 - 参考：
   - 本文件“`MirStageOutput` 当前字段、构造点与读取点”
@@ -221,7 +221,10 @@
   - direct-style MIR dump / tests 能证明 facts 与 MIR item 对齐。
 - 依赖：P3-T01R
 - 完成记录：
-  - 待填写。
+  - 改动范围：扩展 `scoopc_mir_facts::roots`，为 callable body、initializer、extern/global、metadata roots 发布稳定 identity、FQN、MIR item reference、span/source path、type/body reference 和 root-kind-specific detail；`MirStageOutput` 删除并列 root map 字段，新增 `mir_facts()`，现有 root query surface 全部委托 `MirFacts.roots` 后再定位 direct-style MIR item；`dump-mir` / `mir_lowered` golden 追加 `mir_facts { ... }` 边界。
+  - 核心决策：`MirFacts` 只保存 stage-independent fact 数据和 direct-style MIR item index reference，不暴露 `FunDecl`、`InitializerRoot`、`ExternGlobalRoot`、`MetadataRoot` 或其它 MIR node 类型。root fact identity 使用 root kind + FQN，避免 object initializer 与 metadata root 共享 FQN 时发生 owner 冲突。source path 在 MIR stage 构造时归一化为稳定 dump path，`TypeId` 只作为同一 MIR type universe 内的引用保留。
+  - 验证命令：`cargo fmt`；`cargo test -p scoopc_mir_facts`；`cargo test -p scoopc --no-default-features mir_stage`；`cargo test -p scoopc --no-default-features hir_preflight`；`cargo run -p scoop -- test --fixtures tests/fixtures/mir_lowered`；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
+  - 残余风险：P3-T02 只迁移 direct-style root inventories；canonical materialized snapshot binding、pass artifacts metadata、P4-ready mandatory snapshot handoff 和 downstream raw pass-view 切换仍按 P3-T03/P3-T04 处理。`EffectFactsStageOutput` / `EffectLoweredStageOutput` 的 nested upstream wrapper 仍属于后续 P4/P5/P7 收口范围。
 
 ## [TODO] P3-T02R：Review MIR root inventory 迁移结果
 

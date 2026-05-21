@@ -428,6 +428,7 @@ fun callInterface(i: IFace): Int {
                 file: File { items: Vec::new() },
                 types: TypeStore::new(),
             },
+            scoopc_project_model::StableConeKey::new("fixture", "0.0.0"),
             None,
         );
 

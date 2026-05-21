@@ -1,54 +1,34 @@
-# 执行计划
+# Current Invocation Plan
 
-说明：本文件记录可审计的执行计划、关键决策和进度更新，不记录隐藏推理链。
+1. Read `TODO.md` and identify the first task whose title is not prefixed with `[DONE]`.
+2. Review only the context needed for that task, including `PLAN.md`, recent commit metadata, and relevant source or fixture files.
+3. Implement the task exactly as specified, without narrowing scope or using workarounds.
+4. Run targeted validation first, then broader required checks from the task where feasible.
+5. Update `TODO.md` by prefixing the completed task title with `[DONE]` and filling in its completion record; update `PLAN.md` only if phase-level planning changes.
+6. Commit all files relevant to this invocation with a task-specific commit message.
+7. Stop after completing exactly one task.
 
-## 本轮范围
+Progress:
+- Initial plan recorded before inspecting the current task.
+- Identified first incomplete task: `P3-T02` in `TODO-4.md`, dependent on completed `P3-T01R`.
+- Latest commit is `[P3-T01R] Review MIR facts crate`; it matches the completed prerequisite and does not add an unfinished blocker for `P3-T02`.
+- Implemented root inventory ownership in `MirFacts` and removed the parallel root map fields from `MirStageOutput`.
+- Updated MIR stable dumps and `mir_lowered` fixtures to show the `mir_facts` boundary.
+- Marked `P3-T02` as complete in `TODO.md` and `TODO-4.md` after validation.
 
-- 以 `TODO.md` 作为任务顺序与完成状态的唯一权威来源。
-- 找到第一个标题未标记 `[DONE]` 的任务，只完成该任务后停止。
-- 不在选定任务前做开放式历史问题扫描。
-- 不接受 workaround；如果发现阻塞当前任务的真实前置问题，就在 `TODO.md` 中加入最小前置任务并停止。
+Task-specific plan:
+1. Inspect current `MirStageOutput` root inventory fields and `scoopc_mir_facts` root inventory model.
+2. Extend `MirFacts` root inventory entries so they can own FQN, stable identity, item index, span/source/type references, and root kind where available without depending on MIR stage types.
+3. Build `MirFacts` during MIR stage construction from `LoweredMir.file` and remove parallel root map fields from `MirStageOutput`.
+4. Rewrite existing root query methods to locate MIR items via `MirFacts`.
+5. Add or update unit tests and stable dumps to show MIR/facts alignment.
+6. Run the task-required validation commands, fix failures, then mark `P3-T02` complete and commit.
 
-## 执行步骤
-
-1. 读取 `TODO.md`，定位第一个未完成任务。
-2. 读取该任务所在的详细 TODO 文件，确认目标、复查范围、验证命令和完成条件。
-3. 只查看与当前任务直接相关的最近提交、工作树状态和代码/文档上下文。
-4. 对当前任务要求的范围做人工复查；如果发现阻塞项，在本 review 内修复或按规则登记前置任务。
-5. 运行任务要求的验证命令和必要的补充验证。
-6. 在 `TODO.md` 和对应详细 TODO 文件中把当前任务标记为 `[DONE]`，并填写完成记录。
-7. 更新本文件记录关键进展和验证结果。
-8. 检查 `git status`、`git diff`、`git diff --check` 和最近提交，提交本轮变更。
-9. 停止，不处理下一个任务。
-
-## 当前任务
-
-- 第一个未完成任务：`P3-T01R`。
-- 任务类型：review 任务，复查 `P3-T01` 建立的 `scoopc_mir_facts` crate 与 MIR facts 数据模型。
-- 最近相关提交：`f49dfe96 [P3-T01] Establish MIR facts crate`。
-
-## 复查结论
-
-- `scoopc_mir_facts` 的直接依赖只有允许的基础 crate：`scoopc_span`、`scoopc_source`、`scoopc_types`、`scoopc_ids`、`scoopc_project_model`。
-- `scoopc_mir_facts` 源码没有引用 `scoopc` facade、HIR/MIR stage 类型、backend/LLVM 类型、其它 fact crate、`TemplateKey` 或 `InstanceKey`。
-- `MirFacts` 已按 root inventories、materialized snapshot binding、instance/callable family inventory、pass artifact metadata、MIR pass pipeline metadata 分组。
-- `README.md`、`scoopc` facade anchor、workspace 成员和 `tools/scoop_tools` dependency gate 均已覆盖 `scoopc_mir_facts`。
-- 未发现需要在本 review 内修复的阻塞项。
-
-## 验证记录
-
-- 已通过：`cargo fmt`
-- 已通过：`cargo check -p scoopc_mir_facts`
-- 已通过：`cargo test -p scoopc_mir_facts`
-- 已通过：`cargo run -p scoop_tools -- dependency-gate`
-- 已通过：`cargo clippy --all-targets -- -D warnings`
-- 已通过：`cargo tree -p scoopc_mir_facts`
-- 已通过：`cargo test -p scoopc_ids`
-- 已通过：`cargo test -p scoop_tools dependency_gate`
-- 已通过：`git diff --check`
-
-## 进度更新
-
-- 已在 `TODO.md` 中将 `P3-T01R` 标记为 `[DONE]`。
-- 已在 `TODO-4.md` 中将 `P3-T01R` 标题标记为 `[DONE]`，并填写 review 结论、dependency gate 结论、验证命令和残余风险。
-- 下一步：最终检查差异并提交本轮 review 任务变更。
+Validation completed:
+- `cargo fmt`
+- `cargo test -p scoopc_mir_facts`
+- `cargo test -p scoopc --no-default-features mir_stage`
+- `cargo test -p scoopc --no-default-features hir_preflight`
+- `cargo run -p scoop -- test --fixtures tests/fixtures/mir_lowered`
+- `cargo clippy --all-targets -- -D warnings`
+- `git diff --check`

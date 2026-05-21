@@ -292,3 +292,26 @@ File {
     ],
 }
 
+
+mir_facts {
+  roots: callable_bodies=8, initializers=0, extern_globals=0, metadata_roots=3
+  callable_bodies {
+    - item=11 fqn=mir_lowered.codegen_routing_contracts.Base.ping kind=callable_body span=208..253
+    - item=5 fqn=mir_lowered.codegen_routing_contracts.callInterface kind=callable_body span=407..462
+    - item=4 fqn=mir_lowered.codegen_routing_contracts.callVirtual kind=callable_body span=352..405
+    - item=7 fqn=mir_lowered.codegen_routing_contracts.handled kind=callable_body span=575..689
+    - item=9 fqn=mir_lowered.codegen_routing_contracts.main kind=callable_body span=738..790
+    - item=8 fqn=mir_lowered.codegen_routing_contracts.outward kind=callable_body span=691..736
+    - item=3 fqn=mir_lowered.codegen_routing_contracts.rawSafe kind=callable_body span=297..350
+    - item=6 fqn=mir_lowered.codegen_routing_contracts.resumeBoom kind=callable_body span=464..573
+  }
+  metadata_roots {
+    - item=1 fqn=mir_lowered.codegen_routing_contracts.Base kind=metadata span=184..255 metadata_kind=nominal
+    - item=2 fqn=mir_lowered.codegen_routing_contracts.IFace kind=metadata span=257..295 metadata_kind=nominal
+    - item=0 fqn=mir_lowered.codegen_routing_contracts.Ping kind=metadata span=147..182 metadata_kind=nominal
+  }
+  snapshots: canonical=<none>, snapshots=0
+  families: instances=0, callable_families=0
+  pass_artifacts: revisions=0, callable_body_overrides=0, summaries=0, escape_facts=0
+  pass_pipeline: runs=0
+}

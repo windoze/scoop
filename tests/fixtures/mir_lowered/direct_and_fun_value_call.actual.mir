@@ -99,3 +99,17 @@ File {
     ],
 }
 
+
+mir_facts {
+  roots: callable_bodies=4, initializers=0, extern_globals=0, metadata_roots=0
+  callable_bodies {
+    - item=1 fqn=a.callFn kind=callable_body span=40..91
+    - item=0 fqn=a.id kind=callable_body span=11..38
+    - item=2 fqn=a.main kind=callable_body span=93..131
+    - item=3 fqn=a.main.$lambda0 kind=callable_body span=123..125
+  }
+  snapshots: canonical=<none>, snapshots=0
+  families: instances=0, callable_families=0
+  pass_artifacts: revisions=0, callable_body_overrides=0, summaries=0, escape_facts=0
+  pass_pipeline: runs=0
+}

@@ -63,3 +63,14 @@ File {
     ],
 }
 
+
+mir_facts {
+  roots: callable_bodies=1, initializers=0, extern_globals=0, metadata_roots=0
+  callable_bodies {
+    - item=0 fqn=mir_lowered.not_null_assert.unwrap kind=callable_body span=161..226
+  }
+  snapshots: canonical=<none>, snapshots=0
+  families: instances=0, callable_families=0
+  pass_artifacts: revisions=0, callable_body_overrides=0, summaries=0, escape_facts=0
+  pass_pipeline: runs=0
+}

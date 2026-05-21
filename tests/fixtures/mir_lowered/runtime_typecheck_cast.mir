@@ -191,3 +191,22 @@ File {
     ],
 }
 
+
+mir_facts {
+  roots: callable_bodies=2, initializers=0, extern_globals=0, metadata_roots=5
+  callable_bodies {
+    - item=7 fqn=mir_lowered.runtime_typecheck_cast.Impl.ping kind=callable_body span=267..295
+    - item=5 fqn=mir_lowered.runtime_typecheck_cast.inspect kind=callable_body span=354..699
+  }
+  metadata_roots {
+    - item=1 fqn=mir_lowered.runtime_typecheck_cast.Base kind=metadata span=213..230 metadata_kind=nominal
+    - item=4 fqn=mir_lowered.runtime_typecheck_cast.Holder kind=metadata span=323..352 metadata_kind=nominal
+    - item=0 fqn=mir_lowered.runtime_typecheck_cast.IFace kind=metadata span=172..211 metadata_kind=nominal
+    - item=2 fqn=mir_lowered.runtime_typecheck_cast.Impl kind=metadata span=232..297 metadata_kind=nominal
+    - item=3 fqn=mir_lowered.runtime_typecheck_cast.Other kind=metadata span=299..321 metadata_kind=nominal
+  }
+  snapshots: canonical=<none>, snapshots=0
+  families: instances=0, callable_families=0
+  pass_artifacts: revisions=0, callable_body_overrides=0, summaries=0, escape_facts=0
+  pass_pipeline: runs=0
+}

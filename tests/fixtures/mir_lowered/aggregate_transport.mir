@@ -398,3 +398,28 @@ File {
     ],
 }
 
+
+mir_facts {
+  roots: callable_bodies=9, initializers=0, extern_globals=0, metadata_roots=4
+  callable_bodies {
+    - item=6 fqn=mir_lowered.aggregate_transport.arrays kind=callable_body span=577..780
+    - item=7 fqn=mir_lowered.aggregate_transport.closureCapture kind=callable_body span=782..950
+    - item=8 fqn=mir_lowered.aggregate_transport.closureCapture.$lambda0 kind=callable_body span=869..930
+    - item=10 fqn=mir_lowered.aggregate_transport.effects kind=callable_body span=1025..1612
+    - item=9 fqn=mir_lowered.aggregate_transport.functionValue kind=callable_body span=952..1023
+    - item=5 fqn=mir_lowered.aggregate_transport.identityBox kind=callable_body span=526..575
+    - item=11 fqn=mir_lowered.aggregate_transport.main kind=callable_body span=1614..1820
+    - item=12 fqn=mir_lowered.aggregate_transport.main.$lambda1 kind=callable_body span=1721..1732
+    - item=4 fqn=mir_lowered.aggregate_transport.makeBox kind=callable_body span=463..524
+  }
+  metadata_roots {
+    - item=0 fqn=mir_lowered.aggregate_transport.Box kind=metadata span=165..210 metadata_kind=nominal
+    - item=2 fqn=mir_lowered.aggregate_transport.Choice kind=metadata span=263..383 metadata_kind=nominal
+    - item=3 fqn=mir_lowered.aggregate_transport.Send kind=metadata span=385..461 metadata_kind=nominal
+    - item=1 fqn=mir_lowered.aggregate_transport.Wrapper kind=metadata span=211..261 metadata_kind=nominal
+  }
+  snapshots: canonical=<none>, snapshots=0
+  families: instances=0, callable_families=0
+  pass_artifacts: revisions=0, callable_body_overrides=0, summaries=0, escape_facts=0
+  pass_pipeline: runs=0
+}

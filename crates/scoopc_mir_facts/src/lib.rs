@@ -65,7 +65,7 @@ mod tests {
 
     use super::*;
     use crate::common::FactIdentity;
-    use crate::roots::{MirRootFact, MirRootKind};
+    use crate::roots::{MirItemReference, MirRootDetail, MirRootFact, MirRootKind};
     use crate::snapshot::MaterializedSnapshotBinding;
     use crate::verify::VerifyError;
 
@@ -122,7 +122,13 @@ mod tests {
     }
 
     fn root_fact(key: &str, kind: MirRootKind) -> MirRootFact {
-        MirRootFact::new(identity(key), kind, key, None, None)
+        MirRootFact::new(
+            identity(key),
+            kind,
+            key,
+            MirItemReference::new(0),
+            MirRootDetail::CallableBody,
+        )
     }
 
     fn identity(key: &str) -> FactIdentity {

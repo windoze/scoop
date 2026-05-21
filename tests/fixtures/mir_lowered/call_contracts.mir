@@ -261,3 +261,29 @@ File {
     ],
 }
 
+
+mir_facts {
+  roots: callable_bodies=9, initializers=1, extern_globals=0, metadata_roots=2
+  callable_bodies {
+    - item=11 fqn=mir_lowered.call_contracts.Singleton.get kind=callable_body span=407..434
+    - item=7 fqn=mir_lowered.call_contracts.callFn kind=callable_body span=438..494
+    - item=3 fqn=mir_lowered.call_contracts.direct kind=callable_body span=139..175
+    - item=6 fqn=mir_lowered.call_contracts.ext kind=callable_body span=299..355
+    - item=4 fqn=mir_lowered.call_contracts.generic kind=callable_body span=177..221
+    - item=8 fqn=mir_lowered.call_contracts.main kind=callable_body span=496..993
+    - item=9 fqn=mir_lowered.call_contracts.main.$lambda0 kind=callable_body span=733..739
+    - item=10 fqn=mir_lowered.call_contracts.main.$lambda1 kind=callable_body span=789..810
+    - item=5 fqn=mir_lowered.call_contracts.namedDefault kind=callable_body span=223..297
+  }
+  initializers {
+    - item=2 fqn=mir_lowered.call_contracts.Singleton kind=initializer source_path=tests/fixtures/mir_lowered/call_contracts.scoop span=384..436 initializer_kind=object_singleton has_initializer=false dependencies=0
+  }
+  metadata_roots {
+    - item=0 fqn=mir_lowered.call_contracts.Box kind=metadata span=357..382 metadata_kind=nominal
+    - item=1 fqn=mir_lowered.call_contracts.Singleton kind=metadata span=384..436 metadata_kind=object
+  }
+  snapshots: canonical=<none>, snapshots=0
+  families: instances=0, callable_families=0
+  pass_artifacts: revisions=0, callable_body_overrides=0, summaries=0, escape_facts=0
+  pass_pipeline: runs=0
+}

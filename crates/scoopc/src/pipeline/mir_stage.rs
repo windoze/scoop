@@ -1,5 +1,15 @@
 use std::collections::BTreeMap;
 
+use scoopc_ids::{BodyVersionKey, CanonicalTextKey};
+use scoopc_mir_facts::MirFacts;
+use scoopc_mir_facts::common::{FactIdentity, MirBodyReference};
+use scoopc_mir_facts::roots::{
+    MirGlobalStorageKind, MirInitializerRootKind as FactInitializerRootKind, MirItemReference,
+    MirMetadataRootKind, MirRootDetail, MirRootFact, MirRootKind, RootInventories,
+};
+use scoopc_project_model::StableConeKey;
+
+use crate::dump_support::normalize_dump_path;
 use crate::mir::{
     ExternGlobalRoot as MirExternGlobalRoot, File as MirFile, FunDecl as MirFunDecl,
     InitializerRoot as MirInitializerRoot, Item as MirItem, LoweredMir, MaterializedMir,
@@ -17,9 +27,9 @@ use super::HirStageOutput;
 /// - 当前所有 effect-sensitive site 继续通过 MIR 节点上的 `SiteId` 锚定；
 /// - source-site contracts 只从 `HirFacts` 进入 MIR lowering；canonical 的 site-level
 ///   contract 现已下沉到 MIR 节点 metadata，P4 不得重新解释 HIR side table；
-/// - `callable_body_indices` 与可选的 `materialized_mir` 把 P4 会消费的 canonical MIR
-///   handoff 显式挂在 stage 输出上，而不是回看 HIR 输出。
-/// - P4 的 authoritative 输入是这份 stage 输出上的 callable body 身份、可选
+/// - MIR-owned root inventories 由 `mir_facts` 发布，stage 查询方法只委托 facts 定位
+///   direct-style MIR item；
+/// - P4 的 authoritative 输入是这份 stage 输出上的 root identity、可选
 ///   `materialized_mir` 快照，以及 MIR 节点上的 `SiteId` / metadata；P4 不得回看 P2 原始
 ///   HIR side tables 重新猜测 site contract。
 /// - 本 stage 仍未提供 `StepSchema`、`ContinuationSchema` 或 `MaterializedEffectFacts`；这些属于
@@ -27,25 +37,20 @@ use super::HirStageOutput;
 #[derive(Debug)]
 pub struct MirStageOutput {
     lowered_mir: LoweredMir,
-    callable_body_indices: BTreeMap<String, usize>,
-    initializer_root_indices: BTreeMap<String, usize>,
-    global_root_indices: BTreeMap<String, usize>,
-    metadata_root_indices: BTreeMap<String, usize>,
+    mir_facts: MirFacts,
     materialized_mir: Option<MaterializedMir>,
 }
 
 impl MirStageOutput {
-    pub(crate) fn new(lowered_mir: LoweredMir, materialized_mir: Option<MaterializedMir>) -> Self {
-        let callable_body_indices = collect_callable_body_indices(&lowered_mir.file);
-        let initializer_root_indices = collect_initializer_root_indices(&lowered_mir.file);
-        let global_root_indices = collect_global_root_indices(&lowered_mir.file);
-        let metadata_root_indices = collect_metadata_root_indices(&lowered_mir.file);
+    pub(crate) fn new(
+        lowered_mir: LoweredMir,
+        stable_cone_key: StableConeKey,
+        materialized_mir: Option<MaterializedMir>,
+    ) -> Self {
+        let mir_facts = build_mir_facts(&lowered_mir.file, &stable_cone_key);
         Self {
-            callable_body_indices,
-            initializer_root_indices,
-            global_root_indices,
-            metadata_root_indices,
             lowered_mir,
+            mir_facts,
             materialized_mir,
         }
     }
@@ -56,6 +61,11 @@ impl MirStageOutput {
 
     pub fn types(&self) -> &TypeStore {
         &self.lowered_mir.types
+    }
+
+    /// Return MIR-owned facts published by this stage.
+    pub fn mir_facts(&self) -> &MirFacts {
+        &self.mir_facts
     }
 
     /// 返回当前 stage 输出上显式挂住的 canonical materialized MIR 快照（若存在）。
@@ -74,12 +84,12 @@ impl MirStageOutput {
 
     /// 以稳定顺序枚举当前 direct-style MIR 中可查询的 callable body 身份。
     pub fn callable_body_fqns(&self) -> impl Iterator<Item = &str> + '_ {
-        self.callable_body_indices.keys().map(String::as_str)
+        self.mir_facts.roots.callable_body_fqns()
     }
 
     /// 按 callable body 身份查询 canonical direct-style MIR body。
     pub fn callable_body(&self, fqn: &str) -> Option<&MirFunDecl> {
-        let item_index = *self.callable_body_indices.get(fqn)?;
+        let item_index = self.mir_facts.roots.callable_body(fqn)?.item.index;
         match self.file().items.get(item_index)? {
             MirItem::Fun(fun) if fun.body.is_some() => Some(fun),
             _ => None,
@@ -88,12 +98,12 @@ impl MirStageOutput {
 
     /// 以稳定顺序枚举 MIR-owned top-level initializer/value roots。
     pub fn initializer_root_fqns(&self) -> impl Iterator<Item = &str> + '_ {
-        self.initializer_root_indices.keys().map(String::as_str)
+        self.mir_facts.roots.initializer_fqns()
     }
 
     /// 按 root FQN 查询 top-level initializer/value root。
     pub fn initializer_root(&self, fqn: &str) -> Option<&MirInitializerRoot> {
-        let item_index = *self.initializer_root_indices.get(fqn)?;
+        let item_index = self.mir_facts.roots.initializer(fqn)?.item.index;
         match self.file().items.get(item_index)? {
             MirItem::InitializerRoot(root) => Some(root),
             _ => None,
@@ -102,12 +112,12 @@ impl MirStageOutput {
 
     /// 以稳定顺序枚举 MIR-owned global/extern roots。
     pub fn global_root_fqns(&self) -> impl Iterator<Item = &str> + '_ {
-        self.global_root_indices.keys().map(String::as_str)
+        self.mir_facts.roots.extern_global_fqns()
     }
 
     /// 按 FQN 查询 `@Extern` global root contract。
     pub fn extern_global_root(&self, fqn: &str) -> Option<&MirExternGlobalRoot> {
-        let item_index = *self.global_root_indices.get(fqn)?;
+        let item_index = self.mir_facts.roots.extern_global(fqn)?.item.index;
         match self.file().items.get(item_index)? {
             MirItem::ExternGlobal(root) => Some(root),
             _ => None,
@@ -116,12 +126,12 @@ impl MirStageOutput {
 
     /// 以稳定顺序枚举 MIR-owned type/object/typealias metadata roots。
     pub fn metadata_root_fqns(&self) -> impl Iterator<Item = &str> + '_ {
-        self.metadata_root_indices.keys().map(String::as_str)
+        self.mir_facts.roots.metadata_root_fqns()
     }
 
     /// 按 FQN 查询 MIR declaration metadata root。
     pub fn metadata_root(&self, fqn: &str) -> Option<&MirMetadataRoot> {
-        let item_index = *self.metadata_root_indices.get(fqn)?;
+        let item_index = self.mir_facts.roots.metadata_root(fqn)?.item.index;
         match self.file().items.get(item_index)? {
             MirItem::Metadata(root) => Some(root),
             _ => None,
@@ -130,13 +140,16 @@ impl MirStageOutput {
 
     /// `dump-mir` / `mir_lowered` fixtures / 定向单测共用的稳定文本 surface。
     ///
-    /// P3-T04 起，这个 formatter 就是 direct-style MIR 的 snapshot/golden 基线：
+    /// P3-T02 起，这个 formatter 就是 direct-style MIR + MIR facts 的 snapshot/golden 基线：
     /// - 必须稳定暴露 direct-style MIR body / CFG；
     /// - 必须保留 `SiteId`、cleanup/finally target，以及 `Call / Perform / Resume / Handle`
     ///   的关键 metadata；
     /// - 不能在 CLI、fixture runner、或单测之间各自拼接不同文本。
     pub fn stable_dump(&self) -> String {
         let mut out = crate::mir::stable_dump_file(self.file(), self.types());
+        out.push('\n');
+        out.push('\n');
+        out.push_str(&self.mir_facts.dump());
         out.push('\n');
         out
     }
@@ -146,51 +159,206 @@ impl MirStageOutput {
     }
 }
 
-fn collect_callable_body_indices(file: &MirFile) -> BTreeMap<String, usize> {
-    let mut indices = BTreeMap::new();
+fn build_mir_facts(file: &MirFile, stable_cone_key: &StableConeKey) -> MirFacts {
+    let mut facts = MirFacts::new();
+    facts.roots = collect_root_inventories(file, stable_cone_key);
+    facts
+        .verify()
+        .expect("MIR stage must publish structurally valid MIR facts");
+    facts
+}
+
+fn collect_root_inventories(file: &MirFile, stable_cone_key: &StableConeKey) -> RootInventories {
+    let mut callable_bodies = BTreeMap::new();
+    let mut initializers = BTreeMap::new();
+    let mut extern_globals = BTreeMap::new();
+    let mut metadata_roots = BTreeMap::new();
+
     for (item_index, item) in file.items.iter().enumerate() {
-        let MirItem::Fun(fun) = item else {
-            continue;
-        };
-        if fun.body.is_none() {
-            continue;
+        match item {
+            MirItem::Fun(fun) if fun.body.is_some() => {
+                callable_bodies
+                    .entry(fun.fqn.clone())
+                    .or_insert_with(|| callable_body_root_fact(item_index, fun, stable_cone_key));
+            }
+            MirItem::InitializerRoot(root) => {
+                initializers
+                    .entry(root.fqn.clone())
+                    .or_insert_with(|| initializer_root_fact(item_index, root, stable_cone_key));
+            }
+            MirItem::ExternGlobal(root) => {
+                extern_globals
+                    .entry(root.fqn.clone())
+                    .or_insert_with(|| extern_global_root_fact(item_index, root, stable_cone_key));
+            }
+            MirItem::Metadata(root) => {
+                metadata_roots
+                    .entry(root.fqn().to_string())
+                    .or_insert_with(|| metadata_root_fact(item_index, root, stable_cone_key));
+            }
+            MirItem::Fun(_) | MirItem::Todo { .. } => {}
         }
-        indices.entry(fun.fqn.clone()).or_insert(item_index);
     }
-    indices
+
+    RootInventories {
+        callable_bodies: callable_bodies.into_values().collect(),
+        initializers: initializers.into_values().collect(),
+        extern_globals: extern_globals.into_values().collect(),
+        metadata_roots: metadata_roots.into_values().collect(),
+    }
 }
 
-fn collect_initializer_root_indices(file: &MirFile) -> BTreeMap<String, usize> {
-    let mut indices = BTreeMap::new();
-    for (item_index, item) in file.items.iter().enumerate() {
-        let MirItem::InitializerRoot(root) = item else {
-            continue;
-        };
-        indices.entry(root.fqn.clone()).or_insert(item_index);
-    }
-    indices
+fn callable_body_root_fact(
+    item_index: usize,
+    fun: &MirFunDecl,
+    stable_cone_key: &StableConeKey,
+) -> MirRootFact {
+    let kind = MirRootKind::CallableBody;
+    let identity = root_identity(kind, &fun.fqn, stable_cone_key);
+    let body_owner = identity.key.clone();
+    let body = MirBodyReference::new(
+        BodyVersionKey::new(&body_owner, "direct_style_mir", 0),
+        body_owner,
+        fun.fqn.clone(),
+        Some(fun.return_ty),
+    );
+
+    MirRootFact::new(
+        identity,
+        kind,
+        fun.fqn.clone(),
+        MirItemReference::new(item_index),
+        MirRootDetail::CallableBody,
+    )
+    .with_ty(Some(fun.ty))
+    .with_body(Some(body))
+    .with_span(Some(fun.span))
 }
 
-fn collect_global_root_indices(file: &MirFile) -> BTreeMap<String, usize> {
-    let mut indices = BTreeMap::new();
-    for (item_index, item) in file.items.iter().enumerate() {
-        let MirItem::ExternGlobal(root) = item else {
-            continue;
-        };
-        indices.entry(root.fqn.clone()).or_insert(item_index);
-    }
-    indices
+fn initializer_root_fact(
+    item_index: usize,
+    root: &MirInitializerRoot,
+    stable_cone_key: &StableConeKey,
+) -> MirRootFact {
+    let kind = MirRootKind::Initializer;
+    MirRootFact::new(
+        root_identity(kind, &root.fqn, stable_cone_key),
+        kind,
+        root.fqn.clone(),
+        MirItemReference::new(item_index),
+        MirRootDetail::Initializer {
+            kind: fact_initializer_root_kind(root.kind),
+            has_initializer: root.has_initializer,
+            dependency_count: root.dependencies.len(),
+        },
+    )
+    .with_ty(root.ty)
+    .with_source_path(Some(normalize_dump_path(&root.source_path)))
+    .with_span(Some(root.span))
 }
 
-fn collect_metadata_root_indices(file: &MirFile) -> BTreeMap<String, usize> {
-    let mut indices = BTreeMap::new();
-    for (item_index, item) in file.items.iter().enumerate() {
-        let MirItem::Metadata(root) = item else {
-            continue;
-        };
-        indices.entry(root.fqn().to_string()).or_insert(item_index);
+fn extern_global_root_fact(
+    item_index: usize,
+    root: &MirExternGlobalRoot,
+    stable_cone_key: &StableConeKey,
+) -> MirRootFact {
+    let kind = MirRootKind::ExternGlobal;
+    MirRootFact::new(
+        root_identity(kind, &root.fqn, stable_cone_key),
+        kind,
+        root.fqn.clone(),
+        MirItemReference::new(item_index),
+        MirRootDetail::ExternGlobal {
+            storage: fact_global_storage_kind(root.storage),
+            mutable: root.mutable,
+            symbol: root.symbol.clone(),
+            initializer_absent: root.initializer_absent,
+            unsafe_required: root.unsafe_required,
+        },
+    )
+    .with_ty(Some(root.ty))
+    .with_source_path(Some(normalize_dump_path(&root.source_path)))
+    .with_span(Some(root.span))
+}
+
+fn metadata_root_fact(
+    item_index: usize,
+    root: &MirMetadataRoot,
+    stable_cone_key: &StableConeKey,
+) -> MirRootFact {
+    let kind = MirRootKind::Metadata;
+    MirRootFact::new(
+        root_identity(kind, root.fqn(), stable_cone_key),
+        kind,
+        root.fqn().to_string(),
+        MirItemReference::new(item_index),
+        MirRootDetail::Metadata {
+            kind: fact_metadata_root_kind(root),
+        },
+    )
+    .with_ty(metadata_root_ty(root))
+    .with_span(Some(metadata_root_span(root)))
+}
+
+fn root_identity(kind: MirRootKind, fqn: &str, stable_cone_key: &StableConeKey) -> FactIdentity {
+    FactIdentity::new(
+        CanonicalTextKey::new(format!("mir_root:{}:{fqn}", kind.label())),
+        fqn,
+        stable_cone_key.clone(),
+        None,
+    )
+}
+
+fn fact_initializer_root_kind(kind: crate::mir::InitializerRootKind) -> FactInitializerRootKind {
+    match kind {
+        crate::mir::InitializerRootKind::RuntimeImmutableVal => {
+            FactInitializerRootKind::RuntimeImmutableVal
+        }
+        crate::mir::InitializerRootKind::RuntimeMutableVar { storage } => match storage {
+            crate::hir::TopLevelVarStorage::Global => {
+                FactInitializerRootKind::RuntimeMutableGlobalVar
+            }
+            crate::hir::TopLevelVarStorage::ThreadLocal => {
+                FactInitializerRootKind::RuntimeMutableThreadLocalVar
+            }
+        },
+        crate::mir::InitializerRootKind::ObjectSingleton => {
+            FactInitializerRootKind::ObjectSingleton
+        }
     }
-    indices
+}
+
+fn fact_global_storage_kind(storage: crate::hir::TopLevelVarStorage) -> MirGlobalStorageKind {
+    match storage {
+        crate::hir::TopLevelVarStorage::Global => MirGlobalStorageKind::Global,
+        crate::hir::TopLevelVarStorage::ThreadLocal => MirGlobalStorageKind::ThreadLocal,
+    }
+}
+
+fn fact_metadata_root_kind(root: &MirMetadataRoot) -> MirMetadataRootKind {
+    match root {
+        MirMetadataRoot::TypeAlias(_) => MirMetadataRootKind::TypeAlias,
+        MirMetadataRoot::Nominal(_) => MirMetadataRootKind::Nominal,
+        MirMetadataRoot::Object(_) => MirMetadataRootKind::Object,
+        MirMetadataRoot::ExtensionProperty(_) => MirMetadataRootKind::ExtensionProperty,
+    }
+}
+
+fn metadata_root_span(root: &MirMetadataRoot) -> crate::span::Span {
+    match root {
+        MirMetadataRoot::TypeAlias(alias) => alias.span,
+        MirMetadataRoot::Nominal(nominal) => nominal.span,
+        MirMetadataRoot::Object(object) => object.span,
+        MirMetadataRoot::ExtensionProperty(prop) => prop.span,
+    }
+}
+
+fn metadata_root_ty(root: &MirMetadataRoot) -> Option<TypeId> {
+    match root {
+        MirMetadataRoot::TypeAlias(alias) => Some(alias.ty),
+        MirMetadataRoot::Nominal(_) | MirMetadataRoot::Object(_) => None,
+        MirMetadataRoot::ExtensionProperty(prop) => Some(prop.ty),
+    }
 }
 
 fn validate_bodies(file: &MirFile, unit_ty: TypeId, bool_ty: TypeId) -> Result<(), MirLowerError> {
@@ -204,6 +372,7 @@ fn validate_bodies(file: &MirFile, unit_ty: TypeId, bool_ty: TypeId) -> Result<(
 fn lower_mir_stage_unvalidated(hir_output: HirStageOutput) -> (MirStageOutput, TypeId, TypeId) {
     let facts = MirLoweringFacts::from_hir_facts(hir_output.lowered_hir(), hir_output.hir_facts());
     let mut lowered_hir = hir_output.into_lowered_hir();
+    let stable_cone_key = lowered_hir.stable_cone_key.clone();
     let builtins = lowered_hir.types.intern_builtins();
     let file = lower_hir_file_for_dump_with_facts(
         builtins,
@@ -215,7 +384,7 @@ fn lower_mir_stage_unvalidated(hir_output: HirStageOutput) -> (MirStageOutput, T
     let types = std::mem::replace(&mut lowered_hir.types, TypeStore::new());
 
     (
-        MirStageOutput::new(LoweredMir { file, types }, None),
+        MirStageOutput::new(LoweredMir { file, types }, stable_cone_key, None),
         builtins.unit,
         builtins.bool_,
     )
@@ -244,6 +413,7 @@ mod tests {
     use crate::session::{Session, SessionOptions};
     use crate::source::SourceFile;
     use crate::ty::TypeStore;
+    use scoopc_project_model::StableConeKey;
     use std::path::PathBuf;
 
     fn session() -> Session {
@@ -314,6 +484,8 @@ mod tests {
         assert!(output.callable_body("sample.helper").is_some());
         assert!(output.callable_body("sample.main").is_some());
         assert!(output.stable_dump().contains("FunDecl"));
+        assert!(output.stable_dump().contains("mir_facts {"));
+        assert_eq!(output.mir_facts().roots.callable_bodies.len(), 2);
     }
 
     #[test]
@@ -418,6 +590,19 @@ fun main() {}
 
         let runtime = output.initializer_root("sample.Runtime").unwrap();
         assert_eq!(runtime.kind, InitializerRootKind::RuntimeImmutableVal);
+        let runtime_fact = output
+            .mir_facts()
+            .roots
+            .initializer("sample.Runtime")
+            .expect("runtime initializer should be published as a MIR fact");
+        assert!(matches!(
+            &runtime_fact.detail,
+            scoopc_mir_facts::roots::MirRootDetail::Initializer {
+                kind: scoopc_mir_facts::roots::MirInitializerRootKind::RuntimeImmutableVal,
+                has_initializer: true,
+                dependency_count: 1,
+            }
+        ));
         assert!(runtime.dependencies.iter().any(|dependency| {
             dependency.fqn == "sample.Base"
                 && dependency.kind == InitializerDependencyKind::TopLevelValue
@@ -433,6 +618,21 @@ fun main() {}
         let native = output.extern_global_root("sample.NativeCounter").unwrap();
         assert_eq!(native.symbol, "native_counter");
         assert!(native.initializer_absent);
+        let native_fact = output
+            .mir_facts()
+            .roots
+            .extern_global("sample.NativeCounter")
+            .expect("extern global should be published as a MIR fact");
+        assert!(matches!(
+            &native_fact.detail,
+            scoopc_mir_facts::roots::MirRootDetail::ExternGlobal {
+                storage: scoopc_mir_facts::roots::MirGlobalStorageKind::Global,
+                symbol,
+                initializer_absent: true,
+                unsafe_required: true,
+                ..
+            } if symbol == "native_counter"
+        ));
         assert!(
             output
                 .global_root_fqns()
@@ -442,6 +642,16 @@ fun main() {}
         assert!(matches!(
             output.metadata_root("sample.Alias"),
             Some(MetadataRoot::TypeAlias(alias)) if alias.name == "Alias"
+        ));
+        assert!(matches!(
+            output
+                .mir_facts()
+                .roots
+                .metadata_root("sample.Alias")
+                .map(|fact| &fact.detail),
+            Some(scoopc_mir_facts::roots::MirRootDetail::Metadata {
+                kind: scoopc_mir_facts::roots::MirMetadataRootKind::TypeAlias,
+            })
         ));
         assert!(matches!(
             output.metadata_root("sample.Point"),
@@ -1537,6 +1747,7 @@ fun bad() {
                 },
                 types,
             },
+            StableConeKey::new("fixture", "0.0.0"),
             None,
         );
 
@@ -1545,6 +1756,7 @@ fun bad() {
             vec!["sample.main"]
         );
         assert!(output.callable_body("sample.main").is_some());
+        assert_eq!(output.mir_facts().roots.callable_bodies[0].item.index, 0);
     }
 
     #[test]

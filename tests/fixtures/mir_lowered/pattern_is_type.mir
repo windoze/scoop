@@ -78,3 +78,17 @@ File {
     ],
 }
 
+
+mir_facts {
+  roots: callable_bodies=1, initializers=0, extern_globals=0, metadata_roots=1
+  callable_bodies {
+    - item=1 fqn=mir_lowered.pattern_is_type.classify kind=callable_body span=180..298
+  }
+  metadata_roots {
+    - item=0 fqn=mir_lowered.pattern_is_type.Box kind=metadata span=153..178 metadata_kind=nominal
+  }
+  snapshots: canonical=<none>, snapshots=0
+  families: instances=0, callable_families=0
+  pass_artifacts: revisions=0, callable_body_overrides=0, summaries=0, escape_facts=0
+  pass_pipeline: runs=0
+}
