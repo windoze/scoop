@@ -1,6 +1,6 @@
 use crate::effect_facts::{
-    BodyEffectFacts, EffectFactsError, MaterializedEffectFacts, MaterializedEffectFactsBuilder,
-    MaterializedEffectFactsSolver, SiteEffectFacts,
+    BodyEffectFacts, EffectFactsError, EffectOwnedTypeContext, MaterializedEffectFacts,
+    MaterializedEffectFactsBuilder, MaterializedEffectFactsSolver, SiteEffectFacts,
 };
 use crate::mir::{File as MirFile, MaterializedMir, MaterializedMirPassView};
 use crate::session::Session;
@@ -46,7 +46,7 @@ impl EffectFactsStageOutput {
     }
 
     pub fn types(&self) -> &TypeStore {
-        &self.materialized_mir().types
+        self.effect_facts.types()
     }
 
     pub fn materialized_mir(&self) -> &MaterializedMir {
@@ -66,8 +66,7 @@ impl EffectFactsStageOutput {
     /// 该 dump 明确锁定 P4 -> P5 handoff：只展示 canonical MIR snapshot 绑定到的
     /// `MaterializedEffectFacts`，不回 HIR/typecheck 重建缺失 effect 语义。
     pub fn stable_dump(&self) -> String {
-        self.effect_facts
-            .stable_dump(self.types(), self.materialized_pass_view())
+        self.effect_facts.stable_dump(self.materialized_pass_view())
     }
 }
 
@@ -89,18 +88,20 @@ pub(crate) fn run_with_compilation_sources(
     session: &Session,
     source: &SourceFile,
     compilation_sources: &[SourceFile],
-    mut mir_stage_output: MirStageOutput,
+    mir_stage_output: MirStageOutput,
 ) -> Result<EffectFactsStageOutput, EffectFactsError> {
     let solver = MaterializedEffectFactsSolver::for_opt_level(
         mir_stage_output.materialized_mir().opt_level(),
     );
+    let mut type_context =
+        EffectOwnedTypeContext::from_mir_types(&mir_stage_output.materialized_mir().types);
     let seeded_facts = {
-        let materialized_mir = mir_stage_output.canonical_snapshot_mut();
         MaterializedEffectFactsBuilder::from_materialized_snapshot_in_compilation_unit(
             session,
             source,
             compilation_sources,
-            materialized_mir,
+            mir_stage_output.materialized_mir(),
+            &mut type_context,
         )
         .build()?
     };
@@ -123,12 +124,12 @@ pub(crate) fn run_with_compilation_sources(
         // step-schema 上界；solver 仍只会在真实 body/site outward 贡献存在时把它留进
         // resolved_outward_cases。
         let seeded_facts = {
-            let materialized_mir = mir_stage_output.canonical_snapshot_mut();
             MaterializedEffectFactsBuilder::from_materialized_snapshot_in_compilation_unit(
                 session,
                 source,
                 compilation_sources,
-                materialized_mir,
+                mir_stage_output.materialized_mir(),
+                &mut type_context,
             )
             .with_compiler_continuation_runtime_error_callables(
                 compiler_continuation_runtime_error_callables,
@@ -154,7 +155,7 @@ mod tests {
     use std::collections::BTreeSet;
 
     use super::EffectFactsStageOutput;
-    use crate::effect_facts::{CanonicalMirQuerySurface, ImplPlan};
+    use crate::effect_facts::{CanonicalMirQuerySurface, ImplPlan, MirSnapshotBinding};
     use crate::session::{Session, SessionOptions};
     use crate::source::SourceFile;
 
@@ -197,6 +198,13 @@ mod tests {
                 .unwrap()
                 .with_materialized_mir(materialized);
         super::run(&session, source, mir_stage_output).expect("fixture 应可通过 effect-facts stage")
+    }
+
+    fn type_store_fingerprint(types: &crate::ty::TypeStore) -> Vec<String> {
+        types
+            .iter_ids()
+            .map(|id| format!("{id:?}:{:?}", types.kind(id)))
+            .collect()
     }
 
     fn dump_fixture_source() -> SourceFile {
@@ -451,6 +459,50 @@ fun callInterface(i: IFace): Int {
             mir_facts.pass_artifacts.summary_revisions.len(),
             output.materialized_pass_view().len(),
             "canonical pass summaries should be visible as MIR-owned artifacts"
+        );
+    }
+
+    #[test]
+    fn effect_facts_stage_does_not_mutate_mir_handoff() {
+        let session = session();
+        let source = compiler_continuation_runtime_error_source();
+        let materialized = crate::mir::materialize_for_dump_with_opt_level(
+            &session,
+            &source,
+            crate::opt::OptLevel::O2,
+        )
+        .unwrap();
+        let mir_stage_output =
+            super::super::load_direct_style_mir_stage_output_for_dump(&session, &source)
+                .unwrap()
+                .with_materialized_mir(materialized);
+        let before_binding =
+            MirSnapshotBinding::from_pass_view(&mir_stage_output.materialized_pass_view());
+        let before_pass_artifacts =
+            format!("{:?}", mir_stage_output.materialized_mir().pass_artifacts());
+        let before_types = type_store_fingerprint(&mir_stage_output.materialized_mir().types);
+
+        let output = super::run(&session, &source, mir_stage_output)
+            .expect("fixture 应可通过只读 effect-facts stage");
+
+        assert_eq!(
+            MirSnapshotBinding::from_pass_view(&output.materialized_pass_view()),
+            before_binding,
+            "effect facts stage 不应改写 canonical snapshot binding"
+        );
+        assert_eq!(
+            format!("{:?}", output.materialized_mir().pass_artifacts()),
+            before_pass_artifacts,
+            "effect facts stage 不应改写 MIR pass artifacts metadata"
+        );
+        assert_eq!(
+            type_store_fingerprint(&output.materialized_mir().types),
+            before_types,
+            "P4-owned type additions 不应写回 MIR TypeStore"
+        );
+        assert!(
+            output.types().len() >= output.materialized_mir().types.len(),
+            "effect facts output 应发布可覆盖 MIR types 的 effect-owned type context"
         );
     }
 

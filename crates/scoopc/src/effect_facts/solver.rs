@@ -168,8 +168,14 @@ impl MaterializedEffectFactsSolver {
     }
 
     pub fn solve(self, facts: MaterializedEffectFacts) -> MaterializedEffectFacts {
-        let (snapshot_binding, step_schemas, continuation_schemas, callable_facts, bodies) =
-            facts.into_parts();
+        let (
+            type_context,
+            snapshot_binding,
+            step_schemas,
+            continuation_schemas,
+            callable_facts,
+            bodies,
+        ) = facts.into_parts();
         let schema_index = SchemaProjectionIndex::new(&step_schemas);
         let sorted_keys = sorted_callable_keys(&callable_facts);
         let key_to_index = sorted_keys
@@ -381,6 +387,7 @@ impl MaterializedEffectFactsSolver {
         }
 
         MaterializedEffectFacts::new(
+            type_context,
             snapshot_binding,
             step_schemas,
             continuation_schemas,
@@ -1291,13 +1298,16 @@ mod tests {
         config: EffectFactsSolverConfig,
     ) -> crate::effect_facts::MaterializedEffectFacts {
         let session = session();
-        let mut materialized =
+        let materialized =
             materialize_for_dump_with_opt_level(&session, source, opt_level).unwrap();
+        let mut type_context =
+            crate::effect_facts::EffectOwnedTypeContext::from_mir_types(&materialized.types);
         let seeded =
             crate::effect_facts::MaterializedEffectFactsBuilder::from_materialized_snapshot(
                 &session,
                 source,
-                &mut materialized,
+                &materialized,
+                &mut type_context,
             )
             .build()
             .unwrap();

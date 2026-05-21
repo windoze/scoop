@@ -209,10 +209,6 @@ impl MirStageOutput {
         &self.materialized_mir
     }
 
-    pub(crate) fn canonical_snapshot_mut(&mut self) -> &mut MaterializedMir {
-        &mut self.materialized_mir
-    }
-
     pub fn materialized_pass_view(&self) -> MaterializedMirPassView<'_> {
         self.materialized_mir.pass_view()
     }

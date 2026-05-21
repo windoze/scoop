@@ -15,8 +15,8 @@ pub use dump::render_materialized_effect_facts;
 pub use facts::{
     BlockEffectFacts, BodyEffectFacts, CallSiteEffectFacts, CallSiteKind, CallSiteTarget,
     CallTargetMode, CallableAbiKind, CallableEffectFacts, CanonicalMirQuerySurface,
-    ClassCtorSiteEffectFacts, EffectPrecision, HandleArmEffectFacts, HandleSiteEffectFacts,
-    MaterializedEffectFacts, MirSnapshotBinding, NestedHandleClassification,
+    ClassCtorSiteEffectFacts, EffectOwnedTypeContext, EffectPrecision, HandleArmEffectFacts,
+    HandleSiteEffectFacts, MaterializedEffectFacts, MirSnapshotBinding, NestedHandleClassification,
     PerformSiteEffectFacts, ResumeSiteEffectFacts, SiteEffectFacts,
 };
 pub(crate) use facts::{BodyEffectSolverFacts, HandleSiteSolverFacts};

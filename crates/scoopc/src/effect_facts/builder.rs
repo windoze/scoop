@@ -24,10 +24,10 @@ use super::{
     BlockEffectFacts, BodyEffectFacts, BodyEffectSolverFacts, CallSiteEffectFacts, CallSiteKind,
     CallSiteTarget, CallableAbiKind, CallableEffectFacts, CaseSet, CaseTag,
     ClassCtorSiteEffectFacts, ConcreteOpKey, ContinuationSchema, ContinuationSchemaId,
-    EffectFactsError, EffectPrecision, HandleArmEffectFacts, HandleSiteEffectFacts,
-    HandleSiteSolverFacts, ImplPlan, MaterializedEffectFacts, MirSnapshotBinding,
-    NestedHandleClassification, PerformSiteEffectFacts, ResumeSiteEffectFacts, SiteEffectFacts,
-    StepCaseFact, StepSchema, StepSchemaId,
+    EffectFactsError, EffectOwnedTypeContext, EffectPrecision, HandleArmEffectFacts,
+    HandleSiteEffectFacts, HandleSiteSolverFacts, ImplPlan, MaterializedEffectFacts,
+    MirSnapshotBinding, NestedHandleClassification, PerformSiteEffectFacts, ResumeSiteEffectFacts,
+    SiteEffectFacts, StepCaseFact, StepSchema, StepSchemaId,
 };
 
 /// 从 canonical materialized MIR snapshot 生成 P4 facts 容器。
@@ -36,7 +36,8 @@ pub struct MaterializedEffectFactsBuilder<'a> {
     session: &'a Session,
     source: &'a SourceFile,
     compilation_sources: &'a [SourceFile],
-    materialized: &'a mut MaterializedMir,
+    materialized: &'a MaterializedMir,
+    type_context: &'a mut EffectOwnedTypeContext,
     compiler_continuation_runtime_error_callables: HashSet<InstanceKey>,
 }
 
@@ -1938,6 +1939,11 @@ struct ConcreteEffectOpContract {
     resume_tuple_ty: TypeId,
 }
 
+/// Analysis-only context rebuilt from sources so P4 can interpret surface declarations.
+///
+/// This is not a replacement owner for HIR/MIR facts: it is private builder state used to lower
+/// effect signatures and dispatch candidates into the effect-owned type context published on
+/// `MaterializedEffectFacts`.
 #[derive(Debug)]
 struct EffectFactsTypeContext {
     stable_cone_key: StableConeKey,
@@ -2017,13 +2023,15 @@ impl<'a> MaterializedEffectFactsBuilder<'a> {
     pub fn from_materialized_snapshot(
         session: &'a Session,
         source: &'a SourceFile,
-        materialized: &'a mut MaterializedMir,
+        materialized: &'a MaterializedMir,
+        type_context: &'a mut EffectOwnedTypeContext,
     ) -> Self {
         Self::from_materialized_snapshot_in_compilation_unit(
             session,
             source,
             std::slice::from_ref(source),
             materialized,
+            type_context,
         )
     }
 
@@ -2031,13 +2039,15 @@ impl<'a> MaterializedEffectFactsBuilder<'a> {
         session: &'a Session,
         source: &'a SourceFile,
         compilation_sources: &'a [SourceFile],
-        materialized: &'a mut MaterializedMir,
+        materialized: &'a MaterializedMir,
+        type_context: &'a mut EffectOwnedTypeContext,
     ) -> Self {
         Self {
             session,
             source,
             compilation_sources,
             materialized,
+            type_context,
             compiler_continuation_runtime_error_callables: HashSet::new(),
         }
     }
@@ -2062,9 +2072,10 @@ impl<'a> MaterializedEffectFactsBuilder<'a> {
             self.materialized.stable_cone_key().clone(),
         )?;
         let compiler_generated_runtime_error_effect_ty =
-            find_or_intern_raise_runtime_error_effect(&mut self.materialized.types);
+            find_or_intern_raise_runtime_error_effect(self.type_context.types_mut());
         let callable_seeds = collect_callable_seeds(
             self.materialized,
+            self.type_context.types_mut(),
             &type_ctx,
             &type_ctx.index,
             &self.compiler_continuation_runtime_error_callables,
@@ -2073,7 +2084,7 @@ impl<'a> MaterializedEffectFactsBuilder<'a> {
         let owner_by_callable_fqn = collect_callable_owner_map(self.materialized);
         let raw_fun_by_fqn = collect_raw_fun_by_fqn(self.materialized);
         let mut top_level_value_surface_contracts = collect_top_level_value_surface_contracts(
-            &self.materialized.types,
+            self.type_context.types(),
             self.materialized.top_level_value_tys(),
         );
         top_level_value_surface_contracts.extend(collect_property_accessor_surface_contracts(
@@ -2084,59 +2095,62 @@ impl<'a> MaterializedEffectFactsBuilder<'a> {
         let mut bodies = HashMap::with_capacity(callable_seeds.len());
         let mut callable_step_schemas = HashMap::with_capacity(callable_seeds.len());
         let mut schema_pool = EffectFactsSchemaPool::new(&type_ctx);
-        let types = &mut self.materialized.types;
 
-        for seed in &callable_seeds {
-            let step_schema_id = schema_pool.intern_callable_step_schema(types, seed)?;
-            let invoke_args_tuple_ty =
-                canonical_tuple_carrier_ty(types, &seed.invoke_arg_components);
-            let resolved_outward_cases = schema_pool.full_case_set(step_schema_id);
-            let needs_reentry = !resolved_outward_cases.is_empty();
-            let impl_plan = match resolved_outward_cases.tags() {
-                [] => ImplPlan::NoOutward,
-                [single] => ImplPlan::SingleCase(*single),
-                _ => ImplPlan::CanonicalFull,
-            };
+        {
+            let types = self.type_context.types_mut();
+            for seed in &callable_seeds {
+                let step_schema_id = schema_pool.intern_callable_step_schema(types, seed)?;
+                let invoke_args_tuple_ty =
+                    canonical_tuple_carrier_ty(types, &seed.invoke_arg_components);
+                let resolved_outward_cases = schema_pool.full_case_set(step_schema_id);
+                let needs_reentry = !resolved_outward_cases.is_empty();
+                let impl_plan = match resolved_outward_cases.tags() {
+                    [] => ImplPlan::NoOutward,
+                    [single] => ImplPlan::SingleCase(*single),
+                    _ => ImplPlan::CanonicalFull,
+                };
 
-            callable_facts.insert(
-                seed.key.clone(),
-                CallableEffectFacts::new(
-                    seed.declared_row.clone(),
-                    CallableAbiKind::EffectStep,
-                    Some(invoke_args_tuple_ty),
-                    Some(step_schema_id),
-                    resolved_outward_cases,
-                    needs_reentry,
-                    impl_plan,
-                ),
-            );
-            callable_step_schemas.insert(seed.key.clone(), step_schema_id);
-        }
+                callable_facts.insert(
+                    seed.key.clone(),
+                    CallableEffectFacts::new(
+                        seed.declared_row.clone(),
+                        CallableAbiKind::EffectStep,
+                        Some(invoke_args_tuple_ty),
+                        Some(step_schema_id),
+                        resolved_outward_cases,
+                        needs_reentry,
+                        impl_plan,
+                    ),
+                );
+                callable_step_schemas.insert(seed.key.clone(), step_schema_id);
+            }
 
-        for seed in &callable_seeds {
-            let body_facts = if seed.root_fun.body.is_some() {
-                BodyFactsBuilder::new(
-                    &type_ctx,
-                    &mut schema_pool,
-                    &owner_by_callable_fqn,
-                    &callable_facts,
-                    &raw_fun_by_fqn,
-                    &top_level_value_surface_contracts,
-                    &seed.root_fun,
-                    *callable_step_schemas
-                        .get(&seed.key)
-                        .expect("every callable seed should have a root step schema"),
-                )?
-                .build(types)?
-            } else {
-                BodyEffectFacts::default()
-            };
-            bodies.insert(seed.key.clone(), body_facts);
+            for seed in &callable_seeds {
+                let body_facts = if seed.root_fun.body.is_some() {
+                    BodyFactsBuilder::new(
+                        &type_ctx,
+                        &mut schema_pool,
+                        &owner_by_callable_fqn,
+                        &callable_facts,
+                        &raw_fun_by_fqn,
+                        &top_level_value_surface_contracts,
+                        &seed.root_fun,
+                        *callable_step_schemas
+                            .get(&seed.key)
+                            .expect("every callable seed should have a root step schema"),
+                    )?
+                    .build(types)?
+                } else {
+                    BodyEffectFacts::default()
+                };
+                bodies.insert(seed.key.clone(), body_facts);
+            }
         }
 
         let (step_schemas, continuation_schemas) = schema_pool.finish();
 
         Ok(MaterializedEffectFacts::new(
+            self.type_context.clone(),
             snapshot_binding,
             step_schemas,
             continuation_schemas,
@@ -2616,7 +2630,8 @@ fn collect_body_concrete_effect_ops(
 }
 
 fn collect_callable_seeds(
-    materialized: &mut MaterializedMir,
+    materialized: &MaterializedMir,
+    types: &mut TypeStore,
     type_ctx: &EffectFactsTypeContext,
     index: &Index,
     compiler_continuation_runtime_error_callables: &HashSet<InstanceKey>,
@@ -2643,7 +2658,7 @@ fn collect_callable_seeds(
         let Some(root_fun) = root_fun else {
             continue;
         };
-        let declared_row = declared_effect_row(&root_fun, &materialized.types);
+        let declared_row = declared_effect_row(&root_fun, types);
         let surface_effect_row = callable_step_effect_row(&root_fun, &declared_row, None);
         let step_effect_row = if compiler_continuation_runtime_error_callables.contains(&family_key)
         {
@@ -2654,7 +2669,7 @@ fn collect_callable_seeds(
             surface_effect_row.clone()
         };
         let body_concrete_effect_ops =
-            collect_body_concrete_effect_ops(type_ctx, &mut materialized.types, &root_fun)?;
+            collect_body_concrete_effect_ops(type_ctx, types, &root_fun)?;
         seeds.push(CallableSeed {
             key: family_key,
             root_fun: root_fun.clone(),
@@ -3530,7 +3545,7 @@ mod tests {
     use std::collections::{BTreeSet, HashMap};
     use std::path::PathBuf;
 
-    use super::{MaterializedEffectFactsBuilder, continuation_object_ty};
+    use super::{EffectOwnedTypeContext, MaterializedEffectFactsBuilder, continuation_object_ty};
     use crate::effect_facts::{
         CallSiteKind, CallSiteTarget, CallTargetMode, CallableAbiKind, CanonicalMirQuerySurface,
         EffectPrecision, ImplPlan, NestedHandleClassification, SiteEffectFacts,
@@ -3595,11 +3610,13 @@ fun exercise(k: Continuation<Unit, Unit, eff Pure>): Unit / (Flag + Raise<String
     ) {
         let session = session();
         let source = sample_source();
-        let mut materialized = materialize_for_dump(&session, &source).unwrap();
+        let materialized = materialize_for_dump(&session, &source).unwrap();
+        let mut type_context = EffectOwnedTypeContext::from_mir_types(&materialized.types);
         let facts = MaterializedEffectFactsBuilder::from_materialized_snapshot(
             &session,
             &source,
-            &mut materialized,
+            &materialized,
+            &mut type_context,
         )
         .build()
         .unwrap();
@@ -3634,11 +3651,13 @@ fun exercise(k: Continuation<Unit, Unit, eff Pure>): Unit / (Flag + Raise<String
         crate::effect_facts::MaterializedEffectFacts,
     ) {
         let session = session();
-        let mut materialized = materialize_for_dump(&session, &source).unwrap();
+        let materialized = materialize_for_dump(&session, &source).unwrap();
+        let mut type_context = EffectOwnedTypeContext::from_mir_types(&materialized.types);
         let facts = MaterializedEffectFactsBuilder::from_materialized_snapshot(
             &session,
             &source,
-            &mut materialized,
+            &materialized,
+            &mut type_context,
         )
         .build()
         .unwrap();
@@ -3866,7 +3885,6 @@ fun pureHelper(): Unit {}
     }
 
     fn continuation_surface_ty_string(
-        materialized: &crate::mir::MaterializedMir,
         facts: &crate::effect_facts::MaterializedEffectFacts,
         schema_id: crate::effect_facts::ContinuationSchemaId,
     ) -> String {
@@ -3874,11 +3892,10 @@ fun pureHelper(): Unit {}
             .continuation_schemas()
             .get(&schema_id)
             .expect("continuation schema 应存在");
-        materialized.types.display(schema.surface_ty()).to_string()
+        facts.types().display(schema.surface_ty()).to_string()
     }
 
     fn continuation_surface_tys_for_step_schema(
-        materialized: &crate::mir::MaterializedMir,
         facts: &crate::effect_facts::MaterializedEffectFacts,
         step_schema: crate::effect_facts::StepSchemaId,
     ) -> BTreeSet<String> {
@@ -3888,9 +3905,7 @@ fun pureHelper(): Unit {}
             .expect("step schema 应存在")
             .cases()
             .iter()
-            .map(|case| {
-                continuation_surface_ty_string(materialized, facts, case.continuation_schema())
-            })
+            .map(|case| continuation_surface_ty_string(facts, case.continuation_schema()))
             .collect()
     }
 
@@ -4115,19 +4130,11 @@ fun pureHelper(): Unit {}
             .collect()
         );
         assert_eq!(
-            continuation_surface_ty_string(
-                &materialized,
-                &facts,
-                resume_facts.continuation_schema(),
-            ),
+            continuation_surface_ty_string(&facts, resume_facts.continuation_schema()),
             "scoop.core.Continuation<Int, Int, eff sample.Boom>"
         );
         assert_eq!(
-            continuation_surface_tys_for_step_schema(
-                &materialized,
-                &facts,
-                resume_facts.out_step_schema(),
-            ),
+            continuation_surface_tys_for_step_schema(&facts, resume_facts.out_step_schema()),
             [
                 "scoop.core.Continuation<Int, Int, eff sample.Boom>".to_string(),
                 "scoop.core.Continuation<Nothing, Int, eff sample.Boom>".to_string(),
@@ -4421,11 +4428,13 @@ fun pureHelper(): Unit {}
         materialized
             .pass_artifacts_mut()
             .remove_callable_body(&removed_fqn);
+        let mut type_context = EffectOwnedTypeContext::from_mir_types(&materialized.types);
 
         let facts = MaterializedEffectFactsBuilder::from_materialized_snapshot(
             &session,
             &source,
-            &mut materialized,
+            &materialized,
+            &mut type_context,
         )
         .build()
         .unwrap();
@@ -4566,15 +4575,15 @@ fun pureHelper(): Unit {}
             "Unit"
         );
         assert_eq!(
-            materialized
-                .types
+            facts
+                .types()
                 .display(continuation_schema.surface_ty())
                 .to_string(),
             "scoop.core.Continuation<Unit, Unit, eff sample.Flag>"
         );
         assert!(
-            materialized
-                .types
+            facts
+                .types()
                 .display(schema.continuation_obj_ty())
                 .to_string()
                 .contains("sample.pingFlag")
@@ -4583,7 +4592,7 @@ fun pureHelper(): Unit {}
 
     #[test]
     fn callable_effect_facts_shell_uses_final_shape_and_runtime_error_case() {
-        let (materialized, facts) = build_sample_facts();
+        let (_, facts) = build_sample_facts();
 
         let (_, pure_facts) = callable_facts_for(&facts, "sample.pureUnit");
         assert!(matches!(pure_facts.impl_plan(), ImplPlan::NoOutward));
@@ -4607,18 +4616,14 @@ fun pureHelper(): Unit {}
             "scoop.core.Raise.raise"
         );
         assert_eq!(
-            materialized
-                .types
+            facts
+                .types()
                 .display(runtime_case.payload_tuple_ty())
                 .to_string(),
             "scoop.core.RuntimeError"
         );
         assert_eq!(
-            continuation_surface_tys_for_step_schema(
-                &materialized,
-                &facts,
-                resume_zero_facts.step_schema(),
-            ),
+            continuation_surface_tys_for_step_schema(&facts, resume_zero_facts.step_schema()),
             ["scoop.core.Continuation<Nothing, Unit, eff scoop.core.Raise<scoop.core.RuntimeError>>".to_string()]
                 .into_iter()
                 .collect(),
@@ -4630,7 +4635,8 @@ fun pureHelper(): Unit {}
     fn effect_schema_compiler_continuation_runtime_error_adds_runtime_error_case_to_step_schema() {
         let session = session();
         let source = compiler_continuation_runtime_error_source();
-        let mut materialized = materialize_for_dump(&session, &source).unwrap();
+        let materialized = materialize_for_dump(&session, &source).unwrap();
+        let mut type_context = EffectOwnedTypeContext::from_mir_types(&materialized.types);
         let leaf_key = materialized
             .pass_view()
             .owner_of_callable("sample.leaf")
@@ -4640,7 +4646,8 @@ fun pureHelper(): Unit {}
         let facts = MaterializedEffectFactsBuilder::from_materialized_snapshot(
             &session,
             &source,
-            &mut materialized,
+            &materialized,
+            &mut type_context,
         )
         .with_compiler_continuation_runtime_error_callables([leaf_key.clone()])
         .build()
@@ -4666,7 +4673,8 @@ fun pureHelper(): Unit {}
      {
         let session = session();
         let source = compiler_continuation_runtime_error_source();
-        let mut materialized = materialize_for_dump(&session, &source).unwrap();
+        let materialized = materialize_for_dump(&session, &source).unwrap();
+        let mut type_context = EffectOwnedTypeContext::from_mir_types(&materialized.types);
         let leaf_key = materialized
             .pass_view()
             .owner_of_callable("sample.leaf")
@@ -4676,7 +4684,8 @@ fun pureHelper(): Unit {}
         let facts = MaterializedEffectFactsBuilder::from_materialized_snapshot(
             &session,
             &source,
-            &mut materialized,
+            &materialized,
+            &mut type_context,
         )
         .with_compiler_continuation_runtime_error_callables([leaf_key.clone()])
         .build()
@@ -4687,11 +4696,7 @@ fun pureHelper(): Unit {}
             .get(&leaf_key)
             .expect("leaf 应存在于 callable facts");
         assert_eq!(
-            continuation_surface_tys_for_step_schema(
-                &materialized,
-                &facts,
-                leaf_facts.step_schema()
-            ),
+            continuation_surface_tys_for_step_schema(&facts, leaf_facts.step_schema()),
             [
                 "scoop.core.Continuation<Nothing, Unit, eff sample.Ping>".to_string(),
                 "scoop.core.Continuation<Unit, Unit, eff sample.Ping>".to_string(),
@@ -4707,7 +4712,8 @@ fun pureHelper(): Unit {}
      {
         let session = session();
         let source = compiler_continuation_runtime_error_source();
-        let mut materialized = materialize_for_dump(&session, &source).unwrap();
+        let materialized = materialize_for_dump(&session, &source).unwrap();
+        let mut type_context = EffectOwnedTypeContext::from_mir_types(&materialized.types);
         let pass_view = materialized.pass_view();
         let leaf_key = pass_view
             .owner_of_callable("sample.leaf")
@@ -4721,7 +4727,8 @@ fun pureHelper(): Unit {}
         let facts = MaterializedEffectFactsBuilder::from_materialized_snapshot(
             &session,
             &source,
-            &mut materialized,
+            &materialized,
+            &mut type_context,
         )
         .with_compiler_continuation_runtime_error_callables([leaf_key.clone()])
         .build()
@@ -4787,19 +4794,11 @@ fun pureHelper(): Unit {}
         };
 
         assert_eq!(
-            continuation_surface_ty_string(
-                &materialized,
-                &facts,
-                resume_facts.continuation_schema()
-            ),
+            continuation_surface_ty_string(&facts, resume_facts.continuation_schema()),
             "scoop.core.Continuation<Unit, Unit, eff Pure>"
         );
         assert_eq!(
-            continuation_surface_tys_for_step_schema(
-                &materialized,
-                &facts,
-                resume_facts.out_step_schema()
-            ),
+            continuation_surface_tys_for_step_schema(&facts, resume_facts.out_step_schema()),
             ["scoop.core.Continuation<Nothing, Unit, eff Pure>".to_string()]
                 .into_iter()
                 .collect(),

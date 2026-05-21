@@ -715,6 +715,7 @@ impl BodyEffectFacts {
 /// - 结构性 rewrite 后必须基于新的 snapshot 重建；
 /// - 不对外暴露“部分 body 已更新、部分 body 仍过期”的混合状态。
 pub(crate) type MaterializedEffectFactsParts = (
+    EffectOwnedTypeContext,
     MirSnapshotBinding,
     BTreeMap<StepSchemaId, StepSchema>,
     BTreeMap<ContinuationSchemaId, ContinuationSchema>,
@@ -722,8 +723,35 @@ pub(crate) type MaterializedEffectFactsParts = (
     HashMap<InstanceKey, BodyEffectFacts>,
 );
 
+/// Effect facts 自有的类型上下文。
+///
+/// P4 只读消费 MIR snapshot：所有 compiler-generated runtime-error effect、tuple carrier、
+/// continuation surface/object/schema 等追加类型都写入这份 context。MIR-owned `TypeStore`
+/// 只作为初始快照被克隆，之后不再被 P4 修改。
+#[derive(Debug, Clone)]
+pub struct EffectOwnedTypeContext {
+    types: TypeStore,
+}
+
+impl EffectOwnedTypeContext {
+    pub fn from_mir_types(types: &TypeStore) -> Self {
+        Self {
+            types: types.clone(),
+        }
+    }
+
+    pub fn types(&self) -> &TypeStore {
+        &self.types
+    }
+
+    pub(crate) fn types_mut(&mut self) -> &mut TypeStore {
+        &mut self.types
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct MaterializedEffectFacts {
+    type_context: EffectOwnedTypeContext,
     snapshot_binding: MirSnapshotBinding,
     step_schemas: BTreeMap<StepSchemaId, StepSchema>,
     continuation_schemas: BTreeMap<ContinuationSchemaId, ContinuationSchema>,
@@ -733,6 +761,7 @@ pub struct MaterializedEffectFacts {
 
 impl MaterializedEffectFacts {
     pub(crate) fn new(
+        type_context: EffectOwnedTypeContext,
         snapshot_binding: MirSnapshotBinding,
         step_schemas: BTreeMap<StepSchemaId, StepSchema>,
         continuation_schemas: BTreeMap<ContinuationSchemaId, ContinuationSchema>,
@@ -740,12 +769,21 @@ impl MaterializedEffectFacts {
         bodies: HashMap<InstanceKey, BodyEffectFacts>,
     ) -> Self {
         Self {
+            type_context,
             snapshot_binding,
             step_schemas,
             continuation_schemas,
             callable_facts,
             bodies,
         }
+    }
+
+    pub fn type_context(&self) -> &EffectOwnedTypeContext {
+        &self.type_context
+    }
+
+    pub fn types(&self) -> &TypeStore {
+        self.type_context.types()
     }
 
     pub fn snapshot_binding(&self) -> &MirSnapshotBinding {
@@ -774,6 +812,7 @@ impl MaterializedEffectFacts {
 
     pub(crate) fn into_parts(self) -> MaterializedEffectFactsParts {
         (
+            self.type_context,
             self.snapshot_binding,
             self.step_schemas,
             self.continuation_schemas,
@@ -782,7 +821,7 @@ impl MaterializedEffectFacts {
         )
     }
 
-    pub fn stable_dump(&self, types: &TypeStore, pass_view: MaterializedMirPassView<'_>) -> String {
-        super::dump::render_materialized_effect_facts(self, types, pass_view)
+    pub fn stable_dump(&self, pass_view: MaterializedMirPassView<'_>) -> String {
+        super::dump::render_materialized_effect_facts(self, self.types(), pass_view)
     }
 }
