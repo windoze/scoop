@@ -184,7 +184,7 @@
   - 验证命令：`cargo fmt`；`cargo check -p scoopc_hir_facts`；`cargo test -p scoopc_hir_facts`；`cargo run -p scoop_tools -- dependency-gate`；`cargo test -p scoop_tools dependency_gate`；`cargo clippy --all-targets -- -D warnings`。
   - 残余风险：当前为 facts skeleton，尚未接入 HIR stage output，也尚未迁移 `TypedHirEffectContracts` / `ProgramFacts` 的实际内容；这些分别由后续 P2-T02、P2-T04、P2-T05 处理。
 
-## [TODO] P2-T01R：Review `hir_facts` crate 与事实模型
+## [DONE] P2-T01R：Review `hir_facts` crate 与事实模型
 
 - 参考：P2-T01。
 - 重点：
@@ -204,7 +204,13 @@
   - review 结论明确写出：`hir_facts` crate 壳层满足 P2/Pipeline fact DAG 约束，或列出阻塞项并在本 review 内修复。
 - 依赖：P2-T01
 - 完成记录：
-  - 待填写。
+  - 复查范围：已复查 workspace 成员、`crates/scoopc_hir_facts/` 模型和测试、`crates/scoopc/Cargo.toml` 与 `scoopc::hir_facts` facade anchor、`tools/scoop_tools` dependency gate、`README.md` crate 概览。
+  - 事实模型结论：`HirFacts` 顶层结构按 declaration/entity、source-site typed contracts、global root/init、native/extern、type context reference/source cone ownership 五组划分，覆盖本文件触碰面基线中后续迁移需要承接的事实分类；当前仍是 skeleton，不迁移业务事实内容，符合 P2-T01 范围。
+  - 依赖结论：`scoopc_hir_facts` 直接依赖仅包含 `scoopc_ids`、`scoopc_project_model`、`scoopc_source`、`scoopc_span`、`scoopc_types`；未依赖 `scoopc` facade、stage/backend crate 或其它 fact crate。`cargo tree -p scoopc_hir_facts` 显示 workspace 依赖只出现在允许的基础 crate 集合中，外部依赖均来自基础 crate 的传递依赖。
+  - dependency gate 结论：`scoop_tools dependency-gate` 已把 `scoopc_hir_facts` 归为 fact crate 并拒绝 facade/其它 fact crate 依赖；对应单元测试覆盖允许基础依赖、拒绝 `scoopc` facade 和拒绝其它 fact crate。
+  - 修复情况：review 未发现需要在本任务内修复的阻塞项；未修改实现代码。
+  - 验证命令：`cargo fmt`；`cargo check -p scoopc_hir_facts`；`cargo test -p scoopc_hir_facts`；`cargo run -p scoop_tools -- dependency-gate`；`cargo test -p scoop_tools dependency_gate`；`cargo tree -p scoopc_hir_facts`；`cargo clippy --all-targets -- -D warnings`。
+  - 残余风险：`hir_facts` 仍未接入正式 HIR stage output，也未迁移 `TypedHirEffectContracts` / `ProgramFacts` 的实际内容；这些继续由 P2-T02、P2-T04、P2-T05 跟进。
 
 ## [TODO] P2-T02：固定 `HirStageOutput = { hir, hir_facts }` 输出形状
 
