@@ -596,6 +596,12 @@ pub(crate) fn lower_for_compilation_unit_multi_files_internal<'a>(
         instance_mode,
         devirtualize_dispatch_calls,
     } = options;
+    let source_cones = source_cones_for_lowering(
+        compilation_unit,
+        index,
+        &stable_cone_key,
+        &source_cone_overrides,
+    );
     let type_kinds = collect_type_decl_kinds(compilation_unit);
     let nominal_variances = collect_nominal_variances(compilation_unit);
     let direct_supertypes = collect_direct_supertypes(compilation_unit, index);
@@ -624,10 +630,11 @@ pub(crate) fn lower_for_compilation_unit_multi_files_internal<'a>(
     let mut types = TypeStore::new();
     let builtins = types.intern_builtins();
     let generic_template_symbol_suffixes =
-        util::collect_generic_template_symbol_suffixes_with_stable_cone_key(
+        util::collect_generic_template_symbol_suffixes_with_source_cones(
             &stable_cone_key,
             index,
             compilation_unit,
+            &source_cones,
         );
 
     let mut decls: Vec<Decl> = Vec::new();
@@ -827,6 +834,7 @@ pub(crate) fn lower_for_compilation_unit_multi_files_internal<'a>(
                     initial_items: &items,
                     initial_member_funs: &member_funs,
                     stable_cone_key: &stable_cone_key,
+                    source_cones: &source_cones,
                 });
             items.extend(monomorphized_funs.into_iter().map(Item::Fun));
 
@@ -839,13 +847,14 @@ pub(crate) fn lower_for_compilation_unit_multi_files_internal<'a>(
             ));
 
             // T0126：为泛型 class 的具体实例化生成单态化的成员方法 FunDecl。
-            member_funs.extend(collect_generic_member_fun_instantiations(
+            member_funs.extend(collect_generic_member_fun_instantiations_with_source_cones(
                 compilation_unit,
                 index,
                 &type_kinds,
                 Some(typecheck_types),
                 &mut types,
                 builtins,
+                (&stable_cone_key, &source_cones),
             ));
             struct_layouts.extend(collect_generic_struct_instantiation_layouts(
                 compilation_unit,
@@ -878,6 +887,7 @@ pub(crate) fn lower_for_compilation_unit_multi_files_internal<'a>(
                     builtins,
                     typecheck_types,
                     stable_cone_key: &stable_cone_key,
+                    source_cones: &source_cones,
                 },
             )?;
             items.extend(monomorphic_funs.into_iter().map(Item::Fun));
@@ -900,6 +910,7 @@ pub(crate) fn lower_for_compilation_unit_multi_files_internal<'a>(
                         builtins,
                         typecheck_types: Some(typecheck_types),
                         stable_cone_key: &stable_cone_key,
+                        source_cones: &source_cones,
                     },
                 )?,
             );
@@ -921,13 +932,14 @@ pub(crate) fn lower_for_compilation_unit_multi_files_internal<'a>(
                     .map(|fun| fun.fqn.clone())
                     .collect::<HashSet<_>>();
                 member_funs.extend(
-                    collect_generic_member_fun_instantiations(
+                    collect_generic_member_fun_instantiations_with_source_cones(
                         compilation_unit,
                         index,
                         &type_kinds,
                         Some(typecheck_types),
                         &mut types,
                         builtins,
+                        (&stable_cone_key, &source_cones),
                     )
                     .into_iter()
                     .filter(|fun| wanted_dispatch_member_fqns.contains(&fun.fqn))
@@ -965,12 +977,10 @@ pub(crate) fn lower_for_compilation_unit_multi_files_internal<'a>(
         &member_funs,
     ));
     let call_arg_bindings = collect_call_arg_bindings(files_to_lower);
-    let stable_type_param_keys = collect_stable_type_param_keys(compilation_unit, &stable_cone_key);
-    let source_cones = source_cones_for_lowering(
+    let stable_type_param_keys = collect_stable_type_param_keys_with_source_cones(
         compilation_unit,
-        index,
         &stable_cone_key,
-        &source_cone_overrides,
+        &source_cones,
     );
 
     Ok(LoweredHir {

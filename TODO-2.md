@@ -434,7 +434,7 @@
   - 验证命令：`cargo fmt --check`；`cargo test -p scoopc_project_model`；`cargo test -p scoopc --no-default-features frontend`；`cargo test -p scoopc --no-default-features pipeline`；`cargo test --all --all-targets --no-default-features`；`cargo run -p scoop -- test --fixtures tests/fixtures/build`；`cargo clippy --all-targets -- -D warnings`；搜索 `single file compilation unit|single-source compilation unit|current compilation unit.*sources|AstStageOutput`。
   - 残余风险：frontend 内部仍以现有 resolver/typecheck/HIR 过渡实现一次处理 build closure；本任务已把公开 facade 与 AST handoff 提升到 cone unit，真正的 AST -> HIR semantic frontend barrier 和 facts 输出拆分仍属于后续 P2 范围。
 
-## [TODO] P1-T05R：Review cone-level compilation unit API
+## [DONE] P1-T05R：Review cone-level compilation unit API
 
 - 参考：P1-T05。
 - 重点：
@@ -457,7 +457,12 @@
   - review 结论明确写出：cone = compilation unit 已在 facade/API 层成立，或列出阻塞项并在本 review 内修复。
 - 依赖：P1-T05
 - 完成记录：
-  - 待填写。
+  - 复查范围：复查 `scoopc_project_model::SourceConeCompilationUnit` / `SourceConeGraph::compilation_units()`，`scoopc::frontend::ProjectInput` 的 build-closure source view 与 cone unit facade，AST pipeline 的 `AstCompilationUnitOutput` handoff，以及 HIR/MIR/LLVM production metadata 入口。
+  - review 发现与修正：发现多 cone production lowering 中 `stable_type_param_keys`、generic template signature/suffix 相关 stable metadata 仍可能使用单一 consumer fallback `StableConeKey`。本 review 已修正 HIR lowering helper，使 stable type-param key、generic template signature 和 generic template suffix 计算按 source 所属 `SourceConeInfo.stable_key` 取值，并新增覆盖 dependency/consumer 不同 cone key 的单元测试。
+  - review 结论：cone = compilation unit 已在 facade/API 层成立；`ProjectInput::build_closure_sources()` 明确只是 build closure source view，`sources()` 仅为 legacy alias 且注释禁止当作 compilation unit；virtual file input 仍是 source cone graph 中的 synthetic consumer cone；`AstStageOutput` 只保留为 dump/helper 单文件 worker，正式 frontend handoff 为 `AstCompilationUnitOutput`。
+  - metadata 结论：frontend 的 `consumer_source_paths()`、consumer `stable_cone_key` 和 `source_cone_info_map()` 来自 cone unit / project model API；修正后 HIR stable metadata 也按 source cone metadata 分配，不再把 whole build closure 的依赖/sysroot/consumer 声明统一锚定到 consumer cone。
+  - 验证命令：`cargo fmt --check`；`cargo test -p scoopc_project_model`；`cargo test -p scoopc --no-default-features frontend`；`cargo test -p scoopc --no-default-features pipeline`；`cargo test -p scoopc --no-default-features stable_type_param_keys_use_owning_source_cone_key`；`cargo test -p scoopc --no-default-features generic_template_signatures_use_owning_source_cone_key`；`cargo test --all --all-targets --no-default-features`；`cargo run -p scoop -- test --fixtures tests/fixtures/build`；`cargo clippy --all-targets -- -D warnings`；搜索 `single file compilation unit|single-source compilation unit|whole build compilation unit|current compilation unit.*sources|AstStageOutput`。
+  - 残余风险：frontend 内部仍以现有 resolver/typecheck/HIR 过渡实现一次处理 build closure；这是 P1-T05 已记录的过渡边界，后续 P2 的 AST -> HIR semantic frontend barrier 会继续拆分真正的 per-cone HIR/facts 输出。
 
 ## [TODO] P1-T06：P1 全包清场、文档同步与依赖审计
 

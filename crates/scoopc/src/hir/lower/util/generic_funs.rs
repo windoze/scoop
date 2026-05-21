@@ -519,6 +519,7 @@ pub(in crate::hir::lower) struct GenericFunInstantiationInputs<'a> {
     pub initial_items: &'a [super::super::Item],
     pub initial_member_funs: &'a [super::super::FunDecl],
     pub stable_cone_key: &'a StableConeKey,
+    pub source_cones: &'a HashMap<std::path::PathBuf, crate::cone::SourceConeInfo>,
 }
 
 pub(in crate::hir::lower) fn collect_generic_fun_instantiations(
@@ -535,6 +536,7 @@ pub(in crate::hir::lower) fn collect_generic_fun_instantiations(
         initial_items,
         initial_member_funs,
         stable_cone_key,
+        source_cones,
     } = inputs;
 
     if monomorph_keys.is_empty() && initial_items.is_empty() && initial_member_funs.is_empty() {
@@ -575,10 +577,11 @@ pub(in crate::hir::lower) fn collect_generic_fun_instantiations(
         return Vec::new();
     }
     let generic_template_symbol_suffixes =
-        collect_generic_template_symbol_suffixes_with_stable_cone_key(
+        collect_generic_template_symbol_suffixes_with_source_cones(
             stable_cone_key,
             index,
             compilation_unit,
+            source_cones,
         );
     let empty_known_receiver_subclasses = crate::devirtualize::KnownReceiverSubclassIndex::new();
     let empty_class_vtables = crate::vtable::ClassVtableIndex::new();
@@ -791,6 +794,7 @@ pub(in crate::hir::lower) struct ExplicitGenericFunInstantiationInputs<'a> {
     pub builtins: BuiltinTypes,
     pub typecheck_types: &'a TypeStore,
     pub stable_cone_key: &'a StableConeKey,
+    pub source_cones: &'a HashMap<std::path::PathBuf, crate::cone::SourceConeInfo>,
 }
 
 pub(in crate::hir::lower) fn collect_generic_fun_instantiations_from_instance_keys(
@@ -806,22 +810,28 @@ pub(in crate::hir::lower) fn collect_generic_fun_instantiations_from_instance_ke
         builtins,
         typecheck_types,
         stable_cone_key,
+        source_cones,
     } = inputs;
 
     if instance_keys.is_empty() {
         return Ok(Vec::new());
     }
 
-    let generic_funs =
-        collect_explicit_top_level_generic_fun_templates(stable_cone_key, index, compilation_unit);
+    let generic_funs = collect_explicit_top_level_generic_fun_templates_with_source_cones(
+        stable_cone_key,
+        index,
+        compilation_unit,
+        source_cones,
+    );
     if generic_funs.is_empty() {
         return Ok(Vec::new());
     }
     let generic_template_symbol_suffixes =
-        collect_generic_template_symbol_suffixes_with_stable_cone_key(
+        collect_generic_template_symbol_suffixes_with_source_cones(
             stable_cone_key,
             index,
             compilation_unit,
+            source_cones,
         );
     let direct_supertypes = super::collect_direct_supertypes(compilation_unit, index);
     let known_receiver_subclasses =
@@ -921,8 +931,27 @@ pub(in crate::hir::lower) fn collect_explicit_top_level_generic_fun_templates<'a
     index: &Index,
     compilation_unit: &'a [(&'a SourceFile, &'a ast::File)],
 ) -> HashMap<TemplateKey, ExplicitTopLevelGenericFunTemplate<'a>> {
+    let source_cones = HashMap::<std::path::PathBuf, crate::cone::SourceConeInfo>::new();
+    collect_explicit_top_level_generic_fun_templates_with_source_cones(
+        stable_cone_key,
+        index,
+        compilation_unit,
+        &source_cones,
+    )
+}
+
+pub(in crate::hir::lower) fn collect_explicit_top_level_generic_fun_templates_with_source_cones<
+    'a,
+>(
+    stable_cone_key: &StableConeKey,
+    index: &Index,
+    compilation_unit: &'a [(&'a SourceFile, &'a ast::File)],
+    source_cones: &HashMap<std::path::PathBuf, crate::cone::SourceConeInfo>,
+) -> HashMap<TemplateKey, ExplicitTopLevelGenericFunTemplate<'a>> {
     let mut out = HashMap::new();
     for (source, file) in compilation_unit {
+        let source_stable_cone_key =
+            stable_cone_key_for_source(source, stable_cone_key, source_cones);
         let pkg_prefix = package_prefix(source, file.package.as_ref());
         for item in &file.items {
             let ast::Item::Fun(fun) = item else {
@@ -948,7 +977,7 @@ pub(in crate::hir::lower) fn collect_explicit_top_level_generic_fun_templates<'a
                     file,
                     fun,
                     signature_key: canonical_generic_fun_signature_key(
-                        stable_cone_key,
+                        source_stable_cone_key,
                         source,
                         file,
                         index,
@@ -981,14 +1010,37 @@ pub(in crate::hir::lower) fn collect_generic_template_symbol_suffixes_with_stabl
     index: &Index,
     compilation_unit: &[(&SourceFile, &ast::File)],
 ) -> GenericTemplateSymbolSuffixIndex {
+    let source_cones = HashMap::<std::path::PathBuf, crate::cone::SourceConeInfo>::new();
+    collect_generic_template_symbol_suffixes_with_source_cones(
+        stable_cone_key,
+        index,
+        compilation_unit,
+        &source_cones,
+    )
+}
+
+pub(in crate::hir::lower) fn collect_generic_template_symbol_suffixes_with_source_cones(
+    stable_cone_key: &StableConeKey,
+    index: &Index,
+    compilation_unit: &[(&SourceFile, &ast::File)],
+    source_cones: &HashMap<std::path::PathBuf, crate::cone::SourceConeInfo>,
+) -> GenericTemplateSymbolSuffixIndex {
     let mut candidates = Vec::new();
 
-    for (template, info) in
-        collect_explicit_top_level_generic_fun_templates(stable_cone_key, index, compilation_unit)
-    {
+    for (template, info) in collect_explicit_top_level_generic_fun_templates_with_source_cones(
+        stable_cone_key,
+        index,
+        compilation_unit,
+        source_cones,
+    ) {
+        let source_stable_cone_key = stable_cone_key_for_source_path(
+            template.source_path.as_path(),
+            stable_cone_key,
+            source_cones,
+        );
         candidates.push(TemplateSymbolCandidate {
             stable_template_key: stable_template_key_for_template(
-                stable_cone_key,
+                source_stable_cone_key,
                 &template,
                 StableDefNamespace::Fun,
                 generic_fun_decl_kind(info.fun),
@@ -1000,9 +1052,17 @@ pub(in crate::hir::lower) fn collect_generic_template_symbol_suffixes_with_stabl
         });
     }
 
-    for (template, info) in
-        collect_explicit_member_templates(stable_cone_key, index, compilation_unit)
-    {
+    for (template, info) in collect_explicit_member_templates_with_source_cones(
+        stable_cone_key,
+        index,
+        compilation_unit,
+        source_cones,
+    ) {
+        let source_stable_cone_key = stable_cone_key_for_source_path(
+            template.source_path.as_path(),
+            stable_cone_key,
+            source_cones,
+        );
         let (signature_key, prefers_materialized_body, stable_template_key) = match info {
             ExplicitMemberTemplate::Fun {
                 fun,
@@ -1011,7 +1071,7 @@ pub(in crate::hir::lower) fn collect_generic_template_symbol_suffixes_with_stabl
                 ..
             } => {
                 let stable_template_key = stable_template_key_for_template(
-                    stable_cone_key,
+                    source_stable_cone_key,
                     &template,
                     StableDefNamespace::Fun,
                     generic_fun_decl_kind(fun),
@@ -1026,7 +1086,7 @@ pub(in crate::hir::lower) fn collect_generic_template_symbol_suffixes_with_stabl
                 ..
             } => {
                 let stable_template_key = stable_template_key_for_template(
-                    stable_cone_key,
+                    source_stable_cone_key,
                     &template,
                     StableDefNamespace::PropertyGetter,
                     generic_property_getter_decl_kind(property),
@@ -1090,6 +1150,25 @@ pub(in crate::hir::lower) fn virtual_stable_cone_key_for_compilation_unit(
                 .map(|(source, _)| StableConeKey::for_virtual_source_path(source.path()))
         })
         .unwrap_or_else(|| StableConeKey::new("virtual-cone", "0.0.0"))
+}
+
+pub(in crate::hir::lower) fn stable_cone_key_for_source<'a>(
+    source: &SourceFile,
+    fallback: &'a StableConeKey,
+    source_cones: &'a HashMap<std::path::PathBuf, crate::cone::SourceConeInfo>,
+) -> &'a StableConeKey {
+    stable_cone_key_for_source_path(source.path(), fallback, source_cones)
+}
+
+pub(in crate::hir::lower) fn stable_cone_key_for_source_path<'a>(
+    source_path: &std::path::Path,
+    fallback: &'a StableConeKey,
+    source_cones: &'a HashMap<std::path::PathBuf, crate::cone::SourceConeInfo>,
+) -> &'a StableConeKey {
+    source_cones
+        .get(source_path)
+        .map(|info| &info.stable_key)
+        .unwrap_or(fallback)
 }
 
 pub(in crate::hir::lower) fn stable_template_key_for_template(
@@ -1254,5 +1333,70 @@ pub(in crate::hir::lower) fn eval_value_only_enum_discriminant(
             Some(-v)
         }
         _ => None,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use crate::cone::{ConeId, ConeKind, SourceConeInfo, SourceConeTrust};
+    use crate::parser::parse_file;
+
+    fn source_cone_info(id: u32, stable_key: StableConeKey) -> SourceConeInfo {
+        SourceConeInfo {
+            id: ConeId::new(id),
+            kind: ConeKind::Lib,
+            stable_key,
+            trust: SourceConeTrust::Untrusted,
+        }
+    }
+
+    #[test]
+    fn generic_template_signatures_use_owning_source_cone_key() {
+        let dep_source = SourceFile::new_virtual(
+            "/tmp/scoop-template-keys/dep/src/lib.scoop",
+            "package shared\nfun depId<T>(value: T): T = value\n",
+        );
+        let app_source = SourceFile::new_virtual(
+            "/tmp/scoop-template-keys/app/src/main.scoop",
+            "package shared\nfun appId<T>(value: T): T = value\n",
+        );
+        let dep_ast = parse_file(&dep_source).unwrap();
+        let app_ast = parse_file(&app_source).unwrap();
+        let index = Index::build(&[(&dep_source, &dep_ast), (&app_source, &app_ast)]).unwrap();
+        let dep_key = StableConeKey::new("dep.cone", "0.1.0");
+        let app_key = StableConeKey::new("app.cone", "0.1.0");
+        let fallback_key = StableConeKey::new("fallback.cone", "0.1.0");
+        let source_cones = HashMap::from([
+            (
+                dep_source.path().to_path_buf(),
+                source_cone_info(2, dep_key),
+            ),
+            (
+                app_source.path().to_path_buf(),
+                source_cone_info(1, app_key),
+            ),
+        ]);
+
+        let compilation_unit = [(&dep_source, &dep_ast), (&app_source, &app_ast)];
+        let templates = collect_explicit_top_level_generic_fun_templates_with_source_cones(
+            &fallback_key,
+            &index,
+            &compilation_unit,
+            &source_cones,
+        );
+        let signature_keys = templates
+            .values()
+            .map(|template| template.signature_key.as_str())
+            .collect::<Vec<_>>();
+
+        assert!(signature_keys.iter().any(|key| key.contains("dep.cone")));
+        assert!(signature_keys.iter().any(|key| key.contains("app.cone")));
+        assert!(
+            !signature_keys
+                .iter()
+                .any(|key| key.contains("fallback.cone"))
+        );
     }
 }

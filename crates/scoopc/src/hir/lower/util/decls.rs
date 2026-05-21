@@ -68,15 +68,30 @@ pub(crate) fn collect_stable_type_param_keys(
     compilation_unit: &[(&SourceFile, &ast::File)],
     stable_cone_key: &StableConeKey,
 ) -> HashMap<TypeParamType, StableTypeParamKey> {
+    let source_cones = HashMap::<std::path::PathBuf, crate::cone::SourceConeInfo>::new();
+    collect_stable_type_param_keys_with_source_cones(
+        compilation_unit,
+        stable_cone_key,
+        &source_cones,
+    )
+}
+
+pub(crate) fn collect_stable_type_param_keys_with_source_cones(
+    compilation_unit: &[(&SourceFile, &ast::File)],
+    stable_cone_key: &StableConeKey,
+    source_cones: &HashMap<std::path::PathBuf, crate::cone::SourceConeInfo>,
+) -> HashMap<TypeParamType, StableTypeParamKey> {
     let mut out = HashMap::new();
     for (source, file) in compilation_unit {
+        let source_stable_cone_key =
+            stable_cone_key_for_source(source, stable_cone_key, source_cones);
         let pkg_prefix = package_prefix(source, file.package.as_ref());
         for item in &file.items {
             collect_stable_type_param_keys_in_item(
                 source,
                 item,
                 &pkg_prefix,
-                stable_cone_key,
+                source_stable_cone_key,
                 &mut out,
             );
         }
@@ -1164,4 +1179,62 @@ pub(in crate::hir::lower) fn collect_class_decl_init(
 
     ctx.pop_type_params();
     out.entry(class_fqn.to_string()).or_insert(init);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use crate::cone::{ConeId, ConeKind, SourceConeInfo, SourceConeTrust};
+    use crate::parser::parse_file;
+
+    fn source_cone_info(id: u32, stable_key: StableConeKey) -> SourceConeInfo {
+        SourceConeInfo {
+            id: ConeId::new(id),
+            kind: ConeKind::Lib,
+            stable_key,
+            trust: SourceConeTrust::Untrusted,
+        }
+    }
+
+    #[test]
+    fn stable_type_param_keys_use_owning_source_cone_key() {
+        let dep_source = SourceFile::new_virtual(
+            "/tmp/scoop-stable-keys/dep/src/lib.scoop",
+            "package shared\nfun depId<T>(value: T): T = value\n",
+        );
+        let app_source = SourceFile::new_virtual(
+            "/tmp/scoop-stable-keys/app/src/main.scoop",
+            "package shared\nfun appId<T>(value: T): T = value\n",
+        );
+        let dep_ast = parse_file(&dep_source).unwrap();
+        let app_ast = parse_file(&app_source).unwrap();
+        let dep_key = StableConeKey::new("dep.cone", "0.1.0");
+        let app_key = StableConeKey::new("app.cone", "0.1.0");
+        let fallback_key = StableConeKey::new("fallback.cone", "0.1.0");
+        let source_cones = HashMap::from([
+            (
+                dep_source.path().to_path_buf(),
+                source_cone_info(2, dep_key),
+            ),
+            (
+                app_source.path().to_path_buf(),
+                source_cone_info(1, app_key),
+            ),
+        ]);
+
+        let keys = collect_stable_type_param_keys_with_source_cones(
+            &[(&dep_source, &dep_ast), (&app_source, &app_ast)],
+            &fallback_key,
+            &source_cones,
+        );
+        let owner_keys = keys
+            .values()
+            .map(StableTypeParamKey::owner_def_key)
+            .collect::<Vec<_>>();
+
+        assert!(owner_keys.iter().any(|key| key.contains("dep.cone")));
+        assert!(owner_keys.iter().any(|key| key.contains("app.cone")));
+        assert!(!owner_keys.iter().any(|key| key.contains("fallback.cone")));
+    }
 }

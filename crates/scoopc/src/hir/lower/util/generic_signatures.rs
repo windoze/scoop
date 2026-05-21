@@ -263,6 +263,32 @@ pub(in crate::hir::lower) fn collect_generic_member_fun_instantiations(
     types: &mut TypeStore,
     builtins: BuiltinTypes,
 ) -> Vec<super::super::FunDecl> {
+    let stable_cone_key = virtual_stable_cone_key_for_compilation_unit(pairs);
+    let source_cones = HashMap::<std::path::PathBuf, crate::cone::SourceConeInfo>::new();
+    collect_generic_member_fun_instantiations_with_source_cones(
+        pairs,
+        index,
+        type_kinds,
+        typecheck_types,
+        types,
+        builtins,
+        (&stable_cone_key, &source_cones),
+    )
+}
+
+pub(in crate::hir::lower) fn collect_generic_member_fun_instantiations_with_source_cones(
+    pairs: &[(&SourceFile, &ast::File)],
+    index: &Index,
+    type_kinds: &HashMap<String, ast::TypeKind>,
+    typecheck_types: Option<&TypeStore>,
+    types: &mut TypeStore,
+    builtins: BuiltinTypes,
+    source_cone_keys: (
+        &StableConeKey,
+        &HashMap<std::path::PathBuf, crate::cone::SourceConeInfo>,
+    ),
+) -> Vec<super::super::FunDecl> {
+    let (stable_cone_key, source_cones) = source_cone_keys;
     // 1) 收集泛型 nominal 声明：base_fqn -> (source, file, decl)
     let mut generic_owners: HashMap<String, (&SourceFile, &ast::File, &ast::TypeDecl)> =
         HashMap::new();
@@ -280,7 +306,13 @@ pub(in crate::hir::lower) fn collect_generic_member_fun_instantiations(
     if generic_owners.is_empty() {
         return Vec::new();
     }
-    let generic_template_symbol_suffixes = collect_generic_template_symbol_suffixes(index, pairs);
+    let generic_template_symbol_suffixes =
+        collect_generic_template_symbol_suffixes_with_source_cones(
+            stable_cone_key,
+            index,
+            pairs,
+            source_cones,
+        );
     let empty_known_receiver_subclasses = crate::devirtualize::KnownReceiverSubclassIndex::new();
     let empty_class_vtables = crate::vtable::ClassVtableIndex::new();
     let empty_interfaces = crate::itable::InterfaceIndex::new();
@@ -783,6 +815,7 @@ pub(in crate::hir::lower) struct ExplicitGenericMemberInstantiationInputs<'a> {
     pub types: &'a mut TypeStore,
     pub builtins: BuiltinTypes,
     pub stable_cone_key: &'a StableConeKey,
+    pub source_cones: &'a HashMap<std::path::PathBuf, crate::cone::SourceConeInfo>,
 }
 
 pub(in crate::hir::lower) fn collect_generic_member_fun_instantiations_from_instance_keys(
@@ -798,21 +831,28 @@ pub(in crate::hir::lower) fn collect_generic_member_fun_instantiations_from_inst
         types,
         builtins,
         stable_cone_key,
+        source_cones,
     } = inputs;
 
     if instance_keys.is_empty() {
         return Ok(Vec::new());
     }
 
-    let templates = collect_explicit_member_templates(stable_cone_key, index, compilation_unit);
+    let templates = collect_explicit_member_templates_with_source_cones(
+        stable_cone_key,
+        index,
+        compilation_unit,
+        source_cones,
+    );
     if templates.is_empty() {
         return Ok(Vec::new());
     }
     let generic_template_symbol_suffixes =
-        collect_generic_template_symbol_suffixes_with_stable_cone_key(
+        collect_generic_template_symbol_suffixes_with_source_cones(
             stable_cone_key,
             index,
             compilation_unit,
+            source_cones,
         );
     let direct_supertypes = super::collect_direct_supertypes(compilation_unit, index);
     let known_receiver_subclasses =
@@ -1021,11 +1061,28 @@ pub(in crate::hir::lower) fn collect_explicit_member_templates<'a>(
     index: &Index,
     compilation_unit: &'a [(&'a SourceFile, &'a ast::File)],
 ) -> HashMap<TemplateKey, ExplicitMemberTemplate<'a>> {
+    let source_cones = HashMap::<std::path::PathBuf, crate::cone::SourceConeInfo>::new();
+    collect_explicit_member_templates_with_source_cones(
+        stable_cone_key,
+        index,
+        compilation_unit,
+        &source_cones,
+    )
+}
+
+pub(in crate::hir::lower) fn collect_explicit_member_templates_with_source_cones<'a>(
+    stable_cone_key: &StableConeKey,
+    index: &Index,
+    compilation_unit: &'a [(&'a SourceFile, &'a ast::File)],
+    source_cones: &HashMap<std::path::PathBuf, crate::cone::SourceConeInfo>,
+) -> HashMap<TemplateKey, ExplicitMemberTemplate<'a>> {
     let mut out = HashMap::new();
     for (source, file) in compilation_unit {
+        let source_stable_cone_key =
+            stable_cone_key_for_source(source, stable_cone_key, source_cones);
         let pkg_prefix = package_prefix(source, file.package.as_ref());
         collect_explicit_member_templates_in_items(
-            stable_cone_key,
+            source_stable_cone_key,
             index,
             source,
             file,
