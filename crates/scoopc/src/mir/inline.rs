@@ -6,8 +6,11 @@
 //! ordinary non-generic bodies up front, so caller-side rewrites can update them under the same
 //! stable `InstanceKey -> family -> body` query surface.
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
+use super::pass_pipeline::{
+    MirPassCleanupMode, MirPassPipelineContext, cleanup_pass_rewritten_body,
+};
 use super::{
     Body, CallArg, CallKind, FunDecl, InstanceKey, InstanceSummary, LocalDecl, LocalId,
     MaterializedMir, Operand, ParamUseSummary, ResultProvenance, ResultProvenanceSource, Rvalue,
@@ -55,19 +58,14 @@ struct BlockCallableProvenance {
 }
 
 /// 在当前 materialized MIR pass artifacts 上运行保守 summary-driven inlining。
-pub(crate) fn run_summary_driven_inlining(materialized: &mut MaterializedMir) {
+pub(crate) fn run_summary_driven_inlining(context: &mut MirPassPipelineContext<'_>) {
     for _ in 0..INLINE_MAX_ITERATIONS {
-        let snapshot = InlineSnapshot::from_materialized(materialized);
+        let snapshot = InlineSnapshot::from_materialized(context.materialized());
         let mut rewrites = Vec::new();
 
         for function in &snapshot.functions {
             if let Some(rewritten) = rewrite_fun_once(function, &snapshot) {
-                let summary = summarize_pass_rewritten_fun(
-                    &rewritten,
-                    &materialized.types,
-                    Some(&function.summary),
-                );
-                rewrites.push((function.key.clone(), rewritten, summary));
+                rewrites.push((function.key.clone(), rewritten));
             }
         }
 
@@ -82,13 +80,11 @@ pub(crate) fn run_summary_driven_inlining(materialized: &mut MaterializedMir) {
             break;
         }
 
-        let pass_artifacts = materialized.pass_artifacts_mut();
-        for (key, fun, summary) in rewrites {
-            pass_artifacts.replace_callable_body(fun);
-            pass_artifacts.set_instance_summary(key, summary);
+        for (key, fun) in rewrites {
+            context.publish_instance_rewrite(key, fun);
         }
         for fun in caller_rewrites {
-            pass_artifacts.replace_callable_body(fun);
+            context.publish_caller_rewrite(fun);
         }
     }
 }
@@ -402,7 +398,7 @@ fn rewrite_callable_body_once(fun: &FunDecl, snapshot: &InlineSnapshot) -> Optio
     }
 
     if changed {
-        remove_dead_inline_artifacts(body);
+        cleanup_pass_rewritten_body(body, MirPassCleanupMode::InlineArtifacts);
     }
     changed.then_some(rewritten)
 }
@@ -657,176 +653,6 @@ fn call_kind_is_inlineable(
         }
         CallKind::FunPtr { .. } => false,
         CallKind::Virtual { .. } | CallKind::Interface { .. } | CallKind::Resume { .. } => false,
-    }
-}
-
-fn remove_dead_inline_artifacts(body: &mut Body) {
-    // Provenance-driven rewrites can make the temporary function-value materialization dead.
-    // Removing only TopLevelRef/MakeClosure assignments keeps this local cleanup narrow.
-    loop {
-        let used = collect_used_locals(body);
-        let mut removed_any = false;
-        for block in &mut body.blocks {
-            let old_stmts = std::mem::take(&mut block.stmts);
-            block.stmts = old_stmts
-                .into_iter()
-                .filter(|stmt| {
-                    if dead_removable_assignment(stmt, &used) {
-                        removed_any = true;
-                        false
-                    } else {
-                        true
-                    }
-                })
-                .collect();
-        }
-        if !removed_any {
-            break;
-        }
-    }
-}
-
-fn dead_removable_assignment(stmt: &Statement, used: &HashSet<LocalId>) -> bool {
-    let StatementKind::Assign { target, value } = &stmt.kind else {
-        return false;
-    };
-    !used.contains(target) && rvalue_is_dead_removable(value)
-}
-
-fn rvalue_is_dead_removable(value: &Rvalue) -> bool {
-    matches!(value, Rvalue::TopLevelRef(_) | Rvalue::MakeClosure { .. })
-}
-
-fn collect_used_locals(body: &Body) -> HashSet<LocalId> {
-    let mut out = HashSet::new();
-    for block in &body.blocks {
-        for stmt in &block.stmts {
-            collect_statement_uses(stmt, &mut out);
-        }
-        collect_terminator_uses(&block.terminator.kind, &mut out);
-    }
-    out
-}
-
-fn collect_statement_uses(stmt: &Statement, out: &mut HashSet<LocalId>) {
-    match &stmt.kind {
-        StatementKind::Nop | StatementKind::Todo(_) => {}
-        StatementKind::Assign { value, .. } => collect_rvalue_uses(value, out),
-        StatementKind::StoreMember {
-            receiver,
-            value,
-            continuation_route,
-            ..
-        } => {
-            collect_operand_use(receiver, out);
-            collect_operand_use(value, out);
-            if let super::StoredContinuationRoutePublication::Unique(route) = continuation_route {
-                out.insert(route.source_local);
-            }
-        }
-        StatementKind::StoreTopLevelVar { value, .. } => collect_operand_use(value, out),
-    }
-}
-
-fn collect_rvalue_uses(value: &Rvalue, out: &mut HashSet<LocalId>) {
-    match value {
-        Rvalue::Use(operand)
-        | Rvalue::Transport { value: operand, .. }
-        | Rvalue::TypeCheck { value: operand, .. }
-        | Rvalue::Cast { value: operand, .. }
-        | Rvalue::TupleGet { tuple: operand, .. }
-        | Rvalue::PatternMatch {
-            subject: operand, ..
-        }
-        | Rvalue::PatternExtract {
-            subject: operand, ..
-        } => collect_operand_use(operand, out),
-        Rvalue::MemberAccess { receiver, .. } => collect_operand_use(receiver, out),
-        Rvalue::Call { kind, args, .. } => {
-            collect_call_kind_uses(kind, out);
-            for arg in args {
-                collect_operand_use(&arg.value, out);
-            }
-        }
-        Rvalue::EnumVariant { args, .. } => {
-            for arg in args {
-                collect_operand_use(&arg.value, out);
-            }
-        }
-        Rvalue::ClassCtor { args, .. } => {
-            for arg in args {
-                collect_operand_use(&arg.value, out);
-            }
-        }
-        Rvalue::MakeTuple { elements, .. } => {
-            for element in elements {
-                collect_operand_use(element, out);
-            }
-        }
-        Rvalue::StructLit { fields, .. } => {
-            for field in fields {
-                collect_operand_use(&field.value, out);
-            }
-        }
-        Rvalue::InterpolatedString { parts, .. } => {
-            for part in parts {
-                if let super::InterpolatedStringPart::Expr { value, .. } = part {
-                    collect_operand_use(value, out);
-                }
-            }
-        }
-        Rvalue::MakeClosure { env, .. } => collect_operand_use(env, out),
-        Rvalue::TopLevelRef(_)
-        | Rvalue::UnresolvedName { .. }
-        | Rvalue::SizeOf { .. }
-        | Rvalue::KindOf { .. }
-        | Rvalue::AlignOf { .. }
-        | Rvalue::DescOf { .. }
-        | Rvalue::TypeMetadataLiteral(_)
-        | Rvalue::PerformResult { .. }
-        | Rvalue::Todo(_) => {}
-    }
-}
-
-fn collect_call_kind_uses(kind: &CallKind, out: &mut HashSet<LocalId>) {
-    match kind {
-        CallKind::Direct { .. } => {}
-        CallKind::Closure { callee, .. }
-        | CallKind::FunValue { callee }
-        | CallKind::FunPtr { callee } => {
-            collect_operand_use(callee, out);
-        }
-        CallKind::Virtual { receiver, .. } | CallKind::Interface { receiver, .. } => {
-            collect_operand_use(receiver, out);
-        }
-        CallKind::Resume { continuation, .. } => collect_operand_use(continuation, out),
-    }
-}
-
-fn collect_terminator_uses(kind: &TerminatorKind, out: &mut HashSet<LocalId>) {
-    match kind {
-        TerminatorKind::Return { value } => {
-            if let Some(value) = value {
-                collect_operand_use(value, out);
-            }
-        }
-        TerminatorKind::CondBr { cond, .. } => collect_operand_use(cond, out),
-        TerminatorKind::Perform { args, .. } => {
-            for arg in args {
-                collect_operand_use(&arg.value, out);
-            }
-        }
-        TerminatorKind::Goto { .. }
-        | TerminatorKind::ResumeUnwind
-        | TerminatorKind::Handle { .. }
-        | TerminatorKind::Unreachable
-        | TerminatorKind::Todo(_) => {}
-    }
-}
-
-fn collect_operand_use(operand: &Operand, out: &mut HashSet<LocalId>) {
-    if let Operand::Local(local) = operand {
-        out.insert(*local);
     }
 }
 

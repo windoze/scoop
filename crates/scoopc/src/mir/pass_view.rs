@@ -10,6 +10,8 @@
 
 use std::collections::{HashMap, HashSet};
 
+use scoopc_mir_facts::pipeline::MirPassKind;
+
 use super::callables::MaterializedCallableFamily;
 use super::{
     File, FunDecl, InstanceKey, InstanceSummary, Item, MaterializedCallableFamilies,
@@ -33,6 +35,56 @@ pub struct MaterializedMirPassArtifacts {
     escape_facts: MaterializedEscapeFacts,
     overridden_body_fqns: HashSet<String>,
     overridden_summary_instances: HashSet<InstanceKey>,
+    body_override_revisions: HashMap<String, u32>,
+    summary_override_revisions: HashMap<InstanceKey, u32>,
+    escape_facts_revision: Option<u32>,
+    current_revision: u32,
+    pipeline_runs: Vec<MaterializedMirPassRunRecord>,
+}
+
+/// Stable record of one MIR pass scheduled by the explicit pass pipeline.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct MaterializedMirPassRunRecord {
+    pub(crate) pass: MirPassKind,
+    pub(crate) enabled: bool,
+    pub(crate) input_revision: u32,
+    pub(crate) output_revision: Option<u32>,
+    pub(crate) changed_bodies: usize,
+    pub(crate) changed_summaries: usize,
+    pub(crate) produced_escape_facts: bool,
+}
+
+impl MaterializedMirPassRunRecord {
+    pub(crate) fn disabled(pass: MirPassKind, input_revision: u32) -> Self {
+        Self {
+            pass,
+            enabled: false,
+            input_revision,
+            output_revision: None,
+            changed_bodies: 0,
+            changed_summaries: 0,
+            produced_escape_facts: false,
+        }
+    }
+
+    pub(crate) fn enabled(
+        pass: MirPassKind,
+        input_revision: u32,
+        output_revision: u32,
+        changed_bodies: usize,
+        changed_summaries: usize,
+        produced_escape_facts: bool,
+    ) -> Self {
+        Self {
+            pass,
+            enabled: true,
+            input_revision,
+            output_revision: Some(output_revision),
+            changed_bodies,
+            changed_summaries,
+            produced_escape_facts,
+        }
+    }
 }
 
 impl MaterializedMirPassArtifacts {
@@ -58,6 +110,11 @@ impl MaterializedMirPassArtifacts {
             escape_facts: MaterializedEscapeFacts::default(),
             overridden_body_fqns: HashSet::new(),
             overridden_summary_instances: HashSet::new(),
+            body_override_revisions: HashMap::new(),
+            summary_override_revisions: HashMap::new(),
+            escape_facts_revision: None,
+            current_revision: 0,
+            pipeline_runs: Vec::new(),
         }
     }
 
@@ -70,7 +127,17 @@ impl MaterializedMirPassArtifacts {
     ///   request-root / non-generic caller body；
     /// - 该操作不会修改 raw `MaterializedMir.file`。
     pub fn replace_callable_body(&mut self, fun: FunDecl) -> Option<FunDecl> {
+        self.replace_callable_body_in_revision(fun, self.current_revision)
+    }
+
+    pub(crate) fn replace_callable_body_in_revision(
+        &mut self,
+        fun: FunDecl,
+        revision: u32,
+    ) -> Option<FunDecl> {
         self.overridden_body_fqns.insert(fun.fqn.clone());
+        self.body_override_revisions
+            .insert(fun.fqn.clone(), revision);
         if fun.body.is_some() {
             self.callable_bodies_by_fqn.insert(fun.fqn.clone(), fun)
         } else {
@@ -83,7 +150,17 @@ impl MaterializedMirPassArtifacts {
     /// 说明：family 映射与 summary 不会自动删除，便于表达“callable 身份仍存在，但当前没有
     /// canonical body”的 declaration-only / helper-only 形态。
     pub fn remove_callable_body(&mut self, fqn: &str) -> Option<FunDecl> {
+        self.remove_callable_body_in_revision(fqn, self.current_revision)
+    }
+
+    pub(crate) fn remove_callable_body_in_revision(
+        &mut self,
+        fqn: &str,
+        revision: u32,
+    ) -> Option<FunDecl> {
         self.overridden_body_fqns.insert(fqn.to_string());
+        self.body_override_revisions
+            .insert(fqn.to_string(), revision);
         self.callable_bodies_by_fqn.remove(fqn)
     }
 
@@ -93,7 +170,18 @@ impl MaterializedMirPassArtifacts {
         key: InstanceKey,
         summary: InstanceSummary,
     ) -> Option<InstanceSummary> {
+        self.set_instance_summary_in_revision(key, summary, self.current_revision)
+    }
+
+    pub(crate) fn set_instance_summary_in_revision(
+        &mut self,
+        key: InstanceKey,
+        summary: InstanceSummary,
+        revision: u32,
+    ) -> Option<InstanceSummary> {
         self.overridden_summary_instances.insert(key.clone());
+        self.summary_override_revisions
+            .insert(key.clone(), revision);
         self.summaries.insert(key, summary)
     }
 
@@ -138,16 +226,53 @@ impl MaterializedMirPassArtifacts {
         self.overridden_body_fqns.iter().map(String::as_str)
     }
 
+    pub(crate) fn body_override_revision(&self, fqn: &str) -> Option<u32> {
+        self.body_override_revisions.get(fqn).copied()
+    }
+
+    pub(crate) fn overridden_summary_instances(&self) -> impl Iterator<Item = &InstanceKey> + '_ {
+        self.overridden_summary_instances.iter()
+    }
+
+    pub(crate) fn summary_override_revision(&self, key: &InstanceKey) -> Option<u32> {
+        self.summary_override_revisions.get(key).copied()
+    }
+
     fn summaries(&self) -> &MaterializedMirSummaries {
         &self.summaries
     }
 
-    pub(crate) fn set_escape_facts(&mut self, facts: MaterializedEscapeFacts) {
+    pub(crate) fn set_escape_facts_in_revision(
+        &mut self,
+        facts: MaterializedEscapeFacts,
+        revision: u32,
+    ) {
         self.escape_facts = facts;
+        self.escape_facts_revision = Some(revision);
     }
 
     fn escape_facts(&self) -> &MaterializedEscapeFacts {
         &self.escape_facts
+    }
+
+    pub(crate) fn escape_facts_revision(&self) -> Option<u32> {
+        self.escape_facts_revision
+    }
+
+    pub(crate) fn current_revision(&self) -> u32 {
+        self.current_revision
+    }
+
+    pub(crate) fn finish_pipeline_revision(&mut self, revision: u32) {
+        self.current_revision = self.current_revision.max(revision);
+    }
+
+    pub(crate) fn record_pipeline_run(&mut self, record: MaterializedMirPassRunRecord) {
+        self.pipeline_runs.push(record);
+    }
+
+    pub(crate) fn pipeline_runs(&self) -> &[MaterializedMirPassRunRecord] {
+        &self.pipeline_runs
     }
 
     fn summary_is_overridden(&self, key: &InstanceKey) -> bool {

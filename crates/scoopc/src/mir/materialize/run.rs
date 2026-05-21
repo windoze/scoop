@@ -254,17 +254,7 @@ impl MirInstanceMaterializer {
             pass_artifacts,
             caller_side_pass_candidates: self.caller_side_pass_candidates,
         };
-        if self.enable_summary_driven_inlining {
-            super::super::inline::run_summary_driven_inlining(&mut materialized);
-        }
-        if self.enable_mir_escape_analysis {
-            super::super::escape::run_escape_analysis(&mut materialized);
-            if super::super::closure_simplify::run_non_escaping_closure_simplification(
-                &mut materialized,
-            ) {
-                super::super::escape::run_escape_analysis(&mut materialized);
-            }
-        }
+        super::super::pass_pipeline::run_mir_pass_pipeline(&mut materialized);
         materialized.validate_materialized()?;
         Ok(materialized)
     }

@@ -6,19 +6,20 @@
 //! a `MakeClosure` with `Unit` env, proven non-escaping, called exactly once in the same callable
 //! body, and backed by a straight-line closure body.
 
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap};
 
+use super::pass_pipeline::{
+    MirPassCleanupMode, MirPassPipelineContext, cleanup_pass_rewritten_body,
+};
 use super::{
-    Body, CallArg, CallKind, CallableEscapeFacts, EscapeStatus, FunDecl, InstanceKey,
-    InstanceSummary, Item, LocalId, MaterializedMir, Operand, Rvalue, Statement, StatementKind,
-    TerminatorKind, summarize_pass_rewritten_fun,
+    Body, CallArg, CallKind, CallableEscapeFacts, EscapeStatus, FunDecl, InstanceKey, Item,
+    LocalId, MaterializedMir, Operand, Rvalue, Statement, StatementKind,
 };
 
 #[derive(Debug, Clone)]
 struct SimplifyFunction {
     key: InstanceKey,
     fun: FunDecl,
-    summary: InstanceSummary,
 }
 
 #[derive(Debug)]
@@ -42,14 +43,12 @@ struct BlockClosureProvenance {
 }
 
 /// Run the minimal non-escaping closure simplification over pass-visible MIR bodies.
-///
-/// Returns `true` when the pass published at least one rewritten callable body.
-pub(crate) fn run_non_escaping_closure_simplification(materialized: &mut MaterializedMir) -> bool {
-    if materialized.pass_view().escape_facts().is_empty() {
-        return false;
+pub(crate) fn run_non_escaping_closure_simplification(context: &mut MirPassPipelineContext<'_>) {
+    if context.materialized().pass_view().escape_facts().is_empty() {
+        return;
     }
 
-    let snapshot = ClosureSimplifySnapshot::from_materialized(materialized);
+    let snapshot = ClosureSimplifySnapshot::from_materialized(context.materialized());
     let mut instance_rewrites = Vec::new();
     let mut caller_rewrites = Vec::new();
 
@@ -60,9 +59,7 @@ pub(crate) fn run_non_escaping_closure_simplification(materialized: &mut Materia
         if !super::inline::pass_publishable_caller_body(&rewritten) {
             continue;
         }
-        let summary =
-            summarize_pass_rewritten_fun(&rewritten, &materialized.types, Some(&function.summary));
-        instance_rewrites.push((function.key.clone(), rewritten, summary));
+        instance_rewrites.push((function.key.clone(), rewritten));
     }
 
     for fun in &snapshot.caller_candidates {
@@ -75,18 +72,15 @@ pub(crate) fn run_non_escaping_closure_simplification(materialized: &mut Materia
     }
 
     if instance_rewrites.is_empty() && caller_rewrites.is_empty() {
-        return false;
+        return;
     }
 
-    let pass_artifacts = materialized.pass_artifacts_mut();
-    for (key, fun, summary) in instance_rewrites {
-        pass_artifacts.replace_callable_body(fun);
-        pass_artifacts.set_instance_summary(key, summary);
+    for (key, fun) in instance_rewrites {
+        context.publish_instance_rewrite(key, fun);
     }
     for fun in caller_rewrites {
-        pass_artifacts.replace_callable_body(fun);
+        context.publish_caller_rewrite(fun);
     }
-    true
 }
 
 impl ClosureSimplifySnapshot {
@@ -99,7 +93,6 @@ impl ClosureSimplifySnapshot {
                 Some(SimplifyFunction {
                     key: family.key().clone(),
                     fun,
-                    summary: family.summary().clone(),
                 })
             })
             .collect::<Vec<_>>();
@@ -236,7 +229,7 @@ fn rewrite_callable_body_once(
     }
 
     if changed {
-        remove_dead_closure_artifacts(body);
+        cleanup_pass_rewritten_body(body, MirPassCleanupMode::ClosureArtifacts);
     }
     changed.then_some(rewritten)
 }
@@ -329,174 +322,6 @@ fn bind_closure_call_args(
     out.push(env.clone());
     out.extend(slots.into_iter().collect::<Option<Vec<_>>>()?);
     Some(out)
-}
-
-fn remove_dead_closure_artifacts(body: &mut Body) {
-    loop {
-        let used = collect_used_locals(body);
-        let mut removed_any = false;
-        for block in &mut body.blocks {
-            let old_stmts = std::mem::take(&mut block.stmts);
-            block.stmts = old_stmts
-                .into_iter()
-                .filter(|stmt| {
-                    if dead_closure_artifact_assignment(stmt, &used) {
-                        removed_any = true;
-                        false
-                    } else {
-                        true
-                    }
-                })
-                .collect();
-        }
-        if !removed_any {
-            break;
-        }
-    }
-}
-
-fn dead_closure_artifact_assignment(stmt: &Statement, used: &HashSet<LocalId>) -> bool {
-    let StatementKind::Assign { target, value } = &stmt.kind else {
-        return false;
-    };
-    !used.contains(target)
-        && matches!(
-            value,
-            Rvalue::MakeClosure { .. } | Rvalue::Use(_) | Rvalue::Transport { .. }
-        )
-}
-
-fn collect_used_locals(body: &Body) -> HashSet<LocalId> {
-    let mut out = HashSet::new();
-    for block in &body.blocks {
-        for stmt in &block.stmts {
-            collect_statement_uses(stmt, &mut out);
-        }
-        collect_terminator_uses(&block.terminator.kind, &mut out);
-    }
-    out
-}
-
-fn collect_statement_uses(stmt: &Statement, out: &mut HashSet<LocalId>) {
-    match &stmt.kind {
-        StatementKind::Nop | StatementKind::Todo(_) => {}
-        StatementKind::Assign { value, .. } => collect_rvalue_uses(value, out),
-        StatementKind::StoreMember {
-            receiver,
-            value,
-            continuation_route,
-            ..
-        } => {
-            collect_operand_use(receiver, out);
-            collect_operand_use(value, out);
-            if let super::StoredContinuationRoutePublication::Unique(route) = continuation_route {
-                out.insert(route.source_local);
-            }
-        }
-        StatementKind::StoreTopLevelVar { value, .. } => collect_operand_use(value, out),
-    }
-}
-
-fn collect_rvalue_uses(value: &Rvalue, out: &mut HashSet<LocalId>) {
-    match value {
-        Rvalue::Use(operand)
-        | Rvalue::Transport { value: operand, .. }
-        | Rvalue::TypeCheck { value: operand, .. }
-        | Rvalue::Cast { value: operand, .. }
-        | Rvalue::TupleGet { tuple: operand, .. }
-        | Rvalue::PatternMatch {
-            subject: operand, ..
-        }
-        | Rvalue::PatternExtract {
-            subject: operand, ..
-        } => collect_operand_use(operand, out),
-        Rvalue::MemberAccess { receiver, .. } => collect_operand_use(receiver, out),
-        Rvalue::Call { kind, args, .. } => {
-            collect_call_kind_uses(kind, out);
-            for arg in args {
-                collect_operand_use(&arg.value, out);
-            }
-        }
-        Rvalue::EnumVariant { args, .. } => {
-            for arg in args {
-                collect_operand_use(&arg.value, out);
-            }
-        }
-        Rvalue::ClassCtor { args, .. } => {
-            for arg in args {
-                collect_operand_use(&arg.value, out);
-            }
-        }
-        Rvalue::MakeTuple { elements, .. } => {
-            for element in elements {
-                collect_operand_use(element, out);
-            }
-        }
-        Rvalue::StructLit { fields, .. } => {
-            for field in fields {
-                collect_operand_use(&field.value, out);
-            }
-        }
-        Rvalue::InterpolatedString { parts, .. } => {
-            for part in parts {
-                if let super::InterpolatedStringPart::Expr { value, .. } = part {
-                    collect_operand_use(value, out);
-                }
-            }
-        }
-        Rvalue::MakeClosure { env, .. } => collect_operand_use(env, out),
-        Rvalue::TopLevelRef(_)
-        | Rvalue::UnresolvedName { .. }
-        | Rvalue::SizeOf { .. }
-        | Rvalue::KindOf { .. }
-        | Rvalue::AlignOf { .. }
-        | Rvalue::DescOf { .. }
-        | Rvalue::TypeMetadataLiteral(_)
-        | Rvalue::PerformResult { .. }
-        | Rvalue::Todo(_) => {}
-    }
-}
-
-fn collect_call_kind_uses(kind: &CallKind, out: &mut HashSet<LocalId>) {
-    match kind {
-        CallKind::Direct { .. } => {}
-        CallKind::Closure { callee, .. }
-        | CallKind::FunValue { callee }
-        | CallKind::FunPtr { callee } => {
-            collect_operand_use(callee, out);
-        }
-        CallKind::Virtual { receiver, .. } | CallKind::Interface { receiver, .. } => {
-            collect_operand_use(receiver, out);
-        }
-        CallKind::Resume { continuation, .. } => collect_operand_use(continuation, out),
-    }
-}
-
-fn collect_terminator_uses(kind: &TerminatorKind, out: &mut HashSet<LocalId>) {
-    match kind {
-        TerminatorKind::Return { value } => {
-            if let Some(value) = value {
-                collect_operand_use(value, out);
-            }
-        }
-        TerminatorKind::CondBr { cond, .. } => collect_operand_use(cond, out),
-        TerminatorKind::Perform { args, .. } => {
-            for arg in args {
-                collect_operand_use(&arg.value, out);
-            }
-        }
-        TerminatorKind::Goto { .. }
-        | TerminatorKind::ResumeUnwind
-        | TerminatorKind::Handle { .. }
-        | TerminatorKind::Unreachable
-        | TerminatorKind::Todo(_) => {}
-    }
-}
-
-fn collect_operand_use(operand: &Operand, out: &mut HashSet<LocalId>) {
-    if let Operand::Local(local) = operand {
-        out.insert(*local);
-    }
 }
 
 #[cfg(test)]
@@ -594,7 +419,7 @@ fun main(): Int {
     }
 
     #[test]
-    fn o0_without_escape_facts_does_not_simplify_closure() {
+    fn o0_keeps_escape_facts_but_does_not_simplify_closure() {
         let sess = Session::new().unwrap();
         let source = SourceFile::new_virtual(
             "<mem>/mir_closure_simplify_o0.scoop",
@@ -616,12 +441,12 @@ fun main(): Int {
             materialize_for_dump_with_opt_level(&sess, &source, OptLevel::O0).unwrap();
         let pass_view = materialized.pass_view();
         assert!(
-            pass_view.escape_facts().is_empty(),
-            "O0 must not publish escape facts"
+            !pass_view.escape_facts().is_empty(),
+            "O0 must publish analysis-owned escape facts"
         );
         assert!(
             !pass_view.callable_body_is_overridden("fixtures.mirclosuresimplify.applyLocal"),
-            "closure simplification must not run without pass-view escape facts"
+            "closure simplification remains gated off at O0"
         );
     }
 

@@ -11,6 +11,7 @@ use std::collections::{BTreeMap, HashMap};
 
 use crate::ty::{RefTypeKind, TypeKind, TypeStore};
 
+use super::pass_pipeline::MirPassPipelineContext;
 use super::{
     Body, CallKind, FunDecl, LocalId, MaterializedMir, Operand, Rvalue, StatementKind,
     TerminatorKind,
@@ -118,18 +119,18 @@ enum OperandUse<'a> {
 
 /// Run escape analysis over the current pass-visible MIR bodies and publish the resulting side
 /// table into `MaterializedMirPassArtifacts`.
-pub(crate) fn run_escape_analysis(materialized: &mut MaterializedMir) {
-    let callables = pass_visible_callables(materialized);
+pub(crate) fn run_escape_analysis(context: &mut MirPassPipelineContext<'_>) {
+    let callables = pass_visible_callables(context.materialized());
     let mut facts = MaterializedEscapeFacts::default();
     for fun in callables {
-        let callable_facts = analyze_callable_escape_facts(&fun, &materialized.types);
+        let callable_facts = analyze_callable_escape_facts(&fun, &context.materialized().types);
         if !callable_facts.is_empty() {
             facts
                 .by_callable_fqn
                 .insert(fun.fqn.clone(), callable_facts);
         }
     }
-    materialized.pass_artifacts_mut().set_escape_facts(facts);
+    context.publish_escape_facts(facts);
 }
 
 fn pass_visible_callables(materialized: &MaterializedMir) -> Vec<FunDecl> {
@@ -800,7 +801,7 @@ mod tests {
     }
 
     #[test]
-    fn production_pass_view_publishes_escape_facts_only_when_opt_level_enables_them() {
+    fn production_pass_view_publishes_escape_facts_for_all_opt_levels() {
         let sess = Session::new().unwrap();
         let source = SourceFile::new_virtual(
             "<mem>/mir_escape_pass_view.scoop",
@@ -820,9 +821,16 @@ fun main(): Int {
             OptLevel::O0,
         )
         .unwrap();
+        let o0_main_facts = o0
+            .pass_view()
+            .escape_facts()
+            .callable("fixtures.mirescape.main")
+            .expect("main should have escape facts at O0");
         assert!(
-            o0.pass_view().escape_facts().is_empty(),
-            "O0 must not publish MIR escape facts"
+            o0_main_facts
+                .closures()
+                .any(|fact| fact.status.is_non_escaping() && fact.direct_call_count == 1),
+            "direct local closure call should be published as non-escaping at O0"
         );
 
         let o2 = super::super::materialize::materialize_for_dump_with_opt_level(

@@ -14,6 +14,7 @@ use scoopc_mir_facts::pass_artifacts::{
     CallableBodyArtifact, EscapeFactsArtifact, PassArtifactMetadata, PassArtifactRevision,
     SummaryArtifact,
 };
+use scoopc_mir_facts::pipeline::{MirPassPipelineMetadata, MirPassRun};
 use scoopc_mir_facts::roots::{
     MirGlobalStorageKind, MirInitializerRootKind as FactInitializerRootKind, MirItemReference,
     MirMetadataRootKind, MirRootDetail, MirRootFact, MirRootKind, RootInventories,
@@ -294,6 +295,7 @@ fn publish_materialized_handoff_facts(facts: &mut MirFacts, materialized: &Mater
     };
     facts.families = collect_instance_family_inventory(materialized);
     facts.pass_artifacts = collect_pass_artifact_metadata(materialized, &snapshot_key);
+    facts.pass_pipeline = collect_pass_pipeline_metadata(materialized, &snapshot_key);
 }
 
 fn canonical_snapshot_key(materialized: &MaterializedMir) -> StageArtifactKey {
@@ -381,10 +383,10 @@ fn collect_pass_artifact_metadata(
     materialized: &MaterializedMir,
     snapshot_key: &StageArtifactKey,
 ) -> PassArtifactMetadata {
-    let revision_key = StageArtifactKey::new(MIR_STAGE_LABEL, snapshot_key, PASS_ARTIFACT_ROLE, 0);
+    let initial_revision_key = pass_artifact_revision_key(snapshot_key, 0);
     let mut metadata = PassArtifactMetadata {
         revisions: vec![PassArtifactRevision::new(
-            revision_key.clone(),
+            initial_revision_key.clone(),
             "canonical-pass-artifacts",
             0,
         )],
@@ -392,6 +394,17 @@ fn collect_pass_artifact_metadata(
         summary_revisions: Vec::new(),
         escape_facts: Vec::new(),
     };
+
+    for run in materialized.pass_artifacts().pipeline_runs() {
+        let Some(revision) = run.output_revision else {
+            continue;
+        };
+        metadata.revisions.push(PassArtifactRevision::new(
+            pass_artifact_revision_key(snapshot_key, revision),
+            run.pass.as_str(),
+            revision,
+        ));
+    }
 
     let pass_view = materialized.pass_view();
     let mut overridden_body_fqns = materialized
@@ -401,6 +414,11 @@ fn collect_pass_artifact_metadata(
     overridden_body_fqns.sort_unstable();
     for fqn in overridden_body_fqns {
         if let Some(fun) = pass_view.callable(fqn) {
+            let revision = materialized
+                .pass_artifacts()
+                .body_override_revision(fqn)
+                .unwrap_or(0);
+            let revision_key = pass_artifact_revision_key(snapshot_key, revision);
             metadata
                 .callable_body_overrides
                 .push(CallableBodyArtifact::new(
@@ -418,17 +436,74 @@ fn collect_pass_artifact_metadata(
     metadata.summary_revisions.extend(
         summary_owners
             .into_iter()
-            .map(|owner| SummaryArtifact::new(revision_key.clone(), owner)),
+            .map(|owner| SummaryArtifact::new(initial_revision_key.clone(), owner)),
     );
+
+    let mut overridden_summary_instances = materialized
+        .pass_artifacts()
+        .overridden_summary_instances()
+        .collect::<Vec<_>>();
+    overridden_summary_instances.sort_by_key(|instance| {
+        materialized
+            .authoritative_stable_instance_key(instance)
+            .map(|key| key.canonical_text())
+            .unwrap_or_default()
+    });
+    for instance in overridden_summary_instances {
+        let revision = materialized
+            .pass_artifacts()
+            .summary_override_revision(instance)
+            .unwrap_or(0);
+        let revision_key = pass_artifact_revision_key(snapshot_key, revision);
+        metadata.summary_revisions.push(SummaryArtifact::new(
+            revision_key,
+            materialized_instance_artifact(materialized, instance),
+        ));
+    }
 
     let escape_body_count = pass_view.escape_facts().callables().count();
     if escape_body_count > 0 {
+        let revision = materialized
+            .pass_artifacts()
+            .escape_facts_revision()
+            .unwrap_or(0);
+        let revision_key = pass_artifact_revision_key(snapshot_key, revision);
         metadata
             .escape_facts
             .push(EscapeFactsArtifact::new(revision_key, escape_body_count));
     }
 
     metadata
+}
+
+fn collect_pass_pipeline_metadata(
+    materialized: &MaterializedMir,
+    snapshot_key: &StageArtifactKey,
+) -> MirPassPipelineMetadata {
+    let runs = materialized
+        .pass_artifacts()
+        .pipeline_runs()
+        .iter()
+        .map(|record| {
+            let mut run = MirPassRun::new(record.pass.clone(), record.enabled);
+            run.input_revision = Some(pass_artifact_revision_key(
+                snapshot_key,
+                record.input_revision,
+            ));
+            run.output_revision = record
+                .output_revision
+                .map(|revision| pass_artifact_revision_key(snapshot_key, revision));
+            run.changed_bodies = record.changed_bodies;
+            run.changed_summaries = record.changed_summaries;
+            run.produced_escape_facts = record.produced_escape_facts;
+            run
+        })
+        .collect();
+    MirPassPipelineMetadata { runs }
+}
+
+fn pass_artifact_revision_key(snapshot_key: &StageArtifactKey, revision: u32) -> StageArtifactKey {
+    StageArtifactKey::new(MIR_STAGE_LABEL, snapshot_key, PASS_ARTIFACT_ROLE, revision)
 }
 
 fn materialized_instance_artifact(

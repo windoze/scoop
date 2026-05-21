@@ -23,6 +23,7 @@ mod escape;
 mod inline;
 mod lower;
 mod materialize;
+mod pass_pipeline;
 mod pass_view;
 #[cfg(test)]
 mod placeholder_inventory;
@@ -55,6 +56,7 @@ pub use materialize::{
     InstanceKey, MaterializedMir, MirMaterializeError, TemplateKey, materialize_for_dump,
     materialize_for_dump_with_opt_level,
 };
+pub(crate) use pass_view::MaterializedMirPassRunRecord;
 pub use pass_view::{
     MaterializedMirPassArtifacts, MaterializedMirPassView, MaterializedPassCallableFamilyView,
     MaterializedPassCallableView,

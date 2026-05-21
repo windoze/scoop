@@ -41,8 +41,6 @@ impl MirInstanceMaterializer {
         builtins: BuiltinTypes,
         construction_inputs: MaterializerConstructionInputs<'_>,
         opt_level: OptLevel,
-        enable_summary_driven_inlining: bool,
-        enable_mir_escape_analysis: bool,
     ) -> MaterializeResult<Self> {
         let MaterializerConstructionInputs {
             stable_cone_key,
@@ -394,8 +392,6 @@ impl MirInstanceMaterializer {
             caller_side_pass_candidates: Vec::new(),
             pass_published_ordinary_callables: Vec::new(),
             materialized_direct_call_result_tys: HashMap::new(),
-            enable_summary_driven_inlining,
-            enable_mir_escape_analysis,
             queued: HashSet::new(),
             queue: VecDeque::new(),
             materialized: HashMap::new(),

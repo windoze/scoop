@@ -378,8 +378,6 @@ fn generic_materializer_for_body_with_template(
             request_root_fun_keys: Vec::new(),
         },
         OptLevel::O0,
-        false,
-        false,
     )
     .unwrap();
     let instance = InstanceKey {
@@ -2030,8 +2028,6 @@ fn materialized_mir_mir_materialize_generics_missing_root_reports_template_span(
             request_root_fun_keys: Vec::new(),
         },
         OptLevel::O0,
-        false,
-        false,
     ) {
         Ok(_) => panic!("missing generic MIR root should be rejected"),
         Err(err) => err,
@@ -2125,8 +2121,6 @@ fn mir_materialize_generics_missing_template_reports_call_site() {
             request_root_fun_keys: Vec::new(),
         },
         OptLevel::O0,
-        false,
-        false,
     ) {
         Ok(_) => panic!("missing site template should be rejected"),
         Err(err) => err,
@@ -2855,8 +2849,6 @@ return 0
             request_root_fun_keys,
         },
         OptLevel::O0,
-        false,
-        false,
     )
     .unwrap();
     materializer.hir_direct_instance_keys_by_fun = hir_direct_instance_keys_by_fun;
@@ -3841,8 +3833,6 @@ println(holder.node.tag.score)
             request_root_fun_keys,
         },
         OptLevel::O2,
-        true,
-        true,
     )
     .unwrap();
     materializer.hir_direct_instance_keys_by_fun = hir_direct_instance_keys_by_fun;
@@ -4176,8 +4166,6 @@ return read(ints) + read(texts)
             request_root_fun_keys,
         },
         OptLevel::O2,
-        true,
-        true,
     )
     .unwrap();
     materializer.hir_direct_instance_keys_by_fun = hir_direct_instance_keys_by_fun;

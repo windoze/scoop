@@ -21,8 +21,6 @@ pub(super) fn materialize_generic_mir(
         builtins,
         construction_inputs,
         opt_level,
-        opt_level.enables_summary_driven_mir_inlining(),
-        opt_level.enables_mir_escape_analysis(),
     )?;
     materializer.hir_direct_instance_keys_by_fun = hir_direct_instance_keys_by_fun;
     materializer.load_monomorph_request_site_bindings(typecheck_types, monomorph_requests)?;
@@ -356,8 +354,6 @@ pub(super) struct MirInstanceMaterializer {
     pub(super) caller_side_pass_candidates: Vec<FunDecl>,
     pub(super) pass_published_ordinary_callables: Vec<PassPublishedOrdinaryCallable>,
     pub(super) materialized_direct_call_result_tys: HashMap<String, TypeId>,
-    pub(super) enable_summary_driven_inlining: bool,
-    pub(super) enable_mir_escape_analysis: bool,
     pub(super) queued: HashSet<InstanceKey>,
     pub(super) queue: VecDeque<InstanceKey>,
     pub(super) materialized: HashMap<InstanceKey, Vec<FunDecl>>,

@@ -362,7 +362,8 @@ mod tests {
             output.mir_facts().families.instances.len(),
             output.materialized_pass_view().len()
         );
-        assert_eq!(output.mir_facts().pass_artifacts.revisions.len(), 1);
+        assert_eq!(output.mir_facts().pass_pipeline.runs.len(), 3);
+        assert_eq!(output.mir_facts().pass_artifacts.revisions.len(), 4);
     }
 
     #[test]

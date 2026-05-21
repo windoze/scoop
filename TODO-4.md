@@ -396,7 +396,7 @@
   - 验证命令：`cargo fmt`；`cargo test -p scoopc --no-default-features effect_facts_stage`；`cargo test -p scoopc --no-default-features effect_lowering_stage`；`cargo test -p scoopc --no-default-features effect_lowered`；`cargo run -p scoop -- test --fixtures tests/fixtures/effect_lowered`；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
   - 残余风险：P5 wrapper 和 LLVM backend 仍通过 `materialized_pass_view()` 读取 canonical MIR pass surface，并且 LLVM 仍保留 HIR compatibility scaffold；这些已由 P4/P5/P7 后续阶段收口，不是 P3-T04R 阻塞项。本 review 未推进 P3-T05。
 
-## [TODO] P3-T05：建立显式 MIR pass pipeline 与 refresh 顺序
+## [DONE] P3-T05：建立显式 MIR pass pipeline 与 refresh 顺序
 
 - 参考：
   - 本文件“当前 MIR pass 入口与执行顺序”
@@ -439,7 +439,13 @@
   - materializer 只负责构造初始 materialized snapshot 和调用 pipeline，不再隐式持有 pass policy。
 - 依赖：P3-T04R
 - 完成记录：
-  - 待填写。
+  - 改动范围：新增 `crates/scoopc/src/mir/pass_pipeline.rs` 作为 MIR pass 调度的唯一 owner；`MirInstanceMaterializer::run(...)` 现在只构造 raw materialized snapshot、初始化 pass artifacts，然后调用显式 pipeline。`inline`、`escape`、`closure_simplify` 改为通过 `MirPassPipelineContext` 发布 rewritten body、summary refresh 和 escape facts，不再直接在 materializer 尾部硬编码调度策略。
+  - pass 顺序与 gate：pipeline 顺序固定为 summary-driven inlining（非 `O0` gate）-> escape analysis（always-on）-> closure simplification（非 `O0` gate）-> closure rewrite 后的 escape refresh（仅 closure pass 改写 body 时运行）。escape analysis 已从可选优化附属品改为 MIR analysis/facts owner；`O0` 现在也发布 pass-view escape facts，但 closure simplification 仍不会在 `O0` 改写 body。
+  - refresh / cleanup 决策：summary refresh 集中在 `MirPassPipelineContext::publish_instance_rewrite(...)`，由 pipeline context 读取上一版 pass summary 并统一写入 pass artifacts revision；pass-local dead-artifact cleanup 收口到 `cleanup_pass_rewritten_body(...)` helper，按 inline / closure rewrite 形态选择窄 cleanup mode。pass rewrite 仍只写入 `MaterializedMirPassArtifacts`，不回写 raw `MaterializedMir.file`。
+  - MIR facts 发布：`MaterializedMirPassArtifacts` 现在记录 pipeline run、revision、body override revision、summary override revision 和 escape-facts revision；`MirFacts.pass_pipeline` 与 `MirFacts.pass_artifacts` stable dump 可显示哪些 pass 运行、输入/输出 revision、body/summary 改写数和 escape facts 对应 revision。
+  - 验证命令：`cargo fmt`；`cargo test -p scoopc --no-default-features mir::pass_view`；`cargo test -p scoopc --no-default-features mir::inline`；`cargo test -p scoopc --no-default-features mir::escape`；`cargo test -p scoopc --no-default-features mir::closure_simplify`；`cargo test -p scoopc_mir_facts`；`cargo test -p scoopc --no-default-features mir_stage`；`cargo test -p scoopc --no-default-features mir::materialize`；`cargo clippy --all-targets -- -D warnings`。
+  - fixture 验证说明：任务原验证命令 `cargo run -p scoop -- test --fixtures tests/fixtures/mir_materialized` 已执行但仓库中不存在 `tests/fixtures/mir_materialized` 目录，命令在 fixture 定位阶段失败。为覆盖现有 materialized MIR 路径，额外运行 `cargo test -p scoopc --no-default-features mir::materialize` 全部通过；尝试运行现有 `tests/fixtures/mir` phase 时，runner 在所有样例上报告 golden 尾部空行类 mismatch，且未产生 fixture 文件 diff，记录为当前仓库 fixture 路由/黄金文件残余风险，不作为 P3-T05 pass-pipeline blocker。
+  - 残余风险：dispatch 去虚化仍在 P3-T06 迁移；`MirPassKind::Devirtualization` 还未进入实际 schedule。fixture runner 中不存在 `mir_materialized` phase/path 的问题应由后续 review 或 fixture 维护任务决定是否修正；本任务未新增 HIR/codegen fallback，也未把 pass rewrite 写回 raw materialized MIR。
 
 ## [TODO] P3-T05R：Review 显式 MIR pass pipeline
 

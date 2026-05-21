@@ -91,12 +91,33 @@ pub fn dump_mir_facts(facts: &MirFacts) -> String {
         )
         .expect("writing to String cannot fail");
     }
-    write!(
+    writeln!(
         &mut out,
-        "  pass_pipeline: runs={}\n}}",
+        "  pass_pipeline: runs={}",
         facts.pass_pipeline.runs.len()
     )
     .expect("writing to String cannot fail");
+    for run in &facts.pass_pipeline.runs {
+        writeln!(
+            &mut out,
+            "    - pass={} enabled={} input={} output={} changed_bodies={} changed_summaries={} escape_facts={}",
+            run.pass.as_str(),
+            run.enabled,
+            run.input_revision
+                .as_ref()
+                .map(|key| key.canonical_text())
+                .unwrap_or_else(|| "<none>".to_string()),
+            run.output_revision
+                .as_ref()
+                .map(|key| key.canonical_text())
+                .unwrap_or_else(|| "<none>".to_string()),
+            run.changed_bodies,
+            run.changed_summaries,
+            run.produced_escape_facts,
+        )
+        .expect("writing to String cannot fail");
+    }
+    write!(&mut out, "}}").expect("writing to String cannot fail");
 
     out
 }
