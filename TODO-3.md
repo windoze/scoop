@@ -139,7 +139,7 @@
   - 未展开风险：production frontend 当前仍一次处理 build closure；P2 的目标是固定 cone-level HIR barrier 与 facts handoff，但逐 cone 编译 orchestration 的彻底物理拆分若超出 HIR/facts 边界，应作为后续阶段或新增前置任务明确记录。LLVM backend 仍大量回看 HIR scaffold，P2 只负责让 facts owner 唯一，不提前承诺完成 P7 backend cleanup。
   - 验证命令：文档/计划任务仅需检查 markdown/TODO 一致性；本次执行使用 `git diff --check`。
 
-## [TODO] P2-T01：建立 `hir_facts` crate 与事实数据模型
+## [DONE] P2-T01：建立 `hir_facts` crate 与事实数据模型
 
 - 参考：
   - `PLAN.md` §1.2、§1.3、§4/P2
@@ -177,7 +177,12 @@
   - `HirFacts` 模型已能承接后续迁移任务的事实分类。
 - 依赖：TODO-3-INIT
 - 完成记录：
-  - 待填写。
+  - 改动范围：新增 workspace crate `crates/scoopc_hir_facts`，包含 crate-level 职责文档、`#![forbid(unsafe_code)]`、`HirFacts` 顶层数据产品、fact group 模块、dump/verifier 入口和单元测试；同步接入 workspace、`scoopc` facade re-export anchor、README crate 概览和 `scoop_tools dependency-gate`。
+  - 事实模型：`HirFacts` 初始划分为 declaration/entity facts、source-site typed contracts、global root/init facts、native/extern facts、type context reference/source cone ownership 五组；数据结构只引用 `scoopc_span`、`scoopc_source`、`scoopc_types`、`scoopc_ids`、`scoopc_project_model` 的基础类型，不承载 HIR/AST/MIR/backend ABI 节点。
+  - 依赖门禁：dependency gate 现在同时检查 5 个 base crate 与 1 个 fact crate；`scoopc_hir_facts` 被归类为 fact crate，允许依赖基础 crate，拒绝依赖 `scoopc` facade、stage/backend/tool/runtime crate 或其它 fact crate。
+  - 核心决策：type context 在 `scoopc_hir_facts` 中只以 `TypeContextReference` 引用 HIR-owned `TypeStore`，不复制 `TypeStore`；`scoopc` 只新增依赖与 `hir_facts` re-export anchor，不迁移业务事实内容。
+  - 验证命令：`cargo fmt`；`cargo check -p scoopc_hir_facts`；`cargo test -p scoopc_hir_facts`；`cargo run -p scoop_tools -- dependency-gate`；`cargo test -p scoop_tools dependency_gate`；`cargo clippy --all-targets -- -D warnings`。
+  - 残余风险：当前为 facts skeleton，尚未接入 HIR stage output，也尚未迁移 `TypedHirEffectContracts` / `ProgramFacts` 的实际内容；这些分别由后续 P2-T02、P2-T04、P2-T05 处理。
 
 ## [TODO] P2-T01R：Review `hir_facts` crate 与事实模型
 

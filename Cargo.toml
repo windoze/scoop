@@ -8,6 +8,7 @@ members = [
     "crates/scoopc_types",
     "crates/scoopc_ids",
     "crates/scoopc_project_model",
+    "crates/scoopc_hir_facts",
     "crates/scoop_runtime",
     "tools/scoop_tools",
 ]

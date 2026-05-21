@@ -23,6 +23,12 @@ pub mod base {
     pub use scoopc_types as types;
 }
 
+/// Migration anchor for HIR semantic facts.
+///
+/// New stage/fact crates should depend on `scoopc_hir_facts` directly; this
+/// facade re-export exists only for the current monolithic compiler crate.
+pub use scoopc_hir_facts as hir_facts;
+
 pub mod ast;
 pub mod cone;
 pub(crate) mod devirtualize;

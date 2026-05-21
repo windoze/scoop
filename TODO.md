@@ -54,7 +54,7 @@
 | P1-T06 | [DONE] | [`TODO-2.md`](./TODO-2.md#done-p1-t06p1-全包清场文档同步与依赖审计) | P1 全包清场、文档同步与依赖审计 |
 | P1-T06R | [DONE] | [`TODO-2.md`](./TODO-2.md#done-p1-t06rreview-p1-全包完成度) | Review P1 全包完成度 |
 | TODO-3-INIT | [DONE] | [`TODO-3.md`](./TODO-3.md#done-todo-3-init初始化并细化本任务包) | 分析 P2 需求，生成 `TODO-3.md` 详细任务列表并更新本索引 |
-| P2-T01 | [TODO] | [`TODO-3.md`](./TODO-3.md#todo-p2-t01建立-hir_facts-crate-与事实数据模型) | 建立 `hir_facts` crate 与事实数据模型 |
+| P2-T01 | [DONE] | [`TODO-3.md`](./TODO-3.md#done-p2-t01建立-hir_facts-crate-与事实数据模型) | 建立 `hir_facts` crate 与事实数据模型 |
 | P2-T01R | [TODO] | [`TODO-3.md`](./TODO-3.md#todo-p2-t01rreview-hir_facts-crate-与事实模型) | Review `hir_facts` crate 与事实模型 |
 | P2-T02 | [TODO] | [`TODO-3.md`](./TODO-3.md#todo-p2-t02固定-hirstageoutput--hir-hir_facts--输出形状) | 固定 `HirStageOutput = { hir, hir_facts }` 输出形状 |
 | P2-T02R | [TODO] | [`TODO-3.md`](./TODO-3.md#todo-p2-t02rreview-hir-stage-output-形状) | Review HIR stage output 形状 |

@@ -114,7 +114,8 @@ fn main() -> Result<()> {
         }
 
         Command::DependencyGate => {
-            let report = dependency_gate::run().wrap_err("pipeline 基础 crate 依赖门禁失败")?;
+            let report =
+                dependency_gate::run().wrap_err("pipeline 基础/fact crate 依赖门禁失败")?;
             eprintln!("{}", report.render());
         }
     }

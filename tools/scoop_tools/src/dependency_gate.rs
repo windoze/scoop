@@ -1,9 +1,10 @@
-//! Dependency gate for pipeline-refactor base crates.
+//! Dependency gate for pipeline-refactor base and fact crates.
 //!
 //! The gate checks each base crate from the package's own `cargo tree` view.
 //! That catches accidental reverse dependencies from a base crate back to the
 //! `scoopc` facade, stage crates, fact crates, driver/runtime crates, or a later
-//! base crate in the P1 dependency direction.
+//! base crate in the P1 dependency direction. It also checks fact crates so they
+//! only depend on base crates and never on the facade, stages, or other facts.
 
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
@@ -18,6 +19,8 @@ const BASE_CRATES: &[&str] = &[
     "scoopc_ids",
     "scoopc_project_model",
 ];
+
+const FACT_CRATES: &[&str] = &["scoopc_hir_facts"];
 
 const FORBIDDEN_WORKSPACE_CRATES: &[&str] = &[
     "scoop",
@@ -50,8 +53,10 @@ impl Report {
         }
 
         let mut lines = vec![format!(
-            "dependency gate: ok (checked {} base crates)",
-            self.checks.len()
+            "dependency gate: ok (checked {} pipeline crates: {} base, {} fact)",
+            self.checks.len(),
+            BASE_CRATES.len(),
+            FACT_CRATES.len()
         )];
         for check in &self.checks {
             let base_dependencies = check.base_dependencies();
@@ -60,7 +65,12 @@ impl Report {
             } else {
                 base_dependencies.join(", ")
             };
-            lines.push(format!("- {}: base deps [{}]", check.crate_name, rendered));
+            lines.push(format!(
+                "- {} [{}]: base deps [{}]",
+                check.crate_name,
+                check.kind.label(),
+                rendered
+            ));
         }
         lines.join("\n")
     }
@@ -86,8 +96,24 @@ impl Report {
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct CrateCheck {
     crate_name: String,
+    kind: CrateKind,
     dependency_names: BTreeSet<String>,
     violations: Vec<Violation>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum CrateKind {
+    Base,
+    Fact,
+}
+
+impl CrateKind {
+    fn label(self) -> &'static str {
+        match self {
+            Self::Base => "base",
+            Self::Fact => "fact",
+        }
+    }
 }
 
 impl CrateCheck {
@@ -113,9 +139,21 @@ pub fn run() -> Result<Report> {
 
     for crate_name in BASE_CRATES {
         let dependency_names = cargo_tree_package_names(crate_name, &workspace_root)?;
-        let violations = find_dependency_violations(crate_name, &dependency_names);
+        let violations = find_dependency_violations(crate_name, CrateKind::Base, &dependency_names);
         checks.push(CrateCheck {
             crate_name: (*crate_name).to_string(),
+            kind: CrateKind::Base,
+            dependency_names,
+            violations,
+        });
+    }
+
+    for crate_name in FACT_CRATES {
+        let dependency_names = cargo_tree_package_names(crate_name, &workspace_root)?;
+        let violations = find_dependency_violations(crate_name, CrateKind::Fact, &dependency_names);
+        checks.push(CrateCheck {
+            crate_name: (*crate_name).to_string(),
+            kind: CrateKind::Fact,
             dependency_names,
             violations,
         });
@@ -164,14 +202,40 @@ fn parse_cargo_tree_package_names(tree: &str) -> BTreeSet<String> {
         .collect()
 }
 
-fn find_dependency_violations(base: &str, dependency_names: &BTreeSet<String>) -> Vec<Violation> {
-    let allowed_base_dependencies: BTreeSet<&str> =
-        allowed_base_dependencies(base).iter().copied().collect();
+fn find_dependency_violations(
+    checked_crate: &str,
+    kind: CrateKind,
+    dependency_names: &BTreeSet<String>,
+) -> Vec<Violation> {
+    let allowed_base_dependencies: BTreeSet<&str> = allowed_base_dependencies(checked_crate)
+        .iter()
+        .copied()
+        .collect();
     let mut violations = Vec::new();
 
     for dependency in dependency_names {
         let dependency_name = dependency.as_str();
-        if dependency_name == base {
+        if dependency_name == checked_crate {
+            continue;
+        }
+
+        if kind == CrateKind::Fact {
+            if FACT_CRATES.contains(&dependency_name) {
+                violations.push(Violation {
+                    dependency: dependency.clone(),
+                    reason: "fact crates must not depend on other fact crates".to_string(),
+                });
+                continue;
+            }
+
+            if FORBIDDEN_WORKSPACE_CRATES.contains(&dependency_name) {
+                violations.push(Violation {
+                    dependency: dependency.clone(),
+                    reason: "fact crates must only depend on base crates, not facade, driver/runtime/tool, stage, backend, or fact crates"
+                        .to_string(),
+                });
+            }
+
             continue;
         }
 
@@ -229,6 +293,7 @@ mod tests {
     fn allows_declared_base_direction() {
         let violations = find_dependency_violations(
             "scoopc_project_model",
+            CrateKind::Base,
             &set(&[
                 "scoopc_project_model",
                 "scoopc_source",
@@ -245,6 +310,7 @@ mod tests {
     fn rejects_facade_dependency() {
         let violations = find_dependency_violations(
             "scoopc_source",
+            CrateKind::Base,
             &set(&["scoopc_source", "scoopc_span", "scoopc"]),
         );
 
@@ -256,11 +322,54 @@ mod tests {
     fn rejects_later_base_dependency() {
         let violations = find_dependency_violations(
             "scoopc_span",
+            CrateKind::Base,
             &set(&["scoopc_span", "scoopc_project_model"]),
         );
 
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].dependency, "scoopc_project_model");
+    }
+
+    #[test]
+    fn allows_fact_crate_to_depend_on_base_crates() {
+        let violations = find_dependency_violations(
+            "scoopc_hir_facts",
+            CrateKind::Fact,
+            &set(&[
+                "scoopc_hir_facts",
+                "scoopc_project_model",
+                "scoopc_source",
+                "scoopc_types",
+                "scoopc_ids",
+                "scoopc_span",
+            ]),
+        );
+
+        assert!(violations.is_empty());
+    }
+
+    #[test]
+    fn rejects_fact_crate_facade_dependency() {
+        let violations = find_dependency_violations(
+            "scoopc_hir_facts",
+            CrateKind::Fact,
+            &set(&["scoopc_hir_facts", "scoopc_span", "scoopc"]),
+        );
+
+        assert_eq!(violations.len(), 1);
+        assert_eq!(violations[0].dependency, "scoopc");
+    }
+
+    #[test]
+    fn rejects_fact_crate_dependency_on_another_fact_crate() {
+        let violations = find_dependency_violations(
+            "scoopc_hir_facts",
+            CrateKind::Fact,
+            &set(&["scoopc_hir_facts", "scoopc_mir_facts"]),
+        );
+
+        assert_eq!(violations.len(), 1);
+        assert_eq!(violations[0].dependency, "scoopc_mir_facts");
     }
 
     fn set(names: &[&str]) -> BTreeSet<String> {
