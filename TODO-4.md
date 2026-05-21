@@ -372,7 +372,7 @@
   - 验证命令：`cargo fmt`；`cargo test -p scoopc_mir_facts`；`cargo test -p scoopc --no-default-features mir_stage`；`cargo test -p scoopc --no-default-features effect_facts_stage`；`cargo test -p scoopc --no-default-features effect_lowering_stage`；`cargo test -p scoopc --no-default-features effect_lowered`；`cargo run -p scoop -- test --fixtures tests/fixtures/effect_lowered`；`cargo clippy --all-targets -- -D warnings`；额外搜索 `collect_nominal_direct_supertypes_from_mir_file|with_nominal_direct_supertypes` 无命中，并运行 `git diff --check`。
   - 残余风险：P4 effect facts builder 仍因 compiler-generated runtime error schema 需要可变 materialized snapshot/type context；P5 wrapper 与 LLVM bridge 中的 `materialized_pass_view` 读取仍作为 P5/P7 过渡风险保留。本任务未复制 `MirFacts` 到 effect facts/LIR outputs，也未把 raw pass view 扩展为新的事实 owner。
 
-## [TODO] P3-T04R：Review downstream MIR query 切换结果
+## [DONE] P3-T04R：Review downstream MIR query 切换结果
 
 - 参考：P3-T04。
 - 重点：
@@ -390,7 +390,11 @@
   - review 结论明确写出：downstream 已切到 MIR-owned query surface，或列出阻塞项并在本 review 内修复。
 - 依赖：P3-T04
 - 完成记录：
-  - 待填写。
+  - 改动范围：复查 `P3-T04` 修改过的 MIR facts、effect facts stage、effect lowering stage、late-lowered builder/tests 与 LLVM bridge 过渡读取点；review 未发现需要修复的代码问题，本次只更新任务状态、完成记录和执行计划记录。
+  - review 结论：downstream 已把 nominal direct-supertype 这类已迁移 MIR-derived facts 切到 `MirFacts.metadata`，`LateLoweredProgramBuilder::from_canonical_inputs(...)` 显式消费 `MirFacts` + canonical pass query + P4 effect facts；`EffectFactsStageOutput` / `EffectLoweredStageOutput` 只提供 `mir_facts()` 查询入口，没有复制 `MirFacts` 成新的 nested upstream bundle。
+  - 搜索结论：`collect_nominal_direct_supertypes_from_mir_file|with_nominal_direct_supertypes` 在活跃 Rust 源码中无命中；`materialized_pass_view(` 的剩余命中属于 `MirStageOutput` canonical query surface、P4/P5 handoff accessor、定向测试或已按 P5/P7 记录的 LLVM 过渡桥接，没有发现 `MirFacts` 与 raw pass view 并列回答同一已迁移 fact 的新双轨。
+  - 验证命令：`cargo fmt`；`cargo test -p scoopc --no-default-features effect_facts_stage`；`cargo test -p scoopc --no-default-features effect_lowering_stage`；`cargo test -p scoopc --no-default-features effect_lowered`；`cargo run -p scoop -- test --fixtures tests/fixtures/effect_lowered`；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
+  - 残余风险：P5 wrapper 和 LLVM backend 仍通过 `materialized_pass_view()` 读取 canonical MIR pass surface，并且 LLVM 仍保留 HIR compatibility scaffold；这些已由 P4/P5/P7 后续阶段收口，不是 P3-T04R 阻塞项。本 review 未推进 P3-T05。
 
 ## [TODO] P3-T05：建立显式 MIR pass pipeline 与 refresh 顺序
 
