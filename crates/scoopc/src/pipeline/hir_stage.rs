@@ -96,6 +96,7 @@ impl ContinuationResumeSiteContract {
 /// 单个函数在 typed HIR stage 中对外暴露的 allowed-row / required-effects contract。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FunctionEffectContract {
+    source_path: PathBuf,
     span: Span,
     fqn: String,
     return_ty: TypeId,
@@ -105,6 +106,7 @@ pub struct FunctionEffectContract {
 
 impl FunctionEffectContract {
     fn new(
+        source_path: PathBuf,
         span: Span,
         fqn: String,
         return_ty: TypeId,
@@ -112,6 +114,7 @@ impl FunctionEffectContract {
         effects_closed: bool,
     ) -> Self {
         Self {
+            source_path,
             span,
             fqn,
             return_ty,
@@ -122,6 +125,10 @@ impl FunctionEffectContract {
 
     pub fn span(&self) -> Span {
         self.span
+    }
+
+    pub fn source_path(&self) -> &Path {
+        &self.source_path
     }
 
     pub fn fqn(&self) -> &str {
@@ -1012,7 +1019,8 @@ impl CollectedHirContracts {
         &self.extern_global_contracts
     }
 
-    /// 以稳定顺序渲染迁移 bridge，供 `dump-hir` 与 snapshot tests 审计旧 payload。
+    /// 以稳定顺序渲染内部 collector；只作为迁移期调试辅助，正式 dump 使用 `HirFacts`。
+    #[allow(dead_code)]
     pub fn stable_dump(&self, types: &TypeStore) -> String {
         let mut out = String::new();
         let _ = writeln!(out, "source_site_contracts {{");
@@ -1253,6 +1261,648 @@ impl CollectedHirContracts {
     }
 }
 
+fn stable_dump_source_site_contracts(
+    facts: &hir_site_facts::SourceSiteFacts,
+    types: &TypeStore,
+) -> String {
+    let mut out = String::new();
+    let _ = writeln!(out, "source_site_contracts {{");
+
+    let mut function_effects = facts.function_effects.iter().collect::<Vec<_>>();
+    function_effects.sort_by(|lhs, rhs| {
+        lhs.fqn
+            .cmp(&rhs.fqn)
+            .then(lhs.source_path.cmp(&rhs.source_path))
+            .then(lhs.span.start.cmp(&rhs.span.start))
+            .then(lhs.span.end.cmp(&rhs.span.end))
+    });
+    let _ = writeln!(out, "    function_effects: [");
+    for contract in function_effects {
+        let _ = writeln!(out, "        FunctionEffectContract {{");
+        let _ = writeln!(out, "            span: {:?},", contract.span);
+        let _ = writeln!(out, "            fqn: {:?},", contract.fqn);
+        let _ = writeln!(
+            out,
+            "            return_ty: {},",
+            format_type_id_lossy(types, contract.return_ty)
+        );
+        let _ = writeln!(
+            out,
+            "            allowed_effects: {},",
+            format_effect_row(types, &contract.allowed_effects)
+        );
+        let _ = writeln!(
+            out,
+            "            effects_closed: {},",
+            contract.effects_closed
+        );
+        let _ = writeln!(out, "        }},");
+    }
+    let _ = writeln!(out, "    ],");
+
+    let mut argument_bindings = facts.argument_bindings.iter().collect::<Vec<_>>();
+    argument_bindings
+        .sort_by(|lhs, rhs| compare_source_site_identity(&lhs.identity, &rhs.identity));
+    let _ = writeln!(out, "    argument_bindings: [");
+    for contract in argument_bindings {
+        let _ = writeln!(out, "        ArgumentBindingContract {{");
+        let _ = writeln!(out, "            span: {:?},", contract.identity.span);
+        let _ = writeln!(out, "            params: {:?},", contract.binding.params);
+        let _ = writeln!(out, "        }},");
+    }
+    let _ = writeln!(out, "    ],");
+
+    let mut call_sites = facts.call_sites.iter().collect::<Vec<_>>();
+    call_sites.sort_by(|lhs, rhs| compare_source_site_identity(&lhs.identity, &rhs.identity));
+    let _ = writeln!(out, "    call_site_contracts: [");
+    for contract in call_sites {
+        format_hir_fact_call_site_contract(&mut out, types, contract);
+    }
+    let _ = writeln!(out, "    ],");
+
+    let mut with_updates = facts.with_updates.iter().collect::<Vec<_>>();
+    with_updates.sort_by(|lhs, rhs| compare_source_site_identity(&lhs.identity, &rhs.identity));
+    let _ = writeln!(out, "    with_update_contracts: [");
+    for contract in with_updates {
+        format_hir_fact_with_update_contract(&mut out, types, contract);
+    }
+    let _ = writeln!(out, "    ],");
+
+    let mut assignments = facts.assignments.iter().collect::<Vec<_>>();
+    assignments.sort_by(|lhs, rhs| compare_source_site_identity(&lhs.identity, &rhs.identity));
+    let _ = writeln!(out, "    assign_place_contracts: [");
+    for contract in assignments {
+        format_hir_fact_assignment_contract(&mut out, types, contract);
+    }
+    let _ = writeln!(out, "    ],");
+
+    if !facts.top_level_init_roots.is_empty() {
+        let mut roots = facts.top_level_init_roots.iter().collect::<Vec<_>>();
+        roots.sort_by(|lhs, rhs| {
+            lhs.fqn
+                .cmp(&rhs.fqn)
+                .then(lhs.span.start.cmp(&rhs.span.start))
+                .then(lhs.span.end.cmp(&rhs.span.end))
+        });
+        let _ = writeln!(out, "    top_level_init_roots: [");
+        for root in roots {
+            format_hir_fact_top_level_init_root(&mut out, types, root);
+        }
+        let _ = writeln!(out, "    ],");
+    }
+
+    if !facts.extern_globals.is_empty() {
+        let mut globals = facts.extern_globals.iter().collect::<Vec<_>>();
+        globals.sort_by(|lhs, rhs| {
+            lhs.fqn
+                .cmp(&rhs.fqn)
+                .then(lhs.span.start.cmp(&rhs.span.start))
+                .then(lhs.span.end.cmp(&rhs.span.end))
+        });
+        let _ = writeln!(out, "    extern_global_contracts: [");
+        for contract in globals {
+            format_hir_fact_extern_global_contract(&mut out, types, contract);
+        }
+        let _ = writeln!(out, "    ],");
+    }
+
+    let mut resumes = facts.continuation_resumes.iter().collect::<Vec<_>>();
+    resumes.sort_by(|lhs, rhs| compare_source_site_identity(&lhs.identity, &rhs.identity));
+    let _ = writeln!(out, "    continuation_resume_sites: [");
+    for contract in resumes {
+        format_hir_fact_resume_contract(&mut out, types, contract);
+    }
+    let _ = writeln!(out, "    ],");
+
+    let mut performs = facts.perform_sites.iter().collect::<Vec<_>>();
+    performs.sort_by(|lhs, rhs| compare_source_site_identity(&lhs.identity, &rhs.identity));
+    let _ = writeln!(out, "    perform_sites: [");
+    for contract in performs {
+        format_hir_fact_perform_contract(&mut out, types, contract);
+    }
+    let _ = writeln!(out, "    ],");
+
+    let mut handles = facts.handle_sites.iter().collect::<Vec<_>>();
+    handles.sort_by(|lhs, rhs| compare_source_site_identity(&lhs.identity, &rhs.identity));
+    let _ = writeln!(out, "    handle_sites: [");
+    for contract in handles {
+        format_hir_fact_handle_contract(&mut out, types, contract);
+    }
+    let _ = writeln!(out, "    ],");
+
+    let mut patterns = facts.pattern_bindings.iter().collect::<Vec<_>>();
+    patterns.sort_by(|lhs, rhs| {
+        compare_source_site_identity(&lhs.identity, &rhs.identity)
+            .then(lhs.binding_name.cmp(&rhs.binding_name))
+    });
+    let _ = writeln!(out, "    pattern_bindings: [");
+    for contract in patterns {
+        let _ = writeln!(out, "        PatternBindingContract {{");
+        let _ = writeln!(out, "            span: {:?},", contract.identity.span);
+        let _ = writeln!(out, "            name: {:?},", contract.binding_name);
+        let _ = writeln!(
+            out,
+            "            binding_ty: {},",
+            format_type_id_lossy(types, contract.binding_ty)
+        );
+        let _ = writeln!(out, "        }},");
+    }
+    let _ = writeln!(out, "    ],");
+
+    let _ = write!(out, "}}");
+    out
+}
+
+fn compare_source_site_identity(
+    lhs: &hir_site_facts::SourceSiteIdentity,
+    rhs: &hir_site_facts::SourceSiteIdentity,
+) -> Ordering {
+    lhs.source_path
+        .cmp(&rhs.source_path)
+        .then(lhs.span.start.cmp(&rhs.span.start))
+        .then(lhs.span.end.cmp(&rhs.span.end))
+        .then(lhs.site.as_u32().cmp(&rhs.site.as_u32()))
+}
+
+fn format_hir_fact_call_site_contract(
+    out: &mut String,
+    types: &TypeStore,
+    contract: &hir_site_facts::CallSiteContract,
+) {
+    let _ = writeln!(out, "        CallSiteContract {{");
+    let _ = writeln!(out, "            span: {:?},", contract.identity.span);
+    let _ = writeln!(out, "            kind: {:?},", contract.kind);
+    match &contract.contract {
+        hir_site_facts::CallSiteContractKind::DirectTopLevel(function) => {
+            format_hir_fact_function_target(out, types, function, "target");
+        }
+        hir_site_facts::CallSiteContractKind::MemberDirect(member) => {
+            format_hir_fact_member_target(out, types, member, "member");
+        }
+        hir_site_facts::CallSiteContractKind::Extension {
+            receiver_ty,
+            function,
+        } => {
+            let _ = writeln!(
+                out,
+                "            receiver_ty: {},",
+                format_type_id_lossy(types, *receiver_ty)
+            );
+            format_hir_fact_function_target(out, types, function, "target");
+        }
+        hir_site_facts::CallSiteContractKind::Constructor(ctor) => {
+            let _ = writeln!(out, "            owner_fqn: {:?},", ctor.owner_fqn);
+            let _ = writeln!(out, "            ctor_span: {:?},", ctor.ctor_span);
+            let _ = writeln!(
+                out,
+                "            result_ty: {},",
+                format_type_id_lossy(types, ctor.result_ty)
+            );
+            let _ = writeln!(out, "            arg_mapping: {:?},", ctor.arg_mapping);
+        }
+        hir_site_facts::CallSiteContractKind::Closure {
+            callee_ty,
+            return_ty,
+            abi,
+            arg_binding,
+        }
+        | hir_site_facts::CallSiteContractKind::FunValue {
+            callee_ty,
+            return_ty,
+            abi,
+            arg_binding,
+        }
+        | hir_site_facts::CallSiteContractKind::FunPtr {
+            callee_ty,
+            return_ty,
+            abi,
+            arg_binding,
+        } => {
+            let _ = writeln!(
+                out,
+                "            callee_ty: {},",
+                format_type_id_lossy(types, *callee_ty)
+            );
+            let _ = writeln!(
+                out,
+                "            return_ty: {},",
+                format_type_id_lossy(types, *return_ty)
+            );
+            let _ = writeln!(out, "            abi: {:?},", abi);
+            if let Some(binding) = arg_binding {
+                let _ = writeln!(out, "            arg_binding: {:?},", binding.params);
+            }
+        }
+        hir_site_facts::CallSiteContractKind::Virtual(member)
+        | hir_site_facts::CallSiteContractKind::Interface(member) => {
+            format_hir_fact_member_target(out, types, member, "dispatch");
+        }
+        hir_site_facts::CallSiteContractKind::Intrinsic { kind, function } => {
+            let _ = writeln!(out, "            intrinsic_kind: {:?},", kind);
+            let _ = writeln!(out, "            intrinsic_allowed_context: RuntimeOnly,");
+            let _ = writeln!(
+                out,
+                "            intrinsic_runtime_fallback: {},",
+                hir_fact_intrinsic_runtime_fallback(kind)
+            );
+            format_hir_fact_function_target(out, types, function, "target");
+        }
+        hir_site_facts::CallSiteContractKind::EffectOp(perform) => {
+            format_hir_fact_perform_fields(out, types, perform);
+        }
+        hir_site_facts::CallSiteContractKind::ContinuationResume(resume) => {
+            format_hir_fact_resume_fields(out, types, resume);
+        }
+    }
+    let _ = writeln!(out, "        }},");
+}
+
+fn hir_fact_intrinsic_runtime_fallback(kind: &hir_site_facts::IntrinsicKind) -> &'static str {
+    match kind {
+        hir_site_facts::IntrinsicKind::Reflection { .. } => "NormalRuntimeCall",
+        hir_site_facts::IntrinsicKind::Platform { .. } => "PlatformQuery",
+        hir_site_facts::IntrinsicKind::Gc { .. }
+        | hir_site_facts::IntrinsicKind::Runtime { .. } => "RuntimeIntrinsic",
+        hir_site_facts::IntrinsicKind::Compiler { .. } => "CompilerLowered",
+        hir_site_facts::IntrinsicKind::NamedTable {
+            uses_runtime_call, ..
+        } => {
+            if *uses_runtime_call {
+                "RuntimeIntrinsic"
+            } else {
+                "CompilerLowered"
+            }
+        }
+    }
+}
+
+fn format_hir_fact_function_target(
+    out: &mut String,
+    types: &TypeStore,
+    function: &hir_site_facts::FunctionTarget,
+    label: &str,
+) {
+    let _ = writeln!(out, "            {label}_fqn: {:?},", function.fqn);
+    let _ = writeln!(
+        out,
+        "            {label}_decl_span: {:?},",
+        function.decl_span
+    );
+    let _ = writeln!(
+        out,
+        "            {label}_type_args: [{}],",
+        format_type_args(types, &function.type_args)
+    );
+    let _ = writeln!(
+        out,
+        "            {label}_eff_args: [{}],",
+        format_eff_args(types, &function.eff_args)
+    );
+    if let Some(binding) = &function.arg_binding {
+        let _ = writeln!(
+            out,
+            "            {label}_arg_binding: {:?},",
+            binding.params
+        );
+    }
+}
+
+fn format_hir_fact_member_target(
+    out: &mut String,
+    types: &TypeStore,
+    member: &hir_site_facts::MemberCallTarget,
+    label: &str,
+) {
+    let _ = writeln!(
+        out,
+        "            {label}_owner_fqn: {:?},",
+        member.owner_fqn
+    );
+    let _ = writeln!(
+        out,
+        "            {label}_member_name: {:?},",
+        member.member_name
+    );
+    let _ = writeln!(
+        out,
+        "            {label}_member_fqn: {:?},",
+        member.member_fqn
+    );
+    let _ = writeln!(
+        out,
+        "            receiver_ty: {},",
+        format_type_id_lossy(types, member.receiver_ty)
+    );
+    format_hir_fact_function_target(out, types, &member.function, "target");
+}
+
+fn format_hir_fact_with_update_contract(
+    out: &mut String,
+    types: &TypeStore,
+    contract: &hir_site_facts::WithUpdateContract,
+) {
+    let _ = writeln!(out, "        WithUpdateContract {{");
+    let _ = writeln!(out, "            span: {:?},", contract.identity.span);
+    let _ = writeln!(
+        out,
+        "            base_ty: {},",
+        format_type_id_lossy(types, contract.base_ty)
+    );
+    let _ = writeln!(
+        out,
+        "            result_ty: {},",
+        format_type_id_lossy(types, contract.result_ty)
+    );
+    let _ = writeln!(
+        out,
+        "            aggregates: {},",
+        contract.aggregates.len()
+    );
+    let _ = writeln!(out, "            updates: [");
+    for update in &contract.updates {
+        let _ = writeln!(out, "                WithUpdateUpdateContract {{");
+        let _ = writeln!(out, "                    path: {:?},", update.path);
+        let _ = writeln!(
+            out,
+            "                    target_ty: {},",
+            format_type_id_lossy(types, update.target_ty)
+        );
+        let _ = writeln!(
+            out,
+            "                    value_ty: {},",
+            format_type_id_lossy(types, update.value_ty)
+        );
+        let _ = writeln!(
+            out,
+            "                    segments: {},",
+            update.segments.len()
+        );
+        let _ = writeln!(out, "                }},");
+    }
+    let _ = writeln!(out, "            ],");
+    let _ = writeln!(out, "        }},");
+}
+
+fn format_hir_fact_assignment_contract(
+    out: &mut String,
+    types: &TypeStore,
+    contract: &hir_site_facts::AssignmentContract,
+) {
+    let _ = writeln!(out, "        AssignPlaceContract {{");
+    let _ = writeln!(out, "            span: {:?},", contract.identity.span);
+    let _ = writeln!(out, "            kind: {:?},", contract.kind);
+    let _ = writeln!(
+        out,
+        "            place_ty: {},",
+        format_type_id_lossy(types, contract.place_ty)
+    );
+    let _ = writeln!(
+        out,
+        "            value_ty: {},",
+        format_type_id_lossy(types, contract.value_ty)
+    );
+    let _ = writeln!(out, "            mutable: {},", contract.mutable);
+    let _ = writeln!(
+        out,
+        "            write_barrier: {:?},",
+        contract.write_barrier
+    );
+    let _ = writeln!(
+        out,
+        "            unsafe_required: {},",
+        contract.unsafe_required
+    );
+    let _ = writeln!(out, "        }},");
+}
+
+fn format_hir_fact_top_level_init_root(
+    out: &mut String,
+    types: &TypeStore,
+    root: &hir_site_facts::TopLevelInitRootContract,
+) {
+    let _ = writeln!(out, "        TopLevelInitRootContract {{");
+    let _ = writeln!(out, "            span: {:?},", root.span);
+    let _ = writeln!(out, "            fqn: {:?},", root.fqn);
+    let _ = writeln!(out, "            kind: {:?},", root.kind);
+    let _ = writeln!(
+        out,
+        "            ty: {},",
+        root.ty
+            .map(|ty| format_type_id_lossy(types, ty))
+            .unwrap_or_else(|| "None".to_string())
+    );
+    let _ = writeln!(
+        out,
+        "            initializer_ty: {},",
+        root.initializer_ty
+            .map(|ty| format_type_id_lossy(types, ty))
+            .unwrap_or_else(|| "None".to_string())
+    );
+    let _ = writeln!(
+        out,
+        "            has_initializer: {},",
+        root.has_initializer
+    );
+    let _ = writeln!(out, "            dependencies: {:?},", root.dependencies);
+    let _ = writeln!(out, "        }},");
+}
+
+fn format_hir_fact_extern_global_contract(
+    out: &mut String,
+    types: &TypeStore,
+    contract: &hir_site_facts::ExternGlobalContract,
+) {
+    let _ = writeln!(out, "        ExternGlobalContract {{");
+    let _ = writeln!(out, "            span: {:?},", contract.span);
+    let _ = writeln!(out, "            fqn: {:?},", contract.fqn);
+    let _ = writeln!(out, "            symbol: {:?},", contract.symbol);
+    let _ = writeln!(out, "            linkage: {:?},", contract.linkage);
+    let _ = writeln!(out, "            storage: {:?},", contract.storage);
+    let _ = writeln!(
+        out,
+        "            ty: {},",
+        format_type_id_lossy(types, contract.ty)
+    );
+    let _ = writeln!(out, "            mutable: {},", contract.mutable);
+    let _ = writeln!(
+        out,
+        "            initializer_absent: {},",
+        contract.initializer_absent
+    );
+    let _ = writeln!(
+        out,
+        "            unsafe_required: {},",
+        contract.unsafe_required
+    );
+    let _ = writeln!(out, "        }},");
+}
+
+fn format_hir_fact_resume_contract(
+    out: &mut String,
+    types: &TypeStore,
+    contract: &hir_site_facts::ContinuationResumeContract,
+) {
+    let _ = writeln!(out, "        ContinuationResumeSiteContract {{");
+    let _ = writeln!(out, "            span: {:?},", contract.identity.span);
+    format_hir_fact_resume_fields(out, types, contract);
+    let _ = writeln!(out, "        }},");
+}
+
+fn format_hir_fact_resume_fields(
+    out: &mut String,
+    types: &TypeStore,
+    contract: &hir_site_facts::ContinuationResumeContract,
+) {
+    let _ = writeln!(
+        out,
+        "            receiver_route: {:?},",
+        contract.receiver_route
+    );
+    let _ = writeln!(
+        out,
+        "            payload_arg_indices: {:?},",
+        contract.payload_arg_indices
+    );
+    let _ = writeln!(
+        out,
+        "            receiver_ty: {},",
+        format_type_id_lossy(types, contract.receiver_ty)
+    );
+    let _ = writeln!(
+        out,
+        "            resume_ty: {},",
+        format_type_id_lossy(types, contract.resume_ty)
+    );
+    let _ = writeln!(
+        out,
+        "            answer_ty: {},",
+        format_type_id_lossy(types, contract.answer_ty)
+    );
+    let _ = writeln!(
+        out,
+        "            return_ty: {},",
+        format_type_id_lossy(types, contract.return_ty)
+    );
+    let _ = writeln!(
+        out,
+        "            out_effects: {},",
+        format_effect_row(types, &contract.out_effects)
+    );
+    let _ = writeln!(
+        out,
+        "            required_effects: {},",
+        format_required_effects(
+            types,
+            &contract.out_effects,
+            contract.runtime_error_effect_ty,
+        )
+    );
+    let _ = writeln!(
+        out,
+        "            includes_runtime_error_effect: {},",
+        contract.runtime_error_effect_ty.is_some()
+    );
+}
+
+fn format_hir_fact_perform_contract(
+    out: &mut String,
+    types: &TypeStore,
+    contract: &hir_site_facts::PerformSiteContract,
+) {
+    let _ = writeln!(out, "        PerformSiteContract {{");
+    let _ = writeln!(out, "            span: {:?},", contract.identity.span);
+    format_hir_fact_perform_fields(out, types, contract);
+    let _ = writeln!(out, "        }},");
+}
+
+fn format_hir_fact_perform_fields(
+    out: &mut String,
+    types: &TypeStore,
+    contract: &hir_site_facts::PerformSiteContract,
+) {
+    let _ = writeln!(
+        out,
+        "            effect_ty: {},",
+        format_type_id_lossy(types, contract.effect_ty)
+    );
+    let _ = writeln!(out, "            op_fqn: {:?},", contract.op_fqn);
+    let _ = writeln!(
+        out,
+        "            result_ty: {},",
+        format_type_id_lossy(types, contract.result_ty)
+    );
+    format_hir_fact_payload(out, types, &contract.payload, "            ");
+    let _ = writeln!(out, "            arg_mapping: {:?},", contract.arg_mapping);
+}
+
+fn format_hir_fact_handle_contract(
+    out: &mut String,
+    types: &TypeStore,
+    contract: &hir_site_facts::HandleSiteContract,
+) {
+    let _ = writeln!(out, "        HandleSiteContract {{");
+    let _ = writeln!(out, "            span: {:?},", contract.identity.span);
+    let _ = writeln!(
+        out,
+        "            result_ty: {},",
+        format_type_id_lossy(types, contract.result_ty)
+    );
+    let _ = writeln!(
+        out,
+        "            body_result_ty: {},",
+        format_type_id_lossy(types, contract.body_result_ty)
+    );
+    let _ = writeln!(out, "            arm_contracts: [");
+    for arm in &contract.arm_contracts {
+        let _ = writeln!(out, "                HandleArmSiteContract {{");
+        let _ = writeln!(out, "                    op_fqn: {:?},", arm.op_fqn);
+        let _ = writeln!(
+            out,
+            "                    handled_effect_ty: {},",
+            format_type_id_lossy(types, arm.handled_effect_ty)
+        );
+        format_hir_fact_payload(out, types, &arm.payload, "                    ");
+        let _ = writeln!(
+            out,
+            "                    body_ty: {},",
+            format_type_id_lossy(types, arm.body_ty)
+        );
+        let _ = writeln!(out, "                    kind: {:?},", arm.kind);
+        let _ = writeln!(out, "                }},");
+    }
+    let _ = writeln!(out, "            ],");
+    let _ = writeln!(
+        out,
+        "            finally_result_ty: {},",
+        contract
+            .finally_result_ty
+            .map(|ty| format_type_id_lossy(types, ty))
+            .unwrap_or_else(|| "None".to_string())
+    );
+    let _ = writeln!(out, "        }},");
+}
+
+fn format_hir_fact_payload(
+    out: &mut String,
+    types: &TypeStore,
+    payload: &hir_site_facts::PayloadTypeContract,
+    indent: &str,
+) {
+    let _ = writeln!(
+        out,
+        "{indent}payload_ty: {},",
+        payload
+            .ty
+            .map(|ty| format_type_id_lossy(types, ty))
+            .unwrap_or_else(|| "None".to_string())
+    );
+    let _ = writeln!(out, "{indent}payload_components: [");
+    for ty in &payload.components {
+        let _ = writeln!(out, "{indent}    {},", format_type_id_lossy(types, *ty));
+    }
+    let _ = writeln!(out, "{indent}],");
+}
+
 /// HIR stage 的稳定输出形状。
 ///
 /// 本阶段固定如下 invariants，供 P2/P3 及后续阶段直接消费：
@@ -1267,6 +1917,7 @@ impl CollectedHirContracts {
 pub struct HirStageOutput {
     lowered_hir: LoweredHir,
     hir_facts: HirFacts,
+    #[cfg(test)]
     collected_contracts: CollectedHirContracts,
     source_path: PathBuf,
 }
@@ -1285,6 +1936,7 @@ impl HirStageOutput {
         Ok(Self {
             lowered_hir,
             hir_facts,
+            #[cfg(test)]
             collected_contracts,
             source_path: source_path.to_path_buf(),
         })
@@ -1324,7 +1976,10 @@ impl HirStageOutput {
         out.push_str(&self.hir_facts.dump());
         out.push('\n');
         out.push('\n');
-        out.push_str(&self.collected_contracts.stable_dump(self.types()));
+        out.push_str(&stable_dump_source_site_contracts(
+            &self.hir_facts.source_sites,
+            self.types(),
+        ));
         out.push('\n');
         out
     }
@@ -1350,7 +2005,7 @@ fn build_hir_facts(
     Ok(facts)
 }
 
-pub(crate) fn build_hir_declaration_facts_for_migration(
+pub(crate) fn build_hir_declaration_facts_from_lowered_hir(
     lowered_hir: &LoweredHir,
     source_path: &Path,
 ) -> Result<HirFacts, HirStageError> {
@@ -1362,7 +2017,7 @@ pub(crate) fn build_hir_declaration_facts_for_migration(
     Ok(facts)
 }
 
-pub(crate) fn build_hir_facts_for_migration(
+pub(crate) fn build_hir_facts_from_lowered_hir(
     lowered_hir: &LoweredHir,
     source_path: &Path,
 ) -> Result<HirFacts, HirStageError> {
@@ -1452,12 +2107,16 @@ fn populate_source_site_facts(
         .map(|(call_site, contract)| continuation_resume_fact(call_site, contract))
         .collect();
 
+    let pattern_binding_names = collect_when_pat_binding_names(lowered_hir);
     facts.pattern_bindings = lowered_hir
         .when_pat_binding_tys
         .iter()
         .map(|(site, ty)| hir_site_facts::PatternBindingContract {
             identity: source_site_identity_from_parts(&site.source_path, site.decl_span, "pattern"),
-            binding_name: format!("{}..{}", site.decl_span.start, site.decl_span.end),
+            binding_name: pattern_binding_names
+                .get(site)
+                .cloned()
+                .unwrap_or_else(|| format!("{}..{}", site.decl_span.start, site.decl_span.end)),
             binding_ty: *ty,
         })
         .collect();
@@ -1511,7 +2170,7 @@ fn function_effect_fact(
 ) -> hir_site_facts::FunctionEffectContract {
     hir_site_facts::FunctionEffectContract {
         fqn: contract.fqn.clone(),
-        source_path: PathBuf::new(),
+        source_path: contract.source_path.clone(),
         span: contract.span,
         return_ty: contract.return_ty,
         allowed_effects: contract.allowed_effects.clone(),
@@ -3064,6 +3723,7 @@ impl<'a> ContractCollector<'a> {
         };
 
         self.function_effects.push(FunctionEffectContract::new(
+            fun.source_path.clone(),
             fun.span,
             fun.fqn.clone(),
             fun.return_ty,
@@ -4227,6 +4887,240 @@ fn collect_call_arg_dependencies(
     }
 }
 
+fn collect_when_pat_binding_names(
+    lowered_hir: &LoweredHir,
+) -> HashMap<crate::hir::WhenPatBindingSite, String> {
+    let mut names = HashMap::new();
+    for item in &lowered_hir.file.items {
+        match item {
+            Item::Fun(fun) => collect_when_pat_binding_names_from_fun(fun, &mut names),
+            Item::Val(val) => {
+                if let Some(init) = &val.init {
+                    let source_path = top_level_val_source_path(lowered_hir, val)
+                        .unwrap_or_else(|| PathBuf::from("<unknown>"));
+                    collect_when_pat_binding_names_from_expr(&source_path, init, &mut names);
+                }
+            }
+            Item::Todo { .. } => {}
+        }
+    }
+    for fun in &lowered_hir.member_funs {
+        collect_when_pat_binding_names_from_fun(fun, &mut names);
+    }
+    names
+}
+
+fn top_level_val_source_path(lowered_hir: &LoweredHir, val: &ValDecl) -> Option<PathBuf> {
+    lowered_hir
+        .top_level_vars
+        .values()
+        .find(|global| global.span == val.span)
+        .map(|global| global.source_path.clone())
+        .or_else(|| {
+            lowered_hir
+                .top_level_immutable_values
+                .values()
+                .find(|value| value.span == val.span)
+                .map(|value| value.source_path.clone())
+        })
+}
+
+fn collect_when_pat_binding_names_from_fun(
+    fun: &FunDecl,
+    names: &mut HashMap<crate::hir::WhenPatBindingSite, String>,
+) {
+    if let Some(body) = &fun.body {
+        collect_when_pat_binding_names_from_block(&fun.source_path, body, names);
+    }
+}
+
+fn collect_when_pat_binding_names_from_block(
+    source_path: &Path,
+    block: &Block,
+    names: &mut HashMap<crate::hir::WhenPatBindingSite, String>,
+) {
+    for stmt in &block.stmts {
+        collect_when_pat_binding_names_from_stmt(source_path, stmt, names);
+    }
+}
+
+fn collect_when_pat_binding_names_from_stmt(
+    source_path: &Path,
+    stmt: &Stmt,
+    names: &mut HashMap<crate::hir::WhenPatBindingSite, String>,
+) {
+    match &stmt.kind {
+        StmtKind::Empty
+        | StmtKind::Break { .. }
+        | StmtKind::Continue { .. }
+        | StmtKind::Todo(_) => {}
+        StmtKind::Expr(expr) => collect_when_pat_binding_names_from_expr(source_path, expr, names),
+        StmtKind::Val(val) => {
+            if let Some(init) = &val.init {
+                collect_when_pat_binding_names_from_expr(source_path, init, names);
+            }
+        }
+        StmtKind::Assign { lhs, rhs, .. } => {
+            collect_when_pat_binding_names_from_expr(source_path, lhs, names);
+            collect_when_pat_binding_names_from_expr(source_path, rhs, names);
+        }
+        StmtKind::While { cond, body } => {
+            collect_when_pat_binding_names_from_expr(source_path, cond, names);
+            collect_when_pat_binding_names_from_block(source_path, body, names);
+        }
+        StmtKind::Return { value } => {
+            if let Some(value) = value {
+                collect_when_pat_binding_names_from_expr(source_path, value, names);
+            }
+        }
+    }
+}
+
+fn collect_when_pat_binding_names_from_expr(
+    source_path: &Path,
+    expr: &Expr,
+    names: &mut HashMap<crate::hir::WhenPatBindingSite, String>,
+) {
+    match &expr.kind {
+        ExprKind::Missing
+        | ExprKind::Literal(_)
+        | ExprKind::VarRef(_)
+        | ExprKind::UnresolvedIdent { .. }
+        | ExprKind::ClassLiteral(_)
+        | ExprKind::Todo(_) => {}
+        ExprKind::StructLit { fields, .. } => {
+            for field in fields {
+                collect_when_pat_binding_names_from_expr(source_path, &field.value, names);
+            }
+        }
+        ExprKind::TupleLit { elements } => {
+            for element in elements {
+                collect_when_pat_binding_names_from_expr(source_path, element, names);
+            }
+        }
+        ExprKind::InterpolatedString { parts, .. } => {
+            for part in parts {
+                if let crate::hir::InterpolatedStringPart::Expr { expr } = part {
+                    collect_when_pat_binding_names_from_expr(source_path, expr, names);
+                }
+            }
+        }
+        ExprKind::Unary { expr, .. }
+        | ExprKind::TypeCheck { expr, .. }
+        | ExprKind::Cast { expr, .. } => {
+            collect_when_pat_binding_names_from_expr(source_path, expr, names);
+        }
+        ExprKind::Binary { lhs, rhs, .. } => {
+            collect_when_pat_binding_names_from_expr(source_path, lhs, names);
+            collect_when_pat_binding_names_from_expr(source_path, rhs, names);
+        }
+        ExprKind::Block(block) => {
+            collect_when_pat_binding_names_from_block(source_path, block, names)
+        }
+        ExprKind::Closure(closure) => {
+            collect_when_pat_binding_names_from_expr(source_path, &closure.body, names);
+        }
+        ExprKind::If {
+            cond,
+            then_branch,
+            else_branch,
+        } => {
+            collect_when_pat_binding_names_from_expr(source_path, cond, names);
+            collect_when_pat_binding_names_from_expr(source_path, then_branch, names);
+            if let Some(else_branch) = else_branch {
+                collect_when_pat_binding_names_from_expr(source_path, else_branch, names);
+            }
+        }
+        ExprKind::When { subject, arms } => {
+            collect_when_pat_binding_names_from_expr(source_path, subject, names);
+            for arm in arms {
+                collect_when_pat_binding_names_from_pat(source_path, &arm.pat, names);
+                if let Some(guard) = &arm.guard {
+                    collect_when_pat_binding_names_from_expr(source_path, guard, names);
+                }
+                collect_when_pat_binding_names_from_expr(source_path, &arm.body, names);
+            }
+        }
+        ExprKind::MemberAccess { receiver, .. } => {
+            collect_when_pat_binding_names_from_expr(source_path, receiver, names);
+        }
+        ExprKind::Call { callee, args } => {
+            collect_when_pat_binding_names_from_expr(source_path, callee, names);
+            collect_when_pat_binding_names_from_args(source_path, args, names);
+        }
+        ExprKind::Perform { args, .. } => {
+            collect_when_pat_binding_names_from_args(source_path, args, names);
+        }
+        ExprKind::Handle(handle) => {
+            collect_when_pat_binding_names_from_block(source_path, &handle.body, names);
+            for arm in &handle.arms {
+                collect_when_pat_binding_names_from_expr(source_path, &arm.body, names);
+            }
+            if let Some(finally) = &handle.finally {
+                collect_when_pat_binding_names_from_block(source_path, finally, names);
+            }
+        }
+    }
+}
+
+fn collect_when_pat_binding_names_from_args(
+    source_path: &Path,
+    args: &[CallArg],
+    names: &mut HashMap<crate::hir::WhenPatBindingSite, String>,
+) {
+    for arg in args {
+        match arg {
+            CallArg::Positional(expr) => {
+                collect_when_pat_binding_names_from_expr(source_path, expr, names);
+            }
+            CallArg::Named { value, .. } => {
+                collect_when_pat_binding_names_from_expr(source_path, value, names);
+            }
+        }
+    }
+}
+
+fn collect_when_pat_binding_names_from_pat(
+    source_path: &Path,
+    pat: &crate::hir::WhenPat,
+    names: &mut HashMap<crate::hir::WhenPatBindingSite, String>,
+) {
+    match pat {
+        crate::hir::WhenPat::Bind { span, name, .. } => {
+            names.insert(
+                crate::hir::WhenPatBindingSite {
+                    source_path: source_path.to_path_buf(),
+                    decl_span: *span,
+                },
+                name.clone(),
+            );
+        }
+        crate::hir::WhenPat::Or { pats, .. } => {
+            for pat in pats {
+                collect_when_pat_binding_names_from_pat(source_path, pat, names);
+            }
+        }
+        crate::hir::WhenPat::Tuple { elements, .. } => {
+            for pat in elements {
+                collect_when_pat_binding_names_from_pat(source_path, pat, names);
+            }
+        }
+        crate::hir::WhenPat::Variant { args, .. } => {
+            for pat in args {
+                collect_when_pat_binding_names_from_pat(source_path, pat, names);
+            }
+        }
+        crate::hir::WhenPat::Else { .. }
+        | crate::hir::WhenPat::Wildcard { .. }
+        | crate::hir::WhenPat::Rest { .. }
+        | crate::hir::WhenPat::Is { .. }
+        | crate::hir::WhenPat::IntLit { .. }
+        | crate::hir::WhenPat::CharLit { .. }
+        | crate::hir::WhenPat::StringLit { .. }
+        | crate::hir::WhenPat::BoolLit { .. } => {}
+    }
+}
+
 fn compare_call_sites(lhs: &CallSite, rhs: &CallSite) -> Ordering {
     lhs.source_path
         .cmp(&rhs.source_path)
@@ -4240,6 +5134,7 @@ fn compare_function_effect_contracts(
 ) -> Ordering {
     lhs.fqn()
         .cmp(rhs.fqn())
+        .then(lhs.source_path().cmp(rhs.source_path()))
         .then(lhs.span().start.cmp(&rhs.span().start))
         .then(lhs.span().end.cmp(&rhs.span().end))
 }

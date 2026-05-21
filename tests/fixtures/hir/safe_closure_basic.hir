@@ -103,10 +103,10 @@ source_site_contracts {
             effects_closed: false,
         },
     ],
-    call_site_kinds: [
-        TypedCallSiteContract {
+    argument_bindings: [
+        ArgumentBindingContract {
             span: 78..81,
-            kind: FunValue,
+            params: [],
         },
     ],
     call_site_contracts: [
@@ -115,7 +115,7 @@ source_site_contracts {
             kind: FunValue,
             callee_ty: () -> Int / Pure,
             return_ty: Int,
-            abi_identity: ManagedOrdinary,
+            abi: ManagedOrdinary,
             arg_binding: [],
         },
     ],
@@ -128,5 +128,7 @@ source_site_contracts {
     perform_sites: [
     ],
     handle_sites: [
+    ],
+    pattern_bindings: [
     ],
 }

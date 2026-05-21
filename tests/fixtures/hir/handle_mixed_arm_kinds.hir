@@ -661,39 +661,7 @@ source_site_contracts {
             effects_closed: false,
         },
     ],
-    call_site_kinds: [
-        TypedCallSiteContract {
-            span: 240..249,
-            kind: Intrinsic,
-        },
-        TypedCallSiteContract {
-            span: 278..290,
-            kind: EffectOp,
-        },
-        TypedCallSiteContract {
-            span: 303..308,
-            kind: Intrinsic,
-        },
-        TypedCallSiteContract {
-            span: 328..337,
-            kind: Intrinsic,
-        },
-        TypedCallSiteContract {
-            span: 366..379,
-            kind: EffectOp,
-        },
-        TypedCallSiteContract {
-            span: 392..397,
-            kind: Intrinsic,
-        },
-        TypedCallSiteContract {
-            span: 427..440,
-            kind: EffectOp,
-        },
-        TypedCallSiteContract {
-            span: 520..532,
-            kind: ContinuationResume,
-        },
+    argument_bindings: [
     ],
     call_site_contracts: [
         CallSiteContract {
@@ -709,11 +677,13 @@ source_site_contracts {
         },
         CallSiteContract {
             span: 278..290,
-            kind: EffectOp,
+            kind: EffectOperation,
             effect_ty: fixtures.hir.Yield,
             op_fqn: "fixtures.hir.Yield.next",
             result_ty: Int,
             payload_ty: Unit,
+            payload_components: [
+            ],
             arg_mapping: [],
         },
         CallSiteContract {
@@ -740,11 +710,13 @@ source_site_contracts {
         },
         CallSiteContract {
             span: 366..379,
-            kind: EffectOp,
+            kind: EffectOperation,
             effect_ty: fixtures.hir.Ask,
             op_fqn: "fixtures.hir.Ask.current",
             result_ty: Int,
             payload_ty: Unit,
+            payload_components: [
+            ],
             arg_mapping: [],
         },
         CallSiteContract {
@@ -760,11 +732,14 @@ source_site_contracts {
         },
         CallSiteContract {
             span: 427..440,
-            kind: EffectOp,
+            kind: EffectOperation,
             effect_ty: fixtures.hir.Boom,
             op_fqn: "fixtures.hir.Boom.boom",
             result_ty: Nothing,
             payload_ty: Int,
+            payload_components: [
+                Int,
+            ],
             arg_mapping: [0],
         },
         CallSiteContract {
@@ -775,7 +750,10 @@ source_site_contracts {
             receiver_ty: scoop.core.Continuation<Int, Int, eff Pure>,
             resume_ty: Int,
             answer_ty: Int,
+            return_ty: Int,
             out_effects: Pure,
+            required_effects: scoop.core.Raise<scoop.core.RuntimeError>,
+            includes_runtime_error_effect: true,
         },
     ],
     with_update_contracts: [
@@ -866,5 +844,7 @@ source_site_contracts {
             ],
             finally_result_ty: None,
         },
+    ],
+    pattern_bindings: [
     ],
 }

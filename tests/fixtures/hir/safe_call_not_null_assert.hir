@@ -360,20 +360,19 @@ source_site_contracts {
             effects_closed: false,
         },
     ],
-    call_site_kinds: [
-        TypedCallSiteContract {
-            span: 170..170,
-            kind: EffectOp,
-        },
+    argument_bindings: [
     ],
     call_site_contracts: [
         CallSiteContract {
             span: 170..170,
-            kind: EffectOp,
+            kind: EffectOperation,
             effect_ty: scoop.core.Raise<scoop.core.RuntimeError>,
             op_fqn: "scoop.core.Raise.raise",
             result_ty: Nothing,
             payload_ty: scoop.core.RuntimeError,
+            payload_components: [
+                scoop.core.RuntimeError,
+            ],
             arg_mapping: [0],
         },
     ],
@@ -397,5 +396,17 @@ source_site_contracts {
         },
     ],
     handle_sites: [
+    ],
+    pattern_bindings: [
+        PatternBindingContract {
+            span: 97..99,
+            name: "__safe_v",
+            binding_ty: a.Wrap,
+        },
+        PatternBindingContract {
+            span: 170..172,
+            name: "__not_null_v",
+            binding_ty: String,
+        },
     ],
 }

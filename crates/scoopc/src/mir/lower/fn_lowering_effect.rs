@@ -33,12 +33,16 @@ impl<'a> FnLowering<'a> {
         resume_info: &ResumeCallInfo,
     ) {
         let Some(receiver) = self.resume_receiver_from_contract(callee, args, resume_info) else {
-            self.lower_malformed_resume_call(span, result, resume_info.metadata.clone());
-            return;
+            panic!(
+                "resume source-site contract is inconsistent with HIR before MIR lowering at {} {span:?}",
+                self.source_path.display()
+            );
         };
         let Some(payload_args) = self.resume_payload_args_from_contract(args, resume_info) else {
-            self.lower_malformed_resume_call(span, result, resume_info.metadata.clone());
-            return;
+            panic!(
+                "resume source-site contract payload mapping is inconsistent with HIR before MIR lowering at {} {span:?}",
+                self.source_path.display()
+            );
         };
 
         let continuation_local = self.lower_expr_to_local(receiver);
@@ -103,37 +107,6 @@ impl<'a> FnLowering<'a> {
             .collect()
     }
 
-    pub(in crate::mir::lower) fn lower_malformed_resume_call(
-        &mut self,
-        span: Span,
-        result: LocalId,
-        mut metadata: ResumeMetadata,
-    ) {
-        metadata.runtime_error_effect_ty = None;
-        let site_id = self.fresh_site_id();
-        let kind = CallKind::Resume {
-            continuation: Operand::Const(ConstValue::Unit),
-            resume: metadata,
-        };
-        let args = Vec::new();
-        let transport = self.call_transport_metadata(
-            self.body.locals[result.as_u32() as usize].ty,
-            &kind,
-            &args,
-            None,
-        );
-        self.assign(
-            span,
-            result,
-            Rvalue::Call {
-                site_id,
-                kind,
-                args,
-                transport,
-            },
-        );
-    }
-
     /// 降低一个 effect operation 调用（HIR `Perform`）到 MIR。
     ///
     /// 当前阶段会把 `perform` 同时显式化为：
@@ -160,41 +133,11 @@ impl<'a> FnLowering<'a> {
         let Some((perform_args, mut metadata)) =
             self.canonicalize_perform_args(span, ty, lowered_args)
         else {
-            let result = self.push_temp_local(span, ty);
-            self.assign(
-                span,
-                result,
-                Rvalue::PerformResult {
-                    op_fqn: op.fqn.clone(),
-                    effect_ty,
-                },
+            panic!(
+                "perform source-site contract missing before MIR lowering at {} {span:?}: {}",
+                self.source_path.display(),
+                op.fqn
             );
-            let perform_args = Vec::new();
-            let resume_target = self.push_block(span);
-            let site_id = self.fresh_site_id();
-            let unwind = self.build_perform_unwind_action(span);
-            self.set_terminator_with_unwind(
-                self.current_bb,
-                span,
-                TerminatorKind::Perform {
-                    site_id,
-                    op_fqn: String::new(),
-                    metadata: PerformMetadata {
-                        effect_ty,
-                        op_type_args: op.type_args.clone(),
-                        result_ty: ty,
-                        payload_tuple_ty: None,
-                        payload_component_tys: Vec::new(),
-                        payload_transport: Vec::new(),
-                        arg_mapping: Vec::new(),
-                    },
-                    args: perform_args,
-                    resume_target,
-                },
-                unwind,
-            );
-            self.current_bb = resume_target;
-            return result;
         };
         metadata.effect_ty = effect_ty;
         if metadata.op_type_args.is_empty() {
@@ -251,39 +194,14 @@ impl<'a> FnLowering<'a> {
             .facts
             .handle_site_info(self.source_path.as_path(), span)
             .cloned();
-        let handle_contract = if let Some(site) = handle_site {
-            Some((site.metadata, site.arms))
-        } else {
-            let _ = (ty, handle);
-            None
-        };
-        let Some((metadata, mut arms)) = handle_contract else {
-            let body_bb = self.push_block(handle.body.span);
-            let exit_bb = self.push_block(span);
-            let site_id = self.fresh_site_id();
-            self.set_terminator(
-                outer_bb,
-                span,
-                TerminatorKind::Handle {
-                    site_id,
-                    metadata: HandleMetadata {
-                        result_ty: ty,
-                        body_result_ty: handle.body.ty,
-                        finally_result_ty: Some(ty),
-                    },
-                    arms: Vec::new(),
-                    has_finally: false,
-                    body_target: body_bb,
-                    arm_targets: Vec::new(),
-                    finally_target: None,
-                    exit_target: exit_bb,
-                },
+        let Some(handle_site) = handle_site else {
+            panic!(
+                "handle source-site contract missing before MIR lowering at {} {span:?}",
+                self.source_path.display()
             );
-            self.current_bb = body_bb;
-            self.set_terminator(body_bb, span, TerminatorKind::Goto { target: exit_bb });
-            self.current_bb = exit_bb;
-            return result;
         };
+        let metadata = handle_site.metadata;
+        let mut arms = handle_site.arms;
         for (hir_arm, lowered_arm) in handle.arms.iter().zip(arms.iter_mut()) {
             if lowered_arm.op_type_args.is_empty() {
                 lowered_arm.op_type_args = hir_arm.op.op.type_args.clone();
@@ -381,55 +299,6 @@ impl<'a> FnLowering<'a> {
         self.current_bb = exit_bb;
 
         result
-    }
-
-    pub(in crate::mir::lower) fn lower_handle_contract_from_hir(
-        &mut self,
-        result_ty: TypeId,
-        handle: &hir::HandleExpr,
-    ) -> (HandleMetadata, Vec<HandlerArm>) {
-        let arms = handle
-            .arms
-            .iter()
-            .map(|arm| {
-                let payload_component_tys = arm
-                    .op
-                    .binders
-                    .iter()
-                    .map(|binder| binder.ty)
-                    .collect::<Vec<_>>();
-                let payload_tuple_ty = payload_tuple_ty_from_components(
-                    self.types,
-                    self.builtins.unit,
-                    &payload_component_tys,
-                );
-                HandlerArm {
-                    op_fqn: arm.op.op.fqn.clone(),
-                    op_type_args: arm.op.op.type_args.clone(),
-                    binder_count: arm.op.binders.len(),
-                    handled_effect_ty: arm.op.effect_ty,
-                    payload_tuple_ty,
-                    binder_locals: Vec::new(),
-                    continuation_local: None,
-                    payload_component_tys,
-                    body_ty: arm.body.ty,
-                    kind: match arm.kind {
-                        hir::HandleArmKind::NonResuming => HandlerArmKind::NonResuming,
-                        hir::HandleArmKind::EscapeContinuation { .. } => {
-                            HandlerArmKind::EscapeContinuation
-                        }
-                    },
-                }
-            })
-            .collect();
-        (
-            HandleMetadata {
-                result_ty,
-                body_result_ty: handle.body.ty,
-                finally_result_ty: handle.finally.as_ref().map(|finally| finally.ty),
-            },
-            arms,
-        )
     }
 
     pub(in crate::mir::lower) fn allocate_handle_arm_locals(

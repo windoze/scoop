@@ -2307,7 +2307,9 @@ return a + box.get()
     );
 
     let builtins = lowered_hir.types.intern_builtins();
-    let facts = MirLoweringFacts::from_lowered_hir(&lowered_hir, source.path()).unwrap();
+    let hir_facts =
+        crate::pipeline::build_hir_facts_from_lowered_hir(&lowered_hir, source.path()).unwrap();
+    let facts = MirLoweringFacts::from_hir_facts(&lowered_hir, &hir_facts);
     let generic_file = lower_hir_file_for_dump_with_facts(
         builtins,
         &mut lowered_hir.types,
@@ -2802,7 +2804,10 @@ return 0
     let interfaces = lowered_hir.interfaces.clone();
     let class_itables = lowered_hir.class_itables.clone();
     let builtins = lowered_hir.types.intern_builtins();
-    let facts = MirLoweringFacts::from_lowered_hir(&lowered_hir, source_path.as_path()).unwrap();
+    let hir_facts =
+        crate::pipeline::build_hir_facts_from_lowered_hir(&lowered_hir, source_path.as_path())
+            .unwrap();
+    let facts = MirLoweringFacts::from_hir_facts(&lowered_hir, &hir_facts);
     let mut generic_file = lower_hir_file_for_dump_with_facts(
         builtins,
         &mut lowered_hir.types,
@@ -3788,7 +3793,9 @@ println(holder.node.tag.score)
     let interfaces = lowered_hir.interfaces.clone();
     let class_itables = lowered_hir.class_itables.clone();
     let builtins = lowered_hir.types.intern_builtins();
-    let facts = MirLoweringFacts::from_lowered_hir(&lowered_hir, source.path()).unwrap();
+    let hir_facts =
+        crate::pipeline::build_hir_facts_from_lowered_hir(&lowered_hir, source.path()).unwrap();
+    let facts = MirLoweringFacts::from_hir_facts(&lowered_hir, &hir_facts);
     let generic_file = lower_hir_file_for_dump_with_facts(
         builtins,
         &mut lowered_hir.types,
@@ -4121,7 +4128,9 @@ return read(ints) + read(texts)
     let interfaces = lowered_hir.interfaces.clone();
     let class_itables = lowered_hir.class_itables.clone();
     let builtins = lowered_hir.types.intern_builtins();
-    let facts = MirLoweringFacts::from_lowered_hir(&lowered_hir, source.path()).unwrap();
+    let hir_facts =
+        crate::pipeline::build_hir_facts_from_lowered_hir(&lowered_hir, source.path()).unwrap();
+    let facts = MirLoweringFacts::from_hir_facts(&lowered_hir, &hir_facts);
     let generic_file = lower_hir_file_for_dump_with_facts(
         builtins,
         &mut lowered_hir.types,

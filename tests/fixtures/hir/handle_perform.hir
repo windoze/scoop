@@ -130,20 +130,19 @@ source_site_contracts {
             effects_closed: false,
         },
     ],
-    call_site_kinds: [
-        TypedCallSiteContract {
-            span: 64..78,
-            kind: EffectOp,
-        },
+    argument_bindings: [
     ],
     call_site_contracts: [
         CallSiteContract {
             span: 64..78,
-            kind: EffectOp,
+            kind: EffectOperation,
             effect_ty: scoop.core.Raise<Int>,
             op_fqn: "scoop.core.Raise.raise",
             result_ty: Nothing,
             payload_ty: Int,
+            payload_components: [
+                Int,
+            ],
             arg_mapping: [0],
         },
     ],
@@ -185,5 +184,7 @@ source_site_contracts {
             ],
             finally_result_ty: None,
         },
+    ],
+    pattern_bindings: [
     ],
 }

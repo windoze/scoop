@@ -769,42 +769,14 @@ source_site_contracts {
             effects_closed: false,
         },
     ],
-    call_site_kinds: [
-        TypedCallSiteContract {
+    argument_bindings: [
+        ArgumentBindingContract {
             span: 200..233,
-            kind: DirectTopLevel,
+            params: [Explicit(CallArgElementContract { arg_index: 1, spread: false }), Explicit(CallArgElementContract { arg_index: 0, spread: false })],
         },
-        TypedCallSiteContract {
+        ArgumentBindingContract {
             span: 314..325,
-            kind: DirectTopLevel,
-        },
-        TypedCallSiteContract {
-            span: 337..342,
-            kind: Intrinsic,
-        },
-        TypedCallSiteContract {
-            span: 1048921..1048922,
-            kind: DirectTopLevel,
-        },
-        TypedCallSiteContract {
-            span: 1048923..1048924,
-            kind: DirectTopLevel,
-        },
-        TypedCallSiteContract {
-            span: 1048925..1048926,
-            kind: DirectTopLevel,
-        },
-        TypedCallSiteContract {
-            span: 1048927..1048928,
-            kind: DirectTopLevel,
-        },
-        TypedCallSiteContract {
-            span: 1048929..1048930,
-            kind: DirectTopLevel,
-        },
-        TypedCallSiteContract {
-            span: 1048931..1048932,
-            kind: DirectTopLevel,
+            params: [Explicit(CallArgElementContract { arg_index: 0, spread: false }), Vararg([CallArgElementContract { arg_index: 1, spread: true }])],
         },
     ],
     call_site_contracts: [
@@ -895,5 +867,7 @@ source_site_contracts {
     perform_sites: [
     ],
     handle_sites: [
+    ],
+    pattern_bindings: [
     ],
 }

@@ -588,7 +588,7 @@ pub(crate) fn collect_effect_analysis_context_for_fun_with_pass_view(
         .collect::<HashMap<_, _>>();
 
     let hir_facts = Rc::new(
-        crate::pipeline::build_hir_declaration_facts_for_migration(
+        crate::pipeline::build_hir_declaration_facts_from_lowered_hir(
             lowered,
             owner_fun.source_path.as_path(),
         )

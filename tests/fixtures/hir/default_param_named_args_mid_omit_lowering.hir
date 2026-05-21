@@ -224,10 +224,10 @@ source_site_contracts {
             effects_closed: false,
         },
     ],
-    call_site_kinds: [
-        TypedCallSiteContract {
+    argument_bindings: [
+        ArgumentBindingContract {
             span: 113..128,
-            kind: DirectTopLevel,
+            params: [Explicit(CallArgElementContract { arg_index: 0, spread: false }), Default, Explicit(CallArgElementContract { arg_index: 1, spread: false })],
         },
     ],
     call_site_contracts: [
@@ -253,8 +253,7 @@ source_site_contracts {
             ty: Int,
             initializer_ty: Int,
             has_initializer: true,
-            dependencies: [
-            ],
+            dependencies: [],
         },
     ],
     continuation_resume_sites: [
@@ -262,5 +261,7 @@ source_site_contracts {
     perform_sites: [
     ],
     handle_sites: [
+    ],
+    pattern_bindings: [
     ],
 }

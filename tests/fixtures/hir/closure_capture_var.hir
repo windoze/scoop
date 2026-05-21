@@ -355,14 +355,14 @@ source_site_contracts {
             effects_closed: false,
         },
     ],
-    call_site_kinds: [
-        TypedCallSiteContract {
+    argument_bindings: [
+        ArgumentBindingContract {
             span: 132..135,
-            kind: FunValue,
+            params: [],
         },
-        TypedCallSiteContract {
+        ArgumentBindingContract {
             span: 138..141,
-            kind: FunValue,
+            params: [],
         },
     ],
     call_site_contracts: [
@@ -371,7 +371,7 @@ source_site_contracts {
             kind: FunValue,
             callee_ty: () -> Any / Pure,
             return_ty: Any,
-            abi_identity: ManagedOrdinary,
+            abi: ManagedOrdinary,
             arg_binding: [],
         },
         CallSiteContract {
@@ -379,7 +379,7 @@ source_site_contracts {
             kind: FunValue,
             callee_ty: () -> Any / Pure,
             return_ty: Any,
-            abi_identity: ManagedOrdinary,
+            abi: ManagedOrdinary,
             arg_binding: [],
         },
     ],
@@ -388,10 +388,7 @@ source_site_contracts {
     assign_place_contracts: [
         AssignPlaceContract {
             span: 63..68,
-            kind: Local,
-            label: sym#h63f3d95d3a02ad65249afa847fe8240d,
-            name: "x",
-            decl_span: 30..31,
+            kind: Local { symbol_id: 0, name: "x", decl_span: 30..31 },
             place_ty: Int,
             value_ty: Int,
             mutable: true,
@@ -400,10 +397,7 @@ source_site_contracts {
         },
         AssignPlaceContract {
             span: 106..111,
-            kind: Local,
-            label: sym#h63f3d95d3a02ad65249afa847fe8240d,
-            name: "x",
-            decl_span: 30..31,
+            kind: Local { symbol_id: 0, name: "x", decl_span: 30..31 },
             place_ty: Int,
             value_ty: Int,
             mutable: true,
@@ -412,10 +406,7 @@ source_site_contracts {
         },
         AssignPlaceContract {
             span: 124..129,
-            kind: Local,
-            label: sym#h63f3d95d3a02ad65249afa847fe8240d,
-            name: "x",
-            decl_span: 30..31,
+            kind: Local { symbol_id: 0, name: "x", decl_span: 30..31 },
             place_ty: Int,
             value_ty: Int,
             mutable: true,
@@ -428,5 +419,7 @@ source_site_contracts {
     perform_sites: [
     ],
     handle_sites: [
+    ],
+    pattern_bindings: [
     ],
 }

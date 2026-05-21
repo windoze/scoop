@@ -161,11 +161,7 @@ source_site_contracts {
             effects_closed: false,
         },
     ],
-    call_site_kinds: [
-        TypedCallSiteContract {
-            span: 247..255,
-            kind: DirectTopLevel,
-        },
+    argument_bindings: [
     ],
     call_site_contracts: [
         CallSiteContract {
@@ -189,8 +185,7 @@ source_site_contracts {
             ty: Int,
             initializer_ty: Int,
             has_initializer: true,
-            dependencies: [
-            ],
+            dependencies: [],
         },
         TopLevelInitRootContract {
             span: 257..291,
@@ -199,12 +194,7 @@ source_site_contracts {
             ty: Int,
             initializer_ty: Int,
             has_initializer: true,
-            dependencies: [
-                TopLevelInitDependency {
-                    fqn: "fixtures.hir_init.Runtime",
-                    kind: TopLevelValue,
-                },
-            ],
+            dependencies: [TopLevelInitDependency { fqn: "fixtures.hir_init.Runtime", kind: TopLevelValue }],
         },
         TopLevelInitRootContract {
             span: 350..396,
@@ -213,12 +203,7 @@ source_site_contracts {
             ty: None,
             initializer_ty: None,
             has_initializer: true,
-            dependencies: [
-                TopLevelInitDependency {
-                    fqn: "fixtures.hir_init.Runtime",
-                    kind: TopLevelValue,
-                },
-            ],
+            dependencies: [TopLevelInitDependency { fqn: "fixtures.hir_init.Runtime", kind: TopLevelValue }],
         },
         TopLevelInitRootContract {
             span: 228..255,
@@ -227,12 +212,7 @@ source_site_contracts {
             ty: Int,
             initializer_ty: Int,
             has_initializer: true,
-            dependencies: [
-                TopLevelInitDependency {
-                    fqn: "fixtures.hir_init.Base",
-                    kind: TopLevelValue,
-                },
-            ],
+            dependencies: [TopLevelInitDependency { fqn: "fixtures.hir_init.Base", kind: TopLevelValue }],
         },
     ],
     extern_global_contracts: [
@@ -253,5 +233,7 @@ source_site_contracts {
     perform_sites: [
     ],
     handle_sites: [
+    ],
+    pattern_bindings: [
     ],
 }

@@ -1,0 +1,9 @@
+package fixtures.hir
+
+import scoop.core.*
+
+struct Point(val x: Int, val y: Int)
+
+fun use(p: Point) {
+    val q: Point = p with { x: 1 }
+}

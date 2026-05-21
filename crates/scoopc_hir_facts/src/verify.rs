@@ -17,6 +17,7 @@ pub type Result<T> = std::result::Result<T, VerifyError>;
 pub enum VerifyError {
     DuplicateFactIdentity(String),
     DuplicateSourceSite { owner: String, site: SiteId },
+    DuplicateSourceContract { contract: &'static str, key: String },
 }
 
 impl fmt::Display for VerifyError {
@@ -28,6 +29,9 @@ impl fmt::Display for VerifyError {
                 "duplicate HIR source-site contract `{}` in owner `{owner}`",
                 site.as_u32()
             ),
+            Self::DuplicateSourceContract { contract, key } => {
+                write!(f, "duplicate HIR {contract} source contract `{key}`")
+            }
         }
     }
 }
@@ -38,6 +42,7 @@ impl Error for VerifyError {}
 pub fn verify_hir_facts(facts: &HirFacts) -> Result<()> {
     verify_unique_fact_identities(facts)?;
     verify_unique_source_sites(facts)?;
+    verify_unique_source_contracts(facts)?;
     Ok(())
 }
 
@@ -134,6 +139,61 @@ fn verify_unique_source_sites(facts: &HirFacts) -> Result<()> {
     }
 
     Ok(())
+}
+
+fn verify_unique_source_contracts(facts: &HirFacts) -> Result<()> {
+    let mut seen = HashSet::new();
+
+    for (contract, key) in source_contract_keys(facts) {
+        if !seen.insert((contract, key.clone())) {
+            return Err(VerifyError::DuplicateSourceContract { contract, key });
+        }
+    }
+
+    Ok(())
+}
+
+fn source_contract_keys(facts: &HirFacts) -> Vec<(&'static str, String)> {
+    let mut keys = Vec::new();
+
+    keys.extend(facts.source_sites.function_effects.iter().map(|fact| {
+        (
+            "function-effect",
+            format!(
+                "{}:{}..{}:{}",
+                fact.source_path.display(),
+                fact.span.start,
+                fact.span.end,
+                fact.fqn
+            ),
+        )
+    }));
+    keys.extend(facts.source_sites.top_level_init_roots.iter().map(|fact| {
+        (
+            "top-level-init-root",
+            format!(
+                "{}:{}..{}:{}",
+                fact.source_path.display(),
+                fact.span.start,
+                fact.span.end,
+                fact.fqn
+            ),
+        )
+    }));
+    keys.extend(facts.source_sites.extern_globals.iter().map(|fact| {
+        (
+            "extern-global",
+            format!(
+                "{}:{}..{}:{}",
+                fact.source_path.display(),
+                fact.span.start,
+                fact.span.end,
+                fact.fqn
+            ),
+        )
+    }));
+
+    keys
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]

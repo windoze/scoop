@@ -130,11 +130,7 @@ source_site_contracts {
             effects_closed: false,
         },
     ],
-    call_site_kinds: [
-        TypedCallSiteContract {
-            span: 181..192,
-            kind: ContinuationResume,
-        },
+    argument_bindings: [
     ],
     call_site_contracts: [
         CallSiteContract {
@@ -145,7 +141,10 @@ source_site_contracts {
             receiver_ty: scoop.core.Continuation<Int, Int, eff fixtures.hir.Boom>,
             resume_ty: Int,
             answer_ty: Int,
+            return_ty: Int,
             out_effects: fixtures.hir.Boom,
+            required_effects: fixtures.hir.Boom + scoop.core.Raise<scoop.core.RuntimeError>,
+            includes_runtime_error_effect: true,
         },
     ],
     with_update_contracts: [
@@ -169,5 +168,7 @@ source_site_contracts {
     perform_sites: [
     ],
     handle_sites: [
+    ],
+    pattern_bindings: [
     ],
 }

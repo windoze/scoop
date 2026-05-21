@@ -249,16 +249,16 @@ source_site_contracts {
             effects_closed: false,
         },
     ],
-    call_site_kinds: [
-        TypedCallSiteContract {
+    argument_bindings: [
+        ArgumentBindingContract {
             span: 140..147,
-            kind: Virtual,
+            params: [Receiver],
         },
     ],
     call_site_contracts: [
         CallSiteContract {
             span: 140..147,
-            kind: Virtual,
+            kind: VirtualDispatch,
             dispatch_owner_fqn: "a.Point",
             dispatch_member_name: "inc",
             dispatch_member_fqn: "a.Point.inc",
@@ -275,17 +275,11 @@ source_site_contracts {
     assign_place_contracts: [
         AssignPlaceContract {
             span: 130..137,
-            kind: Member,
-            receiver_ty: a.Point,
-            owner_fqn: Some("a.Point"),
-            member_fqn: "a.Point.x",
-            member_name: "x",
-            member_span: 132..133,
-            resolved: Some(Value { id: S1, fqn: "a.Point.x" }),
+            kind: Member { receiver_ty: TypeId(10), owner_fqn: Some("a.Point"), member_fqn: "a.Point.x", member_name: "x", member_span: 132..133, resolved: Some(Value { symbol_id: 1, fqn: "a.Point.x" }) },
             place_ty: Int,
             value_ty: Int,
             mutable: true,
-            write_barrier: StorageSlot(Int),
+            write_barrier: StorageSlot { slot_ty: TypeId(5) },
             unsafe_required: false,
         },
     ],
@@ -294,5 +288,7 @@ source_site_contracts {
     perform_sites: [
     ],
     handle_sites: [
+    ],
+    pattern_bindings: [
     ],
 }

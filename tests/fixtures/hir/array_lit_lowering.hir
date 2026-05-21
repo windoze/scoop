@@ -1131,90 +1131,14 @@ source_site_contracts {
             effects_closed: false,
         },
     ],
-    call_site_kinds: [
-        TypedCallSiteContract {
+    argument_bindings: [
+        ArgumentBindingContract {
             span: 222..240,
-            kind: DirectTopLevel,
+            params: [Explicit(CallArgElementContract { arg_index: 0, spread: false })],
         },
-        TypedCallSiteContract {
+        ArgumentBindingContract {
             span: 243..272,
-            kind: DirectTopLevel,
-        },
-        TypedCallSiteContract {
-            span: 1048920..1048921,
-            kind: DirectTopLevel,
-        },
-        TypedCallSiteContract {
-            span: 1048922..1048923,
-            kind: DirectTopLevel,
-        },
-        TypedCallSiteContract {
-            span: 1048924..1048925,
-            kind: DirectTopLevel,
-        },
-        TypedCallSiteContract {
-            span: 1048926..1048927,
-            kind: DirectTopLevel,
-        },
-        TypedCallSiteContract {
-            span: 1048928..1048929,
-            kind: DirectTopLevel,
-        },
-        TypedCallSiteContract {
-            span: 1048930..1048931,
-            kind: DirectTopLevel,
-        },
-        TypedCallSiteContract {
-            span: 1048932..1048933,
-            kind: DirectTopLevel,
-        },
-        TypedCallSiteContract {
-            span: 1048934..1048935,
-            kind: DirectTopLevel,
-        },
-        TypedCallSiteContract {
-            span: 1048936..1048937,
-            kind: DirectTopLevel,
-        },
-        TypedCallSiteContract {
-            span: 1048938..1048939,
-            kind: DirectTopLevel,
-        },
-        TypedCallSiteContract {
-            span: 1048940..1048941,
-            kind: DirectTopLevel,
-        },
-        TypedCallSiteContract {
-            span: 1048942..1048943,
-            kind: DirectTopLevel,
-        },
-        TypedCallSiteContract {
-            span: 1048944..1048945,
-            kind: DirectTopLevel,
-        },
-        TypedCallSiteContract {
-            span: 1048946..1048947,
-            kind: DirectTopLevel,
-        },
-        TypedCallSiteContract {
-            span: 1048948..1048949,
-            kind: DirectTopLevel,
-        },
-        TypedCallSiteContract {
-            span: 1048950..1048951,
-            kind: DirectTopLevel,
-        },
-        TypedCallSiteContract {
-            span: 1048952..1048953,
-            kind: DirectTopLevel,
-        },
-        TypedCallSiteContract {
-            span: 1048954..1048955,
-            kind: DirectTopLevel,
-        },
-        TypedCallSiteContract {
-            span: 1048956..1048957,
-            kind: DirectTopLevel,
+            params: [Explicit(CallArgElementContract { arg_index: 0, spread: false })],
         },
     ],
     call_site_contracts: [
@@ -1398,5 +1322,7 @@ source_site_contracts {
     perform_sites: [
     ],
     handle_sites: [
+    ],
+    pattern_bindings: [
     ],
 }

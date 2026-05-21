@@ -122,10 +122,10 @@ source_site_contracts {
             effects_closed: false,
         },
     ],
-    call_site_kinds: [
-        TypedCallSiteContract {
+    argument_bindings: [
+        ArgumentBindingContract {
             span: 62..67,
-            kind: FunValue,
+            params: [Explicit(CallArgElementContract { arg_index: 0, spread: false })],
         },
     ],
     call_site_contracts: [
@@ -134,7 +134,7 @@ source_site_contracts {
             kind: FunValue,
             callee_ty: (Int) -> Int / Pure,
             return_ty: Int,
-            abi_identity: ManagedOrdinary,
+            abi: ManagedOrdinary,
             arg_binding: [Explicit(CallArgElementContract { arg_index: 0, spread: false })],
         },
     ],
@@ -147,5 +147,7 @@ source_site_contracts {
     perform_sites: [
     ],
     handle_sites: [
+    ],
+    pattern_bindings: [
     ],
 }

@@ -61,12 +61,13 @@ pub(in crate::mir::lower) fn top_level_binding_matches_callee(
 /// 为 `scoop dump-mir` / mir fixtures 生成 MIR（最小实现）。
 ///
 /// 当前阶段 pipeline：
-/// 1) parse/resolve 源文件并降到 HIR（复用 `hir::lower_for_dump`）；
-/// 2) 把 HIR 再降到 MIR（本文件实现），并生成显式 CFG。
+/// 1) parse/resolve 源文件并降到正式 HIR stage output；
+/// 2) 从 `HirFacts` 构造 MIR lowering facts，并生成显式 CFG。
 pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredMir, MirLowerError> {
-    let mut lowered_hir = hir::lower_typed_for_dump(session, source)?;
+    let hir_output = crate::pipeline::load_hir_stage_output_for_dump(session, source)?;
+    let facts = MirLoweringFacts::from_hir_facts(hir_output.lowered_hir(), hir_output.hir_facts());
+    let mut lowered_hir = hir_output.into_lowered_hir();
     let builtins = lowered_hir.types.intern_builtins();
-    let facts = MirLoweringFacts::from_lowered_hir(&lowered_hir, source.path())?;
 
     let file = lower_hir_file_for_dump_with_facts(
         builtins,

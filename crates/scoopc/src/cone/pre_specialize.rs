@@ -409,7 +409,7 @@ pub fn build_pre_specialize_file_for_cone_sources(
             direct_supertypes: HashMap::new(),
             builtins,
         };
-        let hir_facts = crate::pipeline::build_hir_declaration_facts_for_migration(
+        let hir_facts = crate::pipeline::build_hir_declaration_facts_from_lowered_hir(
             &hir_fact_scaffold,
             source.path(),
         )

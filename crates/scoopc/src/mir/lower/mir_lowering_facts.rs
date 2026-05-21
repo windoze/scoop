@@ -5,15 +5,6 @@
 use super::*;
 
 impl MirLoweringFacts {
-    pub(crate) fn from_lowered_hir(
-        lowered: &hir::LoweredHir,
-        default_source_path: &std::path::Path,
-    ) -> Result<Self, hir::HirLowerError> {
-        let hir_facts =
-            crate::pipeline::build_hir_facts_for_migration(lowered, default_source_path)?;
-        Ok(Self::from_hir_facts(lowered, &hir_facts))
-    }
-
     pub(crate) fn from_hir_facts(lowered: &hir::LoweredHir, hir_facts: &HirFacts) -> Self {
         let mut facts = Self::default();
         facts = facts
@@ -260,7 +251,7 @@ impl MirLoweringFacts {
         lowered: &hir::LoweredHir,
     ) -> Self {
         let analyzer = HiddenInitEffectAnalyzer::new(lowered);
-        for (site, info) in &lowered.ctor_call_sites {
+        for (site, info) in &self.class_ctor_call_sites {
             let effects = analyzer.class_ctor_effect_row(&info.class_fqn, info.ctor_span);
             if !effects.is_pure() {
                 self.class_ctor_hidden_effects.insert(site.clone(), effects);

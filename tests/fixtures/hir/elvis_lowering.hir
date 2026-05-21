@@ -124,7 +124,7 @@ source_site_contracts {
             effects_closed: false,
         },
     ],
-    call_site_kinds: [
+    argument_bindings: [
     ],
     call_site_contracts: [
     ],
@@ -137,5 +137,12 @@ source_site_contracts {
     perform_sites: [
     ],
     handle_sites: [
+    ],
+    pattern_bindings: [
+        PatternBindingContract {
+            span: 81..83,
+            name: "__elvis_v",
+            binding_ty: Int,
+        },
     ],
 }

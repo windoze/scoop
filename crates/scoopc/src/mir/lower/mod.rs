@@ -2,10 +2,11 @@
 //!
 //! 说明：
 //! - 当前入口仍主要服务 `scoop dump-mir` 与 `tests/fixtures/mir/**` 的回归；
-//! - lowering 会显式消费 typed/shared HIR side tables，把 dispatch / resume / perform / pattern
-//!   等语言级事实收口到 MIR；
+//! - lowering 显式消费 `HirFacts` 派生的 source-site contracts，把 dispatch / resume /
+//!   perform / pattern 等语言级事实收口到 MIR；
 //! - 这里不负责 materialize monomorphic instance，也不编码 LLVM/backend-specific 细节；
-//! - 未覆盖的表达式/语句继续以 `Todo(...)` 占位，优先保证边界清晰、输出稳定、不 panic。
+//! - 未覆盖的非 typed-contract 表达式/语句继续以 `Todo(...)` 占位；缺失 source-site
+//!   contract 表示 HIR barrier 失效，必须在 MIR lowering 前暴露为内部错误。
 
 use std::collections::HashMap;
 

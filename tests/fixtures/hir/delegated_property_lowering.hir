@@ -398,19 +398,7 @@ source_site_contracts {
             effects_closed: false,
         },
     ],
-    call_site_kinds: [
-        TypedCallSiteContract {
-            span: 269..272,
-            kind: Constructor,
-        },
-        TypedCallSiteContract {
-            span: 288..291,
-            kind: Virtual,
-        },
-        TypedCallSiteContract {
-            span: 294..301,
-            kind: Virtual,
-        },
+    argument_bindings: [
     ],
     call_site_contracts: [
         CallSiteContract {
@@ -423,7 +411,7 @@ source_site_contracts {
         },
         CallSiteContract {
             span: 288..291,
-            kind: Virtual,
+            kind: VirtualDispatch,
             dispatch_owner_fqn: "a.Delegate",
             dispatch_member_name: "getValue",
             dispatch_member_fqn: "a.Delegate.getValue",
@@ -435,7 +423,7 @@ source_site_contracts {
         },
         CallSiteContract {
             span: 294..301,
-            kind: Virtual,
+            kind: VirtualDispatch,
             dispatch_owner_fqn: "a.Delegate",
             dispatch_member_name: "setValue",
             dispatch_member_fqn: "a.Delegate.setValue",
@@ -455,5 +443,7 @@ source_site_contracts {
     perform_sites: [
     ],
     handle_sites: [
+    ],
+    pattern_bindings: [
     ],
 }

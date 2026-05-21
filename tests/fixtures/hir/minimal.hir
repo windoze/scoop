@@ -225,10 +225,10 @@ source_site_contracts {
             effects_closed: false,
         },
     ],
-    call_site_kinds: [
-        TypedCallSiteContract {
+    argument_bindings: [
+        ArgumentBindingContract {
             span: 171..176,
-            kind: DirectTopLevel,
+            params: [Explicit(CallArgElementContract { arg_index: 0, spread: false })],
         },
     ],
     call_site_contracts: [
@@ -251,5 +251,7 @@ source_site_contracts {
     perform_sites: [
     ],
     handle_sites: [
+    ],
+    pattern_bindings: [
     ],
 }

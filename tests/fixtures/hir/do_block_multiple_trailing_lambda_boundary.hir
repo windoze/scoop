@@ -494,38 +494,22 @@ source_site_contracts {
             effects_closed: false,
         },
     ],
-    call_site_kinds: [
-        TypedCallSiteContract {
+    argument_bindings: [
+        ArgumentBindingContract {
             span: 94..101,
-            kind: FunValue,
+            params: [Explicit(CallArgElementContract { arg_index: 0, spread: false })],
         },
-        TypedCallSiteContract {
+        ArgumentBindingContract {
             span: 96..100,
-            kind: FunValue,
+            params: [Explicit(CallArgElementContract { arg_index: 0, spread: false })],
         },
-        TypedCallSiteContract {
+        ArgumentBindingContract {
             span: 122..154,
-            kind: DirectTopLevel,
+            params: [Explicit(CallArgElementContract { arg_index: 0, spread: false }), Explicit(CallArgElementContract { arg_index: 1, spread: false }), Explicit(CallArgElementContract { arg_index: 2, spread: false })],
         },
-        TypedCallSiteContract {
-            span: 135..141,
-            kind: Intrinsic,
-        },
-        TypedCallSiteContract {
-            span: 146..152,
-            kind: Intrinsic,
-        },
-        TypedCallSiteContract {
+        ArgumentBindingContract {
             span: 172..211,
-            kind: DirectTopLevel,
-        },
-        TypedCallSiteContract {
-            span: 192..198,
-            kind: Intrinsic,
-        },
-        TypedCallSiteContract {
-            span: 203..209,
-            kind: Intrinsic,
+            params: [Explicit(CallArgElementContract { arg_index: 0, spread: false }), Explicit(CallArgElementContract { arg_index: 1, spread: false }), Explicit(CallArgElementContract { arg_index: 2, spread: false })],
         },
     ],
     call_site_contracts: [
@@ -534,7 +518,7 @@ source_site_contracts {
             kind: FunValue,
             callee_ty: Any,
             return_ty: Int,
-            abi_identity: ManagedOrdinary,
+            abi: ManagedOrdinary,
             arg_binding: [Explicit(CallArgElementContract { arg_index: 0, spread: false })],
         },
         CallSiteContract {
@@ -542,7 +526,7 @@ source_site_contracts {
             kind: FunValue,
             callee_ty: Any,
             return_ty: Int,
-            abi_identity: ManagedOrdinary,
+            abi: ManagedOrdinary,
             arg_binding: [Explicit(CallArgElementContract { arg_index: 0, spread: false })],
         },
         CallSiteContract {
@@ -617,5 +601,7 @@ source_site_contracts {
     perform_sites: [
     ],
     handle_sites: [
+    ],
+    pattern_bindings: [
     ],
 }

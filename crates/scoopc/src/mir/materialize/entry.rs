@@ -120,10 +120,12 @@ pub(crate) fn materialize_compilation_unit_from_typechecked_inputs(
                     .to_string(),
             })
         })?;
-    let facts = super::super::MirLoweringFacts::from_lowered_hir(
+    let hir_facts = crate::pipeline::build_hir_facts_from_lowered_hir(
         &lowered_hir,
         default_contract_source_path,
-    )?;
+    )
+    .map_err(crate::hir::HirLowerError::from)?;
+    let facts = super::super::MirLoweringFacts::from_hir_facts(&lowered_hir, &hir_facts);
     let generic_file = super::super::lower_hir_file_for_dump_with_facts(
         builtins,
         &mut lowered_hir.types,

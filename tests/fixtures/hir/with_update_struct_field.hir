@@ -1,0 +1,282 @@
+File {
+    decls: [
+        Nominal(
+            NominalDecl {
+                span: 43..79,
+                fqn: "fixtures.hir.Point",
+                name: "Point",
+                kind: Struct,
+                type_params: [
+                ],
+                supertypes: [
+                ],
+                interfaces: [
+                ],
+                constructors: [
+                    CtorDecl {
+                        span: 55..79,
+                        kind: Primary,
+                        params: [
+                            CtorParamDecl {
+                                span: 60..61,
+                                name: "x",
+                                ty: Int,
+                                has_default: false,
+                                property: Some(Val),
+                            },
+                            CtorParamDecl {
+                                span: 72..73,
+                                name: "y",
+                                ty: Int,
+                                has_default: false,
+                                property: Some(Val),
+                            },
+                        ],
+                        delegation: None,
+                    },
+                ],
+                members: [
+                    Field(
+                        FieldDecl {
+                            span: 60..61,
+                            fqn: "fixtures.hir.Point.x",
+                            name: "x",
+                            mutable: false,
+                            ty: Int,
+                            origin: PrimaryCtorParam,
+                        },
+                    ),
+                    Field(
+                        FieldDecl {
+                            span: 72..73,
+                            fqn: "fixtures.hir.Point.y",
+                            name: "y",
+                            mutable: false,
+                            ty: Int,
+                            origin: PrimaryCtorParam,
+                        },
+                    ),
+                ],
+            },
+        ),
+    ],
+    items: [
+        Fun(
+            FunDecl {
+                span: 81..137,
+                fqn: "fixtures.hir.use",
+                name: "use",
+                ty: (fixtures.hir.Point) -> Unit / Pure,
+                params: [
+                    Param {
+                        span: 89..90,
+                        label: sym#h61b14b296abace025f5baf4a6f7bc2e0,
+                        name: "p",
+                        ty: fixtures.hir.Point,
+                    },
+                ],
+                return_ty: Unit,
+                body: Some(
+                    Block {
+                        span: 99..137,
+                        ty: Unit,
+                        stmts: [
+                            Stmt {
+                                span: 105..135,
+                                ty: Unit,
+                                kind: Val(
+                                    ValDecl {
+                                        span: 105..135,
+                                        label: sym#h9f170a57cb2538d538521b62bbeb47db,
+                                        name: "q",
+                                        mutable: false,
+                                        ty: fixtures.hir.Point,
+                                        init: Some(
+                                            Expr {
+                                                span: 120..135,
+                                                ty: fixtures.hir.Point,
+                                                kind: Block(
+                                                    Block {
+                                                        span: 120..135,
+                                                        ty: fixtures.hir.Point,
+                                                        stmts: [
+                                                            Stmt {
+                                                                span: 122..126,
+                                                                ty: fixtures.hir.Point,
+                                                                kind: Val(
+                                                                    ValDecl {
+                                                                        span: 122..126,
+                                                                        label: sym#h87adeb25411ac8cafe0cac8153ae88ec,
+                                                                        name: "$with_base",
+                                                                        mutable: false,
+                                                                        ty: fixtures.hir.Point,
+                                                                        init: Some(
+                                                                            Expr {
+                                                                                span: 120..121,
+                                                                                ty: fixtures.hir.Point,
+                                                                                kind: VarRef(
+                                                                                    Local {
+                                                                                        label: sym#h61b14b296abace025f5baf4a6f7bc2e0,
+                                                                                        name: "p",
+                                                                                        decl_span: 89..90,
+                                                                                    }
+                                                                                ),
+                                                                            }
+                                                                        ),
+                                                                    },
+                                                                ),
+                                                            },
+                                                            Stmt {
+                                                                span: 132..133,
+                                                                ty: Int,
+                                                                kind: Val(
+                                                                    ValDecl {
+                                                                        span: 132..133,
+                                                                        label: sym#hc40832e255f3025bec411a3769ee440f,
+                                                                        name: "__with_update_value_0",
+                                                                        mutable: false,
+                                                                        ty: Int,
+                                                                        init: Some(
+                                                                            Expr {
+                                                                                span: 132..133,
+                                                                                ty: Int,
+                                                                                kind: Literal(Int),
+                                                                            }
+                                                                        ),
+                                                                    },
+                                                                ),
+                                                            },
+                                                            Stmt {
+                                                                span: 120..135,
+                                                                ty: fixtures.hir.Point,
+                                                                kind: Expr(
+                                                                    Expr {
+                                                                        span: 120..135,
+                                                                        ty: fixtures.hir.Point,
+                                                                        kind: StructLit {
+                                                                            ty: fixtures.hir.Point,
+                                                                            fields: [
+                                                                                StructLitField {
+                                                                                    span: 122..126,
+                                                                                    name: "x",
+                                                                                    name_span: 122..126,
+                                                                                    colon_span: 122..126,
+                                                                                    value:
+                                                                                        Expr {
+                                                                                            span: 132..133,
+                                                                                            ty: Int,
+                                                                                            kind: VarRef(
+                                                                                                Local {
+                                                                                                    label: sym#hc40832e255f3025bec411a3769ee440f,
+                                                                                                    name: "__with_update_value_0",
+                                                                                                    decl_span: 138..139,
+                                                                                                }
+                                                                                            ),
+                                                                                        }
+                                                                                },
+                                                                                StructLitField {
+                                                                                    span: 122..126,
+                                                                                    name: "y",
+                                                                                    name_span: 122..126,
+                                                                                    colon_span: 122..126,
+                                                                                    value:
+                                                                                        Expr {
+                                                                                            span: 122..126,
+                                                                                            ty: Any,
+                                                                                            kind: MemberAccess {
+                                                                                                receiver:
+                                                                                                    Expr {
+                                                                                                        span: 122..126,
+                                                                                                        ty: fixtures.hir.Point,
+                                                                                                        kind: VarRef(
+                                                                                                            Local {
+                                                                                                                label: sym#h87adeb25411ac8cafe0cac8153ae88ec,
+                                                                                                                name: "$with_base",
+                                                                                                                decl_span: 122..126,
+                                                                                                            }
+                                                                                                        ),
+                                                                                                    }
+                                                                                                member:
+                                                                                                    MemberAccess {
+                                                                                                        span: 122..126,
+                                                                                                        name: "y",
+                                                                                                        resolved: Some(
+                                                                                                            Value {
+                                                                                                                fqn: "fixtures.hir.Point.y",
+                                                                                                            }
+                                                                                                        ),
+                                                                                                    }
+                                                                                            },
+                                                                                        }
+                                                                                },
+                                                                            ],
+                                                                        },
+                                                                    }
+                                                                ),
+                                                            },
+                                                        ],
+                                                    }
+                                                ),
+                                            }
+                                        ),
+                                    },
+                                ),
+                            },
+                        ],
+                    }
+                ),
+            },
+        ),
+    ],
+}
+
+
+hir_facts {
+  declarations: nominals=75, callables=1, fields=46, enum_variants=24, vtables=55, itables=32
+  source_sites: function_effects=1, calls=0, args=0, assigns=0, updates=1, performs=0, handles=0, resumes=0, patterns=0, top_level_roots=0, extern_globals=0
+  globals: roots=1, object_inits=1, class_inits=23
+  native: extern_funs=0, native_callables=0, extern_globals=0, extern_libs=0
+  type_context: universe=hir-stage-type-store, type_params=86, source_cones=8
+}
+
+source_site_contracts {
+    function_effects: [
+        FunctionEffectContract {
+            span: 81..137,
+            fqn: "fixtures.hir.use",
+            return_ty: Unit,
+            allowed_effects: Pure,
+            effects_closed: false,
+        },
+    ],
+    argument_bindings: [
+    ],
+    call_site_contracts: [
+    ],
+    with_update_contracts: [
+        WithUpdateContract {
+            span: 120..135,
+            base_ty: fixtures.hir.Point,
+            result_ty: fixtures.hir.Point,
+            aggregates: 1,
+            updates: [
+                WithUpdateUpdateContract {
+                    path: "x",
+                    target_ty: Int,
+                    value_ty: Int,
+                    segments: 1,
+                },
+            ],
+        },
+    ],
+    assign_place_contracts: [
+    ],
+    continuation_resume_sites: [
+    ],
+    perform_sites: [
+    ],
+    handle_sites: [
+    ],
+    pattern_bindings: [
+    ],
+}

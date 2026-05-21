@@ -120,7 +120,7 @@ hir_facts {
 source_site_contracts {
     function_effects: [
     ],
-    call_site_kinds: [
+    argument_bindings: [
     ],
     call_site_contracts: [
     ],
@@ -136,8 +136,7 @@ source_site_contracts {
             ty: fixtures.hir.Point,
             initializer_ty: fixtures.hir.Point,
             has_initializer: true,
-            dependencies: [
-            ],
+            dependencies: [],
         },
     ],
     continuation_resume_sites: [
@@ -145,5 +144,7 @@ source_site_contracts {
     perform_sites: [
     ],
     handle_sites: [
+    ],
+    pattern_bindings: [
     ],
 }

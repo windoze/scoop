@@ -318,26 +318,14 @@ source_site_contracts {
             effects_closed: false,
         },
     ],
-    call_site_kinds: [
-        TypedCallSiteContract {
-            span: 168..178,
-            kind: ContinuationResume,
-        },
-        TypedCallSiteContract {
-            span: 183..195,
-            kind: ContinuationResume,
-        },
-        TypedCallSiteContract {
+    argument_bindings: [
+        ArgumentBindingContract {
             span: 200..211,
-            kind: DirectTopLevel,
+            params: [Explicit(CallArgElementContract { arg_index: 0, spread: false })],
         },
-        TypedCallSiteContract {
+        ArgumentBindingContract {
             span: 216..229,
-            kind: DirectTopLevel,
-        },
-        TypedCallSiteContract {
-            span: 330..349,
-            kind: ContinuationResume,
+            params: [Explicit(CallArgElementContract { arg_index: 0, spread: false })],
         },
     ],
     call_site_contracts: [
@@ -349,7 +337,10 @@ source_site_contracts {
             receiver_ty: scoop.core.Continuation<Unit, Unit, eff Pure>,
             resume_ty: Unit,
             answer_ty: Unit,
+            return_ty: Unit,
             out_effects: Pure,
+            required_effects: scoop.core.Raise<scoop.core.RuntimeError>,
+            includes_runtime_error_effect: true,
         },
         CallSiteContract {
             span: 183..195,
@@ -359,7 +350,10 @@ source_site_contracts {
             receiver_ty: scoop.core.Continuation<Unit, Unit, eff Pure>,
             resume_ty: Unit,
             answer_ty: Unit,
+            return_ty: Unit,
             out_effects: Pure,
+            required_effects: scoop.core.Raise<scoop.core.RuntimeError>,
+            includes_runtime_error_effect: true,
         },
         CallSiteContract {
             span: 200..211,
@@ -387,7 +381,10 @@ source_site_contracts {
             receiver_ty: scoop.core.Continuation<(Int, String), Unit, eff Pure>,
             resume_ty: (Int, String),
             answer_ty: Unit,
+            return_ty: Unit,
             out_effects: Pure,
+            required_effects: scoop.core.Raise<scoop.core.RuntimeError>,
+            includes_runtime_error_effect: true,
         },
     ],
     with_update_contracts: [
@@ -435,5 +432,7 @@ source_site_contracts {
     perform_sites: [
     ],
     handle_sites: [
+    ],
+    pattern_bindings: [
     ],
 }

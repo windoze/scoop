@@ -16,7 +16,11 @@ const HIR_COMPLETENESS_FIXTURES: &[HirCompletenessFixture] = &[
     HirCompletenessFixture {
         phase: "hir",
         name: "lowered_call_args.scoop",
-        requirements: &[RequiredHirContract::CallSite],
+        requirements: &[
+            RequiredHirContract::FunctionEffect,
+            RequiredHirContract::CallSite,
+            RequiredHirContract::ArgumentBinding,
+        ],
     },
     HirCompletenessFixture {
         phase: "typecheck",
@@ -27,6 +31,29 @@ const HIR_COMPLETENESS_FIXTURES: &[HirCompletenessFixture] = &[
             RequiredHirContract::Perform,
             RequiredHirContract::Handle,
         ],
+    },
+    HirCompletenessFixture {
+        phase: "hir",
+        name: "member_access.scoop",
+        requirements: &[
+            RequiredHirContract::FunctionEffect,
+            RequiredHirContract::CallSite,
+            RequiredHirContract::DispatchCall,
+            RequiredHirContract::AssignPlace,
+        ],
+    },
+    HirCompletenessFixture {
+        phase: "hir",
+        name: "delegated_property_lowering.scoop",
+        requirements: &[
+            RequiredHirContract::ConstructorCall,
+            RequiredHirContract::DispatchCall,
+        ],
+    },
+    HirCompletenessFixture {
+        phase: "hir",
+        name: "local_val_destructuring_lowering.scoop",
+        requirements: &[RequiredHirContract::PatternBinding],
     },
     HirCompletenessFixture {
         phase: "typecheck",
@@ -134,12 +161,17 @@ impl HirCompletenessFixture {
 #[derive(Clone, Copy)]
 enum RequiredHirContract {
     DeclarationGraph,
+    FunctionEffect,
     CallSite,
+    ArgumentBinding,
+    ConstructorCall,
+    DispatchCall,
     ContinuationResume,
     Perform,
     Handle,
     AssignPlace,
     WithUpdate,
+    PatternBinding,
     TopLevelInitRoot,
     ExternGlobal,
 }
@@ -148,12 +180,17 @@ impl fmt::Display for RequiredHirContract {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::DeclarationGraph => f.write_str("declaration graph"),
+            Self::FunctionEffect => f.write_str("function effect contract"),
             Self::CallSite => f.write_str("call-site contract"),
+            Self::ArgumentBinding => f.write_str("argument binding contract"),
+            Self::ConstructorCall => f.write_str("constructor call contract"),
+            Self::DispatchCall => f.write_str("dispatch call contract"),
             Self::ContinuationResume => f.write_str("continuation resume contract"),
             Self::Perform => f.write_str("perform contract"),
             Self::Handle => f.write_str("handle contract"),
             Self::AssignPlace => f.write_str("assignment place contract"),
             Self::WithUpdate => f.write_str("copy-update contract"),
+            Self::PatternBinding => f.write_str("when pattern binding contract"),
             Self::TopLevelInitRoot => f.write_str("top-level init root"),
             Self::ExternGlobal => f.write_str("extern global contract"),
         }
@@ -207,7 +244,38 @@ fn assert_required_contract(
 ) {
     let present = match requirement {
         RequiredHirContract::DeclarationGraph => !output.hir_file().decls.is_empty(),
+        RequiredHirContract::FunctionEffect => {
+            !output.hir_facts().source_sites.function_effects.is_empty()
+        }
         RequiredHirContract::CallSite => !output.hir_facts().source_sites.call_sites.is_empty(),
+        RequiredHirContract::ArgumentBinding => {
+            !output.hir_facts().source_sites.argument_bindings.is_empty()
+        }
+        RequiredHirContract::ConstructorCall => output
+            .hir_facts()
+            .source_sites
+            .call_sites
+            .iter()
+            .any(|site| {
+                matches!(
+                    &site.contract,
+                    scoopc_hir_facts::source_sites::CallSiteContractKind::Constructor(_)
+                )
+            }),
+        RequiredHirContract::DispatchCall => {
+            output
+                .hir_facts()
+                .source_sites
+                .call_sites
+                .iter()
+                .any(|site| {
+                    matches!(
+                        &site.contract,
+                        scoopc_hir_facts::source_sites::CallSiteContractKind::Virtual(_)
+                            | scoopc_hir_facts::source_sites::CallSiteContractKind::Interface(_)
+                    )
+                })
+        }
         RequiredHirContract::ContinuationResume => !output
             .hir_facts()
             .source_sites
@@ -217,6 +285,9 @@ fn assert_required_contract(
         RequiredHirContract::Handle => !output.hir_facts().source_sites.handle_sites.is_empty(),
         RequiredHirContract::AssignPlace => !output.hir_facts().source_sites.assignments.is_empty(),
         RequiredHirContract::WithUpdate => !output.hir_facts().source_sites.with_updates.is_empty(),
+        RequiredHirContract::PatternBinding => {
+            !output.hir_facts().source_sites.pattern_bindings.is_empty()
+        }
         RequiredHirContract::TopLevelInitRoot => !output
             .hir_facts()
             .source_sites

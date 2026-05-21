@@ -279,7 +279,7 @@ source_site_contracts {
             effects_closed: false,
         },
     ],
-    call_site_kinds: [
+    argument_bindings: [
     ],
     call_site_contracts: [
     ],
@@ -288,10 +288,7 @@ source_site_contracts {
     assign_place_contracts: [
         AssignPlaceContract {
             span: 48..53,
-            kind: Local,
-            label: sym#h63f290217046a6d86517365a2a8b006e,
-            name: "x",
-            decl_span: 35..36,
+            kind: Local { symbol_id: 0, name: "x", decl_span: 35..36 },
             place_ty: Int,
             value_ty: Int,
             mutable: true,
@@ -304,5 +301,7 @@ source_site_contracts {
     perform_sites: [
     ],
     handle_sites: [
+    ],
+    pattern_bindings: [
     ],
 }

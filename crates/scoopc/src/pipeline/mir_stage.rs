@@ -15,9 +15,8 @@ use super::HirStageOutput;
 /// 本阶段固定如下 invariants，供 P3/P4 及后续阶段直接消费：
 /// - `lowered_mir` 仍是 direct-style MIR，而不是 late-lowered `Step` IR；
 /// - 当前所有 effect-sensitive site 继续通过 MIR 节点上的 `SiteId` 锚定；
-/// - `effect_contracts` 保留这次 lowering 消费过的 P2 typed HIR handoff，便于测试/审计；
-///   canonical 的 site-level contract 现已下沉到 MIR 节点 metadata；P4 可以把它用于审计，
-///   但不得把它当成重新解释 `Call / Perform / Resume / Handle` 语义的 source of truth；
+/// - source-site contracts 只从 `HirFacts` 进入 MIR lowering；canonical 的 site-level
+///   contract 现已下沉到 MIR 节点 metadata，P4 不得重新解释 HIR side table；
 /// - `callable_body_indices` 与可选的 `materialized_mir` 把 P4 会消费的 canonical MIR
 ///   handoff 显式挂在 stage 输出上，而不是回看 HIR 输出。
 /// - P4 的 authoritative 输入是这份 stage 输出上的 callable body 身份、可选
@@ -236,11 +235,11 @@ mod tests {
         AggregateTransportKind, ArrayTransportOperation, CallKind, GcIntrinsicOperation,
         GcIntrinsicPairing, GcRootLifetime, HandlerArmKind, InitializerDependencyKind,
         InitializerRootKind, Item, MemberTarget, MetadataRoot, MirBoxingReason, MirCallableAbiKind,
-        MirCallableImplPlan, MirLowerError, MirLoweringFacts, MirSiteMetadataKind,
-        MirTransportKind, MirValidationError, Operand, Pattern, RuntimeCastFailure,
-        RuntimeCastResult, RuntimePatternTypeTestKind, RuntimeTypeDescriptorKind,
-        RuntimeTypeParameterizedMatch, RuntimeTypeStaticFold, Rvalue, StatementKind,
-        TerminatorKind, UnwindAction, ValueTransportMetadata, lower_hir_file_for_dump_with_facts,
+        MirCallableImplPlan, MirLoweringFacts, MirTransportKind, Operand, Pattern,
+        RuntimeCastFailure, RuntimeCastResult, RuntimePatternTypeTestKind,
+        RuntimeTypeDescriptorKind, RuntimeTypeParameterizedMatch, RuntimeTypeStaticFold, Rvalue,
+        StatementKind, TerminatorKind, UnwindAction, ValueTransportMetadata,
+        lower_hir_file_for_dump_with_facts,
     };
     use crate::session::{Session, SessionOptions};
     use crate::source::SourceFile;
@@ -1790,6 +1789,7 @@ fun bad() {
     }
 
     #[test]
+    #[should_panic(expected = "perform source-site contract missing before MIR lowering")]
     fn mir_effect_site_contract_missing_perform_contract_is_stage_error() {
         let source = SourceFile::new_virtual(
             "<mem>/missing_perform_contract.scoop",
@@ -1802,37 +1802,14 @@ fun entry(): Int / Raise<Int> {
 }
 "#,
         );
-        let (file, unit_ty, bool_ty) = lower_with_empty_contracts(&source);
-        let dump = format!("{file:#?}");
-        let old_reason = ["perform", " contract missing"].concat();
-        assert!(
-            !dump.contains(&old_reason) && !dump.contains("Todo"),
-            "missing typed perform contract should be an invalid site metadata diagnostic, not a Todo: {dump}"
-        );
-
-        assert_site_metadata_error(
-            super::validate_bodies(&file, unit_ty, bool_ty)
-                .expect_err("missing perform contract should fail stage validation"),
-            MirSiteMetadataKind::Perform,
-        );
+        let _ = lower_with_empty_contracts(&source);
     }
 
     #[test]
+    #[should_panic(expected = "handle source-site contract missing before MIR lowering")]
     fn mir_effect_site_contract_missing_handle_contract_is_stage_error() {
         let source = load_fixture("mir_lowered", "handle_perform.scoop");
-        let (file, unit_ty, bool_ty) = lower_with_empty_contracts(&source);
-        let dump = format!("{file:#?}");
-        let old_reason = ["handle", " contract missing"].concat();
-        assert!(
-            !dump.contains(&old_reason) && !dump.contains("Todo"),
-            "missing typed handle contract should be an invalid site metadata diagnostic, not a Todo: {dump}"
-        );
-
-        assert_site_metadata_error(
-            super::validate_bodies(&file, unit_ty, bool_ty)
-                .expect_err("missing handle contract should fail stage validation"),
-            MirSiteMetadataKind::Handle,
-        );
+        let _ = lower_with_empty_contracts(&source);
     }
 
     #[test]
@@ -1919,17 +1896,6 @@ fun entry(): Int / Raise<Int> {
             &facts,
         );
         (file, builtins.unit, builtins.bool_)
-    }
-
-    fn assert_site_metadata_error(error: MirLowerError, expected_site: MirSiteMetadataKind) {
-        let MirLowerError::InvalidMir { error, .. } = error else {
-            panic!("expected MIR validation error, got {error:?}");
-        };
-        let MirValidationError::ProductionSiteMetadata { site, detail, .. } = *error else {
-            panic!("expected site metadata validation error, got {error:?}");
-        };
-        assert_eq!(site, expected_site);
-        assert!(!detail.is_empty());
     }
 
     #[test]
