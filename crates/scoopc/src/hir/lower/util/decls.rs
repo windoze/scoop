@@ -395,14 +395,9 @@ pub(in crate::hir::lower) struct InitCollectionCx<'a> {
     pub file: &'a ast::File,
     pub index: &'a Index,
     pub type_kinds: &'a HashMap<String, ast::TypeKind>,
-    pub known_receiver_subclasses: &'a crate::devirtualize::KnownReceiverSubclassIndex,
-    pub class_vtables: &'a crate::vtable::ClassVtableIndex,
-    pub interfaces: &'a crate::itable::InterfaceIndex,
-    pub class_itables: &'a crate::itable::ClassItableIndex,
     pub typecheck_types: Option<&'a TypeStore>,
     pub builtins: BuiltinTypes,
     pub materialize_direct_call_targets: bool,
-    pub devirtualize_dispatch_calls: bool,
 }
 
 pub(in crate::hir::lower) fn collect_object_inits(
@@ -423,14 +418,9 @@ pub(in crate::hir::lower) fn collect_object_inits(
         file,
         index,
         type_kinds,
-        known_receiver_subclasses,
-        class_vtables,
-        interfaces,
-        class_itables,
         typecheck_types,
         builtins,
         materialize_direct_call_targets,
-        devirtualize_dispatch_calls,
     } = cx;
     let pkg_prefix = package_prefix(source, file.package.as_ref());
     let compilation_unit = [(source, file)];
@@ -455,12 +445,7 @@ pub(in crate::hir::lower) fn collect_object_inits(
             computed_property_setters: &computed_property_accessors.setters,
             builtins,
             generic_template_symbol_suffixes: &generic_template_symbol_suffixes,
-            known_receiver_subclasses,
-            class_vtables,
-            interfaces,
-            class_itables,
             materialize_direct_call_targets,
-            devirtualize_dispatch_calls,
         },
     );
 
@@ -613,14 +598,9 @@ pub(in crate::hir::lower) fn collect_class_inits(
         file,
         index,
         type_kinds,
-        known_receiver_subclasses,
-        class_vtables,
-        interfaces,
-        class_itables,
         typecheck_types,
         builtins,
         materialize_direct_call_targets,
-        devirtualize_dispatch_calls,
     } = cx;
     let pkg_prefix = package_prefix(source, file.package.as_ref());
     let compilation_unit = [(source, file)];
@@ -645,12 +625,7 @@ pub(in crate::hir::lower) fn collect_class_inits(
             computed_property_setters: &computed_property_accessors.setters,
             builtins,
             generic_template_symbol_suffixes: &generic_template_symbol_suffixes,
-            known_receiver_subclasses,
-            class_vtables,
-            interfaces,
-            class_itables,
             materialize_direct_call_targets,
-            devirtualize_dispatch_calls,
         },
     );
 

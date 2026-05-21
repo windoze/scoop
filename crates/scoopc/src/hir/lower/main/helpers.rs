@@ -9,17 +9,12 @@ pub(crate) struct LoweringInputs<'a> {
     pub(crate) file: &'a ast::File,
     pub(crate) index: &'a Index,
     pub(crate) type_kinds: &'a HashMap<String, ast::TypeKind>,
-    pub(crate) known_receiver_subclasses: &'a crate::devirtualize::KnownReceiverSubclassIndex,
-    pub(crate) class_vtables: &'a crate::vtable::ClassVtableIndex,
-    pub(crate) interfaces: &'a crate::itable::InterfaceIndex,
-    pub(crate) class_itables: &'a crate::itable::ClassItableIndex,
     pub(crate) typecheck_types: Option<&'a TypeStore>,
     pub(crate) compilation_unit: &'a [(&'a SourceFile, &'a ast::File)],
     pub(crate) types: &'a mut TypeStore,
     pub(crate) builtins: BuiltinTypes,
     pub(crate) generic_template_symbol_suffixes: &'a util::GenericTemplateSymbolSuffixIndex,
     pub(crate) materialize_direct_call_targets: bool,
-    pub(crate) devirtualize_dispatch_calls: bool,
 }
 
 pub(in crate::hir) struct BoundMemberFunLoweringTarget<'a> {
@@ -85,17 +80,12 @@ pub(crate) fn lower_fun_with_bindings_and_mir_facts(
         file,
         index,
         type_kinds,
-        known_receiver_subclasses,
-        class_vtables,
-        interfaces,
-        class_itables,
         typecheck_types,
         compilation_unit,
         types,
         builtins,
         generic_template_symbol_suffixes,
         materialize_direct_call_targets,
-        devirtualize_dispatch_calls,
     } = inputs;
     let pkg_prefix = package_prefix(source, file.package.as_ref());
     let delegated_properties = collect_delegated_properties(compilation_unit);
@@ -116,12 +106,7 @@ pub(crate) fn lower_fun_with_bindings_and_mir_facts(
             computed_property_setters: &computed_property_accessors.setters,
             builtins,
             generic_template_symbol_suffixes,
-            known_receiver_subclasses,
-            class_vtables,
-            interfaces,
-            class_itables,
             materialize_direct_call_targets,
-            devirtualize_dispatch_calls,
         },
     );
     let type_bindings = type_bindings.into_iter().collect::<Vec<_>>();
@@ -185,17 +170,12 @@ pub(crate) fn lower_member_fun_with_bindings(
         file,
         index,
         type_kinds,
-        known_receiver_subclasses,
-        class_vtables,
-        interfaces,
-        class_itables,
         typecheck_types,
         compilation_unit,
         types,
         builtins,
         generic_template_symbol_suffixes,
         materialize_direct_call_targets,
-        devirtualize_dispatch_calls,
     } = inputs;
     let BoundMemberFunLoweringTarget {
         owner_fqn,
@@ -222,12 +202,7 @@ pub(crate) fn lower_member_fun_with_bindings(
             computed_property_setters: &computed_property_accessors.setters,
             builtins,
             generic_template_symbol_suffixes,
-            known_receiver_subclasses,
-            class_vtables,
-            interfaces,
-            class_itables,
             materialize_direct_call_targets,
-            devirtualize_dispatch_calls,
         },
     );
     // 先绑定 owner type params（例如 class Box<T> 的 T → Int），
@@ -278,17 +253,12 @@ pub(crate) fn lower_value_property_getter_with_type_bindings(
         file,
         index,
         type_kinds,
-        known_receiver_subclasses,
-        class_vtables,
-        interfaces,
-        class_itables,
         typecheck_types,
         compilation_unit,
         types,
         builtins,
         generic_template_symbol_suffixes,
         materialize_direct_call_targets,
-        devirtualize_dispatch_calls,
     } = inputs;
     let BoundValuePropertyGetterLoweringTarget {
         owner_fqn,
@@ -315,12 +285,7 @@ pub(crate) fn lower_value_property_getter_with_type_bindings(
             computed_property_setters: &computed_property_accessors.setters,
             builtins,
             generic_template_symbol_suffixes,
-            known_receiver_subclasses,
-            class_vtables,
-            interfaces,
-            class_itables,
             materialize_direct_call_targets,
-            devirtualize_dispatch_calls,
         },
     );
     let owner_type_bindings = owner_type_bindings.into_iter().collect::<Vec<_>>();

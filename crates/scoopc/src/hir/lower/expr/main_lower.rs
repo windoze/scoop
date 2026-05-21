@@ -915,7 +915,7 @@ impl<'a> HirLowering<'a> {
                     // `receiver.method(args...)` -> `Owner.method(receiver, args...)`。
                     // 这里覆盖 struct/class/interface/object；内建 by-name keep-list 仍由上面的
                     // `should_keep_member_call_as_member_access` 控制。
-                    let (owner_fqn, member_name) = fqn.as_str().rsplit_once('.')?;
+                    let (owner_fqn, _) = fqn.as_str().rsplit_once('.')?;
                     let owner_is_struct =
                         matches!(self.type_kinds.get(owner_fqn), Some(ast::TypeKind::Struct));
                     let owner_is_class =
@@ -962,42 +962,11 @@ impl<'a> HirLowering<'a> {
                             None
                         };
                         let target_fqn = if let Some(dispatch_kind) = dispatch_kind {
-                            if self.devirtualize_dispatch_calls {
-                                if let Some(target_fqn) =
-                                    crate::devirtualize::try_devirtualize_dispatch_target(
-                                        dispatch_kind,
-                                        owner_fqn,
-                                        member_name,
-                                        args.len(),
-                                        receiver_ty,
-                                        self.types,
-                                        crate::devirtualize::DispatchTargetFacts {
-                                            known_receiver_subclasses: self
-                                                .known_receiver_subclasses,
-                                            class_vtables: self.class_vtables,
-                                            interfaces: self.interfaces,
-                                            class_itables: self.class_itables,
-                                        },
-                                    )
-                                {
-                                    self.materialized_devirtualized_dispatch_target_fqn(
-                                        e.span,
-                                        &target_fqn,
-                                    )
-                                } else {
-                                    self.dispatch_call_sites.insert(
-                                        self.dispatch_call_site(e.span, receiver_ty),
-                                        dispatch_kind,
-                                    );
-                                    fqn.clone()
-                                }
-                            } else {
-                                self.dispatch_call_sites.insert(
-                                    self.dispatch_call_site(e.span, receiver_ty),
-                                    dispatch_kind,
-                                );
-                                fqn.clone()
-                            }
+                            self.dispatch_call_sites.insert(
+                                self.dispatch_call_site(e.span, receiver_ty),
+                                dispatch_kind,
+                            );
+                            fqn.clone()
                         } else {
                             self.materialized_direct_call_target_fqn_for_binding(&fun_binding)
                                 .unwrap_or_else(|| fqn.clone())
@@ -1049,41 +1018,9 @@ impl<'a> HirLowering<'a> {
                         None
                     };
                     let target_fqn = if let Some(dispatch_kind) = dispatch_kind {
-                        if self.devirtualize_dispatch_calls {
-                            if let Some(target_fqn) =
-                                crate::devirtualize::try_devirtualize_dispatch_target(
-                                    dispatch_kind,
-                                    owner_fqn,
-                                    member_name,
-                                    args.len(),
-                                    receiver_ty,
-                                    self.types,
-                                    crate::devirtualize::DispatchTargetFacts {
-                                        known_receiver_subclasses: self.known_receiver_subclasses,
-                                        class_vtables: self.class_vtables,
-                                        interfaces: self.interfaces,
-                                        class_itables: self.class_itables,
-                                    },
-                                )
-                            {
-                                self.materialized_devirtualized_dispatch_target_fqn(
-                                    e.span,
-                                    &target_fqn,
-                                )
-                            } else {
-                                self.dispatch_call_sites.insert(
-                                    self.dispatch_call_site(e.span, receiver_ty),
-                                    dispatch_kind,
-                                );
-                                fqn.clone()
-                            }
-                        } else {
-                            self.dispatch_call_sites.insert(
-                                self.dispatch_call_site(e.span, receiver_ty),
-                                dispatch_kind,
-                            );
-                            fqn.clone()
-                        }
+                        self.dispatch_call_sites
+                            .insert(self.dispatch_call_site(e.span, receiver_ty), dispatch_kind);
+                        fqn.clone()
                     } else {
                         self.materialized_top_level_fun_call_target_fqn(e.span)
                             .unwrap_or_else(|| fqn.clone())

@@ -238,6 +238,15 @@ impl MirInstanceMaterializer {
             &pass_instance_keys,
         );
         let top_level_value_tys = self.collect_top_level_value_tys();
+        let canonical_targets_by_fqn = self.collect_canonical_dispatch_targets_by_fqn();
+        let dispatch_devirtualization_facts = DispatchDevirtualizationFacts::new(
+            self.known_receiver_subclasses,
+            self.class_vtables,
+            self.interfaces,
+            self.class_itables,
+            self.dispatch_devirtualization_targets,
+            canonical_targets_by_fqn,
+        );
 
         let mut materialized = MaterializedMir {
             file,
@@ -252,11 +261,22 @@ impl MirInstanceMaterializer {
             opt_level: self.opt_level,
             callable_families,
             pass_artifacts,
+            dispatch_devirtualization_facts,
             caller_side_pass_candidates: self.caller_side_pass_candidates,
         };
         super::super::pass_pipeline::run_mir_pass_pipeline(&mut materialized);
         materialized.validate_materialized()?;
         Ok(materialized)
+    }
+
+    fn collect_canonical_dispatch_targets_by_fqn(&self) -> HashMap<String, String> {
+        self.explicit_dispatch_candidate_instances
+            .iter()
+            .filter_map(|(candidate_fqn, instances)| match instances.as_slice() {
+                [instance] => Some((candidate_fqn.clone(), self.instance_display_fqn(instance))),
+                _ => None,
+            })
+            .collect()
     }
 
     pub(super) fn enqueue(&mut self, key: InstanceKey) {

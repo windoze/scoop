@@ -18,6 +18,7 @@
 
 mod callables;
 mod closure_simplify;
+mod dispatch_devirtualize;
 mod dump;
 mod escape;
 mod inline;
@@ -43,6 +44,9 @@ use crate::ty::{EffectRow, TypeId};
 
 pub(crate) use callables::{MaterializedCallableFamilies, MaterializedCallableFamilyInput};
 pub use callables::{MaterializedCallableFamilyView, MaterializedCallableView};
+pub(crate) use dispatch_devirtualize::{
+    DispatchDevirtualizationFacts, DispatchDevirtualizationTargetKey,
+};
 pub(crate) use dump::{
     BodyLabels, build_body_labels_for_dump, stable_dump_file, stable_dump_materialized,
 };

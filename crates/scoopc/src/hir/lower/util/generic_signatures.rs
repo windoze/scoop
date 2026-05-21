@@ -313,11 +313,6 @@ pub(in crate::hir::lower) fn collect_generic_member_fun_instantiations_with_sour
             pairs,
             source_cones,
         );
-    let empty_known_receiver_subclasses = crate::devirtualize::KnownReceiverSubclassIndex::new();
-    let empty_class_vtables = crate::vtable::ClassVtableIndex::new();
-    let empty_interfaces = crate::itable::InterfaceIndex::new();
-    let empty_class_itables = crate::itable::ClassItableIndex::new();
-
     // 2) 收集 TypeStore 中所有具体实例化，去重
     let mut instantiations: Vec<(String, Vec<crate::ty::TypeId>)> = Vec::new();
     let mut seen: HashSet<String> = HashSet::new();
@@ -382,17 +377,12 @@ pub(in crate::hir::lower) fn collect_generic_member_fun_instantiations_with_sour
                             file,
                             index,
                             type_kinds,
-                            known_receiver_subclasses: &empty_known_receiver_subclasses,
-                            class_vtables: &empty_class_vtables,
-                            interfaces: &empty_interfaces,
-                            class_itables: &empty_class_itables,
                             typecheck_types,
                             compilation_unit: pairs,
                             types,
                             builtins,
                             generic_template_symbol_suffixes: &generic_template_symbol_suffixes,
                             materialize_direct_call_targets: true,
-                            devirtualize_dispatch_calls: false,
                         },
                         crate::hir::lower::BoundMemberFunLoweringTarget {
                             owner_fqn: base_fqn,
@@ -429,17 +419,12 @@ pub(in crate::hir::lower) fn collect_generic_member_fun_instantiations_with_sour
                             file,
                             index,
                             type_kinds,
-                            known_receiver_subclasses: &empty_known_receiver_subclasses,
-                            class_vtables: &empty_class_vtables,
-                            interfaces: &empty_interfaces,
-                            class_itables: &empty_class_itables,
                             typecheck_types,
                             compilation_unit: pairs,
                             types,
                             builtins,
                             generic_template_symbol_suffixes: &generic_template_symbol_suffixes,
                             materialize_direct_call_targets: true,
-                            devirtualize_dispatch_calls: false,
                         },
                         crate::hir::lower::BoundValuePropertyGetterLoweringTarget {
                             owner_fqn: base_fqn,
@@ -588,10 +573,6 @@ pub(in crate::hir::lower) fn with_signature_lowering_ctx<T>(
     let computed_property_getters = HashSet::new();
     let computed_property_setters = HashSet::new();
     let generic_template_symbol_suffixes = HashMap::new();
-    let known_receiver_subclasses = crate::devirtualize::KnownReceiverSubclassIndex::new();
-    let class_vtables = crate::vtable::ClassVtableIndex::new();
-    let interfaces = crate::itable::InterfaceIndex::new();
-    let class_itables = crate::itable::ClassItableIndex::new();
     let mut types = TypeStore::new();
     let builtins = types.intern_builtins();
     let mut ctx = HirLowering::new(
@@ -609,12 +590,7 @@ pub(in crate::hir::lower) fn with_signature_lowering_ctx<T>(
             computed_property_setters: &computed_property_setters,
             builtins,
             generic_template_symbol_suffixes: &generic_template_symbol_suffixes,
-            known_receiver_subclasses: &known_receiver_subclasses,
-            class_vtables: &class_vtables,
-            interfaces: &interfaces,
-            class_itables: &class_itables,
             materialize_direct_call_targets: false,
-            devirtualize_dispatch_calls: false,
         },
     );
     f(&mut ctx)
@@ -854,24 +830,6 @@ pub(in crate::hir::lower) fn collect_generic_member_fun_instantiations_from_inst
             compilation_unit,
             source_cones,
         );
-    let direct_supertypes = super::collect_direct_supertypes(compilation_unit, index);
-    let known_receiver_subclasses =
-        crate::devirtualize::collect_known_receiver_subclasses(&direct_supertypes);
-    let class_vtables = crate::vtable::collect_class_vtables(compilation_unit, index)?;
-    let (interfaces, class_itables) = match typecheck_types {
-        Some(typecheck_types) => crate::itable::collect_runtime_interfaces_and_class_itables(
-            compilation_unit,
-            index,
-            &class_vtables,
-            typecheck_types,
-        )?,
-        None => crate::itable::collect_interfaces_and_class_itables(
-            compilation_unit,
-            index,
-            &class_vtables,
-        )?,
-    };
-
     let mut seen: HashSet<String> = HashSet::new();
     let mut out = Vec::new();
 
@@ -949,17 +907,12 @@ pub(in crate::hir::lower) fn collect_generic_member_fun_instantiations_from_inst
                         file,
                         index,
                         type_kinds,
-                        known_receiver_subclasses: &known_receiver_subclasses,
-                        class_vtables: &class_vtables,
-                        interfaces: &interfaces,
-                        class_itables: &class_itables,
                         typecheck_types,
                         compilation_unit,
                         types,
                         builtins,
                         generic_template_symbol_suffixes: &generic_template_symbol_suffixes,
                         materialize_direct_call_targets: true,
-                        devirtualize_dispatch_calls: true,
                     },
                     crate::hir::lower::BoundMemberFunLoweringTarget {
                         owner_fqn,
@@ -1027,17 +980,12 @@ pub(in crate::hir::lower) fn collect_generic_member_fun_instantiations_from_inst
                         file,
                         index,
                         type_kinds,
-                        known_receiver_subclasses: &known_receiver_subclasses,
-                        class_vtables: &class_vtables,
-                        interfaces: &interfaces,
-                        class_itables: &class_itables,
                         typecheck_types,
                         compilation_unit,
                         types,
                         builtins,
                         generic_template_symbol_suffixes: &generic_template_symbol_suffixes,
                         materialize_direct_call_targets: true,
-                        devirtualize_dispatch_calls: true,
                     },
                     crate::hir::lower::BoundValuePropertyGetterLoweringTarget {
                         owner_fqn,

@@ -304,6 +304,7 @@ pub(super) fn map_call_args_to_signature_params(
     Some(out)
 }
 
+#[cfg(test)]
 pub(super) fn lookup_overlapping_site_instance_binding<'a>(
     bindings: &'a HashMap<SourceSiteKey, SiteInstanceBinding>,
     template_source_path: &Path,

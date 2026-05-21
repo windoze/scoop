@@ -11,7 +11,7 @@ use scoopc_mir_facts::pipeline::MirPassKind;
 
 use super::{
     Body, FunDecl, InstanceKey, LocalId, MaterializedEscapeFacts, MaterializedMir, Operand, Rvalue,
-    Statement, StatementKind, TerminatorKind, summarize_pass_rewritten_fun,
+    SiteId, Statement, StatementKind, TerminatorKind, summarize_pass_rewritten_fun,
 };
 
 /// Run the canonical MIR pass pipeline over an already materialized snapshot.
@@ -28,6 +28,11 @@ impl MirPassPipeline {
             .enables_summary_driven_mir_inlining();
         let mut context = MirPassPipelineContext::new(materialized);
 
+        context.run_scheduled_pass(
+            MirPassKind::Devirtualization,
+            true,
+            super::dispatch_devirtualize::run_dispatch_devirtualization,
+        );
         context.run_scheduled_pass(
             MirPassKind::SummaryDrivenInlining,
             rewrite_passes_enabled,
@@ -106,7 +111,10 @@ impl<'a> MirPassPipelineContext<'a> {
         result
     }
 
-    pub(crate) fn publish_instance_rewrite(&mut self, key: InstanceKey, fun: FunDecl) {
+    pub(crate) fn publish_instance_rewrite(&mut self, key: InstanceKey, mut fun: FunDecl) {
+        if let Some(body) = fun.body.as_mut() {
+            uniquify_duplicate_site_ids(body);
+        }
         let previous_summary = {
             let pass_view = self.materialized.pass_view();
             pass_view
@@ -124,7 +132,10 @@ impl<'a> MirPassPipelineContext<'a> {
         active.changed_summaries += 1;
     }
 
-    pub(crate) fn publish_caller_rewrite(&mut self, fun: FunDecl) {
+    pub(crate) fn publish_caller_rewrite(&mut self, mut fun: FunDecl) {
+        if let Some(body) = fun.body.as_mut() {
+            uniquify_duplicate_site_ids(body);
+        }
         let revision = self.active_revision();
         self.materialized
             .pass_artifacts_mut()
@@ -378,5 +389,65 @@ fn collect_terminator_uses(kind: &TerminatorKind, out: &mut HashSet<LocalId>) {
 fn collect_operand_use(operand: &Operand, out: &mut HashSet<LocalId>) {
     if let Operand::Local(local) = operand {
         out.insert(*local);
+    }
+}
+
+fn uniquify_duplicate_site_ids(body: &mut Body) {
+    let mut seen = HashSet::new();
+    let mut next_raw = body.next_unused_site_id().as_u32();
+    for block in &mut body.blocks {
+        for stmt in &mut block.stmts {
+            match &mut stmt.kind {
+                StatementKind::Assign { value, .. } => {
+                    uniquify_rvalue_site_id(value, &mut seen, &mut next_raw)
+                }
+                StatementKind::Nop
+                | StatementKind::StoreMember { .. }
+                | StatementKind::StoreTopLevelVar { .. }
+                | StatementKind::Todo(_) => {}
+            }
+        }
+        uniquify_terminator_site_id(&mut block.terminator.kind, &mut seen, &mut next_raw);
+    }
+}
+
+fn uniquify_rvalue_site_id(value: &mut Rvalue, seen: &mut HashSet<SiteId>, next_raw: &mut u32) {
+    match value {
+        Rvalue::Call { site_id, .. } | Rvalue::ClassCtor { site_id, .. } => {
+            uniquify_site_id(site_id, seen, next_raw)
+        }
+        Rvalue::TopLevelRef(top_level) => {
+            if let Some(site_id) = top_level.site_id.as_mut() {
+                uniquify_site_id(site_id, seen, next_raw);
+            }
+        }
+        _ => {}
+    }
+}
+
+fn uniquify_terminator_site_id(
+    kind: &mut TerminatorKind,
+    seen: &mut HashSet<SiteId>,
+    next_raw: &mut u32,
+) {
+    match kind {
+        TerminatorKind::Perform { site_id, .. } | TerminatorKind::Handle { site_id, .. } => {
+            uniquify_site_id(site_id, seen, next_raw)
+        }
+        _ => {}
+    }
+}
+
+fn uniquify_site_id(site_id: &mut SiteId, seen: &mut HashSet<SiteId>, next_raw: &mut u32) {
+    if seen.insert(*site_id) {
+        return;
+    }
+    loop {
+        let fresh = SiteId::from_raw(*next_raw);
+        *next_raw = (*next_raw).saturating_add(1);
+        if seen.insert(fresh) {
+            *site_id = fresh;
+            return;
+        }
     }
 }

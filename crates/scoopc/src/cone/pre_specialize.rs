@@ -330,28 +330,18 @@ pub fn build_pre_specialize_file_for_cone_sources(
                 &index,
                 &compilation_unit,
             );
-        let empty_known_receiver_subclasses =
-            crate::devirtualize::KnownReceiverSubclassIndex::new();
-        let empty_class_vtables = crate::vtable::ClassVtableIndex::new();
-        let empty_interfaces = crate::itable::InterfaceIndex::new();
-        let empty_class_itables = crate::itable::ClassItableIndex::new();
         let lowered_fun = hir::lower_fun_with_type_bindings_and_mir_facts(
             hir::LoweringInputs {
                 source,
                 file,
                 index: &index,
                 type_kinds: &type_kinds,
-                known_receiver_subclasses: &empty_known_receiver_subclasses,
-                class_vtables: &empty_class_vtables,
-                interfaces: &empty_interfaces,
-                class_itables: &empty_class_itables,
                 typecheck_types: None,
                 compilation_unit: &compilation_unit,
                 types: &mut types,
                 builtins,
                 generic_template_symbol_suffixes: &generic_template_symbol_suffixes,
                 materialize_direct_call_targets: false,
-                devirtualize_dispatch_calls: false,
             },
             fun,
             bindings,

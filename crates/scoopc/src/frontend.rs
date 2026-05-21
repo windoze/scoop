@@ -816,7 +816,6 @@ pub fn lower_hir_for_codegen_with_request_root_mode(
             source_cones: &source_cones,
             instance_keys: &materialized_mir.instance_keys,
             instance_types: &materialized_mir.types,
-            devirtualize_dispatch_calls: true,
         },
     )
     .map_err(miette::Report::from)?;

@@ -78,29 +78,6 @@ impl<'a> HirLowering<'a> {
         crate::hir::DispatchCallSite::new(self.source.path().to_path_buf(), span, receiver_ty)
     }
 
-    pub(in crate::hir::lower) fn materialized_devirtualized_dispatch_target_fqn(
-        &mut self,
-        call_span: Span,
-        impl_member_fqn: &str,
-    ) -> String {
-        let Some(binding) = self.typechecked_top_level_fun_call_binding(call_span) else {
-            return impl_member_fqn.to_string();
-        };
-        if binding.type_args.is_empty() && binding.eff_args.is_empty() {
-            return impl_member_fqn.to_string();
-        }
-        let Some(overload) = self.fun_overload_by_fqn(impl_member_fqn) else {
-            return impl_member_fqn.to_string();
-        };
-        self.materialized_instance_fqn_for_decl(
-            impl_member_fqn,
-            overload.symbol.decl_file.as_path(),
-            overload.symbol.span,
-            &binding.type_args,
-            &binding.eff_args,
-        )
-    }
-
     pub(in crate::hir::lower) fn materialized_value_property_getter_target_fqn(
         &self,
         getter_fqn: &str,

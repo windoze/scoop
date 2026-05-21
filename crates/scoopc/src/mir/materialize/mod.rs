@@ -40,8 +40,9 @@ use super::{
     AggregateTransportField, AggregateTransportMetadata, ArrayElementTransportMetadata,
     BasicBlockId, Body, CallArg, CallKind, CallTransportMetadata, ClosureCaptureTransportMetadata,
     ClosureEnvTransportMetadata, ConstValue, DeclMemberMetadata, DeclOnlySummaryInput,
-    DeclTypeParamMetadata, ExtensionPropertyMetadata, ExternGlobalRoot, FieldMetadata, File,
-    FunDecl, GcIntrinsicTransportMetadata, HandleMetadata, HandlerArm, InitializerRoot,
+    DeclTypeParamMetadata, DispatchDevirtualizationFacts, DispatchDevirtualizationTargetKey,
+    DispatchMetadata, ExtensionPropertyMetadata, ExternGlobalRoot, FieldMetadata, File, FunDecl,
+    GcIntrinsicTransportMetadata, HandleMetadata, HandlerArm, InitializerRoot,
     InstanceRootSummaryInput, InterpolatedStringPart, Item, LocalDecl, LocalId, LocalSourceKind,
     MaterializedCallableFamilies, MaterializedCallableFamilyInput, MaterializedMirPassArtifacts,
     MaterializedMirSummaries, MemberAccessMetadata, MemberFunMetadata, MemberTarget, MetadataRoot,
@@ -155,6 +156,7 @@ pub struct MaterializedMir {
     pub(super) opt_level: OptLevel,
     pub(super) callable_families: MaterializedCallableFamilies,
     pub(super) pass_artifacts: MaterializedMirPassArtifacts,
+    pub(super) dispatch_devirtualization_facts: super::DispatchDevirtualizationFacts,
     pub(super) caller_side_pass_candidates: Vec<FunDecl>,
 }
 
@@ -195,6 +197,10 @@ impl MaterializedMir {
 
     pub(crate) fn top_level_value_tys(&self) -> &HashMap<String, TypeId> {
         &self.top_level_value_tys
+    }
+
+    pub(crate) fn dispatch_devirtualization_facts(&self) -> &super::DispatchDevirtualizationFacts {
+        &self.dispatch_devirtualization_facts
     }
 
     pub(crate) fn stable_cone_key(&self) -> &StableConeKey {

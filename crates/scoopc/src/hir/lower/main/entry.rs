@@ -102,8 +102,6 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
     let type_kinds = collect_type_decl_kinds(&pairs);
     let nominal_variances = collect_nominal_variances(&pairs);
     let direct_supertypes = collect_direct_supertypes(&pairs, &index);
-    let known_receiver_subclasses =
-        crate::devirtualize::collect_known_receiver_subclasses(&direct_supertypes);
     let delegated_properties = collect_delegated_properties(&pairs);
     let default_arg_structs = collect_default_arg_structs(&pairs);
     let computed_property_accessors = collect_computed_property_accessor_fqns(&pairs);
@@ -162,12 +160,7 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
                 computed_property_setters: &computed_property_accessors.setters,
                 builtins,
                 generic_template_symbol_suffixes: &generic_template_symbol_suffixes,
-                known_receiver_subclasses: &known_receiver_subclasses,
-                class_vtables: &class_vtables,
-                interfaces: &interfaces,
-                class_itables: &class_itables,
                 materialize_direct_call_targets: false,
-                devirtualize_dispatch_calls: false,
             },
         );
         let file = ctx.lower_file();
@@ -220,13 +213,8 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
         CompilationUnitInitCollectionInputs {
             index: &index,
             type_kinds: &type_kinds,
-            known_receiver_subclasses: &known_receiver_subclasses,
-            class_vtables: &class_vtables,
-            interfaces: &interfaces,
-            class_itables: &class_itables,
             typecheck_types: None,
             materialize_direct_call_targets: false,
-            devirtualize_dispatch_calls: false,
             builtins,
         },
         &mut types,

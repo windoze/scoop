@@ -472,7 +472,7 @@
   - 验证命令：`cargo fmt`；`cargo test -p scoopc --no-default-features mir::pass_view`；`cargo test -p scoopc --no-default-features mir::inline`；`cargo test -p scoopc --no-default-features mir::escape`；`cargo test -p scoopc --no-default-features mir::closure_simplify`；`cargo test -p scoopc_project_model`；`cargo test -p scoop --no-default-features fixtures`；`cargo run -p scoop -- test --fixtures tests/fixtures/mir_materialized`；`cargo test -p scoopc_mir_facts`；`cargo test -p scoopc --no-default-features mir_stage`；`cargo test -p scoopc --no-default-features mir::materialize`；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
   - 残余风险：dispatch 去虚化仍按 `P3-T06` 迁移；`MirPassKind::Devirtualization` 尚未进入实际 schedule。P5/P7 wrapper/backend 过渡读取不属于本 review 的新阻塞项。
 
-## [TODO] P3-T06：迁移 dispatch 去虚化到 MIR pass 并删除 HIR owner
+## [DONE] P3-T06：迁移 dispatch 去虚化到 MIR pass 并删除 HIR owner
 
 - 参考：
   - `PIPELINE_REFACTOR.md` “HIR 中的 dispatch 去虚化”“MIR devirtualization”
@@ -516,7 +516,11 @@
   - materialization rewrite 不再把 devirtualization 藏在 substitution 流程里。
 - 依赖：P3-T05R
 - 完成记录：
-  - 待填写。
+  - 改动范围：新增 `crates/scoopc/src/mir/dispatch_devirtualize.rs`，将 exact-receiver virtual/interface dispatch 去虚化接入显式 MIR pass pipeline；`MirInstanceMaterializer` 现在只在 substitution / reachability 阶段发现 dispatch candidate 实例并记录 canonical target facts，不再把 dispatch call 直接改写为 `CallKind::Direct`。删除 HIR lowering 的 `devirtualize_dispatch_calls` 参数、上下文和执行路径，`frontend` / `cone` / generic lowering 调用点同步改为只保留 dynamic dispatch contract。
+  - 核心决策：devirtualization pass always-on，调度在 summary-driven inlining 之前，因此后续 inlining/escape/closure pass 只消费 pass-visible canonical body。materialization 为 effect-generic dispatch candidate 继续做实例发现，避免把 owner/effect args 丢给 pass 临时推断；pass-published rewritten body 会规整重复 `SiteId`，保证 request-root ordinary callable 进入 pass artifacts 后仍满足 materialized validation。
+  - 测试与 fixture：`mir::materialize` 新增 exact-receiver devirtualization pass 回归；monomorph 旧的“已在 monomorph 去虚化”断言改为验证 monomorph 保留 dynamic dispatch 交给 MIR pass；`tests/fixtures/mir_materialized/pass_pipeline_metadata.mir` 更新为显示 devirtualization pass revision/run。
+  - 验证命令：`cargo fmt`；`cargo test -p scoopc --no-default-features hir --lib`；`cargo test -p scoopc --no-default-features mir::materialize --lib`；`cargo test -p scoopc --no-default-features monomorph --lib`；`cargo run -p scoop -- test --fixtures tests/fixtures/mir_materialized`；搜索 `devirtualize_dispatch_calls` 无命中；搜索 `try_devirtualize_dispatch_target\(` 确认非测试活跃调用点只剩 MIR pass 与 P7 归属的 LLVM codegen/reachability 残留；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
+  - 残余风险：LLVM codegen / reachability 中的去虚化残留仍按 P7 cleanup 处理，本任务未新增也未依赖这些 backend fallback。P3-T06 只完成普通语义 dispatch 去虚化 owner 迁移；P7 仍需移除 backend residual。
 
 ## [TODO] P3-T06R：Review dispatch 去虚化 owner 迁移结果
 

@@ -55,12 +55,7 @@ impl<'a> HirLowering<'a> {
             computed_property_setters,
             builtins,
             generic_template_symbol_suffixes,
-            known_receiver_subclasses,
-            class_vtables,
-            interfaces,
-            class_itables,
             materialize_direct_call_targets,
-            devirtualize_dispatch_calls,
         } = setup;
         Self {
             source,
@@ -96,12 +91,7 @@ impl<'a> HirLowering<'a> {
             type_param_scopes: Vec::new(),
             effect_row_param_scopes: Vec::new(),
             generic_template_symbol_suffixes,
-            known_receiver_subclasses,
-            class_vtables,
-            interfaces,
-            class_itables,
             materialize_direct_call_targets,
-            devirtualize_dispatch_calls,
             local_decl_span_overrides: Vec::new(),
             stage_error: None,
         }
@@ -1350,8 +1340,8 @@ impl<'a> HirLowering<'a> {
         args: Vec<Expr>,
         ret_ty: TypeId,
     ) -> Expr {
-        let mut target_fqn = method_fqn.to_string();
-        if let Some((owner_fqn, member_name)) = method_fqn.rsplit_once('.') {
+        let target_fqn = method_fqn.to_string();
+        if let Some((owner_fqn, _)) = method_fqn.rsplit_once('.') {
             let dispatch_kind = if matches!(
                 self.type_kinds.get(owner_fqn),
                 Some(ast::TypeKind::Interface)
@@ -1366,35 +1356,8 @@ impl<'a> HirLowering<'a> {
             };
 
             if let Some(dispatch_kind) = dispatch_kind {
-                if self.devirtualize_dispatch_calls {
-                    if let Some(devirtualized_target_fqn) =
-                        crate::devirtualize::try_devirtualize_dispatch_target(
-                            dispatch_kind,
-                            owner_fqn,
-                            member_name,
-                            args.len(),
-                            receiver_ty,
-                            self.types,
-                            crate::devirtualize::DispatchTargetFacts {
-                                known_receiver_subclasses: self.known_receiver_subclasses,
-                                class_vtables: self.class_vtables,
-                                interfaces: self.interfaces,
-                                class_itables: self.class_itables,
-                            },
-                        )
-                    {
-                        target_fqn = self.materialized_devirtualized_dispatch_target_fqn(
-                            span,
-                            &devirtualized_target_fqn,
-                        );
-                    } else {
-                        self.dispatch_call_sites
-                            .insert(self.dispatch_call_site(span, receiver_ty), dispatch_kind);
-                    }
-                } else {
-                    self.dispatch_call_sites
-                        .insert(self.dispatch_call_site(span, receiver_ty), dispatch_kind);
-                }
+                self.dispatch_call_sites
+                    .insert(self.dispatch_call_site(span, receiver_ty), dispatch_kind);
             }
         }
 

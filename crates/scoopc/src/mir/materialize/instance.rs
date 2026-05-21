@@ -392,6 +392,7 @@ impl MirInstanceMaterializer {
             caller_side_pass_candidates: Vec::new(),
             pass_published_ordinary_callables: Vec::new(),
             materialized_direct_call_result_tys: HashMap::new(),
+            dispatch_devirtualization_targets: HashMap::new(),
             queued: HashSet::new(),
             queue: VecDeque::new(),
             materialized: HashMap::new(),

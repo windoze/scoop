@@ -51,8 +51,6 @@ pub fn lower_for_compilation_unit_with_stable_cone_key(
     let type_kinds = collect_type_decl_kinds(compilation_unit);
     let nominal_variances = collect_nominal_variances(compilation_unit);
     let direct_supertypes = collect_direct_supertypes(compilation_unit, index);
-    let known_receiver_subclasses =
-        crate::devirtualize::collect_known_receiver_subclasses(&direct_supertypes);
     let delegated_properties = collect_delegated_properties(compilation_unit);
     let default_arg_structs = collect_default_arg_structs(compilation_unit);
     let computed_property_accessors = collect_computed_property_accessor_fqns(compilation_unit);
@@ -113,12 +111,7 @@ pub fn lower_for_compilation_unit_with_stable_cone_key(
                 computed_property_setters: &computed_property_accessors.setters,
                 builtins,
                 generic_template_symbol_suffixes: &generic_template_symbol_suffixes,
-                known_receiver_subclasses: &known_receiver_subclasses,
-                class_vtables: &class_vtables,
-                interfaces: &interfaces,
-                class_itables: &class_itables,
                 materialize_direct_call_targets: true,
-                devirtualize_dispatch_calls: false,
             },
         );
         let file_hir = ctx.lower_file();
@@ -169,13 +162,8 @@ pub fn lower_for_compilation_unit_with_stable_cone_key(
         CompilationUnitInitCollectionInputs {
             index,
             type_kinds: &type_kinds,
-            known_receiver_subclasses: &known_receiver_subclasses,
-            class_vtables: &class_vtables,
-            interfaces: &interfaces,
-            class_itables: &class_itables,
             typecheck_types: None,
             materialize_direct_call_targets: true,
-            devirtualize_dispatch_calls: false,
             builtins,
         },
         &mut types,
@@ -319,7 +307,6 @@ pub struct ExplicitMirInstanceLoweringOptions<'a> {
     pub source_cones: &'a HashMap<std::path::PathBuf, crate::cone::SourceConeInfo>,
     pub instance_keys: &'a [crate::mir::InstanceKey],
     pub instance_types: &'a TypeStore,
-    pub devirtualize_dispatch_calls: bool,
 }
 
 /// 为 build / frontend 生成“由 MIR stage 已收集实例集合决定”的 HIR 兼容输入。
@@ -341,7 +328,6 @@ pub fn lower_for_compilation_unit_multi_files_with_explicit_mir_instances(
         source_cones,
         instance_keys,
         instance_types,
-        devirtualize_dispatch_calls,
     } = options;
     let mut lowered = lower_for_compilation_unit_multi_files_internal(
         index,
@@ -354,7 +340,6 @@ pub fn lower_for_compilation_unit_multi_files_with_explicit_mir_instances(
             stable_cone_key,
             instance_keys,
             instance_types,
-            devirtualize_dispatch_calls,
         )
         .with_source_cones(source_cones),
     )?;
@@ -400,7 +385,6 @@ pub(crate) struct CompilationUnitLoweringOptions<'a> {
     pub(crate) stable_cone_key: StableConeKey,
     pub(crate) source_cones: HashMap<std::path::PathBuf, crate::cone::SourceConeInfo>,
     pub(crate) instance_mode: CompilationUnitInstanceMode<'a>,
-    pub(crate) devirtualize_dispatch_calls: bool,
 }
 
 impl<'a> CompilationUnitLoweringOptions<'a> {
@@ -409,7 +393,6 @@ impl<'a> CompilationUnitLoweringOptions<'a> {
             stable_cone_key,
             source_cones: HashMap::new(),
             instance_mode: CompilationUnitInstanceMode::DirectLoweredHir,
-            devirtualize_dispatch_calls: false,
         }
     }
 
@@ -417,7 +400,6 @@ impl<'a> CompilationUnitLoweringOptions<'a> {
         stable_cone_key: StableConeKey,
         instance_keys: &'a [crate::mir::InstanceKey],
         instance_types: &'a TypeStore,
-        devirtualize_dispatch_calls: bool,
     ) -> Self {
         Self {
             stable_cone_key,
@@ -426,7 +408,6 @@ impl<'a> CompilationUnitLoweringOptions<'a> {
                 instance_keys,
                 instance_types,
             },
-            devirtualize_dispatch_calls,
         }
     }
 
@@ -435,7 +416,6 @@ impl<'a> CompilationUnitLoweringOptions<'a> {
             stable_cone_key,
             source_cones: HashMap::new(),
             instance_mode: CompilationUnitInstanceMode::GenericTemplateOnly,
-            devirtualize_dispatch_calls: false,
         }
     }
 
@@ -510,7 +490,6 @@ pub(crate) fn lower_for_compilation_unit_multi_files_internal<'a>(
         stable_cone_key,
         source_cones: source_cone_overrides,
         instance_mode,
-        devirtualize_dispatch_calls,
     } = options;
     let source_cones = source_cones_for_lowering(
         compilation_unit,
@@ -521,8 +500,6 @@ pub(crate) fn lower_for_compilation_unit_multi_files_internal<'a>(
     let type_kinds = collect_type_decl_kinds(compilation_unit);
     let nominal_variances = collect_nominal_variances(compilation_unit);
     let direct_supertypes = collect_direct_supertypes(compilation_unit, index);
-    let known_receiver_subclasses =
-        crate::devirtualize::collect_known_receiver_subclasses(&direct_supertypes);
     let delegated_properties = collect_delegated_properties(compilation_unit);
     let default_arg_structs = collect_default_arg_structs(compilation_unit);
     let computed_property_accessors = collect_computed_property_accessor_fqns(compilation_unit);
@@ -601,12 +578,7 @@ pub(crate) fn lower_for_compilation_unit_multi_files_internal<'a>(
                     computed_property_setters: &computed_property_accessors.setters,
                     builtins,
                     generic_template_symbol_suffixes: &generic_template_symbol_suffixes,
-                    known_receiver_subclasses: &known_receiver_subclasses,
-                    class_vtables: &class_vtables,
-                    interfaces: &interfaces,
-                    class_itables: &class_itables,
                     materialize_direct_call_targets,
-                    devirtualize_dispatch_calls,
                 },
             );
             let file_hir = ctx.lower_file();
@@ -710,13 +682,8 @@ pub(crate) fn lower_for_compilation_unit_multi_files_internal<'a>(
         CompilationUnitInitCollectionInputs {
             index,
             type_kinds: &type_kinds,
-            known_receiver_subclasses: &known_receiver_subclasses,
-            class_vtables: &class_vtables,
-            interfaces: &interfaces,
-            class_itables: &class_itables,
             typecheck_types: Some(typecheck_types),
             materialize_direct_call_targets,
-            devirtualize_dispatch_calls,
             builtins,
         },
         &mut types,

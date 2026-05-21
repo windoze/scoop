@@ -114,21 +114,6 @@ pub(super) struct PassPublishedOrdinaryCallable {
     pub(super) fun: FunDecl,
 }
 
-pub(super) fn dispatch_direct_call_args(
-    call_span: Span,
-    receiver: &Operand,
-    args: &[CallArg],
-) -> Vec<CallArg> {
-    let mut direct_args = Vec::with_capacity(args.len() + 1);
-    direct_args.push(CallArg {
-        span: call_span,
-        name: None,
-        value: receiver.clone(),
-    });
-    direct_args.extend(args.iter().cloned());
-    direct_args
-}
-
 pub(super) fn collect_member_value_type_infos(file: &File) -> HashMap<String, MemberValueTypeInfo> {
     let mut out = HashMap::new();
     for item in &file.items {
@@ -354,6 +339,8 @@ pub(super) struct MirInstanceMaterializer {
     pub(super) caller_side_pass_candidates: Vec<FunDecl>,
     pub(super) pass_published_ordinary_callables: Vec<PassPublishedOrdinaryCallable>,
     pub(super) materialized_direct_call_result_tys: HashMap<String, TypeId>,
+    pub(super) dispatch_devirtualization_targets:
+        HashMap<DispatchDevirtualizationTargetKey, String>,
     pub(super) queued: HashSet<InstanceKey>,
     pub(super) queue: VecDeque<InstanceKey>,
     pub(super) materialized: HashMap<InstanceKey, Vec<FunDecl>>,
@@ -361,6 +348,8 @@ pub(super) struct MirInstanceMaterializer {
 }
 
 pub(super) struct ReachableRvalueScanContext<'a> {
+    pub(super) caller_fqn: &'a str,
+    pub(super) block_id: BasicBlockId,
     pub(super) span: Span,
     pub(super) result_ty: Option<TypeId>,
     pub(super) template_source_path: &'a Path,

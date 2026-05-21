@@ -1013,7 +1013,7 @@ impl MirInstanceMaterializer {
         call_span: Span,
         block_id: BasicBlockId,
         kind: &mut CallKind,
-        args: &mut Vec<CallArg>,
+        args: &mut [CallArg],
         result_ty: Option<TypeId>,
         ctx: &RewriteContext<'_>,
     ) -> MaterializeResult<()> {
@@ -1056,28 +1056,13 @@ impl MirInstanceMaterializer {
                     dispatch.receiver_ty,
                     ctx.substitution,
                 );
-                if let Some(target_fqn) = crate::devirtualize::try_devirtualize_dispatch_target(
+                self.materialize_dispatch_call_candidates(
                     crate::hir::DispatchCallKind::Virtual,
-                    &dispatch.owner_fqn,
-                    &dispatch.member_name,
-                    args.len(),
-                    dispatch.receiver_ty,
-                    &self.types,
-                    crate::devirtualize::DispatchTargetFacts {
-                        known_receiver_subclasses: &self.known_receiver_subclasses,
-                        class_vtables: &self.class_vtables,
-                        interfaces: &self.interfaces,
-                        class_itables: &self.class_itables,
-                    },
-                ) {
-                    let direct_args = dispatch_direct_call_args(call_span, receiver, args);
-                    let mut direct_fqn = target_fqn;
-                    self.materialize_direct_call_target(&mut direct_fqn, &direct_args, direct_ctx)?;
-                    *args = direct_args;
-                    *kind = CallKind::Direct {
-                        callee_fqn: direct_fqn,
-                    };
-                }
+                    receiver,
+                    dispatch,
+                    args,
+                    direct_ctx,
+                )?;
             }
             CallKind::Interface { receiver, dispatch } => {
                 *receiver = self.rewrite_operand(receiver.clone());
@@ -1086,28 +1071,13 @@ impl MirInstanceMaterializer {
                     dispatch.receiver_ty,
                     ctx.substitution,
                 );
-                if let Some(target_fqn) = crate::devirtualize::try_devirtualize_dispatch_target(
+                self.materialize_dispatch_call_candidates(
                     crate::hir::DispatchCallKind::Interface,
-                    &dispatch.owner_fqn,
-                    &dispatch.member_name,
-                    args.len(),
-                    dispatch.receiver_ty,
-                    &self.types,
-                    crate::devirtualize::DispatchTargetFacts {
-                        known_receiver_subclasses: &self.known_receiver_subclasses,
-                        class_vtables: &self.class_vtables,
-                        interfaces: &self.interfaces,
-                        class_itables: &self.class_itables,
-                    },
-                ) {
-                    let direct_args = dispatch_direct_call_args(call_span, receiver, args);
-                    let mut direct_fqn = target_fqn;
-                    self.materialize_direct_call_target(&mut direct_fqn, &direct_args, direct_ctx)?;
-                    *args = direct_args;
-                    *kind = CallKind::Direct {
-                        callee_fqn: direct_fqn,
-                    };
-                }
+                    receiver,
+                    dispatch,
+                    args,
+                    direct_ctx,
+                )?;
             }
             CallKind::Resume {
                 continuation,
@@ -1145,6 +1115,107 @@ impl MirInstanceMaterializer {
             }
         }
         Ok(())
+    }
+
+    fn materialize_dispatch_call_candidates(
+        &mut self,
+        kind: crate::hir::DispatchCallKind,
+        receiver: &Operand,
+        dispatch: &DispatchMetadata,
+        args: &[CallArg],
+        ctx: DirectCallRewriteContext<'_>,
+    ) -> MaterializeResult<()> {
+        let candidates = match kind {
+            crate::hir::DispatchCallKind::Virtual => self.virtual_dispatch_candidate_fqns(
+                dispatch.receiver_ty,
+                &dispatch.member_name,
+                args.len(),
+            ),
+            crate::hir::DispatchCallKind::Interface => self.interface_dispatch_candidate_fqns(
+                dispatch.receiver_ty,
+                &dispatch.owner_fqn,
+                &dispatch.member_name,
+                args.len(),
+            ),
+        };
+        if candidates.is_empty() {
+            return Ok(());
+        }
+
+        let direct_args = Self::dispatch_direct_call_args(ctx.call_span, receiver, args);
+        for candidate_fqn in candidates {
+            if let Some(instance_key) = self.infer_direct_call_instance(DirectCallInferenceInput {
+                template_source_path: ctx.template_source_path,
+                call_span: ctx.call_span,
+                callee_fqn: &candidate_fqn,
+                args: &direct_args,
+                result_ty: ctx.result_ty,
+                locals: ctx.locals,
+                substitution: ctx.substitution,
+            }) {
+                let instance_fqn = self.instance_display_fqn(&instance_key);
+                self.record_dispatch_devirtualization_target(&candidate_fqn, instance_fqn, ctx);
+                self.enqueue(instance_key);
+                continue;
+            }
+            if let Some(instance_key) = self.explicit_dispatch_candidate_instance(&candidate_fqn) {
+                let instance_fqn = self.instance_display_fqn(&instance_key);
+                self.record_dispatch_devirtualization_target(&candidate_fqn, instance_fqn, ctx);
+                self.enqueue(instance_key);
+                continue;
+            }
+            if let Some(reachable_callee) = self.resolve_non_generic_direct_callee(
+                ctx.template_source_path,
+                ctx.call_span,
+                &candidate_fqn,
+                &direct_args,
+                ctx.locals,
+            ) {
+                let pass_fqn = self.pass_visible_non_generic_callable_fqn(
+                    reachable_callee.source_path.as_path(),
+                    &reachable_callee.fun,
+                );
+                self.record_dispatch_devirtualization_target(&candidate_fqn, pass_fqn, ctx);
+                let mut discovered = Vec::new();
+                self.scan_reachable_non_generic_fun(&reachable_callee, &mut discovered)?;
+                for instance in discovered {
+                    self.enqueue(instance);
+                }
+            }
+        }
+        Ok(())
+    }
+
+    fn record_dispatch_devirtualization_target(
+        &mut self,
+        candidate_fqn: &str,
+        canonical_fqn: String,
+        ctx: DirectCallRewriteContext<'_>,
+    ) {
+        self.dispatch_devirtualization_targets.insert(
+            DispatchDevirtualizationTargetKey::new(
+                ctx.caller_fqn,
+                ctx.block_id,
+                ctx.call_span,
+                candidate_fqn,
+            ),
+            canonical_fqn,
+        );
+    }
+
+    fn dispatch_direct_call_args(
+        call_span: Span,
+        receiver: &Operand,
+        args: &[CallArg],
+    ) -> Vec<CallArg> {
+        let mut direct_args = Vec::with_capacity(args.len() + 1);
+        direct_args.push(CallArg {
+            span: call_span,
+            name: None,
+            value: receiver.clone(),
+        });
+        direct_args.extend(args.iter().cloned());
+        direct_args
     }
 
     pub(super) fn materialize_direct_call_target(
@@ -1395,7 +1466,7 @@ impl MirInstanceMaterializer {
         input: &DirectCallInferenceInput<'_>,
     ) -> Option<InstanceKey> {
         let signature = self.template_signatures.get(template)?;
-        if signature.type_param_names.is_empty() || signature.eff_param_name.is_some() {
+        if signature.type_param_names.is_empty() && signature.eff_param_name.is_none() {
             return None;
         }
         let mut param_type_param_names = Vec::new();
@@ -1486,7 +1557,35 @@ impl MirInstanceMaterializer {
                 }
             }
         }
-        self.instance_from_type_param_bindings(signature, bindings)
+        self.instance_from_type_param_and_effect_bindings(signature, bindings, input.substitution)
+    }
+
+    fn instance_from_type_param_and_effect_bindings(
+        &self,
+        signature: &TemplateSignatureInfo,
+        bindings: HashMap<String, TypeId>,
+        substitution: &InstanceSubstitution,
+    ) -> Option<InstanceKey> {
+        let mut type_args = Vec::with_capacity(signature.type_param_names.len());
+        for name in &signature.type_param_names {
+            let ty = bindings.get(name).copied()?;
+            if type_contains_param(&self.types, ty) {
+                return None;
+            }
+            type_args.push(ty);
+        }
+        let eff_args = match signature.eff_param_name.as_ref() {
+            Some(name) => vec![substitution.effect_params.get(name).cloned()?],
+            None => Vec::new(),
+        };
+        if type_args.is_empty() && eff_args.is_empty() {
+            return None;
+        }
+        Some(InstanceKey {
+            template: signature.template.clone(),
+            type_args,
+            eff_args,
+        })
     }
 
     pub(super) fn instance_from_type_param_bindings(
@@ -1533,6 +1632,7 @@ impl MirInstanceMaterializer {
         }
     }
 
+    #[cfg(test)]
     pub(super) fn lookup_site_instance_binding(
         &self,
         template_source_path: &Path,
@@ -1545,6 +1645,7 @@ impl MirInstanceMaterializer {
             .or_else(|| self.lookup_enclosed_site_instance_binding(template_source_path, call_span))
     }
 
+    #[cfg(test)]
     pub(super) fn lookup_enclosed_site_instance_binding(
         &self,
         template_source_path: &Path,
@@ -1570,21 +1671,71 @@ impl MirInstanceMaterializer {
         call_span: Span,
         callee_fqn: &str,
     ) -> Option<SiteInstanceBinding> {
-        let binding = self
-            .lookup_site_instance_binding(template_source_path, call_span)?
-            .clone();
+        self.lookup_site_instance_binding_for_callee_in(
+            &self.call_bindings,
+            template_source_path,
+            call_span,
+            callee_fqn,
+        )
+        .or_else(|| {
+            self.lookup_site_instance_binding_for_callee_in(
+                &self.value_ref_bindings,
+                template_source_path,
+                call_span,
+                callee_fqn,
+            )
+        })
+    }
+
+    fn lookup_site_instance_binding_for_callee_in(
+        &self,
+        bindings: &HashMap<SourceSiteKey, SiteInstanceBinding>,
+        template_source_path: &Path,
+        enclosing_span: Span,
+        callee_fqn: &str,
+    ) -> Option<SiteInstanceBinding> {
+        let mut found: Option<(Span, SiteInstanceBinding)> = None;
+        for ((source_path, span), binding) in bindings {
+            if source_path != template_source_path
+                || span.start >= enclosing_span.end
+                || enclosing_span.start >= span.end
+            {
+                continue;
+            }
+            let Some(candidate) = self.site_instance_binding_candidate(binding, callee_fqn) else {
+                continue;
+            };
+            let Some((found_span, found_binding)) = found.as_ref() else {
+                found = Some((*span, candidate));
+                continue;
+            };
+            if found_binding != &candidate {
+                return None;
+            }
+            if span.end - span.start < found_span.end - found_span.start {
+                found = Some((*span, candidate));
+            }
+        }
+        found.map(|(_, binding)| binding)
+    }
+
+    fn site_instance_binding_candidate(
+        &self,
+        binding: &SiteInstanceBinding,
+        callee_fqn: &str,
+    ) -> Option<SiteInstanceBinding> {
         if binding.template.fqn == callee_fqn
             || callee_fqn
                 .strip_prefix(binding.template.fqn.as_str())
                 .is_some_and(|suffix| suffix.starts_with("::<"))
         {
-            return Some(binding);
+            return Some(binding.clone());
         }
         let template = self.remap_site_binding_template(&binding.template, callee_fqn)?;
         Some(SiteInstanceBinding {
             template,
-            type_args: binding.type_args,
-            eff_args: binding.eff_args,
+            type_args: binding.type_args.clone(),
+            eff_args: binding.eff_args.clone(),
         })
     }
 

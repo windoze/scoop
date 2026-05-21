@@ -191,7 +191,7 @@ fun entry(): Int {
     }
 
     #[test]
-    fn monomorph_devirtualizes_exact_virtual_call_in_instantiated_body() {
+    fn monomorph_preserves_exact_virtual_call_for_mir_pass_owner() {
         let sess = Session::new().unwrap();
         let source = SourceFile::new_virtual(
             "<mem>/monomorph_virtual_call.scoop",
@@ -241,10 +241,11 @@ fun entry(b: Base): Int {
             .expect("expected call in monomorphized body");
 
         match stmt {
-            crate::mir::CallKind::Direct { callee_fqn } => {
-                assert_eq!(callee_fqn, "fixtures.monomorph.Base.ping");
+            crate::mir::CallKind::Virtual { dispatch, .. } => {
+                assert_eq!(dispatch.owner_fqn, "fixtures.monomorph.Base");
+                assert_eq!(dispatch.member_name, "ping");
             }
-            other => panic!("expected devirtualized direct call, got {other:?}"),
+            other => panic!("expected virtual call for MIR devirtualization pass, got {other:?}"),
         }
     }
 
@@ -314,7 +315,7 @@ fun entry(b: Base): Int {
     }
 
     #[test]
-    fn monomorph_devirtualizes_exact_interface_bound_call_in_instantiated_body() {
+    fn monomorph_preserves_exact_interface_bound_call_for_mir_pass_owner() {
         let sess = Session::new().unwrap();
         let source = SourceFile::new_virtual(
             "<mem>/monomorph_interface_call_exact.scoop",
@@ -370,10 +371,11 @@ fun entry(): Int {
             .expect("expected call in monomorphized body");
 
         match stmt {
-            crate::mir::CallKind::Direct { callee_fqn } => {
-                assert_eq!(callee_fqn, "fixtures.monomorph.Box.ping");
+            crate::mir::CallKind::Interface { dispatch, .. } => {
+                assert_eq!(dispatch.owner_fqn, "fixtures.monomorph.Ping");
+                assert_eq!(dispatch.member_name, "ping");
             }
-            other => panic!("expected devirtualized direct interface call, got {other:?}"),
+            other => panic!("expected interface call for MIR devirtualization pass, got {other:?}"),
         }
     }
 

@@ -292,13 +292,8 @@ pub(crate) fn collect_default_arg_structs_in_object_decl(
 pub(crate) struct CompilationUnitInitCollectionInputs<'a> {
     pub(crate) index: &'a Index,
     pub(crate) type_kinds: &'a HashMap<String, ast::TypeKind>,
-    pub(crate) known_receiver_subclasses: &'a crate::devirtualize::KnownReceiverSubclassIndex,
-    pub(crate) class_vtables: &'a crate::vtable::ClassVtableIndex,
-    pub(crate) interfaces: &'a crate::itable::InterfaceIndex,
-    pub(crate) class_itables: &'a crate::itable::ClassItableIndex,
     pub(crate) typecheck_types: Option<&'a TypeStore>,
     pub(crate) materialize_direct_call_targets: bool,
-    pub(crate) devirtualize_dispatch_calls: bool,
     pub(crate) builtins: BuiltinTypes,
 }
 
@@ -320,13 +315,8 @@ pub(crate) fn collect_compilation_unit_object_and_class_inits(
     let CompilationUnitInitCollectionInputs {
         index,
         type_kinds,
-        known_receiver_subclasses,
-        class_vtables,
-        interfaces,
-        class_itables,
         typecheck_types,
         materialize_direct_call_targets,
-        devirtualize_dispatch_calls,
         builtins,
     } = inputs;
     let mut object_inits = ObjectInitIndex::new();
@@ -342,14 +332,9 @@ pub(crate) fn collect_compilation_unit_object_and_class_inits(
             file,
             index,
             type_kinds,
-            known_receiver_subclasses,
-            class_vtables,
-            interfaces,
-            class_itables,
             typecheck_types,
             builtins,
             materialize_direct_call_targets,
-            devirtualize_dispatch_calls,
         };
         let (
             file_object_inits,

@@ -7,6 +7,7 @@ use crate::mir::{
 use crate::session::Session;
 use crate::source::SourceFile;
 use crate::ty::{NominalType, RefTypeKind, TypeKind, TypeParamType};
+use scoopc_mir_facts::pipeline::MirPassKind;
 
 const SYNTHETIC_STATEMENT_TODO_REASON: &str = "synthetic statement todo";
 
@@ -418,8 +419,29 @@ fn materialized_for_test(file: File, types: TypeStore) -> MaterializedMir {
         opt_level: OptLevel::O0,
         callable_families,
         pass_artifacts,
+        dispatch_devirtualization_facts: DispatchDevirtualizationFacts::default(),
         caller_side_pass_candidates: Vec::new(),
     }
+}
+
+fn fun_has_dispatch_call(fun: &FunDecl) -> bool {
+    let Some(body) = fun.body.as_ref() else {
+        return false;
+    };
+    body.blocks.iter().any(|block| {
+        block.stmts.iter().any(|stmt| {
+            matches!(
+                &stmt.kind,
+                StatementKind::Assign {
+                    value: Rvalue::Call {
+                        kind: CallKind::Virtual { .. } | CallKind::Interface { .. },
+                        ..
+                    },
+                    ..
+                }
+            )
+        })
+    })
 }
 
 #[test]
@@ -2348,7 +2370,7 @@ return a + b
 "#,
     );
 
-    let materialized = materialize_for_dump(&sess, &source).unwrap();
+    let materialized = materialize_for_dump_with_opt_level(&sess, &source, OptLevel::O0).unwrap();
     let id_instances = materialized
         .instance_keys
         .iter()
@@ -2694,7 +2716,6 @@ return 0
             source_cones: &source_cones,
             instance_keys: &materialized.instance_keys,
             instance_types: &materialized.types,
-            devirtualize_dispatch_calls: true,
         },
     )
     .unwrap();
@@ -4039,6 +4060,62 @@ return wrap<eff Boom>(Box())
                     && fun.fqn.contains("eff fixtures.materialize.Boom")
         )),
         "materialize_for_dump 应产出 Box.forward 的 concrete MIR root"
+    );
+}
+
+#[test]
+fn materialize_for_dump_devirtualizes_exact_receiver_in_mir_pass() {
+    let sess = Session::new().unwrap();
+    let source = SourceFile::new_virtual(
+        "<mem>/materialize_dispatch_devirtualization.scoop",
+        r#"
+package fixtures.materialize
+
+class Base() {
+open fun value(): Int {
+    return 1
+}
+}
+
+class Leaf(): Base() {
+override fun value(): Int {
+    return 2
+}
+}
+
+fun main(): Int {
+val leaf = Leaf()
+return leaf.value()
+}
+"#,
+    );
+
+    let materialized = materialize_for_dump(&sess, &source).unwrap();
+    let raw_main = materialized
+        .caller_side_pass_candidate_bodies()
+        .iter()
+        .find(|fun| fun.fqn == "fixtures.materialize.main")
+        .expect("raw materialized main should be available for debug validation");
+    assert!(
+        fun_has_dispatch_call(raw_main),
+        "raw materialized MIR should preserve dynamic dispatch before the pass layer"
+    );
+    let pass_main = materialized
+        .pass_view()
+        .callable("fixtures.materialize.main")
+        .expect("main should be published in the canonical pass view");
+    assert!(
+        !fun_has_dispatch_call(pass_main),
+        "pass-visible main should no longer contain virtual/interface dispatch after rewrite"
+    );
+    assert!(
+        materialized
+            .pass_artifacts()
+            .pipeline_runs()
+            .iter()
+            .any(|run| {
+                run.pass == MirPassKind::Devirtualization && run.enabled && run.changed_bodies > 0
+            })
     );
 }
 

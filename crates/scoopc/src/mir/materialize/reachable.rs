@@ -27,6 +27,8 @@ impl MirInstanceMaterializer {
                     self.collect_reachable_instances_from_rvalue(
                         value,
                         ReachableRvalueScanContext {
+                            caller_fqn: &fun.fqn,
+                            block_id: BasicBlockId::from_raw(block_idx as u32),
                             span: stmt.span,
                             result_ty,
                             template_source_path: instance.template.source_path.as_path(),
@@ -75,6 +77,8 @@ impl MirInstanceMaterializer {
                     self.collect_reachable_instances_from_rvalue(
                         value,
                         ReachableRvalueScanContext {
+                            caller_fqn: &reachable_fun.fun.fqn,
+                            block_id: BasicBlockId::from_raw(block_idx as u32),
                             span: stmt.span,
                             result_ty,
                             template_source_path: &reachable_fun.source_path,
@@ -151,7 +155,7 @@ impl MirInstanceMaterializer {
                 }
             }
             Rvalue::Call {
-                kind: CallKind::Virtual { dispatch, .. },
+                kind: CallKind::Virtual { receiver, dispatch },
                 args,
                 ..
             } => {
@@ -167,14 +171,11 @@ impl MirInstanceMaterializer {
                     &dispatch.member_name,
                     args.len(),
                 );
-                self.scan_reachable_dispatch_candidates(
-                    scan.template_source_path,
-                    &candidates,
-                    out,
-                )?;
+                let direct_args = dispatch_direct_call_args(scan.span, receiver, args);
+                self.scan_reachable_dispatch_candidates(&scan, &candidates, &direct_args, out)?;
             }
             Rvalue::Call {
-                kind: CallKind::Interface { dispatch, .. },
+                kind: CallKind::Interface { receiver, dispatch },
                 args,
                 ..
             } => {
@@ -191,11 +192,8 @@ impl MirInstanceMaterializer {
                     &dispatch.member_name,
                     args.len(),
                 );
-                self.scan_reachable_dispatch_candidates(
-                    scan.template_source_path,
-                    &candidates,
-                    out,
-                )?;
+                let direct_args = dispatch_direct_call_args(scan.span, receiver, args);
+                self.scan_reachable_dispatch_candidates(&scan, &candidates, &direct_args, out)?;
             }
             Rvalue::ClassCtor {
                 class_fqn, ctor, ..
@@ -587,22 +585,73 @@ impl MirInstanceMaterializer {
 
     pub(super) fn scan_reachable_dispatch_candidates(
         &mut self,
-        default_source_path: &Path,
+        scan: &ReachableRvalueScanContext<'_>,
         candidate_fqns: &[String],
+        direct_args: &[CallArg],
         out: &mut Vec<InstanceKey>,
     ) -> MaterializeResult<()> {
         for candidate_fqn in candidate_fqns {
+            if let Some(instance_key) = self.infer_direct_call_instance(DirectCallInferenceInput {
+                template_source_path: scan.template_source_path,
+                call_span: scan.span,
+                callee_fqn: candidate_fqn,
+                args: direct_args,
+                result_ty: scan.result_ty,
+                locals: scan.locals,
+                substitution: scan.substitution,
+            }) {
+                let instance_fqn = self.instance_display_fqn(&instance_key);
+                self.record_reachable_dispatch_devirtualization_target(
+                    scan,
+                    candidate_fqn,
+                    instance_fqn,
+                );
+                out.push(instance_key);
+                continue;
+            }
             if let Some(instance_key) = self.explicit_dispatch_candidate_instance(candidate_fqn) {
+                let instance_fqn = self.instance_display_fqn(&instance_key);
+                self.record_reachable_dispatch_devirtualization_target(
+                    scan,
+                    candidate_fqn,
+                    instance_fqn,
+                );
                 out.push(instance_key);
                 continue;
             }
             if let Some(reachable_fun) =
-                self.resolve_non_generic_fun_body_by_fqn(default_source_path, candidate_fqn)
+                self.resolve_non_generic_fun_body_by_fqn(scan.template_source_path, candidate_fqn)
             {
+                let pass_fqn = self.pass_visible_non_generic_callable_fqn(
+                    reachable_fun.source_path.as_path(),
+                    &reachable_fun.fun,
+                );
+                self.record_reachable_dispatch_devirtualization_target(
+                    scan,
+                    candidate_fqn,
+                    pass_fqn,
+                );
                 self.scan_reachable_non_generic_fun(&reachable_fun, out)?;
             }
         }
         Ok(())
+    }
+
+    fn record_reachable_dispatch_devirtualization_target(
+        &mut self,
+        scan: &ReachableRvalueScanContext<'_>,
+        candidate_fqn: &str,
+        canonical_fqn: String,
+    ) {
+        self.dispatch_devirtualization_targets.insert(
+            DispatchDevirtualizationTargetKey::new(
+                scan.caller_fqn,
+                scan.block_id,
+                scan.span,
+                candidate_fqn,
+            ),
+            canonical_fqn,
+        );
     }
 
     pub(super) fn collect_explicit_dispatch_candidate_instances(
@@ -769,4 +818,19 @@ impl MirInstanceMaterializer {
         }
         seen
     }
+}
+
+fn dispatch_direct_call_args(
+    call_span: Span,
+    receiver: &Operand,
+    args: &[CallArg],
+) -> Vec<CallArg> {
+    let mut direct_args = Vec::with_capacity(args.len() + 1);
+    direct_args.push(CallArg {
+        span: call_span,
+        name: None,
+        value: receiver.clone(),
+    });
+    direct_args.extend(args.iter().cloned());
+    direct_args
 }

@@ -583,11 +583,6 @@ pub(in crate::hir::lower) fn collect_generic_fun_instantiations(
             compilation_unit,
             source_cones,
         );
-    let empty_known_receiver_subclasses = crate::devirtualize::KnownReceiverSubclassIndex::new();
-    let empty_class_vtables = crate::vtable::ClassVtableIndex::new();
-    let empty_interfaces = crate::itable::InterfaceIndex::new();
-    let empty_class_itables = crate::itable::ClassItableIndex::new();
-
     let mut generic_fun_candidates_by_fqn: HashMap<String, Vec<(String, crate::span::Span)>> =
         HashMap::new();
     let mut generic_fun_type_param_names: HashMap<(String, crate::span::Span), Vec<String>> =
@@ -627,17 +622,12 @@ pub(in crate::hir::lower) fn collect_generic_fun_instantiations(
                 file,
                 index,
                 type_kinds,
-                known_receiver_subclasses: &empty_known_receiver_subclasses,
-                class_vtables: &empty_class_vtables,
-                interfaces: &empty_interfaces,
-                class_itables: &empty_class_itables,
                 typecheck_types: Some(typecheck_types),
                 compilation_unit,
                 types,
                 builtins,
                 generic_template_symbol_suffixes: &generic_template_symbol_suffixes,
                 materialize_direct_call_targets: true,
-                devirtualize_dispatch_calls: false,
             },
             fun_decl,
             param_bindings,
@@ -740,17 +730,12 @@ pub(in crate::hir::lower) fn collect_generic_fun_instantiations(
                 file,
                 index,
                 type_kinds,
-                known_receiver_subclasses: &empty_known_receiver_subclasses,
-                class_vtables: &empty_class_vtables,
-                interfaces: &empty_interfaces,
-                class_itables: &empty_class_itables,
                 typecheck_types: Some(typecheck_types),
                 compilation_unit,
                 types,
                 builtins,
                 generic_template_symbol_suffixes: &generic_template_symbol_suffixes,
                 materialize_direct_call_targets: true,
-                devirtualize_dispatch_calls: false,
             },
             fun_decl,
             bindings,
@@ -833,17 +818,6 @@ pub(in crate::hir::lower) fn collect_generic_fun_instantiations_from_instance_ke
             compilation_unit,
             source_cones,
         );
-    let direct_supertypes = super::collect_direct_supertypes(compilation_unit, index);
-    let known_receiver_subclasses =
-        crate::devirtualize::collect_known_receiver_subclasses(&direct_supertypes);
-    let class_vtables = crate::vtable::collect_class_vtables(compilation_unit, index)?;
-    let (interfaces, class_itables) = crate::itable::collect_runtime_interfaces_and_class_itables(
-        compilation_unit,
-        index,
-        &class_vtables,
-        typecheck_types,
-    )?;
-
     let mut seen: HashSet<String> = HashSet::new();
     let mut out = Vec::new();
 
@@ -903,17 +877,12 @@ pub(in crate::hir::lower) fn collect_generic_fun_instantiations_from_instance_ke
                 file: template.file,
                 index,
                 type_kinds,
-                known_receiver_subclasses: &known_receiver_subclasses,
-                class_vtables: &class_vtables,
-                interfaces: &interfaces,
-                class_itables: &class_itables,
                 typecheck_types: Some(typecheck_types),
                 compilation_unit,
                 types,
                 builtins,
                 generic_template_symbol_suffixes: &generic_template_symbol_suffixes,
                 materialize_direct_call_targets: true,
-                devirtualize_dispatch_calls: true,
             },
             template.fun,
             bindings,

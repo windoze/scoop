@@ -1,51 +1,35 @@
-# Claude Execution Plan
+# 当前执行计划
 
-## Scope
+## 目标
 
-- Follow `TODO.md` as the source of truth.
-- Complete exactly the first task whose heading is not prefixed with `[DONE]`.
-- Stop after completing that one task, documenting it, testing it, and committing the result.
+- 以 `TODO.md` 为唯一任务顺序来源，完成第一个标题未以 `[DONE]` 标记的任务，然后停止。
+- 若任务被具体前置问题阻塞，只添加最小必要前置任务并提交，不继续推进被阻塞任务。
+- 不采用规避实现、夹具专用逻辑或弱化规格的做法。
 
-## Plan
+## 步骤
 
-1. Read `TODO.md` to identify the first incomplete task and its validation requirements.
-2. Check recent git context only as needed for the selected task, especially if the latest commit mentions unfinished work directly relevant to it.
-3. Inspect the relevant implementation, fixtures, and tests for that task.
-4. Implement the smallest spec-correct change that fully satisfies the task; do not use workarounds or weaken fixtures.
-5. Run targeted validation first, then broader required validation from the task entry.
-6. If a blocker is discovered, update `TODO.md` with the minimum prerequisite task, leave the current task incomplete, commit the bookkeeping change, and stop.
-7. If the task is completed, update `TODO.md` by prefixing the task title with `[DONE]` and adding a completion record with tests run.
-8. Update this file after key steps so progress remains visible.
-9. Inspect git status and diff, then commit all task-related changes with a descriptive message.
-10. Stop without starting the next task.
+1. 读取 `TODO.md`，定位第一个未完成任务。
+2. 查看最近提交，判断是否明确提到与该任务直接相关的未完成问题。
+3. 阅读当前任务要求、依赖和验证要求；只在必要范围内查看相关代码、测试和文档。
+4. 若发现当前任务依赖的具体缺失功能或阻塞缺陷，更新 `TODO.md` 插入最小前置任务，必要时更新 `PLAN.md`，提交后停止。
+5. 否则实现当前任务，保持改动最小且符合现有代码结构。
+6. 运行任务要求的验证，并补充运行相关测试；若失败，修复后重跑。
+7. 在 `TODO.md` 中给当前任务标题添加 `[DONE]` 并更新完成记录；只在阶段计划实际变化时更新 `PLAN.md`。
+8. 检查工作区差异，确认包含本次任务所需变更。
+9. 按仓库风格提交所有相关变更。
+10. 停止，不处理下一个任务。
 
-## Current Progress
+## 进度
 
-- New invocation started on 2026-05-22. I will use `TODO.md` as the task source of truth, identify the first heading without `[DONE]`, complete exactly that task if feasible, update this file at key checkpoints, update task records, validate, commit, and stop.
-- Identified current task: `P3-T05R` in `TODO-4.md`, a review of the explicit MIR pass pipeline introduced by `P3-T05`.
-- Review focus: confirm single pass schedule owner, always-on escape analysis as MIR facts/analysis, explicit summary refresh/cleanup ownership, pass metadata publication, and absence of materializer-tail scheduling.
-- Review findings fixed in this invocation: `OptLevel::enables_mir_escape_analysis()` still encoded the old O0 gate despite the pipeline running escape analysis always-on; `tests/fixtures/mir_materialized` was referenced by P3 validation but had no fixture phase/directory. I updated the opt-level helper and added a real `mir_materialized` fixture phase plus a pass-pipeline metadata fixture.
-- Validation passed: MIR pass unit tests, `scoopc_project_model`, `scoop` fixture tests, `mir_materialized` fixture run, `scoopc_mir_facts`, `mir_stage`, `mir::materialize`, clippy with `-D warnings`, and `git diff --check`.
-- Marked `P3-T05R` as `[DONE]` in `TODO.md` and `TODO-4.md`; remaining work is final status/diff inspection and commit.
-- Initial execution plan written before inspecting the task list.
-- Identified the first incomplete task from `TODO.md`: `P3-T05` in `TODO-4.md`, covering explicit MIR pass pipeline and refresh ordering.
-
-## P3-T05 Task Plan
-
-1. Inspect the current materializer tail scheduling and pass modules: `run.rs`, `inline.rs`, `escape.rs`, `closure_simplify.rs`, `summary.rs`, `pass_view.rs`, plus MIR facts pass metadata.
-2. Check recent git context for unfinished work directly related to P3-T05.
-3. Introduce a dedicated MIR pass pipeline module as the single scheduling owner.
-4. Move inlining, always-on escape analysis, closure simplification, and post-rewrite refresh into that pipeline without writing pass rewrites back to raw `MaterializedMir.file`.
-5. Publish pipeline metadata through existing MIR facts/pass artifact metadata so dumps/tests can show pass execution and revision effects.
-6. Run the P3-T05 required validation commands, fixing any failures that are in scope.
-7. Mark `P3-T05` complete in `TODO.md`, update this progress file, then commit all task-related changes and stop.
-
-## P3-T05 Progress
-
-- Added an explicit MIR pass pipeline driver and moved post-materialization scheduling out of `MirInstanceMaterializer::run(...)`.
-- Updated inlining, escape analysis, and closure simplification to publish pass artifacts through a shared pipeline context.
-- Changed escape analysis to run for all optimization levels, while keeping rewrite passes gated by the existing non-`O0` optimization policy.
-- Wired pass run/revision metadata into MIR facts and stable facts dump output.
-- Targeted MIR pass, MIR facts, MIR stage, MIR materialization, and clippy validations have passed so far.
-- The `TODO-4.md` fixture command `tests/fixtures/mir_materialized` points to a non-existent directory; running the existing `tests/fixtures/mir` phase exposed pre-existing golden newline mismatches rather than a pass-pipeline failure. This will be recorded in the task completion notes.
-- Marked `P3-T05` as `[DONE]` in `TODO-4.md` and synchronized the `TODO.md` index. Remaining work is final diff/status inspection and commit.
+- 已创建执行计划文件。
+- 已读取 `TODO.md` 并定位第一个未完成任务：`P3-T06`，目标是迁移 dispatch 去虚化到 MIR pass 并删除 HIR owner。
+- 已读取 `TODO-4.md` 中的 `P3-T06` 详情。
+- 最近提交 `P3-T05R` 明确说明 dispatch 去虚化仍待 `P3-T06` 迁移，属于当前任务范围；未发现需要先插入的新前置任务。
+- 已定位现有实现：HIR lowering 通过 `devirtualize_dispatch_calls` 调用 `try_devirtualize_dispatch_target`，MIR materialization rewrite 也会在 substitution 中直接把 virtual/interface call 改成 direct call；显式 MIR pass pipeline 目前尚未调度 `MirPassKind::Devirtualization`。
+- 当前实现计划：新增 MIR dispatch devirtualization pass 并加入 pipeline；materialization 不再改写 dispatch call；HIR lowering 一律保留 dynamic dispatch 并只发布 dispatch call-site contract；更新相关测试与 fixture。
+- 已实现核心迁移：`try_devirtualize_dispatch_target` 的活跃非后端调用点移至 MIR devirtualization pass；HIR `devirtualize_dispatch_calls` 已删除；materialization rewrite 不再改写 dispatch call，只做 substitution 和 dispatch candidate instance discovery，并把 canonical target 作为 pass facts 记录。
+- 已修复迁移后暴露的问题：effect-generic dispatch candidate 需要在 materialization substitution 阶段发现实例；pass-published rewritten body 需要规整重复 `SiteId`。
+- 已通过 P3-T06 指定验证：`cargo fmt`、`cargo test -p scoopc --no-default-features hir --lib`、`cargo test -p scoopc --no-default-features mir::materialize --lib`、`cargo test -p scoopc --no-default-features monomorph --lib`、`cargo run -p scoop -- test --fixtures tests/fixtures/mir_materialized`、`cargo clippy --all-targets -- -D warnings`、`git diff --check`。
+- 搜索 `devirtualize_dispatch_calls` 无命中；`try_devirtualize_dispatch_target(` 的非测试活跃调用点只剩 MIR pass 以及 P7 归属的 LLVM codegen/reachability 残留。
+- 已更新 `TODO.md` 与 `TODO-4.md`，标记 `P3-T06` 完成并填写完成记录。
+- 下一步提交本任务改动并停止。

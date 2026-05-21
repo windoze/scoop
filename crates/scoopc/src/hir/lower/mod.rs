@@ -642,21 +642,11 @@ struct HirLowering<'a> {
     /// - 当同一 `template.fqn` 存在多个 generic overload 时，必须与 MIR materialization 使用同一套
     ///   stable overload suffix 规则，避免生产路径上的实例声明名与调用目标继续碰撞。
     generic_template_symbol_suffixes: &'a util::GenericTemplateSymbolSuffixIndex,
-    /// exact receiver 判定时使用的“已知存在子类/子实现”的 nominal 集合。
-    known_receiver_subclasses: &'a crate::devirtualize::KnownReceiverSubclassIndex,
-    /// class vtable slots（供 explicit MIR instance lowering 的 devirtualization 兼容桥接使用）。
-    class_vtables: &'a crate::vtable::ClassVtableIndex,
-    /// interface metadata（供 explicit MIR instance lowering 的 devirtualization 兼容桥接使用）。
-    interfaces: &'a crate::itable::InterfaceIndex,
-    /// class itables（供 explicit MIR instance lowering 的 devirtualization 兼容桥接使用）。
-    class_itables: &'a crate::itable::ClassItableIndex,
     /// 是否把已 concrete 的非 intrinsic direct-call target 物化为最终实例 FQN。
     ///
     /// compilation-unit / LLVM frontend lowering 需要开启它，以便 backend 直接消费实例身份；
     /// dump / generic-template lowering 必须关闭它，保持 generic MIR template 不提前单态化。
     materialize_direct_call_targets: bool,
-    /// 是否在 explicit MIR instance lowering 的 HIR 兼容前端上执行 exact-receiver devirtualization。
-    devirtualize_dispatch_calls: bool,
     /// 当前展开体中需要重映射的局部声明 span，避免同一源码 body 多次 unroll 后局部 SymbolId 冲突。
     local_decl_span_overrides: Vec<HashMap<Span, Span>>,
     /// lowering 过程中发现的第一个 typed HIR contract 错误。
@@ -678,12 +668,7 @@ struct HirLoweringSetup<'a> {
     computed_property_setters: &'a HashSet<String>,
     builtins: BuiltinTypes,
     generic_template_symbol_suffixes: &'a util::GenericTemplateSymbolSuffixIndex,
-    known_receiver_subclasses: &'a crate::devirtualize::KnownReceiverSubclassIndex,
-    class_vtables: &'a crate::vtable::ClassVtableIndex,
-    interfaces: &'a crate::itable::InterfaceIndex,
-    class_itables: &'a crate::itable::ClassItableIndex,
     materialize_direct_call_targets: bool,
-    devirtualize_dispatch_calls: bool,
 }
 
 #[derive(Clone)]
