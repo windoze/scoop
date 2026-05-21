@@ -259,7 +259,7 @@ P5 需要把这条隐式 opt helper 提升为正式 LIR optimization family：�
   - 验证命令：`cargo fmt`；`cargo test -p scoopc --no-default-features effect_facts_stage`；`cargo test -p scoopc --no-default-features effect_facts`；`cargo run -p scoop -- test --fixtures tests/fixtures/effect_facts`；`cargo test -p scoopc --no-default-features effect_lowered`；`cargo run -p scoop -- test --fixtures tests/fixtures/effect_lowered`；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
   - 残余风险：`EffectFactsStageOutput` 仍按 P4-T03 排序保留 `MirStageOutput` 嵌套与上游转发查询面；本任务只删除 P4 对 MIR 本体的可变写入，不提前收口 P4 output wrapper。
 
-## [TODO] P4-T02R：Review effect facts 只读化结果
+## [DONE] P4-T02R：Review effect facts 只读化结果
 
 - 参考：P4-T02。
 - 重点：
@@ -278,7 +278,12 @@ P5 需要把这条隐式 opt helper 提升为正式 LIR optimization family：�
   - review 结论明确写出：effect facts stage 对 MIR 输入只读，或列出阻塞项并在本 review 内修复。
 - 依赖：P4-T02
 - 完成记录：
-  - 待填写。
+  - Review 结论：effect facts stage 对 MIR 输入只读；`canonical_snapshot_mut()` 已无活跃定义或调用，`MaterializedEffectFactsBuilder` 持有只读 `&MaterializedMir`，所有 P4-owned type additions 都写入 `EffectOwnedTypeContext` 而不是 MIR-owned `TypeStore`。
+  - 只读边界：`EffectFactsStageOutput::run_with_compilation_sources(...)` 从 `MirStageOutput` 克隆初始 `EffectOwnedTypeContext`，provisional build 与 runtime-error upper-bound rebuild 复用同一 effect-owned context；第二次构建不重新打开 MIR mutable borrow。
+  - 复查范围：复查了 `crates/scoopc/src/pipeline/effect_facts_stage.rs`、`crates/scoopc/src/effect_facts/{builder.rs,facts.rs,solver.rs}`、`crates/scoopc/src/effect_lowered/builder.rs` 与 `crates/scoopc/src/pipeline/effect_lowering_stage.rs`；确认 P5 当前读取的是 P4 发布的 effect-owned type context，未回写 MIR。
+  - 搜索结果：`canonical_snapshot_mut\(` 无匹配；`&mut MaterializedMir` 仅存在于 MIR pass pipeline 内部，不在 effect facts 生产路径；`from_materialized_snapshot\(` 的生产签名接收 `&MaterializedMir` + `&mut EffectOwnedTypeContext`，其余调用点为测试或 solver 测试辅助。
+  - 验证命令：`cargo fmt`；`cargo test -p scoopc --no-default-features effect_facts_stage`；`cargo test -p scoopc --no-default-features effect_facts`；`cargo run -p scoop -- test --fixtures tests/fixtures/effect_facts`；`cargo test -p scoopc --no-default-features effect_lowered`；`cargo run -p scoop -- test --fixtures tests/fixtures/effect_lowered`；`cargo clippy --all-targets -- -D warnings`。
+  - 残余风险：`EffectFactsStageOutput` 仍按 P4-T03 排序保留 `MirStageOutput` 嵌套和上游转发查询面；本 review 确认该残余不影响 P4-T02 的只读化结论，且未将其视为长期合法边界。
 
 ## [TODO] P4-T03：收口 `EffectFactsStageOutput` 与 P5 输入边界
 
