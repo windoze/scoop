@@ -184,7 +184,7 @@ P5 需要把这条隐式 opt helper 提升为正式 LIR optimization family：�
   - 验证命令：`cargo fmt`；`cargo check -p scoopc_effect_facts`；`cargo test -p scoopc_effect_facts`；`cargo test -p scoopc --no-default-features effect_facts_stage`；`cargo run -p scoop_tools -- dependency-gate`；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
   - 残余风险：`EffectFactsStageOutput` 仍嵌套 `MirStageOutput`，且 effect facts builder 仍可变借用 MIR snapshot；这些是已排序的 P4-T02/P4-T03 范围，本任务未把该过渡形状描述为长期合法边界。
 
-## [TODO] P4-T01R：Review `scoopc_effect_facts` crate 与事实模型
+## [DONE] P4-T01R：Review `scoopc_effect_facts` crate 与事实模型
 
 - 参考：P4-T01。
 - 重点：
@@ -205,7 +205,11 @@ P5 需要把这条隐式 opt helper 提升为正式 LIR optimization family：�
   - review 结论明确写出：effect facts crate 壳层满足 P4/Pipeline fact DAG 约束，或列出阻塞项并在本 review 内修复。
 - 依赖：P4-T01
 - 完成记录：
-  - 待填写。
+  - Review 结论：`scoopc_effect_facts` crate 壳层满足 P4/Pipeline fact DAG 约束；数据产品覆盖 snapshot binding、callable/body/site facts、step schema 与 continuation schema，且生产侧通过 `MaterializedEffectFacts::to_published_effect_facts(...)` 验证适配后的独立 fact 产品。
+  - 依赖边界：`Cargo.toml`、crate sources 与 `cargo tree -p scoopc_effect_facts` 均确认 workspace 依赖只包含 `scoopc_ids`、`scoopc_types` 及其基础依赖 `scoopc_span`；dependency gate 已把 `scoopc_effect_facts` 纳入 fact crate 检查，并拒绝 fact crate 依赖 facade、stage/backend crate 或其它 fact crate。
+  - 复查范围：检查了 workspace / `scoopc` manifests、`crates/scoopc_effect_facts/`、`crates/scoopc/src/effect_facts/product.rs` adapter、`crates/scoopc_ids/` 新增 stable identity、dependency gate 与 README 说明；未发现需要在本 review 内修复的阻塞项。
+  - 验证命令：`cargo fmt`；`cargo check -p scoopc_effect_facts`；`cargo test -p scoopc_effect_facts`；`cargo test -p scoopc --no-default-features effect_facts_stage`；`cargo run -p scoop_tools -- dependency-gate`；`cargo tree -p scoopc_effect_facts`；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
+  - 残余风险：P4-T01 的过渡形状仍保留 legacy `MaterializedEffectFacts` builder、`EffectFactsStageOutput` nested `MirStageOutput` 与 mutable MIR snapshot 输入；这些边界已按顺序留给 P4-T02/P4-T03，本 review 未将其视为长期合法边界。
 
 ## [TODO] P4-T02：只读化 effect facts builder 与 effect-owned type context
 
