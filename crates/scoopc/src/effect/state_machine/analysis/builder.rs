@@ -1130,14 +1130,14 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
 
         if let Some(target) = self
             .context
-            .source_site_facts
-            .ctor_call_targets
-            .get(&self.context.call_site(expr.span))
+            .hir_facts
+            .source_sites
+            .constructor_call(self.context.current_source_path(), expr.span)
         {
-            let class_name = if target.class_fqn.is_empty() {
+            let class_name = if target.owner_fqn.is_empty() {
                 format!("ctor@{:?}", callee.span)
             } else {
-                target.class_fqn.clone()
+                target.owner_fqn.clone()
             };
             return Some(SuspendSiteKind::ClassCtorInit { class_name });
         }
@@ -1178,21 +1178,21 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
         // resume.after.call replay 主线。Pure continuation 则只保留 hidden
         // `Raise<RuntimeError>` 边界，使 `try { k.resume(...) } catch` 继续保持
         // self-contained nested-handle 语义。
-        let call_site = self.context.call_site(call_span);
         if !self
             .context
-            .source_site_facts
-            .continuation_resume_call_sites
-            .contains(&call_site)
+            .hir_facts
+            .source_sites
+            .has_continuation_resume(self.context.current_source_path(), call_span)
         {
             return None;
         }
 
         if self
             .context
-            .source_site_facts
-            .non_pure_continuation_resume_call_sites
-            .contains(&call_site)
+            .hir_facts
+            .source_sites
+            .continuation_resume(self.context.current_source_path(), call_span)
+            .is_some_and(|resume| resume.resumes_outward())
         {
             Some(SuspendSiteKind::CallMaySuspend {
                 callee: "Continuation.resume".to_string(),

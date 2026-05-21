@@ -19,7 +19,6 @@ use crate::effect::analysis::{
 };
 use crate::expr_facts::{ExprFactResolver, HirFactResolver};
 use crate::hir;
-use crate::source_site_migration_facts::SourceSiteMigrationFacts;
 use crate::span::Span;
 use crate::ty::{EffectRow, RefTypeKind, TypeId, TypeKind, TypeStore};
 use scoopc_hir_facts::HirFacts;

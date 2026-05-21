@@ -9,7 +9,6 @@ use std::rc::Rc;
 
 use crate::hir;
 use crate::mir;
-use crate::source_site_migration_facts::SourceSiteMigrationFacts;
 use crate::span::Span;
 use crate::ty::TypeId;
 use scoopc_hir_facts::HirFacts;
@@ -136,7 +135,6 @@ pub(crate) struct EffectAnalysisCtx {
     next_synthetic_symbol_raw: Cell<u32>,
     current_source_path: PathBuf,
     pub(crate) hir_facts: Rc<HirFacts>,
-    pub(crate) source_site_facts: Rc<SourceSiteMigrationFacts>,
     continuation_escape_facts: ContinuationEscapeFacts,
 }
 
@@ -147,7 +145,6 @@ impl EffectAnalysisCtx {
         known_local_metadata: HashMap<hir::SymbolId, KnownLocalMetadata>,
         current_source_path: PathBuf,
         hir_facts: Rc<HirFacts>,
-        source_site_facts: Rc<SourceSiteMigrationFacts>,
     ) -> Self {
         let next_synthetic_symbol_raw = known_local_metadata
             .keys()
@@ -163,7 +160,6 @@ impl EffectAnalysisCtx {
             next_synthetic_symbol_raw: Cell::new(next_synthetic_symbol_raw),
             current_source_path,
             hir_facts,
-            source_site_facts,
             continuation_escape_facts: ContinuationEscapeFacts::default(),
         }
     }

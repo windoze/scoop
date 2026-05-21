@@ -52,7 +52,6 @@ pub mod resolve;
 pub mod rtti;
 pub mod session;
 pub mod source;
-pub(crate) mod source_site_migration_facts;
 pub mod span;
 pub mod stable_id;
 pub mod stackmap;

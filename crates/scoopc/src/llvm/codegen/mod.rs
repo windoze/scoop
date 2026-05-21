@@ -59,7 +59,6 @@ use crate::expr_facts::{ExprFactResolver, HirFactResolver};
 use crate::hir;
 use crate::llvm::target::HostTargetInfo;
 use crate::source::{SourceFile, SourceId, SourceMap};
-use crate::source_site_migration_facts::SourceSiteMigrationFacts;
 use crate::stable_id::{
     AbiMangler, CanonicalTextKey, PrivateSymbolMangler, StableCanonicalKey, StableClosureKey,
     StableConeKey, StableDefKey, StableDefNamespace, StableTypeParamKey,
@@ -507,8 +506,6 @@ pub(crate) struct CompilationUnitCodegenCx<'a, 'ctx> {
     published_late_lowered_program: Option<&'a crate::effect_lowered::LateLoweredProgram>,
     /// HIR barrier 发布的 declaration/entity facts。
     hir_facts: Rc<HirFacts>,
-    /// P2-T05 前保留的 source-site migration bridge。
-    source_site_facts: Rc<SourceSiteMigrationFacts>,
     /// 编译单元级共享 analysis/layout cache。
     shared_caches: SharedCodegenCaches,
     /// Effect op_tag 分配状态（T1608）：整个编译单元共享的 FQN → tag 表。
@@ -832,7 +829,6 @@ pub(super) struct CompilationUnitCodegenInputs<'a, 'ctx> {
     pub(super) published_late_lowered_program:
         Option<&'a crate::effect_lowered::LateLoweredProgram>,
     pub(super) hir_facts: Rc<HirFacts>,
-    pub(super) source_site_facts: Rc<SourceSiteMigrationFacts>,
     pub(super) effect_op_tags: Rc<RefCell<EffectOpTagState>>,
 }
 
@@ -886,7 +882,6 @@ impl<'a, 'ctx> CompilationUnitCodegenCx<'a, 'ctx> {
             materialized_pass_view,
             published_late_lowered_program,
             hir_facts,
-            source_site_facts,
             effect_op_tags,
         } = inputs;
         let known_effect_instances_by_effect_fqn =
@@ -928,7 +923,6 @@ impl<'a, 'ctx> CompilationUnitCodegenCx<'a, 'ctx> {
             materialized_pass_view,
             published_late_lowered_program,
             hir_facts,
-            source_site_facts,
             shared_caches: SharedCodegenCaches::default(),
             effect_op_tags,
             known_effect_instances_by_effect_fqn,

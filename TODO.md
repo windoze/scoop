@@ -62,7 +62,7 @@
 | P2-T03R | [DONE] | [`TODO-3.md`](./TODO-3.md#done-p2-t03rreview-hirmir-单向边界) | Review HIR/MIR 单向边界 |
 | P2-T04 | [DONE] | [`TODO-3.md`](./TODO-3.md#done-p2-t04迁移-declarationentity-facts-并收口-programfacts) | 迁移 declaration/entity facts 并收口 `ProgramFacts` |
 | P2-T04R | [DONE] | [`TODO-3.md`](./TODO-3.md#done-p2-t04rreview-declarationentity-facts-迁移结果) | Review declaration/entity facts 迁移结果 |
-| P2-T05 | [TODO] | [`TODO-3.md`](./TODO-3.md#todo-p2-t05迁移-source-site-typed-contracts-并删除-fallback-双轨) | 迁移 source-site typed contracts 并删除 fallback 双轨 |
+| P2-T05 | [DONE] | [`TODO-3.md`](./TODO-3.md#done-p2-t05迁移-source-site-typed-contracts-并删除-fallback-双轨) | 迁移 source-site typed contracts 并删除 fallback 双轨 |
 | P2-T05R | [TODO] | [`TODO-3.md`](./TODO-3.md#todo-p2-t05rreview-source-site-contract-迁移结果) | Review source-site contract 迁移结果 |
 | P2-T06 | [TODO] | [`TODO-3.md`](./TODO-3.md#todo-p2-t06收口-hir-semantic-barrier-legality-gate-与错误边界) | 收口 HIR semantic barrier legality gate 与错误边界 |
 | P2-T06R | [TODO] | [`TODO-3.md`](./TODO-3.md#todo-p2-t06rreview-hir-semantic-barrier-与错误边界) | Review HIR semantic barrier 与错误边界 |

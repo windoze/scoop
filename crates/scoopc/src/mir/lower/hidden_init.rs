@@ -3,6 +3,7 @@
 #![allow(dead_code)]
 
 use super::*;
+use std::collections::HashSet;
 
 pub(in crate::mir::lower) struct HiddenInitEffectAnalyzer<'a> {
     pub(in crate::mir::lower) lowered: &'a hir::LoweredHir,

@@ -8,7 +8,7 @@ use crate::mir::{
 };
 use crate::ty::{TypeId, TypeStore};
 
-use super::{HirStageOutput, TypedHirEffectContracts};
+use super::HirStageOutput;
 
 /// direct-style MIR stage 的稳定输出形状。
 ///
@@ -28,8 +28,6 @@ use super::{HirStageOutput, TypedHirEffectContracts};
 #[derive(Debug)]
 pub struct MirStageOutput {
     lowered_mir: LoweredMir,
-    #[allow(dead_code)]
-    effect_contracts: TypedHirEffectContracts,
     callable_body_indices: BTreeMap<String, usize>,
     initializer_root_indices: BTreeMap<String, usize>,
     global_root_indices: BTreeMap<String, usize>,
@@ -38,11 +36,7 @@ pub struct MirStageOutput {
 }
 
 impl MirStageOutput {
-    pub(crate) fn new(
-        lowered_mir: LoweredMir,
-        effect_contracts: TypedHirEffectContracts,
-        materialized_mir: Option<MaterializedMir>,
-    ) -> Self {
+    pub(crate) fn new(lowered_mir: LoweredMir, materialized_mir: Option<MaterializedMir>) -> Self {
         let callable_body_indices = collect_callable_body_indices(&lowered_mir.file);
         let initializer_root_indices = collect_initializer_root_indices(&lowered_mir.file);
         let global_root_indices = collect_global_root_indices(&lowered_mir.file);
@@ -53,7 +47,6 @@ impl MirStageOutput {
             global_root_indices,
             metadata_root_indices,
             lowered_mir,
-            effect_contracts,
             materialized_mir,
         }
     }
@@ -64,11 +57,6 @@ impl MirStageOutput {
 
     pub fn types(&self) -> &TypeStore {
         &self.lowered_mir.types
-    }
-
-    #[allow(dead_code)]
-    pub(crate) fn effect_contracts(&self) -> &TypedHirEffectContracts {
-        &self.effect_contracts
     }
 
     /// 返回当前 stage 输出上显式挂住的 canonical materialized MIR 快照（若存在）。
@@ -215,12 +203,7 @@ fn validate_bodies(file: &MirFile, unit_ty: TypeId, bool_ty: TypeId) -> Result<(
 }
 
 fn lower_mir_stage_unvalidated(hir_output: HirStageOutput) -> (MirStageOutput, TypeId, TypeId) {
-    let facts = MirLoweringFacts::from_typed_handoff(
-        hir_output.lowered_hir(),
-        hir_output.hir_facts(),
-        hir_output.typed_contracts_for_migration(),
-    );
-    let effect_contracts = hir_output.typed_contracts_for_migration().clone();
+    let facts = MirLoweringFacts::from_hir_facts(hir_output.lowered_hir(), hir_output.hir_facts());
     let mut lowered_hir = hir_output.into_lowered_hir();
     let builtins = lowered_hir.types.intern_builtins();
     let file = lower_hir_file_for_dump_with_facts(
@@ -233,7 +216,7 @@ fn lower_mir_stage_unvalidated(hir_output: HirStageOutput) -> (MirStageOutput, T
     let types = std::mem::replace(&mut lowered_hir.types, TypeStore::new());
 
     (
-        MirStageOutput::new(LoweredMir { file, types }, effect_contracts, None),
+        MirStageOutput::new(LoweredMir { file, types }, None),
         builtins.unit,
         builtins.bool_,
     )
@@ -263,8 +246,6 @@ mod tests {
     use crate::source::SourceFile;
     use crate::ty::TypeStore;
     use std::path::PathBuf;
-
-    use super::super::TypedHirEffectContracts;
 
     fn session() -> Session {
         Session::with_options(SessionOptions::new()).unwrap()
@@ -333,7 +314,6 @@ mod tests {
         assert_eq!(output.file().items.len(), 2);
         assert!(output.callable_body("sample.helper").is_some());
         assert!(output.callable_body("sample.main").is_some());
-        assert_eq!(output.effect_contracts().function_effects().len(), 2);
         assert!(output.stable_dump().contains("FunDecl"));
     }
 
@@ -1558,7 +1538,6 @@ fun bad() {
                 },
                 types,
             },
-            TypedHirEffectContracts::default(),
             None,
         );
 
@@ -1929,8 +1908,7 @@ fun entry(): Int / Raise<Int> {
         let session = session();
         let typed_hir_output = super::super::load_hir_stage_output_for_dump(&session, source)
             .expect("typed HIR should pass before forged contract lowering");
-        let facts =
-            MirLoweringFacts::default().with_typed_contracts(&TypedHirEffectContracts::default());
+        let facts = MirLoweringFacts::default();
         let mut lowered_hir = typed_hir_output.into_lowered_hir();
         let builtins = lowered_hir.types.intern_builtins();
         let file = lower_hir_file_for_dump_with_facts(

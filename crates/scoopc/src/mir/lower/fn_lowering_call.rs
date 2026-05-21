@@ -845,47 +845,22 @@ impl<'a> FnLowering<'a> {
         result_ty: TypeId,
         lowered_args: Vec<CallArg>,
     ) -> Option<(Vec<PerformArg>, PerformMetadata)> {
-        let uses_typed_contracts = self.facts.uses_typed_contracts();
         if let Some(mut metadata) = self
             .facts
             .perform_metadata(self.source_path.as_path(), span)
-            .filter(|metadata| {
-                if uses_typed_contracts {
-                    metadata.arg_mapping.len() == lowered_args.len()
-                } else {
-                    metadata
-                        .arg_mapping
-                        .iter()
-                        .all(|idx| *idx < lowered_args.len())
-                }
-            })
+            .filter(|metadata| metadata.arg_mapping.len() == lowered_args.len())
             .cloned()
         {
-            let perform_args = if uses_typed_contracts {
-                lowered_args
-                    .iter()
-                    .enumerate()
-                    .map(|(param_idx, arg)| PerformArg {
-                        span: arg.span,
-                        source_arg_index: metadata.arg_mapping[param_idx],
-                        name: arg.name.clone(),
-                        value: arg.value.clone(),
-                    })
-                    .collect::<Vec<_>>()
-            } else {
-                metadata
-                    .arg_mapping
-                    .iter()
-                    .copied()
-                    .filter_map(|arg_idx| lowered_args.get(arg_idx).map(|arg| (arg_idx, arg)))
-                    .map(|(source_arg_index, arg)| PerformArg {
-                        span: arg.span,
-                        source_arg_index,
-                        name: arg.name.clone(),
-                        value: arg.value.clone(),
-                    })
-                    .collect::<Vec<_>>()
-            };
+            let perform_args = lowered_args
+                .iter()
+                .enumerate()
+                .map(|(param_idx, arg)| PerformArg {
+                    span: arg.span,
+                    source_arg_index: metadata.arg_mapping[param_idx],
+                    name: arg.name.clone(),
+                    value: arg.value.clone(),
+                })
+                .collect::<Vec<_>>();
             metadata.payload_transport = perform_args
                 .iter()
                 .map(|arg| {
@@ -901,68 +876,8 @@ impl<'a> FnLowering<'a> {
             return Some((perform_args, metadata));
         }
 
-        if self.facts.uses_typed_contracts() {
-            return None;
-        }
-
-        let info = self.facts.fallback_perform_site_info(span);
-        let arg_mapping = info
-            .map(|site| site.arg_mapping.as_slice())
-            .filter(|mapping| mapping.len() == lowered_args.len())
-            .map(|mapping| mapping.to_vec())
-            .unwrap_or_else(|| (0..lowered_args.len()).collect());
-
-        let perform_args = lowered_args
-            .iter()
-            .enumerate()
-            .map(|(param_idx, arg)| PerformArg {
-                span: arg.span,
-                source_arg_index: arg_mapping[param_idx],
-                name: arg.name.clone(),
-                value: arg.value.clone(),
-            })
-            .collect::<Vec<_>>();
-
-        let payload_tuple_ty = info.and_then(|site| site.payload_tuple_ty).or_else(|| {
-            (perform_args.len() > 1).then(|| {
-                self.types.ty_tuple(
-                    perform_args
-                        .iter()
-                        .map(|arg| self.operand_ty(&arg.value))
-                        .collect(),
-                )
-            })
-        });
-
-        let payload_component_tys = perform_args
-            .iter()
-            .map(|arg| self.operand_ty(&arg.value))
-            .collect();
-        let payload_transport = perform_args
-            .iter()
-            .map(|arg| {
-                let ty = self.operand_ty(&arg.value);
-                self.value_transport_with_boxing_reason(
-                    ty,
-                    MirTransportKind::EffectPayload,
-                    MirBoxingReason::EffectPayload,
-                    payload_tuple_ty,
-                )
-            })
-            .collect();
-
-        Some((
-            perform_args,
-            PerformMetadata {
-                effect_ty: self.builtins.any,
-                op_type_args: Vec::new(),
-                result_ty,
-                payload_tuple_ty,
-                payload_component_tys,
-                payload_transport,
-                arg_mapping,
-            },
-        ))
+        let _ = result_ty;
+        None
     }
 
     pub(in crate::mir::lower) fn lower_call_expr(
@@ -986,14 +901,6 @@ impl<'a> FnLowering<'a> {
 
         if self.lower_typed_call_expr(span, result, callee, args) {
             return result;
-        }
-
-        if self.facts.fallback_resume_site_matches(span) {
-            panic!(
-                "typed continuation resume contract missing before MIR lowering at {} {span:?} (suspends_outward={})",
-                self.source_path.display(),
-                self.facts.fallback_resume_site_suspends_outward(span),
-            );
         }
 
         if self

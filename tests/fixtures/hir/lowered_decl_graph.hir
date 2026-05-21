@@ -357,14 +357,13 @@ File {
 
 hir_facts {
   declarations: nominals=79, callables=5, fields=50, enum_variants=26, vtables=56, itables=34
-  source_sites: calls=0, args=0, assigns=0, updates=0, effects=0, resumes=0, patterns=0
+  source_sites: function_effects=5, calls=0, args=0, assigns=0, updates=0, performs=0, handles=0, resumes=0, patterns=0, top_level_roots=1, extern_globals=0
   globals: roots=2, object_inits=2, class_inits=24
   native: extern_funs=0, native_callables=0, extern_globals=0, extern_libs=0
-  contract_bridge: function_effects=5, calls=0, resumes=0, performs=0, handles=0, assigns=0, updates=0, top_level_roots=1, extern_globals=0
   type_context: universe=hir-stage-type-store, type_params=86, source_cones=8
 }
 
-typed_contract_bridge {
+source_site_contracts {
     function_effects: [
         FunctionEffectContract {
             span: 229..247,

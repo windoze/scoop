@@ -50,14 +50,17 @@ mod tests {
         let hir_output = super::load_hir_for_dump(&session, &source).unwrap();
 
         assert_eq!(hir_output.hir_file().items.len(), 1);
-        assert!(!hir_output.hir_facts().contract_bridge.is_empty());
-        assert_eq!(hir_output.hir_facts().contract_bridge.function_effects, 1);
+        assert!(!hir_output.hir_facts().source_sites.is_empty());
+        assert_eq!(
+            hir_output.hir_facts().source_sites.function_effects.len(),
+            1
+        );
         assert!(hir_output.stable_dump().contains("hir_facts {"));
-        assert!(hir_output.stable_dump().contains("typed_contract_bridge {"));
+        assert!(hir_output.stable_dump().contains("source_site_contracts {"));
     }
 
     #[test]
-    fn dump_hir_output_appends_typed_contract_section() {
+    fn dump_hir_output_appends_source_site_contract_section() {
         let session = Session::with_options(SessionOptions::new()).unwrap();
         let source = SourceFile::new_virtual(
             "<mem>",
@@ -77,7 +80,7 @@ fun use(k: Continuation<Int, Int, eff Pure>): Int / Raise<RuntimeError> {
             .stable_dump();
 
         assert!(rendered.contains("hir_facts {"));
-        assert!(rendered.contains("typed_contract_bridge {"));
+        assert!(rendered.contains("source_site_contracts {"));
         assert!(rendered.contains("continuation_resume_sites"));
         assert!(rendered.contains("required_effects: scoop.core.Raise<scoop.core.RuntimeError>"));
     }

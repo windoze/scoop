@@ -207,23 +207,23 @@ fn assert_required_contract(
 ) {
     let present = match requirement {
         RequiredHirContract::DeclarationGraph => !output.hir_file().decls.is_empty(),
-        RequiredHirContract::CallSite => output.hir_facts().contract_bridge.call_site_contracts > 0,
-        RequiredHirContract::ContinuationResume => {
-            output.hir_facts().contract_bridge.continuation_resume_sites > 0
-        }
-        RequiredHirContract::Perform => output.hir_facts().contract_bridge.perform_sites > 0,
-        RequiredHirContract::Handle => output.hir_facts().contract_bridge.handle_sites > 0,
-        RequiredHirContract::AssignPlace => {
-            output.hir_facts().contract_bridge.assign_place_contracts > 0
-        }
-        RequiredHirContract::WithUpdate => {
-            output.hir_facts().contract_bridge.with_update_contracts > 0
-        }
-        RequiredHirContract::TopLevelInitRoot => {
-            output.hir_facts().contract_bridge.top_level_init_roots > 0
-        }
+        RequiredHirContract::CallSite => !output.hir_facts().source_sites.call_sites.is_empty(),
+        RequiredHirContract::ContinuationResume => !output
+            .hir_facts()
+            .source_sites
+            .continuation_resumes
+            .is_empty(),
+        RequiredHirContract::Perform => !output.hir_facts().source_sites.perform_sites.is_empty(),
+        RequiredHirContract::Handle => !output.hir_facts().source_sites.handle_sites.is_empty(),
+        RequiredHirContract::AssignPlace => !output.hir_facts().source_sites.assignments.is_empty(),
+        RequiredHirContract::WithUpdate => !output.hir_facts().source_sites.with_updates.is_empty(),
+        RequiredHirContract::TopLevelInitRoot => !output
+            .hir_facts()
+            .source_sites
+            .top_level_init_roots
+            .is_empty(),
         RequiredHirContract::ExternGlobal => {
-            output.hir_facts().contract_bridge.extern_global_contracts > 0
+            !output.hir_facts().source_sites.extern_globals.is_empty()
         }
     };
 

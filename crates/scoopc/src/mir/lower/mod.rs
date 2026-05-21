@@ -7,16 +7,17 @@
 //! - 这里不负责 materialize monomorphic instance，也不编码 LLVM/backend-specific 细节；
 //! - 未覆盖的表达式/语句继续以 `Todo(...)` 占位，优先保证边界清晰、输出稳定、不 panic。
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 use crate::ast;
 use crate::expr_facts::HirFactResolver;
 use crate::hir;
 use crate::pipeline::{
-    CallArgBindingContract, CallArgParamContract, ContinuationResumeReceiverRoute,
-    ExternGlobalContract, FunctionTargetContract, HandleArmContractKind, MemberCallTargetContract,
+    CallArgBindingContract, CallArgElementContract, CallArgParamContract,
+    ConstructorCallTargetContract, ContinuationResumeReceiverRoute, ExternGlobalContract,
+    FunctionTargetContract, MemberCallTargetContract, TopLevelInitDependency,
     TopLevelInitDependencyKind, TopLevelInitRootContract, TopLevelInitRootKind,
-    TypedCallSiteContract, TypedHirEffectContracts, TypedIntrinsicKind,
+    TypedCallSiteContract, TypedIntrinsicKind,
 };
 use crate::session::Session;
 use crate::source::SourceFile;
@@ -25,7 +26,7 @@ use crate::ty::{
     BuiltinTypes, EffectRow, RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind,
     is_builtin_scalar_nominal_value_type,
 };
-use scoopc_hir_facts::HirFacts;
+use scoopc_hir_facts::{HirFacts, source_sites as hir_site_facts};
 
 use super::{
     AccessorMetadata, AggregateTransportField, AggregateTransportKind, AggregateTransportMetadata,
@@ -54,20 +55,10 @@ use super::{
 /// 目标：
 /// - 把 HIR/typecheck 已确认的调用语义收口成 MIR lowering 可直接查询的 backend-agnostic 输入；
 /// - 避免 MIR 阶段重新回到 LLVM vtable/itable 细节或 `Continuation.resume` 名字推断。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum MirSiteContractSource {
-    FallbackSideTables,
-    Typed,
-}
-
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub(crate) struct MirLoweringFacts {
-    site_contract_source: MirSiteContractSource,
     dispatch_call_sites: HashMap<hir::DispatchCallSite, DispatchTargetKind>,
     call_arg_bindings: HashMap<hir::CallSite, CallArgBindingContract>,
-    fallback_resume_site_spans: HashSet<Span>,
-    fallback_outward_resume_site_spans: HashSet<Span>,
-    fallback_perform_sites: HashMap<Span, PerformCallSiteInfo>,
     resume_sites: HashMap<hir::CallSite, ResumeCallInfo>,
     perform_sites: HashMap<hir::CallSite, PerformMetadata>,
     handle_sites: HashMap<hir::CallSite, HandleSiteInfo>,
@@ -82,51 +73,15 @@ pub(crate) struct MirLoweringFacts {
     when_pat_binding_tys: HashMap<Span, TypeId>,
     nominal_kinds: HashMap<String, ast::TypeKind>,
     enum_has_payload: HashMap<String, bool>,
-    top_level_fun_call_sites: HashMap<hir::CallSite, ast::TopLevelFunCallBinding>,
+    top_level_fun_call_fqns: HashMap<hir::CallSite, String>,
     member_value_tys: HashMap<String, TypeId>,
     continuation_identity_return_funs: HashMap<String, usize>,
-}
-
-impl Default for MirLoweringFacts {
-    fn default() -> Self {
-        Self {
-            site_contract_source: MirSiteContractSource::FallbackSideTables,
-            dispatch_call_sites: HashMap::new(),
-            call_arg_bindings: HashMap::new(),
-            fallback_resume_site_spans: HashSet::new(),
-            fallback_outward_resume_site_spans: HashSet::new(),
-            fallback_perform_sites: HashMap::new(),
-            resume_sites: HashMap::new(),
-            perform_sites: HashMap::new(),
-            handle_sites: HashMap::new(),
-            call_sites: HashMap::new(),
-            assign_places: HashMap::new(),
-            class_ctor_call_sites: HashMap::new(),
-            class_ctor_hidden_effects: HashMap::new(),
-            object_member_hidden_effects: HashMap::new(),
-            top_level_ref_hidden_effects: HashMap::new(),
-            top_level_init_roots: Vec::new(),
-            extern_global_contracts: Vec::new(),
-            when_pat_binding_tys: HashMap::new(),
-            nominal_kinds: HashMap::new(),
-            enum_has_payload: HashMap::new(),
-            top_level_fun_call_sites: HashMap::new(),
-            member_value_tys: HashMap::new(),
-            continuation_identity_return_funs: HashMap::new(),
-        }
-    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum DispatchTargetKind {
     Virtual,
     Interface,
-}
-
-#[derive(Debug, Clone)]
-struct PerformCallSiteInfo {
-    arg_mapping: Vec<usize>,
-    payload_tuple_ty: Option<TypeId>,
 }
 
 #[derive(Debug, Clone)]
@@ -147,33 +102,6 @@ fn call_arg_expr(arg: &hir::CallArg) -> &hir::Expr {
         hir::CallArg::Positional(expr) => expr,
         hir::CallArg::Named { value, .. } => value,
     }
-}
-
-fn lowered_call_arg_binding_contract(binding: &ast::CallArgBinding) -> CallArgBindingContract {
-    CallArgBindingContract::new(
-        binding
-            .params
-            .iter()
-            .map(|param| match param {
-                ast::CallArgParamBinding::Receiver => CallArgParamContract::Receiver,
-                ast::CallArgParamBinding::Explicit(element) => CallArgParamContract::Explicit(
-                    crate::pipeline::CallArgElementContract::new(element.arg_index, element.spread),
-                ),
-                ast::CallArgParamBinding::Default => CallArgParamContract::Default,
-                ast::CallArgParamBinding::Vararg(elements) => CallArgParamContract::Vararg(
-                    elements
-                        .iter()
-                        .map(|element| {
-                            crate::pipeline::CallArgElementContract::new(
-                                element.arg_index,
-                                element.spread,
-                            )
-                        })
-                        .collect(),
-                ),
-            })
-            .collect(),
-    )
 }
 
 fn call_arg_binding_has_receiver(binding: &CallArgBindingContract) -> bool {

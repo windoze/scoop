@@ -154,13 +154,13 @@ fn source_site_keys(facts: &HirFacts) -> Vec<SourceSiteKey> {
             .iter()
             .map(|fact| source_site_key(&fact.identity, "call", String::new())),
     );
-    keys.extend(facts.source_sites.argument_bindings.iter().map(|fact| {
-        source_site_key(
-            &fact.identity,
-            "argument",
-            format!("{}:{}", fact.argument_index, fact.parameter_index),
-        )
-    }));
+    keys.extend(
+        facts
+            .source_sites
+            .argument_bindings
+            .iter()
+            .map(|fact| source_site_key(&fact.identity, "argument", String::new())),
+    );
     keys.extend(
         facts
             .source_sites
@@ -178,9 +178,16 @@ fn source_site_keys(facts: &HirFacts) -> Vec<SourceSiteKey> {
     keys.extend(
         facts
             .source_sites
-            .effect_sites
+            .perform_sites
             .iter()
-            .map(|fact| source_site_key(&fact.identity, "effect", String::new())),
+            .map(|fact| source_site_key(&fact.identity, "perform", String::new())),
+    );
+    keys.extend(
+        facts
+            .source_sites
+            .handle_sites
+            .iter()
+            .map(|fact| source_site_key(&fact.identity, "handle", String::new())),
     );
     keys.extend(
         facts

@@ -23,12 +23,13 @@ pub use effect_facts_stage::EffectFactsStageOutput;
 pub use effect_lowering_stage::EffectLoweredStageOutput;
 pub use hir_stage::HirStageOutput;
 pub(crate) use hir_stage::build_hir_declaration_facts_for_migration;
+pub(crate) use hir_stage::build_hir_facts_for_migration;
 pub(crate) use hir_stage::{
     CallArgBindingContract, CallArgElementContract, CallArgParamContract,
     ConstructorCallTargetContract, ContinuationResumeReceiverRoute, ExternGlobalContract,
-    FunctionTargetContract, HandleArmContractKind, MemberCallTargetContract,
-    TopLevelInitDependency, TopLevelInitDependencyKind, TopLevelInitRootContract,
-    TopLevelInitRootKind, TypedCallSiteContract, TypedHirEffectContracts, TypedIntrinsicKind,
+    FunctionTargetContract, MemberCallTargetContract, TopLevelInitDependency,
+    TopLevelInitDependencyKind, TopLevelInitRootContract, TopLevelInitRootKind,
+    TypedCallSiteContract, TypedIntrinsicKind,
 };
 #[cfg(feature = "llvm")]
 pub use llvm_codegen_stage::{LlvmCodegenStageInput, LlvmCodegenStageOutput};
@@ -314,7 +315,7 @@ mod tests {
         let output = load_hir_stage_output_for_dump(&session, &source).unwrap();
 
         assert_eq!(output.hir_file().items.len(), 1);
-        assert!(!output.hir_facts().contract_bridge.is_empty());
+        assert!(!output.hir_facts().source_sites.is_empty());
     }
 
     #[test]

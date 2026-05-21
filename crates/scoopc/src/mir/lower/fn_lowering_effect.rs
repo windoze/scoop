@@ -12,9 +12,9 @@ impl<'a> FnLowering<'a> {
     ) -> Option<TypeId> {
         if let Some(binding) = self
             .facts
-            .top_level_fun_call_binding(self.source_path.as_path(), span)
+            .top_level_fun_call_fqn(self.source_path.as_path(), span)
             .filter(|binding| top_level_binding_matches_callee(binding, callee))
-            && let Some(return_ty) = self.top_level_fun_return_tys.get(&binding.fqn)
+            && let Some(return_ty) = self.top_level_fun_return_tys.get(binding)
         {
             return Some(*return_ty);
         }
@@ -253,10 +253,9 @@ impl<'a> FnLowering<'a> {
             .cloned();
         let handle_contract = if let Some(site) = handle_site {
             Some((site.metadata, site.arms))
-        } else if self.facts.uses_typed_contracts() {
-            None
         } else {
-            Some(self.lower_handle_contract_from_hir(ty, handle))
+            let _ = (ty, handle);
+            None
         };
         let Some((metadata, mut arms)) = handle_contract else {
             let body_bb = self.push_block(handle.body.span);
@@ -675,11 +674,11 @@ impl<'a> FnLowering<'a> {
     ) -> Option<LocalId> {
         let binding = self
             .facts
-            .top_level_fun_call_binding(self.source_path.as_path(), span)?;
+            .top_level_fun_call_fqn(self.source_path.as_path(), span)?;
         let result = self.push_temp_local(span, result_ty);
 
         let (compare_lhs, compare_rhs) = self
-            .already_lowered_compare_to_args(lhs, rhs, binding.fqn.as_str())
+            .already_lowered_compare_to_args(lhs, rhs, binding)
             .unwrap_or((lhs, rhs));
         let lhs_local = self.lower_expr_to_local(compare_lhs);
         if self.current_is_terminated() {
@@ -692,7 +691,7 @@ impl<'a> FnLowering<'a> {
 
         let compare_result = self.push_temp_local(span, self.builtins.int);
         let compare_kind = CallKind::Direct {
-            callee_fqn: binding.fqn.clone(),
+            callee_fqn: binding.to_string(),
         };
         let compare_args = vec![
             CallArg {

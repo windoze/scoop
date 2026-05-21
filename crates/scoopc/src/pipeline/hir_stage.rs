@@ -13,11 +13,10 @@ use crate::intrinsics::{NamedIntrinsicLoweringMode, named_intrinsic_audit_entry}
 use crate::session::Session;
 use crate::source::SourceFile;
 use crate::span::Span;
-use crate::stable_id::CanonicalTextKey;
+use crate::stable_id::{CanonicalTextKey, SiteId, StableHashScope, stable_hash64};
 use crate::ty::{EffectRow, NominalType, RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind};
 use scoopc_hir_facts::{
     HirFacts,
-    bridge::TypedContractBridgeFacts,
     common::FactIdentity,
     declarations::{
         CallableDeclarationFact, DeclarationFacts, DispatchSlotFact, DispatchTableFact,
@@ -28,6 +27,7 @@ use scoopc_hir_facts::{
         GlobalRootFact, GlobalRootKind, GlobalStoragePolicy, InitializerFact, InitializerFieldFact,
     },
     native::{ExternFunctionFact, ExternGlobalFact, ExternLibraryFact, NativeCallableFact},
+    source_sites as hir_site_facts,
     type_context::{SourceConeFact, StableTypeParamFact, TypeContextReference},
 };
 
@@ -144,14 +144,14 @@ impl FunctionEffectContract {
 /// Typed HIR handoff root for top-level initialization/storage ordering.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TopLevelInitRootContract {
-    fqn: String,
-    source_path: PathBuf,
-    span: Span,
-    kind: TopLevelInitRootKind,
-    ty: Option<TypeId>,
-    initializer_ty: Option<TypeId>,
-    has_initializer: bool,
-    dependencies: Vec<TopLevelInitDependency>,
+    pub(crate) fqn: String,
+    pub(crate) source_path: PathBuf,
+    pub(crate) span: Span,
+    pub(crate) kind: TopLevelInitRootKind,
+    pub(crate) ty: Option<TypeId>,
+    pub(crate) initializer_ty: Option<TypeId>,
+    pub(crate) has_initializer: bool,
+    pub(crate) dependencies: Vec<TopLevelInitDependency>,
 }
 
 impl TopLevelInitRootContract {
@@ -171,6 +171,8 @@ impl TopLevelInitRootContract {
         self.kind
     }
 
+    #[allow(dead_code)]
+    #[allow(dead_code)]
     pub fn ty(&self) -> Option<TypeId> {
         self.ty
     }
@@ -199,8 +201,8 @@ pub enum TopLevelInitRootKind {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TopLevelInitDependency {
-    fqn: String,
-    kind: TopLevelInitDependencyKind,
+    pub(crate) fqn: String,
+    pub(crate) kind: TopLevelInitDependencyKind,
 }
 
 impl TopLevelInitDependency {
@@ -226,16 +228,16 @@ pub enum TopLevelInitDependencyKind {
 /// Typed HIR handoff contract for an `@Extern` top-level variable.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ExternGlobalContract {
-    fqn: String,
-    source_path: PathBuf,
-    span: Span,
-    ty: TypeId,
-    mutable: bool,
-    symbol: String,
-    linkage: crate::hir::ExternGlobalLinkage,
-    storage: crate::hir::TopLevelVarStorage,
-    initializer_absent: bool,
-    unsafe_required: bool,
+    pub(crate) fqn: String,
+    pub(crate) source_path: PathBuf,
+    pub(crate) span: Span,
+    pub(crate) ty: TypeId,
+    pub(crate) mutable: bool,
+    pub(crate) symbol: String,
+    pub(crate) linkage: crate::hir::ExternGlobalLinkage,
+    pub(crate) storage: crate::hir::TopLevelVarStorage,
+    pub(crate) initializer_absent: bool,
+    pub(crate) unsafe_required: bool,
 }
 
 impl ExternGlobalContract {
@@ -307,6 +309,7 @@ impl PayloadTypeContract {
         Self { ty, components }
     }
 
+    #[allow(dead_code)]
     pub fn ty(&self) -> Option<TypeId> {
         self.ty
     }
@@ -643,13 +646,13 @@ impl CallArgElementContract {
 /// 一个 resolved function target 的声明身份与实例化参数。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FunctionTargetContract {
-    fqn: String,
-    decl_file: Option<PathBuf>,
-    decl_span: Option<Span>,
-    abi_identity: CallableAbiIdentity,
-    type_args: Vec<TypeId>,
-    eff_args: Vec<EffectRow>,
-    arg_binding: Option<CallArgBindingContract>,
+    pub(crate) fqn: String,
+    pub(crate) decl_file: Option<PathBuf>,
+    pub(crate) decl_span: Option<Span>,
+    pub(crate) abi_identity: CallableAbiIdentity,
+    pub(crate) type_args: Vec<TypeId>,
+    pub(crate) eff_args: Vec<EffectRow>,
+    pub(crate) arg_binding: Option<CallArgBindingContract>,
 }
 
 impl FunctionTargetContract {
@@ -737,11 +740,11 @@ impl FunctionTargetContract {
 /// 成员调用的结构化 owner/member 绑定。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MemberCallTargetContract {
-    owner_fqn: String,
-    member_name: String,
-    member_fqn: String,
-    receiver_ty: TypeId,
-    function: FunctionTargetContract,
+    pub(crate) owner_fqn: String,
+    pub(crate) member_name: String,
+    pub(crate) member_fqn: String,
+    pub(crate) receiver_ty: TypeId,
+    pub(crate) function: FunctionTargetContract,
 }
 
 impl MemberCallTargetContract {
@@ -785,10 +788,10 @@ impl MemberCallTargetContract {
 /// constructor 调用的 typed HIR provenance。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ConstructorCallTargetContract {
-    owner_fqn: String,
-    ctor_span: Option<Span>,
-    result_ty: TypeId,
-    arg_mapping: Vec<Option<usize>>,
+    pub(crate) owner_fqn: String,
+    pub(crate) ctor_span: Option<Span>,
+    pub(crate) result_ty: TypeId,
+    pub(crate) arg_mapping: Vec<Option<usize>>,
 }
 
 impl ConstructorCallTargetContract {
@@ -880,13 +883,11 @@ impl TypedCallSiteContract {
     }
 }
 
-/// 迁移期 typed contract bridge payload。
+/// HIR lowering 内部收集器产物。
 ///
-/// 正式 HIR stage handoff 只能通过 `HirStageOutput::hir_facts()` 暴露 facts；本类型保留为
-/// crate 内部 MIR lowering adapter，直到 P2-T05 将完整 source-site contract payload 迁入
-/// `scoopc_hir_facts`。
+/// 这些 contract 会立即转换成 `scoopc_hir_facts::HirFacts`；后续 stage 不再直接消费本类型。
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
-pub(crate) struct TypedHirEffectContracts {
+struct CollectedHirContracts {
     function_effects: Vec<FunctionEffectContract>,
     continuation_resume_sites: HashMap<CallSite, ContinuationResumeSiteContract>,
     perform_sites: HashMap<CallSite, PerformSiteContract>,
@@ -899,7 +900,7 @@ pub(crate) struct TypedHirEffectContracts {
     extern_global_contracts: Vec<ExternGlobalContract>,
 }
 
-impl TypedHirEffectContracts {
+impl CollectedHirContracts {
     pub(crate) fn from_lowered_hir(
         lowered_hir: &LoweredHir,
         source_path: &Path,
@@ -907,23 +908,16 @@ impl TypedHirEffectContracts {
         ContractCollector::new(lowered_hir).collect(source_path)
     }
 
+    pub(crate) fn from_lowered_hir_source_path(
+        lowered_hir: &LoweredHir,
+        source_path: &Path,
+    ) -> Result<Self, HirStageError> {
+        ContractCollector::new(lowered_hir).collect_source_path(source_path)
+    }
+
     #[allow(dead_code)]
     pub const fn is_placeholder(&self) -> bool {
         false
-    }
-
-    fn to_hir_fact_bridge(&self) -> TypedContractBridgeFacts {
-        TypedContractBridgeFacts {
-            function_effects: self.function_effects.len(),
-            call_site_contracts: self.call_site_contracts.len(),
-            continuation_resume_sites: self.continuation_resume_sites.len(),
-            perform_sites: self.perform_sites.len(),
-            handle_sites: self.handle_sites.len(),
-            assign_place_contracts: self.assign_place_contracts.len(),
-            with_update_contracts: self.with_update_contracts.len(),
-            top_level_init_roots: self.top_level_init_roots.len(),
-            extern_global_contracts: self.extern_global_contracts.len(),
-        }
     }
 
     #[allow(dead_code)]
@@ -945,6 +939,7 @@ impl TypedHirEffectContracts {
         &self.function_effects
     }
 
+    #[allow(dead_code)]
     pub fn continuation_resume_sites(&self) -> &HashMap<CallSite, ContinuationResumeSiteContract> {
         &self.continuation_resume_sites
     }
@@ -957,6 +952,7 @@ impl TypedHirEffectContracts {
         self.continuation_resume_sites.get(call_site)
     }
 
+    #[allow(dead_code)]
     pub fn perform_sites(&self) -> &HashMap<CallSite, PerformSiteContract> {
         &self.perform_sites
     }
@@ -966,6 +962,7 @@ impl TypedHirEffectContracts {
         self.perform_sites.get(call_site)
     }
 
+    #[allow(dead_code)]
     pub fn handle_sites(&self) -> &HashMap<CallSite, HandleSiteContract> {
         &self.handle_sites
     }
@@ -985,6 +982,7 @@ impl TypedHirEffectContracts {
         self.call_site_kinds.get(call_site).copied()
     }
 
+    #[allow(dead_code)]
     pub fn call_site_contracts(&self) -> &HashMap<CallSite, TypedCallSiteContract> {
         &self.call_site_contracts
     }
@@ -999,14 +997,17 @@ impl TypedHirEffectContracts {
         &self.with_update_contracts
     }
 
+    #[allow(dead_code)]
     pub fn assign_place_contracts(&self) -> &HashMap<CallSite, AssignPlaceContract> {
         &self.assign_place_contracts
     }
 
+    #[allow(dead_code)]
     pub fn top_level_init_roots(&self) -> &[TopLevelInitRootContract] {
         &self.top_level_init_roots
     }
 
+    #[allow(dead_code)]
     pub fn extern_global_contracts(&self) -> &[ExternGlobalContract] {
         &self.extern_global_contracts
     }
@@ -1014,7 +1015,7 @@ impl TypedHirEffectContracts {
     /// 以稳定顺序渲染迁移 bridge，供 `dump-hir` 与 snapshot tests 审计旧 payload。
     pub fn stable_dump(&self, types: &TypeStore) -> String {
         let mut out = String::new();
-        let _ = writeln!(out, "typed_contract_bridge {{");
+        let _ = writeln!(out, "source_site_contracts {{");
 
         let _ = writeln!(out, "    function_effects: [");
         for contract in &self.function_effects {
@@ -1266,7 +1267,7 @@ impl TypedHirEffectContracts {
 pub struct HirStageOutput {
     lowered_hir: LoweredHir,
     hir_facts: HirFacts,
-    typed_contracts_for_migration: TypedHirEffectContracts,
+    collected_contracts: CollectedHirContracts,
     source_path: PathBuf,
 }
 
@@ -1278,13 +1279,13 @@ impl HirStageOutput {
 
     fn new_checked(mut lowered_hir: LoweredHir, source_path: &Path) -> Result<Self, HirStageError> {
         ensure_raise_runtime_error_effect(&mut lowered_hir.types);
-        let typed_contracts_for_migration =
-            TypedHirEffectContracts::from_lowered_hir(&lowered_hir, source_path)?;
-        let hir_facts = build_hir_facts(&lowered_hir, &typed_contracts_for_migration, source_path)?;
+        let collected_contracts =
+            CollectedHirContracts::from_lowered_hir(&lowered_hir, source_path)?;
+        let hir_facts = build_hir_facts(&lowered_hir, &collected_contracts, source_path)?;
         Ok(Self {
             lowered_hir,
             hir_facts,
-            typed_contracts_for_migration,
+            collected_contracts,
             source_path: source_path.to_path_buf(),
         })
     }
@@ -1305,8 +1306,9 @@ impl HirStageOutput {
         &self.hir_facts
     }
 
-    pub(crate) fn typed_contracts_for_migration(&self) -> &TypedHirEffectContracts {
-        &self.typed_contracts_for_migration
+    #[cfg(test)]
+    fn source_site_contracts_for_tests(&self) -> &CollectedHirContracts {
+        &self.collected_contracts
     }
 
     pub fn source_path(&self) -> &Path {
@@ -1322,7 +1324,7 @@ impl HirStageOutput {
         out.push_str(&self.hir_facts.dump());
         out.push('\n');
         out.push('\n');
-        out.push_str(&self.typed_contracts_for_migration.stable_dump(self.types()));
+        out.push_str(&self.collected_contracts.stable_dump(self.types()));
         out.push('\n');
         out
     }
@@ -1339,11 +1341,11 @@ pub(crate) fn run(session: &Session, source: &SourceFile) -> Result<HirStageOutp
 
 fn build_hir_facts(
     lowered_hir: &LoweredHir,
-    typed_contracts: &TypedHirEffectContracts,
+    collected_contracts: &CollectedHirContracts,
     source_path: &Path,
 ) -> Result<HirFacts, HirStageError> {
     let mut facts = build_hir_declaration_facts_core(lowered_hir);
-    facts.contract_bridge = typed_contracts.to_hir_fact_bridge();
+    populate_source_site_facts(&mut facts.source_sites, lowered_hir, collected_contracts);
     verify_built_hir_facts(&facts, source_path)?;
     Ok(facts)
 }
@@ -1352,7 +1354,21 @@ pub(crate) fn build_hir_declaration_facts_for_migration(
     lowered_hir: &LoweredHir,
     source_path: &Path,
 ) -> Result<HirFacts, HirStageError> {
-    let facts = build_hir_declaration_facts_core(lowered_hir);
+    let collected_contracts =
+        CollectedHirContracts::from_lowered_hir_source_path(lowered_hir, source_path)?;
+    let mut facts = build_hir_declaration_facts_core(lowered_hir);
+    populate_source_site_facts(&mut facts.source_sites, lowered_hir, &collected_contracts);
+    verify_built_hir_facts(&facts, source_path)?;
+    Ok(facts)
+}
+
+pub(crate) fn build_hir_facts_for_migration(
+    lowered_hir: &LoweredHir,
+    source_path: &Path,
+) -> Result<HirFacts, HirStageError> {
+    let collected_contracts = CollectedHirContracts::from_lowered_hir(lowered_hir, source_path)?;
+    let mut facts = build_hir_declaration_facts_core(lowered_hir);
+    populate_source_site_facts(&mut facts.source_sites, lowered_hir, &collected_contracts);
     verify_built_hir_facts(&facts, source_path)?;
     Ok(facts)
 }
@@ -1369,6 +1385,725 @@ fn build_hir_declaration_facts_core(lowered_hir: &LoweredHir) -> HirFacts {
     populate_global_root_facts(&mut facts, lowered_hir);
     populate_native_extern_facts(&mut facts, lowered_hir);
     facts
+}
+
+fn populate_source_site_facts(
+    facts: &mut hir_site_facts::SourceSiteFacts,
+    lowered_hir: &LoweredHir,
+    contracts: &CollectedHirContracts,
+) {
+    facts.function_effects = contracts
+        .function_effects
+        .iter()
+        .map(function_effect_fact)
+        .collect();
+
+    let mut call_site_contracts = contracts.call_site_contracts.iter().collect::<Vec<_>>();
+    call_site_contracts.sort_by(|(lhs, _), (rhs, _)| compare_call_sites(lhs, rhs));
+    for (call_site, contract) in call_site_contracts {
+        facts
+            .call_sites
+            .push(call_site_contract_fact(call_site, contract));
+        if let Some(binding) = call_site_contract_arg_binding(contract) {
+            facts
+                .argument_bindings
+                .push(hir_site_facts::ArgumentBindingContract {
+                    identity: source_site_identity(call_site, "argument"),
+                    binding: call_arg_binding_fact(binding),
+                });
+        }
+    }
+
+    let mut assign_place_contracts = contracts.assign_place_contracts.iter().collect::<Vec<_>>();
+    assign_place_contracts.sort_by(|(lhs, _), (rhs, _)| compare_call_sites(lhs, rhs));
+    facts.assignments = assign_place_contracts
+        .into_iter()
+        .map(|(call_site, contract)| assignment_contract_fact(call_site, contract))
+        .collect();
+
+    let mut with_update_contracts = contracts.with_update_contracts.iter().collect::<Vec<_>>();
+    with_update_contracts.sort_by(|(lhs, _), (rhs, _)| compare_call_sites(lhs, rhs));
+    facts.with_updates = with_update_contracts
+        .into_iter()
+        .map(|(call_site, contract)| with_update_contract_fact(call_site, contract))
+        .collect();
+
+    let mut perform_sites = contracts.perform_sites.iter().collect::<Vec<_>>();
+    perform_sites.sort_by(|(lhs, _), (rhs, _)| compare_call_sites(lhs, rhs));
+    facts.perform_sites = perform_sites
+        .into_iter()
+        .map(|(call_site, contract)| perform_site_fact(call_site, contract))
+        .collect();
+
+    let mut handle_sites = contracts.handle_sites.iter().collect::<Vec<_>>();
+    handle_sites.sort_by(|(lhs, _), (rhs, _)| compare_call_sites(lhs, rhs));
+    facts.handle_sites = handle_sites
+        .into_iter()
+        .map(|(call_site, contract)| handle_site_fact(call_site, contract))
+        .collect();
+
+    let mut continuation_resumes = contracts
+        .continuation_resume_sites
+        .iter()
+        .collect::<Vec<_>>();
+    continuation_resumes.sort_by(|(lhs, _), (rhs, _)| compare_call_sites(lhs, rhs));
+    facts.continuation_resumes = continuation_resumes
+        .into_iter()
+        .map(|(call_site, contract)| continuation_resume_fact(call_site, contract))
+        .collect();
+
+    facts.pattern_bindings = lowered_hir
+        .when_pat_binding_tys
+        .iter()
+        .map(|(site, ty)| hir_site_facts::PatternBindingContract {
+            identity: source_site_identity_from_parts(&site.source_path, site.decl_span, "pattern"),
+            binding_name: format!("{}..{}", site.decl_span.start, site.decl_span.end),
+            binding_ty: *ty,
+        })
+        .collect();
+    facts.pattern_bindings.sort_by(|lhs, rhs| {
+        lhs.identity
+            .source_path
+            .cmp(&rhs.identity.source_path)
+            .then(lhs.identity.span.start.cmp(&rhs.identity.span.start))
+            .then(lhs.binding_name.cmp(&rhs.binding_name))
+    });
+
+    facts.top_level_init_roots = contracts
+        .top_level_init_roots
+        .iter()
+        .map(top_level_init_root_fact)
+        .collect();
+    facts.extern_globals = contracts
+        .extern_global_contracts
+        .iter()
+        .map(extern_global_contract_fact)
+        .collect();
+}
+
+fn source_site_identity(call_site: &CallSite, role: &str) -> hir_site_facts::SourceSiteIdentity {
+    source_site_identity_from_parts(&call_site.source_path, call_site.span, role)
+}
+
+fn source_site_identity_from_parts(
+    source_path: &Path,
+    span: Span,
+    role: &str,
+) -> hir_site_facts::SourceSiteIdentity {
+    let owner = CanonicalTextKey::new(format!("source:{}", source_path.display()));
+    let site_key = format!(
+        "{}:{}:{}..{}",
+        role,
+        source_path.display(),
+        span.start,
+        span.end
+    );
+    hir_site_facts::SourceSiteIdentity::new(
+        owner,
+        SiteId::from_raw(stable_hash64(StableHashScope::DumpV0, &site_key) as u32),
+        source_path.to_path_buf(),
+        span,
+    )
+}
+
+fn function_effect_fact(
+    contract: &FunctionEffectContract,
+) -> hir_site_facts::FunctionEffectContract {
+    hir_site_facts::FunctionEffectContract {
+        fqn: contract.fqn.clone(),
+        source_path: PathBuf::new(),
+        span: contract.span,
+        return_ty: contract.return_ty,
+        allowed_effects: contract.allowed_effects.clone(),
+        effects_closed: contract.effects_closed,
+    }
+}
+
+fn call_site_contract_fact(
+    call_site: &CallSite,
+    contract: &TypedCallSiteContract,
+) -> hir_site_facts::CallSiteContract {
+    let contract = call_site_contract_kind_fact(call_site, contract);
+    let kind = match &contract {
+        hir_site_facts::CallSiteContractKind::DirectTopLevel(_) => {
+            hir_site_facts::CallSiteKind::DirectTopLevel
+        }
+        hir_site_facts::CallSiteContractKind::MemberDirect(_) => {
+            hir_site_facts::CallSiteKind::MemberDirect
+        }
+        hir_site_facts::CallSiteContractKind::Extension { .. } => {
+            hir_site_facts::CallSiteKind::Extension
+        }
+        hir_site_facts::CallSiteContractKind::Constructor(_) => {
+            hir_site_facts::CallSiteKind::Constructor
+        }
+        hir_site_facts::CallSiteContractKind::Closure { .. } => {
+            hir_site_facts::CallSiteKind::Closure
+        }
+        hir_site_facts::CallSiteContractKind::FunValue { .. } => {
+            hir_site_facts::CallSiteKind::FunValue
+        }
+        hir_site_facts::CallSiteContractKind::FunPtr { .. } => hir_site_facts::CallSiteKind::FunPtr,
+        hir_site_facts::CallSiteContractKind::Virtual(_) => {
+            hir_site_facts::CallSiteKind::VirtualDispatch
+        }
+        hir_site_facts::CallSiteContractKind::Interface(_) => {
+            hir_site_facts::CallSiteKind::InterfaceDispatch
+        }
+        hir_site_facts::CallSiteContractKind::Intrinsic { .. } => {
+            hir_site_facts::CallSiteKind::Intrinsic
+        }
+        hir_site_facts::CallSiteContractKind::EffectOp(_) => {
+            hir_site_facts::CallSiteKind::EffectOperation
+        }
+        hir_site_facts::CallSiteContractKind::ContinuationResume(_) => {
+            hir_site_facts::CallSiteKind::ContinuationResume
+        }
+    };
+    hir_site_facts::CallSiteContract {
+        identity: source_site_identity(call_site, "call"),
+        kind,
+        contract,
+    }
+}
+
+fn call_site_contract_kind_fact(
+    call_site: &CallSite,
+    contract: &TypedCallSiteContract,
+) -> hir_site_facts::CallSiteContractKind {
+    match contract {
+        TypedCallSiteContract::DirectTopLevel(function) => {
+            hir_site_facts::CallSiteContractKind::DirectTopLevel(function_target_fact(function))
+        }
+        TypedCallSiteContract::MemberDirect(member) => {
+            hir_site_facts::CallSiteContractKind::MemberDirect(member_call_target_fact(member))
+        }
+        TypedCallSiteContract::Extension {
+            receiver_ty,
+            function,
+        } => hir_site_facts::CallSiteContractKind::Extension {
+            receiver_ty: *receiver_ty,
+            function: function_target_fact(function),
+        },
+        TypedCallSiteContract::Constructor(ctor) => {
+            hir_site_facts::CallSiteContractKind::Constructor(constructor_call_target_fact(ctor))
+        }
+        TypedCallSiteContract::Closure {
+            callee_ty,
+            return_ty,
+            abi_identity,
+            arg_binding,
+        } => hir_site_facts::CallSiteContractKind::Closure {
+            callee_ty: *callee_ty,
+            return_ty: *return_ty,
+            abi: callable_abi_fact(*abi_identity),
+            arg_binding: arg_binding.as_ref().map(call_arg_binding_fact),
+        },
+        TypedCallSiteContract::FunValue {
+            callee_ty,
+            return_ty,
+            abi_identity,
+            arg_binding,
+        } => hir_site_facts::CallSiteContractKind::FunValue {
+            callee_ty: *callee_ty,
+            return_ty: *return_ty,
+            abi: callable_abi_fact(*abi_identity),
+            arg_binding: arg_binding.as_ref().map(call_arg_binding_fact),
+        },
+        TypedCallSiteContract::FunPtr {
+            callee_ty,
+            return_ty,
+            abi_identity,
+            arg_binding,
+        } => hir_site_facts::CallSiteContractKind::FunPtr {
+            callee_ty: *callee_ty,
+            return_ty: *return_ty,
+            abi: callable_abi_fact(*abi_identity),
+            arg_binding: arg_binding.as_ref().map(call_arg_binding_fact),
+        },
+        TypedCallSiteContract::Virtual(member) => {
+            hir_site_facts::CallSiteContractKind::Virtual(member_call_target_fact(member))
+        }
+        TypedCallSiteContract::Interface(member) => {
+            hir_site_facts::CallSiteContractKind::Interface(member_call_target_fact(member))
+        }
+        TypedCallSiteContract::Intrinsic { kind, function } => {
+            hir_site_facts::CallSiteContractKind::Intrinsic {
+                kind: intrinsic_kind_fact(kind),
+                function: function_target_fact(function),
+            }
+        }
+        TypedCallSiteContract::EffectOp(perform) => {
+            hir_site_facts::CallSiteContractKind::EffectOp(perform_site_fact(call_site, perform))
+        }
+        TypedCallSiteContract::ContinuationResume(resume) => {
+            hir_site_facts::CallSiteContractKind::ContinuationResume(continuation_resume_fact(
+                call_site, resume,
+            ))
+        }
+    }
+}
+
+fn call_site_contract_arg_binding(
+    contract: &TypedCallSiteContract,
+) -> Option<&CallArgBindingContract> {
+    match contract {
+        TypedCallSiteContract::DirectTopLevel(function)
+        | TypedCallSiteContract::Intrinsic { function, .. } => function.arg_binding(),
+        TypedCallSiteContract::MemberDirect(member)
+        | TypedCallSiteContract::Virtual(member)
+        | TypedCallSiteContract::Interface(member) => member.function().arg_binding(),
+        TypedCallSiteContract::Extension { function, .. } => function.arg_binding(),
+        TypedCallSiteContract::Closure { arg_binding, .. }
+        | TypedCallSiteContract::FunValue { arg_binding, .. }
+        | TypedCallSiteContract::FunPtr { arg_binding, .. } => arg_binding.as_ref(),
+        TypedCallSiteContract::Constructor(_)
+        | TypedCallSiteContract::EffectOp(_)
+        | TypedCallSiteContract::ContinuationResume(_) => None,
+    }
+}
+
+fn function_target_fact(function: &FunctionTargetContract) -> hir_site_facts::FunctionTarget {
+    hir_site_facts::FunctionTarget {
+        fqn: function.fqn.clone(),
+        decl_file: function.decl_file.clone(),
+        decl_span: function.decl_span,
+        abi: callable_abi_fact(function.abi_identity),
+        type_args: function.type_args.clone(),
+        eff_args: function.eff_args.clone(),
+        arg_binding: function.arg_binding.as_ref().map(call_arg_binding_fact),
+    }
+}
+
+fn member_call_target_fact(member: &MemberCallTargetContract) -> hir_site_facts::MemberCallTarget {
+    hir_site_facts::MemberCallTarget {
+        owner_fqn: member.owner_fqn.clone(),
+        member_name: member.member_name.clone(),
+        member_fqn: member.member_fqn.clone(),
+        receiver_ty: member.receiver_ty,
+        function: function_target_fact(&member.function),
+    }
+}
+
+fn constructor_call_target_fact(
+    ctor: &ConstructorCallTargetContract,
+) -> hir_site_facts::ConstructorCallTarget {
+    hir_site_facts::ConstructorCallTarget {
+        owner_fqn: ctor.owner_fqn.clone(),
+        ctor_span: ctor.ctor_span,
+        result_ty: ctor.result_ty,
+        arg_mapping: ctor.arg_mapping.clone(),
+    }
+}
+
+fn callable_abi_fact(abi: CallableAbiIdentity) -> hir_site_facts::CallableAbi {
+    match abi {
+        CallableAbiIdentity::ManagedOrdinary => hir_site_facts::CallableAbi::ManagedOrdinary,
+        CallableAbiIdentity::NativeExtern => hir_site_facts::CallableAbi::NativeExtern,
+        CallableAbiIdentity::ManagedExtern => hir_site_facts::CallableAbi::ManagedExtern,
+        CallableAbiIdentity::EffectBridge => hir_site_facts::CallableAbi::EffectBridge,
+    }
+}
+
+fn intrinsic_kind_fact(kind: &TypedIntrinsicKind) -> hir_site_facts::IntrinsicKind {
+    match kind {
+        TypedIntrinsicKind::Reflection { name } => {
+            hir_site_facts::IntrinsicKind::Reflection { name: name.clone() }
+        }
+        TypedIntrinsicKind::Platform { name } => {
+            hir_site_facts::IntrinsicKind::Platform { name: name.clone() }
+        }
+        TypedIntrinsicKind::Gc { name } => hir_site_facts::IntrinsicKind::Gc { name: name.clone() },
+        TypedIntrinsicKind::Runtime { name } => {
+            hir_site_facts::IntrinsicKind::Runtime { name: name.clone() }
+        }
+        TypedIntrinsicKind::Compiler { name } => {
+            hir_site_facts::IntrinsicKind::Compiler { name: name.clone() }
+        }
+        TypedIntrinsicKind::NamedTable {
+            entry_name,
+            uses_runtime_call,
+        } => hir_site_facts::IntrinsicKind::NamedTable {
+            entry_name: entry_name.clone(),
+            uses_runtime_call: *uses_runtime_call,
+        },
+    }
+}
+
+fn call_arg_binding_fact(
+    binding: &CallArgBindingContract,
+) -> hir_site_facts::CallArgBindingContract {
+    hir_site_facts::CallArgBindingContract {
+        params: binding.params.iter().map(call_arg_param_fact).collect(),
+    }
+}
+
+fn call_arg_param_fact(param: &CallArgParamContract) -> hir_site_facts::CallArgParamContract {
+    match param {
+        CallArgParamContract::Receiver => hir_site_facts::CallArgParamContract::Receiver,
+        CallArgParamContract::Explicit(element) => {
+            hir_site_facts::CallArgParamContract::Explicit(call_arg_element_fact(element))
+        }
+        CallArgParamContract::Default => hir_site_facts::CallArgParamContract::Default,
+        CallArgParamContract::Vararg(elements) => hir_site_facts::CallArgParamContract::Vararg(
+            elements.iter().map(call_arg_element_fact).collect(),
+        ),
+    }
+}
+
+fn call_arg_element_fact(
+    element: &CallArgElementContract,
+) -> hir_site_facts::CallArgElementContract {
+    hir_site_facts::CallArgElementContract {
+        arg_index: element.arg_index,
+        spread: element.spread,
+    }
+}
+
+fn perform_site_fact(
+    call_site: &CallSite,
+    contract: &PerformSiteContract,
+) -> hir_site_facts::PerformSiteContract {
+    hir_site_facts::PerformSiteContract {
+        identity: source_site_identity(call_site, "perform"),
+        effect_ty: contract.effect_ty,
+        op_fqn: contract.op_fqn.clone(),
+        result_ty: contract.result_ty,
+        payload: payload_fact(&contract.payload),
+        arg_mapping: contract.arg_mapping.clone(),
+    }
+}
+
+fn handle_site_fact(
+    call_site: &CallSite,
+    contract: &HandleSiteContract,
+) -> hir_site_facts::HandleSiteContract {
+    hir_site_facts::HandleSiteContract {
+        identity: source_site_identity(call_site, "handle"),
+        result_ty: contract.result_ty,
+        body_result_ty: contract.body_result_ty,
+        arm_contracts: contract.arm_contracts.iter().map(handle_arm_fact).collect(),
+        finally_result_ty: contract.finally_result_ty,
+    }
+}
+
+fn handle_arm_fact(arm: &HandleArmSiteContract) -> hir_site_facts::HandleArmSiteContract {
+    hir_site_facts::HandleArmSiteContract {
+        handled_effect_ty: arm.handled_effect_ty,
+        op_fqn: arm.op_fqn.clone(),
+        payload: payload_fact(&arm.payload),
+        body_ty: arm.body_ty,
+        kind: match arm.kind {
+            HandleArmContractKind::NonResuming => {
+                hir_site_facts::HandleArmContractKind::NonResuming
+            }
+            HandleArmContractKind::EscapeContinuation => {
+                hir_site_facts::HandleArmContractKind::EscapeContinuation
+            }
+        },
+    }
+}
+
+fn payload_fact(payload: &PayloadTypeContract) -> hir_site_facts::PayloadTypeContract {
+    hir_site_facts::PayloadTypeContract {
+        ty: payload.ty,
+        components: payload.components.clone(),
+    }
+}
+
+fn continuation_resume_fact(
+    call_site: &CallSite,
+    contract: &ContinuationResumeSiteContract,
+) -> hir_site_facts::ContinuationResumeContract {
+    hir_site_facts::ContinuationResumeContract {
+        identity: source_site_identity(call_site, "resume"),
+        receiver_route: match contract.receiver_route {
+            ContinuationResumeReceiverRoute::CallArg { index } => {
+                hir_site_facts::ContinuationResumeReceiverRoute::CallArg { index }
+            }
+            ContinuationResumeReceiverRoute::MemberReceiver => {
+                hir_site_facts::ContinuationResumeReceiverRoute::MemberReceiver
+            }
+        },
+        payload_arg_indices: contract.payload_arg_indices.clone(),
+        receiver_ty: contract.receiver_ty,
+        resume_ty: contract.resume_ty,
+        answer_ty: contract.answer_ty,
+        return_ty: contract.return_ty,
+        out_effects: contract.out_effects.clone(),
+        runtime_error_effect_ty: contract.runtime_error_effect_ty,
+    }
+}
+
+fn assignment_contract_fact(
+    call_site: &CallSite,
+    contract: &AssignPlaceContract,
+) -> hir_site_facts::AssignmentContract {
+    hir_site_facts::AssignmentContract {
+        identity: source_site_identity(call_site, "assignment"),
+        span: contract.span,
+        kind: assign_place_kind_fact(&contract.kind),
+        place_ty: contract.place_ty,
+        value_ty: contract.value_ty,
+        mutable: contract.mutable,
+        write_barrier: assign_write_barrier_fact(&contract.write_barrier),
+        unsafe_required: contract.unsafe_required,
+    }
+}
+
+fn assign_place_kind_fact(kind: &AssignPlaceKind) -> hir_site_facts::AssignPlaceKind {
+    match kind {
+        AssignPlaceKind::Local {
+            id,
+            name,
+            decl_span,
+        } => hir_site_facts::AssignPlaceKind::Local {
+            symbol_id: id.as_u32(),
+            name: name.clone(),
+            decl_span: *decl_span,
+        },
+        AssignPlaceKind::TopLevel { id, fqn } => hir_site_facts::AssignPlaceKind::TopLevel {
+            symbol_id: id.as_u32(),
+            fqn: fqn.clone(),
+        },
+        AssignPlaceKind::Member {
+            receiver_ty,
+            owner_fqn,
+            member_fqn,
+            member_name,
+            member_span,
+            resolved,
+        } => hir_site_facts::AssignPlaceKind::Member {
+            receiver_ty: *receiver_ty,
+            owner_fqn: owner_fqn.clone(),
+            member_fqn: member_fqn.clone(),
+            member_name: member_name.clone(),
+            member_span: *member_span,
+            resolved: resolved.as_ref().map(member_ref_fact),
+        },
+    }
+}
+
+fn member_ref_fact(member: &crate::hir::MemberRef) -> hir_site_facts::MemberRef {
+    match member {
+        crate::hir::MemberRef::Value { id, fqn } => hir_site_facts::MemberRef::Value {
+            symbol_id: id.as_u32(),
+            fqn: fqn.clone(),
+        },
+        crate::hir::MemberRef::Fun { id, fqn } => hir_site_facts::MemberRef::Fun {
+            symbol_id: id.as_u32(),
+            fqn: fqn.clone(),
+        },
+        crate::hir::MemberRef::ExtensionValue { id, fqn } => {
+            hir_site_facts::MemberRef::ExtensionValue {
+                symbol_id: id.as_u32(),
+                fqn: fqn.clone(),
+            }
+        }
+        crate::hir::MemberRef::ExtensionFun { id, fqn } => {
+            hir_site_facts::MemberRef::ExtensionFun {
+                symbol_id: id.as_u32(),
+                fqn: fqn.clone(),
+            }
+        }
+    }
+}
+
+fn assign_write_barrier_fact(
+    barrier: &ast::AssignWriteBarrierRequirement,
+) -> hir_site_facts::AssignWriteBarrierRequirement {
+    match barrier {
+        ast::AssignWriteBarrierRequirement::NotRequired => {
+            hir_site_facts::AssignWriteBarrierRequirement::NotRequired
+        }
+        ast::AssignWriteBarrierRequirement::StorageSlot { slot_ty } => {
+            hir_site_facts::AssignWriteBarrierRequirement::StorageSlot { slot_ty: *slot_ty }
+        }
+    }
+}
+
+fn with_update_contract_fact(
+    call_site: &CallSite,
+    contract: &ast::WithUpdateContract,
+) -> hir_site_facts::WithUpdateContract {
+    hir_site_facts::WithUpdateContract {
+        identity: source_site_identity(call_site, "with_update"),
+        base_ty: contract.base_ty,
+        result_ty: contract.result_ty,
+        aggregates: contract
+            .aggregates
+            .iter()
+            .map(with_update_aggregate_fact)
+            .collect(),
+        updates: contract
+            .updates
+            .iter()
+            .map(with_update_update_fact)
+            .collect(),
+    }
+}
+
+fn with_update_aggregate_fact(
+    aggregate: &ast::WithUpdateAggregateContract,
+) -> hir_site_facts::WithUpdateAggregateContract {
+    hir_site_facts::WithUpdateAggregateContract {
+        prefix: aggregate.prefix.clone(),
+        ty: aggregate.ty,
+        kind: match &aggregate.kind {
+            ast::WithUpdateAggregateContractKind::Struct { fqn, fields } => {
+                hir_site_facts::WithUpdateAggregateContractKind::Struct {
+                    fqn: fqn.clone(),
+                    fields: fields
+                        .iter()
+                        .map(|field| hir_site_facts::WithUpdateAggregateFieldContract {
+                            name: field.name.clone(),
+                            ty: field.ty,
+                        })
+                        .collect(),
+                }
+            }
+            ast::WithUpdateAggregateContractKind::Tuple { elements } => {
+                hir_site_facts::WithUpdateAggregateContractKind::Tuple {
+                    elements: elements.clone(),
+                }
+            }
+            ast::WithUpdateAggregateContractKind::Enum { info } => {
+                hir_site_facts::WithUpdateAggregateContractKind::Enum {
+                    info: with_update_resolved_enum_fact(info),
+                }
+            }
+        },
+    }
+}
+
+fn with_update_update_fact(
+    update: &ast::WithUpdateUpdateContract,
+) -> hir_site_facts::WithUpdateUpdateContract {
+    hir_site_facts::WithUpdateUpdateContract {
+        path: update.path.clone(),
+        target_ty: update.target_ty,
+        value_ty: update.value_ty,
+        segments: update
+            .segments
+            .iter()
+            .map(with_update_path_segment_fact)
+            .collect(),
+    }
+}
+
+fn with_update_path_segment_fact(
+    segment: &ast::WithUpdatePathSegmentContract,
+) -> hir_site_facts::WithUpdatePathSegmentContract {
+    hir_site_facts::WithUpdatePathSegmentContract {
+        aggregate_prefix: segment.aggregate_prefix.clone(),
+        aggregate_ty: segment.aggregate_ty,
+        field_ty: segment.field_ty,
+        kind: match &segment.kind {
+            ast::WithUpdatePathSegmentKind::StructField { owner_fqn, field } => {
+                hir_site_facts::WithUpdatePathSegmentKind::StructField {
+                    owner_fqn: owner_fqn.clone(),
+                    field: field.clone(),
+                }
+            }
+            ast::WithUpdatePathSegmentKind::TupleElement { index } => {
+                hir_site_facts::WithUpdatePathSegmentKind::TupleElement { index: *index }
+            }
+            ast::WithUpdatePathSegmentKind::EnumVariantField {
+                enum_fqn,
+                variant,
+                field,
+            } => hir_site_facts::WithUpdatePathSegmentKind::EnumVariantField {
+                enum_fqn: enum_fqn.clone(),
+                variant: variant.clone(),
+                field: field.clone(),
+            },
+        },
+    }
+}
+
+fn with_update_resolved_enum_fact(
+    info: &ast::WithUpdateResolvedEnum,
+) -> hir_site_facts::WithUpdateResolvedEnum {
+    hir_site_facts::WithUpdateResolvedEnum {
+        enum_fqn: info.enum_fqn.clone(),
+        variants: info
+            .variants
+            .iter()
+            .map(|variant| hir_site_facts::WithUpdateResolvedEnumVariant {
+                name: variant.name.clone(),
+                fields: variant
+                    .fields
+                    .iter()
+                    .map(|field| hir_site_facts::WithUpdateResolvedEnumField {
+                        name: field.name.clone(),
+                        ty: field.ty,
+                    })
+                    .collect(),
+            })
+            .collect(),
+    }
+}
+
+fn top_level_init_root_fact(
+    root: &TopLevelInitRootContract,
+) -> hir_site_facts::TopLevelInitRootContract {
+    hir_site_facts::TopLevelInitRootContract {
+        fqn: root.fqn.clone(),
+        source_path: root.source_path.clone(),
+        span: root.span,
+        kind: match root.kind {
+            TopLevelInitRootKind::RuntimeImmutableVal => {
+                hir_site_facts::TopLevelInitRootKind::RuntimeImmutableVal
+            }
+            TopLevelInitRootKind::RuntimeMutableVar { storage } => {
+                hir_site_facts::TopLevelInitRootKind::RuntimeMutableVar {
+                    storage: global_storage_policy(storage),
+                }
+            }
+            TopLevelInitRootKind::ObjectSingleton => {
+                hir_site_facts::TopLevelInitRootKind::ObjectSingleton
+            }
+        },
+        ty: root.ty,
+        initializer_ty: root.initializer_ty,
+        has_initializer: root.has_initializer,
+        dependencies: root
+            .dependencies
+            .iter()
+            .map(|dependency| hir_site_facts::TopLevelInitDependency {
+                fqn: dependency.fqn.clone(),
+                kind: match dependency.kind {
+                    TopLevelInitDependencyKind::TopLevelValue => {
+                        hir_site_facts::TopLevelInitDependencyKind::TopLevelValue
+                    }
+                    TopLevelInitDependencyKind::ObjectSingleton => {
+                        hir_site_facts::TopLevelInitDependencyKind::ObjectSingleton
+                    }
+                },
+            })
+            .collect(),
+    }
+}
+
+fn extern_global_contract_fact(
+    contract: &ExternGlobalContract,
+) -> hir_site_facts::ExternGlobalContract {
+    hir_site_facts::ExternGlobalContract {
+        fqn: contract.fqn.clone(),
+        source_path: contract.source_path.clone(),
+        span: contract.span,
+        ty: contract.ty,
+        mutable: contract.mutable,
+        symbol: contract.symbol.clone(),
+        linkage: match contract.linkage {
+            crate::hir::ExternGlobalLinkage::External => {
+                hir_site_facts::ExternGlobalLinkage::External
+            }
+        },
+        storage: global_storage_policy(contract.storage),
+        initializer_absent: contract.initializer_absent,
+        unsafe_required: contract.unsafe_required,
+    }
 }
 
 fn verify_built_hir_facts(facts: &HirFacts, source_path: &Path) -> Result<(), HirStageError> {
@@ -2231,7 +2966,7 @@ impl<'a> ContractCollector<'a> {
         }
     }
 
-    fn collect(mut self, source_path: &Path) -> Result<TypedHirEffectContracts, HirStageError> {
+    fn collect(mut self, source_path: &Path) -> Result<CollectedHirContracts, HirStageError> {
         for item in &self.lowered_hir.file.items {
             self.collect_item(source_path, item)?;
         }
@@ -2243,7 +2978,7 @@ impl<'a> ContractCollector<'a> {
 
         self.function_effects
             .sort_by(compare_function_effect_contracts);
-        Ok(TypedHirEffectContracts {
+        Ok(CollectedHirContracts {
             function_effects: self.function_effects,
             continuation_resume_sites: self.continuation_resume_sites,
             perform_sites: self.perform_sites,
@@ -2255,6 +2990,51 @@ impl<'a> ContractCollector<'a> {
             top_level_init_roots: self.top_level_init_roots,
             extern_global_contracts: self.extern_global_contracts,
         })
+    }
+
+    fn collect_source_path(
+        mut self,
+        source_path: &Path,
+    ) -> Result<CollectedHirContracts, HirStageError> {
+        for item in &self.lowered_hir.file.items {
+            let item_path = self.item_source_path(source_path, item);
+            if item_path.as_deref() == Some(source_path) {
+                self.collect_item(source_path, item)?;
+            }
+        }
+
+        for member_fun in &self.lowered_hir.member_funs {
+            if member_fun.source_path != source_path {
+                continue;
+            }
+            self.record_function_effect_contract(member_fun);
+            self.collect_fun(member_fun)?;
+        }
+
+        self.function_effects
+            .sort_by(compare_function_effect_contracts);
+        Ok(CollectedHirContracts {
+            function_effects: self.function_effects,
+            continuation_resume_sites: self.continuation_resume_sites,
+            perform_sites: self.perform_sites,
+            handle_sites: self.handle_sites,
+            call_site_kinds: self.call_site_kinds,
+            call_site_contracts: self.call_site_contracts,
+            with_update_contracts: self.with_update_contracts,
+            assign_place_contracts: self.assign_place_contracts,
+            top_level_init_roots: self.top_level_init_roots,
+            extern_global_contracts: self.extern_global_contracts,
+        })
+    }
+
+    fn item_source_path(&self, default_source_path: &Path, item: &Item) -> Option<PathBuf> {
+        match item {
+            Item::Fun(fun) => Some(fun.source_path.clone()),
+            Item::Val(val) => self
+                .top_level_val_source_path(val)
+                .or_else(|| Some(default_source_path.to_path_buf())),
+            Item::Todo { .. } => None,
+        }
     }
 
     fn collect_item(&mut self, source_path: &Path, item: &Item) -> Result<(), HirStageError> {
@@ -2640,6 +3420,18 @@ impl<'a> ContractCollector<'a> {
                 return_ty: expr.ty,
                 abi_identity: self.managed_callable_abi_identity_for_ty(callee.ty),
                 arg_binding: arg_binding.clone(),
+            })
+        } else if let ExprKind::UnresolvedIdent { name } = &callee.kind
+            && name.starts_with("__scoop_")
+        {
+            let fqn = format!("scoop.core.{name}");
+            Some(TypedCallSiteContract::Intrinsic {
+                kind: TypedIntrinsicKind::from_fqn(&fqn),
+                function: FunctionTargetContract::synthetic_with_arg_binding(
+                    fqn,
+                    CallableAbiIdentity::ManagedOrdinary,
+                    arg_binding,
+                ),
             })
         } else if is_funptr_ty(&self.lowered_hir.types, callee.ty) {
             Some(TypedCallSiteContract::FunPtr {
@@ -4526,7 +5318,9 @@ fun use(k: Continuation<Int, Unit, eff Pure>, b: Base, i: IFace): Int / Raise<Ru
         );
 
         let output = run(&session, &source).expect("call contract fixture should lower");
-        let contracts = output.typed_contracts_for_migration().call_site_contracts();
+        let contracts = output
+            .source_site_contracts_for_tests()
+            .call_site_contracts();
 
         assert!(contracts.values().any(|contract| matches!(
             contract,
@@ -4656,7 +5450,9 @@ fun main(): Unit {
 
         let output =
             run(&session, &source).expect("GC intrinsic member calls should lower through HIR");
-        let contracts = output.typed_contracts_for_migration().call_site_contracts();
+        let contracts = output
+            .source_site_contracts_for_tests()
+            .call_site_contracts();
         let mut saw_pin = false;
         let mut saw_unpin = false;
         let mut saw_handle_new = false;
@@ -4709,7 +5505,9 @@ fun main(): Int {
         );
 
         let output = run(&session, &source).expect("constructor default args should lower");
-        let contracts = output.typed_contracts_for_migration().call_site_contracts();
+        let contracts = output
+            .source_site_contracts_for_tests()
+            .call_site_contracts();
 
         let ctor = contracts
             .values()
@@ -4747,7 +5545,9 @@ fun <T> stringify(value: T): String where T: ToString {
         );
 
         let output = run(&session, &source).expect("where-bound member call should lower");
-        let contracts = output.typed_contracts_for_migration().call_site_contracts();
+        let contracts = output
+            .source_site_contracts_for_tests()
+            .call_site_contracts();
 
         assert!(contracts.values().any(|contract| matches!(
             contract,
@@ -4783,7 +5583,7 @@ fun use(pair: (Point, (Int, Int)), r: Result): Int {
 
         let output = run(&session, &source).expect("with-update should lower through typed HIR");
         let contracts = output
-            .typed_contracts_for_migration()
+            .source_site_contracts_for_tests()
             .with_update_contracts();
         assert_eq!(contracts.len(), 3, "{contracts:#?}");
         assert!(contracts.values().any(|contract| {
@@ -4870,7 +5670,7 @@ fun entry(box: Box): Int {
 
         let output = run(&session, &source).expect("assignment places should lower through HIR");
         let contracts = output
-            .typed_contracts_for_migration()
+            .source_site_contracts_for_tests()
             .assign_place_contracts();
         assert_eq!(contracts.len(), 3, "{contracts:#?}");
         assert!(contracts.values().any(|contract| matches!(
@@ -4895,11 +5695,8 @@ fun entry(box: Box): Int {
             "place contracts should be visible in typed HIR dump: {dump}"
         );
 
-        let facts = crate::mir::MirLoweringFacts::from_typed_handoff(
-            output.lowered_hir(),
-            output.hir_facts(),
-            output.typed_contracts_for_migration(),
-        );
+        let facts =
+            crate::mir::MirLoweringFacts::from_hir_facts(output.lowered_hir(), output.hir_facts());
         let mut types = output.lowered_hir().types.clone();
         let mir = crate::mir::lower_hir_file_for_dump_with_facts(
             output.lowered_hir().builtins,
@@ -5063,7 +5860,9 @@ fun sum(xs: MyIterable): Int {
             "custom iterator should lower to explicit loop/when form: {dump}"
         );
 
-        let contracts = output.typed_contracts_for_migration().call_site_contracts();
+        let contracts = output
+            .source_site_contracts_for_tests()
+            .call_site_contracts();
         let saw_iterator = contracts.values().any(|contract| {
             matches!(contract, TypedCallSiteContract::Interface(member) if member.member_fqn() == "sample.MyIterable.iterator")
         });
@@ -5175,7 +5974,7 @@ fun main() {}
 
         let output = run(&session, &source).expect("top-level init roots should lower");
         let roots = output
-            .typed_contracts_for_migration()
+            .source_site_contracts_for_tests()
             .top_level_init_roots();
         assert!(roots.iter().any(|root| {
             root.fqn() == "sample.Base" && root.kind() == TopLevelInitRootKind::RuntimeImmutableVal
@@ -5211,7 +6010,7 @@ fun main() {}
         }));
 
         let externs = output
-            .typed_contracts_for_migration()
+            .source_site_contracts_for_tests()
             .extern_global_contracts();
         assert_eq!(externs.len(), 1, "{externs:#?}");
         let native = &externs[0];
@@ -5282,7 +6081,9 @@ fun runtime(): String {
             "platform intrinsic runtime fallback missing: {dump}"
         );
 
-        let contracts = output.typed_contracts_for_migration().call_site_contracts();
+        let contracts = output
+            .source_site_contracts_for_tests()
+            .call_site_contracts();
         let mut saw_name_of = false;
         let mut saw_size_of = false;
         let mut saw_get_platform = false;
@@ -5333,7 +6134,7 @@ fun runtime(): String {
 
         assert_eq!(
             output
-                .typed_contracts_for_migration()
+                .source_site_contracts_for_tests()
                 .stable_dump(output.types()),
             expected
         );
@@ -5347,29 +6148,29 @@ fun runtime(): String {
         let output = run(&session, &source).unwrap();
 
         assert_eq!(output.hir_file().items.len(), 1);
-        assert!(!output.hir_facts().contract_bridge.is_empty());
-        assert_eq!(output.hir_facts().contract_bridge.function_effects, 1);
+        assert!(!output.hir_facts().source_sites.is_empty());
+        assert_eq!(output.hir_facts().source_sites.function_effects.len(), 1);
         assert!(
             output
-                .typed_contracts_for_migration()
+                .source_site_contracts_for_tests()
                 .continuation_resume_sites()
                 .is_empty()
         );
         assert!(
             output
-                .typed_contracts_for_migration()
+                .source_site_contracts_for_tests()
                 .perform_sites()
                 .is_empty()
         );
         assert!(
             output
-                .typed_contracts_for_migration()
+                .source_site_contracts_for_tests()
                 .handle_sites()
                 .is_empty()
         );
         assert!(
             output
-                .typed_contracts_for_migration()
+                .source_site_contracts_for_tests()
                 .call_site_kinds()
                 .is_empty()
         );
@@ -5383,13 +6184,13 @@ fun runtime(): String {
         let output = run(&session, &source).unwrap();
 
         assert!(!output.types().is_empty());
-        assert!(!output.hir_facts().contract_bridge.is_empty());
+        assert!(!output.hir_facts().source_sites.is_empty());
         assert_eq!(
-            output.typed_contracts_for_migration().function_effects()[0].fqn(),
+            output.source_site_contracts_for_tests().function_effects()[0].fqn(),
             "sample.main"
         );
         assert!(output.stable_dump().contains("hir_facts {"));
-        assert!(output.stable_dump().contains("typed_contract_bridge {"));
+        assert!(output.stable_dump().contains("source_site_contracts {"));
     }
 
     #[test]
@@ -5520,7 +6321,7 @@ fun resumeWithEffects(k: Continuation<Int, Int, eff Raise<Int>>): Int / (Raise<I
         );
 
         let output = run(&session, &source).unwrap();
-        let contracts = output.typed_contracts_for_migration();
+        let contracts = output.source_site_contracts_for_tests();
 
         assert_eq!(contracts.continuation_resume_sites().len(), 1);
         let (call_site, contract) = contracts
@@ -5572,7 +6373,7 @@ fun resumeWithEffects(k: Continuation<Int, Int, eff Raise<Int>>): Int / (Raise<I
     fn typed_hir_continuation_contract_dump_snapshot() {
         assert_fixture_effect_contract_dump(
             "continuation_resume_surface_named_tuple_and_unit_basic.scoop",
-            r#"typed_contract_bridge {
+            r#"source_site_contracts {
     function_effects: [
         FunctionEffectContract {
             span: 233..351,
@@ -5736,7 +6537,7 @@ fun resumeWithEffects(k: Continuation<Int, Int, eff Raise<Int>>): Int / (Raise<I
 
         let output = run(&session, &source).unwrap();
         let rendered = output
-            .typed_contracts_for_migration()
+            .source_site_contracts_for_tests()
             .stable_dump(output.types());
 
         assert!(rendered.contains("out_effects: scoop.core.Raise<Int>"));
@@ -5750,7 +6551,7 @@ fun resumeWithEffects(k: Continuation<Int, Int, eff Raise<Int>>): Int / (Raise<I
     fn typed_hir_handle_contract_dump_snapshot() {
         assert_fixture_effect_contract_dump(
             "handle_perform.scoop",
-            r#"typed_contract_bridge {
+            r#"source_site_contracts {
     function_effects: [
         FunctionEffectContract {
             span: 36..125,
@@ -5826,7 +6627,7 @@ fun resumeWithEffects(k: Continuation<Int, Int, eff Raise<Int>>): Int / (Raise<I
         let source = load_hir_fixture("handle_perform.scoop");
 
         let output = run(&session, &source).unwrap();
-        let contracts = output.typed_contracts_for_migration();
+        let contracts = output.source_site_contracts_for_tests();
 
         assert_eq!(contracts.perform_sites().len(), 1);
         let (perform_site, perform_contract) = contracts

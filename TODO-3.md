@@ -443,7 +443,7 @@
   - 验证命令：`cargo fmt`；`cargo test -p scoopc_hir_facts`；`cargo test -p scoopc --no-default-features expr_facts`；`cargo test -p scoopc --no-default-features effect`；`cargo test -p scoopc --no-default-features hir_stage`；`cargo test -p scoopc --no-default-features mir_stage`；`cargo run -p scoop -- test --fixtures tests/fixtures/hir`；`cargo test --all --all-targets --no-default-features`；`cargo run -p scoop_tools -- dependency-gate`；`cargo tree -p scoopc_hir_facts`；`cargo clippy --all-targets -- -D warnings`；`git diff --check`；上述 review 搜索。
   - 残余风险：`SourceSiteMigrationFacts` 与 `TypedHirEffectContracts` 仍是 P2-T05 的 source-site contract 迁移范围；LLVM/RTTI 仍保留若干 HIR side table 作为实际 body/layout/codegen compatibility 输入，但 declaration/entity 查询 owner 不再是 `ProgramFacts` 或现场重建的 duplicate fact surface。
 
-## [TODO] P2-T05：迁移 source-site typed contracts 并删除 fallback 双轨
+## [DONE] P2-T05：迁移 source-site typed contracts 并删除 fallback 双轨
 
 - 参考：
   - 本文件 `TypedHirEffectContracts` 字段清单
@@ -487,7 +487,14 @@
   - HIR-origin fallback reason 不再作为合法 MIR smoke 兜底存在。
 - 依赖：P2-T04R
 - 完成记录：
-  - 待填写。
+  - 改动范围：扩展 `scoopc_hir_facts::source_sites` 为完整 source-site contract 数据模型，覆盖 function effects、call-site provenance、arg binding、assignment place、with-update、perform/handle、continuation resume、when pattern、top-level init root 和 extern global contracts；HIR stage 现在把这些 payload 发布到 `HirFacts.source_sites`。
+  - MIR handoff：`MirLoweringFacts` 改为只从 `HirFacts` 构造 source-site lowering facts；删除 `TypedHirEffectContracts`、`SourceSiteMigrationFacts`、`MirSiteContractSource`、`FallbackSideTables`、`from_hir_side_tables_and_resume_spans(...)`、`with_typed_contracts(...)` 以及 fallback perform/resume 查询。
+  - 下游更新：`hir_preflight`、MIR lowering、effect analysis、LLVM codegen scaffolding 和 tests 改为查询 `HirFacts.source_sites`；`MirStageOutput` 不再保存 typed contract bridge payload；HIR stable dump 旧 `typed_contract_bridge` 段重命名为 `source_site_contracts`。
+  - 边界修复：补齐 sysroot/runtime intrinsic direct-call contract 收集，确保 support sources 中的 `__scoop_*` 和 where-bound `ToString.toString` 调用也能通过 source-site contract 路径进入 MIR/effect tests；migration helper 在非 stage 测试上下文中可按 source path 收集 source-site facts，正式 HIR stage 仍完整验证全输出。
+  - fixtures：重新生成 `tests/fixtures/hir/*.hir`，使 HIR golden 显示 `HirFacts.source_sites` 的实际覆盖计数和 `source_site_contracts` 详细段。
+  - 验证命令：`cargo fmt`；`cargo test -p scoopc_hir_facts`；`cargo test -p scoopc --no-default-features hir_preflight`；`cargo test -p scoopc --no-default-features mir_lowering_facts`；`cargo test -p scoopc --no-default-features hir_stage`；`cargo test -p scoopc --no-default-features effect`；`cargo run -p scoop -- test --fixtures tests/fixtures/hir`；`cargo run -p scoop -- test --fixtures tests/fixtures/typecheck`；`cargo run -p scoop -- test --fixtures tests/fixtures/mir`；`cargo test --all --all-targets --no-default-features`；`cargo clippy --all-targets -- -D warnings`；`cargo run -p scoop_tools -- dependency-gate`；`git diff --check`；搜索 `FallbackSideTables|fallback_perform|fallback_resume|TypedHirEffectContracts|typed_contracts_for_migration|typed_contract_bridge|contract_bridge|SourceSiteMigrationFacts|source_site_migration_facts`。
+  - 搜索结论：上述旧 fallback/typed bridge/source-site migration 关键词在 Rust 源码中无命中；`typed_contract_bridge|contract_bridge` 在 HIR golden 中无命中。
+  - 残余风险：`source_site_contracts` 详细 dump 仍由 HIR stage 内部收集器渲染以保持审计可读性，但 authoritative payload 已存放在 `HirFacts.source_sites`，后续 P2 清场可继续收紧测试 helper 命名和 dump 细节。
 
 ## [TODO] P2-T05R：Review source-site contract 迁移结果
 

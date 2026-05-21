@@ -37,7 +37,6 @@ use crate::pipeline::{
 };
 use crate::session::{Session, SessionOptions};
 use crate::source::{SourceFile, SourceMap};
-use crate::source_site_migration_facts::SourceSiteMigrationFacts;
 use crate::ty::{TypeParamType, TypeStore};
 use inkwell::context::Context;
 use scoopc_hir_facts::HirFacts;
@@ -73,12 +72,10 @@ fn build_fixture_inputs_from_source(source: SourceFile) -> FixtureAbiInputs {
         load_hir_stage_output_for_dump(&session, &source).expect("HIR stage 应成功");
     let hir_facts = typed_hir_output.hir_facts().clone();
     let hir_compat_scaffold = typed_hir_output.lowered_hir().clone();
-    let facts = MirLoweringFacts::from_typed_handoff(
+    let facts = MirLoweringFacts::from_hir_facts(
         typed_hir_output.lowered_hir(),
         typed_hir_output.hir_facts(),
-        typed_hir_output.typed_contracts_for_migration(),
     );
-    let effect_contracts = typed_hir_output.typed_contracts_for_migration().clone();
     let mut lowered_hir = typed_hir_output.into_lowered_hir();
     let builtins = lowered_hir.types.intern_builtins();
     let file = lower_hir_file_for_dump_with_facts(
@@ -92,7 +89,7 @@ fn build_fixture_inputs_from_source(source: SourceFile) -> FixtureAbiInputs {
     let materialized_mir =
         crate::pipeline::materialize_direct_style_mir_for_dump(&session, &source)
             .expect("materialized MIR 应成功");
-    let mir_stage_output = MirStageOutput::new(LoweredMir { file, types }, effect_contracts, None)
+    let mir_stage_output = MirStageOutput::new(LoweredMir { file, types }, None)
         .with_materialized_mir(materialized_mir);
     let effect_facts_stage_output =
         build_effect_facts_stage_output(&session, &source, mir_stage_output)
@@ -157,7 +154,6 @@ fn with_inputs_query_result(
         .map(|fun| (fun.fqn.clone(), fun))
         .collect();
     let hir_facts = Rc::new(inputs.hir_facts.clone());
-    let source_site_facts = Rc::new(SourceSiteMigrationFacts::from_hir_side_tables(lowered));
     let effect_op_tags = Rc::new(RefCell::new(EffectOpTagState::new()));
     let unit_codegen = CompilationUnitCodegenCx::new(CompilationUnitCodegenInputs {
         context: &context,
@@ -196,7 +192,6 @@ fn with_inputs_query_result(
         materialized_pass_view: Some(inputs.effect_lowered_stage_output.materialized_pass_view()),
         published_late_lowered_program: Some(&program),
         hir_facts,
-        source_site_facts,
         effect_op_tags,
     });
     let mut codegen = unit_codegen.fresh_main_codegen();
@@ -239,7 +234,6 @@ fn with_inputs_query_result_for_source_types(
         .map(|fun| (fun.fqn.clone(), fun))
         .collect();
     let hir_facts = Rc::new(inputs.hir_facts.clone());
-    let source_site_facts = Rc::new(SourceSiteMigrationFacts::from_hir_side_tables(lowered));
     let effect_op_tags = Rc::new(RefCell::new(EffectOpTagState::new()));
     let unit_codegen = CompilationUnitCodegenCx::new(CompilationUnitCodegenInputs {
         context: &context,
@@ -278,7 +272,6 @@ fn with_inputs_query_result_for_source_types(
         materialized_pass_view: Some(inputs.effect_lowered_stage_output.materialized_pass_view()),
         published_late_lowered_program: Some(&program),
         hir_facts,
-        source_site_facts,
         effect_op_tags,
     });
     let mut codegen = unit_codegen.fresh_main_codegen();
@@ -320,7 +313,6 @@ fn with_inputs_query_result_and_codegen(
         .map(|fun| (fun.fqn.clone(), fun))
         .collect();
     let hir_facts = Rc::new(inputs.hir_facts.clone());
-    let source_site_facts = Rc::new(SourceSiteMigrationFacts::from_hir_side_tables(lowered));
     let effect_op_tags = Rc::new(RefCell::new(EffectOpTagState::new()));
     let unit_codegen = CompilationUnitCodegenCx::new(CompilationUnitCodegenInputs {
         context: &context,
@@ -359,7 +351,6 @@ fn with_inputs_query_result_and_codegen(
         materialized_pass_view: Some(inputs.effect_lowered_stage_output.materialized_pass_view()),
         published_late_lowered_program: Some(&program),
         hir_facts,
-        source_site_facts,
         effect_op_tags,
     });
     let mut codegen = unit_codegen.fresh_main_codegen();

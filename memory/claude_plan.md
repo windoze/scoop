@@ -2,33 +2,28 @@
 
 ## Scope
 
-- Follow `TODO.md` as the authoritative task list.
-- Identify the first task whose heading is not prefixed with `[DONE]`.
-- Complete exactly that one task, then stop after committing.
-- Do not proceed to later tasks.
+- Follow `TODO.md` as the authoritative task list and complete exactly the first heading not prefixed with `[DONE]`.
+- Do not skip review tasks, do not split tasks unless a concrete prerequisite is required, and do not proceed to the next task after completion.
+- Treat blockers only when they affect the selected task; unrelated historical issues will not preempt TODO order.
 
 ## Plan
 
-1. Read `TODO.md` and identify the first incomplete task by heading prefix.
-2. Check recent Git context only as needed to see whether the latest commit mentions an unfinished issue directly relevant to that task.
-3. Read the task details, dependencies, and validation requirements.
-4. Inspect the relevant implementation and tests for that task.
-5. Implement the smallest correct change that satisfies the task without workarounds or spec deviations.
+1. Read `TODO.md` to locate the first incomplete task and its referenced details.
+2. Check the latest commit only for directly relevant unfinished work tied to that selected task.
+3. Read the selected task body, dependencies, validation requirements, and any referenced files.
+4. Inspect the implementation and tests needed for that task before editing.
+5. Implement the smallest spec-correct change, avoiding fixture-only hacks or narrowed behavior.
 6. Add or update focused tests/fixtures required by the task.
-7. Run the task-required validation commands, plus any targeted tests needed during debugging.
-8. If a concrete blocker prevents spec-correct implementation, update `TODO.md` with the minimum prerequisite task, leave the current task incomplete, commit that bookkeeping, and stop.
-9. If the task is completed, update `TODO.md` by prefixing the task heading with `[DONE]` and filling the completion record.
-10. Update this file when key steps complete or if the plan changes.
-11. Inspect Git status/diff/log, stage only intended changes, commit with a task-tagged message, and stop.
+7. Run the task-required validation commands and targeted checks; fix any task-relevant failures.
+8. If a spec-correct implementation is blocked, insert the minimum prerequisite task in `TODO.md`, document the blocker here, commit, and stop.
+9. If complete, mark the task heading `[DONE]`, update its completion record, inspect status/diff/log, commit all intended changes, and stop.
 
 ## Progress
 
-- Started by recording this execution plan before reading project task files or running commands.
-- Read `TODO.md`; the first incomplete task is `P2-T04R` in `TODO-3.md`.
-- Read `TODO-3.md` task details and latest commits. Latest commit is `[P2-T04] Migrate declaration facts to HirFacts`, directly relevant but not explicitly marked unfinished.
-- Review found that `ProgramFacts` is deleted and `ExprFactResolver` uses `HirFacts`, but some declaration/entity queries still derive from `LoweredHir` side tables. Plan adjusted to fix those review findings before marking `P2-T04R` done.
-- Applied targeted fixes: MIR lowering now derives member/nominal/enum facts from `HirFacts`; LLVM effect nominal and top-level/extern type queries use `HirFacts`; HIR stage now publishes dispatch/interface table facts.
-- Targeted tests exposed duplicate callable fact identities for overloaded functions. Fixed callable fact identity keys to include source position while preserving display names.
-- Regenerated HIR golden fixtures to reflect published dispatch/interface fact counts. Targeted `hir_stage`, `mir_stage`, `effect`, and HIR fixture validations passed after fixes.
-- Full validation passed: `cargo test --all --all-targets --no-default-features`, `cargo run -p scoop_tools -- dependency-gate`, `cargo tree -p scoopc_hir_facts`, `cargo clippy --all-targets -- -D warnings`, `git diff --check`, and required targeted tests/searches.
-- Marked `P2-T04R` as `[DONE]` in `TODO.md` and `TODO-3.md` with review findings, fixes, validation commands, and residual risks.
+- Current invocation initialized this plan before running build/test commands or editing project code.
+- Read `TODO.md`; first incomplete task is `P2-T05` in `TODO-3.md`.
+- Read `P2-T05` details. Latest commit is `[P2-T04R] Review declaration facts migration`, directly relevant as the prerequisite but not marked unfinished.
+- Next step: inspect current `TypedHirEffectContracts`, `SourceSiteMigrationFacts`, and `MirLoweringFacts` paths, then migrate source-site contracts into `HirFacts` and remove fallback dual-track MIR lowering input.
+- Implemented the main migration shape: `HirFacts.source_sites` now carries full source-site contracts, MIR lowering builds only from `HirFacts`, the fallback side-table APIs and `TypedHirEffectContracts` name were removed, and `cargo check -p scoopc --no-default-features` passes.
+- Completed validation after fixes: HIR/typecheck/MIR fixtures pass, full `cargo test --all --all-targets --no-default-features` passes, `cargo clippy --all-targets -- -D warnings` passes, dependency gate passes, and old fallback/bridge/type-name searches in Rust/HIR outputs have no hits. The HIR detailed contract dump is now named `source_site_contracts`.
+- Marked `P2-T05` as `[DONE]` in `TODO.md` and `TODO-3.md`, with completion record covering implementation scope, validation, searches, and residual risk.

@@ -365,14 +365,56 @@ pub fn build_pre_specialize_file_for_cone_sources(
             decls: Vec::new(),
             items: vec![hir::Item::Fun(hir_fun)],
         };
-        let mir_facts = mir::MirLoweringFacts::from_hir_side_tables_and_resume_spans(
-            &lowered_fun.dispatch_call_sites,
-            file.continuation_resume_call_sites(),
-            file.non_pure_continuation_resume_call_sites(),
-            &lowered_fun.effect_op_call_sites,
-            &lowered_fun.when_pat_binding_tys,
-            &lowered_fun.top_level_fun_call_sites,
-        );
+        let hir_fact_scaffold = hir::LoweredHir {
+            file: hir_file.clone(),
+            stable_cone_key: stable_cone_key.clone(),
+            source_cones: HashMap::new(),
+            stable_type_param_keys: HashMap::new(),
+            member_funs: Vec::new(),
+            types: types.clone(),
+            struct_layouts: HashMap::new(),
+            enum_layouts: HashMap::new(),
+            extern_funs: HashMap::new(),
+            native_callable_funs: HashMap::new(),
+            extern_globals: HashMap::new(),
+            extern_libs: Vec::new(),
+            top_level_vars: HashMap::new(),
+            top_level_immutable_values: HashMap::new(),
+            top_level_fun_call_sites: lowered_fun.top_level_fun_call_sites,
+            call_arg_bindings: HashMap::new(),
+            with_update_contracts: HashMap::new(),
+            assign_place_contracts: HashMap::new(),
+            object_inits: HashMap::new(),
+            class_inits: HashMap::new(),
+            class_vtables: HashMap::new(),
+            interfaces: HashMap::new(),
+            class_itables: HashMap::new(),
+            ctor_call_sites: HashMap::new(),
+            dispatch_call_sites: lowered_fun.dispatch_call_sites,
+            effect_op_call_sites: lowered_fun.effect_op_call_sites,
+            handle_payload_tuple_tys: HashMap::new(),
+            continuation_resume_call_sites: file
+                .continuation_resume_call_sites()
+                .into_iter()
+                .map(|span| hir::CallSite::new(source.path().to_path_buf(), span))
+                .collect(),
+            non_pure_continuation_resume_call_sites: file
+                .non_pure_continuation_resume_call_sites()
+                .into_iter()
+                .map(|span| hir::CallSite::new(source.path().to_path_buf(), span))
+                .collect(),
+            when_pat_binding_tys: lowered_fun.when_pat_binding_tys,
+            nominal_kinds: HashMap::new(),
+            nominal_variances: HashMap::new(),
+            direct_supertypes: HashMap::new(),
+            builtins,
+        };
+        let hir_facts = crate::pipeline::build_hir_declaration_facts_for_migration(
+            &hir_fact_scaffold,
+            source.path(),
+        )
+        .map_err(miette::Report::from)?;
+        let mir_facts = mir::MirLoweringFacts::from_hir_facts(&hir_fact_scaffold, &hir_facts);
         let mir_file = mir::lower_hir_file_for_dump_with_facts(
             builtins,
             &mut types,

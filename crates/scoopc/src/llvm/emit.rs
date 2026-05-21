@@ -19,7 +19,6 @@ use crate::hir;
 use crate::opt::OptLevel;
 use crate::session::Session;
 use crate::source::{SourceFile, SourceId, SourceMap};
-use crate::source_site_migration_facts::SourceSiteMigrationFacts;
 use crate::ty::{RefTypeKind, TypeKind, ValueTypeKind};
 use scoopc_hir_facts::HirFacts;
 
@@ -494,7 +493,6 @@ fn build_module_from_codegen_entry_with_root_selector<'ctx>(
         .map(|fun| (fun.fqn.clone(), fun))
         .collect();
     let hir_facts = Rc::new(hir_facts.clone());
-    let source_site_facts = Rc::new(SourceSiteMigrationFacts::from_hir_side_tables(lowered));
     let effect_op_tags = Rc::new(RefCell::new(codegen::EffectOpTagState::new()));
 
     // T0810：在确认入口存在后，再声明/生成 `main` 可达的其它顶层函数：
@@ -538,7 +536,6 @@ fn build_module_from_codegen_entry_with_root_selector<'ctx>(
             materialized_pass_view,
             published_late_lowered_program: abi_program.or(Some(late_lowered_program)),
             hir_facts: Rc::clone(&hir_facts),
-            source_site_facts: Rc::clone(&source_site_facts),
             effect_op_tags: Rc::clone(&effect_op_tags),
         });
     debug_assert_eq!(

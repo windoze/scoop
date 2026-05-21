@@ -4,41 +4,9 @@
 
 use super::*;
 
-use crate::pipeline::TypedHirEffectContracts;
 use crate::session::Session;
 use crate::source::SourceFile;
 use std::path::PathBuf;
-
-#[test]
-fn typed_contracts_clear_fallback_resume_and_perform_metadata() {
-    let span = Span::new(1, 2);
-    let fallback_effect_sites = std::iter::once((
-        hir::CallSite::new(PathBuf::from("fixtures/mir_lower_facts.scoop"), span),
-        hir::EffectOpCallInfo {
-            arg_mapping: vec![0],
-            payload_tuple_ty: None,
-        },
-    ))
-    .collect::<hir::EffectOpCallSiteIndex>();
-    let dispatch_sites = hir::DispatchCallSiteIndex::default();
-    let when_pat_binding_tys = hir::WhenPatBindingTypeIndex::default();
-    let top_level_fun_call_sites = hir::TopLevelFunCallSiteIndex::default();
-
-    let facts = MirLoweringFacts::from_hir_side_tables_and_resume_spans(
-        &dispatch_sites,
-        [span],
-        [span],
-        &fallback_effect_sites,
-        &when_pat_binding_tys,
-        &top_level_fun_call_sites,
-    )
-    .with_typed_contracts(&TypedHirEffectContracts::default());
-
-    assert!(facts.uses_typed_contracts());
-    assert!(!facts.fallback_resume_site_matches(span));
-    assert!(!facts.fallback_resume_site_suspends_outward(span));
-    assert!(facts.fallback_perform_site_info(span).is_none());
-}
 
 #[test]
 fn dump_mir_emits_top_level_initializer_and_extern_roots() {

@@ -51,11 +51,11 @@ pub(in crate::mir::lower) fn top_level_callee_fqn(callee: &hir::Expr) -> Option<
 }
 
 pub(in crate::mir::lower) fn top_level_binding_matches_callee(
-    binding: &ast::TopLevelFunCallBinding,
+    binding_fqn: &str,
     callee: &hir::Expr,
 ) -> bool {
     top_level_callee_fqn(callee)
-        .is_none_or(|callee_fqn| intrinsic_base_fqn(&binding.fqn) == intrinsic_base_fqn(callee_fqn))
+        .is_none_or(|callee_fqn| intrinsic_base_fqn(binding_fqn) == intrinsic_base_fqn(callee_fqn))
 }
 
 /// 为 `scoop dump-mir` / mir fixtures 生成 MIR（最小实现）。
@@ -134,13 +134,11 @@ impl<'a> MirLowering<'a> {
                 + self.facts.top_level_init_roots().len()
                 + self.facts.extern_global_contracts().len(),
         );
-        if self.facts.uses_typed_contracts() {
-            items.extend(
-                file.decls
-                    .iter()
-                    .map(|decl| Item::Metadata(lower_decl_metadata(decl))),
-            );
-        }
+        items.extend(
+            file.decls
+                .iter()
+                .map(|decl| Item::Metadata(lower_decl_metadata(decl))),
+        );
         items.extend(
             self.facts
                 .top_level_init_roots()

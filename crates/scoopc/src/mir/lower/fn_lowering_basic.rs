@@ -194,22 +194,9 @@ impl<'a> FnLowering<'a> {
     /// - 因此仅当终止原因是占位式 `Handle` / `Perform` 时，允许把后续语句接到一个新的孤立 block 中继续保形。
     pub(in crate::mir::lower) fn continue_after_placeholder_effect_terminator_if_needed(
         &mut self,
-        next_span: Span,
+        _next_span: Span,
     ) -> bool {
-        if self.facts.uses_typed_contracts() {
-            return !self.current_is_terminated();
-        }
-        if !self.current_is_terminated() {
-            return true;
-        }
-        if !matches!(
-            self.body.blocks[self.current_bb.as_usize()].terminator.kind,
-            TerminatorKind::Handle { .. } | TerminatorKind::Perform { .. }
-        ) {
-            return false;
-        }
-        self.current_bb = self.push_block(next_span);
-        true
+        !self.current_is_terminated()
     }
 
     pub(in crate::mir::lower) fn with_cleanup_scope_len<T>(
@@ -884,9 +871,9 @@ impl<'a> FnLowering<'a> {
                 hir::ExprKind::Call { args, .. } => {
                     if let Some(binding) = self
                         .facts
-                        .top_level_fun_call_binding(self.source_path.as_path(), expr.span)
+                        .top_level_fun_call_fqn(self.source_path.as_path(), expr.span)
                         && let Some(param_index) =
-                            self.facts.continuation_identity_return_param(&binding.fqn)
+                            self.facts.continuation_identity_return_param(binding)
                         && let Some(arg) = args.get(param_index)
                     {
                         let arg_expr = match arg {

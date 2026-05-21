@@ -157,7 +157,7 @@ fn body_has_escaped_continuation(body: &BodyEffectFacts) -> bool {
 mod tests {
     use std::collections::BTreeSet;
 
-    use super::super::{MirStageOutput, TypedHirEffectContracts};
+    use super::super::MirStageOutput;
     use super::EffectFactsStageOutput;
     use crate::effect_facts::{CanonicalMirQuerySurface, EffectFactsError, ImplPlan};
     use crate::mir::{File, LoweredMir};
@@ -428,7 +428,6 @@ fun callInterface(i: IFace): Int {
                 file: File { items: Vec::new() },
                 types: TypeStore::new(),
             },
-            TypedHirEffectContracts::default(),
             None,
         );
 
