@@ -1,30 +1,24 @@
-# 当前执行计划
+执行计划
 
-## 目标
+1. 读取 TODO.md，按任务标题是否带有 [DONE] 判断第一个未完成任务。
+2. 读取该任务相关的计划、依赖、验证要求和最近提交信息，确认是否存在直接相关的未完成前置问题。
+3. 在不做开放式历史问题清扫的前提下，定位当前任务需要修改的代码、测试和文档。
+4. 完整实现当前任务；如果发现阻塞当前任务的规格缺口或实现缺陷，则先修复，或在 TODO.md 中插入最小必要前置任务并停止。
+5. 运行与当前任务相关的测试；必要时运行更宽的回归验证，修复由当前任务引入或暴露且阻塞当前任务的问题。
+6. 更新 TODO.md：完成时在任务标题前加 [DONE] 并填写完成记录；若任务被阻塞，则保持未完成并记录前置任务关系。
+7. 仅在阶段级计划发生变化时更新 PLAN.md；常规任务日志不写入 PLAN.md。
+8. 检查 git 状态、差异和最近提交，提交本次任务相关的所有变更，然后停止。
 
-按 `TODO.md` 的权威顺序完成第一个标题未带 `[DONE]` 的任务，完成验证、更新记录、提交 Git，然后停止。
+进度记录
 
-## 执行步骤
-
-1. 读取 `TODO.md`，只定位第一个未完成任务，不做开放式历史问题扫查。
-2. 查看最新提交信息；仅当其明确提到与当前任务直接相关的未完成问题时，将其纳入当前任务或作为前置依赖记录到 `TODO.md`。
-3. 阅读当前任务涉及的计划、代码、测试和夹具，确认验收标准与验证命令。
-4. 若任务可直接完成，实施最小且完整的代码或文档修改；若遇到阻塞当前任务的真实缺口，按要求把最小前置任务加入 `TODO.md` 并停止。
-5. 运行当前任务要求的相关测试，并在需要时运行更广范围的验证；修复由当前任务引入或暴露且阻塞当前任务的问题。
-6. 更新 `TODO.md`：给已完成任务标题加 `[DONE]`，补全完成记录和验证记录。仅当阶段级计划变化时才更新 `PLAN.md`。
-7. 检查 Git 状态、差异和近期提交，确认只提交本次任务相关内容。
-8. 提交更改，提交信息使用任务编号和简洁说明。
-9. 停止，不继续处理下一个任务。
-
-## 进度记录
-
-- 已创建本计划文件，下一步读取 `TODO.md` 定位首个未完成任务。
-- 已定位首个未完成任务：`P4-T03`，目标是收口 `EffectFactsStageOutput` 并让 P5 显式消费 MIR handoff 与 effect facts handoff。最新提交 `P4-T02R` 为已完成 review，未发现需要优先处理的直接未完成项。
-- 下一步聚焦读取 `effect_facts_stage.rs`、`effect_lowering_stage.rs`、pipeline orchestration、dump 和相关测试，按任务要求做最小完整修改。
-- 已完成相关代码定位：当前 P4 输出仍持有 `MirStageOutput` 并转发 `materialized_pass_view()` / `mir_facts()` / `types()` 等查询；P5 builder 和 LLVM orchestration 通过该 wrapper 回读上游 handoff。
-- 调整方案：`EffectFactsStageOutput` 改为仅持有 `MaterializedEffectFacts`；effect facts stage 只借用 `MirStageOutput` 构造 facts；新增显式 `EffectLoweringStageInput` 同时携带 MIR handoff 和窄 P4 output；P4 stable dump 改为只基于 effect facts / snapshot binding 渲染。
-- 已实施核心改造：P4 output 不再保存或转发 P3 `MirStageOutput`；P5 late-lowering 通过 `EffectLoweringStageInput` 显式接收 MIR handoff + effect facts handoff；LLVM orchestration 与相关测试已改为分开传递二者。
-- 已重新生成 `tests/fixtures/effect_facts/*.effectfacts`，因为 P4 dump 现在不再使用 MIR pass view 的 body/site label 上下文。
-- 已通过验证：`cargo test -p scoopc --no-default-features effect_facts_stage`、`cargo test -p scoopc --no-default-features effect_lowering_stage`、`cargo test -p scoopc --no-default-features effect_facts`、`cargo test -p scoopc --no-default-features effect_lowered`、`cargo run -p scoop -- test --fixtures tests/fixtures/effect_facts`、`cargo run -p scoop -- test --fixtures tests/fixtures/effect_lowered`、`cargo clippy --all-targets -- -D warnings`。
-- 已将 `TODO.md` / `TODO-5.md` 中 `P4-T03` 标记为 `[DONE]` 并填写完成记录；`git diff --check` 已通过，已检查 git 状态、差异和近期提交。
-- 下一步提交本次 `P4-T03` 相关变更并停止。
+- 已创建初始执行计划，下一步读取 TODO.md 识别首个未完成任务。
+- 已识别首个未完成任务：TODO-5.md 中的 P4-T03R（Review `EffectFactsStageOutput` 收口结果）。最新提交 `e365b74b [P4-T03] Narrow effect facts stage output` 正是该 review 的对象。
+- 本轮执行边界：只复审 P4-T03，不推进 P4-T04 或 P5；若发现 P4-T03 未满足窄输出 / 显式 P5 输入 / helper 清理要求，则在本 review 内修正。
+- 关键检查项：`EffectFactsStageOutput` 不嵌套或转发 P3 output；`EffectLoweringStageInput` 或等价输入显式携带 MIR handoff 与 effect facts handoff；生产与测试 helper 不再把 P4 output 当作 P3/P4/P5 bundle。
+- 计划中的验证：重新运行 P4-T03 的验证命令，并额外搜索 `mir_stage_output\(|materialized_mir\(|materialized_pass_view\(|mir_facts\(`，确认这些上游转发不再存在于 `EffectFactsStageOutput` impl 上。
+- 已完成代码复查初步结论：`EffectFactsStageOutput` 当前只有 `effect_facts` 字段，未发现 `mir_stage_output()`、`materialized_mir()`、`materialized_pass_view()`、`mir_facts()`、`file()`、`types()` 等上游转发；P5 orchestration 和测试通过 `EffectLoweringStageInput::new(mir_stage_output, effect_facts_stage_output)` 显式传入 MIR handoff 与 effect facts handoff。
+- 下一步执行 P4-T03R 要求的验证；如验证失败，先修复本 review 范围内的直接问题。
+- 验证已通过：`cargo fmt`；额外搜索确认 `EffectFactsStageOutput` impl 上无上游转发，且无通过 `effect_facts_stage_output` 回看上游的调用；`cargo test -p scoopc --no-default-features effect_facts_stage`；`cargo test -p scoopc --no-default-features effect_lowering_stage`；`cargo test -p scoopc --no-default-features effect_facts`；`cargo test -p scoopc --no-default-features effect_lowered`；`cargo run -p scoop -- test --fixtures tests/fixtures/effect_facts`；`cargo run -p scoop -- test --fixtures tests/fixtures/effect_lowered`；`cargo clippy --all-targets -- -D warnings`。
+- 下一步更新 TODO.md / TODO-5.md，将 P4-T03R 标记为完成并填写 review 结论与验证记录。
+- 已更新 TODO.md / TODO-5.md：P4-T03R 标记为 `[DONE]`，完成记录写入 review 结论、P5 显式输入边界、helper/test 复查、搜索结果、验证命令和 P5 残余风险。
+- 下一步执行 `git diff --check`，检查状态和差异，然后提交本次 P4-T03R 变更。
