@@ -19,10 +19,7 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 use inkwell::module::Linkage;
 use inkwell::types::{BasicMetadataTypeEnum, BasicTypeEnum, StructType};
 
-use crate::effect_facts::{
-    CallSiteEffectFacts, CallSiteKind, CallTargetMode, ContinuationSchemaId,
-    MaterializedEffectFacts, SiteEffectFacts, StepSchemaId,
-};
+use crate::effect_facts::{CallSiteKind, CallTargetMode, ContinuationSchemaId, StepSchemaId};
 use crate::effect_lowered::LateLoweredProgram;
 use crate::effect_lowered::ir::{
     BoundaryId, BoundarySiteKind, ContinuationObjectId, LateLoweredBodyVersionKey,
@@ -35,20 +32,20 @@ use crate::effect_lowered::ir::{
     LateLoweredOperandValueSource, LateLoweredPublishedRuntimeEntry, LateLoweredResumeInterface,
     LateLoweredResumePayloadBinding, LateLoweredSourceStatementClassificationKind,
     LateLoweredStateSlice, LateLoweredStateTerminator, LateLoweredStepType,
-    LateLoweredSurfaceResumeDispatchInventoryEntry, LateLoweredSurfaceResumeDispatchPublication,
-    LateLoweredSurfaceResumeWrapperCaseProjection,
+    LateLoweredSurfaceResumeContract, LateLoweredSurfaceResumeDispatchInventoryEntry,
+    LateLoweredSurfaceResumeDispatchPublication, LateLoweredSurfaceResumeWrapperCaseProjection,
     LateLoweredSurfaceResumeWrapperCompletePayloadSource,
     LateLoweredSurfaceResumeWrapperCompleteProjection, LateLoweredSurfaceResumeWrapperProjection,
     ResumeInterfaceId, StateId, SystemSlotKind,
 };
 use crate::llvm::LlvmEmitError;
-use crate::mir::{
-    BasicBlockId, CallKind as MirCallKind, HandlerArm as MirHandlerArm, InstanceKey,
-    Rvalue as MirRvalue, SiteId, StatementKind as MirStatementKind,
-    TerminatorKind as MirTerminatorKind,
-};
+use crate::mir::{BasicBlockId, InstanceKey, SiteId};
 use crate::stable_id::canonical_record;
 use crate::ty::{RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind};
+use scoopc_lir_facts::{
+    LirCallTargetMode, LirCallableContract, LirCallableFacts, LirDynamicInvokeCarrierKind,
+    LirDynamicInvokeContract, LirFacts,
+};
 
 use super::super::types::IntTy;
 use super::super::{CallableCarrierKind, LlvmFunctionDeclarationSurface, MainCodegen};
@@ -76,12 +73,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(crate) fn materialize_program_abi(
         &mut self,
         program: &'a LateLoweredProgram,
+        lir_facts: &'a LirFacts,
         source_types: &'a TypeStore,
-        pass_view: &'a crate::mir::MaterializedMirPassView<'a>,
-        effect_facts: &'a MaterializedEffectFacts,
     ) -> Result<ProgramAbiQuery<'ctx>, LlvmEmitError> {
-        ProgramAbiMaterializer::new(self, program, source_types, pass_view, effect_facts)?
-            .materialize()
+        ProgramAbiMaterializer::new(self, program, lir_facts, source_types)?.materialize()
     }
 }
 
@@ -103,12 +98,6 @@ type BoundaryOperandLayoutSets = (
     PerformBoundaryOperandLayouts,
     ResumeBoundaryOperandLayouts,
 );
-
-struct MaterializedDynamicCallSite {
-    kind: MirCallKind,
-    arg_count: usize,
-    carrier_source_ty: Option<TypeId>,
-}
 
 fn validate_program_layout_inventory(program: &LateLoweredProgram) -> Result<(), LlvmEmitError> {
     let mut step_types_by_schema = BTreeMap::new();
@@ -173,9 +162,8 @@ fn validate_program_layout_inventory(program: &LateLoweredProgram) -> Result<(),
 struct ProgramAbiMaterializer<'cg, 'a, 'ctx> {
     codegen: &'cg mut MainCodegen<'a, 'ctx>,
     program: &'a LateLoweredProgram,
+    lir_facts: &'a LirFacts,
     source_types: &'a TypeStore,
-    pass_view: &'a crate::mir::MaterializedMirPassView<'a>,
-    effect_facts: &'a MaterializedEffectFacts,
     source_value_layouts: BTreeMap<TypeId, SourceAbiLayout<'ctx>>,
 }
 

@@ -376,6 +376,110 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(llvm_fun)
     }
 
+    #[allow(clippy::too_many_arguments)]
+    pub(in crate::llvm::codegen) fn declare_lir_plain_fun_with_symbol(
+        &mut self,
+        llvm_name: &str,
+        surface: LlvmFunctionDeclarationSurface,
+        owner_fqn: &str,
+        param_tys: &[TypeId],
+        return_ty: TypeId,
+        source_types: &TypeStore,
+        closure_like: bool,
+    ) -> Result<FunctionValue<'ctx>, LlvmEmitError> {
+        let span = self
+            .hir_fun_for_callable_fqn(owner_fqn)
+            .map(|fun| fun.span)
+            .unwrap_or_else(|| crate::span::Span::new(0, 0));
+        let llvm_name = match surface {
+            LlvmFunctionDeclarationSurface::ExportedAbi => {
+                if owner_fqn == "main" {
+                    "main".to_string()
+                } else if let Some(pass_view) = self.materialized_pass_view()
+                    && let Some(owner) = pass_view.owner_of_callable(owner_fqn)
+                    && let Some(stable_key) = pass_view
+                        .materialized()
+                        .authoritative_stable_instance_key(owner)
+                {
+                    let symbol = AbiMangler.fun_symbol(&stable_key);
+                    self.reserve_exported_abi_symbol(
+                        &symbol,
+                        &stable_key,
+                        format!(
+                            "LIR plain callable `{}` via authoritative instance key",
+                            owner_fqn
+                        ),
+                    )?;
+                    symbol
+                } else if let Some(fun) = self.hir_fun_for_callable_fqn(owner_fqn) {
+                    self.exported_abi_symbol_for_hir_fun_with_signature_override(
+                        fun, owner_fqn, param_tys, return_ty,
+                    )?
+                } else {
+                    llvm_name.to_string()
+                }
+            }
+            LlvmFunctionDeclarationSurface::RuntimeOrNativeImport
+            | LlvmFunctionDeclarationSurface::CompilerPrivateHelper => llvm_name.to_string(),
+        };
+        if let Some(existing) = self.module.get_function(&llvm_name) {
+            return Ok(existing);
+        }
+
+        let ret_cg = self.cg_ty_of_mir_type(source_types, return_ty).unwrap_or_else(|| {
+            panic!("declare_lir_plain_fun_with_symbol: LIR facts verifier accepted unsupported plain return type")
+        });
+        let hidden_sret_result_ty = self.hidden_sret_result_ty(span, ret_cg)?;
+        let mut llvm_param_tys: Vec<BasicMetadataTypeEnum<'ctx>> = Vec::with_capacity(
+            param_tys.len()
+                + usize::from(hidden_sret_result_ty.is_some())
+                + usize::from(closure_like),
+        );
+        if let Some(result_ty) = hidden_sret_result_ty {
+            let _ = result_ty;
+            llvm_param_tys.push(self.context.ptr_type(AddressSpace::default()).into());
+        }
+        let lowered_param_tys = if closure_like {
+            llvm_param_tys.push(self.llvm_gc_i8_ptr_type().into());
+            param_tys.iter().skip(1).copied().collect::<Vec<_>>()
+        } else {
+            param_tys.to_vec()
+        };
+        for param_ty in lowered_param_tys {
+            let param_ty = self
+                .equivalent_codegen_type_id(source_types, param_ty)
+                .unwrap_or_else(|| {
+                    panic!("declare_lir_plain_fun_with_symbol: TypeStore equivalence verifier accepted unsupported plain param type")
+                });
+            llvm_param_tys.push(self.ordinary_param_abi(span, param_ty)?.llvm_param_ty());
+        }
+
+        let fn_ty = match (hidden_sret_result_ty, ret_cg) {
+            (Some(_), _) | (None, CgTy::Unit | CgTy::Never) => {
+                self.context.void_type().fn_type(&llvm_param_tys, false)
+            }
+            (None, other) => self
+                .llvm_basic_type_of(span, other)?
+                .fn_type(&llvm_param_tys, false),
+        };
+        let llvm_fun = match surface {
+            LlvmFunctionDeclarationSurface::ExportedAbi => {
+                self.declare_exported_abi_function(&llvm_name, fn_ty)
+            }
+            LlvmFunctionDeclarationSurface::RuntimeOrNativeImport => {
+                self.declare_runtime_or_native_import_function(&llvm_name, fn_ty)
+            }
+            LlvmFunctionDeclarationSurface::CompilerPrivateHelper => {
+                self.declare_compiler_private_helper_function(&llvm_name, fn_ty, Linkage::Internal)
+            }
+        };
+        llvm_fun.set_call_conventions(0);
+        if let Some(result_ty) = hidden_sret_result_ty {
+            self.add_sret_attribute_to_function(llvm_fun, 0, result_ty);
+        }
+        Ok(llvm_fun)
+    }
+
     pub(in crate::llvm::codegen) fn codegen_materialized_mir_closure_fun(
         mut self,
         mir_fun: &crate::mir::FunDecl,

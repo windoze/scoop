@@ -8,7 +8,6 @@ use crate::effect_lowered::{
 use crate::mir::{MaterializedMir, MaterializedMirPassView};
 use crate::ty::TypeStore;
 use scoopc_lir_facts::LirFacts;
-use scoopc_mir_facts::MirFacts;
 
 use super::{EffectFactsStageOutput, MirStageOutput};
 
@@ -35,10 +34,6 @@ impl EffectLoweringStageInput {
 
     pub fn mir_stage_output(&self) -> &MirStageOutput {
         &self.mir_stage_output
-    }
-
-    pub fn effect_facts_stage_output(&self) -> &EffectFactsStageOutput {
-        &self.effect_facts_stage_output
     }
 }
 
@@ -75,7 +70,6 @@ pub struct LirStageOutput {
 #[derive(Debug)]
 struct LirStageContext {
     materialized_mir: MaterializedMir,
-    mir_facts: MirFacts,
     effect_facts: MaterializedEffectFacts,
 }
 
@@ -84,11 +78,9 @@ impl LirStageContext {
         mir_stage_output: MirStageOutput,
         effect_facts_stage_output: EffectFactsStageOutput,
     ) -> Self {
-        let mir_facts = mir_stage_output.mir_facts().clone();
         let (_direct_style, materialized_mir) = mir_stage_output.into_parts();
         Self {
             materialized_mir,
-            mir_facts,
             effect_facts: effect_facts_stage_output.into_effect_facts(),
         }
     }
@@ -114,19 +106,15 @@ impl LirStageOutput {
         }
     }
 
-    pub fn mir_facts(&self) -> &MirFacts {
-        &self.context.mir_facts
-    }
-
-    pub fn snapshot_binding(&self) -> &MirSnapshotBinding {
+    fn snapshot_binding(&self) -> &MirSnapshotBinding {
         self.effect_facts().snapshot_binding()
     }
 
-    pub fn materialized_mir(&self) -> &MaterializedMir {
+    fn materialized_mir(&self) -> &MaterializedMir {
         &self.context.materialized_mir
     }
 
-    pub fn materialized_pass_view(&self) -> MaterializedMirPassView<'_> {
+    pub(crate) fn llvm_residual_pass_view(&self) -> MaterializedMirPassView<'_> {
         self.context.materialized_mir.pass_view()
     }
 
@@ -134,7 +122,7 @@ impl LirStageOutput {
         self.effect_facts().types()
     }
 
-    pub fn effect_facts(&self) -> &MaterializedEffectFacts {
+    fn effect_facts(&self) -> &MaterializedEffectFacts {
         &self.context.effect_facts
     }
 
@@ -155,8 +143,8 @@ impl LirStageOutput {
         render_stage_output(self)
     }
 
-    pub fn into_parts(self) -> (LateLoweredProgram, LirFacts, MaterializedEffectFacts) {
-        (self.lir, self.lir_facts, self.context.effect_facts)
+    pub fn into_parts(self) -> (LateLoweredProgram, LirFacts) {
+        (self.lir, self.lir_facts)
     }
 }
 

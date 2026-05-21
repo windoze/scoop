@@ -1333,7 +1333,7 @@ fun main(): Int {
 "#,
         ));
         let callable = callable(&output, "sample.helper");
-        let pass_view = output.materialized_pass_view();
+        let pass_view = output.llvm_residual_pass_view();
         let mir_fun = pass_view
             .callable("sample.helper")
             .expect("sample.helper 应保留 canonical MIR body");
@@ -1500,7 +1500,7 @@ fun main() {}
 "#,
         ));
         let callable = callable(&output, "sample.start");
-        let pass_view = output.materialized_pass_view();
+        let pass_view = output.llvm_residual_pass_view();
         let mir_fun = pass_view
             .callable("sample.start")
             .expect("sample.start 应保留 canonical MIR body");

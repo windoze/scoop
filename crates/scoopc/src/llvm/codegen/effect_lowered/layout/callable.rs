@@ -330,66 +330,56 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                 callable.root_fqn()
             ))
         })?;
-        let mir_fun = self
-            .materialized_callable_for_plain_signature(callable.root_fqn())?
-            .clone();
-        let mir_types = &self.pass_view.materialized().types;
-        let mir_param_tys = mir_fun
-            .params
-            .iter()
-            .map(|param| param.ty)
-            .collect::<Vec<_>>();
-        if mir_fun.ty != plain.function_ty()
-            || mir_fun.return_ty != plain.return_ty()
-            || mir_param_tys != plain.param_tys()
+        let plain_facts = self.plain_callable_facts(callable)?;
+        let plain_function_ty = plain_facts.function_ty;
+        let plain_param_tys = plain_facts.param_tys.clone();
+        let plain_return_ty = plain_facts.return_ty;
+        if plain_function_ty != plain.function_ty()
+            || plain_return_ty != plain.return_ty()
+            || plain_param_tys != plain.param_tys()
         {
             return Err(frontend_error(format!(
-                "LLVM ABI materialization 发现 plain callable `{}` 的 materialized MIR signature 与 P5 plain ABI handoff 漂移",
+                "LLVM ABI materialization 发现 plain callable `{}` 的 LIR facts 与 LIR plain ABI handoff 漂移",
                 callable.root_fqn()
             )));
         }
-        let llvm_fun = if self.codegen.fun_index.get(callable.root_fqn()).is_some() {
-            if callable.root_fqn() == "main" {
-                self.codegen
-                    .declare_materialized_mir_plain_fun_with_symbol(
-                        "__scoop_plain_source_main",
+        let (symbol_name, surface, closure_like) =
+            if self.codegen.fun_index.get(callable.root_fqn()).is_some() {
+                if callable.root_fqn() == "main" {
+                    (
+                        "__scoop_plain_source_main".to_string(),
                         LlvmFunctionDeclarationSurface::CompilerPrivateHelper,
-                        &mir_fun,
-                        &mir_param_tys,
-                        mir_fun.return_ty,
-                        mir_types,
-                    )?
-            } else {
-                self.codegen
-                    .declare_materialized_mir_plain_fun_with_symbol(
-                        callable.root_fqn(),
+                        false,
+                    )
+                } else {
+                    (
+                        callable.root_fqn().to_string(),
                         LlvmFunctionDeclarationSurface::ExportedAbi,
-                        &mir_fun,
-                        &mir_param_tys,
-                        mir_fun.return_ty,
-                        mir_types,
-                    )?
-            }
-        } else if mir_fun.name.starts_with("$lambda") {
-            self.codegen
-                .declare_materialized_mir_closure_fun_with_signature(
-                    mir_fun.span,
-                    &mir_fun,
-                    &mir_param_tys,
-                    mir_fun.return_ty,
-                    mir_types,
-                )?
-        } else {
-            self.codegen
-                .declare_materialized_mir_plain_fun_with_symbol(
-                    callable.root_fqn(),
+                        false,
+                    )
+                }
+            } else if callable.root_fqn().contains("$lambda") {
+                (
+                    callable.root_fqn().to_string(),
+                    LlvmFunctionDeclarationSurface::CompilerPrivateHelper,
+                    true,
+                )
+            } else {
+                (
+                    callable.root_fqn().to_string(),
                     LlvmFunctionDeclarationSurface::ExportedAbi,
-                    &mir_fun,
-                    &mir_param_tys,
-                    mir_fun.return_ty,
-                    mir_types,
-                )?
-        };
+                    false,
+                )
+            };
+        let llvm_fun = self.codegen.declare_lir_plain_fun_with_symbol(
+            &symbol_name,
+            surface,
+            callable.root_fqn(),
+            &plain_param_tys,
+            plain_return_ty,
+            self.source_types,
+            closure_like,
+        )?;
         let symbol_name = llvm_fun
             .get_name()
             .to_str()
@@ -408,42 +398,11 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                 symbol_name,
                 llvm_fun.get_type(),
                 llvm_fun.count_params() as usize,
-                plain.function_ty(),
-                plain.param_tys().to_vec(),
-                plain.return_ty(),
+                plain_function_ty,
+                plain_param_tys,
+                plain_return_ty,
             ),
         ))
-    }
-
-    pub(super) fn materialized_callable_for_plain_signature(
-        &self,
-        root_fqn: &str,
-    ) -> Result<&crate::mir::FunDecl, LlvmEmitError> {
-        self.pass_view
-            .callable(root_fqn)
-            .or_else(|| {
-                self.pass_view
-                    .materialized()
-                    .file
-                    .items
-                    .iter()
-                    .find_map(|item| match item {
-                        crate::mir::Item::Fun(fun) if fun.fqn == root_fqn => Some(fun),
-                        _ => None,
-                    })
-            })
-            .or_else(|| {
-                self.pass_view
-                    .materialized()
-                    .caller_side_pass_candidate_bodies()
-                    .iter()
-                    .find(|fun| fun.fqn == root_fqn)
-            })
-            .ok_or_else(|| {
-                frontend_error(format!(
-                    "LLVM ABI materialization 缺少 plain callable `{root_fqn}` 的 materialized MIR signature"
-                ))
-            })
     }
 
     pub(super) fn materialize_callable_version_layout_index(

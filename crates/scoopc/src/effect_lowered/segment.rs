@@ -998,7 +998,10 @@ mod tests {
     use crate::effect_lowered::ir::{
         BoundarySiteKind, LateLoweredBoundarySource, LateLoweredStateRole,
     };
-    use crate::pipeline::load_effect_lowered_stage_output_for_dump;
+    use crate::pipeline::{
+        build_effect_facts_stage_output, load_effect_lowered_stage_output_for_dump,
+        load_p4_ready_mir_stage_output_for_dump,
+    };
     use crate::session::{Session, SessionOptions};
     use crate::source::SourceFile;
 
@@ -1446,7 +1449,12 @@ fun main(): Int {
         let source = load_fixture("effect_facts", "dynamic_fallback_widening.scoop");
         let effect_lowered_output = load_effect_lowered_stage_output_for_dump(&session, &source)
             .expect("fixture 应可通过 late-lowering stage");
-        let pass_view = effect_lowered_output.materialized_pass_view();
+        let mir_stage_output = load_p4_ready_mir_stage_output_for_dump(&session, &source)
+            .expect("fixture 应可通过 P4-ready MIR stage");
+        let effect_facts_output =
+            build_effect_facts_stage_output(&session, &source, &mir_stage_output)
+                .expect("fixture 应可通过 effect facts stage");
+        let pass_view = mir_stage_output.materialized_pass_view();
         let family = pass_view
             .root_family_for_fqn("sample.callValue")
             .expect("sample.callValue 应有 canonical family");
@@ -1457,7 +1465,7 @@ fun main(): Int {
             .body
             .as_ref()
             .expect("sample.callValue 应有 canonical body");
-        let body_facts = effect_lowered_output
+        let body_facts = effect_facts_output
             .effect_facts()
             .body(family.key())
             .expect("sample.callValue 应有 P4 body facts");

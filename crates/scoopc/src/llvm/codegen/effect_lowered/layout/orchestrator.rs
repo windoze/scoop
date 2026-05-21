@@ -12,17 +12,20 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
     pub(super) fn new(
         codegen: &'cg mut MainCodegen<'a, 'ctx>,
         program: &'a LateLoweredProgram,
+        lir_facts: &'a LirFacts,
         source_types: &'a TypeStore,
-        pass_view: &'a crate::mir::MaterializedMirPassView<'a>,
-        effect_facts: &'a MaterializedEffectFacts,
     ) -> Result<Self, LlvmEmitError> {
         validate_program_layout_inventory(program)?;
+        lir_facts.verify().map_err(|error| {
+            frontend_error(format!(
+                "LLVM ABI materialization received invalid LIR facts: {error}"
+            ))
+        })?;
         Ok(Self {
             codegen,
             program,
+            lir_facts,
             source_types,
-            pass_view,
-            effect_facts,
             source_value_layouts: BTreeMap::new(),
         })
     }

@@ -580,7 +580,7 @@ P5 需要把这条隐式 opt helper 提升为正式 LIR optimization family：�
   - 验证命令：`cargo fmt`；`cargo check -p scoopc_lir_facts`；`cargo test -p scoopc_lir_facts`；`cargo test -p scoopc --no-default-features effect_lowered`；`cargo run -p scoop -- test --fixtures tests/fixtures/effect_lowered`；`cargo run -p scoop_tools -- dependency-gate`；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
   - 残余风险：`LirStageOutput` 仍保留 P5-T03 明确要求删除的上游 compatibility accessors，LLVM physical layout / HIR scaffold / global init residual 仍按 TODO-6/P7 处理；本 review 未把这些后续范围描述为 P5-T02 的 contract 缺口。
 
-## [TODO] P5-T03：切换 codegen-neutral ABI/query surface 到 `LIR + lir_facts`
+## [DONE] P5-T03：切换 codegen-neutral ABI/query surface 到 `LIR + lir_facts`
 
 - 参考：
   - 本文件“当前 codegen 读取点”
@@ -619,7 +619,12 @@ P5 需要把这条隐式 opt helper 提升为正式 LIR optimization family：�
   - TODO-6/P7 residual 被明确记录，且不是 P5-owned contract 缺失。
 - 依赖：P5-T02R
 - 完成记录：
-  - 待填写。
+  - 改动范围：`ProgramAbiMaterializer` / `MainCodegen::materialize_program_abi(...)` 的 logical ABI 输入已切为 `LateLoweredProgram + LirFacts + TypeStore`，不再接收 MIR pass view 或 `MaterializedEffectFacts`；`LirStageOutput` 删除 `materialized_pass_view()`、`effect_facts()`、`mir_facts()` 等公开上游 accessor，仅保留 `lir()`、`lir_facts()`、`types()` 和 TODO-6/P7 标注的 LLVM residual pass-view 入口。
+  - LIR facts 查询切换：dynamic invoke layout 改为遍历 `LirFacts::dynamic_invokes`，carrier kind、source type、dispatch slot、target callable/body-version 均来自 LIR facts；plain callable ABI layout 改为校验并消费 `LirPlainCallableFacts` 的 function/param/return contract；virtual/interface dispatch tests 改为通过 LIR facts call-site/dispatch contract 断言。
+  - continuation/resume 与 surface ABI：surface-resume ABI materialization 不再读取 P4 continuation schema facts，而是基于 LIR surface-resume contract 生成 backend-private symbol key；handle/resume/body layout 中仍保留的 raw MIR/HIR pass-view 使用只作为 TODO-6/P7 backend residual，用于当前 body emission、reachability 和兼容物理声明，不再作为 P5-owned ABI contract 来源。
+  - 测试/helper 清理：layout tests 显式构造 ABI-visibility `LirFacts`，测试需要 P4 facts 时重新构造 P4 fixture builder，不再通过 `LirStageOutput` 伪装上游 API；P5 output 的 stable dump 和 pipeline tests 保持以 LIR/LIR facts 为主 surface。
+  - 验证命令：`cargo check -p scoopc --features llvm`；`cargo test -p scoopc --features llvm effect_lowered`；`cargo test -p scoopc --features llvm llvm::tests::late_lower`；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
+  - 验证残余：`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass` 仍失败 7/415；已确认剩余失败集中在既有 run-pass frontend/runtime residual（例如 array/string fixture 的 unresolved generic `scoop.core.println` materialization、`scoop.runtime.test.*` import fixture、process/atomic/string runtime cases），不属于本任务切换的 P5-owned ABI/query contract。TODO-6/P7 仍需清理 HIR scaffold、global init / runtime residual、LLVM physical layout 和 backend-specific reachability。
 
 ## [TODO] P5-T03R：Review codegen-neutral query 切换结果
 

@@ -453,31 +453,18 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                 ))
             })?
             .llvm_ty();
-        let continuation_schema_facts = self
-            .effect_facts
-            .continuation_schemas()
-            .get(&continuation_schema)
-            .ok_or_else(|| {
-                frontend_error(format!(
-                    "LLVM ABI materialization 缺少 continuation schema {} 的 authoritative facts",
-                    continuation_schema.as_u32()
-                ))
-            })?;
-        if continuation_schema_facts.resume_tuple_ty() != resume_tuple_ty
-            || continuation_schema_facts.answer_ty() != answer_ty
-            || continuation_schema_facts.out_step_schema() != step_schema
-        {
-            return Err(frontend_error(format!(
-                "LLVM ABI materialization 发现 continuation schema {} 的 layout 输入与 authoritative facts 漂移",
-                continuation_schema.as_u32()
-            )));
-        }
-        let stable_continuation_key_text = stable_naming::continuation_schema_key_text(
+        let surface_resume_contract = LateLoweredSurfaceResumeContract::new(
+            continuation_schema,
+            resume_tuple_ty,
+            answer_ty,
+            step_schema,
+        );
+        let stable_continuation_key_text = stable_naming::surface_resume_contract_key_text(
             self.codegen.stable_cone_key,
             self.source_types,
             self.codegen.stable_type_param_resolver(),
             self.program,
-            continuation_schema_facts,
+            surface_resume_contract,
             &format!("continuation schema {}", continuation_schema.as_u32()),
         )?;
         let symbol_name = stable_naming::private_name_from_key_text(

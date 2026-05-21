@@ -15,14 +15,25 @@ pub(super) fn llvm_callable_carrier_layout_resolves_non_boundary_virtual_contrac
                 .expect("fixtures.build.helper callable 应存在");
             let (_site_id, facts) = source_slice_non_boundary_dynamic_call_site(inputs, helper);
 
-            assert_eq!(facts.target_mode(), CallTargetMode::CandidateSet);
-            let CallSiteTarget::CandidateSet(targets) = facts.target() else {
-                panic!("non-boundary virtual call 应保留 CandidateSet target");
-            };
+            assert_eq!(
+                facts.target_mode,
+                scoopc_lir_facts::LirCallTargetMode::CandidateSet
+            );
+            let targets = facts
+                .target_callables
+                .iter()
+                .map(|key| {
+                    inputs
+                        .abi_visibility_lir_facts
+                        .callables
+                        .get(key)
+                        .expect("target callable facts 应存在")
+                })
+                .collect::<Vec<_>>();
             assert!(
                 targets
                     .iter()
-                    .any(|target| target.template.fqn == "fixtures.build.Base.ping")
+                    .any(|target| target.root_fqn() == "fixtures.build.Base.ping")
             );
             assert!(
                 query
@@ -33,10 +44,10 @@ pub(super) fn llvm_callable_carrier_layout_resolves_non_boundary_virtual_contrac
             for target in targets {
                 assert!(
                     query
-                        .plain_callable_layout_by_root_fqn(&target.template.fqn)
+                        .plain_callable_layout_by_root_fqn(target.root_fqn())
                         .is_ok(),
                     "NoOutward virtual target `{}` 应发布 plain callable layout",
-                    target.template.fqn
+                    target.root_fqn()
                 );
             }
         },
@@ -109,12 +120,8 @@ pub(super) fn llvm_dynamic_invoke_query_rejects_missing_published_contract() {
             };
             let message = err.to_string();
             assert!(
-                message.contains("canonical MIR call metadata"),
-                "错误消息应指出缺失的是 call-site authoritative metadata: {message}"
-            );
-            assert!(
                 message.contains("dynamic-invoke contract"),
-                "错误消息应指出缺失的是 dynamic-invoke contract: {message}"
+                "错误消息应指出缺失的是 LIR dynamic-invoke contract: {message}"
             );
             assert!(
                 message.contains("fixtures.build.helper") && message.contains("999"),

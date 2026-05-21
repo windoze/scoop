@@ -32,11 +32,12 @@ struct LoweredCodegenEntry<'a> {
     hir_facts: &'a HirFacts,
     materialized_pass_view: Option<crate::mir::MaterializedMirPassView<'a>>,
     late_lowered_program: Option<&'a crate::effect_lowered::LateLoweredProgram>,
+    late_lowered_lir_facts: Option<&'a scoopc_lir_facts::LirFacts>,
     late_lowered_types: Option<&'a crate::ty::TypeStore>,
     abi_program: Option<&'a crate::effect_lowered::LateLoweredProgram>,
+    abi_lir_facts: Option<&'a scoopc_lir_facts::LirFacts>,
     abi_types: Option<&'a crate::ty::TypeStore>,
     abi_materialized_pass_view: Option<crate::mir::MaterializedMirPassView<'a>>,
-    abi_effect_facts: Option<&'a crate::effect_facts::MaterializedEffectFacts>,
 }
 
 #[derive(Clone, Copy)]
@@ -145,15 +146,16 @@ impl<'a> LoweredCodegenEntry<'a> {
         Self {
             lowered,
             hir_facts,
-            materialized_pass_view: Some(effect_lowered_stage_output.materialized_pass_view()),
+            materialized_pass_view: Some(effect_lowered_stage_output.llvm_residual_pass_view()),
             late_lowered_program: Some(effect_lowered_stage_output.program()),
+            late_lowered_lir_facts: Some(effect_lowered_stage_output.lir_facts()),
             late_lowered_types: Some(effect_lowered_stage_output.types()),
             abi_program: Some(abi_visibility_effect_lowered_stage_output.program()),
+            abi_lir_facts: Some(abi_visibility_effect_lowered_stage_output.lir_facts()),
             abi_types: Some(abi_visibility_effect_lowered_stage_output.types()),
             abi_materialized_pass_view: Some(
-                abi_visibility_effect_lowered_stage_output.materialized_pass_view(),
+                abi_visibility_effect_lowered_stage_output.llvm_residual_pass_view(),
             ),
-            abi_effect_facts: Some(abi_visibility_effect_lowered_stage_output.effect_facts()),
         }
     }
 }
@@ -450,11 +452,12 @@ fn build_module_from_codegen_entry_with_root_selector<'ctx>(
         hir_facts,
         materialized_pass_view,
         late_lowered_program,
+        late_lowered_lir_facts,
         late_lowered_types,
         abi_program,
+        abi_lir_facts,
         abi_types,
         abi_materialized_pass_view,
-        abi_effect_facts,
     } = codegen_entry;
     let has_materialized_pass_view = materialized_pass_view.is_some();
 
@@ -628,15 +631,18 @@ fn build_module_from_codegen_entry_with_root_selector<'ctx>(
     let abi_program = abi_program.ok_or_else(|| LlvmEmitError::Frontend {
         message: "LLVM stage handoff 缺少 ABI visibility late-lowered program".to_string(),
     })?;
+    let _late_lowered_lir_facts =
+        late_lowered_lir_facts.ok_or_else(|| LlvmEmitError::Frontend {
+            message: "LLVM stage handoff 缺少 primary LIR facts".to_string(),
+        })?;
+    let abi_lir_facts = abi_lir_facts.ok_or_else(|| LlvmEmitError::Frontend {
+        message: "LLVM stage handoff 缺少 ABI visibility LIR facts".to_string(),
+    })?;
     let abi_types = abi_types.unwrap_or(late_lowered_types);
     let abi_pass_view = abi_materialized_pass_view
         .as_ref()
         .ok_or(LlvmEmitError::MissingMaterializedPassView)?;
-    let abi_effect_facts = abi_effect_facts.ok_or_else(|| LlvmEmitError::Frontend {
-        message: "LLVM stage handoff 缺少 ABI visibility effect facts".to_string(),
-    })?;
-    let abi_query =
-        declare.materialize_program_abi(abi_program, abi_types, abi_pass_view, abi_effect_facts)?;
+    let abi_query = declare.materialize_program_abi(abi_program, abi_lir_facts, abi_types)?;
     let primary_pass_view = unit_codegen
         .materialized_pass_view()
         .ok_or(LlvmEmitError::MissingMaterializedPassView)?;

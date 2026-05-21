@@ -483,50 +483,8 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             ContinuationSurfaceResumeLayout<'ctx>,
         >,
     ) -> Result<Vec<HandleArmLayout>, LlvmEmitError> {
-        let materialized_arms =
-            self.lookup_materialized_handle_arms(callable.root_fqn(), site_id)?;
-        if materialized_arms.len() != contract.handled_arms().len() {
-            return Err(frontend_error(format!(
-                "LLVM ABI materialization 发现 callable `{}` handle site {} 的 canonical MIR arm 数量({}) 与 published HandleDispatch arm 数量({}) 不一致",
-                callable.root_fqn(),
-                site_id.as_u32(),
-                materialized_arms.len(),
-                contract.handled_arms().len(),
-            )));
-        }
-
         let mut layouts = Vec::with_capacity(contract.handled_arms().len());
         for arm in contract.handled_arms() {
-            let materialized_arm = materialized_arms
-                .get(arm.arm_ordinal() as usize)
-                .ok_or_else(|| frontend_error(format!(
-                    "LLVM ABI materialization 发现 callable `{}` handle site {} 的 handled case c{} 引用了不存在的 canonical MIR arm ordinal {}",
-                    callable.root_fqn(),
-                    site_id.as_u32(),
-                    arm.handled_case().as_u32(),
-                    arm.arm_ordinal(),
-                )))?;
-            if materialized_arm.payload_tuple_ty != Some(arm.payload_tuple_ty()) {
-                return Err(frontend_error(format!(
-                    "LLVM ABI materialization 发现 callable `{}` handle site {} 的 handled case c{} payload tuple ty 漂移：contract=t{}，canonical_mir={:?}",
-                    callable.root_fqn(),
-                    site_id.as_u32(),
-                    arm.handled_case().as_u32(),
-                    arm.payload_tuple_ty().as_u32(),
-                    materialized_arm.payload_tuple_ty,
-                )));
-            }
-            if materialized_arm.binder_count != arm.payload_binders().len() {
-                return Err(frontend_error(format!(
-                    "LLVM ABI materialization 发现 callable `{}` handle site {} 的 handled case c{} payload binder 数量漂移：contract={}，canonical_mir={}",
-                    callable.root_fqn(),
-                    site_id.as_u32(),
-                    arm.handled_case().as_u32(),
-                    arm.payload_binders().len(),
-                    materialized_arm.binder_count,
-                )));
-            }
-
             let mut payload_binders = Vec::with_capacity(arm.payload_binders().len());
             for (expected_ordinal, binder) in arm.payload_binders().iter().enumerate() {
                 if binder.ordinal() != expected_ordinal as u32 {
@@ -537,28 +495,6 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                         arm.handled_case().as_u32(),
                         binder.ordinal(),
                         expected_ordinal,
-                    )));
-                }
-                let expected_local = materialized_arm
-                    .binder_locals
-                    .get(expected_ordinal)
-                    .copied()
-                    .ok_or_else(|| frontend_error(format!(
-                        "LLVM ABI materialization 发现 callable `{}` handle site {} 的 handled case c{} 缺少 canonical MIR payload binder #{}",
-                        callable.root_fqn(),
-                        site_id.as_u32(),
-                        arm.handled_case().as_u32(),
-                        expected_ordinal,
-                    )))?;
-                if binder.local() != expected_local {
-                    return Err(frontend_error(format!(
-                        "LLVM ABI materialization 发现 callable `{}` handle site {} 的 handled case c{} payload binder #{} local 漂移：contract=local{}，canonical_mir=local{}",
-                        callable.root_fqn(),
-                        site_id.as_u32(),
-                        arm.handled_case().as_u32(),
-                        expected_ordinal,
-                        binder.local().as_u32(),
-                        expected_local.as_u32(),
                     )));
                 }
                 let frame_field_index = match binder.frame_slot() {
@@ -582,21 +518,8 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                 ));
             }
 
-            let continuation_binder = match (
-                materialized_arm.continuation_local,
-                arm.continuation_binder(),
-            ) {
-                (Some(expected_local), Some(binder)) => {
-                    if binder.local() != expected_local {
-                        return Err(frontend_error(format!(
-                            "LLVM ABI materialization 发现 callable `{}` handle site {} 的 handled case c{} continuation binder local 漂移：contract=local{}，canonical_mir=local{}",
-                            callable.root_fqn(),
-                            site_id.as_u32(),
-                            arm.handled_case().as_u32(),
-                            binder.local().as_u32(),
-                            expected_local.as_u32(),
-                        )));
-                    }
+            let continuation_binder = match arm.continuation_binder() {
+                Some(binder) => {
                     if binder.continuation_object() != callable.continuation_object() {
                         return Err(frontend_error(format!(
                             "LLVM ABI materialization 发现 callable `{}` handle site {} 的 handled case c{} continuation object 漂移：contract=ko{}，owner=ko{}",
@@ -662,23 +585,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                         surface_layout.return_step_schema(),
                     ))
                 }
-                (Some(_), None) => {
-                    return Err(frontend_error(format!(
-                        "LLVM ABI materialization 发现 callable `{}` handle site {} 的 handled case c{} 缺少 published continuation binder contract",
-                        callable.root_fqn(),
-                        site_id.as_u32(),
-                        arm.handled_case().as_u32(),
-                    )));
-                }
-                (None, Some(_)) => {
-                    return Err(frontend_error(format!(
-                        "LLVM ABI materialization 发现 callable `{}` handle site {} 的 handled case c{} 不存在 canonical MIR continuation binder，却发布了 continuation binder contract",
-                        callable.root_fqn(),
-                        site_id.as_u32(),
-                        arm.handled_case().as_u32(),
-                    )));
-                }
-                (None, None) => None,
+                None => None,
             };
 
             layouts.push(HandleArmLayout::new(

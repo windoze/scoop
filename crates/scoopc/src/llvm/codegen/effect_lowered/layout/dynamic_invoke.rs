@@ -1,9 +1,9 @@
 //! Dynamic invoke ABI layouts.
 //!
 //! Dynamic invocations cover closure / virtual / interface dispatch where the
-//! callee identity is decided at runtime. This module materializes the per-
-//! site layout (carrier source slice, target callable layout) for every
-//! dynamic invoke boundary and validates the source-slice shape.
+//! callee identity is decided at runtime. The backend-neutral contract is now
+//! read from `LirFacts`; this module only turns that contract into LLVM function
+//! and carrier layouts.
 
 use super::*;
 
@@ -16,331 +16,154 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
         LlvmEmitError,
     > {
         let mut layouts = BTreeMap::new();
-        for callable in self.program.callables() {
-            if !callable.has_control_body() {
+        for contract in self.lir_facts.dynamic_invokes.values() {
+            let Some(owner_step_schema) = contract.owner_step_schema else {
                 continue;
+            };
+            let owner_step_schema = StepSchemaId::new(owner_step_schema.as_u32());
+            let site_id = crate::mir::SiteId::from_raw(contract.site_id.as_u32());
+            let key = (owner_step_schema, site_id);
+            if layouts.contains_key(&key) {
+                return Err(frontend_error(format!(
+                    "LLVM ABI materialization 发现 owner step schema {} call site {} 的 LIR dynamic-invoke contract 重复发布",
+                    owner_step_schema.as_u32(),
+                    site_id.as_u32(),
+                )));
             }
-            self.publish_boundary_dynamic_invoke_layouts(callable, step_layouts, &mut layouts)?;
-            self.publish_source_slice_dynamic_invoke_layouts(callable, step_layouts, &mut layouts)?;
+            let layout = self.materialize_dynamic_invoke_layout(
+                owner_step_schema,
+                site_id,
+                contract,
+                step_layouts,
+            )?;
+            layouts.insert(key, layout);
         }
         Ok(layouts)
     }
 
-    pub(super) fn publish_boundary_dynamic_invoke_layouts(
-        &mut self,
-        callable: &LateLoweredCallable,
-        step_layouts: &BTreeMap<StepSchemaId, StepLayout<'ctx>>,
-        layouts: &mut BTreeMap<(StepSchemaId, crate::mir::SiteId), DynamicInvokeLayout<'ctx>>,
-    ) -> Result<(), LlvmEmitError> {
-        for boundary in callable.boundary_map().entries() {
-            let (
-                LateLoweredBoundarySource::Site {
-                    site_id,
-                    kind: BoundarySiteKind::Call,
-                },
-                Some(LateLoweredBoundaryLowering::Call(lowering)),
-            ) = (boundary.source(), boundary.lowering())
-            else {
-                continue;
-            };
-            if lowering.facts().target_mode() == CallTargetMode::KnownInstance {
-                continue;
-            }
-            let call_site = self.lookup_materialized_call_site(callable.root_fqn(), site_id)?;
-
-            self.publish_dynamic_invoke_layout(
-                callable,
-                site_id,
-                lowering.facts(),
-                &call_site.kind,
-                call_site.carrier_source_ty,
-                call_site.arg_count,
-                step_layouts,
-                layouts,
-            )?;
-        }
-        Ok(())
-    }
-
-    pub(super) fn publish_source_slice_dynamic_invoke_layouts(
-        &mut self,
-        callable: &LateLoweredCallable,
-        step_layouts: &BTreeMap<StepSchemaId, StepLayout<'ctx>>,
-        layouts: &mut BTreeMap<(StepSchemaId, crate::mir::SiteId), DynamicInvokeLayout<'ctx>>,
-    ) -> Result<(), LlvmEmitError> {
-        let boundary_call_sites = callable
-            .boundary_map()
-            .entries()
-            .iter()
-            .filter_map(|boundary| match boundary.source() {
-                LateLoweredBoundarySource::Site {
-                    site_id,
-                    kind: BoundarySiteKind::Call,
-                } => Some(site_id),
-                LateLoweredBoundarySource::RuntimeError { .. }
-                | LateLoweredBoundarySource::Site { .. } => None,
-            })
-            .collect::<BTreeSet<_>>();
-
-        let source_slice_sites = {
-            let body = self.lookup_materialized_callable_body(callable.root_fqn())?;
-            let body_facts = self.body_effect_facts(callable)?;
-            let mut sites = Vec::new();
-            for state in callable.state_graph().states() {
-                for slice in state.source_slices() {
-                    let Some(block) = body.blocks.get(slice.block_id().as_u32() as usize) else {
-                        return Err(frontend_error(format!(
-                            "LLVM ABI materialization 发现 callable `{}` 的 source slice 指向缺失的 canonical MIR block bb{}",
-                            callable.root_fqn(),
-                            slice.block_id().as_u32(),
-                        )));
-                    };
-                    let start = slice.start_statement_index() as usize;
-                    let end = slice.end_statement_index() as usize;
-                    if start > end || end > block.stmts.len() {
-                        return Err(frontend_error(format!(
-                            "LLVM ABI materialization 发现 callable `{}` 的 source slice [{start}..{end}) 越界于 canonical MIR block bb{}（stmt_count={}）",
-                            callable.root_fqn(),
-                            slice.block_id().as_u32(),
-                            block.stmts.len(),
-                        )));
-                    }
-                    for stmt in &block.stmts[start..end] {
-                        let MirStatementKind::Assign {
-                            value:
-                                MirRvalue::Call {
-                                    site_id,
-                                    kind,
-                                    args,
-                                    ..
-                                },
-                            ..
-                        } = &stmt.kind
-                        else {
-                            continue;
-                        };
-                        if boundary_call_sites.contains(site_id) {
-                            continue;
-                        }
-                        if !matches!(
-                            kind,
-                            MirCallKind::FunValue { .. }
-                                | MirCallKind::FunPtr { .. }
-                                | MirCallKind::Closure { .. }
-                                | MirCallKind::Virtual { .. }
-                                | MirCallKind::Interface { .. }
-                        ) {
-                            continue;
-                        }
-
-                        let site = body_facts.site(*site_id).ok_or_else(|| {
-                            frontend_error(format!(
-                                "LLVM ABI materialization 缺少 callable `{}` source-slice call site {} 的 published effect facts，无法发布 non-boundary dynamic-invoke contract",
-                                callable.root_fqn(),
-                                site_id.as_u32(),
-                            ))
-                        })?;
-                        let SiteEffectFacts::Call(facts) = site else {
-                            return Err(frontend_error(format!(
-                                "LLVM ABI materialization 发现 callable `{}` source-slice call site {} 的 canonical MIR kind {:?} 不是普通 Call site，而 published facts 为 {site:?}",
-                                callable.root_fqn(),
-                                site_id.as_u32(),
-                                kind,
-                            )));
-                        };
-                        if !facts.resolved_cases().is_empty() {
-                            return Err(frontend_error(format!(
-                                "LLVM ABI materialization 发现 callable `{}` source-slice dynamic call site {} 仍暴露 outward cases，但 late-lowered handoff 没有对应 call boundary",
-                                callable.root_fqn(),
-                                site_id.as_u32(),
-                            )));
-                        }
-                        // Control-body 内的 plain dynamic call 继续走普通 ABI lowering，
-                        // 只有真正返回 Step_F 的 effect-step call 才需要 dynamic-invoke contract。
-                        if facts.callee_step_schema().is_none() {
-                            continue;
-                        }
-                        let carrier_source_ty = self.dynamic_call_carrier_source_ty(body, kind);
-                        sites.push((
-                            *site_id,
-                            kind.clone(),
-                            carrier_source_ty,
-                            args.len(),
-                            facts.clone(),
-                        ));
-                    }
-                }
-            }
-            sites
-        };
-
-        for (site_id, kind, carrier_source_ty, arg_count, facts) in source_slice_sites {
-            self.publish_dynamic_invoke_layout(
-                callable,
-                site_id,
-                &facts,
-                &kind,
-                carrier_source_ty,
-                arg_count,
-                step_layouts,
-                layouts,
-            )?;
-        }
-        Ok(())
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    pub(super) fn publish_dynamic_invoke_layout(
-        &mut self,
-        callable: &LateLoweredCallable,
-        site_id: crate::mir::SiteId,
-        facts: &CallSiteEffectFacts,
-        call_kind: &MirCallKind,
-        carrier_source_ty: Option<TypeId>,
-        arg_count: usize,
-        step_layouts: &BTreeMap<StepSchemaId, StepLayout<'ctx>>,
-        layouts: &mut BTreeMap<(StepSchemaId, crate::mir::SiteId), DynamicInvokeLayout<'ctx>>,
-    ) -> Result<(), LlvmEmitError> {
-        let key = (callable.step_schema(), site_id);
-        if layouts.contains_key(&key) {
-            return Err(frontend_error(format!(
-                "LLVM ABI materialization 发现 owner step schema {} call site {} 的 dynamic-invoke contract 重复发布",
-                callable.step_schema().as_u32(),
-                site_id.as_u32(),
-            )));
-        }
-        let layout = self.materialize_dynamic_invoke_layout(
-            callable.root_fqn(),
-            callable.step_schema(),
-            site_id,
-            facts,
-            call_kind,
-            carrier_source_ty,
-            arg_count,
-            step_layouts,
-        )?;
-        layouts.insert(key, layout);
-        Ok(())
-    }
-
-    #[allow(clippy::too_many_arguments)]
     pub(super) fn materialize_dynamic_invoke_layout(
         &mut self,
-        owner_root_fqn: &str,
         owner_step_schema: StepSchemaId,
         site_id: crate::mir::SiteId,
-        facts: &CallSiteEffectFacts,
-        call_kind: &MirCallKind,
-        carrier_source_ty: Option<TypeId>,
-        arg_count: usize,
+        contract: &LirDynamicInvokeContract,
         step_layouts: &BTreeMap<StepSchemaId, StepLayout<'ctx>>,
     ) -> Result<DynamicInvokeLayout<'ctx>, LlvmEmitError> {
-        self.validate_dynamic_call_site_kind(owner_root_fqn, site_id, facts, call_kind)?;
+        let callee_schema = contract.call.callee_step_schema.ok_or_else(|| {
+            frontend_error(format!(
+                "LLVM ABI materialization 发现 callable `{}` call site {} 的 LIR dynamic-invoke contract 缺少 callee step schema",
+                contract.owner_callable.readable_path(),
+                site_id.as_u32(),
+            ))
+        })?;
+        let callee_schema = StepSchemaId::new(callee_schema.as_u32());
         let step_ty = step_layouts
-            .get(&facts.callee_schema())
+            .get(&callee_schema)
             .ok_or_else(|| {
                 frontend_error(format!(
-                    "LLVM ABI materialization 缺少 callable `{owner_root_fqn}` call site {} dynamic-invoke return step schema {} 的 step layout",
+                    "LLVM ABI materialization 缺少 callable `{}` call site {} dynamic-invoke return step schema {} 的 step layout",
+                    contract.owner_callable.readable_path(),
                     site_id.as_u32(),
-                    facts.callee_schema().as_u32(),
+                    callee_schema.as_u32(),
                 ))
             })?
             .llvm_ty();
-        let args_layout = self.source_value_layout(facts.invoke_args_tuple_ty())?;
+        let args_layout = self.source_value_layout(contract.call.invoke_args_tuple_ty)?;
         let args_abi = *args_layout.abi();
-        let carrier = match call_kind {
-            MirCallKind::FunValue { .. }
-            | MirCallKind::FunPtr { .. }
-            | MirCallKind::Closure { .. } => {
+        let carrier = match contract.carrier.kind {
+            LirDynamicInvokeCarrierKind::ClosureObject | LirDynamicInvokeCarrierKind::FunPtr => {
                 if !matches!(
-                    facts.target_mode(),
-                    CallTargetMode::DynamicFallback | CallTargetMode::KnownInstance
+                    contract.call.target_mode,
+                    LirCallTargetMode::DynamicFallback | LirCallTargetMode::KnownInstance
                 ) {
                     return Err(frontend_error(format!(
-                        "LLVM ABI materialization 发现 callable `{owner_root_fqn}` call site {} 的 {:?} lowering 只能绑定 KnownInstance/DynamicFallback，但实际 target_mode 为 {:?}",
+                        "LLVM ABI materialization 发现 callable `{}` call site {} 的 callable-carrier lowering 只能绑定 KnownInstance/DynamicFallback，但实际 target_mode 为 {:?}",
+                        contract.owner_callable.readable_path(),
                         site_id.as_u32(),
-                        call_kind,
-                        facts.target_mode(),
+                        contract.call.target_mode,
                     )));
                 }
-                let carrier_source_ty = carrier_source_ty.ok_or_else(|| {
+                let carrier_source_ty = contract.carrier.source_ty.ok_or_else(|| {
                     frontend_error(format!(
-                        "LLVM ABI materialization 缺少 callable `{owner_root_fqn}` call site {} 的 callable carrier source type",
+                        "LLVM ABI materialization 缺少 callable `{}` call site {} 的 callable carrier source type",
+                        contract.owner_callable.readable_path(),
                         site_id.as_u32(),
                     ))
                 })?;
                 let receiver_abi = *self.source_value_layout(carrier_source_ty)?.abi();
-                if self.is_funptr_source_ty(carrier_source_ty) {
-                    DynamicInvokeCarrierLayout::FunPtr(receiver_abi)
-                } else {
-                    DynamicInvokeCarrierLayout::ClosureObject(ClosureCarrierLayout::new(
-                        self.codegen.llvm_closure_object_type(),
-                        receiver_abi,
-                        1,
-                        2,
-                    ))
-                }
-            }
-            MirCallKind::Virtual { dispatch, .. } => {
-                let method_slot = self.resolve_virtual_dispatch_slot(
-                    owner_root_fqn,
-                    site_id,
-                    dispatch,
-                    arg_count,
-                )?;
-                if let crate::effect_facts::CallSiteTarget::CandidateSet(targets) = facts.target() {
-                    for target in targets {
-                        if self.program.callable(&target.template.fqn).is_none() {
-                            return Err(frontend_error(format!(
-                                "LLVM ABI materialization 缺少 callable `{owner_root_fqn}` call site {} CandidateSet target `{}` 的 published callable shell",
-                                site_id.as_u32(),
-                                target.template.fqn,
-                            )));
+                match contract.carrier.kind {
+                    LirDynamicInvokeCarrierKind::FunPtr => {
+                        DynamicInvokeCarrierLayout::FunPtr(receiver_abi)
+                    }
+                    LirDynamicInvokeCarrierKind::ClosureObject => {
+                        if self.is_funptr_source_ty(carrier_source_ty) {
+                            DynamicInvokeCarrierLayout::FunPtr(receiver_abi)
+                        } else {
+                            DynamicInvokeCarrierLayout::ClosureObject(ClosureCarrierLayout::new(
+                                self.codegen.llvm_closure_object_type(),
+                                receiver_abi,
+                                1,
+                                2,
+                            ))
                         }
                     }
+                    LirDynamicInvokeCarrierKind::VirtualReceiver
+                    | LirDynamicInvokeCarrierKind::InterfaceReceiver => {
+                        unreachable!("outer match already selected callable carrier kinds")
+                    }
                 }
+            }
+            LirDynamicInvokeCarrierKind::VirtualReceiver => {
+                let dispatch_key = contract.carrier.dispatch.as_ref().ok_or_else(|| {
+                    frontend_error(format!(
+                        "LLVM ABI materialization 缺少 callable `{}` call site {} 的 virtual dispatch key",
+                        contract.owner_callable.readable_path(),
+                        site_id.as_u32(),
+                    ))
+                })?;
+                let dispatch = self.dispatch_contract(dispatch_key)?;
+                let receiver_ty = dispatch.receiver_ty;
+                let owner_fqn = dispatch.owner_fqn.clone();
+                let member_name = dispatch.member_name.clone();
+                let method_slot = dispatch.method_slot;
+                let receiver_abi = *self.source_value_layout(receiver_ty)?.abi();
                 DynamicInvokeCarrierLayout::VirtualReceiver(DispatchReceiverLayout::new(
-                    dispatch.receiver_ty,
-                    *self.source_value_layout(dispatch.receiver_ty)?.abi(),
-                    dispatch.owner_fqn.clone(),
-                    dispatch.member_name.clone(),
+                    receiver_ty,
+                    receiver_abi,
+                    owner_fqn,
+                    member_name,
                     method_slot,
                     None,
                 ))
             }
-            MirCallKind::Interface { dispatch, .. } => {
-                let (interface_id, method_slot) = self.resolve_interface_dispatch_slot(
-                    owner_root_fqn,
-                    site_id,
-                    dispatch,
-                    arg_count,
-                )?;
-                if let crate::effect_facts::CallSiteTarget::CandidateSet(targets) = facts.target() {
-                    for target in targets {
-                        if self.program.callable(&target.template.fqn).is_none() {
-                            return Err(frontend_error(format!(
-                                "LLVM ABI materialization 缺少 callable `{owner_root_fqn}` call site {} CandidateSet target `{}` 的 published callable shell",
-                                site_id.as_u32(),
-                                target.template.fqn,
-                            )));
-                        }
-                    }
-                }
+            LirDynamicInvokeCarrierKind::InterfaceReceiver => {
+                let dispatch_key = contract.carrier.dispatch.as_ref().ok_or_else(|| {
+                    frontend_error(format!(
+                        "LLVM ABI materialization 缺少 callable `{}` call site {} 的 interface dispatch key",
+                        contract.owner_callable.readable_path(),
+                        site_id.as_u32(),
+                    ))
+                })?;
+                let dispatch = self.dispatch_contract(dispatch_key)?;
+                let receiver_ty = dispatch.receiver_ty;
+                let owner_fqn = dispatch.owner_fqn.clone();
+                let member_name = dispatch.member_name.clone();
+                let method_slot = dispatch.method_slot;
+                let interface_id = dispatch.interface_id.ok_or_else(|| {
+                    frontend_error(format!(
+                        "LLVM ABI materialization 发现 callable `{}` call site {} 的 interface dispatch contract 缺少 interface id",
+                        contract.owner_callable.readable_path(),
+                        site_id.as_u32(),
+                    ))
+                })?;
+                let receiver_abi = *self.source_value_layout(receiver_ty)?.abi();
                 DynamicInvokeCarrierLayout::InterfaceReceiver(DispatchReceiverLayout::new(
-                    dispatch.receiver_ty,
-                    *self.source_value_layout(dispatch.receiver_ty)?.abi(),
-                    dispatch.owner_fqn.clone(),
-                    dispatch.member_name.clone(),
+                    receiver_ty,
+                    receiver_abi,
+                    owner_fqn,
+                    member_name,
                     method_slot,
                     Some(interface_id),
                 ))
-            }
-            other => {
-                return Err(frontend_error(format!(
-                    "LLVM ABI materialization 发现 callable `{owner_root_fqn}` call site {} 的 canonical MIR kind {other:?} 无法为 {:?} 发布 dynamic-invoke contract",
-                    site_id.as_u32(),
-                    facts.target_mode(),
-                )));
             }
         };
 
@@ -350,29 +173,25 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             params.push(args_abi.llvm_ty().into());
         }
         let llvm_ty = step_ty.fn_type(&params, false);
-
-        let candidate_targets = match facts.target() {
-            crate::effect_facts::CallSiteTarget::CandidateSet(targets) => targets
-                .iter()
-                .map(|target| target.template.fqn.clone())
-                .collect::<Vec<_>>(),
-            crate::effect_facts::CallSiteTarget::KnownInstance(target) => {
-                vec![target.template.fqn.clone()]
-            }
-            crate::effect_facts::CallSiteTarget::DynamicFallback => Vec::new(),
-        };
-
         Ok(DynamicInvokeLayout::new(
             owner_step_schema,
             site_id,
-            facts.target_mode(),
-            facts.invoke_args_tuple_ty(),
+            lir_target_mode(contract.call.target_mode),
+            contract.call.invoke_args_tuple_ty,
             llvm_ty,
             params.len(),
             args_abi,
-            facts.callee_schema(),
+            callee_schema,
             carrier,
-            candidate_targets,
+            self.lir_target_roots(contract)?,
         ))
+    }
+}
+
+fn lir_target_mode(mode: LirCallTargetMode) -> CallTargetMode {
+    match mode {
+        LirCallTargetMode::KnownInstance => CallTargetMode::KnownInstance,
+        LirCallTargetMode::CandidateSet => CallTargetMode::CandidateSet,
+        LirCallTargetMode::DynamicFallback => CallTargetMode::DynamicFallback,
     }
 }

@@ -4,9 +4,7 @@ use std::rc::Rc;
 
 use super::surface_resume::surface_resume_publication_owner_identity;
 use super::*;
-use crate::effect_facts::{
-    CallSiteEffectFacts, CallSiteTarget, CallTargetMode, CaseTag, ImplPlan, SiteEffectFacts,
-};
+use crate::effect_facts::{CallSiteTarget, CallTargetMode, CaseTag, ImplPlan};
 use crate::effect_lowered::ir::{
     BoundarySiteKind, ContinuationObjectId, LateLoweredBodyVersionKey, LateLoweredBoundary,
     LateLoweredBoundaryLowering, LateLoweredBoundaryMap, LateLoweredBoundarySource,
@@ -40,6 +38,7 @@ use crate::source::{SourceFile, SourceMap};
 use crate::ty::{TypeParamType, TypeStore};
 use inkwell::context::Context;
 use scoopc_hir_facts::HirFacts;
+use scoopc_lir_facts::{LirCallSiteContract, LirCallableContract};
 
 struct FixtureAbiInputs {
     source_map: SourceMap,
@@ -48,6 +47,7 @@ struct FixtureAbiInputs {
     hir_facts: HirFacts,
     effect_lowered_stage_output: crate::pipeline::EffectLoweredStageOutput,
     abi_visibility_program: LateLoweredProgram,
+    abi_visibility_lir_facts: scoopc_lir_facts::LirFacts,
 }
 
 fn session() -> Session {
@@ -96,24 +96,31 @@ fn build_fixture_inputs_from_source(source: SourceFile) -> FixtureAbiInputs {
     let effect_facts_stage_output =
         build_effect_facts_stage_output(&session, &source, &mir_stage_output)
             .expect("effect facts stage 应成功");
-    let effect_lowered_stage_output = build_effect_lowered_stage_output(
-        &session,
-        EffectLoweringStageInput::new(mir_stage_output, effect_facts_stage_output),
-    )
-    .expect("effect lowered stage 应成功");
     // ABI materializer 必须消费与真实 LLVM stage 相同的 shell-preserving handoff，
     // 不能误用会裁剪 published resume methods 的 authoritative reachable-body program。
     let abi_visibility_program = optimize_program_with_options(
         LateLoweredProgramBuilder::from_canonical_inputs(
-            effect_lowered_stage_output.materialized_pass_view(),
-            effect_lowered_stage_output.effect_facts(),
-            effect_lowered_stage_output.types(),
-            effect_lowered_stage_output.mir_facts(),
+            mir_stage_output.materialized_pass_view(),
+            effect_facts_stage_output.effect_facts(),
+            effect_facts_stage_output.effect_facts().types(),
+            mir_stage_output.mir_facts(),
         )
         .build()
         .expect("ABI visibility late-lowered program 应成功"),
         LateLoweredOptOptions::preserve_published_resume_shells(),
     );
+    let abi_visibility_lir_facts = crate::pipeline::lir_facts_builder::build_lir_facts(
+        &abi_visibility_program,
+        mir_stage_output.materialized_mir(),
+        effect_facts_stage_output.effect_facts(),
+        mir_stage_output.materialized_mir().opt_level(),
+    )
+    .expect("ABI visibility LIR facts 应成功");
+    let effect_lowered_stage_output = build_effect_lowered_stage_output(
+        &session,
+        EffectLoweringStageInput::new(mir_stage_output, effect_facts_stage_output),
+    )
+    .expect("effect lowered stage 应成功");
     let input_sources = vec![source.clone()];
     let (source_map, entry_source_id) =
         crate::llvm::frontend::build_source_map_with_extra_sources(&session, &input_sources, 0);
@@ -124,6 +131,7 @@ fn build_fixture_inputs_from_source(source: SourceFile) -> FixtureAbiInputs {
         hir_facts,
         effect_lowered_stage_output,
         abi_visibility_program,
+        abi_visibility_lir_facts,
     }
 }
 
@@ -194,7 +202,7 @@ fn with_inputs_query_result(
         extern_funs: &lowered.extern_funs,
         native_callable_funs: &lowered.native_callable_funs,
         fun_index: &fun_index,
-        materialized_pass_view: Some(inputs.effect_lowered_stage_output.materialized_pass_view()),
+        materialized_pass_view: Some(inputs.effect_lowered_stage_output.llvm_residual_pass_view()),
         published_late_lowered_program: Some(&program),
         hir_facts,
         effect_op_tags,
@@ -202,9 +210,8 @@ fn with_inputs_query_result(
     let mut codegen = unit_codegen.fresh_main_codegen();
     let result = codegen.materialize_program_abi(
         &program,
+        &inputs.abi_visibility_lir_facts,
         inputs.effect_lowered_stage_output.types(),
-        &inputs.effect_lowered_stage_output.materialized_pass_view(),
-        inputs.effect_lowered_stage_output.effect_facts(),
     );
     check(&inputs, result, &module);
 }
@@ -274,18 +281,14 @@ fn with_inputs_query_result_for_source_types(
         extern_funs: &lowered.extern_funs,
         native_callable_funs: &lowered.native_callable_funs,
         fun_index: &fun_index,
-        materialized_pass_view: Some(inputs.effect_lowered_stage_output.materialized_pass_view()),
+        materialized_pass_view: Some(inputs.effect_lowered_stage_output.llvm_residual_pass_view()),
         published_late_lowered_program: Some(&program),
         hir_facts,
         effect_op_tags,
     });
     let mut codegen = unit_codegen.fresh_main_codegen();
-    let result = codegen.materialize_program_abi(
-        &program,
-        &source_types,
-        &inputs.effect_lowered_stage_output.materialized_pass_view(),
-        inputs.effect_lowered_stage_output.effect_facts(),
-    );
+    let result =
+        codegen.materialize_program_abi(&program, &inputs.abi_visibility_lir_facts, &source_types);
     check(&inputs, result, &module);
 }
 
@@ -353,18 +356,16 @@ fn with_inputs_query_result_and_codegen(
         extern_funs: &lowered.extern_funs,
         native_callable_funs: &lowered.native_callable_funs,
         fun_index: &fun_index,
-        materialized_pass_view: Some(inputs.effect_lowered_stage_output.materialized_pass_view()),
+        materialized_pass_view: Some(inputs.effect_lowered_stage_output.llvm_residual_pass_view()),
         published_late_lowered_program: Some(&program),
         hir_facts,
         effect_op_tags,
     });
     let mut codegen = unit_codegen.fresh_main_codegen();
-    let pass_view = inputs.effect_lowered_stage_output.materialized_pass_view();
     let result = codegen.materialize_program_abi(
         &program,
+        &inputs.abi_visibility_lir_facts,
         inputs.effect_lowered_stage_output.types(),
-        &pass_view,
-        inputs.effect_lowered_stage_output.effect_facts(),
     );
     check(&inputs, &mut codegen, result, &module);
 }
@@ -967,85 +968,24 @@ fn handle_dispatch_state(
 fn source_slice_non_boundary_dynamic_call_site(
     inputs: &FixtureAbiInputs,
     callable: &LateLoweredCallable,
-) -> (crate::mir::SiteId, CallSiteEffectFacts) {
-    if let Some(plain) = callable.plain_abi() {
-        return plain
-            .call_sites()
-            .iter()
-            .find_map(|site| {
-                (site.facts().target_mode() != CallTargetMode::KnownInstance)
-                    .then(|| (site.site_id(), site.facts().clone()))
-            })
-            .expect("plain callable 应发布一个 non-boundary source-slice dynamic call site");
-    }
-
-    let body = inputs
-        .effect_lowered_stage_output
-        .materialized_pass_view()
-        .callable(callable.root_fqn())
-        .expect("callable 的 canonical MIR body 应存在")
-        .body
-        .as_ref()
-        .expect("callable 的 canonical MIR body 内容应存在");
-    let body_facts = inputs
-        .effect_lowered_stage_output
-        .effect_facts()
-        .body(callable.instance_key())
-        .expect("callable 的 BodyEffectFacts 应存在");
-    let boundary_call_sites = callable
-        .boundary_map()
-        .entries()
+) -> (crate::mir::SiteId, LirCallSiteContract) {
+    let owner = inputs
+        .abi_visibility_lir_facts
+        .callables
+        .values()
+        .find(|facts| facts.root_fqn() == callable.root_fqn())
+        .expect("callable LIR facts 应存在");
+    let LirCallableContract::Plain(plain) = &owner.contract else {
+        panic!("non-boundary source-slice helper 只支持 plain callable facts");
+    };
+    plain
+        .call_sites
         .iter()
-        .filter_map(|boundary| match boundary.source() {
-            LateLoweredBoundarySource::Site {
-                site_id,
-                kind: BoundarySiteKind::Call,
-            } => Some(site_id),
-            LateLoweredBoundarySource::RuntimeError { .. }
-            | LateLoweredBoundarySource::Site { .. } => None,
+        .find_map(|site| {
+            (site.contract.target_mode != scoopc_lir_facts::LirCallTargetMode::KnownInstance)
+                .then(|| (site.site_id, site.contract.clone()))
         })
-        .collect::<BTreeSet<_>>();
-
-    for state in callable.state_graph().states() {
-        for slice in state.source_slices() {
-            let block = &body.blocks[slice.block_id().as_u32() as usize];
-            let start = slice.start_statement_index() as usize;
-            let end = slice.end_statement_index() as usize;
-            for stmt in &block.stmts[start..end] {
-                let MirStatementKind::Assign {
-                    value: MirRvalue::Call { site_id, kind, .. },
-                    ..
-                } = &stmt.kind
-                else {
-                    continue;
-                };
-                if boundary_call_sites.contains(site_id)
-                    || !matches!(
-                        kind,
-                        MirCallKind::FunValue { .. }
-                            | MirCallKind::FunPtr { .. }
-                            | MirCallKind::Closure { .. }
-                            | MirCallKind::Virtual { .. }
-                            | MirCallKind::Interface { .. }
-                    )
-                {
-                    continue;
-                }
-                let SiteEffectFacts::Call(facts) = body_facts
-                    .site(*site_id)
-                    .expect("source-slice dynamic call site 应带 published Call facts")
-                else {
-                    panic!("source-slice dynamic call site 必须对应 Call facts");
-                };
-                if facts.target_mode() == CallTargetMode::KnownInstance {
-                    continue;
-                }
-                return (*site_id, facts.clone());
-            }
-        }
-    }
-
-    panic!("应找到一个 non-boundary source-slice dynamic call site");
+        .expect("应找到一个 non-boundary source-slice dynamic call site")
 }
 
 fn clone_resume_interface_with_methods(

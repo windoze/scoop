@@ -226,50 +226,18 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             if !callable.has_control_body() {
                 continue;
             }
-            let Some(fun) = self.pass_view.callable(callable.root_fqn()) else {
-                if callable.source_statement_classifications().is_empty() {
-                    continue;
-                }
-                return Err(frontend_error(format!(
-                    "LLVM ABI materialization 发现 callable `{}` 发布了 source-slice statement classification，但 pass-view 缺少对应 body",
-                    callable.root_fqn(),
-                )));
-            };
-            let Some(body) = fun.body.as_ref() else {
-                if callable.source_statement_classifications().is_empty() {
-                    continue;
-                }
-                return Err(frontend_error(format!(
-                    "LLVM ABI materialization 发现 callable `{}` 发布了 source-slice statement classification，但 callable 无 body",
-                    callable.root_fqn(),
-                )));
-            };
-
             let mut expected = BTreeSet::<(BasicBlockId, u32)>::new();
             for state in callable.state_graph().states() {
                 for slice in state.source_slices() {
-                    let block = body
-                        .blocks
-                        .get(slice.block_id().as_u32() as usize)
-                        .ok_or_else(|| {
-                            frontend_error(format!(
-                                "LLVM ABI materialization 发现 callable `{}` state st{} source slice 指向缺失 block bb{}",
-                                callable.root_fqn(),
-                                state.state_id().as_u32(),
-                                slice.block_id().as_u32(),
-                            ))
-                        })?;
                     let start = slice.start_statement_index() as usize;
                     let end = slice.end_statement_index() as usize;
-                    if start > end || end > block.stmts.len() {
+                    if start > end {
                         return Err(frontend_error(format!(
-                            "LLVM ABI materialization 发现 callable `{}` state st{} source slice [{}..{}) 越界于 bb{}（stmt_count={}）",
+                            "LLVM ABI materialization 发现 callable `{}` state st{} source slice [{}..{}) 非法",
                             callable.root_fqn(),
                             state.state_id().as_u32(),
                             slice.start_statement_index(),
                             slice.end_statement_index(),
-                            slice.block_id().as_u32(),
-                            block.stmts.len(),
                         )));
                     }
                     for stmt_index in slice.start_statement_index()..slice.end_statement_index() {

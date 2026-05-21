@@ -1787,10 +1787,13 @@ pub(super) fn llvm_dynamic_invoke_query_resolves_non_boundary_virtual_contract()
 
             let (site_id, facts) = source_slice_non_boundary_dynamic_call_site(inputs, helper);
             assert!(
-                facts.resolved_cases().is_empty(),
+                facts.resolved_cases.is_empty(),
                 "non-boundary dynamic call 的 resolved cases 应为空"
             );
-            assert_eq!(facts.target_mode(), CallTargetMode::CandidateSet);
+            assert_eq!(
+                facts.target_mode,
+                scoopc_lir_facts::LirCallTargetMode::CandidateSet
+            );
             assert!(
                 plain
                     .call_sites()

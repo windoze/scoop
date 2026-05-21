@@ -1,8 +1,8 @@
-use crate::effect_facts::{ConcreteOpKey, ContinuationSchema, ImplPlan, StepSchemaId};
+use crate::effect_facts::{ConcreteOpKey, ImplPlan, StepSchemaId};
 use crate::effect_lowered::LateLoweredProgram;
 use crate::effect_lowered::ir::{
     LateLoweredBodyVersionKey, LateLoweredContinuationContract, LateLoweredStepCase,
-    LateLoweredStepType,
+    LateLoweredStepType, LateLoweredSurfaceResumeContract,
 };
 use crate::llvm::LlvmEmitError;
 use crate::stable_id::{
@@ -157,30 +157,6 @@ where
     )
 }
 
-pub(super) fn continuation_schema_key_text<R>(
-    stable_cone_key: &StableConeKey,
-    types: &TypeStore,
-    type_params: &R,
-    program: &LateLoweredProgram,
-    schema: &ContinuationSchema,
-    context: &str,
-) -> Result<String, LlvmEmitError>
-where
-    R: StableTypeParamResolver + ?Sized,
-{
-    continuation_key_text_from_fields(
-        stable_cone_key,
-        types,
-        type_params,
-        program,
-        schema.resume_tuple_ty(),
-        schema.answer_ty(),
-        schema.out_step_schema(),
-        schema.surface_ty(),
-        context,
-    )
-}
-
 pub(super) fn continuation_contract_key_text<R>(
     stable_cone_key: &StableConeKey,
     types: &TypeStore,
@@ -203,6 +179,56 @@ where
         contract.surface_ty(),
         context,
     )
+}
+
+pub(super) fn surface_resume_contract_key_text<R>(
+    stable_cone_key: &StableConeKey,
+    types: &TypeStore,
+    type_params: &R,
+    program: &LateLoweredProgram,
+    contract: LateLoweredSurfaceResumeContract,
+    context: &str,
+) -> Result<String, LlvmEmitError>
+where
+    R: StableTypeParamResolver + ?Sized,
+{
+    let owner_key = step_schema_owner_key_text(
+        stable_cone_key,
+        types,
+        type_params,
+        program,
+        contract.out_step_schema(),
+        &format!("{context} out-step owner"),
+    )?;
+    let out_step_summary = step_schema_shallow_summary_text(
+        stable_cone_key,
+        types,
+        type_params,
+        program,
+        contract.out_step_schema(),
+        &format!("{context} out-step summary"),
+    )?;
+    let fragments = vec![
+        canonical_type_fragment(
+            types,
+            contract.resume_tuple_ty(),
+            type_params,
+            &format!("{context} resume tuple"),
+        )?,
+        canonical_type_fragment(
+            types,
+            contract.answer_ty(),
+            type_params,
+            &format!("{context} answer"),
+        )?,
+        canonical_record("out_step", [owner_key.clone(), out_step_summary]),
+    ];
+    Ok(StableContinuationSchemaKey::new(
+        &CanonicalTextKey(owner_key),
+        "surface_resume_schema",
+        fragments,
+    )
+    .canonical_text())
 }
 
 pub(super) fn effect_transport_box_names<R>(

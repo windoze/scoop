@@ -49,7 +49,10 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                 .flat_map(|slots| slots.iter().map(|slot| slot.impl_member_fqn.as_str()))
                 .filter(|impl_fqn| {
                     plain_callable_roots.contains(impl_fqn)
-                        || self.pass_view.callable(impl_fqn).is_none()
+                        || self
+                            .codegen
+                            .materialized_pass_view()
+                            .is_none_or(|pass_view| pass_view.callable(impl_fqn).is_none())
                             && self.codegen.hir_fun_for_callable_fqn(impl_fqn).is_some_and(
                                 |sig_fun| {
                                     sig_fun.body.is_some()
@@ -89,7 +92,10 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                 })
                 .filter(|impl_fqn| {
                     plain_callable_roots.contains(impl_fqn.as_str())
-                        || self.pass_view.callable(impl_fqn.as_str()).is_none()
+                        || self
+                            .codegen
+                            .materialized_pass_view()
+                            .is_none_or(|pass_view| pass_view.callable(impl_fqn.as_str()).is_none())
                             && self.codegen.hir_fun_for_callable_fqn(impl_fqn).is_some_and(
                                 |sig_fun| {
                                     sig_fun.body.is_some()
@@ -113,7 +119,10 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                         interface_itable_targets.insert(impl_fqn.clone());
                     }
                     if plain_callable_roots.contains(impl_fqn.as_str())
-                        || self.pass_view.callable(impl_fqn.as_str()).is_none()
+                        || self
+                            .codegen
+                            .materialized_pass_view()
+                            .is_none_or(|pass_view| pass_view.callable(impl_fqn.as_str()).is_none())
                             && self
                                 .codegen
                                 .hir_fun_for_callable_fqn(impl_fqn.as_str())
@@ -408,7 +417,9 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
         &mut self,
         root_fqn: &str,
     ) -> Result<AbiValue<'ctx>, LlvmEmitError> {
-        if let Some(callable) = self.pass_view.callable(root_fqn) {
+        if let Some(pass_view) = self.codegen.materialized_pass_view()
+            && let Some(callable) = pass_view.callable(root_fqn)
+        {
             let skip = usize::from(callable.name.starts_with("$lambda"));
             let component_tys = callable
                 .params
@@ -416,10 +427,8 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                 .skip(skip)
                 .map(|param| param.ty)
                 .collect::<Vec<_>>();
-            return self.canonical_tuple_abi_from_types(
-                &self.pass_view.materialized().types,
-                &component_tys,
-            );
+            return self
+                .canonical_tuple_abi_from_types(&pass_view.materialized().types, &component_tys);
         }
         if let Some(fun) = self.codegen.fun_index.get(root_fqn).copied() {
             let component_tys = fun.params.iter().map(|param| param.ty).collect::<Vec<_>>();

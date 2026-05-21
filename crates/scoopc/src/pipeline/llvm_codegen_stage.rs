@@ -2134,9 +2134,9 @@ fun main() {
         assert!(
             !stage_output
                 .effect_lowered_stage_output()
-                .materialized_pass_view()
+                .llvm_residual_pass_view()
                 .is_empty(),
-            "LLVM stage 应通过 effect-lowered handoff 暴露 canonical pass-view"
+            "LLVM stage 应为 TODO-6/P7 backend residual 保留显式 canonical pass-view"
         );
         assert!(
             stage_output
