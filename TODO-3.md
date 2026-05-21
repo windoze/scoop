@@ -257,7 +257,7 @@
   - 验证命令：`cargo fmt`；`cargo test -p scoopc_hir_facts`；`cargo test -p scoopc --no-default-features hir_stage`；`cargo test -p scoopc --no-default-features hir_preflight`；`cargo run -p scoop -- test --fixtures tests/fixtures/hir`；`cargo clippy --all-targets -- -D warnings`。
   - 残余风险：`contract_bridge` 目前只提供迁移期覆盖计数，不承载完整 source-site/declaration fact payload；后续任务必须继续把 `TypedHirEffectContracts` / `ProgramFacts` 的实际内容迁入 `HirFacts`，并最终移除 bridge API。
 
-## [TODO] P2-T02R：Review HIR stage output 形状
+## [DONE] P2-T02R：Review HIR stage output 形状
 
 - 参考：P2-T02。
 - 重点：
@@ -276,7 +276,13 @@
   - review 结论明确写出：`HirStageOutput = { hir, hir_facts }` 外形成立，或列出阻塞项并在本 review 内修复。
 - 依赖：P2-T02
 - 完成记录：
-  - 待填写。
+  - 复查范围：已复查 `crates/scoopc/src/pipeline/hir_stage.rs`、`hir_preflight.rs`、`pipeline/mod.rs`、`dump-hir` 调用点和 HIR fixture 输出。
+  - review 结论：`HirStageOutput = { hir, hir_facts }` 的公开外形成立；外部入口暴露 `hir_file()`、`types()`、`hir_facts()`、`source_path()` 与 `stable_dump()`，旧 `TypedHirStageOutput` 在 Rust 代码中已无引用。
+  - dump/preflight 结论：HIR fixtures 均包含明确的 `hir_facts { ... }` 边界和迁移期 `typed_contract_bridge { ... }` 边界；`hir_preflight` 的 typed contract 必备项检查读取 `output.hir_facts().contract_bridge`，不再直接以 `TypedHirEffectContracts` 为检查入口。
+  - 修复情况：将 `TypedHirEffectContracts` 收紧为 `pub(crate)` 迁移 bridge，并修正文档注释，明确它只服务 crate 内部 MIR lowering adapter，直到 P2-T05 将完整 source-site contract payload 迁入 `scoopc_hir_facts`。
+  - 搜索结论：`TypedHirEffectContracts` 的 Rust 代码引用仅剩 HIR stage 内部 bridge 构造/dump、MIR lowering adapter、MIR/effect stage 测试 scaffolding 和 crate 内 re-export；`hir_facts()` 引用集中在正式 stage output、preflight、dump/tests 中。
+  - 验证命令：`cargo fmt`；`cargo test -p scoopc --no-default-features hir_stage`；`cargo test -p scoopc --no-default-features hir_preflight`；`cargo run -p scoop -- test --fixtures tests/fixtures/hir`；`cargo test -p scoopc_hir_facts`；`cargo clippy --all-targets -- -D warnings`；搜索 `TypedHirStageOutput|TypedHirEffectContracts|hir_facts\(` 和 HIR fixtures 中的 `hir_facts {|typed_contract_bridge {`。
+  - 残余风险：`typed_contract_bridge` 仍是 P2 迁移期 payload，不承载最终 source-site/declaration fact 结构；其内容迁移和最终 bridge 清理由 P2-T04/P2-T05 继续处理。
 
 ## [TODO] P2-T03：移除 HIR 反向携带 MIR materialization
 

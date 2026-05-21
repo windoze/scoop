@@ -867,9 +867,13 @@ impl TypedCallSiteContract {
     }
 }
 
-/// typed HIR stage 显式输出的 effect / continuation contract side tables。
+/// 迁移期 typed contract bridge payload。
+///
+/// 正式 HIR stage handoff 只能通过 `HirStageOutput::hir_facts()` 暴露 facts；本类型保留为
+/// crate 内部 MIR lowering adapter，直到 P2-T05 将完整 source-site contract payload 迁入
+/// `scoopc_hir_facts`。
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
-pub struct TypedHirEffectContracts {
+pub(crate) struct TypedHirEffectContracts {
     function_effects: Vec<FunctionEffectContract>,
     continuation_resume_sites: HashMap<CallSite, ContinuationResumeSiteContract>,
     perform_sites: HashMap<CallSite, PerformSiteContract>,
@@ -994,7 +998,7 @@ impl TypedHirEffectContracts {
         &self.extern_global_contracts
     }
 
-    /// 以稳定顺序渲染 typed HIR side tables，供 `dump-hir` 与 snapshot tests 使用。
+    /// 以稳定顺序渲染迁移 bridge，供 `dump-hir` 与 snapshot tests 审计旧 payload。
     pub fn stable_dump(&self, types: &TypeStore) -> String {
         let mut out = String::new();
         let _ = writeln!(out, "typed_contract_bridge {{");

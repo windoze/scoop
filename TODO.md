@@ -57,7 +57,7 @@
 | P2-T01 | [DONE] | [`TODO-3.md`](./TODO-3.md#done-p2-t01建立-hir_facts-crate-与事实数据模型) | 建立 `hir_facts` crate 与事实数据模型 |
 | P2-T01R | [DONE] | [`TODO-3.md`](./TODO-3.md#done-p2-t01rreview-hir_facts-crate-与事实模型) | Review `hir_facts` crate 与事实模型 |
 | P2-T02 | [DONE] | [`TODO-3.md`](./TODO-3.md#done-p2-t02固定-hirstageoutput--hir-hir_facts--输出形状) | 固定 `HirStageOutput = { hir, hir_facts }` 输出形状 |
-| P2-T02R | [TODO] | [`TODO-3.md`](./TODO-3.md#todo-p2-t02rreview-hir-stage-output-形状) | Review HIR stage output 形状 |
+| P2-T02R | [DONE] | [`TODO-3.md`](./TODO-3.md#done-p2-t02rreview-hir-stage-output-形状) | Review HIR stage output 形状 |
 | P2-T03 | [TODO] | [`TODO-3.md`](./TODO-3.md#todo-p2-t03移除-hir-反向携带-mir-materialization) | 移除 HIR 反向携带 MIR materialization |
 | P2-T03R | [TODO] | [`TODO-3.md`](./TODO-3.md#todo-p2-t03rreview-hirmir-单向边界) | Review HIR/MIR 单向边界 |
 | P2-T04 | [TODO] | [`TODO-3.md`](./TODO-3.md#todo-p2-t04迁移-declarationentity-facts-并收口-programfacts) | 迁移 declaration/entity facts 并收口 `ProgramFacts` |
