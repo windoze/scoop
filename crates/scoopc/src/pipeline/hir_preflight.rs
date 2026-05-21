@@ -5,7 +5,7 @@ use crate::mir::{Item as MirItem, Rvalue, StatementKind, TerminatorKind, UnwindA
 use crate::session::{Session, SessionOptions};
 use crate::source::SourceFile;
 
-use super::{MirStageOutput, TypedHirStageOutput, load_typed_hir_stage_output_for_dump};
+use super::{HirStageOutput, MirStageOutput, load_hir_stage_output_for_dump};
 
 const HIR_COMPLETENESS_FIXTURES: &[HirCompletenessFixture] = &[
     HirCompletenessFixture {
@@ -187,8 +187,8 @@ fn run_typed_hir_preflight(
     session: &Session,
     source: &SourceFile,
     fixture: HirCompletenessFixture,
-) -> TypedHirStageOutput {
-    let output = load_typed_hir_stage_output_for_dump(session, source).unwrap_or_else(|err| {
+) -> HirStageOutput {
+    let output = load_hir_stage_output_for_dump(session, source).unwrap_or_else(|err| {
         panic!(
             "typed HIR preflight should pass for `{}`: {err:?}",
             fixture.label()
@@ -202,34 +202,29 @@ fn run_typed_hir_preflight(
 
 fn assert_required_contract(
     requirement: RequiredHirContract,
-    output: &TypedHirStageOutput,
+    output: &HirStageOutput,
     fixture: HirCompletenessFixture,
 ) {
     let present = match requirement {
         RequiredHirContract::DeclarationGraph => !output.hir_file().decls.is_empty(),
-        RequiredHirContract::CallSite => {
-            !output.effect_contracts().call_site_contracts().is_empty()
+        RequiredHirContract::CallSite => output.hir_facts().contract_bridge.call_site_contracts > 0,
+        RequiredHirContract::ContinuationResume => {
+            output.hir_facts().contract_bridge.continuation_resume_sites > 0
         }
-        RequiredHirContract::ContinuationResume => !output
-            .effect_contracts()
-            .continuation_resume_sites()
-            .is_empty(),
-        RequiredHirContract::Perform => !output.effect_contracts().perform_sites().is_empty(),
-        RequiredHirContract::Handle => !output.effect_contracts().handle_sites().is_empty(),
-        RequiredHirContract::AssignPlace => !output
-            .effect_contracts()
-            .assign_place_contracts()
-            .is_empty(),
+        RequiredHirContract::Perform => output.hir_facts().contract_bridge.perform_sites > 0,
+        RequiredHirContract::Handle => output.hir_facts().contract_bridge.handle_sites > 0,
+        RequiredHirContract::AssignPlace => {
+            output.hir_facts().contract_bridge.assign_place_contracts > 0
+        }
         RequiredHirContract::WithUpdate => {
-            !output.effect_contracts().with_update_contracts().is_empty()
+            output.hir_facts().contract_bridge.with_update_contracts > 0
         }
         RequiredHirContract::TopLevelInitRoot => {
-            !output.effect_contracts().top_level_init_roots().is_empty()
+            output.hir_facts().contract_bridge.top_level_init_roots > 0
         }
-        RequiredHirContract::ExternGlobal => !output
-            .effect_contracts()
-            .extern_global_contracts()
-            .is_empty(),
+        RequiredHirContract::ExternGlobal => {
+            output.hir_facts().contract_bridge.extern_global_contracts > 0
+        }
     };
 
     assert!(

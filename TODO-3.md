@@ -212,7 +212,7 @@
   - 验证命令：`cargo fmt`；`cargo check -p scoopc_hir_facts`；`cargo test -p scoopc_hir_facts`；`cargo run -p scoop_tools -- dependency-gate`；`cargo test -p scoop_tools dependency_gate`；`cargo tree -p scoopc_hir_facts`；`cargo clippy --all-targets -- -D warnings`。
   - 残余风险：`hir_facts` 仍未接入正式 HIR stage output，也未迁移 `TypedHirEffectContracts` / `ProgramFacts` 的实际内容；这些继续由 P2-T02、P2-T04、P2-T05 跟进。
 
-## [TODO] P2-T02：固定 `HirStageOutput = { hir, hir_facts }` 输出形状
+## [DONE] P2-T02：固定 `HirStageOutput = { hir, hir_facts }` 输出形状
 
 - 参考：
   - `PIPELINE_REFACTOR.md` “stage output wrapper 规则”“HIR stage”
@@ -250,7 +250,12 @@
   - 旧 typed contracts 名称不再是新的任务入口。
 - 依赖：P2-T01R
 - 完成记录：
-  - 待填写。
+  - 改动范围：将公开 HIR stage handoff 收口为 `HirStageOutput`，新增 `hir_facts()` 正式入口；`load_hir_stage_output_for_dump`、`dump-hir`、fixture runner、MIR/LLVM stage helper 和相关测试均改为消费新的 HIR stage output 名称。
+  - facts 入口：`scoopc_hir_facts::HirFacts` 新增 `contract_bridge` 覆盖计数，HIR stage 在生成现有 typed contract bridge 后同步构建并验证 `HirFacts`，同时发布 `type_context` 引用，避免 dump/preflight 继续把 typed side tables 当作唯一事实入口。
+  - dump/preflight：HIR stable dump 现在明确分为 HIR 本体、`hir_facts { ... }` 和迁移期 `typed_contract_bridge { ... }`；`hir_preflight` 的必备合同检查改为读取 `output.hir_facts().contract_bridge`。
+  - 核心决策：`TypedHirEffectContracts` 仍作为 P2 迁移 bridge 保留给 MIR lowering 和内部测试，但不再作为公开 HIR stage output 类型或 dump 主标题；实际 declaration/entity/source-site facts 的逐项迁移继续由 P2-T04/P2-T05 完成。
+  - 验证命令：`cargo fmt`；`cargo test -p scoopc_hir_facts`；`cargo test -p scoopc --no-default-features hir_stage`；`cargo test -p scoopc --no-default-features hir_preflight`；`cargo run -p scoop -- test --fixtures tests/fixtures/hir`；`cargo clippy --all-targets -- -D warnings`。
+  - 残余风险：`contract_bridge` 目前只提供迁移期覆盖计数，不承载完整 source-site/declaration fact payload；后续任务必须继续把 `TypedHirEffectContracts` / `ProgramFacts` 的实际内容迁入 `HirFacts`，并最终移除 bridge API。
 
 ## [TODO] P2-T02R：Review HIR stage output 形状
 

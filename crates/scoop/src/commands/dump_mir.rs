@@ -55,7 +55,7 @@ mod tests {
 
         let mir_output = super::load_mir_for_dump(&session, &source).unwrap();
         assert!(mir_output.callable_body("sample.main").is_some());
-        assert_eq!(mir_output.effect_contracts().function_effects().len(), 2);
+        assert!(mir_output.callable_body("sample.helper").is_some());
         assert!(mir_output.stable_dump().contains("FunDecl"));
     }
 

@@ -10,8 +10,8 @@ use scoopc::session::SessionOptions;
 fn load_hir_for_dump(
     session: &scoopc::session::Session,
     source: &scoopc::source::SourceFile,
-) -> Result<Box<scoopc::pipeline::TypedHirStageOutput>> {
-    scoopc::pipeline::load_typed_hir_stage_output_for_dump(session, source)
+) -> Result<Box<scoopc::pipeline::HirStageOutput>> {
+    scoopc::pipeline::load_hir_stage_output_for_dump(session, source)
         .map(Box::new)
         .map_err(miette::Report::from)
 }
@@ -50,9 +50,10 @@ mod tests {
         let hir_output = super::load_hir_for_dump(&session, &source).unwrap();
 
         assert_eq!(hir_output.hir_file().items.len(), 1);
-        assert!(!hir_output.effect_contracts().is_placeholder());
-        assert_eq!(hir_output.effect_contracts().function_effects().len(), 1);
-        assert!(hir_output.stable_dump().contains("TypedHirEffectContracts"));
+        assert!(!hir_output.hir_facts().contract_bridge.is_empty());
+        assert_eq!(hir_output.hir_facts().contract_bridge.function_effects, 1);
+        assert!(hir_output.stable_dump().contains("hir_facts {"));
+        assert!(hir_output.stable_dump().contains("typed_contract_bridge {"));
     }
 
     #[test]
@@ -75,7 +76,8 @@ fun use(k: Continuation<Int, Int, eff Pure>): Int / Raise<RuntimeError> {
             .unwrap()
             .stable_dump();
 
-        assert!(rendered.contains("TypedHirEffectContracts"));
+        assert!(rendered.contains("hir_facts {"));
+        assert!(rendered.contains("typed_contract_bridge {"));
         assert!(rendered.contains("continuation_resume_sites"));
         assert!(rendered.contains("required_effects: scoop.core.Raise<scoop.core.RuntimeError>"));
     }

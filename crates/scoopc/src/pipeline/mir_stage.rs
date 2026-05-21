@@ -8,7 +8,7 @@ use crate::mir::{
 };
 use crate::ty::{TypeId, TypeStore};
 
-use super::{TypedHirEffectContracts, TypedHirStageOutput};
+use super::{HirStageOutput, TypedHirEffectContracts};
 
 /// direct-style MIR stage 的稳定输出形状。
 ///
@@ -28,6 +28,7 @@ use super::{TypedHirEffectContracts, TypedHirStageOutput};
 #[derive(Debug)]
 pub struct MirStageOutput {
     lowered_mir: LoweredMir,
+    #[allow(dead_code)]
     effect_contracts: TypedHirEffectContracts,
     callable_body_indices: BTreeMap<String, usize>,
     initializer_root_indices: BTreeMap<String, usize>,
@@ -65,7 +66,8 @@ impl MirStageOutput {
         &self.lowered_mir.types
     }
 
-    pub fn effect_contracts(&self) -> &TypedHirEffectContracts {
+    #[allow(dead_code)]
+    pub(crate) fn effect_contracts(&self) -> &TypedHirEffectContracts {
         &self.effect_contracts
     }
 
@@ -212,15 +214,13 @@ fn validate_bodies(file: &MirFile, unit_ty: TypeId, bool_ty: TypeId) -> Result<(
         })
 }
 
-fn lower_mir_stage_unvalidated(
-    typed_hir_output: TypedHirStageOutput,
-) -> (MirStageOutput, TypeId, TypeId) {
+fn lower_mir_stage_unvalidated(hir_output: HirStageOutput) -> (MirStageOutput, TypeId, TypeId) {
     let facts = MirLoweringFacts::from_typed_handoff(
-        typed_hir_output.lowered_hir(),
-        typed_hir_output.effect_contracts(),
+        hir_output.lowered_hir(),
+        hir_output.typed_contracts_for_migration(),
     );
-    let effect_contracts = typed_hir_output.effect_contracts().clone();
-    let mut lowered_hir = typed_hir_output.into_lowered_hir();
+    let effect_contracts = hir_output.typed_contracts_for_migration().clone();
+    let mut lowered_hir = hir_output.into_lowered_hir();
     let builtins = lowered_hir.types.intern_builtins();
     let file = lower_hir_file_for_dump_with_facts(
         builtins,
@@ -243,8 +243,8 @@ fn lower_mir_stage_unvalidated(
     )
 }
 
-pub(crate) fn run(typed_hir_output: TypedHirStageOutput) -> Result<MirStageOutput, MirLowerError> {
-    let (output, unit_ty, bool_ty) = lower_mir_stage_unvalidated(typed_hir_output);
+pub(crate) fn run(hir_output: HirStageOutput) -> Result<MirStageOutput, MirLowerError> {
+    let (output, unit_ty, bool_ty) = lower_mir_stage_unvalidated(hir_output);
     validate_bodies(output.file(), unit_ty, bool_ty)?;
     Ok(output)
 }
@@ -286,7 +286,7 @@ mod tests {
         let session = session();
         let source = load_fixture(phase, name);
         let typed_hir_output =
-            super::super::load_typed_hir_stage_output_for_dump(&session, &source).unwrap();
+            super::super::load_hir_stage_output_for_dump(&session, &source).unwrap();
         super::run(typed_hir_output).expect("fixture 应可通过 MIR stage")
     }
 
@@ -331,7 +331,7 @@ mod tests {
         );
 
         let typed_hir_output =
-            super::super::load_typed_hir_stage_output_for_dump(&session, &source).unwrap();
+            super::super::load_hir_stage_output_for_dump(&session, &source).unwrap();
         let output = super::run(typed_hir_output).unwrap();
 
         assert_eq!(output.file().items.len(), 2);
@@ -415,7 +415,7 @@ fun main() {}
         );
 
         let typed_hir_output =
-            super::super::load_typed_hir_stage_output_for_dump(&session, &source).unwrap();
+            super::super::load_hir_stage_output_for_dump(&session, &source).unwrap();
         let output = super::run(typed_hir_output).unwrap();
 
         assert!(
@@ -574,7 +574,7 @@ fun main(): Int {
         );
 
         let typed_hir_output =
-            super::super::load_typed_hir_stage_output_for_dump(&session, &source).unwrap();
+            super::super::load_hir_stage_output_for_dump(&session, &source).unwrap();
         let output = super::run(typed_hir_output).expect("closure source should lower to MIR");
         let dump = output.stable_dump();
 
@@ -690,8 +690,7 @@ fun main(): Int {
             ),
         ] {
             let source = SourceFile::new_virtual(format!("<mem>/{name}.scoop"), source);
-            let err =
-                super::super::load_typed_hir_stage_output_for_dump(&session, &source).unwrap_err();
+            let err = super::super::load_hir_stage_output_for_dump(&session, &source).unwrap_err();
             let report = format!("{err:?}");
             assert!(
                 report.contains(expected),
@@ -870,7 +869,7 @@ fun use(): Int {
         );
 
         let typed_hir_output =
-            super::super::load_typed_hir_stage_output_for_dump(&session, &source).unwrap();
+            super::super::load_hir_stage_output_for_dump(&session, &source).unwrap();
         let output = super::run(typed_hir_output).expect("FunPtr source should lower to MIR");
         let body = validated_callable_body(&output, "sample.use");
 
@@ -909,7 +908,7 @@ fun main(): Int {
         );
 
         let typed_hir_output =
-            super::super::load_typed_hir_stage_output_for_dump(&session, &source).unwrap();
+            super::super::load_hir_stage_output_for_dump(&session, &source).unwrap();
         let output = super::run(typed_hir_output).expect("ctor default args should lower to MIR");
         let body = validated_callable_body(&output, "sample.main");
 
@@ -1159,7 +1158,7 @@ fun bad() {
 }
 "#,
         );
-        let err = super::super::load_typed_hir_stage_output_for_dump(&session, &source)
+        let err = super::super::load_hir_stage_output_for_dump(&session, &source)
             .expect_err("open function type runtime cast must be rejected before MIR");
         let report = format!("{err:?}");
         assert!(
@@ -1932,7 +1931,7 @@ fun entry(): Int / Raise<Int> {
         source: &SourceFile,
     ) -> (crate::mir::File, crate::ty::TypeId, crate::ty::TypeId) {
         let session = session();
-        let typed_hir_output = super::super::load_typed_hir_stage_output_for_dump(&session, source)
+        let typed_hir_output = super::super::load_hir_stage_output_for_dump(&session, source)
             .expect("typed HIR should pass before forged contract lowering");
         let facts =
             MirLoweringFacts::default().with_typed_contracts(&TypedHirEffectContracts::default());
@@ -2080,9 +2079,8 @@ fun main(): Unit {
 }
 "#,
         );
-        let typed_hir_output =
-            super::super::load_typed_hir_stage_output_for_dump(&session, &source)
-                .expect("GC policy fixture should typecheck before MIR");
+        let typed_hir_output = super::super::load_hir_stage_output_for_dump(&session, &source)
+            .expect("GC policy fixture should typecheck before MIR");
         let output = super::run(typed_hir_output).expect("GC policy fixture should lower to MIR");
         let body = callable_body(&output, "fixtures.mir_lowered.main");
         let call_contracts = body
@@ -2178,9 +2176,8 @@ fun main(): Unit {
 }
 "#,
         );
-        let typed_hir_output =
-            super::super::load_typed_hir_stage_output_for_dump(&session, &source)
-                .expect("GC handle raw UIntPtr fixture should typecheck before MIR");
+        let typed_hir_output = super::super::load_hir_stage_output_for_dump(&session, &source)
+            .expect("GC handle raw UIntPtr fixture should typecheck before MIR");
         let output = super::run(typed_hir_output)
             .expect("GC handle raw UIntPtr fixture should lower to MIR");
         let body = callable_body(&output, "fixtures.mir_lowered.main");

@@ -33,7 +33,7 @@ use crate::llvm::target;
 use crate::mir::{LoweredMir, MirLoweringFacts, SiteId, lower_hir_file_for_dump_with_facts};
 use crate::pipeline::{
     MirStageOutput, build_effect_facts_stage_output, build_effect_lowered_stage_output,
-    load_typed_hir_stage_output_for_dump,
+    load_hir_stage_output_for_dump,
 };
 use crate::program_facts::ProgramFacts;
 use crate::session::{Session, SessionOptions};
@@ -68,15 +68,15 @@ fn load_build_fixture(name: &str) -> SourceFile {
 fn build_fixture_inputs_from_source(source: SourceFile) -> FixtureAbiInputs {
     let session = session();
     let typed_hir_output =
-        load_typed_hir_stage_output_for_dump(&session, &source).expect("typed HIR stage 应成功");
+        load_hir_stage_output_for_dump(&session, &source).expect("HIR stage 应成功");
     let hir_compat_scaffold = typed_hir_output
         .lowered_hir()
         .clone_hir_compat_scaffold_without_materialized_mir();
     let facts = MirLoweringFacts::from_typed_handoff(
         typed_hir_output.lowered_hir(),
-        typed_hir_output.effect_contracts(),
+        typed_hir_output.typed_contracts_for_migration(),
     );
-    let effect_contracts = typed_hir_output.effect_contracts().clone();
+    let effect_contracts = typed_hir_output.typed_contracts_for_migration().clone();
     let mut lowered_hir = typed_hir_output.into_lowered_hir();
     let builtins = lowered_hir.types.intern_builtins();
     let file = lower_hir_file_for_dump_with_facts(

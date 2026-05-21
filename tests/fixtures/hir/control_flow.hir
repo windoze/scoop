@@ -261,7 +261,16 @@ File {
 }
 
 
-TypedHirEffectContracts {
+hir_facts {
+  declarations: nominals=0, callables=0, fields=0, vtables=0, itables=0
+  source_sites: calls=0, args=0, assigns=0, updates=0, effects=0, resumes=0, patterns=0
+  globals: roots=0, object_inits=0, class_inits=0
+  native: extern_funs=0, native_callables=0, extern_globals=0, extern_libs=0
+  contract_bridge: function_effects=1, calls=0, resumes=0, performs=0, handles=0, assigns=1, updates=0, top_level_roots=0, extern_globals=0
+  type_context: universe=hir-stage-type-store, type_params=0, source_cones=0
+}
+
+typed_contract_bridge {
     function_effects: [
         FunctionEffectContract {
             span: 11..185,

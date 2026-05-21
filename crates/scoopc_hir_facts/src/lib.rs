@@ -7,6 +7,7 @@
 
 #![forbid(unsafe_code)]
 
+pub mod bridge;
 pub mod common;
 pub mod declarations;
 pub mod dump;
@@ -16,6 +17,7 @@ pub mod source_sites;
 pub mod type_context;
 pub mod verify;
 
+use bridge::TypedContractBridgeFacts;
 use declarations::DeclarationFacts;
 use globals::GlobalRootFacts;
 use native::NativeExternFacts;
@@ -30,6 +32,7 @@ pub struct HirFacts {
     pub globals: GlobalRootFacts,
     pub native: NativeExternFacts,
     pub type_context: TypeContextFacts,
+    pub contract_bridge: TypedContractBridgeFacts,
 }
 
 impl HirFacts {
@@ -45,6 +48,7 @@ impl HirFacts {
             && self.globals.is_empty()
             && self.native.is_empty()
             && self.type_context.is_empty()
+            && self.contract_bridge.is_empty()
     }
 
     /// Verify structural invariants before handing facts to later stages.
@@ -79,6 +83,7 @@ mod tests {
         let dump = facts.dump();
         assert!(dump.contains("declarations: nominals=0"));
         assert!(dump.contains("source_sites: calls=0"));
+        assert!(dump.contains("contract_bridge: function_effects=0"));
         assert!(dump.contains("type_context: universe=<none>"));
     }
 

@@ -1888,7 +1888,7 @@ fn hir_fixture_minimal_golden() {
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../tests/fixtures/hir/minimal.scoop");
     let file = SourceFile::load(&fixture_path).unwrap();
 
-    let output = crate::pipeline::load_typed_hir_stage_output_for_dump(&sess, &file).unwrap();
+    let output = crate::pipeline::load_hir_stage_output_for_dump(&sess, &file).unwrap();
     let actual = output.stable_dump();
 
     let golden_path =
@@ -1906,7 +1906,7 @@ fn hir_fixture_handle_perform_golden() {
         .join("../../tests/fixtures/hir/handle_perform.scoop");
     let file = SourceFile::load(&fixture_path).unwrap();
 
-    let output = crate::pipeline::load_typed_hir_stage_output_for_dump(&sess, &file).unwrap();
+    let output = crate::pipeline::load_hir_stage_output_for_dump(&sess, &file).unwrap();
     let actual = output.stable_dump();
 
     let golden_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -1924,7 +1924,7 @@ fn hir_fixture_control_flow_golden() {
         .join("../../tests/fixtures/hir/control_flow.scoop");
     let file = SourceFile::load(&fixture_path).unwrap();
 
-    let output = crate::pipeline::load_typed_hir_stage_output_for_dump(&sess, &file).unwrap();
+    let output = crate::pipeline::load_hir_stage_output_for_dump(&sess, &file).unwrap();
     let actual = output.stable_dump();
 
     let golden_path =
@@ -1942,7 +1942,7 @@ fn hir_fixture_member_access_golden() {
         .join("../../tests/fixtures/hir/member_access.scoop");
     let file = SourceFile::load(&fixture_path).unwrap();
 
-    let output = crate::pipeline::load_typed_hir_stage_output_for_dump(&sess, &file).unwrap();
+    let output = crate::pipeline::load_hir_stage_output_for_dump(&sess, &file).unwrap();
     let actual = output.stable_dump();
 
     let golden_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -1960,7 +1960,7 @@ fn hir_fixture_closure_non_capture_golden() {
         .join("../../tests/fixtures/hir/closure_non_capture.scoop");
     let file = SourceFile::load(&fixture_path).unwrap();
 
-    let output = crate::pipeline::load_typed_hir_stage_output_for_dump(&sess, &file).unwrap();
+    let output = crate::pipeline::load_hir_stage_output_for_dump(&sess, &file).unwrap();
     let actual = output.stable_dump();
 
     let golden_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -1978,7 +1978,7 @@ fn hir_fixture_closure_capture_val_golden() {
         .join("../../tests/fixtures/hir/closure_capture_val.scoop");
     let file = SourceFile::load(&fixture_path).unwrap();
 
-    let output = crate::pipeline::load_typed_hir_stage_output_for_dump(&sess, &file).unwrap();
+    let output = crate::pipeline::load_hir_stage_output_for_dump(&sess, &file).unwrap();
     let actual = output.stable_dump();
 
     let golden_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))

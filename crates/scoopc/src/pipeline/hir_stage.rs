@@ -14,6 +14,9 @@ use crate::session::Session;
 use crate::source::SourceFile;
 use crate::span::Span;
 use crate::ty::{EffectRow, NominalType, RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind};
+use scoopc_hir_facts::{
+    HirFacts, bridge::TypedContractBridgeFacts, type_context::TypeContextReference,
+};
 
 use super::hir_completeness::HirCompletenessVerifier;
 
@@ -478,9 +481,7 @@ pub enum TypedCallSiteKind {
     Interface,
     Intrinsic,
     EffectOp,
-    DirectCall,
     ContinuationResume,
-    Perform,
 }
 
 /// 编译器/运行时 intrinsic 在 typed HIR call contract 中的稳定分类。
@@ -693,6 +694,7 @@ impl FunctionTargetContract {
         &self.fqn
     }
 
+    #[allow(dead_code)]
     pub fn decl_file(&self) -> Option<&Path> {
         self.decl_file.as_deref()
     }
@@ -701,6 +703,7 @@ impl FunctionTargetContract {
         self.decl_span
     }
 
+    #[allow(dead_code)]
     pub fn abi_identity(&self) -> CallableAbiIdentity {
         self.abi_identity
     }
@@ -887,10 +890,26 @@ impl TypedHirEffectContracts {
         ContractCollector::new(lowered_hir).collect(source_path)
     }
 
+    #[allow(dead_code)]
     pub const fn is_placeholder(&self) -> bool {
         false
     }
 
+    fn to_hir_fact_bridge(&self) -> TypedContractBridgeFacts {
+        TypedContractBridgeFacts {
+            function_effects: self.function_effects.len(),
+            call_site_contracts: self.call_site_contracts.len(),
+            continuation_resume_sites: self.continuation_resume_sites.len(),
+            perform_sites: self.perform_sites.len(),
+            handle_sites: self.handle_sites.len(),
+            assign_place_contracts: self.assign_place_contracts.len(),
+            with_update_contracts: self.with_update_contracts.len(),
+            top_level_init_roots: self.top_level_init_roots.len(),
+            extern_global_contracts: self.extern_global_contracts.len(),
+        }
+    }
+
+    #[allow(dead_code)]
     pub fn is_empty(&self) -> bool {
         self.function_effects.is_empty()
             && self.continuation_resume_sites.is_empty()
@@ -904,6 +923,7 @@ impl TypedHirEffectContracts {
             && self.extern_global_contracts.is_empty()
     }
 
+    #[allow(dead_code)]
     pub fn function_effects(&self) -> &[FunctionEffectContract] {
         &self.function_effects
     }
@@ -912,6 +932,7 @@ impl TypedHirEffectContracts {
         &self.continuation_resume_sites
     }
 
+    #[allow(dead_code)]
     pub fn continuation_resume_site(
         &self,
         call_site: &CallSite,
@@ -923,6 +944,7 @@ impl TypedHirEffectContracts {
         &self.perform_sites
     }
 
+    #[allow(dead_code)]
     pub fn perform_site(&self, call_site: &CallSite) -> Option<&PerformSiteContract> {
         self.perform_sites.get(call_site)
     }
@@ -931,14 +953,17 @@ impl TypedHirEffectContracts {
         &self.handle_sites
     }
 
+    #[allow(dead_code)]
     pub fn handle_site(&self, call_site: &CallSite) -> Option<&HandleSiteContract> {
         self.handle_sites.get(call_site)
     }
 
+    #[allow(dead_code)]
     pub fn call_site_kinds(&self) -> &HashMap<CallSite, TypedCallSiteKind> {
         &self.call_site_kinds
     }
 
+    #[allow(dead_code)]
     pub fn call_site_kind(&self, call_site: &CallSite) -> Option<TypedCallSiteKind> {
         self.call_site_kinds.get(call_site).copied()
     }
@@ -947,10 +972,12 @@ impl TypedHirEffectContracts {
         &self.call_site_contracts
     }
 
+    #[allow(dead_code)]
     pub fn call_site_contract(&self, call_site: &CallSite) -> Option<&TypedCallSiteContract> {
         self.call_site_contracts.get(call_site)
     }
 
+    #[allow(dead_code)]
     pub fn with_update_contracts(&self) -> &HashMap<CallSite, ast::WithUpdateContract> {
         &self.with_update_contracts
     }
@@ -970,7 +997,7 @@ impl TypedHirEffectContracts {
     /// 以稳定顺序渲染 typed HIR side tables，供 `dump-hir` 与 snapshot tests 使用。
     pub fn stable_dump(&self, types: &TypeStore) -> String {
         let mut out = String::new();
-        let _ = writeln!(out, "TypedHirEffectContracts {{");
+        let _ = writeln!(out, "typed_contract_bridge {{");
 
         let _ = writeln!(out, "    function_effects: [");
         for contract in &self.function_effects {
@@ -1208,26 +1235,25 @@ impl TypedHirEffectContracts {
     }
 }
 
-/// typed HIR stage 的稳定输出形状。
+/// HIR stage 的稳定输出形状。
 ///
 /// 本阶段固定如下 invariants，供 P2/P3 及后续阶段直接消费：
 /// - 输出已经过 resolver + typecheck，可直接视为 typed HIR handoff；
-/// - `Continuation` / `resume` / `perform` / `handle` 的 typed contract 应在此阶段显式化，
-///   下游不应再回 AST 猜测 surface 语义；
+/// - 对外 handoff 由 HIR 本体与 `hir_facts` 组成；迁移期 typed contract bridge
+///   只能经由 `hir_facts()` 入口被后续 stage 审计和消费；
 /// - `dump-hir` 必须优先消费这一 stage 输出，而不是 legacy
 ///   `hir::lower_for_dump(...)`；
-/// - `effect_contracts` 现在显式输出函数级 allowed-row contract，以及 `Continuation.resume(...)` /
-///   `perform` / `handle` 的结构化 typed contract，固定 `ResumeTuple` / `Answer` / `Out`、
-///   runtime error ordinary effect 贡献、performed effect/payload、以及 handler arm typed 关系，
-///   供后续阶段直接消费。
+/// - `hir_facts` 是后续 P2 事实迁移的单一入口；当前仍保留的 typed contract
+///   物理表只是迁移 bridge，不能作为公开 stage output 名义。
 #[derive(Debug)]
-pub struct TypedHirStageOutput {
+pub struct HirStageOutput {
     lowered_hir: LoweredHir,
-    effect_contracts: TypedHirEffectContracts,
+    hir_facts: HirFacts,
+    typed_contracts_for_migration: TypedHirEffectContracts,
     source_path: PathBuf,
 }
 
-impl TypedHirStageOutput {
+impl HirStageOutput {
     pub(crate) fn new(lowered_hir: LoweredHir, source_path: &Path) -> Result<Self, HirStageError> {
         HirCompletenessVerifier::new(&lowered_hir, source_path).verify()?;
         Self::new_checked(lowered_hir, source_path)
@@ -1235,11 +1261,13 @@ impl TypedHirStageOutput {
 
     fn new_checked(mut lowered_hir: LoweredHir, source_path: &Path) -> Result<Self, HirStageError> {
         ensure_raise_runtime_error_effect(&mut lowered_hir.types);
-        let effect_contracts =
+        let typed_contracts_for_migration =
             TypedHirEffectContracts::from_lowered_hir(&lowered_hir, source_path)?;
+        let hir_facts = build_hir_facts(&lowered_hir, &typed_contracts_for_migration, source_path)?;
         Ok(Self {
             lowered_hir,
-            effect_contracts,
+            hir_facts,
+            typed_contracts_for_migration,
             source_path: source_path.to_path_buf(),
         })
     }
@@ -1252,40 +1280,67 @@ impl TypedHirStageOutput {
         &self.lowered_hir.types
     }
 
-    pub fn lowered_hir(&self) -> &LoweredHir {
+    pub(crate) fn lowered_hir(&self) -> &LoweredHir {
         &self.lowered_hir
     }
 
-    pub fn effect_contracts(&self) -> &TypedHirEffectContracts {
-        &self.effect_contracts
+    pub fn hir_facts(&self) -> &HirFacts {
+        &self.hir_facts
+    }
+
+    pub(crate) fn typed_contracts_for_migration(&self) -> &TypedHirEffectContracts {
+        &self.typed_contracts_for_migration
     }
 
     pub fn source_path(&self) -> &Path {
         &self.source_path
     }
 
-    /// 以稳定文本渲染 typed HIR dump：先打印 HIR `File`，再追加 typed side tables。
+    /// 以稳定文本渲染 HIR stage dump：先打印 HIR `File`，再追加 HIR facts 与迁移 bridge。
     pub fn stable_dump(&self) -> String {
         let mut out =
             crate::hir::stable_dump_file(self.hir_file(), self.types(), self.source_path());
         out.push('\n');
         out.push('\n');
-        out.push_str(&self.effect_contracts.stable_dump(self.types()));
+        out.push_str(&self.hir_facts.dump());
+        out.push('\n');
+        out.push('\n');
+        out.push_str(&self.typed_contracts_for_migration.stable_dump(self.types()));
         out.push('\n');
         out
     }
 
-    pub fn into_lowered_hir(self) -> LoweredHir {
+    pub(crate) fn into_lowered_hir(self) -> LoweredHir {
         self.lowered_hir
     }
 }
 
-pub(crate) fn run(
-    session: &Session,
-    source: &SourceFile,
-) -> Result<TypedHirStageOutput, HirLowerError> {
+pub(crate) fn run(session: &Session, source: &SourceFile) -> Result<HirStageOutput, HirLowerError> {
     let lowered_hir = crate::hir::lower_typed_for_dump(session, source)?;
-    TypedHirStageOutput::new(lowered_hir, source.path()).map_err(HirLowerError::from)
+    HirStageOutput::new(lowered_hir, source.path()).map_err(HirLowerError::from)
+}
+
+fn build_hir_facts(
+    lowered_hir: &LoweredHir,
+    typed_contracts: &TypedHirEffectContracts,
+    source_path: &Path,
+) -> Result<HirFacts, HirStageError> {
+    let mut facts = HirFacts::new();
+    facts.type_context.type_universe = Some(TypeContextReference {
+        label: "hir-stage-type-store".to_string(),
+        type_count: lowered_hir.types.len(),
+        builtins: Some(lowered_hir.builtins),
+    });
+    facts.contract_bridge = typed_contracts.to_hir_fact_bridge();
+    facts.verify().map_err(|err| {
+        HirStageError::new(
+            source_path,
+            Span::new(0, 0),
+            format!("HIR facts verification failed: {err}"),
+            "<hir_facts>",
+        )
+    })?;
+    Ok(facts)
 }
 
 struct ContractCollector<'a> {
@@ -3121,7 +3176,7 @@ mod tests {
     }
 
     fn stage_error_for(lowered: LoweredHir, source_path: &std::path::Path) -> HirStageError {
-        TypedHirStageOutput::new(lowered, source_path)
+        HirStageOutput::new(lowered, source_path)
             .expect_err("HIR completeness verifier 应拒绝 placeholder")
     }
 
@@ -3616,7 +3671,7 @@ fun use(k: Continuation<Int, Unit, eff Pure>, b: Base, i: IFace): Int / Raise<Ru
         );
 
         let output = run(&session, &source).expect("call contract fixture should lower");
-        let contracts = output.effect_contracts().call_site_contracts();
+        let contracts = output.typed_contracts_for_migration().call_site_contracts();
 
         assert!(contracts.values().any(|contract| matches!(
             contract,
@@ -3746,7 +3801,7 @@ fun main(): Unit {
 
         let output =
             run(&session, &source).expect("GC intrinsic member calls should lower through HIR");
-        let contracts = output.effect_contracts().call_site_contracts();
+        let contracts = output.typed_contracts_for_migration().call_site_contracts();
         let mut saw_pin = false;
         let mut saw_unpin = false;
         let mut saw_handle_new = false;
@@ -3799,7 +3854,7 @@ fun main(): Int {
         );
 
         let output = run(&session, &source).expect("constructor default args should lower");
-        let contracts = output.effect_contracts().call_site_contracts();
+        let contracts = output.typed_contracts_for_migration().call_site_contracts();
 
         let ctor = contracts
             .values()
@@ -3837,7 +3892,7 @@ fun <T> stringify(value: T): String where T: ToString {
         );
 
         let output = run(&session, &source).expect("where-bound member call should lower");
-        let contracts = output.effect_contracts().call_site_contracts();
+        let contracts = output.typed_contracts_for_migration().call_site_contracts();
 
         assert!(contracts.values().any(|contract| matches!(
             contract,
@@ -3872,7 +3927,9 @@ fun use(pair: (Point, (Int, Int)), r: Result): Int {
         );
 
         let output = run(&session, &source).expect("with-update should lower through typed HIR");
-        let contracts = output.effect_contracts().with_update_contracts();
+        let contracts = output
+            .typed_contracts_for_migration()
+            .with_update_contracts();
         assert_eq!(contracts.len(), 3, "{contracts:#?}");
         assert!(contracts.values().any(|contract| {
             contract.aggregates.iter().any(|aggregate| {
@@ -3957,7 +4014,9 @@ fun entry(box: Box): Int {
         );
 
         let output = run(&session, &source).expect("assignment places should lower through HIR");
-        let contracts = output.effect_contracts().assign_place_contracts();
+        let contracts = output
+            .typed_contracts_for_migration()
+            .assign_place_contracts();
         assert_eq!(contracts.len(), 3, "{contracts:#?}");
         assert!(contracts.values().any(|contract| matches!(
             &contract.kind,
@@ -3983,7 +4042,7 @@ fun entry(box: Box): Int {
 
         let facts = crate::mir::MirLoweringFacts::from_typed_handoff(
             output.lowered_hir(),
-            output.effect_contracts(),
+            output.typed_contracts_for_migration(),
         );
         let mut types = output.lowered_hir().types.clone();
         let mir = crate::mir::lower_hir_file_for_dump_with_facts(
@@ -4148,7 +4207,7 @@ fun sum(xs: MyIterable): Int {
             "custom iterator should lower to explicit loop/when form: {dump}"
         );
 
-        let contracts = output.effect_contracts().call_site_contracts();
+        let contracts = output.typed_contracts_for_migration().call_site_contracts();
         let saw_iterator = contracts.values().any(|contract| {
             matches!(contract, TypedCallSiteContract::Interface(member) if member.member_fqn() == "sample.MyIterable.iterator")
         });
@@ -4259,7 +4318,9 @@ fun main() {}
         );
 
         let output = run(&session, &source).expect("top-level init roots should lower");
-        let roots = output.effect_contracts().top_level_init_roots();
+        let roots = output
+            .typed_contracts_for_migration()
+            .top_level_init_roots();
         assert!(roots.iter().any(|root| {
             root.fqn() == "sample.Base" && root.kind() == TopLevelInitRootKind::RuntimeImmutableVal
         }));
@@ -4293,7 +4354,9 @@ fun main() {}
                     .any(|dep| dep.fqn() == "sample.Runtime")
         }));
 
-        let externs = output.effect_contracts().extern_global_contracts();
+        let externs = output
+            .typed_contracts_for_migration()
+            .extern_global_contracts();
         assert_eq!(externs.len(), 1, "{externs:#?}");
         let native = &externs[0];
         assert_eq!(native.fqn(), "sample.NativeCounter");
@@ -4363,7 +4426,7 @@ fun runtime(): String {
             "platform intrinsic runtime fallback missing: {dump}"
         );
 
-        let contracts = output.effect_contracts().call_site_contracts();
+        let contracts = output.typed_contracts_for_migration().call_site_contracts();
         let mut saw_name_of = false;
         let mut saw_size_of = false;
         let mut saw_get_platform = false;
@@ -4413,7 +4476,9 @@ fun runtime(): String {
         let output = run(&session, &source).expect("fixture 应能通过 typed HIR stage");
 
         assert_eq!(
-            output.effect_contracts().stable_dump(output.types()),
+            output
+                .typed_contracts_for_migration()
+                .stable_dump(output.types()),
             expected
         );
     }
@@ -4426,17 +4491,32 @@ fun runtime(): String {
         let output = run(&session, &source).unwrap();
 
         assert_eq!(output.hir_file().items.len(), 1);
-        assert!(!output.effect_contracts().is_placeholder());
-        assert_eq!(output.effect_contracts().function_effects().len(), 1);
+        assert!(!output.hir_facts().contract_bridge.is_empty());
+        assert_eq!(output.hir_facts().contract_bridge.function_effects, 1);
         assert!(
             output
-                .effect_contracts()
+                .typed_contracts_for_migration()
                 .continuation_resume_sites()
                 .is_empty()
         );
-        assert!(output.effect_contracts().perform_sites().is_empty());
-        assert!(output.effect_contracts().handle_sites().is_empty());
-        assert!(output.effect_contracts().call_site_kinds().is_empty());
+        assert!(
+            output
+                .typed_contracts_for_migration()
+                .perform_sites()
+                .is_empty()
+        );
+        assert!(
+            output
+                .typed_contracts_for_migration()
+                .handle_sites()
+                .is_empty()
+        );
+        assert!(
+            output
+                .typed_contracts_for_migration()
+                .call_site_kinds()
+                .is_empty()
+        );
     }
 
     #[test]
@@ -4447,12 +4527,13 @@ fun runtime(): String {
         let output = run(&session, &source).unwrap();
 
         assert!(!output.types().is_empty());
-        assert!(!output.effect_contracts().is_placeholder());
+        assert!(!output.hir_facts().contract_bridge.is_empty());
         assert_eq!(
-            output.effect_contracts().function_effects()[0].fqn(),
+            output.typed_contracts_for_migration().function_effects()[0].fqn(),
             "sample.main"
         );
-        assert!(output.stable_dump().contains("TypedHirEffectContracts"));
+        assert!(output.stable_dump().contains("hir_facts {"));
+        assert!(output.stable_dump().contains("typed_contract_bridge {"));
     }
 
     #[test]
@@ -4472,7 +4553,7 @@ fun resumeWithEffects(k: Continuation<Int, Int, eff Raise<Int>>): Int / (Raise<I
         );
 
         let output = run(&session, &source).unwrap();
-        let contracts = output.effect_contracts();
+        let contracts = output.typed_contracts_for_migration();
 
         assert_eq!(contracts.continuation_resume_sites().len(), 1);
         let (call_site, contract) = contracts
@@ -4524,7 +4605,7 @@ fun resumeWithEffects(k: Continuation<Int, Int, eff Raise<Int>>): Int / (Raise<I
     fn typed_hir_continuation_contract_dump_snapshot() {
         assert_fixture_effect_contract_dump(
             "continuation_resume_surface_named_tuple_and_unit_basic.scoop",
-            r#"TypedHirEffectContracts {
+            r#"typed_contract_bridge {
     function_effects: [
         FunctionEffectContract {
             span: 233..351,
@@ -4687,7 +4768,9 @@ fun resumeWithEffects(k: Continuation<Int, Int, eff Raise<Int>>): Int / (Raise<I
         );
 
         let output = run(&session, &source).unwrap();
-        let rendered = output.effect_contracts().stable_dump(output.types());
+        let rendered = output
+            .typed_contracts_for_migration()
+            .stable_dump(output.types());
 
         assert!(rendered.contains("out_effects: scoop.core.Raise<Int>"));
         assert!(rendered.contains(
@@ -4700,7 +4783,7 @@ fun resumeWithEffects(k: Continuation<Int, Int, eff Raise<Int>>): Int / (Raise<I
     fn typed_hir_handle_contract_dump_snapshot() {
         assert_fixture_effect_contract_dump(
             "handle_perform.scoop",
-            r#"TypedHirEffectContracts {
+            r#"typed_contract_bridge {
     function_effects: [
         FunctionEffectContract {
             span: 36..125,
@@ -4776,7 +4859,7 @@ fun resumeWithEffects(k: Continuation<Int, Int, eff Raise<Int>>): Int / (Raise<I
         let source = load_hir_fixture("handle_perform.scoop");
 
         let output = run(&session, &source).unwrap();
-        let contracts = output.effect_contracts();
+        let contracts = output.typed_contracts_for_migration();
 
         assert_eq!(contracts.perform_sites().len(), 1);
         let (perform_site, perform_contract) = contracts

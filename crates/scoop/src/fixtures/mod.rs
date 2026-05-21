@@ -1363,7 +1363,7 @@ fn hir_fixture(
     source: &scoopc::source::SourceFile,
     fixture_path: &Path,
 ) -> std::result::Result<(), Box<dyn miette::Diagnostic>> {
-    let output = scoopc::pipeline::load_typed_hir_stage_output_for_dump(session, source)
+    let output = scoopc::pipeline::load_hir_stage_output_for_dump(session, source)
         .map_err(box_diagnostic)?;
     let actual = normalize_newlines(&output.stable_dump());
 
@@ -1854,7 +1854,7 @@ fn infer_fixture(
 ) -> std::result::Result<(), Box<dyn miette::Diagnostic>> {
     // `infer` fixtures 必须消费 authoritative typed HIR 主线，确保观测到唯一 production
     // frontend 发布的 receiver/call contract 诊断。
-    scoopc::pipeline::load_typed_hir_stage_output_for_dump(session, source)
+    scoopc::pipeline::load_hir_stage_output_for_dump(session, source)
         .map(|_| ())
         .map_err(box_diagnostic)
 }

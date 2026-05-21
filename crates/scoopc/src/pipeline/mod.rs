@@ -21,14 +21,13 @@ use crate::source::SourceFile;
 pub use ast_stage::{AstCompilationUnitOutput, AstStageOutput};
 pub use effect_facts_stage::EffectFactsStageOutput;
 pub use effect_lowering_stage::EffectLoweredStageOutput;
-pub use hir_stage::{
+pub use hir_stage::HirStageOutput;
+pub(crate) use hir_stage::{
     CallArgBindingContract, CallArgElementContract, CallArgParamContract,
-    ConstructorCallTargetContract, ContinuationResumeReceiverRoute, ContinuationResumeSiteContract,
-    ExternGlobalContract, FunctionEffectContract, FunctionTargetContract, HandleArmContractKind,
-    HandleArmSiteContract, HandleSiteContract, MemberCallTargetContract, PayloadTypeContract,
-    PerformSiteContract, TopLevelInitDependency, TopLevelInitDependencyKind,
-    TopLevelInitRootContract, TopLevelInitRootKind, TypedCallSiteContract, TypedCallSiteKind,
-    TypedHirEffectContracts, TypedHirStageOutput, TypedIntrinsicKind,
+    ConstructorCallTargetContract, ContinuationResumeReceiverRoute, ExternGlobalContract,
+    FunctionTargetContract, HandleArmContractKind, MemberCallTargetContract,
+    TopLevelInitDependency, TopLevelInitDependencyKind, TopLevelInitRootContract,
+    TopLevelInitRootKind, TypedCallSiteContract, TypedHirEffectContracts, TypedIntrinsicKind,
 };
 #[cfg(feature = "llvm")]
 pub use llvm_codegen_stage::{LlvmCodegenStageInput, LlvmCodegenStageOutput};
@@ -62,10 +61,10 @@ pub fn load_ast_compilation_unit_stage_output<'a>(
     ast_stage::run_compilation_unit(session, unit)
 }
 
-pub fn load_typed_hir_stage_output_for_dump(
+pub fn load_hir_stage_output_for_dump(
     session: &Session,
     source: &SourceFile,
-) -> Result<TypedHirStageOutput, crate::hir::HirLowerError> {
+) -> Result<HirStageOutput, crate::hir::HirLowerError> {
     hir_stage::run(session, source)
 }
 
@@ -73,7 +72,7 @@ pub fn lower_typed_hir_for_dump(
     session: &Session,
     source: &SourceFile,
 ) -> Result<crate::hir::LoweredHir, crate::hir::HirLowerError> {
-    load_typed_hir_stage_output_for_dump(session, source).map(TypedHirStageOutput::into_lowered_hir)
+    load_hir_stage_output_for_dump(session, source).map(HirStageOutput::into_lowered_hir)
 }
 
 pub fn lower_direct_style_mir_for_dump(
@@ -88,9 +87,9 @@ pub fn load_direct_style_mir_stage_output_for_dump(
     session: &Session,
     source: &SourceFile,
 ) -> Result<MirStageOutput, crate::mir::MirLowerError> {
-    let typed_hir_output = load_typed_hir_stage_output_for_dump(session, source)
-        .map_err(crate::mir::MirLowerError::from)?;
-    mir_stage::run(typed_hir_output)
+    let hir_output =
+        load_hir_stage_output_for_dump(session, source).map_err(crate::mir::MirLowerError::from)?;
+    mir_stage::run(hir_output)
 }
 
 pub fn build_effect_facts_stage_output(
@@ -314,14 +313,14 @@ mod tests {
     }
 
     #[test]
-    fn single_pipeline_typed_hir_stage_loads_stage_output() {
+    fn single_pipeline_hir_stage_loads_stage_output() {
         let session = session();
         let source = sample_source();
 
-        let output = load_typed_hir_stage_output_for_dump(&session, &source).unwrap();
+        let output = load_hir_stage_output_for_dump(&session, &source).unwrap();
 
         assert_eq!(output.hir_file().items.len(), 1);
-        assert!(!output.effect_contracts().is_placeholder());
+        assert!(!output.hir_facts().contract_bridge.is_empty());
     }
 
     #[test]

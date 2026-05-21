@@ -48,6 +48,20 @@ pub fn dump_hir_facts(facts: &HirFacts) -> String {
         facts.native.extern_libraries.len()
     )
     .expect("writing to String cannot fail");
+    writeln!(
+        &mut out,
+        "  contract_bridge: function_effects={}, calls={}, resumes={}, performs={}, handles={}, assigns={}, updates={}, top_level_roots={}, extern_globals={}",
+        facts.contract_bridge.function_effects,
+        facts.contract_bridge.call_site_contracts,
+        facts.contract_bridge.continuation_resume_sites,
+        facts.contract_bridge.perform_sites,
+        facts.contract_bridge.handle_sites,
+        facts.contract_bridge.assign_place_contracts,
+        facts.contract_bridge.with_update_contracts,
+        facts.contract_bridge.top_level_init_roots,
+        facts.contract_bridge.extern_global_contracts,
+    )
+    .expect("writing to String cannot fail");
     write!(
         &mut out,
         "  type_context: universe={}, type_params={}, source_cones={}\n}}",
