@@ -505,7 +505,7 @@
   - 验证命令：`cargo fmt`；`cargo fmt --check`；`cargo test --all --all-targets --no-default-features`；`cargo run -p scoop -- test`；`cargo run -p scoop_tools -- spec-fixtures check`；`cargo clippy --all-targets -- -D warnings`；`cargo run -p scoop_tools -- dependency-gate`；`cargo tree -p scoopc_span`；`cargo tree -p scoopc_source`；`cargo tree -p scoopc_types`；`cargo tree -p scoopc_ids`；`cargo tree -p scoopc_project_model`；P1 清场关键词搜索；`git diff --check`。
   - 残余风险：P2 仍需把 production frontend 的 resolver/typecheck/HIR 过渡路径拆成正式 cone-level `AST -> HIR` semantic barrier 与 `hir_facts`；本任务未提前实现 P2/P3 facts/stage crate 拆分。
 
-## [TODO] P1-T06R：Review P1 全包完成度
+## [DONE] P1-T06R：Review P1 全包完成度
 
 - 参考：P1-T01 到 P1-T06 的所有完成记录。
 - 重点：
@@ -536,4 +536,11 @@
   - review 结论明确写出：P1 完成，可以进入 `TODO-3.md` / P2；或列出阻塞项并在本 review 内修复。
 - 依赖：P1-T06
 - 完成记录：
-  - 待填写。
+  - 复查范围：复查 `Cargo.toml`、5 个基础 crate 的 `Cargo.toml` / `src/lib.rs`、`crates/scoopc/src/lib.rs` facade anchor、`crates/scoopc/src/frontend.rs`、`crates/scoopc/src/pipeline/ast_stage.rs`、`crates/scoopc/src/cone/`、`crates/scoopc/src/resolve/mod.rs`、`README.md`、`PLAN.md`、`PIPELINE_REFACTOR.md` 与 `PIPELINE-CLEANUP.md`。
+  - review 发现与修正：发现 active docs 中 `PIPELINE_REFACTOR.md` / `PIPELINE-CLEANUP.md` 仍把 MIR materialization 内部 `InstanceKey` 描述为 `scoopc_ids` 或 fact crate 可直接使用的基础身份；这与 P1-T03 明确保留 `TemplateKey` / `InstanceKey` 为 MIR stage-owned internal key 的决策冲突。本 review 已修正文档表述，改为 `scoopc_ids` 当前发布 `SiteId`、`BodyVersionKey`、stable hash/key primitives 和后续可提升的 stage-independent callable/body identity，并明确当前 MIR `TemplateKey` / `InstanceKey` 不能作为 fact crate 基础 ID。
+  - P1 完成结论：P1 完成，可以进入 `TODO-3.md` / P2。基础 crate 已在 workspace 中作为后续 stage/fact crate 可直接依赖的公共层存在；`dependency-gate` 与逐项 `cargo tree` 未发现基础 crate 依赖 `scoopc` facade、stage/fact/backend crate 或工具 crate；fact crate 只依赖基础 crate 的前置依赖形状已经具备。
+  - cone compilation unit 结论：`ProjectInput::build_closure_sources()` 只作为 build-closure source view 暴露，`ProjectInput::compilation_units()` / `consumer_compilation_unit()` 和 `scoopc_project_model::SourceConeCompilationUnit` 表达 cone-level compilation unit；`AstCompilationUnitOutput` 是正式 cone-level AST handoff，`AstStageOutput` 仅保留为单文件 worker / dump / fixture helper。active Rust 中未发现 `single file compilation unit` / `single-source compilation unit` / `whole build compilation unit` / `current compilation unit.*sources` 误导性命中。
+  - 搜索与抽查结论：authoritative `Span` / `SourceFile` / `SourceId` / `SourceMap` / `TypeId` / `TypeStore` / `EffectRow` / `ConeId` / `ConeInfo` / `SourceConeGraph` / `SourceConeInfo` / `SourceConeCompilationUnit` 定义仍只位于基础 crate；`TemplateKey` / `InstanceKey` 只定义在 `crates/scoopc/src/mir/materialize/mod.rs`；`resolve::ConeId` / `resolve::ConeInfo` 旧 owner 路径无 active Rust 命中。抽查 `run_pass_cone/multi_file_literal_basic` 和 `run_pass_cone/source_path_dependency_public_call` 均通过，覆盖 multi-file same-cone 与 local dependency cone。
+  - 文档决策：未更新 `PLAN.md`，因为本 review 只修正文档与实现状态不一致的 active design/audit 表述，没有改变 phase-level sequencing、依赖、假设或完成标准。
+  - 验证命令：`cargo fmt`；`cargo fmt --check`；`cargo run -p scoop_tools -- dependency-gate`；`cargo tree -p scoopc_span`；`cargo tree -p scoopc_source`；`cargo tree -p scoopc_types`；`cargo tree -p scoopc_ids`；`cargo tree -p scoopc_project_model`；`cargo test --all --all-targets --no-default-features`；`cargo run -p scoop -- test`；`cargo run -p scoop_tools -- spec-fixtures check`；`cargo clippy --all-targets -- -D warnings`；`cargo run -p scoop -- test tests/fixtures/run_pass_cone/multi_file_literal_basic`；`cargo run -p scoop -- test tests/fixtures/run_pass_cone/source_path_dependency_public_call`；P1 清场关键词搜索；`git diff --check`。
+  - 残余风险：production frontend 仍在当前 monolithic resolver/typecheck/HIR 过渡路径中消费 build closure，`scoopc::stable_id` 仍保留 type/effect canonical encoding 与 compiler semantic stable keys；这些均为 P1 已记录的过渡边界，后续 P2/P3 需要继续收口 HIR barrier、`hir_facts`、MIR output 和 stable callable/body identity owner。

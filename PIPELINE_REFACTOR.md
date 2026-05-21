@@ -893,7 +893,7 @@ HIR 阶段可以有两种实现路线，二者都不要求 MIR 参与：
    负责 `TypeId`、`TypeStore`、`EffectRow`、builtin type universe 和通用 type-level 数据结构。
 
 4. `scoopc_ids`
-   负责 `SiteId`、`InstanceKey`、`BodyVersionKey`、step/continuation/state 等稳定 ID。
+   负责 `SiteId`、`BodyVersionKey`、stable hash/key primitives，以及后续可提升为基础层的 stage-independent callable/body identity。当前 MIR materialization 的 `TemplateKey` / `InstanceKey` 仍是 stage-owned internal key，不能被 fact crate 当作基础 ID 直接依赖。
 
 5. `scoopc_project_model`
    负责 source-cone、project membership、source trust、compilation-unit membership 等工程模型。
@@ -996,7 +996,7 @@ fact crate `FactN` 只允许依赖基础 crate。
 1. `TypeId`
 2. `EffectRow`
 3. `SiteId`
-4. `InstanceKey`
+4. stage-independent callable/body identity（例如后续正式提升的 stable instance/callable key；不是当前 MIR materialization 内部 `InstanceKey`）
 5. `SourceId`
 
 它不能使用：

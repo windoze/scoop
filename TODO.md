@@ -52,7 +52,7 @@
 | P1-T05 | [DONE] | [`TODO-2.md`](./TODO-2.md#done-p1-t05固定-cone-level-compilation-unit-facade-api) | 固定 cone-level compilation unit facade API |
 | P1-T05R | [DONE] | [`TODO-2.md`](./TODO-2.md#done-p1-t05rreview-cone-level-compilation-unit-api) | Review cone-level compilation unit API |
 | P1-T06 | [DONE] | [`TODO-2.md`](./TODO-2.md#done-p1-t06p1-全包清场文档同步与依赖审计) | P1 全包清场、文档同步与依赖审计 |
-| P1-T06R | [TODO] | [`TODO-2.md`](./TODO-2.md#todo-p1-t06rreview-p1-全包完成度) | Review P1 全包完成度 |
+| P1-T06R | [DONE] | [`TODO-2.md`](./TODO-2.md#done-p1-t06rreview-p1-全包完成度) | Review P1 全包完成度 |
 | TODO-3-INIT | [TODO] | [`TODO-3.md`](./TODO-3.md#todo-todo-3-init初始化并细化本任务包) | 分析 P2 需求，生成 `TODO-3.md` 详细任务列表并更新本索引 |
 | TODO-4-INIT | [TODO] | [`TODO-4.md`](./TODO-4.md#todo-todo-4-init初始化并细化本任务包) | 分析 P3 需求，生成 `TODO-4.md` 详细任务列表并更新本索引 |
 | TODO-5-INIT | [TODO] | [`TODO-5.md`](./TODO-5.md#todo-todo-5-init初始化并细化本任务包) | 分析 P4-P5 需求，生成 `TODO-5.md` 详细任务列表并更新本索引 |
