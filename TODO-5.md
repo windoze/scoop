@@ -403,7 +403,7 @@ P5 需要把这条隐式 opt helper 提升为正式 LIR optimization family：�
   - 验证命令：`cargo fmt`；`cargo run -p scoop_tools -- dependency-gate`；`cargo test -p scoopc_effect_facts`；`cargo test -p scoopc --no-default-features effect_facts_stage`；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
   - 残余风险：`EffectLoweredStageOutput` 仍按 P5 过渡形状携带显式 MIR/P4 handoff 并暴露上游查询 accessor，当前 LLVM codegen 仍有 HIR scaffold 与 MIR/pass-view 回看；这些已明确留给 P5-T01/P5-T03 和 TODO-6/P7，不属于 P4 output purity 缺口。
 
-## [TODO] P4-T04R：Review P4 全包完成度
+## [DONE] P4-T04R：Review P4 全包完成度
 
 - 参考：P4-T04。
 - 重点：
@@ -423,7 +423,12 @@ P5 需要把这条隐式 opt helper 提升为正式 LIR optimization family：�
   - review 结论明确写出：P4 effect facts purity 已完成，或列出阻塞项并在本 review 内修复。
 - 依赖：P4-T04
 - 完成记录：
-  - 待填写。
+  - Review 结论：P4 effect facts purity 已完成；`EffectFactsStageOutput = { effect_facts }` 的窄输出成立，effect facts stage 只读消费 P3 `MirStageOutput`，P5 进入条件清晰且仍要求显式分开 MIR handoff 与 effect facts handoff。
+  - 代码边界：复查 `crates/scoopc/src/pipeline/effect_facts_stage.rs`、`crates/scoopc/src/effect_facts/builder.rs`、`crates/scoopc/src/pipeline/effect_lowering_stage.rs` 与相关 tests；确认 P4 output 只保存 `MaterializedEffectFacts`，builder 接收只读 `&MaterializedMir` 与显式 `EffectOwnedTypeContext`，不通过 P4 output 转发 MIR pass view、MIR facts 或 MIR type store。
+  - 文档与依赖：复查 `PIPELINE-CLEANUP.md`、`PIPELINE_REFACTOR.md`、`README.md`、`crates/scoopc_effect_facts/` 与 dependency gate 输出；文档未把 P4 过渡 wrapper 描述为长期合法边界，剩余 LIR/codegen nested handoff 与 HIR scaffold 明确留给 P5/P7。
+  - 搜索结果：`canonical_snapshot_mut\(` 无匹配；`EffectFactsStageOutput.*MirStageOutput` 仅命中 `effect_lowering_stage.rs` 的并列 import；`mir_stage_output\(` 命中 P5 过渡 `EffectLoweringStageInput` / `EffectLoweredStageOutput` accessor、pipeline 测试和显式 P3 MIR input 测试，不是 P4 output 嵌套或 MIR 修改路径。
+  - 验证命令：`cargo fmt`；`cargo run -p scoop_tools -- dependency-gate`；`cargo test -p scoopc_effect_facts`；`cargo test -p scoopc --no-default-features effect_facts_stage`；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
+  - 残余风险：`EffectLoweredStageOutput` 仍按 P5 过渡形状携带显式 MIR/P4 handoff 并保留上游查询 accessor，LLVM codegen 仍有 HIR scaffold 与 MIR/pass-view 回看；这些已由 P5-T01/P5-T03 和 TODO-6/P7 排序处理，不阻塞 P4 purity 完成。
 
 ## [TODO] P5-T01：建立 `scoopc_lir_facts` crate 与正式 `LirStageOutput` 壳层
 

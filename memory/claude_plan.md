@@ -1,29 +1,31 @@
 # Claude Execution Plan
 
 ## Scope
+
 - Follow `TODO.md` as the authoritative task list.
 - Identify the first task whose heading is not prefixed with `[DONE]`.
-- Complete exactly that one task, then stop.
+- Complete exactly that task, then stop.
+- If a concrete blocker prevents correct implementation, update `TODO.md` with the minimum prerequisite task instead of using a workaround.
 
-## Execution Plan
-1. Read `TODO.md` and the latest commit summary to identify the first incomplete task and any directly relevant unfinished issue.
-2. Inspect the task body for requirements, dependencies, validation commands, and completion-record format.
-3. Explore only the code paths needed for that task.
-4. Implement the smallest spec-correct change without fixture-only hacks or workarounds.
-5. Add or update tests/fixtures required by the task.
-6. Run the task-specified validation and any focused tests needed for confidence.
-7. Update this file after key milestones or plan changes.
-8. Mark the completed task title in `TODO.md` with `[DONE]` and update its completion record.
-9. Review git status/diff/log, then commit all intended changes for this task with a task-tagged message.
+## Step-by-Step Plan
+
+1. Read `TODO.md` to identify the first incomplete task and its validation requirements.
+2. Check recent git context only as needed for that task, including whether the latest commit mentions an unfinished issue directly relevant to it.
+3. Inspect the relevant source, tests, fixtures, and documentation for the selected task.
+4. Implement the task with minimal, spec-correct changes.
+5. Run focused validation first, then broader required validation from the task.
+6. Fix any failures that are caused by or block the current task.
+7. Update `TODO.md` by prefixing the completed task heading with `[DONE]` and updating its completion record.
+8. Update this file when key steps complete or if the plan changes.
+9. Review git status and diff, then commit all intended changes with a task-specific message.
 10. Stop without starting the next task.
 
 ## Progress
-- Initial plan written before running repository commands.
-- Identified first incomplete task: `P4-T04` in `TODO-5.md`.
-- Task scope: P4 cleanup/documentation/dependency audit only; do not start P5 LIR facts or P7 backend cleanup.
-- Required validation: `cargo fmt`, `cargo run -p scoop_tools -- dependency-gate`, `cargo test -p scoopc_effect_facts`, `cargo test -p scoopc --no-default-features effect_facts_stage`, `cargo clippy --all-targets -- -D warnings`, `git diff --check`.
-- Audited P4 code paths: no `canonical_snapshot_mut()` remains; `EffectFactsStageOutput` contains only `MaterializedEffectFacts`; P5 consumes MIR and effect facts via explicit `EffectLoweringStageInput`.
-- Updated `README.md`, `crates/scoopc_effect_facts` crate docs, `PIPELINE-CLEANUP.md`, and `PIPELINE_REFACTOR.md` to reflect P4 completion and P5/P7 residual boundaries.
-- Validation completed: `cargo fmt`, `cargo run -p scoop_tools -- dependency-gate`, `cargo test -p scoopc_effect_facts`, `cargo test -p scoopc --no-default-features effect_facts_stage`, `cargo clippy --all-targets -- -D warnings`, `git diff --check`.
-- `P4-T04` is marked `[DONE]` in `TODO.md` and `TODO-5.md`; completion record has been filled.
-- Next step: inspect git status/diff/log and commit the P4-T04 changes.
+
+- Initial plan recorded before inspecting the task list.
+- `TODO.md` inspected; first incomplete task is `P4-T04R` (`Review P4 全包完成度`) in `TODO-5.md`.
+- `TODO-5.md` inspected. Review requires re-running P4-T04 validation plus searches for mutable MIR input / nested P4 output paths, and then recording the P4 purity conclusion.
+- Latest commit is `[P4-T04] Complete effect facts cleanup audit`, directly relevant as the task being reviewed; no separate unfinished issue was mentioned in the commit summary.
+- Static review completed: `EffectFactsStageOutput` holds only `MaterializedEffectFacts`; P4 uses read-only `&MirStageOutput`; docs state P4 purity as complete and leave LIR/codegen nested handoff to P5/P7.
+- Required validation passed: `cargo fmt`, dependency gate, `scoopc_effect_facts` tests, `effect_facts_stage` tests, clippy with warnings denied, `git diff --check`, and the P4 mutable/nested-output searches.
+- `TODO.md` and `TODO-5.md` updated to mark `P4-T04R` as `[DONE]` with the review conclusion and validation record.
