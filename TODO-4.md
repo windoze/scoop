@@ -112,7 +112,7 @@
   - 未展开风险：P4/P5/P7 仍会继续清理 `EffectFactsStageOutput` / `EffectLoweredStageOutput` 的 nested upstream bundle 和 LLVM HIR scaffold；P3 只负责确保它们读取的是 MIR stage 发布的 authoritative MIR handoff，不在本包内承诺完成 LIR/codegen 自足输入。codegen/reachability 中的去虚化残留按 `PLAN.md` P7 处理，但 P3 必须删除 HIR 层去虚化并阻止新的 HIR optimization owner。
   - 验证命令：文档/计划任务仅需检查 markdown/TODO 一致性；本次执行使用 `git diff --check`。
 
-## [TODO] P3-T01：建立 `mir_facts` crate 与 MIR facts 数据模型
+## [DONE] P3-T01：建立 `mir_facts` crate 与 MIR facts 数据模型
 
 - 参考：
   - `PLAN.md` §1.2、§1.3、§4/P3
@@ -151,7 +151,10 @@
   - `MirFacts` 模型已能承接后续 root inventory、snapshot binding 和 pass artifacts 迁移任务。
 - 依赖：TODO-4-INIT
 - 完成记录：
-  - 待填写。
+  - 改动范围：新增 workspace crate `crates/scoopc_mir_facts/`，包含 `MirFacts` 顶层结构、root inventories、materialized snapshot bindings、instance/callable family inventory、pass artifact metadata、MIR pass pipeline metadata、dump/verifier skeleton 和单元测试；新增 `scoopc::mir_facts` facade anchor，并更新 workspace、README 与 dependency gate。
+  - 核心决策：`scoopc_mir_facts` 只依赖 `scoopc_span`、`scoopc_source`、`scoopc_types`、`scoopc_ids`、`scoopc_project_model`，不依赖 `scoopc` facade、HIR/MIR stage、其它 fact crate 或 backend 类型。为避免泄漏 `TemplateKey` / `InstanceKey`，在 `scoopc_ids` 中新增通用 `StageArtifactKey` 表达 snapshot、instance/family 和 pass artifact revision identity。
+  - 验证命令：`cargo fmt`；`cargo check -p scoopc_mir_facts`；`cargo test -p scoopc_mir_facts`；`cargo run -p scoop_tools -- dependency-gate`；`cargo clippy --all-targets -- -D warnings`；额外运行 `cargo test -p scoopc_ids` 与 `cargo test -p scoop_tools dependency_gate` 覆盖新增基础 key 和门禁测试。
+  - 残余风险：当前 facts crate 仍是数据模型壳层；P3-T02 负责把现有 root inventory 构造迁入 `MirFacts`，P3-T03 之后负责把 canonical snapshot / pass artifacts 与真实 MIR stage handoff 接起来。当前 verifier/dump 只做结构性 skeleton 检查，不替代后续迁移验证。
 
 ## [TODO] P3-T01R：Review `mir_facts` crate 与事实模型
 

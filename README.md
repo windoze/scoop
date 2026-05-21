@@ -9,8 +9,8 @@ Scoop 是一个 Kotlin 风格的静态类型语言，目标是：
 - LLVM 后端（Rust `inkwell`），自带运行时与 GC（长期 C runtime/GC；平台差异隔离在 `runtime/c`）
 
 语言规范见 `SCOOP_FULL_SPEC.md`，实现路线图见 `PLAN.md`。
-当前 pipeline refactor 的 P0 阶段已移除旧编译期执行 surface，P1 阶段已建立基础 crate 层与 cone-level compilation unit facade，P2 阶段已把 `AST -> HIR` 收口为发布 `HirStageOutput = { hir, hir_facts }` 的 semantic barrier。反射能力保留为 sysroot `@Intrinsic` 声明。
-独立 `scoopc_hir_facts` 数据产品现在承载 HIR barrier 后发布给 MIR/effect/LIR/backend 的源码语义事实；P3 将在此输入上继续收口 MIR stage output 与 MIR pass pipeline。
+当前 pipeline refactor 的 P0 阶段已移除旧编译期执行 surface，P1 阶段已建立基础 crate 层与 cone-level compilation unit facade，P2 阶段已把 `AST -> HIR` 收口为发布 `HirStageOutput = { hir, hir_facts }` 的 semantic barrier，P3 正在建立独立 `mir_facts` 数据产品以收口 MIR stage output 与 MIR pass pipeline。反射能力保留为 sysroot `@Intrinsic` 声明。
+独立 `scoopc_hir_facts` 数据产品现在承载 HIR barrier 后发布给 MIR/effect/LIR/backend 的源码语义事实；`scoopc_mir_facts` 数据产品承载 MIR-owned root inventories、materialized snapshot binding、instance/callable family inventory 与 pass artifact metadata。
 Kotlin runtime / Scoop core runtime gap 的能力矩阵审计见 `KOTLIN_RUNTIME_GAP_AUDIT.md`（T1314）。
 标准库（std）分层与 capability matrix 设计见 `STDLIB_DESIGN.md`（T1316）。
 effect lowering 的统一状态机设计基线见 `docs/effect_unified_state_machine.md`（T2003u1）。
@@ -166,8 +166,9 @@ cargo run -p scoop_tools -- safepoint-baseline
 - `crates/scoopc_ids/`：基础 stable identity crate；负责后续跨阶段 ID 与 stable key primitives
 - `crates/scoopc_project_model/`：基础 project / source-cone / cone compilation unit 模型 crate
 - `crates/scoopc_hir_facts/`：独立 HIR semantic facts 数据产品；只依赖基础 crate，不依赖 `scoopc` facade 或 stage/backend crate
+- `crates/scoopc_mir_facts/`：独立 MIR facts 数据产品；只依赖基础 crate，不依赖 `scoopc` facade、HIR/MIR stage 或 backend crate
 - `crates/scoop_runtime/`：运行时构建（C runtime 的 build glue）
 - `runtime/c/`：C 运行时实现（GC/effect/线程等；平台差异收敛在 platform/backends）
 - `tests/fixtures/`：编译期/运行期 fixtures（长期保证正确性）
 
-`scoopc` 在迁移期通过 `scoopc::base::{span, source, types, ids, project_model}` 暴露这些基础 crate 的 facade anchor；新 stage/fact crate 应直接依赖对应基础 crate，而不是反向依赖 `scoopc`。`ProjectInput::build_closure_sources()` 是 source-cone DAG 的 build-closure source view，不是单一 compilation unit；需要 cone 级语义时使用 `compilation_units()` / `consumer_compilation_unit()`。
+`scoopc` 在迁移期通过 `scoopc::base::{span, source, types, ids, project_model}` 以及 `scoopc::{hir_facts, mir_facts}` 暴露 facade anchor；新 stage/fact crate 应直接依赖对应基础 crate 或 fact crate，而不是反向依赖 `scoopc`。`ProjectInput::build_closure_sources()` 是 source-cone DAG 的 build-closure source view，不是单一 compilation unit；需要 cone 级语义时使用 `compilation_units()` / `consumer_compilation_unit()`。

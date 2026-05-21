@@ -140,6 +140,79 @@ impl StableCanonicalKey for BodyVersionKey {
     }
 }
 
+/// Stable identity for a versioned artifact published by a compiler stage.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct StageArtifactKey {
+    stage: String,
+    owner_canonical_text: String,
+    role: String,
+    revision: u32,
+}
+
+impl StageArtifactKey {
+    /// Create a stage artifact key from any stable owner key.
+    pub fn new<K>(
+        stage: impl Into<String>,
+        owner: &K,
+        role: impl Into<String>,
+        revision: u32,
+    ) -> Self
+    where
+        K: StableCanonicalKey + ?Sized,
+    {
+        Self::from_parts(stage, owner.canonical_text(), role, revision)
+    }
+
+    /// Create a stage artifact key from precomputed canonical owner text.
+    pub fn from_parts(
+        stage: impl Into<String>,
+        owner_canonical_text: impl Into<String>,
+        role: impl Into<String>,
+        revision: u32,
+    ) -> Self {
+        Self {
+            stage: stage.into(),
+            owner_canonical_text: owner_canonical_text.into(),
+            role: role.into(),
+            revision,
+        }
+    }
+
+    /// Return the publishing stage label.
+    pub fn stage(&self) -> &str {
+        &self.stage
+    }
+
+    /// Return the canonical owner text this artifact is scoped under.
+    pub fn owner_canonical_text(&self) -> &str {
+        &self.owner_canonical_text
+    }
+
+    /// Return the artifact role within the publishing stage.
+    pub fn role(&self) -> &str {
+        &self.role
+    }
+
+    /// Return the monotonically assigned revision within the role.
+    pub fn revision(&self) -> u32 {
+        self.revision
+    }
+}
+
+impl StableCanonicalKey for StageArtifactKey {
+    fn canonical_text(&self) -> String {
+        canonical_record(
+            "stage_artifact",
+            [
+                self.stage.clone(),
+                self.owner_canonical_text.clone(),
+                self.role.clone(),
+                self.revision.to_string(),
+            ],
+        )
+    }
+}
+
 /// Stable local call-site identity for dump labels and private helpers.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct StableCallSiteKey {
@@ -422,6 +495,29 @@ mod tests {
                     "def(pkg.main)".to_string(),
                     "late_lowered".to_string(),
                     "3".to_string(),
+                ],
+            )
+        );
+    }
+
+    #[test]
+    fn stage_artifact_key_has_stable_canonical_text() {
+        let owner = CanonicalTextKey::new("cone(pkg.app)");
+        let key = StageArtifactKey::new("mir", &owner, "snapshot", 2);
+
+        assert_eq!(key.stage(), "mir");
+        assert_eq!(key.owner_canonical_text(), "cone(pkg.app)");
+        assert_eq!(key.role(), "snapshot");
+        assert_eq!(key.revision(), 2);
+        assert_eq!(
+            key.canonical_text(),
+            canonical_record(
+                "stage_artifact",
+                [
+                    "mir".to_string(),
+                    "cone(pkg.app)".to_string(),
+                    "snapshot".to_string(),
+                    "2".to_string(),
                 ],
             )
         );

@@ -1,0 +1,136 @@
+//! MIR fact product shared by later compiler stages.
+//!
+//! This crate is intentionally data-only: it depends on the stage-independent
+//! base crates for identity, source, span, type, and cone context primitives, and
+//! it does not depend on the `scoopc` facade, HIR/MIR nodes, effect stages, LIR,
+//! or codegen ABI types.
+
+#![forbid(unsafe_code)]
+
+pub mod common;
+pub mod dump;
+pub mod families;
+pub mod pass_artifacts;
+pub mod pipeline;
+pub mod roots;
+pub mod snapshot;
+pub mod verify;
+
+use families::InstanceFamilyInventory;
+use pass_artifacts::PassArtifactMetadata;
+use pipeline::MirPassPipelineMetadata;
+use roots::RootInventories;
+use snapshot::SnapshotBindings;
+
+/// Complete set of MIR-owned facts published by the MIR stage.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct MirFacts {
+    pub roots: RootInventories,
+    pub snapshots: SnapshotBindings,
+    pub families: InstanceFamilyInventory,
+    pub pass_artifacts: PassArtifactMetadata,
+    pub pass_pipeline: MirPassPipelineMetadata,
+}
+
+impl MirFacts {
+    /// Create an empty fact product for tests and staged construction.
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Return whether all fact groups are currently empty.
+    pub fn is_empty(&self) -> bool {
+        self.roots.is_empty()
+            && self.snapshots.is_empty()
+            && self.families.is_empty()
+            && self.pass_artifacts.is_empty()
+            && self.pass_pipeline.is_empty()
+    }
+
+    /// Verify structural invariants before handing facts to later stages.
+    pub fn verify(&self) -> verify::Result<()> {
+        verify::verify_mir_facts(self)
+    }
+
+    /// Render a stable textual summary of the fact groups.
+    pub fn dump(&self) -> String {
+        dump::dump_mir_facts(self)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use scoopc_ids::{CanonicalTextKey, StableCanonicalKey as _, StageArtifactKey};
+    use scoopc_project_model::{OptLevel, StableConeKey};
+
+    use super::*;
+    use crate::common::FactIdentity;
+    use crate::roots::{MirRootFact, MirRootKind};
+    use crate::snapshot::MaterializedSnapshotBinding;
+    use crate::verify::VerifyError;
+
+    #[test]
+    fn empty_mir_facts_verify_and_dump_group_boundaries() {
+        let facts = MirFacts::new();
+
+        assert!(facts.is_empty());
+        assert!(facts.verify().is_ok());
+
+        let dump = facts.dump();
+        assert!(dump.contains("roots: callable_bodies=0"));
+        assert!(dump.contains("snapshots: canonical=<none>"));
+        assert!(dump.contains("pass_pipeline: runs=0"));
+    }
+
+    #[test]
+    fn verifier_rejects_duplicate_fact_identities() {
+        let duplicate = root_fact("app.main", MirRootKind::CallableBody);
+        let mut facts = MirFacts::new();
+        facts.roots.callable_bodies.push(duplicate.clone());
+        facts.roots.callable_bodies.push(duplicate);
+
+        let err = facts.verify().unwrap_err();
+        assert_eq!(
+            err,
+            VerifyError::DuplicateFactIdentity("app.main".to_string())
+        );
+    }
+
+    #[test]
+    fn verifier_checks_canonical_snapshot_binding() {
+        let cone = StableConeKey::new("fixture", "0.0.0");
+        let key = StageArtifactKey::new("mir", &cone, "snapshot", 1);
+        let mut facts = MirFacts::new();
+        facts.snapshots.canonical = Some(key.clone());
+
+        assert_eq!(
+            facts.verify().unwrap_err(),
+            VerifyError::MissingCanonicalSnapshot(key.canonical_text())
+        );
+
+        facts
+            .snapshots
+            .snapshots
+            .push(MaterializedSnapshotBinding::new(
+                key,
+                cone,
+                OptLevel::O0,
+                0,
+                1,
+            ));
+        assert!(facts.verify().is_ok());
+    }
+
+    fn root_fact(key: &str, kind: MirRootKind) -> MirRootFact {
+        MirRootFact::new(identity(key), kind, key, None, None)
+    }
+
+    fn identity(key: &str) -> FactIdentity {
+        FactIdentity::new(
+            CanonicalTextKey::new(key),
+            key,
+            StableConeKey::new("fixture", "0.0.0"),
+            None,
+        )
+    }
+}

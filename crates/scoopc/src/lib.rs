@@ -29,6 +29,12 @@ pub mod base {
 /// facade re-export exists only for the current monolithic compiler crate.
 pub use scoopc_hir_facts as hir_facts;
 
+/// Migration anchor for MIR stage facts.
+///
+/// New stage/fact crates should depend on `scoopc_mir_facts` directly; this
+/// facade re-export exists only for the current monolithic compiler crate.
+pub use scoopc_mir_facts as mir_facts;
+
 pub mod ast;
 pub mod cone;
 pub(crate) mod devirtualize;

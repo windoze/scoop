@@ -1,0 +1,11 @@
+[package]
+name = "scoopc_mir_facts"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+scoopc_ids = { path = "../scoopc_ids" }
+scoopc_project_model = { path = "../scoopc_project_model" }
+scoopc_source = { path = "../scoopc_source" }
+scoopc_span = { path = "../scoopc_span" }
+scoopc_types = { path = "../scoopc_types" }
