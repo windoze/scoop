@@ -1,0 +1,18 @@
+package fixtures.mir_materialized
+
+fun id(x: Int): Int {
+    return x
+}
+
+fun wrap(x: Int): Int {
+    return id(x)
+}
+
+fun applyLocal(x: Int): Int {
+    val f: (Int) -> Int / Pure! = { y -> y + 1 }
+    return f(x)
+}
+
+fun main(): Int {
+    return wrap(1) + applyLocal(2)
+}

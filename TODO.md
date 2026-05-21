@@ -78,7 +78,7 @@
 | P3-T04 | [DONE] | [`TODO-4.md`](./TODO-4.md#done-p3-t04切换下游-mir-查询到-mir_facts--pass-artifacts-surface) | 切换下游 MIR 查询到 `mir_facts` / pass artifacts surface |
 | P3-T04R | [DONE] | [`TODO-4.md`](./TODO-4.md#done-p3-t04rreview-downstream-mir-query-切换结果) | Review downstream MIR query 切换结果 |
 | P3-T05 | [DONE] | [`TODO-4.md`](./TODO-4.md#done-p3-t05建立显式-mir-pass-pipeline-与-refresh-顺序) | 建立显式 MIR pass pipeline 与 refresh 顺序 |
-| P3-T05R | [TODO] | [`TODO-4.md`](./TODO-4.md#todo-p3-t05rreview-显式-mir-pass-pipeline) | Review 显式 MIR pass pipeline |
+| P3-T05R | [DONE] | [`TODO-4.md`](./TODO-4.md#done-p3-t05rreview-显式-mir-pass-pipeline) | Review 显式 MIR pass pipeline |
 | P3-T06 | [TODO] | [`TODO-4.md`](./TODO-4.md#todo-p3-t06迁移-dispatch-去虚化到-mir-pass-并删除-hir-owner) | 迁移 dispatch 去虚化到 MIR pass 并删除 HIR owner |
 | P3-T06R | [TODO] | [`TODO-4.md`](./TODO-4.md#todo-p3-t06rreview-dispatch-去虚化-owner-迁移结果) | Review dispatch 去虚化 owner 迁移结果 |
 | P3-T07 | [TODO] | [`TODO-4.md`](./TODO-4.md#todo-p3-t07p3-全包清场文档同步与依赖审计) | P3 全包清场、文档同步与依赖审计 |

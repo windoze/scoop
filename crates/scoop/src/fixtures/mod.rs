@@ -28,6 +28,7 @@
 //! - `tests/fixtures/hir/**` → hir（HIR lowering + `.hir` golden 比对）
 //! - `tests/fixtures/mir/**` → mir（MIR lowering + `.mir` golden 比对）
 //! - `tests/fixtures/mir_lowered/**` → mir_lowered（direct-style MIR stable dump + `.mir` golden 比对）
+//! - `tests/fixtures/mir_materialized/**` → mir_materialized（P4-ready MIR + MIR facts `.mir` golden 比对）
 //! - `tests/fixtures/effect_facts/**` → effect_facts（effect-facts stable dump + `.effectfacts` golden 比对）
 //! - `tests/fixtures/effect_lowered/**` → effect_lowered（late-lowered stable dump + `.effectlowered` golden 比对）
 //! - `tests/fixtures/scoopir/**` → scoopir（public API 导出 + `.scoopir.json` golden 比对）
@@ -680,6 +681,7 @@ fn run_one(
         }
         Some(name) if name == "hir" => FixturePhase::Hir,
         Some(name) if name == "mir" || name == "mir_lowered" => FixturePhase::Mir,
+        Some(name) if name == "mir_materialized" => FixturePhase::MirMaterialized,
         Some(name) if name == "effect_facts" => FixturePhase::EffectFacts,
         Some(name) if name == "effect_lowered" => FixturePhase::EffectLowered,
         Some(name) if name == "scoopir" => FixturePhase::ScoopIr,
@@ -703,6 +705,7 @@ fn run_one(
         ),
         FixturePhase::Hir => hir_fixture(session, &source, path),
         FixturePhase::Mir => mir_fixture(session, &source, path),
+        FixturePhase::MirMaterialized => mir_materialized_fixture(session, &source, path),
         FixturePhase::EffectFacts => effect_facts_fixture(session, &source, path),
         FixturePhase::EffectLowered => effect_lowered_fixture(session, &source, path),
         FixturePhase::ScoopIr => scoopir_fixture(session, &source, path),
@@ -786,6 +789,7 @@ enum FixturePhase {
     RunPass,
     Hir,
     Mir,
+    MirMaterialized,
     EffectFacts,
     EffectLowered,
     ScoopIr,
@@ -1398,6 +1402,24 @@ fn mir_fixture(
         let _ = std::fs::write(
             fixture_path.with_extension("actual.raw.mir"),
             format!("{:#?}\n", output.file()),
+        );
+    }
+    let actual = normalize_newlines(&output.stable_dump());
+
+    assert_mir_golden_matches(&actual, fixture_path)
+}
+
+fn mir_materialized_fixture(
+    session: &scoopc::session::Session,
+    source: &scoopc::source::SourceFile,
+    fixture_path: &Path,
+) -> std::result::Result<(), Box<dyn miette::Diagnostic>> {
+    let output = scoopc::pipeline::load_p4_ready_mir_stage_output_for_dump(session, source)
+        .map_err(|e| box_report(miette!("failed to build P4-ready MIR fixture: {e}")))?;
+    if std::env::var_os("SCOOP_FIXTURE_REPRO_DIR").is_some() {
+        let _ = std::fs::write(
+            fixture_path.with_extension("actual.raw.mir"),
+            format!("{:#?}\n", output.materialized_mir()),
         );
     }
     let actual = normalize_newlines(&output.stable_dump());
@@ -3120,6 +3142,7 @@ fn is_phase_dir_name(name: &std::ffi::OsStr) -> bool {
                 | "hir"
                 | "mir"
                 | "mir_lowered"
+                | "mir_materialized"
                 | "effect_facts"
                 | "effect_lowered"
                 | "scoopir"
@@ -3200,6 +3223,17 @@ mod tests {
         assert_eq!(
             phase_name(fixtures_root, rel),
             Some(OsStr::new("mir_lowered"))
+        );
+    }
+
+    #[test]
+    fn phase_name_falls_back_to_root_phase_dir_for_materialized_mir_single_file_subset() {
+        let fixtures_root = Path::new("tests/fixtures/mir_materialized");
+        let rel = Path::new("pass_pipeline_metadata.scoop");
+
+        assert_eq!(
+            phase_name(fixtures_root, rel),
+            Some(OsStr::new("mir_materialized"))
         );
     }
 

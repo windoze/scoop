@@ -32,9 +32,9 @@ impl OptLevel {
         !matches!(self, OptLevel::O0)
     }
 
-    /// Whether this level enables MIR escape analysis.
+    /// Whether this level publishes MIR escape-analysis facts.
     pub fn enables_mir_escape_analysis(self) -> bool {
-        !matches!(self, OptLevel::O0)
+        true
     }
 
     /// Parse an optimization level from CLI/manifest text.
@@ -79,4 +79,23 @@ impl OptLevel {
 #[diagnostic(code(scoop::opt::invalid_opt_level))]
 pub struct InvalidOptLevel {
     pub value: String,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::OptLevel;
+
+    #[test]
+    fn mir_escape_analysis_facts_are_published_for_all_opt_levels() {
+        for level in [
+            OptLevel::O0,
+            OptLevel::O1,
+            OptLevel::O2,
+            OptLevel::O3,
+            OptLevel::Os,
+            OptLevel::Oz,
+        ] {
+            assert!(level.enables_mir_escape_analysis());
+        }
+    }
 }

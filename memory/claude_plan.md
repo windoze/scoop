@@ -21,6 +21,12 @@
 
 ## Current Progress
 
+- New invocation started on 2026-05-22. I will use `TODO.md` as the task source of truth, identify the first heading without `[DONE]`, complete exactly that task if feasible, update this file at key checkpoints, update task records, validate, commit, and stop.
+- Identified current task: `P3-T05R` in `TODO-4.md`, a review of the explicit MIR pass pipeline introduced by `P3-T05`.
+- Review focus: confirm single pass schedule owner, always-on escape analysis as MIR facts/analysis, explicit summary refresh/cleanup ownership, pass metadata publication, and absence of materializer-tail scheduling.
+- Review findings fixed in this invocation: `OptLevel::enables_mir_escape_analysis()` still encoded the old O0 gate despite the pipeline running escape analysis always-on; `tests/fixtures/mir_materialized` was referenced by P3 validation but had no fixture phase/directory. I updated the opt-level helper and added a real `mir_materialized` fixture phase plus a pass-pipeline metadata fixture.
+- Validation passed: MIR pass unit tests, `scoopc_project_model`, `scoop` fixture tests, `mir_materialized` fixture run, `scoopc_mir_facts`, `mir_stage`, `mir::materialize`, clippy with `-D warnings`, and `git diff --check`.
+- Marked `P3-T05R` as `[DONE]` in `TODO.md` and `TODO-4.md`; remaining work is final status/diff inspection and commit.
 - Initial execution plan written before inspecting the task list.
 - Identified the first incomplete task from `TODO.md`: `P3-T05` in `TODO-4.md`, covering explicit MIR pass pipeline and refresh ordering.
 
