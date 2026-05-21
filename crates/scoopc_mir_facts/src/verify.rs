@@ -79,6 +79,13 @@ fn fact_identities(facts: &MirFacts) -> Vec<&FactIdentity> {
             .iter()
             .map(|fact| &fact.identity),
     );
+    identities.extend(
+        facts
+            .metadata
+            .nominal_direct_supertypes
+            .iter()
+            .map(|fact| &fact.identity),
+    );
 
     identities
 }

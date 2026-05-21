@@ -59,11 +59,7 @@ fn load_output(source: &SourceFile) -> RawMaterializedOutput {
         effect_facts_stage_output.materialized_pass_view(),
         effect_facts_stage_output.effect_facts(),
         effect_facts_stage_output.types(),
-    )
-    .with_nominal_direct_supertypes(
-        crate::effect_lowered::builder::collect_nominal_direct_supertypes_from_mir_file(
-            effect_facts_stage_output.file(),
-        ),
+        effect_facts_stage_output.mir_facts(),
     )
     .build()
     .expect("fixture 应可通过 raw late-lowering builder");
@@ -790,10 +786,21 @@ fun main(): Int {
         })
         .expect("helper call site 应发布单一 local arg");
 
-    let nominal_direct_supertypes =
-        crate::effect_lowered::builder::collect_nominal_direct_supertypes_from_mir_file(
-            effect_facts_stage_output.file(),
-        );
+    let nominal_direct_supertypes = effect_facts_stage_output
+        .mir_facts()
+        .metadata
+        .nominal_direct_supertypes
+        .iter()
+        .map(|fact| (fact.fqn.clone(), fact.direct_supertypes.clone()))
+        .collect::<super::NominalDirectSupertypeIndex>();
+    assert_eq!(
+        effect_facts_stage_output
+            .mir_facts()
+            .metadata
+            .direct_supertypes("a.Derived"),
+        Some(["a.Base".to_string()].as_slice()),
+        "nominal upcast test must consume supertypes published by MirFacts"
+    );
     let expected_ty = call_facts.invoke_args_tuple_ty();
     let local_ty = body.locals[arg_local.as_u32() as usize].ty;
 

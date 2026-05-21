@@ -325,7 +325,7 @@
   - 验证命令：`cargo fmt`；`cargo test -p scoopc_mir_facts`；`cargo test -p scoopc --no-default-features mir_stage`；`cargo test -p scoopc --no-default-features effect_facts_stage`；`cargo test -p scoopc --no-default-features effect_lowering_stage`；`cargo run -p scoop -- test --fixtures tests/fixtures/effect_facts`；`cargo clippy --all-targets -- -D warnings`；额外使用仓库搜索确认 `MissingMaterializedMirSnapshot|materialized_mir: Option|materialized_mir_mut` 在活跃 Rust 源码中无命中，并运行 `git diff --check`。
   - 残余风险：effect facts builder 仍会在 P4 内部扩展 materialized snapshot type context，且 downstream raw pass-view / nested wrapper 过渡读取仍按 `P3-T04`、P4/P5/P7 后续任务收口；这些不构成 P3-T03R 阻塞项。
 
-## [TODO] P3-T04：切换下游 MIR 查询到 `mir_facts` / pass artifacts surface
+## [DONE] P3-T04：切换下游 MIR 查询到 `mir_facts` / pass artifacts surface
 
 - 参考：
   - 本文件“主要 indirect downstream”
@@ -366,7 +366,11 @@
   - 剩余 raw pass-view 读取被明确限制为 P4/P5/P7 过渡风险，不阻塞 P3 继续推进。
 - 依赖：P3-T03R
 - 完成记录：
-  - 待填写。
+  - 改动范围：新增 `scoopc_mir_facts::metadata`，由 MIR stage 从 direct-style metadata roots 发布 nominal/object direct-supertype facts；`MirFacts` verifier 纳入该 metadata fact identity。`EffectFactsStageOutput` / `EffectLoweredStageOutput` 新增 `mir_facts()` 查询入口，`LateLoweredProgramBuilder::from_canonical_inputs(...)` 改为显式接收 `MirFacts` + canonical pass view + P4 effect facts。
+  - 下游切换：删除 LIR/effect-lowered 侧 `collect_nominal_direct_supertypes_from_mir_file(...)` 和 override builder 路径；`effect_lowering_stage`、raw late-lowered builder tests、LLVM layout ABI visibility helper 均从 MIR stage 发布的 `MirFacts` 读取 nominal direct supertypes。`EffectFactsStageOutput::materialized_pass_view()` 现在委托 `MirStageOutput` 的 canonical pass query surface，而不是自行从 raw snapshot 重建入口。
+  - 测试覆盖：新增/更新 MIR facts 和 effect-lowered tests，断言 nominal upcast 所需的 `a.Derived -> a.Base` direct-supertype 信息来自 `MirFacts`；仓库搜索确认旧的 MIR-file 重扫 helper 与 override builder 路径已删除。
+  - 验证命令：`cargo fmt`；`cargo test -p scoopc_mir_facts`；`cargo test -p scoopc --no-default-features mir_stage`；`cargo test -p scoopc --no-default-features effect_facts_stage`；`cargo test -p scoopc --no-default-features effect_lowering_stage`；`cargo test -p scoopc --no-default-features effect_lowered`；`cargo run -p scoop -- test --fixtures tests/fixtures/effect_lowered`；`cargo clippy --all-targets -- -D warnings`；额外搜索 `collect_nominal_direct_supertypes_from_mir_file|with_nominal_direct_supertypes` 无命中，并运行 `git diff --check`。
+  - 残余风险：P4 effect facts builder 仍因 compiler-generated runtime error schema 需要可变 materialized snapshot/type context；P5 wrapper 与 LLVM bridge 中的 `materialized_pass_view` 读取仍作为 P5/P7 过渡风险保留。本任务未复制 `MirFacts` 到 effect facts/LIR outputs，也未把 raw pass view 扩展为新的事实 owner。
 
 ## [TODO] P3-T04R：Review downstream MIR query 切换结果
 

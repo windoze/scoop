@@ -3,23 +3,25 @@
 ## Scope
 - Follow `TODO.md` as the authoritative ordered task list.
 - Complete exactly the first task whose heading is not prefixed with `[DONE]`, then stop.
-- Do not perform broad historical triage before selecting that task.
+- Selected task for this invocation: `P3-T04` in `TODO-4.md`, "切换下游 MIR 查询到 `mir_facts` / pass artifacts surface".
+- This file records an execution plan and progress log; it does not contain private chain-of-thought.
 
-## Steps
-1. Read `TODO.md` to identify the first incomplete task and its validation requirements.
-2. Check the latest commit only for unfinished work directly relevant to that task.
-3. Inspect the relevant source, fixtures, and tests needed for the selected task.
-4. Implement the smallest spec-correct change that completes the selected task.
-5. Run targeted validation first, then broader required validation from the task.
-6. If a concrete blocker prevents spec-correct completion, update `TODO.md` with the minimum prerequisite task, commit that bookkeeping, and stop.
-7. If the task is completed, update `TODO.md` by prefixing the task heading with `[DONE]` and filling the completion record.
-8. Commit all task-related changes with a descriptive task-tagged commit message.
+## Step-by-Step Plan
+1. Check the latest commit subject/body only for unfinished work directly relevant to `P3-T04`.
+2. Inspect the current downstream MIR query paths named by `P3-T04`: effect facts stage, effect lowering stage, effect facts/lowered builders, and LLVM bridge call sites.
+3. Inspect `scoopc_mir_facts` and MIR pass view APIs to identify the narrow query surface already available and the smallest missing facts needed for downstream use.
+4. Move MIR-derived nominal metadata ownership from LIR/effect lowering into MIR stage/facts, especially replacing `collect_nominal_direct_supertypes_from_mir_file(...)` style recomputation with published `MirFacts` data.
+5. Update downstream inputs and call sites so migrated facts are read through `MirFacts` or canonical pass query surface, without copying `MirFacts` into later stage outputs or preserving duplicate owners.
+6. Add or adjust focused tests that prove migrated MIR-derived facts are not recomputed downstream.
+7. Run the validation required by `P3-T04`: `cargo fmt`, targeted `scoopc` tests for `effect_facts_stage`, `effect_lowering_stage`, and `effect_lowered`, fixture tests for `tests/fixtures/effect_lowered`, and `cargo clippy --all-targets -- -D warnings`.
+8. If a concrete blocker prevents spec-correct completion, add the minimum prerequisite task to `TODO.md` / `TODO-4.md`, commit that bookkeeping, and stop.
+9. If `P3-T04` is completed, update `TODO.md` and `TODO-4.md` by marking `P3-T04` as `[DONE]`, fill the completion record with scope, decisions, validation, and residual risks, then commit all task-related changes.
 
 ## Progress Log
-- Initialized execution plan before reading project task files.
-- Read `TODO.md`; first incomplete task is `P3-T03R` in `TODO-4.md`, the review for MIR snapshot binding and pass artifacts query surface.
-- Latest commit is `[P3-T03] Publish canonical MIR snapshot handoff`; it is directly relevant and does not explicitly mention unfinished follow-up work in the commit subject.
-- Review focus: confirm P4-ready `MirStageOutput` has mandatory canonical `MaterializedMir`, `MirFacts` owns snapshot/pass metadata, and direct-style dump helpers cannot be mistaken for P4-ready outputs.
-- Review completed with no blocking code changes: optional snapshot search terms have no active Rust matches; P4-ready handoff and helper separation satisfy `P3-T03R`.
-- Validation completed: `cargo fmt`, `cargo test -p scoopc_mir_facts`, `cargo test -p scoopc --no-default-features mir_stage`, `cargo test -p scoopc --no-default-features effect_facts_stage`, `cargo test -p scoopc --no-default-features effect_lowering_stage`, `cargo run -p scoop -- test --fixtures tests/fixtures/effect_facts`, `cargo clippy --all-targets -- -D warnings`, and `git diff --check`.
-- Updated `TODO.md` and `TODO-4.md` to mark `P3-T03R` as `[DONE]` with review conclusions and residual risks.
+- Read `TODO.md`; first incomplete task is `P3-T04` in `TODO-4.md`.
+- Read `TODO-4.md`; `P3-T04` requires downstream MIR root/pass/global fact queries to use `mir_facts` / pass artifacts surface, including moving nominal direct supertypes out of LIR-side MIR-file recomputation.
+- Latest commit is `[P3-T03R] Review MIR snapshot handoff`; it does not explicitly mention unfinished work that blocks `P3-T04`.
+- Found the concrete duplicate owner: effect lowering and `LateLoweredProgramBuilder` were collecting nominal direct supertypes by scanning MIR files. Added MIR-owned metadata facts and switched the builder call chain to consume those facts instead.
+- Implementation now removes the old `collect_nominal_direct_supertypes_from_mir_file` path, adds `EffectFactsStageOutput` / `EffectLoweredStageOutput` accessors for `MirFacts`, and updates affected tests to consume the MIR-owned metadata fact.
+- Validation completed so far: `cargo fmt`, `cargo test -p scoopc_mir_facts`, `cargo test -p scoopc --no-default-features mir_stage`, `cargo test -p scoopc --no-default-features effect_facts_stage`, `cargo test -p scoopc --no-default-features effect_lowering_stage`, `cargo test -p scoopc --no-default-features effect_lowered`, `cargo run -p scoop -- test --fixtures tests/fixtures/effect_lowered`, `cargo clippy --all-targets -- -D warnings`, repository search for removed nominal recompute helper, and `git diff --check`.
+- Updated `TODO.md` and `TODO-4.md` to mark `P3-T04` as `[DONE]` with completion scope, validation, and residual P4/P5/P7 transition risks.

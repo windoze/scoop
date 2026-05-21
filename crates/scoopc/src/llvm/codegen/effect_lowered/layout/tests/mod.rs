@@ -106,6 +106,7 @@ fn build_fixture_inputs_from_source(source: SourceFile) -> FixtureAbiInputs {
             effect_lowered_stage_output.materialized_pass_view(),
             effect_lowered_stage_output.effect_facts(),
             effect_lowered_stage_output.types(),
+            effect_lowered_stage_output.mir_facts(),
         )
         .build()
         .expect("ABI visibility late-lowered program 应成功"),

@@ -75,7 +75,7 @@
 | P3-T02R | [DONE] | [`TODO-4.md`](./TODO-4.md#done-p3-t02rreview-mir-root-inventory-迁移结果) | Review MIR root inventory 迁移结果 |
 | P3-T03 | [DONE] | [`TODO-4.md`](./TODO-4.md#done-p3-t03固定-canonical-materialized-snapshot-binding-与-pass-artifacts-查询面) | 固定 canonical materialized snapshot binding 与 pass artifacts 查询面 |
 | P3-T03R | [DONE] | [`TODO-4.md`](./TODO-4.md#done-p3-t03rreview-mir-snapshot-binding-与-pass-artifacts-查询面) | Review MIR snapshot binding 与 pass artifacts 查询面 |
-| P3-T04 | [TODO] | [`TODO-4.md`](./TODO-4.md#todo-p3-t04切换下游-mir-查询到-mir_facts--pass-artifacts-surface) | 切换下游 MIR 查询到 `mir_facts` / pass artifacts surface |
+| P3-T04 | [DONE] | [`TODO-4.md`](./TODO-4.md#done-p3-t04切换下游-mir-查询到-mir_facts--pass-artifacts-surface) | 切换下游 MIR 查询到 `mir_facts` / pass artifacts surface |
 | P3-T04R | [TODO] | [`TODO-4.md`](./TODO-4.md#todo-p3-t04rreview-downstream-mir-query-切换结果) | Review downstream MIR query 切换结果 |
 | P3-T05 | [TODO] | [`TODO-4.md`](./TODO-4.md#todo-p3-t05建立显式-mir-pass-pipeline-与-refresh-顺序) | 建立显式 MIR pass pipeline 与 refresh 顺序 |
 | P3-T05R | [TODO] | [`TODO-4.md`](./TODO-4.md#todo-p3-t05rreview-显式-mir-pass-pipeline) | Review 显式 MIR pass pipeline |

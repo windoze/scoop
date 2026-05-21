@@ -10,6 +10,7 @@
 pub mod common;
 pub mod dump;
 pub mod families;
+pub mod metadata;
 pub mod pass_artifacts;
 pub mod pipeline;
 pub mod roots;
@@ -17,6 +18,7 @@ pub mod snapshot;
 pub mod verify;
 
 use families::InstanceFamilyInventory;
+use metadata::MirMetadataFacts;
 use pass_artifacts::PassArtifactMetadata;
 use pipeline::MirPassPipelineMetadata;
 use roots::RootInventories;
@@ -30,6 +32,7 @@ pub struct MirFacts {
     pub families: InstanceFamilyInventory,
     pub pass_artifacts: PassArtifactMetadata,
     pub pass_pipeline: MirPassPipelineMetadata,
+    pub metadata: MirMetadataFacts,
 }
 
 impl MirFacts {
@@ -45,6 +48,7 @@ impl MirFacts {
             && self.families.is_empty()
             && self.pass_artifacts.is_empty()
             && self.pass_pipeline.is_empty()
+            && self.metadata.is_empty()
     }
 
     /// Verify structural invariants before handing facts to later stages.
@@ -65,6 +69,7 @@ mod tests {
 
     use super::*;
     use crate::common::FactIdentity;
+    use crate::metadata::{MirNominalOwnerKind, NominalDirectSupertypesFact};
     use crate::roots::{MirItemReference, MirRootDetail, MirRootFact, MirRootKind};
     use crate::snapshot::MaterializedSnapshotBinding;
     use crate::verify::VerifyError;
@@ -118,6 +123,26 @@ mod tests {
                 0,
                 1,
             ));
+        assert!(facts.verify().is_ok());
+    }
+
+    #[test]
+    fn metadata_facts_publish_nominal_direct_supertypes() {
+        let mut facts = MirFacts::new();
+        facts
+            .metadata
+            .nominal_direct_supertypes
+            .push(NominalDirectSupertypesFact::new(
+                identity("mir_metadata:nominal_direct_supertypes:app.Derived"),
+                MirNominalOwnerKind::Nominal,
+                "app.Derived",
+                vec!["app.Base".to_string()],
+            ));
+
+        assert_eq!(
+            facts.metadata.direct_supertypes("app.Derived"),
+            Some(["app.Base".to_string()].as_slice())
+        );
         assert!(facts.verify().is_ok());
     }
 

@@ -5101,6 +5101,7 @@ mod tests {
             effect_facts_output.materialized_pass_view(),
             effect_facts_output.effect_facts(),
             effect_facts_output.types(),
+            effect_facts_output.mir_facts(),
         )
         .build()
         .expect("fixture 应可通过 raw late-lowering builder");

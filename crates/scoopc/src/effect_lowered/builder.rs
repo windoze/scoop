@@ -1,6 +1,8 @@
 use std::collections::{BTreeSet, HashMap};
 use std::path::Path;
 
+use scoopc_mir_facts::MirFacts;
+
 use crate::effect_facts::{
     CallableAbiKind, MaterializedEffectFacts, SiteEffectFacts, StepSchemaId,
 };
@@ -28,7 +30,7 @@ use super::materialize::{
 };
 use super::segment::build_callable_segmentation;
 
-/// 把 canonical MIR snapshot + P4 facts 组装成独立 `LateLoweredProgram` 的统一入口。
+/// 把 canonical MIR pass query、MIR-owned facts 与 P4 facts 组装成独立 `LateLoweredProgram`。
 pub(crate) struct LateLoweredProgramBuilder<'a> {
     pass_view: MaterializedMirPassView<'a>,
     effect_facts: &'a MaterializedEffectFacts,
@@ -41,23 +43,14 @@ impl<'a> LateLoweredProgramBuilder<'a> {
         pass_view: MaterializedMirPassView<'a>,
         effect_facts: &'a MaterializedEffectFacts,
         types: &'a TypeStore,
+        mir_facts: &MirFacts,
     ) -> Self {
         Self {
-            nominal_direct_supertypes: collect_nominal_direct_supertypes_from_mir_file(
-                &pass_view.materialized().file,
-            ),
+            nominal_direct_supertypes: nominal_direct_supertypes_from_mir_facts(mir_facts),
             pass_view,
             effect_facts,
             types,
         }
-    }
-
-    pub(crate) fn with_nominal_direct_supertypes(
-        mut self,
-        nominal_direct_supertypes: NominalDirectSupertypeIndex,
-    ) -> Self {
-        self.nominal_direct_supertypes = nominal_direct_supertypes;
-        self
     }
 
     pub(crate) fn build(self) -> Result<LateLoweredProgram, EffectLoweringError> {
@@ -346,32 +339,13 @@ fn find_materialized_fun<'a>(materialized: &'a MaterializedMir, fqn: &str) -> Op
     })
 }
 
-pub(crate) fn collect_nominal_direct_supertypes_from_mir_file(
-    file: &crate::mir::File,
-) -> NominalDirectSupertypeIndex {
-    let mut out = NominalDirectSupertypeIndex::new();
-    for item in &file.items {
-        match item {
-            Item::Metadata(crate::mir::MetadataRoot::Nominal(nominal)) => {
-                let supers = nominal
-                    .supertypes
-                    .iter()
-                    .filter_map(|supertype| supertype.fqn.clone())
-                    .collect::<Vec<_>>();
-                out.insert(nominal.fqn.clone(), supers);
-            }
-            Item::Metadata(crate::mir::MetadataRoot::Object(object)) => {
-                let supers = object
-                    .supertypes
-                    .iter()
-                    .filter_map(|supertype| supertype.fqn.clone())
-                    .collect::<Vec<_>>();
-                out.insert(object.fqn.clone(), supers);
-            }
-            _ => {}
-        }
-    }
-    out
+fn nominal_direct_supertypes_from_mir_facts(mir_facts: &MirFacts) -> NominalDirectSupertypeIndex {
+    mir_facts
+        .metadata
+        .nominal_direct_supertypes
+        .iter()
+        .map(|fact| (fact.fqn.clone(), fact.direct_supertypes.clone()))
+        .collect()
 }
 
 fn plan_continuation_route_owners(

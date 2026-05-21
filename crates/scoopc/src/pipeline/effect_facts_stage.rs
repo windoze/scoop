@@ -6,6 +6,7 @@ use crate::mir::{File as MirFile, MaterializedMir, MaterializedMirPassView};
 use crate::session::Session;
 use crate::source::SourceFile;
 use crate::ty::TypeStore;
+use scoopc_mir_facts::MirFacts;
 
 use super::MirStageOutput;
 
@@ -36,6 +37,10 @@ impl EffectFactsStageOutput {
         &self.mir_stage_output
     }
 
+    pub fn mir_facts(&self) -> &MirFacts {
+        self.mir_stage_output.mir_facts()
+    }
+
     pub fn file(&self) -> &MirFile {
         self.mir_stage_output.file()
     }
@@ -49,7 +54,7 @@ impl EffectFactsStageOutput {
     }
 
     pub fn materialized_pass_view(&self) -> MaterializedMirPassView<'_> {
-        self.materialized_mir().pass_view()
+        self.mir_stage_output.materialized_pass_view()
     }
 
     pub fn effect_facts(&self) -> &MaterializedEffectFacts {

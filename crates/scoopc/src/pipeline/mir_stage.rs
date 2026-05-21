@@ -7,6 +7,9 @@ use scoopc_mir_facts::common::{FactIdentity, MirBodyReference};
 use scoopc_mir_facts::families::{
     CallableFamilyFact, InstanceFamilyInventory, InstanceInventoryEntry,
 };
+use scoopc_mir_facts::metadata::{
+    MirMetadataFacts, MirNominalOwnerKind, NominalDirectSupertypesFact,
+};
 use scoopc_mir_facts::pass_artifacts::{
     CallableBodyArtifact, EscapeFactsArtifact, PassArtifactMetadata, PassArtifactRevision,
     SummaryArtifact,
@@ -266,6 +269,7 @@ impl MirStageOutput {
 fn build_direct_style_mir_facts(file: &MirFile, stable_cone_key: &StableConeKey) -> MirFacts {
     let mut facts = MirFacts::new();
     facts.roots = collect_root_inventories(file, stable_cone_key);
+    facts.metadata = collect_mir_metadata_facts(file, stable_cone_key);
     facts
         .verify()
         .expect("MIR stage must publish structurally valid MIR facts");
@@ -498,6 +502,67 @@ fn collect_root_inventories(file: &MirFile, stable_cone_key: &StableConeKey) -> 
         extern_globals: extern_globals.into_values().collect(),
         metadata_roots: metadata_roots.into_values().collect(),
     }
+}
+
+fn collect_mir_metadata_facts(file: &MirFile, stable_cone_key: &StableConeKey) -> MirMetadataFacts {
+    let mut nominal_direct_supertypes = BTreeMap::new();
+
+    for item in &file.items {
+        match item {
+            MirItem::Metadata(MirMetadataRoot::Nominal(nominal)) => {
+                nominal_direct_supertypes
+                    .entry(nominal.fqn.clone())
+                    .or_insert_with(|| {
+                        nominal_direct_supertypes_fact(
+                            &nominal.fqn,
+                            MirNominalOwnerKind::Nominal,
+                            &nominal.supertypes,
+                            stable_cone_key,
+                        )
+                    });
+            }
+            MirItem::Metadata(MirMetadataRoot::Object(object)) => {
+                nominal_direct_supertypes
+                    .entry(object.fqn.clone())
+                    .or_insert_with(|| {
+                        nominal_direct_supertypes_fact(
+                            &object.fqn,
+                            MirNominalOwnerKind::Object,
+                            &object.supertypes,
+                            stable_cone_key,
+                        )
+                    });
+            }
+            _ => {}
+        }
+    }
+
+    MirMetadataFacts {
+        nominal_direct_supertypes: nominal_direct_supertypes.into_values().collect(),
+    }
+}
+
+fn nominal_direct_supertypes_fact(
+    fqn: &str,
+    owner_kind: MirNominalOwnerKind,
+    supertypes: &[crate::mir::SupertypeMetadata],
+    stable_cone_key: &StableConeKey,
+) -> NominalDirectSupertypesFact {
+    let direct_supertypes = supertypes
+        .iter()
+        .filter_map(|supertype| supertype.fqn.clone())
+        .collect();
+    NominalDirectSupertypesFact::new(
+        FactIdentity::new(
+            CanonicalTextKey::new(format!("mir_metadata:nominal_direct_supertypes:{fqn}")),
+            format!("nominal direct supertypes {fqn}"),
+            stable_cone_key.clone(),
+            None,
+        ),
+        owner_kind,
+        fqn,
+        direct_supertypes,
+    )
 }
 
 fn callable_body_root_fact(
@@ -839,7 +904,8 @@ mod tests {
 import scoop.core.*
 
 typealias Alias = Int
-struct Point(val x: Int)
+interface Named
+struct Point(val x: Int) : Named
 
 val Base: Int = 1
 val Runtime: Int = Base + 1
@@ -955,6 +1021,13 @@ fun main() {}
             output.metadata_root("sample.Point"),
             Some(MetadataRoot::Nominal(nominal)) if nominal.name == "Point"
         ));
+        assert_eq!(
+            output
+                .mir_facts()
+                .metadata
+                .direct_supertypes("sample.Point"),
+            Some(["sample.Named".to_string()].as_slice())
+        );
         assert!(matches!(
             output.metadata_root("sample.Registry"),
             Some(MetadataRoot::Object(object)) if object.initializer_root == "sample.Registry"

@@ -7,6 +7,7 @@ use crate::effect_lowered::{
 };
 use crate::mir::{MaterializedMir, MaterializedMirPassView};
 use crate::ty::TypeStore;
+use scoopc_mir_facts::MirFacts;
 
 use super::EffectFactsStageOutput;
 
@@ -43,6 +44,10 @@ impl EffectLoweredStageOutput {
 
     pub fn effect_facts_stage_output(&self) -> &EffectFactsStageOutput {
         &self.effect_facts_stage_output
+    }
+
+    pub fn mir_facts(&self) -> &MirFacts {
+        self.effect_facts_stage_output.mir_facts()
     }
 
     pub fn snapshot_binding(&self) -> &MirSnapshotBinding {
@@ -82,17 +87,13 @@ impl EffectLoweredStageOutput {
 pub(crate) fn run(
     effect_facts_stage_output: EffectFactsStageOutput,
 ) -> Result<EffectLoweredStageOutput, EffectLoweringError> {
-    let nominal_direct_supertypes =
-        crate::effect_lowered::builder::collect_nominal_direct_supertypes_from_mir_file(
-            effect_facts_stage_output.file(),
-        );
     let program = optimize_program(
         LateLoweredProgramBuilder::from_canonical_inputs(
             effect_facts_stage_output.materialized_pass_view(),
             effect_facts_stage_output.effect_facts(),
             effect_facts_stage_output.types(),
+            effect_facts_stage_output.mir_facts(),
         )
-        .with_nominal_direct_supertypes(nominal_direct_supertypes)
         .build()?,
     );
     Ok(EffectLoweredStageOutput::new(
@@ -116,17 +117,13 @@ fn run_with_opt_options(
     effect_facts_stage_output: EffectFactsStageOutput,
     opt_options: LateLoweredOptOptions,
 ) -> Result<EffectLoweredStageOutput, EffectLoweringError> {
-    let nominal_direct_supertypes =
-        crate::effect_lowered::builder::collect_nominal_direct_supertypes_from_mir_file(
-            effect_facts_stage_output.file(),
-        );
     let program = optimize_program_with_options(
         LateLoweredProgramBuilder::from_canonical_inputs(
             effect_facts_stage_output.materialized_pass_view(),
             effect_facts_stage_output.effect_facts(),
             effect_facts_stage_output.types(),
+            effect_facts_stage_output.mir_facts(),
         )
-        .with_nominal_direct_supertypes(nominal_direct_supertypes)
         .build()?,
         opt_options,
     );
