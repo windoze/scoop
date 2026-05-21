@@ -226,7 +226,7 @@
   - 验证命令：`cargo fmt`；`cargo test -p scoopc_mir_facts`；`cargo test -p scoopc --no-default-features mir_stage`；`cargo test -p scoopc --no-default-features hir_preflight`；`cargo run -p scoop -- test --fixtures tests/fixtures/mir_lowered`；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
   - 残余风险：P3-T02 只迁移 direct-style root inventories；canonical materialized snapshot binding、pass artifacts metadata、P4-ready mandatory snapshot handoff 和 downstream raw pass-view 切换仍按 P3-T03/P3-T04 处理。`EffectFactsStageOutput` / `EffectLoweredStageOutput` 的 nested upstream wrapper 仍属于后续 P4/P5/P7 收口范围。
 
-## [TODO] P3-T02R：Review MIR root inventory 迁移结果
+## [DONE] P3-T02R：Review MIR root inventory 迁移结果
 
 - 参考：P3-T02。
 - 重点：
@@ -245,7 +245,11 @@
   - review 结论明确写出：root inventories 已由 `MirFacts` 唯一发布，或列出阻塞项并在本 review 内修复。
 - 依赖：P3-T02
 - 完成记录：
-  - 待填写。
+  - 改动范围：复查 `P3-T02` 迁移结果，覆盖 `crates/scoopc/src/pipeline/mir_stage.rs`、`crates/scoopc_mir_facts/`、`crates/scoopc/src/pipeline/hir_preflight.rs`、`tests/fixtures/mir_lowered/` 中的 MIR dump/facts 边界；本 review 未发现需要修复的代码问题，本次只更新任务状态与完成记录。
+  - review 结论：`MirStageOutput` 已删除并列 root inventory map 字段，只保留 `mir_facts: MirFacts` 作为 root inventory owner；`callable_body_fqns()`、`callable_body()`、`initializer_root_fqns()`、`initializer_root()`、`global_root_fqns()`、`extern_global_root()`、`metadata_root_fqns()`、`metadata_root()` 均通过 `MirFacts.roots` 中的 item reference 委托定位 direct-style MIR item。`MirFacts.roots` 覆盖 callable body、initializer、extern/global、metadata 四类 root，并在 stable dump 中显式展示 `mir_facts { ... }` 边界。
+  - 搜索结论：额外搜索 `callable_body_indices|initializer_root_indices|global_root_indices|metadata_root_indices`，活跃 Rust 源码中无命中；未发现下游为 root inventory 重新扫描 `MirFile` 来绕过 `MirFacts` 的路径。
+  - 验证命令：`cargo fmt`；`cargo test -p scoopc_mir_facts`；`cargo test -p scoopc --no-default-features mir_stage`；`cargo test -p scoopc --no-default-features hir_preflight`；`cargo run -p scoop -- test --fixtures tests/fixtures/mir_lowered`；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
+  - 残余风险：canonical materialized snapshot binding、pass artifacts metadata、P4-ready mandatory snapshot handoff 和 downstream raw pass-view 切换仍按 `P3-T03` / `P3-T04` 处理；本 review 不提前收口这些后续边界。
 
 ## [TODO] P3-T03：固定 canonical materialized snapshot binding 与 pass artifacts 查询面
 
