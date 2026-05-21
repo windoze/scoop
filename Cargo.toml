@@ -10,6 +10,7 @@ members = [
     "crates/scoopc_project_model",
     "crates/scoopc_hir_facts",
     "crates/scoopc_mir_facts",
+    "crates/scoopc_effect_facts",
     "crates/scoop_runtime",
     "tools/scoop_tools",
 ]

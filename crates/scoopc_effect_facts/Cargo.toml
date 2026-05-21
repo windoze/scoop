@@ -1,0 +1,8 @@
+[package]
+name = "scoopc_effect_facts"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+scoopc_ids = { path = "../scoopc_ids" }
+scoopc_types = { path = "../scoopc_types" }

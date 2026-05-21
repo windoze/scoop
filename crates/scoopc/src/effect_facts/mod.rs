@@ -6,6 +6,7 @@
 pub mod builder;
 pub mod dump;
 pub mod facts;
+mod product;
 pub mod schema;
 pub mod solver;
 
@@ -19,6 +20,7 @@ pub use facts::{
     PerformSiteEffectFacts, ResumeSiteEffectFacts, SiteEffectFacts,
 };
 pub(crate) use facts::{BodyEffectSolverFacts, HandleSiteSolverFacts};
+pub use product::EffectFactsProductError;
 pub use schema::{
     CaseSet, CaseTag, ConcreteOpKey, ContinuationSchema, ContinuationSchemaId, EffectFamilyKey,
     ImplPlan, StepCaseFact, StepSchema, StepSchemaId,

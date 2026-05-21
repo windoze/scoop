@@ -391,6 +391,15 @@ fun callInterface(i: IFace): Int {
             ),
             "effect facts stage 应直接以 canonical pass-view owner 键入普通 non-generic callable"
         );
+        let published = output
+            .effect_facts()
+            .to_published_effect_facts(output.materialized_pass_view())
+            .expect("materialized facts 应可适配为独立 scoopc_effect_facts 产品");
+        assert_eq!(
+            published.callables.len(),
+            output.effect_facts().callable_facts().len()
+        );
+        assert!(published.verify().is_ok());
         assert!(output.stable_dump().contains("MaterializedEffectFacts"));
     }
 
@@ -495,6 +504,10 @@ fun callInterface(i: IFace): Int {
         let source = dump_fixture_source();
         let output = run_stage(&session, &source);
         let dump = output.stable_dump();
+        let published = output
+            .effect_facts()
+            .to_published_effect_facts(output.materialized_pass_view())
+            .expect("effect/control schema graph 应可适配为独立 fact 产品");
 
         assert!(dump.contains("snapshot_binding:"));
         assert!(dump.contains("step_schemas:"));
@@ -506,6 +519,8 @@ fun callInterface(i: IFace): Int {
         assert!(dump.contains("kind: Handle"));
         assert!(dump.contains("impl_plan:"));
         assert!(dump.contains("nested_handle_classification:"));
+        assert!(!published.step_schemas.is_empty());
+        assert!(!published.continuation_schemas.is_empty());
     }
 
     #[test]

@@ -138,7 +138,7 @@ P5 需要把这条隐式 opt helper 提升为正式 LIR optimization family：�
   - 阶段间验收门禁：进入 P5 前必须满足 effect facts stage 不修改 MIR、P4 output 不嵌套 P3 output、P5 input 显式区分 MIR handoff 与 effect facts handoff；进入 TODO-6 前必须满足 LIR 是 codegen 的唯一 authoritative IR 输入候选，`lir_facts` 覆盖 P5-owned codegen-neutral contracts，剩余 HIR scaffold / LLVM physical layout / global init 闭合明确留给 P6-P8。
   - 验证命令：文档/计划任务仅需检查 markdown/TODO 一致性；本次执行使用 `git diff --check`。
 
-## [TODO] P4-T01：建立独立 `scoopc_effect_facts` crate 与事实数据模型
+## [DONE] P4-T01：建立独立 `scoopc_effect_facts` crate 与事实数据模型
 
 - 参考：
   - `PLAN.md` §1.2、§1.3、§4/P4
@@ -178,7 +178,11 @@ P5 需要把这条隐式 opt helper 提升为正式 LIR optimization family：�
   - 现有 `scoopc` effect facts builder/solver 仍可通过 adapter 构造同等事实输出。
 - 依赖：TODO-5-INIT
 - 完成记录：
-  - 待填写。
+  - 改动范围：新增 `crates/scoopc_effect_facts/` fact crate，纳入 workspace、`scoopc` 依赖和 `scoop_tools dependency-gate`；新增 `scoopc_ids::BodyBlockId` 与 `StableEffectInstanceKey` 作为 stage-independent effect facts identity；更新 README 和 `scoopc` facade anchor。
+  - 数据模型：独立 crate 现在发布 `EffectFacts = { snapshot_binding, step_schemas, continuation_schemas, callables, bodies }`，覆盖 callable/body/site facts、`StepSchema`、`ContinuationSchema`、dump 和 verifier skeleton，且只依赖 `scoopc_ids` / `scoopc_types` 基础 crate。
+  - Adapter 决策：当前生产 builder/solver 仍构造 MIR-keyed `MaterializedEffectFacts`；本任务新增 `MaterializedEffectFacts::to_published_effect_facts(...)`，把现有输出转换并验证为独立 `scoopc_effect_facts::EffectFacts`，为 P4-T02/T03 的只读 builder 和窄 output 提供落点。
+  - 验证命令：`cargo fmt`；`cargo check -p scoopc_effect_facts`；`cargo test -p scoopc_effect_facts`；`cargo test -p scoopc --no-default-features effect_facts_stage`；`cargo run -p scoop_tools -- dependency-gate`；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
+  - 残余风险：`EffectFactsStageOutput` 仍嵌套 `MirStageOutput`，且 effect facts builder 仍可变借用 MIR snapshot；这些是已排序的 P4-T02/P4-T03 范围，本任务未把该过渡形状描述为长期合法边界。
 
 ## [TODO] P4-T01R：Review `scoopc_effect_facts` crate 与事实模型
 

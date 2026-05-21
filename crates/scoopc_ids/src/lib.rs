@@ -86,6 +86,76 @@ impl fmt::Debug for SiteId {
     }
 }
 
+/// Stable block identity scoped to a single body.
+///
+/// This intentionally lives outside MIR node definitions so fact products can
+/// publish block-level summaries without depending on MIR internals.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct BodyBlockId(u32);
+
+impl BodyBlockId {
+    pub const fn from_raw(raw: u32) -> Self {
+        Self(raw)
+    }
+
+    pub const fn as_u32(self) -> u32 {
+        self.0
+    }
+}
+
+impl fmt::Debug for BodyBlockId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "bb{}", self.0)
+    }
+}
+
+/// Stage-independent stable identity for an effect-facts callable instance.
+///
+/// The current monolithic compiler may still derive this from a MIR
+/// `InstanceKey`, but the fact product only stores canonical text and a readable
+/// path so it remains independent of MIR templates and bodies.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct StableEffectInstanceKey {
+    canonical_text: String,
+    readable_path: String,
+}
+
+impl StableEffectInstanceKey {
+    pub fn new(canonical_text: impl Into<String>, readable_path: impl Into<String>) -> Self {
+        Self {
+            canonical_text: canonical_text.into(),
+            readable_path: readable_path.into(),
+        }
+    }
+
+    pub fn from_symbol_key<K>(key: &K) -> Self
+    where
+        K: StableSymbolKey + ?Sized,
+    {
+        Self::new(key.canonical_text(), key.readable_path())
+    }
+
+    pub fn as_str(&self) -> &str {
+        &self.canonical_text
+    }
+
+    pub fn readable_path(&self) -> &str {
+        &self.readable_path
+    }
+}
+
+impl StableCanonicalKey for StableEffectInstanceKey {
+    fn canonical_text(&self) -> String {
+        self.canonical_text.clone()
+    }
+}
+
+impl StableSymbolKey for StableEffectInstanceKey {
+    fn readable_path(&self) -> &str {
+        &self.readable_path
+    }
+}
+
 /// Reserved stable identity for future body-versioned facts.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct BodyVersionKey {

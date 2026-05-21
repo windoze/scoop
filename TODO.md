@@ -84,7 +84,7 @@
 | P3-T07 | [DONE] | [`TODO-4.md`](./TODO-4.md#done-p3-t07p3-全包清场文档同步与依赖审计) | P3 全包清场、文档同步与依赖审计 |
 | P3-T07R | [DONE] | [`TODO-4.md`](./TODO-4.md#done-p3-t07rreview-p3-全包完成度) | Review P3 全包完成度 |
 | TODO-5-INIT | [DONE] | [`TODO-5.md`](./TODO-5.md#done-todo-5-init初始化并细化本任务包) | 分析 P4-P5 需求，生成 `TODO-5.md` 详细任务列表并更新本索引 |
-| P4-T01 | [TODO] | [`TODO-5.md`](./TODO-5.md#todo-p4-t01建立独立-scoopc_effect_facts-crate-与事实数据模型) | 建立独立 `scoopc_effect_facts` crate 与事实数据模型 |
+| P4-T01 | [DONE] | [`TODO-5.md`](./TODO-5.md#done-p4-t01建立独立-scoopc_effect_facts-crate-与事实数据模型) | 建立独立 `scoopc_effect_facts` crate 与事实数据模型 |
 | P4-T01R | [TODO] | [`TODO-5.md`](./TODO-5.md#todo-p4-t01rreview-scoopc_effect_facts-crate-与事实模型) | Review `scoopc_effect_facts` crate 与事实模型 |
 | P4-T02 | [TODO] | [`TODO-5.md`](./TODO-5.md#todo-p4-t02只读化-effect-facts-builder-与-effect-owned-type-context) | 只读化 effect facts builder 与 effect-owned type context |
 | P4-T02R | [TODO] | [`TODO-5.md`](./TODO-5.md#todo-p4-t02rreview-effect-facts-只读化结果) | Review effect facts 只读化结果 |

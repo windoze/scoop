@@ -35,6 +35,13 @@ pub use scoopc_hir_facts as hir_facts;
 /// facade re-export exists only for the current monolithic compiler crate.
 pub use scoopc_mir_facts as mir_facts;
 
+/// Migration anchor for the independent effect/control fact product.
+///
+/// New stage/fact crates should depend on `scoopc_effect_facts` directly; this
+/// facade re-export exists only while the current effect-facts builder still
+/// lives in the monolithic compiler crate.
+pub use scoopc_effect_facts as effect_facts_product;
+
 pub mod ast;
 pub mod cone;
 pub(crate) mod devirtualize;

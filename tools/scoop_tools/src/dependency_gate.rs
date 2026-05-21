@@ -4,8 +4,9 @@
 //! That catches accidental reverse dependencies from a base crate back to the
 //! `scoopc` facade, stage crates, fact crates, driver/runtime crates, or a later
 //! base crate in the P1 dependency direction. It also checks fact crates,
-//! currently including `scoopc_hir_facts` and `scoopc_mir_facts`, so they only
-//! depend on base crates and never on the facade, stages, or other facts.
+//! currently including `scoopc_hir_facts`, `scoopc_mir_facts`, and
+//! `scoopc_effect_facts`, so they only depend on base crates and never on the
+//! facade, stages, or other facts.
 
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
@@ -21,7 +22,11 @@ const BASE_CRATES: &[&str] = &[
     "scoopc_project_model",
 ];
 
-const FACT_CRATES: &[&str] = &["scoopc_hir_facts", "scoopc_mir_facts"];
+const FACT_CRATES: &[&str] = &[
+    "scoopc_hir_facts",
+    "scoopc_mir_facts",
+    "scoopc_effect_facts",
+];
 
 const FORBIDDEN_WORKSPACE_CRATES: &[&str] = &[
     "scoop",
@@ -358,6 +363,22 @@ mod tests {
                 "scoopc_mir_facts",
                 "scoopc_project_model",
                 "scoopc_source",
+                "scoopc_types",
+                "scoopc_ids",
+                "scoopc_span",
+            ]),
+        );
+
+        assert!(violations.is_empty());
+    }
+
+    #[test]
+    fn allows_effect_fact_crate_to_depend_on_base_crates() {
+        let violations = find_dependency_violations(
+            "scoopc_effect_facts",
+            CrateKind::Fact,
+            &set(&[
+                "scoopc_effect_facts",
                 "scoopc_types",
                 "scoopc_ids",
                 "scoopc_span",
