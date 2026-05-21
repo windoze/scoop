@@ -17,10 +17,11 @@ use inkwell::targets::{FileType, TargetData};
 
 use crate::hir;
 use crate::opt::OptLevel;
-use crate::program_facts::ProgramFacts;
 use crate::session::Session;
 use crate::source::{SourceFile, SourceId, SourceMap};
+use crate::source_site_migration_facts::SourceSiteMigrationFacts;
 use crate::ty::{RefTypeKind, TypeKind, ValueTypeKind};
+use scoopc_hir_facts::HirFacts;
 
 use super::frontend;
 use super::pipeline::run_pass_pipeline;
@@ -29,6 +30,7 @@ use super::{LlvmEmitError, codegen, configure_llvm_global_options_once, target};
 
 struct LoweredCodegenEntry<'a> {
     lowered: &'a hir::LoweredHir,
+    hir_facts: &'a HirFacts,
     materialized_pass_view: Option<crate::mir::MaterializedMirPassView<'a>>,
     late_lowered_program: Option<&'a crate::effect_lowered::LateLoweredProgram>,
     late_lowered_types: Option<&'a crate::ty::TypeStore>,
@@ -41,6 +43,7 @@ struct LoweredCodegenEntry<'a> {
 #[derive(Clone, Copy)]
 pub struct StageEmitInput<'a> {
     hir_compat_scaffold: &'a hir::LoweredHir,
+    hir_facts: &'a HirFacts,
     effect_lowered_stage_output: &'a crate::pipeline::EffectLoweredStageOutput,
     abi_visibility_effect_lowered_stage_output:
         Option<&'a crate::pipeline::EffectLoweredStageOutput>,
@@ -49,6 +52,7 @@ pub struct StageEmitInput<'a> {
 impl<'a> StageEmitInput<'a> {
     pub fn new(
         hir_compat_scaffold: &'a hir::LoweredHir,
+        hir_facts: &'a HirFacts,
         effect_lowered_stage_output: &'a crate::pipeline::EffectLoweredStageOutput,
         abi_visibility_effect_lowered_stage_output: Option<
             &'a crate::pipeline::EffectLoweredStageOutput,
@@ -56,6 +60,7 @@ impl<'a> StageEmitInput<'a> {
     ) -> Self {
         Self {
             hir_compat_scaffold,
+            hir_facts,
             effect_lowered_stage_output,
             abi_visibility_effect_lowered_stage_output,
         }
@@ -95,6 +100,7 @@ pub(crate) fn emit_single_file_llvm_artifact_to_file_with_opt_level(
     let stage_output = build_single_file_stage_output(session, source, opt_level)?;
     let stage_input = StageEmitInput::new(
         stage_output.hir_compat_scaffold(),
+        stage_output.hir_facts(),
         stage_output.effect_lowered_stage_output(),
         stage_output.abi_visibility_effect_lowered_stage_output(),
     );
@@ -129,6 +135,7 @@ pub(crate) fn emit_single_file_llvm_artifact_to_file_with_opt_level(
 impl<'a> LoweredCodegenEntry<'a> {
     fn from_stage_output(
         lowered: &'a hir::LoweredHir,
+        hir_facts: &'a HirFacts,
         effect_lowered_stage_output: &'a crate::pipeline::EffectLoweredStageOutput,
         abi_visibility_effect_lowered_stage_output: Option<
             &'a crate::pipeline::EffectLoweredStageOutput,
@@ -138,6 +145,7 @@ impl<'a> LoweredCodegenEntry<'a> {
             abi_visibility_effect_lowered_stage_output.unwrap_or(effect_lowered_stage_output);
         Self {
             lowered,
+            hir_facts,
             materialized_pass_view: Some(effect_lowered_stage_output.materialized_pass_view()),
             late_lowered_program: Some(effect_lowered_stage_output.program()),
             late_lowered_types: Some(effect_lowered_stage_output.types()),
@@ -198,6 +206,7 @@ pub(crate) fn build_main_module_from_stage_output<'ctx>(
         context,
         LoweredCodegenEntry::from_stage_output(
             stage_input.hir_compat_scaffold,
+            stage_input.hir_facts,
             stage_input.effect_lowered_stage_output,
             stage_input.abi_visibility_effect_lowered_stage_output,
         ),
@@ -404,6 +413,7 @@ pub(crate) fn build_minimal_main_module_with_opt_level<'ctx>(
         context,
         StageEmitInput::new(
             stage_output.hir_compat_scaffold(),
+            stage_output.hir_facts(),
             stage_output.effect_lowered_stage_output(),
             stage_output.abi_visibility_effect_lowered_stage_output(),
         ),
@@ -438,6 +448,7 @@ fn build_module_from_codegen_entry_with_root_selector<'ctx>(
 
     let LoweredCodegenEntry {
         lowered,
+        hir_facts,
         materialized_pass_view,
         late_lowered_program,
         late_lowered_types,
@@ -482,7 +493,8 @@ fn build_module_from_codegen_entry_with_root_selector<'ctx>(
         .chain(lowered.member_funs.iter())
         .map(|fun| (fun.fqn.clone(), fun))
         .collect();
-    let program_facts = Rc::new(ProgramFacts::from_lowered(lowered));
+    let hir_facts = Rc::new(hir_facts.clone());
+    let source_site_facts = Rc::new(SourceSiteMigrationFacts::from_hir_side_tables(lowered));
     let effect_op_tags = Rc::new(RefCell::new(codegen::EffectOpTagState::new()));
 
     // T0810：在确认入口存在后，再声明/生成 `main` 可达的其它顶层函数：
@@ -525,7 +537,8 @@ fn build_module_from_codegen_entry_with_root_selector<'ctx>(
             fun_index: &fun_index,
             materialized_pass_view,
             published_late_lowered_program: abi_program.or(Some(late_lowered_program)),
-            program_facts: Rc::clone(&program_facts),
+            hir_facts: Rc::clone(&hir_facts),
+            source_site_facts: Rc::clone(&source_site_facts),
             effect_op_tags: Rc::clone(&effect_op_tags),
         });
     debug_assert_eq!(

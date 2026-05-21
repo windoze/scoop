@@ -112,7 +112,7 @@ mod tests {
                 None,
             ),
             kind: GlobalRootKind::TopLevelVal,
-            ty,
+            ty: Some(ty),
             storage: None,
             initializer: None,
             monomorphic: true,

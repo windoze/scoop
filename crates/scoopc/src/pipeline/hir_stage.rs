@@ -13,9 +13,22 @@ use crate::intrinsics::{NamedIntrinsicLoweringMode, named_intrinsic_audit_entry}
 use crate::session::Session;
 use crate::source::SourceFile;
 use crate::span::Span;
+use crate::stable_id::CanonicalTextKey;
 use crate::ty::{EffectRow, NominalType, RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind};
 use scoopc_hir_facts::{
-    HirFacts, bridge::TypedContractBridgeFacts, type_context::TypeContextReference,
+    HirFacts,
+    bridge::TypedContractBridgeFacts,
+    common::FactIdentity,
+    declarations::{
+        CallableDeclarationFact, DeclarationFacts, EnumVariantDeclarationFact,
+        FieldDeclarationFact, FieldOwnerKind, NominalDeclarationFact,
+        NominalKind as HirFactNominalKind, TypeParameterFact, Variance as HirFactVariance,
+    },
+    globals::{
+        GlobalRootFact, GlobalRootKind, GlobalStoragePolicy, InitializerFact, InitializerFieldFact,
+    },
+    native::{ExternFunctionFact, ExternGlobalFact, ExternLibraryFact, NativeCallableFact},
+    type_context::{SourceConeFact, StableTypeParamFact, TypeContextReference},
 };
 
 use super::hir_completeness::HirCompletenessVerifier;
@@ -1329,13 +1342,37 @@ fn build_hir_facts(
     typed_contracts: &TypedHirEffectContracts,
     source_path: &Path,
 ) -> Result<HirFacts, HirStageError> {
+    let mut facts = build_hir_declaration_facts_core(lowered_hir);
+    facts.contract_bridge = typed_contracts.to_hir_fact_bridge();
+    verify_built_hir_facts(&facts, source_path)?;
+    Ok(facts)
+}
+
+#[cfg(test)]
+pub(crate) fn build_hir_declaration_facts_for_migration(
+    lowered_hir: &LoweredHir,
+    source_path: &Path,
+) -> Result<HirFacts, HirStageError> {
+    let facts = build_hir_declaration_facts_core(lowered_hir);
+    verify_built_hir_facts(&facts, source_path)?;
+    Ok(facts)
+}
+
+fn build_hir_declaration_facts_core(lowered_hir: &LoweredHir) -> HirFacts {
     let mut facts = HirFacts::new();
     facts.type_context.type_universe = Some(TypeContextReference {
         label: "hir-stage-type-store".to_string(),
         type_count: lowered_hir.types.len(),
         builtins: Some(lowered_hir.builtins),
     });
-    facts.contract_bridge = typed_contracts.to_hir_fact_bridge();
+    populate_type_context_facts(&mut facts, lowered_hir);
+    populate_declaration_facts(&mut facts.declarations, lowered_hir);
+    populate_global_root_facts(&mut facts, lowered_hir);
+    populate_native_extern_facts(&mut facts, lowered_hir);
+    facts
+}
+
+fn verify_built_hir_facts(facts: &HirFacts, source_path: &Path) -> Result<(), HirStageError> {
     facts.verify().map_err(|err| {
         HirStageError::new(
             source_path,
@@ -1343,8 +1380,660 @@ fn build_hir_facts(
             format!("HIR facts verification failed: {err}"),
             "<hir_facts>",
         )
-    })?;
-    Ok(facts)
+    })
+}
+
+fn populate_type_context_facts(facts: &mut HirFacts, lowered_hir: &LoweredHir) {
+    facts.type_context.stable_type_params = lowered_hir
+        .stable_type_param_keys
+        .iter()
+        .map(|(param, key)| StableTypeParamFact {
+            owner: CanonicalTextKey::new(key.owner_def_key()),
+            index: u32::try_from(key.index()).unwrap_or(u32::MAX),
+            key: CanonicalTextKey::new(format!("{}#{}", key.owner_def_key(), key.index())),
+            name: param.name.clone(),
+            source: None,
+        })
+        .collect();
+    facts.type_context.stable_type_params.sort_by(|lhs, rhs| {
+        lhs.owner
+            .as_str()
+            .cmp(rhs.owner.as_str())
+            .then(lhs.index.cmp(&rhs.index))
+            .then(lhs.name.cmp(&rhs.name))
+    });
+
+    facts.type_context.source_cones = lowered_hir
+        .source_cones
+        .iter()
+        .map(|(path, cone)| SourceConeFact {
+            source_id: None,
+            source_path: path.clone(),
+            cone_id: cone.id,
+            stable_key: cone.stable_key.clone(),
+        })
+        .collect();
+    facts.type_context.source_cones.sort_by(|lhs, rhs| {
+        lhs.source_path
+            .cmp(&rhs.source_path)
+            .then(lhs.cone_id.as_u32().cmp(&rhs.cone_id.as_u32()))
+    });
+}
+
+fn populate_declaration_facts(facts: &mut DeclarationFacts, lowered_hir: &LoweredHir) {
+    for decl in &lowered_hir.file.decls {
+        collect_decl_declaration_facts(facts, lowered_hir, decl);
+    }
+    collect_missing_nominal_side_table_facts(facts, lowered_hir);
+    collect_callable_declaration_facts(facts, lowered_hir);
+    collect_layout_field_facts(facts, lowered_hir);
+
+    facts
+        .nominals
+        .sort_by(|lhs, rhs| lhs.identity.display_name.cmp(&rhs.identity.display_name));
+    facts
+        .callables
+        .sort_by(|lhs, rhs| lhs.identity.display_name.cmp(&rhs.identity.display_name));
+    facts.fields.sort_by(|lhs, rhs| {
+        lhs.owner
+            .as_str()
+            .cmp(rhs.owner.as_str())
+            .then(lhs.identity.display_name.cmp(&rhs.identity.display_name))
+    });
+    facts
+        .fields
+        .dedup_by(|lhs, rhs| lhs.identity.key.as_str() == rhs.identity.key.as_str());
+    facts.enum_variants.sort_by(|lhs, rhs| {
+        lhs.enum_owner
+            .as_str()
+            .cmp(rhs.enum_owner.as_str())
+            .then(lhs.tag.cmp(&rhs.tag))
+            .then(lhs.identity.display_name.cmp(&rhs.identity.display_name))
+    });
+    facts
+        .enum_variants
+        .dedup_by(|lhs, rhs| lhs.identity.key.as_str() == rhs.identity.key.as_str());
+}
+
+fn collect_decl_declaration_facts(
+    facts: &mut DeclarationFacts,
+    lowered_hir: &LoweredHir,
+    decl: &Decl,
+) {
+    match decl {
+        Decl::Nominal(nominal) => {
+            let direct_supertypes = lowered_hir
+                .direct_supertypes
+                .get(&nominal.fqn)
+                .cloned()
+                .unwrap_or_else(|| {
+                    direct_supertypes_from_decl(&nominal.supertypes, &nominal.interfaces)
+                });
+            facts.nominals.push(NominalDeclarationFact {
+                identity: fact_identity("nominal", &nominal.fqn, lowered_hir),
+                kind: nominal_kind_from_ast(nominal.kind),
+                type_params: type_parameter_facts(&nominal.type_params),
+                direct_supertypes: direct_supertypes
+                    .into_iter()
+                    .map(CanonicalTextKey::new)
+                    .collect(),
+            });
+            for (member_index, member) in nominal.members.iter().enumerate() {
+                collect_member_declaration_facts(
+                    facts,
+                    lowered_hir,
+                    member,
+                    &nominal.fqn,
+                    field_owner_kind_for_nominal(nominal.kind),
+                    member_index,
+                );
+            }
+        }
+        Decl::Object(object) => {
+            facts.nominals.push(NominalDeclarationFact {
+                identity: fact_identity("object", &object.fqn, lowered_hir),
+                kind: HirFactNominalKind::Object,
+                type_params: Vec::new(),
+                direct_supertypes: direct_supertypes_from_decl(
+                    &object.supertypes,
+                    &object.interfaces,
+                )
+                .into_iter()
+                .map(CanonicalTextKey::new)
+                .collect(),
+            });
+            for (member_index, member) in object.members.iter().enumerate() {
+                collect_member_declaration_facts(
+                    facts,
+                    lowered_hir,
+                    member,
+                    &object.fqn,
+                    Some(FieldOwnerKind::Object),
+                    member_index,
+                );
+            }
+        }
+        Decl::TypeAlias(_) | Decl::ExtensionProperty(_) => {}
+    }
+}
+
+fn collect_member_declaration_facts(
+    facts: &mut DeclarationFacts,
+    lowered_hir: &LoweredHir,
+    member: &crate::hir::DeclMember,
+    owner_fqn: &str,
+    owner_kind: Option<FieldOwnerKind>,
+    member_index: usize,
+) {
+    match member {
+        crate::hir::DeclMember::Field(field) => {
+            if let Some(owner_kind) = owner_kind {
+                facts.fields.push(field_declaration_fact(
+                    lowered_hir,
+                    field_fact_kind(owner_kind),
+                    &field.fqn,
+                    owner_fqn,
+                    owner_kind,
+                    &field.name,
+                    field.ty,
+                ));
+            }
+        }
+        crate::hir::DeclMember::Property(property) => {
+            if property.has_backing_field
+                && let Some(owner_kind) = owner_kind
+            {
+                facts.fields.push(field_declaration_fact(
+                    lowered_hir,
+                    field_fact_kind(owner_kind),
+                    &property.fqn,
+                    owner_fqn,
+                    owner_kind,
+                    &property.name,
+                    property.ty,
+                ));
+            }
+        }
+        crate::hir::DeclMember::EnumVariant(variant) => {
+            facts.enum_variants.push(EnumVariantDeclarationFact {
+                identity: fact_identity("enum_variant", &variant.fqn, lowered_hir),
+                enum_owner: CanonicalTextKey::new(owner_fqn),
+                name: variant.name.clone(),
+                tag: member_index as u64,
+                source: None,
+            });
+            for field in &variant.fields {
+                facts.fields.push(field_declaration_fact(
+                    lowered_hir,
+                    "enum_variant_field",
+                    &field.fqn,
+                    &variant.fqn,
+                    FieldOwnerKind::EnumVariant,
+                    &field.name,
+                    field.ty,
+                ));
+            }
+        }
+        crate::hir::DeclMember::Nested(nested) => {
+            collect_decl_declaration_facts(facts, lowered_hir, nested)
+        }
+        crate::hir::DeclMember::Fun(_) | crate::hir::DeclMember::InitBlock { .. } => {}
+    }
+}
+
+fn collect_missing_nominal_side_table_facts(
+    facts: &mut DeclarationFacts,
+    lowered_hir: &LoweredHir,
+) {
+    let mut existing = facts
+        .nominals
+        .iter()
+        .map(|fact| fact.identity.display_name.clone())
+        .collect::<HashSet<_>>();
+    for (fqn, kind) in &lowered_hir.nominal_kinds {
+        if !existing.insert(fqn.clone()) {
+            continue;
+        }
+        let direct_supertypes = lowered_hir
+            .direct_supertypes
+            .get(fqn)
+            .cloned()
+            .unwrap_or_default()
+            .into_iter()
+            .map(CanonicalTextKey::new)
+            .collect();
+        facts.nominals.push(NominalDeclarationFact {
+            identity: fact_identity("nominal", fqn, lowered_hir),
+            kind: nominal_kind_from_ast(*kind),
+            type_params: Vec::new(),
+            direct_supertypes,
+        });
+    }
+}
+
+fn collect_callable_declaration_facts(facts: &mut DeclarationFacts, lowered_hir: &LoweredHir) {
+    for fun in lowered_hir.file.items.iter().filter_map(|item| match item {
+        Item::Fun(fun) => Some(fun),
+        _ => None,
+    }) {
+        facts
+            .callables
+            .push(callable_declaration_fact(lowered_hir, fun));
+    }
+    for fun in &lowered_hir.member_funs {
+        facts
+            .callables
+            .push(callable_declaration_fact(lowered_hir, fun));
+    }
+}
+
+fn collect_layout_field_facts(facts: &mut DeclarationFacts, lowered_hir: &LoweredHir) {
+    for (layout_key, layout) in &lowered_hir.struct_layouts {
+        for field in &layout.fields {
+            if let Some(ty) = field.ty {
+                facts.fields.push(field_declaration_fact(
+                    lowered_hir,
+                    "struct_field",
+                    &field.fqn,
+                    layout_key,
+                    FieldOwnerKind::Struct,
+                    &field.name,
+                    ty,
+                ));
+            }
+        }
+    }
+
+    for (enum_key, layout) in &lowered_hir.enum_layouts {
+        for variant in &layout.variants {
+            let variant_fqn = format!("{enum_key}.{}", variant.name);
+            facts.enum_variants.push(EnumVariantDeclarationFact {
+                identity: fact_identity("enum_variant", &variant_fqn, lowered_hir),
+                enum_owner: CanonicalTextKey::new(enum_key),
+                name: variant.name.clone(),
+                tag: variant.tag,
+                source: None,
+            });
+            for (index, field) in variant.fields.iter().enumerate() {
+                if let Some(ty) = field.ty {
+                    let field_name = if field.name.is_empty() {
+                        format!("_{index}")
+                    } else {
+                        field.name.clone()
+                    };
+                    let field_fqn = format!("{variant_fqn}.{field_name}");
+                    facts.fields.push(field_declaration_fact(
+                        lowered_hir,
+                        "enum_variant_field",
+                        &field_fqn,
+                        &variant_fqn,
+                        FieldOwnerKind::EnumVariant,
+                        &field_name,
+                        ty,
+                    ));
+                }
+            }
+        }
+    }
+
+    for (class_key, class) in &lowered_hir.class_inits {
+        for field in &class.fields {
+            facts.fields.push(field_declaration_fact(
+                lowered_hir,
+                "class_field",
+                &field.fqn,
+                class_key,
+                FieldOwnerKind::Class,
+                &field.name,
+                field.ty,
+            ));
+        }
+    }
+
+    for (object_key, object) in &lowered_hir.object_inits {
+        for (name, property) in &object.properties {
+            let property_fqn = format!("{object_key}.{name}");
+            facts.fields.push(field_declaration_fact(
+                lowered_hir,
+                "object_property",
+                &property_fqn,
+                object_key,
+                FieldOwnerKind::Object,
+                name,
+                property.ty,
+            ));
+        }
+    }
+}
+
+fn populate_global_root_facts(facts: &mut HirFacts, lowered_hir: &LoweredHir) {
+    for value in lowered_hir.top_level_immutable_values.values() {
+        facts.globals.roots.push(GlobalRootFact {
+            identity: fact_identity("top_level_val", &value.fqn, lowered_hir),
+            kind: GlobalRootKind::TopLevelVal,
+            ty: Some(value.ty),
+            storage: None,
+            initializer: None,
+            monomorphic: true,
+        });
+    }
+
+    for var in lowered_hir.top_level_vars.values() {
+        facts.globals.roots.push(GlobalRootFact {
+            identity: fact_identity("top_level_var", &var.fqn, lowered_hir),
+            kind: GlobalRootKind::TopLevelVar,
+            ty: Some(var.ty),
+            storage: Some(global_storage_policy(var.storage)),
+            initializer: None,
+            monomorphic: true,
+        });
+    }
+
+    for object in lowered_hir.object_inits.values() {
+        facts.globals.roots.push(GlobalRootFact {
+            identity: fact_identity("object_singleton", &object.fqn, lowered_hir),
+            kind: GlobalRootKind::ObjectSingleton,
+            ty: lowered_hir.types.find_nominal_ref_by_fqn(&object.fqn),
+            storage: None,
+            initializer: None,
+            monomorphic: true,
+        });
+        facts
+            .globals
+            .object_initializers
+            .push(initializer_fact_from_object(lowered_hir, object));
+    }
+
+    for class in lowered_hir.class_inits.values() {
+        facts
+            .globals
+            .class_initializers
+            .push(initializer_fact_from_class(lowered_hir, class));
+    }
+
+    facts
+        .globals
+        .roots
+        .sort_by(|lhs, rhs| lhs.identity.display_name.cmp(&rhs.identity.display_name));
+    facts
+        .globals
+        .object_initializers
+        .sort_by(|lhs, rhs| lhs.identity.display_name.cmp(&rhs.identity.display_name));
+    facts
+        .globals
+        .class_initializers
+        .sort_by(|lhs, rhs| lhs.identity.display_name.cmp(&rhs.identity.display_name));
+}
+
+fn populate_native_extern_facts(facts: &mut HirFacts, lowered_hir: &LoweredHir) {
+    for (fqn, extern_fun) in &lowered_hir.extern_funs {
+        let signature = callable_signature_by_fqn(lowered_hir, fqn);
+        facts.native.extern_functions.push(ExternFunctionFact {
+            identity: fact_identity("extern_fun", fqn, lowered_hir),
+            symbol: extern_fun.symbol.clone(),
+            calling_convention: extern_fun
+                .calling_convention
+                .clone()
+                .unwrap_or_else(|| extern_fun.abi.name().to_string()),
+            parameter_tys: signature.parameter_tys,
+            return_ty: signature.return_ty,
+            effects: signature.effects,
+        });
+    }
+
+    for (fqn, native_fun) in &lowered_hir.native_callable_funs {
+        let signature = callable_signature_by_fqn(lowered_hir, fqn);
+        facts.native.native_callables.push(NativeCallableFact {
+            identity: fact_identity("native_callable", fqn, lowered_hir),
+            symbol: native_fun.symbol.clone(),
+            calling_convention: native_fun.calling_convention.clone(),
+            parameter_tys: signature.parameter_tys,
+            return_ty: signature.return_ty,
+            effects: signature.effects,
+        });
+    }
+
+    for extern_global in lowered_hir.extern_globals.values() {
+        facts.native.extern_globals.push(ExternGlobalFact {
+            identity: fact_identity("extern_global", &extern_global.fqn, lowered_hir),
+            symbol: extern_global.symbol.clone(),
+            ty: extern_global.ty,
+            mutable: extern_global.mutable,
+        });
+    }
+
+    facts.native.extern_libraries = lowered_hir
+        .extern_libs
+        .iter()
+        .cloned()
+        .map(|name| ExternLibraryFact { name, source: None })
+        .collect();
+
+    facts
+        .native
+        .extern_functions
+        .sort_by(|lhs, rhs| lhs.identity.display_name.cmp(&rhs.identity.display_name));
+    facts
+        .native
+        .native_callables
+        .sort_by(|lhs, rhs| lhs.identity.display_name.cmp(&rhs.identity.display_name));
+    facts
+        .native
+        .extern_globals
+        .sort_by(|lhs, rhs| lhs.identity.display_name.cmp(&rhs.identity.display_name));
+    facts
+        .native
+        .extern_libraries
+        .sort_by(|lhs, rhs| lhs.name.cmp(&rhs.name));
+}
+
+#[derive(Clone)]
+struct CallableSignature {
+    receiver_ty: Option<TypeId>,
+    parameter_tys: Vec<TypeId>,
+    return_ty: TypeId,
+    effects: EffectRow,
+}
+
+fn callable_declaration_fact(lowered_hir: &LoweredHir, fun: &FunDecl) -> CallableDeclarationFact {
+    let signature = callable_signature_from_fun(lowered_hir, fun);
+    CallableDeclarationFact {
+        identity: fact_identity("callable", &fun.fqn, lowered_hir),
+        receiver_ty: signature.receiver_ty,
+        parameter_tys: signature.parameter_tys,
+        return_ty: signature.return_ty,
+        effects: signature.effects,
+        type_params: Vec::new(),
+        has_body: fun.body.is_some(),
+    }
+}
+
+fn callable_signature_by_fqn(lowered_hir: &LoweredHir, fqn: &str) -> CallableSignature {
+    lowered_hir
+        .file
+        .items
+        .iter()
+        .find_map(|item| match item {
+            Item::Fun(fun) if fun.fqn == fqn => Some(callable_signature_from_fun(lowered_hir, fun)),
+            _ => None,
+        })
+        .or_else(|| {
+            lowered_hir
+                .member_funs
+                .iter()
+                .find(|fun| fun.fqn == fqn)
+                .map(|fun| callable_signature_from_fun(lowered_hir, fun))
+        })
+        .unwrap_or_else(|| CallableSignature {
+            receiver_ty: None,
+            parameter_tys: Vec::new(),
+            return_ty: lowered_hir.builtins.unit,
+            effects: EffectRow::pure(),
+        })
+}
+
+fn callable_signature_from_fun(lowered_hir: &LoweredHir, fun: &FunDecl) -> CallableSignature {
+    if let TypeKind::Ref(RefTypeKind::Function(fun_ty)) = lowered_hir.types.kind(fun.ty) {
+        return CallableSignature {
+            receiver_ty: fun_ty.receiver,
+            parameter_tys: fun_ty.params.clone(),
+            return_ty: fun_ty.return_ty,
+            effects: fun_ty.effects.clone(),
+        };
+    }
+    CallableSignature {
+        receiver_ty: None,
+        parameter_tys: fun.params.iter().map(|param| param.ty).collect(),
+        return_ty: fun.return_ty,
+        effects: EffectRow::pure(),
+    }
+}
+
+fn field_declaration_fact(
+    lowered_hir: &LoweredHir,
+    kind: &str,
+    fqn: &str,
+    owner: &str,
+    owner_kind: FieldOwnerKind,
+    name: &str,
+    ty: TypeId,
+) -> FieldDeclarationFact {
+    FieldDeclarationFact {
+        identity: FactIdentity::new(
+            CanonicalTextKey::new(format!("{kind}:{owner}:{fqn}")),
+            fqn,
+            lowered_hir.stable_cone_key.clone(),
+            None,
+        ),
+        owner: CanonicalTextKey::new(owner),
+        owner_kind,
+        name: name.to_string(),
+        ty,
+        source: None,
+    }
+}
+
+fn initializer_fact_from_object(
+    lowered_hir: &LoweredHir,
+    object: &crate::hir::ObjectInit,
+) -> InitializerFact {
+    let mut fields = object
+        .properties
+        .values()
+        .map(|property| InitializerFieldFact {
+            name: property.name.clone(),
+            ty: property.ty,
+            source: None,
+        })
+        .collect::<Vec<_>>();
+    fields.sort_by(|lhs, rhs| lhs.name.cmp(&rhs.name));
+    InitializerFact {
+        identity: fact_identity("object_initializer", &object.fqn, lowered_hir),
+        initialized_root: CanonicalTextKey::new(&object.fqn),
+        fields,
+    }
+}
+
+fn initializer_fact_from_class(
+    lowered_hir: &LoweredHir,
+    class: &crate::hir::ClassInit,
+) -> InitializerFact {
+    let mut fields = class
+        .fields
+        .iter()
+        .map(|field| InitializerFieldFact {
+            name: field.name.clone(),
+            ty: field.ty,
+            source: None,
+        })
+        .collect::<Vec<_>>();
+    fields.sort_by(|lhs, rhs| lhs.name.cmp(&rhs.name));
+    InitializerFact {
+        identity: fact_identity("class_initializer", &class.fqn, lowered_hir),
+        initialized_root: CanonicalTextKey::new(&class.fqn),
+        fields,
+    }
+}
+
+fn type_parameter_facts(params: &[crate::hir::DeclTypeParam]) -> Vec<TypeParameterFact> {
+    params
+        .iter()
+        .map(|param| TypeParameterFact {
+            key: CanonicalTextKey::new(format!(
+                "type_param:{}:{}..{}",
+                param.name, param.span.start, param.span.end
+            )),
+            name: param.name.clone(),
+            variance: variance_from_ast(param.variance),
+            source: None,
+        })
+        .collect()
+}
+
+fn direct_supertypes_from_decl(
+    supertypes: &[crate::hir::SupertypeDecl],
+    interfaces: &[String],
+) -> Vec<String> {
+    let mut out = supertypes
+        .iter()
+        .filter_map(|supertype| supertype.fqn.clone())
+        .chain(interfaces.iter().cloned())
+        .collect::<Vec<_>>();
+    out.sort();
+    out.dedup();
+    out
+}
+
+fn nominal_kind_from_ast(kind: ast::TypeKind) -> HirFactNominalKind {
+    match kind {
+        ast::TypeKind::Class => HirFactNominalKind::Class,
+        ast::TypeKind::Interface => HirFactNominalKind::Interface,
+        ast::TypeKind::Struct => HirFactNominalKind::Struct,
+        ast::TypeKind::Enum => HirFactNominalKind::Enum,
+        ast::TypeKind::Effect => HirFactNominalKind::Effect,
+    }
+}
+
+fn field_owner_kind_for_nominal(kind: ast::TypeKind) -> Option<FieldOwnerKind> {
+    match kind {
+        ast::TypeKind::Class => Some(FieldOwnerKind::Class),
+        ast::TypeKind::Struct => Some(FieldOwnerKind::Struct),
+        ast::TypeKind::Enum => None,
+        ast::TypeKind::Interface | ast::TypeKind::Effect => None,
+    }
+}
+
+fn field_fact_kind(owner_kind: FieldOwnerKind) -> &'static str {
+    match owner_kind {
+        FieldOwnerKind::Struct => "struct_field",
+        FieldOwnerKind::Class => "class_field",
+        FieldOwnerKind::Object => "object_property",
+        FieldOwnerKind::EnumVariant => "enum_variant_field",
+    }
+}
+
+fn variance_from_ast(variance: Option<ast::TypeParamVariance>) -> HirFactVariance {
+    match variance {
+        Some(ast::TypeParamVariance::In) => HirFactVariance::Contravariant,
+        Some(ast::TypeParamVariance::Out) => HirFactVariance::Covariant,
+        None => HirFactVariance::Invariant,
+    }
+}
+
+fn global_storage_policy(storage: crate::hir::TopLevelVarStorage) -> GlobalStoragePolicy {
+    match storage {
+        crate::hir::TopLevelVarStorage::ThreadLocal => GlobalStoragePolicy::ThreadLocal,
+        crate::hir::TopLevelVarStorage::Global => GlobalStoragePolicy::Global,
+    }
+}
+
+fn fact_identity(kind: &str, fqn: &str, lowered_hir: &LoweredHir) -> FactIdentity {
+    FactIdentity::new(
+        CanonicalTextKey::new(format!("{kind}:{fqn}")),
+        fqn,
+        lowered_hir.stable_cone_key.clone(),
+        None,
+    )
 }
 
 struct ContractCollector<'a> {
@@ -4538,6 +5227,117 @@ fun runtime(): String {
         );
         assert!(output.stable_dump().contains("hir_facts {"));
         assert!(output.stable_dump().contains("typed_contract_bridge {"));
+    }
+
+    #[test]
+    fn hir_facts_publish_declaration_entity_and_source_cone_facts() {
+        let session = session();
+        let source = load_hir_fixture("lowered_decl_graph.scoop");
+
+        let output = run(&session, &source).unwrap();
+        let facts = output.hir_facts();
+
+        assert!(
+            facts
+                .type_context
+                .source_cones
+                .iter()
+                .any(|cone| { cone.source_id.is_none() && cone.source_path == source.path() })
+        );
+        assert!(facts.declarations.nominals.iter().any(|nominal| {
+            nominal.identity.display_name == "fixtures.hir_decls.Person"
+                && nominal.kind == HirFactNominalKind::Class
+                && nominal
+                    .direct_supertypes
+                    .iter()
+                    .any(|supertype| supertype.as_str() == "fixtures.hir_decls.Named")
+        }));
+        assert!(facts.declarations.fields.iter().any(|field| {
+            field.owner_kind == FieldOwnerKind::Struct
+                && field.owner.as_str() == "fixtures.hir_decls.Point"
+                && field.identity.display_name == "fixtures.hir_decls.Point.x"
+                && output.types().display(field.ty).to_string() == "Int"
+        }));
+        assert!(facts.declarations.fields.iter().any(|field| {
+            field.owner_kind == FieldOwnerKind::Class
+                && field.owner.as_str() == "fixtures.hir_decls.Person"
+                && field.identity.display_name == "fixtures.hir_decls.Person.id"
+        }));
+        assert!(facts.declarations.fields.iter().any(|field| {
+            field.owner_kind == FieldOwnerKind::Object
+                && field.identity.display_name == "fixtures.hir_decls.Registry.count"
+        }));
+        assert!(facts.declarations.enum_variants.iter().any(|variant| {
+            variant.enum_owner.as_str() == "fixtures.hir_decls.Choice" && variant.name == "Some"
+        }));
+    }
+
+    #[test]
+    fn hir_facts_publish_global_and_native_extern_facts() {
+        let session = session();
+        let source = load_hir_fixture("lowered_top_level_init.scoop");
+
+        let output = run(&session, &source).unwrap();
+        let facts = output.hir_facts();
+
+        assert!(facts.globals.roots.iter().any(|root| {
+            root.kind == GlobalRootKind::TopLevelVal
+                && root.identity.display_name == "fixtures.hir_init.Base"
+                && root.ty.is_some()
+        }));
+        assert!(facts.globals.roots.iter().any(|root| {
+            root.kind == GlobalRootKind::TopLevelVar
+                && root.identity.display_name == "fixtures.hir_init.Counter"
+                && root.storage == Some(GlobalStoragePolicy::Global)
+        }));
+        assert!(facts.globals.roots.iter().any(|root| {
+            root.kind == GlobalRootKind::ObjectSingleton
+                && root.identity.display_name == "fixtures.hir_init.Holder"
+        }));
+        assert!(facts.native.extern_globals.iter().any(|global| {
+            global.identity.display_name == "fixtures.hir_init.NativeCounter"
+                && global.symbol == "native_counter"
+                && global.mutable
+        }));
+    }
+
+    #[test]
+    fn hir_facts_publish_extern_function_and_native_callable_metadata() {
+        let session = session();
+        let source = SourceFile::new_virtual(
+            "<mem>/hir_native_facts.scoop",
+            r#"
+package fixtures.hir_native
+
+import scoop.core.*
+
+@Extern("native_add")
+fun nativeAdd(a: Int, b: Int): Int
+
+@CallingConvention(name = "scoop_native_identity", convention = "C")
+fun nativeIdentity(a: Int): Int {
+    return a
+}
+
+fun main() / Pure! {}
+"#,
+        );
+
+        let output = run(&session, &source).unwrap();
+        let facts = output.hir_facts();
+
+        assert!(facts.native.extern_functions.iter().any(|fun| {
+            fun.identity.display_name == "fixtures.hir_native.nativeAdd"
+                && fun.symbol == "native_add"
+                && fun.parameter_tys.len() == 2
+                && output.types().display(fun.return_ty).to_string() == "Int"
+        }));
+        assert!(facts.native.native_callables.iter().any(|fun| {
+            fun.identity.display_name == "fixtures.hir_native.nativeIdentity"
+                && fun.symbol == "scoop_native_identity"
+                && fun.calling_convention == "C"
+                && fun.parameter_tys.len() == 1
+        }));
     }
 
     #[test]

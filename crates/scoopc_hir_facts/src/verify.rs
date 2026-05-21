@@ -71,6 +71,14 @@ fn fact_identities(facts: &HirFacts) -> Vec<&FactIdentity> {
             .iter()
             .map(|fact| &fact.identity),
     );
+    identities.extend(facts.declarations.fields.iter().map(|fact| &fact.identity));
+    identities.extend(
+        facts
+            .declarations
+            .enum_variants
+            .iter()
+            .map(|fact| &fact.identity),
+    );
     identities.extend(facts.globals.roots.iter().map(|fact| &fact.identity));
     identities.extend(
         facts

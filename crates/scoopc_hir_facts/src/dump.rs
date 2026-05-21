@@ -11,10 +11,11 @@ pub fn dump_hir_facts(facts: &HirFacts) -> String {
     writeln!(&mut out, "hir_facts {{").expect("writing to String cannot fail");
     writeln!(
         &mut out,
-        "  declarations: nominals={}, callables={}, fields={}, vtables={}, itables={}",
+        "  declarations: nominals={}, callables={}, fields={}, enum_variants={}, vtables={}, itables={}",
         facts.declarations.nominals.len(),
         facts.declarations.callables.len(),
         facts.declarations.fields.len(),
+        facts.declarations.enum_variants.len(),
         facts.declarations.dispatch.vtables.len(),
         facts.declarations.dispatch.interface_tables.len()
     )

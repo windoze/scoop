@@ -13,7 +13,7 @@
 //! - `enum_lowering.rs` / `object_init.rs`：enum constructor/object singleton 相关 lowering；
 //! - `effect/`、`gc.rs`、`runtime_abi.rs` 等继续保持独立主题边界。
 //!
-//! `T5000c` 已将 `ProgramFacts` / `EffectAnalysisCtx` / `ExprFactResolver` 这类 shared facts
+//! `T5000c` 已将 `HirFacts` / `EffectAnalysisCtx` / `ExprFactResolver` 这类 shared facts
 //! 抽离到 backend 外的共享层；这里当前只消费这些 backend-agnostic 输入，并继续朝
 //! “只做 backend lowering”的边界收口。后续 `T5000d+` 将让 early MIR / summary 直接复用
 //! 同一层共享事实，而不是回到 LLVM 现场拼装分析输入。
@@ -58,8 +58,8 @@ use crate::effect::state_machine::CalleeSuspendPlan;
 use crate::expr_facts::ExprFactResolver;
 use crate::hir;
 use crate::llvm::target::HostTargetInfo;
-use crate::program_facts::ProgramFacts;
 use crate::source::{SourceFile, SourceId, SourceMap};
+use crate::source_site_migration_facts::SourceSiteMigrationFacts;
 use crate::stable_id::{
     AbiMangler, CanonicalTextKey, PrivateSymbolMangler, StableCanonicalKey, StableClosureKey,
     StableConeKey, StableDefKey, StableDefNamespace, StableTypeParamKey,
@@ -73,6 +73,7 @@ use crate::ty::{
     BuiltinTypes, NominalType, RefTypeKind, TypeId, TypeKind, TypeParamType, TypeStore,
     ValueTypeKind,
 };
+use scoopc_hir_facts::HirFacts;
 
 use super::LlvmEmitError;
 
@@ -504,8 +505,10 @@ pub(crate) struct CompilationUnitCodegenCx<'a, 'ctx> {
     /// 这里先只承接“某个 callable root 是否需要 effect hidden ABI / resume shell”这类
     /// 声明层判断，避免继续从 HIR 的 effectful 布尔值回推 ABI 形状。
     published_late_lowered_program: Option<&'a crate::effect_lowered::LateLoweredProgram>,
-    /// backend-agnostic 的共享程序事实。
-    program_facts: Rc<ProgramFacts>,
+    /// HIR barrier 发布的 declaration/entity facts。
+    hir_facts: Rc<HirFacts>,
+    /// P2-T05 前保留的 source-site migration bridge。
+    source_site_facts: Rc<SourceSiteMigrationFacts>,
     /// 编译单元级共享 analysis/layout cache。
     shared_caches: SharedCodegenCaches,
     /// Effect op_tag 分配状态（T1608）：整个编译单元共享的 FQN → tag 表。
@@ -821,7 +824,8 @@ pub(super) struct CompilationUnitCodegenInputs<'a, 'ctx> {
     pub(super) materialized_pass_view: Option<crate::mir::MaterializedMirPassView<'a>>,
     pub(super) published_late_lowered_program:
         Option<&'a crate::effect_lowered::LateLoweredProgram>,
-    pub(super) program_facts: Rc<ProgramFacts>,
+    pub(super) hir_facts: Rc<HirFacts>,
+    pub(super) source_site_facts: Rc<SourceSiteMigrationFacts>,
     pub(super) effect_op_tags: Rc<RefCell<EffectOpTagState>>,
 }
 
@@ -874,7 +878,8 @@ impl<'a, 'ctx> CompilationUnitCodegenCx<'a, 'ctx> {
             fun_index,
             materialized_pass_view,
             published_late_lowered_program,
-            program_facts,
+            hir_facts,
+            source_site_facts,
             effect_op_tags,
         } = inputs;
         let known_effect_instances_by_effect_fqn =
@@ -915,7 +920,8 @@ impl<'a, 'ctx> CompilationUnitCodegenCx<'a, 'ctx> {
             fun_index,
             materialized_pass_view,
             published_late_lowered_program,
-            program_facts,
+            hir_facts,
+            source_site_facts,
             shared_caches: SharedCodegenCaches::default(),
             effect_op_tags,
             known_effect_instances_by_effect_fqn,

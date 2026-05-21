@@ -1130,7 +1130,7 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
 
         if let Some(target) = self
             .context
-            .program_facts
+            .source_site_facts
             .ctor_call_targets
             .get(&self.context.call_site(expr.span))
         {
@@ -1181,7 +1181,7 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
         let call_site = self.context.call_site(call_span);
         if !self
             .context
-            .program_facts
+            .source_site_facts
             .continuation_resume_call_sites
             .contains(&call_site)
         {
@@ -1190,7 +1190,7 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
 
         if self
             .context
-            .program_facts
+            .source_site_facts
             .non_pure_continuation_resume_call_sites
             .contains(&call_site)
         {
@@ -1211,16 +1211,12 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
         let hir::ValueRef::TopLevel { fqn, .. } = value_ref else {
             return None;
         };
-        if self.context.program_facts.object_value_fqns.contains(fqn) {
+        let facts = HirFactResolver::new(self.types, self.context.hir_facts.as_ref());
+        if facts.is_object_value_fqn(fqn) {
             Some(SuspendSiteKind::ObjectInitAccess {
                 target: fqn.clone(),
             })
-        } else if self
-            .context
-            .program_facts
-            .top_level_immutable_value_fqns
-            .contains(fqn)
-        {
+        } else if facts.is_top_level_immutable_value_fqn(fqn) {
             Some(SuspendSiteKind::TopLevelValueInitAccess {
                 target: fqn.clone(),
             })
@@ -1236,14 +1232,11 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
         let hir::MemberRef::Value { fqn, .. } = member.resolved.as_ref()? else {
             return None;
         };
-        (self.context.program_facts.object_value_fqns.contains(fqn)
-            || self
-                .context
-                .program_facts
-                .object_property_fqns
-                .contains(fqn))
-        .then(|| SuspendSiteKind::ObjectInitAccess {
-            target: fqn.clone(),
+        let facts = HirFactResolver::new(self.types, self.context.hir_facts.as_ref());
+        (facts.is_object_value_fqn(fqn) || facts.is_object_property_fqn(fqn)).then(|| {
+            SuspendSiteKind::ObjectInitAccess {
+                target: fqn.clone(),
+            }
         })
     }
 

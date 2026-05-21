@@ -12,6 +12,7 @@ pub struct DeclarationFacts {
     pub nominals: Vec<NominalDeclarationFact>,
     pub callables: Vec<CallableDeclarationFact>,
     pub fields: Vec<FieldDeclarationFact>,
+    pub enum_variants: Vec<EnumVariantDeclarationFact>,
     pub dispatch: DispatchFacts,
 }
 
@@ -21,6 +22,7 @@ impl DeclarationFacts {
         self.nominals.is_empty()
             && self.callables.is_empty()
             && self.fields.is_empty()
+            && self.enum_variants.is_empty()
             && self.dispatch.is_empty()
     }
 }
@@ -59,7 +61,7 @@ pub struct NominalDeclarationFact {
     pub identity: FactIdentity,
     pub kind: NominalKind,
     pub type_params: Vec<TypeParameterFact>,
-    pub direct_supertypes: Vec<TypeId>,
+    pub direct_supertypes: Vec<CanonicalTextKey>,
 }
 
 /// Fact describing a body-bearing or declared callable signature.
@@ -74,12 +76,33 @@ pub struct CallableDeclarationFact {
     pub has_body: bool,
 }
 
+/// Source-level family for a field or property owner.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum FieldOwnerKind {
+    Struct,
+    Class,
+    Object,
+    EnumVariant,
+}
+
 /// Fact describing a field or property type owned by a nominal/object declaration.
 #[derive(Debug, Clone)]
 pub struct FieldDeclarationFact {
+    pub identity: FactIdentity,
     pub owner: CanonicalTextKey,
+    pub owner_kind: FieldOwnerKind,
     pub name: String,
     pub ty: TypeId,
+    pub source: Option<SourceMapSpan>,
+}
+
+/// Fact describing one enum variant and its stable tag.
+#[derive(Debug, Clone)]
+pub struct EnumVariantDeclarationFact {
+    pub identity: FactIdentity,
+    pub enum_owner: CanonicalTextKey,
+    pub name: String,
+    pub tag: u64,
     pub source: Option<SourceMapSpan>,
 }
 

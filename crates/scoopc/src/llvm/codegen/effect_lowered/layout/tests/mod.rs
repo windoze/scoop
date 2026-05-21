@@ -35,16 +35,18 @@ use crate::pipeline::{
     MirStageOutput, build_effect_facts_stage_output, build_effect_lowered_stage_output,
     load_hir_stage_output_for_dump,
 };
-use crate::program_facts::ProgramFacts;
 use crate::session::{Session, SessionOptions};
 use crate::source::{SourceFile, SourceMap};
+use crate::source_site_migration_facts::SourceSiteMigrationFacts;
 use crate::ty::{TypeParamType, TypeStore};
 use inkwell::context::Context;
+use scoopc_hir_facts::HirFacts;
 
 struct FixtureAbiInputs {
     source_map: SourceMap,
     entry_source_id: crate::source::SourceId,
     hir_compat_scaffold: crate::hir::LoweredHir,
+    hir_facts: HirFacts,
     effect_lowered_stage_output: crate::pipeline::EffectLoweredStageOutput,
     abi_visibility_program: LateLoweredProgram,
 }
@@ -69,6 +71,7 @@ fn build_fixture_inputs_from_source(source: SourceFile) -> FixtureAbiInputs {
     let session = session();
     let typed_hir_output =
         load_hir_stage_output_for_dump(&session, &source).expect("HIR stage 应成功");
+    let hir_facts = typed_hir_output.hir_facts().clone();
     let hir_compat_scaffold = typed_hir_output.lowered_hir().clone();
     let facts = MirLoweringFacts::from_typed_handoff(
         typed_hir_output.lowered_hir(),
@@ -115,6 +118,7 @@ fn build_fixture_inputs_from_source(source: SourceFile) -> FixtureAbiInputs {
         source_map,
         entry_source_id,
         hir_compat_scaffold,
+        hir_facts,
         effect_lowered_stage_output,
         abi_visibility_program,
     }
@@ -151,7 +155,8 @@ fn with_inputs_query_result(
         .chain(lowered.member_funs.iter())
         .map(|fun| (fun.fqn.clone(), fun))
         .collect();
-    let program_facts = Rc::new(ProgramFacts::from_lowered(lowered));
+    let hir_facts = Rc::new(inputs.hir_facts.clone());
+    let source_site_facts = Rc::new(SourceSiteMigrationFacts::from_hir_side_tables(lowered));
     let effect_op_tags = Rc::new(RefCell::new(EffectOpTagState::new()));
     let unit_codegen = CompilationUnitCodegenCx::new(CompilationUnitCodegenInputs {
         context: &context,
@@ -189,7 +194,8 @@ fn with_inputs_query_result(
         fun_index: &fun_index,
         materialized_pass_view: Some(inputs.effect_lowered_stage_output.materialized_pass_view()),
         published_late_lowered_program: Some(&program),
-        program_facts,
+        hir_facts,
+        source_site_facts,
         effect_op_tags,
     });
     let mut codegen = unit_codegen.fresh_main_codegen();
@@ -231,7 +237,8 @@ fn with_inputs_query_result_for_source_types(
         .chain(lowered.member_funs.iter())
         .map(|fun| (fun.fqn.clone(), fun))
         .collect();
-    let program_facts = Rc::new(ProgramFacts::from_lowered(lowered));
+    let hir_facts = Rc::new(inputs.hir_facts.clone());
+    let source_site_facts = Rc::new(SourceSiteMigrationFacts::from_hir_side_tables(lowered));
     let effect_op_tags = Rc::new(RefCell::new(EffectOpTagState::new()));
     let unit_codegen = CompilationUnitCodegenCx::new(CompilationUnitCodegenInputs {
         context: &context,
@@ -269,7 +276,8 @@ fn with_inputs_query_result_for_source_types(
         fun_index: &fun_index,
         materialized_pass_view: Some(inputs.effect_lowered_stage_output.materialized_pass_view()),
         published_late_lowered_program: Some(&program),
-        program_facts,
+        hir_facts,
+        source_site_facts,
         effect_op_tags,
     });
     let mut codegen = unit_codegen.fresh_main_codegen();
@@ -310,7 +318,8 @@ fn with_inputs_query_result_and_codegen(
         .chain(lowered.member_funs.iter())
         .map(|fun| (fun.fqn.clone(), fun))
         .collect();
-    let program_facts = Rc::new(ProgramFacts::from_lowered(lowered));
+    let hir_facts = Rc::new(inputs.hir_facts.clone());
+    let source_site_facts = Rc::new(SourceSiteMigrationFacts::from_hir_side_tables(lowered));
     let effect_op_tags = Rc::new(RefCell::new(EffectOpTagState::new()));
     let unit_codegen = CompilationUnitCodegenCx::new(CompilationUnitCodegenInputs {
         context: &context,
@@ -348,7 +357,8 @@ fn with_inputs_query_result_and_codegen(
         fun_index: &fun_index,
         materialized_pass_view: Some(inputs.effect_lowered_stage_output.materialized_pass_view()),
         published_late_lowered_program: Some(&program),
-        program_facts,
+        hir_facts,
+        source_site_facts,
         effect_op_tags,
     });
     let mut codegen = unit_codegen.fresh_main_codegen();

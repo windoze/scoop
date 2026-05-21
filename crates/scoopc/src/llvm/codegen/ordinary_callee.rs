@@ -56,7 +56,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             known_local_fun_effects,
             known_local_metadata,
             current_source.path().to_path_buf(),
-            Rc::clone(&self.shared.program_facts),
+            Rc::clone(&self.shared.hir_facts),
+            Rc::clone(&self.shared.source_site_facts),
         )
         .with_continuation_escape_facts(
             ContinuationEscapeFacts::from_pass_view_for_callable(
@@ -111,7 +112,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let known_fun_effects = collect_known_fun_call_suspendability(
             self.types,
             self.fun_index,
-            Rc::clone(&self.shared.program_facts),
+            Rc::clone(&self.shared.hir_facts),
+            Rc::clone(&self.shared.source_site_facts),
             self.materialized_pass_view(),
         );
         *self.shared_caches.known_fun_call_suspend_cache.borrow_mut() = Some(known_fun_effects);

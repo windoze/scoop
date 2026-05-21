@@ -30,7 +30,7 @@ impl<'a> SuspendCallAnalysis<'a> {
     }
 
     pub(crate) fn resolve_expr_concrete_type(&self, expr: &hir::Expr) -> Option<TypeId> {
-        ExprFactResolver::new(self.types, self.context.program_facts.as_ref(), |id| {
+        ExprFactResolver::new(self.types, self.context.hir_facts.as_ref(), |id| {
             self.context
                 .known_local_metadata
                 .get(&id)
@@ -276,12 +276,8 @@ impl<'a> SuspendCallAnalysis<'a> {
             | hir::ExprKind::Closure(_)
             | hir::ExprKind::Todo(_) => false,
             hir::ExprKind::VarRef(hir::ValueRef::TopLevel { fqn, .. }) => {
-                self.context.program_facts.object_value_fqns.contains(fqn)
-                    || self
-                        .context
-                        .program_facts
-                        .top_level_immutable_value_fqns
-                        .contains(fqn)
+                let facts = HirFactResolver::new(self.types, self.context.hir_facts.as_ref());
+                facts.is_object_value_fqn(fqn) || facts.is_top_level_immutable_value_fqn(fqn)
             }
             hir::ExprKind::VarRef(hir::ValueRef::Local { .. }) => false,
             hir::ExprKind::StructLit { fields, .. } => fields
@@ -330,8 +326,10 @@ impl<'a> SuspendCallAnalysis<'a> {
                     || matches!(
                         member.resolved.as_ref(),
                         Some(hir::MemberRef::Value { fqn, .. })
-                            if self.context.program_facts.object_value_fqns.contains(fqn)
-                                || self.context.program_facts.object_property_fqns.contains(fqn)
+                            if {
+                                let facts = HirFactResolver::new(self.types, self.context.hir_facts.as_ref());
+                                facts.is_object_value_fqn(fqn) || facts.is_object_property_fqn(fqn)
+                            }
                     )
             }
             hir::ExprKind::Binary { lhs, rhs, .. } => {
@@ -339,12 +337,12 @@ impl<'a> SuspendCallAnalysis<'a> {
             }
             hir::ExprKind::Call { callee, args } => {
                 self.context
-                    .program_facts
+                    .source_site_facts
                     .continuation_resume_call_sites
                     .contains(&self.call_site(expr.span))
                     || self
                         .context
-                        .program_facts
+                        .source_site_facts
                         .ctor_call_targets
                         .contains_key(&self.call_site(expr.span))
                     || self.function_value_may_suspend_when_called(callee, known_locals)
@@ -373,7 +371,8 @@ impl<'a> SuspendCallAnalysis<'a> {
             known_locals.clone(),
             known_local_metadata,
             self.context.current_source_path().to_path_buf(),
-            Rc::clone(&self.context.program_facts),
+            Rc::clone(&self.context.hir_facts),
+            Rc::clone(&self.context.source_site_facts),
         )
         .with_continuation_escape_facts(self.context.continuation_escape_facts().clone());
 
@@ -450,7 +449,8 @@ impl<'a> SuspendCallAnalysis<'a> {
 pub(crate) fn collect_known_fun_call_suspendability(
     types: &TypeStore,
     fun_index: &HashMap<String, &hir::FunDecl>,
-    program_facts: Rc<ProgramFacts>,
+    hir_facts: Rc<HirFacts>,
+    source_site_facts: Rc<SourceSiteMigrationFacts>,
     materialized_pass_view: Option<&crate::mir::MaterializedMirPassView<'_>>,
 ) -> HashMap<String, bool> {
     let mut pass_summary_effects = HashMap::new();
@@ -506,7 +506,8 @@ pub(crate) fn collect_known_fun_call_suspendability(
                 HashMap::new(),
                 known_local_metadata,
                 fun.source_path.clone(),
-                Rc::clone(&program_facts),
+                Rc::clone(&hir_facts),
+                Rc::clone(&source_site_facts),
             )
             .with_continuation_escape_facts(
                 ContinuationEscapeFacts::from_pass_view_for_callable(
@@ -588,11 +589,19 @@ pub(crate) fn collect_effect_analysis_context_for_fun_with_pass_view(
         .chain(lowered.member_funs.iter().map(|fun| (fun.fqn.clone(), fun)))
         .collect::<HashMap<_, _>>();
 
-    let program_facts = Rc::new(ProgramFacts::from_lowered(lowered));
+    let hir_facts = Rc::new(
+        crate::pipeline::build_hir_declaration_facts_for_migration(
+            lowered,
+            owner_fun.source_path.as_path(),
+        )
+        .expect("HIR declaration facts should build for effect analysis test fixture"),
+    );
+    let source_site_facts = Rc::new(SourceSiteMigrationFacts::from_hir_side_tables(lowered));
     let known_fun_effects = collect_known_fun_call_suspendability(
         &lowered.types,
         &fun_index,
-        Rc::clone(&program_facts),
+        Rc::clone(&hir_facts),
+        Rc::clone(&source_site_facts),
         materialized_pass_view,
     );
 
@@ -608,7 +617,8 @@ pub(crate) fn collect_effect_analysis_context_for_fun_with_pass_view(
         HashMap::new(),
         known_local_metadata.clone(),
         owner_fun.source_path.clone(),
-        Rc::clone(&program_facts),
+        Rc::clone(&hir_facts),
+        Rc::clone(&source_site_facts),
     )
     .with_continuation_escape_facts(continuation_escape_facts.clone());
     let analysis = SuspendCallAnalysis {
@@ -623,7 +633,8 @@ pub(crate) fn collect_effect_analysis_context_for_fun_with_pass_view(
         known_local_fun_effects,
         known_local_metadata,
         owner_fun.source_path.clone(),
-        program_facts,
+        hir_facts,
+        source_site_facts,
     )
     .with_continuation_escape_facts(continuation_escape_facts)
 }

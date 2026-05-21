@@ -146,7 +146,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &self,
         expr: &hir::Expr,
     ) -> Option<crate::ty::TypeId> {
-        ExprFactResolver::new(self.types, self.program_facts.as_ref(), |id| {
+        ExprFactResolver::new(self.types, self.hir_facts.as_ref(), |id| {
             self.function_cx.env.get(id).and_then(|local| local.hir_ty)
         })
         .resolve_expr_concrete_type(expr)

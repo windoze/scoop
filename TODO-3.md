@@ -362,7 +362,7 @@
   - 验证命令：`cargo fmt`；`cargo test -p scoopc --no-default-features hir_stage`；`cargo test -p scoopc --no-default-features mir_stage`；`cargo test --all --all-targets --no-default-features`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`；`cargo run -p scoop -- test --fixtures tests/fixtures/build/emit_llvm_basic.scoop`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/stage_handoff_generic_materialization.scoop`；`cargo clippy --all-targets -- -D warnings`；上述边界搜索。
   - 残余风险：P2-T04/P2-T05 仍需迁移 declaration/entity facts 与 source-site typed contracts；当前 review 未发现与 P2-T03R 相关的阻塞项。
 
-## [TODO] P2-T04：迁移 declaration/entity facts 并收口 `ProgramFacts`
+## [DONE] P2-T04：迁移 declaration/entity facts 并收口 `ProgramFacts`
 
 - 参考：
   - 本文件 `LoweredHir` 和 `ProgramFacts` 字段清单
@@ -405,7 +405,14 @@
   - downstream declaration/entity 查询不再直接依赖 `LoweredHir` side tables 作为事实来源。
 - 依赖：P2-T03R
 - 完成记录：
-  - 待填写。
+  - 改动范围：扩展 `scoopc_hir_facts` declaration/global/native/type-context 模型，HIR stage 现在发布 nominal/direct-supertype、callable、field/object property、enum variant、top-level root/storage、object/class initializer、extern/native、extern library、stable type-param 与 source-cone ownership facts。
+  - `ProgramFacts` 收口：删除 `crates/scoopc/src/program_facts.rs`，新增仅承载 P2-T05 尚未迁移 call-site facts 的 `SourceSiteMigrationFacts` 临时 bridge；`ExprFactResolver`、effect/state-machine analysis 和 LLVM codegen 的 declaration/entity 查询改为消费 `HirFacts`。
+  - 下游查询：`HirFactResolver` 现在从 `HirFacts` 回答 top-level value/object property/function return/struct field/class field/direct-supertype 递归等查询；LLVM stage output 和 emit handoff 显式携带 `HirFacts`，不再现场构造 `ProgramFacts`。
+  - HIR 内部 helper 边界：`LoweredHir` 仍保留 HIR IR 本体、type store、body inventory，以及尚待 P2-T05/P3+ 迁移的 source-site/MIR lowering/codegen compatibility side tables；declaration/entity authoritative query surface 已迁到 `HirFacts`。
+  - 测试与 fixtures：新增 HIR stage 单测覆盖 struct/class/object field facts、direct supertypes、top-level roots/storage、extern global、extern function/native callable metadata 和 source-cone facts；同步更新 `tests/fixtures/hir/*.hir` 中的 `hir_facts` dump 计数。
+  - 验证命令：`cargo fmt`；`cargo test -p scoopc_hir_facts`；`cargo test -p scoopc --no-default-features expr_facts`；`cargo test -p scoopc --no-default-features effect`；`cargo test -p scoopc --no-default-features hir_stage`；`cargo run -p scoop -- test --fixtures tests/fixtures/hir`；`cargo test --all --all-targets --no-default-features`；`cargo clippy --all-targets -- -D warnings`；搜索 `ProgramFacts::from_lowered|program_facts\.|LoweredHir.*struct_layouts|LoweredHir.*object_inits`。
+  - 搜索结论：`ProgramFacts::from_lowered`、`program_facts.` 以及 `LoweredHir.*struct_layouts|LoweredHir.*object_inits` 在 Rust 源码中无命中；剩余 `TODO-3.md` 命中是历史任务描述与本验证项。
+  - 残余风险：`SourceSiteMigrationFacts` 仍从 `LoweredHir` 复制 ctor/resume call-site facts，这是 P2-T05 的明确迁移范围；LLVM codegen 仍持有部分 layout/codegen compatibility side table 用于实际 lowering，不再作为 `ProgramFacts` 式 declaration/entity 查询 owner。
 
 ## [TODO] P2-T04R：Review declaration/entity facts 迁移结果
 

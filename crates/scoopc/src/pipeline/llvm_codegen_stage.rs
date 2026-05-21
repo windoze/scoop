@@ -9,6 +9,7 @@ use crate::session::Session;
 use crate::source::{SourceFile, SourceId, SourceMap};
 use crate::span::Span;
 use crate::ty::{TypeId, TypeKind, TypeStore, ValueTypeKind};
+use scoopc_hir_facts::HirFacts;
 
 use super::{
     EffectLoweredStageOutput, HirStageOutput, LlvmArtifactKind,
@@ -83,31 +84,12 @@ pub struct LlvmCodegenStageOutput {
     entry_main_fqn: Option<String>,
     opt_level: OptLevel,
     hir_compat_scaffold: LoweredHir,
+    hir_facts: HirFacts,
     effect_lowered_stage_output: EffectLoweredStageOutput,
     abi_visibility_effect_lowered_stage_output: Option<EffectLoweredStageOutput>,
 }
 
 impl LlvmCodegenStageOutput {
-    fn new(
-        source_map: SourceMap,
-        entry_source_id: SourceId,
-        entry_main_fqn: Option<String>,
-        opt_level: OptLevel,
-        hir_compat_scaffold: LoweredHir,
-        effect_lowered_stage_output: EffectLoweredStageOutput,
-        abi_visibility_effect_lowered_stage_output: Option<EffectLoweredStageOutput>,
-    ) -> Self {
-        Self {
-            source_map,
-            entry_source_id,
-            entry_main_fqn,
-            opt_level,
-            hir_compat_scaffold,
-            effect_lowered_stage_output,
-            abi_visibility_effect_lowered_stage_output,
-        }
-    }
-
     pub fn source_map(&self) -> &SourceMap {
         &self.source_map
     }
@@ -128,6 +110,10 @@ impl LlvmCodegenStageOutput {
         &self.hir_compat_scaffold
     }
 
+    pub fn hir_facts(&self) -> &HirFacts {
+        &self.hir_facts
+    }
+
     pub fn effect_lowered_stage_output(&self) -> &EffectLoweredStageOutput {
         &self.effect_lowered_stage_output
     }
@@ -144,11 +130,12 @@ fn run_effect_lowered_stage_from_lowered_hir(
     lowered_hir: LoweredHir,
     materialized_mir: crate::mir::MaterializedMir,
     preserve_published_resume_shells: bool,
-) -> Result<EffectLoweredStageOutput, LlvmEmitError> {
+) -> Result<(EffectLoweredStageOutput, HirFacts), LlvmEmitError> {
     precheck_invalid_integer_literals(source_map, entry_source, &lowered_hir)?;
     let source_path = entry_source.path().to_path_buf();
     let typed_hir_output =
         HirStageOutput::new(lowered_hir, &source_path).map_err(crate::hir::HirLowerError::from)?;
+    let hir_facts = typed_hir_output.hir_facts().clone();
     let mir_stage_output = mir_stage::run(typed_hir_output)
         .map_err(|err| stage_error("direct-style MIR", err))?
         .with_materialized_mir(materialized_mir);
@@ -167,7 +154,9 @@ fn run_effect_lowered_stage_from_lowered_hir(
     } else {
         build_effect_lowered_stage_output(session, effect_facts_stage_output)
     };
-    effect_lowered_stage_output.map_err(|err| stage_error("late lowering", err))
+    effect_lowered_stage_output
+        .map(|output| (output, hir_facts))
+        .map_err(|err| stage_error("late lowering", err))
 }
 
 fn source_map_compilation_sources(session: &Session, source_map: &SourceMap) -> Vec<SourceFile> {
@@ -210,7 +199,7 @@ pub(crate) fn run(
             })?;
     let (lowered_hir, materialized_mir) = lowered.into_parts();
     let hir_compat_scaffold = lowered_hir.clone();
-    let effect_lowered_stage_output = run_effect_lowered_stage_from_lowered_hir(
+    let (effect_lowered_stage_output, hir_facts) = run_effect_lowered_stage_from_lowered_hir(
         session,
         &source_map,
         entry_source,
@@ -229,18 +218,20 @@ pub(crate) fn run(
                 materialized_mir,
                 true,
             )
+            .map(|(output, _hir_facts)| output)
         })
         .transpose()?;
 
-    Ok(LlvmCodegenStageOutput::new(
+    Ok(LlvmCodegenStageOutput {
         source_map,
         entry_source_id,
         entry_main_fqn,
         opt_level,
         hir_compat_scaffold,
+        hir_facts,
         effect_lowered_stage_output,
         abi_visibility_effect_lowered_stage_output,
-    ))
+    })
 }
 
 pub(crate) fn emit_artifact_to_file(
@@ -256,6 +247,7 @@ pub(crate) fn emit_artifact_to_file(
             stage_output.entry_source_id(),
             crate::llvm::StageEmitInput::new(
                 stage_output.hir_compat_scaffold(),
+                stage_output.hir_facts(),
                 stage_output.effect_lowered_stage_output(),
                 stage_output.abi_visibility_effect_lowered_stage_output(),
             ),
@@ -268,6 +260,7 @@ pub(crate) fn emit_artifact_to_file(
             stage_output.entry_source_id(),
             crate::llvm::StageEmitInput::new(
                 stage_output.hir_compat_scaffold(),
+                stage_output.hir_facts(),
                 stage_output.effect_lowered_stage_output(),
                 stage_output.abi_visibility_effect_lowered_stage_output(),
             ),
@@ -280,6 +273,7 @@ pub(crate) fn emit_artifact_to_file(
             stage_output.entry_source_id(),
             crate::llvm::StageEmitInput::new(
                 stage_output.hir_compat_scaffold(),
+                stage_output.hir_facts(),
                 stage_output.effect_lowered_stage_output(),
                 stage_output.abi_visibility_effect_lowered_stage_output(),
             ),
@@ -2158,6 +2152,7 @@ fun main() {
             &context,
             crate::llvm::StageEmitInput::new(
                 stage_output.hir_compat_scaffold(),
+                stage_output.hir_facts(),
                 stage_output.effect_lowered_stage_output(),
                 stage_output.abi_visibility_effect_lowered_stage_output(),
             ),

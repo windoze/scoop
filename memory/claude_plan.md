@@ -1,31 +1,28 @@
 # Execution Plan
 
-This file records the actionable plan and progress for the current invocation. It intentionally contains a concise rationale and step-by-step execution plan rather than private chain-of-thought.
+## Scope
 
-## Current Objective
+- Work on exactly the first incomplete task in `TODO.md`.
+- Treat `TODO.md` as the source of truth for ordering, requirements, dependencies, validation, and completion records.
+- Stop after completing and committing that one task, or after committing any required prerequisite/blocker task updates.
 
-Complete exactly the first incomplete task in `TODO.md`, then stop after validation, documentation updates, and a git commit.
+## Steps
 
-## Initial Plan
-
-1. Read `TODO.md` first and identify the first task whose heading is not prefixed with `[DONE]`.
-2. Check the latest commit message only for unfinished work directly relevant to that selected task.
-3. Read the selected task details, dependencies, and validation requirements.
-4. Inspect only the code, fixtures, tests, and documentation needed for that task.
-5. Implement the task as written, without narrowing scope or using workaround fixtures.
-6. Run targeted validation first, then broader required validation from the task.
-7. Fix any regressions or blocking issues that directly affect the current task.
-8. Update `TODO.md` by prefixing the completed task title with `[DONE]` and filling its completion record.
-9. Update `PLAN.md` only if the phase-level plan changed.
-10. Run final verification relevant to the task.
-11. Inspect git status and diff, then commit all changes required for this invocation with a descriptive task-tagged message.
-12. Stop without starting the next task.
+1. Read `TODO.md` and identify the first task whose title is not prefixed with `[DONE]`.
+2. Review only the task-relevant context, including recent commit information if it directly mentions unfinished work relevant to that task.
+3. Implement the task as written, without narrowing scope or using workaround representations.
+4. Run targeted tests first, then any validation commands required by the task.
+5. Fix any directly relevant failures introduced by or blocking the current task.
+6. Update `TODO.md` by prefixing the completed task title with `[DONE]` and filling in the completion record.
+7. Commit all files relevant to this task with a clear task-tagged message.
+8. Stop without starting the next task.
 
 ## Progress Log
 
-- Planned initial workflow before reading repository state.
-- Identified first incomplete task as `P2-T03R` in `TODO-3.md`; latest commit is `[P2-T03] Remove HIR materialized MIR handoff`, directly relevant to this review.
-- Review scope is limited to validating and, if needed, fixing the HIR/MIR one-way boundary introduced by P2-T03.
-- Completed boundary review: no production code blocker found; `LoweredHir`/`HirStageOutput` no longer expose materialized MIR/pass view and production codegen attaches canonical MIR through `MirStageOutput`.
-- Ran required validation successfully, including targeted HIR/MIR tests, all no-default tests, run-pass fixtures, one build fixture, one explicit run-pass fixture, clippy, and boundary searches.
-- Updated `TODO.md` and `TODO-3.md` to mark `P2-T03R` as complete with review conclusions and validation record.
+- Plan initialized before reading project task details.
+- `TODO.md` identifies `P2-T04` as the first incomplete task: migrate declaration/entity facts into `HirFacts` and reduce/remove overlapping `ProgramFacts` query surfaces.
+- Next steps: inspect task-relevant fact models and consumers, then make targeted code changes and run the validations listed for `P2-T04`.
+- Expanded the `scoopc_hir_facts` declaration/type-context model so HIR facts can represent field identities, enum variants, source-cone ownership without fake source ids, and duplicate checks for the new declaration facts.
+- Wired HIR stage fact construction for declarations, fields, enum variants, globals, native/extern metadata, source cones, and type parameter ownership; removed the old overlapping `ProgramFacts` module in favor of a source-site-only migration bridge for P2-T05.
+- Updated HIR declaration/entity consumers to read `HirFacts`, regenerated HIR golden snapshots for the new facts dump, and completed required test/clippy validation successfully.
+- Marked `P2-T04` as `[DONE]` in `TODO.md` and `TODO-3.md` with completion notes and validation results. Next step is to inspect the final diff and commit only this task's changes.

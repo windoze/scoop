@@ -9,9 +9,10 @@ use std::rc::Rc;
 
 use crate::hir;
 use crate::mir;
-use crate::program_facts::ProgramFacts;
+use crate::source_site_migration_facts::SourceSiteMigrationFacts;
 use crate::span::Span;
 use crate::ty::TypeId;
+use scoopc_hir_facts::HirFacts;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct KnownLocalMetadata {
@@ -134,7 +135,8 @@ pub(crate) struct EffectAnalysisCtx {
     pub(crate) known_local_metadata: HashMap<hir::SymbolId, KnownLocalMetadata>,
     next_synthetic_symbol_raw: Cell<u32>,
     current_source_path: PathBuf,
-    pub(crate) program_facts: Rc<ProgramFacts>,
+    pub(crate) hir_facts: Rc<HirFacts>,
+    pub(crate) source_site_facts: Rc<SourceSiteMigrationFacts>,
     continuation_escape_facts: ContinuationEscapeFacts,
 }
 
@@ -144,7 +146,8 @@ impl EffectAnalysisCtx {
         known_local_fun_effects: HashMap<hir::SymbolId, bool>,
         known_local_metadata: HashMap<hir::SymbolId, KnownLocalMetadata>,
         current_source_path: PathBuf,
-        program_facts: Rc<ProgramFacts>,
+        hir_facts: Rc<HirFacts>,
+        source_site_facts: Rc<SourceSiteMigrationFacts>,
     ) -> Self {
         let next_synthetic_symbol_raw = known_local_metadata
             .keys()
@@ -159,7 +162,8 @@ impl EffectAnalysisCtx {
             known_local_metadata,
             next_synthetic_symbol_raw: Cell::new(next_synthetic_symbol_raw),
             current_source_path,
-            program_facts,
+            hir_facts,
+            source_site_facts,
             continuation_escape_facts: ContinuationEscapeFacts::default(),
         }
     }

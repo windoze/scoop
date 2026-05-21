@@ -2244,7 +2244,7 @@ pub(crate) fn resolve_plan_expr_concrete_type(
     expr: &hir::Expr,
     known_local_metadata: &HashMap<hir::SymbolId, KnownLocalMetadata>,
 ) -> Option<TypeId> {
-    ExprFactResolver::new(types, context.program_facts.as_ref(), |id| {
+    ExprFactResolver::new(types, context.hir_facts.as_ref(), |id| {
         known_local_metadata.get(&id).map(|metadata| metadata.ty)
     })
     .resolve_expr_concrete_type(expr)

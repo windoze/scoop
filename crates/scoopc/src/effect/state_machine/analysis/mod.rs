@@ -17,11 +17,12 @@ use crate::effect::analysis::{
     collect_known_local_metadata_in_fun, collect_known_local_metadata_in_handle,
     collect_known_local_metadata_in_handle_arm,
 };
-use crate::expr_facts::ExprFactResolver;
+use crate::expr_facts::{ExprFactResolver, HirFactResolver};
 use crate::hir;
-use crate::program_facts::ProgramFacts;
+use crate::source_site_migration_facts::SourceSiteMigrationFacts;
 use crate::span::Span;
 use crate::ty::{EffectRow, RefTypeKind, TypeId, TypeKind, TypeStore};
+use scoopc_hir_facts::HirFacts;
 
 mod arm_scope;
 mod builder;

@@ -1,5 +1,7 @@
 //! References to the HIR type universe and source-cone ownership context.
 
+use std::path::PathBuf;
+
 use scoopc_ids::CanonicalTextKey;
 use scoopc_project_model::{ConeId, StableConeKey};
 use scoopc_source::{SourceId, SourceMapSpan};
@@ -43,7 +45,8 @@ pub struct StableTypeParamFact {
 /// Source file ownership by cone after source-cone graph resolution.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SourceConeFact {
-    pub source_id: SourceId,
+    pub source_id: Option<SourceId>,
+    pub source_path: PathBuf,
     pub cone_id: ConeId,
     pub stable_key: StableConeKey,
 }

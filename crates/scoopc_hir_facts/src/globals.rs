@@ -43,7 +43,7 @@ pub enum GlobalStoragePolicy {
 pub struct GlobalRootFact {
     pub identity: FactIdentity,
     pub kind: GlobalRootKind,
-    pub ty: TypeId,
+    pub ty: Option<TypeId>,
     pub storage: Option<GlobalStoragePolicy>,
     pub initializer: Option<SourceMapSpan>,
     pub monomorphic: bool,

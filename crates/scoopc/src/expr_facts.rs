@@ -1,12 +1,14 @@
 //! Shared concrete-type / field-type expression fact resolution.
 //!
-//! 这里把“如何基于 `ProgramFacts` + `TypeStore` 从 HIR 表达式恢复 concrete type”
+//! 这里把“如何基于 `HirFacts` + `TypeStore` 从 HIR 表达式恢复 concrete type”
 //! 收口成 backend-agnostic 的公共 helper，避免 LLVM generic lowering 与
 //! effect/state-machine shared analysis 各自维护一套平行实现。
 
 use crate::hir;
-use crate::program_facts::ProgramFacts;
 use crate::ty::{RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind};
+use scoopc_hir_facts::HirFacts;
+use scoopc_hir_facts::declarations::FieldOwnerKind;
+use scoopc_hir_facts::globals::GlobalRootKind;
 
 /// 返回一个 HIR type 是否已经足够精确，可直接作为 concrete type 使用。
 pub(crate) fn hir_ty_is_precise(types: &TypeStore, ty: TypeId) -> bool {
@@ -16,15 +18,153 @@ pub(crate) fn hir_ty_is_precise(types: &TypeStore, ty: TypeId) -> bool {
     )
 }
 
-/// 基于 shared `ProgramFacts` 恢复表达式 concrete type 的轻量 resolver。
+/// 基于 HIR declaration facts 恢复表达式 concrete type 的轻量 resolver。
 ///
 /// `local_ty_lookup` 只负责回答“当前作用域中某个 local 的已知 concrete type 是什么”，
 /// 其余 top-level value / object property / struct/class field / function return 等共享事实
-/// 全部来自 `ProgramFacts`。
+/// 全部来自 `HirFacts`。
 pub(crate) struct ExprFactResolver<'a, LocalTyLookup> {
     types: &'a TypeStore,
-    program_facts: &'a ProgramFacts,
+    hir_facts: &'a HirFacts,
     local_ty_lookup: LocalTyLookup,
+}
+
+/// Query helper for declaration/entity facts published by the HIR barrier.
+pub(crate) struct HirFactResolver<'a> {
+    types: &'a TypeStore,
+    hir_facts: &'a HirFacts,
+}
+
+impl<'a> HirFactResolver<'a> {
+    pub(crate) fn new(types: &'a TypeStore, hir_facts: &'a HirFacts) -> Self {
+        Self { types, hir_facts }
+    }
+
+    pub(crate) fn top_level_value_ty(&self, fqn: &str) -> Option<TypeId> {
+        self.hir_facts
+            .globals
+            .roots
+            .iter()
+            .find(|root| {
+                matches!(
+                    root.kind,
+                    GlobalRootKind::TopLevelVal | GlobalRootKind::TopLevelVar
+                ) && root.identity.display_name == fqn
+            })
+            .and_then(|root| root.ty)
+    }
+
+    pub(crate) fn object_property_ty(&self, fqn: &str) -> Option<TypeId> {
+        self.hir_facts
+            .declarations
+            .fields
+            .iter()
+            .find(|field| {
+                field.owner_kind == FieldOwnerKind::Object && field.identity.display_name == fqn
+            })
+            .map(|field| field.ty)
+    }
+
+    pub(crate) fn fun_return_ty(&self, fqn: &str) -> Option<TypeId> {
+        self.hir_facts
+            .declarations
+            .callables
+            .iter()
+            .find(|callable| callable.identity.display_name == fqn)
+            .map(|callable| callable.return_ty)
+    }
+
+    pub(crate) fn resolve_nominal_field_ty(
+        &self,
+        receiver_ty: TypeId,
+        field_fqn: &str,
+    ) -> Option<TypeId> {
+        self.resolve_struct_field_ty(receiver_ty, field_fqn)
+            .or_else(|| self.resolve_class_field_ty(receiver_ty, field_fqn))
+    }
+
+    pub(crate) fn is_object_value_fqn(&self, fqn: &str) -> bool {
+        self.hir_facts.globals.roots.iter().any(|root| {
+            root.kind == GlobalRootKind::ObjectSingleton && root.identity.display_name == fqn
+        })
+    }
+
+    pub(crate) fn is_object_property_fqn(&self, fqn: &str) -> bool {
+        self.hir_facts.declarations.fields.iter().any(|field| {
+            field.owner_kind == FieldOwnerKind::Object && field.identity.display_name == fqn
+        })
+    }
+
+    pub(crate) fn is_top_level_immutable_value_fqn(&self, fqn: &str) -> bool {
+        self.hir_facts.globals.roots.iter().any(|root| {
+            root.kind == GlobalRootKind::TopLevelVal && root.identity.display_name == fqn
+        })
+    }
+
+    fn resolve_struct_field_ty(&self, receiver_ty: TypeId, field_fqn: &str) -> Option<TypeId> {
+        let TypeKind::Value(ValueTypeKind::Nominal(nominal)) = self.types.kind(receiver_ty) else {
+            return None;
+        };
+        let layout_key = hir::mangle_nominal_fqn(&nominal.fqn, &nominal.args, self.types);
+        self.lookup_field_ty_by_owner(FieldOwnerKind::Struct, &layout_key, field_fqn)
+            .or_else(|| {
+                (layout_key != nominal.fqn)
+                    .then(|| {
+                        self.lookup_field_ty_by_owner(
+                            FieldOwnerKind::Struct,
+                            &nominal.fqn,
+                            field_fqn,
+                        )
+                    })
+                    .flatten()
+            })
+    }
+
+    fn resolve_class_field_ty(&self, receiver_ty: TypeId, field_fqn: &str) -> Option<TypeId> {
+        let TypeKind::Ref(RefTypeKind::Nominal(nominal)) = self.types.kind(receiver_ty) else {
+            return None;
+        };
+        let layout_key = hir::mangle_nominal_fqn(&nominal.fqn, &nominal.args, self.types);
+        self.lookup_class_field_ty_by_key(&layout_key, field_fqn)
+            .or_else(|| {
+                (layout_key != nominal.fqn)
+                    .then(|| self.lookup_class_field_ty_by_key(&nominal.fqn, field_fqn))
+                    .flatten()
+            })
+    }
+
+    fn lookup_class_field_ty_by_key(&self, class_key: &str, field_fqn: &str) -> Option<TypeId> {
+        self.lookup_field_ty_by_owner(FieldOwnerKind::Class, class_key, field_fqn)
+            .or_else(|| {
+                self.hir_facts
+                    .declarations
+                    .nominals
+                    .iter()
+                    .find(|nominal| nominal.identity.display_name == class_key)
+                    .and_then(|nominal| nominal.direct_supertypes.first())
+                    .and_then(|super_key| {
+                        self.lookup_class_field_ty_by_key(super_key.as_str(), field_fqn)
+                    })
+            })
+    }
+
+    fn lookup_field_ty_by_owner(
+        &self,
+        owner_kind: FieldOwnerKind,
+        owner_key: &str,
+        field_fqn: &str,
+    ) -> Option<TypeId> {
+        self.hir_facts
+            .declarations
+            .fields
+            .iter()
+            .find(|field| {
+                field.owner_kind == owner_kind
+                    && field.owner.as_str() == owner_key
+                    && field.identity.display_name == field_fqn
+            })
+            .map(|field| field.ty)
+    }
 }
 
 impl<'a, LocalTyLookup> ExprFactResolver<'a, LocalTyLookup>
@@ -33,12 +173,12 @@ where
 {
     pub(crate) fn new(
         types: &'a TypeStore,
-        program_facts: &'a ProgramFacts,
+        hir_facts: &'a HirFacts,
         local_ty_lookup: LocalTyLookup,
     ) -> Self {
         Self {
             types,
-            program_facts,
+            hir_facts,
             local_ty_lookup,
         }
     }
@@ -52,7 +192,7 @@ where
         match &expr.kind {
             hir::ExprKind::VarRef(hir::ValueRef::Local { id, .. }) => (self.local_ty_lookup)(*id),
             hir::ExprKind::VarRef(hir::ValueRef::TopLevel { fqn, .. }) => {
-                self.program_facts.top_level_value_ty(fqn)
+                self.query().top_level_value_ty(fqn)
             }
             hir::ExprKind::MemberAccess { receiver, member } => {
                 self.resolve_member_access_concrete_type(receiver, member)
@@ -104,18 +244,18 @@ where
             _ => return None,
         };
 
-        if let Some(ty) = self.program_facts.top_level_value_ty(field_fqn) {
+        if let Some(ty) = self.query().top_level_value_ty(field_fqn) {
             return Some(ty);
         }
-        if let Some(ty) = self.program_facts.object_property_ty(field_fqn) {
+        if let Some(ty) = self.query().object_property_ty(field_fqn) {
             return Some(ty);
         }
 
         let receiver_ty = self
             .resolve_expr_concrete_type(receiver)
             .unwrap_or(receiver.ty);
-        self.program_facts
-            .resolve_nominal_field_ty(self.types, receiver_ty, field_fqn)
+        self.query()
+            .resolve_nominal_field_ty(receiver_ty, field_fqn)
     }
 
     fn resolve_call_result_type(&self, callee: &hir::Expr) -> Option<TypeId> {
@@ -138,7 +278,7 @@ where
             _ => None,
         }?;
 
-        if let Some(return_ty) = self.program_facts.fun_return_ty(fqn)
+        if let Some(return_ty) = self.query().fun_return_ty(fqn)
             && hir_ty_is_precise(self.types, return_ty)
         {
             return Some(return_ty);
@@ -155,5 +295,9 @@ where
                     if nominal.fqn == fqn && nominal.args.is_empty()
             )
         })
+    }
+
+    fn query(&self) -> HirFactResolver<'_> {
+        HirFactResolver::new(self.types, self.hir_facts)
     }
 }

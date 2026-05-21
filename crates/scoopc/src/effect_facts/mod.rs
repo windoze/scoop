@@ -1,7 +1,7 @@
 //! effect-facts 子系统。
 //!
 //! P4 起，authoritative effect contract 必须集中在这套 side table 中，而不是继续散落在
-//! legacy `effect/analysis`、`ProgramFacts` 或 `mir::summary::InstanceSummary` 里。
+//! legacy `effect/analysis`、HIR source-site migration bridge 或 `mir::summary::InstanceSummary` 里。
 
 pub mod builder;
 pub mod dump;
