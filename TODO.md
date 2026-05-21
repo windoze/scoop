@@ -92,7 +92,7 @@
 | P4-T03R | [DONE] | [`TODO-5.md`](./TODO-5.md#done-p4-t03rreview-effectfactsstageoutput-收口结果) | Review `EffectFactsStageOutput` 收口结果 |
 | P4-T04 | [DONE] | [`TODO-5.md`](./TODO-5.md#done-p4-t04p4-全包清场文档同步与依赖审计) | P4 全包清场、文档同步与依赖审计 |
 | P4-T04R | [DONE] | [`TODO-5.md`](./TODO-5.md#done-p4-t04rreview-p4-全包完成度) | Review P4 全包完成度 |
-| P5-T01 | [TODO] | [`TODO-5.md`](./TODO-5.md#todo-p5-t01建立-scoopc_lir_facts-crate-与正式-lirstageoutput-壳层) | 建立 `scoopc_lir_facts` crate 与正式 `LirStageOutput` 壳层 |
+| P5-T01 | [DONE] | [`TODO-5.md`](./TODO-5.md#done-p5-t01建立-scoopc_lir_facts-crate-与正式-lirstageoutput-壳层) | 建立 `scoopc_lir_facts` crate 与正式 `LirStageOutput` 壳层 |
 | P5-T01R | [TODO] | [`TODO-5.md`](./TODO-5.md#todo-p5-t01rreview-lir_facts-crate-与-lir-output-壳层) | Review `lir_facts` crate 与 LIR output 壳层 |
 | P5-T02 | [TODO] | [`TODO-5.md`](./TODO-5.md#todo-p5-t02发布-lir-callabledynamic-invokedispatch-与-resume-contracts) | 发布 LIR callable、dynamic invoke、dispatch 与 resume contracts |
 | P5-T02R | [TODO] | [`TODO-5.md`](./TODO-5.md#todo-p5-t02rreview-lir-contract-与-facts-完整度) | Review LIR contract 与 facts 完整度 |

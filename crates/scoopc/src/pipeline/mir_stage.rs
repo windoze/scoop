@@ -261,6 +261,10 @@ impl MirStageOutput {
     pub fn into_direct_style(self) -> DirectStyleMirStageOutput {
         self.direct_style
     }
+
+    pub(crate) fn into_parts(self) -> (DirectStyleMirStageOutput, MaterializedMir) {
+        (self.direct_style, self.materialized_mir)
+    }
 }
 
 fn build_direct_style_mir_facts(file: &MirFile, stable_cone_key: &StableConeKey) -> MirFacts {

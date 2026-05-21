@@ -684,6 +684,7 @@ dependencies = [
  "scoopc_effect_facts",
  "scoopc_hir_facts",
  "scoopc_ids",
+ "scoopc_lir_facts",
  "scoopc_mir_facts",
  "scoopc_project_model",
  "scoopc_source",
@@ -723,6 +724,14 @@ version = "0.1.0"
 dependencies = [
  "scoopc_span",
  "sha2",
+]
+
+[[package]]
+name = "scoopc_lir_facts"
+version = "0.1.0"
+dependencies = [
+ "scoopc_ids",
+ "scoopc_project_model",
 ]
 
 [[package]]

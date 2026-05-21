@@ -10,7 +10,7 @@ use crate::span::Span;
 use crate::stable_id::StableInstanceKey;
 use crate::ty::{EffectRow, TypeId};
 
-/// P5 late-lowering 阶段的顶层中间表示。
+/// P5 LIR 阶段的顶层中间表示。
 ///
 /// 该容器显式区分两层 contract：
 /// - authoritative per-op/per-schema contract：`Step_F` shell、continuation object surface/internal
@@ -18,7 +18,8 @@ use crate::ty::{EffectRow, TypeId};
 /// - optional packing layer：按 effect family 分组的 compiler-owned `LateLoweredResumeInterface`
 ///   helper，仅用于 object layout / query / completeness 校验，不再是 reverse-resume 语义主键。
 ///
-/// 后续 T03-T06 只能继续在这些类型里补算法和内容，而不能再另起一套临时 IR。
+/// `LirStageOutput::lir()` 正式发布这份结构作为当前 LIR 本体。后续任务只能继续在这些类型里
+/// 补算法和内容，而不能再另起一套临时 IR。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LateLoweredProgram {
     step_types: Vec<LateLoweredStepType>,

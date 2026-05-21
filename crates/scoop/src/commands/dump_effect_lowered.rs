@@ -1,7 +1,7 @@
 //! `scoop dump-effect-lowered` 子命令。
 //!
-//! 该命令是 P5 late-lowering stage 的用户可见 dump 入口：
-//! - 唯一主线路径直接进入 late-lowering stage，并输出稳定的 post-opt late-lowered 文本；
+//! 该命令是 P5 LIR stage 的用户可见 dump 入口：
+//! - 唯一主线路径直接进入 LIR stage，并输出稳定的 post-opt LIR 文本；
 //! - fixture runner 复用这里的同一 helper，避免 CLI 与 golden 各自拼接不同文本。
 
 use std::path::PathBuf;
@@ -14,7 +14,7 @@ pub(crate) fn render_effect_lowered_output(
     session: &Session,
     source: &SourceFile,
 ) -> Result<String> {
-    let output = scoopc::pipeline::load_effect_lowered_stage_output_for_dump(session, source)
+    let output = scoopc::pipeline::load_lir_stage_output_for_dump(session, source)
         .map_err(|err| miette::miette!(err.to_string()))?;
     Ok(output.stable_dump())
 }
@@ -85,9 +85,10 @@ fun handled(): Int {
 
         let rendered = super::render_effect_lowered_output(&session, &source).unwrap();
 
-        assert!(rendered.contains("EffectLoweredStageOutput"));
+        assert!(rendered.contains("LirStageOutput"));
         assert!(rendered.contains("opt_level: O2"));
-        assert!(rendered.contains("post_opt_program:"));
+        assert!(rendered.contains("lir_facts:"));
+        assert!(rendered.contains("post_opt_lir:"));
         assert!(rendered.contains("LateLoweredProgram"));
         assert!(rendered.contains("step_types:"));
         assert!(rendered.contains("continuation_objects:"));

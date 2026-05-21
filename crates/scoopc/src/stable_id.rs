@@ -18,9 +18,9 @@ use scoopc_types::{
 
 pub use scoopc_ids::{
     AbiMangler, AbiSymbolKind, BodyVersionKey, CanonicalTextKey, PrivateSymbolMangler, SiteId,
-    StableCallSiteKey, StableCanonicalKey, StableHashScope, StableSymbolKey, canonical_list,
-    canonical_record, stable_digest, stable_dump_label, stable_hash64, stable_hash128_hex,
-    stable_local_label, stable_rtti_type_id,
+    StableCallSiteKey, StableCanonicalKey, StableHashScope, StableLirCallableKey, StableSymbolKey,
+    canonical_list, canonical_record, stable_digest, stable_dump_label, stable_hash64,
+    stable_hash128_hex, stable_local_label, stable_rtti_type_id,
 };
 pub use scoopc_project_model::StableConeKey;
 

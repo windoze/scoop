@@ -20,7 +20,9 @@ use crate::source::SourceFile;
 
 pub use ast_stage::{AstCompilationUnitOutput, AstStageOutput};
 pub use effect_facts_stage::EffectFactsStageOutput;
-pub use effect_lowering_stage::{EffectLoweredStageOutput, EffectLoweringStageInput};
+pub use effect_lowering_stage::{
+    EffectLoweredStageOutput, EffectLoweringStageInput, LirStageOutput,
+};
 pub use hir_stage::HirStageOutput;
 pub(crate) use hir_stage::build_hir_declaration_facts_from_lowered_hir;
 pub(crate) use hir_stage::build_hir_facts_from_lowered_hir;
@@ -139,17 +141,17 @@ pub fn load_effect_facts_stage_output_for_dump(
     build_effect_facts_stage_output(session, source, &mir_stage_output)
 }
 
-pub fn build_effect_lowered_stage_output(
+pub fn build_lir_stage_output(
     session: &Session,
     input: EffectLoweringStageInput,
-) -> Result<EffectLoweredStageOutput, crate::effect_lowered::EffectLoweringError> {
-    // P5 -> P6 canonical handoff contract：
+) -> Result<LirStageOutput, crate::effect_lowered::EffectLoweringError> {
+    // P5 -> P6 canonical LIR handoff contract：
     // - 输入必须显式携带 P3 MIR handoff 与 P4 authoritative `EffectFactsStageOutput`；
-    // - 输出中的 `LateLoweredProgram` / types / state graph / frame schema / dynamic invoke /
+    // - 输出中的 `LateLoweredProgram` / `LirFacts` / types / state graph / frame schema / dynamic invoke /
     //   authoritative per-op/per-schema resume publication（step cases、continuation object、
     //   surface-resume dispatch inventory）以及可选的 effect-family resume packing definitions
     //   构成 P6 唯一允许消费的中层输入；
-    // - P6 只能把这些 late-lowered structures 翻译到 LLVM，不得重新做 boundary 识别、
+    // - P6 只能把这些 LIR structures 翻译到 LLVM，不得重新做 boundary 识别、
     //   whole-function segmentation、frame lifting、continuation capture 合同设计或 `ImplPlan`
     //   选择，也不得把 packing layer 重新提升为 reverse-resume 语义主键；
     // - LLVM 物理布局、ABI 与 runtime 集成仍属于 P6，而不是在 P5 回填。
@@ -157,17 +159,31 @@ pub fn build_effect_lowered_stage_output(
     effect_lowering_stage::run(input)
 }
 
-pub fn load_effect_lowered_stage_output_for_dump(
+pub fn build_effect_lowered_stage_output(
+    session: &Session,
+    input: EffectLoweringStageInput,
+) -> Result<LirStageOutput, crate::effect_lowered::EffectLoweringError> {
+    build_lir_stage_output(session, input)
+}
+
+pub fn load_lir_stage_output_for_dump(
     session: &Session,
     source: &SourceFile,
-) -> Result<EffectLoweredStageOutput, crate::effect_lowered::EffectLoweringError> {
+) -> Result<LirStageOutput, crate::effect_lowered::EffectLoweringError> {
     let mir_stage_output = load_p4_ready_mir_stage_output_for_dump(session, source)?;
     let effect_facts_stage_output =
         build_effect_facts_stage_output(session, source, &mir_stage_output)?;
-    build_effect_lowered_stage_output(
+    build_lir_stage_output(
         session,
         EffectLoweringStageInput::new(mir_stage_output, effect_facts_stage_output),
     )
+}
+
+pub fn load_effect_lowered_stage_output_for_dump(
+    session: &Session,
+    source: &SourceFile,
+) -> Result<LirStageOutput, crate::effect_lowered::EffectLoweringError> {
+    load_lir_stage_output_for_dump(session, source)
 }
 
 pub fn materialize_direct_style_mir_for_dump(
@@ -396,7 +412,7 @@ mod tests {
 
         assert_eq!(
             output.program().len(),
-            output.mir_stage_output().materialized_pass_view().len()
+            output.lir_facts().summary.callable_count
         );
         assert!(output.program().callable("sample.main").is_some());
     }

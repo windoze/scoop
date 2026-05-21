@@ -42,6 +42,13 @@ pub use scoopc_mir_facts as mir_facts;
 /// lives in the monolithic compiler crate.
 pub use scoopc_effect_facts as effect_facts_product;
 
+/// Migration anchor for the independent LIR fact product.
+///
+/// New stage/fact crates should depend on `scoopc_lir_facts` directly; this
+/// facade re-export exists while LIR construction still lives in the monolithic
+/// compiler crate.
+pub use scoopc_lir_facts as lir_facts_product;
+
 pub mod ast;
 pub mod cone;
 pub(crate) mod devirtualize;

@@ -430,7 +430,7 @@ P5 需要把这条隐式 opt helper 提升为正式 LIR optimization family：�
   - 验证命令：`cargo fmt`；`cargo run -p scoop_tools -- dependency-gate`；`cargo test -p scoopc_effect_facts`；`cargo test -p scoopc --no-default-features effect_facts_stage`；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
   - 残余风险：`EffectLoweredStageOutput` 仍按 P5 过渡形状携带显式 MIR/P4 handoff 并保留上游查询 accessor，LLVM codegen 仍有 HIR scaffold 与 MIR/pass-view 回看；这些已由 P5-T01/P5-T03 和 TODO-6/P7 排序处理，不阻塞 P4 purity 完成。
 
-## [TODO] P5-T01：建立 `scoopc_lir_facts` crate 与正式 `LirStageOutput` 壳层
+## [DONE] P5-T01：建立 `scoopc_lir_facts` crate 与正式 `LirStageOutput` 壳层
 
 - 参考：
   - `PLAN.md` §4/P5
@@ -471,7 +471,12 @@ P5 需要把这条隐式 opt helper 提升为正式 LIR optimization family：�
   - 当前 `LateLoweredProgram` 被文档和 API 视为正式 LIR 本体。
 - 依赖：P4-T04R
 - 完成记录：
-  - 待填写。
+  - 改动范围：新增 `crates/scoopc_lir_facts/` fact crate，纳入 workspace、`scoopc` 依赖和 `scoop_tools dependency-gate`；新增 `scoopc_ids::StableLirCallableKey`；`scoopc` facade 新增 `lir_facts_product` anchor；README 记录 LIR facts 职责。
+  - LIR output 决策：新增正式 `LirStageOutput`，其主输出为 `lir: LateLoweredProgram` 与 `lir_facts: LirFacts`；`EffectLoweredStageOutput` 仅保留为当前迁移别名。`LateLoweredProgram` 文档和 API 现在把它视为正式 LIR 本体，stable dump 标题改为 `LirStageOutput`，并显式渲染 `lir_facts` 与 `post_opt_lir`。
+  - facts 壳层：`scoopc_lir_facts::LirFacts` 当前发布 LIR stage summary 与 callable inventory skeleton，包含 dump/verifier skeleton 和单元测试；生产侧从 post-opt LIR 构造并验证该 fact 产品，为 P5-T02 补齐 callable/dynamic invoke/dispatch/resume contracts 提供落点。
+  - output 边界：`LirStageOutput` 不再保存 `EffectFactsStageOutput` 或 `MirStageOutput` wrapper；为当前 LLVM/layout 查询兼容，仅保留显式 `MaterializedMir` / `MirFacts` / `MaterializedEffectFacts` context 和旧 accessor，P5-T03 继续负责把 codegen-neutral 查询迁入 `LIR + lir_facts` 并删除这些兼容 accessor。
+  - 验证命令：`cargo fmt`；`cargo check -p scoopc_lir_facts`；`cargo test -p scoopc_lir_facts`（首次与并行 `cargo check` 争用 cargo lock 后超时，单独重跑通过）；`cargo test -p scoopc --no-default-features effect_lowering_stage`；`cargo run -p scoop_tools -- dependency-gate`；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
+  - 残余风险：`LirFacts` 仍是 P5-T01 壳层，只覆盖 summary/callable inventory；plain/effect-step callable ABI、dynamic invoke、dispatch owner/slot、continuation/resume publication 和 codegen-neutral ABI query 切换仍按顺序留给 P5-T02/P5-T03。
 
 ## [TODO] P5-T01R：Review `lir_facts` crate 与 LIR output 壳层
 

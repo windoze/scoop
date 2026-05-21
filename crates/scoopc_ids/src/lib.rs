@@ -156,6 +156,53 @@ impl StableSymbolKey for StableEffectInstanceKey {
     }
 }
 
+/// Stage-independent stable identity for a callable published by LIR facts.
+///
+/// The current monolithic compiler may still derive this from a stage-owned
+/// semantic instance key, but the fact product only stores canonical text and a
+/// readable path so it remains independent of MIR/LIR implementation types.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct StableLirCallableKey {
+    canonical_text: String,
+    readable_path: String,
+}
+
+impl StableLirCallableKey {
+    pub fn new(canonical_text: impl Into<String>, readable_path: impl Into<String>) -> Self {
+        Self {
+            canonical_text: canonical_text.into(),
+            readable_path: readable_path.into(),
+        }
+    }
+
+    pub fn from_symbol_key<K>(key: &K) -> Self
+    where
+        K: StableSymbolKey + ?Sized,
+    {
+        Self::new(key.canonical_text(), key.readable_path())
+    }
+
+    pub fn as_str(&self) -> &str {
+        &self.canonical_text
+    }
+
+    pub fn readable_path(&self) -> &str {
+        &self.readable_path
+    }
+}
+
+impl StableCanonicalKey for StableLirCallableKey {
+    fn canonical_text(&self) -> String {
+        self.canonical_text.clone()
+    }
+}
+
+impl StableSymbolKey for StableLirCallableKey {
+    fn readable_path(&self) -> &str {
+        &self.readable_path
+    }
+}
+
 /// Reserved stable identity for future body-versioned facts.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct BodyVersionKey {

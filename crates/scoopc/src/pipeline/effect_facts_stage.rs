@@ -29,6 +29,10 @@ impl EffectFactsStageOutput {
         &self.effect_facts
     }
 
+    pub(crate) fn into_effect_facts(self) -> MaterializedEffectFacts {
+        self.effect_facts
+    }
+
     /// `dump-effect-facts` / dedicated fixtures / 定向单测共用的稳定文本 surface。
     ///
     /// 该 dump 明确锁定 P4 output 的窄 handoff：只展示 effect facts、effect-owned type
