@@ -647,7 +647,7 @@
   - 验证命令：`cargo fmt`；`cargo test -p scoopc_hir_facts`；`cargo test --all --all-targets --no-default-features`；`cargo run -p scoop -- test`；`cargo run -p scoop_tools -- spec-fixtures check`；`cargo run -p scoop_tools -- dependency-gate`；`cargo clippy --all-targets -- -D warnings`；`cargo tree -p scoopc_hir_facts`；`git diff --check`；上述 P2 清场关键词搜索。完整 fixture suite 最终结果为 `fixtures: ok (1528)`。
   - 残余风险：LLVM backend 仍通过 `LoweredHir` compatibility scaffold 读取部分 layout/body/codegen 输入，但它不再是跨阶段 source semantic fact owner；`MirStageOutput` 的 optional materialized snapshot/pass artifacts、effect facts/LIR output 嵌套和 backend HIR/MIR 回看继续由 P3-P7 处理。`docs/archive/**` 中保留历史设计/计划旧名称，不作为当前实现边界。
 
-## [TODO] P2-T07R：Review P2 全包完成度
+## [DONE] P2-T07R：Review P2 全包完成度
 
 - 参考：P2-T07。
 - 重点：
@@ -673,4 +673,10 @@
   - review 结论明确写出：P2 全包满足 `AST -> HIR` semantic frontend barrier 和独立 `hir_facts` 目标，或列出阻塞项并在本 review 内修复。
 - 依赖：P2-T07
 - 完成记录：
-  - 待填写。
+  - 复查范围：已复查 `P2-T07` 完成记录、`crates/scoopc_hir_facts/`、`crates/scoopc/src/hir/`、`crates/scoopc/src/pipeline/`、`crates/scoopc/src/mir/lower/`、`crates/scoopc/src/effect/`、`crates/scoopc/src/llvm/`、`README.md`、`PIPELINE_REFACTOR.md`、`PIPELINE-CLEANUP.md`、`PLAN.md`、`TODO.md` / `TODO-3.md` / `TODO-4.md`。
+  - review 结论：P2 全包满足 `AST -> HIR` semantic frontend barrier 和独立 `hir_facts` 目标。`HirStageOutput = { hir, hir_facts }` 在代码、fixtures 和文档中一致成立；`scoopc_hir_facts` 是 declaration/entity/global/native/source-site facts 的发布面；`MirLoweringFacts` 只从 `HirFacts` 派生 source-site lowering 输入；declaration legality gate 与 user-visible failure policy 已固定在 HIR/typecheck 屏障内。
+  - 搜索结论：`TypedHirEffectContracts|ProgramFacts|FallbackSideTables|typed_contract_bridge|contract_bridge|SourceSiteMigrationFacts|source_site_migration_facts|MirSiteContractSource|MirLoweringFacts::from_lowered_hir|build_hir_facts_for_migration|build_hir_declaration_facts_for_migration|lower_handle_contract_from_hir|lower_malformed_resume_call|fallback_perform|fallback_resume` 在 `crates/**/*.rs` 与 `tests/**` 中无命中；`materialized_mir|materialized_pass_view|MaterializedMir|MaterializedMirPassView|pass_view\(` 在 `crates/scoopc/src/hir/**/*.rs` 中无命中。Markdown 中旧名称命中均为历史任务记录、P2 已解决说明、归档文档或 P3+ handoff 描述。
+  - 依赖结论：`cargo tree -p scoopc_hir_facts` 和 `scoop_tools dependency-gate` 均确认 `scoopc_hir_facts` 只依赖允许的基础 crate；未依赖 `scoopc` facade、stage/backend crate 或其它 fact crate。
+  - 验证命令：`cargo fmt`；`cargo test -p scoopc_hir_facts`；`cargo test --all --all-targets --no-default-features`；`cargo run -p scoop -- test`；`cargo run -p scoop_tools -- spec-fixtures check`；`cargo run -p scoop_tools -- dependency-gate`；`cargo clippy --all-targets -- -D warnings`；`cargo tree -p scoopc_hir_facts`；`cargo run -p scoop -- test --fixtures tests/fixtures/hir/lowered_top_level_init.scoop`；`cargo run -p scoop -- test --fixtures tests/fixtures/mir/handle_perform.scoop`；`cargo run -p scoop -- test --fixtures tests/fixtures/typecheck/calling_convention_body_generic_is_error.scoop`；`git diff --check`；上述 P2 review 关键词搜索。完整 fixture suite 结果为 `fixtures: ok (1528)`。
+  - 修复情况：review 未发现需要在本任务内修复的阻塞项；本次仅更新任务状态、完成记录和执行进度记录。
+  - 残余风险：LLVM backend 仍通过 HIR compatibility scaffold 读取部分 body/layout/codegen 输入，但该 scaffold 不再是 HIR semantic fact owner；`MirStageOutput` optional materialized snapshot/pass artifacts、effect facts/LIR output 嵌套和 backend 输入收口继续由 P3-P7 处理。

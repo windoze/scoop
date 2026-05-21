@@ -67,7 +67,7 @@
 | P2-T06 | [DONE] | [`TODO-3.md`](./TODO-3.md#done-p2-t06收口-hir-semantic-barrier-legality-gate-与错误边界) | 收口 HIR semantic barrier legality gate 与错误边界 |
 | P2-T06R | [DONE] | [`TODO-3.md`](./TODO-3.md#done-p2-t06rreview-hir-semantic-barrier-与错误边界) | Review HIR semantic barrier 与错误边界 |
 | P2-T07 | [DONE] | [`TODO-3.md`](./TODO-3.md#done-p2-t07p2-全包清场文档同步与依赖审计) | P2 全包清场、文档同步与依赖审计 |
-| P2-T07R | [TODO] | [`TODO-3.md`](./TODO-3.md#todo-p2-t07rreview-p2-全包完成度) | Review P2 全包完成度 |
+| P2-T07R | [DONE] | [`TODO-3.md`](./TODO-3.md#done-p2-t07rreview-p2-全包完成度) | Review P2 全包完成度 |
 | TODO-4-INIT | [TODO] | [`TODO-4.md`](./TODO-4.md#todo-todo-4-init初始化并细化本任务包) | 分析 P3 需求，生成 `TODO-4.md` 详细任务列表并更新本索引 |
 | TODO-5-INIT | [TODO] | [`TODO-5.md`](./TODO-5.md#todo-todo-5-init初始化并细化本任务包) | 分析 P4-P5 需求，生成 `TODO-5.md` 详细任务列表并更新本索引 |
 | TODO-6-INIT | [TODO] | [`TODO-6.md`](./TODO-6.md#todo-todo-6-init初始化并细化本任务包) | 分析 P6-P8 需求，生成 `TODO-6.md` 详细任务列表并更新本索引 |
