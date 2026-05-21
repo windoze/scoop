@@ -7,7 +7,7 @@
 > - [`docs/archive/designs/SYSROOT_RESHAPE_R2.md`](./docs/archive/designs/SYSROOT_RESHAPE_R2.md)
 > - [`docs/archive/plans/PLAN-sysroot-reshape-r2.md`](./docs/archive/plans/PLAN-sysroot-reshape-r2.md)
 > - [`docs/archive/plans/TODO-sysroot-reshape-r2.md`](./docs/archive/plans/TODO-sysroot-reshape-r2.md)
-> 当前状态：P2 HIR barrier / `hir_facts` 收口进入清场验收；下一步进入 `TODO-4.md` / P3 初始化
+> 当前状态：P3 MIR boundary / `mir_facts` / MIR pass pipeline 清场已完成；下一步执行 `TODO-4.md` / P3-T07R review 后进入 `TODO-5.md` / P4-P5 初始化
 
 ## 0. 目标
 
@@ -82,9 +82,9 @@ AST -> HIR -> MIR -> effect facts -> LIR -> codegen
 详细问题见 `PIPELINE-CLEANUP.md`。这里只提炼执行计划直接要处理的几类根问题：
 
 1. P2 已让 `HirStageOutput = { hir, hir_facts }` 成立，并移除 HIR-carried MIR snapshot、HIR typed contract bridge 与 `ProgramFacts` 重叠 owner。
-2. `MirStageOutput` 仍混有 direct-style `LoweredMir`、MIR-owned root inventories 和 optional `MaterializedMir`，尚未收口为 `{ mir, mir_facts }`。
+2. P3 已让 `MirStageOutput = { mir, mir_facts }` 语义成立，并把 root inventories、snapshot binding、pass artifacts 与 MIR pass metadata 收口到 MIR-owned handoff。
 3. `EffectFactsStageOutput` 和 `EffectLoweredStageOutput` 都还在嵌套上游输出，而不是只发布本阶段产物。
-4. MIR/codegen 各层仍残留优化性逻辑，尤其是去虚化与内联分散在多处。
+4. MIR 普通优化已由显式 pass pipeline 拥有；backend 层仍有 P7 范围内的去虚化 residual。
 5. codegen 仍直接依赖 HIR compatibility scaffold、raw MIR/pass view、effect facts 和 LIR 的混合输入。
 
 ## 3. 阶段总览

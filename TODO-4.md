@@ -550,7 +550,7 @@
   - 验证命令：`cargo fmt`；`cargo test -p scoopc --no-default-features hir`；`cargo test -p scoopc --no-default-features mir::materialize`；`cargo test -p scoopc --no-default-features monomorph`；`cargo run -p scoop -- test --fixtures tests/fixtures/mir_materialized`；搜索 `devirtualize_dispatch_calls` 无命中；搜索 `try_devirtualize_dispatch_target\(` 确认非测试活跃调用点只位于 MIR pass / helper / P7 residual；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
   - 残余风险：LLVM reachability / codegen 中的去虚化 residual 仍按 P7 backend cleanup 收口；本 review 未新增或依赖这些 backend fallback，也未推进 `P3-T07`。
 
-## [TODO] P3-T07：P3 全包清场、文档同步与依赖审计
+## [DONE] P3-T07：P3 全包清场、文档同步与依赖审计
 
 - 参考：
   - `PLAN.md` §4/P3、§5
@@ -596,7 +596,12 @@
   - P4/P5/P7 的剩余问题在文档中被准确保留，且不阻塞进入 `TODO-5.md`。
 - 依赖：P3-T06R
 - 完成记录：
-  - 待填写。
+  - 改动范围：复查 P3-T01 到 P3-T06R 的 MIR stage / MIR facts / pass pipeline 边界，更新 `README.md`、`PLAN.md` 当前状态、`PIPELINE_REFACTOR.md`、`PIPELINE-CLEANUP.md`、`tools/scoop_tools` dependency-gate help/docs、`TODO.md` / 本文件；同步修正 `effect_facts_stage` 与 `pipeline` 单测中仍按旧 3-step pass pipeline 断言的 stale expectation。
+  - P3 边界审计：`MirStageOutput` 现在以 direct-style MIR + mandatory canonical materialized snapshot + `MirFacts` 形成 P4-ready handoff；root inventories、snapshot binding、instance/callable family inventory、pass artifact metadata 和 MIR pass pipeline metadata 均由 `scoopc_mir_facts` 发布。搜索 `callable_body_indices|initializer_root_indices|global_root_indices|metadata_root_indices` 在活跃 `crates/scoopc/src` Rust 源码中无命中。
+  - pass / 去虚化审计：`devirtualize_dispatch_calls` 在活跃 Rust 源码中无命中；`try_devirtualize_dispatch_target(` 的非测试命中只剩 MIR pass owner / shared helper，以及已归属 P7 的 LLVM reachability/codegen residual。活跃 HIR 源码中无 `materialized_pass_view`、`MaterializedMir`、`MaterializedMirPassView` 或去虚化调用残留。
+  - 文档与门禁：`PIPELINE-CLEANUP.md` / `PIPELINE_REFACTOR.md` 已把 P3 root/snapshot/pass owner 和显式 MIR pass pipeline 标记为 P3 收口结果，并保留 P4/P5/P7 的 nested output、effect facts mutability、LIR/backend handoff 和 backend devirtualization residual；`README.md` 与 dependency gate 文档已明确 `scoopc_mir_facts` 和 MIR pass pipeline metadata 角色。
+  - 验证命令：`cargo fmt`；`cargo test -p scoopc_mir_facts`；`cargo test -p scoopc --no-default-features mir_stage`；`cargo test -p scoopc --no-default-features effect_facts_stage`；`cargo test -p scoopc --no-default-features effect_lowering_stage`；`cargo run -p scoop_tools -- dependency-gate`；`cargo run -p scoop -- test --fixtures tests/fixtures/mir_lowered`；`cargo run -p scoop -- test --fixtures tests/fixtures/mir_materialized`；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
+  - 残余风险：P4/P5/P7 仍需收口 `EffectFactsStageOutput` / `EffectLoweredStageOutput` 的 nested upstream bundle、effect facts stage 对 MIR snapshot type context 的可变扩展、LIR 输出自足性、LLVM HIR compatibility scaffold 和 backend 层去虚化 residual；这些已在文档中保留，不阻塞进入 `P3-T07R` review。
 
 ## [TODO] P3-T07R：Review P3 全包完成度
 

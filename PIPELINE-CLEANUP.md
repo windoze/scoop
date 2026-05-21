@@ -4,11 +4,15 @@
 
 当前代码已完成 P2 HIR barrier / `hir_facts` 收口：`HirStageOutput = { hir, hir_facts }` 是正式 HIR handoff，`scoopc_hir_facts` 是 declaration/entity/global/native/source-site facts 的 owner，`TypedHirEffectContracts`、`ProgramFacts`、source-site fallback 双轨和 HIR-carried MIR snapshot 已从生产代码移除。
 
-因此，本报告中的 P1/P2/P16/P17/P18 是已解决的历史问题；保留它们是为了说明原始 cleanup 背景和验证 P2 清场结果。当前仍然成立、并进入 P3+ 的主结论是：
+## P3-T07 状态更新
+
+当前代码已完成 P3 MIR boundary / MIR pass pipeline 收口：`MirStageOutput` 的 P4-ready handoff 发布 direct-style MIR、必选 canonical materialized snapshot 和 `MirFacts`，root inventories、snapshot binding、instance/callable family inventory、pass artifact metadata 与 MIR pass pipeline metadata 均由 `scoopc_mir_facts` 承载；ordinary dispatch 去虚化、summary-driven inlining、escape analysis、closure simplification 和必要 refresh 均由显式 MIR pass pipeline 调度。
+
+因此，本报告中的 P1/P2/P3/P16/P17/P18 是已解决或历史化的问题；保留它们是为了说明原始 cleanup 背景并验证 P2/P3 清场结果。当前仍然成立、并进入 P4+ 的主结论是：
 
 1. `llvm_codegen_stage` 仍会从 HIR compatibility scaffold 驱动 MIR/effect-facts/effect-lowering，而不是只消费一个已由上游传入的后端 handoff。
 2. codegen 仍在主线上混用 HIR scaffold、MIR/pass view、late-lowered program 和多套后续 fact/type 查询面。
-3. effect facts / LIR / codegen 的 stage output 仍存在上游整包回看，需要在 P3-P7 继续收口。
+3. effect facts / LIR / codegen 的 stage output 仍存在上游整包回看，需要在 P4-P7 继续收口。
 
 ## 目标边界
 
@@ -187,12 +191,16 @@ P2 收口结果：
 4. 任何 LIR stage 会稳定复用的 MIR-derived facts，也应由 MIR stage 明确发布，
    例如 nominal direct supertype index 这类从 MIR file 可确定导出的 facts。
 
-当前“完整输出”还少什么：
+P3 收口结果：
 
-1. `MirStageOutput` 已不再泄漏 HIR typed contracts，但仍混合 direct-style `LoweredMir`、MIR-owned root indices 和 optional `MaterializedMir`。
-2. 缺少正式的 `mir_facts` / snapshot-binding / pass-artifacts 查询面；当前下游仍需要从 `MaterializedMir` 或更后阶段包装里回拿 `materialized_pass_view()`。
-3. 有些 MIR-derived facts 仍未作为 MIR stage 输出发布，而是在 LIR stage 里重算。
-   见 `crates/scoopc/src/pipeline/effect_lowering_stage.rs:85-97,119-131`。
+1. `MirStageOutput` 已不再泄漏 HIR typed contracts，也不再以 optional snapshot 或并列 root-index map 作为 handoff。
+2. `scoopc_mir_facts` 已发布 root inventories、materialized snapshot binding、instance/callable family inventory、pass artifact metadata 和 MIR pass pipeline metadata。
+3. downstream 仍可经由 canonical `MaterializedMirPassView` 消费 pass 后 callable body / summary / escape facts；这现在是 MIR-owned pass query surface，而不是 HIR fallback。
+
+P4+ 仍需处理什么：
+
+1. `EffectFactsStageOutput` / `EffectLoweredStageOutput` 仍有上游整包嵌套，需要后续收口为各自阶段的窄输出。
+2. 若 LIR/codegen 仍长期需要某些 MIR-derived global facts，应在 P4/P5/P7 中确认归属，不能重新引入 P3 已清理的重复 owner。
 
 ### effect facts stage
 
@@ -275,7 +283,7 @@ frontend/typecheck
 这意味着当前实现里同时存在：
 
 1. codegen stage 仍是后半条 pipeline 的 orchestrator，而不是只消费已经构造好的后端 handoff。
-2. `MirStageOutput` 仍未收口成 `{ mir, mir_facts }`，materialized snapshot/pass artifacts 仍以临时形态暴露。
+2. `MirStageOutput` 已收口为 MIR-owned handoff，但 P4/P5 输出仍嵌套上游 stage output。
 3. codegen 同时消费多套跨阶段输入。
 4. 仍有一批生产路径直接在 codegen 中跑 HIR-only lowering。
 5. P4/P5/P7 范围内仍有后续 fact table / stage output 的职责重叠和整包回看。
@@ -329,51 +337,46 @@ P2 结果：
 
 ---
 
-### P3. `MirStageOutput` 同时暴露 HIR 合同和两套 MIR 视图（HIR 合同泄漏已解决，MIR handoff 仍待 P3 收口）
+### P3. `MirStageOutput` 同时暴露 HIR 合同和两套 MIR 视图（已由 P2/P3 清理）
 
-位置：
+历史位置：
 
 - `crates/scoopc/src/pipeline/mir_stage.rs:13-27`
 - `crates/scoopc/src/pipeline/mir_stage.rs:29-37`
 - `crates/scoopc/src/pipeline/mir_stage.rs:68-84`
 - `crates/scoopc/src/pipeline/mir_stage.rs:215-240`
 
-现状：
+P3 结果：
 
-- `MirStageOutput` 里既有 `lowered_mir: LoweredMir`，又有 `materialized_mir: Option<MaterializedMir>`。
+- `MirStageOutput` 现在以 direct-style MIR + mandatory canonical materialized snapshot + `MirFacts` 形成 P4-ready handoff。
 - HIR source-site contracts 已在 P2 迁入 `HirFacts` 并由 MIR lowering 消费，`MirStageOutput` 不再继续向 P4/P5/P6 暴露旧 HIR typed contract payload。
+- root inventories、snapshot binding、pass artifact metadata 和 MIR pass pipeline metadata 由 `scoopc_mir_facts` 发布；旧的并列 root-index map 与 optional snapshot gap 已移除。
 
-为什么是问题：
+剩余边界：
 
-- MIR stage 输出现在还不是一个单一的 MIR handoff，而是：
-  `direct-style MIR + root inventories + optional canonical materialized MIR`。
-- 这使得 P4 之后的阶段天然面临多 source-of-truth。
-
-说明：
-
-- MIR stage 消费 HIR-derived fact table 本身不是问题。
-- HIR contract 泄漏已由 P2 修复；P3 剩余问题是把 materialized snapshot、root inventory 和 pass artifacts 收进 MIR-owned facts / handoff。
+- P4/P5/P7 仍需继续收口 effect facts / LIR / backend 的 nested upstream bundle 和 LLVM HIR compatibility scaffold。
+- LLVM reachability/codegen 里的去虚化 residual 属于 P7 backend cleanup；P3 不再依赖它们作为普通语义优化 fallback。
 
 ---
 
-### P4. effect-facts stage 会在边界处“自动补跑” MIR materialization
+### P4. effect-facts stage 仍嵌套并可变借用 MIR stage output
 
 位置：
 
 - `crates/scoopc/src/pipeline/mod.rs:101-121`
 - `crates/scoopc/src/pipeline/mod.rs:159-163`
-- `crates/scoopc/src/pipeline/effect_facts_stage.rs:85-144`
+- `crates/scoopc/src/pipeline/effect_facts_stage.rs:88-140`
 
 现状：
 
-- `build_effect_facts_stage_output_with_compilation_sources(...)` 会检查 `mir_stage_output.materialized_mir()`。
-- 如果没有，它会直接调用 `materialize_direct_style_mir_for_dump(session, source)` 去补挂 canonical materialized MIR。
-- P4 stage 内部还会通过 `materialized_mir_mut()` 直接修改输入里的 snapshot。
+- P3 已保证传入 P4 的 `MirStageOutput` 带有必选 canonical materialized snapshot，不再由 P4 自动补跑 MIR materialization。
+- `EffectFactsStageOutput` 仍嵌套整份 `MirStageOutput`，并继续暴露 `mir_stage_output()`、`materialized_mir()`、`materialized_pass_view()` 等上游查询面。
+- P4 stage 内部仍会通过 `canonical_snapshot_mut()` 可变借用并扩展输入里的 snapshot type context。
 
 为什么是问题：
 
-- P4 不应该在 stage 边界回头依赖 `session/source` 去重新 materialize 一次 MIR。
-- 正确形状应该是：P3 保证交给 P4 的就是完整 authoritative MIR handoff；P4 不应该自己修输入。
+- P4 不应该把上游 `MirStageOutput` 作为自己的长期输出形状嵌套给 P5/P6/P7。
+- 正确形状应该是：P3 保证交给 P4 的就是完整 authoritative MIR handoff；P4 只读消费 MIR handoff，并发布 effect-owned facts 或 effect-owned context，而不是修改 MIR stage 本体。
 
 ---
 
@@ -830,13 +833,13 @@ P2 结果：
 
 1. 让生产 HIR lowering 不再依赖 MIR instance/materialization。（P2 已完成）
 2. 从 `LoweredHir` 移除 `materialized_mir` / `materialized_pass_view`。（P2 已完成）
-3. 让 `MirStageOutput` 只暴露 MIR 自己的 authoritative handoff，不再继续携带 HIR 合同。（HIR 合同泄漏已由 P2 清理；MIR-owned handoff 继续由 P3 收口）
+3. 让 `MirStageOutput` 只暴露 MIR 自己的 authoritative handoff，不再继续携带 HIR 合同或重复 root/pass owner。（P2/P3 已完成）
 
 ### 2. 让 stage 输入变严格
 
 1. `effect_facts` 只接受完整的 MIR stage 输出，不再在边界内自动补挂 materialized MIR。
 2. `codegen` 只接受 `effect facts` 之后的单一 authoritative handoff，不再重跑 MIR / effect-facts / effect-lowering。
-3. 收口每一阶段发布的 fact table 职责；HIR/source-site 与 `ProgramFacts` 重叠已由 P2 清理，P3+ 继续处理 program/effect_facts/pass_view 这类可替代或并行查询面。
+3. 收口每一阶段发布的 fact table 职责；HIR/source-site 与 `ProgramFacts` 重叠已由 P2 清理，MIR/pass-view owner 已由 P3 收口，P4+ 继续处理 effect_facts/LIR/codegen 这类可替代或并行查询面。
 
 ### 3. 把 `effect_lowered` 收实为正式 LIR stage
 
@@ -872,14 +875,14 @@ P2 结果：
 
 ## 结论
 
-当前最核心的问题不是“文件太长”，而是 P3 之后的 pipeline graph 仍未完全单向。
+当前最核心的问题不是“文件太长”，而是 P3 之后的 effect facts / LIR / codegen graph 仍未完全单向。
 
 最大的三个结构性问题是：
 
-1. `MirStageOutput` 仍未收口成 `{ mir, mir_facts }`，materialized snapshot/pass artifacts 还不是独立 MIR-owned fact handoff。
+1. effect facts / LIR stage output 仍嵌套上游输出，而不是只发布本阶段窄产物。
 2. codegen stage 会重新驱动 MIR / effect-facts / effect-lowering，而不是只消费它们的输出。
-3. production backend 仍在主线上混用 HIR scaffold、raw MIR、late-lowered program 和多套 fact/type universe。
+3. production backend 仍在主线上混用 HIR scaffold、MIR pass view、late-lowered program 和多套 fact/type universe。
 
-其中一个贯穿全线的次级根因是：P3 之后的多张 fact table / stage output 职责仍未完全切开，导致嵌套打包和下游混用继续发生。P2 已经把 HIR/source-site facts 收口到 `HirFacts`，后续不得重新引入 HIR fallback 或重复 owner。
+其中一个贯穿全线的次级根因是：P4 之后的多张 fact table / stage output 职责仍未完全切开，导致嵌套打包和下游混用继续发生。P2 已经把 HIR/source-site facts 收口到 `HirFacts`，P3 已经把 MIR root/snapshot/pass facts 收口到 `MirFacts` 和 MIR pass query surface；后续不得重新引入 HIR fallback、MIR fallback 或重复 owner。
 
 只要这三件事不先收口，后面无论是继续拆 LLVM codegen、还是引入新的 backend，都会继续被“跨阶段回看”和“多 authoritative 输入”拖住。

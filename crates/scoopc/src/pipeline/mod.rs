@@ -362,8 +362,23 @@ mod tests {
             output.mir_facts().families.instances.len(),
             output.materialized_pass_view().len()
         );
-        assert_eq!(output.mir_facts().pass_pipeline.runs.len(), 3);
-        assert_eq!(output.mir_facts().pass_artifacts.revisions.len(), 4);
+        let pass_names = output
+            .mir_facts()
+            .pass_pipeline
+            .runs
+            .iter()
+            .map(|run| run.pass.as_str())
+            .collect::<Vec<_>>();
+        assert_eq!(
+            pass_names,
+            vec![
+                "devirtualization",
+                "summary-driven-inlining",
+                "escape-analysis",
+                "closure-simplification"
+            ]
+        );
+        assert_eq!(output.mir_facts().pass_artifacts.revisions.len(), 5);
     }
 
     #[test]

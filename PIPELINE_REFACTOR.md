@@ -1041,13 +1041,15 @@ fact crate 明确禁止：
 
 本轮除了要清理阶段边界，还需要顺手把“优化 pass 应该属于哪一层”收口清楚。
 
-这一步很重要，因为当前优化逻辑分散在：
+这一步很重要，因为历史优化逻辑曾分散在：
 
 1. 旧 comptime / const 语义
 2. HIR lowering 里的去虚化开关
 3. MIR materialization 尾部顺手跑的 pass
 4. LIR 的窄后处理
 5. codegen 里的局部去虚化和 LLVM 自己的 target pass
+
+P0/P3 已清理前 3 类主线 owner；codegen/reachability residual 继续归入 P7 backend cleanup。
 
 如果不先把这些层次讲清楚，后续很容易继续在 HIR/MIR/codegen 各自加一点“优化性特殊处理”，又回到今天的混合状态。
 
@@ -1129,7 +1131,7 @@ IR 级优化是 backend-neutral 的优化，应明确挂在某个 IR 层之下�
 
 #### B. HIR 中的 dispatch 去虚化
 
-当前 HIR lowering 里存在 `devirtualize_dispatch_calls` 开关，并会在 lowering 时尝试把 virtual/interface call 直接改成 direct call。
+历史上 HIR lowering 里存在 `devirtualize_dispatch_calls` 开关，并会在 lowering 时尝试把 virtual/interface call 直接改成 direct call；P3 已删除该 owner，HIR 现在保留动态 dispatch 语义与 dispatch contract。
 
 这在目标设计里应删除。
 
@@ -1147,9 +1149,9 @@ IR 级优化是 backend-neutral 的优化，应明确挂在某个 IR 层之下�
 
 #### C. MIR inline
 
-当前 `mir/inline.rs` 已经是一个真正的 MIR pass：summary-driven、保守、基于 canonical pass artifacts 改写 body。
+当前 `mir/inline.rs` 是显式 MIR pass pipeline 中的 summary-driven inlining step：summary-driven、保守、基于 canonical pass artifacts 改写 body。
 
-这项能力应保留，但要从“materialization 尾部顺手跑一下”改成正式的 MIR pass pipeline 一步。
+这项能力已经从“materialization 尾部顺手跑一下”迁入正式 MIR pass pipeline。
 
 也就是说：
 
@@ -1159,9 +1161,9 @@ IR 级优化是 backend-neutral 的优化，应明确挂在某个 IR 层之下�
 
 #### D. MIR devirtualization
 
-当前 MIR 去虚化主要内嵌在 `mir/materialize/rewrite.rs` 里：重写 `CallKind::Virtual` / `Interface` 时直接尝试变成 `CallKind::Direct`。
+历史上 MIR 去虚化主要内嵌在 `mir/materialize/rewrite.rs` 里：重写 `CallKind::Virtual` / `Interface` 时直接尝试变成 `CallKind::Direct`。
 
-这项能力也应保留，但要抽成正式 MIR pass。
+P3 已把这项能力抽成正式 MIR pass；materialization rewrite 只保留 substitution / instance discovery / target fact recording，不再直接做优化改写。
 
 这样做的好处是：
 
@@ -1182,11 +1184,11 @@ IR 级优化是 backend-neutral 的优化，应明确挂在某个 IR 层之下�
 2. 所以 escape analysis 不应只是 “O1+ 才有的可选优化附属品”。
 3. closure simplification 则显然是基于这些 facts 做的优化改写。
 
-目标上建议：
+P3 当前结果：
 
-1. escape analysis 改成 always-on 的 MIR analysis/facts。
-2. closure simplification 继续作为 MIR opt，可按 opt level gate。
-3. 若简化后影响 facts，需要明确 refresh 顺序，而不是在 materializer 尾部临时再跑一遍。
+1. escape analysis 是 always-on 的 MIR analysis/facts step。
+2. closure simplification 继续作为 MIR opt，按 opt level gate。
+3. 若简化后影响 facts，由显式 MIR pass pipeline 记录 refresh 顺序，而不是在 materializer 尾部临时再跑一遍。
 
 #### F. LIR opt
 
@@ -1269,19 +1271,19 @@ codegen 层应保留的“优化”只包括 backend-specific 的物理层优化
 
 如果把上面的原则映射到当前代码，建议是：
 
-1. **删除**
+1. **已删除 / 已迁移**
    - 现有 comptime/const 相关语义路径
    - HIR 层 `devirtualize_dispatch_calls`
+   - `mir/inline.rs` 已成为正式 MIR pass
+   - `devirtualize.rs` 算法已迁到显式 MIR pass 语境
+   - `mir/escape.rs` 已按 MIR analysis / MIR facts step 调度
+
+2. **仍需删除**
    - codegen 层 dispatch 去虚化
    - reachability 层临时去虚化推断
 
-2. **保留但迁移/重定位**
-   - `mir/inline.rs`：保留，改成正式 MIR pass
-   - `devirtualize.rs`：保留算法，迁到显式 MIR pass 语境
+3. **仍需重定位**
    - `effect_lowered::opt`：保留，改定位为 `LIR opt`
-
-3. **重新分类**
-   - `mir/escape.rs`：从“可选优化”偏向 `MIR analysis / MIR facts`
    - `llvm/codegen/main/const_eval.rs`：若未来仍保留极窄的全局静态数据初始化 helper，应改名并视为 backend data initializer helper，而不是 optimization pass
 
 ## 各阶段应发布什么
@@ -1416,18 +1418,21 @@ MIR stage 应发布 MIR-owned facts，而不是继续转发 HIR typed contracts�
 
 如果某些 LIR stage 必定要用到、且能从 MIR compilation unit 稳定导出的全局信息，也应由 MIR stage 直接发布，例如 nominal direct supertype index 这类 MIR-derived facts。
 
-#### 当前完整输出还缺什么
+#### P3 收口结果与剩余边界
 
-P3 的入口已经不再有 HIR typed-contract 泄漏；`MirStageOutput` 当前主要混合的是：
+P3 的入口已经不再有 HIR typed-contract 泄漏；P3 完成后，`MirStageOutput` 发布的是 MIR-owned handoff：direct-style MIR、必选 canonical materialized snapshot，以及 `scoopc_mir_facts::MirFacts`。
 
-1. direct-style `LoweredMir`
-2. MIR-owned root indices / callable body inventory
-3. optional canonical `MaterializedMir`
+`MirFacts` 当前承载：
 
-这仍不是最终的 `MirStageOutput = { mir, mir_facts }`。P3 需要把 root inventories、snapshot binding、pass artifacts 和 instance-family 查询面收口成 MIR-owned facts，并让后续阶段只消费 MIR stage 的窄 handoff，而不是继续从 `MaterializedMir` 或更后阶段包装里回拿 `materialized_pass_view()`。
+1. direct-style root inventories
+2. materialized snapshot binding
+3. instance/callable family inventory
+4. pass artifact metadata
+5. MIR pass pipeline metadata
 
-还有一类问题是：有些 MIR-derived facts 仍未作为 MIR stage 输出发布，而是在 LIR stage 里重算。
-见 `crates/scoopc/src/pipeline/effect_lowering_stage.rs:85-97,119-131`。
+ordinary dispatch devirtualization、summary-driven inlining、escape analysis、closure simplification 和必要 refresh 已由显式 MIR pass pipeline 调度。`materialized_pass_view()` 仍是下游读取 canonical pass artifacts 的 MIR-owned query surface；它不再代表 HIR fallback 或 optional snapshot gap。
+
+P4/P5/P7 仍需继续收口 effect facts / LIR / backend 的 nested upstream bundle 和 HIR compatibility scaffold；不能把这些后续问题伪装成 P3 未完成项，也不能重新引入重复 MIR owner。
 
 ### effect facts stage
 
@@ -1557,7 +1562,7 @@ LIR facts 至少应包含：
 
 1. `LoweredHir` 去掉 `materialized_mir`。（P2 已完成）
 2. `MirStageOutput` 不再泄漏 HIR source-site contracts。（P2 已完成）
-3. `MirStageOutput` 继续收口为 `{ mir, mir_facts }`，把 optional materialized snapshot / pass artifacts 变成 MIR-owned handoff。
+3. `MirStageOutput` 收口为 `{ mir, mir_facts }`，把 optional materialized snapshot / pass artifacts 变成 MIR-owned handoff。（P3 已完成）
 4. `EffectFactsStageOutput` 去掉对整份 `MirStageOutput` 的长期嵌套。
 5. `EffectLoweredStageOutput` 去掉对整份 `EffectFactsStageOutput` 的长期嵌套。
 
@@ -1600,8 +1605,8 @@ LIR facts 至少应包含：
 
 ## 当前状态总结
 
-当前实现离最终目标还有明显距离，但 P2 已经完成 HIR barrier 与 `hir_facts` 收口，接下来重点转入 P3：
+当前实现离最终目标还有明显距离，但 P2 已经完成 HIR barrier 与 `hir_facts` 收口，P3 已经完成 MIR-owned handoff、`mir_facts` 与 MIR pass pipeline 收口；接下来重点转入 P4/P5/P7 的后续边界：
 
 1. `effect_lowered` 继续被视为正式 LIR。
-2. P3 优先收口 MIR stage output、`mir_facts` 与 MIR pass pipeline，而不是提前做 LLVM 文件切分。
-3. 只要 stage output 还在嵌套上游整包、MIR/effect/LIR facts owner 还未收口、后端还在回看 HIR/MIR，这轮重构就还没有到可以稳定扩展 backend 的程度。
+2. P4/P5 优先收口 effect facts / LIR stage output 与 fact owner，而不是提前做 LLVM 文件切分。
+3. 只要 stage output 还在嵌套上游整包、effect/LIR facts owner 还未收口、后端还在回看 HIR/MIR，这轮重构就还没有到可以稳定扩展 backend 的程度。

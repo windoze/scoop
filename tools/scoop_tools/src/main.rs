@@ -60,7 +60,7 @@ enum Command {
     /// 生成当前 safepoint / gc-live roots 基线报告（自动构建内置 workload）
     SafepointBaseline,
 
-    /// 检查 pipeline 基础 crate 没有反向依赖 facade/stage/fact crate
+    /// 检查 pipeline 基础 crate 与 fact crate 没有非法反向依赖
     DependencyGate,
 }
 

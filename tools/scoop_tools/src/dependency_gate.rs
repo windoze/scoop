@@ -3,8 +3,9 @@
 //! The gate checks each base crate from the package's own `cargo tree` view.
 //! That catches accidental reverse dependencies from a base crate back to the
 //! `scoopc` facade, stage crates, fact crates, driver/runtime crates, or a later
-//! base crate in the P1 dependency direction. It also checks fact crates so they
-//! only depend on base crates and never on the facade, stages, or other facts.
+//! base crate in the P1 dependency direction. It also checks fact crates,
+//! currently including `scoopc_hir_facts` and `scoopc_mir_facts`, so they only
+//! depend on base crates and never on the facade, stages, or other facts.
 
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
