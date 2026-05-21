@@ -4,7 +4,7 @@
 > 计划基线：[`PLAN.md`](./PLAN.md)
 > 设计基线：[`PIPELINE_REFACTOR.md`](./PIPELINE_REFACTOR.md)
 > 审计基线：[`PIPELINE-CLEANUP.md`](./PIPELINE-CLEANUP.md)
-> 当前状态：任务包已划分；`TODO-1.md` 与 `TODO-2.md` 已细化，其它任务包暂为范围说明。
+> 当前状态：任务包已划分；`TODO-1.md`、`TODO-2.md` 与 `TODO-3.md` 已细化，其它任务包暂为范围说明。
 
 ## 总原则
 
@@ -23,7 +23,7 @@
 | --- | --- | --- | --- | --- |
 | 1 | [`TODO-1.md`](./TODO-1.md) | P0 | 删除现有 comptime/const surface 与实现，清空后续边界条件 | 已细化 |
 | 2 | [`TODO-2.md`](./TODO-2.md) | P1 | 固定基础 crate 壳层、cone-level compilation unit 和 source-cone DAG 语义 | 已细化 |
-| 3 | [`TODO-3.md`](./TODO-3.md) | P2 | 建立 `AST -> HIR` semantic frontend barrier 和独立 `hir_facts` | 暂为范围说明 |
+| 3 | [`TODO-3.md`](./TODO-3.md) | P2 | 建立 `AST -> HIR` semantic frontend barrier 和独立 `hir_facts` | 已细化 |
 | 4 | [`TODO-4.md`](./TODO-4.md) | P3 | 收口 MIR stage 输出，建立 `mir_facts` 与 MIR pass pipeline | 暂为范围说明 |
 | 5 | [`TODO-5.md`](./TODO-5.md) | P4-P5 | 纯化 effect facts，正式收实 LIR 输出和 LIR optimization family | 暂为范围说明 |
 | 6 | [`TODO-6.md`](./TODO-6.md) | P6-P8 | 闭合 global init model，清理 LLVM backend 输入边界，并做最终验证 | 暂为范围说明 |
@@ -53,7 +53,21 @@
 | P1-T05R | [DONE] | [`TODO-2.md`](./TODO-2.md#done-p1-t05rreview-cone-level-compilation-unit-api) | Review cone-level compilation unit API |
 | P1-T06 | [DONE] | [`TODO-2.md`](./TODO-2.md#done-p1-t06p1-全包清场文档同步与依赖审计) | P1 全包清场、文档同步与依赖审计 |
 | P1-T06R | [DONE] | [`TODO-2.md`](./TODO-2.md#done-p1-t06rreview-p1-全包完成度) | Review P1 全包完成度 |
-| TODO-3-INIT | [TODO] | [`TODO-3.md`](./TODO-3.md#todo-todo-3-init初始化并细化本任务包) | 分析 P2 需求，生成 `TODO-3.md` 详细任务列表并更新本索引 |
+| TODO-3-INIT | [DONE] | [`TODO-3.md`](./TODO-3.md#done-todo-3-init初始化并细化本任务包) | 分析 P2 需求，生成 `TODO-3.md` 详细任务列表并更新本索引 |
+| P2-T01 | [TODO] | [`TODO-3.md`](./TODO-3.md#todo-p2-t01建立-hir_facts-crate-与事实数据模型) | 建立 `hir_facts` crate 与事实数据模型 |
+| P2-T01R | [TODO] | [`TODO-3.md`](./TODO-3.md#todo-p2-t01rreview-hir_facts-crate-与事实模型) | Review `hir_facts` crate 与事实模型 |
+| P2-T02 | [TODO] | [`TODO-3.md`](./TODO-3.md#todo-p2-t02固定-hirstageoutput--hir-hir_facts--输出形状) | 固定 `HirStageOutput = { hir, hir_facts }` 输出形状 |
+| P2-T02R | [TODO] | [`TODO-3.md`](./TODO-3.md#todo-p2-t02rreview-hir-stage-output-形状) | Review HIR stage output 形状 |
+| P2-T03 | [TODO] | [`TODO-3.md`](./TODO-3.md#todo-p2-t03移除-hir-反向携带-mir-materialization) | 移除 HIR 反向携带 MIR materialization |
+| P2-T03R | [TODO] | [`TODO-3.md`](./TODO-3.md#todo-p2-t03rreview-hirmir-单向边界) | Review HIR/MIR 单向边界 |
+| P2-T04 | [TODO] | [`TODO-3.md`](./TODO-3.md#todo-p2-t04迁移-declarationentity-facts-并收口-programfacts) | 迁移 declaration/entity facts 并收口 `ProgramFacts` |
+| P2-T04R | [TODO] | [`TODO-3.md`](./TODO-3.md#todo-p2-t04rreview-declarationentity-facts-迁移结果) | Review declaration/entity facts 迁移结果 |
+| P2-T05 | [TODO] | [`TODO-3.md`](./TODO-3.md#todo-p2-t05迁移-source-site-typed-contracts-并删除-fallback-双轨) | 迁移 source-site typed contracts 并删除 fallback 双轨 |
+| P2-T05R | [TODO] | [`TODO-3.md`](./TODO-3.md#todo-p2-t05rreview-source-site-contract-迁移结果) | Review source-site contract 迁移结果 |
+| P2-T06 | [TODO] | [`TODO-3.md`](./TODO-3.md#todo-p2-t06收口-hir-semantic-barrier-legality-gate-与错误边界) | 收口 HIR semantic barrier legality gate 与错误边界 |
+| P2-T06R | [TODO] | [`TODO-3.md`](./TODO-3.md#todo-p2-t06rreview-hir-semantic-barrier-与错误边界) | Review HIR semantic barrier 与错误边界 |
+| P2-T07 | [TODO] | [`TODO-3.md`](./TODO-3.md#todo-p2-t07p2-全包清场文档同步与依赖审计) | P2 全包清场、文档同步与依赖审计 |
+| P2-T07R | [TODO] | [`TODO-3.md`](./TODO-3.md#todo-p2-t07rreview-p2-全包完成度) | Review P2 全包完成度 |
 | TODO-4-INIT | [TODO] | [`TODO-4.md`](./TODO-4.md#todo-todo-4-init初始化并细化本任务包) | 分析 P3 需求，生成 `TODO-4.md` 详细任务列表并更新本索引 |
 | TODO-5-INIT | [TODO] | [`TODO-5.md`](./TODO-5.md#todo-todo-5-init初始化并细化本任务包) | 分析 P4-P5 需求，生成 `TODO-5.md` 详细任务列表并更新本索引 |
 | TODO-6-INIT | [TODO] | [`TODO-6.md`](./TODO-6.md#todo-todo-6-init初始化并细化本任务包) | 分析 P6-P8 需求，生成 `TODO-6.md` 详细任务列表并更新本索引 |
