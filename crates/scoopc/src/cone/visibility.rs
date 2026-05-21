@@ -1,9 +1,9 @@
 //! `.cone` 依赖的“符号可见性索引”（v0）。
 //!
 //! 背景：
-//! - `api.scoopir` 只包含依赖 cone 的 `public` API（T1103/T1104）。
+//! - `api.scoopir` 只包含依赖 cone 的 `public` API。
 //! - 但对下游来说，引用依赖 cone 的 `internal/private` 符号应该得到稳定诊断
-//!   `scoop::resolve::not_visible`（TODO T0321b），而不是“未解析”。
+//!   `scoop::resolve::not_visible`，而不是“未解析”。
 //!
 //! 因此 v0 额外在 `.cone` 中写入一个轻量 JSON 文件：
 //! - 仅记录**非 public** 的符号“存在性 + 可见性层级”（不含签名/类型信息）

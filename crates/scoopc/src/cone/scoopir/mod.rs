@@ -1,6 +1,6 @@
 //! ScoopIR（Scoop Stable IR）v0：用于 `.cone` 分发的公共 API 描述。
 //!
-//! 当前阶段（TODO T1103）只导出：
+//! 当前 v0 schema 只导出：
 //! - `public` 类型声明头（type kind + type params）
 //! - `public` 函数声明头（签名：receiver/params/return/effects）
 //!

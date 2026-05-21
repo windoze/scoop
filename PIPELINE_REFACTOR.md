@@ -134,10 +134,10 @@ AST -> HIR -> MIR -> effect facts -> LIR -> codegen
 
 ### 整个 project build 不是一个 compilation unit
 
-当前实现里，frontend 会把 sysroot、local dependency、consumer cone 的源一起 flatten 进一次运行中。
-见 `crates/scoopc/src/frontend.rs:535-565`。
+当前实现里，`ProjectInput::build_closure_sources()` 仍提供 sysroot、local dependency、consumer cone 的 build-closure source view。
+同时，facade 已通过 `ProjectInput::compilation_units()` / `consumer_compilation_unit()` 暴露 cone-level unit 视图，AST stage 也有 `AstCompilationUnitOutput`。
 
-这在实现上可以暂时存在，但在目标设计里，我们不应把它继续理解成“一个大 compilation unit”。
+这个 build-closure view 可以暂时服务现有 resolver/typecheck 过渡路径，但不能被理解成“一个大 compilation unit”。
 
 更合理的理解是：
 
@@ -156,7 +156,7 @@ AST -> HIR -> MIR -> effect facts -> LIR -> codegen
 
 1. 一个只含单个源文件的 synthetic consumer cone。
 
-见 `crates/scoopc/src/cone/graph.rs:208-234`。
+见 `crates/scoopc/src/cone/graph.rs::load_source_cone_graph_for_virtual_consumer` 和 `crates/scoopc/src/frontend.rs::ProjectInput::consumer_compilation_unit`。
 
 所以它不应该成为其它场景的定义依据；它只是“一个 cone 刚好只有一个文件”的特例。
 
@@ -1297,7 +1297,7 @@ AST stage 应发布：
 1. 解析完成的 AST compilation unit。
 2. 每个 AST 文件的稳定 source identity、文件顺序和 compilation-unit membership。
 
-这里的重点是“compilation unit”，而不是今天 `AstStageOutput` 这种单文件包装。多文件构建路径不能长期绕开 AST stage，转而在 `FrontendOutput` 里自己持有一套 `Vec<ast::File>`。
+这里的重点是“compilation unit”，而不是单文件 worker 包装。P1 已保留 `AstStageOutput` 作为 dump/helper worker，并新增 `AstCompilationUnitOutput` 作为 cone-level AST handoff；后续 P2 应在这个 handoff 上建立 HIR barrier 与 facts。
 
 #### 应发布的 facts
 
@@ -1315,15 +1315,12 @@ AST stage 原则上不需要复杂的全局 semantic facts。
 2. 不依赖 name resolution 后的信息。
 3. 只描述 parser 能确定的 header surface。
 
-#### 当前完整输出还缺什么
+#### P1 后仍需补齐什么
 
 当前最明显的问题是：
 
-1. `AstStageOutput` 只覆盖单文件 `source + ast` 形状，缺少正式的 project/compilation-unit stage output。
-   见 `crates/scoopc/src/pipeline/ast_stage.rs:16-37`。
-2. production 路径虽然在 `FrontendOutput` 里持有 `asts: Vec<ast::File>`，并通过 `ProjectInput` 持有
-   扁平化的 graph sources，但这仍不是正式的 AST stage handoff。
-   见 `crates/scoopc/src/frontend.rs:315-327` 与 `crates/scoopc/src/frontend.rs:33-57`。
+1. `AstCompilationUnitOutput` 已能表达 cone-level AST handoff，但它还没有发布独立 parser-owned facts。
+2. production frontend 仍让 resolver/typecheck/HIR 过渡路径消费 build closure；P2 需要把 `AST -> HIR` 收口成正式 cone-level semantic barrier。
 
 ### HIR stage
 

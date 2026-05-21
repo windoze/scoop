@@ -9,7 +9,7 @@ Scoop 是一个 Kotlin 风格的静态类型语言，目标是：
 - LLVM 后端（Rust `inkwell`），自带运行时与 GC（长期 C runtime/GC；平台差异隔离在 `runtime/c`）
 
 语言规范见 `SCOOP_FULL_SPEC.md`，实现路线图见 `PLAN.md`。
-当前 pipeline refactor 的 P0 阶段已移除旧编译期执行 surface；反射能力保留为 sysroot `@Intrinsic` 声明。
+当前 pipeline refactor 的 P0 阶段已移除旧编译期执行 surface；P1 阶段已建立基础 crate 层与 cone-level compilation unit facade。反射能力保留为 sysroot `@Intrinsic` 声明。
 Kotlin runtime / Scoop core runtime gap 的能力矩阵审计见 `KOTLIN_RUNTIME_GAP_AUDIT.md`（T1314）。
 标准库（std）分层与 capability matrix 设计见 `STDLIB_DESIGN.md`（T1316）。
 effect lowering 的统一状态机设计基线见 `docs/effect_unified_state_machine.md`（T2003u1）。
@@ -160,12 +160,12 @@ cargo run -p scoop_tools -- safepoint-baseline
 - `crates/scoop/`：命令行工具（driver）
 - `crates/scoopc/`：编译器核心库（前端/中端/后端）
 - `crates/scoopc_span/`：基础 span / 诊断坐标 crate；后续 stage/fact crate 可共享的 span owner
-- `crates/scoopc_source/`：基础 source identity / source map crate；负责后续 source 与编译单元内文件身份
+- `crates/scoopc_source/`：基础 source identity / source map crate；不承载 cone/project membership
 - `crates/scoopc_types/`：基础 type universe / effect row crate；负责后续跨阶段共享类型基础设施
 - `crates/scoopc_ids/`：基础 stable identity crate；负责后续跨阶段 ID 与 stable key primitives
-- `crates/scoopc_project_model/`：基础 project / source-cone / compilation-unit 模型 crate
+- `crates/scoopc_project_model/`：基础 project / source-cone / cone compilation unit 模型 crate
 - `crates/scoop_runtime/`：运行时构建（C runtime 的 build glue）
 - `runtime/c/`：C 运行时实现（GC/effect/线程等；平台差异收敛在 platform/backends）
 - `tests/fixtures/`：编译期/运行期 fixtures（长期保证正确性）
 
-`scoopc` 在迁移期通过 `scoopc::base::{span, source, types, ids, project_model}` 暴露这些基础 crate 的 facade anchor；新 stage/fact crate 应直接依赖对应基础 crate，而不是反向依赖 `scoopc`。
+`scoopc` 在迁移期通过 `scoopc::base::{span, source, types, ids, project_model}` 暴露这些基础 crate 的 facade anchor；新 stage/fact crate 应直接依赖对应基础 crate，而不是反向依赖 `scoopc`。`ProjectInput::build_closure_sources()` 是 source-cone DAG 的 build-closure source view，不是单一 compilation unit；需要 cone 级语义时使用 `compilation_units()` / `consumer_compilation_unit()`。

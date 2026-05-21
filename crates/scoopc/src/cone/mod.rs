@@ -1,8 +1,8 @@
-//! Cone（包/稳定 IR/分发）相关基础设施。
+//! Cone/project facade adapters.
 //!
-//! 当前阶段已落地：
-//! - T1101：`Cone.toml` 的最小解析（name/version/kind/deps）；
-//! - T1102：source package 的加载规则（cone root → sources 列表 + main 入口定位）。
+//! Pure project/cone data and graph validation are owned by
+//! `scoopc_project_model`. This module keeps filesystem, sysroot, archive, and
+//! migration re-export adapters for the current `scoopc` facade.
 
 pub mod annotations;
 pub mod archive;

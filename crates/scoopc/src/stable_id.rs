@@ -1,9 +1,11 @@
-//! Shared stable-id primitives.
+//! Migration facade for shared stable-id helpers.
 //!
-//! This module is the single entry point for canonical type/effect encoding,
-//! versioned hashing, and short stable dump labels. Callers must feed semantic
-//! keys or canonical text here instead of reusing `TypeStore::display()`, raw
-//! `Debug` output, or path/span text as the authoritative identity input.
+//! Foundational hash/key primitives live in `scoopc_ids`, and cone identity
+//! lives in `scoopc_project_model`. This facade keeps canonical type/effect
+//! encoding and compiler semantic keys next to the current HIR/MIR/RTTI users
+//! until those stages are split. Callers must feed semantic keys or canonical
+//! text here instead of reusing `TypeStore::display()`, raw `Debug` output, or
+//! path/span text as the authoritative identity input.
 
 use std::collections::HashMap;
 

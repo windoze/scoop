@@ -1,13 +1,14 @@
-//! Cone 的“源级包（source package）”加载（T1102）。
+//! Filesystem loader for source cone packages.
 //!
-//! 目标：把一个 cone root 目录（含 `Cone.toml`）解析为：
+//! This adapter turns an on-disk cone root directory containing `Cone.toml` into:
 //! - manifest（name/version/kind/deps）；
 //! - sources 列表（当前规则：`src/**/*.scoop`）；
 //! - 可执行入口（`bin` cone 规则：`src/main.scoop`）。
 //!
 //! 说明：
-//! - 本模块只负责“目录结构 → 路径列表”的确定性规则；
-//! - 依赖解析/`.cone` 归档/IR 导出等留给后续任务（T1103+）。
+//! - 本模块只负责“目录结构 → 路径列表”的确定性文件系统规则；
+//! - 纯 `ConeSourcePackage` 数据定义由 `scoopc_project_model` 持有；
+//! - dependency graph、`.cone` archive 和 IR export 由各自 adapter 处理。
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
@@ -20,7 +21,7 @@ pub use scoopc_project_model::{CONE_MAIN_FILE_NAME, CONE_SRC_DIR_NAME, ConeSourc
 
 /// 从一个 cone root 目录加载“源级包”的 sources 列表与可选 entry anchor。
 ///
-/// 当前阶段规则（T1102）：
+/// 当前规则：
 /// - `Cone.toml` 必须位于 root 目录下；
 /// - `kind = "syslib"` 只允许出现在 `<sysroot>/lib/<cone.name>/Cone.toml`；
 /// - sources = `root/src/**/*.scoop`（递归，且非空）；

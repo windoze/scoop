@@ -141,13 +141,10 @@ fact crate 明确禁止依赖：
 2. 如果为了 project/multi-file pipeline 需要轻量 facts，它们也只能是 parser-owned 的 header/stub facts：
    package/import surface、顶层声明 stub、源文件归属的 source-cone/project 信息。
 
-当前“完整输出”还少什么：
+P1 后仍需补齐什么：
 
-1. `AstStageOutput` 当前只覆盖单文件 `source + ast` 形状，缺少正式的 project/compilation-unit stage output。
-   见 `crates/scoopc/src/pipeline/ast_stage.rs:16-37`。
-2. production 路径虽然在 `FrontendOutput` 里持有 `asts: Vec<ast::File>`，并且 `ProjectInput` 已显式持有
-   `SourceConeGraph` 与扁平化 graph sources，但这仍不是正式的 AST stage handoff。
-   见 `crates/scoopc/src/frontend.rs:33-57` 与 `crates/scoopc/src/frontend.rs:315-327`。
+1. `AstCompilationUnitOutput` 已作为 cone-level AST handoff 存在，`AstStageOutput` 只保留为单文件 worker / dump helper。
+2. production frontend 仍让 resolver/typecheck/HIR 过渡路径消费 build closure；P2 需要在 cone-level AST handoff 上建立正式 HIR barrier 与 `hir_facts`。
 
 ### HIR stage
 

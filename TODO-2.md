@@ -464,7 +464,7 @@
   - 验证命令：`cargo fmt --check`；`cargo test -p scoopc_project_model`；`cargo test -p scoopc --no-default-features frontend`；`cargo test -p scoopc --no-default-features pipeline`；`cargo test -p scoopc --no-default-features stable_type_param_keys_use_owning_source_cone_key`；`cargo test -p scoopc --no-default-features generic_template_signatures_use_owning_source_cone_key`；`cargo test --all --all-targets --no-default-features`；`cargo run -p scoop -- test --fixtures tests/fixtures/build`；`cargo clippy --all-targets -- -D warnings`；搜索 `single file compilation unit|single-source compilation unit|whole build compilation unit|current compilation unit.*sources|AstStageOutput`。
   - 残余风险：frontend 内部仍以现有 resolver/typecheck/HIR 过渡实现一次处理 build closure；这是 P1-T05 已记录的过渡边界，后续 P2 的 AST -> HIR semantic frontend barrier 会继续拆分真正的 per-cone HIR/facts 输出。
 
-## [TODO] P1-T06：P1 全包清场、文档同步与依赖审计
+## [DONE] P1-T06：P1 全包清场、文档同步与依赖审计
 
 - 参考：
   - P1-T01 到 P1-T05R 的完成记录
@@ -497,7 +497,13 @@
   - P2 可以直接在 cone-level AST/HIR input model 上建立 `HIR + hir_facts` 边界。
 - 依赖：P1-T05R
 - 完成记录：
-  - 待填写。
+  - 改动范围：同步更新 `README.md`、`PIPELINE_REFACTOR.md`、`PIPELINE-CLEANUP.md`、`scoopc` facade/adapters 与基础 crate 注释，移除 P1 之前的过期描述；文档明确 `ProjectInput::build_closure_sources()` 只是 build-closure source view，cone-level 语义通过 `compilation_units()` / `consumer_compilation_unit()` 表达。
+  - adapter 保留原因：`scoopc::{span, source, ty}` 仅作为迁移期 re-export adapter 保留，方便当前 monolithic `scoopc` 内部调用点继续共享基础类型；`scoopc::stable_id` 继续保留 type/effect canonical encoding 与 compiler semantic stable keys，因为它们仍耦合当前 HIR/MIR/RTTI pipeline，底层 hash/key primitives 与 `StableConeKey` 已来自基础 crate；`scoopc::cone` 保留 filesystem/sysroot/archive/loader adapters，纯 project/cone 数据与 topo validation 由 `scoopc_project_model` 持有。
+  - 依赖审计：`cargo run -p scoop_tools -- dependency-gate` 通过；逐项 `cargo tree` 显示 `scoopc_span -> miette`，`scoopc_source -> scoopc_span + miette`，`scoopc_types -> scoopc_span`，`scoopc_ids -> scoopc_span + sha2`，`scoopc_project_model -> scoopc_ids + scoopc_source + miette/thiserror/toml`，未发现基础 crate 依赖 `scoopc` facade、stage/fact/backend crate 或工具 crate。
+  - 搜索分类摘要：authoritative `Span` / `SourceFile` / `SourceId` / `SourceMap` / `TypeId` / `TypeStore` / `EffectRow` / `ConeId` / `ConeInfo` / `SourceConeGraph` / `SourceConeInfo` / `SourceConeCompilationUnit` 定义只位于基础 crate；active Rust 中没有 `crate::resolve::ConeId` / `crate::resolve::ConeInfo` / `resolve::ConeId` / `resolve::ConeInfo` 命中；`crate::span` / `crate::source` / `crate::ty` / `crate::stable_id` 命中均为当前 `scoopc` facade 内部 legacy adapter 消费；`AstStageOutput` 命中只在 pipeline 单文件 worker、cone-level `AstCompilationUnitOutput` 文件列表、dump/fixture helper；active Rust 中没有 `single file compilation unit` / `whole build compilation unit` / `single-source compilation unit` / `current compilation unit.*sources` 命中，active docs 中相关中文/英文命中只作为否定性规则或 TODO 历史记录存在。
+  - 文档决策：未更新 `PLAN.md`，因为 P1-T06 没有改变 phase-level sequencing、依赖、假设或完成标准。
+  - 验证命令：`cargo fmt`；`cargo fmt --check`；`cargo test --all --all-targets --no-default-features`；`cargo run -p scoop -- test`；`cargo run -p scoop_tools -- spec-fixtures check`；`cargo clippy --all-targets -- -D warnings`；`cargo run -p scoop_tools -- dependency-gate`；`cargo tree -p scoopc_span`；`cargo tree -p scoopc_source`；`cargo tree -p scoopc_types`；`cargo tree -p scoopc_ids`；`cargo tree -p scoopc_project_model`；P1 清场关键词搜索；`git diff --check`。
+  - 残余风险：P2 仍需把 production frontend 的 resolver/typecheck/HIR 过渡路径拆成正式 cone-level `AST -> HIR` semantic barrier 与 `hir_facts`；本任务未提前实现 P2/P3 facts/stage crate 拆分。
 
 ## [TODO] P1-T06R：Review P1 全包完成度
 
