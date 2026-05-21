@@ -603,7 +603,7 @@
   - 验证命令：`cargo fmt`；`cargo test -p scoopc_mir_facts`；`cargo test -p scoopc --no-default-features mir_stage`；`cargo test -p scoopc --no-default-features effect_facts_stage`；`cargo test -p scoopc --no-default-features effect_lowering_stage`；`cargo run -p scoop_tools -- dependency-gate`；`cargo run -p scoop -- test --fixtures tests/fixtures/mir_lowered`；`cargo run -p scoop -- test --fixtures tests/fixtures/mir_materialized`；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
   - 残余风险：P4/P5/P7 仍需收口 `EffectFactsStageOutput` / `EffectLoweredStageOutput` 的 nested upstream bundle、effect facts stage 对 MIR snapshot type context 的可变扩展、LIR 输出自足性、LLVM HIR compatibility scaffold 和 backend 层去虚化 residual；这些已在文档中保留，不阻塞进入 `P3-T07R` review。
 
-## [TODO] P3-T07R：Review P3 全包完成度
+## [DONE] P3-T07R：Review P3 全包完成度
 
 - 参考：P3-T07。
 - 重点：
@@ -627,4 +627,8 @@
   - review 结论明确写出：P3 全包满足 MIR owner、output boundary 和 pass pipeline 约束，或列出阻塞项并在本 review 内修复。
 - 依赖：P3-T07
 - 完成记录：
-  - 待填写。
+  - 改动范围：复查 `P3-T01` 到 `P3-T07` 的 MIR stage / `scoopc_mir_facts` / pass pipeline / downstream handoff / 文档状态；review 过程中修复 `mir::escape` flow-insensitive alias propagation 的非收敛问题，并新增 `conflicting_alias_origins_converge_to_unknown` 回归测试，避免同一 local 从多个 closure/continuation origin 赋值时在 escape analysis fixpoint 中反复覆盖 alias。
+  - review 结论：P3 全包满足 MIR owner、output boundary 和 pass pipeline 约束。`MirStageOutput` 不嵌套 HIR output，root inventories、snapshot binding、instance/callable family inventory、pass artifact metadata 和 pass pipeline metadata 均由 MIR stage / `MirFacts` 发布；ordinary devirtualization、inlining、escape analysis、closure simplification 和 summary/escape refresh 由显式 MIR pass pipeline 调度。
+  - 搜索结论：`devirtualize_dispatch_calls|callable_body_indices|initializer_root_indices|global_root_indices|metadata_root_indices|MissingMaterializedMirSnapshot` 在活跃 Rust 源码中无命中；HIR 源码中无 `materialized_pass_view`、`MaterializedMirPassView` 或 `MaterializedMirPassArtifacts` 命中；`try_devirtualize_dispatch_target(` 的非测试活跃命中只剩 MIR pass owner / shared helper，以及已归属 P7 的 LLVM reachability/codegen residual。
+  - 验证命令：`cargo fmt`；`cargo test -p scoopc_mir_facts`；`cargo test -p scoopc --no-default-features mir_stage`；`cargo test -p scoopc --no-default-features effect_facts_stage`；`cargo test -p scoopc --no-default-features effect_lowering_stage`；`cargo run -p scoop_tools -- dependency-gate`；`cargo run -p scoop -- test --fixtures tests/fixtures/mir_lowered`；`cargo run -p scoop -- test --fixtures tests/fixtures/mir_materialized`；`cargo clippy --all-targets -- -D warnings`；额外运行 `cargo test -p scoopc --no-default-features conflicting_alias_origins_converge_to_unknown`、`cargo test -p scoopc --no-default-features mir::escape`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/effect_indirect_perform_nonresuming_function_value_higher_order_when_direct.scoop`、`cargo test --all --all-targets`。
+  - 残余风险：P4/P5/P7 仍需收口 `EffectFactsStageOutput` / `EffectLoweredStageOutput` 的 nested upstream bundle、effect facts 对 materialized snapshot type context 的可变扩展、LIR 输出自足性、LLVM HIR compatibility scaffold 和 backend 层去虚化 residual；这些风险已在 P3 文档中保留，不阻塞进入 `TODO-5.md`。

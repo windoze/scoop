@@ -7,7 +7,7 @@
 //! becomes escaping or unknown. Later simplification and effect planning can consume these facts
 //! without asking LLVM codegen to rediscover them from backend state.
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, HashSet};
 
 use crate::ty::{RefTypeKind, TypeKind, TypeStore};
 
@@ -171,7 +171,8 @@ fn analyze_callable_escape_facts(fun: &FunDecl, types: &TypeStore) -> CallableEs
         return facts;
     }
 
-    let aliases = collect_escape_origin_aliases(body, &facts);
+    let (aliases, ambiguous_origins) = collect_escape_origin_aliases(body, &facts);
+    mark_ambiguous_origins_unknown(&mut facts, ambiguous_origins);
     let mut saw_unknown_mir = false;
     for block in &body.blocks {
         for stmt in &block.stmts {
@@ -276,8 +277,10 @@ fn collect_resume_continuation_candidate_from_call_kind(
 fn collect_escape_origin_aliases(
     body: &Body,
     facts: &CallableEscapeFacts,
-) -> HashMap<LocalId, EscapeOrigin> {
+) -> (HashMap<LocalId, EscapeOrigin>, Vec<EscapeOrigin>) {
     let mut aliases = HashMap::new();
+    let mut ambiguous_locals = HashSet::new();
+    let mut ambiguous_origins = Vec::new();
     aliases.extend(
         facts
             .closures_by_local
@@ -308,15 +311,31 @@ fn collect_escape_origin_aliases(
                 let Some(origin) = aliases.get(source).copied() else {
                     continue;
                 };
-                if aliases.get(target).copied() != Some(origin) {
-                    aliases.insert(*target, origin);
-                    changed = true;
+                // A local assigned from multiple origins is not a precise alias; keeping it
+                // ambiguous prevents the fixpoint from oscillating between origins.
+                if ambiguous_locals.contains(target) {
+                    ambiguous_origins.push(origin);
+                    continue;
+                }
+                match aliases.get(target).copied() {
+                    None => {
+                        aliases.insert(*target, origin);
+                        changed = true;
+                    }
+                    Some(existing) if existing == origin => {}
+                    Some(existing) => {
+                        aliases.remove(target);
+                        ambiguous_locals.insert(*target);
+                        ambiguous_origins.push(existing);
+                        ambiguous_origins.push(origin);
+                        changed = true;
+                    }
                 }
             }
         }
     }
 
-    aliases
+    (aliases, ambiguous_origins)
 }
 
 fn analyze_statement_uses(
@@ -604,6 +623,30 @@ fn mark_unescaped_facts_unknown(facts: &mut CallableEscapeFacts) {
     }
 }
 
+fn mark_ambiguous_origins_unknown(
+    facts: &mut CallableEscapeFacts,
+    origins: impl IntoIterator<Item = EscapeOrigin>,
+) {
+    for origin in origins {
+        match origin {
+            EscapeOrigin::Closure(local) => {
+                if let Some(fact) = facts.closures_by_local.get_mut(&local)
+                    && fact.status == EscapeStatus::NonEscaping
+                {
+                    fact.status = EscapeStatus::Unknown;
+                }
+            }
+            EscapeOrigin::Continuation(local) => {
+                if let Some(fact) = facts.continuations_by_local.get_mut(&local)
+                    && fact.status == EscapeStatus::NonEscaping
+                {
+                    fact.status = EscapeStatus::Unknown;
+                }
+            }
+        }
+    }
+}
+
 fn is_continuation_type(types: &TypeStore, ty: crate::ty::TypeId) -> bool {
     matches!(
         types.kind(ty),
@@ -726,6 +769,83 @@ mod tests {
         assert_eq!(
             facts.closure(closure).expect("closure fact").status,
             EscapeStatus::Escapes
+        );
+    }
+
+    #[test]
+    fn conflicting_alias_origins_converge_to_unknown() {
+        let mut types = TypeStore::new();
+        let builtins = types.intern_builtins();
+        let mut body = Body::new_empty();
+        let first = body.push_local(local("first", builtins.any));
+        let second = body.push_local(local("second", builtins.any));
+        let callee = body.push_local(local("callee", builtins.any));
+        let result = body.push_local(local("result", builtins.int));
+        body.push_block(BasicBlock {
+            is_cleanup: false,
+            stmts: vec![
+                Statement {
+                    span: SPAN,
+                    kind: StatementKind::Assign {
+                        target: first,
+                        value: Rvalue::MakeClosure {
+                            env: Operand::Const(ConstValue::Unit),
+                            fn_ptr: "fixtures.escape.first".to_string(),
+                            env_contract: ClosureEnvTransportMetadata::empty(builtins.unit),
+                        },
+                    },
+                },
+                Statement {
+                    span: SPAN,
+                    kind: StatementKind::Assign {
+                        target: second,
+                        value: Rvalue::MakeClosure {
+                            env: Operand::Const(ConstValue::Unit),
+                            fn_ptr: "fixtures.escape.second".to_string(),
+                            env_contract: ClosureEnvTransportMetadata::empty(builtins.unit),
+                        },
+                    },
+                },
+                Statement {
+                    span: SPAN,
+                    kind: StatementKind::Assign {
+                        target: callee,
+                        value: Rvalue::Use(Operand::Local(first)),
+                    },
+                },
+                Statement {
+                    span: SPAN,
+                    kind: StatementKind::Assign {
+                        target: callee,
+                        value: Rvalue::Use(Operand::Local(second)),
+                    },
+                },
+                Statement {
+                    span: SPAN,
+                    kind: StatementKind::Assign {
+                        target: result,
+                        value: Rvalue::Call {
+                            site_id: SiteId::from_raw(0),
+                            kind: CallKind::FunValue {
+                                callee: Operand::Local(callee),
+                            },
+                            args: Vec::new(),
+                            transport: call_transport(builtins.int),
+                        },
+                    },
+                },
+            ],
+            terminator: return_unit(),
+        });
+
+        let facts = analyze_body(body, &types);
+        assert_eq!(
+            facts.closure(first).expect("first closure fact").status,
+            EscapeStatus::Unknown
+        );
+        assert_eq!(
+            facts.closure(second).expect("second closure fact").status,
+            EscapeStatus::Unknown
         );
     }
 
