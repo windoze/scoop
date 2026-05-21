@@ -522,7 +522,7 @@
   - 验证命令：`cargo fmt`；`cargo test -p scoopc --no-default-features hir --lib`；`cargo test -p scoopc --no-default-features mir::materialize --lib`；`cargo test -p scoopc --no-default-features monomorph --lib`；`cargo run -p scoop -- test --fixtures tests/fixtures/mir_materialized`；搜索 `devirtualize_dispatch_calls` 无命中；搜索 `try_devirtualize_dispatch_target\(` 确认非测试活跃调用点只剩 MIR pass 与 P7 归属的 LLVM codegen/reachability 残留；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
   - 残余风险：LLVM codegen / reachability 中的去虚化残留仍按 P7 cleanup 处理，本任务未新增也未依赖这些 backend fallback。P3-T06 只完成普通语义 dispatch 去虚化 owner 迁移；P7 仍需移除 backend residual。
 
-## [TODO] P3-T06R：Review dispatch 去虚化 owner 迁移结果
+## [DONE] P3-T06R：Review dispatch 去虚化 owner 迁移结果
 
 - 参考：P3-T06。
 - 重点：
@@ -544,7 +544,11 @@
   - review 结论明确写出：普通 dispatch 去虚化已由 MIR pass 唯一拥有，或列出阻塞项并在本 review 内修复。
 - 依赖：P3-T06
 - 完成记录：
-  - 待填写。
+  - 改动范围：复查 `P3-T06` 的 MIR pass pipeline、`dispatch_devirtualize` pass、materialization rewrite / reachable discovery、HIR lowering 调用点、`frontend` / `cone` 调用面、`monomorph` tests 与 `mir_materialized` fixture；review 未发现需要修复的代码问题，本次只更新任务状态、完成记录和执行计划记录。
+  - review 结论：普通 virtual/interface dispatch 去虚化已由显式 MIR pass pipeline 中的 `MirPassKind::Devirtualization` 调度并拥有；HIR lowering 不再存在 `devirtualize_dispatch_calls` 开关，仍记录 dispatch call-site contract 并保留 dynamic dispatch 语义；materialization rewrite 对 dispatch call 只做 receiver/type substitution、candidate instance discovery 和 canonical target fact 记录，不再直接把 call 改写为 `CallKind::Direct`。
+  - 搜索结论：`devirtualize_dispatch_calls` 在活跃 Rust 源码中无命中；`try_devirtualize_dispatch_target(` 的非测试命中仅为 MIR pass、共享 helper，以及已按 `P3-T06` 完成记录归属 P7 的 LLVM reachability/codegen residual。
+  - 验证命令：`cargo fmt`；`cargo test -p scoopc --no-default-features hir`；`cargo test -p scoopc --no-default-features mir::materialize`；`cargo test -p scoopc --no-default-features monomorph`；`cargo run -p scoop -- test --fixtures tests/fixtures/mir_materialized`；搜索 `devirtualize_dispatch_calls` 无命中；搜索 `try_devirtualize_dispatch_target\(` 确认非测试活跃调用点只位于 MIR pass / helper / P7 residual；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
+  - 残余风险：LLVM reachability / codegen 中的去虚化 residual 仍按 P7 backend cleanup 收口；本 review 未新增或依赖这些 backend fallback，也未推进 `P3-T07`。
 
 ## [TODO] P3-T07：P3 全包清场、文档同步与依赖审计
 
