@@ -360,7 +360,7 @@ P5 需要把这条隐式 opt helper 提升为正式 LIR optimization family：�
   - 验证命令：`cargo fmt`；`cargo test -p scoopc --no-default-features effect_facts_stage`；`cargo test -p scoopc --no-default-features effect_lowering_stage`；`cargo test -p scoopc --no-default-features effect_facts`；`cargo test -p scoopc --no-default-features effect_lowered`；`cargo run -p scoop -- test --fixtures tests/fixtures/effect_facts`；`cargo run -p scoop -- test --fixtures tests/fixtures/effect_lowered`；`cargo clippy --all-targets -- -D warnings`。
   - 残余风险：`EffectLoweredStageOutput` 仍按 P5 过渡形状携带显式 MIR/P4 handoff 并保留上游查询 accessor，供当前 LLVM codegen 读取；这不是 P4 output 嵌套，已按 TODO 顺序留给 P5-T01/P5-T03 收口为正式 `LirStageOutput = { lir, lir_facts }`。
 
-## [TODO] P4-T04：P4 全包清场、文档同步与依赖审计
+## [DONE] P4-T04：P4 全包清场、文档同步与依赖审计
 
 - 参考：P4-T01 至 P4-T03R。
 - 目标：
@@ -396,7 +396,12 @@ P5 需要把这条隐式 opt helper 提升为正式 LIR optimization family：�
   - P5 任务可以在不依赖 P4 nested wrapper 的前提下开始。
 - 依赖：P4-T03R
 - 完成记录：
-  - 待填写。
+  - 清场结论：P4 effect facts purity 已全仓成立；搜索确认无 `canonical_snapshot_mut()`，`MaterializedEffectFactsBuilder` 生产路径只读借用 `&MaterializedMir`，`EffectFactsStageOutput` 只保存 `MaterializedEffectFacts`，不再嵌套或转发 `MirStageOutput` / pass view / MIR type store。
+  - 文档同步：更新 `PIPELINE-CLEANUP.md`、`PIPELINE_REFACTOR.md`、`README.md` 与 `crates/scoopc_effect_facts` crate overview，把 P4 状态改为已完成，并把剩余 nested output / HIR scaffold / codegen handoff 问题明确留给 P5/P7。
+  - 依赖门禁：`scoopc_effect_facts` 仍纳入 dependency gate 的 fact crate 检查，验证结果显示它只依赖允许的基础 crate。
+  - P5 进入门禁：P5 必须通过显式 `EffectLoweringStageInput { mir_stage_output, effect_facts_stage_output }` 分开消费 MIR handoff 与 effect facts handoff；P4 output 窄化为 effect facts，MIR snapshot 不被 P4 修改。
+  - 验证命令：`cargo fmt`；`cargo run -p scoop_tools -- dependency-gate`；`cargo test -p scoopc_effect_facts`；`cargo test -p scoopc --no-default-features effect_facts_stage`；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
+  - 残余风险：`EffectLoweredStageOutput` 仍按 P5 过渡形状携带显式 MIR/P4 handoff 并暴露上游查询 accessor，当前 LLVM codegen 仍有 HIR scaffold 与 MIR/pass-view 回看；这些已明确留给 P5-T01/P5-T03 和 TODO-6/P7，不属于 P4 output purity 缺口。
 
 ## [TODO] P4-T04R：Review P4 全包完成度
 

@@ -3,7 +3,9 @@
 //! This crate is intentionally data-only: it depends only on the
 //! stage-independent base crates for identity and type/effect-row primitives. It
 //! does not depend on the `scoopc` facade, MIR pass views, LIR, or backend ABI
-//! types.
+//! types. The P4 stage publishes this product from a read-only MIR handoff and
+//! records effect-owned context here instead of writing derived types back into
+//! MIR.
 
 #![forbid(unsafe_code)]
 

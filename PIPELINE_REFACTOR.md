@@ -1432,7 +1432,7 @@ P3 的入口已经不再有 HIR typed-contract 泄漏；P3 完成后，`MirStage
 
 ordinary dispatch devirtualization、summary-driven inlining、escape analysis、closure simplification 和必要 refresh 已由显式 MIR pass pipeline 调度。`materialized_pass_view()` 仍是下游读取 canonical pass artifacts 的 MIR-owned query surface；它不再代表 HIR fallback 或 optional snapshot gap。
 
-P4/P5/P7 仍需继续收口 effect facts / LIR / backend 的 nested upstream bundle 和 HIR compatibility scaffold；不能把这些后续问题伪装成 P3 未完成项，也不能重新引入重复 MIR owner。
+P4 已把 effect facts output 收口为只读窄产物；P5/P7 仍需继续收口 LIR / backend 的 nested upstream bundle 和 HIR compatibility scaffold。不能把这些后续问题伪装成 P3 未完成项，也不能重新引入重复 MIR owner。
 
 ### effect facts stage
 
@@ -1466,36 +1466,18 @@ effect facts stage 应发布：
 2. 它们不重新承载 MIR structure。
 3. 它们不提前承载后端物理 ABI。
 
-#### 当前完整输出还缺什么
+#### P4 收口结果
 
-当前最缺的是一个窄的、stage-owned 的 MIR snapshot reference/context。
+当前实现已经采用纯分析阶段形状：`input = &MirStageOutput`，`output = EffectFactsStageOutput = { effect_facts }`。
 
-现在 `EffectFactsStageOutput` 是通过嵌套整份 `MirStageOutput` 来满足下游需要，见 `crates/scoopc/src/pipeline/effect_facts_stage.rs:22-59`。
+P4 固定的边界是：
 
-这意味着：
+1. `EffectFactsStageOutput` 只保存 `MaterializedEffectFacts`，不嵌套整份 `MirStageOutput`，也不暴露 `materialized_pass_view()` / `materialized_mir()` / `mir_facts()` / `types()` 等上游查询面。
+2. `MaterializedEffectFactsBuilder` 只读借用 `&MaterializedMir`，并通过显式 `EffectOwnedTypeContext` 保存 runtime-error effect、tuple carrier、step schema 与 continuation schema 等 effect-owned additions。
+3. `scoopc_effect_facts` 发布 stage-independent effect/control facts 数据产品，只依赖基础 crate，不依赖 `scoopc` facade、MIR/LIR stage、backend crate 或其它 fact crate。
+4. P5 输入必须显式分开 `MirStageOutput` 与 `EffectFactsStageOutput`；需要 MIR pass view 或 MIR facts 时从 MIR handoff 读取，不能通过 P4 output 回看。
 
-1. effect facts stage 自己的输出还不够自足。
-2. 下一阶段很容易继续把它当成“访问 MIR 的入口”，而不是只把它当 effect-facts 产品。
-
-另外，如果下一阶段 LIR 还需要某些 MIR-derived 但非 effect-owned 的 global facts，这些 facts 的 owner 目前没有被明确下来，结果就会在 LIR stage 里现场重算。
-
-当前还有一个更具体的问题：现有实现并不是严格的只读分析。
-
-1. `MaterializedEffectFactsBuilder` 直接持有 `&mut MaterializedMir`。
-   见 `crates/scoopc/src/effect_facts/builder.rs:35-40,2030-2040`。
-2. builder 会对 `materialized.types` 做 intern/派生型变更，例如：
-   `find_or_intern_raise_runtime_error_effect(&mut self.materialized.types)`，以及后续
-   `schema_pool.intern_callable_step_schema(types, seed)` 等。
-   见 `crates/scoopc/src/effect_facts/builder.rs:2053-2067,2087-2093`。
-3. `collect_callable_seeds(...)` 也会继续通过 `&mut materialized.types` 收集和派生 effect 相关类型信息。
-   见 `crates/scoopc/src/effect_facts/builder.rs:2625-2664`。
-
-这说明当前 `effect facts` stage 还没有完全达到“纯分析阶段”的目标。
-
-在目标设计下，这部分应收敛为两种选择之一：
-
-1. 要么把这些新增/派生的 type context 明确定义为 `effect facts` 输出的一部分，而不是写回 MIR。
-2. 要么承认这一步已经不是纯 facts stage，而是一个会生产新阶段产物的 transformation stage，并据此改名和改 output 形状。
+因此，effect facts stage 已达到本节定义的“纯分析阶段”目标。若下一阶段 LIR 还需要某些 MIR-derived 但非 effect-owned 的 global facts，这些 facts 的 owner 应在 P5 的 LIR facts / query layer 中固定，不能重新把 P4 output 扩展成上游整包入口。
 
 ### LIR stage（当前即 `effect_lowered`）
 
@@ -1563,7 +1545,7 @@ LIR facts 至少应包含：
 1. `LoweredHir` 去掉 `materialized_mir`。（P2 已完成）
 2. `MirStageOutput` 不再泄漏 HIR source-site contracts。（P2 已完成）
 3. `MirStageOutput` 收口为 `{ mir, mir_facts }`，把 optional materialized snapshot / pass artifacts 变成 MIR-owned handoff。（P3 已完成）
-4. `EffectFactsStageOutput` 去掉对整份 `MirStageOutput` 的长期嵌套。
+4. `EffectFactsStageOutput` 去掉对整份 `MirStageOutput` 的长期嵌套。（P4 已完成）
 5. `EffectLoweredStageOutput` 去掉对整份 `EffectFactsStageOutput` 的长期嵌套。
 
 这一步的目标是先让 stage output 长成正确的“外形”。即使内部还有旧实现，也不能继续把上一阶段整包暴露给下游。
@@ -1605,8 +1587,8 @@ LIR facts 至少应包含：
 
 ## 当前状态总结
 
-当前实现离最终目标还有明显距离，但 P2 已经完成 HIR barrier 与 `hir_facts` 收口，P3 已经完成 MIR-owned handoff、`mir_facts` 与 MIR pass pipeline 收口；接下来重点转入 P4/P5/P7 的后续边界：
+当前实现离最终目标还有明显距离，但 P2 已经完成 HIR barrier 与 `hir_facts` 收口，P3 已经完成 MIR-owned handoff、`mir_facts` 与 MIR pass pipeline 收口，P4 已经完成 effect facts purity 与窄输出收口；接下来重点转入 P5/P7 的后续边界：
 
 1. `effect_lowered` 继续被视为正式 LIR。
-2. P4/P5 优先收口 effect facts / LIR stage output 与 fact owner，而不是提前做 LLVM 文件切分。
-3. 只要 stage output 还在嵌套上游整包、effect/LIR facts owner 还未收口、后端还在回看 HIR/MIR，这轮重构就还没有到可以稳定扩展 backend 的程度。
+2. P5 优先收口 LIR stage output 与 `lir_facts` owner，而不是提前做 LLVM 文件切分。
+3. 只要 LIR/codegen stage output 还在嵌套上游整包、LIR facts owner 还未收口、后端还在回看 HIR/MIR，这轮重构就还没有到可以稳定扩展 backend 的程度。
