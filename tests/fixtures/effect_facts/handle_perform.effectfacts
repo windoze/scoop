@@ -6,18 +6,18 @@ snapshot_binding:
   canonical_body_fqns:
     - a.main
 step_schemas:
-  step#h9c547f065c19922daf8929d986691696:
+  step#hb6c750bcbb233ee00d25148b5b99f7d9:
     invoke_args_tuple_ty: Unit
     complete_ty: Int
     continuation_obj_ty: scoop.__compiler.ContinuationObject@tests/fixtures/effect_facts/handle_perform.scoop:36..125::a.main
     cases:
-      - case#ha321bfaa529774b201656c99dc732ca5: op=scoop.core.Raise.raise<Int> payload_tuple_ty=Int continuation_schema=cont#hb6577cec7b6508f7f9ef9a407e7da6f5
-      - case#hca5ee4ecd2e32c27db264d9b62a4cea2: op=scoop.core.Raise.raise<scoop.core.RuntimeError> payload_tuple_ty=scoop.core.RuntimeError continuation_schema=cont#hb6577cec7b6508f7f9ef9a407e7da6f5
+      - case#h65b212f2458f5333a9f8fbaf5630c6df: op=scoop.core.Raise.raise<Int> payload_tuple_ty=Int continuation_schema=cont#h6774ab1578c60fb8ad9581c403060829
+      - case#ha2d006b62f1dbb0ac475a198c47f54be: op=scoop.core.Raise.raise<scoop.core.RuntimeError> payload_tuple_ty=scoop.core.RuntimeError continuation_schema=cont#h6774ab1578c60fb8ad9581c403060829
 continuation_schemas:
-  cont#hb6577cec7b6508f7f9ef9a407e7da6f5:
+  cont#h6774ab1578c60fb8ad9581c403060829:
     resume_tuple_ty: Nothing
     answer_ty: Int
-    out_step_schema: step#h9c547f065c19922daf8929d986691696
+    out_step_schema: step#hb6c750bcbb233ee00d25148b5b99f7d9
     surface_ty: scoop.core.Continuation<Nothing, Int, eff scoop.core.Raise<Int>>
 callable_facts:
   a.main:
@@ -32,43 +32,43 @@ callable_facts:
 body_facts:
   a.main:
     blocks:
-      bb#hc29dfec02493b16a4cc6f1bc979d5ac6:
+      bb0:
         ambient_cases: []
         outward_cases: []
         has_suspend_boundary: false
         has_handle_boundary: true
-      bb#hc72be33720210562a0d77182b11ba28d:
+      bb1:
         ambient_cases: []
         outward_cases: []
         has_suspend_boundary: true
         has_handle_boundary: false
-      bb#hdece5c432fd5a70b75872eda74508bf8:
+      bb2:
         ambient_cases: []
         outward_cases: []
         has_suspend_boundary: false
         has_handle_boundary: false
-      bb#h12153b95561962726986b9a4ba35bb54:
+      bb3:
         ambient_cases: []
         outward_cases: []
         has_suspend_boundary: false
         has_handle_boundary: false
-      bb#hfce44e992c6d1564350fdd46e9db09b4:
+      bb4:
         ambient_cases: []
         outward_cases: []
         has_suspend_boundary: false
         has_handle_boundary: false
     sites:
-      site#h2233e50e666678b3ee3ec4fe96c0895c:
+      site0:
         kind: Handle
         result_ty: Int
-        handled_cases: [case#ha321bfaa529774b201656c99dc732ca5=scoop.core.Raise.raise<Int>]
+        handled_cases: [case#h65b212f2458f5333a9f8fbaf5630c6df=scoop.core.Raise.raise<Int>]
         body_outward_cases: []
         finally_outward_cases: []
         nested_handle_classification: SelfContained
         arm_facts:
-          - handled_case: case#ha321bfaa529774b201656c99dc732ca5=scoop.core.Raise.raise<Int> payload_tuple_ty=Int continuation_schema=cont#hb6577cec7b6508f7f9ef9a407e7da6f5 arm_outward_cases=[]
-      site#he15b43c7f645a2e31bfc24bf582dc0e0:
+          - handled_case: case#h65b212f2458f5333a9f8fbaf5630c6df=scoop.core.Raise.raise<Int> payload_tuple_ty=Int continuation_schema=cont#h6774ab1578c60fb8ad9581c403060829 arm_outward_cases=[]
+      site1:
         kind: Perform
-        emitted_case: case#ha321bfaa529774b201656c99dc732ca5=scoop.core.Raise.raise<Int>
+        emitted_case: case#h65b212f2458f5333a9f8fbaf5630c6df=scoop.core.Raise.raise<Int>
         payload_tuple_ty: Int
-        captured_cont_schema: cont#hb6577cec7b6508f7f9ef9a407e7da6f5
+        captured_cont_schema: cont#h6774ab1578c60fb8ad9581c403060829

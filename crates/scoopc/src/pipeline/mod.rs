@@ -20,7 +20,7 @@ use crate::source::SourceFile;
 
 pub use ast_stage::{AstCompilationUnitOutput, AstStageOutput};
 pub use effect_facts_stage::EffectFactsStageOutput;
-pub use effect_lowering_stage::EffectLoweredStageOutput;
+pub use effect_lowering_stage::{EffectLoweredStageOutput, EffectLoweringStageInput};
 pub use hir_stage::HirStageOutput;
 pub(crate) use hir_stage::build_hir_declaration_facts_from_lowered_hir;
 pub(crate) use hir_stage::build_hir_facts_from_lowered_hir;
@@ -107,7 +107,7 @@ pub fn load_p4_ready_mir_stage_output_for_dump(
 pub fn build_effect_facts_stage_output(
     session: &Session,
     source: &SourceFile,
-    mir_stage_output: MirStageOutput,
+    mir_stage_output: &MirStageOutput,
 ) -> Result<EffectFactsStageOutput, crate::effect_facts::EffectFactsError> {
     build_effect_facts_stage_output_with_compilation_sources(
         session,
@@ -121,7 +121,7 @@ pub(crate) fn build_effect_facts_stage_output_with_compilation_sources(
     session: &Session,
     source: &SourceFile,
     compilation_sources: &[SourceFile],
-    mir_stage_output: MirStageOutput,
+    mir_stage_output: &MirStageOutput,
 ) -> Result<EffectFactsStageOutput, crate::effect_facts::EffectFactsError> {
     effect_facts_stage::run_with_compilation_sources(
         session,
@@ -136,15 +136,15 @@ pub fn load_effect_facts_stage_output_for_dump(
     source: &SourceFile,
 ) -> Result<EffectFactsStageOutput, crate::effect_facts::EffectFactsError> {
     let mir_stage_output = load_p4_ready_mir_stage_output_for_dump(session, source)?;
-    build_effect_facts_stage_output(session, source, mir_stage_output)
+    build_effect_facts_stage_output(session, source, &mir_stage_output)
 }
 
 pub fn build_effect_lowered_stage_output(
     session: &Session,
-    effect_facts_stage_output: EffectFactsStageOutput,
+    input: EffectLoweringStageInput,
 ) -> Result<EffectLoweredStageOutput, crate::effect_lowered::EffectLoweringError> {
     // P5 -> P6 canonical handoff contract：
-    // - 输入必须是 P4 的 authoritative `EffectFactsStageOutput`；
+    // - 输入必须显式携带 P3 MIR handoff 与 P4 authoritative `EffectFactsStageOutput`；
     // - 输出中的 `LateLoweredProgram` / types / state graph / frame schema / dynamic invoke /
     //   authoritative per-op/per-schema resume publication（step cases、continuation object、
     //   surface-resume dispatch inventory）以及可选的 effect-family resume packing definitions
@@ -154,15 +154,20 @@ pub fn build_effect_lowered_stage_output(
     //   选择，也不得把 packing layer 重新提升为 reverse-resume 语义主键；
     // - LLVM 物理布局、ABI 与 runtime 集成仍属于 P6，而不是在 P5 回填。
     let _ = session;
-    effect_lowering_stage::run(effect_facts_stage_output)
+    effect_lowering_stage::run(input)
 }
 
 pub fn load_effect_lowered_stage_output_for_dump(
     session: &Session,
     source: &SourceFile,
 ) -> Result<EffectLoweredStageOutput, crate::effect_lowered::EffectLoweringError> {
-    let effect_facts_stage_output = load_effect_facts_stage_output_for_dump(session, source)?;
-    build_effect_lowered_stage_output(session, effect_facts_stage_output)
+    let mir_stage_output = load_p4_ready_mir_stage_output_for_dump(session, source)?;
+    let effect_facts_stage_output =
+        build_effect_facts_stage_output(session, source, &mir_stage_output)?;
+    build_effect_lowered_stage_output(
+        session,
+        EffectLoweringStageInput::new(mir_stage_output, effect_facts_stage_output),
+    )
 }
 
 pub fn materialize_direct_style_mir_for_dump(
@@ -341,12 +346,13 @@ mod tests {
         let session = session();
         let source = sample_source();
 
-        let output = load_effect_facts_stage_output_for_dump(&session, &source).unwrap();
+        let mir_output = load_p4_ready_mir_stage_output_for_dump(&session, &source).unwrap();
+        let output = build_effect_facts_stage_output(&session, &source, &mir_output).unwrap();
 
-        assert_eq!(output.file().items.len(), 1);
+        assert_eq!(mir_output.file().items.len(), 1);
         assert_eq!(
             output.effect_facts().callable_facts().len(),
-            output.materialized_pass_view().len()
+            mir_output.materialized_pass_view().len()
         );
     }
 
@@ -390,7 +396,7 @@ mod tests {
 
         assert_eq!(
             output.program().len(),
-            output.materialized_pass_view().len()
+            output.mir_stage_output().materialized_pass_view().len()
         );
         assert!(output.program().callable("sample.main").is_some());
     }

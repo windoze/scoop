@@ -52,13 +52,13 @@ callable_facts:
 body_facts:
   a.callFn:
     blocks:
-      bb#heaed9b95c555bf3a8fe7d3c0179c1e5e:
+      bb0:
         ambient_cases: []
         outward_cases: []
         has_suspend_boundary: false
         has_handle_boundary: false
     sites:
-      site#h33d6076a3325ac9ba870ce0aabfb6cfc:
+      site0:
         kind: Call
         call_kind: FunValue
         target_mode: DynamicFallback
@@ -70,7 +70,7 @@ body_facts:
         precision: SignatureFallback
   a.id:
     blocks:
-      bb#heabdbcbc7571dd13d88896b260630826:
+      bb0:
         ambient_cases: []
         outward_cases: []
         has_suspend_boundary: false
@@ -79,7 +79,7 @@ body_facts:
       <none>
   a.main:
     blocks:
-      bb#hf20af3d2812d9e961b451ffa062ceaa8:
+      bb0:
         ambient_cases: []
         outward_cases: []
         has_suspend_boundary: false
@@ -88,7 +88,7 @@ body_facts:
       <none>
   a.main.$lambda0:
     blocks:
-      bb#h6176e062fbf80a8ac0434117cd97b69f:
+      bb0:
         ambient_cases: []
         outward_cases: []
         has_suspend_boundary: false

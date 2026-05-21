@@ -1,6 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use crate::mir::{BasicBlockId, InstanceKey, MaterializedMirPassView, SiteId};
+use crate::opt::OptLevel;
 use crate::ty::{EffectRow, TypeId, TypeStore};
 
 use super::schema::{
@@ -26,6 +27,7 @@ pub enum CanonicalMirQuerySurface {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MirSnapshotBinding {
     query_surface: CanonicalMirQuerySurface,
+    opt_level: OptLevel,
     instance_count: usize,
     canonical_body_fqns: Vec<String>,
 }
@@ -33,6 +35,10 @@ pub struct MirSnapshotBinding {
 impl MirSnapshotBinding {
     pub fn query_surface(&self) -> CanonicalMirQuerySurface {
         self.query_surface
+    }
+
+    pub fn opt_level(&self) -> OptLevel {
+        self.opt_level
     }
 
     pub fn instance_count(&self) -> usize {
@@ -52,6 +58,7 @@ impl MirSnapshotBinding {
         }
         Self {
             query_surface: CanonicalMirQuerySurface::PassView,
+            opt_level: pass_view.materialized().opt_level(),
             instance_count: pass_view.len(),
             canonical_body_fqns: canonical_body_fqns.into_iter().collect(),
         }
@@ -821,7 +828,7 @@ impl MaterializedEffectFacts {
         )
     }
 
-    pub fn stable_dump(&self, pass_view: MaterializedMirPassView<'_>) -> String {
-        super::dump::render_materialized_effect_facts(self, self.types(), pass_view)
+    pub fn stable_dump(&self) -> String {
+        super::dump::render_materialized_effect_facts(self, self.types())
     }
 }

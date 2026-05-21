@@ -1,10 +1,8 @@
-use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write as _;
 use std::path::Path;
 
-use crate::mir::{
-    BodyLabels, InstanceKey, MaterializedMirPassView, SiteId, build_body_labels_for_dump,
-};
+use crate::mir::{InstanceKey, SiteId};
 use crate::stable_id::stable_dump_label;
 use crate::ty::{EffectRow, TypeStore};
 
@@ -18,32 +16,13 @@ struct DumpCtx {
     step_labels: BTreeMap<StepSchemaId, String>,
     continuation_labels: BTreeMap<ContinuationSchemaId, String>,
     case_labels: BTreeMap<(StepSchemaId, CaseTag), String>,
-    body_labels: HashMap<InstanceKey, BodyLabels>,
 }
 
 impl DumpCtx {
-    fn new(
-        facts: &MaterializedEffectFacts,
-        types: &TypeStore,
-        pass_view: &MaterializedMirPassView<'_>,
-    ) -> Self {
-        let mut body_labels = HashMap::new();
-        let mut root_fqns = HashMap::new();
-        for family in pass_view.instances() {
-            root_fqns.insert(family.key().clone(), family.root_fqn().to_string());
-            if let Some(body) = family.root_body().and_then(|fun| fun.body.as_ref()) {
-                body_labels.insert(
-                    family.key().clone(),
-                    build_body_labels_for_dump(family.root_fqn(), body, types),
-                );
-            }
-        }
-
+    fn new(facts: &MaterializedEffectFacts, types: &TypeStore) -> Self {
         let mut step_owners = BTreeMap::<StepSchemaId, BTreeSet<String>>::new();
         for (instance, callable_facts) in facts.callable_facts() {
-            let Some(root_fqn) = root_fqns.get(instance) else {
-                continue;
-            };
+            let root_fqn = format_instance_key(types, instance);
             if let Some(step_schema) = callable_facts.body_step_schema() {
                 step_owners
                     .entry(step_schema)
@@ -75,14 +54,9 @@ impl DumpCtx {
             }
         }
         for (instance, body_facts) in facts.bodies() {
-            let Some(root_fqn) = root_fqns.get(instance) else {
-                continue;
-            };
-            let labels = body_labels.get(instance);
+            let root_fqn = format_instance_key(types, instance);
             for (site_id, site_facts) in body_facts.sites() {
-                let site_label = labels
-                    .map(|labels| labels.site_label(*site_id))
-                    .unwrap_or_else(|| "site_missing".to_string());
+                let site_label = format_site_id(*site_id);
                 match site_facts {
                     SiteEffectFacts::Perform(perform) => {
                         continuation_users
@@ -200,7 +174,6 @@ impl DumpCtx {
             step_labels,
             continuation_labels,
             case_labels,
-            body_labels,
         }
     }
 
@@ -226,17 +199,13 @@ impl DumpCtx {
     }
 
     fn block_label(&self, instance: &InstanceKey, block_id: crate::mir::BasicBlockId) -> String {
-        self.body_labels
-            .get(instance)
-            .map(|labels| labels.block_label(block_id))
-            .unwrap_or_else(|| "bb_missing".to_string())
+        let _ = instance;
+        format!("{block_id:?}")
     }
 
     fn site_label(&self, instance: &InstanceKey, site_id: SiteId) -> String {
-        self.body_labels
-            .get(instance)
-            .map(|labels| labels.site_label(site_id))
-            .unwrap_or_else(|| "site_missing".to_string())
+        let _ = instance;
+        format_site_id(site_id)
     }
 
     fn case_ref(
@@ -288,27 +257,21 @@ fn describe_case(
 pub fn render_materialized_effect_facts(
     facts: &MaterializedEffectFacts,
     types: &TypeStore,
-    pass_view: MaterializedMirPassView<'_>,
 ) -> String {
-    let ctx = DumpCtx::new(facts, types, &pass_view);
+    let ctx = DumpCtx::new(facts, types);
     let mut rendered = String::new();
     writeln!(&mut rendered, "MaterializedEffectFacts").unwrap();
 
-    render_snapshot_binding(&mut rendered, facts, &pass_view, 0);
+    render_snapshot_binding(&mut rendered, facts, 0);
     render_step_schemas(&ctx, &mut rendered, facts, types, 0);
     render_continuation_schemas(&ctx, &mut rendered, facts, types, 0);
-    render_callable_facts(&ctx, &mut rendered, facts, types, &pass_view, 0);
-    render_body_facts(&ctx, &mut rendered, facts, types, &pass_view, 0);
+    render_callable_facts(&ctx, &mut rendered, facts, types, 0);
+    render_body_facts(&ctx, &mut rendered, facts, types, 0);
 
     rendered
 }
 
-fn render_snapshot_binding(
-    out: &mut String,
-    facts: &MaterializedEffectFacts,
-    pass_view: &MaterializedMirPassView<'_>,
-    indent: usize,
-) {
+fn render_snapshot_binding(out: &mut String, facts: &MaterializedEffectFacts, indent: usize) {
     let binding = facts.snapshot_binding();
     write_line(out, indent, "snapshot_binding:");
     write_line(
@@ -319,10 +282,7 @@ fn render_snapshot_binding(
     write_line(
         out,
         indent + 2,
-        &format!(
-            "opt_level: O{}",
-            pass_view.materialized().opt_level().as_str()
-        ),
+        &format!("opt_level: O{}", binding.opt_level().as_str()),
     );
     write_line(
         out,
@@ -450,7 +410,6 @@ fn render_callable_facts(
     out: &mut String,
     facts: &MaterializedEffectFacts,
     types: &TypeStore,
-    pass_view: &MaterializedMirPassView<'_>,
     indent: usize,
 ) {
     write_line(out, indent, "callable_facts:");
@@ -459,17 +418,19 @@ fn render_callable_facts(
         return;
     }
 
-    for family in pass_view.instances() {
-        let Some(callable_facts) = facts.callable_facts().get(family.key()) else {
-            continue;
-        };
+    let mut callables = facts.callable_facts().iter().collect::<Vec<_>>();
+    callables.sort_by(|(left, _), (right, _)| {
+        format_instance_key(types, left).cmp(&format_instance_key(types, right))
+    });
+    for (key, callable_facts) in callables {
+        let root_fqn = format_instance_key(types, key);
         render_one_callable_facts(
             ctx,
             out,
             facts,
             types,
-            family.root_fqn(),
-            family.key(),
+            &root_fqn,
+            key,
             callable_facts,
             indent + 2,
         );
@@ -565,7 +526,6 @@ fn render_body_facts(
     out: &mut String,
     facts: &MaterializedEffectFacts,
     types: &TypeStore,
-    pass_view: &MaterializedMirPassView<'_>,
     indent: usize,
 ) {
     write_line(out, indent, "body_facts:");
@@ -574,23 +534,28 @@ fn render_body_facts(
         return;
     }
 
-    for family in pass_view.instances() {
-        let Some(body_facts) = facts.body(family.key()) else {
-            continue;
-        };
+    let mut bodies = facts.bodies().iter().collect::<Vec<_>>();
+    bodies.sort_by(|(left, _), (right, _)| {
+        format_instance_key(types, left).cmp(&format_instance_key(types, right))
+    });
+    for (key, body_facts) in bodies {
         let callable_step_schema = facts
             .callable_facts()
-            .get(family.key())
+            .get(key)
             .and_then(CallableEffectFacts::body_step_schema)
             .or_else(|| body_facts.local_control_step_schema())
             .or_else(|| infer_body_step_schema(body_facts));
-        write_line(out, indent + 2, &format!("{}:", family.root_fqn()));
+        write_line(
+            out,
+            indent + 2,
+            &format!("{}:", format_instance_key(types, key)),
+        );
         write_line(out, indent + 4, "blocks:");
         if body_facts.blocks().is_empty() {
             write_line(out, indent + 6, "<none>");
         } else {
             for (block_id, block_facts) in body_facts.blocks() {
-                let block_label = ctx.block_label(family.key(), *block_id);
+                let block_label = ctx.block_label(key, *block_id);
                 write_line(out, indent + 6, &format!("{}:", block_label));
                 write_line(
                     out,
@@ -636,7 +601,7 @@ fn render_body_facts(
                 out,
                 facts,
                 types,
-                family.key(),
+                key,
                 callable_step_schema,
                 *site_id,
                 site_facts,
@@ -1032,6 +997,10 @@ fn format_instance_key(types: &TypeStore, key: &InstanceKey) -> String {
     } else {
         format!("{}<{}>", key.template.fqn, args.join(", "))
     }
+}
+
+fn format_site_id(site_id: SiteId) -> String {
+    format!("{site_id:?}")
 }
 
 fn format_type(types: &TypeStore, ty: crate::ty::TypeId) -> String {

@@ -88,7 +88,7 @@
 | P4-T01R | [DONE] | [`TODO-5.md`](./TODO-5.md#done-p4-t01rreview-scoopc_effect_facts-crate-与事实模型) | Review `scoopc_effect_facts` crate 与事实模型 |
 | P4-T02 | [DONE] | [`TODO-5.md`](./TODO-5.md#done-p4-t02只读化-effect-facts-builder-与-effect-owned-type-context) | 只读化 effect facts builder 与 effect-owned type context |
 | P4-T02R | [DONE] | [`TODO-5.md`](./TODO-5.md#done-p4-t02rreview-effect-facts-只读化结果) | Review effect facts 只读化结果 |
-| P4-T03 | [TODO] | [`TODO-5.md`](./TODO-5.md#todo-p4-t03收口-effectfactsstageoutput-与-p5-输入边界) | 收口 `EffectFactsStageOutput` 与 P5 输入边界 |
+| P4-T03 | [DONE] | [`TODO-5.md`](./TODO-5.md#done-p4-t03收口-effectfactsstageoutput-与-p5-输入边界) | 收口 `EffectFactsStageOutput` 与 P5 输入边界 |
 | P4-T03R | [TODO] | [`TODO-5.md`](./TODO-5.md#todo-p4-t03rreview-effectfactsstageoutput-收口结果) | Review `EffectFactsStageOutput` 收口结果 |
 | P4-T04 | [TODO] | [`TODO-5.md`](./TODO-5.md#todo-p4-t04p4-全包清场文档同步与依赖审计) | P4 全包清场、文档同步与依赖审计 |
 | P4-T04R | [TODO] | [`TODO-5.md`](./TODO-5.md#todo-p4-t04rreview-p4-全包完成度) | Review P4 全包完成度 |

@@ -19,8 +19,8 @@ use crate::effect_lowered::ir::{
     LateLoweredSurfaceResumeDispatchPublication, LateLoweredSurfaceResumeDispatchSourceKind,
     LateLoweredSurfaceResumeWrapperCompletePayloadSource, SystemSlotKind,
 };
-use crate::mir::{CallArg, Operand, Rvalue, SiteId, StatementKind};
-use crate::pipeline::load_effect_facts_stage_output_for_dump;
+use crate::mir::{CallArg, MaterializedMirPassView, Operand, Rvalue, SiteId, StatementKind};
+use crate::pipeline::{build_effect_facts_stage_output, load_p4_ready_mir_stage_output_for_dump};
 use crate::session::{Session, SessionOptions};
 use crate::source::SourceFile;
 
@@ -37,6 +37,7 @@ fn load_fixture(phase: &str, name: &str) -> SourceFile {
 }
 
 struct RawMaterializedOutput {
+    mir_stage_output: crate::pipeline::MirStageOutput,
     effect_facts_stage_output: crate::pipeline::EffectFactsStageOutput,
     program: crate::effect_lowered::LateLoweredProgram,
 }
@@ -47,23 +48,35 @@ impl RawMaterializedOutput {
     }
 
     fn types(&self) -> &crate::ty::TypeStore {
-        self.effect_facts_stage_output.types()
+        self.effect_facts_stage_output.effect_facts().types()
+    }
+
+    fn materialized_pass_view(&self) -> MaterializedMirPassView<'_> {
+        self.mir_stage_output.materialized_pass_view()
+    }
+
+    fn mir_facts(&self) -> &scoopc_mir_facts::MirFacts {
+        self.mir_stage_output.mir_facts()
     }
 }
 
 fn load_output(source: &SourceFile) -> RawMaterializedOutput {
     let session = session();
-    let effect_facts_stage_output = load_effect_facts_stage_output_for_dump(&session, source)
-        .expect("fixture 应可通过 effect-facts stage");
+    let mir_stage_output = load_p4_ready_mir_stage_output_for_dump(&session, source)
+        .expect("fixture 应可通过 P4-ready MIR stage");
+    let effect_facts_stage_output =
+        build_effect_facts_stage_output(&session, source, &mir_stage_output)
+            .expect("fixture 应可通过 effect-facts stage");
     let program = LateLoweredProgramBuilder::from_canonical_inputs(
-        effect_facts_stage_output.materialized_pass_view(),
+        mir_stage_output.materialized_pass_view(),
         effect_facts_stage_output.effect_facts(),
-        effect_facts_stage_output.types(),
-        effect_facts_stage_output.mir_facts(),
+        effect_facts_stage_output.effect_facts().types(),
+        mir_stage_output.mir_facts(),
     )
     .build()
     .expect("fixture 应可通过 raw late-lowering builder");
     RawMaterializedOutput {
+        mir_stage_output,
         effect_facts_stage_output,
         program,
     }
@@ -726,9 +739,12 @@ fun main(): Int {
 "#,
     );
     let session = session();
-    let effect_facts_stage_output = load_effect_facts_stage_output_for_dump(&session, &source)
-        .expect("nominal upcast sample 应可通过 effect-facts stage");
-    let pass_view = effect_facts_stage_output.materialized_pass_view();
+    let mir_stage_output = load_p4_ready_mir_stage_output_for_dump(&session, &source)
+        .expect("nominal upcast sample 应可通过 P4-ready MIR stage");
+    let effect_facts_stage_output =
+        build_effect_facts_stage_output(&session, &source, &mir_stage_output)
+            .expect("nominal upcast sample 应可通过 effect-facts stage");
+    let pass_view = mir_stage_output.materialized_pass_view();
     let main_family = pass_view
         .instances()
         .find(|family| family.root_fqn() == "a.main")
@@ -786,7 +802,7 @@ fun main(): Int {
         })
         .expect("helper call site 应发布单一 local arg");
 
-    let nominal_direct_supertypes = effect_facts_stage_output
+    let nominal_direct_supertypes = mir_stage_output
         .mir_facts()
         .metadata
         .nominal_direct_supertypes
@@ -794,7 +810,7 @@ fun main(): Int {
         .map(|fact| (fact.fqn.clone(), fact.direct_supertypes.clone()))
         .collect::<super::NominalDirectSupertypeIndex>();
     assert_eq!(
-        effect_facts_stage_output
+        mir_stage_output
             .mir_facts()
             .metadata
             .direct_supertypes("a.Derived"),
@@ -806,16 +822,22 @@ fun main(): Int {
 
     assert!(
         super::nominal_source_type_compatible(
-            effect_facts_stage_output.types(),
+            effect_facts_stage_output.effect_facts().types(),
             local_ty,
             expected_ty,
             &nominal_direct_supertypes,
         ),
         "raw late-lowering 应接受 direct nominal upcast source；local=t{} ({})，expected=t{} ({})，supertypes={nominal_direct_supertypes:?}",
         local_ty.as_u32(),
-        effect_facts_stage_output.types().display(local_ty),
+        effect_facts_stage_output
+            .effect_facts()
+            .types()
+            .display(local_ty),
         expected_ty.as_u32(),
-        effect_facts_stage_output.types().display(expected_ty),
+        effect_facts_stage_output
+            .effect_facts()
+            .types()
+            .display(expected_ty),
     );
 
     super::operand_source_with_expected_ty(
@@ -823,7 +845,7 @@ fun main(): Int {
         SiteId::from_raw(1),
         "Call",
         body,
-        effect_facts_stage_output.types(),
+        effect_facts_stage_output.effect_facts().types(),
         &nominal_direct_supertypes,
         &Operand::Local(arg_local),
         expected_ty,

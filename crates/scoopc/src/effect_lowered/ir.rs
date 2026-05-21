@@ -5056,7 +5056,8 @@ mod tests {
     use crate::effect_lowered::LateLoweredProgramBuilder;
     use crate::mir::TemplateKey;
     use crate::pipeline::{
-        load_effect_facts_stage_output_for_dump, load_effect_lowered_stage_output_for_dump,
+        build_effect_facts_stage_output, load_effect_lowered_stage_output_for_dump,
+        load_p4_ready_mir_stage_output_for_dump,
     };
     use crate::session::{Session, SessionOptions};
     use crate::source::SourceFile;
@@ -5089,19 +5090,22 @@ mod tests {
         }
 
         fn types(&self) -> &TypeStore {
-            self.effect_facts_stage_output.types()
+            self.effect_facts_stage_output.effect_facts().types()
         }
     }
 
     fn build_raw_output(source: &SourceFile) -> RawProgramOutput {
         let session = session();
-        let effect_facts_output = load_effect_facts_stage_output_for_dump(&session, source)
-            .expect("fixture 应可通过 effect-facts stage");
+        let mir_stage_output = load_p4_ready_mir_stage_output_for_dump(&session, source)
+            .expect("fixture 应可通过 P4-ready MIR stage");
+        let effect_facts_output =
+            build_effect_facts_stage_output(&session, source, &mir_stage_output)
+                .expect("fixture 应可通过 effect-facts stage");
         let program = LateLoweredProgramBuilder::from_canonical_inputs(
-            effect_facts_output.materialized_pass_view(),
+            mir_stage_output.materialized_pass_view(),
             effect_facts_output.effect_facts(),
-            effect_facts_output.types(),
-            effect_facts_output.mir_facts(),
+            effect_facts_output.effect_facts().types(),
+            mir_stage_output.mir_facts(),
         )
         .build()
         .expect("fixture 应可通过 raw late-lowering builder");

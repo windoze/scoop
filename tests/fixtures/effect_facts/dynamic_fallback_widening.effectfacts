@@ -50,13 +50,13 @@ callable_facts:
 body_facts:
   sample.callValue:
     blocks:
-      bb#hdcc8569388d2f34c837e0d82a738103b:
+      bb0:
         ambient_cases: [case#hc686a042857d2a8013321a78df990379=sample.Alpha.go, case#h81272d1890acbd5d98731b451e1b7cff=sample.Beta.go]
         outward_cases: [case#hc686a042857d2a8013321a78df990379=sample.Alpha.go, case#h81272d1890acbd5d98731b451e1b7cff=sample.Beta.go]
         has_suspend_boundary: false
         has_handle_boundary: false
     sites:
-      site#h134c59a4c04e4bb18a4abea659260a3b:
+      site0:
         kind: Call
         call_kind: FunValue
         target_mode: DynamicFallback

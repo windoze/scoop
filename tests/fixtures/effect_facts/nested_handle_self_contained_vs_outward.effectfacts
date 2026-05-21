@@ -7,52 +7,52 @@ snapshot_binding:
     - sample.nested_may_suspend_outward
     - sample.nested_self_contained
 step_schemas:
-  step#hb71e3cfb133977bdbc361b2a2715d669:
+  step#h6842d4c14faa434657df0badab265ceb:
     invoke_args_tuple_ty: Unit
     complete_ty: Int
     continuation_obj_ty: scoop.__compiler.ContinuationObject@tests/fixtures/effect_facts/nested_handle_self_contained_vs_outward.scoop:342..641::sample.nested_may_suspend_outward
     cases:
-      - case#h0cf12bdc5f4f4480f90360740b8fd021: op=sample.Inner.go payload_tuple_ty=Unit continuation_schema=cont#h5431061d95bd99b8faef6d805fe4b49b
-      - case#hccf14ce395746959a68611429669c2b9: op=sample.Outer.again payload_tuple_ty=Unit continuation_schema=cont#ha710d4c7ddea07c0f2f9513f39b517c0
+      - case#h3e5a541db537d4ab2aa0516750bbbccf: op=sample.Inner.go payload_tuple_ty=Unit continuation_schema=cont#hedab17548ae02aee833b647120a8df61
+      - case#h51aa9ccc69e5b2b768b2c009d1ea75ef: op=sample.Outer.again payload_tuple_ty=Unit continuation_schema=cont#hfc173a4a311f6d30101753a09c7adc73
       - case#h7c2cc478a9278a9a331e96e0dd01efca: op=scoop.core.Raise.raise<scoop.core.RuntimeError> payload_tuple_ty=scoop.core.RuntimeError continuation_schema=cont#hfc1e71a09d9175715af82908c44fd430
-  step#h82a986994d4aa417a05d5127797e34be:
+  step#hc3ca2af9eb676c96fa4d1e76af092db6:
     invoke_args_tuple_ty: Unit
     complete_ty: Int
     continuation_obj_ty: scoop.__compiler.ContinuationObject@tests/fixtures/effect_facts/nested_handle_self_contained_vs_outward.scoop:92..340::sample.nested_self_contained
     cases:
-      - case#h481168745c1e1e56dab3777f2e1294ba: op=sample.Inner.go payload_tuple_ty=Unit continuation_schema=cont#hc5a00d5a23d9e739a0d9092f19e51af5
-      - case#he033c4f877cca46534d9f3a1bdda0d25: op=sample.Outer.again payload_tuple_ty=Unit continuation_schema=cont#h4aa7b6735a85ae53282f550521552364
+      - case#h2c81545f9ccb73a7da31b046320ac5b0: op=sample.Inner.go payload_tuple_ty=Unit continuation_schema=cont#h8367054dfe56f76b525d7b473ebecfee
+      - case#hb38df534857fcb95d71e201ef5faed2c: op=sample.Outer.again payload_tuple_ty=Unit continuation_schema=cont#h236303b34cba83f1fffaf345e396194c
       - case#h879777394a76b26a06fedd74634a96f1: op=scoop.core.Raise.raise<scoop.core.RuntimeError> payload_tuple_ty=scoop.core.RuntimeError continuation_schema=cont#hfde5c68ef1cfd8cdbefb61f18a04308a
 continuation_schemas:
-  cont#h5431061d95bd99b8faef6d805fe4b49b:
+  cont#hedab17548ae02aee833b647120a8df61:
     resume_tuple_ty: Int
     answer_ty: Int
-    out_step_schema: step#hb71e3cfb133977bdbc361b2a2715d669
+    out_step_schema: step#h6842d4c14faa434657df0badab265ceb
     surface_ty: scoop.core.Continuation<Int, Int, eff (sample.Inner + sample.Outer)>
-  cont#ha710d4c7ddea07c0f2f9513f39b517c0:
+  cont#hfc173a4a311f6d30101753a09c7adc73:
     resume_tuple_ty: Unit
     answer_ty: Int
-    out_step_schema: step#hb71e3cfb133977bdbc361b2a2715d669
+    out_step_schema: step#h6842d4c14faa434657df0badab265ceb
     surface_ty: scoop.core.Continuation<Unit, Int, eff (sample.Inner + sample.Outer)>
   cont#hfc1e71a09d9175715af82908c44fd430:
     resume_tuple_ty: Nothing
     answer_ty: Int
-    out_step_schema: step#hb71e3cfb133977bdbc361b2a2715d669
+    out_step_schema: step#h6842d4c14faa434657df0badab265ceb
     surface_ty: scoop.core.Continuation<Nothing, Int, eff (sample.Inner + sample.Outer)>
-  cont#hc5a00d5a23d9e739a0d9092f19e51af5:
+  cont#h8367054dfe56f76b525d7b473ebecfee:
     resume_tuple_ty: Int
     answer_ty: Int
-    out_step_schema: step#h82a986994d4aa417a05d5127797e34be
+    out_step_schema: step#hc3ca2af9eb676c96fa4d1e76af092db6
     surface_ty: scoop.core.Continuation<Int, Int, eff (sample.Inner + sample.Outer)>
-  cont#h4aa7b6735a85ae53282f550521552364:
+  cont#h236303b34cba83f1fffaf345e396194c:
     resume_tuple_ty: Unit
     answer_ty: Int
-    out_step_schema: step#h82a986994d4aa417a05d5127797e34be
+    out_step_schema: step#hc3ca2af9eb676c96fa4d1e76af092db6
     surface_ty: scoop.core.Continuation<Unit, Int, eff (sample.Inner + sample.Outer)>
   cont#hfde5c68ef1cfd8cdbefb61f18a04308a:
     resume_tuple_ty: Nothing
     answer_ty: Int
-    out_step_schema: step#h82a986994d4aa417a05d5127797e34be
+    out_step_schema: step#hc3ca2af9eb676c96fa4d1e76af092db6
     surface_ty: scoop.core.Continuation<Nothing, Int, eff (sample.Inner + sample.Outer)>
 callable_facts:
   sample.nested_may_suspend_outward:
@@ -60,10 +60,10 @@ callable_facts:
     declared_row: Pure
     call_abi_kind: EffectStep
     invoke_args_tuple_ty: Unit
-    step_schema: step#hb71e3cfb133977bdbc361b2a2715d669
-    resolved_outward_cases: [case#hccf14ce395746959a68611429669c2b9=sample.Outer.again]
+    step_schema: step#h6842d4c14faa434657df0badab265ceb
+    resolved_outward_cases: [case#h51aa9ccc69e5b2b768b2c009d1ea75ef=sample.Outer.again]
     needs_reentry: true
-    impl_plan: SingleCase(case#hccf14ce395746959a68611429669c2b9=sample.Outer.again)
+    impl_plan: SingleCase(case#h51aa9ccc69e5b2b768b2c009d1ea75ef=sample.Outer.again)
   sample.nested_self_contained:
     instance_key: sample.nested_self_contained
     declared_row: Pure
@@ -76,106 +76,106 @@ callable_facts:
 body_facts:
   sample.nested_may_suspend_outward:
     blocks:
-      bb#h1e8289fb86bddeab85ee790555141919:
-        ambient_cases: [case#hccf14ce395746959a68611429669c2b9=sample.Outer.again]
-        outward_cases: [case#hccf14ce395746959a68611429669c2b9=sample.Outer.again]
+      bb0:
+        ambient_cases: [case#h51aa9ccc69e5b2b768b2c009d1ea75ef=sample.Outer.again]
+        outward_cases: [case#h51aa9ccc69e5b2b768b2c009d1ea75ef=sample.Outer.again]
         has_suspend_boundary: false
         has_handle_boundary: true
-      bb#h49fba306c6abc97dbbfdc5cc8f408f41:
+      bb1:
         ambient_cases: []
-        outward_cases: [case#hccf14ce395746959a68611429669c2b9=sample.Outer.again]
+        outward_cases: [case#h51aa9ccc69e5b2b768b2c009d1ea75ef=sample.Outer.again]
         has_suspend_boundary: true
         has_handle_boundary: true
-      bb#hd2b3bbf35b456a0fc3b6c06a1502c716:
-        ambient_cases: [case#hccf14ce395746959a68611429669c2b9=sample.Outer.again]
+      bb2:
+        ambient_cases: [case#h51aa9ccc69e5b2b768b2c009d1ea75ef=sample.Outer.again]
         outward_cases: []
         has_suspend_boundary: false
         has_handle_boundary: false
-      bb#h3667fa00bfca1706b08c7766ed234c43:
-        ambient_cases: [case#hccf14ce395746959a68611429669c2b9=sample.Outer.again]
+      bb3:
+        ambient_cases: [case#h51aa9ccc69e5b2b768b2c009d1ea75ef=sample.Outer.again]
         outward_cases: []
         has_suspend_boundary: false
         has_handle_boundary: false
-      bb#h9ef737367c2135205c1b94b37a807780:
+      bb4:
         ambient_cases: []
-        outward_cases: [case#hccf14ce395746959a68611429669c2b9=sample.Outer.again]
+        outward_cases: [case#h51aa9ccc69e5b2b768b2c009d1ea75ef=sample.Outer.again]
         has_suspend_boundary: true
         has_handle_boundary: false
-      bb#h3e5e4a03f0dc4e1bb0e3a6d675a96390:
+      bb5:
         ambient_cases: []
-        outward_cases: [case#hccf14ce395746959a68611429669c2b9=sample.Outer.again]
+        outward_cases: [case#h51aa9ccc69e5b2b768b2c009d1ea75ef=sample.Outer.again]
         has_suspend_boundary: false
         has_handle_boundary: false
-      bb#hb562a24cb8d4d1757b9e59cf38b91a5c:
-        ambient_cases: [case#hccf14ce395746959a68611429669c2b9=sample.Outer.again]
-        outward_cases: [case#hccf14ce395746959a68611429669c2b9=sample.Outer.again]
+      bb6:
+        ambient_cases: [case#h51aa9ccc69e5b2b768b2c009d1ea75ef=sample.Outer.again]
+        outward_cases: [case#h51aa9ccc69e5b2b768b2c009d1ea75ef=sample.Outer.again]
         has_suspend_boundary: true
         has_handle_boundary: false
-      bb#h5bcd1a71ce592f0723362f5d080ca980:
+      bb7:
         ambient_cases: []
         outward_cases: []
         has_suspend_boundary: false
         has_handle_boundary: false
-      bb#hc1c7566ab6a7c232baec413bc8418dd9:
+      bb8:
         ambient_cases: []
-        outward_cases: [case#hccf14ce395746959a68611429669c2b9=sample.Outer.again]
+        outward_cases: [case#h51aa9ccc69e5b2b768b2c009d1ea75ef=sample.Outer.again]
         has_suspend_boundary: false
         has_handle_boundary: false
-      bb#h0b931967088744f285802291505ee8a3:
-        ambient_cases: [case#hccf14ce395746959a68611429669c2b9=sample.Outer.again]
+      bb9:
+        ambient_cases: [case#h51aa9ccc69e5b2b768b2c009d1ea75ef=sample.Outer.again]
         outward_cases: []
         has_suspend_boundary: false
         has_handle_boundary: false
-      bb#h7da4c4f7cfe41de6799272706c0b3171:
-        ambient_cases: [case#hccf14ce395746959a68611429669c2b9=sample.Outer.again]
-        outward_cases: [case#hccf14ce395746959a68611429669c2b9=sample.Outer.again]
+      bb10:
+        ambient_cases: [case#h51aa9ccc69e5b2b768b2c009d1ea75ef=sample.Outer.again]
+        outward_cases: [case#h51aa9ccc69e5b2b768b2c009d1ea75ef=sample.Outer.again]
         has_suspend_boundary: true
         has_handle_boundary: false
-      bb#h0df7a326cddbf379d0e0bc49753f5a24:
+      bb11:
         ambient_cases: []
         outward_cases: []
         has_suspend_boundary: false
         has_handle_boundary: false
-      bb#h3dedf66e096bcf14c21514e0773201db:
+      bb12:
         ambient_cases: []
         outward_cases: []
         has_suspend_boundary: false
         has_handle_boundary: false
     sites:
-      site#hea7975aa3aec8ad4f40cb0bf18bc79ba:
+      site0:
         kind: Handle
         result_ty: Int
-        handled_cases: [case#hccf14ce395746959a68611429669c2b9=sample.Outer.again]
-        body_outward_cases: [case#h0cf12bdc5f4f4480f90360740b8fd021=sample.Inner.go]
-        finally_outward_cases: [case#hccf14ce395746959a68611429669c2b9=sample.Outer.again]
+        handled_cases: [case#h51aa9ccc69e5b2b768b2c009d1ea75ef=sample.Outer.again]
+        body_outward_cases: [case#h3e5a541db537d4ab2aa0516750bbbccf=sample.Inner.go]
+        finally_outward_cases: [case#h51aa9ccc69e5b2b768b2c009d1ea75ef=sample.Outer.again]
         nested_handle_classification: MaySuspendOutward
         arm_facts:
-          - handled_case: case#hccf14ce395746959a68611429669c2b9=sample.Outer.again payload_tuple_ty=Unit continuation_schema=cont#ha710d4c7ddea07c0f2f9513f39b517c0 arm_outward_cases=[]
-      site#he757a5875b798a74d462875a8989cef4:
+          - handled_case: case#h51aa9ccc69e5b2b768b2c009d1ea75ef=sample.Outer.again payload_tuple_ty=Unit continuation_schema=cont#hfc173a4a311f6d30101753a09c7adc73 arm_outward_cases=[]
+      site1:
         kind: Handle
         result_ty: Int
-        handled_cases: [case#h0cf12bdc5f4f4480f90360740b8fd021=sample.Inner.go]
+        handled_cases: [case#h3e5a541db537d4ab2aa0516750bbbccf=sample.Inner.go]
         body_outward_cases: []
-        finally_outward_cases: [case#hccf14ce395746959a68611429669c2b9=sample.Outer.again]
+        finally_outward_cases: [case#h51aa9ccc69e5b2b768b2c009d1ea75ef=sample.Outer.again]
         nested_handle_classification: MaySuspendOutward
         arm_facts:
-          - handled_case: case#h0cf12bdc5f4f4480f90360740b8fd021=sample.Inner.go payload_tuple_ty=Unit continuation_schema=cont#h5431061d95bd99b8faef6d805fe4b49b arm_outward_cases=[]
-      site#h1c03b053fc7203aca60832c23eb427e8:
+          - handled_case: case#h3e5a541db537d4ab2aa0516750bbbccf=sample.Inner.go payload_tuple_ty=Unit continuation_schema=cont#hedab17548ae02aee833b647120a8df61 arm_outward_cases=[]
+      site2:
         kind: Perform
-        emitted_case: case#h0cf12bdc5f4f4480f90360740b8fd021=sample.Inner.go
+        emitted_case: case#h3e5a541db537d4ab2aa0516750bbbccf=sample.Inner.go
         payload_tuple_ty: Unit
-        captured_cont_schema: cont#h5431061d95bd99b8faef6d805fe4b49b
-      site#h0d6c63edfeab1c662e38d281424f8193:
+        captured_cont_schema: cont#hedab17548ae02aee833b647120a8df61
+      site3:
         kind: Perform
-        emitted_case: case#hccf14ce395746959a68611429669c2b9=sample.Outer.again
+        emitted_case: case#h51aa9ccc69e5b2b768b2c009d1ea75ef=sample.Outer.again
         payload_tuple_ty: Unit
-        captured_cont_schema: cont#ha710d4c7ddea07c0f2f9513f39b517c0
-      site#h772ded61efd617bbd1b7148f77085104:
+        captured_cont_schema: cont#hfc173a4a311f6d30101753a09c7adc73
+      site4:
         kind: Perform
-        emitted_case: case#hccf14ce395746959a68611429669c2b9=sample.Outer.again
+        emitted_case: case#h51aa9ccc69e5b2b768b2c009d1ea75ef=sample.Outer.again
         payload_tuple_ty: Unit
-        captured_cont_schema: cont#ha710d4c7ddea07c0f2f9513f39b517c0
-      site#h78648813117e077d45a663311c5f4e88:
+        captured_cont_schema: cont#hfc173a4a311f6d30101753a09c7adc73
+      site5:
         kind: Call
         call_kind: Direct
         target_mode: DynamicFallback
@@ -187,71 +187,71 @@ body_facts:
         precision: SignatureFallback
   sample.nested_self_contained:
     blocks:
-      bb#h96752b1be955308eaa696fd6d8d70980:
+      bb0:
         ambient_cases: []
         outward_cases: []
         has_suspend_boundary: false
         has_handle_boundary: true
-      bb#hb9821ffbe28a8de1f5f7dfb0fe98da92:
+      bb1:
         ambient_cases: []
         outward_cases: []
         has_suspend_boundary: false
         has_handle_boundary: true
-      bb#h76c1005380afd1340df9e3279e2de2e8:
+      bb2:
         ambient_cases: []
         outward_cases: []
         has_suspend_boundary: false
         has_handle_boundary: false
-      bb#h9cd14195b388502289b3544828eb08ba:
+      bb3:
         ambient_cases: []
         outward_cases: []
         has_suspend_boundary: false
         has_handle_boundary: false
-      bb#ha3561d9350b0c2e8430dc040e3a33fd3:
+      bb4:
         ambient_cases: []
         outward_cases: []
         has_suspend_boundary: true
         has_handle_boundary: false
-      bb#he0e02817929c43753ac6e251a3ac5fc8:
+      bb5:
         ambient_cases: []
         outward_cases: []
         has_suspend_boundary: false
         has_handle_boundary: false
-      bb#h2efc6e01dc5eaabf0ab63daf66d532ae:
+      bb6:
         ambient_cases: []
         outward_cases: []
         has_suspend_boundary: false
         has_handle_boundary: false
-      bb#h581d8a100d87a0d2805a22051b4e896a:
+      bb7:
         ambient_cases: []
         outward_cases: []
         has_suspend_boundary: false
         has_handle_boundary: false
     sites:
-      site#h28e5abea494755f290cc6676f59721f7:
+      site0:
         kind: Handle
         result_ty: Int
-        handled_cases: [case#he033c4f877cca46534d9f3a1bdda0d25=sample.Outer.again]
-        body_outward_cases: [case#h481168745c1e1e56dab3777f2e1294ba=sample.Inner.go]
+        handled_cases: [case#hb38df534857fcb95d71e201ef5faed2c=sample.Outer.again]
+        body_outward_cases: [case#h2c81545f9ccb73a7da31b046320ac5b0=sample.Inner.go]
         finally_outward_cases: []
         nested_handle_classification: MaySuspendOutward
         arm_facts:
-          - handled_case: case#he033c4f877cca46534d9f3a1bdda0d25=sample.Outer.again payload_tuple_ty=Unit continuation_schema=cont#h4aa7b6735a85ae53282f550521552364 arm_outward_cases=[]
-      site#h2d1b85a6cd0d5ccb27565313f95ace70:
+          - handled_case: case#hb38df534857fcb95d71e201ef5faed2c=sample.Outer.again payload_tuple_ty=Unit continuation_schema=cont#h236303b34cba83f1fffaf345e396194c arm_outward_cases=[]
+      site1:
         kind: Handle
         result_ty: Int
-        handled_cases: [case#h481168745c1e1e56dab3777f2e1294ba=sample.Inner.go]
+        handled_cases: [case#h2c81545f9ccb73a7da31b046320ac5b0=sample.Inner.go]
         body_outward_cases: []
         finally_outward_cases: []
         nested_handle_classification: SelfContained
         arm_facts:
-          - handled_case: case#h481168745c1e1e56dab3777f2e1294ba=sample.Inner.go payload_tuple_ty=Unit continuation_schema=cont#hc5a00d5a23d9e739a0d9092f19e51af5 arm_outward_cases=[]
-      site#hec45484e88ffa5e58bdc07f2bded6072:
+          - handled_case: case#h2c81545f9ccb73a7da31b046320ac5b0=sample.Inner.go payload_tuple_ty=Unit continuation_schema=cont#h8367054dfe56f76b525d7b473ebecfee arm_outward_cases=[]
+      site2:
         kind: Perform
-        emitted_case: case#h481168745c1e1e56dab3777f2e1294ba=sample.Inner.go
+        emitted_case: case#h2c81545f9ccb73a7da31b046320ac5b0=sample.Inner.go
         payload_tuple_ty: Unit
-        captured_cont_schema: cont#hc5a00d5a23d9e739a0d9092f19e51af5
-      site#hf489fb61fa866e888e25601c6fd4812c:
+        captured_cont_schema: cont#h8367054dfe56f76b525d7b473ebecfee
+      site3:
         kind: Call
         call_kind: Direct
         target_mode: DynamicFallback

@@ -285,7 +285,7 @@ P5 需要把这条隐式 opt helper 提升为正式 LIR optimization family：�
   - 验证命令：`cargo fmt`；`cargo test -p scoopc --no-default-features effect_facts_stage`；`cargo test -p scoopc --no-default-features effect_facts`；`cargo run -p scoop -- test --fixtures tests/fixtures/effect_facts`；`cargo test -p scoopc --no-default-features effect_lowered`；`cargo run -p scoop -- test --fixtures tests/fixtures/effect_lowered`；`cargo clippy --all-targets -- -D warnings`。
   - 残余风险：`EffectFactsStageOutput` 仍按 P4-T03 排序保留 `MirStageOutput` 嵌套和上游转发查询面；本 review 确认该残余不影响 P4-T02 的只读化结论，且未将其视为长期合法边界。
 
-## [TODO] P4-T03：收口 `EffectFactsStageOutput` 与 P5 输入边界
+## [DONE] P4-T03：收口 `EffectFactsStageOutput` 与 P5 输入边界
 
 - 参考：
   - `PIPELINE_REFACTOR.md` “stage output wrapper 规则”
@@ -326,7 +326,12 @@ P5 需要把这条隐式 opt helper 提升为正式 LIR optimization family：�
   - effect facts dump/test 证明 P4 output 是窄产物。
 - 依赖：P4-T02R
 - 完成记录：
-  - 待填写。
+  - 改动范围：`EffectFactsStageOutput` 现在只保存 `MaterializedEffectFacts`，effect facts stage 改为只借用 P3 `MirStageOutput` 构造 facts，不再在 P4 output 中嵌套或转发 `MirStageOutput`、MIR file、canonical pass view、MIR facts、MIR snapshot 或 MIR type store。
+  - P5 输入边界：新增 `EffectLoweringStageInput { mir_stage_output, effect_facts_stage_output }`，`build_effect_lowered_stage_output(...)`、LLVM stage orchestration、late-lowering tests 和 ABI layout tests 均改为显式传入 MIR handoff 与 effect facts handoff；P5 如需 MIR pass view / MIR facts，只从显式 MIR input 读取。
+  - dump 决策：`MaterializedEffectFacts::stable_dump()` / P4 stable dump 改为仅基于 effect facts、effect-owned type context 和 snapshot binding 渲染，不再需要 MIR pass view；因此 effect facts golden fixtures 重新生成，body/site label 退化为 stage-independent `bbN` / `siteN` 形式。
+  - 测试/helper 清理：生产和测试中已删除通过 `EffectFactsStageOutput` 回看 `materialized_pass_view()`、`materialized_mir()`、`mir_facts()`、`file()`、`types()`、`mir_stage_output()` 的调用；需要上游 MIR 的测试 helper 均显式保存 MIR handoff。
+  - 验证命令：`cargo fmt`；`cargo test -p scoopc --no-default-features effect_facts_stage`；`cargo test -p scoopc --no-default-features effect_lowering_stage`；`cargo test -p scoopc --no-default-features effect_facts`；`cargo test -p scoopc --no-default-features effect_lowered`；`cargo run -p scoop -- test --fixtures tests/fixtures/effect_facts`；`cargo run -p scoop -- test --fixtures tests/fixtures/effect_lowered`；`cargo clippy --all-targets -- -D warnings`。
+  - 残余风险：`EffectLoweredStageOutput` 仍为 P5 过渡形状并保存显式 MIR/P4 handoff，供现有 LLVM codegen 读取；将其收实为正式 `LirStageOutput = { lir, lir_facts }` 属于后续 P5-T01/P5-T03 范围。
 
 ## [TODO] P4-T03R：Review `EffectFactsStageOutput` 收口结果
 

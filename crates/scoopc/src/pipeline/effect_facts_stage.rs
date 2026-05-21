@@ -2,11 +2,8 @@ use crate::effect_facts::{
     BodyEffectFacts, EffectFactsError, EffectOwnedTypeContext, MaterializedEffectFacts,
     MaterializedEffectFactsBuilder, MaterializedEffectFactsSolver, SiteEffectFacts,
 };
-use crate::mir::{File as MirFile, MaterializedMir, MaterializedMirPassView};
 use crate::session::Session;
 use crate::source::SourceFile;
-use crate::ty::TypeStore;
-use scoopc_mir_facts::MirFacts;
 
 use super::MirStageOutput;
 
@@ -14,47 +11,18 @@ use super::MirStageOutput;
 ///
 /// 本阶段固定如下 invariants，供 P4/P5 及后续阶段直接消费：
 /// - 输入必须是 P3 的 `MirStageOutput`，而不是 AST/HIR 或 legacy effect helper；
-/// - `materialized_pass_view()` 是当前 canonical MIR snapshot 的唯一查询面；P4 不混用 raw
-///   `MaterializedMir.file` 与 pass-view body/summaries；
 /// - `effect_facts()` 是 P5 唯一允许消费的 authoritative effect contract；P5 不得再回
 ///   HIR/typecheck 推断缺失语义；
-/// - 一旦 MIR snapshot 发生结构性 rewrite，必须重新运行本 stage 获取新的 facts 输出。
+/// - 输出只发布 effect facts 及其 effect-owned context/snapshot binding，不嵌套或转发 P3
+///   `MirStageOutput`。
 #[derive(Debug)]
 pub struct EffectFactsStageOutput {
-    mir_stage_output: MirStageOutput,
     effect_facts: MaterializedEffectFacts,
 }
 
 impl EffectFactsStageOutput {
-    fn new(mir_stage_output: MirStageOutput, effect_facts: MaterializedEffectFacts) -> Self {
-        Self {
-            mir_stage_output,
-            effect_facts,
-        }
-    }
-
-    pub fn mir_stage_output(&self) -> &MirStageOutput {
-        &self.mir_stage_output
-    }
-
-    pub fn mir_facts(&self) -> &MirFacts {
-        self.mir_stage_output.mir_facts()
-    }
-
-    pub fn file(&self) -> &MirFile {
-        self.mir_stage_output.file()
-    }
-
-    pub fn types(&self) -> &TypeStore {
-        self.effect_facts.types()
-    }
-
-    pub fn materialized_mir(&self) -> &MaterializedMir {
-        self.mir_stage_output.materialized_mir()
-    }
-
-    pub fn materialized_pass_view(&self) -> MaterializedMirPassView<'_> {
-        self.mir_stage_output.materialized_pass_view()
+    fn new(effect_facts: MaterializedEffectFacts) -> Self {
+        Self { effect_facts }
     }
 
     pub fn effect_facts(&self) -> &MaterializedEffectFacts {
@@ -63,10 +31,10 @@ impl EffectFactsStageOutput {
 
     /// `dump-effect-facts` / dedicated fixtures / 定向单测共用的稳定文本 surface。
     ///
-    /// 该 dump 明确锁定 P4 -> P5 handoff：只展示 canonical MIR snapshot 绑定到的
-    /// `MaterializedEffectFacts`，不回 HIR/typecheck 重建缺失 effect 语义。
+    /// 该 dump 明确锁定 P4 output 的窄 handoff：只展示 effect facts、effect-owned type
+    /// context 与 snapshot binding，不通过 P4 output 回看 MIR pass view。
     pub fn stable_dump(&self) -> String {
-        self.effect_facts.stable_dump(self.materialized_pass_view())
+        self.effect_facts.stable_dump()
     }
 }
 
@@ -74,7 +42,7 @@ impl EffectFactsStageOutput {
 pub(crate) fn run(
     session: &Session,
     source: &SourceFile,
-    mir_stage_output: MirStageOutput,
+    mir_stage_output: &MirStageOutput,
 ) -> Result<EffectFactsStageOutput, EffectFactsError> {
     run_with_compilation_sources(
         session,
@@ -88,7 +56,7 @@ pub(crate) fn run_with_compilation_sources(
     session: &Session,
     source: &SourceFile,
     compilation_sources: &[SourceFile],
-    mir_stage_output: MirStageOutput,
+    mir_stage_output: &MirStageOutput,
 ) -> Result<EffectFactsStageOutput, EffectFactsError> {
     let solver = MaterializedEffectFactsSolver::for_opt_level(
         mir_stage_output.materialized_mir().opt_level(),
@@ -138,7 +106,7 @@ pub(crate) fn run_with_compilation_sources(
         };
         solver.solve(seeded_facts)
     };
-    Ok(EffectFactsStageOutput::new(mir_stage_output, effect_facts))
+    Ok(EffectFactsStageOutput::new(effect_facts))
 }
 
 fn body_has_escaped_continuation(body: &BodyEffectFacts) -> bool {
@@ -183,7 +151,7 @@ mod tests {
             super::super::load_direct_style_mir_stage_output_for_dump(session, source)
                 .unwrap()
                 .with_materialized_mir(materialized);
-        super::run(session, source, mir_stage_output).expect("fixture 应可通过 effect-facts stage")
+        super::run(session, source, &mir_stage_output).expect("fixture 应可通过 effect-facts stage")
     }
 
     fn run_stage_with_opt_level(
@@ -197,7 +165,8 @@ mod tests {
             super::super::load_direct_style_mir_stage_output_for_dump(&session, source)
                 .unwrap()
                 .with_materialized_mir(materialized);
-        super::run(&session, source, mir_stage_output).expect("fixture 应可通过 effect-facts stage")
+        super::run(&session, source, &mir_stage_output)
+            .expect("fixture 应可通过 effect-facts stage")
     }
 
     fn type_store_fingerprint(types: &crate::ty::TypeStore) -> Vec<String> {
@@ -349,7 +318,11 @@ fun callInterface(i: IFace): Int {
                     .continuation_schemas()
                     .get(&case.continuation_schema())
                     .expect("continuation schema 应存在");
-                output.types().display(schema.surface_ty()).to_string()
+                output
+                    .effect_facts()
+                    .types()
+                    .display(schema.surface_ty())
+                    .to_string()
             })
             .collect()
     }
@@ -358,41 +331,47 @@ fun callInterface(i: IFace): Int {
         output: &'a EffectFactsStageOutput,
         fqn: &str,
     ) -> &'a crate::effect_facts::CallableEffectFacts {
-        let key = output
-            .materialized_pass_view()
-            .owner_of_callable(fqn)
-            .unwrap_or_else(|| panic!("{fqn} 应有 canonical owner"));
         output
             .effect_facts()
             .callable_facts()
-            .get(key)
+            .iter()
+            .find_map(|(key, facts)| (key.template.fqn == fqn).then_some(facts))
             .unwrap_or_else(|| panic!("{fqn} 应存在于 callable facts"))
     }
 
     #[test]
     fn effect_facts_stage_output_is_constructible() {
-        let output = run_sample();
+        let session = session();
+        let source = sample_source();
+        let materialized =
+            super::super::materialize_direct_style_mir_for_dump(&session, &source).unwrap();
+        let mir_stage_output =
+            super::super::load_direct_style_mir_stage_output_for_dump(&session, &source)
+                .unwrap()
+                .with_materialized_mir(materialized);
+        let output = super::run(&session, &source, &mir_stage_output)
+            .expect("fixture 应可通过 effect-facts stage");
 
-        assert_eq!(output.file().items.len(), 2);
+        assert_eq!(mir_stage_output.file().items.len(), 2);
         assert_eq!(
             output.effect_facts().snapshot_binding().query_surface(),
             CanonicalMirQuerySurface::PassView
         );
         assert_eq!(
             output.effect_facts().snapshot_binding().instance_count(),
-            output.materialized_pass_view().len()
+            mir_stage_output.materialized_pass_view().len()
         );
         assert_eq!(
             output.effect_facts().callable_facts().len(),
             output.effect_facts().bodies().len()
         );
         assert!(
-            output.materialized_pass_view().len() >= 2,
+            mir_stage_output.materialized_pass_view().len() >= 2,
             "普通 non-generic sample root/helper 也应进入 canonical pass view"
         );
         assert!(
             output.effect_facts().callable_facts().contains_key(
-                output
+                mir_stage_output
                     .materialized_pass_view()
                     .owner_of_callable("sample.main")
                     .expect("sample.main 应有 canonical InstanceKey owner")
@@ -401,7 +380,7 @@ fun callInterface(i: IFace): Int {
         );
         let published = output
             .effect_facts()
-            .to_published_effect_facts(output.materialized_pass_view())
+            .to_published_effect_facts(mir_stage_output.materialized_pass_view())
             .expect("materialized facts 应可适配为独立 scoopc_effect_facts 产品");
         assert_eq!(
             published.callables.len(),
@@ -413,30 +392,34 @@ fun callInterface(i: IFace): Int {
 
     #[test]
     fn effect_facts_stage_explicitly_consumes_p3_mir_stage_output() {
-        let output = run_sample();
+        let session = session();
+        let source = sample_source();
+        let materialized =
+            super::super::materialize_direct_style_mir_for_dump(&session, &source).unwrap();
+        let mir_stage_output =
+            super::super::load_direct_style_mir_stage_output_for_dump(&session, &source)
+                .unwrap()
+                .with_materialized_mir(materialized);
+        let output = super::run(&session, &source, &mir_stage_output)
+            .expect("fixture 应可通过 effect-facts stage");
 
-        assert!(
-            output
-                .mir_stage_output()
-                .callable_body("sample.main")
-                .is_some()
-        );
+        assert!(mir_stage_output.callable_body("sample.main").is_some());
         assert_eq!(
             output.effect_facts().callable_facts().len(),
-            output.materialized_pass_view().len()
+            mir_stage_output.materialized_pass_view().len()
         );
         assert_eq!(
             output.effect_facts().bodies().len(),
-            output.materialized_pass_view().len()
+            mir_stage_output.materialized_pass_view().len()
         );
-        let mir_facts = output.mir_stage_output().mir_facts();
+        let mir_facts = mir_stage_output.mir_facts();
         assert!(
             mir_facts.snapshots.canonical.is_some(),
             "P4-ready MIR output must publish a canonical snapshot binding"
         );
         assert_eq!(
             mir_facts.families.instances.len(),
-            output.materialized_pass_view().len(),
+            mir_stage_output.materialized_pass_view().len(),
             "MIR facts should publish the pass-visible instance inventory"
         );
         let pass_names = mir_facts
@@ -457,7 +440,7 @@ fun callInterface(i: IFace): Int {
         assert_eq!(mir_facts.pass_artifacts.revisions.len(), 5);
         assert_eq!(
             mir_facts.pass_artifacts.summary_revisions.len(),
-            output.materialized_pass_view().len(),
+            mir_stage_output.materialized_pass_view().len(),
             "canonical pass summaries should be visible as MIR-owned artifacts"
         );
     }
@@ -482,26 +465,26 @@ fun callInterface(i: IFace): Int {
             format!("{:?}", mir_stage_output.materialized_mir().pass_artifacts());
         let before_types = type_store_fingerprint(&mir_stage_output.materialized_mir().types);
 
-        let output = super::run(&session, &source, mir_stage_output)
+        let output = super::run(&session, &source, &mir_stage_output)
             .expect("fixture 应可通过只读 effect-facts stage");
 
         assert_eq!(
-            MirSnapshotBinding::from_pass_view(&output.materialized_pass_view()),
+            MirSnapshotBinding::from_pass_view(&mir_stage_output.materialized_pass_view()),
             before_binding,
             "effect facts stage 不应改写 canonical snapshot binding"
         );
         assert_eq!(
-            format!("{:?}", output.materialized_mir().pass_artifacts()),
+            format!("{:?}", mir_stage_output.materialized_mir().pass_artifacts()),
             before_pass_artifacts,
             "effect facts stage 不应改写 MIR pass artifacts metadata"
         );
         assert_eq!(
-            type_store_fingerprint(&output.materialized_mir().types),
+            type_store_fingerprint(&mir_stage_output.materialized_mir().types),
             before_types,
             "P4-owned type additions 不应写回 MIR TypeStore"
         );
         assert!(
-            output.types().len() >= output.materialized_mir().types.len(),
+            output.effect_facts().types().len() >= mir_stage_output.materialized_mir().types.len(),
             "effect facts output 应发布可覆盖 MIR types 的 effect-owned type context"
         );
     }
@@ -509,21 +492,22 @@ fun callInterface(i: IFace): Int {
     #[test]
     fn effect_facts_stage_non_generic_sample_main_uses_canonical_pass_view_roots() {
         let output = run_sample();
-        let main_key = output
-            .materialized_pass_view()
-            .owner_of_callable("sample.main")
-            .expect("sample.main 应被 canonical pass view 发布")
-            .clone();
+        let (main_key, _) = output
+            .effect_facts()
+            .callable_facts()
+            .iter()
+            .find(|(key, _)| key.template.fqn == "sample.main")
+            .expect("sample.main 应被 effect facts 发布");
 
         assert!(
             output
                 .effect_facts()
                 .callable_facts()
-                .contains_key(&main_key),
+                .contains_key(main_key),
             "effect facts stage 应以 pass-view canonical InstanceKey 发布 ordinary callable facts"
         );
         assert!(
-            output.effect_facts().bodies().contains_key(&main_key),
+            output.effect_facts().bodies().contains_key(main_key),
             "effect facts stage 应以同一 canonical InstanceKey 发布 ordinary body facts"
         );
     }
@@ -531,21 +515,22 @@ fun callInterface(i: IFace): Int {
     #[test]
     fn effect_facts_stage_non_generic_sample_helper_uses_canonical_pass_view_roots() {
         let output = run_sample();
-        let helper_key = output
-            .materialized_pass_view()
-            .owner_of_callable("sample.helper")
-            .expect("sample.helper 应被 canonical pass view 发布")
-            .clone();
+        let (helper_key, _) = output
+            .effect_facts()
+            .callable_facts()
+            .iter()
+            .find(|(key, _)| key.template.fqn == "sample.helper")
+            .expect("sample.helper 应被 effect facts 发布");
 
         assert!(
             output
                 .effect_facts()
                 .callable_facts()
-                .contains_key(&helper_key),
+                .contains_key(helper_key),
             "ordinary helper facts 不应再依赖 raw/fallback 键空间"
         );
         assert!(
-            output.effect_facts().bodies().contains_key(&helper_key),
+            output.effect_facts().bodies().contains_key(helper_key),
             "ordinary helper body facts 应可直接按 canonical InstanceKey 查询"
         );
     }
@@ -554,11 +539,18 @@ fun callInterface(i: IFace): Int {
     fn effect_facts_stage_stable_dump_lists_schema_callable_and_site_sections() {
         let session = session();
         let source = dump_fixture_source();
-        let output = run_stage(&session, &source);
+        let materialized =
+            super::super::materialize_direct_style_mir_for_dump(&session, &source).unwrap();
+        let mir_stage_output =
+            super::super::load_direct_style_mir_stage_output_for_dump(&session, &source)
+                .unwrap()
+                .with_materialized_mir(materialized);
+        let output = super::run(&session, &source, &mir_stage_output)
+            .expect("fixture 应可通过 effect-facts stage");
         let dump = output.stable_dump();
         let published = output
             .effect_facts()
-            .to_published_effect_facts(output.materialized_pass_view())
+            .to_published_effect_facts(mir_stage_output.materialized_pass_view())
             .expect("effect/control schema graph 应可适配为独立 fact 产品");
 
         assert!(dump.contains("snapshot_binding:"));

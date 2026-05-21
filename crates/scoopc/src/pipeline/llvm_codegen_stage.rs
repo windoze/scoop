@@ -12,7 +12,7 @@ use crate::ty::{TypeId, TypeKind, TypeStore, ValueTypeKind};
 use scoopc_hir_facts::HirFacts;
 
 use super::{
-    EffectLoweredStageOutput, HirStageOutput, LlvmArtifactKind,
+    EffectLoweredStageOutput, EffectLoweringStageInput, HirStageOutput, LlvmArtifactKind,
     build_effect_facts_stage_output_with_compilation_sources, build_effect_lowered_stage_output,
     mir_stage,
 };
@@ -144,15 +144,15 @@ fn run_effect_lowered_stage_from_lowered_hir(
         session,
         entry_source,
         &compilation_sources,
-        mir_stage_output,
+        &mir_stage_output,
     )
     .map_err(|err| stage_error("effect facts", err))?;
+    let effect_lowering_input =
+        EffectLoweringStageInput::new(mir_stage_output, effect_facts_stage_output);
     let effect_lowered_stage_output = if preserve_published_resume_shells {
-        super::effect_lowering_stage::run_preserving_published_resume_shells(
-            effect_facts_stage_output,
-        )
+        super::effect_lowering_stage::run_preserving_published_resume_shells(effect_lowering_input)
     } else {
-        build_effect_lowered_stage_output(session, effect_facts_stage_output)
+        build_effect_lowered_stage_output(session, effect_lowering_input)
     };
     effect_lowered_stage_output
         .map(|output| (output, hir_facts))

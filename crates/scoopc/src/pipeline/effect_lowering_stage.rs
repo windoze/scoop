@@ -9,12 +9,42 @@ use crate::mir::{MaterializedMir, MaterializedMirPassView};
 use crate::ty::TypeStore;
 use scoopc_mir_facts::MirFacts;
 
-use super::EffectFactsStageOutput;
+use super::{EffectFactsStageOutput, MirStageOutput};
+
+/// P5 late-lowering 的显式输入。
+///
+/// MIR handoff 与 P4 effect facts handoff 必须由调用方分别传入，避免 P5 通过
+/// `EffectFactsStageOutput` 回看 P3 输出。
+#[derive(Debug)]
+pub struct EffectLoweringStageInput {
+    mir_stage_output: MirStageOutput,
+    effect_facts_stage_output: EffectFactsStageOutput,
+}
+
+impl EffectLoweringStageInput {
+    pub fn new(
+        mir_stage_output: MirStageOutput,
+        effect_facts_stage_output: EffectFactsStageOutput,
+    ) -> Self {
+        Self {
+            mir_stage_output,
+            effect_facts_stage_output,
+        }
+    }
+
+    pub fn mir_stage_output(&self) -> &MirStageOutput {
+        &self.mir_stage_output
+    }
+
+    pub fn effect_facts_stage_output(&self) -> &EffectFactsStageOutput {
+        &self.effect_facts_stage_output
+    }
+}
 
 /// late-lowering stage 的稳定输出形状。
 ///
 /// 本阶段固定如下 invariants，供 P5/P6 及后续阶段直接消费：
-/// - 输入必须是 P4 的 `EffectFactsStageOutput`；
+/// - 输入必须显式区分 P3 的 `MirStageOutput` 与 P4 的 `EffectFactsStageOutput`；
 /// - stage 只消费 canonical MIR snapshot + `MaterializedEffectFacts`，不回 HIR/typecheck；
 /// - `program()` 返回独立的 `LateLoweredProgram`，后续结构性 rewrite 必须继续在这份
 ///   late-lowered IR 上工作，而不是回头 patch P3/P4 产物；
@@ -30,16 +60,26 @@ use super::EffectFactsStageOutput;
 /// - LLVM 物理布局/ABI/runtime 集成仍属于 P6，而不是在 P5 逆向塞回本阶段。
 #[derive(Debug)]
 pub struct EffectLoweredStageOutput {
+    mir_stage_output: MirStageOutput,
     effect_facts_stage_output: EffectFactsStageOutput,
     program: LateLoweredProgram,
 }
 
 impl EffectLoweredStageOutput {
-    fn new(effect_facts_stage_output: EffectFactsStageOutput, program: LateLoweredProgram) -> Self {
+    fn new(
+        mir_stage_output: MirStageOutput,
+        effect_facts_stage_output: EffectFactsStageOutput,
+        program: LateLoweredProgram,
+    ) -> Self {
         Self {
+            mir_stage_output,
             effect_facts_stage_output,
             program,
         }
+    }
+
+    pub fn mir_stage_output(&self) -> &MirStageOutput {
+        &self.mir_stage_output
     }
 
     pub fn effect_facts_stage_output(&self) -> &EffectFactsStageOutput {
@@ -47,7 +87,7 @@ impl EffectLoweredStageOutput {
     }
 
     pub fn mir_facts(&self) -> &MirFacts {
-        self.effect_facts_stage_output.mir_facts()
+        self.mir_stage_output.mir_facts()
     }
 
     pub fn snapshot_binding(&self) -> &MirSnapshotBinding {
@@ -55,15 +95,15 @@ impl EffectLoweredStageOutput {
     }
 
     pub fn materialized_mir(&self) -> &MaterializedMir {
-        self.effect_facts_stage_output.materialized_mir()
+        self.mir_stage_output.materialized_mir()
     }
 
     pub fn materialized_pass_view(&self) -> MaterializedMirPassView<'_> {
-        self.effect_facts_stage_output.materialized_pass_view()
+        self.mir_stage_output.materialized_pass_view()
     }
 
     pub fn types(&self) -> &TypeStore {
-        self.effect_facts_stage_output.types()
+        self.effect_facts().types()
     }
 
     pub fn effect_facts(&self) -> &MaterializedEffectFacts {
@@ -79,24 +119,33 @@ impl EffectLoweredStageOutput {
         render_stage_output(self)
     }
 
-    pub fn into_parts(self) -> (EffectFactsStageOutput, LateLoweredProgram) {
-        (self.effect_facts_stage_output, self.program)
+    pub fn into_parts(self) -> (MirStageOutput, EffectFactsStageOutput, LateLoweredProgram) {
+        (
+            self.mir_stage_output,
+            self.effect_facts_stage_output,
+            self.program,
+        )
     }
 }
 
 pub(crate) fn run(
-    effect_facts_stage_output: EffectFactsStageOutput,
+    input: EffectLoweringStageInput,
 ) -> Result<EffectLoweredStageOutput, EffectLoweringError> {
+    let EffectLoweringStageInput {
+        mir_stage_output,
+        effect_facts_stage_output,
+    } = input;
     let program = optimize_program(
         LateLoweredProgramBuilder::from_canonical_inputs(
-            effect_facts_stage_output.materialized_pass_view(),
+            mir_stage_output.materialized_pass_view(),
             effect_facts_stage_output.effect_facts(),
-            effect_facts_stage_output.types(),
-            effect_facts_stage_output.mir_facts(),
+            effect_facts_stage_output.effect_facts().types(),
+            mir_stage_output.mir_facts(),
         )
         .build()?,
     );
     Ok(EffectLoweredStageOutput::new(
+        mir_stage_output,
         effect_facts_stage_output,
         program,
     ))
@@ -104,30 +153,35 @@ pub(crate) fn run(
 
 #[cfg_attr(not(feature = "llvm"), allow(dead_code))]
 pub(crate) fn run_preserving_published_resume_shells(
-    effect_facts_stage_output: EffectFactsStageOutput,
+    input: EffectLoweringStageInput,
 ) -> Result<EffectLoweredStageOutput, EffectLoweringError> {
     run_with_opt_options(
-        effect_facts_stage_output,
+        input,
         LateLoweredOptOptions::preserve_published_resume_shells(),
     )
 }
 
 #[cfg_attr(not(feature = "llvm"), allow(dead_code))]
 fn run_with_opt_options(
-    effect_facts_stage_output: EffectFactsStageOutput,
+    input: EffectLoweringStageInput,
     opt_options: LateLoweredOptOptions,
 ) -> Result<EffectLoweredStageOutput, EffectLoweringError> {
+    let EffectLoweringStageInput {
+        mir_stage_output,
+        effect_facts_stage_output,
+    } = input;
     let program = optimize_program_with_options(
         LateLoweredProgramBuilder::from_canonical_inputs(
-            effect_facts_stage_output.materialized_pass_view(),
+            mir_stage_output.materialized_pass_view(),
             effect_facts_stage_output.effect_facts(),
-            effect_facts_stage_output.types(),
-            effect_facts_stage_output.mir_facts(),
+            effect_facts_stage_output.effect_facts().types(),
+            mir_stage_output.mir_facts(),
         )
         .build()?,
         opt_options,
     );
     Ok(EffectLoweredStageOutput::new(
+        mir_stage_output,
         effect_facts_stage_output,
         program,
     ))
@@ -171,7 +225,7 @@ fn render_stage_output(output: &EffectLoweredStageOutput) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::EffectLoweredStageOutput;
+    use super::{EffectLoweredStageOutput, EffectLoweringStageInput};
     use crate::effect_facts::{CallableAbiKind, CanonicalMirQuerySurface};
     use crate::opt::OptLevel;
     use crate::session::{Session, SessionOptions};
@@ -191,9 +245,18 @@ mod tests {
     fn run_sample() -> EffectLoweredStageOutput {
         let session = session();
         let source = sample_source();
+        super::run(stage_input_for_source(&session, &source))
+            .expect("fixture 应可通过 late-lowering stage")
+    }
+
+    fn stage_input_for_source(session: &Session, source: &SourceFile) -> EffectLoweringStageInput {
+        let mir_stage_output =
+            super::super::load_p4_ready_mir_stage_output_for_dump(session, source)
+                .expect("fixture 应可通过 P4-ready MIR stage");
         let effect_facts_output =
-            super::super::load_effect_facts_stage_output_for_dump(&session, &source).unwrap();
-        super::run(effect_facts_output).expect("fixture 应可通过 late-lowering stage")
+            super::super::build_effect_facts_stage_output(session, source, &mir_stage_output)
+                .expect("fixture 应可通过 effect-facts stage");
+        EffectLoweringStageInput::new(mir_stage_output, effect_facts_output)
     }
 
     fn run_stage_with_opt_level(
@@ -208,9 +271,13 @@ mod tests {
                 .unwrap()
                 .with_materialized_mir(materialized);
         let effect_facts_output =
-            super::super::build_effect_facts_stage_output(&session, source, mir_stage_output)
+            super::super::build_effect_facts_stage_output(&session, source, &mir_stage_output)
                 .unwrap();
-        super::run(effect_facts_output).expect("fixture 应可通过 late-lowering stage")
+        super::run(EffectLoweringStageInput::new(
+            mir_stage_output,
+            effect_facts_output,
+        ))
+        .expect("fixture 应可通过 late-lowering stage")
     }
 
     fn dump_fixture_source() -> SourceFile {
@@ -304,9 +371,12 @@ fun leaf(): Unit / Ping {
     fn effect_lowered_stage_explicitly_consumes_p4_effect_facts_stage_output() {
         let session = session();
         let source = sample_source();
+        let mir_stage_output =
+            super::super::load_p4_ready_mir_stage_output_for_dump(&session, &source).unwrap();
         let effect_facts_output =
-            super::super::load_effect_facts_stage_output_for_dump(&session, &source).unwrap();
-        let main_key = effect_facts_output
+            super::super::build_effect_facts_stage_output(&session, &source, &mir_stage_output)
+                .unwrap();
+        let main_key = mir_stage_output
             .materialized_pass_view()
             .owner_of_callable("sample.main")
             .expect("sample.main 应有 canonical owner")
@@ -322,7 +392,11 @@ fun leaf(): Unit / Ping {
         let expected_abi = main_facts.call_abi_kind();
         let expected_body_step_schema = main_facts.body_step_schema();
 
-        let output = super::run(effect_facts_output).unwrap();
+        let output = super::run(EffectLoweringStageInput::new(
+            mir_stage_output,
+            effect_facts_output,
+        ))
+        .unwrap();
         let lowered_main = output
             .program()
             .callable("sample.main")
@@ -371,9 +445,9 @@ fun leaf(): Unit / Ping {
     fn effect_lowered_stage_stable_dump_lists_post_opt_late_lowered_sections() {
         let session = session();
         let source = dump_fixture_source();
-        let effect_facts_output =
-            super::super::load_effect_facts_stage_output_for_dump(&session, &source).unwrap();
-        let dump = super::run(effect_facts_output).unwrap().stable_dump();
+        let dump = super::run(stage_input_for_source(&session, &source))
+            .unwrap()
+            .stable_dump();
 
         assert!(dump.contains("EffectLoweredStageOutput"));
         assert!(dump.contains("opt_level: O2"));
@@ -410,9 +484,9 @@ fun leaf(): Unit / Ping {
     fn effect_lowered_stage_dump_exposes_plain_effect_step_call_contract() {
         let session = session();
         let source = local_runtime_error_fixture_source();
-        let effect_facts_output =
-            super::super::load_effect_facts_stage_output_for_dump(&session, &source).unwrap();
-        let dump = super::run(effect_facts_output).unwrap().stable_dump();
+        let dump = super::run(stage_input_for_source(&session, &source))
+            .unwrap()
+            .stable_dump();
 
         assert!(dump.contains("root: main"));
         assert!(dump.contains("abi: Plain"));
@@ -430,9 +504,9 @@ fun leaf(): Unit / Ping {
     fn effect_lowered_stage_dump_prioritizes_authoritative_surface_resume_dispatch() {
         let session = session();
         let source = dynamic_fallback_fixture_source();
-        let effect_facts_output =
-            super::super::load_effect_facts_stage_output_for_dump(&session, &source).unwrap();
-        let dump = super::run(effect_facts_output).unwrap().stable_dump();
+        let dump = super::run(stage_input_for_source(&session, &source))
+            .unwrap()
+            .stable_dump();
 
         let dispatch_pos = dump
             .find("authoritative_surface_resume_dispatch_inventory:")
@@ -464,9 +538,9 @@ fun leaf(): Unit / Ping {
     fn effect_lowered_stage_dump_exposes_handle_and_resume_site_authoritative_sources() {
         let session = session();
         let source = local_runtime_error_fixture_source();
-        let effect_facts_output =
-            super::super::load_effect_facts_stage_output_for_dump(&session, &source).unwrap();
-        let dump = super::run(effect_facts_output).unwrap().stable_dump();
+        let dump = super::run(stage_input_for_source(&session, &source))
+            .unwrap()
+            .stable_dump();
 
         for needle in [
             "continuation_schema: cont#h",

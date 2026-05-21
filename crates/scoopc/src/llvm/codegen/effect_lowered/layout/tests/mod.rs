@@ -32,8 +32,8 @@ use crate::llvm::codegen::{
 use crate::llvm::target;
 use crate::mir::{LoweredMir, MirLoweringFacts, SiteId, lower_hir_file_for_dump_with_facts};
 use crate::pipeline::{
-    DirectStyleMirStageOutput, build_effect_facts_stage_output, build_effect_lowered_stage_output,
-    load_hir_stage_output_for_dump,
+    DirectStyleMirStageOutput, EffectLoweringStageInput, build_effect_facts_stage_output,
+    build_effect_lowered_stage_output, load_hir_stage_output_for_dump,
 };
 use crate::session::{Session, SessionOptions};
 use crate::source::{SourceFile, SourceMap};
@@ -94,11 +94,13 @@ fn build_fixture_inputs_from_source(source: SourceFile) -> FixtureAbiInputs {
         DirectStyleMirStageOutput::new(LoweredMir { file, types }, stable_cone_key)
             .with_materialized_mir(materialized_mir);
     let effect_facts_stage_output =
-        build_effect_facts_stage_output(&session, &source, mir_stage_output)
+        build_effect_facts_stage_output(&session, &source, &mir_stage_output)
             .expect("effect facts stage 应成功");
-    let effect_lowered_stage_output =
-        build_effect_lowered_stage_output(&session, effect_facts_stage_output)
-            .expect("effect lowered stage 应成功");
+    let effect_lowered_stage_output = build_effect_lowered_stage_output(
+        &session,
+        EffectLoweringStageInput::new(mir_stage_output, effect_facts_stage_output),
+    )
+    .expect("effect lowered stage 应成功");
     // ABI materializer 必须消费与真实 LLVM stage 相同的 shell-preserving handoff，
     // 不能误用会裁剪 published resume methods 的 authoritative reachable-body program。
     let abi_visibility_program = optimize_program_with_options(

@@ -1263,7 +1263,10 @@ mod tests {
         CallSiteKind, CallableAbiKind, EffectPrecision, ImplPlan, SiteEffectFacts,
     };
     use crate::mir::materialize_for_dump_with_opt_level;
-    use crate::mir::{BasicBlockId, CallKind, InstanceKey, Rvalue, StatementKind, TerminatorKind};
+    use crate::mir::{
+        BasicBlockId, CallKind, InstanceKey, MaterializedMirPassView, Rvalue, StatementKind,
+        TerminatorKind,
+    };
     use crate::opt::OptLevel;
     use crate::pipeline::{
         build_effect_facts_stage_output, load_direct_style_mir_stage_output_for_dump,
@@ -1275,21 +1278,41 @@ mod tests {
         Session::with_options(SessionOptions::new()).unwrap()
     }
 
+    struct EffectFactsFixtureOutput {
+        mir_stage_output: crate::pipeline::MirStageOutput,
+        effect_facts_stage_output: crate::pipeline::EffectFactsStageOutput,
+    }
+
+    impl EffectFactsFixtureOutput {
+        fn effect_facts(&self) -> &crate::effect_facts::MaterializedEffectFacts {
+            self.effect_facts_stage_output.effect_facts()
+        }
+
+        fn materialized_pass_view(&self) -> MaterializedMirPassView<'_> {
+            self.mir_stage_output.materialized_pass_view()
+        }
+
+        fn stable_dump(&self) -> String {
+            self.effect_facts_stage_output.stable_dump()
+        }
+    }
+
     fn build_stage_output_for_source(
         source: &SourceFile,
         opt_level: OptLevel,
-    ) -> crate::pipeline::EffectFactsStageOutput {
+    ) -> EffectFactsFixtureOutput {
         let session = session();
         let mir_stage_output =
             load_direct_style_mir_stage_output_for_dump(&session, source).unwrap();
         let materialized =
             materialize_for_dump_with_opt_level(&session, source, opt_level).unwrap();
-        build_effect_facts_stage_output(
-            &session,
-            source,
-            mir_stage_output.with_materialized_mir(materialized),
-        )
-        .unwrap()
+        let mir_stage_output = mir_stage_output.with_materialized_mir(materialized);
+        let effect_facts_stage_output =
+            build_effect_facts_stage_output(&session, source, &mir_stage_output).unwrap();
+        EffectFactsFixtureOutput {
+            mir_stage_output,
+            effect_facts_stage_output,
+        }
     }
 
     fn solve_with_config(
