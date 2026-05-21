@@ -32,7 +32,7 @@ use crate::llvm::codegen::{
 use crate::llvm::target;
 use crate::mir::{LoweredMir, MirLoweringFacts, SiteId, lower_hir_file_for_dump_with_facts};
 use crate::pipeline::{
-    MirStageOutput, build_effect_facts_stage_output, build_effect_lowered_stage_output,
+    DirectStyleMirStageOutput, build_effect_facts_stage_output, build_effect_lowered_stage_output,
     load_hir_stage_output_for_dump,
 };
 use crate::session::{Session, SessionOptions};
@@ -90,8 +90,9 @@ fn build_fixture_inputs_from_source(source: SourceFile) -> FixtureAbiInputs {
     let materialized_mir =
         crate::pipeline::materialize_direct_style_mir_for_dump(&session, &source)
             .expect("materialized MIR 应成功");
-    let mir_stage_output = MirStageOutput::new(LoweredMir { file, types }, stable_cone_key, None)
-        .with_materialized_mir(materialized_mir);
+    let mir_stage_output =
+        DirectStyleMirStageOutput::new(LoweredMir { file, types }, stable_cone_key)
+            .with_materialized_mir(materialized_mir);
     let effect_facts_stage_output =
         build_effect_facts_stage_output(&session, &source, mir_stage_output)
             .expect("effect facts stage 应成功");

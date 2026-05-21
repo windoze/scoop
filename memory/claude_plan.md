@@ -1,20 +1,35 @@
-# Claude Plan
+# Current Execution Plan
 
-## 可公开执行计划
+## Scope
 
-1. 读取 `TODO.md`，按标题是否带有 `[DONE]` 判断第一个未完成任务，并只处理该任务。
-2. 查看最近提交和当前工作区状态，确认是否存在与该任务直接相关的未完成事项或未提交更改。
-3. 针对选中的任务阅读必要的代码、测试、规格和任务说明，避免做开放式历史问题清扫。
-4. 如果任务可直接完成，进行最小正确实现，并在关键步骤后更新本文件。
-5. 运行任务要求的验证以及相关测试；若发现与当前任务直接相关的阻塞问题，优先修复，或在 `TODO.md` 中插入最小必要前置任务后停止。
-6. 完成后将该任务标题加上 `[DONE]`，更新其完成记录；仅在阶段级计划变化时更新 `PLAN.md`。
-7. 检查差异，提交所有本次任务相关更改，然后停止，不继续下一个任务。
+- Work from `TODO.md` as the authoritative task list.
+- Complete exactly the first task whose title is not prefixed with `[DONE]`.
+- Do not advance to the next task in this invocation.
+- If a concrete blocker or prerequisite is discovered, update `TODO.md`, commit that bookkeeping, and stop.
 
-## 当前状态
+## Step-by-Step Plan
 
-- 已读取 `TODO.md`；第一个未完成任务是 `P3-T02R`，目标是 review MIR root inventory 迁移结果。
-- 已读取 `TODO-4.md` 中的 `P3-T02R` 任务详情。最新提交 `1cf86387 [P3-T02] Migrate MIR root inventories to MirFacts` 与当前 review 直接相关。
-- 当前工作区仅有本进度文件修改。已复查 `mir_stage.rs`、`scoopc_mir_facts`、`hir_preflight.rs` 与 MIR fixture：`MirStageOutput` 只保留 `mir_facts`，root 查询方法通过 facts 中的 item reference 定位 MIR item；`MirFacts.roots` 覆盖 callable/initializer/extern global/metadata 四类 root；旧字段名搜索无命中。
-- `P3-T02R` 验证已通过：`cargo fmt`、`cargo test -p scoopc_mir_facts`、`cargo test -p scoopc --no-default-features mir_stage`、`cargo test -p scoopc --no-default-features hir_preflight`、`cargo run -p scoop -- test --fixtures tests/fixtures/mir_lowered`、`cargo clippy --all-targets -- -D warnings`、旧字段名搜索、`git diff --check`。
-- 已更新 `TODO.md` 和 `TODO-4.md`，将 `P3-T02R` 标记为 `[DONE]` 并填写 review 完成记录。
-- 下一步检查最终 diff / git 状态 / 最近提交记录，然后提交本 review 任务相关更改并停止。
+1. Read `TODO.md` to identify the first incomplete task and its validation requirements.
+2. Check the latest commit only for unfinished work directly relevant to that task.
+3. Inspect the code and tests needed for the selected task.
+4. Implement the required change without narrowing scope or introducing workarounds.
+5. Run focused validation first, then broader required validation for the task.
+6. Fix any task-relevant failures discovered during validation.
+7. Update `TODO.md` by prefixing the completed task title with `[DONE]` and recording the completion details.
+8. Update this progress file after key milestones.
+9. Inspect the final diff and git status.
+10. Commit all task-related changes with a descriptive task-tagged commit message.
+11. Stop after the commit.
+
+## Progress Log
+
+- Plan initialized before inspecting project files or running commands.
+- Identified `P3-T03` as the first incomplete task from `TODO.md` / `TODO-4.md`.
+- Latest commit is `[P3-T02R] Review MIR root inventory migration`, which matches the immediately preceding task and does not add a separate prerequisite.
+- Current worktree only contains this progress file before task implementation.
+- Inspected the MIR stage boundary, materialization output, pass view, effect facts stage, and existing `scoopc_mir_facts` snapshot/pass metadata skeleton.
+- Implementation direction: split direct-style-only MIR output from P4-ready `MirStageOutput`, make P4 input carry a mandatory canonical `MaterializedMir`, and populate `MirFacts` with snapshot, family, and pass artifact metadata when the handoff is built.
+- Implemented the boundary split and mandatory P4 handoff, removed the missing-snapshot effect-facts error path, and added tests for P4-ready snapshot/family/pass artifact facts.
+- Validation completed so far: `cargo fmt`; `cargo test -p scoopc_mir_facts`; `cargo test -p scoopc --no-default-features mir_stage`; `cargo test -p scoopc --no-default-features effect_facts_stage`; `cargo test -p scoopc --no-default-features effect_lowering_stage`; `cargo run -p scoop -- test --fixtures tests/fixtures/effect_facts`; `cargo clippy --all-targets -- -D warnings`.
+- Updated `TODO.md` and `TODO-4.md` to mark `P3-T03` done and record the implementation, validation, and residual risks.
+- Final diff/status/log inspection completed; preparing to commit the `P3-T03` changes.

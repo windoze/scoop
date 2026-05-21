@@ -73,7 +73,7 @@
 | P3-T01R | [DONE] | [`TODO-4.md`](./TODO-4.md#done-p3-t01rreview-mir_facts-crate-与事实模型) | Review `mir_facts` crate 与事实模型 |
 | P3-T02 | [DONE] | [`TODO-4.md`](./TODO-4.md#done-p3-t02迁移-mir-owned-root-inventories-到-mir_facts) | 迁移 MIR-owned root inventories 到 `mir_facts` |
 | P3-T02R | [DONE] | [`TODO-4.md`](./TODO-4.md#done-p3-t02rreview-mir-root-inventory-迁移结果) | Review MIR root inventory 迁移结果 |
-| P3-T03 | [TODO] | [`TODO-4.md`](./TODO-4.md#todo-p3-t03固定-canonical-materialized-snapshot-binding-与-pass-artifacts-查询面) | 固定 canonical materialized snapshot binding 与 pass artifacts 查询面 |
+| P3-T03 | [DONE] | [`TODO-4.md`](./TODO-4.md#done-p3-t03固定-canonical-materialized-snapshot-binding-与-pass-artifacts-查询面) | 固定 canonical materialized snapshot binding 与 pass artifacts 查询面 |
 | P3-T03R | [TODO] | [`TODO-4.md`](./TODO-4.md#todo-p3-t03rreview-mir-snapshot-binding-与-pass-artifacts-查询面) | Review MIR snapshot binding 与 pass artifacts 查询面 |
 | P3-T04 | [TODO] | [`TODO-4.md`](./TODO-4.md#todo-p3-t04切换下游-mir-查询到-mir_facts--pass-artifacts-surface) | 切换下游 MIR 查询到 `mir_facts` / pass artifacts surface |
 | P3-T04R | [TODO] | [`TODO-4.md`](./TODO-4.md#todo-p3-t04rreview-downstream-mir-query-切换结果) | Review downstream MIR query 切换结果 |

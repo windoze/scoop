@@ -24,6 +24,7 @@ pub struct MaterializedSnapshotBinding {
     pub cone: StableConeKey,
     pub opt_level: OptLevel,
     pub body_count: usize,
+    pub canonical_body_fqns: Vec<String>,
     pub revision: u32,
 }
 
@@ -41,7 +42,15 @@ impl MaterializedSnapshotBinding {
             cone,
             opt_level,
             body_count,
+            canonical_body_fqns: Vec::new(),
             revision,
         }
+    }
+
+    /// Attach the canonical pass-visible body set bound to this snapshot.
+    pub fn with_canonical_body_fqns(mut self, canonical_body_fqns: Vec<String>) -> Self {
+        self.body_count = canonical_body_fqns.len();
+        self.canonical_body_fqns = canonical_body_fqns;
+        self
     }
 }

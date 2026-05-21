@@ -1,26 +1,54 @@
 use std::collections::BTreeMap;
+use std::collections::BTreeSet;
 
-use scoopc_ids::{BodyVersionKey, CanonicalTextKey};
+use scoopc_ids::{BodyVersionKey, CanonicalTextKey, StableCanonicalKey, StageArtifactKey};
 use scoopc_mir_facts::MirFacts;
 use scoopc_mir_facts::common::{FactIdentity, MirBodyReference};
+use scoopc_mir_facts::families::{
+    CallableFamilyFact, InstanceFamilyInventory, InstanceInventoryEntry,
+};
+use scoopc_mir_facts::pass_artifacts::{
+    CallableBodyArtifact, EscapeFactsArtifact, PassArtifactMetadata, PassArtifactRevision,
+    SummaryArtifact,
+};
 use scoopc_mir_facts::roots::{
     MirGlobalStorageKind, MirInitializerRootKind as FactInitializerRootKind, MirItemReference,
     MirMetadataRootKind, MirRootDetail, MirRootFact, MirRootKind, RootInventories,
 };
+use scoopc_mir_facts::snapshot::{MaterializedSnapshotBinding, SnapshotBindings};
 use scoopc_project_model::StableConeKey;
 
 use crate::dump_support::normalize_dump_path;
 use crate::mir::{
     ExternGlobalRoot as MirExternGlobalRoot, File as MirFile, FunDecl as MirFunDecl,
-    InitializerRoot as MirInitializerRoot, Item as MirItem, LoweredMir, MaterializedMir,
-    MetadataRoot as MirMetadataRoot, MirLowerError, MirLoweringFacts,
-    lower_hir_file_for_dump_with_facts,
+    InitializerRoot as MirInitializerRoot, InstanceKey, Item as MirItem, LoweredMir,
+    MaterializedMir, MaterializedMirPassView, MetadataRoot as MirMetadataRoot, MirLowerError,
+    MirLoweringFacts, lower_hir_file_for_dump_with_facts,
 };
 use crate::ty::{TypeId, TypeStore};
 
 use super::HirStageOutput;
 
-/// direct-style MIR stage 的稳定输出形状。
+const MIR_STAGE_LABEL: &str = "mir";
+const DIRECT_STYLE_BODY_ROLE: &str = "direct_style_mir";
+const MATERIALIZED_BODY_ROLE: &str = "canonical_materialized_mir";
+const MATERIALIZED_INSTANCE_ROLE: &str = "materialized_instance";
+const CALLABLE_FAMILY_ROLE: &str = "callable_family";
+const CANONICAL_SNAPSHOT_ROLE: &str = "canonical_materialized_snapshot";
+const PASS_ARTIFACT_ROLE: &str = "canonical_pass_artifacts";
+
+/// direct-style MIR dump / validation helper output.
+///
+/// This shape is intentionally not P4-ready: it carries the direct-style MIR IR and
+/// root facts, but it has no canonical materialized snapshot. Consumers that feed
+/// effect facts or later stages must first convert it with `with_materialized_mir`.
+#[derive(Debug)]
+pub struct DirectStyleMirStageOutput {
+    lowered_mir: LoweredMir,
+    mir_facts: MirFacts,
+}
+
+/// P4-ready MIR stage handoff.
 ///
 /// 本阶段固定如下 invariants，供 P3/P4 及后续阶段直接消费：
 /// - `lowered_mir` 仍是 direct-style MIR，而不是 late-lowered `Step` IR；
@@ -29,30 +57,28 @@ use super::HirStageOutput;
 ///   contract 现已下沉到 MIR 节点 metadata，P4 不得重新解释 HIR side table；
 /// - MIR-owned root inventories 由 `mir_facts` 发布，stage 查询方法只委托 facts 定位
 ///   direct-style MIR item；
-/// - P4 的 authoritative 输入是这份 stage 输出上的 root identity、可选
-///   `materialized_mir` 快照，以及 MIR 节点上的 `SiteId` / metadata；P4 不得回看 P2 原始
-///   HIR side tables 重新猜测 site contract。
+/// - P4 的 authoritative 输入是这份 stage 输出上的 root identity、必选
+///   canonical `materialized_mir` 快照 / pass query surface，以及 MIR 节点上的 `SiteId` /
+///   metadata；P4 不得回看 P2 原始 HIR side tables 重新猜测 site contract。
 /// - 本 stage 仍未提供 `StepSchema`、`ContinuationSchema` 或 `MaterializedEffectFacts`；这些属于
 ///   P4/P5 的职责，而不是 P3 dump / stage 输出应提前伪造的内容。
 #[derive(Debug)]
 pub struct MirStageOutput {
-    lowered_mir: LoweredMir,
-    mir_facts: MirFacts,
-    materialized_mir: Option<MaterializedMir>,
+    direct_style: DirectStyleMirStageOutput,
+    materialized_mir: MaterializedMir,
 }
 
-impl MirStageOutput {
-    pub(crate) fn new(
-        lowered_mir: LoweredMir,
-        stable_cone_key: StableConeKey,
-        materialized_mir: Option<MaterializedMir>,
-    ) -> Self {
-        let mir_facts = build_mir_facts(&lowered_mir.file, &stable_cone_key);
+impl DirectStyleMirStageOutput {
+    pub(crate) fn new(lowered_mir: LoweredMir, stable_cone_key: StableConeKey) -> Self {
+        let mir_facts = build_direct_style_mir_facts(&lowered_mir.file, &stable_cone_key);
         Self {
             lowered_mir,
             mir_facts,
-            materialized_mir,
         }
+    }
+
+    pub(crate) fn with_materialized_mir(self, materialized_mir: MaterializedMir) -> MirStageOutput {
+        MirStageOutput::from_direct_style(self, materialized_mir)
     }
 
     pub fn file(&self) -> &MirFile {
@@ -66,20 +92,6 @@ impl MirStageOutput {
     /// Return MIR-owned facts published by this stage.
     pub fn mir_facts(&self) -> &MirFacts {
         &self.mir_facts
-    }
-
-    /// 返回当前 stage 输出上显式挂住的 canonical materialized MIR 快照（若存在）。
-    pub fn materialized_mir(&self) -> Option<&MaterializedMir> {
-        self.materialized_mir.as_ref()
-    }
-
-    pub(crate) fn materialized_mir_mut(&mut self) -> Option<&mut MaterializedMir> {
-        self.materialized_mir.as_mut()
-    }
-
-    pub(crate) fn with_materialized_mir(mut self, materialized_mir: MaterializedMir) -> Self {
-        self.materialized_mir = Some(materialized_mir);
-        self
     }
 
     /// 以稳定顺序枚举当前 direct-style MIR 中可查询的 callable body 身份。
@@ -159,13 +171,293 @@ impl MirStageOutput {
     }
 }
 
-fn build_mir_facts(file: &MirFile, stable_cone_key: &StableConeKey) -> MirFacts {
+impl MirStageOutput {
+    pub(crate) fn from_direct_style(
+        mut direct_style: DirectStyleMirStageOutput,
+        materialized_mir: MaterializedMir,
+    ) -> Self {
+        publish_materialized_handoff_facts(&mut direct_style.mir_facts, &materialized_mir);
+        direct_style
+            .mir_facts
+            .verify()
+            .expect("P4-ready MIR stage output must publish structurally valid MIR facts");
+        Self {
+            direct_style,
+            materialized_mir,
+        }
+    }
+
+    pub fn file(&self) -> &MirFile {
+        self.direct_style.file()
+    }
+
+    pub fn types(&self) -> &TypeStore {
+        self.direct_style.types()
+    }
+
+    /// Return MIR-owned facts published by this P4-ready handoff.
+    pub fn mir_facts(&self) -> &MirFacts {
+        self.direct_style.mir_facts()
+    }
+
+    /// Return the mandatory canonical materialized MIR snapshot handed to P4.
+    pub fn materialized_mir(&self) -> &MaterializedMir {
+        &self.materialized_mir
+    }
+
+    pub(crate) fn canonical_snapshot_mut(&mut self) -> &mut MaterializedMir {
+        &mut self.materialized_mir
+    }
+
+    pub fn materialized_pass_view(&self) -> MaterializedMirPassView<'_> {
+        self.materialized_mir.pass_view()
+    }
+
+    /// 以稳定顺序枚举当前 direct-style MIR 中可查询的 callable body 身份。
+    pub fn callable_body_fqns(&self) -> impl Iterator<Item = &str> + '_ {
+        self.direct_style.callable_body_fqns()
+    }
+
+    /// 按 callable body 身份查询 canonical direct-style MIR body。
+    pub fn callable_body(&self, fqn: &str) -> Option<&MirFunDecl> {
+        self.direct_style.callable_body(fqn)
+    }
+
+    /// 以稳定顺序枚举 MIR-owned top-level initializer/value roots。
+    pub fn initializer_root_fqns(&self) -> impl Iterator<Item = &str> + '_ {
+        self.direct_style.initializer_root_fqns()
+    }
+
+    /// 按 root FQN 查询 top-level initializer/value root。
+    pub fn initializer_root(&self, fqn: &str) -> Option<&MirInitializerRoot> {
+        self.direct_style.initializer_root(fqn)
+    }
+
+    /// 以稳定顺序枚举 MIR-owned global/extern roots。
+    pub fn global_root_fqns(&self) -> impl Iterator<Item = &str> + '_ {
+        self.direct_style.global_root_fqns()
+    }
+
+    /// 按 FQN 查询 `@Extern` global root contract。
+    pub fn extern_global_root(&self, fqn: &str) -> Option<&MirExternGlobalRoot> {
+        self.direct_style.extern_global_root(fqn)
+    }
+
+    /// 以稳定顺序枚举 MIR-owned type/object/typealias metadata roots。
+    pub fn metadata_root_fqns(&self) -> impl Iterator<Item = &str> + '_ {
+        self.direct_style.metadata_root_fqns()
+    }
+
+    /// 按 FQN 查询 MIR declaration metadata root。
+    pub fn metadata_root(&self, fqn: &str) -> Option<&MirMetadataRoot> {
+        self.direct_style.metadata_root(fqn)
+    }
+
+    /// Stable text surface for the P4-ready MIR handoff.
+    pub fn stable_dump(&self) -> String {
+        self.direct_style.stable_dump()
+    }
+
+    pub fn into_direct_style(self) -> DirectStyleMirStageOutput {
+        self.direct_style
+    }
+}
+
+fn build_direct_style_mir_facts(file: &MirFile, stable_cone_key: &StableConeKey) -> MirFacts {
     let mut facts = MirFacts::new();
     facts.roots = collect_root_inventories(file, stable_cone_key);
     facts
         .verify()
         .expect("MIR stage must publish structurally valid MIR facts");
     facts
+}
+
+fn publish_materialized_handoff_facts(facts: &mut MirFacts, materialized: &MaterializedMir) {
+    let snapshot_key = canonical_snapshot_key(materialized);
+    let canonical_body_fqns = canonical_materialized_body_fqns(materialized);
+    facts.snapshots = SnapshotBindings {
+        canonical: Some(snapshot_key.clone()),
+        snapshots: vec![
+            MaterializedSnapshotBinding::new(
+                snapshot_key.clone(),
+                materialized.stable_cone_key().clone(),
+                materialized.opt_level(),
+                canonical_body_fqns.len(),
+                0,
+            )
+            .with_canonical_body_fqns(canonical_body_fqns),
+        ],
+    };
+    facts.families = collect_instance_family_inventory(materialized);
+    facts.pass_artifacts = collect_pass_artifact_metadata(materialized, &snapshot_key);
+}
+
+fn canonical_snapshot_key(materialized: &MaterializedMir) -> StageArtifactKey {
+    StageArtifactKey::new(
+        MIR_STAGE_LABEL,
+        materialized.stable_cone_key(),
+        format!(
+            "{CANONICAL_SNAPSHOT_ROLE}@{}",
+            materialized.opt_level().as_str()
+        ),
+        0,
+    )
+}
+
+fn canonical_materialized_body_fqns(materialized: &MaterializedMir) -> Vec<String> {
+    let pass_view = materialized.pass_view();
+    let mut fqns = BTreeSet::new();
+    for family in pass_view.instances() {
+        for fun in family.callable_bodies() {
+            fqns.insert(fun.fqn.clone());
+        }
+    }
+    fqns.into_iter().collect()
+}
+
+fn collect_instance_family_inventory(materialized: &MaterializedMir) -> InstanceFamilyInventory {
+    let cone = materialized.stable_cone_key().clone();
+    let pass_view = materialized.pass_view();
+    let mut instances = Vec::new();
+    let mut callable_families = Vec::new();
+
+    for family in pass_view.instances() {
+        let instance_artifact = materialized_instance_artifact(materialized, family.key());
+        let root_fqn = family.root_fqn().to_string();
+        let body = family
+            .root_body()
+            .map(|fun| materialized_body_reference(&instance_artifact, fun));
+
+        instances.push(InstanceInventoryEntry::new(
+            FactIdentity::new(
+                CanonicalTextKey::new(instance_artifact.canonical_text()),
+                format!("instance {root_fqn}"),
+                cone.clone(),
+                None,
+            ),
+            instance_artifact.clone(),
+            CanonicalTextKey::new(root_fqn.clone()),
+            family.key().type_args.clone(),
+            body.clone(),
+        ));
+
+        let family_artifact =
+            StageArtifactKey::new(MIR_STAGE_LABEL, &instance_artifact, CALLABLE_FAMILY_ROLE, 0);
+        callable_families.push(CallableFamilyFact::new(
+            FactIdentity::new(
+                CanonicalTextKey::new(family_artifact.canonical_text()),
+                format!("callable family {root_fqn}"),
+                cone.clone(),
+                None,
+            ),
+            CanonicalTextKey::new(root_fqn),
+            body,
+            vec![instance_artifact],
+        ));
+    }
+
+    instances.sort_by(|left, right| {
+        left.artifact
+            .canonical_text()
+            .cmp(&right.artifact.canonical_text())
+    });
+    callable_families.sort_by(|left, right| {
+        left.identity
+            .canonical_text()
+            .cmp(right.identity.canonical_text())
+    });
+
+    InstanceFamilyInventory {
+        instances,
+        callable_families,
+    }
+}
+
+fn collect_pass_artifact_metadata(
+    materialized: &MaterializedMir,
+    snapshot_key: &StageArtifactKey,
+) -> PassArtifactMetadata {
+    let revision_key = StageArtifactKey::new(MIR_STAGE_LABEL, snapshot_key, PASS_ARTIFACT_ROLE, 0);
+    let mut metadata = PassArtifactMetadata {
+        revisions: vec![PassArtifactRevision::new(
+            revision_key.clone(),
+            "canonical-pass-artifacts",
+            0,
+        )],
+        callable_body_overrides: Vec::new(),
+        summary_revisions: Vec::new(),
+        escape_facts: Vec::new(),
+    };
+
+    let pass_view = materialized.pass_view();
+    let mut overridden_body_fqns = materialized
+        .pass_artifacts()
+        .overridden_body_fqns()
+        .collect::<Vec<_>>();
+    overridden_body_fqns.sort_unstable();
+    for fqn in overridden_body_fqns {
+        if let Some(fun) = pass_view.callable(fqn) {
+            metadata
+                .callable_body_overrides
+                .push(CallableBodyArtifact::new(
+                    revision_key.clone(),
+                    pass_artifact_body_reference(&revision_key, fun),
+                ));
+        }
+    }
+
+    let mut summary_owners = pass_view
+        .instances()
+        .map(|family| materialized_instance_artifact(materialized, family.key()))
+        .collect::<Vec<_>>();
+    summary_owners.sort_by_key(|key| key.canonical_text());
+    metadata.summary_revisions.extend(
+        summary_owners
+            .into_iter()
+            .map(|owner| SummaryArtifact::new(revision_key.clone(), owner)),
+    );
+
+    let escape_body_count = pass_view.escape_facts().callables().count();
+    if escape_body_count > 0 {
+        metadata
+            .escape_facts
+            .push(EscapeFactsArtifact::new(revision_key, escape_body_count));
+    }
+
+    metadata
+}
+
+fn materialized_instance_artifact(
+    materialized: &MaterializedMir,
+    instance: &InstanceKey,
+) -> StageArtifactKey {
+    let stable_instance_key = materialized
+        .authoritative_stable_instance_key(instance)
+        .expect("materialized MIR instance should have a stable exported identity");
+    StageArtifactKey::new(
+        MIR_STAGE_LABEL,
+        &stable_instance_key,
+        MATERIALIZED_INSTANCE_ROLE,
+        0,
+    )
+}
+
+fn materialized_body_reference(owner: &StageArtifactKey, fun: &MirFunDecl) -> MirBodyReference {
+    body_reference(owner, MATERIALIZED_BODY_ROLE, fun)
+}
+
+fn pass_artifact_body_reference(owner: &StageArtifactKey, fun: &MirFunDecl) -> MirBodyReference {
+    body_reference(owner, "pass_artifact_body", fun)
+}
+
+fn body_reference(owner: &StageArtifactKey, role: &str, fun: &MirFunDecl) -> MirBodyReference {
+    let owner_key = CanonicalTextKey::new(owner.canonical_text());
+    MirBodyReference::new(
+        BodyVersionKey::new(&owner_key, role, 0),
+        owner_key,
+        fun.fqn.clone(),
+        Some(fun.return_ty),
+    )
 }
 
 fn collect_root_inventories(file: &MirFile, stable_cone_key: &StableConeKey) -> RootInventories {
@@ -217,7 +509,7 @@ fn callable_body_root_fact(
     let identity = root_identity(kind, &fun.fqn, stable_cone_key);
     let body_owner = identity.key.clone();
     let body = MirBodyReference::new(
-        BodyVersionKey::new(&body_owner, "direct_style_mir", 0),
+        BodyVersionKey::new(&body_owner, DIRECT_STYLE_BODY_ROLE, 0),
         body_owner,
         fun.fqn.clone(),
         Some(fun.return_ty),
@@ -369,7 +661,9 @@ fn validate_bodies(file: &MirFile, unit_ty: TypeId, bool_ty: TypeId) -> Result<(
         })
 }
 
-fn lower_mir_stage_unvalidated(hir_output: HirStageOutput) -> (MirStageOutput, TypeId, TypeId) {
+fn lower_mir_stage_unvalidated(
+    hir_output: HirStageOutput,
+) -> (DirectStyleMirStageOutput, TypeId, TypeId) {
     let facts = MirLoweringFacts::from_hir_facts(hir_output.lowered_hir(), hir_output.hir_facts());
     let mut lowered_hir = hir_output.into_lowered_hir();
     let stable_cone_key = lowered_hir.stable_cone_key.clone();
@@ -384,13 +678,13 @@ fn lower_mir_stage_unvalidated(hir_output: HirStageOutput) -> (MirStageOutput, T
     let types = std::mem::replace(&mut lowered_hir.types, TypeStore::new());
 
     (
-        MirStageOutput::new(LoweredMir { file, types }, stable_cone_key, None),
+        DirectStyleMirStageOutput::new(LoweredMir { file, types }, stable_cone_key),
         builtins.unit,
         builtins.bool_,
     )
 }
 
-pub(crate) fn run(hir_output: HirStageOutput) -> Result<MirStageOutput, MirLowerError> {
+pub(crate) fn run(hir_output: HirStageOutput) -> Result<DirectStyleMirStageOutput, MirLowerError> {
     let (output, unit_ty, bool_ty) = lower_mir_stage_unvalidated(hir_output);
     validate_bodies(output.file(), unit_ty, bool_ty)?;
     Ok(output)
@@ -398,7 +692,7 @@ pub(crate) fn run(hir_output: HirStageOutput) -> Result<MirStageOutput, MirLower
 
 #[cfg(test)]
 mod tests {
-    use super::MirStageOutput;
+    use super::DirectStyleMirStageOutput;
     use crate::ast;
     use crate::mir::{
         AggregateTransportKind, ArrayTransportOperation, CallKind, GcIntrinsicOperation,
@@ -428,7 +722,7 @@ mod tests {
         SourceFile::load(&path).expect("fixture 应可加载")
     }
 
-    fn run_fixture(phase: &str, name: &str) -> MirStageOutput {
+    fn run_fixture(phase: &str, name: &str) -> DirectStyleMirStageOutput {
         let session = session();
         let source = load_fixture(phase, name);
         let typed_hir_output =
@@ -436,14 +730,17 @@ mod tests {
         super::run(typed_hir_output).expect("fixture 应可通过 MIR stage")
     }
 
-    fn callable_body<'a>(output: &'a MirStageOutput, fqn: &str) -> &'a crate::mir::Body {
+    fn callable_body<'a>(output: &'a DirectStyleMirStageOutput, fqn: &str) -> &'a crate::mir::Body {
         output
             .callable_body(fqn)
             .and_then(|fun| fun.body.as_ref())
             .unwrap_or_else(|| panic!("应找到 callable body: {fqn}"))
     }
 
-    fn validated_callable_body<'a>(output: &'a MirStageOutput, fqn: &str) -> &'a crate::mir::Body {
+    fn validated_callable_body<'a>(
+        output: &'a DirectStyleMirStageOutput,
+        fqn: &str,
+    ) -> &'a crate::mir::Body {
         let body = callable_body(output, fqn);
         body.validate_direct_style()
             .unwrap_or_else(|err| panic!("MIR body `{fqn}` 应通过验证器: {err}"));
@@ -451,7 +748,7 @@ mod tests {
     }
 
     fn unit_operand_is_visible_in_body(
-        output: &MirStageOutput,
+        output: &DirectStyleMirStageOutput,
         body: &crate::mir::Body,
         operand: &Operand,
     ) -> bool {
@@ -486,6 +783,7 @@ mod tests {
         assert!(output.stable_dump().contains("FunDecl"));
         assert!(output.stable_dump().contains("mir_facts {"));
         assert_eq!(output.mir_facts().roots.callable_bodies.len(), 2);
+        assert!(output.mir_facts().snapshots.canonical.is_none());
     }
 
     #[test]
@@ -1732,7 +2030,7 @@ fun bad() {
     fn direct_mir_stage_keeps_callable_body_query_surface_stable() {
         let mut types = TypeStore::new();
         let builtins = types.intern_builtins();
-        let output = MirStageOutput::new(
+        let output = DirectStyleMirStageOutput::new(
             crate::mir::LoweredMir {
                 file: crate::mir::File {
                     items: vec![crate::mir::Item::Fun(crate::mir::FunDecl {
@@ -1748,7 +2046,6 @@ fun bad() {
                 types,
             },
             StableConeKey::new("fixture", "0.0.0"),
-            None,
         );
 
         assert_eq!(

@@ -37,6 +37,20 @@ pub fn dump_mir_facts(facts: &MirFacts) -> String {
         facts.snapshots.snapshots.len()
     )
     .expect("writing to String cannot fail");
+    for snapshot in &facts.snapshots.snapshots {
+        writeln!(
+            &mut out,
+            "    - key={} opt_level={} bodies={} revision={}",
+            snapshot.key.canonical_text(),
+            snapshot.opt_level.as_str(),
+            snapshot.body_count,
+            snapshot.revision,
+        )
+        .expect("writing to String cannot fail");
+        for fqn in &snapshot.canonical_body_fqns {
+            writeln!(&mut out, "      body={fqn}").expect("writing to String cannot fail");
+        }
+    }
     writeln!(
         &mut out,
         "  families: instances={}, callable_families={}",
@@ -44,6 +58,20 @@ pub fn dump_mir_facts(facts: &MirFacts) -> String {
         facts.families.callable_families.len()
     )
     .expect("writing to String cannot fail");
+    for instance in &facts.families.instances {
+        writeln!(
+            &mut out,
+            "    - instance={} callable={}{}",
+            instance.artifact.canonical_text(),
+            instance.callable.as_str(),
+            instance
+                .body
+                .as_ref()
+                .map(|body| format!(" body={}", body.fqn))
+                .unwrap_or_default(),
+        )
+        .expect("writing to String cannot fail");
+    }
     writeln!(
         &mut out,
         "  pass_artifacts: revisions={}, callable_body_overrides={}, summaries={}, escape_facts={}",
@@ -53,6 +81,16 @@ pub fn dump_mir_facts(facts: &MirFacts) -> String {
         facts.pass_artifacts.escape_facts.len()
     )
     .expect("writing to String cannot fail");
+    for revision in &facts.pass_artifacts.revisions {
+        writeln!(
+            &mut out,
+            "    - revision={} pass={} index={}",
+            revision.key.canonical_text(),
+            revision.pass_name,
+            revision.revision,
+        )
+        .expect("writing to String cannot fail");
+    }
     write!(
         &mut out,
         "  pass_pipeline: runs={}\n}}",

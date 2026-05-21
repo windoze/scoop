@@ -13,7 +13,7 @@ use scoopc::session::SessionOptions;
 fn load_mir_for_dump(
     session: &scoopc::session::Session,
     source: &scoopc::source::SourceFile,
-) -> Result<Box<scoopc::pipeline::MirStageOutput>> {
+) -> Result<Box<scoopc::pipeline::DirectStyleMirStageOutput>> {
     scoopc::pipeline::load_direct_style_mir_stage_output_for_dump(session, source)
         .map(Box::new)
         .map_err(miette::Report::from)

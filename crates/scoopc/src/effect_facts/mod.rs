@@ -53,9 +53,6 @@ pub enum EffectFactsError {
     #[error(transparent)]
     ItableLayout(#[from] crate::itable::ItableLayoutError),
 
-    #[error("effect-facts stage requires a canonical materialized MIR snapshot from P3")]
-    MissingMaterializedMirSnapshot,
-
     #[error("effect-facts stage frontend setup failed: {message}")]
     Frontend { message: String },
 

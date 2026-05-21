@@ -134,6 +134,10 @@ impl MaterializedMirPassArtifacts {
         &self.instance_keys
     }
 
+    pub(crate) fn overridden_body_fqns(&self) -> impl Iterator<Item = &str> + '_ {
+        self.overridden_body_fqns.iter().map(String::as_str)
+    }
+
     fn summaries(&self) -> &MaterializedMirSummaries {
         &self.summaries
     }

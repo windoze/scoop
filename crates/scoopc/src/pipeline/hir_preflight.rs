@@ -5,7 +5,7 @@ use crate::mir::{Item as MirItem, Rvalue, StatementKind, TerminatorKind, UnwindA
 use crate::session::{Session, SessionOptions};
 use crate::source::SourceFile;
 
-use super::{HirStageOutput, MirStageOutput, load_hir_stage_output_for_dump};
+use super::{DirectStyleMirStageOutput, HirStageOutput, load_hir_stage_output_for_dump};
 
 const HIR_COMPLETENESS_FIXTURES: &[HirCompletenessFixture] = &[
     HirCompletenessFixture {
@@ -342,7 +342,10 @@ fn run_direct_mir_preflight(
     assert_no_hir_origin_mir_fallbacks(&output, fixture);
 }
 
-fn assert_no_hir_origin_mir_fallbacks(output: &MirStageOutput, fixture: HirCompletenessFixture) {
+fn assert_no_hir_origin_mir_fallbacks(
+    output: &DirectStyleMirStageOutput,
+    fixture: HirCompletenessFixture,
+) {
     for item in &output.file().items {
         let fun = match item {
             MirItem::Fun(fun) => fun,

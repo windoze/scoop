@@ -45,9 +45,7 @@ impl EffectFactsStageOutput {
     }
 
     pub fn materialized_mir(&self) -> &MaterializedMir {
-        self.mir_stage_output
-            .materialized_mir()
-            .expect("P4 effect-facts stage output should always retain canonical materialized MIR")
+        self.mir_stage_output.materialized_mir()
     }
 
     pub fn materialized_pass_view(&self) -> MaterializedMirPassView<'_> {
@@ -89,15 +87,10 @@ pub(crate) fn run_with_compilation_sources(
     mut mir_stage_output: MirStageOutput,
 ) -> Result<EffectFactsStageOutput, EffectFactsError> {
     let solver = MaterializedEffectFactsSolver::for_opt_level(
-        mir_stage_output
-            .materialized_mir()
-            .ok_or(EffectFactsError::MissingMaterializedMirSnapshot)?
-            .opt_level(),
+        mir_stage_output.materialized_mir().opt_level(),
     );
     let seeded_facts = {
-        let materialized_mir = mir_stage_output
-            .materialized_mir_mut()
-            .ok_or(EffectFactsError::MissingMaterializedMirSnapshot)?;
+        let materialized_mir = mir_stage_output.canonical_snapshot_mut();
         MaterializedEffectFactsBuilder::from_materialized_snapshot_in_compilation_unit(
             session,
             source,
@@ -125,9 +118,7 @@ pub(crate) fn run_with_compilation_sources(
         // step-schema 上界；solver 仍只会在真实 body/site outward 贡献存在时把它留进
         // resolved_outward_cases。
         let seeded_facts = {
-            let materialized_mir = mir_stage_output
-                .materialized_mir_mut()
-                .ok_or(EffectFactsError::MissingMaterializedMirSnapshot)?;
+            let materialized_mir = mir_stage_output.canonical_snapshot_mut();
             MaterializedEffectFactsBuilder::from_materialized_snapshot_in_compilation_unit(
                 session,
                 source,
@@ -157,13 +148,10 @@ fn body_has_escaped_continuation(body: &BodyEffectFacts) -> bool {
 mod tests {
     use std::collections::BTreeSet;
 
-    use super::super::MirStageOutput;
     use super::EffectFactsStageOutput;
-    use crate::effect_facts::{CanonicalMirQuerySurface, EffectFactsError, ImplPlan};
-    use crate::mir::{File, LoweredMir};
+    use crate::effect_facts::{CanonicalMirQuerySurface, ImplPlan};
     use crate::session::{Session, SessionOptions};
     use crate::source::SourceFile;
-    use crate::ty::TypeStore;
 
     fn session() -> Session {
         Session::with_options(SessionOptions::new()).unwrap()
@@ -419,27 +407,22 @@ fun callInterface(i: IFace): Int {
             output.effect_facts().bodies().len(),
             output.materialized_pass_view().len()
         );
-    }
-
-    #[test]
-    fn effect_facts_stage_requires_materialized_snapshot() {
-        let output = MirStageOutput::new(
-            LoweredMir {
-                file: File { items: Vec::new() },
-                types: TypeStore::new(),
-            },
-            scoopc_project_model::StableConeKey::new("fixture", "0.0.0"),
-            None,
+        let mir_facts = output.mir_stage_output().mir_facts();
+        assert!(
+            mir_facts.snapshots.canonical.is_some(),
+            "P4-ready MIR output must publish a canonical snapshot binding"
         );
-
-        let session = session();
-        let source = sample_source();
-        let err = super::run(&session, &source, output).unwrap_err();
-
-        assert!(matches!(
-            err,
-            EffectFactsError::MissingMaterializedMirSnapshot
-        ));
+        assert_eq!(
+            mir_facts.families.instances.len(),
+            output.materialized_pass_view().len(),
+            "MIR facts should publish the pass-visible instance inventory"
+        );
+        assert_eq!(mir_facts.pass_artifacts.revisions.len(), 1);
+        assert_eq!(
+            mir_facts.pass_artifacts.summary_revisions.len(),
+            output.materialized_pass_view().len(),
+            "canonical pass summaries should be visible as MIR-owned artifacts"
+        );
     }
 
     #[test]

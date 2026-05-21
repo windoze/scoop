@@ -251,7 +251,7 @@
   - 验证命令：`cargo fmt`；`cargo test -p scoopc_mir_facts`；`cargo test -p scoopc --no-default-features mir_stage`；`cargo test -p scoopc --no-default-features hir_preflight`；`cargo run -p scoop -- test --fixtures tests/fixtures/mir_lowered`；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
   - 残余风险：canonical materialized snapshot binding、pass artifacts metadata、P4-ready mandatory snapshot handoff 和 downstream raw pass-view 切换仍按 `P3-T03` / `P3-T04` 处理；本 review 不提前收口这些后续边界。
 
-## [TODO] P3-T03：固定 canonical materialized snapshot binding 与 pass artifacts 查询面
+## [DONE] P3-T03：固定 canonical materialized snapshot binding 与 pass artifacts 查询面
 
 - 参考：
   - 本文件“`MaterializedMir` / pass artifacts 当前字段、构造点与读取点”
@@ -292,7 +292,11 @@
   - effect facts stage 不再把 missing snapshot 当作可恢复输入形态。
 - 依赖：P3-T02R
 - 完成记录：
-  - 待填写。
+  - 改动范围：将 direct-style-only MIR 输出拆为 `DirectStyleMirStageOutput`，把 P4-ready `MirStageOutput` 固定为携带 mandatory canonical `MaterializedMir` 的 handoff；新增 `load_p4_ready_mir_stage_output_for_dump(...)`，`dump-mir` 继续使用 direct-style-only helper。`EffectFactsStageOutput` / effect facts stage 现在只接受 P4-ready handoff，不再处理缺失 snapshot 的正常错误分支。
+  - MIR facts 发布：`MirStageOutput` 构造时把 canonical snapshot binding、opt level、canonical pass-visible body FQN 集合、materialized instance/family inventory、pass artifact revision、summary artifact 和 escape-facts artifact metadata 写入 `MirFacts`；`scoopc_mir_facts` dump 现在会展示非空 snapshot / family / pass artifact metadata。
+  - 核心决策：direct-style MIR dump 与 P4-ready stage output 使用不同类型表达，避免以 `Option<MaterializedMir>` 同时承载两种边界；snapshot 与 pass artifacts 的 stable identity 使用 `StageArtifactKey` / `BodyVersionKey`，不把 MIR 内部 `TemplateKey` / `InstanceKey` 暴露进 fact crate。
+  - 验证命令：`cargo fmt`；`cargo test -p scoopc_mir_facts`；`cargo test -p scoopc --no-default-features mir_stage`；`cargo test -p scoopc --no-default-features effect_facts_stage`；`cargo test -p scoopc --no-default-features effect_lowering_stage`；`cargo run -p scoop -- test --fixtures tests/fixtures/effect_facts`；`cargo clippy --all-targets -- -D warnings`。
+  - 残余风险：P3-T03 只固定 P4 输入 handoff 和 MIR-owned metadata 发布；downstream 仍有 raw `MaterializedMirPassView` / nested wrapper 过渡读取，按 P3-T04/P4/P5/P7 继续收口。effect facts builder 仍会在 P4 内部为 compiler runtime error schema 扩展 snapshot type context，这不是缺失 snapshot fallback，后续 effect facts purity 任务继续处理。
 
 ## [TODO] P3-T03R：Review MIR snapshot binding 与 pass artifacts 查询面
 

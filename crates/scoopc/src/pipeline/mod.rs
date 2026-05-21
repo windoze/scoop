@@ -33,7 +33,7 @@ pub(crate) use hir_stage::{
 };
 #[cfg(feature = "llvm")]
 pub use llvm_codegen_stage::{LlvmCodegenStageInput, LlvmCodegenStageOutput};
-pub use mir_stage::MirStageOutput;
+pub use mir_stage::{DirectStyleMirStageOutput, MirStageOutput};
 
 #[cfg(feature = "llvm")]
 use crate::opt::OptLevel;
@@ -82,16 +82,26 @@ pub fn lower_direct_style_mir_for_dump(
     source: &SourceFile,
 ) -> Result<crate::mir::LoweredMir, crate::mir::MirLowerError> {
     load_direct_style_mir_stage_output_for_dump(session, source)
-        .map(MirStageOutput::into_lowered_mir)
+        .map(DirectStyleMirStageOutput::into_lowered_mir)
 }
 
 pub fn load_direct_style_mir_stage_output_for_dump(
     session: &Session,
     source: &SourceFile,
-) -> Result<MirStageOutput, crate::mir::MirLowerError> {
+) -> Result<DirectStyleMirStageOutput, crate::mir::MirLowerError> {
     let hir_output =
         load_hir_stage_output_for_dump(session, source).map_err(crate::mir::MirLowerError::from)?;
     mir_stage::run(hir_output)
+}
+
+pub fn load_p4_ready_mir_stage_output_for_dump(
+    session: &Session,
+    source: &SourceFile,
+) -> Result<MirStageOutput, crate::effect_facts::EffectFactsError> {
+    let materialized = materialize_direct_style_mir_for_dump(session, source)?;
+    let direct_style_output = load_direct_style_mir_stage_output_for_dump(session, source)
+        .map_err(crate::effect_facts::EffectFactsError::from)?;
+    Ok(direct_style_output.with_materialized_mir(materialized))
 }
 
 pub fn build_effect_facts_stage_output(
@@ -125,10 +135,7 @@ pub fn load_effect_facts_stage_output_for_dump(
     session: &Session,
     source: &SourceFile,
 ) -> Result<EffectFactsStageOutput, crate::effect_facts::EffectFactsError> {
-    let materialized = materialize_direct_style_mir_for_dump(session, source)?;
-    let mir_stage_output = load_direct_style_mir_stage_output_for_dump(session, source)
-        .map_err(crate::effect_facts::EffectFactsError::from)?
-        .with_materialized_mir(materialized);
+    let mir_stage_output = load_p4_ready_mir_stage_output_for_dump(session, source)?;
     build_effect_facts_stage_output(session, source, mir_stage_output)
 }
 
@@ -341,6 +348,21 @@ mod tests {
             output.effect_facts().callable_facts().len(),
             output.materialized_pass_view().len()
         );
+    }
+
+    #[test]
+    fn single_pipeline_p4_ready_mir_stage_publishes_snapshot_facts() {
+        let session = session();
+        let source = sample_source();
+
+        let output = load_p4_ready_mir_stage_output_for_dump(&session, &source).unwrap();
+
+        assert!(output.mir_facts().snapshots.canonical.is_some());
+        assert_eq!(
+            output.mir_facts().families.instances.len(),
+            output.materialized_pass_view().len()
+        );
+        assert_eq!(output.mir_facts().pass_artifacts.revisions.len(), 1);
     }
 
     #[test]
