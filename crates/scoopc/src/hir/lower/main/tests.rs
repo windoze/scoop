@@ -1236,6 +1236,7 @@ fn lower_typed_single_source_file_via_mir_instance_collection(
         crate::frontend::MirRequestRootMode::RequestSources,
     )
     .unwrap()
+    .lowered_hir
 }
 
 #[test]

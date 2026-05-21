@@ -131,14 +131,8 @@ fun main(): Int / Pure! {
     let codegen_unit =
         frontend::prepare_single_file_codegen_unit_with_opt_level(&session, &source, OptLevel::O2)
             .unwrap();
-    let materialized = codegen_unit
-        .lowered
-        .materialized_mir()
-        .expect("single-file frontend 应保留 materialized MIR");
-    let callable_view = codegen_unit
-        .lowered
-        .materialized_callable_view()
-        .expect("single-file frontend 应暴露 materialized callable view");
+    let materialized = &codegen_unit.materialized_mir;
+    let callable_view = codegen_unit.materialized_mir.callable_view();
     let materialized_fun_fqns = materialized
         .file
         .items

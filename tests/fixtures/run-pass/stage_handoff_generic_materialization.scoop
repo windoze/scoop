@@ -1,0 +1,24 @@
+// EXPECT: pass
+// RUN-STDOUT: stage_handoff_generic_materialization.stdout
+
+import scoop.core.*
+
+fun <T> id(x: T): T {
+    return x
+}
+
+fun <T> wrap(x: T): T {
+    return id(x)
+}
+
+object Box {
+    fun <T> member(x: T): T {
+        return wrap(x)
+    }
+}
+
+fun main() {
+    val a: Int = wrap(20)
+    val b: Int = Box.member(22)
+    println(a + b)
+}

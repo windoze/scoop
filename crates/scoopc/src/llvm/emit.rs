@@ -72,7 +72,10 @@ fn build_single_file_stage_output(
     crate::pipeline::run_llvm_codegen_stage(
         session,
         crate::pipeline::LlvmCodegenStageInput::new(
-            codegen_unit.lowered,
+            crate::frontend::CodegenLoweringOutput {
+                lowered_hir: codegen_unit.lowered,
+                materialized_mir: codegen_unit.materialized_mir,
+            },
             None,
             codegen_unit.source_map,
             codegen_unit.entry_source_id,
@@ -131,10 +134,6 @@ impl<'a> LoweredCodegenEntry<'a> {
             &'a crate::pipeline::EffectLoweredStageOutput,
         >,
     ) -> Self {
-        debug_assert!(
-            lowered.materialized_pass_view().is_none(),
-            "LLVM stage 的 HIR scaffold 不应继续携带旧 production pass-view"
-        );
         let abi_visibility_effect_lowered_stage_output =
             abi_visibility_effect_lowered_stage_output.unwrap_or(effect_lowered_stage_output);
         Self {

@@ -69,9 +69,7 @@ fn build_fixture_inputs_from_source(source: SourceFile) -> FixtureAbiInputs {
     let session = session();
     let typed_hir_output =
         load_hir_stage_output_for_dump(&session, &source).expect("HIR stage 应成功");
-    let hir_compat_scaffold = typed_hir_output
-        .lowered_hir()
-        .clone_hir_compat_scaffold_without_materialized_mir();
+    let hir_compat_scaffold = typed_hir_output.lowered_hir().clone();
     let facts = MirLoweringFacts::from_typed_handoff(
         typed_hir_output.lowered_hir(),
         typed_hir_output.typed_contracts_for_migration(),
@@ -87,12 +85,11 @@ fn build_fixture_inputs_from_source(source: SourceFile) -> FixtureAbiInputs {
         &facts,
     );
     let types = std::mem::replace(&mut lowered_hir.types, TypeStore::new());
-    let materialized_mir = lowered_hir.into_materialized_mir();
-    let mir_stage_output = MirStageOutput::new(
-        LoweredMir { file, types },
-        effect_contracts,
-        materialized_mir,
-    );
+    let materialized_mir =
+        crate::pipeline::materialize_direct_style_mir_for_dump(&session, &source)
+            .expect("materialized MIR 应成功");
+    let mir_stage_output = MirStageOutput::new(LoweredMir { file, types }, effect_contracts, None)
+        .with_materialized_mir(materialized_mir);
     let effect_facts_stage_output =
         build_effect_facts_stage_output(&session, &source, mir_stage_output)
             .expect("effect facts stage 应成功");

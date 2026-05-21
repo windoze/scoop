@@ -232,7 +232,6 @@ pub fn lower_for_compilation_unit_with_stable_cone_key(
         source_cones,
         stable_type_param_keys,
         member_funs,
-        materialized_mir: None,
         types,
         struct_layouts,
         enum_layouts,
@@ -314,118 +313,35 @@ pub fn lower_for_compilation_unit_multi_files_with_type_env(
     )
 }
 
-/// 为 build / single-file LLVM frontend 生成“由 MIR instance collection 决定实例集合”的 HIR 兼容输入。
-///
-/// 说明：
-/// - 该入口先复用 typechecked compilation-unit facts 做 MIR materialization；
-/// - 再只按 MIR 产出的 `InstanceKey` 集合生成当前 LLVM codegen 仍需要的 monomorphic HIR fun/member；
-/// - 因而实例发现职责归属于 MIR，而不是继续由 HIR 自己扫描 `MonomorphKey` / `TypeStore`。
-pub fn lower_for_compilation_unit_multi_files_via_mir_instance_collection(
-    index: &Index,
-    compilation_unit: &[(&SourceFile, &ast::File)],
-    files_to_lower: &[(&SourceFile, &ast::File)],
-    monomorph_requests: &[crate::monomorph::MonomorphRequest],
-    type_env: Option<&crate::typecheck::TypeEnv>,
-    typecheck_types: &TypeStore,
-) -> Result<LoweredHir, Box<crate::mir::MirMaterializeError>> {
-    lower_for_compilation_unit_multi_files_via_mir_instance_collection_with_opt_level(
-        index,
-        compilation_unit,
-        files_to_lower,
-        monomorph_requests,
-        type_env,
-        typecheck_types,
-        crate::opt::OptLevel::O0,
-    )
-}
-
-pub fn lower_for_compilation_unit_multi_files_via_mir_instance_collection_with_opt_level(
-    index: &Index,
-    compilation_unit: &[(&SourceFile, &ast::File)],
-    files_to_lower: &[(&SourceFile, &ast::File)],
-    monomorph_requests: &[crate::monomorph::MonomorphRequest],
-    type_env: Option<&crate::typecheck::TypeEnv>,
-    typecheck_types: &TypeStore,
-    opt_level: crate::opt::OptLevel,
-) -> Result<LoweredHir, Box<crate::mir::MirMaterializeError>> {
-    let request_source_paths = files_to_lower
-        .iter()
-        .map(|(source, _)| source.path().to_path_buf())
-        .collect::<Vec<_>>();
-    let source_cones = HashMap::new();
-    lower_for_compilation_unit_multi_files_via_mir_instance_collection_with_request_sources(
-        index,
-        compilation_unit,
-        files_to_lower,
-        monomorph_requests,
-        type_env,
-        typecheck_types,
-        MirInstanceCollectionOptions {
-            stable_cone_key: virtual_stable_cone_key_for_sources(
-                files_to_lower.first().map(|(source, _)| *source),
-                compilation_unit,
-            ),
-            source_cones: &source_cones,
-            request_source_paths: &request_source_paths,
-            request_root_mode: crate::mir::MaterializeRequestRootMode::RequestSources,
-            opt_level,
-        },
-    )
-}
-
-pub struct MirInstanceCollectionOptions<'a> {
+pub struct ExplicitMirInstanceLoweringOptions<'a> {
     pub stable_cone_key: StableConeKey,
     pub source_cones: &'a HashMap<std::path::PathBuf, crate::cone::SourceConeInfo>,
-    pub request_source_paths: &'a [std::path::PathBuf],
-    pub request_root_mode: crate::mir::MaterializeRequestRootMode<'a>,
-    pub opt_level: crate::opt::OptLevel,
+    pub instance_keys: &'a [crate::mir::InstanceKey],
+    pub instance_types: &'a TypeStore,
+    pub devirtualize_dispatch_calls: bool,
 }
 
-/// 为 build / frontend 生成“由 MIR instance collection 决定实例集合”的 HIR 兼容输入，
-/// 但允许把“参与 lowering 的文件集合”和“允许贡献实例请求的 request roots”显式分离。
+/// 为 build / frontend 生成“由 MIR stage 已收集实例集合决定”的 HIR 兼容输入。
 ///
 /// 说明：
-/// - `files_to_lower` 仍决定哪些文件的顶层声明 / body 会进入 HIR 兼容输出；
-/// - `request_source_paths` 只决定哪些源文件可以贡献 monomorphization 请求与 request-root
-///   可达扫描；
-/// - `request_root_mode` 决定 request roots 是整个 request source 集合，还是 production
-///   executable 的 entry-main / export entry points；
-/// - 这样 frontend 就能把 sysroot support sources 留在 lowering / fun_index 中，
-///   同时避免把这些支持文件里未被入口触达的 generic 调用错误提升为实例收集种子。
-/// - 返回值中的 `LoweredHir` 仍承载当前 LLVM codegen 所需的 HIR 兼容输入，但会额外挂住
-///   `LoweredHir::materialized_mir()`，作为 production 主路径保留的 canonical materialized
-///   MIR / summary 产物。
-pub fn lower_for_compilation_unit_multi_files_via_mir_instance_collection_with_request_sources(
+/// - 本入口不执行 MIR materialization，也不保存 MIR/pass artifacts；
+/// - 调用方必须先在 MIR-owned pipeline 边界完成 request-root collection / materialization，
+///   再把 `InstanceKey` 集合作为 HIR compatibility scaffold 的选择条件传入。
+pub fn lower_for_compilation_unit_multi_files_with_explicit_mir_instances(
     index: &Index,
     compilation_unit: &[(&SourceFile, &ast::File)],
     files_to_lower: &[(&SourceFile, &ast::File)],
-    monomorph_requests: &[crate::monomorph::MonomorphRequest],
     type_env: Option<&crate::typecheck::TypeEnv>,
     typecheck_types: &TypeStore,
-    options: MirInstanceCollectionOptions<'_>,
-) -> Result<LoweredHir, Box<crate::mir::MirMaterializeError>> {
-    let MirInstanceCollectionOptions {
+    options: ExplicitMirInstanceLoweringOptions<'_>,
+) -> Result<LoweredHir, HirLowerError> {
+    let ExplicitMirInstanceLoweringOptions {
         stable_cone_key,
         source_cones,
-        request_source_paths,
-        request_root_mode,
-        opt_level,
+        instance_keys,
+        instance_types,
+        devirtualize_dispatch_calls,
     } = options;
-    let materialized =
-        crate::mir::materialize_compilation_unit_from_typechecked_inputs_with_options(
-            compilation_unit,
-            index,
-            type_env,
-            typecheck_types,
-            monomorph_requests,
-            crate::mir::MaterializeCompilationUnitOptions {
-                stable_cone_key: stable_cone_key.clone(),
-                source_cones,
-                request_source_paths,
-                request_root_mode,
-                opt_level,
-            },
-        )?;
     let mut lowered = lower_for_compilation_unit_multi_files_internal(
         index,
         compilation_unit,
@@ -435,16 +351,15 @@ pub fn lower_for_compilation_unit_multi_files_via_mir_instance_collection_with_r
         typecheck_types,
         CompilationUnitLoweringOptions::explicit_mir_instances(
             stable_cone_key,
-            &materialized.instance_keys,
-            &materialized.types,
-            true,
+            instance_keys,
+            instance_types,
+            devirtualize_dispatch_calls,
         )
         .with_source_cones(source_cones),
     )?;
-    for ty in materialized.types.iter_ids() {
-        let _ = lowered.types.re_intern_from(&materialized.types, ty);
+    for ty in instance_types.iter_ids() {
+        let _ = lowered.types.re_intern_from(instance_types, ty);
     }
-    lowered.materialized_mir = Some(materialized);
     Ok(lowered)
 }
 
@@ -989,7 +904,6 @@ pub(crate) fn lower_for_compilation_unit_multi_files_internal<'a>(
         source_cones,
         stable_type_param_keys,
         member_funs,
-        materialized_mir: None,
         types,
         struct_layouts,
         enum_layouts,

@@ -313,7 +313,6 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
         source_cones,
         stable_type_param_keys,
         member_funs,
-        materialized_mir: None,
         types,
         struct_layouts,
         enum_layouts,

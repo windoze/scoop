@@ -7,6 +7,7 @@ use super::LlvmEmitError;
 
 pub(super) struct SingleFileCodegenUnit {
     pub(super) lowered: hir::LoweredHir,
+    pub(super) materialized_mir: crate::mir::MaterializedMir,
     pub(super) source_map: SourceMap,
     pub(super) entry_source_id: SourceId,
 }
@@ -19,9 +20,7 @@ pub(super) struct SingleFileCodegenUnit {
 /// - 当前 helper 只负责把单文件输入包装成“默认 project 设置下、只含一个用户源文件的 virtual cone”，
 ///   然后复用 `crate::frontend` 的共享 project frontend；
 /// - support sources / request roots / entry-main 选择 / HIR lowering 与显式 cone build 走同一主线；
-/// - 返回的 `lowered` 仍承载当前 LLVM codegen 需要的 HIR 兼容输入，但会保留
-///   `LoweredHir::materialized_pass_view()`，作为 production 主路径显式接入的 canonical
-///   materialized body / summary / 后续 MIR pass 产物视图。
+/// - canonical materialized MIR 作为单独 handoff 返回，不再挂回 `LoweredHir`。
 #[cfg(test)]
 pub(super) fn prepare_single_file_codegen_unit(
     session: &Session,
@@ -41,17 +40,19 @@ pub(super) fn prepare_single_file_codegen_unit_with_opt_level(
     )
     .map_err(frontend_error)?;
     let front = crate::frontend::run_project_frontend(session, context).map_err(frontend_error)?;
-    let lowered = crate::frontend::lower_hir_for_codegen_with_request_root_mode(
+    let lowering = crate::frontend::lower_hir_for_codegen_with_request_root_mode(
         session,
         &front,
         opt_level,
         crate::frontend::MirRequestRootMode::EntryMain,
     )
     .map_err(frontend_error)?;
+    let (lowered, materialized_mir) = lowering.into_parts();
     let (source_map, entry_source_id) = crate::frontend::build_source_map(session, front.input());
 
     Ok(SingleFileCodegenUnit {
         lowered,
+        materialized_mir,
         source_map,
         entry_source_id,
     })

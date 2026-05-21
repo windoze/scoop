@@ -618,7 +618,7 @@ fn lower_hir_for_build_with_request_root_mode(
     front: &FrontendOutput,
     opt_level: OptLevel,
     request_root_mode: scoopc::frontend::MirRequestRootMode,
-) -> Result<scoopc::hir::LoweredHir> {
+) -> Result<scoopc::frontend::CodegenLoweringOutput> {
     scoopc::frontend::lower_hir_for_codegen_with_request_root_mode(
         session,
         front,
@@ -632,7 +632,7 @@ fn lower_main_hir_for_build(
     session: &scoopc::session::Session,
     front: &FrontendOutput,
     opt_level: OptLevel,
-) -> Result<scoopc::hir::LoweredHir> {
+) -> Result<scoopc::frontend::CodegenLoweringOutput> {
     lower_hir_for_build_with_request_root_mode(
         session,
         front,
@@ -646,7 +646,7 @@ fn abi_visibility_lowered_hir_for_build(
     session: &scoopc::session::Session,
     front: &FrontendOutput,
     opt_level: OptLevel,
-) -> Result<Option<scoopc::hir::LoweredHir>> {
+) -> Result<Option<scoopc::frontend::CodegenLoweringOutput>> {
     // 这条附加 handoff 只负责把 request-source 范围内的 callable ABI shell 暴露给
     // LLVM stage；真正的 reachable body lowering 仍由 entry-main rooted build lowering 决定。
     lower_hir_for_build_with_request_root_mode(
@@ -1243,9 +1243,7 @@ fun main(): Int {
         );
 
         let lowered = super::lower_main_hir_for_build(&session, &front, OptLevel::O0).unwrap();
-        let materialized = lowered
-            .materialized_mir()
-            .expect("build frontend 应保留 materialized MIR");
+        let materialized = lowered.materialized_mir();
         assert!(
             materialized
                 .instance_keys
@@ -1255,10 +1253,15 @@ fun main(): Int {
             materialized.instance_keys
         );
         assert!(
-            lowered.file.items.iter().all(|item| !matches!(
-                item,
-                scoopc::hir::Item::Fun(fun) if fun.fqn == "fixture.request_roots.id::<Int>"
-            )),
+            lowered
+                .lowered_hir()
+                .file
+                .items
+                .iter()
+                .all(|item| !matches!(
+                    item,
+                    scoopc::hir::Item::Fun(fun) if fun.fqn == "fixture.request_roots.id::<Int>"
+                )),
             "HIR 兼容输出不应包含未从 main 触达的 id::<Int>"
         );
     }
@@ -1318,9 +1321,7 @@ fun helperOnly(): Int {
         );
 
         let lowered = super::lower_main_hir_for_build(&session, &front, OptLevel::O0).unwrap();
-        let materialized = lowered
-            .materialized_mir()
-            .expect("build frontend 应保留 materialized MIR");
+        let materialized = lowered.materialized_mir();
         assert!(
             materialized
                 .instance_keys
@@ -1346,7 +1347,7 @@ fun helperOnly(): Int {
         let lowered = super::lower_main_hir_for_build(&session, &front, OptLevel::O0).unwrap();
 
         assert!(
-            lowered.file.items.iter().any(|item| {
+            lowered.lowered_hir().file.items.iter().any(|item| {
                 matches!(
                     item,
                     scoopc::hir::Item::Fun(fun) if fun.fqn == "main" || fun.fqn.ends_with(".main")
@@ -1402,12 +1403,8 @@ fun main(): Int / Pure! {
         let build_context = super::load_build_context(&input, None).unwrap();
         let front = super::run_frontend(&session, build_context).unwrap();
         let lowered = super::lower_main_hir_for_build(&session, &front, OptLevel::O0).unwrap();
-        let materialized = lowered
-            .materialized_mir()
-            .expect("build frontend 应保留 materialized MIR");
-        let callable_view = lowered
-            .materialized_callable_view()
-            .expect("build frontend 应暴露 materialized callable view");
+        let materialized = lowered.materialized_mir();
+        let callable_view = lowered.materialized_callable_view();
         let materialized_fun_fqns = materialized
             .file
             .items
@@ -1418,6 +1415,7 @@ fun main(): Int / Pure! {
             })
             .collect::<Vec<_>>();
         let lowered_fun_fqns = lowered
+            .lowered_hir()
             .file
             .items
             .iter()
@@ -1573,6 +1571,7 @@ fun main(): Int / Pure! {
         let front = super::run_frontend(&session, build_context).unwrap();
         let lowered = super::lower_main_hir_for_build(&session, &front, OptLevel::O0).unwrap();
         let lowered_member_fqns = lowered
+            .lowered_hir()
             .member_funs
             .iter()
             .map(|fun| fun.fqn.as_str())

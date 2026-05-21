@@ -29,11 +29,9 @@ use crate::ty::TypeId;
 pub(crate) use lower::GenericTemplateSymbolSuffixIndex;
 pub(crate) use lower::lower_generic_for_compilation_unit_multi_files_with_type_env;
 pub use lower::{
-    HirLowerError, HirStageError, LoweredHir, MirInstanceCollectionOptions,
+    ExplicitMirInstanceLoweringOptions, HirLowerError, HirStageError, LoweredHir,
     lower_for_compilation_unit, lower_for_compilation_unit_multi_files,
-    lower_for_compilation_unit_multi_files_via_mir_instance_collection,
-    lower_for_compilation_unit_multi_files_via_mir_instance_collection_with_opt_level,
-    lower_for_compilation_unit_multi_files_via_mir_instance_collection_with_request_sources,
+    lower_for_compilation_unit_multi_files_with_explicit_mir_instances,
     lower_for_compilation_unit_multi_files_with_type_env,
     lower_for_compilation_unit_with_stable_cone_key, lower_for_dump, lower_typed_for_dump,
 };

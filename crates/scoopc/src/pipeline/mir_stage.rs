@@ -19,7 +19,7 @@ use super::{HirStageOutput, TypedHirEffectContracts};
 ///   canonical 的 site-level contract 现已下沉到 MIR 节点 metadata；P4 可以把它用于审计，
 ///   但不得把它当成重新解释 `Call / Perform / Resume / Handle` 语义的 source of truth；
 /// - `callable_body_indices` 与可选的 `materialized_mir` 把 P4 会消费的 canonical MIR
-///   handoff 显式挂在 stage 输出上，而不是继续藏在 `LoweredHir` 私有字段或 dump helper 里。
+///   handoff 显式挂在 stage 输出上，而不是回看 HIR 输出。
 /// - P4 的 authoritative 输入是这份 stage 输出上的 callable body 身份、可选
 ///   `materialized_mir` 快照，以及 MIR 节点上的 `SiteId` / metadata；P4 不得回看 P2 原始
 ///   HIR side tables 重新猜测 site contract。
@@ -230,14 +230,9 @@ fn lower_mir_stage_unvalidated(hir_output: HirStageOutput) -> (MirStageOutput, T
         &facts,
     );
     let types = std::mem::replace(&mut lowered_hir.types, TypeStore::new());
-    let materialized_mir = lowered_hir.into_materialized_mir();
 
     (
-        MirStageOutput::new(
-            LoweredMir { file, types },
-            effect_contracts,
-            materialized_mir,
-        ),
+        MirStageOutput::new(LoweredMir { file, types }, effect_contracts, None),
         builtins.unit,
         builtins.bool_,
     )

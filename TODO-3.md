@@ -284,7 +284,7 @@
   - 验证命令：`cargo fmt`；`cargo test -p scoopc --no-default-features hir_stage`；`cargo test -p scoopc --no-default-features hir_preflight`；`cargo run -p scoop -- test --fixtures tests/fixtures/hir`；`cargo test -p scoopc_hir_facts`；`cargo clippy --all-targets -- -D warnings`；搜索 `TypedHirStageOutput|TypedHirEffectContracts|hir_facts\(` 和 HIR fixtures 中的 `hir_facts {|typed_contract_bridge {`。
   - 残余风险：`typed_contract_bridge` 仍是 P2 迁移期 payload，不承载最终 source-site/declaration fact 结构；其内容迁移和最终 bridge 清理由 P2-T04/P2-T05 继续处理。
 
-## [TODO] P2-T03：移除 HIR 反向携带 MIR materialization
+## [DONE] P2-T03：移除 HIR 反向携带 MIR materialization
 
 - 参考：
   - `PLAN.md` §1.1、§4/P2
@@ -327,7 +327,13 @@
   - production codegen 的 MIR/effect/LIR 输入来自 MIR 之后的 stage handoff，而不是 HIR bundle。
 - 依赖：P2-T02R
 - 完成记录：
-  - 待填写。
+  - 改动范围：从 `LoweredHir` 删除 `materialized_mir` 字段、`materialized_mir()` / `materialized_callable_view()` / `materialized_pass_view()` / `materialized_mir_mut()` / `into_materialized_mir()` accessor，以及 `clone_hir_compat_scaffold_without_materialized_mir()` workaround；`LoweredHir` 现在只作为 HIR 本体、type context 与迁移期 HIR side table 输出。
+  - 责任拆分：删除 HIR lowering 内部的 `lower_for_compilation_unit_multi_files_via_mir_instance_collection*` materialization 入口，改为先由 frontend/pipeline 显式调用 MIR materializer 得到 canonical `MaterializedMir`，再通过 `lower_for_compilation_unit_multi_files_with_explicit_mir_instances(...)` 构造 HIR compatibility scaffold。该 HIR helper 只消费已收集的 `InstanceKey` / `TypeStore`，不运行 MIR materialization，也不保存 MIR/pass artifacts。
+  - production handoff：新增 `frontend::CodegenLoweringOutput = { lowered_hir, materialized_mir }`，`LlvmCodegenStageInput` 直接接收该 handoff；LLVM stage 先把 `lowered_hir` 推进 `HirStageOutput -> MirStageOutput`，再把独立 `materialized_mir` 显式挂到 MIR stage output，之后 effect facts / effect lowering / LLVM emit 只从 post-MIR stage handoff 读取 canonical pass view。
+  - fixture 覆盖：新增 `tests/fixtures/run-pass/stage_handoff_generic_materialization.scoop`，覆盖 top-level generic 与 member generic 在 HIR compatibility scaffold 与 MIR-owned materialized snapshot 分离后仍能经 production build/run 输出 `42`。
+  - 搜索结论：`materialized_mir|materialized_pass_view|clone_hir_compat_scaffold_without_materialized_mir` 在 `crates/scoopc/src/hir/**/*.rs` 中已无命中；`lower_for_compilation_unit_multi_files_via_mir_instance_collection|MirInstanceCollectionOptions|clone_hir_compat_scaffold_without_materialized_mir|into_materialized_mir` 在 `crates/scoopc/src/**/*.rs` 中已无命中。
+  - 验证命令：`cargo fmt`；`cargo test -p scoopc --no-default-features hir_stage`；`cargo test -p scoopc --no-default-features mir_stage`；`cargo test -p scoopc hir_stage`；`cargo test -p scoopc mir_stage`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/stage_handoff_generic_materialization.scoop`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`；`cargo test --all --all-targets --no-default-features --quiet`；`cargo clippy --all-targets -- -D warnings`；上述搜索命令。
+  - 残余风险：LLVM backend 仍保留 HIR compatibility scaffold 读取 declaration/layout 等非 effect side table；这不再携带 MIR/pass artifacts，但 declaration/entity facts 迁移仍由 P2-T04 继续处理，source-site contract bridge 清理由 P2-T05 继续处理。
 
 ## [TODO] P2-T03R：Review HIR/MIR 单向边界
 

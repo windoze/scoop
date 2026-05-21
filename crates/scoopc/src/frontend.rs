@@ -442,6 +442,36 @@ pub enum MirRequestRootMode {
     RequestSources,
 }
 
+#[cfg(feature = "llvm")]
+/// Production codegen handoff: HIR compatibility scaffold plus MIR-owned canonical snapshot.
+///
+/// The snapshot stays outside `LoweredHir` so later stages must attach it to `MirStageOutput`
+/// explicitly before effect facts or LLVM emit can consume a pass view.
+#[derive(Debug)]
+pub struct CodegenLoweringOutput {
+    pub lowered_hir: hir::LoweredHir,
+    pub materialized_mir: crate::mir::MaterializedMir,
+}
+
+#[cfg(feature = "llvm")]
+impl CodegenLoweringOutput {
+    pub fn lowered_hir(&self) -> &hir::LoweredHir {
+        &self.lowered_hir
+    }
+
+    pub fn materialized_mir(&self) -> &crate::mir::MaterializedMir {
+        &self.materialized_mir
+    }
+
+    pub fn materialized_callable_view(&self) -> crate::mir::MaterializedCallableView<'_> {
+        self.materialized_mir.callable_view()
+    }
+
+    pub fn into_parts(self) -> (hir::LoweredHir, crate::mir::MaterializedMir) {
+        (self.lowered_hir, self.materialized_mir)
+    }
+}
+
 pub fn load_project_input_from_path(
     input: &Path,
     entry_package_override: Option<String>,
@@ -710,7 +740,7 @@ pub fn lower_hir_for_codegen_with_request_root_mode(
     front: &FrontendOutput,
     opt_level: OptLevel,
     request_root_mode: MirRequestRootMode,
-) -> Result<hir::LoweredHir> {
+) -> Result<CodegenLoweringOutput> {
     let mut lowering_context_files: Vec<(&SourceFile, &ast::File)> = Vec::new();
     for f in &session.sysroot().files {
         if front
@@ -759,22 +789,41 @@ pub fn lower_hir_for_codegen_with_request_root_mode(
         }
     };
 
-    hir::lower_for_compilation_unit_multi_files_via_mir_instance_collection_with_request_sources(
+    let materialized_mir =
+        crate::mir::materialize_compilation_unit_from_typechecked_inputs_with_options(
+            &lowering_context_files,
+            &front.index,
+            Some(&front.type_env),
+            &front.typecheck_types,
+            &front.monomorph_requests,
+            crate::mir::MaterializeCompilationUnitOptions {
+                stable_cone_key: stable_cone_key.clone(),
+                source_cones: &source_cones,
+                request_source_paths: &request_source_paths,
+                request_root_mode,
+                opt_level,
+            },
+        )
+        .map_err(|err| miette::Report::from(*err))?;
+    let lowered_hir = hir::lower_for_compilation_unit_multi_files_with_explicit_mir_instances(
         &front.index,
         &lowering_context_files,
         &files_to_lower,
-        &front.monomorph_requests,
         Some(&front.type_env),
         &front.typecheck_types,
-        hir::MirInstanceCollectionOptions {
+        hir::ExplicitMirInstanceLoweringOptions {
             stable_cone_key,
             source_cones: &source_cones,
-            request_source_paths: &request_source_paths,
-            request_root_mode,
-            opt_level,
+            instance_keys: &materialized_mir.instance_keys,
+            instance_types: &materialized_mir.types,
+            devirtualize_dispatch_calls: true,
         },
     )
-    .map_err(|err| miette::Report::from(*err))
+    .map_err(miette::Report::from)?;
+    Ok(CodegenLoweringOutput {
+        lowered_hir,
+        materialized_mir,
+    })
 }
 
 pub fn build_source_map(session: &Session, input: &ProjectInput) -> (SourceMap, SourceId) {

@@ -111,15 +111,6 @@ pub(crate) fn build_effect_facts_stage_output_with_compilation_sources(
     compilation_sources: &[SourceFile],
     mir_stage_output: MirStageOutput,
 ) -> Result<EffectFactsStageOutput, crate::effect_facts::EffectFactsError> {
-    // P4 facts 必须绑定到 canonical materialized MIR snapshot。
-    // 当前 P3 dump stage 仍允许在未保留 snapshot 的情况下独立产出 direct-style MIR，
-    // 因此在 effect-facts stage 边界用同一 session/source 路由补挂 canonical snapshot。
-    let mir_stage_output = if mir_stage_output.materialized_mir().is_some() {
-        mir_stage_output
-    } else {
-        let materialized = materialize_direct_style_mir_for_dump(session, source)?;
-        mir_stage_output.with_materialized_mir(materialized)
-    };
     effect_facts_stage::run_with_compilation_sources(
         session,
         source,
@@ -132,8 +123,10 @@ pub fn load_effect_facts_stage_output_for_dump(
     session: &Session,
     source: &SourceFile,
 ) -> Result<EffectFactsStageOutput, crate::effect_facts::EffectFactsError> {
+    let materialized = materialize_direct_style_mir_for_dump(session, source)?;
     let mir_stage_output = load_direct_style_mir_stage_output_for_dump(session, source)
-        .map_err(crate::effect_facts::EffectFactsError::from)?;
+        .map_err(crate::effect_facts::EffectFactsError::from)?
+        .with_materialized_mir(materialized);
     build_effect_facts_stage_output(session, source, mir_stage_output)
 }
 
@@ -225,7 +218,7 @@ pub fn emit_project_llvm_artifact_to_file(
         crate::frontend::MirRequestRootMode::EntryMain,
     )
     .map_err(project_frontend_prepare_error)?;
-    let extern_libs = lowered.extern_libs.clone();
+    let extern_libs = lowered.lowered_hir.extern_libs.clone();
     let abi_visibility_lowered = crate::frontend::lower_hir_for_codegen_with_request_root_mode(
         session,
         front,
@@ -262,8 +255,8 @@ pub fn emit_production_llvm_artifact_to_file(
     session: &Session,
     source_map: &SourceMap,
     entry_source_id: SourceId,
-    lowered: crate::hir::LoweredHir,
-    abi_visibility_lowered: Option<crate::hir::LoweredHir>,
+    lowered: crate::frontend::CodegenLoweringOutput,
+    abi_visibility_lowered: Option<crate::frontend::CodegenLoweringOutput>,
     output: &Path,
     entry_main_fqn: Option<&str>,
     opt_level: crate::opt::OptLevel,

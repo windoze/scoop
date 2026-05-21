@@ -306,7 +306,7 @@ impl From<ExprTypeError> for HirLowerError {
 /// 一次 lowering 的产物：HIR + 对应的 `TypeStore`。
 ///
 /// 说明：HIR 节点里的 `TypeId` 仅在同一个 `TypeStore` 里可解码/展示。
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct LoweredHir {
     pub file: File,
     /// 当前 lowering 的 authoritative cone identity。
@@ -326,15 +326,6 @@ pub struct LoweredHir {
     /// - 供 LLVM 后端把 `receiver.method(args...)` / `receiver.prop`（lowering 后的顶层调用）
     ///   解析到真实函数体（T1508a/T4010b1）。
     pub member_funs: Vec<FunDecl>,
-    /// 当前 production frontend 若经由 MIR instance/materialization 主路径进入，会把 canonical
-    /// `MaterializedMir` 一并保留在这里。
-    ///
-    /// 说明：
-    /// - `file` / `member_funs` 继续承载现阶段 LLVM codegen 需要的 HIR 兼容 body 与 side tables；
-    /// - `materialized_mir` 则作为 production 主路径上 materialized callable body / summary /
-    ///   后续 MIR pass 产物的稳定挂点；
-    /// - dump/legacy eager HIR lowering 等不经过该主线路径的场景保持 `None`。
-    pub(super) materialized_mir: Option<crate::mir::MaterializedMir>,
     pub types: TypeStore,
     /// 由本次 lowering 过程中收集到的 struct 字段布局信息（供早期 LLVM codegen 查询）。
     pub struct_layouts: StructLayoutIndex,
@@ -408,116 +399,6 @@ pub struct LoweredHir {
     pub direct_supertypes: DirectSupertypesIndex,
     /// 当前 lowering 使用的 builtin TypeId 集合。
     pub builtins: BuiltinTypes,
-}
-
-impl LoweredHir {
-    /// 返回当前 lowering 产物上保留的 canonical materialized MIR（如果该 lowering 走的是
-    /// production 的 via-MIR 主路径）。
-    ///
-    /// 说明：
-    /// - 这是 raw MIR / side-table 载体；
-    /// - production 消费侧若要按 callable body / summary 身份查询，应优先使用
-    ///   `materialized_callable_view()`。
-    pub fn materialized_mir(&self) -> Option<&crate::mir::MaterializedMir> {
-        self.materialized_mir.as_ref()
-    }
-
-    /// 返回当前 lowering 产物上的 canonical materialized callable body / summary 视图。
-    ///
-    /// 用途：
-    /// - 供 production/frontend/codegen 主路径直接按 `InstanceKey` / callable FQN 查询根 body、
-    ///   family body 与 per-instance summary；
-    /// - 避免消费侧继续手动扫描 `MaterializedMir.file` 或自行拼装
-    ///   `instance_keys + summaries.get(...)`。
-    pub fn materialized_callable_view(&self) -> Option<crate::mir::MaterializedCallableView<'_>> {
-        self.materialized_mir
-            .as_ref()
-            .map(crate::mir::MaterializedMir::callable_view)
-    }
-
-    /// 返回当前 lowering 产物上的 canonical materialized MIR pass 视图。
-    ///
-    /// 用途：
-    /// - 供 production/codegen 主路径显式接入当前 pass 后的 canonical callable body /
-    ///   summary / family 映射；
-    /// - 避免 LLVM 入口继续隐式退回“只有 HIR 兼容 body 可见”的旧边界。
-    pub fn materialized_pass_view(&self) -> Option<crate::mir::MaterializedMirPassView<'_>> {
-        self.materialized_mir
-            .as_ref()
-            .map(crate::mir::MaterializedMir::pass_view)
-    }
-
-    /// 返回当前 lowering 产物上保留的 canonical materialized MIR 的可变引用。
-    ///
-    /// 用途：
-    /// - 供 production/codegen 接线或回归测试显式观察 raw MIR，并经
-    ///   `MaterializedMir::pass_artifacts_mut()` 改写 canonical pass 产物；
-    /// - 避免消费侧只能重新 materialize 一次才能验证“frontend 已保留 MIR 产物”。
-    pub fn materialized_mir_mut(&mut self) -> Option<&mut crate::mir::MaterializedMir> {
-        self.materialized_mir.as_mut()
-    }
-
-    /// 取走当前 lowering 产物上保留的 canonical materialized MIR 快照（若存在）。
-    ///
-    /// 说明：
-    /// - MIR stage 会用它把现有 production materialized handoff 显式挂到自己的
-    ///   stage 输出上；
-    /// - dump/typed-only lowering 路径通常返回 `None`。
-    pub(crate) fn into_materialized_mir(self) -> Option<crate::mir::MaterializedMir> {
-        self.materialized_mir
-    }
-
-    /// 克隆一份仅供现有 LLVM 通用/非 effect scaffolding 继续查询的 HIR 兼容输入。
-    ///
-    /// 说明：
-    /// - LLVM stage 会显式把 canonical pass-view / late-lowered program 作为新的
-    ///   authoritative effect handoff；
-    /// - 这里故意丢弃 `materialized_mir`，避免 P6 入口再经由旧的
-    ///   `materialized_lowered_hir` emit API 隐式回落；
-    /// - P6-T02/P6-T03 会继续收缩这份 scaffolding 的职责，直到 backend 不再依赖它承载
-    ///   effect lowering 语义。
-    #[cfg_attr(not(feature = "llvm"), allow(dead_code))]
-    pub(crate) fn clone_hir_compat_scaffold_without_materialized_mir(&self) -> Self {
-        Self {
-            file: self.file.clone(),
-            stable_cone_key: self.stable_cone_key.clone(),
-            source_cones: self.source_cones.clone(),
-            stable_type_param_keys: self.stable_type_param_keys.clone(),
-            member_funs: self.member_funs.clone(),
-            materialized_mir: None,
-            types: self.types.clone(),
-            struct_layouts: self.struct_layouts.clone(),
-            enum_layouts: self.enum_layouts.clone(),
-            extern_funs: self.extern_funs.clone(),
-            native_callable_funs: self.native_callable_funs.clone(),
-            extern_globals: self.extern_globals.clone(),
-            extern_libs: self.extern_libs.clone(),
-            top_level_vars: self.top_level_vars.clone(),
-            top_level_immutable_values: self.top_level_immutable_values.clone(),
-            top_level_fun_call_sites: self.top_level_fun_call_sites.clone(),
-            call_arg_bindings: self.call_arg_bindings.clone(),
-            with_update_contracts: self.with_update_contracts.clone(),
-            assign_place_contracts: self.assign_place_contracts.clone(),
-            object_inits: self.object_inits.clone(),
-            class_inits: self.class_inits.clone(),
-            class_vtables: self.class_vtables.clone(),
-            interfaces: self.interfaces.clone(),
-            class_itables: self.class_itables.clone(),
-            ctor_call_sites: self.ctor_call_sites.clone(),
-            dispatch_call_sites: self.dispatch_call_sites.clone(),
-            effect_op_call_sites: self.effect_op_call_sites.clone(),
-            handle_payload_tuple_tys: self.handle_payload_tuple_tys.clone(),
-            continuation_resume_call_sites: self.continuation_resume_call_sites.clone(),
-            non_pure_continuation_resume_call_sites: self
-                .non_pure_continuation_resume_call_sites
-                .clone(),
-            when_pat_binding_tys: self.when_pat_binding_tys.clone(),
-            nominal_kinds: self.nominal_kinds.clone(),
-            nominal_variances: self.nominal_variances.clone(),
-            direct_supertypes: self.direct_supertypes.clone(),
-            builtins: self.builtins,
-        }
-    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]

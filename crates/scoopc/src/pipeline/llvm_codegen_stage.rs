@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 use std::path::Path;
 
+use crate::frontend::CodegenLoweringOutput;
 use crate::hir::{self, LoweredHir};
 use crate::llvm::LlvmEmitError;
 use crate::opt::OptLevel;
@@ -29,16 +30,16 @@ thread_local! {
 /// LLVM codegen stage 的显式输入。
 ///
 /// 约束：
-/// - `lowered_hir` 必须来自 build/frontend 的统一 typed lowering；
-/// - `abi_visibility_lowered_hir` 若存在，只能用于发布 request-source 范围的 ABI shell；它不能改变
+/// - `lowered` 必须来自 build/frontend 的统一 typed lowering 与 MIR-owned materialization；
+/// - `abi_visibility_lowered` 若存在，只能用于发布 request-source 范围的 ABI shell；它不能改变
 ///   reachable body lowering / fail-fast 的 authoritative handoff；
 /// - stage 会显式把它推进到 P5 late-lowered handoff；
 /// - stage 输出中的 `hir_compat_scaffold` 仅保留当前仍由通用 LLVM codegen 复用的非 effect side
 ///   tables，不能再作为 effect lowering 的 authoritative 输入。
 #[derive(Debug)]
 pub struct LlvmCodegenStageInput {
-    lowered_hir: LoweredHir,
-    abi_visibility_lowered_hir: Option<LoweredHir>,
+    lowered: CodegenLoweringOutput,
+    abi_visibility_lowered: Option<CodegenLoweringOutput>,
     source_map: SourceMap,
     entry_source_id: SourceId,
     entry_main_fqn: Option<String>,
@@ -47,16 +48,16 @@ pub struct LlvmCodegenStageInput {
 
 impl LlvmCodegenStageInput {
     pub fn new(
-        lowered_hir: LoweredHir,
-        abi_visibility_lowered_hir: Option<LoweredHir>,
+        lowered: CodegenLoweringOutput,
+        abi_visibility_lowered: Option<CodegenLoweringOutput>,
         source_map: SourceMap,
         entry_source_id: SourceId,
         entry_main_fqn: Option<String>,
         opt_level: OptLevel,
     ) -> Self {
         Self {
-            lowered_hir,
-            abi_visibility_lowered_hir,
+            lowered,
+            abi_visibility_lowered,
             source_map,
             entry_source_id,
             entry_main_fqn,
@@ -141,14 +142,16 @@ fn run_effect_lowered_stage_from_lowered_hir(
     source_map: &SourceMap,
     entry_source: &SourceFile,
     lowered_hir: LoweredHir,
+    materialized_mir: crate::mir::MaterializedMir,
     preserve_published_resume_shells: bool,
 ) -> Result<EffectLoweredStageOutput, LlvmEmitError> {
     precheck_invalid_integer_literals(source_map, entry_source, &lowered_hir)?;
     let source_path = entry_source.path().to_path_buf();
     let typed_hir_output =
         HirStageOutput::new(lowered_hir, &source_path).map_err(crate::hir::HirLowerError::from)?;
-    let mir_stage_output =
-        mir_stage::run(typed_hir_output).map_err(|err| stage_error("direct-style MIR", err))?;
+    let mir_stage_output = mir_stage::run(typed_hir_output)
+        .map_err(|err| stage_error("direct-style MIR", err))?
+        .with_materialized_mir(materialized_mir);
     let compilation_sources = source_map_compilation_sources(session, source_map);
     let effect_facts_stage_output = build_effect_facts_stage_output_with_compilation_sources(
         session,
@@ -189,8 +192,8 @@ pub(crate) fn run(
     record_test_stage_run();
 
     let LlvmCodegenStageInput {
-        lowered_hir,
-        abi_visibility_lowered_hir,
+        lowered,
+        abi_visibility_lowered,
         source_map,
         entry_source_id,
         entry_main_fqn,
@@ -205,21 +208,25 @@ pub(crate) fn run(
                     entry_source_id.as_usize()
                 ),
             })?;
-    let hir_compat_scaffold = lowered_hir.clone_hir_compat_scaffold_without_materialized_mir();
+    let (lowered_hir, materialized_mir) = lowered.into_parts();
+    let hir_compat_scaffold = lowered_hir.clone();
     let effect_lowered_stage_output = run_effect_lowered_stage_from_lowered_hir(
         session,
         &source_map,
         entry_source,
         lowered_hir,
+        materialized_mir,
         false,
     )?;
-    let abi_visibility_effect_lowered_stage_output = abi_visibility_lowered_hir
-        .map(|lowered_hir| {
+    let abi_visibility_effect_lowered_stage_output = abi_visibility_lowered
+        .map(|lowered| {
+            let (lowered_hir, materialized_mir) = lowered.into_parts();
             run_effect_lowered_stage_from_lowered_hir(
                 session,
                 &source_map,
                 entry_source,
                 lowered_hir,
+                materialized_mir,
                 true,
             )
         })
@@ -1512,7 +1519,7 @@ fun main(): Int {
         Session,
         SourceMap,
         crate::source::SourceId,
-        crate::hir::LoweredHir,
+        crate::frontend::CodegenLoweringOutput,
     ) {
         let session = session_for_source(&source);
         let context =
@@ -1535,7 +1542,7 @@ fun main(): Int {
         Session,
         SourceMap,
         crate::source::SourceId,
-        crate::hir::LoweredHir,
+        crate::frontend::CodegenLoweringOutput,
     ) {
         emit_args_for_source(sample_source())
     }
@@ -1544,7 +1551,7 @@ fun main(): Int {
         Session,
         SourceMap,
         crate::source::SourceId,
-        crate::hir::LoweredHir,
+        crate::frontend::CodegenLoweringOutput,
     ) {
         emit_args_for_source(effectful_source())
     }
@@ -2131,11 +2138,11 @@ fun main() {
                 .is_some()
         );
         assert!(
-            stage_output
-                .hir_compat_scaffold()
+            !stage_output
+                .effect_lowered_stage_output()
                 .materialized_pass_view()
-                .is_none(),
-            "LLVM stage 的 HIR scaffold 不应再携带旧 production pass-view 入口"
+                .is_empty(),
+            "LLVM stage 应通过 effect-lowered handoff 暴露 canonical pass-view"
         );
         assert!(
             stage_output
