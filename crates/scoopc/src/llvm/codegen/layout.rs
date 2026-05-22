@@ -11,7 +11,7 @@ use inkwell::values::PointerValue;
 
 use crate::hir;
 use crate::ty::layout::{NicheDomain, NicheStorage, TargetLayout, TypeLayout};
-use crate::ty::{TypeId, TypeKind, ValueTypeKind};
+use crate::ty::{MonoTypeId, TypeId, TypeKind, ValueTypeKind};
 
 use super::types::{
     CgEnumLayout, CgEnumRepr, CgEnumVariant, CgTy, ENUM_BOX_DISPARITY_RATIO,
@@ -24,7 +24,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &mut self,
         at: crate::span::Span,
         class_fqn: &str,
-    ) -> Result<hir::ClassInit, LlvmEmitError> {
+    ) -> Result<hir::MonoClassInit, LlvmEmitError> {
         let mut visiting: HashSet<String> = HashSet::new();
         self.class_init_layout_inner(at, class_fqn, &mut visiting)
     }
@@ -34,7 +34,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         _at: crate::span::Span,
         class_fqn: &str,
         visiting: &mut HashSet<String>,
-    ) -> Result<hir::ClassInit, LlvmEmitError> {
+    ) -> Result<hir::MonoClassInit, LlvmEmitError> {
         if let Some(cached) = self
             .shared_caches
             .class_init_layout_cache
@@ -57,7 +57,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .cloned()
             .expect("ClassInit must exist for layout key");
 
-        let mut fields: Vec<hir::ClassField> = Vec::new();
+        let mut fields: Vec<hir::ClassField<MonoTypeId>> = Vec::new();
         let mut field_indices: HashMap<String, u32> = HashMap::new();
 
         if let Some(super_fqn) = base.super_class_fqn.as_deref() {
@@ -72,7 +72,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             fields.push(field);
         }
 
-        let layouted = hir::ClassInit {
+        let layouted = hir::MonoClassInit {
             fqn: base.fqn,
             source_path: base.source_path,
             super_class_fqn: base.super_class_fqn,
@@ -106,7 +106,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         at: crate::span::Span,
         // T0125：receiver 的 TypeId，用于泛型 class 的 mangled FQN 查找。
         receiver_ty: Option<TypeId>,
-    ) -> Result<Option<(hir::ClassInit, u32, CgTy)>, LlvmEmitError> {
+    ) -> Result<Option<(hir::MonoClassInit, u32, CgTy)>, LlvmEmitError> {
         let Some((owner_fqn, _name)) = field_fqn.rsplit_once('.') else {
             return Ok(None);
         };
@@ -146,7 +146,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         field_fqn: &str,
         at: crate::span::Span,
         class_key: &str,
-    ) -> Result<Option<(hir::ClassInit, u32, CgTy)>, LlvmEmitError> {
+    ) -> Result<Option<(hir::MonoClassInit, u32, CgTy)>, LlvmEmitError> {
         let class = self.class_init_layout(at, class_key)?;
         let field_idx = class.field_indices.get(field_fqn).copied().or_else(|| {
             let (_, field_name) = field_fqn.rsplit_once('.')?;
@@ -162,7 +162,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let field = class.fields.get(field_idx as usize).unwrap_or_else(|| {
             panic!("lookup_class_field_by_fqn_inner: verifier accepted class field index drift")
         });
-        let field_cg = self.expect_cg_ty_of(field.ty, "class field layout lookup");
+        let field_cg = self.expect_cg_ty_of(field.ty.inner(), "class field layout lookup");
         Ok(Some((class, field_idx, field_cg)))
     }
 
@@ -240,11 +240,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     /// 约定：
     /// - `obj_ptr` 指向对象头（即 runtime `scoop_alloc` 的返回值，`ScoopGcObjectHeader*` 起始地址）；
     /// - 对象布局在 LLVM 侧表示为 `{ ScoopGcObjectHeader, ClassPayload }`；
-    /// - 字段位于 `ClassPayload` 内部，索引由 `hir::ClassInit.fields` 的稳定顺序决定。
+    /// - 字段位于 `ClassPayload` 内部，索引由 `hir::MonoClassInit.fields` 的稳定顺序决定。
     pub(super) fn codegen_class_field_ptr(
         &mut self,
         at: crate::span::Span,
-        class: &hir::ClassInit,
+        class: &hir::MonoClassInit,
         obj_ptr: PointerValue<'ctx>,
         field_idx: u32,
     ) -> Result<PointerValue<'ctx>, LlvmEmitError> {

@@ -166,7 +166,7 @@ impl<'a> HiddenInitEffectAnalyzer<'a> {
     pub(in crate::mir::lower) fn lookup_class_init(
         &self,
         class_fqn: &str,
-    ) -> Option<&'a hir::ClassInit> {
+    ) -> Option<&'a hir::MonoClassInit> {
         self.lowered.class_inits.get(class_fqn).or_else(|| {
             self.lowered
                 .class_inits

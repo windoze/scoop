@@ -150,14 +150,15 @@ pub fn lower_for_compilation_unit_with_stable_cone_key(
         )
     };
 
-    let (
+    let CompilationUnitInitCollectionOutputs {
         object_inits,
+        generic_class_decls,
         class_inits,
-        side_table_ctor_call_sites,
-        side_table_dispatch_call_sites,
-        side_table_with_update_contracts,
-        side_table_assign_place_contracts,
-    ) = collect_compilation_unit_object_and_class_inits(
+        ctor_call_sites: side_table_ctor_call_sites,
+        dispatch_call_sites: side_table_dispatch_call_sites,
+        with_update_contracts: side_table_with_update_contracts,
+        assign_place_contracts: side_table_assign_place_contracts,
+    } = collect_compilation_unit_object_and_class_inits(
         compilation_unit,
         CompilationUnitInitCollectionInputs {
             index,
@@ -194,7 +195,7 @@ pub fn lower_for_compilation_unit_with_stable_cone_key(
         ci.extend(collect_generic_class_instantiation_inits(
             compilation_unit,
             &mut types,
-            &ci,
+            &generic_class_decls,
         ));
         ci
     };
@@ -238,6 +239,7 @@ pub fn lower_for_compilation_unit_with_stable_cone_key(
         with_update_contracts,
         assign_place_contracts,
         object_inits,
+        generic_class_decls,
         class_inits,
         class_vtables,
         interfaces,
@@ -693,14 +695,15 @@ pub(crate) fn lower_for_compilation_unit_multi_files_internal<'a>(
         &mut types,
     ));
 
-    let (
+    let CompilationUnitInitCollectionOutputs {
         object_inits,
+        generic_class_decls,
         mut class_inits,
-        side_table_ctor_call_sites,
-        side_table_dispatch_call_sites,
-        side_table_with_update_contracts,
-        side_table_assign_place_contracts,
-    ) = collect_compilation_unit_object_and_class_inits(
+        ctor_call_sites: side_table_ctor_call_sites,
+        dispatch_call_sites: side_table_dispatch_call_sites,
+        with_update_contracts: side_table_with_update_contracts,
+        assign_place_contracts: side_table_assign_place_contracts,
+    } = collect_compilation_unit_object_and_class_inits(
         compilation_unit,
         CompilationUnitInitCollectionInputs {
             index,
@@ -719,7 +722,7 @@ pub(crate) fn lower_for_compilation_unit_multi_files_internal<'a>(
     class_inits.extend(collect_generic_class_instantiation_inits(
         compilation_unit,
         &mut types,
-        &class_inits,
+        &generic_class_decls,
     ));
 
     match instance_mode {
@@ -749,7 +752,7 @@ pub(crate) fn lower_for_compilation_unit_multi_files_internal<'a>(
             class_inits.extend(collect_generic_class_instantiation_inits(
                 compilation_unit,
                 &mut types,
-                &class_inits,
+                &generic_class_decls,
             ));
 
             // T0126：为泛型 class 的具体实例化生成单态化的成员方法 FunDecl。
@@ -775,7 +778,7 @@ pub(crate) fn lower_for_compilation_unit_multi_files_internal<'a>(
             class_inits.extend(collect_generic_class_instantiation_inits(
                 compilation_unit,
                 &mut types,
-                &class_inits,
+                &generic_class_decls,
             ));
         }
         CompilationUnitInstanceMode::ExplicitMirInstances {
@@ -801,7 +804,7 @@ pub(crate) fn lower_for_compilation_unit_multi_files_internal<'a>(
             class_inits.extend(collect_generic_class_instantiation_inits(
                 compilation_unit,
                 &mut types,
-                &class_inits,
+                &generic_class_decls,
             ));
 
             member_funs.extend(
@@ -865,7 +868,7 @@ pub(crate) fn lower_for_compilation_unit_multi_files_internal<'a>(
             class_inits.extend(collect_generic_class_instantiation_inits(
                 compilation_unit,
                 &mut types,
-                &class_inits,
+                &generic_class_decls,
             ));
         }
         CompilationUnitInstanceMode::GenericTemplateOnly => {}
@@ -911,6 +914,7 @@ pub(crate) fn lower_for_compilation_unit_multi_files_internal<'a>(
         with_update_contracts,
         assign_place_contracts,
         object_inits,
+        generic_class_decls,
         class_inits,
         class_vtables,
         interfaces,

@@ -24,7 +24,7 @@ use std::path::PathBuf;
 
 use crate::ast;
 use crate::span::Span;
-use crate::ty::TypeId;
+use crate::ty::{MonoTypeId, ParamLeak, TypeId, TypeStore};
 
 pub(crate) use lower::GenericTemplateSymbolSuffixIndex;
 pub(crate) use lower::lower_generic_for_compilation_unit_multi_files_with_type_env;
@@ -831,11 +831,36 @@ pub type ObjectInitIndex = HashMap<String, ObjectInit>;
 ///   - 先初始化 primary ctor 的 `val/var` 参数属性；
 ///   - 再按源码顺序执行 property initializer 与 `init {}` blocks；
 ///   - 最后执行 secondary ctor body（若调用点选择了 secondary ctor）。
-pub type ClassInitIndex = HashMap<String, ClassInit>;
+///
+/// codegen 视野的 class 初始化索引（值为 `MonoClassInit`，字段类型为 `MonoTypeId`）。
+///
+/// 说明（P7-T04-b-2）：
+/// - codegen / RTTI / mir-materialize / lir_facts 视角的 `class_inits` **只**承载单态化条目；
+///   - 非泛型 class 的源声明：HIR lowering 在生成 `GenericClassDecl` 后，立即调
+///     [`MonoClassInit::from_generic_decl`] 升级为 `MonoClassInit` 入此索引；
+///   - 泛型 class 的具体实例化：`collect_generic_class_instantiation_inits` 在 substitute
+///     字段/参数 TypeId 后立即调 `as_mono`，失败即返回 monomorph driver diagnostic；
+///   - 泛型 class 的源声明本身**不**进入此索引（它仅入 `GenericClassDeclIndex`）。
+pub type ClassInitIndex = HashMap<String, MonoClassInit>;
 
-/// 一个 class 的初始化顺序、字段信息与构造器集合。
+/// 泛型 class 源声明索引（值为 `GenericClassDecl`，字段类型为 `TypeId` 可含 `Param`）。
+///
+/// 说明：
+/// - typecheck / HIR lowering / monomorph driver / hir_completeness verifier 视角的源声明视图；
+/// - 包含**所有** class 的源声明（非泛型与泛型同等存在），key 为源 class FQN（不含 mangled args）；
+/// - 字段 `TypeId` 可包含 `Param`；如需 codegen 视图必须经 `MonoClassInit::from_generic_decl` 升级。
+pub type GenericClassDeclIndex = HashMap<String, GenericClassDecl>;
+
+/// 一个 class 的初始化顺序、字段信息与构造器集合（参数化于字段/参数槽位的类型 `T`）。
+///
+/// 两个具名 view：
+/// - [`GenericClassDecl`] = `ClassInitImpl<TypeId>`：源声明视图，可含 `Param`。
+/// - [`MonoClassInit`] = `ClassInitImpl<MonoTypeId>`：单态化视图，禁止 `Param`。
+///
+/// 由于 `T` 不同，两者在类型系统层是不同类型，不可隐式互转；codegen 公共 API 限制在
+/// `&MonoClassInit`，从而把 `Param` 泄漏到 `llvm_class_payload_type` 的可能性在编译期堵死。
 #[derive(Debug, Clone)]
-pub struct ClassInit {
+pub struct ClassInitImpl<T> {
     pub fqn: String,
     /// class 声明所在源文件路径；供多文件 codegen 在初始化表达式中回查字面量源码。
     pub source_path: PathBuf,
@@ -850,24 +875,150 @@ pub struct ClassInit {
     /// `this` 在该 class 初始化语境中的局部符号 ID（resolver 用 class name span 作为 decl_span）。
     pub this_id: SymbolId,
     /// class 实例的字段列表（按稳定顺序，用于后端分配 layout）。
-    pub fields: Vec<ClassField>,
+    pub fields: Vec<ClassField<T>>,
     /// `field fqn -> fields[] index` 的快速索引。
     pub field_indices: HashMap<String, u32>,
     /// primary ctor 的初始化步骤（按源码顺序执行；不包含 ctor 参数属性赋值）。
     pub steps: Vec<ClassInitStep>,
     /// 该 class 的构造器集合（primary + secondary）。
-    ///
-    /// 说明：当前阶段用它来在 codegen 时按已发布的 selected-ctor / arg-mapping contract 执行 ctor。
-    pub ctors: Vec<ClassCtor>,
+    pub ctors: Vec<ClassCtor<T>>,
 }
 
-/// class 的一个字段（最小后端视图）。
+/// 源声明视图（typecheck / HIR lowering / monomorph driver 使用）。字段类型为 `TypeId`。
+pub type GenericClassDecl = ClassInitImpl<TypeId>;
+
+/// 单态化视图（codegen / RTTI / mir-materialize / lir_facts 使用）。字段类型为 `MonoTypeId`。
+pub type MonoClassInit = ClassInitImpl<MonoTypeId>;
+
+/// `MonoClassInit` 构造失败时的诊断（class FQN + 出错槽位 + leak path）。
+///
+/// 用途：
+/// - 非泛型 class 在 HIR lowering 阶段构造 `MonoClassInit` 失败 → typecheck 之外的 verifier-style assertion；
+/// - 泛型 class 实例化在 substitute 后构造 `MonoClassInit` 失败 → monomorph driver bug。
 #[derive(Debug, Clone)]
-pub struct ClassField {
+pub struct MonoLeakDiag {
+    pub class_fqn: String,
+    pub slot: MonoLeakSlot,
+    pub leak: ParamLeak,
+}
+
+/// `MonoClassInit` 构造时哪个 slot 含有 `Param` 泄漏。
+#[derive(Debug, Clone)]
+pub enum MonoLeakSlot {
+    /// `fields[i].ty` 含 `Param`。
+    Field { name: String },
+    /// `ctors[i].params[j].ty` 含 `Param`。
+    CtorParam {
+        ctor_index: usize,
+        param_name: String,
+    },
+}
+
+impl fmt::Display for MonoLeakSlot {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            MonoLeakSlot::Field { name } => write!(f, "field `{name}`"),
+            MonoLeakSlot::CtorParam {
+                ctor_index,
+                param_name,
+            } => write!(f, "ctors[{ctor_index}].params[`{param_name}`]"),
+        }
+    }
+}
+
+impl fmt::Display for MonoLeakDiag {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "class `{}` slot {} contains Param after monomorphization (leak path: {:?})",
+            self.class_fqn, self.slot, self.leak.leak_path
+        )
+    }
+}
+
+impl MonoClassInit {
+    /// 把一个已 substituted 的 `GenericClassDecl` 升级为 `MonoClassInit`。
+    ///
+    /// 调用约束：
+    /// - 调用者必须保证 `decl` 已经过 type-param 替换（非泛型 class 直接构造，泛型实例化在
+    ///   `collect_generic_class_instantiation_inits` 内 substitute 后调用）；
+    /// - 任一字段或 ctor 参数仍含 `Param` 即返回 [`MonoLeakDiag`]。
+    pub fn from_generic_decl(
+        decl: &GenericClassDecl,
+        types: &TypeStore,
+    ) -> Result<MonoClassInit, MonoLeakDiag> {
+        let mut fields = Vec::with_capacity(decl.fields.len());
+        for field in &decl.fields {
+            let mono_ty = types.as_mono(field.ty).map_err(|leak| MonoLeakDiag {
+                class_fqn: decl.fqn.clone(),
+                slot: MonoLeakSlot::Field {
+                    name: field.name.clone(),
+                },
+                leak,
+            })?;
+            fields.push(ClassField {
+                fqn: field.fqn.clone(),
+                name: field.name.clone(),
+                mutable: field.mutable,
+                ty: mono_ty,
+            });
+        }
+
+        let mut ctors = Vec::with_capacity(decl.ctors.len());
+        for (ctor_index, ctor) in decl.ctors.iter().enumerate() {
+            let mut params = Vec::with_capacity(ctor.params.len());
+            for param in &ctor.params {
+                let mono_ty = types.as_mono(param.ty).map_err(|leak| MonoLeakDiag {
+                    class_fqn: decl.fqn.clone(),
+                    slot: MonoLeakSlot::CtorParam {
+                        ctor_index,
+                        param_name: param.name.clone(),
+                    },
+                    leak,
+                })?;
+                params.push(ClassCtorParam {
+                    id: param.id,
+                    name: param.name.clone(),
+                    decl_span: param.decl_span,
+                    ty: mono_ty,
+                    has_default: param.has_default,
+                    default_value: param.default_value.clone(),
+                    is_property: param.is_property,
+                    property_field_fqn: param.property_field_fqn.clone(),
+                });
+            }
+            ctors.push(ClassCtor {
+                kind: ctor.kind,
+                span: ctor.span,
+                params,
+                delegation: ctor.delegation.clone(),
+                body: ctor.body.clone(),
+            });
+        }
+
+        Ok(MonoClassInit {
+            fqn: decl.fqn.clone(),
+            source_path: decl.source_path.clone(),
+            super_class_fqn: decl.super_class_fqn.clone(),
+            super_ctor_args_span: decl.super_ctor_args_span,
+            super_ctor_call: decl.super_ctor_call.clone(),
+            super_ctor_args: decl.super_ctor_args.clone(),
+            this_id: decl.this_id,
+            fields,
+            field_indices: decl.field_indices.clone(),
+            steps: decl.steps.clone(),
+            ctors,
+        })
+    }
+}
+
+/// class 的一个字段（最小后端视图，参数化于字段类型槽位）。
+#[derive(Debug, Clone)]
+pub struct ClassField<T> {
     pub fqn: String,
     pub name: String,
     pub mutable: bool,
-    pub ty: TypeId,
+    pub ty: T,
 }
 
 /// class 初始化的一步（按源码顺序执行）。
@@ -885,12 +1036,12 @@ pub enum ClassCtorKind {
     Secondary,
 }
 
-/// 一个 class 构造器（primary 或 secondary）的最小后端视图。
+/// 一个 class 构造器（primary 或 secondary）的最小后端视图，参数化于参数 TypeId 槽位。
 #[derive(Debug, Clone)]
-pub struct ClassCtor {
+pub struct ClassCtor<T> {
     pub kind: ClassCtorKind,
     pub span: Span,
-    pub params: Vec<ClassCtorParam>,
+    pub params: Vec<ClassCtorParam<T>>,
     /// secondary ctor 的 delegation（`this(...)` / `super(...)`）；primary ctor 为 None。
     pub delegation: Option<ClassCtorDelegation>,
     /// ctor body：secondary ctor 为 Some；primary ctor 为 None（其执行体由 `steps` 描述）。
@@ -906,11 +1057,11 @@ pub struct ClassCtorDelegation {
 }
 
 #[derive(Debug, Clone)]
-pub struct ClassCtorParam {
+pub struct ClassCtorParam<T> {
     pub id: SymbolId,
     pub name: String,
     pub decl_span: Span,
-    pub ty: TypeId,
+    pub ty: T,
     pub has_default: bool,
     pub default_value: Option<Expr>,
     /// 该参数是否同时声明为 `val/var` 参数属性（仅 primary ctor 适用）。

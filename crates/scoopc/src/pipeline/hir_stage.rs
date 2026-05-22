@@ -3093,7 +3093,7 @@ fn collect_layout_field_facts(facts: &mut DeclarationFacts, lowered_hir: &Lowere
         }
     }
 
-    for (class_key, class) in &lowered_hir.class_inits {
+    for (class_key, class) in &lowered_hir.generic_class_decls {
         for field in &class.fields {
             facts.fields.push(field_declaration_fact(
                 lowered_hir,
@@ -3103,6 +3103,22 @@ fn collect_layout_field_facts(facts: &mut DeclarationFacts, lowered_hir: &Lowere
                 FieldOwnerKind::Class,
                 &field.name,
                 field.ty,
+            ));
+        }
+    }
+    for (class_key, class) in &lowered_hir.class_inits {
+        if lowered_hir.generic_class_decls.contains_key(class_key) {
+            continue;
+        }
+        for field in &class.fields {
+            facts.fields.push(field_declaration_fact(
+                lowered_hir,
+                "class_field",
+                &field.fqn,
+                class_key,
+                FieldOwnerKind::Class,
+                &field.name,
+                field.ty.inner(),
             ));
         }
     }
@@ -3181,11 +3197,22 @@ fn populate_global_root_facts(facts: &mut HirFacts, lowered_hir: &LoweredHir) {
             .push(initializer_fact_from_object(lowered_hir, object));
     }
 
-    for class in lowered_hir.class_inits.values() {
+    for class in lowered_hir.generic_class_decls.values() {
         facts
             .globals
             .class_initializers
             .push(initializer_fact_from_class(lowered_hir, class));
+    }
+    // 单态化实例化的 class（mangled FQN 不在 generic_class_decls 中）补充进 facts，
+    // 以保留 split 前的全集可见性。
+    for (mangled_fqn, mono) in &lowered_hir.class_inits {
+        if lowered_hir.generic_class_decls.contains_key(mangled_fqn) {
+            continue;
+        }
+        facts
+            .globals
+            .class_initializers
+            .push(initializer_fact_from_mono_class(lowered_hir, mono));
     }
 
     facts
@@ -3535,7 +3562,7 @@ fn initializer_fact_from_object(
 
 fn initializer_fact_from_class(
     lowered_hir: &LoweredHir,
-    class: &crate::hir::ClassInit,
+    class: &crate::hir::GenericClassDecl,
 ) -> InitializerFact {
     let mut fields = class
         .fields
@@ -3543,6 +3570,27 @@ fn initializer_fact_from_class(
         .map(|field| InitializerFieldFact {
             name: field.name.clone(),
             ty: field.ty,
+            source: None,
+        })
+        .collect::<Vec<_>>();
+    fields.sort_by(|lhs, rhs| lhs.name.cmp(&rhs.name));
+    InitializerFact {
+        identity: fact_identity("class_initializer", &class.fqn, lowered_hir),
+        initialized_root: CanonicalTextKey::new(&class.fqn),
+        fields,
+    }
+}
+
+fn initializer_fact_from_mono_class(
+    lowered_hir: &LoweredHir,
+    class: &crate::hir::MonoClassInit,
+) -> InitializerFact {
+    let mut fields = class
+        .fields
+        .iter()
+        .map(|field| InitializerFieldFact {
+            name: field.name.clone(),
+            ty: field.ty.inner(),
             source: None,
         })
         .collect::<Vec<_>>();
@@ -6050,7 +6098,7 @@ mod tests {
         let (mut lowered, source_path) = clean_lowered_hir();
         lowered.class_inits.insert(
             "sample.Box".to_string(),
-            crate::hir::ClassInit {
+            crate::hir::MonoClassInit {
                 fqn: "sample.Box".to_string(),
                 source_path: source_path.clone(),
                 super_class_fqn: None,

@@ -45,10 +45,10 @@ use super::{
     AccessorContract, AssignPlaceSiteIndex, Block, CallArg, CallArgBindingSiteIndex, CallSite,
     ClassInitIndex, ContinuationResumeCallSiteIndex, CtorCallSiteIndex, CtorDecl, CtorParamDecl,
     Decl, DeclMember, DeclTypeParam, EnumVariantDecl, Expr, ExprKind, ExtensionPropertyDecl,
-    FieldDecl, FieldOrigin, File, FunDecl, Item, MemberFunDecl, MemberRef, NominalDecl,
-    NonPureContinuationResumeCallSiteIndex, ObjectDecl, ObjectInitIndex, Param, PropertyDecl, Stmt,
-    StmtKind, SupertypeDecl, SymbolId, TopLevelVarStorage, TypeAliasDecl, ValDecl, ValueRef,
-    WithUpdateSiteIndex,
+    FieldDecl, FieldOrigin, File, FunDecl, GenericClassDeclIndex, Item, MemberFunDecl, MemberRef,
+    NominalDecl, NonPureContinuationResumeCallSiteIndex, ObjectDecl, ObjectInitIndex, Param,
+    PropertyDecl, Stmt, StmtKind, SupertypeDecl, SymbolId, TopLevelVarStorage, TypeAliasDecl,
+    ValDecl, ValueRef, WithUpdateSiteIndex,
 };
 
 use types::*;

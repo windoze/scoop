@@ -634,12 +634,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     ///
     /// 说明：
     /// - payload 不包含对象头（header）；header 由 `llvm_class_object_type` 负责；
-    /// - 当前阶段 fields 的顺序来自 `hir::ClassInit.fields`（stable order），用于可回归的字段索引；
+    /// - 当前阶段 fields 的顺序来自 `hir::MonoClassInit.fields`（stable order），用于可回归的字段索引；
     /// - 该类型名使用 runtime 命名空间前缀，避免与用户类型冲突。
     pub(super) fn llvm_class_payload_type(
         &mut self,
         at: crate::span::Span,
-        class: &hir::ClassInit,
+        class: &hir::MonoClassInit,
     ) -> Result<StructType<'ctx>, LlvmEmitError> {
         let stable_key = self.stable_nominal_type_key(&class.fqn, "class_layout");
         let name =
@@ -649,7 +649,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 let mut llvm_fields: Vec<BasicTypeEnum<'ctx>> =
                     Vec::with_capacity(class.fields.len());
                 for field in &class.fields {
-                    let field_cg = self.expect_cg_ty_of(field.ty, "class payload field type");
+                    let field_cg =
+                        self.expect_cg_ty_of(field.ty.inner(), "class payload field type");
                     llvm_fields.push(self.llvm_basic_type_of(at, field_cg)?);
                 }
                 existing.set_body(&llvm_fields, false);
@@ -660,7 +661,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let payload_ty = self.context.opaque_struct_type(&name);
         let mut llvm_fields: Vec<BasicTypeEnum<'ctx>> = Vec::with_capacity(class.fields.len());
         for field in &class.fields {
-            let field_cg = self.expect_cg_ty_of(field.ty, "class payload field type");
+            let field_cg = self.expect_cg_ty_of(field.ty.inner(), "class payload field type");
             llvm_fields.push(self.llvm_basic_type_of(at, field_cg)?);
         }
         payload_ty.set_body(&llvm_fields, false);
@@ -670,7 +671,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(super) fn llvm_class_object_type(
         &mut self,
         at: crate::span::Span,
-        class: &hir::ClassInit,
+        class: &hir::MonoClassInit,
     ) -> Result<StructType<'ctx>, LlvmEmitError> {
         let stable_key = self.stable_nominal_type_key(&class.fqn, "class_layout");
         let name = PrivateSymbolMangler.type_name("ClassObject", "class_object_type", &stable_key);

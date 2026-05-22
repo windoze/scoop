@@ -1,9 +1,9 @@
 use std::path::Path;
 
 use crate::hir::{
-    AssignPlaceKind, Block, CallArg, CallSite, ClassCtor, ClassInit, ClassInitStep, Expr, ExprKind,
-    FunDecl, HirStageError, Item, LoweredHir, ObjectInit, ObjectInitStep, Stmt, StmtKind, ValDecl,
-    ValueRef,
+    AssignPlaceKind, Block, CallArg, CallSite, ClassCtor, ClassInitImpl, ClassInitStep, Expr,
+    ExprKind, FunDecl, HirStageError, Item, LoweredHir, ObjectInit, ObjectInitStep, Stmt, StmtKind,
+    ValDecl, ValueRef,
 };
 use crate::span::Span;
 
@@ -85,6 +85,15 @@ impl<'a> HirCompletenessVerifier<'a> {
         class_inits.sort_by(|lhs, rhs| lhs.fqn.cmp(&rhs.fqn));
         for class_init in class_inits {
             self.verify_class_init(class_init)?;
+        }
+        let mut generic_class_decls = self
+            .lowered_hir
+            .generic_class_decls
+            .values()
+            .collect::<Vec<_>>();
+        generic_class_decls.sort_by(|lhs, rhs| lhs.fqn.cmp(&rhs.fqn));
+        for decl in generic_class_decls {
+            self.verify_class_init(decl)?;
         }
         Ok(())
     }
@@ -198,7 +207,7 @@ impl<'a> HirCompletenessVerifier<'a> {
         Ok(())
     }
 
-    fn verify_class_init(&self, class_init: &ClassInit) -> Result<(), HirStageError> {
+    fn verify_class_init<T>(&self, class_init: &ClassInitImpl<T>) -> Result<(), HirStageError> {
         let owner = format!("class {}", class_init.fqn);
         for arg in &class_init.super_ctor_args {
             self.verify_call_arg(&class_init.source_path, arg, &owner)?;
@@ -219,10 +228,10 @@ impl<'a> HirCompletenessVerifier<'a> {
         Ok(())
     }
 
-    fn verify_class_ctor(
+    fn verify_class_ctor<T>(
         &self,
-        class_init: &ClassInit,
-        ctor: &ClassCtor,
+        class_init: &ClassInitImpl<T>,
+        ctor: &ClassCtor<T>,
     ) -> Result<(), HirStageError> {
         let owner = format!("class {} {:?} ctor", class_init.fqn, ctor.kind);
         for param in &ctor.params {

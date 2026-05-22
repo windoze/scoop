@@ -585,6 +585,7 @@ pub(in crate::hir::lower) fn collect_class_inits(
     types: &mut TypeStore,
 ) -> Result<
     (
+        GenericClassDeclIndex,
         ClassInitIndex,
         CtorCallSiteIndex,
         crate::hir::DispatchCallSiteIndex,
@@ -629,14 +630,29 @@ pub(in crate::hir::lower) fn collect_class_inits(
         },
     );
 
-    let mut out: ClassInitIndex = HashMap::new();
+    let mut out: GenericClassDeclIndex = HashMap::new();
+    let mut mono_out: ClassInitIndex = HashMap::new();
     for item in &file.items {
         match item {
             ast::Item::Type(ty) => {
-                collect_classes_in_type_decl(&mut ctx, &pkg_prefix, &pkg_prefix, ty, &mut out);
+                collect_classes_in_type_decl(
+                    &mut ctx,
+                    &pkg_prefix,
+                    &pkg_prefix,
+                    ty,
+                    &mut out,
+                    &mut mono_out,
+                )?;
             }
             ast::Item::Object(obj) => {
-                collect_classes_in_object_decl(&mut ctx, &pkg_prefix, &pkg_prefix, obj, &mut out);
+                collect_classes_in_object_decl(
+                    &mut ctx,
+                    &pkg_prefix,
+                    &pkg_prefix,
+                    obj,
+                    &mut out,
+                    &mut mono_out,
+                )?;
             }
             ast::Item::Fun(_)
             | ast::Item::Val(_)
@@ -654,6 +670,7 @@ pub(in crate::hir::lower) fn collect_class_inits(
     let assign_place_contracts = std::mem::take(&mut ctx.assign_place_contracts);
     Ok((
         out,
+        mono_out,
         ctor_call_sites,
         dispatch_call_sites,
         with_update_contracts,
@@ -666,26 +683,27 @@ pub(in crate::hir::lower) fn collect_classes_in_type_decl(
     pkg_prefix: &str,
     owner_prefix: &str,
     decl: &ast::TypeDecl,
-    out: &mut ClassInitIndex,
-) {
+    out: &mut GenericClassDeclIndex,
+    mono_out: &mut ClassInitIndex,
+) -> Result<(), HirLowerError> {
     let name = decl.name.text(ctx.source).to_string();
     let type_fqn = join_prefix(owner_prefix, &name);
 
     if matches!(decl.kind, ast::TypeKind::Class) {
-        collect_class_decl_init(ctx, pkg_prefix, &type_fqn, decl, out);
+        collect_class_decl_init(ctx, pkg_prefix, &type_fqn, decl, out, mono_out)?;
     }
 
     let Some(body) = &decl.body else {
-        return;
+        return Ok(());
     };
 
     for member in &body.members {
         match member {
             ast::TypeMember::Type(nested) => {
-                collect_classes_in_type_decl(ctx, pkg_prefix, &type_fqn, nested, out);
+                collect_classes_in_type_decl(ctx, pkg_prefix, &type_fqn, nested, out, mono_out)?;
             }
             ast::TypeMember::Object(obj) => {
-                collect_classes_in_object_decl(ctx, pkg_prefix, &type_fqn, obj, out);
+                collect_classes_in_object_decl(ctx, pkg_prefix, &type_fqn, obj, out, mono_out)?;
             }
             ast::TypeMember::EnumVariant(_)
             | ast::TypeMember::Property(_)
@@ -694,6 +712,7 @@ pub(in crate::hir::lower) fn collect_classes_in_type_decl(
             | ast::TypeMember::Fun(_) => {}
         }
     }
+    Ok(())
 }
 
 pub(in crate::hir::lower) fn collect_classes_in_object_decl(
@@ -701,24 +720,25 @@ pub(in crate::hir::lower) fn collect_classes_in_object_decl(
     pkg_prefix: &str,
     owner_prefix: &str,
     obj: &ast::ObjectDecl,
-    out: &mut ClassInitIndex,
-) {
+    out: &mut GenericClassDeclIndex,
+    mono_out: &mut ClassInitIndex,
+) -> Result<(), HirLowerError> {
     let Some(name) = object_decl_name(ctx.source, obj) else {
-        return;
+        return Ok(());
     };
     let obj_fqn = join_prefix(owner_prefix, &name);
 
     let Some(body) = &obj.body else {
-        return;
+        return Ok(());
     };
 
     for member in &body.members {
         match member {
             ast::TypeMember::Type(nested) => {
-                collect_classes_in_type_decl(ctx, pkg_prefix, &obj_fqn, nested, out);
+                collect_classes_in_type_decl(ctx, pkg_prefix, &obj_fqn, nested, out, mono_out)?;
             }
             ast::TypeMember::Object(nested) => {
-                collect_classes_in_object_decl(ctx, pkg_prefix, &obj_fqn, nested, out);
+                collect_classes_in_object_decl(ctx, pkg_prefix, &obj_fqn, nested, out, mono_out)?;
             }
             ast::TypeMember::EnumVariant(_)
             | ast::TypeMember::Property(_)
@@ -727,6 +747,7 @@ pub(in crate::hir::lower) fn collect_classes_in_object_decl(
             | ast::TypeMember::Fun(_) => {}
         }
     }
+    Ok(())
 }
 
 pub(in crate::hir::lower) fn collect_class_decl_init(
@@ -734,8 +755,9 @@ pub(in crate::hir::lower) fn collect_class_decl_init(
     pkg_prefix: &str,
     class_fqn: &str,
     decl: &ast::TypeDecl,
-    out: &mut ClassInitIndex,
-) {
+    out: &mut GenericClassDeclIndex,
+    mono_out: &mut ClassInitIndex,
+) -> Result<(), HirLowerError> {
     // resolver 使用 class name 的 span 作为 `this` 的 decl_span（T0313），因此这里提前 intern，
     // 以便后续 lowering 的 init blocks/ctor bodies 与 codegen 使用同一个 `SymbolId`。
     let this_id = ctx.intern_local_symbol(decl.name.span, false);
@@ -776,7 +798,7 @@ pub(in crate::hir::lower) fn collect_class_decl_init(
         })
         .unwrap_or((None, None, Vec::new()));
 
-    let mut init = ClassInit {
+    let mut init = GenericClassDecl {
         fqn: class_fqn.to_string(),
         source_path: ctx.source.path().to_path_buf(),
         super_class_fqn,
@@ -790,7 +812,7 @@ pub(in crate::hir::lower) fn collect_class_decl_init(
         ctors: Vec::new(),
     };
 
-    let insert_field = |init: &mut ClassInit, field: ClassField| {
+    let insert_field = |init: &mut GenericClassDecl, field: ClassField<TypeId>| {
         if init.field_indices.contains_key(&field.fqn) {
             return;
         }
@@ -806,7 +828,7 @@ pub(in crate::hir::lower) fn collect_class_decl_init(
     // primary ctor（若存在）。注意：resolver 当前只会把”显式 primary ctor”加入 constructors overload set，
     // 因此这里也只收集显式 primary ctor。
     if let Some(primary) = &decl.primary_ctor {
-        let mut params: Vec<ClassCtorParam> = Vec::with_capacity(primary.params.len());
+        let mut params: Vec<ClassCtorParam<TypeId>> = Vec::with_capacity(primary.params.len());
         for p in &primary.params {
             let name = p.name.text(ctx.source).to_string();
             let id = ctx.intern_local_symbol(p.name.span, false);
@@ -1095,7 +1117,8 @@ pub(in crate::hir::lower) fn collect_class_decl_init(
                     init.steps.push(ClassInitStep::InitBlock { block });
                 }
                 ast::TypeMember::SecondaryCtor(ctor) => {
-                    let mut params: Vec<ClassCtorParam> = Vec::with_capacity(ctor.params.len());
+                    let mut params: Vec<ClassCtorParam<TypeId>> =
+                        Vec::with_capacity(ctor.params.len());
                     for p in &ctor.params {
                         let name = p.name.text(ctx.source).to_string();
                         let id = ctx.intern_local_symbol(p.name.span, false);
@@ -1153,7 +1176,32 @@ pub(in crate::hir::lower) fn collect_class_decl_init(
     }
 
     ctx.pop_type_params();
-    out.entry(class_fqn.to_string()).or_insert(init);
+
+    // 非泛型 class 在此处直接构造 MonoClassInit；泛型 class 仅入 generic_class_decls，
+    // 等监 monomorph driver 在 substitute 后产出 MonoClassInit。
+    let is_generic = !decl.type_params.is_empty();
+    let entry_fqn = class_fqn.to_string();
+    let inserted = out.entry(entry_fqn.clone()).or_insert(init);
+    if !is_generic && !mono_out.contains_key(&entry_fqn) {
+        match crate::hir::MonoClassInit::from_generic_decl(inserted, ctx.types) {
+            Ok(mono) => {
+                mono_out.insert(entry_fqn, mono);
+            }
+            Err(diag) => {
+                return Err(HirStageError::new(
+                    ctx.source.path(),
+                    decl.name.span,
+                    format!(
+                        "non-generic class `{}` failed to monomorphize: {}",
+                        diag.class_fqn, diag
+                    ),
+                    diag.class_fqn.clone(),
+                )
+                .into());
+            }
+        }
+    }
+    Ok(())
 }
 
 #[cfg(test)]

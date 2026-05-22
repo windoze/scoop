@@ -297,21 +297,21 @@ pub(crate) struct CompilationUnitInitCollectionInputs<'a> {
     pub(crate) builtins: BuiltinTypes,
 }
 
+pub(crate) struct CompilationUnitInitCollectionOutputs {
+    pub(crate) object_inits: ObjectInitIndex,
+    pub(crate) generic_class_decls: GenericClassDeclIndex,
+    pub(crate) class_inits: ClassInitIndex,
+    pub(crate) ctor_call_sites: CtorCallSiteIndex,
+    pub(crate) dispatch_call_sites: crate::hir::DispatchCallSiteIndex,
+    pub(crate) with_update_contracts: WithUpdateSiteIndex,
+    pub(crate) assign_place_contracts: AssignPlaceSiteIndex,
+}
+
 pub(crate) fn collect_compilation_unit_object_and_class_inits(
     compilation_unit: &[(&SourceFile, &ast::File)],
     inputs: CompilationUnitInitCollectionInputs<'_>,
     types: &mut TypeStore,
-) -> Result<
-    (
-        ObjectInitIndex,
-        ClassInitIndex,
-        CtorCallSiteIndex,
-        crate::hir::DispatchCallSiteIndex,
-        WithUpdateSiteIndex,
-        AssignPlaceSiteIndex,
-    ),
-    HirLowerError,
-> {
+) -> Result<CompilationUnitInitCollectionOutputs, HirLowerError> {
     let CompilationUnitInitCollectionInputs {
         index,
         type_kinds,
@@ -320,6 +320,7 @@ pub(crate) fn collect_compilation_unit_object_and_class_inits(
         builtins,
     } = inputs;
     let mut object_inits = ObjectInitIndex::new();
+    let mut generic_class_decls = GenericClassDeclIndex::new();
     let mut class_inits = ClassInitIndex::new();
     let mut ctor_call_sites = CtorCallSiteIndex::new();
     let mut dispatch_call_sites = crate::hir::DispatchCallSiteIndex::new();
@@ -350,12 +351,14 @@ pub(crate) fn collect_compilation_unit_object_and_class_inits(
         assign_place_contracts.extend(file_object_assign_place_contracts);
 
         let (
+            file_generic_class_decls,
             file_class_inits,
             file_class_ctor_call_sites,
             file_class_dispatch_call_sites,
             file_class_with_update_contracts,
             file_class_assign_place_contracts,
         ) = collect_class_inits(init_collection_cx, types)?;
+        generic_class_decls.extend(file_generic_class_decls);
         class_inits.extend(file_class_inits);
         ctor_call_sites.extend(file_class_ctor_call_sites);
         dispatch_call_sites.extend(file_class_dispatch_call_sites);
@@ -363,12 +366,13 @@ pub(crate) fn collect_compilation_unit_object_and_class_inits(
         assign_place_contracts.extend(file_class_assign_place_contracts);
     }
 
-    Ok((
+    Ok(CompilationUnitInitCollectionOutputs {
         object_inits,
+        generic_class_decls,
         class_inits,
         ctor_call_sites,
         dispatch_call_sites,
         with_update_contracts,
         assign_place_contracts,
-    ))
+    })
 }

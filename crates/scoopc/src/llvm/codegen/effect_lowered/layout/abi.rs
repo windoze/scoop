@@ -75,11 +75,9 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             let Some(class) = self.codegen.class_inits.get(&class_key) else {
                 continue;
             };
-            if class
-                .fields
-                .iter()
-                .any(|field| self.type_contains_param_in_types(self.codegen.types, field.ty))
-            {
+            if class.fields.iter().any(|field| {
+                self.type_contains_param_in_types(self.codegen.types, field.ty.inner())
+            }) {
                 return Err(frontend_error(format!(
                     "LLVM ABI materialization 发现 concrete class `{class_key}` 的 field layout 仍含未实例化类型参数"
                 )));
@@ -88,7 +86,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             let fields = class
                 .fields
                 .iter()
-                .map(|field| ClassInstanceFieldLayout::new(field.fqn.clone(), field.ty))
+                .map(|field| ClassInstanceFieldLayout::new(field.fqn.clone(), field.ty.inner()))
                 .collect();
             layouts.insert(
                 ty,

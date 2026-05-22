@@ -69,7 +69,7 @@ use crate::syntax::int_literal::parse_int_literal_checked;
 use crate::syntax::string_literal::{StringLiteralParseError, parse_string_literal_bytes};
 use crate::ty::layout::{NicheStorage, TypeLayout};
 use crate::ty::{
-    BuiltinTypes, NominalType, RefTypeKind, TypeId, TypeKind, TypeParamType, TypeStore,
+    BuiltinTypes, MonoTypeId, NominalType, RefTypeKind, TypeId, TypeKind, TypeParamType, TypeStore,
     ValueTypeKind,
 };
 use scoopc_hir_facts::{HirFacts, declarations::NominalKind as HirFactNominalKind};
@@ -332,7 +332,7 @@ struct AddressablePlace<'ctx> {
 
 #[derive(Clone)]
 struct DeferredClassFieldPlace<'ctx> {
-    class: hir::ClassInit,
+    class: hir::MonoClassInit,
     field_idx: u32,
     field_cg: CgTy,
     writable: bool,
@@ -397,7 +397,7 @@ struct SharedCodegenCaches {
     type_layout_cache: RefCell<HashMap<TypeId, TypeLayout>>,
     option_niche_cache: RefCell<HashMap<TypeId, Option<(NicheStorage, u64)>>>,
     enum_cg_layout_cache: RefCell<HashMap<TypeId, CgEnumLayout>>,
-    class_init_layout_cache: RefCell<HashMap<String, hir::ClassInit>>,
+    class_init_layout_cache: RefCell<HashMap<String, hir::MonoClassInit>>,
     pack_field_indices: RefCell<HashMap<String, Vec<u32>>>,
     callable_carrier_contract_enabled: Cell<bool>,
     callable_carrier_entry_symbols: RefCell<HashMap<(CallableCarrierKind, String), String>>,

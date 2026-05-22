@@ -201,14 +201,15 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
 
     // T4016T2：sysroot/lib/scoop.task/src/task.scoop 这类“实现文件依赖同编译单元里的声明元数据”的路径，
     // 需要从整个 compilation unit 收集 object/class side tables，而不是只看当前 lowering 的文件。
-    let (
+    let CompilationUnitInitCollectionOutputs {
         object_inits,
+        generic_class_decls,
         class_inits,
-        side_table_ctor_call_sites,
-        side_table_dispatch_call_sites,
-        side_table_with_update_contracts,
-        side_table_assign_place_contracts,
-    ) = collect_compilation_unit_object_and_class_inits(
+        ctor_call_sites: side_table_ctor_call_sites,
+        dispatch_call_sites: side_table_dispatch_call_sites,
+        with_update_contracts: side_table_with_update_contracts,
+        assign_place_contracts: side_table_assign_place_contracts,
+    } = collect_compilation_unit_object_and_class_inits(
         &pairs,
         CompilationUnitInitCollectionInputs {
             index: &index,
@@ -240,11 +241,13 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
     enum_layouts.extend(collect_generic_enum_instantiation_layouts(
         &pairs, &index, &mut types,
     ));
-    // T0125：泛型 class 的具体实例化 ClassInit。
+    // T0125：泛型 class 的具体实例化 ClassInit（基于 GenericClassDecl 索引产出 MonoClassInit）。
     let class_inits = {
         let mut ci = class_inits;
         ci.extend(collect_generic_class_instantiation_inits(
-            &pairs, &mut types, &ci,
+            &pairs,
+            &mut types,
+            &generic_class_decls,
         ));
         ci
     };
@@ -268,7 +271,9 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
     let class_inits = {
         let mut ci = class_inits;
         ci.extend(collect_generic_class_instantiation_inits(
-            &pairs, &mut types, &ci,
+            &pairs,
+            &mut types,
+            &generic_class_decls,
         ));
         ci
     };
@@ -318,6 +323,7 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
         with_update_contracts,
         assign_place_contracts,
         object_inits,
+        generic_class_decls,
         class_inits,
         class_vtables,
         interfaces,

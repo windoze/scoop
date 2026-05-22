@@ -28,14 +28,14 @@ use super::{HirLowering, HirLoweringSetup};
 
 use super::super::{
     Block, CallArg, Capture, ClassCtor, ClassCtorDelegation, ClassCtorKind, ClassCtorParam,
-    ClassField, ClassInit, ClassInitIndex, ClassInitStep, ClassLiteralExpr, ClosureExpr,
-    CtorCallInfo, CtorCallSiteIndex, EFFECT_ROW_PARAM_DECL_FILE, EnumLayout, EnumLayoutIndex,
-    EnumRepr, EnumVariantFieldLayout, EnumVariantLayout, Expr, ExprKind, ExternAbi, ExternFun,
-    ExternFunIndex, HandleArm, HandleBinder, HandleExpr, HandleOp, InterpolatedStringPart,
-    LiteralKind, MemberAccess, MemberRef, NativeCallableFun, NativeCallableFunIndex, ObjectInit,
-    ObjectInitIndex, ObjectInitStep, ObjectProperty, Param, Stmt, StmtKind, StructCLayout,
-    StructFieldLayout, StructLayout, StructLayoutIndex, StructLitField, SymbolId, ValDecl,
-    ValueRef, WhenArm, WhenPat,
+    ClassField, ClassInitIndex, ClassInitStep, ClassLiteralExpr, ClosureExpr, CtorCallInfo,
+    CtorCallSiteIndex, EFFECT_ROW_PARAM_DECL_FILE, EnumLayout, EnumLayoutIndex, EnumRepr,
+    EnumVariantFieldLayout, EnumVariantLayout, Expr, ExprKind, ExternAbi, ExternFun,
+    ExternFunIndex, GenericClassDecl, GenericClassDeclIndex, HandleArm, HandleBinder, HandleExpr,
+    HandleOp, InterpolatedStringPart, LiteralKind, MemberAccess, MemberRef, NativeCallableFun,
+    NativeCallableFunIndex, ObjectInit, ObjectInitIndex, ObjectInitStep, ObjectProperty, Param,
+    Stmt, StmtKind, StructCLayout, StructFieldLayout, StructLayout, StructLayoutIndex,
+    StructLitField, SymbolId, ValDecl, ValueRef, WhenArm, WhenPat,
 };
 
 pub(crate) type GenericTemplateSymbolSuffixIndex = HashMap<TemplateKey, String>;

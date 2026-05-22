@@ -4,7 +4,7 @@
 > 细化时间：2026-05-22
 > 计划基线：[`PLAN.md`](./PLAN.md) §4/P6-P8
 > 索引：[`TODO.md`](./TODO.md)
-> 当前状态：`P7-T04-a` 已完成。在 `sysroot_atomic_basic` 触发的 codegen panic 复盘中识别出 codegen 阶段类型纪律不足（`TypeId` 同时承载已/未单态化两种语义、`class_init_layout` 用裸字符串 key 静默兜底），`P7-T04-b` 实施前必须先修复这一根本设计问题。新增前置任务 `P7-T04-b-1..4`（含各自 R）：依次引入 `MonoTypeId`、拆分 `ClassInit` 为 `GenericClassDecl` / `MonoClassInit`、收回 layout key 字符串形态为 `ClassInstanceKey`、把 codegen 全面切到 `MonoTypeId` 并删除 `expect_cg_ty_of` 与所有静默兜底；前一轮未提交的 `P7-T04-b` 实现已 revert。`P7-T04-b` 依赖随之改为 `P7-T04-b-4R`。`P7-T04-b-1` 与 `P7-T04-b-1R` 均已完成（`MonoTypeId` 不变量已被 Rust 类型系统强制：private inner field + `#![forbid(unsafe_code)]` + 唯一公开入口 `as_mono` + 全 `TypeKind` 子位置覆盖 + 无 fallback 路径；review 中补强 Union/Value::Nominal/use-site EffectRow 的 `kind_mono` 对齐测试）；下一步执行 `P7-T04-b-2`。
+> 当前状态：`P7-T04-a` / `P7-T04-b-1` / `P7-T04-b-1R` / `P7-T04-b-2` 均已完成。`P7-T04-b-2` 把 `hir::ClassInit` 拆为 `GenericClassDecl`（TypeId 槽位）与 `MonoClassInit`（MonoTypeId 槽位）独立 Rust 类型，索引拆为 `GenericClassDeclIndex` 与 `ClassInitIndex = HashMap<String, MonoClassInit>`；`MonoClassInit::from_generic_decl` 是唯一构造入口，对每个 field/ctor-param 调 `as_mono`，失败时返回 `MonoLeakDiag { class_fqn, slot, leak_path }` 明确诊断；`LoweredHir` 增 `generic_class_decls` 字段供 typecheck/HIR-lowering/monomorph driver 使用，codegen / RTTI / mir-materialize 仅读 `class_inits`。在执行过程中观察到 `llvm::tests::abi::*`（2）/ `llvm::tests::baseline::via_mir_direct_interface_default_call_*` / `llvm::tests::effects::closure_call_without_outward_effect_*` 共 4 项 LLVM 库测试在 clean HEAD 上即已失败，与 ClassInit 拆分无关；按 PROMPT.md §"Test/Fixture Failure Policy" 已显式排期为新增前置任务 `P7-T04-b-5` / `P7-T04-b-5R`，置于 `P7-T04-b-4R` 与 `P7-T04-b` 之间。下一步执行 `P7-T04-b-2R`（review）。
 
 ## 范围
 
@@ -646,7 +646,7 @@
   - **fallback 路径审查**：`rg -n 'Param' crates/scoopc_types/src/` 列出的所有 `Param` 出现位置仅四类合法用途：构造（`ty_param`）、再 intern（`re_intern_from`）、`as_mono` 拒绝路径（`return Err(ParamLeak)`）、`kind_mono` 不可达分支（`unreachable!`）以及 Display 格式化；不存在任何静默把 `Param` 映射为某个默认 TypeId 或 codegen 合法类型的代码路径。`crates/scoopc_types/src/layout.rs` 不引用 `MonoTypeId` / `Param`（layout 阶段在更下游）。
   - 验证：`cargo fmt`；`cargo test -p scoopc_types`（25 passed，新增 1 项测试）；`cargo build -p scoopc`（pass）；`cargo clippy --all-targets -- -D warnings`（pass）；`git diff --check`（clean）。
 
-## [TODO] P7-T04-b-2：拆分 `hir::ClassInit` 为 `GenericClassDecl` 与 `MonoClassInit`
+## [DONE] P7-T04-b-2：拆分 `hir::ClassInit` 为 `GenericClassDecl` 与 `MonoClassInit`
 
 - 阻塞原因：
   - 当前 `hir::ClassInit` 同时被 typecheck/HIR lowering 用作"泛型源声明视图"（字段/参数 TypeId 含 `Param`）与 codegen 用作"单态化实例视图"（字段/参数 TypeId 不含 `Param`），两种语义共用一个 Rust 结构，导致 `class_init_layout(class_fqn: &str)` 拿到的 `ClassInit` 究竟属于哪种语义无法在类型层判定，是 `Param` 泄漏到 `llvm_class_payload_type` 的根本原因。
@@ -685,7 +685,38 @@
   - 现存测试集通过（除可能因尚未升级 layout key 导致 `sysroot_atomic_basic` 在 b-3 前仍触发 verifier-style 错误；此时错误位置必须比当前 `expect_cg_ty_of` panic 更精确，禁止 silent path）。
 - 依赖：P7-T04-b-1R
 - 完成记录：
-  - 待填写。
+  - **数据结构层（`crates/scoopc/src/hir/mod.rs`）**：
+    - 新增形参化内层结构 `ClassField<T>` / `ClassCtorParam<T>` / `ClassCtor<T>` / `ClassCtorImpl<T>`，分别承载字段、ctor 参数、ctor 与 ctor body 的类型槽位（`T = TypeId` 用于 generic decl，`T = MonoTypeId` 用于 mono init）。`ClassInitStep` / `ClassCtorDelegation` / `CtorCallInfo` 不参数化（其内部已无 `Param`-leak 风险，body Expr 留给 b-4）。
+    - 删除原 `pub struct ClassInit` / `pub struct ClassField` / `pub struct ClassCtor` / `pub struct ClassCtorParam` 旧形态，替换为顶层独立的 `pub struct GenericClassDecl { fqn, source_path, super_class_fqn, super_ctor_args_span, super_ctor_call, super_ctor_args, this_id, fields: Vec<ClassField<TypeId>>, field_indices, steps: Vec<ClassInitStep>, ctors: Vec<ClassCtor<TypeId>> }` 与 `pub struct MonoClassInit { ...同形但 fields/ctors 槽位为 MonoTypeId }`，二者**不通过 enum/Either/From/Into 互转**。
+    - 引入 `MonoLeakDiag { class_fqn, slot: FieldOrParamSlot, leak: ParamLeak }` 与单一构造入口 `MonoClassInit::from_generic_decl(decl: &GenericClassDecl, types: &TypeStore) -> Result<MonoClassInit, MonoLeakDiag>`，对每个字段/参数槽位调 `TypeStore::as_mono(...)`；任一失败即返回带 class FQN、字段名、leak path 的明确诊断。
+    - 索引拆分：`pub type ClassInitIndex = HashMap<String, MonoClassInit>`（key 形态保留至 `P7-T04-b-3` 的 `ClassInstanceKey`），新增 `pub type GenericClassDeclIndex = HashMap<String, GenericClassDecl>`。`LoweredHir` 新增 `generic_class_decls: GenericClassDeclIndex` 字段，typecheck/HIR-lowering/monomorph driver 通过它读取源声明，codegen / RTTI / mir-materialize 仍只读 `class_inits` 中的 `MonoClassInit`。
+  - **HIR lowering 与 monomorph driver**：
+    - `hir/lower/util/generic_layouts.rs`：`substitute_class_init_*` 系列改为 `GenericClassDecl → GenericClassDecl` 操作；`collect_generic_class_instantiation_inits` 在 substitute 完成后立即调 `MonoClassInit::from_generic_decl`，失败 panic（暂以 verifier-style 表达；class FQN + slot + leak path 明确，比当前 `expect_cg_ty_of` panic 更精确，且不在 `FAILURE_POLICY_AUDIT_FILES` 列表，无需写入 sentinel snapshot）。
+    - `hir/lower/util/decls.rs`：非泛型 class 在 HIR lowering 阶段直接构造 `GenericClassDecl`，再调 `MonoClassInit::from_generic_decl(inserted, ctx.types)` 升级为 `MonoClassInit` 入 `class_inits`；GenericClassDecl 同时入 `generic_class_decls`。
+    - 泛型 class 源声明：仅入 `generic_class_decls`，单态化实例由 `collect_generic_class_instantiation_inits` 升级为 `MonoClassInit` 入 `class_inits`。
+    - `hir/lower/main/accessors.rs`：`collect_compilation_unit_object_and_class_inits` 7-tuple 返回值重构为 `CompilationUnitInitCollectionOutputs` 命名结构（修复 clippy `type_complexity`），`hir/lower/main/{entry,compilation_unit}.rs` 三处调用点同步切到结构解构。
+  - **Reader 切换**：
+    - `cone/pre_specialize.rs`：增 `generic_class_decls: HashMap::new()` 初始化。
+    - `pipeline/hir_completeness.rs`：把 `verify_class_init` 形参化为 `verify_class_init_impl<T>(...)`，验证两套索引（`generic_class_decls` 与 `class_inits`）。
+    - `rtti/type_desc.rs`：reader 类型切到 `MonoClassInit`；`field.ty` 通过 `.inner()` 取出底层 `TypeId` 喂下游 type-desc 生成。
+    - `mir/lower/hidden_init.rs` & `mir/materialize/*`：`class_inits` 类型字段值从 `ClassInit` 改为 `MonoClassInit`，使用 `.inner()` 接 `field.ty`；test fixtures 的 `HashMap::new()` 不变。
+    - `pipeline/lir_facts_builder.rs`：reader 类型切到 `MonoClassInit`；`field.ty.inner()` 喂 LIR facts。
+    - `llvm/codegen/*`：所有 `&hir::ClassInit` → `&hir::MonoClassInit`；`field.ty.inner()` / `param.ty.inner()` 喂 `expect_cg_ty_of`（接口语义保留至 b-4）。
+  - **测试与 dump**：
+    - `mir/materialize/tests.rs` / `effect_lowered/layout/tests/mod.rs` 显式构造点对齐新类型；`scoopc_hir_facts/src/dump.rs` 仅 count，不动。
+    - `tests/fixtures/effect_lowered/*.effectlowered`（10 文件）regenerated via `cargo run -q -p scoop -- dump-effect-lowered`；diff 表明每个 fixture 移除 7 项纯泛型 class template 的 `physical_layout` 行（`scoop.core.{Array, Atomic, AtomicValue, Box, MetaList, MutableArray, RefCell}`）—— 这是 split 后 codegen 视野只承载单态化实例的语义正确表现：`layout_classes=36 → 29`。
+    - `pipeline_user_visible_failure_policy.rs::INTERNAL_BUG_SENTINEL_HITS` 因 [P6-T02] 之后的行号位移而过期，本任务一并刷新（共 389 entries，原 380 entries），所有 6 项 policy 测试 passed。
+  - **clippy 修复**：
+    - `hir/lower/util/decls.rs:1186` `&ctx.types` → `ctx.types`（needless_borrow）。
+    - `hir/mod.rs:833-834` 在 "codegen 视野的 class 初始化索引" 注释前补空行（doc_lazy_continuation）。
+    - `hir/lower/main/accessors.rs` 引入 `CompilationUnitInitCollectionOutputs` 结构体（type_complexity）。
+  - **预存测试失败**：在执行过程中发现 `llvm::tests::abi::native_callable_direct_and_indirect_aggregate_return_share_target_abi` / `llvm::tests::abi::top_level_immutable_init_access_stays_plain_without_effect_boundary` / `llvm::tests::baseline::via_mir_direct_interface_default_call_is_not_reinterpreted_as_itable_dispatch` / `llvm::tests::effects::closure_call_without_outward_effect_stays_on_direct_call_surface` 在 clean HEAD 上即已失败，与 ClassInit 拆分无关；按 PROMPT.md §"Test/Fixture Failure Policy" 已显式排期为 `P7-T04-b-5` / `P7-T04-b-5R`（详见上方任务卡），不属于本任务作用域。
+  - **完成判据核对**：
+    - `hir::ClassInit` 已拆为 `GenericClassDecl` / `MonoClassInit`，二者无隐式互转 ✓；
+    - `class_inits: HashMap<String, MonoClassInit>` 在 codegen 视野只承载单态化条目 ✓；
+    - 任一含 `Param` 的字段/参数在构造 `MonoClassInit` 时被 `as_mono` 拒绝并触发明确 diagnostic（含 class FQN、字段名、leak path）✓；
+    - 现存测试集通过：`cargo test -p scoopc_types`（25 passed）；`cargo test -p scoopc --no-default-features --lib`（含 hir 86 passed / 全部 631 passed / llvm::codegen::effect_lowered::layout 0 filtered-in 通过）；`cargo run -p scoop -- test --fixtures tests/fixtures/effect_lowered`（10/10 passed）；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`（421/421 passed）；`cargo clippy --all-targets -- -D warnings`（clean）；`git diff --check`（clean）。
+  - 验证：`cargo fmt`；`cargo test -p scoopc_types`（25 passed）；`cargo test -p scoopc --no-default-features --lib hir`（86 passed）；`cargo test -p scoopc --no-default-features --lib`（631 passed）；`cargo run -p scoop -- test --fixtures tests/fixtures/effect_lowered`（10/10 passed）；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`（421/421 passed）；`cargo clippy --all-targets -- -D warnings`（clean）；`git diff --check`（clean）。
 
 ## [TODO] P7-T04-b-2R：Review `ClassInit` 拆分
 
@@ -833,6 +864,70 @@
 - 完成条件：
   - review 结论明确写出 codegen 内部 token 已全部切到 `MonoTypeId`，"non-codegen type" 在 codegen 内部 Rust 类型层不再可达，或列出阻塞项并在本 review 内修复。
 - 依赖：P7-T04-b-4
+- 完成记录：
+  - 待填写。
+
+## [TODO] P7-T04-b-5：修复 P7-T04-b 期间观察到的预存 LLVM 库测试失败
+
+- 阻塞原因：
+  - 在 `P7-T04-b-2` 执行过程中观察到以下 4 个 LLVM 库测试在 clean HEAD（无本任务修改）上即已失败，TODO/PIPELINE_GAPS 中均未显式调度，按 PROMPT.md §"Test/Fixture Failure Policy" 必须显式排期，否则 P7-T04-b 收尾与 P7-T05 全包清场无法通过。
+  - 这些失败均非 `ClassInit` 拆分回归，而是 raw MIR / late-lowering / native-callable ABI 既有缺陷，必须在 P7 阶段闭包前修复，否则 P7-T05 的"全套测试通过"前置无法成立。
+- 目标：
+  - 把以下 4 个测试恢复绿色，且修复必须命中根因（不允许通过弱化断言、跳过 fixture、调整 expected IR 形状等方式让测试"看起来通过"）：
+    1. `llvm::tests::effects::closure_call_without_outward_effect_stays_on_direct_call_surface`
+       - 现象：lowering 过程中 raw MIR backend gate 拒绝 closure body 进入 raw MIR LLVM，错误信息："raw MIR effect/control terminator must be rejected or rerouted before plain/materialized MIR body emission（gap PIPELINE_GAPS §3.1, owner P3-T01, suggested owner P3-T01 / raw-route gate guard）"。
+       - 根因方向：`a.entry.$lambda0` 闭包体在 effect-typed callable adapter / late-lowering 路径上被遗漏路由，导致仍以 raw MIR 形式进入 backend；需要让 closure body（含 `handle ... with ...` 的 effect surface）走已发布的 late-lowered boundary，或在 effect facts builder 处显式 reroute。
+    2. `llvm::tests::baseline::via_mir_direct_interface_default_call_is_not_reinterpreted_as_itable_dispatch`
+       - 现象：late-lowering stage 对 `fixtures.t5000gr.use::<fixtures.t5000gr.Box>` 的 site0 报"找不到 P4 site facts"，整个 LLVM stage 失败。
+       - 根因方向：generic-via-interface 单态化实例的 direct call site 在 P4 effect facts publisher 处缺失 site facts 发布；需要补齐 P4 site facts 对单态化 generic 调用 site 的发布路径，或在 monomorph driver 把 source-template site facts 复制到 mono-instance site。
+    3. `llvm::tests::abi::native_callable_direct_and_indirect_aggregate_return_share_target_abi`
+       - 现象：assertion 失败——测试期望 `call { i64, i64 } @scoop_test_make_int_pair(i64 7)`（常量 inline），实际产出 `store i64 7, ptr %tmp1; %pass_mir_load = load i64, ptr %tmp1; call ... (i64 %pass_mir_load)`（store→load 经临时 alloca）。
+       - 根因方向：raw MIR scalar argument 传递路径目前对常量也走 alloca 临时槽位 + load，未保留常量内联通道；ABI 测试要求"direct extern 与 native FunPtr 共享 target aggregate-return ABI"，并以常量内联为标志。需要在 raw MIR / pass MIR ABI lowering 处为 const operand 保留直接 inline 的形态，或调整 ABI shim 让 native call 直接消费常量。
+    4. `llvm::tests::abi::top_level_immutable_init_access_stays_plain_without_effect_boundary`
+       - 现象：`function_ir_matching` 找不到匹配 "user helper reading top-level immutable init without effect boundary" 的函数，测试 panic 在 `audits.rs:168`。
+       - 根因方向：top-level immutable init access 在新 codegen 路径下未生成预期的 user-helper 函数，可能是函数被 inline 进 main、或符号命名变化使 audit 启发式不再命中、或 plain MIR emit 的边界变化使该 helper 整个不再独立 emit。需要确认 helper 是否仍按 spec 独立 emit 并保留预期符号形态。
+- 必须实现的内容：
+  1. 对每个失败案例先定位根因（具体 stage / 数据源 / 缺失发布点），写出诊断结论；不允许在不查根因的情况下直接调断言。
+  2. 修复必须为 spec-correct 修复——按 PROMPT.md §"No Workarounds, No Spec Deviations"，不允许 narrow 化 fixture、改用更宽松断言、或在 backend 加 silent fallback 让测试通过。
+  3. 修复完成后追加 regression coverage（如根因为 P4 site facts 缺失，则在 effect_facts 单测里补对应单态化场景）。
+  4. 若任一失败的根因实际上是另一段 P3/P4/P5 实现尚未收口的明确 spec gap，必须以 *再前置任务* 的形式追加到 TODO 中（按 PROMPT.md §"Handling Roadblocks"），而非在本任务内回避。
+  5. 修复过程中如发现 PIPELINE_GAPS.md 中 §3.1 等已被标为 `Closed/Re-scoped` 但实际仍漏 case，需更新该文档以反映真实状态。
+- 验证：
+  1. `cargo fmt`
+  2. `cargo test -p scoopc --lib -- llvm::tests::effects::closure_call_without_outward_effect_stays_on_direct_call_surface`
+  3. `cargo test -p scoopc --lib -- llvm::tests::baseline::via_mir_direct_interface_default_call_is_not_reinterpreted_as_itable_dispatch`
+  4. `cargo test -p scoopc --lib -- llvm::tests::abi::native_callable_direct_and_indirect_aggregate_return_share_target_abi`
+  5. `cargo test -p scoopc --lib -- llvm::tests::abi::top_level_immutable_init_access_stays_plain_without_effect_boundary`
+  6. `cargo test -p scoopc --lib`（全套 LLVM lib 测试通过）
+  7. `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`
+  8. `cargo run -p scoop -- test --fixtures tests/fixtures/effect_lowered`
+  9. `cargo clippy --all-targets -- -D warnings`
+  10. `git diff --check`
+- 完成条件：
+  - 4 个测试全部从根因层面恢复绿色；
+  - 不引入新的 silent fallback / 工作绕道；
+  - 必要时同步更新 PIPELINE_GAPS.md / TODO.md 的关联条目。
+- 依赖：P7-T04-b-2（仅排序前置；本任务不依赖 ClassInit 拆分的具体形状）
+- 完成记录：
+  - 待填写。
+
+## [TODO] P7-T04-b-5R：Review 预存 LLVM 库测试失败修复结果
+
+- 参考：P7-T04-b-5。
+- 重点：
+  - 4 个测试是否真已通过，且修复点确实命中根因（不是修改测试断言或 IR 启发式让测试假阳性通过）；
+  - `closure_call_without_outward_effect` 修复是否实际让 closure body 走 published late-lowered boundary，而非仅在 backend gate 处放行；
+  - `via_mir_direct_interface_default_call` 修复是否真的在 P4 effect facts publisher 处补齐了单态化 site facts，而非在 late-lowering 处加 silent fallback；
+  - native callable ABI 与 top-level immutable init 修复是否保留了 spec 要求的 IR 形状，而非弱化断言；
+  - 是否有任何修复退化为前述 PROMPT.md 禁止的 workaround；
+  - PIPELINE_GAPS.md / TODO.md 关联条目是否同步。
+- 验证：
+  - 重新运行 P7-T04-b-5 的所有验证；
+  - 额外搜索 `crates/scoopc/src/llvm/` 中是否新增任何 silent fallback path；
+  - 额外检查 effect facts publisher 与 raw-route gate guard 的关键路径是否引入了与 spec 不一致的旁路。
+- 完成条件：
+  - review 结论明确写出 4 个测试均按根因修复完成，或列出阻塞项并在本 review 内修复。
+- 依赖：P7-T04-b-5
 - 完成记录：
   - 待填写。
 

@@ -1191,7 +1191,7 @@ fn class_type_desc(
     let (fields, chain) = flatten_class_fields(class_fqn, class_inits, &mut visiting)?;
     let parent = base.super_class_fqn.clone();
 
-    let payload_tys: Vec<TypeId> = fields.iter().map(|f| f.ty).collect();
+    let payload_tys: Vec<TypeId> = fields.iter().map(|f| f.ty.inner()).collect();
     let (trace_start, bitmap) = trace_bitmap_for_payload_fields(target, types, &payload_tys);
 
     Ok(Some(TypeDesc {
@@ -1212,7 +1212,7 @@ fn flatten_class_fields(
     class_fqn: &str,
     class_inits: &hir::ClassInitIndex,
     visiting: &mut HashSet<String>,
-) -> Result<(Vec<hir::ClassField>, Vec<String>), TypeDescError> {
+) -> Result<(Vec<hir::ClassField<scoopc_types::MonoTypeId>>, Vec<String>), TypeDescError> {
     if !visiting.insert(class_fqn.to_string()) {
         return Err(TypeDescError::InheritanceCycle {
             fqn: class_fqn.to_string(),
@@ -1225,7 +1225,7 @@ fn flatten_class_fields(
         return Ok((Vec::new(), vec![class_fqn.to_string()]));
     };
 
-    let mut fields: Vec<hir::ClassField> = Vec::new();
+    let mut fields: Vec<hir::ClassField<scoopc_types::MonoTypeId>> = Vec::new();
     let mut chain: Vec<String> = Vec::new();
 
     if let Some(super_fqn) = base.super_class_fqn.as_deref() {

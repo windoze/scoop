@@ -26,10 +26,10 @@ use crate::typecheck::{
 use super::super::{
     AssignPlaceSiteIndex, CallArgBindingSiteIndex, ClassInitIndex, ContinuationResumeCallSiteIndex,
     CtorCallSiteIndex, DirectSupertypesIndex, EnumLayoutIndex, ExternFunIndex, ExternGlobalIndex,
-    File, FunDecl, NativeCallableFunIndex, NominalKindIndex, NominalVarianceIndex,
-    NonPureContinuationResumeCallSiteIndex, ObjectInitIndex, StructLayoutIndex, SymbolId,
-    TopLevelFunCallSiteIndex, TopLevelImmutableValueIndex, TopLevelVarIndex,
-    WhenPatBindingTypeIndex, WithUpdateSiteIndex,
+    File, FunDecl, GenericClassDeclIndex, NativeCallableFunIndex, NominalKindIndex,
+    NominalVarianceIndex, NonPureContinuationResumeCallSiteIndex, ObjectInitIndex,
+    StructLayoutIndex, SymbolId, TopLevelFunCallSiteIndex, TopLevelImmutableValueIndex,
+    TopLevelVarIndex, WhenPatBindingTypeIndex, WithUpdateSiteIndex,
 };
 
 #[derive(Debug, Clone)]
@@ -368,7 +368,15 @@ pub struct LoweredHir {
     /// `object` / `companion object` 的初始化信息（供早期 LLVM codegen 查询）。
     pub object_inits: ObjectInitIndex,
     /// `class` 的初始化信息（Appendix B.2.2，供 LLVM codegen 查询）。
+    ///
+    /// **codegen 视角**：值为 `MonoClassInit`，字段/参数类型已收紧为 `MonoTypeId`，
+    /// 不可能含 `Param`（P7-T04-b-2）。
     pub class_inits: ClassInitIndex,
+    /// 泛型 class 源声明索引（典型用于 typecheck/HIR lowering/monomorph driver）。
+    ///
+    /// 包含**所有** class 的源声明（非泛型与泛型同等存在）；codegen 不直接读它（codegen 走
+    /// `class_inits`，其内容是已 substituted 并 `as_mono` 校验过的 `MonoClassInit`）。
+    pub generic_class_decls: GenericClassDeclIndex,
     /// class vtable slots（TODO T1507c2 / T1508b）。
     ///
     /// 说明：

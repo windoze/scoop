@@ -10,7 +10,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         _span: crate::span::Span,
         args: &[crate::mir::CallArg],
         slots: &[MirLocalSlot<'ctx>],
-        ctor_params: &[hir::ClassCtorParam],
+        ctor_params: &[hir::ClassCtorParam<MonoTypeId>],
         kind: &'static str,
     ) -> Result<Vec<CgValue<'ctx>>, LlvmEmitError> {
         if ctor_params.len() != args.len() {
@@ -22,7 +22,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             if arg.name.is_some() {
                 panic!("codegen_mir_class_ctor_ordered_args: MIR verifier accepted {kind}");
             }
-            let param_cg = self.expect_cg_ty_of(param.ty, "MIR class ctor param type");
+            let param_cg = self.expect_cg_ty_of(param.ty.inner(), "MIR class ctor param type");
             let value =
                 self.codegen_mir_operand_expected(arg.span, &arg.value, slots, Some(param_cg))?;
             let value = self.coerce_value(arg.span, value, param_cg)?;
@@ -57,7 +57,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             args,
             "class ctor selected/ordered args contract",
         )?;
-        let ctor_params: &[hir::ClassCtorParam] = match selected_ctor {
+        let ctor_params: &[hir::ClassCtorParam<MonoTypeId>] = match selected_ctor {
             Some(ctor) => ctor.params.as_slice(),
             None => &[][..],
         };

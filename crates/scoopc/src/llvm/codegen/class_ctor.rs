@@ -53,7 +53,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             None,
             "class ctor selected/ordered args contract",
         )?;
-        let ctor_params: &[hir::ClassCtorParam] = match selected_ctor {
+        let ctor_params: &[hir::ClassCtorParam<MonoTypeId>] = match selected_ctor {
             Some(ctor) => ctor.params.as_slice(),
             None => &[][..],
         };
@@ -212,14 +212,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(in crate::llvm::codegen) fn pick_class_ctor_by_target<'b>(
         &self,
         _at: crate::span::Span,
-        class: &'b hir::ClassInit,
+        class: &'b hir::MonoClassInit,
         target_ctor_span: Option<crate::span::Span>,
         arg_count: usize,
         exclude_ctor_span: Option<crate::span::Span>,
         kind: &'static str,
-    ) -> Result<Option<&'b hir::ClassCtor>, LlvmEmitError> {
+    ) -> Result<Option<&'b hir::ClassCtor<MonoTypeId>>, LlvmEmitError> {
         if let Some(target_span) = target_ctor_span {
-            let mut matching: Vec<&hir::ClassCtor> = class
+            let mut matching: Vec<&hir::ClassCtor<MonoTypeId>> = class
                 .ctors
                 .iter()
                 .filter(|ctor| ctor.span == target_span)
@@ -250,7 +250,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         callee_span: crate::span::Span,
         args: &[hir::CallArg],
         call_info: Option<&hir::CtorCallInfo>,
-        ctor_params: &[hir::ClassCtorParam],
+        ctor_params: &[hir::ClassCtorParam<MonoTypeId>],
         kind: &'static str,
     ) -> Result<Vec<CgValue<'ctx>>, LlvmEmitError> {
         let mapping: Vec<Option<usize>> = if let Some(info) = call_info {
@@ -292,14 +292,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 panic!("codegen_class_ctor_eval_args: verifier accepted {kind}")
             });
             let param = &ctor_params[param_idx];
-            let param_cg = self.expect_cg_ty_of(param.ty, "class ctor param type");
+            let param_cg = self.expect_cg_ty_of(param.ty.inner(), "class ctor param type");
             let expr = match arg {
                 hir::CallArg::Positional(expr) => expr,
                 hir::CallArg::Named { value, .. } => value,
             };
             let v = match &expr.kind {
                 hir::ExprKind::Closure(closure) => {
-                    self.codegen_closure_expr(expr.span, closure, param.ty)?
+                    self.codegen_closure_expr(expr.span, closure, param.ty.inner())?
                 }
                 _ => self.codegen_expr_in_expected_context(expr, Some(param_cg))?,
             };
@@ -346,10 +346,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         .default_value
                         .as_ref()
                         .unwrap_or_else(|| panic!("codegen_class_ctor_eval_args: verifier accepted missing default value for {kind}"));
-                let param_cg = self.expect_cg_ty_of(param.ty, "class ctor default param type");
+                let param_cg =
+                    self.expect_cg_ty_of(param.ty.inner(), "class ctor default param type");
                 let v = match &default_value.kind {
                     hir::ExprKind::Closure(closure) => {
-                        self.codegen_closure_expr(default_value.span, closure, param.ty)?
+                        self.codegen_closure_expr(default_value.span, closure, param.ty.inner())?
                     }
                     _ => self.codegen_expr_in_expected_context(default_value, Some(param_cg))?,
                 };
@@ -383,18 +384,18 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &mut self,
         _callee_span: crate::span::Span,
         _kind: &'static str,
-        param: &hir::ClassCtorParam,
+        param: &hir::ClassCtorParam<MonoTypeId>,
         expr_span: crate::span::Span,
         value: CgValue<'ctx>,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        let param_cg = self.expect_cg_ty_of(param.ty, "class ctor bound param type");
+        let param_cg = self.expect_cg_ty_of(param.ty.inner(), "class ctor bound param type");
         let ptr = self.create_entry_alloca(param.decl_span, &param.name, param_cg)?;
         let stored = self.store_local_value(expr_span, ptr, param_cg, value)?;
         self.function_cx.env.insert(
             param.id,
             CgLocal {
-                hir_ty: Some(param.ty),
-                call_may_suspend: self.local_call_may_suspend_from_hir_ty(Some(param.ty)),
+                hir_ty: Some(param.ty.inner()),
+                call_may_suspend: self.local_call_may_suspend_from_hir_ty(Some(param.ty.inner())),
                 ty: param_cg,
                 ptr,
                 frame_backing_ptr: None,
@@ -409,7 +410,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &mut self,
         span: crate::span::Span,
         callee_span: crate::span::Span,
-        class: &hir::ClassInit,
+        class: &hir::MonoClassInit,
         super_args: &[hir::CallArg],
         super_call: Option<&hir::CtorCallInfo>,
         stack: &mut HashSet<(String, crate::span::Span)>,
@@ -429,7 +430,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             kind,
         )?;
 
-        let super_ctor_params: &[hir::ClassCtorParam] = match super_ctor {
+        let super_ctor_params: &[hir::ClassCtorParam<MonoTypeId>] = match super_ctor {
             Some(ctor) => ctor.params.as_slice(),
             None => &[][..],
         };
@@ -462,15 +463,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &mut self,
         span: crate::span::Span,
         _callee_span: crate::span::Span,
-        class: &hir::ClassInit,
-        ctor_params: &[hir::ClassCtorParam],
+        class: &hir::MonoClassInit,
+        ctor_params: &[hir::ClassCtorParam<MonoTypeId>],
     ) -> Result<(), LlvmEmitError> {
         // primary ctor 参数属性赋值（在 super ctor 之后执行，Kotlin-like）。
         for param in ctor_params {
             if !param.is_property {
                 continue;
             }
-            let param_cg = self.expect_cg_ty_of(param.ty, "class ctor property param type");
+            let param_cg = self.expect_cg_ty_of(param.ty.inner(), "class ctor property param type");
 
             let Some(field_fqn) = param.property_field_fqn.as_deref() else {
                 panic!(
@@ -512,7 +513,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     let field = class.fields.get(field_idx as usize).unwrap_or_else(|| {
                         panic!("codegen_class_ctor_run_init_steps: verifier accepted property init field drift")
                     });
-                    let field_cg = self.expect_cg_ty_of(field.ty, "class property init field type");
+                    let field_cg =
+                        self.expect_cg_ty_of(field.ty.inner(), "class property init field type");
 
                     let v = self.codegen_expr_in_expected_context(init, Some(field_cg))?;
                     let obj_ptr = self.current_class_ctor_this_ptr(init.span, class)?;
@@ -533,8 +535,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &mut self,
         span: crate::span::Span,
         callee_span: crate::span::Span,
-        class: &hir::ClassInit,
-        ctor: Option<&hir::ClassCtor>,
+        class: &hir::MonoClassInit,
+        ctor: Option<&hir::ClassCtor<MonoTypeId>>,
         args: &[CgValue<'ctx>],
         obj_ptr: PointerValue<'ctx>,
     ) -> Result<(), LlvmEmitError> {
@@ -555,8 +557,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &mut self,
         span: crate::span::Span,
         callee_span: crate::span::Span,
-        class: &hir::ClassInit,
-        ctor: Option<&hir::ClassCtor>,
+        class: &hir::MonoClassInit,
+        ctor: Option<&hir::ClassCtor<MonoTypeId>>,
         args: &[CgValue<'ctx>],
         obj_ptr: PointerValue<'ctx>,
         stack: &mut HashSet<(String, crate::span::Span)>,
@@ -632,7 +634,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 }
 
                 for (param, arg_v) in ctor_params.iter().zip(args.iter()) {
-                    let param_cg = cg.expect_cg_ty_of(param.ty, "class ctor invoke param type");
+                    let param_cg = cg.expect_cg_ty_of(param.ty.inner(), "class ctor invoke param type");
                     let param_ptr =
                         cg.create_entry_alloca(param.decl_span, &param.name, param_cg)?;
                     let _ =
@@ -640,8 +642,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     cg.function_cx.env.insert(
                         param.id,
                         CgLocal {
-                            hir_ty: Some(param.ty),
-                            call_may_suspend: cg.local_call_may_suspend_from_hir_ty(Some(param.ty)),
+                            hir_ty: Some(param.ty.inner()),
+                            call_may_suspend: cg.local_call_may_suspend_from_hir_ty(Some(param.ty.inner())),
                             ty: param_cg,
                             ptr: param_ptr,
                             frame_backing_ptr: None,
@@ -665,7 +667,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                                 "class this delegation selected/ordered args contract",
                             )?;
 
-                            let target_params: &[hir::ClassCtorParam] = match target {
+                            let target_params: &[hir::ClassCtorParam<MonoTypeId>] = match target {
                                 Some(c) => c.params.as_slice(),
                                 None => &[][..],
                             };
@@ -781,7 +783,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     fn current_class_ctor_this_ptr(
         &mut self,
         at: crate::span::Span,
-        class: &hir::ClassInit,
+        class: &hir::MonoClassInit,
     ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
         let this_local = self.function_cx.env.get(class.this_id).unwrap_or_else(|| {
             panic!("current_class_ctor_this_ptr: verifier accepted missing this local")

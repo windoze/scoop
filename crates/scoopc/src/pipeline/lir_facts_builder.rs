@@ -647,7 +647,7 @@ fn build_physical_layout_facts(
 fn insert_class_layout_fact(
     facts: &mut LirPhysicalLayoutFacts,
     layout_key: &str,
-    class: &crate::hir::ClassInit,
+    class: &crate::hir::MonoClassInit,
 ) {
     facts.classes.insert(
         layout_key.to_string(),
@@ -662,7 +662,7 @@ fn insert_class_layout_fact(
                     fqn: field.fqn.clone(),
                     name: field.name.clone(),
                     mutable: field.mutable,
-                    ty: field.ty,
+                    ty: field.ty.inner(),
                 })
                 .collect(),
         },

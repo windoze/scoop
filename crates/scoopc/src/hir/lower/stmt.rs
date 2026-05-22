@@ -13,8 +13,8 @@ use super::ValScope;
 use super::types::ExpectedExpr;
 
 use super::super::{
-    AssignPlaceContract, AssignPlaceKind, Block, CallArg, ClassInit, ClassInitStep, Expr, ExprKind,
-    File, FunDecl, HandleExpr, Item, LiteralKind, MemberAccess, MemberRef, ObjectInit,
+    AssignPlaceContract, AssignPlaceKind, Block, CallArg, ClassInitStep, Expr, ExprKind, File,
+    FunDecl, GenericClassDecl, HandleExpr, Item, LiteralKind, MemberAccess, MemberRef, ObjectInit,
     ObjectInitStep, Stmt, StmtKind, ValDecl, ValueRef,
 };
 
@@ -304,7 +304,7 @@ impl<'a> HirLowering<'a> {
 
     pub(super) fn record_missing_assign_place_contracts_in_class_inits(
         &mut self,
-        inits: &std::collections::HashMap<String, ClassInit>,
+        inits: &std::collections::HashMap<String, GenericClassDecl>,
     ) {
         for init in inits.values() {
             for arg in &init.super_ctor_args {

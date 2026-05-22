@@ -521,11 +521,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(in crate::llvm::codegen) fn selected_mir_class_ctor_from_contract<'b>(
         &self,
         _span: crate::span::Span,
-        class: &'b hir::ClassInit,
+        class: &'b hir::MonoClassInit,
         ctor: &crate::mir::ClassCtorCallMetadata,
         args: &[crate::mir::CallArg],
         _kind: &'static str,
-    ) -> Result<Option<&'b hir::ClassCtor>, LlvmEmitError> {
+    ) -> Result<Option<&'b hir::ClassCtor<MonoTypeId>>, LlvmEmitError> {
         if args.iter().any(|arg| arg.name.is_some()) || args.len() != ctor.ordered_param_count {
             std::panic::panic_any(
                 "selected_mir_class_ctor_from_contract: MIR verifier accepted constructor argument drift",
