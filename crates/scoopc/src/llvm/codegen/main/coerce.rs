@@ -211,10 +211,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 Ok(CgValue::float(out, target))
             }
             (CgTy::Int(from), CgTy::Int(to)) => {
-                if let Some(bits) = self.int_literal_bits_from_source_span_if_present(at, to)? {
+                let (v, _) = self.expect_cg_int(value, "Int scalar coercion");
+                if v.is_constant_int()
+                    && let Some(bits) = self.int_literal_bits_from_source_span_if_present(at, to)?
+                {
                     return Ok(CgValue::int(self.int_type(to).const_int(bits, false), to));
                 }
-                let (v, _) = self.expect_cg_int(value, "Int scalar coercion");
                 let out = self.cast_int(v, from, to)?;
                 Ok(CgValue::int(out, to))
             }

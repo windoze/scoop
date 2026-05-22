@@ -236,6 +236,52 @@ pub struct LateLoweredBodyVersionKey {
     needs_reentry: bool,
 }
 
+/// LIR-owned source body payload consumed by backend body emission.
+///
+/// The payload is captured while constructing `LateLoweredProgram`, so LLVM body
+/// emission does not have to query the residual materialized MIR pass view for a
+/// callable body.  The wrapped source statement/value model is intentionally kept
+/// behind LIR names here; later P7 cleanup can narrow the payload further without
+/// reintroducing a backend lookup edge.
+pub type LateLoweredSourceCallable = crate::mir::FunDecl;
+
+pub type LateLoweredSourceBody = crate::mir::Body;
+
+pub type LateLoweredSourceStatement = crate::mir::Statement;
+
+pub type LateLoweredSourceStatementKind = crate::mir::StatementKind;
+
+pub type LateLoweredSourceTerminator = crate::mir::Terminator;
+
+pub type LateLoweredSourceTerminatorKind = crate::mir::TerminatorKind;
+
+pub type LateLoweredSourceRvalue = crate::mir::Rvalue;
+
+pub type LateLoweredSourceOperand = crate::mir::Operand;
+
+pub type LateLoweredSourceCallArg = crate::mir::CallArg;
+
+pub type LateLoweredSourceCallKind = crate::mir::CallKind;
+
+pub type LateLoweredSourceCallTransportMetadata = crate::mir::CallTransportMetadata;
+
+pub type LateLoweredSourceClosureEnvTransportMetadata = crate::mir::ClosureEnvTransportMetadata;
+
+pub type LateLoweredSourceStoredContinuationRoutePublication =
+    crate::mir::StoredContinuationRoutePublication;
+
+pub type LateLoweredSourceMemberAccessMetadata = crate::mir::MemberAccessMetadata;
+
+pub type LateLoweredSourceMemberTarget = crate::mir::MemberTarget;
+
+pub type LateLoweredSourceTopLevelRef = crate::mir::TopLevelRef;
+
+pub type LateLoweredSourceInterpolatedStringPart = crate::mir::InterpolatedStringPart;
+
+pub type LateLoweredSourceStructLitField = crate::mir::StructLitField;
+
+pub type LateLoweredSourceClassCtorCallMetadata = crate::mir::ClassCtorCallMetadata;
+
 impl LateLoweredBodyVersionKey {
     pub(crate) fn new(
         surface_instance: InstanceKey,
@@ -581,14 +627,27 @@ pub enum LateLoweredCallableAbi {
 /// `abi` 显式区分普通函数 ABI 与 effect-step ABI：Plain 分支的公开 callable ABI 始终是
 /// 普通函数；若 body 内含本地 effect/control，则在 plain ABI 内额外发布仅供本地控制流消费的
 /// `LateLoweredPlainLocalEffectControl`，而不是把 plain body 暴露成 direct/dynamic `Step_F` entry。
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub struct LateLoweredCallable {
     root_fqn: String,
     stable_instance_key: StableInstanceKey,
     body_version_key: LateLoweredBodyVersionKey,
     resolved_outward_cases: Vec<CaseTag>,
     abi: LateLoweredCallableAbi,
+    source_callable: Option<LateLoweredSourceCallable>,
 }
+
+impl PartialEq for LateLoweredCallable {
+    fn eq(&self, other: &Self) -> bool {
+        self.root_fqn == other.root_fqn
+            && self.stable_instance_key == other.stable_instance_key
+            && self.body_version_key == other.body_version_key
+            && self.resolved_outward_cases == other.resolved_outward_cases
+            && self.abi == other.abi
+    }
+}
+
+impl Eq for LateLoweredCallable {}
 
 impl LateLoweredCallable {
     #[allow(clippy::too_many_arguments)]
@@ -621,6 +680,7 @@ impl LateLoweredCallable {
                 continuation_object,
                 resume_packings,
             ))),
+            source_callable: None,
         }
     }
 
@@ -637,7 +697,16 @@ impl LateLoweredCallable {
             body_version_key,
             resolved_outward_cases,
             abi: LateLoweredCallableAbi::Plain(plain_abi),
+            source_callable: None,
         }
+    }
+
+    pub(crate) fn with_source_callable(
+        mut self,
+        source_callable: &LateLoweredSourceCallable,
+    ) -> Self {
+        self.source_callable = Some(source_callable.clone());
+        self
     }
 
     pub(crate) fn with_source_statement_classifications(
@@ -667,6 +736,16 @@ impl LateLoweredCallable {
 
     pub fn abi(&self) -> &LateLoweredCallableAbi {
         &self.abi
+    }
+
+    pub fn source_callable(&self) -> Option<&LateLoweredSourceCallable> {
+        self.source_callable.as_ref()
+    }
+
+    pub fn source_body(&self) -> Option<&LateLoweredSourceBody> {
+        self.source_callable
+            .as_ref()
+            .and_then(|callable| callable.body.as_ref())
     }
 
     pub fn call_abi_kind(&self) -> CallableAbiKind {

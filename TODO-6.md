@@ -4,7 +4,7 @@
 > 细化时间：2026-05-22
 > 计划基线：[`PLAN.md`](./PLAN.md) §4/P6-P8
 > 索引：[`TODO.md`](./TODO.md)
-> 当前状态：`P7-T02R` 已完成；下一步执行 `P7-T03`。
+> 当前状态：`P7-T03` 已完成；下一步执行 `P7-T03R`。
 
 ## 范围
 
@@ -484,7 +484,7 @@
   - 边界确认：LLVM 中仍存在的 `MaterializedMirPassView` / `pass_view` 命中位于 body emission、ABI layout 或 stage handoff 路径，已由后续 `P7-T03` / `P7-T04` 覆盖；本 review 未发现把 MIR pass-view 换名藏入 reachability helper 的情况。
   - 验证通过：`cargo fmt`；`cargo test -p scoopc --no-default-features llvm::reachability`；`cargo test -p scoopc llvm::reachability`；`cargo run -p scoop -- test --fixtures tests/fixtures/effect_lowered`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`（421/421 passed）；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
 
-## [TODO] P7-T03：迁移 LLVM body emission 离开 raw MIR / HIR fallback
+## [DONE] P7-T03：迁移 LLVM body emission 离开 raw MIR / HIR fallback
 
 - 目标：
   - 让 LLVM body emission 使用 LIR body/source-slice/callable contracts；
@@ -514,7 +514,12 @@
   - LIR/LIR facts 是 body emission 的唯一 authoritative IR/query 输入。
 - 依赖：P7-T02R
 - 完成记录：
-  - 待填写。
+  - `LateLoweredCallable` 现在携带 stage-owned source callable/body contract；`effect_lowered` builder 在构造 LIR callable 时捕获 source body，LIR opt 重写会保留该 source contract，LLVM body emission 不再从 residual pass view 查询 callable body。
+  - effect-lowered body emission 入口已移除 `MaterializedMirPassView` 参数：plain callable、effect-step callable、resume method、surface-resume owner trampoline/driver 等 production body path 均从 `LateLoweredProgram` / callable source body / `ProgramAbiQuery` / base `TypeStore` 获取 body、local、signature 和 source path。
+  - `emit.rs` 删除 reachable HIR-body declaration/emission fallback：入口 root 由 LIR facts 选择，main wrapper 通过 LIR callable/source contract 获取返回类型和 span，不再要求 HIR `FunDecl` body scaffold。
+  - plain/effect-neutral source-slice lowering 改用 LIR callable facts、plain call-site contract 与 published ABI query 解析 direct/dynamic/dispatch path；缺失 published callable contract 会作为 backend handoff 错误暴露，而不是回退到 HIR/raw MIR body emission。
+  - 剩余 `MaterializedMirPassView` / `hir_compat_scaffold` / physical layout / TypeStore bridge residual 仍限于 stage handoff、layout 或测试辅助路径，归属后续 `P7-T04` / `P7-T04R`，本任务未新增 backend-private HIR fallback。
+  - 验证通过：`cargo fmt`；`cargo test -p scoopc --no-default-features llvm::codegen::effect_lowered`；`cargo test -p scoopc llvm::codegen::effect_lowered`；`cargo run -p scoop -- test --fixtures tests/fixtures/effect_lowered`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`（421/421 passed）；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
 
 ## [TODO] P7-T03R：Review LLVM body emission 迁移结果
 

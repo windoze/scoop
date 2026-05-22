@@ -28,10 +28,10 @@ use crate::effect_lowered::ir::{
     LateLoweredHandleBoundaryCaseRoutingAction, LateLoweredHandlePendingCompletion,
     LateLoweredHandlePendingCompletionOrigin, LateLoweredHandleStateRegion,
     LateLoweredOperandSource, LateLoweredOperandValueSource, LateLoweredPlainBodySlice,
-    LateLoweredPlainCallable, LateLoweredResumePayloadBinding,
-    LateLoweredSourceStatementClassificationKind, LateLoweredState, LateLoweredStateRole,
-    LateLoweredStateTerminator, LateLoweredStepCaseForwarding, LateLoweredStepDispatchPlan,
-    LateLoweredSurfaceResumeDispatchPublication,
+    LateLoweredPlainCallable, LateLoweredResumePayloadBinding, LateLoweredSourceBody,
+    LateLoweredSourceCallable, LateLoweredSourceStatementClassificationKind, LateLoweredState,
+    LateLoweredStateRole, LateLoweredStateTerminator, LateLoweredStepCaseForwarding,
+    LateLoweredStepDispatchPlan, LateLoweredSurfaceResumeDispatchPublication,
     LateLoweredSurfaceResumeWrapperCompletePayloadSource, ResumeInterfaceId, StateId,
     SystemSlotKind,
 };
@@ -45,7 +45,7 @@ use super::super::mir_body::{MirLocalSlot, collect_mir_local_uses};
 use super::super::types::{CgTy, CgValue};
 use super::super::{
     CallableCarrierKind, EFFECT_INSTANCE_KEY_RAISE_RUNTIME_ERROR, MainCodegen, NativeCallableAbi,
-    TypeDescriptorSpec, private_closure_env_type_name,
+    TypeDescriptorSpec,
 };
 use super::stable_naming;
 use super::types::{
@@ -75,35 +75,30 @@ const CONT_FIELD_CAPTURED_CALLEE_SUSPEND_STATE: u32 = 8;
 // `CallableEmitter`) because they take only borrowed inputs and
 // don't need access to per-callable codegen state.
 
-fn mir_callable<'a>(
-    pass_view: &'a mir::MaterializedMirPassView<'a>,
-    fqn: &str,
-) -> Result<&'a mir::FunDecl, LlvmEmitError> {
-    pass_view
-        .callable(fqn)
-        .or_else(|| {
-            pass_view
-                .materialized()
-                .file
-                .items
-                .iter()
-                .find_map(|item| match item {
-                    mir::Item::Fun(fun) if fun.fqn == fqn && fun.body.is_some() => Some(fun),
-                    _ => None,
-                })
-        })
-        .or_else(|| {
-            pass_view
-                .materialized()
-                .caller_side_pass_candidate_bodies()
-                .iter()
-                .find(|fun| fun.fqn == fqn && fun.body.is_some())
-        })
-        .ok_or_else(|| {
-            frontend_error(format!(
-                "body lowering 缺少 callable `{fqn}` 的 materialized MIR body"
-            ))
-        })
+fn callable_source<'a>(
+    callable: &'a LateLoweredCallable,
+    context: &str,
+) -> Result<&'a LateLoweredSourceCallable, LlvmEmitError> {
+    callable.source_callable().ok_or_else(|| {
+        frontend_error(format!(
+            "{context} callable `{}` 缺少 LIR-owned source callable body contract",
+            callable.root_fqn()
+        ))
+    })
+}
+
+fn callable_source_body<'a>(
+    callable: &'a LateLoweredCallable,
+    context: &str,
+) -> Result<(&'a LateLoweredSourceCallable, &'a LateLoweredSourceBody), LlvmEmitError> {
+    let source = callable_source(callable, context)?;
+    let body = source.body.as_ref().ok_or_else(|| {
+        frontend_error(format!(
+            "{context} callable `{}` 缺少 LIR-owned source body contract",
+            callable.root_fqn()
+        ))
+    })?;
+    Ok((source, body))
 }
 
 fn resume_packing_method_is_reachable(
@@ -295,7 +290,7 @@ fn validate_plain_callable_layout(
 fn validate_plain_body_slices(
     root_fqn: &str,
     plain: &LateLoweredPlainCallable,
-    body: &mir::Body,
+    body: &LateLoweredSourceBody,
 ) -> Result<BTreeMap<mir::BasicBlockId, LateLoweredPlainBodySlice>, LlvmEmitError> {
     if plain.body_slices().len() != body.blocks.len() {
         return Err(frontend_error(format!(

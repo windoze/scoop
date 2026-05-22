@@ -65,7 +65,7 @@ use crate::stable_id::{
     canonical_callable_signature_key, canonical_record, canonical_type_text,
     stable_rtti_derived_type_key, stable_rtti_type_id, stable_rtti_type_id_for_type,
 };
-use crate::syntax::int_literal::{parse_int_literal, parse_int_literal_checked};
+use crate::syntax::int_literal::parse_int_literal_checked;
 use crate::syntax::string_literal::{StringLiteralParseError, parse_string_literal_bytes};
 use crate::ty::layout::{NicheStorage, TypeLayout};
 use crate::ty::{

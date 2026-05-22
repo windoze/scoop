@@ -458,7 +458,7 @@ fn build_module_from_codegen_entry_with_root_selector<'ctx>(
         abi_program,
         abi_lir_facts,
         abi_types,
-        abi_materialized_pass_view,
+        abi_materialized_pass_view: _abi_materialized_pass_view,
     } = codegen_entry;
     let has_materialized_pass_view = materialized_pass_view.is_some();
 
@@ -493,23 +493,22 @@ fn build_module_from_codegen_entry_with_root_selector<'ctx>(
         .collect();
     let selected_root =
         select_root_callable(late_lowered_lir_facts, late_lowered_types, root_selector)?;
-    let root_fun = fun_index
-        .get(selected_root.root_fqn)
-        .copied()
+    let root_callable = late_lowered_program
+        .callable(selected_root.root_fqn)
         .ok_or_else(|| LlvmEmitError::Frontend {
             message: format!(
-                "LLVM stage handoff 入口 callable `{}` 缺少 legacy body emission scaffold",
+                "LLVM stage handoff 缺少入口 callable `{}` 的 late-lowered body",
                 selected_root.root_fqn
             ),
         })?;
-    if late_lowered_program.callable(&root_fun.fqn).is_none() {
-        return Err(LlvmEmitError::Frontend {
+    let root_source = root_callable
+        .source_callable()
+        .ok_or_else(|| LlvmEmitError::Frontend {
             message: format!(
-                "LLVM stage handoff 缺少入口 callable `{}` 的 late-lowered body",
-                root_fun.fqn
+                "LLVM stage handoff 入口 callable `{}` 缺少 LIR-owned source body contract",
+                selected_root.root_fqn
             ),
-        });
-    }
+        })?;
     let builder = context.create_builder();
     let hir_facts = Rc::new(hir_facts.clone());
     let effect_op_tags = Rc::new(RefCell::new(codegen::EffectOpTagState::new()));
@@ -564,49 +563,8 @@ fn build_module_from_codegen_entry_with_root_selector<'ctx>(
     );
     let mut declare = unit_codegen.fresh_main_codegen();
 
-    let reachable_fqns =
-        collect_reachable_top_level_funs(root_fun.fqn.as_str(), late_lowered_lir_facts);
-    let mut reachable: Vec<&hir::FunDecl> = reachable_fqns
-        .iter()
-        .filter_map(|fqn| fun_index.get(fqn).copied())
-        .collect();
-
-    if selected_root.entry_main_arg_shape.is_none()
-        && !reachable.iter().any(|fun| fun.fqn == root_fun.fqn)
-    {
-        reachable.push(root_fun);
-    }
-
-    // T0126: Helper to check if a function's signature contains TypeKind::Param
-    // (recursively, including inside Nominal type args like `Printer<T>`).
-    let ty_contains_param = |types: &crate::ty::TypeStore, ty: crate::ty::TypeId| -> bool {
-        let mut stack = vec![ty];
-        while let Some(id) = stack.pop() {
-            match types.kind(id) {
-                crate::ty::TypeKind::Param(_) => return true,
-                crate::ty::TypeKind::Ref(crate::ty::RefTypeKind::Nominal(n))
-                | crate::ty::TypeKind::Value(crate::ty::ValueTypeKind::Nominal(n)) => {
-                    stack.extend(n.args.iter().copied());
-                }
-                _ => {}
-            }
-        }
-        false
-    };
-    let fun_has_param_types = |fun: &hir::FunDecl| -> bool {
-        fun.params
-            .iter()
-            .any(|p| ty_contains_param(&lowered.types, p.ty))
-            || ty_contains_param(&lowered.types, fun.return_ty)
-    };
-
-    reachable.sort_by(|a, b| a.fqn.cmp(&b.fqn));
-    let reachable: Vec<&hir::FunDecl> = reachable
-        .into_iter()
-        // T0126: Skip generic (unmonomorphized) member methods — they contain Param types
-        // that cannot be lowered to LLVM types. The monomorphized variants handle these.
-        .filter(|fun| !fun_has_param_types(fun))
-        .collect();
+    let _reachable_fqns =
+        collect_reachable_top_level_funs(selected_root.root_fqn, late_lowered_lir_facts);
 
     let abi_program = abi_program.ok_or_else(|| LlvmEmitError::Frontend {
         message: "LLVM stage handoff 缺少 ABI visibility late-lowered program".to_string(),
@@ -615,20 +573,12 @@ fn build_module_from_codegen_entry_with_root_selector<'ctx>(
         message: "LLVM stage handoff 缺少 ABI visibility LIR facts".to_string(),
     })?;
     let abi_types = abi_types.unwrap_or(late_lowered_types);
-    let abi_pass_view = abi_materialized_pass_view
-        .as_ref()
-        .ok_or(LlvmEmitError::MissingMaterializedPassView)?;
     let abi_query = declare.materialize_program_abi(abi_program, abi_lir_facts, abi_types)?;
-    let primary_pass_view = unit_codegen
-        .materialized_pass_view()
-        .ok_or(LlvmEmitError::MissingMaterializedPassView)?;
     declare.codegen_program_bodies(
         late_lowered_program,
         abi_program,
         late_lowered_types,
-        primary_pass_view,
         abi_types,
-        abi_pass_view,
         &abi_query,
     )?;
     declare.codegen_native_callable_body_symbols(&abi_query)?;
@@ -638,46 +588,6 @@ fn build_module_from_codegen_entry_with_root_selector<'ctx>(
     let thread_local_init_routines =
         declare.ensure_thread_local_init_routines_defined(&thread_local_init_plans)?;
     declare.ensure_thread_init_current_function_defined(&thread_local_init_routines)?;
-
-    fn callable_base_fqn(fqn: &str) -> &str {
-        let base = fqn.rsplit_once("::<").map(|(base, _)| base).unwrap_or(fqn);
-        base.split_once("$overload$")
-            .map(|(base, _)| base)
-            .unwrap_or(base)
-    }
-    let has_published_body = |program: &crate::effect_lowered::LateLoweredProgram, fqn: &str| {
-        let base_fqn = callable_base_fqn(fqn);
-        program.callables().iter().any(|callable| {
-            callable_base_fqn(callable.root_fqn()) == base_fqn
-                || callable_base_fqn(&callable.instance_key().template.fqn) == base_fqn
-        })
-    };
-
-    for fun in &reachable {
-        if has_published_body(late_lowered_program, &fun.fqn)
-            || has_published_body(abi_program, &fun.fqn)
-        {
-            continue;
-        }
-        let _ = declare.declare_top_level_fun(fun)?;
-    }
-
-    for fun in &reachable {
-        if has_published_body(late_lowered_program, &fun.fqn)
-            || has_published_body(abi_program, &fun.fqn)
-        {
-            continue;
-        }
-        if fun.body.is_none() {
-            continue;
-        }
-        return Err(LlvmEmitError::Frontend {
-            message: format!(
-                "LLVM stage handoff 缺少 reachable callable `{}` 的 published late-lowered body",
-                fun.fqn
-            ),
-        });
-    }
 
     if let Some(arg_shape) = selected_root.entry_main_arg_shape {
         let i32_type = context.i32_type();
@@ -736,13 +646,14 @@ fn build_module_from_codegen_entry_with_root_selector<'ctx>(
         };
 
         let exit_code = main_codegen.codegen_stage_main_exit_code(
-            root_fun,
+            selected_root.root_fqn,
             entry_argv_array,
+            late_lowered_types,
             late_lowered_program,
             &abi_query,
         )?;
         builder.build_return(Some(&exit_code))?;
-        main_codegen.finish_function_explicit_frame_layout(root_fun.span)?;
+        main_codegen.finish_function_explicit_frame_layout(root_source.span)?;
     }
 
     module

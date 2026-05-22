@@ -548,7 +548,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &self,
         span: crate::span::Span,
     ) -> Result<u128, LlvmEmitError> {
-        Ok(parse_int_literal(self.current_source_slice(span)?))
+        let source = self.current_source()?;
+        let text = self.current_source_slice(span)?;
+        parse_int_literal_checked(text).map_err(|err| {
+            LlvmEmitError::invalid_literal(source, span, "integer literal", err.reason(), text)
+        })
     }
 
     pub(in crate::llvm::codegen) fn int_literal_bits_for_ty(
@@ -619,16 +623,40 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         span: crate::span::Span,
         int_ty: IntTy,
     ) -> Result<Option<u64>, LlvmEmitError> {
-        let Ok(bound) = self.source_map.bind_span(self.current_source_id, span) else {
+        let mut candidates = Vec::new();
+        if let Ok(bound) = self.source_map.bind_span(self.current_source_id, span)
+            && let Ok(text) = self.source_map.slice(bound)
+            && let Some((negative, body)) = source_text_int_literal_body(text)
+        {
+            candidates.push((self.current_source_id, text, negative, body));
+        }
+        if candidates.is_empty() {
+            for source in self.source_map.sources() {
+                let Some(source_id) = self.source_map.source_id_of_path(source.path()) else {
+                    continue;
+                };
+                if source_id == self.current_source_id {
+                    continue;
+                }
+                let Ok(bound) = self.source_map.bind_span(source_id, span) else {
+                    continue;
+                };
+                let Ok(text) = self.source_map.slice(bound) else {
+                    continue;
+                };
+                let Some((negative, body)) = source_text_int_literal_body(text) else {
+                    continue;
+                };
+                candidates.push((source_id, text, negative, body));
+            }
+        }
+        let Some((source_id, text, negative, body)) = candidates.into_iter().next() else {
             return Ok(None);
         };
-        let Ok(text) = self.source_map.slice(bound) else {
-            return Ok(None);
-        };
-        let source = self.current_source()?;
-        let Some((negative, body)) = source_text_int_literal_body(text) else {
-            return Ok(None);
-        };
+        let source = self
+            .source_map
+            .source(source_id)
+            .expect("candidate source id must exist");
         let raw = parse_int_literal_checked(body).map_err(|err| {
             LlvmEmitError::invalid_literal(source, span, "integer literal", err.reason(), text)
         })?;

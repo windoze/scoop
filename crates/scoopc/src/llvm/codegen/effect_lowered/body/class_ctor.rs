@@ -644,10 +644,7 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
         transport_ty: TypeId,
     ) -> Result<bool, LlvmEmitError> {
         for binding in callable.frame_schema().resume_payload_bindings() {
-            let Some(mir_fun) = mir_callable(self.pass_view, callable.root_fqn()).ok() else {
-                continue;
-            };
-            let Some(body) = mir_fun.body.as_ref() else {
+            let Some(body) = callable.source_body() else {
                 continue;
             };
             let local_ty = body.locals[binding.consumer_local().as_u32() as usize].ty;
@@ -761,14 +758,7 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
 
         let saved_block = self.codegen.builder.get_insert_block();
         let mut child = self.codegen.fresh_child_codegen();
-        let mir_fun = mir_callable(self.pass_view, callable.root_fqn())?;
-        let body = mir_fun.body.as_ref().ok_or_else(|| {
-            frontend_error(format!(
-                "task transport resume adapter `{}` owner `{}` 缺少 canonical MIR body",
-                symbol_name,
-                callable.root_fqn()
-            ))
-        })?;
+        let (mir_fun, body) = callable_source_body(callable, "task transport resume adapter")?;
         let entry = child.context.append_basic_block(function, "entry");
         child.builder.position_at_end(entry);
         child.begin_function_explicit_frame_layout(function)?;
@@ -776,7 +766,6 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
             &mut child,
             self.program,
             self.source_types,
-            self.pass_view,
             self.abi,
             callable,
             mir_fun,

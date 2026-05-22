@@ -116,7 +116,7 @@
 | P7-T02 | [DONE] | [`TODO-6.md`](./TODO-6.md#done-p7-t02删除-backend-reachability-hirmir-回看与-codegen-去虚化-residual) | 删除 backend reachability HIR/MIR 回看与 codegen 去虚化 residual |
 | P7-T02-a | [DONE] | [`TODO-6.md`](./TODO-6.md#done-p7-t02-a修复-run-pass-fixture-baseline-失败) | 修复 run-pass fixture baseline 失败 |
 | P7-T02R | [DONE] | [`TODO-6.md`](./TODO-6.md#done-p7-t02rreview-backend-reachability-cleanup) | Review backend reachability cleanup |
-| P7-T03 | [TODO] | [`TODO-6.md`](./TODO-6.md#todo-p7-t03迁移-llvm-body-emission-离开-raw-mir--hir-fallback) | 迁移 LLVM body emission 离开 raw MIR / HIR fallback |
+| P7-T03 | [DONE] | [`TODO-6.md`](./TODO-6.md#done-p7-t03迁移-llvm-body-emission-离开-raw-mir--hir-fallback) | 迁移 LLVM body emission 离开 raw MIR / HIR fallback |
 | P7-T03R | [TODO] | [`TODO-6.md`](./TODO-6.md#todo-p7-t03rreview-llvm-body-emission-迁移结果) | Review LLVM body emission 迁移结果 |
 | P7-T04 | [TODO] | [`TODO-6.md`](./TODO-6.md#todo-p7-t04收窄-llvm-stage-handoffphysical-abi-layout-与-typestore-bridge) | 收窄 LLVM stage handoff、physical ABI layout 与 TypeStore bridge |
 | P7-T04R | [TODO] | [`TODO-6.md`](./TODO-6.md#todo-p7-t04rreview-llvm-stage-handoff-与-physical-abi-cleanup) | Review LLVM stage handoff 与 physical ABI cleanup |

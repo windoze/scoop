@@ -336,6 +336,17 @@ struct OptimizedControlBody {
     resume_packings: Vec<ResumeInterfaceId>,
 }
 
+fn preserve_source_callable(
+    callable: LateLoweredCallable,
+    original: &LateLoweredCallable,
+) -> LateLoweredCallable {
+    if let Some(source_callable) = original.source_callable() {
+        callable.with_source_callable(source_callable)
+    } else {
+        callable
+    }
+}
+
 fn optimize_callable(
     callable: &LateLoweredCallable,
     continuation_object: &LateLoweredContinuationObject,
@@ -343,21 +354,26 @@ fn optimize_callable(
 ) -> OptimizedCallable {
     let redirects = collect_state_redirects(callable.state_graph());
     let optimized = optimize_control_body(callable, continuation_object, options, &redirects);
-    let callable = LateLoweredCallable::new(
-        callable.root_fqn().to_string(),
-        callable.stable_instance_key().clone(),
-        callable.body_version_key().clone(),
-        callable.step_schema(),
-        callable.resolved_outward_cases().to_vec(),
-        rewrite_dynamic_invoke_entry(callable.dynamic_invoke_entry(), &redirects),
-        optimized.state_graph,
-        optimized.frame_schema,
-        optimized.boundary_map.clone(),
-        optimized.resume_state_map,
-        callable.continuation_object(),
-        optimized.resume_packings,
-    )
-    .with_source_statement_classifications(callable.source_statement_classifications().to_vec());
+    let callable = preserve_source_callable(
+        LateLoweredCallable::new(
+            callable.root_fqn().to_string(),
+            callable.stable_instance_key().clone(),
+            callable.body_version_key().clone(),
+            callable.step_schema(),
+            callable.resolved_outward_cases().to_vec(),
+            rewrite_dynamic_invoke_entry(callable.dynamic_invoke_entry(), &redirects),
+            optimized.state_graph,
+            optimized.frame_schema,
+            optimized.boundary_map.clone(),
+            optimized.resume_state_map,
+            callable.continuation_object(),
+            optimized.resume_packings,
+        )
+        .with_source_statement_classifications(
+            callable.source_statement_classifications().to_vec(),
+        ),
+        callable,
+    );
 
     OptimizedCallable {
         callable,
@@ -393,12 +409,15 @@ fn optimize_plain_callable(
         plain.call_sites().to_vec(),
         Some(local_control),
     );
-    let callable = LateLoweredCallable::new_plain(
-        callable.root_fqn().to_string(),
-        callable.stable_instance_key().clone(),
-        callable.body_version_key().clone(),
-        callable.resolved_outward_cases().to_vec(),
-        plain,
+    let callable = preserve_source_callable(
+        LateLoweredCallable::new_plain(
+            callable.root_fqn().to_string(),
+            callable.stable_instance_key().clone(),
+            callable.body_version_key().clone(),
+            callable.resolved_outward_cases().to_vec(),
+            plain,
+        ),
+        callable,
     );
 
     OptimizedCallable {
@@ -494,22 +513,25 @@ fn with_callable_resume_packings(
     resume_packings: Vec<ResumeInterfaceId>,
 ) -> LateLoweredCallable {
     if callable.effect_step_abi().is_some() {
-        return LateLoweredCallable::new(
-            callable.root_fqn().to_string(),
-            callable.stable_instance_key().clone(),
-            callable.body_version_key().clone(),
-            callable.step_schema(),
-            callable.resolved_outward_cases().to_vec(),
-            callable.dynamic_invoke_entry().clone(),
-            callable.state_graph().clone(),
-            callable.frame_schema().clone(),
-            callable.boundary_map().clone(),
-            callable.resume_state_map().clone(),
-            callable.continuation_object(),
-            resume_packings,
-        )
-        .with_source_statement_classifications(
-            callable.source_statement_classifications().to_vec(),
+        return preserve_source_callable(
+            LateLoweredCallable::new(
+                callable.root_fqn().to_string(),
+                callable.stable_instance_key().clone(),
+                callable.body_version_key().clone(),
+                callable.step_schema(),
+                callable.resolved_outward_cases().to_vec(),
+                callable.dynamic_invoke_entry().clone(),
+                callable.state_graph().clone(),
+                callable.frame_schema().clone(),
+                callable.boundary_map().clone(),
+                callable.resume_state_map().clone(),
+                callable.continuation_object(),
+                resume_packings,
+            )
+            .with_source_statement_classifications(
+                callable.source_statement_classifications().to_vec(),
+            ),
+            &callable,
         );
     }
 
@@ -534,12 +556,15 @@ fn with_callable_resume_packings(
         plain.call_sites().to_vec(),
         Some(local_control),
     );
-    LateLoweredCallable::new_plain(
-        callable.root_fqn().to_string(),
-        callable.stable_instance_key().clone(),
-        callable.body_version_key().clone(),
-        callable.resolved_outward_cases().to_vec(),
-        plain,
+    preserve_source_callable(
+        LateLoweredCallable::new_plain(
+            callable.root_fqn().to_string(),
+            callable.stable_instance_key().clone(),
+            callable.body_version_key().clone(),
+            callable.resolved_outward_cases().to_vec(),
+            plain,
+        ),
+        &callable,
     )
 }
 
@@ -1873,21 +1898,26 @@ mod tests {
     ) -> LateLoweredCallable {
         let state_graph =
             rewrite_state_graph_entry_handle_contract(callable.state_graph(), contract);
-        LateLoweredCallable::new(
-            callable.root_fqn().to_string(),
-            callable.stable_instance_key().clone(),
-            callable.body_version_key().clone(),
-            callable.step_schema(),
-            callable.resolved_outward_cases().to_vec(),
-            callable.dynamic_invoke_entry().clone(),
-            state_graph,
-            callable.frame_schema().clone(),
-            callable.boundary_map().clone(),
-            callable.resume_state_map().clone(),
-            callable.continuation_object(),
-            callable.resume_packings().to_vec(),
+        super::preserve_source_callable(
+            LateLoweredCallable::new(
+                callable.root_fqn().to_string(),
+                callable.stable_instance_key().clone(),
+                callable.body_version_key().clone(),
+                callable.step_schema(),
+                callable.resolved_outward_cases().to_vec(),
+                callable.dynamic_invoke_entry().clone(),
+                state_graph,
+                callable.frame_schema().clone(),
+                callable.boundary_map().clone(),
+                callable.resume_state_map().clone(),
+                callable.continuation_object(),
+                callable.resume_packings().to_vec(),
+            )
+            .with_source_statement_classifications(
+                callable.source_statement_classifications().to_vec(),
+            ),
+            callable,
         )
-        .with_source_statement_classifications(callable.source_statement_classifications().to_vec())
     }
 
     fn rewrite_state_graph_entry_handle_contract(

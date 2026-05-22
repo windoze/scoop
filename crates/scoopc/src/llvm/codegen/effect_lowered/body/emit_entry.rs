@@ -21,16 +21,14 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
 
     pub(super) fn emit_plain_direct(
         mut self,
-        hir_fun: &crate::hir::FunDecl,
-        mir_types: &TypeStore,
+        source_types: &TypeStore,
         param_offset: u32,
         declared_return_cg: CgTy,
     ) -> Result<(), LlvmEmitError> {
         self.return_mode = CallableReturnMode::Plain { declared_return_cg };
-        self.codegen.bind_mir_params(
-            hir_fun,
+        self.codegen.bind_lir_source_params(
             self.mir_fun,
-            mir_types,
+            source_types,
             self.function,
             param_offset,
             &mut self.slots,

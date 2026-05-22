@@ -96,13 +96,23 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
         stmt: &mir::Statement,
     ) -> Result<(), LlvmEmitError> {
         let codegen = &mut *self.codegen;
+        let program = self.program;
+        let plain_call_sites = self.callable.plain_abi().map(|plain| plain.call_sites());
         let source_types = self.source_types;
         let body = self.body;
         let slots = &self.slots;
         let abi = self.abi;
         let used_locals = &self.used_locals;
-        ValuePrimitives::new(codegen, source_types, body, slots, abi)
-            .lower_effect_neutral_statement(stmt, used_locals)
+        ValuePrimitives::new(
+            codegen,
+            program,
+            plain_call_sites,
+            source_types,
+            body,
+            slots,
+            abi,
+        )
+        .lower_effect_neutral_statement(stmt, used_locals)
     }
 
     pub(super) fn lower_published_call_statement(

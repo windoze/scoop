@@ -7,7 +7,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &mut self,
         program: &'a LateLoweredProgram,
         source_types: &'a TypeStore,
-        pass_view: &'a mir::MaterializedMirPassView<'a>,
         abi: &ProgramAbiQuery<'ctx>,
         callable: &'a LateLoweredCallable,
     ) -> Result<(), LlvmEmitError> {
@@ -15,13 +14,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         validate_callable_entry_layout(layout)?;
         let direct_fun = self.function(layout.direct_entry().symbol_name())?;
         if direct_fun.count_basic_blocks() == 0 {
-            let mir_fun = mir_callable(pass_view, callable.root_fqn())?;
-            let body = mir_fun.body.as_ref().ok_or_else(|| {
-                frontend_error(format!(
-                    "body lowering callable `{}` 缺少 canonical MIR body",
-                    callable.root_fqn()
-                ))
-            })?;
+            let (mir_fun, body) = callable_source_body(callable, "body lowering")?;
             let entry = self.context.append_basic_block(direct_fun, "entry");
             self.builder.position_at_end(entry);
             self.begin_function_explicit_frame_layout(direct_fun)?;
@@ -29,7 +22,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 self,
                 program,
                 source_types,
-                pass_view,
                 abi,
                 callable,
                 mir_fun,
@@ -77,8 +69,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         kind: CallableCarrierKind,
         carrier_fqn: &str,
         target: &super::super::types::CallableCarrierTargetLayout,
+        program: &'a LateLoweredProgram,
         source_types: &'a TypeStore,
-        pass_view: &'a mir::MaterializedMirPassView<'a>,
         abi: &ProgramAbiQuery<'ctx>,
     ) -> Result<(), LlvmEmitError> {
         let target_layout = abi.callable_layout_by_version_key(target.body_version_key())?;
@@ -86,7 +78,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         if function.count_basic_blocks() > 0 {
             return Ok(());
         }
-        let mir_fun = mir_callable(pass_view, target_layout.root_fqn())?;
+        let target_callable = program.callable(target_layout.root_fqn()).ok_or_else(|| {
+            frontend_error(format!(
+                "carrier shell `{}` 缺少 target callable `{}` 的 LIR body contract",
+                target.symbol_name(),
+                target_layout.root_fqn()
+            ))
+        })?;
+        let mir_fun = callable_source(target_callable, "carrier shell")?;
         let entry = self.context.append_basic_block(function, "entry");
         self.builder.position_at_end(entry);
         let direct_entry = target_layout.direct_entry();
@@ -484,7 +483,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             })
             .collect::<Vec<_>>();
         let env_obj_ty =
-            self.closure_env_object_type(env_param.span, &mir_fun.fqn, &capture_cgs)?;
+            self.closure_env_object_type(env_param.span, &mir_fun.fqn, source_types, &capture_cgs)?;
         let env_i8 = self.load_closure_env_ref(closure_obj_i8)?;
         let env_ptr = self.cast_ptr(
             env_i8,
@@ -582,10 +581,27 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &mut self,
         span: crate::span::Span,
         fn_ptr: &str,
+        source_types: &TypeStore,
         field_cgs: &[CgTy],
     ) -> Result<StructType<'ctx>, LlvmEmitError> {
-        let closure_key = self.stable_closure_key_for_materialized_callable(fn_ptr, span)?;
-        let name = private_closure_env_type_name(&closure_key);
+        let program = self.published_late_lowered_program().ok_or_else(|| {
+            frontend_error(format!("closure env `{fn_ptr}` 缺少 published LIR program"))
+        })?;
+        let callable = program.callable(fn_ptr).ok_or_else(|| {
+            frontend_error(format!(
+                "closure env `{fn_ptr}` 缺少 published LIR callable stable key"
+            ))
+        })?;
+        let stable_callable_key_text = super::stable_naming::callable_version_key_text(
+            self.stable_cone_key,
+            source_types,
+            self.stable_type_param_resolver(),
+            program,
+            callable.body_version_key(),
+            "closure env type",
+        )?;
+        let name =
+            stable_naming::private_name_from_key_text("closure_env", &stable_callable_key_text);
         if let Some(existing) = self.context.get_struct_type(&name) {
             return Ok(existing);
         }

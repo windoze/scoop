@@ -10,11 +10,10 @@ pub(super) struct CallableEmitter<'cg, 'a, 'ctx> {
     pub(super) codegen: &'cg mut MainCodegen<'a, 'ctx>,
     pub(super) program: &'a LateLoweredProgram,
     pub(super) source_types: &'a TypeStore,
-    pub(super) pass_view: &'a mir::MaterializedMirPassView<'a>,
     pub(super) abi: &'cg ProgramAbiQuery<'ctx>,
     pub(super) callable: &'a LateLoweredCallable,
-    pub(super) mir_fun: &'a mir::FunDecl,
-    pub(super) body: &'a mir::Body,
+    pub(super) mir_fun: &'a LateLoweredSourceCallable,
+    pub(super) body: &'a LateLoweredSourceBody,
     pub(super) function: FunctionValue<'ctx>,
     pub(super) slots: Vec<MirLocalSlot<'ctx>>,
     pub(super) used_locals: HashSet<LocalId>,
@@ -43,11 +42,10 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
         codegen: &'cg mut MainCodegen<'a, 'ctx>,
         program: &'a LateLoweredProgram,
         source_types: &'a TypeStore,
-        pass_view: &'a mir::MaterializedMirPassView<'a>,
         abi: &'cg ProgramAbiQuery<'ctx>,
         callable: &'a LateLoweredCallable,
-        mir_fun: &'a mir::FunDecl,
-        body: &'a mir::Body,
+        mir_fun: &'a LateLoweredSourceCallable,
+        body: &'a LateLoweredSourceBody,
         function: FunctionValue<'ctx>,
         return_projection: Option<
             &'cg crate::effect_lowered::ir::LateLoweredSurfaceResumeWrapperProjection,
@@ -97,11 +95,15 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
             ))
         })?;
         let slots = codegen.create_mir_local_slots(body, source_types)?;
-        if let Ok(source_id) =
-            codegen.materialized_mir_callable_source_id(callable.root_fqn(), mir_fun.span)
-        {
-            codegen.current_source_id = source_id;
-        }
+        codegen.current_source_id = codegen.source_id_for_path(
+            callable
+                .body_version_key()
+                .surface_instance()
+                .template
+                .source_path
+                .as_path(),
+            mir_fun.span,
+        )?;
         let used_locals = super::super::super::mir_body::collect_mir_local_uses(body);
         let frame_root_slot = codegen.create_gc_root_slot(mir_fun.span, "frame_root")?;
         let mut state_blocks = BTreeMap::new();
@@ -127,7 +129,6 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
             codegen,
             program,
             source_types,
-            pass_view,
             abi,
             callable,
             mir_fun,
@@ -153,6 +154,8 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
     pub(super) fn value_primitives(&mut self) -> ValuePrimitives<'_, 'a, 'ctx> {
         ValuePrimitives::new(
             &mut *self.codegen,
+            self.program,
+            self.callable.plain_abi().map(|plain| plain.call_sites()),
             self.source_types,
             self.body,
             &self.slots,

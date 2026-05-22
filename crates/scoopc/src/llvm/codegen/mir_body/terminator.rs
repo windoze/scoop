@@ -98,6 +98,53 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(())
     }
 
+    pub(in crate::llvm::codegen) fn bind_lir_source_params(
+        &mut self,
+        source_fun: &crate::effect_lowered::ir::LateLoweredSourceCallable,
+        source_types: &TypeStore,
+        llvm_fun: FunctionValue<'ctx>,
+        param_offset: u32,
+        slots: &mut [MirLocalSlot<'ctx>],
+    ) -> Result<(), LlvmEmitError> {
+        for (idx, param) in source_fun.params.iter().enumerate() {
+            let slot = slots.get(param.local.as_u32() as usize).copied().unwrap_or_else(|| {
+                std::panic::panic_any(
+                    "bind_lir_source_params: LIR verifier accepted param local outside slot table",
+                )
+            });
+            let abi_ty = self
+                .equivalent_codegen_type_id(source_types, param.ty)
+                .unwrap_or_else(|| {
+                    panic!("bind_lir_source_params: LIR verifier accepted unsupported param type")
+                });
+            let abi = self.ordinary_param_abi(param.span, abi_ty)?;
+            let init = if let Some(pointee_ty) = abi.pointee_ty() {
+                let param_ptr = llvm_fun
+                    .get_nth_param(idx as u32 + param_offset)
+                    .unwrap_or_else(|| {
+                        std::panic::panic_any(
+                            "bind_lir_source_params: ABI declaration missing lowered LLVM parameter",
+                        )
+                    })
+                    .into_pointer_value();
+                let loaded = self
+                    .builder
+                    .build_load(pointee_ty, param_ptr, "lir_param_load")?;
+                self.cg_value_from_loaded(param.span, slot.cg_ty, loaded)?
+            } else {
+                self.cg_value_from_llvm_param(
+                    param.span,
+                    llvm_fun,
+                    idx as u32 + param_offset,
+                    slot.cg_ty,
+                    "missing LIR source llvm param",
+                )?
+            };
+            let _ = self.store_local_value(param.span, slot.ptr, slot.cg_ty, init)?;
+        }
+        Ok(())
+    }
+
     pub(in crate::llvm::codegen) fn codegen_mir_statement(
         &mut self,
         stmt: &crate::mir::Statement,

@@ -9,23 +9,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         program: &'a LateLoweredProgram,
         abi_program: &'a LateLoweredProgram,
         source_types: &'a TypeStore,
-        pass_view: &'a mir::MaterializedMirPassView<'a>,
         abi_source_types: &'a TypeStore,
-        abi_pass_view: &'a mir::MaterializedMirPassView<'a>,
         abi: &ProgramAbiQuery<'ctx>,
     ) -> Result<(), LlvmEmitError> {
         for callable in program.callables() {
             let mut child = self.fresh_child_codegen();
             if callable.plain_abi().is_some() {
-                child.codegen_plain_callable_entry(
-                    program,
-                    source_types,
-                    pass_view,
-                    abi,
-                    callable,
-                )?;
+                child.codegen_plain_callable_entry(program, source_types, abi, callable)?;
             } else {
-                child.codegen_callable_entries(program, source_types, pass_view, abi, callable)?;
+                child.codegen_callable_entries(program, source_types, abi, callable)?;
             }
         }
         let primary_roots = program
@@ -39,21 +31,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
             let mut child = self.fresh_child_codegen();
             if callable.plain_abi().is_some() {
-                child.codegen_plain_callable_entry(
-                    abi_program,
-                    abi_source_types,
-                    abi_pass_view,
-                    abi,
-                    callable,
-                )?;
+                child.codegen_plain_callable_entry(abi_program, abi_source_types, abi, callable)?;
             } else {
-                child.codegen_callable_entries(
-                    abi_program,
-                    abi_source_types,
-                    abi_pass_view,
-                    abi,
-                    callable,
-                )?;
+                child.codegen_callable_entries(abi_program, abi_source_types, abi, callable)?;
             }
         }
         for (kind, carrier_fqn, target) in abi.callable_carrier_target_layouts() {
@@ -62,8 +42,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 kind,
                 carrier_fqn,
                 target,
+                abi_program,
                 abi_source_types,
-                abi_pass_view,
                 abi,
             )?;
         }
@@ -109,7 +89,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 child.codegen_resume_method(
                     abi_program,
                     abi_source_types,
-                    abi_pass_view,
                     abi,
                     callable,
                     method_layout.symbol_name(),
@@ -151,7 +130,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 child.codegen_surface_resume_owner_outcome(
                     abi_program,
                     abi_source_types,
-                    abi_pass_view,
                     abi,
                     surface,
                     target,
@@ -160,7 +138,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 child.codegen_continuation_drive_owner_outcome(
                     abi_program,
                     abi_source_types,
-                    abi_pass_view,
                     abi,
                     surface,
                     target,
@@ -169,7 +146,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 child.codegen_surface_resume_owner_trampoline(
                     abi_program,
                     abi_source_types,
-                    abi_pass_view,
                     abi,
                     surface,
                     target,
@@ -219,29 +195,36 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     /// Emits the C `main` exit path through the stage-owned direct-entry ABI.
     pub(crate) fn codegen_stage_main_exit_code(
         &mut self,
-        hir_main: &crate::hir::FunDecl,
+        entry_root_fqn: &str,
         entry_argv_array: Option<PointerValue<'ctx>>,
+        source_types: &TypeStore,
         program: &LateLoweredProgram,
         abi: &ProgramAbiQuery<'ctx>,
     ) -> Result<IntValue<'ctx>, LlvmEmitError> {
         let mut entry_callables = program
             .callables()
             .iter()
-            .filter(|callable| callable.root_fqn() == hir_main.fqn);
+            .filter(|callable| callable.root_fqn() == entry_root_fqn);
         let callable = entry_callables.next().ok_or_else(|| {
             frontend_error(format!(
                 "LLVM main wrapper 缺少入口 `{}` 的 callable body",
-                hir_main.fqn
+                entry_root_fqn
             ))
         })?;
         if entry_callables.next().is_some() {
             return Err(frontend_error(format!(
                 "LLVM main wrapper 发现入口 `{}` 存在多个 callable body version；必须通过 body version key 明确选择入口 shell",
-                hir_main.fqn
+                entry_root_fqn
             )));
         }
         if callable.plain_abi().is_some() {
-            return self.codegen_plain_main_exit_code(hir_main, entry_argv_array, callable, abi);
+            return self.codegen_plain_main_exit_code(
+                entry_root_fqn,
+                entry_argv_array,
+                source_types,
+                callable,
+                abi,
+            );
         }
         if entry_argv_array.is_some() {
             return Err(frontend_error(
@@ -255,7 +238,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         if !layout.direct_entry().args_abi().is_elided() {
             return Err(frontend_error(format!(
                 "LLVM main wrapper 入口 `{}` 的 direct entry args ABI 非 elided；Array<String> argv tuple ABI 尚未发布或 entry contract 漂移",
-                hir_main.fqn
+                entry_root_fqn
             )));
         }
         let call = self.builder.build_call(direct, &args, "main_step")?;
@@ -304,7 +287,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         };
 
         self.builder.position_at_end(ok_bb);
-        let exit_value = match self.cg_ty_of(hir_main.return_ty) {
+        let source = callable_source(callable, "LLVM main wrapper")?;
+        let exit_value = match self.cg_ty_of_mir_type(source_types, source.return_ty) {
             Some(CgTy::Unit) => self.context.i32_type().const_zero(),
             Some(CgTy::Int(_)) => {
                 let payload = self.extract_step_payload(
@@ -332,7 +316,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             _ => {
                 return Err(frontend_error(format!(
                     "main wrapper 不支持入口 `{}` 的返回类型",
-                    hir_main.fqn
+                    entry_root_fqn
                 )));
             }
         };
@@ -351,11 +335,17 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     pub(super) fn codegen_plain_main_exit_code(
         &mut self,
-        hir_main: &crate::hir::FunDecl,
+        entry_root_fqn: &str,
         entry_argv_array: Option<PointerValue<'ctx>>,
+        source_types: &TypeStore,
         callable: &LateLoweredCallable,
         abi: &ProgramAbiQuery<'ctx>,
     ) -> Result<IntValue<'ctx>, LlvmEmitError> {
+        let plain = callable.plain_abi().ok_or_else(|| {
+            frontend_error(format!(
+                "plain main `{entry_root_fqn}` 缺少 plain callable contract"
+            ))
+        })?;
         let layout = abi.plain_callable_layout_by_version_key(callable.body_version_key())?;
         if layout.root_fqn() != callable.root_fqn() {
             return Err(frontend_error(format!(
@@ -365,45 +355,45 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             )));
         }
         let entry = layout.direct_entry();
-        let args = match (hir_main.params.as_slice(), entry_argv_array) {
+        let args = match (plain.param_tys(), entry_argv_array) {
             ([], None) if entry.param_count() == 0 => Vec::new(),
             ([_param], Some(argv_array)) if entry.param_count() == 1 => vec![argv_array.into()],
             ([], Some(_)) => {
                 return Err(frontend_error(format!(
                     "plain main `{}` 没有 source argv 参数，但 wrapper 收到了 argv array",
-                    hir_main.fqn,
+                    entry_root_fqn,
                 )));
             }
             ([_], None) => {
                 return Err(frontend_error(format!(
                     "plain main `{}` 需要 argv array，但 wrapper 未收到入口 argv",
-                    hir_main.fqn,
+                    entry_root_fqn,
                 )));
             }
             _ => {
                 return Err(frontend_error(format!(
                     "plain main `{}` argv ABI 漂移：source_params={} direct_params={}",
-                    hir_main.fqn,
-                    hir_main.params.len(),
+                    entry_root_fqn,
+                    plain.param_tys().len(),
                     entry.param_count(),
                 )));
             }
         };
         let direct = self.function(entry.symbol_name())?;
         let call = self.builder.build_call(direct, &args, "plain_main")?;
-        match self.cg_ty_of(hir_main.return_ty) {
+        match self.cg_ty_of_mir_type(source_types, plain.return_ty()) {
             Some(CgTy::Unit) => Ok(self.context.i32_type().const_zero()),
             Some(CgTy::Int(_)) => {
                 let raw = call.try_as_basic_value().basic().ok_or_else(|| {
                     frontend_error(format!(
                         "plain main `{}` 的普通入口未返回整数值",
-                        hir_main.fqn
+                        entry_root_fqn
                     ))
                 })?;
                 let BasicValueEnum::IntValue(value) = raw else {
                     return Err(frontend_error(format!(
                         "plain main `{}` 的普通入口返回值不是整数",
-                        hir_main.fqn
+                        entry_root_fqn
                     )));
                 };
                 Ok(self.builder.build_int_truncate_or_bit_cast(
@@ -414,7 +404,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
             _ => Err(frontend_error(format!(
                 "plain main wrapper 不支持入口 `{}` 的返回类型",
-                hir_main.fqn
+                entry_root_fqn
             ))),
         }
     }
@@ -423,7 +413,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &mut self,
         program: &'a LateLoweredProgram,
         source_types: &'a TypeStore,
-        pass_view: &'a mir::MaterializedMirPassView<'a>,
         abi: &ProgramAbiQuery<'ctx>,
         callable: &'a LateLoweredCallable,
     ) -> Result<(), LlvmEmitError> {
@@ -440,22 +429,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             return Ok(());
         }
 
-        let hir_fun = self.hir_fun_for_callable_fqn(callable.root_fqn());
-        let mir_fun = mir_callable(pass_view, callable.root_fqn())?;
-        let is_materialized_closure = hir_fun.is_none() && mir_fun.name.starts_with("$lambda");
-        if hir_fun.is_none() && !is_materialized_closure {
-            return Err(frontend_error(format!(
-                "plain body lowering callable `{}` 缺少 HIR signature",
-                callable.root_fqn()
-            )));
-        }
-        let body = mir_fun.body.as_ref().ok_or_else(|| {
-            frontend_error(format!(
-                "plain body lowering callable `{}` 缺少 canonical MIR body",
-                callable.root_fqn()
-            ))
-        })?;
-        let mir_types = &pass_view.materialized().types;
+        let (mir_fun, body) = callable_source_body(callable, "plain body lowering")?;
+        let is_materialized_closure = mir_fun.name.starts_with("$lambda");
+        let mir_types = source_types;
         body.validate_cfg().unwrap_or_else(|err| {
             panic!(
                 "codegen_plain_callable_entry: plain callable verifier accepted invalid CFG for `{}` at {:?}: {err}",
@@ -471,11 +447,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         )?;
         let body_slices = validate_plain_body_slices(callable.root_fqn(), plain, body)?;
 
-        self.current_source_id = if let Some(hir_fun) = hir_fun {
-            self.source_id_for_path(hir_fun.source_path.as_path(), hir_fun.span)?
-        } else {
-            self.materialized_mir_callable_source_id(callable.root_fqn(), mir_fun.span)?
-        };
+        self.current_source_id = self.source_id_for_path(
+            callable
+                .body_version_key()
+                .surface_instance()
+                .template
+                .source_path
+                .as_path(),
+            mir_fun.span,
+        )?;
         self.function_cx.current_callable_fqn = Some(callable.root_fqn().to_string());
         let entry = self.context.append_basic_block(function, "entry");
         self.builder.position_at_end(entry);
@@ -516,7 +496,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 self,
                 program,
                 source_types,
-                pass_view,
                 abi,
                 callable,
                 mir_fun,
@@ -527,23 +506,17 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 None,
                 HandleCompletionMode::ContinueToExit,
             )?;
-            if let Some(hir_fun) = hir_fun {
-                emitter.emit_plain_direct(
-                    hir_fun,
-                    mir_types,
-                    u32::from(uses_hidden_sret),
-                    declared_return_cg,
-                )?;
-            } else if is_materialized_closure {
+            if is_materialized_closure {
                 emitter.emit_plain_direct_mir_params(
                     u32::from(uses_hidden_sret),
                     declared_return_cg,
                 )?;
             } else {
-                return Err(frontend_error(format!(
-                    "plain callable `{}` 的 local effect/control path 缺少 HIR function shell",
-                    callable.root_fqn(),
-                )));
+                emitter.emit_plain_direct(
+                    mir_types,
+                    u32::from(uses_hidden_sret),
+                    declared_return_cg,
+                )?;
             }
             self.emit_function_return_block(
                 mir_fun.span,
@@ -556,14 +529,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             return Ok(());
         }
         let mut slots = self.create_mir_local_slots(body, mir_types)?;
-        if let Ok(source_id) =
-            self.materialized_mir_callable_source_id(callable.root_fqn(), mir_fun.span)
-        {
-            self.current_source_id = source_id;
-        }
-        if let Some(hir_fun) = hir_fun {
-            self.bind_mir_params(
-                hir_fun,
+        if is_materialized_closure {
+            self.bind_mir_closure_params(
                 mir_fun,
                 mir_types,
                 function,
@@ -571,7 +538,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 &mut slots,
             )?;
         } else {
-            self.bind_mir_closure_params(
+            self.bind_lir_source_params(
                 mir_fun,
                 mir_types,
                 function,
@@ -613,7 +580,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 ))
             })?;
             {
-                let mut values = ValuePrimitives::new(self, mir_types, body, &slots, abi);
+                let mut values = ValuePrimitives::new(
+                    self,
+                    program,
+                    Some(plain.call_sites()),
+                    mir_types,
+                    body,
+                    &slots,
+                    abi,
+                );
                 for stmt in &block.stmts
                     [slice.start_statement_index() as usize..slice.end_statement_index() as usize]
                 {

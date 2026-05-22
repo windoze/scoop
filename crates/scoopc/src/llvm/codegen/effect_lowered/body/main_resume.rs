@@ -8,7 +8,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &mut self,
         program: &'a LateLoweredProgram,
         source_types: &'a TypeStore,
-        pass_view: &'a mir::MaterializedMirPassView<'a>,
         abi: &ProgramAbiQuery<'ctx>,
         callable: &'a LateLoweredCallable,
         symbol_name: &str,
@@ -21,13 +20,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         if function.count_basic_blocks() > 0 {
             return Ok(());
         }
-        let mir_fun = mir_callable(pass_view, callable.root_fqn())?;
-        let body = mir_fun.body.as_ref().ok_or_else(|| {
-            frontend_error(format!(
-                "resume method `{symbol_name}` owner `{}` 缺少 canonical MIR body",
-                callable.root_fqn()
-            ))
-        })?;
+        let (mir_fun, body) = callable_source_body(callable, "resume method")?;
         let entry = self.context.append_basic_block(function, "entry");
         self.builder.position_at_end(entry);
         self.begin_function_explicit_frame_layout(function)?;
@@ -35,7 +28,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             self,
             program,
             source_types,
-            pass_view,
             abi,
             callable,
             mir_fun,
@@ -675,7 +667,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &mut self,
         program: &'a LateLoweredProgram,
         source_types: &'a TypeStore,
-        pass_view: &'a mir::MaterializedMirPassView<'a>,
         abi: &ProgramAbiQuery<'ctx>,
         surface: &ContinuationSurfaceResumeLayout<'ctx>,
         target: &super::super::types::ContinuationSurfaceResumeOwnerTrampolineLayout<'ctx>,
@@ -705,14 +696,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     target.owner_version_key()
                 ))
             })?;
-        let mir_fun = mir_callable(pass_view, callable.root_fqn())?;
-        let body = mir_fun.body.as_ref().ok_or_else(|| {
-            frontend_error(format!(
-                "outcome owner core `{}` owner `{}` 缺少 canonical MIR body",
-                core_fun.get_name().to_str().unwrap_or("<invalid>"),
-                callable.root_fqn()
-            ))
-        })?;
+        let (mir_fun, body) = callable_source_body(callable, "outcome owner core")?;
         let entry = self.context.append_basic_block(core_fun, "entry");
         self.builder.position_at_end(entry);
         self.begin_function_explicit_frame_layout(core_fun)?;
@@ -720,7 +704,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             self,
             program,
             source_types,
-            pass_view,
             abi,
             callable,
             mir_fun,
@@ -740,7 +723,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &mut self,
         program: &'a LateLoweredProgram,
         source_types: &'a TypeStore,
-        pass_view: &'a mir::MaterializedMirPassView<'a>,
         abi: &ProgramAbiQuery<'ctx>,
         surface: &ContinuationSurfaceResumeLayout<'ctx>,
         target: &super::super::types::ContinuationSurfaceResumeOwnerTrampolineLayout<'ctx>,
@@ -752,14 +734,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let core_fun = self.surface_resume_owner_core_function(surface, target);
         {
             let mut child = self.fresh_child_codegen();
-            child.codegen_surface_resume_owner_core(
-                program,
-                source_types,
-                pass_view,
-                abi,
-                surface,
-                target,
-            )?;
+            child.codegen_surface_resume_owner_core(program, source_types, abi, surface, target)?;
         }
         let callable = program
             .callable_by_version_key(target.owner_version_key())
@@ -782,14 +757,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     target.owner_version_key()
                 ))
             })?;
-        let mir_fun = mir_callable(pass_view, callable.root_fqn())?;
-        let body = mir_fun.body.as_ref().ok_or_else(|| {
-            frontend_error(format!(
-                "outcome owner wrapper `{}` owner `{}` 缺少 canonical MIR body",
-                outcome_fun.get_name().to_str().unwrap_or("<invalid>"),
-                callable.root_fqn()
-            ))
-        })?;
+        let (mir_fun, body) = callable_source_body(callable, "outcome owner wrapper")?;
         let entry = self.context.append_basic_block(outcome_fun, "entry");
         self.builder.position_at_end(entry);
         self.begin_function_explicit_frame_layout(outcome_fun)?;
@@ -797,7 +765,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             self,
             program,
             source_types,
-            pass_view,
             abi,
             callable,
             mir_fun,
@@ -817,7 +784,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &mut self,
         program: &'a LateLoweredProgram,
         source_types: &'a TypeStore,
-        pass_view: &'a mir::MaterializedMirPassView<'a>,
         abi: &ProgramAbiQuery<'ctx>,
         surface: &ContinuationSurfaceResumeLayout<'ctx>,
         target: &super::super::types::ContinuationSurfaceResumeOwnerTrampolineLayout<'ctx>,
@@ -847,14 +813,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     target.owner_version_key()
                 ))
             })?;
-        let mir_fun = mir_callable(pass_view, callable.root_fqn())?;
-        let body = mir_fun.body.as_ref().ok_or_else(|| {
-            frontend_error(format!(
-                "continuation step `{}` owner `{}` 缺少 canonical MIR body",
-                function.get_name().to_str().unwrap_or("<invalid>"),
-                callable.root_fqn()
-            ))
-        })?;
+        let (mir_fun, body) = callable_source_body(callable, "continuation step")?;
         let entry = self.context.append_basic_block(function, "entry");
         self.builder.position_at_end(entry);
         self.begin_function_explicit_frame_layout(function)?;
@@ -862,7 +821,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             self,
             program,
             source_types,
-            pass_view,
             abi,
             callable,
             mir_fun,
@@ -882,7 +840,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &mut self,
         program: &'a LateLoweredProgram,
         source_types: &'a TypeStore,
-        pass_view: &'a mir::MaterializedMirPassView<'a>,
         abi: &ProgramAbiQuery<'ctx>,
         surface: &ContinuationSurfaceResumeLayout<'ctx>,
         target: &super::super::types::ContinuationSurfaceResumeOwnerTrampolineLayout<'ctx>,
@@ -893,14 +850,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
         {
             let mut child = self.fresh_child_codegen();
-            child.codegen_continuation_step(
-                program,
-                source_types,
-                pass_view,
-                abi,
-                surface,
-                target,
-            )?;
+            child.codegen_continuation_step(program, source_types, abi, surface, target)?;
         }
         let callable = program
             .callable_by_version_key(target.owner_version_key())
@@ -923,14 +873,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     target.owner_version_key()
                 ))
             })?;
-        let mir_fun = mir_callable(pass_view, callable.root_fqn())?;
-        let body = mir_fun.body.as_ref().ok_or_else(|| {
-            frontend_error(format!(
-                "continuation drive owner outcome `{}` owner `{}` 缺少 canonical MIR body",
-                outcome_fun.get_name().to_str().unwrap_or("<invalid>"),
-                callable.root_fqn()
-            ))
-        })?;
+        let (mir_fun, body) = callable_source_body(callable, "continuation drive owner outcome")?;
         let entry = self.context.append_basic_block(outcome_fun, "entry");
         self.builder.position_at_end(entry);
         self.begin_function_explicit_frame_layout(outcome_fun)?;
@@ -938,7 +881,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             self,
             program,
             source_types,
-            pass_view,
             abi,
             callable,
             mir_fun,
@@ -977,7 +919,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &mut self,
         program: &'a LateLoweredProgram,
         source_types: &'a TypeStore,
-        pass_view: &'a mir::MaterializedMirPassView<'a>,
         abi: &ProgramAbiQuery<'ctx>,
         surface: &ContinuationSurfaceResumeLayout<'ctx>,
         target: &super::super::types::ContinuationSurfaceResumeOwnerTrampolineLayout<'ctx>,
@@ -1027,14 +968,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 target.owner_step_schema().as_u32()
             )));
         }
-        let mir_fun = mir_callable(pass_view, callable.root_fqn())?;
-        let body = mir_fun.body.as_ref().ok_or_else(|| {
-            frontend_error(format!(
-                "surface resume owner dispatch `{}` owner `{}` 缺少 canonical MIR body",
-                target.symbol_name(),
-                callable.root_fqn()
-            ))
-        })?;
+        let (mir_fun, body) = callable_source_body(callable, "surface resume owner dispatch")?;
         let entry = self.context.append_basic_block(function, "entry");
         self.builder.position_at_end(entry);
         self.begin_function_explicit_frame_layout(function)?;
@@ -1068,7 +1002,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             self,
             program,
             source_types,
-            pass_view,
             abi,
             callable,
             mir_fun,

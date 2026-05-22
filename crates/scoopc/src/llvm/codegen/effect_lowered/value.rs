@@ -18,7 +18,10 @@ use inkwell::values::{
 use inkwell::{AddressSpace, AtomicOrdering, IntPredicate};
 use scoopc_lir_facts::LirGlobalRootKind;
 
-use crate::effect_lowered::ir::{LateLoweredOperandSource, LateLoweredOperandValueSource};
+use crate::effect_lowered::ir::{
+    LateLoweredOperandSource, LateLoweredOperandValueSource, LateLoweredPlainCallSite,
+    LateLoweredProgram, LateLoweredSourceBody,
+};
 use crate::llvm::LlvmEmitError;
 use crate::mir::{self, LocalId};
 use crate::span::Span;
@@ -36,8 +39,10 @@ use super::types::{
 /// A borrow-scoped facade over effect-neutral LLVM value primitives.
 pub(super) struct ValuePrimitives<'p, 'a, 'ctx> {
     codegen: &'p mut MainCodegen<'a, 'ctx>,
+    program: &'a LateLoweredProgram,
+    plain_call_sites: Option<&'a [LateLoweredPlainCallSite]>,
     source_types: &'a TypeStore,
-    body: &'a mir::Body,
+    body: &'a LateLoweredSourceBody,
     slots: &'p [MirLocalSlot<'ctx>],
     abi: &'p ProgramAbiQuery<'ctx>,
 }
@@ -144,18 +149,178 @@ fn rvalue_mentions_local(value: &mir::Rvalue, local: LocalId) -> bool {
 impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
     pub(super) fn new(
         codegen: &'p mut MainCodegen<'a, 'ctx>,
+        program: &'a LateLoweredProgram,
+        plain_call_sites: Option<&'a [LateLoweredPlainCallSite]>,
         source_types: &'a TypeStore,
-        body: &'a mir::Body,
+        body: &'a LateLoweredSourceBody,
         slots: &'p [MirLocalSlot<'ctx>],
         abi: &'p ProgramAbiQuery<'ctx>,
     ) -> Self {
         Self {
             codegen,
+            program,
+            plain_call_sites,
             source_types,
             body,
             slots,
             abi,
         }
+    }
+
+    fn known_plain_call_target_fqn(&self, site_id: mir::SiteId) -> Option<&'a str> {
+        let facts = self
+            .plain_call_sites?
+            .iter()
+            .find(|site| site.site_id() == site_id)?
+            .facts();
+        let crate::effect_facts::CallSiteTarget::KnownInstance(instance) = facts.target() else {
+            return None;
+        };
+        self.program
+            .callables()
+            .iter()
+            .find(|callable| callable.instance_key() == instance)
+            .map(|callable| callable.root_fqn())
+    }
+
+    fn plain_call_param_names(&self, callee_fqn: &str, param_count: usize) -> Vec<String> {
+        self.program
+            .callable(callee_fqn)
+            .and_then(|callable| callable.source_callable())
+            .map(|source| {
+                source
+                    .params
+                    .iter()
+                    .map(|param| param.name.clone())
+                    .collect::<Vec<_>>()
+            })
+            .filter(|names| names.len() == param_count)
+            .unwrap_or_else(|| (0..param_count).map(|idx| format!("arg{idx}")).collect())
+    }
+
+    fn lower_published_plain_direct_call(
+        &mut self,
+        span: Span,
+        callee_fqn: &str,
+        args: &[mir::CallArg],
+        target_cg: super::super::types::CgTy,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let layout = self.abi.plain_callable_layout_by_root_fqn(callee_fqn)?;
+        let entry = layout.direct_entry();
+        let param_tys = entry.param_tys();
+        if args.iter().any(|arg| arg.name.is_some())
+            && self
+                .program
+                .callable(callee_fqn)
+                .and_then(|callable| callable.source_callable())
+                .is_none()
+        {
+            return Err(frontend_error(format!(
+                "plain direct call `{callee_fqn}` 使用 named args，但缺少 LIR-owned source callable 参数名 contract"
+            )));
+        }
+        let param_names = self.plain_call_param_names(callee_fqn, param_tys.len());
+        let ret_cg = self
+            .codegen
+            .cg_ty_of_mir_type(self.source_types, entry.return_ty())
+            .or_else(|| {
+                self.codegen
+                    .equivalent_codegen_type_id(self.source_types, entry.return_ty())
+                    .and_then(|ty| self.codegen.cg_ty_of(ty))
+            })
+            .unwrap_or_else(|| {
+                panic!(
+                    "lower_published_plain_direct_call: LIR plain callable verifier accepted unsupported return type"
+                )
+            });
+        let hidden_sret_result_ty = self.codegen.hidden_sret_result_ty(span, ret_cg)?;
+        let evaluated_args = self.codegen.codegen_bound_mir_call_args_from_signature(
+            span,
+            &param_names,
+            param_tys,
+            args,
+            self.slots,
+            false,
+            self.source_types,
+        )?;
+        let mut llvm_args = Vec::<BasicMetadataValueEnum<'ctx>>::with_capacity(
+            evaluated_args.len() + usize::from(hidden_sret_result_ty.is_some()),
+        );
+        let sret_result_slot = if hidden_sret_result_ty.is_some() {
+            let slot =
+                self.codegen
+                    .create_entry_alloca(span, "lir_plain_direct_call_sret", ret_cg)?;
+            llvm_args.push(slot.into());
+            Some(slot)
+        } else {
+            None
+        };
+        llvm_args.extend(evaluated_args.iter().map(|arg| arg.value));
+
+        let llvm_fun = self
+            .codegen
+            .module
+            .get_function(entry.symbol_name())
+            .ok_or_else(|| {
+                frontend_error(format!(
+                    "plain direct call `{callee_fqn}` 缺少 published plain entry `{}`",
+                    entry.symbol_name()
+                ))
+            })?;
+        let call_site_result = self
+            .codegen
+            .with_conservative_gc_local_root_spills(span, |cg| {
+                let call_site =
+                    cg.builder
+                        .build_call(llvm_fun, &llvm_args, "lir_plain_direct_call")?;
+                if let Some(result_ty) = hidden_sret_result_ty {
+                    cg.add_sret_attribute_to_call(call_site, 0, result_ty);
+                }
+                call_site.set_call_convention(cg.llvm_call_convention_for_fqn(callee_fqn));
+                Ok(call_site)
+            });
+        self.codegen
+            .release_evaluated_call_arg_roots(&evaluated_args);
+        let call_site = call_site_result?;
+        if let Some(result_ptr) = sret_result_slot {
+            self.codegen.sync_hidden_sret_result_roots(
+                span,
+                ret_cg,
+                result_ptr,
+                "lir_plain_direct_call_sret",
+            )?;
+        }
+        let value = match ret_cg {
+            super::super::types::CgTy::Unit => CgValue::unit(),
+            super::super::types::CgTy::Never => CgValue::never(),
+            _ => {
+                if let Some(result_ptr) = sret_result_slot {
+                    self.codegen.load_hidden_sret_result_from_ptr(
+                        span,
+                        ret_cg,
+                        result_ptr,
+                        "lir_plain_direct_call_sret",
+                    )?
+                } else {
+                    let deferred = self.codegen.defer_direct_call_result(
+                        span,
+                        ret_cg,
+                        call_site,
+                        "lir_plain_direct_call_result",
+                    )?;
+                    self.codegen.materialize_deferred_cg_value(
+                        span,
+                        "lir_plain_direct_call_result_reload",
+                        deferred.unwrap_or_else(|| {
+                            panic!(
+                                "lower_published_plain_direct_call: LIR plain ABI verifier accepted missing deferred return value"
+                            )
+                        }),
+                    )?
+                }
+            }
+        };
+        self.codegen.coerce_value(span, value, target_cg)
     }
 
     pub(super) fn lower_effect_neutral_statement(
@@ -414,11 +579,20 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
 
         match value {
             mir::Rvalue::Call {
+                site_id,
                 kind,
                 args,
                 transport,
                 ..
-            } => self.lower_pure_direct_call(span, kind, args, transport, target_cg, target_local),
+            } => self.lower_pure_direct_call(
+                span,
+                *site_id,
+                kind,
+                args,
+                transport,
+                target_cg,
+                target_local,
+            ),
             mir::Rvalue::MakeClosure {
                 env,
                 fn_ptr,
@@ -1450,9 +1624,11 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn lower_pure_direct_call(
         &mut self,
         span: Span,
+        site_id: mir::SiteId,
         kind: &mir::CallKind,
         args: &[mir::CallArg],
         transport: &mir::CallTransportMetadata,
@@ -1500,6 +1676,26 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
             | mir::CallKind::FunPtr { .. }
             | mir::CallKind::Virtual { .. }
             | mir::CallKind::Interface { .. } => {
+                if let Some(receiver) = match kind {
+                    mir::CallKind::Virtual { receiver, .. }
+                    | mir::CallKind::Interface { receiver, .. } => Some(receiver),
+                    _ => None,
+                } && let Some(callee_fqn) = self.known_plain_call_target_fqn(site_id)
+                {
+                    let mut direct_args = Vec::with_capacity(args.len() + 1);
+                    direct_args.push(mir::CallArg {
+                        span,
+                        name: None,
+                        value: receiver.clone(),
+                    });
+                    direct_args.extend(args.iter().cloned());
+                    return self.lower_published_plain_direct_call(
+                        span,
+                        callee_fqn,
+                        &direct_args,
+                        target_cg,
+                    );
+                }
                 return self.codegen.codegen_mir_plain_dynamic_call(
                     span,
                     kind,
@@ -1628,21 +1824,6 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
             )?;
             return self.codegen.coerce_value(span, value, target_cg);
         }
-        if self
-            .codegen
-            .has_materialized_instances_for_template(callee_fqn)
-        {
-            let value = self.codegen.codegen_mir_plain_direct_call(
-                span,
-                callee_fqn,
-                args,
-                self.body,
-                self.source_types,
-                transport,
-                self.slots,
-            )?;
-            return self.codegen.coerce_value(span, value, target_cg);
-        }
         let binding_entry_name = self
             .codegen
             .current_top_level_fun_call_binding(span)?
@@ -1662,65 +1843,37 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
         {
             return Ok(value);
         }
-        let sig_fun = match self.codegen.hir_fun_for_callable_fqn(callee_fqn) {
-            Some(sig_fun) => sig_fun,
-            None => {
-                if let Some(value) =
-                    self.lower_top_level_funptr_direct_call(callee_fqn, span, args)?
-                {
-                    return Ok(value);
-                }
-                if let Some(fun_ty) = self.top_level_function_value_type(callee_fqn) {
-                    return self.lower_top_level_function_value_direct_call(
-                        callee_fqn, span, args, &fun_ty,
-                    );
-                }
-                if let Some(callee_local) = self.top_level_callable_value_local(callee_fqn) {
-                    return self.codegen.codegen_mir_plain_dynamic_call(
-                        span,
-                        &mir::CallKind::FunValue {
-                            callee: mir::Operand::Local(callee_local),
-                        },
-                        args,
-                        self.body,
-                        self.source_types,
-                        self.slots,
-                    );
-                }
-                return Err(frontend_error(format!(
-                    "pure statement call 缺少 callee `{callee_fqn}` 的 callable signature"
-                )));
-            }
-        };
-        if sig_fun.body.is_none() {
-            panic!(
-                "lower_pure_direct_call: declaration-only callable `{callee_fqn}` reached effect-lowered direct call at {span:?}"
-            );
-        }
         if self
             .abi
             .maybe_plain_callable_layout_by_root_fqn(callee_fqn)?
             .is_some()
         {
-            return self.codegen.codegen_mir_plain_direct_call(
+            return self.lower_published_plain_direct_call(span, callee_fqn, args, target_cg);
+        }
+        if let Some(value) = self.lower_top_level_funptr_direct_call(callee_fqn, span, args)? {
+            return Ok(value);
+        }
+        if let Some(fun_ty) = self.top_level_function_value_type(callee_fqn) {
+            return self
+                .lower_top_level_function_value_direct_call(callee_fqn, span, args, &fun_ty);
+        }
+        if let Some(callee_local) = self.top_level_callable_value_local(callee_fqn) {
+            return self.codegen.codegen_mir_plain_dynamic_call(
                 span,
-                callee_fqn,
+                &mir::CallKind::FunValue {
+                    callee: mir::Operand::Local(callee_local),
+                },
                 args,
                 self.body,
                 self.source_types,
-                transport,
                 self.slots,
             );
         }
-        if self
-            .codegen
-            .known_fun_body_may_outward_effect(callee_fqn, sig_fun.ty)
-        {
-            panic!(
-                "lower_pure_direct_call: outward-effect callable `{callee_fqn}` reached effect-neutral direct call at {span:?}; boundary lowering must route it"
-            );
-        }
-        let layout = self.abi.callable_layout_by_root_fqn(callee_fqn)?;
+        let layout = self.abi.callable_layout_by_root_fqn(callee_fqn).map_err(|err| {
+            frontend_error(format!(
+                "pure statement call 缺少 callee `{callee_fqn}` 的 published LIR callable contract: {err:?}"
+            ))
+        })?;
         let entry = layout.direct_entry();
         if entry.return_step_schema() != layout.step_schema() {
             return Err(frontend_error(format!(

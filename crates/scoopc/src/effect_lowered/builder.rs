@@ -103,7 +103,16 @@ impl<'a> LateLoweredProgramBuilder<'a> {
                 callable_facts.impl_plan(),
                 callable_facts.needs_reentry(),
             );
-            if let Some(body) = family.root_body().and_then(|fun| fun.body.as_ref()) {
+            let pass_source_body = family
+                .summary()
+                .body_known
+                .then(|| family.root_body())
+                .flatten();
+            let materialized_source_body =
+                find_materialized_fun(pass_view.materialized(), &root_fqn)
+                    .filter(|fun| fun.body.is_some());
+            let root_source_body = materialized_source_body.or(pass_source_body);
+            if let Some(body) = root_source_body.and_then(|fun| fun.body.as_ref()) {
                 dump_body_labels.insert(
                     body_version_key.clone(),
                     build_body_labels_for_dump(&root_fqn, body, types),
@@ -111,16 +120,25 @@ impl<'a> LateLoweredProgramBuilder<'a> {
             }
 
             if matches!(callable_facts.call_abi_kind(), CallableAbiKind::Plain) {
-                let fun = family
-                    .root_body()
+                let source_fun = root_source_body;
+                let fun = source_fun
                     .or_else(|| find_materialized_fun(pass_view.materialized(), family.root_fqn()))
                     .ok_or_else(|| EffectLoweringError::MissingPlainCallableSignature {
                         root_fqn: root_fqn.clone(),
                     })?;
+                let declaration_only_signature;
+                let plain_fun = if source_fun.is_some() {
+                    fun
+                } else {
+                    let mut signature = fun.clone();
+                    signature.body = None;
+                    declaration_only_signature = signature;
+                    &declaration_only_signature
+                };
                 let plain = build_plain_callable_abi(PlainCallableBuildInputs {
                     root_fqn: &root_fqn,
                     body_version_key: &body_version_key,
-                    fun,
+                    fun: plain_fun,
                     body_facts: effect_facts.body(family.key()),
                     effect_facts,
                     step_types: &step_types,
@@ -138,13 +156,17 @@ impl<'a> LateLoweredProgramBuilder<'a> {
                 if let Some(object) = plain.continuation_object {
                     continuation_objects.push(object);
                 }
-                callables.push(LateLoweredCallable::new_plain(
+                let mut callable = LateLoweredCallable::new_plain(
                     root_fqn,
                     stable_instance_key,
                     body_version_key,
                     callable_facts.resolved_outward_cases().tags().to_vec(),
                     plain.callable,
-                ));
+                );
+                if let Some(fun) = source_fun {
+                    callable = callable.with_source_callable(fun);
+                }
+                callables.push(callable);
                 continue;
             }
 
@@ -176,7 +198,7 @@ impl<'a> LateLoweredProgramBuilder<'a> {
             let continuation_object_id =
                 ContinuationObjectId::new(continuation_objects.len() as u32);
             let (state_graph, frame_schema, _continuation_captures, boundary_map, resume_state_map) =
-                match family.root_body().and_then(|fun| fun.body.as_ref()) {
+                match root_source_body.and_then(|fun| fun.body.as_ref()) {
                     Some(body) => {
                         let body_facts = effect_facts.body(family.key()).ok_or_else(|| {
                             EffectLoweringError::MissingBodyFacts {
@@ -219,7 +241,7 @@ impl<'a> LateLoweredProgramBuilder<'a> {
                         LateLoweredResumeStateMap::empty(),
                     ),
                 };
-            let boundary_map = match family.root_body().and_then(|fun| fun.body.as_ref()) {
+            let boundary_map = match root_source_body.and_then(|fun| fun.body.as_ref()) {
                 Some(body) => {
                     let body_facts = effect_facts.body(family.key()).ok_or_else(|| {
                         EffectLoweringError::MissingBodyFacts {
@@ -278,7 +300,7 @@ impl<'a> LateLoweredProgramBuilder<'a> {
                 .with_resume_payload_bindings(resume_payload_bindings)
                 .with_completion_payload_bindings(completion_payload_bindings);
             let source_statement_classifications =
-                match family.root_body().and_then(|fun| fun.body.as_ref()) {
+                match root_source_body.and_then(|fun| fun.body.as_ref()) {
                     Some(body) => materialize_source_statement_classifications(
                         &root_fqn,
                         body,
@@ -300,28 +322,30 @@ impl<'a> LateLoweredProgramBuilder<'a> {
                     effect_facts,
                 },
             )?);
-            callables.push(
-                LateLoweredCallable::new(
-                    family.root_fqn().to_string(),
-                    stable_instance_key,
-                    body_version_key,
+            let mut callable = LateLoweredCallable::new(
+                family.root_fqn().to_string(),
+                stable_instance_key,
+                body_version_key,
+                step_schema_id,
+                callable_facts.resolved_outward_cases().tags().to_vec(),
+                materialize_dynamic_invoke_entry(
                     step_schema_id,
-                    callable_facts.resolved_outward_cases().tags().to_vec(),
-                    materialize_dynamic_invoke_entry(
-                        step_schema_id,
-                        step_type,
-                        state_graph.entry_state(),
-                        state_graph.complete_state(),
-                    ),
-                    state_graph,
-                    frame_schema,
-                    boundary_map,
-                    resume_state_map,
-                    continuation_object_id,
-                    resume_packing_ids,
-                )
-                .with_source_statement_classifications(source_statement_classifications),
-            );
+                    step_type,
+                    state_graph.entry_state(),
+                    state_graph.complete_state(),
+                ),
+                state_graph,
+                frame_schema,
+                boundary_map,
+                resume_state_map,
+                continuation_object_id,
+                resume_packing_ids,
+            )
+            .with_source_statement_classifications(source_statement_classifications);
+            if let Some(fun) = root_source_body {
+                callable = callable.with_source_callable(fun);
+            }
+            callables.push(callable);
         }
 
         let program =

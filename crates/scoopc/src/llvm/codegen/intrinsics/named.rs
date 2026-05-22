@@ -1116,7 +1116,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             });
         let value =
             self.codegen_mir_operand_expected(arg.span, &arg.value, slots, Some(operand_cg))?;
-        let value = self.coerce_value(arg.span, value, operand_cg)?;
+        let value = if value.ty == operand_cg {
+            value
+        } else {
+            self.coerce_value(arg.span, value, operand_cg)?
+        };
         Ok(LoweredNamedIntrinsicOperand {
             span: arg.span,
             source_ty: self.equivalent_codegen_type_id(mir_types, source_ty),
