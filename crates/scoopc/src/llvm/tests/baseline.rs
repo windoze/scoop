@@ -730,6 +730,71 @@ fun main(): Int {
 }
 
 #[test]
+pub(super) fn llvm_top_level_eager_init_does_not_call_object_once_runtime() {
+    let session = Session::new().unwrap();
+    let source = SourceFile::new_virtual(
+        "<mem>/cg_p6_top_level_eager_init_no_once.scoop",
+        r#"
+package fixtures.p6_no_once
+
+import scoop.core.*
+
+fun seed(): Int {
+    return 7
+}
+
+val Value: Int = seed()
+
+@Global
+var Mutable: Int = Value + 1
+
+fun main(): Int {
+    return Value + Mutable
+}
+"#,
+    );
+
+    let context = Context::create();
+    let ir = build_minimal_main_module(&session, &source, &context)
+        .unwrap()
+        .print_to_string()
+        .to_string();
+    assert!(
+        !ir.contains("scoop_once_begin") && !ir.contains("scoop_once_end"),
+        "top-level eager init must not reuse the object once runtime path:\n{ir}"
+    );
+}
+
+#[test]
+pub(super) fn llvm_object_singleton_init_keeps_object_once_runtime() {
+    let session = Session::new().unwrap();
+    let source = SourceFile::new_virtual(
+        "<mem>/cg_p6_object_once_stays_object_only.scoop",
+        r#"
+package fixtures.p6_object_once
+
+object Holder {
+    val value: Int = 41
+}
+
+fun main(): Int {
+    return Holder.value + Holder.value
+}
+"#,
+    );
+
+    let context = Context::create();
+    let ir = build_minimal_main_module(&session, &source, &context)
+        .unwrap()
+        .print_to_string()
+        .to_string();
+    assert!(
+        ir.contains("scoop_once_begin") && ir.contains("scoop_once_end"),
+        "object singleton init should remain on the object once runtime path:\n{ir}"
+    );
+}
+
+#[test]
 pub(super) fn float_builtin_types_lower_to_llvm_scalars() {
     let source = SourceFile::new_virtual(
         "<mem>",

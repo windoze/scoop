@@ -604,7 +604,7 @@ struct HirLowering<'a> {
     top_level_vars: super::TopLevelVarIndex,
     /// `@Extern` 顶层变量索引。
     extern_globals: super::ExternGlobalIndex,
-    /// 普通顶层 immutable value 索引：供后端生成 once-init + 稳定读取主线。
+    /// 普通顶层 immutable value 索引：供后端生成 eager init + 稳定读取主线。
     top_level_immutable_values: super::TopLevelImmutableValueIndex,
     /// `when` pattern binder 的精确类型索引：供后端恢复 binder 的原始 `TypeId`。
     when_pat_binding_tys: super::WhenPatBindingTypeIndex,

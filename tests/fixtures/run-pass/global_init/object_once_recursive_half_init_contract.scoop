@@ -1,0 +1,23 @@
+// EXPECT: pass
+// RUN-STDOUT: object_once_recursive_half_init_contract.stdout
+// EXPECT-EXIT: 0
+//
+// P6-T03: same-thread recursive object access is owned by the object once path,
+// not by top-level eager init. The current contract avoids deadlock and observes
+// the half-initialized backing slot during reentry.
+
+import scoop.core.*
+
+fun readDuringInit(): Int {
+    return Recursive.value
+}
+
+object Recursive {
+    val value: Int = readDuringInit() + 1
+}
+
+fun main(): Int {
+    println(Recursive.value)
+    println(Recursive.value)
+    return 0
+}

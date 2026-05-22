@@ -1,6 +1,7 @@
-// Scoop C runtime: once / guard primitive (early stage).
+// Scoop C runtime: object singleton once / guard primitive (early stage).
 //
-// TODO T0918：为 `object` / `companion object` 的一次初始化提供 runtime 原语。
+// P6-T03：该 primitive 只服务 `object` / `companion object` 单例初始化；
+// top-level eager init 使用编译器私有 guard，不复用 runtime once 路径。
 //
 // 设计目标（early stage）：
 // - 单进程内 once：同一 guard 只允许一个线程执行初始化逻辑；

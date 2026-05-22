@@ -437,6 +437,14 @@ pub enum AnnotationError {
         span: miette::SourceSpan,
     },
 
+    #[error("顶层变量不能同时标注 `@ThreadLocal` 与 `@Global`：{var_name}")]
+    #[diagnostic(code(scoop::typecheck::top_level_var_storage_policy_conflict))]
+    TopLevelVarStoragePolicyConflict {
+        var_name: String,
+        #[label("这里的 storage policy 互斥")]
+        span: miette::SourceSpan,
+    },
+
     #[error("顶层 `var` 类型必须是 GC-free 值类型（不允许直接/间接包含 GC 引用）：{found}")]
     #[diagnostic(code(scoop::typecheck::top_level_var_type_must_be_gc_free))]
     TopLevelVarTypeMustBeGcFree {
@@ -801,7 +809,9 @@ pub fn check_file_annotations(
                     &v.annotations,
                     AnnotationSite::new(AnnotationTargetKind::Property),
                 )?;
-                check_builtin_annotations_on_top_level_val_decl(source, v, &mut lower)?;
+                check_builtin_annotations_on_top_level_val_decl(
+                    source, file, index, v, &mut lower,
+                )?;
                 check_top_level_var_storage_and_gc_free(source, file, index, v, &mut lower)?;
             }
             ast::Item::Type(ty) => {
@@ -2774,6 +2784,8 @@ fn check_builtin_annotations_on_type_alias_decl(
 
 fn check_builtin_annotations_on_top_level_val_decl(
     source: &SourceFile,
+    file: &ast::File,
+    index: &Index,
     v: &ast::ValDecl,
     lower: &mut TypeLowering<'_>,
 ) -> Result<(), AnnotationError> {
@@ -2809,6 +2821,8 @@ fn check_builtin_annotations_on_top_level_val_decl(
     if !flags.is_extern {
         return Ok(());
     }
+
+    reject_storage_policy_conflict(source, file, index, v)?;
 
     if let Some(init) = &v.init {
         let var_name = v
@@ -2959,6 +2973,8 @@ fn check_top_level_var_storage_and_gc_free(
         return Ok(());
     }
 
+    reject_storage_policy_conflict(source, file, index, v)?;
+
     // `@Extern var` 的语义由 T1020 处理：
     // - 不要求 `@ThreadLocal/@Global`（存储由外部系统提供）；
     // - GC-free 限制与 initializer 门禁由 `check_builtin_annotations_on_top_level_val_decl` 覆盖。
@@ -2967,17 +2983,7 @@ fn check_top_level_var_storage_and_gc_free(
         return Ok(());
     }
 
-    const THREAD_LOCAL_FQN: &str = "scoop.core.ThreadLocal";
-    const GLOBAL_FQN: &str = "scoop.core.Global";
-
-    let is_thread_local = v
-        .annotations
-        .iter()
-        .any(|ann| annotation_use_resolves_to_fqn(source, file, index, ann, THREAD_LOCAL_FQN));
-    let is_global = v
-        .annotations
-        .iter()
-        .any(|ann| annotation_use_resolves_to_fqn(source, file, index, ann, GLOBAL_FQN));
+    let (is_thread_local, is_global) = storage_policy_annotation_presence(source, file, index, v);
 
     if !is_thread_local && !is_global {
         let (var_name, span) = match &v.binding {
@@ -3014,6 +3020,46 @@ fn check_top_level_var_storage_and_gc_free(
     }
 
     Ok(())
+}
+
+fn reject_storage_policy_conflict(
+    source: &SourceFile,
+    file: &ast::File,
+    index: &Index,
+    v: &ast::ValDecl,
+) -> Result<(), AnnotationError> {
+    let (is_thread_local, is_global) = storage_policy_annotation_presence(source, file, index, v);
+    if !is_thread_local || !is_global {
+        return Ok(());
+    }
+    let (var_name, span) = match &v.binding {
+        ast::ValBinding::Name(name) => (name.text(source).to_string(), name.span),
+        ast::ValBinding::Pattern(_) => ("<pattern>".to_string(), v.span),
+    };
+    Err(AnnotationError::TopLevelVarStoragePolicyConflict {
+        var_name,
+        span: span.into(),
+    })
+}
+
+fn storage_policy_annotation_presence(
+    source: &SourceFile,
+    file: &ast::File,
+    index: &Index,
+    v: &ast::ValDecl,
+) -> (bool, bool) {
+    const THREAD_LOCAL_FQN: &str = "scoop.core.ThreadLocal";
+    const GLOBAL_FQN: &str = "scoop.core.Global";
+
+    let is_thread_local = v
+        .annotations
+        .iter()
+        .any(|ann| annotation_use_resolves_to_fqn(source, file, index, ann, THREAD_LOCAL_FQN));
+    let is_global = v
+        .annotations
+        .iter()
+        .any(|ann| annotation_use_resolves_to_fqn(source, file, index, ann, GLOBAL_FQN));
+    (is_thread_local, is_global)
 }
 
 /// 检查 `@CLayout(aligned, packed)` 在 struct 声明上的最小语义约束（spec §15.5.2）。

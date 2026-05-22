@@ -7311,7 +7311,7 @@ fun runtime(): String {
     }
 
     #[test]
-    fn hir_facts_publish_only_monomorphic_global_roots_with_resolved_storage() {
+    fn hir_facts_storage_policy_publish_only_monomorphic_global_roots_with_resolved_storage() {
         let session = session();
         let source = SourceFile::new_virtual(
             "<mem>/hir_global_root_legality.scoop",

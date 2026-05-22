@@ -350,7 +350,7 @@ pub struct LoweredHir {
     pub extern_libs: Vec<String>,
     /// 顶层可变全局变量信息（`@ThreadLocal/@Global`），供后端生成静态存储（TODO T1023）。
     pub top_level_vars: TopLevelVarIndex,
-    /// 普通顶层 immutable value 信息；供后端生成 once-init + 稳定读取主线。
+    /// 普通顶层 immutable value 信息；供后端生成 eager init + 稳定读取主线。
     pub top_level_immutable_values: TopLevelImmutableValueIndex,
     /// typecheck 已确认的 direct-call target 绑定（`source_path + expr span`）。
     ///

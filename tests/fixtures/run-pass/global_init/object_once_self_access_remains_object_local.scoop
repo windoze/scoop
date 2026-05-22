@@ -1,0 +1,26 @@
+// EXPECT: pass
+// RUN-STDOUT: object_once_self_access_remains_object_local.stdout
+// EXPECT-EXIT: 0
+//
+// P6-T03: object singleton once remains separate from top-level eager init;
+// ordinary object self access after initialization still uses the object path.
+
+import scoop.core.*
+
+object Holder {
+    init {
+        println("Holder.init")
+    }
+
+    val value: Int = 41
+
+    fun next(): Int {
+        return Holder.value + 1
+    }
+}
+
+fun main(): Int {
+    println(Holder.next())
+    println(Holder.value)
+    return 0
+}

@@ -4,7 +4,7 @@
 > 细化时间：2026-05-22
 > 计划基线：[`PLAN.md`](./PLAN.md) §4/P6-P8
 > 索引：[`TODO.md`](./TODO.md)
-> 当前状态：`P6-T02R` 已完成；下一步执行 `P6-T03`。
+> 当前状态：`P6-T03` 已完成；下一步执行 `P6-T03R`。
 
 ## 范围
 
@@ -203,7 +203,7 @@
   - 验证通过：`cargo fmt`；`cargo test -p scoopc_lir_facts`；`cargo test -p scoopc_mir_facts`；`cargo test -p scoopc --no-default-features global_init`；`cargo test -p scoopc --no-default-features hir_top_level_init_publishes_storage_and_extern_roots`；`cargo test -p scoopc --no-default-features lir_facts_builder`；`cargo test -p scoopc global_init`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/global_init`；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
   - 已重跑 `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`：新增/相关 global-init、top-level-val、top-level-var fixtures 均通过；全 run-pass 仍有 7 个既有非本任务失败（array literal inference、mutable array ref/composite、std process args、stdlib string、sysroot atomic 路径），未作为 P6-T02R 前置项。
 
-## [TODO] P6-T03：分离 object once 与 `@Global` / `@ThreadLocal` storage policy
+## [DONE] P6-T03：分离 object once 与 `@Global` / `@ThreadLocal` storage policy
 
 - 目标：
   - object singleton 保留独立 once 语义；
@@ -235,7 +235,13 @@
   - unsupported TLS 场景不再以后端 panic 或未定义行为暴露。
 - 依赖：P6-T02R
 - 完成记录：
-  - 待填写。
+  - top-level `val` eager init helper 不再调用 runtime `scoop_once_begin/end`，改用编译器私有 guard state machine；普通访问仍要求 guard 已 initialized，递归 eager init 继续稳定以退出码 1 失败。
+  - object singleton init 继续独占 runtime once 路径；更新 runtime/codegen 注释并新增 LLVM 单测确认 top-level eager init 不含 `scoop_once`，object singleton init 仍保留 `scoop_once`。
+  - `@Global var` 继续使用普通 LLVM global 并由 per-cone init routine 初始化；`@ThreadLocal var` 继续使用 LLVM TLS storage，entry thread 由 final entry cone init 初始化，worker thread 通过新生成的 `scoop_thread_init_current` hook 在 `scoop.thread` native trampoline 进入用户 closure 前初始化本线程 TLS roots。
+  - HIR/typecheck storage policy gate 新增 `@ThreadLocal` 与 `@Global` 互斥诊断，避免 frontend facts/codegen 对冲突策略静默择一；`@Extern` global/TLS 无 initializer 与 storage policy 合同保持不变。
+  - 新增 fixtures 覆盖 worker thread TLS 初始化、object once 普通访问、object recursive half-init contract，以及 storage policy 冲突诊断。
+  - 验证通过：`cargo fmt`；`cargo test -p scoopc --no-default-features storage_policy`；`cargo run -p scoop -- test --fixtures tests/fixtures/typecheck`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/global_init`；`cargo test -p scoop_runtime --all-targets`；`cargo test -p scoopc llvm_top_level_eager_init_does_not_call_object_once_runtime`；`cargo test -p scoopc llvm_object_singleton_init_keeps_object_once_runtime`；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
+  - 备注：首次 `cargo test -p scoop_runtime --all-targets` 使用 20 分钟工具 timeout 在 `stackmap_registry` 附近被中止；随后单独运行 `cargo test -p scoop_runtime --test stackmap_registry -- --nocapture` 和更长 timeout 的完整 runtime suite 均通过，未发现单个 runtime test 卡住。
 
 ## [TODO] P6-T03R：Review object once 与 storage policy 分离结果
 

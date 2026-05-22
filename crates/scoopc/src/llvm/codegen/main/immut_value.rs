@@ -1,4 +1,5 @@
-//! Top-level immutable values: guard global, init function, code-gen access; extern global access; initializer expr lowering.
+//! Top-level immutable values: eager-init guard, init function, code-gen access;
+//! extern global access; initializer expr lowering.
 
 #![allow(dead_code)]
 
@@ -97,9 +98,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .build_conditional_branch(is_initialized, ready_bb, recursive_bb)?;
 
         self.builder.position_at_end(recursive_bb);
-        // `scoop_once_begin` 在同线程重入时会直接返回 0 以避免死锁；若此时继续读取 backing global，
-        // 就会把“尚未完成初始化”的零值伪装成合法结果。这里要求 guard 已真正进入 initialized，
-        // 否则立即终止，阻止递归初始化落成静默错误值。
+        // Eager init 必须已把 guard 推进到 initialized；否则访问会把“尚未完成初始化”
+        // 的零值伪装成合法结果。这里直接终止，阻止递归初始化落成静默错误值。
         self.emit_exit_with_code(at, 1)?;
 
         self.builder.position_at_end(ready_bb);
@@ -248,6 +248,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         let entry = self.context.append_basic_block(llvm_fun, "entry");
         let init_bb = self.context.append_basic_block(llvm_fun, "init");
+        let recursive_bb = self.context.append_basic_block(llvm_fun, "recursive");
         let done_bb = self.context.append_basic_block(llvm_fun, "done");
 
         self.builder.position_at_end(entry);
@@ -255,25 +256,43 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.function_cx.current_fun_return_ty = Some(CgTy::Unit);
 
         let guard = self.declare_top_level_immutable_value_guard(&value.fqn);
-        let once_begin = self.declare_runtime_once_begin();
-        let call = self.builder.build_call(
-            once_begin,
-            &[guard.as_pointer_value().into()],
-            "once_begin",
+        let i64_ty = self.context.i64_type();
+        let guard_word = self
+            .builder
+            .build_load(i64_ty, guard.as_pointer_value(), "top_level_val_init_guard")?
+            .into_int_value();
+        let state_mask = i64_ty.const_int(0x3, false);
+        let guard_state =
+            self.builder
+                .build_and(guard_word, state_mask, "top_level_val_init_state")?;
+        let initialized_state = i64_ty.const_int(2, false);
+        let is_initialized = self.builder.build_int_compare(
+            IntPredicate::EQ,
+            guard_state,
+            initialized_state,
+            "top_level_val_already_initialized",
         )?;
-        let ret = self.expect_basic_value(call, "top-level immutable once begin");
-        let should_init = self.expect_int_value(ret, "top-level immutable once begin");
-        let i32_ty = self.context.i32_type();
-        let cond = self.builder.build_int_compare(
-            IntPredicate::NE,
-            should_init,
-            i32_ty.const_int(0, false),
-            "should_init",
+        let check_recursive_bb = self.context.append_basic_block(llvm_fun, "check_recursive");
+        self.builder
+            .build_conditional_branch(is_initialized, done_bb, check_recursive_bb)?;
+
+        self.builder.position_at_end(check_recursive_bb);
+        let initializing_state = i64_ty.const_int(1, false);
+        let is_initializing = self.builder.build_int_compare(
+            IntPredicate::EQ,
+            guard_state,
+            initializing_state,
+            "top_level_val_is_initializing",
         )?;
         self.builder
-            .build_conditional_branch(cond, init_bb, done_bb)?;
+            .build_conditional_branch(is_initializing, recursive_bb, init_bb)?;
+
+        self.builder.position_at_end(recursive_bb);
+        self.emit_exit_with_code(err_span, 1)?;
 
         self.builder.position_at_end(init_bb);
+        self.builder
+            .build_store(guard.as_pointer_value(), initializing_state)?;
 
         let init = value
             .init
@@ -296,10 +315,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             self.register_global_root_if_needed(init.span, global, &global_name, storage_ty)?;
         }
 
-        let once_end = self.declare_runtime_once_end();
-        let _ =
-            self.builder
-                .build_call(once_end, &[guard.as_pointer_value().into()], "once_end")?;
+        self.builder
+            .build_store(guard.as_pointer_value(), initialized_state)?;
         self.builder.build_unconditional_branch(done_bb)?;
 
         self.builder.position_at_end(done_bb);

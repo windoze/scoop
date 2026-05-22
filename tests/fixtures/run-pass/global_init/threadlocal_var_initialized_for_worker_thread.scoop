@@ -1,0 +1,35 @@
+// EXPECT: pass
+// RUN-STDOUT: threadlocal_var_initialized_for_worker_thread.stdout
+// EXPECT-EXIT: 0
+// SYSROOT-DEPS: scoop.thread
+//
+// P6-T03: worker threads run the explicit TLS init hook before user thread entry,
+// so @ThreadLocal top-level storage is initialized independently per OS thread.
+
+import scoop.core.*
+import scoop.thread.*
+
+fun seedTls(): Int {
+    println("init-tls")
+    return 1
+}
+
+@ThreadLocal
+var tlsCounter: Int = seedTls()
+
+fun worker(): Unit {
+    println("child")
+    println(tlsCounter)
+    tlsCounter = tlsCounter + 1
+    println(tlsCounter)
+}
+
+fun main(): Int {
+    println("main")
+    println(tlsCounter)
+    val t: Thread = threadSpawn { worker() }
+    t.join()
+    println("main-after")
+    println(tlsCounter)
+    return 0
+}

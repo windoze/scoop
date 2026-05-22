@@ -1234,7 +1234,7 @@ pub type TopLevelVarIndex = HashMap<String, TopLevelVar>;
 ///
 /// 说明：
 /// - 这类绑定需要运行期“一次初始化 + 后续稳定读取”语义；
-/// - 保持独立 side table，避免把 once-init / backing global 等后端细节塞回通用 `ValDecl`；
+/// - 保持独立 side table，避免把 eager-init / backing global 等后端细节塞回通用 `ValDecl`；
 /// - 后续顶层 pattern binding 可复用同一表示，为每个 binder 建立一条记录。
 #[derive(Debug, Clone)]
 pub struct TopLevelImmutableValue {

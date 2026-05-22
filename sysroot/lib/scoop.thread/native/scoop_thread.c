@@ -129,6 +129,27 @@ static const ScoopTypeDescriptor SCOOP_THREAD_TYPE_DESC = {
 
 extern void scoop_thread_entry_trampoline(uintptr_t entry_handle_raw);
 
+#if defined(_WIN32)
+static void scoop_thread_init_current_if_present(void) {}
+#elif defined(__APPLE__)
+extern void scoop_thread_init_current(void) __attribute__((weak_import));
+static void scoop_thread_init_current_if_present(void) {
+  if (scoop_thread_init_current != 0) {
+    scoop_thread_init_current();
+  }
+}
+#elif defined(__GNUC__)
+extern void scoop_thread_init_current(void) __attribute__((weak));
+static void scoop_thread_init_current_if_present(void) {
+  if (scoop_thread_init_current != 0) {
+    scoop_thread_init_current();
+  }
+}
+#else
+extern void scoop_thread_init_current(void);
+static void scoop_thread_init_current_if_present(void) { scoop_thread_init_current(); }
+#endif
+
 static void *scoop_thread_entry(void *arg) {
   if (arg == 0) {
     return 0;
@@ -139,6 +160,7 @@ static void *scoop_thread_entry(void *arg) {
   free(args);
 
   scoop_gc_thread_attach_current();
+  scoop_thread_init_current_if_present();
   if (entry_handle_raw != 0) {
     scoop_thread_entry_trampoline(entry_handle_raw);
     (void)scoop_handle_drop((uint64_t)entry_handle_raw);

@@ -658,6 +658,10 @@ fn build_module_from_codegen_entry_with_root_selector<'ctx>(
     declare.codegen_native_callable_body_symbols(&abi_query)?;
     let cone_init_plans = unit_codegen.cone_init_routine_plans();
     let cone_init_routines = declare.ensure_cone_init_routines_defined(&cone_init_plans)?;
+    let thread_local_init_plans = unit_codegen.thread_local_init_routine_plans();
+    let thread_local_init_routines =
+        declare.ensure_thread_local_init_routines_defined(&thread_local_init_plans)?;
+    declare.ensure_thread_init_current_function_defined(&thread_local_init_routines)?;
 
     fn callable_base_fqn(fqn: &str) -> &str {
         let base = fqn.rsplit_once("::<").map(|(base, _)| base).unwrap_or(fqn);

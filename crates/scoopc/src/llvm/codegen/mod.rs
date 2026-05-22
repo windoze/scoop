@@ -73,7 +73,7 @@ use crate::ty::{
     ValueTypeKind,
 };
 use scoopc_hir_facts::{HirFacts, declarations::NominalKind as HirFactNominalKind};
-use scoopc_lir_facts::{LirFacts, LirGlobalRootKind};
+use scoopc_lir_facts::{LirFacts, LirGlobalRootKind, LirGlobalStoragePolicy};
 
 use super::LlvmEmitError;
 
@@ -565,6 +565,7 @@ pub(super) enum ConeInitRootKind {
 pub(super) struct ConeInitRoot {
     kind: ConeInitRootKind,
     fqn: String,
+    storage: Option<LirGlobalStoragePolicy>,
 }
 
 #[derive(Debug, Clone)]
@@ -972,6 +973,7 @@ impl<'a, 'ctx> CompilationUnitCodegenCx<'a, 'ctx> {
                         ConeInitRoot {
                             kind,
                             fqn: root_key.as_str().to_string(),
+                            storage: root.storage,
                         }
                     })
                     .collect();
@@ -979,6 +981,26 @@ impl<'a, 'ctx> CompilationUnitCodegenCx<'a, 'ctx> {
                     function_name: private_cone_init_fn_name(&routine.cone),
                     roots,
                 }
+            })
+            .collect()
+    }
+
+    pub(super) fn thread_local_init_routine_plans(&self) -> Vec<ConeInitRoutinePlan> {
+        self.cone_init_routine_plans()
+            .into_iter()
+            .filter_map(|plan| {
+                let roots = plan
+                    .roots
+                    .into_iter()
+                    .filter(|root| {
+                        root.kind == ConeInitRootKind::TopLevelVar
+                            && root.storage == Some(LirGlobalStoragePolicy::ThreadLocal)
+                    })
+                    .collect::<Vec<_>>();
+                (!roots.is_empty()).then(|| ConeInitRoutinePlan {
+                    function_name: private_thread_local_cone_init_fn_name(&plan.function_name),
+                    roots,
+                })
             })
             .collect()
     }
@@ -1070,6 +1092,10 @@ fn private_cone_init_fn_name(stable_key: &StableConeKey) -> String {
     let readable = sanitize_llvm_ident(stable_key.name());
     let hash = PrivateSymbolMangler.hash_suffix("cone_init", stable_key);
     format!("__scoop_priv0__cone_init__{readable}__h{hash}")
+}
+
+fn private_thread_local_cone_init_fn_name(cone_init_name: &str) -> String {
+    format!("{cone_init_name}__thread_local")
 }
 
 fn pointer_value_key<'ctx>(ptr: PointerValue<'ctx>) -> usize {

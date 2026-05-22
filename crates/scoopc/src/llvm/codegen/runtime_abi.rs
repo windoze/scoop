@@ -302,7 +302,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             return existing;
         }
 
-        // `uint32_t scoop_once_begin(uint64_t* guard_word)`（TODO T0918）
+        // `uint32_t scoop_once_begin(uint64_t* guard_word)`，object singleton once only.
         let i32_ty = self.context.i32_type();
         let i64_ptr_ty = self.context.ptr_type(AddressSpace::default());
         let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [i64_ptr_ty.into()];
@@ -316,7 +316,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             return existing;
         }
 
-        // `void scoop_once_end(uint64_t* guard_word)`（TODO T0918）
+        // `void scoop_once_end(uint64_t* guard_word)`，object singleton once only.
         let i64_ptr_ty = self.context.ptr_type(AddressSpace::default());
         let param_tys: [BasicMetadataTypeEnum<'ctx>; 1] = [i64_ptr_ty.into()];
         let fn_ty = self.context.void_type().fn_type(&param_tys, false);

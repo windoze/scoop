@@ -1,0 +1,12 @@
+// EXPECT: fail
+// EXPECT-ERROR-CODE: scoop::typecheck::top_level_var_storage_policy_conflict
+// EXPECT-ERROR-AT: 12:5
+// EXPECT-ERROR: 不能同时标注 `@ThreadLocal` 与 `@Global`
+
+package fixtures.typecheck
+
+import scoop.core.*
+
+@ThreadLocal
+@Global
+var ambiguous: Int = 0

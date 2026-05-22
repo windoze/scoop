@@ -310,7 +310,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         // 说明：
-        // - 该 guard 由 runtime 的 `scoop_once_begin/end` 维护（TODO T0918）；
+        // - 该 guard 由 object-only runtime `scoop_once_begin/end` 维护；
         // - 布局约定：单个 `uint64_t` word（低 2 bit 状态 + 其余 bit 为 owner thread id）。
         let gv = self.module.add_global(self.context.i64_type(), None, &name);
         gv.set_linkage(Linkage::Internal);
