@@ -4,7 +4,7 @@
 > 细化时间：2026-05-22
 > 计划基线：[`PLAN.md`](./PLAN.md) §4/P6-P8
 > 索引：[`TODO.md`](./TODO.md)
-> 当前状态：`P6-T04` 已完成；下一步执行 `P6-T04R`。
+> 当前状态：`P6-T04R` 已完成；下一步执行 `P7-T01`。
 
 ## 范围
 
@@ -302,7 +302,7 @@
   - 验证通过：`cargo fmt`；`cargo test -p scoopc_lir_facts`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/global_init`；`cargo test -p scoopc --no-default-features storage_policy`；`cargo run -p scoop_tools -- dependency-gate`；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
   - 完整 run-pass：`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass` 已重跑，P6/global-init/thread-init 相关 fixtures 全部通过；全量仍有 7 个既有非 P6 失败（`array_lit_infer_unannotated_and_nested_basic.scoop`、`array_lit_infer_string_char_float_basic.scoop`、`lang_mutable_array_new_string_ref.scoop`、`lang_mutable_array_new_struct_composite.scoop`、`std_process_args_exit_basic.scoop`、`stdlib_string_basic.scoop`、`sysroot_atomic_basic.scoop`），与 P6-T02R / P5 记录的历史 baseline 一致，未作为 P6-T04 前置项。
 
-## [TODO] P6-T04R：Review P6 全包完成度
+## [DONE] P6-T04R：Review P6 全包完成度
 
 - 参考：P6-T04。
 - 重点：
@@ -315,7 +315,13 @@
   - review 结论明确写出 P6 完成、P7 可以开始，或列出阻塞项并在本 review 内修复。
 - 依赖：P6-T04
 - 完成记录：
-  - 待填写。
+  - Review 结论：P6 global init model 已满足 `PLAN.md` 中 object once、top-level eager init、per-cone init routine、final entry order 与 storage policy 完成标准；P7 可以从已明确的 `LIR + lir_facts + base context` global-init 输入边界开始清理 LLVM backend residual。
+  - P6 完成度复审：`cone_init.rs` 按 `LirFacts.global_init.final_entry_order` / `cone_init_routines` 构造并执行 eager roots；top-level `val` 普通访问只做 initialized guard 检查并读取 backing storage；`@Global` / `@ThreadLocal` top-level `var` 由 cone/thread init routine 初始化；`scoop_thread_init_current` 在无 TLS roots 时也会生成 no-op hook，避免线程 runtime 链接漂移。
+  - object once 复审：`scoop_once_begin/end` 的实际 codegen 调用点只在 `object_init.rs`，top-level eager init 继续使用 compiler-private guard state machine，没有复用 object once runtime helper。
+  - P7 residual 复审：LLVM 中 `top_level_vars`、`top_level_immutable_values`、`object_inits`、`extern_globals` 等 HIR scaffold 读取仍存在于 `emit.rs`、`codegen/mod.rs`、`codegen/main/*`、`reachability.rs`、`mir_body/*` 与 `effect_lowered/*` 等路径；这些均已在 `P7-T01` / `P7-T02` / `P7-T03` / `P7-T04` 作为 backend cleanup residual 登记，未被误描述为 P6 已完成范围。
+  - 额外 residual 搜索：`ensure_top_level_immutable_value_init_function_defined` 只由 `cone_init.rs` 的 eager root emission 调用；`scoop_once_begin|scoop_once_end|declare_runtime_once_begin|declare_runtime_once_end` 在 LLVM codegen 中除 runtime symbol/declaration/comment 外，只剩 `object_init.rs` 的 object singleton init 调用。
+  - 验证通过：`cargo fmt`；`cargo test -p scoopc_lir_facts`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/global_init`；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
+  - 完整 run-pass：`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass` 已重跑，global-init/thread-init 相关 fixtures 全部通过；全量仍有 7 个既有非 P6 失败（`array_lit_infer_string_char_float_basic.scoop`、`array_lit_infer_unannotated_and_nested_basic.scoop`、`lang_mutable_array_new_string_ref.scoop`、`lang_mutable_array_new_struct_composite.scoop`、`std_process_args_exit_basic.scoop`、`stdlib_string_basic.scoop`、`sysroot_atomic_basic.scoop`），与 P6-T04 baseline 一致，未作为 P6-T04R 前置项。
 
 ## [TODO] P7-T01：迁移 LLVM entry/global 查询到 LIR facts
 
