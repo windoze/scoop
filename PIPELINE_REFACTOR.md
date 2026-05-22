@@ -160,6 +160,23 @@ AST -> HIR -> MIR -> effect facts -> LIR -> codegen
 
 所以它不应该成为其它场景的定义依据；它只是“一个 cone 刚好只有一个文件”的特例。
 
+### per-cone build artifact
+
+把 cone 当作编译单元的真正含义，是它必须能以单元为粒度被「编译完一次、产物落地、下游复用」。在不强行复活 `.cone` archive 的前提下，正确的工程化形态应是：
+
+1. 每个 cone 在 `build/<profile>/cones/<cone-name>@<version>/` 下输出一份本 cone 自己的产物。
+2. 产物的内容必须能让下游 cone 完成它本来要从上游源码里推出来的所有事情：HIR 屏障的声明事实、MIR 屏障的实例事实、effect/control 屏障的合同、LIR 屏障的 callable/dispatch/init contract、本 cone emit 的 `.o` 与 native obj。
+3. 下游 cone 通过反序列化 fact 注入自己的 `Index` / `TypeEnv`，而不再 parse 上游源文件；只有在跨 cone 单态化跨过 generic 边界时，才需要回到上游 generic 的 HIR/MIR 模板（这是后续 milestone 的范围，本轮接受下游 re-lower generic 的成本）。
+4. 产物之间通过 `inputs.fingerprint` / `outputs.fingerprint` 链表达失效传播：上游 outputs 不变 → 下游 inputs 不变 → 下游跳过整段 stage。
+
+这个形态依赖于本设计基线里若干已经固定的事实：
+
+1. fact 的 `FactIdentity` 已经携带 `StableConeKey`，按 cone 切片本身就是 schema 内置能力。
+2. `LirFacts.global_init.cone_init_routines` / `final_entry_init_order` 已经按 cone 标记 init routine 入口符号；下游链接时直接消费这些符号即可。
+3. stage / fact crate 边界一旦由 `cargo build` 强制（见 §crate 划分），artifact serialization 只需要给已有 fact 加 wire format，而不必重新设计跨阶段数据。
+
+唯一需要补足的工程能力是 `TypeId` 的 cross-process stable wire format：当前 `TypeId(u32)` 是进程内 `TypeStore` 索引，序列化后下游进程无法解释。要么把 fact / LIR 中的 type 字段替换为 stable text key（`scoopc_ids::CanonicalTextKey`），要么给 `TypeStore` 设计 portable serialization + 反序列化重映射。这是落地 per-cone artifact 的硬前置。
+
 ## 编译顺序模型
 
 一旦把 cone 定义为编译单元，编译顺序就应分成两层：

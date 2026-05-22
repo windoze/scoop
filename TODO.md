@@ -4,16 +4,16 @@
 > 计划基线：[`PLAN.md`](./PLAN.md)
 > 设计基线：[`PIPELINE_REFACTOR.md`](./PIPELINE_REFACTOR.md)
 > 审计基线：[`PIPELINE-CLEANUP.md`](./PIPELINE-CLEANUP.md)
-> 当前状态：任务包已划分；`TODO-1.md` 至 `TODO-6.md` 均已细化。
+> 当前状态：任务包已划分；`TODO-1.md` 至 `TODO-6.md` 均已细化；`TODO-7.md` 已建包但任务尚未细化（依赖 `TODO-6.md` P8 完成）。
 
 ## 总原则
 
 - `PLAN.md` 是当前执行计划基线；如果实现时发现阶段边界、crate DAG、facts 归属或全局初始化语义需要改变，必须先回写 `PIPELINE_REFACTOR.md`，再调整 TODO。
-- 所有任务按 `TODO-1.md` 到 `TODO-6.md` 顺序推进；除非对应文件明确允许，不跨包并行实现。
+- 所有任务按 `TODO-1.md` 到 `TODO-7.md` 顺序推进；除非对应文件明确允许，不跨包并行实现。
 - 每个实现小阶段后必须紧跟一个独立 review 任务，复审该小阶段的完整变更、阶段目标和约束遵守情况。
 - review 任务不是形式检查；如果发现前一任务没有真正完成目标，review 任务必须直接修正或阻塞下一任务。
-- 任务完成后必须同时更新 `TODO.md` 和对应 `TODO-[1-6].md` 中的任务状态与完成记录；不得只更新其中一边。
-- 后续生成新任务时，正式任务编号统一使用 `P[1-6]-NN` 格式；如果执行过程中发现某个任务过于复杂、需要进一步拆解，则使用 `P[1-6]-NN-[a-z]` 格式。
+- 任务完成后必须同时更新 `TODO.md` 和对应 `TODO-[1-7].md` 中的任务状态与完成记录；不得只更新其中一边。
+- 后续生成新任务时，正式任务编号统一使用 `P[0-9]+-NN` 格式（P9/P10 任务在 `TODO-7.md`）；如果执行过程中发现某个任务过于复杂、需要进一步拆解，则使用 `P[0-9]+-NN-[a-z]` 格式。
 - 任何 fact crate 不得依赖 stage crate 或其它 fact crate；任何 stage output 不得长期嵌套上一阶段完整输出。
 - HIR 不承载 optimization pass；MIR 承载普通调用图/实例级优化；LIR 承载 effect/control 相关窄优化；codegen 只承载 backend-specific 优化。
 
@@ -27,6 +27,7 @@
 | 4 | [`TODO-4.md`](./TODO-4.md) | P3 | 收口 MIR stage 输出，建立 `mir_facts` 与 MIR pass pipeline | 已细化 |
 | 5 | [`TODO-5.md`](./TODO-5.md) | P4-P5 | 纯化 effect facts，正式收实 LIR 输出和 LIR optimization family | 已细化 |
 | 6 | [`TODO-6.md`](./TODO-6.md) | P6-P8 | 闭合 global init model，清理 LLVM backend 输入边界，并做最终验证 | 已细化 |
+| 7 | [`TODO-7.md`](./TODO-7.md) | P9-P10 | 把 stage/codegen 拆为独立 crate；落地 per-cone build artifact 并解决 cross-process TypeStore wire format | 范围已确定，详细任务待 INIT 细化 |
 
 ## 具体任务索引
 
@@ -127,6 +128,35 @@
 | P8-T01R | [TODO] | [`TODO-6.md`](./TODO-6.md#todo-p8-t01rreview-final-residual-搜索与文档冻结) | Review final residual 搜索与文档冻结 |
 | P8-T02 | [TODO] | [`TODO-6.md`](./TODO-6.md#todo-p8-t02最终全仓验证与-release-readiness-清场) | 最终全仓验证与 release readiness 清场 |
 | P8-T02R | [TODO] | [`TODO-6.md`](./TODO-6.md#todo-p8-t02rreview-final-verification-与-release-readiness) | Review final verification 与 release readiness |
+| TODO-7-INIT | [TODO] | [`TODO-7.md`](./TODO-7.md#todo-todo-7-init初始化并细化本任务包) | 分析 P9-P10 需求，生成 `TODO-7.md` 详细任务列表并更新本索引 |
+| P9-T01 | [TODO] | [`TODO-7.md`](./TODO-7.md#todo-p9-t01消除阻塞-stage-crate-split-的后向边) | 消除阻塞 stage crate split 的后向边 |
+| P9-T01R | [TODO] | [`TODO-7.md`](./TODO-7.md#todo-p9-t01rreview-后向边消除结果) | Review 后向边消除结果 |
+| P9-T02 | [TODO] | [`TODO-7.md`](./TODO-7.md#todo-p9-t02抽出-scoopc_ast-crate) | 抽出 `scoopc_ast` crate |
+| P9-T02R | [TODO] | [`TODO-7.md`](./TODO-7.md#todo-p9-t02rreview-scoopc_ast-抽取) | Review `scoopc_ast` 抽取 |
+| P9-T03 | [TODO] | [`TODO-7.md`](./TODO-7.md#todo-p9-t03抽出-scoopc_codegen_llvm-crate) | 抽出 `scoopc_codegen_llvm` crate |
+| P9-T03R | [TODO] | [`TODO-7.md`](./TODO-7.md#todo-p9-t03rreview-scoopc_codegen_llvm-抽取) | Review `scoopc_codegen_llvm` 抽取 |
+| P9-T04 | [TODO] | [`TODO-7.md`](./TODO-7.md#todo-p9-t04抽出-scoopc_hir-crate) | 抽出 `scoopc_hir` crate |
+| P9-T04R | [TODO] | [`TODO-7.md`](./TODO-7.md#todo-p9-t04rreview-scoopc_hir-抽取) | Review `scoopc_hir` 抽取 |
+| P9-T05 | [TODO] | [`TODO-7.md`](./TODO-7.md#todo-p9-t05抽出-scoopc_mir-crate) | 抽出 `scoopc_mir` crate |
+| P9-T05R | [TODO] | [`TODO-7.md`](./TODO-7.md#todo-p9-t05rreview-scoopc_mir-抽取) | Review `scoopc_mir` 抽取 |
+| P9-T06 | [TODO] | [`TODO-7.md`](./TODO-7.md#todo-p9-t06抽出-scoopc_effect_stage-与-scoopc_lir-crate) | 抽出 `scoopc_effect_stage` 与 `scoopc_lir` crate |
+| P9-T06R | [TODO] | [`TODO-7.md`](./TODO-7.md#todo-p9-t06rreview-scoopc_effect_stage-与-scoopc_lir-抽取) | Review `scoopc_effect_stage` 与 `scoopc_lir` 抽取 |
+| P9-T07 | [TODO] | [`TODO-7.md`](./TODO-7.md#todo-p9-t07cone-两层拆分scoopc_project_model-扩展--新-scoopc_cone) | cone 两层拆分（`scoopc_project_model` 扩展 + 新 `scoopc_cone`） |
+| P9-T07R | [TODO] | [`TODO-7.md`](./TODO-7.md#todo-p9-t07rreview-cone-两层拆分) | Review cone 两层拆分 |
+| P9-T08 | [TODO] | [`TODO-7.md`](./TODO-7.md#todo-p9-t08scoopc-umbrella-crate-收尾--dependency_gate-全面强化) | `scoopc` umbrella crate 收尾 + dependency_gate 全面强化 |
+| P9-T08R | [TODO] | [`TODO-7.md`](./TODO-7.md#todo-p9-t08rreview-umbrella-收尾) | Review umbrella 收尾 |
+| P9-T09 | [TODO] | [`TODO-7.md`](./TODO-7.md#todo-p9-t09p9-全包清场文档同步与依赖审计) | P9 全包清场、文档同步与依赖审计 |
+| P9-T09R | [TODO] | [`TODO-7.md`](./TODO-7.md#todo-p9-t09rreview-p9-全包完成度) | Review P9 全包完成度 |
+| P10-T01 | [TODO] | [`TODO-7.md`](./TODO-7.md#todo-p10-t01解决-typeid-cross-process-stable-wire-format) | 解决 `TypeId` cross-process stable wire format |
+| P10-T01R | [TODO] | [`TODO-7.md`](./TODO-7.md#todo-p10-t01rreview-typestore-wire-format) | Review TypeStore wire format |
+| P10-T02 | [TODO] | [`TODO-7.md`](./TODO-7.md#todo-p10-t02定义-per-cone-build-artifact-磁盘布局与-scoopc_cone-读写-api) | 定义 per-cone build artifact 磁盘布局与 `scoopc_cone` 读写 API |
+| P10-T02R | [TODO] | [`TODO-7.md`](./TODO-7.md#todo-p10-t02rreview-per-cone-artifact-schema) | Review per-cone artifact schema |
+| P10-T03 | [TODO] | [`TODO-7.md`](./TODO-7.md#todo-p10-t03run_frontend-改造为按-cone-dag-拓扑顺序运行) | `run_frontend` 改造为按 cone DAG 拓扑顺序运行 |
+| P10-T03R | [TODO] | [`TODO-7.md`](./TODO-7.md#todo-p10-t03rreview-per-cone-frontend-orchestration) | Review per-cone frontend orchestration |
+| P10-T04 | [TODO] | [`TODO-7.md`](./TODO-7.md#todo-p10-t04per-cone-fingerprint-cache--增量-build) | per-cone fingerprint cache + 增量 build |
+| P10-T04R | [TODO] | [`TODO-7.md`](./TODO-7.md#todo-p10-t04rreview-per-cone-fingerprint-cache) | Review per-cone fingerprint cache |
+| P10-T05 | [TODO] | [`TODO-7.md`](./TODO-7.md#todo-p10-t05p10-全包清场文档同步与依赖审计) | P10 全包清场、文档同步与依赖审计 |
+| P10-T05R | [TODO] | [`TODO-7.md`](./TODO-7.md#todo-p10-t05rreview-p10-全包完成度) | Review P10 全包完成度 |
 
 ## 包间验收门禁
 
@@ -136,3 +166,5 @@
 - 进入 `TODO-5.md` 前，`MirStageOutput = { mir, mir_facts }` 或等价窄输出语义必须成立。
 - 进入 `TODO-6.md` 前，effect facts 不得修改 MIR 输出本体，且 LIR 必须是 codegen 的唯一 authoritative IR 输入候选。
 - 完成 `TODO-6.md` 后，LLVM backend 和未来 C backend 应共享同一套 `LIR + LIR facts + base context` 输入边界。
+- 进入 `TODO-7.md` 前，P0-P8 必须全部完成（含 P8-T02R）；LLVM backend 不得仍依赖 HIR/raw MIR/effect facts wrapper；`dependency_gate` 已对所有 base + fact crate 强制门禁。
+- 完成 `TODO-7.md` 后，每个 stage 都是独立 crate 且依赖方向由 `cargo build` 强制；下游 cone 可消费上游 cone 的 `build/<profile>/cones/<cone>/` artifact 而不再扫上游源；per-cone fingerprint chain 替代旧的整项目 fingerprint。

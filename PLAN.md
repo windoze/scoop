@@ -7,7 +7,7 @@
 > - [`docs/archive/designs/SYSROOT_RESHAPE_R2.md`](./docs/archive/designs/SYSROOT_RESHAPE_R2.md)
 > - [`docs/archive/plans/PLAN-sysroot-reshape-r2.md`](./docs/archive/plans/PLAN-sysroot-reshape-r2.md)
 > - [`docs/archive/plans/TODO-sysroot-reshape-r2.md`](./docs/archive/plans/TODO-sysroot-reshape-r2.md)
-> 当前状态：P3 MIR boundary / `mir_facts` / MIR pass pipeline 清场已完成；下一步执行 `TODO-4.md` / P3-T07R review 后进入 `TODO-5.md` / P4-P5 初始化
+> 当前状态：P0-P6 与 P7-T01..T03 / P7-T04-a 已完成；P7-T04 / P7-T05 / P8 仍在推进；P9（stage crate split）与 P10（per-cone build artifact）已加入 `TODO-7.md`，等待 P0-P8 完成后启动
 
 ## 0. 目标
 
@@ -100,6 +100,8 @@ AST -> HIR -> MIR -> effect facts -> LIR -> codegen
 | P6 | Global init model | 落实 object once、top-level eager init、per-cone init routine 和 storage policy |
 | P7 | LLVM backend cleanup | 让 LLVM backend 只依赖 `LIR + LIR facts + base context` |
 | P8 | Final verification | 清理残余、冻结边界、为未来 C backend 预留干净接口 |
+| P9 | Stage crate split | 把 AST/HIR/MIR/effect_stage/LIR/codegen 拆为独立 stage crate；cone 按数据/操作两层拆为 `scoopc_project_model` 扩展 + 新 `scoopc_cone`；用 `cargo build` 强制 PLAN §1.2 的依赖方向 |
+| P10 | Per-cone build artifact | 每个 cone 的编译产物落到 `build/<profile>/cones/<cone>/`；下游 cone 通过反序列化 fact 注入而不再扫上游源码；解决 cross-process `TypeId` stable wire format；per-cone fingerprint chain 替换整项目 fingerprint |
 
 阶段间原则上顺序推进；只有在不破坏上述依赖关系时，才允许在相邻阶段间拆小步 PR。
 
@@ -293,6 +295,69 @@ AST -> HIR -> MIR -> effect facts -> LIR -> codegen
 1. `LLVM backend` 与未来 `C backend` 共用同一套 `LIR + LIR facts` 输入边界。
 2. `PIPELINE_REFACTOR.md` 中的结构性约束都能在代码里找到对应实现落点。
 
+### P9：Stage crate split
+
+目标：把 §1.2 要求的 stage / fact crate DAG 用 cargo crate 边界硬化，让任何 PR 一旦违反 DAG 都在 `cargo build` 阶段失败，而不是依赖人工 review 或 grep-based gate。
+
+必须完成：
+
+1. 把以下模块抽成独立 crate：
+   - `scoopc_ast`（含 lexer / parser / syntax / ast）
+   - `scoopc_hir`（含 resolve / typecheck / infer / intrinsics / vtable / itable / expr_facts）
+   - `scoopc_mir`（含 monomorph / opt pass pipeline / RTTI 算法 / mangler）
+   - `scoopc_effect_stage`（含 effect builder + effect facts builder；与已有 data crate `scoopc_effect_facts` 区分）
+   - `scoopc_lir`（effect_lowered）
+   - `scoopc_codegen_llvm`（含 stackmap）
+2. 把 cone 模块按数据 vs 操作两层拆开：
+   - `Cone.toml` / `SourceConeGraph` / sysroot loader 等纯数据进 base crate `scoopc_project_model`；
+   - archive / scoopir / annotations / visibility / pre-specialize / consume 进新 crate `scoopc_cone`，依赖所有 stage crate。
+3. 删除阻塞拆分的后向边：`InstanceKey` / `TemplateKey` / `ExternAbi` 等被反向引用的小型 stable 数据迁到 base crate；删除 P3 残留 `devirtualize.rs`。
+4. 扩展 `tools/scoop_tools` 的 `dependency-gate` 以覆盖所有新 crate；同时禁止任何 stage crate 反向依赖 `scoopc_cone`。
+5. `scoopc` umbrella crate 仅保留 façade re-exports 与 driver 编排（`pipeline/` / `session/` / `frontend.rs`）。
+
+完成标准：
+
+1. `cargo tree` 显示每个 stage crate 的依赖严格符合 §1.2 的 DAG 方向。
+2. `dependency-gate` 把所有 base + fact + stage + cone crate 的边界全部纳入硬检查。
+3. `scoopc/src/` 下不再有任何 stage 实际定义（全部 façade re-export）。
+4. 完整 fixture suite 在新 crate 边界下保持通过。
+
+### P10：Per-cone build artifact
+
+目标：利用 P9 的 crate 边界让每个 cone 的编译产物正式落地到磁盘，下游 cone 通过反序列化上游 fact 注入下游 `Index` / `TypeEnv`，而不再重扫上游源码。
+
+必须完成：
+
+1. 决定并实现跨进程 `TypeId` / type identity stable wire format（P7-T04-a 完成记录中显式推迟到本阶段的承诺）。两条候选：
+   - 把 fact / LIR 中所有 `TypeId` 字段替换为 `scoopc_ids::CanonicalTextKey` 等 stable key；
+   - 给 `TypeStore` 设计 portable serialization，反序列化时通过 ID 重映射恢复进程内表示。
+2. 给 4 套 fact crate（`hir_facts` / `mir_facts` / `effect_facts` / `lir_facts`）以及 LIR program 加 `Serialize` / `Deserialize`（默认 bincode 二进制）+ schema version。
+3. 在 `scoopc_cone` 内定义 `ConeArtifact` 结构与磁盘布局：
+
+   ```text
+   build/<profile>/cones/<cone-name>@<version>/
+     manifest.json
+     hir_facts.bin / mir_facts.bin / effect_facts.bin / lir_facts.bin
+     lir_program.bin
+     objs/scoop.o + objs/native_*.o
+     inputs.fingerprint / outputs.fingerprint
+   ```
+
+4. 把 `crates/scoopc/src/frontend.rs::run_frontend` 从扁平 build_closure_sources 循环改为按 `SourceConeGraph::compilation_units()` 拓扑顺序运行；下游 cone 通过 `scoopc_cone` 的 fact 注入接口获取上游内容，不再 parse 上游源。
+5. 把 `crates/scoop/src/commands/build/incremental.rs` 的整项目 SHA-256 fingerprint 替换为 per-cone inputs/outputs fingerprint chain；上游 outputs.fingerprint 不变 → 下游加载 artifact 跳过上游所有 stage。
+
+不在本阶段完成（留待后续单独立项 P11）：
+
+- 跨 cone generic body 共享（HIR/MIR template wire format）。本阶段下游对上游 generic 仍 re-lower，但只重做 generic body，不再过完整上游 frontend；这是有意识的范围裁剪。
+- `.cone` archive 复活；磁盘格式直接是目录树，`scoop package` 仍保持停用。
+
+完成标准：
+
+1. 4 套 fact + LIR program 能往返序列化（带 schema version）。
+2. 跨 cone fixture（如 `tests/fixtures/run_pass_cone/source_path_dependency_public_call`）下游 cone 编译时不再 parse 上游源；用 trace 或断言能稳定证明。
+3. per-cone fingerprint chain：上游变 → 上游 + 下游重 build；下游变 → 仅下游重 build；toolchain 变 → 全重 build。
+4. cache hit 启动时间不再受 sysroot 重 hash 拖累（实测从 ~4s 量级降到 < 100ms 量级）。
+
 ## 5. 优化 pass 专项约束
 
 为了避免后续“顺手在某层塞一个优化”的回退，本计划单独固定下面这组规则：
@@ -317,6 +382,9 @@ AST -> HIR -> MIR -> effect facts -> LIR -> codegen
 7. 正式 pipeline 中不再保留现有 comptime/const surface 或任何专门兼容逻辑。
 8. global object/var/val 与 `@CallingConvention` 的 non-generic 约束在前端稳定生效。
 9. top-level eager init 与 object once 语义闭合，覆盖所有 linked cones。
+10. 每个 stage 都是独立 crate，且依赖方向由 `cargo build` 强制（违反 §1.2 的 PR 立即失败）；`scoopc` umbrella crate 仅剩 façade re-exports 与 driver 编排。
+11. cone 按数据 vs 操作两层归位：纯数据在 base crate `scoopc_project_model`，跨 stage 操作在 `scoopc_cone`，没有 stage crate 反向依赖 `scoopc_cone`。
+12. 每个 cone 的编译产物落到 `build/<profile>/cones/<cone>/` 下，schema version 完备；下游 cone 通过反序列化 fact 注入而不再扫上游源；per-cone fingerprint chain 替代旧的整项目 fingerprint，cache hit 启动时间从 sysroot 重 hash 量级降到读取 outputs.fingerprint 量级。
 
 ## 7. 说明
 
