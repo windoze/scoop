@@ -4,7 +4,7 @@
 > 细化时间：2026-05-22
 > 计划基线：[`PLAN.md`](./PLAN.md) §4/P6-P8
 > 索引：[`TODO.md`](./TODO.md)
-> 当前状态：`P7-T04-a` 已完成。在 `sysroot_atomic_basic` 触发的 codegen panic 复盘中识别出 codegen 阶段类型纪律不足（`TypeId` 同时承载已/未单态化两种语义、`class_init_layout` 用裸字符串 key 静默兜底），`P7-T04-b` 实施前必须先修复这一根本设计问题。新增前置任务 `P7-T04-b-1..4`（含各自 R）：依次引入 `MonoTypeId`、拆分 `ClassInit` 为 `GenericClassDecl` / `MonoClassInit`、收回 layout key 字符串形态为 `ClassInstanceKey`、把 codegen 全面切到 `MonoTypeId` 并删除 `expect_cg_ty_of` 与所有静默兜底；前一轮未提交的 `P7-T04-b` 实现已 revert。`P7-T04-b` 依赖随之改为 `P7-T04-b-4R`。`P7-T04-b-1` 已完成（`MonoTypeId` / `MonoTypeKind` / `as_mono` / `kind_mono` 纯增量发布）；下一步执行 `P7-T04-b-1R`。
+> 当前状态：`P7-T04-a` 已完成。在 `sysroot_atomic_basic` 触发的 codegen panic 复盘中识别出 codegen 阶段类型纪律不足（`TypeId` 同时承载已/未单态化两种语义、`class_init_layout` 用裸字符串 key 静默兜底），`P7-T04-b` 实施前必须先修复这一根本设计问题。新增前置任务 `P7-T04-b-1..4`（含各自 R）：依次引入 `MonoTypeId`、拆分 `ClassInit` 为 `GenericClassDecl` / `MonoClassInit`、收回 layout key 字符串形态为 `ClassInstanceKey`、把 codegen 全面切到 `MonoTypeId` 并删除 `expect_cg_ty_of` 与所有静默兜底；前一轮未提交的 `P7-T04-b` 实现已 revert。`P7-T04-b` 依赖随之改为 `P7-T04-b-4R`。`P7-T04-b-1` 与 `P7-T04-b-1R` 均已完成（`MonoTypeId` 不变量已被 Rust 类型系统强制：private inner field + `#![forbid(unsafe_code)]` + 唯一公开入口 `as_mono` + 全 `TypeKind` 子位置覆盖 + 无 fallback 路径；review 中补强 Union/Value::Nominal/use-site EffectRow 的 `kind_mono` 对齐测试）；下一步执行 `P7-T04-b-2`。
 
 ## 范围
 
@@ -624,7 +624,7 @@
   - 既有 `cg_ty_of` / `expect_cg_ty_of` 与所有调用点未修改；纯增量发布完成。
   - 验证：`cargo fmt`；`cargo test -p scoopc_types`（24 passed）；`cargo build -p scoopc`（旧 `TypeId` 调用路径仍编译通过）；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
 
-## [TODO] P7-T04-b-1R：Review `MonoTypeId` 类型纪律基线
+## [DONE] P7-T04-b-1R：Review `MonoTypeId` 类型纪律基线
 
 - 参考：P7-T04-b-1。
 - 重点：
@@ -639,7 +639,12 @@
   - review 结论明确写出 `MonoTypeId` 不变量已被类型系统强制，或列出阻塞项并在本 review 内修复。
 - 依赖：P7-T04-b-1
 - 完成记录：
-  - 待填写。
+  - **review 结论：`MonoTypeId` 不变量由 Rust 类型系统强制完成。** 具体证据如下。
+  - **构造唯一性已强制**：`pub struct MonoTypeId(TypeId)` 内部字段为 private（`crates/scoopc_types/src/lib.rs`）；外部唯一可获得 `MonoTypeId` 的入口是 `TypeStore::as_mono(TypeId) -> Result<MonoTypeId, ParamLeak>`（`rg -n 'pub fn .* -> .*MonoTypeId' crates/` 仅命中 `as_mono` + `MonoTypeId::inner` accessor）；crate 在 `lib.rs` 顶端 `#![forbid(unsafe_code)]`，无 `From<TypeId> for MonoTypeId` / `Into` / `unsafe`/`unchecked` 构造；`kind_mono` 内部把 children 包成 `MonoTypeId(child)` 的几处 wrap 都在 `impl TypeStore` 私有路径上，且每个 child 的合法性已被 `as_mono` 在外层验证（一旦 `as_mono(parent) = Ok(...)`，根据其逐层 worklist 实现，子节点必然不含 `Param`）。
+  - **覆盖完整性已验证**：`as_mono` 与 `kind_mono` 与 `TypeKind` / `RefTypeKind` / `ValueTypeKind` / `StarProjectionType` / `EffectRow` / `NominalType` / `FunctionType` / `UnionType` 各子字段一一对照核查，10 个嵌套位置全部覆盖：`Ref::Nominal.{args, eff.terms}`、`Ref::Function.{receiver, params, return_ty, effects.terms}`、`Ref::Union.variants`、`Value::Tuple.elements`、`Value::Option(inner)`、`Value::Nominal.{args, eff.terms}`、`StarProjection.read_ty`；scalar/builtin（`Any`/`String`/`Unit`/`Nothing`/`Bool`/`Char`/`Float64`/`Float32`/`Int`/`UInt`/`IntN`/`UIntN`）作为终止位无 children；`Param` 在 `as_mono` 直接返回 `Err(ParamLeak)`、在 `kind_mono` 是 `unreachable!`，无 fallback。
+  - **测试覆盖补强**：原 `kind_mono_children_align_with_underlying_typekind` 测试覆盖 Tuple / Option / `Ref::Nominal` / Function / StarProjection 五个位置；本 review 发现 Union variants / `Value::Nominal` / Use-site `EffectRow.terms` 的对齐尚未测，已补 `kind_mono_aligns_for_union_value_nominal_and_use_site_eff_row` 一项测试覆盖：（a）通过 `intern(TypeKind::Ref(Ref::Union { ... }))` 直接绕过 `ty_union` 归一化构造 Union，断言 `MonoUnion::variants` 与原 `UnionType::variants` 严格一一对应；（b）`Value::Nominal` with concrete arg 的 `MonoNominal::args` 对齐；（c）`Ref::Nominal` use-site 携带含 `Async` / `Yield` 的 `EffectRow`，断言 `MonoEffectRow::terms` 与 `EffectRow::terms` 一致。`as_mono` 通过/拒绝路径幂等亦由 `as_mono_is_idempotent_for_accept_and_reject` 覆盖。
+  - **fallback 路径审查**：`rg -n 'Param' crates/scoopc_types/src/` 列出的所有 `Param` 出现位置仅四类合法用途：构造（`ty_param`）、再 intern（`re_intern_from`）、`as_mono` 拒绝路径（`return Err(ParamLeak)`）、`kind_mono` 不可达分支（`unreachable!`）以及 Display 格式化；不存在任何静默把 `Param` 映射为某个默认 TypeId 或 codegen 合法类型的代码路径。`crates/scoopc_types/src/layout.rs` 不引用 `MonoTypeId` / `Param`（layout 阶段在更下游）。
+  - 验证：`cargo fmt`；`cargo test -p scoopc_types`（25 passed，新增 1 项测试）；`cargo build -p scoopc`（pass）；`cargo clippy --all-targets -- -D warnings`（pass）；`git diff --check`（clean）。
 
 ## [TODO] P7-T04-b-2：拆分 `hir::ClassInit` 为 `GenericClassDecl` 与 `MonoClassInit`
 

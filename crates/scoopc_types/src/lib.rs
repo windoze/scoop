@@ -1668,6 +1668,68 @@ mod tests {
     }
 
     #[test]
+    fn kind_mono_aligns_for_union_value_nominal_and_use_site_eff_row() {
+        let mut tys = TypeStore::new();
+        let builtins = tys.intern_builtins();
+
+        // Union: 跳过 ty_union 规范化，直接 intern 以保留指定 variant 顺序。
+        let u = tys.intern(TypeKind::Ref(RefTypeKind::Union(UnionType {
+            variants: vec![builtins.int, builtins.string, builtins.bool_],
+        })));
+        let mono_u = tys.as_mono(u).unwrap();
+        match tys.kind_mono(mono_u) {
+            MonoTypeKind::Ref(MonoRefKind::Union(MonoUnion { variants })) => {
+                assert_eq!(
+                    variants.iter().map(|m| m.inner()).collect::<Vec<_>>(),
+                    vec![builtins.int, builtins.string, builtins.bool_]
+                );
+            }
+            other => panic!("expected MonoRefKind::Union, got {other:?}"),
+        }
+
+        // Value::Nominal（与 Ref::Nominal 走同一个 mono_nominal helper，但视图位置不同）。
+        let value_nominal = tys.intern(TypeKind::Value(ValueTypeKind::Nominal(NominalType {
+            fqn: "scoop.test.ValueStruct".to_string(),
+            args: vec![builtins.int],
+            eff: None,
+        })));
+        let mono_value_nominal = tys.as_mono(value_nominal).unwrap();
+        match tys.kind_mono(mono_value_nominal) {
+            MonoTypeKind::Value(MonoValueKind::Nominal(n)) => {
+                assert_eq!(n.fqn, "scoop.test.ValueStruct");
+                assert_eq!(n.args.len(), 1);
+                assert_eq!(n.args[0].inner(), builtins.int);
+                assert!(n.eff.is_none());
+            }
+            other => panic!("expected MonoValueKind::Nominal, got {other:?}"),
+        }
+
+        // Use-site effect row（`Foo<eff Async>`）：mono_nominal.eff 把 EffectRow.terms 一一映射。
+        let async_eff = make_nominal_ref(&mut tys, "scoop.test.Async", Vec::new());
+        let yield_eff = make_nominal_ref(&mut tys, "scoop.test.Yield", Vec::new());
+        let foo_with_eff_row = make_nominal_ref_with_eff(
+            &mut tys,
+            "scoop.test.Foo",
+            Vec::new(),
+            EffectRow::new(vec![async_eff, yield_eff]),
+        );
+        let mono_foo = tys.as_mono(foo_with_eff_row).unwrap();
+        match tys.kind_mono(mono_foo) {
+            MonoTypeKind::Ref(MonoRefKind::Nominal(n)) => {
+                assert_eq!(n.fqn, "scoop.test.Foo");
+                assert!(n.args.is_empty());
+                let eff = n.eff.expect("use-site eff row must surface");
+                // EffectRow::new 会排序 + 去重；只确认 terms 数量与 inner 一致即可。
+                assert_eq!(eff.terms.len(), 2);
+                let term_ids: Vec<TypeId> = eff.terms.iter().map(|m| m.inner()).collect();
+                assert!(term_ids.contains(&async_eff));
+                assert!(term_ids.contains(&yield_eff));
+            }
+            other => panic!("expected MonoRefKind::Nominal with eff row, got {other:?}"),
+        }
+    }
+
+    #[test]
     fn as_mono_is_idempotent_for_accept_and_reject() {
         let mut tys = TypeStore::new();
         let builtins = tys.intern_builtins();

@@ -1,77 +1,76 @@
-本轮执行计划：P7-T04-b-1 引入 `MonoTypeId` / `MonoTypeKind` codegen 输入类型纪律基线
+本轮执行计划：P7-T04-b-1R Review `MonoTypeId` 类型纪律基线
 
 ## 范围
 
-- 仅处理 `TODO-6.md` 中按顺序出现的第一个未 `[DONE]` 任务 `P7-T04-b-1`。
-- 该任务由上一轮会话从 `P7-T04-b` 拆出，根本目的：在 `scoopc_types` 中引入 `MonoTypeId(TypeId)` newtype 与配套 `MonoTypeKind<'a>` 视图，使后续任务（b-2..b-4）能在类型层固定 "codegen 阶段不可能拿到含 `Param` 的 TypeId" 不变量。
-- 阻塞 root cause：当前 `cg_ty_of(TypeId) -> Option<CgTy>` 与 `expect_cg_ty_of` 在签名层承认 codegen 输入 `TypeId` 可能含 `Param`，导致 codegen 必须 runtime warn + 上游 panic 替代 type-state 校验；`sysroot_atomic_basic` panic 即其表象。
-- 完成判据由任务卡定义为"纯增量发布 `MonoTypeId` 基线，不修改任何现存调用点"。
+- 仅处理 `TODO-6.md` 中按顺序出现的第一个未 `[DONE]` 任务 `P7-T04-b-1R`。
+- 该任务是 `P7-T04-b-1` 的独立 review。任务卡定义的重点（4 项）与验证（重跑 + 额外 grep）均需当面执行；本 review **不是形式检查**：若发现前一任务未真正达成目标，必须直接修复或阻塞下一任务。
+- 完成判据：review 结论明确写出 `MonoTypeId` 不变量已被 Rust 类型系统强制，或列出阻塞项并在本 review 内修复。
 
-## 关键设计决定
+## 关键审查点（任务卡定义）
 
-1. **`MonoTypeId` 不变量为深度不变量**：持有 `MonoTypeId` 等价于"整棵类型树（含 nominal args、function receiver/params/return/effects、union variants、tuple elements、option inner、star projection inner、nominal use-site eff row）不含 `TypeKind::Param`"。
-2. **唯一构造路径**：`TypeStore::as_mono(t: TypeId) -> Result<MonoTypeId, ParamLeak>`。**不**实现 `From<TypeId>` / `Into<TypeId>` / `From<&str>` / `unsafe`/`unchecked` 等绕过路径；`inner(self) -> TypeId` accessor 仅用于 hash-cons 比较与诊断。
-3. **`MonoTypeKind<'a>` 是与 `TypeKind` 同形但 children 为 `MonoTypeId` 的并行视图**：枚举形状一致，去掉 `Param` 分支。所有 inner TypeId 位置在视图中暴露为 `MonoTypeId`，调用方无需重复校验 —— `as_mono` 的深度校验保证了子位置已合法。
-4. **`as_mono` 算法采用迭代 worklist**：避免递归类型导致栈溢出；`visited: HashSet<TypeId>` 防止环路；首次发现 `Param` 时返回 `ParamLeak`，含 `offending: TypeId` 与 `leak_path: Vec<TypeKindLabel>`（顶到底，描述如何从输入走到 leak）。
-5. **`TypeKindLabel` 覆盖 10 个嵌套位置**：`NominalArg` / `NominalEffect` / `UnionVariant` / `FunctionReceiver` / `FunctionParam` / `FunctionReturn` / `FunctionEffect` / `TupleElement` / `OptionInner` / `StarProjectionInner`。
-6. **纯增量**：不修改任何现存代码；`TypeKind` / `TypeStore::kind` 等老 API 全部保留，b-2..b-4 任务才会逐步迁移调用点。
+1. **构造唯一性**：`MonoTypeId` 不能从外部绕过 `as_mono` 构造。
+   - 搜 `MonoTypeId(` 与 `pub fn ... -> MonoTypeId`：除 `as_mono` 与 `MonoTypeId::inner` 这种 accessor 外，不应有公开的、不经校验的入口。
+   - `kind_mono` 内部把 children 包成 `MonoTypeId(child)` 是允许的，因为这些位置已被 `as_mono` 校验为非 `Param`，但要确认这些构造位置不暴露为公开 API。
+2. **覆盖完整性**：`as_mono` 必须覆盖所有 `TypeKind` / `RefTypeKind` / `ValueTypeKind` 子位置：
+   - `Ref::Nominal.args`、`Ref::Nominal.eff.terms`；
+   - `Ref::Function.receiver`、`Ref::Function.params`、`Ref::Function.return_ty`、`Ref::Function.effects.terms`；
+   - `Ref::Union.variants`；
+   - `Value::Tuple.elements`；
+   - `Value::Option(inner)`；
+   - `Value::Nominal.args`、`Value::Nominal.eff.terms`；
+   - `StarProjection.read_ty`；
+   - 标量/builtin 终止位（`Any` / `String` / `Unit` / `Nothing` / `Bool` / `Char` / `Float64` / `Float32` / `Int` / `UInt` / `IntN` / `UIntN`）。
+3. **测试覆盖**：`kind_mono` 子位置一致性是否被测试覆盖（已经在 `kind_mono_children_align_with_underlying_typekind` 测试里覆盖 Tuple / Option / Nominal / Function / StarProjection；需确认 Union / EffectRow 也被覆盖到——若缺失则补）。
+4. **无 fallback**：没有任何静默把 `Param` 视为合法 codegen 类型的代码路径——这是设计 `MonoTypeId` 的核心动机，本 review 必须把整个 `crates/scoopc_types/src/` 扫一遍确认。
 
 ## 步骤
 
 1. 写本计划到 `./memory/claude_plan.md`（本步骤）。
-2. 同步 `TODO.md` 索引：在 `P7-T04-a` 与 `P7-T04-b` 之间插入 8 行（`P7-T04-b-1` / `b-1R` / `b-2` / `b-2R` / `b-3` / `b-3R` / `b-4` / `b-4R`）。
-3. 在 `crates/scoopc_types/src/lib.rs` 中追加：
-   - `MonoTypeId(TypeId)` newtype（`Copy + Clone + Eq + Hash + Debug`，`inner()` accessor，**无** `From<TypeId>` 等隐式转型）；
-   - `ParamLeak { offending: TypeId, leak_path: Vec<TypeKindLabel> }` 错误类型；
-   - `TypeKindLabel` 嵌套位置标签 enum（10 种位置）；
-   - `MonoTypeKind<'a>` 与并行 hierarchy（`MonoRefKind` / `MonoValueKind` / `MonoNominal` / `MonoFunction` / `MonoUnion` / `MonoEffectRow` 等）；
-   - `TypeStore::as_mono(TypeId) -> Result<MonoTypeId, ParamLeak>` 实现（迭代 worklist + visited）；
-   - `TypeStore::kind_mono(MonoTypeId) -> MonoTypeKind<'_>` 实现（按当前 `TypeKind` 形态包装 children 为 `MonoTypeId`）。
-4. 在 `crates/scoopc_types/src/lib.rs` 内添加 `#[cfg(test)]` 单元测试模块，覆盖：
-   - 单层标量/builtin 通过：`Int` / `UInt` / `Bool` / `Char` / `Unit` / `Nothing` / `Float64` / `Float32` / `IntN(N)` / `UIntN(N)` / `Any` / `String`；
-   - 顶层 `Param` 拒绝（`leak_path` 为空）；
-   - 嵌套 nominal `Box<T>` 拒绝（`NominalArg{fqn, index: 0}`）；
-   - 嵌套 nominal `Box<Int>` 通过；
-   - nominal use-site `Foo<eff Pass<T>>` 类的 `NominalEffect` 拒绝（如能用 `EffectRow` 直接构造）；
-   - tuple `(Int, T)` 拒绝（`TupleElement{index: 1}`）；
-   - tuple `(Int, String)` 通过；
-   - option `Option<T>` 拒绝（`OptionInner`）；
-   - option `Option<Bool>` 通过；
-   - function `(T) -> Int / Pure` 拒绝（`FunctionParam{index: 0}`）；
-   - function `(Int) -> T / Pure` 拒绝（`FunctionReturn`）；
-   - function with receiver `T.(Int) -> Int / Pure` 拒绝（`FunctionReceiver`）；
-   - function effect row 含 `Param` 拒绝（`FunctionEffect{index}`）；
-   - union `A | B | T` 拒绝（`UnionVariant{index}`）；
-   - star projection inner 含 `Param` 拒绝（`StarProjectionInner`）；
-   - 自引用 nominal（如 `Box<Box<Box<Int>>>`）通过且不死循环；
-   - `kind_mono` 返回的 children 与原 `TypeKind` 内嵌 `TypeId` 一一对应（`MonoTypeId::inner` 等于原 TypeId）；
-   - 同一 TypeId 多次 `as_mono` 行为一致（幂等）；
-   - 多次 `as_mono` 同一 leak 给出相同 `leak_path`。
-5. `cargo fmt`、`cargo test -p scoopc_types`、`cargo build -p scoopc`（确认旧 `TypeId` 调用路径未被破坏）、`cargo clippy --all-targets -- -D warnings`、`git diff --check`。
-6. 在 `TODO-6.md` 把 `P7-T04-b-1` 标题前缀改为 `[DONE]`、补完成记录；同步 `TODO.md` 索引把状态改 `[DONE]`。
-7. 提交（`[P7-T04-b-1]` 前缀）。
+2. **构造唯一性审查**：
+   - `rg -n 'MonoTypeId\b' crates/scoopc_types/`：列出所有引用，确认仅 `as_mono` 返回 `MonoTypeId`，公开 API 不暴露其它入口。
+   - `rg -n 'pub fn .* -> .*MonoTypeId' crates/`：列出所有 `pub fn` 返回 `MonoTypeId` 的位置。
+   - 检查是否有 `From<TypeId> for MonoTypeId` / `Into<TypeId> for MonoTypeId` / `unsafe`/`unchecked` 构造。
+   - 检查 `MonoTypeId` 字段可见性：tuple struct field `MonoTypeId(TypeId)` 默认 private（OK），但要确认未误标 `pub`。
+3. **覆盖完整性审查**：
+   - 重新读 `as_mono` 实现，与 `TypeKind` / `RefTypeKind` / `ValueTypeKind` / `StarProjectionType` / `EffectRow` / `NominalType` / `FunctionType` / `UnionType` 各字段逐一对照，确认无遗漏。
+   - 重新读 `kind_mono` 实现，对照同样字段集，确认 children 一一被包装为 `MonoTypeId`，无遗漏。
+4. **测试覆盖审查**：
+   - 检查现有 19 个 `as_mono`/`kind_mono` 单元测试是否覆盖任务卡 4 项重点；
+   - 若 `kind_mono` 对 Union / `MonoEffectRow` 字段位置一致性没有测试，本 review 必须补一个 `kind_mono` 在 Union 上的测试；
+   - 确认 idempotent 测试存在。
+5. **fallback 路径审查**：
+   - `rg -n 'Param' crates/scoopc_types/src/`：把 `Param` 出现的所有位置列出，确认 `as_mono` 只在 `Param` 节点处返回 `Err(ParamLeak)`，不存在其它路径把 `Param` 视为合法或映射为某个默认 TypeId。
+   - 确认 `kind_mono` 中 `Param` 分支是 `unreachable!`（强约束）而不是返回某个 fallback。
+6. 修复发现的任何阻塞项（若有）。
+7. 重新运行任务卡列出的所有验证：
+   - `cargo fmt`；
+   - `cargo test -p scoopc_types`；
+   - `cargo build -p scoopc`；
+   - `cargo clippy --all-targets -- -D warnings`；
+   - `git diff --check`。
+8. 把 `P7-T04-b-1R` 标题前缀改为 `[DONE]`，补完成记录（明确写出 review 结论与具体审查证据）；同步 `TODO.md` 索引状态。
+9. 提交（`[P7-T04-b-1R]` 前缀）。
 
-## 验证清单（任务卡定义）
+## 完成判据（任务卡定义）
 
-1. `cargo fmt`
-2. `cargo test -p scoopc_types`
-3. `cargo build -p scoopc`（确认旧 `TypeId` 调用路径未被破坏）
-4. `git diff --check`
-
-额外执行 `cargo clippy --all-targets -- -D warnings` 以满足 PROMPT.md "无 warning" 总纪律。
+- review 结论明确写出 `MonoTypeId` 不变量已被 Rust 类型系统强制；
+- 或列出阻塞项并在本 review 内修复完毕。
 
 ## 不在本轮范围内
 
-- 任何 `cg_ty_of` / `expect_cg_ty_of` 调用点的修改；
-- `hir::ClassInit` / `ClassInitIndex` 的拆分；
-- `ClassInstanceKey` 的引入；
-- `mir::Local.ty` / `MirLocalSlot.ty` 等 codegen 内部 token 的迁移；
-- 删除 `monomorph miss` 警告或 `expect_cg_ty_of` 函数；
-- 修复 `sysroot_atomic_basic` panic（其修复在 b-3 完成后才会发生）。
-
-这些都属于后续 b-2 / b-3 / b-4 任务，本轮不动。
+- 任何 `cg_ty_of` / `expect_cg_ty_of` 调用点的修改（属于 b-2/b-3/b-4）；
+- `hir::ClassInit` 拆分（属于 b-2）；
+- `ClassInstanceKey` 引入（属于 b-3）；
+- codegen 内部 token 迁移（属于 b-4）。
 
 ## 进度记录
 
 - 已写入本计划。
-- 接下来：先做 `TODO.md` 索引同步（小补丁），再开始实现工作。
+- 步骤 2（构造唯一性）：✓ `MonoTypeId(TypeId)` private inner field；`#![forbid(unsafe_code)]`；`rg` 验证仅 `as_mono` 公开返回 `MonoTypeId`，无 `From`/`unsafe`/`unchecked`。
+- 步骤 3（覆盖完整性）：✓ `as_mono` / `kind_mono` 与 `TypeKind` / `RefTypeKind` / `ValueTypeKind` / `StarProjectionType` / `EffectRow` / `NominalType` / `FunctionType` / `UnionType` 各子位置一一对齐。
+- 步骤 4（测试覆盖）：✓ 补 `kind_mono_aligns_for_union_value_nominal_and_use_site_eff_row` 一项，覆盖原测试缺失的 Union variants / Value::Nominal / use-site EffectRow.terms。
+- 步骤 5（fallback 路径）：✓ `Param` 仅在构造、`re_intern_from`、`as_mono` 拒绝、`kind_mono` `unreachable!`、Display 五类合法路径出现，无静默 fallback。
+- 步骤 6：无阻塞项需修复。
+- 步骤 7（验证）：`cargo fmt`、`cargo test -p scoopc_types`（25 passed）、`cargo build -p scoopc`、`cargo clippy --all-targets -- -D warnings`、`git diff --check` 全部通过。
+- 步骤 8：TODO-6.md 中 P7-T04-b-1R 标题已改为 `[DONE]`，完成记录写入；TODO.md 索引同步；TODO-6.md 头部状态行更新。
+- 接下来：步骤 9（提交）。

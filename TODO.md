@@ -121,7 +121,7 @@
 | P7-T03R | [DONE] | [`TODO-6.md`](./TODO-6.md#done-p7-t03rreview-llvm-body-emission-迁移结果) | Review LLVM body emission 迁移结果 |
 | P7-T04-a | [DONE] | [`TODO-6.md`](./TODO-6.md#done-p7-t04-a发布-llvm-backend-收口所需的-lirbase-context-合同) | 发布 LLVM backend 收口所需的 LIR/base context 合同 |
 | P7-T04-b-1 | [DONE] | [`TODO-6.md`](./TODO-6.md#done-p7-t04-b-1引入-monotypeid-与-monotypekind--codegen-输入类型纪律基线) | 引入 `MonoTypeId` 与 `MonoTypeKind` —— codegen 输入类型纪律基线 |
-| P7-T04-b-1R | [TODO] | [`TODO-6.md`](./TODO-6.md#todo-p7-t04-b-1rreview-monotypeid-类型纪律基线) | Review `MonoTypeId` 类型纪律基线 |
+| P7-T04-b-1R | [DONE] | [`TODO-6.md`](./TODO-6.md#done-p7-t04-b-1rreview-monotypeid-类型纪律基线) | Review `MonoTypeId` 类型纪律基线 |
 | P7-T04-b-2 | [TODO] | [`TODO-6.md`](./TODO-6.md#todo-p7-t04-b-2拆分-hirclassinit-为-genericclassdecl-与-monoclassinit) | 拆分 `hir::ClassInit` 为 `GenericClassDecl` 与 `MonoClassInit` |
 | P7-T04-b-2R | [TODO] | [`TODO-6.md`](./TODO-6.md#todo-p7-t04-b-2rreview-classinit-拆分) | Review `ClassInit` 拆分 |
 | P7-T04-b-3 | [TODO] | [`TODO-6.md`](./TODO-6.md#todo-p7-t04-b-3引入-classinstancekey-收回-layout-key-字符串形态) | 引入 `ClassInstanceKey` 收回 layout key 字符串形态 |
