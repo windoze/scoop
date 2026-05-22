@@ -44,7 +44,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(in crate::llvm::codegen) fn codegen_mir_class_ctor_call(
         &mut self,
         span: crate::span::Span,
-        class_layout_key: &str,
+        class_layout_key: &hir::ClassInstanceKey,
         ctor: &crate::mir::ClassCtorCallMetadata,
         args: &[crate::mir::CallArg],
         slots: &[MirLocalSlot<'ctx>],

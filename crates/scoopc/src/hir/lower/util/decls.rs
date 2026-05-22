@@ -1182,10 +1182,11 @@ pub(in crate::hir::lower) fn collect_class_decl_init(
     let is_generic = !decl.type_params.is_empty();
     let entry_fqn = class_fqn.to_string();
     let inserted = out.entry(entry_fqn.clone()).or_insert(init);
-    if !is_generic && !mono_out.contains_key(&entry_fqn) {
+    let entry_key = crate::hir::ClassInstanceKey::for_unparameterized(&entry_fqn);
+    if !is_generic && !mono_out.contains_key(&entry_key) {
         match crate::hir::MonoClassInit::from_generic_decl(inserted, ctx.types) {
             Ok(mono) => {
-                mono_out.insert(entry_fqn, mono);
+                mono_out.insert(entry_key, mono);
             }
             Err(diag) => {
                 return Err(HirStageError::new(

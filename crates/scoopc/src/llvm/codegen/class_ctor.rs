@@ -21,29 +21,46 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         site: &hir::CtorCallInfo,
         result_ty: Option<TypeId>,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        let base_fqn = site.class_fqn.clone();
-        let class_fqn = if let Some(rty) = result_ty {
-            if let TypeKind::Ref(RefTypeKind::Nominal(nominal)) = self.types.kind(rty) {
-                if !nominal.args.is_empty() {
-                    let mangled = self.nominal_layout_key(nominal);
-                    if self.class_inits.contains_key(&mangled) {
-                        mangled
-                    } else {
-                        base_fqn
-                    }
-                } else {
-                    base_fqn
-                }
-            } else {
-                base_fqn
-            }
-        } else {
-            base_fqn
+        let base_fqn = site.class_fqn.as_str();
+        let result_ty = result_ty.ok_or_else(|| LlvmEmitError::Frontend {
+            message: format!("class ctor `{base_fqn}` reached LLVM without a typed result target"),
+        })?;
+        let TypeKind::Ref(RefTypeKind::Nominal(nominal)) = self.types.kind(result_ty) else {
+            return Err(LlvmEmitError::Frontend {
+                message: format!(
+                    "class ctor `{base_fqn}` result type t{} is not a nominal class reference",
+                    result_ty.as_u32()
+                ),
+            });
         };
-        if !self.class_inits.contains_key(&class_fqn) {
-            panic!("codegen_class_ctor_call: typecheck accepted class ctor without class metadata");
+        if nominal.fqn != base_fqn {
+            return Err(LlvmEmitError::Frontend {
+                message: format!(
+                    "class ctor `{base_fqn}` result type resolves to mismatched nominal `{}`",
+                    nominal.fqn
+                ),
+            });
         }
-        let class = self.class_init_layout(callee_span, &class_fqn)?;
+        let mono_result_ty =
+            self.types
+                .as_mono(result_ty)
+                .map_err(|leak| LlvmEmitError::Frontend {
+                    message: format!(
+                        "class ctor `{base_fqn}` result type t{} is not fully monomorphic: {:?}",
+                        result_ty.as_u32(),
+                        leak.leak_path
+                    ),
+                })?;
+        let class_key = hir::ClassInstanceKey::from_mono_nominal(self.types, mono_result_ty)
+            .expect("nominal result type must produce ClassInstanceKey");
+        if !self.class_inits.contains_key(&class_key) {
+            return Err(LlvmEmitError::Frontend {
+                message: format!(
+                    "class ctor `{base_fqn}` resolved to missing class layout key `{class_key}`"
+                ),
+            });
+        }
+        let class = self.class_init_layout(callee_span, &class_key)?;
 
         let selected_ctor = self.pick_class_ctor_by_target(
             callee_span,
@@ -64,7 +81,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let size_v = self.context.i64_type().const_int(obj_size_bytes, false);
 
         // 分配点统一走 typed alloc：在 runtime 内部写入对象头 `type_desc`。
-        let type_desc = self.get_or_create_class_type_desc_global(span, &class_fqn)?;
+        let type_desc = self.get_or_create_class_type_desc_global(span, &class_key)?;
         let type_desc_i8 = self.builder.build_pointer_cast(
             type_desc.as_pointer_value(),
             self.llvm_i8_ptr_type(),
@@ -420,7 +437,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             return Ok(());
         };
 
-        let super_class = self.class_init_layout(callee_span, super_fqn)?;
+        let super_key = self.registered_class_instance_key(super_fqn).ok_or_else(|| {
+            LlvmEmitError::Frontend {
+                message: format!(
+                    "class ctor `{}` references superclass `{super_fqn}` without ClassInstanceKey metadata",
+                    class.fqn
+                ),
+            }
+        })?;
+        let super_class = self.class_init_layout(callee_span, &super_key)?;
         let super_ctor = self.pick_class_ctor_by_target(
             callee_span,
             &super_class,

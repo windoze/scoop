@@ -264,14 +264,21 @@ pub fn dump_file_type_desc(
     out.extend(builtin_type_descs(target));
 
     // class type descriptors（按 class FQN 稳定排序）。
-    let mut class_fqns: Vec<String> = lowered.class_inits.keys().cloned().collect();
-    class_fqns.sort();
-    for fqn in class_fqns {
-        if let Some(mut desc) = class_type_desc(target, &lowered.types, &lowered.class_inits, &fqn)?
+    let mut class_keys: Vec<hir::ClassInstanceKey> = lowered.class_inits.keys().cloned().collect();
+    class_keys.sort();
+    for class_key in class_keys {
+        if let Some(mut desc) =
+            class_type_desc(target, &lowered.types, &lowered.class_inits, &class_key)?
         {
-            desc.vtable_slots = class_vtables.get(&fqn).cloned().unwrap_or_default();
-            let mut itable_entries = class_itables.get(&fqn).cloned().unwrap_or_default();
-            if let Some(precise_entries) = precise_class_itables.get(&fqn) {
+            desc.vtable_slots = class_vtables
+                .get(class_key.as_str())
+                .cloned()
+                .unwrap_or_default();
+            let mut itable_entries = class_itables
+                .get(class_key.as_str())
+                .cloned()
+                .unwrap_or_default();
+            if let Some(precise_entries) = precise_class_itables.get(class_key.as_str()) {
                 for entry in &mut itable_entries {
                     if let Some(precise) = precise_entries
                         .iter()
@@ -1181,14 +1188,14 @@ fn class_type_desc(
     target: TargetLayout,
     types: &TypeStore,
     class_inits: &hir::ClassInitIndex,
-    class_fqn: &str,
+    class_key: &hir::ClassInstanceKey,
 ) -> Result<Option<TypeDesc>, TypeDescError> {
-    let Some(base) = class_inits.get(class_fqn) else {
+    let Some(base) = class_inits.get(class_key) else {
         return Ok(None);
     };
 
-    let mut visiting: HashSet<String> = HashSet::new();
-    let (fields, chain) = flatten_class_fields(class_fqn, class_inits, &mut visiting)?;
+    let mut visiting: HashSet<hir::ClassInstanceKey> = HashSet::new();
+    let (fields, chain) = flatten_class_fields(class_key, class_inits, &mut visiting)?;
     let parent = base.super_class_fqn.clone();
 
     let payload_tys: Vec<TypeId> = fields.iter().map(|f| f.ty.inner()).collect();
@@ -1209,29 +1216,29 @@ fn class_type_desc(
 }
 
 fn flatten_class_fields(
-    class_fqn: &str,
+    class_key: &hir::ClassInstanceKey,
     class_inits: &hir::ClassInitIndex,
-    visiting: &mut HashSet<String>,
+    visiting: &mut HashSet<hir::ClassInstanceKey>,
 ) -> Result<(Vec<hir::ClassField<scoopc_types::MonoTypeId>>, Vec<String>), TypeDescError> {
-    if !visiting.insert(class_fqn.to_string()) {
+    if !visiting.insert(class_key.clone()) {
         return Err(TypeDescError::InheritanceCycle {
-            fqn: class_fqn.to_string(),
+            fqn: class_key.as_str().to_string(),
         });
     }
 
-    let Some(base) = class_inits.get(class_fqn) else {
+    let Some(base) = class_inits.get(class_key) else {
         // best-effort：外部 class 不在当前 compilation unit 的 class_inits 中时，返回空字段与只含自身的链。
-        let _ = visiting.remove(class_fqn);
-        return Ok((Vec::new(), vec![class_fqn.to_string()]));
+        let _ = visiting.remove(class_key);
+        return Ok((Vec::new(), vec![class_key.as_str().to_string()]));
     };
 
     let mut fields: Vec<hir::ClassField<scoopc_types::MonoTypeId>> = Vec::new();
     let mut chain: Vec<String> = Vec::new();
 
     if let Some(super_fqn) = base.super_class_fqn.as_deref() {
-        if class_inits.contains_key(super_fqn) {
+        if let Some(super_key) = class_instance_key_by_fqn(class_inits, super_fqn) {
             let (super_fields, mut super_chain) =
-                flatten_class_fields(super_fqn, class_inits, visiting)?;
+                flatten_class_fields(&super_key, class_inits, visiting)?;
             fields.extend(super_fields);
             chain.append(&mut super_chain);
         } else {
@@ -1243,8 +1250,18 @@ fn flatten_class_fields(
     fields.extend(base.fields.clone());
     chain.push(base.fqn.clone());
 
-    let _ = visiting.remove(class_fqn);
+    let _ = visiting.remove(class_key);
     Ok((fields, chain))
+}
+
+fn class_instance_key_by_fqn(
+    class_inits: &hir::ClassInitIndex,
+    class_fqn: &str,
+) -> Option<hir::ClassInstanceKey> {
+    class_inits
+        .keys()
+        .find(|key| key.as_str() == class_fqn)
+        .cloned()
 }
 
 fn collect_symbol_types(file: &hir::File) -> HashMap<hir::SymbolId, TypeId> {

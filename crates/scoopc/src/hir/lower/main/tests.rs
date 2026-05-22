@@ -2902,7 +2902,9 @@ fun main(): Int { return 0 }
 
     let class_init = lowered
         .class_inits
-        .get("fixtures.t3014b.BoomClass")
+        .get(&crate::hir::ClassInstanceKey::for_unparameterized(
+            "fixtures.t3014b.BoomClass",
+        ))
         .expect("应收集到 BoomClass 的 class init");
     let class_property_init = class_init
         .steps

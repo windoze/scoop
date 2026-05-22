@@ -70,8 +70,17 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                 continue;
             }
 
-            let class_key =
-                crate::hir::mangle_nominal_fqn(&nominal.fqn, &nominal.args, self.source_types);
+            let mono_ty = self.source_types.as_mono(ty).map_err(|leak| {
+                frontend_error(format!(
+                    "LLVM ABI materialization 发现 concrete class `{}` 仍含未实例化类型参数: {:?}",
+                    nominal.fqn, leak.leak_path
+                ))
+            })?;
+            let Some(class_key) =
+                crate::hir::ClassInstanceKey::from_mono_nominal(self.source_types, mono_ty)
+            else {
+                continue;
+            };
             let Some(class) = self.codegen.class_inits.get(&class_key) else {
                 continue;
             };

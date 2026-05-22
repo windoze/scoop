@@ -3107,7 +3107,10 @@ fn collect_layout_field_facts(facts: &mut DeclarationFacts, lowered_hir: &Lowere
         }
     }
     for (class_key, class) in &lowered_hir.class_inits {
-        if lowered_hir.generic_class_decls.contains_key(class_key) {
+        if lowered_hir
+            .generic_class_decls
+            .contains_key(class_key.as_str())
+        {
             continue;
         }
         for field in &class.fields {
@@ -3115,7 +3118,7 @@ fn collect_layout_field_facts(facts: &mut DeclarationFacts, lowered_hir: &Lowere
                 lowered_hir,
                 "class_field",
                 &field.fqn,
-                class_key,
+                class_key.as_str(),
                 FieldOwnerKind::Class,
                 &field.name,
                 field.ty.inner(),
@@ -3206,7 +3209,10 @@ fn populate_global_root_facts(facts: &mut HirFacts, lowered_hir: &LoweredHir) {
     // 单态化实例化的 class（mangled FQN 不在 generic_class_decls 中）补充进 facts，
     // 以保留 split 前的全集可见性。
     for (mangled_fqn, mono) in &lowered_hir.class_inits {
-        if lowered_hir.generic_class_decls.contains_key(mangled_fqn) {
+        if lowered_hir
+            .generic_class_decls
+            .contains_key(mangled_fqn.as_str())
+        {
             continue;
         }
         facts
@@ -6097,7 +6103,7 @@ mod tests {
 
         let (mut lowered, source_path) = clean_lowered_hir();
         lowered.class_inits.insert(
-            "sample.Box".to_string(),
+            crate::hir::ClassInstanceKey::for_unparameterized("sample.Box"),
             crate::hir::MonoClassInit {
                 fqn: "sample.Box".to_string(),
                 source_path: source_path.clone(),

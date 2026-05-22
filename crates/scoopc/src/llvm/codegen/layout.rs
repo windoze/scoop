@@ -23,29 +23,29 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(super) fn class_init_layout(
         &mut self,
         at: crate::span::Span,
-        class_fqn: &str,
+        class_key: &hir::ClassInstanceKey,
     ) -> Result<hir::MonoClassInit, LlvmEmitError> {
-        let mut visiting: HashSet<String> = HashSet::new();
-        self.class_init_layout_inner(at, class_fqn, &mut visiting)
+        let mut visiting: HashSet<hir::ClassInstanceKey> = HashSet::new();
+        self.class_init_layout_inner(at, class_key, &mut visiting)
     }
 
     fn class_init_layout_inner(
         &mut self,
         _at: crate::span::Span,
-        class_fqn: &str,
-        visiting: &mut HashSet<String>,
+        class_key: &hir::ClassInstanceKey,
+        visiting: &mut HashSet<hir::ClassInstanceKey>,
     ) -> Result<hir::MonoClassInit, LlvmEmitError> {
         if let Some(cached) = self
             .shared_caches
             .class_init_layout_cache
             .borrow()
-            .get(class_fqn)
+            .get(class_key)
             .cloned()
         {
             return Ok(cached);
         }
 
-        if !visiting.insert(class_fqn.to_string()) {
+        if !visiting.insert(class_key.clone()) {
             std::panic::panic_any(
                 "typecheck must reject class inheritance cycles before LLVM layout",
             );
@@ -53,7 +53,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         let base = self
             .class_inits
-            .get(class_fqn)
+            .get(class_key)
             .cloned()
             .expect("ClassInit must exist for layout key");
 
@@ -61,7 +61,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let mut field_indices: HashMap<String, u32> = HashMap::new();
 
         if let Some(super_fqn) = base.super_class_fqn.as_deref() {
-            let super_layout = self.class_init_layout_inner(_at, super_fqn, visiting)?;
+            let super_key = self.registered_class_instance_key(super_fqn).ok_or_else(|| {
+                LlvmEmitError::Frontend {
+                    message: format!(
+                        "class layout `{class_key}` references superclass `{super_fqn}` without ClassInstanceKey metadata"
+                    ),
+                }
+            })?;
+            let super_layout = self.class_init_layout_inner(_at, &super_key, visiting)?;
             fields.extend(super_layout.fields);
             field_indices.extend(super_layout.field_indices);
         }
@@ -86,11 +93,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             ctors: base.ctors,
         };
 
-        let _ = visiting.remove(class_fqn);
+        let _ = visiting.remove(class_key);
         self.shared_caches
             .class_init_layout_cache
             .borrow_mut()
-            .insert(class_fqn.to_string(), layouted.clone());
+            .insert(class_key.clone(), layouted.clone());
         Ok(layouted)
     }
 
@@ -111,41 +118,40 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             return Ok(None);
         };
 
-        // T0125：若 receiver 类型携带 type args，优先用 mangled FQN 查找具体实例化的 ClassInit。
-        let lookup_key = if let Some(recv_ty) = receiver_ty {
-            self.mangled_class_key_from_receiver(recv_ty)
-                .unwrap_or_else(|| owner_fqn.to_string())
-        } else {
-            owner_fqn.to_string()
-        };
+        // T0125：若 receiver 类型携带 type args，优先用 typed key 查找具体实例化的 ClassInit。
+        let lookup_key = receiver_ty.and_then(|recv_ty| self.class_key_from_receiver(recv_ty));
 
-        if !self.class_inits.contains_key(&lookup_key) {
-            // Fallback to base FQN for non-generic classes.
-            if !self.class_inits.contains_key(owner_fqn) {
-                let mangled_owner_prefix = format!("{owner_fqn}<");
-                let class_keys = self.class_inits.keys().cloned().collect::<Vec<_>>();
-                for class_key in class_keys {
-                    if class_key != owner_fqn && !class_key.starts_with(&mangled_owner_prefix) {
-                        continue;
-                    }
-                    if let Some(field) =
-                        self.lookup_class_field_by_fqn_inner(field_fqn, at, &class_key)?
-                    {
-                        return Ok(Some(field));
-                    }
-                }
-                return Ok(None);
-            }
-            return self.lookup_class_field_by_fqn_inner(field_fqn, at, owner_fqn);
+        if let Some(lookup_key) = lookup_key
+            && self.class_inits.contains_key(&lookup_key)
+        {
+            return self.lookup_class_field_by_fqn_inner(field_fqn, at, &lookup_key);
         }
-        self.lookup_class_field_by_fqn_inner(field_fqn, at, &lookup_key)
+
+        if let Some(owner_key) = self.registered_class_instance_key(owner_fqn) {
+            return self.lookup_class_field_by_fqn_inner(field_fqn, at, &owner_key);
+        }
+
+        // 无 receiver 类型时只扫描已注册 key，不再在 codegen 中从裸字符串构造 layout key。
+        let mangled_owner_prefix = format!("{owner_fqn}<");
+        let class_keys = self.class_inits.keys().cloned().collect::<Vec<_>>();
+        for class_key in class_keys {
+            if class_key.as_str() != owner_fqn
+                && !class_key.as_str().starts_with(&mangled_owner_prefix)
+            {
+                continue;
+            }
+            if let Some(field) = self.lookup_class_field_by_fqn_inner(field_fqn, at, &class_key)? {
+                return Ok(Some(field));
+            }
+        }
+        Ok(None)
     }
 
     fn lookup_class_field_by_fqn_inner(
         &mut self,
         field_fqn: &str,
         at: crate::span::Span,
-        class_key: &str,
+        class_key: &hir::ClassInstanceKey,
     ) -> Result<Option<(hir::MonoClassInit, u32, CgTy)>, LlvmEmitError> {
         let class = self.class_init_layout(at, class_key)?;
         let field_idx = class.field_indices.get(field_fqn).copied().or_else(|| {
@@ -166,15 +172,20 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(Some((class, field_idx, field_cg)))
     }
 
-    /// T0125：从 receiver TypeId 提取泛型 class 的 mangled FQN。
-    fn mangled_class_key_from_receiver(&self, ty: TypeId) -> Option<String> {
-        use crate::ty::{RefTypeKind, TypeKind};
-        match self.types.kind(ty) {
-            TypeKind::Ref(RefTypeKind::Nominal(nominal)) if !nominal.args.is_empty() => {
-                Some(self.nominal_layout_key(nominal))
-            }
-            _ => None,
-        }
+    /// 从 receiver TypeId 提取已注册的 class instance key。
+    fn class_key_from_receiver(&self, ty: TypeId) -> Option<hir::ClassInstanceKey> {
+        let mono_ty = self.types.as_mono(ty).ok()?;
+        hir::ClassInstanceKey::from_mono_nominal(self.types, mono_ty)
+    }
+
+    pub(in crate::llvm::codegen) fn registered_class_instance_key(
+        &self,
+        class_fqn: &str,
+    ) -> Option<hir::ClassInstanceKey> {
+        self.class_inits
+            .keys()
+            .find(|key| key.as_str() == class_fqn)
+            .cloned()
     }
 
     pub(super) fn lookup_struct_field(

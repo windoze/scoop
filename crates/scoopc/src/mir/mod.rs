@@ -737,6 +737,15 @@ impl File {
                 .validate_production_operand(fqn, block, span, body, "member receiver", receiver)
                 .map(|_| ()),
             Rvalue::ClassCtor { ctor, args, .. } => {
+                if result_ty.is_none() {
+                    return Err(MirValidationError::TypeContract {
+                        fqn: fqn.to_string(),
+                        block: Some(block),
+                        span,
+                        surface: "class constructor result",
+                        detail: "class constructor rvalue must assign to a typed target local",
+                    });
+                }
                 if ctor.ordered_param_count != args.len() {
                     return Err(MirValidationError::TypeContract {
                         fqn: fqn.to_string(),

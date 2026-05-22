@@ -18,8 +18,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         match kind {
             crate::mir::CallKind::Direct { callee_fqn } => {
-                if self.class_inits.contains_key(callee_fqn) {
-                    return self.codegen_mir_class_ctor_call_at_site(span, callee_fqn, args, slots);
+                if let Some(class_key) = self.registered_class_instance_key(callee_fqn) {
+                    return self.codegen_mir_class_ctor_call_at_site(span, &class_key, args, slots);
                 }
                 self.codegen_mir_direct_call(
                     span, callee_fqn, args, body, mir_types, transport, slots,
@@ -479,7 +479,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(in crate::llvm::codegen) fn codegen_mir_class_ctor_call_at_site(
         &mut self,
         span: crate::span::Span,
-        class_layout_key: &str,
+        class_layout_key: &hir::ClassInstanceKey,
         args: &[crate::mir::CallArg],
         slots: &[MirLocalSlot<'ctx>],
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {

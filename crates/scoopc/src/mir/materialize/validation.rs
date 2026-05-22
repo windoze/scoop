@@ -2123,26 +2123,32 @@ fn validate_materialized_class_ctor_contract(
             "class constructor target must be class metadata",
         ));
     }
-    if let Some(result_ty) = result_ty {
-        let TypeKind::Ref(RefTypeKind::Nominal(nominal)) = materialized.types.kind(result_ty)
-        else {
-            return Err(materialized_type_contract_err(
-                fqn,
-                Some(block),
-                span,
-                "class constructor result",
-                "class constructor result target must have class reference type",
-            ));
-        };
-        if strip_materialized_type_args(&nominal.fqn) != strip_materialized_type_args(class_fqn) {
-            return Err(materialized_type_contract_err(
-                fqn,
-                Some(block),
-                span,
-                "class constructor result",
-                "class constructor result target and class metadata disagree",
-            ));
-        }
+    let Some(result_ty) = result_ty else {
+        return Err(materialized_type_contract_err(
+            fqn,
+            Some(block),
+            span,
+            "class constructor result",
+            "class constructor rvalue must assign to a typed target local",
+        ));
+    };
+    let TypeKind::Ref(RefTypeKind::Nominal(nominal)) = materialized.types.kind(result_ty) else {
+        return Err(materialized_type_contract_err(
+            fqn,
+            Some(block),
+            span,
+            "class constructor result",
+            "class constructor result target must have class reference type",
+        ));
+    };
+    if nominal.fqn != class_fqn {
+        return Err(materialized_type_contract_err(
+            fqn,
+            Some(block),
+            span,
+            "class constructor result",
+            "class constructor result target and class metadata disagree",
+        ));
     }
 
     if args.iter().any(|arg| arg.name.is_some()) || args.len() != ctor.ordered_param_count {

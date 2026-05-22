@@ -414,13 +414,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     }));
                 }
 
-                if self.class_inits.contains_key(other)
+                if self.registered_class_instance_key(other).is_some()
                     || self.lir_global_root_has_kind(other, LirGlobalRootKind::ObjectSingleton)
                 {
                     return Ok(CgTy::Ref);
                 }
                 if let Some((base, _)) = other.split_once('<')
-                    && self.class_inits.contains_key(base)
+                    && self.registered_class_instance_key(base).is_some()
                 {
                     return Ok(CgTy::Ref);
                 }

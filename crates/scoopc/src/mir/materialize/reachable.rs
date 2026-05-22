@@ -232,7 +232,12 @@ impl MirInstanceMaterializer {
         if !self.scanned_class_inits.insert(scan_key) {
             return Ok(());
         }
-        let Some(class) = self.class_inits.get(class_fqn).cloned() else {
+        let Some(class) = self
+            .class_inits
+            .values()
+            .find(|class| class.fqn == class_fqn)
+            .cloned()
+        else {
             return Ok(());
         };
 

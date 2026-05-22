@@ -24,7 +24,7 @@ use std::path::PathBuf;
 
 use crate::ast;
 use crate::span::Span;
-use crate::ty::{MonoTypeId, ParamLeak, TypeId, TypeStore};
+use crate::ty::{MonoRefKind, MonoTypeId, MonoTypeKind, ParamLeak, TypeId, TypeStore};
 
 pub(crate) use lower::GenericTemplateSymbolSuffixIndex;
 pub(crate) use lower::lower_generic_for_compilation_unit_multi_files_with_type_env;
@@ -841,7 +841,46 @@ pub type ObjectInitIndex = HashMap<String, ObjectInit>;
 ///   - 泛型 class 的具体实例化：`collect_generic_class_instantiation_inits` 在 substitute
 ///     字段/参数 TypeId 后立即调 `as_mono`，失败即返回 monomorph driver diagnostic；
 ///   - 泛型 class 的源声明本身**不**进入此索引（它仅入 `GenericClassDeclIndex`）。
-pub type ClassInitIndex = HashMap<String, MonoClassInit>;
+/// - key 使用 [`ClassInstanceKey`]，避免 codegen 以裸 `String` / `&str` 静默退回 base FQN。
+pub type ClassInitIndex = HashMap<ClassInstanceKey, MonoClassInit>;
+
+/// 单态化 class instance 的后端 layout key。
+///
+/// 该 key 的字符串表示仍与既有 dump/wire format 兼容（非泛型为 FQN，泛型为 mangled FQN），
+/// 但外部不能从任意 `&str` / `String` 直接构造它。codegen 必须从已单态化的 nominal
+/// `MonoTypeId` 或已经验证过的 [`MonoClassInit`] 取得 key。
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct ClassInstanceKey(String);
+
+impl ClassInstanceKey {
+    /// 从单态化引用名义类型构造 class instance key；非 `Ref::Nominal` 返回 `None`。
+    pub fn from_mono_nominal(types: &TypeStore, ty: MonoTypeId) -> Option<Self> {
+        let MonoTypeKind::Ref(MonoRefKind::Nominal(nominal)) = types.kind_mono(ty) else {
+            return None;
+        };
+        let args = nominal
+            .args
+            .iter()
+            .map(|arg| arg.inner())
+            .collect::<Vec<_>>();
+        Some(Self(mangle_nominal_fqn(nominal.fqn, &args, types)))
+    }
+
+    /// 无 type-param class 的单态等价 key。仅供 HIR lowering 注册非泛型 class 使用。
+    pub fn for_unparameterized(class_fqn: &str) -> Self {
+        Self(class_fqn.to_string())
+    }
+
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl fmt::Display for ClassInstanceKey {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
 
 /// 泛型 class 源声明索引（值为 `GenericClassDecl`，字段类型为 `TypeId` 可含 `Param`）。
 ///
@@ -955,6 +994,11 @@ impl fmt::Display for MonoLeakDiag {
 }
 
 impl MonoClassInit {
+    /// 返回此单态化 class init 在 `ClassInitIndex` 中的 canonical key。
+    pub fn key(&self) -> ClassInstanceKey {
+        ClassInstanceKey(self.fqn.clone())
+    }
+
     /// 把一个已 substituted 的 `GenericClassDecl` 升级为 `MonoClassInit`。
     ///
     /// 调用约束：

@@ -1127,8 +1127,14 @@ pub(in crate::hir::lower) fn collect_generic_class_instantiation_inits(
             continue;
         };
 
-        let mangled = mangle_nominal_fqn(&nominal.fqn, &nominal.args, types);
-        if out.contains_key(&mangled) {
+        let Some(class_key) = types
+            .as_mono(ty_id)
+            .ok()
+            .and_then(|mono_ty| crate::hir::ClassInstanceKey::from_mono_nominal(types, mono_ty))
+        else {
+            continue;
+        };
+        if out.contains_key(&class_key) {
             continue;
         }
 
@@ -1176,7 +1182,7 @@ pub(in crate::hir::lower) fn collect_generic_class_instantiation_inits(
         // 先建一个 substituted 的 GenericClassDecl，再立即升级为 MonoClassInit。
         // 失败说明 monomorph driver 漏过了 Param 残留——以明确 diag 终止 codegen。
         let substituted = GenericClassDecl {
-            fqn: mangled.clone(),
+            fqn: class_key.as_str().to_string(),
             source_path: base_decl.source_path.clone(),
             super_class_fqn: base_decl.super_class_fqn.clone(),
             super_ctor_args_span: base_decl.super_ctor_args_span,
@@ -1195,11 +1201,11 @@ pub(in crate::hir::lower) fn collect_generic_class_instantiation_inits(
 
         match crate::hir::MonoClassInit::from_generic_decl(&substituted, types) {
             Ok(mono) => {
-                out.insert(mangled, mono);
+                out.insert(mono.key(), mono);
             }
             Err(diag) => {
                 panic!(
-                    "monomorph driver leak: generic class instantiation `{mangled}` still contains `Param` after substitution: {diag}"
+                    "monomorph driver leak: generic class instantiation `{class_key}` still contains `Param` after substitution: {diag}"
                 );
             }
         }

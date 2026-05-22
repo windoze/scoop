@@ -1,33 +1,36 @@
 # Claude Execution Plan
 
-## Scope
+## Current Invocation
 
-- Follow `TODO.md` as the authoritative task list.
-- Complete exactly the first task whose title is not prefixed with `[DONE]`, then stop.
-- Do not perform broad triage before identifying that task.
-- If the task is blocked by an unscheduled prerequisite or a failing unscheduled test/fixture, update `TODO.md`, commit that scheduling change, and stop.
+This file records the public execution plan and progress for the current TODO-driven invocation. It intentionally contains actionable rationale and decisions, not private chain-of-thought.
 
-## Planned Steps
+## Plan
 
-1. Read `TODO.md` and identify the first incomplete task.
-2. Inspect the latest commit only for directly relevant unfinished work or regressions tied to that task.
-3. Read the task details, dependencies, validation requirements, and nearby completion records.
-4. Inspect the relevant implementation and tests for that task.
-5. Implement the smallest spec-correct change that fully satisfies the task.
-6. Add or update targeted tests/fixtures required by the task.
-7. Run targeted validation first, then broader validation required by the task or affected area.
-8. If any observed failing test/fixture is not already explicitly scheduled, either fix it or add the minimum prerequisite/follow-up task before marking the current task done.
-9. Update `TODO.md` by prefixing the completed task title with `[DONE]` and filling in its completion record.
-10. Update this file after major milestones or plan changes.
-11. Inspect git status/diff/log, then commit all intended changes with a task-tagged message.
-12. Stop without starting the next task.
+1. Read `TODO.md` first and identify the first task whose heading is not prefixed with `[DONE]`.
+2. Review the selected task body, dependencies, validation requirements, and completion-record expectations.
+3. Check recent repository state only as needed for the selected task, including whether the latest commit mentions an unfinished issue directly relevant to it.
+4. Implement the selected task fully, unless a concrete blocker requires adding the minimum prerequisite task to `TODO.md` and stopping.
+5. Run targeted validation for the affected area, then broader required checks when feasible. Any observed unscheduled test or fixture failure must be fixed or explicitly scheduled before completion.
+6. Update `TODO.md` by prefixing the completed task heading with `[DONE]` and filling its completion record. Update `PLAN.md` only if phase-level sequencing or criteria change.
+7. Commit all intended changes for this invocation with a descriptive task-tagged commit message.
+8. Stop after completing exactly one task.
 
-## Current Status
+## Progress
 
-- Identified first incomplete task: `P7-T04-b-2R` in `TODO-6.md`.
-- Review found a blocking issue in the reviewed task: `GenericClassDecl` and `MonoClassInit` were type aliases over `ClassInitImpl<T>`, not independent nominal Rust types.
-- Applied the review fix by replacing the aliases with distinct `GenericClassDecl` and `MonoClassInit` structs and updating the HIR completeness verifier to avoid the removed shared `ClassInitImpl<T>` API.
-- Validation completed: targeted searches, `cargo fmt`, `cargo test -p scoopc_types`, `cargo test -p scoopc --no-default-features --lib hir`, `cargo test -p scoopc --no-default-features --lib`, filtered LLVM layout test, effect_lowered fixtures, run-pass fixtures, and `cargo clippy --all-targets -- -D warnings` all passed.
-- Updated `TODO-6.md` and `TODO.md` to mark `P7-T04-b-2R` as `[DONE]` with the review/fix completion record.
-- `git diff --check` passed; git status/diff/log inspected before commit.
-- Next: commit intended changes for `P7-T04-b-2R` and stop.
+- Started invocation and created this execution plan before running project commands.
+- Read `TODO.md`; first incomplete task is `P7-T04-b-3` in `TODO-6.md`.
+- Read the `P7-T04-b-3` task card. Scope is to introduce `hir::ClassInstanceKey`, change `ClassInitIndex` and LLVM layout helpers from string keys to typed keys, delete silent layout-key fallbacks, and add MIR verifier coverage for class constructor typed-target mismatch.
+- Implemented the initial typed-key conversion: added `ClassInstanceKey`, changed `ClassInitIndex`, updated HIR class-init insertion, switched LLVM class layout/type-desc/class-ctor helpers to typed keys, removed the targeted `class_fqn.to_string()` fallbacks, and added a materialized MIR validation test for class-ctor result nominal mismatch.
+- Validation completed successfully: `cargo test -p scoopc_types`, `cargo test -p scoopc --no-default-features hir`, `cargo test -p scoopc --no-default-features mir`, `cargo test -p scoopc --no-default-features llvm::codegen::effect_lowered::layout`, `cargo run -p scoop -- test --fixtures tests/fixtures/effect_lowered`, `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`, `cargo clippy --all-targets -- -D warnings`, and `git diff --check` all passed.
+- Marked `P7-T04-b-3` as `[DONE]` in `TODO.md` and `TODO-6.md`; no `PLAN.md` update was needed because phase-level sequencing did not change.
+
+## Current Task Plan
+
+1. Inspect the latest commit and current worktree for directly relevant unfinished state.
+2. Locate all existing class layout key construction and `class_inits` read/write sites.
+3. Add `ClassInstanceKey` with controlled constructors in HIR and upgrade `ClassInitIndex`.
+4. Update HIR lowering / generic monomorph collection to insert typed class keys.
+5. Update LLVM layout APIs, effect-lowered class ctor layout key, and MIR-body class ctor layout key to use `ClassInstanceKey` and return verifier errors instead of string fallbacks.
+6. Add/extend MIR verifier checks for `ClassCtor` target-local presence and nominal type match.
+7. Run the task validation commands, fix observed unscheduled failures or schedule concrete prerequisites if blocked.
+8. Mark `P7-T04-b-3` done in both TODO indexes, update this progress file, commit, and stop.

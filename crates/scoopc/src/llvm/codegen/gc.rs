@@ -1113,17 +1113,24 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(super) fn get_or_create_class_type_desc_global(
         &mut self,
         at: crate::span::Span,
-        class_fqn: &str,
+        class_key: &hir::ClassInstanceKey,
     ) -> Result<GlobalValue<'ctx>, LlvmEmitError> {
-        let stable_key = self.stable_nominal_type_key(class_fqn, "class_type_desc");
+        let stable_key = self.stable_nominal_type_key(class_key.as_str(), "class_type_desc");
         let global_name = PrivateSymbolMangler.mangle("class_type_desc", &stable_key);
         if let Some(existing) = self.module.get_global(&global_name) {
             return Ok(existing);
         }
 
-        let class = self.class_init_layout(at, class_fqn)?;
+        let class = self.class_init_layout(at, class_key)?;
         let parent = if let Some(super_fqn) = class.super_class_fqn.as_deref() {
-            Some(self.get_or_create_class_type_desc_global(at, super_fqn)?)
+            let super_key = self.registered_class_instance_key(super_fqn).ok_or_else(|| {
+                LlvmEmitError::Frontend {
+                    message: format!(
+                        "class type descriptor `{class_key}` references superclass `{super_fqn}` without ClassInstanceKey metadata"
+                    ),
+                }
+            })?;
+            Some(self.get_or_create_class_type_desc_global(at, &super_key)?)
         } else {
             None
         };
@@ -1132,11 +1139,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let trace_start_offset_bytes = self.target_data.offset_of_element(&obj_ty, 1).unwrap_or(0);
 
         let itable_ptr = self
-            .get_or_create_class_itable_global(at, class_fqn)?
+            .get_or_create_class_itable_global(at, class_key.as_str())?
             .map(|gv| gv.as_pointer_value().const_cast(self.llvm_i8_ptr_type()));
 
         let vtable_ptr = self
-            .get_or_create_class_vtable_global(at, class_fqn)?
+            .get_or_create_class_vtable_global(at, class_key.as_str())?
             .map(|gv| gv.as_pointer_value().const_cast(self.llvm_i8_ptr_type()));
 
         self.get_or_create_type_descriptor_global(TypeDescriptorSpec {

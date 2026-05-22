@@ -651,7 +651,7 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
                 args,
                 ..
             } => {
-                let class_layout_key = self.class_ctor_layout_key(class_fqn, target_local)?;
+                let class_layout_key = self.class_ctor_layout_key(span, class_fqn, target_local)?;
                 self.codegen.codegen_mir_class_ctor_call(
                     span,
                     &class_layout_key,
@@ -862,20 +862,30 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
 
     fn class_ctor_layout_key(
         &self,
+        span: Span,
         class_fqn: &str,
         target_local: Option<LocalId>,
-    ) -> Result<String, LlvmEmitError> {
+    ) -> Result<crate::hir::ClassInstanceKey, LlvmEmitError> {
         let Some(target_ty) = target_local
             .and_then(|local| self.body.locals.get(local.as_u32() as usize))
             .map(|local| local.ty)
         else {
-            return Ok(class_fqn.to_string());
+            return Err(frontend_error(format!(
+                "class ctor `{class_fqn}` at {span:?} target local missing typed nominal result (target_local={target_local:?})"
+            )));
         };
         let TypeKind::Ref(RefTypeKind::Nominal(nominal)) = self.source_types.kind(target_ty) else {
-            return Ok(class_fqn.to_string());
+            return Err(frontend_error(format!(
+                "class ctor `{class_fqn}` at {span:?} target local {:?} has non-nominal result type t{}",
+                target_local,
+                target_ty.as_u32()
+            )));
         };
         if nominal.fqn != class_fqn {
-            return Ok(class_fqn.to_string());
+            return Err(frontend_error(format!(
+                "class ctor `{class_fqn}` at {span:?} target local {:?} has mismatched nominal `{}`",
+                target_local, nominal.fqn
+            )));
         }
 
         let layout = self.abi.class_instance_layout(target_ty)?;
@@ -886,7 +896,7 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
                 layout.base_fqn()
             )));
         }
-        Ok(layout.class_key().to_string())
+        Ok(layout.class_key().clone())
     }
 
     fn maybe_build_effect_typed_closure_target_fn_ptr(

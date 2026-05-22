@@ -577,7 +577,7 @@ fn build_physical_layout_facts(
     let mut facts = LirPhysicalLayoutFacts::default();
 
     for (layout_key, class) in &contracts.class_inits {
-        insert_class_layout_fact(&mut facts, layout_key, class);
+        insert_class_layout_fact(&mut facts, layout_key.as_str(), class);
     }
     for (fqn, layout) in &contracts.enum_layouts {
         facts.enums.insert(fqn.clone(), enum_layout_facts(layout));

@@ -167,12 +167,10 @@ impl<'a> HiddenInitEffectAnalyzer<'a> {
         &self,
         class_fqn: &str,
     ) -> Option<&'a hir::MonoClassInit> {
-        self.lowered.class_inits.get(class_fqn).or_else(|| {
-            self.lowered
-                .class_inits
-                .values()
-                .find(|class| class.fqn == class_fqn)
-        })
+        self.lowered
+            .class_inits
+            .values()
+            .find(|class| class.fqn == class_fqn)
     }
 
     pub(in crate::mir::lower) fn scan_block(

@@ -132,7 +132,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     ) -> Option<CgTy> {
         match kind {
             crate::mir::CallKind::Direct { callee_fqn } => {
-                if self.class_inits.contains_key(callee_fqn) {
+                if self.registered_class_instance_key(callee_fqn).is_some() {
                     return Some(CgTy::Ref);
                 }
                 if matches!(
@@ -739,23 +739,48 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     pub(in crate::llvm::codegen) fn mir_class_ctor_layout_key(
         &self,
+        span: crate::span::Span,
         class_fqn: &str,
         mir_types: &TypeStore,
         target_source_ty: Option<TypeId>,
-    ) -> String {
+    ) -> Result<hir::ClassInstanceKey, LlvmEmitError> {
         let Some(target_source_ty) = target_source_ty else {
-            return class_fqn.to_string();
+            return Err(frontend_error(format!(
+                "MIR class ctor `{class_fqn}` at {span:?} target local missing typed nominal result"
+            )));
         };
         let Some(codegen_ty) = self.equivalent_codegen_type_id(mir_types, target_source_ty) else {
-            return class_fqn.to_string();
+            return Err(frontend_error(format!(
+                "MIR class ctor `{class_fqn}` at {span:?} result type t{} has no codegen TypeStore equivalent",
+                target_source_ty.as_u32()
+            )));
         };
         let TypeKind::Ref(RefTypeKind::Nominal(nominal)) = self.types.kind(codegen_ty) else {
-            return class_fqn.to_string();
+            return Err(frontend_error(format!(
+                "MIR class ctor `{class_fqn}` at {span:?} target type t{} is not a nominal class reference",
+                codegen_ty.as_u32()
+            )));
         };
         if nominal.fqn != class_fqn {
-            return class_fqn.to_string();
+            return Err(frontend_error(format!(
+                "MIR class ctor `{class_fqn}` at {span:?} target type resolves to mismatched nominal `{}`",
+                nominal.fqn
+            )));
         }
-        self.nominal_layout_key(nominal)
+        let mono_ty = self.types.as_mono(codegen_ty).map_err(|leak| {
+            frontend_error(format!(
+                "MIR class ctor `{class_fqn}` at {span:?} target type t{} is not fully monomorphic: {:?}",
+                codegen_ty.as_u32(), leak.leak_path
+            ))
+        })?;
+        let class_key = hir::ClassInstanceKey::from_mono_nominal(self.types, mono_ty)
+            .expect("nominal result type must produce ClassInstanceKey");
+        if !self.class_inits.contains_key(&class_key) {
+            return Err(frontend_error(format!(
+                "MIR class ctor `{class_fqn}` at {span:?} resolved to missing class layout key `{class_key}`"
+            )));
+        }
+        Ok(class_key)
     }
 
     pub(in crate::llvm::codegen) fn equivalent_codegen_effect_row(

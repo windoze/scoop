@@ -345,16 +345,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 }
 
                 // class：沿 parent 链查找。
-                let class_lookup_key = if nominal.args.is_empty() {
-                    self.class_inits
-                        .contains_key(&nominal.fqn)
-                        .then(|| nominal.fqn.clone())
-                } else {
-                    let mangled = self.nominal_layout_key(nominal);
-                    self.class_inits.contains_key(&mangled).then_some(mangled)
-                };
-                if let Some(class_fqn) = class_lookup_key {
-                    let desc = self.get_or_create_class_type_desc_global(at, &class_fqn)?;
+                let class_lookup_key = self
+                    .types
+                    .as_mono(target_ty)
+                    .ok()
+                    .and_then(|mono_ty| {
+                        hir::ClassInstanceKey::from_mono_nominal(self.types, mono_ty)
+                    })
+                    .filter(|key| self.class_inits.contains_key(key));
+                if let Some(class_key) = class_lookup_key {
+                    let desc = self.get_or_create_class_type_desc_global(at, &class_key)?;
                     let target_i8 = desc.as_pointer_value().const_cast(self.llvm_i8_ptr_type());
                     return self.codegen_type_desc_chain_contains_target(at, obj, target_i8);
                 }

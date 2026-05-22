@@ -20,6 +20,7 @@ use crate::effect_lowered::ir::{
     LateLoweredResumePayloadBinding, LateLoweredSurfaceResumeDispatchSourceKind,
     LateLoweredSurfaceResumeWrapperProjection, ResumeInterfaceId, StateId, SystemSlotKind,
 };
+use crate::hir::ClassInstanceKey;
 use crate::llvm::LlvmEmitError;
 use crate::mir::{InstanceKey, LocalId, SiteId};
 use crate::ty::TypeId;
@@ -187,7 +188,7 @@ impl ClassInstanceFieldLayout {
 pub(super) struct ClassInstanceLayout {
     source_ty: TypeId,
     base_fqn: String,
-    class_key: String,
+    class_key: ClassInstanceKey,
     fields: Vec<ClassInstanceFieldLayout>,
 }
 
@@ -195,7 +196,7 @@ impl ClassInstanceLayout {
     pub(super) fn new(
         source_ty: TypeId,
         base_fqn: String,
-        class_key: String,
+        class_key: ClassInstanceKey,
         fields: Vec<ClassInstanceFieldLayout>,
     ) -> Self {
         Self {
@@ -214,7 +215,7 @@ impl ClassInstanceLayout {
         &self.base_fqn
     }
 
-    pub(super) fn class_key(&self) -> &str {
+    pub(super) fn class_key(&self) -> &ClassInstanceKey {
         &self.class_key
     }
 

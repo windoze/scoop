@@ -13,8 +13,11 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
         let source = self.class_ctor_boundary_statement(lowering, site_id)?;
         match &source {
             ClassCtorBoundarySource::ClassCtor { span, ctor, args } => {
-                let class_layout_key =
-                    self.class_ctor_layout_key(lowering.class_fqn(), lowering.result_local())?;
+                let class_layout_key = self.class_ctor_layout_key(
+                    *span,
+                    lowering.class_fqn(),
+                    lowering.result_local(),
+                )?;
                 let slots = self.slots.clone();
                 let args = args.to_vec();
                 let result = self
@@ -322,22 +325,34 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
 
     pub(super) fn class_ctor_layout_key(
         &self,
+        span: crate::span::Span,
         class_fqn: &str,
         result_local: LocalId,
-    ) -> Result<String, LlvmEmitError> {
+    ) -> Result<crate::hir::ClassInstanceKey, LlvmEmitError> {
         let Some(target_ty) = self
             .body
             .locals
             .get(result_local.as_u32() as usize)
             .map(|local| local.ty)
         else {
-            return Ok(class_fqn.to_string());
+            return Err(frontend_error(format!(
+                "class ctor boundary `{class_fqn}` at {span:?} result local{} missing typed nominal result",
+                result_local.as_u32()
+            )));
         };
         let TypeKind::Ref(RefTypeKind::Nominal(nominal)) = self.source_types.kind(target_ty) else {
-            return Ok(class_fqn.to_string());
+            return Err(frontend_error(format!(
+                "class ctor boundary `{class_fqn}` at {span:?} result local{} has non-nominal result type t{}",
+                result_local.as_u32(),
+                target_ty.as_u32()
+            )));
         };
         if nominal.fqn != class_fqn {
-            return Ok(class_fqn.to_string());
+            return Err(frontend_error(format!(
+                "class ctor boundary `{class_fqn}` at {span:?} result local{} has mismatched nominal `{}`",
+                result_local.as_u32(),
+                nominal.fqn
+            )));
         }
         let layout = self.abi.class_instance_layout(target_ty)?;
         if layout.base_fqn() != class_fqn {
@@ -347,7 +362,7 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
                 layout.base_fqn()
             )));
         }
-        Ok(layout.class_key().to_string())
+        Ok(layout.class_key().clone())
     }
 
     pub(super) fn class_ctor_boundary_statement(

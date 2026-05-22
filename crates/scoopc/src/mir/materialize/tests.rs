@@ -1452,6 +1452,88 @@ fn materialized_mir_class_ctor_contract_rejects_selected_ctor_drift() {
 }
 
 #[test]
+fn materialized_mir_class_ctor_contract_rejects_result_nominal_mismatch() {
+    let mut types = TypeStore::new();
+    let builtins = types.intern_builtins();
+    let class_fqn = "fixtures.materialize.Box";
+    let other_ty = types.intern(TypeKind::Ref(RefTypeKind::Nominal(NominalType {
+        fqn: "fixtures.materialize.Other".to_string(),
+        args: Vec::new(),
+        eff: None,
+    })));
+    let mut body = Body::new_empty();
+    let target = body.push_local(LocalDecl {
+        span: test_span(),
+        name: Some("box".to_string()),
+        ty: other_ty,
+        source: LocalSourceKind::CompilerTemporary,
+    });
+    let bb = body.push_block(BasicBlock {
+        is_cleanup: false,
+        stmts: vec![Statement {
+            span: test_span(),
+            kind: StatementKind::Assign {
+                target,
+                value: Rvalue::ClassCtor {
+                    site_id: SiteId::from_raw(0),
+                    class_fqn: class_fqn.to_string(),
+                    ctor: ClassCtorCallMetadata {
+                        selected_ctor_span: None,
+                        ordered_param_count: 0,
+                    },
+                    args: Vec::new(),
+                    hidden_effects: EffectRow::pure(),
+                },
+            },
+        }],
+        terminator: Terminator {
+            span: test_span(),
+            kind: TerminatorKind::Return { value: None },
+            unwind: UnwindAction::NoUnwind,
+        },
+    });
+    body.start = bb;
+    let file = File {
+        items: vec![
+            Item::Metadata(MetadataRoot::Nominal(NominalMetadata {
+                span: test_span(),
+                fqn: class_fqn.to_string(),
+                name: "Box".to_string(),
+                kind: ast::TypeKind::Class,
+                type_params: Vec::new(),
+                supertypes: Vec::new(),
+                interfaces: Vec::new(),
+                constructors: Vec::new(),
+                members: Vec::new(),
+            })),
+            Item::Fun(FunDecl {
+                span: test_span(),
+                fqn: "fixtures.materialize.main".to_string(),
+                name: "main".to_string(),
+                ty: builtins.unit,
+                params: Vec::new(),
+                return_ty: builtins.unit,
+                body: Some(body),
+            }),
+        ],
+    };
+    let materialized = materialized_for_test(file, types);
+
+    let err = materialized.validate_materialized().unwrap_err();
+    assert!(matches!(
+        *err,
+        MirMaterializeError::MaterializedMirValidation {
+            error: crate::mir::MirValidationError::TypeContract {
+                surface: "class constructor result",
+                detail: "class constructor result target and class metadata disagree",
+                ..
+            },
+            ..
+        }
+    ));
+}
+
+#[test]
 fn materialized_mir_member_contract_rejects_unresolved_target() {
     let mut types = TypeStore::new();
     let builtins = types.intern_builtins();

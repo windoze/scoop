@@ -397,7 +397,7 @@ struct SharedCodegenCaches {
     type_layout_cache: RefCell<HashMap<TypeId, TypeLayout>>,
     option_niche_cache: RefCell<HashMap<TypeId, Option<(NicheStorage, u64)>>>,
     enum_cg_layout_cache: RefCell<HashMap<TypeId, CgEnumLayout>>,
-    class_init_layout_cache: RefCell<HashMap<String, hir::MonoClassInit>>,
+    class_init_layout_cache: RefCell<HashMap<hir::ClassInstanceKey, hir::MonoClassInit>>,
     pack_field_indices: RefCell<HashMap<String, Vec<u32>>>,
     callable_carrier_contract_enabled: Cell<bool>,
     callable_carrier_entry_symbols: RefCell<HashMap<(CallableCarrierKind, String), String>>,
