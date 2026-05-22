@@ -99,7 +99,7 @@
 | P5-T03 | [DONE] | [`TODO-5.md`](./TODO-5.md#done-p5-t03切换-codegen-neutral-abiquery-surface-到-lir--lir_facts) | 切换 codegen-neutral ABI/query surface 到 `LIR + lir_facts` |
 | P5-T03R | [DONE] | [`TODO-5.md`](./TODO-5.md#done-p5-t03rreview-codegen-neutral-query-切换结果) | Review codegen-neutral query 切换结果 |
 | P5-T04 | [DONE] | [`TODO-5.md`](./TODO-5.md#done-p5-t04建立正式-lir-optimization-family-与-pass-pipeline) | 建立正式 LIR optimization family 与 pass pipeline |
-| P5-T04R | [TODO] | [`TODO-5.md`](./TODO-5.md#todo-p5-t04rreview-lir-optimization-family) | Review LIR optimization family |
+| P5-T04R | [DONE] | [`TODO-5.md`](./TODO-5.md#done-p5-t04rreview-lir-optimization-family) | Review LIR optimization family |
 | P5-T05 | [TODO] | [`TODO-5.md`](./TODO-5.md#todo-p5-t05p5-全包清场文档同步与依赖审计) | P5 全包清场、文档同步与依赖审计 |
 | P5-T05R | [TODO] | [`TODO-5.md`](./TODO-5.md#todo-p5-t05rreview-p5-全包完成度) | Review P5 全包完成度 |
 | TODO-6-INIT | [TODO] | [`TODO-6.md`](./TODO-6.md#todo-todo-6-init初始化并细化本任务包) | 分析 P6-P8 需求，生成 `TODO-6.md` 详细任务列表并更新本索引 |

@@ -1251,12 +1251,13 @@ mod tests {
         LateLoweredContinuationObject, LateLoweredContinuationResumeBody,
         LateLoweredContinuationSurfaceResume, LateLoweredDynamicInvokeEntry,
         LateLoweredFrameSchema, LateLoweredFrameSlot, LateLoweredFrameSlotKind,
-        LateLoweredOneShotPolicy, LateLoweredOperandSource, LateLoweredProgram,
-        LateLoweredResumeInterface, LateLoweredResumeMethod, LateLoweredResumeState,
-        LateLoweredResumeStateMap, LateLoweredState, LateLoweredStateGraph, LateLoweredStateRole,
-        LateLoweredStateSlice, LateLoweredStateTerminator, LateLoweredStepCase,
-        LateLoweredStepType, ResumeInterfaceId, StateId, SystemSlotKind,
+        LateLoweredHandleDispatchContract, LateLoweredOneShotPolicy, LateLoweredOperandSource,
+        LateLoweredProgram, LateLoweredResumeInterface, LateLoweredResumeMethod,
+        LateLoweredResumeState, LateLoweredResumeStateMap, LateLoweredState, LateLoweredStateGraph,
+        LateLoweredStateRole, LateLoweredStateSlice, LateLoweredStateTerminator,
+        LateLoweredStepCase, LateLoweredStepType, ResumeInterfaceId, StateId, SystemSlotKind,
     };
+    use crate::effect_lowered::opt_verify::verify_post_opt_program;
     use crate::mir::{BasicBlockId, InstanceKey, LocalId, SiteId, TemplateKey};
     use crate::pipeline::load_effect_lowered_stage_output_for_dump;
     use crate::session::{Session, SessionOptions};
@@ -1808,5 +1809,122 @@ mod tests {
                 } if *cleanup_state != drop_state && *explicit_drop_state == drop_state
             )
         }));
+    }
+
+    #[test]
+    fn post_opt_verifier_rejects_dangling_handle_contract_state() {
+        let valid =
+            sample_program_with_entry_handle_contract(LateLoweredHandleDispatchContract::skeleton(
+                StateId::new(6),
+                StateId::new(6),
+                None,
+                None,
+            ));
+        verify_post_opt_program(&valid).expect("base handle contract should verify");
+
+        let invalid =
+            sample_program_with_entry_handle_contract(LateLoweredHandleDispatchContract::skeleton(
+                StateId::new(999_999),
+                StateId::new(6),
+                None,
+                None,
+            ));
+        let error = verify_post_opt_program(&invalid)
+            .expect_err("dangling handle contract state should be rejected")
+            .to_string();
+
+        assert!(
+            error.contains("handle body_complete_target references missing state st999999"),
+            "unexpected verifier error: {error}"
+        );
+    }
+
+    fn sample_program_with_entry_handle_contract(
+        contract: LateLoweredHandleDispatchContract,
+    ) -> LateLoweredProgram {
+        let program = sample_opt_program();
+        let callables = program
+            .callables()
+            .iter()
+            .map(|callable| {
+                if callable.root_fqn() == "sample.worker" {
+                    return rewrite_callable_entry_handle_contract(callable, contract.clone());
+                }
+                callable.clone()
+            })
+            .collect::<Vec<_>>();
+
+        LateLoweredProgram::new(
+            program.step_types().to_vec(),
+            program.resume_packings().to_vec(),
+            program.continuation_objects().to_vec(),
+            callables,
+        )
+        .with_stable_instance_keys(program.stable_instance_keys().clone())
+        .with_dump_metadata(
+            program.dump_type_texts().clone(),
+            program.dump_body_labels_map().clone(),
+        )
+    }
+
+    fn rewrite_callable_entry_handle_contract(
+        callable: &LateLoweredCallable,
+        contract: LateLoweredHandleDispatchContract,
+    ) -> LateLoweredCallable {
+        let state_graph =
+            rewrite_state_graph_entry_handle_contract(callable.state_graph(), contract);
+        LateLoweredCallable::new(
+            callable.root_fqn().to_string(),
+            callable.stable_instance_key().clone(),
+            callable.body_version_key().clone(),
+            callable.step_schema(),
+            callable.resolved_outward_cases().to_vec(),
+            callable.dynamic_invoke_entry().clone(),
+            state_graph,
+            callable.frame_schema().clone(),
+            callable.boundary_map().clone(),
+            callable.resume_state_map().clone(),
+            callable.continuation_object(),
+            callable.resume_packings().to_vec(),
+        )
+        .with_source_statement_classifications(callable.source_statement_classifications().to_vec())
+    }
+
+    fn rewrite_state_graph_entry_handle_contract(
+        state_graph: &LateLoweredStateGraph,
+        contract: LateLoweredHandleDispatchContract,
+    ) -> LateLoweredStateGraph {
+        let states = state_graph
+            .states()
+            .iter()
+            .map(|state| {
+                if state.state_id() != state_graph.entry_state() {
+                    return state.clone();
+                }
+                LateLoweredState::new(
+                    state.state_id(),
+                    state.role(),
+                    state.source_slices().to_vec(),
+                    LateLoweredStateTerminator::HandleDispatch {
+                        site_id: SiteId::from_raw(999),
+                        body_state: StateId::new(1),
+                        arm_states: Vec::new(),
+                        finally_state: None,
+                        exit_state: state_graph.complete_state(),
+                        contract: contract.clone(),
+                        boundary_ids: Vec::new(),
+                        drop_state: None,
+                    },
+                )
+            })
+            .collect::<Vec<_>>();
+
+        LateLoweredStateGraph::new(
+            state_graph.entry_state(),
+            state_graph.complete_state(),
+            state_graph.cleanup_state(),
+            state_graph.drop_state(),
+            states,
+        )
     }
 }

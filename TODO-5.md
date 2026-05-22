@@ -698,7 +698,7 @@ P5 需要把这条隐式 opt helper 提升为正式 LIR optimization family：�
   - 验证命令：`cargo fmt`；`cargo test -p scoopc_lir_facts`；`cargo test -p scoopc --no-default-features effect_lowered::opt`；`cargo test -p scoopc --no-default-features effect_lowered`；`cargo run -p scoop -- test --fixtures tests/fixtures/effect_lowered`；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
   - 残余风险：higher-order wrapper inline/devirt 目前只有明确 owner 和 no-op skeleton；更强的跨 callable wrapper 识别若后续需要，应在该 pass 内扩展，不能回迁到 MIR 普通 devirt 或 LLVM backend 特判。
 
-## [TODO] P5-T04R：Review LIR optimization family
+## [DONE] P5-T04R：Review LIR optimization family
 
 - 参考：P5-T04。
 - 重点：
@@ -717,7 +717,12 @@ P5 需要把这条隐式 opt helper 提升为正式 LIR optimization family：�
   - review 结论明确写出：LIR opt family 符合 P5 窄优化约束，或列出阻塞项并在本 review 内修复。
 - 依赖：P5-T04
 - 完成记录：
-  - 待填写。
+  - Review 结论：LIR opt family 符合 P5 窄优化约束；`run_lir_opt_pipeline(...)` 只消费 `LateLoweredProgram` 与 opt options，pass family 保持为 local state-machine elimination、higher-order wrapper inline/devirt owner skeleton、wrapper state folding、dynamic invoke entry rewrite、dead state / dead slot cleanup、resume packing pruning 和 post-opt verifier，没有迁入普通调用图 optimizer、全程序 inlining 或 backend 特判。
+  - Review 修复：复查发现 `opt_verify` 只校验了顶层 state graph / boundary map / frame schema / continuation object / resume packing / dynamic invoke entry，未覆盖 boundary lowering 内部 dispatch/composition/emission 与 `HandleDispatch` contract 的嵌套 state、boundary、frame、continuation-object 和 StepSchema 引用。本 review 扩展 post-opt verifier 覆盖这些引用，并新增 `post_opt_verifier_rejects_dangling_handle_contract_state` 回归测试。
+  - 输入边界搜索：额外搜索 `effect_lowered/opt*.rs` 中的 HIR/MIR/effect solver 读取；生产路径只命中 LIR-owned ID 类型 `CaseTag` / `StepSchemaId` 与说明注释，MIR imports 和 fixture loading 仅位于 `#[cfg(test)]`，未发现 opt pipeline 读取 HIR、MIR pass view、`MaterializedMir`、effect facts builder 或 solver 输入。
+  - metadata / facts 对齐：复查 `effect_lowering_stage` 与 `lir_facts_builder`，确认 post-opt LIR 与 `LirOptPipelineFacts` 同步进入 `LirFacts`，summary `opt_revision` 与 pipeline revision 由 `scoopc_lir_facts::verify()` 校验，stable dump 展示 opt revision、preservation option 和各 named pass 状态。
+  - 验证命令：`cargo fmt`；`cargo test -p scoopc --no-default-features effect_lowered::opt`；`cargo test -p scoopc_lir_facts`；`cargo run -p scoop -- test --fixtures tests/fixtures/effect_lowered`；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
+  - 残余风险：higher-order wrapper inline/devirt 仍是 P5-T04 明确记录的可执行 no-op owner skeleton；若后续需要更强 wrapper 识别，应在该 LIR pass 内扩展，不得回迁 MIR 普通 devirt 或 LLVM backend 特判。
 
 ## [TODO] P5-T05：P5 全包清场、文档同步与依赖审计
 
