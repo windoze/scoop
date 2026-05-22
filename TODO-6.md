@@ -4,7 +4,7 @@
 > 细化时间：2026-05-22
 > 计划基线：[`PLAN.md`](./PLAN.md) §4/P6-P8
 > 索引：[`TODO.md`](./TODO.md)
-> 当前状态：`P6-T03R` 已完成；下一步执行 `P6-T04`。
+> 当前状态：`P6-T04` 已完成；下一步执行 `P6-T04R`。
 
 ## 范围
 
@@ -263,7 +263,7 @@
   - 额外 residual 搜索：`scoop_once_begin|scoop_once_end` 在 `crates/scoopc/src/llvm/codegen` 只剩 runtime symbol/declaration 注释、常量与 object guard 注释；`top_level_val_eager_init|top_level_val_init_guard|declare_runtime_once_begin` 搜索确认 top-level eager path 只调用 compiler-private init helper，runtime once declaration 只被 object init 使用。
   - 验证通过：`cargo fmt`；`cargo test -p scoopc --no-default-features storage_policy`；`cargo test -p scoopc llvm_top_level_eager_init_does_not_call_object_once_runtime`；`cargo test -p scoopc llvm_object_singleton_init_keeps_object_once_runtime`；`cargo run -p scoop -- test --fixtures tests/fixtures/typecheck`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/global_init`；`cargo test -p scoop_runtime --all-targets`；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
 
-## [TODO] P6-T04：P6 全包清场、文档同步与依赖审计
+## [DONE] P6-T04：P6 全包清场、文档同步与依赖审计
 
 - 目标：
   - 对 P6 global init/storage/entry order 做最终清场；
@@ -294,7 +294,13 @@
   - P7 可以从明确的 `LIR + lir_facts + base context` global-init 输入开始清理 LLVM。
 - 依赖：P6-T03R
 - 完成记录：
-  - 待填写。
+  - 清场结论：P6 global init/storage/entry order 语义已闭合。top-level `val` 普通访问只做 initialized check 后读取 eager backing storage；`ensure_top_level_immutable_value_init_function_defined` 只由 `cone_init.rs` 的 per-cone eager routine 调用；per-cone routine 从 `LirFacts.global_init.final_entry_order` / `cone_init_routines` 构造并执行本 cone eager roots，不再是空壳。
+  - object once 分离结论：`declare_runtime_once_begin/end` 的实际 codegen 调用点只剩 `object_init.rs`，top-level eager init 使用 compiler-private guard state machine，不再复用 runtime object once helper。
+  - LIR facts 合同结论：`scoopc_lir_facts` 已发布 global root、storage policy、object once、top-level eager init、per-cone routine 与 final entry order contracts；`lir_facts_builder` 从 MIR facts 构造这些合同，verifier 覆盖 root/dependency/storage/routine/order drift，dependency gate 确认 fact crate 仍只依赖基础 crate。
+  - 本任务修复了 P6 清场验证暴露的真实阻塞：`scoop.thread` native object 会引用 `scoop_thread_init_current`，而没有 TLS roots 的程序此前不会定义该 hook，导致线程相关 fixtures 链接失败。现在 LLVM 始终定义 `scoop_thread_init_current`，无 TLS roots 时生成 no-op body，有 TLS roots 时仍执行当前线程 TLS roots；`std_thread_basic`、delegated-property 并发 fixtures 与 GC cross-thread continuation fixture 因此恢复通过。
+  - 文档同步：`README.md` 与 `PIPELINE-CLEANUP.md` 已更新为 P6 完成状态，明确 P7 剩余 residual 只应覆盖 HIR scaffold、raw MIR/pass-view body emission、reachability、physical ABI/layout、entry/global HIR side-table 过渡读取与多 `TypeStore` bridge。`PIPELINE_REFACTOR.md` 未修改，因为设计边界没有变化。
+  - 验证通过：`cargo fmt`；`cargo test -p scoopc_lir_facts`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/global_init`；`cargo test -p scoopc --no-default-features storage_policy`；`cargo run -p scoop_tools -- dependency-gate`；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
+  - 完整 run-pass：`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass` 已重跑，P6/global-init/thread-init 相关 fixtures 全部通过；全量仍有 7 个既有非 P6 失败（`array_lit_infer_unannotated_and_nested_basic.scoop`、`array_lit_infer_string_char_float_basic.scoop`、`lang_mutable_array_new_string_ref.scoop`、`lang_mutable_array_new_struct_composite.scoop`、`std_process_args_exit_basic.scoop`、`stdlib_string_basic.scoop`、`sysroot_atomic_basic.scoop`），与 P6-T02R / P5 记录的历史 baseline 一致，未作为 P6-T04 前置项。
 
 ## [TODO] P6-T04R：Review P6 全包完成度
 

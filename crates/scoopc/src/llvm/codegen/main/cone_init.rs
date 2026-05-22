@@ -27,10 +27,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &mut self,
         routines: &[FunctionValue<'ctx>],
     ) -> Result<(), LlvmEmitError> {
-        if routines.is_empty() {
-            return Ok(());
-        }
-
         let fn_ty = self.context.void_type().fn_type(&[], false);
         let llvm_fun =
             declare_exported_abi_function(self.module, "scoop_thread_init_current", fn_ty);
@@ -40,10 +36,20 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         let saved_block = self.builder.get_insert_block();
         let entry = self.context.append_basic_block(llvm_fun, "entry");
+
+        self.builder.position_at_end(entry);
+        if routines.is_empty() {
+            // `scoop.thread` references this hook even when the program has no TLS roots.
+            self.builder.build_return(None)?;
+            if let Some(bb) = saved_block {
+                self.builder.position_at_end(bb);
+            }
+            return Ok(());
+        }
+
         let init_bb = self.context.append_basic_block(llvm_fun, "init");
         let done_bb = self.context.append_basic_block(llvm_fun, "done");
 
-        self.builder.position_at_end(entry);
         let guard = self.declare_thread_init_current_guard();
         let i8_ty = self.context.i8_type();
         let initialized = self

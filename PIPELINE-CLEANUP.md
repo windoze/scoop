@@ -14,14 +14,18 @@
 
 ## P5-T05 状态更新
 
-当前代码已完成 P5 LIR output / LIR facts / LIR opt family 收口：`LirStageOutput = { lir, lir_facts }` 是正式 P5 handoff，不嵌套 `MirStageOutput` 或 `EffectFactsStageOutput`；`scoopc_lir_facts` 发布 callable ABI、dynamic invoke、dispatch owner/slot、continuation/resume publication 与 LIR opt pipeline metadata；codegen-neutral ABI/query contract 已切到 `LIR + lir_facts`。仍保留的 HIR scaffold、`LlvmCodegenStageOutput` / `StageEmitInput` 对 P5 handoff 的 backend wrapper、crate-private MIR pass-view residual、LLVM physical layout、global init/runtime residual 和多 `TypeStore` 桥接属于 TODO-6/P6-P8。
+当前代码已完成 P5 LIR output / LIR facts / LIR opt family 收口：`LirStageOutput = { lir, lir_facts }` 是正式 P5 handoff，不嵌套 `MirStageOutput` 或 `EffectFactsStageOutput`；`scoopc_lir_facts` 发布 callable ABI、dynamic invoke、dispatch owner/slot、continuation/resume publication 与 LIR opt pipeline metadata；codegen-neutral ABI/query contract 已切到 `LIR + lir_facts`。P5 后仍保留的 HIR scaffold、`LlvmCodegenStageOutput` / `StageEmitInput` 对 P5 handoff 的 backend wrapper、crate-private MIR pass-view residual、LLVM physical layout、global init/runtime residual 和多 `TypeStore` 桥接进入 TODO-6 处理；其中 global init/runtime residual 已由 P6 收口，其余 backend residual 留给 P7/P8。
 
-因此，本报告中的 P1/P2/P3/P4/P5/P16/P17/P18/P19 是已解决或历史化的问题；保留它们是为了说明原始 cleanup 背景并验证阶段清场结果。当前仍然成立、并进入 TODO-6/P6-P8 的主结论是：
+## P6-T04 状态更新
+
+当前代码已完成 P6 global init/storage/entry order 收口：`scoopc_lir_facts` 发布 global root、object once、top-level eager init、per-cone init routine 与 final entry order contract；top-level `val` 和 annotated top-level `var` 由 LIR facts 驱动的 per-cone routine 在用户 `main` 前 eager 初始化；object singleton 继续独占 runtime once helper；`@Global` / `@ThreadLocal` storage policy 已从 frontend facts 贯通到 LLVM storage 与 runtime thread init hook。P7 开始时剩余的 backend residual 应明确限定为 HIR scaffold、raw MIR/pass-view body emission、reachability、physical ABI/layout 和多 `TypeStore` bridge，不再把 P6 global init/storage 语义当作未闭合项。
+
+因此，本报告中的 P1/P2/P3/P4/P5/P16/P17/P18/P19 是已解决或历史化的问题；保留它们是为了说明原始 cleanup 背景并验证阶段清场结果。P6 已闭合 global init/storage/entry order；当前仍然成立、并进入 TODO-6/P7-P8 的主结论是：
 
 1. `llvm_codegen_stage` 仍会从 HIR compatibility scaffold 驱动 MIR/effect-facts/LIR，而不是只消费一个已由上游传入的后端 handoff。
 2. `LlvmCodegenStageOutput` / `StageEmitInput` 仍把 P5 handoff 作为 LLVM backend residual 传递，P7 需要把它摊平成 `LIR + lir_facts + base context` 输入边界。
 3. codegen 仍在主线上混用 HIR scaffold、LIR/LIR facts、crate-private MIR pass-view residual 和多套 fact/type 查询面。
-4. global init / storage policy / LLVM physical ABI layout / backend reachability 仍需要在 P6/P7/P8 收口；不能把这些 residual 描述为 P5 已完成范围。
+4. LLVM physical ABI/layout、backend reachability、HIR/raw MIR body fallback 和多 `TypeStore` bridge 仍需要在 P7/P8 收口；不能把这些 residual 描述为 P6 已完成范围。
 
 ## 目标边界
 
@@ -255,7 +259,7 @@ P4 收口结果：
 P5 收口结果：
 
 1. `LirStageOutput` 发布 `LateLoweredProgram` 与 `scoopc_lir_facts::LirFacts`，不嵌套 `MirStageOutput` 或 `EffectFactsStageOutput`。
-2. `scoopc_lir_facts` 发布 plain callable ABI/source/call-site、本地 effect/control contract、effect-step state/frame/boundary/resume query、dynamic invoke、dispatch owner/slot、continuation object、surface resume dispatch、resume packing 与 LIR opt pipeline metadata。
+2. `scoopc_lir_facts` 发布 plain callable ABI/source/call-site、本地 effect/control contract、effect-step state/frame/boundary/resume query、dynamic invoke、dispatch owner/slot、continuation object、surface resume dispatch、resume packing 与 LIR opt pipeline metadata；P6 又在同一 fact 产品中补齐 global init/storage/final-entry contract。
 3. Program ABI materialization 的 codegen-neutral 输入已切到 `LateLoweredProgram + LirFacts + TypeStore`；LLVM physical `ProgramAbiQuery` 仍属于 backend-private layout 结果，不是 LIR facts。
 4. `effect_lowered::opt` 已固定为 LIR-owned 窄优化 family，显式记录 pass order / revision / verifier metadata，不读取 HIR、MIR pass view 或 effect solver 输入。
 
@@ -263,7 +267,7 @@ TODO-6/P7 剩余边界：
 
 1. LLVM emit/body/reachability 仍通过 `llvm_residual_pass_view()`、HIR scaffold 和多 `TypeStore` 桥接完成当前后端物理发射。
 2. `LlvmCodegenStageOutput` 与 `StageEmitInput` 仍携带 `EffectLoweredStageOutput` / `LirStageOutput` 作为 backend handoff wrapper；P7 需要把 LLVM 入口摊平成显式 `LIR + lir_facts + base context`，而不是继续传播上游 stage output wrapper。
-3. global init、storage policy、entry init order 和 runtime residual 尚未闭合。
+3. global init、storage policy、entry init order 已在 P6 闭合；P7 仍需删除 LLVM entry/global inventory 对 HIR side table 的过渡读取，让物理化只消费 `LIR + lir_facts + base context`。
 4. legacy `EffectLoweredStageOutput` / `effect_lowered` 命名仍可在边界稳定后继续清理，但它们已不再代表嵌套上游 output 的合法长期形状。
 
 ## 当前有效结构
@@ -290,7 +294,7 @@ frontend/typecheck
 2. `MirStageOutput`、`EffectFactsStageOutput` 和 `LirStageOutput` 已分别收口为各自阶段 handoff，但 codegen 仍保留 HIR scaffold 与 crate-private MIR pass-view residual。
 3. codegen 同时消费 `LIR + lir_facts`、HIR scaffold、residual pass view 和多套 type context。
 4. 仍有一批生产路径直接在 codegen 中跑 HIR-only lowering。
-5. TODO-6/P7 范围内仍有后端 physical layout、reachability、global init/runtime 和命名兼容 residual。
+5. TODO-6/P7 范围内仍有后端 physical layout、reachability、HIR scaffold/global inventory、raw MIR/pass-view body emission、命名兼容和多 `TypeStore` residual。
 
 ## 问题清单
 
@@ -404,12 +408,12 @@ P3 结果：
 剩余边界：
 
 - `LirStageOutput` 仍保留 `types()` 与 crate-private `llvm_residual_pass_view()`，供当前 LLVM body emission、reachability、physical layout 和 type bridging 使用。
-- 这些 residual 属于 TODO-6/P6-P8，不是 P5-owned LIR facts/query contract 缺口。
+- 这些 residual 属于 TODO-6/P7-P8，不是 P5-owned LIR facts/query contract 缺口；P6 已把 global init/storage/final-entry 语义补入 LIR facts。
 
 后续方向：
 
-1. TODO-6/P6-P8 继续让 backend 只消费 `LIR + lir_facts + base context`。
-2. 清理 HIR scaffold、global init direct HIR paths、LLVM physical layout residual、多 `TypeStore` 桥接和 backend-specific reachability。
+1. TODO-6/P7-P8 继续让 backend 只消费 `LIR + lir_facts + base context`。
+2. 清理 HIR scaffold、LLVM entry/global inventory 的 HIR side-table residual、raw MIR/pass-view body emission、LLVM physical layout residual、多 `TypeStore` 桥接和 backend-specific reachability。
 
 ---
 
@@ -820,8 +824,8 @@ P5 结果：
 
 剩余边界：
 
-- LLVM body emission、reachability、global init、physical ABI layout 和多 `TypeStore` 桥接仍会使用 HIR scaffold 或 residual MIR pass view。
-- 这些 residual 必须在 TODO-6/P7 中继续清理，不能被描述为长期合法边界，也不能重新放回 `LirFacts` 或公开 stage output API。
+- LLVM body emission、reachability、entry/global inventory physicalization、physical ABI layout 和多 `TypeStore` 桥接仍会使用 HIR scaffold 或 residual MIR pass view。
+- 这些 residual 必须在 TODO-6/P7 中继续清理；P6 已发布 global init/storage/final-entry LIR facts，不能把剩余 HIR scaffold 当成新的语义 owner，也不能重新放回公开 stage output API。
 
 ## 非问题 / 允许的耦合
 
@@ -879,14 +883,14 @@ P5 结果：
 
 ## 结论
 
-当前最核心的问题不是“文件太长”，而是 P5 之后的 codegen / global-init graph 仍未完全单向。
+当前最核心的问题不是“文件太长”，而是 P5/P6 之后的 codegen handoff 与 backend physicalization 仍未完全单向。
 
 最大的三个结构性问题是：
 
 1. codegen stage 会重新驱动 MIR / effect-facts / LIR，而不是只消费它们的输出。
 2. production backend 仍在主线上混用 HIR scaffold、LIR/LIR facts、residual MIR pass view 和多套 fact/type universe，并通过 `LlvmCodegenStageOutput` / `StageEmitInput` 传播 P5 handoff wrapper。
-3. global init / storage policy / entry init order 仍未闭合，且 LLVM physical layout 与 backend reachability 仍需要 TODO-6/P7 收口。
+3. global init / storage policy / entry init order 已在 P6 闭合，但 LLVM physical layout、backend reachability、entry/global HIR scaffold 和 raw MIR/pass-view body emission 仍需要 TODO-6/P7 收口。
 
-其中一个贯穿全线的次级根因是：backend physical layout、reachability、global init 和 type bridging 仍没有完全建立在 `LIR + lir_facts + base context` 上。P2 已经把 HIR/source-site facts 收口到 `HirFacts`，P3 已经把 MIR root/snapshot/pass facts 收口到 `MirFacts` 和 MIR pass query surface，P4 已经把 effect facts 收口为只读窄输出，P5 已经把 LIR facts/query owner 收口；后续不得重新引入 HIR fallback、MIR fallback、effect facts fallback 或重复 owner。
+其中一个贯穿全线的次级根因是：backend physical layout、reachability、body emission 和 type bridging 仍没有完全建立在 `LIR + lir_facts + base context` 上。P2 已经把 HIR/source-site facts 收口到 `HirFacts`，P3 已经把 MIR root/snapshot/pass facts 收口到 `MirFacts` 和 MIR pass query surface，P4 已经把 effect facts 收口为只读窄输出，P5 已经把 LIR facts/query owner 收口，P6 已把 global init/storage/final-entry owner 收口到 LIR facts；后续不得重新引入 HIR fallback、MIR fallback、effect facts fallback 或重复 owner。
 
 只要这三件事不先收口，后面无论是继续拆 LLVM codegen、还是引入新的 backend，都会继续被“跨阶段回看”和“多 authoritative 输入”拖住。
