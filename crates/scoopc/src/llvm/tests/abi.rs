@@ -723,19 +723,21 @@ fun main(): Int {
     let ir = emit_minimal_main_ir(&session, &source).unwrap();
     let helper_ir = function_ir_matching(
         &ir,
-        "user helper reading top-level immutable init without effect boundary",
+        "user helper reading eagerly initialized top-level immutable without effect boundary",
         |header, function| {
             !header.contains("@main(")
                 && stable_id_symbol_is_user_callable(llvm_function_symbol_name(function))
-                && stable_id_ir_contains_hidden_init_call(function)
+                && llvm_function_symbol_name(function).starts_with("__scoop_abi0_fun__a_helper__h")
                 && !function.contains("switch i32 %step_tag")
         },
     );
 
     assert!(
-        stable_id_ir_contains_hidden_init_call(helper_ir)
+        helper_ir.contains("top_level_val_guard_word")
+            && helper_ir.contains("load_top_level_val")
+            && !stable_id_ir_contains_hidden_init_call(helper_ir)
             && !helper_ir.contains("switch i32 %step_tag"),
-        "top-level immutable init access 应保持 plain once-init call surface，而不是进入 Step dispatch:\n{helper_ir}"
+        "top-level immutable 普通访问应保持 eager-init 后的 guard/load plain surface，而不是回到 hidden init 或 Step dispatch:\n{helper_ir}"
     );
 }
 

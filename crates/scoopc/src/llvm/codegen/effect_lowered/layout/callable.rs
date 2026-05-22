@@ -343,26 +343,17 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                 callable.root_fqn()
             )));
         }
-        let (symbol_name, surface, closure_like) =
-            if self.codegen.fun_index.get(callable.root_fqn()).is_some() {
-                if callable.root_fqn() == "main" {
-                    (
-                        "__scoop_plain_source_main".to_string(),
-                        LlvmFunctionDeclarationSurface::CompilerPrivateHelper,
-                        false,
-                    )
-                } else {
-                    (
-                        callable.root_fqn().to_string(),
-                        LlvmFunctionDeclarationSurface::ExportedAbi,
-                        false,
-                    )
-                }
-            } else if callable.root_fqn().contains("$lambda") {
+        let (symbol_name, surface, closure_like) = if self
+            .codegen
+            .fun_index
+            .get(callable.root_fqn())
+            .is_some()
+        {
+            if callable.root_fqn() == "main" {
                 (
-                    callable.root_fqn().to_string(),
+                    "__scoop_plain_source_main".to_string(),
                     LlvmFunctionDeclarationSurface::CompilerPrivateHelper,
-                    true,
+                    false,
                 )
             } else {
                 (
@@ -370,7 +361,29 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                     LlvmFunctionDeclarationSurface::ExportedAbi,
                     false,
                 )
-            };
+            }
+        } else if callable.root_fqn().contains("$lambda") {
+            let source_callable = callable.source_callable().ok_or_else(|| {
+                frontend_error(format!(
+                    "LLVM ABI materialization 发现 plain closure `{}` 缺少 source callable contract",
+                    callable.root_fqn()
+                ))
+            })?;
+            (
+                self.codegen.materialized_mir_closure_body_symbol(
+                    callable.root_fqn(),
+                    source_callable.span,
+                )?,
+                LlvmFunctionDeclarationSurface::CompilerPrivateHelper,
+                true,
+            )
+        } else {
+            (
+                callable.root_fqn().to_string(),
+                LlvmFunctionDeclarationSurface::ExportedAbi,
+                false,
+            )
+        };
         let llvm_fun = self.codegen.declare_lir_plain_fun_with_symbol(
             &symbol_name,
             surface,

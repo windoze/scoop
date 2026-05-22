@@ -4,7 +4,7 @@
 > 细化时间：2026-05-22
 > 计划基线：[`PLAN.md`](./PLAN.md) §4/P6-P8
 > 索引：[`TODO.md`](./TODO.md)
-> 当前状态：`P7-T04-a` / `P7-T04-b-1` / `P7-T04-b-1R` / `P7-T04-b-2` / `P7-T04-b-2R` / `P7-T04-b-3` / `P7-T04-b-3R` / `P7-T04-b-4` / `P7-T04-b-4R` 均已完成。`ClassInstanceKey` 字符串形态收回已复审并补强；codegen `cg_ty_of` 已收紧为 `MonoTypeId -> CgTy`，review 内补齐了 layout/source-TypeStore owner 边界。此前观察到的 4 项预存 LLVM 库测试失败仍按 `P7-T04-b-5` / `P7-T04-b-5R` 排期。下一步执行 `P7-T04-b-5`。
+> 当前状态：`P7-T04-a` / `P7-T04-b-1` / `P7-T04-b-1R` / `P7-T04-b-2` / `P7-T04-b-2R` / `P7-T04-b-3` / `P7-T04-b-3R` / `P7-T04-b-4` / `P7-T04-b-4R` / `P7-T04-b-5` 均已完成。`ClassInstanceKey` 字符串形态收回已复审并补强；codegen `cg_ty_of` 已收紧为 `MonoTypeId -> CgTy`，review 内补齐了 layout/source-TypeStore owner 边界；此前观察到的 4 项预存 LLVM 库测试失败已修复。下一步执行 `P7-T04-b-5R`。
 
 ## 范围
 
@@ -892,7 +892,7 @@
   - 验证通过：`cargo fmt`；`cargo test -p scoopc_types`；`cargo test -p scoopc --no-default-features hir`；`cargo test -p scoopc --no-default-features mir`；`cargo test -p scoopc --no-default-features llvm::codegen`；`cargo test -p scoopc --no-default-features llvm::codegen::effect_lowered`；`cargo test -p scoopc llvm::codegen`；`cargo run -p scoop -- test --fixtures tests/fixtures/effect_lowered`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`（421/421 passed）；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
   - 额外搜索通过：`rg expect_cg_ty_of crates/scoopc/src` 零命中；`rg "monomorph miss" crates/scoopc/src` 零命中；`rg 'MonoTypeId\(' crates/scoopc/src/llvm/codegen` 零命中；`cg_ty_of` 签名为 `fn cg_ty_of(&self, ty: MonoTypeId) -> CgTy`；`layout.rs` 中 `type_layout(&mut self, ty: TypeId)` / `TypeKind::Param` 零命中；effect-lowered 修复点未残留 `try_cg_ty_of_type_id(payload_ty)`、`try_cg_ty_of_type_id(surface.answer_ty())`、`try_cg_ty_of_type_id(*source_ty)` 或 `try_cg_ty_of_type_id(fun_ty.return_ty)`。
 
-## [TODO] P7-T04-b-5：修复 P7-T04-b 期间观察到的预存 LLVM 库测试失败
+## [DONE] P7-T04-b-5：修复 P7-T04-b 期间观察到的预存 LLVM 库测试失败
 
 - 阻塞原因：
   - 在 `P7-T04-b-2` 执行过程中观察到以下 4 个 LLVM 库测试在 clean HEAD（无本任务修改）上即已失败，TODO/PIPELINE_GAPS 中均未显式调度，按 PROMPT.md §"Test/Fixture Failure Policy" 必须显式排期，否则 P7-T04-b 收尾与 P7-T05 全包清场无法通过。
@@ -934,7 +934,12 @@
   - 必要时同步更新 PIPELINE_GAPS.md / TODO.md 的关联条目。
 - 依赖：P7-T04-b-2（仅排序前置；本任务不依赖 ClassInit 拆分的具体形状）
 - 完成记录：
-  - 待填写。
+  - `closure_call_without_outward_effect_stays_on_direct_call_surface` 根因：plain closure ABI layout 以 root FQN 发布 direct entry，而 closure allocation/fallback 查找 private `closure_body` stable symbol，导致已发布的 plain/local-control late-lowered boundary 未命中并回落 raw MIR closure emission。修复：plain closure ABI layout 改用 `materialized_mir_closure_body_symbol`，与 closure object 查找一致，不放宽 raw MIR gate。
+  - `via_mir_direct_interface_default_call_is_not_reinterpreted_as_itable_dispatch` 根因：P5 late lowering 对 body-dependent lowering 优先读取 raw materialized MIR body；O2 pass view 中该 interface default call site 已被 devirtualize/inline 消除，P4 facts 正确只覆盖 canonical pass-view body，导致 raw-only site0 查不到 facts。修复：`LateLoweredProgramBuilder` 改以 canonical pass-view body 作为 source body，raw materialized fun 仅作 declaration-only signature fallback；新增 `effect_lowered_stage_uses_pass_view_body_after_o2_removes_raw_site` 回归。
+  - `native_callable_direct_and_indirect_aggregate_return_share_target_abi` 根因：typed call-arg lowering 对标量字面量也先生成临时 local，LLVM native call 参数只能 load local，破坏 direct/native FunPtr aggregate-return parity 的常量 inline 形态。修复：已知目标类型的标量 literal call arg 直接保留为 `Operand::Const`，仍通过 `operand_for_target_ty` 处理必要 transport；不改 native ABI 分类。
+  - `top_level_immutable_init_access_stays_plain_without_effect_boundary` 根因：测试仍按 P6 前 top-level `val` lazy hidden-init 语义匹配 helper；当前 spec-correct 行为是 eager cone init 后普通访问只做 initialized guard + backing global load。修复：测试改为定位 user helper 并断言 `top_level_val_guard_word` / `load_top_level_val` 存在，且无 hidden init call 和 Step dispatch。
+  - 同步项：因标量 call arg dump 从临时 local 变为 const，重新生成 `tests/fixtures/effect_lowered/direct_and_fun_value_call.effectlowered`；因行号漂移刷新 `pipeline_user_visible_failure_policy` internal-bug sentinel baseline。
+  - 验证通过：`cargo fmt`；4 个目标 LLVM lib 测试逐个通过；`cargo test -p scoopc --lib`（900 passed）；`cargo run -p scoop -- test --fixtures tests/fixtures/effect_lowered`（10/10 passed）；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`（421/421 passed）；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
 
 ## [TODO] P7-T04-b-5R：Review 预存 LLVM 库测试失败修复结果
 

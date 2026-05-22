@@ -412,6 +412,33 @@ fun callInterface(i: IFace): Int {
         )
     }
 
+    fn generic_interface_default_source() -> SourceFile {
+        SourceFile::new_virtual(
+            "<mem>/generic_interface_default.scoop",
+            r#"
+package fixtures.t5000gr
+
+import scoop.core.*
+
+interface Ping {
+    fun ping(): Int {
+        return 7
+    }
+}
+
+class Box() : Ping
+
+fun <T> use(x: T): Int where T: Ping {
+    return x.ping()
+}
+
+fun main(): Int {
+    return use(Box())
+}
+"#,
+        )
+    }
+
     #[test]
     fn effect_lowered_stage_output_is_constructible() {
         let output = run_sample();
@@ -550,6 +577,20 @@ fun callInterface(i: IFace): Int {
         assert!(o2.contains("opt_level: O2"));
         assert!(o2.contains("impl_plan=SingleCase("));
         assert!(o2.contains("sample.Ping.hit"));
+    }
+
+    #[test]
+    fn effect_lowered_stage_uses_pass_view_body_after_o2_removes_raw_site() {
+        let source = generic_interface_default_source();
+        let output = run_stage_with_opt_level(&source, OptLevel::O2);
+
+        assert!(
+            output
+                .program()
+                .callable("fixtures.t5000gr.use::<fixtures.t5000gr.Box>")
+                .is_some(),
+            "late lowering must consume the canonical pass-view body instead of raw MIR sites"
+        );
     }
 
     #[test]

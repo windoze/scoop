@@ -774,6 +774,16 @@ impl<'a> FnLowering<'a> {
             let arg_index = out.len();
             match arg {
                 hir::CallArg::Positional(expr) => {
+                    if let Some(target_ty) = expected_tys.get(arg_index).and_then(|ty| *ty)
+                        && let Some(operand) = self.scalar_literal_call_arg_operand(expr, target_ty)
+                    {
+                        out.push(CallArg {
+                            span: expr.span,
+                            name: None,
+                            value: operand,
+                        });
+                        continue;
+                    }
                     let value = self.lower_expr_to_local(expr);
                     if self.current_is_terminated() {
                         return None;
@@ -792,6 +802,17 @@ impl<'a> FnLowering<'a> {
                     });
                 }
                 hir::CallArg::Named { name, value, .. } => {
+                    if let Some(target_ty) = expected_tys.get(arg_index).and_then(|ty| *ty)
+                        && let Some(operand) =
+                            self.scalar_literal_call_arg_operand(value, target_ty)
+                    {
+                        out.push(CallArg {
+                            span: value.span,
+                            name: Some(name.clone()),
+                            value: operand,
+                        });
+                        continue;
+                    }
                     let operand_local = self.lower_expr_to_local(value);
                     if self.current_is_terminated() {
                         return None;
@@ -816,6 +837,26 @@ impl<'a> FnLowering<'a> {
             }
         }
         Some(out)
+    }
+
+    fn scalar_literal_call_arg_operand(
+        &mut self,
+        expr: &hir::Expr,
+        target_ty: TypeId,
+    ) -> Option<Operand> {
+        let const_value = match &expr.kind {
+            hir::ExprKind::Literal(hir::LiteralKind::Bool(value)) => ConstValue::Bool(*value),
+            hir::ExprKind::Literal(hir::LiteralKind::Char(_)) => ConstValue::Char,
+            hir::ExprKind::Literal(hir::LiteralKind::Unit) => ConstValue::Unit,
+            hir::ExprKind::Literal(hir::LiteralKind::Int) => ConstValue::Int,
+            hir::ExprKind::Literal(hir::LiteralKind::SynthInt(value)) => {
+                ConstValue::SynthInt(*value)
+            }
+            hir::ExprKind::Literal(hir::LiteralKind::Float64(_)) => ConstValue::Float64,
+            hir::ExprKind::Literal(hir::LiteralKind::Float32(_)) => ConstValue::Float32,
+            _ => return None,
+        };
+        Some(self.operand_for_target_ty(expr.span, Operand::Const(const_value), target_ty))
     }
 
     /// 将 HIR side table 发布的 call-arg binding 收口为稳定的 MIR 槽位顺序。

@@ -108,10 +108,8 @@ impl<'a> LateLoweredProgramBuilder<'a> {
                 .body_known
                 .then(|| family.root_body())
                 .flatten();
-            let materialized_source_body =
-                find_materialized_fun(pass_view.materialized(), &root_fqn)
-                    .filter(|fun| fun.body.is_some());
-            let root_source_body = materialized_source_body.or(pass_source_body);
+            let materialized_signature = find_materialized_fun(pass_view.materialized(), &root_fqn);
+            let root_source_body = pass_source_body;
             if let Some(body) = root_source_body.and_then(|fun| fun.body.as_ref()) {
                 dump_body_labels.insert(
                     body_version_key.clone(),
@@ -121,11 +119,11 @@ impl<'a> LateLoweredProgramBuilder<'a> {
 
             if matches!(callable_facts.call_abi_kind(), CallableAbiKind::Plain) {
                 let source_fun = root_source_body;
-                let fun = source_fun
-                    .or_else(|| find_materialized_fun(pass_view.materialized(), family.root_fqn()))
-                    .ok_or_else(|| EffectLoweringError::MissingPlainCallableSignature {
+                let fun = source_fun.or(materialized_signature).ok_or_else(|| {
+                    EffectLoweringError::MissingPlainCallableSignature {
                         root_fqn: root_fqn.clone(),
-                    })?;
+                    }
+                })?;
                 let declaration_only_signature;
                 let plain_fun = if source_fun.is_some() {
                     fun

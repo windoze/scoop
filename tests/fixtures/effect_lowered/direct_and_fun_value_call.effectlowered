@@ -239,7 +239,7 @@ LateLoweredProgram
       abi: Plain
       ordinary_signature: fn_ty=() -> Int / Pure params=[] return=Int
       plain_source_slices:
-        - bb#hf20af3d2812d9e961b451ffa062ceaa8 stmts[0..5] + term
+        - bb#hf20af3d2812d9e961b451ffa062ceaa8 stmts[0..3] + term
       plain_call_sites:
         <none>
       plain_local_effect_control: <none>

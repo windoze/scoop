@@ -1,29 +1,30 @@
-# 执行计划
+## Execution Plan
 
-## 范围
+This file records the actionable plan, decisions, and progress for the current invocation. It does not contain private reasoning, but it captures the steps needed to audit the work.
 
-- 只处理 `TODO.md` 中第一个标题未带 `[DONE]` 的任务。
-- 不做开放式历史问题扫描；只处理与当前任务、当前验证失败或明确阻塞相关的问题。
-- 若遇到必须先修复的具体前置问题，则按要求更新 `TODO.md`，提交后停止。
+### Current Objective
 
-## 步骤
+Complete exactly the first incomplete task in `TODO.md`, validate it, mark it `[DONE]`, commit the resulting changes, and stop.
 
-1. 读取 `TODO.md`，确定第一个未完成任务及其验证要求。
-2. 查看必要上下文，包括相关代码、测试、最近提交与当前工作区状态，避免覆盖他人改动。
-3. 按任务要求实现最小正确变更。
-4. 运行相关验证；若观察到未排期的失败，修复或把最小前置任务加入 `TODO.md`。
-5. 更新 `TODO.md`：完成时在任务标题前加 `[DONE]` 并填写完成记录；必要时只在阶段计划变化时更新 `PLAN.md`。
-6. 运行最终相关验证，检查工作区差异。
-7. 用清晰任务编号提交本次变更，然后停止。
+### Step-by-Step Plan
 
-## 当前状态
+1. Read `TODO.md` and identify the first task whose heading is not prefixed with `[DONE]`.
+2. Check the latest commit message for any explicitly unfinished issue that is directly relevant to that task.
+3. Read the selected task details, dependencies, validation requirements, and any nearby completion records.
+4. Inspect only the code, tests, fixtures, and documentation needed for that task.
+5. Implement the task as written, without narrowing the scope or using workaround behavior.
+6. If a concrete blocker or missing prerequisite prevents correct implementation, update `TODO.md` with the minimum prerequisite task in the right order, commit that bookkeeping, and stop.
+7. Run the task-specific validation and any relevant broader tests required by the task.
+8. If validation exposes unscheduled failures, fix them if in scope or schedule the minimum prerequisite/follow-up task before marking the current task done.
+9. Mark the completed task heading in `TODO.md` with `[DONE]` and update its completion record with implementation and validation notes.
+10. Review the final diff, run formatting/linting if relevant, commit all intended changes with a task-tagged message, and stop without starting the next task.
 
-- 已读取 `TODO.md`，第一个未完成任务为 `P7-T04-b-4R：Review codegen MonoTypeId 全面切换`。
-- 最近提交为 `cbb8530a [P7-T04-b-4] Migrate codegen types to MonoTypeId`，与当前 review 直接相关。
-- 已完成第一轮静态审查：`cg_ty_of` 本体已是 `MonoTypeId -> CgTy`，`expect_cg_ty_of` / `monomorph miss` / 直接 `MonoTypeId(` 构造未发现残留。
-- 发现需在 review 内修复的缺口：`type_layout` 仍以 raw `TypeId` 做内部布局递归并保留 generic fallback；部分 effect-lowered source `TypeId` 被送进主 codegen `TypeStore` lowering；published callable signature 未显式携带其 source `TypeStore` owner。
-- 已实施修复：`type_layout` 收紧为 `MonoTypeId`；effect-lowered source lowering 改走 owner-aware `cg_ty_of_mir_type`；published callable signature 现在携带 `TypeStore` owner，桥接失败不再返回 raw foreign `TypeId`。
-- 已通过验证：`cargo fmt`；`cargo test -p scoopc llvm::codegen`；`cargo test -p scoopc_types`；`cargo test -p scoopc --no-default-features hir`；`cargo test -p scoopc --no-default-features mir`；`cargo test -p scoopc --no-default-features llvm::codegen`；`cargo test -p scoopc --no-default-features llvm::codegen::effect_lowered`；`cargo run -p scoop -- test --fixtures tests/fixtures/effect_lowered`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`。
-- 已通过最终检查：`cargo clippy --all-targets -- -D warnings`；`git diff --check`；关键残留搜索。
-- 已更新 `TODO.md` / `TODO-6.md`，将 `P7-T04-b-4R` 标记为 `[DONE]` 并填写完成记录。
-- 下一步检查 git diff/status/log，提交本任务变更后停止。
+### Progress Log
+
+- Initialized plan before reading project task state.
+- Read `TODO.md`; first incomplete task is `P7-T04-b-5` in `TODO-6.md`, covering pre-existing LLVM library test failures observed during P7-T04-b.
+- Read `TODO-6.md` task details. Scope is the four scheduled LLVM lib failures: closure late-lowering routing, generic-via-interface P4 site facts, native callable aggregate-return ABI constant argument shape, and top-level immutable init helper emission/audit shape. Latest commit is `P7-T04-b-4R`, with no separate unfinished issue requiring insertion before this task.
+- Reproduced all four failures. Root-cause plan: align plain closure ABI symbols with private closure body symbols; make late lowering use canonical pass-view bodies for body-dependent lowering; preserve scalar literal operands for typed call args instead of forcing temp store/load; update the top-level immutable audit to the P6 eager-init contract by checking guard/load and absence of hidden init calls.
+- Implemented the four fixes and added a P5 pass-view body regression. The four scheduled LLVM tests and the new regression pass individually after `cargo fmt`.
+- Full validation completed: `cargo test -p scoopc --lib` passed 900 tests after refreshing the internal failure-policy sentinel baseline; `cargo run -p scoop -- test --fixtures tests/fixtures/effect_lowered` passed 10/10 after regenerating the changed direct/fun-value call golden; `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass` passed 421/421; `cargo clippy --all-targets -- -D warnings` and `git diff --check` passed.
+- Marked `P7-T04-b-5` as `[DONE]` in `TODO.md` and `TODO-6.md`; completion record documents root causes, fixes, regenerated golden/sentinel baseline, and validation commands.
