@@ -1,10 +1,12 @@
 # Overload Resolution 设计
 
-本文档来源于 2026-05-17 ~ 2026-05-18 的设计讨论，定义 Scoop 函数 / 方法 / 构造器重载（overload）的解析规则。目的是在修复当前 overload 相关 codegen bug 之前，先把"正确行为"钉死。
+本文档来源于 2026-05-17 ~ 2026-05-22 的设计讨论，定义 Scoop 函数 / 方法 / 构造器重载（overload）的解析规则。目的是在修复当前 overload 相关 codegen bug 之前，先把"正确行为"钉死。
 
 本文档只描述设计与规则，**不实现任何代码改动**。
 
-Generic overloading（同名候选中至少一个含 type parameter）**不在本文档范围内**——本轮一律在定义点 reject，留作 Future Work。
+Generic overloading（同名候选中至少一个含 type parameter）**有限支持**：仅允许"参数 shape 相同、仅 type parameter bound 不同"的形式，用于支持有限的"按 bound 偏特化"（partial specialization）。其它形式（TP 一致性约束、TP 数量不同等）仍在定义点 reject。详见 §4.2 与 §6.4。
+
+虚方法（`open` / `abstract` / `override` / interface 方法）不可引入方法级 TP——理由与 C++ 不允许 `virtual template` 相同：Scoop 走 monomorphization，virtual generic 会让 vtable 槽位无法固定。详见 §4.5。
 
 ---
 
@@ -60,7 +62,7 @@ fun main(): Int {
 
 期望行为：两次调用按 arity 区分到不同 callable，分别 lower。
 
-### 1.3 Generic + Concrete 同名（已正确）
+### 1.3 Generic + Concrete 同名（按 specificity 解析）
 
 ```scoop
 package overload_gvc_ok
@@ -82,7 +84,7 @@ fun main(): Int {
 
 当前行为：typecheck 报 `scoop::typecheck::ambiguous_overload`。
 
-本文档仍保留这条 reject——理由见 §4.2。
+期望行为：两候选都适用；按 §6.4 的 effective type specificity，`h(Int)` 的有效类型是 `Int`、`h<T>(T)` 的有效类型是 T 的 bound（无 bound → `Any`），`Int <: Any` 严格更具体 → 选 `h(Int)`，返回 110。这是 §4.2 放宽后的典型场景。
 
 ---
 
@@ -101,8 +103,10 @@ fun main(): Int {
 | Resolution 是 static 还是 dynamic | **Static**——选哪个签名在 compile-time 决定；virtual dispatch 在选定之后再于 runtime 进行 | §7.2 |
 | Lambda 参数 overload | 走普通 subtype-based specificity，不加额外 reject | §8.1 |
 | Vararg 与非 vararg 同名重叠 | **定义点** reject（不放到 call site） | §8.2 |
-| Generic overload | 本轮一概在定义点 reject；Future Work | §4.2、§11 |
-| Specificity 算法 | A 更具体 iff ∀i: `A.param_i <: B.param_i` 且至少一处严格 | §6 |
+| Generic overload（同 shape 仅 bound 不同） | 允许；按 effective type 参与 specificity | §4.2、§6.4 |
+| Generic overload（参数 shape 不同 / TP 一致性约束） | **定义点** reject | §4.2 |
+| 虚方法引入方法级 TP | **定义点** reject（vtable 不可定槽） | §4.5 |
+| Specificity 算法 | A 更具体 iff ∀i: `A.eff_i <: B.eff_i` 且至少一处严格 | §6 |
 | Scope 层叠 | local → member → extension → top-level → imported；外层完全 shadow | §5.1 |
 | 歧义错误必须列出所有适用候选 | 是，含位置与不可比原因 | §10 |
 
@@ -136,21 +140,69 @@ fun f(x: Int): Int { ... }   // ← scoop::typecheck::conflicting_overloads
 
 注意：返回类型不同 / effect row 不同**不算**区分——两者都不参与 signature。
 
-### 4.2 Generic overload → 一律 reject
-
-同 scope 内任何同名候选含 type parameter 时，定义点 reject：
+**Type parameter 与 alpha 等价**：TP binder 的命名不参与 signature——alpha 等价的 TP 视为同一签名：
 
 ```scoop
-// 反例：含 generic 的同名
+// 反例：alpha 等价
 fun f<T>(x: T): T { ... }
-fun f(x: Int): Int { ... }   // ← scoop::typecheck::generic_overloading_not_supported
-
-// 反例：两个 generic 同名
-fun g<T>(x: T): T { ... }
-fun g<U>(x: U): U { ... }    // ← 同上
+fun f<U>(x: U): U { ... }    // ← conflicting_overloads
 ```
 
-错误信息提示"generic overloading 不被支持；请用不同名"。Future Work（§11）会规划完整 generic overload 规则。
+更进一步，签名等价检查使用 §6.4 定义的 **effective type**——两个候选每个参数位的 effective type 都相同，则视为等价。这覆盖以下情况：
+
+```scoop
+// 反例：effective types 都是 (Any, Any)，无 call site 能区分
+fun f<T>(x: T, y: T) { ... }
+fun f<T, U>(x: T, y: U) { ... }   // ← conflicting_overloads
+
+// 反例：bound 默认 Any，effective 与上一行的 <T> 等价
+fun g<T: Any>(x: T) { ... }
+fun g<T>(x: T) { ... }            // ← conflicting_overloads
+```
+
+### 4.2 Generic overload → 仅允许"同 shape 仅 bound 不同"
+
+同 scope 同名候选含 type parameter 时，定义点按以下规则区分：
+
+#### 4.2.1 允许：参数 shape 相同、仅 type parameter 的 bound 不同
+
+```scoop
+// ✓ 合法：同 shape，bound 不同；按 §6.4 specificity 解析
+fun debugPrint<T>(x: T) = println(x.toString())            // 兜底
+fun debugPrint<T: Debug>(x: T) = println(x.debugString())  // 特化
+
+// ✓ 合法：concrete 与 generic 同 shape；concrete 是 bound 的"最紧"形式
+fun h<T>(x: T): T { ... }
+fun h(x: Int): Int { ... }
+```
+
+"参数 shape 相同"指：arity 相同；每个参数位的类型表达式在抽出 TP-bound 替换后形状一致。形式化：把每个参数类型中出现的方法级 TP `T` 替换为 `T` 的 declared bound（无 bound 视为 `Any`），得到 effective parameter type；两候选 effective 形状仅在 bound 紧度上不同 → 算同 shape。
+
+#### 4.2.2 Reject：参数 shape 不同
+
+```scoop
+// ✗ TP 一致性约束（前者要求两参数同类型，后者无此要求）
+fun f<T>(x: T, y: T) { ... }
+fun f<T, U>(x: T, y: U) { ... }   // ← scoop::typecheck::generic_overload_shape_mismatch
+
+// ✗ TP 出现的嵌套位置不同
+fun g<T>(x: List<T>) { ... }
+fun g<T>(x: T) { ... }            // ← 同上（但若 effective 类型一为 List<Any>、一为 Any，
+                                  //   可正常 specificity 区分；本例 reject 仅当两者
+                                  //   shape 在 §4.2.1 意义下既非"仅 bound 不同"又非真正不同 arity 时）
+```
+
+错误码 `scoop::typecheck::generic_overload_shape_mismatch`。错误信息提示"only differ-by-bound generic overloads are supported; rename the function or restructure"。
+
+注意：**"参数 shape 不同"与 §4.1 "签名等价"是互斥分支**——§4.1 拦截 effective type 完全相同的情形（含 alpha 等价、`<T>` 与 `<T: Any>` 等价），§4.2.2 拦截 shape 不可对齐的情形。介于两者之间（同 shape、bound 不同）的才放过到调用点。
+
+#### 4.2.3 Reject：bound 不可比的同 shape 重载，仍合法
+
+bound 之间不可比（如 `T: Comparable` vs `T: Numeric`）**不在定义点 reject**——这种重载本身合法，是否产生歧义留给调用点的 §6.4 specificity 决定（实参实现两 bound 之一时无歧义；都实现时报 `ambiguous_overload`）。
+
+#### 4.2.4 与虚方法的交互
+
+虚方法本就不能引入方法级 TP（§4.5），所以本节的 generic overload 仅适用于：top-level fun、final 成员方法、extension fun、constructor。详见 §6.4 末尾的可适用范围表。
 
 ### 4.3 Vararg 与非 vararg 重叠 → 定义点 reject
 
@@ -218,6 +270,69 @@ class Child : Parent {
 
 `Child` 的 overload 集合中现在含两条 `greet`：继承自 `Parent` 的 `greet()` 与子类新增的 `greet(Int)`。两者按 specificity 各自参与 resolution。
 
+### 4.5 虚方法不可方法级 generic
+
+由于 Scoop 走 monomorphization（与 Java/Kotlin 的类型擦除不同），虚分派的 vtable 槽位必须在编译期固定。方法级 type parameter 在 monomorphization 后会展开成多个不同签名的实例，无法填入单个 vtable 槽——这与 C++ 不允许 `virtual template` 的理由完全相同。
+
+以下声明位置 reject 任何"方法自己引入"的 type parameter：
+
+- `open fun ...`
+- `abstract fun ...`
+- `override fun ...`
+- `interface` body 内的 `fun ...`（默认 abstract）
+
+但**类级 / interface 级 TP** 在方法签名里出现完全合法——它们在类 / interface 被 monomorphize 时已经被钉死，vtable 槽位仍是固定的。
+
+合法 vs 非法对照：
+
+```scoop
+class Box<T> {
+    open fun get(): T = ...                       // ✓ T 是类级
+    open fun set(x: T): Unit = ...                // ✓ T 是类级
+    open fun <U> map(f: (T) -> U): Box<U> = ...   // ✗ U 是方法级
+    fun <U> mapStatic(f: (T) -> U): Box<U> = ...  // ✓ 非虚方法，方法级 TP 允许
+}
+
+interface Iter<T> {
+    fun next(): T                                 // ✓ T 是接口级
+    fun <R> fold(init: R, f: (R, T) -> R): R      // ✗ R 是方法级
+}
+
+abstract class Renderer {
+    abstract fun render(x: Any): String           // ✓ 非 generic
+    abstract fun <T> renderG(x: T): String        // ✗ T 是方法级
+}
+```
+
+错误码：`scoop::typecheck::virtual_method_cannot_be_generic`。错误信息提示 "virtual methods cannot have method-level type parameters; use a class-level type parameter, or convert to a non-virtual / free-standing function"。
+
+#### 4.5.1 与 §4.4 override 的连锁
+
+因父类虚方法本就不能引入方法级 TP，"override 时 bound 是否能改变"的问题不存在——bound-based specialization（§6.4）天然不与虚分派组合。需要"按类型特化的虚方法"时，自然路径是把它拆成自由函数：
+
+```scoop
+// ✗ 想这样写
+abstract class Renderer {
+    abstract fun <T> render(x: T): String
+    abstract fun <T: Debug> render(x: T): String
+}
+
+// ✓ 改成自由函数 + 实例方法分工
+abstract class Renderer { abstract fun renderAny(x: Any): String }
+fun <T> render(r: Renderer, x: T): String = r.renderAny(x)        // 兜底
+fun <T: Debug> render(r: Renderer, x: T): String = x.debugString() // 特化
+```
+
+#### 4.5.2 不影响的位置
+
+以下位置**不受**本节限制（仍可方法级 generic）：
+
+- top-level `fun`
+- final（无 `open` / `abstract` / `override` 的）成员方法
+- `extension fun`
+- `constructor`
+- `companion object` / `object` body 内的 `fun`（语义上是静态分派，无 vtable）
+
 ---
 
 ## 5. Call-site 解析算法
@@ -277,7 +392,9 @@ fun outer(): Int {
 
 应用候选两两比较 specificity（详见 §6），选出**唯一最具体**：
 
-> 候选 A 比候选 B 更具体（A ≻ B）当且仅当对所有参数位 i 有 `A.param_i <: B.param_i`，且至少一处严格 subtype。
+> 候选 A 比候选 B 更具体（A ≻ B）当且仅当对所有参数位 i 有 `A.eff_i <: B.eff_i`，且至少一处严格 subtype。
+>
+> 其中 `eff_i` 是参数位 i 的 **effective type**（详见 §6.4）：concrete 类型用其本身；未替换 TP 用其 declared bound（无 bound 视为 `Any`）。
 
 最具体候选是不被任何其他候选 ≻ 的候选。若存在唯一这样的候选 → 选定。
 
@@ -336,6 +453,124 @@ call({ 42 })   // { 42 } 类型 = () -> Int
 ```
 
 `{ 42 }` 在 Scoop 中类型固定 `() -> Int`（不像 Kotlin 那种"按上下文期望反推"），所以这条 specificity 比较直接、无歧义。
+
+### 6.4 Effective type 与 bound-based specialization
+
+**核心原则**（用户视角）：
+
+> 在 specificity 比较中，**更靠近实参类型的 concrete 类型 ≻ 更远的父类型**——无论"父类型"来自 concrete 声明还是 type parameter 的 bound。
+
+形式化：参数位 i 的 **effective type** `eff_i` 按候选声明决定：
+
+- 参数声明为 concrete 类型 `X` → `eff_i = X`
+- 参数声明为未替换 TP `T` → `eff_i = T 的 declared bound`；无 bound 视为顶类型 `Any`
+- 多重 bound `<T: A & B>` → `eff_i = A & B`（intersection）；自然地 `A & B <: A` 且 `A & B <: B`
+- 复合类型中嵌入 TP（如 `List<T>`、`(T) -> U`）→ effective type 由对其中每个 TP 替换为 bound 后整体得到
+
+应用 §5.4 的规则：A ≻ B iff ∀i: `A.eff_i <: B.eff_i` 且至少一处严格。
+
+**直觉**：applicability 已经把所有候选锚定在实参 `R_i` 的祖先链上（每个 eff 都是 `R_i` 的 supertype）。pairwise "eff_A <: eff_B" 等价于"沿 subtyping 链上谁更靠近 `R_i`"。
+
+#### 6.4.1 典型例子
+
+```scoop
+fun debugPrint<T>(x: T) = println(x.toString())            // 兜底
+fun debugPrint<T: Debug>(x: T) = println(x.debugString())  // 特化
+
+debugPrint(5)
+// 候选 1 (T=Any) 适用：Int <: Any
+// 候选 2 (T: Debug) 仅当 Int 实现 Debug 时适用
+//   - 若 Int 未实现 Debug → 候选 2 不适用 → 选兜底
+//   - 若 Int 实现 Debug → eff: Debug <: Any 严格 → 选特化
+```
+
+```scoop
+fun f(x: Int): Int = ...                       // 候选 A：concrete
+fun f<T: Number>(x: T): T = ...                // 候选 B：bounded
+fun f<T>(x: T): T = ...                        // 候选 C：unbounded
+
+f(5)
+// 三者都适用；eff: Int <: Number <: Any
+// A 在所有位严格更具体 → 选 A
+```
+
+```scoop
+fun g<T: Comparable>(x: T) = ...
+fun g<T: Numeric>(x: T) = ...
+
+g(5)   // 假设 Int 同时实现 Comparable 与 Numeric
+       // 两者都适用；eff: Comparable 与 Numeric 不可比
+       // 无唯一最具体 → ambiguous_overload（错误码与 §5.5 一致）
+```
+
+```scoop
+fun h<T: Animal>(x: T) = ...
+fun h<T: Dog>(x: T) = ...     // Dog <: Animal
+
+h(myDog)
+// 两者都适用；eff: Dog <: Animal 严格 → 选 Dog 版
+```
+
+#### 6.4.2 关键边界：specialization 不"穿透"未替换 TP
+
+Specificity 比较使用 **declared bound**，不使用 inferred substitution。这意味着 specialization 只在 declared bound 已经满足条件时才触发：
+
+```scoop
+fun helper<U>(x: U) {
+    debugPrint(x)            // 调用点 U 的 declared bound = Any
+                             // 候选 2 (<T: Debug>) applicability 检查 U <: Debug 失败 → 不适用
+                             // → 选兜底
+}
+
+helper(myDebugThing)         // 仍然走兜底！specialization 不会"事后追上"
+```
+
+要让特化触发，调用者必须自己把 bound 写进签名：
+
+```scoop
+fun helperD<U: Debug>(x: U) {
+    debugPrint(x)            // U: Debug → 候选 2 applicable，eff 更具体 → 选特化
+}
+```
+
+**为什么这样设计**：在 monomorphization 模型下，`helper<U>` 的 SLIR body 在 lower 时已经按 declared bound 选定 overload；之后用任何具体 U 实例化都共享同一份 body。如果允许"按推断后的具体 T 重新选 overload"，要么需要 per-instantiation re-resolution（Rust specialization 路线，soundness 至今未解），要么放弃参数化原理（同一段代码可观察到不同 T 行为）。Scoop 选简单稳妥的路：**lexical resolution，by declared bound**。
+
+代价：要让特化在某个调用栈上生效，bound 必须在整条传递链上显式标注。这对用户是可预测的、本地可推理的。
+
+#### 6.4.3 已知边角：函数类型参数的 contravariance
+
+当 TP 出现在函数类型参数位置（contravariant），bound 紧度与 specificity 的方向会"翻转"：
+
+```scoop
+fun f<T>(g: (T) -> Int) = ...           // eff: (Any) -> Int
+fun f<T: Animal>(g: (T) -> Int) = ...   // eff: (Animal) -> Int
+
+f(myDogToInt)   // myDogToInt: (Dog) -> Int
+// 函数子类型化：(Any) -> Int <: (Animal) -> Int（参数位逆变）
+// 形式上候选 1 严格更具体 → 选候选 1
+```
+
+这与"bound 紧的更特化"的直觉相反。原因：T 在 `(T) -> Int` 中处于逆变位置，bound 越紧反而限制了可接受的 g 范围，effective type 反而"更宽"。
+
+实践影响有限——bound-based specialization 的典型场景（如 `debugPrint<T: Debug>(x: T)`）TP 都在协变 / 不变位置。规避建议：**避免在仅以 contravariant 位置出现的 TP 上做 bound-based 重载**。Future Work（§11.1）可能引入更精细的 variance-aware specificity。
+
+#### 6.4.4 可适用范围
+
+bound-based specialization 仅对静态分派位置有意义（与 §7.2 的 static-resolution + dynamic-dispatch 分离一致）：
+
+| 声明位置 | 可方法级 generic | 可按 bound 特化 |
+|---|---|---|
+| Top-level `fun` | ✓ | ✓ |
+| Final 成员方法（无 open / abstract / override） | ✓ | ✓ |
+| Extension `fun` | ✓ | ✓ |
+| Constructor | ✓ | ✓（per-ctor TP）|
+| `companion object` / `object` 内 `fun` | ✓ | ✓ |
+| `open` 方法 | ✗ (§4.5) | N/A |
+| `abstract` 方法 | ✗ (§4.5) | N/A |
+| `override` 方法 | ✗ (§4.5) | N/A |
+| `interface` 方法 | ✗ (§4.5) | N/A |
+
+文档使用建议：用户想要"虚方法 + 按类型特化"时，自然路径是把它拆成 free function（见 §4.5.1 的例子）。
 
 ---
 
@@ -451,7 +686,8 @@ Constructor 在 spec 层面与 fun overload 共用同一套机制：
 
 - 同 class 多个 constructor → overload 集合，按 §4 - §6 规则；
 - 签名等价 → §4.1 conflicting overloads；
-- 含 generic 参数 → §4.2 generic overloading reject（如 Scoop 区分 class generic 与 ctor 的 type parameter）；
+- 含 ctor 级 type parameter（区别于 class 级）→ 按 §4.2 / §6.4 处理：参数 shape 相同、仅 bound 不同允许；其它 shape 不同 reject；
+- class 级 type parameter 在 ctor 签名里出现属于 class 实例化时已钉死的部分，不算"ctor 级 generic"；
 - 调用点 `Foo(...)` 的 resolution 走 §5 五 phase。
 
 实现层面是否将 constructor 归一化为 fun 的 sugar、或单独路径——属于实现选择，不影响 spec 行为。
@@ -503,18 +739,32 @@ override 路径下子类的 effect row 是否可严格收紧（例如父类 `Rea
 
 ### 10.2 不可比原因要可定位
 
-歧义错误必须指出"为什么没有唯一最具体"。具体形式：
+歧义错误必须指出"为什么没有唯一最具体"，并显式区分 concrete 类型与 TP bound 在 effective type 中的来源。具体形式：
 
 ```
-error: ambiguous overload for h(Int)
+error: ambiguous overload for h(5)
   candidates:
-    - h(x: Int): Int                  defined at file_a.scoop:10:1
-    - h(x: Number): Number            defined at file_b.scoop:5:1
-    - h<T>(x: T): T                   defined at file_c.scoop:20:1
+    - h<T: Comparable>(x: T): T       defined at file_a.scoop:10:1
+    - h<T: Numeric>(x: T): T          defined at file_b.scoop:5:1
   reason:
-    - h(Int) and h(Number): Int <: Number, but no other position to break tie
-    - h(Int) and h<T>(x: T): generic overloading not supported (should have been
-      rejected at definition; please report this as a compiler bug)
+    - both candidates are applicable: Int satisfies Comparable, Int satisfies Numeric
+    - effective param types Comparable (from T's bound) and Numeric (from T's bound)
+      are incomparable; no candidate is strictly more specific
+  hint: add a more specific overload, or rename to disambiguate
+```
+
+涉及 concrete 与 generic 混合时：
+
+```
+error: ambiguous overload for h((1, 2))
+  candidates:
+    - h(x: Int, y: Number): Int       defined at file_a.scoop:10:1
+    - h(x: Number, y: Int): Int       defined at file_b.scoop:5:1
+  reason:
+    - both candidates are applicable
+    - position 1: Int <: Int (cand A) vs Int <: Number (cand B): A more specific here
+    - position 2: Int <: Number (cand A) vs Int <: Int (cand B): B more specific here
+    - cross-incomparable; no candidate is strictly more specific
 ```
 
 错误信息中**不允许出现** `UnsupportedMainBody`、`backend`、`LLVM`、`codegen` 等内部术语（参见 `pipeline_user_visible_failure_policy.rs::FRONTEND_REJECT_FORBIDDEN_TERMS`）。
@@ -527,20 +777,18 @@ error: ambiguous overload for h(Int)
 
 ## 11. Future Work
 
-### 11.1 Generic overloading 的完整规则
+### 11.1 Generic overloading 的更高级形式
 
-当前一概在定义点 reject。未来如果要支持，参考 Kotlin spec 的关键规则：
+§4.2 + §6.4 已覆盖"参数 shape 相同、仅 bound 不同"的形式（含 concrete 与 generic 混合，以 effective type 统一比较）。未支持的更高级形式：
 
-- 未替换的 type parameter 在 specificity 比较中视为"最不具体"；这条让 concrete 候选在 generic 候选之上自然胜出；
-- type parameter bound 的紧度参与 specificity（更紧的 bound 更具体）；
-- 仍按 §6 的"对所有参数位 subtype 且至少一处严格"决定 ≻ 关系；
-- 歧义即错。
-
-实现复杂度集中在"specificity 比较时如何处理未替换 type parameter"以及"generic candidate 的 type inference 与 specificity 之间的循环依赖"。Kotlin 在这一块花了大量 spec 篇幅，Scoop 暂时不付费。
+- **TP 一致性约束**：`f<T>(x: T, y: T)` 与 `f<T, U>(x: T, y: U)` 互不覆盖（前者要求两参数同类型，后者无此要求）。要让 specificity 模型理解"同 TP 出现多次 = 一致性约束"，需要在比较时引入 TP-position 等价类，超出当前简单 effective-type 模型。当前在 §4.2.2 定义点 reject。
+- **Inferred substitution 参与 specificity**：当前 specificity 只看 declared bound（§6.4.2），不看推断后的具体类型。这避免了 Rust specialization soundness 难题，但代价是 specialization 不能"穿透"未替换 TP。如果未来要让特化跨越 generic 上下文自动触发，需要后端支持 per-instantiation re-resolution 与配套 monomorphization 改造。
+- **Variance-aware specificity**：当前规则在 contravariant 位置的 TP 上会出现"bound 紧反而 effective 更宽"的反直觉结果（§6.4.3）。Future 可在 specificity 比较中按位置 variance 调整方向，或加一条额外 frontend reject。
+- **Higher-kinded TPs / type constructor 重载**：完全未触及。
 
 ### 11.2 Variance / starprojection
 
-Scoop 目前的 generic 体系是否支持 declaration-site variance（`<T : Foo>` / `<in T>` / `<out T>`）会影响 specificity 算法。未来引入时本文档 §6.1 的 function 子类型化条款需要相应扩展。
+Scoop 目前的 generic 体系是否支持 declaration-site variance（`<in T>` / `<out T>`）会影响 specificity 算法。未来引入时本文档 §6.1 的 function 子类型化条款与 §6.4 的 effective type 计算需要相应扩展（用户声明的 variance 替代默认 invariant 规则）。这条与 §11.1 末尾的 "variance-aware specificity" 互补：前者是声明侧、后者是比较算法侧。
 
 ### 11.3 Operator overload 与 desugar 时机
 
@@ -570,9 +818,11 @@ Scoop 目前的 generic 体系是否支持 declaration-site variance（`<T : Foo
 | Resolution 静动态分离 | static 选签名，runtime dispatch | — |
 | Lambda overload 额外限制 | 无（走普通 specificity） | — |
 | Vararg 与非 vararg arity 重叠 | 定义点 reject | `vararg_overlaps_non_vararg` |
-| Generic overloading | 定义点一概 reject | `generic_overloading_not_supported` |
-| 签名等价 | 定义点 reject | `conflicting_overloads` |
-| Specificity 算法 | A ≻ B iff ∀i: A.param_i <: B.param_i 且至少一处严格 | — |
+| Generic overloading（同 shape 仅 bound 不同） | 允许；按 effective type 参与 specificity | — |
+| Generic overloading（参数 shape 不同 / TP 一致性约束） | 定义点 reject | `generic_overload_shape_mismatch` |
+| 虚方法（open/abstract/override/interface）引入方法级 TP | 定义点 reject | `virtual_method_cannot_be_generic` |
+| 签名等价（含 TP alpha 等价、effective type 完全相同） | 定义点 reject | `conflicting_overloads` |
+| Specificity 算法 | A ≻ B iff ∀i: A.eff_i <: B.eff_i 且至少一处严格（eff = concrete 或 TP bound） | — |
 | Scope 层叠 | local → member → extension → top-level → imported；外层完全 shadow | — |
 | 无适用候选 | call site reject | `no_applicable_overload` |
 | 无唯一最具体 | call site reject | `ambiguous_overload` |

@@ -471,6 +471,7 @@
   3. `StageEmitInput` 不再接收 primary/ABI visibility P5 wrapper；ABI visibility 需要的内容必须是明确的 LIR/LIR facts 输入。
   4. 删除 `LirStageOutput` 中仅为 LLVM residual 保留的 pass-view/effect context字段或 accessor。
   5. physical ABI/layout 中仍需的 class/vtable/itable/enum/type identity 必须来自 LIR facts 或 base type context；多 `TypeStore` 桥接必须有单一 owner 和 verifier。
+  6. 在收口多 `TypeStore` 桥接的同时，评估 `TypeId` / type 身份的 cross-process stable wire format：未来 per-cone build artifact 落地（把每个 cone 的 `LIR + LIR facts` 持久化到 `build/<profile>/cones/<cone>/`，让下游 cone 不再重扫上游源码）需要 `TypeId` 或等价 type 身份在序列化/反序列化之间保持稳定。本任务作为 TypeStore 唯一 owner 的收口节点是最自然的处置点：要么把 fact/LIR 中的 `TypeId` 替换为 `scoopc_ids::CanonicalTextKey` 等 stable key，要么为 `TypeStore` 设计 portable serialization + import 重映射；若选择推迟，必须显式记录推迟原因和未来 owner，避免 P8 验收后再次散落到 backend 局部修补。
 - 验证：
   1. `cargo fmt`
   2. `cargo test -p scoopc --no-default-features llvm_codegen_stage`
@@ -481,7 +482,8 @@
 - 完成条件：
   - LLVM stage wrapper 不再嵌套或传播上游整包 stage output；
   - `llvm_residual_pass_view()` 等 P7 residual accessor 删除；
-  - physical ABI/layout 只把 LIR facts 映射成 LLVM-private layout，不回读 HIR/raw MIR/effect facts。
+  - physical ABI/layout 只把 LIR facts 映射成 LLVM-private layout，不回读 HIR/raw MIR/effect facts；
+  - TypeStore 桥接收口结论中已经显式表态 cross-process stable wire format 的处置（落实或显式推迟 + owner）。
 - 依赖：P7-T03R
 - 完成记录：
   - 待填写。
@@ -492,7 +494,8 @@
 - 重点：
   - `LlvmCodegenStageOutput` / `StageEmitInput` 是否不再传播 P5 wrapper 或 HIR scaffold；
   - `LirStageOutput` 是否不再保留 LLVM residual pass-view context；
-  - physical ABI/layout 是否只做 backend-private 物理化。
+  - physical ABI/layout 是否只做 backend-private 物理化；
+  - TypeStore 桥接收口结论是否已显式表态 cross-process stable wire format 的处置（落实或显式推迟 + 未来 owner），未来 per-cone build artifact 落地不会因为 `TypeId` 不可序列化而被迫重新触动 backend。
 - 验证：
   - 重新运行 P7-T04 的所有验证；
   - 额外搜索 `hir_compat_scaffold`、`llvm_residual_pass_view`、`EffectLoweredStageOutput`、`MaterializedMirPassView`、`EffectFactsStageOutput` 在 LLVM/pipeline handoff 中的生产命中。
