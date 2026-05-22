@@ -94,6 +94,7 @@ fn build_fixture_inputs_from_source(source: SourceFile) -> FixtureAbiInputs {
         LoweredMir { file, types },
         stable_cone_key,
         &lowered_hir.source_cones,
+        &lowered_hir.source_cone_order,
     )
     .with_materialized_mir(materialized_mir);
     let effect_facts_stage_output =

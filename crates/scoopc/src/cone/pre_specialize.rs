@@ -359,6 +359,7 @@ pub fn build_pre_specialize_file_for_cone_sources(
             file: hir_file.clone(),
             stable_cone_key: stable_cone_key.clone(),
             source_cones: HashMap::new(),
+            source_cone_order: HashMap::from([(stable_cone_key.clone(), 0)]),
             stable_type_param_keys: HashMap::new(),
             member_funs: Vec::new(),
             types: types.clone(),

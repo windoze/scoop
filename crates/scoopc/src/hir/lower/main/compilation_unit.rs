@@ -214,11 +214,14 @@ pub fn lower_for_compilation_unit_with_stable_cone_key(
         &stable_cone_key,
         &no_source_cone_overrides,
     );
+    let source_cone_order =
+        source_cone_order_for_lowering(&[(source, file)], &source_cones, &stable_cone_key);
 
     Ok(LoweredHir {
         file: file_hir,
         stable_cone_key,
         source_cones,
+        source_cone_order,
         stable_type_param_keys,
         member_funs,
         types,
@@ -476,6 +479,24 @@ fn source_cones_for_lowering(
     out
 }
 
+fn source_cone_order_for_lowering(
+    files_to_lower: &[(&SourceFile, &ast::File)],
+    source_cones: &HashMap<std::path::PathBuf, crate::cone::SourceConeInfo>,
+    fallback_stable_cone_key: &StableConeKey,
+) -> HashMap<StableConeKey, u32> {
+    let mut out = HashMap::new();
+    for (source, _) in files_to_lower {
+        let stable_key = source_cones
+            .get(source.path())
+            .map(|info| info.stable_key.clone())
+            .unwrap_or_else(|| fallback_stable_cone_key.clone());
+        if !out.contains_key(&stable_key) {
+            out.insert(stable_key, out.len() as u32);
+        }
+    }
+    out
+}
+
 pub(crate) fn lower_for_compilation_unit_multi_files_internal<'a>(
     index: &Index,
     compilation_unit: &[(&SourceFile, &ast::File)],
@@ -497,6 +518,8 @@ pub(crate) fn lower_for_compilation_unit_multi_files_internal<'a>(
         &stable_cone_key,
         &source_cone_overrides,
     );
+    let source_cone_order =
+        source_cone_order_for_lowering(files_to_lower, &source_cones, &stable_cone_key);
     let type_kinds = collect_type_decl_kinds(compilation_unit);
     let nominal_variances = collect_nominal_variances(compilation_unit);
     let direct_supertypes = collect_direct_supertypes(compilation_unit, index);
@@ -871,6 +894,7 @@ pub(crate) fn lower_for_compilation_unit_multi_files_internal<'a>(
         file: file_hir,
         stable_cone_key,
         source_cones,
+        source_cone_order,
         stable_type_param_keys,
         member_funs,
         types,

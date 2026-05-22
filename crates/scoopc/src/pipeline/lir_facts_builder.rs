@@ -255,6 +255,7 @@ fn initializer_global_root_facts(
         root: LirGlobalRootKey::new(root.fqn.clone()),
         kind,
         cone: root.identity.cone.clone(),
+        source_cone_order: root.source_cone_order.unwrap_or(u32::MAX),
         ty: root.ty,
         storage,
         has_initializer: *has_initializer,
@@ -283,6 +284,7 @@ fn extern_global_root_facts(root: &MirRootFact) -> Result<LirGlobalRootFacts, Ef
         root: LirGlobalRootKey::new(root.fqn.clone()),
         kind: LirGlobalRootKind::ExternGlobal,
         cone: root.identity.cone.clone(),
+        source_cone_order: root.source_cone_order.unwrap_or(u32::MAX),
         ty: root.ty,
         storage: Some(global_storage_policy(*storage)),
         has_initializer: !initializer_absent,
@@ -298,11 +300,11 @@ fn extern_global_root_facts(root: &MirRootFact) -> Result<LirGlobalRootFacts, Ef
 }
 
 fn publish_cone_init_routines(facts: &mut LirGlobalInitFacts) -> Result<(), EffectLoweringError> {
-    let mut roots_by_cone = BTreeMap::<String, Vec<LirGlobalRootKey>>::new();
+    let mut roots_by_cone = BTreeMap::<(u32, String), Vec<LirGlobalRootKey>>::new();
     for (root_key, root) in &facts.roots {
         if facts.top_level_eager_inits.contains_key(root_key) {
             roots_by_cone
-                .entry(root.cone.canonical_text())
+                .entry((root.source_cone_order, root.cone.canonical_text()))
                 .or_default()
                 .push(root_key.clone());
         }
@@ -323,6 +325,7 @@ fn publish_cone_init_routines(facts: &mut LirGlobalInitFacts) -> Result<(), Effe
             LirConeInitRoutineFacts {
                 routine,
                 cone: first_root.cone.clone(),
+                source_cone_order: first_root.source_cone_order,
                 roots: ordered_roots,
             },
         );

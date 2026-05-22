@@ -296,10 +296,12 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredH
             },
         },
     );
+    let source_cone_order = HashMap::from([(stable_cone_key.clone(), 0)]);
     Ok(LoweredHir {
         file,
         stable_cone_key,
         source_cones,
+        source_cone_order,
         stable_type_param_keys,
         member_funs,
         types,

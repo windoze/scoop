@@ -140,6 +140,10 @@ pub enum VerifyError {
         root: String,
         dependency: String,
     },
+    InvalidConeInitRoutineSourceOrder {
+        routine: u32,
+        previous_routine: u32,
+    },
     EmptyCallableRoot {
         key: String,
     },
@@ -324,6 +328,13 @@ impl fmt::Display for VerifyError {
             Self::InvalidConeInitDependencyOrder { root, dependency } => write!(
                 f,
                 "LIR eager init root `{root}` is scheduled before dependency `{dependency}`"
+            ),
+            Self::InvalidConeInitRoutineSourceOrder {
+                routine,
+                previous_routine,
+            } => write!(
+                f,
+                "LIR cone init routine r{routine} is scheduled before earlier source-cone routine r{previous_routine}"
             ),
             Self::EmptyStableInstanceKey { key } => {
                 write!(f, "LIR callable `{key}` has an empty stable instance key")
@@ -671,6 +682,26 @@ fn verify_global_init_contracts(facts: &LirFacts) -> Result<()> {
                 routine: routine.as_u32(),
             });
         }
+    }
+
+    let mut previous_routine: Option<LirConeInitRoutineKey> = None;
+    let mut previous_order: Option<u32> = None;
+    for routine_key in &facts.global_init.final_entry_order.routines {
+        let routine = facts
+            .global_init
+            .cone_init_routines
+            .get(routine_key)
+            .expect("final-entry routines are verified against routine map above");
+        if previous_order.is_some_and(|order| routine.source_cone_order < order) {
+            return Err(VerifyError::InvalidConeInitRoutineSourceOrder {
+                routine: routine_key.as_u32(),
+                previous_routine: previous_routine
+                    .expect("previous routine should exist when previous_order exists")
+                    .as_u32(),
+            });
+        }
+        previous_routine = Some(*routine_key);
+        previous_order = Some(routine.source_cone_order);
     }
 
     verify_cone_init_dependency_order(facts, &root_to_routine)?;

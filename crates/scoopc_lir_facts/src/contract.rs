@@ -133,6 +133,7 @@ pub struct LirGlobalRootFacts {
     pub root: LirGlobalRootKey,
     pub kind: LirGlobalRootKind,
     pub cone: StableConeKey,
+    pub source_cone_order: u32,
     pub ty: Option<TypeId>,
     pub storage: Option<LirGlobalStoragePolicy>,
     pub has_initializer: bool,
@@ -161,6 +162,7 @@ pub struct LirTopLevelEagerInitFacts {
 pub struct LirConeInitRoutineFacts {
     pub routine: LirConeInitRoutineKey,
     pub cone: StableConeKey,
+    pub source_cone_order: u32,
     pub roots: Vec<LirGlobalRootKey>,
 }
 

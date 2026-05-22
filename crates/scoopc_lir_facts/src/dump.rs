@@ -194,10 +194,11 @@ fn dump_global_init_facts(out: &mut String, facts: &LirFacts) {
     for (key, root) in &facts.global_init.roots {
         writeln!(
             out,
-            "    - root={} kind={} cone={} storage={} has_initializer={} deps={} ty={}{}",
+            "    - root={} kind={} cone={} source_order={} storage={} has_initializer={} deps={} ty={}{}",
             key.as_str(),
             root.kind.stable_name(),
             root.cone.canonical_text(),
+            root.source_cone_order,
             root.storage
                 .map(|storage| storage.stable_name())
                 .unwrap_or("<none>"),
@@ -259,9 +260,10 @@ fn dump_global_init_facts(out: &mut String, facts: &LirFacts) {
             .join(",");
         writeln!(
             out,
-            "    - cone_init_routine=r{} cone={} roots=[{}]",
+            "    - cone_init_routine=r{} cone={} source_order={} roots=[{}]",
             key.as_u32(),
             routine.cone.canonical_text(),
+            routine.source_cone_order,
             roots,
         )
         .expect("writing to String cannot fail");

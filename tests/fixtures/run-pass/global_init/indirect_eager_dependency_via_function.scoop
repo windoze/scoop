@@ -1,0 +1,29 @@
+// EXPECT: pass
+// RUN-STDOUT: indirect_eager_dependency_via_function.stdout
+// EXPECT-EXIT: 0
+//
+// P6-T02R: eager initializer dependency facts include top-level roots read
+// indirectly through a direct top-level function call.
+
+import scoop.core.*
+
+@Global
+var aValue: Int = readZ() + 1
+
+fun readZ(): Int {
+    return zValue
+}
+
+val zValue: Int = seedZ()
+
+fun seedZ(): Int {
+    println("init-z")
+    return 40
+}
+
+fun main(): Int {
+    println("main")
+    println(aValue)
+    println(zValue)
+    return 0
+}

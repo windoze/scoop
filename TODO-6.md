@@ -4,7 +4,7 @@
 > 细化时间：2026-05-22
 > 计划基线：[`PLAN.md`](./PLAN.md) §4/P6-P8
 > 索引：[`TODO.md`](./TODO.md)
-> 当前状态：`P6-T02` 已完成；下一步执行 `P6-T02R`。
+> 当前状态：`P6-T02R` 已完成；下一步执行 `P6-T03`。
 
 ## 范围
 
@@ -182,7 +182,7 @@
   - 验证通过：`cargo fmt`；`cargo test -p scoopc --no-default-features global_init`；`cargo test -p scoopc global_init`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/global_init`；`cargo clippy --all-targets -- -D warnings`；`cargo test -p scoopc pipeline_user_visible_failure_policy_tracks_internal_bug_sentinels`；`git diff --check`。
   - 已运行完整 `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`：P6-T02 相关 fixtures 均通过，但全量 run-pass 仍有 7 个既有失败，分别来自 unresolved generic `scoop.core.println`、`scoop.runtime.test.*` import 或非本任务路径；未将这些历史问题作为 P6-T02 前置项。
 
-## [TODO] P6-T02R：Review per-cone eager top-level init 与 final entry order
+## [DONE] P6-T02R：Review per-cone eager top-level init 与 final entry order
 
 - 参考：P6-T02。
 - 重点：
@@ -196,7 +196,12 @@
   - review 结论明确写出 eager top-level init 与 final entry order 已闭合，或列出阻塞项并在本 review 内修复。
 - 依赖：P6-T02
 - 完成记录：
-  - 待填写。
+  - Review 结论：eager top-level init 与 final entry order 已闭合到 P6-T02R 要求；top-level `val` 普通访问不再 first-access lazy init，`@Global var` 与 entry-thread `@ThreadLocal var` initializer 均由 per-cone eager init routine 在用户 `main` 前执行。
+  - 本 review 修复了两个阻塞缺口：MIR/LIR global init facts 现在携带 dependency-before-consumer source-cone topo order，LIR verifier 会拒绝 final entry routine source-cone 顺序倒置；HIR top-level initializer dependency 收集会递归扫描直接调用的顶层/成员函数体，避免经 helper 间接读取 top-level root 时漏排 eager init dependency。
+  - 新增回归覆盖：`eager_threadlocal_var_before_main.scoop` 验证 entry-thread TLS initializer 在 `main` 前运行；`indirect_eager_dependency_via_function.scoop` 验证经函数间接读取的 eager dependency 会先初始化；`scoopc_lir_facts` verifier 单测覆盖 final-entry source order drift。
+  - 残余搜索结论：`immut_value` / main global init 代码中，`ensure_top_level_immutable_value_init_function_defined` 只由 `cone_init.rs` 的 eager routine 调用；普通 top-level `val` 访问路径未再调用 lazy init helper。`scoop_once_begin/end` 仍存在于 top-level `val` init helper body 与 object once 路径，P6-T03 将继续分离 object once 与 storage policy。
+  - 验证通过：`cargo fmt`；`cargo test -p scoopc_lir_facts`；`cargo test -p scoopc_mir_facts`；`cargo test -p scoopc --no-default-features global_init`；`cargo test -p scoopc --no-default-features hir_top_level_init_publishes_storage_and_extern_roots`；`cargo test -p scoopc --no-default-features lir_facts_builder`；`cargo test -p scoopc global_init`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/global_init`；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
+  - 已重跑 `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`：新增/相关 global-init、top-level-val、top-level-var fixtures 均通过；全 run-pass 仍有 7 个既有非本任务失败（array literal inference、mutable array ref/composite、std process args、stdlib string、sysroot atomic 路径），未作为 P6-T02R 前置项。
 
 ## [TODO] P6-T03：分离 object once 与 `@Global` / `@ThreadLocal` storage policy
 

@@ -1,0 +1,24 @@
+// EXPECT: pass
+// RUN-STDOUT: eager_threadlocal_var_before_main.stdout
+// EXPECT-EXIT: 0
+//
+// P6-T02R: entry-thread @ThreadLocal top-level var initializers run from
+// per-cone eager init before the user main body.
+
+import scoop.core.*
+
+fun seedTls(): Int {
+    println("init-tls")
+    return 7
+}
+
+@ThreadLocal
+var tlsValue: Int = seedTls()
+
+fun main(): Int {
+    println("main")
+    println(tlsValue)
+    tlsValue = tlsValue + 1
+    println(tlsValue)
+    return 0
+}

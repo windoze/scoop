@@ -4600,6 +4600,7 @@ fn continuation_receiver_contract(
 
 fn collect_top_level_init_roots(lowered_hir: &LoweredHir) -> Vec<TopLevelInitRootContract> {
     let dependency_kinds = top_level_dependency_kinds(lowered_hir);
+    let dependency_ctx = TopLevelDependencyContext::new(lowered_hir, &dependency_kinds);
     let lowered_object_fqns = lowered_object_decl_fqns(lowered_hir);
     let mut roots = Vec::new();
 
@@ -4614,8 +4615,9 @@ fn collect_top_level_init_roots(lowered_hir: &LoweredHir) -> Vec<TopLevelInitRoo
             has_initializer: value.init.is_some(),
             dependencies: dependencies_for_expr(
                 value.fqn.as_str(),
+                value.source_path.as_path(),
                 value.init.as_ref(),
-                &dependency_kinds,
+                &dependency_ctx,
             ),
         });
     }
@@ -4633,8 +4635,9 @@ fn collect_top_level_init_roots(lowered_hir: &LoweredHir) -> Vec<TopLevelInitRoo
             has_initializer: var.init.is_some(),
             dependencies: dependencies_for_expr(
                 var.fqn.as_str(),
+                var.source_path.as_path(),
                 var.init.as_ref(),
-                &dependency_kinds,
+                &dependency_ctx,
             ),
         });
     }
@@ -4652,7 +4655,12 @@ fn collect_top_level_init_roots(lowered_hir: &LoweredHir) -> Vec<TopLevelInitRoo
             ty: None,
             initializer_ty: None,
             has_initializer: !object.steps.is_empty(),
-            dependencies: dependencies_for_object(object.fqn.as_str(), object, &dependency_kinds),
+            dependencies: dependencies_for_object(
+                object.fqn.as_str(),
+                object.source_path.as_path(),
+                object,
+                &dependency_ctx,
+            ),
         });
     }
 
@@ -4723,31 +4731,88 @@ fn top_level_dependency_kinds(
     out
 }
 
+struct TopLevelDependencyContext<'a> {
+    dependency_kinds: &'a HashMap<String, TopLevelInitDependencyKind>,
+    function_bodies: HashMap<&'a str, (&'a Path, &'a Block)>,
+    call_sites: &'a crate::hir::TopLevelFunCallSiteIndex,
+}
+
+impl<'a> TopLevelDependencyContext<'a> {
+    fn new(
+        lowered_hir: &'a LoweredHir,
+        dependency_kinds: &'a HashMap<String, TopLevelInitDependencyKind>,
+    ) -> Self {
+        let mut function_bodies = HashMap::new();
+        for item in &lowered_hir.file.items {
+            if let Item::Fun(fun) = item
+                && let Some(body) = &fun.body
+            {
+                function_bodies.insert(fun.fqn.as_str(), (fun.source_path.as_path(), body));
+            }
+        }
+        for fun in &lowered_hir.member_funs {
+            if let Some(body) = &fun.body {
+                function_bodies.insert(fun.fqn.as_str(), (fun.source_path.as_path(), body));
+            }
+        }
+
+        Self {
+            dependency_kinds,
+            function_bodies,
+            call_sites: &lowered_hir.top_level_fun_call_sites,
+        }
+    }
+}
+
 fn dependencies_for_expr(
     owner_fqn: &str,
+    source_path: &Path,
     expr: Option<&Expr>,
-    dependency_kinds: &HashMap<String, TopLevelInitDependencyKind>,
+    ctx: &TopLevelDependencyContext<'_>,
 ) -> Vec<TopLevelInitDependency> {
     let mut out = Vec::new();
     if let Some(expr) = expr {
-        collect_expr_dependencies(expr, owner_fqn, dependency_kinds, &mut out);
+        collect_expr_dependencies(
+            expr,
+            owner_fqn,
+            source_path,
+            ctx,
+            &mut HashSet::new(),
+            &mut out,
+        );
     }
     stable_dependencies(out)
 }
 
 fn dependencies_for_object(
     owner_fqn: &str,
+    source_path: &Path,
     object: &crate::hir::ObjectInit,
-    dependency_kinds: &HashMap<String, TopLevelInitDependencyKind>,
+    ctx: &TopLevelDependencyContext<'_>,
 ) -> Vec<TopLevelInitDependency> {
     let mut out = Vec::new();
+    let mut visiting = HashSet::new();
     for step in &object.steps {
         match step {
             crate::hir::ObjectInitStep::PropertyInit { init, .. } => {
-                collect_expr_dependencies(init, owner_fqn, dependency_kinds, &mut out);
+                collect_expr_dependencies(
+                    init,
+                    owner_fqn,
+                    source_path,
+                    ctx,
+                    &mut visiting,
+                    &mut out,
+                );
             }
             crate::hir::ObjectInitStep::InitBlock { block } => {
-                collect_block_dependencies(block, owner_fqn, dependency_kinds, &mut out);
+                collect_block_dependencies(
+                    block,
+                    owner_fqn,
+                    source_path,
+                    ctx,
+                    &mut visiting,
+                    &mut out,
+                );
             }
         }
     }
@@ -4783,18 +4848,22 @@ fn push_top_level_dependency(
 fn collect_block_dependencies(
     block: &Block,
     owner_fqn: &str,
-    dependency_kinds: &HashMap<String, TopLevelInitDependencyKind>,
+    source_path: &Path,
+    ctx: &TopLevelDependencyContext<'_>,
+    visiting: &mut HashSet<String>,
     out: &mut Vec<TopLevelInitDependency>,
 ) {
     for stmt in &block.stmts {
-        collect_stmt_dependencies(stmt, owner_fqn, dependency_kinds, out);
+        collect_stmt_dependencies(stmt, owner_fqn, source_path, ctx, visiting, out);
     }
 }
 
 fn collect_stmt_dependencies(
     stmt: &Stmt,
     owner_fqn: &str,
-    dependency_kinds: &HashMap<String, TopLevelInitDependencyKind>,
+    source_path: &Path,
+    ctx: &TopLevelDependencyContext<'_>,
+    visiting: &mut HashSet<String>,
     out: &mut Vec<TopLevelInitDependency>,
 ) {
     match &stmt.kind {
@@ -4802,23 +4871,25 @@ fn collect_stmt_dependencies(
         | StmtKind::Break { .. }
         | StmtKind::Continue { .. }
         | StmtKind::Todo(_) => {}
-        StmtKind::Expr(expr) => collect_expr_dependencies(expr, owner_fqn, dependency_kinds, out),
+        StmtKind::Expr(expr) => {
+            collect_expr_dependencies(expr, owner_fqn, source_path, ctx, visiting, out)
+        }
         StmtKind::Val(val) => {
             if let Some(init) = &val.init {
-                collect_expr_dependencies(init, owner_fqn, dependency_kinds, out);
+                collect_expr_dependencies(init, owner_fqn, source_path, ctx, visiting, out);
             }
         }
         StmtKind::Assign { lhs, rhs, .. } => {
-            collect_expr_dependencies(lhs, owner_fqn, dependency_kinds, out);
-            collect_expr_dependencies(rhs, owner_fqn, dependency_kinds, out);
+            collect_expr_dependencies(lhs, owner_fqn, source_path, ctx, visiting, out);
+            collect_expr_dependencies(rhs, owner_fqn, source_path, ctx, visiting, out);
         }
         StmtKind::While { cond, body } => {
-            collect_expr_dependencies(cond, owner_fqn, dependency_kinds, out);
-            collect_block_dependencies(body, owner_fqn, dependency_kinds, out);
+            collect_expr_dependencies(cond, owner_fqn, source_path, ctx, visiting, out);
+            collect_block_dependencies(body, owner_fqn, source_path, ctx, visiting, out);
         }
         StmtKind::Return { value } => {
             if let Some(value) = value {
-                collect_expr_dependencies(value, owner_fqn, dependency_kinds, out);
+                collect_expr_dependencies(value, owner_fqn, source_path, ctx, visiting, out);
             }
         }
     }
@@ -4827,7 +4898,9 @@ fn collect_stmt_dependencies(
 fn collect_expr_dependencies(
     expr: &Expr,
     owner_fqn: &str,
-    dependency_kinds: &HashMap<String, TopLevelInitDependencyKind>,
+    source_path: &Path,
+    ctx: &TopLevelDependencyContext<'_>,
+    visiting: &mut HashSet<String>,
     out: &mut Vec<TopLevelInitDependency>,
 ) {
     match &expr.kind {
@@ -4838,36 +4911,36 @@ fn collect_expr_dependencies(
         | ExprKind::Todo(_) => {}
         ExprKind::VarRef(ValueRef::Local { .. }) => {}
         ExprKind::VarRef(ValueRef::TopLevel { fqn, .. }) => {
-            push_top_level_dependency(fqn, owner_fqn, dependency_kinds, out);
+            push_top_level_dependency(fqn, owner_fqn, ctx.dependency_kinds, out);
         }
         ExprKind::StructLit { fields, .. } => {
             for field in fields {
-                collect_expr_dependencies(&field.value, owner_fqn, dependency_kinds, out);
+                collect_expr_dependencies(&field.value, owner_fqn, source_path, ctx, visiting, out);
             }
         }
         ExprKind::TupleLit { elements } => {
             for element in elements {
-                collect_expr_dependencies(element, owner_fqn, dependency_kinds, out);
+                collect_expr_dependencies(element, owner_fqn, source_path, ctx, visiting, out);
             }
         }
         ExprKind::InterpolatedString { parts, .. } => {
             for part in parts {
                 if let crate::hir::InterpolatedStringPart::Expr { expr } = part {
-                    collect_expr_dependencies(expr, owner_fqn, dependency_kinds, out);
+                    collect_expr_dependencies(expr, owner_fqn, source_path, ctx, visiting, out);
                 }
             }
         }
         ExprKind::Unary { expr, .. }
         | ExprKind::TypeCheck { expr, .. }
         | ExprKind::Cast { expr, .. } => {
-            collect_expr_dependencies(expr, owner_fqn, dependency_kinds, out);
+            collect_expr_dependencies(expr, owner_fqn, source_path, ctx, visiting, out);
         }
         ExprKind::Binary { lhs, rhs, .. } => {
-            collect_expr_dependencies(lhs, owner_fqn, dependency_kinds, out);
-            collect_expr_dependencies(rhs, owner_fqn, dependency_kinds, out);
+            collect_expr_dependencies(lhs, owner_fqn, source_path, ctx, visiting, out);
+            collect_expr_dependencies(rhs, owner_fqn, source_path, ctx, visiting, out);
         }
         ExprKind::Block(block) => {
-            collect_block_dependencies(block, owner_fqn, dependency_kinds, out)
+            collect_block_dependencies(block, owner_fqn, source_path, ctx, visiting, out)
         }
         ExprKind::Closure(_) => {}
         ExprKind::If {
@@ -4875,38 +4948,39 @@ fn collect_expr_dependencies(
             then_branch,
             else_branch,
         } => {
-            collect_expr_dependencies(cond, owner_fqn, dependency_kinds, out);
-            collect_expr_dependencies(then_branch, owner_fqn, dependency_kinds, out);
+            collect_expr_dependencies(cond, owner_fqn, source_path, ctx, visiting, out);
+            collect_expr_dependencies(then_branch, owner_fqn, source_path, ctx, visiting, out);
             if let Some(else_branch) = else_branch {
-                collect_expr_dependencies(else_branch, owner_fqn, dependency_kinds, out);
+                collect_expr_dependencies(else_branch, owner_fqn, source_path, ctx, visiting, out);
             }
         }
         ExprKind::When { subject, arms } => {
-            collect_expr_dependencies(subject, owner_fqn, dependency_kinds, out);
+            collect_expr_dependencies(subject, owner_fqn, source_path, ctx, visiting, out);
             for arm in arms {
                 if let Some(guard) = &arm.guard {
-                    collect_expr_dependencies(guard, owner_fqn, dependency_kinds, out);
+                    collect_expr_dependencies(guard, owner_fqn, source_path, ctx, visiting, out);
                 }
-                collect_expr_dependencies(&arm.body, owner_fqn, dependency_kinds, out);
+                collect_expr_dependencies(&arm.body, owner_fqn, source_path, ctx, visiting, out);
             }
         }
         ExprKind::MemberAccess { receiver, .. } => {
-            collect_expr_dependencies(receiver, owner_fqn, dependency_kinds, out);
+            collect_expr_dependencies(receiver, owner_fqn, source_path, ctx, visiting, out);
         }
         ExprKind::Call { callee, args } => {
-            collect_expr_dependencies(callee, owner_fqn, dependency_kinds, out);
-            collect_call_arg_dependencies(args, owner_fqn, dependency_kinds, out);
+            collect_expr_dependencies(callee, owner_fqn, source_path, ctx, visiting, out);
+            collect_call_arg_dependencies(args, owner_fqn, source_path, ctx, visiting, out);
+            collect_direct_call_dependencies(expr, owner_fqn, source_path, ctx, visiting, out);
         }
         ExprKind::Perform { args, .. } => {
-            collect_call_arg_dependencies(args, owner_fqn, dependency_kinds, out);
+            collect_call_arg_dependencies(args, owner_fqn, source_path, ctx, visiting, out);
         }
         ExprKind::Handle(handle) => {
-            collect_block_dependencies(&handle.body, owner_fqn, dependency_kinds, out);
+            collect_block_dependencies(&handle.body, owner_fqn, source_path, ctx, visiting, out);
             for arm in &handle.arms {
-                collect_expr_dependencies(&arm.body, owner_fqn, dependency_kinds, out);
+                collect_expr_dependencies(&arm.body, owner_fqn, source_path, ctx, visiting, out);
             }
             if let Some(finally) = &handle.finally {
-                collect_block_dependencies(finally, owner_fqn, dependency_kinds, out);
+                collect_block_dependencies(finally, owner_fqn, source_path, ctx, visiting, out);
             }
         }
     }
@@ -4915,19 +4989,43 @@ fn collect_expr_dependencies(
 fn collect_call_arg_dependencies(
     args: &[CallArg],
     owner_fqn: &str,
-    dependency_kinds: &HashMap<String, TopLevelInitDependencyKind>,
+    source_path: &Path,
+    ctx: &TopLevelDependencyContext<'_>,
+    visiting: &mut HashSet<String>,
     out: &mut Vec<TopLevelInitDependency>,
 ) {
     for arg in args {
         match arg {
             CallArg::Positional(expr) => {
-                collect_expr_dependencies(expr, owner_fqn, dependency_kinds, out);
+                collect_expr_dependencies(expr, owner_fqn, source_path, ctx, visiting, out);
             }
             CallArg::Named { value, .. } => {
-                collect_expr_dependencies(value, owner_fqn, dependency_kinds, out);
+                collect_expr_dependencies(value, owner_fqn, source_path, ctx, visiting, out);
             }
         }
     }
+}
+
+fn collect_direct_call_dependencies(
+    expr: &Expr,
+    owner_fqn: &str,
+    source_path: &Path,
+    ctx: &TopLevelDependencyContext<'_>,
+    visiting: &mut HashSet<String>,
+    out: &mut Vec<TopLevelInitDependency>,
+) {
+    let site = CallSite::new(source_path.to_path_buf(), expr.span);
+    let Some(binding) = ctx.call_sites.get(&site) else {
+        return;
+    };
+    let target_fqn = binding.fqn.as_str();
+    if !visiting.insert(target_fqn.to_string()) {
+        return;
+    }
+    if let Some((target_source_path, body)) = ctx.function_bodies.get(target_fqn) {
+        collect_block_dependencies(body, owner_fqn, target_source_path, ctx, visiting, out);
+    }
+    visiting.remove(target_fqn);
 }
 
 fn collect_when_pat_binding_names(
@@ -6896,8 +6994,12 @@ import scoop.core.*
 val Base: Int = 1
 val Runtime: Int = Base + 1
 
+fun readRuntime(): Int {
+    return Runtime
+}
+
 @Global
-var Counter: Int = Runtime
+var Counter: Int = readRuntime()
 
 @Extern(name = "native_counter")
 var NativeCounter: Int

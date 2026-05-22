@@ -90,6 +90,7 @@ pub struct MirRootFact {
     pub ty: Option<TypeId>,
     pub body: Option<MirBodyReference>,
     pub source_path: Option<String>,
+    pub source_cone_order: Option<u32>,
     pub span: Option<Span>,
     pub detail: MirRootDetail,
 }
@@ -111,6 +112,7 @@ impl MirRootFact {
             ty: None,
             body: None,
             source_path: None,
+            source_cone_order: None,
             span: None,
             detail,
         }
@@ -131,6 +133,12 @@ impl MirRootFact {
     /// Attach the root's stable source path when one is available.
     pub fn with_source_path(mut self, source_path: Option<String>) -> Self {
         self.source_path = source_path;
+        self
+    }
+
+    /// Attach the dependency-before-consumer source-cone topo order when known.
+    pub fn with_source_cone_order(mut self, source_cone_order: Option<u32>) -> Self {
+        self.source_cone_order = source_cone_order;
         self
     }
 

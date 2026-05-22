@@ -106,7 +106,7 @@
 | P6-T01 | [DONE] | [`TODO-6.md`](./TODO-6.md#done-p6-t01发布-global-init-与-storage-lir-facts-contract) | 发布 global init 与 storage LIR facts contract |
 | P6-T01R | [DONE] | [`TODO-6.md`](./TODO-6.md#done-p6-t01rreview-global-initstorage-lir-facts-contract) | Review global init/storage LIR facts contract |
 | P6-T02 | [DONE] | [`TODO-6.md`](./TODO-6.md#done-p6-t02实现-per-cone-eager-top-level-init-与-final-entry-order) | 实现 per-cone eager top-level init 与 final entry order |
-| P6-T02R | [TODO] | [`TODO-6.md`](./TODO-6.md#todo-p6-t02rreview-per-cone-eager-top-level-init-与-final-entry-order) | Review per-cone eager top-level init 与 final entry order |
+| P6-T02R | [DONE] | [`TODO-6.md`](./TODO-6.md#done-p6-t02rreview-per-cone-eager-top-level-init-与-final-entry-order) | Review per-cone eager top-level init 与 final entry order |
 | P6-T03 | [TODO] | [`TODO-6.md`](./TODO-6.md#todo-p6-t03分离-object-once-与-global--threadlocal-storage-policy) | 分离 object once 与 `@Global` / `@ThreadLocal` storage policy |
 | P6-T03R | [TODO] | [`TODO-6.md`](./TODO-6.md#todo-p6-t03rreview-object-once-与-storage-policy-分离结果) | Review object once 与 storage policy 分离结果 |
 | P6-T04 | [TODO] | [`TODO-6.md`](./TODO-6.md#todo-p6-t04p6-全包清场文档同步与依赖审计) | P6 全包清场、文档同步与依赖审计 |

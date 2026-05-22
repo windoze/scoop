@@ -265,6 +265,7 @@ mod tests {
             root: global_root_key(fqn),
             kind,
             cone: StableConeKey::new("fixture", "0.0.0"),
+            source_cone_order: 0,
             ty: Some(ty(4)),
             storage,
             has_initializer: true,
@@ -489,6 +490,7 @@ mod tests {
             LirConeInitRoutineFacts {
                 routine: LirConeInitRoutineKey::new(0),
                 cone: StableConeKey::new("fixture", "0.0.0"),
+                source_cone_order: 0,
                 roots: vec![global_root_key("app.Base"), global_root_key("app.Counter")],
             },
         );
@@ -662,6 +664,7 @@ mod tests {
             LirConeInitRoutineFacts {
                 routine: LirConeInitRoutineKey::new(0),
                 cone: StableConeKey::new("fixture", "0.0.0"),
+                source_cone_order: 0,
                 roots: vec![global_root_key("app.Counter"), global_root_key("app.Base")],
             },
         );
@@ -679,6 +682,75 @@ mod tests {
             VerifyError::InvalidConeInitDependencyOrder {
                 root: "app.Counter".to_string(),
                 dependency: "app.Base".to_string(),
+            }
+        );
+    }
+
+    #[test]
+    fn verifier_rejects_final_entry_source_cone_order_drift() {
+        let mut dep = global_root(
+            "dep.Root",
+            LirGlobalRootKind::TopLevelImmutableVal,
+            None,
+            Vec::new(),
+        );
+        dep.cone = StableConeKey::new("dep", "0.0.0");
+        dep.source_cone_order = 0;
+        let mut app = global_root(
+            "app.Root",
+            LirGlobalRootKind::TopLevelImmutableVal,
+            None,
+            Vec::new(),
+        );
+        app.cone = StableConeKey::new("app", "0.0.0");
+        app.source_cone_order = 1;
+
+        let mut global_init = LirGlobalInitFacts::default();
+        global_init.roots.insert(dep.root.clone(), dep);
+        global_init.roots.insert(app.root.clone(), app);
+        for root in [global_root_key("dep.Root"), global_root_key("app.Root")] {
+            global_init.top_level_eager_inits.insert(
+                root.clone(),
+                LirTopLevelEagerInitFacts {
+                    root,
+                    storage: None,
+                    has_initializer: true,
+                },
+            );
+        }
+        global_init.cone_init_routines.insert(
+            LirConeInitRoutineKey::new(0),
+            LirConeInitRoutineFacts {
+                routine: LirConeInitRoutineKey::new(0),
+                cone: StableConeKey::new("app", "0.0.0"),
+                source_cone_order: 1,
+                roots: vec![global_root_key("app.Root")],
+            },
+        );
+        global_init.cone_init_routines.insert(
+            LirConeInitRoutineKey::new(1),
+            LirConeInitRoutineFacts {
+                routine: LirConeInitRoutineKey::new(1),
+                cone: StableConeKey::new("dep", "0.0.0"),
+                source_cone_order: 0,
+                roots: vec![global_root_key("dep.Root")],
+            },
+        );
+        global_init.final_entry_order.routines =
+            vec![LirConeInitRoutineKey::new(0), LirConeInitRoutineKey::new(1)];
+        let facts = LirFacts::from_parts(
+            LirStageSummary::new(OptLevel::O0).with_global_counts(2, 0, 2, 2),
+            LirFactGroups {
+                global_init,
+                ..LirFactGroups::default()
+            },
+        );
+
+        assert_eq!(
+            facts.verify().unwrap_err(),
+            VerifyError::InvalidConeInitRoutineSourceOrder {
+                routine: 1,
+                previous_routine: 0,
             }
         );
     }

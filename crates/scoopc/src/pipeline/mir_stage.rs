@@ -82,9 +82,14 @@ impl DirectStyleMirStageOutput {
         lowered_mir: LoweredMir,
         stable_cone_key: StableConeKey,
         source_cones: &HashMap<PathBuf, crate::cone::SourceConeInfo>,
+        source_cone_order: &HashMap<StableConeKey, u32>,
     ) -> Self {
-        let mir_facts =
-            build_direct_style_mir_facts(&lowered_mir.file, &stable_cone_key, source_cones);
+        let mir_facts = build_direct_style_mir_facts(
+            &lowered_mir.file,
+            &stable_cone_key,
+            source_cones,
+            source_cone_order,
+        );
         Self {
             lowered_mir,
             mir_facts,
@@ -281,9 +286,10 @@ fn build_direct_style_mir_facts(
     file: &MirFile,
     stable_cone_key: &StableConeKey,
     source_cones: &HashMap<PathBuf, crate::cone::SourceConeInfo>,
+    source_cone_order: &HashMap<StableConeKey, u32>,
 ) -> MirFacts {
     let mut facts = MirFacts::new();
-    facts.roots = collect_root_inventories(file, stable_cone_key, source_cones);
+    facts.roots = collect_root_inventories(file, stable_cone_key, source_cones, source_cone_order);
     facts.metadata = collect_mir_metadata_facts(file, stable_cone_key);
     facts
         .verify()
@@ -557,6 +563,7 @@ fn collect_root_inventories(
     file: &MirFile,
     stable_cone_key: &StableConeKey,
     source_cones: &HashMap<PathBuf, crate::cone::SourceConeInfo>,
+    source_cone_order: &HashMap<StableConeKey, u32>,
 ) -> RootInventories {
     let mut callable_bodies = BTreeMap::new();
     let mut initializers = BTreeMap::new();
@@ -578,7 +585,12 @@ fn collect_root_inventories(
                         source_cones,
                         stable_cone_key,
                     );
-                    entry.insert(initializer_root_fact(item_index, root, &root_cone_key));
+                    entry.insert(initializer_root_fact(
+                        item_index,
+                        root,
+                        &root_cone_key,
+                        source_cone_order.get(&root_cone_key).copied(),
+                    ));
                     initializer_dependencies.extend(initializer_dependency_facts(root));
                 }
             }
@@ -589,7 +601,12 @@ fn collect_root_inventories(
                         source_cones,
                         stable_cone_key,
                     );
-                    entry.insert(extern_global_root_fact(item_index, root, &root_cone_key));
+                    entry.insert(extern_global_root_fact(
+                        item_index,
+                        root,
+                        &root_cone_key,
+                        source_cone_order.get(&root_cone_key).copied(),
+                    ));
                 }
             }
             MirItem::Metadata(root) => {
@@ -713,6 +730,7 @@ fn initializer_root_fact(
     item_index: usize,
     root: &MirInitializerRoot,
     stable_cone_key: &StableConeKey,
+    source_cone_order: Option<u32>,
 ) -> MirRootFact {
     let kind = MirRootKind::Initializer;
     MirRootFact::new(
@@ -728,6 +746,7 @@ fn initializer_root_fact(
     )
     .with_ty(root.ty)
     .with_source_path(Some(normalize_dump_path(&root.source_path)))
+    .with_source_cone_order(source_cone_order)
     .with_span(Some(root.span))
 }
 
@@ -735,6 +754,7 @@ fn extern_global_root_fact(
     item_index: usize,
     root: &MirExternGlobalRoot,
     stable_cone_key: &StableConeKey,
+    source_cone_order: Option<u32>,
 ) -> MirRootFact {
     let kind = MirRootKind::ExternGlobal;
     MirRootFact::new(
@@ -752,6 +772,7 @@ fn extern_global_root_fact(
     )
     .with_ty(Some(root.ty))
     .with_source_path(Some(normalize_dump_path(&root.source_path)))
+    .with_source_cone_order(source_cone_order)
     .with_span(Some(root.span))
 }
 
@@ -888,6 +909,7 @@ fn lower_mir_stage_unvalidated(
             LoweredMir { file, types },
             stable_cone_key,
             &lowered_hir.source_cones,
+            &lowered_hir.source_cone_order,
         ),
         builtins.unit,
         builtins.bool_,
@@ -2265,6 +2287,7 @@ fun bad() {
                 types,
             },
             StableConeKey::new("fixture", "0.0.0"),
+            &HashMap::new(),
             &HashMap::new(),
         );
 

@@ -320,6 +320,8 @@ pub struct LoweredHir {
     pub stable_cone_key: StableConeKey,
     /// source path -> owning cone metadata 的 lowering 缓存；跨阶段正式查询使用 `HirFacts`。
     pub source_cones: HashMap<PathBuf, SourceConeInfo>,
+    /// owning cone stable key -> dependency-before-consumer topo order.
+    pub source_cone_order: HashMap<StableConeKey, u32>,
     /// 声明级 type/effect 参数到 stable owner/index key 的 lowering 缓存。
     pub stable_type_param_keys: HashMap<TypeParamType, StableTypeParamKey>,
     /// member `fun` 与值类型 computed property getter 降为可 codegen 的“顶层函数形态”。
