@@ -496,7 +496,10 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
         answer_slot: PointerValue<'ctx>,
         outcome_ptr: PointerValue<'ctx>,
     ) -> Result<(), LlvmEmitError> {
-        let Some(answer_cg) = self.codegen.try_cg_ty_of_type_id(surface.answer_ty()) else {
+        let Some(answer_cg) = self
+            .codegen
+            .cg_ty_of_mir_type(self.source_types, surface.answer_ty())
+        else {
             return Err(frontend_error(format!(
                 "continuation drive k{} answer t{} 缺少 codegen type",
                 surface.continuation_schema().as_u32(),
@@ -648,7 +651,7 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
         self.codegen.builder.position_at_end(finalize_bb);
         let answer_has_runtime_value = self
             .codegen
-            .try_cg_ty_of_type_id(surface.answer_ty())
+            .cg_ty_of_mir_type(self.source_types, surface.answer_ty())
             .is_some_and(|cg| !matches!(cg, CgTy::Unit | CgTy::Never));
         if !answer_has_runtime_value {
             self.codegen.builder.build_unconditional_branch(return_bb)?;

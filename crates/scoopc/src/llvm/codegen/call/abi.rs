@@ -14,13 +14,36 @@ fn direct_call_dispatch_fqn(fqn: &str) -> &str {
 }
 
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
-    fn callable_source_carrier_tys_impl(&self, carrier_ty: TypeId) -> Option<Vec<TypeId>> {
-        let carrier_ty = self.try_mono_type_id(carrier_ty)?;
-        match self.types.kind(carrier_ty.inner()) {
+    fn callable_source_carrier_tys_impl(
+        &self,
+        source_types: &TypeStore,
+        carrier_ty: TypeId,
+    ) -> Option<Vec<TypeId>> {
+        match source_types.kind(carrier_ty) {
             TypeKind::Value(ValueTypeKind::Tuple(elements)) => Some(elements.clone()),
             TypeKind::Value(ValueTypeKind::Unit) => Some(Vec::new()),
-            _ => Some(vec![carrier_ty.inner()]),
+            _ => Some(vec![carrier_ty]),
         }
+    }
+
+    pub(in crate::llvm::codegen) fn published_signature_tys_as_codegen_tys_impl(
+        &self,
+        source_types: &TypeStore,
+        param_tys: Vec<TypeId>,
+        return_ty: TypeId,
+    ) -> Option<(Vec<TypeId>, TypeId)> {
+        let map_ty = |ty| {
+            if std::ptr::eq(source_types, self.types) {
+                Some(ty)
+            } else {
+                self.equivalent_codegen_type_id(source_types, ty)
+            }
+        };
+        let param_tys = param_tys
+            .into_iter()
+            .map(map_ty)
+            .collect::<Option<Vec<_>>>()?;
+        Some((param_tys, map_ty(return_ty)?))
     }
 
     pub(in crate::llvm::codegen) fn llvm_param_ty_impl(
@@ -344,18 +367,20 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(in crate::llvm::codegen) fn published_callable_signature_impl(
         &self,
         callable_fqn: &str,
-    ) -> Option<(Vec<TypeId>, TypeId)> {
+    ) -> Option<(&'a TypeStore, Vec<TypeId>, TypeId)> {
         let program = self.published_late_lowered_program()?;
+        let source_types = self.published_late_lowered_types()?;
         let callable = program.callable(callable_fqn)?;
         if let Some(plain) = callable.plain_abi() {
-            return Some((plain.param_tys().to_vec(), plain.return_ty()));
+            return Some((source_types, plain.param_tys().to_vec(), plain.return_ty()));
         }
         let effect = callable.effect_step_abi()?;
         let param_tys = self.callable_source_carrier_tys_impl(
+            source_types,
             effect.dynamic_invoke_entry().invoke_args_tuple_ty(),
         )?;
         let return_ty = program.step_type(effect.step_schema())?.complete_ty();
-        Some((param_tys, return_ty))
+        Some((source_types, param_tys, return_ty))
     }
 
     pub(in crate::llvm::codegen) fn explicit_effect_hidden_abi_param_count_impl(

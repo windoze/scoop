@@ -1,31 +1,29 @@
-# Claude Execution Plan
+# 执行计划
 
-## Scope
+## 范围
 
-- Follow `TODO.md` as the authoritative task list.
-- Identify the first task whose heading is not prefixed with `[DONE]`.
-- Complete exactly that one task, then stop after committing the result.
+- 只处理 `TODO.md` 中第一个标题未带 `[DONE]` 的任务。
+- 不做开放式历史问题扫描；只处理与当前任务、当前验证失败或明确阻塞相关的问题。
+- 若遇到必须先修复的具体前置问题，则按要求更新 `TODO.md`，提交后停止。
 
-## Execution Plan
+## 步骤
 
-1. Read `TODO.md` to identify the first incomplete task and its requirements.
-2. Inspect the latest commit only for unfinished work directly relevant to that task.
-3. Read the relevant code, fixtures, and documentation needed for the selected task.
-4. Implement the smallest spec-correct change that fully satisfies the task.
-5. Add or update targeted tests/fixtures required by the task.
-6. Run targeted validation first, then broader required validation if practical.
-7. If any unscheduled failing test or fixture is observed, fix it or schedule the minimum prerequisite task before marking the current task done.
-8. Update `TODO.md` by prefixing the completed task heading with `[DONE]` and filling in its completion record.
-9. Update this file after key progress points or plan changes.
-10. Review `git status`, `git diff`, and recent commits, then commit all relevant changes with a descriptive task-tagged message.
+1. 读取 `TODO.md`，确定第一个未完成任务及其验证要求。
+2. 查看必要上下文，包括相关代码、测试、最近提交与当前工作区状态，避免覆盖他人改动。
+3. 按任务要求实现最小正确变更。
+4. 运行相关验证；若观察到未排期的失败，修复或把最小前置任务加入 `TODO.md`。
+5. 更新 `TODO.md`：完成时在任务标题前加 `[DONE]` 并填写完成记录；必要时只在阶段计划变化时更新 `PLAN.md`。
+6. 运行最终相关验证，检查工作区差异。
+7. 用清晰任务编号提交本次变更，然后停止。
 
-## Current Status
+## 当前状态
 
-- Selected first incomplete task: `P7-T04-b-4` from `TODO-6.md`.
-- Latest commit `a0902e9c [P7-T04-b-3R] Review ClassInstanceKey keying` does not indicate an unfinished issue that changes the selected task.
-- Implemented the core migration shape: `CgTy` aggregate variants now carry `MonoTypeId`, `cg_ty_of` is infallible over `MonoTypeId`, `expect_cg_ty_of` and the `monomorph miss` warning path are removed, and `codegen_type_store_for_type_id` has been deleted.
-- Layout side tables for struct and enum fields now store `Option<MonoTypeId>` at the codegen boundary; LIR/HIR fact emission converts back to raw `TypeId` only for existing fact wire contracts.
-- Fixed the observed `parameterized_supertype_interface_dispatch.scoop` regression by making erased interface reference dispatch use the erased `Any` receiver ABI instead of the generic interface template receiver `TypeId`.
-- Validation completed: `cargo fmt`; `cargo test -p scoopc_types`; `cargo test -p scoopc --no-default-features hir`; `cargo test -p scoopc --no-default-features mir`; `cargo test -p scoopc --no-default-features llvm::codegen`; `cargo test -p scoopc --no-default-features llvm::codegen::effect_lowered`; `cargo test -p scoopc llvm::codegen`; `cargo run -p scoop -- test --fixtures tests/fixtures/effect_lowered`; `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`; `cargo clippy --all-targets -- -D warnings`; `git diff --check`.
-- `TODO.md` and `TODO-6.md` now mark `P7-T04-b-4` as `[DONE]` with completion records.
-- Next step: final diff/status checks and commit the completed task.
+- 已读取 `TODO.md`，第一个未完成任务为 `P7-T04-b-4R：Review codegen MonoTypeId 全面切换`。
+- 最近提交为 `cbb8530a [P7-T04-b-4] Migrate codegen types to MonoTypeId`，与当前 review 直接相关。
+- 已完成第一轮静态审查：`cg_ty_of` 本体已是 `MonoTypeId -> CgTy`，`expect_cg_ty_of` / `monomorph miss` / 直接 `MonoTypeId(` 构造未发现残留。
+- 发现需在 review 内修复的缺口：`type_layout` 仍以 raw `TypeId` 做内部布局递归并保留 generic fallback；部分 effect-lowered source `TypeId` 被送进主 codegen `TypeStore` lowering；published callable signature 未显式携带其 source `TypeStore` owner。
+- 已实施修复：`type_layout` 收紧为 `MonoTypeId`；effect-lowered source lowering 改走 owner-aware `cg_ty_of_mir_type`；published callable signature 现在携带 `TypeStore` owner，桥接失败不再返回 raw foreign `TypeId`。
+- 已通过验证：`cargo fmt`；`cargo test -p scoopc llvm::codegen`；`cargo test -p scoopc_types`；`cargo test -p scoopc --no-default-features hir`；`cargo test -p scoopc --no-default-features mir`；`cargo test -p scoopc --no-default-features llvm::codegen`；`cargo test -p scoopc --no-default-features llvm::codegen::effect_lowered`；`cargo run -p scoop -- test --fixtures tests/fixtures/effect_lowered`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`。
+- 已通过最终检查：`cargo clippy --all-targets -- -D warnings`；`git diff --check`；关键残留搜索。
+- 已更新 `TODO.md` / `TODO-6.md`，将 `P7-T04-b-4R` 标记为 `[DONE]` 并填写完成记录。
+- 下一步检查 git diff/status/log，提交本任务变更后停止。

@@ -242,6 +242,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         mir_types: &TypeStore,
         ty: TypeId,
     ) -> Option<CgTy> {
+        let same_type_store = std::ptr::eq(mir_types, self.types);
+        let cg_ty_from_codegen_store = || {
+            same_type_store
+                .then(|| self.try_cg_ty_of_type_id(ty))
+                .flatten()
+        };
         match mir_types.kind(ty) {
             TypeKind::Ref(RefTypeKind::String) => Some(CgTy::String),
             TypeKind::Ref(_) => Some(CgTy::Ref),
@@ -274,18 +280,18 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             TypeKind::Value(ValueTypeKind::Option(_)) => self
                 .equivalent_codegen_mono_type_id(mir_types, ty)
                 .map(|codegen_ty| self.cg_ty_of(codegen_ty))
-                .or_else(|| self.try_cg_ty_of_type_id(ty)),
+                .or_else(cg_ty_from_codegen_store),
             TypeKind::Value(ValueTypeKind::Tuple(_)) => self
                 .equivalent_codegen_mono_type_id(mir_types, ty)
                 .map(|codegen_ty| self.cg_ty_of(codegen_ty))
-                .or_else(|| self.try_cg_ty_of_type_id(ty)),
+                .or_else(cg_ty_from_codegen_store),
             TypeKind::Value(ValueTypeKind::Nominal(nominal)) => self
                 .builtin_nominal_cg_ty(&nominal.fqn)
                 .or_else(|| {
                     self.equivalent_codegen_mono_type_id(mir_types, ty)
                         .map(|codegen_ty| self.cg_ty_of(codegen_ty))
                 })
-                .or_else(|| self.try_cg_ty_of_type_id(ty)),
+                .or_else(cg_ty_from_codegen_store),
             TypeKind::Param(_) => None,
         }
     }

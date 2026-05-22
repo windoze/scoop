@@ -1,7 +1,7 @@
 //! LLVM codegen：type/layout lowering（niche/boxing/field GEP 等）。
 //!
 //! 该模块专注于“布局相关”的逻辑：
-//! - `TypeId -> TypeLayout`（仅用于 niche/boxing 等决策）
+//! - `MonoTypeId -> TypeLayout`（仅用于 niche/boxing 等决策）
 //! - enum/Option 的表示选择（tagged union / niche / value-only）与 boxing 启发式
 //! - class/struct/tuple 的字段索引与 field GEP helper
 
@@ -11,7 +11,7 @@ use inkwell::values::PointerValue;
 
 use crate::hir;
 use crate::ty::layout::{NicheDomain, NicheStorage, TargetLayout, TypeLayout};
-use crate::ty::{MonoTypeId, TypeId, TypeKind, ValueTypeKind};
+use crate::ty::{MonoTypeId, MonoTypeKind, MonoValueKind, TypeId, TypeKind, ValueTypeKind};
 
 use super::ty::CodegenMonoInput;
 use super::types::{
@@ -309,55 +309,52 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         TargetLayout::host()
     }
 
-    pub(super) fn type_layout(&mut self, ty: TypeId) -> TypeLayout {
+    pub(super) fn type_layout(&mut self, ty: MonoTypeId) -> TypeLayout {
+        let cache_key = ty.inner();
         if let Some(layout) = self
             .shared_caches
             .type_layout_cache
             .borrow()
-            .get(&ty)
+            .get(&cache_key)
             .copied()
         {
             return layout;
         }
 
         let target = self.target_layout();
-        let Some(mono_ty) = self.try_mono_type_id(ty) else {
-            return TypeLayout::new(target.pointer_size, target.pointer_align);
-        };
-        let kind = self.types.kind(mono_ty.inner()).clone();
+        let kind = self.types.kind_mono(ty).clone();
 
         let layout = match kind {
-            TypeKind::Ref(_) => TypeLayout::new(target.pointer_size, target.pointer_align)
+            MonoTypeKind::Ref(_) => TypeLayout::new(target.pointer_size, target.pointer_align)
                 .with_niche(NicheDomain {
                     storage: NicheStorage::Pointer,
                     next: 0,
                     end: 1,
                 }),
-            TypeKind::StarProjection(star) => self.type_layout(star.read_ty),
-            TypeKind::Param(_) => TypeLayout::new(target.pointer_size, target.pointer_align),
-            TypeKind::Value(v) => match v {
-                ValueTypeKind::Unit | ValueTypeKind::Nothing => TypeLayout::new(0, 1),
-                ValueTypeKind::Bool => TypeLayout::new(1, 1).with_niche(NicheDomain {
+            MonoTypeKind::StarProjection(star) => self.type_layout(star.read_ty),
+            MonoTypeKind::Value(v) => match v {
+                MonoValueKind::Unit | MonoValueKind::Nothing => TypeLayout::new(0, 1),
+                MonoValueKind::Bool => TypeLayout::new(1, 1).with_niche(NicheDomain {
                     storage: NicheStorage::U8,
                     next: 2,
                     end: 256,
                 }),
-                ValueTypeKind::Char => TypeLayout::new(4, 4),
-                ValueTypeKind::Float64 => TypeLayout::new(8, 8),
-                ValueTypeKind::Float32 => TypeLayout::new(4, 4),
-                ValueTypeKind::Int | ValueTypeKind::UInt => {
+                MonoValueKind::Char => TypeLayout::new(4, 4),
+                MonoValueKind::Float64 => TypeLayout::new(8, 8),
+                MonoValueKind::Float32 => TypeLayout::new(4, 4),
+                MonoValueKind::Int | MonoValueKind::UInt => {
                     TypeLayout::new(target.pointer_size, target.pointer_align)
                 }
-                ValueTypeKind::IntN(bits) | ValueTypeKind::UIntN(bits) => {
+                MonoValueKind::IntN(bits) | MonoValueKind::UIntN(bits) => {
                     let size = u64::from(bits).div_ceil(8);
                     let align = size.clamp(1, target.pointer_align.max(1));
                     TypeLayout::new(size, align)
                 }
-                ValueTypeKind::Tuple(elements) => {
-                    self.aggregate_fields_layout_for_type_ids(&elements)
+                MonoValueKind::Tuple(elements) => {
+                    self.aggregate_fields_layout_for_mono_type_ids(&elements)
                 }
-                ValueTypeKind::Option(inner) => self.option_type_layout(ty, inner),
-                ValueTypeKind::Nominal(_) => {
+                MonoValueKind::Option(inner) => self.option_type_layout(ty, inner),
+                MonoValueKind::Nominal(_) => {
                     // 当前 codegen 只在 niche/boxing 决策里需要 layout 信息；nominal struct/enum 的精确布局
                     // 将在对应任务里补齐。这里按“opaque word-sized”兜底，避免过度耦合。
                     TypeLayout::new(target.pointer_size, target.pointer_align)
@@ -368,23 +365,24 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.shared_caches
             .type_layout_cache
             .borrow_mut()
-            .insert(ty, layout);
+            .insert(cache_key, layout);
         layout
     }
 
-    fn option_type_layout(&mut self, option_ty: TypeId, inner: TypeId) -> TypeLayout {
+    fn option_type_layout(&mut self, option_ty: MonoTypeId, inner: MonoTypeId) -> TypeLayout {
+        let cache_key = option_ty.inner();
         // 注意：该函数只负责“niche 传播”与 `None` 编码缓存（供后续 codegen 使用）。
         if self
             .shared_caches
             .option_niche_cache
             .borrow()
-            .contains_key(&option_ty)
+            .contains_key(&cache_key)
         {
             return self
                 .shared_caches
                 .type_layout_cache
                 .borrow()
-                .get(&option_ty)
+                .get(&cache_key)
                 .copied()
                 .unwrap_or(TypeLayout::new(
                     self.target_layout().pointer_size,
@@ -414,13 +412,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             self.shared_caches
                 .option_niche_cache
                 .borrow_mut()
-                .insert(option_ty, Some((storage, none_value)));
+                .insert(cache_key, Some((storage, none_value)));
 
             let layout = TypeLayout::new(inner_layout.size, inner_layout.align).with_niche(domain);
             self.shared_caches
                 .type_layout_cache
                 .borrow_mut()
-                .insert(option_ty, layout);
+                .insert(cache_key, layout);
             return layout;
         }
 
@@ -428,7 +426,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.shared_caches
             .option_niche_cache
             .borrow_mut()
-            .insert(option_ty, None);
+            .insert(cache_key, None);
 
         // 说明：当前 codegen 的 enum 表示仍采用 `{ tag: i32, payload: word }`，因此这里返回一个
         // “足够大”的布局即可；精确大小与 tag type 选择后续任务再统一。
@@ -443,11 +441,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.shared_caches
             .type_layout_cache
             .borrow_mut()
-            .insert(option_ty, layout);
+            .insert(cache_key, layout);
         layout
     }
 
-    fn aggregate_fields_layout_for_type_ids(&mut self, fields: &[TypeId]) -> TypeLayout {
+    fn aggregate_fields_layout_for_mono_type_ids(&mut self, fields: &[MonoTypeId]) -> TypeLayout {
         let mut size = 0u64;
         let mut align = 1u64;
         for &field in fields {
@@ -497,7 +495,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         match kind {
             TypeKind::Value(ValueTypeKind::Option(inner)) => {
                 // 确保 option niche 缓存已被填充（用于 nested niche）。
-                let _ = self.type_layout(enum_ty.inner());
+                let _ = self.type_layout(enum_ty);
                 let repr = match self
                     .shared_caches
                     .option_niche_cache

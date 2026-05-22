@@ -1826,6 +1826,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                                 .then(|| self.published_callable_signature(dispatch_fqn))
                                 .flatten()
                         })
+                        .and_then(|(source_types, param_tys, return_ty)| {
+                            self.published_signature_tys_as_codegen_tys(
+                                source_types,
+                                param_tys,
+                                return_ty,
+                            )
+                        })
                         .or_else(|| {
                             inferred_param_tys
                                 .clone()
@@ -1865,6 +1872,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                             (dispatch_fqn != fqn)
                                 .then(|| self.published_callable_signature(dispatch_fqn))
                                 .flatten()
+                        })
+                        .and_then(|(source_types, param_tys, return_ty)| {
+                            self.published_signature_tys_as_codegen_tys(
+                                source_types,
+                                param_tys,
+                                return_ty,
+                            )
                         })
                         .unwrap_or((fallback_param_tys, fallback_return_ty))
                 } else {

@@ -172,22 +172,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             } else {
                 None
             };
-            let (param_tys, return_ty, from_foreign_store) =
-                if let Some((param_tys, return_ty)) = published_sig {
-                    (param_tys, return_ty, true)
-                } else {
-                    (fallback_param_tys, fallback_return_ty, false)
-                };
-            let (param_tys, return_ty) = if from_foreign_store {
-                (
-                    param_tys
-                        .into_iter()
-                        .map(|ty| map_foreign_signature_ty_to_codegen(self, ty))
-                        .collect::<Vec<_>>(),
-                    map_foreign_signature_ty_to_codegen(self, return_ty),
-                )
+            let (param_tys, return_ty) = if let Some((source_types, param_tys, return_ty)) =
+                published_sig
+                && let Some(mapped) =
+                    self.published_signature_tys_as_codegen_tys(source_types, param_tys, return_ty)
+            {
+                mapped
             } else {
-                (param_tys, return_ty)
+                (fallback_param_tys, fallback_return_ty)
             };
             (param_names, param_tys, return_ty)
         } else {
@@ -231,22 +223,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             } else {
                 None
             };
-            let (param_tys, return_ty, from_foreign_store) =
-                if let Some((param_tys, return_ty)) = published_sig {
-                    (param_tys, return_ty, true)
-                } else {
-                    (fallback_param_tys, fallback_return_ty, false)
-                };
-            let (param_tys, return_ty) = if from_foreign_store {
-                (
-                    param_tys
-                        .into_iter()
-                        .map(|ty| map_foreign_signature_ty_to_codegen(self, ty))
-                        .collect::<Vec<_>>(),
-                    map_foreign_signature_ty_to_codegen(self, return_ty),
-                )
+            let (param_tys, return_ty) = if let Some((source_types, param_tys, return_ty)) =
+                published_sig
+                && let Some(mapped) =
+                    self.published_signature_tys_as_codegen_tys(source_types, param_tys, return_ty)
+            {
+                mapped
             } else {
-                (param_tys, return_ty)
+                (fallback_param_tys, fallback_return_ty)
             };
             let param_tys = param_tys
                 .into_iter()

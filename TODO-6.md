@@ -4,7 +4,7 @@
 > 细化时间：2026-05-22
 > 计划基线：[`PLAN.md`](./PLAN.md) §4/P6-P8
 > 索引：[`TODO.md`](./TODO.md)
-> 当前状态：`P7-T04-a` / `P7-T04-b-1` / `P7-T04-b-1R` / `P7-T04-b-2` / `P7-T04-b-2R` / `P7-T04-b-3` / `P7-T04-b-3R` 均已完成。`ClassInstanceKey` 字符串形态收回已复审并补强：direct-style MIR verifier 现在会拒绝 class ctor result 非 nominal / nominal mismatch，`ClassInstanceKey::for_unparameterized` 仅限 HIR 内部。此前观察到的 4 项预存 LLVM 库测试失败仍按 `P7-T04-b-5` / `P7-T04-b-5R` 排期。下一步执行 `P7-T04-b-4`。
+> 当前状态：`P7-T04-a` / `P7-T04-b-1` / `P7-T04-b-1R` / `P7-T04-b-2` / `P7-T04-b-2R` / `P7-T04-b-3` / `P7-T04-b-3R` / `P7-T04-b-4` / `P7-T04-b-4R` 均已完成。`ClassInstanceKey` 字符串形态收回已复审并补强；codegen `cg_ty_of` 已收紧为 `MonoTypeId -> CgTy`，review 内补齐了 layout/source-TypeStore owner 边界。此前观察到的 4 项预存 LLVM 库测试失败仍按 `P7-T04-b-5` / `P7-T04-b-5R` 排期。下一步执行 `P7-T04-b-5`。
 
 ## 范围
 
@@ -871,7 +871,7 @@
   - 修复迁移过程中暴露的 interface dispatch ABI 回归：引用 receiver 的 itable indirect call 使用 erased `Any` receiver ABI，而不是接口模板方法的泛型 receiver `TypeId`；`parameterized_supertype_interface_dispatch.scoop` 已作为 run-pass 全量验证的一部分通过。
   - 验证通过：`cargo fmt`；`cargo test -p scoopc_types`；`cargo test -p scoopc --no-default-features hir`；`cargo test -p scoopc --no-default-features mir`；`cargo test -p scoopc --no-default-features llvm::codegen`；`cargo test -p scoopc --no-default-features llvm::codegen::effect_lowered`；`cargo test -p scoopc llvm::codegen`；`cargo run -p scoop -- test --fixtures tests/fixtures/effect_lowered`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`（421/421 passed）；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
 
-## [TODO] P7-T04-b-4R：Review codegen `MonoTypeId` 全面切换
+## [DONE] P7-T04-b-4R：Review codegen `MonoTypeId` 全面切换
 
 - 参考：P7-T04-b-4。
 - 重点：
@@ -886,7 +886,11 @@
   - review 结论明确写出 codegen 内部 token 已全部切到 `MonoTypeId`，"non-codegen type" 在 codegen 内部 Rust 类型层不再可达，或列出阻塞项并在本 review 内修复。
 - 依赖：P7-T04-b-4
 - 完成记录：
-  - 待填写。
+  - **review 结论：codegen `cg_ty_of` 主入口已全面切到 `MonoTypeId -> CgTy`。** `expect_cg_ty_of` / `monomorph miss` / codegen 内直接 `MonoTypeId(` 构造均为零命中；`cg_ty_of` 本体使用 `kind_mono`，不再存在 `TypeKind::Param` 分支或 `Option<CgTy>` 返回。
+  - 本 review 修复了三处边界缺口：`layout::type_layout` 从 raw `TypeId` 收紧为 `MonoTypeId` 并删除 generic/foreign fallback；effect-lowered completion payload、continuation answer 与 FunPtr source signature lowering 改走 `cg_ty_of_mir_type(source_types, ...)`，不再把 source `TypeId` 当作主 codegen `TypeStore` 类型；published callable signature 显式携带 `published_late_lowered_types` owner，调用点只在 owner-aware bridge 成功后使用 codegen `TypeId`，bridge 失败不再返回 raw foreign `TypeId`。
+  - 对额外 `TypeId` 搜索的结论：`crates/scoopc/src/llvm/codegen/` 中仍存在的 `TypeId` 函数签名集中在 HIR/MIR/source ABI 边界、diagnostic/stable identity、TypeStore bridge 与 transport/layout query owner 参数；复核未发现 `cg_ty_of` 等 codegen-internal lowered type token 继续用 raw `TypeId` 承载。
+  - 验证通过：`cargo fmt`；`cargo test -p scoopc_types`；`cargo test -p scoopc --no-default-features hir`；`cargo test -p scoopc --no-default-features mir`；`cargo test -p scoopc --no-default-features llvm::codegen`；`cargo test -p scoopc --no-default-features llvm::codegen::effect_lowered`；`cargo test -p scoopc llvm::codegen`；`cargo run -p scoop -- test --fixtures tests/fixtures/effect_lowered`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`（421/421 passed）；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
+  - 额外搜索通过：`rg expect_cg_ty_of crates/scoopc/src` 零命中；`rg "monomorph miss" crates/scoopc/src` 零命中；`rg 'MonoTypeId\(' crates/scoopc/src/llvm/codegen` 零命中；`cg_ty_of` 签名为 `fn cg_ty_of(&self, ty: MonoTypeId) -> CgTy`；`layout.rs` 中 `type_layout(&mut self, ty: TypeId)` / `TypeKind::Param` 零命中；effect-lowered 修复点未残留 `try_cg_ty_of_type_id(payload_ty)`、`try_cg_ty_of_type_id(surface.answer_ty())`、`try_cg_ty_of_type_id(*source_ty)` 或 `try_cg_ty_of_type_id(fun_ty.return_ty)`。
 
 ## [TODO] P7-T04-b-5：修复 P7-T04-b 期间观察到的预存 LLVM 库测试失败
 

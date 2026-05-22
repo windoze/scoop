@@ -3003,7 +3003,7 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
         for (index, (_, source_ty)) in source_arg_tys.iter().enumerate() {
             let param_cg =
                 self.codegen
-                    .try_cg_ty_of_type_id(*source_ty)
+                    .cg_ty_of_mir_type(self.source_types, *source_ty)
                     .unwrap_or_else(|| {
                         panic!(
                             "lower_top_level_funptr_direct_call: FunPtr call verifier accepted non-codegen param type at {span:?}"
@@ -3030,7 +3030,7 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
 
         let ret_cg =
             self.codegen
-                .try_cg_ty_of_type_id(fun_ty.return_ty)
+                .cg_ty_of_mir_type(self.source_types, fun_ty.return_ty)
                 .unwrap_or_else(|| {
                     panic!(
                         "lower_top_level_funptr_direct_call: FunPtr call verifier accepted non-codegen return type at {span:?}"

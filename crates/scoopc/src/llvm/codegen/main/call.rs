@@ -421,8 +421,17 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(in crate::llvm::codegen) fn published_callable_signature(
         &self,
         callable_fqn: &str,
-    ) -> Option<(Vec<TypeId>, TypeId)> {
+    ) -> Option<(&'a TypeStore, Vec<TypeId>, TypeId)> {
         self.published_callable_signature_impl(callable_fqn)
+    }
+
+    pub(in crate::llvm::codegen) fn published_signature_tys_as_codegen_tys(
+        &self,
+        source_types: &TypeStore,
+        param_tys: Vec<TypeId>,
+        return_ty: TypeId,
+    ) -> Option<(Vec<TypeId>, TypeId)> {
+        self.published_signature_tys_as_codegen_tys_impl(source_types, param_tys, return_ty)
     }
 
     pub(in crate::llvm::codegen) fn explicit_effect_hidden_abi_param_count(

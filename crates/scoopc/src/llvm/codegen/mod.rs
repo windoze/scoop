@@ -507,6 +507,8 @@ pub(crate) struct CompilationUnitCodegenCx<'a, 'ctx> {
     /// 这里先只承接“某个 callable root 是否需要 effect hidden ABI / resume shell”这类
     /// 声明层判断，避免继续从 HIR 的 effectful 布尔值回推 ABI 形状。
     published_late_lowered_program: Option<&'a crate::effect_lowered::LateLoweredProgram>,
+    /// TypeStore owner for `published_late_lowered_program`.
+    published_late_lowered_types: Option<&'a TypeStore>,
     /// LIR-owned backend-neutral contracts for global init/storage and callable ABI.
     published_lir_facts: &'a LirFacts,
     /// HIR barrier 发布的 declaration/entity facts。
@@ -832,6 +834,7 @@ pub(super) struct CompilationUnitCodegenInputs<'a, 'ctx> {
     pub(super) materialized_pass_view: Option<crate::mir::MaterializedMirPassView<'a>>,
     pub(super) published_late_lowered_program:
         Option<&'a crate::effect_lowered::LateLoweredProgram>,
+    pub(super) published_late_lowered_types: Option<&'a TypeStore>,
     pub(super) published_lir_facts: &'a LirFacts,
     pub(super) hir_facts: Rc<HirFacts>,
     pub(super) effect_op_tags: Rc<RefCell<EffectOpTagState>>,
@@ -885,6 +888,7 @@ impl<'a, 'ctx> CompilationUnitCodegenCx<'a, 'ctx> {
             fun_index,
             materialized_pass_view,
             published_late_lowered_program,
+            published_late_lowered_types,
             published_lir_facts,
             hir_facts,
             effect_op_tags,
@@ -926,6 +930,7 @@ impl<'a, 'ctx> CompilationUnitCodegenCx<'a, 'ctx> {
             fun_index,
             materialized_pass_view,
             published_late_lowered_program,
+            published_late_lowered_types,
             published_lir_facts,
             hir_facts,
             shared_caches: SharedCodegenCaches::default(),
@@ -1019,8 +1024,12 @@ impl<'a, 'ctx> CompilationUnitCodegenCx<'a, 'ctx> {
 
     pub(super) fn published_late_lowered_program(
         &self,
-    ) -> Option<&crate::effect_lowered::LateLoweredProgram> {
+    ) -> Option<&'a crate::effect_lowered::LateLoweredProgram> {
         self.published_late_lowered_program
+    }
+
+    pub(super) fn published_late_lowered_types(&self) -> Option<&'a TypeStore> {
+        self.published_late_lowered_types
     }
 
     pub(super) fn stable_type_param_resolver(&self) -> &HashMap<TypeParamType, StableTypeParamKey> {

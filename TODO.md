@@ -127,7 +127,7 @@
 | P7-T04-b-3 | [DONE] | [`TODO-6.md`](./TODO-6.md#done-p7-t04-b-3引入-classinstancekey-收回-layout-key-字符串形态) | 引入 `ClassInstanceKey` 收回 layout key 字符串形态 |
 | P7-T04-b-3R | [DONE] | [`TODO-6.md`](./TODO-6.md#done-p7-t04-b-3rreview-classinstancekey-字符串形态收回) | Review `ClassInstanceKey` 字符串形态收回 |
 | P7-T04-b-4 | [DONE] | [`TODO-6.md`](./TODO-6.md#done-p7-t04-b-4codegen-全面切换到-monotypeid--删除-cg_ty_of-的-option-与-expect_cg_ty_of) | codegen 全面切换到 `MonoTypeId` —— 删除 `cg_ty_of` 的 `Option` 与 `expect_cg_ty_of` |
-| P7-T04-b-4R | [TODO] | [`TODO-6.md`](./TODO-6.md#todo-p7-t04-b-4rreview-codegen-monotypeid-全面切换) | Review codegen `MonoTypeId` 全面切换 |
+| P7-T04-b-4R | [DONE] | [`TODO-6.md`](./TODO-6.md#done-p7-t04-b-4rreview-codegen-monotypeid-全面切换) | Review codegen `MonoTypeId` 全面切换 |
 | P7-T04-b-5 | [TODO] | [`TODO-6.md`](./TODO-6.md#todo-p7-t04-b-5修复-p7-t04-b-期间观察到的预存-llvm-库测试失败) | 修复 P7-T04-b 期间观察到的预存 LLVM 库测试失败 |
 | P7-T04-b-5R | [TODO] | [`TODO-6.md`](./TODO-6.md#todo-p7-t04-b-5rreview-预存-llvm-库测试失败修复结果) | Review 预存 LLVM 库测试失败修复结果 |
 | P7-T04-b | [TODO] | [`TODO-6.md`](./TODO-6.md#todo-p7-t04-b收窄-llvm-stage-handoff-形状) | 收窄 LLVM stage handoff 形状 |

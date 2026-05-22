@@ -483,7 +483,7 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
         let payload_ty = step_layout.complete_variant().payload_source_ty();
         let payload_cg =
             self.codegen
-                .try_cg_ty_of_type_id(payload_ty)
+                .cg_ty_of_mir_type(self.source_types, payload_ty)
                 .unwrap_or_else(|| {
                     panic!(
                         "complete_payload_or_default: Step layout verifier accepted non-codegen Complete payload type in `{}`",

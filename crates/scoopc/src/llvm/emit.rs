@@ -512,6 +512,8 @@ fn build_module_from_codegen_entry_with_root_selector<'ctx>(
     let builder = context.create_builder();
     let hir_facts = Rc::new(hir_facts.clone());
     let effect_op_tags = Rc::new(RefCell::new(codegen::EffectOpTagState::new()));
+    let published_late_lowered_program = abi_program.or(Some(late_lowered_program));
+    let published_late_lowered_types = abi_types.or(Some(late_lowered_types));
 
     // T0810：在确认入口存在后，再声明/生成 `main` 可达的其它顶层函数：
     // - 避免“无 main”时把无关错误暴露给调用方；
@@ -551,7 +553,8 @@ fn build_module_from_codegen_entry_with_root_selector<'ctx>(
             native_callable_funs: &lowered.native_callable_funs,
             fun_index: &fun_index,
             materialized_pass_view,
-            published_late_lowered_program: abi_program.or(Some(late_lowered_program)),
+            published_late_lowered_program,
+            published_late_lowered_types,
             published_lir_facts: late_lowered_lir_facts,
             hir_facts: Rc::clone(&hir_facts),
             effect_op_tags: Rc::clone(&effect_op_tags),
