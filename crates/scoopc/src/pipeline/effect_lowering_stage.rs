@@ -247,7 +247,8 @@ mod tests {
     use crate::session::{Session, SessionOptions};
     use crate::source::SourceFile;
     use scoopc_lir_facts::{
-        LirCallSiteKind, LirCallableContract, LirGlobalRootKind, LirGlobalStoragePolicy,
+        LirCallSiteKind, LirCallableContract, LirCallableSymbolKind, LirGlobalRootKind,
+        LirGlobalStoragePolicy,
     };
 
     fn session() -> Session {
@@ -663,6 +664,49 @@ fun callInterface(i: IFace): Int {
     }
 
     #[test]
+    fn effect_lowered_lir_facts_publish_backend_layout_and_type_contracts() {
+        let session = session();
+        let source = dispatch_and_resume_fixture_source();
+        let output = super::run(stage_input_for_source(&session, &source)).unwrap();
+        let facts = output.lir_facts();
+
+        assert!(facts.physical_layout.classes.contains_key("sample.Base"));
+        assert!(facts.physical_layout.classes.contains_key("sample.Derived"));
+        assert!(
+            facts
+                .physical_layout
+                .class_vtables
+                .contains_key("sample.Base")
+        );
+        assert!(
+            facts
+                .physical_layout
+                .interfaces
+                .contains_key("sample.IFace")
+        );
+        assert!(
+            facts
+                .physical_layout
+                .class_itables
+                .contains_key("sample.Impl")
+        );
+        let call_virtual = facts
+            .physical_layout
+            .callable_symbols
+            .values()
+            .find(|symbol| symbol.root_fqn == "sample.callVirtual")
+            .expect("callVirtual should publish callable symbol facts");
+        assert_eq!(call_virtual.kind, LirCallableSymbolKind::ManagedOrdinary);
+        assert_eq!(call_virtual.param_tys.len(), 1);
+        assert!(!facts.type_context.primary_fingerprint.is_empty());
+        assert!(!facts.type_context.stable_wire_format.owner.is_empty());
+        let dump = output.stable_dump();
+        assert!(dump.contains("physical_layout:"));
+        assert!(dump.contains("type_context:"));
+        assert!(facts.verify().is_ok());
+    }
+
+    #[test]
     fn lir_facts_builder_publishes_global_init_storage_contracts() {
         let session = session();
         let source = global_init_fixture_source();
@@ -684,6 +728,12 @@ fun callInterface(i: IFace): Int {
         assert_eq!(counter.kind, LirGlobalRootKind::TopLevelMutableVar);
         assert_eq!(counter.storage, Some(LirGlobalStoragePolicy::Global));
         assert_eq!(counter.dependencies.len(), 1);
+        let counter_body = counter
+            .initializer_body
+            .as_ref()
+            .expect("Counter eager init should publish source/body contract");
+        assert_eq!(counter_body.root.as_str(), counter.root.as_str());
+        assert_eq!(counter_body.body_item_count, 1);
         assert_eq!(
             counter.dependencies[0].target.as_str(),
             "mir_lowered.top_level_roots.Runtime"

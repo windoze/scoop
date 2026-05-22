@@ -28,7 +28,7 @@ use crate::mir::{
     Operand as MirOperand, Rvalue as MirRvalue, SiteId, StatementKind as MirStatementKind,
 };
 use crate::opt::OptLevel;
-use crate::ty::TypeId;
+use crate::ty::{TypeId, TypeStore};
 
 struct LirFactsBuildContext<'a> {
     lir: &'a LateLoweredProgram,
@@ -79,6 +79,8 @@ pub(crate) fn build_lir_facts(
     let callables = build_callable_facts(&ctx, &mut dynamic_invokes, &mut dispatches)?;
     let groups = LirFactGroups {
         global_init: build_global_init_facts(&ctx)?,
+        physical_layout: build_physical_layout_facts(&ctx)?,
+        type_context: build_type_context_facts(ctx.materialized, ctx.effect_facts),
         callables,
         step_types: build_step_type_facts(lir),
         dynamic_invokes,
@@ -101,6 +103,13 @@ pub(crate) fn build_lir_facts(
             groups.global_init.object_once.len(),
             groups.global_init.top_level_eager_inits.len(),
             groups.global_init.cone_init_routines.len(),
+        )
+        .with_layout_counts(
+            groups.physical_layout.classes.len(),
+            groups.physical_layout.enums.len(),
+            groups.physical_layout.interfaces.len(),
+            groups.physical_layout.class_itables.len(),
+            groups.physical_layout.callable_symbols.len(),
         );
     let facts = LirFacts::from_parts_with_opt_pipeline(summary, opt_pipeline, groups);
     facts
@@ -253,6 +262,11 @@ fn initializer_global_root_facts(
     }
 
     let (kind, storage) = initializer_root_kind(*kind);
+    let initializer_body = if *has_initializer {
+        Some(initializer_body_facts(ctx, &root.fqn, kind)?)
+    } else {
+        None
+    };
     Ok(LirGlobalRootFacts {
         root: LirGlobalRootKey::new(root.fqn.clone()),
         kind,
@@ -264,6 +278,7 @@ fn initializer_global_root_facts(
         dependencies,
         source_path: root.source_path.clone(),
         extern_global: None,
+        initializer_body,
     })
 }
 
@@ -302,7 +317,77 @@ fn extern_global_root_facts(
             initializer_absent: *initializer_absent,
             unsafe_required: *unsafe_required,
         }),
+        initializer_body: None,
     })
+}
+
+fn initializer_body_facts(
+    ctx: &LirFactsBuildContext<'_>,
+    root_fqn: &str,
+    kind: LirGlobalRootKind,
+) -> Result<LirInitializerBodyFacts, EffectLoweringError> {
+    let contracts = ctx.materialized.backend_contracts();
+    match kind {
+        LirGlobalRootKind::TopLevelImmutableVal => {
+            let value = contracts
+                .top_level_immutable_values
+                .get(root_fqn)
+                .ok_or_else(|| EffectLoweringError::InvalidLirFactsContract {
+                    detail: format!(
+                        "missing top-level immutable initializer source contract for `{root_fqn}`"
+                    ),
+                })?;
+            let span = value
+                .init
+                .as_ref()
+                .map(|init| init.span)
+                .unwrap_or(value.span);
+            Ok(LirInitializerBodyFacts {
+                root: LirGlobalRootKey::new(root_fqn.to_string()),
+                kind: LirInitializerBodyKind::TopLevelImmutableVal,
+                source_path: value.source_path.display().to_string(),
+                source_span_start: span.start,
+                source_span_end: span.end,
+                body_item_count: usize::from(value.init.is_some()),
+            })
+        }
+        LirGlobalRootKind::TopLevelMutableVar => {
+            let var = contracts.top_level_vars.get(root_fqn).ok_or_else(|| {
+                EffectLoweringError::InvalidLirFactsContract {
+                    detail: format!(
+                        "missing top-level var initializer source contract for `{root_fqn}`"
+                    ),
+                }
+            })?;
+            let span = var.init.as_ref().map(|init| init.span).unwrap_or(var.span);
+            Ok(LirInitializerBodyFacts {
+                root: LirGlobalRootKey::new(root_fqn.to_string()),
+                kind: LirInitializerBodyKind::TopLevelMutableVar,
+                source_path: var.source_path.display().to_string(),
+                source_span_start: span.start,
+                source_span_end: span.end,
+                body_item_count: usize::from(var.init.is_some()),
+            })
+        }
+        LirGlobalRootKind::ObjectSingleton => {
+            let object = contracts.object_inits.get(root_fqn).ok_or_else(|| {
+                EffectLoweringError::InvalidLirFactsContract {
+                    detail: format!("missing object initializer source contract for `{root_fqn}`"),
+                }
+            })?;
+            Ok(LirInitializerBodyFacts {
+                root: LirGlobalRootKey::new(root_fqn.to_string()),
+                kind: LirInitializerBodyKind::ObjectSingleton,
+                source_path: object.source_path.display().to_string(),
+                source_span_start: object.span.start,
+                source_span_end: object.span.end,
+                body_item_count: object.steps.len(),
+            })
+        }
+        LirGlobalRootKind::ExternGlobal => invalid_lir_facts(format!(
+            "extern global `{root_fqn}` cannot publish initializer body facts"
+        )),
+    }
 }
 
 fn publish_cone_init_routines(facts: &mut LirGlobalInitFacts) -> Result<(), EffectLoweringError> {
@@ -483,6 +568,245 @@ fn global_dependency_kind(kind: MirInitializerDependencyKind) -> LirGlobalDepend
         MirInitializerDependencyKind::TopLevelValue => LirGlobalDependencyKind::TopLevelValue,
         MirInitializerDependencyKind::ObjectSingleton => LirGlobalDependencyKind::ObjectSingleton,
     }
+}
+
+fn build_physical_layout_facts(
+    ctx: &LirFactsBuildContext<'_>,
+) -> Result<LirPhysicalLayoutFacts, EffectLoweringError> {
+    let contracts = ctx.materialized.backend_contracts();
+    let mut facts = LirPhysicalLayoutFacts::default();
+
+    for (layout_key, class) in &contracts.class_inits {
+        insert_class_layout_fact(&mut facts, layout_key, class);
+    }
+    for (fqn, layout) in &contracts.enum_layouts {
+        facts.enums.insert(fqn.clone(), enum_layout_facts(layout));
+    }
+    for (class_fqn, slots) in &contracts.class_vtables {
+        facts.class_vtables.insert(
+            class_fqn.clone(),
+            slots
+                .iter()
+                .map(|slot| LirClassVtableSlotFacts {
+                    slot: slot.slot,
+                    name: slot.name.clone(),
+                    params_len: slot.params_len,
+                    has_receiver: slot.has_receiver,
+                    impl_member_fqn: slot.impl_member_fqn.clone(),
+                })
+                .collect(),
+        );
+    }
+    for (fqn, interface) in &contracts.interfaces {
+        facts.interfaces.insert(
+            fqn.clone(),
+            LirInterfaceLayoutFacts {
+                fqn: interface.fqn.clone(),
+                interface_id: interface.interface_id,
+                super_interfaces: interface.super_interfaces.clone(),
+                method_slots: interface
+                    .method_slots
+                    .iter()
+                    .map(|slot| LirInterfaceMethodSlotFacts {
+                        slot: slot.slot,
+                        name: slot.name.clone(),
+                        member_fqn: slot.member_fqn.clone(),
+                        params_len: slot.params_len,
+                        has_receiver: slot.has_receiver,
+                        has_body: slot.has_body,
+                    })
+                    .collect(),
+            },
+        );
+    }
+    for (class_fqn, entries) in &contracts.class_itables {
+        facts.class_itables.insert(
+            class_fqn.clone(),
+            LirClassItableFacts {
+                class_fqn: class_fqn.clone(),
+                entries: entries
+                    .iter()
+                    .map(|entry| LirClassItableEntryFacts {
+                        interface_fqn: entry.interface_fqn.clone(),
+                        interface_id: entry.interface_id,
+                        interface_type_name: entry.interface_type_name.clone(),
+                        interface_type_id: entry.interface_type_id,
+                        runtime_match_type_names: entry.runtime_match_type_names.clone(),
+                        runtime_match_type_ids: entry.runtime_match_type_ids.clone(),
+                        method_impl_fqns: entry.method_impl_fqns.clone(),
+                        method_receiver_type_ids: entry.method_receiver_type_ids.clone(),
+                    })
+                    .collect(),
+            },
+        );
+    }
+    facts.callable_symbols = build_callable_symbol_facts(ctx)?;
+    Ok(facts)
+}
+
+fn insert_class_layout_fact(
+    facts: &mut LirPhysicalLayoutFacts,
+    layout_key: &str,
+    class: &crate::hir::ClassInit,
+) {
+    facts.classes.insert(
+        layout_key.to_string(),
+        LirClassLayoutFacts {
+            fqn: class.fqn.clone(),
+            layout_key: layout_key.to_string(),
+            super_class_fqn: class.super_class_fqn.clone(),
+            fields: class
+                .fields
+                .iter()
+                .map(|field| LirClassFieldFacts {
+                    fqn: field.fqn.clone(),
+                    name: field.name.clone(),
+                    mutable: field.mutable,
+                    ty: field.ty,
+                })
+                .collect(),
+        },
+    );
+}
+
+fn enum_layout_facts(layout: &crate::hir::EnumLayout) -> LirEnumLayoutFacts {
+    LirEnumLayoutFacts {
+        fqn: layout.fqn.clone(),
+        repr: match &layout.repr {
+            crate::hir::EnumRepr::TaggedUnion => LirEnumReprFacts::TaggedUnion,
+            crate::hir::EnumRepr::ValueOnly { underlying_ty_fqn } => LirEnumReprFacts::ValueOnly {
+                underlying_ty_fqn: underlying_ty_fqn.clone(),
+            },
+        },
+        variants: layout
+            .variants
+            .iter()
+            .map(|variant| LirEnumVariantFacts {
+                name: variant.name.clone(),
+                tag: variant.tag,
+                fields: variant
+                    .fields
+                    .iter()
+                    .map(|field| LirEnumVariantFieldFacts {
+                        name: field.name.clone(),
+                        ty: field.ty,
+                    })
+                    .collect(),
+            })
+            .collect(),
+    }
+}
+
+fn build_callable_symbol_facts(
+    ctx: &LirFactsBuildContext<'_>,
+) -> Result<BTreeMap<StableLirCallableKey, LirCallableSymbolFacts>, EffectLoweringError> {
+    let contracts = ctx.materialized.backend_contracts();
+    let mut out = BTreeMap::new();
+    for callable in ctx.lir.callables() {
+        let key = callable_key_for_root(&ctx.callable_keys_by_root, callable.root_fqn())?.clone();
+        let signature =
+            lookup_materialized_callable_signature(ctx.materialized, callable.root_fqn())?;
+        let native = contracts
+            .native_callable_funs
+            .get(callable.root_fqn())
+            .map(|native| LirNativeCallableSignatureFacts {
+                symbol: native.symbol.clone(),
+                calling_convention: native.calling_convention.clone(),
+                param_tys: signature.param_tys.clone(),
+                return_ty: signature.return_ty,
+            });
+        let extern_ = contracts
+            .extern_funs
+            .get(callable.root_fqn())
+            .map(|extern_fun| LirExternCallableSignatureFacts {
+                symbol: extern_fun.symbol.clone(),
+                abi: extern_fun.abi.name().to_string(),
+                calling_convention: extern_fun.calling_convention.clone(),
+                lib: extern_fun.lib.clone(),
+                param_tys: signature.param_tys.clone(),
+                return_ty: signature.return_ty,
+            });
+        out.insert(
+            key.clone(),
+            LirCallableSymbolFacts {
+                callable: key,
+                root_fqn: callable.root_fqn().to_string(),
+                stable_instance_key: callable.stable_instance_key().canonical_text(),
+                exported_symbol: ctx
+                    .materialized
+                    .instance_exported_fun_symbol(callable.instance_key()),
+                kind: callable_symbol_kind(callable, native.as_ref(), extern_.as_ref()),
+                abi_kind: callable_abi_kind(callable.call_abi_kind()),
+                param_tys: signature.param_tys,
+                return_ty: signature.return_ty,
+                native,
+                extern_,
+            },
+        );
+    }
+    Ok(out)
+}
+
+fn callable_symbol_kind(
+    callable: &LateLoweredCallable,
+    native: Option<&LirNativeCallableSignatureFacts>,
+    extern_: Option<&LirExternCallableSignatureFacts>,
+) -> LirCallableSymbolKind {
+    if native.is_some() {
+        return LirCallableSymbolKind::NativeExtern;
+    }
+    if let Some(extern_) = extern_ {
+        return if extern_.abi == "scoop" {
+            LirCallableSymbolKind::ManagedExtern
+        } else {
+            LirCallableSymbolKind::NativeExtern
+        };
+    }
+    if callable.call_abi_kind() == CallableAbiKind::EffectStep {
+        LirCallableSymbolKind::EffectBridge
+    } else {
+        LirCallableSymbolKind::ManagedOrdinary
+    }
+}
+
+fn build_type_context_facts(
+    materialized: &MaterializedMir,
+    effect_facts: &MaterializedEffectFacts,
+) -> LirTypeContextFacts {
+    let materialized_fingerprint = type_store_fingerprint(&materialized.types);
+    let effect_facts_fingerprint = type_store_fingerprint(effect_facts.types());
+    let fingerprints_match = materialized_fingerprint == effect_facts_fingerprint;
+    LirTypeContextFacts {
+        owner: LirTypeContextOwner::LirStageBaseContext,
+        primary_fingerprint: materialized_fingerprint.clone(),
+        materialized_fingerprint,
+        effect_facts_fingerprint,
+        bridge_mode: if fingerprints_match {
+            LirTypeContextBridgeMode::Identical
+        } else {
+            LirTypeContextBridgeMode::ExplicitDisplayNameRemap
+        },
+        remapped_type_count: if fingerprints_match {
+            0
+        } else {
+            effect_facts.types().iter_ids().count()
+        },
+        stable_wire_format: LirTypeStableWireFormatFacts {
+            decision: LirTypeStableWireFormatDecision::Deferred,
+            owner: "P8 per-cone build artifact serialization".to_string(),
+            reason: "TypeId is still an in-process TypeStore identity; portable serialization needs a canonical text key or import remap format.".to_string(),
+            non_blocking_reason: "P7-T04 only needs a single in-process LIR/base type context owner; persisted per-cone artifacts are not emitted yet.".to_string(),
+        },
+    }
+}
+
+fn type_store_fingerprint(types: &TypeStore) -> String {
+    let mut entries = types
+        .iter_ids()
+        .map(|ty| format!("t{}={}", ty.as_u32(), types.display(ty)))
+        .collect::<Vec<_>>();
+    entries.sort();
+    entries.join("|")
 }
 
 fn invalid_lir_facts<T>(detail: String) -> Result<T, EffectLoweringError> {

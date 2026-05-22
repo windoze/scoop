@@ -8,7 +8,7 @@ snapshot_binding:
 lir_facts:
 lir_facts {
   opt_level: O2
-  summary: opt_revision=1 callables=1 step_types=1 dynamic_invokes=0 dispatches=0 resume_packings=0 continuation_objects=1 surface_resume_dispatches=1
+  summary: opt_revision=1 callables=1 step_types=1 dynamic_invokes=0 dispatches=0 resume_packings=0 continuation_objects=1 surface_resume_dispatches=1 layout_classes=36 layout_enums=5 layout_interfaces=11 layout_class_itables=54 layout_callable_symbols=1
   opt_pipeline: revision=1 preserve_published_resume_shells=false passes=7
     - pass=local-state-machine-elimination status=Applied changed=false
     - pass=higher-order-wrapper-inline-devirt status=NoOp changed=false
@@ -17,6 +17,169 @@ lir_facts {
     - pass=dead-state-slot-cleanup status=Applied changed=false
     - pass=resume-packing-pruning status=Applied changed=true
     - pass=post-opt-verifier status=Applied changed=false
+  physical_layout: classes=36 enums=5 vtables=54 interfaces=11 class_itables=54 callable_symbols=1
+    - class=scoop.core.AllowIntrinsic layout_key=scoop.core.AllowIntrinsic super=<none> fields=0
+    - class=scoop.core.Array layout_key=scoop.core.Array super=<none> fields=0
+    - class=scoop.core.Array<Any> layout_key=scoop.core.Array<Any> super=<none> fields=0
+    - class=scoop.core.Array<Int> layout_key=scoop.core.Array<Int> super=<none> fields=0
+    - class=scoop.core.Array<String> layout_key=scoop.core.Array<String> super=<none> fields=0
+    - class=scoop.core.Atomic layout_key=scoop.core.Atomic super=<none> fields=1
+    - class=scoop.core.AtomicBool layout_key=scoop.core.AtomicBool super=<none> fields=1
+    - class=scoop.core.AtomicInt layout_key=scoop.core.AtomicInt super=<none> fields=1
+    - class=scoop.core.AtomicValue layout_key=scoop.core.AtomicValue super=<none> fields=1
+    - class=scoop.core.Box layout_key=scoop.core.Box super=<none> fields=1
+    - class=scoop.core.CLayout layout_key=scoop.core.CLayout super=<none> fields=2
+    - class=scoop.core.Deprecated layout_key=scoop.core.Deprecated super=<none> fields=2
+    - class=scoop.core.Experimental layout_key=scoop.core.Experimental super=<none> fields=1
+    - class=scoop.core.Global layout_key=scoop.core.Global super=<none> fields=0
+    - class=scoop.core.Inline layout_key=scoop.core.Inline super=<none> fields=0
+    - class=scoop.core.MetaList layout_key=scoop.core.MetaList super=<none> fields=0
+    - class=scoop.core.MetaList<scoop.core.AnnotationArgMeta> layout_key=scoop.core.MetaList<scoop.core.AnnotationArgMeta> super=<none> fields=0
+    - class=scoop.core.MetaList<scoop.core.AnnotationMeta> layout_key=scoop.core.MetaList<scoop.core.AnnotationMeta> super=<none> fields=0
+    - class=scoop.core.MetaList<scoop.core.FieldMeta> layout_key=scoop.core.MetaList<scoop.core.FieldMeta> super=<none> fields=0
+    - class=scoop.core.MetaList<scoop.core.ParamMeta> layout_key=scoop.core.MetaList<scoop.core.ParamMeta> super=<none> fields=0
+    - class=scoop.core.MetaList<scoop.core.TypeMeta> layout_key=scoop.core.MetaList<scoop.core.TypeMeta> super=<none> fields=0
+    - class=scoop.core.MetaList<scoop.core.VariantMeta> layout_key=scoop.core.MetaList<scoop.core.VariantMeta> super=<none> fields=0
+    - class=scoop.core.MutableArray layout_key=scoop.core.MutableArray super=<none> fields=0
+    - class=scoop.core.MutableArray<Any> layout_key=scoop.core.MutableArray<Any> super=<none> fields=0
+    - class=scoop.core.MutableArray<Char> layout_key=scoop.core.MutableArray<Char> super=<none> fields=0
+    - class=scoop.core.MutableArray<String> layout_key=scoop.core.MutableArray<String> super=<none> fields=0
+    - class=scoop.core.MutableArray<UInt8> layout_key=scoop.core.MutableArray<UInt8> super=<none> fields=0
+    - class=scoop.core.MutableArray<scoop.core.UInt8> layout_key=scoop.core.MutableArray<scoop.core.UInt8> super=<none> fields=0
+    - class=scoop.core.RefCell layout_key=scoop.core.RefCell super=<none> fields=1
+    - class=scoop.core.Retention layout_key=scoop.core.Retention super=<none> fields=1
+    - class=scoop.core.String layout_key=scoop.core.String super=<none> fields=0
+    - class=scoop.core.Suppress layout_key=scoop.core.Suppress super=<none> fields=1
+    - class=scoop.core.TailRec layout_key=scoop.core.TailRec super=<none> fields=0
+    - class=scoop.core.Target layout_key=scoop.core.Target super=<none> fields=1
+    - class=scoop.core.ThreadLocal layout_key=scoop.core.ThreadLocal super=<none> fields=0
+    - class=scoop.lang.string.StringBuilder layout_key=scoop.lang.string.StringBuilder super=<none> fields=1
+    - enum=scoop.core.AnnotationTarget repr=tagged_union variants=11
+    - enum=scoop.core.Nothing repr=tagged_union variants=0
+    - enum=scoop.core.RuntimeError repr=tagged_union variants=3
+    - enum=scoop.core.TypeKind repr=tagged_union variants=7
+    - enum=scoop.delegates.LazyThreadSafetyMode repr=tagged_union variants=3
+    - class_vtable=scoop.core.AllowIntrinsic slots=0
+    - class_vtable=scoop.core.AnnotationArgMeta slots=0
+    - class_vtable=scoop.core.AnnotationMeta slots=0
+    - class_vtable=scoop.core.Array slots=0
+    - class_vtable=scoop.core.Atomic slots=0
+    - class_vtable=scoop.core.AtomicBool slots=0
+    - class_vtable=scoop.core.AtomicInt slots=0
+    - class_vtable=scoop.core.AtomicValue slots=0
+    - class_vtable=scoop.core.Bool slots=1
+    - class_vtable=scoop.core.Box slots=0
+    - class_vtable=scoop.core.CLayout slots=0
+    - class_vtable=scoop.core.Char slots=1
+    - class_vtable=scoop.core.Deprecated slots=0
+    - class_vtable=scoop.core.Experimental slots=0
+    - class_vtable=scoop.core.FieldMeta slots=0
+    - class_vtable=scoop.core.Float32 slots=1
+    - class_vtable=scoop.core.Float64 slots=1
+    - class_vtable=scoop.core.FunctionMeta slots=0
+    - class_vtable=scoop.core.GcHandle slots=0
+    - class_vtable=scoop.core.Global slots=0
+    - class_vtable=scoop.core.Inline slots=0
+    - class_vtable=scoop.core.Int slots=1
+    - class_vtable=scoop.core.Int16 slots=0
+    - class_vtable=scoop.core.Int32 slots=0
+    - class_vtable=scoop.core.Int64 slots=0
+    - class_vtable=scoop.core.Int8 slots=0
+    - class_vtable=scoop.core.IntProgression slots=0
+    - class_vtable=scoop.core.LongProgression slots=0
+    - class_vtable=scoop.core.MetaList slots=0
+    - class_vtable=scoop.core.MutableArray slots=0
+    - class_vtable=scoop.core.ParamMeta slots=0
+    - class_vtable=scoop.core.Pinned slots=0
+    - class_vtable=scoop.core.Platform slots=0
+    - class_vtable=scoop.core.PropertyMeta slots=0
+    - class_vtable=scoop.core.RefCell slots=0
+    - class_vtable=scoop.core.Retention slots=0
+    - class_vtable=scoop.core.String slots=1
+    - class_vtable=scoop.core.Suppress slots=0
+    - class_vtable=scoop.core.TailRec slots=0
+    - class_vtable=scoop.core.Target slots=0
+    - class_vtable=scoop.core.ThreadLocal slots=0
+    - class_vtable=scoop.core.TypeMeta slots=0
+    - class_vtable=scoop.core.UInt slots=0
+    - class_vtable=scoop.core.UInt16 slots=0
+    - class_vtable=scoop.core.UInt32 slots=0
+    - class_vtable=scoop.core.UInt64 slots=0
+    - class_vtable=scoop.core.UInt8 slots=0
+    - class_vtable=scoop.core.UIntProgression slots=0
+    - class_vtable=scoop.core.ULongProgression slots=0
+    - class_vtable=scoop.core.Unit slots=0
+    - class_vtable=scoop.core.VariantMeta slots=0
+    - class_vtable=scoop.lang.string.StringBuilder slots=0
+    - class_vtable=scoop.unsafe.FunPtr slots=0
+    - class_vtable=scoop.unsafe.Ptr slots=0
+    - interface=scoop.collections.IntIterable id=15901905228223837312 methods=1 supers=0
+    - interface=scoop.collections.IntIterator id=9964296089158589802 methods=1 supers=0
+    - interface=scoop.collections.Iterable id=12253944723955285356 methods=1 supers=0
+    - interface=scoop.collections.Iterator id=3004447829573231970 methods=1 supers=0
+    - interface=scoop.collections.Map id=11990757566585633225 methods=1 supers=0
+    - interface=scoop.core.Any id=18057846824778196566 methods=0 supers=0
+    - interface=scoop.core.Continuation id=8429072973839579624 methods=1 supers=0
+    - interface=scoop.core.Hashable id=6400076122664490060 methods=1 supers=0
+    - interface=scoop.core.ToString id=105101082770050397 methods=1 supers=0
+    - interface=scoop.delegates.ReadOnlyProperty id=17065348958736478 methods=1 supers=0
+    - interface=scoop.delegates.ReadWriteProperty id=13502819662008029169 methods=1 supers=1
+    - class_itable=scoop.core.AllowIntrinsic entries=0
+    - class_itable=scoop.core.AnnotationArgMeta entries=0
+    - class_itable=scoop.core.AnnotationMeta entries=0
+    - class_itable=scoop.core.Array entries=0
+    - class_itable=scoop.core.Atomic entries=0
+    - class_itable=scoop.core.AtomicBool entries=0
+    - class_itable=scoop.core.AtomicInt entries=0
+    - class_itable=scoop.core.AtomicValue entries=0
+    - class_itable=scoop.core.Bool entries=2
+    - class_itable=scoop.core.Box entries=0
+    - class_itable=scoop.core.CLayout entries=0
+    - class_itable=scoop.core.Char entries=2
+    - class_itable=scoop.core.Deprecated entries=0
+    - class_itable=scoop.core.Experimental entries=0
+    - class_itable=scoop.core.FieldMeta entries=0
+    - class_itable=scoop.core.Float32 entries=2
+    - class_itable=scoop.core.Float64 entries=2
+    - class_itable=scoop.core.FunctionMeta entries=0
+    - class_itable=scoop.core.GcHandle entries=0
+    - class_itable=scoop.core.Global entries=0
+    - class_itable=scoop.core.Inline entries=0
+    - class_itable=scoop.core.Int entries=2
+    - class_itable=scoop.core.Int16 entries=1
+    - class_itable=scoop.core.Int32 entries=1
+    - class_itable=scoop.core.Int64 entries=1
+    - class_itable=scoop.core.Int8 entries=1
+    - class_itable=scoop.core.IntProgression entries=0
+    - class_itable=scoop.core.LongProgression entries=0
+    - class_itable=scoop.core.MetaList entries=0
+    - class_itable=scoop.core.MutableArray entries=0
+    - class_itable=scoop.core.ParamMeta entries=0
+    - class_itable=scoop.core.Pinned entries=0
+    - class_itable=scoop.core.Platform entries=0
+    - class_itable=scoop.core.PropertyMeta entries=0
+    - class_itable=scoop.core.RefCell entries=0
+    - class_itable=scoop.core.Retention entries=0
+    - class_itable=scoop.core.String entries=2
+    - class_itable=scoop.core.Suppress entries=0
+    - class_itable=scoop.core.TailRec entries=0
+    - class_itable=scoop.core.Target entries=0
+    - class_itable=scoop.core.ThreadLocal entries=0
+    - class_itable=scoop.core.TypeMeta entries=0
+    - class_itable=scoop.core.UInt entries=1
+    - class_itable=scoop.core.UInt16 entries=1
+    - class_itable=scoop.core.UInt32 entries=1
+    - class_itable=scoop.core.UInt64 entries=1
+    - class_itable=scoop.core.UInt8 entries=1
+    - class_itable=scoop.core.UIntProgression entries=0
+    - class_itable=scoop.core.ULongProgression entries=0
+    - class_itable=scoop.core.Unit entries=0
+    - class_itable=scoop.core.VariantMeta entries=0
+    - class_itable=scoop.lang.string.StringBuilder entries=0
+    - class_itable=scoop.unsafe.FunPtr entries=0
+    - class_itable=scoop.unsafe.Ptr entries=0
+    - callable_symbol=lir_callable(instance(92:template(79:def(31:cone(14:handle_perform;5:0.0.0);3:fun;6:a.main;21:materialized_callable));6:list();6:list()),body#0) root=a.main kind=managed_ordinary abi=Plain exported=__scoop_abi0_fun__a_main__hc5b14c04c355b800acb6ce5c3ce58d3c
+  type_context: owner=lir_stage_base_context bridge=explicit_display_name_remap remapped_types=450 wire_format=deferred wire_owner=P8 per-cone build artifact serialization
   callables=1
     - callable=a.main kind=Plain control_body=true key=lir_callable(instance(92:template(79:def(31:cone(14:handle_perform;5:0.0.0);3:fun;6:a.main;21:materialized_callable));6:list();6:list()),body#0)
       plain_abi: function_ty=t97 params=0 return=t5 body_slices=5 call_sites=0

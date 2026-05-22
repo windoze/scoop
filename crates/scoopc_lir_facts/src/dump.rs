@@ -19,7 +19,7 @@ pub fn dump_lir_facts(facts: &LirFacts) -> String {
     .expect("writing to String cannot fail");
     writeln!(
         &mut out,
-        "  summary: opt_revision={} callables={} step_types={} dynamic_invokes={} dispatches={} resume_packings={} continuation_objects={} surface_resume_dispatches={}",
+        "  summary: opt_revision={} callables={} step_types={} dynamic_invokes={} dispatches={} resume_packings={} continuation_objects={} surface_resume_dispatches={} layout_classes={} layout_enums={} layout_interfaces={} layout_class_itables={} layout_callable_symbols={}",
         facts.summary.opt_revision,
         facts.summary.callable_count,
         facts.summary.step_type_count,
@@ -28,6 +28,11 @@ pub fn dump_lir_facts(facts: &LirFacts) -> String {
         facts.summary.resume_packing_count,
         facts.summary.continuation_object_count,
         facts.summary.surface_resume_dispatch_count,
+        facts.summary.layout_class_count,
+        facts.summary.layout_enum_count,
+        facts.summary.layout_interface_count,
+        facts.summary.layout_class_itable_count,
+        facts.summary.layout_callable_symbol_count,
     )
     .expect("writing to String cannot fail");
     writeln!(
@@ -49,6 +54,8 @@ pub fn dump_lir_facts(facts: &LirFacts) -> String {
         .expect("writing to String cannot fail");
     }
     dump_global_init_facts(&mut out, facts);
+    dump_physical_layout_facts(&mut out, facts);
+    dump_type_context_facts(&mut out, facts);
     writeln!(&mut out, "  callables={}", facts.callables.len())
         .expect("writing to String cannot fail");
     for (key, callable) in &facts.callables {
@@ -219,6 +226,18 @@ fn dump_global_init_facts(out: &mut String, facts: &LirFacts) {
                 .unwrap_or_default(),
         )
         .expect("writing to String cannot fail");
+        if let Some(body) = &root.initializer_body {
+            writeln!(
+                out,
+                "      initializer_body kind={} source={} span={}..{} items={}",
+                body.kind.stable_name(),
+                body.source_path,
+                body.source_span_start,
+                body.source_span_end,
+                body.body_item_count,
+            )
+            .expect("writing to String cannot fail");
+        }
         for dependency in &root.dependencies {
             writeln!(
                 out,
@@ -278,4 +297,99 @@ fn dump_global_init_facts(out: &mut String, facts: &LirFacts) {
         .join(",");
     writeln!(out, "    - final_entry_init_order=[{}]", routines)
         .expect("writing to String cannot fail");
+}
+
+fn dump_physical_layout_facts(out: &mut String, facts: &LirFacts) {
+    if facts.physical_layout.is_empty() {
+        return;
+    }
+
+    writeln!(
+        out,
+        "  physical_layout: classes={} enums={} vtables={} interfaces={} class_itables={} callable_symbols={}",
+        facts.physical_layout.classes.len(),
+        facts.physical_layout.enums.len(),
+        facts.physical_layout.class_vtables.len(),
+        facts.physical_layout.interfaces.len(),
+        facts.physical_layout.class_itables.len(),
+        facts.physical_layout.callable_symbols.len(),
+    )
+    .expect("writing to String cannot fail");
+    for (key, class) in &facts.physical_layout.classes {
+        writeln!(
+            out,
+            "    - class={} layout_key={} super={} fields={}",
+            key,
+            class.layout_key,
+            class.super_class_fqn.as_deref().unwrap_or("<none>"),
+            class.fields.len(),
+        )
+        .expect("writing to String cannot fail");
+    }
+    for (key, enum_layout) in &facts.physical_layout.enums {
+        writeln!(
+            out,
+            "    - enum={} repr={} variants={}",
+            key,
+            enum_layout.repr.stable_name(),
+            enum_layout.variants.len(),
+        )
+        .expect("writing to String cannot fail");
+    }
+    for (key, slots) in &facts.physical_layout.class_vtables {
+        writeln!(out, "    - class_vtable={} slots={}", key, slots.len())
+            .expect("writing to String cannot fail");
+    }
+    for (key, interface) in &facts.physical_layout.interfaces {
+        writeln!(
+            out,
+            "    - interface={} id={} methods={} supers={}",
+            key,
+            interface.interface_id,
+            interface.method_slots.len(),
+            interface.super_interfaces.len(),
+        )
+        .expect("writing to String cannot fail");
+    }
+    for (key, itable) in &facts.physical_layout.class_itables {
+        writeln!(
+            out,
+            "    - class_itable={} entries={}",
+            key,
+            itable.entries.len()
+        )
+        .expect("writing to String cannot fail");
+    }
+    for (key, symbol) in &facts.physical_layout.callable_symbols {
+        writeln!(
+            out,
+            "    - callable_symbol={} root={} kind={} abi={:?} exported={}",
+            key.as_str(),
+            symbol.root_fqn,
+            symbol.kind.stable_name(),
+            symbol.abi_kind,
+            symbol.exported_symbol.as_deref().unwrap_or("<none>"),
+        )
+        .expect("writing to String cannot fail");
+    }
+}
+
+fn dump_type_context_facts(out: &mut String, facts: &LirFacts) {
+    let ctx = &facts.type_context;
+    if ctx.primary_fingerprint.is_empty()
+        && ctx.materialized_fingerprint.is_empty()
+        && ctx.effect_facts_fingerprint.is_empty()
+    {
+        return;
+    }
+    writeln!(
+        out,
+        "  type_context: owner={} bridge={} remapped_types={} wire_format={} wire_owner={}",
+        ctx.owner.stable_name(),
+        ctx.bridge_mode.stable_name(),
+        ctx.remapped_type_count,
+        ctx.stable_wire_format.decision.stable_name(),
+        ctx.stable_wire_format.owner,
+    )
+    .expect("writing to String cannot fail");
 }

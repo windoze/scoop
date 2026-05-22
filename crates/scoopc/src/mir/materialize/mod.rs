@@ -148,6 +148,7 @@ pub struct MaterializedMir {
     pub types: TypeStore,
     pub instance_keys: Vec<InstanceKey>,
     pub summaries: MaterializedMirSummaries,
+    pub(super) backend_contracts: MaterializedBackendContracts,
     pub(super) top_level_value_tys: HashMap<String, TypeId>,
     pub(super) stable_cone_key: StableConeKey,
     pub(super) stable_instance_keys: HashMap<InstanceKey, StableInstanceKey>,
@@ -158,6 +159,21 @@ pub struct MaterializedMir {
     pub(super) pass_artifacts: MaterializedMirPassArtifacts,
     pub(super) dispatch_devirtualization_facts: super::DispatchDevirtualizationFacts,
     pub(super) caller_side_pass_candidates: Vec<FunDecl>,
+}
+
+/// Data-only backend contracts captured at materialization time for LIR facts.
+#[derive(Debug, Clone, Default)]
+pub struct MaterializedBackendContracts {
+    pub enum_layouts: crate::hir::EnumLayoutIndex,
+    pub class_inits: crate::hir::ClassInitIndex,
+    pub class_vtables: crate::vtable::ClassVtableIndex,
+    pub interfaces: crate::itable::InterfaceIndex,
+    pub class_itables: crate::itable::ClassItableIndex,
+    pub extern_funs: crate::hir::ExternFunIndex,
+    pub native_callable_funs: crate::hir::NativeCallableFunIndex,
+    pub top_level_vars: crate::hir::TopLevelVarIndex,
+    pub top_level_immutable_values: crate::hir::TopLevelImmutableValueIndex,
+    pub object_inits: crate::hir::ObjectInitIndex,
 }
 
 impl MaterializedMir {
@@ -201,6 +217,10 @@ impl MaterializedMir {
 
     pub(crate) fn dispatch_devirtualization_facts(&self) -> &super::DispatchDevirtualizationFacts {
         &self.dispatch_devirtualization_facts
+    }
+
+    pub(crate) fn backend_contracts(&self) -> &MaterializedBackendContracts {
+        &self.backend_contracts
     }
 
     pub(crate) fn stable_cone_key(&self) -> &StableConeKey {

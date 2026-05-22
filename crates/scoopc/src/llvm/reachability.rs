@@ -446,6 +446,14 @@ mod tests {
                 dependencies: Vec::new(),
                 source_path: None,
                 extern_global: None,
+                initializer_body: Some(scoopc_lir_facts::LirInitializerBodyFacts {
+                    root: LirGlobalRootKey::new("app.init_helper"),
+                    kind: scoopc_lir_facts::LirInitializerBodyKind::TopLevelImmutableVal,
+                    source_path: "app.scoop".to_string(),
+                    source_span_start: 0,
+                    source_span_end: 1,
+                    body_item_count: 1,
+                }),
             },
         );
 

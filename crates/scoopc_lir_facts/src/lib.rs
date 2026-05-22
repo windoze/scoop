@@ -26,6 +26,8 @@ pub struct LirFacts {
     pub summary: LirStageSummary,
     pub opt_pipeline: LirOptPipelineFacts,
     pub global_init: LirGlobalInitFacts,
+    pub physical_layout: LirPhysicalLayoutFacts,
+    pub type_context: LirTypeContextFacts,
     pub callables: BTreeMap<StableLirCallableKey, LirCallableFacts>,
     pub step_types: BTreeMap<LirStepSchemaKey, LirStepTypeFacts>,
     pub dynamic_invokes: BTreeMap<LirDynamicInvokeKey, LirDynamicInvokeContract>,
@@ -40,6 +42,8 @@ pub struct LirFacts {
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct LirFactGroups {
     pub global_init: LirGlobalInitFacts,
+    pub physical_layout: LirPhysicalLayoutFacts,
+    pub type_context: LirTypeContextFacts,
     pub callables: BTreeMap<StableLirCallableKey, LirCallableFacts>,
     pub step_types: BTreeMap<LirStepSchemaKey, LirStepTypeFacts>,
     pub dynamic_invokes: BTreeMap<LirDynamicInvokeKey, LirDynamicInvokeContract>,
@@ -57,6 +61,8 @@ impl LirFacts {
             summary: LirStageSummary::new(opt_level),
             opt_pipeline: LirOptPipelineFacts::empty(0),
             global_init: LirGlobalInitFacts::default(),
+            physical_layout: LirPhysicalLayoutFacts::default(),
+            type_context: LirTypeContextFacts::default(),
             callables: BTreeMap::new(),
             step_types: BTreeMap::new(),
             dynamic_invokes: BTreeMap::new(),
@@ -86,6 +92,8 @@ impl LirFacts {
             summary,
             opt_pipeline,
             global_init: groups.global_init,
+            physical_layout: groups.physical_layout,
+            type_context: groups.type_context,
             callables: groups.callables,
             step_types: groups.step_types,
             dynamic_invokes: groups.dynamic_invokes,
@@ -100,11 +108,17 @@ impl LirFacts {
     pub fn is_empty(&self) -> bool {
         self.callables.is_empty()
             && self.global_init.is_empty()
+            && self.physical_layout.is_empty()
             && self.summary.callable_count == 0
             && self.summary.global_root_count == 0
             && self.summary.object_once_count == 0
             && self.summary.top_level_eager_init_count == 0
             && self.summary.cone_init_routine_count == 0
+            && self.summary.layout_class_count == 0
+            && self.summary.layout_enum_count == 0
+            && self.summary.layout_interface_count == 0
+            && self.summary.layout_class_itable_count == 0
+            && self.summary.layout_callable_symbol_count == 0
             && self.summary.step_type_count == 0
             && self.summary.resume_packing_count == 0
             && self.summary.continuation_object_count == 0
@@ -138,6 +152,11 @@ pub struct LirStageSummary {
     pub object_once_count: usize,
     pub top_level_eager_init_count: usize,
     pub cone_init_routine_count: usize,
+    pub layout_class_count: usize,
+    pub layout_enum_count: usize,
+    pub layout_interface_count: usize,
+    pub layout_class_itable_count: usize,
+    pub layout_callable_symbol_count: usize,
     pub callable_count: usize,
     pub step_type_count: usize,
     pub resume_packing_count: usize,
@@ -154,6 +173,11 @@ impl LirStageSummary {
             object_once_count: 0,
             top_level_eager_init_count: 0,
             cone_init_routine_count: 0,
+            layout_class_count: 0,
+            layout_enum_count: 0,
+            layout_interface_count: 0,
+            layout_class_itable_count: 0,
+            layout_callable_symbol_count: 0,
             callable_count: 0,
             step_type_count: 0,
             resume_packing_count: 0,
@@ -189,6 +213,22 @@ impl LirStageSummary {
         self.object_once_count = object_once_count;
         self.top_level_eager_init_count = top_level_eager_init_count;
         self.cone_init_routine_count = cone_init_routine_count;
+        self
+    }
+
+    pub fn with_layout_counts(
+        mut self,
+        class_count: usize,
+        enum_count: usize,
+        interface_count: usize,
+        class_itable_count: usize,
+        callable_symbol_count: usize,
+    ) -> Self {
+        self.layout_class_count = class_count;
+        self.layout_enum_count = enum_count;
+        self.layout_interface_count = interface_count;
+        self.layout_class_itable_count = class_itable_count;
+        self.layout_callable_symbol_count = callable_symbol_count;
         self
     }
 
@@ -264,6 +304,24 @@ mod tests {
         storage: Option<LirGlobalStoragePolicy>,
         dependencies: Vec<LirGlobalRootDependency>,
     ) -> LirGlobalRootFacts {
+        let initializer_body = match kind {
+            LirGlobalRootKind::TopLevelImmutableVal => Some(initializer_body(
+                fqn,
+                LirInitializerBodyKind::TopLevelImmutableVal,
+                1,
+            )),
+            LirGlobalRootKind::TopLevelMutableVar => Some(initializer_body(
+                fqn,
+                LirInitializerBodyKind::TopLevelMutableVar,
+                1,
+            )),
+            LirGlobalRootKind::ObjectSingleton => Some(initializer_body(
+                fqn,
+                LirInitializerBodyKind::ObjectSingleton,
+                1,
+            )),
+            LirGlobalRootKind::ExternGlobal => None,
+        };
         LirGlobalRootFacts {
             root: global_root_key(fqn),
             kind,
@@ -275,6 +333,22 @@ mod tests {
             dependencies,
             source_path: Some("fixture.scoop".to_string()),
             extern_global: None,
+            initializer_body,
+        }
+    }
+
+    fn initializer_body(
+        fqn: &str,
+        kind: LirInitializerBodyKind,
+        body_item_count: usize,
+    ) -> LirInitializerBodyFacts {
+        LirInitializerBodyFacts {
+            root: global_root_key(fqn),
+            kind,
+            source_path: "fixture.scoop".to_string(),
+            source_span_start: 0,
+            source_span_end: 1,
+            body_item_count,
         }
     }
 

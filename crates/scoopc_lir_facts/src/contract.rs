@@ -111,6 +111,35 @@ impl LirGlobalDependencyKind {
     }
 }
 
+/// Backend-neutral source/body family for a published initializer contract.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum LirInitializerBodyKind {
+    TopLevelImmutableVal,
+    TopLevelMutableVar,
+    ObjectSingleton,
+}
+
+impl LirInitializerBodyKind {
+    pub const fn stable_name(self) -> &'static str {
+        match self {
+            Self::TopLevelImmutableVal => "top_level_immutable_val",
+            Self::TopLevelMutableVar => "top_level_mutable_var",
+            Self::ObjectSingleton => "object_singleton",
+        }
+    }
+}
+
+/// Source/body handoff for a root initializer.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LirInitializerBodyFacts {
+    pub root: LirGlobalRootKey,
+    pub kind: LirInitializerBodyKind,
+    pub source_path: String,
+    pub source_span_start: usize,
+    pub source_span_end: usize,
+    pub body_item_count: usize,
+}
+
 /// Dependency edge from one global/init root to another published root.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LirGlobalRootDependency {
@@ -155,6 +184,7 @@ pub struct LirGlobalRootFacts {
     pub dependencies: Vec<LirGlobalRootDependency>,
     pub source_path: Option<String>,
     pub extern_global: Option<LirExternGlobalFacts>,
+    pub initializer_body: Option<LirInitializerBodyFacts>,
 }
 
 /// Object singleton once-initialization contract.
@@ -206,6 +236,261 @@ impl LirGlobalInitFacts {
             && self.top_level_eager_inits.is_empty()
             && self.cone_init_routines.is_empty()
             && self.final_entry_order.routines.is_empty()
+    }
+}
+
+/// Class field layout facts needed before backend-private physicalization.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LirClassFieldFacts {
+    pub fqn: String,
+    pub name: String,
+    pub mutable: bool,
+    pub ty: TypeId,
+}
+
+/// Class instance layout facts published without carrying the HIR class-init table.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LirClassLayoutFacts {
+    pub fqn: String,
+    pub layout_key: String,
+    pub super_class_fqn: Option<String>,
+    pub fields: Vec<LirClassFieldFacts>,
+}
+
+/// Backend-neutral enum representation family.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum LirEnumReprFacts {
+    TaggedUnion,
+    ValueOnly { underlying_ty_fqn: Option<String> },
+}
+
+impl LirEnumReprFacts {
+    pub const fn stable_name(&self) -> &'static str {
+        match self {
+            Self::TaggedUnion => "tagged_union",
+            Self::ValueOnly { .. } => "value_only",
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LirEnumVariantFieldFacts {
+    pub name: String,
+    pub ty: Option<TypeId>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LirEnumVariantFacts {
+    pub name: String,
+    pub tag: u64,
+    pub fields: Vec<LirEnumVariantFieldFacts>,
+}
+
+/// Enum variant/repr facts published without the HIR enum-layout side table.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LirEnumLayoutFacts {
+    pub fqn: String,
+    pub repr: LirEnumReprFacts,
+    pub variants: Vec<LirEnumVariantFacts>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LirClassVtableSlotFacts {
+    pub slot: u32,
+    pub name: String,
+    pub params_len: u32,
+    pub has_receiver: bool,
+    pub impl_member_fqn: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LirInterfaceMethodSlotFacts {
+    pub slot: u32,
+    pub name: String,
+    pub member_fqn: String,
+    pub params_len: u32,
+    pub has_receiver: bool,
+    pub has_body: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LirInterfaceLayoutFacts {
+    pub fqn: String,
+    pub interface_id: u64,
+    pub super_interfaces: Vec<String>,
+    pub method_slots: Vec<LirInterfaceMethodSlotFacts>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LirClassItableEntryFacts {
+    pub interface_fqn: String,
+    pub interface_id: u64,
+    pub interface_type_name: String,
+    pub interface_type_id: u64,
+    pub runtime_match_type_names: Vec<String>,
+    pub runtime_match_type_ids: Vec<u64>,
+    pub method_impl_fqns: Vec<String>,
+    pub method_receiver_type_ids: Vec<u64>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LirClassItableFacts {
+    pub class_fqn: String,
+    pub entries: Vec<LirClassItableEntryFacts>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LirCallableSymbolKind {
+    ManagedOrdinary,
+    NativeExtern,
+    ManagedExtern,
+    EffectBridge,
+}
+
+impl LirCallableSymbolKind {
+    pub const fn stable_name(self) -> &'static str {
+        match self {
+            Self::ManagedOrdinary => "managed_ordinary",
+            Self::NativeExtern => "native_extern",
+            Self::ManagedExtern => "managed_extern",
+            Self::EffectBridge => "effect_bridge",
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LirNativeCallableSignatureFacts {
+    pub symbol: String,
+    pub calling_convention: String,
+    pub param_tys: Vec<TypeId>,
+    pub return_ty: TypeId,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LirExternCallableSignatureFacts {
+    pub symbol: String,
+    pub abi: String,
+    pub calling_convention: Option<String>,
+    pub lib: Option<String>,
+    pub param_tys: Vec<TypeId>,
+    pub return_ty: TypeId,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LirCallableSymbolFacts {
+    pub callable: StableLirCallableKey,
+    pub root_fqn: String,
+    pub stable_instance_key: String,
+    pub exported_symbol: Option<String>,
+    pub kind: LirCallableSymbolKind,
+    pub abi_kind: LirCallableAbiKind,
+    pub param_tys: Vec<TypeId>,
+    pub return_ty: TypeId,
+    pub native: Option<LirNativeCallableSignatureFacts>,
+    pub extern_: Option<LirExternCallableSignatureFacts>,
+}
+
+/// Physical ABI/layout contracts that LLVM may map to backend-private LLVM types.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct LirPhysicalLayoutFacts {
+    pub classes: std::collections::BTreeMap<String, LirClassLayoutFacts>,
+    pub enums: std::collections::BTreeMap<String, LirEnumLayoutFacts>,
+    pub class_vtables: std::collections::BTreeMap<String, Vec<LirClassVtableSlotFacts>>,
+    pub interfaces: std::collections::BTreeMap<String, LirInterfaceLayoutFacts>,
+    pub class_itables: std::collections::BTreeMap<String, LirClassItableFacts>,
+    pub callable_symbols: std::collections::BTreeMap<StableLirCallableKey, LirCallableSymbolFacts>,
+}
+
+impl LirPhysicalLayoutFacts {
+    pub fn is_empty(&self) -> bool {
+        self.classes.is_empty()
+            && self.enums.is_empty()
+            && self.class_vtables.is_empty()
+            && self.interfaces.is_empty()
+            && self.class_itables.is_empty()
+            && self.callable_symbols.is_empty()
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LirTypeContextOwner {
+    LirStageBaseContext,
+}
+
+impl LirTypeContextOwner {
+    pub const fn stable_name(self) -> &'static str {
+        match self {
+            Self::LirStageBaseContext => "lir_stage_base_context",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LirTypeContextBridgeMode {
+    Identical,
+    ExplicitDisplayNameRemap,
+}
+
+impl LirTypeContextBridgeMode {
+    pub const fn stable_name(self) -> &'static str {
+        match self {
+            Self::Identical => "identical",
+            Self::ExplicitDisplayNameRemap => "explicit_display_name_remap",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LirTypeStableWireFormatDecision {
+    Implemented,
+    Deferred,
+}
+
+impl LirTypeStableWireFormatDecision {
+    pub const fn stable_name(self) -> &'static str {
+        match self {
+            Self::Implemented => "implemented",
+            Self::Deferred => "deferred",
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LirTypeStableWireFormatFacts {
+    pub decision: LirTypeStableWireFormatDecision,
+    pub owner: String,
+    pub reason: String,
+    pub non_blocking_reason: String,
+}
+
+/// Type context bridge facts for LIR/backend consumers.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LirTypeContextFacts {
+    pub owner: LirTypeContextOwner,
+    pub primary_fingerprint: String,
+    pub materialized_fingerprint: String,
+    pub effect_facts_fingerprint: String,
+    pub bridge_mode: LirTypeContextBridgeMode,
+    pub remapped_type_count: usize,
+    pub stable_wire_format: LirTypeStableWireFormatFacts,
+}
+
+impl Default for LirTypeContextFacts {
+    fn default() -> Self {
+        Self {
+            owner: LirTypeContextOwner::LirStageBaseContext,
+            primary_fingerprint: String::new(),
+            materialized_fingerprint: String::new(),
+            effect_facts_fingerprint: String::new(),
+            bridge_mode: LirTypeContextBridgeMode::Identical,
+            remapped_type_count: 0,
+            stable_wire_format: LirTypeStableWireFormatFacts {
+                decision: LirTypeStableWireFormatDecision::Deferred,
+                owner: String::new(),
+                reason: String::new(),
+                non_blocking_reason: String::new(),
+            },
+        }
     }
 }
 

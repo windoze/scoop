@@ -4,7 +4,7 @@
 > 细化时间：2026-05-22
 > 计划基线：[`PLAN.md`](./PLAN.md) §4/P6-P8
 > 索引：[`TODO.md`](./TODO.md)
-> 当前状态：`P7-T03R` 已完成；下一步执行 `P7-T04-a`。
+> 当前状态：`P7-T04-a` 已完成；下一步执行 `P7-T04`。
 
 ## 范围
 
@@ -541,7 +541,7 @@
   - LIR facts 复审：`scoopc_lir_facts` 的 callable/body-slice/call-site/dynamic/dispatch/resume contract 使用 stable LIR keys、source-slice keys、ABI facts 和 control-body facts表达 backend-neutral 查询面，没有把 HIR body 或 raw MIR body 复制成新的 facts 结构。
   - 验证通过：`cargo fmt`；`cargo test -p scoopc --no-default-features llvm::codegen::effect_lowered`；`cargo run -p scoop -- test --fixtures tests/fixtures/effect_lowered`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`（421/421 passed）；`cargo clippy --all-targets -- -D warnings`；`git diff --check`；额外搜索 `llvm/codegen` 中的 `hir::Expr|hir::Stmt|mir::Body|MaterializedMirPassView|llvm_residual_pass_view`。
 
-## [TODO] P7-T04-a：发布 LLVM backend 收口所需的 LIR/base context 合同
+## [DONE] P7-T04-a：发布 LLVM backend 收口所需的 LIR/base context 合同
 
 - 目标：
   - 补齐 `P7-T04` 收窄 LLVM backend 输入边界所需的前置合同；
@@ -576,7 +576,12 @@
   - TypeStore bridge 的唯一 owner、verifier 与 stable wire-format 处置已经明确。
 - 依赖：P7-T03R
 - 完成记录：
-  - 待填写。
+  - `scoopc_lir_facts` 新增 initializer source/body contract、physical layout facts、callable symbol/native/extern signature facts 与 TypeStore bridge/wire-format facts；verifier 现在检查 initializer body/root drift、layout/count drift、callable symbol签名漂移、TypeStore bridge 一致性和 wire-format owner。
+  - `lir_facts_builder` 从 materialized MIR 的 data-only backend contracts 构造 LIR-owned init/layout/callable/type-context facts；top-level `val`、top-level `var`、object singleton roots 均发布 initializer source contract，physical layout 覆盖 class fields、enum repr/variants、vtable/itable/interface slots 和 callable symbols。
+  - `MaterializedMir` 现在捕获 P7-T04-a 所需的 backend contract base context，后续 `P7-T04` 可从 `LIR + lir_facts + base/type context` 收窄 stage handoff，而无需新增 HIR/raw MIR/effect facts 回看。
+  - TypeStore bridge 记录单一 owner 为 LIR stage base context；materialized/effect facts TypeStore 指纹一致时标记 `Identical`，否则要求显式 display-name remap。cross-process stable wire format 本轮显式推迟到 P8/per-cone build artifact serialization，因为 P7-T04 仍只消费同进程 `TypeStore` owner，不落盘持久化 `TypeId`。
+  - stable dump 已展示 `physical_layout` 与 `type_context` sections；effect_lowered golden 已同步更新。
+  - 验证通过：`cargo fmt`；`cargo test -p scoopc_lir_facts`；`cargo test -p scoopc --no-default-features lir_facts_builder`；`cargo test -p scoopc --no-default-features llvm::codegen::effect_lowered::layout`；`cargo run -p scoop -- test --fixtures tests/fixtures/effect_lowered`；`cargo test -p scoopc llvm::codegen::effect_lowered::layout`；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
 
 ## [TODO] P7-T04：收窄 LLVM stage handoff、physical ABI layout 与 TypeStore bridge
 

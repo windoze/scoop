@@ -6,7 +6,7 @@ use std::fmt;
 
 use crate::{
     LirCallableContract, LirConeInitRoutineKey, LirControlBodyFacts, LirFacts, LirGlobalRootKey,
-    LirGlobalRootKind,
+    LirGlobalRootKind, LirInitializerBodyKind, LirTypeContextBridgeMode,
 };
 
 /// Result type returned by LIR fact verification.
@@ -51,6 +51,26 @@ pub enum VerifyError {
         expected: usize,
         actual: usize,
     },
+    LayoutClassCountMismatch {
+        expected: usize,
+        actual: usize,
+    },
+    LayoutEnumCountMismatch {
+        expected: usize,
+        actual: usize,
+    },
+    LayoutInterfaceCountMismatch {
+        expected: usize,
+        actual: usize,
+    },
+    LayoutClassItableCountMismatch {
+        expected: usize,
+        actual: usize,
+    },
+    LayoutCallableSymbolCountMismatch {
+        expected: usize,
+        actual: usize,
+    },
     OptRevisionMismatch {
         summary: u64,
         pipeline: u64,
@@ -91,6 +111,25 @@ pub enum VerifyError {
         root: String,
     },
     ExternGlobalInitializerPresent {
+        root: String,
+    },
+    MissingInitializerBodyContract {
+        root: String,
+    },
+    UnexpectedInitializerBodyContract {
+        root: String,
+        kind: &'static str,
+    },
+    MismatchedInitializerBodyRoot {
+        key: String,
+        body_root: String,
+    },
+    MismatchedInitializerBodyKind {
+        root: String,
+        expected: &'static str,
+        actual: &'static str,
+    },
+    EmptyInitializerBodySource {
         root: String,
     },
     MissingGlobalContractRoot {
@@ -150,6 +189,26 @@ pub enum VerifyError {
     EmptyStableInstanceKey {
         key: String,
     },
+    EmptyLayoutClass {
+        key: String,
+    },
+    EmptyLayoutEnum {
+        key: String,
+    },
+    EmptyCallableSymbolRoot {
+        key: String,
+    },
+    MismatchedCallableSymbolKey {
+        key: String,
+        callable: String,
+    },
+    MismatchedCallableSymbolSignature {
+        key: String,
+    },
+    InvalidTypeContextBridge {
+        mode: &'static str,
+    },
+    MissingStableWireFormatOwner,
     MismatchedCallableParamTypes {
         callable: String,
     },
@@ -233,6 +292,26 @@ impl fmt::Display for VerifyError {
                 f,
                 "LIR summary reports {expected} cone init routines but facts contain {actual}"
             ),
+            Self::LayoutClassCountMismatch { expected, actual } => write!(
+                f,
+                "LIR summary reports {expected} layout classes but facts contain {actual}"
+            ),
+            Self::LayoutEnumCountMismatch { expected, actual } => write!(
+                f,
+                "LIR summary reports {expected} layout enums but facts contain {actual}"
+            ),
+            Self::LayoutInterfaceCountMismatch { expected, actual } => write!(
+                f,
+                "LIR summary reports {expected} layout interfaces but facts contain {actual}"
+            ),
+            Self::LayoutClassItableCountMismatch { expected, actual } => write!(
+                f,
+                "LIR summary reports {expected} class itables but facts contain {actual}"
+            ),
+            Self::LayoutCallableSymbolCountMismatch { expected, actual } => write!(
+                f,
+                "LIR summary reports {expected} callable symbols but facts contain {actual}"
+            ),
             Self::OptRevisionMismatch { summary, pipeline } => write!(
                 f,
                 "LIR summary opt revision {summary} does not match pipeline revision {pipeline}"
@@ -282,6 +361,30 @@ impl fmt::Display for VerifyError {
             Self::ExternGlobalInitializerPresent { root } => write!(
                 f,
                 "LIR extern global `{root}` must not publish an initializer"
+            ),
+            Self::MissingInitializerBodyContract { root } => write!(
+                f,
+                "LIR global root `{root}` has an initializer but no initializer body contract"
+            ),
+            Self::UnexpectedInitializerBodyContract { root, kind } => write!(
+                f,
+                "LIR global root `{root}` of kind `{kind}` must not carry an initializer body contract"
+            ),
+            Self::MismatchedInitializerBodyRoot { key, body_root } => write!(
+                f,
+                "LIR initializer body map root `{body_root}` does not match global root `{key}`"
+            ),
+            Self::MismatchedInitializerBodyKind {
+                root,
+                expected,
+                actual,
+            } => write!(
+                f,
+                "LIR initializer body for `{root}` has kind `{actual}` but root requires `{expected}`"
+            ),
+            Self::EmptyInitializerBodySource { root } => write!(
+                f,
+                "LIR initializer body for `{root}` has an empty source path"
             ),
             Self::MissingGlobalContractRoot { root, contract } => write!(
                 f,
@@ -345,6 +448,31 @@ impl fmt::Display for VerifyError {
             Self::EmptyStableInstanceKey { key } => {
                 write!(f, "LIR callable `{key}` has an empty stable instance key")
             }
+            Self::EmptyLayoutClass { key } => {
+                write!(f, "LIR class layout `{key}` has an empty identity")
+            }
+            Self::EmptyLayoutEnum { key } => {
+                write!(f, "LIR enum layout `{key}` has an empty identity")
+            }
+            Self::EmptyCallableSymbolRoot { key } => {
+                write!(f, "LIR callable symbol `{key}` has an empty root FQN")
+            }
+            Self::MismatchedCallableSymbolKey { key, callable } => write!(
+                f,
+                "LIR callable symbol map key `{key}` does not match embedded callable `{callable}`"
+            ),
+            Self::MismatchedCallableSymbolSignature { key } => write!(
+                f,
+                "LIR callable symbol `{key}` signature drifts from callable inventory"
+            ),
+            Self::InvalidTypeContextBridge { mode } => write!(
+                f,
+                "LIR type context bridge mode `{mode}` is inconsistent with published fingerprints"
+            ),
+            Self::MissingStableWireFormatOwner => write!(
+                f,
+                "LIR type context stable wire-format decision is missing an owner"
+            ),
             Self::MismatchedCallableParamTypes { callable } => write!(
                 f,
                 "LIR callable `{callable}` source parameter types drift from ABI contract"
@@ -419,6 +547,8 @@ pub fn verify_lir_facts(facts: &LirFacts) -> Result<()> {
     verify_opt_pipeline_binding(facts)?;
     verify_summary_counts(facts)?;
     verify_global_init_contracts(facts)?;
+    verify_physical_layout_contracts(facts)?;
+    verify_type_context_contract(facts)?;
     verify_callable_inventory(facts)?;
     verify_dynamic_invoke_contracts(facts)?;
     verify_dispatch_contracts(facts)?;
@@ -460,6 +590,36 @@ fn verify_summary_counts(facts: &LirFacts) -> Result<()> {
         return Err(VerifyError::ConeInitRoutineCountMismatch {
             expected: facts.summary.cone_init_routine_count,
             actual: facts.global_init.cone_init_routines.len(),
+        });
+    }
+    if facts.summary.layout_class_count != facts.physical_layout.classes.len() {
+        return Err(VerifyError::LayoutClassCountMismatch {
+            expected: facts.summary.layout_class_count,
+            actual: facts.physical_layout.classes.len(),
+        });
+    }
+    if facts.summary.layout_enum_count != facts.physical_layout.enums.len() {
+        return Err(VerifyError::LayoutEnumCountMismatch {
+            expected: facts.summary.layout_enum_count,
+            actual: facts.physical_layout.enums.len(),
+        });
+    }
+    if facts.summary.layout_interface_count != facts.physical_layout.interfaces.len() {
+        return Err(VerifyError::LayoutInterfaceCountMismatch {
+            expected: facts.summary.layout_interface_count,
+            actual: facts.physical_layout.interfaces.len(),
+        });
+    }
+    if facts.summary.layout_class_itable_count != facts.physical_layout.class_itables.len() {
+        return Err(VerifyError::LayoutClassItableCountMismatch {
+            expected: facts.summary.layout_class_itable_count,
+            actual: facts.physical_layout.class_itables.len(),
+        });
+    }
+    if facts.summary.layout_callable_symbol_count != facts.physical_layout.callable_symbols.len() {
+        return Err(VerifyError::LayoutCallableSymbolCountMismatch {
+            expected: facts.summary.layout_callable_symbol_count,
+            actual: facts.physical_layout.callable_symbols.len(),
         });
     }
     if facts.summary.callable_count != facts.callables.len() {
@@ -529,6 +689,7 @@ fn verify_global_init_contracts(facts: &LirFacts) -> Result<()> {
                 root: key.as_str().to_string(),
             });
         }
+        verify_initializer_body_contract(key, root)?;
         match (root.kind, &root.extern_global) {
             (LirGlobalRootKind::ExternGlobal, Some(extern_global)) => {
                 if !extern_global.initializer_absent {
@@ -783,6 +944,124 @@ fn verify_cone_init_dependency_order(
         }
     }
 
+    Ok(())
+}
+
+fn verify_initializer_body_contract(
+    key: &LirGlobalRootKey,
+    root: &crate::LirGlobalRootFacts,
+) -> Result<()> {
+    let expected = match root.kind {
+        LirGlobalRootKind::TopLevelImmutableVal => {
+            Some(LirInitializerBodyKind::TopLevelImmutableVal)
+        }
+        LirGlobalRootKind::TopLevelMutableVar => Some(LirInitializerBodyKind::TopLevelMutableVar),
+        LirGlobalRootKind::ObjectSingleton => Some(LirInitializerBodyKind::ObjectSingleton),
+        LirGlobalRootKind::ExternGlobal => None,
+    };
+    let Some(body) = &root.initializer_body else {
+        if root.has_initializer && expected.is_some() {
+            return Err(VerifyError::MissingInitializerBodyContract {
+                root: key.as_str().to_string(),
+            });
+        }
+        return Ok(());
+    };
+    let Some(expected) = expected else {
+        return Err(VerifyError::UnexpectedInitializerBodyContract {
+            root: key.as_str().to_string(),
+            kind: root.kind.stable_name(),
+        });
+    };
+    if body.root != *key {
+        return Err(VerifyError::MismatchedInitializerBodyRoot {
+            key: key.as_str().to_string(),
+            body_root: body.root.as_str().to_string(),
+        });
+    }
+    if body.kind != expected {
+        return Err(VerifyError::MismatchedInitializerBodyKind {
+            root: key.as_str().to_string(),
+            expected: expected.stable_name(),
+            actual: body.kind.stable_name(),
+        });
+    }
+    if body.source_path.is_empty() {
+        return Err(VerifyError::EmptyInitializerBodySource {
+            root: key.as_str().to_string(),
+        });
+    }
+    Ok(())
+}
+
+fn verify_physical_layout_contracts(facts: &LirFacts) -> Result<()> {
+    for (key, class) in &facts.physical_layout.classes {
+        if key.is_empty() || class.fqn.is_empty() || class.layout_key.is_empty() {
+            return Err(VerifyError::EmptyLayoutClass { key: key.clone() });
+        }
+    }
+    for (key, enum_layout) in &facts.physical_layout.enums {
+        if key.is_empty() || enum_layout.fqn.is_empty() {
+            return Err(VerifyError::EmptyLayoutEnum { key: key.clone() });
+        }
+    }
+    for (key, symbol) in &facts.physical_layout.callable_symbols {
+        if key != &symbol.callable {
+            return Err(VerifyError::MismatchedCallableSymbolKey {
+                key: key.as_str().to_string(),
+                callable: symbol.callable.as_str().to_string(),
+            });
+        }
+        if symbol.root_fqn.is_empty() {
+            return Err(VerifyError::EmptyCallableSymbolRoot {
+                key: key.as_str().to_string(),
+            });
+        }
+        if let Some(callable) = facts.callables.get(key)
+            && (callable.root_fqn != symbol.root_fqn
+                || callable.param_tys != symbol.param_tys
+                || callable.return_ty != symbol.return_ty
+                || callable_symbol_abi_kind(callable.kind()) != symbol.abi_kind)
+        {
+            return Err(VerifyError::MismatchedCallableSymbolSignature {
+                key: key.as_str().to_string(),
+            });
+        }
+    }
+    Ok(())
+}
+
+fn callable_symbol_abi_kind(kind: crate::LirCallableKind) -> crate::LirCallableAbiKind {
+    match kind {
+        crate::LirCallableKind::Plain => crate::LirCallableAbiKind::Plain,
+        crate::LirCallableKind::EffectStep => crate::LirCallableAbiKind::EffectStep,
+    }
+}
+
+fn verify_type_context_contract(facts: &LirFacts) -> Result<()> {
+    let ctx = &facts.type_context;
+    if ctx.primary_fingerprint.is_empty()
+        && ctx.materialized_fingerprint.is_empty()
+        && ctx.effect_facts_fingerprint.is_empty()
+    {
+        return Ok(());
+    }
+    let fingerprints_match = ctx.materialized_fingerprint == ctx.effect_facts_fingerprint;
+    match ctx.bridge_mode {
+        LirTypeContextBridgeMode::Identical if !fingerprints_match => {
+            return Err(VerifyError::InvalidTypeContextBridge { mode: "identical" });
+        }
+        LirTypeContextBridgeMode::ExplicitDisplayNameRemap if fingerprints_match => {
+            return Err(VerifyError::InvalidTypeContextBridge {
+                mode: "explicit_display_name_remap",
+            });
+        }
+        LirTypeContextBridgeMode::Identical
+        | LirTypeContextBridgeMode::ExplicitDisplayNameRemap => {}
+    }
+    if ctx.stable_wire_format.owner.is_empty() {
+        return Err(VerifyError::MissingStableWireFormatOwner);
+    }
     Ok(())
 }
 

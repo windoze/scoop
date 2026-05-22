@@ -60,6 +60,9 @@ pub(super) struct MaterializerConstructionInputs<'a> {
     pub(super) class_vtables: crate::vtable::ClassVtableIndex,
     pub(super) interfaces: crate::itable::InterfaceIndex,
     pub(super) class_itables: crate::itable::ClassItableIndex,
+    pub(super) enum_layouts: crate::hir::EnumLayoutIndex,
+    pub(super) extern_funs: crate::hir::ExternFunIndex,
+    pub(super) native_callable_funs: crate::hir::NativeCallableFunIndex,
     pub(super) top_level_fun_value_refs: HashMap<SourceSiteKey, ast::TopLevelFunValueRef>,
     pub(super) top_level_fun_call_bindings: HashMap<SourceSiteKey, ast::TopLevelFunCallBinding>,
     pub(super) lowered_top_level_fun_call_bindings:

@@ -365,6 +365,9 @@ fn generic_materializer_for_body_with_template(
             class_vtables: HashMap::new(),
             interfaces: HashMap::new(),
             class_itables: HashMap::new(),
+            enum_layouts: HashMap::new(),
+            extern_funs: HashMap::new(),
+            native_callable_funs: HashMap::new(),
             top_level_fun_value_refs: HashMap::new(),
             top_level_fun_call_bindings: HashMap::new(),
             lowered_top_level_fun_call_bindings: HashMap::new(),
@@ -411,6 +414,7 @@ fn materialized_for_test(file: File, types: TypeStore) -> MaterializedMir {
         types,
         instance_keys,
         summaries,
+        backend_contracts: MaterializedBackendContracts::default(),
         top_level_value_tys: HashMap::new(),
         stable_cone_key: StableConeKey::new("tests", "0.0.0"),
         stable_instance_keys: HashMap::new(),
@@ -2036,6 +2040,9 @@ fn materialized_mir_mir_materialize_generics_missing_root_reports_template_span(
             class_vtables: HashMap::new(),
             interfaces: HashMap::new(),
             class_itables: HashMap::new(),
+            enum_layouts: HashMap::new(),
+            extern_funs: HashMap::new(),
+            native_callable_funs: HashMap::new(),
             top_level_fun_value_refs: HashMap::new(),
             top_level_fun_call_bindings: HashMap::new(),
             lowered_top_level_fun_call_bindings: HashMap::new(),
@@ -2118,6 +2125,9 @@ fn mir_materialize_generics_missing_template_reports_call_site() {
             class_vtables: HashMap::new(),
             interfaces: HashMap::new(),
             class_itables: HashMap::new(),
+            enum_layouts: HashMap::new(),
+            extern_funs: HashMap::new(),
+            native_callable_funs: HashMap::new(),
             top_level_fun_value_refs: HashMap::new(),
             top_level_fun_call_bindings: HashMap::from([(
                 (test_source_path(), call_site),
@@ -2835,6 +2845,9 @@ return 0
     let top_level_immutable_values = lowered_hir.top_level_immutable_values.clone();
     let object_inits = lowered_hir.object_inits.clone();
     let class_inits = lowered_hir.class_inits.clone();
+    let enum_layouts = lowered_hir.enum_layouts.clone();
+    let extern_funs = lowered_hir.extern_funs.clone();
+    let native_callable_funs = lowered_hir.native_callable_funs.clone();
     let lowered_top_level_fun_call_bindings =
         collect_lowered_top_level_fun_call_bindings(&lowered_hir);
     let ctor_call_sites = lowered_hir.ctor_call_sites.clone();
@@ -2856,6 +2869,9 @@ return 0
             class_vtables,
             interfaces,
             class_itables,
+            enum_layouts,
+            extern_funs,
+            native_callable_funs,
             top_level_fun_value_refs,
             top_level_fun_call_bindings,
             lowered_top_level_fun_call_bindings,
@@ -3820,6 +3836,9 @@ println(holder.node.tag.score)
     let top_level_immutable_values = lowered_hir.top_level_immutable_values.clone();
     let object_inits = lowered_hir.object_inits.clone();
     let class_inits = lowered_hir.class_inits.clone();
+    let enum_layouts = lowered_hir.enum_layouts.clone();
+    let extern_funs = lowered_hir.extern_funs.clone();
+    let native_callable_funs = lowered_hir.native_callable_funs.clone();
     let lowered_top_level_fun_call_bindings =
         collect_lowered_top_level_fun_call_bindings(&lowered_hir);
     let ctor_call_sites = lowered_hir.ctor_call_sites.clone();
@@ -3840,6 +3859,9 @@ println(holder.node.tag.score)
             class_vtables,
             interfaces,
             class_itables,
+            enum_layouts,
+            extern_funs,
+            native_callable_funs,
             top_level_fun_value_refs,
             top_level_fun_call_bindings,
             lowered_top_level_fun_call_bindings,
@@ -4268,6 +4290,9 @@ return read(ints) + read(texts)
     let top_level_immutable_values = lowered_hir.top_level_immutable_values.clone();
     let object_inits = lowered_hir.object_inits.clone();
     let class_inits = lowered_hir.class_inits.clone();
+    let enum_layouts = lowered_hir.enum_layouts.clone();
+    let extern_funs = lowered_hir.extern_funs.clone();
+    let native_callable_funs = lowered_hir.native_callable_funs.clone();
     let lowered_top_level_fun_call_bindings =
         collect_lowered_top_level_fun_call_bindings(&lowered_hir);
     let ctor_call_sites = lowered_hir.ctor_call_sites.clone();
@@ -4288,6 +4313,9 @@ return read(ints) + read(texts)
             class_vtables,
             interfaces,
             class_itables,
+            enum_layouts,
+            extern_funs,
+            native_callable_funs,
             top_level_fun_value_refs,
             top_level_fun_call_bindings,
             lowered_top_level_fun_call_bindings,

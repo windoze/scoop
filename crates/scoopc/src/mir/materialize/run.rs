@@ -239,6 +239,18 @@ impl MirInstanceMaterializer {
         );
         let top_level_value_tys = self.collect_top_level_value_tys();
         let canonical_targets_by_fqn = self.collect_canonical_dispatch_targets_by_fqn();
+        let backend_contracts = MaterializedBackendContracts {
+            enum_layouts: self.enum_layouts.clone(),
+            class_inits: self.class_inits.clone(),
+            class_vtables: self.class_vtables.clone(),
+            interfaces: self.interfaces.clone(),
+            class_itables: self.class_itables.clone(),
+            extern_funs: self.extern_funs.clone(),
+            native_callable_funs: self.native_callable_funs.clone(),
+            top_level_vars: self.top_level_vars.clone(),
+            top_level_immutable_values: self.top_level_immutable_values.clone(),
+            object_inits: self.object_inits.clone(),
+        };
         let dispatch_devirtualization_facts = DispatchDevirtualizationFacts::new(
             self.known_receiver_subclasses,
             self.class_vtables,
@@ -253,6 +265,7 @@ impl MirInstanceMaterializer {
             types: self.types,
             instance_keys,
             summaries,
+            backend_contracts,
             top_level_value_tys,
             stable_cone_key: self.stable_cone_key,
             stable_instance_keys,

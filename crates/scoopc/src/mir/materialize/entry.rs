@@ -109,6 +109,9 @@ pub(crate) fn materialize_compilation_unit_from_typechecked_inputs(
     let class_vtables = lowered_hir.class_vtables.clone();
     let interfaces = lowered_hir.interfaces.clone();
     let class_itables = lowered_hir.class_itables.clone();
+    let enum_layouts = lowered_hir.enum_layouts.clone();
+    let extern_funs = lowered_hir.extern_funs.clone();
+    let native_callable_funs = lowered_hir.native_callable_funs.clone();
     let builtins = lowered_hir.types.intern_builtins();
     let default_contract_source_path = request_source_paths
         .first()
@@ -153,6 +156,9 @@ pub(crate) fn materialize_compilation_unit_from_typechecked_inputs(
                 class_vtables,
                 interfaces,
                 class_itables,
+                enum_layouts,
+                extern_funs,
+                native_callable_funs,
                 top_level_fun_value_refs,
                 top_level_fun_call_bindings,
                 lowered_top_level_fun_call_bindings,
