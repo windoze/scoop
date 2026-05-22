@@ -626,7 +626,7 @@ P5 需要把这条隐式 opt helper 提升为正式 LIR optimization family：�
   - 验证命令：`cargo check -p scoopc --features llvm`；`cargo test -p scoopc --features llvm effect_lowered`；`cargo test -p scoopc --features llvm llvm::tests::late_lower`；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
   - 验证残余：`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass` 仍失败 7/415；已确认剩余失败集中在既有 run-pass frontend/runtime residual（例如 array/string fixture 的 unresolved generic `scoop.core.println` materialization、`scoop.runtime.test.*` import fixture、process/atomic/string runtime cases），不属于本任务切换的 P5-owned ABI/query contract。TODO-6/P7 仍需清理 HIR scaffold、global init / runtime residual、LLVM physical layout 和 backend-specific reachability。
 
-## [TODO] P5-T03R：Review codegen-neutral query 切换结果
+## [DONE] P5-T03R：Review codegen-neutral query 切换结果
 
 - 参考：P5-T03。
 - 重点：
@@ -645,7 +645,11 @@ P5 需要把这条隐式 opt helper 提升为正式 LIR optimization family：�
   - review 结论明确写出：P5 codegen-neutral query 已切到 `LIR + lir_facts`，或列出阻塞项并在本 review 内修复。
 - 依赖：P5-T03
 - 完成记录：
-  - 待填写。
+  - Review 结论：P5 codegen-neutral query 已切到 `LIR + lir_facts`；`ProgramAbiMaterializer` 的显式输入保持为 `LateLoweredProgram + LirFacts + TypeStore`，dynamic invoke、dispatch slot、plain callable ABI/source slice、continuation/resume publication 等 P5-owned contract 不再通过 `LirStageOutput` 回读 P3/P4 wrapper。
+  - Review 修复：复查发现 `layout/carrier.rs` 的 callable-carrier ABI 仍通过 codegen pass view / HIR `fun_index` 查询 closure/dispatch carrier 签名和 plain fallback 分类；本 review 将 effect-step callable 参数类型与 closure-carrier 参数类型发布到 `LirEffectStepCallableFacts`，并让 carrier ABI layout 从 LIR facts 读取这些签名，同时删除 carrier layout 中的 `materialized_pass_view()` / HIR signature fallback。
+  - accessor 复查：`LirStageOutput` / legacy `EffectLoweredStageOutput` 没有公开 `materialized_pass_view()`、`effect_facts()`、`mir_facts()`、`effect_facts_stage_output()` 等旧上游转发 accessor；仅保留 `lir()`、`lir_facts()`、`program()`、`types()` 与 crate-private `llvm_residual_pass_view()`，后者仅作为 TODO-6/P7 LLVM body/reachability residual。
+  - residual 隔离：LLVM body emission、reachability、physical vtable/itable inventory、多 TypeStore 桥接、HIR scaffold、global init/runtime residual 仍明确属于 TODO-6/P7；本 review 未把这些 backend physical residual 伪装为 P5-owned ABI/query contract。
+  - 验证命令：`cargo fmt`；`cargo check -p scoopc --features llvm`；`cargo test -p scoopc_lir_facts`；`cargo test -p scoopc --features llvm effect_lowered`；`cargo test -p scoopc --features llvm llvm::tests::late_lower`；`cargo run -p scoop -- test --fixtures tests/fixtures/effect_lowered`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`（仍失败 7/415，失败集合与 P5-T03 记录一致，属于既有 TODO-6/P7/frontend-runtime residual）；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
 
 ## [TODO] P5-T04：建立正式 LIR optimization family 与 pass pipeline
 

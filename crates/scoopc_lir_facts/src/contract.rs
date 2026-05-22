@@ -168,6 +168,8 @@ pub struct LirCallableDynamicInvokeEntryFacts {
 /// Effect-step callable ABI and control-body contract.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LirEffectStepCallableFacts {
+    pub param_tys: Vec<TypeId>,
+    pub closure_carrier_arg_tys: Vec<TypeId>,
     pub step_schema: LirStepSchemaKey,
     pub dynamic_invoke_entry: LirCallableDynamicInvokeEntryFacts,
     pub control_body: LirControlBodyFacts,

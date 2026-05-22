@@ -97,7 +97,7 @@
 | P5-T02 | [DONE] | [`TODO-5.md`](./TODO-5.md#done-p5-t02发布-lir-callabledynamic-invokedispatch-与-resume-contracts) | 发布 LIR callable、dynamic invoke、dispatch 与 resume contracts |
 | P5-T02R | [DONE] | [`TODO-5.md`](./TODO-5.md#done-p5-t02rreview-lir-contract-与-facts-完整度) | Review LIR contract 与 facts 完整度 |
 | P5-T03 | [DONE] | [`TODO-5.md`](./TODO-5.md#done-p5-t03切换-codegen-neutral-abiquery-surface-到-lir--lir_facts) | 切换 codegen-neutral ABI/query surface 到 `LIR + lir_facts` |
-| P5-T03R | [TODO] | [`TODO-5.md`](./TODO-5.md#todo-p5-t03rreview-codegen-neutral-query-切换结果) | Review codegen-neutral query 切换结果 |
+| P5-T03R | [DONE] | [`TODO-5.md`](./TODO-5.md#done-p5-t03rreview-codegen-neutral-query-切换结果) | Review codegen-neutral query 切换结果 |
 | P5-T04 | [TODO] | [`TODO-5.md`](./TODO-5.md#todo-p5-t04建立正式-lir-optimization-family-与-pass-pipeline) | 建立正式 LIR optimization family 与 pass pipeline |
 | P5-T04R | [TODO] | [`TODO-5.md`](./TODO-5.md#todo-p5-t04rreview-lir-optimization-family) | Review LIR optimization family |
 | P5-T05 | [TODO] | [`TODO-5.md`](./TODO-5.md#todo-p5-t05p5-全包清场文档同步与依赖审计) | P5 全包清场、文档同步与依赖审计 |

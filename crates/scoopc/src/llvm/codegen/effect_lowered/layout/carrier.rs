@@ -35,6 +35,8 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             .collect::<BTreeSet<_>>();
         let closure_targets = published_callable_roots.clone();
         let plain_closure_targets = plain_callable_roots.clone();
+        // TODO-6/P7 owns the remaining physical vtable/itable inventory source;
+        // P5-owned target classification and signatures come from LIR data only.
         let class_vtable_targets = self
             .codegen
             .class_vtables
@@ -42,27 +44,13 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             .flat_map(|slots| slots.iter().map(|slot| slot.impl_member_fqn.as_str()))
             .filter(|impl_fqn| published_callable_roots.contains(impl_fqn))
             .collect::<BTreeSet<_>>();
-        let plain_class_vtable_targets =
-            self.codegen
-                .class_vtables
-                .values()
-                .flat_map(|slots| slots.iter().map(|slot| slot.impl_member_fqn.as_str()))
-                .filter(|impl_fqn| {
-                    plain_callable_roots.contains(impl_fqn)
-                        || self
-                            .codegen
-                            .materialized_pass_view()
-                            .is_none_or(|pass_view| pass_view.callable(impl_fqn).is_none())
-                            && self.codegen.hir_fun_for_callable_fqn(impl_fqn).is_some_and(
-                                |sig_fun| {
-                                    sig_fun.body.is_some()
-                                        && !self
-                                            .codegen
-                                            .known_fun_body_may_outward_effect(impl_fqn, sig_fun.ty)
-                                },
-                            )
-                })
-                .collect::<BTreeSet<_>>();
+        let plain_class_vtable_targets = self
+            .codegen
+            .class_vtables
+            .values()
+            .flat_map(|slots| slots.iter().map(|slot| slot.impl_member_fqn.as_str()))
+            .filter(|impl_fqn| plain_callable_roots.contains(impl_fqn))
+            .collect::<BTreeSet<_>>();
         let mut interface_itable_targets = self
             .codegen
             .class_itables
@@ -78,35 +66,21 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             .filter(|impl_fqn| published_callable_roots.contains(impl_fqn.as_str()))
             .cloned()
             .collect::<BTreeSet<String>>();
-        let mut plain_interface_itable_targets =
-            self.codegen
-                .class_itables
-                .values()
-                .flat_map(|entries| {
-                    entries.iter().flat_map(|entry| {
-                        entry
-                            .method_impl_fqns
-                            .iter()
-                            .filter(|impl_fqn| !impl_fqn.is_empty())
-                    })
+        let mut plain_interface_itable_targets = self
+            .codegen
+            .class_itables
+            .values()
+            .flat_map(|entries| {
+                entries.iter().flat_map(|entry| {
+                    entry
+                        .method_impl_fqns
+                        .iter()
+                        .filter(|impl_fqn| !impl_fqn.is_empty())
                 })
-                .filter(|impl_fqn| {
-                    plain_callable_roots.contains(impl_fqn.as_str())
-                        || self
-                            .codegen
-                            .materialized_pass_view()
-                            .is_none_or(|pass_view| pass_view.callable(impl_fqn.as_str()).is_none())
-                            && self.codegen.hir_fun_for_callable_fqn(impl_fqn).is_some_and(
-                                |sig_fun| {
-                                    sig_fun.body.is_some()
-                                        && !self
-                                            .codegen
-                                            .known_fun_body_may_outward_effect(impl_fqn, sig_fun.ty)
-                                },
-                            )
-                })
-                .cloned()
-                .collect::<BTreeSet<String>>();
+            })
+            .filter(|impl_fqn| plain_callable_roots.contains(impl_fqn.as_str()))
+            .cloned()
+            .collect::<BTreeSet<String>>();
 
         for source_ty in self.codegen.types.iter_ids() {
             for entry in self.codegen.mir_value_box_itable_entries(source_ty)? {
@@ -118,21 +92,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                     if published_callable_roots.contains(impl_fqn.as_str()) {
                         interface_itable_targets.insert(impl_fqn.clone());
                     }
-                    if plain_callable_roots.contains(impl_fqn.as_str())
-                        || self
-                            .codegen
-                            .materialized_pass_view()
-                            .is_none_or(|pass_view| pass_view.callable(impl_fqn.as_str()).is_none())
-                            && self
-                                .codegen
-                                .hir_fun_for_callable_fqn(impl_fqn.as_str())
-                                .is_some_and(|sig_fun| {
-                                    sig_fun.body.is_some()
-                                        && !self
-                                            .codegen
-                                            .known_fun_body_may_outward_effect(impl_fqn, sig_fun.ty)
-                                })
-                    {
+                    if plain_callable_roots.contains(impl_fqn.as_str()) {
                         plain_interface_itable_targets.insert(impl_fqn.clone());
                     }
                 }
@@ -417,49 +377,27 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
         &mut self,
         root_fqn: &str,
     ) -> Result<AbiValue<'ctx>, LlvmEmitError> {
-        if let Some(pass_view) = self.codegen.materialized_pass_view()
-            && let Some(callable) = pass_view.callable(root_fqn)
-        {
-            let skip = usize::from(callable.name.starts_with("$lambda"));
-            let component_tys = callable
-                .params
-                .iter()
-                .skip(skip)
-                .map(|param| param.ty)
-                .collect::<Vec<_>>();
-            return self
-                .canonical_tuple_abi_from_types(&pass_view.materialized().types, &component_tys);
-        }
-        if let Some(fun) = self.codegen.fun_index.get(root_fqn).copied() {
-            let component_tys = fun.params.iter().map(|param| param.ty).collect::<Vec<_>>();
-            return self.canonical_tuple_abi_from_types(self.codegen.types, &component_tys);
-        }
-        Err(frontend_error(format!(
-            "LLVM ABI materialization 缺少 closure-like callable `{root_fqn}` 的 authoritative signature，无法发布 closure carrier target"
-        )))
+        let facts = self.effect_step_callable_facts_for_root(root_fqn)?;
+        let component_tys = facts.closure_carrier_arg_tys.clone();
+        self.canonical_tuple_abi_from_types(self.source_types, &component_tys)
     }
 
     pub(super) fn dispatch_carrier_receiver_and_args_abi(
         &mut self,
         impl_fqn: &str,
     ) -> Result<(AbiValue<'ctx>, AbiValue<'ctx>), LlvmEmitError> {
-        let fun = self.codegen.fun_index.get(impl_fqn).copied().ok_or_else(|| {
-            frontend_error(format!(
-                "LLVM ABI materialization 缺少 dispatch target `{impl_fqn}` 的 authoritative HIR signature，无法发布 vtable/itable carrier target"
-            ))
-        })?;
-        let Some((receiver, explicit_params)) = fun.params.split_first() else {
+        let facts = self.effect_step_callable_facts_for_root(impl_fqn)?;
+        let param_tys = facts.param_tys.clone();
+        let Some((receiver, explicit_params)) = param_tys.split_first() else {
             return Err(frontend_error(format!(
                 "LLVM ABI materialization 发现 dispatch target `{impl_fqn}` 没有 receiver 参数，无法发布 vtable/itable carrier target"
             )));
         };
-        let args = explicit_params
-            .iter()
-            .map(|param| param.ty)
-            .collect::<Vec<_>>();
+        let receiver = *receiver;
+        let args = explicit_params.to_vec();
         Ok((
-            self.abi_value_from_types(self.codegen.types, receiver.ty)?,
-            self.canonical_tuple_abi_from_types(self.codegen.types, &args)?,
+            self.abi_value_from_types(self.source_types, receiver)?,
+            self.canonical_tuple_abi_from_types(self.source_types, &args)?,
         ))
     }
 

@@ -1,32 +1,26 @@
 # 执行计划
 
-## 当前约束
+本文件记录当前 invocation 的可审计执行计划、进度、决策和验证结果；不记录私有推理细节。
 
-- 以 `TODO.md` 为唯一任务顺序和完成状态来源。
-- 只处理第一个标题未带 `[DONE]` 的任务，完成后停止。
-- 若遇到阻塞当前任务的规格缺口或实现缺口，先把最小必要前置任务写入 `TODO.md`，提交后停止。
-- 仅在阶段级计划、依赖或完成标准变化时更新 `PLAN.md`。
-- 完成任务后必须更新 `TODO.md` 的标题和完成记录，并提交所有相关变更。
+## 当前执行计划
 
-## 步骤
-
-1. 读取 `TODO.md`，定位第一个未完成任务，并记录任务编号、范围、依赖和验证要求。
-2. 检查最近提交是否提到与该任务直接相关的未完成事项；若有，将其纳入当前任务或作为前置项记录到 `TODO.md`。
-3. 按任务要求检查相关代码、规格和测试夹具，确认最小实现范围。
-4. 实现任务；若发现阻塞性缺口，不绕行，改为更新 `TODO.md` 并提交后停止。
-5. 运行任务要求的验证命令和必要的针对性测试；修复由当前任务引入或暴露且阻塞当前任务的问题。
-6. 更新 `TODO.md`：给任务标题加 `[DONE]`，补充完成记录和验证结果。
-7. 检查 `git status`、`git diff`、最近提交；提交本次任务相关全部变更。
-8. 停止，不继续处理下一个任务。
+1. 读取 `TODO.md`，定位第一个标题未带 `[DONE]` 的任务。
+2. 阅读该任务的详情、依赖和验证要求；仅在最新提交直接相关时检查是否有未完成事项。
+3. 检查当前任务涉及的代码、fixture 和文档边界。
+4. 按任务要求完整实现或复审，不用窄化 fixture、替代表示或 workaround 绕过问题。
+5. 增加或更新聚焦测试，覆盖当前任务的行为边界。
+6. 运行任务要求的验证命令和必要的扩展验证，发现阻塞问题则修复。
+7. 更新 `TODO.md` / 对应 `TODO-N.md` 的任务状态和完成记录。
+8. 更新本文件，记录关键进展、计划变化和验证结果。
+9. 检查 `git status`、`git diff` 和最近提交，提交本任务相关变更。
+10. 完成并提交一个任务后停止。
 
 ## 进度记录
 
-- 已创建初始执行计划。下一步读取 `TODO.md` 定位第一个未完成任务。
-- 已定位第一个未完成任务：`P5-T03`（切换 codegen-neutral ABI/query surface 到 `LIR + lir_facts`）。
-- 最近提交为 `9271f7d2 [P5-T02R] Review LIR contract facts`，是当前任务的直接前置 review，未发现需要先插入的新前置项。
-- 下一步检查 `LirStageOutput`、LLVM emit、effect-lowered layout/body lowering 的当前读取点，优先删除 P5-owned contract 对 raw MIR/effect facts 的依赖。
-- 当前实现重点：修改 `ProgramAbiMaterializer` / `materialize_program_abi` 只接收 `LateLoweredProgram + LirFacts + TypeStore`，用 `LirFacts` 替代 dynamic invoke、dispatch slot、plain callable ABI 等查询；`LirStageOutput` 将保留 LIR、LIR facts 和必要 type/base context，删除 `materialized_pass_view()`、`effect_facts()`、`mir_facts()` 等公开上游 accessor。
-- 已完成实现：ABI materializer 改为消费 `LateLoweredProgram + LirFacts + TypeStore`；dynamic invoke、dispatch、plain callable ABI、surface-resume ABI 的 P5-owned 查询已切到 LIR/LIR facts；`LirStageOutput` 的上游公开 accessor 已删除。
-- 已通过验证：`cargo check -p scoopc --features llvm`、`cargo test -p scoopc --features llvm effect_lowered`、`cargo test -p scoopc --features llvm llvm::tests::late_lower`、`cargo clippy --all-targets -- -D warnings`、`git diff --check`。
-- 完整 run-pass fixture 命令仍失败 7/415，剩余失败为 array/string generic println materialization、runtime test import、process/atomic/string runtime residual；已记录到 `TODO-5.md` 的 P5-T03 完成记录，未把它们归入 P5-owned contract 完成范围。
-- 下一步：完成最终状态检查，提交 P5-T03 变更后停止。
+- 已启动 invocation，并写入初始执行计划。
+- 已读取 `TODO.md`；第一个未完成任务是 `P5-T03R`，本次只完成该 review 任务。
+- 已读取 `TODO-5.md`；`P5-T03R` 要求复审 `P5-T03` 的 query 切换结果，重跑验证，搜索旧 `LirStageOutput` 公开 accessor，修复 review 中发现的阻塞项，然后只标记 `P5-T03R` 完成。
+- 复查发现阻塞点：`llvm/codegen/effect_lowered/layout/carrier.rs` 的 Program ABI materialization 仍通过 codegen pass-view / HIR 查询 carrier fallback 与签名信息；必须迁到 LIR facts 或明确退化为 backend-only physical residual 后才能完成 review。
+- 已修复阻塞点：`LirEffectStepCallableFacts` 现在发布 effect-step 参数类型与 closure-carrier 参数类型；carrier ABI layout 改为从这些 LIR facts 读取签名，不再通过 `materialized_pass_view()` / HIR `fun_index` 查询 carrier 签名或 plain fallback 分类。
+- 验证结果：`cargo check -p scoopc --features llvm`、`cargo test -p scoopc_lir_facts`、`cargo test -p scoopc --features llvm effect_lowered`、`cargo test -p scoopc --features llvm llvm::tests::late_lower`、`cargo run -p scoop -- test --fixtures tests/fixtures/effect_lowered`、`cargo clippy --all-targets -- -D warnings`、`git diff --check` 均通过。`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass` 仍失败 7/415，失败类别与 `P5-T03` 已记录的既有 TODO-6/P7/frontend-runtime residual 一致。
+- 已更新 `TODO.md` 和 `TODO-5.md`，将 `P5-T03R` 标记为 `[DONE]`，并记录 review 结论、阻塞修复、accessor 搜索、residual 隔离和验证结果。

@@ -19,8 +19,8 @@ use crate::effect_lowered::ir::{
     LateLoweredSurfaceResumeDispatchSourceKind,
 };
 use crate::mir::{
-    Body, CallKind as MirCallKind, InstanceKey, Item, MaterializedMir, Operand as MirOperand,
-    Rvalue as MirRvalue, SiteId, StatementKind as MirStatementKind,
+    Body, CallKind as MirCallKind, FunDecl, InstanceKey, Item, MaterializedMir,
+    Operand as MirOperand, Rvalue as MirRvalue, SiteId, StatementKind as MirStatementKind,
 };
 use crate::opt::OptLevel;
 use crate::ty::TypeId;
@@ -38,6 +38,12 @@ struct MaterializedCallSite {
     kind: MirCallKind,
     arg_count: usize,
     carrier_source_ty: Option<TypeId>,
+}
+
+#[derive(Debug, Clone)]
+struct MaterializedCallableSignature {
+    param_tys: Vec<TypeId>,
+    closure_carrier_arg_tys: Vec<TypeId>,
 }
 
 /// Build the LIR fact product from the authoritative post-opt LIR body.
@@ -257,6 +263,7 @@ fn build_effect_step_callable_facts(
     dynamic_invokes: &mut BTreeMap<LirDynamicInvokeKey, LirDynamicInvokeContract>,
     dispatches: &mut BTreeMap<LirDispatchKey, LirDispatchContract>,
 ) -> Result<LirEffectStepCallableFacts, EffectLoweringError> {
+    let signature = lookup_materialized_callable_signature(ctx.materialized, callable.root_fqn())?;
     let control_body = build_control_body_facts(
         ctx,
         callable,
@@ -273,6 +280,8 @@ fn build_effect_step_callable_facts(
         dispatches,
     )?;
     Ok(LirEffectStepCallableFacts {
+        param_tys: signature.param_tys,
+        closure_carrier_arg_tys: signature.closure_carrier_arg_tys,
         step_schema: LirStepSchemaKey::new(effect.step_schema().as_u32()),
         dynamic_invoke_entry: dynamic_invoke_entry_facts(effect.dynamic_invoke_entry()),
         control_body,
@@ -1083,8 +1092,34 @@ fn lookup_materialized_callable_body<'a>(
     materialized: &'a MaterializedMir,
     root_fqn: &str,
 ) -> Result<&'a Body, EffectLoweringError> {
+    let fun = lookup_materialized_callable_fun(materialized, root_fqn)?;
+    fun.body
+        .as_ref()
+        .ok_or_else(|| EffectLoweringError::InvalidLirFactsContract {
+            detail: format!("callable `{root_fqn}` has no materialized body"),
+        })
+}
+
+fn lookup_materialized_callable_signature(
+    materialized: &MaterializedMir,
+    root_fqn: &str,
+) -> Result<MaterializedCallableSignature, EffectLoweringError> {
+    let fun = lookup_materialized_callable_fun(materialized, root_fqn)?;
+    let param_tys = fun.params.iter().map(|param| param.ty).collect::<Vec<_>>();
+    let skip_closure_env = usize::from(fun.name.starts_with("$lambda"));
+    let closure_carrier_arg_tys = param_tys.iter().copied().skip(skip_closure_env).collect();
+    Ok(MaterializedCallableSignature {
+        param_tys,
+        closure_carrier_arg_tys,
+    })
+}
+
+fn lookup_materialized_callable_fun<'a>(
+    materialized: &'a MaterializedMir,
+    root_fqn: &str,
+) -> Result<&'a FunDecl, EffectLoweringError> {
     let pass_view = materialized.pass_view();
-    let fun = pass_view
+    pass_view
         .callable(root_fqn)
         .or_else(|| {
             materialized.file.items.iter().find_map(|item| match item {
@@ -1099,12 +1134,7 @@ fn lookup_materialized_callable_body<'a>(
                 .find(|fun| fun.fqn == root_fqn)
         })
         .ok_or_else(|| EffectLoweringError::InvalidLirFactsContract {
-            detail: format!("missing materialized body for callable `{root_fqn}`"),
-        })?;
-    fun.body
-        .as_ref()
-        .ok_or_else(|| EffectLoweringError::InvalidLirFactsContract {
-            detail: format!("callable `{root_fqn}` has no materialized body"),
+            detail: format!("missing materialized signature for callable `{root_fqn}`"),
         })
 }
 

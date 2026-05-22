@@ -43,6 +43,18 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
         }
     }
 
+    pub(super) fn effect_step_callable_facts_for_root(
+        &self,
+        root_fqn: &str,
+    ) -> Result<&scoopc_lir_facts::LirEffectStepCallableFacts, LlvmEmitError> {
+        match &self.callable_facts_for_root(root_fqn)?.contract {
+            LirCallableContract::EffectStep(effect) => Ok(effect),
+            LirCallableContract::Plain(_) => Err(frontend_error(format!(
+                "LLVM ABI materialization 发现 callable `{root_fqn}` 的 LIR facts 不是 effect-step ABI"
+            ))),
+        }
+    }
+
     pub(super) fn dispatch_contract(
         &self,
         key: &scoopc_lir_facts::LirDispatchKey,

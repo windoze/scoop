@@ -633,6 +633,8 @@ fun callInterface(i: IFace): Int {
             panic!("callValue should publish an effect-step ABI contract");
         };
         assert_eq!(effect.step_schema, effect.dynamic_invoke_entry.step_schema);
+        assert_eq!(effect.param_tys.len(), 1);
+        assert_eq!(effect.closure_carrier_arg_tys, effect.param_tys);
         assert_eq!(effect.control_body.continuation_object.as_u32() as usize, 0);
         assert!(facts.verify().is_ok());
     }

@@ -250,6 +250,8 @@ mod tests {
                 },
                 resolved_outward_cases: Vec::new(),
                 contract: LirCallableContract::EffectStep(Box::new(LirEffectStepCallableFacts {
+                    param_tys: Vec::new(),
+                    closure_carrier_arg_tys: Vec::new(),
                     step_schema,
                     dynamic_invoke_entry: LirCallableDynamicInvokeEntryFacts {
                         invoke_args_tuple_ty: ty(1),
