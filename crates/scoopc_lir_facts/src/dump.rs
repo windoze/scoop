@@ -17,7 +17,8 @@ pub fn dump_lir_facts(facts: &LirFacts) -> String {
     .expect("writing to String cannot fail");
     writeln!(
         &mut out,
-        "  summary: callables={} step_types={} dynamic_invokes={} dispatches={} resume_packings={} continuation_objects={} surface_resume_dispatches={}",
+        "  summary: opt_revision={} callables={} step_types={} dynamic_invokes={} dispatches={} resume_packings={} continuation_objects={} surface_resume_dispatches={}",
+        facts.summary.opt_revision,
         facts.summary.callable_count,
         facts.summary.step_type_count,
         facts.dynamic_invokes.len(),
@@ -27,6 +28,24 @@ pub fn dump_lir_facts(facts: &LirFacts) -> String {
         facts.summary.surface_resume_dispatch_count,
     )
     .expect("writing to String cannot fail");
+    writeln!(
+        &mut out,
+        "  opt_pipeline: revision={} preserve_published_resume_shells={} passes={}",
+        facts.opt_pipeline.revision,
+        facts.opt_pipeline.preserve_published_resume_shells,
+        facts.opt_pipeline.passes.len(),
+    )
+    .expect("writing to String cannot fail");
+    for pass in &facts.opt_pipeline.passes {
+        writeln!(
+            &mut out,
+            "    - pass={} status={:?} changed={}",
+            pass.kind.stable_name(),
+            pass.status,
+            pass.changed,
+        )
+        .expect("writing to String cannot fail");
+    }
     writeln!(&mut out, "  callables={}", facts.callables.len())
         .expect("writing to String cannot fail");
     for (key, callable) in &facts.callables {

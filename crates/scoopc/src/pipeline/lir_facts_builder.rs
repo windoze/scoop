@@ -52,6 +52,7 @@ pub(crate) fn build_lir_facts(
     materialized: &MaterializedMir,
     effect_facts: &MaterializedEffectFacts,
     opt_level: OptLevel,
+    opt_pipeline: LirOptPipelineFacts,
 ) -> Result<LirFacts, EffectLoweringError> {
     let callable_keys_by_root = callable_key_index(lir);
     let body_versions_by_key = body_version_index(lir, &callable_keys_by_root)?;
@@ -75,14 +76,16 @@ pub(crate) fn build_lir_facts(
         continuation_objects: build_continuation_object_facts(&ctx),
         surface_resume_dispatches: build_surface_resume_dispatch_facts(lir),
     };
-    let summary = LirStageSummary::new(opt_level).with_counts(
-        groups.callables.len(),
-        groups.step_types.len(),
-        groups.resume_packings.len(),
-        groups.continuation_objects.len(),
-        groups.surface_resume_dispatches.len(),
-    );
-    let facts = LirFacts::from_parts(summary, groups);
+    let summary = LirStageSummary::new(opt_level)
+        .with_opt_revision(opt_pipeline.revision)
+        .with_counts(
+            groups.callables.len(),
+            groups.step_types.len(),
+            groups.resume_packings.len(),
+            groups.continuation_objects.len(),
+            groups.surface_resume_dispatches.len(),
+        );
+    let facts = LirFacts::from_parts_with_opt_pipeline(summary, opt_pipeline, groups);
     facts
         .verify()
         .map_err(|error| EffectLoweringError::InvalidLirFactsContract {

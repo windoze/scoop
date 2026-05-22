@@ -1,26 +1,26 @@
 # 执行计划
 
-本文件记录当前 invocation 的可审计执行计划、进度、决策和验证结果；不记录私有推理细节。
+这里不记录私有推理过程；本文件只记录本次调用可审计的执行计划、关键决策和进度。
 
-## 当前执行计划
+## 当前计划
 
-1. 读取 `TODO.md`，定位第一个标题未带 `[DONE]` 的任务。
-2. 阅读该任务的详情、依赖和验证要求；仅在最新提交直接相关时检查是否有未完成事项。
-3. 检查当前任务涉及的代码、fixture 和文档边界。
-4. 按任务要求完整实现或复审，不用窄化 fixture、替代表示或 workaround 绕过问题。
-5. 增加或更新聚焦测试，覆盖当前任务的行为边界。
-6. 运行任务要求的验证命令和必要的扩展验证，发现阻塞问题则修复。
-7. 更新 `TODO.md` / 对应 `TODO-N.md` 的任务状态和完成记录。
-8. 更新本文件，记录关键进展、计划变化和验证结果。
-9. 检查 `git status`、`git diff` 和最近提交，提交本任务相关变更。
-10. 完成并提交一个任务后停止。
+1. 先读取 `TODO.md` 识别第一个未完成任务，仅把标题带 `[DONE]` 的任务视为已完成。
+2. 只检查最新提交是否包含与当前任务直接相关的未完成事项。
+3. 针对已选任务检查必要代码和测试，不做无关历史问题扫查。
+4. 完整实现当前任务；若被规范正确性问题阻塞，则只添加最小必要前置任务。
+5. 运行 `TODO.md` 要求的任务验证，以及确保无 warning / regression 所需的相关 build、lint、test 命令。
+6. 若任务完成，在 `TODO.md` / 对应任务文件中标记 `[DONE]` 并填写完成记录；只有阶段级计划变化才更新 `PLAN.md`。
+7. 用清晰的任务标签提交本次调用的预期变更。
+8. 完成一个任务或提交阻塞/前置任务更新后停止。
 
 ## 进度记录
 
-- 已启动 invocation，并写入初始执行计划。
-- 已读取 `TODO.md`；第一个未完成任务是 `P5-T03R`，本次只完成该 review 任务。
-- 已读取 `TODO-5.md`；`P5-T03R` 要求复审 `P5-T03` 的 query 切换结果，重跑验证，搜索旧 `LirStageOutput` 公开 accessor，修复 review 中发现的阻塞项，然后只标记 `P5-T03R` 完成。
-- 复查发现阻塞点：`llvm/codegen/effect_lowered/layout/carrier.rs` 的 Program ABI materialization 仍通过 codegen pass-view / HIR 查询 carrier fallback 与签名信息；必须迁到 LIR facts 或明确退化为 backend-only physical residual 后才能完成 review。
-- 已修复阻塞点：`LirEffectStepCallableFacts` 现在发布 effect-step 参数类型与 closure-carrier 参数类型；carrier ABI layout 改为从这些 LIR facts 读取签名，不再通过 `materialized_pass_view()` / HIR `fun_index` 查询 carrier 签名或 plain fallback 分类。
-- 验证结果：`cargo check -p scoopc --features llvm`、`cargo test -p scoopc_lir_facts`、`cargo test -p scoopc --features llvm effect_lowered`、`cargo test -p scoopc --features llvm llvm::tests::late_lower`、`cargo run -p scoop -- test --fixtures tests/fixtures/effect_lowered`、`cargo clippy --all-targets -- -D warnings`、`git diff --check` 均通过。`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass` 仍失败 7/415，失败类别与 `P5-T03` 已记录的既有 TODO-6/P7/frontend-runtime residual 一致。
-- 已更新 `TODO.md` 和 `TODO-5.md`，将 `P5-T03R` 标记为 `[DONE]`，并记录 review 结论、阻塞修复、accessor 搜索、residual 隔离和验证结果。
+- 已开始本次调用，并在项目检查前写入初始执行计划。
+- 已识别首个未完成任务为 `P5-T04`：建立正式 LIR optimization family 与 pass pipeline。最新提交 `290c3232 [P5-T03R] Review LIR query switch` 未显示与本任务直接相关的未完成阻塞项。
+- 已检查现有 `effect_lowered::opt`、`LirStageOutput`、`LirFacts` 和 effect-lowered fixture dump 形状；未做无关历史问题扫查。
+- 已实现首轮代码改造：`scoopc_lir_facts` 增加 opt pipeline metadata / revision 结构、dump 输出和 verifier binding；LIR stage 现在从 `run_lir_opt_pipeline(...)` metadata 构造 `LirFacts`，不再只调用隐式 helper。
+- 已增加显式 pass 顺序 metadata：local state-machine elimination、higher-order wrapper inline/devirt owner skeleton、wrapper state folding、dynamic invoke rewrite、dead state/slot cleanup、resume packing pruning、post-opt verification。
+- 已泛化 control-body 优化路径，让 effect-step callable 与带本地 effect/control body 的 plain callable 共用 LIR-owned state/boundary/frame/capture rewrite 和 verifier 路径。
+- 已用新的 opt pipeline metadata 重新生成并验证 `tests/fixtures/effect_lowered/*.effectlowered`。
+- 已在 `TODO.md` 与 `TODO-5.md` 标记 `P5-T04` 完成并填写完成记录；验证通过 `cargo fmt`、`cargo test -p scoopc --no-default-features effect_lowered::opt`、`cargo run -p scoop -- test --fixtures tests/fixtures/effect_lowered`、`cargo test -p scoopc_lir_facts`、`cargo clippy --all-targets -- -D warnings` 和 `git diff --check`。
+- 已将 post-opt verifier 拆到 `effect_lowered::opt_verify`，让 `opt.rs` 聚焦 pass driver 和 rewrite 实现。

@@ -23,6 +23,7 @@ pub use contract::*;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LirFacts {
     pub summary: LirStageSummary,
+    pub opt_pipeline: LirOptPipelineFacts,
     pub callables: BTreeMap<StableLirCallableKey, LirCallableFacts>,
     pub step_types: BTreeMap<LirStepSchemaKey, LirStepTypeFacts>,
     pub dynamic_invokes: BTreeMap<LirDynamicInvokeKey, LirDynamicInvokeContract>,
@@ -51,6 +52,7 @@ impl LirFacts {
     pub fn new(opt_level: OptLevel) -> Self {
         Self {
             summary: LirStageSummary::new(opt_level),
+            opt_pipeline: LirOptPipelineFacts::empty(0),
             callables: BTreeMap::new(),
             step_types: BTreeMap::new(),
             dynamic_invokes: BTreeMap::new(),
@@ -63,8 +65,22 @@ impl LirFacts {
 
     /// Build a fact product from already materialized LIR fact groups.
     pub fn from_parts(summary: LirStageSummary, groups: LirFactGroups) -> Self {
+        Self::from_parts_with_opt_pipeline(
+            summary,
+            LirOptPipelineFacts::empty(summary.opt_revision),
+            groups,
+        )
+    }
+
+    /// Build a fact product with explicit LIR opt pipeline metadata.
+    pub fn from_parts_with_opt_pipeline(
+        summary: LirStageSummary,
+        opt_pipeline: LirOptPipelineFacts,
+        groups: LirFactGroups,
+    ) -> Self {
         Self {
             summary,
+            opt_pipeline,
             callables: groups.callables,
             step_types: groups.step_types,
             dynamic_invokes: groups.dynamic_invokes,
@@ -83,6 +99,7 @@ impl LirFacts {
             && self.summary.resume_packing_count == 0
             && self.summary.continuation_object_count == 0
             && self.summary.surface_resume_dispatch_count == 0
+            && self.opt_pipeline.passes.is_empty()
             && self.step_types.is_empty()
             && self.dynamic_invokes.is_empty()
             && self.dispatches.is_empty()
@@ -106,6 +123,7 @@ impl LirFacts {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct LirStageSummary {
     pub opt_level: OptLevel,
+    pub opt_revision: u64,
     pub callable_count: usize,
     pub step_type_count: usize,
     pub resume_packing_count: usize,
@@ -117,6 +135,7 @@ impl LirStageSummary {
     pub fn new(opt_level: OptLevel) -> Self {
         Self {
             opt_level,
+            opt_revision: 0,
             callable_count: 0,
             step_type_count: 0,
             resume_packing_count: 0,
@@ -138,6 +157,11 @@ impl LirStageSummary {
         self.resume_packing_count = resume_packing_count;
         self.continuation_object_count = continuation_object_count;
         self.surface_resume_dispatch_count = surface_resume_dispatch_count;
+        self
+    }
+
+    pub fn with_opt_revision(mut self, opt_revision: u64) -> Self {
+        self.opt_revision = opt_revision;
         self
     }
 }
@@ -204,7 +228,25 @@ mod tests {
         let dump = facts.dump();
         assert!(dump.contains("lir_facts {"));
         assert!(dump.contains("opt_level: O2"));
+        assert!(dump.contains("opt_pipeline: revision=0"));
         assert!(dump.contains("callables=0"));
+    }
+
+    #[test]
+    fn verifier_rejects_opt_revision_mismatch() {
+        let facts = LirFacts::from_parts_with_opt_pipeline(
+            LirStageSummary::new(OptLevel::O0).with_opt_revision(1),
+            LirOptPipelineFacts::empty(2),
+            LirFactGroups::default(),
+        );
+
+        assert_eq!(
+            facts.verify().unwrap_err(),
+            VerifyError::OptRevisionMismatch {
+                summary: 1,
+                pipeline: 2,
+            }
+        );
     }
 
     #[test]

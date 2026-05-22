@@ -651,7 +651,7 @@ P5 需要把这条隐式 opt helper 提升为正式 LIR optimization family：�
   - residual 隔离：LLVM body emission、reachability、physical vtable/itable inventory、多 TypeStore 桥接、HIR scaffold、global init/runtime residual 仍明确属于 TODO-6/P7；本 review 未把这些 backend physical residual 伪装为 P5-owned ABI/query contract。
   - 验证命令：`cargo fmt`；`cargo check -p scoopc --features llvm`；`cargo test -p scoopc_lir_facts`；`cargo test -p scoopc --features llvm effect_lowered`；`cargo test -p scoopc --features llvm llvm::tests::late_lower`；`cargo run -p scoop -- test --fixtures tests/fixtures/effect_lowered`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`（仍失败 7/415，失败集合与 P5-T03 记录一致，属于既有 TODO-6/P7/frontend-runtime residual）；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
 
-## [TODO] P5-T04：建立正式 LIR optimization family 与 pass pipeline
+## [DONE] P5-T04：建立正式 LIR optimization family 与 pass pipeline
 
 - 参考：
   - `PLAN.md` §1.7、§5
@@ -690,7 +690,13 @@ P5 需要把这条隐式 opt helper 提升为正式 LIR optimization family：�
   - post-opt LIR 与 `LirFacts` 对齐。
 - 依赖：P5-T03R
 - 完成记录：
-  - 待填写。
+  - 改动范围：`effect_lowered::opt` 从隐式 `optimize_program*` helper 收口为 `run_lir_opt_pipeline(...)`，发布 `LirOptPipelineOutput = { program, opt_pipeline }`；新增 `effect_lowered::opt_verify` 承载 post-opt verifier；`effect_lowering_stage` 使用该 pipeline metadata 构造 `LirFacts`，测试 helper 也改为显式携带 ABI-visibility opt metadata。
+  - pass family：固定 pass 顺序为 local state-machine elimination、higher-order wrapper inline/devirt owner skeleton、wrapper state folding、dynamic invoke entry rewrite、dead state / dead slot cleanup、resume packing pruning、post-opt verifier；当前 higher-order wrapper inline/devirt 是可执行 no-op owner，不迁入 MIR 普通 devirt，也不读取 HIR/MIR/effect solver 输入。
+  - verifier/metadata：`scoopc_lir_facts` 新增 `LirOptPipelineFacts`、`LirOptPassFacts`、`LIR_OPT_PIPELINE_REVISION` 与 revision verifier；post-opt verifier 检查 state graph、boundary map、frame schema、continuation object、resume packing 和 dynamic invoke entry 的 dangling references，`LirFacts` dump 现在展示 opt revision、preservation option 和各 pass 状态。
+  - LIR 对齐：LIR facts builder 以 post-opt LIR 和 opt pipeline metadata 同步构造 facts，summary `opt_revision` 必须与 pipeline revision 一致；effect-step callable 与 plain callable 的本地 effect/control body 共享同一 LIR-owned rewrite/verifier 路径。
+  - fixture/dump：更新 `tests/fixtures/effect_lowered/*.effectlowered`，使 LIR opt family 运行边界在 stable dump 中可见。
+  - 验证命令：`cargo fmt`；`cargo test -p scoopc_lir_facts`；`cargo test -p scoopc --no-default-features effect_lowered::opt`；`cargo test -p scoopc --no-default-features effect_lowered`；`cargo run -p scoop -- test --fixtures tests/fixtures/effect_lowered`；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
+  - 残余风险：higher-order wrapper inline/devirt 目前只有明确 owner 和 no-op skeleton；更强的跨 callable wrapper 识别若后续需要，应在该 pass 内扩展，不能回迁到 MIR 普通 devirt 或 LLVM backend 特判。
 
 ## [TODO] P5-T04R：Review LIR optimization family
 

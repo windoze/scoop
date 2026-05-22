@@ -3,7 +3,7 @@ use std::fmt::Write;
 use crate::effect_facts::{MaterializedEffectFacts, MirSnapshotBinding};
 use crate::effect_lowered::{
     EffectLoweringError, LateLoweredOptOptions, LateLoweredProgram, LateLoweredProgramBuilder,
-    optimize_program, optimize_program_with_options,
+    run_lir_opt_pipeline,
 };
 use crate::mir::{MaterializedMir, MaterializedMirPassView};
 use crate::ty::TypeStore;
@@ -114,6 +114,7 @@ impl LirStageOutput {
         &self.context.materialized_mir
     }
 
+    #[cfg_attr(not(feature = "llvm"), allow(dead_code))]
     pub(crate) fn llvm_residual_pass_view(&self) -> MaterializedMirPassView<'_> {
         self.context.materialized_mir.pass_view()
     }
@@ -149,31 +150,7 @@ impl LirStageOutput {
 }
 
 pub(crate) fn run(input: EffectLoweringStageInput) -> Result<LirStageOutput, EffectLoweringError> {
-    let EffectLoweringStageInput {
-        mir_stage_output,
-        effect_facts_stage_output,
-    } = input;
-    let lir = optimize_program(
-        LateLoweredProgramBuilder::from_canonical_inputs(
-            mir_stage_output.materialized_pass_view(),
-            effect_facts_stage_output.effect_facts(),
-            effect_facts_stage_output.effect_facts().types(),
-            mir_stage_output.mir_facts(),
-        )
-        .build()?,
-    );
-    let lir_facts = super::lir_facts_builder::build_lir_facts(
-        &lir,
-        mir_stage_output.materialized_mir(),
-        effect_facts_stage_output.effect_facts(),
-        mir_stage_output.materialized_mir().opt_level(),
-    )?;
-    Ok(LirStageOutput::new(
-        lir,
-        lir_facts,
-        mir_stage_output,
-        effect_facts_stage_output,
-    ))
+    run_with_opt_options(input, LateLoweredOptOptions::default())
 }
 
 #[cfg_attr(not(feature = "llvm"), allow(dead_code))]
@@ -195,21 +172,24 @@ fn run_with_opt_options(
         mir_stage_output,
         effect_facts_stage_output,
     } = input;
-    let lir = optimize_program_with_options(
-        LateLoweredProgramBuilder::from_canonical_inputs(
-            mir_stage_output.materialized_pass_view(),
-            effect_facts_stage_output.effect_facts(),
-            effect_facts_stage_output.effect_facts().types(),
-            mir_stage_output.mir_facts(),
-        )
-        .build()?,
-        opt_options,
-    );
+    let raw_lir = LateLoweredProgramBuilder::from_canonical_inputs(
+        mir_stage_output.materialized_pass_view(),
+        effect_facts_stage_output.effect_facts(),
+        effect_facts_stage_output.effect_facts().types(),
+        mir_stage_output.mir_facts(),
+    )
+    .build()?;
+    let (lir, opt_pipeline) = run_lir_opt_pipeline(raw_lir, opt_options)
+        .map_err(|error| EffectLoweringError::InvalidLirOptPipelineContract {
+            detail: error.to_string(),
+        })?
+        .into_parts();
     let lir_facts = super::lir_facts_builder::build_lir_facts(
         &lir,
         mir_stage_output.materialized_mir(),
         effect_facts_stage_output.effect_facts(),
         mir_stage_output.materialized_mir().opt_level(),
+        opt_pipeline,
     )?;
     Ok(LirStageOutput::new(
         lir,
@@ -530,6 +510,9 @@ fun callInterface(i: IFace): Int {
         assert!(dump.contains("opt_level: O2"));
         assert!(dump.contains("snapshot_binding:"));
         assert!(dump.contains("lir_facts:"));
+        assert!(dump.contains("opt_pipeline:"));
+        assert!(dump.contains("pass=local-state-machine-elimination"));
+        assert!(dump.contains("pass=post-opt-verifier"));
         assert!(dump.contains("post_opt_lir:"));
         assert!(dump.contains("LateLoweredProgram"));
         assert!(dump.contains("step_types:"));

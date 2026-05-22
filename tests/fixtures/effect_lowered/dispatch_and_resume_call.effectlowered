@@ -12,7 +12,15 @@ snapshot_binding:
 lir_facts:
 lir_facts {
   opt_level: O2
-  summary: callables=5 step_types=4 dynamic_invokes=0 dispatches=1 resume_packings=3 continuation_objects=2 surface_resume_dispatches=7
+  summary: opt_revision=1 callables=5 step_types=4 dynamic_invokes=0 dispatches=1 resume_packings=3 continuation_objects=2 surface_resume_dispatches=7
+  opt_pipeline: revision=1 preserve_published_resume_shells=false passes=7
+    - pass=local-state-machine-elimination status=Applied changed=false
+    - pass=higher-order-wrapper-inline-devirt status=NoOp changed=false
+    - pass=wrapper-state-folding status=Applied changed=false
+    - pass=dynamic-invoke-entry-rewrite status=Applied changed=false
+    - pass=dead-state-slot-cleanup status=Applied changed=false
+    - pass=resume-packing-pruning status=Applied changed=true
+    - pass=post-opt-verifier status=Applied changed=false
   callables=5
     - callable=fixtures.mir.Base.ping kind=Plain control_body=false key=lir_callable(instance(120:template(106:def(41:cone(24:dispatch_and_resume_call;5:0.0.0);3:fun;22:fixtures.mir.Base.ping;21:materialized_callable));6:list();6:list()),body#0)
       plain_abi: function_ty=t446 params=1 return=t5 body_slices=1 call_sites=0

@@ -31,6 +31,10 @@ pub enum VerifyError {
         expected: usize,
         actual: usize,
     },
+    OptRevisionMismatch {
+        summary: u64,
+        pipeline: u64,
+    },
     EmptyCallableRoot {
         key: String,
     },
@@ -98,6 +102,10 @@ impl fmt::Display for VerifyError {
                 f,
                 "LIR summary reports {expected} surface-resume dispatches but facts contain {actual}"
             ),
+            Self::OptRevisionMismatch { summary, pipeline } => write!(
+                f,
+                "LIR summary opt revision {summary} does not match pipeline revision {pipeline}"
+            ),
             Self::EmptyStableInstanceKey { key } => {
                 write!(f, "LIR callable `{key}` has an empty stable instance key")
             }
@@ -164,12 +172,23 @@ impl Error for VerifyError {}
 
 /// Verify facts that are already grouped by the LIR stage.
 pub fn verify_lir_facts(facts: &LirFacts) -> Result<()> {
+    verify_opt_pipeline_binding(facts)?;
     verify_summary_counts(facts)?;
     verify_callable_inventory(facts)?;
     verify_dynamic_invoke_contracts(facts)?;
     verify_dispatch_contracts(facts)?;
     verify_continuation_objects(facts)?;
     verify_surface_resume_dispatches(facts)?;
+    Ok(())
+}
+
+fn verify_opt_pipeline_binding(facts: &LirFacts) -> Result<()> {
+    if facts.summary.opt_revision != facts.opt_pipeline.revision {
+        return Err(VerifyError::OptRevisionMismatch {
+            summary: facts.summary.opt_revision,
+            pipeline: facts.opt_pipeline.revision,
+        });
+    }
     Ok(())
 }
 

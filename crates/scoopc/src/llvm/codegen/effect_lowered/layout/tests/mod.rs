@@ -21,7 +21,7 @@ use crate::effect_lowered::ir::{
     LateLoweredStepType, LateLoweredSurfaceResumeDispatchPublication, StateId, SystemSlotKind,
 };
 use crate::effect_lowered::{
-    LateLoweredOptOptions, LateLoweredProgramBuilder, optimize_program_with_options,
+    LateLoweredOptOptions, LateLoweredProgramBuilder, run_lir_opt_pipeline,
 };
 use crate::llvm::codegen::effect_lowered::types::CallTargetQuery;
 use crate::llvm::codegen::{
@@ -98,7 +98,7 @@ fn build_fixture_inputs_from_source(source: SourceFile) -> FixtureAbiInputs {
             .expect("effect facts stage 应成功");
     // ABI materializer 必须消费与真实 LLVM stage 相同的 shell-preserving handoff，
     // 不能误用会裁剪 published resume methods 的 authoritative reachable-body program。
-    let abi_visibility_program = optimize_program_with_options(
+    let (abi_visibility_program, abi_visibility_opt_pipeline) = run_lir_opt_pipeline(
         LateLoweredProgramBuilder::from_canonical_inputs(
             mir_stage_output.materialized_pass_view(),
             effect_facts_stage_output.effect_facts(),
@@ -108,12 +108,15 @@ fn build_fixture_inputs_from_source(source: SourceFile) -> FixtureAbiInputs {
         .build()
         .expect("ABI visibility late-lowered program 应成功"),
         LateLoweredOptOptions::preserve_published_resume_shells(),
-    );
+    )
+    .expect("ABI visibility LIR opt pipeline 应成功")
+    .into_parts();
     let abi_visibility_lir_facts = crate::pipeline::lir_facts_builder::build_lir_facts(
         &abi_visibility_program,
         mir_stage_output.materialized_mir(),
         effect_facts_stage_output.effect_facts(),
         mir_stage_output.materialized_mir().opt_level(),
+        abi_visibility_opt_pipeline,
     )
     .expect("ABI visibility LIR facts 应成功");
     let effect_lowered_stage_output = build_effect_lowered_stage_output(

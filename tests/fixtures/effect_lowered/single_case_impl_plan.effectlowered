@@ -8,7 +8,15 @@ snapshot_binding:
 lir_facts:
 lir_facts {
   opt_level: O2
-  summary: callables=1 step_types=1 dynamic_invokes=0 dispatches=0 resume_packings=1 continuation_objects=1 surface_resume_dispatches=2
+  summary: opt_revision=1 callables=1 step_types=1 dynamic_invokes=0 dispatches=0 resume_packings=1 continuation_objects=1 surface_resume_dispatches=2
+  opt_pipeline: revision=1 preserve_published_resume_shells=false passes=7
+    - pass=local-state-machine-elimination status=Applied changed=false
+    - pass=higher-order-wrapper-inline-devirt status=NoOp changed=false
+    - pass=wrapper-state-folding status=Applied changed=false
+    - pass=dynamic-invoke-entry-rewrite status=Applied changed=false
+    - pass=dead-state-slot-cleanup status=Applied changed=false
+    - pass=resume-packing-pruning status=Applied changed=true
+    - pass=post-opt-verifier status=Applied changed=false
   callables=1
     - callable=sample.leaf kind=EffectStep control_body=true key=lir_callable(instance(105:template(92:def(38:cone(21:single_case_impl_plan;5:0.0.0);3:fun;11:sample.leaf;21:materialized_callable));6:list();6:list()),body#0)
       effect_step_abi: step#0 invoke_args=t2 entry=st0 complete=st1 states=4 boundaries=1 continuation_object=cont_obj#0

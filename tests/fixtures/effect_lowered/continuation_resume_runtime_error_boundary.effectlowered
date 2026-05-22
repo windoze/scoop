@@ -9,7 +9,15 @@ snapshot_binding:
 lir_facts:
 lir_facts {
   opt_level: O2
-  summary: callables=2 step_types=2 dynamic_invokes=0 dispatches=0 resume_packings=2 continuation_objects=1 surface_resume_dispatches=4
+  summary: opt_revision=1 callables=2 step_types=2 dynamic_invokes=0 dispatches=0 resume_packings=2 continuation_objects=1 surface_resume_dispatches=4
+  opt_pipeline: revision=1 preserve_published_resume_shells=false passes=7
+    - pass=local-state-machine-elimination status=Applied changed=false
+    - pass=higher-order-wrapper-inline-devirt status=NoOp changed=false
+    - pass=wrapper-state-folding status=Applied changed=false
+    - pass=dynamic-invoke-entry-rewrite status=Applied changed=false
+    - pass=dead-state-slot-cleanup status=Applied changed=false
+    - pass=resume-packing-pruning status=Applied changed=true
+    - pass=post-opt-verifier status=Applied changed=false
   callables=2
     - callable=sample.main kind=Plain control_body=false key=lir_callable(instance(127:template(113:def(59:cone(42:continuation_resume_runtime_error_boundary;5:0.0.0);3:fun;11:sample.main;21:materialized_callable));6:list();6:list()),body#1)
       plain_abi: function_ty=t97 params=0 return=t5 body_slices=1 call_sites=0

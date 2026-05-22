@@ -107,6 +107,91 @@ pub enum LirCallableAbiKind {
     EffectStep,
 }
 
+/// Stable revision for the current LIR optimization family contract.
+pub const LIR_OPT_PIPELINE_REVISION: u64 = 1;
+
+/// Named pass family owned by LIR optimization.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LirOptPassKind {
+    LocalStateMachineElimination,
+    HigherOrderWrapperInlineDevirt,
+    WrapperStateFolding,
+    DynamicInvokeEntryRewrite,
+    DeadStateSlotCleanup,
+    ResumePackingPruning,
+    PostOptVerifier,
+}
+
+impl LirOptPassKind {
+    pub const fn stable_name(self) -> &'static str {
+        match self {
+            Self::LocalStateMachineElimination => "local-state-machine-elimination",
+            Self::HigherOrderWrapperInlineDevirt => "higher-order-wrapper-inline-devirt",
+            Self::WrapperStateFolding => "wrapper-state-folding",
+            Self::DynamicInvokeEntryRewrite => "dynamic-invoke-entry-rewrite",
+            Self::DeadStateSlotCleanup => "dead-state-slot-cleanup",
+            Self::ResumePackingPruning => "resume-packing-pruning",
+            Self::PostOptVerifier => "post-opt-verifier",
+        }
+    }
+}
+
+/// Whether a named LIR opt pass ran or was intentionally disabled.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LirOptPassStatus {
+    Applied,
+    NoOp,
+    Skipped,
+}
+
+/// Stable metadata for one LIR opt pass invocation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct LirOptPassFacts {
+    pub kind: LirOptPassKind,
+    pub status: LirOptPassStatus,
+    pub changed: bool,
+}
+
+impl LirOptPassFacts {
+    pub const fn new(kind: LirOptPassKind, status: LirOptPassStatus, changed: bool) -> Self {
+        Self {
+            kind,
+            status,
+            changed,
+        }
+    }
+}
+
+/// Pipeline metadata binding LIR facts to the post-opt LIR body revision.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LirOptPipelineFacts {
+    pub revision: u64,
+    pub preserve_published_resume_shells: bool,
+    pub passes: Vec<LirOptPassFacts>,
+}
+
+impl LirOptPipelineFacts {
+    pub fn new(
+        revision: u64,
+        preserve_published_resume_shells: bool,
+        passes: Vec<LirOptPassFacts>,
+    ) -> Self {
+        Self {
+            revision,
+            preserve_published_resume_shells,
+            passes,
+        }
+    }
+
+    pub fn empty(revision: u64) -> Self {
+        Self {
+            revision,
+            preserve_published_resume_shells: false,
+            passes: Vec::new(),
+        }
+    }
+}
+
 /// Precision of a published call-site effect/control contract.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LirEffectPrecision {

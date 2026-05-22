@@ -1,6 +1,10 @@
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
 use crate::effect_facts::CaseTag;
+use scoopc_lir_facts::{
+    LIR_OPT_PIPELINE_REVISION, LirOptPassFacts, LirOptPassKind, LirOptPassStatus,
+    LirOptPipelineFacts,
+};
 
 use super::ir::{
     BoundaryId, ContinuationObjectId, FrameSlotId, LateLoweredBoundary,
@@ -9,12 +13,14 @@ use super::ir::{
     LateLoweredContinuationMethod, LateLoweredContinuationMethodReachability,
     LateLoweredContinuationObject, LateLoweredDynamicInvokeEntry, LateLoweredFrameSchema,
     LateLoweredFrameSlot, LateLoweredFrameSlotKind, LateLoweredHandleBoundaryLowering,
-    LateLoweredPerformBoundaryLowering, LateLoweredProgram, LateLoweredResumeBoundaryLowering,
+    LateLoweredPerformBoundaryLowering, LateLoweredPlainCallable,
+    LateLoweredPlainLocalEffectControl, LateLoweredProgram, LateLoweredResumeBoundaryLowering,
     LateLoweredResumeInterface, LateLoweredResumePayloadBinding, LateLoweredResumeState,
     LateLoweredResumeStateMap, LateLoweredRuntimeErrorBoundaryLowering, LateLoweredState,
     LateLoweredStateGraph, LateLoweredStateRole, LateLoweredStateTerminator,
     LateLoweredStepDispatchPlan, ResumeInterfaceId, StateId,
 };
+use super::opt_verify::{LirOptVerifyError, verify_post_opt_program};
 
 #[derive(Debug, Clone, Copy, Default)]
 pub(crate) struct LateLoweredOptOptions {
@@ -30,20 +36,91 @@ impl LateLoweredOptOptions {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct LirOptPipelineOutput {
+    program: LateLoweredProgram,
+    opt_pipeline: LirOptPipelineFacts,
+}
+
+impl LirOptPipelineOutput {
+    pub(crate) fn into_parts(self) -> (LateLoweredProgram, LirOptPipelineFacts) {
+        (self.program, self.opt_pipeline)
+    }
+}
+
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+struct LirOptStats {
+    redirected_states: usize,
+    removed_states: usize,
+    removed_boundaries: usize,
+    removed_frame_slots: usize,
+    rewritten_dynamic_entries: usize,
+    pruned_resume_packings: usize,
+    pruned_resume_methods: usize,
+}
+
+impl LirOptStats {
+    fn local_state_machine_changed(self) -> bool {
+        self.redirected_states > 0 || self.removed_states > 0
+    }
+
+    fn wrapper_state_folding_changed(self) -> bool {
+        self.redirected_states > 0
+    }
+
+    fn dynamic_invoke_rewrite_changed(self) -> bool {
+        self.rewritten_dynamic_entries > 0
+    }
+
+    fn dead_cleanup_changed(self) -> bool {
+        self.removed_states > 0 || self.removed_boundaries > 0 || self.removed_frame_slots > 0
+    }
+
+    fn resume_packing_pruning_changed(self) -> bool {
+        self.pruned_resume_packings > 0 || self.pruned_resume_methods > 0
+    }
+}
+
 /// 在 late-lowered IR 上执行窄的 post-lowering 收缩。
 ///
 /// 该 pass 只消费 `LateLoweredProgram`：
 /// - 不重新读取 HIR/P3 MIR/P4 solver 结果；
 /// - 不改动 `StepSchema` / `CaseTag` / `ImplPlan` / canonical dynamic invoke contract；
 /// - 只做 wrapper state 折叠、internal resume interface 去虚化，以及死代码/死 slot 清理。
+#[cfg_attr(not(test), allow(dead_code))]
 pub(crate) fn optimize_program(program: LateLoweredProgram) -> LateLoweredProgram {
     optimize_program_with_options(program, LateLoweredOptOptions::default())
 }
 
+#[cfg_attr(not(test), allow(dead_code))]
 pub(crate) fn optimize_program_with_options(
     program: LateLoweredProgram,
     options: LateLoweredOptOptions,
 ) -> LateLoweredProgram {
+    run_lir_opt_pipeline(program, options)
+        .expect("LIR opt verifier should accept internally rewritten LIR")
+        .into_parts()
+        .0
+}
+
+pub(crate) fn run_lir_opt_pipeline(
+    program: LateLoweredProgram,
+    options: LateLoweredOptOptions,
+) -> Result<LirOptPipelineOutput, LirOptVerifyError> {
+    let (program, stats) = optimize_program_body(program, options);
+    verify_post_opt_program(&program)?;
+    let opt_pipeline = build_opt_pipeline_facts(options, stats);
+    Ok(LirOptPipelineOutput {
+        program,
+        opt_pipeline,
+    })
+}
+
+fn optimize_program_body(
+    program: LateLoweredProgram,
+    options: LateLoweredOptOptions,
+) -> (LateLoweredProgram, LirOptStats) {
+    let mut stats = LirOptStats::default();
     let mut optimized_objects =
         BTreeMap::<ContinuationObjectId, LateLoweredContinuationObject>::new();
     let mut optimized_callables = Vec::with_capacity(program.len());
@@ -56,12 +133,18 @@ pub(crate) fn optimize_program_with_options(
         let continuation_object = program
             .continuation_object(callable.continuation_object())
             .expect("every callable should point at a published continuation object");
-        let Some(_) = callable.effect_step_abi() else {
-            optimized_objects.insert(continuation_object.object_id(), continuation_object.clone());
-            optimized_callables.push(callable.clone());
-            continue;
+        let optimized = if callable.effect_step_abi().is_some() {
+            optimize_callable(callable, continuation_object, options)
+        } else {
+            optimize_plain_callable(callable, continuation_object, options)
         };
-        let optimized = optimize_callable(callable, continuation_object, options);
+        accumulate_callable_stats(
+            callable,
+            &optimized.callable,
+            continuation_object,
+            &optimized,
+            &mut stats,
+        );
         optimized_objects.insert(
             optimized.continuation_object.object_id(),
             optimized.continuation_object,
@@ -75,7 +158,7 @@ pub(crate) fn optimize_program_with_options(
             .iter()
             .filter_map(|object| optimized_objects.remove(&object.object_id()))
             .collect::<Vec<_>>();
-        return LateLoweredProgram::new(
+        let optimized_program = LateLoweredProgram::new(
             program.step_types().to_vec(),
             program.resume_packings().to_vec(),
             continuation_objects,
@@ -86,6 +169,7 @@ pub(crate) fn optimize_program_with_options(
             program.dump_type_texts().clone(),
             program.dump_body_labels_map().clone(),
         );
+        return (optimized_program, stats);
     }
 
     let live_methods_by_interface = collect_live_methods_by_interface(optimized_objects.values());
@@ -104,6 +188,10 @@ pub(crate) fn optimize_program_with_options(
             )
         })
         .collect::<Vec<_>>();
+    stats.pruned_resume_packings = program
+        .resume_packings()
+        .len()
+        .saturating_sub(resume_packings.len());
 
     let continuation_objects = program
         .continuation_objects()
@@ -122,34 +210,18 @@ pub(crate) fn optimize_program_with_options(
     let callables = optimized_callables
         .into_iter()
         .map(|callable| {
-            if callable.effect_step_abi().is_none() {
+            if !callable.has_control_body() {
                 return callable;
             }
             let resume_packings = implemented_packings_by_object
                 .get(&callable.continuation_object())
                 .cloned()
                 .unwrap_or_default();
-            LateLoweredCallable::new(
-                callable.root_fqn().to_string(),
-                callable.stable_instance_key().clone(),
-                callable.body_version_key().clone(),
-                callable.step_schema(),
-                callable.resolved_outward_cases().to_vec(),
-                callable.dynamic_invoke_entry().clone(),
-                callable.state_graph().clone(),
-                callable.frame_schema().clone(),
-                callable.boundary_map().clone(),
-                callable.resume_state_map().clone(),
-                callable.continuation_object(),
-                resume_packings,
-            )
-            .with_source_statement_classifications(
-                callable.source_statement_classifications().to_vec(),
-            )
+            with_callable_resume_packings(callable, resume_packings)
         })
         .collect::<Vec<_>>();
 
-    LateLoweredProgram::new(
+    let optimized_program = LateLoweredProgram::new(
         program.step_types().to_vec(),
         resume_packings,
         continuation_objects,
@@ -159,6 +231,94 @@ pub(crate) fn optimize_program_with_options(
     .with_dump_metadata(
         program.dump_type_texts().clone(),
         program.dump_body_labels_map().clone(),
+    );
+    (optimized_program, stats)
+}
+
+fn accumulate_callable_stats(
+    before: &LateLoweredCallable,
+    after: &LateLoweredCallable,
+    before_object: &LateLoweredContinuationObject,
+    optimized: &OptimizedCallable,
+    stats: &mut LirOptStats,
+) {
+    stats.redirected_states += collect_state_redirects(before.state_graph()).len();
+    stats.removed_states += before
+        .state_graph()
+        .states()
+        .len()
+        .saturating_sub(after.state_graph().states().len());
+    stats.removed_boundaries += before
+        .boundary_map()
+        .entries()
+        .len()
+        .saturating_sub(after.boundary_map().entries().len());
+    stats.removed_frame_slots += before
+        .frame_schema()
+        .slots()
+        .len()
+        .saturating_sub(after.frame_schema().slots().len());
+    if let (Some(before_effect), Some(after_effect)) =
+        (before.effect_step_abi(), after.effect_step_abi())
+        && before_effect.dynamic_invoke_entry() != after_effect.dynamic_invoke_entry()
+    {
+        stats.rewritten_dynamic_entries += 1;
+    }
+    stats.pruned_resume_methods += before_object
+        .methods()
+        .len()
+        .saturating_sub(optimized.continuation_object.methods().len());
+}
+
+fn build_opt_pipeline_facts(
+    options: LateLoweredOptOptions,
+    stats: LirOptStats,
+) -> LirOptPipelineFacts {
+    let resume_pruning_status = if options.preserve_published_resume_shells {
+        LirOptPassStatus::Skipped
+    } else {
+        LirOptPassStatus::Applied
+    };
+    LirOptPipelineFacts::new(
+        LIR_OPT_PIPELINE_REVISION,
+        options.preserve_published_resume_shells,
+        vec![
+            LirOptPassFacts::new(
+                LirOptPassKind::LocalStateMachineElimination,
+                LirOptPassStatus::Applied,
+                stats.local_state_machine_changed(),
+            ),
+            LirOptPassFacts::new(
+                LirOptPassKind::HigherOrderWrapperInlineDevirt,
+                LirOptPassStatus::NoOp,
+                false,
+            ),
+            LirOptPassFacts::new(
+                LirOptPassKind::WrapperStateFolding,
+                LirOptPassStatus::Applied,
+                stats.wrapper_state_folding_changed(),
+            ),
+            LirOptPassFacts::new(
+                LirOptPassKind::DynamicInvokeEntryRewrite,
+                LirOptPassStatus::Applied,
+                stats.dynamic_invoke_rewrite_changed(),
+            ),
+            LirOptPassFacts::new(
+                LirOptPassKind::DeadStateSlotCleanup,
+                LirOptPassStatus::Applied,
+                stats.dead_cleanup_changed(),
+            ),
+            LirOptPassFacts::new(
+                LirOptPassKind::ResumePackingPruning,
+                resume_pruning_status,
+                !options.preserve_published_resume_shells && stats.resume_packing_pruning_changed(),
+            ),
+            LirOptPassFacts::new(
+                LirOptPassKind::PostOptVerifier,
+                LirOptPassStatus::Applied,
+                false,
+            ),
+        ],
     )
 }
 
@@ -167,19 +327,99 @@ struct OptimizedCallable {
     continuation_object: LateLoweredContinuationObject,
 }
 
+struct OptimizedControlBody {
+    state_graph: LateLoweredStateGraph,
+    frame_schema: LateLoweredFrameSchema,
+    boundary_map: LateLoweredBoundaryMap,
+    resume_state_map: LateLoweredResumeStateMap,
+    continuation_object: LateLoweredContinuationObject,
+    resume_packings: Vec<ResumeInterfaceId>,
+}
+
 fn optimize_callable(
     callable: &LateLoweredCallable,
     continuation_object: &LateLoweredContinuationObject,
     options: LateLoweredOptOptions,
 ) -> OptimizedCallable {
     let redirects = collect_state_redirects(callable.state_graph());
-    let state_graph = rewrite_state_graph(callable.state_graph(), &redirects);
+    let optimized = optimize_control_body(callable, continuation_object, options, &redirects);
+    let callable = LateLoweredCallable::new(
+        callable.root_fqn().to_string(),
+        callable.stable_instance_key().clone(),
+        callable.body_version_key().clone(),
+        callable.step_schema(),
+        callable.resolved_outward_cases().to_vec(),
+        rewrite_dynamic_invoke_entry(callable.dynamic_invoke_entry(), &redirects),
+        optimized.state_graph,
+        optimized.frame_schema,
+        optimized.boundary_map.clone(),
+        optimized.resume_state_map,
+        callable.continuation_object(),
+        optimized.resume_packings,
+    )
+    .with_source_statement_classifications(callable.source_statement_classifications().to_vec());
+
+    OptimizedCallable {
+        callable,
+        continuation_object: optimized.continuation_object,
+    }
+}
+
+fn optimize_plain_callable(
+    callable: &LateLoweredCallable,
+    continuation_object: &LateLoweredContinuationObject,
+    options: LateLoweredOptOptions,
+) -> OptimizedCallable {
+    let redirects = collect_state_redirects(callable.state_graph());
+    let optimized = optimize_control_body(callable, continuation_object, options, &redirects);
+    let plain = callable
+        .plain_abi()
+        .expect("plain local control callable should publish a plain ABI");
+    let local_control = LateLoweredPlainLocalEffectControl::new(
+        callable.step_schema(),
+        optimized.state_graph,
+        optimized.frame_schema,
+        optimized.boundary_map,
+        optimized.resume_state_map,
+        callable.source_statement_classifications().to_vec(),
+        callable.continuation_object(),
+        optimized.resume_packings,
+    );
+    let plain = LateLoweredPlainCallable::new(
+        plain.function_ty(),
+        plain.param_tys().to_vec(),
+        plain.return_ty(),
+        plain.body_slices().to_vec(),
+        plain.call_sites().to_vec(),
+        Some(local_control),
+    );
+    let callable = LateLoweredCallable::new_plain(
+        callable.root_fqn().to_string(),
+        callable.stable_instance_key().clone(),
+        callable.body_version_key().clone(),
+        callable.resolved_outward_cases().to_vec(),
+        plain,
+    );
+
+    OptimizedCallable {
+        callable,
+        continuation_object: optimized.continuation_object,
+    }
+}
+
+fn optimize_control_body(
+    callable: &LateLoweredCallable,
+    continuation_object: &LateLoweredContinuationObject,
+    options: LateLoweredOptOptions,
+    redirects: &BTreeMap<StateId, StateId>,
+) -> OptimizedControlBody {
+    let state_graph = rewrite_state_graph(callable.state_graph(), redirects);
     let live_states = state_graph
         .states()
         .iter()
         .map(LateLoweredState::state_id)
         .collect::<BTreeSet<_>>();
-    let boundary_map = rewrite_boundary_map(callable.boundary_map(), &redirects, &live_states);
+    let boundary_map = rewrite_boundary_map(callable.boundary_map(), redirects, &live_states);
     let live_boundaries = boundary_map
         .entries()
         .iter()
@@ -187,7 +427,7 @@ fn optimize_callable(
         .collect::<BTreeSet<_>>();
     let frame_schema = rewrite_frame_schema(
         callable.frame_schema(),
-        &redirects,
+        redirects,
         &live_states,
         &live_boundaries,
     );
@@ -220,7 +460,7 @@ fn optimize_callable(
     };
     let captures = rewrite_captures(
         continuation_object.captures(),
-        &redirects,
+        redirects,
         &live_states,
         &live_slots,
     );
@@ -233,30 +473,74 @@ fn optimize_callable(
         continuation_object.surface_resumes().to_vec(),
         methods,
     );
-    let callable = LateLoweredCallable::new(
+    let resume_state_map = resume_state_map_from_boundaries(&boundary_map);
+    let resume_packings = if options.preserve_published_resume_shells {
+        callable.resume_packings().to_vec()
+    } else {
+        implemented_packings.clone()
+    };
+    OptimizedControlBody {
+        state_graph,
+        frame_schema,
+        boundary_map,
+        resume_state_map,
+        continuation_object,
+        resume_packings,
+    }
+}
+
+fn with_callable_resume_packings(
+    callable: LateLoweredCallable,
+    resume_packings: Vec<ResumeInterfaceId>,
+) -> LateLoweredCallable {
+    if callable.effect_step_abi().is_some() {
+        return LateLoweredCallable::new(
+            callable.root_fqn().to_string(),
+            callable.stable_instance_key().clone(),
+            callable.body_version_key().clone(),
+            callable.step_schema(),
+            callable.resolved_outward_cases().to_vec(),
+            callable.dynamic_invoke_entry().clone(),
+            callable.state_graph().clone(),
+            callable.frame_schema().clone(),
+            callable.boundary_map().clone(),
+            callable.resume_state_map().clone(),
+            callable.continuation_object(),
+            resume_packings,
+        )
+        .with_source_statement_classifications(
+            callable.source_statement_classifications().to_vec(),
+        );
+    }
+
+    let plain = callable
+        .plain_abi()
+        .expect("plain local control callable should publish a plain ABI");
+    let local_control = LateLoweredPlainLocalEffectControl::new(
+        callable.step_schema(),
+        callable.state_graph().clone(),
+        callable.frame_schema().clone(),
+        callable.boundary_map().clone(),
+        callable.resume_state_map().clone(),
+        callable.source_statement_classifications().to_vec(),
+        callable.continuation_object(),
+        resume_packings,
+    );
+    let plain = LateLoweredPlainCallable::new(
+        plain.function_ty(),
+        plain.param_tys().to_vec(),
+        plain.return_ty(),
+        plain.body_slices().to_vec(),
+        plain.call_sites().to_vec(),
+        Some(local_control),
+    );
+    LateLoweredCallable::new_plain(
         callable.root_fqn().to_string(),
         callable.stable_instance_key().clone(),
         callable.body_version_key().clone(),
-        callable.step_schema(),
         callable.resolved_outward_cases().to_vec(),
-        rewrite_dynamic_invoke_entry(callable.dynamic_invoke_entry(), &redirects),
-        state_graph,
-        frame_schema,
-        boundary_map.clone(),
-        resume_state_map_from_boundaries(&boundary_map),
-        callable.continuation_object(),
-        if options.preserve_published_resume_shells {
-            callable.resume_packings().to_vec()
-        } else {
-            implemented_packings.clone()
-        },
+        plain,
     )
-    .with_source_statement_classifications(callable.source_statement_classifications().to_vec());
-
-    OptimizedCallable {
-        callable,
-        continuation_object,
-    }
 }
 
 fn collect_live_methods_by_interface<'a>(
@@ -955,7 +1239,7 @@ fn rewrite_captures(
 mod tests {
     use std::path::PathBuf;
 
-    use super::optimize_program;
+    use super::{LateLoweredOptOptions, optimize_program, run_lir_opt_pipeline};
     use crate::effect_facts::{
         CaseTag, ConcreteOpKey, ContinuationSchemaId, EffectFamilyKey, ImplPlan, StepSchemaId,
     };
@@ -982,6 +1266,7 @@ mod tests {
         NoTypeParamResolver, StableConeKey, StableDefKey, StableDefNamespace, StableTemplateKey,
     };
     use crate::ty::{EffectRow, NominalType, RefTypeKind, TypeId, TypeKind, TypeStore};
+    use scoopc_lir_facts::{LIR_OPT_PIPELINE_REVISION, LirOptPassKind, LirOptPassStatus};
 
     fn session() -> Session {
         Session::with_options(SessionOptions::new()).unwrap()
@@ -1326,6 +1611,42 @@ mod tests {
             vec![continuation_object],
             vec![callable],
         )
+    }
+
+    #[test]
+    fn late_opt_pipeline_publishes_named_pass_order_and_revision() {
+        let output = run_lir_opt_pipeline(sample_opt_program(), LateLoweredOptOptions::default())
+            .expect("sample program should pass LIR opt verification");
+        let (_program, pipeline) = output.into_parts();
+        let pass_kinds = pipeline
+            .passes
+            .iter()
+            .map(|pass| pass.kind)
+            .collect::<Vec<_>>();
+
+        assert_eq!(pipeline.revision, LIR_OPT_PIPELINE_REVISION);
+        assert!(!pipeline.preserve_published_resume_shells);
+        assert_eq!(
+            pass_kinds,
+            vec![
+                LirOptPassKind::LocalStateMachineElimination,
+                LirOptPassKind::HigherOrderWrapperInlineDevirt,
+                LirOptPassKind::WrapperStateFolding,
+                LirOptPassKind::DynamicInvokeEntryRewrite,
+                LirOptPassKind::DeadStateSlotCleanup,
+                LirOptPassKind::ResumePackingPruning,
+                LirOptPassKind::PostOptVerifier,
+            ]
+        );
+        assert_eq!(
+            pipeline.passes[1].status,
+            LirOptPassStatus::NoOp,
+            "higher-order wrapper inline/devirt has an explicit owner even before it grows non-trivial rewrites",
+        );
+        assert!(pipeline.passes[2].changed);
+        assert_eq!(pipeline.passes[3].status, LirOptPassStatus::Applied);
+        assert!(pipeline.passes[4].changed);
+        assert!(pipeline.passes[5].changed);
     }
 
     #[test]

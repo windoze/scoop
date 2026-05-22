@@ -18,6 +18,7 @@ pub(crate) mod frame;
 pub mod ir;
 pub(crate) mod materialize;
 pub(crate) mod opt;
+pub(crate) mod opt_verify;
 pub(crate) mod segment;
 
 pub(crate) use builder::LateLoweredProgramBuilder;
@@ -26,7 +27,7 @@ pub use ir::{
     LateLoweredCallable, LateLoweredCallableAbi, LateLoweredEffectStepCallable,
     LateLoweredPlainBodySlice, LateLoweredPlainCallable, LateLoweredProgram,
 };
-pub(crate) use opt::{LateLoweredOptOptions, optimize_program, optimize_program_with_options};
+pub(crate) use opt::{LateLoweredOptOptions, run_lir_opt_pipeline};
 
 use thiserror::Error;
 
@@ -248,6 +249,9 @@ pub enum EffectLoweringError {
 
     #[error("late-lowering stage 无法发布 LIR facts contract：{detail}")]
     InvalidLirFactsContract { detail: String },
+
+    #[error("late-lowering stage 无法验证 LIR opt pipeline：{detail}")]
+    InvalidLirOptPipelineContract { detail: String },
 }
 
 impl From<crate::effect_facts::EffectFactsError> for EffectLoweringError {
