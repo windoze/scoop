@@ -4,6 +4,11 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use scoopc_ids::{BodyVersionKey, StableCanonicalKey, StableLirCallableKey, StableSymbolKey};
 use scoopc_lir_facts::*;
+use scoopc_mir_facts::MirFacts;
+use scoopc_mir_facts::roots::{
+    MirGlobalStorageKind, MirInitializerDependencyKind, MirInitializerRootKind, MirRootDetail,
+    MirRootFact,
+};
 
 use crate::effect_facts::{
     CallSiteEffectFacts, CallSiteKind, CallSiteTarget, CallTargetMode, CallableAbiKind,
@@ -27,6 +32,7 @@ use crate::ty::TypeId;
 
 struct LirFactsBuildContext<'a> {
     lir: &'a LateLoweredProgram,
+    mir_facts: &'a MirFacts,
     materialized: &'a MaterializedMir,
     effect_facts: &'a MaterializedEffectFacts,
     callable_keys_by_root: HashMap<String, StableLirCallableKey>,
@@ -49,6 +55,7 @@ struct MaterializedCallableSignature {
 /// Build the LIR fact product from the authoritative post-opt LIR body.
 pub(crate) fn build_lir_facts(
     lir: &LateLoweredProgram,
+    mir_facts: &MirFacts,
     materialized: &MaterializedMir,
     effect_facts: &MaterializedEffectFacts,
     opt_level: OptLevel,
@@ -58,6 +65,7 @@ pub(crate) fn build_lir_facts(
     let body_versions_by_key = body_version_index(lir, &callable_keys_by_root)?;
     let ctx = LirFactsBuildContext {
         lir,
+        mir_facts,
         materialized,
         effect_facts,
         callable_keys_by_root,
@@ -68,6 +76,7 @@ pub(crate) fn build_lir_facts(
     let mut dispatches = BTreeMap::new();
     let callables = build_callable_facts(&ctx, &mut dynamic_invokes, &mut dispatches)?;
     let groups = LirFactGroups {
+        global_init: build_global_init_facts(&ctx)?,
         callables,
         step_types: build_step_type_facts(lir),
         dynamic_invokes,
@@ -84,6 +93,12 @@ pub(crate) fn build_lir_facts(
             groups.resume_packings.len(),
             groups.continuation_objects.len(),
             groups.surface_resume_dispatches.len(),
+        )
+        .with_global_counts(
+            groups.global_init.roots.len(),
+            groups.global_init.object_once.len(),
+            groups.global_init.top_level_eager_inits.len(),
+            groups.global_init.cone_init_routines.len(),
         );
     let facts = LirFacts::from_parts_with_opt_pipeline(summary, opt_pipeline, groups);
     facts
@@ -157,6 +172,234 @@ fn body_version_facts(
         needs_reentry: callable.needs_reentry(),
         allowed_effect_terms: callable.allowed_row().terms.clone(),
     }
+}
+
+fn build_global_init_facts(
+    ctx: &LirFactsBuildContext<'_>,
+) -> Result<LirGlobalInitFacts, EffectLoweringError> {
+    let mut facts = LirGlobalInitFacts::default();
+
+    for root in &ctx.mir_facts.roots.initializers {
+        let root_facts = initializer_global_root_facts(ctx, root)?;
+        publish_global_root_contracts(&mut facts, root_facts);
+    }
+    for root in &ctx.mir_facts.roots.extern_globals {
+        let root_facts = extern_global_root_facts(root)?;
+        facts.roots.insert(root_facts.root.clone(), root_facts);
+    }
+
+    publish_cone_init_routines(&mut facts)?;
+    Ok(facts)
+}
+
+fn publish_global_root_contracts(facts: &mut LirGlobalInitFacts, root: LirGlobalRootFacts) {
+    match root.kind {
+        LirGlobalRootKind::TopLevelImmutableVal | LirGlobalRootKind::TopLevelMutableVar => {
+            facts.top_level_eager_inits.insert(
+                root.root.clone(),
+                LirTopLevelEagerInitFacts {
+                    root: root.root.clone(),
+                    storage: root.storage,
+                    has_initializer: root.has_initializer,
+                },
+            );
+        }
+        LirGlobalRootKind::ObjectSingleton => {
+            facts.object_once.insert(
+                root.root.clone(),
+                LirObjectOnceFacts {
+                    root: root.root.clone(),
+                    has_initializer: root.has_initializer,
+                },
+            );
+        }
+        LirGlobalRootKind::ExternGlobal => {}
+    }
+    facts.roots.insert(root.root.clone(), root);
+}
+
+fn initializer_global_root_facts(
+    ctx: &LirFactsBuildContext<'_>,
+    root: &MirRootFact,
+) -> Result<LirGlobalRootFacts, EffectLoweringError> {
+    let MirRootDetail::Initializer {
+        kind,
+        has_initializer,
+        dependency_count,
+    } = &root.detail
+    else {
+        return invalid_lir_facts(format!(
+            "MIR root `{}` is in initializer inventory but has non-initializer detail",
+            root.fqn
+        ));
+    };
+    let dependencies = ctx
+        .mir_facts
+        .roots
+        .initializer_dependencies_for(root.fqn.as_str())
+        .map(|dependency| LirGlobalRootDependency {
+            target: LirGlobalRootKey::new(dependency.target_fqn.clone()),
+            kind: global_dependency_kind(dependency.kind),
+        })
+        .collect::<Vec<_>>();
+    if dependencies.len() != *dependency_count {
+        return invalid_lir_facts(format!(
+            "MIR initializer root `{}` reports {dependency_count} dependencies but publishes {} dependency identities",
+            root.fqn,
+            dependencies.len()
+        ));
+    }
+
+    let (kind, storage) = initializer_root_kind(*kind);
+    Ok(LirGlobalRootFacts {
+        root: LirGlobalRootKey::new(root.fqn.clone()),
+        kind,
+        cone: root.identity.cone.clone(),
+        ty: root.ty,
+        storage,
+        has_initializer: *has_initializer,
+        dependencies,
+        source_path: root.source_path.clone(),
+        extern_global: None,
+    })
+}
+
+fn extern_global_root_facts(root: &MirRootFact) -> Result<LirGlobalRootFacts, EffectLoweringError> {
+    let MirRootDetail::ExternGlobal {
+        storage,
+        mutable,
+        symbol,
+        initializer_absent,
+        unsafe_required,
+    } = &root.detail
+    else {
+        return invalid_lir_facts(format!(
+            "MIR root `{}` is in extern-global inventory but has non-extern detail",
+            root.fqn
+        ));
+    };
+
+    Ok(LirGlobalRootFacts {
+        root: LirGlobalRootKey::new(root.fqn.clone()),
+        kind: LirGlobalRootKind::ExternGlobal,
+        cone: root.identity.cone.clone(),
+        ty: root.ty,
+        storage: Some(global_storage_policy(*storage)),
+        has_initializer: !initializer_absent,
+        dependencies: Vec::new(),
+        source_path: root.source_path.clone(),
+        extern_global: Some(LirExternGlobalFacts {
+            symbol: symbol.clone(),
+            mutable: *mutable,
+            initializer_absent: *initializer_absent,
+            unsafe_required: *unsafe_required,
+        }),
+    })
+}
+
+fn publish_cone_init_routines(facts: &mut LirGlobalInitFacts) -> Result<(), EffectLoweringError> {
+    let mut roots_by_cone = BTreeMap::<String, Vec<LirGlobalRootKey>>::new();
+    for (root_key, root) in &facts.roots {
+        if facts.top_level_eager_inits.contains_key(root_key) {
+            roots_by_cone
+                .entry(root.cone.canonical_text())
+                .or_default()
+                .push(root_key.clone());
+        }
+    }
+
+    for (index, (_cone_key, roots)) in roots_by_cone.into_iter().enumerate() {
+        let ordered_roots = topologically_order_eager_roots(facts, roots)?;
+        let Some(first_root) = ordered_roots.first().and_then(|root| facts.roots.get(root)) else {
+            continue;
+        };
+        let routine = LirConeInitRoutineKey::new(index as u32);
+        facts.cone_init_routines.insert(
+            routine,
+            LirConeInitRoutineFacts {
+                routine,
+                cone: first_root.cone.clone(),
+                roots: ordered_roots,
+            },
+        );
+        facts.final_entry_order.routines.push(routine);
+    }
+    Ok(())
+}
+
+fn topologically_order_eager_roots(
+    facts: &LirGlobalInitFacts,
+    roots: Vec<LirGlobalRootKey>,
+) -> Result<Vec<LirGlobalRootKey>, EffectLoweringError> {
+    let eager_roots = roots.iter().cloned().collect::<BTreeSet<_>>();
+    let mut pending = eager_roots.clone();
+    let mut ordered = Vec::new();
+
+    while !pending.is_empty() {
+        let ready = pending
+            .iter()
+            .find(|root| {
+                let Some(root_facts) = facts.roots.get(*root) else {
+                    return false;
+                };
+                root_facts.dependencies.iter().all(|dependency| {
+                    !eager_roots.contains(&dependency.target)
+                        || ordered.contains(&dependency.target)
+                })
+            })
+            .cloned();
+        let Some(root) = ready else {
+            let cycle = pending
+                .iter()
+                .map(|root| root.as_str())
+                .collect::<Vec<_>>()
+                .join(", ");
+            return invalid_lir_facts(format!(
+                "cyclic top-level eager init dependencies among: {cycle}"
+            ));
+        };
+        pending.remove(&root);
+        ordered.push(root);
+    }
+
+    Ok(ordered)
+}
+
+fn initializer_root_kind(
+    kind: MirInitializerRootKind,
+) -> (LirGlobalRootKind, Option<LirGlobalStoragePolicy>) {
+    match kind {
+        MirInitializerRootKind::RuntimeImmutableVal => {
+            (LirGlobalRootKind::TopLevelImmutableVal, None)
+        }
+        MirInitializerRootKind::RuntimeMutableGlobalVar => (
+            LirGlobalRootKind::TopLevelMutableVar,
+            Some(LirGlobalStoragePolicy::Global),
+        ),
+        MirInitializerRootKind::RuntimeMutableThreadLocalVar => (
+            LirGlobalRootKind::TopLevelMutableVar,
+            Some(LirGlobalStoragePolicy::ThreadLocal),
+        ),
+        MirInitializerRootKind::ObjectSingleton => (LirGlobalRootKind::ObjectSingleton, None),
+    }
+}
+
+fn global_storage_policy(storage: MirGlobalStorageKind) -> LirGlobalStoragePolicy {
+    match storage {
+        MirGlobalStorageKind::Global => LirGlobalStoragePolicy::Global,
+        MirGlobalStorageKind::ThreadLocal => LirGlobalStoragePolicy::ThreadLocal,
+    }
+}
+
+fn global_dependency_kind(kind: MirInitializerDependencyKind) -> LirGlobalDependencyKind {
+    match kind {
+        MirInitializerDependencyKind::TopLevelValue => LirGlobalDependencyKind::TopLevelValue,
+        MirInitializerDependencyKind::ObjectSingleton => LirGlobalDependencyKind::ObjectSingleton,
+    }
+}
+
+fn invalid_lir_facts<T>(detail: String) -> Result<T, EffectLoweringError> {
+    Err(EffectLoweringError::InvalidLirFactsContract { detail })
 }
 
 fn build_callable_facts(

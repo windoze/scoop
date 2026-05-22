@@ -2,6 +2,8 @@
 
 use std::fmt::Write as _;
 
+use scoopc_ids::StableCanonicalKey as _;
+
 use crate::LirFacts;
 
 /// Render a compact, stable summary of LIR fact groups.
@@ -46,6 +48,7 @@ pub fn dump_lir_facts(facts: &LirFacts) -> String {
         )
         .expect("writing to String cannot fail");
     }
+    dump_global_init_facts(&mut out, facts);
     writeln!(&mut out, "  callables={}", facts.callables.len())
         .expect("writing to String cannot fail");
     for (key, callable) in &facts.callables {
@@ -171,4 +174,106 @@ pub fn dump_lir_facts(facts: &LirFacts) -> String {
     write!(&mut out, "}}").expect("writing to String cannot fail");
 
     out
+}
+
+fn dump_global_init_facts(out: &mut String, facts: &LirFacts) {
+    if facts.global_init.is_empty() {
+        return;
+    }
+
+    writeln!(
+        out,
+        "  global_init: roots={} object_once={} top_level_eager_inits={} cone_init_routines={} final_entry_routines={}",
+        facts.global_init.roots.len(),
+        facts.global_init.object_once.len(),
+        facts.global_init.top_level_eager_inits.len(),
+        facts.global_init.cone_init_routines.len(),
+        facts.global_init.final_entry_order.routines.len(),
+    )
+    .expect("writing to String cannot fail");
+    for (key, root) in &facts.global_init.roots {
+        writeln!(
+            out,
+            "    - root={} kind={} cone={} storage={} has_initializer={} deps={} ty={}{}",
+            key.as_str(),
+            root.kind.stable_name(),
+            root.cone.canonical_text(),
+            root.storage
+                .map(|storage| storage.stable_name())
+                .unwrap_or("<none>"),
+            root.has_initializer,
+            root.dependencies.len(),
+            root.ty
+                .map(|ty| format!("t{}", ty.as_u32()))
+                .unwrap_or_else(|| "<none>".to_string()),
+            root.extern_global
+                .as_ref()
+                .map(|extern_global| format!(
+                    " extern_symbol={} mutable={} initializer_absent={} unsafe_required={}",
+                    extern_global.symbol,
+                    extern_global.mutable,
+                    extern_global.initializer_absent,
+                    extern_global.unsafe_required,
+                ))
+                .unwrap_or_default(),
+        )
+        .expect("writing to String cannot fail");
+        for dependency in &root.dependencies {
+            writeln!(
+                out,
+                "      depends_on={} kind={}",
+                dependency.target.as_str(),
+                dependency.kind.stable_name(),
+            )
+            .expect("writing to String cannot fail");
+        }
+    }
+    for (key, object_once) in &facts.global_init.object_once {
+        writeln!(
+            out,
+            "    - object_once={} has_initializer={}",
+            key.as_str(),
+            object_once.has_initializer,
+        )
+        .expect("writing to String cannot fail");
+    }
+    for (key, eager) in &facts.global_init.top_level_eager_inits {
+        writeln!(
+            out,
+            "    - top_level_eager_init={} storage={} has_initializer={}",
+            key.as_str(),
+            eager
+                .storage
+                .map(|storage| storage.stable_name())
+                .unwrap_or("<none>"),
+            eager.has_initializer,
+        )
+        .expect("writing to String cannot fail");
+    }
+    for (key, routine) in &facts.global_init.cone_init_routines {
+        let roots = routine
+            .roots
+            .iter()
+            .map(|root| root.as_str())
+            .collect::<Vec<_>>()
+            .join(",");
+        writeln!(
+            out,
+            "    - cone_init_routine=r{} cone={} roots=[{}]",
+            key.as_u32(),
+            routine.cone.canonical_text(),
+            roots,
+        )
+        .expect("writing to String cannot fail");
+    }
+    let routines = facts
+        .global_init
+        .final_entry_order
+        .routines
+        .iter()
+        .map(|routine| format!("r{}", routine.as_u32()))
+        .collect::<Vec<_>>()
+        .join(",");
+    writeln!(out, "    - final_entry_init_order=[{}]", routines)
+        .expect("writing to String cannot fail");
 }

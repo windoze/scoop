@@ -1,6 +1,7 @@
 //! Backend-neutral contracts published next to the LIR body.
 
 use scoopc_ids::{BodyVersionKey, SiteId, StableLirCallableKey};
+use scoopc_project_model::StableConeKey;
 use scoopc_types::TypeId;
 
 macro_rules! id_key {
@@ -41,6 +42,155 @@ id_key!(/// Stable block identity as observed through LIR source slices.
     LirBodyBlockKey);
 id_key!(/// Stable local identity scoped to one source body.
     LirLocalKey);
+id_key!(/// Stable per-cone init routine identity scoped to one LIR fact product.
+    LirConeInitRoutineKey);
+
+/// Stable global/init root identity published by LIR facts.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct LirGlobalRootKey(String);
+
+impl LirGlobalRootKey {
+    pub fn new(fqn: impl Into<String>) -> Self {
+        Self(fqn.into())
+    }
+
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+/// Backend-neutral global/init root family.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum LirGlobalRootKind {
+    TopLevelImmutableVal,
+    TopLevelMutableVar,
+    ObjectSingleton,
+    ExternGlobal,
+}
+
+impl LirGlobalRootKind {
+    pub const fn stable_name(self) -> &'static str {
+        match self {
+            Self::TopLevelImmutableVal => "top_level_immutable_val",
+            Self::TopLevelMutableVar => "top_level_mutable_var",
+            Self::ObjectSingleton => "object_singleton",
+            Self::ExternGlobal => "extern_global",
+        }
+    }
+}
+
+/// Backend-neutral storage policy for mutable or extern global storage.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum LirGlobalStoragePolicy {
+    Global,
+    ThreadLocal,
+}
+
+impl LirGlobalStoragePolicy {
+    pub const fn stable_name(self) -> &'static str {
+        match self {
+            Self::Global => "global",
+            Self::ThreadLocal => "thread_local",
+        }
+    }
+}
+
+/// Stable dependency categories for global initialization roots.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum LirGlobalDependencyKind {
+    TopLevelValue,
+    ObjectSingleton,
+}
+
+impl LirGlobalDependencyKind {
+    pub const fn stable_name(self) -> &'static str {
+        match self {
+            Self::TopLevelValue => "top_level_value",
+            Self::ObjectSingleton => "object_singleton",
+        }
+    }
+}
+
+/// Dependency edge from one global/init root to another published root.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LirGlobalRootDependency {
+    pub target: LirGlobalRootKey,
+    pub kind: LirGlobalDependencyKind,
+}
+
+/// Extern global declaration contract needed by backend physicalization.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LirExternGlobalFacts {
+    pub symbol: String,
+    pub mutable: bool,
+    pub initializer_absent: bool,
+    pub unsafe_required: bool,
+}
+
+/// Complete backend-neutral contract for one global/init root.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LirGlobalRootFacts {
+    pub root: LirGlobalRootKey,
+    pub kind: LirGlobalRootKind,
+    pub cone: StableConeKey,
+    pub ty: Option<TypeId>,
+    pub storage: Option<LirGlobalStoragePolicy>,
+    pub has_initializer: bool,
+    pub dependencies: Vec<LirGlobalRootDependency>,
+    pub source_path: Option<String>,
+    pub extern_global: Option<LirExternGlobalFacts>,
+}
+
+/// Object singleton once-initialization contract.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LirObjectOnceFacts {
+    pub root: LirGlobalRootKey,
+    pub has_initializer: bool,
+}
+
+/// Top-level eager initialization contract executed before user entry bodies.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LirTopLevelEagerInitFacts {
+    pub root: LirGlobalRootKey,
+    pub storage: Option<LirGlobalStoragePolicy>,
+    pub has_initializer: bool,
+}
+
+/// Per-cone eager init routine contract.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LirConeInitRoutineFacts {
+    pub routine: LirConeInitRoutineKey,
+    pub cone: StableConeKey,
+    pub roots: Vec<LirGlobalRootKey>,
+}
+
+/// Final system-entry ordering for per-cone init routines.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct LirFinalEntryInitOrderFacts {
+    pub routines: Vec<LirConeInitRoutineKey>,
+}
+
+/// Global initialization and storage contract group owned by LIR facts.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct LirGlobalInitFacts {
+    pub roots: std::collections::BTreeMap<LirGlobalRootKey, LirGlobalRootFacts>,
+    pub object_once: std::collections::BTreeMap<LirGlobalRootKey, LirObjectOnceFacts>,
+    pub top_level_eager_inits:
+        std::collections::BTreeMap<LirGlobalRootKey, LirTopLevelEagerInitFacts>,
+    pub cone_init_routines:
+        std::collections::BTreeMap<LirConeInitRoutineKey, LirConeInitRoutineFacts>,
+    pub final_entry_order: LirFinalEntryInitOrderFacts,
+}
+
+impl LirGlobalInitFacts {
+    pub fn is_empty(&self) -> bool {
+        self.roots.is_empty()
+            && self.object_once.is_empty()
+            && self.top_level_eager_inits.is_empty()
+            && self.cone_init_routines.is_empty()
+            && self.final_entry_order.routines.is_empty()
+    }
+}
 
 /// Stable source slice retained by a plain callable or control-body state.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]

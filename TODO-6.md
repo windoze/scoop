@@ -4,7 +4,7 @@
 > 细化时间：2026-05-22
 > 计划基线：[`PLAN.md`](./PLAN.md) §4/P6-P8
 > 索引：[`TODO.md`](./TODO.md)
-> 当前状态：已细化；下一步执行 `P6-T01`。
+> 当前状态：`P6-T01` 已完成；下一步执行 `P6-T01R`。
 
 ## 范围
 
@@ -90,7 +90,7 @@
   - 最终验收命令基线：`cargo fmt`；`cargo run -p scoop_tools -- dependency-gate`；`cargo test --all --all-targets`；`cargo run -p scoop -- test`（完整 fixture suite，至少 30 分钟 timeout）；`cargo clippy --all-targets -- -D warnings`；`git diff --check`；并配套 residual 搜索 `rg -n "comptime|const_eval|devirtual|hir_compat_scaffold|llvm_residual_pass_view|materialized_pass_view|EffectLoweredStageOutput|EffectFactsStageOutput.*MirStageOutput|LirStageOutput.*MirStageOutput"`。
   - 未来 C backend 风险：如果 P6/P7 后 LLVM 仍需要读取 HIR/raw MIR/effect facts 或 backend-specific TypeStore bridge，未来 C backend 会复制同一耦合；因此 P7/P8 完成条件必须冻结为共享 `LIR + LIR facts + base context` 输入边界，而不是只让 LLVM 局部通过。
 
-## [TODO] P6-T01：发布 global init 与 storage LIR facts contract
+## [DONE] P6-T01：发布 global init 与 storage LIR facts contract
 
 - 目标：
   - 在 `scoopc_lir_facts` 中发布 backend-neutral global init/storage contract；
@@ -119,7 +119,11 @@
   - 没有新增 HIR/raw MIR/effect facts 的 backend 公共查询面。
 - 依赖：TODO-6-INIT
 - 完成记录：
-  - 待填写。
+  - 新增 MIR-owned initializer dependency facts，避免 LIR/LLVM 只能从 dependency count 或 raw MIR item 回推 dependency identity。
+  - `scoopc_lir_facts` 新增 global init/storage fact group，发布 global root、root kind、storage policy、initializer presence、dependency identity、object once、top-level eager init、per-cone init routine 与 final entry init order contract。
+  - LIR facts verifier 覆盖 global root count、dependency target、object once/top-level eager init 互斥、mutable/extern storage policy、cone routine 与 final entry routine 引用完整性。
+  - `lir_facts_builder` 从 `MirFacts` 构造 global init/storage facts；stable dump 在存在 global roots 时展示 global init/storage section，后续 P6/P7 可从 `LIR + lir_facts + base context` 查询这些 backend-neutral 信息。
+  - 验证通过：`cargo fmt`；`cargo test -p scoopc_lir_facts`；`cargo test -p scoopc --no-default-features lir_facts_builder`；`cargo test -p scoopc_mir_facts`；`cargo run -p scoop -- test --fixtures tests/fixtures/effect_lowered`；`git diff --check`；`cargo clippy --all-targets -- -D warnings`。
 
 ## [TODO] P6-T01R：Review global init/storage LIR facts contract
 

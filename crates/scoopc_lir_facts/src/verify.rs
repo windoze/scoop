@@ -1,9 +1,10 @@
 //! Structural verifier for LIR fact products.
 
+use std::collections::BTreeSet;
 use std::error::Error;
 use std::fmt;
 
-use crate::{LirCallableContract, LirControlBodyFacts, LirFacts};
+use crate::{LirCallableContract, LirControlBodyFacts, LirFacts, LirGlobalRootKind};
 
 /// Result type returned by LIR fact verification.
 pub type Result<T> = std::result::Result<T, VerifyError>;
@@ -31,9 +32,67 @@ pub enum VerifyError {
         expected: usize,
         actual: usize,
     },
+    GlobalRootCountMismatch {
+        expected: usize,
+        actual: usize,
+    },
+    ObjectOnceCountMismatch {
+        expected: usize,
+        actual: usize,
+    },
+    TopLevelEagerInitCountMismatch {
+        expected: usize,
+        actual: usize,
+    },
+    ConeInitRoutineCountMismatch {
+        expected: usize,
+        actual: usize,
+    },
     OptRevisionMismatch {
         summary: u64,
         pipeline: u64,
+    },
+    EmptyGlobalRoot,
+    MismatchedGlobalRootKey {
+        key: String,
+        root: String,
+    },
+    MissingGlobalRootDependency {
+        root: String,
+        dependency: String,
+    },
+    MissingStoragePolicy {
+        root: String,
+        kind: &'static str,
+    },
+    ExternGlobalInitializerPresent {
+        root: String,
+    },
+    MissingGlobalContractRoot {
+        root: String,
+        contract: &'static str,
+    },
+    MisclassifiedObjectOnceRoot {
+        root: String,
+        kind: &'static str,
+    },
+    MisclassifiedTopLevelEagerRoot {
+        root: String,
+        kind: &'static str,
+    },
+    GlobalInitClassConflict {
+        root: String,
+    },
+    MissingConeInitRoot {
+        routine: u32,
+        root: String,
+    },
+    DuplicateConeInitRoot {
+        routine: u32,
+        root: String,
+    },
+    MissingFinalEntryRoutine {
+        routine: u32,
     },
     EmptyCallableRoot {
         key: String,
@@ -102,9 +161,70 @@ impl fmt::Display for VerifyError {
                 f,
                 "LIR summary reports {expected} surface-resume dispatches but facts contain {actual}"
             ),
+            Self::GlobalRootCountMismatch { expected, actual } => write!(
+                f,
+                "LIR summary reports {expected} global roots but facts contain {actual}"
+            ),
+            Self::ObjectOnceCountMismatch { expected, actual } => write!(
+                f,
+                "LIR summary reports {expected} object-once roots but facts contain {actual}"
+            ),
+            Self::TopLevelEagerInitCountMismatch { expected, actual } => write!(
+                f,
+                "LIR summary reports {expected} top-level eager init roots but facts contain {actual}"
+            ),
+            Self::ConeInitRoutineCountMismatch { expected, actual } => write!(
+                f,
+                "LIR summary reports {expected} cone init routines but facts contain {actual}"
+            ),
             Self::OptRevisionMismatch { summary, pipeline } => write!(
                 f,
                 "LIR summary opt revision {summary} does not match pipeline revision {pipeline}"
+            ),
+            Self::EmptyGlobalRoot => write!(f, "LIR global init facts contain an empty root key"),
+            Self::MismatchedGlobalRootKey { key, root } => write!(
+                f,
+                "LIR global root map key `{key}` does not match embedded root `{root}`"
+            ),
+            Self::MissingGlobalRootDependency { root, dependency } => write!(
+                f,
+                "LIR global root `{root}` depends on unpublished root `{dependency}`"
+            ),
+            Self::MissingStoragePolicy { root, kind } => write!(
+                f,
+                "LIR global root `{root}` of kind `{kind}` is missing a storage policy"
+            ),
+            Self::ExternGlobalInitializerPresent { root } => write!(
+                f,
+                "LIR extern global `{root}` must not publish an initializer"
+            ),
+            Self::MissingGlobalContractRoot { root, contract } => write!(
+                f,
+                "LIR {contract} contract references missing global root `{root}`"
+            ),
+            Self::MisclassifiedObjectOnceRoot { root, kind } => write!(
+                f,
+                "LIR object-once contract references `{root}` with incompatible kind `{kind}`"
+            ),
+            Self::MisclassifiedTopLevelEagerRoot { root, kind } => write!(
+                f,
+                "LIR top-level eager init contract references `{root}` with incompatible kind `{kind}`"
+            ),
+            Self::GlobalInitClassConflict { root } => write!(
+                f,
+                "LIR global root `{root}` is both object-once and top-level eager init"
+            ),
+            Self::MissingConeInitRoot { routine, root } => write!(
+                f,
+                "LIR cone init routine r{routine} references missing eager init root `{root}`"
+            ),
+            Self::DuplicateConeInitRoot { routine, root } => write!(
+                f,
+                "LIR cone init routine r{routine} lists eager init root `{root}` more than once"
+            ),
+            Self::MissingFinalEntryRoutine { routine } => write!(
+                f,
+                "LIR final entry init order references missing cone init routine r{routine}"
             ),
             Self::EmptyStableInstanceKey { key } => {
                 write!(f, "LIR callable `{key}` has an empty stable instance key")
@@ -174,6 +294,7 @@ impl Error for VerifyError {}
 pub fn verify_lir_facts(facts: &LirFacts) -> Result<()> {
     verify_opt_pipeline_binding(facts)?;
     verify_summary_counts(facts)?;
+    verify_global_init_contracts(facts)?;
     verify_callable_inventory(facts)?;
     verify_dynamic_invoke_contracts(facts)?;
     verify_dispatch_contracts(facts)?;
@@ -193,6 +314,30 @@ fn verify_opt_pipeline_binding(facts: &LirFacts) -> Result<()> {
 }
 
 fn verify_summary_counts(facts: &LirFacts) -> Result<()> {
+    if facts.summary.global_root_count != facts.global_init.roots.len() {
+        return Err(VerifyError::GlobalRootCountMismatch {
+            expected: facts.summary.global_root_count,
+            actual: facts.global_init.roots.len(),
+        });
+    }
+    if facts.summary.object_once_count != facts.global_init.object_once.len() {
+        return Err(VerifyError::ObjectOnceCountMismatch {
+            expected: facts.summary.object_once_count,
+            actual: facts.global_init.object_once.len(),
+        });
+    }
+    if facts.summary.top_level_eager_init_count != facts.global_init.top_level_eager_inits.len() {
+        return Err(VerifyError::TopLevelEagerInitCountMismatch {
+            expected: facts.summary.top_level_eager_init_count,
+            actual: facts.global_init.top_level_eager_inits.len(),
+        });
+    }
+    if facts.summary.cone_init_routine_count != facts.global_init.cone_init_routines.len() {
+        return Err(VerifyError::ConeInitRoutineCountMismatch {
+            expected: facts.summary.cone_init_routine_count,
+            actual: facts.global_init.cone_init_routines.len(),
+        });
+    }
     if facts.summary.callable_count != facts.callables.len() {
         return Err(VerifyError::CallableCountMismatch {
             expected: facts.summary.callable_count,
@@ -223,6 +368,121 @@ fn verify_summary_counts(facts: &LirFacts) -> Result<()> {
             actual: facts.surface_resume_dispatches.len(),
         });
     }
+    Ok(())
+}
+
+fn verify_global_init_contracts(facts: &LirFacts) -> Result<()> {
+    for (key, root) in &facts.global_init.roots {
+        if key.as_str().is_empty() || root.root.as_str().is_empty() {
+            return Err(VerifyError::EmptyGlobalRoot);
+        }
+        if key != &root.root {
+            return Err(VerifyError::MismatchedGlobalRootKey {
+                key: key.as_str().to_string(),
+                root: root.root.as_str().to_string(),
+            });
+        }
+        for dependency in &root.dependencies {
+            if !facts.global_init.roots.contains_key(&dependency.target) {
+                return Err(VerifyError::MissingGlobalRootDependency {
+                    root: key.as_str().to_string(),
+                    dependency: dependency.target.as_str().to_string(),
+                });
+            }
+        }
+        if matches!(
+            root.kind,
+            LirGlobalRootKind::TopLevelMutableVar | LirGlobalRootKind::ExternGlobal
+        ) && root.storage.is_none()
+        {
+            return Err(VerifyError::MissingStoragePolicy {
+                root: key.as_str().to_string(),
+                kind: root.kind.stable_name(),
+            });
+        }
+        if root.kind == LirGlobalRootKind::ExternGlobal && root.has_initializer {
+            return Err(VerifyError::ExternGlobalInitializerPresent {
+                root: key.as_str().to_string(),
+            });
+        }
+    }
+
+    for (key, contract) in &facts.global_init.object_once {
+        let Some(root) = facts.global_init.roots.get(key) else {
+            return Err(VerifyError::MissingGlobalContractRoot {
+                root: key.as_str().to_string(),
+                contract: "object-once",
+            });
+        };
+        if root.kind != LirGlobalRootKind::ObjectSingleton {
+            return Err(VerifyError::MisclassifiedObjectOnceRoot {
+                root: key.as_str().to_string(),
+                kind: root.kind.stable_name(),
+            });
+        }
+        if contract.root != *key {
+            return Err(VerifyError::MismatchedGlobalRootKey {
+                key: key.as_str().to_string(),
+                root: contract.root.as_str().to_string(),
+            });
+        }
+    }
+
+    for (key, contract) in &facts.global_init.top_level_eager_inits {
+        let Some(root) = facts.global_init.roots.get(key) else {
+            return Err(VerifyError::MissingGlobalContractRoot {
+                root: key.as_str().to_string(),
+                contract: "top-level eager init",
+            });
+        };
+        if !matches!(
+            root.kind,
+            LirGlobalRootKind::TopLevelImmutableVal | LirGlobalRootKind::TopLevelMutableVar
+        ) {
+            return Err(VerifyError::MisclassifiedTopLevelEagerRoot {
+                root: key.as_str().to_string(),
+                kind: root.kind.stable_name(),
+            });
+        }
+        if contract.root != *key {
+            return Err(VerifyError::MismatchedGlobalRootKey {
+                key: key.as_str().to_string(),
+                root: contract.root.as_str().to_string(),
+            });
+        }
+        if facts.global_init.object_once.contains_key(key) {
+            return Err(VerifyError::GlobalInitClassConflict {
+                root: key.as_str().to_string(),
+            });
+        }
+    }
+
+    for (routine_key, routine) in &facts.global_init.cone_init_routines {
+        let mut seen = BTreeSet::new();
+        for root in &routine.roots {
+            if !facts.global_init.top_level_eager_inits.contains_key(root) {
+                return Err(VerifyError::MissingConeInitRoot {
+                    routine: routine_key.as_u32(),
+                    root: root.as_str().to_string(),
+                });
+            }
+            if !seen.insert(root.clone()) {
+                return Err(VerifyError::DuplicateConeInitRoot {
+                    routine: routine_key.as_u32(),
+                    root: root.as_str().to_string(),
+                });
+            }
+        }
+    }
+
+    for routine in &facts.global_init.final_entry_order.routines {
+        if !facts.global_init.cone_init_routines.contains_key(routine) {
+            return Err(VerifyError::MissingFinalEntryRoutine {
+                routine: routine.as_u32(),
+            });
+        }
+    }
+
     Ok(())
 }
 

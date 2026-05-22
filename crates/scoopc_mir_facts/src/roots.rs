@@ -10,6 +10,7 @@ use crate::common::{FactIdentity, MirBodyReference};
 pub struct RootInventories {
     pub callable_bodies: Vec<MirRootFact>,
     pub initializers: Vec<MirRootFact>,
+    pub initializer_dependencies: Vec<MirInitializerDependencyFact>,
     pub extern_globals: Vec<MirRootFact>,
     pub metadata_roots: Vec<MirRootFact>,
 }
@@ -19,6 +20,7 @@ impl RootInventories {
     pub fn is_empty(&self) -> bool {
         self.callable_bodies.is_empty()
             && self.initializers.is_empty()
+            && self.initializer_dependencies.is_empty()
             && self.extern_globals.is_empty()
             && self.metadata_roots.is_empty()
     }
@@ -51,6 +53,16 @@ impl RootInventories {
     /// Find an initializer root fact by FQN.
     pub fn initializer(&self, fqn: &str) -> Option<&MirRootFact> {
         root_by_fqn(&self.initializers, fqn)
+    }
+
+    /// Return initializer dependency identities owned by the given initializer root.
+    pub fn initializer_dependencies_for<'a>(
+        &'a self,
+        fqn: &'a str,
+    ) -> impl Iterator<Item = &'a MirInitializerDependencyFact> + 'a {
+        self.initializer_dependencies
+            .iter()
+            .filter(move |dependency| dependency.owner_fqn == fqn)
     }
 
     /// Find an extern/global root fact by FQN.
@@ -139,6 +151,31 @@ impl MirItemReference {
     /// Create a reference by stable MIR item order.
     pub const fn new(index: usize) -> Self {
         Self { index }
+    }
+}
+
+/// A dependency edge between MIR-published initializer roots.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MirInitializerDependencyFact {
+    pub owner_fqn: String,
+    pub target_fqn: String,
+    pub kind: MirInitializerDependencyKind,
+}
+
+/// Stable dependency categories for initializer root ordering.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum MirInitializerDependencyKind {
+    TopLevelValue,
+    ObjectSingleton,
+}
+
+impl MirInitializerDependencyKind {
+    /// Return a stable dump label.
+    pub const fn label(self) -> &'static str {
+        match self {
+            Self::TopLevelValue => "top_level_value",
+            Self::ObjectSingleton => "object_singleton",
+        }
     }
 }
 

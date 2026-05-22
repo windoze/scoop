@@ -113,6 +113,7 @@ fn build_fixture_inputs_from_source(source: SourceFile) -> FixtureAbiInputs {
     .into_parts();
     let abi_visibility_lir_facts = crate::pipeline::lir_facts_builder::build_lir_facts(
         &abi_visibility_program,
+        mir_stage_output.mir_facts(),
         mir_stage_output.materialized_mir(),
         effect_facts_stage_output.effect_facts(),
         mir_stage_output.materialized_mir().opt_level(),

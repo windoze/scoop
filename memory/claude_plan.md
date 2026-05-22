@@ -1,14 +1,24 @@
-# 当前执行计划
+# Claude Plan
 
-说明：本文件记录可公开的执行计划与进度更新，不包含私有推理链路。
+## Execution Plan
 
-1. 读取 `TODO.md`，严格按标题是否带 `[DONE]` 判断第一个未完成任务。
-2. 检查最新提交是否明确提到与该任务直接相关的未完成事项。
-3. 阅读该任务相关的源码、测试、夹具和计划上下文，只收集完成当前任务所需的信息。
-4. 如果发现当前任务被未跟踪的前置缺陷阻塞，在 `TODO.md` 中插入最小必要前置任务并停止；否则完整实现当前任务。
-5. 运行任务要求的验证命令和必要的回归测试；若失败，修复后重跑。
-6. 更新 `TODO.md`：给完成的任务标题加 `[DONE]`，填写完成记录；仅在阶段级计划改变时更新 `PLAN.md`。
-7. 检查工作区差异，提交本次任务相关的所有变更。
-8. 完成第一个未完成任务后停止，不继续下一个任务。
+1. Read `TODO.md` first and identify the first task whose heading is not prefixed with `[DONE]`.
+2. Check the latest commit message only for unfinished work directly relevant to that selected task.
+3. Read the selected task requirements, dependencies, validation requirements, and completion-record format.
+4. Inspect the minimal relevant code and fixture areas needed for that task.
+5. Implement the task as written without narrowing scope or introducing workarounds.
+6. Run the task-specific validations, then broader relevant checks if needed.
+7. If a concrete blocker prevents correct implementation, update `TODO.md` with the minimum prerequisite task, commit that bookkeeping, and stop.
+8. If the task is completed, prefix the task heading in `TODO.md` with `[DONE]`, update its completion record, commit all relevant changes, and stop.
 
-进度：已确认第一个未完成任务是 `TODO-6-INIT`。最新提交 `[P5-T05R] Review P5 completion` 只把 P6-P8 residual 交给当前任务，没有发现需要插入当前任务之前的直接未完成事项。已完成只读审计，并已更新 `TODO-6.md`：新增 P6 global init/storage、P7 LLVM backend cleanup、P8 final verification 的实现任务与 review 任务；已同步 `TODO.md` 索引并将 `TODO-6-INIT` 标记为 `[DONE]`。验证已通过：`git diff --check`、`cargo fmt --check`。下一步提交本次文档任务。
+## Progress
+
+- Created initial execution plan before running project commands.
+- Identified first incomplete task: `P6-T01` in `TODO-6.md`.
+- Latest commit is `[TODO-6-INIT] Detail final pipeline tasks`; no separate unfinished issue was advertised beyond the current TODO-6 setup.
+- Next step is focused inspection of LIR facts, LIR facts builder, effect lowering stage, and MIR root/facts inputs for the P6-T01 contract.
+- Inspection confirmed `scoopc_lir_facts` has no global init/storage facts yet, and MIR facts currently expose initializer dependency counts but not dependency identities.
+- Implementation approach: publish dependency identities in MIR facts, add a backend-neutral global init/storage group to LIR facts, then build it from `MirFacts` in `lir_facts_builder`.
+- Implemented MIR initializer dependency facts, LIR global init/storage contracts, verifier checks, stable dump output for non-empty global facts, and builder construction from `MirFacts`.
+- Validation passed: `cargo fmt`; `cargo test -p scoopc_lir_facts`; `cargo test -p scoopc --no-default-features lir_facts_builder`; `cargo test -p scoopc_mir_facts`; `cargo run -p scoop -- test --fixtures tests/fixtures/effect_lowered`; `git diff --check`; `cargo clippy --all-targets -- -D warnings`.
+- TODO bookkeeping is complete; final `git diff --check` passed after documentation updates. Next step is committing the `P6-T01` changes only.

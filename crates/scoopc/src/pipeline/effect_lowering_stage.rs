@@ -186,6 +186,7 @@ fn run_with_opt_options(
         .into_parts();
     let lir_facts = super::lir_facts_builder::build_lir_facts(
         &lir,
+        mir_stage_output.mir_facts(),
         mir_stage_output.materialized_mir(),
         effect_facts_stage_output.effect_facts(),
         mir_stage_output.materialized_mir().opt_level(),
@@ -245,7 +246,9 @@ mod tests {
     use crate::opt::OptLevel;
     use crate::session::{Session, SessionOptions};
     use crate::source::SourceFile;
-    use scoopc_lir_facts::{LirCallSiteKind, LirCallableContract};
+    use scoopc_lir_facts::{
+        LirCallSiteKind, LirCallableContract, LirGlobalRootKind, LirGlobalStoragePolicy,
+    };
 
     fn session() -> Session {
         Session::with_options(SessionOptions::new()).unwrap()
@@ -352,6 +355,13 @@ fun leaf(): Unit / Ping {
             include_str!(
                 "../../../../tests/fixtures/effect_lowered/dynamic_fallback_widening.scoop"
             ),
+        )
+    }
+
+    fn global_init_fixture_source() -> SourceFile {
+        SourceFile::new_virtual(
+            "<mem>/top_level_roots.scoop",
+            include_str!("../../../../tests/fixtures/mir_lowered/top_level_roots.scoop"),
         )
     }
 
@@ -649,6 +659,73 @@ fun callInterface(i: IFace): Int {
             panic!("callVirtual should publish a plain ABI contract");
         };
         assert!(plain.call_sites.iter().any(|site| site.dispatch.is_some()));
+        assert!(facts.verify().is_ok());
+    }
+
+    #[test]
+    fn lir_facts_builder_publishes_global_init_storage_contracts() {
+        let session = session();
+        let source = global_init_fixture_source();
+        let output = super::run(stage_input_for_source(&session, &source)).unwrap();
+        let facts = output.lir_facts();
+        let global_init = &facts.global_init;
+
+        assert_eq!(global_init.roots.len(), 5);
+        assert_eq!(global_init.top_level_eager_inits.len(), 3);
+        assert_eq!(global_init.object_once.len(), 1);
+        assert_eq!(global_init.cone_init_routines.len(), 1);
+        assert_eq!(global_init.final_entry_order.routines.len(), 1);
+
+        let counter = global_init
+            .roots
+            .values()
+            .find(|root| root.root.as_str() == "mir_lowered.top_level_roots.Counter")
+            .expect("Counter root should be published");
+        assert_eq!(counter.kind, LirGlobalRootKind::TopLevelMutableVar);
+        assert_eq!(counter.storage, Some(LirGlobalStoragePolicy::Global));
+        assert_eq!(counter.dependencies.len(), 1);
+        assert_eq!(
+            counter.dependencies[0].target.as_str(),
+            "mir_lowered.top_level_roots.Runtime"
+        );
+
+        let native = global_init
+            .roots
+            .values()
+            .find(|root| root.root.as_str() == "mir_lowered.top_level_roots.NativeCounter")
+            .expect("extern global root should be published");
+        assert_eq!(native.kind, LirGlobalRootKind::ExternGlobal);
+        assert_eq!(native.storage, Some(LirGlobalStoragePolicy::Global));
+        assert!(!native.has_initializer);
+        assert_eq!(
+            native
+                .extern_global
+                .as_ref()
+                .map(|global| global.symbol.as_str()),
+            Some("native_counter")
+        );
+
+        let routine = global_init
+            .cone_init_routines
+            .values()
+            .next()
+            .expect("per-cone init routine should be published");
+        let ordered_roots = routine
+            .roots
+            .iter()
+            .map(|root| root.as_str())
+            .collect::<Vec<_>>();
+        assert_eq!(
+            ordered_roots,
+            vec![
+                "mir_lowered.top_level_roots.Base",
+                "mir_lowered.top_level_roots.Runtime",
+                "mir_lowered.top_level_roots.Counter",
+            ]
+        );
+        let dump = output.stable_dump();
+        assert!(dump.contains("global_init: roots=5 object_once=1 top_level_eager_inits=3"));
+        assert!(dump.contains("extern_symbol=native_counter"));
         assert!(facts.verify().is_ok());
     }
 

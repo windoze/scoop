@@ -1,5 +1,6 @@
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
+use std::collections::btree_map::Entry;
 
 use scoopc_ids::{BodyVersionKey, CanonicalTextKey, StableCanonicalKey, StageArtifactKey};
 use scoopc_mir_facts::MirFacts;
@@ -16,8 +17,10 @@ use scoopc_mir_facts::pass_artifacts::{
 };
 use scoopc_mir_facts::pipeline::{MirPassPipelineMetadata, MirPassRun};
 use scoopc_mir_facts::roots::{
-    MirGlobalStorageKind, MirInitializerRootKind as FactInitializerRootKind, MirItemReference,
-    MirMetadataRootKind, MirRootDetail, MirRootFact, MirRootKind, RootInventories,
+    MirGlobalStorageKind, MirInitializerDependencyFact,
+    MirInitializerDependencyKind as FactInitializerDependencyKind,
+    MirInitializerRootKind as FactInitializerRootKind, MirItemReference, MirMetadataRootKind,
+    MirRootDetail, MirRootFact, MirRootKind, RootInventories,
 };
 use scoopc_mir_facts::snapshot::{MaterializedSnapshotBinding, SnapshotBindings};
 use scoopc_project_model::StableConeKey;
@@ -542,6 +545,7 @@ fn body_reference(owner: &StageArtifactKey, role: &str, fun: &MirFunDecl) -> Mir
 fn collect_root_inventories(file: &MirFile, stable_cone_key: &StableConeKey) -> RootInventories {
     let mut callable_bodies = BTreeMap::new();
     let mut initializers = BTreeMap::new();
+    let mut initializer_dependencies = Vec::new();
     let mut extern_globals = BTreeMap::new();
     let mut metadata_roots = BTreeMap::new();
 
@@ -553,9 +557,10 @@ fn collect_root_inventories(file: &MirFile, stable_cone_key: &StableConeKey) -> 
                     .or_insert_with(|| callable_body_root_fact(item_index, fun, stable_cone_key));
             }
             MirItem::InitializerRoot(root) => {
-                initializers
-                    .entry(root.fqn.clone())
-                    .or_insert_with(|| initializer_root_fact(item_index, root, stable_cone_key));
+                if let Entry::Vacant(entry) = initializers.entry(root.fqn.clone()) {
+                    entry.insert(initializer_root_fact(item_index, root, stable_cone_key));
+                    initializer_dependencies.extend(initializer_dependency_facts(root));
+                }
             }
             MirItem::ExternGlobal(root) => {
                 extern_globals
@@ -574,6 +579,7 @@ fn collect_root_inventories(file: &MirFile, stable_cone_key: &StableConeKey) -> 
     RootInventories {
         callable_bodies: callable_bodies.into_values().collect(),
         initializers: initializers.into_values().collect(),
+        initializer_dependencies,
         extern_globals: extern_globals.into_values().collect(),
         metadata_roots: metadata_roots.into_values().collect(),
     }
@@ -756,6 +762,30 @@ fn fact_initializer_root_kind(kind: crate::mir::InitializerRootKind) -> FactInit
         },
         crate::mir::InitializerRootKind::ObjectSingleton => {
             FactInitializerRootKind::ObjectSingleton
+        }
+    }
+}
+
+fn initializer_dependency_facts(root: &MirInitializerRoot) -> Vec<MirInitializerDependencyFact> {
+    root.dependencies
+        .iter()
+        .map(|dependency| MirInitializerDependencyFact {
+            owner_fqn: root.fqn.clone(),
+            target_fqn: dependency.fqn.clone(),
+            kind: fact_initializer_dependency_kind(dependency.kind),
+        })
+        .collect()
+}
+
+fn fact_initializer_dependency_kind(
+    kind: crate::mir::InitializerDependencyKind,
+) -> FactInitializerDependencyKind {
+    match kind {
+        crate::mir::InitializerDependencyKind::TopLevelValue => {
+            FactInitializerDependencyKind::TopLevelValue
+        }
+        crate::mir::InitializerDependencyKind::ObjectSingleton => {
+            FactInitializerDependencyKind::ObjectSingleton
         }
     }
 }

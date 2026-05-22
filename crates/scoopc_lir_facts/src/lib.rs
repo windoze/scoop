@@ -25,6 +25,7 @@ pub use contract::*;
 pub struct LirFacts {
     pub summary: LirStageSummary,
     pub opt_pipeline: LirOptPipelineFacts,
+    pub global_init: LirGlobalInitFacts,
     pub callables: BTreeMap<StableLirCallableKey, LirCallableFacts>,
     pub step_types: BTreeMap<LirStepSchemaKey, LirStepTypeFacts>,
     pub dynamic_invokes: BTreeMap<LirDynamicInvokeKey, LirDynamicInvokeContract>,
@@ -38,6 +39,7 @@ pub struct LirFacts {
 /// Grouped LIR facts used to construct a complete product.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct LirFactGroups {
+    pub global_init: LirGlobalInitFacts,
     pub callables: BTreeMap<StableLirCallableKey, LirCallableFacts>,
     pub step_types: BTreeMap<LirStepSchemaKey, LirStepTypeFacts>,
     pub dynamic_invokes: BTreeMap<LirDynamicInvokeKey, LirDynamicInvokeContract>,
@@ -54,6 +56,7 @@ impl LirFacts {
         Self {
             summary: LirStageSummary::new(opt_level),
             opt_pipeline: LirOptPipelineFacts::empty(0),
+            global_init: LirGlobalInitFacts::default(),
             callables: BTreeMap::new(),
             step_types: BTreeMap::new(),
             dynamic_invokes: BTreeMap::new(),
@@ -82,6 +85,7 @@ impl LirFacts {
         Self {
             summary,
             opt_pipeline,
+            global_init: groups.global_init,
             callables: groups.callables,
             step_types: groups.step_types,
             dynamic_invokes: groups.dynamic_invokes,
@@ -95,7 +99,12 @@ impl LirFacts {
     /// Return whether all currently published LIR fact groups are empty.
     pub fn is_empty(&self) -> bool {
         self.callables.is_empty()
+            && self.global_init.is_empty()
             && self.summary.callable_count == 0
+            && self.summary.global_root_count == 0
+            && self.summary.object_once_count == 0
+            && self.summary.top_level_eager_init_count == 0
+            && self.summary.cone_init_routine_count == 0
             && self.summary.step_type_count == 0
             && self.summary.resume_packing_count == 0
             && self.summary.continuation_object_count == 0
@@ -125,6 +134,10 @@ impl LirFacts {
 pub struct LirStageSummary {
     pub opt_level: OptLevel,
     pub opt_revision: u64,
+    pub global_root_count: usize,
+    pub object_once_count: usize,
+    pub top_level_eager_init_count: usize,
+    pub cone_init_routine_count: usize,
     pub callable_count: usize,
     pub step_type_count: usize,
     pub resume_packing_count: usize,
@@ -137,6 +150,10 @@ impl LirStageSummary {
         Self {
             opt_level,
             opt_revision: 0,
+            global_root_count: 0,
+            object_once_count: 0,
+            top_level_eager_init_count: 0,
+            cone_init_routine_count: 0,
             callable_count: 0,
             step_type_count: 0,
             resume_packing_count: 0,
@@ -161,6 +178,20 @@ impl LirStageSummary {
         self
     }
 
+    pub fn with_global_counts(
+        mut self,
+        global_root_count: usize,
+        object_once_count: usize,
+        top_level_eager_init_count: usize,
+        cone_init_routine_count: usize,
+    ) -> Self {
+        self.global_root_count = global_root_count;
+        self.object_once_count = object_once_count;
+        self.top_level_eager_init_count = top_level_eager_init_count;
+        self.cone_init_routine_count = cone_init_routine_count;
+        self
+    }
+
     pub fn with_opt_revision(mut self, opt_revision: u64) -> Self {
         self.opt_revision = opt_revision;
         self
@@ -178,6 +209,7 @@ mod tests {
     use super::*;
     use crate::verify::VerifyError;
     use scoopc_ids::BodyVersionKey;
+    use scoopc_project_model::StableConeKey;
     use scoopc_types::{TypeId, TypeStore};
 
     fn ty(raw: u32) -> TypeId {
@@ -216,6 +248,29 @@ mod tests {
                 call_sites: Vec::new(),
                 local_effect_control: None,
             })),
+        }
+    }
+
+    fn global_root_key(fqn: &str) -> LirGlobalRootKey {
+        LirGlobalRootKey::new(fqn)
+    }
+
+    fn global_root(
+        fqn: &str,
+        kind: LirGlobalRootKind,
+        storage: Option<LirGlobalStoragePolicy>,
+        dependencies: Vec<LirGlobalRootDependency>,
+    ) -> LirGlobalRootFacts {
+        LirGlobalRootFacts {
+            root: global_root_key(fqn),
+            kind,
+            cone: StableConeKey::new("fixture", "0.0.0"),
+            ty: Some(ty(4)),
+            storage,
+            has_initializer: true,
+            dependencies,
+            source_path: Some("fixture.scoop".to_string()),
+            extern_global: None,
         }
     }
 
@@ -377,5 +432,121 @@ mod tests {
 
         assert!(facts.verify().is_ok());
         assert!(facts.dump().contains("callable=app.main kind=EffectStep"));
+    }
+
+    #[test]
+    fn verifier_and_dump_publish_global_init_contracts() {
+        let base = global_root(
+            "app.Base",
+            LirGlobalRootKind::TopLevelImmutableVal,
+            None,
+            Vec::new(),
+        );
+        let counter = global_root(
+            "app.Counter",
+            LirGlobalRootKind::TopLevelMutableVar,
+            Some(LirGlobalStoragePolicy::Global),
+            vec![LirGlobalRootDependency {
+                target: global_root_key("app.Base"),
+                kind: LirGlobalDependencyKind::TopLevelValue,
+            }],
+        );
+        let registry = global_root(
+            "app.Registry",
+            LirGlobalRootKind::ObjectSingleton,
+            None,
+            Vec::new(),
+        );
+        let mut global_init = LirGlobalInitFacts::default();
+        global_init.roots.insert(base.root.clone(), base);
+        global_init.roots.insert(counter.root.clone(), counter);
+        global_init.roots.insert(registry.root.clone(), registry);
+        global_init.top_level_eager_inits.insert(
+            global_root_key("app.Base"),
+            LirTopLevelEagerInitFacts {
+                root: global_root_key("app.Base"),
+                storage: None,
+                has_initializer: true,
+            },
+        );
+        global_init.top_level_eager_inits.insert(
+            global_root_key("app.Counter"),
+            LirTopLevelEagerInitFacts {
+                root: global_root_key("app.Counter"),
+                storage: Some(LirGlobalStoragePolicy::Global),
+                has_initializer: true,
+            },
+        );
+        global_init.object_once.insert(
+            global_root_key("app.Registry"),
+            LirObjectOnceFacts {
+                root: global_root_key("app.Registry"),
+                has_initializer: true,
+            },
+        );
+        global_init.cone_init_routines.insert(
+            LirConeInitRoutineKey::new(0),
+            LirConeInitRoutineFacts {
+                routine: LirConeInitRoutineKey::new(0),
+                cone: StableConeKey::new("fixture", "0.0.0"),
+                roots: vec![global_root_key("app.Base"), global_root_key("app.Counter")],
+            },
+        );
+        global_init.final_entry_order.routines = vec![LirConeInitRoutineKey::new(0)];
+
+        let summary = LirStageSummary::new(OptLevel::O0).with_global_counts(3, 1, 2, 1);
+        let facts = LirFacts::from_parts(
+            summary,
+            LirFactGroups {
+                global_init,
+                ..LirFactGroups::default()
+            },
+        );
+
+        assert!(facts.verify().is_ok());
+        let dump = facts.dump();
+        assert!(dump.contains("global_init: roots=3 object_once=1 top_level_eager_inits=2"));
+        assert!(dump.contains("root=app.Counter kind=top_level_mutable_var"));
+        assert!(dump.contains("depends_on=app.Base kind=top_level_value"));
+        assert!(dump.contains("final_entry_init_order=[r0]"));
+    }
+
+    #[test]
+    fn verifier_rejects_missing_global_dependency() {
+        let mut root = global_root(
+            "app.Counter",
+            LirGlobalRootKind::TopLevelMutableVar,
+            Some(LirGlobalStoragePolicy::Global),
+            vec![LirGlobalRootDependency {
+                target: global_root_key("app.Missing"),
+                kind: LirGlobalDependencyKind::TopLevelValue,
+            }],
+        );
+        root.has_initializer = true;
+        let mut global_init = LirGlobalInitFacts::default();
+        global_init.roots.insert(root.root.clone(), root);
+        global_init.top_level_eager_inits.insert(
+            global_root_key("app.Counter"),
+            LirTopLevelEagerInitFacts {
+                root: global_root_key("app.Counter"),
+                storage: Some(LirGlobalStoragePolicy::Global),
+                has_initializer: true,
+            },
+        );
+        let facts = LirFacts::from_parts(
+            LirStageSummary::new(OptLevel::O0).with_global_counts(1, 0, 1, 0),
+            LirFactGroups {
+                global_init,
+                ..LirFactGroups::default()
+            },
+        );
+
+        assert_eq!(
+            facts.verify().unwrap_err(),
+            VerifyError::MissingGlobalRootDependency {
+                root: "app.Counter".to_string(),
+                dependency: "app.Missing".to_string(),
+            }
+        );
     }
 }
