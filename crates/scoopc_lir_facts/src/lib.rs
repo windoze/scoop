@@ -4,7 +4,8 @@
 //! stable identity and compilation context primitives. It does not depend on the
 //! `scoopc` facade, MIR/effect stage outputs, the LIR implementation module, or
 //! backend ABI types. The P5 LIR stage publishes this product next to the LIR
-//! body so later backend-neutral queries have a stable home.
+//! body as the backend-neutral home for callable ABI, dynamic invoke, dispatch,
+//! continuation/resume, and LIR opt pipeline contracts.
 
 #![forbid(unsafe_code)]
 

@@ -14,6 +14,12 @@
 - 清理 LLVM backend，使其只依赖 `LIR + LIR facts + base context`。
 - 做最终全仓验证，为未来 C backend 固定干净输入边界。
 
+## 进入门禁
+
+- P4/P5 已完成：effect facts stage 不修改 MIR 输出本体，`EffectFactsStageOutput = { effect_facts }`，`LirStageOutput = { lir, lir_facts }`，且 LIR opt family 只消费 LIR-owned 输入。
+- `scoopc_lir_facts` 已发布 P5-owned backend-neutral callable ABI、dynamic invoke、dispatch owner/slot、continuation/resume publication 与 LIR opt metadata；TODO-6 不应重新让 LLVM 从 HIR/raw MIR/effect facts 推导这些合同。
+- TODO-6-INIT 应从剩余边界开始细化：global init/storage/entry init order、LLVM HIR scaffold、crate-private MIR pass-view residual、LLVM physical ABI/layout、backend reachability、多 `TypeStore` 桥接和最终全仓验证。
+
 ## 细化要求
 
 - 每个小阶段后必须插入独立 review 任务。

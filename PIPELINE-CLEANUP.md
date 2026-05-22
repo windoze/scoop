@@ -12,11 +12,15 @@
 
 当前代码已完成 P4 effect facts purity 收口：`EffectFactsStageOutput = { effect_facts }` 的窄输出成立，effect-facts stage 只读消费 P3 `MirStageOutput`，effect-owned type/context additions 写入 `MaterializedEffectFacts` / `scoopc_effect_facts` 数据产品，不再通过 `canonical_snapshot_mut()` 或 `&mut MaterializedMir` 修改 MIR snapshot。P5 的进入条件已经固定为显式分开传递 MIR handoff 与 effect facts handoff。
 
-因此，本报告中的 P1/P2/P3/P4/P16/P17/P18 是已解决或历史化的问题；保留它们是为了说明原始 cleanup 背景并验证阶段清场结果。当前仍然成立、并进入 P5+ 的主结论是：
+## P5-T05 状态更新
 
-1. `llvm_codegen_stage` 仍会从 HIR compatibility scaffold 驱动 MIR/effect-facts/effect-lowering，而不是只消费一个已由上游传入的后端 handoff。
-2. codegen 仍在主线上混用 HIR scaffold、MIR/pass view、late-lowered program 和多套后续 fact/type 查询面。
-3. LIR / codegen 的 stage output 仍存在上游整包回看，需要在 P5-P7 继续收口；P4 effect facts output 不再嵌套 P3 handoff。
+当前代码已完成 P5 LIR output / LIR facts / LIR opt family 收口：`LirStageOutput = { lir, lir_facts }` 是正式 P5 handoff，不嵌套 `MirStageOutput` 或 `EffectFactsStageOutput`；`scoopc_lir_facts` 发布 callable ABI、dynamic invoke、dispatch owner/slot、continuation/resume publication 与 LIR opt pipeline metadata；codegen-neutral ABI/query contract 已切到 `LIR + lir_facts`。仍保留的 HIR scaffold、crate-private MIR pass-view residual、LLVM physical layout、global init/runtime residual 和多 `TypeStore` 桥接属于 TODO-6/P6-P8。
+
+因此，本报告中的 P1/P2/P3/P4/P5/P16/P17/P18/P19 是已解决或历史化的问题；保留它们是为了说明原始 cleanup 背景并验证阶段清场结果。当前仍然成立、并进入 TODO-6/P6-P8 的主结论是：
+
+1. `llvm_codegen_stage` 仍会从 HIR compatibility scaffold 驱动 MIR/effect-facts/LIR，而不是只消费一个已由上游传入的后端 handoff。
+2. codegen 仍在主线上混用 HIR scaffold、LIR/LIR facts、crate-private MIR pass-view residual 和多套 fact/type 查询面。
+3. global init / storage policy / LLVM physical ABI layout / backend reachability 仍需要在 P6/P7/P8 收口；不能把这些 residual 描述为 P5 已完成范围。
 
 ## 目标边界
 
@@ -201,11 +205,11 @@ P3 收口结果：
 2. `scoopc_mir_facts` 已发布 root inventories、materialized snapshot binding、instance/callable family inventory、pass artifact metadata 和 MIR pass pipeline metadata。
 3. downstream 仍可经由 canonical `MaterializedMirPassView` 消费 pass 后 callable body / summary / escape facts；这现在是 MIR-owned pass query surface，而不是 HIR fallback。
 
-P4+ 收口结果与剩余边界：
+P4/P5 收口结果与剩余边界：
 
 1. `EffectFactsStageOutput` 已收口为 `{ effect_facts }`，不再嵌套或转发 `MirStageOutput` / pass view / MIR type store。
-2. `EffectLoweredStageOutput` 仍有上游整包回看，需要在 P5 收口为正式 `LirStageOutput = { lir, lir_facts }`。
-3. 若 LIR/codegen 仍长期需要某些 MIR-derived global facts，应在 P5/P7 中确认归属，不能重新引入 P3 已清理的重复 owner。
+2. `LirStageOutput` 已收口为正式 `{ lir, lir_facts }` handoff；legacy `EffectLoweredStageOutput` 只是迁移别名，不再公开上游 pass view/effect facts/MIR facts accessor。
+3. P5-owned codegen-neutral ABI/query contract 已迁入 `scoopc_lir_facts`；若 TODO-6/P7 仍发现 backend 需要新的 backend-neutral MIR-derived global facts，应补到 LIR/LIR facts 或明确回到 MIR-owned facts，而不能重新引入 P3/P4 已清理的重复 owner。
 
 ### effect facts stage
 
@@ -247,27 +251,22 @@ P4 收口结果：
 6. LIR 使用到的 `TypeId` 若仍依赖上游 `TypeStore`，那么这套 type context 也应成为 LIR output
    的显式组成部分，而不是通过 nested upstream bundle 间接取得。
 
-当前“完整输出”还少什么：
+P5 收口结果：
 
-1. 缺少自足的 stage-owned output；当前 `EffectLoweredStageOutput` 本质上仍是
-   `EffectFactsStageOutput + LateLoweredProgram` 的包装。
-   见 `crates/scoopc/src/pipeline/effect_lowering_stage.rs:30-79`。
-2. plain callable codegen 仍需要回读 materialized MIR signature/body，说明 LIR 没有把普通 callable
-   surface 发布完整。
-   见 `crates/scoopc/src/llvm/codegen/effect_lowered/layout/callable.rs:333-345,418-447`、
-   `crates/scoopc/src/llvm/codegen/effect_lowered/body/emitter.rs:13-18`。
-3. dynamic-invoke / dispatch contract 仍需要扫描 MIR body 和 HIR declaration tables，说明这些
-   backend-neutral 合同尚未正式进入 LIR output。
-   见 `crates/scoopc/src/llvm/codegen/effect_lowered/layout/lookup.rs:56-225`。
-4. codegen-neutral ABI/query facts 目前仍缺位；现在真正存在的是 LLVM-specific 的
-   `ProgramAbiQuery`，而不是所有 backend 都能复用的 LIR-to-backend contract layer。
-   见 `crates/scoopc/src/llvm/codegen/effect_lowered/layout/mod.rs:74-85`、
-   `crates/scoopc/src/llvm/codegen/effect_lowered/types.rs:2221-2254`。
+1. `LirStageOutput` 发布 `LateLoweredProgram` 与 `scoopc_lir_facts::LirFacts`，不嵌套 `MirStageOutput` 或 `EffectFactsStageOutput`。
+2. `scoopc_lir_facts` 发布 plain callable ABI/source/call-site、本地 effect/control contract、effect-step state/frame/boundary/resume query、dynamic invoke、dispatch owner/slot、continuation object、surface resume dispatch、resume packing 与 LIR opt pipeline metadata。
+3. Program ABI materialization 的 codegen-neutral 输入已切到 `LateLoweredProgram + LirFacts + TypeStore`；LLVM physical `ProgramAbiQuery` 仍属于 backend-private layout 结果，不是 LIR facts。
+4. `effect_lowered::opt` 已固定为 LIR-owned 窄优化 family，显式记录 pass order / revision / verifier metadata，不读取 HIR、MIR pass view 或 effect solver 输入。
+
+TODO-6/P7 剩余边界：
+
+1. LLVM emit/body/reachability 仍通过 `llvm_residual_pass_view()`、HIR scaffold 和多 `TypeStore` 桥接完成当前后端物理发射。
+2. global init、storage policy、entry init order 和 runtime residual 尚未闭合。
+3. legacy `EffectLoweredStageOutput` / `effect_lowered` 命名仍可在边界稳定后继续清理，但它们已不再代表嵌套上游 output 的合法长期形状。
 
 ## 当前有效结构
 
-当前生产路径已经不再让 HIR lowering 反向携带 MIR snapshot，但仍不是完全线性的
-`AST -> HIR -> MIR -> effect facts -> LIR -> codegen`。现在更接近：
+当前生产路径已经不再让 HIR lowering 反向携带 MIR snapshot，P4/P5 stage output 也不再嵌套上游整包，但 LLVM stage 仍会在 codegen 边界内重跑后半条 pipeline。现在更接近：
 
 ```text
 frontend/typecheck
@@ -277,19 +276,19 @@ frontend/typecheck
     -> 从 LoweredHir 构造 HirStageOutput { hir, hir_facts }
     -> 运行 MIR stage，并显式挂入 MIR-owned materialized snapshot
     -> 运行 effect-facts stage
-    -> 运行 effect-lowering stage
+    -> 运行 LIR stage，产出 LirStageOutput { lir, lir_facts }
     -> 同时保留一份 hir_compat_scaffold
   -> llvm::emit(...)
-    -> 同时消费 HIR scaffold / HirFacts / pass-view / effect facts / late-lowered program / ABI visibility variant
+    -> 同时消费 HIR scaffold / HirFacts / LIR + LIR facts / crate-private MIR pass-view residual / ABI visibility variant
 ```
 
 这意味着当前实现里同时存在：
 
 1. codegen stage 仍是后半条 pipeline 的 orchestrator，而不是只消费已经构造好的后端 handoff。
-2. `MirStageOutput` 和 `EffectFactsStageOutput` 已分别收口为 MIR-owned handoff 与 effect facts 窄输出，但 P5 LIR 输出仍嵌套上游 stage output。
-3. codegen 同时消费多套跨阶段输入。
+2. `MirStageOutput`、`EffectFactsStageOutput` 和 `LirStageOutput` 已分别收口为各自阶段 handoff，但 codegen 仍保留 HIR scaffold 与 crate-private MIR pass-view residual。
+3. codegen 同时消费 `LIR + lir_facts`、HIR scaffold、residual pass view 和多套 type context。
 4. 仍有一批生产路径直接在 codegen 中跑 HIR-only lowering。
-5. P5/P7 范围内仍有后续 fact table / stage output 的职责重叠和整包回看。
+5. TODO-6/P7 范围内仍有后端 physical layout、reachability、global init/runtime 和命名兼容 residual。
 
 ## 问题清单
 
@@ -357,7 +356,7 @@ P3 结果：
 
 剩余边界：
 
-- P5/P7 仍需继续收口 LIR / backend 的 nested upstream bundle 和 LLVM HIR compatibility scaffold；P4 effect facts output 已收口为窄产物。
+- P5 已收口 LIR output / LIR facts owner；TODO-6/P7 仍需继续清理 LLVM HIR compatibility scaffold、residual pass view 和 backend physical layout。
 - LLVM reachability/codegen 里的去虚化 residual 属于 P7 backend cleanup；P3 不再依赖它们作为普通语义优化 fallback。
 
 ---
@@ -385,7 +384,7 @@ P3 结果：
 
 ---
 
-### P5. `effect_lowering_stage` 已经是 formal LIR stage，但它的输出形状仍不完整
+### P5. `effect_lowering_stage` 已收口为 formal LIR stage（P5 已解决）
 
 位置：
 
@@ -393,24 +392,22 @@ P3 结果：
 - `crates/scoopc/src/pipeline/effect_lowering_stage.rs:13-33`
 - `crates/scoopc/src/effect_lowered/mod.rs:1-13`
 
-现状：
+收口结果：
 
 - 当前生产主线里 `effect_lowering_stage` 是一个显式公开的独立阶段。
-- 它会从显式 `EffectLoweringStageInput { mir_stage_output, effect_facts_stage_output }` 产出 `LateLoweredProgram`。
-- 在“`effect_lowered` = 正式 LIR”这个前提下，这条 stage 本身不是问题；问题是它当前发布的
-  `EffectLoweredStageOutput` 仍然只是 `program + nested upstream bundle`。
+- 它会从显式 `EffectLoweringStageInput { mir_stage_output, effect_facts_stage_output }` 产出 `LirStageOutput { lir, lir_facts }`。
+- `LirStageOutput` 不保存 `MirStageOutput` 或 `EffectFactsStageOutput` wrapper；legacy `EffectLoweredStageOutput` 只是迁移别名。
+- P5-owned codegen-neutral ABI/query contract 已发布到 `scoopc_lir_facts`，LIR opt family 也有显式 pass metadata 与 verifier。
 
-为什么是问题：
+剩余边界：
 
-- 如果它是正式 LIR stage，那么它就应该成为 codegen 的 authoritative IR handoff。
-- 但当前实现里，后续 codegen 仍需要经由 `EffectLoweredStageOutput` 回看
-  `effect_facts`、`materialized_pass_view`、`materialized_mir`、`types` 等上游对象，说明
-  LIR output 还没有把自己的职责收实。
+- `LirStageOutput` 仍保留 `types()` 与 crate-private `llvm_residual_pass_view()`，供当前 LLVM body emission、reachability、physical layout 和 type bridging 使用。
+- 这些 residual 属于 TODO-6/P6-P8，不是 P5-owned LIR facts/query contract 缺口。
 
-需要决策：
+后续方向：
 
-1. 正式把目标 pipeline 固定为 `AST -> HIR -> MIR -> effect facts -> LIR -> codegen`。
-2. 继续补齐 LIR stage output，让 codegen 不再依赖 nested upstream bundle 和 HIR scaffold。
+1. TODO-6/P6-P8 继续让 backend 只消费 `LIR + lir_facts + base context`。
+2. 清理 HIR scaffold、global init direct HIR paths、LLVM physical layout residual、多 `TypeStore` 桥接和 backend-specific reachability。
 
 ---
 
@@ -798,14 +795,14 @@ P2 结果：
 
 ---
 
-### P19. `EffectLoweredStageOutput` 继续整包暴露上游事实，而不是只发布本阶段专属 handoff
+### P19. LIR stage output 曾继续整包暴露上游事实（P5 已解决）
 
-位置：
+历史位置：
 
 - `crates/scoopc/src/pipeline/effect_lowering_stage.rs:30-79`
 - `crates/scoopc/src/llvm/codegen/effect_lowered/layout/mod.rs:74-85`
 
-现状：
+历史现状：
 
 - `EffectLoweredStageOutput` 不只发布 `program()`。
 - 它还继续暴露：
@@ -813,16 +810,16 @@ P2 结果：
 - 这使得后续 codegen 很自然地同时消费：
   `LateLoweredProgram + MaterializedEffectFacts + MaterializedMirPassView + TypeStore`。这里的 nested bundle 已经是 P5 输出问题，而不是 P4 output 问题。
 
-为什么是问题：
+P5 结果：
 
-- 这相当于把 LIR 与其上游 MIR/effect facts handoff 继续打包成“可随手回看”的 nested bundle。
-- 一旦下游既能读 `program()`，又能直接回读 `effect_facts()` / `pass_view()`，阶段边界就很难真正收口。
+- `LirStageOutput` 现在只发布 `lir()` / `program()`、`lir_facts()`、`types()` 和稳定 dump/parts API。
+- 旧的 `materialized_pass_view()`、`materialized_mir()`、`mir_facts()`、`effect_facts()`、`effect_facts_stage_output()` public accessor 已删除；当前仅保留 crate-private `llvm_residual_pass_view()`。
+- `ProgramAbiMaterializer` 的 codegen-neutral contract 输入已改为 `LateLoweredProgram + LirFacts + TypeStore`。
 
-结论：
+剩余边界：
 
-- 若某阶段输出仍需要把前一阶段整包暴露给下游，说明本阶段 handoff 还不自足。
-- 正确方向应是：
-  由本阶段只发布自己专属职责的事实；若还需要回看上游事实，要么说明本阶段信息不全，要么说明下游设计还没完成切换。
+- LLVM body emission、reachability、global init、physical ABI layout 和多 `TypeStore` 桥接仍会使用 HIR scaffold 或 residual MIR pass view。
+- 这些 residual 必须在 TODO-6/P7 中继续清理，不能被描述为长期合法边界，也不能重新放回 `LirFacts` 或公开 stage output API。
 
 ## 非问题 / 允许的耦合
 
@@ -843,14 +840,14 @@ P2 结果：
 ### 2. 让 stage 输入变严格
 
 1. `effect_facts` 只接受完整的 MIR stage 输出，不再在边界内自动补挂 materialized MIR。
-2. `codegen` 只接受 `effect facts` 之后的单一 authoritative handoff，不再重跑 MIR / effect-facts / effect-lowering。
-3. 收口每一阶段发布的 fact table 职责；HIR/source-site 与 `ProgramFacts` 重叠已由 P2 清理，MIR/pass-view owner 已由 P3 收口，effect facts purity 已由 P4 收口，P5+ 继续处理 LIR/codegen 这类可替代或并行查询面。
+2. `codegen` 只接受 `LIR + lir_facts + base context` handoff，不再重跑 MIR / effect-facts / LIR。
+3. 收口每一阶段发布的 fact table 职责；HIR/source-site 与 `ProgramFacts` 重叠已由 P2 清理，MIR/pass-view owner 已由 P3 收口，effect facts purity 已由 P4 收口，LIR facts/query owner 已由 P5 收口，TODO-6/P7 继续处理 backend residual。
 
 ### 3. 把 `effect_lowered` 收实为正式 LIR stage
 
-1. 明确目标 pipeline 为 `... -> effect facts -> LIR -> codegen`。
-2. 让 `EffectLoweredStageOutput` 变成真正的 LIR handoff，而不是 `program + nested upstream bundle`。
-3. 停止继续保留 HIR scaffold 作为长期过渡输入。
+1. 明确目标 pipeline 为 `... -> effect facts -> LIR -> codegen`。（P5 已完成）
+2. 让 `EffectLoweredStageOutput` 变成真正的 LIR handoff，而不是 `program + nested upstream bundle`。（P5 已完成，当前公开 API 为 `LirStageOutput`）
+3. 停止继续保留 HIR scaffold 作为长期过渡输入。（TODO-6/P7）
 
 ### 4. 清理 production path 中的 HIR-only lowering
 
@@ -880,14 +877,14 @@ P2 结果：
 
 ## 结论
 
-当前最核心的问题不是“文件太长”，而是 P3 之后的 effect facts / LIR / codegen graph 仍未完全单向。
+当前最核心的问题不是“文件太长”，而是 P5 之后的 codegen / global-init graph 仍未完全单向。
 
 最大的三个结构性问题是：
 
-1. LIR stage output 仍嵌套上游输出，而不是只发布本阶段窄产物；effect facts stage output 已在 P4 收口。
-2. codegen stage 会重新驱动 MIR / effect-facts / effect-lowering，而不是只消费它们的输出。
-3. production backend 仍在主线上混用 HIR scaffold、MIR pass view、late-lowered program 和多套 fact/type universe。
+1. codegen stage 会重新驱动 MIR / effect-facts / LIR，而不是只消费它们的输出。
+2. production backend 仍在主线上混用 HIR scaffold、LIR/LIR facts、residual MIR pass view 和多套 fact/type universe。
+3. global init / storage policy / entry init order 仍未闭合，且 LLVM physical layout 与 backend reachability 仍需要 TODO-6/P7 收口。
 
-其中一个贯穿全线的次级根因是：P5 之后的多张 fact table / stage output 职责仍未完全切开，导致嵌套打包和下游混用继续发生。P2 已经把 HIR/source-site facts 收口到 `HirFacts`，P3 已经把 MIR root/snapshot/pass facts 收口到 `MirFacts` 和 MIR pass query surface，P4 已经把 effect facts 收口为只读窄输出；后续不得重新引入 HIR fallback、MIR fallback 或重复 owner。
+其中一个贯穿全线的次级根因是：backend physical layout、reachability、global init 和 type bridging 仍没有完全建立在 `LIR + lir_facts + base context` 上。P2 已经把 HIR/source-site facts 收口到 `HirFacts`，P3 已经把 MIR root/snapshot/pass facts 收口到 `MirFacts` 和 MIR pass query surface，P4 已经把 effect facts 收口为只读窄输出，P5 已经把 LIR facts/query owner 收口；后续不得重新引入 HIR fallback、MIR fallback、effect facts fallback 或重复 owner。
 
 只要这三件事不先收口，后面无论是继续拆 LLVM codegen、还是引入新的 backend，都会继续被“跨阶段回看”和“多 authoritative 输入”拖住。

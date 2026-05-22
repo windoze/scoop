@@ -54,7 +54,7 @@ impl EffectLoweringStageInput {
 /// - P6 明确不得重新做 boundary 识别、whole-function segmentation、frame lifting、
 ///   continuation capture 合同设计或 `ImplPlan` 选择，也不得把 packing layer 反客为主当成
 ///   reverse-resume 语义主键；
-/// - LLVM 物理布局/ABI/runtime 集成仍属于 P6，而不是在 P5 逆向塞回本阶段。
+/// - LLVM 物理布局/ABI/runtime 集成仍属于 TODO-6/P7，而不是在 P5 逆向塞回本阶段。
 #[derive(Debug)]
 pub struct LirStageOutput {
     lir: LateLoweredProgram,
@@ -62,11 +62,11 @@ pub struct LirStageOutput {
     context: LirStageContext,
 }
 
-/// Temporary explicit context retained for current LLVM/query compatibility.
+/// Explicit base context retained for current LLVM/backend compatibility.
 ///
-/// This is deliberately not a nested upstream stage output wrapper. P5-T03 owns
-/// moving remaining codegen-neutral queries into `LirFacts` and deleting these
-/// compatibility accessors.
+/// This is deliberately not a nested upstream stage output wrapper. Codegen-neutral
+/// contracts live in `LirFacts`; the remaining raw MIR/effect context is a TODO-6/P7
+/// backend residual for body emission, reachability, physical layout, and type bridging.
 #[derive(Debug)]
 struct LirStageContext {
     materialized_mir: MaterializedMir,

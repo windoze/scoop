@@ -724,7 +724,7 @@ P5 需要把这条隐式 opt helper 提升为正式 LIR optimization family：�
   - 验证命令：`cargo fmt`；`cargo test -p scoopc --no-default-features effect_lowered::opt`；`cargo test -p scoopc_lir_facts`；`cargo run -p scoop -- test --fixtures tests/fixtures/effect_lowered`；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
   - 残余风险：higher-order wrapper inline/devirt 仍是 P5-T04 明确记录的可执行 no-op owner skeleton；若后续需要更强 wrapper 识别，应在该 LIR pass 内扩展，不得回迁 MIR 普通 devirt 或 LLVM backend 特判。
 
-## [TODO] P5-T05：P5 全包清场、文档同步与依赖审计
+## [DONE] P5-T05：P5 全包清场、文档同步与依赖审计
 
 - 参考：P5-T01 至 P5-T04R。
 - 目标：
@@ -766,7 +766,12 @@ P5 需要把这条隐式 opt helper 提升为正式 LIR optimization family：�
   - TODO-6 的 P6/P7/P8 初始化可以从清晰的 `LIR + lir_facts + base context` residual 边界开始。
 - 依赖：P5-T04R
 - 完成记录：
-  - 待填写。
+  - 清场结论：P4/P5 code/tests/docs/dependency gate 状态已同步；`EffectFactsStageOutput = { effect_facts }`，`LirStageOutput = { lir, lir_facts }`，且 `scoopc_effect_facts` / `scoopc_lir_facts` 均保持 fact-crate DAG 约束。
+  - 审计搜索：`canonical_snapshot_mut\(` 无匹配；`EffectFactsStageOutput.*MirStageOutput|LirStageOutput.*MirStageOutput|LirStageOutput.*EffectFactsStageOutput` 只命中 `effect_lowering_stage.rs` 的并列 import 与“不保存 wrapper”注释；`LirStageOutput` impl 中无 `materialized_pass_view()` / `materialized_mir()` / `effect_facts()` / `mir_facts()` / `effect_facts_stage_output()` public accessor；LIR opt 的 HIR/MIR/effect solver 搜索只命中说明注释和 `#[cfg(test)]` fixture imports。
+  - 文档同步：更新 `PIPELINE-CLEANUP.md`，把 P5 已解决的 LIR output、LIR facts、codegen-neutral ABI/query 和 LIR opt family 与 TODO-6/P6-P8 residual 分开；更新 `README.md`、`crates/scoopc_effect_facts` 与 `crates/scoopc_lir_facts` crate overview；更新 `TODO-6.md` 进入门禁，明确下一包从 global init、LLVM HIR scaffold、residual pass view、physical layout、reachability、多 `TypeStore` 桥接和最终验证开始。
+  - 代码注释：同步 `LirStageContext` 注释，明确其不是上游 stage output wrapper；剩余 raw MIR/effect context 是 TODO-6/P7 backend residual，不是 P5-owned codegen-neutral contract。
+  - 验证命令：`cargo fmt`；`cargo run -p scoop_tools -- dependency-gate`；`cargo test -p scoopc_effect_facts`；`cargo test -p scoopc_lir_facts`；`cargo test -p scoopc --no-default-features effect_facts_stage`；`cargo test -p scoopc --no-default-features effect_lowered`；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
+  - 残余风险：LLVM backend 仍保留 HIR scaffold、crate-private `llvm_residual_pass_view()`、physical ABI/layout、global init/runtime residual、backend reachability 和多 `TypeStore` 桥接；这些已明确留给 TODO-6/P6-P8，不是 P5 output/facts 完成度缺口。
 
 ## [TODO] P5-T05R：Review P5 全包完成度
 
