@@ -913,6 +913,34 @@ fun main(): Int {
         )
     }
 
+    fn global_init_source() -> SourceFile {
+        SourceFile::new_virtual(
+            "<mem>/llvm_global_init_fixture.scoop",
+            r#"
+package sample
+
+import scoop.core.*
+
+fun seedVal(): Int {
+    return 41
+}
+
+fun seedVar(): Int {
+    return eagerVal + 1
+}
+
+val eagerVal: Int = seedVal()
+
+@Global
+var eagerVar: Int = seedVar()
+
+fun main(): Int {
+    return eagerVal + eagerVar
+}
+"#,
+        )
+    }
+
     fn member_codegen_source() -> SourceFile {
         SourceFile::new_virtual(
             "<mem>/mir_member_codegen_fixture.scoop",
@@ -1548,6 +1576,47 @@ fun main(): Int {
         crate::frontend::CodegenLoweringOutput,
     ) {
         emit_args_for_source(effectful_source())
+    }
+
+    #[test]
+    fn llvm_global_init_cone_routine_executes_eager_roots() {
+        let ir = emit_ir_for_source(global_init_source(), "global_init.ll");
+        let main = ir_function_body(&ir, "define i32 @main(");
+        assert!(
+            main.contains("__scoop_priv0__cone_init__"),
+            "C main wrapper should call the LIR facts ordered cone init routine before user main:\n{main}"
+        );
+
+        let cone_init =
+            ir_function_matching(&ir, "program cone init routine", |header, function| {
+                header.contains("__scoop_priv0__cone_init__")
+                    && function.contains("__scoop_priv0__top_level_var__")
+            });
+        assert!(
+            cone_init.contains("top_level_val_init"),
+            "cone init routine should eagerly call the top-level val init helper:\n{cone_init}"
+        );
+        assert!(
+            cone_init.lines().any(|line| {
+                line.contains("store i64") && line.contains("__scoop_priv0__top_level_var__")
+            }),
+            "cone init routine should store the evaluated @Global var initializer into backing storage:\n{cone_init}"
+        );
+    }
+
+    #[test]
+    fn llvm_global_init_top_level_val_access_no_longer_calls_lazy_init() {
+        let ir = emit_ir_for_source(global_init_source(), "global_init_no_lazy_access.ll");
+        let user_main = ir_function_matching(&ir, "sample.main body", |header, _function| {
+            header.contains("__scoop_abi0_fun__sample_main__")
+        });
+        let seed_var = ir_function_matching(&ir, "sample.seedVar body", |header, _function| {
+            header.contains("__scoop_abi0_fun__sample_seedVar__")
+        });
+        assert!(
+            !user_main.contains("top_level_val_init") && !seed_var.contains("top_level_val_init"),
+            "ordinary top-level val reads should only check/load initialized storage, not call lazy init:\n{user_main}\n{seed_var}"
+        );
     }
 
     #[test]

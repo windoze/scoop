@@ -31,24 +31,52 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let entry = self.context.append_basic_block(llvm_fun, "entry");
         self.builder.position_at_end(entry);
 
-        // P5-T04 only establishes the stable per-cone skeleton. P9 lowers these
-        // collected roots into eager top-level initialization inside this body.
-        let _cone_identity = (plan.cone.id, plan.cone.kind);
-        let _collected_root_count = plan
-            .roots
-            .iter()
-            .filter(|root| match root.kind {
-                ConeInitRootKind::TopLevelImmutableValue | ConeInitRootKind::TopLevelVar => {
-                    !root.fqn.is_empty()
-                }
-            })
-            .count();
+        self.begin_function_explicit_frame_layout(llvm_fun)?;
+        self.function_cx.current_fun_return_ty = Some(CgTy::Unit);
+        for root in &plan.roots {
+            self.emit_cone_init_root(root)?;
+        }
 
         self.builder.build_return(None)?;
+        self.finish_function_explicit_frame_layout(crate::span::Span::synthetic_prelude())?;
         if let Some(bb) = saved_block {
             self.builder.position_at_end(bb);
         }
         Ok(llvm_fun)
+    }
+
+    fn emit_cone_init_root(&mut self, root: &ConeInitRoot) -> Result<(), LlvmEmitError> {
+        match root.kind {
+            ConeInitRootKind::TopLevelImmutableValue => {
+                let value = self
+                    .top_level_immutable_values
+                    .get(&root.fqn)
+                    .cloned()
+                    .unwrap_or_else(|| {
+                        panic!(
+                            "emit_cone_init_root: LIR facts accepted missing top-level immutable root `{}`",
+                            root.fqn
+                        )
+                    });
+                let init_fn =
+                    self.ensure_top_level_immutable_value_init_function_defined(&value.fqn)?;
+                self.with_conservative_gc_local_root_spills(value.span, |cg| {
+                    let _ = cg
+                        .builder
+                        .build_call(init_fn, &[], "top_level_val_eager_init")?;
+                    Ok(())
+                })
+            }
+            ConeInitRootKind::TopLevelVar => {
+                let var = self.top_level_vars.get(&root.fqn).cloned().unwrap_or_else(|| {
+                    panic!(
+                        "emit_cone_init_root: LIR facts accepted missing top-level var root `{}`",
+                        root.fqn
+                    )
+                });
+                self.emit_top_level_var_eager_initializer(&var)
+            }
+        }
     }
 
     pub(crate) fn emit_cone_init_calls(

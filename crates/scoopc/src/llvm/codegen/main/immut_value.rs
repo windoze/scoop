@@ -222,11 +222,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.builder.position_at_end(entry);
         self.begin_function_explicit_frame_layout(llvm_fun)?;
 
-        let init_fn = self.ensure_top_level_immutable_value_init_function_defined(&value.fqn)?;
-        self.with_conservative_gc_local_root_spills(err_span, |cg| {
-            let _ = cg.builder.build_call(init_fn, &[], "top_level_val_init")?;
-            Ok(())
-        })?;
         let outcome = self.build_zero_complete_effect_outcome()?;
         self.builder.build_return(Some(&outcome))?;
         self.finish_function_explicit_frame_layout(err_span)?;
@@ -319,11 +314,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         value: &hir::TopLevelImmutableValue,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         let value_cg = self.expect_cg_ty_of(value.ty, "top-level immutable value access type");
-        let init_fn = self.ensure_top_level_immutable_value_init_function_defined(&value.fqn)?;
-        self.with_conservative_gc_local_root_spills(at, |cg| {
-            let _ = cg.builder.build_call(init_fn, &[], "top_level_val_init")?;
-            Ok(())
-        })?;
         self.emit_top_level_immutable_value_initialized_check(at, &value.fqn)?;
 
         if value_cg == CgTy::Unit {

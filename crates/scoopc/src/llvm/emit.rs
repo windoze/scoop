@@ -474,6 +474,9 @@ fn build_module_from_codegen_entry_with_root_selector<'ctx>(
     let late_lowered_program = late_lowered_program.ok_or_else(|| LlvmEmitError::Frontend {
         message: "LLVM module emission now requires stage-owned late-lowered handoff".to_string(),
     })?;
+    let late_lowered_lir_facts = late_lowered_lir_facts.ok_or_else(|| LlvmEmitError::Frontend {
+        message: "LLVM stage handoff 缺少 primary LIR facts".to_string(),
+    })?;
     if late_lowered_program.callable(&root_fun.fqn).is_none() {
         return Err(LlvmEmitError::Frontend {
             message: format!(
@@ -538,6 +541,7 @@ fn build_module_from_codegen_entry_with_root_selector<'ctx>(
             fun_index: &fun_index,
             materialized_pass_view,
             published_late_lowered_program: abi_program.or(Some(late_lowered_program)),
+            published_lir_facts: late_lowered_lir_facts,
             hir_facts: Rc::clone(&hir_facts),
             effect_op_tags: Rc::clone(&effect_op_tags),
         });
@@ -631,10 +635,6 @@ fn build_module_from_codegen_entry_with_root_selector<'ctx>(
     let abi_program = abi_program.ok_or_else(|| LlvmEmitError::Frontend {
         message: "LLVM stage handoff 缺少 ABI visibility late-lowered program".to_string(),
     })?;
-    let _late_lowered_lir_facts =
-        late_lowered_lir_facts.ok_or_else(|| LlvmEmitError::Frontend {
-            message: "LLVM stage handoff 缺少 primary LIR facts".to_string(),
-        })?;
     let abi_lir_facts = abi_lir_facts.ok_or_else(|| LlvmEmitError::Frontend {
         message: "LLVM stage handoff 缺少 ABI visibility LIR facts".to_string(),
     })?;

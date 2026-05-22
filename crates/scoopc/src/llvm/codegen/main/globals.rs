@@ -75,12 +75,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             gv.set_thread_local(true);
         }
 
-        let saved_source_id = self.current_source_id;
-        self.current_source_id = self.source_id_for_path(v.source_path.as_path(), v.span)?;
-        let init = self.const_initializer_for_top_level_var(v, cg_ty, llvm_ty);
-        self.current_source_id = saved_source_id;
-        let init = init?;
-        gv.set_initializer(&init);
+        gv.set_initializer(&self.zero_initializer_for_basic_type(llvm_ty));
 
         // `@CLayout(aligned = N)`：对显式对齐的值类型，在全局存储上透传 alignment。
         if let CgTy::Struct(struct_ty) = cg_ty
@@ -89,6 +84,38 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             gv.set_alignment(aligned);
         }
         Ok(gv)
+    }
+
+    pub(in crate::llvm::codegen) fn emit_top_level_var_eager_initializer(
+        &mut self,
+        v: &hir::TopLevelVar,
+    ) -> Result<(), LlvmEmitError> {
+        let Some(init) = v.init.as_ref() else {
+            return Ok(());
+        };
+        let cg_ty = self.expect_cg_ty_of(v.ty, "top-level var eager init type");
+        if cg_ty == CgTy::Unit {
+            return Ok(());
+        }
+
+        let saved_source_id = self.current_source_id;
+        self.current_source_id = self.source_id_for_path(v.source_path.as_path(), v.span)?;
+        let result = self.emit_top_level_var_eager_initializer_body(v, init, cg_ty);
+        self.current_source_id = saved_source_id;
+        result
+    }
+
+    fn emit_top_level_var_eager_initializer_body(
+        &mut self,
+        v: &hir::TopLevelVar,
+        init: &hir::Expr,
+        cg_ty: CgTy,
+    ) -> Result<(), LlvmEmitError> {
+        let global = self.declare_top_level_var_global(v)?;
+        let init_value = self.codegen_initializer_expr(init, cg_ty, v.ty)?;
+        let _stored =
+            self.store_local_value(init.span, global.as_pointer_value(), cg_ty, init_value)?;
+        Ok(())
     }
 
     pub(in crate::llvm::codegen) fn declare_extern_global(

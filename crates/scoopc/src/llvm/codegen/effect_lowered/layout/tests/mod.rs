@@ -90,9 +90,12 @@ fn build_fixture_inputs_from_source(source: SourceFile) -> FixtureAbiInputs {
     let materialized_mir =
         crate::pipeline::materialize_direct_style_mir_for_dump(&session, &source)
             .expect("materialized MIR 应成功");
-    let mir_stage_output =
-        DirectStyleMirStageOutput::new(LoweredMir { file, types }, stable_cone_key)
-            .with_materialized_mir(materialized_mir);
+    let mir_stage_output = DirectStyleMirStageOutput::new(
+        LoweredMir { file, types },
+        stable_cone_key,
+        &lowered_hir.source_cones,
+    )
+    .with_materialized_mir(materialized_mir);
     let effect_facts_stage_output =
         build_effect_facts_stage_output(&session, &source, &mir_stage_output)
             .expect("effect facts stage 应成功");
@@ -208,6 +211,7 @@ fn with_inputs_query_result(
         fun_index: &fun_index,
         materialized_pass_view: Some(inputs.effect_lowered_stage_output.llvm_residual_pass_view()),
         published_late_lowered_program: Some(&program),
+        published_lir_facts: inputs.effect_lowered_stage_output.lir_facts(),
         hir_facts,
         effect_op_tags,
     });
@@ -287,6 +291,7 @@ fn with_inputs_query_result_for_source_types(
         fun_index: &fun_index,
         materialized_pass_view: Some(inputs.effect_lowered_stage_output.llvm_residual_pass_view()),
         published_late_lowered_program: Some(&program),
+        published_lir_facts: inputs.effect_lowered_stage_output.lir_facts(),
         hir_facts,
         effect_op_tags,
     });
@@ -362,6 +367,7 @@ fn with_inputs_query_result_and_codegen(
         fun_index: &fun_index,
         materialized_pass_view: Some(inputs.effect_lowered_stage_output.llvm_residual_pass_view()),
         published_late_lowered_program: Some(&program),
+        published_lir_facts: inputs.effect_lowered_stage_output.lir_facts(),
         hir_facts,
         effect_op_tags,
     });

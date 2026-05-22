@@ -2,8 +2,8 @@
 // RUN-STDOUT: top_level_val_pattern_runtime_basic.stdout
 // EXPECT-EXIT: 0
 //
-// T4004b：顶层 `val` pattern binder 需要进入普通顶层 immutable value 的 once-init 主线：
-// - initializer 只求值一次；
+// T4004b/P6-T02：顶层 `val` pattern binder 进入 per-cone eager init 主线：
+// - initializer 在 main 前只求值一次；
 // - tuple / struct / enum binder 可被其它顶层 initializer 与 `main` 稳定读取。
 
 import scoop.core.*

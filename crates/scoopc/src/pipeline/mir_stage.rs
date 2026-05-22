@@ -1,6 +1,8 @@
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
+use std::collections::HashMap;
 use std::collections::btree_map::Entry;
+use std::path::{Path, PathBuf};
 
 use scoopc_ids::{BodyVersionKey, CanonicalTextKey, StableCanonicalKey, StageArtifactKey};
 use scoopc_mir_facts::MirFacts;
@@ -76,8 +78,13 @@ pub struct MirStageOutput {
 }
 
 impl DirectStyleMirStageOutput {
-    pub(crate) fn new(lowered_mir: LoweredMir, stable_cone_key: StableConeKey) -> Self {
-        let mir_facts = build_direct_style_mir_facts(&lowered_mir.file, &stable_cone_key);
+    pub(crate) fn new(
+        lowered_mir: LoweredMir,
+        stable_cone_key: StableConeKey,
+        source_cones: &HashMap<PathBuf, crate::cone::SourceConeInfo>,
+    ) -> Self {
+        let mir_facts =
+            build_direct_style_mir_facts(&lowered_mir.file, &stable_cone_key, source_cones);
         Self {
             lowered_mir,
             mir_facts,
@@ -270,9 +277,13 @@ impl MirStageOutput {
     }
 }
 
-fn build_direct_style_mir_facts(file: &MirFile, stable_cone_key: &StableConeKey) -> MirFacts {
+fn build_direct_style_mir_facts(
+    file: &MirFile,
+    stable_cone_key: &StableConeKey,
+    source_cones: &HashMap<PathBuf, crate::cone::SourceConeInfo>,
+) -> MirFacts {
     let mut facts = MirFacts::new();
-    facts.roots = collect_root_inventories(file, stable_cone_key);
+    facts.roots = collect_root_inventories(file, stable_cone_key, source_cones);
     facts.metadata = collect_mir_metadata_facts(file, stable_cone_key);
     facts
         .verify()
@@ -542,7 +553,11 @@ fn body_reference(owner: &StageArtifactKey, role: &str, fun: &MirFunDecl) -> Mir
     )
 }
 
-fn collect_root_inventories(file: &MirFile, stable_cone_key: &StableConeKey) -> RootInventories {
+fn collect_root_inventories(
+    file: &MirFile,
+    stable_cone_key: &StableConeKey,
+    source_cones: &HashMap<PathBuf, crate::cone::SourceConeInfo>,
+) -> RootInventories {
     let mut callable_bodies = BTreeMap::new();
     let mut initializers = BTreeMap::new();
     let mut initializer_dependencies = Vec::new();
@@ -558,14 +573,24 @@ fn collect_root_inventories(file: &MirFile, stable_cone_key: &StableConeKey) -> 
             }
             MirItem::InitializerRoot(root) => {
                 if let Entry::Vacant(entry) = initializers.entry(root.fqn.clone()) {
-                    entry.insert(initializer_root_fact(item_index, root, stable_cone_key));
+                    let root_cone_key = source_path_cone_key(
+                        root.source_path.as_path(),
+                        source_cones,
+                        stable_cone_key,
+                    );
+                    entry.insert(initializer_root_fact(item_index, root, &root_cone_key));
                     initializer_dependencies.extend(initializer_dependency_facts(root));
                 }
             }
             MirItem::ExternGlobal(root) => {
-                extern_globals
-                    .entry(root.fqn.clone())
-                    .or_insert_with(|| extern_global_root_fact(item_index, root, stable_cone_key));
+                if let Entry::Vacant(entry) = extern_globals.entry(root.fqn.clone()) {
+                    let root_cone_key = source_path_cone_key(
+                        root.source_path.as_path(),
+                        source_cones,
+                        stable_cone_key,
+                    );
+                    entry.insert(extern_global_root_fact(item_index, root, &root_cone_key));
+                }
             }
             MirItem::Metadata(root) => {
                 metadata_roots
@@ -583,6 +608,17 @@ fn collect_root_inventories(file: &MirFile, stable_cone_key: &StableConeKey) -> 
         extern_globals: extern_globals.into_values().collect(),
         metadata_roots: metadata_roots.into_values().collect(),
     }
+}
+
+fn source_path_cone_key(
+    source_path: &Path,
+    source_cones: &HashMap<PathBuf, crate::cone::SourceConeInfo>,
+    fallback: &StableConeKey,
+) -> StableConeKey {
+    source_cones
+        .get(source_path)
+        .map(|info| info.stable_key.clone())
+        .unwrap_or_else(|| fallback.clone())
 }
 
 fn collect_mir_metadata_facts(file: &MirFile, stable_cone_key: &StableConeKey) -> MirMetadataFacts {
@@ -848,7 +884,11 @@ fn lower_mir_stage_unvalidated(
     let types = std::mem::replace(&mut lowered_hir.types, TypeStore::new());
 
     (
-        DirectStyleMirStageOutput::new(LoweredMir { file, types }, stable_cone_key),
+        DirectStyleMirStageOutput::new(
+            LoweredMir { file, types },
+            stable_cone_key,
+            &lowered_hir.source_cones,
+        ),
         builtins.unit,
         builtins.bool_,
     )
@@ -878,6 +918,7 @@ mod tests {
     use crate::source::SourceFile;
     use crate::ty::TypeStore;
     use scoopc_project_model::StableConeKey;
+    use std::collections::HashMap;
     use std::path::PathBuf;
 
     fn session() -> Session {
@@ -2224,6 +2265,7 @@ fun bad() {
                 types,
             },
             StableConeKey::new("fixture", "0.0.0"),
+            &HashMap::new(),
         );
 
         assert_eq!(

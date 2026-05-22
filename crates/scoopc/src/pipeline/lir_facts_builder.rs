@@ -308,12 +308,16 @@ fn publish_cone_init_routines(facts: &mut LirGlobalInitFacts) -> Result<(), Effe
         }
     }
 
+    let mut root_to_routine = BTreeMap::<LirGlobalRootKey, LirConeInitRoutineKey>::new();
     for (index, (_cone_key, roots)) in roots_by_cone.into_iter().enumerate() {
         let ordered_roots = topologically_order_eager_roots(facts, roots)?;
         let Some(first_root) = ordered_roots.first().and_then(|root| facts.roots.get(root)) else {
             continue;
         };
         let routine = LirConeInitRoutineKey::new(index as u32);
+        for root in &ordered_roots {
+            root_to_routine.insert(root.clone(), routine);
+        }
         facts.cone_init_routines.insert(
             routine,
             LirConeInitRoutineFacts {
@@ -322,9 +326,67 @@ fn publish_cone_init_routines(facts: &mut LirGlobalInitFacts) -> Result<(), Effe
                 roots: ordered_roots,
             },
         );
-        facts.final_entry_order.routines.push(routine);
     }
+    facts.final_entry_order.routines =
+        topologically_order_cone_init_routines(facts, &root_to_routine)?;
     Ok(())
+}
+
+fn topologically_order_cone_init_routines(
+    facts: &LirGlobalInitFacts,
+    root_to_routine: &BTreeMap<LirGlobalRootKey, LirConeInitRoutineKey>,
+) -> Result<Vec<LirConeInitRoutineKey>, EffectLoweringError> {
+    let mut pending = facts
+        .cone_init_routines
+        .keys()
+        .copied()
+        .collect::<BTreeSet<_>>();
+    let mut ordered = Vec::new();
+
+    while !pending.is_empty() {
+        let ready = pending
+            .iter()
+            .find(|routine| {
+                cone_init_routine_dependencies_ready(facts, root_to_routine, **routine, &ordered)
+            })
+            .copied();
+        let Some(routine) = ready else {
+            let cycle = pending
+                .iter()
+                .map(|routine| format!("routine#{}", routine.as_u32()))
+                .collect::<Vec<_>>()
+                .join(", ");
+            return invalid_lir_facts(format!(
+                "cyclic cross-cone top-level eager init dependencies among: {cycle}"
+            ));
+        };
+        pending.remove(&routine);
+        ordered.push(routine);
+    }
+
+    Ok(ordered)
+}
+
+fn cone_init_routine_dependencies_ready(
+    facts: &LirGlobalInitFacts,
+    root_to_routine: &BTreeMap<LirGlobalRootKey, LirConeInitRoutineKey>,
+    routine: LirConeInitRoutineKey,
+    ordered: &[LirConeInitRoutineKey],
+) -> bool {
+    let Some(routine_facts) = facts.cone_init_routines.get(&routine) else {
+        return false;
+    };
+    routine_facts.roots.iter().all(|root| {
+        let Some(root_facts) = facts.roots.get(root) else {
+            return false;
+        };
+        root_facts.dependencies.iter().all(|dependency| {
+            let Some(dependency_routine) = root_to_routine.get(&dependency.target) else {
+                return true;
+            };
+            *dependency_routine == routine || ordered.contains(dependency_routine)
+        })
+    })
 }
 
 fn topologically_order_eager_roots(

@@ -1,0 +1,32 @@
+// EXPECT: pass
+// RUN-STDOUT: eager_val_and_global_var_before_main.stdout
+// EXPECT-EXIT: 0
+//
+// P6-T02: top-level val and annotated top-level var initializers run from
+// per-cone eager init before the user main body. Later reads only load storage.
+
+import scoop.core.*
+
+fun seedVal(): Int {
+    println("init-val")
+    return 10
+}
+
+fun seedVar(): Int {
+    println("init-var")
+    return eagerVal + 5
+}
+
+val eagerVal: Int = seedVal()
+
+@Global
+var eagerVar: Int = seedVar()
+
+fun main(): Int {
+    println("main")
+    println(eagerVal)
+    println(eagerVar)
+    eagerVar = eagerVar + 1
+    println(eagerVar)
+    return 0
+}

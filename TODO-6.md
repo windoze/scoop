@@ -4,7 +4,7 @@
 > 细化时间：2026-05-22
 > 计划基线：[`PLAN.md`](./PLAN.md) §4/P6-P8
 > 索引：[`TODO.md`](./TODO.md)
-> 当前状态：`P6-T01R` 已完成；下一步执行 `P6-T02`。
+> 当前状态：`P6-T02` 已完成；下一步执行 `P6-T02R`。
 
 ## 范围
 
@@ -144,7 +144,7 @@
   - owner/依赖复审：`scoopc_lir_facts` 仍只依赖 `scoopc_ids`、`scoopc_project_model`、`scoopc_types`，额外搜索未发现 stage crate、`MaterializedMir`、`EffectFactsStageOutput` 或 LLVM 类型引用；global init/storage facts 从 MIR facts/LIR stage 显式输入构造，没有新增 backend 回看查询面。
   - 验证通过：`cargo fmt`；`cargo test -p scoopc_lir_facts`；`cargo test -p scoopc --no-default-features lir_facts_builder`；`cargo test -p scoopc_mir_facts`；`cargo run -p scoop -- test --fixtures tests/fixtures/effect_lowered`；额外 residual 搜索 `MaterializedMir|EffectFactsStageOutput|inkwell|llvm|crate::mir|crate::effect|crate::hir|scoopc::|scoopc_mir|scoopc_effect|scoopc_hir` 于 `crates/scoopc_lir_facts` 无命中；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
 
-## [TODO] P6-T02：实现 per-cone eager top-level init 与 final entry order
+## [DONE] P6-T02：实现 per-cone eager top-level init 与 final entry order
 
 - 目标：
   - 让 top-level `val` 和 annotated top-level `var` 在用户 `main` body 前按 source-cone DAG / per-cone root contract eager 初始化；
@@ -174,7 +174,13 @@
   - cone init routine 真实执行本 cone roots，且 entry order 有测试覆盖。
 - 依赖：P6-T01R
 - 完成记录：
-  - 待填写。
+  - LLVM cone init plan 改为消费 `LirFacts.global_init.final_entry_order` / `cone_init_routines`，不再从 HIR source map 或 side table 临时推导 routine/root 顺序；LIR facts builder 同步按 eager root dependency 为 final entry routines 做跨 cone 拓扑排序。
+  - per-cone init routine 现在执行本 routine 发布的 top-level eager roots：top-level `val` 通过 eager init helper 在 main 前初始化，annotated top-level `var` 在 routine 内求值并写入 backing storage；top-level var storage 默认零初始化，initializer 不再要求 LLVM static const 路径。
+  - top-level `val` 普通访问和 hidden bridge 不再 first-access 调用 init helper，只保留 initialized check 并读取 eager backing storage；递归初始化错误仍由 guard check 稳定失败。
+  - MIR root facts 为 initializer/extern global root 使用 source path 对应的 source-cone stable key，避免 LIR global init facts 把所有 roots 归到单一 compilation cone。
+  - 新增 LLVM IR 单测覆盖 cone routine 执行 eager roots 和普通 top-level `val` 访问不再 lazy-init；新增 `tests/fixtures/run-pass/global_init/eager_val_and_global_var_before_main.scoop`，并按 eager 语义更新既有 top-level `val` stdout golden。
+  - 验证通过：`cargo fmt`；`cargo test -p scoopc --no-default-features global_init`；`cargo test -p scoopc global_init`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/global_init`；`cargo clippy --all-targets -- -D warnings`；`cargo test -p scoopc pipeline_user_visible_failure_policy_tracks_internal_bug_sentinels`；`git diff --check`。
+  - 已运行完整 `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`：P6-T02 相关 fixtures 均通过，但全量 run-pass 仍有 7 个既有失败，分别来自 unresolved generic `scoop.core.println`、`scoop.runtime.test.*` import 或非本任务路径；未将这些历史问题作为 P6-T02 前置项。
 
 ## [TODO] P6-T02R：Review per-cone eager top-level init 与 final entry order
 

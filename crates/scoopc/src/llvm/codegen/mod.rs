@@ -73,6 +73,7 @@ use crate::ty::{
     ValueTypeKind,
 };
 use scoopc_hir_facts::{HirFacts, declarations::NominalKind as HirFactNominalKind};
+use scoopc_lir_facts::{LirFacts, LirGlobalRootKind};
 
 use super::LlvmEmitError;
 
@@ -504,6 +505,8 @@ pub(crate) struct CompilationUnitCodegenCx<'a, 'ctx> {
     /// 这里先只承接“某个 callable root 是否需要 effect hidden ABI / resume shell”这类
     /// 声明层判断，避免继续从 HIR 的 effectful 布尔值回推 ABI 形状。
     published_late_lowered_program: Option<&'a crate::effect_lowered::LateLoweredProgram>,
+    /// LIR-owned backend-neutral contracts for global init/storage and callable ABI.
+    published_lir_facts: &'a LirFacts,
     /// HIR barrier 发布的 declaration/entity facts。
     hir_facts: Rc<HirFacts>,
     /// 编译单元级共享 analysis/layout cache。
@@ -566,7 +569,6 @@ pub(super) struct ConeInitRoot {
 
 #[derive(Debug, Clone)]
 pub(super) struct ConeInitRoutinePlan {
-    cone: SourceConeInfo,
     function_name: String,
     roots: Vec<ConeInitRoot>,
 }
@@ -828,6 +830,7 @@ pub(super) struct CompilationUnitCodegenInputs<'a, 'ctx> {
     pub(super) materialized_pass_view: Option<crate::mir::MaterializedMirPassView<'a>>,
     pub(super) published_late_lowered_program:
         Option<&'a crate::effect_lowered::LateLoweredProgram>,
+    pub(super) published_lir_facts: &'a LirFacts,
     pub(super) hir_facts: Rc<HirFacts>,
     pub(super) effect_op_tags: Rc<RefCell<EffectOpTagState>>,
 }
@@ -881,6 +884,7 @@ impl<'a, 'ctx> CompilationUnitCodegenCx<'a, 'ctx> {
             fun_index,
             materialized_pass_view,
             published_late_lowered_program,
+            published_lir_facts,
             hir_facts,
             effect_op_tags,
         } = inputs;
@@ -922,6 +926,7 @@ impl<'a, 'ctx> CompilationUnitCodegenCx<'a, 'ctx> {
             fun_index,
             materialized_pass_view,
             published_late_lowered_program,
+            published_lir_facts,
             hir_facts,
             shared_caches: SharedCodegenCaches::default(),
             effect_op_tags,
@@ -930,100 +935,50 @@ impl<'a, 'ctx> CompilationUnitCodegenCx<'a, 'ctx> {
     }
 
     pub(super) fn cone_init_routine_plans(&self) -> Vec<ConeInitRoutinePlan> {
-        let source_order = self
-            .source_map
-            .sources()
-            .enumerate()
-            .map(|(idx, source)| (source.path().to_path_buf(), idx))
-            .collect::<HashMap<_, _>>();
-
-        let mut plans = Vec::new();
-        let mut seen_cones = HashSet::new();
-        for source in self.source_map.sources() {
-            let Some(info) = self.source_cones.get(source.path()) else {
-                continue;
-            };
-            if !seen_cones.insert(info.id) {
-                continue;
-            }
-
-            let function_name = private_cone_init_fn_name(&info.stable_key);
-            let roots = self.cone_init_roots_for(info, &source_order);
-            plans.push(ConeInitRoutinePlan {
-                cone: info.clone(),
-                function_name,
-                roots,
-            });
-        }
-        plans
-    }
-
-    fn cone_init_roots_for(
-        &self,
-        cone: &SourceConeInfo,
-        source_order: &HashMap<PathBuf, usize>,
-    ) -> Vec<ConeInitRoot> {
-        #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-        enum RootSortKind {
-            TopLevelImmutableValue,
-            TopLevelVar,
-        }
-
-        struct PendingRoot {
-            order: usize,
-            span_start: usize,
-            kind: RootSortKind,
-            fqn: String,
-        }
-
-        let source_sort_key = |path: &Path| source_order.get(path).copied().unwrap_or(usize::MAX);
-        let owner_is_cone = |path: &Path| {
-            self.source_cones
-                .get(path)
-                .is_some_and(|info| info.id == cone.id)
-        };
-
-        let mut roots = Vec::new();
-        roots.extend(
-            self.top_level_immutable_values
-                .values()
-                .filter(|value| owner_is_cone(value.source_path.as_path()))
-                .map(|value| PendingRoot {
-                    order: source_sort_key(value.source_path.as_path()),
-                    span_start: value.span.start,
-                    kind: RootSortKind::TopLevelImmutableValue,
-                    fqn: value.fqn.clone(),
-                }),
-        );
-        roots.extend(
-            self.top_level_vars
-                .values()
-                .filter(|var| owner_is_cone(var.source_path.as_path()))
-                .map(|var| PendingRoot {
-                    order: source_sort_key(var.source_path.as_path()),
-                    span_start: var.span.start,
-                    kind: RootSortKind::TopLevelVar,
-                    fqn: var.fqn.clone(),
-                }),
-        );
-        roots.sort_by(|lhs, rhs| {
-            lhs.order
-                .cmp(&rhs.order)
-                .then_with(|| lhs.span_start.cmp(&rhs.span_start))
-                .then_with(|| lhs.kind.cmp(&rhs.kind))
-                .then_with(|| lhs.fqn.cmp(&rhs.fqn))
-        });
-
-        roots
-            .into_iter()
-            .map(|root| ConeInitRoot {
-                kind: match root.kind {
-                    RootSortKind::TopLevelImmutableValue => {
-                        ConeInitRootKind::TopLevelImmutableValue
-                    }
-                    RootSortKind::TopLevelVar => ConeInitRootKind::TopLevelVar,
-                },
-                fqn: root.fqn,
+        let global_init = &self.published_lir_facts.global_init;
+        global_init
+            .final_entry_order
+            .routines
+            .iter()
+            .map(|routine_key| {
+                let routine = global_init.cone_init_routines.get(routine_key).unwrap_or_else(|| {
+                    panic!(
+                        "cone_init_routine_plans: LIR facts verifier accepted missing cone init routine {}",
+                        routine_key.as_u32()
+                    )
+                });
+                let roots = routine
+                    .roots
+                    .iter()
+                    .map(|root_key| {
+                        let root = global_init.roots.get(root_key).unwrap_or_else(|| {
+                            panic!(
+                                "cone_init_routine_plans: LIR facts verifier accepted missing global root `{}`",
+                                root_key.as_str()
+                            )
+                        });
+                        let kind = match root.kind {
+                            LirGlobalRootKind::TopLevelImmutableVal => {
+                                ConeInitRootKind::TopLevelImmutableValue
+                            }
+                            LirGlobalRootKind::TopLevelMutableVar => ConeInitRootKind::TopLevelVar,
+                            LirGlobalRootKind::ObjectSingleton | LirGlobalRootKind::ExternGlobal => {
+                                panic!(
+                                    "cone_init_routine_plans: LIR facts verifier accepted non-eager global root `{}` in cone init routine",
+                                    root_key.as_str()
+                                )
+                            }
+                        };
+                        ConeInitRoot {
+                            kind,
+                            fqn: root_key.as_str().to_string(),
+                        }
+                    })
+                    .collect();
+                ConeInitRoutinePlan {
+                    function_name: private_cone_init_fn_name(&routine.cone),
+                    roots,
+                }
             })
             .collect()
     }
