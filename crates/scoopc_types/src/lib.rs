@@ -302,6 +302,141 @@ pub enum ValueTypeKind {
     Nominal(NominalType),
 }
 
+/// 已单态化的 `TypeId`：保证整棵类型树（含 nominal args、function
+/// receiver/params/return/effects、union variants、tuple elements、option
+/// inner、star projection inner、nominal use-site eff row）不含 `TypeKind::Param`。
+///
+/// **唯一构造路径**：`TypeStore::as_mono(t: TypeId) -> Result<MonoTypeId, ParamLeak>`。
+/// 故意不实现 `From<TypeId>` / `Into<TypeId>` / `unsafe`/`unchecked` 等绕过构造，
+/// 以便 codegen 的 "non-codegen type 不可能进入 codegen" 不变量可以由 Rust 类型
+/// 系统在 `MonoTypeId` 的传递路径上静态维持。
+///
+/// `inner()` accessor 仅用于 hash-cons 比较与诊断输出；任何把 `TypeId` 重新喂回
+/// 到需要 `MonoTypeId` 的位置的调用都必须再走一次 `as_mono`。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct MonoTypeId(TypeId);
+
+impl MonoTypeId {
+    /// 取出底层的 `TypeId`。仅用于 hash-cons 比较 / 诊断输出。
+    pub fn inner(self) -> TypeId {
+        self.0
+    }
+}
+
+/// `as_mono` 拒绝时返回的诊断信息。
+///
+/// - `offending`：第一个被发现的 `TypeKind::Param` 节点的 `TypeId`；
+/// - `leak_path`：从 `as_mono` 的输入 `TypeId` 走到 `offending` 经过的嵌套位置序列
+///   （顶到底）。顶层 `Param` 时为空。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ParamLeak {
+    pub offending: TypeId,
+    pub leak_path: Vec<TypeKindLabel>,
+}
+
+/// 描述类型树中“嵌套位置”的标签，用于在 `ParamLeak.leak_path` 中复述
+/// 从输入 `TypeId` 走到 `Param` 的路径。
+///
+/// 共 10 个位置，覆盖当前 `TypeKind` 中所有可嵌套 `TypeId` 的语义槽。
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum TypeKindLabel {
+    /// 进入 `NominalType.args[index]`（含 `Ref::Nominal` 与 `Value::Nominal`）。
+    NominalArg { fqn: String, index: usize },
+    /// 进入 `NominalType.eff.terms[index]`（use-site effect row 实参）。
+    NominalEffect { fqn: String, index: usize },
+    /// 进入 `RefTypeKind::Union.variants[index]`。
+    UnionVariant { index: usize },
+    /// 进入 `RefTypeKind::Function.receiver`。
+    FunctionReceiver,
+    /// 进入 `RefTypeKind::Function.params[index]`。
+    FunctionParam { index: usize },
+    /// 进入 `RefTypeKind::Function.return_ty`。
+    FunctionReturn,
+    /// 进入 `RefTypeKind::Function.effects.terms[index]`。
+    FunctionEffect { index: usize },
+    /// 进入 `ValueTypeKind::Tuple.elements[index]`。
+    TupleElement { index: usize },
+    /// 进入 `ValueTypeKind::Option(inner)`。
+    OptionInner,
+    /// 进入 `TypeKind::StarProjection(inner.read_ty)`。
+    StarProjectionInner,
+}
+
+/// 与 `TypeKind` 同形的并行视图：所有可嵌套 `TypeId` 的位置都暴露为 `MonoTypeId`，
+/// 调用方拿到 view 时即可静态确定 children 已是单态化类型。
+///
+/// 由 `TypeStore::kind_mono` 按需构造；返回的 `MonoNominal::fqn` 借自 `TypeStore`。
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum MonoTypeKind<'a> {
+    Ref(MonoRefKind<'a>),
+    Value(MonoValueKind<'a>),
+    StarProjection(MonoStarProjection),
+}
+
+/// `RefTypeKind` 的 `MonoTypeId` 视图。
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum MonoRefKind<'a> {
+    Any,
+    String,
+    Nominal(MonoNominal<'a>),
+    Function(MonoFunction),
+    Union(MonoUnion),
+}
+
+/// `ValueTypeKind` 的 `MonoTypeId` 视图。
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum MonoValueKind<'a> {
+    Unit,
+    Nothing,
+    Bool,
+    Char,
+    Float64,
+    Float32,
+    Int,
+    UInt,
+    IntN(u16),
+    UIntN(u16),
+    Option(MonoTypeId),
+    Tuple(Vec<MonoTypeId>),
+    Nominal(MonoNominal<'a>),
+}
+
+/// `NominalType` 的 `MonoTypeId` 视图（`fqn` 借自 `TypeStore`）。
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct MonoNominal<'a> {
+    pub fqn: &'a str,
+    pub args: Vec<MonoTypeId>,
+    pub eff: Option<MonoEffectRow>,
+}
+
+/// `FunctionType` 的 `MonoTypeId` 视图。
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct MonoFunction {
+    pub receiver: Option<MonoTypeId>,
+    pub params: Vec<MonoTypeId>,
+    pub return_ty: MonoTypeId,
+    pub effects: MonoEffectRow,
+    pub effects_closed: bool,
+}
+
+/// `UnionType` 的 `MonoTypeId` 视图。
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct MonoUnion {
+    pub variants: Vec<MonoTypeId>,
+}
+
+/// `EffectRow` 的 `MonoTypeId` 视图。
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct MonoEffectRow {
+    pub terms: Vec<MonoTypeId>,
+}
+
+/// `StarProjectionType` 的 `MonoTypeId` 视图。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct MonoStarProjection {
+    pub read_ty: MonoTypeId,
+}
+
 /// 类型表：负责分配 `TypeId` 并存储 `TypeKind`。
 ///
 /// 当前阶段采用“push-only arena + 简单去重（hash-cons）”：
@@ -611,6 +746,232 @@ impl TypeStore {
             .map(|&t| self.re_intern_from(other, t))
             .collect();
         EffectRow::new(new_terms)
+    }
+}
+
+/// `MonoTypeId` 与 `MonoTypeKind` 的核心 API。
+///
+/// 设计原则：
+/// - `as_mono` 是把 `TypeId` 升级为 `MonoTypeId` 的**唯一入口**，做整棵类型树的
+///   深度 `Param`-free 校验；
+/// - 一旦持有 `MonoTypeId`，所有后续位置（args、receiver/params/return/effects、
+///   union variants、tuple elements、option inner、star projection inner、nominal
+///   use-site eff row）都已被 `as_mono` 校验过，因此 `kind_mono` 返回的视图直接把
+///   children 暴露为 `MonoTypeId`，无需调用方重复校验。
+impl TypeStore {
+    /// 把 `TypeId` 升级为 `MonoTypeId`，校验整棵类型树不含 `TypeKind::Param`。
+    ///
+    /// 使用迭代 worklist + visited 集合：
+    /// - 避免递归类型导致栈溢出；
+    /// - `visited: HashSet<TypeId>` 防止 hash-cons 复用导致的重复访问与潜在环路；
+    /// - 子节点按 REVERSE 顺序入栈，使 LIFO 弹出顺序与左到右深度优先一致，
+    ///   令多次调用同一 leak 输入产生相同 `leak_path`。
+    pub fn as_mono(&self, id: TypeId) -> Result<MonoTypeId, ParamLeak> {
+        use std::collections::HashSet;
+
+        let mut worklist: Vec<(TypeId, Vec<TypeKindLabel>)> = vec![(id, Vec::new())];
+        let mut visited: HashSet<TypeId> = HashSet::new();
+
+        while let Some((curr, path)) = worklist.pop() {
+            if !visited.insert(curr) {
+                continue;
+            }
+            match self.kind(curr) {
+                TypeKind::Param(_) => {
+                    return Err(ParamLeak {
+                        offending: curr,
+                        leak_path: path,
+                    });
+                }
+                TypeKind::Ref(r) => match r {
+                    RefTypeKind::Any | RefTypeKind::String => {}
+                    RefTypeKind::Nominal(n) => push_nominal(n, &path, &mut worklist),
+                    RefTypeKind::Function(f) => push_function(f, &path, &mut worklist),
+                    RefTypeKind::Union(u) => push_union(u, &path, &mut worklist),
+                },
+                TypeKind::Value(v) => match v {
+                    ValueTypeKind::Unit
+                    | ValueTypeKind::Nothing
+                    | ValueTypeKind::Bool
+                    | ValueTypeKind::Char
+                    | ValueTypeKind::Float64
+                    | ValueTypeKind::Float32
+                    | ValueTypeKind::Int
+                    | ValueTypeKind::UInt
+                    | ValueTypeKind::IntN(_)
+                    | ValueTypeKind::UIntN(_) => {}
+                    ValueTypeKind::Option(inner) => {
+                        let mut p = path.clone();
+                        p.push(TypeKindLabel::OptionInner);
+                        worklist.push((*inner, p));
+                    }
+                    ValueTypeKind::Tuple(elems) => push_tuple(elems, &path, &mut worklist),
+                    ValueTypeKind::Nominal(n) => push_nominal(n, &path, &mut worklist),
+                },
+                TypeKind::StarProjection(star) => {
+                    let mut p = path.clone();
+                    p.push(TypeKindLabel::StarProjectionInner);
+                    worklist.push((star.read_ty, p));
+                }
+            }
+        }
+
+        Ok(MonoTypeId(id))
+    }
+
+    /// 在 `MonoTypeId` 上拿到 `TypeKind` 的并行视图：所有 children 已是 `MonoTypeId`。
+    ///
+    /// 若 `MonoTypeId` 通过合法构造路径（`as_mono`）取得，本方法不会触发 `Param`
+    /// 分支；否则触发 `unreachable!`（`MonoTypeId` 的不变量被绕过）。
+    pub fn kind_mono(&self, id: MonoTypeId) -> MonoTypeKind<'_> {
+        match self.kind(id.inner()) {
+            TypeKind::Ref(r) => MonoTypeKind::Ref(self.mono_ref_kind(r)),
+            TypeKind::Value(v) => MonoTypeKind::Value(self.mono_value_kind(v)),
+            TypeKind::StarProjection(star) => MonoTypeKind::StarProjection(MonoStarProjection {
+                read_ty: MonoTypeId(star.read_ty),
+            }),
+            TypeKind::Param(_) => {
+                unreachable!("MonoTypeId invariant violated: Param leaked through as_mono")
+            }
+        }
+    }
+
+    fn mono_ref_kind<'a>(&self, r: &'a RefTypeKind) -> MonoRefKind<'a> {
+        match r {
+            RefTypeKind::Any => MonoRefKind::Any,
+            RefTypeKind::String => MonoRefKind::String,
+            RefTypeKind::Nominal(n) => MonoRefKind::Nominal(self.mono_nominal(n)),
+            RefTypeKind::Function(f) => MonoRefKind::Function(self.mono_function(f)),
+            RefTypeKind::Union(u) => MonoRefKind::Union(self.mono_union(u)),
+        }
+    }
+
+    fn mono_value_kind<'a>(&self, v: &'a ValueTypeKind) -> MonoValueKind<'a> {
+        match v {
+            ValueTypeKind::Unit => MonoValueKind::Unit,
+            ValueTypeKind::Nothing => MonoValueKind::Nothing,
+            ValueTypeKind::Bool => MonoValueKind::Bool,
+            ValueTypeKind::Char => MonoValueKind::Char,
+            ValueTypeKind::Float64 => MonoValueKind::Float64,
+            ValueTypeKind::Float32 => MonoValueKind::Float32,
+            ValueTypeKind::Int => MonoValueKind::Int,
+            ValueTypeKind::UInt => MonoValueKind::UInt,
+            ValueTypeKind::IntN(b) => MonoValueKind::IntN(*b),
+            ValueTypeKind::UIntN(b) => MonoValueKind::UIntN(*b),
+            ValueTypeKind::Option(inner) => MonoValueKind::Option(MonoTypeId(*inner)),
+            ValueTypeKind::Tuple(elems) => {
+                MonoValueKind::Tuple(elems.iter().copied().map(MonoTypeId).collect())
+            }
+            ValueTypeKind::Nominal(n) => MonoValueKind::Nominal(self.mono_nominal(n)),
+        }
+    }
+
+    fn mono_nominal<'a>(&self, n: &'a NominalType) -> MonoNominal<'a> {
+        MonoNominal {
+            fqn: &n.fqn,
+            args: n.args.iter().copied().map(MonoTypeId).collect(),
+            eff: n.eff.as_ref().map(mono_effect_row),
+        }
+    }
+
+    fn mono_function(&self, f: &FunctionType) -> MonoFunction {
+        MonoFunction {
+            receiver: f.receiver.map(MonoTypeId),
+            params: f.params.iter().copied().map(MonoTypeId).collect(),
+            return_ty: MonoTypeId(f.return_ty),
+            effects: mono_effect_row(&f.effects),
+            effects_closed: f.effects_closed,
+        }
+    }
+
+    fn mono_union(&self, u: &UnionType) -> MonoUnion {
+        MonoUnion {
+            variants: u.variants.iter().copied().map(MonoTypeId).collect(),
+        }
+    }
+}
+
+fn mono_effect_row(r: &EffectRow) -> MonoEffectRow {
+    MonoEffectRow {
+        terms: r.terms.iter().copied().map(MonoTypeId).collect(),
+    }
+}
+
+fn push_nominal(
+    n: &NominalType,
+    path: &[TypeKindLabel],
+    worklist: &mut Vec<(TypeId, Vec<TypeKindLabel>)>,
+) {
+    // 子节点按 REVERSE 顺序入栈，使 LIFO 弹出顺序为左到右深度优先：
+    // 先把后面的 effect terms 入栈，再把前面的 args 入栈。
+    if let Some(eff) = &n.eff {
+        for (idx, &term) in eff.terms.iter().enumerate().rev() {
+            let mut p = path.to_vec();
+            p.push(TypeKindLabel::NominalEffect {
+                fqn: n.fqn.clone(),
+                index: idx,
+            });
+            worklist.push((term, p));
+        }
+    }
+    for (idx, &arg) in n.args.iter().enumerate().rev() {
+        let mut p = path.to_vec();
+        p.push(TypeKindLabel::NominalArg {
+            fqn: n.fqn.clone(),
+            index: idx,
+        });
+        worklist.push((arg, p));
+    }
+}
+
+fn push_function(
+    f: &FunctionType,
+    path: &[TypeKindLabel],
+    worklist: &mut Vec<(TypeId, Vec<TypeKindLabel>)>,
+) {
+    for (idx, &term) in f.effects.terms.iter().enumerate().rev() {
+        let mut p = path.to_vec();
+        p.push(TypeKindLabel::FunctionEffect { index: idx });
+        worklist.push((term, p));
+    }
+    {
+        let mut p = path.to_vec();
+        p.push(TypeKindLabel::FunctionReturn);
+        worklist.push((f.return_ty, p));
+    }
+    for (idx, &param) in f.params.iter().enumerate().rev() {
+        let mut p = path.to_vec();
+        p.push(TypeKindLabel::FunctionParam { index: idx });
+        worklist.push((param, p));
+    }
+    if let Some(rec) = f.receiver {
+        let mut p = path.to_vec();
+        p.push(TypeKindLabel::FunctionReceiver);
+        worklist.push((rec, p));
+    }
+}
+
+fn push_union(
+    u: &UnionType,
+    path: &[TypeKindLabel],
+    worklist: &mut Vec<(TypeId, Vec<TypeKindLabel>)>,
+) {
+    for (idx, &v) in u.variants.iter().enumerate().rev() {
+        let mut p = path.to_vec();
+        p.push(TypeKindLabel::UnionVariant { index: idx });
+        worklist.push((v, p));
+    }
+}
+
+fn push_tuple(
+    elems: &[TypeId],
+    path: &[TypeKindLabel],
+    worklist: &mut Vec<(TypeId, Vec<TypeKindLabel>)>,
+) {
+    for (idx, &e) in elems.iter().enumerate().rev() {
+        let mut p = path.to_vec();
+        p.push(TypeKindLabel::TupleElement { index: idx });
+        worklist.push((e, p));
     }
 }
 
@@ -949,5 +1310,379 @@ mod tests {
         assert!(!tys.is_ref(builtins.int));
 
         assert!(tys.is_value(opt_int));
+    }
+
+    // ---- MonoTypeId / as_mono / kind_mono baseline ----
+
+    fn make_param(tys: &mut TypeStore, name: &str) -> TypeId {
+        tys.ty_param(TypeParamType {
+            name: name.to_string(),
+            decl_file: PathBuf::from("/test/decl.scoop"),
+            decl_span: scoopc_span::Span::synthetic_prelude(),
+        })
+    }
+
+    fn make_nominal_ref(tys: &mut TypeStore, fqn: &str, args: Vec<TypeId>) -> TypeId {
+        tys.intern(TypeKind::Ref(RefTypeKind::Nominal(NominalType {
+            fqn: fqn.to_string(),
+            args,
+            eff: None,
+        })))
+    }
+
+    fn make_nominal_ref_with_eff(
+        tys: &mut TypeStore,
+        fqn: &str,
+        args: Vec<TypeId>,
+        eff: EffectRow,
+    ) -> TypeId {
+        tys.intern(TypeKind::Ref(RefTypeKind::Nominal(NominalType {
+            fqn: fqn.to_string(),
+            args,
+            eff: Some(eff),
+        })))
+    }
+
+    #[test]
+    fn as_mono_accepts_scalars_and_builtin_refs() {
+        let mut tys = TypeStore::new();
+        let builtins = tys.intern_builtins();
+
+        for id in [
+            builtins.int,
+            builtins.uint,
+            builtins.bool_,
+            builtins.char_,
+            builtins.unit,
+            builtins.nothing,
+            builtins.float64,
+            builtins.float32,
+            builtins.any,
+            builtins.string,
+        ] {
+            let mono = tys.as_mono(id).expect("scalar/builtin must be mono");
+            assert_eq!(mono.inner(), id);
+        }
+
+        let int_n = tys.ty_int_n(7);
+        let uint_n = tys.ty_uint_n(13);
+        assert_eq!(tys.as_mono(int_n).unwrap().inner(), int_n);
+        assert_eq!(tys.as_mono(uint_n).unwrap().inner(), uint_n);
+    }
+
+    #[test]
+    fn as_mono_rejects_top_level_param_with_empty_path() {
+        let mut tys = TypeStore::new();
+        let t = make_param(&mut tys, "T");
+
+        let err = tys.as_mono(t).unwrap_err();
+        assert_eq!(err.offending, t);
+        assert!(
+            err.leak_path.is_empty(),
+            "top-level Param should have empty leak_path, got {:?}",
+            err.leak_path
+        );
+    }
+
+    #[test]
+    fn as_mono_rejects_nested_nominal_arg_param() {
+        let mut tys = TypeStore::new();
+        let t = make_param(&mut tys, "T");
+        let box_t = make_nominal_ref(&mut tys, "scoop.test.Box", vec![t]);
+
+        let err = tys.as_mono(box_t).unwrap_err();
+        assert_eq!(err.offending, t);
+        assert_eq!(
+            err.leak_path,
+            vec![TypeKindLabel::NominalArg {
+                fqn: "scoop.test.Box".to_string(),
+                index: 0,
+            }]
+        );
+    }
+
+    #[test]
+    fn as_mono_accepts_nested_nominal_arg_concrete() {
+        let mut tys = TypeStore::new();
+        let builtins = tys.intern_builtins();
+        let box_int = make_nominal_ref(&mut tys, "scoop.test.Box", vec![builtins.int]);
+
+        let mono = tys.as_mono(box_int).expect("Box<Int> should be mono");
+        assert_eq!(mono.inner(), box_int);
+    }
+
+    #[test]
+    fn as_mono_rejects_nominal_eff_row_param() {
+        let mut tys = TypeStore::new();
+        let t = make_param(&mut tys, "T");
+        let foo_with_param_eff = make_nominal_ref_with_eff(
+            &mut tys,
+            "scoop.test.Foo",
+            Vec::new(),
+            EffectRow::new(vec![t]),
+        );
+
+        let err = tys.as_mono(foo_with_param_eff).unwrap_err();
+        assert_eq!(err.offending, t);
+        assert_eq!(
+            err.leak_path,
+            vec![TypeKindLabel::NominalEffect {
+                fqn: "scoop.test.Foo".to_string(),
+                index: 0,
+            }]
+        );
+    }
+
+    #[test]
+    fn as_mono_rejects_tuple_element_param() {
+        let mut tys = TypeStore::new();
+        let builtins = tys.intern_builtins();
+        let t = make_param(&mut tys, "T");
+        let tup = tys.ty_tuple(vec![builtins.int, t]);
+
+        let err = tys.as_mono(tup).unwrap_err();
+        assert_eq!(err.offending, t);
+        assert_eq!(
+            err.leak_path,
+            vec![TypeKindLabel::TupleElement { index: 1 }]
+        );
+    }
+
+    #[test]
+    fn as_mono_accepts_tuple_with_concrete_elements() {
+        let mut tys = TypeStore::new();
+        let builtins = tys.intern_builtins();
+        let tup = tys.ty_tuple(vec![builtins.int, builtins.string]);
+
+        let mono = tys.as_mono(tup).expect("(Int, String) should be mono");
+        assert_eq!(mono.inner(), tup);
+    }
+
+    #[test]
+    fn as_mono_rejects_option_inner_param() {
+        let mut tys = TypeStore::new();
+        let t = make_param(&mut tys, "T");
+        let opt_t = tys.ty_option(t);
+
+        let err = tys.as_mono(opt_t).unwrap_err();
+        assert_eq!(err.offending, t);
+        assert_eq!(err.leak_path, vec![TypeKindLabel::OptionInner]);
+    }
+
+    #[test]
+    fn as_mono_accepts_option_with_concrete_inner() {
+        let mut tys = TypeStore::new();
+        let builtins = tys.intern_builtins();
+        let opt_bool = tys.ty_option(builtins.bool_);
+
+        let mono = tys.as_mono(opt_bool).expect("Option<Bool> should be mono");
+        assert_eq!(mono.inner(), opt_bool);
+    }
+
+    #[test]
+    fn as_mono_rejects_function_param_position() {
+        let mut tys = TypeStore::new();
+        let builtins = tys.intern_builtins();
+        let t = make_param(&mut tys, "T");
+        let fun = tys.ty_function(None, vec![t], builtins.int, EffectRow::pure(), false);
+
+        let err = tys.as_mono(fun).unwrap_err();
+        assert_eq!(err.offending, t);
+        assert_eq!(
+            err.leak_path,
+            vec![TypeKindLabel::FunctionParam { index: 0 }]
+        );
+    }
+
+    #[test]
+    fn as_mono_rejects_function_return_position() {
+        let mut tys = TypeStore::new();
+        let builtins = tys.intern_builtins();
+        let t = make_param(&mut tys, "T");
+        let fun = tys.ty_function(None, vec![builtins.int], t, EffectRow::pure(), false);
+
+        let err = tys.as_mono(fun).unwrap_err();
+        assert_eq!(err.offending, t);
+        assert_eq!(err.leak_path, vec![TypeKindLabel::FunctionReturn]);
+    }
+
+    #[test]
+    fn as_mono_rejects_function_receiver_position() {
+        let mut tys = TypeStore::new();
+        let builtins = tys.intern_builtins();
+        let t = make_param(&mut tys, "T");
+        let fun = tys.ty_function(
+            Some(t),
+            vec![builtins.int],
+            builtins.int,
+            EffectRow::pure(),
+            false,
+        );
+
+        let err = tys.as_mono(fun).unwrap_err();
+        assert_eq!(err.offending, t);
+        assert_eq!(err.leak_path, vec![TypeKindLabel::FunctionReceiver]);
+    }
+
+    #[test]
+    fn as_mono_rejects_function_effect_row_param() {
+        let mut tys = TypeStore::new();
+        let builtins = tys.intern_builtins();
+        let t = make_param(&mut tys, "T");
+        let fun = tys.ty_function(
+            None,
+            vec![builtins.int],
+            builtins.int,
+            EffectRow::new(vec![t]),
+            false,
+        );
+
+        let err = tys.as_mono(fun).unwrap_err();
+        assert_eq!(err.offending, t);
+        assert_eq!(
+            err.leak_path,
+            vec![TypeKindLabel::FunctionEffect { index: 0 }]
+        );
+    }
+
+    #[test]
+    fn as_mono_rejects_union_variant_param() {
+        let mut tys = TypeStore::new();
+        let a = make_nominal_ref(&mut tys, "scoop.test.A", Vec::new());
+        let b = make_nominal_ref(&mut tys, "scoop.test.B", Vec::new());
+        let t = make_param(&mut tys, "T");
+
+        // 直接通过 intern 构造 union 以保留指定的 variant 顺序（绕过 `ty_union` 的排序）。
+        let u = tys.intern(TypeKind::Ref(RefTypeKind::Union(UnionType {
+            variants: vec![a, b, t],
+        })));
+
+        let err = tys.as_mono(u).unwrap_err();
+        assert_eq!(err.offending, t);
+        assert_eq!(
+            err.leak_path,
+            vec![TypeKindLabel::UnionVariant { index: 2 }]
+        );
+    }
+
+    #[test]
+    fn as_mono_rejects_star_projection_inner_param() {
+        let mut tys = TypeStore::new();
+        let t = make_param(&mut tys, "T");
+        let star = tys.ty_star_projection(t);
+
+        let err = tys.as_mono(star).unwrap_err();
+        assert_eq!(err.offending, t);
+        assert_eq!(err.leak_path, vec![TypeKindLabel::StarProjectionInner]);
+    }
+
+    #[test]
+    fn as_mono_handles_deeply_nested_nominal_without_overflow() {
+        // Box<Box<Box<Int>>> — 多次嵌套同一 nominal，验证 visited 去重不会丢解。
+        let mut tys = TypeStore::new();
+        let builtins = tys.intern_builtins();
+        let inner = make_nominal_ref(&mut tys, "scoop.test.Box", vec![builtins.int]);
+        let mid = make_nominal_ref(&mut tys, "scoop.test.Box", vec![inner]);
+        let outer = make_nominal_ref(&mut tys, "scoop.test.Box", vec![mid]);
+
+        let mono = tys
+            .as_mono(outer)
+            .expect("nested concrete Box must be mono");
+        assert_eq!(mono.inner(), outer);
+    }
+
+    #[test]
+    fn kind_mono_children_align_with_underlying_typekind() {
+        let mut tys = TypeStore::new();
+        let builtins = tys.intern_builtins();
+
+        // Tuple
+        let tup = tys.ty_tuple(vec![builtins.int, builtins.string]);
+        let mono_tup = tys.as_mono(tup).unwrap();
+        match tys.kind_mono(mono_tup) {
+            MonoTypeKind::Value(MonoValueKind::Tuple(elems)) => {
+                assert_eq!(elems.len(), 2);
+                assert_eq!(elems[0].inner(), builtins.int);
+                assert_eq!(elems[1].inner(), builtins.string);
+            }
+            other => panic!("expected MonoValueKind::Tuple, got {other:?}"),
+        }
+
+        // Option
+        let opt = tys.ty_option(builtins.bool_);
+        let mono_opt = tys.as_mono(opt).unwrap();
+        match tys.kind_mono(mono_opt) {
+            MonoTypeKind::Value(MonoValueKind::Option(inner)) => {
+                assert_eq!(inner.inner(), builtins.bool_);
+            }
+            other => panic!("expected MonoValueKind::Option, got {other:?}"),
+        }
+
+        // Nominal Ref with args
+        let box_int = make_nominal_ref(&mut tys, "scoop.test.Box", vec![builtins.int]);
+        let mono_box = tys.as_mono(box_int).unwrap();
+        match tys.kind_mono(mono_box) {
+            MonoTypeKind::Ref(MonoRefKind::Nominal(n)) => {
+                assert_eq!(n.fqn, "scoop.test.Box");
+                assert_eq!(n.args.len(), 1);
+                assert_eq!(n.args[0].inner(), builtins.int);
+                assert!(n.eff.is_none());
+            }
+            other => panic!("expected MonoRefKind::Nominal, got {other:?}"),
+        }
+
+        // Function with receiver / effects
+        let raise_any = make_nominal_ref(&mut tys, "scoop.core.Raise", vec![builtins.any]);
+        let fun = tys.ty_function(
+            Some(builtins.string),
+            vec![builtins.int, builtins.bool_],
+            builtins.unit,
+            EffectRow::new(vec![raise_any]),
+            true,
+        );
+        let mono_fun = tys.as_mono(fun).unwrap();
+        match tys.kind_mono(mono_fun) {
+            MonoTypeKind::Ref(MonoRefKind::Function(f)) => {
+                assert_eq!(f.receiver.map(MonoTypeId::inner), Some(builtins.string));
+                assert_eq!(
+                    f.params.iter().map(|m| m.inner()).collect::<Vec<_>>(),
+                    vec![builtins.int, builtins.bool_]
+                );
+                assert_eq!(f.return_ty.inner(), builtins.unit);
+                assert_eq!(f.effects.terms.len(), 1);
+                assert_eq!(f.effects.terms[0].inner(), raise_any);
+                assert!(f.effects_closed);
+            }
+            other => panic!("expected MonoRefKind::Function, got {other:?}"),
+        }
+
+        // Star projection
+        let star = tys.ty_star_projection(builtins.any);
+        let mono_star = tys.as_mono(star).unwrap();
+        match tys.kind_mono(mono_star) {
+            MonoTypeKind::StarProjection(s) => {
+                assert_eq!(s.read_ty.inner(), builtins.any);
+            }
+            other => panic!("expected MonoTypeKind::StarProjection, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn as_mono_is_idempotent_for_accept_and_reject() {
+        let mut tys = TypeStore::new();
+        let builtins = tys.intern_builtins();
+        let t = make_param(&mut tys, "T");
+        let box_int = make_nominal_ref(&mut tys, "scoop.test.Box", vec![builtins.int]);
+        let box_t = make_nominal_ref(&mut tys, "scoop.test.Box", vec![t]);
+
+        // 通过路径：连续两次 as_mono 行为一致。
+        let m1 = tys.as_mono(box_int).unwrap();
+        let m2 = tys.as_mono(box_int).unwrap();
+        assert_eq!(m1, m2);
+
+        // 拒绝路径：连续两次 as_mono 给出相同 leak_path。
+        let e1 = tys.as_mono(box_t).unwrap_err();
+        let e2 = tys.as_mono(box_t).unwrap_err();
+        assert_eq!(e1, e2);
     }
 }

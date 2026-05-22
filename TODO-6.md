@@ -4,7 +4,7 @@
 > 细化时间：2026-05-22
 > 计划基线：[`PLAN.md`](./PLAN.md) §4/P6-P8
 > 索引：[`TODO.md`](./TODO.md)
-> 当前状态：`P7-T04-a` 已完成；`P7-T04` 已拆分为 `P7-T04-b`（stage handoff 形状收窄）与 `P7-T04-c`（physical ABI/layout 迁到 LIR facts），`P7-T04` 本身保留为收尾节点；下一步执行 `P7-T04-b`。
+> 当前状态：`P7-T04-a` 已完成。在 `sysroot_atomic_basic` 触发的 codegen panic 复盘中识别出 codegen 阶段类型纪律不足（`TypeId` 同时承载已/未单态化两种语义、`class_init_layout` 用裸字符串 key 静默兜底），`P7-T04-b` 实施前必须先修复这一根本设计问题。新增前置任务 `P7-T04-b-1..4`（含各自 R）：依次引入 `MonoTypeId`、拆分 `ClassInit` 为 `GenericClassDecl` / `MonoClassInit`、收回 layout key 字符串形态为 `ClassInstanceKey`、把 codegen 全面切到 `MonoTypeId` 并删除 `expect_cg_ty_of` 与所有静默兜底；前一轮未提交的 `P7-T04-b` 实现已 revert。`P7-T04-b` 依赖随之改为 `P7-T04-b-4R`。`P7-T04-b-1` 已完成（`MonoTypeId` / `MonoTypeKind` / `as_mono` / `kind_mono` 纯增量发布）；下一步执行 `P7-T04-b-1R`。
 
 ## 范围
 
@@ -583,6 +583,254 @@
   - stable dump 已展示 `physical_layout` 与 `type_context` sections；effect_lowered golden 已同步更新。
   - 验证通过：`cargo fmt`；`cargo test -p scoopc_lir_facts`；`cargo test -p scoopc --no-default-features lir_facts_builder`；`cargo test -p scoopc --no-default-features llvm::codegen::effect_lowered::layout`；`cargo run -p scoop -- test --fixtures tests/fixtures/effect_lowered`；`cargo test -p scoopc llvm::codegen::effect_lowered::layout`；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
 
+## [DONE] P7-T04-b-1：引入 `MonoTypeId` 与 `MonoTypeKind` —— codegen 输入类型纪律基线
+
+- 阻塞原因：
+  - 当前 `cg_ty_of(TypeId) -> Option<CgTy>` 与 `expect_cg_ty_of(TypeId, &str) -> CgTy` 在签名层面承认输入 `TypeId` 可能仍含 `TypeKind::Param(_)`：codegen 内部不得不在每个出口反复 match `Param` 分支，并以 runtime warn + 上游 panic（`expect_cg_ty_of: type verifier accepted a non-codegen type while ...`）替代 type-state 检查。这本身就是 "non-codegen type 与 codegen type 共用同一 Rust 类型" 的设计缺陷；`sysroot_atomic_basic` 触发的 panic 只是其表象。
+  - 后续 `P7-T04-b-2/3/4` 都以 "codegen 阶段的 TypeId 一定不含 Param" 作为类型层不变量，需要先有可被 Rust 类型系统检验的 token。
+- 目标：
+  - 在 `scoopc_types` 中新增 `MonoTypeId(TypeId)` newtype 与 `MonoTypeKind<'a>` 视图，结构与 `TypeKind` 同形但**无 `Param` 分支**；
+  - 唯一构造路径：`TypeStore::as_mono(t: TypeId) -> Result<MonoTypeId, ParamLeak>`，必须递归校验 nominal `args`、function `params/return/effects`、tuple、option inner、union variants、StarProjection inner 等所有内嵌位置；
+  - 提供 `TypeStore::kind_mono(MonoTypeId) -> MonoTypeKind`，使 children 出现位置一律暴露为 `MonoTypeId`（深度校验保证子位置已合法）；
+  - 不修改任何现存调用点；既有 `cg_ty_of` / `expect_cg_ty_of` 暂保留以便后续任务分阶段迁移。
+- 必须修改的主要位置：
+  - `crates/scoopc_types/src/lib.rs`
+  - `crates/scoopc_types/tests/`（或在同 crate 内补单元测试）
+- 必须实现的内容：
+  1. `MonoTypeId` 仅暴露为 `Copy + Clone + Eq + Hash + Debug` 的 newtype，**不**实现 `From<TypeId>` / `Into<TypeId>`；明确给出 `inner(self) -> TypeId` accessor 用于 hash-cons 比较与诊断输出。
+  2. `as_mono` 实现采用迭代 worklist 或 visited set 防止递归类型导致栈溢出；首次发现 `Param` 时返回 `ParamLeak { offending: TypeId, leak_path: Vec<TypeKindLabel> }`，便于上游报告 "在哪个嵌套位置出现 Param"。
+  3. `MonoTypeKind` 通过 `TypeStore::kind_mono` 构造时，对所有 inner TypeId 直接包成 `MonoTypeId`（无需重新 `as_mono`，因 `MonoTypeId` 的不变量已包含子树）；同时提供 `MonoTypeId::project_inner(self) -> impl Iterator<Item = MonoTypeId>` 之类辅助以便 codegen 后续遍历。
+  4. 单元测试：
+     - 单态化 `Int`、`String`、`Box<Int>`、`(Int, String)`、`Option<Bool>`、`Function((Int) -> String / IO)`、`Box<Box<Int>>` 等均通过 `as_mono`；
+     - 包含 `Param` 的 nominal `args`、function `params/return/effects`、tuple element、option inner、union variant、star projection inner 等所有位置均被拒绝，且 `leak_path` 指向正确嵌套深度；
+     - 递归类型不会无限递归；
+     - 同一 `TypeId` 多次 `as_mono` 行为一致（幂等）。
+  5. 显式文档说明 `MonoTypeId` 是**深度不变量**：持有 `MonoTypeId` 即意味着整棵类型树不含 `Param`；任何需要从 `TypeId` 跨越到 `MonoTypeId` 的路径都必须经过 `as_mono`。
+- 验证：
+  1. `cargo fmt`
+  2. `cargo test -p scoopc_types`
+  3. `cargo build -p scoopc`（确认旧 `TypeId` 调用路径未被破坏）
+  4. `git diff --check`
+- 完成条件：
+  - `MonoTypeId` / `MonoTypeKind` / `as_mono` / `kind_mono` 已发布；
+  - 单元测试覆盖所有 `Param` 嵌套位置；
+  - 现存任何代码均未被修改（纯增量）。
+- 依赖：P7-T04-a
+- 完成记录：
+  - 在 `crates/scoopc_types/src/lib.rs` 纯增量发布以下类型：`MonoTypeId(TypeId)` newtype（仅暴露 `inner()` accessor，无 `From<TypeId>` / `Into<TypeId>` / `unsafe`/`unchecked` 构造）、`ParamLeak { offending, leak_path }` 错误类型、`TypeKindLabel` 嵌套位置标签 enum（覆盖 10 个位置：`NominalArg` / `NominalEffect` / `UnionVariant` / `FunctionReceiver` / `FunctionParam` / `FunctionReturn` / `FunctionEffect` / `TupleElement` / `OptionInner` / `StarProjectionInner`）、`MonoTypeKind<'a>` 与并行 view（`MonoRefKind` / `MonoValueKind` / `MonoNominal` / `MonoFunction` / `MonoUnion` / `MonoEffectRow` / `MonoStarProjection`）。
+  - `TypeStore::as_mono(TypeId) -> Result<MonoTypeId, ParamLeak>` 采用迭代 worklist + `HashSet<TypeId>` visited 防递归/防环；子节点按 reverse 顺序入栈以让 LIFO 弹出顺序与左到右深度优先一致，使同一 leak 输入产生稳定 `leak_path`。
+  - `TypeStore::kind_mono(MonoTypeId) -> MonoTypeKind<'_>` 把 children 一律包装为 `MonoTypeId`，借出 `fqn: &'a str`，结构与 `TypeKind` 同形（去掉 `Param` 分支）。
+  - 单元测试新增 19 个，覆盖：scalar/builtin 均通过、顶层 `Param` 拒绝（leak_path 为空）、所有 10 个嵌套位置的 `Param` 拒绝路径与对应 `leak_path` 断言、嵌套 `Box<Box<Box<Int>>>` 通过且不死循环、`kind_mono` 返回的 children 与原 `TypeKind` 的 inner `TypeId` 一一对应、`as_mono` 通过/拒绝路径均幂等。`cargo test -p scoopc_types` 全部 24 项通过。
+  - 既有 `cg_ty_of` / `expect_cg_ty_of` 与所有调用点未修改；纯增量发布完成。
+  - 验证：`cargo fmt`；`cargo test -p scoopc_types`（24 passed）；`cargo build -p scoopc`（旧 `TypeId` 调用路径仍编译通过）；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
+
+## [TODO] P7-T04-b-1R：Review `MonoTypeId` 类型纪律基线
+
+- 参考：P7-T04-b-1。
+- 重点：
+  - `MonoTypeId` 是否真的不能从外部绕过 `as_mono` 构造（搜 `MonoTypeId(` 与 `pub fn ... -> MonoTypeId`）；
+  - `as_mono` 是否覆盖所有 `TypeKind` / `RefTypeKind` / `ValueTypeKind` 子位置（包括 `EffectRow.terms`、`UnionType.variants`、`FunctionType.receiver` 等）；
+  - `kind_mono` 子位置一致性是否被测试覆盖；
+  - 没有任何 "fallback" 路径（例如遇到 `Param` 退化为某个默认 TypeId）。
+- 验证：
+  - 重新运行 P7-T04-b-1 的所有验证；
+  - 额外搜索 `crates/scoopc_types/src/` 中是否存在静默把 `Param` 视为合法 codegen 类型的代码路径。
+- 完成条件：
+  - review 结论明确写出 `MonoTypeId` 不变量已被类型系统强制，或列出阻塞项并在本 review 内修复。
+- 依赖：P7-T04-b-1
+- 完成记录：
+  - 待填写。
+
+## [TODO] P7-T04-b-2：拆分 `hir::ClassInit` 为 `GenericClassDecl` 与 `MonoClassInit`
+
+- 阻塞原因：
+  - 当前 `hir::ClassInit` 同时被 typecheck/HIR lowering 用作"泛型源声明视图"（字段/参数 TypeId 含 `Param`）与 codegen 用作"单态化实例视图"（字段/参数 TypeId 不含 `Param`），两种语义共用一个 Rust 结构，导致 `class_init_layout(class_fqn: &str)` 拿到的 `ClassInit` 究竟属于哪种语义无法在类型层判定，是 `Param` 泄漏到 `llvm_class_payload_type` 的根本原因。
+  - 后续 `P7-T04-b-3` 引入 `ClassInstanceKey` 时，`class_inits` 表的值必须只承载单态化条目，否则 key 类型化无法消除 silent fallback。
+- 目标：
+  - 把 `hir::ClassInit` 拆为两类语义独立的 Rust 类型：`GenericClassDecl`（泛型源声明视图，字段为 `TypeId`）与 `MonoClassInit`（单态化实例视图，字段为 `MonoTypeId`），二者不可隐式互转；
+  - codegen 视野中的 `ClassInitIndex` 只持有 `MonoClassInit`；任何残留 `Param` 在构造 `MonoClassInit` 时即被 `as_mono` 拒绝，升级为 monomorph driver bug。
+- 必须修改的主要位置：
+  - `crates/scoopc/src/hir/mod.rs`（拆分 `ClassInit` / `ClassField` / `ClassCtorParam` / `ClassInitStep` / `ClassCtorDelegation` 等结构）
+  - `crates/scoopc/src/hir/lower/`（types/util/main 等所有产出 ClassInit 的位置；区分 `GenericClassDecl` 与 `MonoClassInit` 输出）
+  - `crates/scoopc/src/hir/lower/util/generic_layouts.rs`（`collect_generic_class_instantiation_inits` 改为产出 `MonoClassInit`，substitute 完成后逐字段调 `as_mono`）
+  - `crates/scoopc/src/pipeline/hir_stage.rs`（`lowered.class_inits.insert` 等位置；非泛型 class 直接构造 `MonoClassInit`，泛型 class 仅入 `generic_class_decls`）
+  - `crates/scoopc/src/llvm/codegen/`（所有读取 `class_inits.get(...)` / `ClassField.ty` / `ClassCtorParam.ty` 的位置；类型从 `TypeId` 收紧为 `MonoTypeId`）
+  - `crates/scoopc/src/mir/`（如 MIR 层有读 ClassInit，按同一原则切换）
+- 必须实现的内容：
+  1. 引入 `hir::ClassField<T>` / `hir::ClassCtorParam<T>` / `hir::ClassInitStep<T>` 形参化结构（或拆双类型）：`T = TypeId` 用于 `GenericClassDecl`，`T = MonoTypeId` 用于 `MonoClassInit`。`steps`、`super_ctor_args`、`ctors[].delegation`、`ctors[].body` 等所有内嵌 TypeId 位置一并对齐。
+  2. `GenericClassDecl` 与 `MonoClassInit` 各自独立 struct，**不**通过 `enum` 或 `Either` 共享；codegen 公共 API 只接受 `&MonoClassInit`。
+  3. `ClassInitIndex = HashMap<String, MonoClassInit>`（key 形态在 `P7-T04-b-3` 再升级为 `ClassInstanceKey`，本任务不动 keying）；同时新增 `GenericClassDeclIndex = HashMap<String, GenericClassDecl>` 供 typecheck/monomorph 使用。
+  4. `collect_generic_class_instantiation_inits` 在 substitute 字段类型后**立即**调 `TypeStore::as_mono`；任一字段失败即返回明确的 monomorph driver diagnostic（含 class FQN、字段名、leak path），不允许把含 `Param` 的实例放入 `class_inits`。
+  5. 非泛型 class 在 HIR lowering 阶段直接构造 `MonoClassInit`：所有字段 `TypeId` 必须能 `as_mono`，否则 typecheck 已应阻断（应作为 verifier-style assertion，不是 silent skip）。
+  6. typecheck/HIR lowering 端读取的位置改为读 `GenericClassDecl`；`super_class_fqn` lookup 同时查 `GenericClassDeclIndex` 与 `MonoClassInit` 的对应关系（具体 owner 边界由本任务决策并写入文档）。
+  7. 同步 layout/effect_lowered/codegen 测试（含 dump golden）以反映新类型；如 dump 中包含 ClassInit 字段类型显示，须保持稳定 wire format。
+- 验证：
+  1. `cargo fmt`
+  2. `cargo test -p scoopc_types`
+  3. `cargo test -p scoopc --no-default-features hir`
+  4. `cargo test -p scoopc --no-default-features llvm::codegen::effect_lowered::layout`
+  5. `cargo run -p scoop -- test --fixtures tests/fixtures/effect_lowered`
+  6. `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`（允许在仍未引入 `ClassInstanceKey` 前出现 b-3 范围内的 codegen 错误，但**不得**新增 panic 路径）
+  7. `cargo clippy --all-targets -- -D warnings`
+  8. `git diff --check`
+- 完成条件：
+  - `hir::ClassInit` 已拆为 `GenericClassDecl` / `MonoClassInit`；
+  - `class_inits: HashMap<String, MonoClassInit>` 在 codegen 视野中只承载单态化条目；
+  - 任一含 `Param` 的字段在构造 `MonoClassInit` 时被拒绝并触发明确 diagnostic；
+  - 现存测试集通过（除可能因尚未升级 layout key 导致 `sysroot_atomic_basic` 在 b-3 前仍触发 verifier-style 错误；此时错误位置必须比当前 `expect_cg_ty_of` panic 更精确，禁止 silent path）。
+- 依赖：P7-T04-b-1R
+- 完成记录：
+  - 待填写。
+
+## [TODO] P7-T04-b-2R：Review `ClassInit` 拆分
+
+- 参考：P7-T04-b-2。
+- 重点：
+  - `GenericClassDecl` 与 `MonoClassInit` 是否真的是独立 Rust 类型且不可隐式互转；
+  - `ClassInitIndex` 值类型是否已改为 `MonoClassInit`，是否还有任何位置往里塞含 `Param` 的字段；
+  - `collect_generic_class_instantiation_inits` 是否对每个字段调 `as_mono`，失败是否上报为明确 diagnostic；
+  - `GenericClassDecl` 的所有读取者是否限定在 typecheck / HIR lowering / monomorph driver，codegen 是否仅读 `MonoClassInit`。
+- 验证：
+  - 重新运行 P7-T04-b-2 的所有验证；
+  - 额外搜索 `crates/scoopc/src/llvm/` 中对 `GenericClassDecl` 的命中（应为零）；
+  - 额外搜索 `class_inits.insert(` / `class_inits.get(` 在 `hir`、`llvm`、`mir` 中的命中，确认值类型一致。
+- 完成条件：
+  - review 结论明确写出 `ClassInit` 双语义已分离，或列出阻塞项并在本 review 内修复。
+- 依赖：P7-T04-b-2
+- 完成记录：
+  - 待填写。
+
+## [TODO] P7-T04-b-3：引入 `ClassInstanceKey` 收回 layout key 字符串形态
+
+- 阻塞原因：
+  - 当前 `MainCodegen::class_init_layout(class_fqn: &str)` / `class_ctor_layout_key`（`effect_lowered/value.rs:863-890`）/ `mir_class_ctor_layout_key`（`mir_body/types.rs:740-759`）以 `String` / `&str` 作为 layout key 形态，在 `target_local` 缺失、target 类型不是 `Ref::Nominal`、`nominal.fqn != class_fqn` 三种情况下静默 fallback 为裸 FQN；裸 FQN 虽然在 `P7-T04-b-2` 之后已无法命中 `MonoClassInit`，但字符串 keying 让"该不该 fallback"无法在类型层判定，三处 `return Ok(class_fqn.to_string())` 仍可编译通过。
+- 目标：
+  - 在 HIR/codegen 边界引入 `hir::ClassInstanceKey(String)` newtype，唯一构造路径来自 `MonoTypeId` 的 `RefTypeKind::Nominal` 或 `MonoClassInit::key()`；
+  - `ClassInitIndex` 升级为 `HashMap<ClassInstanceKey, MonoClassInit>`；
+  - 所有 `class_init_layout` / layout key 计算 helper 只接受/返回 `ClassInstanceKey`；三处静默 fallback 在类型层不再成立，被强制改为显式 `Err(verifier_bug(...))`；
+  - MIR verifier 提前拦截 `ClassCtor` rvalue 的 typed target 缺失/类型不匹配情形。
+- 必须修改的主要位置：
+  - `crates/scoopc/src/hir/mod.rs`（新增 `ClassInstanceKey`）
+  - `crates/scoopc/src/hir/lower/util/generic_layouts.rs`（`collect_generic_class_instantiation_inits` 产出 `HashMap<ClassInstanceKey, MonoClassInit>`）
+  - `crates/scoopc/src/pipeline/hir_stage.rs`（`class_inits.insert(class_fqn, ...)` 改为通过 `ClassInstanceKey::for_unparameterized(class_fqn)` 一类显式构造路径）
+  - `crates/scoopc/src/llvm/codegen/layout.rs`（`class_init_layout` / `class_init_layout_inner` 接 `&ClassInstanceKey`；`class_layout_key_cache` 等同步）
+  - `crates/scoopc/src/llvm/codegen/effect_lowered/value.rs`（`class_ctor_layout_key` 返回 `Result<ClassInstanceKey, _>`，删除三处 fallback）
+  - `crates/scoopc/src/llvm/codegen/mir_body/types.rs`（`mir_class_ctor_layout_key` 同上）
+  - `crates/scoopc/src/llvm/codegen/mir_body/args.rs`、`crates/scoopc/src/llvm/codegen/mir_body/terminator.rs`（调用点改 `&ClassInstanceKey`）
+  - `crates/scoopc/src/llvm/codegen/effect_lowered/types.rs`（`ClassInstanceLayout::class_key` 返回 `&ClassInstanceKey`；`class_instance_layouts: BTreeMap<TypeId, ClassInstanceLayout>` 与新 key 对齐）
+  - `crates/scoopc/src/mir/`（MIR verifier：`ClassCtor` rvalue 检查 typed target local）
+- 必须实现的内容：
+  1. `ClassInstanceKey` 仅暴露受控构造器：
+     - `ClassInstanceKey::from_mono_nominal(types: &TypeStore, ty: MonoTypeId) -> Option<ClassInstanceKey>`（要求 `kind_mono(ty)` 是 `Ref::Nominal`，否则返回 `None` 或专门错误类型）；
+     - `ClassInstanceKey::for_unparameterized(class_fqn: &str)` 仅供 HIR lowering 注册无 type-param 的 class 使用，文档明示这是 monomorphic equivalent 的便捷入口，不允许在 codegen 中调用；
+     - **不**提供 `From<&str>` / `From<String>` / `unsafe`/`unchecked` 公共构造；如确需测试用 unchecked 入口，置于 `cfg(test)` 且名称含 `for_test`。
+  2. `class_init_layout` / `class_init_layout_inner` / `class_layout_key_cache` 全部接 `&ClassInstanceKey`；删除接受 `&str` 的重载。
+  3. `class_ctor_layout_key` 返回类型从 `Result<String, _>` 改为 `Result<ClassInstanceKey, _>`；三处 fallback 改为 `Err(verifier_bug("class ctor target local missing typed nominal …"))`，同时在错误中携带 ctor span / class FQN / target_local 状态便于诊断。`mir_class_ctor_layout_key` 同步。
+  4. MIR verifier 增加规则：`ClassCtor { class_fqn, .. }` 的 rvalue **必须**写入一个类型为 `Ref::Nominal { fqn == class_fqn, args.. }` 的 local；如 MIR 构造期不满足，则在 MIR 构造点立即报错（不留给 codegen）。
+  5. `ClassInstanceLayout::class_key()` 返回 `&ClassInstanceKey`，`class_instance_layouts` 内部存 `ClassInstanceKey`。
+  6. 同步所有 dump golden / facts wire format（如 stable dump 中含 class key 字符串展示，仍按 mangled FQN 字符串显示，因此 wire format 不变；只是 Rust API 类型升级）。
+  7. `sysroot_atomic_basic` 等含泛型 class ctor 的 fixture 必须从原 `expect_cg_ty_of` panic 升级为：要么走通正确 `ClassInstanceKey` 路径，要么在 MIR verifier 处给出明确诊断；**禁止**保留任何 silent fallback。
+- 验证：
+  1. `cargo fmt`
+  2. `cargo test -p scoopc_types`
+  3. `cargo test -p scoopc --no-default-features hir`
+  4. `cargo test -p scoopc --no-default-features mir`
+  5. `cargo test -p scoopc --no-default-features llvm::codegen::effect_lowered::layout`
+  6. `cargo run -p scoop -- test --fixtures tests/fixtures/effect_lowered`
+  7. `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`（含 `sysroot_atomic_basic`，应当通过或在 verifier 处给出可读诊断）
+  8. `cargo clippy --all-targets -- -D warnings`
+  9. `git diff --check`
+- 完成条件：
+  - `ClassInstanceKey` 已发布且不可被 `&str` 隐式构造；
+  - `class_init_layout` / `class_ctor_layout_key` / `mir_class_ctor_layout_key` 全部走 `ClassInstanceKey`，三处静默兜底已删除；
+  - MIR verifier 拦截 `ClassCtor` typed target 缺失情形；
+  - `sysroot_atomic_basic` 不再触发 `expect_cg_ty_of` panic；
+  - `grep "class_fqn.to_string()"` 在上述三处函数内零命中。
+- 依赖：P7-T04-b-2R
+- 完成记录：
+  - 待填写。
+
+## [TODO] P7-T04-b-3R：Review `ClassInstanceKey` 字符串形态收回
+
+- 参考：P7-T04-b-3。
+- 重点：
+  - `ClassInstanceKey` 是否真的不能从外部以 `&str` / `String` 构造（搜 `ClassInstanceKey(` / `pub fn ... -> ClassInstanceKey`）；
+  - 三处原 fallback 是否全部改成 `Err(...)`（搜 `class_fqn.to_string()`）；
+  - MIR verifier 是否实际拦截 `ClassCtor` typed target 缺失/不匹配的情况；
+  - `sysroot_atomic_basic` 通过路径是 codegen 正确处理还是 verifier 诊断，需有结论。
+- 验证：
+  - 重新运行 P7-T04-b-3 的所有验证；
+  - 额外搜索 `class_init_layout` / `class_ctor_layout_key` / `mir_class_ctor_layout_key` 命中确认无 `&str` 重载或字符串 fallback。
+- 完成条件：
+  - review 结论明确写出 layout key 字符串形态已收回，或列出阻塞项并在本 review 内修复。
+- 依赖：P7-T04-b-3
+- 完成记录：
+  - 待填写。
+
+## [TODO] P7-T04-b-4：codegen 全面切换到 `MonoTypeId` —— 删除 `cg_ty_of` 的 `Option` 与 `expect_cg_ty_of`
+
+- 阻塞原因：
+  - `P7-T04-b-1..3` 完成后，`MonoTypeId` 与 `MonoClassInit` 已使 codegen 输入边界类型化，但 codegen 内部仍以 `TypeId` 作为通用 token 传递（163 个 `cg_ty_of(TypeId) -> Option<CgTy>` 与 52 个 `expect_cg_ty_of` 调用点），`expect_cg_ty_of` panic 路径仍可在 Rust 类型层成立。要把"non-codegen type 不可能进入 codegen"作为强不变量，必须把 codegen 内部 token 一次性升级为 `MonoTypeId`。
+- 目标：
+  - `cg_ty_of` 签名收紧为 `(MonoTypeId) -> CgTy`（infallible），删除 `TypeKind::Param` warn 分支；
+  - 删除 `expect_cg_ty_of` 函数及全部 52 处调用；
+  - codegen 内部所有承载 codegen-stage 类型的位置（`mir::Local.ty`、`MirLocalSlot.ty`、`MonoClassInit` 之外的 struct/enum/tuple field 类型、expression `expr.ty` 等）一律走 `MonoTypeId`；MIR→codegen 边界做唯一一次 `as_mono` 校验，失败即 verifier bug，hard fail 并显示来源 span。
+- 必须修改的主要位置：
+  - `crates/scoopc/src/llvm/codegen/ty.rs`（`cg_ty_of` 签名收紧；删除 `Param` 分支与 `monomorph miss` 警告）
+  - `crates/scoopc/src/llvm/codegen/main/context.rs`（删除 `expect_cg_ty_of`）
+  - `crates/scoopc/src/llvm/codegen/`（全部 `cg_ty_of` / `expect_cg_ty_of` 调用点；按需要把上游 `local.ty` / `param.ty` / `field.ty` 调整为 `MonoTypeId`）
+  - `crates/scoopc/src/mir/mod.rs`（如选用 `mir::Local.ty: MonoTypeId` 方案，则 MIR 构造点同步加 `as_mono`）
+  - `crates/scoopc/src/llvm/codegen/effect_lowered/value.rs`（`MirLocalSlot` / slot.cg_ty 处理）
+  - 其他 struct/enum/tuple layout（layout 表内部字段 TypeId）
+- 必须实现的内容：
+  1. 选择 `mir::Local.ty: MonoTypeId` 还是"在 codegen 入口对 `mir::Local.ty: TypeId` 调一次 `as_mono`" —— 决策须写在任务完成记录中。优先采用前者（结构层面写死不变量），仅当 MIR 必须承载尚未单态化的泛型模板时才允许后者；本任务必须给出依据。
+  2. `cg_ty_of(MonoTypeId) -> CgTy`：
+     - 不再返回 `Option`；
+     - `Param` 分支因类型不可达而**编译期消失**；
+     - 内部读取 `kind_mono` 而非 `kind`，保证内嵌 TypeId 一并以 `MonoTypeId` 出现。
+  3. 删除 `expect_cg_ty_of` 与所有 52 处 panic context 字符串；调用点直接以 `cg_ty_of(...)` 替代。
+  4. 删除 `cg_ty_of` 中"`monomorph miss` 警告"代码；任何 `as_mono` 失败必须在源头（MIR 构造、layout 注册、`collect_generic_*` 等）以 hard error 终止编译，不再以 warn 残留。
+  5. 删除 `codegen_type_store_for_type_id` 等仅为 fallback 服务的 helper；保留必要的 cross-store 桥接但只接受 `MonoTypeId`（且经过 P7-T04-a 引入的 TypeStore bridge owner 校验）。
+  6. struct/enum/tuple layout 表内部字段类型（`StructField.ty` / `EnumVariant.fields[].ty` / `TupleLayout.elements` 等）一并升级为 `MonoTypeId`；构造点（HIR `collect_generic_struct_instantiation_layouts` / `collect_generic_enum_instantiation_layouts` 等）按 `MonoClassInit` 一致原则做 `as_mono` 校验。
+  7. 同步 layout/codegen/effect_lowered 测试与 dump golden；任何依赖 `Option<CgTy>` 的 helper 重写为 infallible 形式。
+- 验证：
+  1. `cargo fmt`
+  2. `cargo test -p scoopc_types`
+  3. `cargo test -p scoopc --no-default-features hir`
+  4. `cargo test -p scoopc --no-default-features mir`
+  5. `cargo test -p scoopc --no-default-features llvm::codegen`
+  6. `cargo test -p scoopc --no-default-features llvm::codegen::effect_lowered`
+  7. `cargo run -p scoop -- test --fixtures tests/fixtures/effect_lowered`
+  8. `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`（全绿）
+  9. `cargo clippy --all-targets -- -D warnings`
+  10. `git diff --check`
+- 完成条件：
+  - `grep -r "expect_cg_ty_of" crates/scoopc/src` 零命中；
+  - `grep -r "monomorph miss" crates/scoopc/src` 零命中；
+  - `cg_ty_of` 签名为 `(MonoTypeId) -> CgTy`，函数体不含 `Param` 分支；
+  - `mir::Local.ty` 等关键边界类型已切换到 `MonoTypeId`，并在完成记录中说明决策依据；
+  - 全部 fixture suite 与 layout/codegen test 全绿。
+- 依赖：P7-T04-b-3R
+- 完成记录：
+  - 待填写。
+
+## [TODO] P7-T04-b-4R：Review codegen `MonoTypeId` 全面切换
+
+- 参考：P7-T04-b-4。
+- 重点：
+  - `cg_ty_of` 是否仍存在 `Option` 返回或 `Param` 分支；
+  - `expect_cg_ty_of` / `monomorph miss` 是否真已删除；
+  - `mir::Local.ty` / `MirLocalSlot.ty` / struct/enum/tuple layout field 是否都已是 `MonoTypeId`；
+  - 是否有任何位置仍在 codegen 内构造 `MonoTypeId` 时绕过 `as_mono`（搜 `MonoTypeId(`）。
+- 验证：
+  - 重新运行 P7-T04-b-4 的所有验证；
+  - 额外搜索 `crates/scoopc/src/llvm/codegen/` 中 `TypeId` 仍出现在 codegen-internal 函数签名的位置（应仅限于 `as_mono` 入口、诊断输出、stable dump 等明确允许的边界）。
+- 完成条件：
+  - review 结论明确写出 codegen 内部 token 已全部切到 `MonoTypeId`，"non-codegen type" 在 codegen 内部 Rust 类型层不再可达，或列出阻塞项并在本 review 内修复。
+- 依赖：P7-T04-b-4
+- 完成记录：
+  - 待填写。
+
 ## [TODO] P7-T04-b：收窄 LLVM stage handoff 形状
 
 - 目标：
@@ -619,7 +867,7 @@
   - `llvm_residual_pass_view()` 与 `LirStageContext` 已被删除；
   - LLVM backend 仍能完整通过 run-pass fixture 与 layout tests，physical ABI/layout 内部读取顺势走 base context 的同一份数据 owner（P7-T04-c 之后才会迁到 LIR facts）；
   - `TypeId` wire-format 推迟决策已在 stage handoff 现场留记号。
-- 依赖：P7-T04-a
+- 依赖：P7-T04-b-4R
 - 完成记录：
   - 待填写。
 
