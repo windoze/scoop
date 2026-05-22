@@ -204,7 +204,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 fun.params.iter().map(|param| param.ty).collect::<Vec<_>>();
             for (arg_idx, arg) in args.iter().enumerate() {
                 let param_idx = arg_to_param[arg_idx];
-                if self.cg_ty_of(fallback_param_tys[param_idx]).is_some() {
+                if self
+                    .try_cg_ty_of_type_id(fallback_param_tys[param_idx])
+                    .is_some()
+                {
                     continue;
                 }
                 if let Some(source_ty) = self.mir_operand_type_id(body, &arg.value)
@@ -216,8 +219,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             let fallback_return_ty = fun.return_ty;
             let needs_published_sig = fallback_param_tys
                 .iter()
-                .any(|&ty| self.cg_ty_of(ty).is_none())
-                || self.cg_ty_of(fallback_return_ty).is_none();
+                .any(|&ty| self.try_cg_ty_of_type_id(ty).is_none())
+                || self.try_cg_ty_of_type_id(fallback_return_ty).is_none();
             let published_sig = if needs_published_sig {
                 self.published_callable_signature(&concrete_fqn)
                     .or_else(|| {
@@ -248,14 +251,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             let param_tys = param_tys
                 .into_iter()
                 .map(|ty| {
-                    if self.cg_ty_of(ty).is_some() {
+                    if self.try_cg_ty_of_type_id(ty).is_some() {
                         ty
                     } else {
                         map_foreign_signature_ty_to_codegen(self, ty)
                     }
                 })
                 .collect::<Vec<_>>();
-            let return_ty = if self.cg_ty_of(return_ty).is_some() {
+            let return_ty = if self.try_cg_ty_of_type_id(return_ty).is_some() {
                 return_ty
             } else {
                 map_foreign_signature_ty_to_codegen(self, return_ty)
@@ -293,7 +296,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     // compilation-unit codegen context and outlives this call.
                     let materialized_types = unsafe { &**materialized_types };
                     self.cg_ty_of_mir_type(materialized_types, fun.return_ty)
-                        .or_else(|| self.cg_ty_of(return_ty_for_codegen))
+                        .or_else(|| self.try_cg_ty_of_type_id(return_ty_for_codegen))
                         .or_else(|| {
                             self.cg_ty_of_mir_type(mir_types, transport.result.source_ty)
                                 .or_else(|| {
@@ -301,18 +304,18 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                                         mir_types,
                                         transport.result.source_ty,
                                     )
-                                    .and_then(|ty| self.cg_ty_of(ty))
+                                    .and_then(|ty| self.try_cg_ty_of_type_id(ty))
                                 })
                         })
                 } else {
-                    self.cg_ty_of(return_ty_for_codegen).or_else(|| {
+                    self.try_cg_ty_of_type_id(return_ty_for_codegen).or_else(|| {
                         self.cg_ty_of_mir_type(mir_types, transport.result.source_ty)
                             .or_else(|| {
                                 self.equivalent_codegen_type_id(
                                     mir_types,
                                     transport.result.source_ty,
                                 )
-                                .and_then(|ty| self.cg_ty_of(ty))
+                                .and_then(|ty| self.try_cg_ty_of_type_id(ty))
                             })
                     })
                 }
@@ -667,7 +670,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let i8_ptr_ty = self.llvm_i8_ptr_type();
         let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
         let ret_cg = self
-            .cg_ty_of(fun_ty.return_ty)
+            .try_cg_ty_of_type_id(fun_ty.return_ty)
             .unwrap_or_else(|| {
                 panic!("codegen_mir_function_value_call_from_closure_obj: MIR call ABI verifier accepted unsupported function-value return type")
             });

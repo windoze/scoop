@@ -79,16 +79,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .map(|arg| {
                 let source_ty = self.mir_operand_type_id(body, &arg.value)?;
                 self.equivalent_codegen_type_id(mir_types, source_ty)
-                    .and_then(|ty| self.cg_ty_of(ty))
+                    .and_then(|ty| self.try_cg_ty_of_type_id(ty))
                     .or_else(|| self.cg_ty_of_mir_type(mir_types, source_ty))
-                    .or_else(|| self.cg_ty_of(source_ty))
+                    .or_else(|| self.try_cg_ty_of_type_id(source_ty))
             })
             .collect::<Option<Vec<_>>>()?;
         let result_cg = self
             .equivalent_codegen_type_id(mir_types, result_source_ty)
-            .and_then(|ty| self.cg_ty_of(ty))
+            .and_then(|ty| self.try_cg_ty_of_type_id(ty))
             .or_else(|| self.cg_ty_of_mir_type(mir_types, result_source_ty))
-            .or_else(|| self.cg_ty_of(result_source_ty))?;
+            .or_else(|| self.try_cg_ty_of_type_id(result_source_ty))?;
         let mut matched: Option<String> = None;
         for family in pass_view.instances() {
             if family.key().template.fqn != template_fqn {

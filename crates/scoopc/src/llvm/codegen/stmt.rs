@@ -8,7 +8,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             panic!("codegen_val_decl: HIR verifier accepted anonymous val binding")
         });
 
-        let target_ty = self.expect_cg_ty_of(decl.ty, "local val declaration type");
+        let target_ty = self.cg_ty_of_type_id(decl.ty, "local val declaration type");
 
         if decl.init.is_none() {
             panic!("codegen_val_decl: HIR verifier accepted local val without initializer");
@@ -92,7 +92,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                                 "typecheck must reject assignment to immutable extern global before LLVM codegen"
                             );
                         }
-                        let cg_ty = self.expect_cg_ty_of(
+                        let cg_ty = self.cg_ty_of_type_id(
                             self.lir_global_root_ty(&root, "extern global assignment type"),
                             "extern global assignment type",
                         );
@@ -116,7 +116,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         )
                         .clone();
 
-                    let cg_ty = self.expect_cg_ty_of(
+                    let cg_ty = self.cg_ty_of_type_id(
                         self.lir_global_root_ty(&root, "top-level var assignment type"),
                         "top-level var assignment type",
                     );

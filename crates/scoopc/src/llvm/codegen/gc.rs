@@ -1899,7 +1899,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &mut self,
         at: crate::span::Span,
         ptr: PointerValue<'ctx>,
-        enum_ty: crate::ty::TypeId,
+        enum_ty: crate::ty::MonoTypeId,
         raw: BasicValueEnum<'ctx>,
     ) -> Result<bool, LlvmEmitError> {
         if ptr.get_type().get_address_space() != self.gc_address_space() {

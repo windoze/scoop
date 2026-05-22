@@ -3046,7 +3046,7 @@ fn collect_layout_field_facts(facts: &mut DeclarationFacts, lowered_hir: &Lowere
                         layout_key,
                         FieldOwnerKind::Struct,
                         &field.name,
-                        ty,
+                        ty.inner(),
                     ),
                 );
             }
@@ -3085,7 +3085,7 @@ fn collect_layout_field_facts(facts: &mut DeclarationFacts, lowered_hir: &Lowere
                             &variant_fqn,
                             FieldOwnerKind::EnumVariant,
                             &field_name,
-                            ty,
+                            ty.inner(),
                         ),
                     );
                 }

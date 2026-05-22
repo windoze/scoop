@@ -74,7 +74,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 },
             )),
             hir::LiteralKind::Int => {
-                let CgTy::Int(int_ty) = self.expect_cg_ty_of(ty, "integer literal target type")
+                let CgTy::Int(int_ty) = self.cg_ty_of_type_id(ty, "integer literal target type")
                 else {
                     panic!(
                         "codegen_literal: typecheck gate accepted non-integer target for int literal"

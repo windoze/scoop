@@ -126,11 +126,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         ty: TypeId,
         fields: &[hir::StructLitField],
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        let Some(CgTy::Struct(struct_ty)) = self.cg_ty_of(ty) else {
+        let Some(CgTy::Struct(struct_ty)) = self.try_cg_ty_of_type_id(ty) else {
             panic!("codegen_struct_lit: typecheck accepted non-struct struct literal type");
         };
 
-        let TypeKind::Value(ValueTypeKind::Nominal(nominal)) = self.types.kind(struct_ty) else {
+        let TypeKind::Value(ValueTypeKind::Nominal(nominal)) = self.types.kind(struct_ty.inner())
+        else {
             panic!("codegen_struct_lit: typecheck accepted struct literal without nominal schema");
         };
 
@@ -216,11 +217,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         ty: TypeId,
         elements: &[hir::Expr],
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        let Some(CgTy::Tuple(tuple_ty)) = self.cg_ty_of(ty) else {
+        let Some(CgTy::Tuple(tuple_ty)) = self.try_cg_ty_of_type_id(ty) else {
             panic!("codegen_tuple_lit: typecheck accepted non-tuple tuple literal type");
         };
 
-        let TypeKind::Value(ValueTypeKind::Tuple(element_tys)) = self.types.kind(tuple_ty) else {
+        let TypeKind::Value(ValueTypeKind::Tuple(element_tys)) = self.types.kind(tuple_ty.inner())
+        else {
             panic!("codegen_tuple_lit: typecheck accepted tuple literal without tuple schema");
         };
 
@@ -233,7 +235,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             Vec::with_capacity(elements.len());
 
         for (idx, (elem_expr, elem_ty)) in elements.iter().zip(element_tys.iter()).enumerate() {
-            let elem_cg = self.cg_ty_of(*elem_ty).unwrap_or_else(|| {
+            let elem_cg = self.try_cg_ty_of_type_id(*elem_ty).unwrap_or_else(|| {
                 panic!("codegen_tuple_lit: typecheck accepted unsupported tuple element type")
             });
 

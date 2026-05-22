@@ -67,6 +67,20 @@ pub(in crate::hir::lower) fn type_ref_to_layout_type_id(
     lower_layout_type_ref_with_bindings(source, file, index, ty, None, &HashMap::new(), types)
 }
 
+pub(in crate::hir::lower) fn mono_layout_type_id(
+    types: &TypeStore,
+    ty: crate::ty::TypeId,
+    context: &str,
+) -> crate::ty::MonoTypeId {
+    types.as_mono(ty).unwrap_or_else(|leak| {
+        panic!(
+            "mono_layout_type_id: layout field retained generic type while {context}; offending=t{}, path={:?}",
+            leak.offending.as_u32(),
+            leak.leak_path
+        )
+    })
+}
+
 pub(in crate::hir::lower) fn builtin_layout_alias_type_id(
     base_fqn: &str,
     types: &mut TypeStore,
@@ -276,7 +290,7 @@ pub(in crate::hir::lower) fn push_struct_layout_field(
     owner_fqn: &str,
     span: Span,
     name: String,
-    ty: Option<crate::ty::TypeId>,
+    ty: Option<crate::ty::MonoTypeId>,
     ty_fqn: Option<String>,
 ) {
     let field_fqn = format!("{owner_fqn}.{name}");
@@ -293,7 +307,7 @@ pub(in crate::hir::lower) fn append_struct_body_property_layout_fields(
     source: &SourceFile,
     body: Option<&ast::TypeBody>,
     owner_fqn: &str,
-    mut resolve_field_ty: impl FnMut(&ast::TypeRef) -> (Option<String>, Option<crate::ty::TypeId>),
+    mut resolve_field_ty: impl FnMut(&ast::TypeRef) -> (Option<String>, Option<crate::ty::MonoTypeId>),
     fields: &mut Vec<StructFieldLayout>,
 ) {
     let Some(body) = body else {
@@ -884,7 +898,8 @@ pub(in crate::hir::lower) fn collect_generic_struct_instantiation_layouts(
                     p.ty.as_ref(),
                     &param_map,
                     types,
-                );
+                )
+                .map(|ty| mono_layout_type_id(types, ty, "generic struct field layout"));
                 push_struct_layout_field(
                     &mut fields,
                     &nominal.fqn,
@@ -918,7 +933,8 @@ pub(in crate::hir::lower) fn collect_generic_struct_instantiation_layouts(
                         Some(ty_ref),
                         &param_map,
                         types,
-                    ),
+                    )
+                    .map(|ty| mono_layout_type_id(types, ty, "generic struct property layout")),
                 )
             },
             &mut fields,
@@ -1045,7 +1061,8 @@ pub(in crate::hir::lower) fn collect_generic_enum_instantiation_layouts(
                         p.ty.as_ref(),
                         &param_map,
                         types,
-                    );
+                    )
+                    .map(|ty| mono_layout_type_id(types, ty, "generic enum payload layout"));
                     fields.push(EnumVariantFieldLayout {
                         span: p.name.span,
                         name: field_name,

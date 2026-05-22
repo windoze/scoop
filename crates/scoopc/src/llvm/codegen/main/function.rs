@@ -156,7 +156,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.builder.position_at_end(entry);
         self.begin_function_explicit_frame_layout(llvm_fun)?;
 
-        let declared_return_cg = self.cg_ty_of(fun.return_ty).unwrap_or_else(|| {
+        let declared_return_cg = self.try_cg_ty_of_type_id(fun.return_ty).unwrap_or_else(|| {
             tracing::warn!(
                 "codegen_top_level_fun: unsupported return type for {} -> {}",
                 fun.fqn,

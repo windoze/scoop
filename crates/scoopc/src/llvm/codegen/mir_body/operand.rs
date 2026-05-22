@@ -298,19 +298,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         match env_cg {
             CgTy::Unit => Some(Vec::new()),
             CgTy::Tuple(tuple_ty) => {
-                let tuple_types = self.codegen_type_store_for_type_id(tuple_ty)?;
-                let TypeKind::Value(ValueTypeKind::Tuple(elements)) = tuple_types.kind(tuple_ty)
+                let TypeKind::Value(ValueTypeKind::Tuple(elements)) =
+                    self.types.kind(tuple_ty.inner())
                 else {
                     return None;
                 };
                 let elements = elements.clone();
                 let mut out = Vec::with_capacity(elements.len());
                 for elem_ty in elements {
-                    let cg = if std::ptr::eq(tuple_types, self.types) {
-                        self.cg_ty_of(elem_ty)
-                    } else {
-                        self.cg_ty_of_mir_type(tuple_types, elem_ty)
-                    }?;
+                    let cg = self.try_cg_ty_of_type_id(elem_ty)?;
                     if !Self::mir_closure_env_capture_cg_is_supported(cg) {
                         return None;
                     }

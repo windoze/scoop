@@ -51,7 +51,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         panic!("codegen_addressable_place: extern LIR root is missing contract")
                     });
                     let gv = self.declare_lir_extern_global(&root)?;
-                    let cg_ty = self.expect_cg_ty_of(
+                    let cg_ty = self.cg_ty_of_type_id(
                         self.lir_global_root_ty(&root, "addressable extern global"),
                         "addressable extern global",
                     );
@@ -77,7 +77,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     .clone();
 
                 let gv = self.declare_lir_top_level_var_global(&root)?;
-                let cg_ty = self.expect_cg_ty_of(
+                let cg_ty = self.cg_ty_of_type_id(
                     self.lir_global_root_ty(&root, "addressable top-level var"),
                     "addressable top-level var",
                 );
@@ -530,14 +530,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     if let Some(layout) = self.struct_layouts.get(&key) {
                         layout.fields.iter().any(|field| {
                             field.ty.is_some_and(|field_ty| {
-                                self.type_contains_gc_refs(field_ty, visiting)
+                                self.type_contains_gc_refs(field_ty.inner(), visiting)
                             })
                         })
                     } else if let Some(layout) = self.enum_layouts.get(&key) {
                         layout.variants.iter().any(|variant| {
                             variant.fields.iter().any(|field| {
                                 field.ty.is_some_and(|field_ty| {
-                                    self.type_contains_gc_refs(field_ty, visiting)
+                                    self.type_contains_gc_refs(field_ty.inner(), visiting)
                                 })
                             })
                         })

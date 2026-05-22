@@ -162,7 +162,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         ];
         for local in &plan.saved_locals {
             let cg_ty = self
-                .cg_ty_of(local.ty)
+                .try_cg_ty_of_type_id(local.ty)
                 .unwrap_or_else(|| {
                     panic!("get_or_create_callee_suspend_state_type: MIR call ABI verifier accepted unsupported suspend local type")
                 });
@@ -258,7 +258,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     ) -> Result<(), LlvmEmitError> {
         let site = &plan.resume_sites[site_index];
         for local_plan in &site.saved_locals {
-            let cg_ty = self.cg_ty_of(local_plan.ty).unwrap_or_else(|| {
+            let cg_ty = self.try_cg_ty_of_type_id(local_plan.ty).unwrap_or_else(|| {
                 panic!(
                     "emit_callee_suspend_resume_site_prologue: callee suspend verifier accepted non-codegen saved local type at {at:?}"
                 )
@@ -310,7 +310,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             );
         }
 
-        let resume_slot_cg_ty = self.cg_ty_of(site.resume_slot_ty).unwrap_or_else(|| {
+        let resume_slot_cg_ty = self.try_cg_ty_of_type_id(site.resume_slot_ty).unwrap_or_else(|| {
             panic!(
                 "emit_callee_suspend_resume_site_prologue: callee suspend verifier accepted non-codegen resume slot type at {at:?}"
             )

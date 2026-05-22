@@ -145,7 +145,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     }));
                 }
                 let fun = self.hir_fun_for_callable_fqn(callee_fqn)?;
-                self.cg_ty_of(fun.return_ty)
+                self.try_cg_ty_of_type_id(fun.return_ty)
             }
             crate::mir::CallKind::Closure { callee, .. }
             | crate::mir::CallKind::FunValue { callee }
@@ -170,8 +170,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             (CgTy::Tuple(lhs), CgTy::Tuple(rhs))
             | (CgTy::Struct(lhs), CgTy::Struct(rhs))
             | (CgTy::Enum(lhs), CgTy::Enum(rhs)) => {
-                let lhs = self.types.display(lhs).to_string();
-                let rhs = self.types.display(rhs).to_string();
+                let lhs = self.types.display(lhs.inner()).to_string();
+                let rhs = self.types.display(rhs.inner()).to_string();
                 lhs == rhs || lhs.replace(", eff Pure", "") == rhs.replace(", eff Pure", "")
             }
             _ => false,
@@ -181,7 +181,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(in crate::llvm::codegen) fn describe_cg_ty(&self, cg_ty: CgTy) -> String {
         match cg_ty {
             CgTy::Tuple(ty) | CgTy::Struct(ty) | CgTy::Enum(ty) => {
-                format!("{cg_ty:?} {}", self.types.display(ty))
+                format!("{cg_ty:?} {}", self.types.display(ty.inner()))
             }
             _ => format!("{cg_ty:?}"),
         }
@@ -272,20 +272,20 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 signed: false,
             })),
             TypeKind::Value(ValueTypeKind::Option(_)) => self
-                .equivalent_codegen_type_id(mir_types, ty)
-                .and_then(|codegen_ty| self.cg_ty_of(codegen_ty))
-                .or_else(|| self.cg_ty_of(ty)),
+                .equivalent_codegen_mono_type_id(mir_types, ty)
+                .map(|codegen_ty| self.cg_ty_of(codegen_ty))
+                .or_else(|| self.try_cg_ty_of_type_id(ty)),
             TypeKind::Value(ValueTypeKind::Tuple(_)) => self
-                .equivalent_codegen_type_id(mir_types, ty)
-                .and_then(|codegen_ty| self.cg_ty_of(codegen_ty))
-                .or_else(|| self.cg_ty_of(ty)),
+                .equivalent_codegen_mono_type_id(mir_types, ty)
+                .map(|codegen_ty| self.cg_ty_of(codegen_ty))
+                .or_else(|| self.try_cg_ty_of_type_id(ty)),
             TypeKind::Value(ValueTypeKind::Nominal(nominal)) => self
                 .builtin_nominal_cg_ty(&nominal.fqn)
                 .or_else(|| {
-                    self.equivalent_codegen_type_id(mir_types, ty)
-                        .and_then(|codegen_ty| self.cg_ty_of(codegen_ty))
+                    self.equivalent_codegen_mono_type_id(mir_types, ty)
+                        .map(|codegen_ty| self.cg_ty_of(codegen_ty))
                 })
-                .or_else(|| self.cg_ty_of(ty)),
+                .or_else(|| self.try_cg_ty_of_type_id(ty)),
             TypeKind::Param(_) => None,
         }
     }
@@ -368,6 +368,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 .or_else(|| self.display_compatible_codegen_type_id(source_kind, &source_display)),
             _ => self.display_compatible_codegen_type_id(source_kind, &source_display),
         }
+    }
+
+    pub(in crate::llvm::codegen) fn equivalent_codegen_mono_type_id(
+        &self,
+        source_types: &TypeStore,
+        source_ty: TypeId,
+    ) -> Option<MonoTypeId> {
+        let codegen_ty = self.equivalent_codegen_type_id(source_types, source_ty)?;
+        Some(self.mono_type_id(codegen_ty, "cross-TypeStore codegen type bridge"))
     }
 
     fn nominal_args_equivalent(
@@ -465,7 +474,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             return false;
         }
         self.equivalent_runtime_ref_codegen_type_id(mir_types, metadata.target_ty)
-            .and_then(|target_ty| self.cg_ty_of(target_ty))
+            .and_then(|target_ty| self.try_cg_ty_of_type_id(target_ty))
             .is_some_and(|target_cg| matches!(target_cg, CgTy::Ref | CgTy::String))
     }
 
@@ -484,7 +493,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             return false;
         }
         self.equivalent_runtime_ref_codegen_type_id(mir_types, metadata.target_ty)
-            .and_then(|target_ty| self.cg_ty_of(target_ty))
+            .and_then(|target_ty| self.try_cg_ty_of_type_id(target_ty))
             .is_some_and(|target_cg| matches!(target_cg, CgTy::Ref | CgTy::String))
     }
 
@@ -530,7 +539,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             return Some(CgTy::Ref);
         }
         if let Some((_object, prop)) = self.lookup_object_property_by_fqn(fqn) {
-            return self.cg_ty_of(prop.ty);
+            return self.try_cg_ty_of_type_id(prop.ty);
         }
         if let Some(root) = self.lir_global_root(fqn)
             && matches!(
@@ -540,7 +549,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     | LirGlobalRootKind::ExternGlobal
             )
         {
-            return self.cg_ty_of(root.ty?);
+            return self.try_cg_ty_of_type_id(root.ty?);
         }
         let (owner_fqn, variant_name) = fqn.rsplit_once('.')?;
         let layout = self.enum_layouts.get(owner_fqn)?;
@@ -557,6 +566,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         if nominal.fqn == owner_fqn && nominal.args.is_empty() && nominal.eff.is_none()
                 )
             })
+            .and_then(|ty| self.try_mono_type_id(ty))
             .map(CgTy::Enum)
     }
 
@@ -595,7 +605,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             return Ok(field_cg);
         }
 
-        let receiver_cg = self.expect_cg_ty_of(receiver_type_id, "MIR member field receiver type");
+        let receiver_cg = self.cg_ty_of_type_id(receiver_type_id, "MIR member field receiver type");
         let CgTy::Struct(struct_ty) = receiver_cg else {
             return Err(frontend_error(format!(
                 "pass MIR member field target `{field_fqn}` receiver_ty=t{} receiver_cg={}",
@@ -630,7 +640,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             return Some(CgTy::Ref);
         }
         let source_ty = self.equivalent_codegen_type_id(mir_types, transport.source_ty)?;
-        let source_cg = self.cg_ty_of(source_ty)?;
+        let source_cg = self.try_cg_ty_of_type_id(source_ty)?;
         match source_cg {
             CgTy::Tuple(_)
             | CgTy::Struct(_)
@@ -689,7 +699,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             let Some(field_ty) = self.equivalent_codegen_type_id(mir_types, field.ty) else {
                 return false;
             };
-            let Some(expected_cg) = self.cg_ty_of(field_ty) else {
+            let Some(expected_cg) = self.try_cg_ty_of_type_id(field_ty) else {
                 return false;
             };
             if expected_cg != *field_cg {
@@ -851,7 +861,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             })),
             crate::mir::ConstValue::Unit => Some(CgTy::Unit),
             crate::mir::ConstValue::Int | crate::mir::ConstValue::SynthInt(_) => {
-                self.cg_ty_of(self.builtins.int)
+                self.try_cg_ty_of_type_id(self.builtins.int)
             }
             crate::mir::ConstValue::Float64 => Some(CgTy::Float64),
             crate::mir::ConstValue::Float32 => Some(CgTy::Float32),

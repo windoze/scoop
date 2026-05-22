@@ -11,34 +11,129 @@ use scoopc_lir_facts::LirGlobalRootKind;
 
 use crate::hir;
 use crate::stable_id::{CanonicalTextKey, PrivateSymbolMangler, canonical_record};
-use crate::ty::{NominalType, RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind};
+use crate::ty::{
+    MonoNominal, MonoRefKind, MonoTypeId, MonoTypeKind, MonoValueKind, NominalType, TypeId,
+    TypeKind, TypeStore, ValueTypeKind,
+};
 
 use super::types::{CgEnumRepr, CgEnumVariant, CgTy, IntTy};
 use super::{LlvmEmitError, MainCodegen, TypeDescriptorSpec};
 
+pub(in crate::llvm::codegen) trait CodegenMonoInput {
+    fn into_mono_type_id<'a, 'ctx>(
+        self,
+        codegen: &MainCodegen<'a, 'ctx>,
+        context: &str,
+    ) -> MonoTypeId;
+
+    fn try_into_mono_type_id<'a, 'ctx>(self, codegen: &MainCodegen<'a, 'ctx>)
+    -> Option<MonoTypeId>;
+}
+
+impl CodegenMonoInput for MonoTypeId {
+    fn into_mono_type_id<'a, 'ctx>(
+        self,
+        _codegen: &MainCodegen<'a, 'ctx>,
+        _context: &str,
+    ) -> MonoTypeId {
+        self
+    }
+
+    fn try_into_mono_type_id<'a, 'ctx>(
+        self,
+        _codegen: &MainCodegen<'a, 'ctx>,
+    ) -> Option<MonoTypeId> {
+        Some(self)
+    }
+}
+
+impl CodegenMonoInput for TypeId {
+    fn into_mono_type_id<'a, 'ctx>(
+        self,
+        codegen: &MainCodegen<'a, 'ctx>,
+        context: &str,
+    ) -> MonoTypeId {
+        if (self.as_u32() as usize) >= codegen.types.len() {
+            return self.try_into_mono_type_id(codegen).unwrap_or_else(|| {
+                panic!(
+                    "mono_type_id: type verifier accepted TypeId outside codegen TypeStore while {context}; ty=t{}",
+                    self.as_u32()
+                )
+            });
+        }
+        codegen.types.as_mono(self).unwrap_or_else(|leak| {
+            panic!(
+                "mono_type_id: type verifier accepted a generic codegen type while {context}; offending=t{}, path={:?}",
+                leak.offending.as_u32(),
+                leak.leak_path
+            )
+        })
+    }
+
+    fn try_into_mono_type_id<'a, 'ctx>(
+        self,
+        codegen: &MainCodegen<'a, 'ctx>,
+    ) -> Option<MonoTypeId> {
+        if (self.as_u32() as usize) < codegen.types.len() {
+            return codegen.types.as_mono(self).ok();
+        }
+        let materialized = codegen.materialized_pass_view()?.materialized();
+        if (self.as_u32() as usize) >= materialized.types.len() {
+            return None;
+        }
+        let codegen_ty = codegen.equivalent_codegen_type_id(&materialized.types, self)?;
+        codegen.types.as_mono(codegen_ty).ok()
+    }
+}
+
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     fn enum_boxed_payload_key(
         &self,
-        enum_ty: TypeId,
+        enum_ty: MonoTypeId,
         variant_name: &str,
         context: &str,
     ) -> Result<CanonicalTextKey, LlvmEmitError> {
         Ok(CanonicalTextKey::new(canonical_record(
             "enum_boxed_payload",
             [
-                self.canonical_type_key_text_for_codegen(enum_ty, context)?,
+                self.canonical_type_key_text_for_codegen(enum_ty.inner(), context)?,
                 variant_name.to_string(),
             ],
         )))
     }
 
-    pub(super) fn codegen_type_store_for_type_id(&self, ty: TypeId) -> Option<&TypeStore> {
-        if (ty.as_u32() as usize) < self.types.len() {
-            return Some(self.types);
-        }
-        self.materialized_pass_view()
-            .map(|view| &view.materialized().types)
-            .filter(|types| (ty.as_u32() as usize) < types.len())
+    pub(in crate::llvm::codegen) fn mono_type_id<T: CodegenMonoInput>(
+        &self,
+        ty: T,
+        context: &str,
+    ) -> MonoTypeId {
+        ty.into_mono_type_id(self, context)
+    }
+
+    pub(in crate::llvm::codegen) fn try_mono_type_id(&self, ty: TypeId) -> Option<MonoTypeId> {
+        ((ty.as_u32() as usize) < self.types.len())
+            .then(|| self.types.as_mono(ty).ok())
+            .flatten()
+    }
+
+    pub(in crate::llvm::codegen) fn cg_ty_of_type_id<T: CodegenMonoInput>(
+        &self,
+        ty: T,
+        context: &str,
+    ) -> CgTy {
+        self.cg_ty_of(self.mono_type_id(ty, context))
+    }
+
+    pub(in crate::llvm::codegen) fn try_cg_ty_of_type_id<T: CodegenMonoInput>(
+        &self,
+        ty: T,
+    ) -> Option<CgTy> {
+        ty.try_into_mono_type_id(self).map(|ty| self.cg_ty_of(ty))
+    }
+
+    fn nominal_layout_key_from_mono(&self, nominal: &MonoNominal<'_>) -> String {
+        let args: Vec<TypeId> = nominal.args.iter().map(|arg| arg.inner()).collect();
+        crate::hir::mangle_nominal_fqn(nominal.fqn, &args, self.types)
     }
 
     pub(super) fn builtin_nominal_cg_ty(&self, fqn: &str) -> Option<CgTy> {
@@ -112,105 +207,88 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     fn enum_layout_key(
         &self,
         _at: crate::span::Span,
-        enum_ty: TypeId,
+        enum_ty: MonoTypeId,
         unsupported_kind: &'static str,
     ) -> Result<String, LlvmEmitError> {
-        let types = self
-            .codegen_type_store_for_type_id(enum_ty)
-            .unwrap_or_else(|| std::panic::panic_any(unsupported_kind));
-        match types.kind(enum_ty) {
+        match self.types.kind(enum_ty.inner()) {
             TypeKind::Value(ValueTypeKind::Option(inner)) => Ok(crate::hir::mangle_nominal_fqn(
                 "scoop.core.Option",
                 &[*inner],
-                types,
+                self.types,
             )),
             TypeKind::Value(ValueTypeKind::Nominal(nominal)) => {
-                Ok(self.nominal_layout_key_from_types(nominal, types))
+                Ok(self.nominal_layout_key_from_types(nominal, self.types))
             }
             _ => std::panic::panic_any(unsupported_kind),
         }
     }
 
-    pub(super) fn cg_ty_of(&self, ty: TypeId) -> Option<CgTy> {
-        let types = self.codegen_type_store_for_type_id(ty)?;
-        match types.kind(ty) {
-            TypeKind::Ref(RefTypeKind::String) => Some(CgTy::String),
-            TypeKind::Ref(_) => Some(CgTy::Ref),
-            TypeKind::StarProjection(star) => self.cg_ty_of(star.read_ty),
-            TypeKind::Value(ValueTypeKind::Nothing) => Some(CgTy::Never),
-            TypeKind::Value(ValueTypeKind::Unit) => Some(CgTy::Unit),
-            TypeKind::Value(ValueTypeKind::Bool) => Some(CgTy::Bool),
-            TypeKind::Value(ValueTypeKind::Char) => Some(CgTy::Int(IntTy {
+    pub(super) fn cg_ty_of(&self, ty: MonoTypeId) -> CgTy {
+        match self.types.kind_mono(ty) {
+            MonoTypeKind::Ref(MonoRefKind::String) => CgTy::String,
+            MonoTypeKind::Ref(_) => CgTy::Ref,
+            MonoTypeKind::StarProjection(star) => self.cg_ty_of(star.read_ty),
+            MonoTypeKind::Value(MonoValueKind::Nothing) => CgTy::Never,
+            MonoTypeKind::Value(MonoValueKind::Unit) => CgTy::Unit,
+            MonoTypeKind::Value(MonoValueKind::Bool) => CgTy::Bool,
+            MonoTypeKind::Value(MonoValueKind::Char) => CgTy::Int(IntTy {
                 bits: 32,
                 signed: false,
-            })),
-            TypeKind::Value(ValueTypeKind::Float64) => Some(CgTy::Float64),
-            TypeKind::Value(ValueTypeKind::Float32) => Some(CgTy::Float32),
-            TypeKind::Value(ValueTypeKind::Int) => Some(CgTy::Int(IntTy {
+            }),
+            MonoTypeKind::Value(MonoValueKind::Float64) => CgTy::Float64,
+            MonoTypeKind::Value(MonoValueKind::Float32) => CgTy::Float32,
+            MonoTypeKind::Value(MonoValueKind::Int) => CgTy::Int(IntTy {
                 bits: self.host.word_bit_width(),
                 signed: true,
-            })),
-            TypeKind::Value(ValueTypeKind::UInt) => Some(CgTy::Int(IntTy {
+            }),
+            MonoTypeKind::Value(MonoValueKind::UInt) => CgTy::Int(IntTy {
                 bits: self.host.word_bit_width(),
                 signed: false,
-            })),
-            TypeKind::Value(ValueTypeKind::IntN(bits)) => Some(CgTy::Int(IntTy {
-                bits: u32::from(*bits),
+            }),
+            MonoTypeKind::Value(MonoValueKind::IntN(bits)) => CgTy::Int(IntTy {
+                bits: u32::from(bits),
                 signed: true,
-            })),
-            TypeKind::Value(ValueTypeKind::UIntN(bits)) => Some(CgTy::Int(IntTy {
-                bits: u32::from(*bits),
+            }),
+            MonoTypeKind::Value(MonoValueKind::UIntN(bits)) => CgTy::Int(IntTy {
+                bits: u32::from(bits),
                 signed: false,
-            })),
-            TypeKind::Value(ValueTypeKind::Option(_)) => Some(CgTy::Enum(ty)),
-            TypeKind::Value(ValueTypeKind::Tuple(_)) => Some(CgTy::Tuple(ty)),
-            TypeKind::Value(ValueTypeKind::Nominal(nominal)) => {
-                if let Some(cg_ty) = self.builtin_nominal_cg_ty(&nominal.fqn) {
-                    return Some(cg_ty);
+            }),
+            MonoTypeKind::Value(MonoValueKind::Option(_)) => CgTy::Enum(ty),
+            MonoTypeKind::Value(MonoValueKind::Tuple(_)) => CgTy::Tuple(ty),
+            MonoTypeKind::Value(MonoValueKind::Nominal(nominal)) => {
+                if let Some(cg_ty) = self.builtin_nominal_cg_ty(nominal.fqn) {
+                    return cg_ty;
                 }
-                // T1027：internal atomics（`__AtomicInt`）——值类型、与底层整数相同布局。
-                //
-                // 说明：
-                // - typecheck 内部会为 typealias 保留一个名义 `TypeId`（便于诊断/审计），
-                //   但后端必须把它映射到与 `Int` 完全一致的 ABI（word-sized, signed）。
                 if nominal.fqn == "scoop.unsafe.__AtomicInt" {
-                    return Some(CgTy::Int(IntTy {
+                    return CgTy::Int(IntTy {
                         bits: self.host.word_bit_width(),
                         signed: true,
-                    }));
+                    });
                 }
-                // `UIntPtr`（typealias）：在 early stage 直接落到 word-sized unsigned int。
                 if nominal.fqn == "scoop.core.UIntPtr" {
-                    return Some(CgTy::Int(IntTy {
+                    return CgTy::Int(IntTy {
                         bits: self.host.word_bit_width(),
                         signed: false,
-                    }));
+                    });
                 }
-                // T1026：`FunPtr<F>` —— 运行期表示为 word-sized address（unsigned），并作为 opaque handle 传递。
                 if nominal.fqn == "scoop.unsafe.FunPtr" {
-                    return Some(CgTy::Int(IntTy {
+                    return CgTy::Int(IntTy {
                         bits: self.host.word_bit_width(),
                         signed: false,
-                    }));
+                    });
                 }
-                // T0124：使用 mangled FQN 查找（支持泛型 struct/enum 的具体实例化）。
-                let key = self.nominal_layout_key_from_types(nominal, types);
+                let key = self.nominal_layout_key_from_mono(&nominal);
                 if self.struct_layouts.contains_key(&key) {
-                    return Some(CgTy::Struct(ty));
+                    return CgTy::Struct(ty);
                 }
                 if self.enum_layouts.contains_key(&key) {
-                    return Some(CgTy::Enum(ty));
+                    return CgTy::Enum(ty);
                 }
-                None
-            }
-            // T0125：monomorphization 后，TypeKind::Param 不应出现在 codegen 阶段。
-            // 若仍出现，说明 monomorph 遗漏了替换——返回 None 并由调用方报告诊断。
-            TypeKind::Param(p) => {
-                tracing::warn!(
-                    "cg_ty_of: TypeKind::Param({}) encountered in codegen (monomorph miss)",
-                    p.name
+                panic!(
+                    "cg_ty_of: codegen TypeId t{} ({}) is not lowerable",
+                    ty.inner().as_u32(),
+                    self.types.display(ty.inner())
                 );
-                None
             }
         }
     }
@@ -220,9 +298,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     /// multiple physical registers during statepoint lowering, so functions returning
     /// such types must not have `gc "statepoint-example"`.
     pub(super) fn returns_gc_free_aggregate(&self, return_ty: TypeId) -> bool {
-        let Some(cg) = self.cg_ty_of(return_ty) else {
+        let Some(return_ty) = self.try_mono_type_id(return_ty) else {
             return false;
         };
+        let cg = self.cg_ty_of(return_ty);
         match cg {
             CgTy::Struct(type_id) => self.struct_type_is_gc_free(type_id),
             CgTy::Tuple(type_id) => self.tuple_type_is_gc_free(type_id),
@@ -232,14 +311,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     }
 
     /// Check if a struct type contains no GC references (String/Ref) in any of its fields.
-    fn struct_type_is_gc_free(&self, ty: TypeId) -> bool {
-        let Some(types) = self.codegen_type_store_for_type_id(ty) else {
+    fn struct_type_is_gc_free(&self, ty: MonoTypeId) -> bool {
+        let TypeKind::Value(ValueTypeKind::Nominal(nominal)) = self.types.kind(ty.inner()) else {
             return false;
         };
-        let TypeKind::Value(ValueTypeKind::Nominal(nominal)) = types.kind(ty) else {
-            return false;
-        };
-        let key = self.nominal_layout_key_from_types(nominal, types);
+        let key = self.nominal_layout_key_from_types(nominal, self.types);
         let Some(layout) = self.struct_layouts.get(&key) else {
             return false;
         };
@@ -251,28 +327,21 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     }
 
     /// Check if a tuple type contains no GC references in any of its elements.
-    fn tuple_type_is_gc_free(&self, ty: TypeId) -> bool {
-        let Some(types) = self.codegen_type_store_for_type_id(ty) else {
+    fn tuple_type_is_gc_free(&self, ty: MonoTypeId) -> bool {
+        let MonoTypeKind::Value(MonoValueKind::Tuple(elems)) = self.types.kind_mono(ty) else {
             return false;
         };
-        let TypeKind::Value(ValueTypeKind::Tuple(elems)) = types.kind(ty) else {
-            return false;
-        };
-        elems.iter().all(|elem_ty| {
-            self.cg_ty_of(*elem_ty)
-                .is_some_and(|cg| !matches!(cg, CgTy::String | CgTy::Ref))
-        })
+        elems
+            .iter()
+            .all(|elem_ty| !matches!(self.cg_ty_of(*elem_ty), CgTy::String | CgTy::Ref))
     }
 
     /// Check if an enum type contains no GC references in any variant's fields.
-    fn enum_type_is_gc_free(&self, ty: TypeId) -> bool {
-        let Some(types) = self.codegen_type_store_for_type_id(ty) else {
+    fn enum_type_is_gc_free(&self, ty: MonoTypeId) -> bool {
+        let TypeKind::Value(ValueTypeKind::Nominal(nominal)) = self.types.kind(ty.inner()) else {
             return false;
         };
-        let TypeKind::Value(ValueTypeKind::Nominal(nominal)) = types.kind(ty) else {
-            return false;
-        };
-        let key = self.nominal_layout_key_from_types(nominal, types);
+        let key = self.nominal_layout_key_from_types(nominal, self.types);
         let Some(layout) = self.enum_layouts.get(&key) else {
             return false;
         };
@@ -442,9 +511,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         }
                         _ => false,
                     })
-                    && let Some(cg) = self.cg_ty_of(ty)
+                    && let Some(ty) = self.try_mono_type_id(ty)
                 {
-                    return Ok(cg);
+                    return Ok(self.cg_ty_of(ty));
                 }
 
                 Err(LlvmEmitError::Frontend {
@@ -457,13 +526,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(super) fn cg_ty_of_layout_field(
         &self,
         at: crate::span::Span,
-        ty: Option<TypeId>,
+        ty: Option<MonoTypeId>,
         ty_fqn: Option<&str>,
     ) -> Result<CgTy, LlvmEmitError> {
-        if let Some(ty) = ty
-            && let Some(cg) = self.cg_ty_of(ty)
-        {
-            return Ok(cg);
+        if let Some(ty) = ty {
+            return Ok(self.cg_ty_of(ty));
         }
         if ty.is_none()
             && let Some(ty_fqn) = ty_fqn
@@ -475,7 +542,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             tracing::warn!(
                 "cg_ty_of_layout_field: fallback to ty_fqn for layout field at {:?}; ty={}, ty_fqn={:?}",
                 at,
-                self.types.display(ty),
+                self.types.display(ty.inner()),
                 ty_fqn
             );
         } else {
@@ -513,17 +580,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(super) fn llvm_struct_type(
         &mut self,
         _at: crate::span::Span,
-        ty: TypeId,
+        ty: MonoTypeId,
     ) -> Result<StructType<'ctx>, LlvmEmitError> {
-        let types = self
-            .codegen_type_store_for_type_id(ty)
-            .expect("struct TypeId must belong to a codegen TypeStore");
-        let TypeKind::Value(ValueTypeKind::Nominal(nominal)) = types.kind(ty) else {
+        let TypeKind::Value(ValueTypeKind::Nominal(nominal)) = self.types.kind(ty.inner()) else {
             std::panic::panic_any("struct LLVM type lookup must receive a nominal value type");
         };
 
         // T0124：使用 mangled FQN 查找（支持泛型 struct 的具体实例化）。
-        let key = self.nominal_layout_key_from_types(nominal, types);
+        let key = self.nominal_layout_key_from_types(nominal, self.types);
         let layout = self
             .struct_layouts
             .get(&key)
@@ -649,8 +713,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 let mut llvm_fields: Vec<BasicTypeEnum<'ctx>> =
                     Vec::with_capacity(class.fields.len());
                 for field in &class.fields {
-                    let field_cg =
-                        self.expect_cg_ty_of(field.ty.inner(), "class payload field type");
+                    let field_cg = self.cg_ty_of(field.ty);
                     llvm_fields.push(self.llvm_basic_type_of(at, field_cg)?);
                 }
                 existing.set_body(&llvm_fields, false);
@@ -661,7 +724,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let payload_ty = self.context.opaque_struct_type(&name);
         let mut llvm_fields: Vec<BasicTypeEnum<'ctx>> = Vec::with_capacity(class.fields.len());
         for field in &class.fields {
-            let field_cg = self.expect_cg_ty_of(field.ty.inner(), "class payload field type");
+            let field_cg = self.cg_ty_of(field.ty);
             llvm_fields.push(self.llvm_basic_type_of(at, field_cg)?);
         }
         payload_ty.set_body(&llvm_fields, false);
@@ -694,7 +757,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(super) fn llvm_enum_value_type(
         &mut self,
         at: crate::span::Span,
-        ty: TypeId,
+        ty: MonoTypeId,
     ) -> Result<BasicTypeEnum<'ctx>, LlvmEmitError> {
         // 注意：先从共享 cache 取出 enum layout，再抽取后续 lowering 真正需要的信息。
         let (repr, some_field) = {
@@ -711,10 +774,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         match repr {
             CgEnumRepr::TaggedUnion => {
-                let types = self
-                    .codegen_type_store_for_type_id(ty)
-                    .expect("enum TypeId must belong to a codegen TypeStore");
-                let fqn = match types.kind(ty) {
+                let fqn = match self.types.kind(ty.inner()) {
                     TypeKind::Value(ValueTypeKind::Option(_)) => "scoop.core.Option",
                     TypeKind::Value(ValueTypeKind::Nominal(nominal)) => nominal.fqn.as_str(),
                     _ => {
@@ -766,32 +826,21 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(super) fn llvm_tuple_type(
         &mut self,
         at: crate::span::Span,
-        ty: TypeId,
+        ty: MonoTypeId,
     ) -> Result<StructType<'ctx>, LlvmEmitError> {
-        let (elements, use_primary_types) = {
-            let tuple_types = self.codegen_type_store_for_type_id(ty).unwrap_or_else(|| {
-                panic!("llvm_tuple_type: verifier accepted tuple TypeId outside codegen TypeStore")
-            });
-            let TypeKind::Value(ValueTypeKind::Tuple(elements)) = tuple_types.kind(ty) else {
+        let elements = {
+            let MonoTypeKind::Value(MonoValueKind::Tuple(elements)) = self.types.kind_mono(ty)
+            else {
                 panic!(
                     "llvm_tuple_type: MIR verifier accepted non-tuple TypeId for tuple lowering"
                 );
             };
-            (elements.clone(), std::ptr::eq(tuple_types, self.types))
+            elements
         };
 
         let mut llvm_fields: Vec<BasicTypeEnum<'ctx>> = Vec::with_capacity(elements.len());
         for elem_ty in elements {
-            let elem_cg = if use_primary_types {
-                self.cg_ty_of(elem_ty)
-            } else {
-                let tuple_types = self
-                    .materialized_pass_view()
-                    .map(|view| &view.materialized().types)
-                    .expect("llvm_tuple_type: materialized tuple TypeId must have a materialized TypeStore");
-                self.cg_ty_of_mir_type(tuple_types, elem_ty)
-            }
-            .unwrap_or_else(|| panic!("llvm_tuple_type: MIR verifier accepted unsupported tuple element type"));
+            let elem_cg = self.cg_ty_of(elem_ty);
             llvm_fields.push(self.llvm_basic_type_of(at, elem_cg)?);
         }
 
@@ -801,7 +850,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(super) fn llvm_enum_boxed_payload_struct_type(
         &mut self,
         at: crate::span::Span,
-        enum_ty: TypeId,
+        enum_ty: MonoTypeId,
         variant: &CgEnumVariant,
     ) -> Result<StructType<'ctx>, LlvmEmitError> {
         // 说明：boxed payload 在运行期是一个独立的聚合对象；当前阶段用一个具名 LLVM struct 承载其字段布局，
@@ -833,7 +882,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(super) fn llvm_enum_boxed_payload_object_type(
         &mut self,
         at: crate::span::Span,
-        enum_ty: TypeId,
+        enum_ty: MonoTypeId,
         variant: &CgEnumVariant,
     ) -> Result<StructType<'ctx>, LlvmEmitError> {
         let key = self.enum_boxed_payload_key(
@@ -860,7 +909,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(super) fn get_or_create_enum_boxed_payload_type_desc_global(
         &mut self,
         at: crate::span::Span,
-        enum_ty: TypeId,
+        enum_ty: MonoTypeId,
         variant: &CgEnumVariant,
         payload_obj_ty: StructType<'ctx>,
     ) -> Result<GlobalValue<'ctx>, LlvmEmitError> {

@@ -4,6 +4,7 @@
 //! - 该模块主要承载 `block/if/when` 等需要显式 CFG 结构的 lowering；
 //! - effect/continuation/GC/statepoint 相关逻辑会在后续任务（T0102e）继续拆分。
 
+use super::ty::CodegenMonoInput;
 use super::*;
 
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
@@ -22,7 +23,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             CgTy::Unit
         } else {
             expected
-                .or_else(|| self.cg_ty_of(out_ty))
+                .or_else(|| self.try_cg_ty_of_type_id(out_ty))
                 .unwrap_or_else(|| {
                     std::panic::panic_any(
                         "codegen_if_expr: verifier accepted unlowerable if output type",
@@ -809,7 +810,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     );
                 };
 
-                let TypeKind::Value(ValueTypeKind::Tuple(tuple_elems)) = self.types.kind(tuple_ty)
+                let TypeKind::Value(ValueTypeKind::Tuple(tuple_elems)) =
+                    self.types.kind(tuple_ty.inner())
                 else {
                     panic!(
                         "when tuple binding: typecheck accepted tuple pattern without tuple schema"
@@ -975,15 +977,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     /// 注意：
     /// - 该 helper 假设调用者已经先做了 tag 判别；
     /// - 对 boxed payload 必须在 tag 命中后再解引用，避免错误解引用其它 variant 的 payload 指针。
-    pub(super) fn extract_matched_when_variant_field_value(
+    pub(super) fn extract_matched_when_variant_field_value<T: CodegenMonoInput>(
         &mut self,
-        enum_ty: TypeId,
+        enum_ty: T,
         repr: CgEnumRepr,
         variant: &CgEnumVariant,
         field_idx: usize,
         field_span: crate::span::Span,
         subject_ptr: PointerValue<'ctx>,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let enum_ty = self.mono_type_id(enum_ty, "matched when variant field extraction");
         let field_cg = *variant
             .fields
             .get(field_idx)
@@ -1419,19 +1422,20 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 self.codegen_ref_is_instance_of(at, ptr, target_ty)
             }
             _ => Ok(self.const_when_bool(
-                self.cg_ty_of(target_ty)
+                self.try_cg_ty_of_type_id(target_ty)
                     .is_some_and(|target_cg| target_cg == subject_ty),
             )),
         }
     }
 
-    pub(super) fn codegen_when_pat_cond_for_enum(
+    pub(super) fn codegen_when_pat_cond_for_enum<T: CodegenMonoInput>(
         &mut self,
         at: crate::span::Span,
-        enum_ty: TypeId,
+        enum_ty: T,
         pat: &hir::WhenPat,
         subject_ptr: PointerValue<'ctx>,
     ) -> Result<IntValue<'ctx>, LlvmEmitError> {
+        let enum_ty = self.mono_type_id(enum_ty, "when enum pattern condition");
         // 注意：先从共享 cache 取出 enum layout，再抽取后续 builder 真正需要的信息。
         let (repr, variants) = {
             let cg_layout = self.cg_enum_layout(at, enum_ty)?;
@@ -1490,7 +1494,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(super) fn codegen_when_pat_cond_for_enum_with_tag(
         &mut self,
         at: crate::span::Span,
-        enum_ty: TypeId,
+        enum_ty: MonoTypeId,
         variants: &[CgEnumVariant],
         tag: IntValue<'ctx>,
         pat: &hir::WhenPat,
@@ -1538,7 +1542,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     fn codegen_when_variant_pat_cond_full(
         &mut self,
         at: crate::span::Span,
-        enum_ty: TypeId,
+        enum_ty: MonoTypeId,
         variants: &[CgEnumVariant],
         tag: IntValue<'ctx>,
         pat: &hir::WhenPat,
@@ -1816,13 +1820,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
     }
 
-    pub(super) fn codegen_when_pat_cond_for_tuple(
+    pub(super) fn codegen_when_pat_cond_for_tuple<T: CodegenMonoInput>(
         &mut self,
         at: crate::span::Span,
-        tuple_ty: TypeId,
+        tuple_ty: T,
         pat: &hir::WhenPat,
         subject_ptr: PointerValue<'ctx>,
     ) -> Result<IntValue<'ctx>, LlvmEmitError> {
+        let tuple_ty = self.mono_type_id(tuple_ty, "when tuple pattern condition");
         match pat {
             hir::WhenPat::Else { .. }
             | hir::WhenPat::Wildcard { .. }
@@ -1876,14 +1881,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         None
     }
 
-    pub(super) fn codegen_when_tuple_pat_cond(
+    pub(super) fn codegen_when_tuple_pat_cond<T: CodegenMonoInput>(
         &mut self,
         at: crate::span::Span,
-        tuple_ty: TypeId,
+        tuple_ty: T,
         elements: &[hir::WhenPat],
         subject_ptr: PointerValue<'ctx>,
     ) -> Result<IntValue<'ctx>, LlvmEmitError> {
-        let TypeKind::Value(ValueTypeKind::Tuple(tuple_elems)) = self.types.kind(tuple_ty) else {
+        let tuple_ty = self.mono_type_id(tuple_ty, "when tuple pattern condition");
+        let TypeKind::Value(ValueTypeKind::Tuple(tuple_elems)) = self.types.kind(tuple_ty.inner())
+        else {
             panic!(
                 "codegen_when_tuple_pat_cond: typecheck accepted tuple pattern without tuple schema"
             );
@@ -1930,7 +1937,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(super) fn codegen_when_pat_cond_for_tuple_elem(
         &mut self,
         at: crate::span::Span,
-        tuple_ty: TypeId,
+        tuple_ty: MonoTypeId,
         elem_idx: usize,
         elem_ty: CgTy,
         tuple_v: inkwell::values::StructValue<'ctx>,
@@ -1957,7 +1964,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     "when_tuple_elem",
                 )?;
                 let value = self.cg_value_from_loaded(pat.span(), elem_ty, raw)?;
-                let tmp_name = format!("when_tuple_nested_{}_{}", tuple_ty.as_u32(), elem_idx);
+                let tmp_name = format!(
+                    "when_tuple_nested_{}_{}",
+                    tuple_ty.inner().as_u32(),
+                    elem_idx
+                );
                 self.codegen_when_pat_cond_for_extracted_value(at, pat, elem_ty, value, &tmp_name)
             }
             hir::WhenPat::BoolLit { value, .. } => {
@@ -2064,7 +2075,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     unreachable!("typecheck must reject tuple subpatterns for non-tuple elements");
                 };
 
-                let TypeKind::Value(ValueTypeKind::Tuple(_)) = self.types.kind(nested_tuple_ty)
+                let TypeKind::Value(ValueTypeKind::Tuple(_)) =
+                    self.types.kind(nested_tuple_ty.inner())
                 else {
                     panic!(
                         "codegen_when_pat_cond_for_tuple_elem: typecheck accepted nested tuple pattern without tuple schema"
@@ -2079,7 +2091,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     "when_tuple_elem",
                 )?;
                 let nested_value = self.cg_value_from_loaded(pat.span(), elem_ty, nested_raw)?;
-                let tmp_name = format!("when_tuple_nested_{}_{}", tuple_ty.as_u32(), elem_idx);
+                let tmp_name = format!(
+                    "when_tuple_nested_{}_{}",
+                    tuple_ty.inner().as_u32(),
+                    elem_idx
+                );
                 let tmp_ptr = self.create_entry_alloca(at, &tmp_name, elem_ty)?;
                 let _ = self.store_local_value(at, tmp_ptr, elem_ty, nested_value)?;
                 self.codegen_when_tuple_pat_cond(at, nested_tuple_ty, elements, tmp_ptr)
@@ -2219,7 +2235,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             ) {
                 None
             } else {
-                self.cg_ty_of(block.ty)
+                self.try_cg_ty_of_type_id(block.ty)
             }
         });
 

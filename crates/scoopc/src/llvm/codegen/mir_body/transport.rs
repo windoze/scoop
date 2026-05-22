@@ -47,7 +47,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     "composite value erasure source type must stay materialized before LLVM lowering",
                 )
             })?;
-        let source_cg = self.cg_ty_of(source_ty).ok_or_else(|| {
+        let source_cg = self.try_cg_ty_of_type_id(source_ty).ok_or_else(|| {
             super::composite_transport::composite_transport_gate_error(
                 &body_fqn,
                 span,
@@ -210,7 +210,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 "codegen_platform_literal: sysroot contract accepted non-struct Platform result type"
             );
         };
-        let TypeKind::Value(ValueTypeKind::Nominal(nominal)) = self.types.kind(struct_ty) else {
+        let TypeKind::Value(ValueTypeKind::Nominal(nominal)) = self.types.kind(struct_ty.inner())
+        else {
             panic!(
                 "codegen_platform_literal: sysroot contract accepted non-nominal Platform result type"
             );

@@ -2,19 +2,22 @@
 
 #![allow(dead_code)]
 
+use super::ty::CodegenMonoInput;
 use super::*;
 
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
-    pub(in crate::llvm::codegen) fn tuple_element_cg_ty(
+    pub(in crate::llvm::codegen) fn tuple_element_cg_ty<T: CodegenMonoInput>(
         &self,
-        tuple_ty: TypeId,
+        tuple_ty: T,
         index: usize,
     ) -> Option<CgTy> {
-        let TypeKind::Value(ValueTypeKind::Tuple(elements)) = self.types.kind(tuple_ty) else {
+        let tuple_ty = tuple_ty.try_into_mono_type_id(self)?;
+        let TypeKind::Value(ValueTypeKind::Tuple(elements)) = self.types.kind(tuple_ty.inner())
+        else {
             return None;
         };
         let elem_ty = *elements.get(index)?;
-        self.cg_ty_of(elem_ty)
+        self.try_cg_ty_of_type_id(elem_ty)
     }
 
     pub(in crate::llvm::codegen) fn bind_mir_params(

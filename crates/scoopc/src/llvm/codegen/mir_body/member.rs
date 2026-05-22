@@ -182,7 +182,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     "codegen_mir_store_top_level_var: verifier accepted immutable extern global store target"
                 );
             }
-            let target_cg = self.expect_cg_ty_of(
+            let target_cg = self.cg_ty_of_type_id(
                 self.lir_global_root_ty(&root, "extern global store target type"),
                 "extern global store target type",
             );
@@ -205,7 +205,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 "codegen_mir_store_top_level_var",
             )
             .clone();
-        let target_cg = self.expect_cg_ty_of(
+        let target_cg = self.cg_ty_of_type_id(
             self.lir_global_root_ty(&root, "MIR top-level var store target type"),
             "MIR top-level var store target type",
         );
@@ -269,7 +269,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
         }
 
-        let receiver_cg = self.expect_cg_ty_of(receiver_type_id, "MIR member receiver type");
+        let receiver_cg = self.cg_ty_of_type_id(receiver_type_id, "MIR member receiver type");
         let CgTy::Struct(struct_ty) = receiver_cg else {
             return Err(frontend_error(format!(
                 "pass MIR member field target `{field_fqn}` receiver_ty=t{} receiver_cg={}",

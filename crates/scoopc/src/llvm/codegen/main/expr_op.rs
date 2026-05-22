@@ -21,10 +21,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // call sites like `Continuation.resume(payload)` do not regress when
         // the payload comes from a top-level typed binding.
         if let Some(concrete_ty) = self.resolve_expr_concrete_type(expr) {
-            return self.cg_ty_of(concrete_ty);
+            return self.try_cg_ty_of_type_id(concrete_ty);
         }
 
-        self.cg_ty_of(expr.ty)
+        self.try_cg_ty_of_type_id(expr.ty)
     }
 
     pub(in crate::llvm::codegen) fn is_unsuffixed_float64_literal(expr: &hir::Expr) -> bool {
@@ -110,7 +110,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         expr: &hir::Expr,
         target_ty: TypeId,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        let target_cg = self.expect_cg_ty_of(target_ty, "`as` cast target type");
+        let target_cg = self.cg_ty_of_type_id(target_ty, "`as` cast target type");
         let target_ptr_ty = match target_cg {
             CgTy::Ref => self.llvm_gc_i8_ptr_type(),
             CgTy::String => self.llvm_scoop_string_ptr_type(),
@@ -185,12 +185,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         out_ty: TypeId,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         // `as?` 的结果类型应为 `Option<target_ty>`（或等价 nullable sugar）。
-        let out_cg = self.expect_cg_ty_of(out_ty, "`as?` cast result type");
+        let out_cg = self.cg_ty_of_type_id(out_ty, "`as?` cast result type");
         let CgTy::Enum(option_ty) = out_cg else {
             panic!("codegen_cast_asq_expr: typecheck gate accepted non-Option `as?` result type");
         };
 
-        let target_cg = self.expect_cg_ty_of(target_ty, "`as?` cast target type");
+        let target_cg = self.cg_ty_of_type_id(target_ty, "`as?` cast target type");
         let target_ptr_ty = match target_cg {
             CgTy::Ref => self.llvm_gc_i8_ptr_type(),
             CgTy::String => self.llvm_scoop_string_ptr_type(),

@@ -355,7 +355,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let (source_ty, cg_ty) = if let Some(source_ty) =
             self.equivalent_codegen_type_id(mir_types, metadata.source_ty)
         {
-            let cg_ty = self.cg_ty_of(source_ty).ok_or_else(|| {
+            let cg_ty = self.try_cg_ty_of_type_id(source_ty).ok_or_else(|| {
                 composite_transport_gate_error(
                     body_fqn,
                     span,

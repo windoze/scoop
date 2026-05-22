@@ -12,6 +12,7 @@ use inkwell::IntPredicate;
 use inkwell::values::{BasicValueEnum, IntValue, PointerValue, StructValue};
 
 use super::super::LlvmEmitError;
+use super::ty::CodegenMonoInput;
 use super::{CgTy, CgValue, IntTy, MainCodegen};
 use crate::ty::{TypeId, TypeKind, ValueTypeKind};
 
@@ -296,18 +297,25 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .into_pointer_value())
     }
 
-    pub(in crate::llvm::codegen) fn is_task_transport_tuple_ty(&self, tuple_ty: TypeId) -> bool {
-        let TypeKind::Value(ValueTypeKind::Tuple(elements)) = self.types.kind(tuple_ty) else {
+    pub(in crate::llvm::codegen) fn is_task_transport_tuple_ty<T: CodegenMonoInput>(
+        &self,
+        tuple_ty: T,
+    ) -> bool {
+        let Some(tuple_ty) = tuple_ty.try_into_mono_type_id(self) else {
+            return false;
+        };
+        let TypeKind::Value(ValueTypeKind::Tuple(elements)) = self.types.kind(tuple_ty.inner())
+        else {
             return false;
         };
         if elements.len() != 2 {
             return false;
         }
 
-        let Some(first) = self.cg_ty_of(elements[0]) else {
+        let Some(first) = self.try_cg_ty_of_type_id(elements[0]) else {
             return false;
         };
-        let Some(second) = self.cg_ty_of(elements[1]) else {
+        let Some(second) = self.try_cg_ty_of_type_id(elements[1]) else {
             return false;
         };
 
@@ -322,7 +330,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         context: &str,
     ) -> TypeId {
         source_ty.unwrap_or_else(|| match cg_ty {
-            CgTy::Tuple(ty) | CgTy::Struct(ty) | CgTy::Enum(ty) => ty,
+            CgTy::Tuple(ty) | CgTy::Struct(ty) | CgTy::Enum(ty) => ty.inner(),
             _ => panic!(
                 "composite_effect_transport_source_ty: non-composite value reached composite transport while {context}"
             ),
@@ -353,10 +361,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .build_extract_value(tuple, 1, "task_transport_gc_ref")?
             .into_pointer_value();
 
-        let TypeKind::Value(ValueTypeKind::Tuple(elements)) = self.types.kind(tuple_ty) else {
+        let TypeKind::Value(ValueTypeKind::Tuple(elements)) = self.types.kind(tuple_ty.inner())
+        else {
             unreachable!("validated above")
         };
-        let Some(CgTy::Int(word_ty)) = self.cg_ty_of(elements[0]) else {
+        let Some(CgTy::Int(word_ty)) = self.try_cg_ty_of_type_id(elements[0]) else {
             unreachable!("validated above")
         };
         let word = self.cast_int(
@@ -568,17 +577,18 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 ),
             }),
             CgTy::Tuple(tuple_ty) if self.is_task_transport_tuple_ty(tuple_ty) => {
-                let TypeKind::Value(ValueTypeKind::Tuple(elements)) = self.types.kind(tuple_ty)
+                let TypeKind::Value(ValueTypeKind::Tuple(elements)) =
+                    self.types.kind(tuple_ty.inner())
                 else {
                     unreachable!("validated above")
                 };
                 let first_cg =
-                    self.cg_ty_of(elements[0])
+                    self.try_cg_ty_of_type_id(elements[0])
                         .unwrap_or_else(|| {
                             panic!("decode_effect_transport_value: TypeStore equivalence verifier accepted unsupported task transport tuple first element type")
                         });
                 let second_cg =
-                    self.cg_ty_of(elements[1])
+                    self.try_cg_ty_of_type_id(elements[1])
                         .unwrap_or_else(|| {
                             panic!("decode_effect_transport_value: TypeStore equivalence verifier accepted unsupported task transport tuple second element type")
                         });

@@ -31,7 +31,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
             crate::mir::ConstValue::Unit => Ok(CgValue::unit()),
             crate::mir::ConstValue::Int => {
-                let int_ty = match expected.or_else(|| self.cg_ty_of(self.builtins.int)) {
+                let int_ty = match expected.or_else(|| self.try_cg_ty_of_type_id(self.builtins.int))
+                {
                     Some(CgTy::Int(int_ty)) => int_ty,
                     _ => panic!(
                         "codegen_mir_const: MIR verifier accepted Int literal without an Int codegen type"
@@ -55,7 +56,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 ))
             }
             crate::mir::ConstValue::SynthInt(value) => {
-                let int_ty = match expected.or_else(|| self.cg_ty_of(self.builtins.int)) {
+                let int_ty = match expected.or_else(|| self.try_cg_ty_of_type_id(self.builtins.int))
+                {
                     Some(CgTy::Int(int_ty)) => int_ty,
                     _ => panic!(
                         "codegen_mir_const: MIR verifier accepted synthesized Int without an Int codegen type"
@@ -259,7 +261,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .equivalent_runtime_ref_codegen_type_id(mir_types, metadata.target_ty)
             .unwrap_or_else(|| panic!("codegen_mir_is_pattern_match: MIR verifier accepted unsupported runtime target type"));
         let target_cg = self
-            .cg_ty_of(target_ty)
+            .try_cg_ty_of_type_id(target_ty)
             .unwrap_or_else(|| panic!("codegen_mir_is_pattern_match: MIR verifier accepted non-codegen runtime target type"));
         if !matches!(target_cg, CgTy::Ref | CgTy::String) {
             panic!(
@@ -296,7 +298,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 "codegen_mir_tuple_pattern_match: MIR verifier accepted tuple pattern for non-tuple subject"
             );
         };
-        let TypeKind::Value(ValueTypeKind::Tuple(tuple_elems)) = self.types.kind(tuple_ty) else {
+        let TypeKind::Value(ValueTypeKind::Tuple(tuple_elems)) = self.types.kind(tuple_ty.inner())
+        else {
             panic!(
                 "codegen_mir_tuple_pattern_match: MIR verifier accepted tuple pattern without tuple schema"
             );
@@ -527,7 +530,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(in crate::llvm::codegen) fn extract_mir_enum_tag_value(
         &mut self,
         _span: crate::span::Span,
-        enum_ty: TypeId,
+        enum_ty: MonoTypeId,
         repr: CgEnumRepr,
         raw: BasicValueEnum<'ctx>,
     ) -> Result<IntValue<'ctx>, LlvmEmitError> {

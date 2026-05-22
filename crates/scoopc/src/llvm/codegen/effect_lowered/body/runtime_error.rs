@@ -141,6 +141,15 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
                 )));
             }
         };
+        let payload_ty = self
+            .codegen
+            .equivalent_codegen_mono_type_id(self.source_types, payload_ty)
+            .unwrap_or_else(|| {
+                panic!(
+                    "runtime_error_unit_variant_payload: RuntimeError payload t{} has no codegen TypeStore equivalent",
+                    payload_ty.as_u32()
+                )
+            });
         Ok(CgValue {
             ty: CgTy::Enum(payload_ty),
             value: Some(raw),

@@ -15,11 +15,11 @@ fn direct_call_dispatch_fqn(fqn: &str) -> &str {
 
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     fn callable_source_carrier_tys_impl(&self, carrier_ty: TypeId) -> Option<Vec<TypeId>> {
-        let types = self.codegen_type_store_for_type_id(carrier_ty)?;
-        match types.kind(carrier_ty) {
+        let carrier_ty = self.try_mono_type_id(carrier_ty)?;
+        match self.types.kind(carrier_ty.inner()) {
             TypeKind::Value(ValueTypeKind::Tuple(elements)) => Some(elements.clone()),
             TypeKind::Value(ValueTypeKind::Unit) => Some(Vec::new()),
-            _ => Some(vec![carrier_ty]),
+            _ => Some(vec![carrier_ty.inner()]),
         }
     }
 
@@ -28,10 +28,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         span: crate::span::Span,
         ty: TypeId,
     ) -> Result<BasicMetadataTypeEnum<'ctx>, LlvmEmitError> {
-        let cg = self.cg_ty_of(ty).unwrap_or_else(|| {
+        let cg = self.try_cg_ty_of_type_id(ty).unwrap_or_else(|| {
             let ty_desc = self
-                .codegen_type_store_for_type_id(ty)
-                .map(|types| types.display(ty).to_string())
+                .try_mono_type_id(ty)
+                .map(|ty| self.types.display(ty.inner()).to_string())
                 .unwrap_or_else(|| format!("t{}", ty.as_u32()));
             tracing::warn!(
                 current_callable = ?self.function_cx.current_callable_fqn,
@@ -52,10 +52,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         span: crate::span::Span,
         ty: TypeId,
     ) -> Result<OrdinaryParamAbi<'ctx>, LlvmEmitError> {
-        let cg = self.cg_ty_of(ty).unwrap_or_else(|| {
+        let cg = self.try_cg_ty_of_type_id(ty).unwrap_or_else(|| {
             let ty_desc = self
-                .codegen_type_store_for_type_id(ty)
-                .map(|types| types.display(ty).to_string())
+                .try_mono_type_id(ty)
+                .map(|ty| self.types.display(ty.inner()).to_string())
                 .unwrap_or_else(|| format!("t{}", ty.as_u32()));
             tracing::warn!(
                 current_callable = ?self.function_cx.current_callable_fqn,
@@ -105,10 +105,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         span: crate::span::Span,
         ty: TypeId,
     ) -> Result<NativeParamAbi<'ctx>, LlvmEmitError> {
-        self.cg_ty_of(ty).unwrap_or_else(|| {
+        self.try_cg_ty_of_type_id(ty).unwrap_or_else(|| {
             let ty_desc = self
-                .codegen_type_store_for_type_id(ty)
-                .map(|types| types.display(ty).to_string())
+                .try_mono_type_id(ty)
+                .map(|ty| self.types.display(ty.inner()).to_string())
                 .unwrap_or_else(|| format!("t{}", ty.as_u32()));
             tracing::warn!(
                 current_callable = ?self.function_cx.current_callable_fqn,
@@ -130,10 +130,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         span: crate::span::Span,
         return_ty: TypeId,
     ) -> Result<NativeReturnAbi<'ctx>, LlvmEmitError> {
-        let cg_ty = self.cg_ty_of(return_ty).unwrap_or_else(|| {
+        let cg_ty = self.try_cg_ty_of_type_id(return_ty).unwrap_or_else(|| {
             let ty_desc = self
-                .codegen_type_store_for_type_id(return_ty)
-                .map(|types| types.display(return_ty).to_string())
+                .try_mono_type_id(return_ty)
+                .map(|ty| self.types.display(ty.inner()).to_string())
                 .unwrap_or_else(|| format!("t{}", return_ty.as_u32()));
             tracing::warn!(
                 current_callable = ?self.function_cx.current_callable_fqn,
@@ -692,7 +692,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 .get(param_idx)
                 .unwrap_or_else(|| std::panic::panic_any(kind));
             let target_cg = self
-                .cg_ty_of(param_ty)
+                .try_cg_ty_of_type_id(param_ty)
                 .unwrap_or_else(|| {
                     panic!("codegen_bound_call_args_impl: call ABI verifier accepted unsupported call arg type")
                 });

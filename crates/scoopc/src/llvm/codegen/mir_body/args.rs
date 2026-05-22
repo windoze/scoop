@@ -22,7 +22,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             if arg.name.is_some() {
                 panic!("codegen_mir_class_ctor_ordered_args: MIR verifier accepted {kind}");
             }
-            let param_cg = self.expect_cg_ty_of(param.ty.inner(), "MIR class ctor param type");
+            let param_cg = self.cg_ty_of_type_id(param.ty.inner(), "MIR class ctor param type");
             let value =
                 self.codegen_mir_operand_expected(arg.span, &arg.value, slots, Some(param_cg))?;
             let value = self.coerce_value(arg.span, value, param_cg)?;
@@ -253,9 +253,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 .cg_ty_of_mir_type(source_types, param_ty)
                 .or_else(|| {
                     self.equivalent_codegen_type_id(source_types, param_ty)
-                        .and_then(|ty| self.cg_ty_of(ty))
+                        .and_then(|ty| self.try_cg_ty_of_type_id(ty))
                 })
-                .or_else(|| self.cg_ty_of(param_ty))
+                .or_else(|| self.try_cg_ty_of_type_id(param_ty))
                 .unwrap_or_else(|| {
                     panic!("codegen_bound_mir_call_args_from_signature: TypeStore equivalence verifier accepted unsupported call arg type")
                 });

@@ -26,7 +26,7 @@ use crate::llvm::LlvmEmitError;
 use crate::mir::{self, LocalId};
 use crate::span::Span;
 use crate::stable_id::canonical_record;
-use crate::ty::{RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind};
+use crate::ty::{MonoTypeId, RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind};
 
 use super::super::mir_body::MirLocalSlot;
 use super::super::types::{CgTy, CgValue, IntTy};
@@ -226,7 +226,7 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
             .or_else(|| {
                 self.codegen
                     .equivalent_codegen_type_id(self.source_types, entry.return_ty())
-                    .and_then(|ty| self.codegen.cg_ty_of(ty))
+                    .and_then(|ty| self.codegen.try_cg_ty_of_type_id(ty))
             })
             .unwrap_or_else(|| {
                 panic!(
@@ -997,7 +997,8 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
         let CgTy::Struct(struct_ty) = target_cg else {
             return Ok(());
         };
-        let TypeKind::Value(ValueTypeKind::Nominal(nominal)) = self.codegen.types.kind(struct_ty)
+        let TypeKind::Value(ValueTypeKind::Nominal(nominal)) =
+            self.codegen.types.kind(struct_ty.inner())
         else {
             return Ok(());
         };
@@ -1104,8 +1105,8 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
         }))
     }
 
-    fn source_type_matching_codegen_ty(&self, codegen_ty: TypeId) -> Option<TypeId> {
-        let display = self.codegen.types.display(codegen_ty).to_string();
+    fn source_type_matching_codegen_ty(&self, codegen_ty: MonoTypeId) -> Option<TypeId> {
+        let display = self.codegen.types.display(codegen_ty.inner()).to_string();
         self.source_types
             .iter_ids()
             .find(|&ty| self.source_types.display(ty).to_string() == display)
@@ -2657,7 +2658,7 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
                     "extern global target is not writable",
                 );
             }
-            let cg_ty = self.codegen.expect_cg_ty_of(
+            let cg_ty = self.codegen.cg_ty_of_type_id(
                 self.codegen
                     .lir_global_root_ty(&root, "effect_lowered_atomic extern global"),
                 "effect_lowered_atomic extern global",
@@ -2680,7 +2681,7 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
                 "effect_lowered_atomic_top_level_place_for_local",
             )
             .clone();
-        let cg_ty = self.codegen.expect_cg_ty_of(
+        let cg_ty = self.codegen.cg_ty_of_type_id(
             self.codegen
                 .lir_global_root_ty(&root, "effect_lowered_atomic top-level var"),
             "effect_lowered_atomic top-level var",
@@ -2736,7 +2737,7 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
             self.atomic_member_receiver_codegen_type_id(span, receiver, member)?;
         let receiver_cg = self
             .codegen
-            .expect_cg_ty_of(receiver_type_id, "effect_lowered_atomic member receiver");
+            .cg_ty_of_type_id(receiver_type_id, "effect_lowered_atomic member receiver");
         if let Some((class, field_idx, field_cg)) =
             self.codegen
                 .lookup_class_field_by_fqn(field_fqn, span, Some(receiver_type_id))?
@@ -2795,7 +2796,7 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
         &mut self,
         span: Span,
         receiver: &mir::Operand,
-        struct_ty: TypeId,
+        struct_ty: MonoTypeId,
         require_writable: bool,
     ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
         let mir::Operand::Local(local) = receiver else {
@@ -3002,7 +3003,7 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
         for (index, (_, source_ty)) in source_arg_tys.iter().enumerate() {
             let param_cg =
                 self.codegen
-                    .cg_ty_of(*source_ty)
+                    .try_cg_ty_of_type_id(*source_ty)
                     .unwrap_or_else(|| {
                         panic!(
                             "lower_top_level_funptr_direct_call: FunPtr call verifier accepted non-codegen param type at {span:?}"
@@ -3029,7 +3030,7 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
 
         let ret_cg =
             self.codegen
-                .cg_ty_of(fun_ty.return_ty)
+                .try_cg_ty_of_type_id(fun_ty.return_ty)
                 .unwrap_or_else(|| {
                     panic!(
                         "lower_top_level_funptr_direct_call: FunPtr call verifier accepted non-codegen return type at {span:?}"

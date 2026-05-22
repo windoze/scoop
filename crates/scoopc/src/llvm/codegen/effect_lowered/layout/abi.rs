@@ -252,12 +252,15 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             }
             TypeKind::Value(ValueTypeKind::Option(inner)) => {
                 if let Some(codegen_ty) = self.equivalent_codegen_type_id_from_types(types, ty) {
-                    let cg_ty = self.codegen.cg_ty_of(codegen_ty).ok_or_else(|| {
-                        frontend_error(format!(
-                            "LLVM ABI materialization 无法为 `{}` 恢复 codegen 类型",
-                            types.display(ty)
-                        ))
-                    })?;
+                    let cg_ty = self
+                        .codegen
+                        .try_cg_ty_of_type_id(codegen_ty)
+                        .ok_or_else(|| {
+                            frontend_error(format!(
+                                "LLVM ABI materialization 无法为 `{}` 恢复 codegen 类型",
+                                types.display(ty)
+                            ))
+                        })?;
                     return self.codegen.llvm_basic_type_of(dummy_span(), cg_ty);
                 }
                 let key = crate::hir::mangle_nominal_fqn("scoop.core.Option", &[*inner], types);
@@ -289,12 +292,15 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                         .into());
                 }
                 if let Some(codegen_ty) = self.equivalent_codegen_type_id_from_types(types, ty) {
-                    let cg_ty = self.codegen.cg_ty_of(codegen_ty).ok_or_else(|| {
-                        frontend_error(format!(
-                            "LLVM ABI materialization 无法为 `{}` 恢复 codegen 类型",
-                            types.display(ty)
-                        ))
-                    })?;
+                    let cg_ty = self
+                        .codegen
+                        .try_cg_ty_of_type_id(codegen_ty)
+                        .ok_or_else(|| {
+                            frontend_error(format!(
+                                "LLVM ABI materialization 无法为 `{}` 恢复 codegen 类型",
+                                types.display(ty)
+                            ))
+                        })?;
                     return self.codegen.llvm_basic_type_of(dummy_span(), cg_ty);
                 }
                 self.llvm_nominal_value_type_from_layout(nominal)

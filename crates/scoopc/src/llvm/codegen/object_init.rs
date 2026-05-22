@@ -39,7 +39,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             );
         }
 
-        let prop_cg = self.expect_cg_ty_of(prop.ty, "object property type");
+        let prop_cg = self.cg_ty_of_type_id(prop.ty, "object property type");
 
         let init_fn = self.ensure_object_init_function_defined(&object_fqn)?;
         self.with_conservative_gc_local_root_spills(at, |cg| {
@@ -71,7 +71,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 "load_initialized_object_property_value: resolver accepted object property without metadata"
             );
         };
-        let prop_cg = self.expect_cg_ty_of(prop.ty, "initialized object property type");
+        let prop_cg = self.cg_ty_of_type_id(prop.ty, "initialized object property type");
         if prop_cg == CgTy::Unit {
             return Ok(CgValue::unit());
         }
@@ -253,7 +253,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         );
                     };
 
-                    let prop_cg = self.expect_cg_ty_of(prop.ty, "object property init type");
+                    let prop_cg = self.cg_ty_of_type_id(prop.ty, "object property init type");
 
                     let v = self.codegen_expr_in_expected_context(init, Some(prop_cg))?;
 

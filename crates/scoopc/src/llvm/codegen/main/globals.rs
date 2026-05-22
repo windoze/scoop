@@ -82,7 +82,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         let root_ty = self.lir_global_root_ty(root, "top-level var global type");
-        let cg_ty = self.expect_cg_ty_of(root_ty, "top-level var global type");
+        let cg_ty = self.cg_ty_of_type_id(root_ty, "top-level var global type");
 
         let span = crate::span::Span::synthetic_prelude();
         let llvm_ty = self.llvm_basic_type_of(span, cg_ty)?;
@@ -111,7 +111,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let Some(init) = v.init.as_ref() else {
             return Ok(());
         };
-        let cg_ty = self.expect_cg_ty_of(v.ty, "top-level var eager init type");
+        let cg_ty = self.cg_ty_of_type_id(v.ty, "top-level var eager init type");
         if cg_ty == CgTy::Unit {
             return Ok(());
         }
@@ -168,7 +168,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         if !initializer_absent {
             panic!("declare_extern_global_storage: verifier accepted extern global initializer");
         }
-        let cg_ty = self.expect_cg_ty_of(ty, "extern global storage type");
+        let cg_ty = self.cg_ty_of_type_id(ty, "extern global storage type");
         let llvm_ty = self.llvm_basic_type_of(span, cg_ty)?;
         let gv = self
             .module

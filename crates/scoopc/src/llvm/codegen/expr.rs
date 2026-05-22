@@ -28,7 +28,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 *effect_ty,
                 op,
                 args,
-                expected.or_else(|| self.cg_ty_of(expr.ty)),
+                expected.or_else(|| self.try_cg_ty_of_type_id(expr.ty)),
             ),
             hir::ExprKind::Handle(handle) => self.codegen_handle_expr(expr.span, handle, expected),
             hir::ExprKind::Block(block) => {
@@ -38,7 +38,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 expr.span,
                 subject,
                 arms,
-                expected.or_else(|| self.cg_ty_of(expr.ty)),
+                expected.or_else(|| self.try_cg_ty_of_type_id(expr.ty)),
             ),
             hir::ExprKind::If {
                 cond,
@@ -141,7 +141,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 self.codegen_member_access(expr.span, receiver, member)
             }
             hir::ExprKind::When { subject, arms } => {
-                self.codegen_when_expr(expr.span, subject, arms, self.cg_ty_of(expr.ty))
+                self.codegen_when_expr(expr.span, subject, arms, self.try_cg_ty_of_type_id(expr.ty))
             }
             hir::ExprKind::If {
                 cond,
@@ -164,11 +164,17 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 effect_ty,
                 op,
                 args,
-            } => self.codegen_perform_expr(expr.span, *effect_ty, op, args, self.cg_ty_of(expr.ty)),
+            } => self.codegen_perform_expr(
+                expr.span,
+                *effect_ty,
+                op,
+                args,
+                self.try_cg_ty_of_type_id(expr.ty),
+            ),
             hir::ExprKind::Handle(handle) => {
                 // T1611: infer expected type from HIR when not in expected context,
                 // so statement-position handles don't need `val _: Unit = ...` workaround.
-                let inferred = self.cg_ty_of(expr.ty);
+                let inferred = self.try_cg_ty_of_type_id(expr.ty);
                 self.codegen_handle_expr(expr.span, handle, inferred)
             }
         }
@@ -268,7 +274,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 hir::CallArg::Positional(expr) => expr,
                 hir::CallArg::Named { value, .. } => value,
             };
-            let expected = self.cg_ty_of(expr.ty);
+            let expected = self.try_cg_ty_of_type_id(expr.ty);
             let value = match &expr.kind {
                 hir::ExprKind::Closure(closure) => {
                     self.codegen_closure_expr(expr.span, closure, expr.ty)?
@@ -328,7 +334,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         tuple_ty: TypeId,
         values: &[(TypeId, CgValue<'ctx>)],
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        let CgTy::Tuple(tuple_cg) = self.cg_ty_of(tuple_ty).unwrap_or_else(|| {
+        let CgTy::Tuple(tuple_cg) = self.try_cg_ty_of_type_id(tuple_ty).unwrap_or_else(|| {
             panic!(
                 "build_tuple_payload_value: type verifier accepted non-codegen perform payload tuple type at {span:?}"
             )

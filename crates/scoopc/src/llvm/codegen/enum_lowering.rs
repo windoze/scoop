@@ -1,5 +1,6 @@
 //! Enum constructor, payload coercion, and enum-constant lowering split out of `codegen/mod.rs`.
 
+use super::ty::CodegenMonoInput;
 use super::*;
 
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
@@ -34,13 +35,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.build_enum_value(span, enum_ty, tag, CgEnumPayload::default())
     }
 
-    pub(in crate::llvm::codegen) fn codegen_enum_variant_ctor_call(
+    pub(in crate::llvm::codegen) fn codegen_enum_variant_ctor_call<T: CodegenMonoInput>(
         &mut self,
         span: crate::span::Span,
-        enum_ty: TypeId,
+        enum_ty: T,
         variant_name: &str,
         args: &[hir::CallArg],
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let enum_ty = self.mono_type_id(enum_ty, "enum variant ctor call");
         let layout = self.cg_enum_layout(span, enum_ty)?;
         let variant = layout
             .variants
@@ -79,13 +81,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.build_enum_variant_value_from_field_values(span, enum_ty, variant_name, &field_values)
     }
 
-    pub(in crate::llvm::codegen) fn build_enum_variant_value_from_field_values(
+    pub(in crate::llvm::codegen) fn build_enum_variant_value_from_field_values<
+        T: CodegenMonoInput,
+    >(
         &mut self,
         span: crate::span::Span,
-        enum_ty: TypeId,
+        enum_ty: T,
         variant_name: &str,
         field_values: &[(crate::span::Span, CgTy, DeferredCgValue<'ctx>)],
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let enum_ty = self.mono_type_id(enum_ty, "enum variant value builder");
         let layout = self.cg_enum_layout(span, enum_ty)?;
         let variant = layout
             .variants
@@ -373,13 +378,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
     }
 
-    pub(in crate::llvm::codegen) fn build_enum_value(
+    pub(in crate::llvm::codegen) fn build_enum_value<T: CodegenMonoInput>(
         &mut self,
         at: crate::span::Span,
-        enum_ty: TypeId,
+        enum_ty: T,
         tag: u64,
         payload: CgEnumPayload<'ctx>,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        let enum_ty = self.mono_type_id(enum_ty, "enum value builder");
         // 注意：`cg_enum_layout(...)` 当前会返回一份从共享 cache 克隆出来的 layout；
         // 这里仍先提取出后续需要的字段，避免把整份 layout 在长分支里来回搬运。
         let (repr, some_field) = {

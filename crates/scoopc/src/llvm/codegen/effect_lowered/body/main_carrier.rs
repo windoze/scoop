@@ -464,7 +464,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 env_param.span
             );
         };
-        let TypeKind::Value(ValueTypeKind::Tuple(elements)) = self.types.kind(tuple_ty) else {
+        let TypeKind::Value(ValueTypeKind::Tuple(elements)) = self.types.kind(tuple_ty.inner())
+        else {
             panic!(
                 "load_closure_env_components: closure ABI verifier accepted non-tuple env type id at {:?}",
                 env_param.span
@@ -473,7 +474,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let capture_cgs = elements
             .iter()
             .map(|ty| {
-                self.cg_ty_of(*ty)
+                self.try_cg_ty_of_type_id(*ty)
                     .unwrap_or_else(|| {
                         panic!(
                             "load_closure_env_components: closure ABI verifier accepted non-codegen capture type at {:?}",

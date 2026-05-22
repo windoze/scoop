@@ -172,16 +172,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         ty: TypeId,
         context: &str,
     ) -> Result<String, LlvmEmitError> {
-        let types =
-            self.codegen_type_store_for_type_id(ty)
-                .ok_or_else(|| LlvmEmitError::Frontend {
-                    message: format!("{context} 缺少 codegen type store"),
-                })?;
-        canonical_type_text(types, ty, self.stable_type_param_resolver()).map_err(|err| {
-            LlvmEmitError::Frontend {
+        let ty = self
+            .try_mono_type_id(ty)
+            .ok_or_else(|| LlvmEmitError::Frontend {
+                message: format!("{context} 缺少 codegen type store"),
+            })?;
+        canonical_type_text(self.types, ty.inner(), self.stable_type_param_resolver()).map_err(
+            |err| LlvmEmitError::Frontend {
                 message: format!("{context} 无法构造 stable canonical type key: {err}"),
-            }
-        })
+            },
+        )
     }
 
     pub(in crate::llvm::codegen) fn stable_rtti_type_id_for_codegen(
@@ -189,16 +189,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         ty: TypeId,
         context: &str,
     ) -> Result<u64, LlvmEmitError> {
-        let types =
-            self.codegen_type_store_for_type_id(ty)
-                .ok_or_else(|| LlvmEmitError::Frontend {
-                    message: format!("{context} 缺少 codegen type store"),
-                })?;
-        stable_rtti_type_id_for_type(types, ty, self.stable_type_param_resolver()).map_err(|err| {
-            LlvmEmitError::Frontend {
+        let ty = self
+            .try_mono_type_id(ty)
+            .ok_or_else(|| LlvmEmitError::Frontend {
+                message: format!("{context} 缺少 codegen type store"),
+            })?;
+        stable_rtti_type_id_for_type(self.types, ty.inner(), self.stable_type_param_resolver())
+            .map_err(|err| LlvmEmitError::Frontend {
                 message: format!("{context} 无法构造 stable RTTI type id: {err}"),
-            }
-        })
+            })
     }
 
     pub(in crate::llvm::codegen) fn stable_def_key_for_callable_signature(

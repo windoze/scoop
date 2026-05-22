@@ -305,9 +305,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &mut self,
         at: crate::span::Span,
         value: CgValue<'ctx>,
-        target_enum: TypeId,
+        target_enum: MonoTypeId,
     ) -> Result<Option<CgValue<'ctx>>, LlvmEmitError> {
-        let TypeKind::Value(ValueTypeKind::Option(target_inner)) = self.types.kind(target_enum)
+        let TypeKind::Value(ValueTypeKind::Option(target_inner)) =
+            self.types.kind(target_enum.inner())
         else {
             return Ok(None);
         };
@@ -322,7 +323,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             return Ok(None);
         }
 
-        let target_inner_cg = self.expect_cg_ty_of(*target_inner, "Option<T> inner type");
+        let target_inner_cg = self.cg_ty_of_type_id(*target_inner, "Option<T> inner type");
 
         let Some(raw) = value.value else {
             return Ok(None);

@@ -1,25 +1,31 @@
-# Current Invocation Plan
+# Claude Execution Plan
 
-This file records the actionable execution plan and progress for the current TODO-driven invocation. It intentionally contains concise rationale and observable steps, not private reasoning.
+## Scope
 
-## Plan
+- Follow `TODO.md` as the authoritative task list.
+- Identify the first task whose heading is not prefixed with `[DONE]`.
+- Complete exactly that one task, then stop after committing the result.
 
-1. Read `TODO.md` first and identify the first task whose heading is not prefixed with `[DONE]`.
-2. Check recent git context only as needed for the selected task, including whether the latest commit mentions an unfinished issue directly relevant to it.
-3. Read the selected task details, dependencies, validation requirements, and nearby completion records.
-4. Inspect the relevant implementation and tests for that task.
-5. Implement the task fully, or if a concrete prerequisite blocks spec-correct implementation, update `TODO.md` with the minimum prerequisite task and stop after committing that bookkeeping change.
-6. Run targeted validation first, then broader required validation from the task where feasible. Any unscheduled failing test or fixture observed will be fixed or explicitly scheduled before marking the task complete.
-7. Update `TODO.md` by prefixing the completed task heading with `[DONE]` and adding a completion record. Update `PLAN.md` only if phase-level sequencing or criteria changed.
-8. Run formatting/linting or other quality checks required by the task and repository guidance.
-9. Inspect git status and diff, then commit all intended changes with a clear task-tagged commit message.
-10. Stop after exactly one completed task or after committing a blocking prerequisite update.
+## Execution Plan
 
-## Progress
+1. Read `TODO.md` to identify the first incomplete task and its requirements.
+2. Inspect the latest commit only for unfinished work directly relevant to that task.
+3. Read the relevant code, fixtures, and documentation needed for the selected task.
+4. Implement the smallest spec-correct change that fully satisfies the task.
+5. Add or update targeted tests/fixtures required by the task.
+6. Run targeted validation first, then broader required validation if practical.
+7. If any unscheduled failing test or fixture is observed, fix it or schedule the minimum prerequisite task before marking the current task done.
+8. Update `TODO.md` by prefixing the completed task heading with `[DONE]` and filling in its completion record.
+9. Update this file after key progress points or plan changes.
+10. Review `git status`, `git diff`, and recent commits, then commit all relevant changes with a descriptive task-tagged message.
 
-- Initial execution plan written before reading project task files or running commands.
-- Read `TODO.md`; the first incomplete task is `P7-T04-b-3R` in `TODO-6.md`.
-- Checked the latest commit summary: `f3f1c150 [P7-T04-b-3] Introduce ClassInstanceKey`, which is directly relevant to the selected review task.
-- Read `TODO-6.md` task details and started the review. Found two review-scope fixes to make: restrict `ClassInstanceKey::for_unparameterized` to HIR internals, and make the direct-style MIR production verifier reject class constructor target type mismatch instead of leaving that solely to materialized/codegen validation.
-- Implemented the review fixes, formatted the workspace, and reran `cargo test -p scoopc --no-default-features mir`; it passed with 172 tests.
-- Completed required validation for the review task, updated `TODO-6.md` and `TODO.md` to mark `P7-T04-b-3R` done, and recorded the review conclusion plus validation commands.
+## Current Status
+
+- Selected first incomplete task: `P7-T04-b-4` from `TODO-6.md`.
+- Latest commit `a0902e9c [P7-T04-b-3R] Review ClassInstanceKey keying` does not indicate an unfinished issue that changes the selected task.
+- Implemented the core migration shape: `CgTy` aggregate variants now carry `MonoTypeId`, `cg_ty_of` is infallible over `MonoTypeId`, `expect_cg_ty_of` and the `monomorph miss` warning path are removed, and `codegen_type_store_for_type_id` has been deleted.
+- Layout side tables for struct and enum fields now store `Option<MonoTypeId>` at the codegen boundary; LIR/HIR fact emission converts back to raw `TypeId` only for existing fact wire contracts.
+- Fixed the observed `parameterized_supertype_interface_dispatch.scoop` regression by making erased interface reference dispatch use the erased `Any` receiver ABI instead of the generic interface template receiver `TypeId`.
+- Validation completed: `cargo fmt`; `cargo test -p scoopc_types`; `cargo test -p scoopc --no-default-features hir`; `cargo test -p scoopc --no-default-features mir`; `cargo test -p scoopc --no-default-features llvm::codegen`; `cargo test -p scoopc --no-default-features llvm::codegen::effect_lowered`; `cargo test -p scoopc llvm::codegen`; `cargo run -p scoop -- test --fixtures tests/fixtures/effect_lowered`; `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`; `cargo clippy --all-targets -- -D warnings`; `git diff --check`.
+- `TODO.md` and `TODO-6.md` now mark `P7-T04-b-4` as `[DONE]` with completion records.
+- Next step: final diff/status checks and commit the completed task.

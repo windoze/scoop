@@ -872,7 +872,6 @@ const INTERNAL_BUG_SENTINEL_HITS: &[&str] = &[
     "crates/scoopc/src/llvm/codegen/main/context.rs:101:            _ => panic!(\"expect_int_value: value was not an integer while {context}\"),",
     "crates/scoopc/src/llvm/codegen/main/context.rs:113:            _ => panic!(\"expect_float_value: value was not a float while {context}\"),",
     "crates/scoopc/src/llvm/codegen/main/context.rs:125:            _ => panic!(\"expect_struct_value: value was not a struct while {context}\"),",
-    "crates/scoopc/src/llvm/codegen/main/context.rs:132:            panic!(\"expect_cg_ty_of: type verifier accepted a non-codegen type while {context}\")",
     "crates/scoopc/src/llvm/codegen/main/context.rs:143:            panic!(\"expect_cg_bool: value was not a bool payload while {context}\")",
     "crates/scoopc/src/llvm/codegen/main/context.rs:154:            panic!(\"expect_cg_int: value was not an integer payload while {context}\")",
     "crates/scoopc/src/llvm/codegen/main/context.rs:165:            panic!(\"expect_cg_float: value was not a float payload while {context}\")",

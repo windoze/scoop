@@ -2,6 +2,7 @@
 
 #![allow(dead_code)]
 
+use super::ty::CodegenMonoInput;
 use super::*;
 
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
@@ -22,7 +23,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             vec![None; param_tys.len()];
         for (arg_idx, arg) in args.iter().enumerate() {
             let param_idx = arg_to_param[arg_idx];
-            let target_cg = self.expect_cg_ty_of(param_tys[param_idx], "closure call arg type");
+            let target_cg = self.cg_ty_of_type_id(param_tys[param_idx], "closure call arg type");
             let value =
                 self.codegen_mir_operand_expected(arg.span, &arg.value, slots, Some(target_cg))?;
             let coerced = self.coerce_value(arg.span, value, target_cg)?;
@@ -98,7 +99,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             let param_idx = arg_to_param[arg_idx];
             let target_cg = self
                 .cg_ty_of_mir_type(mir_types, param_tys[param_idx])
-                .or_else(|| self.cg_ty_of(param_tys[param_idx]))
+                .or_else(|| self.try_cg_ty_of_type_id(param_tys[param_idx]))
                 .unwrap_or_else(|| {
                     panic!(
                         "codegen_mir_funptr_value_args: materialized MIR verifier accepted unsupported FunPtr argument type"
@@ -164,14 +165,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(env_ty)
     }
 
-    pub(in crate::llvm::codegen) fn mir_value_box_object_type(
+    pub(in crate::llvm::codegen) fn mir_value_box_object_type<T: CodegenMonoInput>(
         &mut self,
         at: crate::span::Span,
-        source_ty: TypeId,
+        source_ty: T,
         source_cg: CgTy,
     ) -> Result<StructType<'ctx>, LlvmEmitError> {
+        let source_ty = self.mono_type_id(source_ty, "MIR value box object type");
         let key = CanonicalTextKey::new(
-            self.canonical_type_key_text_for_codegen(source_ty, "MIR value box LLVM type")?,
+            self.canonical_type_key_text_for_codegen(source_ty.inner(), "MIR value box LLVM type")?,
         );
         let name = PrivateSymbolMangler.type_name("MirValueBox", "mir_value_box_type", &key);
         if let Some(existing) = self.context.get_struct_type(&name) {
@@ -210,14 +212,19 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         })
     }
 
-    pub(in crate::llvm::codegen) fn get_or_create_mir_value_box_type_desc_global(
+    pub(in crate::llvm::codegen) fn get_or_create_mir_value_box_type_desc_global<
+        T: CodegenMonoInput,
+    >(
         &mut self,
         at: crate::span::Span,
-        source_ty: TypeId,
+        source_ty: T,
         box_ty: StructType<'ctx>,
     ) -> Result<GlobalValue<'ctx>, LlvmEmitError> {
-        let base_type_key =
-            self.canonical_type_key_text_for_codegen(source_ty, "MIR value box type descriptor")?;
+        let source_ty = self.mono_type_id(source_ty, "MIR value box type descriptor");
+        let base_type_key = self.canonical_type_key_text_for_codegen(
+            source_ty.inner(),
+            "MIR value box type descriptor",
+        )?;
         let key = CanonicalTextKey::new(base_type_key.clone());
         let global_name = PrivateSymbolMangler.mangle("mir_value_box_type_desc", &key);
         if let Some(existing) = self.module.get_global(&global_name) {
@@ -240,12 +247,18 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         })
     }
 
-    pub(in crate::llvm::codegen) fn get_or_create_mir_value_box_itable_global(
+    pub(in crate::llvm::codegen) fn get_or_create_mir_value_box_itable_global<
+        T: CodegenMonoInput,
+    >(
         &mut self,
         at: crate::span::Span,
-        source_ty: TypeId,
+        source_ty: T,
     ) -> Result<Option<GlobalValue<'ctx>>, LlvmEmitError> {
-        let TypeKind::Value(ValueTypeKind::Nominal(nominal)) = self.types.kind(source_ty) else {
+        let Some(source_ty) = source_ty.try_into_mono_type_id(self) else {
+            return Ok(None);
+        };
+        let TypeKind::Value(ValueTypeKind::Nominal(nominal)) = self.types.kind(source_ty.inner())
+        else {
             return Ok(None);
         };
         if !self
@@ -260,17 +273,21 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
         let owner_key = CanonicalTextKey::new(canonical_record(
             "mir_value_box_itable_owner",
-            [self.canonical_type_key_text_for_codegen(source_ty, "MIR value box itable owner")?],
+            [self.canonical_type_key_text_for_codegen(
+                source_ty.inner(),
+                "MIR value box itable owner",
+            )?],
         ));
         self.get_or_create_itable_global_from_entries(at, &owner_key, &entries)
     }
 
     pub(in crate::llvm::codegen) fn materialized_value_box_member_impl_fqn(
         &self,
-        source_ty: TypeId,
+        source_ty: MonoTypeId,
         impl_member_fqn: &str,
     ) -> String {
-        let TypeKind::Value(ValueTypeKind::Nominal(nominal)) = self.types.kind(source_ty) else {
+        let TypeKind::Value(ValueTypeKind::Nominal(nominal)) = self.types.kind(source_ty.inner())
+        else {
             return impl_member_fqn.to_string();
         };
         let Some((owner_fqn, _)) = impl_member_fqn.rsplit_once('.') else {
@@ -290,11 +307,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         crate::hir::stable_instance_fqn(self.types, &template, &nominal.args, &[], "")
     }
 
-    pub(in crate::llvm::codegen) fn mir_value_box_itable_entries(
+    pub(in crate::llvm::codegen) fn mir_value_box_itable_entries<T: CodegenMonoInput>(
         &self,
-        source_ty: TypeId,
+        source_ty: T,
     ) -> Result<Vec<crate::itable::ClassItableEntry>, LlvmEmitError> {
-        let TypeKind::Value(ValueTypeKind::Nominal(nominal)) = self.types.kind(source_ty) else {
+        let Some(source_ty) = source_ty.try_into_mono_type_id(self) else {
+            return Ok(Vec::new());
+        };
+        let TypeKind::Value(ValueTypeKind::Nominal(nominal)) = self.types.kind(source_ty.inner())
+        else {
             return Ok(Vec::new());
         };
         let mut interfaces = Vec::new();
@@ -310,11 +331,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 })?;
                 let mut method_impl_fqns = Vec::with_capacity(iface.method_slots.len());
                 let value_receiver_type_id = self
-                    .stable_rtti_type_id_for_codegen(source_ty, "MIR value box receiver RTTI")
+                    .stable_rtti_type_id_for_codegen(
+                        source_ty.inner(),
+                        "MIR value box receiver RTTI",
+                    )
                     .map_err(|err| {
                         frontend_error(format!(
                             "MIR value box `{}` 无法构造 receiver stable RTTI type id: {err}",
-                            self.types.display(source_ty)
+                            self.types.display(source_ty.inner())
                         ))
                     })?;
                 let mut method_receiver_type_ids = Vec::with_capacity(iface.method_slots.len());

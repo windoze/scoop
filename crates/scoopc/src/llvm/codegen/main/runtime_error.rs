@@ -2,6 +2,7 @@
 
 #![allow(dead_code)]
 
+use super::ty::CodegenMonoInput;
 use super::*;
 
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
@@ -109,13 +110,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .find(|type_id| self.is_raise_runtime_error_effect(*type_id))
     }
 
-    pub(in crate::llvm::codegen) fn box_composite_effect_transport_value(
+    pub(in crate::llvm::codegen) fn box_composite_effect_transport_value<T: CodegenMonoInput>(
         &mut self,
         at: crate::span::Span,
-        source_ty: TypeId,
+        source_ty: T,
         source: CgValue<'ctx>,
         label: &str,
     ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
+        let source_ty = self.mono_type_id(source_ty, "composite effect transport box");
         let deferred_source =
             self.defer_gc_sensitive_cg_value(at, &format!("{label}_source"), source)?;
         let box_obj_ty = self.mir_value_box_object_type(at, source_ty, source.ty)?;

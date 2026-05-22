@@ -9,7 +9,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &mut self,
         span: crate::span::Span,
         _body: &crate::mir::Body,
-        mir_types: &TypeStore,
+        _mir_types: &TypeStore,
         elements: &[crate::mir::Operand],
         target_cg: CgTy,
         slots: &[MirLocalSlot<'ctx>],
@@ -17,17 +17,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let CgTy::Tuple(tuple_ty) = target_cg else {
             panic!("codegen_mir_make_tuple: MIR verifier accepted non-tuple aggregate target type");
         };
-        let (element_tys, use_primary_types) = {
-            let tuple_types = self
-                .codegen_type_store_for_type_id(tuple_ty)
-                .unwrap_or(mir_types);
-            let TypeKind::Value(ValueTypeKind::Tuple(element_tys)) = tuple_types.kind(tuple_ty)
+        let element_tys = {
+            let TypeKind::Value(ValueTypeKind::Tuple(element_tys)) =
+                self.types.kind(tuple_ty.inner())
             else {
                 panic!(
                     "codegen_mir_make_tuple: MIR verifier accepted tuple target without tuple schema"
                 );
             };
-            (element_tys.clone(), std::ptr::eq(tuple_types, self.types))
+            element_tys.clone()
         };
         if element_tys.len() != elements.len() {
             panic!("codegen_mir_make_tuple: MIR verifier accepted tuple aggregate arity drift");
@@ -38,12 +36,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             Vec::with_capacity(elements.len());
 
         for (idx, (operand, elem_ty)) in elements.iter().zip(element_tys.iter()).enumerate() {
-            let elem_cg = if use_primary_types {
-                self.cg_ty_of(*elem_ty)
-            } else {
-                self.cg_ty_of_mir_type(mir_types, *elem_ty)
-            }
-            .unwrap_or_else(|| {
+            let elem_cg = self.try_cg_ty_of_type_id(*elem_ty).unwrap_or_else(|| {
                 panic!(
                     "codegen_mir_make_tuple: MIR verifier accepted unsupported tuple element type"
                 )
@@ -248,7 +241,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 "codegen_mir_make_struct: MIR verifier accepted non-struct aggregate target type"
             );
         };
-        let TypeKind::Value(ValueTypeKind::Nominal(nominal)) = self.types.kind(struct_ty) else {
+        let TypeKind::Value(ValueTypeKind::Nominal(nominal)) = self.types.kind(struct_ty.inner())
+        else {
             panic!(
                 "codegen_mir_make_struct: MIR verifier accepted struct target without nominal schema"
             );

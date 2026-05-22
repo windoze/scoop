@@ -1109,7 +1109,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .cg_ty_of_mir_type(mir_types, source_ty)
             .or_else(|| {
                 self.equivalent_codegen_type_id(mir_types, source_ty)
-                    .and_then(|ty| self.cg_ty_of(ty))
+                    .and_then(|ty| self.try_cg_ty_of_type_id(ty))
             })
             .unwrap_or_else(|| {
                 panic!("lower_named_intrinsic_mir_operand: TypeStore equivalence verifier accepted unsupported named intrinsic operand codegen type")
@@ -2296,7 +2296,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .unwrap_or_else(|| {
                 self.panic_verified_intrinsic_contract("named intrinsic array element type", kind)
             });
-        let elem_cg = self.cg_ty_of(elem_ty).unwrap_or_else(|| {
+        let elem_cg = self.try_cg_ty_of_type_id(elem_ty).unwrap_or_else(|| {
             self.panic_verified_intrinsic_contract(
                 "named intrinsic array element codegen type",
                 kind,

@@ -8,7 +8,7 @@ use inkwell::values::FloatValue;
 use inkwell::values::IntValue;
 use inkwell::values::PointerValue;
 
-use crate::ty::TypeId;
+use crate::ty::MonoTypeId;
 use crate::ty::layout::NicheStorage;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -24,9 +24,9 @@ pub(super) enum CgTy {
     Float64,
     Float32,
     Int(IntTy),
-    Tuple(TypeId),
-    Struct(TypeId),
-    Enum(TypeId),
+    Tuple(MonoTypeId),
+    Struct(MonoTypeId),
+    Enum(MonoTypeId),
     /// runtime 字符串对象（early stage）
     ///
     /// 说明：

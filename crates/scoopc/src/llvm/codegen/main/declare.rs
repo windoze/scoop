@@ -57,7 +57,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let return_cg = native_abi
             .as_ref()
             .map(|abi| abi.return_abi.cg_ty)
-            .or_else(|| self.cg_ty_of(fun.return_ty))
+            .or_else(|| self.try_cg_ty_of_type_id(fun.return_ty))
             .unwrap_or_else(|| {
                 tracing::warn!(
                     "declare_top_level_fun: unsupported return type for {} -> {}",
@@ -195,7 +195,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let return_cg = native_abi
             .as_ref()
             .map(|abi| abi.return_abi.cg_ty)
-            .or_else(|| self.cg_ty_of(return_ty))
+            .or_else(|| self.try_cg_ty_of_type_id(return_ty))
             .unwrap_or_else(|| {
                 panic!("declare_top_level_fun_with_signature_override: MIR signature verifier accepted unsupported return type")
             });
@@ -317,7 +317,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .as_ref()
             .map(|abi| abi.return_abi.cg_ty)
             .or_else(|| self.cg_ty_of_mir_type(mir_types, fun.return_ty))
-            .or_else(|| self.cg_ty_of(codegen_return_ty))
+            .or_else(|| self.try_cg_ty_of_type_id(codegen_return_ty))
             .unwrap_or_else(|| {
                 tracing::warn!(
                     "declare_materialized_top_level_fun: unsupported return type for {} -> {}",
@@ -450,7 +450,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &mut self,
         fun: &hir::FunDecl,
     ) -> Result<FunctionValue<'ctx>, LlvmEmitError> {
-        let return_cg = self.cg_ty_of(fun.return_ty).unwrap_or_else(|| {
+        let return_cg = self.try_cg_ty_of_type_id(fun.return_ty).unwrap_or_else(|| {
             panic!("declare_top_level_fun_callee_resume_entry: MIR signature verifier accepted unsupported return type")
         });
         self.declare_callee_resume_entry_function(

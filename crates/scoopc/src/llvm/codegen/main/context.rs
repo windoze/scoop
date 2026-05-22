@@ -126,13 +126,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
     }
 
-    /// Return a lowered codegen type, or panic with a named compiler invariant.
-    pub(in crate::llvm::codegen) fn expect_cg_ty_of(&self, ty: TypeId, context: &str) -> CgTy {
-        self.cg_ty_of(ty).unwrap_or_else(|| {
-            panic!("expect_cg_ty_of: type verifier accepted a non-codegen type while {context}")
-        })
-    }
-
     /// Return a bool CgValue payload, or panic with a named compiler invariant.
     pub(in crate::llvm::codegen) fn expect_cg_bool(
         &self,

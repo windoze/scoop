@@ -1082,10 +1082,10 @@ pub(in crate::hir::lower) fn collect_struct_layouts(
             let mut fields: Vec<StructFieldLayout> = Vec::new();
             if let Some(primary_ctor) = &ty.primary_ctor {
                 for p in &primary_ctor.params {
-                    let ty = p
-                        .ty
-                        .as_ref()
-                        .and_then(|t| type_ref_to_layout_type_id(source, file, index, t, types));
+                    let ty =
+                        p.ty.as_ref()
+                            .and_then(|t| type_ref_to_layout_type_id(source, file, index, t, types))
+                            .map(|ty| mono_layout_type_id(types, ty, "struct field layout"));
                     let ty_fqn =
                         p.ty.as_ref()
                             .and_then(|t| index.type_ref_to_fqn_in_file(source, file, t));
@@ -1106,7 +1106,8 @@ pub(in crate::hir::lower) fn collect_struct_layouts(
                 |ty_ref| {
                     (
                         index.type_ref_to_fqn_in_file(source, file, ty_ref),
-                        type_ref_to_layout_type_id(source, file, index, ty_ref, types),
+                        type_ref_to_layout_type_id(source, file, index, ty_ref, types)
+                            .map(|ty| mono_layout_type_id(types, ty, "struct property layout")),
                     )
                 },
                 &mut fields,
@@ -1227,10 +1228,10 @@ pub(in crate::hir::lower) fn collect_enum_layouts(
                 let mut fields: Vec<EnumVariantFieldLayout> = Vec::new();
                 for p in &v.params {
                     let field_name = p.name.text(source).to_string();
-                    let ty = p
-                        .ty
-                        .as_ref()
-                        .and_then(|t| type_ref_to_layout_type_id(source, file, index, t, types));
+                    let ty =
+                        p.ty.as_ref()
+                            .and_then(|t| type_ref_to_layout_type_id(source, file, index, t, types))
+                            .map(|ty| mono_layout_type_id(types, ty, "enum payload layout"));
                     let ty_fqn =
                         p.ty.as_ref()
                             .and_then(|t| index.type_ref_to_fqn_in_file(source, file, t));

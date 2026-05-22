@@ -818,7 +818,7 @@
   - `sysroot_atomic_basic` 结论：随全量 `run-pass` 通过，路径走正确 `ClassInstanceKey` codegen 处理而不是 verifier 诊断；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass` 显示 `sysroot_atomic_basic.scoop` PASS，整体 421/421 passed。
   - 验证通过：`cargo fmt`；`cargo test -p scoopc_types`（25 passed）；`cargo test -p scoopc --no-default-features hir`（86 passed）；`cargo test -p scoopc --no-default-features mir`（172 passed）；`cargo test -p scoopc --no-default-features llvm::codegen::effect_lowered::layout`（0 filtered-in, pass）；`cargo run -p scoop -- test --fixtures tests/fixtures/effect_lowered`（10/10 passed）；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`（421/421 passed）；`cargo clippy --all-targets -- -D warnings`；`git diff --check`；额外搜索 `ClassInstanceKey\(` / `for_unparameterized|from_mono_nominal` / `class_fqn\.to_string\(\)` / `class_init_layout|class_ctor_layout_key|mir_class_ctor_layout_key`。
 
-## [TODO] P7-T04-b-4：codegen 全面切换到 `MonoTypeId` —— 删除 `cg_ty_of` 的 `Option` 与 `expect_cg_ty_of`
+## [DONE] P7-T04-b-4：codegen 全面切换到 `MonoTypeId` —— 删除 `cg_ty_of` 的 `Option` 与 `expect_cg_ty_of`
 
 - 阻塞原因：
   - `P7-T04-b-1..3` 完成后，`MonoTypeId` 与 `MonoClassInit` 已使 codegen 输入边界类型化，但 codegen 内部仍以 `TypeId` 作为通用 token 传递（163 个 `cg_ty_of(TypeId) -> Option<CgTy>` 与 52 个 `expect_cg_ty_of` 调用点），`expect_cg_ty_of` panic 路径仍可在 Rust 类型层成立。要把"non-codegen type 不可能进入 codegen"作为强不变量，必须把 codegen 内部 token 一次性升级为 `MonoTypeId`。
@@ -863,7 +863,13 @@
   - 全部 fixture suite 与 layout/codegen test 全绿。
 - 依赖：P7-T04-b-3R
 - 完成记录：
-  - 待填写。
+  - `CgTy::{Tuple, Struct, Enum}` 的载荷已从 raw `TypeId` 收紧为 `MonoTypeId`；`MainCodegen::cg_ty_of(MonoTypeId) -> CgTy` 现在是 infallible 入口，并改用 `TypeStore::kind_mono` 读取类型树，函数体不再存在 `TypeKind::Param` 分支。
+  - 删除 `expect_cg_ty_of` 与全部调用点；`rg expect_cg_ty_of crates/scoopc/src` 零命中。删除 `cg_ty_of` 中的 `monomorph miss` warning 路径；`rg "monomorph miss" crates/scoopc/src` 零命中。
+  - 删除 `codegen_type_store_for_type_id` 旧 fallback helper；跨 TypeStore 输入现在通过 `equivalent_codegen_mono_type_id` / `CodegenMonoInput` 边界桥接到 primary codegen `TypeStore` 中的 `MonoTypeId`，再进入 `cg_ty_of`。
+  - `StructFieldLayout.ty` 与 `EnumVariantFieldLayout.ty` 已改为 `Option<MonoTypeId>`；非泛型与泛型 struct/enum layout 构造点在写入 codegen layout side table 前调用 `TypeStore::as_mono`，HIR/LIR facts 维持现有 raw `TypeId` wire contract 时只在 facts emission 处取 `inner()`。
+  - `mir::LocalDecl.ty` 保持 raw `TypeId`：MIR 仍同时承载泛型模板与 materialized instance，不能把全局 MIR 数据结构改成 `MonoTypeId` 而不破坏模板表示；本任务改为在 MIR/effect-lowered/codegen 边界把可执行实例类型桥接为 `MonoTypeId`，`MirLocalSlot` 继续只保存已 lowered 的 `CgTy`。
+  - 修复迁移过程中暴露的 interface dispatch ABI 回归：引用 receiver 的 itable indirect call 使用 erased `Any` receiver ABI，而不是接口模板方法的泛型 receiver `TypeId`；`parameterized_supertype_interface_dispatch.scoop` 已作为 run-pass 全量验证的一部分通过。
+  - 验证通过：`cargo fmt`；`cargo test -p scoopc_types`；`cargo test -p scoopc --no-default-features hir`；`cargo test -p scoopc --no-default-features mir`；`cargo test -p scoopc --no-default-features llvm::codegen`；`cargo test -p scoopc --no-default-features llvm::codegen::effect_lowered`；`cargo test -p scoopc llvm::codegen`；`cargo run -p scoop -- test --fixtures tests/fixtures/effect_lowered`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`（421/421 passed）；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
 
 ## [TODO] P7-T04-b-4R：Review codegen `MonoTypeId` 全面切换
 

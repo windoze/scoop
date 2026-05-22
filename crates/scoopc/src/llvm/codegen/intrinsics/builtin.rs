@@ -277,7 +277,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             ),
         };
 
-        let arg_cg = self.expect_cg_ty_of(source_ty, "sizeOf reflection type argument");
+        let arg_cg = self.cg_ty_of_type_id(source_ty, "sizeOf reflection type argument");
         let llvm_ty = self.llvm_basic_type_of(type_span, arg_cg)?;
         let bytes = self.store_size_bytes_of_basic_type(llvm_ty);
 
@@ -294,7 +294,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         span: crate::span::Span,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         let source_ty = self.reflection_type_arg_for_current_call(span, "alignOf")?;
-        let arg_cg = self.expect_cg_ty_of(source_ty, "alignOf reflection type argument");
+        let arg_cg = self.cg_ty_of_type_id(source_ty, "alignOf reflection type argument");
         let llvm_ty = self.llvm_basic_type_of(span, arg_cg)?;
         let align = self.abi_align_bytes_of_basic_type(llvm_ty);
         let value_word = IntTy {

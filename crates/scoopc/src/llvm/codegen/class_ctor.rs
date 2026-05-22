@@ -309,7 +309,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 panic!("codegen_class_ctor_eval_args: verifier accepted {kind}")
             });
             let param = &ctor_params[param_idx];
-            let param_cg = self.expect_cg_ty_of(param.ty.inner(), "class ctor param type");
+            let param_cg = self.cg_ty_of_type_id(param.ty.inner(), "class ctor param type");
             let expr = match arg {
                 hir::CallArg::Positional(expr) => expr,
                 hir::CallArg::Named { value, .. } => value,
@@ -364,7 +364,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         .as_ref()
                         .unwrap_or_else(|| panic!("codegen_class_ctor_eval_args: verifier accepted missing default value for {kind}"));
                 let param_cg =
-                    self.expect_cg_ty_of(param.ty.inner(), "class ctor default param type");
+                    self.cg_ty_of_type_id(param.ty.inner(), "class ctor default param type");
                 let v = match &default_value.kind {
                     hir::ExprKind::Closure(closure) => {
                         self.codegen_closure_expr(default_value.span, closure, param.ty.inner())?
@@ -405,7 +405,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         expr_span: crate::span::Span,
         value: CgValue<'ctx>,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        let param_cg = self.expect_cg_ty_of(param.ty.inner(), "class ctor bound param type");
+        let param_cg = self.cg_ty_of_type_id(param.ty.inner(), "class ctor bound param type");
         let ptr = self.create_entry_alloca(param.decl_span, &param.name, param_cg)?;
         let stored = self.store_local_value(expr_span, ptr, param_cg, value)?;
         self.function_cx.env.insert(
@@ -496,7 +496,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             if !param.is_property {
                 continue;
             }
-            let param_cg = self.expect_cg_ty_of(param.ty.inner(), "class ctor property param type");
+            let param_cg =
+                self.cg_ty_of_type_id(param.ty.inner(), "class ctor property param type");
 
             let Some(field_fqn) = param.property_field_fqn.as_deref() else {
                 panic!(
@@ -539,7 +540,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         panic!("codegen_class_ctor_run_init_steps: verifier accepted property init field drift")
                     });
                     let field_cg =
-                        self.expect_cg_ty_of(field.ty.inner(), "class property init field type");
+                        self.cg_ty_of_type_id(field.ty.inner(), "class property init field type");
 
                     let v = self.codegen_expr_in_expected_context(init, Some(field_cg))?;
                     let obj_ptr = self.current_class_ctor_this_ptr(init.span, class)?;
@@ -659,7 +660,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 }
 
                 for (param, arg_v) in ctor_params.iter().zip(args.iter()) {
-                    let param_cg = cg.expect_cg_ty_of(param.ty.inner(), "class ctor invoke param type");
+                    let param_cg = cg.cg_ty_of_type_id(param.ty.inner(), "class ctor invoke param type");
                     let param_ptr =
                         cg.create_entry_alloca(param.decl_span, &param.name, param_cg)?;
                     let _ =

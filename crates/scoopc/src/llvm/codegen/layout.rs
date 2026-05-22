@@ -13,6 +13,7 @@ use crate::hir;
 use crate::ty::layout::{NicheDomain, NicheStorage, TargetLayout, TypeLayout};
 use crate::ty::{MonoTypeId, TypeId, TypeKind, ValueTypeKind};
 
+use super::ty::CodegenMonoInput;
 use super::types::{
     CgEnumLayout, CgEnumRepr, CgEnumVariant, CgTy, ENUM_BOX_DISPARITY_RATIO,
     ENUM_BOX_INLINE_THRESHOLD_WORDS, IntTy,
@@ -168,7 +169,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let field = class.fields.get(field_idx as usize).unwrap_or_else(|| {
             panic!("lookup_class_field_by_fqn_inner: verifier accepted class field index drift")
         });
-        let field_cg = self.expect_cg_ty_of(field.ty.inner(), "class field layout lookup");
+        let field_cg = self.cg_ty_of_type_id(field.ty.inner(), "class field layout lookup");
         Ok(Some((class, field_idx, field_cg)))
     }
 
@@ -188,21 +189,20 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .cloned()
     }
 
-    pub(super) fn lookup_struct_field(
+    pub(super) fn lookup_struct_field<T: CodegenMonoInput>(
         &self,
-        struct_ty: TypeId,
+        struct_ty: T,
         field_fqn: &str,
         _at: crate::span::Span,
     ) -> Result<(u32, CgTy), LlvmEmitError> {
-        let types = self
-            .codegen_type_store_for_type_id(struct_ty)
-            .expect("struct TypeId must belong to a codegen TypeStore");
-        let TypeKind::Value(ValueTypeKind::Nominal(nominal)) = types.kind(struct_ty) else {
+        let struct_ty = self.mono_type_id(struct_ty, "struct field lookup");
+        let TypeKind::Value(ValueTypeKind::Nominal(nominal)) = self.types.kind(struct_ty.inner())
+        else {
             std::panic::panic_any("struct layout lookup must receive a nominal value type");
         };
 
         // T0124：使用 mangled FQN 查找（支持泛型 struct 的具体实例化）。
-        let key = self.nominal_layout_key_from_types(nominal, types);
+        let key = self.nominal_layout_key_from_types(nominal, self.types);
         let layout = self
             .struct_layouts
             .get(&key)
@@ -234,13 +234,17 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok((llvm_idx, field_ty))
     }
 
-    pub(super) fn struct_clayout(&self, struct_ty: TypeId) -> Option<hir::StructCLayout> {
-        let types = self.codegen_type_store_for_type_id(struct_ty)?;
-        let TypeKind::Value(ValueTypeKind::Nominal(nominal)) = types.kind(struct_ty) else {
+    pub(super) fn struct_clayout<T: CodegenMonoInput>(
+        &self,
+        struct_ty: T,
+    ) -> Option<hir::StructCLayout> {
+        let struct_ty = struct_ty.try_into_mono_type_id(self)?;
+        let TypeKind::Value(ValueTypeKind::Nominal(nominal)) = self.types.kind(struct_ty.inner())
+        else {
             return None;
         };
         // T0124：使用 mangled FQN 查找。
-        let key = self.nominal_layout_key_from_types(nominal, types);
+        let key = self.nominal_layout_key_from_types(nominal, self.types);
         self.struct_layouts
             .get(&key)
             .and_then(|layout| layout.c_layout)
@@ -280,20 +284,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(field_ptr)
     }
 
-    pub(super) fn lookup_tuple_element(
+    pub(super) fn lookup_tuple_element<T: CodegenMonoInput>(
         &self,
-        tuple_ty: TypeId,
+        tuple_ty: T,
         elem_idx: u32,
         _at: crate::span::Span,
     ) -> Result<CgTy, LlvmEmitError> {
-        let types = self
-            .codegen_type_store_for_type_id(tuple_ty)
-            .unwrap_or_else(|| {
-                panic!(
-                    "lookup_tuple_element: verifier accepted tuple TypeId outside codegen TypeStore"
-                )
-            });
-        let TypeKind::Value(ValueTypeKind::Tuple(elements)) = types.kind(tuple_ty) else {
+        let tuple_ty = self.mono_type_id(tuple_ty, "tuple element lookup");
+        let TypeKind::Value(ValueTypeKind::Tuple(elements)) = self.types.kind(tuple_ty.inner())
+        else {
             panic!("lookup_tuple_element: verifier accepted non-tuple TypeId for tuple lookup");
         };
 
@@ -302,9 +301,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .copied()
             .unwrap_or_else(|| panic!("lookup_tuple_element: verifier accepted tuple index drift"));
 
-        self.cg_ty_of(elem_ty).ok_or_else(|| {
-            panic!("lookup_tuple_element: verifier accepted unsupported tuple element type")
-        })
+        Ok(self.cg_ty_of_type_id(elem_ty, "tuple element lookup"))
     }
 
     pub(super) fn target_layout(&self) -> TargetLayout {
@@ -324,10 +321,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         let target = self.target_layout();
-        let Some(types) = self.codegen_type_store_for_type_id(ty) else {
+        let Some(mono_ty) = self.try_mono_type_id(ty) else {
             return TypeLayout::new(target.pointer_size, target.pointer_align);
         };
-        let kind = types.kind(ty).clone();
+        let kind = self.types.kind(mono_ty.inner()).clone();
 
         let layout = match kind {
             TypeKind::Ref(_) => TypeLayout::new(target.pointer_size, target.pointer_align)
@@ -463,28 +460,30 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         TypeLayout::new(size, align)
     }
 
-    pub(super) fn cg_enum_layout(
+    pub(super) fn cg_enum_layout<T: CodegenMonoInput>(
         &mut self,
         at: crate::span::Span,
-        enum_ty: TypeId,
+        enum_ty: T,
     ) -> Result<CgEnumLayout, LlvmEmitError> {
+        let enum_ty = self.mono_type_id(enum_ty, "enum layout lookup");
+        let cache_key = enum_ty.inner();
         if !self
             .shared_caches
             .enum_cg_layout_cache
             .borrow()
-            .contains_key(&enum_ty)
+            .contains_key(&cache_key)
         {
             let computed = self.compute_cg_enum_layout(at, enum_ty)?;
             self.shared_caches
                 .enum_cg_layout_cache
                 .borrow_mut()
-                .insert(enum_ty, computed);
+                .insert(cache_key, computed);
         }
         Ok(self
             .shared_caches
             .enum_cg_layout_cache
             .borrow()
-            .get(&enum_ty)
+            .get(&cache_key)
             .cloned()
             .expect("just inserted"))
     }
@@ -492,21 +491,18 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     fn compute_cg_enum_layout(
         &mut self,
         at: crate::span::Span,
-        enum_ty: TypeId,
+        enum_ty: MonoTypeId,
     ) -> Result<CgEnumLayout, LlvmEmitError> {
-        let types = self
-            .codegen_type_store_for_type_id(enum_ty)
-            .expect("enum TypeId must belong to a codegen TypeStore");
-        let kind = types.kind(enum_ty).clone();
+        let kind = self.types.kind(enum_ty.inner()).clone();
         match kind {
             TypeKind::Value(ValueTypeKind::Option(inner)) => {
                 // 确保 option niche 缓存已被填充（用于 nested niche）。
-                let _ = self.type_layout(enum_ty);
+                let _ = self.type_layout(enum_ty.inner());
                 let repr = match self
                     .shared_caches
                     .option_niche_cache
                     .borrow()
-                    .get(&enum_ty)
+                    .get(&enum_ty.inner())
                     .copied()
                     .flatten()
                 {
@@ -517,7 +513,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     None => CgEnumRepr::TaggedUnion,
                 };
 
-                let inner_cg = self.expect_cg_ty_of(inner, "Option<T> enum layout");
+                let inner_cg = self.cg_ty_of_type_id(inner, "Option<T> enum layout");
                 let some_boxed = self.enum_variant_requires_boxing(at, &[inner_cg])?;
 
                 Ok(CgEnumLayout {
@@ -539,7 +535,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 })
             }
             TypeKind::Value(ValueTypeKind::Nominal(nominal)) => {
-                let enum_key = self.nominal_layout_key_from_types(&nominal, types);
+                let enum_key = self.nominal_layout_key_from_types(&nominal, self.types);
                 let hir_layout = self.enum_layouts.get(&enum_key).unwrap_or_else(|| {
                     panic!("compute_cg_enum_layout: verifier accepted enum without layout metadata")
                 });
@@ -665,16 +661,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             // inline nested enum 目前只继续保留 niche path；
             // 其余 nested enum（含 nominal/value-only/tagged-union，以及 tagged-union `Option<T>`）
             // 一律进入 boxed payload 主线，避免落到 `{payload_word, payload_ptr}` 的错误旁路。
-            CgTy::Enum(enum_ty) => match self
-                .codegen_type_store_for_type_id(enum_ty)
-                .map(|types| types.kind(enum_ty))
-            {
-                Some(TypeKind::Value(ValueTypeKind::Option(_))) => Ok(!matches!(
+            CgTy::Enum(enum_ty) => match self.types.kind(enum_ty.inner()) {
+                TypeKind::Value(ValueTypeKind::Option(_)) => Ok(!matches!(
                     self.cg_enum_layout(at, enum_ty)?.repr,
                     CgEnumRepr::Niche { .. }
                 )),
-                Some(_) => Ok(true),
-                None => Ok(true),
+                _ => Ok(true),
             },
             _ => Ok(false),
         }

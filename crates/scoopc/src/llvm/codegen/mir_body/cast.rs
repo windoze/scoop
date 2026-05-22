@@ -86,9 +86,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .unwrap_or_else(|| {
                 panic!("codegen_mir_cast_as: TypeStore equivalence verifier accepted unsupported `as` target codegen type")
             });
-        let expected_cg = self.cg_ty_of(target_codegen_ty).unwrap_or_else(|| {
-            panic!("codegen_mir_cast_as: MIR verifier accepted unsupported `as` target type")
-        });
+        let expected_cg = self
+            .try_cg_ty_of_type_id(target_codegen_ty)
+            .unwrap_or_else(|| {
+                panic!("codegen_mir_cast_as: MIR verifier accepted unsupported `as` target type")
+            });
         let result_cg = if target_cg == CgTy::Never {
             expected_cg
         } else {
@@ -148,16 +150,18 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .unwrap_or_else(|| {
                 panic!("codegen_mir_cast_asq: TypeStore equivalence verifier accepted unsupported `as?` target codegen type")
             });
-        let target_value_cg = self.cg_ty_of(target_codegen_ty).unwrap_or_else(|| {
-            panic!("codegen_mir_cast_asq: MIR verifier accepted unsupported `as?` target type")
-        });
+        let target_value_cg = self
+            .try_cg_ty_of_type_id(target_codegen_ty)
+            .unwrap_or_else(|| {
+                panic!("codegen_mir_cast_asq: MIR verifier accepted unsupported `as?` target type")
+            });
         if !matches!(target_value_cg, CgTy::Ref | CgTy::String) {
             panic!(
                 "codegen_mir_cast_asq: MIR verifier accepted unsupported `as?` runtime target type"
             );
         }
         let option_codegen_ty = self
-            .equivalent_codegen_type_id(mir_types, *option_ty)
+            .equivalent_codegen_mono_type_id(mir_types, *option_ty)
             .unwrap_or_else(|| {
                 panic!("codegen_mir_cast_asq: TypeStore equivalence verifier accepted unsupported `as?` option codegen type")
             });
@@ -306,7 +310,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         obj_ptr: PointerValue<'ctx>,
         _target_ty: TypeId,
         target_cg: CgTy,
-        option_ty: TypeId,
+        option_ty: MonoTypeId,
         is_ok: inkwell::values::IntValue<'ctx>,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         let target_ptr_ty = self.runtime_cast_target_ptr_type(span, target_cg)?;

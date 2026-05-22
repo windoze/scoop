@@ -331,7 +331,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .init
             .as_ref()
             .unwrap_or_else(|| panic!("codegen_top_level_immutable_value_init_fun_body: verifier accepted immutable value without initializer"));
-        let value_cg = self.expect_cg_ty_of(value.ty, "top-level immutable value type");
+        let value_cg = self.cg_ty_of_type_id(value.ty, "top-level immutable value type");
         let init_value = self.codegen_initializer_expr(init, value_cg, value.ty)?;
         if let Some(global) =
             self.declare_top_level_immutable_value_global(init.span, value, value_cg)?
@@ -368,7 +368,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         at: crate::span::Span,
         value: &hir::TopLevelImmutableValue,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        let value_cg = self.expect_cg_ty_of(value.ty, "top-level immutable value access type");
+        let value_cg = self.cg_ty_of_type_id(value.ty, "top-level immutable value access type");
         self.emit_top_level_immutable_value_initialized_check(at, &value.fqn)?;
 
         if value_cg == CgTy::Unit {
@@ -391,7 +391,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         at: crate::span::Span,
         value: &hir::TopLevelImmutableValue,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        let value_cg = self.expect_cg_ty_of(value.ty, "top-level immutable initialized value type");
+        let value_cg =
+            self.cg_ty_of_type_id(value.ty, "top-level immutable initialized value type");
         self.emit_top_level_immutable_value_initialized_check(at, &value.fqn)?;
 
         if value_cg == CgTy::Unit {
@@ -455,7 +456,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             )
             .clone();
 
-        let cg_ty = self.expect_cg_ty_of(
+        let cg_ty = self.cg_ty_of_type_id(
             self.lir_global_root_ty(&root, "top-level value ref var type"),
             "top-level value ref var type",
         );
@@ -496,7 +497,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         span: crate::span::Span,
         root: &LirGlobalRootFacts,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        let cg_ty = self.expect_cg_ty_of(
+        let cg_ty = self.cg_ty_of_type_id(
             self.lir_global_root_ty(root, "extern global access type"),
             "extern global access type",
         );

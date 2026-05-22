@@ -745,12 +745,13 @@ pub struct StructFieldLayout {
     pub span: Span,
     pub name: String,
     pub fqn: String,
-    /// 字段的真实 TypeId（若 lowering 阶段可恢复）。
+    /// 字段的已单态化真实 TypeId（若 lowering 阶段可恢复）。
     ///
     /// 说明：
     /// - 优先供 LLVM 后端恢复 tuple / nullable 等没有稳定 FQN 文本的字段类型；
+    /// - 该字段是 codegen layout 边界，必须已经经过 `TypeStore::as_mono` 校验；
     /// - `ty_fqn` 继续保留给早期只识别 nominal/builtin 的兼容路径。
-    pub ty: Option<TypeId>,
+    pub ty: Option<MonoTypeId>,
     /// 字段类型的 FQN（当前仅对 `TypeRef::Path` 可解析；其它类型留空）。
     pub ty_fqn: Option<String>,
 }
@@ -801,12 +802,13 @@ pub struct EnumVariantLayout {
 pub struct EnumVariantFieldLayout {
     pub span: Span,
     pub name: String,
-    /// 字段的真实 TypeId（若 lowering 阶段可恢复）。
+    /// 字段的已单态化真实 TypeId（若 lowering 阶段可恢复）。
     ///
     /// 说明：
     /// - 用于让 LLVM 后端识别 tuple / nullable / 其它没有稳定 FQN 文本的 payload 字段；
+    /// - 该字段是 codegen layout 边界，必须已经经过 `TypeStore::as_mono` 校验；
     /// - `ty_fqn` 继续作为兼容兜底，避免现有 nominal/builtin 路径回退。
-    pub ty: Option<TypeId>,
+    pub ty: Option<MonoTypeId>,
     /// 字段类型的 FQN（当前仅对 `TypeRef::Path` 可解析；其它类型留空）。
     pub ty_fqn: Option<String>,
 }

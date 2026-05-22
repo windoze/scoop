@@ -655,7 +655,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         receiver_ptr: PointerValue<'ctx>,
         source_ty: TypeId,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        let source_cg = self.expect_cg_ty_of(source_ty, "itable value-box receiver type");
+        let source_cg = self.cg_ty_of_type_id(source_ty, "itable value-box receiver type");
         if source_cg == CgTy::Unit {
             return Ok(CgValue::unit());
         }
@@ -844,7 +844,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.builder.position_at_end(ok_bb);
 
         let ret_cg =
-            self.cg_ty_of(sig_fun.return_ty).unwrap_or_else(|| {
+            self.try_cg_ty_of_type_id(sig_fun.return_ty).unwrap_or_else(|| {
                 panic!("emit_interface_dispatch_indirect_call: call ABI verifier accepted unsupported return type")
             });
         let hidden_sret_result_ty = self.hidden_sret_result_ty(callee_span, ret_cg)?;
@@ -878,7 +878,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 &sig_fun.fqn,
                 lookup.fn_i8,
                 receiver_ptr.into(),
-                sig_fun.params[0].ty,
+                self.builtins.any,
                 &explicit_param_tys,
                 explicit_args,
                 ret_cg,
@@ -916,7 +916,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 &sig_fun.fqn,
                 lookup.fn_i8,
                 receiver_ptr.into(),
-                sig_fun.params[0].ty,
+                self.builtins.any,
                 &explicit_param_tys,
                 explicit_args,
                 ret_cg,
@@ -1779,7 +1779,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 let fallback_return_ty = fun.return_ty;
                 let inferred_param_tys = if fallback_param_tys
                     .iter()
-                    .any(|&ty| self.cg_ty_of(ty).is_none())
+                    .any(|&ty| self.try_cg_ty_of_type_id(ty).is_none())
                 {
                     let mut inferred = fallback_param_tys.clone();
                     let mut next_positional = 0usize;
@@ -1804,8 +1804,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                             }
                         };
                         let concrete_ty = self.resolve_expr_concrete_type(expr).unwrap_or(expr.ty);
-                        if self.cg_ty_of(inferred[param_index]).is_none()
-                            && self.cg_ty_of(concrete_ty).is_some()
+                        if self.try_cg_ty_of_type_id(inferred[param_index]).is_none()
+                            && self.try_cg_ty_of_type_id(concrete_ty).is_some()
                         {
                             inferred[param_index] = concrete_ty;
                             changed = true;
@@ -1817,8 +1817,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 };
                 let needs_published_sig = fallback_param_tys
                     .iter()
-                    .any(|&ty| self.cg_ty_of(ty).is_none())
-                    || self.cg_ty_of(fallback_return_ty).is_none();
+                    .any(|&ty| self.try_cg_ty_of_type_id(ty).is_none())
+                    || self.try_cg_ty_of_type_id(fallback_return_ty).is_none();
                 let (param_tys, return_ty) = if needs_published_sig {
                     self.published_callable_signature(fqn)
                         .or_else(|| {
@@ -1857,8 +1857,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     .unwrap_or(fun.return_ty);
                 let needs_published_sig = fallback_param_tys
                     .iter()
-                    .any(|&ty| self.cg_ty_of(ty).is_none())
-                    || self.cg_ty_of(fallback_return_ty).is_none();
+                    .any(|&ty| self.try_cg_ty_of_type_id(ty).is_none())
+                    || self.try_cg_ty_of_type_id(fallback_return_ty).is_none();
                 let (param_tys, return_ty) = if needs_published_sig {
                     self.published_callable_signature(fqn)
                         .or_else(|| {
@@ -1902,11 +1902,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .as_ref()
             .map(|abi| abi.return_abi.cg_ty)
             .or_else(|| match &sig_fun {
-                CallableSig::Hir(_) => self.cg_ty_of(return_ty),
+                CallableSig::Hir(_) => self.try_cg_ty_of_type_id(return_ty),
                 CallableSig::Mir(fun, types) => {
                     let mir_types = *types;
                     self.cg_ty_of_mir_type(mir_types, fun.return_ty)
-                        .or_else(|| self.cg_ty_of(return_ty))
+                        .or_else(|| self.try_cg_ty_of_type_id(return_ty))
                 }
             })
             .unwrap_or_else(|| {
@@ -2152,7 +2152,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         let ret_cg =
-            self.cg_ty_of(sig_fun.return_ty).unwrap_or_else(|| {
+            self.try_cg_ty_of_type_id(sig_fun.return_ty).unwrap_or_else(|| {
                 panic!("try_codegen_class_vtable_call_impl: call ABI verifier accepted unsupported vtable return type")
             });
         let hidden_sret_result_ty = self.hidden_sret_result_ty(callee_span, ret_cg)?;
@@ -2425,7 +2425,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let gc_i8_ptr_ty = self.llvm_gc_i8_ptr_type();
 
         let ret_cg = self
-            .cg_ty_of(fun_ty.return_ty)
+            .try_cg_ty_of_type_id(fun_ty.return_ty)
             .unwrap_or_else(|| {
                 panic!("codegen_function_value_call_from_closure_obj_impl: call ABI verifier accepted unsupported function-value return type")
             });

@@ -689,7 +689,7 @@ fn enum_layout_facts(layout: &crate::hir::EnumLayout) -> LirEnumLayoutFacts {
                     .iter()
                     .map(|field| LirEnumVariantFieldFacts {
                         name: field.name.clone(),
-                        ty: field.ty,
+                        ty: field.ty.map(|ty| ty.inner()),
                     })
                     .collect(),
             })

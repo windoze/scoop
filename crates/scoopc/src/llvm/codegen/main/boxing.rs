@@ -2,6 +2,7 @@
 
 #![allow(dead_code)]
 
+use super::ty::CodegenMonoInput;
 use super::*;
 
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
@@ -102,12 +103,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(raw_ptr)
     }
 
-    pub(in crate::llvm::codegen) fn codegen_box_enum_to_ref(
+    pub(in crate::llvm::codegen) fn codegen_box_enum_to_ref<T: CodegenMonoInput>(
         &mut self,
         at: crate::span::Span,
-        enum_ty: TypeId,
+        enum_ty: T,
         value: BasicValueEnum<'ctx>,
     ) -> Result<PointerValue<'ctx>, LlvmEmitError> {
+        let enum_ty = self.mono_type_id(enum_ty, "boxed enum to ref");
         let payload_ty = self.llvm_basic_type_of(at, CgTy::Enum(enum_ty))?;
         let object_ty = self.llvm_boxed_enum_type(enum_ty, payload_ty)?;
         let object_size = self.target_data.get_store_size(&object_ty);
@@ -141,11 +143,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     pub(in crate::llvm::codegen) fn llvm_boxed_enum_type(
         &self,
-        enum_ty: TypeId,
+        enum_ty: MonoTypeId,
         payload_ty: BasicTypeEnum<'ctx>,
     ) -> Result<StructType<'ctx>, LlvmEmitError> {
         let key = CanonicalTextKey::new(
-            self.canonical_type_key_text_for_codegen(enum_ty, "boxed enum LLVM type")?,
+            self.canonical_type_key_text_for_codegen(enum_ty.inner(), "boxed enum LLVM type")?,
         );
         let name = PrivateSymbolMangler.type_name("BoxedEnum", "boxed_enum_type", &key);
         if let Some(existing) = self.context.get_struct_type(&name) {
@@ -160,11 +162,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(in crate::llvm::codegen) fn get_or_create_boxed_enum_type_desc_global(
         &mut self,
         at: crate::span::Span,
-        enum_ty: TypeId,
+        enum_ty: MonoTypeId,
         object_ty: StructType<'ctx>,
     ) -> Result<GlobalValue<'ctx>, LlvmEmitError> {
-        let base_type_key =
-            self.canonical_type_key_text_for_codegen(enum_ty, "boxed enum type descriptor")?;
+        let base_type_key = self
+            .canonical_type_key_text_for_codegen(enum_ty.inner(), "boxed enum type descriptor")?;
         let key = CanonicalTextKey::new(base_type_key.clone());
         let global_name = PrivateSymbolMangler.mangle("boxed_enum_type_desc", &key);
         if let Some(existing) = self.module.get_global(&global_name) {
