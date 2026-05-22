@@ -4,7 +4,7 @@
 > 细化时间：2026-05-22
 > 计划基线：[`PLAN.md`](./PLAN.md) §4/P6-P8
 > 索引：[`TODO.md`](./TODO.md)
-> 当前状态：`P7-T02` 已完成；下一步执行 `P7-T02R`。
+> 当前状态：`P7-T02` 已完成；下一步执行 `P7-T02-a`。
 
 ## 范围
 
@@ -418,6 +418,47 @@
   - 验证通过：`cargo fmt`；`cargo test -p scoopc --no-default-features llvm::reachability`（LLVM feature-gated，无匹配测试但命令通过）；`cargo test -p scoopc llvm::reachability`；`cargo run -p scoop -- test --fixtures tests/fixtures/effect_lowered`；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
   - 完整 `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass` 已用 30 分钟 timeout 重跑：414/421 通过；剩余 7 个失败为既有非 P7-T02 baseline（`array_lit_infer_string_char_float_basic.scoop`、`array_lit_infer_unannotated_and_nested_basic.scoop`、`lang_mutable_array_new_string_ref.scoop`、`lang_mutable_array_new_struct_composite.scoop`、`std_process_args_exit_basic.scoop`、`stdlib_string_basic.scoop`、`sysroot_atomic_basic.scoop`）。
 
+## [TODO] P7-T02-a：修复 run-pass fixture baseline 失败
+
+- 目标：
+  - 修复 P6/P7 期间反复登记的 7 个既有 run-pass fixture baseline 失败；
+  - 让 `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass` 不再保留这些非 P6/P7 baseline 失败。
+- 已知失败 fixture：
+  1. `tests/fixtures/run-pass/array_lit_infer_unannotated_and_nested_basic.scoop`
+  2. `tests/fixtures/run-pass/array_lit_infer_string_char_float_basic.scoop`
+  3. `tests/fixtures/run-pass/lang_mutable_array_new_string_ref.scoop`
+  4. `tests/fixtures/run-pass/lang_mutable_array_new_struct_composite.scoop`
+  5. `tests/fixtures/run-pass/std_process_args_exit_basic.scoop`
+  6. `tests/fixtures/run-pass/stdlib_string_basic.scoop`
+  7. `tests/fixtures/run-pass/sysroot_atomic_basic.scoop`
+- 当前复现到的主要失败原因：
+  1. 多数 fixture 在 LLVM 前端准备阶段失败：materialized MIR 中仍有 unresolved generic direct call target `scoop.core.println`。
+  2. `lang_mutable_array_new_string_ref.scoop` 直接 `scoop run` 时会先暴露 `scoop.runtime.test.*` import 未解析；通过 fixture harness / `SYSROOT-DEPS` 注入后同样会落到 `scoop.core.println` 泛型 materialization 失败。
+- 必须修改的主要位置：
+  - `crates/scoopc/src/mir/materialize/`
+  - `crates/scoopc/src/pipeline/llvm_codegen_stage.rs` 或 LLVM frontend prepare 相关入口
+  - `sysroot/lib/scoop.core/src/print.scoop` 及 generic `println<T>` materialization 所需 facts/实例化通道
+  - `crates/scoop/src/fixtures/` 与 sysroot dependency 注入路径（仅当 `SYSROOT-DEPS` 未被正确传递时）
+  - 上述 7 个 run-pass fixtures / golden（仅在语义输出确有变化时）
+- 必须实现的内容：
+  1. 定位为什么这些 call site 在 materialized MIR 中仍指向泛型 `scoop.core.println`，并修复实例化/替换/发布链路；不得在 LLVM backend 恢复 HIR fallback 或把 unresolved generic call 当作 codegen 特例兜底。
+  2. 确认数组字面量、`MutableArray<T>`、`String` 方法、`main(args)` 与 Atomic sysroot API 相关路径都能获得 concrete callable target。
+  3. 复查 `SYSROOT-DEPS: scoop.runtime.test` 是否在 run-pass harness 进入 `scoop run` 子进程时正确传递；若传递已正确，只需在完成记录说明直接 `scoop run` 与 fixture harness 行为差异。
+  4. 如果修复需要新增 LIR/LIR facts 或 MIR materialization contract，必须放在正确 owner，不允许把 P7 backend cleanup 变成新的上游回看入口。
+- 验证：
+  1. `cargo fmt`
+  2. 逐个运行上述 7 个 fixtures：`cargo run -p scoop -- test --fixtures <fixture>`
+  3. `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`
+  4. `cargo clippy --all-targets -- -D warnings`
+  5. `git diff --check`
+- 完成条件：
+  - 上述 7 个 fixtures 全部通过；
+  - 全量 `tests/fixtures/run-pass` 不再保留这些 baseline 失败；
+  - 修复没有新增 LLVM HIR/raw MIR fallback、codegen 去虚化 residual 或 stage output wrapper 回退。
+- 依赖：P7-T02
+- 完成记录：
+  - 待填写。
+
 ## [TODO] P7-T02R：Review backend reachability cleanup
 
 - 参考：P7-T02。
@@ -430,7 +471,7 @@
   - 额外搜索 `llvm/reachability.rs` 中的 `hir::`、`mir::`、`MaterializedMirPassView`、`devirtual`。
 - 完成条件：
   - review 结论明确写出 backend reachability cleanup 成立，或列出阻塞项并在本 review 内修复。
-- 依赖：P7-T02
+- 依赖：P7-T02-a
 - 完成记录：
   - 待填写。
 

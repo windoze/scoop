@@ -10,7 +10,7 @@
 0. Identify the first incomplete task before doing broad issue triage. If the latest commit explicitly mentions an unfinished issue that is directly relevant to that task, treat it as part of the task or add it as a prerequisite in `TODO.md`. Do **not** perform an open-ended historical bug sweep before selecting the current task.
    - Treat an already-existing bug, regression, spec mismatch, incomplete implementation boundary, or workaround as immediately in scope only when it blocks the current task, invalidates the current task's specified behavior, or is a direct regression introduced while doing the current task.
    - If such an issue blocks the task you were trying to do, that issue becomes the work first: fix it before moving forward, or add it as a prerequisite task in `TODO.md`, and stop.
-   - Unrelated historical issues do not preempt the current TODO order. Record them only if they become concrete prerequisites for the current task.
+   - Unrelated historical issues do not preempt the current TODO order. Record them only if they become concrete prerequisites for the current task, except for failing tests/fixtures, which must be handled under the Test/Fixture Failure Policy below.
    - You must not move forward by narrowing scope, picking an easier representation, changing the modeling approach, choosing a different fixture shape, or otherwise working around the issue.
 1. Read `TODO.md` to identify the first incomplete task.
    - A task counts as completed only when its title/heading in `TODO.md` is explicitly prefixed with `[DONE]`.
@@ -46,6 +46,13 @@ For the first incomplete task in `TODO.md`:
   3. Ensure `TODO.md` reflects every added, removed, renamed, or reordered task.
   4. Update `PLAN.md` only if the blocker changes the phase-level plan or dependency structure. Otherwise, record the blocker in `TODO.md` and `./memory/claude_plan.md` without rewriting the project plan.
   5. Commit these changes and stop — the next invocation will pick up from there.
+
+**Test/Fixture Failure Policy:**
+- Any failing test or fixture is a real project issue, even if the failure already existed before the current task began.
+- You must **not** ignore, dismiss, or work around failing tests/fixtures as pre-existing noise.
+- The only exception is when the exact failure is already explicitly scheduled for repair in a later task or phase; a vague known-issue note is not enough.
+- For every failing test/fixture that is not already explicitly scheduled, you must either fix it in the current task or add the minimum follow-up/prerequisite task(s) to `TODO.md` so the failure is scheduled before completion.
+- Do not mark the current task `[DONE]` while leaving any newly observed unscheduled test/fixture failure unaddressed.
 
 **No Workarounds, No Spec Deviations:**
 - We do **not** tolerate workarounds, shims, fixture-only hacks, or “good enough for now” behavior when the implementation still does not match the spec.
