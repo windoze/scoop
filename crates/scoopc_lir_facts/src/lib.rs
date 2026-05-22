@@ -549,4 +549,137 @@ mod tests {
             }
         );
     }
+
+    #[test]
+    fn verifier_rejects_top_level_eager_storage_drift() {
+        let counter = global_root(
+            "app.Counter",
+            LirGlobalRootKind::TopLevelMutableVar,
+            Some(LirGlobalStoragePolicy::Global),
+            Vec::new(),
+        );
+        let mut global_init = LirGlobalInitFacts::default();
+        global_init.roots.insert(counter.root.clone(), counter);
+        global_init.top_level_eager_inits.insert(
+            global_root_key("app.Counter"),
+            LirTopLevelEagerInitFacts {
+                root: global_root_key("app.Counter"),
+                storage: Some(LirGlobalStoragePolicy::ThreadLocal),
+                has_initializer: true,
+            },
+        );
+        let facts = LirFacts::from_parts(
+            LirStageSummary::new(OptLevel::O0).with_global_counts(1, 0, 1, 0),
+            LirFactGroups {
+                global_init,
+                ..LirFactGroups::default()
+            },
+        );
+
+        assert_eq!(
+            facts.verify().unwrap_err(),
+            VerifyError::MismatchedGlobalStoragePolicy {
+                root: "app.Counter".to_string(),
+                contract: "top-level eager init",
+                root_storage: "global".to_string(),
+                contract_storage: "thread_local".to_string(),
+            }
+        );
+    }
+
+    #[test]
+    fn verifier_rejects_eager_root_missing_from_cone_routine() {
+        let base = global_root(
+            "app.Base",
+            LirGlobalRootKind::TopLevelImmutableVal,
+            None,
+            Vec::new(),
+        );
+        let mut global_init = LirGlobalInitFacts::default();
+        global_init.roots.insert(base.root.clone(), base);
+        global_init.top_level_eager_inits.insert(
+            global_root_key("app.Base"),
+            LirTopLevelEagerInitFacts {
+                root: global_root_key("app.Base"),
+                storage: None,
+                has_initializer: true,
+            },
+        );
+        let facts = LirFacts::from_parts(
+            LirStageSummary::new(OptLevel::O0).with_global_counts(1, 0, 1, 0),
+            LirFactGroups {
+                global_init,
+                ..LirFactGroups::default()
+            },
+        );
+
+        assert_eq!(
+            facts.verify().unwrap_err(),
+            VerifyError::MissingConeInitRoutineForRoot {
+                root: "app.Base".to_string(),
+            }
+        );
+    }
+
+    #[test]
+    fn verifier_rejects_eager_dependency_order_drift() {
+        let base = global_root(
+            "app.Base",
+            LirGlobalRootKind::TopLevelImmutableVal,
+            None,
+            Vec::new(),
+        );
+        let counter = global_root(
+            "app.Counter",
+            LirGlobalRootKind::TopLevelMutableVar,
+            Some(LirGlobalStoragePolicy::Global),
+            vec![LirGlobalRootDependency {
+                target: global_root_key("app.Base"),
+                kind: LirGlobalDependencyKind::TopLevelValue,
+            }],
+        );
+        let mut global_init = LirGlobalInitFacts::default();
+        global_init.roots.insert(base.root.clone(), base);
+        global_init.roots.insert(counter.root.clone(), counter);
+        global_init.top_level_eager_inits.insert(
+            global_root_key("app.Base"),
+            LirTopLevelEagerInitFacts {
+                root: global_root_key("app.Base"),
+                storage: None,
+                has_initializer: true,
+            },
+        );
+        global_init.top_level_eager_inits.insert(
+            global_root_key("app.Counter"),
+            LirTopLevelEagerInitFacts {
+                root: global_root_key("app.Counter"),
+                storage: Some(LirGlobalStoragePolicy::Global),
+                has_initializer: true,
+            },
+        );
+        global_init.cone_init_routines.insert(
+            LirConeInitRoutineKey::new(0),
+            LirConeInitRoutineFacts {
+                routine: LirConeInitRoutineKey::new(0),
+                cone: StableConeKey::new("fixture", "0.0.0"),
+                roots: vec![global_root_key("app.Counter"), global_root_key("app.Base")],
+            },
+        );
+        global_init.final_entry_order.routines = vec![LirConeInitRoutineKey::new(0)];
+        let facts = LirFacts::from_parts(
+            LirStageSummary::new(OptLevel::O0).with_global_counts(2, 0, 2, 1),
+            LirFactGroups {
+                global_init,
+                ..LirFactGroups::default()
+            },
+        );
+
+        assert_eq!(
+            facts.verify().unwrap_err(),
+            VerifyError::InvalidConeInitDependencyOrder {
+                root: "app.Counter".to_string(),
+                dependency: "app.Base".to_string(),
+            }
+        );
+    }
 }

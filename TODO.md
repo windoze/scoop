@@ -104,7 +104,7 @@
 | P5-T05R | [DONE] | [`TODO-5.md`](./TODO-5.md#done-p5-t05rreview-p5-全包完成度) | Review P5 全包完成度 |
 | TODO-6-INIT | [DONE] | [`TODO-6.md`](./TODO-6.md#done-todo-6-init初始化并细化本任务包) | 分析 P6-P8 需求，生成 `TODO-6.md` 详细任务列表并更新本索引 |
 | P6-T01 | [DONE] | [`TODO-6.md`](./TODO-6.md#done-p6-t01发布-global-init-与-storage-lir-facts-contract) | 发布 global init 与 storage LIR facts contract |
-| P6-T01R | [TODO] | [`TODO-6.md`](./TODO-6.md#todo-p6-t01rreview-global-initstorage-lir-facts-contract) | Review global init/storage LIR facts contract |
+| P6-T01R | [DONE] | [`TODO-6.md`](./TODO-6.md#done-p6-t01rreview-global-initstorage-lir-facts-contract) | Review global init/storage LIR facts contract |
 | P6-T02 | [TODO] | [`TODO-6.md`](./TODO-6.md#todo-p6-t02实现-per-cone-eager-top-level-init-与-final-entry-order) | 实现 per-cone eager top-level init 与 final entry order |
 | P6-T02R | [TODO] | [`TODO-6.md`](./TODO-6.md#todo-p6-t02rreview-per-cone-eager-top-level-init-与-final-entry-order) | Review per-cone eager top-level init 与 final entry order |
 | P6-T03 | [TODO] | [`TODO-6.md`](./TODO-6.md#todo-p6-t03分离-object-once-与-global--threadlocal-storage-policy) | 分离 object once 与 `@Global` / `@ThreadLocal` storage policy |

@@ -4,7 +4,7 @@
 > 细化时间：2026-05-22
 > 计划基线：[`PLAN.md`](./PLAN.md) §4/P6-P8
 > 索引：[`TODO.md`](./TODO.md)
-> 当前状态：`P6-T01` 已完成；下一步执行 `P6-T01R`。
+> 当前状态：`P6-T01R` 已完成；下一步执行 `P6-T02`。
 
 ## 范围
 
@@ -125,7 +125,7 @@
   - `lir_facts_builder` 从 `MirFacts` 构造 global init/storage facts；stable dump 在存在 global roots 时展示 global init/storage section，后续 P6/P7 可从 `LIR + lir_facts + base context` 查询这些 backend-neutral 信息。
   - 验证通过：`cargo fmt`；`cargo test -p scoopc_lir_facts`；`cargo test -p scoopc --no-default-features lir_facts_builder`；`cargo test -p scoopc_mir_facts`；`cargo run -p scoop -- test --fixtures tests/fixtures/effect_lowered`；`git diff --check`；`cargo clippy --all-targets -- -D warnings`。
 
-## [TODO] P6-T01R：Review global init/storage LIR facts contract
+## [DONE] P6-T01R：Review global init/storage LIR facts contract
 
 - 参考：P6-T01。
 - 重点：
@@ -139,7 +139,10 @@
   - review 结论明确写出：global init/storage LIR facts contract 可以支撑 P6-T02/P6-T03，或列出阻塞项并在本 review 内修复。
 - 依赖：P6-T01
 - 完成记录：
-  - 待填写。
+  - Review 结论：`LirFacts` 已发布 global root、root kind、storage policy、initializer presence、dependency identity、object once、top-level eager init、per-cone init routine 与 final entry init order 合同，可以作为 P6-T02/P6-T03 的输入边界继续推进。
+  - 本 review 修复了 verifier 漏洞：现在会拒绝 top-level eager/object-once contract 与 root 的 initializer/storage drift、extern global contract 缺失或 initializer_absent drift、eager root 未进入或重复进入 cone init routine、routine/root cone 不一致、final entry routine 遗漏/重复，以及 eager dependency init order drift。
+  - owner/依赖复审：`scoopc_lir_facts` 仍只依赖 `scoopc_ids`、`scoopc_project_model`、`scoopc_types`，额外搜索未发现 stage crate、`MaterializedMir`、`EffectFactsStageOutput` 或 LLVM 类型引用；global init/storage facts 从 MIR facts/LIR stage 显式输入构造，没有新增 backend 回看查询面。
+  - 验证通过：`cargo fmt`；`cargo test -p scoopc_lir_facts`；`cargo test -p scoopc --no-default-features lir_facts_builder`；`cargo test -p scoopc_mir_facts`；`cargo run -p scoop -- test --fixtures tests/fixtures/effect_lowered`；额外 residual 搜索 `MaterializedMir|EffectFactsStageOutput|inkwell|llvm|crate::mir|crate::effect|crate::hir|scoopc::|scoopc_mir|scoopc_effect|scoopc_hir` 于 `crates/scoopc_lir_facts` 无命中；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
 
 ## [TODO] P6-T02：实现 per-cone eager top-level init 与 final entry order
 

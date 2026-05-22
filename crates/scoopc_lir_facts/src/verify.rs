@@ -1,10 +1,13 @@
 //! Structural verifier for LIR fact products.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::error::Error;
 use std::fmt;
 
-use crate::{LirCallableContract, LirControlBodyFacts, LirFacts, LirGlobalRootKind};
+use crate::{
+    LirCallableContract, LirConeInitRoutineKey, LirControlBodyFacts, LirFacts, LirGlobalRootKey,
+    LirGlobalRootKind,
+};
 
 /// Result type returned by LIR fact verification.
 pub type Result<T> = std::result::Result<T, VerifyError>;
@@ -65,6 +68,28 @@ pub enum VerifyError {
         root: String,
         kind: &'static str,
     },
+    MismatchedGlobalInitializerPresence {
+        root: String,
+        contract: &'static str,
+        root_has_initializer: bool,
+        contract_has_initializer: bool,
+    },
+    MismatchedGlobalStoragePolicy {
+        root: String,
+        contract: &'static str,
+        root_storage: String,
+        contract_storage: String,
+    },
+    MissingExternGlobalContract {
+        root: String,
+    },
+    UnexpectedExternGlobalContract {
+        root: String,
+        kind: &'static str,
+    },
+    InvalidExternGlobalInitializerAbsence {
+        root: String,
+    },
     ExternGlobalInitializerPresent {
         root: String,
     },
@@ -91,8 +116,29 @@ pub enum VerifyError {
         routine: u32,
         root: String,
     },
+    MismatchedConeInitRoutineKey {
+        key: u32,
+        routine: u32,
+    },
+    ConeInitRootConeMismatch {
+        routine: u32,
+        root: String,
+    },
+    MissingConeInitRoutineForRoot {
+        root: String,
+    },
     MissingFinalEntryRoutine {
         routine: u32,
+    },
+    DuplicateFinalEntryRoutine {
+        routine: u32,
+    },
+    UnscheduledConeInitRoutine {
+        routine: u32,
+    },
+    InvalidConeInitDependencyOrder {
+        root: String,
+        dependency: String,
     },
     EmptyCallableRoot {
         key: String,
@@ -194,6 +240,35 @@ impl fmt::Display for VerifyError {
                 f,
                 "LIR global root `{root}` of kind `{kind}` is missing a storage policy"
             ),
+            Self::MismatchedGlobalInitializerPresence {
+                root,
+                contract,
+                root_has_initializer,
+                contract_has_initializer,
+            } => write!(
+                f,
+                "LIR {contract} contract for `{root}` reports has_initializer={contract_has_initializer} but root reports has_initializer={root_has_initializer}"
+            ),
+            Self::MismatchedGlobalStoragePolicy {
+                root,
+                contract,
+                root_storage,
+                contract_storage,
+            } => write!(
+                f,
+                "LIR {contract} contract for `{root}` reports storage={contract_storage} but root reports storage={root_storage}"
+            ),
+            Self::MissingExternGlobalContract { root } => {
+                write!(f, "LIR extern global `{root}` is missing extern contract")
+            }
+            Self::UnexpectedExternGlobalContract { root, kind } => write!(
+                f,
+                "LIR non-extern global root `{root}` of kind `{kind}` carries extern contract"
+            ),
+            Self::InvalidExternGlobalInitializerAbsence { root } => write!(
+                f,
+                "LIR extern global `{root}` must publish initializer_absent=true"
+            ),
             Self::ExternGlobalInitializerPresent { root } => write!(
                 f,
                 "LIR extern global `{root}` must not publish an initializer"
@@ -222,9 +297,33 @@ impl fmt::Display for VerifyError {
                 f,
                 "LIR cone init routine r{routine} lists eager init root `{root}` more than once"
             ),
+            Self::MismatchedConeInitRoutineKey { key, routine } => write!(
+                f,
+                "LIR cone init routine map key r{key} does not match embedded routine r{routine}"
+            ),
+            Self::ConeInitRootConeMismatch { routine, root } => write!(
+                f,
+                "LIR cone init routine r{routine} references eager init root `{root}` from another cone"
+            ),
+            Self::MissingConeInitRoutineForRoot { root } => write!(
+                f,
+                "LIR top-level eager init root `{root}` is not assigned to a cone init routine"
+            ),
             Self::MissingFinalEntryRoutine { routine } => write!(
                 f,
                 "LIR final entry init order references missing cone init routine r{routine}"
+            ),
+            Self::DuplicateFinalEntryRoutine { routine } => write!(
+                f,
+                "LIR final entry init order lists cone init routine r{routine} more than once"
+            ),
+            Self::UnscheduledConeInitRoutine { routine } => write!(
+                f,
+                "LIR cone init routine r{routine} is missing from final entry init order"
+            ),
+            Self::InvalidConeInitDependencyOrder { root, dependency } => write!(
+                f,
+                "LIR eager init root `{root}` is scheduled before dependency `{dependency}`"
             ),
             Self::EmptyStableInstanceKey { key } => {
                 write!(f, "LIR callable `{key}` has an empty stable instance key")
@@ -405,6 +504,27 @@ fn verify_global_init_contracts(facts: &LirFacts) -> Result<()> {
                 root: key.as_str().to_string(),
             });
         }
+        match (root.kind, &root.extern_global) {
+            (LirGlobalRootKind::ExternGlobal, Some(extern_global)) => {
+                if !extern_global.initializer_absent {
+                    return Err(VerifyError::InvalidExternGlobalInitializerAbsence {
+                        root: key.as_str().to_string(),
+                    });
+                }
+            }
+            (LirGlobalRootKind::ExternGlobal, None) => {
+                return Err(VerifyError::MissingExternGlobalContract {
+                    root: key.as_str().to_string(),
+                });
+            }
+            (_, Some(_)) => {
+                return Err(VerifyError::UnexpectedExternGlobalContract {
+                    root: key.as_str().to_string(),
+                    kind: root.kind.stable_name(),
+                });
+            }
+            (_, None) => {}
+        }
     }
 
     for (key, contract) in &facts.global_init.object_once {
@@ -424,6 +544,14 @@ fn verify_global_init_contracts(facts: &LirFacts) -> Result<()> {
             return Err(VerifyError::MismatchedGlobalRootKey {
                 key: key.as_str().to_string(),
                 root: contract.root.as_str().to_string(),
+            });
+        }
+        if contract.has_initializer != root.has_initializer {
+            return Err(VerifyError::MismatchedGlobalInitializerPresence {
+                root: key.as_str().to_string(),
+                contract: "object-once",
+                root_has_initializer: root.has_initializer,
+                contract_has_initializer: contract.has_initializer,
             });
         }
     }
@@ -450,6 +578,22 @@ fn verify_global_init_contracts(facts: &LirFacts) -> Result<()> {
                 root: contract.root.as_str().to_string(),
             });
         }
+        if contract.storage != root.storage {
+            return Err(VerifyError::MismatchedGlobalStoragePolicy {
+                root: key.as_str().to_string(),
+                contract: "top-level eager init",
+                root_storage: storage_text(root.storage),
+                contract_storage: storage_text(contract.storage),
+            });
+        }
+        if contract.has_initializer != root.has_initializer {
+            return Err(VerifyError::MismatchedGlobalInitializerPresence {
+                root: key.as_str().to_string(),
+                contract: "top-level eager init",
+                root_has_initializer: root.has_initializer,
+                contract_has_initializer: contract.has_initializer,
+            });
+        }
         if facts.global_init.object_once.contains_key(key) {
             return Err(VerifyError::GlobalInitClassConflict {
                 root: key.as_str().to_string(),
@@ -457,11 +601,29 @@ fn verify_global_init_contracts(facts: &LirFacts) -> Result<()> {
         }
     }
 
+    let mut root_to_routine = BTreeMap::<LirGlobalRootKey, LirConeInitRoutineKey>::new();
     for (routine_key, routine) in &facts.global_init.cone_init_routines {
+        if routine.routine != *routine_key {
+            return Err(VerifyError::MismatchedConeInitRoutineKey {
+                key: routine_key.as_u32(),
+                routine: routine.routine.as_u32(),
+            });
+        }
         let mut seen = BTreeSet::new();
         for root in &routine.roots {
             if !facts.global_init.top_level_eager_inits.contains_key(root) {
                 return Err(VerifyError::MissingConeInitRoot {
+                    routine: routine_key.as_u32(),
+                    root: root.as_str().to_string(),
+                });
+            }
+            let root_facts = facts
+                .global_init
+                .roots
+                .get(root)
+                .expect("top-level eager roots are verified against roots above");
+            if root_facts.cone != routine.cone {
+                return Err(VerifyError::ConeInitRootConeMismatch {
                     routine: routine_key.as_u32(),
                     root: root.as_str().to_string(),
                 });
@@ -472,18 +634,117 @@ fn verify_global_init_contracts(facts: &LirFacts) -> Result<()> {
                     root: root.as_str().to_string(),
                 });
             }
+            if root_to_routine.insert(root.clone(), *routine_key).is_some() {
+                return Err(VerifyError::DuplicateConeInitRoot {
+                    routine: routine_key.as_u32(),
+                    root: root.as_str().to_string(),
+                });
+            }
         }
     }
 
+    for root in facts.global_init.top_level_eager_inits.keys() {
+        if !root_to_routine.contains_key(root) {
+            return Err(VerifyError::MissingConeInitRoutineForRoot {
+                root: root.as_str().to_string(),
+            });
+        }
+    }
+
+    let mut scheduled_routines = BTreeSet::new();
     for routine in &facts.global_init.final_entry_order.routines {
         if !facts.global_init.cone_init_routines.contains_key(routine) {
             return Err(VerifyError::MissingFinalEntryRoutine {
                 routine: routine.as_u32(),
             });
         }
+        if !scheduled_routines.insert(*routine) {
+            return Err(VerifyError::DuplicateFinalEntryRoutine {
+                routine: routine.as_u32(),
+            });
+        }
+    }
+
+    for routine in facts.global_init.cone_init_routines.keys() {
+        if !scheduled_routines.contains(routine) {
+            return Err(VerifyError::UnscheduledConeInitRoutine {
+                routine: routine.as_u32(),
+            });
+        }
+    }
+
+    verify_cone_init_dependency_order(facts, &root_to_routine)?;
+
+    Ok(())
+}
+
+fn verify_cone_init_dependency_order(
+    facts: &LirFacts,
+    root_to_routine: &BTreeMap<LirGlobalRootKey, LirConeInitRoutineKey>,
+) -> Result<()> {
+    let routine_order = facts
+        .global_init
+        .final_entry_order
+        .routines
+        .iter()
+        .enumerate()
+        .map(|(index, routine)| (*routine, index))
+        .collect::<BTreeMap<_, _>>();
+
+    for (routine_key, routine) in &facts.global_init.cone_init_routines {
+        let root_order = routine
+            .roots
+            .iter()
+            .enumerate()
+            .map(|(index, root)| (root.clone(), index))
+            .collect::<BTreeMap<_, _>>();
+        for root_key in &routine.roots {
+            let root = facts
+                .global_init
+                .roots
+                .get(root_key)
+                .expect("cone init roots are verified against roots above");
+            for dependency in &root.dependencies {
+                if !facts
+                    .global_init
+                    .top_level_eager_inits
+                    .contains_key(&dependency.target)
+                {
+                    continue;
+                }
+                let Some(dependency_routine) = root_to_routine.get(&dependency.target) else {
+                    continue;
+                };
+                if dependency_routine == routine_key {
+                    let root_position = root_order[root_key];
+                    let dependency_position = root_order[&dependency.target];
+                    if dependency_position >= root_position {
+                        return Err(VerifyError::InvalidConeInitDependencyOrder {
+                            root: root_key.as_str().to_string(),
+                            dependency: dependency.target.as_str().to_string(),
+                        });
+                    }
+                } else {
+                    let root_routine_position = routine_order[routine_key];
+                    let dependency_routine_position = routine_order[dependency_routine];
+                    if dependency_routine_position >= root_routine_position {
+                        return Err(VerifyError::InvalidConeInitDependencyOrder {
+                            root: root_key.as_str().to_string(),
+                            dependency: dependency.target.as_str().to_string(),
+                        });
+                    }
+                }
+            }
+        }
     }
 
     Ok(())
+}
+
+fn storage_text(storage: Option<crate::LirGlobalStoragePolicy>) -> String {
+    storage
+        .map(|storage| storage.stable_name().to_string())
+        .unwrap_or_else(|| "<none>".to_string())
 }
 
 fn verify_callable_inventory(facts: &LirFacts) -> Result<()> {
