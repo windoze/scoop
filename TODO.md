@@ -4,7 +4,7 @@
 > 计划基线：[`PLAN.md`](./PLAN.md)
 > 设计基线：[`PIPELINE_REFACTOR.md`](./PIPELINE_REFACTOR.md)
 > 审计基线：[`PIPELINE-CLEANUP.md`](./PIPELINE-CLEANUP.md)
-> 当前状态：任务包已划分；`TODO-1.md`、`TODO-2.md`、`TODO-3.md`、`TODO-4.md` 与 `TODO-5.md` 已细化，其它任务包暂为范围说明。
+> 当前状态：任务包已划分；`TODO-1.md` 至 `TODO-6.md` 均已细化。
 
 ## 总原则
 
@@ -26,7 +26,7 @@
 | 3 | [`TODO-3.md`](./TODO-3.md) | P2 | 建立 `AST -> HIR` semantic frontend barrier 和独立 `hir_facts` | 已细化 |
 | 4 | [`TODO-4.md`](./TODO-4.md) | P3 | 收口 MIR stage 输出，建立 `mir_facts` 与 MIR pass pipeline | 已细化 |
 | 5 | [`TODO-5.md`](./TODO-5.md) | P4-P5 | 纯化 effect facts，正式收实 LIR 输出和 LIR optimization family | 已细化 |
-| 6 | [`TODO-6.md`](./TODO-6.md) | P6-P8 | 闭合 global init model，清理 LLVM backend 输入边界，并做最终验证 | 暂为范围说明 |
+| 6 | [`TODO-6.md`](./TODO-6.md) | P6-P8 | 闭合 global init model，清理 LLVM backend 输入边界，并做最终验证 | 已细化 |
 
 ## 具体任务索引
 
@@ -102,7 +102,29 @@
 | P5-T04R | [DONE] | [`TODO-5.md`](./TODO-5.md#done-p5-t04rreview-lir-optimization-family) | Review LIR optimization family |
 | P5-T05 | [DONE] | [`TODO-5.md`](./TODO-5.md#done-p5-t05p5-全包清场文档同步与依赖审计) | P5 全包清场、文档同步与依赖审计 |
 | P5-T05R | [DONE] | [`TODO-5.md`](./TODO-5.md#done-p5-t05rreview-p5-全包完成度) | Review P5 全包完成度 |
-| TODO-6-INIT | [TODO] | [`TODO-6.md`](./TODO-6.md#todo-todo-6-init初始化并细化本任务包) | 分析 P6-P8 需求，生成 `TODO-6.md` 详细任务列表并更新本索引 |
+| TODO-6-INIT | [DONE] | [`TODO-6.md`](./TODO-6.md#done-todo-6-init初始化并细化本任务包) | 分析 P6-P8 需求，生成 `TODO-6.md` 详细任务列表并更新本索引 |
+| P6-T01 | [TODO] | [`TODO-6.md`](./TODO-6.md#todo-p6-t01发布-global-init-与-storage-lir-facts-contract) | 发布 global init 与 storage LIR facts contract |
+| P6-T01R | [TODO] | [`TODO-6.md`](./TODO-6.md#todo-p6-t01rreview-global-initstorage-lir-facts-contract) | Review global init/storage LIR facts contract |
+| P6-T02 | [TODO] | [`TODO-6.md`](./TODO-6.md#todo-p6-t02实现-per-cone-eager-top-level-init-与-final-entry-order) | 实现 per-cone eager top-level init 与 final entry order |
+| P6-T02R | [TODO] | [`TODO-6.md`](./TODO-6.md#todo-p6-t02rreview-per-cone-eager-top-level-init-与-final-entry-order) | Review per-cone eager top-level init 与 final entry order |
+| P6-T03 | [TODO] | [`TODO-6.md`](./TODO-6.md#todo-p6-t03分离-object-once-与-global--threadlocal-storage-policy) | 分离 object once 与 `@Global` / `@ThreadLocal` storage policy |
+| P6-T03R | [TODO] | [`TODO-6.md`](./TODO-6.md#todo-p6-t03rreview-object-once-与-storage-policy-分离结果) | Review object once 与 storage policy 分离结果 |
+| P6-T04 | [TODO] | [`TODO-6.md`](./TODO-6.md#todo-p6-t04p6-全包清场文档同步与依赖审计) | P6 全包清场、文档同步与依赖审计 |
+| P6-T04R | [TODO] | [`TODO-6.md`](./TODO-6.md#todo-p6-t04rreview-p6-全包完成度) | Review P6 全包完成度 |
+| P7-T01 | [TODO] | [`TODO-6.md`](./TODO-6.md#todo-p7-t01迁移-llvm-entryglobal-查询到-lir-facts) | 迁移 LLVM entry/global 查询到 LIR facts |
+| P7-T01R | [TODO] | [`TODO-6.md`](./TODO-6.md#todo-p7-t01rreview-llvm-entryglobal-lir-facts-迁移结果) | Review LLVM entry/global LIR facts 迁移结果 |
+| P7-T02 | [TODO] | [`TODO-6.md`](./TODO-6.md#todo-p7-t02删除-backend-reachability-hirmir-回看与-codegen-去虚化-residual) | 删除 backend reachability HIR/MIR 回看与 codegen 去虚化 residual |
+| P7-T02R | [TODO] | [`TODO-6.md`](./TODO-6.md#todo-p7-t02rreview-backend-reachability-cleanup) | Review backend reachability cleanup |
+| P7-T03 | [TODO] | [`TODO-6.md`](./TODO-6.md#todo-p7-t03迁移-llvm-body-emission-离开-raw-mir--hir-fallback) | 迁移 LLVM body emission 离开 raw MIR / HIR fallback |
+| P7-T03R | [TODO] | [`TODO-6.md`](./TODO-6.md#todo-p7-t03rreview-llvm-body-emission-迁移结果) | Review LLVM body emission 迁移结果 |
+| P7-T04 | [TODO] | [`TODO-6.md`](./TODO-6.md#todo-p7-t04收窄-llvm-stage-handoffphysical-abi-layout-与-typestore-bridge) | 收窄 LLVM stage handoff、physical ABI layout 与 TypeStore bridge |
+| P7-T04R | [TODO] | [`TODO-6.md`](./TODO-6.md#todo-p7-t04rreview-llvm-stage-handoff-与-physical-abi-cleanup) | Review LLVM stage handoff 与 physical ABI cleanup |
+| P7-T05 | [TODO] | [`TODO-6.md`](./TODO-6.md#todo-p7-t05p7-全包清场文档同步与依赖审计) | P7 全包清场、文档同步与依赖审计 |
+| P7-T05R | [TODO] | [`TODO-6.md`](./TODO-6.md#todo-p7-t05rreview-p7-全包完成度) | Review P7 全包完成度 |
+| P8-T01 | [TODO] | [`TODO-6.md`](./TODO-6.md#todo-p8-t01最终-residual-搜索文档冻结与未来-c-backend-输入边界) | 最终 residual 搜索、文档冻结与未来 C backend 输入边界 |
+| P8-T01R | [TODO] | [`TODO-6.md`](./TODO-6.md#todo-p8-t01rreview-final-residual-搜索与文档冻结) | Review final residual 搜索与文档冻结 |
+| P8-T02 | [TODO] | [`TODO-6.md`](./TODO-6.md#todo-p8-t02最终全仓验证与-release-readiness-清场) | 最终全仓验证与 release readiness 清场 |
+| P8-T02R | [TODO] | [`TODO-6.md`](./TODO-6.md#todo-p8-t02rreview-final-verification-与-release-readiness) | Review final verification 与 release readiness |
 
 ## 包间验收门禁
 
