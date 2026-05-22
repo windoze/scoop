@@ -1,28 +1,32 @@
-# 执行计划与进度
+# Claude Execution Plan
 
-## 当前约束
+## Scope
+- Follow `TODO.md` as the authoritative task list.
+- Complete exactly the first incomplete task, then stop.
+- Mark the task `[DONE]`, update its completion record, run required validation, and commit the resulting changes.
+- If a concrete blocker prevents completion, update `TODO.md` with the minimum prerequisite task, commit, and stop.
 
-- 只执行 `TODO.md` 中第一个标题未标记 `[DONE]` 的任务。
-- `TODO.md` 是任务顺序、要求和完成状态的唯一来源。
-- 除非阶段级计划或完成标准变化，否则不更新 `PLAN.md`。
-- 本文件只记录可检查的执行计划、决策和进度，不写入内部推理细节。
+## Initial Steps
+1. Read `TODO.md` to identify the first task whose title is not prefixed with `[DONE]`.
+2. Check the latest commit message only for unfinished work directly relevant to that task.
+3. Read the selected task details, dependencies, and validation requirements.
+4. Inspect only the code, fixtures, and docs needed for that task.
+5. Implement the task without workarounds or spec deviations.
+6. Run focused validation first, then any task-required broader validation.
+7. Update `TODO.md` completion status and record.
+8. Commit all intended changes with a task-specific message.
 
-## 本轮计划
-
-1. 读取 `TODO.md`，定位第一个未完成任务。
-2. 只检查与该任务直接相关的最近提交和工作区状态。
-3. 阅读任务正文、完成条件和验证要求。
-4. 对前置任务变更做 review；若发现阻塞问题，在本 review 内修复或登记最小前置任务。
-5. 运行任务要求的验证和必要补充验证。
-6. 将任务标题改为 `[DONE]`，补全 `TODO.md` / `TODO-6.md` 完成记录。
-7. 提交本轮相关变更，然后停止。
-
-## 进度记录
-
-- 已定位当前任务：`P7-T01R`（Review LLVM entry/global LIR facts 迁移结果）。
-- 最近提交为 `[P7-T01] Migrate LLVM entry globals to LIR facts`，直接属于本 review 范围。
-- 复审结论：entry main selection 读取 `LirCallableFacts` + `TypeStore`；global init routines、extern/global storage physicalization 由 `LirFacts.global_init` 驱动。
-- residual 搜索：`emit.rs` 中的 HIR side table 读取只剩 reachability 输入和 body/initializer scaffold；`codegen/main` 中未发现 `extern_globals` 读取，剩余 `top_level_vars` / `top_level_immutable_values` 读取均在 LIR facts 选中 root 后取 initializer/body scaffold，归属 P7-T02/P7-T03。
-- 验证通过：`cargo fmt`；`cargo test -p scoopc_lir_facts`；`cargo test -p scoopc --no-default-features llvm_entry_global`；`cargo test -p scoopc llvm_entry_global`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/global_init`；`cargo run -p scoop -- test --fixtures tests/fixtures/effect_lowered`；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
-- 完整 `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass` 已用长超时重跑；entry/global/global-init 相关 fixtures 通过，仍保留 P7-T01 / P6 baseline 记录的 7 个既有非本任务失败。
-- 已更新 `TODO.md` 与 `TODO-6.md`：`P7-T01R` 标记为 `[DONE]`，完成记录已填写；`PLAN.md` 未修改。
+## Progress Log
+- Plan file initialized before repository commands or code execution.
+- Identified first incomplete task from `TODO.md`: `P7-T02` in `TODO-6.md`.
+- Next steps: inspect `P7-T02` details, check the latest commit for directly relevant unfinished work, then implement only this task.
+- Latest commit is `[P7-T01R] Review LLVM entry global migration`; it is directly adjacent but does not mention unfinished work that changes `P7-T02` ordering.
+- `P7-T02` execution plan: remove LLVM reachability reads of HIR bodies/raw MIR/pass view and backend devirtualization; make reachability seeds/edges come from LIR/LIR facts; add or update focused tests/dumps; run the task validation commands; then mark `P7-T02` done in both TODO indexes and commit.
+- Implemented first edit pass: replaced `llvm/reachability.rs` with a LIR-facts-only collector, switched `emit.rs` to consume reachable FQNs from `LirFacts`, and removed the LLVM call-lowering interface dispatch devirtualization fallback.
+- Next step: run formatting and focused `llvm::reachability` tests, then fix any compile/test failures without reintroducing HIR/MIR reachability scans.
+- Focused reachability unit tests pass with default LLVM feature; the required `--no-default-features llvm::reachability` command also completes but has no matching LLVM tests because the module is feature-gated.
+- `effect_lowered` fixtures pass. Full `run-pass` now has broad failures, so the current LIR-only reachability is incomplete for production emission; next step is to inspect representative fixture diagnostics and repair the LIR-facts reachability coverage without restoring HIR/MIR scanning.
+- Diagnosed the broad `run-pass` failures as over-enqueueing unpublished conservative candidate-set targets such as `scoop.core.Bool.toString` into legacy backend reachability.
+- Adjusted LIR reachability so `KnownInstance` targets remain required, while `CandidateSet` and dispatch targets only enqueue callables actually published in `LirFacts`. Added a focused regression test and confirmed the representative global-init fixture now passes.
+- Final validation completed: `cargo fmt`, required no-default reachability command, default `llvm::reachability` unit tests, `effect_lowered` fixtures, full `run-pass` with only the known 7 non-task baseline failures, `cargo clippy --all-targets -- -D warnings`, residual searches, and `git diff --check`.
+- Updated `TODO.md` and `TODO-6.md` to mark `P7-T02` as `[DONE]` with completion notes. Next step is commit only; do not start `P7-T02R` in this invocation.

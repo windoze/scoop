@@ -1,1143 +1,559 @@
-//! LLVM lowering 入口使用的 reachability 收集。
-//!
-//! 这层负责在真正进入 backend lowering 之前，先把“入口 `main` 会触达哪些
-//! 顶层函数 / ctor / class init 相关实现成员”整理出来，避免在 emit API 或
-//! `llvm/mod.rs` 根模块里混放大段 HIR 扫描逻辑。
+//! LLVM lowering reachability collection over backend-neutral LIR facts.
 
 use std::collections::{BTreeSet, HashMap, HashSet, VecDeque};
-use std::path::{Path, PathBuf};
 
-use crate::ast;
-use crate::hir;
-use crate::mir;
-use crate::span::Span;
-use crate::ty::{RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind};
+use scoopc_ids::StableLirCallableKey;
+use scoopc_lir_facts::{
+    LirCallSiteContract, LirCallTargetMode, LirCallableContract, LirCallableFacts, LirDispatchKey,
+    LirDynamicInvokeKey, LirFacts, LirGlobalRootKind,
+};
 
-pub(super) struct ReachabilityInputs<'a> {
-    pub(super) class_inits: &'a hir::ClassInitIndex,
-    pub(super) class_vtables: &'a crate::vtable::ClassVtableIndex,
-    pub(super) interfaces: &'a crate::itable::InterfaceIndex,
-    pub(super) class_itables: &'a crate::itable::ClassItableIndex,
-    pub(super) direct_supertypes: &'a hir::DirectSupertypesIndex,
-    pub(super) dispatch_call_sites: &'a hir::DispatchCallSiteIndex,
-    pub(super) ctor_call_sites: &'a hir::CtorCallSiteIndex,
-    pub(super) types: &'a TypeStore,
-    pub(super) top_level_vars: &'a hir::TopLevelVarIndex,
-    pub(super) top_level_immutable_values: &'a hir::TopLevelImmutableValueIndex,
-    pub(super) extern_globals: &'a hir::ExternGlobalIndex,
-    pub(super) object_inits: &'a hir::ObjectInitIndex,
-}
+/// Runtime helpers whose source callables may need legacy declarations until
+/// LLVM body emission is fully moved to LIR contracts.
+const RUNTIME_REQUIRED_CALLABLES: &[&str] = &[];
 
-pub(super) fn collect_reachable_top_level_funs<'a>(
-    entry: &'a hir::FunDecl,
-    fun_index: &'a HashMap<String, &'a hir::FunDecl>,
-    materialized_pass_view: Option<&'a mir::MaterializedMirPassView<'a>>,
-    inputs: ReachabilityInputs<'a>,
-) -> Vec<&'a hir::FunDecl> {
-    let ReachabilityInputs {
-        class_inits,
-        class_vtables,
-        interfaces,
-        class_itables,
-        direct_supertypes,
-        dispatch_call_sites,
-        ctor_call_sites,
-        types,
-        top_level_vars,
-        top_level_immutable_values,
-        extern_globals,
-        object_inits,
-    } = inputs;
-    let mut collector = ReachabilityCollector {
-        fun_index,
-        class_inits,
-        class_vtables,
-        interfaces,
-        class_itables,
-        direct_supertypes,
-        dispatch_call_sites,
-        ctor_call_sites,
-        types,
-        top_level_vars,
-        top_level_immutable_values,
-        extern_globals,
-        object_inits,
-        materialized_pass_view,
-        seen_calls: HashSet::new(),
-        fun_queue: VecDeque::new(),
-        reachable_funs: HashSet::new(),
-        seen_ctors: HashSet::new(),
-        ctor_queue: VecDeque::new(),
-        scanned_class_init_steps: HashSet::new(),
-        scanned_top_level_vars: HashSet::new(),
-        scanned_top_level_immutable_values: HashSet::new(),
-        scanned_object_inits: HashSet::new(),
-        current_source_path: None,
-    };
-
-    // 入口：扫描 `main` 的函数体，但不把 `main` 本身加入 reachable 集合（它由 `codegen_main_exit_code` 生成）。
-    collector.scan_fun(entry);
-
-    // BFS：同时处理“顶层函数调用”和“class ctor 调用”（会引入 class init / ctor delegation 中的调用点）。
-    loop {
-        let mut progressed = false;
-
-        if let Some(fqn) = collector.fun_queue.pop_front() {
-            progressed = true;
-            let Some(fun) = collector.fun_index.get(&fqn).copied() else {
-                // 外部/内建函数：不在本文件 fun_index 里（例如 runtime intrinsics），跳过。
-                continue;
-            };
-            if fun.name == "main" {
-                continue;
-            }
-            if !collector.reachable_funs.insert(fqn.clone()) {
-                continue;
-            }
-            collector.scan_fun(fun);
-        }
-
-        if let Some((class_fqn, ctor_span)) = collector.ctor_queue.pop_front() {
-            progressed = true;
-            collector.scan_ctor(&class_fqn, ctor_span);
-        }
-
-        if !progressed {
-            break;
-        }
-    }
-
-    collector
-        .reachable_funs
-        .into_iter()
-        .filter_map(|fqn| collector.fun_index.get(&fqn).copied())
-        .collect()
+/// Collect source-level callable FQNs needed by LLVM legacy declaration checks.
+///
+/// This intentionally walks only LIR/LIR-facts contracts. HIR body scans, raw
+/// MIR scans, and backend-local dispatch target refinement are owned by earlier
+/// stages and must not reappear in backend reachability.
+pub(super) fn collect_reachable_top_level_funs(
+    root_fqn: &str,
+    lir_facts: &LirFacts,
+) -> Vec<String> {
+    let mut collector = ReachabilityCollector::new(lir_facts);
+    collector.seed_entry(root_fqn);
+    collector.seed_global_init_roots();
+    collector.seed_published_lir_callables();
+    collector.seed_runtime_required_callables();
+    collector.collect()
 }
 
 struct ReachabilityCollector<'a> {
-    fun_index: &'a HashMap<String, &'a hir::FunDecl>,
-    materialized_pass_view: Option<&'a mir::MaterializedMirPassView<'a>>,
-    class_inits: &'a hir::ClassInitIndex,
-    class_vtables: &'a crate::vtable::ClassVtableIndex,
-    interfaces: &'a crate::itable::InterfaceIndex,
-    class_itables: &'a crate::itable::ClassItableIndex,
-    direct_supertypes: &'a hir::DirectSupertypesIndex,
-    dispatch_call_sites: &'a hir::DispatchCallSiteIndex,
-    ctor_call_sites: &'a hir::CtorCallSiteIndex,
-    types: &'a TypeStore,
-    top_level_vars: &'a hir::TopLevelVarIndex,
-    top_level_immutable_values: &'a hir::TopLevelImmutableValueIndex,
-    extern_globals: &'a hir::ExternGlobalIndex,
-    object_inits: &'a hir::ObjectInitIndex,
-
-    seen_calls: HashSet<String>,
-    fun_queue: VecDeque<String>,
-    reachable_funs: HashSet<String>,
-
-    seen_ctors: HashSet<(String, Option<Span>)>,
-    ctor_queue: VecDeque<(String, Option<Span>)>,
-
-    scanned_class_init_steps: HashSet<String>,
-    scanned_top_level_vars: HashSet<String>,
-    scanned_top_level_immutable_values: HashSet<String>,
-    scanned_object_inits: HashSet<String>,
-    current_source_path: Option<PathBuf>,
+    lir_facts: &'a LirFacts,
+    callable_roots_by_key: HashMap<&'a StableLirCallableKey, &'a str>,
+    queue: VecDeque<String>,
+    seen: HashSet<String>,
+    reachable: BTreeSet<String>,
 }
 
 impl<'a> ReachabilityCollector<'a> {
-    fn with_source_path<T>(&mut self, source_path: &Path, f: impl FnOnce(&mut Self) -> T) -> T {
-        let prev = self.current_source_path.replace(source_path.to_path_buf());
-        let out = f(self);
-        self.current_source_path = prev;
-        out
-    }
-
-    fn current_call_site(&self, span: Span) -> Option<hir::CallSite> {
-        self.current_source_path
-            .as_ref()
-            .map(|path| hir::CallSite::new(path.clone(), span))
-    }
-
-    fn dispatch_kind_for_receiver(
-        &self,
-        span: Span,
-        receiver_ty: TypeId,
-    ) -> Option<hir::DispatchCallKind> {
-        let source_path = self.current_source_path.as_ref()?;
-        self.dispatch_call_sites
-            .get(&hir::DispatchCallSite::new(
-                source_path.clone(),
-                span,
-                receiver_ty,
-            ))
-            .copied()
-    }
-
-    fn enqueue_fun(&mut self, fqn: String) {
-        if self.seen_calls.insert(fqn.clone()) {
-            self.fun_queue.push_back(fqn);
-        }
-    }
-
-    fn scan_top_level_var(&mut self, fqn: &str) {
-        if !self.scanned_top_level_vars.insert(fqn.to_string()) {
-            return;
-        }
-        let Some(var) = self.top_level_vars.get(fqn).cloned() else {
-            return;
-        };
-        self.with_source_path(var.source_path.as_path(), |this| {
-            if let Some(init) = var.init.as_ref() {
-                this.scan_expr(init);
-            }
-        });
-    }
-
-    fn scan_top_level_immutable_value(&mut self, fqn: &str) {
-        if !self
-            .scanned_top_level_immutable_values
-            .insert(fqn.to_string())
-        {
-            return;
-        }
-        let Some(value) = self.top_level_immutable_values.get(fqn).cloned() else {
-            return;
-        };
-        self.with_source_path(value.source_path.as_path(), |this| {
-            if let Some(init) = value.init.as_ref() {
-                this.scan_expr(init);
-            }
-        });
-    }
-
-    fn scan_object_init(&mut self, fqn: &str) {
-        if !self.scanned_object_inits.insert(fqn.to_string()) {
-            return;
-        }
-        let Some(object) = self.object_inits.get(fqn).cloned() else {
-            return;
-        };
-        self.with_source_path(object.source_path.as_path(), |this| {
-            for step in &object.steps {
-                match step {
-                    hir::ObjectInitStep::PropertyInit { init, .. } => this.scan_expr(init),
-                    hir::ObjectInitStep::InitBlock { block } => this.scan_block(block),
-                }
-            }
-        });
-    }
-
-    fn scan_top_level_value_ref(&mut self, fqn: &str) {
-        self.scan_top_level_immutable_value(fqn);
-        self.scan_top_level_var(fqn);
-        self.scan_object_init(fqn);
-    }
-
-    fn enqueue_vtable_impls(&mut self, class_fqn: &str) {
-        let Some(slots) = self.class_vtables.get(class_fqn) else {
-            return;
-        };
-        for slot in slots {
-            self.enqueue_fun(slot.impl_member_fqn.clone());
-        }
-    }
-
-    fn enqueue_itable_impls(&mut self, class_fqn: &str) {
-        let Some(entries) = self.class_itables.get(class_fqn) else {
-            return;
-        };
-        for entry in entries {
-            for fqn in &entry.method_impl_fqns {
-                if fqn.is_empty() {
-                    continue;
-                }
-                self.enqueue_fun(fqn.clone());
-            }
-        }
-    }
-
-    fn enqueue_ctor(&mut self, class_fqn: String, ctor_span: Option<Span>) {
-        let key = (class_fqn, ctor_span);
-        if self.seen_ctors.insert(key.clone()) {
-            self.ctor_queue.push_back(key);
-        }
-    }
-
-    fn enqueue_ctor_call_site(&mut self, call_span: Span) {
-        let Some(call_site) = self.current_call_site(call_span) else {
-            return;
-        };
-        let Some(info) = self.ctor_call_sites.get(&call_site) else {
-            return;
-        };
-
-        self.enqueue_ctor(info.class_fqn.clone(), info.ctor_span);
-    }
-
-    fn pick_ctor_by_call_target<'b>(
-        &self,
-        class: &'b hir::ClassInit,
-        ctor_span: Option<Span>,
-    ) -> Option<&'b hir::ClassCtor> {
-        match ctor_span {
-            Some(span) => class.ctors.iter().find(|ctor| ctor.span == span),
-            None => {
-                if class.ctors.is_empty() {
-                    return None;
-                }
-                let mut matching: Vec<&hir::ClassCtor> = class
-                    .ctors
-                    .iter()
-                    .filter(|ctor| ctor.params.is_empty())
-                    .collect();
-                if matching.len() != 1 {
-                    return None;
-                }
-                Some(matching.pop().expect("len == 1"))
-            }
-        }
-    }
-
-    fn scan_call_arg(&mut self, arg: &hir::CallArg) {
-        match arg {
-            hir::CallArg::Positional(expr) => self.scan_expr(expr),
-            hir::CallArg::Named { value, .. } => self.scan_expr(value),
-        }
-    }
-
-    fn scan_fun(&mut self, fun: &hir::FunDecl) {
-        if let Some(pass_view) = self.materialized_pass_view {
-            if self.hir_fun_requires_hir_compat_scan(fun) {
-                self.scan_hir_fun_body(fun);
-                return;
-            }
-            let body_is_overridden = pass_view.callable_body_is_overridden(&fun.fqn);
-            if body_is_overridden {
-                if let Some(pass_fun) = self.canonical_mir_fun(fun) {
-                    self.scan_mir_fun(pass_fun);
-                }
-                return;
-            }
-            if pass_view.owner_of_callable(&fun.fqn).is_some()
-                || self.raw_non_generic_candidate_body(fun).is_some()
-            {
-                if let Some(pass_fun) = self.canonical_mir_fun(fun) {
-                    if self.mir_fun_requires_hir_compat_scan(pass_fun) {
-                        self.scan_hir_fun_body(fun);
-                    } else {
-                        self.scan_mir_fun(pass_fun);
-                    }
-                } else {
-                    self.scan_hir_fun_body(fun);
-                }
-                return;
-            }
-        }
-
-        self.scan_hir_fun_body(fun);
-    }
-
-    fn scan_hir_fun_body(&mut self, fun: &hir::FunDecl) {
-        self.with_source_path(fun.source_path.as_path(), |this| {
-            let Some(body) = fun.body.as_ref() else {
-                return;
-            };
-            this.scan_block(body);
-        });
-    }
-
-    fn hir_fun_requires_hir_compat_scan(&self, fun: &hir::FunDecl) -> bool {
-        let Some(body) = fun.body.as_ref() else {
-            return false;
-        };
-        self.hir_block_contains_hir_compat_only_effects(body)
-    }
-
-    fn hir_block_contains_hir_compat_only_effects(&self, block: &hir::Block) -> bool {
-        block
-            .stmts
+    fn new(lir_facts: &'a LirFacts) -> Self {
+        let callable_roots_by_key = lir_facts
+            .callables
             .iter()
-            .any(|stmt| self.hir_stmt_contains_hir_compat_only_effects(stmt))
-    }
-
-    fn hir_stmt_contains_hir_compat_only_effects(&self, stmt: &hir::Stmt) -> bool {
-        match &stmt.kind {
-            hir::StmtKind::Empty | hir::StmtKind::Break { .. } | hir::StmtKind::Continue { .. } => {
-                false
-            }
-            hir::StmtKind::Expr(expr) => self.hir_expr_contains_hir_compat_only_effects(expr),
-            hir::StmtKind::Val(decl) => decl
-                .init
-                .as_ref()
-                .is_some_and(|expr| self.hir_expr_contains_hir_compat_only_effects(expr)),
-            hir::StmtKind::Assign { lhs, rhs, .. } => {
-                self.hir_expr_contains_hir_compat_only_effects(lhs)
-                    || self.hir_expr_contains_hir_compat_only_effects(rhs)
-            }
-            hir::StmtKind::While { cond, body } => {
-                self.hir_expr_contains_hir_compat_only_effects(cond)
-                    || self.hir_block_contains_hir_compat_only_effects(body)
-            }
-            hir::StmtKind::Return { value } => value
-                .as_ref()
-                .is_some_and(|expr| self.hir_expr_contains_hir_compat_only_effects(expr)),
-            hir::StmtKind::Todo(_) => true,
+            .map(|(key, facts)| (key, facts.root_fqn()))
+            .collect();
+        Self {
+            lir_facts,
+            callable_roots_by_key,
+            queue: VecDeque::new(),
+            seen: HashSet::new(),
+            reachable: BTreeSet::new(),
         }
     }
 
-    fn hir_expr_contains_hir_compat_only_effects(&self, expr: &hir::Expr) -> bool {
-        match &expr.kind {
-            hir::ExprKind::Missing
-            | hir::ExprKind::Literal(_)
-            | hir::ExprKind::ClassLiteral(_)
-            | hir::ExprKind::VarRef(_)
-            | hir::ExprKind::UnresolvedIdent { .. }
-            | hir::ExprKind::Todo(_) => false,
-            hir::ExprKind::StructLit { fields, .. } => fields
-                .iter()
-                .any(|field| self.hir_expr_contains_hir_compat_only_effects(&field.value)),
-            hir::ExprKind::TupleLit { elements } => elements
-                .iter()
-                .any(|element| self.hir_expr_contains_hir_compat_only_effects(element)),
-            hir::ExprKind::InterpolatedString { parts, .. } => {
-                parts.iter().any(|part| match part {
-                    hir::InterpolatedStringPart::Text { .. } => false,
-                    hir::InterpolatedStringPart::Expr { expr } => {
-                        self.hir_expr_contains_hir_compat_only_effects(expr)
+    fn collect(mut self) -> Vec<String> {
+        while let Some(root_fqn) = self.queue.pop_front() {
+            if !self.reachable.insert(root_fqn.clone()) {
+                continue;
+            }
+            self.enqueue_callable_edges(&root_fqn);
+        }
+        self.reachable.into_iter().collect()
+    }
+
+    fn seed_entry(&mut self, root_fqn: &str) {
+        self.enqueue_root(root_fqn);
+    }
+
+    fn seed_global_init_roots(&mut self) {
+        let mut roots = Vec::new();
+        for root in self.lir_facts.global_init.roots.values() {
+            match root.kind {
+                LirGlobalRootKind::TopLevelImmutableVal
+                | LirGlobalRootKind::TopLevelMutableVar
+                | LirGlobalRootKind::ObjectSingleton => roots.push(root.root.as_str().to_string()),
+                LirGlobalRootKind::ExternGlobal => {}
+            }
+            for dependency in &root.dependencies {
+                roots.push(dependency.target.as_str().to_string());
+            }
+        }
+        for routine in self.lir_facts.global_init.cone_init_routines.values() {
+            for root in &routine.roots {
+                roots.push(root.as_str().to_string());
+            }
+        }
+        for root in roots {
+            self.enqueue_root(&root);
+        }
+    }
+
+    fn seed_published_lir_callables(&mut self) {
+        let roots = self
+            .lir_facts
+            .callables
+            .values()
+            .map(|callable| callable.root_fqn().to_string())
+            .collect::<Vec<_>>();
+        for root in roots {
+            self.enqueue_root(&root);
+        }
+    }
+
+    fn seed_runtime_required_callables(&mut self) {
+        for root in RUNTIME_REQUIRED_CALLABLES {
+            self.enqueue_root(root);
+        }
+    }
+
+    fn enqueue_callable_edges(&mut self, root_fqn: &str) {
+        let Some(edges) = self.callable_edges(root_fqn) else {
+            return;
+        };
+        for contract in edges.call_contracts {
+            self.enqueue_call_contract_targets(&contract);
+        }
+        for key in edges.dynamic_keys {
+            self.enqueue_dynamic_invoke_targets(&key);
+        }
+        for key in edges.dispatch_keys {
+            self.enqueue_dispatch_targets(&key);
+        }
+    }
+
+    fn callable_edges(&self, root_fqn: &str) -> Option<CallableEdges> {
+        let callable = self.callable_by_root(root_fqn)?;
+        let mut edges = CallableEdges::default();
+        match &callable.contract {
+            LirCallableContract::Plain(plain) => {
+                for call_site in &plain.call_sites {
+                    edges.call_contracts.push(call_site.contract.clone());
+                    if let Some(key) = call_site.dynamic_invoke.as_ref() {
+                        edges.dynamic_keys.push(key.clone());
                     }
+                    if let Some(key) = call_site.dispatch.as_ref() {
+                        edges.dispatch_keys.push(key.clone());
+                    }
+                }
+                if let Some(control) = plain.local_effect_control.as_ref() {
+                    for boundary in &control.boundary_map.boundaries {
+                        if let Some(key) = boundary.dynamic_invoke.as_ref() {
+                            edges.dynamic_keys.push(key.clone());
+                        }
+                        if let Some(key) = boundary.dispatch.as_ref() {
+                            edges.dispatch_keys.push(key.clone());
+                        }
+                    }
+                }
+            }
+            LirCallableContract::EffectStep(effect) => {
+                for boundary in &effect.control_body.boundary_map.boundaries {
+                    if let Some(key) = boundary.dynamic_invoke.as_ref() {
+                        edges.dynamic_keys.push(key.clone());
+                    }
+                    if let Some(key) = boundary.dispatch.as_ref() {
+                        edges.dispatch_keys.push(key.clone());
+                    }
+                }
+            }
+        }
+
+        edges.dynamic_keys.extend(
+            self.lir_facts
+                .dynamic_invokes
+                .iter()
+                .filter(|(_, dynamic)| {
+                    self.root_for_callable_key(&dynamic.owner_callable) == Some(root_fqn)
                 })
-            }
-            hir::ExprKind::Unary { expr, .. }
-            | hir::ExprKind::TypeCheck { expr, .. }
-            | hir::ExprKind::Cast { expr, .. } => {
-                self.hir_expr_contains_hir_compat_only_effects(expr)
-            }
-            hir::ExprKind::Binary { lhs, rhs, .. } => {
-                self.hir_expr_contains_hir_compat_only_effects(lhs)
-                    || self.hir_expr_contains_hir_compat_only_effects(rhs)
-            }
-            hir::ExprKind::Block(block) => self.hir_block_contains_hir_compat_only_effects(block),
-            hir::ExprKind::Closure(closure) => {
-                self.hir_expr_contains_hir_compat_only_effects(&closure.body)
-            }
-            hir::ExprKind::If {
-                cond,
-                then_branch,
-                else_branch,
-            } => {
-                self.hir_expr_contains_hir_compat_only_effects(cond)
-                    || self.hir_expr_contains_hir_compat_only_effects(then_branch)
-                    || else_branch
-                        .as_ref()
-                        .is_some_and(|expr| self.hir_expr_contains_hir_compat_only_effects(expr))
-            }
-            hir::ExprKind::When { subject, arms } => {
-                self.hir_expr_contains_hir_compat_only_effects(subject)
-                    || arms.iter().any(|arm| {
-                        arm.guard.as_ref().is_some_and(|guard| {
-                            self.hir_expr_contains_hir_compat_only_effects(guard)
-                        }) || self.hir_expr_contains_hir_compat_only_effects(&arm.body)
-                    })
-            }
-            hir::ExprKind::MemberAccess { receiver, .. } => {
-                self.hir_expr_contains_hir_compat_only_effects(receiver)
-            }
-            hir::ExprKind::Call { callee, args } => {
-                self.hir_expr_contains_hir_compat_only_effects(callee)
-                    || args.iter().any(|arg| match arg {
-                        hir::CallArg::Positional(expr) => {
-                            self.hir_expr_contains_hir_compat_only_effects(expr)
-                        }
-                        hir::CallArg::Named { value, .. } => {
-                            self.hir_expr_contains_hir_compat_only_effects(value)
-                        }
-                    })
-            }
-            hir::ExprKind::Perform { .. } | hir::ExprKind::Handle(_) => true,
-        }
+                .map(|(key, _)| key.clone()),
+        );
+        edges.dispatch_keys.extend(
+            self.lir_facts
+                .dispatches
+                .iter()
+                .filter(|(_, dispatch)| {
+                    self.root_for_callable_key(&dispatch.owner_callable) == Some(root_fqn)
+                })
+                .map(|(key, _)| key.clone()),
+        );
+        Some(edges)
     }
 
-    fn canonical_mir_fun(&self, fun: &hir::FunDecl) -> Option<&'a mir::FunDecl> {
-        let pass_view = self.materialized_pass_view?;
-        if pass_view.callable_body_is_overridden(&fun.fqn)
-            || pass_view.owner_of_callable(&fun.fqn).is_some()
-        {
-            return pass_view.callable(&fun.fqn);
-        }
-        self.raw_non_generic_candidate_body(fun)
-    }
-
-    fn raw_non_generic_candidate_body(&self, fun: &hir::FunDecl) -> Option<&'a mir::FunDecl> {
-        self.materialized_pass_view?
-            .materialized()
-            .caller_side_pass_candidate_bodies()
-            .iter()
-            .find(|candidate| {
-                candidate.fqn == fun.fqn
-                    && candidate.body.is_some()
-                    && self.raw_non_generic_candidate_matches_published_scope(candidate)
-            })
-    }
-
-    fn raw_non_generic_candidate_matches_published_scope(&self, fun: &mir::FunDecl) -> bool {
-        let Some(body) = fun.body.as_ref() else {
-            return false;
-        };
-        body.blocks.iter().any(|block| {
-            block.stmts.iter().any(|stmt| {
-                let mir::StatementKind::Assign { value, .. } = &stmt.kind else {
-                    return false;
-                };
-                match value {
-                    mir::Rvalue::PatternMatch { .. } | mir::Rvalue::PatternExtract { .. } => true,
-                    mir::Rvalue::MakeTuple { .. }
-                    | mir::Rvalue::StructLit { .. }
-                    | mir::Rvalue::TupleGet { .. }
-                    | mir::Rvalue::MakeClosure { .. } => true,
-                    mir::Rvalue::Call {
-                        kind: mir::CallKind::Closure { .. },
-                        ..
-                    }
-                    | mir::Rvalue::Call {
-                        kind: mir::CallKind::FunValue { .. },
-                        ..
-                    } => true,
-                    mir::Rvalue::TopLevelRef(mir::TopLevelRef { fqn, .. }) => {
-                        self.object_inits.contains_key(fqn)
-                            || self.top_level_immutable_values.contains_key(fqn)
-                            || self.top_level_vars.contains_key(fqn)
-                            || self.extern_globals.contains_key(fqn)
-                    }
-                    mir::Rvalue::SizeOf { .. }
-                    | mir::Rvalue::KindOf { .. }
-                    | mir::Rvalue::AlignOf { .. }
-                    | mir::Rvalue::DescOf { .. } => true,
-                    _ => false,
-                }
-            })
-        })
-    }
-
-    fn scan_mir_fun(&mut self, fun: &mir::FunDecl) {
-        let Some(body) = fun.body.as_ref() else {
+    fn enqueue_dynamic_invoke_targets(&mut self, key: &LirDynamicInvokeKey) {
+        let Some(dynamic) = self.lir_facts.dynamic_invokes.get(key) else {
             return;
         };
-        self.scan_mir_body(body);
+        let contract = dynamic.call.clone();
+        let dispatch = dynamic.carrier.dispatch.clone();
+        self.enqueue_call_contract_targets(&contract);
+        if let Some(dispatch) = dispatch.as_ref() {
+            self.enqueue_dispatch_targets(dispatch);
+        }
     }
 
-    fn mir_fun_requires_hir_compat_scan(&self, fun: &mir::FunDecl) -> bool {
-        let Some(body) = fun.body.as_ref() else {
-            return true;
+    fn enqueue_dispatch_targets(&mut self, key: &LirDispatchKey) {
+        let Some(dispatch) = self.lir_facts.dispatches.get(key) else {
+            return;
         };
-        body.blocks.iter().any(|block| {
-            block
-                .stmts
-                .iter()
-                .any(|stmt| self.mir_statement_requires_hir_compat_scan(stmt))
-                || self.mir_terminator_requires_hir_compat_scan(&block.terminator.kind)
-        })
-    }
-
-    fn mir_statement_requires_hir_compat_scan(&self, stmt: &mir::Statement) -> bool {
-        match &stmt.kind {
-            mir::StatementKind::Nop => false,
-            mir::StatementKind::Assign { value, .. } => {
-                self.mir_rvalue_requires_hir_compat_scan(value)
-            }
-            mir::StatementKind::StoreMember { .. }
-            | mir::StatementKind::StoreTopLevelVar { .. } => false,
-            mir::StatementKind::Todo(_) => true,
+        let targets = dispatch.candidate_targets.clone();
+        for target in &targets {
+            self.enqueue_published_callable_key(target);
         }
     }
 
-    fn mir_rvalue_requires_hir_compat_scan(&self, value: &mir::Rvalue) -> bool {
-        match value {
-            mir::Rvalue::Use(_)
-            | mir::Rvalue::Transport { .. }
-            | mir::Rvalue::TopLevelRef(_)
-            | mir::Rvalue::SizeOf { .. }
-            | mir::Rvalue::KindOf { .. }
-            | mir::Rvalue::AlignOf { .. }
-            | mir::Rvalue::DescOf { .. }
-            | mir::Rvalue::TypeMetadataLiteral(_)
-            | mir::Rvalue::MakeTuple { .. }
-            | mir::Rvalue::StructLit { .. }
-            | mir::Rvalue::InterpolatedString { .. }
-            | mir::Rvalue::TupleGet { .. }
-            | mir::Rvalue::MakeClosure { .. }
-            | mir::Rvalue::EnumVariant { .. }
-            | mir::Rvalue::ClassCtor { .. }
-            | mir::Rvalue::PatternMatch { .. }
-            | mir::Rvalue::PatternExtract { .. } => false,
-            mir::Rvalue::Call { kind, .. } => self.mir_call_kind_requires_hir_compat_scan(kind),
-            mir::Rvalue::UnresolvedName { .. }
-            | mir::Rvalue::TypeCheck { .. }
-            | mir::Rvalue::Cast { .. }
-            | mir::Rvalue::MemberAccess { .. }
-            | mir::Rvalue::PerformResult { .. }
-            | mir::Rvalue::Todo(_) => true,
-        }
-    }
-
-    fn mir_call_kind_requires_hir_compat_scan(&self, kind: &mir::CallKind) -> bool {
-        match kind {
-            mir::CallKind::Direct { .. } => false,
-            mir::CallKind::Closure { .. } => false,
-            mir::CallKind::FunValue { .. } => false,
-            mir::CallKind::FunPtr { .. } => false,
-            mir::CallKind::Interface { .. } => false,
-            mir::CallKind::Virtual { .. } | mir::CallKind::Resume { .. } => true,
-        }
-    }
-
-    fn mir_terminator_requires_hir_compat_scan(&self, kind: &mir::TerminatorKind) -> bool {
-        match kind {
-            mir::TerminatorKind::Return { .. } => false,
-            mir::TerminatorKind::Goto { .. } | mir::TerminatorKind::Unreachable => false,
-            mir::TerminatorKind::CondBr { cond, .. } => {
-                !matches!(cond, mir::Operand::Local(_) | mir::Operand::Const(_))
-            }
-            mir::TerminatorKind::ResumeUnwind
-            | mir::TerminatorKind::Perform { .. }
-            | mir::TerminatorKind::Handle { .. }
-            | mir::TerminatorKind::Todo(_) => true,
-        }
-    }
-
-    fn scan_mir_body(&mut self, body: &mir::Body) {
-        match body.reachable_blocks() {
-            Ok(blocks) => {
-                for block_id in blocks {
-                    let Some(block) = body.blocks.get(block_id.as_u32() as usize) else {
-                        continue;
-                    };
-                    self.scan_mir_block(block);
-                }
-            }
-            Err(_) => {
-                for block in &body.blocks {
-                    self.scan_mir_block(block);
+    fn enqueue_call_contract_targets(&mut self, contract: &LirCallSiteContract) {
+        for target in &contract.target_callables {
+            match contract.target_mode {
+                LirCallTargetMode::KnownInstance => self.enqueue_required_callable_key(target),
+                LirCallTargetMode::CandidateSet | LirCallTargetMode::DynamicFallback => {
+                    self.enqueue_published_callable_key(target);
                 }
             }
         }
     }
 
-    fn scan_mir_block(&mut self, block: &mir::BasicBlock) {
-        for stmt in &block.stmts {
-            if let mir::StatementKind::Assign { value, .. } = &stmt.kind {
-                self.scan_mir_rvalue(value);
-            }
-        }
-        self.scan_mir_terminator(&block.terminator);
-    }
-
-    fn scan_mir_terminator(&mut self, terminator: &mir::Terminator) {
-        if let mir::TerminatorKind::Perform { args, .. } = &terminator.kind {
-            for arg in args {
-                self.scan_mir_operand(&arg.value);
-            }
+    fn enqueue_required_callable_key(&mut self, key: &StableLirCallableKey) {
+        if let Some(root) = self.root_for_callable_key(key) {
+            self.enqueue_root(root);
+        } else {
+            self.enqueue_root(key.readable_path());
         }
     }
 
-    fn scan_mir_operand(&mut self, _operand: &mir::Operand) {
-        // MIR operands are already locals/constants; any nested top-level refs or calls are
-        // represented by earlier statements and scanned through their rvalues.
+    fn enqueue_published_callable_key(&mut self, key: &StableLirCallableKey) {
+        if let Some(root) = self.root_for_callable_key(key) {
+            self.enqueue_root(root);
+        }
     }
 
-    fn mir_types(&self) -> Option<&TypeStore> {
-        Some(&self.materialized_pass_view?.materialized().types)
+    fn enqueue_root(&mut self, root_fqn: &str) {
+        if self.seen.insert(root_fqn.to_string()) {
+            self.queue.push_back(root_fqn.to_string());
+        }
     }
 
-    fn interface_dispatch_candidate_fqns(
-        &self,
-        receiver_ty: TypeId,
-        owner_fqn: &str,
-        member_name: &str,
-        explicit_arg_count: usize,
-    ) -> Vec<String> {
-        let Some(types) = self.mir_types() else {
-            return Vec::new();
+    fn callable_by_root(&self, root_fqn: &str) -> Option<&'a LirCallableFacts> {
+        self.lir_facts
+            .callables
+            .values()
+            .find(|callable| callable.root_fqn() == root_fqn)
+    }
+
+    fn root_for_callable_key(&self, key: &StableLirCallableKey) -> Option<&'a str> {
+        self.callable_roots_by_key.get(key).copied()
+    }
+}
+
+#[derive(Default)]
+struct CallableEdges {
+    call_contracts: Vec<LirCallSiteContract>,
+    dynamic_keys: Vec<LirDynamicInvokeKey>,
+    dispatch_keys: Vec<LirDispatchKey>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use scoopc_ids::{BodyVersionKey, SiteId, StableLirCallableKey};
+    use scoopc_lir_facts::{
+        LirBodyVersionFacts, LirBoundaryMapFacts, LirCallSiteContract, LirCallSiteKind,
+        LirCallTargetMode, LirCallableAbiKind, LirCallableContract,
+        LirCallableDynamicInvokeEntryFacts, LirCallableFacts, LirCallableSourceKind,
+        LirContinuationObjectKey, LirControlBodyFacts, LirDispatchContract, LirDispatchKey,
+        LirDynamicInvokeCarrierContract, LirDynamicInvokeCarrierKind, LirDynamicInvokeContract,
+        LirDynamicInvokeKey, LirDynamicInvokeSource, LirEffectPrecision,
+        LirEffectStepCallableFacts, LirFactGroups, LirFrameSchemaFacts, LirGlobalInitFacts,
+        LirGlobalRootFacts, LirGlobalRootKey, LirGlobalRootKind, LirPlainCallSiteFacts,
+        LirPlainCallableFacts, LirResumeStateMapFacts, LirSourceSliceKey, LirStageSummary,
+        LirStateGraphFacts, LirStateKey, LirStepSchemaKey,
+    };
+    use scoopc_project_model::{OptLevel, StableConeKey};
+    use scoopc_types::{TypeId, TypeStore};
+
+    fn ty(raw: u32) -> TypeId {
+        let mut types = TypeStore::new();
+        let builtins = types.intern_builtins();
+        match raw {
+            1 => builtins.any,
+            2 => builtins.unit,
+            3 => builtins.string,
+            4 => builtins.int,
+            _ => builtins.nothing,
+        }
+    }
+
+    fn callable_key(root_fqn: &str) -> StableLirCallableKey {
+        StableLirCallableKey::new(format!("lir(instance({root_fqn}))"), root_fqn)
+    }
+
+    fn body_version(owner: &StableLirCallableKey) -> LirBodyVersionFacts {
+        LirBodyVersionFacts {
+            key: BodyVersionKey::new(owner, "plain", 0),
+            impl_plan: "NoOutward".to_string(),
+            needs_reentry: false,
+            allowed_effect_terms: Vec::new(),
+        }
+    }
+
+    fn call_contract(targets: Vec<StableLirCallableKey>) -> LirCallSiteContract {
+        LirCallSiteContract {
+            kind: LirCallSiteKind::Direct,
+            target_mode: LirCallTargetMode::CandidateSet,
+            target_callables: targets,
+            callee_abi_kind: LirCallableAbiKind::Plain,
+            invoke_args_tuple_ty: ty(1),
+            callee_step_schema: None,
+            resolved_cases: Vec::new(),
+            precision: LirEffectPrecision::Precise,
+        }
+    }
+
+    fn plain_callable(root_fqn: &str, targets: Vec<StableLirCallableKey>) -> LirCallableFacts {
+        let key = callable_key(root_fqn);
+        let call_sites = if targets.is_empty() {
+            Vec::new()
+        } else {
+            vec![LirPlainCallSiteFacts {
+                site_id: SiteId::from_raw(0),
+                source_slice: LirSourceSliceKey {
+                    block_id: scoopc_lir_facts::LirBodyBlockKey::new(0),
+                    start_statement_index: 0,
+                    end_statement_index: 1,
+                    includes_terminator: false,
+                },
+                statement_index: 0,
+                contract: call_contract(targets),
+                dynamic_invoke: None,
+                dispatch: None,
+            }]
         };
-        self.interface_dispatch_candidate_fqns_for_types(
-            types,
-            receiver_ty,
-            owner_fqn,
-            member_name,
-            explicit_arg_count,
+        LirCallableFacts {
+            root_fqn: root_fqn.to_string(),
+            stable_instance_key: key.as_str().to_string(),
+            source_kind: LirCallableSourceKind::TopLevel,
+            param_tys: Vec::new(),
+            return_ty: ty(2),
+            body_version: body_version(&key),
+            resolved_outward_cases: Vec::new(),
+            contract: LirCallableContract::Plain(Box::new(LirPlainCallableFacts {
+                function_ty: ty(1),
+                param_tys: Vec::new(),
+                return_ty: ty(2),
+                body_slices: Vec::new(),
+                call_sites,
+                local_effect_control: None,
+            })),
+        }
+    }
+
+    fn effect_step_callable(root_fqn: &str) -> LirCallableFacts {
+        let key = callable_key(root_fqn);
+        let step_schema = LirStepSchemaKey::new(0);
+        LirCallableFacts {
+            root_fqn: root_fqn.to_string(),
+            stable_instance_key: key.as_str().to_string(),
+            source_kind: LirCallableSourceKind::MemberOrSynthetic,
+            param_tys: Vec::new(),
+            return_ty: ty(2),
+            body_version: body_version(&key),
+            resolved_outward_cases: Vec::new(),
+            contract: LirCallableContract::EffectStep(Box::new(LirEffectStepCallableFacts {
+                param_tys: Vec::new(),
+                closure_carrier_arg_tys: Vec::new(),
+                step_schema,
+                dynamic_invoke_entry: LirCallableDynamicInvokeEntryFacts {
+                    invoke_args_tuple_ty: ty(1),
+                    step_schema,
+                    entry_state: LirStateKey::new(0),
+                    complete_state: LirStateKey::new(1),
+                },
+                control_body: LirControlBodyFacts {
+                    step_schema,
+                    state_graph: LirStateGraphFacts {
+                        entry_state: LirStateKey::new(0),
+                        complete_state: LirStateKey::new(1),
+                        cleanup_state: None,
+                        drop_state: None,
+                        states: vec![LirStateKey::new(0), LirStateKey::new(1)],
+                    },
+                    frame_schema: LirFrameSchemaFacts {
+                        slots: Vec::new(),
+                        resume_payload_bindings: Vec::new(),
+                        completion_payload_bindings: Vec::new(),
+                    },
+                    boundary_map: LirBoundaryMapFacts {
+                        boundaries: Vec::new(),
+                    },
+                    resume_state_map: LirResumeStateMapFacts {
+                        entries: Vec::new(),
+                    },
+                    source_statement_count: 0,
+                    continuation_object: LirContinuationObjectKey::new(0),
+                    resume_packings: Vec::new(),
+                },
+            })),
+        }
+    }
+
+    fn facts_with_callables(callables: Vec<LirCallableFacts>) -> LirFacts {
+        let mut map = std::collections::BTreeMap::new();
+        for callable in callables {
+            map.insert(callable_key(callable.root_fqn()), callable);
+        }
+        LirFacts::from_parts(
+            LirStageSummary::new(OptLevel::O0).with_counts(map.len(), 0, 0, 0, 0),
+            LirFactGroups {
+                callables: map,
+                ..LirFactGroups::default()
+            },
         )
     }
 
-    fn interface_dispatch_candidate_fqns_for_types(
-        &self,
-        types: &TypeStore,
-        receiver_ty: TypeId,
-        owner_fqn: &str,
-        member_name: &str,
-        explicit_arg_count: usize,
-    ) -> Vec<String> {
-        let Some(interface) = self.interfaces.get(owner_fqn) else {
-            return Vec::new();
-        };
-        let mut matching_slots = interface.method_slots.iter().filter(|slot| {
-            slot.name == member_name && slot.params_len == explicit_arg_count as u32
-        });
-        let Some(slot) = matching_slots.next() else {
-            return Vec::new();
-        };
-        if matching_slots.next().is_some() {
-            return Vec::new();
-        }
+    #[test]
+    fn reachability_uses_lir_callable_edges() {
+        let facts = facts_with_callables(vec![
+            plain_callable("app.main", vec![callable_key("app.helper")]),
+            plain_callable("app.helper", vec![callable_key("app.leaf")]),
+            plain_callable("app.leaf", Vec::new()),
+        ]);
 
-        let mut targets = BTreeSet::new();
-        if let Some(receiver_fqn) = nominal_type_fqn(types, receiver_ty)
-            && let Some(entries) = self.class_itables.get(receiver_fqn)
-        {
-            collect_interface_slot_targets(entries, owner_fqn, slot.slot as usize, &mut targets);
-        }
-        if targets.is_empty() {
-            for entries in self.class_itables.values() {
-                collect_interface_slot_targets(
-                    entries,
-                    owner_fqn,
-                    slot.slot as usize,
-                    &mut targets,
-                );
-            }
-        }
-        if is_builtin_scalar_or_string_type(types, receiver_ty) {
-            targets.remove(&format!("{owner_fqn}.{member_name}"));
-        }
-        targets.into_iter().collect()
+        assert_eq!(
+            collect_reachable_top_level_funs("app.main", &facts),
+            vec![
+                "app.helper".to_string(),
+                "app.leaf".to_string(),
+                "app.main".to_string(),
+            ]
+        );
     }
 
-    fn scan_mir_rvalue(&mut self, value: &mir::Rvalue) {
-        match value {
-            mir::Rvalue::Use(operand)
-            | mir::Rvalue::Transport { value: operand, .. }
-            | mir::Rvalue::TypeCheck { value: operand, .. }
-            | mir::Rvalue::Cast { value: operand, .. }
-            | mir::Rvalue::TupleGet { tuple: operand, .. }
-            | mir::Rvalue::PatternMatch {
-                subject: operand, ..
-            }
-            | mir::Rvalue::PatternExtract {
-                subject: operand, ..
-            } => {
-                self.scan_mir_operand(operand);
-            }
-            mir::Rvalue::PerformResult { .. }
-            | mir::Rvalue::UnresolvedName { .. }
-            | mir::Rvalue::SizeOf { .. }
-            | mir::Rvalue::KindOf { .. }
-            | mir::Rvalue::AlignOf { .. }
-            | mir::Rvalue::DescOf { .. }
-            | mir::Rvalue::TypeMetadataLiteral(_)
-            | mir::Rvalue::Todo(_) => {}
-            mir::Rvalue::TopLevelRef(mir::TopLevelRef { fqn, .. }) => {
-                self.scan_top_level_value_ref(fqn)
-            }
-            mir::Rvalue::MemberAccess { receiver, .. } => {
-                self.scan_mir_operand(receiver);
-            }
-            mir::Rvalue::Call { kind, args, .. } => {
-                self.scan_mir_call_kind(kind, args.len());
-                for arg in args {
-                    self.scan_mir_operand(&arg.value);
-                }
-            }
-            mir::Rvalue::EnumVariant { args, .. } => {
-                for arg in args {
-                    self.scan_mir_operand(&arg.value);
-                }
-            }
-            mir::Rvalue::ClassCtor {
-                class_fqn,
-                ctor,
-                args,
-                ..
-            } => {
-                // materialized MIR 上的 class ctor 不再保留 HIR call-site side table；
-                // 这里必须显式把 ctor/class reachability 接回主线，才能同步发布
-                // vtable/itable impl targets 与 super ctor chain。
-                self.enqueue_ctor(class_fqn.clone(), ctor.selected_ctor_span);
-                for arg in args {
-                    self.scan_mir_operand(&arg.value);
-                }
-            }
-            mir::Rvalue::MakeTuple { elements, .. } => {
-                for element in elements {
-                    self.scan_mir_operand(element);
-                }
-            }
-            mir::Rvalue::StructLit { fields, .. } => {
-                for field in fields {
-                    self.scan_mir_operand(&field.value);
-                }
-            }
-            mir::Rvalue::InterpolatedString { parts, .. } => {
-                for part in parts {
-                    if let mir::InterpolatedStringPart::Expr { value, .. } = part {
-                        self.scan_mir_operand(value);
-                    }
-                }
-            }
-            mir::Rvalue::MakeClosure { env, fn_ptr, .. } => {
-                self.scan_mir_operand(env);
-                self.enqueue_fun(fn_ptr.clone());
-            }
-        }
-    }
-
-    fn scan_mir_call_kind(&mut self, kind: &mir::CallKind, explicit_arg_count: usize) {
-        match kind {
-            mir::CallKind::Direct { callee_fqn } => self.enqueue_fun(callee_fqn.clone()),
-            mir::CallKind::Closure { callee, fn_ptr } => {
-                self.scan_mir_operand(callee);
-                self.enqueue_fun(fn_ptr.clone());
-            }
-            mir::CallKind::FunValue { callee } | mir::CallKind::FunPtr { callee } => {
-                self.scan_mir_operand(callee)
-            }
-            mir::CallKind::Virtual { receiver, .. } => self.scan_mir_operand(receiver),
-            mir::CallKind::Interface { receiver, dispatch } => {
-                self.scan_mir_operand(receiver);
-                for candidate in self.interface_dispatch_candidate_fqns(
-                    dispatch.receiver_ty,
-                    &dispatch.owner_fqn,
-                    &dispatch.member_name,
-                    explicit_arg_count,
-                ) {
-                    self.enqueue_fun(candidate);
-                }
-            }
-            mir::CallKind::Resume { continuation, .. } => self.scan_mir_operand(continuation),
-        }
-    }
-
-    fn scan_hir_dispatch_call(&mut self, span: Span, fqn: &str, args: &[hir::CallArg]) -> bool {
-        let Some((owner_fqn, member_name)) = fqn.rsplit_once('.') else {
-            return false;
-        };
-        let Some(receiver_ty) = args.first().map(|arg| match arg {
-            hir::CallArg::Positional(expr) => expr.ty,
-            hir::CallArg::Named { value, .. } => value.ty,
-        }) else {
-            return false;
-        };
-        let Some(dispatch_kind) = self.dispatch_kind_for_receiver(span, receiver_ty) else {
-            return false;
-        };
-        let explicit_arg_count = args.len().saturating_sub(1);
-        if let Some(target_fqn) = crate::devirtualize::try_devirtualize_dispatch_target(
-            dispatch_kind,
-            owner_fqn,
-            member_name,
-            explicit_arg_count,
-            receiver_ty,
-            self.types,
-            crate::devirtualize::DispatchTargetFacts {
-                known_receiver_subclasses: &crate::devirtualize::collect_known_receiver_subclasses(
-                    self.direct_supertypes,
-                ),
-                class_vtables: self.class_vtables,
-                interfaces: self.interfaces,
-                class_itables: self.class_itables,
+    #[test]
+    fn reachability_seeds_global_init_roots() {
+        let mut facts = facts_with_callables(vec![plain_callable("app.init_helper", Vec::new())]);
+        facts.global_init = LirGlobalInitFacts::default();
+        facts.global_init.roots.insert(
+            LirGlobalRootKey::new("app.init_helper"),
+            LirGlobalRootFacts {
+                root: LirGlobalRootKey::new("app.init_helper"),
+                kind: LirGlobalRootKind::TopLevelImmutableVal,
+                cone: StableConeKey::new("app", "0.0.0"),
+                source_cone_order: 0,
+                ty: None,
+                storage: None,
+                has_initializer: true,
+                dependencies: Vec::new(),
+                source_path: None,
+                extern_global: None,
             },
-        ) {
-            self.enqueue_fun(target_fqn);
-            return true;
-        }
+        );
 
-        match dispatch_kind {
-            hir::DispatchCallKind::Interface => {
-                for candidate in self.interface_dispatch_candidate_fqns_for_types(
-                    self.types,
-                    receiver_ty,
-                    owner_fqn,
-                    member_name,
-                    explicit_arg_count,
-                ) {
-                    self.enqueue_fun(candidate);
-                }
-                true
-            }
-            hir::DispatchCallKind::Virtual => false,
-        }
+        assert_eq!(
+            collect_reachable_top_level_funs("app.main", &facts),
+            vec!["app.init_helper".to_string(), "app.main".to_string()]
+        );
     }
 
-    fn scan_block(&mut self, block: &hir::Block) {
-        for stmt in &block.stmts {
-            self.scan_stmt(stmt);
-        }
-    }
-
-    fn scan_stmt(&mut self, stmt: &hir::Stmt) {
-        match &stmt.kind {
-            hir::StmtKind::Empty => {}
-            hir::StmtKind::Expr(expr) => self.scan_expr(expr),
-            hir::StmtKind::Val(decl) => {
-                if let Some(init) = decl.init.as_ref() {
-                    self.scan_expr(init);
-                }
-            }
-            hir::StmtKind::Assign { lhs, rhs, .. } => {
-                self.scan_expr(lhs);
-                self.scan_expr(rhs);
-            }
-            hir::StmtKind::Return { value } => {
-                if let Some(expr) = value.as_ref() {
-                    self.scan_expr(expr);
-                }
-            }
-            hir::StmtKind::While { cond, body } => {
-                self.scan_expr(cond);
-                self.scan_block(body);
-            }
-            hir::StmtKind::Break { .. }
-            | hir::StmtKind::Continue { .. }
-            | hir::StmtKind::Todo(_) => {}
-        }
-    }
-
-    fn scan_expr(&mut self, expr: &hir::Expr) {
-        match &expr.kind {
-            hir::ExprKind::Missing | hir::ExprKind::Todo(_) => {}
-            hir::ExprKind::Literal(_)
-            | hir::ExprKind::ClassLiteral(_)
-            | hir::ExprKind::UnresolvedIdent { .. } => {}
-            hir::ExprKind::VarRef(hir::ValueRef::TopLevel { fqn, .. }) => {
-                self.scan_top_level_value_ref(fqn);
-            }
-            hir::ExprKind::VarRef(hir::ValueRef::Local { .. }) => {}
-            hir::ExprKind::StructLit { fields, .. } => {
-                for f in fields {
-                    self.scan_expr(&f.value);
-                }
-            }
-            hir::ExprKind::TupleLit { elements } => {
-                for e in elements {
-                    self.scan_expr(e);
-                }
-            }
-            hir::ExprKind::InterpolatedString { parts, .. } => {
-                for p in parts {
-                    if let hir::InterpolatedStringPart::Expr { expr } = p {
-                        self.scan_expr(expr);
-                    }
-                }
-            }
-            hir::ExprKind::Unary { expr: inner, .. } => self.scan_expr(inner),
-            hir::ExprKind::Binary { lhs, rhs, .. } => {
-                self.scan_expr(lhs);
-                self.scan_expr(rhs);
-            }
-            hir::ExprKind::TypeCheck { expr, .. } | hir::ExprKind::Cast { expr, .. } => {
-                self.scan_expr(expr);
-            }
-            hir::ExprKind::Block(block) => self.scan_block(block),
-            hir::ExprKind::Call { callee, args } => {
-                // 顶层函数调用：收集 callee fqn。
-                if let hir::ExprKind::VarRef(hir::ValueRef::TopLevel { fqn, .. }) = &callee.kind {
-                    if self.scan_hir_dispatch_call(expr.span, fqn, args) {
-                        // 已由 dispatch side table 收集真实目标；不能再把接口/虚方法声明本身
-                        // 当作普通 reachable callable，否则无 body 的 interface method 会误报。
-                    } else if self.fun_index.contains_key(fqn) {
-                        self.enqueue_fun(fqn.clone());
-                    } else {
-                        self.scan_expr(callee);
-                    }
-                } else {
-                    // callee 也可能是 `helper().member` / `foo()()` 这类复合表达式；
-                    // 需要继续扫描 callee，避免漏掉其中嵌套的顶层函数或顶层 const 引用。
-                    self.scan_expr(callee);
-                }
-
-                // constructor call：调用 span 会在 HIR side table 中出现已选 ctor 绑定。
-                self.enqueue_ctor_call_site(expr.span);
-
-                for arg in args {
-                    self.scan_call_arg(arg);
-                }
-            }
-            hir::ExprKind::Closure(c) => self.scan_expr(&c.body),
-            hir::ExprKind::If {
-                cond,
-                then_branch,
-                else_branch,
-            } => {
-                self.scan_expr(cond);
-                self.scan_expr(then_branch);
-                if let Some(e) = else_branch.as_ref() {
-                    self.scan_expr(e);
-                }
-            }
-            hir::ExprKind::When { subject, arms } => {
-                self.scan_expr(subject);
-                for arm in arms {
-                    if let Some(guard) = arm.guard.as_ref() {
-                        self.scan_expr(guard);
-                    }
-                    self.scan_expr(&arm.body);
-                }
-            }
-            hir::ExprKind::MemberAccess { receiver, .. } => self.scan_expr(receiver),
-            hir::ExprKind::Perform { args, .. } => {
-                for arg in args {
-                    match arg {
-                        hir::CallArg::Positional(e) => self.scan_expr(e),
-                        hir::CallArg::Named { value, .. } => self.scan_expr(value),
-                    }
-                }
-            }
-            hir::ExprKind::Handle(h) => {
-                self.scan_block(&h.body);
-                for arm in &h.arms {
-                    self.scan_expr(&arm.body);
-                }
-                if let Some(finally) = h.finally.as_ref() {
-                    self.scan_block(finally);
-                }
-            }
-        }
-    }
-
-    fn scan_class_init_steps(&mut self, class: &hir::ClassInit) {
-        self.with_source_path(class.source_path.as_path(), |this| {
-            for step in &class.steps {
-                match step {
-                    hir::ClassInitStep::PropertyInit { init, .. } => this.scan_expr(init),
-                    hir::ClassInitStep::InitBlock { block } => this.scan_block(block),
-                }
-            }
-        });
-    }
-
-    fn scan_ctor(&mut self, class_fqn: &str, ctor_span: Option<Span>) {
-        let Some(class) = self.class_inits.get(class_fqn).cloned() else {
-            return;
+    #[test]
+    fn reachability_uses_lir_dynamic_and_dispatch_targets() {
+        let owner = callable_key("app.main");
+        let target = callable_key("app.impl");
+        let dispatch_key = LirDispatchKey {
+            owner_callable: owner.clone(),
+            site_id: SiteId::from_raw(7),
         };
+        let dynamic_key = LirDynamicInvokeKey {
+            owner_callable: owner.clone(),
+            site_id: SiteId::from_raw(7),
+        };
+        let mut facts = facts_with_callables(vec![
+            plain_callable("app.main", Vec::new()),
+            plain_callable("app.impl", Vec::new()),
+        ]);
+        facts.dispatches.insert(
+            dispatch_key.clone(),
+            LirDispatchContract {
+                owner_callable: owner.clone(),
+                site_id: SiteId::from_raw(7),
+                kind: LirCallSiteKind::Interface,
+                owner_fqn: "app.IFace".to_string(),
+                member_name: "run".to_string(),
+                member_fqn: "app.IFace.run".to_string(),
+                receiver_ty: ty(1),
+                explicit_arg_count: 0,
+                method_slot: 0,
+                interface_id: Some(0),
+                candidate_targets: vec![target.clone()],
+            },
+        );
+        facts.dynamic_invokes.insert(
+            dynamic_key,
+            LirDynamicInvokeContract {
+                owner_callable: owner,
+                owner_step_schema: None,
+                site_id: SiteId::from_raw(7),
+                source: LirDynamicInvokeSource::PlainCallSite {
+                    source_slice: LirSourceSliceKey {
+                        block_id: scoopc_lir_facts::LirBodyBlockKey::new(0),
+                        start_statement_index: 0,
+                        end_statement_index: 1,
+                        includes_terminator: false,
+                    },
+                    statement_index: 0,
+                },
+                call: LirCallSiteContract {
+                    kind: LirCallSiteKind::Interface,
+                    target_mode: LirCallTargetMode::CandidateSet,
+                    target_callables: vec![target],
+                    callee_abi_kind: LirCallableAbiKind::Plain,
+                    invoke_args_tuple_ty: ty(1),
+                    callee_step_schema: None,
+                    resolved_cases: Vec::new(),
+                    precision: LirEffectPrecision::Precise,
+                },
+                carrier: LirDynamicInvokeCarrierContract {
+                    kind: LirDynamicInvokeCarrierKind::InterfaceReceiver,
+                    source_ty: None,
+                    dispatch: Some(dispatch_key),
+                },
+                arg_count: 0,
+                target_body_versions: Vec::new(),
+            },
+        );
 
-        // T1508b：vtable 虚调用需要确保“可达的 class”其 vtable 实现成员也会被后端声明/生成。
-        // - class ctor 可达 ⇒ 该 class 的对象可能被分配并参与动态分发；
-        // - 因此这里把 vtable slots 指向的实现成员（impl_member_fqn）加入可达集合。
-        self.enqueue_vtable_impls(class_fqn);
-
-        // T1508c：interface dispatch 同样依赖 itable entries 中的目标成员可达（含默认方法）。
-        self.enqueue_itable_impls(class_fqn);
-
-        // class init steps（property initializer / init blocks）对所有构造路径都可达：只扫描一次。
-        if self.scanned_class_init_steps.insert(class.fqn.clone()) {
-            self.scan_class_init_steps(&class);
-        }
-
-        self.with_source_path(class.source_path.as_path(), |this| {
-            let ctor = this.pick_ctor_by_call_target(&class, ctor_span);
-
-            // delegation / super ctor args
-            match ctor {
-                Some(ctor) if ctor.kind == hir::ClassCtorKind::Secondary => {
-                    if let Some(deleg) = ctor.delegation.as_ref() {
-                        for arg in &deleg.args {
-                            this.scan_call_arg(arg);
-                        }
-                        if let Some(call) = deleg.call.as_ref() {
-                            this.enqueue_ctor(call.class_fqn.clone(), call.ctor_span);
-                        } else {
-                            match deleg.kind {
-                                ast::CtorDelegationKind::This => {
-                                    this.enqueue_ctor(class.fqn.clone(), None);
-                                }
-                                ast::CtorDelegationKind::Super => {
-                                    if let Some(super_fqn) = class.super_class_fqn.as_deref() {
-                                        this.enqueue_ctor(super_fqn.to_string(), None);
-                                    }
-                                }
-                            }
-                        }
-                    } else {
-                        // secondary ctor（无 delegation）：走 class header 的 super ctor args。
-                        for arg in &class.super_ctor_args {
-                            this.scan_call_arg(arg);
-                        }
-                        if let Some(call) = class.super_ctor_call.as_ref() {
-                            this.enqueue_ctor(call.class_fqn.clone(), call.ctor_span);
-                        } else if let Some(super_fqn) = class.super_class_fqn.as_deref() {
-                            this.enqueue_ctor(super_fqn.to_string(), None);
-                        }
-                    }
-
-                    // secondary ctor body
-                    if let Some(body) = ctor.body.as_ref() {
-                        this.scan_block(body);
-                    }
-                }
-                _ => {
-                    // primary ctor（或隐式 0-参 primary ctor）：走 class header 的 super ctor args。
-                    for arg in &class.super_ctor_args {
-                        this.scan_call_arg(arg);
-                    }
-                    if let Some(call) = class.super_ctor_call.as_ref() {
-                        this.enqueue_ctor(call.class_fqn.clone(), call.ctor_span);
-                    } else if let Some(super_fqn) = class.super_class_fqn.as_deref() {
-                        this.enqueue_ctor(super_fqn.to_string(), None);
-                    }
-                }
-            }
-
-            if let Some(ctor) = ctor {
-                for param in &ctor.params {
-                    if let Some(default_value) = param.default_value.as_ref() {
-                        this.scan_expr(default_value);
-                    }
-                }
-            }
-        });
+        assert_eq!(
+            collect_reachable_top_level_funs("app.main", &facts),
+            vec!["app.impl".to_string(), "app.main".to_string()]
+        );
     }
-}
 
-fn nominal_type_fqn(types: &TypeStore, ty: TypeId) -> Option<&str> {
-    match types.kind(ty) {
-        TypeKind::Ref(RefTypeKind::Nominal(nominal))
-        | TypeKind::Value(ValueTypeKind::Nominal(nominal)) => Some(nominal.fqn.as_str()),
-        TypeKind::Value(ValueTypeKind::Bool) => Some("scoop.core.Bool"),
-        TypeKind::Value(ValueTypeKind::Char) => Some("scoop.core.Char"),
-        TypeKind::Value(ValueTypeKind::Int) => Some("scoop.core.Int"),
-        TypeKind::Value(ValueTypeKind::UInt) => Some("scoop.core.UInt"),
-        TypeKind::Value(ValueTypeKind::Float32) => Some("scoop.core.Float32"),
-        TypeKind::Value(ValueTypeKind::Float64) => Some("scoop.core.Float64"),
-        TypeKind::Ref(RefTypeKind::String) => Some("scoop.core.String"),
-        _ => None,
+    #[test]
+    fn reachability_ignores_unpublished_candidate_set_targets() {
+        let facts = facts_with_callables(vec![plain_callable(
+            "app.main",
+            vec![callable_key("scoop.core.Bool.toString")],
+        )]);
+
+        assert_eq!(
+            collect_reachable_top_level_funs("app.main", &facts),
+            vec!["app.main".to_string()]
+        );
     }
-}
 
-fn is_builtin_scalar_or_string_type(types: &TypeStore, ty: TypeId) -> bool {
-    matches!(
-        types.kind(ty),
-        TypeKind::Value(
-            ValueTypeKind::Bool
-                | ValueTypeKind::Char
-                | ValueTypeKind::Int
-                | ValueTypeKind::UInt
-                | ValueTypeKind::Float32
-                | ValueTypeKind::Float64
-        ) | TypeKind::Ref(RefTypeKind::String)
-    )
-}
+    #[test]
+    fn reachability_seeds_published_continuation_resume_callable() {
+        let facts = facts_with_callables(vec![
+            plain_callable("app.main", Vec::new()),
+            effect_step_callable("app.main$continuation_resume"),
+        ]);
 
-fn collect_interface_slot_targets(
-    entries: &[crate::itable::ClassItableEntry],
-    owner_fqn: &str,
-    slot_index: usize,
-    targets: &mut BTreeSet<String>,
-) {
-    for entry in entries {
-        if entry.interface_fqn != owner_fqn {
-            continue;
-        }
-        if let Some(fqn) = entry.method_impl_fqns.get(slot_index)
-            && !fqn.is_empty()
-        {
-            targets.insert(fqn.clone());
-        }
+        assert_eq!(
+            collect_reachable_top_level_funs("app.main", &facts),
+            vec![
+                "app.main".to_string(),
+                "app.main$continuation_resume".to_string(),
+            ]
+        );
     }
 }

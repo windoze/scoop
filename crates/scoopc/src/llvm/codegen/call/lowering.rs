@@ -2621,27 +2621,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         let explicit_params_len = args.len().saturating_sub(1) as u32;
-        let known_receiver_subclasses =
-            crate::devirtualize::collect_known_receiver_subclasses(self.direct_supertypes);
-        if let Some(target_fqn) = crate::devirtualize::try_devirtualize_dispatch_target(
-            hir::DispatchCallKind::Interface,
-            owner_fqn,
-            method_name,
-            explicit_params_len as usize,
-            receiver_expr.ty,
-            self.types,
-            crate::devirtualize::DispatchTargetFacts {
-                known_receiver_subclasses: &known_receiver_subclasses,
-                class_vtables: self.class_vtables,
-                interfaces: self.interfaces,
-                class_itables: self.class_itables,
-            },
-        ) {
-            return self
-                .codegen_top_level_fun_call(span, callee_span, &target_fqn, args)
-                .map(Some);
-        }
-
         let mut candidates = iface
             .method_slots
             .iter()

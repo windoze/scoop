@@ -4,7 +4,7 @@
 > 细化时间：2026-05-22
 > 计划基线：[`PLAN.md`](./PLAN.md) §4/P6-P8
 > 索引：[`TODO.md`](./TODO.md)
-> 当前状态：`P7-T01R` 已完成；下一步执行 `P7-T02`。
+> 当前状态：`P7-T02` 已完成；下一步执行 `P7-T02R`。
 
 ## 范围
 
@@ -381,7 +381,7 @@
   - 验证通过：`cargo fmt`；`cargo test -p scoopc_lir_facts`；`cargo test -p scoopc --no-default-features llvm_entry_global`（无匹配测试但编译通过）；`cargo test -p scoopc llvm_entry_global`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/global_init`；`cargo run -p scoop -- test --fixtures tests/fixtures/effect_lowered`；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
   - 完整 run-pass：`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass` 已重跑，entry/global、extern global、global-init 相关 fixtures 通过；全量仍有 7 个既有非 P7-T01R 失败（`array_lit_infer_unannotated_and_nested_basic.scoop`、`array_lit_infer_string_char_float_basic.scoop`、`lang_mutable_array_new_string_ref.scoop`、`lang_mutable_array_new_struct_composite.scoop`、`std_process_args_exit_basic.scoop`、`stdlib_string_basic.scoop`、`sysroot_atomic_basic.scoop`），与 P7-T01 / P6 baseline 一致，未作为本 review 前置项。
 
-## [TODO] P7-T02：删除 backend reachability HIR/MIR 回看与 codegen 去虚化 residual
+## [DONE] P7-T02：删除 backend reachability HIR/MIR 回看与 codegen 去虚化 residual
 
 - 目标：
   - 让 LLVM reachability 只基于 LIR/LIR facts 的 callable、dispatch、dynamic invoke 与 global init root；
@@ -409,7 +409,14 @@
   - LIR/LIR facts reachability 足以覆盖 LLVM emission。
 - 依赖：P7-T01R
 - 完成记录：
-  - 待填写。
+  - `llvm/reachability.rs` 已替换为只消费 `LirFacts` 的 collector：入口 root、global init roots、已发布 LIR callables、runtime-required callables 作为 seeds；ordinary call、dynamic invoke、dispatch candidate edges 均从 `LirCallableFacts` / `LirDynamicInvokeContract` / `LirDispatchContract` 读取，不再导入或扫描 HIR body、raw MIR body、`MaterializedMirPassView`。
+  - reachability 对 `KnownInstance` target 保持 required 语义，缺失时继续暴露为 backend handoff 错误；对 conservative `CandidateSet` / dispatch candidate 只 enqueue 已发布到 `LirFacts.callables` 的 callable，避免把未发布的宽候选（例如无关 `ToString` implementer）重新作为 backend HIR fallback 目标。
+  - `emit.rs` 的 reachable set 改为从 LIR facts reachable FQN 映射到当前 P7-T03 前仍存在的 legacy body/declaration scaffold；删除了原先基于 HIR `fun_index` 的 monomorphized helper 追加逻辑。
+  - 删除 `llvm/codegen/call/lowering.rs` 中接口调用的 codegen 层 dispatch 去虚化 fallback；普通 dispatch target refinement 只保留在 MIR/LIR-owned pass/facts 路径。
+  - 新增 `llvm::reachability` 单测覆盖 LIR callable edges、global init root seed、dynamic invoke、dispatch target、unpublished conservative candidate 忽略，以及 published continuation/resume callable seed。
+  - residual 搜索 `hir::|mir::|MaterializedMirPassView|devirtual` 于 `crates/scoopc/src/llvm/reachability.rs` 无命中；LLVM codegen 下 `devirtual|try_devirtualize|collect_known_receiver_subclasses|dispatch_devirtualization` 无命中。
+  - 验证通过：`cargo fmt`；`cargo test -p scoopc --no-default-features llvm::reachability`（LLVM feature-gated，无匹配测试但命令通过）；`cargo test -p scoopc llvm::reachability`；`cargo run -p scoop -- test --fixtures tests/fixtures/effect_lowered`；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
+  - 完整 `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass` 已用 30 分钟 timeout 重跑：414/421 通过；剩余 7 个失败为既有非 P7-T02 baseline（`array_lit_infer_string_char_float_basic.scoop`、`array_lit_infer_unannotated_and_nested_basic.scoop`、`lang_mutable_array_new_string_ref.scoop`、`lang_mutable_array_new_struct_composite.scoop`、`std_process_args_exit_basic.scoop`、`stdlib_string_basic.scoop`、`sysroot_atomic_basic.scoop`）。
 
 ## [TODO] P7-T02R：Review backend reachability cleanup
 

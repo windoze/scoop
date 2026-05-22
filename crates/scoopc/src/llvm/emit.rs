@@ -8,7 +8,7 @@
 //! 它不负责定义 LLVM pass pipeline，也不在根模块中继续承载大段实现。
 
 use std::cell::RefCell;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::path::Path;
 use std::rc::Rc;
 
@@ -25,7 +25,7 @@ use scoopc_lir_facts::{LirCallableFacts, LirFacts};
 
 use super::frontend;
 use super::pipeline::run_pass_pipeline;
-use super::reachability::{ReachabilityInputs, collect_reachable_top_level_funs};
+use super::reachability::collect_reachable_top_level_funs;
 use super::{LlvmEmitError, codegen, configure_llvm_global_options_once, target};
 
 struct LoweredCodegenEntry<'a> {
@@ -564,45 +564,12 @@ fn build_module_from_codegen_entry_with_root_selector<'ctx>(
     );
     let mut declare = unit_codegen.fresh_main_codegen();
 
-    let mut reachable: Vec<&hir::FunDecl> = collect_reachable_top_level_funs(
-        root_fun,
-        &fun_index,
-        unit_codegen.materialized_pass_view(),
-        ReachabilityInputs {
-            class_inits: &lowered.class_inits,
-            class_vtables: &lowered.class_vtables,
-            interfaces: &lowered.interfaces,
-            class_itables: &lowered.class_itables,
-            direct_supertypes: &lowered.direct_supertypes,
-            dispatch_call_sites: &lowered.dispatch_call_sites,
-            ctor_call_sites: &lowered.ctor_call_sites,
-            types: &lowered.types,
-            top_level_vars: &lowered.top_level_vars,
-            top_level_immutable_values: &lowered.top_level_immutable_values,
-            extern_globals: &lowered.extern_globals,
-            object_inits: &lowered.object_inits,
-        },
-    );
-
-    // T0126: Eagerly include monomorphized generic class member methods.
-    // When a generic class method like `Box.get` is reachable, also include all its
-    // monomorphized variants (e.g., `Box.get::<Int>`, `Box.get::<String>`).
-    {
-        let reachable_fqns: HashSet<&str> = reachable.iter().map(|f| f.fqn.as_str()).collect();
-        let mut monomorphized: Vec<&hir::FunDecl> = Vec::new();
-        for (fqn, fun) in &fun_index {
-            // Monomorphized member methods have `::<` in their FQN.
-            if fqn.contains("::<") && !reachable_fqns.contains(fqn.as_str()) {
-                // Check if the base (non-monomorphized) method is reachable.
-                if let Some(base_fqn) = fqn.split("::<").next()
-                    && reachable_fqns.contains(base_fqn)
-                {
-                    monomorphized.push(fun);
-                }
-            }
-        }
-        reachable.extend(monomorphized);
-    }
+    let reachable_fqns =
+        collect_reachable_top_level_funs(root_fun.fqn.as_str(), late_lowered_lir_facts);
+    let mut reachable: Vec<&hir::FunDecl> = reachable_fqns
+        .iter()
+        .filter_map(|fqn| fun_index.get(fqn).copied())
+        .collect();
 
     if selected_root.entry_main_arg_shape.is_none()
         && !reachable.iter().any(|fun| fun.fqn == root_fun.fqn)
