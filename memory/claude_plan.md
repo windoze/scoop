@@ -1,32 +1,29 @@
-# Claude Execution Plan
+## Execution Plan
 
-## Scope
-- Follow `TODO.md` as the authoritative task list.
-- Complete exactly the first incomplete task, then stop.
-- Mark the task `[DONE]`, update its completion record, run required validation, and commit the resulting changes.
-- If a concrete blocker prevents completion, update `TODO.md` with the minimum prerequisite task, commit, and stop.
+This file records the actionable plan and progress for the current invocation. It intentionally contains a concise, reviewable plan rather than private internal reasoning.
 
-## Initial Steps
-1. Read `TODO.md` to identify the first task whose title is not prefixed with `[DONE]`.
-2. Check the latest commit message only for unfinished work directly relevant to that task.
+### Initial Plan
+
+1. Read `TODO.md` and identify the first task whose heading is not prefixed with `[DONE]`.
+2. Check the latest commit only for directly relevant unfinished notes after the current task is identified.
 3. Read the selected task details, dependencies, and validation requirements.
-4. Inspect only the code, fixtures, and docs needed for that task.
-5. Implement the task without workarounds or spec deviations.
-6. Run focused validation first, then any task-required broader validation.
-7. Update `TODO.md` completion status and record.
-8. Commit all intended changes with a task-specific message.
+4. Inspect the relevant source, fixtures, and tests for that task only.
+5. Implement the task as specified, without narrowing scope or adding workarounds.
+6. Run targeted validation first, then broader required validation from the task record.
+7. If an unscheduled blocking issue or failing test is discovered, either fix it or insert the minimum prerequisite task in `TODO.md`, then stop after committing.
+8. When the task is complete, update `TODO.md` by prefixing the task title with `[DONE]` and filling the completion record.
+9. Update this file at key milestones or if the plan changes.
+10. Inspect git status/diff/log, commit all intended changes with a task-specific message, and stop without starting the next task.
 
-## Progress Log
-- Plan file initialized before repository commands or code execution.
-- Identified first incomplete task from `TODO.md`: `P7-T02` in `TODO-6.md`.
-- Next steps: inspect `P7-T02` details, check the latest commit for directly relevant unfinished work, then implement only this task.
-- Latest commit is `[P7-T01R] Review LLVM entry global migration`; it is directly adjacent but does not mention unfinished work that changes `P7-T02` ordering.
-- `P7-T02` execution plan: remove LLVM reachability reads of HIR bodies/raw MIR/pass view and backend devirtualization; make reachability seeds/edges come from LIR/LIR facts; add or update focused tests/dumps; run the task validation commands; then mark `P7-T02` done in both TODO indexes and commit.
-- Implemented first edit pass: replaced `llvm/reachability.rs` with a LIR-facts-only collector, switched `emit.rs` to consume reachable FQNs from `LirFacts`, and removed the LLVM call-lowering interface dispatch devirtualization fallback.
-- Next step: run formatting and focused `llvm::reachability` tests, then fix any compile/test failures without reintroducing HIR/MIR reachability scans.
-- Focused reachability unit tests pass with default LLVM feature; the required `--no-default-features llvm::reachability` command also completes but has no matching LLVM tests because the module is feature-gated.
-- `effect_lowered` fixtures pass. Full `run-pass` now has broad failures, so the current LIR-only reachability is incomplete for production emission; next step is to inspect representative fixture diagnostics and repair the LIR-facts reachability coverage without restoring HIR/MIR scanning.
-- Diagnosed the broad `run-pass` failures as over-enqueueing unpublished conservative candidate-set targets such as `scoop.core.Bool.toString` into legacy backend reachability.
-- Adjusted LIR reachability so `KnownInstance` targets remain required, while `CandidateSet` and dispatch targets only enqueue callables actually published in `LirFacts`. Added a focused regression test and confirmed the representative global-init fixture now passes.
-- Final validation completed: `cargo fmt`, required no-default reachability command, default `llvm::reachability` unit tests, `effect_lowered` fixtures, full `run-pass` with only the known 7 non-task baseline failures, `cargo clippy --all-targets -- -D warnings`, residual searches, and `git diff --check`.
-- Updated `TODO.md` and `TODO-6.md` to mark `P7-T02` as `[DONE]` with completion notes. Next step is commit only; do not start `P7-T02R` in this invocation.
+### Progress
+
+- Plan file initialized before running repository commands.
+- Selected first incomplete task: `P7-T02-a` in `TODO-6.md`, which requires fixing the seven recorded run-pass fixture baseline failures.
+- Latest commit is `Update plan`; it directly added/updated the current baseline-failure task and does not contain a separate unfinished implementation note.
+- Next step: reproduce the listed fixture failures, then fix the root cause without adding LLVM HIR/raw MIR fallback or backend codegen special cases.
+- Reproduced the baseline failure as an unresolved generic `scoop.core.println` direct call during materialization.
+- Root cause found in MIR materializer call-site binding lookup: exact outer call bindings were being invalidated by nested overlapping generic call bindings that could be remapped to the same callee shape.
+- Implemented exact call-site binding preference before overlapping fallback in `lookup_site_instance_binding_for_callee_in` and added a nested-array println regression test.
+- All seven previously listed individual run-pass fixtures now pass; next step is required formatting, full run-pass validation, clippy, and diff checks.
+- Required validation completed: `cargo fmt`; `cargo test -p scoopc materialize_request_root_rewrites_nested_array_println_call_sites -- --nocapture`; seven individual baseline fixtures; full `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass` with 421/421 passing; `cargo clippy --all-targets -- -D warnings`; `git diff --check`.
+- Updated `TODO.md` and `TODO-6.md` to mark `P7-T02-a` as `[DONE]` with completion notes. Next step is final git inspection and committing the task changes.

@@ -114,7 +114,7 @@
 | P7-T01 | [DONE] | [`TODO-6.md`](./TODO-6.md#done-p7-t01迁移-llvm-entryglobal-查询到-lir-facts) | 迁移 LLVM entry/global 查询到 LIR facts |
 | P7-T01R | [DONE] | [`TODO-6.md`](./TODO-6.md#done-p7-t01rreview-llvm-entryglobal-lir-facts-迁移结果) | Review LLVM entry/global LIR facts 迁移结果 |
 | P7-T02 | [DONE] | [`TODO-6.md`](./TODO-6.md#done-p7-t02删除-backend-reachability-hirmir-回看与-codegen-去虚化-residual) | 删除 backend reachability HIR/MIR 回看与 codegen 去虚化 residual |
-| P7-T02-a | [TODO] | [`TODO-6.md`](./TODO-6.md#todo-p7-t02-a修复-run-pass-fixture-baseline-失败) | 修复 run-pass fixture baseline 失败 |
+| P7-T02-a | [DONE] | [`TODO-6.md`](./TODO-6.md#done-p7-t02-a修复-run-pass-fixture-baseline-失败) | 修复 run-pass fixture baseline 失败 |
 | P7-T02R | [TODO] | [`TODO-6.md`](./TODO-6.md#todo-p7-t02rreview-backend-reachability-cleanup) | Review backend reachability cleanup |
 | P7-T03 | [TODO] | [`TODO-6.md`](./TODO-6.md#todo-p7-t03迁移-llvm-body-emission-离开-raw-mir--hir-fallback) | 迁移 LLVM body emission 离开 raw MIR / HIR fallback |
 | P7-T03R | [TODO] | [`TODO-6.md`](./TODO-6.md#todo-p7-t03rreview-llvm-body-emission-迁移结果) | Review LLVM body emission 迁移结果 |

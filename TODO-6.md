@@ -4,7 +4,7 @@
 > 细化时间：2026-05-22
 > 计划基线：[`PLAN.md`](./PLAN.md) §4/P6-P8
 > 索引：[`TODO.md`](./TODO.md)
-> 当前状态：`P7-T02` 已完成；下一步执行 `P7-T02-a`。
+> 当前状态：`P7-T02-a` 已完成；下一步执行 `P7-T02R`。
 
 ## 范围
 
@@ -418,7 +418,7 @@
   - 验证通过：`cargo fmt`；`cargo test -p scoopc --no-default-features llvm::reachability`（LLVM feature-gated，无匹配测试但命令通过）；`cargo test -p scoopc llvm::reachability`；`cargo run -p scoop -- test --fixtures tests/fixtures/effect_lowered`；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
   - 完整 `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass` 已用 30 分钟 timeout 重跑：414/421 通过；剩余 7 个失败为既有非 P7-T02 baseline（`array_lit_infer_string_char_float_basic.scoop`、`array_lit_infer_unannotated_and_nested_basic.scoop`、`lang_mutable_array_new_string_ref.scoop`、`lang_mutable_array_new_struct_composite.scoop`、`std_process_args_exit_basic.scoop`、`stdlib_string_basic.scoop`、`sysroot_atomic_basic.scoop`）。
 
-## [TODO] P7-T02-a：修复 run-pass fixture baseline 失败
+## [DONE] P7-T02-a：修复 run-pass fixture baseline 失败
 
 - 目标：
   - 修复 P6/P7 期间反复登记的 7 个既有 run-pass fixture baseline 失败；
@@ -457,7 +457,12 @@
   - 修复没有新增 LLVM HIR/raw MIR fallback、codegen 去虚化 residual 或 stage output wrapper 回退。
 - 依赖：P7-T02
 - 完成记录：
-  - 待填写。
+  - 根因：MIR materializer 的 callee site binding lookup 在外层 call span 有精确 `println::<Int>` binding 时，仍会继续考察内层重叠 generic binding；`println(nested.size())` 中内层 `Array.size::<Array<Int>>` 可被过宽的 signature-shape remap 视为 `println::<Array<Int>>`，与外层精确 binding 冲突，导致 direct call target 保持泛型 `scoop.core.println`。
+  - 修复：`lookup_site_instance_binding_for_callee_in` 先匹配并返回 exact call-site binding，只有没有 exact callee binding 时才回退到原有 overlapping lookup；没有新增 LLVM HIR/raw MIR fallback、codegen 去虚化 residual 或 stage output wrapper 回退。
+  - 新增回归：`materialize_request_root_rewrites_nested_array_println_call_sites` 覆盖嵌套数组 `println(nested.size())` request-root body rewrite，确保 pass-visible main 不保留泛型 `scoop.core.println` direct call。
+  - `SYSROOT-DEPS` 复查：`lang_mutable_array_new_string_ref.scoop` 在 fixture harness 下通过，说明 `SYSROOT-DEPS: scoop.runtime.test` 注入路径有效；直接 `scoop run` 不读取 fixture header，因此不会注入该 sysroot dependency。
+  - 已知 7 个 baseline fixtures 已全部单独通过：`array_lit_infer_unannotated_and_nested_basic.scoop`、`array_lit_infer_string_char_float_basic.scoop`、`lang_mutable_array_new_string_ref.scoop`、`lang_mutable_array_new_struct_composite.scoop`、`std_process_args_exit_basic.scoop`、`stdlib_string_basic.scoop`、`sysroot_atomic_basic.scoop`。
+  - 验证通过：`cargo fmt`；`cargo test -p scoopc materialize_request_root_rewrites_nested_array_println_call_sites -- --nocapture`；逐个运行上述 7 个 fixtures；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`（421/421 passed）；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
 
 ## [TODO] P7-T02R：Review backend reachability cleanup
 

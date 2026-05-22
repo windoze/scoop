@@ -1694,6 +1694,13 @@ impl MirInstanceMaterializer {
         enclosing_span: Span,
         callee_fqn: &str,
     ) -> Option<SiteInstanceBinding> {
+        let exact_key = (template_source_path.to_path_buf(), enclosing_span);
+        if let Some(binding) = bindings.get(&exact_key)
+            && let Some(candidate) = self.site_instance_binding_candidate(binding, callee_fqn)
+        {
+            return Some(candidate);
+        }
+
         let mut found: Option<(Span, SiteInstanceBinding)> = None;
         for ((source_path, span), binding) in bindings {
             if source_path != template_source_path

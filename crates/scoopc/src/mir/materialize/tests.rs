@@ -4012,6 +4012,65 @@ println(holder.node.tag.score)
 }
 
 #[test]
+fn materialize_request_root_rewrites_nested_array_println_call_sites() {
+    let sess = Session::new().unwrap();
+    let source = SourceFile::new_virtual(
+        "<mem>/materialize_nested_array_println.scoop",
+        r#"
+package fixtures.materialize
+
+import scoop.core.*
+
+fun main(): Int {
+val xs = [1, 2, 3]
+println(xs.size())
+
+val nested = [[1, 2], [3, 4]]
+println(nested.size())
+return 0
+}
+"#,
+    );
+    let inputs = collect_dump_materialization_inputs(&sess, &source).unwrap();
+    let compilation_unit = inputs
+        .prepared_files
+        .iter()
+        .map(|file| (&file.source, &file.ast))
+        .collect::<Vec<_>>();
+    let materialized = crate::mir::materialize_compilation_unit_from_typechecked_inputs(
+        &compilation_unit,
+        &[source.path().to_path_buf()],
+        &inputs.index,
+        Some(&inputs.env),
+        &inputs.typecheck_types,
+        &inputs.monomorph_requests,
+    )
+    .unwrap();
+    let main = materialized
+        .pass_view()
+        .callable("fixtures.materialize.main")
+        .expect("pass-visible main body should be published");
+    let direct_calls = direct_call_fqns(main);
+    let generic_println_count = direct_calls
+        .iter()
+        .filter(|fqn| fqn.as_str() == "scoop.core.println")
+        .count();
+    let concrete_println_count = direct_calls
+        .iter()
+        .filter(|fqn| fqn.starts_with("scoop.core.println::<"))
+        .count();
+
+    assert_eq!(
+        generic_println_count, 0,
+        "request-root main should rewrite every println call to a concrete instance"
+    );
+    assert_eq!(
+        concrete_println_count, 2,
+        "both outer println calls should remain as concrete println instances"
+    );
+}
+
+#[test]
 fn materialize_for_dump_handles_type_body_generic_member_fun_roots() {
     let sess = Session::new().unwrap();
     let source = SourceFile::new_virtual(
