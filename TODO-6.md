@@ -4,7 +4,7 @@
 > 细化时间：2026-05-22
 > 计划基线：[`PLAN.md`](./PLAN.md) §4/P6-P8
 > 索引：[`TODO.md`](./TODO.md)
-> 当前状态：`P7-T03` 已完成；下一步执行 `P7-T03R`。
+> 当前状态：`P7-T03R` 已完成；下一步执行 `P7-T04`。
 
 ## 范围
 
@@ -521,7 +521,7 @@
   - 剩余 `MaterializedMirPassView` / `hir_compat_scaffold` / physical layout / TypeStore bridge residual 仍限于 stage handoff、layout 或测试辅助路径，归属后续 `P7-T04` / `P7-T04R`，本任务未新增 backend-private HIR fallback。
   - 验证通过：`cargo fmt`；`cargo test -p scoopc --no-default-features llvm::codegen::effect_lowered`；`cargo test -p scoopc llvm::codegen::effect_lowered`；`cargo run -p scoop -- test --fixtures tests/fixtures/effect_lowered`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`（421/421 passed）；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
 
-## [TODO] P7-T03R：Review LLVM body emission 迁移结果
+## [DONE] P7-T03R：Review LLVM body emission 迁移结果
 
 - 参考：P7-T03。
 - 重点：
@@ -535,7 +535,11 @@
   - review 结论明确写出 LLVM body emission 输入边界已收口，或列出阻塞项并在本 review 内修复。
 - 依赖：P7-T03
 - 完成记录：
-  - 待填写。
+  - Review 结论：LLVM production body emission 输入边界按 P7-T03 收口成立；入口/main wrapper 和 callable body emission 由 `LateLoweredProgram`、LIR callable/source-body contract、`ProgramAbiQuery`、`LirFacts` 与 base `TypeStore` 驱动，不再从 `llvm_residual_pass_view()` / `MaterializedMirPassView` 查询 callable body，也不再走 HIR function/class-ctor body fallback 作为生产路径。
+  - 本 review 修正了 `llvm/codegen/mir_body/mod.rs` 的过期模块注释：删除仍声称 production emit 从 `MaterializedMirPassView` / HIR-compatible boundary 进入的描述，明确该模块现在只是 LIR-owned source-slice body emission 复用的 helper，不能作为 backend body-discovery fallback。
+  - 残留搜索分类：`llvm/codegen/effect_lowered` 中 `hir::Expr|hir::Stmt|mir::Body|MaterializedMirPassView|llvm_residual_pass_view` 仅命中 layout tests 对 `llvm_residual_pass_view()` 的测试输入；`MaterializedMirPassView` 在 `llvm/codegen` 的生产命中限于 `CompilationUnitCodegenCx` handoff 字段/accessor，属于后续 `P7-T04` 的 stage handoff residual；`hir::Expr|hir::Stmt|mir::Body` 的广义命中仍分布在 dead-code HIR helper、`mir_body` source-slice helper、named intrinsic/helper code 和测试构造中，未发现新的 HIR/raw-MIR body fallback 入口。
+  - LIR facts 复审：`scoopc_lir_facts` 的 callable/body-slice/call-site/dynamic/dispatch/resume contract 使用 stable LIR keys、source-slice keys、ABI facts 和 control-body facts表达 backend-neutral 查询面，没有把 HIR body 或 raw MIR body 复制成新的 facts 结构。
+  - 验证通过：`cargo fmt`；`cargo test -p scoopc --no-default-features llvm::codegen::effect_lowered`；`cargo run -p scoop -- test --fixtures tests/fixtures/effect_lowered`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`（421/421 passed）；`cargo clippy --all-targets -- -D warnings`；`git diff --check`；额外搜索 `llvm/codegen` 中的 `hir::Expr|hir::Stmt|mir::Body|MaterializedMirPassView|llvm_residual_pass_view`。
 
 ## [TODO] P7-T04：收窄 LLVM stage handoff、physical ABI layout 与 TypeStore bridge
 

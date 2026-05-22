@@ -1,10 +1,9 @@
-//! LLVM lowering for production-visible MIR callable bodies.
+//! Source-slice lowering helpers shared by LLVM's LIR-owned body emission path.
 //!
-//! Production emit lowers callable bodies from `MaterializedMirPassView` through this bridge when
-//! their MIR shape is inside the currently supported lowering subset. Explicit pass rewrites enter
-//! here strictly; raw materialized bodies outside this subset, declaration-only callables, and
-//! non-generic bodies that have not been published into the pass view continue to use their
-//! existing HIR-compatible boundary.
+//! Production body emission reaches these helpers only with a callable/source body
+//! already published on the late-lowered LIR contract. This module must not be used
+//! as a backend fallback that discovers callable bodies from HIR or a residual pass
+//! view.
 
 use std::collections::HashSet;
 
