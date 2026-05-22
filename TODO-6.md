@@ -4,7 +4,7 @@
 > 细化时间：2026-05-22
 > 计划基线：[`PLAN.md`](./PLAN.md) §4/P6-P8
 > 索引：[`TODO.md`](./TODO.md)
-> 当前状态：`P7-T03R` 已完成；下一步执行 `P7-T04`。
+> 当前状态：`P7-T03R` 已完成；下一步执行 `P7-T04-a`。
 
 ## 范围
 
@@ -541,6 +541,43 @@
   - LIR facts 复审：`scoopc_lir_facts` 的 callable/body-slice/call-site/dynamic/dispatch/resume contract 使用 stable LIR keys、source-slice keys、ABI facts 和 control-body facts表达 backend-neutral 查询面，没有把 HIR body 或 raw MIR body 复制成新的 facts 结构。
   - 验证通过：`cargo fmt`；`cargo test -p scoopc --no-default-features llvm::codegen::effect_lowered`；`cargo run -p scoop -- test --fixtures tests/fixtures/effect_lowered`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`（421/421 passed）；`cargo clippy --all-targets -- -D warnings`；`git diff --check`；额外搜索 `llvm/codegen` 中的 `hir::Expr|hir::Stmt|mir::Body|MaterializedMirPassView|llvm_residual_pass_view`。
 
+## [TODO] P7-T04-a：发布 LLVM backend 收口所需的 LIR/base context 合同
+
+- 目标：
+  - 补齐 `P7-T04` 收窄 LLVM backend 输入边界所需的前置合同；
+  - 让 LLVM 不再只能从 HIR side table、raw MIR pass view 或 effect facts residual 取得 initializer body、physical layout、callable identity 与 type bridge 信息。
+- 阻塞原因：
+  - 当前 `LirFacts.global_init` 只发布 root/storage/order 摘要，没有发布 top-level `val`、top-level `var`、object singleton initializer body/source-slice 或等价 LIR-owned init callable contract；LLVM 因此仍需要 `top_level_immutable_values`、`top_level_vars`、`object_inits` 这类 HIR side table 才能生成 eager/object init body。
+  - physical ABI/layout 仍从 `class_inits`、`enum_layouts`、`class_vtables`、`interfaces`、`class_itables`、`fun_index` 等 HIR scaffold 读取 class/vtable/itable/enum/callable identity；`LirFacts` 尚未发布足以替代这些读取的 backend-neutral layout/type identity contract。
+  - `LirStageOutput` 的 `types()` 仍经 `MaterializedEffectFacts` 间接取得 effect-owned `TypeStore`，并通过 `llvm_residual_pass_view()` 暴露 `MaterializedMirPassView`；TypeStore bridge 缺少单一 owner/verifier 与 cross-process stable wire-format 决策。
+- 必须修改的主要位置：
+  - `crates/scoopc_lir_facts/`
+  - `crates/scoopc/src/pipeline/lir_facts_builder.rs`
+  - `crates/scoopc/src/pipeline/effect_lowering_stage.rs`
+  - `crates/scoopc/src/effect_lowered/`
+  - `crates/scoopc/src/llvm/codegen/effect_lowered/layout/`
+  - 相关 dump/verifier/tests/fixtures
+- 必须实现的内容：
+  1. 在正确 owner 中发布 top-level eager init 与 object once 所需的 initializer source/body contract，或发布等价的 LIR-owned init callable contract；禁止让 `P7-T04` 继续从 HIR side table 取 initializer expr/block。
+  2. 发布 physical ABI/layout 所需的 class field、enum variant/repr、vtable/itable slot、callable symbol identity 与 native callable signature contract；这些合同必须来自 LIR facts 或明确的 base/type context，不得继续依赖 `LoweredHir` 整包 scaffold。
+  3. 将 LIR/backend 使用的 `TypeStore` 收口到单一 owner，并增加 verifier 校验 primary/ABI visibility type context 是否一致或可显式 remap。
+  4. 对 `TypeId` / type identity 的 cross-process stable wire format 作出实现或显式推迟决策；若推迟，必须指定未来 owner 与不阻塞 `P7-T04` 的理由。
+  5. 更新 stable dump 与 verifier，使 `P7-T04` 可用自动化检查发现 initializer/layout/type bridge contract drift。
+- 验证：
+  1. `cargo fmt`
+  2. `cargo test -p scoopc_lir_facts`
+  3. `cargo test -p scoopc --no-default-features lir_facts_builder`
+  4. `cargo test -p scoopc --no-default-features llvm::codegen::effect_lowered::layout`
+  5. `cargo run -p scoop -- test --fixtures tests/fixtures/effect_lowered`
+  6. `git diff --check`
+- 完成条件：
+  - `P7-T04` 不再需要新增 HIR/raw MIR/effect facts 回看来收窄 stage handoff；
+  - LIR facts 或 base/type context 已覆盖 LLVM physical ABI/layout 与 init body contract 所需逻辑输入；
+  - TypeStore bridge 的唯一 owner、verifier 与 stable wire-format 处置已经明确。
+- 依赖：P7-T03R
+- 完成记录：
+  - 待填写。
+
 ## [TODO] P7-T04：收窄 LLVM stage handoff、physical ABI layout 与 TypeStore bridge
 
 - 目标：
@@ -572,7 +609,7 @@
   - `llvm_residual_pass_view()` 等 P7 residual accessor 删除；
   - physical ABI/layout 只把 LIR facts 映射成 LLVM-private layout，不回读 HIR/raw MIR/effect facts；
   - TypeStore 桥接收口结论中已经显式表态 cross-process stable wire format 的处置（落实或显式推迟 + owner）。
-- 依赖：P7-T03R
+- 依赖：P7-T04-a
 - 完成记录：
   - 待填写。
 
