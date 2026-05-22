@@ -7,6 +7,7 @@
 use inkwell::types::BasicTypeEnum;
 use inkwell::types::StructType;
 use inkwell::values::GlobalValue;
+use scoopc_lir_facts::LirGlobalRootKind;
 
 use crate::hir;
 use crate::stable_id::{CanonicalTextKey, PrivateSymbolMangler, canonical_record};
@@ -413,7 +414,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     }));
                 }
 
-                if self.class_inits.contains_key(other) || self.object_inits.contains_key(other) {
+                if self.class_inits.contains_key(other)
+                    || self.lir_global_root_has_kind(other, LirGlobalRootKind::ObjectSingleton)
+                {
                     return Ok(CgTy::Ref);
                 }
                 if let Some((base, _)) = other.split_once('<')

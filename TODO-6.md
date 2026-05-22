@@ -4,7 +4,7 @@
 > 细化时间：2026-05-22
 > 计划基线：[`PLAN.md`](./PLAN.md) §4/P6-P8
 > 索引：[`TODO.md`](./TODO.md)
-> 当前状态：`P6-T04R` 已完成；下一步执行 `P7-T01`。
+> 当前状态：`P7-T01` 已完成；下一步执行 `P7-T01R`。
 
 ## 范围
 
@@ -323,7 +323,7 @@
   - 验证通过：`cargo fmt`；`cargo test -p scoopc_lir_facts`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/global_init`；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
   - 完整 run-pass：`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass` 已重跑，global-init/thread-init 相关 fixtures 全部通过；全量仍有 7 个既有非 P6 失败（`array_lit_infer_string_char_float_basic.scoop`、`array_lit_infer_unannotated_and_nested_basic.scoop`、`lang_mutable_array_new_string_ref.scoop`、`lang_mutable_array_new_struct_composite.scoop`、`std_process_args_exit_basic.scoop`、`stdlib_string_basic.scoop`、`sysroot_atomic_basic.scoop`），与 P6-T04 baseline 一致，未作为 P6-T04R 前置项。
 
-## [TODO] P7-T01：迁移 LLVM entry/global 查询到 LIR facts
+## [DONE] P7-T01：迁移 LLVM entry/global 查询到 LIR facts
 
 - 目标：
   - 删除 LLVM entry/global 初始化路径对 HIR side tables 的语义依赖；
@@ -353,7 +353,12 @@
   - 没有新增 backend-private HIR fallback。
 - 依赖：P6-T04R
 - 完成记录：
-  - 待填写。
+  - `scoopc_lir_facts` 补齐 LLVM entry/global 查询需要的 backend-neutral owner：`LirCallableFacts` 现在发布 source-level callable kind、source 参数类型和返回类型，`LirExternGlobalFacts` 发布 extern linkage；verifier 会拒绝 callable source signature 与 ABI contract 漂移。
+  - LLVM entry selection / `main(args: Array<String>)` 参数分类改为读取 LIR callable facts + TypeStore，不再遍历 `LoweredHir.file.items` 来决定入口语义；HIR `FunDecl` 只作为当前 P7-T03 前仍存在的 body emission scaffold 按已选 FQN 取回。
+  - extern global、top-level `var`、top-level `val`、object singleton 的 LLVM declaration/definition inventory 查询改为读取 `LirFacts.global_init`；`CompilationUnitCodegenCx` 已移除 HIR `extern_globals` side table 输入，top-level/object HIR side tables 仅保留 initializer/body emission scaffold residual。
+  - 新增 LLVM entry/global 回归测试覆盖 LIR callable facts 驱动的 argv entry classification，以及 extern global symbol declaration/load-store 由 LIR global facts physicalize。
+  - 验证通过：`cargo fmt`；`cargo test -p scoopc_lir_facts`；`cargo test -p scoopc --no-default-features llvm_entry_global`（无匹配 LLVM 测试但编译通过）；`cargo test -p scoopc llvm_entry_global`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/global_init`；`cargo run -p scoop -- test --fixtures tests/fixtures/effect_lowered`；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
+  - 完整 `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass` 已重跑：entry/global、extern global、global-init 相关 fixtures 均通过；全量仍有 7 个既有非 P7-T01 失败（`array_lit_infer_unannotated_and_nested_basic.scoop`、`array_lit_infer_string_char_float_basic.scoop`、`lang_mutable_array_new_string_ref.scoop`、`lang_mutable_array_new_struct_composite.scoop`、`std_process_args_exit_basic.scoop`、`stdlib_string_basic.scoop`、`sysroot_atomic_basic.scoop`），与 P6-T04R baseline 一致，未作为本任务前置项。
 
 ## [TODO] P7-T01R：Review LLVM entry/global LIR facts 迁移结果
 

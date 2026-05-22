@@ -373,6 +373,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         at: crate::span::Span,
         object_fqn: &str,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        self.expect_lir_global_root_kind(
+            object_fqn,
+            LirGlobalRootKind::ObjectSingleton,
+            "codegen_object_value_access",
+        );
         let init_fn = self.ensure_object_init_function_defined(object_fqn)?;
         self.with_conservative_gc_local_root_spills(at, |cg| {
             let _ = cg.builder.build_call(init_fn, &[], "obj_init")?;
@@ -409,19 +414,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     }
 
     fn stable_object_init_key(&self, object_fqn: &str) -> StableDefKey {
-        if let Some(obj) = self.object_inits.get(object_fqn) {
-            return self.stable_def_key_for_source_path(
-                obj.source_path.as_path(),
-                StableDefNamespace::ObjectInit,
-                object_fqn,
-                "object_init",
-            );
-        }
-        self.stable_def_key_for_current_cone(
-            StableDefNamespace::ObjectInit,
+        let root = self.expect_lir_global_root_kind(
             object_fqn,
-            "object_init",
-        )
+            LirGlobalRootKind::ObjectSingleton,
+            "stable_object_init_key",
+        );
+        self.stable_def_key_for_lir_global_root(root, StableDefNamespace::ObjectInit, "object_init")
     }
 
     fn stable_object_property_key(&self, prop_fqn: &str) -> StableDefKey {

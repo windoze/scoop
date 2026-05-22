@@ -73,7 +73,10 @@ use crate::ty::{
     ValueTypeKind,
 };
 use scoopc_hir_facts::{HirFacts, declarations::NominalKind as HirFactNominalKind};
-use scoopc_lir_facts::{LirFacts, LirGlobalRootKind, LirGlobalStoragePolicy};
+use scoopc_lir_facts::{
+    LirExternGlobalLinkage, LirFacts, LirGlobalRootFacts, LirGlobalRootKey, LirGlobalRootKind,
+    LirGlobalStoragePolicy,
+};
 
 use super::LlvmEmitError;
 
@@ -477,7 +480,6 @@ pub(crate) struct CompilationUnitCodegenCx<'a, 'ctx> {
     top_level_vars: &'a hir::TopLevelVarIndex,
     top_level_immutable_values: &'a hir::TopLevelImmutableValueIndex,
     top_level_fun_call_sites: &'a hir::TopLevelFunCallSiteIndex,
-    extern_globals: &'a hir::ExternGlobalIndex,
     extern_funs: &'a hir::ExternFunIndex,
     native_callable_funs: &'a hir::NativeCallableFunIndex,
     object_inits: &'a hir::ObjectInitIndex,
@@ -811,7 +813,6 @@ pub(super) struct CompilationUnitCodegenInputs<'a, 'ctx> {
     pub(super) top_level_vars: &'a hir::TopLevelVarIndex,
     pub(super) top_level_immutable_values: &'a hir::TopLevelImmutableValueIndex,
     pub(super) top_level_fun_call_sites: &'a hir::TopLevelFunCallSiteIndex,
-    pub(super) extern_globals: &'a hir::ExternGlobalIndex,
     pub(super) object_inits: &'a hir::ObjectInitIndex,
     pub(super) class_inits: &'a hir::ClassInitIndex,
     pub(super) class_vtables: &'a crate::vtable::ClassVtableIndex,
@@ -866,7 +867,6 @@ impl<'a, 'ctx> CompilationUnitCodegenCx<'a, 'ctx> {
             top_level_vars,
             top_level_immutable_values,
             top_level_fun_call_sites,
-            extern_globals,
             native_callable_funs,
             object_inits,
             class_inits,
@@ -908,7 +908,6 @@ impl<'a, 'ctx> CompilationUnitCodegenCx<'a, 'ctx> {
             top_level_vars,
             top_level_immutable_values,
             top_level_fun_call_sites,
-            extern_globals,
             extern_funs,
             native_callable_funs,
             object_inits,

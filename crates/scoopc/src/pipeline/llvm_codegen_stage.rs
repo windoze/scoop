@@ -996,6 +996,24 @@ fun main(args: Array<String>): Int {
         )
     }
 
+    fn extern_global_source() -> SourceFile {
+        SourceFile::new_virtual(
+            "<mem>/extern_global_fixture.scoop",
+            r#"
+package sample
+
+@Extern(name = "scoop_test_extern_global_counter")
+var NativeCounter: Int
+
+fun main(): Int {
+    @Unsafe do { NativeCounter = 40 }
+    val readBack: Int = @Unsafe do { NativeCounter }
+    return readBack - 40
+}
+"#,
+        )
+    }
+
     fn runtime_type_primitives_source() -> SourceFile {
         SourceFile::new_virtual(
             "<mem>/runtime_type_primitives_fixture.scoop",
@@ -1616,6 +1634,32 @@ fun main(): Int {
         assert!(
             !user_main.contains("top_level_val_init") && !seed_var.contains("top_level_val_init"),
             "ordinary top-level val reads should only check/load initialized storage, not call lazy init:\n{user_main}\n{seed_var}"
+        );
+    }
+
+    #[test]
+    fn llvm_entry_global_entry_selection_uses_lir_callable_signature_for_argv() {
+        let ir = emit_ir_for_source(array_string_main_source(), "entry_global_argv.ll");
+        let main = ir_function_body(&ir, "define i32 @main(");
+        assert!(
+            main.contains("@scoop_entry_argv_array"),
+            "entry main argument classification should come from LIR callable facts and keep argv lowering:\n{main}"
+        );
+    }
+
+    #[test]
+    fn llvm_entry_global_extern_global_inventory_uses_lir_facts() {
+        let ir = emit_ir_for_source(extern_global_source(), "entry_global_extern.ll");
+        assert!(
+            ir.contains("@scoop_test_extern_global_counter = external global i64"),
+            "extern global declaration should be physicalized from LIR global facts:\n{ir}"
+        );
+        let user_main = ir_function_matching(&ir, "sample.main body", |header, _function| {
+            header.contains("__scoop_abi0_fun__sample_main__")
+        });
+        assert!(
+            user_main.contains("@scoop_test_extern_global_counter"),
+            "extern global load/store should use the LIR-published symbol contract:\n{user_main}"
         );
     }
 

@@ -1,6 +1,7 @@
 //! Class constructor and task-transport boundary lowering: hidden init bridges, class-ctor outcome payload assembly, and the dynamic-resume adapter used when a task transport delegates resume to a callee.
 
 use super::*;
+use scoopc_lir_facts::LirGlobalRootKind;
 
 impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
     pub(super) fn lower_class_ctor_boundary(
@@ -125,7 +126,10 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
                 )
             }
             ClassCtorBoundarySource::TopLevelRef { span, fqn } => {
-                if self.codegen.object_inits.contains_key(*fqn) {
+                if self
+                    .codegen
+                    .lir_global_root_has_kind(fqn, LirGlobalRootKind::ObjectSingleton)
+                {
                     let object_fqn = (*fqn).to_string();
                     let bridge = self
                         .codegen

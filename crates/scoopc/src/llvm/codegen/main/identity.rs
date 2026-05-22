@@ -77,6 +77,23 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         )
     }
 
+    pub(in crate::llvm::codegen) fn stable_def_key_for_lir_global_root(
+        &self,
+        root: &LirGlobalRootFacts,
+        namespace: StableDefNamespace,
+        declaration_kind: &str,
+    ) -> StableDefKey {
+        if let Some(source_path) = root.source_path.as_deref() {
+            return self.stable_def_key_for_source_path(
+                Path::new(source_path),
+                namespace,
+                root.root.as_str(),
+                declaration_kind,
+            );
+        }
+        self.stable_def_key_for_current_cone(namespace, root.root.as_str(), declaration_kind)
+    }
+
     pub(in crate::llvm::codegen) fn stable_top_level_immutable_value_key(
         &self,
         value_fqn: &str,

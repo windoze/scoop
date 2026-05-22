@@ -166,42 +166,52 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         _value_ty: TypeId,
         slots: &[MirLocalSlot<'ctx>],
     ) -> Result<(), LlvmEmitError> {
-        if let Some(global) = self.materialized_extern_global_root(fqn).cloned() {
-            if !global.mutable {
+        if self.lir_global_root_has_kind(fqn, LirGlobalRootKind::ExternGlobal) {
+            let root = self
+                .expect_lir_global_root_kind(
+                    fqn,
+                    LirGlobalRootKind::ExternGlobal,
+                    "codegen_mir_store_top_level_var",
+                )
+                .clone();
+            let extern_global = root.extern_global.as_ref().unwrap_or_else(|| {
+                panic!("codegen_mir_store_top_level_var: extern LIR root is missing contract")
+            });
+            if !extern_global.mutable {
                 panic!(
-                    "codegen_mir_store_top_level_var: verifier accepted immutable MIR extern global store target"
+                    "codegen_mir_store_top_level_var: verifier accepted immutable extern global store target"
                 );
             }
-            let target_cg = self.expect_cg_ty_of(global.ty, "MIR extern global store target type");
+            let target_cg = self.expect_cg_ty_of(
+                self.lir_global_root_ty(&root, "extern global store target type"),
+                "extern global store target type",
+            );
             let raw = self.codegen_mir_operand_expected(span, value, slots, Some(target_cg))?;
             let stored = self.coerce_value(span, raw, target_cg)?;
-            let global = self.declare_mir_extern_global(&global)?;
+            let global = self.declare_lir_extern_global(&root)?;
             let _ = self.store_local_value(span, global.as_pointer_value(), target_cg, stored)?;
             return Ok(());
         }
 
-        if let Some(global) = self.extern_globals.get(fqn).cloned() {
-            if !global.mutable {
-                panic!(
-                    "codegen_mir_store_top_level_var: verifier accepted immutable HIR extern global store target"
-                );
-            }
-            let target_cg = self.expect_cg_ty_of(global.ty, "HIR extern global store target type");
-            let raw = self.codegen_mir_operand_expected(span, value, slots, Some(target_cg))?;
-            let stored = self.coerce_value(span, raw, target_cg)?;
-            let global = self.declare_extern_global(&global)?;
-            let _ = self.store_local_value(span, global.as_pointer_value(), target_cg, stored)?;
-            return Ok(());
+        if !self.lir_global_root_has_kind(fqn, LirGlobalRootKind::TopLevelMutableVar) {
+            panic!(
+                "codegen_mir_store_top_level_var: verifier accepted missing top-level var store target `{fqn}`"
+            );
         }
-
-        let var = self
-            .top_level_vars
-            .get(fqn)
-            .unwrap_or_else(|| panic!("codegen_mir_store_top_level_var: verifier accepted missing top-level var store target `{fqn}`"));
-        let target_cg = self.expect_cg_ty_of(var.ty, "MIR top-level var store target type");
+        let root = self
+            .expect_lir_global_root_kind(
+                fqn,
+                LirGlobalRootKind::TopLevelMutableVar,
+                "codegen_mir_store_top_level_var",
+            )
+            .clone();
+        let target_cg = self.expect_cg_ty_of(
+            self.lir_global_root_ty(&root, "MIR top-level var store target type"),
+            "MIR top-level var store target type",
+        );
         let raw = self.codegen_mir_operand_expected(span, value, slots, Some(target_cg))?;
         let stored = self.coerce_value(span, raw, target_cg)?;
-        let global = self.declare_top_level_var_global(var)?;
+        let global = self.declare_lir_top_level_var_global(&root)?;
         let _ = self.store_local_value(span, global.as_pointer_value(), target_cg, stored)?;
         Ok(())
     }

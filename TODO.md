@@ -111,7 +111,7 @@
 | P6-T03R | [DONE] | [`TODO-6.md`](./TODO-6.md#done-p6-t03rreview-object-once-与-storage-policy-分离结果) | Review object once 与 storage policy 分离结果 |
 | P6-T04 | [DONE] | [`TODO-6.md`](./TODO-6.md#done-p6-t04p6-全包清场文档同步与依赖审计) | P6 全包清场、文档同步与依赖审计 |
 | P6-T04R | [DONE] | [`TODO-6.md`](./TODO-6.md#done-p6-t04rreview-p6-全包完成度) | Review P6 全包完成度 |
-| P7-T01 | [TODO] | [`TODO-6.md`](./TODO-6.md#todo-p7-t01迁移-llvm-entryglobal-查询到-lir-facts) | 迁移 LLVM entry/global 查询到 LIR facts |
+| P7-T01 | [DONE] | [`TODO-6.md`](./TODO-6.md#done-p7-t01迁移-llvm-entryglobal-查询到-lir-facts) | 迁移 LLVM entry/global 查询到 LIR facts |
 | P7-T01R | [TODO] | [`TODO-6.md`](./TODO-6.md#todo-p7-t01rreview-llvm-entryglobal-lir-facts-迁移结果) | Review LLVM entry/global LIR facts 迁移结果 |
 | P7-T02 | [TODO] | [`TODO-6.md`](./TODO-6.md#todo-p7-t02删除-backend-reachability-hirmir-回看与-codegen-去虚化-residual) | 删除 backend reachability HIR/MIR 回看与 codegen 去虚化 residual |
 | P7-T02R | [TODO] | [`TODO-6.md`](./TODO-6.md#todo-p7-t02rreview-backend-reachability-cleanup) | Review backend reachability cleanup |

@@ -48,7 +48,9 @@ struct MaterializedCallSite {
 
 #[derive(Debug, Clone)]
 struct MaterializedCallableSignature {
+    source_kind: LirCallableSourceKind,
     param_tys: Vec<TypeId>,
+    return_ty: TypeId,
     closure_carrier_arg_tys: Vec<TypeId>,
 }
 
@@ -184,7 +186,7 @@ fn build_global_init_facts(
         publish_global_root_contracts(&mut facts, root_facts);
     }
     for root in &ctx.mir_facts.roots.extern_globals {
-        let root_facts = extern_global_root_facts(root)?;
+        let root_facts = extern_global_root_facts(ctx, root)?;
         facts.roots.insert(root_facts.root.clone(), root_facts);
     }
 
@@ -265,7 +267,10 @@ fn initializer_global_root_facts(
     })
 }
 
-fn extern_global_root_facts(root: &MirRootFact) -> Result<LirGlobalRootFacts, EffectLoweringError> {
+fn extern_global_root_facts(
+    ctx: &LirFactsBuildContext<'_>,
+    root: &MirRootFact,
+) -> Result<LirGlobalRootFacts, EffectLoweringError> {
     let MirRootDetail::ExternGlobal {
         storage,
         mutable,
@@ -292,6 +297,7 @@ fn extern_global_root_facts(root: &MirRootFact) -> Result<LirGlobalRootFacts, Ef
         source_path: root.source_path.clone(),
         extern_global: Some(LirExternGlobalFacts {
             symbol: symbol.clone(),
+            linkage: extern_global_linkage(ctx.materialized, &root.fqn)?,
             mutable: *mutable,
             initializer_absent: *initializer_absent,
             unsafe_required: *unsafe_required,
@@ -456,6 +462,22 @@ fn global_storage_policy(storage: MirGlobalStorageKind) -> LirGlobalStoragePolic
     }
 }
 
+fn extern_global_linkage(
+    materialized: &MaterializedMir,
+    root_fqn: &str,
+) -> Result<LirExternGlobalLinkage, EffectLoweringError> {
+    let linkage = materialized.file.items.iter().find_map(|item| match item {
+        Item::ExternGlobal(global) if global.fqn == root_fqn => Some(global.linkage),
+        _ => None,
+    });
+    match linkage {
+        Some(crate::hir::ExternGlobalLinkage::External) => Ok(LirExternGlobalLinkage::External),
+        None => invalid_lir_facts(format!(
+            "missing materialized extern global linkage for `{root_fqn}`"
+        )),
+    }
+}
+
 fn global_dependency_kind(kind: MirInitializerDependencyKind) -> LirGlobalDependencyKind {
     match kind {
         MirInitializerDependencyKind::TopLevelValue => LirGlobalDependencyKind::TopLevelValue,
@@ -497,11 +519,16 @@ fn build_callable_facts(
                 )?))
             }
         };
+        let signature =
+            lookup_materialized_callable_signature(ctx.materialized, callable.root_fqn())?;
         out.insert(
             key.clone(),
             LirCallableFacts {
                 root_fqn: callable.root_fqn().to_string(),
                 stable_instance_key: callable.stable_instance_key().canonical_text(),
+                source_kind: signature.source_kind,
+                param_tys: signature.param_tys,
+                return_ty: signature.return_ty,
                 body_version: body_version_facts(callable, &key),
                 resolved_outward_cases: callable
                     .resolved_outward_cases()
@@ -1420,8 +1447,40 @@ fn lookup_materialized_callable_signature(
     let skip_closure_env = usize::from(fun.name.starts_with("$lambda"));
     let closure_carrier_arg_tys = param_tys.iter().copied().skip(skip_closure_env).collect();
     Ok(MaterializedCallableSignature {
+        source_kind: callable_source_kind(materialized, root_fqn),
         param_tys,
+        return_ty: fun.return_ty,
         closure_carrier_arg_tys,
+    })
+}
+
+fn callable_source_kind(materialized: &MaterializedMir, root_fqn: &str) -> LirCallableSourceKind {
+    let base_fqn = callable_source_base_fqn(root_fqn);
+    if base_fqn.contains(".$lambda") || callable_owner_is_nominal_or_object(materialized, base_fqn)
+    {
+        return LirCallableSourceKind::MemberOrSynthetic;
+    }
+    LirCallableSourceKind::TopLevel
+}
+
+fn callable_source_base_fqn(root_fqn: &str) -> &str {
+    let base = root_fqn
+        .rsplit_once("::<")
+        .map(|(base, _)| base)
+        .unwrap_or(root_fqn);
+    base.split_once("$overload$")
+        .map(|(base, _)| base)
+        .unwrap_or(base)
+}
+
+fn callable_owner_is_nominal_or_object(materialized: &MaterializedMir, root_fqn: &str) -> bool {
+    let Some((owner_fqn, _name)) = root_fqn.rsplit_once('.') else {
+        return false;
+    };
+    materialized.file.items.iter().any(|item| match item {
+        Item::Metadata(crate::mir::MetadataRoot::Nominal(metadata)) => metadata.fqn == owner_fqn,
+        Item::Metadata(crate::mir::MetadataRoot::Object(metadata)) => metadata.fqn == owner_fqn,
+        _ => false,
     })
 }
 

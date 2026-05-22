@@ -359,7 +359,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     return self.codegen_type_desc_chain_contains_target(at, obj, target_i8);
                 }
 
-                if self.object_inits.contains_key(&nominal.fqn) {
+                if self.lir_global_root_has_kind(&nominal.fqn, LirGlobalRootKind::ObjectSingleton) {
                     let desc =
                         self.get_or_create_object_singleton_type_desc_global(at, &nominal.fqn)?;
                     let target_i8 = desc.as_pointer_value().const_cast(self.llvm_i8_ptr_type());

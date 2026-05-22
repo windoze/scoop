@@ -45,12 +45,17 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &self,
         value_fqn: &str,
     ) -> GlobalValue<'ctx> {
-        let value = self
-            .top_level_immutable_values
-            .get(value_fqn)
-            .expect("declare_top_level_immutable_value_guard: verifier accepted missing top-level immutable metadata");
+        let root = self.expect_lir_global_root_kind(
+            value_fqn,
+            LirGlobalRootKind::TopLevelImmutableVal,
+            "declare_top_level_immutable_value_guard",
+        );
         let name = private_top_level_immutable_value_guard_global_name(
-            &self.stable_top_level_init_key_for_source_path(value.source_path.as_path(), value_fqn),
+            &self.stable_def_key_for_lir_global_root(
+                root,
+                StableDefNamespace::TopLevelInit,
+                "top_level_init",
+            ),
         );
         if let Some(existing) = self.module.get_global(&name) {
             return existing;
@@ -117,9 +122,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         let name = private_top_level_immutable_value_global_name(
-            &self.stable_top_level_immutable_value_key_for_source_path(
-                value.source_path.as_path(),
-                &value.fqn,
+            &self.stable_def_key_for_lir_global_root(
+                self.expect_lir_global_root_kind(
+                    &value.fqn,
+                    LirGlobalRootKind::TopLevelImmutableVal,
+                    "declare_top_level_immutable_value_global",
+                ),
+                StableDefNamespace::Value,
+                "top_level_value",
             ),
         );
         if let Some(existing) = self.module.get_global(&name) {
@@ -151,7 +161,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         };
 
         let name = private_top_level_immutable_value_init_fn_name(
-            &self.stable_top_level_init_key_for_source_path(value.source_path.as_path(), value_fqn),
+            &self.stable_def_key_for_lir_global_root(
+                self.expect_lir_global_root_kind(
+                    value_fqn,
+                    LirGlobalRootKind::TopLevelImmutableVal,
+                    "ensure_top_level_immutable_value_init_function_defined",
+                ),
+                StableDefNamespace::TopLevelInit,
+                "top_level_init",
+            ),
         );
         let fn_ty = self.context.void_type().fn_type(&[], false);
         let llvm_fun =
@@ -184,7 +202,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         };
 
         let name = private_top_level_immutable_value_init_bridge_fn_name(
-            &self.stable_top_level_init_key_for_source_path(value.source_path.as_path(), value_fqn),
+            &self.stable_def_key_for_lir_global_root(
+                self.expect_lir_global_root_kind(
+                    value_fqn,
+                    LirGlobalRootKind::TopLevelImmutableVal,
+                    "ensure_top_level_immutable_value_init_bridge_defined",
+                ),
+                StableDefNamespace::TopLevelInit,
+                "top_level_init",
+            ),
         );
         let fn_ty = self.llvm_effect_outcome_struct_type().fn_type(&[], false);
         let llvm_fun =
@@ -239,8 +265,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .map(|init| init.span)
             .unwrap_or(value.span);
         self.current_source_id = self.source_id_for_path(value.source_path.as_path(), err_span)?;
-        let stable_key =
-            self.stable_top_level_init_key_for_source_path(value.source_path.as_path(), &value.fqn);
+        let stable_key = self.stable_def_key_for_lir_global_root(
+            self.expect_lir_global_root_kind(
+                &value.fqn,
+                LirGlobalRootKind::TopLevelImmutableVal,
+                "codegen_top_level_immutable_value_init_fun_body",
+            ),
+            StableDefNamespace::TopLevelInit,
+            "top_level_init",
+        );
         self.enter_root_callable_identity(
             private_top_level_immutable_value_init_fn_name(&stable_key),
             stable_key,
@@ -307,9 +340,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 self.store_local_value(init.span, global.as_pointer_value(), value_cg, init_value)?;
             let storage_ty = self.llvm_basic_type_of(init.span, value_cg)?;
             let global_name = private_top_level_immutable_value_global_name(
-                &self.stable_top_level_immutable_value_key_for_source_path(
-                    value.source_path.as_path(),
-                    &value.fqn,
+                &self.stable_def_key_for_lir_global_root(
+                    self.expect_lir_global_root_kind(
+                        &value.fqn,
+                        LirGlobalRootKind::TopLevelImmutableVal,
+                        "codegen_top_level_immutable_value_init_fun_body",
+                    ),
+                    StableDefNamespace::Value,
+                    "top_level_value",
                 ),
             );
             self.register_global_root_if_needed(init.span, global, &global_name, storage_ty)?;
@@ -379,36 +417,54 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         // T1311：object/companion object 单例值在表达式位置可用：
         // - 读取单例值应触发一次初始化（init block / 属性 init）；
         // - 运行期用一个 module-local 的唯一地址作为"单例实例指针"（ref type）。
-        if self.object_inits.contains_key(fqn) {
+        if self.lir_global_root_has_kind(fqn, LirGlobalRootKind::ObjectSingleton) {
             return self.codegen_object_value_access(span, fqn);
         }
 
-        if let Some(value) = self.top_level_immutable_values.get(fqn).cloned() {
+        if self.lir_global_root_has_kind(fqn, LirGlobalRootKind::TopLevelImmutableVal) {
+            let value = self.top_level_immutable_values.get(fqn).cloned().unwrap_or_else(|| {
+                panic!(
+                    "codegen_top_level_value_ref: LIR facts immutable root `{fqn}` is missing body scaffold"
+                )
+            });
             return self.codegen_top_level_immutable_value_access(span, &value);
         }
 
-        if let Some(global) = self.materialized_extern_global_root(fqn).cloned() {
-            return self.codegen_mir_extern_global_access(span, &global);
-        }
-
-        if let Some(global) = self.extern_globals.get(fqn).cloned() {
-            return self.codegen_extern_global_access(span, &global);
+        if self.lir_global_root_has_kind(fqn, LirGlobalRootKind::ExternGlobal) {
+            let root = self
+                .expect_lir_global_root_kind(
+                    fqn,
+                    LirGlobalRootKind::ExternGlobal,
+                    "codegen_top_level_value_ref",
+                )
+                .clone();
+            return self.codegen_lir_extern_global_access(span, &root);
         }
 
         // T1023：`@ThreadLocal/@Global var` 顶层可变变量。
-        let Some(var) = self.top_level_vars.get(fqn) else {
+        if !self.lir_global_root_has_kind(fqn, LirGlobalRootKind::TopLevelMutableVar) {
             panic!(
                 "codegen_top_level_value_ref: resolver accepted unknown top-level value `{fqn}`"
             );
-        };
+        }
+        let root = self
+            .expect_lir_global_root_kind(
+                fqn,
+                LirGlobalRootKind::TopLevelMutableVar,
+                "codegen_top_level_value_ref",
+            )
+            .clone();
 
-        let cg_ty = self.expect_cg_ty_of(var.ty, "top-level value ref var type");
+        let cg_ty = self.expect_cg_ty_of(
+            self.lir_global_root_ty(&root, "top-level value ref var type"),
+            "top-level value ref var type",
+        );
 
         if cg_ty == CgTy::Unit {
             return Ok(CgValue::unit());
         }
 
-        let gv = self.declare_top_level_var_global(var)?;
+        let gv = self.declare_lir_top_level_var_global(&root)?;
         let llvm_ty = self.llvm_basic_type_of(span, cg_ty)?;
         let loaded =
             self.builder
@@ -435,33 +491,19 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         })
     }
 
-    pub(in crate::llvm::codegen) fn codegen_extern_global_access(
+    pub(in crate::llvm::codegen) fn codegen_lir_extern_global_access(
         &mut self,
         span: crate::span::Span,
-        global: &hir::ExternGlobal,
+        root: &LirGlobalRootFacts,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        let cg_ty = self.expect_cg_ty_of(global.ty, "extern global access type");
+        let cg_ty = self.expect_cg_ty_of(
+            self.lir_global_root_ty(root, "extern global access type"),
+            "extern global access type",
+        );
         if cg_ty == CgTy::Unit {
             return Ok(CgValue::unit());
         }
-        let gv = self.declare_extern_global(global)?;
-        let llvm_ty = self.llvm_basic_type_of(span, cg_ty)?;
-        let loaded =
-            self.builder
-                .build_load(llvm_ty, gv.as_pointer_value(), "load_extern_global")?;
-        self.cg_value_from_loaded(span, cg_ty, loaded)
-    }
-
-    pub(in crate::llvm::codegen) fn codegen_mir_extern_global_access(
-        &mut self,
-        span: crate::span::Span,
-        global: &crate::mir::ExternGlobalRoot,
-    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        let cg_ty = self.expect_cg_ty_of(global.ty, "MIR extern global access type");
-        if cg_ty == CgTy::Unit {
-            return Ok(CgValue::unit());
-        }
-        let gv = self.declare_mir_extern_global(global)?;
+        let gv = self.declare_lir_extern_global(root)?;
         let llvm_ty = self.llvm_basic_type_of(span, cg_ty)?;
         let loaded =
             self.builder

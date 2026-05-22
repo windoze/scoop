@@ -285,7 +285,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         match member.resolved.as_ref() {
             Some(hir::MemberRef::Value { fqn, .. }) => {
                 // T1311：`TypeName.NestedObject` / `Obj.NestedObject` 的"object 值"访问。
-                if self.object_inits.contains_key(fqn) {
+                if self.lir_global_root_has_kind(fqn, LirGlobalRootKind::ObjectSingleton) {
                     return self.codegen_object_value_access(member.span, fqn);
                 }
 

@@ -76,28 +76,52 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     Ok(())
                 }
                 hir::ValueRef::TopLevel { fqn, .. } => {
-                    if let Some(global) = self.extern_globals.get(fqn).cloned() {
-                        if !global.mutable {
+                    if self.lir_global_root_has_kind(fqn, LirGlobalRootKind::ExternGlobal) {
+                        let root = self
+                            .expect_lir_global_root_kind(
+                                fqn,
+                                LirGlobalRootKind::ExternGlobal,
+                                "codegen_assign_stmt",
+                            )
+                            .clone();
+                        let extern_global = root.extern_global.as_ref().unwrap_or_else(|| {
+                            panic!("codegen_assign_stmt: extern LIR root is missing contract")
+                        });
+                        if !extern_global.mutable {
                             unreachable!(
                                 "typecheck must reject assignment to immutable extern global before LLVM codegen"
                             );
                         }
-                        let cg_ty =
-                            self.expect_cg_ty_of(global.ty, "extern global assignment type");
-                        let gv = self.declare_extern_global(&global)?;
+                        let cg_ty = self.expect_cg_ty_of(
+                            self.lir_global_root_ty(&root, "extern global assignment type"),
+                            "extern global assignment type",
+                        );
+                        let gv = self.declare_lir_extern_global(&root)?;
                         let rhs_v = self.codegen_expr_in_expected_context(rhs, Some(cg_ty))?;
                         let _stored =
                             self.store_local_value(eq_span, gv.as_pointer_value(), cg_ty, rhs_v)?;
                         return Ok(());
                     }
 
-                    let var = self.top_level_vars.get(fqn).unwrap_or_else(|| {
-                        panic!("codegen_assign_stmt: HIR verifier accepted assignment to non-local top-level value `{fqn}`")
-                    });
+                    if !self.lir_global_root_has_kind(fqn, LirGlobalRootKind::TopLevelMutableVar) {
+                        panic!(
+                            "codegen_assign_stmt: HIR verifier accepted assignment to non-local top-level value `{fqn}`"
+                        )
+                    }
+                    let root = self
+                        .expect_lir_global_root_kind(
+                            fqn,
+                            LirGlobalRootKind::TopLevelMutableVar,
+                            "codegen_assign_stmt",
+                        )
+                        .clone();
 
-                    let cg_ty = self.expect_cg_ty_of(var.ty, "top-level var assignment type");
+                    let cg_ty = self.expect_cg_ty_of(
+                        self.lir_global_root_ty(&root, "top-level var assignment type"),
+                        "top-level var assignment type",
+                    );
 
-                    let gv = self.declare_top_level_var_global(var)?;
+                    let gv = self.declare_lir_top_level_var_global(&root)?;
                     let rhs_v = self.codegen_expr_in_expected_context(rhs, Some(cg_ty))?;
                     let _stored =
                         self.store_local_value(eq_span, gv.as_pointer_value(), cg_ty, rhs_v)?;

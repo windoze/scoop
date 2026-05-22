@@ -21,6 +21,7 @@ use crate::session::Session;
 use crate::source::{SourceFile, SourceId, SourceMap};
 use crate::ty::{RefTypeKind, TypeKind, ValueTypeKind};
 use scoopc_hir_facts::HirFacts;
+use scoopc_lir_facts::{LirCallableFacts, LirFacts};
 
 use super::frontend;
 use super::pipeline::run_pass_pipeline;
@@ -469,23 +470,15 @@ fn build_module_from_codegen_entry_with_root_selector<'ctx>(
     let target_info = target::configure_module_for_host(&module)?;
     let target_data = TargetData::create(&target_info.data_layout);
 
-    let selected_root = select_root_callable(lowered, root_selector)?;
-    let root_fun = selected_root.fun;
     let late_lowered_program = late_lowered_program.ok_or_else(|| LlvmEmitError::Frontend {
         message: "LLVM module emission now requires stage-owned late-lowered handoff".to_string(),
     })?;
     let late_lowered_lir_facts = late_lowered_lir_facts.ok_or_else(|| LlvmEmitError::Frontend {
         message: "LLVM stage handoff 缺少 primary LIR facts".to_string(),
     })?;
-    if late_lowered_program.callable(&root_fun.fqn).is_none() {
-        return Err(LlvmEmitError::Frontend {
-            message: format!(
-                "LLVM stage handoff 缺少入口 callable `{}` 的 late-lowered body",
-                root_fun.fqn
-            ),
-        });
-    }
-    let builder = context.create_builder();
+    let late_lowered_types = late_lowered_types.ok_or_else(|| LlvmEmitError::Frontend {
+        message: "LLVM stage handoff 缺少 late-lowered TypeStore".to_string(),
+    })?;
 
     let fun_index: HashMap<String, &hir::FunDecl> = lowered
         .file
@@ -498,6 +491,26 @@ fn build_module_from_codegen_entry_with_root_selector<'ctx>(
         .chain(lowered.member_funs.iter())
         .map(|fun| (fun.fqn.clone(), fun))
         .collect();
+    let selected_root =
+        select_root_callable(late_lowered_lir_facts, late_lowered_types, root_selector)?;
+    let root_fun = fun_index
+        .get(selected_root.root_fqn)
+        .copied()
+        .ok_or_else(|| LlvmEmitError::Frontend {
+            message: format!(
+                "LLVM stage handoff 入口 callable `{}` 缺少 legacy body emission scaffold",
+                selected_root.root_fqn
+            ),
+        })?;
+    if late_lowered_program.callable(&root_fun.fqn).is_none() {
+        return Err(LlvmEmitError::Frontend {
+            message: format!(
+                "LLVM stage handoff 缺少入口 callable `{}` 的 late-lowered body",
+                root_fun.fqn
+            ),
+        });
+    }
+    let builder = context.create_builder();
     let hir_facts = Rc::new(hir_facts.clone());
     let effect_op_tags = Rc::new(RefCell::new(codegen::EffectOpTagState::new()));
 
@@ -522,7 +535,6 @@ fn build_module_from_codegen_entry_with_root_selector<'ctx>(
             top_level_vars: &lowered.top_level_vars,
             top_level_immutable_values: &lowered.top_level_immutable_values,
             top_level_fun_call_sites: &lowered.top_level_fun_call_sites,
-            extern_globals: &lowered.extern_globals,
             object_inits: &lowered.object_inits,
             class_inits: &lowered.class_inits,
             class_vtables: &lowered.class_vtables,
@@ -629,9 +641,6 @@ fn build_module_from_codegen_entry_with_root_selector<'ctx>(
         .filter(|fun| !fun_has_param_types(fun))
         .collect();
 
-    let late_lowered_types = late_lowered_types.ok_or_else(|| LlvmEmitError::Frontend {
-        message: "LLVM stage handoff 缺少 late-lowered TypeStore".to_string(),
-    })?;
     let abi_program = abi_program.ok_or_else(|| LlvmEmitError::Frontend {
         message: "LLVM stage handoff 缺少 ABI visibility late-lowered program".to_string(),
     })?;
@@ -791,13 +800,13 @@ enum EntryMainArgShape {
 
 #[derive(Clone, Copy)]
 struct SelectedEntryMain<'a> {
-    fun: &'a hir::FunDecl,
+    root_fqn: &'a str,
     arg_shape: EntryMainArgShape,
 }
 
 #[derive(Clone, Copy)]
 struct SelectedRootCallable<'a> {
-    fun: &'a hir::FunDecl,
+    root_fqn: &'a str,
     entry_main_arg_shape: Option<EntryMainArgShape>,
 }
 
@@ -807,17 +816,24 @@ enum RootCallableSelector<'a> {
 }
 
 fn classify_entry_main_arg_shape(
-    lowered: &hir::LoweredHir,
-    fun: &hir::FunDecl,
+    types: &crate::ty::TypeStore,
+    callable: &LirCallableFacts,
 ) -> Option<EntryMainArgShape> {
-    match fun.params.as_slice() {
+    if !matches!(
+        types.kind(callable.return_ty),
+        TypeKind::Value(ValueTypeKind::Unit | ValueTypeKind::Int)
+    ) {
+        return None;
+    }
+
+    match callable.param_tys.as_slice() {
         [] => Some(EntryMainArgShape::None),
-        [param] => match lowered.types.kind(param.ty) {
+        [param_ty] => match types.kind(*param_ty) {
             TypeKind::Ref(RefTypeKind::Nominal(nominal))
                 if nominal.fqn == "scoop.core.Array"
                     && nominal.args.len() == 1
                     && matches!(
-                        lowered.types.kind(nominal.args[0]),
+                        types.kind(nominal.args[0]),
                         TypeKind::Ref(RefTypeKind::String)
                     )
                     && nominal.eff.is_none() =>
@@ -831,34 +847,26 @@ fn classify_entry_main_arg_shape(
 }
 
 fn select_entry_main<'a>(
-    lowered: &'a hir::LoweredHir,
+    lir_facts: &'a LirFacts,
+    types: &crate::ty::TypeStore,
     entry_main_fqn: Option<&str>,
 ) -> Result<SelectedEntryMain<'a>, LlvmEmitError> {
-    let mut candidates = lowered
-        .file
-        .items
-        .iter()
-        .filter_map(|item| match item {
-            hir::Item::Fun(fun) => Some(fun),
-            _ => None,
-        })
+    let mut candidates = lir_facts
+        .callables
+        .values()
+        .filter(|callable| callable.is_top_level_source_callable())
         .filter(|fun| {
             if let Some(entry_main_fqn) = entry_main_fqn {
-                fun.fqn == entry_main_fqn
+                fun.root_fqn() == entry_main_fqn
             } else {
-                fun.name == "main"
+                callable_source_name(fun.root_fqn()) == "main"
             }
         })
-        .filter(|fun| fun.body.is_some())
-        .filter(|fun| {
-            matches!(
-                lowered.types.kind(fun.return_ty),
-                TypeKind::Value(ValueTypeKind::Unit | ValueTypeKind::Int)
-            )
-        })
         .filter_map(|fun| {
-            classify_entry_main_arg_shape(lowered, fun)
-                .map(|arg_shape| SelectedEntryMain { fun, arg_shape })
+            classify_entry_main_arg_shape(types, fun).map(|arg_shape| SelectedEntryMain {
+                root_fqn: fun.root_fqn(),
+                arg_shape,
+            })
         })
         .collect::<Vec<_>>();
 
@@ -873,18 +881,31 @@ fn select_entry_main<'a>(
 }
 
 fn select_root_callable<'a>(
-    lowered: &'a hir::LoweredHir,
+    lir_facts: &'a LirFacts,
+    types: &crate::ty::TypeStore,
     selector: RootCallableSelector<'_>,
 ) -> Result<SelectedRootCallable<'a>, LlvmEmitError> {
     match selector {
         RootCallableSelector::EntryMain { entry_main_fqn } => {
-            let selected_main = select_entry_main(lowered, entry_main_fqn)?;
+            let selected_main = select_entry_main(lir_facts, types, entry_main_fqn)?;
             Ok(SelectedRootCallable {
-                fun: selected_main.fun,
+                root_fqn: selected_main.root_fqn,
                 entry_main_arg_shape: Some(selected_main.arg_shape),
             })
         }
     }
+}
+
+fn callable_source_name(root_fqn: &str) -> &str {
+    let base = root_fqn
+        .rsplit_once("::<")
+        .map(|(base, _)| base)
+        .unwrap_or(root_fqn);
+    let base = base
+        .split_once("$overload$")
+        .map(|(base, _)| base)
+        .unwrap_or(base);
+    base.rsplit_once('.').map(|(_, name)| name).unwrap_or(base)
 }
 
 fn module_name_from_path(path: &Path) -> String {

@@ -58,20 +58,38 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &mut self,
         v: &hir::TopLevelVar,
     ) -> Result<GlobalValue<'ctx>, LlvmEmitError> {
-        let name = private_top_level_var_global_name(
-            &self.stable_top_level_var_key_for_source_path(v.source_path.as_path(), &v.fqn),
-        );
+        let root = self
+            .expect_lir_global_root_kind(
+                &v.fqn,
+                LirGlobalRootKind::TopLevelMutableVar,
+                "declare_top_level_var_global",
+            )
+            .clone();
+        self.declare_lir_top_level_var_global(&root)
+    }
+
+    pub(in crate::llvm::codegen) fn declare_lir_top_level_var_global(
+        &mut self,
+        root: &LirGlobalRootFacts,
+    ) -> Result<GlobalValue<'ctx>, LlvmEmitError> {
+        let name = private_top_level_var_global_name(&self.stable_def_key_for_lir_global_root(
+            root,
+            StableDefNamespace::Value,
+            "top_level_var",
+        ));
         if let Some(existing) = self.module.get_global(&name) {
             return Ok(existing);
         }
 
-        let cg_ty = self.expect_cg_ty_of(v.ty, "top-level var global type");
+        let root_ty = self.lir_global_root_ty(root, "top-level var global type");
+        let cg_ty = self.expect_cg_ty_of(root_ty, "top-level var global type");
 
-        let llvm_ty = self.llvm_basic_type_of(v.span, cg_ty)?;
+        let span = crate::span::Span::synthetic_prelude();
+        let llvm_ty = self.llvm_basic_type_of(span, cg_ty)?;
         let gv = self.module.add_global(llvm_ty, None, &name);
         gv.set_linkage(Linkage::Internal);
 
-        if v.storage == hir::TopLevelVarStorage::ThreadLocal {
+        if root.storage == Some(LirGlobalStoragePolicy::ThreadLocal) {
             gv.set_thread_local(true);
         }
 
@@ -118,31 +136,23 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(())
     }
 
-    pub(in crate::llvm::codegen) fn declare_extern_global(
+    pub(in crate::llvm::codegen) fn declare_lir_extern_global(
         &mut self,
-        global: &hir::ExternGlobal,
+        root: &LirGlobalRootFacts,
     ) -> Result<GlobalValue<'ctx>, LlvmEmitError> {
+        let extern_global = root.extern_global.as_ref().unwrap_or_else(|| {
+            panic!(
+                "declare_lir_extern_global: LIR facts extern root `{}` is missing extern contract",
+                root.root.as_str()
+            )
+        });
         self.declare_extern_global_storage(
-            global.span,
-            global.ty,
-            &global.symbol,
-            global.linkage,
-            global.storage,
-            global.initializer_absent,
-        )
-    }
-
-    pub(in crate::llvm::codegen) fn declare_mir_extern_global(
-        &mut self,
-        global: &crate::mir::ExternGlobalRoot,
-    ) -> Result<GlobalValue<'ctx>, LlvmEmitError> {
-        self.declare_extern_global_storage(
-            global.span,
-            global.ty,
-            &global.symbol,
-            global.linkage,
-            global.storage,
-            global.initializer_absent,
+            crate::span::Span::synthetic_prelude(),
+            self.lir_global_root_ty(root, "extern global storage type"),
+            &extern_global.symbol,
+            extern_global.linkage,
+            self.lir_global_storage_policy_as_hir(root, "extern global storage policy"),
+            extern_global.initializer_absent,
         )
     }
 
@@ -151,7 +161,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         span: crate::span::Span,
         ty: TypeId,
         symbol: &str,
-        linkage: hir::ExternGlobalLinkage,
+        linkage: LirExternGlobalLinkage,
         storage: hir::TopLevelVarStorage,
         initializer_absent: bool,
     ) -> Result<GlobalValue<'ctx>, LlvmEmitError> {
@@ -165,7 +175,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .get_global(symbol)
             .unwrap_or_else(|| self.module.add_global(llvm_ty, None, symbol));
         match linkage {
-            hir::ExternGlobalLinkage::External => gv.set_linkage(Linkage::External),
+            LirExternGlobalLinkage::External => gv.set_linkage(Linkage::External),
         }
         gv.set_thread_local(storage == hir::TopLevelVarStorage::ThreadLocal);
 

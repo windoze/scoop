@@ -444,33 +444,80 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     pub(in crate::llvm::codegen) fn top_level_value_ty(&self, fqn: &str) -> Option<TypeId> {
         let facts = HirFactResolver::new(self.types, self.hir_facts.as_ref());
-        facts
-            .top_level_value_ty(fqn)
-            .or_else(|| {
-                self.materialized_extern_global_root(fqn)
-                    .map(|global| global.ty)
-            })
-            .or_else(|| facts.extern_global_ty(fqn))
+        self.lir_global_root(fqn)
+            .and_then(|root| root.ty)
+            .or_else(|| facts.top_level_value_ty(fqn))
     }
 
-    pub(in crate::llvm::codegen) fn materialized_extern_global_root(
+    pub(in crate::llvm::codegen) fn lir_global_root(
         &self,
         fqn: &str,
-    ) -> Option<&crate::mir::ExternGlobalRoot> {
-        self.materialized_pass_view()?
-            .materialized()
-            .file
-            .items
-            .iter()
-            .find_map(|item| match item {
-                crate::mir::Item::ExternGlobal(root) if root.fqn == fqn => Some(root),
-                _ => None,
-            })
+    ) -> Option<&LirGlobalRootFacts> {
+        self.published_lir_facts
+            .global_init
+            .roots
+            .get(&LirGlobalRootKey::new(fqn))
+    }
+
+    pub(in crate::llvm::codegen) fn lir_global_root_has_kind(
+        &self,
+        fqn: &str,
+        kind: LirGlobalRootKind,
+    ) -> bool {
+        self.lir_global_root(fqn)
+            .is_some_and(|root| root.kind == kind)
+    }
+
+    pub(in crate::llvm::codegen) fn expect_lir_global_root_kind(
+        &self,
+        fqn: &str,
+        kind: LirGlobalRootKind,
+        context: &str,
+    ) -> &LirGlobalRootFacts {
+        let root = self
+            .lir_global_root(fqn)
+            .unwrap_or_else(|| panic!("{context}: LIR facts are missing global root `{fqn}`"));
+        if root.kind != kind {
+            panic!(
+                "{context}: LIR facts classify global root `{fqn}` as `{}`, expected `{}`",
+                root.kind.stable_name(),
+                kind.stable_name()
+            );
+        }
+        root
+    }
+
+    pub(in crate::llvm::codegen) fn lir_global_root_ty(
+        &self,
+        root: &LirGlobalRootFacts,
+        context: &str,
+    ) -> TypeId {
+        root.ty.unwrap_or_else(|| {
+            panic!(
+                "{context}: LIR facts global root `{}` is missing type",
+                root.root.as_str()
+            )
+        })
+    }
+
+    pub(in crate::llvm::codegen) fn lir_global_storage_policy_as_hir(
+        &self,
+        root: &LirGlobalRootFacts,
+        context: &str,
+    ) -> hir::TopLevelVarStorage {
+        match root.storage.unwrap_or_else(|| {
+            panic!(
+                "{context}: LIR facts global root `{}` is missing storage policy",
+                root.root.as_str()
+            )
+        }) {
+            LirGlobalStoragePolicy::Global => hir::TopLevelVarStorage::Global,
+            LirGlobalStoragePolicy::ThreadLocal => hir::TopLevelVarStorage::ThreadLocal,
+        }
     }
 
     pub(in crate::llvm::codegen) fn has_extern_global_contract(&self, fqn: &str) -> bool {
-        let facts = HirFactResolver::new(self.types, self.hir_facts.as_ref());
-        self.materialized_extern_global_root(fqn).is_some() || facts.has_extern_global(fqn)
+        self.lir_global_root_has_kind(fqn, LirGlobalRootKind::ExternGlobal)
     }
 
     pub(in crate::llvm::codegen) fn source_slice_at(

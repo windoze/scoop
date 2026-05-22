@@ -238,6 +238,9 @@ mod tests {
         LirCallableFacts {
             root_fqn: root_fqn.to_string(),
             stable_instance_key: key.as_str().to_string(),
+            source_kind: LirCallableSourceKind::TopLevel,
+            param_tys: Vec::new(),
+            return_ty: ty(2),
             body_version: body_version(&key),
             resolved_outward_cases: Vec::new(),
             contract: LirCallableContract::Plain(Box::new(LirPlainCallableFacts {
@@ -341,6 +344,9 @@ mod tests {
             LirCallableFacts {
                 root_fqn: "app.main".to_string(),
                 stable_instance_key: callable_key.as_str().to_string(),
+                source_kind: LirCallableSourceKind::TopLevel,
+                param_tys: Vec::new(),
+                return_ty: ty(2),
                 body_version: LirBodyVersionFacts {
                     key: BodyVersionKey::new(&callable_key, "effect_step", 0),
                     impl_plan: "CanonicalFull".to_string(),

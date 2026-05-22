@@ -54,25 +54,6 @@ impl<'a> HirFactResolver<'a> {
             .and_then(|root| root.ty)
     }
 
-    #[cfg(feature = "llvm")]
-    pub(crate) fn extern_global_ty(&self, fqn: &str) -> Option<TypeId> {
-        self.hir_facts
-            .native
-            .extern_globals
-            .iter()
-            .find(|global| global.identity.display_name == fqn)
-            .map(|global| global.ty)
-    }
-
-    #[cfg(feature = "llvm")]
-    pub(crate) fn has_extern_global(&self, fqn: &str) -> bool {
-        self.hir_facts
-            .native
-            .extern_globals
-            .iter()
-            .any(|global| global.identity.display_name == fqn)
-    }
-
     pub(crate) fn object_property_ty(&self, fqn: &str) -> Option<TypeId> {
         self.hir_facts
             .declarations

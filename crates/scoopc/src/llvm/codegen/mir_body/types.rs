@@ -510,10 +510,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let Some(crate::mir::MemberTarget::Value { fqn }) = member.resolved.as_ref() else {
             return None;
         };
-        (self.object_inits.contains_key(fqn)
+        (self.lir_global_root_has_kind(fqn, LirGlobalRootKind::ObjectSingleton)
             || self.lookup_object_property_by_fqn(fqn).is_some()
-            || self.top_level_immutable_values.contains_key(fqn)
-            || self.top_level_vars.contains_key(fqn)
+            || self.lir_global_root_has_kind(fqn, LirGlobalRootKind::TopLevelImmutableVal)
+            || self.lir_global_root_has_kind(fqn, LirGlobalRootKind::TopLevelMutableVar)
             || self.has_extern_global_contract(fqn)
             || self.mir_member_resolved_enum_unit_variant_fqn(fqn))
         .then_some(fqn.as_str())
@@ -526,23 +526,21 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let crate::mir::MemberTarget::Value { fqn } = member.resolved.as_ref()? else {
             return None;
         };
-        if self.object_inits.contains_key(fqn) {
+        if self.lir_global_root_has_kind(fqn, LirGlobalRootKind::ObjectSingleton) {
             return Some(CgTy::Ref);
         }
         if let Some((_object, prop)) = self.lookup_object_property_by_fqn(fqn) {
             return self.cg_ty_of(prop.ty);
         }
-        if let Some(value) = self.top_level_immutable_values.get(fqn) {
-            return self.cg_ty_of(value.ty);
-        }
-        if let Some(value) = self.top_level_vars.get(fqn) {
-            return self.cg_ty_of(value.ty);
-        }
-        if let Some(value) = self.materialized_extern_global_root(fqn) {
-            return self.cg_ty_of(value.ty);
-        }
-        if let Some(value) = self.extern_globals.get(fqn) {
-            return self.cg_ty_of(value.ty);
+        if let Some(root) = self.lir_global_root(fqn)
+            && matches!(
+                root.kind,
+                LirGlobalRootKind::TopLevelImmutableVal
+                    | LirGlobalRootKind::TopLevelMutableVar
+                    | LirGlobalRootKind::ExternGlobal
+            )
+        {
+            return self.cg_ty_of(root.ty?);
         }
         let (owner_fqn, variant_name) = fqn.rsplit_once('.')?;
         let layout = self.enum_layouts.get(owner_fqn)?;

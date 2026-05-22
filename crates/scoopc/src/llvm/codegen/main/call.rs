@@ -39,35 +39,48 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 })
             }
             hir::ExprKind::VarRef(hir::ValueRef::TopLevel { fqn, .. }) => {
-                if let Some(global) = self.materialized_extern_global_root(fqn).cloned() {
-                    let gv = self.declare_mir_extern_global(&global)?;
-                    let cg_ty = self.expect_cg_ty_of(global.ty, "addressable extern global");
+                if self.lir_global_root_has_kind(fqn, LirGlobalRootKind::ExternGlobal) {
+                    let root = self
+                        .expect_lir_global_root_kind(
+                            fqn,
+                            LirGlobalRootKind::ExternGlobal,
+                            "codegen_addressable_place",
+                        )
+                        .clone();
+                    let extern_global = root.extern_global.as_ref().unwrap_or_else(|| {
+                        panic!("codegen_addressable_place: extern LIR root is missing contract")
+                    });
+                    let gv = self.declare_lir_extern_global(&root)?;
+                    let cg_ty = self.expect_cg_ty_of(
+                        self.lir_global_root_ty(&root, "addressable extern global"),
+                        "addressable extern global",
+                    );
                     return Ok(AddressablePlace {
                         ptr: gv.as_pointer_value(),
                         ty: cg_ty,
-                        writable: global.mutable,
+                        writable: extern_global.mutable,
                     });
                 }
 
-                if let Some(global) = self.extern_globals.get(fqn).cloned() {
-                    let gv = self.declare_extern_global(&global)?;
-                    let cg_ty = self.expect_cg_ty_of(global.ty, "addressable extern global");
-                    return Ok(AddressablePlace {
-                        ptr: gv.as_pointer_value(),
-                        ty: cg_ty,
-                        writable: global.mutable,
-                    });
-                }
-
-                let Some(var) = self.top_level_vars.get(fqn) else {
+                if !self.lir_global_root_has_kind(fqn, LirGlobalRootKind::TopLevelMutableVar) {
                     self.panic_verified_intrinsic_contract(
                         "codegen_addressable_place",
                         "top-level target metadata missing",
                     );
-                };
+                }
+                let root = self
+                    .expect_lir_global_root_kind(
+                        fqn,
+                        LirGlobalRootKind::TopLevelMutableVar,
+                        "codegen_addressable_place",
+                    )
+                    .clone();
 
-                let gv = self.declare_top_level_var_global(var)?;
-                let cg_ty = self.expect_cg_ty_of(var.ty, "addressable top-level var");
+                let gv = self.declare_lir_top_level_var_global(&root)?;
+                let cg_ty = self.expect_cg_ty_of(
+                    self.lir_global_root_ty(&root, "addressable top-level var"),
+                    "addressable top-level var",
+                );
                 Ok(AddressablePlace {
                     ptr: gv.as_pointer_value(),
                     ty: cg_ty,

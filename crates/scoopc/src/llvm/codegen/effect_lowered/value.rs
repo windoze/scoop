@@ -16,6 +16,7 @@ use inkwell::values::{
     PointerValue,
 };
 use inkwell::{AddressSpace, AtomicOrdering, IntPredicate};
+use scoopc_lir_facts::LirGlobalRootKind;
 
 use crate::effect_lowered::ir::{LateLoweredOperandSource, LateLoweredOperandValueSource};
 use crate::llvm::LlvmEmitError;
@@ -225,22 +226,32 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
                                 TypeKind::Ref(RefTypeKind::Function(_))
                             )
                         })
-                    && (!self.codegen.top_level_immutable_values.contains_key(fqn)
+                    && (!self
+                        .codegen
+                        .lir_global_root_has_kind(fqn, LirGlobalRootKind::TopLevelImmutableVal)
                         || !used_locals.contains(target))
                 {
                     return Ok(());
                 }
                 if let mir::Rvalue::TopLevelRef(mir::TopLevelRef { fqn, .. }) = rvalue
-                    && (self.codegen.top_level_vars.contains_key(fqn)
+                    && (self
+                        .codegen
+                        .lir_global_root_has_kind(fqn, LirGlobalRootKind::TopLevelMutableVar)
                         || self.codegen.has_extern_global_contract(fqn))
                     && self.local_is_only_atomic_target(*target)
                 {
                     return Ok(());
                 }
                 if let mir::Rvalue::TopLevelRef(mir::TopLevelRef { fqn, .. }) = rvalue
-                    && !self.codegen.object_inits.contains_key(fqn)
-                    && !self.codegen.top_level_immutable_values.contains_key(fqn)
-                    && !self.codegen.top_level_vars.contains_key(fqn)
+                    && !self
+                        .codegen
+                        .lir_global_root_has_kind(fqn, LirGlobalRootKind::ObjectSingleton)
+                    && !self
+                        .codegen
+                        .lir_global_root_has_kind(fqn, LirGlobalRootKind::TopLevelImmutableVal)
+                    && !self
+                        .codegen
+                        .lir_global_root_has_kind(fqn, LirGlobalRootKind::TopLevelMutableVar)
                     && !self.codegen.has_extern_global_contract(fqn)
                     && !self.static_enum_unit_variant_value(fqn)
                 {
@@ -646,10 +657,15 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
         let Some(mir::MemberTarget::Value { fqn }) = member.resolved.as_ref() else {
             return false;
         };
-        self.codegen.object_inits.contains_key(fqn)
+        self.codegen
+            .lir_global_root_has_kind(fqn, LirGlobalRootKind::ObjectSingleton)
             || self.codegen.lookup_object_property_by_fqn(fqn).is_some()
-            || self.codegen.top_level_immutable_values.contains_key(fqn)
-            || self.codegen.top_level_vars.contains_key(fqn)
+            || self
+                .codegen
+                .lir_global_root_has_kind(fqn, LirGlobalRootKind::TopLevelImmutableVal)
+            || self
+                .codegen
+                .lir_global_root_has_kind(fqn, LirGlobalRootKind::TopLevelMutableVar)
             || self.codegen.has_extern_global_contract(fqn)
             || self.static_enum_unit_variant_value(fqn)
     }
@@ -2455,41 +2471,58 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
             return Ok(None);
         };
 
-        if let Some(global) = self.codegen.materialized_extern_global_root(&fqn).cloned() {
-            if require_writable && !global.mutable {
-                self.codegen.panic_verified_intrinsic_contract(
-                    "effect_lowered_atomic_top_level_place_for_local",
-                    "extern global target is not writable",
-                );
-            }
-            let cg_ty = self
-                .codegen
-                .expect_cg_ty_of(global.ty, "effect_lowered_atomic extern global");
-            let gv = self.codegen.declare_mir_extern_global(&global)?;
-            return Ok(Some((gv.as_pointer_value(), cg_ty)));
-        }
-
-        if let Some(global) = self.codegen.extern_globals.get(&fqn).cloned() {
-            if require_writable && !global.mutable {
-                self.codegen.panic_verified_intrinsic_contract(
-                    "effect_lowered_atomic_top_level_place_for_local",
-                    "extern global target is not writable",
-                );
-            }
-            let cg_ty = self
-                .codegen
-                .expect_cg_ty_of(global.ty, "effect_lowered_atomic extern global");
-            let gv = self.codegen.declare_extern_global(&global)?;
-            return Ok(Some((gv.as_pointer_value(), cg_ty)));
-        }
-
-        let Some(var) = self.codegen.top_level_vars.get(&fqn).cloned() else {
-            return Ok(None);
-        };
-        let cg_ty = self
+        if self
             .codegen
-            .expect_cg_ty_of(var.ty, "effect_lowered_atomic top-level var");
-        let gv = self.codegen.declare_top_level_var_global(&var)?;
+            .lir_global_root_has_kind(&fqn, LirGlobalRootKind::ExternGlobal)
+        {
+            let root = self
+                .codegen
+                .expect_lir_global_root_kind(
+                    &fqn,
+                    LirGlobalRootKind::ExternGlobal,
+                    "effect_lowered_atomic_top_level_place_for_local",
+                )
+                .clone();
+            let extern_global = root.extern_global.as_ref().unwrap_or_else(|| {
+                panic!(
+                    "effect_lowered_atomic_top_level_place_for_local: extern LIR root is missing contract"
+                )
+            });
+            if require_writable && !extern_global.mutable {
+                self.codegen.panic_verified_intrinsic_contract(
+                    "effect_lowered_atomic_top_level_place_for_local",
+                    "extern global target is not writable",
+                );
+            }
+            let cg_ty = self.codegen.expect_cg_ty_of(
+                self.codegen
+                    .lir_global_root_ty(&root, "effect_lowered_atomic extern global"),
+                "effect_lowered_atomic extern global",
+            );
+            let gv = self.codegen.declare_lir_extern_global(&root)?;
+            return Ok(Some((gv.as_pointer_value(), cg_ty)));
+        }
+
+        if !self
+            .codegen
+            .lir_global_root_has_kind(&fqn, LirGlobalRootKind::TopLevelMutableVar)
+        {
+            return Ok(None);
+        }
+        let root = self
+            .codegen
+            .expect_lir_global_root_kind(
+                &fqn,
+                LirGlobalRootKind::TopLevelMutableVar,
+                "effect_lowered_atomic_top_level_place_for_local",
+            )
+            .clone();
+        let cg_ty = self.codegen.expect_cg_ty_of(
+            self.codegen
+                .lir_global_root_ty(&root, "effect_lowered_atomic top-level var"),
+            "effect_lowered_atomic top-level var",
+        );
+        let gv = self.codegen.declare_lir_top_level_var_global(&root)?;
         Ok(Some((gv.as_pointer_value(), cg_ty)))
     }
 
@@ -2878,8 +2911,11 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
         &self,
         callable_fqn: &str,
     ) -> Option<crate::ty::FunctionType> {
-        let value = self.codegen.top_level_immutable_values.get(callable_fqn)?;
-        match self.codegen.types.kind(value.ty) {
+        let root = self.codegen.lir_global_root(callable_fqn)?;
+        if root.kind != LirGlobalRootKind::TopLevelImmutableVal {
+            return None;
+        }
+        match self.codegen.types.kind(root.ty?) {
             TypeKind::Ref(RefTypeKind::Nominal(nominal))
             | TypeKind::Value(ValueTypeKind::Nominal(nominal))
                 if nominal.fqn == "scoop.unsafe.FunPtr" && nominal.args.len() == 1 =>
@@ -2896,8 +2932,11 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
     }
 
     fn top_level_function_value_type(&self, callable_fqn: &str) -> Option<crate::ty::FunctionType> {
-        let value = self.codegen.top_level_immutable_values.get(callable_fqn)?;
-        let TypeKind::Ref(RefTypeKind::Function(fun_ty)) = self.codegen.types.kind(value.ty) else {
+        let root = self.codegen.lir_global_root(callable_fqn)?;
+        if root.kind != LirGlobalRootKind::TopLevelImmutableVal {
+            return None;
+        }
+        let TypeKind::Ref(RefTypeKind::Function(fun_ty)) = self.codegen.types.kind(root.ty?) else {
             return None;
         };
         Some(fun_ty.clone())

@@ -150,6 +150,12 @@ pub enum VerifyError {
     EmptyStableInstanceKey {
         key: String,
     },
+    MismatchedCallableParamTypes {
+        callable: String,
+    },
+    MismatchedCallableReturnType {
+        callable: String,
+    },
     MissingControlStepType {
         callable: String,
         step_schema: u32,
@@ -339,6 +345,14 @@ impl fmt::Display for VerifyError {
             Self::EmptyStableInstanceKey { key } => {
                 write!(f, "LIR callable `{key}` has an empty stable instance key")
             }
+            Self::MismatchedCallableParamTypes { callable } => write!(
+                f,
+                "LIR callable `{callable}` source parameter types drift from ABI contract"
+            ),
+            Self::MismatchedCallableReturnType { callable } => write!(
+                f,
+                "LIR callable `{callable}` source return type drifts from plain ABI contract"
+            ),
             Self::MissingControlStepType {
                 callable,
                 step_schema,
@@ -792,11 +806,26 @@ fn verify_callable_inventory(facts: &LirFacts) -> Result<()> {
         }
         match &callable.contract {
             LirCallableContract::Plain(plain) => {
+                if callable.param_tys != plain.param_tys {
+                    return Err(VerifyError::MismatchedCallableParamTypes {
+                        callable: callable.root_fqn().to_string(),
+                    });
+                }
+                if callable.return_ty != plain.return_ty {
+                    return Err(VerifyError::MismatchedCallableReturnType {
+                        callable: callable.root_fqn().to_string(),
+                    });
+                }
                 if let Some(control) = &plain.local_effect_control {
                     verify_control_body(facts, callable.root_fqn(), control)?;
                 }
             }
             LirCallableContract::EffectStep(effect) => {
+                if callable.param_tys != effect.param_tys {
+                    return Err(VerifyError::MismatchedCallableParamTypes {
+                        callable: callable.root_fqn().to_string(),
+                    });
+                }
                 verify_control_body(facts, callable.root_fqn(), &effect.control_body)?;
                 if !facts
                     .step_types

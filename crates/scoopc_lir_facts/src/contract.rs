@@ -122,9 +122,24 @@ pub struct LirGlobalRootDependency {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LirExternGlobalFacts {
     pub symbol: String,
+    pub linkage: LirExternGlobalLinkage,
     pub mutable: bool,
     pub initializer_absent: bool,
     pub unsafe_required: bool,
+}
+
+/// Backend-neutral linkage for an extern global declaration.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum LirExternGlobalLinkage {
+    External,
+}
+
+impl LirExternGlobalLinkage {
+    pub const fn stable_name(self) -> &'static str {
+        match self {
+            Self::External => "external",
+        }
+    }
 }
 
 /// Complete backend-neutral contract for one global/init root.
@@ -231,6 +246,13 @@ pub struct LirBodyVersionFacts {
 pub enum LirCallableKind {
     Plain,
     EffectStep,
+}
+
+/// Source-level callable family used by backend entry selection.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LirCallableSourceKind {
+    TopLevel,
+    MemberOrSynthetic,
 }
 
 /// Backend-neutral call-site source kind.
@@ -440,6 +462,9 @@ impl LirCallableContract {
 pub struct LirCallableFacts {
     pub root_fqn: String,
     pub stable_instance_key: String,
+    pub source_kind: LirCallableSourceKind,
+    pub param_tys: Vec<TypeId>,
+    pub return_ty: TypeId,
     pub body_version: LirBodyVersionFacts,
     pub resolved_outward_cases: Vec<LirCaseKey>,
     pub contract: LirCallableContract,
@@ -456,6 +481,10 @@ impl LirCallableFacts {
 
     pub fn has_control_body(&self) -> bool {
         self.contract.has_control_body()
+    }
+
+    pub fn is_top_level_source_callable(&self) -> bool {
+        self.source_kind == LirCallableSourceKind::TopLevel
     }
 }
 
