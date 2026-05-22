@@ -4,7 +4,7 @@
 > 细化时间：2026-05-22
 > 计划基线：[`PLAN.md`](./PLAN.md) §4/P6-P8
 > 索引：[`TODO.md`](./TODO.md)
-> 当前状态：`P6-T03` 已完成；下一步执行 `P6-T03R`。
+> 当前状态：`P6-T03R` 已完成；下一步执行 `P6-T04`。
 
 ## 范围
 
@@ -243,7 +243,7 @@
   - 验证通过：`cargo fmt`；`cargo test -p scoopc --no-default-features storage_policy`；`cargo run -p scoop -- test --fixtures tests/fixtures/typecheck`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/global_init`；`cargo test -p scoop_runtime --all-targets`；`cargo test -p scoopc llvm_top_level_eager_init_does_not_call_object_once_runtime`；`cargo test -p scoopc llvm_object_singleton_init_keeps_object_once_runtime`；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
   - 备注：首次 `cargo test -p scoop_runtime --all-targets` 使用 20 分钟工具 timeout 在 `stackmap_registry` 附近被中止；随后单独运行 `cargo test -p scoop_runtime --test stackmap_registry -- --nocapture` 和更长 timeout 的完整 runtime suite 均通过，未发现单个 runtime test 卡住。
 
-## [TODO] P6-T03R：Review object once 与 storage policy 分离结果
+## [DONE] P6-T03R：Review object once 与 storage policy 分离结果
 
 - 参考：P6-T03。
 - 重点：
@@ -257,7 +257,11 @@
   - review 结论明确写出 object once 与 storage policy 已闭合，或列出阻塞项并在本 review 内修复。
 - 依赖：P6-T03
 - 完成记录：
-  - 待填写。
+  - Review 结论：object once 与 storage policy 分离结果已闭合到 P6-T03R 要求；object singleton 继续独占 runtime `scoop_once_begin/end` 路径，top-level eager init 不再复用 once first-access，`@Global` / `@ThreadLocal` / `@Extern` storage policy 在 HIR/MIR/LIR/codegen/runtime 路径保持一致。
+  - 复审结果：`declare_runtime_once_begin/end` 的实际 codegen 调用点只在 `object_init.rs`，top-level `val` eager init 通过 `immut_value.rs` 的 compiler-private guard state machine 和 `cone_init.rs` 的 eager routine 执行；普通 top-level `val` 访问只做 initialized check 后读取 backing storage。
+  - Storage policy 复审：非 extern 顶层 `var` 仍由 typecheck 要求显式 `@Global` / `@ThreadLocal` 且拒绝二者冲突；HIR/MIR/LIR facts 保留 resolved storage policy；LLVM 对 `@Global` 使用普通 global，对 `@ThreadLocal` 使用 TLS storage；entry thread 经 final entry cone init 初始化 TLS roots，worker thread 经 `scoop_thread_init_current` hook 初始化当前线程 TLS roots；`@Extern` global/TLS 继续保持 no-initializer、unsafe 与 storage contract。
+  - 额外 residual 搜索：`scoop_once_begin|scoop_once_end` 在 `crates/scoopc/src/llvm/codegen` 只剩 runtime symbol/declaration 注释、常量与 object guard 注释；`top_level_val_eager_init|top_level_val_init_guard|declare_runtime_once_begin` 搜索确认 top-level eager path 只调用 compiler-private init helper，runtime once declaration 只被 object init 使用。
+  - 验证通过：`cargo fmt`；`cargo test -p scoopc --no-default-features storage_policy`；`cargo test -p scoopc llvm_top_level_eager_init_does_not_call_object_once_runtime`；`cargo test -p scoopc llvm_object_singleton_init_keeps_object_once_runtime`；`cargo run -p scoop -- test --fixtures tests/fixtures/typecheck`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass/global_init`；`cargo test -p scoop_runtime --all-targets`；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
 
 ## [TODO] P6-T04：P6 全包清场、文档同步与依赖审计
 
