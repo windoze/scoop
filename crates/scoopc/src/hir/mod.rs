@@ -851,16 +851,12 @@ pub type ClassInitIndex = HashMap<String, MonoClassInit>;
 /// - 字段 `TypeId` 可包含 `Param`；如需 codegen 视图必须经 `MonoClassInit::from_generic_decl` 升级。
 pub type GenericClassDeclIndex = HashMap<String, GenericClassDecl>;
 
-/// 一个 class 的初始化顺序、字段信息与构造器集合（参数化于字段/参数槽位的类型 `T`）。
+/// 源声明视图（typecheck / HIR lowering / monomorph driver 使用）。字段类型为 `TypeId`。
 ///
-/// 两个具名 view：
-/// - [`GenericClassDecl`] = `ClassInitImpl<TypeId>`：源声明视图，可含 `Param`。
-/// - [`MonoClassInit`] = `ClassInitImpl<MonoTypeId>`：单态化视图，禁止 `Param`。
-///
-/// 由于 `T` 不同，两者在类型系统层是不同类型，不可隐式互转；codegen 公共 API 限制在
-/// `&MonoClassInit`，从而把 `Param` 泄漏到 `llvm_class_payload_type` 的可能性在编译期堵死。
+/// 它与 [`MonoClassInit`] 是两个独立 nominal struct，而不是 type alias；调用方必须显式走
+/// [`MonoClassInit::from_generic_decl`] 才能把源声明升级为 codegen 可见的单态化视图。
 #[derive(Debug, Clone)]
-pub struct ClassInitImpl<T> {
+pub struct GenericClassDecl {
     pub fqn: String,
     /// class 声明所在源文件路径；供多文件 codegen 在初始化表达式中回查字面量源码。
     pub source_path: PathBuf,
@@ -875,20 +871,42 @@ pub struct ClassInitImpl<T> {
     /// `this` 在该 class 初始化语境中的局部符号 ID（resolver 用 class name span 作为 decl_span）。
     pub this_id: SymbolId,
     /// class 实例的字段列表（按稳定顺序，用于后端分配 layout）。
-    pub fields: Vec<ClassField<T>>,
+    pub fields: Vec<ClassField<TypeId>>,
     /// `field fqn -> fields[] index` 的快速索引。
     pub field_indices: HashMap<String, u32>,
     /// primary ctor 的初始化步骤（按源码顺序执行；不包含 ctor 参数属性赋值）。
     pub steps: Vec<ClassInitStep>,
     /// 该 class 的构造器集合（primary + secondary）。
-    pub ctors: Vec<ClassCtor<T>>,
+    pub ctors: Vec<ClassCtor<TypeId>>,
 }
 
-/// 源声明视图（typecheck / HIR lowering / monomorph driver 使用）。字段类型为 `TypeId`。
-pub type GenericClassDecl = ClassInitImpl<TypeId>;
-
 /// 单态化视图（codegen / RTTI / mir-materialize / lir_facts 使用）。字段类型为 `MonoTypeId`。
-pub type MonoClassInit = ClassInitImpl<MonoTypeId>;
+///
+/// 该类型只能由已完成 `as_mono` 校验的字段/参数组成，避免含 `Param` 的源声明误入 codegen。
+#[derive(Debug, Clone)]
+pub struct MonoClassInit {
+    pub fqn: String,
+    /// class 声明所在源文件路径；供多文件 codegen 在初始化表达式中回查字面量源码。
+    pub source_path: PathBuf,
+    /// 直接 superclass 的 FQN（仅 class 单继承；interface 不在此处记录）。
+    pub super_class_fqn: Option<String>,
+    /// class header 的 super ctor args 括号 span（若存在 `: Base(...)`）。
+    pub super_ctor_args_span: Option<Span>,
+    /// class header 的 super ctor 调用绑定（若存在 `: Base(args...)`）。
+    pub super_ctor_call: Option<CtorCallInfo>,
+    /// class header 的 super ctor args（若存在 `: Base(args...)`）。
+    pub super_ctor_args: Vec<CallArg>,
+    /// `this` 在该 class 初始化语境中的局部符号 ID（resolver 用 class name span 作为 decl_span）。
+    pub this_id: SymbolId,
+    /// class 实例的字段列表（按稳定顺序，用于后端分配 layout）。
+    pub fields: Vec<ClassField<MonoTypeId>>,
+    /// `field fqn -> fields[] index` 的快速索引。
+    pub field_indices: HashMap<String, u32>,
+    /// primary ctor 的初始化步骤（按源码顺序执行；不包含 ctor 参数属性赋值）。
+    pub steps: Vec<ClassInitStep>,
+    /// 该 class 的构造器集合（primary + secondary）。
+    pub ctors: Vec<ClassCtor<MonoTypeId>>,
+}
 
 /// `MonoClassInit` 构造失败时的诊断（class FQN + 出错槽位 + leak path）。
 ///

@@ -1,9 +1,9 @@
 use std::path::Path;
 
 use crate::hir::{
-    AssignPlaceKind, Block, CallArg, CallSite, ClassCtor, ClassInitImpl, ClassInitStep, Expr,
-    ExprKind, FunDecl, HirStageError, Item, LoweredHir, ObjectInit, ObjectInitStep, Stmt, StmtKind,
-    ValDecl, ValueRef,
+    AssignPlaceKind, Block, CallArg, CallSite, ClassCtor, ClassInitStep, Expr, ExprKind, FunDecl,
+    GenericClassDecl, HirStageError, Item, LoweredHir, MonoClassInit, ObjectInit, ObjectInitStep,
+    Stmt, StmtKind, ValDecl, ValueRef,
 };
 use crate::span::Span;
 
@@ -84,7 +84,7 @@ impl<'a> HirCompletenessVerifier<'a> {
         let mut class_inits = self.lowered_hir.class_inits.values().collect::<Vec<_>>();
         class_inits.sort_by(|lhs, rhs| lhs.fqn.cmp(&rhs.fqn));
         for class_init in class_inits {
-            self.verify_class_init(class_init)?;
+            self.verify_mono_class_init(class_init)?;
         }
         let mut generic_class_decls = self
             .lowered_hir
@@ -93,7 +93,7 @@ impl<'a> HirCompletenessVerifier<'a> {
             .collect::<Vec<_>>();
         generic_class_decls.sort_by(|lhs, rhs| lhs.fqn.cmp(&rhs.fqn));
         for decl in generic_class_decls {
-            self.verify_class_init(decl)?;
+            self.verify_generic_class_decl(decl)?;
         }
         Ok(())
     }
@@ -207,45 +207,73 @@ impl<'a> HirCompletenessVerifier<'a> {
         Ok(())
     }
 
-    fn verify_class_init<T>(&self, class_init: &ClassInitImpl<T>) -> Result<(), HirStageError> {
-        let owner = format!("class {}", class_init.fqn);
-        for arg in &class_init.super_ctor_args {
-            self.verify_call_arg(&class_init.source_path, arg, &owner)?;
+    fn verify_mono_class_init(&self, class_init: &MonoClassInit) -> Result<(), HirStageError> {
+        self.verify_class_init_parts(
+            &class_init.fqn,
+            &class_init.source_path,
+            &class_init.super_ctor_args,
+            &class_init.steps,
+            &class_init.ctors,
+        )
+    }
+
+    fn verify_generic_class_decl(&self, decl: &GenericClassDecl) -> Result<(), HirStageError> {
+        self.verify_class_init_parts(
+            &decl.fqn,
+            &decl.source_path,
+            &decl.super_ctor_args,
+            &decl.steps,
+            &decl.ctors,
+        )
+    }
+
+    fn verify_class_init_parts<T>(
+        &self,
+        class_fqn: &str,
+        source_path: &Path,
+        super_ctor_args: &[CallArg],
+        steps: &[ClassInitStep],
+        ctors: &[ClassCtor<T>],
+    ) -> Result<(), HirStageError> {
+        let owner = format!("class {class_fqn}");
+        for arg in super_ctor_args {
+            self.verify_call_arg(source_path, arg, &owner)?;
         }
-        for step in &class_init.steps {
+        for step in steps {
             match step {
                 ClassInitStep::PropertyInit { init, .. } => {
-                    self.verify_expr(&class_init.source_path, init, &owner)?;
+                    self.verify_expr(source_path, init, &owner)?;
                 }
                 ClassInitStep::InitBlock { block } => {
-                    self.verify_block(&class_init.source_path, block, &owner)?;
+                    self.verify_block(source_path, block, &owner)?;
                 }
             }
         }
-        for ctor in &class_init.ctors {
-            self.verify_class_ctor(class_init, ctor)?;
+        for ctor in ctors {
+            self.verify_class_ctor(class_fqn, source_path, ctor)?;
         }
         Ok(())
     }
 
     fn verify_class_ctor<T>(
         &self,
-        class_init: &ClassInitImpl<T>,
+        class_fqn: &str,
+        source_path: &Path,
         ctor: &ClassCtor<T>,
     ) -> Result<(), HirStageError> {
-        let owner = format!("class {} {:?} ctor", class_init.fqn, ctor.kind);
+        let owner = format!("class {class_fqn} {:?} ctor", ctor.kind);
         for param in &ctor.params {
             if let Some(default_value) = &param.default_value {
-                self.verify_expr(&class_init.source_path, default_value, &owner)?;
+                self.verify_expr(source_path, default_value, &owner)?;
             }
         }
         if let Some(delegation) = &ctor.delegation {
             for arg in &delegation.args {
-                self.verify_call_arg(&class_init.source_path, arg, &owner)?;
+                self.verify_call_arg(source_path, arg, &owner)?;
             }
         }
         if let Some(body) = &ctor.body {
-            self.verify_block(&class_init.source_path, body, &owner)?;
+            self.verify_block(source_path, body, &owner)?;
         }
         Ok(())
     }

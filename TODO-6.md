@@ -4,7 +4,7 @@
 > 细化时间：2026-05-22
 > 计划基线：[`PLAN.md`](./PLAN.md) §4/P6-P8
 > 索引：[`TODO.md`](./TODO.md)
-> 当前状态：`P7-T04-a` / `P7-T04-b-1` / `P7-T04-b-1R` / `P7-T04-b-2` 均已完成。`P7-T04-b-2` 把 `hir::ClassInit` 拆为 `GenericClassDecl`（TypeId 槽位）与 `MonoClassInit`（MonoTypeId 槽位）独立 Rust 类型，索引拆为 `GenericClassDeclIndex` 与 `ClassInitIndex = HashMap<String, MonoClassInit>`；`MonoClassInit::from_generic_decl` 是唯一构造入口，对每个 field/ctor-param 调 `as_mono`，失败时返回 `MonoLeakDiag { class_fqn, slot, leak_path }` 明确诊断；`LoweredHir` 增 `generic_class_decls` 字段供 typecheck/HIR-lowering/monomorph driver 使用，codegen / RTTI / mir-materialize 仅读 `class_inits`。在执行过程中观察到 `llvm::tests::abi::*`（2）/ `llvm::tests::baseline::via_mir_direct_interface_default_call_*` / `llvm::tests::effects::closure_call_without_outward_effect_*` 共 4 项 LLVM 库测试在 clean HEAD 上即已失败，与 ClassInit 拆分无关；按 PROMPT.md §"Test/Fixture Failure Policy" 已显式排期为新增前置任务 `P7-T04-b-5` / `P7-T04-b-5R`，置于 `P7-T04-b-4R` 与 `P7-T04-b` 之间。下一步执行 `P7-T04-b-2R`（review）。
+> 当前状态：`P7-T04-a` / `P7-T04-b-1` / `P7-T04-b-1R` / `P7-T04-b-2` / `P7-T04-b-2R` 均已完成。`P7-T04-b-2R` review 发现并修复了 `GenericClassDecl` / `MonoClassInit` 仍为 `ClassInitImpl<T>` type alias 的问题，现在二者已是独立 nominal Rust struct，索引拆为 `GenericClassDeclIndex` 与 `ClassInitIndex = HashMap<String, MonoClassInit>`；`MonoClassInit::from_generic_decl` 是唯一构造入口，对每个 field/ctor-param 调 `as_mono`，失败时返回 `MonoLeakDiag { class_fqn, slot, leak_path }` 明确诊断；`LoweredHir` 增 `generic_class_decls` 字段供 typecheck/HIR-lowering/monomorph driver 使用，codegen / RTTI / mir-materialize 仅读 `class_inits`。在执行过程中观察到 `llvm::tests::abi::*`（2）/ `llvm::tests::baseline::via_mir_direct_interface_default_call_*` / `llvm::tests::effects::closure_call_without_outward_effect_*` 共 4 项 LLVM 库测试在 clean HEAD 上即已失败，与 ClassInit 拆分无关；按 PROMPT.md §"Test/Fixture Failure Policy" 已显式排期为新增前置任务 `P7-T04-b-5` / `P7-T04-b-5R`，置于 `P7-T04-b-4R` 与 `P7-T04-b` 之间。下一步执行 `P7-T04-b-3`。
 
 ## 范围
 
@@ -718,7 +718,7 @@
     - 现存测试集通过：`cargo test -p scoopc_types`（25 passed）；`cargo test -p scoopc --no-default-features --lib`（含 hir 86 passed / 全部 631 passed / llvm::codegen::effect_lowered::layout 0 filtered-in 通过）；`cargo run -p scoop -- test --fixtures tests/fixtures/effect_lowered`（10/10 passed）；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`（421/421 passed）；`cargo clippy --all-targets -- -D warnings`（clean）；`git diff --check`（clean）。
   - 验证：`cargo fmt`；`cargo test -p scoopc_types`（25 passed）；`cargo test -p scoopc --no-default-features --lib hir`（86 passed）；`cargo test -p scoopc --no-default-features --lib`（631 passed）；`cargo run -p scoop -- test --fixtures tests/fixtures/effect_lowered`（10/10 passed）；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`（421/421 passed）；`cargo clippy --all-targets -- -D warnings`（clean）；`git diff --check`（clean）。
 
-## [TODO] P7-T04-b-2R：Review `ClassInit` 拆分
+## [DONE] P7-T04-b-2R：Review `ClassInit` 拆分
 
 - 参考：P7-T04-b-2。
 - 重点：
@@ -734,7 +734,12 @@
   - review 结论明确写出 `ClassInit` 双语义已分离，或列出阻塞项并在本 review 内修复。
 - 依赖：P7-T04-b-2
 - 完成记录：
-  - 待填写。
+  - **review 结论：`ClassInit` 双语义已分离，且 review 内修复了前一任务遗留的 nominal 类型缺口。** 初始检查发现 `GenericClassDecl` / `MonoClassInit` 仍分别是 `ClassInitImpl<TypeId>` / `ClassInitImpl<MonoTypeId>` type alias；虽然字段槽位不同，但不是独立 nominal Rust 类型，不满足本 review 的“不可隐式互转”重点。已删除共享 `ClassInitImpl<T>` API，改为两个独立 `pub struct GenericClassDecl { ... fields: Vec<ClassField<TypeId>>, ctors: Vec<ClassCtor<TypeId>> }` 与 `pub struct MonoClassInit { ... fields: Vec<ClassField<MonoTypeId>>, ctors: Vec<ClassCtor<MonoTypeId>> }`。
+  - `MonoClassInit::from_generic_decl` 保持唯一升级入口：逐个 field / ctor-param 调 `TypeStore::as_mono`，失败返回 `MonoLeakDiag`（class FQN、slot、leak path），没有 `From` / `Into` / enum / Either / alias 互转路径。
+  - `ClassInitIndex = HashMap<String, MonoClassInit>` 与 `GenericClassDeclIndex = HashMap<String, GenericClassDecl>` 继续分离；`crates/scoopc/src/llvm/` 搜索 `GenericClassDecl` 为零命中，codegen 只读 `MonoClassInit`；`class_inits.insert(` / `class_inits.get(` 复核显示插入值与读取面均为 `MonoClassInit` / `ClassInitIndex`。
+  - `pipeline/hir_completeness.rs` 原先依赖 `ClassInitImpl<T>` 的泛型 verifier 已改为对 `GenericClassDecl` / `MonoClassInit` 分别入口，再共享 slice-based 校验逻辑，避免重新引入共享 class init nominal 类型。
+  - 额外搜索：`ClassInitImpl` / `pub type GenericClassDecl` / `pub type MonoClassInit` 无残留（除 `GenericClassDeclIndex` 合法别名）；`crates/scoopc/src/llvm/` 中 `GenericClassDecl` 零命中；`class_inits.insert(` / `class_inits.get(` 在 HIR/MIR/LLVM/RTTI 读写面复核通过。
+  - 验证：`cargo fmt`；`cargo test -p scoopc_types`（25 passed）；`cargo test -p scoopc --no-default-features --lib hir`（86 passed）；`cargo test -p scoopc --no-default-features --lib`（631 passed）；`cargo test -p scoopc --no-default-features llvm::codegen::effect_lowered::layout`（0 filtered-in, pass）；`cargo run -p scoop -- test --fixtures tests/fixtures/effect_lowered`（10/10 passed）；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`（421/421 passed）；`cargo clippy --all-targets -- -D warnings`（clean）。
 
 ## [TODO] P7-T04-b-3：引入 `ClassInstanceKey` 收回 layout key 字符串形态
 

@@ -123,7 +123,7 @@
 | P7-T04-b-1 | [DONE] | [`TODO-6.md`](./TODO-6.md#done-p7-t04-b-1引入-monotypeid-与-monotypekind--codegen-输入类型纪律基线) | 引入 `MonoTypeId` 与 `MonoTypeKind` —— codegen 输入类型纪律基线 |
 | P7-T04-b-1R | [DONE] | [`TODO-6.md`](./TODO-6.md#done-p7-t04-b-1rreview-monotypeid-类型纪律基线) | Review `MonoTypeId` 类型纪律基线 |
 | P7-T04-b-2 | [DONE] | [`TODO-6.md`](./TODO-6.md#done-p7-t04-b-2拆分-hirclassinit-为-genericclassdecl-与-monoclassinit) | 拆分 `hir::ClassInit` 为 `GenericClassDecl` 与 `MonoClassInit` |
-| P7-T04-b-2R | [TODO] | [`TODO-6.md`](./TODO-6.md#todo-p7-t04-b-2rreview-classinit-拆分) | Review `ClassInit` 拆分 |
+| P7-T04-b-2R | [DONE] | [`TODO-6.md`](./TODO-6.md#done-p7-t04-b-2rreview-classinit-拆分) | Review `ClassInit` 拆分 |
 | P7-T04-b-3 | [TODO] | [`TODO-6.md`](./TODO-6.md#todo-p7-t04-b-3引入-classinstancekey-收回-layout-key-字符串形态) | 引入 `ClassInstanceKey` 收回 layout key 字符串形态 |
 | P7-T04-b-3R | [TODO] | [`TODO-6.md`](./TODO-6.md#todo-p7-t04-b-3rreview-classinstancekey-字符串形态收回) | Review `ClassInstanceKey` 字符串形态收回 |
 | P7-T04-b-4 | [TODO] | [`TODO-6.md`](./TODO-6.md#todo-p7-t04-b-4codegen-全面切换到-monotypeid--删除-cg_ty_of-的-option-与-expect_cg_ty_of) | codegen 全面切换到 `MonoTypeId` —— 删除 `cg_ty_of` 的 `Option` 与 `expect_cg_ty_of` |
