@@ -120,7 +120,11 @@
 | P7-T03 | [DONE] | [`TODO-6.md`](./TODO-6.md#done-p7-t03迁移-llvm-body-emission-离开-raw-mir--hir-fallback) | 迁移 LLVM body emission 离开 raw MIR / HIR fallback |
 | P7-T03R | [DONE] | [`TODO-6.md`](./TODO-6.md#done-p7-t03rreview-llvm-body-emission-迁移结果) | Review LLVM body emission 迁移结果 |
 | P7-T04-a | [DONE] | [`TODO-6.md`](./TODO-6.md#done-p7-t04-a发布-llvm-backend-收口所需的-lirbase-context-合同) | 发布 LLVM backend 收口所需的 LIR/base context 合同 |
-| P7-T04 | [TODO] | [`TODO-6.md`](./TODO-6.md#todo-p7-t04收窄-llvm-stage-handoffphysical-abi-layout-与-typestore-bridge) | 收窄 LLVM stage handoff、physical ABI layout 与 TypeStore bridge |
+| P7-T04-b | [TODO] | [`TODO-6.md`](./TODO-6.md#todo-p7-t04-b收窄-llvm-stage-handoff-形状) | 收窄 LLVM stage handoff 形状 |
+| P7-T04-bR | [TODO] | [`TODO-6.md`](./TODO-6.md#todo-p7-t04-brreview-llvm-stage-handoff-形状收窄) | Review LLVM stage handoff 形状收窄 |
+| P7-T04-c | [TODO] | [`TODO-6.md`](./TODO-6.md#todo-p7-t04-c迁移-physical-abilayout-查询面到-lir-facts) | 迁移 physical ABI/layout 查询面到 LIR facts |
+| P7-T04-cR | [TODO] | [`TODO-6.md`](./TODO-6.md#todo-p7-t04-crreview-physical-abilayout-迁移结果) | Review physical ABI/layout 迁移结果 |
+| P7-T04 | [TODO] | [`TODO-6.md`](./TODO-6.md#todo-p7-t04收尾llvm-stage-handoff-与-physical-abi-cleanup-合并验证) | 收尾——LLVM stage handoff 与 physical ABI cleanup 合并验证 |
 | P7-T04R | [TODO] | [`TODO-6.md`](./TODO-6.md#todo-p7-t04rreview-llvm-stage-handoff-与-physical-abi-cleanup) | Review LLVM stage handoff 与 physical ABI cleanup |
 | P7-T05 | [TODO] | [`TODO-6.md`](./TODO-6.md#todo-p7-t05p7-全包清场文档同步与依赖审计) | P7 全包清场、文档同步与依赖审计 |
 | P7-T05R | [TODO] | [`TODO-6.md`](./TODO-6.md#todo-p7-t05rreview-p7-全包完成度) | Review P7 全包完成度 |

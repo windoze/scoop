@@ -4,7 +4,7 @@
 > 细化时间：2026-05-22
 > 计划基线：[`PLAN.md`](./PLAN.md) §4/P6-P8
 > 索引：[`TODO.md`](./TODO.md)
-> 当前状态：`P7-T04-a` 已完成；下一步执行 `P7-T04`。
+> 当前状态：`P7-T04-a` 已完成；`P7-T04` 已拆分为 `P7-T04-b`（stage handoff 形状收窄）与 `P7-T04-c`（physical ABI/layout 迁到 LIR facts），`P7-T04` 本身保留为收尾节点；下一步执行 `P7-T04-b`。
 
 ## 范围
 
@@ -583,38 +583,142 @@
   - stable dump 已展示 `physical_layout` 与 `type_context` sections；effect_lowered golden 已同步更新。
   - 验证通过：`cargo fmt`；`cargo test -p scoopc_lir_facts`；`cargo test -p scoopc --no-default-features lir_facts_builder`；`cargo test -p scoopc --no-default-features llvm::codegen::effect_lowered::layout`；`cargo run -p scoop -- test --fixtures tests/fixtures/effect_lowered`；`cargo test -p scoopc llvm::codegen::effect_lowered::layout`；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
 
-## [TODO] P7-T04：收窄 LLVM stage handoff、physical ABI layout 与 TypeStore bridge
+## [TODO] P7-T04-b：收窄 LLVM stage handoff 形状
 
 - 目标：
-  - 删除 `LlvmCodegenStageOutput` / `StageEmitInput` 对 P5 wrapper、HIR scaffold 和 residual pass view 的长期携带；
-  - 保留 LLVM backend-private physical ABI/layout，但其 logical 输入必须是 `LIR + LIR facts + base/type context`。
+  - 删除 `LlvmCodegenStageOutput` / `StageEmitInput` / `LirStageOutput` 中对 `LoweredHir`、`HirFacts`、`EffectLoweredStageOutput` wrapper、`MaterializedMirPassView` residual 的长期携带；
+  - 让 LLVM backend 输入显式只携带 `LIR + LIR facts + base context (含 TypeStore bridge owner) + backend options`；
+  - 不动 LLVM 内部对 class/vtable/itable/enum/type identity 的查询源（仍由 P7-T04-c 负责迁到 LIR facts），但要把这些查询源的数据 owner 收敛到 P7-T04-a 已发布的 backend contract base context（`MaterializedMir.backend_contracts` 等），不再走 `LoweredHir` 整包 scaffold。
 - 必须修改的主要位置：
   - `crates/scoopc/src/pipeline/llvm_codegen_stage.rs`
-  - `crates/scoopc/src/llvm/emit.rs`
   - `crates/scoopc/src/pipeline/effect_lowering_stage.rs`
-  - `crates/scoopc/src/llvm/codegen/effect_lowered/layout/`
-  - `crates/scoopc/src/llvm/codegen/effect_lowered/ty.rs`
+  - `crates/scoopc/src/llvm/emit.rs`
   - `crates/scoopc/src/llvm/codegen/mod.rs`
+  - `crates/scoopc/src/llvm/codegen/effect_lowered/layout/tests/`（仅同步 helper 输入 shape，不改 layout 业务逻辑）
+  - `crates/scoopc/src/mir/materialize/`（按需扩展 `MaterializedBackendContracts` 或新增 sibling base context owner，承接 P7-T04-a 标注但尚未迁入的 HIR scaffold side tables）
 - 必须实现的内容：
-  1. 引入或收口 LLVM backend input，使其只携带 LIR program、LIR facts、必要 base context / type context 和 backend options。
-  2. `LlvmCodegenStageOutput` 不再保存 `LoweredHir`、`HirFacts` 或 `EffectLoweredStageOutput` wrapper。
-  3. `StageEmitInput` 不再接收 primary/ABI visibility P5 wrapper；ABI visibility 需要的内容必须是明确的 LIR/LIR facts 输入。
-  4. 删除 `LirStageOutput` 中仅为 LLVM residual 保留的 pass-view/effect context字段或 accessor。
-  5. physical ABI/layout 中仍需的 class/vtable/itable/enum/type identity 必须来自 LIR facts 或 base type context；多 `TypeStore` 桥接必须有单一 owner 和 verifier。
-  6. 在收口多 `TypeStore` 桥接的同时，评估 `TypeId` / type 身份的 cross-process stable wire format：未来 per-cone build artifact 落地（把每个 cone 的 `LIR + LIR facts` 持久化到 `build/<profile>/cones/<cone>/`，让下游 cone 不再重扫上游源码）需要 `TypeId` 或等价 type 身份在序列化/反序列化之间保持稳定。本任务作为 TypeStore 唯一 owner 的收口节点是最自然的处置点：要么把 fact/LIR 中的 `TypeId` 替换为 `scoopc_ids::CanonicalTextKey` 等 stable key，要么为 `TypeStore` 设计 portable serialization + import 重映射；若选择推迟，必须显式记录推迟原因和未来 owner，避免 P8 验收后再次散落到 backend 局部修补。
+  1. 在 `pipeline/llvm_codegen_stage.rs` 中显式定义 LLVM backend 输入合同：`LlvmCodegenStageOutput` 不再带 `LoweredHir` 字段、`HirFacts` 字段或 `EffectLoweredStageOutput` wrapper；改为暴露 LIR program、LIR facts、ABI visibility LIR/LIR facts、和单一 `LlvmStageBaseContext`（owner = `MaterializedMir` 加必要的 HIR-equivalent side tables 容器，不得再以 `LoweredHir` 类型出现在公共 API 上）。
+  2. `StageEmitInput` 同步收窄：不再以 `&EffectLoweredStageOutput` / `&LoweredHir` / `&HirFacts` 形式接收输入，而是按 `LlvmCodegenStageOutput` 暴露的 LIR + LIR facts + base context 接口接收。
+  3. `LirStageOutput` 删除 `LirStageContext` 与 `llvm_residual_pass_view()` accessor；`MaterializedMir` 与 `MaterializedEffectFacts` 不再藏在 LIR stage output 里被 LLVM 反向取出，而是由 LLVM stage runner 显式从上游获取并放进 `LlvmStageBaseContext`。`LirStageOutput::types()` 这类 LLVM-only accessor 也一并删除或重新归位。
+  4. ABI visibility 通道按 1/2 同样收窄：`abi_visibility_*` 字段只保留 ABI visibility 所需的 LIR/LIR facts/TypeStore，不再承载 P5 wrapper 或重复 base context；如果 ABI visibility 与 primary 共享 base context，应在文档与 verifier 中明确一致性约束。
+  5. 在 `LlvmStageBaseContext` 内显式记录单一 TypeStore owner（`MaterializedMir.types` 或等价位置），使后续 `P7-T04-c` 与 `P7-T04` closure 可以用一处入口校验 primary/ABI visibility 类型上下文一致性。
+  6. 不在 `LirFacts` / `MaterializedBackendContracts` 中复制冗余 callable side table；如确需新增 backend-private fields，必须以 P7-T04-a 已发布 base context 为 owner，并在 dump/verifier 中体现。
+  7. 显式记录 `TypeId` cross-process stable wire format 推迟决策（沿用 P7-T04-a 的推迟到 P8/per-cone build artifact serialization 的结论），在 `LlvmStageBaseContext` 文档与 LIR stable dump 任一处留下永久记号，避免 P7-T04-c / P7-T04 closure 时再现场重新论证。
+  8. 同步更新所有受影响 tests / fixtures / dump golden（特别是 `pipeline::llvm_codegen_stage` 测试与 `effect_lowered/layout/tests/` 中的 helper 构造），保证不再依赖被删除的 accessor。
+- 验证：
+  1. `cargo fmt`
+  2. `cargo test -p scoopc --no-default-features llvm_codegen_stage`
+  3. `cargo test -p scoopc --no-default-features pipeline::effect_lowering_stage`
+  4. `cargo test -p scoopc --no-default-features llvm::codegen::effect_lowered::layout`
+  5. `cargo run -p scoop_tools -- dependency-gate`
+  6. `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`
+  7. `cargo clippy --all-targets -- -D warnings`
+  8. `git diff --check`
+- 完成条件：
+  - `LlvmCodegenStageOutput` / `StageEmitInput` / `LirStageOutput` 公共 API 中不再出现 `LoweredHir` / `HirFacts` / `EffectLoweredStageOutput` 类型作为命名字段或 accessor；
+  - `llvm_residual_pass_view()` 与 `LirStageContext` 已被删除；
+  - LLVM backend 仍能完整通过 run-pass fixture 与 layout tests，physical ABI/layout 内部读取顺势走 base context 的同一份数据 owner（P7-T04-c 之后才会迁到 LIR facts）；
+  - `TypeId` wire-format 推迟决策已在 stage handoff 现场留记号。
+- 依赖：P7-T04-a
+- 完成记录：
+  - 待填写。
+
+## [TODO] P7-T04-bR：Review LLVM stage handoff 形状收窄
+
+- 参考：P7-T04-b。
+- 重点：
+  - LLVM backend 公共 API 是否真的脱离 `LoweredHir` / `HirFacts` / `EffectLoweredStageOutput` 类型；
+  - `LirStageOutput` 是否还保留任何 LLVM-only accessor；
+  - `LlvmStageBaseContext` 是否单一 owner，且 ABI visibility 一致性约束已明确；
+  - HIR scaffold 是否被以非 `LoweredHir` 形式继续藏在 base context 中并打上正确归属（P7-T04-c 仍会把 physical layout 数据真正迁到 LIR facts，本 review 不要求那一步先完成）。
+- 验证：
+  - 重新运行 P7-T04-b 的所有验证；
+  - 额外搜索 `hir_compat_scaffold`、`llvm_residual_pass_view`、`EffectLoweredStageOutput`、`MaterializedMirPassView`、`HirFacts` 在 `crates/scoopc/src/llvm/`、`crates/scoopc/src/pipeline/llvm_codegen_stage.rs`、`crates/scoopc/src/pipeline/effect_lowering_stage.rs` 中的命中。
+- 完成条件：
+  - review 结论明确写出 stage handoff 形状已收窄，或列出阻塞项并在本 review 内修复。
+- 依赖：P7-T04-b
+- 完成记录：
+  - 待填写。
+
+## [TODO] P7-T04-c：迁移 physical ABI/layout 查询面到 LIR facts
+
+- 目标：
+  - 让 `effect_lowered/layout/` 与 `effect_lowered/ty.rs` 等 LLVM physical ABI/layout 路径只读 `LirFacts.physical_layout` / `LirFacts.type_context` / `LirFacts.callable_symbols` 等 P7-T04-a 发布的合同；
+  - 删除 `CompilationUnitCodegenCx` 中只为 physical layout 提供的 HIR scaffold side table（`class_inits` / `class_vtables` / `interfaces` / `class_itables` / `enum_layouts` 等）依赖，转而走 LIR facts；
+  - 不动 stage handoff 形状（已由 P7-T04-b 完成）。
+- 必须修改的主要位置：
+  - `crates/scoopc/src/llvm/codegen/effect_lowered/layout/abi.rs`
+  - `crates/scoopc/src/llvm/codegen/effect_lowered/layout/`（其他必要文件）
+  - `crates/scoopc/src/llvm/codegen/effect_lowered/ty.rs`
+  - `crates/scoopc/src/llvm/codegen/mod.rs`（裁剪 `CompilationUnitCodegenInputs` 中只为 physical layout 服务的 HIR scaffold 字段）
+  - `crates/scoopc/src/llvm/codegen/effect_lowered/layout/tests/`（同步测试）
+  - `crates/scoopc_lir_facts/`（仅在确实缺合同时补；优先复用 P7-T04-a 已发布 facts）
+- 必须实现的内容：
+  1. 把 `effect_lowered/layout/abi.rs` 中 `class_key = crate::hir::mangle_nominal_fqn(...) → self.codegen.class_inits.get(&class_key)` / `enum_layouts.get(...)` 等读取，改为基于 `LirFacts.physical_layout.classes` / `LirFacts.physical_layout.class_vtables` / `LirFacts.physical_layout.interfaces` / `LirFacts.physical_layout.class_itables` / `LirFacts.physical_layout.enums`（按 P7-T04-a 实际发布的字段名）查询。
+  2. 把 `effect_lowered/ty.rs` 中类似的 HIR scaffold 查询同步迁出。
+  3. `CompilationUnitCodegenCx` / `CompilationUnitCodegenInputs` 中仅为 physical layout 服务的 HIR scaffold 字段裁剪掉，或改为对 `LirFacts` 的引用。如果某些字段在 body emission / runtime helper 路径仍被使用，必须显式划清责任，仅删除 physical layout 不再需要的部分。
+  4. 多 `TypeStore` 桥接由 `LlvmStageBaseContext`（P7-T04-b 引入）单一 owner 收口，并在 physical ABI/layout 的入口处加 verifier，确认 ABI visibility 与 primary 类型上下文一致性。
+  5. 同步更新 layout tests，让 helper 直接基于 LIR facts + base context 构造 `ProgramAbiMaterializer` 输入，不再吃 HIR side table。
+- 验证：
+  1. `cargo fmt`
+  2. `cargo test -p scoopc_lir_facts`
+  3. `cargo test -p scoopc --no-default-features llvm::codegen::effect_lowered::layout`
+  4. `cargo test -p scoopc --no-default-features llvm::codegen::effect_lowered`
+  5. `cargo run -p scoop -- test --fixtures tests/fixtures/effect_lowered`
+  6. `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`
+  7. `cargo clippy --all-targets -- -D warnings`
+  8. `git diff --check`
+- 完成条件：
+  - `effect_lowered/layout/` 与 `effect_lowered/ty.rs` 不再读取 `class_inits` / `class_vtables` / `interfaces` / `class_itables` / `enum_layouts` 等 HIR scaffold side table；
+  - physical layout 路径中没有 `crate::hir::mangle_nominal_fqn` 等 HIR-only helper 残留（如确需相同的 mangle 行为，须封装到 LIR facts 已发布的 callable symbol / type identity 上）；
+  - layout 与 run-pass fixture suite 全绿；
+  - TypeStore bridge verifier 在 LLVM physical layout 入口实际触发。
+- 依赖：P7-T04-bR
+- 完成记录：
+  - 待填写。
+
+## [TODO] P7-T04-cR：Review physical ABI/layout 迁移结果
+
+- 参考：P7-T04-c。
+- 重点：
+  - physical ABI/layout 是否只读 LIR facts / base type context；
+  - `CompilationUnitCodegenCx` / `CompilationUnitCodegenInputs` 中是否还残留只为 physical layout 服务的 HIR scaffold 字段；
+  - layout tests 是否真的按 LIR facts 构造，未隐藏 HIR side table 来源；
+  - TypeStore bridge verifier 是否在 layout 入口生效。
+- 验证：
+  - 重新运行 P7-T04-c 的所有验证；
+  - 额外搜索 `class_inits` / `class_vtables` / `interfaces` / `class_itables` / `enum_layouts` / `crate::hir::mangle_nominal_fqn` 在 `crates/scoopc/src/llvm/codegen/effect_lowered/` 中的命中。
+- 完成条件：
+  - review 结论明确写出 physical ABI/layout 已迁到 LIR facts，或列出阻塞项并在本 review 内修复。
+- 依赖：P7-T04-c
+- 完成记录：
+  - 待填写。
+
+## [TODO] P7-T04：收尾——LLVM stage handoff 与 physical ABI cleanup 合并验证
+
+- 目标：
+  - 在 `P7-T04-b` 与 `P7-T04-c` 完成后，做一次合并验证与 wire-format 推迟落实，确保原 P7-T04 的 6 项要点全部成立；
+  - 显式表态 `TypeId` cross-process stable wire format 处置（沿用 P7-T04-a / P7-T04-b 的推迟到 P8/per-cone build artifact serialization）。
+- 必须修改的主要位置：
+  - 仅文档/dump 同步（`PIPELINE_REFACTOR.md`、`PIPELINE-CLEANUP.md`、`README.md`、LIR stable dump 中的 wire-format 推迟记号），实现部分由 -b/-c 已完成。
+- 必须实现的内容：
+  1. 综合 -b/-c 完成度，确认 P7-T04 原 6 项要点（LLVM backend input 收窄、`LlvmCodegenStageOutput` / `StageEmitInput` 不再带 P5/HIR wrapper、`LirStageOutput` 不再带 LLVM residual、physical ABI/layout 走 LIR facts / base context、单一 TypeStore owner + verifier、wire-format 推迟）全部满足。
+  2. 在 LIR stable dump 或同等 freezable 文档处永久记录 `TypeId` cross-process wire format 推迟决策（owner = P8/per-cone build artifact serialization；不阻塞 P7 验收的理由 = LLVM 仍只消费同进程 `TypeStore` owner，不落盘持久化 `TypeId`）。
+  3. 跑一次完整验证集（见下），确认 -b/-c 的局部验证未掩盖跨任务回归。
 - 验证：
   1. `cargo fmt`
   2. `cargo test -p scoopc --no-default-features llvm_codegen_stage`
   3. `cargo test -p scoopc --no-default-features llvm::codegen::effect_lowered::layout`
   4. `cargo run -p scoop_tools -- dependency-gate`
   5. `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`
-  6. `git diff --check`
+  6. `cargo clippy --all-targets -- -D warnings`
+  7. `git diff --check`
 - 完成条件：
   - LLVM stage wrapper 不再嵌套或传播上游整包 stage output；
-  - `llvm_residual_pass_view()` 等 P7 residual accessor 删除；
+  - `llvm_residual_pass_view()` 等 P7 residual accessor 已删除；
   - physical ABI/layout 只把 LIR facts 映射成 LLVM-private layout，不回读 HIR/raw MIR/effect facts；
   - TypeStore 桥接收口结论中已经显式表态 cross-process stable wire format 的处置（落实或显式推迟 + owner）。
-- 依赖：P7-T04-a
+- 依赖：P7-T04-bR、P7-T04-cR
 - 完成记录：
   - 待填写。
 
