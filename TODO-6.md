@@ -18,7 +18,7 @@
 
 - P4/P5 已完成：effect facts stage 不修改 MIR 输出本体，`EffectFactsStageOutput = { effect_facts }`，`LirStageOutput = { lir, lir_facts }`，且 LIR opt family 只消费 LIR-owned 输入。
 - `scoopc_lir_facts` 已发布 P5-owned backend-neutral callable ABI、dynamic invoke、dispatch owner/slot、continuation/resume publication 与 LIR opt metadata；TODO-6 不应重新让 LLVM 从 HIR/raw MIR/effect facts 推导这些合同。
-- TODO-6-INIT 应从剩余边界开始细化：global init/storage/entry init order、LLVM HIR scaffold、crate-private MIR pass-view residual、LLVM physical ABI/layout、backend reachability、多 `TypeStore` 桥接和最终全仓验证。
+- TODO-6-INIT 应从剩余边界开始细化：global init/storage/entry init order、LLVM HIR scaffold、`LlvmCodegenStageOutput` / `StageEmitInput` P5 wrapper handoff、crate-private MIR pass-view residual、LLVM physical ABI/layout、backend reachability、多 `TypeStore` 桥接和最终全仓验证。
 
 ## 细化要求
 

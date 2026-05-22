@@ -773,7 +773,7 @@ P5 需要把这条隐式 opt helper 提升为正式 LIR optimization family：�
   - 验证命令：`cargo fmt`；`cargo run -p scoop_tools -- dependency-gate`；`cargo test -p scoopc_effect_facts`；`cargo test -p scoopc_lir_facts`；`cargo test -p scoopc --no-default-features effect_facts_stage`；`cargo test -p scoopc --no-default-features effect_lowered`；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
   - 残余风险：LLVM backend 仍保留 HIR scaffold、crate-private `llvm_residual_pass_view()`、physical ABI/layout、global init/runtime residual、backend reachability 和多 `TypeStore` 桥接；这些已明确留给 TODO-6/P6-P8，不是 P5 output/facts 完成度缺口。
 
-## [TODO] P5-T05R：Review P5 全包完成度
+## [DONE] P5-T05R：Review P5 全包完成度
 
 - 参考：P5-T05。
 - 重点：
@@ -795,4 +795,10 @@ P5 需要把这条隐式 opt helper 提升为正式 LIR optimization family：�
   - review 结论明确写出：P4/P5 全包完成，TODO-6 可以开始初始化，或列出阻塞项并在本 review 内修复。
 - 依赖：P5-T05
 - 完成记录：
-  - 待填写。
+  - Review 结论：P4/P5 全包完成，TODO-6 可以开始初始化。`EffectFactsStageOutput = { effect_facts }` 与 `LirStageOutput = { lir, lir_facts }` 的 P4/P5 输出边界成立，`scoopc_effect_facts` / `scoopc_lir_facts` 仍满足 fact-crate DAG，LIR opt family 只消费 LIR-owned 输入。
+  - 边界复查：`EffectFactsStageOutput` 只发布 `effect_facts()` / stable dump；`LirStageOutput` / legacy `EffectLoweredStageOutput` 不公开 `materialized_pass_view()`、`materialized_mir()`、`mir_facts()`、`effect_facts()`、`effect_facts_stage_output()` 等上游整包 accessor。`types()` 与 crate-private `llvm_residual_pass_view()` 仍作为 TODO-6/P7 backend residual，而不是 P5-owned codegen-neutral query contract。
+  - Review 修复：复查发现 `effect_lowered` 模块注释仍把 LIR opt 描述成过宽的闭世界 devirt/inline，本 review 改为明确 local state-machine cleanup、wrapper state folding、dynamic-invoke entry rewrite、resume/interface pruning 和 dead state/slot cleanup；`PIPELINE_REFACTOR.md` 仍保留 P5 完成前的 LIR 缺口描述，本 review 改为 P5 收口结果与 TODO-6/P6-P8 residual。
+  - residual 隔离：额外审计确认 `LlvmCodegenStageOutput` / `StageEmitInput` 仍传播 P5 handoff wrapper；该项属于 TODO-6/P7 LLVM backend cleanup residual，不是 P5 output/facts 缺口。本 review 已同步 `PIPELINE-CLEANUP.md`、`PIPELINE_REFACTOR.md` 与 `TODO-6.md`，明确 TODO-6-INIT 需要从 global init、LLVM HIR scaffold、P5 wrapper handoff、crate-private MIR pass-view residual、LLVM physical layout、backend reachability、多 `TypeStore` 桥接和最终验证开始。
+  - 搜索结果：`rg -n "canonical_snapshot_mut\\(" crates` 无匹配；`rg -n "pub\\s+fn\\s+(materialized_pass_view|materialized_mir|mir_facts|effect_facts_stage_output)\\s*\\(" crates/scoopc/src/pipeline/effect_lowering_stage.rs crates/scoopc/src/pipeline/effect_facts_stage.rs` 无匹配；`rg -n "(EffectFactsStageOutput.*MirStageOutput|LirStageOutput.*(MirStageOutput|EffectFactsStageOutput)|EffectLoweredStageOutput.*EffectFactsStageOutput)" crates/scoopc/src` 仅命中 `effect_lowering_stage.rs` 的并列 input import 与“不保存 wrapper”注释；LIR opt upstream input 搜索无生产命中，MIR imports 仅位于 `#[cfg(test)]` fixture helper。
+  - 验证命令：`cargo fmt`；`cargo run -p scoop_tools -- dependency-gate`；`cargo test -p scoopc_effect_facts`；`cargo test -p scoopc_lir_facts`；`cargo test -p scoopc --no-default-features effect_facts_stage`；`cargo test -p scoopc --no-default-features effect_lowered`；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
+  - 残余风险：TODO-6/P6-P8 仍需真正清理 LLVM backend 输入边界、global init/storage/entry init order、physical ABI/layout、backend reachability 与多 `TypeStore` 桥接；本 review 只确认这些 residual 已被准确隔离，没有把它们描述为 P5 已完成范围。

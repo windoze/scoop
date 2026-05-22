@@ -3,31 +3,32 @@
 ## 范围
 
 - 以 `TODO.md` 作为权威任务列表。
-- 只完成第一个标题未带 `[DONE]` 的任务，然后停止。
-- 先识别当前任务，不做开放式历史问题扫查。
-- 不使用规避方案、不弱化行为；若发现阻塞当前任务的具体前置项，则写入 `TODO.md`、提交并停止。
+- 本次只处理第一个标题未带 `[DONE]` 的任务：`P5-T05R：Review P5 全包完成度`，完成后停止。
+- 先按当前任务做定向复查，不做开放式历史问题扫查。
+- 不使用规避方案、不弱化行为；若发现阻塞 P5-T05R 的具体前置项，则在 `TODO.md` 写入最小 prerequisite，提交并停止。
 
 ## 执行步骤
 
-1. 读取 `TODO.md`，按标题前缀识别第一个未完成任务。
-2. 只检查最新提交信息中是否有与该任务直接相关的未完成事项。
-3. 阅读任务正文、依赖、验证要求和引用文件。
-4. 通过定向搜索和文件读取审计相关实现与测试。
-5. 用最小且完整的 spec-correct 变更完成当前任务。
-6. 按任务需要新增或更新聚焦测试/fixture。
-7. 先运行任务指定验证和相关窄验证；必要时再运行更广验证。
-8. 若验证暴露当前任务范围内的阻塞项，能修则修；否则在 `TODO.md` 写入最小前置任务，提交并停止。
-9. 任务完成后，在 `TODO.md` / 对应 TODO 文件中将标题标为 `[DONE]` 并更新完成记录。
-10. 关键进展或计划变化时更新本文件。
-11. 检查 git status/diff/log 后，用带任务号的描述性提交提交本次变更。
-12. 停止，不开始下一个任务。
+1. 检查最新提交标题和工作区状态，确认是否存在与 `P5-T05R` 直接相关的未完成事项或前次遗留改动。
+2. 复读 `P5-T05R`、`P5-T05` 与相关文档要求，明确 review 必须覆盖的输出边界、facts/query layer、TODO-6 residual 和验证命令。
+3. 定向搜索 `StageOutput` 嵌套上游整包、legacy `EffectLoweredStageOutput` public API、`EffectFactsStageOutput` / `LirStageOutput` 上游 accessor、`canonical_snapshot_mut()`、LIR opt 读取 HIR/MIR/effect solver 输入等残留。
+4. 读取命中的关键实现与文档位置，判断是否满足 `EffectFactsStageOutput = { effect_facts }`、`LirStageOutput = { lir, lir_facts }`、LIR facts 作为 P7 backend cleanup 输入基础，以及 P6/P7/P8 residual 未被误标为完成。
+5. 如果发现 review 范围内可直接修复的问题，进行最小完整修复并补充必要测试或文档；如果发现无法在本任务内完成的真实 prerequisite，则更新 `TODO.md` 依赖顺序并停止。
+6. 运行 P5-T05 指定验证：`cargo fmt`、`cargo run -p scoop_tools -- dependency-gate`、`cargo test -p scoopc_effect_facts`、`cargo test -p scoopc_lir_facts`、`cargo test -p scoopc --no-default-features effect_facts_stage`、`cargo test -p scoopc --no-default-features effect_lowered`、`cargo clippy --all-targets -- -D warnings`、`git diff --check`。
+7. 额外执行任务要求的 residual 搜索，并把搜索结论写入 `TODO-5.md` 的完成记录。
+8. 将 `TODO-5.md` 中 `P5-T05R` 标为 `[DONE]`，并同步 `TODO.md` 索引状态；仅在 phase/stage 计划实际变化时更新 `PLAN.md`。
+9. 检查 `git status`、`git diff`、`git log --oneline -10`，确认只提交本任务相关改动。
+10. 用描述性提交信息提交本次变更，然后停止，不开始 `TODO-6-INIT`。
 
 ## 进度记录
 
-- 已在读取项目任务文件前初始化本次调用计划。
-- 已选择第一个未完成任务：`TODO-5.md` 中的 `P5-T05`。
-- 最新提交为 `[P5-T04R] Review LIR optimization family`；提交标题中没有直接相关的未完成事项。
-- 当前任务计划：审计 P4/P5 output 嵌套与可变性边界，审计 LIR opt 是否隔离上游输入，同步 cleanup/README/TODO 文档，运行指定验证，然后只提交本任务。
-- 审计结果：没有 `canonical_snapshot_mut()` 残留；`EffectFactsStageOutput` 只保存 effect facts；`LirStageOutput` 不保存上游 stage output wrapper；LIR opt 生产代码只消费 LIR-owned 输入。主要改动是文档/状态同步以及 TODO-6/P7 residual 边界注释更新。
-- 验证已通过：`cargo fmt`、dependency gate、effect/lir facts 测试、effect_facts_stage 测试、effect_lowered 测试、`cargo clippy --all-targets -- -D warnings` 和 `git diff --check`。
-- 已在 `TODO-5.md` 将 `P5-T05` 标为 `[DONE]`，并同步 `TODO.md`。
+- 已读取 `TODO.md` 并确认第一个未完成任务是 `P5-T05R`。
+- 已读取 `TODO-5.md` 的 `P5-T05R` 任务正文和前置 `P5-T05` 完成记录。
+- 最新提交为 `[P5-T05] Complete P5 cleanup audit`；除本次计划文件外起始工作区干净。
+- 初步 review 搜索确认：`canonical_snapshot_mut(` 无匹配；`EffectFactsStageOutput` 只保存 effect facts；`LirStageOutput` 不保存上游 stage output wrapper；LIR opt 的上游输入搜索只命中测试 fixture imports。
+- Review 修复：更新 `effect_lowered` 模块注释，避免把 LIR opt 描述成普通闭世界 devirt/inline；更新 `PIPELINE_REFACTOR.md`，把 P5 已完成边界和 TODO-6/P6-P8 residual 分开。
+- 独立审计指出 `LlvmCodegenStageOutput` / `StageEmitInput` 仍传播 P5 handoff wrapper；该项属于 TODO-6/P7 backend cleanup residual，已同步写入 `PIPELINE-CLEANUP.md`、`PIPELINE_REFACTOR.md` 和 `TODO-6.md`，不作为 P5 输出边界阻塞项。
+- 验证已通过：`cargo fmt`、`cargo run -p scoop_tools -- dependency-gate`、`cargo test -p scoopc_effect_facts`、`cargo test -p scoopc_lir_facts`、`cargo test -p scoopc --no-default-features effect_facts_stage`、`cargo test -p scoopc --no-default-features effect_lowered`、`cargo clippy --all-targets -- -D warnings`、`git diff --check`。
+- 额外 residual 搜索已完成：`canonical_snapshot_mut(` 在 `crates/` 无匹配；P4/P5 output wrapper 搜索只命中 `EffectLoweringStageInput` 的并列 import / “不保存 wrapper”注释；LIR opt upstream input 搜索无生产命中。
+- 已将 `TODO-5.md` 的 `P5-T05R` 标为 `[DONE]` 并填写完成记录；已同步 `TODO.md` 索引状态。
+- 下一步：检查最终 diff/status/log 并提交本任务。
