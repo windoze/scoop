@@ -4,7 +4,7 @@
 > 细化时间：2026-05-22
 > 计划基线：[`PLAN.md`](./PLAN.md) §4/P6-P8
 > 索引：[`TODO.md`](./TODO.md)
-> 当前状态：`P7-T02-a` 已完成；下一步执行 `P7-T02R`。
+> 当前状态：`P7-T02R` 已完成；下一步执行 `P7-T03`。
 
 ## 范围
 
@@ -464,7 +464,7 @@
   - 已知 7 个 baseline fixtures 已全部单独通过：`array_lit_infer_unannotated_and_nested_basic.scoop`、`array_lit_infer_string_char_float_basic.scoop`、`lang_mutable_array_new_string_ref.scoop`、`lang_mutable_array_new_struct_composite.scoop`、`std_process_args_exit_basic.scoop`、`stdlib_string_basic.scoop`、`sysroot_atomic_basic.scoop`。
   - 验证通过：`cargo fmt`；`cargo test -p scoopc materialize_request_root_rewrites_nested_array_println_call_sites -- --nocapture`；逐个运行上述 7 个 fixtures；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`（421/421 passed）；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
 
-## [TODO] P7-T02R：Review backend reachability cleanup
+## [DONE] P7-T02R：Review backend reachability cleanup
 
 - 参考：P7-T02。
 - 重点：
@@ -478,7 +478,11 @@
   - review 结论明确写出 backend reachability cleanup 成立，或列出阻塞项并在本 review 内修复。
 - 依赖：P7-T02-a
 - 完成记录：
-  - 待填写。
+  - Review 结论：backend reachability cleanup 成立；`llvm/reachability.rs` 的 collector 只消费 `LirFacts`、LIR callable/global-init/dynamic-invoke/dispatch contracts 和 stable callable keys，没有导入或扫描 HIR body、raw MIR body 或 `MaterializedMirPassView`。
+  - seed/edge 复审：入口 root、global init roots、published LIR callables 与 runtime-required callables 作为 seeds；ordinary call、dynamic invoke 与 dispatch candidate edges 均从 `LirCallableFacts` / `LirDynamicInvokeContract` / `LirDispatchContract` 读取，unpublished conservative candidates 继续被忽略。
+  - residual 复审：额外搜索 `llvm/reachability.rs` 中的 `hir::|mir::|MaterializedMirPassView|devirtual` 无命中；搜索 `crates/scoopc/src/llvm` 中的 `devirtual|try_devirtualize|collect_known_receiver_subclasses|dispatch_devirtualization` 无命中，未发现 codegen/reachability 普通 dispatch 去虚化残留。
+  - 边界确认：LLVM 中仍存在的 `MaterializedMirPassView` / `pass_view` 命中位于 body emission、ABI layout 或 stage handoff 路径，已由后续 `P7-T03` / `P7-T04` 覆盖；本 review 未发现把 MIR pass-view 换名藏入 reachability helper 的情况。
+  - 验证通过：`cargo fmt`；`cargo test -p scoopc --no-default-features llvm::reachability`；`cargo test -p scoopc llvm::reachability`；`cargo run -p scoop -- test --fixtures tests/fixtures/effect_lowered`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`（421/421 passed）；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
 
 ## [TODO] P7-T03：迁移 LLVM body emission 离开 raw MIR / HIR fallback
 
