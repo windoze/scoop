@@ -880,8 +880,13 @@ fn metadata_root_ty(root: &MirMetadataRoot) -> Option<TypeId> {
     }
 }
 
-fn validate_bodies(file: &MirFile, unit_ty: TypeId, bool_ty: TypeId) -> Result<(), MirLowerError> {
-    file.validate_production(unit_ty, bool_ty)
+fn validate_bodies(
+    file: &MirFile,
+    types: &TypeStore,
+    unit_ty: TypeId,
+    bool_ty: TypeId,
+) -> Result<(), MirLowerError> {
+    file.validate_production(types, unit_ty, bool_ty)
         .map_err(|error| MirLowerError::InvalidMir {
             fqn: error.body_fqn().unwrap_or("<file>").to_string(),
             error: Box::new(error),
@@ -918,7 +923,7 @@ fn lower_mir_stage_unvalidated(
 
 pub(crate) fn run(hir_output: HirStageOutput) -> Result<DirectStyleMirStageOutput, MirLowerError> {
     let (output, unit_ty, bool_ty) = lower_mir_stage_unvalidated(hir_output);
-    validate_bodies(output.file(), unit_ty, bool_ty)?;
+    validate_bodies(output.file(), output.types(), unit_ty, bool_ty)?;
     Ok(output)
 }
 
@@ -2260,7 +2265,7 @@ fun bad() {
             }],
         };
 
-        let err = super::validate_bodies(&file, builtins.unit, builtins.bool_)
+        let err = super::validate_bodies(&file, &types, builtins.unit, builtins.bool_)
             .expect_err("production stage validator should reject item Todo");
         let rendered = err.to_string();
         assert!(rendered.contains("<file>"));

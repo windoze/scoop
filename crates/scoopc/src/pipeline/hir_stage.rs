@@ -6102,25 +6102,23 @@ mod tests {
         assert_eq!(err.owner(), "object sample.Singleton");
 
         let (mut lowered, source_path) = clean_lowered_hir();
-        lowered.class_inits.insert(
-            crate::hir::ClassInstanceKey::for_unparameterized("sample.Box"),
-            crate::hir::MonoClassInit {
-                fqn: "sample.Box".to_string(),
-                source_path: source_path.clone(),
-                super_class_fqn: None,
-                super_ctor_args_span: None,
-                super_ctor_call: None,
-                super_ctor_args: Vec::new(),
-                this_id: crate::hir::SymbolId::from_raw(1),
-                fields: Vec::new(),
-                field_indices: HashMap::new(),
-                steps: vec![crate::hir::ClassInitStep::PropertyInit {
-                    field_fqn: "sample.Box.x".to_string(),
-                    init: expr_with_kind(&lowered, ExprKind::Todo("array_lit")),
-                }],
-                ctors: Vec::new(),
-            },
-        );
+        let class_init = crate::hir::MonoClassInit {
+            fqn: "sample.Box".to_string(),
+            source_path: source_path.clone(),
+            super_class_fqn: None,
+            super_ctor_args_span: None,
+            super_ctor_call: None,
+            super_ctor_args: Vec::new(),
+            this_id: crate::hir::SymbolId::from_raw(1),
+            fields: Vec::new(),
+            field_indices: HashMap::new(),
+            steps: vec![crate::hir::ClassInitStep::PropertyInit {
+                field_fqn: "sample.Box.x".to_string(),
+                init: expr_with_kind(&lowered, ExprKind::Todo("array_lit")),
+            }],
+            ctors: Vec::new(),
+        };
+        lowered.class_inits.insert(class_init.key(), class_init);
 
         let err = stage_error_for(lowered, &source_path);
         assert_eq!(err.reason(), "ExprKind::Todo(array_lit)");

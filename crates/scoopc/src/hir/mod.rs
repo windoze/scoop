@@ -867,7 +867,7 @@ impl ClassInstanceKey {
     }
 
     /// 无 type-param class 的单态等价 key。仅供 HIR lowering 注册非泛型 class 使用。
-    pub fn for_unparameterized(class_fqn: &str) -> Self {
+    pub(in crate::hir) fn for_unparameterized(class_fqn: &str) -> Self {
         Self(class_fqn.to_string())
     }
 

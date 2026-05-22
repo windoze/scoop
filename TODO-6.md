@@ -4,7 +4,7 @@
 > 细化时间：2026-05-22
 > 计划基线：[`PLAN.md`](./PLAN.md) §4/P6-P8
 > 索引：[`TODO.md`](./TODO.md)
-> 当前状态：`P7-T04-a` / `P7-T04-b-1` / `P7-T04-b-1R` / `P7-T04-b-2` / `P7-T04-b-2R` / `P7-T04-b-3` 均已完成。`P7-T04-b-3` 已引入 `ClassInstanceKey`，`ClassInitIndex = HashMap<ClassInstanceKey, MonoClassInit>`；class ctor/layout key 不再由 LLVM 字符串 fallback 构造，`sysroot_atomic_basic` 已随 run-pass 全量通过。此前观察到的 4 项预存 LLVM 库测试失败仍按 `P7-T04-b-5` / `P7-T04-b-5R` 排期。下一步执行 `P7-T04-b-3R`。
+> 当前状态：`P7-T04-a` / `P7-T04-b-1` / `P7-T04-b-1R` / `P7-T04-b-2` / `P7-T04-b-2R` / `P7-T04-b-3` / `P7-T04-b-3R` 均已完成。`ClassInstanceKey` 字符串形态收回已复审并补强：direct-style MIR verifier 现在会拒绝 class ctor result 非 nominal / nominal mismatch，`ClassInstanceKey::for_unparameterized` 仅限 HIR 内部。此前观察到的 4 项预存 LLVM 库测试失败仍按 `P7-T04-b-5` / `P7-T04-b-5R` 排期。下一步执行 `P7-T04-b-4`。
 
 ## 范围
 
@@ -796,7 +796,7 @@
   - 完成判据核对：`sysroot_atomic_basic` 随 `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass` 通过；`rg 'class_fqn\.to_string\(\)' crates/scoopc/src/llvm/codegen` 零命中；三处原字符串 fallback 已删除。
   - 验证通过：`cargo fmt`；`cargo test -p scoopc_types`；`cargo test -p scoopc --no-default-features hir`；`cargo test -p scoopc --no-default-features mir`；`cargo test -p scoopc --no-default-features llvm::codegen::effect_lowered::layout`；`cargo run -p scoop -- test --fixtures tests/fixtures/effect_lowered`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`（421/421 passed）；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
 
-## [TODO] P7-T04-b-3R：Review `ClassInstanceKey` 字符串形态收回
+## [DONE] P7-T04-b-3R：Review `ClassInstanceKey` 字符串形态收回
 
 - 参考：P7-T04-b-3。
 - 重点：
@@ -811,7 +811,12 @@
   - review 结论明确写出 layout key 字符串形态已收回，或列出阻塞项并在本 review 内修复。
 - 依赖：P7-T04-b-3
 - 完成记录：
-  - 待填写。
+  - **review 结论：layout key 字符串形态已收回。** `ClassInitIndex = HashMap<ClassInstanceKey, MonoClassInit>`，LLVM `class_init_layout`、effect-lowered/direct MIR `class_ctor_layout_key` 与 `mir_class_ctor_layout_key` 均接受/返回 `ClassInstanceKey`，未保留 `&str` layout-key 重载；`rg 'class_fqn\.to_string\(\)' crates/scoopc/src/llvm/codegen` 零命中，三处原字符串 fallback 已改为 `Err(frontend_error(...))`。
+  - 本 review 修复了两个边界缺口：`ClassInstanceKey::for_unparameterized` 从公开构造器收紧为 `pub(in crate::hir)`，外部不能再直接从裸 `&str` 构造 unparameterized key；direct-style MIR production verifier 现在接收 `TypeStore` 并在 `Rvalue::ClassCtor` 处拒绝 result target 非 `Ref::Nominal` 或 result nominal 与 `class_fqn` 不一致，不再只依赖 materialized verifier/codegen 兜底。
+  - 新增回归覆盖：`mir_class_ctor_contract_rejects_non_nominal_result_type` 与 `mir_class_ctor_contract_rejects_result_nominal_mismatch` 覆盖 direct-style MIR verifier 的 typed target 非 nominal / nominal mismatch 拦截；既有 materialized verifier mismatch 测试继续通过。
+  - `ClassInstanceKey` 构造面复审：`ClassInstanceKey(` 仅命中 newtype 定义与 `MonoClassInit::key()` 内部私有构造；公开构造路径保留 `from_mono_nominal(TypeStore, MonoTypeId)` 与 `MonoClassInit::key()`，`for_unparameterized` 仅在 HIR lowering / HIR tests 内可见，未被 codegen 调用。
+  - `sysroot_atomic_basic` 结论：随全量 `run-pass` 通过，路径走正确 `ClassInstanceKey` codegen 处理而不是 verifier 诊断；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass` 显示 `sysroot_atomic_basic.scoop` PASS，整体 421/421 passed。
+  - 验证通过：`cargo fmt`；`cargo test -p scoopc_types`（25 passed）；`cargo test -p scoopc --no-default-features hir`（86 passed）；`cargo test -p scoopc --no-default-features mir`（172 passed）；`cargo test -p scoopc --no-default-features llvm::codegen::effect_lowered::layout`（0 filtered-in, pass）；`cargo run -p scoop -- test --fixtures tests/fixtures/effect_lowered`（10/10 passed）；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`（421/421 passed）；`cargo clippy --all-targets -- -D warnings`；`git diff --check`；额外搜索 `ClassInstanceKey\(` / `for_unparameterized|from_mono_nominal` / `class_fqn\.to_string\(\)` / `class_init_layout|class_ctor_layout_key|mir_class_ctor_layout_key`。
 
 ## [TODO] P7-T04-b-4：codegen 全面切换到 `MonoTypeId` —— 删除 `cg_ty_of` 的 `Option` 与 `expect_cg_ty_of`
 
