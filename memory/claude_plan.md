@@ -37,4 +37,5 @@
 - 已同步 `README.md`、`PIPELINE-CLEANUP.md`、`PIPELINE_REFACTOR.md`，把 P7-T04 handoff/physical ABI 合并验证基线与 TypeId wire-format 推迟 owner 记录到文档。
 - P7-T04 指定验证已通过：`cargo fmt`；`cargo test -p scoopc --no-default-features llvm_codegen_stage`；`cargo test -p scoopc --no-default-features llvm::codegen::effect_lowered::layout`；`cargo run -p scoop_tools -- dependency-gate`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`（421/421 passed）；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
 - 已更新 `TODO.md` 与 `TODO-6.md`：`P7-T04` 标记为 `[DONE]`，并填写合并验证、文档/dump 同步、wire-format 推迟决策、residual 搜索和验证记录。
-- 下一步：检查工作区差异并提交本任务变更。
+- 已提交本任务变更：`[P7-T04] Complete LLVM handoff verification`。
+- 本次 invocation 到此停止，不继续执行 `P7-T04R`。
