@@ -45,7 +45,8 @@ use crate::ty::{EffectRow, RefTypeKind, TypeId, TypeKind, TypeStore};
 pub(crate) use callables::{MaterializedCallableFamilies, MaterializedCallableFamilyInput};
 pub use callables::{MaterializedCallableFamilyView, MaterializedCallableView};
 pub(crate) use dispatch_devirtualize::{
-    DispatchDevirtualizationFacts, DispatchDevirtualizationTargetKey,
+    DispatchDevirtualizationFacts, DispatchDevirtualizationTargetKey, KnownReceiverSubclassIndex,
+    collect_known_receiver_subclasses,
 };
 pub(crate) use dump::{
     BodyLabels, build_body_labels_for_dump, stable_dump_file, stable_dump_materialized,
@@ -57,15 +58,14 @@ pub use escape::{
 pub use lower::{LoweredMir, MirLowerError, lower_for_dump};
 pub(crate) use lower::{MirLoweringFacts, lower_hir_file_for_dump_with_facts};
 pub use materialize::{
-    InstanceKey, MaterializedMir, MirMaterializeError, TemplateKey, materialize_for_dump,
-    materialize_for_dump_with_opt_level,
+    MaterializedMir, MirMaterializeError, materialize_for_dump, materialize_for_dump_with_opt_level,
 };
 pub(crate) use pass_view::MaterializedMirPassRunRecord;
 pub use pass_view::{
     MaterializedMirPassArtifacts, MaterializedMirPassView, MaterializedPassCallableFamilyView,
     MaterializedPassCallableView,
 };
-pub use scoopc_ids::SiteId;
+pub use scoopc_ids::{InstanceKey, SiteId, TemplateKey};
 pub(crate) use summary::{
     DeclOnlySummaryInput, InstanceRootSummaryInput, build_materialized_summary_table,
     summarize_pass_rewritten_fun,

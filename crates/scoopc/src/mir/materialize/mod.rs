@@ -1,17 +1,17 @@
 //! generic MIR template -> monomorphic MIR instance materialization（当前先服务 dump-ir）。
 //!
 //! 当前阶段的目标边界：
-//! - 在 MIR 层定义稳定的 `TemplateKey` / `InstanceKey`；
+//! - 使用 base identity 层定义的 `TemplateKey` / `InstanceKey`；
 //! - 用 typecheck 收集到的“实例请求”作为初始种子；
 //! - 基于 generic MIR template 做单态实例物化，而不是对每个实例重新回到 HIR lowering；
 //! - 先覆盖 dump/调试路径需要的最小闭环：standalone direct-call fixed-point、nested closure family
 //!   的 FQN/fn_ptr 重写，以及 per-instance cache。
 
 use std::collections::{BTreeSet, HashMap, HashSet, VecDeque};
-use std::fmt;
 use std::path::{Path, PathBuf};
 
 use miette::Diagnostic;
+use scoopc_ids::{InstanceKey, TemplateKey};
 use thiserror::Error;
 
 use crate::ast;
@@ -53,92 +53,6 @@ use super::{
     Terminator, TerminatorKind, TopLevelRef, TypeAliasMetadata, TypeMetadataLiteral, UnwindAction,
     ValueTransportMetadata, build_materialized_summary_table,
 };
-
-/// 一个 generic MIR template 的内部实现键。
-///
-/// 说明：
-/// - `fqn` 给出语言级声明身份；
-/// - `source_path + decl_span` 只用于当前 materialization 过程内定位 AST/HIR 根；
-/// - exported identity 必须改走 `stable_id::StableTemplateKey`，而不是直接复用这里的 path/span。
-#[derive(Clone, PartialEq, Eq, Hash)]
-pub struct TemplateKey {
-    pub fqn: String,
-    pub source_path: PathBuf,
-    pub decl_span: Span,
-}
-
-impl fmt::Debug for TemplateKey {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{}@{}:{:?}",
-            self.fqn,
-            self.source_path.display(),
-            self.decl_span
-        )
-    }
-}
-
-/// 一个 monomorphic MIR instance 的内部实现身份。
-///
-/// exported identity 必须改走 `stable_id::StableInstanceKey`，而不是把 `TypeId` 直接外露。
-#[derive(Clone, PartialEq, Eq, Hash)]
-pub struct InstanceKey {
-    pub template: TemplateKey,
-    pub type_args: Vec<TypeId>,
-    pub eff_args: Vec<EffectRow>,
-}
-
-impl fmt::Debug for InstanceKey {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("InstanceKey")
-            .field("template", &self.template)
-            .field("type_args", &TypeIdList(&self.type_args))
-            .field("eff_args", &EffectRowList(&self.eff_args))
-            .finish()
-    }
-}
-
-struct TypeIdList<'a>(&'a [TypeId]);
-
-impl fmt::Debug for TypeIdList<'_> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_list()
-            .entries(self.0.iter().copied().map(TypeIdRepr))
-            .finish()
-    }
-}
-
-struct TypeIdRepr(TypeId);
-
-impl fmt::Debug for TypeIdRepr {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "t{}", self.0.as_u32())
-    }
-}
-
-struct EffectRowList<'a>(&'a [EffectRow]);
-
-impl fmt::Debug for EffectRowList<'_> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_list()
-            .entries(self.0.iter().map(EffectRowRepr))
-            .finish()
-    }
-}
-
-struct EffectRowRepr<'a>(&'a EffectRow);
-
-impl fmt::Debug for EffectRowRepr<'_> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if self.0.is_pure() {
-            return write!(f, "Pure");
-        }
-        f.debug_list()
-            .entries(self.0.terms.iter().copied().map(TypeIdRepr))
-            .finish()
-    }
-}
 
 /// `dump-ir` / tests 使用的 monomorphic MIR 输出。
 #[derive(Debug)]

@@ -51,7 +51,6 @@ pub use scoopc_lir_facts as lir_facts_product;
 
 pub mod ast;
 pub mod cone;
-pub(crate) mod devirtualize;
 pub mod driver_cli;
 pub(crate) mod dump_support;
 pub(crate) mod effect;

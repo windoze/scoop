@@ -2905,7 +2905,7 @@ return 0
         "test setup 不应通过 HIR fallback 预先发现 id<T> 实例"
     );
     let known_receiver_subclasses =
-        crate::devirtualize::collect_known_receiver_subclasses(&lowered_hir.direct_supertypes);
+        crate::mir::collect_known_receiver_subclasses(&lowered_hir.direct_supertypes);
     let direct_subclasses =
         collect_direct_subclasses_from_supertypes(&lowered_hir.direct_supertypes);
     let class_vtables = lowered_hir.class_vtables.clone();
@@ -3898,7 +3898,7 @@ println(holder.node.tag.score)
         })
         .collect::<Vec<_>>();
     let known_receiver_subclasses =
-        crate::devirtualize::collect_known_receiver_subclasses(&lowered_hir.direct_supertypes);
+        crate::mir::collect_known_receiver_subclasses(&lowered_hir.direct_supertypes);
     let direct_subclasses =
         collect_direct_subclasses_from_supertypes(&lowered_hir.direct_supertypes);
     let class_vtables = lowered_hir.class_vtables.clone();
@@ -4352,7 +4352,7 @@ return read(ints) + read(texts)
         &top_level_fun_call_bindings,
     );
     let known_receiver_subclasses =
-        crate::devirtualize::collect_known_receiver_subclasses(&lowered_hir.direct_supertypes);
+        crate::mir::collect_known_receiver_subclasses(&lowered_hir.direct_supertypes);
     let direct_subclasses =
         collect_direct_subclasses_from_supertypes(&lowered_hir.direct_supertypes);
     let class_vtables = lowered_hir.class_vtables.clone();

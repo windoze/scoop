@@ -2,6 +2,8 @@
 
 #![allow(dead_code)]
 
+use scoopc_ids::TemplateKey;
+
 use crate::syntax::int_literal::{IntLiteralSuffix, parse_int_literal_suffix};
 
 use super::*;
@@ -2205,7 +2207,7 @@ impl<'a> HirLowering<'a> {
         type_args: &[TypeId],
         eff_args: &[crate::ty::EffectRow],
     ) -> String {
-        let template = crate::mir::TemplateKey {
+        let template = TemplateKey {
             fqn: fqn.to_string(),
             source_path: decl_file.to_path_buf(),
             decl_span,

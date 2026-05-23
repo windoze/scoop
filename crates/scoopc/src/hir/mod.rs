@@ -1350,30 +1350,7 @@ impl ExternFun {
     }
 }
 
-/// `@Extern` 的 ABI 约定。
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub enum ExternAbi {
-    #[default]
-    C,
-    Scoop,
-}
-
-impl ExternAbi {
-    pub fn parse(name: &str) -> Option<Self> {
-        match name.trim().to_ascii_lowercase().as_str() {
-            "c" => Some(Self::C),
-            "scoop" => Some(Self::Scoop),
-            _ => None,
-        }
-    }
-
-    pub const fn name(self) -> &'static str {
-        match self {
-            Self::C => "c",
-            Self::Scoop => "scoop",
-        }
-    }
-}
+pub use crate::ty::ExternAbi;
 
 /// `fun FQN -> ExternFun` 的索引（由 HIR lowering 构建，供后端查询）。
 pub type ExternFunIndex = HashMap<String, ExternFun>;

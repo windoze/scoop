@@ -55,7 +55,7 @@ pub(super) struct MaterializerConstructionInputs<'a> {
     pub(super) template_infos: Vec<GenericTemplateInfo>,
     pub(super) callable_body_infos: Vec<CallableBodyInfo>,
     pub(super) callable_signatures: Vec<CallableSignatureInfo>,
-    pub(super) known_receiver_subclasses: crate::devirtualize::KnownReceiverSubclassIndex,
+    pub(super) known_receiver_subclasses: super::super::KnownReceiverSubclassIndex,
     pub(super) direct_subclasses: HashMap<String, BTreeSet<String>>,
     pub(super) class_vtables: crate::vtable::ClassVtableIndex,
     pub(super) interfaces: crate::itable::InterfaceIndex,

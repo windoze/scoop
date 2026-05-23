@@ -298,7 +298,7 @@ pub(super) struct MirInstanceMaterializer {
     pub(super) types: TypeStore,
     pub(super) builtins: BuiltinTypes,
     pub(super) opt_level: OptLevel,
-    pub(super) known_receiver_subclasses: crate::devirtualize::KnownReceiverSubclassIndex,
+    pub(super) known_receiver_subclasses: super::super::KnownReceiverSubclassIndex,
     pub(super) direct_subclasses: HashMap<String, BTreeSet<String>>,
     pub(super) non_fun_items: Vec<Item>,
     pub(super) class_vtables: crate::vtable::ClassVtableIndex,

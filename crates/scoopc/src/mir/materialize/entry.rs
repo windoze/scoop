@@ -103,7 +103,7 @@ pub(crate) fn materialize_compilation_unit_from_typechecked_inputs(
         &top_level_fun_call_bindings,
     );
     let known_receiver_subclasses =
-        crate::devirtualize::collect_known_receiver_subclasses(&lowered_hir.direct_supertypes);
+        super::super::collect_known_receiver_subclasses(&lowered_hir.direct_supertypes);
     let direct_subclasses =
         collect_direct_subclasses_from_supertypes(&lowered_hir.direct_supertypes);
     let class_vtables = lowered_hir.class_vtables.clone();

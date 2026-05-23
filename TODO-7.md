@@ -176,7 +176,7 @@
   - residual 搜索分类：`rg -n "use crate::hir|crate::hir::" crates/scoopc/src/llvm crates/scoopc/src/effect_lowered` 只剩 `effect_lowered::source` 的 LIR-owned HIR payload re-export 与 LLVM 测试命中；`rg -n "use crate::mir|crate::mir::" crates/scoopc/src/llvm` 剩余命中位于测试和 `llvm/codegen/mir_body/**` LIR-owned source-body helper，后者是已发布 source callable/body payload 的 lowering surface，不是 pass-view/body discovery fallback。
   - 验证通过：`cargo fmt`；`cargo build --workspace`；`cargo test --all --all-targets`；`cargo run -p scoop_tools -- dependency-gate`；上述两条 residual 搜索；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
 
-### [TODO] P9-T01：消除阻塞 stage crate split 的后向边
+### [DONE] P9-T01：消除阻塞 stage crate split 的后向边
 
 - 参考：本文件"阻塞 stage crate split 的后向边"。
 - 目标：
@@ -206,6 +206,12 @@
   - `devirtualize.rs` 删除；
   - `cargo build --workspace` 与 `cargo test --all --all-targets` 通过。
 - 依赖：P9-T01-a
+- 完成记录：
+  - 2026-05-23：`InstanceKey` / `TemplateKey` 从 `mir::materialize` 下沉到 `scoopc_ids`，`mir` 仅保留 façade re-export；HIR lowering 中的实例 key 引用已改为 base crate，`crates/scoopc/src/hir` 对 `crate::mir` 的直接引用归零。
+  - `ExternAbi` 下沉到 `scoopc_types`，`hir` 保留兼容 re-export；`typecheck::annotations` 改为引用 type base crate，`typecheck` 对 `use crate::hir` 的命中归零。
+  - 删除 root-level `crates/scoopc/src/devirtualize.rs` 与 `pub(crate) mod devirtualize;`；仍被 MIR pass 使用的 dispatch 去虚化 helper 迁入 MIR-owned `dispatch_devirtualize`，测试中的 helper 调用改走 `crate::mir`。
+  - 残余搜索结果：`use crate::mir` 在 `scoopc/src/hir` 与 `scoopc/src/typecheck` 内无命中；`use crate::hir` 在 `scoopc/src/typecheck` 内无命中，LLVM 仅剩 `llvm/tests/mod.rs` 测试命中，`effect_lowered` 仅剩 P9-T01-a 已记录的 LIR-owned source payload namespace。
+  - 验证通过：`cargo fmt`；`cargo build --workspace`；`cargo test --all --all-targets`；`cargo run -p scoop_tools -- dependency-gate`；指定残余搜索；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
 
 ### [TODO] P9-T01R：Review 后向边消除结果
 

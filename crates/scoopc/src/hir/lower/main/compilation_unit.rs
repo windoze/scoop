@@ -2,6 +2,8 @@
 
 #![allow(dead_code)]
 
+use scoopc_ids::InstanceKey;
+
 use super::*;
 
 pub(crate) fn generic_template_symbol_suffixes_for_compilation_unit(
@@ -310,7 +312,7 @@ pub fn lower_for_compilation_unit_multi_files_with_type_env(
 pub struct ExplicitMirInstanceLoweringOptions<'a> {
     pub stable_cone_key: StableConeKey,
     pub source_cones: &'a HashMap<std::path::PathBuf, crate::cone::SourceConeInfo>,
-    pub instance_keys: &'a [crate::mir::InstanceKey],
+    pub instance_keys: &'a [InstanceKey],
     pub instance_types: &'a TypeStore,
 }
 
@@ -380,7 +382,7 @@ pub(crate) fn lower_generic_for_compilation_unit_multi_files_with_type_env(
 pub(crate) enum CompilationUnitInstanceMode<'a> {
     DirectLoweredHir,
     ExplicitMirInstances {
-        instance_keys: &'a [crate::mir::InstanceKey],
+        instance_keys: &'a [InstanceKey],
         instance_types: &'a TypeStore,
     },
     GenericTemplateOnly,
@@ -403,7 +405,7 @@ impl<'a> CompilationUnitLoweringOptions<'a> {
 
     pub(crate) fn explicit_mir_instances(
         stable_cone_key: StableConeKey,
-        instance_keys: &'a [crate::mir::InstanceKey],
+        instance_keys: &'a [InstanceKey],
         instance_types: &'a TypeStore,
     ) -> Self {
         Self {

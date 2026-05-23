@@ -1,5 +1,7 @@
 //! Validation pass that walks a materialized MIR and verifies every artifact (instance keys, items, payload contracts, transports, terminators, patterns, type metadata) against the published contract before any consumer is allowed to read it.
 
+use std::fmt;
+
 use super::super::RuntimeTypeStaticFold;
 use super::*;
 use crate::ast;
@@ -4551,6 +4553,27 @@ pub(super) fn validate_materialized_type(
         ));
     }
     Ok(())
+}
+
+struct TypeIdRepr(TypeId);
+
+impl fmt::Debug for TypeIdRepr {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "t{}", self.0.as_u32())
+    }
+}
+
+struct EffectRowRepr<'a>(&'a EffectRow);
+
+impl fmt::Debug for EffectRowRepr<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if self.0.is_pure() {
+            return write!(f, "Pure");
+        }
+        f.debug_list()
+            .entries(self.0.terms.iter().copied().map(TypeIdRepr))
+            .finish()
+    }
 }
 
 pub(super) fn validate_materialized_effect_row(

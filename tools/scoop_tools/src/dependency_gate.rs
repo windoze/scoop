@@ -931,7 +931,7 @@ fn allowed_base_dependencies(base: &str) -> &'static [&'static str] {
         "scoopc_span" => &[],
         "scoopc_source" => &["scoopc_span"],
         "scoopc_types" => &["scoopc_span"],
-        "scoopc_ids" => &["scoopc_span"],
+        "scoopc_ids" => &["scoopc_span", "scoopc_types"],
         "scoopc_project_model" => &["scoopc_span", "scoopc_source", "scoopc_types", "scoopc_ids"],
         _ => &[],
     }

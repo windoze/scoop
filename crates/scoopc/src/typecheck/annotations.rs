@@ -21,7 +21,6 @@ use miette::Diagnostic;
 use thiserror::Error;
 
 use crate::ast;
-use crate::hir::ExternAbi;
 use crate::intrinsics::{
     IntrinsicAnnotationParseError, named_intrinsic_audit_entry, parse_intrinsic_annotation_args,
 };
@@ -30,7 +29,7 @@ use crate::resolve::Index;
 use crate::source::SourceFile;
 use crate::span::Span;
 use crate::syntax::int_literal::parse_int_literal;
-use crate::ty::{BuiltinTypes, RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind};
+use crate::ty::{BuiltinTypes, ExternAbi, RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind};
 
 use super::assignable::is_type_assignable;
 use super::builtin_annotations::{

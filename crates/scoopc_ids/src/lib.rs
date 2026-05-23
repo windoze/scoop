@@ -8,8 +8,10 @@
 #![forbid(unsafe_code)]
 
 use std::fmt;
+use std::path::PathBuf;
 
 use scoopc_span::Span;
+use scoopc_types::{EffectRow, TypeId};
 use sha2::{Digest, Sha256};
 
 /// Versioned hash scopes shared by ABI, private symbols, RTTI, and dumps.
@@ -106,6 +108,91 @@ impl BodyBlockId {
 impl fmt::Debug for BodyBlockId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "bb{}", self.0)
+    }
+}
+
+/// Stage-independent identity for a generic callable template.
+///
+/// The current compiler still uses source path and declaration span to locate
+/// bodies during materialization, while exported identities use stable keys.
+#[derive(Clone, PartialEq, Eq, Hash)]
+pub struct TemplateKey {
+    pub fqn: String,
+    pub source_path: PathBuf,
+    pub decl_span: Span,
+}
+
+impl fmt::Debug for TemplateKey {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{}@{}:{:?}",
+            self.fqn,
+            self.source_path.display(),
+            self.decl_span
+        )
+    }
+}
+
+/// Stage-independent identity for one monomorphic callable instance.
+///
+/// This key intentionally lives in the base identity crate so HIR compatibility
+/// scaffolding and MIR materialization do not point at each other.
+#[derive(Clone, PartialEq, Eq, Hash)]
+pub struct InstanceKey {
+    pub template: TemplateKey,
+    pub type_args: Vec<TypeId>,
+    pub eff_args: Vec<EffectRow>,
+}
+
+impl fmt::Debug for InstanceKey {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("InstanceKey")
+            .field("template", &self.template)
+            .field("type_args", &TypeIdList(&self.type_args))
+            .field("eff_args", &EffectRowList(&self.eff_args))
+            .finish()
+    }
+}
+
+struct TypeIdList<'a>(&'a [TypeId]);
+
+impl fmt::Debug for TypeIdList<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_list()
+            .entries(self.0.iter().copied().map(TypeIdRepr))
+            .finish()
+    }
+}
+
+struct TypeIdRepr(TypeId);
+
+impl fmt::Debug for TypeIdRepr {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "t{}", self.0.as_u32())
+    }
+}
+
+struct EffectRowList<'a>(&'a [EffectRow]);
+
+impl fmt::Debug for EffectRowList<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_list()
+            .entries(self.0.iter().map(EffectRowRepr))
+            .finish()
+    }
+}
+
+struct EffectRowRepr<'a>(&'a EffectRow);
+
+impl fmt::Debug for EffectRowRepr<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if self.0.is_pure() {
+            return write!(f, "Pure");
+        }
+        f.debug_list()
+            .entries(self.0.terms.iter().copied().map(TypeIdRepr))
+            .finish()
     }
 }
 

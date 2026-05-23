@@ -723,6 +723,7 @@ name = "scoopc_ids"
 version = "0.1.0"
 dependencies = [
  "scoopc_span",
+ "scoopc_types",
  "sha2",
 ]
 

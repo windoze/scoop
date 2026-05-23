@@ -7,8 +7,9 @@
 
 use std::collections::{HashMap, HashSet};
 
+use scoopc_ids::{InstanceKey, TemplateKey};
+
 use crate::ast;
-use crate::mir::{InstanceKey, TemplateKey};
 use crate::resolve::Index;
 use crate::source::SourceFile;
 use crate::span::Span;

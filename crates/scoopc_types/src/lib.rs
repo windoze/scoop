@@ -170,6 +170,31 @@ fn is_builtin_scalar_nominal_value_fqn(fqn: &str) -> bool {
             .is_some()
 }
 
+/// ABI convention accepted by `@Extern` metadata.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum ExternAbi {
+    #[default]
+    C,
+    Scoop,
+}
+
+impl ExternAbi {
+    pub fn parse(name: &str) -> Option<Self> {
+        match name.trim().to_ascii_lowercase().as_str() {
+            "c" => Some(Self::C),
+            "scoop" => Some(Self::Scoop),
+            _ => None,
+        }
+    }
+
+    pub const fn name(self) -> &'static str {
+        match self {
+            Self::C => "c",
+            Self::Scoop => "scoop",
+        }
+    }
+}
+
 /// `*` star projection 的最小内部表示。
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct StarProjectionType {
