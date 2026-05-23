@@ -7,14 +7,10 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
-use crate::hir;
+use crate::effect_lowered::source as hir;
 use crate::mir;
 use crate::span::Span;
 use crate::ty::{RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind};
-use scoopc_hir_facts::HirFacts;
-use scoopc_hir_facts::declarations::{FieldOwnerKind, NominalKind};
-use scoopc_hir_facts::globals::GlobalRootKind;
-use scoopc_hir_facts::source_sites::{ConstructorCallTarget, ContinuationResumeContract};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct KnownLocalMetadata {
@@ -23,18 +19,53 @@ pub(crate) struct KnownLocalMetadata {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum EffectGlobalRootKind {
+pub(crate) enum EffectGlobalRootKind {
     TopLevelVal,
     TopLevelVar,
     ObjectSingleton,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum EffectFieldOwnerKind {
+    Struct,
+    Class,
+    Object,
+    EnumVariant,
+}
+
 #[derive(Debug, Clone)]
-struct EffectFieldFact {
-    owner_kind: FieldOwnerKind,
-    owner: String,
-    fqn: String,
-    ty: TypeId,
+pub(crate) struct EffectFieldFact {
+    pub(crate) owner_kind: EffectFieldOwnerKind,
+    pub(crate) owner: String,
+    pub(crate) fqn: String,
+    pub(crate) ty: TypeId,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct EffectConstructorCall {
+    pub(crate) owner_fqn: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct EffectContinuationResume {
+    resumes_outward: bool,
+}
+
+impl EffectContinuationResume {
+    pub(crate) const fn new(resumes_outward: bool) -> Self {
+        Self { resumes_outward }
+    }
+
+    pub(crate) const fn resumes_outward(self) -> bool {
+        self.resumes_outward
+    }
+}
+
+fn source_ty_is_precise(types: &TypeStore, ty: TypeId) -> bool {
+    !matches!(
+        types.kind(ty),
+        TypeKind::Ref(RefTypeKind::Any) | TypeKind::Param(_)
+    )
 }
 
 /// Narrow semantic facts needed by shared effect planning.
@@ -47,89 +78,19 @@ pub(crate) struct EffectAnalysisFacts {
     fields: Vec<EffectFieldFact>,
     callable_return_tys: HashMap<String, TypeId>,
     nominal_supertypes: HashMap<String, Vec<String>>,
-    constructor_calls: HashMap<hir::CallSite, ConstructorCallTarget>,
-    continuation_resumes: HashMap<hir::CallSite, ContinuationResumeContract>,
+    constructor_calls: HashMap<hir::CallSite, EffectConstructorCall>,
+    continuation_resumes: HashMap<hir::CallSite, EffectContinuationResume>,
 }
 
 impl EffectAnalysisFacts {
-    pub(crate) fn from_hir_facts(facts: &HirFacts) -> Self {
-        let global_roots = facts
-            .globals
-            .roots
-            .iter()
-            .map(|root| {
-                let kind = match root.kind {
-                    GlobalRootKind::TopLevelVal => EffectGlobalRootKind::TopLevelVal,
-                    GlobalRootKind::TopLevelVar => EffectGlobalRootKind::TopLevelVar,
-                    GlobalRootKind::ObjectSingleton => EffectGlobalRootKind::ObjectSingleton,
-                };
-                (root.identity.display_name.clone(), (kind, root.ty))
-            })
-            .collect();
-        let fields = facts
-            .declarations
-            .fields
-            .iter()
-            .map(|field| EffectFieldFact {
-                owner_kind: field.owner_kind,
-                owner: field.owner.as_str().to_string(),
-                fqn: field.identity.display_name.clone(),
-                ty: field.ty,
-            })
-            .collect();
-        let callable_return_tys = facts
-            .declarations
-            .callables
-            .iter()
-            .map(|callable| (callable.identity.display_name.clone(), callable.return_ty))
-            .collect();
-        let nominal_supertypes = facts
-            .declarations
-            .nominals
-            .iter()
-            .filter(|nominal| nominal.kind == NominalKind::Class)
-            .map(|nominal| {
-                (
-                    nominal.identity.display_name.clone(),
-                    nominal
-                        .direct_supertypes
-                        .iter()
-                        .map(|key| key.as_str().to_string())
-                        .collect(),
-                )
-            })
-            .collect();
-        let constructor_calls = facts
-            .source_sites
-            .call_sites
-            .iter()
-            .filter_map(|site| {
-                facts
-                    .source_sites
-                    .constructor_call(site.identity.source_path.as_path(), site.identity.span)
-                    .map(|target| {
-                        (
-                            hir::CallSite::new(
-                                site.identity.source_path.clone(),
-                                site.identity.span,
-                            ),
-                            target.clone(),
-                        )
-                    })
-            })
-            .collect();
-        let continuation_resumes = facts
-            .source_sites
-            .continuation_resumes
-            .iter()
-            .map(|resume| {
-                (
-                    hir::CallSite::new(resume.identity.source_path.clone(), resume.identity.span),
-                    resume.clone(),
-                )
-            })
-            .collect();
-
+    pub(crate) fn from_parts(
+        global_roots: HashMap<String, (EffectGlobalRootKind, Option<TypeId>)>,
+        fields: Vec<EffectFieldFact>,
+        callable_return_tys: HashMap<String, TypeId>,
+        nominal_supertypes: HashMap<String, Vec<String>>,
+        constructor_calls: HashMap<hir::CallSite, EffectConstructorCall>,
+        continuation_resumes: HashMap<hir::CallSite, EffectContinuationResume>,
+    ) -> Self {
         Self {
             global_roots,
             fields,
@@ -154,7 +115,7 @@ impl EffectAnalysisFacts {
     pub(crate) fn object_property_ty(&self, fqn: &str) -> Option<TypeId> {
         self.fields
             .iter()
-            .find(|field| field.owner_kind == FieldOwnerKind::Object && field.fqn == fqn)
+            .find(|field| field.owner_kind == EffectFieldOwnerKind::Object && field.fqn == fqn)
             .map(|field| field.ty)
     }
 
@@ -181,7 +142,7 @@ impl EffectAnalysisFacts {
     pub(crate) fn is_object_property_fqn(&self, fqn: &str) -> bool {
         self.fields
             .iter()
-            .any(|field| field.owner_kind == FieldOwnerKind::Object && field.fqn == fqn)
+            .any(|field| field.owner_kind == EffectFieldOwnerKind::Object && field.fqn == fqn)
     }
 
     pub(crate) fn is_top_level_immutable_value_fqn(&self, fqn: &str) -> bool {
@@ -194,7 +155,7 @@ impl EffectAnalysisFacts {
         &self,
         source_path: &Path,
         span: Span,
-    ) -> Option<&ConstructorCallTarget> {
+    ) -> Option<&EffectConstructorCall> {
         self.constructor_calls
             .get(&hir::CallSite::new(source_path.to_path_buf(), span))
     }
@@ -203,9 +164,10 @@ impl EffectAnalysisFacts {
         &self,
         source_path: &Path,
         span: Span,
-    ) -> Option<&ContinuationResumeContract> {
+    ) -> Option<EffectContinuationResume> {
         self.continuation_resumes
             .get(&hir::CallSite::new(source_path.to_path_buf(), span))
+            .copied()
     }
 
     pub(crate) fn has_continuation_resume(&self, source_path: &Path, span: Span) -> bool {
@@ -221,7 +183,7 @@ impl EffectAnalysisFacts {
     where
         LocalTyLookup: Fn(hir::SymbolId) -> Option<TypeId>,
     {
-        if crate::expr_facts::hir_ty_is_precise(types, expr.ty) {
+        if source_ty_is_precise(types, expr.ty) {
             return Some(expr.ty);
         }
 
@@ -322,7 +284,7 @@ impl EffectAnalysisFacts {
     {
         if let Some(callee_ty) = self.resolve_expr_concrete_type(types, callee, local_ty_lookup)
             && let TypeKind::Ref(RefTypeKind::Function(fun_ty)) = types.kind(callee_ty)
-            && crate::expr_facts::hir_ty_is_precise(types, fun_ty.return_ty)
+            && source_ty_is_precise(types, fun_ty.return_ty)
         {
             return Some(fun_ty.return_ty);
         }
@@ -340,7 +302,7 @@ impl EffectAnalysisFacts {
         }?;
 
         if let Some(return_ty) = self.fun_return_ty(fqn)
-            && crate::expr_facts::hir_ty_is_precise(types, return_ty)
+            && source_ty_is_precise(types, return_ty)
         {
             return Some(return_ty);
         }
@@ -368,12 +330,12 @@ impl EffectAnalysisFacts {
             return None;
         };
         let layout_key = hir::mangle_nominal_fqn(&nominal.fqn, &nominal.args, types);
-        self.lookup_field_ty_by_owner(FieldOwnerKind::Struct, &layout_key, field_fqn)
+        self.lookup_field_ty_by_owner(EffectFieldOwnerKind::Struct, &layout_key, field_fqn)
             .or_else(|| {
                 (layout_key != nominal.fqn)
                     .then(|| {
                         self.lookup_field_ty_by_owner(
-                            FieldOwnerKind::Struct,
+                            EffectFieldOwnerKind::Struct,
                             &nominal.fqn,
                             field_fqn,
                         )
@@ -401,7 +363,7 @@ impl EffectAnalysisFacts {
     }
 
     fn lookup_class_field_ty_by_key(&self, class_key: &str, field_fqn: &str) -> Option<TypeId> {
-        self.lookup_field_ty_by_owner(FieldOwnerKind::Class, class_key, field_fqn)
+        self.lookup_field_ty_by_owner(EffectFieldOwnerKind::Class, class_key, field_fqn)
             .or_else(|| {
                 self.nominal_supertypes
                     .get(class_key)
@@ -414,7 +376,7 @@ impl EffectAnalysisFacts {
 
     fn lookup_field_ty_by_owner(
         &self,
-        owner_kind: FieldOwnerKind,
+        owner_kind: EffectFieldOwnerKind,
         owner_key: &str,
         field_fqn: &str,
     ) -> Option<TypeId> {
@@ -572,22 +534,6 @@ impl EffectAnalysisCtx {
             facts,
             continuation_escape_facts: ContinuationEscapeFacts::default(),
         }
-    }
-
-    pub(crate) fn from_hir_facts(
-        known_fun_effects: HashMap<String, bool>,
-        known_local_fun_effects: HashMap<hir::SymbolId, bool>,
-        known_local_metadata: HashMap<hir::SymbolId, KnownLocalMetadata>,
-        current_source_path: PathBuf,
-        hir_facts: Rc<HirFacts>,
-    ) -> Self {
-        Self::new(
-            known_fun_effects,
-            known_local_fun_effects,
-            known_local_metadata,
-            current_source_path,
-            Rc::new(EffectAnalysisFacts::from_hir_facts(hir_facts.as_ref())),
-        )
     }
 
     pub(crate) fn current_source_path(&self) -> &Path {

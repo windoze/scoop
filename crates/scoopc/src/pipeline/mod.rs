@@ -26,6 +26,8 @@ pub use effect_facts_stage::EffectFactsStageOutput;
 #[cfg(all(feature = "llvm", test))]
 pub(crate) use effect_lowering_stage::build_lir_stage_output_from_stage_outputs;
 pub use effect_lowering_stage::{EffectLoweringStageInput, LirStageOutput};
+#[cfg(all(feature = "llvm", test))]
+pub(crate) use llvm_codegen_stage::build_ordinary_callee_effect_analysis_facts;
 #[cfg(feature = "llvm")]
 pub(crate) use llvm_codegen_stage::{LlvmCallableSourceContract, LlvmDispatchCallKey};
 #[cfg(feature = "llvm")]

@@ -10,14 +10,13 @@ use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use std::rc::Rc;
 
-use crate::ast;
-use crate::effect::analysis::{
+use super::analysis::{
     ContinuationEscapeFacts, ContinuationEscapeState, EffectAnalysisCtx, EffectAnalysisFacts,
     KnownLocalMetadata, collect_known_local_metadata_in_block,
     collect_known_local_metadata_in_expr, collect_known_local_metadata_in_fun,
     collect_known_local_metadata_in_handle, collect_known_local_metadata_in_handle_arm,
 };
-use crate::hir;
+use crate::effect_lowered::source as hir;
 use crate::span::Span;
 use crate::ty::{EffectRow, RefTypeKind, TypeId, TypeKind, TypeStore};
 

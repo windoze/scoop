@@ -20,6 +20,7 @@ pub mod ir;
 pub(crate) mod materialize;
 pub(crate) mod opt;
 pub(crate) mod opt_verify;
+pub(crate) mod ordinary_callee;
 pub(crate) mod segment;
 
 pub(crate) use builder::LateLoweredProgramBuilder;

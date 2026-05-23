@@ -527,6 +527,26 @@ fn source_boundary_rules() -> Vec<SourceBoundaryRule> {
             path: "crates/scoopc/src/pipeline/llvm_codegen_stage.rs",
             forbidden: &[
                 ForbiddenSourcePattern {
+                    pattern: "use crate::effect::",
+                    reason: "LLVM stage handoff must consume LIR-owned ordinary-callee suspend contracts, not effect-stage APIs",
+                },
+                ForbiddenSourcePattern {
+                    pattern: "use crate::effect::{",
+                    reason: "LLVM stage handoff must not import effect-stage APIs through grouped imports",
+                },
+                ForbiddenSourcePattern {
+                    pattern: "crate::effect::",
+                    reason: "LLVM stage handoff must not reach into effect-stage APIs for suspend analysis",
+                },
+                ForbiddenSourcePattern {
+                    pattern: "scoopc_effect_facts_stage::effect",
+                    reason: "LLVM stage handoff must not depend on the future effect-facts stage crate for suspend analysis",
+                },
+                ForbiddenSourcePattern {
+                    pattern: "scoopc::effect",
+                    reason: "LLVM stage handoff must not recover effect-stage APIs through the scoopc facade",
+                },
+                ForbiddenSourcePattern {
                     pattern: "EffectLoweredStageOutput",
                     reason: "LLVM stage output must not reintroduce P5 stage-output wrapper handoff",
                 },
@@ -1018,6 +1038,34 @@ fn source_tree_boundary_rules() -> Vec<SourceTreeBoundaryRule> {
                 ForbiddenSourcePattern {
                     pattern: "scoopc::mir",
                     reason: "future LLVM crate must not depend on the scoopc facade for MIR APIs",
+                },
+            ],
+        },
+        SourceTreeBoundaryRule {
+            label: "LLVM production direct effect-stage residuals",
+            kind_label: "backend-boundary",
+            root: "crates/scoopc_codegen_llvm/src/llvm",
+            exclude_path_fragments: &["/tests/", "tests.rs"],
+            forbidden: &[
+                ForbiddenSourcePattern {
+                    pattern: "use crate::effect::",
+                    reason: "LLVM production must consume ordinary-callee suspend contracts through the LIR owner",
+                },
+                ForbiddenSourcePattern {
+                    pattern: "use crate::effect::{",
+                    reason: "LLVM production must not import effect-stage APIs through grouped imports",
+                },
+                ForbiddenSourcePattern {
+                    pattern: "crate::effect::",
+                    reason: "LLVM production must not reach into effect-stage APIs for suspend analysis",
+                },
+                ForbiddenSourcePattern {
+                    pattern: "scoopc_effect_facts_stage::effect",
+                    reason: "future LLVM crate must not depend on the effect-facts stage crate",
+                },
+                ForbiddenSourcePattern {
+                    pattern: "scoopc::effect",
+                    reason: "future LLVM crate must not recover effect-stage APIs through the scoopc facade",
                 },
             ],
         },

@@ -3,9 +3,12 @@ use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
 use crate::cone::SourceConeInfo;
-use crate::effect::analysis::EffectAnalysisFacts;
 use crate::effect_facts::MaterializedEffectFacts;
 use crate::effect_lowered::ir::LateLoweredClassCtorInitBody;
+use crate::effect_lowered::ordinary_callee::{
+    EffectAnalysisFacts, EffectConstructorCall, EffectContinuationResume, EffectFieldFact,
+    EffectFieldOwnerKind, EffectGlobalRootKind,
+};
 use crate::effect_lowered::{LateLoweredOptOptions, LateLoweredProgram};
 use crate::frontend::CodegenLoweringOutput;
 use crate::hir::{self, LoweredHir};
@@ -18,6 +21,8 @@ use crate::span::Span;
 use crate::stable_id::{StableConeKey, StableTypeParamKey};
 use crate::ty::{BuiltinTypes, TypeParamType, TypeStore};
 use scoopc_hir_facts::HirFacts;
+use scoopc_hir_facts::declarations::{FieldOwnerKind, NominalKind};
+use scoopc_hir_facts::globals::GlobalRootKind;
 use scoopc_lir_facts::{
     LirCallSiteKind, LirFacts, LirTypeContextOwner, LirTypeStableWireFormatDecision,
 };
@@ -158,7 +163,8 @@ impl LlvmStageBaseContext {
                 _ => None,
             })
             .collect();
-        let effect_analysis_facts = Rc::new(EffectAnalysisFacts::from_hir_facts(&hir_facts));
+        let effect_analysis_facts =
+            Rc::new(build_ordinary_callee_effect_analysis_facts(&hir_facts));
         let stable_cone_key = materialized_mir.stable_cone_key().clone();
         let materialized_type_fingerprint = type_store_fingerprint(&materialized_mir.types);
         let types = effect_facts.types().clone();
@@ -444,6 +450,104 @@ fn build_dispatch_call_contracts(
             )
         })
         .collect()
+}
+
+pub(crate) fn build_ordinary_callee_effect_analysis_facts(facts: &HirFacts) -> EffectAnalysisFacts {
+    let global_roots = facts
+        .globals
+        .roots
+        .iter()
+        .map(|root| {
+            let kind = match root.kind {
+                GlobalRootKind::TopLevelVal => EffectGlobalRootKind::TopLevelVal,
+                GlobalRootKind::TopLevelVar => EffectGlobalRootKind::TopLevelVar,
+                GlobalRootKind::ObjectSingleton => EffectGlobalRootKind::ObjectSingleton,
+            };
+            (root.identity.display_name.clone(), (kind, root.ty))
+        })
+        .collect();
+    let fields = facts
+        .declarations
+        .fields
+        .iter()
+        .map(|field| EffectFieldFact {
+            owner_kind: match field.owner_kind {
+                FieldOwnerKind::Struct => EffectFieldOwnerKind::Struct,
+                FieldOwnerKind::Class => EffectFieldOwnerKind::Class,
+                FieldOwnerKind::Object => EffectFieldOwnerKind::Object,
+                FieldOwnerKind::EnumVariant => EffectFieldOwnerKind::EnumVariant,
+            },
+            owner: field.owner.as_str().to_string(),
+            fqn: field.identity.display_name.clone(),
+            ty: field.ty,
+        })
+        .collect();
+    let callable_return_tys = facts
+        .declarations
+        .callables
+        .iter()
+        .map(|callable| (callable.identity.display_name.clone(), callable.return_ty))
+        .collect();
+    let nominal_supertypes = facts
+        .declarations
+        .nominals
+        .iter()
+        .filter(|nominal| nominal.kind == NominalKind::Class)
+        .map(|nominal| {
+            (
+                nominal.identity.display_name.clone(),
+                nominal
+                    .direct_supertypes
+                    .iter()
+                    .map(|key| key.as_str().to_string())
+                    .collect(),
+            )
+        })
+        .collect();
+    let constructor_calls = facts
+        .source_sites
+        .call_sites
+        .iter()
+        .filter_map(|site| {
+            facts
+                .source_sites
+                .constructor_call(site.identity.source_path.as_path(), site.identity.span)
+                .map(|target| {
+                    (
+                        crate::effect_lowered::source::CallSite::new(
+                            site.identity.source_path.clone(),
+                            site.identity.span,
+                        ),
+                        EffectConstructorCall {
+                            owner_fqn: target.owner_fqn.clone(),
+                        },
+                    )
+                })
+        })
+        .collect();
+    let continuation_resumes = facts
+        .source_sites
+        .continuation_resumes
+        .iter()
+        .map(|resume| {
+            (
+                crate::effect_lowered::source::CallSite::new(
+                    resume.identity.source_path.clone(),
+                    resume.identity.span,
+                ),
+                EffectContinuationResume::new(resume.resumes_outward()),
+            )
+        })
+        .collect();
+
+    EffectAnalysisFacts::from_parts(
+        global_roots,
+        fields,
+        callable_return_tys,
+        nominal_supertypes,
+        constructor_calls,
+        continuation_resumes,
+    )
 }
 
 fn verify_lir_type_context_header(

@@ -300,7 +300,7 @@ impl<'a> SuspendCallAnalysis<'a> {
             }
             hir::ExprKind::Cast {
                 expr: inner, op, ..
-            } => matches!(op, ast::CastOp::As) || self.expr_may_suspend(inner, known_locals),
+            } => matches!(op, hir::CastOp::As) || self.expr_may_suspend(inner, known_locals),
             hir::ExprKind::Block(block) => self.block_may_suspend(block, known_locals),
             hir::ExprKind::If {
                 cond,
@@ -591,7 +591,8 @@ pub(crate) fn collect_effect_analysis_context_for_fun_with_pass_view(
         owner_fun.source_path.as_path(),
     )
     .expect("HIR declaration facts should build for effect analysis test fixture");
-    let analysis_facts = Rc::new(EffectAnalysisFacts::from_hir_facts(&hir_facts));
+    let analysis_facts =
+        Rc::new(crate::pipeline::build_ordinary_callee_effect_analysis_facts(&hir_facts));
     let known_fun_effects = collect_known_fun_call_suspendability(
         &lowered.types,
         &fun_index,

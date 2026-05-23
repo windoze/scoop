@@ -1992,7 +1992,7 @@ fun demo(): Int / (Boom) {
         let mut ast = parse_file(&source).expect("parse");
 
         let index = {
-            let mut pairs: Vec<(&SourceFile, &crate::ast::File)> = Vec::new();
+            let mut pairs = Vec::new();
             for file in session.sysroot().index_files() {
                 pairs.push((&file.source, &file.ast));
             }
@@ -2042,7 +2042,7 @@ fun demo(): Int / (Boom) {
         )
         .expect("check exprs");
 
-        let mut unit: Vec<(&SourceFile, &crate::ast::File)> = Vec::new();
+        let mut unit = Vec::new();
         for file in session.sysroot().index_files() {
             unit.push((&file.source, &file.ast));
         }

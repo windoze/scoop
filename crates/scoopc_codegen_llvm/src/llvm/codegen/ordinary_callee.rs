@@ -7,9 +7,9 @@ use std::rc::Rc;
 use inkwell::types::StructType;
 use inkwell::values::{FunctionValue, IntValue, PointerValue};
 
-use crate::effect::analysis::{ContinuationEscapeFacts, EffectAnalysisCtx, KnownLocalMetadata};
-use crate::effect::state_machine::{
-    CalleeSuspendPlan, SuspendCallAnalysis, build_ordinary_callee_suspend_plan_with_context,
+use crate::effect_lowered::ordinary_callee::{
+    CalleeSuspendPlan, ContinuationEscapeFacts, EffectAnalysisCtx, KnownLocalMetadata,
+    SuspendCallAnalysis, build_ordinary_callee_suspend_plan_with_context,
     function_ty_declared_effectful, hir_ty_is_function_value,
 };
 use crate::ty::TypeId;

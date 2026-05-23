@@ -1594,6 +1594,7 @@ pub type SourceCallArg = crate::hir::CallArg;
 /// MIR is allowed to depend on the frontend stages; LIR should consume these
 /// payloads through explicit LIR contracts instead of re-exporting this module.
 pub mod source_payload {
+    pub use crate::ast::CastOp;
     pub use crate::hir::*;
 }
 

@@ -465,7 +465,7 @@
   - dependency gate 补强：新增可选 `scoopc_lir` direct-dependency 检查、当前 `crates/scoopc/src/effect_lowered` 与未来 `crates/scoopc_lir/src` 的 HIR/AST source-boundary 规则，并跳过尚未创建的可选 stage crate/root。
   - 验证通过：`cargo fmt`；`cargo build --workspace`；`cargo test --all --all-targets`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`；`cargo run -p scoop_tools -- dependency-gate`；`cargo clippy --all-targets -- -D warnings`；LIR residual 搜索；`git diff --check`。
 
-### [TODO] P9-T06-b：发布 LIR-owned ordinary-callee suspend 合同
+### [DONE] P9-T06-b：发布 LIR-owned ordinary-callee suspend 合同
 
 - 阻塞原因：
   - P9-T06 必须把 `effect/` 与 `effect_facts/builder.rs` 抽入 `scoopc_effect_facts_stage`，同时完成 P9-T03 登记的义务，让 `scoopc_codegen_llvm` 不再经由 `scoopc` façade，而是 direct 依赖 `scoopc_lir` / `scoopc_lir_facts`。
@@ -497,14 +497,19 @@
   7. `git diff --check`
 - 完成条件：
   - LLVM production code 不再直接依赖 effect stage API；ordinary-callee suspend contract 由 LIR-owned surface 或 LIR facts 提供。
-  - P9-T06 可以把 `effect/` 移入 `scoopc_effect_facts_stage`，并把 `scoopc_codegen_llvm` 切到 direct `scoopc_lir` / `scoopc_lir_facts`，不需要 façade/path workaround。
+  - P9-T06 可以移动剩余 effect-facts builder/stage glue，并把 `scoopc_codegen_llvm` 切到 direct `scoopc_lir` / `scoopc_lir_facts`，不需要 façade/path workaround。
 - 依赖：P9-T06-a
+- 完成记录：
+  - 2026-05-24：ordinary-callee suspend planning 从 `effect` owner 迁入 LIR-owned `effect_lowered::ordinary_callee` surface；旧 `scoopc::effect` module 已删除，LLVM production 改为通过 `crate::effect_lowered::ordinary_callee::{EffectAnalysisFacts, CalleeSuspendPlan, ...}` 消费 suspend contract。
+  - `EffectAnalysisFacts` 改为 LIR-owned 窄数据结构；HIR facts 到该结构的转换留在 `pipeline::llvm_codegen_stage` handoff 内，避免未来 `scoopc_lir` 为 ordinary-callee planning 直接依赖 HIR facts/stage。source payload 继续通过 P9-T06-a 已发布的 LIR/MIR-owned namespace 使用。
+  - 防回归：`dependency_gate` 新增 LLVM stage handoff 与 LLVM production source-tree 规则，禁止 `crate::effect::`、future `scoopc_effect_facts_stage::effect` 与 `scoopc::effect` 回流；LIR HIR/AST source-boundary 继续覆盖迁入的 ordinary-callee planner。
+  - 验证通过：`cargo fmt`；`cargo build --workspace`；`cargo test --all --all-targets`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`；`cargo run -p scoop_tools -- dependency-gate`；`cargo clippy --all-targets -- -D warnings`；残余搜索 `rg -n "crate::effect::|scoopc_effect_facts_stage::effect|scoopc::effect" crates/scoopc_codegen_llvm/src/llvm crates/scoopc/src/pipeline/llvm_codegen_stage.rs` 无命中；`git diff --check`。
 
 ### [TODO] P9-T06：抽出 `scoopc_effect_facts_stage` 与 `scoopc_lir` crate
 
 - 参考：本文件"当前 `scoopc/src/` 主模块体量"。
 - 目标：
-  - `effect/` + `effect_facts/builder.rs` 进 `scoopc_effect_facts_stage`（与已有的 data crate `scoopc_effect_facts` 区分；前者是 builder + stage，后者是 fact 数据）；
+  - `effect_facts/builder.rs` 与剩余 effect-facts stage glue 进 `scoopc_effect_facts_stage`（与已有的 data crate `scoopc_effect_facts` 区分；前者是 builder + stage，后者是 fact 数据；旧 `effect/` ordinary-callee planner 已由 P9-T06-b 迁入 LIR owner）；
   - `effect_lowered/` 进 `scoopc_lir`。
 - 必须修改的主要位置：
   - 新建 `crates/scoopc_effect_facts_stage/` 与 `crates/scoopc_lir/`

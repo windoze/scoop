@@ -626,7 +626,7 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
                 expr: inner, op, ..
             } => {
                 let state = self.build_expr_if_suspend_subtree(inner, current_state, env);
-                if matches!(op, ast::CastOp::As) {
+                if matches!(op, hir::CastOp::As) {
                     self.record_expr_reads(state, expr);
                     let site_id = self.new_suspend_site(
                         expr.span,
@@ -997,7 +997,7 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
             }
             hir::ExprKind::Cast {
                 expr: inner, op, ..
-            } => matches!(op, ast::CastOp::As) || self.expr_contains_suspend_subtree(inner),
+            } => matches!(op, hir::CastOp::As) || self.expr_contains_suspend_subtree(inner),
             hir::ExprKind::MemberAccess { receiver, member } => {
                 self.expr_contains_suspend_subtree(receiver)
                     || self.classify_hidden_suspend_member_access(member).is_some()
