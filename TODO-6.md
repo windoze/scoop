@@ -4,7 +4,7 @@
 > 细化时间：2026-05-22
 > 计划基线：[`PLAN.md`](./PLAN.md) §4/P6-P8
 > 索引：[`TODO.md`](./TODO.md)
-> 当前状态：`P7-T04-a` / `P7-T04-b-1` / `P7-T04-b-1R` / `P7-T04-b-2` / `P7-T04-b-2R` / `P7-T04-b-3` / `P7-T04-b-3R` / `P7-T04-b-4` / `P7-T04-b-4R` / `P7-T04-b-5` 均已完成。`ClassInstanceKey` 字符串形态收回已复审并补强；codegen `cg_ty_of` 已收紧为 `MonoTypeId -> CgTy`，review 内补齐了 layout/source-TypeStore owner 边界；此前观察到的 4 项预存 LLVM 库测试失败已修复。下一步执行 `P7-T04-b-5R`。
+> 当前状态：`P7-T04-a` / `P7-T04-b-1` / `P7-T04-b-1R` / `P7-T04-b-2` / `P7-T04-b-2R` / `P7-T04-b-3` / `P7-T04-b-3R` / `P7-T04-b-4` / `P7-T04-b-4R` / `P7-T04-b-5` / `P7-T04-b-5R` 均已完成。`ClassInstanceKey` 字符串形态收回已复审并补强；codegen `cg_ty_of` 已收紧为 `MonoTypeId -> CgTy`，review 内补齐了 layout/source-TypeStore owner 边界；此前观察到的 4 项预存 LLVM 库测试失败已修复并复审通过。下一步执行 `P7-T04-b`。
 
 ## 范围
 
@@ -941,7 +941,7 @@
   - 同步项：因标量 call arg dump 从临时 local 变为 const，重新生成 `tests/fixtures/effect_lowered/direct_and_fun_value_call.effectlowered`；因行号漂移刷新 `pipeline_user_visible_failure_policy` internal-bug sentinel baseline。
   - 验证通过：`cargo fmt`；4 个目标 LLVM lib 测试逐个通过；`cargo test -p scoopc --lib`（900 passed）；`cargo run -p scoop -- test --fixtures tests/fixtures/effect_lowered`（10/10 passed）；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`（421/421 passed）；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
 
-## [TODO] P7-T04-b-5R：Review 预存 LLVM 库测试失败修复结果
+## [DONE] P7-T04-b-5R：Review 预存 LLVM 库测试失败修复结果
 
 - 参考：P7-T04-b-5。
 - 重点：
@@ -959,7 +959,13 @@
   - review 结论明确写出 4 个测试均按根因修复完成，或列出阻塞项并在本 review 内修复。
 - 依赖：P7-T04-b-5
 - 完成记录：
-  - 待填写。
+  - 复审结论：`P7-T04-b-5` 的 4 项修复均按根因闭合，未发现 fixture-only hack、断言弱化或 backend silent fallback。
+  - `closure_call_without_outward_effect_stays_on_direct_call_surface`：plain closure ABI layout 现在使用 `materialized_mir_closure_body_symbol`，与 closure object fallback lookup 共享稳定 private closure body symbol；raw MIR route gate 仍拒绝 effect/control terminator，没有在 backend gate 处放行。
+  - `via_mir_direct_interface_default_call_is_not_reinterpreted_as_itable_dispatch`：复审确认 P4 facts 已以 canonical pass-view owner 发布，P5 late lowering 改为消费 canonical pass-view body；materialized raw MIR fun 只作为 declaration-only signature fallback，不再把 O2 已移除的 raw-only site 当 authoritative body，因此不是 P4 site facts silent fallback。
+  - `native_callable_direct_and_indirect_aggregate_return_share_target_abi`：标量 literal call arg 在有目标类型时保留为 `Operand::Const` 并继续通过 `operand_for_target_ty`，ABI 测试仍检查 direct extern 常量 inline、native FunPtr 间接调用和 native boundary scaffold，未弱化 ABI parity 断言。
+  - `top_level_immutable_init_access_stays_plain_without_effect_boundary`：测试已按 P6 eager top-level init 语义定位 user helper，并断言 guard/load plain surface，同时拒绝 hidden init call 与 Step dispatch；这是 spec 更新后的断言修正，不是降低覆盖。
+  - 额外搜索：`git show HEAD -- crates/scoopc/src/llvm | rg -n "fallback|Fallback|or_else|unwrap_or|Ok\(None\)|return Ok\("` 仅命中新增的 `source_callable().ok_or_else(...)` guard；`crates/scoopc/src/llvm/` 中 raw-route gate 与 callable-carrier fallback 注册路径未出现新的 silent fallback。
+  - 验证通过：`cargo fmt`；4 个目标 LLVM lib 测试逐个通过；`cargo test -p scoopc --lib`（900 passed）；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`（421/421 passed）；`cargo run -p scoop -- test --fixtures tests/fixtures/effect_lowered`（10/10 passed）；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
 
 ## [TODO] P7-T04-b：收窄 LLVM stage handoff 形状
 
