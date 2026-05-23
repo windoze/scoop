@@ -359,7 +359,7 @@
   - 测试整理：原 HIR lowering 中依赖 umbrella pipeline stage dump 或 via-MIR/codegen request-root collection 的 tests 移到 `scoopc::pipeline` 测试模块；HIR crate 自身测试继续覆盖纯前端 lowering、resolve、typecheck、sysroot/session helper。
   - 验证通过：`cargo fmt`；`cargo check --workspace`；`cargo build --workspace`；`cargo test --all --all-targets`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`；`cargo run -p scoop_tools -- dependency-gate`；`cargo clippy --all-targets -- -D warnings`；`cargo tree -p scoopc_hir`；`git diff --check`。
 
-### [TODO] P9-T04R：Review `scoopc_hir` 抽取
+### [DONE] P9-T04R：Review `scoopc_hir` 抽取
 
 - 参考：P9-T04。
 - 重点：
@@ -368,6 +368,11 @@
   - 残留 `use crate::*` import 是否全部转为 crate-local 或 base 引用。
 - 验证：重新运行 P9-T04 的所有验证。
 - 依赖：P9-T04
+- 完成记录：
+  - 2026-05-24：复核 `scoopc_hir` 抽取结果。`scoopc_hir` 的 workspace 依赖保持在 base crates、`scoopc_ast` 与 `scoopc_hir_facts` 范围内；`cargo tree -p scoopc_hir` 未显示 `scoopc_mir` 或 `scoopc_codegen_llvm`。
+  - 反向边检查：`crates/scoopc_hir/src` 未发现 `scoopc_mir`、`scoopc_codegen_llvm`、`scoopc::mir`、`scoopc::llvm`、`crate::mir` 或 `crate::llvm` 命中；`use crate::*` / `pub use crate::*` 也无命中，剩余 `crate::` 引用均为 `scoopc_hir` crate-local 模块或 base façade。
+  - vtable/itable 归属：`vtable.rs` 与 `itable.rs` 只存在于 `crates/scoopc_hir/src/`，由 HIR lowering/typecheck 前端路径收集并发布表数据；LLVM backend 仍只消费该前端产物，不拥有 vtable/itable 构建逻辑。
+  - 验证通过：`cargo fmt`；`cargo build --workspace`；`cargo test --all --all-targets`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`；`cargo run -p scoop_tools -- dependency-gate`；`cargo clippy --all-targets -- -D warnings`；`cargo tree -p scoopc_hir`；`git diff --check`。
 
 ### [TODO] P9-T05：抽出 `scoopc_mir` crate
 
