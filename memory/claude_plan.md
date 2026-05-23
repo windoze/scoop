@@ -59,3 +59,28 @@
 - `gc_immix_write_barrier` passed standalone, confirming the prior timeout was total-suite timeout rather than a stuck single test. A longer full-suite run then exposed stale `scoopc` baselines: LIR tests used the wrong TypeStore owner, native extern declarations missed the gc-leaf attribute on LIR-declared symbols, an LLVM stage test expected the old callable key shape, and the failure-policy sentinel list was stale. These have been updated and the targeted tests now pass.
 - Final validation passed: `cargo fmt`, `cargo run -p scoop_tools -- dependency-gate`, `cargo run -p scoop_tools -- spec-fixtures check`, `cargo test --all --all-targets` with extended timeout, `cargo clippy --all-targets -- -D warnings`, and `git diff --check`.
 - `TODO.md` and `TODO-6.md` have been updated to mark `P8-T01` as `[DONE]` with a completion record. `PLAN.md` was not changed because no phase-level sequencing or dependency changed.
+
+# P8-T01R Invocation Plan
+
+## 执行计划
+
+1. 读取 `TODO.md`，按文件顺序找到第一个标题未带 `[DONE]` 的任务，确认任务正文、依赖和验证要求。
+2. 检查最近提交信息，仅在其明确提到与当前任务直接相关的未完成问题时纳入当前任务或作为前置项记录到 `TODO.md`。
+3. 读取当前任务涉及的代码、测试、文档和已有夹具，明确最小正确实现范围，避免绕过规范或削弱测试。
+4. 实现当前任务；若遇到阻塞当前任务的缺失语言特性、规范不匹配或未排期失败测试，优先修复，或在 `TODO.md` 中插入最小必要前置任务并停止。
+5. 运行当前任务要求的验证命令和相关回归测试；若发现未排期失败，修复或排入当前任务之前。
+6. 完成后更新 `TODO.md`：在当前任务标题前加 `[DONE]`，填写完成记录和验证结果；仅当阶段级计划改变时才更新 `PLAN.md`。
+7. 运行格式化或必要质量检查，检查工作区差异，提交本次任务所有相关更改。
+8. 提交后停止，不继续下一个任务。
+
+进度记录
+
+- 已创建初始执行计划，下一步读取 `TODO.md` 选择第一个未完成任务。
+- 已读取 `TODO.md` 与 `TODO-6.md`，第一个未完成任务为 `P8-T01R：Review final residual 搜索与文档冻结`。
+- 最新提交为 `706f34ba [P8-T01] Freeze final backend residual boundary`，与当前 review 直接相关，将作为复审对象。
+- 本任务执行步骤：检查工作区状态；复审 P8-T01 的 residual 搜索覆盖、dependency gate 规则和文档冻结；运行 P8-T01 验证矩阵及 clippy；如发现真实回退则修复；最后同步 `TODO.md` / `TODO-6.md` 完成记录并提交。
+- 工作区状态：除本计划文件外，已有未跟踪 `PLUGIN_ABI.md`；它未被当前任务引用，暂不改动或提交。
+- 初步 review：dependency gate 已覆盖旧 `comptime` keyword/lexer/parser surface、LLVM `const_eval` module、top-level const initializer helper、LLVM stage/emit/reachability/codegen context、legacy HIR function declaration/emission/identity、call lowering/ABI/source lookup、dispatch helper、ordinary callee analysis、class ctor body等边界。
+- 初步 residual 搜索：旧 comptime/const_eval/top-level const helper在 `crates/scoopc/src` 无生产命中；LLVM 普通去虚化无命中；LLVM wrapper/pass-view residual 仅见 layout 测试；pipeline 中的 P3/P4 output 交叉引用是 effect lowering 显式输入和“输出不保存 wrapper”的注释，符合 P8-T01 记录。
+- 验证已通过：`cargo fmt`；`cargo run -p scoop_tools -- dependency-gate`；`cargo run -p scoop_tools -- spec-fixtures check`；`cargo test --all --all-targets`；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
+- 已将 `TODO.md` 与 `TODO-6.md` 中 `P8-T01R` 标记为 `[DONE]` 并填写完成记录；`PLAN.md` 未修改，因为阶段计划没有变化。

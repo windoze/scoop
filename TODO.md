@@ -143,7 +143,7 @@
 | P7-T05-c | [DONE] | [`TODO-6.md`](./TODO-6.md#done-p7-t05-c清除-p7-t05r-发现的最终-llvm-hirbase-context-residual) | 清除 P7-T05R 发现的最终 LLVM HIR/base-context residual |
 | P7-T05R | [DONE] | [`TODO-6.md`](./TODO-6.md#done-p7-t05rreview-p7-全包完成度) | Review P7 全包完成度 |
 | P8-T01 | [DONE] | [`TODO-6.md`](./TODO-6.md#done-p8-t01最终-residual-搜索文档冻结与未来-c-backend-输入边界) | 最终 residual 搜索、文档冻结与未来 C backend 输入边界 |
-| P8-T01R | [TODO] | [`TODO-6.md`](./TODO-6.md#todo-p8-t01rreview-final-residual-搜索与文档冻结) | Review final residual 搜索与文档冻结 |
+| P8-T01R | [DONE] | [`TODO-6.md`](./TODO-6.md#done-p8-t01rreview-final-residual-搜索与文档冻结) | Review final residual 搜索与文档冻结 |
 | P8-T02 | [TODO] | [`TODO-6.md`](./TODO-6.md#todo-p8-t02最终全仓验证与-release-readiness-清场) | 最终全仓验证与 release readiness 清场 |
 | P8-T02R | [TODO] | [`TODO-6.md`](./TODO-6.md#todo-p8-t02rreview-final-verification-与-release-readiness) | Review final verification 与 release readiness |
 | TODO-7-INIT | [TODO] | [`TODO-7.md`](./TODO-7.md#todo-todo-7-init初始化并细化本任务包) | 分析 P9-P10 需求，生成 `TODO-7.md` 详细任务列表并更新本索引 |

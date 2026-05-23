@@ -4,7 +4,7 @@
 > 细化时间：2026-05-22
 > 计划基线：[`PLAN.md`](./PLAN.md) §4/P6-P8
 > 索引：[`TODO.md`](./TODO.md)
-> 当前状态：`P7-T04-a` / `P7-T04-b-1` / `P7-T04-b-1R` / `P7-T04-b-2` / `P7-T04-b-2R` / `P7-T04-b-3` / `P7-T04-b-3R` / `P7-T04-b-4` / `P7-T04-b-4R` / `P7-T04-b-5` / `P7-T04-b-5R` / `P7-T04-b` / `P7-T04-bR` / `P7-T04-c` / `P7-T04-cR` / `P7-T04` / `P7-T04R` / `P7-T05` / `P7-T05-a` / `P7-T05-b-0` / `P7-T05-b` / `P7-T05-c` / `P7-T05R` / `P8-T01` 均已完成。P8 final residual/documentation freeze 已完成，下一步执行 `P8-T01R` review。
+> 当前状态：`P7-T04-a` / `P7-T04-b-1` / `P7-T04-b-1R` / `P7-T04-b-2` / `P7-T04-b-2R` / `P7-T04-b-3` / `P7-T04-b-3R` / `P7-T04-b-4` / `P7-T04-b-4R` / `P7-T04-b-5` / `P7-T04-b-5R` / `P7-T04-b` / `P7-T04-bR` / `P7-T04-c` / `P7-T04-cR` / `P7-T04` / `P7-T04R` / `P7-T05` / `P7-T05-a` / `P7-T05-b-0` / `P7-T05-b` / `P7-T05-c` / `P7-T05R` / `P8-T01` / `P8-T01R` 均已完成。P8 final residual/documentation freeze review 已完成，下一步执行 `P8-T02`。
 
 ## 范围
 
@@ -1458,7 +1458,7 @@
   - 验证过程中修复的真实失败：更新 `mir_lowered/aggregate_transport.mir` golden；修正两个 LIR tests 的 TypeStore owner；恢复 LIR-declared native extern 的 `gc-leaf-function` 属性；更新 LLVM stage callable-symbol test 到当前 key contract；刷新 failure-policy internal-bug sentinel baseline。
   - 验证通过：`cargo fmt`；`cargo run -p scoop_tools -- dependency-gate`；`cargo run -p scoop_tools -- spec-fixtures check`；`cargo test --all --all-targets`（长 timeout，最终通过）；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。额外通过：parser unit/lexer regression、parse fixtures、effect-lowered fixtures、`mir_lowered/aggregate_transport.scoop`、`gc_immix_write_barrier` standalone。
 
-## [TODO] P8-T01R：Review final residual 搜索与文档冻结
+## [DONE] P8-T01R：Review final residual 搜索与文档冻结
 
 - 参考：P8-T01。
 - 重点：
@@ -1472,7 +1472,11 @@
   - review 结论明确写出 residual/documentation freeze 成立，或列出阻塞项并在本 review 内修复。
 - 依赖：P8-T01
 - 完成记录：
-  - 待填写。
+  - Review 结论：P8-T01 residual/documentation freeze 成立；未发现需要阻塞 P8-T02 的旧 comptime/const surface、HIR/raw MIR/effect facts wrapper、backend-local ordinary dispatch 去虚化或 stage output 嵌套回退。
+  - residual 覆盖复审：旧 `comptime` keyword/token/lexer/parser surface、LLVM `const_eval` module 与 top-level const initializer helper 在 `crates/scoopc/src` 无生产命中；LLVM 普通去虚化 residual 搜索无命中；LLVM wrapper/pass-view residual 仅剩 layout 测试中的 `materialized_pass_view`，不进入 production codegen context。
+  - dependency gate 复审：`dependency-gate` 已覆盖 20 个 source boundary 文件，包含旧 comptime surface、LLVM const-eval helper、stage/emit/reachability/codegen context、legacy HIR function declaration/emission/identity、direct call lowering、ABI/source callable lookup、dispatch target、ordinary callee analysis 与 class ctor body emission，足以防止 P8-T01 抽查到的明显回退。
+  - 文档冻结复审：`README.md`、`PIPELINE_REFACTOR.md`、`PIPELINE-CLEANUP.md` 均明确 LLVM 与未来 C backend 共享 `LIR + LIR facts + base context` 输入边界，不把 workaround 或 historical residual 描述成长期合法路径；`TypeId` cross-process stable wire format owner 保持为 P10 per-cone build artifact serialization。
+  - 验证通过：`cargo fmt`；`cargo run -p scoop_tools -- dependency-gate`；`cargo run -p scoop_tools -- spec-fixtures check`；`cargo test --all --all-targets`；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
 
 ## [TODO] P8-T02：最终全仓验证与 release readiness 清场
 
