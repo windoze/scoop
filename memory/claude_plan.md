@@ -3,30 +3,30 @@
 ## Scope
 
 - Follow `TODO.md` as the authoritative task list.
-- Identify the first incomplete task by finding the first task heading not prefixed with `[DONE]`.
+- Identify the first task whose heading is not prefixed with `[DONE]`.
 - Complete exactly that one task, then stop.
-- Do not perform broad historical triage before selecting the task.
 
-## Execution Steps
+## Steps
 
 1. Read `TODO.md` and identify the first incomplete task.
-2. Check recent git context only as needed to detect unfinished work directly relevant to that task.
-3. Inspect the code, fixtures, and tests relevant to the selected task.
-4. Implement the task with minimal, spec-correct changes.
-5. Add or update focused tests/fixtures required by the task.
-6. Run relevant validation commands first, then broader validation if required by the task or if failures indicate risk.
-7. If an unscheduled failing test or fixture is observed, fix it or add the minimum prerequisite/follow-up task to `TODO.md` before marking completion.
-8. Update `TODO.md` by prefixing the completed task heading with `[DONE]` and adding a completion record.
-9. Update this plan file after key steps or plan changes.
-10. Review `git status` and `git diff`, then commit all task-related changes with a clear task-tagged message.
+2. Check recent repository context only as needed for that task, including the latest commit if it appears relevant.
+3. Inspect the code, tests, and fixtures directly related to the selected task.
+4. Implement the smallest spec-correct change that fully satisfies the task.
+5. Add or update tests/fixtures required by the task.
+6. Run targeted validation first, then broader required validation if feasible.
+7. If validation exposes unscheduled failures, fix them or add the minimum prerequisite task before marking the current task done.
+8. Update `TODO.md` by prefixing the completed task heading with `[DONE]` and filling its completion record.
+9. Update this file when key steps complete or the plan changes.
+10. Commit all relevant changes with a clear task-tagged message.
 11. Stop without starting the next task.
 
 ## Current Status
 
-- First incomplete task identified: `P7-T05-a` in `TODO-6.md`.
-- Latest commit is `[P7-T05R] Schedule backend residual cleanup`, directly relevant to `P7-T05-a`.
-- Current focus: remove LLVM production codegen residual access to `MaterializedMirPassView` / `materialized_pass_view()` and replace any remaining callable/body/signature fallback with published LIR/base contracts.
-- Implementation in progress: removed `CompilationUnitCodegenInputs.materialized_pass_view`, removed the codegen context accessor, switched direct-call signature lookup to LIR callable signature facts with parameter names, and expanded dependency-gate source boundary checks for the residual class.
-- Implementation complete: production LLVM codegen no longer accepts `MaterializedMirPassView` / `materialized_pass_view()`; body lookup uses LIR source callable helpers; source signatures for declaration-only/helper callables are published through LIR/base contracts.
-- Validation complete: dependency gate, LIR facts tests, no-default LLVM filters, default LLVM codegen tests, full run-pass fixtures, clippy with `-D warnings`, and `git diff --check` passed.
-- TODO status updated: `P7-T05-a` is marked `[DONE]` in `TODO.md` and `TODO-6.md` with completion record.
+- Plan recorded before task execution.
+- `TODO.md` first incomplete task identified: `P7-T05R` in `TODO-6.md`.
+- `P7-T05R` requirements inspected. Latest commit `[P7-T05-a] Clear LLVM codegen residuals` is directly relevant and is the prerequisite cleanup to review.
+- Current review focus: verify LLVM production backend no longer reaches through `MaterializedMirPassView` / HIR or raw MIR fallback for body/signature/ABI contracts, and rerun the P7-T05 validation matrix.
+- Review found a concrete blocker: pass-view residuals are gone, but LLVM production still has HIR-derived callable signature/ABI/body paths (`source_signatures`, `fun_index`, `hir::FunDecl`) and class ctor HIR body lowering.
+- Added prerequisite task `P7-T05-b` before `P7-T05R` in `TODO.md` and `TODO-6.md`. `P7-T05R` remains incomplete and now depends on `P7-T05-b`.
+- Validation complete for the blocker scheduling change: `git diff --check` passed. The full `P7-T05R` validation matrix was not run because the review remains blocked by `P7-T05-b`.
+- Next step: commit the task-list update and stop.
