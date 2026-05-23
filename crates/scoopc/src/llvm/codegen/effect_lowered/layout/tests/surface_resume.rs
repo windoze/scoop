@@ -61,7 +61,7 @@ pub(super) fn llvm_surface_resume_layout_resolves_resume_site_contracts() {
         |inputs, result, module| {
             let query = result.expect("resume fixture 应可物化 surface-resume ABI");
             let mut checked_resume_site = false;
-            for callable in inputs.effect_lowered_stage_output.program().callables() {
+            for callable in inputs.lir_stage_output.program().callables() {
                 if !callable.has_control_body() {
                     continue;
                 }
@@ -572,7 +572,7 @@ pub(super) fn llvm_surface_resume_wrapper_completion_resolves_payload_source() {
         |inputs, result, _module| {
             let query = result.expect("ABI materialization 应成功");
             let callable = inputs
-                .effect_lowered_stage_output
+                .lir_stage_output
                 .program()
                 .callable("main")
                 .expect("main callable 应存在");

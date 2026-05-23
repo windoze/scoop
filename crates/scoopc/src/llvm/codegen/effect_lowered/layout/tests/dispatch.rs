@@ -428,7 +428,7 @@ pub(super) fn llvm_local_runtime_error_contract_resolves_pure_call_boundary_targ
             let query =
                 result.expect("pure caller local runtime-error contract 应可发布到 ABI query");
             let main = inputs
-                .effect_lowered_stage_output
+                .lir_stage_output
                 .program()
                 .callable("main")
                 .expect("main callable 应存在");

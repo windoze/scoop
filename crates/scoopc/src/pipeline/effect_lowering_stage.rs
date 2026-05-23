@@ -1,12 +1,9 @@
 use std::fmt::Write;
 
-use crate::effect_facts::{MaterializedEffectFacts, MirSnapshotBinding};
 use crate::effect_lowered::{
     EffectLoweringError, LateLoweredOptOptions, LateLoweredProgram, LateLoweredProgramBuilder,
     run_lir_opt_pipeline,
 };
-use crate::mir::{MaterializedMir, MaterializedMirPassView};
-use crate::ty::TypeStore;
 use scoopc_lir_facts::LirFacts;
 
 use super::{EffectFactsStageOutput, MirStageOutput};
@@ -59,72 +56,11 @@ impl EffectLoweringStageInput {
 pub struct LirStageOutput {
     lir: LateLoweredProgram,
     lir_facts: LirFacts,
-    context: LirStageContext,
 }
-
-/// Explicit base context retained for current LLVM/backend compatibility.
-///
-/// This is deliberately not a nested upstream stage output wrapper. Codegen-neutral
-/// contracts live in `LirFacts`; the remaining raw MIR/effect context is a TODO-6/P7
-/// backend residual for body emission, reachability, physical layout, and type bridging.
-#[derive(Debug)]
-struct LirStageContext {
-    materialized_mir: MaterializedMir,
-    effect_facts: MaterializedEffectFacts,
-}
-
-impl LirStageContext {
-    fn from_stage_inputs(
-        mir_stage_output: MirStageOutput,
-        effect_facts_stage_output: EffectFactsStageOutput,
-    ) -> Self {
-        let (_direct_style, materialized_mir) = mir_stage_output.into_parts();
-        Self {
-            materialized_mir,
-            effect_facts: effect_facts_stage_output.into_effect_facts(),
-        }
-    }
-}
-
-/// Compatibility alias for current callers that still use the old late-lowering name.
-pub type EffectLoweredStageOutput = LirStageOutput;
 
 impl LirStageOutput {
-    fn new(
-        lir: LateLoweredProgram,
-        lir_facts: LirFacts,
-        mir_stage_output: MirStageOutput,
-        effect_facts_stage_output: EffectFactsStageOutput,
-    ) -> Self {
-        Self {
-            lir,
-            lir_facts,
-            context: LirStageContext::from_stage_inputs(
-                mir_stage_output,
-                effect_facts_stage_output,
-            ),
-        }
-    }
-
-    fn snapshot_binding(&self) -> &MirSnapshotBinding {
-        self.effect_facts().snapshot_binding()
-    }
-
-    fn materialized_mir(&self) -> &MaterializedMir {
-        &self.context.materialized_mir
-    }
-
-    #[cfg_attr(not(feature = "llvm"), allow(dead_code))]
-    pub(crate) fn llvm_residual_pass_view(&self) -> MaterializedMirPassView<'_> {
-        self.context.materialized_mir.pass_view()
-    }
-
-    pub fn types(&self) -> &TypeStore {
-        self.effect_facts().types()
-    }
-
-    fn effect_facts(&self) -> &MaterializedEffectFacts {
-        &self.context.effect_facts
+    fn new(lir: LateLoweredProgram, lir_facts: LirFacts) -> Self {
+        Self { lir, lir_facts }
     }
 
     pub fn lir(&self) -> &LateLoweredProgram {
@@ -154,16 +90,6 @@ pub(crate) fn run(input: EffectLoweringStageInput) -> Result<LirStageOutput, Eff
 }
 
 #[cfg_attr(not(feature = "llvm"), allow(dead_code))]
-pub(crate) fn run_preserving_published_resume_shells(
-    input: EffectLoweringStageInput,
-) -> Result<LirStageOutput, EffectLoweringError> {
-    run_with_opt_options(
-        input,
-        LateLoweredOptOptions::preserve_published_resume_shells(),
-    )
-}
-
-#[cfg_attr(not(feature = "llvm"), allow(dead_code))]
 fn run_with_opt_options(
     input: EffectLoweringStageInput,
     opt_options: LateLoweredOptOptions,
@@ -172,6 +98,19 @@ fn run_with_opt_options(
         mir_stage_output,
         effect_facts_stage_output,
     } = input;
+    build_lir_stage_output_from_stage_outputs(
+        &mir_stage_output,
+        &effect_facts_stage_output,
+        opt_options,
+    )
+}
+
+#[cfg_attr(not(feature = "llvm"), allow(dead_code))]
+pub(crate) fn build_lir_stage_output_from_stage_outputs(
+    mir_stage_output: &MirStageOutput,
+    effect_facts_stage_output: &EffectFactsStageOutput,
+    opt_options: LateLoweredOptOptions,
+) -> Result<LirStageOutput, EffectLoweringError> {
     let raw_lir = LateLoweredProgramBuilder::from_canonical_inputs(
         mir_stage_output.materialized_pass_view(),
         effect_facts_stage_output.effect_facts(),
@@ -192,45 +131,18 @@ fn run_with_opt_options(
         mir_stage_output.materialized_mir().opt_level(),
         opt_pipeline,
     )?;
-    Ok(LirStageOutput::new(
-        lir,
-        lir_facts,
-        mir_stage_output,
-        effect_facts_stage_output,
-    ))
+    Ok(LirStageOutput::new(lir, lir_facts))
 }
 
 fn render_stage_output(output: &LirStageOutput) -> String {
-    let binding = output.snapshot_binding();
     let mut rendered = String::new();
     writeln!(&mut rendered, "LirStageOutput").unwrap();
     writeln!(
         &mut rendered,
         "opt_level: O{}",
-        output.materialized_mir().opt_level().as_str()
+        output.lir_facts().summary.opt_level.as_str()
     )
     .unwrap();
-    writeln!(&mut rendered, "snapshot_binding:").unwrap();
-    writeln!(
-        &mut rendered,
-        "  query_surface: {:?}",
-        binding.query_surface()
-    )
-    .unwrap();
-    writeln!(
-        &mut rendered,
-        "  instance_count: {}",
-        binding.instance_count()
-    )
-    .unwrap();
-    writeln!(&mut rendered, "  canonical_body_fqns:").unwrap();
-    if binding.canonical_body_fqns().is_empty() {
-        writeln!(&mut rendered, "    <none>").unwrap();
-    } else {
-        for fqn in binding.canonical_body_fqns() {
-            writeln!(&mut rendered, "    - {fqn}").unwrap();
-        }
-    }
     writeln!(&mut rendered, "lir_facts:").unwrap();
     rendered.push_str(&output.lir_facts().dump());
     rendered.push('\n');
@@ -242,7 +154,7 @@ fn render_stage_output(output: &LirStageOutput) -> String {
 #[cfg(test)]
 mod tests {
     use super::{EffectLoweringStageInput, LirStageOutput};
-    use crate::effect_facts::{CallableAbiKind, CanonicalMirQuerySurface};
+    use crate::effect_facts::CallableAbiKind;
     use crate::opt::OptLevel;
     use crate::session::{Session, SessionOptions};
     use crate::source::SourceFile;
@@ -444,14 +356,6 @@ fun main(): Int {
         let output = run_sample();
 
         assert_eq!(
-            output.snapshot_binding().query_surface(),
-            CanonicalMirQuerySurface::PassView
-        );
-        assert_eq!(
-            output.program().len(),
-            output.effect_facts().callable_facts().len()
-        );
-        assert_eq!(
             output.lir_facts().summary.callable_count,
             output.program().len()
         );
@@ -510,7 +414,7 @@ fun main(): Int {
             expected_abi == CallableAbiKind::Plain
         );
         assert_eq!(
-            output.effect_facts().callable_facts().len(),
+            output.lir_facts().summary.callable_count,
             output.program().len()
         );
     }
@@ -546,7 +450,6 @@ fun main(): Int {
 
         assert!(dump.contains("LirStageOutput"));
         assert!(dump.contains("opt_level: O2"));
-        assert!(dump.contains("snapshot_binding:"));
         assert!(dump.contains("lir_facts:"));
         assert!(dump.contains("opt_pipeline:"));
         assert!(dump.contains("pass=local-state-machine-elimination"));

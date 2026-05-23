@@ -1017,14 +1017,14 @@ mod tests {
         SourceFile::load(&path).expect("fixture 应可加载")
     }
 
-    fn load_output(source: &SourceFile) -> crate::pipeline::EffectLoweredStageOutput {
+    fn load_output(source: &SourceFile) -> crate::pipeline::LirStageOutput {
         let session = session();
         load_effect_lowered_stage_output_for_dump(&session, source)
             .expect("fixture 应可通过 late-lowering stage")
     }
 
     fn callable<'a>(
-        output: &'a crate::pipeline::EffectLoweredStageOutput,
+        output: &'a crate::pipeline::LirStageOutput,
         fqn: &str,
     ) -> &'a crate::effect_lowered::LateLoweredCallable {
         output
@@ -1447,8 +1447,6 @@ fun main(): Int {
     fn owner_resume_state_builder_consumes_only_p4_facts_and_mir_shape() {
         let session = session();
         let source = load_fixture("effect_facts", "dynamic_fallback_widening.scoop");
-        let effect_lowered_output = load_effect_lowered_stage_output_for_dump(&session, &source)
-            .expect("fixture 应可通过 late-lowering stage");
         let mir_stage_output = load_p4_ready_mir_stage_output_for_dump(&session, &source)
             .expect("fixture 应可通过 P4-ready MIR stage");
         let effect_facts_output =
@@ -1472,7 +1470,7 @@ fun main(): Int {
 
         let segmentation = build_callable_segmentation(
             "sample.callValue",
-            effect_lowered_output.types(),
+            effect_facts_output.effect_facts().types(),
             body,
             body_facts,
             root_fun.return_ty,

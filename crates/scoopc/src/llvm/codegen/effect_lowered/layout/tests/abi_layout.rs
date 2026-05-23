@@ -52,7 +52,7 @@ pub(super) fn llvm_layout_resolves_unit_case_payload_contract() {
         "effect_lowered_dynamic_invoke_unit_payload.scoop",
         |inputs, query, _module| {
             let callable = inputs
-                .effect_lowered_stage_output
+                .lir_stage_output
                 .program()
                 .callable("fixtures.build.unitWorker")
                 .expect("unitWorker callable 应存在");
@@ -96,8 +96,7 @@ pub(super) fn llvm_layout_resolves_tuple_resume_payload_and_answer_contract() {
                 .flat_map(|object| object.surface_resumes().iter())
                 .find(|surface| {
                     inputs
-                        .effect_lowered_stage_output
-                        .types()
+                        .primary_types()
                         .display(surface.resume_tuple_ty())
                         .to_string()
                         == "(Int, String)"
@@ -131,7 +130,7 @@ pub(super) fn llvm_layout_resolves_tuple_resume_payload_and_answer_contract() {
 #[test]
 pub(super) fn llvm_layout_rejects_unlowerable_invoke_args_type() {
     let inputs = build_fixture_inputs("effect_lowered_step_enum_single_case.scoop");
-    let mut source_types = inputs.effect_lowered_stage_output.types().clone();
+    let mut source_types = inputs.primary_types().clone();
     let param_ty = source_types.ty_param(TypeParamType {
         name: "SyntheticInvokeArgs".to_string(),
         decl_file: std::path::PathBuf::from("tests/p6_t02i.synthetic"),
@@ -200,7 +199,7 @@ pub(super) fn llvm_unit_abi_elides_zero_sized_args_and_resume_payloads() {
         |inputs, result, module| {
             let query = result.expect("published unit resume packing 应可物化 ABI");
             let callable = inputs
-                .effect_lowered_stage_output
+                .lir_stage_output
                 .program()
                 .callable("fixtures.build.unitWorker")
                 .expect("callable 应存在");
@@ -211,7 +210,7 @@ pub(super) fn llvm_unit_abi_elides_zero_sized_args_and_resume_payloads() {
                 .step_layout(callable.step_schema())
                 .expect("step layout 应可查询");
             let continuation_object = inputs
-                .effect_lowered_stage_output
+                .lir_stage_output
                 .program()
                 .continuation_object(callable.continuation_object())
                 .expect("continuation object 应存在");

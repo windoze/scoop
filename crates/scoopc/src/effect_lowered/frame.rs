@@ -1173,7 +1173,9 @@ fn reachable_case_tags(
 #[cfg(test)]
 mod tests {
     use crate::effect_lowered::ir::SystemSlotKind;
-    use crate::pipeline::load_effect_lowered_stage_output_for_dump;
+    use crate::pipeline::{
+        load_effect_lowered_stage_output_for_dump, load_p4_ready_mir_stage_output_for_dump,
+    };
     use crate::session::{Session, SessionOptions};
     use crate::source::SourceFile;
 
@@ -1181,14 +1183,14 @@ mod tests {
         Session::with_options(SessionOptions::new()).unwrap()
     }
 
-    fn load_output(source: &SourceFile) -> crate::pipeline::EffectLoweredStageOutput {
+    fn load_output(source: &SourceFile) -> crate::pipeline::LirStageOutput {
         let session = session();
         load_effect_lowered_stage_output_for_dump(&session, source)
             .expect("fixture 应可通过 late-lowering stage")
     }
 
     fn callable<'a>(
-        output: &'a crate::pipeline::EffectLoweredStageOutput,
+        output: &'a crate::pipeline::LirStageOutput,
         fqn: &str,
     ) -> &'a crate::effect_lowered::LateLoweredCallable {
         output
@@ -1308,7 +1310,7 @@ fun main(): Int {
 
     #[test]
     fn frame_lifting_uses_stable_mir_local_source_metadata() {
-        let output = load_output(&SourceFile::new_virtual(
+        let source = SourceFile::new_virtual(
             "<mem>/effect_lowered_tmp_named_source_local.scoop",
             r#"
 package sample
@@ -1331,9 +1333,13 @@ fun main(): Int {
     return 0
 }
 "#,
-        ));
+        );
+        let output = load_output(&source);
+        let session = session();
+        let mir_output = load_p4_ready_mir_stage_output_for_dump(&session, &source)
+            .expect("fixture 应可通过 P4-ready MIR stage");
         let callable = callable(&output, "sample.helper");
-        let pass_view = output.llvm_residual_pass_view();
+        let pass_view = mir_output.materialized_pass_view();
         let mir_fun = pass_view
             .callable("sample.helper")
             .expect("sample.helper 应保留 canonical MIR body");
@@ -1454,7 +1460,7 @@ fun main(): Int {
 
     #[test]
     fn frame_lifting_captures_locals_used_by_routed_handle_arm() {
-        let output = load_output(&SourceFile::new_virtual(
+        let source = SourceFile::new_virtual(
             "<mem>/effect_lowered_nested_arm_replay_capture.scoop",
             r#"
 package sample
@@ -1498,9 +1504,13 @@ fun start(cell: Cell): Int {
 
 fun main() {}
 "#,
-        ));
+        );
+        let output = load_output(&source);
+        let session = session();
+        let mir_output = load_p4_ready_mir_stage_output_for_dump(&session, &source)
+            .expect("fixture 应可通过 P4-ready MIR stage");
         let callable = callable(&output, "sample.start");
-        let pass_view = output.llvm_residual_pass_view();
+        let pass_view = mir_output.materialized_pass_view();
         let mir_fun = pass_view
             .callable("sample.start")
             .expect("sample.start 应保留 canonical MIR body");

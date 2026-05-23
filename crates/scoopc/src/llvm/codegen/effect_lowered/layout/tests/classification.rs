@@ -103,7 +103,7 @@ pub(super) fn llvm_step_layout_keeps_canonical_case_set_for_single_case_callable
         "effect_lowered_step_enum_single_case.scoop",
         |inputs, query, module| {
             let callable = inputs
-                .effect_lowered_stage_output
+                .lir_stage_output
                 .program()
                 .callable("fixtures.build.singleCaseWorker")
                 .expect("callable 应存在");
@@ -173,7 +173,7 @@ pub(super) fn llvm_frame_layout_preserves_slot_indices_and_system_fields() {
         "effect_lowered_step_enum_single_case.scoop",
         |inputs, query, _module| {
             let callable = inputs
-                .effect_lowered_stage_output
+                .lir_stage_output
                 .program()
                 .callable("fixtures.build.singleCaseWorker")
                 .expect("callable 应存在");
@@ -225,7 +225,7 @@ pub(super) fn llvm_continuation_layout_keeps_full_method_set() {
         |inputs, result, module| {
             let query = result.expect("published full method set 应可物化 ABI");
             let callable = inputs
-                .effect_lowered_stage_output
+                .lir_stage_output
                 .program()
                 .callable("fixtures.build.singleCaseWorker")
                 .expect("callable 应存在");
@@ -290,7 +290,7 @@ pub(super) fn llvm_continuation_layout_uses_codegen_owned_fields() {
         "effect_lowered_step_enum_single_case.scoop",
         |inputs, query, _module| {
             let callable = inputs
-                .effect_lowered_stage_output
+                .lir_stage_output
                 .program()
                 .callable("fixtures.build.singleCaseWorker")
                 .expect("callable 应存在");
@@ -462,7 +462,7 @@ pub(super) fn llvm_continuation_layout_preserves_authoritative_method_order() {
         |inputs, result, _module| {
             let query = result.expect("reordered authoritative methods 应仍可物化 ABI");
             let callable = inputs
-                .effect_lowered_stage_output
+                .lir_stage_output
                 .program()
                 .callable("fixtures.build.singleCaseWorker")
                 .expect("callable 应存在");
@@ -533,7 +533,7 @@ pub(super) fn llvm_continuation_layout_rejects_missing_published_packing() {
         },
         |inputs, result, _module| {
             let callable = inputs
-                .effect_lowered_stage_output
+                .lir_stage_output
                 .program()
                 .callable("fixtures.build.singleCaseWorker")
                 .expect("callable 应存在");
@@ -590,7 +590,7 @@ pub(super) fn llvm_call_target_query_preserves_known_instance_direct_entries() {
         |inputs| inputs.abi_visibility_program.clone(),
         |inputs, result, _module| {
             let query = result.expect("known-instance direct call 应可回查 callable entry");
-            let program = inputs.effect_lowered_stage_output.program();
+            let program = inputs.lir_stage_output.program();
             let main = program.callable("main").expect("main callable 应存在");
             let helper = program.callable("helper").expect("helper callable 应存在");
             let main_plain = main.plain_abi().expect("main 应保持 plain callable ABI");
@@ -722,8 +722,7 @@ pub(super) fn llvm_boundary_operand_contract_resolves_direct_call_anchor_and_arg
             assert_eq!(layout.contract().arg_sources().len(), 1);
             assert_eq!(
                 inputs
-                    .effect_lowered_stage_output
-                    .types()
+                    .primary_types()
                     .display(layout.contract().arg_sources()[0].source_ty())
                     .to_string(),
                 "Bool"
@@ -1265,8 +1264,7 @@ pub(super) fn llvm_completion_payload_contract_resolves_return_state_query() {
             assert_eq!(layout.payload_source(), binding.payload_source());
             assert_eq!(
                 inputs
-                    .effect_lowered_stage_output
-                    .types()
+                    .primary_types()
                     .display(layout.payload_source().source_ty())
                     .to_string(),
                 "Int"
@@ -1673,7 +1671,7 @@ pub(super) fn llvm_dynamic_invoke_query_resolves_fun_value_unit_contract() {
         |inputs, result, _module| {
             let query = result.expect("fun-value DynamicFallback 应可物化 dynamic invoke contract");
             let callable = inputs
-                .effect_lowered_stage_output
+                .lir_stage_output
                 .program()
                 .callable("sample.callValue")
                 .expect("sample.callValue callable 应存在");
@@ -1753,8 +1751,7 @@ pub(super) fn llvm_callable_carrier_layout_resolves_virtual_candidate_set_contra
                 DynamicInvokeCarrierLayout::VirtualReceiver(dispatch) => {
                     assert_eq!(
                         inputs
-                            .effect_lowered_stage_output
-                            .types()
+                            .primary_types()
                             .display(dispatch.receiver_ty())
                             .to_string(),
                         "fixtures.build.Base"

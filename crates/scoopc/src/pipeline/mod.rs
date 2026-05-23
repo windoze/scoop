@@ -21,9 +21,9 @@ use crate::source::SourceFile;
 
 pub use ast_stage::{AstCompilationUnitOutput, AstStageOutput};
 pub use effect_facts_stage::EffectFactsStageOutput;
-pub use effect_lowering_stage::{
-    EffectLoweredStageOutput, EffectLoweringStageInput, LirStageOutput,
-};
+#[cfg(all(feature = "llvm", test))]
+pub(crate) use effect_lowering_stage::build_lir_stage_output_from_stage_outputs;
+pub use effect_lowering_stage::{EffectLoweringStageInput, LirStageOutput};
 pub use hir_stage::HirStageOutput;
 pub(crate) use hir_stage::build_hir_declaration_facts_from_lowered_hir;
 pub(crate) use hir_stage::build_hir_facts_from_lowered_hir;
@@ -35,7 +35,7 @@ pub(crate) use hir_stage::{
     TypedCallSiteContract, TypedIntrinsicKind,
 };
 #[cfg(feature = "llvm")]
-pub use llvm_codegen_stage::{LlvmCodegenStageInput, LlvmCodegenStageOutput};
+pub use llvm_codegen_stage::{LlvmCodegenStageInput, LlvmCodegenStageOutput, LlvmStageBaseContext};
 pub use mir_stage::{DirectStyleMirStageOutput, MirStageOutput};
 
 #[cfg(feature = "llvm")]

@@ -5981,6 +5981,9 @@ mod tests {
         let source = load_fixture("effect_facts", "single_case_impl_plan.scoop");
         let output = load_effect_lowered_stage_output_for_dump(&session, &source)
             .expect("fixture 应可通过 late-lowering stage");
+        let mir_stage_output = load_p4_ready_mir_stage_output_for_dump(&session, &source)
+            .expect("fixture 应可通过 P4-ready MIR stage");
+        let types = &mir_stage_output.materialized_mir().types;
         let leaf = output
             .program()
             .callable("sample.leaf")
@@ -6002,10 +6005,7 @@ mod tests {
             .expect("single-case callable 应至少有一个 reachable continuation method");
 
         assert_eq!(
-            output
-                .types()
-                .display(reachable_method.surface_ty())
-                .to_string(),
+            types.display(reachable_method.surface_ty()).to_string(),
             "scoop.core.Continuation<Unit, Unit, eff sample.Ping>"
         );
         assert_eq!(reachable_method.out_step_schema(), leaf.step_schema());
@@ -6020,8 +6020,7 @@ mod tests {
             "callable Step shell 仍应保留 compiler-generated runtime-error case"
         );
         assert!(
-            !output
-                .types()
+            !types
                 .display(reachable_method.surface_ty())
                 .to_string()
                 .contains("RuntimeError"),
@@ -6035,21 +6034,23 @@ mod tests {
         let source = load_fixture("effect_facts", "dispatch_and_resume_call.scoop");
         let output = load_effect_lowered_stage_output_for_dump(&session, &source)
             .expect("fixture 应可通过 late-lowering stage");
+        let mir_stage_output = load_p4_ready_mir_stage_output_for_dump(&session, &source)
+            .expect("fixture 应可通过 P4-ready MIR stage");
+        let types = &mir_stage_output.materialized_mir().types;
         let widened_surface_method = output
             .program()
             .resume_packings()
             .iter()
             .flat_map(|interface| interface.methods().iter())
             .find(|method| {
-                output.types().display(method.surface_ty()).to_string()
+                types.display(method.surface_ty()).to_string()
                     == "scoop.core.Continuation<Int, Unit, eff (scoop.core.Raise<scoop.core.RuntimeError> + fixtures.mir.Boom)>"
             })
             .expect("应保留 source residual row 本就含 runtime error 的 resume method shell");
         let dump = output.stable_dump();
 
         assert_eq!(
-            output
-                .types()
+            types
                 .display(widened_surface_method.surface_ty())
                 .to_string(),
             "scoop.core.Continuation<Int, Unit, eff (scoop.core.Raise<scoop.core.RuntimeError> + fixtures.mir.Boom)>"

@@ -13,7 +13,7 @@ pub(super) fn handle_dispatch_contract_publishes_llvm_query_layout() {
         |inputs, result, _module| {
             let query = result.expect("HandleDispatch contract 应可发布到 LLVM ABI query");
             let callable = inputs
-                .effect_lowered_stage_output
+                .lir_stage_output
                 .program()
                 .callable("sample.nested_may_suspend_outward")
                 .expect("callable 应存在");
@@ -108,7 +108,7 @@ return handle {
             let query =
                 result.expect("pending payload transport 应可发布到 HandleDispatch LLVM query");
             let callable = inputs
-                .effect_lowered_stage_output
+                .lir_stage_output
                 .program()
                 .callable("sample.propagate_before_finally")
                 .expect("sample.propagate_before_finally callable 应存在");
@@ -275,7 +275,7 @@ pub(super) fn handle_dispatch_region_routing_publishes_query_lookup() {
         |inputs, result, _module| {
             let query = result.expect("handle region routing contract 应可发布到 LLVM ABI query");
             let callable = inputs
-                .effect_lowered_stage_output
+                .lir_stage_output
                 .program()
                 .callable("executeCase")
                 .expect("run callable 应存在");
@@ -466,7 +466,7 @@ return 0
         |inputs, result, _module| {
             let query = result.expect("handle arm binder contract 应可发布到 LLVM ABI query");
             let callable = inputs
-                .effect_lowered_stage_output
+                .lir_stage_output
                 .program()
                 .callable("sample.run")
                 .expect("sample.run callable 应存在");
@@ -511,7 +511,7 @@ pub(super) fn handle_arm_continuation_binding_publishes_mixed_multi_arm_query_la
         |inputs, result, _module| {
             let query = result.expect("mixed multi-arm handle 应可发布 arm binder query");
             let callable = inputs
-                .effect_lowered_stage_output
+                .lir_stage_output
                 .program()
                 .callable("main")
                 .expect("main callable 应存在");

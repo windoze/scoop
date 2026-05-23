@@ -277,6 +277,7 @@ impl MirStageOutput {
         self.direct_style
     }
 
+    #[cfg_attr(not(feature = "llvm"), allow(dead_code))]
     pub(crate) fn into_parts(self) -> (DirectStyleMirStageOutput, MaterializedMir) {
         (self.direct_style, self.materialized_mir)
     }

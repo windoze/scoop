@@ -29,6 +29,7 @@ impl EffectFactsStageOutput {
         &self.effect_facts
     }
 
+    #[cfg_attr(not(feature = "llvm"), allow(dead_code))]
     pub(crate) fn into_effect_facts(self) -> MaterializedEffectFacts {
         self.effect_facts
     }

@@ -1,5 +1,5 @@
 use std::cell::RefCell;
-use std::collections::{BTreeSet, HashMap};
+use std::collections::BTreeSet;
 use std::rc::Rc;
 
 use super::surface_resume::surface_resume_publication_owner_identity;
@@ -30,24 +30,29 @@ use crate::llvm::codegen::{
 use crate::llvm::target;
 use crate::mir::{LoweredMir, MirLoweringFacts, SiteId, lower_hir_file_for_dump_with_facts};
 use crate::pipeline::{
-    DirectStyleMirStageOutput, EffectLoweringStageInput, build_effect_facts_stage_output,
-    build_effect_lowered_stage_output, load_hir_stage_output_for_dump,
+    DirectStyleMirStageOutput, LirStageOutput, LlvmStageBaseContext,
+    build_effect_facts_stage_output, build_lir_stage_output_from_stage_outputs,
+    load_hir_stage_output_for_dump,
 };
 use crate::session::{Session, SessionOptions};
 use crate::source::{SourceFile, SourceMap};
 use crate::ty::{TypeParamType, TypeStore};
 use inkwell::context::Context;
-use scoopc_hir_facts::HirFacts;
 use scoopc_lir_facts::{LirCallSiteContract, LirCallableContract};
 
 struct FixtureAbiInputs {
     source_map: SourceMap,
     entry_source_id: crate::source::SourceId,
-    hir_compat_scaffold: crate::hir::LoweredHir,
-    hir_facts: HirFacts,
-    effect_lowered_stage_output: crate::pipeline::EffectLoweredStageOutput,
+    base_context: LlvmStageBaseContext,
+    lir_stage_output: LirStageOutput,
     abi_visibility_program: LateLoweredProgram,
     abi_visibility_lir_facts: scoopc_lir_facts::LirFacts,
+}
+
+impl FixtureAbiInputs {
+    fn primary_types(&self) -> &TypeStore {
+        self.base_context.types()
+    }
 }
 
 fn session() -> Session {
@@ -71,7 +76,7 @@ fn build_fixture_inputs_from_source(source: SourceFile) -> FixtureAbiInputs {
     let typed_hir_output =
         load_hir_stage_output_for_dump(&session, &source).expect("HIR stage 应成功");
     let hir_facts = typed_hir_output.hir_facts().clone();
-    let hir_compat_scaffold = typed_hir_output.lowered_hir().clone();
+    let source_side_tables = typed_hir_output.lowered_hir().clone();
     let facts = MirLoweringFacts::from_hir_facts(
         typed_hir_output.lowered_hir(),
         typed_hir_output.hir_facts(),
@@ -124,20 +129,27 @@ fn build_fixture_inputs_from_source(source: SourceFile) -> FixtureAbiInputs {
         abi_visibility_opt_pipeline,
     )
     .expect("ABI visibility LIR facts 应成功");
-    let effect_lowered_stage_output = build_effect_lowered_stage_output(
-        &session,
-        EffectLoweringStageInput::new(mir_stage_output, effect_facts_stage_output),
+    let lir_stage_output = build_lir_stage_output_from_stage_outputs(
+        &mir_stage_output,
+        &effect_facts_stage_output,
+        LateLoweredOptOptions::default(),
     )
     .expect("effect lowered stage 应成功");
+    let (_direct_style, materialized_mir) = mir_stage_output.into_parts();
+    let base_context = LlvmStageBaseContext::from_lowered_hir(
+        source_side_tables,
+        hir_facts,
+        materialized_mir,
+        effect_facts_stage_output.into_effect_facts(),
+    );
     let input_sources = vec![source.clone()];
     let (source_map, entry_source_id) =
         crate::llvm::frontend::build_source_map_with_extra_sources(&session, &input_sources, 0);
     FixtureAbiInputs {
         source_map,
         entry_source_id,
-        hir_compat_scaffold,
-        hir_facts,
-        effect_lowered_stage_output,
+        base_context,
+        lir_stage_output,
         abi_visibility_program,
         abi_visibility_lir_facts,
     }
@@ -162,19 +174,9 @@ fn with_inputs_query_result(
     let builder = context.create_builder();
     let target_info = target::configure_module_for_host(&module).expect("host target 应可配置");
     let target_data = inkwell::targets::TargetData::create(&target_info.data_layout);
-    let lowered = &inputs.hir_compat_scaffold;
-    let fun_index: HashMap<String, &crate::hir::FunDecl> = lowered
-        .file
-        .items
-        .iter()
-        .filter_map(|item| match item {
-            crate::hir::Item::Fun(fun) => Some(fun),
-            _ => None,
-        })
-        .chain(lowered.member_funs.iter())
-        .map(|fun| (fun.fqn.clone(), fun))
-        .collect();
-    let hir_facts = Rc::new(inputs.hir_facts.clone());
+    let base = &inputs.base_context;
+    let fun_index = base.fun_index();
+    let hir_facts = Rc::new(base.hir_facts().clone());
     let effect_op_tags = Rc::new(RefCell::new(EffectOpTagState::new()));
     let unit_codegen = CompilationUnitCodegenCx::new(CompilationUnitCodegenInputs {
         context: &context,
@@ -184,35 +186,35 @@ fn with_inputs_query_result(
         host: &target_info,
         source_map: &inputs.source_map,
         entry_source_id: inputs.entry_source_id,
-        stable_cone_key: &lowered.stable_cone_key,
-        source_cones: &lowered.source_cones,
-        stable_type_param_keys: &lowered.stable_type_param_keys,
-        types: &lowered.types,
-        struct_layouts: &lowered.struct_layouts,
-        enum_layouts: &lowered.enum_layouts,
-        top_level_vars: &lowered.top_level_vars,
-        top_level_immutable_values: &lowered.top_level_immutable_values,
-        top_level_fun_call_sites: &lowered.top_level_fun_call_sites,
-        object_inits: &lowered.object_inits,
-        class_inits: &lowered.class_inits,
-        class_vtables: &lowered.class_vtables,
-        interfaces: &lowered.interfaces,
-        class_itables: &lowered.class_itables,
-        ctor_call_sites: &lowered.ctor_call_sites,
-        dispatch_call_sites: &lowered.dispatch_call_sites,
-        effect_op_call_sites: &lowered.effect_op_call_sites,
-        continuation_resume_call_sites: &lowered.continuation_resume_call_sites,
-        when_pat_binding_tys: &lowered.when_pat_binding_tys,
-        nominal_kinds: &lowered.nominal_kinds,
-        direct_supertypes: &lowered.direct_supertypes,
-        builtins: lowered.builtins,
-        extern_funs: &lowered.extern_funs,
-        native_callable_funs: &lowered.native_callable_funs,
+        stable_cone_key: base.stable_cone_key(),
+        source_cones: base.source_cones(),
+        stable_type_param_keys: base.stable_type_param_keys(),
+        types: base.types(),
+        struct_layouts: base.struct_layouts(),
+        enum_layouts: base.enum_layouts(),
+        top_level_vars: base.top_level_vars(),
+        top_level_immutable_values: base.top_level_immutable_values(),
+        top_level_fun_call_sites: base.top_level_fun_call_sites(),
+        object_inits: base.object_inits(),
+        class_inits: base.class_inits(),
+        class_vtables: base.class_vtables(),
+        interfaces: base.interfaces(),
+        class_itables: base.class_itables(),
+        ctor_call_sites: base.ctor_call_sites(),
+        dispatch_call_sites: base.dispatch_call_sites(),
+        effect_op_call_sites: base.effect_op_call_sites(),
+        continuation_resume_call_sites: base.continuation_resume_call_sites(),
+        when_pat_binding_tys: base.when_pat_binding_tys(),
+        nominal_kinds: base.nominal_kinds(),
+        direct_supertypes: base.direct_supertypes(),
+        builtins: base.builtins(),
+        extern_funs: base.extern_funs(),
+        native_callable_funs: base.native_callable_funs(),
         fun_index: &fun_index,
-        materialized_pass_view: Some(inputs.effect_lowered_stage_output.llvm_residual_pass_view()),
+        materialized_pass_view: Some(base.materialized_pass_view()),
         published_late_lowered_program: Some(&program),
-        published_late_lowered_types: Some(inputs.effect_lowered_stage_output.types()),
-        published_lir_facts: inputs.effect_lowered_stage_output.lir_facts(),
+        published_late_lowered_types: Some(inputs.primary_types()),
+        published_lir_facts: inputs.lir_stage_output.lir_facts(),
         hir_facts,
         effect_op_tags,
     });
@@ -220,7 +222,7 @@ fn with_inputs_query_result(
     let result = codegen.materialize_program_abi(
         &program,
         &inputs.abi_visibility_lir_facts,
-        inputs.effect_lowered_stage_output.types(),
+        inputs.primary_types(),
     );
     check(&inputs, result, &module);
 }
@@ -242,19 +244,9 @@ fn with_inputs_query_result_for_source_types(
     let builder = context.create_builder();
     let target_info = target::configure_module_for_host(&module).expect("host target 应可配置");
     let target_data = inkwell::targets::TargetData::create(&target_info.data_layout);
-    let lowered = &inputs.hir_compat_scaffold;
-    let fun_index: HashMap<String, &crate::hir::FunDecl> = lowered
-        .file
-        .items
-        .iter()
-        .filter_map(|item| match item {
-            crate::hir::Item::Fun(fun) => Some(fun),
-            _ => None,
-        })
-        .chain(lowered.member_funs.iter())
-        .map(|fun| (fun.fqn.clone(), fun))
-        .collect();
-    let hir_facts = Rc::new(inputs.hir_facts.clone());
+    let base = &inputs.base_context;
+    let fun_index = base.fun_index();
+    let hir_facts = Rc::new(base.hir_facts().clone());
     let effect_op_tags = Rc::new(RefCell::new(EffectOpTagState::new()));
     let unit_codegen = CompilationUnitCodegenCx::new(CompilationUnitCodegenInputs {
         context: &context,
@@ -264,35 +256,35 @@ fn with_inputs_query_result_for_source_types(
         host: &target_info,
         source_map: &inputs.source_map,
         entry_source_id: inputs.entry_source_id,
-        stable_cone_key: &lowered.stable_cone_key,
-        source_cones: &lowered.source_cones,
-        stable_type_param_keys: &lowered.stable_type_param_keys,
-        types: &lowered.types,
-        struct_layouts: &lowered.struct_layouts,
-        enum_layouts: &lowered.enum_layouts,
-        top_level_vars: &lowered.top_level_vars,
-        top_level_immutable_values: &lowered.top_level_immutable_values,
-        top_level_fun_call_sites: &lowered.top_level_fun_call_sites,
-        object_inits: &lowered.object_inits,
-        class_inits: &lowered.class_inits,
-        class_vtables: &lowered.class_vtables,
-        interfaces: &lowered.interfaces,
-        class_itables: &lowered.class_itables,
-        ctor_call_sites: &lowered.ctor_call_sites,
-        dispatch_call_sites: &lowered.dispatch_call_sites,
-        effect_op_call_sites: &lowered.effect_op_call_sites,
-        continuation_resume_call_sites: &lowered.continuation_resume_call_sites,
-        when_pat_binding_tys: &lowered.when_pat_binding_tys,
-        nominal_kinds: &lowered.nominal_kinds,
-        direct_supertypes: &lowered.direct_supertypes,
-        builtins: lowered.builtins,
-        extern_funs: &lowered.extern_funs,
-        native_callable_funs: &lowered.native_callable_funs,
+        stable_cone_key: base.stable_cone_key(),
+        source_cones: base.source_cones(),
+        stable_type_param_keys: base.stable_type_param_keys(),
+        types: base.types(),
+        struct_layouts: base.struct_layouts(),
+        enum_layouts: base.enum_layouts(),
+        top_level_vars: base.top_level_vars(),
+        top_level_immutable_values: base.top_level_immutable_values(),
+        top_level_fun_call_sites: base.top_level_fun_call_sites(),
+        object_inits: base.object_inits(),
+        class_inits: base.class_inits(),
+        class_vtables: base.class_vtables(),
+        interfaces: base.interfaces(),
+        class_itables: base.class_itables(),
+        ctor_call_sites: base.ctor_call_sites(),
+        dispatch_call_sites: base.dispatch_call_sites(),
+        effect_op_call_sites: base.effect_op_call_sites(),
+        continuation_resume_call_sites: base.continuation_resume_call_sites(),
+        when_pat_binding_tys: base.when_pat_binding_tys(),
+        nominal_kinds: base.nominal_kinds(),
+        direct_supertypes: base.direct_supertypes(),
+        builtins: base.builtins(),
+        extern_funs: base.extern_funs(),
+        native_callable_funs: base.native_callable_funs(),
         fun_index: &fun_index,
-        materialized_pass_view: Some(inputs.effect_lowered_stage_output.llvm_residual_pass_view()),
+        materialized_pass_view: Some(base.materialized_pass_view()),
         published_late_lowered_program: Some(&program),
         published_late_lowered_types: Some(&source_types),
-        published_lir_facts: inputs.effect_lowered_stage_output.lir_facts(),
+        published_lir_facts: inputs.lir_stage_output.lir_facts(),
         hir_facts,
         effect_op_tags,
     });
@@ -318,19 +310,9 @@ fn with_inputs_query_result_and_codegen(
     let builder = context.create_builder();
     let target_info = target::configure_module_for_host(&module).expect("host target 应可配置");
     let target_data = inkwell::targets::TargetData::create(&target_info.data_layout);
-    let lowered = &inputs.hir_compat_scaffold;
-    let fun_index: HashMap<String, &crate::hir::FunDecl> = lowered
-        .file
-        .items
-        .iter()
-        .filter_map(|item| match item {
-            crate::hir::Item::Fun(fun) => Some(fun),
-            _ => None,
-        })
-        .chain(lowered.member_funs.iter())
-        .map(|fun| (fun.fqn.clone(), fun))
-        .collect();
-    let hir_facts = Rc::new(inputs.hir_facts.clone());
+    let base = &inputs.base_context;
+    let fun_index = base.fun_index();
+    let hir_facts = Rc::new(base.hir_facts().clone());
     let effect_op_tags = Rc::new(RefCell::new(EffectOpTagState::new()));
     let unit_codegen = CompilationUnitCodegenCx::new(CompilationUnitCodegenInputs {
         context: &context,
@@ -340,35 +322,35 @@ fn with_inputs_query_result_and_codegen(
         host: &target_info,
         source_map: &inputs.source_map,
         entry_source_id: inputs.entry_source_id,
-        stable_cone_key: &lowered.stable_cone_key,
-        source_cones: &lowered.source_cones,
-        stable_type_param_keys: &lowered.stable_type_param_keys,
-        types: &lowered.types,
-        struct_layouts: &lowered.struct_layouts,
-        enum_layouts: &lowered.enum_layouts,
-        top_level_vars: &lowered.top_level_vars,
-        top_level_immutable_values: &lowered.top_level_immutable_values,
-        top_level_fun_call_sites: &lowered.top_level_fun_call_sites,
-        object_inits: &lowered.object_inits,
-        class_inits: &lowered.class_inits,
-        class_vtables: &lowered.class_vtables,
-        interfaces: &lowered.interfaces,
-        class_itables: &lowered.class_itables,
-        ctor_call_sites: &lowered.ctor_call_sites,
-        dispatch_call_sites: &lowered.dispatch_call_sites,
-        effect_op_call_sites: &lowered.effect_op_call_sites,
-        continuation_resume_call_sites: &lowered.continuation_resume_call_sites,
-        when_pat_binding_tys: &lowered.when_pat_binding_tys,
-        nominal_kinds: &lowered.nominal_kinds,
-        direct_supertypes: &lowered.direct_supertypes,
-        builtins: lowered.builtins,
-        extern_funs: &lowered.extern_funs,
-        native_callable_funs: &lowered.native_callable_funs,
+        stable_cone_key: base.stable_cone_key(),
+        source_cones: base.source_cones(),
+        stable_type_param_keys: base.stable_type_param_keys(),
+        types: base.types(),
+        struct_layouts: base.struct_layouts(),
+        enum_layouts: base.enum_layouts(),
+        top_level_vars: base.top_level_vars(),
+        top_level_immutable_values: base.top_level_immutable_values(),
+        top_level_fun_call_sites: base.top_level_fun_call_sites(),
+        object_inits: base.object_inits(),
+        class_inits: base.class_inits(),
+        class_vtables: base.class_vtables(),
+        interfaces: base.interfaces(),
+        class_itables: base.class_itables(),
+        ctor_call_sites: base.ctor_call_sites(),
+        dispatch_call_sites: base.dispatch_call_sites(),
+        effect_op_call_sites: base.effect_op_call_sites(),
+        continuation_resume_call_sites: base.continuation_resume_call_sites(),
+        when_pat_binding_tys: base.when_pat_binding_tys(),
+        nominal_kinds: base.nominal_kinds(),
+        direct_supertypes: base.direct_supertypes(),
+        builtins: base.builtins(),
+        extern_funs: base.extern_funs(),
+        native_callable_funs: base.native_callable_funs(),
         fun_index: &fun_index,
-        materialized_pass_view: Some(inputs.effect_lowered_stage_output.llvm_residual_pass_view()),
+        materialized_pass_view: Some(base.materialized_pass_view()),
         published_late_lowered_program: Some(&program),
-        published_late_lowered_types: Some(inputs.effect_lowered_stage_output.types()),
-        published_lir_facts: inputs.effect_lowered_stage_output.lir_facts(),
+        published_late_lowered_types: Some(inputs.primary_types()),
+        published_lir_facts: inputs.lir_stage_output.lir_facts(),
         hir_facts,
         effect_op_tags,
     });
@@ -376,7 +358,7 @@ fn with_inputs_query_result_and_codegen(
     let result = codegen.materialize_program_abi(
         &program,
         &inputs.abi_visibility_lir_facts,
-        inputs.effect_lowered_stage_output.types(),
+        inputs.primary_types(),
     );
     check(&inputs, &mut codegen, result, &module);
 }

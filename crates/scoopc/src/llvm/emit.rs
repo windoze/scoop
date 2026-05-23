@@ -8,19 +8,17 @@
 //! 它不负责定义 LLVM pass pipeline，也不在根模块中继续承载大段实现。
 
 use std::cell::RefCell;
-use std::collections::HashMap;
 use std::path::Path;
 use std::rc::Rc;
 
 use inkwell::context::Context;
 use inkwell::targets::{FileType, TargetData};
 
-use crate::hir;
 use crate::opt::OptLevel;
+use crate::pipeline::{LlvmCodegenStageOutput, LlvmStageBaseContext};
 use crate::session::Session;
 use crate::source::{SourceFile, SourceId, SourceMap};
 use crate::ty::{RefTypeKind, TypeKind, ValueTypeKind};
-use scoopc_hir_facts::HirFacts;
 use scoopc_lir_facts::{LirCallableFacts, LirFacts};
 
 use super::frontend;
@@ -29,42 +27,53 @@ use super::reachability::collect_reachable_top_level_funs;
 use super::{LlvmEmitError, codegen, configure_llvm_global_options_once, target};
 
 struct LoweredCodegenEntry<'a> {
-    lowered: &'a hir::LoweredHir,
-    hir_facts: &'a HirFacts,
-    materialized_pass_view: Option<crate::mir::MaterializedMirPassView<'a>>,
-    late_lowered_program: Option<&'a crate::effect_lowered::LateLoweredProgram>,
-    late_lowered_lir_facts: Option<&'a scoopc_lir_facts::LirFacts>,
-    late_lowered_types: Option<&'a crate::ty::TypeStore>,
-    abi_program: Option<&'a crate::effect_lowered::LateLoweredProgram>,
-    abi_lir_facts: Option<&'a scoopc_lir_facts::LirFacts>,
-    abi_types: Option<&'a crate::ty::TypeStore>,
-    abi_materialized_pass_view: Option<crate::mir::MaterializedMirPassView<'a>>,
+    base_context: &'a LlvmStageBaseContext,
+    late_lowered_program: &'a crate::effect_lowered::LateLoweredProgram,
+    late_lowered_lir_facts: &'a scoopc_lir_facts::LirFacts,
+    late_lowered_types: &'a crate::ty::TypeStore,
+    abi_program: &'a crate::effect_lowered::LateLoweredProgram,
+    abi_lir_facts: &'a scoopc_lir_facts::LirFacts,
+    abi_types: &'a crate::ty::TypeStore,
 }
 
 #[derive(Clone, Copy)]
 pub struct StageEmitInput<'a> {
-    hir_compat_scaffold: &'a hir::LoweredHir,
-    hir_facts: &'a HirFacts,
-    effect_lowered_stage_output: &'a crate::pipeline::EffectLoweredStageOutput,
-    abi_visibility_effect_lowered_stage_output:
-        Option<&'a crate::pipeline::EffectLoweredStageOutput>,
+    base_context: &'a LlvmStageBaseContext,
+    lir: &'a crate::effect_lowered::LateLoweredProgram,
+    lir_facts: &'a LirFacts,
+    abi_visibility_lir: Option<&'a crate::effect_lowered::LateLoweredProgram>,
+    abi_visibility_lir_facts: Option<&'a LirFacts>,
+    abi_visibility_types: Option<&'a crate::ty::TypeStore>,
 }
 
 impl<'a> StageEmitInput<'a> {
     pub fn new(
-        hir_compat_scaffold: &'a hir::LoweredHir,
-        hir_facts: &'a HirFacts,
-        effect_lowered_stage_output: &'a crate::pipeline::EffectLoweredStageOutput,
-        abi_visibility_effect_lowered_stage_output: Option<
-            &'a crate::pipeline::EffectLoweredStageOutput,
-        >,
+        base_context: &'a LlvmStageBaseContext,
+        lir: &'a crate::effect_lowered::LateLoweredProgram,
+        lir_facts: &'a LirFacts,
+        abi_visibility_lir: Option<&'a crate::effect_lowered::LateLoweredProgram>,
+        abi_visibility_lir_facts: Option<&'a LirFacts>,
+        abi_visibility_types: Option<&'a crate::ty::TypeStore>,
     ) -> Self {
         Self {
-            hir_compat_scaffold,
-            hir_facts,
-            effect_lowered_stage_output,
-            abi_visibility_effect_lowered_stage_output,
+            base_context,
+            lir,
+            lir_facts,
+            abi_visibility_lir,
+            abi_visibility_lir_facts,
+            abi_visibility_types,
         }
+    }
+
+    pub fn from_stage_output(output: &'a LlvmCodegenStageOutput) -> Self {
+        Self::new(
+            output.base_context(),
+            output.lir(),
+            output.lir_facts(),
+            output.abi_visibility_lir(),
+            output.abi_visibility_lir_facts(),
+            output.abi_visibility_types(),
+        )
     }
 }
 
@@ -99,12 +108,7 @@ pub(crate) fn emit_single_file_llvm_artifact_to_file_with_opt_level(
     opt_level: OptLevel,
 ) -> Result<(), LlvmEmitError> {
     let stage_output = build_single_file_stage_output(session, source, opt_level)?;
-    let stage_input = StageEmitInput::new(
-        stage_output.hir_compat_scaffold(),
-        stage_output.hir_facts(),
-        stage_output.effect_lowered_stage_output(),
-        stage_output.abi_visibility_effect_lowered_stage_output(),
-    );
+    let stage_input = StageEmitInput::from_stage_output(&stage_output);
     match artifact {
         crate::pipeline::LlvmArtifactKind::LlvmIr => emit_main_ir_to_file_from_stage_output(
             stage_output.source_map(),
@@ -135,28 +139,21 @@ pub(crate) fn emit_single_file_llvm_artifact_to_file_with_opt_level(
 
 impl<'a> LoweredCodegenEntry<'a> {
     fn from_stage_output(
-        lowered: &'a hir::LoweredHir,
-        hir_facts: &'a HirFacts,
-        effect_lowered_stage_output: &'a crate::pipeline::EffectLoweredStageOutput,
-        abi_visibility_effect_lowered_stage_output: Option<
-            &'a crate::pipeline::EffectLoweredStageOutput,
-        >,
+        base_context: &'a LlvmStageBaseContext,
+        lir: &'a crate::effect_lowered::LateLoweredProgram,
+        lir_facts: &'a LirFacts,
+        abi_visibility_lir: Option<&'a crate::effect_lowered::LateLoweredProgram>,
+        abi_visibility_lir_facts: Option<&'a LirFacts>,
+        abi_visibility_types: Option<&'a crate::ty::TypeStore>,
     ) -> Self {
-        let abi_visibility_effect_lowered_stage_output =
-            abi_visibility_effect_lowered_stage_output.unwrap_or(effect_lowered_stage_output);
         Self {
-            lowered,
-            hir_facts,
-            materialized_pass_view: Some(effect_lowered_stage_output.llvm_residual_pass_view()),
-            late_lowered_program: Some(effect_lowered_stage_output.program()),
-            late_lowered_lir_facts: Some(effect_lowered_stage_output.lir_facts()),
-            late_lowered_types: Some(effect_lowered_stage_output.types()),
-            abi_program: Some(abi_visibility_effect_lowered_stage_output.program()),
-            abi_lir_facts: Some(abi_visibility_effect_lowered_stage_output.lir_facts()),
-            abi_types: Some(abi_visibility_effect_lowered_stage_output.types()),
-            abi_materialized_pass_view: Some(
-                abi_visibility_effect_lowered_stage_output.llvm_residual_pass_view(),
-            ),
+            base_context,
+            late_lowered_program: lir,
+            late_lowered_lir_facts: lir_facts,
+            late_lowered_types: base_context.types(),
+            abi_program: abi_visibility_lir.unwrap_or(lir),
+            abi_lir_facts: abi_visibility_lir_facts.unwrap_or(lir_facts),
+            abi_types: abi_visibility_types.unwrap_or_else(|| base_context.types()),
         }
     }
 }
@@ -207,10 +204,12 @@ pub(crate) fn build_main_module_from_stage_output<'ctx>(
         entry_source_id,
         context,
         LoweredCodegenEntry::from_stage_output(
-            stage_input.hir_compat_scaffold,
-            stage_input.hir_facts,
-            stage_input.effect_lowered_stage_output,
-            stage_input.abi_visibility_effect_lowered_stage_output,
+            stage_input.base_context,
+            stage_input.lir,
+            stage_input.lir_facts,
+            stage_input.abi_visibility_lir,
+            stage_input.abi_visibility_lir_facts,
+            stage_input.abi_visibility_types,
         ),
         entry_main_fqn,
     )
@@ -413,12 +412,7 @@ pub(crate) fn build_minimal_main_module_with_opt_level<'ctx>(
         stage_output.source_map(),
         stage_output.entry_source_id(),
         context,
-        StageEmitInput::new(
-            stage_output.hir_compat_scaffold(),
-            stage_output.hir_facts(),
-            stage_output.effect_lowered_stage_output(),
-            stage_output.abi_visibility_effect_lowered_stage_output(),
-        ),
+        StageEmitInput::from_stage_output(&stage_output),
         None,
     )
 }
@@ -449,18 +443,14 @@ fn build_module_from_codegen_entry_with_root_selector<'ctx>(
     configure_llvm_global_options_once();
 
     let LoweredCodegenEntry {
-        lowered,
-        hir_facts,
-        materialized_pass_view,
+        base_context,
         late_lowered_program,
         late_lowered_lir_facts,
         late_lowered_types,
         abi_program,
         abi_lir_facts,
         abi_types,
-        abi_materialized_pass_view: _abi_materialized_pass_view,
     } = codegen_entry;
-    let has_materialized_pass_view = materialized_pass_view.is_some();
 
     let entry_source = entry_source(source_map, entry_source_id);
     let module_name = module_name_from_path(entry_source.path());
@@ -470,27 +460,10 @@ fn build_module_from_codegen_entry_with_root_selector<'ctx>(
     let target_info = target::configure_module_for_host(&module)?;
     let target_data = TargetData::create(&target_info.data_layout);
 
-    let late_lowered_program = late_lowered_program.ok_or_else(|| LlvmEmitError::Frontend {
-        message: "LLVM module emission now requires stage-owned late-lowered handoff".to_string(),
-    })?;
-    let late_lowered_lir_facts = late_lowered_lir_facts.ok_or_else(|| LlvmEmitError::Frontend {
-        message: "LLVM stage handoff 缺少 primary LIR facts".to_string(),
-    })?;
-    let late_lowered_types = late_lowered_types.ok_or_else(|| LlvmEmitError::Frontend {
-        message: "LLVM stage handoff 缺少 late-lowered TypeStore".to_string(),
-    })?;
+    base_context.verify_lir_type_context(late_lowered_lir_facts, "primary")?;
+    base_context.verify_lir_type_context(abi_lir_facts, "ABI visibility")?;
 
-    let fun_index: HashMap<String, &hir::FunDecl> = lowered
-        .file
-        .items
-        .iter()
-        .filter_map(|item| match item {
-            hir::Item::Fun(fun) => Some(fun),
-            _ => None,
-        })
-        .chain(lowered.member_funs.iter())
-        .map(|fun| (fun.fqn.clone(), fun))
-        .collect();
+    let fun_index = base_context.fun_index();
     let selected_root =
         select_root_callable(late_lowered_lir_facts, late_lowered_types, root_selector)?;
     let root_callable = late_lowered_program
@@ -510,10 +483,10 @@ fn build_module_from_codegen_entry_with_root_selector<'ctx>(
             ),
         })?;
     let builder = context.create_builder();
-    let hir_facts = Rc::new(hir_facts.clone());
+    let hir_facts = Rc::new(base_context.hir_facts().clone());
     let effect_op_tags = Rc::new(RefCell::new(codegen::EffectOpTagState::new()));
-    let published_late_lowered_program = abi_program.or(Some(late_lowered_program));
-    let published_late_lowered_types = abi_types.or(Some(late_lowered_types));
+    let published_late_lowered_program = Some(abi_program);
+    let published_late_lowered_types = Some(abi_types);
 
     // T0810：在确认入口存在后，再声明/生成 `main` 可达的其它顶层函数：
     // - 避免“无 main”时把无关错误暴露给调用方；
@@ -527,41 +500,40 @@ fn build_module_from_codegen_entry_with_root_selector<'ctx>(
             host: &target_info,
             source_map,
             entry_source_id,
-            stable_cone_key: &lowered.stable_cone_key,
-            source_cones: &lowered.source_cones,
-            stable_type_param_keys: &lowered.stable_type_param_keys,
-            types: &lowered.types,
-            struct_layouts: &lowered.struct_layouts,
-            enum_layouts: &lowered.enum_layouts,
-            top_level_vars: &lowered.top_level_vars,
-            top_level_immutable_values: &lowered.top_level_immutable_values,
-            top_level_fun_call_sites: &lowered.top_level_fun_call_sites,
-            object_inits: &lowered.object_inits,
-            class_inits: &lowered.class_inits,
-            class_vtables: &lowered.class_vtables,
-            interfaces: &lowered.interfaces,
-            class_itables: &lowered.class_itables,
-            ctor_call_sites: &lowered.ctor_call_sites,
-            dispatch_call_sites: &lowered.dispatch_call_sites,
-            effect_op_call_sites: &lowered.effect_op_call_sites,
-            continuation_resume_call_sites: &lowered.continuation_resume_call_sites,
-            when_pat_binding_tys: &lowered.when_pat_binding_tys,
-            nominal_kinds: &lowered.nominal_kinds,
-            direct_supertypes: &lowered.direct_supertypes,
-            builtins: lowered.builtins,
-            extern_funs: &lowered.extern_funs,
-            native_callable_funs: &lowered.native_callable_funs,
+            stable_cone_key: base_context.stable_cone_key(),
+            source_cones: base_context.source_cones(),
+            stable_type_param_keys: base_context.stable_type_param_keys(),
+            types: base_context.types(),
+            struct_layouts: base_context.struct_layouts(),
+            enum_layouts: base_context.enum_layouts(),
+            top_level_vars: base_context.top_level_vars(),
+            top_level_immutable_values: base_context.top_level_immutable_values(),
+            top_level_fun_call_sites: base_context.top_level_fun_call_sites(),
+            object_inits: base_context.object_inits(),
+            class_inits: base_context.class_inits(),
+            class_vtables: base_context.class_vtables(),
+            interfaces: base_context.interfaces(),
+            class_itables: base_context.class_itables(),
+            ctor_call_sites: base_context.ctor_call_sites(),
+            dispatch_call_sites: base_context.dispatch_call_sites(),
+            effect_op_call_sites: base_context.effect_op_call_sites(),
+            continuation_resume_call_sites: base_context.continuation_resume_call_sites(),
+            when_pat_binding_tys: base_context.when_pat_binding_tys(),
+            nominal_kinds: base_context.nominal_kinds(),
+            direct_supertypes: base_context.direct_supertypes(),
+            builtins: base_context.builtins(),
+            extern_funs: base_context.extern_funs(),
+            native_callable_funs: base_context.native_callable_funs(),
             fun_index: &fun_index,
-            materialized_pass_view,
+            materialized_pass_view: Some(base_context.materialized_pass_view()),
             published_late_lowered_program,
             published_late_lowered_types,
             published_lir_facts: late_lowered_lir_facts,
             hir_facts: Rc::clone(&hir_facts),
             effect_op_tags: Rc::clone(&effect_op_tags),
         });
-    debug_assert_eq!(
+    debug_assert!(
         unit_codegen.materialized_pass_view().is_some(),
-        has_materialized_pass_view,
         "CompilationUnitCodegenCx 应保留 LLVM production 入口显式接入的 materialized pass view 边界"
     );
     let mut declare = unit_codegen.fresh_main_codegen();
@@ -569,13 +541,6 @@ fn build_module_from_codegen_entry_with_root_selector<'ctx>(
     let _reachable_fqns =
         collect_reachable_top_level_funs(selected_root.root_fqn, late_lowered_lir_facts);
 
-    let abi_program = abi_program.ok_or_else(|| LlvmEmitError::Frontend {
-        message: "LLVM stage handoff 缺少 ABI visibility late-lowered program".to_string(),
-    })?;
-    let abi_lir_facts = abi_lir_facts.ok_or_else(|| LlvmEmitError::Frontend {
-        message: "LLVM stage handoff 缺少 ABI visibility LIR facts".to_string(),
-    })?;
-    let abi_types = abi_types.unwrap_or(late_lowered_types);
     let abi_query = declare.materialize_program_abi(abi_program, abi_lir_facts, abi_types)?;
     declare.codegen_program_bodies(
         late_lowered_program,

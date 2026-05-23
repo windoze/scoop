@@ -4,7 +4,7 @@
 > 细化时间：2026-05-22
 > 计划基线：[`PLAN.md`](./PLAN.md) §4/P6-P8
 > 索引：[`TODO.md`](./TODO.md)
-> 当前状态：`P7-T04-a` / `P7-T04-b-1` / `P7-T04-b-1R` / `P7-T04-b-2` / `P7-T04-b-2R` / `P7-T04-b-3` / `P7-T04-b-3R` / `P7-T04-b-4` / `P7-T04-b-4R` / `P7-T04-b-5` / `P7-T04-b-5R` 均已完成。`ClassInstanceKey` 字符串形态收回已复审并补强；codegen `cg_ty_of` 已收紧为 `MonoTypeId -> CgTy`，review 内补齐了 layout/source-TypeStore owner 边界；此前观察到的 4 项预存 LLVM 库测试失败已修复并复审通过。下一步执行 `P7-T04-b`。
+> 当前状态：`P7-T04-a` / `P7-T04-b-1` / `P7-T04-b-1R` / `P7-T04-b-2` / `P7-T04-b-2R` / `P7-T04-b-3` / `P7-T04-b-3R` / `P7-T04-b-4` / `P7-T04-b-4R` / `P7-T04-b-5` / `P7-T04-b-5R` / `P7-T04-b` 均已完成。LLVM stage handoff 已收窄为 `LIR + LIR facts + LlvmStageBaseContext`，`LirStageOutput` 不再携带 backend residual；下一步执行 `P7-T04-bR`。
 
 ## 范围
 
@@ -967,7 +967,7 @@
   - 额外搜索：`git show HEAD -- crates/scoopc/src/llvm | rg -n "fallback|Fallback|or_else|unwrap_or|Ok\(None\)|return Ok\("` 仅命中新增的 `source_callable().ok_or_else(...)` guard；`crates/scoopc/src/llvm/` 中 raw-route gate 与 callable-carrier fallback 注册路径未出现新的 silent fallback。
   - 验证通过：`cargo fmt`；4 个目标 LLVM lib 测试逐个通过；`cargo test -p scoopc --lib`（900 passed）；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`（421/421 passed）；`cargo run -p scoop -- test --fixtures tests/fixtures/effect_lowered`（10/10 passed）；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
 
-## [TODO] P7-T04-b：收窄 LLVM stage handoff 形状
+## [DONE] P7-T04-b：收窄 LLVM stage handoff 形状
 
 - 目标：
   - 删除 `LlvmCodegenStageOutput` / `StageEmitInput` / `LirStageOutput` 中对 `LoweredHir`、`HirFacts`、`EffectLoweredStageOutput` wrapper、`MaterializedMirPassView` residual 的长期携带；
@@ -1005,7 +1005,13 @@
   - `TypeId` wire-format 推迟决策已在 stage handoff 现场留记号。
 - 依赖：P7-T04-b-4R
 - 完成记录：
-  - 待填写。
+  - `LirStageOutput` 已收窄为纯 `LateLoweredProgram + LirFacts`：删除 `LirStageContext`、`llvm_residual_pass_view()`、LLVM-only `types()` accessor，以及对 `MaterializedMir` / `MaterializedEffectFacts` 的 hidden residual 携带；stable dump 改为只展示 LIR summary、LIR facts（含 type context / wire-format 推迟记录）和 post-opt LIR。
+  - 新增 `LlvmStageBaseContext` 作为 LLVM stage 的单一 base context：`LlvmCodegenStageOutput` 现在只公开 `LIR + LIR facts + LlvmStageBaseContext + ABI visibility LIR/LIR facts/TypeStore + backend options`，不再公开 `LoweredHir`、`HirFacts` 或 P5 wrapper；`StageEmitInput` 同步改为消费同一窄 handoff。
+  - `LlvmStageBaseContext` 暴露 effect-owned `TypeStore` 作为当前 LIR/base context 的同进程 TypeId owner，并校验 `LirFacts.type_context.owner == LirStageBaseContext` 与 `TypeId` stable wire-format deferred 记录；cross-process wire format 继续显式推迟到 P8 per-cone build artifact serialization。
+  - backend-private contracts 不再通过 `LoweredHir` 整包 scaffold 进入 LLVM：base context 显式持有 source-side fun/body facts、HIR facts residual、materialized pass view、以及合并后的 backend contract side tables；side table 合并以 `MaterializedMir.backend_contracts` 为优先 owner，只补入 materialization 前缺失但 HIR lowering 后已验证的 mono layout 条目，修复 `sysroot_atomic_basic` 中 `Atomic<Box<Pair>>` layout key 缺失，同时避免 generic `StringBuilder` template 覆盖 materialized mono layout。
+  - ABI visibility 通道只携带 request-source LIR/LIR facts/TypeStore；没有重复 base context，也不再携带 `EffectLoweredStageOutput` wrapper。
+  - 同步 layout/codegen/effect-lowering 测试 helper：helper 现在从 `LlvmStageBaseContext` 构造 `CompilationUnitCodegenInputs`，不再依赖 `LirStageOutput` residual accessor。
+  - 验证通过：`cargo fmt`；`cargo test -p scoopc --no-default-features llvm_codegen_stage`（0 filtered-in，pass）；`cargo test -p scoopc --no-default-features pipeline::effect_lowering_stage`（14 passed）；`cargo test -p scoopc --no-default-features llvm::codegen::effect_lowered::layout`（0 filtered-in，pass）；`cargo test -p scoopc llvm_codegen_stage`（28 passed）；`cargo test -p scoopc llvm::codegen::effect_lowered::layout`（68 passed）；`cargo run -p scoop_tools -- dependency-gate`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`（421/421 passed）；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
 
 ## [TODO] P7-T04-bR：Review LLVM stage handoff 形状收窄
 
