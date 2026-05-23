@@ -1,32 +1,26 @@
-# Claude Execution Plan
+# 当前执行计划
 
-## Scope
+## 目标
 
-- Follow `TODO.md` as the authoritative task list.
-- Identify the first task whose heading is not prefixed with `[DONE]`.
-- Complete exactly that one task, then stop.
+按 `TODO.md` 的权威顺序完成第一个未标记 `[DONE]` 的任务，完成后更新任务记录、验证、提交，并停止。
 
-## Steps
+## 步骤
 
-1. Read `TODO.md` and identify the first incomplete task.
-2. Check recent repository context only as needed for that task, including the latest commit if it appears relevant.
-3. Inspect the code, tests, and fixtures directly related to the selected task.
-4. Implement the smallest spec-correct change that fully satisfies the task.
-5. Add or update tests/fixtures required by the task.
-6. Run targeted validation first, then broader required validation if feasible.
-7. If validation exposes unscheduled failures, fix them or add the minimum prerequisite task before marking the current task done.
-8. Update `TODO.md` by prefixing the completed task heading with `[DONE]` and filling its completion record.
-9. Update this file when key steps complete or the plan changes.
-10. Commit all relevant changes with a clear task-tagged message.
-11. Stop without starting the next task.
+1. 读取 `TODO.md`，只识别第一个标题未带 `[DONE]` 的任务。
+2. 查看最新提交信息，若其明确提到与当前任务直接相关的未完成问题，则纳入当前任务或作为前置任务记录到 `TODO.md`。
+3. 阅读当前任务相关说明、依赖和验证要求；只在必要时查看 `PLAN.md` 或相关源码。
+4. 实现当前任务；若遇到阻塞当前任务的缺失功能、规格不匹配或测试失败，先修复，或在 `TODO.md` 中插入最小前置任务后提交并停止。
+5. 运行当前任务要求的验证；若观察到未被明确排期的失败测试或夹具，修复或将其作为前置/后续任务记录到 `TODO.md`。
+6. 完成后将当前任务标题前缀改为 `[DONE]`，更新完成记录；仅当阶段级计划变化时才更新 `PLAN.md`。
+7. 检查工作区差异，提交所有与本次任务相关的变更。
+8. 停止，不继续下一个任务。
 
-## Current Status
+## 进度
 
-- Plan recorded before task execution.
-- `TODO.md` first incomplete task identified: `P7-T05R` in `TODO-6.md`.
-- `P7-T05R` requirements inspected. Latest commit `[P7-T05-a] Clear LLVM codegen residuals` is directly relevant and is the prerequisite cleanup to review.
-- Current review focus: verify LLVM production backend no longer reaches through `MaterializedMirPassView` / HIR or raw MIR fallback for body/signature/ABI contracts, and rerun the P7-T05 validation matrix.
-- Review found a concrete blocker: pass-view residuals are gone, but LLVM production still has HIR-derived callable signature/ABI/body paths (`source_signatures`, `fun_index`, `hir::FunDecl`) and class ctor HIR body lowering.
-- Added prerequisite task `P7-T05-b` before `P7-T05R` in `TODO.md` and `TODO-6.md`. `P7-T05R` remains incomplete and now depends on `P7-T05-b`.
-- Validation complete for the blocker scheduling change: `git diff --check` passed. The full `P7-T05R` validation matrix was not run because the review remains blocked by `P7-T05-b`.
-- Next step: commit the task-list update and stop.
+- 已创建本执行计划。
+- 已读取 `TODO.md` 与最新提交；本轮开始时第一个未完成任务是 `P7-T05-b`，且最新提交 `[P7-T05R] Schedule HIR residual cleanup` 与该任务直接相关。
+- 下一步读取 `TODO-6.md` 中 `P7-T05-b` 的完整要求、依赖和验证项。
+- 已读取 `P7-T05-b` 详情并做定向代码调查：callable signature/ABI residual 有现成 LIR/LIR facts 替代路径，但 class ctor body emission 仍缺少 LIR-owned init body/callable 合同。
+- 由于没有该合同会迫使 LLVM 继续直接 lower `hir::Block` 或新增后端 workaround，按任务规则先插入最小前置任务 `P7-T05-b-0`，将 `P7-T05-b` 显式依赖它，然后提交并停止。
+- 已更新 `TODO.md` 和 `TODO-6.md`：新增 `P7-T05-b-0` 作为 `P7-T05-b` 前置任务，并记录阻塞原因、修改范围、验证要求和完成条件；下次调用的第一个未完成任务应为 `P7-T05-b-0`。
+- 下一步检查差异与工作区状态，然后提交本次任务分解变更。

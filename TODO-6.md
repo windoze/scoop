@@ -4,7 +4,7 @@
 > 细化时间：2026-05-22
 > 计划基线：[`PLAN.md`](./PLAN.md) §4/P6-P8
 > 索引：[`TODO.md`](./TODO.md)
-> 当前状态：`P7-T04-a` / `P7-T04-b-1` / `P7-T04-b-1R` / `P7-T04-b-2` / `P7-T04-b-2R` / `P7-T04-b-3` / `P7-T04-b-3R` / `P7-T04-b-4` / `P7-T04-b-4R` / `P7-T04-b-5` / `P7-T04-b-5R` / `P7-T04-b` / `P7-T04-bR` / `P7-T04-c` / `P7-T04-cR` / `P7-T04` / `P7-T04R` / `P7-T05` / `P7-T05-a` 均已完成。`P7-T05R` review 的 residual 搜索确认 `MaterializedMirPassView` / `materialized_pass_view()` production 接入已清除，但仍发现 HIR-derived callable signature/ABI/body 与 class ctor body lowering residual；这会阻塞 P7 review 结论。下一步先执行新增前置任务 `P7-T05-b`，清除该 residual 后再回到 `P7-T05R`。
+> 当前状态：`P7-T04-a` / `P7-T04-b-1` / `P7-T04-b-1R` / `P7-T04-b-2` / `P7-T04-b-2R` / `P7-T04-b-3` / `P7-T04-b-3R` / `P7-T04-b-4` / `P7-T04-b-4R` / `P7-T04-b-5` / `P7-T04-b-5R` / `P7-T04-b` / `P7-T04-bR` / `P7-T04-c` / `P7-T04-cR` / `P7-T04` / `P7-T04R` / `P7-T05` / `P7-T05-a` 均已完成。`P7-T05R` review 的 residual 搜索确认 `MaterializedMirPassView` / `materialized_pass_view()` production 接入已清除，但仍发现 HIR-derived callable signature/ABI/body 与 class ctor body lowering residual；本轮确认 class ctor body emission 缺少 LIR-owned init body/callable 合同，若直接执行 `P7-T05-b` 会被迫保留 HIR block lowering 或引入 backend workaround。下一步先执行新增前置任务 `P7-T05-b-0`，发布并迁移 class ctor init body 合同后再执行 `P7-T05-b`。
 
 ## 范围
 
@@ -1239,6 +1239,48 @@
   - 广义 `crate::hir` / `crate::mir` 命中分类：`mir_body/**` 与 `effect_lowered/**` 中的 `crate::mir` 使用是 LIR-owned source callable/body payload alias、source-slice lowering helper或 raw-route guard，不再从 pass view 发现 body；`crate::hir` 命中保留在 backend-private layout/type metadata、source expression lowering和 source-site semantic fact resolver 路径，不参与 callable body/signature/ABI fallback。`HirFacts` 仍作为 source-site semantic fact resolver 输入保留，但 direct-call signature/body/ABI 查询已改走 LIR/source signature contracts，本任务未留下 `MaterializedMirPassView -> HIR owner -> fun_index` fallback。
   - 验证通过：`cargo fmt`；`cargo run -p scoop_tools -- dependency-gate`；`cargo test -p scoopc_lir_facts`；`cargo test -p scoopc --no-default-features llvm_codegen_stage`（0 filtered-in，pass）；`cargo test -p scoopc --no-default-features llvm::codegen`（0 filtered-in，pass）；`cargo test -p scoopc llvm::codegen`（97 passed）；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`（421/421 passed）；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
 
+## [TODO] P7-T05-b-0：发布 LIR-owned class ctor init body contract
+
+- 目标：
+  - 修复执行 `P7-T05-b` 时确认的具体前置阻塞；
+  - 让 class ctor body emission 的 authoritative owner 从 LLVM 直接 HIR lowering 迁到 LIR/LIR facts/base narrow contract；
+  - 使后续 `P7-T05-b` 能只清理 callable signature/ABI residual，并验证 class ctor HIR body path 不会回归。
+- 阻塞原因：
+  1. `crates/scoopc/src/llvm/codegen/class_ctor.rs` 当前 production invoke 路径仍读取 `ctor.body.as_ref()` 并调用 `codegen_block_value(body)`。
+  2. 现有 `LateLoweredProgram` / `scoopc_lir_facts` 只发布 callable、source signatures、dispatch、global init 和 physical layout facts；尚未发布 class ctor init body/init callable 合同。
+  3. 在缺少该合同时继续执行 `P7-T05-b` 只能保留 HIR block lowering、弱化 fixture 或在 backend 添加 workaround，违反 P7 收口目标。
+- 必须修改的主要位置：
+  - `crates/scoopc_lir_facts/`
+  - `crates/scoopc/src/pipeline/lir_facts_builder.rs`
+  - `crates/scoopc/src/effect_lowered/`
+  - `crates/scoopc/src/llvm/codegen/class_ctor.rs`
+  - `crates/scoopc/src/llvm/codegen/mir_body/args.rs`
+  - `tools/scoop_tools/src/dependency_gate.rs`
+- 必须实现的内容：
+  1. 发布 backend-neutral class ctor init body/init callable contract，覆盖 selected ctor、ordered params、`this(...)` / `super(...)` delegation、primary property-param assignment、property initializer、init block 和 secondary body 的执行所有权。
+  2. 若采用 synthetic init callable，必须把它纳入 `LateLoweredProgram` / LIR facts 可查询 surface，并明确 ABI：`this` plus already-ordered ctor args，返回/效果传播合同不得由 LLVM 从 HIR 推断。
+  3. LLVM class ctor call 只能负责对象分配、实参求值/rooting、调用 LIR-owned init contract 和效果传播检查；不得继续直接 lower `hir::Block`、`hir::ClassInitStep` 或 ctor HIR body 作为 production body 来源。
+  4. class ctor default args、delegation args 和 init body 所需的 source payload 必须由 MIR/LIR owner 固化；不得在 LLVM 中重新按 HIR side table 猜测或补齐。
+  5. 扩展 `dependency_gate`，至少阻止 production class ctor 路径重新出现 `ctor.body.as_ref` 与 `codegen_block_value(body)`。
+- 验证：
+  1. `cargo fmt`
+  2. `cargo run -p scoop_tools -- dependency-gate`
+  3. `cargo test -p scoopc_lir_facts`
+  4. `cargo test -p scoopc --no-default-features llvm_codegen_stage`
+  5. `cargo test -p scoopc --no-default-features llvm::codegen`
+  6. `cargo test -p scoopc llvm::codegen`
+  7. `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`（完整 run-pass，至少 30 分钟 timeout）
+  8. `cargo clippy --all-targets -- -D warnings`
+  9. `git diff --check`
+- 完成条件：
+  - LIR/LIR facts 或明确 base narrow contract 已拥有 class ctor init body/init callable 的 authoritative 表达；
+  - LLVM production class ctor body emission 不再读取 `ctor.body.as_ref()`，也不再调用 `codegen_block_value(body)` 直接 lower HIR ctor body；
+  - dependency gate 能阻止 class ctor HIR body lowering residual 回归；
+  - 未通过 fixture-only hack、弱化断言或 backend fallback 保持测试通过。
+- 依赖：P7-T05-a
+- 完成记录：
+  - 待填写。
+
 ## [TODO] P7-T05-b：清除 P7-T05R 发现的 HIR-derived callable 与 class ctor residual
 
 - 目标：
@@ -1285,7 +1327,7 @@
   - class ctor body emission 的 authoritative owner 已迁到 LIR/LIR facts/base narrow contract；
   - dependency gate 能阻止上述 HIR-derived residual 回归；
   - P7-T05R 的额外 residual 搜索只剩测试、LIR-owned source payload alias 或明确记录的 P8 final-freeze 范围。
-- 依赖：P7-T05-a
+- 依赖：P7-T05-b-0
 - 完成记录：
   - 待填写。
 
