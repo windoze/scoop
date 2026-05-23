@@ -808,7 +808,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         callee_span: crate::span::Span,
         interface_fqn: &str,
         slot: u32,
-        sig_fun: &'a hir::FunDecl,
+        signature: &CodegenCallableSignature,
         uses_explicit_effect_hidden_abi: bool,
         receiver_ptr: PointerValue<'ctx>,
         lookup: InterfaceItableSlotLookup<'ctx>,
@@ -834,7 +834,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.builder.position_at_end(ok_bb);
 
         let ret_cg =
-            self.try_cg_ty_of_type_id(sig_fun.return_ty).unwrap_or_else(|| {
+            self.try_cg_ty_of_type_id(signature.return_ty).unwrap_or_else(|| {
                 panic!("emit_interface_dispatch_indirect_call: call ABI verifier accepted unsupported return type")
             });
         let hidden_sret_result_ty = self.hidden_sret_result_ty(callee_span, ret_cg)?;
@@ -855,17 +855,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 None
             };
 
-        let explicit_param_tys = sig_fun.params[1..]
-            .iter()
-            .map(|param| param.ty)
-            .collect::<Vec<_>>();
+        let explicit_param_tys = signature.param_tys[1..].to_vec();
         let value_cases = self.interface_value_receiver_cases(interface_fqn, slot)?;
 
         if value_cases.is_empty() {
             self.emit_interface_dispatch_case_call_to_storage(
                 span,
                 callee_span,
-                &sig_fun.fqn,
+                &signature.fqn,
                 lookup.fn_i8,
                 receiver_ptr.into(),
                 self.builtins.any,
@@ -903,7 +900,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             self.emit_interface_dispatch_case_call_to_storage(
                 span,
                 callee_span,
-                &sig_fun.fqn,
+                &signature.fqn,
                 lookup.fn_i8,
                 receiver_ptr.into(),
                 self.builtins.any,
@@ -947,10 +944,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             for (case, (_, case_bb)) in value_cases.iter().zip(case_bbs.iter()) {
                 self.builder.position_at_end(*case_bb);
                 let impl_sig = self
-                    .fun_index
-                    .get(case.impl_fqn.as_str())
-                    .copied()
-                    .unwrap_or_else(|| panic!("emit_interface_dispatch_indirect_call: verifier accepted missing value receiver target signature"));
+                    .published_codegen_callable_signature(&case.impl_fqn)
+                    .unwrap_or_else(|| panic!("emit_interface_dispatch_indirect_call: verifier accepted missing value receiver LIR signature"));
                 let receiver_value = self.load_interface_value_box_payload(
                     callee_span,
                     receiver_ptr,
@@ -976,10 +971,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 } else {
                     self.as_llvm_arg_value(callee_span, receiver_value.ty, receiver_value)?
                 };
-                let impl_param_tys = impl_sig.params[1..]
-                    .iter()
-                    .map(|param| param.ty)
-                    .collect::<Vec<_>>();
+                let impl_param_tys = impl_sig.param_tys[1..].to_vec();
                 self.emit_interface_dispatch_case_call_to_storage(
                     span,
                     callee_span,
@@ -2012,30 +2004,32 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             return Ok(None);
         };
 
-        let sig_fun = self
-            .fun_index
-            .get(fqn)
-            .or_else(|| self.fun_index.get(dispatch_fqn))
-            .copied()
+        let signature = self
+            .published_codegen_callable_signature(fqn)
+            .or_else(|| {
+                (dispatch_fqn != fqn)
+                    .then(|| self.published_codegen_callable_signature(dispatch_fqn))
+                    .flatten()
+            })
             .unwrap_or_else(|| {
-                panic!("try_codegen_class_vtable_call_impl: call ABI verifier accepted missing vtable callee type")
+                panic!("try_codegen_class_vtable_call_impl: call ABI verifier accepted missing vtable LIR signature")
             });
         let uses_explicit_effect_hidden_abi =
             self.direct_call_abi_identity(fqn).uses_effect_bridge_abi();
 
-        if args.len() != sig_fun.params.len() {
+        if args.len() != signature.param_tys.len() {
             panic!(
                 "try_codegen_class_vtable_call_impl: call ABI verifier accepted vtable call arity mismatch"
             );
         }
 
         let ret_cg =
-            self.try_cg_ty_of_type_id(sig_fun.return_ty).unwrap_or_else(|| {
+            self.try_cg_ty_of_type_id(signature.return_ty).unwrap_or_else(|| {
                 panic!("try_codegen_class_vtable_call_impl: call ABI verifier accepted unsupported vtable return type")
             });
         let hidden_sret_result_ty = self.hidden_sret_result_ty(callee_span, ret_cg)?;
         let mut llvm_param_tys: Vec<BasicMetadataTypeEnum<'ctx>> = Vec::with_capacity(
-            sig_fun.params.len()
+            signature.param_tys.len()
                 + usize::from(hidden_sret_result_ty.is_some())
                 + self.explicit_effect_hidden_abi_param_count(uses_explicit_effect_hidden_abi)
                     as usize,
@@ -2046,9 +2040,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         if uses_explicit_effect_hidden_abi {
             self.push_explicit_effect_hidden_abi_param_tys(&mut llvm_param_tys);
         }
-        for param in &sig_fun.params {
+        for param_ty in &signature.param_tys {
             llvm_param_tys.push(
-                self.ordinary_param_abi(callee_span, param.ty)?
+                self.ordinary_param_abi(callee_span, *param_ty)?
                     .llvm_param_ty(),
             );
         }
@@ -2062,12 +2056,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 .fn_type(&llvm_param_tys, false),
         };
 
-        let param_names: Vec<String> = sig_fun
-            .params
-            .iter()
-            .map(|param| param.name.clone())
-            .collect();
-        let param_tys: Vec<TypeId> = sig_fun.params.iter().map(|param| param.ty).collect();
+        let param_names = signature.param_names.clone();
+        let param_tys = signature.param_tys.clone();
         let evaluated_args = self.codegen_bound_call_args(
             BoundCallArgsSpec {
                 span,
@@ -2513,18 +2503,20 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
         let slot = first.slot;
 
-        let sig_fun = self
-            .fun_index
-            .get(fqn)
-            .or_else(|| self.fun_index.get(dispatch_fqn))
-            .copied()
+        let signature = self
+            .published_codegen_callable_signature(fqn)
+            .or_else(|| {
+                (dispatch_fqn != fqn)
+                    .then(|| self.published_codegen_callable_signature(dispatch_fqn))
+                    .flatten()
+            })
             .unwrap_or_else(|| {
-                panic!("try_codegen_interface_itable_call_impl: call ABI verifier accepted missing itable callee type")
+                panic!("try_codegen_interface_itable_call_impl: call ABI verifier accepted missing itable LIR signature")
             });
         let uses_explicit_effect_hidden_abi =
             self.direct_call_abi_identity(fqn).uses_effect_bridge_abi();
 
-        if args.len() != sig_fun.params.len() {
+        if args.len() != signature.param_tys.len() {
             panic!(
                 "try_codegen_interface_itable_call_impl: call ABI verifier accepted itable call arity mismatch"
             );
@@ -2540,14 +2532,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let deferred_receiver =
             self.defer_gc_ref_pointer(callee_span, "itable_call_receiver", receiver_ptr)?;
 
-        let explicit_param_names = sig_fun.params[1..]
-            .iter()
-            .map(|param| param.name.clone())
-            .collect::<Vec<_>>();
-        let explicit_param_tys = sig_fun.params[1..]
-            .iter()
-            .map(|param| param.ty)
-            .collect::<Vec<_>>();
+        let explicit_param_names = signature.param_names[1..].to_vec();
+        let explicit_param_tys = signature.param_tys[1..].to_vec();
         let evaluated_explicit_args = self.codegen_bound_call_args(
             BoundCallArgsSpec {
                 span,
@@ -2576,7 +2562,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             callee_span,
             owner_fqn,
             slot,
-            sig_fun,
+            &signature,
             uses_explicit_effect_hidden_abi,
             receiver_ptr,
             lookup,

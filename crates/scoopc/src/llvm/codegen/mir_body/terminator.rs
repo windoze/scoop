@@ -170,7 +170,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 if !used_locals.contains(target)
                     && let crate::mir::Rvalue::TopLevelRef(crate::mir::TopLevelRef { fqn, .. }) =
                         value
-                    && self.fun_index.contains_key(fqn)
+                    && self.published_codegen_callable_signature(fqn).is_some()
                 {
                     return Ok(());
                 }

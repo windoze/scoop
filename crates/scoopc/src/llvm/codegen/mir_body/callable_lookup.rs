@@ -138,22 +138,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(llvm_fun)
     }
 
-    pub(in crate::llvm::codegen) fn hir_fun_for_callable_fqn(
-        &self,
-        fqn: &str,
-    ) -> Option<&'a hir::FunDecl> {
-        if let Some(hir_fun) = self.fun_index.get(fqn).copied() {
-            return Some(hir_fun);
-        }
-        let base = mir_direct_call_base_fqn(fqn);
-        if base != fqn
-            && let Some(hir_fun) = self.fun_index.get(base).copied()
-        {
-            return Some(hir_fun);
-        }
-        None
-    }
-
     pub(in crate::llvm::codegen) fn lir_source_callable_source_id(
         &self,
         fqn: &str,
@@ -161,8 +145,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     ) -> Result<SourceId, LlvmEmitError> {
         let mut owner_fqn = fqn;
         loop {
-            if let Some(hir_fun) = self.hir_fun_for_callable_fqn(owner_fqn) {
-                return self.source_id_for_path(hir_fun.source_path.as_path(), span);
+            if let Some(source) = self.callable_sources.get(owner_fqn) {
+                return self.source_id_for_path(source.source_path.as_path(), span);
+            }
+            let base = mir_direct_call_base_fqn(owner_fqn);
+            if base != owner_fqn
+                && let Some(source) = self.callable_sources.get(base)
+            {
+                return self.source_id_for_path(source.source_path.as_path(), span);
             }
             let Some((parent, _)) = owner_fqn.rsplit_once(".$lambda") else {
                 break;
@@ -356,13 +346,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         closure_like: bool,
     ) -> Result<FunctionValue<'ctx>, LlvmEmitError> {
         let span = self
-            .hir_fun_for_callable_fqn(owner_fqn)
-            .map(|fun| fun.span)
+            .callable_sources
+            .get(owner_fqn)
+            .map(|source| source.span)
             .unwrap_or_else(|| crate::span::Span::new(0, 0));
         let llvm_name = match surface {
             LlvmFunctionDeclarationSurface::ExportedAbi => {
                 if owner_fqn == "main" {
                     "main".to_string()
+                } else if llvm_name != owner_fqn {
+                    llvm_name.to_string()
                 } else {
                     self.exported_abi_symbol_for_lir_callable(owner_fqn)?
                 }

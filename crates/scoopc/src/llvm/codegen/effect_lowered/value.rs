@@ -3467,7 +3467,9 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
     }
 
     fn is_unused_callee_ref(&self, fqn: &str) -> bool {
-        self.codegen.fun_index.contains_key(fqn)
+        self.codegen
+            .published_codegen_callable_signature(fqn)
+            .is_some()
             || self.codegen.extern_funs.contains_key(fqn)
             || matches!(
                 fqn,

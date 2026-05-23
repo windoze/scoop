@@ -9,7 +9,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &self,
         dispatch: &crate::mir::DispatchMetadata,
         explicit_arg_count: usize,
-    ) -> Result<PlainDispatchTarget<'a>, LlvmEmitError> {
+    ) -> Result<PlainDispatchTarget, LlvmEmitError> {
         let slots = self.class_vtables.get(&dispatch.owner_fqn).ok_or_else(|| {
             frontend_error(format!(
                 "plain virtual call 缺少 `{}` 的 class vtable metadata",
@@ -31,19 +31,17 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 dispatch.owner_fqn, dispatch.member_name, explicit_arg_count,
             )));
         }
-        let sig_fun = self
-            .fun_index
-            .get(slot.impl_member_fqn.as_str())
-            .copied()
+        let signature = self
+            .published_codegen_callable_signature(&slot.impl_member_fqn)
             .ok_or_else(|| {
                 frontend_error(format!(
-                    "plain virtual call 缺少 target `{}` 的 signature",
+                    "plain virtual call 缺少 target `{}` 的 LIR signature",
                     slot.impl_member_fqn,
                 ))
             })?;
         Ok(PlainDispatchTarget::Virtual {
             slot: slot.slot,
-            sig_fun,
+            signature,
         })
     }
 
@@ -51,7 +49,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &self,
         dispatch: &crate::mir::DispatchMetadata,
         explicit_arg_count: usize,
-    ) -> Result<PlainDispatchTarget<'a>, LlvmEmitError> {
+    ) -> Result<PlainDispatchTarget, LlvmEmitError> {
         let iface = self.interfaces.get(&dispatch.owner_fqn).ok_or_else(|| {
             frontend_error(format!(
                 "plain interface call 缺少 `{}` 的 interface metadata",
@@ -74,13 +72,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             )));
         }
 
-        let sig_fun = self
-            .fun_index
-            .get(dispatch.member_fqn.as_str())
-            .copied()
+        let signature = self
+            .published_codegen_callable_signature(&dispatch.member_fqn)
             .ok_or_else(|| {
                 frontend_error(format!(
-                    "plain interface call 缺少 `{}` 的 selected signature",
+                    "plain interface call 缺少 `{}` 的 selected LIR signature",
                     dispatch.member_fqn,
                 ))
             })?;
@@ -88,7 +84,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             interface_id: iface.interface_id,
             slot: slot.slot,
             receiver_ty: dispatch.receiver_ty,
-            sig_fun,
+            signature,
         })
     }
 
@@ -141,18 +137,22 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         impl_fqn: &str,
         allow_effect_typed_signature: bool,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        let impl_sig = self.fun_index.get(impl_fqn).copied().ok_or_else(|| {
-            frontend_error(format!(
-                "static interface dispatch target `{impl_fqn}` missing signature"
-            ))
-        })?;
-        if impl_sig.params.len() != args.len() + 1 {
+        let impl_sig = self
+            .published_codegen_callable_signature(impl_fqn)
+            .ok_or_else(|| {
+                frontend_error(format!(
+                    "static interface dispatch target `{impl_fqn}` missing LIR signature"
+                ))
+            })?;
+        if impl_sig.param_tys.len() != args.len() + 1 {
             std::panic::panic_any(
                 "codegen_mir_plain_static_interface_dispatch_call: MIR verifier accepted static interface arity drift",
             );
         }
         if !allow_effect_typed_signature
-            && self.known_fun_body_may_outward_effect(&impl_sig.fqn, impl_sig.ty)
+            && self
+                .direct_call_abi_identity(&impl_sig.fqn)
+                .uses_effect_bridge_abi()
         {
             panic!(
                 "codegen_mir_plain_static_interface_dispatch_call: effect boundary router accepted outward-effect static dispatch target in plain lowering at {span:?}"
@@ -194,14 +194,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             self.as_llvm_arg_value(span, source_cg, receiver_value)?
         };
 
-        let explicit_param_names = impl_sig.params[1..]
-            .iter()
-            .map(|param| param.name.clone())
-            .collect::<Vec<_>>();
-        let explicit_param_tys = impl_sig.params[1..]
-            .iter()
-            .map(|param| param.ty)
-            .collect::<Vec<_>>();
+        let explicit_param_names = impl_sig.param_names[1..].to_vec();
+        let explicit_param_tys = impl_sig.param_tys[1..].to_vec();
         let evaluated_explicit_args = self.codegen_bound_mir_call_args_from_signature(
             span,
             &explicit_param_names,
@@ -216,7 +210,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .map(|arg| arg.value)
             .collect::<Vec<_>>();
 
-        let function = self.declare_top_level_fun(impl_sig)?;
+        let function = self.declare_lir_plain_fun_with_symbol(
+            &impl_sig.fqn,
+            LlvmFunctionDeclarationSurface::ExportedAbi,
+            &impl_sig.fqn,
+            &impl_sig.param_tys,
+            impl_sig.return_ty,
+            self.types,
+            false,
+        )?;
         let fn_i8 = function.as_global_value().as_pointer_value();
         self.emit_interface_dispatch_case_call_to_storage(
             span,
@@ -274,17 +276,19 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         args: &[crate::mir::CallArg],
         mir_types: &TypeStore,
         slots: &[MirLocalSlot<'ctx>],
-        target: PlainDispatchTarget<'a>,
+        target: PlainDispatchTarget,
         allow_effect_typed_signature: bool,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        let sig_fun = target.sig_fun();
-        if sig_fun.params.len() != args.len() + 1 {
+        let signature = target.signature();
+        if signature.param_tys.len() != args.len() + 1 {
             std::panic::panic_any(
                 "codegen_mir_plain_dispatch_call: MIR verifier accepted dispatch arity drift",
             );
         }
         if !allow_effect_typed_signature
-            && self.known_fun_body_may_outward_effect(&sig_fun.fqn, sig_fun.ty)
+            && self
+                .direct_call_abi_identity(&signature.fqn)
+                .uses_effect_bridge_abi()
         {
             panic!(
                 "codegen_mir_plain_dispatch_call: effect boundary router accepted outward-effect dispatch target in plain lowering at {span:?}"
@@ -312,7 +316,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 );
             }
 
-            let interface_fqn = sig_fun.fqn.rsplit_once('.').map(|(owner, _)| owner).unwrap_or_else(|| {
+            let interface_fqn = signature.fqn.rsplit_once('.').map(|(owner, _)| owner).unwrap_or_else(|| {
                 std::panic::panic_any(
                     "codegen_mir_plain_dispatch_call: selected interface member must publish owner FQN",
                 )
@@ -327,14 +331,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             };
             let deferred_receiver =
                 self.defer_gc_ref_pointer(span, "plain_interface_receiver", receiver_ptr)?;
-            let explicit_param_names = sig_fun.params[1..]
-                .iter()
-                .map(|param| param.name.clone())
-                .collect::<Vec<_>>();
-            let explicit_param_tys = sig_fun.params[1..]
-                .iter()
-                .map(|param| param.ty)
-                .collect::<Vec<_>>();
+            let explicit_param_names = signature.param_names[1..].to_vec();
+            let explicit_param_tys = signature.param_tys[1..].to_vec();
             let evaluated_explicit_args = self.codegen_bound_mir_call_args_from_signature(
                 span,
                 &explicit_param_names,
@@ -360,7 +358,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 span,
                 interface_fqn,
                 *slot,
-                sig_fun,
+                signature,
                 false,
                 receiver_ptr,
                 lookup,
@@ -371,20 +369,21 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         let ret_cg = self
-            .try_cg_ty_of_type_id(sig_fun.return_ty)
+            .try_cg_ty_of_type_id(signature.return_ty)
             .unwrap_or_else(|| {
                 panic!(
                     "codegen_mir_plain_dispatch_call: MIR verifier accepted unsupported return type"
                 )
             });
         let hidden_sret_result_ty = self.hidden_sret_result_ty(span, ret_cg)?;
-        let mut llvm_param_tys: Vec<BasicMetadataTypeEnum<'ctx>> =
-            Vec::with_capacity(sig_fun.params.len() + usize::from(hidden_sret_result_ty.is_some()));
+        let mut llvm_param_tys: Vec<BasicMetadataTypeEnum<'ctx>> = Vec::with_capacity(
+            signature.param_tys.len() + usize::from(hidden_sret_result_ty.is_some()),
+        );
         if hidden_sret_result_ty.is_some() {
             llvm_param_tys.push(self.context.ptr_type(AddressSpace::default()).into());
         }
-        for param in &sig_fun.params {
-            llvm_param_tys.push(self.ordinary_param_abi(span, param.ty)?.llvm_param_ty());
+        for param_ty in &signature.param_tys {
+            llvm_param_tys.push(self.ordinary_param_abi(span, *param_ty)?.llvm_param_ty());
         }
         let llvm_fun_ty = match (hidden_sret_result_ty, ret_cg) {
             (Some(_), _) | (None, CgTy::Unit | CgTy::Never) => {
@@ -402,8 +401,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             value: receiver.clone(),
         });
         all_args.extend(args.iter().cloned());
-        let evaluated_args =
-            self.codegen_bound_mir_call_args(span, sig_fun, &all_args, slots, false)?;
+        let evaluated_args = self.codegen_bound_mir_call_args_from_signature(
+            span,
+            &signature.param_names,
+            &signature.param_tys,
+            &all_args,
+            slots,
+            false,
+            self.types,
+        )?;
         let receiver_ptr = evaluated_args
             .first()
             .and_then(|arg| arg.pointer_value)
@@ -429,14 +435,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             "plain_dispatch_receiver_reload",
             &deferred_receiver,
         )?;
-        let fn_i8 = match target {
+        let fn_i8 = match &target {
             PlainDispatchTarget::Virtual { slot, .. } => {
-                self.load_class_vtable_slot_fn_ptr_i8(span, receiver_ptr, slot)?
+                self.load_class_vtable_slot_fn_ptr_i8(span, receiver_ptr, *slot)?
             }
             PlainDispatchTarget::Interface {
                 interface_id, slot, ..
             } => {
-                self.load_interface_itable_slot_fn_ptr_i8(span, receiver_ptr, interface_id, slot)?
+                self.load_interface_itable_slot_fn_ptr_i8(span, receiver_ptr, *interface_id, *slot)?
             }
         };
         let typed_fn_ptr = self.builder.build_pointer_cast(
@@ -454,7 +460,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             if let Some((_, result_ty)) = sret_result_slot {
                 cg.add_sret_attribute_to_call(call_site, 0, result_ty);
             }
-            call_site.set_call_convention(cg.llvm_call_convention_for_fqn(&sig_fun.fqn));
+            call_site.set_call_convention(cg.llvm_call_convention_for_fqn(&signature.fqn));
             Ok(call_site)
         });
         self.release_evaluated_call_arg_roots(&evaluated_args);

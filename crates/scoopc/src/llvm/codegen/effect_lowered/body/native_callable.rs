@@ -25,30 +25,32 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         callable: &crate::hir::NativeCallableFun,
         abi: &ProgramAbiQuery<'ctx>,
     ) -> Result<(), LlvmEmitError> {
-        let hir_fun = self.fun_index.get(fqn).copied().ok_or_else(|| {
-            frontend_error(format!(
-                "`@CallingConvention` native callable `{fqn}` 缺少 HIR 函数签名"
-            ))
-        })?;
+        let signature = self
+            .published_codegen_callable_signature(fqn)
+            .ok_or_else(|| {
+                frontend_error(format!(
+                    "`@CallingConvention` native callable `{fqn}` 缺少 LIR callable signature"
+                ))
+            })?;
+        let span = self
+            .callable_sources
+            .get(fqn)
+            .map(|source| source.span)
+            .unwrap_or_else(|| crate::span::Span::new(0, 0));
         let plain = abi.plain_callable_layout_by_root_fqn(fqn)?;
         let plain_entry = plain.direct_entry();
-        if plain_entry.param_tys().len() != hir_fun.params.len() {
+        if plain_entry.param_tys().len() != signature.param_tys.len() {
             return Err(frontend_error(format!(
-                "`@CallingConvention` native callable `{fqn}` 的 plain ABI 参数数量漂移：layout={} hir={}",
+                "`@CallingConvention` native callable `{fqn}` 的 plain ABI 参数数量漂移：layout={} lir={}",
                 plain_entry.param_tys().len(),
-                hir_fun.params.len()
+                signature.param_tys.len()
             )));
         }
 
-        let param_tys = hir_fun
-            .params
-            .iter()
-            .map(|param| param.ty)
-            .collect::<Vec<_>>();
         let native_abi = self.classify_native_callable_body_symbol(
-            hir_fun.span,
-            &param_tys,
-            hir_fun.return_ty,
+            span,
+            &signature.param_tys,
+            signature.return_ty,
             &callable.calling_convention,
         )?;
         let wrapper = self.declare_native_callable_body_wrapper(&callable.symbol, &native_abi)?;
@@ -68,11 +70,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         )?;
         let mut call_args = Vec::<BasicMetadataValueEnum<'ctx>>::new();
         let sret_slot = if let Some(result_ty) = sret_result_ty {
-            let slot = self.create_entry_alloca_raw(
-                hir_fun.span,
-                "native_callable_plain_sret",
-                result_ty,
-            )?;
+            let slot =
+                self.create_entry_alloca_raw(span, "native_callable_plain_sret", result_ty)?;
             call_args.push(slot.into());
             Some((slot, result_ty))
         } else {
@@ -90,7 +89,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         let call = self.build_call_preserving_gc_local_roots(
-            hir_fun.span,
+            span,
             plain_fun,
             &call_args,
             "native_to_plain",
@@ -127,7 +126,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
         }
 
-        self.finish_function_explicit_frame_layout(hir_fun.span)?;
+        self.finish_function_explicit_frame_layout(span)?;
         Ok(())
     }
 

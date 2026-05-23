@@ -8,42 +8,47 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         _at: crate::span::Span,
         callable_fqn: &str,
     ) -> Result<FunctionValue<'ctx>, LlvmEmitError> {
-        let llvm_name = self
-            .extern_funs
-            .get(callable_fqn)
-            .map(|e| e.symbol.as_str())
+        let signature = self
+            .published_codegen_callable_signature(callable_fqn)
+            .ok_or_else(|| LlvmEmitError::Frontend {
+                message: format!(
+                    "dispatch target callable `{callable_fqn}` 缺少 LIR callable/source signature contract"
+                ),
+            })?;
+        let symbol_facts = self.lir_callable_symbol_facts(callable_fqn);
+        let llvm_name = symbol_facts
+            .and_then(|facts| {
+                facts
+                    .native
+                    .as_ref()
+                    .map(|native| native.symbol.as_str())
+                    .or_else(|| {
+                        facts
+                            .extern_
+                            .as_ref()
+                            .map(|extern_| extern_.symbol.as_str())
+                    })
+            })
             .unwrap_or(callable_fqn);
         if let Some(existing) = self.module.get_function(llvm_name) {
             return Ok(existing);
         }
-        if let Some(sig_fun) = self.fun_index.get(callable_fqn).copied() {
-            return self.declare_top_level_fun(sig_fun);
-        }
-        if let Some((source_types, source_fun)) = self.lir_source_callable(callable_fqn) {
-            let source_types = source_types as *const TypeStore;
-            let source_fun = source_fun.clone();
-            let param_tys = source_fun
-                .params
-                .iter()
-                .map(|param| param.ty)
-                .collect::<Vec<_>>();
-            // SAFETY: `source_types` points to the immutable LIR source TypeStore stored in
-            // the compilation-unit codegen context and outlives this declaration call.
-            let source_types = unsafe { &*source_types };
-            return self.declare_lir_source_plain_fun_with_symbol(
-                llvm_name,
-                LlvmFunctionDeclarationSurface::ExportedAbi,
-                &source_fun,
-                &param_tys,
-                source_fun.return_ty,
-                source_types,
-            );
-        }
-        Err(LlvmEmitError::Frontend {
-            message: format!(
-                "dispatch target callable `{callable_fqn}` 缺少 HIR/materialized declaration source"
-            ),
-        })
+        let surface = if symbol_facts
+            .is_some_and(|facts| facts.native.is_some() || facts.extern_.is_some())
+        {
+            LlvmFunctionDeclarationSurface::RuntimeOrNativeImport
+        } else {
+            LlvmFunctionDeclarationSurface::ExportedAbi
+        };
+        self.declare_lir_plain_fun_with_symbol(
+            llvm_name,
+            surface,
+            &signature.fqn,
+            &signature.param_tys,
+            signature.return_ty,
+            self.types,
+            false,
+        )
     }
 
     pub(super) fn try_codegen_sysroot_gc_debug_intrinsics(

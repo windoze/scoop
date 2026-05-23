@@ -343,26 +343,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                 callable.root_fqn()
             )));
         }
-        let (symbol_name, surface, closure_like) = if self
-            .codegen
-            .fun_index
-            .get(callable.root_fqn())
-            .is_some()
-        {
-            if callable.root_fqn() == "main" {
-                (
-                    "__scoop_plain_source_main".to_string(),
-                    LlvmFunctionDeclarationSurface::CompilerPrivateHelper,
-                    false,
-                )
-            } else {
-                (
-                    callable.root_fqn().to_string(),
-                    LlvmFunctionDeclarationSurface::ExportedAbi,
-                    false,
-                )
-            }
-        } else if callable.root_fqn().contains("$lambda") {
+        let (symbol_name, surface, closure_like) = if callable.root_fqn().contains("$lambda") {
             let source_callable = callable.source_callable().ok_or_else(|| {
                 frontend_error(format!(
                     "LLVM ABI materialization 发现 plain closure `{}` 缺少 source callable contract",
@@ -375,9 +356,15 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                 LlvmFunctionDeclarationSurface::CompilerPrivateHelper,
                 true,
             )
+        } else if callable.root_fqn() == "main" {
+            (
+                "__scoop_plain_source_main".to_string(),
+                LlvmFunctionDeclarationSurface::CompilerPrivateHelper,
+                false,
+            )
         } else {
             (
-                callable.root_fqn().to_string(),
+                self.exported_plain_callable_symbol(callable.root_fqn())?,
                 LlvmFunctionDeclarationSurface::ExportedAbi,
                 false,
             )
@@ -414,6 +401,24 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                 plain_return_ty,
             ),
         ))
+    }
+
+    fn exported_plain_callable_symbol(&self, root_fqn: &str) -> Result<String, LlvmEmitError> {
+        let symbol_facts = self
+            .lir_facts
+            .physical_layout
+            .callable_symbols
+            .values()
+            .find(|symbol| symbol.root_fqn == root_fqn)
+            .ok_or_else(|| {
+                frontend_error(format!(
+                    "LLVM ABI materialization 缺少 plain callable `{root_fqn}` 的 LIR symbol facts"
+                ))
+            })?;
+        Ok(symbol_facts
+            .exported_symbol
+            .clone()
+            .unwrap_or_else(|| AbiMangler.fun_symbol(&symbol_facts.callable)))
     }
 
     pub(super) fn materialize_callable_version_layout_index(

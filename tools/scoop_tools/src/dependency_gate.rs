@@ -317,6 +317,14 @@ fn source_boundary_rules() -> Vec<SourceBoundaryRule> {
                     reason: "LLVM stage handoff must not expose materialized MIR/pass-view types to production codegen",
                 },
                 ForbiddenSourcePattern {
+                    pattern: "LlvmSourceCallableSignature",
+                    reason: "LLVM stage handoff must not publish HIR-derived callable signatures",
+                },
+                ForbiddenSourcePattern {
+                    pattern: "source_signatures:",
+                    reason: "LLVM stage handoff must not carry HIR-derived source signature maps",
+                },
+                ForbiddenSourcePattern {
                     pattern: "precheck_invalid_integer_literals",
                     reason: "integer literal validation belongs to frontend/typecheck, not LLVM HIR body scans",
                 },
@@ -428,6 +436,25 @@ fn source_boundary_rules() -> Vec<SourceBoundaryRule> {
                     pattern: "materialized_owner_hir_fun_for_callable",
                     reason: "direct call signature lookup must not recover HIR owners from materialized MIR fallback",
                 },
+                ForbiddenSourcePattern {
+                    pattern: "fun_index.get",
+                    reason: "direct/dispatch call lowering must use LIR callable signature facts instead of HIR fun_index fallback",
+                },
+            ],
+        },
+        SourceBoundaryRule {
+            label: "LLVM callable ABI facts",
+            kind_label: "backend-boundary",
+            path: "crates/scoopc/src/llvm/codegen/call/abi.rs",
+            forbidden: &[
+                ForbiddenSourcePattern {
+                    pattern: "self.source_signatures.get",
+                    reason: "callable ABI signature lookup must use LIR source signature facts instead of HIR-derived maps",
+                },
+                ForbiddenSourcePattern {
+                    pattern: "fun_index.get",
+                    reason: "callable ABI lookup must not recover signatures from HIR fun_index",
+                },
             ],
         },
         SourceBoundaryRule {
@@ -447,6 +474,14 @@ fn source_boundary_rules() -> Vec<SourceBoundaryRule> {
                     pattern: "materialized_mir_callable",
                     reason: "source body emission must not expose materialized MIR body discovery helpers",
                 },
+                ForbiddenSourcePattern {
+                    pattern: "fun_index.get",
+                    reason: "source body emission must not recover callable source metadata from HIR fun_index",
+                },
+                ForbiddenSourcePattern {
+                    pattern: "hir_fun_for_callable_fqn",
+                    reason: "source body emission must consume the LIR/base callable source contract instead of HIR fun lookup",
+                },
             ],
         },
         SourceBoundaryRule {
@@ -465,6 +500,44 @@ fn source_boundary_rules() -> Vec<SourceBoundaryRule> {
                 ForbiddenSourcePattern {
                     pattern: "stable_closure_key_for_materialized_callable",
                     reason: "closure identity must be based on LIR source callable identity",
+                },
+                ForbiddenSourcePattern {
+                    pattern: "self.source_signatures.get",
+                    reason: "exported ABI identity must come from LIR callable symbol facts",
+                },
+            ],
+        },
+        SourceBoundaryRule {
+            label: "LLVM dispatch target declaration",
+            kind_label: "backend-boundary",
+            path: "crates/scoopc/src/llvm/codegen/gc.rs",
+            forbidden: &[
+                ForbiddenSourcePattern {
+                    pattern: "fun_index.get",
+                    reason: "dispatch target declarations must use LIR callable/source signature contracts",
+                },
+                ForbiddenSourcePattern {
+                    pattern: "declare_top_level_fun(",
+                    reason: "dispatch target declarations must not fall back to HIR function declarations",
+                },
+                ForbiddenSourcePattern {
+                    pattern: "HIR/materialized declaration source",
+                    reason: "dispatch target diagnostics must not expose HIR/materialized declaration fallback",
+                },
+            ],
+        },
+        SourceBoundaryRule {
+            label: "LLVM MIR dispatch helpers",
+            kind_label: "backend-boundary",
+            path: "crates/scoopc/src/llvm/codegen/mir_body/dispatch.rs",
+            forbidden: &[
+                ForbiddenSourcePattern {
+                    pattern: "fun_index.get",
+                    reason: "MIR dispatch helpers must use LIR callable signature facts",
+                },
+                ForbiddenSourcePattern {
+                    pattern: "declare_top_level_fun(",
+                    reason: "MIR dispatch helpers must not declare dispatch targets through HIR functions",
                 },
             ],
         },

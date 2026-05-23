@@ -296,13 +296,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         if nominal.fqn != owner_fqn || nominal.args.is_empty() {
             return impl_member_fqn.to_string();
         }
-        let Some(template_fun) = self.fun_index.get(impl_member_fqn).copied() else {
+        let Some(template_source) = self.callable_sources.get(impl_member_fqn) else {
             return impl_member_fqn.to_string();
         };
         let template = crate::mir::TemplateKey {
             fqn: impl_member_fqn.to_string(),
-            source_path: template_fun.source_path.clone(),
-            decl_span: template_fun.span,
+            source_path: template_source.source_path.clone(),
+            decl_span: template_source.span,
         };
         crate::hir::stable_instance_fqn(self.types, &template, &nominal.args, &[], "")
     }
@@ -352,7 +352,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         source_ty,
                         &format!("{}.{}", nominal.fqn, slot.name),
                     );
-                    if self.fun_index.contains_key(impl_fqn.as_str()) {
+                    if self
+                        .published_codegen_callable_signature(impl_fqn.as_str())
+                        .is_some()
+                    {
                         method_impl_fqns.push(impl_fqn);
                         method_receiver_type_ids.push(value_receiver_type_id);
                     } else if slot.has_body {

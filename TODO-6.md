@@ -4,7 +4,7 @@
 > 细化时间：2026-05-22
 > 计划基线：[`PLAN.md`](./PLAN.md) §4/P6-P8
 > 索引：[`TODO.md`](./TODO.md)
-> 当前状态：`P7-T04-a` / `P7-T04-b-1` / `P7-T04-b-1R` / `P7-T04-b-2` / `P7-T04-b-2R` / `P7-T04-b-3` / `P7-T04-b-3R` / `P7-T04-b-4` / `P7-T04-b-4R` / `P7-T04-b-5` / `P7-T04-b-5R` / `P7-T04-b` / `P7-T04-bR` / `P7-T04-c` / `P7-T04-cR` / `P7-T04` / `P7-T04R` / `P7-T05` / `P7-T05-a` 均已完成。`P7-T05R` review 的 residual 搜索确认 `MaterializedMirPassView` / `materialized_pass_view()` production 接入已清除，但仍发现 HIR-derived callable signature/ABI/body 与 class ctor body lowering residual；本轮确认 class ctor body emission 缺少 LIR-owned init body/callable 合同，若直接执行 `P7-T05-b` 会被迫保留 HIR block lowering 或引入 backend workaround。下一步先执行新增前置任务 `P7-T05-b-0`，发布并迁移 class ctor init body 合同后再执行 `P7-T05-b`。
+> 当前状态：`P7-T04-a` / `P7-T04-b-1` / `P7-T04-b-1R` / `P7-T04-b-2` / `P7-T04-b-2R` / `P7-T04-b-3` / `P7-T04-b-3R` / `P7-T04-b-4` / `P7-T04-b-4R` / `P7-T04-b-5` / `P7-T04-b-5R` / `P7-T04-b` / `P7-T04-bR` / `P7-T04-c` / `P7-T04-cR` / `P7-T04` / `P7-T04R` / `P7-T05` / `P7-T05-a` / `P7-T05-b-0` / `P7-T05-b` 均已完成。`P7-T05-b` 已清除 HIR-derived callable signature/ABI/body residual 与 class ctor HIR body production fallback，并补齐 dependency gate 防回归；下一步执行 `P7-T05R` review。
 
 ## 范围
 
@@ -1285,7 +1285,7 @@
   - `dependency_gate` 新增 `LLVM class ctor init body` source boundary，阻止 `ctor.body.as_ref` 与 `codegen_block_value(body)` 回归。
   - 验证通过：`cargo fmt`；`cargo run -p scoop_tools -- dependency-gate`；`cargo test -p scoopc_lir_facts`；`cargo test -p scoopc --no-default-features llvm_codegen_stage`；`cargo test -p scoopc --no-default-features llvm::codegen`；`cargo test -p scoopc llvm::codegen`（97 passed）；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`（421/421 passed）；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
 
-## [TODO] P7-T05-b：清除 P7-T05R 发现的 HIR-derived callable 与 class ctor residual
+## [DONE] P7-T05-b：清除 P7-T05R 发现的 HIR-derived callable 与 class ctor residual
 
 - 目标：
   - 修复 `P7-T05R` review 继续发现的 P7 阻塞项；
@@ -1333,7 +1333,13 @@
   - P7-T05R 的额外 residual 搜索只剩测试、LIR-owned source payload alias 或明确记录的 P8 final-freeze 范围。
 - 依赖：P7-T05-b-0
 - 完成记录：
-  - 待填写。
+  - 删除 LLVM stage/base handoff 中旧 `LlvmSourceCallableSignature` / `source_signatures()` 接口；新增 `LlvmCallableSourceContract` 和 `LlvmCallableSignatureContract` 作为显式窄 base contract，分别承载 source path/span 与 body-less/sysroot callable 的参数/返回签名，不再把 HIR `FunDecl` 作为 codegen signature/ABI fallback。
+  - LLVM callable signature 查询新增 `published_codegen_callable_signature`，优先消费 `LateLoweredProgram` / `LirFacts.source_signatures`，缺失 body-less callable 时才读 base narrow signature contract；direct call、vtable/itable lowering、MIR dispatch helper、dispatch target declaration、native callable wrapper、closure descriptor helper 和 LIR source lookup 均切换到该合同或 callable source narrow contract。
+  - `exported_abi_symbol_for_lir_callable` 删除 HIR-derived source signature ABI identity fallback；ABI materializer 直接从当前 `lir_facts.physical_layout.callable_symbols` 取 exported symbol，避免 ABI visibility callable 错读主 LIR facts。
+  - dispatch target declaration 不再使用 `fun_index.get(...) -> declare_top_level_fun(...)` fallback，错误边界改为缺少 LIR callable/source signature contract；`declare_top_level_fun(` 的 production dispatch 调用点已清除。
+  - class ctor production path继续消费 `P7-T05-b-0` 发布的 LIR-owned init body contract；本轮 residual 搜索确认 LLVM class ctor 不含 `ctor.body.as_ref` 或 `codegen_block_value(body)` fallback。
+  - `dependency_gate` 新增/扩展 source boundary：禁止 LLVM stage handoff 恢复旧 source signature map，禁止 callable ABI/identity/source lookup/direct lowering/dispatch target/MIR dispatch helper 中恢复 `self.source_signatures.get`、`fun_index.get`、`declare_top_level_fun(`、`HIR/materialized declaration source`、`hir_fun_for_callable_fqn` 等 residual。
+  - 验证通过：`cargo fmt`；`cargo run -p scoop_tools -- dependency-gate`；`cargo test -p scoopc_lir_facts`；`cargo test -p scoopc --no-default-features llvm_codegen_stage`；`cargo test -p scoopc --no-default-features llvm::codegen`；`cargo test -p scoopc llvm::codegen`（97 passed）；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`（421/421 passed）；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
 
 ## [TODO] P7-T05R：Review P7 全包完成度
 

@@ -69,8 +69,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     .may_outward_effect,
             );
         }
-        self.hir_fun_for_callable_fqn(callable_fqn)
-            .map(|fun| self.known_fun_body_may_outward_effect(callable_fqn, fun.ty))
+        self.published_codegen_callable_signature(callable_fqn)
+            .map(|_| {
+                self.direct_call_abi_identity(callable_fqn)
+                    .uses_effect_bridge_abi()
+            })
     }
 
     pub(in crate::llvm::codegen) fn mir_fun_value_callee_fqn(

@@ -26,23 +26,23 @@ pub(in crate::llvm::codegen) struct MirBodyCodegenCtx<'m, 'ctx> {
     slots: &'m [MirLocalSlot<'ctx>],
 }
 
-pub(in crate::llvm::codegen) enum PlainDispatchTarget<'h> {
+pub(in crate::llvm::codegen) enum PlainDispatchTarget {
     Virtual {
         slot: u32,
-        sig_fun: &'h hir::FunDecl,
+        signature: CodegenCallableSignature,
     },
     Interface {
         interface_id: u64,
         slot: u32,
         receiver_ty: TypeId,
-        sig_fun: &'h hir::FunDecl,
+        signature: CodegenCallableSignature,
     },
 }
 
-impl<'h> PlainDispatchTarget<'h> {
-    fn sig_fun(&self) -> &'h hir::FunDecl {
+impl PlainDispatchTarget {
+    fn signature(&self) -> &CodegenCallableSignature {
         match self {
-            Self::Virtual { sig_fun, .. } | Self::Interface { sig_fun, .. } => sig_fun,
+            Self::Virtual { signature, .. } | Self::Interface { signature, .. } => signature,
         }
     }
 

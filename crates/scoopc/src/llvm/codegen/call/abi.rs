@@ -402,25 +402,37 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 return_ty,
             ));
         }
-        let source_types = self.published_late_lowered_types()?;
-        if let Some(signature) = self.source_signatures.get(callable_fqn) {
+        if let Some(signature) = self.published_lir_facts.source_signatures.get(callable_fqn) {
             return Some((
-                source_types,
+                self.types,
                 signature.param_names.clone(),
                 signature.param_tys.clone(),
                 signature.return_ty,
             ));
         }
-        let signature = self
-            .published_lir_facts
-            .source_signatures
-            .get(callable_fqn)?;
+        let signature = self.callable_signatures.get(callable_fqn)?;
         Some((
-            source_types,
+            self.types,
             signature.param_names.clone(),
             signature.param_tys.clone(),
             signature.return_ty,
         ))
+    }
+
+    pub(in crate::llvm::codegen) fn published_codegen_callable_signature_impl(
+        &self,
+        callable_fqn: &str,
+    ) -> Option<CodegenCallableSignature> {
+        let (source_types, param_names, param_tys, return_ty) =
+            self.published_callable_signature_with_names_impl(callable_fqn)?;
+        let (param_tys, return_ty) =
+            self.published_signature_tys_as_codegen_tys_impl(source_types, param_tys, return_ty)?;
+        Some(CodegenCallableSignature {
+            fqn: callable_fqn.to_string(),
+            param_names,
+            param_tys,
+            return_ty,
+        })
     }
 
     pub(in crate::llvm::codegen) fn explicit_effect_hidden_abi_param_count_impl(

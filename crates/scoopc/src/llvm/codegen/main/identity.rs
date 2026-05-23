@@ -294,27 +294,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             )?;
             return Ok(symbol);
         }
-        let signature = self.source_signatures.get(callable_fqn).ok_or_else(|| {
-            LlvmEmitError::Frontend {
-                message: format!(
-                    "source signature facts 缺少 exported callable `{callable_fqn}` 的 ABI identity"
-                ),
-            }
-        })?;
-        let stable_key = self.stable_def_key_for_callable_signature_in_cone(
-            self.stable_cone_key_for_source_path(signature.source_path.as_path()),
-            callable_fqn,
-            "non_generic_callable",
-            signature.function_ty,
-            self.types,
-        )?;
-        let symbol = AbiMangler.fun_symbol(&stable_key);
-        self.reserve_exported_abi_symbol(
-            &symbol,
-            &stable_key,
-            format!("source callable `{callable_fqn}` via source signature facts"),
-        )?;
-        Ok(symbol)
+        Err(LlvmEmitError::Frontend {
+            message: format!(
+                "LIR callable symbol facts 缺少 exported callable `{callable_fqn}` 的 ABI identity"
+            ),
+        })
     }
 
     pub(in crate::llvm::codegen) fn exported_abi_symbol_for_hir_fun(

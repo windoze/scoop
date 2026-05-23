@@ -12,6 +12,7 @@ use crate::mir::MaterializedMir;
 use crate::opt::OptLevel;
 use crate::session::Session;
 use crate::source::{SourceFile, SourceId, SourceMap};
+use crate::span::Span;
 use crate::stable_id::{StableConeKey, StableTypeParamKey};
 use crate::ty::{BuiltinTypes, TypeParamType, TypeStore};
 use scoopc_hir_facts::HirFacts;
@@ -100,7 +101,8 @@ pub struct LlvmStageBaseContext {
     nominal_kinds: hir::NominalKindIndex,
     direct_supertypes: hir::DirectSupertypesIndex,
     builtins: BuiltinTypes,
-    source_signatures: HashMap<String, LlvmSourceCallableSignature>,
+    callable_sources: HashMap<String, LlvmCallableSourceContract>,
+    callable_signatures: HashMap<String, LlvmCallableSignatureContract>,
     top_level_funs: Vec<hir::FunDecl>,
     member_funs: Vec<hir::FunDecl>,
     extern_funs: hir::ExternFunIndex,
@@ -111,9 +113,13 @@ pub struct LlvmStageBaseContext {
 }
 
 #[derive(Debug, Clone)]
-pub(crate) struct LlvmSourceCallableSignature {
+pub(crate) struct LlvmCallableSourceContract {
     pub(crate) source_path: PathBuf,
-    pub(crate) function_ty: crate::ty::TypeId,
+    pub(crate) span: Span,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct LlvmCallableSignatureContract {
     pub(crate) param_names: Vec<String>,
     pub(crate) param_tys: Vec<crate::ty::TypeId>,
     pub(crate) return_ty: crate::ty::TypeId,
@@ -181,8 +187,10 @@ impl LlvmStageBaseContext {
         for (key, value) in lowered_hir.native_callable_funs {
             native_callable_funs.entry(key).or_insert(value);
         }
-        let source_signatures =
-            build_source_signature_index(&top_level_funs, &lowered_hir.member_funs);
+        let callable_sources =
+            build_callable_source_contracts(&top_level_funs, &lowered_hir.member_funs);
+        let callable_signatures =
+            build_callable_signature_contracts(&top_level_funs, &lowered_hir.member_funs);
         Self {
             source_cones: lowered_hir.source_cones,
             stable_type_param_keys: lowered_hir.stable_type_param_keys,
@@ -205,7 +213,8 @@ impl LlvmStageBaseContext {
             nominal_kinds: lowered_hir.nominal_kinds,
             direct_supertypes: lowered_hir.direct_supertypes,
             builtins: lowered_hir.builtins,
-            source_signatures,
+            callable_sources,
+            callable_signatures,
             top_level_funs,
             member_funs: lowered_hir.member_funs,
             extern_funs,
@@ -312,8 +321,12 @@ impl LlvmStageBaseContext {
         self.builtins
     }
 
-    pub(crate) fn source_signatures(&self) -> &HashMap<String, LlvmSourceCallableSignature> {
-        &self.source_signatures
+    pub(crate) fn callable_sources(&self) -> &HashMap<String, LlvmCallableSourceContract> {
+        &self.callable_sources
+    }
+
+    pub(crate) fn callable_signatures(&self) -> &HashMap<String, LlvmCallableSignatureContract> {
+        &self.callable_signatures
     }
 
     pub(crate) fn extern_funs(&self) -> &hir::ExternFunIndex {
@@ -375,19 +388,36 @@ impl LlvmStageBaseContext {
     }
 }
 
-fn build_source_signature_index(
+fn build_callable_source_contracts(
     top_level_funs: &[hir::FunDecl],
     member_funs: &[hir::FunDecl],
-) -> HashMap<String, LlvmSourceCallableSignature> {
+) -> HashMap<String, LlvmCallableSourceContract> {
     top_level_funs
         .iter()
         .chain(member_funs.iter())
         .map(|fun| {
             (
                 fun.fqn.clone(),
-                LlvmSourceCallableSignature {
+                LlvmCallableSourceContract {
                     source_path: fun.source_path.clone(),
-                    function_ty: fun.ty,
+                    span: fun.span,
+                },
+            )
+        })
+        .collect()
+}
+
+fn build_callable_signature_contracts(
+    top_level_funs: &[hir::FunDecl],
+    member_funs: &[hir::FunDecl],
+) -> HashMap<String, LlvmCallableSignatureContract> {
+    top_level_funs
+        .iter()
+        .chain(member_funs.iter())
+        .map(|fun| {
+            (
+                fun.fqn.clone(),
+                LlvmCallableSignatureContract {
                     param_names: fun.params.iter().map(|param| param.name.clone()).collect(),
                     param_tys: fun.params.iter().map(|param| param.ty).collect(),
                     return_ty: fun.return_ty,

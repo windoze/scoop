@@ -714,12 +714,17 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             );
         }
 
-        let Some(fun_ty) = self.fun_index.get(fn_ptr).map(|fun| fun.ty) else {
+        let Some(signature) = self.published_codegen_callable_signature(fn_ptr) else {
             return Err(frontend_error(format!(
                 "closure allocation at {span:?} cannot find callable signature `{fn_ptr}`"
             )));
         };
-        self.get_or_create_closure_object_type_desc_global(span, fun_ty)
+        self.get_or_create_closure_object_type_desc_for_signature(
+            span,
+            None,
+            &signature.param_tys,
+            signature.return_ty,
+        )
     }
 
     fn mir_closure_signature_type_id(

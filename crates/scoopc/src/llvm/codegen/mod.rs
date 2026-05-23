@@ -498,7 +498,8 @@ pub(crate) struct CompilationUnitCodegenCx<'a, 'ctx> {
     nominal_kinds: &'a hir::NominalKindIndex,
     direct_supertypes: &'a hir::DirectSupertypesIndex,
     builtins: BuiltinTypes,
-    source_signatures: &'a HashMap<String, crate::pipeline::LlvmSourceCallableSignature>,
+    callable_sources: &'a HashMap<String, crate::pipeline::LlvmCallableSourceContract>,
+    callable_signatures: &'a HashMap<String, crate::pipeline::LlvmCallableSignatureContract>,
     fun_index: &'a HashMap<String, &'a hir::FunDecl>,
     /// ABI 可见性阶段发布的 callable contract。
     ///
@@ -612,6 +613,14 @@ pub(crate) struct MainCodegen<'a, 'ctx> {
     current_source_id: SourceId,
     function_cx: FunctionBodyCodegenCx<'ctx>,
     effect_cx: EffectLoweringCodegenCx<'ctx>,
+}
+
+#[derive(Debug, Clone)]
+pub(in crate::llvm::codegen) struct CodegenCallableSignature {
+    pub(in crate::llvm::codegen) fqn: String,
+    pub(in crate::llvm::codegen) param_names: Vec<String>,
+    pub(in crate::llvm::codegen) param_tys: Vec<TypeId>,
+    pub(in crate::llvm::codegen) return_ty: TypeId,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -828,7 +837,9 @@ pub(super) struct CompilationUnitCodegenInputs<'a, 'ctx> {
     pub(super) nominal_kinds: &'a hir::NominalKindIndex,
     pub(super) direct_supertypes: &'a hir::DirectSupertypesIndex,
     pub(super) builtins: BuiltinTypes,
-    pub(super) source_signatures: &'a HashMap<String, crate::pipeline::LlvmSourceCallableSignature>,
+    pub(super) callable_sources: &'a HashMap<String, crate::pipeline::LlvmCallableSourceContract>,
+    pub(super) callable_signatures:
+        &'a HashMap<String, crate::pipeline::LlvmCallableSignatureContract>,
     pub(super) extern_funs: &'a hir::ExternFunIndex,
     pub(super) native_callable_funs: &'a hir::NativeCallableFunIndex,
     pub(super) fun_index: &'a HashMap<String, &'a hir::FunDecl>,
@@ -885,7 +896,8 @@ impl<'a, 'ctx> CompilationUnitCodegenCx<'a, 'ctx> {
             nominal_kinds,
             direct_supertypes,
             builtins,
-            source_signatures,
+            callable_sources,
+            callable_signatures,
             extern_funs,
             fun_index,
             published_late_lowered_program,
@@ -929,7 +941,8 @@ impl<'a, 'ctx> CompilationUnitCodegenCx<'a, 'ctx> {
             nominal_kinds,
             direct_supertypes,
             builtins,
-            source_signatures,
+            callable_sources,
+            callable_signatures,
             fun_index,
             published_late_lowered_program,
             published_late_lowered_types,

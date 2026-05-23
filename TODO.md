@@ -139,7 +139,7 @@
 | P7-T05 | [DONE] | [`TODO-6.md`](./TODO-6.md#done-p7-t05p7-全包清场文档同步与依赖审计) | P7 全包清场、文档同步与依赖审计 |
 | P7-T05-a | [DONE] | [`TODO-6.md`](./TODO-6.md#done-p7-t05-a清除-p7-t05r-发现的-llvm-codegen-production-residual) | 清除 P7-T05R 发现的 LLVM codegen production residual |
 | P7-T05-b-0 | [DONE] | [`TODO-6.md`](./TODO-6.md#done-p7-t05-b-0发布-lir-owned-class-ctor-init-body-contract) | 发布 LIR-owned class ctor init body contract |
-| P7-T05-b | [TODO] | [`TODO-6.md`](./TODO-6.md#todo-p7-t05-b清除-p7-t05r-发现的-hir-derived-callable-与-class-ctor-residual) | 清除 P7-T05R 发现的 HIR-derived callable 与 class ctor residual |
+| P7-T05-b | [DONE] | [`TODO-6.md`](./TODO-6.md#done-p7-t05-b清除-p7-t05r-发现的-hir-derived-callable-与-class-ctor-residual) | 清除 P7-T05R 发现的 HIR-derived callable 与 class ctor residual |
 | P7-T05R | [TODO] | [`TODO-6.md`](./TODO-6.md#todo-p7-t05rreview-p7-全包完成度) | Review P7 全包完成度 |
 | P8-T01 | [TODO] | [`TODO-6.md`](./TODO-6.md#todo-p8-t01最终-residual-搜索文档冻结与未来-c-backend-输入边界) | 最终 residual 搜索、文档冻结与未来 C backend 输入边界 |
 | P8-T01R | [TODO] | [`TODO-6.md`](./TODO-6.md#todo-p8-t01rreview-final-residual-搜索与文档冻结) | Review final residual 搜索与文档冻结 |
