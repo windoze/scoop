@@ -1,33 +1,33 @@
-# Current Invocation Plan
+# Claude Execution Plan
 
 ## Scope
 
-- Follow `TODO.md` as the authoritative task list.
-- Identify the first task whose heading is not prefixed with `[DONE]`.
-- Complete exactly that task, or add the minimum prerequisite task if a concrete blocker prevents correct completion.
-- Stop after committing the completed task or committed task-list/blocker update.
+- Work from `TODO.md` as the authoritative task list.
+- Identify and complete exactly the first task whose heading is not prefixed with `[DONE]`.
+- Stop after completing, documenting, testing, and committing that one task.
+- Do not perform broad historical triage before selecting the current task.
 
-## Execution Plan
+## Step-by-Step Plan
 
-1. Read `TODO.md` first and identify the first incomplete task.
-2. Check the latest commit message only for unfinished work directly relevant to that task.
-3. Inspect the files and tests needed for the selected task, avoiding unrelated historical triage.
-4. Implement the selected task with the smallest correct code changes.
-5. Add or update focused tests/fixtures required by the task.
-6. Run the task-specific validation from `TODO.md`, then broader relevant validation as needed.
-7. If a failing test/fixture is observed and is not already explicitly scheduled, fix it or add the minimum prerequisite task in `TODO.md` before marking completion.
-8. Mark the task heading in `TODO.md` with `[DONE]` and update its completion record after validation succeeds.
-9. Update `PLAN.md` only if the phase-level plan changes.
-10. Inspect git status/diff/log, then commit all intended changes with a clear task-tagged message.
-11. Stop without starting the next task.
+1. Read `TODO.md` and identify the first incomplete task exactly as ordered.
+2. Check the latest commit only for directly relevant unfinished work tied to that task.
+3. Read the task details, dependencies, validation requirements, and nearby completion records.
+4. Inspect only the code, fixtures, docs, and tests needed for the selected task.
+5. Implement the task completely, or add the minimum prerequisite task if a concrete blocker makes completion impossible.
+6. Run focused validation first, then required broader validation from the task record.
+7. Fix any relevant failures. For unrelated unscheduled test or fixture failures observed during validation, either fix them or add explicit TODO scheduling before marking the task done.
+8. Update `TODO.md` by prefixing the completed task heading with `[DONE]` and filling its completion record.
+9. Update `PLAN.md` only if phase-level sequencing, dependencies, assumptions, or completion criteria changed.
+10. Review the git diff and status.
+11. Commit all intended changes with a clear task-tagged message.
+12. Stop without starting the next task.
 
 ## Progress Log
 
-- Initialized plan before reading or running project commands.
-- Identified first incomplete task: `P9-T05R` in `TODO-7.md`, reviewing the completed `scoopc_mir` extraction.
-- Latest commit is `[P9-T05] Extract scoopc_mir crate`; no separate unfinished issue is visible in the commit subject, so the review scope remains `P9-T05R`.
-- Review focus: confirm RTTI ownership, opt/pass pipeline migration, and stable-id/mangler cleanup; fix any concrete issue found before marking the review done.
-- Audit found `scoopc_mir` has no actual dependency on effect/LIR/codegen crates and dependency-gate passes; updated the MIR module boundary comment to clarify stable exported symbols vs backend-private symbols.
-- Validation passed so far: `cargo fmt`, `cargo build --workspace`, `cargo test --all --all-targets`, `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`, `cargo run -p scoop_tools -- dependency-gate`, and `cargo clippy --all-targets -- -D warnings`.
-- Marked `P9-T05R` as `[DONE]` in `TODO.md` and `TODO-7.md` with a completion record.
-- `git diff --check` passed; final status/diff/log review found intended changes plus unrelated untracked `PLUGIN_ABI.md`, which will be left unmodified and uncommitted.
+- Initialized execution plan before running repository inspection commands.
+- Identified first incomplete task: `P9-T06` in `TODO-7.md`, extracting `scoopc_effect_facts_stage` and `scoopc_lir`.
+- Latest commit is `[P9-T05R] Review scoopc_mir extraction`; no directly relevant unfinished issue was recorded in the commit subject.
+- Observed untracked `PLUGIN_ABI.md`; treating it as unrelated external work unless later proven relevant.
+- Beginning implementation by auditing current `effect`, `effect_facts`, `effect_lowered`, pipeline, LLVM, and dependency-gate boundaries before moving files.
+- Blocker found for `P9-T06`: current LIR code still directly publishes HIR-shaped source payload and matches AST delegation kinds; `scoopc_mir` also directly depends on `scoopc_hir`/`scoopc_ast`, making the literal full-tree `scoopc_lir` completion check inconsistent with the current P9 DAG.
+- Added prerequisite task `P9-T06-a` in `TODO.md` and `TODO-7.md`; `P9-T06` now depends on it. This invocation will commit the scheduling/blocker update and stop.
