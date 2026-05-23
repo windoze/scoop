@@ -119,10 +119,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
     }
 
-    fn native_gc_leaf_function_for_origin_impl(&self, origin: NativeCallableOrigin<'_>) -> bool {
-        matches!(origin, NativeCallableOrigin::DirectExtern { .. })
-    }
-
     fn native_param_abi_impl(
         &mut self,
         span: crate::span::Span,
@@ -204,7 +200,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             aggregate_return_mode: NativeAggregateReturnMode::TargetAbiDirect,
             call_convention: self.native_call_convention_for_origin_impl(origin),
             boundary_mode: NativeBoundaryMode::EnterLeaveNative,
-            gc_leaf_function: self.native_gc_leaf_function_for_origin_impl(origin),
             effect_boundary_policy: NativeEffectBoundaryPolicy::PlainNativeLeaf,
         })
     }

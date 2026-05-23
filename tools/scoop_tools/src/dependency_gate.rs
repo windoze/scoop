@@ -456,6 +456,53 @@ fn source_boundary_rules() -> Vec<SourceBoundaryRule> {
             ],
         },
         SourceBoundaryRule {
+            label: "LLVM legacy HIR function declarations",
+            kind_label: "backend-boundary",
+            path: "crates/scoopc/src/llvm/codegen/main/declare.rs",
+            forbidden: &[
+                ForbiddenSourcePattern {
+                    pattern: "declare_top_level_fun(",
+                    reason: "top-level function declarations must be driven by LIR callable/signature facts, not HIR FunDecl helpers",
+                },
+                ForbiddenSourcePattern {
+                    pattern: "declare_top_level_fun_with_symbol",
+                    reason: "top-level function declarations must not reintroduce HIR FunDecl declaration helpers",
+                },
+                ForbiddenSourcePattern {
+                    pattern: "declare_top_level_fun_with_signature_override",
+                    reason: "signature overrides must not recover exported ABI declarations through HIR FunDecl helpers",
+                },
+                ForbiddenSourcePattern {
+                    pattern: "declare_top_level_fun_callee_resume_entry",
+                    reason: "callee resume declarations must use LIR/source-owned callable contracts instead of HIR FunDecl helpers",
+                },
+            ],
+        },
+        SourceBoundaryRule {
+            label: "LLVM legacy HIR function emission",
+            kind_label: "backend-boundary",
+            path: "crates/scoopc/src/llvm/codegen/main/function.rs",
+            forbidden: &[
+                ForbiddenSourcePattern {
+                    pattern: "codegen_top_level_fun(",
+                    reason: "top-level body emission must use LIR-owned source body contracts instead of HIR FunDecl entry helpers",
+                },
+                ForbiddenSourcePattern {
+                    pattern: "build_fun_callee_suspend_plan(",
+                    reason: "ordinary callee suspendability must be published through LIR/effect facts, not rebuilt from HIR FunDecl helpers",
+                },
+            ],
+        },
+        SourceBoundaryRule {
+            label: "LLVM legacy HIR callable identity",
+            kind_label: "backend-boundary",
+            path: "crates/scoopc/src/llvm/codegen/main/identity.rs",
+            forbidden: &[ForbiddenSourcePattern {
+                pattern: "exported_abi_symbol_for_hir_fun",
+                reason: "exported ABI identity must come from LIR callable symbol facts, not HIR FunDecl helpers",
+            }],
+        },
+        SourceBoundaryRule {
             label: "LLVM direct call lowering",
             kind_label: "backend-boundary",
             path: "crates/scoopc/src/llvm/codegen/call/lowering.rs",

@@ -4,7 +4,7 @@
 > 细化时间：2026-05-22
 > 计划基线：[`PLAN.md`](./PLAN.md) §4/P6-P8
 > 索引：[`TODO.md`](./TODO.md)
-> 当前状态：`P7-T04-a` / `P7-T04-b-1` / `P7-T04-b-1R` / `P7-T04-b-2` / `P7-T04-b-2R` / `P7-T04-b-3` / `P7-T04-b-3R` / `P7-T04-b-4` / `P7-T04-b-4R` / `P7-T04-b-5` / `P7-T04-b-5R` / `P7-T04-b` / `P7-T04-bR` / `P7-T04-c` / `P7-T04-cR` / `P7-T04` / `P7-T04R` / `P7-T05` / `P7-T05-a` / `P7-T05-b-0` / `P7-T05-b` / `P7-T05-c` 均已完成。`P7-T05-c` 已清除最终 LLVM HIR/base-context residual，并补齐 LIR/source signature 合同与 dependency gate 防回归；下一步执行 `P7-T05R` review。
+> 当前状态：`P7-T04-a` / `P7-T04-b-1` / `P7-T04-b-1R` / `P7-T04-b-2` / `P7-T04-b-2R` / `P7-T04-b-3` / `P7-T04-b-3R` / `P7-T04-b-4` / `P7-T04-b-4R` / `P7-T04-b-5` / `P7-T04-b-5R` / `P7-T04-b` / `P7-T04-bR` / `P7-T04-c` / `P7-T04-cR` / `P7-T04` / `P7-T04R` / `P7-T05` / `P7-T05-a` / `P7-T05-b-0` / `P7-T05-b` / `P7-T05-c` / `P7-T05R` 均已完成。P7 backend cleanup 已通过 review，下一步执行 `P8-T01` 最终 residual 搜索、文档冻结与未来 C backend 输入边界。
 
 ## 范围
 
@@ -1400,7 +1400,7 @@
   - residual 搜索结论：`crates/scoopc/src/llvm` production 路径不再命中 `fun_index`、`HirFacts`、`callable_signatures`、`LlvmCallableSignatureContract`、`MaterializedMir` / `MaterializedEffectFacts` wrapper 或 `dispatch_call_sites`；剩余 `MaterializedMir` 命中仅在 `llvm/frontend.rs` 的 single-file frontend preparation handoff，不进入 production codegen context。
   - 验证通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo run -p scoop_tools -- dependency-gate`；`cargo test -p scoopc_lir_facts`；`cargo test -p scoopc --no-default-features llvm_codegen_stage`；`cargo test -p scoopc --no-default-features llvm::codegen`；`cargo test -p scoopc llvm::codegen`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`（421/421 passed）；`git diff --check`。
 
-## [TODO] P7-T05R：Review P7 全包完成度
+## [DONE] P7-T05R：Review P7 全包完成度
 
 - 参考：P7-T05。
 - 重点：
@@ -1414,7 +1414,11 @@
   - review 结论明确写出 P7 完成、P8 可以开始，或列出阻塞项并在本 review 内修复。
 - 依赖：P7-T05-c
 - 完成记录：
-  - 待填写。
+  - Review 结论：P7 backend cleanup 已完成，LLVM emit/codegen/reachability 的生产 handoff 继续收口为 `LIR + LIR facts + LlvmStageBaseContext`；未发现需要阻塞 P8 的 HIR/raw MIR/effect facts/stage output wrapper production residual。
+  - 本 review 清理了未被调用的旧 HIR 顶层函数 declaration/emission/ABI identity helpers，并移除随之失效的 native `gc_leaf_function` 字段与 GC-free aggregate 判定死代码，避免 P8 final residual 搜索继续看到可删除的旧 HIR fallback 入口。
+  - dependency gate 已补强 3 个 source boundary，覆盖 `declare_top_level_fun*`、`codegen_top_level_fun` / `build_fun_callee_suspend_plan` 和 `exported_abi_symbol_for_hir_fun*`，防止旧 HIR 顶层声明/发射/ABI identity helper 回归。
+  - 额外 residual 搜索结论：`crates/scoopc/src/llvm` 中 `EffectLoweredStageOutput` / `EffectFactsStageOutput` / `hir_compat_scaffold` / `llvm_residual_pass_view` / LLVM integer-literal precheck、`fun_index` / `callable_signatures` / `LlvmCallableSignatureContract` / HIR dispatch side table / ordinary devirtualization residual 均无生产命中；唯一 `materialized_pass_view` 命中位于 LLVM layout 测试。`pipeline/llvm_codegen_stage.rs` 中 `LoweredHir` / `HirFacts` / `MaterializedMir` / `MaterializedEffectFacts` 命中仅用于构造显式 `LlvmStageBaseContext` 窄合同，stage output 与 emit handoff 不嵌套这些 wrapper。
+  - 验证通过：`cargo fmt`；`cargo run -p scoop_tools -- dependency-gate`；`cargo test -p scoop_tools`；`cargo test -p scoopc_lir_facts`；`cargo test -p scoopc --no-default-features llvm_codegen_stage`；`cargo test -p scoopc --no-default-features llvm::codegen`；`cargo test -p scoopc llvm::codegen`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`（421/421 passed）；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
 
 ## [TODO] P8-T01：最终 residual 搜索、文档冻结与未来 C backend 输入边界
 

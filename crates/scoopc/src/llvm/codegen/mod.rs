@@ -217,7 +217,6 @@ struct NativeCallableAbi<'ctx> {
     aggregate_return_mode: NativeAggregateReturnMode,
     call_convention: u32,
     boundary_mode: NativeBoundaryMode,
-    gc_leaf_function: bool,
     effect_boundary_policy: NativeEffectBoundaryPolicy,
 }
 
