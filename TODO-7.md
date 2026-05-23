@@ -264,7 +264,7 @@
   - `dependency_gate` 激活 `scoopc_ast` 的 base-only stage 检查，并把已迁移的 lexer/parser source-boundary 路径更新到 `crates/scoopc_ast/src/**`；gate 输出确认 `scoopc_ast [base-only-stage]` 的 workspace base 依赖仅为 `scoopc_source`、`scoopc_span`、`scoopc_types`。
   - 验证通过：`cargo fmt`；`cargo build --workspace`；`cargo test --all --all-targets`；`cargo run -p scoop_tools -- dependency-gate`；`cargo clippy --all-targets -- -D warnings`；`cargo tree -p scoopc_ast`；`git diff --check`。
 
-### [TODO] P9-T02R：Review `scoopc_ast` 抽取
+### [DONE] P9-T02R：Review `scoopc_ast` 抽取
 
 - 参考：P9-T02。
 - 重点：
@@ -273,6 +273,11 @@
   - 是否有重复定义（迁移残留）。
 - 验证：重新运行 P9-T02 的所有验证。
 - 依赖：P9-T02
+- 完成记录：
+  - 2026-05-23：复核 `scoopc_ast` 抽取结果。`crates/scoopc/src/{ast,parser,syntax}` 实体目录已不存在，`scoopc` umbrella 通过 `pub use scoopc_ast as ast;`、`pub use scoopc_ast::parser;`、`pub use scoopc_ast::syntax;` 保持原公共入口；`scoopc_ast` crate root 继续 `pub use ast::*`，覆盖原 `scoopc::ast::*` AST 节点入口。
+  - 依赖边界：`cargo tree -p scoopc_ast` 显示 workspace 依赖仅为 `scoopc_source`、`scoopc_span`、`scoopc_types`；`dependency-gate` 将 `scoopc_ast` 作为 `base-only-stage` 检查通过，且 lexer/parser source-boundary 规则已指向 `crates/scoopc_ast/src/**`。
+  - 迁移残留：复核 `crates/scoopc/src` 下已无 `pub mod ast/parser/syntax` 或实体模块定义，未发现重复定义；历史文档中的旧路径仅为归档/完成记录引用，不构成 production 残留。
+  - 验证通过：`cargo fmt`；`cargo build --workspace`；`cargo test --all --all-targets`；`cargo run -p scoop_tools -- dependency-gate`；`cargo clippy --all-targets -- -D warnings`；`cargo tree -p scoopc_ast`；`git diff --check`。
 
 ### [TODO] P9-T03：抽出 `scoopc_codegen_llvm` crate
 
