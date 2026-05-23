@@ -5,8 +5,9 @@
 //!   以及语言级的 call / perform / resume / pattern / member-access 事实；
 //! - 负责保留 generic template 语义：函数 `fqn`、`TypeKind::Param`、语言级 dispatch metadata
 //!   都在这层继续保持抽象，不提前 materialize 成单态实例；
-//! - 不负责承载 LLVM statepoint/address space/stackmap、mangled symbol name、vtable slot / itable id、
-//!   GC ABI 或 runtime thunk 等 backend 落地细节。
+//! - generic MIR 不负责承载 LLVM statepoint/address space/stackmap、backend-private mangled symbol、
+//!   vtable slot / itable id、GC ABI 或 runtime thunk 等 backend 落地细节；materialized MIR 只发布
+//!   后续 LIR/codegen 共享的 stable exported symbol surface。
 //!
 //! 后续阶段会在此基础上继续做：
 //! - monomorphization / instance materialization

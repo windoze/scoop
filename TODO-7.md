@@ -407,7 +407,7 @@
   - `dependency_gate` 激活 `scoopc_mir` stage 检查：允许 base + `scoopc_ast` + `scoopc_hir` + `scoopc_hir_facts` + `scoopc_mir_facts`，禁止 façade/effect/LIR/codegen 后向依赖；`cargo tree -p scoopc_mir` 未显示 `scoopc_effect_*`、`scoopc_lir` 或 `scoopc_codegen_llvm`。
   - 验证通过：`cargo fmt`；`cargo build --workspace`；`cargo test --all --all-targets`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`；`cargo run -p scoop_tools -- dependency-gate`；`cargo clippy --all-targets -- -D warnings`；`cargo tree -p scoopc_mir`；`git diff --check`。
 
-### [TODO] P9-T05R：Review `scoopc_mir` 抽取
+### [DONE] P9-T05R：Review `scoopc_mir` 抽取
 
 - 参考：P9-T05。
 - 重点：
@@ -416,6 +416,13 @@
   - mangler 段是否切干净。
 - 验证：重新运行 P9-T05 的所有验证。
 - 依赖：P9-T05
+- 完成记录：
+  - 2026-05-24：复核 `scoopc_mir` 抽取结果。`crates/scoopc/src/{mir,monomorph,rtti}` 与旧 `stable_id.rs` 实体已不存在，`scoopc` umbrella 仅通过 `pub use scoopc_mir::{mir, monomorph, rtti, stable_id}` 保留兼容入口。
+  - RTTI 归属：`dump-rtti` / type descriptor 的运行期算法与 descriptor 生成实现位于 `scoopc_mir::rtti`；source-semantic dispatch table facts 仍由 `scoopc_hir_facts` 拥有，未发现 `scoopc_mir` 复制 fact schema 或依赖 effect/LIR/codegen crate。
+  - MIR opt pipeline 归属：`pass_pipeline.rs`、dispatch devirtualization、summary-driven inlining、escape analysis 与 closure simplification 均在 `crates/scoopc_mir/src/mir/**` 下运行，materialization 结束后由 `run_mir_pass_pipeline` 统一调度。
+  - Mangler / stable-id 复核：共享 `AbiMangler` / `PrivateSymbolMangler` primitive 继续由 base `scoopc_ids` 拥有；`scoopc_mir::stable_id` 作为 MIR-facing stable symbol surface 暴露 materialization/codegen 所需 key，materialized MIR 负责发布 stable exported symbol surface。Review 中同步澄清了 generic MIR 与 materialized exported symbol 的模块注释边界。
+  - 依赖边界：`cargo tree -p scoopc_mir` 未显示 `scoopc_effect_*`、`scoopc_lir` 或 `scoopc_codegen_llvm`；`dependency-gate` 将 `scoopc_mir` 作为 MIR-stage 检查通过。
+  - 验证通过：`cargo fmt`；`cargo build --workspace`；`cargo test --all --all-targets`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`；`cargo run -p scoop_tools -- dependency-gate`；`cargo clippy --all-targets -- -D warnings`；`cargo tree -p scoopc_mir`；`git diff --check`。
 
 ### [TODO] P9-T06：抽出 `scoopc_effect_facts_stage` 与 `scoopc_lir` crate
 
