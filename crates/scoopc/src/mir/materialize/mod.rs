@@ -28,7 +28,8 @@ use crate::stable_id::{
     stable_template_symbol_suffix,
 };
 use crate::ty::{
-    BuiltinTypes, EffectRow, NominalType, RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind,
+    BuiltinTypes, EFFECT_ROW_PARAM_DECL_FILE, EffectRow, NominalType, RefTypeKind, TypeId,
+    TypeKind, TypeStore, ValueTypeKind,
 };
 use crate::typecheck;
 use crate::typecheck::{

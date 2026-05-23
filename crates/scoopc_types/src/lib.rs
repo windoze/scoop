@@ -213,6 +213,13 @@ pub struct TypeParamType {
     pub decl_span: scoopc_span::Span,
 }
 
+/// Internal pseudo declaration file for effect-row type parameters.
+///
+/// The marker is type-system data rather than HIR-owned data because typecheck,
+/// HIR lowering, and MIR materialization all need to recognize the same
+/// synthetic `TypeKind::Param` identity.
+pub const EFFECT_ROW_PARAM_DECL_FILE: &str = "<hir-effect-row-param>";
+
 /// effect row（spec §5.8）的内部表示。
 ///
 /// 当前阶段（T0435）先把 row expression 限制为“显式项的并集”（集合语义）：

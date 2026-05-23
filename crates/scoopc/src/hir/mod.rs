@@ -26,6 +26,7 @@ use crate::ast;
 use crate::span::Span;
 use crate::ty::{MonoRefKind, MonoTypeId, MonoTypeKind, ParamLeak, TypeId, TypeStore};
 
+pub(crate) use crate::ty::EFFECT_ROW_PARAM_DECL_FILE;
 pub(crate) use lower::GenericTemplateSymbolSuffixIndex;
 pub(crate) use lower::lower_generic_for_compilation_unit_multi_files_with_type_env;
 pub use lower::{
@@ -52,13 +53,6 @@ pub(crate) fn lower_fun_with_type_bindings_and_mir_facts(
 ) -> lower::LoweredFunWithMirFacts {
     lower::lower_fun_with_type_bindings_and_mir_facts(inputs, fun, type_bindings)
 }
-
-/// HIR/generic MIR 中用于承载 `<eff E>` row 变量的内部占位 `decl_file`。
-///
-/// 说明：
-/// - 该占位仍复用 `TypeKind::Param` 的显示路径，因此 dump-hir / dump-mir 会稳定显示 `E`；
-/// - 但它不是普通 type param，实例化时必须按 effect-row 语义展开为一整行 `EffectRow`。
-pub(crate) const EFFECT_ROW_PARAM_DECL_FILE: &str = "<hir-effect-row-param>";
 
 /// HIR 中引用一个“已解析的符号”的稳定标识。
 ///

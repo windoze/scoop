@@ -135,7 +135,7 @@ pub(super) fn substitute_type_and_effect_params(
 ) -> TypeId {
     match types.kind(ty).clone() {
         TypeKind::Param(param) => {
-            if param.decl_file.as_os_str() == crate::hir::EFFECT_ROW_PARAM_DECL_FILE {
+            if param.decl_file.as_os_str() == EFFECT_ROW_PARAM_DECL_FILE {
                 ty
             } else {
                 substitution
@@ -248,9 +248,7 @@ pub(super) fn substitute_type_and_effect_params_in_effect_row(
 
 pub(super) fn effect_row_param_marker_name(types: &TypeStore, ty: TypeId) -> Option<String> {
     match types.kind(ty) {
-        TypeKind::Param(param)
-            if param.decl_file.as_os_str() == crate::hir::EFFECT_ROW_PARAM_DECL_FILE =>
-        {
+        TypeKind::Param(param) if param.decl_file.as_os_str() == EFFECT_ROW_PARAM_DECL_FILE => {
             Some(param.name.clone())
         }
         _ => None,
@@ -573,7 +571,7 @@ pub(super) fn collect_type_param_names_in_type(
 ) {
     match types.kind(ty) {
         TypeKind::Param(param) => {
-            if param.decl_file.as_os_str() != crate::hir::EFFECT_ROW_PARAM_DECL_FILE
+            if param.decl_file.as_os_str() != EFFECT_ROW_PARAM_DECL_FILE
                 && !out.contains(&param.name)
             {
                 out.push(param.name.clone());

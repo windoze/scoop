@@ -18,8 +18,8 @@ use crate::resolve::{ConstructorKind, ImportTable, Index};
 use crate::source::SourceFile;
 use crate::span::Span;
 use crate::ty::{
-    BuiltinTypes, EffectRow, NominalType, RefTypeKind, TypeId, TypeKind, TypeParamType, TypeStore,
-    ValueTypeKind,
+    BuiltinTypes, EFFECT_ROW_PARAM_DECL_FILE, EffectRow, NominalType, RefTypeKind, TypeId,
+    TypeKind, TypeParamType, TypeStore, ValueTypeKind,
 };
 use crate::warnings::{self, CompileWarning};
 
@@ -1015,7 +1015,7 @@ impl<'a> TypeLowering<'a> {
     fn intern_effect_row_param_marker(&mut self, name: String, decl_span: Span) -> TypeId {
         self.types.intern(TypeKind::Param(TypeParamType {
             name,
-            decl_file: PathBuf::from(crate::hir::EFFECT_ROW_PARAM_DECL_FILE),
+            decl_file: PathBuf::from(EFFECT_ROW_PARAM_DECL_FILE),
             decl_span,
         }))
     }

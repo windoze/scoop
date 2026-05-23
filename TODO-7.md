@@ -213,7 +213,7 @@
   - 残余搜索结果：`use crate::mir` 在 `scoopc/src/hir` 与 `scoopc/src/typecheck` 内无命中；`use crate::hir` 在 `scoopc/src/typecheck` 内无命中，LLVM 仅剩 `llvm/tests/mod.rs` 测试命中，`effect_lowered` 仅剩 P9-T01-a 已记录的 LIR-owned source payload namespace。
   - 验证通过：`cargo fmt`；`cargo build --workspace`；`cargo test --all --all-targets`；`cargo run -p scoop_tools -- dependency-gate`；指定残余搜索；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
 
-### [TODO] P9-T01R：Review 后向边消除结果
+### [DONE] P9-T01R：Review 后向边消除结果
 
 - 参考：P9-T01。
 - 重点：
@@ -225,6 +225,12 @@
   - 后续 stage crate 抽取不会再因为反向边失败；
   - 若发现 P7 仍有残留，本 review 内回写 P7-T05 而非在 P9 内绕开。
 - 依赖：P9-T01
+- 完成记录：
+  - 2026-05-23：复核 P9-T01 后向边消除结果。`InstanceKey` / `TemplateKey` 已由 `scoopc_ids` 拥有，HIR 与 MIR 通过 base identity 使用；`ExternAbi` 已由 `scoopc_types` 拥有，typecheck 不再通过 HIR 读取 ABI 数据；`devirtualize.rs` 已删除。
+  - Review 修正：发现 `typecheck/lower.rs` 仍通过 `crate::hir::EFFECT_ROW_PARAM_DECL_FILE` 读取 effect-row 参数内部标记。已将该标记下沉到 `scoopc_types`，同步切换 typecheck 与 MIR materialize 调用点，HIR 仅保留 crate-internal re-export 供自身 lowering 模块使用。
+  - 防回归：`dependency_gate` 新增 source-tree 规则，覆盖 `crates/scoopc/src/hir` 对 MIR 的直接 residual 与 `crates/scoopc/src/typecheck` 对 HIR 的直接 residual，包含当前 monolith 路径和未来 split 后的 `scoopc_*` / `scoopc::` façade 路径。
+  - 残余搜索结果：`use crate::mir` 在 `scoopc/src/hir` 与 `scoopc/src/typecheck` 内无命中；`use crate::hir` 在 `scoopc/src/typecheck` 内无命中；LLVM 的 `use crate::hir` 仅剩 `llvm/tests/mod.rs` 测试命中；`effect_lowered` 的 `use crate::hir` 仍是 P9-T01-a 已记录的 LIR-owned source payload namespace。
+  - 验证通过：`cargo fmt`；`cargo build --workspace`；`cargo test --all --all-targets`；`cargo run -p scoop_tools -- dependency-gate`；指定残余搜索；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
 
 ### [TODO] P9-T02：抽出 `scoopc_ast` crate
 

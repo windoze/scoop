@@ -798,6 +798,54 @@ fn source_boundary_rules() -> Vec<SourceBoundaryRule> {
 fn source_tree_boundary_rules() -> Vec<SourceTreeBoundaryRule> {
     vec![
         SourceTreeBoundaryRule {
+            label: "HIR direct MIR residuals",
+            kind_label: "stage-split-boundary",
+            root: "crates/scoopc/src/hir",
+            exclude_path_fragments: &[],
+            forbidden: &[
+                ForbiddenSourcePattern {
+                    pattern: "use crate::mir",
+                    reason: "HIR lowering must use base identity contracts instead of MIR-owned APIs",
+                },
+                ForbiddenSourcePattern {
+                    pattern: "crate::mir::",
+                    reason: "HIR lowering must not reach directly into raw MIR APIs",
+                },
+                ForbiddenSourcePattern {
+                    pattern: "scoopc_mir::",
+                    reason: "future HIR crate must not depend directly on the MIR stage crate",
+                },
+                ForbiddenSourcePattern {
+                    pattern: "scoopc::mir",
+                    reason: "future HIR crate must not depend on the scoopc facade for MIR APIs",
+                },
+            ],
+        },
+        SourceTreeBoundaryRule {
+            label: "typecheck direct HIR residuals",
+            kind_label: "stage-split-boundary",
+            root: "crates/scoopc/src/typecheck",
+            exclude_path_fragments: &[],
+            forbidden: &[
+                ForbiddenSourcePattern {
+                    pattern: "use crate::hir",
+                    reason: "typecheck must publish typed contracts without depending on HIR-owned APIs",
+                },
+                ForbiddenSourcePattern {
+                    pattern: "crate::hir::",
+                    reason: "typecheck must not reach directly into raw HIR APIs",
+                },
+                ForbiddenSourcePattern {
+                    pattern: "scoopc_hir::",
+                    reason: "future typecheck owner must not depend on the HIR stage crate for base data",
+                },
+                ForbiddenSourcePattern {
+                    pattern: "scoopc::hir",
+                    reason: "future typecheck owner must not depend on the scoopc facade for HIR APIs",
+                },
+            ],
+        },
+        SourceTreeBoundaryRule {
             label: "LLVM production direct HIR residuals",
             kind_label: "backend-boundary",
             root: "crates/scoopc/src/llvm",
