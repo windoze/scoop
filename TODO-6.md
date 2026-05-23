@@ -4,7 +4,7 @@
 > 细化时间：2026-05-22
 > 计划基线：[`PLAN.md`](./PLAN.md) §4/P6-P8
 > 索引：[`TODO.md`](./TODO.md)
-> 当前状态：`P7-T04-a` / `P7-T04-b-1` / `P7-T04-b-1R` / `P7-T04-b-2` / `P7-T04-b-2R` / `P7-T04-b-3` / `P7-T04-b-3R` / `P7-T04-b-4` / `P7-T04-b-4R` / `P7-T04-b-5` / `P7-T04-b-5R` / `P7-T04-b` / `P7-T04-bR` / `P7-T04-c` / `P7-T04-cR` 均已完成。LLVM stage handoff 已收窄为 `LIR + LIR facts + LlvmStageBaseContext`，`LirStageOutput` 不再携带 backend residual；physical ABI/layout 查询面已迁到 LIR facts，并已复审；下一步执行 `P7-T04` 合并验证。
+> 当前状态：`P7-T04-a` / `P7-T04-b-1` / `P7-T04-b-1R` / `P7-T04-b-2` / `P7-T04-b-2R` / `P7-T04-b-3` / `P7-T04-b-3R` / `P7-T04-b-4` / `P7-T04-b-4R` / `P7-T04-b-5` / `P7-T04-b-5R` / `P7-T04-b` / `P7-T04-bR` / `P7-T04-c` / `P7-T04-cR` / `P7-T04` 均已完成。LLVM stage handoff 已收窄为 `LIR + LIR facts + LlvmStageBaseContext`，`LirStageOutput` 不再携带 backend residual；physical ABI/layout 查询面已迁到 LIR facts，`TypeId` wire-format 推迟决策已在 stable dump 与文档中冻结；下一步执行 `P7-T04R` review。
 
 ## 范围
 
@@ -1097,7 +1097,7 @@
   - TypeStore bridge verifier 复审：`ProgramAbiMaterializer::new` 先执行 `lir_facts.verify()`，再调用 `LlvmStageBaseContext::verify_lir_type_store_owner(source_types, lir_facts, "physical ABI/layout")`；负测 `llvm_layout_rejects_mismatched_source_typestore_before_layout` 覆盖 mismatched TypeStore fail-fast。
   - 验证通过：`cargo fmt`；`cargo test -p scoopc_lir_facts`；`cargo test -p scoopc --no-default-features llvm::codegen::effect_lowered::layout`；`cargo test -p scoopc --no-default-features llvm::codegen::effect_lowered`；`cargo test -p scoopc llvm::codegen::effect_lowered`；`cargo run -p scoop -- test --fixtures tests/fixtures/effect_lowered`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`（421/421 passed）；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
 
-## [TODO] P7-T04：收尾——LLVM stage handoff 与 physical ABI cleanup 合并验证
+## [DONE] P7-T04：收尾——LLVM stage handoff 与 physical ABI cleanup 合并验证
 
 - 目标：
   - 在 `P7-T04-b` 与 `P7-T04-c` 完成后，做一次合并验证与 wire-format 推迟落实，确保原 P7-T04 的 6 项要点全部成立；
@@ -1123,7 +1123,11 @@
   - TypeStore 桥接收口结论中已经显式表态 cross-process stable wire format 的处置（落实或显式推迟 + owner）。
 - 依赖：P7-T04-bR、P7-T04-cR
 - 完成记录：
-  - 待填写。
+  - 合并验证结论：`P7-T04-b` 与 `P7-T04-c` 的 6 项原始要点均已成立：LLVM backend input 收窄为 `LIR + LIR facts + LlvmStageBaseContext`；`LlvmCodegenStageOutput` / `StageEmitInput` 不再传播 `EffectLoweredStageOutput`、`LoweredHir` 或 `HirFacts` wrapper；`LirStageOutput` 只发布 `LateLoweredProgram + LirFacts`，无 `llvm_residual_pass_view()` / LLVM-only `types()` accessor；physical ABI/layout 只读 `LirFacts.physical_layout` / type context / callable symbols 并映射成 LLVM-private layout；TypeStore owner/verifier 由 `LlvmStageBaseContext` 与 `LirFacts.type_context` 校验；`TypeId` cross-process stable wire format 显式推迟。
+  - 文档与 dump 同步：`README.md`、`PIPELINE-CLEANUP.md`、`PIPELINE_REFACTOR.md` 已更新为 P7-T04 合并验证后的 backend 输入边界；LIR stable dump 已包含 `type_context: ... wire_format=deferred wire_owner=P8 per-cone build artifact serialization`，因此无需重新生成 fixture dump。
+  - 推迟决策：`TypeId` cross-process stable wire format 的 owner 继续冻结为 P8/per-cone build artifact serialization；不阻塞 P7-T04 的理由是当前 LLVM backend 只消费同进程 `TypeStore` owner，并不把 `TypeId` 持久化落盘。
+  - residual 搜索结论：`crates/scoopc/src/pipeline` 与 `crates/scoopc/src/llvm` 中 `llvm_residual_pass_view` / `hir_compat_scaffold` / `EffectLoweredStageOutput` 无生产命中；`crates/scoopc/src/llvm/codegen/effect_lowered` 中 `class_inits` / `class_vtables` / `interfaces` / `class_itables` / `enum_layouts` / `crate::hir::mangle_nominal_fqn` 命中仅为 LIR physical layout facts 字段、测试 helper 名称或普通 `interfaces` 文本，未发现 physical ABI/layout 回读 HIR scaffold。
+  - 验证通过：`cargo fmt`；`cargo test -p scoopc --no-default-features llvm_codegen_stage`（0 filtered-in，pass）；`cargo test -p scoopc --no-default-features llvm::codegen::effect_lowered::layout`（0 filtered-in，pass）；`cargo run -p scoop_tools -- dependency-gate`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`（421/421 passed）；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
 
 ## [TODO] P7-T04R：Review LLVM stage handoff 与 physical ABI cleanup
 
