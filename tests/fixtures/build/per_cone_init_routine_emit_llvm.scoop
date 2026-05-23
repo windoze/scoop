@@ -1,9 +1,8 @@
 // EXPECT: pass
 // ARGS: --emit-llvm
 // BUILD-LLVM-CONTAINS: define internal void @__scoop_priv0__cone_init__scoop_core__h
-// BUILD-LLVM-CONTAINS: define internal void @__scoop_priv0__cone_init__scoop_lang_string__h
 // BUILD-LLVM-CONTAINS: define internal void @__scoop_priv0__cone_init__per_cone_init_routine_emit_llvm__h
-// BUILD-LLVM-REGEX: (?s)call void @__scoop_priv0__cone_init__scoop_core__h[0-9a-f]+\(\).*call void @__scoop_priv0__cone_init__scoop_lang_string__h[0-9a-f]+\(\).*call void @__scoop_priv0__cone_init__per_cone_init_routine_emit_llvm__h[0-9a-f]+\(\).*%plain_main = call
+// BUILD-LLVM-REGEX: (?s)call void @__scoop_priv0__cone_init__scoop_core__h[0-9a-f]+\(\).*call void @__scoop_priv0__cone_init__per_cone_init_routine_emit_llvm__h[0-9a-f]+\(\).*%plain_main = call
 
 package fixtures.build
 

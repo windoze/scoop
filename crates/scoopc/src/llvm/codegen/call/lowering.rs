@@ -25,6 +25,60 @@ fn direct_call_dispatch_fqn(fqn: &str) -> &str {
 }
 
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
+    fn builtin_to_string_impl_fqn_for_ty(&self, ty: TypeId) -> Option<&'static str> {
+        match self.types.kind(ty) {
+            TypeKind::Value(ValueTypeKind::Bool) => Some("scoop.core.Bool.toString"),
+            TypeKind::Value(ValueTypeKind::Char) => Some("scoop.core.Char.toString"),
+            TypeKind::Value(ValueTypeKind::Float64) => Some("scoop.core.Float64.toString"),
+            TypeKind::Value(ValueTypeKind::Float32) => Some("scoop.core.Float32.toString"),
+            TypeKind::Value(ValueTypeKind::Int) => Some("scoop.core.Int.toString"),
+            TypeKind::Ref(RefTypeKind::String) => Some("scoop.core.String.toString"),
+            TypeKind::Ref(RefTypeKind::Nominal(nominal)) if nominal.fqn == "scoop.core.String" => {
+                Some("scoop.core.String.toString")
+            }
+            _ => None,
+        }
+    }
+
+    fn resolved_receiver_ty_for_hir_call(&self, receiver: &hir::Expr) -> TypeId {
+        match &receiver.kind {
+            hir::ExprKind::VarRef(hir::ValueRef::Local { id, .. }) => self
+                .function_cx
+                .env
+                .get(*id)
+                .and_then(|local| local.hir_ty)
+                .unwrap_or(receiver.ty),
+            _ => receiver.ty,
+        }
+    }
+
+    fn try_codegen_builtin_to_string_top_level_call(
+        &mut self,
+        span: crate::span::Span,
+        callee_span: crate::span::Span,
+        dispatch_fqn: &str,
+        args: &[hir::CallArg],
+    ) -> Result<Option<CgValue<'ctx>>, LlvmEmitError> {
+        if dispatch_fqn != "scoop.core.ToString.toString" {
+            return Ok(None);
+        }
+        let Some(hir::CallArg::Positional(receiver)) = args.first() else {
+            return Ok(None);
+        };
+        let receiver_ty = self.resolved_receiver_ty_for_hir_call(receiver);
+        let Some(impl_fqn) = self.builtin_to_string_impl_fqn_for_ty(receiver_ty) else {
+            return Ok(None);
+        };
+        if self
+            .published_codegen_callable_signature(impl_fqn)
+            .is_none()
+        {
+            return Ok(None);
+        }
+        self.codegen_top_level_fun_call(span, callee_span, impl_fqn, args)
+            .map(Some)
+    }
+
     fn try_codegen_builtin_member_call_short_circuit(
         &mut self,
         span: crate::span::Span,
@@ -1414,6 +1468,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             }
             if dispatch_fqn == "scoop.unsafe.uintPtrToFunPtr" {
                 return self.codegen_sysroot_uintptr_to_funptr(span, callee.span, args);
+            }
+            if let Some(value) = self.try_codegen_builtin_to_string_top_level_call(
+                span,
+                callee.span,
+                dispatch_fqn,
+                args,
+            )? {
+                return Ok(value);
             }
 
             if let Some(value) = self.try_codegen_class_vtable_call(span, callee.span, fqn, args)? {

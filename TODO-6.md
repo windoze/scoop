@@ -4,7 +4,7 @@
 > 细化时间：2026-05-22
 > 计划基线：[`PLAN.md`](./PLAN.md) §4/P6-P8
 > 索引：[`TODO.md`](./TODO.md)
-> 当前状态：`P7-T04-a` / `P7-T04-b-1` / `P7-T04-b-1R` / `P7-T04-b-2` / `P7-T04-b-2R` / `P7-T04-b-3` / `P7-T04-b-3R` / `P7-T04-b-4` / `P7-T04-b-4R` / `P7-T04-b-5` / `P7-T04-b-5R` / `P7-T04-b` / `P7-T04-bR` / `P7-T04-c` / `P7-T04-cR` / `P7-T04` / `P7-T04R` / `P7-T05` / `P7-T05-a` / `P7-T05-b-0` / `P7-T05-b` / `P7-T05-c` / `P7-T05R` / `P8-T01` / `P8-T01R` 均已完成。P8 final residual/documentation freeze review 已完成，下一步执行 `P8-T02`。
+> 当前状态：`P7-T04-a` / `P7-T04-b-1` / `P7-T04-b-1R` / `P7-T04-b-2` / `P7-T04-b-2R` / `P7-T04-b-3` / `P7-T04-b-3R` / `P7-T04-b-4` / `P7-T04-b-4R` / `P7-T04-b-5` / `P7-T04-b-5R` / `P7-T04-b` / `P7-T04-bR` / `P7-T04-c` / `P7-T04-cR` / `P7-T04` / `P7-T04R` / `P7-T05` / `P7-T05-a` / `P7-T05-b-0` / `P7-T05-b` / `P7-T05-c` / `P7-T05R` / `P8-T01` / `P8-T01R` / `P8-T02` 均已完成。P8 final verification 已完成，下一步执行 `P8-T02R`。
 
 ## 范围
 
@@ -1478,7 +1478,7 @@
   - 文档冻结复审：`README.md`、`PIPELINE_REFACTOR.md`、`PIPELINE-CLEANUP.md` 均明确 LLVM 与未来 C backend 共享 `LIR + LIR facts + base context` 输入边界，不把 workaround 或 historical residual 描述成长期合法路径；`TypeId` cross-process stable wire format owner 保持为 P10 per-cone build artifact serialization。
   - 验证通过：`cargo fmt`；`cargo run -p scoop_tools -- dependency-gate`；`cargo run -p scoop_tools -- spec-fixtures check`；`cargo test --all --all-targets`；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
 
-## [TODO] P8-T02：最终全仓验证与 release readiness 清场
+## [DONE] P8-T02：最终全仓验证与 release readiness 清场
 
 - 目标：
   - 运行最终验证矩阵；
@@ -1507,7 +1507,10 @@
   - 代码、fixtures、文档和 dependency gate 不再暴露 P0-P8 residual。
 - 依赖：P8-T01R
 - 完成记录：
-  - 待填写。
+  - 最终验证矩阵已完整通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo run -p scoop_tools -- dependency-gate`；`cargo run -p scoop_tools -- spec-fixtures check`；`cargo test --all --all-targets`；`cargo run -p scoop -- test`（完整 fixture suite，1536 checks passed）；`git diff --check`。
+  - 本轮验证发现并修复的真实失败：class ctor init source payload 中内建标量 `ToString` 错走 interface itable，导致 `run_pass_cone/cross_file_ctor_named_default_basic` 退出 7；LLVM raw HIR call lowering 现在对 `ToString.toString` 的内建接收者直接调用对应内建 `toString` 实现，避免错误的 boxed-itable 路径。
+  - 本轮验证同步的 fixture/golden：build fixture 期望更新为当前 LIR direct-call SSA 命名；`per_cone_init_routine_emit_llvm` 更新为当前实际 linked cone init order；MIR / mir_lowered / mir_materialized stable dump 与 tracked actual dump 刷新到当前 direct constants / MIR facts 输出；`top_level_val_pattern_multi_file_basic` stdout golden 更新为 eager top-level init 在 `main` 前完成的顺序。
+  - Release readiness 清场：未观察到单个 fixture 卡住超过 1 分钟；`TODO.md` 与 `TODO-6.md` 已同步标记 `P8-T02` 为 `[DONE]`，下一步只剩独立 review 任务 `P8-T02R`。
 
 ## [TODO] P8-T02R：Review final verification 与 release readiness
 

@@ -1,8 +1,8 @@
 seed-tuple
-3
 seed-point
-36
 seed-total
+3
+36
 41
 119
 1

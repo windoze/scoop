@@ -138,29 +138,9 @@ File {
                                 source: CompilerTemporary,
                             },
                             LocalDecl {
-                                span: 202..213,
-                                name: Some(
-                                    "tmp5",
-                                ),
-                                ty: TypeId(
-                                    2,
-                                ),
-                                source: CompilerTemporary,
-                            },
-                            LocalDecl {
                                 span: 218..231,
                                 name: Some(
-                                    "tmp6",
-                                ),
-                                ty: TypeId(
-                                    2,
-                                ),
-                                source: CompilerTemporary,
-                            },
-                            LocalDecl {
-                                span: 228..230,
-                                name: Some(
-                                    "tmp7",
+                                    "tmp5",
                                 ),
                                 ty: TypeId(
                                     2,
@@ -335,17 +315,6 @@ File {
                                     Statement {
                                         span: 202..213,
                                         kind: Assign {
-                                            target: l6,
-                                            value: Use(
-                                                Const(
-                                                    Unit,
-                                                ),
-                                            ),
-                                        },
-                                    },
-                                    Statement {
-                                        span: 202..213,
-                                        kind: Assign {
                                             target: l5,
                                             value: Call {
                                                 site_id: site2,
@@ -356,8 +325,8 @@ File {
                                                     CallArg {
                                                         span: 202..213,
                                                         name: None,
-                                                        value: Local(
-                                                            l6,
+                                                        value: Const(
+                                                            Unit,
                                                         ),
                                                     },
                                                 ],
@@ -388,20 +357,9 @@ File {
                                         },
                                     },
                                     Statement {
-                                        span: 228..230,
-                                        kind: Assign {
-                                            target: l8,
-                                            value: Use(
-                                                Const(
-                                                    Unit,
-                                                ),
-                                            ),
-                                        },
-                                    },
-                                    Statement {
                                         span: 218..231,
                                         kind: Assign {
-                                            target: l7,
+                                            target: l6,
                                             value: Call {
                                                 site_id: site3,
                                                 kind: Direct {
@@ -411,8 +369,8 @@ File {
                                                     CallArg {
                                                         span: 228..230,
                                                         name: None,
-                                                        value: Local(
-                                                            l8,
+                                                        value: Const(
+                                                            Unit,
                                                         ),
                                                     },
                                                 ],

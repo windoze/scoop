@@ -51,7 +51,7 @@ File {
                                     "tmp1",
                                 ),
                                 ty: TypeId(
-                                    18,
+                                    25,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -69,16 +69,6 @@ File {
                                 span: 73..77,
                                 name: Some(
                                     "tmp3",
-                                ),
-                                ty: TypeId(
-                                    5,
-                                ),
-                                source: CompilerTemporary,
-                            },
-                            LocalDecl {
-                                span: 75..76,
-                                name: Some(
-                                    "tmp4",
                                 ),
                                 ty: TypeId(
                                     5,
@@ -124,7 +114,7 @@ File {
                                                 ],
                                                 transport: AggregateTransportMetadata {
                                                     aggregate_ty: TypeId(
-                                                        18,
+                                                        25,
                                                     ),
                                                     kind: ClosureEnv,
                                                     fields: [
@@ -165,7 +155,7 @@ File {
                                                 fn_ptr: "a.main.$lambda0",
                                                 env_contract: ClosureEnvTransportMetadata {
                                                     env_ty: TypeId(
-                                                        18,
+                                                        25,
                                                     ),
                                                     captures: [
                                                         ClosureCaptureTransportMetadata {
@@ -203,17 +193,6 @@ File {
                                         },
                                     },
                                     Statement {
-                                        span: 75..76,
-                                        kind: Assign {
-                                            target: l6,
-                                            value: Use(
-                                                Const(
-                                                    Int,
-                                                ),
-                                            ),
-                                        },
-                                    },
-                                    Statement {
                                         span: 73..77,
                                         kind: Assign {
                                             target: l5,
@@ -228,8 +207,8 @@ File {
                                                     CallArg {
                                                         span: 75..76,
                                                         name: None,
-                                                        value: Local(
-                                                            l6,
+                                                        value: Const(
+                                                            Int,
                                                         ),
                                                     },
                                                 ],
@@ -291,7 +270,7 @@ File {
                         span: 60..70,
                         name: "$env",
                         ty: TypeId(
-                            18,
+                            25,
                         ),
                         local: l0,
                     },
@@ -316,7 +295,7 @@ File {
                                     "$env",
                                 ),
                                 ty: TypeId(
-                                    18,
+                                    25,
                                 ),
                                 source: SourceLocal,
                             },

@@ -50,11 +50,15 @@ struct RunStdoutReadFailed {
 }
 
 #[derive(Debug, Error, Diagnostic)]
-#[error("stdout 与 golden 不一致：{path}（fixture: {fixture}）")]
+#[error(
+    "stdout 与 golden 不一致：{path}（fixture: {fixture}；expected: {expected_preview}；actual: {actual_preview}）"
+)]
 #[diagnostic(code(scoop::fixtures::run_stdout_mismatch))]
 struct RunStdoutMismatch {
     path: String,
     fixture: String,
+    expected_preview: String,
+    actual_preview: String,
 }
 
 #[derive(Debug, Error, Diagnostic)]
@@ -796,6 +800,8 @@ pub(crate) fn assert_stdout_matches(
             return Err(super::box_diagnostic(RunStdoutMismatch {
                 path: golden_path.display().to_string(),
                 fixture: fixture_path.display().to_string(),
+                expected_preview: preview_text(&expected, 200),
+                actual_preview: preview_text(&actual, 200),
             }));
         }
     }

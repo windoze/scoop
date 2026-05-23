@@ -45,16 +45,6 @@ File {
                                 ),
                                 source: CompilerTemporary,
                             },
-                            LocalDecl {
-                                span: 65..66,
-                                name: Some(
-                                    "tmp2",
-                                ),
-                                ty: TypeId(
-                                    5,
-                                ),
-                                source: CompilerTemporary,
-                            },
                         ],
                         blocks: [
                             BasicBlock {
@@ -90,17 +80,6 @@ File {
                                         },
                                     },
                                     Statement {
-                                        span: 65..66,
-                                        kind: Assign {
-                                            target: l3,
-                                            value: Use(
-                                                Const(
-                                                    Int,
-                                                ),
-                                            ),
-                                        },
-                                    },
-                                    Statement {
                                         span: 62..67,
                                         kind: Assign {
                                             target: l2,
@@ -115,8 +94,8 @@ File {
                                                     CallArg {
                                                         span: 65..66,
                                                         name: None,
-                                                        value: Local(
-                                                            l3,
+                                                        value: Const(
+                                                            Int,
                                                         ),
                                                     },
                                                 ],

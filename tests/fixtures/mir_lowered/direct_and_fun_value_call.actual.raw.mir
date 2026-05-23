@@ -215,7 +215,7 @@ File {
                                 source: CompilerTemporary,
                             },
                             LocalDecl {
-                                span: 111..112,
+                                span: 116..129,
                                 name: Some(
                                     "tmp1",
                                 ),
@@ -225,32 +225,12 @@ File {
                                 source: CompilerTemporary,
                             },
                             LocalDecl {
-                                span: 116..129,
+                                span: 123..125,
                                 name: Some(
                                     "tmp2",
                                 ),
                                 ty: TypeId(
-                                    5,
-                                ),
-                                source: CompilerTemporary,
-                            },
-                            LocalDecl {
-                                span: 123..125,
-                                name: Some(
-                                    "tmp3",
-                                ),
-                                ty: TypeId(
                                     10,
-                                ),
-                                source: CompilerTemporary,
-                            },
-                            LocalDecl {
-                                span: 127..128,
-                                name: Some(
-                                    "tmp4",
-                                ),
-                                ty: TypeId(
-                                    5,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -259,17 +239,6 @@ File {
                             BasicBlock {
                                 is_cleanup: false,
                                 stmts: [
-                                    Statement {
-                                        span: 111..112,
-                                        kind: Assign {
-                                            target: l1,
-                                            value: Use(
-                                                Const(
-                                                    Int,
-                                                ),
-                                            ),
-                                        },
-                                    },
                                     Statement {
                                         span: 108..113,
                                         kind: Assign {
@@ -283,8 +252,8 @@ File {
                                                     CallArg {
                                                         span: 111..112,
                                                         name: None,
-                                                        value: Local(
-                                                            l1,
+                                                        value: Const(
+                                                            Int,
                                                         ),
                                                     },
                                                 ],
@@ -317,7 +286,7 @@ File {
                                     Statement {
                                         span: 123..125,
                                         kind: Assign {
-                                            target: l3,
+                                            target: l2,
                                             value: MakeClosure {
                                                 env: Const(
                                                     Unit,
@@ -333,20 +302,9 @@ File {
                                         },
                                     },
                                     Statement {
-                                        span: 127..128,
-                                        kind: Assign {
-                                            target: l4,
-                                            value: Use(
-                                                Const(
-                                                    Int,
-                                                ),
-                                            ),
-                                        },
-                                    },
-                                    Statement {
                                         span: 116..129,
                                         kind: Assign {
-                                            target: l2,
+                                            target: l1,
                                             value: Call {
                                                 site_id: site1,
                                                 kind: Direct {
@@ -357,14 +315,14 @@ File {
                                                         span: 123..125,
                                                         name: None,
                                                         value: Local(
-                                                            l3,
+                                                            l2,
                                                         ),
                                                     },
                                                     CallArg {
                                                         span: 127..128,
                                                         name: None,
-                                                        value: Local(
-                                                            l4,
+                                                        value: Const(
+                                                            Int,
                                                         ),
                                                     },
                                                 ],
@@ -400,7 +358,7 @@ File {
                                     kind: Return {
                                         value: Some(
                                             Local(
-                                                l2,
+                                                l1,
                                             ),
                                         ),
                                     },

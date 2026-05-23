@@ -58,13 +58,13 @@ File {
                 return_ty: Int,
                 body: Some(
                     Body {
-                        locals: [LocalDecl { label: local#h394f7e48e7fcad2ae61bf0ca2bccea10, span: 108..113, name: Some("tmp0"), ty: Int, source: CompilerTemporary }, LocalDecl { label: local#h0deda7edd02c517504333da4ec0ca427, span: 111..112, name: Some("tmp1"), ty: Int, source: CompilerTemporary }, LocalDecl { label: local#h50a05fbd4d128214fcfbec64a84686ce, span: 116..129, name: Some("tmp2"), ty: Int, source: CompilerTemporary }, LocalDecl { label: local#h7404796b8f0b8d544357b8e0dc4b8b86, span: 123..125, name: Some("tmp3"), ty: (Int) -> Int / Pure, source: CompilerTemporary }, LocalDecl { label: local#hb518c90f8dbf7edc93f07f7822bd9073, span: 127..128, name: Some("tmp4"), ty: Int, source: CompilerTemporary }],
+                        locals: [LocalDecl { label: local#h394f7e48e7fcad2ae61bf0ca2bccea10, span: 108..113, name: Some("tmp0"), ty: Int, source: CompilerTemporary }, LocalDecl { label: local#h7ef529c3743170294ebb8270554336d9, span: 116..129, name: Some("tmp1"), ty: Int, source: CompilerTemporary }, LocalDecl { label: local#h9e1c2c36a113749d1d5f5156fd0c2dfd, span: 123..125, name: Some("tmp2"), ty: (Int) -> Int / Pure, source: CompilerTemporary }],
                         blocks: [
                             BasicBlock {
                                 label: bb#hf20af3d2812d9e961b451ffa062ceaa8,
                                 is_cleanup: false,
-                                stmts: [Statement { span: 111..112, kind: Assign { target: local#h0deda7edd02c517504333da4ec0ca427, value: Use(Const(Int)) } }, Statement { span: 108..113, kind: Assign { target: local#h394f7e48e7fcad2ae61bf0ca2bccea10, value: Call { site_id: site#h3a7100b5b77b97ed2d6301692b2e54d0, kind: Direct { callee_fqn: "a.id" }, args: [CallArg { span: 111..112, name: None, value: Local(local#h0deda7edd02c517504333da4ec0ca427) }], transport: CallTransportMetadata { result: ValueTransportMetadata { source_ty: Int, kind: Scalar, requirements: MirTransportRequirements { trace: false, copy: true, drop: false }, boxing: None }, aggregate_return: None, array: None, gc: None, abi: CallAbiHandoffMetadata { callable_abi_kind: DeferredToEffectFacts, resolved_outward_cases: [], impl_plan: DeferredToEffectFacts, adapter_required: false } } } } }, Statement { span: 123..125, kind: Assign { target: local#h7404796b8f0b8d544357b8e0dc4b8b86, value: MakeClosure { env: Const(Unit), fn_ptr: "a.main.$lambda0", env_contract: ClosureEnvTransportMetadata { env_ty: Unit, captures: [] } } } }, Statement { span: 127..128, kind: Assign { target: local#hb518c90f8dbf7edc93f07f7822bd9073, value: Use(Const(Int)) } }, Statement { span: 116..129, kind: Assign { target: local#h50a05fbd4d128214fcfbec64a84686ce, value: Call { site_id: site#h0e6d4248025ecfffc5d1d56a680ea6e6, kind: Direct { callee_fqn: "a.callFn" }, args: [CallArg { span: 123..125, name: None, value: Local(local#h7404796b8f0b8d544357b8e0dc4b8b86) }, CallArg { span: 127..128, name: None, value: Local(local#hb518c90f8dbf7edc93f07f7822bd9073) }], transport: CallTransportMetadata { result: ValueTransportMetadata { source_ty: Int, kind: Scalar, requirements: MirTransportRequirements { trace: false, copy: true, drop: false }, boxing: None }, aggregate_return: None, array: None, gc: None, abi: CallAbiHandoffMetadata { callable_abi_kind: DeferredToEffectFacts, resolved_outward_cases: [], impl_plan: DeferredToEffectFacts, adapter_required: false } } } } }],
-                                terminator: Terminator { span: 93..131, kind: Return { value: Some(Local(local#h50a05fbd4d128214fcfbec64a84686ce)) }, unwind: NoUnwind },
+                                stmts: [Statement { span: 108..113, kind: Assign { target: local#h394f7e48e7fcad2ae61bf0ca2bccea10, value: Call { site_id: site#h3a7100b5b77b97ed2d6301692b2e54d0, kind: Direct { callee_fqn: "a.id" }, args: [CallArg { span: 111..112, name: None, value: Const(Int) }], transport: CallTransportMetadata { result: ValueTransportMetadata { source_ty: Int, kind: Scalar, requirements: MirTransportRequirements { trace: false, copy: true, drop: false }, boxing: None }, aggregate_return: None, array: None, gc: None, abi: CallAbiHandoffMetadata { callable_abi_kind: DeferredToEffectFacts, resolved_outward_cases: [], impl_plan: DeferredToEffectFacts, adapter_required: false } } } } }, Statement { span: 123..125, kind: Assign { target: local#h9e1c2c36a113749d1d5f5156fd0c2dfd, value: MakeClosure { env: Const(Unit), fn_ptr: "a.main.$lambda0", env_contract: ClosureEnvTransportMetadata { env_ty: Unit, captures: [] } } } }, Statement { span: 116..129, kind: Assign { target: local#h7ef529c3743170294ebb8270554336d9, value: Call { site_id: site#h0e6d4248025ecfffc5d1d56a680ea6e6, kind: Direct { callee_fqn: "a.callFn" }, args: [CallArg { span: 123..125, name: None, value: Local(local#h9e1c2c36a113749d1d5f5156fd0c2dfd) }, CallArg { span: 127..128, name: None, value: Const(Int) }], transport: CallTransportMetadata { result: ValueTransportMetadata { source_ty: Int, kind: Scalar, requirements: MirTransportRequirements { trace: false, copy: true, drop: false }, boxing: None }, aggregate_return: None, array: None, gc: None, abi: CallAbiHandoffMetadata { callable_abi_kind: DeferredToEffectFacts, resolved_outward_cases: [], impl_plan: DeferredToEffectFacts, adapter_required: false } } } } }],
+                                terminator: Terminator { span: 93..131, kind: Return { value: Some(Local(local#h7ef529c3743170294ebb8270554336d9)) }, unwind: NoUnwind },
                             },
                         ],
                         start: bb#hf20af3d2812d9e961b451ffa062ceaa8,
@@ -99,3 +99,17 @@ File {
     ],
 }
 
+
+mir_facts {
+  roots: callable_bodies=4, initializers=0, extern_globals=0, metadata_roots=0
+  callable_bodies {
+    - item=1 fqn=a.callFn kind=callable_body span=40..91
+    - item=0 fqn=a.id kind=callable_body span=11..38
+    - item=2 fqn=a.main kind=callable_body span=93..131
+    - item=3 fqn=a.main.$lambda0 kind=callable_body span=123..125
+  }
+  snapshots: canonical=<none>, snapshots=0
+  families: instances=0, callable_families=0
+  pass_artifacts: revisions=0, callable_body_overrides=0, summaries=0, escape_facts=0
+  pass_pipeline: runs=0
+}

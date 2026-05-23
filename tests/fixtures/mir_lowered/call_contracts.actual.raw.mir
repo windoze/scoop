@@ -695,16 +695,6 @@ File {
                                 source: CompilerTemporary,
                             },
                             LocalDecl {
-                                span: 538..539,
-                                name: Some(
-                                    "tmp1",
-                                ),
-                                ty: TypeId(
-                                    5,
-                                ),
-                                source: CompilerTemporary,
-                            },
-                            LocalDecl {
                                 span: 545..573,
                                 name: Some(
                                     "g",
@@ -717,7 +707,7 @@ File {
                             LocalDecl {
                                 span: 558..573,
                                 name: Some(
-                                    "tmp2",
+                                    "tmp1",
                                 ),
                                 ty: TypeId(
                                     11,
@@ -727,17 +717,7 @@ File {
                             LocalDecl {
                                 span: 571..572,
                                 name: Some(
-                                    "tmp3",
-                                ),
-                                ty: TypeId(
-                                    5,
-                                ),
-                                source: CompilerTemporary,
-                            },
-                            LocalDecl {
-                                span: 571..572,
-                                name: Some(
-                                    "tmp4",
+                                    "tmp2",
                                 ),
                                 ty: TypeId(
                                     11,
@@ -767,7 +747,7 @@ File {
                             LocalDecl {
                                 span: 612..613,
                                 name: Some(
-                                    "tmp5",
+                                    "tmp3",
                                 ),
                                 ty: TypeId(
                                     5,
@@ -787,7 +767,7 @@ File {
                             LocalDecl {
                                 span: 253..254,
                                 name: Some(
-                                    "tmp6",
+                                    "tmp4",
                                 ),
                                 ty: TypeId(
                                     5,
@@ -797,7 +777,7 @@ File {
                             LocalDecl {
                                 span: 591..614,
                                 name: Some(
-                                    "tmp7",
+                                    "tmp5",
                                 ),
                                 ty: TypeId(
                                     5,
@@ -827,7 +807,7 @@ File {
                             LocalDecl {
                                 span: 632..633,
                                 name: Some(
-                                    "tmp8",
+                                    "tmp6",
                                 ),
                                 ty: TypeId(
                                     5,
@@ -847,7 +827,7 @@ File {
                             LocalDecl {
                                 span: 324..325,
                                 name: Some(
-                                    "tmp9",
+                                    "tmp7",
                                 ),
                                 ty: TypeId(
                                     5,
@@ -857,7 +837,7 @@ File {
                             LocalDecl {
                                 span: 632..639,
                                 name: Some(
-                                    "tmp10",
+                                    "tmp8",
                                 ),
                                 ty: TypeId(
                                     5,
@@ -877,7 +857,7 @@ File {
                             LocalDecl {
                                 span: 657..672,
                                 name: Some(
-                                    "tmp11",
+                                    "tmp9",
                                 ),
                                 ty: TypeId(
                                     5,
@@ -887,7 +867,7 @@ File {
                             LocalDecl {
                                 span: 657..666,
                                 name: Some(
-                                    "tmp12",
+                                    "tmp10",
                                 ),
                                 ty: TypeId(
                                     16,
@@ -907,7 +887,7 @@ File {
                             LocalDecl {
                                 span: 692..706,
                                 name: Some(
-                                    "tmp13",
+                                    "tmp11",
                                 ),
                                 ty: TypeId(
                                     17,
@@ -917,7 +897,7 @@ File {
                             LocalDecl {
                                 span: 704..705,
                                 name: Some(
-                                    "tmp14",
+                                    "tmp12",
                                 ),
                                 ty: TypeId(
                                     5,
@@ -937,7 +917,7 @@ File {
                             LocalDecl {
                                 span: 733..739,
                                 name: Some(
-                                    "tmp15",
+                                    "tmp13",
                                 ),
                                 ty: TypeId(
                                     10,
@@ -957,17 +937,7 @@ File {
                             LocalDecl {
                                 span: 758..770,
                                 name: Some(
-                                    "tmp16",
-                                ),
-                                ty: TypeId(
-                                    5,
-                                ),
-                                source: CompilerTemporary,
-                            },
-                            LocalDecl {
-                                span: 768..769,
-                                name: Some(
-                                    "tmp17",
+                                    "tmp14",
                                 ),
                                 ty: TypeId(
                                     5,
@@ -987,7 +957,7 @@ File {
                             LocalDecl {
                                 span: 789..813,
                                 name: Some(
-                                    "tmp18",
+                                    "tmp15",
                                 ),
                                 ty: TypeId(
                                     5,
@@ -997,20 +967,10 @@ File {
                             LocalDecl {
                                 span: 789..810,
                                 name: Some(
-                                    "tmp19",
+                                    "tmp16",
                                 ),
                                 ty: TypeId(
                                     10,
-                                ),
-                                source: CompilerTemporary,
-                            },
-                            LocalDecl {
-                                span: 811..812,
-                                name: Some(
-                                    "tmp20",
-                                ),
-                                ty: TypeId(
-                                    5,
                                 ),
                                 source: CompilerTemporary,
                             },
@@ -1027,7 +987,7 @@ File {
                             LocalDecl {
                                 span: 841..854,
                                 name: Some(
-                                    "tmp21",
+                                    "tmp17",
                                 ),
                                 ty: TypeId(
                                     1,
@@ -1047,7 +1007,7 @@ File {
                             LocalDecl {
                                 span: 876..889,
                                 name: Some(
-                                    "tmp22",
+                                    "tmp18",
                                 ),
                                 ty: TypeId(
                                     5,
@@ -1067,7 +1027,7 @@ File {
                             LocalDecl {
                                 span: 919..932,
                                 name: Some(
-                                    "tmp23",
+                                    "tmp19",
                                 ),
                                 ty: TypeId(
                                     18,
@@ -1077,7 +1037,7 @@ File {
                             LocalDecl {
                                 span: 944..991,
                                 name: Some(
-                                    "tmp24",
+                                    "tmp20",
                                 ),
                                 ty: TypeId(
                                     5,
@@ -1087,7 +1047,7 @@ File {
                             LocalDecl {
                                 span: 944..983,
                                 name: Some(
-                                    "tmp25",
+                                    "tmp21",
                                 ),
                                 ty: TypeId(
                                     5,
@@ -1097,7 +1057,7 @@ File {
                             LocalDecl {
                                 span: 944..978,
                                 name: Some(
-                                    "tmp26",
+                                    "tmp22",
                                 ),
                                 ty: TypeId(
                                     5,
@@ -1107,7 +1067,7 @@ File {
                             LocalDecl {
                                 span: 944..973,
                                 name: Some(
-                                    "tmp27",
+                                    "tmp23",
                                 ),
                                 ty: TypeId(
                                     5,
@@ -1117,7 +1077,7 @@ File {
                             LocalDecl {
                                 span: 944..961,
                                 name: Some(
-                                    "tmp28",
+                                    "tmp24",
                                 ),
                                 ty: TypeId(
                                     5,
@@ -1127,7 +1087,7 @@ File {
                             LocalDecl {
                                 span: 944..957,
                                 name: Some(
-                                    "tmp29",
+                                    "tmp25",
                                 ),
                                 ty: TypeId(
                                     5,
@@ -1137,7 +1097,7 @@ File {
                             LocalDecl {
                                 span: 944..953,
                                 name: Some(
-                                    "tmp30",
+                                    "tmp26",
                                 ),
                                 ty: TypeId(
                                     5,
@@ -1147,7 +1107,7 @@ File {
                             LocalDecl {
                                 span: 944..949,
                                 name: Some(
-                                    "tmp31",
+                                    "tmp27",
                                 ),
                                 ty: TypeId(
                                     5,
@@ -1157,7 +1117,7 @@ File {
                             LocalDecl {
                                 span: 964..973,
                                 name: Some(
-                                    "tmp32",
+                                    "tmp28",
                                 ),
                                 ty: TypeId(
                                     5,
@@ -1167,7 +1127,7 @@ File {
                             LocalDecl {
                                 span: 512..993,
                                 name: Some(
-                                    "tmp33",
+                                    "tmp29",
                                 ),
                                 ty: TypeId(
                                     2,
@@ -1179,17 +1139,6 @@ File {
                             BasicBlock {
                                 is_cleanup: false,
                                 stmts: [
-                                    Statement {
-                                        span: 538..539,
-                                        kind: Assign {
-                                            target: l2,
-                                            value: Use(
-                                                Const(
-                                                    Int,
-                                                ),
-                                            ),
-                                        },
-                                    },
                                     Statement {
                                         span: 531..540,
                                         kind: Assign {
@@ -1203,8 +1152,8 @@ File {
                                                     CallArg {
                                                         span: 538..539,
                                                         name: None,
-                                                        value: Local(
-                                                            l2,
+                                                        value: Const(
+                                                            Int,
                                                         ),
                                                     },
                                                 ],
@@ -1248,21 +1197,10 @@ File {
                                     Statement {
                                         span: 571..572,
                                         kind: Assign {
-                                            target: l5,
-                                            value: Use(
-                                                Const(
-                                                    Int,
-                                                ),
-                                            ),
-                                        },
-                                    },
-                                    Statement {
-                                        span: 571..572,
-                                        kind: Assign {
-                                            target: l6,
+                                            target: l4,
                                             value: Transport {
-                                                value: Local(
-                                                    l5,
+                                                value: Const(
+                                                    Int,
                                                 ),
                                                 transport: ValueTransportMetadata {
                                                     source_ty: TypeId(
@@ -1294,7 +1232,7 @@ File {
                                     Statement {
                                         span: 558..573,
                                         kind: Assign {
-                                            target: l4,
+                                            target: l3,
                                             value: Call {
                                                 site_id: site1,
                                                 kind: Direct {
@@ -1305,7 +1243,7 @@ File {
                                                         span: 571..572,
                                                         name: None,
                                                         value: Local(
-                                                            l6,
+                                                            l4,
                                                         ),
                                                     },
                                                 ],
@@ -1338,16 +1276,38 @@ File {
                                     Statement {
                                         span: 545..573,
                                         kind: Assign {
-                                            target: l3,
+                                            target: l2,
                                             value: Use(
                                                 Local(
-                                                    l4,
+                                                    l3,
                                                 ),
                                             ),
                                         },
                                     },
                                     Statement {
                                         span: 612..613,
+                                        kind: Assign {
+                                            target: l7,
+                                            value: Use(
+                                                Const(
+                                                    Int,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 591..614,
+                                        kind: Assign {
+                                            target: l6,
+                                            value: Use(
+                                                Local(
+                                                    l7,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 253..254,
                                         kind: Assign {
                                             target: l9,
                                             value: Use(
@@ -1369,31 +1329,9 @@ File {
                                         },
                                     },
                                     Statement {
-                                        span: 253..254,
-                                        kind: Assign {
-                                            target: l11,
-                                            value: Use(
-                                                Const(
-                                                    Int,
-                                                ),
-                                            ),
-                                        },
-                                    },
-                                    Statement {
                                         span: 591..614,
                                         kind: Assign {
                                             target: l10,
-                                            value: Use(
-                                                Local(
-                                                    l11,
-                                                ),
-                                            ),
-                                        },
-                                    },
-                                    Statement {
-                                        span: 591..614,
-                                        kind: Assign {
-                                            target: l12,
                                             value: Call {
                                                 site_id: site2,
                                                 kind: Direct {
@@ -1404,14 +1342,14 @@ File {
                                                         span: 240..245,
                                                         name: None,
                                                         value: Local(
-                                                            l10,
+                                                            l8,
                                                         ),
                                                     },
                                                     CallArg {
                                                         span: 256..261,
                                                         name: None,
                                                         value: Local(
-                                                            l8,
+                                                            l6,
                                                         ),
                                                     },
                                                 ],
@@ -1444,16 +1382,38 @@ File {
                                     Statement {
                                         span: 578..614,
                                         kind: Assign {
-                                            target: l7,
+                                            target: l5,
                                             value: Use(
                                                 Local(
-                                                    l12,
+                                                    l10,
                                                 ),
                                             ),
                                         },
                                     },
                                     Statement {
                                         span: 632..633,
+                                        kind: Assign {
+                                            target: l13,
+                                            value: Use(
+                                                Const(
+                                                    Int,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 632..639,
+                                        kind: Assign {
+                                            target: l12,
+                                            value: Use(
+                                                Local(
+                                                    l13,
+                                                ),
+                                            ),
+                                        },
+                                    },
+                                    Statement {
+                                        span: 324..325,
                                         kind: Assign {
                                             target: l15,
                                             value: Use(
@@ -1475,31 +1435,9 @@ File {
                                         },
                                     },
                                     Statement {
-                                        span: 324..325,
-                                        kind: Assign {
-                                            target: l17,
-                                            value: Use(
-                                                Const(
-                                                    Int,
-                                                ),
-                                            ),
-                                        },
-                                    },
-                                    Statement {
                                         span: 632..639,
                                         kind: Assign {
                                             target: l16,
-                                            value: Use(
-                                                Local(
-                                                    l17,
-                                                ),
-                                            ),
-                                        },
-                                    },
-                                    Statement {
-                                        span: 632..639,
-                                        kind: Assign {
-                                            target: l18,
                                             value: Call {
                                                 site_id: site3,
                                                 kind: Direct {
@@ -1510,14 +1448,14 @@ File {
                                                         span: 994..995,
                                                         name: None,
                                                         value: Local(
-                                                            l14,
+                                                            l12,
                                                         ),
                                                     },
                                                     CallArg {
                                                         span: 996..997,
                                                         name: None,
                                                         value: Local(
-                                                            l16,
+                                                            l14,
                                                         ),
                                                     },
                                                 ],
@@ -1550,10 +1488,10 @@ File {
                                     Statement {
                                         span: 619..639,
                                         kind: Assign {
-                                            target: l13,
+                                            target: l11,
                                             value: Use(
                                                 Local(
-                                                    l18,
+                                                    l16,
                                                 ),
                                             ),
                                         },
@@ -1561,7 +1499,7 @@ File {
                                     Statement {
                                         span: 657..666,
                                         kind: Assign {
-                                            target: l21,
+                                            target: l19,
                                             value: TopLevelRef(
                                                 TopLevelRef {
                                                     fqn: "mir_lowered.call_contracts.Singleton",
@@ -1576,7 +1514,7 @@ File {
                                     Statement {
                                         span: 657..672,
                                         kind: Assign {
-                                            target: l20,
+                                            target: l18,
                                             value: Call {
                                                 site_id: site4,
                                                 kind: Direct {
@@ -1587,7 +1525,7 @@ File {
                                                         span: 657..666,
                                                         name: None,
                                                         value: Local(
-                                                            l21,
+                                                            l19,
                                                         ),
                                                     },
                                                 ],
@@ -1643,10 +1581,10 @@ File {
                                     Statement {
                                         span: 644..672,
                                         kind: Assign {
-                                            target: l19,
+                                            target: l17,
                                             value: Use(
                                                 Local(
-                                                    l20,
+                                                    l18,
                                                 ),
                                             ),
                                         },
@@ -1654,7 +1592,7 @@ File {
                                     Statement {
                                         span: 704..705,
                                         kind: Assign {
-                                            target: l24,
+                                            target: l22,
                                             value: Use(
                                                 Const(
                                                     Int,
@@ -1665,7 +1603,7 @@ File {
                                     Statement {
                                         span: 692..706,
                                         kind: Assign {
-                                            target: l23,
+                                            target: l21,
                                             value: ClassCtor {
                                                 site_id: site5,
                                                 class_fqn: "mir_lowered.call_contracts.Box",
@@ -1680,7 +1618,7 @@ File {
                                                         span: 704..705,
                                                         name: None,
                                                         value: Local(
-                                                            l24,
+                                                            l22,
                                                         ),
                                                     },
                                                 ],
@@ -1693,10 +1631,10 @@ File {
                                     Statement {
                                         span: 677..706,
                                         kind: Assign {
-                                            target: l22,
+                                            target: l20,
                                             value: Use(
                                                 Local(
-                                                    l23,
+                                                    l21,
                                                 ),
                                             ),
                                         },
@@ -1704,7 +1642,7 @@ File {
                                     Statement {
                                         span: 733..739,
                                         kind: Assign {
-                                            target: l26,
+                                            target: l24,
                                             value: MakeClosure {
                                                 env: Const(
                                                     Unit,
@@ -1722,21 +1660,10 @@ File {
                                     Statement {
                                         span: 711..739,
                                         kind: Assign {
-                                            target: l25,
+                                            target: l23,
                                             value: Use(
                                                 Local(
-                                                    l26,
-                                                ),
-                                            ),
-                                        },
-                                    },
-                                    Statement {
-                                        span: 768..769,
-                                        kind: Assign {
-                                            target: l29,
-                                            value: Use(
-                                                Const(
-                                                    Int,
+                                                    l24,
                                                 ),
                                             ),
                                         },
@@ -1744,7 +1671,7 @@ File {
                                     Statement {
                                         span: 758..770,
                                         kind: Assign {
-                                            target: l28,
+                                            target: l26,
                                             value: Call {
                                                 site_id: site6,
                                                 kind: Direct {
@@ -1755,14 +1682,14 @@ File {
                                                         span: 765..766,
                                                         name: None,
                                                         value: Local(
-                                                            l25,
+                                                            l23,
                                                         ),
                                                     },
                                                     CallArg {
                                                         span: 768..769,
                                                         name: None,
-                                                        value: Local(
-                                                            l29,
+                                                        value: Const(
+                                                            Int,
                                                         ),
                                                     },
                                                 ],
@@ -1795,10 +1722,10 @@ File {
                                     Statement {
                                         span: 744..770,
                                         kind: Assign {
-                                            target: l27,
+                                            target: l25,
                                             value: Use(
                                                 Local(
-                                                    l28,
+                                                    l26,
                                                 ),
                                             ),
                                         },
@@ -1806,7 +1733,7 @@ File {
                                     Statement {
                                         span: 789..810,
                                         kind: Assign {
-                                            target: l32,
+                                            target: l29,
                                             value: MakeClosure {
                                                 env: Const(
                                                     Unit,
@@ -1822,25 +1749,14 @@ File {
                                         },
                                     },
                                     Statement {
-                                        span: 811..812,
-                                        kind: Assign {
-                                            target: l33,
-                                            value: Use(
-                                                Const(
-                                                    Int,
-                                                ),
-                                            ),
-                                        },
-                                    },
-                                    Statement {
                                         span: 789..813,
                                         kind: Assign {
-                                            target: l31,
+                                            target: l28,
                                             value: Call {
                                                 site_id: site7,
                                                 kind: Closure {
                                                     callee: Local(
-                                                        l32,
+                                                        l29,
                                                     ),
                                                     fn_ptr: "mir_lowered.call_contracts.main.$lambda1",
                                                 },
@@ -1848,8 +1764,8 @@ File {
                                                     CallArg {
                                                         span: 811..812,
                                                         name: None,
-                                                        value: Local(
-                                                            l33,
+                                                        value: Const(
+                                                            Int,
                                                         ),
                                                     },
                                                 ],
@@ -1882,10 +1798,10 @@ File {
                                     Statement {
                                         span: 775..813,
                                         kind: Assign {
-                                            target: l30,
+                                            target: l27,
                                             value: Use(
                                                 Local(
-                                                    l31,
+                                                    l28,
                                                 ),
                                             ),
                                         },
@@ -1893,7 +1809,7 @@ File {
                                     Statement {
                                         span: 841..854,
                                         kind: Assign {
-                                            target: l35,
+                                            target: l31,
                                             value: TypeMetadataLiteral(
                                                 TypeMetadataLiteral {
                                                     source_ty: TypeId(
@@ -1910,10 +1826,10 @@ File {
                                     Statement {
                                         span: 818..854,
                                         kind: Assign {
-                                            target: l34,
+                                            target: l30,
                                             value: Use(
                                                 Local(
-                                                    l35,
+                                                    l31,
                                                 ),
                                             ),
                                         },
@@ -1921,7 +1837,7 @@ File {
                                     Statement {
                                         span: 876..889,
                                         kind: Assign {
-                                            target: l37,
+                                            target: l33,
                                             value: SizeOf {
                                                 value_ty: TypeId(
                                                     17,
@@ -1932,10 +1848,10 @@ File {
                                     Statement {
                                         span: 859..889,
                                         kind: Assign {
-                                            target: l36,
+                                            target: l32,
                                             value: Use(
                                                 Local(
-                                                    l37,
+                                                    l33,
                                                 ),
                                             ),
                                         },
@@ -1943,7 +1859,7 @@ File {
                                     Statement {
                                         span: 919..932,
                                         kind: Assign {
-                                            target: l39,
+                                            target: l35,
                                             value: Call {
                                                 site_id: site8,
                                                 kind: Direct {
@@ -1992,10 +1908,10 @@ File {
                                     Statement {
                                         span: 894..932,
                                         kind: Assign {
-                                            target: l38,
+                                            target: l34,
                                             value: Use(
                                                 Local(
-                                                    l39,
+                                                    l35,
                                                 ),
                                             ),
                                         },
@@ -2003,7 +1919,7 @@ File {
                                     Statement {
                                         span: 944..949,
                                         kind: Assign {
-                                            target: l47,
+                                            target: l43,
                                             value: Call {
                                                 site_id: site9,
                                                 kind: Direct {
@@ -2021,7 +1937,7 @@ File {
                                                         span: 948..949,
                                                         name: None,
                                                         value: Local(
-                                                            l3,
+                                                            l2,
                                                         ),
                                                     },
                                                 ],
@@ -2054,7 +1970,7 @@ File {
                                     Statement {
                                         span: 944..953,
                                         kind: Assign {
-                                            target: l46,
+                                            target: l42,
                                             value: Call {
                                                 site_id: site10,
                                                 kind: Direct {
@@ -2065,14 +1981,14 @@ File {
                                                         span: 944..949,
                                                         name: None,
                                                         value: Local(
-                                                            l47,
+                                                            l43,
                                                         ),
                                                     },
                                                     CallArg {
                                                         span: 952..953,
                                                         name: None,
                                                         value: Local(
-                                                            l7,
+                                                            l5,
                                                         ),
                                                     },
                                                 ],
@@ -2105,7 +2021,7 @@ File {
                                     Statement {
                                         span: 944..957,
                                         kind: Assign {
-                                            target: l45,
+                                            target: l41,
                                             value: Call {
                                                 site_id: site11,
                                                 kind: Direct {
@@ -2116,14 +2032,14 @@ File {
                                                         span: 944..953,
                                                         name: None,
                                                         value: Local(
-                                                            l46,
+                                                            l42,
                                                         ),
                                                     },
                                                     CallArg {
                                                         span: 956..957,
                                                         name: None,
                                                         value: Local(
-                                                            l13,
+                                                            l11,
                                                         ),
                                                     },
                                                 ],
@@ -2156,7 +2072,7 @@ File {
                                     Statement {
                                         span: 944..961,
                                         kind: Assign {
-                                            target: l44,
+                                            target: l40,
                                             value: Call {
                                                 site_id: site12,
                                                 kind: Direct {
@@ -2167,14 +2083,14 @@ File {
                                                         span: 944..957,
                                                         name: None,
                                                         value: Local(
-                                                            l45,
+                                                            l41,
                                                         ),
                                                     },
                                                     CallArg {
                                                         span: 960..961,
                                                         name: None,
                                                         value: Local(
-                                                            l19,
+                                                            l17,
                                                         ),
                                                     },
                                                 ],
@@ -2207,11 +2123,11 @@ File {
                                     Statement {
                                         span: 964..973,
                                         kind: Assign {
-                                            target: l48,
+                                            target: l44,
                                             value: MemberAccess {
                                                 site_id: None,
                                                 receiver: Local(
-                                                    l22,
+                                                    l20,
                                                 ),
                                                 member: MemberAccessMetadata {
                                                     name: "value",
@@ -2233,7 +2149,7 @@ File {
                                     Statement {
                                         span: 944..973,
                                         kind: Assign {
-                                            target: l43,
+                                            target: l39,
                                             value: Call {
                                                 site_id: site13,
                                                 kind: Direct {
@@ -2244,14 +2160,14 @@ File {
                                                         span: 944..961,
                                                         name: None,
                                                         value: Local(
-                                                            l44,
+                                                            l40,
                                                         ),
                                                     },
                                                     CallArg {
                                                         span: 964..973,
                                                         name: None,
                                                         value: Local(
-                                                            l48,
+                                                            l44,
                                                         ),
                                                     },
                                                 ],
@@ -2284,7 +2200,7 @@ File {
                                     Statement {
                                         span: 944..978,
                                         kind: Assign {
-                                            target: l42,
+                                            target: l38,
                                             value: Call {
                                                 site_id: site14,
                                                 kind: Direct {
@@ -2295,11 +2211,62 @@ File {
                                                         span: 944..973,
                                                         name: None,
                                                         value: Local(
-                                                            l43,
+                                                            l39,
                                                         ),
                                                     },
                                                     CallArg {
                                                         span: 976..978,
+                                                        name: None,
+                                                        value: Local(
+                                                            l25,
+                                                        ),
+                                                    },
+                                                ],
+                                                transport: CallTransportMetadata {
+                                                    result: ValueTransportMetadata {
+                                                        source_ty: TypeId(
+                                                            5,
+                                                        ),
+                                                        kind: Scalar,
+                                                        requirements: MirTransportRequirements {
+                                                            trace: false,
+                                                            copy: true,
+                                                            drop: false,
+                                                        },
+                                                        boxing: None,
+                                                    },
+                                                    aggregate_return: None,
+                                                    array: None,
+                                                    gc: None,
+                                                    abi: CallAbiHandoffMetadata {
+                                                        callable_abi_kind: DeferredToEffectFacts,
+                                                        resolved_outward_cases: [],
+                                                        impl_plan: DeferredToEffectFacts,
+                                                        adapter_required: false,
+                                                    },
+                                                },
+                                            },
+                                        },
+                                    },
+                                    Statement {
+                                        span: 944..983,
+                                        kind: Assign {
+                                            target: l37,
+                                            value: Call {
+                                                site_id: site15,
+                                                kind: Direct {
+                                                    callee_fqn: "scoop.core.Int.plus",
+                                                },
+                                                args: [
+                                                    CallArg {
+                                                        span: 944..978,
+                                                        name: None,
+                                                        value: Local(
+                                                            l38,
+                                                        ),
+                                                    },
+                                                    CallArg {
+                                                        span: 981..983,
                                                         name: None,
                                                         value: Local(
                                                             l27,
@@ -2333,60 +2300,9 @@ File {
                                         },
                                     },
                                     Statement {
-                                        span: 944..983,
-                                        kind: Assign {
-                                            target: l41,
-                                            value: Call {
-                                                site_id: site15,
-                                                kind: Direct {
-                                                    callee_fqn: "scoop.core.Int.plus",
-                                                },
-                                                args: [
-                                                    CallArg {
-                                                        span: 944..978,
-                                                        name: None,
-                                                        value: Local(
-                                                            l42,
-                                                        ),
-                                                    },
-                                                    CallArg {
-                                                        span: 981..983,
-                                                        name: None,
-                                                        value: Local(
-                                                            l30,
-                                                        ),
-                                                    },
-                                                ],
-                                                transport: CallTransportMetadata {
-                                                    result: ValueTransportMetadata {
-                                                        source_ty: TypeId(
-                                                            5,
-                                                        ),
-                                                        kind: Scalar,
-                                                        requirements: MirTransportRequirements {
-                                                            trace: false,
-                                                            copy: true,
-                                                            drop: false,
-                                                        },
-                                                        boxing: None,
-                                                    },
-                                                    aggregate_return: None,
-                                                    array: None,
-                                                    gc: None,
-                                                    abi: CallAbiHandoffMetadata {
-                                                        callable_abi_kind: DeferredToEffectFacts,
-                                                        resolved_outward_cases: [],
-                                                        impl_plan: DeferredToEffectFacts,
-                                                        adapter_required: false,
-                                                    },
-                                                },
-                                            },
-                                        },
-                                    },
-                                    Statement {
                                         span: 944..991,
                                         kind: Assign {
-                                            target: l40,
+                                            target: l36,
                                             value: Call {
                                                 site_id: site16,
                                                 kind: Direct {
@@ -2397,14 +2313,14 @@ File {
                                                         span: 944..983,
                                                         name: None,
                                                         value: Local(
-                                                            l41,
+                                                            l37,
                                                         ),
                                                     },
                                                     CallArg {
                                                         span: 986..991,
                                                         name: None,
                                                         value: Local(
-                                                            l36,
+                                                            l32,
                                                         ),
                                                     },
                                                 ],
@@ -2440,7 +2356,7 @@ File {
                                     kind: Return {
                                         value: Some(
                                             Local(
-                                                l40,
+                                                l36,
                                             ),
                                         ),
                                     },
