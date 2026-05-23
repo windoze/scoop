@@ -54,8 +54,8 @@
 | `mir/` | 39 | ~38k | `scoopc_mir` |
 | `monomorph/` | 2 | ~1k | `scoopc_mir` |
 | `rtti/` | 2 | ~3k | `scoopc_mir`（数据结构） / `scoopc_hir_facts`（dispatch facts 已有） |
-| `effect/` | 12 | ~10k | `scoopc_effect_stage` |
-| `effect_facts/` | 7 | ~9k | `scoopc_effect_stage`（builder） / `scoopc_effect_facts`（已是独立 crate，仅需吸收 builder 端契约） |
+| `effect/` | 12 | ~10k | `scoopc_effect_facts_stage` |
+| `effect_facts/` | 7 | ~9k | `scoopc_effect_facts_stage`（builder） / `scoopc_effect_facts`（已是独立 crate，仅需吸收 builder 端契约） |
 | `effect_lowered/` | 16 | ~25k | `scoopc_lir` |
 | `llvm/` | 125 | ~82k | `scoopc_codegen_llvm` |
 | `pipeline/` | 10 | ~18k | 留在 umbrella `scoopc`（driver 编排） |
@@ -67,7 +67,7 @@
 | --- | --- | --- |
 | `crates/scoopc/src/hir/lower/util/mod.rs:11` | `use crate::mir::{InstanceKey, TemplateKey}` | 把 `InstanceKey` / `TemplateKey` 移到 `scoopc_ids`，HIR/MIR 都引用 base 即可。 |
 | `crates/scoopc/src/typecheck/annotations.rs:24` | `use crate::hir::ExternAbi` | 把 `ExternAbi` 移到 `scoopc_types` 或 `scoopc_ids`。 |
-| `crates/scoopc/src/effect_facts/builder.rs:11,21` | `use crate::resolve::{FunOverload, Index}` + `crate::typecheck::{TypeEnv, TypeLowering, TypeSymbol}` | builder 和 effect 一并归 `scoopc_effect_stage`，但它依赖 HIR resolver/typecheck；按 PLAN §1.2 这是合法（前一阶段 crate 依赖），无需消除，仅需在 P9-T06 时正确放置。 |
+| `crates/scoopc/src/effect_facts/builder.rs:11,21` | `use crate::resolve::{FunOverload, Index}` + `crate::typecheck::{TypeEnv, TypeLowering, TypeSymbol}` | builder 和 effect 一并归 `scoopc_effect_facts_stage`，但它依赖 HIR resolver/typecheck；按 PLAN §1.2 这是合法（前一阶段 crate 依赖），无需消除，仅需在 P9-T06 时正确放置。 |
 | `crates/scoopc/src/cone/scoopir/`、`annotations.rs`、`visibility.rs`、`pre_specialize.rs` | 直接调用 parser / typecheck / hir / mir | 操作层归 `scoopc_cone`，依赖所有 stage crate；按 PLAN §1.2 这是合法（cone 在 stage 之上）。 |
 | `crates/scoopc/src/cone/consume.rs` | 注入 `Index`/`TypeEnv` | 同上，归 `scoopc_cone`，依赖 `scoopc_hir`。 |
 | `crates/scoopc/src/llvm/**` | `use crate::hir` 8 处 + `use crate::mir` 9 处 | P7-T03 / P7-T04 已经/将会清干净；P9 开始前应已为 0。若 P9 启动时仍有残留，先回 P7 收尾。 |
@@ -108,14 +108,14 @@
 - `MirFacts.snapshots.canonical` 已有 canonical (pre-opt) MIR 快照锚点；本包暂不持久化 generic body 本体，但保留这个 anchor 以便后续单独立项。
 - `LirFacts.global_init.cone_init_routines` / `final_entry_init_order` 已经按 cone 标记 init routine 入口符号；per-cone artifact 直接复用，不需要新设计。
 
-## [TODO] TODO-7-INIT：初始化并细化本任务包
+## [DONE] TODO-7-INIT：初始化并细化本任务包
 
 - 目标：
   - 分析 `PLAN.md` §4/P9-P10、`PIPELINE_REFACTOR.md` 与当前 stage crate 拆分阻塞、cone 两层归属、per-cone build artifact 真实需求；
   - 生成本任务包的详细任务列表，覆盖 stage crate split、cone two-layer split、per-cone artifact 设计、TypeStore stable wire format、per-cone frontend 编排、fingerprint cache；
   - 更新 `TODO.md` 的具体任务索引，把 `TODO-7-INIT` 所在行替换为本包细化后的任务列表。
 - 必须实现的内容：
-  1. 复核"触碰面基线"是否覆盖 P9-T01..T08、P10-T01..T06 的所有起点。
+  1. 复核"触碰面基线"是否覆盖 P9-T01..T08、P10-T01..T05 的所有起点。
   2. 把 P9 / P10 拆成数量适中的实现小阶段，每个阶段必须有明确目标、修改范围、验证命令和完成条件。
   3. 在每个实现小阶段后插入独立 review 任务，review 任务必须复审前一阶段是否满足 PLAN §1.2 的 crate DAG 约束或 per-cone artifact 边界约束。
   4. 同步更新 `TODO.md` 中的具体任务索引，确保任务 ID、状态和顺序与本文件一致。
@@ -125,7 +125,10 @@
   - 本任务完成记录说明 P9/P10 的拆分依据与未展开的风险。
 - 依赖：P8-T02R
 - 完成记录：
-  - 待填写。
+  - 2026-05-23：完成 P9/P10 任务包细化复核；本文件已包含 P9-T01..T09、P10-T01..T05 及每个实现阶段后的 review 任务，根索引 `TODO.md` 同步列出这些任务。
+  - 拆分依据：P9 严格先硬化 stage/codegen/cone crate DAG，再由 P10 处理 `TypeId` stable wire format、per-cone artifact IO、DAG frontend 编排与 fingerprint cache，避免在 crate 边界未收口前引入持久化格式。
+  - 同步修正：统一 effect facts stage crate 名为 `scoopc_effect_facts_stage`（与 `PIPELINE_REFACTOR.md` 和现有 `dependency_gate` 预留名一致），并把 P9-T03 登记的 LLVM 临时 façade 依赖切换点明确为 P9-T06。
+  - 未展开风险：跨 cone generic body wire format 不纳入本包，若后续实测下游 re-lower generic 成本不可接受，应在 P10 清场后另立 P11；P10 也必须在 P10-T01 先解决 `TypeId` 跨进程稳定表示后才能落盘 facts/LIR。
 
 ---
 
@@ -226,7 +229,7 @@
   - `crates/scoopc/src/pipeline/llvm_codegen_stage.rs` 改 import
   - `tools/scoop_tools/src/dependency_gate.rs` 激活 `scoopc_codegen_llvm`
 - 必须实现的内容：
-  1. `scoopc_codegen_llvm` 依赖 `scoopc_lir`（在 P9-T07 之前需要先把 `effect_lowered` re-export 暴露好；本任务允许暂时直接依赖 umbrella `scoopc` 的 façade，但必须在完成记录里登记，等 P9-T07 完成后立即切换）。
+  1. `scoopc_codegen_llvm` 依赖 `scoopc_lir`（在 P9-T06 之前需要先把 `effect_lowered` re-export 暴露好；本任务允许暂时直接依赖 umbrella `scoopc` 的 façade，但必须在完成记录里登记，等 P9-T06 完成后立即切换）。
   2. inkwell / LLVM feature 门保持原样。
   3. dependency_gate 增加 `scoopc_codegen_llvm` 的允许依赖白名单（base + lir + lir_facts）。
 - 验证：
@@ -237,7 +240,7 @@
   5. `cargo run -p scoop_tools -- dependency-gate`
   6. `git diff --check`
 - 完成条件：
-  - `cargo tree -p scoopc_codegen_llvm` 不显示 `scoopc_hir` / `scoopc_mir` / `scoopc_effect_facts` 任何 stage crate（只能通过 façade `scoopc` 间接，且必须在 P9-T07 完成后切到 `scoopc_lir` 直依赖）；
+  - `cargo tree -p scoopc_codegen_llvm` 不显示 `scoopc_hir` / `scoopc_mir` / `scoopc_effect_facts` 任何 stage crate（只能通过 façade `scoopc` 间接，且必须在 P9-T06 完成后切到 `scoopc_lir` 直依赖）；
   - run-pass fixtures 全部通过。
 - 依赖：P9-T02R
 
@@ -247,7 +250,7 @@
 - 重点：
   - 是否仍存在 LLVM crate 反向使用 HIR/MIR 的迹象；
   - feature gate 是否正确传播；
-  - 完成记录是否登记了 P9-T07 后的依赖切换义务。
+  - 完成记录是否登记了 P9-T06 后的依赖切换义务。
 - 验证：重新运行 P9-T03 的所有验证。
 - 依赖：P9-T03
 
@@ -292,7 +295,7 @@
 
 - 参考：本文件"跨切面 helper 的归属决策"。
 - 目标：
-  - 把 `mir/` + `monomorph/` + `opt.rs` + `rtti/` + `stable_id` 中的 mangler 段一起迁到 `scoopc_mir`；
+  - 把 `mir/` + `monomorph/` + `rtti/` + `stable_id` 中的 mangler 段一起迁到 `scoopc_mir`；
   - 决定 RTTI 数据结构归属：纯数据进 `scoopc_hir_facts`（dispatch facts 已有先例），算法/lower 进 `scoopc_mir`。
 - 必须修改的主要位置：
   - 新建 `crates/scoopc_mir/`
@@ -325,19 +328,19 @@
 - 验证：重新运行 P9-T05 的所有验证。
 - 依赖：P9-T05
 
-### [TODO] P9-T06：抽出 `scoopc_effect_stage` 与 `scoopc_lir` crate
+### [TODO] P9-T06：抽出 `scoopc_effect_facts_stage` 与 `scoopc_lir` crate
 
 - 参考：本文件"当前 `scoopc/src/` 主模块体量"。
 - 目标：
-  - `effect/` + `effect_facts/builder.rs` 进 `scoopc_effect_stage`（与已有的 data crate `scoopc_effect_facts` 区分；前者是 builder + stage，后者是 fact 数据）；
+  - `effect/` + `effect_facts/builder.rs` 进 `scoopc_effect_facts_stage`（与已有的 data crate `scoopc_effect_facts` 区分；前者是 builder + stage，后者是 fact 数据）；
   - `effect_lowered/` 进 `scoopc_lir`。
 - 必须修改的主要位置：
-  - 新建 `crates/scoopc_effect_stage/` 与 `crates/scoopc_lir/`
+  - 新建 `crates/scoopc_effect_facts_stage/` 与 `crates/scoopc_lir/`
   - `crates/scoopc/src/lib.rs` façade
   - `crates/scoopc/src/pipeline/{effect_facts_stage,effect_lowering_stage,lir_facts_builder}.rs` 改 import
   - dependency_gate 激活两个 crate
 - 必须实现的内容：
-  1. `scoopc_effect_stage` 依赖：base + `scoopc_ast` + `scoopc_hir` + `scoopc_hir_facts` + `scoopc_mir` + `scoopc_mir_facts` + `scoopc_effect_facts`。
+  1. `scoopc_effect_facts_stage` 依赖：base + `scoopc_ast` + `scoopc_hir` + `scoopc_hir_facts` + `scoopc_mir` + `scoopc_mir_facts` + `scoopc_effect_facts`。
   2. `scoopc_lir` 依赖：base + `scoopc_mir` + `scoopc_mir_facts` + `scoopc_effect_facts` + `scoopc_lir_facts`（按 PLAN §1.2，LIR 不应再依赖 hir 或 ast）。
   3. P9-T03 中登记的"`scoopc_codegen_llvm` 暂走 façade"义务在本任务完成后切换：`scoopc_codegen_llvm` 改为直接 `use scoopc_lir::...`。
 - 验证：
@@ -352,7 +355,7 @@
   - `cargo tree -p scoopc_codegen_llvm` 直接显示 `scoopc_lir`，不再绕 façade。
 - 依赖：P9-T05R
 
-### [TODO] P9-T06R：Review `scoopc_effect_stage` 与 `scoopc_lir` 抽取
+### [TODO] P9-T06R：Review `scoopc_effect_facts_stage` 与 `scoopc_lir` 抽取
 
 - 参考：P9-T06。
 - 重点：
