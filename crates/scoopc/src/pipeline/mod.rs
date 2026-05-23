@@ -98,10 +98,10 @@ pub fn load_direct_style_mir_stage_output_for_dump(
 pub fn load_p4_ready_mir_stage_output_for_dump(
     session: &Session,
     source: &SourceFile,
-) -> Result<MirStageOutput, crate::effect_facts::EffectFactsError> {
+) -> Result<MirStageOutput, crate::effect_facts_stage::EffectFactsError> {
     let materialized = materialize_direct_style_mir_for_dump(session, source)?;
     let direct_style_output = load_direct_style_mir_stage_output_for_dump(session, source)
-        .map_err(crate::effect_facts::EffectFactsError::from)?;
+        .map_err(crate::effect_facts_stage::EffectFactsError::from)?;
     Ok(direct_style_output.with_materialized_mir(materialized))
 }
 
@@ -109,7 +109,7 @@ pub fn build_effect_facts_stage_output(
     session: &Session,
     source: &SourceFile,
     mir_stage_output: &MirStageOutput,
-) -> Result<EffectFactsStageOutput, crate::effect_facts::EffectFactsError> {
+) -> Result<EffectFactsStageOutput, crate::effect_facts_stage::EffectFactsError> {
     build_effect_facts_stage_output_with_compilation_sources(
         session,
         source,
@@ -123,7 +123,7 @@ pub(crate) fn build_effect_facts_stage_output_with_compilation_sources(
     source: &SourceFile,
     compilation_sources: &[SourceFile],
     mir_stage_output: &MirStageOutput,
-) -> Result<EffectFactsStageOutput, crate::effect_facts::EffectFactsError> {
+) -> Result<EffectFactsStageOutput, crate::effect_facts_stage::EffectFactsError> {
     effect_facts_stage::run_with_compilation_sources(
         session,
         source,
@@ -135,7 +135,7 @@ pub(crate) fn build_effect_facts_stage_output_with_compilation_sources(
 pub fn load_effect_facts_stage_output_for_dump(
     session: &Session,
     source: &SourceFile,
-) -> Result<EffectFactsStageOutput, crate::effect_facts::EffectFactsError> {
+) -> Result<EffectFactsStageOutput, crate::effect_facts_stage::EffectFactsError> {
     let mir_stage_output = load_p4_ready_mir_stage_output_for_dump(session, source)?;
     build_effect_facts_stage_output(session, source, &mir_stage_output)
 }
@@ -169,9 +169,18 @@ pub fn load_lir_stage_output_for_dump(
     session: &Session,
     source: &SourceFile,
 ) -> Result<LirStageOutput, crate::effect_lowered::EffectLoweringError> {
-    let mir_stage_output = load_p4_ready_mir_stage_output_for_dump(session, source)?;
+    let mir_stage_output =
+        load_p4_ready_mir_stage_output_for_dump(session, source).map_err(|error| {
+            crate::effect_lowered::EffectLoweringError::InvalidEffectFactsContract {
+                detail: error.to_string(),
+            }
+        })?;
     let effect_facts_stage_output =
-        build_effect_facts_stage_output(session, source, &mir_stage_output)?;
+        build_effect_facts_stage_output(session, source, &mir_stage_output).map_err(|error| {
+            crate::effect_lowered::EffectLoweringError::InvalidEffectFactsContract {
+                detail: error.to_string(),
+            }
+        })?;
     build_lir_stage_output(
         session,
         EffectLoweringStageInput::new(mir_stage_output, effect_facts_stage_output),

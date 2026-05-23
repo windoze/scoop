@@ -4,32 +4,32 @@
 
 use super::*;
 
-pub(crate) fn function_ty_declared_effectful(types: &TypeStore, ty: TypeId) -> bool {
+pub fn function_ty_declared_effectful(types: &TypeStore, ty: TypeId) -> bool {
     matches!(
         types.kind(ty),
         TypeKind::Ref(RefTypeKind::Function(fun_ty)) if !fun_ty.effects.is_pure()
     )
 }
 
-pub(crate) fn function_ty_may_suspend(types: &TypeStore, ty: TypeId) -> bool {
+pub fn function_ty_may_suspend(types: &TypeStore, ty: TypeId) -> bool {
     function_ty_declared_effectful(types, ty)
 }
 
-pub(crate) fn hir_ty_is_function_value(types: &TypeStore, ty: TypeId) -> bool {
+pub fn hir_ty_is_function_value(types: &TypeStore, ty: TypeId) -> bool {
     matches!(types.kind(ty), TypeKind::Ref(RefTypeKind::Function(_)))
 }
 
-pub(crate) struct SuspendCallAnalysis<'a> {
-    pub(crate) types: &'a TypeStore,
-    pub(crate) context: &'a EffectAnalysisCtx,
+pub struct SuspendCallAnalysis<'a> {
+    pub types: &'a TypeStore,
+    pub context: &'a EffectAnalysisCtx,
 }
 
 impl<'a> SuspendCallAnalysis<'a> {
-    pub(crate) fn call_site(&self, span: Span) -> hir::CallSite {
+    pub fn call_site(&self, span: Span) -> hir::CallSite {
         self.context.call_site(span)
     }
 
-    pub(crate) fn resolve_expr_concrete_type(&self, expr: &hir::Expr) -> Option<TypeId> {
+    pub fn resolve_expr_concrete_type(&self, expr: &hir::Expr) -> Option<TypeId> {
         self.context
             .facts
             .resolve_expr_concrete_type(self.types, expr, &|id| {
@@ -40,7 +40,7 @@ impl<'a> SuspendCallAnalysis<'a> {
             })
     }
 
-    pub(crate) fn block_may_suspend(
+    pub fn block_may_suspend(
         &self,
         block: &hir::Block,
         seed_locals: &HashMap<hir::SymbolId, bool>,
@@ -49,7 +49,7 @@ impl<'a> SuspendCallAnalysis<'a> {
         self.block_may_suspend_with_locals(block, &known_locals)
     }
 
-    pub(crate) fn solve_local_fun_effects_in_block(
+    pub fn solve_local_fun_effects_in_block(
         &self,
         block: &hir::Block,
         seed_locals: &HashMap<hir::SymbolId, bool>,
@@ -65,7 +65,7 @@ impl<'a> SuspendCallAnalysis<'a> {
         known_locals
     }
 
-    pub(crate) fn collect_local_fun_effects_in_block(
+    pub fn collect_local_fun_effects_in_block(
         &self,
         block: &hir::Block,
         out: &mut HashMap<hir::SymbolId, bool>,
@@ -75,7 +75,7 @@ impl<'a> SuspendCallAnalysis<'a> {
         }
     }
 
-    pub(crate) fn collect_local_fun_effects_in_stmt(
+    pub fn collect_local_fun_effects_in_stmt(
         &self,
         stmt: &hir::Stmt,
         out: &mut HashMap<hir::SymbolId, bool>,
@@ -125,7 +125,7 @@ impl<'a> SuspendCallAnalysis<'a> {
         }
     }
 
-    pub(crate) fn collect_local_fun_effects_in_expr(
+    pub fn collect_local_fun_effects_in_expr(
         &self,
         expr: &hir::Expr,
         out: &mut HashMap<hir::SymbolId, bool>,
@@ -225,7 +225,7 @@ impl<'a> SuspendCallAnalysis<'a> {
         }
     }
 
-    pub(crate) fn block_may_suspend_with_locals(
+    pub fn block_may_suspend_with_locals(
         &self,
         block: &hir::Block,
         known_locals: &HashMap<hir::SymbolId, bool>,
@@ -236,7 +236,7 @@ impl<'a> SuspendCallAnalysis<'a> {
             .any(|stmt| self.stmt_may_suspend(stmt, known_locals))
     }
 
-    pub(crate) fn stmt_may_suspend(
+    pub fn stmt_may_suspend(
         &self,
         stmt: &hir::Stmt,
         known_locals: &HashMap<hir::SymbolId, bool>,
@@ -264,7 +264,7 @@ impl<'a> SuspendCallAnalysis<'a> {
         }
     }
 
-    pub(crate) fn expr_may_suspend(
+    pub fn expr_may_suspend(
         &self,
         expr: &hir::Expr,
         known_locals: &HashMap<hir::SymbolId, bool>,
@@ -359,7 +359,7 @@ impl<'a> SuspendCallAnalysis<'a> {
         }
     }
 
-    pub(crate) fn handle_may_suspend_outward(
+    pub fn handle_may_suspend_outward(
         &self,
         handle: &hir::HandleExpr,
         known_locals: &HashMap<hir::SymbolId, bool>,
@@ -379,7 +379,7 @@ impl<'a> SuspendCallAnalysis<'a> {
             .may_suspend_outward()
     }
 
-    pub(crate) fn function_value_may_suspend_when_called(
+    pub fn function_value_may_suspend_when_called(
         &self,
         expr: &hir::Expr,
         known_locals: &HashMap<hir::SymbolId, bool>,
@@ -445,7 +445,7 @@ impl<'a> SuspendCallAnalysis<'a> {
     }
 }
 
-pub(crate) fn collect_known_fun_call_suspendability(
+pub fn collect_known_fun_call_suspendability(
     types: &TypeStore,
     fun_index: &HashMap<String, &hir::FunDecl>,
     facts: Rc<EffectAnalysisFacts>,
@@ -541,7 +541,7 @@ pub(crate) fn collect_known_fun_call_suspendability(
 }
 
 #[cfg(test)]
-pub(crate) fn collect_known_local_fun_call_suspendability_in_fun(
+pub fn collect_known_local_fun_call_suspendability_in_fun(
     fun: &hir::FunDecl,
     analysis: &SuspendCallAnalysis<'_>,
 ) -> HashMap<hir::SymbolId, bool> {
@@ -562,7 +562,7 @@ pub(crate) fn collect_known_local_fun_call_suspendability_in_fun(
 }
 
 #[cfg(test)]
-pub(crate) fn collect_effect_analysis_context_for_fun(
+pub fn collect_effect_analysis_context_for_fun(
     lowered: &hir::LoweredHir,
     owner_fun: &hir::FunDecl,
 ) -> EffectAnalysisCtx {
@@ -570,7 +570,7 @@ pub(crate) fn collect_effect_analysis_context_for_fun(
 }
 
 #[cfg(test)]
-pub(crate) fn collect_effect_analysis_context_for_fun_with_pass_view(
+pub fn collect_effect_analysis_context_for_fun_with_pass_view(
     lowered: &hir::LoweredHir,
     owner_fun: &hir::FunDecl,
     materialized_pass_view: Option<&crate::mir::MaterializedMirPassView<'_>>,

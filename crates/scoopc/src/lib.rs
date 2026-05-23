@@ -55,8 +55,9 @@ pub mod driver_cli;
 pub(crate) mod dump_support {
     pub(crate) use scoopc_hir::dump_support::*;
 }
-pub mod effect_facts;
-pub mod effect_lowered;
+pub use scoopc_effect_facts_stage as effect_facts_stage;
+pub use scoopc_lir::effect_facts;
+pub use scoopc_lir::effect_lowered;
 pub mod frontend;
 pub use scoopc_hir::hir;
 pub use scoopc_hir::infer;

@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
 use crate::cone::SourceConeInfo;
-use crate::effect_facts::MaterializedEffectFacts;
+use crate::effect_facts_stage::MaterializedEffectFacts;
 use crate::effect_lowered::ir::LateLoweredClassCtorInitBody;
 use crate::effect_lowered::ordinary_callee::{
     EffectAnalysisFacts, EffectConstructorCall, EffectContinuationResume, EffectFieldFact,

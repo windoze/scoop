@@ -261,7 +261,7 @@ pub(crate) struct PublishedContinuationProvenance {
 mod classification;
 mod contract_op;
 mod contract_step;
-mod dispatch_plan;
+pub mod dispatch_plan;
 mod main;
 mod provenance;
 #[cfg(test)]

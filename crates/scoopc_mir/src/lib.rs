@@ -18,6 +18,7 @@ pub use scoopc_ast::parser;
 pub use scoopc_ast::syntax;
 pub use scoopc_hir::hir;
 pub use scoopc_hir::infer;
+pub use scoopc_hir::intrinsics;
 pub use scoopc_hir::itable;
 pub use scoopc_hir::resolve;
 pub use scoopc_hir::session;

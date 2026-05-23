@@ -1,4 +1,4 @@
-use crate::effect_facts::{
+use crate::effect_facts_stage::{
     BodyEffectFacts, EffectFactsError, EffectOwnedTypeContext, MaterializedEffectFacts,
     MaterializedEffectFactsBuilder, MaterializedEffectFactsSolver, SiteEffectFacts,
 };
@@ -18,15 +18,30 @@ use super::MirStageOutput;
 #[derive(Debug)]
 pub struct EffectFactsStageOutput {
     effect_facts: MaterializedEffectFacts,
+    published_effect_facts: scoopc_effect_facts::EffectFacts,
 }
 
 impl EffectFactsStageOutput {
-    fn new(effect_facts: MaterializedEffectFacts) -> Self {
-        Self { effect_facts }
+    fn new(
+        effect_facts: MaterializedEffectFacts,
+        published_effect_facts: scoopc_effect_facts::EffectFacts,
+    ) -> Self {
+        Self {
+            effect_facts,
+            published_effect_facts,
+        }
     }
 
     pub fn effect_facts(&self) -> &MaterializedEffectFacts {
         &self.effect_facts
+    }
+
+    pub fn published_effect_facts(&self) -> &scoopc_effect_facts::EffectFacts {
+        &self.published_effect_facts
+    }
+
+    pub fn effect_types(&self) -> &crate::ty::TypeStore {
+        self.effect_facts.types()
     }
 
     #[cfg_attr(not(feature = "llvm"), allow(dead_code))]
@@ -111,7 +126,12 @@ pub(crate) fn run_with_compilation_sources(
         };
         solver.solve(seeded_facts)
     };
-    Ok(EffectFactsStageOutput::new(effect_facts))
+    let published_effect_facts =
+        effect_facts.to_published_effect_facts(mir_stage_output.materialized_pass_view())?;
+    Ok(EffectFactsStageOutput::new(
+        effect_facts,
+        published_effect_facts,
+    ))
 }
 
 fn body_has_escaped_continuation(body: &BodyEffectFacts) -> bool {
@@ -128,7 +148,7 @@ mod tests {
     use std::collections::BTreeSet;
 
     use super::EffectFactsStageOutput;
-    use crate::effect_facts::{CanonicalMirQuerySurface, ImplPlan, MirSnapshotBinding};
+    use crate::effect_facts_stage::{CanonicalMirQuerySurface, ImplPlan, MirSnapshotBinding};
     use crate::session::{Session, SessionOptions};
     use crate::source::SourceFile;
 
@@ -263,7 +283,7 @@ fun callInterface(i: IFace): Int {
 
     fn schema_case_fqns(
         output: &EffectFactsStageOutput,
-        step_schema: crate::effect_facts::StepSchemaId,
+        step_schema: crate::effect_facts_stage::StepSchemaId,
     ) -> BTreeSet<String> {
         output
             .effect_facts()
@@ -278,7 +298,7 @@ fun callInterface(i: IFace): Int {
 
     fn case_set_fqns(
         output: &EffectFactsStageOutput,
-        case_set: &crate::effect_facts::CaseSet,
+        case_set: &crate::effect_facts_stage::CaseSet,
     ) -> BTreeSet<String> {
         if case_set.is_empty() {
             return BTreeSet::new();
@@ -308,7 +328,7 @@ fun callInterface(i: IFace): Int {
 
     fn continuation_surface_tys_for_step_schema(
         output: &EffectFactsStageOutput,
-        step_schema: crate::effect_facts::StepSchemaId,
+        step_schema: crate::effect_facts_stage::StepSchemaId,
     ) -> BTreeSet<String> {
         output
             .effect_facts()
@@ -335,7 +355,7 @@ fun callInterface(i: IFace): Int {
     fn callable_facts_for<'a>(
         output: &'a EffectFactsStageOutput,
         fqn: &str,
-    ) -> &'a crate::effect_facts::CallableEffectFacts {
+    ) -> &'a crate::effect_facts_stage::CallableEffectFacts {
         output
             .effect_facts()
             .callable_facts()

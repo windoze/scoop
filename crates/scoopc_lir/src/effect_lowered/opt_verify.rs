@@ -15,7 +15,7 @@ use super::ir::{
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct LirOptVerifyError {
+pub struct LirOptVerifyError {
     detail: String,
 }
 

@@ -505,6 +505,41 @@
   - 防回归：`dependency_gate` 新增 LLVM stage handoff 与 LLVM production source-tree 规则，禁止 `crate::effect::`、future `scoopc_effect_facts_stage::effect` 与 `scoopc::effect` 回流；LIR HIR/AST source-boundary 继续覆盖迁入的 ordinary-callee planner。
   - 验证通过：`cargo fmt`；`cargo build --workspace`；`cargo test --all --all-targets`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`；`cargo run -p scoop_tools -- dependency-gate`；`cargo clippy --all-targets -- -D warnings`；残余搜索 `rg -n "crate::effect::|scoopc_effect_facts_stage::effect|scoopc::effect" crates/scoopc_codegen_llvm/src/llvm crates/scoopc/src/pipeline/llvm_codegen_stage.rs` 无命中；`git diff --check`。
 
+### [TODO] P9-T06-c：发布 codegen-owned LLVM stage handoff 合同
+
+- 阻塞原因：
+  - 执行 P9-T06 的 `scoopc_codegen_llvm -> scoopc_lir` direct dependency 切换时，当前 `crates/scoopc_codegen_llvm/src/llvm/{emit,frontend}.rs` 仍在 production API 中引用 `crate::frontend` 与 `crate::pipeline::{LlvmCodegenStageInput,LlvmCodegenStageOutput,LlvmStageBaseContext,LlvmArtifactKind}`。
+  - 这些 handoff 类型和 single-file frontend orchestration 仍由 `scoopc` umbrella pipeline 拥有；如果直接移除 `scoopc_codegen_llvm` 对 `scoopc` 的依赖，LLVM crate 无法独立编译，若保留 `scoopc` façade 则 P9-T06 的完成条件不成立。
+  - 该问题不是 LIR HIR/AST source payload 或 ordinary-callee suspend 合同问题，P9-T06-a/b 未覆盖；必须先把 LLVM backend 需要的 stage handoff/context 发布到 codegen-owned 或 codegen-neutral 窄合同，再完成 crate direct dependency 切换。
+- 目标：
+  - 让 `scoopc_codegen_llvm` 的 production source 能在不依赖 `scoopc` façade 的情况下编译；
+  - 将 `LlvmStageBaseContext`、`LlvmCodegenStageOutput`、`LlvmCallableSourceContract`、`LlvmDispatchCallKey` 与 stage-output emit 输入收口到 backend-owned API，或发布等价的 codegen-neutral handoff crate/API；
+  - 保持 `scoopc` pipeline 仍负责 frontend orchestration，但只构造 codegen-owned handoff，不再作为 LLVM crate 的 normal dependency。
+- 必须修改的主要位置：
+  - `crates/scoopc_codegen_llvm/src/llvm/{emit,frontend,codegen/**}`
+  - `crates/scoopc/src/pipeline/llvm_codegen_stage.rs`
+  - `crates/scoopc/src/lib.rs` 的 LLVM façade
+  - `crates/scoopc_codegen_llvm/Cargo.toml`
+  - `tools/scoop_tools/src/dependency_gate.rs`
+- 必须实现的内容：
+  1. 明确 `scoopc_codegen_llvm` production 所需 handoff 类型的 owner；不得继续通过 `scoopc` normal dependency、path façade 或 duplicated stub 来绕过 Cargo 边界。
+  2. 改造 `emit`/stage-output API，使 codegen crate 消费 `LIR + LIR facts + backend base context` 的 direct handoff；single-file frontend helper 如仍保留，必须由 `scoopc` wrapper 编排或通过不引入 normal `scoopc` 依赖的接口注入。
+  3. 更新 `scoopc` pipeline 构造新的 codegen-owned handoff，并保持现有 build/run/fixture 行为不变。
+  4. 补强 `dependency_gate`：P9-T06 后 `scoopc_codegen_llvm` 不再允许 `scoopc` temporary façade dependency。
+- 验证：
+  1. `cargo fmt`
+  2. `cargo check -p scoopc_codegen_llvm`
+  3. `cargo build --workspace`
+  4. `cargo test --all --all-targets`
+  5. `cargo run -p scoop_tools -- dependency-gate`
+  6. `cargo tree -p scoopc_codegen_llvm --depth 1`
+  7. `git diff --check`
+- 完成条件：
+  - `cargo tree -p scoopc_codegen_llvm --depth 1` 不显示 `scoopc`；
+  - `scoopc_codegen_llvm` production source 不再需要 `crate::frontend` / `crate::pipeline` umbrella owner 才能编译；
+  - P9-T06 可以继续完成 codegen direct `scoopc_lir` / `scoopc_lir_facts` 切换。
+- 依赖：P9-T06-b
+
 ### [TODO] P9-T06：抽出 `scoopc_effect_facts_stage` 与 `scoopc_lir` crate
 
 - 参考：本文件"当前 `scoopc/src/` 主模块体量"。
@@ -531,7 +566,7 @@
 - 完成条件：
   - `cargo tree -p scoopc_lir --depth 1` 不显示 `scoopc_hir` / `scoopc_ast` / `scoopc`；
   - `cargo tree -p scoopc_codegen_llvm` 直接显示 `scoopc_lir`，不再绕 façade。
-- 依赖：P9-T06-b
+- 依赖：P9-T06-c
 
 ### [TODO] P9-T06R：Review `scoopc_effect_facts_stage` 与 `scoopc_lir` 抽取
 

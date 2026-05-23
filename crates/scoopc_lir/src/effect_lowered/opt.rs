@@ -23,13 +23,13 @@ use super::ir::{
 use super::opt_verify::{LirOptVerifyError, verify_post_opt_program};
 
 #[derive(Debug, Clone, Copy, Default)]
-pub(crate) struct LateLoweredOptOptions {
+pub struct LateLoweredOptOptions {
     pub(crate) preserve_published_resume_shells: bool,
 }
 
 impl LateLoweredOptOptions {
     #[cfg_attr(not(feature = "llvm"), allow(dead_code))]
-    pub(crate) const fn preserve_published_resume_shells() -> Self {
+    pub const fn preserve_published_resume_shells() -> Self {
         Self {
             preserve_published_resume_shells: true,
         }
@@ -37,13 +37,13 @@ impl LateLoweredOptOptions {
 }
 
 #[derive(Debug, Clone)]
-pub(crate) struct LirOptPipelineOutput {
+pub struct LirOptPipelineOutput {
     program: LateLoweredProgram,
     opt_pipeline: LirOptPipelineFacts,
 }
 
 impl LirOptPipelineOutput {
-    pub(crate) fn into_parts(self) -> (LateLoweredProgram, LirOptPipelineFacts) {
+    pub fn into_parts(self) -> (LateLoweredProgram, LirOptPipelineFacts) {
         (self.program, self.opt_pipeline)
     }
 }
@@ -103,7 +103,7 @@ pub(crate) fn optimize_program_with_options(
         .0
 }
 
-pub(crate) fn run_lir_opt_pipeline(
+pub fn run_lir_opt_pipeline(
     program: LateLoweredProgram,
     options: LateLoweredOptOptions,
 ) -> Result<LirOptPipelineOutput, LirOptVerifyError> {

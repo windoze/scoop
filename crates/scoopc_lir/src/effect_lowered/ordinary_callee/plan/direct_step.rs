@@ -5,7 +5,7 @@
 use super::*;
 
 /// Build the shared ordinary callee suspend/resume plan from a function or closure body.
-pub(crate) fn build_ordinary_callee_suspend_plan_with_context(
+pub fn build_ordinary_callee_suspend_plan_with_context(
     types: &TypeStore,
     body: &hir::Block,
     declared_return_ty: TypeId,
@@ -103,14 +103,14 @@ pub(crate) fn build_ordinary_callee_suspend_plan_with_context(
 }
 
 /// `T4008b1`：为当前 `handle` 中的 escape continuation arm 计算 resumed-step effect row。
-pub(crate) fn compute_escape_continuation_direct_step_effect_rows_for_handle(
+pub fn compute_escape_continuation_direct_step_effect_rows_for_handle(
     types: &TypeStore,
     handle: &hir::HandleExpr,
 ) -> HashMap<hir::SymbolId, EffectRow> {
     compute_escape_continuation_direct_step_effect_rows_for_handle_with_program(types, handle, None)
 }
 
-pub(crate) fn compute_escape_continuation_direct_step_effect_rows_for_handle_in_program(
+pub fn compute_escape_continuation_direct_step_effect_rows_for_handle_in_program(
     types: &TypeStore,
     handle: &hir::HandleExpr,
     object_inits: &hir::ObjectInitIndex,
@@ -126,7 +126,7 @@ pub(crate) fn compute_escape_continuation_direct_step_effect_rows_for_handle_in_
     )
 }
 
-pub(crate) fn compute_escape_continuation_direct_step_effect_rows_for_handle_with_program<'a>(
+pub fn compute_escape_continuation_direct_step_effect_rows_for_handle_with_program<'a>(
     types: &TypeStore,
     handle: &hir::HandleExpr,
     program: Option<DirectStepProgramInfo<'a>>,
@@ -147,13 +147,13 @@ pub(crate) fn compute_escape_continuation_direct_step_effect_rows_for_handle_wit
 }
 
 #[derive(Debug, Clone)]
-pub(crate) struct EscapeSiteDirectStepRow {
-    pub(crate) site_id: SuspendSiteId,
-    pub(crate) continuation: hir::SymbolId,
-    pub(crate) effects: EffectRow,
+pub struct EscapeSiteDirectStepRow {
+    pub site_id: SuspendSiteId,
+    pub continuation: hir::SymbolId,
+    pub effects: EffectRow,
 }
 
-pub(crate) fn compute_escape_continuation_direct_step_rows_by_site(
+pub fn compute_escape_continuation_direct_step_rows_by_site(
     types: &TypeStore,
     handle: &hir::HandleExpr,
     program: Option<DirectStepProgramInfo<'_>>,
@@ -271,9 +271,7 @@ pub(crate) fn compute_escape_continuation_direct_step_rows_by_site(
     rows
 }
 
-pub(crate) fn direct_step_analysis_context_for_handle(
-    handle: &hir::HandleExpr,
-) -> HandlePlanContext {
+pub fn direct_step_analysis_context_for_handle(handle: &hir::HandleExpr) -> HandlePlanContext {
     let mut known_local_metadata = HashMap::new();
     collect_known_local_metadata_in_handle(handle, &mut known_local_metadata);
     HandlePlanContext::new(
@@ -285,7 +283,7 @@ pub(crate) fn direct_step_analysis_context_for_handle(
     )
 }
 
-pub(crate) fn select_escape_continuation_for_direct_site(
+pub fn select_escape_continuation_for_direct_site(
     handle: &hir::HandleExpr,
     op_fqn: &str,
     effect_ty: TypeId,
@@ -312,7 +310,7 @@ pub(crate) fn select_escape_continuation_for_direct_site(
     same_op_fallback
 }
 
-pub(crate) fn summarize_direct_step_effects_in_block(
+pub fn summarize_direct_step_effects_in_block(
     types: &TypeStore,
     block: &hir::Block,
     handle: &hir::HandleExpr,
@@ -331,26 +329,26 @@ pub(crate) fn summarize_direct_step_effects_in_block(
 }
 
 #[derive(Debug, Clone, Copy)]
-pub(crate) struct DirectStepProgramInfo<'a> {
-    pub(crate) object_inits: &'a hir::ObjectInitIndex,
-    pub(crate) top_level_immutable_values: &'a hir::TopLevelImmutableValueIndex,
+pub struct DirectStepProgramInfo<'a> {
+    pub object_inits: &'a hir::ObjectInitIndex,
+    pub top_level_immutable_values: &'a hir::TopLevelImmutableValueIndex,
 }
 
 #[derive(Debug, Clone)]
-pub(crate) struct DirectStepAnalysis<'a> {
-    pub(crate) program: Option<DirectStepProgramInfo<'a>>,
-    pub(crate) hidden_boundary_stack: HashSet<String>,
+pub struct DirectStepAnalysis<'a> {
+    pub program: Option<DirectStepProgramInfo<'a>>,
+    pub hidden_boundary_stack: HashSet<String>,
 }
 
 impl<'a> DirectStepAnalysis<'a> {
-    pub(crate) fn new(program: Option<DirectStepProgramInfo<'a>>) -> Self {
+    pub fn new(program: Option<DirectStepProgramInfo<'a>>) -> Self {
         Self {
             program,
             hidden_boundary_stack: HashSet::new(),
         }
     }
 
-    pub(crate) fn for_hidden_boundary(&self, key: &str) -> Option<Self> {
+    pub fn for_hidden_boundary(&self, key: &str) -> Option<Self> {
         if self.hidden_boundary_stack.contains(key) {
             return None;
         }
@@ -361,38 +359,38 @@ impl<'a> DirectStepAnalysis<'a> {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub(crate) enum DirectStepHandleRole {
+pub enum DirectStepHandleRole {
     ResumeStep,
     HandleExpression,
 }
 
 #[derive(Debug, Clone, Copy)]
-pub(crate) struct ActiveDirectStepHandleContext<'a> {
-    pub(crate) handle: &'a hir::HandleExpr,
-    pub(crate) role: DirectStepHandleRole,
+pub struct ActiveDirectStepHandleContext<'a> {
+    pub handle: &'a hir::HandleExpr,
+    pub role: DirectStepHandleRole,
 }
 
 #[derive(Debug, Clone, Copy)]
-pub(crate) enum DirectStepMode<'a> {
+pub enum DirectStepMode<'a> {
     OutsideHandle,
     ActiveHandle(ActiveDirectStepHandleContext<'a>),
 }
 
 #[derive(Debug, Clone, Copy)]
-pub(crate) enum DirectStepTerminalKind {
+pub enum DirectStepTerminalKind {
     HandleCompletion,
     TerminalStop,
 }
 
 #[derive(Debug, Clone)]
-pub(crate) struct DirectStepSummary {
-    pub(crate) effects: Vec<TypeId>,
-    pub(crate) may_continue: bool,
-    pub(crate) may_stop: bool,
+pub struct DirectStepSummary {
+    pub effects: Vec<TypeId>,
+    pub may_continue: bool,
+    pub may_stop: bool,
 }
 
 impl DirectStepSummary {
-    pub(crate) fn empty() -> Self {
+    pub fn empty() -> Self {
         Self {
             effects: Vec::new(),
             may_continue: false,
@@ -400,7 +398,7 @@ impl DirectStepSummary {
         }
     }
 
-    pub(crate) fn continue_pure() -> Self {
+    pub fn continue_pure() -> Self {
         Self {
             effects: Vec::new(),
             may_continue: true,
@@ -408,7 +406,7 @@ impl DirectStepSummary {
         }
     }
 
-    pub(crate) fn stop_pure() -> Self {
+    pub fn stop_pure() -> Self {
         Self {
             effects: Vec::new(),
             may_continue: false,
@@ -416,7 +414,7 @@ impl DirectStepSummary {
         }
     }
 
-    pub(crate) fn outward(mut effects: Vec<TypeId>) -> Self {
+    pub fn outward(mut effects: Vec<TypeId>) -> Self {
         effects.sort();
         effects.dedup();
         Self {
@@ -426,19 +424,19 @@ impl DirectStepSummary {
         }
     }
 
-    pub(crate) fn merge_effects(&mut self, mut more: Vec<TypeId>) {
+    pub fn merge_effects(&mut self, mut more: Vec<TypeId>) {
         self.effects.append(&mut more);
         self.effects.sort();
         self.effects.dedup();
     }
 
-    pub(crate) fn merge_paths(&mut self, other: Self) {
+    pub fn merge_paths(&mut self, other: Self) {
         self.merge_effects(other.effects);
         self.may_continue |= other.may_continue;
         self.may_stop |= other.may_stop;
     }
 
-    pub(crate) fn without_continue(&self) -> Self {
+    pub fn without_continue(&self) -> Self {
         Self {
             effects: self.effects.clone(),
             may_continue: false,
@@ -448,7 +446,7 @@ impl DirectStepSummary {
 }
 
 #[derive(Debug, Clone)]
-pub(crate) enum DirectStepHiddenBoundary<'a> {
+pub enum DirectStepHiddenBoundary<'a> {
     TopLevelImmutable {
         fqn: String,
         value: &'a hir::TopLevelImmutableValue,
@@ -460,7 +458,7 @@ pub(crate) enum DirectStepHiddenBoundary<'a> {
 }
 
 impl<'a> DirectStepHiddenBoundary<'a> {
-    pub(crate) fn key(&self) -> &str {
+    pub fn key(&self) -> &str {
         match self {
             DirectStepHiddenBoundary::TopLevelImmutable { fqn, .. }
             | DirectStepHiddenBoundary::ObjectInit { fqn, .. } => fqn,
@@ -468,7 +466,7 @@ impl<'a> DirectStepHiddenBoundary<'a> {
     }
 }
 
-pub(crate) fn summarize_direct_step_resume_tail_block(
+pub fn summarize_direct_step_resume_tail_block(
     types: &TypeStore,
     block: &hir::Block,
     handle: &hir::HandleExpr,
@@ -498,7 +496,7 @@ pub(crate) fn summarize_direct_step_resume_tail_block(
     out
 }
 
-pub(crate) fn summarize_direct_step_handle_execution(
+pub fn summarize_direct_step_handle_execution(
     types: &TypeStore,
     handle: &hir::HandleExpr,
     role: DirectStepHandleRole,
@@ -526,7 +524,7 @@ pub(crate) fn summarize_direct_step_handle_execution(
     out
 }
 
-pub(crate) fn summarize_direct_step_stmt_seq(
+pub fn summarize_direct_step_stmt_seq(
     types: &TypeStore,
     stmts: &[hir::Stmt],
     mode: DirectStepMode<'_>,
@@ -546,7 +544,7 @@ pub(crate) fn summarize_direct_step_stmt_seq(
     out
 }
 
-pub(crate) fn summarize_direct_step_stmt(
+pub fn summarize_direct_step_stmt(
     types: &TypeStore,
     stmt: &hir::Stmt,
     mode: DirectStepMode<'_>,
@@ -610,7 +608,7 @@ pub(crate) fn summarize_direct_step_stmt(
     }
 }
 
-pub(crate) fn summarize_direct_step_return_stmt(
+pub fn summarize_direct_step_return_stmt(
     types: &TypeStore,
     value: Option<&hir::Expr>,
     mode: DirectStepMode<'_>,
@@ -635,7 +633,7 @@ pub(crate) fn summarize_direct_step_return_stmt(
     out
 }
 
-pub(crate) fn summarize_direct_step_expr(
+pub fn summarize_direct_step_expr(
     types: &TypeStore,
     expr: &hir::Expr,
     mode: DirectStepMode<'_>,
@@ -840,7 +838,7 @@ pub(crate) fn summarize_direct_step_expr(
     }
 }
 
-pub(crate) fn summarize_direct_step_call_expr(
+pub fn summarize_direct_step_call_expr(
     types: &TypeStore,
     callee: &hir::Expr,
     args: &[hir::CallArg],
@@ -882,7 +880,7 @@ pub(crate) fn summarize_direct_step_call_expr(
     }
 }
 
-pub(crate) fn summarize_direct_step_perform_expr(
+pub fn summarize_direct_step_perform_expr(
     types: &TypeStore,
     effect_ty: TypeId,
     op_fqn: &str,
@@ -922,7 +920,7 @@ pub(crate) fn summarize_direct_step_perform_expr(
     }
 }
 
-pub(crate) fn summarize_hidden_boundary_access(
+pub fn summarize_hidden_boundary_access(
     types: &TypeStore,
     boundary: DirectStepHiddenBoundary<'_>,
     mode: DirectStepMode<'_>,
@@ -932,7 +930,7 @@ pub(crate) fn summarize_hidden_boundary_access(
     finalize_boundary_summary_in_mode(types, boundary_summary, mode, analysis)
 }
 
-pub(crate) fn summarize_hidden_boundary(
+pub fn summarize_hidden_boundary(
     types: &TypeStore,
     boundary: DirectStepHiddenBoundary<'_>,
     analysis: &DirectStepAnalysis<'_>,
@@ -999,7 +997,7 @@ pub(crate) fn summarize_hidden_boundary(
     }
 }
 
-pub(crate) fn finalize_boundary_summary_in_mode(
+pub fn finalize_boundary_summary_in_mode(
     types: &TypeStore,
     boundary_summary: DirectStepSummary,
     mode: DirectStepMode<'_>,
@@ -1033,7 +1031,7 @@ pub(crate) fn finalize_boundary_summary_in_mode(
     }
 }
 
-pub(crate) fn dispatch_boundary_effects_through_active_handle(
+pub fn dispatch_boundary_effects_through_active_handle(
     types: &TypeStore,
     effects: &[TypeId],
     ctx: ActiveDirectStepHandleContext<'_>,
@@ -1065,7 +1063,7 @@ pub(crate) fn dispatch_boundary_effects_through_active_handle(
     out
 }
 
-pub(crate) fn summarize_direct_step_dispatch_arm(
+pub fn summarize_direct_step_dispatch_arm(
     types: &TypeStore,
     arm: &hir::HandleArm,
     ctx: ActiveDirectStepHandleContext<'_>,
@@ -1117,7 +1115,7 @@ pub(crate) fn summarize_direct_step_dispatch_arm(
     out
 }
 
-pub(crate) fn finalize_handle_terminal(
+pub fn finalize_handle_terminal(
     types: &TypeStore,
     ctx: ActiveDirectStepHandleContext<'_>,
     analysis: &DirectStepAnalysis<'_>,
@@ -1137,7 +1135,7 @@ pub(crate) fn finalize_handle_terminal(
     out
 }
 
-pub(crate) fn finalize_handle_outward(
+pub fn finalize_handle_outward(
     types: &TypeStore,
     ctx: ActiveDirectStepHandleContext<'_>,
     analysis: &DirectStepAnalysis<'_>,
@@ -1151,7 +1149,7 @@ pub(crate) fn finalize_handle_outward(
     out
 }
 
-pub(crate) fn summarize_direct_step_handle_finally(
+pub fn summarize_direct_step_handle_finally(
     types: &TypeStore,
     handle: &hir::HandleExpr,
     analysis: &DirectStepAnalysis<'_>,
@@ -1170,7 +1168,7 @@ pub(crate) fn summarize_direct_step_handle_finally(
     )
 }
 
-pub(crate) fn classify_direct_step_hidden_boundary_for_value_ref<'a>(
+pub fn classify_direct_step_hidden_boundary_for_value_ref<'a>(
     program: Option<DirectStepProgramInfo<'a>>,
     value_ref: &hir::ValueRef,
 ) -> Option<DirectStepHiddenBoundary<'a>> {
@@ -1192,7 +1190,7 @@ pub(crate) fn classify_direct_step_hidden_boundary_for_value_ref<'a>(
     })
 }
 
-pub(crate) fn classify_direct_step_hidden_boundary_for_member_access<'a>(
+pub fn classify_direct_step_hidden_boundary_for_member_access<'a>(
     program: Option<DirectStepProgramInfo<'a>>,
     member: &hir::MemberAccess,
 ) -> Option<DirectStepHiddenBoundary<'a>> {
@@ -1210,7 +1208,7 @@ pub(crate) fn classify_direct_step_hidden_boundary_for_member_access<'a>(
         })
 }
 
-pub(crate) fn summarize_direct_step_call_args<'a>(
+pub fn summarize_direct_step_call_args<'a>(
     types: &TypeStore,
     args: impl IntoIterator<Item = &'a hir::CallArg>,
     mode: DirectStepMode<'_>,
@@ -1237,7 +1235,7 @@ pub(crate) fn summarize_direct_step_call_args<'a>(
     out
 }
 
-pub(crate) fn summarize_direct_step_exprs<'a>(
+pub fn summarize_direct_step_exprs<'a>(
     types: &TypeStore,
     exprs: impl IntoIterator<Item = &'a hir::Expr>,
     mode: DirectStepMode<'_>,
@@ -1257,7 +1255,7 @@ pub(crate) fn summarize_direct_step_exprs<'a>(
     out
 }
 
-pub(crate) fn direct_effect_terms_from_callable_expr(
+pub fn direct_effect_terms_from_callable_expr(
     types: &TypeStore,
     callee: &hir::Expr,
     known_local_metadata: &HashMap<hir::SymbolId, KnownLocalMetadata>,
@@ -1279,7 +1277,7 @@ pub(crate) fn direct_effect_terms_from_callable_expr(
     }
 }
 
-pub(crate) fn first_matching_arm_for_direct_perform<'a>(
+pub fn first_matching_arm_for_direct_perform<'a>(
     handle: &'a hir::HandleExpr,
     op_fqn: &str,
     effect_ty: TypeId,
@@ -1299,7 +1297,7 @@ pub(crate) fn first_matching_arm_for_direct_perform<'a>(
     same_op_fallback
 }
 
-pub(crate) fn ordinary_callee_resume_slot_type(
+pub fn ordinary_callee_resume_slot_type(
     body: &hir::Block,
     source_path: &SuspendSourcePath,
     resume_path: &SuspendResumePath,
@@ -1335,7 +1333,7 @@ mod plan_tests {
     use super::*;
 
     #[test]
-    pub(crate) fn continuation_escape_facts_enter_handle_planning_input() {
+    pub fn continuation_escape_facts_enter_handle_planning_input() {
         let source_text = r#"
 package a
 
@@ -1394,7 +1392,7 @@ fun demo(k: Continuation<Int, Int>): Int {
     }
 
     #[test]
-    pub(crate) fn escaping_continuation_facts_enter_handle_planning_input() {
+    pub fn escaping_continuation_facts_enter_handle_planning_input() {
         let source_text = r#"
 package a
 
@@ -1448,7 +1446,7 @@ fun demo(k: Continuation<Int, Int>): Int {
     }
 
     #[test]
-    pub(crate) fn non_tail_escape_arm_with_outward_suspend_builds_inner_resume_site() {
+    pub fn non_tail_escape_arm_with_outward_suspend_builds_inner_resume_site() {
         let lowered = lower_typed_single_source(
             r#"
 package a
@@ -1519,7 +1517,7 @@ fun start(cell: Cell): Int / Boom {
     }
 
     #[test]
-    pub(crate) fn non_tail_escape_arm_nested_handle_boundary_escape_replay_keeps_arm_tail() {
+    pub fn non_tail_escape_arm_nested_handle_boundary_escape_replay_keeps_arm_tail() {
         let source_text = r#"
 package a
 
@@ -1621,7 +1619,7 @@ fun demo(cell: Cell): Int {
     }
 
     #[test]
-    pub(crate) fn direct_step_effect_rows_include_direct_effectful_call_after_escape_site() {
+    pub fn direct_step_effect_rows_include_direct_effectful_call_after_escape_site() {
         let lowered = lower_typed_single_source(
             r#"
 package a
@@ -1664,7 +1662,7 @@ fun demo(): Int / (Boom) {
     }
 
     #[test]
-    pub(crate) fn direct_step_rows_stop_at_next_escape_boundary() {
+    pub fn direct_step_rows_stop_at_next_escape_boundary() {
         let lowered = lower_typed_single_source(
             r#"
 package a
@@ -1718,7 +1716,7 @@ fun demo(): Int / (Boom) {
     }
 
     #[test]
-    pub(crate) fn direct_step_rows_include_immediate_resume_arm_body_effects() {
+    pub fn direct_step_rows_include_immediate_resume_arm_body_effects() {
         let lowered = lower_typed_single_source(
             r#"
 package a
@@ -1767,7 +1765,7 @@ fun demo(): Int / (Boom) {
     }
 
     #[test]
-    pub(crate) fn direct_step_rows_include_escape_arm_body_effects_at_next_boundary() {
+    pub fn direct_step_rows_include_escape_arm_body_effects_at_next_boundary() {
         let lowered = lower_typed_single_source(
             r#"
 package a
@@ -1820,7 +1818,7 @@ fun demo(): Int / (Boom) {
     }
 
     #[test]
-    pub(crate) fn direct_step_rows_include_finally_effects_after_resumed_tail_completion() {
+    pub fn direct_step_rows_include_finally_effects_after_resumed_tail_completion() {
         let lowered = lower_typed_single_source(
             r#"
 package a
@@ -1862,7 +1860,7 @@ fun demo(): Int / (Boom) {
     }
 
     #[test]
-    pub(crate) fn direct_step_rows_include_nested_handle_boundary_effects() {
+    pub fn direct_step_rows_include_nested_handle_boundary_effects() {
         let lowered = lower_typed_single_source(
             r#"
 package a
@@ -1914,21 +1912,21 @@ fun demo(): Int / (Boom) {
         assert_eq!(effect_row_terms(&lowered.types, row), ["a.Boom"]);
     }
 
-    pub(crate) fn effect_row_terms(types: &TypeStore, row: &EffectRow) -> Vec<String> {
+    pub fn effect_row_terms(types: &TypeStore, row: &EffectRow) -> Vec<String> {
         row.terms
             .iter()
             .map(|ty| types.display(*ty).to_string())
             .collect()
     }
 
-    pub(crate) fn direct_step_program_info(lowered: &hir::LoweredHir) -> DirectStepProgramInfo<'_> {
+    pub fn direct_step_program_info(lowered: &hir::LoweredHir) -> DirectStepProgramInfo<'_> {
         DirectStepProgramInfo {
             object_inits: &lowered.object_inits,
             top_level_immutable_values: &lowered.top_level_immutable_values,
         }
     }
 
-    pub(crate) fn only_escape_continuation_symbol(handle: &hir::HandleExpr) -> hir::SymbolId {
+    pub fn only_escape_continuation_symbol(handle: &hir::HandleExpr) -> hir::SymbolId {
         handle
             .arms
             .iter()
@@ -1939,10 +1937,7 @@ fun demo(): Int / (Boom) {
             .expect("expected an escape continuation arm")
     }
 
-    pub(crate) fn state_action_source_snippet(
-        op: &HandleStateOp,
-        source: &SourceFile,
-    ) -> Option<String> {
+    pub fn state_action_source_snippet(op: &HandleStateOp, source: &SourceFile) -> Option<String> {
         match op {
             HandleStateOp::StmtEmpty { stmt }
             | HandleStateOp::Assign { stmt }
@@ -1986,7 +1981,7 @@ fun demo(): Int / (Boom) {
         }
     }
 
-    pub(crate) fn lower_typed_single_source(source_text: &str) -> hir::LoweredHir {
+    pub fn lower_typed_single_source(source_text: &str) -> hir::LoweredHir {
         let session = test_session();
         let source = SourceFile::new_virtual("<mem>", source_text);
         let mut ast = parse_file(&source).expect("parse");
@@ -2059,13 +2054,11 @@ fun demo(): Int / (Boom) {
         .expect("lower")
     }
 
-    pub(crate) fn test_session() -> Session {
+    pub fn test_session() -> Session {
         Session::with_options(SessionOptions::new()).expect("session")
     }
 
-    pub(crate) fn first_handle_in_file(
-        file: &hir::File,
-    ) -> Option<(&hir::FunDecl, &hir::HandleExpr)> {
+    pub fn first_handle_in_file(file: &hir::File) -> Option<(&hir::FunDecl, &hir::HandleExpr)> {
         for item in &file.items {
             if let hir::Item::Fun(fun) = item
                 && let Some(body) = &fun.body
@@ -2077,7 +2070,7 @@ fun demo(): Int / (Boom) {
         None
     }
 
-    pub(crate) fn first_handle_in_block(block: &hir::Block) -> Option<&hir::HandleExpr> {
+    pub fn first_handle_in_block(block: &hir::Block) -> Option<&hir::HandleExpr> {
         for stmt in &block.stmts {
             if let Some(handle) = first_handle_in_stmt(stmt) {
                 return Some(handle);
@@ -2086,7 +2079,7 @@ fun demo(): Int / (Boom) {
         None
     }
 
-    pub(crate) fn first_handle_in_stmt(stmt: &hir::Stmt) -> Option<&hir::HandleExpr> {
+    pub fn first_handle_in_stmt(stmt: &hir::Stmt) -> Option<&hir::HandleExpr> {
         match &stmt.kind {
             hir::StmtKind::Expr(expr) => first_handle_in_expr(expr),
             hir::StmtKind::Val(decl) => decl.init.as_ref().and_then(first_handle_in_expr),
@@ -2104,7 +2097,7 @@ fun demo(): Int / (Boom) {
         }
     }
 
-    pub(crate) fn first_handle_in_expr(expr: &hir::Expr) -> Option<&hir::HandleExpr> {
+    pub fn first_handle_in_expr(expr: &hir::Expr) -> Option<&hir::HandleExpr> {
         match &expr.kind {
             hir::ExprKind::Handle(handle) => Some(handle),
             hir::ExprKind::Block(block) => first_handle_in_block(block),

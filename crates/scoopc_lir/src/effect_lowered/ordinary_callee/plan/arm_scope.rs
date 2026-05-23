@@ -5,25 +5,25 @@
 use super::*;
 
 #[derive(Debug, Clone)]
-pub(crate) struct ArmPlan {
-    pub(crate) id: ArmPlanId,
-    pub(crate) op_fqn: String,
-    pub(crate) effect_ty: TypeId,
-    pub(crate) binder_slots: Vec<FrameSlot>,
-    pub(crate) capture_locals: Vec<hir::SymbolId>,
-    pub(crate) body_entry_state: PlanStateId,
-    pub(crate) body_may_suspend_outward: bool,
+pub struct ArmPlan {
+    pub id: ArmPlanId,
+    pub op_fqn: String,
+    pub effect_ty: TypeId,
+    pub binder_slots: Vec<FrameSlot>,
+    pub capture_locals: Vec<hir::SymbolId>,
+    pub body_entry_state: PlanStateId,
+    pub body_may_suspend_outward: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum ArmBodyExit {
+pub enum ArmBodyExit {
     ReturnHandle,
     ResumeMatchedSite,
     MaterializeContinuation,
 }
 
 impl ArmBodyExit {
-    pub(crate) fn label(self) -> &'static str {
+    pub fn label(self) -> &'static str {
         match self {
             ArmBodyExit::ReturnHandle => "return-handle",
             ArmBodyExit::ResumeMatchedSite => "resume-matched-site",
@@ -31,7 +31,7 @@ impl ArmBodyExit {
         }
     }
 
-    pub(crate) fn structural_signature(self) -> usize {
+    pub fn structural_signature(self) -> usize {
         match self {
             ArmBodyExit::ReturnHandle => 1,
             ArmBodyExit::ResumeMatchedSite => 2,
@@ -41,27 +41,27 @@ impl ArmBodyExit {
 }
 
 #[derive(Debug, Clone)]
-pub(crate) struct CleanupScopePlan {
-    pub(crate) id: CleanupScopeId,
-    pub(crate) kind: CleanupScopeKind,
-    pub(crate) entry_state: PlanStateId,
-    pub(crate) exit_state: PlanStateId,
-    pub(crate) note: String,
+pub struct CleanupScopePlan {
+    pub id: CleanupScopeId,
+    pub kind: CleanupScopeKind,
+    pub entry_state: PlanStateId,
+    pub exit_state: PlanStateId,
+    pub note: String,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum CleanupScopeKind {
+pub enum CleanupScopeKind {
     Finally,
 }
 
 impl CleanupScopeKind {
-    pub(crate) fn label(self) -> &'static str {
+    pub fn label(self) -> &'static str {
         match self {
             CleanupScopeKind::Finally => "finally",
         }
     }
 
-    pub(crate) fn structural_signature(self) -> usize {
+    pub fn structural_signature(self) -> usize {
         match self {
             CleanupScopeKind::Finally => 1,
         }
@@ -69,54 +69,54 @@ impl CleanupScopeKind {
 }
 
 #[derive(Debug, Clone)]
-pub(crate) struct FrameLayoutPlan {
-    pub(crate) slots: HashMap<hir::SymbolId, FrameSlot>,
-    pub(crate) lifted_locals: Vec<FrameSlot>,
-    pub(crate) arm_binders: Vec<FrameSlot>,
-    pub(crate) has_cleanup_flag: bool,
-    pub(crate) has_one_shot_flag: bool,
+pub struct FrameLayoutPlan {
+    pub slots: HashMap<hir::SymbolId, FrameSlot>,
+    pub lifted_locals: Vec<FrameSlot>,
+    pub arm_binders: Vec<FrameSlot>,
+    pub has_cleanup_flag: bool,
+    pub has_one_shot_flag: bool,
 }
 
 #[derive(Debug, Clone)]
-pub(crate) struct FrameSlot {
-    pub(crate) id: hir::SymbolId,
-    pub(crate) name: String,
-    pub(crate) ty: TypeId,
-    pub(crate) mutable: bool,
-    pub(crate) seed_from_outer_scope: bool,
-    pub(crate) owner_arm: Option<ArmPlanId>,
+pub struct FrameSlot {
+    pub id: hir::SymbolId,
+    pub name: String,
+    pub ty: TypeId,
+    pub mutable: bool,
+    pub seed_from_outer_scope: bool,
+    pub owner_arm: Option<ArmPlanId>,
 }
 
 impl FrameSlot {
-    pub(crate) fn id(&self) -> hir::SymbolId {
+    pub fn id(&self) -> hir::SymbolId {
         self.id
     }
 
-    pub(crate) fn name(&self) -> &str {
+    pub fn name(&self) -> &str {
         &self.name
     }
 
-    pub(crate) fn ty(&self) -> TypeId {
+    pub fn ty(&self) -> TypeId {
         self.ty
     }
 
-    pub(crate) fn mutable(&self) -> bool {
+    pub fn mutable(&self) -> bool {
         self.mutable
     }
 
-    pub(crate) fn seed_from_outer_scope(&self) -> bool {
+    pub fn seed_from_outer_scope(&self) -> bool {
         self.seed_from_outer_scope
     }
 
-    pub(crate) fn owner_arm(&self) -> Option<ArmPlanId> {
+    pub fn owner_arm(&self) -> Option<ArmPlanId> {
         self.owner_arm
     }
 
-    pub(crate) fn display_name(&self) -> String {
+    pub fn display_name(&self) -> String {
         format!("{}#{}", self.name, self.id.as_u32())
     }
 
-    pub(crate) fn structural_signature(&self) -> usize {
+    pub fn structural_signature(&self) -> usize {
         self.id.as_u32() as usize
             ^ self.name.len()
             ^ ((self.ty.as_u32() as usize) << 1)
@@ -128,44 +128,44 @@ impl FrameSlot {
 
 /// 单个 ordinary callee suspend-state 中需要保存的一个局部绑定。
 #[derive(Debug, Clone)]
-pub(crate) struct CalleeSuspendSavedLocal {
-    pub(crate) id: hir::SymbolId,
-    pub(crate) name: String,
-    pub(crate) ty: TypeId,
-    pub(crate) mutable: bool,
+pub struct CalleeSuspendSavedLocal {
+    pub id: hir::SymbolId,
+    pub name: String,
+    pub ty: TypeId,
+    pub mutable: bool,
 }
 
 /// 一个 ordinary callee 的最小 resumed-body 恢复 site。
 #[derive(Debug, Clone)]
-pub(crate) struct CalleeSuspendResumeSite {
-    pub(crate) site_id: u32,
-    pub(crate) span: Span,
-    pub(crate) saved_locals: Vec<CalleeSuspendSavedLocal>,
-    pub(crate) resume_slot_id: hir::SymbolId,
-    pub(crate) resume_slot_name: String,
-    pub(crate) resume_slot_ty: TypeId,
-    pub(crate) resume_tail: hir::Block,
+pub struct CalleeSuspendResumeSite {
+    pub site_id: u32,
+    pub span: Span,
+    pub saved_locals: Vec<CalleeSuspendSavedLocal>,
+    pub resume_slot_id: hir::SymbolId,
+    pub resume_slot_name: String,
+    pub resume_slot_ty: TypeId,
+    pub resume_tail: hir::Block,
 }
 
 impl CalleeSuspendResumeSite {
-    pub(crate) fn site_tag(&self) -> u32 {
+    pub fn site_tag(&self) -> u32 {
         self.site_id
     }
 }
 
 /// Shared ordinary callee suspend/resume plan consumed by backend emitters.
 #[derive(Debug, Clone)]
-pub(crate) struct CalleeSuspendPlan {
-    pub(crate) saved_locals: Vec<CalleeSuspendSavedLocal>,
-    pub(crate) resume_sites: Vec<CalleeSuspendResumeSite>,
+pub struct CalleeSuspendPlan {
+    pub saved_locals: Vec<CalleeSuspendSavedLocal>,
+    pub resume_sites: Vec<CalleeSuspendResumeSite>,
 }
 
 impl CalleeSuspendPlan {
-    pub(crate) fn resume_site_for_span(&self, span: Span) -> Option<&CalleeSuspendResumeSite> {
+    pub fn resume_site_for_span(&self, span: Span) -> Option<&CalleeSuspendResumeSite> {
         self.resume_sites.iter().find(|site| site.span == span)
     }
 
-    pub(crate) fn saved_local_index(&self, local_id: hir::SymbolId) -> Option<u32> {
+    pub fn saved_local_index(&self, local_id: hir::SymbolId) -> Option<u32> {
         self.saved_locals
             .iter()
             .position(|local| local.id == local_id)
@@ -174,7 +174,7 @@ impl CalleeSuspendPlan {
 }
 
 impl PlanState {
-    pub(crate) fn structural_signature(&self) -> usize {
+    pub fn structural_signature(&self) -> usize {
         let mut acc = self.id as usize ^ self.label.len();
         for action in &self.actions {
             acc ^= action.structural_signature();
@@ -187,7 +187,7 @@ impl PlanState {
 }
 
 impl SuspendSitePlan {
-    pub(crate) fn structural_signature(&self) -> usize {
+    pub fn structural_signature(&self) -> usize {
         let mut acc = self.id as usize
             ^ self.span.start
             ^ self.span.end
@@ -216,7 +216,7 @@ impl SuspendSitePlan {
         acc
     }
 
-    pub(crate) fn may_suspend_outward(&self) -> bool {
+    pub fn may_suspend_outward(&self) -> bool {
         match self.kind {
             SuspendSiteKind::Perform { .. } | SuspendSiteKind::RuntimeRaise { .. } => {
                 self.matching_arms.is_empty()
@@ -232,7 +232,7 @@ impl SuspendSitePlan {
 }
 
 impl ArmPlan {
-    pub(crate) fn structural_signature(&self) -> usize {
+    pub fn structural_signature(&self) -> usize {
         let mut acc = self.id as usize
             ^ self.op_fqn.len()
             ^ self.effect_ty.as_u32() as usize
@@ -249,7 +249,7 @@ impl ArmPlan {
 }
 
 impl CleanupScopePlan {
-    pub(crate) fn structural_signature(&self) -> usize {
+    pub fn structural_signature(&self) -> usize {
         self.id as usize
             ^ self.kind.structural_signature()
             ^ self.entry_state as usize
@@ -259,7 +259,7 @@ impl CleanupScopePlan {
 }
 
 impl FrameLayoutPlan {
-    pub(crate) fn structural_signature(&self) -> usize {
+    pub fn structural_signature(&self) -> usize {
         let mut acc = self.slots.len()
             ^ self.lifted_locals.len()
             ^ self.arm_binders.len()
@@ -273,7 +273,7 @@ impl FrameLayoutPlan {
 }
 
 impl DispatchPlan {
-    pub(crate) fn structural_signature(&self) -> usize {
+    pub fn structural_signature(&self) -> usize {
         self.entries.iter().fold(self.entries.len(), |acc, entry| {
             acc ^ entry.structural_signature()
         })
@@ -281,7 +281,7 @@ impl DispatchPlan {
 }
 
 impl DispatchEntry {
-    pub(crate) fn structural_signature(&self) -> usize {
+    pub fn structural_signature(&self) -> usize {
         let mut acc = self.op_fqn.len();
         for arm_id in &self.arm_ids {
             acc ^= *arm_id as usize;
@@ -291,31 +291,31 @@ impl DispatchEntry {
 }
 
 #[derive(Debug, Clone)]
-pub(crate) struct DispatchPlan {
-    pub(crate) entries: Vec<DispatchEntry>,
+pub struct DispatchPlan {
+    pub entries: Vec<DispatchEntry>,
 }
 
 #[derive(Debug, Clone)]
-pub(crate) struct DispatchEntry {
-    pub(crate) op_fqn: String,
-    pub(crate) arm_ids: Vec<ArmPlanId>,
+pub struct DispatchEntry {
+    pub op_fqn: String,
+    pub arm_ids: Vec<ArmPlanId>,
 }
 
 #[derive(Clone, Default)]
-pub(crate) struct ScopeEnv {
-    pub(crate) slots: Vec<FrameSlot>,
+pub struct ScopeEnv {
+    pub slots: Vec<FrameSlot>,
 }
 
 impl ScopeEnv {
-    pub(crate) fn with_outer(slots: Vec<FrameSlot>) -> Self {
+    pub fn with_outer(slots: Vec<FrameSlot>) -> Self {
         Self { slots }
     }
 
-    pub(crate) fn push(&mut self, slot: FrameSlot) {
+    pub fn push(&mut self, slot: FrameSlot) {
         self.slots.push(slot);
     }
 
-    pub(crate) fn available_ids(&self) -> Vec<hir::SymbolId> {
+    pub fn available_ids(&self) -> Vec<hir::SymbolId> {
         self.slots.iter().map(|slot| slot.id).collect()
     }
 }

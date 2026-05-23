@@ -1,0 +1,20 @@
+[package]
+name = "scoopc_lir"
+version.workspace = true
+edition.workspace = true
+
+[features]
+default = []
+llvm = []
+
+[dependencies]
+scoopc_effect_facts = { path = "../scoopc_effect_facts" }
+scoopc_ids = { path = "../scoopc_ids" }
+scoopc_lir_facts = { path = "../scoopc_lir_facts" }
+scoopc_mir = { path = "../scoopc_mir" }
+scoopc_mir_facts = { path = "../scoopc_mir_facts" }
+scoopc_project_model = { path = "../scoopc_project_model" }
+scoopc_source = { path = "../scoopc_source" }
+scoopc_span = { path = "../scoopc_span" }
+scoopc_types = { path = "../scoopc_types" }
+thiserror = "2.0.12"

@@ -10,12 +10,12 @@ use scoopc_mir_facts::roots::{
     MirRootFact,
 };
 
-use crate::effect_facts::{
+use scoopc_lir::effect_facts::{
     CallSiteEffectFacts, CallSiteKind, CallSiteTarget, CallTargetMode, CallableAbiKind,
     EffectPrecision, MaterializedEffectFacts, SiteEffectFacts,
 };
-use crate::effect_lowered::EffectLoweringError;
-use crate::effect_lowered::ir::{
+use scoopc_lir::effect_lowered::EffectLoweringError;
+use scoopc_lir::effect_lowered::ir::{
     BoundarySiteKind, LateLoweredBoundaryLowering, LateLoweredBoundaryMap,
     LateLoweredBoundarySource, LateLoweredCallable, LateLoweredContinuationResumeBody,
     LateLoweredDynamicInvokeEntry, LateLoweredEffectStepCallable, LateLoweredFrameSchema,
@@ -23,12 +23,12 @@ use crate::effect_lowered::ir::{
     LateLoweredProgram, LateLoweredResumeStateMap, LateLoweredStateGraph, LateLoweredStateSlice,
     LateLoweredSurfaceResumeDispatchSourceKind,
 };
-use crate::mir::{
+use scoopc_lir::mir::{
     Body, CallKind as MirCallKind, FunDecl, InstanceKey, Item, MaterializedMir,
     Operand as MirOperand, Rvalue as MirRvalue, SiteId, StatementKind as MirStatementKind,
 };
-use crate::opt::OptLevel;
-use crate::ty::{RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind};
+use scoopc_lir::opt::OptLevel;
+use scoopc_lir::ty::{RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind};
 
 struct LirFactsBuildContext<'a> {
     lir: &'a LateLoweredProgram,
@@ -931,30 +931,30 @@ fn operand_type_id(
     }
 }
 
-fn const_type_id(types: &TypeStore, value: &crate::mir::ConstValue) -> Option<TypeId> {
+fn const_type_id(types: &TypeStore, value: &scoopc_lir::mir::ConstValue) -> Option<TypeId> {
     types.iter_ids().find(|ty| {
         matches!(
             (value, types.kind(*ty)),
             (
-                crate::mir::ConstValue::Bool(_),
+                scoopc_lir::mir::ConstValue::Bool(_),
                 TypeKind::Value(ValueTypeKind::Bool)
             ) | (
-                crate::mir::ConstValue::Char,
+                scoopc_lir::mir::ConstValue::Char,
                 TypeKind::Value(ValueTypeKind::Char)
             ) | (
-                crate::mir::ConstValue::Unit,
+                scoopc_lir::mir::ConstValue::Unit,
                 TypeKind::Value(ValueTypeKind::Unit)
             ) | (
-                crate::mir::ConstValue::Int | crate::mir::ConstValue::SynthInt(_),
+                scoopc_lir::mir::ConstValue::Int | scoopc_lir::mir::ConstValue::SynthInt(_),
                 TypeKind::Value(ValueTypeKind::Int),
             ) | (
-                crate::mir::ConstValue::Float64,
+                scoopc_lir::mir::ConstValue::Float64,
                 TypeKind::Value(ValueTypeKind::Float64)
             ) | (
-                crate::mir::ConstValue::Float32,
+                scoopc_lir::mir::ConstValue::Float32,
                 TypeKind::Value(ValueTypeKind::Float32)
             ) | (
-                crate::mir::ConstValue::String | crate::mir::ConstValue::SynthString(_),
+                scoopc_lir::mir::ConstValue::String | scoopc_lir::mir::ConstValue::SynthString(_),
                 TypeKind::Ref(RefTypeKind::String),
             )
         )
@@ -1105,7 +1105,7 @@ fn build_callable_facts(
     for callable in ctx.lir.callables() {
         let key = callable_key_for_root(&ctx.callable_keys_by_root, callable.root_fqn())?.clone();
         let contract = match callable.abi() {
-            crate::effect_lowered::ir::LateLoweredCallableAbi::Plain(plain) => {
+            scoopc_lir::effect_lowered::ir::LateLoweredCallableAbi::Plain(plain) => {
                 LirCallableContract::Plain(Box::new(build_plain_callable_facts(
                     ctx,
                     callable,
@@ -1115,7 +1115,7 @@ fn build_callable_facts(
                     dispatches,
                 )?))
             }
-            crate::effect_lowered::ir::LateLoweredCallableAbi::EffectStep(effect) => {
+            scoopc_lir::effect_lowered::ir::LateLoweredCallableAbi::EffectStep(effect) => {
                 LirCallableContract::EffectStep(Box::new(build_effect_step_callable_facts(
                     ctx,
                     callable,
@@ -1294,14 +1294,14 @@ fn build_control_body_facts(
     ctx: &LirFactsBuildContext<'_>,
     callable: &LateLoweredCallable,
     owner_key: &StableLirCallableKey,
-    step_schema: crate::effect_facts::StepSchemaId,
+    step_schema: scoopc_lir::effect_facts::StepSchemaId,
     state_graph: &LateLoweredStateGraph,
     frame_schema: &LateLoweredFrameSchema,
     boundary_map: &LateLoweredBoundaryMap,
     resume_state_map: &LateLoweredResumeStateMap,
-    classifications: &[crate::effect_lowered::ir::LateLoweredSourceStatementClassification],
-    continuation_object: crate::effect_lowered::ir::ContinuationObjectId,
-    resume_packings: &[crate::effect_lowered::ir::ResumeInterfaceId],
+    classifications: &[scoopc_lir::effect_lowered::ir::LateLoweredSourceStatementClassification],
+    continuation_object: scoopc_lir::effect_lowered::ir::ContinuationObjectId,
+    resume_packings: &[scoopc_lir::effect_lowered::ir::ResumeInterfaceId],
     dynamic_invokes: &mut BTreeMap<LirDynamicInvokeKey, LirDynamicInvokeContract>,
     dispatches: &mut BTreeMap<LirDispatchKey, LirDispatchContract>,
 ) -> Result<LirControlBodyFacts, EffectLoweringError> {
@@ -1388,7 +1388,7 @@ fn publish_source_slice_dynamic_invokes(
     ctx: &LirFactsBuildContext<'_>,
     callable: &LateLoweredCallable,
     owner_key: &StableLirCallableKey,
-    owner_step_schema: crate::effect_facts::StepSchemaId,
+    owner_step_schema: scoopc_lir::effect_facts::StepSchemaId,
     state_graph: &LateLoweredStateGraph,
     boundary_call_sites: &BTreeSet<SiteId>,
     dynamic_invokes: &mut BTreeMap<LirDynamicInvokeKey, LirDynamicInvokeContract>,
@@ -1453,7 +1453,10 @@ fn publish_source_slice_dynamic_invokes(
                         root_fqn: callable.root_fqn().to_string(),
                         site_id: site_id.as_u32(),
                         expected: "Call",
-                        actual: crate::effect_lowered::materialize::site_facts_kind(site),
+                        actual:
+                            scoopc_lir::effect_lowered::materialize::dispatch_plan::site_facts_kind(
+                                site,
+                            ),
                     });
                 };
                 let contract = call_site_contract(ctx, call_facts);
@@ -1878,7 +1881,7 @@ fn build_surface_resume_dispatch_facts(
 
 fn body_version_key_for_owner(
     ctx: &LirFactsBuildContext<'_>,
-    owner: &crate::effect_lowered::ir::LateLoweredBodyVersionKey,
+    owner: &scoopc_lir::effect_lowered::ir::LateLoweredBodyVersionKey,
 ) -> BodyVersionKey {
     let Some(stable) = ctx.lir.stable_instance_key(owner.surface_instance()) else {
         return BodyVersionKey::from_parts("missing-owner", "unknown", 0);
@@ -1956,8 +1959,8 @@ fn frame_schema_facts(frame: &LateLoweredFrameSchema) -> LirFrameSchemaFacts {
 
 fn boundary_map_facts(
     map: &LateLoweredBoundaryMap,
-    dynamic_invokes: &HashMap<crate::effect_lowered::ir::BoundaryId, LirDynamicInvokeKey>,
-    dispatches: &HashMap<crate::effect_lowered::ir::BoundaryId, LirDispatchKey>,
+    dynamic_invokes: &HashMap<scoopc_lir::effect_lowered::ir::BoundaryId, LirDynamicInvokeKey>,
+    dispatches: &HashMap<scoopc_lir::effect_lowered::ir::BoundaryId, LirDispatchKey>,
 ) -> LirBoundaryMapFacts {
     LirBoundaryMapFacts {
         boundaries: map
@@ -2102,8 +2105,12 @@ fn callable_owner_is_nominal_or_object(materialized: &MaterializedMir, root_fqn:
         return false;
     };
     materialized.file.items.iter().any(|item| match item {
-        Item::Metadata(crate::mir::MetadataRoot::Nominal(metadata)) => metadata.fqn == owner_fqn,
-        Item::Metadata(crate::mir::MetadataRoot::Object(metadata)) => metadata.fqn == owner_fqn,
+        Item::Metadata(scoopc_lir::mir::MetadataRoot::Nominal(metadata)) => {
+            metadata.fqn == owner_fqn
+        }
+        Item::Metadata(scoopc_lir::mir::MetadataRoot::Object(metadata)) => {
+            metadata.fqn == owner_fqn
+        }
         _ => false,
     })
 }
@@ -2238,7 +2245,7 @@ fn effect_precision(precision: EffectPrecision) -> LirEffectPrecision {
 fn continuation_resume_body(body: LateLoweredContinuationResumeBody) -> LirContinuationResumeBody {
     match body {
         LateLoweredContinuationResumeBody::ResumeCapturedState { repeated_resume } => match repeated_resume {
-            crate::effect_lowered::ir::LateLoweredOneShotPolicy::OrdinaryRuntimeErrorOutward => {
+            scoopc_lir::effect_lowered::ir::LateLoweredOneShotPolicy::OrdinaryRuntimeErrorOutward => {
                 LirContinuationResumeBody::OneShotRuntimeErrorPublication
             }
         },

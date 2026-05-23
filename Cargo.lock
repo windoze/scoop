@@ -683,9 +683,11 @@ dependencies = [
  "object",
  "scoopc_ast",
  "scoopc_effect_facts",
+ "scoopc_effect_facts_stage",
  "scoopc_hir",
  "scoopc_hir_facts",
  "scoopc_ids",
+ "scoopc_lir",
  "scoopc_lir_facts",
  "scoopc_mir",
  "scoopc_mir_facts",
@@ -729,6 +731,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "scoopc_effect_facts_stage"
+version = "0.1.0"
+dependencies = [
+ "miette",
+ "scoopc_ast",
+ "scoopc_effect_facts",
+ "scoopc_hir",
+ "scoopc_hir_facts",
+ "scoopc_ids",
+ "scoopc_mir",
+ "scoopc_mir_facts",
+ "scoopc_project_model",
+ "scoopc_source",
+ "scoopc_span",
+ "scoopc_types",
+ "thiserror",
+]
+
+[[package]]
 name = "scoopc_hir"
 version = "0.1.0"
 dependencies = [
@@ -762,6 +783,22 @@ dependencies = [
  "scoopc_span",
  "scoopc_types",
  "sha2",
+]
+
+[[package]]
+name = "scoopc_lir"
+version = "0.1.0"
+dependencies = [
+ "scoopc_effect_facts",
+ "scoopc_ids",
+ "scoopc_lir_facts",
+ "scoopc_mir",
+ "scoopc_mir_facts",
+ "scoopc_project_model",
+ "scoopc_source",
+ "scoopc_span",
+ "scoopc_types",
+ "thiserror",
 ]
 
 [[package]]

@@ -7,12 +7,13 @@
 mod analysis;
 mod plan;
 
-pub(crate) use analysis::{
+pub use analysis::{
     ContinuationEscapeFacts, EffectAnalysisCtx, EffectAnalysisFacts, EffectConstructorCall,
     EffectContinuationResume, EffectFieldFact, EffectFieldOwnerKind, EffectGlobalRootKind,
     KnownLocalMetadata,
 };
-pub(crate) use plan::{
+#[cfg(feature = "llvm")]
+pub use plan::{
     CalleeSuspendPlan, SuspendCallAnalysis, build_ordinary_callee_suspend_plan_with_context,
     function_ty_declared_effectful, hir_ty_is_function_value,
 };

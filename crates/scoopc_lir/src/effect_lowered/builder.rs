@@ -33,7 +33,7 @@ use super::materialize::{
 use super::segment::build_callable_segmentation;
 
 /// 把 canonical MIR pass query、MIR-owned facts 与 P4 facts 组装成独立 `LateLoweredProgram`。
-pub(crate) struct LateLoweredProgramBuilder<'a> {
+pub struct LateLoweredProgramBuilder<'a> {
     pass_view: MaterializedMirPassView<'a>,
     effect_facts: &'a MaterializedEffectFacts,
     types: &'a TypeStore,
@@ -41,7 +41,7 @@ pub(crate) struct LateLoweredProgramBuilder<'a> {
 }
 
 impl<'a> LateLoweredProgramBuilder<'a> {
-    pub(crate) fn from_canonical_inputs(
+    pub fn from_canonical_inputs(
         pass_view: MaterializedMirPassView<'a>,
         effect_facts: &'a MaterializedEffectFacts,
         types: &'a TypeStore,
@@ -55,7 +55,7 @@ impl<'a> LateLoweredProgramBuilder<'a> {
         }
     }
 
-    pub(crate) fn build(self) -> Result<LateLoweredProgram, EffectLoweringError> {
+    pub fn build(self) -> Result<LateLoweredProgram, EffectLoweringError> {
         let pass_view = self.pass_view;
         let effect_facts = self.effect_facts;
         let types = self.types;
@@ -369,7 +369,7 @@ fn find_materialized_fun<'a>(materialized: &'a MaterializedMir, fqn: &str) -> Op
     })
 }
 
-pub(crate) fn build_class_ctor_init_bodies<'a>(
+pub fn build_class_ctor_init_bodies<'a>(
     classes: impl Iterator<Item = &'a source::MonoClassInit> + Clone,
 ) -> Vec<LateLoweredClassCtorInitBody> {
     let mut bodies = Vec::new();

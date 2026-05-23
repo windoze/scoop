@@ -165,7 +165,7 @@ pub(crate) fn clone_handle_site_facts(
     }
 }
 
-pub(crate) fn site_facts_kind(site: &SiteEffectFacts) -> &'static str {
+pub fn site_facts_kind(site: &SiteEffectFacts) -> &'static str {
     match site {
         SiteEffectFacts::Call(_) => "Call",
         SiteEffectFacts::ClassCtor(_) => "ClassCtor",

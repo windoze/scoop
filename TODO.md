@@ -4,7 +4,7 @@
 > 计划基线：[`PLAN.md`](./PLAN.md)
 > 设计基线：[`PIPELINE_REFACTOR.md`](./PIPELINE_REFACTOR.md)
 > 审计基线：[`PIPELINE-CLEANUP.md`](./PIPELINE-CLEANUP.md)
-> 当前状态：P0-P8、`TODO-7-INIT`、`P9-T01-a`、`P9-T01`、`P9-T01R`、`P9-T02`、`P9-T02R`、`P9-T03`、`P9-T03R`、`P9-T04`、`P9-T04R`、`P9-T05`、`P9-T05R`、`P9-T06-a` 与 `P9-T06-b` 已完成；下一项为 `P9-T06`。
+> 当前状态：P0-P8、`TODO-7-INIT`、`P9-T01-a`、`P9-T01`、`P9-T01R`、`P9-T02`、`P9-T02R`、`P9-T03`、`P9-T03R`、`P9-T04`、`P9-T04R`、`P9-T05`、`P9-T05R`、`P9-T06-a` 与 `P9-T06-b` 已完成；下一项为 `P9-T06-c`。
 
 ## 总原则
 
@@ -160,6 +160,7 @@
 | P9-T05R | [DONE] | [`TODO-7.md`](./TODO-7.md#done-p9-t05rreview-scoopc_mir-抽取) | Review `scoopc_mir` 抽取 |
 | P9-T06-a | [DONE] | [`TODO-7.md`](./TODO-7.md#done-p9-t06-a收窄-lir-的-hirast-source-payload-边界) | 收窄 LIR 的 HIR/AST source payload 边界 |
 | P9-T06-b | [DONE] | [`TODO-7.md`](./TODO-7.md#done-p9-t06-b发布-lir-owned-ordinary-callee-suspend-合同) | 发布 LIR-owned ordinary-callee suspend 合同 |
+| P9-T06-c | [TODO] | [`TODO-7.md`](./TODO-7.md#todo-p9-t06-c发布-codegen-owned-llvm-stage-handoff-合同) | 发布 codegen-owned LLVM stage handoff 合同 |
 | P9-T06 | [TODO] | [`TODO-7.md`](./TODO-7.md#todo-p9-t06抽出-scoopc_effect_facts_stage-与-scoopc_lir-crate) | 抽出 `scoopc_effect_facts_stage` 与 `scoopc_lir` crate |
 | P9-T06R | [TODO] | [`TODO-7.md`](./TODO-7.md#todo-p9-t06rreview-scoopc_effect_facts_stage-与-scoopc_lir-抽取) | Review `scoopc_effect_facts_stage` 与 `scoopc_lir` 抽取 |
 | P9-T07 | [TODO] | [`TODO-7.md`](./TODO-7.md#todo-p9-t07cone-两层拆分scoopc_project_model-扩展--新-scoopc_cone) | cone 两层拆分（`scoopc_project_model` 扩展 + 新 `scoopc_cone`） |

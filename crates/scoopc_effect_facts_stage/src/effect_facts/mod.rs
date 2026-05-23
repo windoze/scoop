@@ -55,6 +55,9 @@ pub enum EffectFactsError {
     #[error(transparent)]
     ItableLayout(#[from] crate::itable::ItableLayoutError),
 
+    #[error(transparent)]
+    Product(#[from] EffectFactsProductError),
+
     #[error("effect-facts stage frontend setup failed: {message}")]
     Frontend { message: String },
 

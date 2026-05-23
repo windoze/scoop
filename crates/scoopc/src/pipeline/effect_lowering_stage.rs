@@ -111,10 +111,19 @@ pub(crate) fn build_lir_stage_output_from_stage_outputs(
     effect_facts_stage_output: &EffectFactsStageOutput,
     opt_options: LateLoweredOptOptions,
 ) -> Result<LirStageOutput, EffectLoweringError> {
+    let effect_facts =
+        scoopc_lir::effect_facts::MaterializedEffectFacts::from_published_effect_facts(
+            mir_stage_output.materialized_pass_view(),
+            effect_facts_stage_output.published_effect_facts(),
+            effect_facts_stage_output.effect_types(),
+        )
+        .map_err(|error| EffectLoweringError::InvalidEffectFactsContract {
+            detail: error.to_string(),
+        })?;
     let raw_lir = LateLoweredProgramBuilder::from_canonical_inputs(
         mir_stage_output.materialized_pass_view(),
-        effect_facts_stage_output.effect_facts(),
-        effect_facts_stage_output.effect_facts().types(),
+        &effect_facts,
+        effect_facts.types(),
         mir_stage_output.mir_facts(),
     )
     .build()?;
@@ -127,7 +136,7 @@ pub(crate) fn build_lir_stage_output_from_stage_outputs(
         &lir,
         mir_stage_output.mir_facts(),
         mir_stage_output.materialized_mir(),
-        effect_facts_stage_output.effect_facts(),
+        &effect_facts,
         mir_stage_output.materialized_mir().opt_level(),
         opt_pipeline,
     )?;

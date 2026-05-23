@@ -33,14 +33,14 @@ mod suspend_paths;
 // submodule can reach the others through `use super::*;`. The explicit
 // re-exports below carry the public `pub(crate)` API surface previously
 // declared in `super::mod.rs`.
-pub(crate) use arm_scope::*;
+pub use arm_scope::*;
 pub(crate) use builder::*;
 pub(crate) use collect::*;
 #[cfg(feature = "llvm")]
-pub(crate) use direct_step::build_ordinary_callee_suspend_plan_with_context;
+pub use direct_step::build_ordinary_callee_suspend_plan_with_context;
 pub(crate) use plan_state::*;
 pub(crate) use rewrite::*;
-pub(crate) use suspend_call::*;
+pub use suspend_call::*;
 pub(crate) use suspend_paths::*;
 
 pub(crate) type PlanStateId = u32;

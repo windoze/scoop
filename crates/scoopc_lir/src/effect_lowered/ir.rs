@@ -58,7 +58,7 @@ pub struct LateLoweredProgram {
 }
 
 impl LateLoweredProgram {
-    pub(crate) fn new(
+    pub fn new(
         step_types: Vec<LateLoweredStepType>,
         resume_packings: Vec<LateLoweredResumeInterface>,
         continuation_objects: Vec<LateLoweredContinuationObject>,
@@ -79,7 +79,7 @@ impl LateLoweredProgram {
         }
     }
 
-    pub(crate) fn with_stable_instance_keys(
+    pub fn with_stable_instance_keys(
         mut self,
         stable_instance_keys: HashMap<InstanceKey, StableInstanceKey>,
     ) -> Self {
@@ -87,7 +87,7 @@ impl LateLoweredProgram {
         self
     }
 
-    pub(crate) fn with_dump_metadata(
+    pub fn with_dump_metadata(
         mut self,
         dump_type_texts: HashMap<TypeId, String>,
         dump_body_labels: HashMap<LateLoweredBodyVersionKey, crate::mir::BodyLabels>,
@@ -99,7 +99,7 @@ impl LateLoweredProgram {
 
     #[cfg(test)]
     #[allow(dead_code)]
-    pub(crate) fn with_surface_resume_dispatch_inventory(
+    pub fn with_surface_resume_dispatch_inventory(
         &self,
         surface_resume_dispatch_inventory: Vec<LateLoweredSurfaceResumeDispatchInventoryEntry>,
     ) -> Self {
@@ -233,22 +233,22 @@ impl LateLoweredProgram {
         &self.stable_instance_keys
     }
 
-    pub(crate) fn dump_type_text(&self, ty: TypeId) -> Option<&str> {
+    pub fn dump_type_text(&self, ty: TypeId) -> Option<&str> {
         self.dump_type_texts.get(&ty).map(String::as_str)
     }
 
-    pub(crate) fn dump_type_texts(&self) -> &HashMap<TypeId, String> {
+    pub fn dump_type_texts(&self) -> &HashMap<TypeId, String> {
         &self.dump_type_texts
     }
 
-    pub(crate) fn dump_body_labels(
+    pub fn dump_body_labels(
         &self,
         version_key: &LateLoweredBodyVersionKey,
     ) -> Option<&crate::mir::BodyLabels> {
         self.dump_body_labels.get(version_key)
     }
 
-    pub(crate) fn dump_body_labels_map(
+    pub fn dump_body_labels_map(
         &self,
     ) -> &HashMap<LateLoweredBodyVersionKey, crate::mir::BodyLabels> {
         &self.dump_body_labels
@@ -349,7 +349,7 @@ pub struct LateLoweredClassCtorParam {
 }
 
 impl LateLoweredClassCtorParam {
-    pub(crate) fn new(param: &class_ctor_source::ClassCtorParam<MonoTypeId>) -> Self {
+    pub fn new(param: &class_ctor_source::ClassCtorParam<MonoTypeId>) -> Self {
         Self {
             id: param.id,
             name: param.name.clone(),
@@ -400,7 +400,7 @@ pub struct LateLoweredClassCtorSuperCall {
 }
 
 impl LateLoweredClassCtorSuperCall {
-    pub(crate) fn new(
+    pub fn new(
         target: scoopc_lir_facts::LirClassCtorInitKey,
         class_fqn: String,
         call: Option<class_ctor_source::CtorCallInfo>,
@@ -448,7 +448,7 @@ pub struct LateLoweredClassCtorDelegation {
 }
 
 impl LateLoweredClassCtorDelegation {
-    pub(crate) fn new(
+    pub fn new(
         kind: scoopc_lir_facts::LirClassCtorDelegationKind,
         target: scoopc_lir_facts::LirClassCtorInitKey,
         class_fqn: String,
@@ -557,7 +557,7 @@ pub struct LateLoweredClassCtorInitBody {
 
 impl LateLoweredClassCtorInitBody {
     #[allow(clippy::too_many_arguments)]
-    pub(crate) fn new(
+    pub fn new(
         key: scoopc_lir_facts::LirClassCtorInitKey,
         class_fqn: String,
         source_path: PathBuf,
@@ -625,7 +625,7 @@ impl LateLoweredClassCtorInitBody {
 }
 
 impl LateLoweredBodyVersionKey {
-    pub(crate) fn new(
+    pub fn new(
         surface_instance: InstanceKey,
         allowed_row: EffectRow,
         impl_plan: ImplPlan,
@@ -695,7 +695,7 @@ pub struct LateLoweredPlainLocalEffectControl {
 
 impl LateLoweredPlainLocalEffectControl {
     #[allow(clippy::too_many_arguments)]
-    pub(crate) fn new(
+    pub fn new(
         step_schema: StepSchemaId,
         state_graph: LateLoweredStateGraph,
         frame_schema: LateLoweredFrameSchema,
@@ -751,7 +751,7 @@ impl LateLoweredPlainLocalEffectControl {
 }
 
 impl LateLoweredPlainCallSite {
-    pub(crate) fn new(
+    pub fn new(
         site_id: SiteId,
         source_slice: LateLoweredPlainBodySlice,
         statement_index: u32,
@@ -783,7 +783,7 @@ impl LateLoweredPlainCallSite {
 }
 
 impl LateLoweredPlainBodySlice {
-    pub(crate) fn new(
+    pub fn new(
         block_id: BasicBlockId,
         start_statement_index: u32,
         end_statement_index: u32,
@@ -829,7 +829,7 @@ pub struct LateLoweredPlainCallable {
 }
 
 impl LateLoweredPlainCallable {
-    pub(crate) fn new(
+    pub fn new(
         function_ty: TypeId,
         param_tys: Vec<TypeId>,
         return_ty: TypeId,
@@ -871,9 +871,7 @@ impl LateLoweredPlainCallable {
         self.local_effect_control.as_deref()
     }
 
-    pub(crate) fn local_effect_control_mut(
-        &mut self,
-    ) -> Option<&mut LateLoweredPlainLocalEffectControl> {
+    pub fn local_effect_control_mut(&mut self) -> Option<&mut LateLoweredPlainLocalEffectControl> {
         self.local_effect_control.as_deref_mut()
     }
 }
@@ -897,7 +895,7 @@ pub struct LateLoweredEffectStepCallable {
 
 impl LateLoweredEffectStepCallable {
     #[allow(clippy::too_many_arguments)]
-    pub(crate) fn new(
+    pub fn new(
         step_schema: StepSchemaId,
         dynamic_invoke_entry: LateLoweredDynamicInvokeEntry,
         state_graph: LateLoweredStateGraph,
@@ -993,7 +991,7 @@ impl Eq for LateLoweredCallable {}
 
 impl LateLoweredCallable {
     #[allow(clippy::too_many_arguments)]
-    pub(crate) fn new(
+    pub fn new(
         root_fqn: String,
         stable_instance_key: StableInstanceKey,
         body_version_key: LateLoweredBodyVersionKey,
@@ -1026,7 +1024,7 @@ impl LateLoweredCallable {
         }
     }
 
-    pub(crate) fn new_plain(
+    pub fn new_plain(
         root_fqn: String,
         stable_instance_key: StableInstanceKey,
         body_version_key: LateLoweredBodyVersionKey,
@@ -1043,15 +1041,12 @@ impl LateLoweredCallable {
         }
     }
 
-    pub(crate) fn with_source_callable(
-        mut self,
-        source_callable: &LateLoweredSourceCallable,
-    ) -> Self {
+    pub fn with_source_callable(mut self, source_callable: &LateLoweredSourceCallable) -> Self {
         self.source_callable = Some(source_callable.clone());
         self
     }
 
-    pub(crate) fn with_source_statement_classifications(
+    pub fn with_source_statement_classifications(
         mut self,
         classifications: Vec<LateLoweredSourceStatementClassification>,
     ) -> Self {
@@ -1265,7 +1260,7 @@ pub struct LateLoweredDynamicInvokeEntry {
 }
 
 impl LateLoweredDynamicInvokeEntry {
-    pub(crate) fn new(
+    pub fn new(
         invoke_args_tuple_ty: TypeId,
         step_schema: StepSchemaId,
         entry_state: StateId,
@@ -1307,7 +1302,7 @@ pub struct LateLoweredStepType {
 }
 
 impl LateLoweredStepType {
-    pub(crate) fn new(
+    pub fn new(
         step_schema: StepSchemaId,
         invoke_args_tuple_ty: TypeId,
         complete_ty: TypeId,
@@ -1364,7 +1359,7 @@ pub struct LateLoweredContinuationContract {
 }
 
 impl LateLoweredContinuationContract {
-    pub(crate) fn new(
+    pub fn new(
         continuation_schema: ContinuationSchemaId,
         resume_tuple_ty: TypeId,
         answer_ty: TypeId,
@@ -1411,7 +1406,7 @@ pub struct LateLoweredSurfaceResumeContract {
 }
 
 impl LateLoweredSurfaceResumeContract {
-    pub(crate) fn new(
+    pub fn new(
         continuation_schema: ContinuationSchemaId,
         resume_tuple_ty: TypeId,
         answer_ty: TypeId,
@@ -1502,7 +1497,7 @@ pub struct LateLoweredContinuationRoute {
 }
 
 impl LateLoweredContinuationRoute {
-    pub(crate) fn new(
+    pub fn new(
         continuation_schema: ContinuationSchemaId,
         publication: LateLoweredSurfaceResumeDispatchPublication,
     ) -> Self {
@@ -1529,11 +1524,11 @@ pub enum LateLoweredSurfaceResumeWrapperCompletePayloadSource {
 }
 
 impl LateLoweredSurfaceResumeWrapperCompletePayloadSource {
-    pub(crate) fn owner_complete(answer_ty: TypeId) -> Self {
+    pub fn owner_complete(answer_ty: TypeId) -> Self {
         Self::OwnerComplete { answer_ty }
     }
 
-    pub(crate) fn wrapper_payload(payload_source: LateLoweredCompletionPayloadSource) -> Self {
+    pub fn wrapper_payload(payload_source: LateLoweredCompletionPayloadSource) -> Self {
         Self::WrapperPayload(payload_source)
     }
 
@@ -1561,7 +1556,7 @@ pub struct LateLoweredSurfaceResumeWrapperCompleteProjection {
 }
 
 impl LateLoweredSurfaceResumeWrapperCompleteProjection {
-    pub(crate) fn new(
+    pub fn new(
         owner_answer_ty: TypeId,
         wrapper_answer_ty: TypeId,
         payload_source: LateLoweredSurfaceResumeWrapperCompletePayloadSource,
@@ -1600,7 +1595,7 @@ pub struct LateLoweredSurfaceResumeWrapperCaseProjection {
 
 impl LateLoweredSurfaceResumeWrapperCaseProjection {
     #[allow(clippy::too_many_arguments)]
-    pub(crate) fn new(
+    pub fn new(
         owner_case_tag: CaseTag,
         owner_concrete_op_key: ConcreteOpKey,
         owner_payload_tuple_ty: TypeId,
@@ -1660,7 +1655,7 @@ pub struct LateLoweredSurfaceResumeWrapperProjection {
 }
 
 impl LateLoweredSurfaceResumeWrapperProjection {
-    pub(crate) fn new(
+    pub fn new(
         underlying_route: LateLoweredContinuationRoute,
         owner_step_schema: StepSchemaId,
         wrapper_step_schema: StepSchemaId,
@@ -1709,7 +1704,7 @@ pub struct LateLoweredSurfaceResumeDispatchInventoryEntry {
 
 impl LateLoweredSurfaceResumeDispatchInventoryEntry {
     #[cfg(all(test, feature = "llvm"))]
-    pub(crate) fn new(
+    pub fn new(
         continuation_schema: ContinuationSchemaId,
         contract: LateLoweredSurfaceResumeContract,
         source_kind: LateLoweredSurfaceResumeDispatchSourceKind,
@@ -1726,7 +1721,7 @@ impl LateLoweredSurfaceResumeDispatchInventoryEntry {
         )
     }
 
-    pub(crate) fn new_with_wrapper_projections(
+    pub fn new_with_wrapper_projections(
         continuation_schema: ContinuationSchemaId,
         contract: LateLoweredSurfaceResumeContract,
         source_kind: LateLoweredSurfaceResumeDispatchSourceKind,
@@ -2730,7 +2725,7 @@ pub struct LateLoweredStepCase {
 }
 
 impl LateLoweredStepCase {
-    pub(crate) fn new(
+    pub fn new(
         case_tag: CaseTag,
         concrete_op_key: ConcreteOpKey,
         payload_tuple_ty: TypeId,
@@ -2810,7 +2805,7 @@ pub struct LateLoweredResumeInterface {
 }
 
 impl LateLoweredResumeInterface {
-    pub(crate) fn new(
+    pub fn new(
         interface_id: ResumeInterfaceId,
         effect_family: EffectFamilyKey,
         return_step_schema: StepSchemaId,
@@ -2850,7 +2845,7 @@ pub struct LateLoweredResumeMethod {
 }
 
 impl LateLoweredResumeMethod {
-    pub(crate) fn new(
+    pub fn new(
         case_tag: CaseTag,
         concrete_op_key: ConcreteOpKey,
         continuation_contract: LateLoweredContinuationContract,
@@ -2925,7 +2920,7 @@ pub struct LateLoweredContinuationObject {
 }
 
 impl LateLoweredContinuationObject {
-    pub(crate) fn new(
+    pub fn new(
         object_id: ContinuationObjectId,
         owner_version_key: LateLoweredBodyVersionKey,
         continuation_obj_ty: TypeId,
@@ -3017,7 +3012,7 @@ pub struct LateLoweredContinuationSurfaceResume {
 }
 
 impl LateLoweredContinuationSurfaceResume {
-    pub(crate) fn new(
+    pub fn new(
         case_tag: CaseTag,
         concrete_op_key: ConcreteOpKey,
         continuation_contract: LateLoweredContinuationContract,
@@ -3090,7 +3085,7 @@ pub struct LateLoweredContinuationMethod {
 }
 
 impl LateLoweredContinuationMethod {
-    pub(crate) fn new(
+    pub fn new(
         packing_interface_id: ResumeInterfaceId,
         case_tag: CaseTag,
         concrete_op_key: ConcreteOpKey,
@@ -3229,7 +3224,7 @@ pub struct LateLoweredStateSlice {
 }
 
 impl LateLoweredStateSlice {
-    pub(crate) fn new(
+    pub fn new(
         block_id: BasicBlockId,
         start_statement_index: u32,
         end_statement_index: u32,
@@ -3269,7 +3264,7 @@ pub struct LateLoweredSourceStatementClassification {
 }
 
 impl LateLoweredSourceStatementClassification {
-    pub(crate) fn new(
+    pub fn new(
         source_slice: LateLoweredStateSlice,
         statement_index: u32,
         kind: LateLoweredSourceStatementClassificationKind,
@@ -3341,7 +3336,7 @@ pub struct LateLoweredOperandSource {
 }
 
 impl LateLoweredOperandSource {
-    pub(crate) fn new_local(local: LocalId, source_ty: TypeId, span: Option<Span>) -> Self {
+    pub fn new_local(local: LocalId, source_ty: TypeId, span: Option<Span>) -> Self {
         Self {
             value: LateLoweredOperandValueSource::Local(local),
             source_ty,
@@ -3349,7 +3344,7 @@ impl LateLoweredOperandSource {
         }
     }
 
-    pub(crate) fn new_const(value: ConstValue, source_ty: TypeId, span: Option<Span>) -> Self {
+    pub fn new_const(value: ConstValue, source_ty: TypeId, span: Option<Span>) -> Self {
         Self {
             value: LateLoweredOperandValueSource::Const(value),
             source_ty,
@@ -3378,11 +3373,11 @@ pub enum LateLoweredCompletionPayloadSource {
 }
 
 impl LateLoweredCompletionPayloadSource {
-    pub(crate) fn unit(complete_ty: TypeId) -> Self {
+    pub fn unit(complete_ty: TypeId) -> Self {
         Self::Unit { complete_ty }
     }
 
-    pub(crate) fn operand(source: LateLoweredOperandSource) -> Self {
+    pub fn operand(source: LateLoweredOperandSource) -> Self {
         Self::Operand(source)
     }
 
@@ -3419,7 +3414,7 @@ pub enum LateLoweredBoundarySourceConsumption {
 }
 
 impl LateLoweredBoundarySourceConsumption {
-    pub(crate) fn statement(
+    pub fn statement(
         source_slice: LateLoweredStateSlice,
         statement_index: u32,
         consumes_last_statement: bool,
@@ -3431,7 +3426,7 @@ impl LateLoweredBoundarySourceConsumption {
         }
     }
 
-    pub(crate) fn terminator(source_slice: LateLoweredStateSlice) -> Self {
+    pub fn terminator(source_slice: LateLoweredStateSlice) -> Self {
         Self::Terminator { source_slice }
     }
 
@@ -3495,7 +3490,7 @@ pub struct LateLoweredHandlePendingCompletionOrigin {
 }
 
 impl LateLoweredHandlePendingCompletionOrigin {
-    pub(crate) fn new(
+    pub fn new(
         completion: LateLoweredHandlePendingCompletion,
         boundary_id: BoundaryId,
         owner_state: StateId,
@@ -3535,7 +3530,7 @@ pub struct LateLoweredHandleDispatchCarrierContract {
 }
 
 impl LateLoweredHandleDispatchCarrierContract {
-    pub(crate) fn new(
+    pub fn new(
         state_tag_slot: SystemSlotKind,
         completion_tag_slot: SystemSlotKind,
         payload_carrier_slot: SystemSlotKind,
@@ -3569,7 +3564,7 @@ pub struct LateLoweredHandlePendingPayloadTransport {
 }
 
 impl LateLoweredHandlePendingPayloadTransport {
-    pub(crate) fn new(
+    pub fn new(
         completion: LateLoweredHandlePendingCompletion,
         payload_tuple_ty: TypeId,
         frame_slot: FrameSlotId,
@@ -3603,7 +3598,7 @@ pub struct LateLoweredHandlePayloadBinder {
 }
 
 impl LateLoweredHandlePayloadBinder {
-    pub(crate) fn new(ordinal: u32, local: LocalId, frame_slot: Option<FrameSlotId>) -> Self {
+    pub fn new(ordinal: u32, local: LocalId, frame_slot: Option<FrameSlotId>) -> Self {
         Self {
             ordinal,
             local,
@@ -3633,7 +3628,7 @@ pub struct LateLoweredHandleContinuationBinder {
 }
 
 impl LateLoweredHandleContinuationBinder {
-    pub(crate) fn new(
+    pub fn new(
         local: LocalId,
         frame_slot: Option<FrameSlotId>,
         continuation_schema: ContinuationSchemaId,
@@ -3679,7 +3674,7 @@ pub struct LateLoweredHandleArmDispatch {
 
 impl LateLoweredHandleArmDispatch {
     #[allow(clippy::too_many_arguments)]
-    pub(crate) fn new(
+    pub fn new(
         handled_case: CaseTag,
         arm_state: StateId,
         arm_ordinal: u32,
@@ -3756,7 +3751,7 @@ pub struct LateLoweredHandleStateRegionEntry {
 }
 
 impl LateLoweredHandleStateRegionEntry {
-    pub(crate) fn new(state_id: StateId, region: LateLoweredHandleStateRegion) -> Self {
+    pub fn new(state_id: StateId, region: LateLoweredHandleStateRegion) -> Self {
         Self { state_id, region }
     }
 
@@ -3791,10 +3786,7 @@ pub struct LateLoweredHandleBoundaryCaseRouting {
 }
 
 impl LateLoweredHandleBoundaryCaseRouting {
-    pub(crate) fn new(
-        case_tag: CaseTag,
-        action: LateLoweredHandleBoundaryCaseRoutingAction,
-    ) -> Self {
+    pub fn new(case_tag: CaseTag, action: LateLoweredHandleBoundaryCaseRoutingAction) -> Self {
         Self { case_tag, action }
     }
 
@@ -3818,7 +3810,7 @@ pub struct LateLoweredHandleBoundaryRouting {
 }
 
 impl LateLoweredHandleBoundaryRouting {
-    pub(crate) fn new(
+    pub fn new(
         boundary_id: BoundaryId,
         owner_state: StateId,
         owner_region: LateLoweredHandleStateRegion,
@@ -3883,7 +3875,7 @@ pub struct LateLoweredHandleDispatchContract {
 
 impl LateLoweredHandleDispatchContract {
     #[allow(clippy::too_many_arguments)]
-    pub(crate) fn new(
+    pub fn new(
         carrier: LateLoweredHandleDispatchCarrierContract,
         body_complete_target: StateId,
         arm_complete_target: StateId,
@@ -3919,7 +3911,7 @@ impl LateLoweredHandleDispatchContract {
         }
     }
 
-    pub(crate) fn skeleton(
+    pub fn skeleton(
         body_complete_target: StateId,
         arm_complete_target: StateId,
         finally_complete_target: Option<StateId>,
@@ -3948,7 +3940,7 @@ impl LateLoweredHandleDispatchContract {
         )
     }
 
-    pub(crate) fn with_abandon_target(mut self, abandon_target: Option<StateId>) -> Self {
+    pub fn with_abandon_target(mut self, abandon_target: Option<StateId>) -> Self {
         self.abandon_target = abandon_target;
         self
     }
@@ -4179,7 +4171,7 @@ impl LateLoweredStateTerminator {
         }
     }
 
-    pub(crate) fn with_drop_state(self, drop_state: Option<StateId>) -> Self {
+    pub fn with_drop_state(self, drop_state: Option<StateId>) -> Self {
         match self {
             Self::Suspend {
                 boundary_ids,
@@ -4229,7 +4221,7 @@ pub struct LateLoweredState {
 }
 
 impl LateLoweredState {
-    pub(crate) fn new(
+    pub fn new(
         state_id: StateId,
         role: LateLoweredStateRole,
         source_slices: Vec<LateLoweredStateSlice>,
@@ -4265,7 +4257,7 @@ impl LateLoweredState {
         &self.successors
     }
 
-    pub(crate) fn with_drop_state(self, drop_state: Option<StateId>) -> Self {
+    pub fn with_drop_state(self, drop_state: Option<StateId>) -> Self {
         Self::new(
             self.state_id,
             self.role,
@@ -4286,7 +4278,7 @@ pub struct LateLoweredStateGraph {
 }
 
 impl LateLoweredStateGraph {
-    pub(crate) fn new(
+    pub fn new(
         entry_state: StateId,
         complete_state: StateId,
         cleanup_state: Option<StateId>,
@@ -4302,7 +4294,7 @@ impl LateLoweredStateGraph {
         }
     }
 
-    pub(crate) fn minimal_shell() -> Self {
+    pub fn minimal_shell() -> Self {
         let entry_state = StateId::new(0);
         let complete_state = StateId::new(1);
         Self::new(
@@ -4355,7 +4347,7 @@ impl LateLoweredStateGraph {
             .find(|state| state.state_id() == state_id)
     }
 
-    pub(crate) fn with_drop_state(self, drop_state: Option<StateId>) -> Self {
+    pub fn with_drop_state(self, drop_state: Option<StateId>) -> Self {
         let states = self
             .states
             .into_iter()
@@ -4404,7 +4396,7 @@ pub struct LateLoweredStepCaseEmission {
 }
 
 impl LateLoweredStepCaseEmission {
-    pub(crate) fn new(
+    pub fn new(
         case_tag: CaseTag,
         concrete_op_key: ConcreteOpKey,
         payload_tuple_ty: TypeId,
@@ -4449,11 +4441,7 @@ pub struct LateLoweredCompleteStepDispatch {
 }
 
 impl LateLoweredCompleteStepDispatch {
-    pub(crate) fn new(
-        answer_ty: TypeId,
-        target_state: StateId,
-        result_local: Option<LocalId>,
-    ) -> Self {
+    pub fn new(answer_ty: TypeId, target_state: StateId, result_local: Option<LocalId>) -> Self {
         Self {
             answer_ty,
             target_state,
@@ -4482,7 +4470,7 @@ pub struct LateLoweredStepCaseForwarding {
 }
 
 impl LateLoweredStepCaseForwarding {
-    pub(crate) fn new(
+    pub fn new(
         input_case_tag: CaseTag,
         input_concrete_op_key: ConcreteOpKey,
         emission: LateLoweredStepCaseEmission,
@@ -4515,7 +4503,7 @@ pub struct LateLoweredStepDispatchPlan {
 }
 
 impl LateLoweredStepDispatchPlan {
-    pub(crate) fn new(
+    pub fn new(
         input_step_schema: StepSchemaId,
         complete: LateLoweredCompleteStepDispatch,
         outward_cases: Vec<LateLoweredStepCaseForwarding>,
@@ -4561,7 +4549,7 @@ pub struct LateLoweredCallBoundaryContinuationComposition {
 
 impl LateLoweredCallBoundaryContinuationComposition {
     #[allow(clippy::too_many_arguments)]
-    pub(crate) fn new(
+    pub fn new(
         boundary_id: BoundaryId,
         input_step_schema: StepSchemaId,
         input_case_tag: CaseTag,
@@ -4635,7 +4623,7 @@ impl LateLoweredCallBoundaryContinuationComposition {
         self.caller_result_ty
     }
 
-    pub(crate) fn with_caller_resume_state(mut self, caller_resume_state: StateId) -> Self {
+    pub fn with_caller_resume_state(mut self, caller_resume_state: StateId) -> Self {
         self.caller_resume_state = caller_resume_state;
         self
     }
@@ -4651,7 +4639,7 @@ pub struct LateLoweredConsumedRuntimeErrorCase {
 }
 
 impl LateLoweredConsumedRuntimeErrorCase {
-    pub(crate) fn new(
+    pub fn new(
         input_case_tag: CaseTag,
         input_concrete_op_key: ConcreteOpKey,
         payload_tuple_ty: TypeId,
@@ -4696,7 +4684,7 @@ pub struct LateLoweredCallBoundaryOperandContract {
 }
 
 impl LateLoweredCallBoundaryOperandContract {
-    pub(crate) fn new(
+    pub fn new(
         source_consumption: LateLoweredBoundarySourceConsumption,
         carrier_source: Option<LateLoweredOperandSource>,
         arg_sources: Vec<LateLoweredOperandSource>,
@@ -4728,7 +4716,7 @@ pub struct LateLoweredPerformBoundaryOperandContract {
 }
 
 impl LateLoweredPerformBoundaryOperandContract {
-    pub(crate) fn new(
+    pub fn new(
         source_consumption: LateLoweredBoundarySourceConsumption,
         payload_sources: Vec<LateLoweredOperandSource>,
     ) -> Self {
@@ -4757,7 +4745,7 @@ pub struct LateLoweredResumeBoundaryOperandContract {
 }
 
 impl LateLoweredResumeBoundaryOperandContract {
-    pub(crate) fn new(
+    pub fn new(
         source_consumption: LateLoweredBoundarySourceConsumption,
         continuation_source: LateLoweredOperandSource,
         arg_sources: Vec<LateLoweredOperandSource>,
@@ -4805,7 +4793,7 @@ pub struct LateLoweredCallBoundaryLowering {
 }
 
 impl LateLoweredCallBoundaryLowering {
-    pub(crate) fn new(
+    pub fn new(
         facts: CallSiteEffectFacts,
         result_local: LocalId,
         operand_contract: LateLoweredCallBoundaryOperandContract,
@@ -4867,7 +4855,7 @@ pub struct LateLoweredClassCtorBoundaryLowering {
 }
 
 impl LateLoweredClassCtorBoundaryLowering {
-    pub(crate) fn new(
+    pub fn new(
         facts: ClassCtorSiteEffectFacts,
         result_local: LocalId,
         class_fqn: String,
@@ -4912,7 +4900,7 @@ pub struct LateLoweredPerformBoundaryLowering {
 }
 
 impl LateLoweredPerformBoundaryLowering {
-    pub(crate) fn new(
+    pub fn new(
         facts: PerformSiteEffectFacts,
         operand_contract: LateLoweredPerformBoundaryOperandContract,
         emitted_step: LateLoweredStepCaseEmission,
@@ -4948,7 +4936,7 @@ pub struct LateLoweredResumeBoundaryLowering {
 }
 
 impl LateLoweredResumeBoundaryLowering {
-    pub(crate) fn new(
+    pub fn new(
         facts: ResumeSiteEffectFacts,
         result_local: LocalId,
         runtime_error_boundary: BoundaryId,
@@ -5008,7 +4996,7 @@ pub struct LateLoweredRuntimeErrorBoundaryLowering {
 }
 
 impl LateLoweredRuntimeErrorBoundaryLowering {
-    pub(crate) fn new(
+    pub fn new(
         origin_site: SiteId,
         resume_boundary: BoundaryId,
         emitted_step: LateLoweredStepCaseEmission,
@@ -5040,7 +5028,7 @@ pub struct LateLoweredHandleBoundaryLowering {
 }
 
 impl LateLoweredHandleBoundaryLowering {
-    pub(crate) fn new(
+    pub fn new(
         facts: HandleSiteEffectFacts,
         outward_emissions: Vec<LateLoweredStepCaseEmission>,
     ) -> Self {
@@ -5096,7 +5084,7 @@ impl LateLoweredBoundary {
         }
     }
 
-    pub(crate) fn with_lowering(mut self, lowering: LateLoweredBoundaryLowering) -> Self {
+    pub fn with_lowering(mut self, lowering: LateLoweredBoundaryLowering) -> Self {
         self.lowering = Some(lowering);
         self
     }
@@ -5133,7 +5121,7 @@ impl LateLoweredBoundaryMap {
         Self { entries }
     }
 
-    pub(crate) fn empty() -> Self {
+    pub fn empty() -> Self {
         Self {
             entries: Vec::new(),
         }
@@ -5185,7 +5173,7 @@ impl LateLoweredResumeStateMap {
         Self { entries }
     }
 
-    pub(crate) fn empty() -> Self {
+    pub fn empty() -> Self {
         Self {
             entries: Vec::new(),
         }
@@ -5312,7 +5300,7 @@ pub struct LateLoweredResumePayloadBinding {
 }
 
 impl LateLoweredResumePayloadBinding {
-    pub(crate) fn new(
+    pub fn new(
         boundary_id: BoundaryId,
         resume_state: StateId,
         consumer_local: LocalId,
@@ -5353,7 +5341,7 @@ pub struct LateLoweredCompletionPayloadBinding {
 }
 
 impl LateLoweredCompletionPayloadBinding {
-    pub(crate) fn new(
+    pub fn new(
         return_state: StateId,
         complete_state: StateId,
         payload_source: LateLoweredCompletionPayloadSource,
@@ -5401,7 +5389,7 @@ impl LateLoweredFrameSchema {
         }
     }
 
-    pub(crate) fn empty() -> Self {
+    pub fn empty() -> Self {
         Self {
             slots: Vec::new(),
             resume_payload_bindings: Vec::new(),
@@ -5409,7 +5397,7 @@ impl LateLoweredFrameSchema {
         }
     }
 
-    pub(crate) fn with_resume_payload_bindings(
+    pub fn with_resume_payload_bindings(
         mut self,
         resume_payload_bindings: Vec<LateLoweredResumePayloadBinding>,
     ) -> Self {
@@ -5417,7 +5405,7 @@ impl LateLoweredFrameSchema {
         self
     }
 
-    pub(crate) fn with_completion_payload_bindings(
+    pub fn with_completion_payload_bindings(
         mut self,
         completion_payload_bindings: Vec<LateLoweredCompletionPayloadBinding>,
     ) -> Self {

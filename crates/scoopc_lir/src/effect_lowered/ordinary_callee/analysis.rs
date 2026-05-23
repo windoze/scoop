@@ -13,20 +13,20 @@ use crate::span::Span;
 use crate::ty::{RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) struct KnownLocalMetadata {
-    pub(crate) ty: TypeId,
-    pub(crate) mutable: bool,
+pub struct KnownLocalMetadata {
+    pub ty: TypeId,
+    pub mutable: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum EffectGlobalRootKind {
+pub enum EffectGlobalRootKind {
     TopLevelVal,
     TopLevelVar,
     ObjectSingleton,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum EffectFieldOwnerKind {
+pub enum EffectFieldOwnerKind {
     Struct,
     Class,
     Object,
@@ -34,29 +34,29 @@ pub(crate) enum EffectFieldOwnerKind {
 }
 
 #[derive(Debug, Clone)]
-pub(crate) struct EffectFieldFact {
-    pub(crate) owner_kind: EffectFieldOwnerKind,
-    pub(crate) owner: String,
-    pub(crate) fqn: String,
-    pub(crate) ty: TypeId,
+pub struct EffectFieldFact {
+    pub owner_kind: EffectFieldOwnerKind,
+    pub owner: String,
+    pub fqn: String,
+    pub ty: TypeId,
 }
 
 #[derive(Debug, Clone)]
-pub(crate) struct EffectConstructorCall {
-    pub(crate) owner_fqn: String,
+pub struct EffectConstructorCall {
+    pub owner_fqn: String,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) struct EffectContinuationResume {
+pub struct EffectContinuationResume {
     resumes_outward: bool,
 }
 
 impl EffectContinuationResume {
-    pub(crate) const fn new(resumes_outward: bool) -> Self {
+    pub const fn new(resumes_outward: bool) -> Self {
         Self { resumes_outward }
     }
 
-    pub(crate) const fn resumes_outward(self) -> bool {
+    pub const fn resumes_outward(self) -> bool {
         self.resumes_outward
     }
 }
@@ -73,7 +73,7 @@ fn source_ty_is_precise(types: &TypeStore, ty: TypeId) -> bool {
 /// LLVM codegen consumes this explicit query surface instead of holding the
 /// complete `HirFacts` wrapper in its production context.
 #[derive(Debug, Clone, Default)]
-pub(crate) struct EffectAnalysisFacts {
+pub struct EffectAnalysisFacts {
     global_roots: HashMap<String, (EffectGlobalRootKind, Option<TypeId>)>,
     fields: Vec<EffectFieldFact>,
     callable_return_tys: HashMap<String, TypeId>,
@@ -83,7 +83,7 @@ pub(crate) struct EffectAnalysisFacts {
 }
 
 impl EffectAnalysisFacts {
-    pub(crate) fn from_parts(
+    pub fn from_parts(
         global_roots: HashMap<String, (EffectGlobalRootKind, Option<TypeId>)>,
         fields: Vec<EffectFieldFact>,
         callable_return_tys: HashMap<String, TypeId>,
@@ -101,7 +101,7 @@ impl EffectAnalysisFacts {
         }
     }
 
-    pub(crate) fn top_level_value_ty(&self, fqn: &str) -> Option<TypeId> {
+    pub fn top_level_value_ty(&self, fqn: &str) -> Option<TypeId> {
         self.global_roots.get(fqn).and_then(|(kind, ty)| {
             matches!(
                 kind,
@@ -112,18 +112,18 @@ impl EffectAnalysisFacts {
         })
     }
 
-    pub(crate) fn object_property_ty(&self, fqn: &str) -> Option<TypeId> {
+    pub fn object_property_ty(&self, fqn: &str) -> Option<TypeId> {
         self.fields
             .iter()
             .find(|field| field.owner_kind == EffectFieldOwnerKind::Object && field.fqn == fqn)
             .map(|field| field.ty)
     }
 
-    pub(crate) fn fun_return_ty(&self, fqn: &str) -> Option<TypeId> {
+    pub fn fun_return_ty(&self, fqn: &str) -> Option<TypeId> {
         self.callable_return_tys.get(fqn).copied()
     }
 
-    pub(crate) fn resolve_nominal_field_ty(
+    pub fn resolve_nominal_field_ty(
         &self,
         types: &TypeStore,
         receiver_ty: TypeId,
@@ -133,25 +133,25 @@ impl EffectAnalysisFacts {
             .or_else(|| self.resolve_class_field_ty(types, receiver_ty, field_fqn))
     }
 
-    pub(crate) fn is_object_value_fqn(&self, fqn: &str) -> bool {
+    pub fn is_object_value_fqn(&self, fqn: &str) -> bool {
         self.global_roots
             .get(fqn)
             .is_some_and(|(kind, _)| *kind == EffectGlobalRootKind::ObjectSingleton)
     }
 
-    pub(crate) fn is_object_property_fqn(&self, fqn: &str) -> bool {
+    pub fn is_object_property_fqn(&self, fqn: &str) -> bool {
         self.fields
             .iter()
             .any(|field| field.owner_kind == EffectFieldOwnerKind::Object && field.fqn == fqn)
     }
 
-    pub(crate) fn is_top_level_immutable_value_fqn(&self, fqn: &str) -> bool {
+    pub fn is_top_level_immutable_value_fqn(&self, fqn: &str) -> bool {
         self.global_roots
             .get(fqn)
             .is_some_and(|(kind, _)| *kind == EffectGlobalRootKind::TopLevelVal)
     }
 
-    pub(crate) fn constructor_call(
+    pub fn constructor_call(
         &self,
         source_path: &Path,
         span: Span,
@@ -160,7 +160,7 @@ impl EffectAnalysisFacts {
             .get(&hir::CallSite::new(source_path.to_path_buf(), span))
     }
 
-    pub(crate) fn continuation_resume(
+    pub fn continuation_resume(
         &self,
         source_path: &Path,
         span: Span,
@@ -170,11 +170,11 @@ impl EffectAnalysisFacts {
             .copied()
     }
 
-    pub(crate) fn has_continuation_resume(&self, source_path: &Path, span: Span) -> bool {
+    pub fn has_continuation_resume(&self, source_path: &Path, span: Span) -> bool {
         self.continuation_resume(source_path, span).is_some()
     }
 
-    pub(crate) fn resolve_expr_concrete_type<LocalTyLookup>(
+    pub fn resolve_expr_concrete_type<LocalTyLookup>(
         &self,
         types: &TypeStore,
         expr: &hir::Expr,
@@ -397,7 +397,7 @@ impl EffectAnalysisFacts {
 /// `Continuation.resume(...)` call site is proven to stay local, is known to involve an escaping
 /// continuation, or has no trustworthy fact and must be treated conservatively.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub(crate) enum ContinuationEscapeState {
+pub enum ContinuationEscapeState {
     LocalResumeOnly,
     Escaping,
     #[default]
@@ -406,7 +406,7 @@ pub(crate) enum ContinuationEscapeState {
 
 impl ContinuationEscapeState {
     #[cfg(test)]
-    pub(crate) fn label(self) -> &'static str {
+    pub fn label(self) -> &'static str {
         match self {
             Self::LocalResumeOnly => "local-resume-only",
             Self::Escaping => "escaping",
@@ -414,7 +414,7 @@ impl ContinuationEscapeState {
         }
     }
 
-    pub(crate) fn structural_signature(self) -> usize {
+    pub fn structural_signature(self) -> usize {
         match self {
             Self::LocalResumeOnly => 1,
             Self::Escaping => 2,
@@ -441,12 +441,12 @@ impl ContinuationEscapeState {
 
 /// Call-site keyed continuation escape facts consumed by shared effect analysis.
 #[derive(Debug, Clone, Default)]
-pub(crate) struct ContinuationEscapeFacts {
+pub struct ContinuationEscapeFacts {
     by_call_site: HashMap<hir::CallSite, ContinuationEscapeState>,
 }
 
 impl ContinuationEscapeFacts {
-    pub(crate) fn from_pass_view_for_callable(
+    pub fn from_pass_view_for_callable(
         pass_view: Option<&mir::MaterializedMirPassView<'_>>,
         callable_fqn: Option<&str>,
         source_path: &Path,
@@ -473,10 +473,7 @@ impl ContinuationEscapeFacts {
         out
     }
 
-    pub(crate) fn status_for_call_site(
-        &self,
-        call_site: &hir::CallSite,
-    ) -> ContinuationEscapeState {
+    pub fn status_for_call_site(&self, call_site: &hir::CallSite) -> ContinuationEscapeState {
         self.by_call_site
             .get(call_site)
             .copied()
@@ -500,18 +497,18 @@ fn callable_fqn_matches_owner(candidate: &str, owner: &str) -> bool {
 
 /// Backend-agnostic shared analysis input for effect/state-machine planning.
 #[derive(Debug, Clone)]
-pub(crate) struct EffectAnalysisCtx {
-    pub(crate) known_fun_effects: HashMap<String, bool>,
-    pub(crate) known_local_fun_effects: HashMap<hir::SymbolId, bool>,
-    pub(crate) known_local_metadata: HashMap<hir::SymbolId, KnownLocalMetadata>,
+pub struct EffectAnalysisCtx {
+    pub known_fun_effects: HashMap<String, bool>,
+    pub known_local_fun_effects: HashMap<hir::SymbolId, bool>,
+    pub known_local_metadata: HashMap<hir::SymbolId, KnownLocalMetadata>,
     next_synthetic_symbol_raw: Cell<u32>,
     current_source_path: PathBuf,
-    pub(crate) facts: Rc<EffectAnalysisFacts>,
+    pub facts: Rc<EffectAnalysisFacts>,
     continuation_escape_facts: ContinuationEscapeFacts,
 }
 
 impl EffectAnalysisCtx {
-    pub(crate) fn new(
+    pub fn new(
         known_fun_effects: HashMap<String, bool>,
         known_local_fun_effects: HashMap<hir::SymbolId, bool>,
         known_local_metadata: HashMap<hir::SymbolId, KnownLocalMetadata>,
@@ -536,58 +533,55 @@ impl EffectAnalysisCtx {
         }
     }
 
-    pub(crate) fn current_source_path(&self) -> &Path {
+    pub fn current_source_path(&self) -> &Path {
         &self.current_source_path
     }
 
-    pub(crate) fn call_site(&self, span: Span) -> hir::CallSite {
+    pub fn call_site(&self, span: Span) -> hir::CallSite {
         hir::CallSite::new(self.current_source_path.clone(), span)
     }
 
-    pub(crate) fn with_continuation_escape_facts(mut self, facts: ContinuationEscapeFacts) -> Self {
+    pub fn with_continuation_escape_facts(mut self, facts: ContinuationEscapeFacts) -> Self {
         self.continuation_escape_facts = facts;
         self
     }
 
-    pub(crate) fn continuation_escape_facts(&self) -> &ContinuationEscapeFacts {
+    pub fn continuation_escape_facts(&self) -> &ContinuationEscapeFacts {
         &self.continuation_escape_facts
     }
 
-    pub(crate) fn continuation_escape_state_for_call_span(
-        &self,
-        span: Span,
-    ) -> ContinuationEscapeState {
+    pub fn continuation_escape_state_for_call_span(&self, span: Span) -> ContinuationEscapeState {
         self.continuation_escape_facts
             .status_for_call_site(&self.call_site(span))
     }
 
-    pub(crate) fn reserve_synthetic_symbol_floor(&self, floor: u32) {
+    pub fn reserve_synthetic_symbol_floor(&self, floor: u32) {
         let current = self.next_synthetic_symbol_raw.get();
         if floor > current {
             self.next_synthetic_symbol_raw.set(floor);
         }
     }
 
-    pub(crate) fn synthetic_symbol_seed(&self) -> u32 {
+    pub fn synthetic_symbol_seed(&self) -> u32 {
         self.next_synthetic_symbol_raw.get()
     }
 
-    pub(crate) fn restore_synthetic_symbol_seed(&self, seed: u32) {
+    pub fn restore_synthetic_symbol_seed(&self, seed: u32) {
         self.next_synthetic_symbol_raw.set(seed);
     }
 
-    pub(crate) fn allocate_synthetic_symbol_id(&self) -> hir::SymbolId {
+    pub fn allocate_synthetic_symbol_id(&self) -> hir::SymbolId {
         let raw = self.next_synthetic_symbol_raw.get();
         self.next_synthetic_symbol_raw.set(raw.saturating_add(1));
         hir::SymbolId::from_raw(raw)
     }
 
-    pub(crate) fn extend_known_local_metadata_from_handle(&mut self, handle: &hir::HandleExpr) {
+    pub fn extend_known_local_metadata_from_handle(&mut self, handle: &hir::HandleExpr) {
         collect_known_local_metadata_in_handle(handle, &mut self.known_local_metadata);
     }
 }
 
-pub(crate) fn collect_known_local_metadata_in_handle(
+pub fn collect_known_local_metadata_in_handle(
     handle: &hir::HandleExpr,
     out: &mut HashMap<hir::SymbolId, KnownLocalMetadata>,
 ) {
@@ -600,7 +594,7 @@ pub(crate) fn collect_known_local_metadata_in_handle(
     }
 }
 
-pub(crate) fn collect_known_local_metadata_in_fun(
+pub fn collect_known_local_metadata_in_fun(
     fun: &hir::FunDecl,
     out: &mut HashMap<hir::SymbolId, KnownLocalMetadata>,
 ) {
@@ -618,7 +612,7 @@ pub(crate) fn collect_known_local_metadata_in_fun(
     }
 }
 
-pub(crate) fn collect_known_local_metadata_in_block(
+pub fn collect_known_local_metadata_in_block(
     block: &hir::Block,
     out: &mut HashMap<hir::SymbolId, KnownLocalMetadata>,
 ) {
@@ -667,7 +661,7 @@ fn collect_known_local_metadata_in_stmt(
     }
 }
 
-pub(crate) fn collect_known_local_metadata_in_expr(
+pub fn collect_known_local_metadata_in_expr(
     expr: &hir::Expr,
     out: &mut HashMap<hir::SymbolId, KnownLocalMetadata>,
 ) {
@@ -769,7 +763,7 @@ pub(crate) fn collect_known_local_metadata_in_expr(
     }
 }
 
-pub(crate) fn collect_known_local_metadata_in_handle_arm(
+pub fn collect_known_local_metadata_in_handle_arm(
     arm: &hir::HandleArm,
 ) -> HashMap<hir::SymbolId, KnownLocalMetadata> {
     let mut out = HashMap::new();
