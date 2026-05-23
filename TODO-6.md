@@ -1341,6 +1341,58 @@
   - `dependency_gate` 新增/扩展 source boundary：禁止 LLVM stage handoff 恢复旧 source signature map，禁止 callable ABI/identity/source lookup/direct lowering/dispatch target/MIR dispatch helper 中恢复 `self.source_signatures.get`、`fun_index.get`、`declare_top_level_fun(`、`HIR/materialized declaration source`、`hir_fun_for_callable_fqn` 等 residual。
   - 验证通过：`cargo fmt`；`cargo run -p scoop_tools -- dependency-gate`；`cargo test -p scoopc_lir_facts`；`cargo test -p scoopc --no-default-features llvm_codegen_stage`；`cargo test -p scoopc --no-default-features llvm::codegen`；`cargo test -p scoopc llvm::codegen`（97 passed）；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`（421/421 passed）；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
 
+## [TODO] P7-T05-c：清除 P7-T05R 发现的最终 LLVM HIR/base-context residual
+
+- 阻塞原因：
+  - 执行 `P7-T05R` 静态复审时发现，`P7-T05-b` 已清除 callable/class-ctor 的主要 HIR fallback，但 LLVM production codegen 仍保留几类会阻止 P7 真实完成的 residual；如果直接把 `P7-T05R` 标记完成，P8 将不再只是最终 residual 搜索、验证和文档冻结。
+  - 这些 residual 不是历史无关问题，而是 `P7-T05R` 的完成条件本身：LLVM backend 必须只消费 `LIR + LIR facts + base context`，不得继续通过 HIR/raw MIR/effect facts wrapper 或 HIR-derived fallback 补合同。
+- Review 发现的阻塞 residual：
+  1. `crates/scoopc/src/pipeline/llvm_codegen_stage.rs` / `crates/scoopc/src/llvm/emit.rs` / `crates/scoopc/src/llvm/codegen/mod.rs` 仍把 `fun_index` 与 `HirFacts` 传入 LLVM production codegen。
+  2. `crates/scoopc/src/llvm/codegen/ordinary_callee.rs` 仍通过 `self.fun_index` + `HirFacts` 调 `collect_known_fun_call_suspendability`，用 HIR body/facts 计算 ordinary callee suspendability。
+  3. `crates/scoopc/src/pipeline/llvm_codegen_stage.rs` 仍从 `hir::FunDecl` 构造 `LlvmCallableSignatureContract`，`crates/scoopc/src/llvm/codegen/call/abi.rs` 在 LIR facts miss 后仍可读 `self.callable_signatures` 作为 production callable signature fallback。
+  4. `LlvmStageBaseContext` 仍持有完整 `MaterializedMir`、`MaterializedEffectFacts` 与 `HirFacts` owner；如果只需要 TypeStore owner/fingerprint、stable cone key、source path/span 或 class ctor init contract，应收窄为显式字段而非 wrapper residual。
+  5. vtable/itable dispatch lowering 仍读取 HIR `dispatch_call_sites` side table 判断 dispatch kind；这不是 backend-local devirtualization，但仍是 dispatch source-site HIR residual，必须迁到 LIR dispatch facts 或明确窄合同。
+  6. `dependency_gate` 只覆盖旧 `fun_index.get`、`self.source_signatures.get`、`MaterializedMirPassView` 等模式，未覆盖 `self.fun_index` 非 `.get` 用法、`HirFacts`、`callable_signatures.get`、`LlvmCallableSignatureContract`、完整 `MaterializedMir` / `MaterializedEffectFacts` wrapper 或 HIR dispatch side table 回归。
+- 必须修改的主要位置：
+  - `crates/scoopc_lir_facts/`
+  - `crates/scoopc/src/pipeline/lir_facts_builder.rs`
+  - `crates/scoopc/src/pipeline/llvm_codegen_stage.rs`
+  - `crates/scoopc/src/llvm/emit.rs`
+  - `crates/scoopc/src/llvm/codegen/mod.rs`
+  - `crates/scoopc/src/llvm/codegen/ordinary_callee.rs`
+  - `crates/scoopc/src/llvm/codegen/call/abi.rs`
+  - `crates/scoopc/src/llvm/codegen/call/lowering.rs`
+  - `crates/scoopc/src/llvm/codegen/gc.rs`
+  - `crates/scoopc/src/llvm/codegen/mir_body/dispatch.rs`
+  - `tools/scoop_tools/src/dependency_gate.rs`
+- 必须实现的内容：
+  1. 发布或复用 LIR/LIR facts 中的 callable suspendability / `needs_reentry` / effect ABI 信息，让 ordinary callee analysis、function-value call ABI 和相关 known-callable effect 判断不再读取 `fun_index`、HIR body 或 `HirFacts`。
+  2. 删除 LLVM production `CompilationUnitCodegenInputs` / `CompilationUnitCodegenCx` / `emit.rs` 中的 `fun_index` 输入；`crates/scoopc/src/llvm/codegen` 生产路径中不得再存在 `self.fun_index`。
+  3. 删除 LLVM production codegen 对 `HirFacts` 的直接依赖；若仍需 nominal/effect/source-site metadata，必须发布到正确 owner（LIR facts 或明确 base-context 窄合同），并保持 fact crate 不依赖 stage crate。
+  4. 删除 HIR-derived `LlvmCallableSignatureContract` / `callable_signatures` fallback；合法 body-less/runtime/sysroot callable 签名必须由 `LateLoweredProgram` / `LirFacts.source_signatures` / `LirFacts.physical_layout.callable_symbols` 或非 HIR-derived 明确窄合同提供，缺失时 fail-fast，不允许回读 `hir::FunDecl`。
+  5. 收窄 `LlvmStageBaseContext`：不再持有完整 `MaterializedMir`、`MaterializedEffectFacts` 或 `HirFacts` wrapper；保留的字段必须是 LLVM backend 的显式 base context 合同，并在注释/验证中说明 owner。
+  6. 将 dispatch kind/source-site 查询迁到 LIR dispatch facts 或明确窄合同；vtable/itable lowering 不得继续读取 HIR `dispatch_call_sites` side table 作为 production 判断来源。
+  7. 扩展 `dependency_gate` 覆盖本任务 residual，至少防止 `self.fun_index`、`HirFacts` production input、`callable_signatures.get`、`LlvmCallableSignatureContract`、完整 `MaterializedMir` / `MaterializedEffectFacts` wrapper、HIR dispatch side table 重新进入 LLVM production codegen。
+  8. 对所有保留的 `crate::hir` / `crate::mir` 命中重新分类；只允许测试、LIR-owned source payload alias 或已文档化的 base-context 窄合同，不得留下未解释 production fallback。
+- 验证：
+  1. `cargo fmt`
+  2. `cargo run -p scoop_tools -- dependency-gate`
+  3. `cargo test -p scoopc_lir_facts`
+  4. `cargo test -p scoopc --no-default-features llvm_codegen_stage`
+  5. `cargo test -p scoopc --no-default-features llvm::codegen`
+  6. `cargo test -p scoopc llvm::codegen`
+  7. `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`（完整 run-pass，至少 30 分钟 timeout）
+  8. `cargo clippy --all-targets -- -D warnings`
+  9. `git diff --check`
+- 完成条件：
+  - LLVM production codegen 不再接收或保存 `fun_index`、`HirFacts`、完整 `MaterializedMir`、完整 `MaterializedEffectFacts` 或 HIR-derived callable signature fallback；
+  - ordinary callee suspendability / function-value call ABI / dispatch kind 查询均由 LIR/LIR facts 或明确窄合同提供；
+  - dependency gate 能防止本任务修复的 residual 回归；
+  - `P7-T05R` 的 residual review 能进入真实最终判定，而不是继续发现同类 HIR/base-context blocker。
+- 依赖：P7-T05-b
+- 完成记录：
+  - 待填写。
+
 ## [TODO] P7-T05R：Review P7 全包完成度
 
 - 参考：P7-T05。
@@ -1353,7 +1405,7 @@
   - 额外搜索 `crates/scoopc/src/llvm` 与 `crates/scoopc/src/pipeline` 中的上游 stage output / HIR / MIR residual。
 - 完成条件：
   - review 结论明确写出 P7 完成、P8 可以开始，或列出阻塞项并在本 review 内修复。
-- 依赖：P7-T05-b
+- 依赖：P7-T05-c
 - 完成记录：
   - 待填写。
 
