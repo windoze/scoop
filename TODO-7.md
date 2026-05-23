@@ -312,7 +312,7 @@
   - `cargo tree -p scoopc_codegen_llvm` 显示当前直接依赖为临时 `scoopc` façade；没有直接 `scoopc_hir` / `scoopc_mir` stage crate，后续 LIR 抽取完成后按本记录移除 façade 依赖。
   - 验证通过：`cargo fmt`；`cargo check --workspace --features llvm`；`cargo build --workspace --features llvm`；`cargo test --all --all-targets --features llvm`（用 30 分钟超时重跑通过；单独复现 `once_guard_cross_dylib` 1.22s 通过，确认此前 20 分钟超时是整条测试命令总时长不足）；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`；`cargo run -p scoop_tools -- dependency-gate`；`cargo clippy --all-targets --features llvm -- -D warnings`；`cargo tree -p scoopc_codegen_llvm`；`git diff --check`。
 
-### [TODO] P9-T03R：Review `scoopc_codegen_llvm` 抽取
+### [DONE] P9-T03R：Review `scoopc_codegen_llvm` 抽取
 
 - 参考：P9-T03。
 - 重点：
@@ -321,6 +321,10 @@
   - 完成记录是否登记了 P9-T06 后的依赖切换义务。
 - 验证：重新运行 P9-T03 的所有验证。
 - 依赖：P9-T03
+- 完成记录：
+  - 2026-05-24：复核 `scoopc_codegen_llvm` 抽取结果。当前 crate root 仍按 P9-T03 记录进行 staged extraction：`llvm = ["scoopc/llvm"]` 传播原 LLVM feature gate，`src/lib.rs` 临时 re-export `scoopc::llvm` / `scoopc::stackmap`，实际 backend 源码由 `scoopc` 通过 `#[path]` 编译；P9-T06 后切换到 direct `scoopc_lir` / `scoopc_lir_facts` 输入的义务已在 P9-T03 完成记录和 crate root 注释中登记。
+  - 反向边复核：`cargo tree -p scoopc_codegen_llvm` 显示直接 workspace 依赖仅为临时 `scoopc` façade；`cargo tree -p scoopc_codegen_llvm --no-default-features` 不拉入 LLVM/inkwell 依赖。残余搜索中，非测试 LLVM HIR residual 无命中；排除测试与 `codegen/mir_body/**` 后的 LLVM MIR residual 无命中。剩余测试命中与 `mir_body` source-body helper 命中仍是 P9-T01-a/P9-T03 记录的允许分类。
+  - 验证通过：`cargo fmt`；`cargo build --workspace --features llvm`；`cargo test --all --all-targets --features llvm`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`；`cargo run -p scoop_tools -- dependency-gate`；`cargo clippy --all-targets --features llvm -- -D warnings`；`cargo tree -p scoopc_codegen_llvm`；`cargo tree -p scoopc_codegen_llvm --no-default-features`；LLVM HIR/MIR residual 搜索；`git diff --check`。
 
 ### [TODO] P9-T04：抽出 `scoopc_hir` crate
 

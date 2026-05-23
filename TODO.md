@@ -4,7 +4,7 @@
 > 计划基线：[`PLAN.md`](./PLAN.md)
 > 设计基线：[`PIPELINE_REFACTOR.md`](./PIPELINE_REFACTOR.md)
 > 审计基线：[`PIPELINE-CLEANUP.md`](./PIPELINE-CLEANUP.md)
-> 当前状态：P0-P8、`TODO-7-INIT`、`P9-T01-a`、`P9-T01`、`P9-T01R`、`P9-T02`、`P9-T02R` 与 `P9-T03` 已完成；下一项为 `P9-T03R`。
+> 当前状态：P0-P8、`TODO-7-INIT`、`P9-T01-a`、`P9-T01`、`P9-T01R`、`P9-T02`、`P9-T02R`、`P9-T03` 与 `P9-T03R` 已完成；下一项为 `P9-T04`。
 
 ## 总原则
 
@@ -153,7 +153,7 @@
 | P9-T02 | [DONE] | [`TODO-7.md`](./TODO-7.md#done-p9-t02抽出-scoopc_ast-crate) | 抽出 `scoopc_ast` crate |
 | P9-T02R | [DONE] | [`TODO-7.md`](./TODO-7.md#done-p9-t02rreview-scoopc_ast-抽取) | Review `scoopc_ast` 抽取 |
 | P9-T03 | [DONE] | [`TODO-7.md`](./TODO-7.md#done-p9-t03抽出-scoopc_codegen_llvm-crate) | 抽出 `scoopc_codegen_llvm` crate |
-| P9-T03R | [TODO] | [`TODO-7.md`](./TODO-7.md#todo-p9-t03rreview-scoopc_codegen_llvm-抽取) | Review `scoopc_codegen_llvm` 抽取 |
+| P9-T03R | [DONE] | [`TODO-7.md`](./TODO-7.md#done-p9-t03rreview-scoopc_codegen_llvm-抽取) | Review `scoopc_codegen_llvm` 抽取 |
 | P9-T04 | [TODO] | [`TODO-7.md`](./TODO-7.md#todo-p9-t04抽出-scoopc_hir-crate) | 抽出 `scoopc_hir` crate |
 | P9-T04R | [TODO] | [`TODO-7.md`](./TODO-7.md#todo-p9-t04rreview-scoopc_hir-抽取) | Review `scoopc_hir` 抽取 |
 | P9-T05 | [TODO] | [`TODO-7.md`](./TODO-7.md#todo-p9-t05抽出-scoopc_mir-crate) | 抽出 `scoopc_mir` crate |
