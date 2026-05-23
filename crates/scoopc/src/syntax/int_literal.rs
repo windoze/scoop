@@ -21,6 +21,18 @@ pub struct IntLiteralParts<'a> {
     pub suffix: IntLiteralSuffix,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct IntLiteralTarget {
+    pub bits: u32,
+    pub signed: bool,
+}
+
+impl IntLiteralTarget {
+    pub const fn new(bits: u32, signed: bool) -> Self {
+        Self { bits, signed }
+    }
+}
+
 impl IntLiteralParseError {
     pub fn reason(self) -> &'static str {
         match self {
@@ -96,6 +108,23 @@ pub fn parse_int_literal_suffix(text: &str) -> IntLiteralSuffix {
     split_int_literal_suffix(text).suffix
 }
 
+pub fn checked_positive_int_literal_bits(value: u128, target: IntLiteralTarget) -> Option<u128> {
+    let max = if target.signed {
+        signed_int_max(target.bits)
+    } else {
+        unsigned_int_max(target.bits)
+    };
+    (value <= max).then_some(value)
+}
+
+pub fn checked_negated_int_literal_bits(value: u128, target: IntLiteralTarget) -> Option<u128> {
+    if !target.signed {
+        return None;
+    }
+    let min_abs = signed_int_min_abs(target.bits);
+    (value <= min_abs).then_some(mask_to_bits(0u128.wrapping_sub(value), target.bits))
+}
+
 fn split_int_literal_suffix(text: &str) -> IntLiteralParts<'_> {
     for (suffix_text, suffix) in [
         ("uL", IntLiteralSuffix::ULong),
@@ -126,6 +155,46 @@ fn literal_radix_and_digits(text: &str) -> (u32, &str) {
     } else {
         (10, text)
     }
+}
+
+fn mask_to_bits(value: u128, bits: u32) -> u128 {
+    if bits == 0 {
+        return 0;
+    }
+    if bits >= 128 {
+        return value;
+    }
+    value & ((1u128 << bits) - 1)
+}
+
+fn unsigned_int_max(bits: u32) -> u128 {
+    if bits == 0 {
+        return 0;
+    }
+    if bits >= 128 {
+        return u128::MAX;
+    }
+    (1u128 << bits) - 1
+}
+
+fn signed_int_max(bits: u32) -> u128 {
+    if bits <= 1 {
+        return 0;
+    }
+    if bits >= 128 {
+        return i128::MAX as u128;
+    }
+    (1u128 << (bits - 1)) - 1
+}
+
+fn signed_int_min_abs(bits: u32) -> u128 {
+    if bits == 0 {
+        return 0;
+    }
+    if bits >= 128 {
+        return 1u128 << 127;
+    }
+    1u128 << (bits - 1)
 }
 
 #[cfg(test)]
@@ -193,5 +262,28 @@ mod tests {
             parse_int_literal_checked("340282366920938463463374607431768211456"),
             Err(IntLiteralParseError::Overflow)
         );
+    }
+
+    #[test]
+    fn checks_target_integer_ranges() {
+        let int8 = super::IntLiteralTarget::new(8, true);
+        let uint8 = super::IntLiteralTarget::new(8, false);
+
+        assert_eq!(
+            super::checked_positive_int_literal_bits(127, int8),
+            Some(127)
+        );
+        assert_eq!(super::checked_positive_int_literal_bits(128, int8), None);
+        assert_eq!(
+            super::checked_negated_int_literal_bits(128, int8),
+            Some(128)
+        );
+        assert_eq!(super::checked_negated_int_literal_bits(129, int8), None);
+        assert_eq!(
+            super::checked_positive_int_literal_bits(255, uint8),
+            Some(255)
+        );
+        assert_eq!(super::checked_positive_int_literal_bits(256, uint8), None);
+        assert_eq!(super::checked_negated_int_literal_bits(1, uint8), None);
     }
 }

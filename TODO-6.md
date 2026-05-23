@@ -4,7 +4,7 @@
 > 细化时间：2026-05-22
 > 计划基线：[`PLAN.md`](./PLAN.md) §4/P6-P8
 > 索引：[`TODO.md`](./TODO.md)
-> 当前状态：`P7-T04-a` / `P7-T04-b-1` / `P7-T04-b-1R` / `P7-T04-b-2` / `P7-T04-b-2R` / `P7-T04-b-3` / `P7-T04-b-3R` / `P7-T04-b-4` / `P7-T04-b-4R` / `P7-T04-b-5` / `P7-T04-b-5R` / `P7-T04-b` / `P7-T04-bR` / `P7-T04-c` / `P7-T04-cR` / `P7-T04` / `P7-T04R` 均已完成。LLVM stage handoff 已收窄为 `LIR + LIR facts + LlvmStageBaseContext`，`LirStageOutput` 不再携带 backend residual；physical ABI/layout 查询面已迁到 LIR facts，`TypeId` wire-format 推迟决策已在 stable dump 与文档中冻结；下一步执行 `P7-T05` P7 全包清场。
+> 当前状态：`P7-T04-a` / `P7-T04-b-1` / `P7-T04-b-1R` / `P7-T04-b-2` / `P7-T04-b-2R` / `P7-T04-b-3` / `P7-T04-b-3R` / `P7-T04-b-4` / `P7-T04-b-4R` / `P7-T04-b-5` / `P7-T04-b-5R` / `P7-T04-b` / `P7-T04-bR` / `P7-T04-c` / `P7-T04-cR` / `P7-T04` / `P7-T04R` / `P7-T05` 均已完成。LLVM stage handoff 已收窄为 `LIR + LIR facts + LlvmStageBaseContext`，`LirStageOutput` 不再携带 backend residual；physical ABI/layout 查询面已迁到 LIR facts，`TypeId` wire-format 推迟决策已在 stable dump 与文档中冻结；dependency gate 已覆盖 LLVM stage handoff、emit handoff 与 reachability 防回退检查；下一步执行 `P7-T05R` review。
 
 ## 范围
 
@@ -1150,7 +1150,7 @@
   - TypeStore bridge 复审：`LlvmStageBaseContext::verify_lir_type_context` 与 `verify_lir_type_store_owner` 继续校验 primary/ABI visibility TypeStore owner；`TypeId` cross-process stable wire format 已在 `LirFacts.type_context` / stable dump / 文档中显式推迟到 P8 per-cone build artifact serialization，P7 同进程 LLVM handoff 不持久化 `TypeId`。
   - 验证通过：`cargo fmt`；`cargo test -p scoopc --no-default-features llvm_codegen_stage`（0 filtered-in，pass）；`cargo test -p scoopc --no-default-features llvm::codegen::effect_lowered::layout`（0 filtered-in，pass）；`cargo run -p scoop_tools -- dependency-gate`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`（421/421 passed）；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
 
-## [TODO] P7-T05：P7 全包清场、文档同步与依赖审计
+## [DONE] P7-T05：P7 全包清场、文档同步与依赖审计
 
 - 目标：
   - 对 LLVM backend cleanup 做最终清场；
@@ -1182,7 +1182,12 @@
   - P8 可以只做最终 residual 搜索、全仓验证和接口冻结。
 - 依赖：P7-T04R
 - 完成记录：
-  - 待填写。
+  - 清场结果：LLVM stage 的 integer literal HIR body precheck 已删除，目标整数范围校验上移到 typecheck/when-pattern 边界；相关 build fixtures 的错误码同步为 `scoop::typecheck::invalid_integer_literal`。在 `crates/scoopc/src/pipeline/llvm_codegen_stage.rs` 与 `crates/scoopc/src/llvm` 中搜索 `EffectLoweredStageOutput`、`EffectFactsStageOutput`、`hir_compat_scaffold`、`llvm_residual_pass_view`、`precheck_invalid_integer_literals`、`precheck_expr_integer_literals`、`precheck_when_pattern_integer_literals` 无命中。
+  - reachability / dispatch 复查：`crates/scoopc/src/llvm/reachability.rs` 未引入 `use crate::hir`、`use crate::mir`、`MaterializedMirPassView`、`try_devirtualize` 或 `devirtualization_facts`；`crates/scoopc/src/llvm` 中 `devirtual` / ordinary dispatch devirtualization 搜索无命中，ordinary dispatch 去虚化仍归属 MIR pass / LIR facts。
+  - dependency gate：`tools/scoop_tools/src/dependency_gate.rs` 新增 source boundary checks，覆盖 LLVM stage handoff、LLVM emit handoff 与 LLVM reachability，防止后续重新引入 P5 wrapper、HIR/raw MIR scan、backend-local ordinary dispatch 去虚化或 LLVM HIR literal precheck。
+  - 文档同步：`README.md`、`PIPELINE-CLEANUP.md`、`PIPELINE_REFACTOR.md` 已更新到 P7-T05 清场基线，明确 LLVM 与未来 C backend 共享 `LIR + LIR facts + base context` backend-neutral 输入边界，`TypeId` cross-process stable wire format 仍由 P8/per-cone build artifact serialization 负责。
+  - 额外针对性验证通过：`cargo test -p scoopc --no-default-features int_literal`；`cargo run -p scoop -- test --fixtures tests/fixtures/build/int_literal_uint8_overflow_fail.scoop`；`cargo run -p scoop -- test --fixtures tests/fixtures/build/int_literal_neg_int8_overflow_fail.scoop`；`cargo run -p scoop -- test --fixtures tests/fixtures/build/when_int_pattern_uint8_overflow_fail.scoop`；`cargo run -p scoop -- test --fixtures tests/fixtures/build/int_literal_default_int_overflow_fail.scoop`；`cargo test -p scoop_tools dependency_gate`。
+  - 验证通过：`cargo fmt`；`cargo run -p scoop_tools -- dependency-gate`；`cargo test -p scoopc_lir_facts`；`cargo test -p scoopc --no-default-features llvm_codegen_stage`（0 filtered-in，pass）；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`（421/421 passed）；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
 
 ## [TODO] P7-T05R：Review P7 全包完成度
 

@@ -23,6 +23,7 @@ use super::{EffParamSig, ExprInferInputs, ExprTypeError, FunSigOwned};
 
 use super::super::assignable::is_type_assignable;
 use super::super::eff_row_subst::{EffRowVarSubstPlan, build_eff_row_var_subst_plan};
+use super::super::int_literals::check_negated_int_literal_for_type;
 use super::super::lower::TypeLowering;
 
 fn unary_op_text(op: ast::UnaryOp) -> &'static str {
@@ -768,6 +769,29 @@ pub(super) fn infer_unary_expr_type(
     operand: &ast::Expr,
     lower: &mut TypeLowering<'_>,
 ) -> Result<TypeId, ExprTypeError> {
+    if op == ast::UnaryOp::Neg && matches!(operand.kind, ast::ExprKind::IntLit) {
+        let operand_ty =
+            int_literal_type_from_suffix(inputs.source, operand.span, lower, inputs.builtins);
+        check_negated_int_literal_for_type(
+            inputs.source,
+            unary_expr.span,
+            operand.span,
+            operand_ty,
+            lower,
+            inputs.builtins,
+        )?;
+        lower.record_inferred_expr_ty(operand.span, operand_ty);
+        record_scalar_operator_method_binding(
+            inputs,
+            unary_expr.span,
+            operand_ty,
+            "unaryMinus",
+            &[],
+            lower,
+        )?;
+        return Ok(operand_ty);
+    }
+
     let operand_ty = inputs.infer(lower, operand)?;
 
     match op {
@@ -896,6 +920,32 @@ pub(super) fn infer_unary_expr_type(
             )?;
 
             Ok(sig.return_ty)
+        }
+    }
+}
+
+fn int_literal_type_from_suffix(
+    source: &SourceFile,
+    span: Span,
+    lower: &mut TypeLowering<'_>,
+    builtins: BuiltinTypes,
+) -> TypeId {
+    match parse_int_literal_suffix(source.slice(span)) {
+        IntLiteralSuffix::None => builtins.int,
+        IntLiteralSuffix::UInt => builtins.uint,
+        IntLiteralSuffix::Long => {
+            lower.intern_type_kind(TypeKind::Value(ValueTypeKind::Nominal(NominalType {
+                fqn: "scoop.core.Int64".to_string(),
+                args: Vec::new(),
+                eff: None,
+            })))
+        }
+        IntLiteralSuffix::ULong => {
+            lower.intern_type_kind(TypeKind::Value(ValueTypeKind::Nominal(NominalType {
+                fqn: "scoop.core.UInt64".to_string(),
+                args: Vec::new(),
+                eff: None,
+            })))
         }
     }
 }

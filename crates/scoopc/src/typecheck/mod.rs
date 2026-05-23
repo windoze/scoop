@@ -14,6 +14,7 @@ mod eff_row_subst;
 mod expr;
 mod headers;
 mod inheritance;
+mod int_literals;
 mod interfaces;
 mod layout;
 mod lower;

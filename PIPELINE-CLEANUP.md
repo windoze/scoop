@@ -14,21 +14,21 @@
 
 ## P5-T05 状态更新
 
-当前代码已完成 P5 LIR output / LIR facts / LIR opt family 收口：`LirStageOutput = { lir, lir_facts }` 是正式 P5 handoff，不嵌套 `MirStageOutput` 或 `EffectFactsStageOutput`；`scoopc_lir_facts` 发布 callable ABI、dynamic invoke、dispatch owner/slot、continuation/resume publication 与 LIR opt pipeline metadata；codegen-neutral ABI/query contract 已切到 `LIR + lir_facts`。P5 后保留的 global init/runtime residual 已由 P6 收口，LLVM stage handoff、reachability/body emission、physical ABI/layout 和 TypeStore bridge owner 已推进到 P7-T04 合并验证基线。
+当前代码已完成 P5 LIR output / LIR facts / LIR opt family 收口：`LirStageOutput = { lir, lir_facts }` 是正式 P5 handoff，不嵌套 `MirStageOutput` 或 `EffectFactsStageOutput`；`scoopc_lir_facts` 发布 callable ABI、dynamic invoke、dispatch owner/slot、continuation/resume publication 与 LIR opt pipeline metadata；codegen-neutral ABI/query contract 已切到 `LIR + lir_facts`。P5 后保留的 global init/runtime residual 已由 P6 收口，LLVM stage handoff、reachability/body emission、physical ABI/layout 和 TypeStore bridge owner 已推进到 P7-T05 清场基线。
 
 ## P6-T04 状态更新
 
 当前代码已完成 P6 global init/storage/entry order 收口：`scoopc_lir_facts` 发布 global root、object once、top-level eager init、per-cone init routine 与 final entry order contract；top-level `val` 和 annotated top-level `var` 由 LIR facts 驱动的 per-cone routine 在用户 `main` 前 eager 初始化；object singleton 继续独占 runtime once helper；`@Global` / `@ThreadLocal` storage policy 已从 frontend facts 贯通到 LLVM storage 与 runtime thread init hook。后续 P7 清理不得把 P6 global init/storage 语义当作未闭合项。
 
-## P7-T04 状态更新
+## P7-T05 状态更新
 
-当前代码已完成 P7-T04 合并验证基线：LLVM entry/global 查询、reachability、production body emission、stage handoff 和 physical ABI/layout 均已迁到 `LIR + lir_facts + LlvmStageBaseContext`。`LlvmCodegenStageOutput` / `StageEmitInput` 不再传播 `EffectLoweredStageOutput`、`LoweredHir` 或 `HirFacts` wrapper，`LirStageOutput` 不再携带 LLVM residual accessor，physical ABI/layout 只把 `LirFacts.physical_layout` / type context 映射成 LLVM-private layout。`TypeId` cross-process stable wire format 显式推迟到 P8/per-cone build artifact serialization；P7-T04 不持久化 `TypeId`，仍只消费同进程 `TypeStore` owner。
+当前代码已完成 P7-T05 backend cleanup 清场基线：LLVM entry/global 查询、reachability、production body emission、stage handoff 和 physical ABI/layout 均已迁到 `LIR + lir_facts + LlvmStageBaseContext`。`LlvmCodegenStageOutput` / `StageEmitInput` 不再传播 `EffectLoweredStageOutput`、`LoweredHir` 或 `HirFacts` wrapper，`LirStageOutput` 不再携带 LLVM residual accessor，physical ABI/layout 只把 `LirFacts.physical_layout` / type context 映射成 LLVM-private layout。此前位于 LLVM stage 的 integer literal HIR body precheck 已迁到 typecheck/when-pattern 边界；LLVM stage 不再为该诊断遍历 HIR body。`dependency-gate` 现在覆盖 LLVM stage handoff、emit handoff 和 reachability 的 forbidden residual 搜索，防止重新引入 P5 wrapper、HIR/raw MIR scan 或 backend-local ordinary dispatch 去虚化。`TypeId` cross-process stable wire format 显式推迟到 P8/per-cone build artifact serialization；P7-T05 不持久化 `TypeId`，仍只消费同进程 `TypeStore` owner。
 
-因此，本报告中的 P1/P2/P3/P4/P5/P16/P17/P18/P19 是已解决或历史化的问题；保留它们是为了说明原始 cleanup 背景并验证阶段清场结果。P6 与 P7-T04 后，当前仍然成立、并进入 P7-T05/P8 的主结论是：
+因此，本报告中的 P1/P2/P3/P4/P5/P16/P17/P18/P19 是已解决或历史化的问题；保留它们是为了说明原始 cleanup 背景并验证阶段清场结果。P6 与 P7-T05 后，当前仍然成立、并进入 P8 的主结论是：
 
 1. `llvm_codegen_stage` 仍是 `scoopc` 内的后端 orchestrator；P9/P10 crate split 和 per-cone artifact 才会把 stage/codegen 拆成独立 crate 与持久化产物。
-2. P7-T05/P8 仍需做最终 residual 搜索、dependency gate 强化和文档冻结，确认没有 HIR/raw MIR/effect facts/stage output wrapper 重新进入 production backend 输入边界。
-3. `TypeId` cross-process stable wire format 仍是 per-cone build artifact serialization 的硬前置；P7-T04 只冻结推迟决策与 owner，不把 `TypeId` 落盘。
+2. P8 仍需做最终 residual 搜索、文档冻结和 release-readiness 验证；backend 边界回退现在由 `dependency-gate` 的 source boundary checks 覆盖关键入口。
+3. `TypeId` cross-process stable wire format 仍是 per-cone build artifact serialization 的硬前置；P7-T05 只冻结推迟决策与 owner，不把 `TypeId` 落盘。
 
 ## 目标边界
 
@@ -263,7 +263,7 @@ P5 收口结果：
 
 1. `LirStageOutput` 发布 `LateLoweredProgram` 与 `scoopc_lir_facts::LirFacts`，不嵌套 `MirStageOutput` 或 `EffectFactsStageOutput`。
 2. `scoopc_lir_facts` 发布 plain callable ABI/source/call-site、本地 effect/control contract、effect-step state/frame/boundary/resume query、dynamic invoke、dispatch owner/slot、continuation object、surface resume dispatch、resume packing 与 LIR opt pipeline metadata；P6 又在同一 fact 产品中补齐 global init/storage/final-entry contract。
-3. Program ABI materialization 的 codegen-neutral 输入已切到 `LateLoweredProgram + LirFacts + TypeStore`；P7-T04 后 physical ABI/layout 查询只读 `LirFacts.physical_layout` / type context / callable symbols，再映射成 LLVM-private `ProgramAbiQuery` 结果。
+3. Program ABI materialization 的 codegen-neutral 输入已切到 `LateLoweredProgram + LirFacts + TypeStore`；P7-T05 后 physical ABI/layout 查询只读 `LirFacts.physical_layout` / type context / callable symbols，再映射成 LLVM-private `ProgramAbiQuery` 结果，并由 dependency gate 防止 emit/reachability/handoff 回退到上游 wrapper 或 HIR/MIR scan。
 4. `effect_lowered::opt` 已固定为 LIR-owned 窄优化 family，显式记录 pass order / revision / verifier metadata，不读取 HIR、MIR pass view 或 effect solver 输入。
 
 TODO-6/P7 收口结果：
@@ -275,7 +275,7 @@ TODO-6/P7 收口结果：
 
 ## 当前有效结构
 
-当前生产路径已经不再让 HIR lowering 反向携带 MIR snapshot，P4/P5 stage output 也不再嵌套上游整包；P7-T04 后 LLVM stage 的 emit handoff 也已收窄为 `LIR + lir_facts + LlvmStageBaseContext`。现在更接近：
+当前生产路径已经不再让 HIR lowering 反向携带 MIR snapshot，P4/P5 stage output 也不再嵌套上游整包；P7-T05 后 LLVM stage 的 emit handoff 也已收窄为 `LIR + lir_facts + LlvmStageBaseContext`，并补上 source boundary gate。现在更接近：
 
 ```text
 frontend/typecheck
@@ -293,8 +293,8 @@ frontend/typecheck
 
 1. codegen stage 仍是 `scoopc` 内的 backend orchestrator；P9/P10 会继续拆独立 stage/codegen crate 与 per-cone artifact。
 2. `MirStageOutput`、`EffectFactsStageOutput`、`LirStageOutput` 和 LLVM emit handoff 已分别收口为各自阶段/后端输入形状，不再通过 public output wrapper 嵌套上游整包。
-3. `LlvmStageBaseContext` 仍承接同进程 `TypeStore` owner 和少量 backend base tables；P7-T05/P8 负责用 residual 搜索与 dependency gate 防止其退化成新的 HIR/raw MIR/effect facts fallback。
-4. `TypeId` cross-process stable wire format 仍显式推迟到 per-cone build artifact serialization，不属于 P7-T04 的同进程 LLVM handoff 阻塞项。
+3. `LlvmStageBaseContext` 仍承接同进程 `TypeStore` owner 和少量 backend base tables；P8 继续做最终 residual 搜索，当前关键入口已由 dependency gate 防止退化成新的 HIR/raw MIR/effect facts fallback。
+4. `TypeId` cross-process stable wire format 仍显式推迟到 per-cone build artifact serialization，不属于 P7-T05 的同进程 LLVM handoff 阻塞项。
 
 ## 问题清单
 
@@ -405,15 +405,17 @@ P3 结果：
 - `LirStageOutput` 不保存 `MirStageOutput` 或 `EffectFactsStageOutput` wrapper；legacy `EffectLoweredStageOutput` 只是迁移别名。
 - P5-owned codegen-neutral ABI/query contract 已发布到 `scoopc_lir_facts`，LIR opt family 也有显式 pass metadata 与 verifier。
 
-P7-T04 收口结果：
+P7-T05 收口结果：
 
 - `LirStageOutput` 不再保留 `types()` 或 crate-private `llvm_residual_pass_view()`；LLVM 所需 base context 由 `LlvmStageBaseContext` 显式承载。
 - `scoopc_lir_facts` 已补齐 global init/storage/final-entry、physical layout、callable symbol 和 type context bridge facts；这些属于 LIR-owned backend-neutral 查询面，不是 P5 output wrapper 的隐藏 residual。
+- LLVM stage 的 integer literal 诊断不再通过 HIR body precheck 兜底，范围检查已上移到 typecheck/when-pattern 边界。
+- `dependency-gate` 覆盖 LLVM stage handoff、emit handoff 与 reachability 的 forbidden residual 搜索，阻止重新引入 P5 wrapper、HIR/raw MIR scan 或 backend-local ordinary dispatch 去虚化。
 
 后续方向：
 
-1. P7-T05/P8 继续用 residual 搜索和 dependency gate 防止 backend 输入边界回退。
-2. P8/per-cone artifact serialization 负责落实 `TypeId` cross-process stable wire format；P7-T04 已冻结推迟决策与 future owner。
+1. P8 继续做最终 residual 搜索、文档冻结和 release-readiness 验证。
+2. P8/per-cone artifact serialization 负责落实 `TypeId` cross-process stable wire format；P7-T05 已冻结推迟决策与 future owner。
 
 ---
 
@@ -885,12 +887,12 @@ P5 结果：
 
 当前最核心的问题不是“文件太长”，而是必须继续防止已收口的 stage handoff 与 backend physicalization 回退成跨阶段回看。
 
-P7-T04 后的三个结构性结论是：
+P7-T05 后的三个结构性结论是：
 
 1. `LlvmCodegenStageOutput` / `StageEmitInput` 已收口为 `LIR + lir_facts + LlvmStageBaseContext`，不再传播 P5 wrapper 或 HIR scaffold wrapper。
-2. production backend 的 entry/global、reachability、body emission 与 physical ABI/layout 已迁到 LIR/LIR facts/base context；后续 P7-T05/P8 的重点是最终 residual 搜索、dependency gate 和文档冻结。
-3. `TypeId` cross-process stable wire format 已明确推迟到 P8/per-cone build artifact serialization；P7-T04 不落盘 `TypeId`，只要求同进程 `TypeStore` owner 和 verifier 一致。
+2. production backend 的 entry/global、reachability、body emission 与 physical ABI/layout 已迁到 LIR/LIR facts/base context；dependency gate 已覆盖 LLVM handoff/emit/reachability 的关键防回退检查，P8 只剩最终 residual 搜索、文档冻结和 release-readiness 验证。
+3. `TypeId` cross-process stable wire format 已明确推迟到 P8/per-cone build artifact serialization；P7-T05 不落盘 `TypeId`，只要求同进程 `TypeStore` owner 和 verifier 一致。
 
-其中一个贯穿全线的次级根因是：backend physical layout、reachability、body emission 和 type bridging 必须始终建立在 `LIR + lir_facts + base context` 上。P2 已经把 HIR/source-site facts 收口到 `HirFacts`，P3 已经把 MIR root/snapshot/pass facts 收口到 `MirFacts` 和 MIR pass query surface，P4 已经把 effect facts 收口为只读窄输出，P5 已经把 LIR facts/query owner 收口，P6 已把 global init/storage/final-entry owner 收口到 LIR facts，P7-T04 已把 LLVM handoff 与 physical ABI/layout 收口到同一边界；后续不得重新引入 HIR fallback、MIR fallback、effect facts fallback 或重复 owner。
+其中一个贯穿全线的次级根因是：backend physical layout、reachability、body emission 和 type bridging 必须始终建立在 `LIR + lir_facts + base context` 上。P2 已经把 HIR/source-site facts 收口到 `HirFacts`，P3 已经把 MIR root/snapshot/pass facts 收口到 `MirFacts` 和 MIR pass query surface，P4 已经把 effect facts 收口为只读窄输出，P5 已经把 LIR facts/query owner 收口，P6 已把 global init/storage/final-entry owner 收口到 LIR facts，P7-T05 已把 LLVM handoff 与 physical ABI/layout 收口到同一边界并加上 gate；后续不得重新引入 HIR fallback、MIR fallback、effect facts fallback 或重复 owner。
 
 后续无论是继续拆 LLVM codegen、还是引入新的 backend，都必须复用这条 backend-neutral 输入边界，而不是复制旧的跨阶段回看路径。

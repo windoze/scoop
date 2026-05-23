@@ -9,6 +9,7 @@
 //! crates and never on the facade, stages, or other facts.
 
 use std::collections::BTreeSet;
+use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -51,6 +52,7 @@ const FORBIDDEN_WORKSPACE_CRATES: &[&str] = &[
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Report {
     checks: Vec<CrateCheck>,
+    source_checks: Vec<SourceBoundaryCheck>,
 }
 
 impl Report {
@@ -60,10 +62,11 @@ impl Report {
         }
 
         let mut lines = vec![format!(
-            "dependency gate: ok (checked {} pipeline crates: {} base, {} fact)",
+            "dependency gate: ok (checked {} pipeline crates: {} base, {} fact; {} source boundary files)",
             self.checks.len(),
             BASE_CRATES.len(),
-            FACT_CRATES.len()
+            FACT_CRATES.len(),
+            self.source_checks.len()
         )];
         for check in &self.checks {
             let base_dependencies = check.base_dependencies();
@@ -79,11 +82,23 @@ impl Report {
                 rendered
             ));
         }
+        for check in &self.source_checks {
+            lines.push(format!(
+                "- {} [{}]: no forbidden residuals ({})",
+                check.label,
+                check.kind_label,
+                check.path.display()
+            ));
+        }
         lines.join("\n")
     }
 
     fn has_violations(&self) -> bool {
         self.checks.iter().any(|check| !check.violations.is_empty())
+            || self
+                .source_checks
+                .iter()
+                .any(|check| !check.violations.is_empty())
     }
 
     fn render_failures(&self) -> String {
@@ -93,6 +108,18 @@ impl Report {
                 lines.push(format!(
                     "- {} depends on {}: {}",
                     check.crate_name, violation.dependency, violation.reason
+                ));
+            }
+        }
+        for check in &self.source_checks {
+            for violation in &check.violations {
+                lines.push(format!(
+                    "- {} {}:{} contains `{}`: {}",
+                    check.label,
+                    check.path.display(),
+                    violation.line,
+                    violation.pattern,
+                    violation.reason
                 ));
             }
         }
@@ -140,6 +167,21 @@ struct Violation {
     reason: String,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct SourceBoundaryCheck {
+    label: &'static str,
+    kind_label: &'static str,
+    path: PathBuf,
+    violations: Vec<SourceBoundaryViolation>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct SourceBoundaryViolation {
+    pattern: &'static str,
+    reason: &'static str,
+    line: usize,
+}
+
 pub fn run() -> Result<Report> {
     let workspace_root = workspace_root()?;
     let mut checks = Vec::new();
@@ -166,11 +208,31 @@ pub fn run() -> Result<Report> {
         });
     }
 
-    let report = Report { checks };
+    let source_checks = run_source_boundary_checks(&workspace_root)?;
+    let report = Report {
+        checks,
+        source_checks,
+    };
     if report.has_violations() {
         return Err(miette::miette!("{}", report.render_failures()));
     }
     Ok(report)
+}
+
+fn run_source_boundary_checks(workspace_root: &Path) -> Result<Vec<SourceBoundaryCheck>> {
+    let rules = source_boundary_rules();
+    let mut checks = Vec::with_capacity(rules.len());
+    for rule in rules {
+        let path = workspace_root.join(rule.path);
+        let contents = fs::read_to_string(&path).into_diagnostic()?;
+        checks.push(SourceBoundaryCheck {
+            label: rule.label,
+            kind_label: rule.kind_label,
+            path: PathBuf::from(rule.path),
+            violations: source_boundary_violations(&contents, rule.forbidden),
+        });
+    }
+    Ok(checks)
 }
 
 fn workspace_root() -> Result<PathBuf> {
@@ -207,6 +269,141 @@ fn parse_cargo_tree_package_names(tree: &str) -> BTreeSet<String> {
         .filter(|name| !name.is_empty())
         .map(ToOwned::to_owned)
         .collect()
+}
+
+#[derive(Debug, Clone, Copy)]
+struct SourceBoundaryRule {
+    label: &'static str,
+    kind_label: &'static str,
+    path: &'static str,
+    forbidden: &'static [ForbiddenSourcePattern],
+}
+
+#[derive(Debug, Clone, Copy)]
+struct ForbiddenSourcePattern {
+    pattern: &'static str,
+    reason: &'static str,
+}
+
+fn source_boundary_rules() -> Vec<SourceBoundaryRule> {
+    vec![
+        SourceBoundaryRule {
+            label: "LLVM stage handoff",
+            kind_label: "backend-boundary",
+            path: "crates/scoopc/src/pipeline/llvm_codegen_stage.rs",
+            forbidden: &[
+                ForbiddenSourcePattern {
+                    pattern: "EffectLoweredStageOutput",
+                    reason: "LLVM stage output must not reintroduce P5 stage-output wrapper handoff",
+                },
+                ForbiddenSourcePattern {
+                    pattern: "EffectFactsStageOutput",
+                    reason: "LLVM stage output must not carry effect-facts stage-output wrapper handoff",
+                },
+                ForbiddenSourcePattern {
+                    pattern: "hir_compat_scaffold",
+                    reason: "LLVM stage output must not restore HIR compatibility scaffold handoff",
+                },
+                ForbiddenSourcePattern {
+                    pattern: "llvm_residual_pass_view",
+                    reason: "LirStageOutput must not restore LLVM-only residual accessors",
+                },
+                ForbiddenSourcePattern {
+                    pattern: "precheck_invalid_integer_literals",
+                    reason: "integer literal validation belongs to frontend/typecheck, not LLVM HIR body scans",
+                },
+                ForbiddenSourcePattern {
+                    pattern: "precheck_expr_integer_literals",
+                    reason: "LLVM stage must not traverse HIR expressions for literal validation",
+                },
+                ForbiddenSourcePattern {
+                    pattern: "precheck_when_pattern_integer_literals",
+                    reason: "LLVM stage must not traverse HIR patterns for literal validation",
+                },
+            ],
+        },
+        SourceBoundaryRule {
+            label: "LLVM emit handoff",
+            kind_label: "backend-boundary",
+            path: "crates/scoopc/src/llvm/emit.rs",
+            forbidden: &[
+                ForbiddenSourcePattern {
+                    pattern: "EffectLoweredStageOutput",
+                    reason: "emit handoff must consume LIR/LIR facts, not P5 stage-output wrappers",
+                },
+                ForbiddenSourcePattern {
+                    pattern: "EffectFactsStageOutput",
+                    reason: "emit handoff must not carry effect-facts stage-output wrappers",
+                },
+                ForbiddenSourcePattern {
+                    pattern: "LoweredHir",
+                    reason: "emit handoff must not receive HIR body/scaffold input",
+                },
+                ForbiddenSourcePattern {
+                    pattern: "HirFacts",
+                    reason: "emit handoff must not receive HIR facts as an emit input wrapper",
+                },
+                ForbiddenSourcePattern {
+                    pattern: "MaterializedMirPassView",
+                    reason: "emit handoff must not receive raw MIR/pass-view input directly",
+                },
+                ForbiddenSourcePattern {
+                    pattern: "crate::hir",
+                    reason: "emit handoff must not traverse HIR APIs",
+                },
+                ForbiddenSourcePattern {
+                    pattern: "crate::mir",
+                    reason: "emit handoff must not traverse raw MIR APIs",
+                },
+            ],
+        },
+        SourceBoundaryRule {
+            label: "LLVM reachability",
+            kind_label: "backend-boundary",
+            path: "crates/scoopc/src/llvm/reachability.rs",
+            forbidden: &[
+                ForbiddenSourcePattern {
+                    pattern: "use crate::hir",
+                    reason: "backend reachability must not scan HIR",
+                },
+                ForbiddenSourcePattern {
+                    pattern: "use crate::mir",
+                    reason: "backend reachability must not scan raw MIR",
+                },
+                ForbiddenSourcePattern {
+                    pattern: "MaterializedMirPassView",
+                    reason: "backend reachability must use LIR facts instead of MIR pass views",
+                },
+                ForbiddenSourcePattern {
+                    pattern: "try_devirtualize",
+                    reason: "ordinary dispatch devirtualization is MIR-owned, not backend reachability-owned",
+                },
+                ForbiddenSourcePattern {
+                    pattern: "devirtualization_facts",
+                    reason: "backend reachability must not consume MIR devirtualization facts directly",
+                },
+            ],
+        },
+    ]
+}
+
+fn source_boundary_violations(
+    contents: &str,
+    forbidden: &[ForbiddenSourcePattern],
+) -> Vec<SourceBoundaryViolation> {
+    let mut violations = Vec::new();
+    for (line_index, line) in contents.lines().enumerate() {
+        for pattern in forbidden {
+            if line.contains(pattern.pattern) {
+                violations.push(SourceBoundaryViolation {
+                    pattern: pattern.pattern,
+                    reason: pattern.reason,
+                    line: line_index + 1,
+                });
+            }
+        }
+    }
+    violations
 }
 
 fn find_dependency_violations(
@@ -427,6 +624,21 @@ mod tests {
 
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].dependency, "scoopc_mir_facts");
+    }
+
+    #[test]
+    fn detects_forbidden_source_boundary_pattern() {
+        let violations = source_boundary_violations(
+            "fn ok() {}\nfn bad(_: EffectLoweredStageOutput) {}\n",
+            &[ForbiddenSourcePattern {
+                pattern: "EffectLoweredStageOutput",
+                reason: "stage wrapper is forbidden",
+            }],
+        );
+
+        assert_eq!(violations.len(), 1);
+        assert_eq!(violations[0].line, 2);
+        assert_eq!(violations[0].pattern, "EffectLoweredStageOutput");
     }
 
     fn set(names: &[&str]) -> BTreeSet<String> {

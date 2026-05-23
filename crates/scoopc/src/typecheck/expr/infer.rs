@@ -40,6 +40,9 @@ use super::super::TypeSymbolKind;
 use super::super::annotations::check_inline_annotation_uses;
 use super::super::assignable::{is_type_assignable, nominal_is_subtype_by_fqn};
 use super::super::branch_merge;
+use super::super::int_literals::{
+    check_negated_int_literal_for_type, check_positive_int_literal_for_type,
+};
 use super::super::lower::TypeLowering;
 use super::super::type_env::AnnotationTargetKind;
 use super::super::type_env::EnumVariantInfo;
@@ -64,24 +67,28 @@ pub(super) fn infer_expr_type(
     }
 
     match &expr.kind {
-        ast::ExprKind::IntLit => match parse_int_literal_suffix(source.slice(expr.span)) {
-            IntLiteralSuffix::None => Ok(builtins.int),
-            IntLiteralSuffix::UInt => Ok(builtins.uint),
-            IntLiteralSuffix::Long => Ok(lower.intern_type_kind(TypeKind::Value(
-                ValueTypeKind::Nominal(NominalType {
-                    fqn: "scoop.core.Int64".to_string(),
-                    args: Vec::new(),
-                    eff: None,
-                }),
-            ))),
-            IntLiteralSuffix::ULong => Ok(lower.intern_type_kind(TypeKind::Value(
-                ValueTypeKind::Nominal(NominalType {
-                    fqn: "scoop.core.UInt64".to_string(),
-                    args: Vec::new(),
-                    eff: None,
-                }),
-            ))),
-        },
+        ast::ExprKind::IntLit => {
+            let ty = match parse_int_literal_suffix(source.slice(expr.span)) {
+                IntLiteralSuffix::None => builtins.int,
+                IntLiteralSuffix::UInt => builtins.uint,
+                IntLiteralSuffix::Long => {
+                    lower.intern_type_kind(TypeKind::Value(ValueTypeKind::Nominal(NominalType {
+                        fqn: "scoop.core.Int64".to_string(),
+                        args: Vec::new(),
+                        eff: None,
+                    })))
+                }
+                IntLiteralSuffix::ULong => {
+                    lower.intern_type_kind(TypeKind::Value(ValueTypeKind::Nominal(NominalType {
+                        fqn: "scoop.core.UInt64".to_string(),
+                        args: Vec::new(),
+                        eff: None,
+                    })))
+                }
+            };
+            check_positive_int_literal_for_type(source, expr.span, ty, lower, builtins)?;
+            Ok(ty)
+        }
         ast::ExprKind::FloatLit => {
             let parsed = parse_float_literal(source.slice(expr.span));
             match parsed.suffix {
@@ -1811,10 +1818,37 @@ pub(super) fn infer_expr_type_in_expected_context(
         return inputs.infer_in_expected(lower, inner, expected_ty, expected_from);
     }
 
-    if matches!(expr.kind, ast::ExprKind::IntLit | ast::ExprKind::FloatLit)
-        && literal_absorbs_to_expected(expr, expected_ty, source, lower, builtins)
-    {
-        return Ok(expected_ty);
+    match &expr.kind {
+        ast::ExprKind::IntLit
+            if literal_absorbs_to_expected(expr, expected_ty, source, lower, builtins) =>
+        {
+            check_positive_int_literal_for_type(source, expr.span, expected_ty, lower, builtins)?;
+            return Ok(expected_ty);
+        }
+        ast::ExprKind::FloatLit
+            if literal_absorbs_to_expected(expr, expected_ty, source, lower, builtins) =>
+        {
+            return Ok(expected_ty);
+        }
+        ast::ExprKind::Unary {
+            op: ast::UnaryOp::Neg,
+            expr: inner,
+            ..
+        } if matches!(inner.kind, ast::ExprKind::IntLit)
+            && is_integer_type(expected_ty, lower, builtins) =>
+        {
+            check_negated_int_literal_for_type(
+                source,
+                expr.span,
+                inner.span,
+                expected_ty,
+                lower,
+                builtins,
+            )?;
+            lower.record_inferred_expr_ty(inner.span, expected_ty);
+            return Ok(expected_ty);
+        }
+        _ => {}
     }
 
     match &expr.kind {

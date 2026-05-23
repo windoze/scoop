@@ -17,6 +17,7 @@ use crate::span::Span;
 use crate::ty::{BuiltinTypes, RefTypeKind, TypeId, TypeKind, ValueTypeKind};
 
 use super::expr::{EnumTypeSubstContext, ExprTypeError, lower_type_ref_with_enum_subst};
+use super::int_literals::check_positive_int_literal_for_type;
 use super::lower::TypeLowering;
 
 /// 对一个 `when` 分支 pattern 进行最小类型检查，并返回该 pattern 引入的局部绑定类型表。
@@ -48,6 +49,7 @@ fn check_when_pat(
         }
         ast::WhenPat::IntLit { span, .. } => {
             if is_integer_pattern_subject(expected_ty, lower, builtins) {
+                check_positive_int_literal_for_type(source, *span, expected_ty, lower, builtins)?;
                 Ok(())
             } else {
                 Err(ExprTypeError::WhenIntPatNotInt {

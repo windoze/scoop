@@ -22,6 +22,15 @@ pub enum ExprTypeError {
         span: miette::SourceSpan,
     },
 
+    #[error("整数字面量解析失败：{reason}（原文：{text}）")]
+    #[diagnostic(code(scoop::typecheck::invalid_integer_literal))]
+    InvalidIntegerLiteral {
+        reason: &'static str,
+        text: String,
+        #[label("这里")]
+        span: miette::SourceSpan,
+    },
+
     #[error("interpolation expr must be ToString")]
     #[diagnostic(code(scoop::typecheck::interpolation_expr_not_to_string))]
     InterpolationExprNotToString {

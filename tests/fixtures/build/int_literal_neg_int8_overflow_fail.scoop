@@ -1,5 +1,5 @@
 // EXPECT: fail
-// EXPECT-ERROR-CODE: scoop::llvm::invalid_literal
+// EXPECT-ERROR-CODE: scoop::typecheck::invalid_integer_literal
 // EXPECT-ERROR: 超出目标整数类型可表示范围
 // EXPECT-ERROR: 原文：-129
 // EXPECT-ERROR-AT: 13:19
