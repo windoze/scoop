@@ -18,24 +18,32 @@
 
 ## 当前状态
 
-- 已确认第一个未完成任务：`P7-T04`（`TODO-6.md`）。
-- 最近提交为 `[P7-T04-cR] Review physical ABI layout migration`，未显示直接相关的未完成事项。
-- 本任务范围：综合验证 `P7-T04-b` 与 `P7-T04-c` 后的 LLVM stage handoff / physical ABI cleanup，并记录 `TypeId` cross-process stable wire format 推迟到 P8/per-cone artifact serialization 的结论。
+- 已确认第一个未完成任务：`P7-T04R`（`TODO-6.md`）。
+- `TODO.md` 与 `TODO-6.md` 均显示 `P7-T04` 已完成，下一项为 `P7-T04R` review。
+- 本任务范围：复审 `P7-T04` 的 LLVM stage handoff 与 physical ABI cleanup 收口结果，并在发现问题时直接修复或记录最小前置任务。
 
-## P7-T04 执行计划
+## P7-T04R 可审计推理摘要
 
-1. 搜索文档、LIR facts dump 和 pipeline/codegen 中关于 stage handoff、physical layout、TypeStore owner、wire-format 推迟的现有记录，确认缺口。
-2. 仅做必要的文档或 dump 文本同步；不改动已由 `P7-T04-b/-c` 完成的实现路径，除非验证发现真实回归。
-3. 运行 `P7-T04` 指定验证：`cargo fmt`、相关 `cargo test`、`dependency-gate`、run-pass fixtures、clippy、`git diff --check`。
-4. 若验证失败且不是已有明确排期问题，修复后重跑相关验证；若出现无法在本任务内正确修复的阻塞，按要求更新 `TODO.md` 前置任务并停止。
-5. 验证通过后，将 `P7-T04` 在 `TODO.md` 与 `TODO-6.md` 标记为 `[DONE]` 并填写完成记录。
-6. 检查 diff/status，提交本任务相关变更并停止。
+- 任务性质是 review 任务，不应跳过；完成条件要求明确写出 LLVM backend 输入边界是否已收口。
+- 复审重点来自 `TODO-6.md`：`LlvmCodegenStageOutput` / `StageEmitInput` 不再传播 P5 wrapper 或 HIR scaffold；`LirStageOutput` 不再保留 LLVM residual pass-view context；physical ABI/layout 只做 backend-private 物理化；`TypeId` cross-process stable wire format 处置必须已冻结到未来 owner。
+- 若 residual 搜索或验证发现真实回归，优先在本 review 内修复；若需要新增 prerequisite，更新 `TODO.md` / `TODO-6.md`、提交并停止，不把当前任务标记为完成。
+- 不更新 `PLAN.md`，除非复审发现阶段级边界或依赖结构需要改变。
+
+## P7-T04R 执行计划
+
+1. 检查最近提交信息，确认是否显式提到与 `P7-T04R` 直接相关的未完成事项。
+2. 读取并复审 `P7-T04`、`P7-T04-bR`、`P7-T04-cR` 完成记录及相关文档，确认 review 的预期边界。
+3. 执行 residual 搜索：`hir_compat_scaffold`、`llvm_residual_pass_view`、`EffectLoweredStageOutput`、`MaterializedMirPassView`、`EffectFactsStageOutput` 在 LLVM/pipeline handoff 中是否还有生产命中；同时抽查 `LlvmCodegenStageOutput`、`StageEmitInput`、`LirStageOutput` 的公开输入形状。
+4. 如搜索发现不合规 residual，定位并做最小正确修复；修复后补充或调整测试。
+5. 重新运行 `P7-T04` 的验证：`cargo fmt`、`cargo test -p scoopc --no-default-features llvm_codegen_stage`、`cargo test -p scoopc --no-default-features llvm::codegen::effect_lowered::layout`、`cargo run -p scoop_tools -- dependency-gate`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`（至少 30 分钟 timeout）、`cargo clippy --all-targets -- -D warnings`、`git diff --check`。
+6. 若所有验证通过且无未排期失败，将 `P7-T04R` 在 `TODO.md` 与 `TODO-6.md` 标记为 `[DONE]` 并填写完成记录，记录 review 结论、residual 搜索、TypeId wire-format owner 和验证结果。
+7. 检查工作区状态和 diff，提交本任务相关变更，提交信息使用 `[P7-T04R] ...`，然后停止。
 
 ## 进度记录
 
-- 已完成文档/dump 缺口确认：LIR stable dump 已包含 `wire_format=deferred wire_owner=P8 per-cone build artifact serialization`；主要缺口是 README 与 pipeline 文档仍描述为 P7 前 residual。
-- 已同步 `README.md`、`PIPELINE-CLEANUP.md`、`PIPELINE_REFACTOR.md`，把 P7-T04 handoff/physical ABI 合并验证基线与 TypeId wire-format 推迟 owner 记录到文档。
-- P7-T04 指定验证已通过：`cargo fmt`；`cargo test -p scoopc --no-default-features llvm_codegen_stage`；`cargo test -p scoopc --no-default-features llvm::codegen::effect_lowered::layout`；`cargo run -p scoop_tools -- dependency-gate`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`（421/421 passed）；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
-- 已更新 `TODO.md` 与 `TODO-6.md`：`P7-T04` 标记为 `[DONE]`，并填写合并验证、文档/dump 同步、wire-format 推迟决策、residual 搜索和验证记录。
-- 已提交本任务变更：`[P7-T04] Complete LLVM handoff verification`。
-- 本次 invocation 到此停止，不继续执行 `P7-T04R`。
+- 已写入本执行计划，并在写入后开始执行验证。
+- 最近提交为 `[P7-T04] Record final plan status`，未提到与 `P7-T04R` 直接相关的未完成事项。
+- residual 搜索结果：`EffectLoweredStageOutput`、`llvm_residual_pass_view`、`hir_compat_scaffold` 在 LLVM handoff 生产路径无命中；`EffectFactsStageOutput` 命中仅在 P5 `effect_lowering_stage` 输入边界；`MaterializedMirPassView` 仍在 `LlvmStageBaseContext` / `CompilationUnitCodegenCx` base-context residual 出现，应在 review 完成记录中明确归类为 P7-T05/P8 清场继续跟踪而非 P5 wrapper 回退。
+- physical ABI/layout 搜索结果：`effect_lowered/layout` 生产命中为 `LirFacts.physical_layout.class_vtables/class_itables` 字段读取；HIR side-table 名称命中只在 layout tests 的空表注入或普通 `interfaces` 文本，未发现 `crate::hir::mangle_nominal_fqn` 生产残留。
+- P7-T04R 指定验证已通过：`cargo fmt`；`cargo test -p scoopc --no-default-features llvm_codegen_stage`；`cargo test -p scoopc --no-default-features llvm::codegen::effect_lowered::layout`；`cargo run -p scoop_tools -- dependency-gate`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`（421/421 passed）；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
+- 已更新 `TODO.md` 与 `TODO-6.md`：`P7-T04R` 标记为 `[DONE]`，完成记录写入 review 结论、residual 搜索分类、TypeId wire-format owner 和验证结果。

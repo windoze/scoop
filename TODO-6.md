@@ -4,7 +4,7 @@
 > 细化时间：2026-05-22
 > 计划基线：[`PLAN.md`](./PLAN.md) §4/P6-P8
 > 索引：[`TODO.md`](./TODO.md)
-> 当前状态：`P7-T04-a` / `P7-T04-b-1` / `P7-T04-b-1R` / `P7-T04-b-2` / `P7-T04-b-2R` / `P7-T04-b-3` / `P7-T04-b-3R` / `P7-T04-b-4` / `P7-T04-b-4R` / `P7-T04-b-5` / `P7-T04-b-5R` / `P7-T04-b` / `P7-T04-bR` / `P7-T04-c` / `P7-T04-cR` / `P7-T04` 均已完成。LLVM stage handoff 已收窄为 `LIR + LIR facts + LlvmStageBaseContext`，`LirStageOutput` 不再携带 backend residual；physical ABI/layout 查询面已迁到 LIR facts，`TypeId` wire-format 推迟决策已在 stable dump 与文档中冻结；下一步执行 `P7-T04R` review。
+> 当前状态：`P7-T04-a` / `P7-T04-b-1` / `P7-T04-b-1R` / `P7-T04-b-2` / `P7-T04-b-2R` / `P7-T04-b-3` / `P7-T04-b-3R` / `P7-T04-b-4` / `P7-T04-b-4R` / `P7-T04-b-5` / `P7-T04-b-5R` / `P7-T04-b` / `P7-T04-bR` / `P7-T04-c` / `P7-T04-cR` / `P7-T04` / `P7-T04R` 均已完成。LLVM stage handoff 已收窄为 `LIR + LIR facts + LlvmStageBaseContext`，`LirStageOutput` 不再携带 backend residual；physical ABI/layout 查询面已迁到 LIR facts，`TypeId` wire-format 推迟决策已在 stable dump 与文档中冻结；下一步执行 `P7-T05` P7 全包清场。
 
 ## 范围
 
@@ -1129,7 +1129,7 @@
   - residual 搜索结论：`crates/scoopc/src/pipeline` 与 `crates/scoopc/src/llvm` 中 `llvm_residual_pass_view` / `hir_compat_scaffold` / `EffectLoweredStageOutput` 无生产命中；`crates/scoopc/src/llvm/codegen/effect_lowered` 中 `class_inits` / `class_vtables` / `interfaces` / `class_itables` / `enum_layouts` / `crate::hir::mangle_nominal_fqn` 命中仅为 LIR physical layout facts 字段、测试 helper 名称或普通 `interfaces` 文本，未发现 physical ABI/layout 回读 HIR scaffold。
   - 验证通过：`cargo fmt`；`cargo test -p scoopc --no-default-features llvm_codegen_stage`（0 filtered-in，pass）；`cargo test -p scoopc --no-default-features llvm::codegen::effect_lowered::layout`（0 filtered-in，pass）；`cargo run -p scoop_tools -- dependency-gate`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`（421/421 passed）；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
 
-## [TODO] P7-T04R：Review LLVM stage handoff 与 physical ABI cleanup
+## [DONE] P7-T04R：Review LLVM stage handoff 与 physical ABI cleanup
 
 - 参考：P7-T04。
 - 重点：
@@ -1144,7 +1144,11 @@
   - review 结论明确写出 LLVM backend 输入边界已收口，或列出阻塞项并在本 review 内修复。
 - 依赖：P7-T04
 - 完成记录：
-  - 待填写。
+  - Review 结论：`P7-T04` 的 LLVM backend 输入边界已按本阶段目标收口。`LlvmCodegenStageOutput` / `StageEmitInput` 的公开 handoff 是 `LIR + LIR facts + LlvmStageBaseContext`，未重新传播 `EffectLoweredStageOutput`、`LoweredHir` 或 `HirFacts` wrapper；`LirStageOutput` 保持纯 `LateLoweredProgram + LirFacts`，未恢复 LLVM-only residual accessor。
+  - handoff residual 搜索：`hir_compat_scaffold`、`llvm_residual_pass_view`、`EffectLoweredStageOutput` 在 LLVM/pipeline handoff 生产路径无命中；`EffectFactsStageOutput` 命中仅位于 P5 `effect_lowering_stage` 的显式输入边界，不作为 LLVM handoff wrapper 传播；`MaterializedMirPassView` 命中仍限于 `LlvmStageBaseContext::materialized_pass_view` 与 `CompilationUnitCodegenCx` base-context residual，归属后续 `P7-T05`/`P8` 清场防回退，不是 `LirStageOutput` hidden residual 或 P5 wrapper 回传。
+  - physical ABI/layout 复审：`effect_lowered/layout` 中 `class_vtables` / `class_itables` 的生产命中读取 `LirFacts.physical_layout` 字段；`class_inits` / `class_vtables` / `interfaces` / `class_itables` / `enum_layouts` 其余命中为 layout tests 注入空 HIR physical tables 或普通 `interfaces` 文本，未发现 `crate::hir::mangle_nominal_fqn` 生产残留，physical ABI/layout 仍只把 LIR facts/type context 映射成 LLVM-private layout。
+  - TypeStore bridge 复审：`LlvmStageBaseContext::verify_lir_type_context` 与 `verify_lir_type_store_owner` 继续校验 primary/ABI visibility TypeStore owner；`TypeId` cross-process stable wire format 已在 `LirFacts.type_context` / stable dump / 文档中显式推迟到 P8 per-cone build artifact serialization，P7 同进程 LLVM handoff 不持久化 `TypeId`。
+  - 验证通过：`cargo fmt`；`cargo test -p scoopc --no-default-features llvm_codegen_stage`（0 filtered-in，pass）；`cargo test -p scoopc --no-default-features llvm::codegen::effect_lowered::layout`（0 filtered-in，pass）；`cargo run -p scoop_tools -- dependency-gate`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`（421/421 passed）；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
 
 ## [TODO] P7-T05：P7 全包清场、文档同步与依赖审计
 
