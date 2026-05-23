@@ -374,7 +374,7 @@
   - vtable/itable 归属：`vtable.rs` 与 `itable.rs` 只存在于 `crates/scoopc_hir/src/`，由 HIR lowering/typecheck 前端路径收集并发布表数据；LLVM backend 仍只消费该前端产物，不拥有 vtable/itable 构建逻辑。
   - 验证通过：`cargo fmt`；`cargo build --workspace`；`cargo test --all --all-targets`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`；`cargo run -p scoop_tools -- dependency-gate`；`cargo clippy --all-targets -- -D warnings`；`cargo tree -p scoopc_hir`；`git diff --check`。
 
-### [TODO] P9-T05：抽出 `scoopc_mir` crate
+### [DONE] P9-T05：抽出 `scoopc_mir` crate
 
 - 参考：本文件"跨切面 helper 的归属决策"。
 - 目标：
@@ -400,6 +400,12 @@
   - `cargo tree -p scoopc_mir` 不显示 `scoopc_effect_*` / `scoopc_lir` / `scoopc_codegen_llvm`；
   - MIR pass pipeline 在新 crate 下行为不变。
 - 依赖：P9-T04R
+- 完成记录：
+  - 2026-05-24：新建 `crates/scoopc_mir` 并把 `mir/`、`monomorph/`、`rtti/` 迁入该 crate；`scoopc` umbrella 改为 façade re-export `scoopc_mir::{mir, monomorph, rtti, stable_id}`，工作区注册新 crate，`scoopc` 的 `llvm` feature 同步传递到 `scoopc_mir/llvm`。
+  - HIR facts 构建面从 umbrella pipeline 下沉到 `scoopc_hir::stage`，删除 `scoopc/src/pipeline/{hir_stage,hir_completeness}.rs` 的旧实际定义，消除 `scoopc_mir -> scoopc` 后向边；`pipeline/mir_stage.rs` 与现有 effect/LIR/codegen 消费面改为跨 crate 可见的 MIR 查询 API。
+  - MIR-owned pass pipeline、dispatch devirtualization、escape analysis、inlining、materialized pass view、RTTI/type descriptor helper 均随 `scoopc_mir` 编译；RTTI 运行期算法/descriptor 生成留在 `scoopc_mir::rtti`，纯 facts schema 未迁出 `scoopc_hir_facts`；shared stable key 与 ABI/private mangler primitive 继续由 `scoopc_ids` 拥有，`scoopc_mir::stable_id` 作为 MIR-facing symbol facade 暴露当前 materialization/codegen 所需 surface，避免后续 codegen 直接依赖 HIR stable-id façade。
+  - `dependency_gate` 激活 `scoopc_mir` stage 检查：允许 base + `scoopc_ast` + `scoopc_hir` + `scoopc_hir_facts` + `scoopc_mir_facts`，禁止 façade/effect/LIR/codegen 后向依赖；`cargo tree -p scoopc_mir` 未显示 `scoopc_effect_*`、`scoopc_lir` 或 `scoopc_codegen_llvm`。
+  - 验证通过：`cargo fmt`；`cargo build --workspace`；`cargo test --all --all-targets`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`；`cargo run -p scoop_tools -- dependency-gate`；`cargo clippy --all-targets -- -D warnings`；`cargo tree -p scoopc_mir`；`git diff --check`。
 
 ### [TODO] P9-T05R：Review `scoopc_mir` 抽取
 

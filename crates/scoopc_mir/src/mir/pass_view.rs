@@ -44,14 +44,14 @@ pub struct MaterializedMirPassArtifacts {
 
 /// Stable record of one MIR pass scheduled by the explicit pass pipeline.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct MaterializedMirPassRunRecord {
-    pub(crate) pass: MirPassKind,
-    pub(crate) enabled: bool,
-    pub(crate) input_revision: u32,
-    pub(crate) output_revision: Option<u32>,
-    pub(crate) changed_bodies: usize,
-    pub(crate) changed_summaries: usize,
-    pub(crate) produced_escape_facts: bool,
+pub struct MaterializedMirPassRunRecord {
+    pub pass: MirPassKind,
+    pub enabled: bool,
+    pub input_revision: u32,
+    pub output_revision: Option<u32>,
+    pub changed_bodies: usize,
+    pub changed_summaries: usize,
+    pub produced_escape_facts: bool,
 }
 
 impl MaterializedMirPassRunRecord {
@@ -222,19 +222,19 @@ impl MaterializedMirPassArtifacts {
         &self.instance_keys
     }
 
-    pub(crate) fn overridden_body_fqns(&self) -> impl Iterator<Item = &str> + '_ {
+    pub fn overridden_body_fqns(&self) -> impl Iterator<Item = &str> + '_ {
         self.overridden_body_fqns.iter().map(String::as_str)
     }
 
-    pub(crate) fn body_override_revision(&self, fqn: &str) -> Option<u32> {
+    pub fn body_override_revision(&self, fqn: &str) -> Option<u32> {
         self.body_override_revisions.get(fqn).copied()
     }
 
-    pub(crate) fn overridden_summary_instances(&self) -> impl Iterator<Item = &InstanceKey> + '_ {
+    pub fn overridden_summary_instances(&self) -> impl Iterator<Item = &InstanceKey> + '_ {
         self.overridden_summary_instances.iter()
     }
 
-    pub(crate) fn summary_override_revision(&self, key: &InstanceKey) -> Option<u32> {
+    pub fn summary_override_revision(&self, key: &InstanceKey) -> Option<u32> {
         self.summary_override_revisions.get(key).copied()
     }
 
@@ -255,7 +255,7 @@ impl MaterializedMirPassArtifacts {
         &self.escape_facts
     }
 
-    pub(crate) fn escape_facts_revision(&self) -> Option<u32> {
+    pub fn escape_facts_revision(&self) -> Option<u32> {
         self.escape_facts_revision
     }
 
@@ -271,7 +271,7 @@ impl MaterializedMirPassArtifacts {
         self.pipeline_runs.push(record);
     }
 
-    pub(crate) fn pipeline_runs(&self) -> &[MaterializedMirPassRunRecord] {
+    pub fn pipeline_runs(&self) -> &[MaterializedMirPassRunRecord] {
         &self.pipeline_runs
     }
 

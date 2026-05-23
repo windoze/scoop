@@ -543,8 +543,39 @@ pub(super) fn collect_callable_body_infos(
 }
 
 pub(super) fn load_dump_support_sources(session: &Session) -> MaterializeResult<Vec<SourceFile>> {
-    crate::frontend::load_default_support_sources(session.options())
-        .map_err(|error| frontend_err(format!("dump-ir 无法加载默认 support sources：{error}")))
+    use miette::{Context as _, IntoDiagnostic as _};
+
+    let mut support_paths: Vec<(PathBuf, bool)> = Vec::new();
+    let sysroot_root = crate::sysroot::Sysroot::default_path()
+        .canonicalize()
+        .into_diagnostic()
+        .wrap_err("无法定位 sysroot 目录（T0143）")
+        .map_err(|error| frontend_err(format!("dump-ir 无法加载默认 support sources：{error}")))?;
+    let sysroot_entries = crate::sysroot::collect_auto_sysroot_source_entries(
+        &sysroot_root,
+        session.options().sysroot_overlay(),
+        session.options().extra_sysroot_dependencies(),
+    )
+    .map_err(|error| frontend_err(format!("dump-ir 无法加载默认 support sources：{error}")))?;
+
+    support_paths.extend(
+        sysroot_entries
+            .into_iter()
+            .map(|entry| (entry.path, entry.trusted_syslib)),
+    );
+    support_paths.sort_by(|(lhs, _), (rhs, _)| lhs.cmp(rhs));
+
+    let mut out = Vec::with_capacity(support_paths.len());
+    for (path, trusted_syslib) in support_paths {
+        let source = if trusted_syslib {
+            SourceFile::load_trusted_syslib(&path)
+        } else {
+            SourceFile::load_sysroot(&path)
+        }
+        .map_err(|error| frontend_err(format!("dump-ir 无法加载默认 support sources：{error}")))?;
+        out.push(source);
+    }
+    Ok(out)
 }
 
 pub(super) fn package_prefix(source: &SourceFile, package: Option<&ast::PackageDecl>) -> String {

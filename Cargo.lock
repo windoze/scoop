@@ -687,6 +687,7 @@ dependencies = [
  "scoopc_hir_facts",
  "scoopc_ids",
  "scoopc_lir_facts",
+ "scoopc_mir",
  "scoopc_mir_facts",
  "scoopc_project_model",
  "scoopc_source",
@@ -770,6 +771,26 @@ dependencies = [
  "scoopc_ids",
  "scoopc_project_model",
  "scoopc_types",
+]
+
+[[package]]
+name = "scoopc_mir"
+version = "0.1.0"
+dependencies = [
+ "miette",
+ "scoopc_ast",
+ "scoopc_hir",
+ "scoopc_hir_facts",
+ "scoopc_ids",
+ "scoopc_mir_facts",
+ "scoopc_project_model",
+ "scoopc_source",
+ "scoopc_span",
+ "scoopc_types",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "tracing",
 ]
 
 [[package]]

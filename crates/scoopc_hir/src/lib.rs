@@ -51,8 +51,11 @@ pub mod monomorph;
 pub mod resolve;
 pub mod session;
 pub mod stable_id;
+pub mod stage;
 pub mod sysroot;
 pub mod target;
 pub mod typecheck;
 pub mod vtable;
 pub mod warnings;
+
+pub(crate) mod hir_completeness;

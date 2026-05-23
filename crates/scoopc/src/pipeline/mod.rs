@@ -6,12 +6,10 @@
 mod ast_stage;
 mod effect_facts_stage;
 mod effect_lowering_stage;
-mod hir_completeness;
 #[cfg(test)]
 mod hir_golden_tests;
 #[cfg(test)]
 mod hir_preflight;
-mod hir_stage;
 #[cfg(test)]
 mod hir_via_mir_tests;
 pub(crate) mod lir_facts_builder;
@@ -28,21 +26,13 @@ pub use effect_facts_stage::EffectFactsStageOutput;
 #[cfg(all(feature = "llvm", test))]
 pub(crate) use effect_lowering_stage::build_lir_stage_output_from_stage_outputs;
 pub use effect_lowering_stage::{EffectLoweringStageInput, LirStageOutput};
-pub use hir_stage::HirStageOutput;
-pub(crate) use hir_stage::build_hir_declaration_facts_from_lowered_hir;
-pub(crate) use hir_stage::build_hir_facts_from_lowered_hir;
-pub(crate) use hir_stage::{
-    CallArgBindingContract, CallArgElementContract, CallArgParamContract,
-    ConstructorCallTargetContract, ContinuationResumeReceiverRoute, ExternGlobalContract,
-    FunctionTargetContract, MemberCallTargetContract, TopLevelInitDependency,
-    TopLevelInitDependencyKind, TopLevelInitRootContract, TopLevelInitRootKind,
-    TypedCallSiteContract, TypedIntrinsicKind,
-};
 #[cfg(feature = "llvm")]
 pub(crate) use llvm_codegen_stage::{LlvmCallableSourceContract, LlvmDispatchCallKey};
 #[cfg(feature = "llvm")]
 pub use llvm_codegen_stage::{LlvmCodegenStageInput, LlvmCodegenStageOutput, LlvmStageBaseContext};
 pub use mir_stage::{DirectStyleMirStageOutput, MirStageOutput};
+pub use scoopc_hir::stage::HirStageOutput;
+pub(crate) use scoopc_hir::stage::build_hir_declaration_facts_from_lowered_hir;
 
 #[cfg(feature = "llvm")]
 use crate::opt::OptLevel;
@@ -76,7 +66,7 @@ pub fn load_hir_stage_output_for_dump(
     session: &Session,
     source: &SourceFile,
 ) -> Result<HirStageOutput, crate::hir::HirLowerError> {
-    hir_stage::run(session, source)
+    scoopc_hir::stage::run(session, source)
 }
 
 pub fn lower_typed_hir_for_dump(

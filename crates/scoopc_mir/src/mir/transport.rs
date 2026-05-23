@@ -80,7 +80,7 @@ impl ValueTransportMetadata {
 /// `Option<T>` must follow the same physical layout choice used by type/layout/codegen:
 /// tagged-union fallback always carries a GC pointer slot, while niche-optimized `Option<Bool>`
 /// stays scalar and must not claim traceability.
-pub(crate) fn mir_transport_trace_requirement_for_type(types: &TypeStore, ty: TypeId) -> bool {
+pub fn mir_transport_trace_requirement_for_type(types: &TypeStore, ty: TypeId) -> bool {
     match types.kind(ty) {
         TypeKind::Ref(_) | TypeKind::Param(_) | TypeKind::StarProjection(_) => true,
         TypeKind::Value(ValueTypeKind::Option(inner)) => {

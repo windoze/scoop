@@ -16,9 +16,9 @@ use super::{
     Operand, Rvalue, StatementKind,
 };
 
-pub(crate) type KnownReceiverSubclassIndex = HashSet<String>;
+pub type KnownReceiverSubclassIndex = HashSet<String>;
 
-pub(crate) fn collect_known_receiver_subclasses(
+pub fn collect_known_receiver_subclasses(
     direct_supertypes: &hir::DirectSupertypesIndex,
 ) -> KnownReceiverSubclassIndex {
     let mut out = HashSet::new();
@@ -38,7 +38,7 @@ struct DispatchTargetFacts<'a> {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub(crate) struct DispatchDevirtualizationTargetKey {
+pub struct DispatchDevirtualizationTargetKey {
     caller_fqn: String,
     block: BasicBlockId,
     span: Span,
@@ -46,7 +46,7 @@ pub(crate) struct DispatchDevirtualizationTargetKey {
 }
 
 impl DispatchDevirtualizationTargetKey {
-    pub(crate) fn new(
+    pub fn new(
         caller_fqn: impl Into<String>,
         block: BasicBlockId,
         span: Span,
@@ -62,7 +62,7 @@ impl DispatchDevirtualizationTargetKey {
 }
 
 #[derive(Debug, Clone, Default)]
-pub(crate) struct DispatchDevirtualizationFacts {
+pub struct DispatchDevirtualizationFacts {
     known_receiver_subclasses: KnownReceiverSubclassIndex,
     class_vtables: crate::vtable::ClassVtableIndex,
     interfaces: crate::itable::InterfaceIndex,
@@ -72,7 +72,7 @@ pub(crate) struct DispatchDevirtualizationFacts {
 }
 
 impl DispatchDevirtualizationFacts {
-    pub(crate) fn new(
+    pub fn new(
         known_receiver_subclasses: KnownReceiverSubclassIndex,
         class_vtables: crate::vtable::ClassVtableIndex,
         interfaces: crate::itable::InterfaceIndex,
@@ -123,7 +123,7 @@ impl DispatchDevirtualizationFacts {
         )
     }
 
-    pub(crate) fn virtual_method_slot(
+    pub fn virtual_method_slot(
         &self,
         dispatch: &DispatchMetadata,
         explicit_arg_count: usize,
@@ -139,7 +139,7 @@ impl DispatchDevirtualizationFacts {
         candidates.next().is_none().then_some(first.slot)
     }
 
-    pub(crate) fn interface_method_slot(
+    pub fn interface_method_slot(
         &self,
         dispatch: &DispatchMetadata,
         explicit_arg_count: usize,

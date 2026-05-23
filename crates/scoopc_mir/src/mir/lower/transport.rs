@@ -147,7 +147,7 @@ pub(in crate::mir::lower) fn lower_initializer_root_kind(
 }
 
 pub(in crate::mir::lower) fn lower_initializer_dependency(
-    dependency: &crate::pipeline::TopLevelInitDependency,
+    dependency: &TopLevelInitDependency,
 ) -> InitializerDependency {
     InitializerDependency {
         fqn: dependency.fqn().to_string(),

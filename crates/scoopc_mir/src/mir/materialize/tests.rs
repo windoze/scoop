@@ -2417,7 +2417,7 @@ return a + box.get()
 
     let builtins = lowered_hir.types.intern_builtins();
     let hir_facts =
-        crate::pipeline::build_hir_facts_from_lowered_hir(&lowered_hir, source.path()).unwrap();
+        scoopc_hir::stage::build_hir_facts_from_lowered_hir(&lowered_hir, source.path()).unwrap();
     let facts = MirLoweringFacts::from_hir_facts(&lowered_hir, &hir_facts);
     let generic_file = lower_hir_file_for_dump_with_facts(
         builtins,
@@ -2913,7 +2913,7 @@ return 0
     let class_itables = lowered_hir.class_itables.clone();
     let builtins = lowered_hir.types.intern_builtins();
     let hir_facts =
-        crate::pipeline::build_hir_facts_from_lowered_hir(&lowered_hir, source_path.as_path())
+        scoopc_hir::stage::build_hir_facts_from_lowered_hir(&lowered_hir, source_path.as_path())
             .unwrap();
     let facts = MirLoweringFacts::from_hir_facts(&lowered_hir, &hir_facts);
     let mut generic_file = lower_hir_file_for_dump_with_facts(
@@ -3906,7 +3906,7 @@ println(holder.node.tag.score)
     let class_itables = lowered_hir.class_itables.clone();
     let builtins = lowered_hir.types.intern_builtins();
     let hir_facts =
-        crate::pipeline::build_hir_facts_from_lowered_hir(&lowered_hir, source.path()).unwrap();
+        scoopc_hir::stage::build_hir_facts_from_lowered_hir(&lowered_hir, source.path()).unwrap();
     let facts = MirLoweringFacts::from_hir_facts(&lowered_hir, &hir_facts);
     let generic_file = lower_hir_file_for_dump_with_facts(
         builtins,
@@ -4360,7 +4360,7 @@ return read(ints) + read(texts)
     let class_itables = lowered_hir.class_itables.clone();
     let builtins = lowered_hir.types.intern_builtins();
     let hir_facts =
-        crate::pipeline::build_hir_facts_from_lowered_hir(&lowered_hir, source.path()).unwrap();
+        scoopc_hir::stage::build_hir_facts_from_lowered_hir(&lowered_hir, source.path()).unwrap();
     let facts = MirLoweringFacts::from_hir_facts(&lowered_hir, &hir_facts);
     let generic_file = lower_hir_file_for_dump_with_facts(
         builtins,

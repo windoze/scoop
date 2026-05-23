@@ -5,7 +5,7 @@
 use super::*;
 
 impl MirLoweringFacts {
-    pub(crate) fn from_hir_facts(lowered: &hir::LoweredHir, hir_facts: &HirFacts) -> Self {
+    pub fn from_hir_facts(lowered: &hir::LoweredHir, hir_facts: &HirFacts) -> Self {
         let mut facts = Self::default();
         facts = facts
             .with_source_site_facts(hir_facts)

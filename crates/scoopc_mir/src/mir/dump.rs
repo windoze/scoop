@@ -27,13 +27,13 @@ use super::{
     TypeMetadataLiteral, UnwindAction, ValueTransportMetadata,
 };
 
-pub(crate) fn stable_dump_file(file: &File, types: &TypeStore) -> String {
+pub fn stable_dump_file(file: &File, types: &TypeStore) -> String {
     let mut renderer = MirDumpRenderer::new(types);
     renderer.render_file(file);
     renderer.finish()
 }
 
-pub(crate) fn stable_dump_materialized(materialized: &MaterializedMir) -> String {
+pub fn stable_dump_materialized(materialized: &MaterializedMir) -> String {
     let mut renderer = MirDumpRenderer::new(&materialized.types);
     renderer.line("MaterializedMir {");
     renderer.out.push_indent();
@@ -75,22 +75,22 @@ struct MirDumpRenderer<'a> {
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
-pub(crate) struct BodyLabels {
+pub struct BodyLabels {
     locals: Vec<String>,
     blocks: Vec<String>,
     sites: HashMap<SiteId, String>,
 }
 
 impl BodyLabels {
-    pub(crate) fn local_label(&self, local: LocalId) -> String {
+    pub fn local_label(&self, local: LocalId) -> String {
         self.locals[local.as_u32() as usize].clone()
     }
 
-    pub(crate) fn block_label(&self, block: BasicBlockId) -> String {
+    pub fn block_label(&self, block: BasicBlockId) -> String {
         self.blocks[block.as_u32() as usize].clone()
     }
 
-    pub(crate) fn site_label(&self, site: SiteId) -> String {
+    pub fn site_label(&self, site: SiteId) -> String {
         self.sites
             .get(&site)
             .cloned()
@@ -98,11 +98,7 @@ impl BodyLabels {
     }
 }
 
-pub(crate) fn build_body_labels_for_dump(
-    owner: &str,
-    body: &Body,
-    types: &TypeStore,
-) -> BodyLabels {
+pub fn build_body_labels_for_dump(owner: &str, body: &Body, types: &TypeStore) -> BodyLabels {
     MirDumpRenderer::new(types).build_body_labels(owner, body)
 }
 

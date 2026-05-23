@@ -206,7 +206,7 @@ impl<'a> FnLowering<'a> {
         &mut self,
         span: Span,
         result: LocalId,
-        ctor: &crate::pipeline::ConstructorCallTargetContract,
+        ctor: &ConstructorCallTargetContract,
         args: &[hir::CallArg],
     ) {
         let Some(args) = self.lower_call_args(args) else {

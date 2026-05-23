@@ -255,7 +255,7 @@ fn scan_hir_handoff_placeholders(manifest_dir: &Path, observed: &mut BTreeSet<Pl
 
 fn assert_pipeline_has_no_placeholder_constructors() {
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    let pipeline_dir = manifest_dir.join("src/pipeline");
+    let pipeline_dir = manifest_dir.join("../scoopc/src/pipeline");
     let mut files = Vec::new();
     collect_rust_files(&pipeline_dir, &mut files);
 

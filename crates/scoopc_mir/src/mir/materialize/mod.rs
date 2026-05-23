@@ -135,19 +135,19 @@ impl MaterializedMir {
         &self.stable_instance_keys
     }
 
-    pub(crate) fn top_level_value_tys(&self) -> &HashMap<String, TypeId> {
+    pub fn top_level_value_tys(&self) -> &HashMap<String, TypeId> {
         &self.top_level_value_tys
     }
 
-    pub(crate) fn dispatch_devirtualization_facts(&self) -> &super::DispatchDevirtualizationFacts {
+    pub fn dispatch_devirtualization_facts(&self) -> &super::DispatchDevirtualizationFacts {
         &self.dispatch_devirtualization_facts
     }
 
-    pub(crate) fn backend_contracts(&self) -> &MaterializedBackendContracts {
+    pub fn backend_contracts(&self) -> &MaterializedBackendContracts {
         &self.backend_contracts
     }
 
-    pub(crate) fn stable_cone_key(&self) -> &StableConeKey {
+    pub fn stable_cone_key(&self) -> &StableConeKey {
         &self.stable_cone_key
     }
 
@@ -210,11 +210,11 @@ impl MaterializedMir {
     /// 这些 body 现在会在 materialization 结束时同步发布到 canonical `MaterializedMirPassView`
     /// 的 ordinary callable family 映射里；原始候选列表仍保留，供尚未完全切到 pass-view query
     /// 面的 caller-side pass / 调试路径复用。
-    pub(crate) fn caller_side_pass_candidate_bodies(&self) -> &[FunDecl] {
+    pub fn caller_side_pass_candidate_bodies(&self) -> &[FunDecl] {
         &self.caller_side_pass_candidates
     }
 
-    pub(crate) fn source_callable_signatures(&self) -> &[MaterializedCallableSignature] {
+    pub fn source_callable_signatures(&self) -> &[MaterializedCallableSignature] {
         &self.source_callable_signatures
     }
 }

@@ -241,7 +241,7 @@ fn summary_to_instance(summary: &PendingSummary) -> InstanceSummary {
 /// 单个 body 的局部分析无法重新求解整个 pass view 的跨函数 outward-effect fixed point，
 /// 因此这里保留上一版 summary 的 outward-effect / recursion 上界，避免 rewritten summary
 /// 因少看了仍存在的 callee 而变得不安全。
-pub(crate) fn summarize_pass_rewritten_fun(
+pub fn summarize_pass_rewritten_fun(
     fun: &FunDecl,
     types: &TypeStore,
     previous: Option<&InstanceSummary>,

@@ -44,11 +44,11 @@ use crate::ty::{EffectRow, RefTypeKind, TypeId, TypeKind, TypeStore};
 
 pub(crate) use callables::{MaterializedCallableFamilies, MaterializedCallableFamilyInput};
 pub use callables::{MaterializedCallableFamilyView, MaterializedCallableView};
-pub(crate) use dispatch_devirtualize::{
+pub use dispatch_devirtualize::{
     DispatchDevirtualizationFacts, DispatchDevirtualizationTargetKey, KnownReceiverSubclassIndex,
     collect_known_receiver_subclasses,
 };
-pub(crate) use dump::{
+pub use dump::{
     BodyLabels, build_body_labels_for_dump, stable_dump_file, stable_dump_materialized,
 };
 pub use escape::{
@@ -56,26 +56,26 @@ pub use escape::{
     MaterializedEscapeFacts,
 };
 pub use lower::{LoweredMir, MirLowerError, lower_for_dump};
-pub(crate) use lower::{MirLoweringFacts, lower_hir_file_for_dump_with_facts};
+pub use lower::{MirLoweringFacts, lower_hir_file_for_dump_with_facts};
 pub use materialize::{
     MaterializedMir, MirMaterializeError, materialize_for_dump, materialize_for_dump_with_opt_level,
 };
-pub(crate) use pass_view::MaterializedMirPassRunRecord;
+pub use pass_view::MaterializedMirPassRunRecord;
 pub use pass_view::{
     MaterializedMirPassArtifacts, MaterializedMirPassView, MaterializedPassCallableFamilyView,
     MaterializedPassCallableView,
 };
 pub use scoopc_ids::{InstanceKey, SiteId, TemplateKey};
+pub use summary::summarize_pass_rewritten_fun;
 pub(crate) use summary::{
     DeclOnlySummaryInput, InstanceRootSummaryInput, build_materialized_summary_table,
-    summarize_pass_rewritten_fun,
 };
 pub use summary::{
     InstanceSummary, MaterializedMirSummaries, ParamUseSummary, ResultProvenance,
     ResultProvenanceSource,
 };
 #[cfg(feature = "llvm")]
-pub(crate) use transport::mir_transport_trace_requirement_for_type;
+pub use transport::mir_transport_trace_requirement_for_type;
 pub use transport::{
     AggregateTransportField, AggregateTransportKind, AggregateTransportMetadata,
     ArrayElementTransportMetadata, ArrayTransportOperation, CallAbiHandoffMetadata,
@@ -94,7 +94,7 @@ pub enum MaterializeRequestRootMode<'a> {
     EntryMain { fqn: Option<&'a str> },
 }
 
-pub(crate) struct MaterializeCompilationUnitOptions<'a> {
+pub struct MaterializeCompilationUnitOptions<'a> {
     pub stable_cone_key: StableConeKey,
     pub source_cones: &'a HashMap<PathBuf, crate::cone::SourceConeInfo>,
     pub request_source_paths: &'a [std::path::PathBuf],
@@ -104,7 +104,7 @@ pub(crate) struct MaterializeCompilationUnitOptions<'a> {
 
 /// 为编译单元 frontend/build 路径暴露可复用的 MIR materialization 入口。
 #[cfg(test)]
-pub(crate) fn materialize_compilation_unit_from_typechecked_inputs(
+pub fn materialize_compilation_unit_from_typechecked_inputs(
     compilation_unit: &[(&crate::source::SourceFile, &crate::ast::File)],
     request_source_paths: &[std::path::PathBuf],
     index: &crate::resolve::Index,
@@ -137,7 +137,7 @@ pub(crate) fn materialize_compilation_unit_from_typechecked_inputs(
     )
 }
 
-pub(crate) fn materialize_compilation_unit_from_typechecked_inputs_with_opt_level(
+pub fn materialize_compilation_unit_from_typechecked_inputs_with_opt_level(
     compilation_unit: &[(&crate::source::SourceFile, &crate::ast::File)],
     request_source_paths: &[std::path::PathBuf],
     index: &crate::resolve::Index,
@@ -171,7 +171,7 @@ pub(crate) fn materialize_compilation_unit_from_typechecked_inputs_with_opt_leve
     )
 }
 
-pub(crate) fn materialize_compilation_unit_from_typechecked_inputs_with_options(
+pub fn materialize_compilation_unit_from_typechecked_inputs_with_options(
     compilation_unit: &[(&crate::source::SourceFile, &crate::ast::File)],
     index: &crate::resolve::Index,
     type_env: Option<&crate::typecheck::TypeEnv>,
@@ -1767,7 +1767,7 @@ pub struct Param {
 pub struct BasicBlockId(u32);
 
 impl BasicBlockId {
-    pub(crate) const fn from_raw(raw: u32) -> Self {
+    pub const fn from_raw(raw: u32) -> Self {
         Self(raw)
     }
 
@@ -1791,7 +1791,7 @@ impl fmt::Debug for BasicBlockId {
 pub struct LocalId(u32);
 
 impl LocalId {
-    pub(crate) const fn from_raw(raw: u32) -> Self {
+    pub const fn from_raw(raw: u32) -> Self {
         Self(raw)
     }
 

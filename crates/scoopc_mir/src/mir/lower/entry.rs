@@ -64,7 +64,7 @@ pub(in crate::mir::lower) fn top_level_binding_matches_callee(
 /// 1) parse/resolve 源文件并降到正式 HIR stage output；
 /// 2) 从 `HirFacts` 构造 MIR lowering facts，并生成显式 CFG。
 pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredMir, MirLowerError> {
-    let hir_output = crate::pipeline::load_hir_stage_output_for_dump(session, source)?;
+    let hir_output = scoopc_hir::stage::run(session, source)?;
     let facts = MirLoweringFacts::from_hir_facts(hir_output.lowered_hir(), hir_output.hir_facts());
     let mut lowered_hir = hir_output.into_lowered_hir();
     let builtins = lowered_hir.types.intern_builtins();
@@ -88,7 +88,7 @@ pub fn lower_for_dump(session: &Session, source: &SourceFile) -> Result<LoweredM
 /// - 调用方需要确保 `hir_file` 中的 `TypeId` 与 `types` 来自同一个 `TypeStore`；
 /// - `facts` 负责把 `Continuation.resume`、virtual/interface dispatch 等已确认语义
 ///   从 HIR/typecheck side table 收口为 MIR lowering 可直接消费的最小输入。
-pub(crate) fn lower_hir_file_for_dump_with_facts(
+pub fn lower_hir_file_for_dump_with_facts(
     builtins: BuiltinTypes,
     types: &mut TypeStore,
     hir_file: &hir::File,

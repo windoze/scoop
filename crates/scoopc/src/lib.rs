@@ -68,17 +68,17 @@ pub(crate) mod intrinsics {
     pub(crate) use scoopc_hir::intrinsics::*;
 }
 pub use scoopc_hir::itable;
-pub mod mir;
-pub mod monomorph;
+pub use scoopc_mir::mir;
+pub use scoopc_mir::monomorph;
 pub mod opt;
 pub use scoopc_ast::parser;
 pub mod pipeline;
 pub use scoopc_hir::resolve;
-pub mod rtti;
 pub use scoopc_hir::session;
+pub use scoopc_mir::rtti;
 pub mod source;
 pub mod span;
-pub use scoopc_hir::stable_id;
+pub use scoopc_mir::stable_id;
 #[path = "../../scoopc_codegen_llvm/src/stackmap.rs"]
 pub mod stackmap;
 pub use scoopc_ast::syntax;

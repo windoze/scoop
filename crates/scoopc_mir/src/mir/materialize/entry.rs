@@ -123,7 +123,7 @@ pub(crate) fn materialize_compilation_unit_from_typechecked_inputs(
                     .to_string(),
             })
         })?;
-    let hir_facts = crate::pipeline::build_hir_facts_from_lowered_hir(
+    let hir_facts = scoopc_hir::stage::build_hir_facts_from_lowered_hir(
         &lowered_hir,
         default_contract_source_path,
     )

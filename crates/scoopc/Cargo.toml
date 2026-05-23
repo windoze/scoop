@@ -7,12 +7,13 @@ edition.workspace = true
 # 默认启用 LLVM 后端（inkwell）。如需在未安装 LLVM/llvm-config 的环境构建，可使用 `--no-default-features`。
 default = ["llvm"]
 
-llvm = ["dep:inkwell", "dep:llvm-sys"]
+llvm = ["dep:inkwell", "dep:llvm-sys", "scoopc_mir/llvm"]
 
 [dependencies]
 scoopc_ast = { path = "../scoopc_ast" }
 scoopc_hir = { path = "../scoopc_hir" }
 scoopc_ids = { path = "../scoopc_ids" }
+scoopc_mir = { path = "../scoopc_mir" }
 scoopc_effect_facts = { path = "../scoopc_effect_facts" }
 scoopc_hir_facts = { path = "../scoopc_hir_facts" }
 scoopc_lir_facts = { path = "../scoopc_lir_facts" }
