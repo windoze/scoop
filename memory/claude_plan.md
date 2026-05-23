@@ -1,26 +1,30 @@
-# 当前执行计划
+# 执行计划
 
-说明：此文件记录本次调用的可审计执行计划、关键决策和进度更新；不记录隐藏推理细节。
+## 约束说明
+
+- 本文件记录可公开的执行计划、关键决策依据摘要和进度检查点。
+- 不记录私密逐步推理；后续如计划变化或关键步骤完成，会及时更新本文件。
 
 ## 初始计划
 
-1. 读取 `TODO.md`，找到第一个标题未带 `[DONE]` 的任务。
-2. 只检查最新提交中是否有与该任务直接相关的未完成事项。
-3. 阅读该任务引用的文件和相关设计上下文，确认任务边界、依赖与完成条件。
-4. 按任务要求做最小且规格正确的修改，不用 workaround 或临时替代方案。
-5. 运行本任务相关验证；如观察到未排期失败，必须修复或在 TODO 中排入前置任务。
-6. 只把当前任务在 `TODO.md` 和对应任务文件中标记为 `[DONE]`，并更新 completion record。
-7. 运行最终验证，检查 `git diff`、`git status`、最近提交历史，然后只提交本任务相关文件。
-8. 提交后停止，不进入下一项任务。
+1. 读取 `TODO.md`，按文件顺序识别第一个标题未带 `[DONE]` 的任务。
+2. 检查最近提交是否明确提到与该任务直接相关的未完成问题；只在其阻塞当前任务时纳入当前工作或写入 `TODO.md` 作为前置任务。
+3. 阅读当前任务相关的代码、测试、规格或计划上下文，避免做开放式历史问题扫描。
+4. 判断任务是否可直接完成；只有遇到具体阻塞性前置条件时，才最小化更新 `TODO.md` 并停止。
+5. 实现当前任务，优先做最小且完整的规格正确改动，不引入绕路或 fixture-only hack。
+6. 运行任务要求的验证，以及必要的相关测试；如果发现未被明确排期的失败，修复或按规则写入 `TODO.md`。
+7. 更新 `TODO.md`：将完成的任务标题加 `[DONE]`，补充完成记录；仅在阶段级计划变化时更新 `PLAN.md`。
+8. 检查工作区差异，提交本次任务相关的所有未提交改动。
+9. 停止，不继续处理下一项任务。
 
-## 进度日志
+## 当前状态
 
-- 已在运行命令或检查项目文件前写入本执行计划。
-- 读取 `TODO.md` 后确认第一个未完成任务是 `TODO-7-INIT`：初始化并细化 `TODO-7.md` 的 P9-P10 任务包，同步根索引。
-- 最新提交为 `6cc033b7 [P8-T02R] Review final verification readiness`；未发现直接阻塞 `TODO-7-INIT` 的未完成事项。
-- 读取 `TODO-7.md` 后确认详细 P9/P10 任务列表已存在，本轮工作聚焦于完成 INIT：修正剩余范围/索引表述、标记 `[DONE]` 并同步根索引。
-- 已更新 `TODO-7.md` 与 `TODO.md`：将 `TODO-7-INIT` 标记为 `[DONE]`，填写完成依据和风险记录，修正 P10 范围表述，并把 effect facts stage crate 名称统一为设计文档和 dependency gate 中的 `scoopc_effect_facts_stage`。
-- 验证进度：`cargo run -p scoop_tools -- dependency-gate` 通过，`git diff --check` 无空白错误。
-- 验证进度：`cargo clippy --all-targets -- -D warnings` 通过。
-- 验证进度：`cargo test --all --all-targets` 通过（Rust 测试全绿，输出包含 903 个 `scoopc` 测试及其它 crate 单测）。
-- 提交前检查发现未跟踪 `PLUGIN_ABI.md`；该文件非本任务改动，保留在工作区且不纳入本次提交。
+- 已写入初始执行计划。
+- 已读取 `TODO.md`，第一个未完成任务为 `P9-T01`：消除阻塞 stage crate split 的后向边。
+- 已读取 `TODO-7.md` 中 `P9-T01` 的详细要求：迁移 `InstanceKey` / `TemplateKey`、迁移 `ExternAbi`、删除 `devirtualize.rs`，并验证后向边搜索归零。
+- 最近提交为 `[TODO-7-INIT] Detail P9 and P10 task package`，未明确提出阻塞 `P9-T01` 的未完成 issue。
+- 当前工作区存在未跟踪 `PLUGIN_ABI.md`，该文件与当前任务无关，将保持不触碰且不纳入本任务提交。
+- 已按 `P9-T01` 要求检查相关残余导入，发现 `crates/scoopc/src/llvm` 仍有 `use crate::hir`，且 LLVM codegen 路径仍大量通过 `crate::mir` 消费 raw MIR/LIR source-payload 兼容类型。
+- 该问题直接违反 `P9-T01` 的前置验证要求，不能通过改窄搜索或 façade 绕开。
+- 已在 `TODO.md` / `TODO-7.md` 中插入前置任务 `P9-T01-a`，用于先修复 LLVM/HIR-MIR residual baseline；`P9-T01` 依赖已改为 `P9-T01-a`。
+- 下一步验证文档差异并提交本次前置任务登记，然后停止。

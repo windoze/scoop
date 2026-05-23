@@ -136,6 +136,40 @@
 
 将 PLAN.md §1.2 要求的 stage / fact crate DAG 用 cargo crate 边界硬化。
 
+### [TODO] P9-T01-a：修复 P9-T01 前置的 LLVM/HIR-MIR residual baseline
+
+- 阻塞原因：
+  - 执行 P9-T01 指定的残余搜索前置检查时，当前树仍在 `crates/scoopc/src/llvm` 命中 `use crate::hir`，并且 LLVM codegen 路径仍大量通过 `crate::mir` 消费 raw MIR/LIR source-payload 兼容类型。
+  - P9-T01 的目标明确要求验证 P7 已经清掉 `llvm/** -> hir/mir` import；若仍有残留，必须先回到 P7 cleanup 边界修复，不能在 P9 stage split 中用 façade 或改窄搜索范围绕开。
+  - 这些残留会阻塞后续 `scoopc_codegen_llvm` 独立 crate，因为该 crate 不能依赖 `scoopc_hir` 或 raw `scoopc_mir` production API。
+- 目标：
+  - 在继续 P9-T01 之前，修复 LLVM/effect-lowered 对 HIR/MIR 的 residual baseline；
+  - 将仍属 production 的 HIR/MIR 依赖迁到正确 owner（LIR/LIR facts/base context 窄合同或 base crate），删除真正死代码；
+  - 只允许测试或明确 LIR-owned payload helper 保留必要引用，并在完成记录中说明分类依据。
+- 必须修改的主要位置：
+  - `crates/scoopc/src/llvm/**`
+  - `crates/scoopc/src/effect_lowered/**`
+  - `crates/scoopc_lir_facts/`（如需发布缺失合同）
+  - `crates/scoopc/src/pipeline/lir_facts_builder.rs`（如需填充 LIR facts）
+  - `tools/scoop_tools/src/dependency_gate.rs`（如需补强 source boundary）
+- 必须实现的内容：
+  1. 审计 `rg -n "use crate::hir|crate::hir::|use crate::mir|crate::mir::" crates/scoopc/src/llvm crates/scoopc/src/effect_lowered` 的命中，区分 production、测试和已文档化窄合同。
+  2. 对 production residual 做 owner 修复：codegen-neutral 小合同进 base/LIR facts，LIR source payload 类型进 LIR owned surface，死的 raw MIR fallback 删除；不得新增 `scoopc` façade re-export 或仅改 import 形状来骗过搜索。
+  3. 补强 `dependency_gate`，防止本任务清除的 LLVM HIR/MIR residual 回归。
+  4. 更新 P7/P9 相关完成记录说明剩余允许命中的分类；若不能完全清除生产命中，必须继续保持 P9-T01 未完成。
+- 验证：
+  1. `cargo fmt`
+  2. `cargo build --workspace`
+  3. `cargo test --all --all-targets`
+  4. `cargo run -p scoop_tools -- dependency-gate`
+  5. 残余搜索：`rg -n "use crate::hir|crate::hir::" crates/scoopc/src/llvm crates/scoopc/src/effect_lowered`；`rg -n "use crate::mir|crate::mir::" crates/scoopc/src/llvm`
+  6. `git diff --check`
+- 完成条件：
+  - P9-T01 可以在不绕开、不缩窄搜索范围的情况下继续执行；
+  - LLVM production codegen 不再依赖 `scoopc_hir` 或 raw `scoopc_mir` API；
+  - 所有剩余测试/窄合同命中均有明确 owner 和 dependency-gate 覆盖。
+- 依赖：TODO-7-INIT
+
 ### [TODO] P9-T01：消除阻塞 stage crate split 的后向边
 
 - 参考：本文件"阻塞 stage crate split 的后向边"。
@@ -165,7 +199,7 @@
   - 反向边搜索无生产命中；
   - `devirtualize.rs` 删除；
   - `cargo build --workspace` 与 `cargo test --all --all-targets` 通过。
-- 依赖：TODO-7-INIT
+- 依赖：P9-T01-a
 
 ### [TODO] P9-T01R：Review 后向边消除结果
 
