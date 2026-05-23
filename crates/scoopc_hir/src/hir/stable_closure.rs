@@ -8,20 +8,14 @@ use crate::span::Span;
 use super::{Block, CallArg, Expr, ExprKind, FunDecl, InterpolatedStringPart, Stmt, StmtKind};
 
 /// 从顶层/成员 `fun` 的 HIR body 中恢复目标 closure 的稳定词法路径。
-pub(crate) fn stable_closure_lexical_path_in_fun(
-    fun: &FunDecl,
-    target_span: Span,
-) -> Option<String> {
+pub fn stable_closure_lexical_path_in_fun(fun: &FunDecl, target_span: Span) -> Option<String> {
     let body = fun.body.as_ref()?;
     let mut next_closure_index = 0;
     stable_closure_lexical_path_in_block(body, target_span, None, &mut next_closure_index)
 }
 
 /// 从任意表达式根中恢复目标 closure 的稳定词法路径。
-pub(crate) fn stable_closure_lexical_path_in_expr(
-    expr: &Expr,
-    target_span: Span,
-) -> Option<String> {
+pub fn stable_closure_lexical_path_in_expr(expr: &Expr, target_span: Span) -> Option<String> {
     let mut next_closure_index = 0;
     stable_closure_lexical_path_in_expr_impl(expr, target_span, None, &mut next_closure_index)
 }

@@ -6,7 +6,7 @@ use scoopc_hir_facts::HirFacts;
 use scoopc_hir_facts::declarations::{FieldOwnerKind, NominalKind};
 
 /// 返回一个 HIR type 是否已经足够精确，可直接作为 concrete type 使用。
-pub(crate) fn hir_ty_is_precise(types: &TypeStore, ty: TypeId) -> bool {
+pub fn hir_ty_is_precise(types: &TypeStore, ty: TypeId) -> bool {
     !matches!(
         types.kind(ty),
         TypeKind::Ref(RefTypeKind::Any) | TypeKind::Param(_)
@@ -14,16 +14,16 @@ pub(crate) fn hir_ty_is_precise(types: &TypeStore, ty: TypeId) -> bool {
 }
 
 /// Query helper for declaration/entity facts published by the HIR barrier.
-pub(crate) struct HirFactResolver<'a> {
+pub struct HirFactResolver<'a> {
     hir_facts: &'a HirFacts,
 }
 
 impl<'a> HirFactResolver<'a> {
-    pub(crate) fn new(_types: &'a TypeStore, hir_facts: &'a HirFacts) -> Self {
+    pub fn new(_types: &'a TypeStore, hir_facts: &'a HirFacts) -> Self {
         Self { hir_facts }
     }
 
-    pub(crate) fn member_value_tys(&self) -> Vec<(String, TypeId)> {
+    pub fn member_value_tys(&self) -> Vec<(String, TypeId)> {
         self.hir_facts
             .declarations
             .fields
@@ -38,7 +38,7 @@ impl<'a> HirFactResolver<'a> {
             .collect()
     }
 
-    pub(crate) fn nominal_kinds(&self) -> Vec<(String, ast::TypeKind)> {
+    pub fn nominal_kinds(&self) -> Vec<(String, ast::TypeKind)> {
         self.hir_facts
             .declarations
             .nominals
@@ -57,7 +57,7 @@ impl<'a> HirFactResolver<'a> {
             .collect()
     }
 
-    pub(crate) fn enum_payload_kinds(&self) -> Vec<(String, bool)> {
+    pub fn enum_payload_kinds(&self) -> Vec<(String, bool)> {
         self.hir_facts
             .declarations
             .nominals

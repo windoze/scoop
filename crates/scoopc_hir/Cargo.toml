@@ -1,0 +1,16 @@
+[package]
+name = "scoopc_hir"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+scoopc_ast = { path = "../scoopc_ast" }
+scoopc_hir_facts = { path = "../scoopc_hir_facts" }
+scoopc_ids = { path = "../scoopc_ids" }
+scoopc_project_model = { path = "../scoopc_project_model" }
+scoopc_source = { path = "../scoopc_source" }
+scoopc_span = { path = "../scoopc_span" }
+scoopc_types = { path = "../scoopc_types" }
+miette = { version = "7.6.0", features = ["fancy"] }
+thiserror = "2.0.12"
+tracing = "0.1.40"

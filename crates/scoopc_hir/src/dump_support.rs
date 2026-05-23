@@ -8,7 +8,7 @@ use crate::stable_id::{StableCanonicalKey, stable_local_label};
 use crate::ty::{EffectRow, TypeId, TypeStore};
 
 /// Stable local dump key derived from an owner identity plus lexical source anchor.
-pub(crate) struct LocalEntityKey {
+pub struct LocalEntityKey {
     owner: String,
     source_path: String,
     span: Span,
@@ -18,7 +18,7 @@ pub(crate) struct LocalEntityKey {
 }
 
 impl LocalEntityKey {
-    pub(crate) fn new(
+    pub fn new(
         owner: impl Into<String>,
         source_path: &Path,
         span: Span,
@@ -56,7 +56,7 @@ impl LocalEntityKey {
         }
     }
 
-    pub(crate) fn label(&self, role: &str) -> String {
+    pub fn label(&self, role: &str) -> String {
         stable_local_label(role, self)
     }
 }
@@ -77,20 +77,20 @@ impl StableCanonicalKey for LocalEntityKey {
 }
 
 /// Small writer for deterministic, indented dump text.
-pub(crate) struct IndentWriter {
+pub struct IndentWriter {
     out: String,
     indent: usize,
 }
 
 impl IndentWriter {
-    pub(crate) fn new() -> Self {
+    pub fn new() -> Self {
         Self {
             out: String::new(),
             indent: 0,
         }
     }
 
-    pub(crate) fn line(&mut self, text: impl AsRef<str>) {
+    pub fn line(&mut self, text: impl AsRef<str>) {
         for _ in 0..self.indent {
             self.out.push_str("    ");
         }
@@ -98,27 +98,33 @@ impl IndentWriter {
         self.out.push('\n');
     }
 
-    pub(crate) fn push_indent(&mut self) {
+    pub fn push_indent(&mut self) {
         self.indent += 1;
     }
 
-    pub(crate) fn pop_indent(&mut self) {
+    pub fn pop_indent(&mut self) {
         self.indent -= 1;
     }
 
-    pub(crate) fn finish(self) -> String {
+    pub fn finish(self) -> String {
         self.out
     }
 }
 
-pub(crate) fn format_debug<T>(value: &T) -> String
+impl Default for IndentWriter {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+pub fn format_debug<T>(value: &T) -> String
 where
     T: fmt::Debug + ?Sized,
 {
     format!("{value:?}")
 }
 
-pub(crate) fn format_effect_row(types: &TypeStore, row: &EffectRow) -> String {
+pub fn format_effect_row(types: &TypeStore, row: &EffectRow) -> String {
     if row.terms.is_empty() {
         return "Pure".to_string();
     }
@@ -129,7 +135,7 @@ pub(crate) fn format_effect_row(types: &TypeStore, row: &EffectRow) -> String {
         .join(" + ")
 }
 
-pub(crate) fn format_type(types: &TypeStore, ty: TypeId) -> String {
+pub fn format_type(types: &TypeStore, ty: TypeId) -> String {
     if (ty.as_u32() as usize) < types.len() {
         return types.display(ty).to_string();
     }
@@ -145,7 +151,7 @@ fn dump_workspace_root() -> &'static Path {
 }
 
 /// Normalizes a path for dump output so fixtures stay workspace-relative and slash-stable.
-pub(crate) fn normalize_dump_path(path: &Path) -> String {
+pub fn normalize_dump_path(path: &Path) -> String {
     normalize_dump_path_with_workspace_root(path, dump_workspace_root())
 }
 

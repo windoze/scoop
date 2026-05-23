@@ -15,7 +15,7 @@
 mod dump;
 mod lower;
 mod stable_closure;
-pub(crate) use dump::stable_dump_file;
+pub use dump::stable_dump_file;
 pub use lower::mangle_nominal_fqn;
 
 use std::collections::{HashMap, HashSet};
@@ -27,8 +27,8 @@ use crate::span::Span;
 use crate::ty::{MonoRefKind, MonoTypeId, MonoTypeKind, ParamLeak, TypeId, TypeStore};
 
 pub(crate) use crate::ty::EFFECT_ROW_PARAM_DECL_FILE;
-pub(crate) use lower::GenericTemplateSymbolSuffixIndex;
-pub(crate) use lower::lower_generic_for_compilation_unit_multi_files_with_type_env;
+pub use lower::GenericTemplateSymbolSuffixIndex;
+pub use lower::lower_generic_for_compilation_unit_multi_files_with_type_env;
 pub use lower::{
     ExplicitMirInstanceLoweringOptions, HirLowerError, HirStageError, LoweredHir,
     lower_for_compilation_unit, lower_for_compilation_unit_multi_files,
@@ -36,17 +36,15 @@ pub use lower::{
     lower_for_compilation_unit_multi_files_with_type_env,
     lower_for_compilation_unit_with_stable_cone_key, lower_for_dump, lower_typed_for_dump,
 };
-pub(crate) use lower::{
+pub use lower::{
     LoweringInputs, canonical_generic_fun_signature_key,
     canonical_generic_property_getter_signature_key,
     generic_template_symbol_suffixes_for_compilation_unit,
 };
-pub(crate) use lower::{collect_generic_template_symbol_suffixes, stable_instance_fqn};
-pub(crate) use stable_closure::{
-    stable_closure_lexical_path_in_expr, stable_closure_lexical_path_in_fun,
-};
+pub use lower::{collect_generic_template_symbol_suffixes, stable_instance_fqn};
+pub use stable_closure::{stable_closure_lexical_path_in_expr, stable_closure_lexical_path_in_fun};
 
-pub(crate) fn lower_fun_with_type_bindings_and_mir_facts(
+pub fn lower_fun_with_type_bindings_and_mir_facts(
     inputs: LoweringInputs<'_>,
     fun: &ast::FunDecl,
     type_bindings: impl IntoIterator<Item = (String, TypeId)>,
@@ -67,7 +65,7 @@ impl SymbolId {
         self.0
     }
 
-    pub(crate) const fn from_raw(raw: u32) -> Self {
+    pub const fn from_raw(raw: u32) -> Self {
         Self(raw)
     }
 }

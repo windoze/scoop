@@ -497,7 +497,7 @@ impl TypeEnv {
     ///
     /// 约定：
     /// - 若同名 alias 已存在（极少发生），保留第一次注入的版本（与 `insert_external_source` 一致）。
-    pub(crate) fn insert_external_type_alias(
+    pub fn insert_external_type_alias(
         &mut self,
         fqn: String,
         decl_file: PathBuf,

@@ -15,7 +15,7 @@ use super::{
     SupertypeDecl, SymbolId, TypeAliasDecl, ValDecl, ValueRef, WhenArm, WhenPat,
 };
 
-pub(crate) fn stable_dump_file(file: &File, types: &TypeStore, source_path: &Path) -> String {
+pub fn stable_dump_file(file: &File, types: &TypeStore, source_path: &Path) -> String {
     let mut renderer = HirDumpRenderer::new(types, source_path, collect_symbol_decl_spans(file));
     renderer.render_file(file);
     renderer.finish()

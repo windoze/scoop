@@ -11,14 +11,14 @@ use crate::span::Span;
 use crate::syntax::string_literal::parse_string_literal_utf8;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum NamedIntrinsicLoweringMode {
+pub enum NamedIntrinsicLoweringMode {
     IrEmission,
     RuntimeCall,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[allow(dead_code)]
-pub(crate) enum NamedIntrinsicRuntimeTy {
+pub enum NamedIntrinsicRuntimeTy {
     Void,
     I32,
     I64,
@@ -33,35 +33,35 @@ pub(crate) enum NamedIntrinsicRuntimeTy {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) struct NamedIntrinsicRuntimeSignature {
-    pub(crate) params: &'static [NamedIntrinsicRuntimeTy],
-    pub(crate) return_ty: NamedIntrinsicRuntimeTy,
+pub struct NamedIntrinsicRuntimeSignature {
+    pub params: &'static [NamedIntrinsicRuntimeTy],
+    pub return_ty: NamedIntrinsicRuntimeTy,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) struct NamedIntrinsicAuditEntry {
-    pub(crate) name: &'static str,
-    pub(crate) lowering_mode: NamedIntrinsicLoweringMode,
-    pub(crate) runtime_symbol: Option<&'static str>,
-    pub(crate) runtime_signature: Option<NamedIntrinsicRuntimeSignature>,
-    pub(crate) runtime_reason: Option<&'static str>,
+pub struct NamedIntrinsicAuditEntry {
+    pub name: &'static str,
+    pub lowering_mode: NamedIntrinsicLoweringMode,
+    pub runtime_symbol: Option<&'static str>,
+    pub runtime_signature: Option<NamedIntrinsicRuntimeSignature>,
+    pub runtime_reason: Option<&'static str>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) enum ParsedIntrinsicAnnotationArgs {
+pub enum ParsedIntrinsicAnnotationArgs {
     Legacy,
     Named { entry_name: String },
 }
 
 impl ParsedIntrinsicAnnotationArgs {
-    pub(crate) fn entry_name(&self) -> Option<&str> {
+    pub fn entry_name(&self) -> Option<&str> {
         match self {
             Self::Legacy => None,
             Self::Named { entry_name } => Some(entry_name.as_str()),
         }
     }
 
-    pub(crate) fn into_entry_name(self) -> Option<String> {
+    pub fn into_entry_name(self) -> Option<String> {
         match self {
             Self::Legacy => None,
             Self::Named { entry_name } => Some(entry_name),
@@ -70,7 +70,7 @@ impl ParsedIntrinsicAnnotationArgs {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum IntrinsicAnnotationParseError {
+pub enum IntrinsicAnnotationParseError {
     InvalidShape { span: Span },
     ArgMustBeString { span: Span },
 }
@@ -296,17 +296,17 @@ const NAMED_INTRINSIC_AUDIT_ENTRIES: &[NamedIntrinsicAuditEntry] = &[
 ];
 
 #[cfg_attr(not(test), allow(dead_code))]
-pub(crate) fn named_intrinsic_audit_entries() -> &'static [NamedIntrinsicAuditEntry] {
+pub fn named_intrinsic_audit_entries() -> &'static [NamedIntrinsicAuditEntry] {
     NAMED_INTRINSIC_AUDIT_ENTRIES
 }
 
-pub(crate) fn named_intrinsic_audit_entry(name: &str) -> Option<&'static NamedIntrinsicAuditEntry> {
+pub fn named_intrinsic_audit_entry(name: &str) -> Option<&'static NamedIntrinsicAuditEntry> {
     NAMED_INTRINSIC_AUDIT_ENTRIES
         .iter()
         .find(|entry| entry.name == name)
 }
 
-pub(crate) fn fallback_named_intrinsic_entry_name_for_fqn(fqn: &str) -> Option<&'static str> {
+pub fn fallback_named_intrinsic_entry_name_for_fqn(fqn: &str) -> Option<&'static str> {
     let base = fqn
         .split("::<")
         .next()
@@ -438,7 +438,7 @@ fn char_method_intrinsic_entry_name(method: &str) -> Option<&'static str> {
     }
 }
 
-pub(crate) fn parse_intrinsic_annotation_args(
+pub fn parse_intrinsic_annotation_args(
     source: &SourceFile,
     ann: &ast::AnnotationUse,
 ) -> Result<ParsedIntrinsicAnnotationArgs, IntrinsicAnnotationParseError> {
@@ -468,7 +468,7 @@ pub(crate) fn parse_intrinsic_annotation_args(
     Ok(ParsedIntrinsicAnnotationArgs::Named { entry_name })
 }
 
-pub(crate) fn best_effort_intrinsic_entry_name(
+pub fn best_effort_intrinsic_entry_name(
     source: &SourceFile,
     ann: &ast::AnnotationUse,
 ) -> Option<String> {

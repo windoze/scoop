@@ -35,6 +35,8 @@ const FACT_CRATES: &[&str] = &[
 
 const BASE_ONLY_STAGE_CRATES: &[&str] = &["scoopc_ast"];
 
+const HIR_STAGE_CRATES: &[&str] = &["scoopc_hir"];
+
 const CODEGEN_STAGE_CRATES: &[&str] = &["scoopc_codegen_llvm"];
 
 const TEMPORARY_CODEGEN_FACADE_DEPS: &[&str] = &["scoopc"];
@@ -71,11 +73,12 @@ impl Report {
         }
 
         let mut lines = vec![format!(
-            "dependency gate: ok (checked {} pipeline crates: {} base, {} fact, {} base-only stage, {} codegen stage; {} source boundary files)",
+            "dependency gate: ok (checked {} pipeline crates: {} base, {} fact, {} base-only stage, {} HIR stage, {} codegen stage; {} source boundary files)",
             self.checks.len(),
             BASE_CRATES.len(),
             FACT_CRATES.len(),
             BASE_ONLY_STAGE_CRATES.len(),
+            HIR_STAGE_CRATES.len(),
             CODEGEN_STAGE_CRATES.len(),
             self.source_checks.len()
         )];
@@ -151,6 +154,7 @@ enum CrateKind {
     Base,
     Fact,
     BaseOnlyStage,
+    HirStage,
     CodegenStage,
 }
 
@@ -160,6 +164,7 @@ impl CrateKind {
             Self::Base => "base",
             Self::Fact => "fact",
             Self::BaseOnlyStage => "base-only-stage",
+            Self::HirStage => "hir-stage",
             Self::CodegenStage => "codegen-stage",
         }
     }
@@ -230,6 +235,18 @@ pub fn run() -> Result<Report> {
         checks.push(CrateCheck {
             crate_name: (*crate_name).to_string(),
             kind: CrateKind::BaseOnlyStage,
+            dependency_names,
+            violations,
+        });
+    }
+
+    for crate_name in HIR_STAGE_CRATES {
+        let dependency_names = cargo_tree_package_names(crate_name, &workspace_root)?;
+        let violations =
+            find_dependency_violations(crate_name, CrateKind::HirStage, &dependency_names);
+        checks.push(CrateCheck {
+            crate_name: (*crate_name).to_string(),
+            kind: CrateKind::HirStage,
             dependency_names,
             violations,
         });
@@ -856,7 +873,7 @@ fn source_tree_boundary_rules() -> Vec<SourceTreeBoundaryRule> {
         SourceTreeBoundaryRule {
             label: "HIR direct MIR residuals",
             kind_label: "stage-split-boundary",
-            root: "crates/scoopc/src/hir",
+            root: "crates/scoopc_hir/src/hir",
             exclude_path_fragments: &[],
             forbidden: &[
                 ForbiddenSourcePattern {
@@ -880,7 +897,7 @@ fn source_tree_boundary_rules() -> Vec<SourceTreeBoundaryRule> {
         SourceTreeBoundaryRule {
             label: "typecheck direct HIR residuals",
             kind_label: "stage-split-boundary",
-            root: "crates/scoopc/src/typecheck",
+            root: "crates/scoopc_hir/src/typecheck",
             exclude_path_fragments: &[],
             forbidden: &[
                 ForbiddenSourcePattern {
@@ -1013,6 +1030,21 @@ fn find_dependency_violations(
                 violations.push(Violation {
                     dependency: dependency.clone(),
                     reason: "base-only stage crates must not depend on facade, driver/runtime/tool, other stage, backend, or fact crates"
+                        .to_string(),
+                });
+            }
+
+            continue;
+        }
+
+        if kind == CrateKind::HirStage {
+            let allowed_stage_inputs = ["scoopc_ast", "scoopc_hir_facts"];
+            if FORBIDDEN_WORKSPACE_CRATES.contains(&dependency_name)
+                && !allowed_stage_inputs.contains(&dependency_name)
+            {
+                violations.push(Violation {
+                    dependency: dependency.clone(),
+                    reason: "HIR stage crates must depend only on base crates, scoopc_ast, and scoopc_hir_facts"
                         .to_string(),
                 });
             }

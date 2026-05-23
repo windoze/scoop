@@ -4,17 +4,17 @@
 
 use super::*;
 
-pub(crate) struct LoweringInputs<'a> {
-    pub(crate) source: &'a SourceFile,
-    pub(crate) file: &'a ast::File,
-    pub(crate) index: &'a Index,
-    pub(crate) type_kinds: &'a HashMap<String, ast::TypeKind>,
-    pub(crate) typecheck_types: Option<&'a TypeStore>,
-    pub(crate) compilation_unit: &'a [(&'a SourceFile, &'a ast::File)],
-    pub(crate) types: &'a mut TypeStore,
-    pub(crate) builtins: BuiltinTypes,
-    pub(crate) generic_template_symbol_suffixes: &'a util::GenericTemplateSymbolSuffixIndex,
-    pub(crate) materialize_direct_call_targets: bool,
+pub struct LoweringInputs<'a> {
+    pub source: &'a SourceFile,
+    pub file: &'a ast::File,
+    pub index: &'a Index,
+    pub type_kinds: &'a HashMap<String, ast::TypeKind>,
+    pub typecheck_types: Option<&'a TypeStore>,
+    pub compilation_unit: &'a [(&'a SourceFile, &'a ast::File)],
+    pub types: &'a mut TypeStore,
+    pub builtins: BuiltinTypes,
+    pub generic_template_symbol_suffixes: &'a util::GenericTemplateSymbolSuffixIndex,
+    pub materialize_direct_call_targets: bool,
 }
 
 pub(in crate::hir) struct BoundMemberFunLoweringTarget<'a> {
@@ -31,12 +31,12 @@ pub(in crate::hir) struct BoundValuePropertyGetterLoweringTarget<'a> {
     pub(in crate::hir::lower) property: &'a ast::PropertyDecl,
 }
 
-pub(crate) struct LoweredFunWithMirFacts {
-    pub(crate) fun: FunDecl,
-    pub(crate) dispatch_call_sites: crate::hir::DispatchCallSiteIndex,
-    pub(crate) effect_op_call_sites: crate::hir::EffectOpCallSiteIndex,
-    pub(crate) when_pat_binding_tys: crate::hir::WhenPatBindingTypeIndex,
-    pub(crate) top_level_fun_call_sites: crate::hir::TopLevelFunCallSiteIndex,
+pub struct LoweredFunWithMirFacts {
+    pub fun: FunDecl,
+    pub dispatch_call_sites: crate::hir::DispatchCallSiteIndex,
+    pub effect_op_call_sites: crate::hir::EffectOpCallSiteIndex,
+    pub when_pat_binding_tys: crate::hir::WhenPatBindingTypeIndex,
+    pub top_level_fun_call_sites: crate::hir::TopLevelFunCallSiteIndex,
 }
 
 /// 将给定的 `ast::FunDecl` 在”已绑定 type params”的语境下降低为 HIR（用于单态化，T0712）。

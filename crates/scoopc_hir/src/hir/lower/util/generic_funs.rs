@@ -962,7 +962,7 @@ pub(in crate::hir::lower) fn collect_explicit_top_level_generic_fun_templates_wi
     out
 }
 
-pub(crate) fn collect_generic_template_symbol_suffixes(
+pub fn collect_generic_template_symbol_suffixes(
     index: &Index,
     compilation_unit: &[(&SourceFile, &ast::File)],
 ) -> GenericTemplateSymbolSuffixIndex {
@@ -1219,7 +1219,7 @@ pub(in crate::hir::lower) fn re_intern_effect_row_from(
     )
 }
 
-pub(crate) fn stable_instance_fqn(
+pub fn stable_instance_fqn(
     types: &TypeStore,
     template: &TemplateKey,
     type_args: &[TypeId],

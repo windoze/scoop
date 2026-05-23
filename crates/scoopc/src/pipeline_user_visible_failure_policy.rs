@@ -84,9 +84,9 @@ const FAILURE_POLICY_AUDIT_FILES: &[&str] = &[
     "crates/scoopc/src/mir/materialize/validation.rs",
     "crates/scoopc/src/pipeline/mir_stage.rs",
     "crates/scoopc/src/pipeline/hir_stage.rs",
-    "crates/scoopc/src/typecheck/lower.rs",
-    "crates/scoopc/src/typecheck/when_pat.rs",
-    "crates/scoopc/src/typecheck/structs.rs",
+    "crates/scoopc_hir/src/typecheck/lower.rs",
+    "crates/scoopc_hir/src/typecheck/when_pat.rs",
+    "crates/scoopc_hir/src/typecheck/structs.rs",
 ];
 
 const FAILURE_KEYWORDS: &[&str] = &["Unsupported", "todo!", "panic!", "unreachable!"];
@@ -165,7 +165,7 @@ struct FrontendRejectSurface {
 
 const OR_PATTERN_BINDER_MARKERS: &[SourceMarker] = &[
     SourceMarker {
-        path: "crates/scoopc/src/typecheck/when_pat.rs",
+        path: "crates/scoopc_hir/src/typecheck/when_pat.rs",
         marker: "ExprTypeError::WhenOrPatternBinderNotAllowed {",
     },
     SourceMarker {
@@ -180,7 +180,7 @@ const OR_PATTERN_BINDER_MARKERS: &[SourceMarker] = &[
 
 const FUNCTION_TYPE_CAST_MARKERS: &[SourceMarker] = &[
     SourceMarker {
-        path: "crates/scoopc/src/typecheck/expr/infer.rs",
+        path: "crates/scoopc_hir/src/typecheck/expr/infer.rs",
         marker: "Err(ExprTypeError::FunctionTypeCastNotSupported {",
     },
     SourceMarker {
@@ -191,7 +191,7 @@ const FUNCTION_TYPE_CAST_MARKERS: &[SourceMarker] = &[
 
 const EFFECTFUL_FUNCTION_TYPE_CAST_MARKERS: &[SourceMarker] = &[
     SourceMarker {
-        path: "crates/scoopc/src/typecheck/expr/infer.rs",
+        path: "crates/scoopc_hir/src/typecheck/expr/infer.rs",
         marker: "return Err(ExprTypeError::EffectfulFunctionTypeCastNotSupported {",
     },
     SourceMarker {
@@ -202,7 +202,7 @@ const EFFECTFUL_FUNCTION_TYPE_CAST_MARKERS: &[SourceMarker] = &[
 
 const USE_SITE_EFFECT_ROW_MARKERS: &[SourceMarker] = &[
     SourceMarker {
-        path: "crates/scoopc/src/typecheck/lower.rs",
+        path: "crates/scoopc_hir/src/typecheck/lower.rs",
         marker: "TypeLowerError::UseSiteEffectRowArgNotAllowed {",
     },
     SourceMarker {
@@ -213,7 +213,7 @@ const USE_SITE_EFFECT_ROW_MARKERS: &[SourceMarker] = &[
 
 const STRUCT_MUTABLE_FIELD_MARKERS: &[SourceMarker] = &[
     SourceMarker {
-        path: "crates/scoopc/src/typecheck/structs.rs",
+        path: "crates/scoopc_hir/src/typecheck/structs.rs",
         marker: "StructDeclError::StructFieldMustBeVal {",
     },
     SourceMarker {
@@ -228,7 +228,7 @@ const STRUCT_MUTABLE_FIELD_MARKERS: &[SourceMarker] = &[
 
 const CALLING_CONVENTION_GENERIC_MARKERS: &[SourceMarker] = &[
     SourceMarker {
-        path: "crates/scoopc/src/typecheck/annotations.rs",
+        path: "crates/scoopc_hir/src/typecheck/annotations.rs",
         marker: "AnnotationError::CallingConventionFunGenericsNotSupported {",
     },
     SourceMarker {
@@ -239,7 +239,7 @@ const CALLING_CONVENTION_GENERIC_MARKERS: &[SourceMarker] = &[
 
 const TOP_LEVEL_VAR_STORAGE_POLICY_MARKERS: &[SourceMarker] = &[
     SourceMarker {
-        path: "crates/scoopc/src/typecheck/annotations.rs",
+        path: "crates/scoopc_hir/src/typecheck/annotations.rs",
         marker: "AnnotationError::TopLevelVarRequiresThreadLocalOrGlobal {",
     },
     SourceMarker {
@@ -250,7 +250,7 @@ const TOP_LEVEL_VAR_STORAGE_POLICY_MARKERS: &[SourceMarker] = &[
 
 const SEALED_INTERFACE_USER_DEFINITION_MARKERS: &[SourceMarker] = &[
     SourceMarker {
-        path: "crates/scoopc/src/typecheck/type_env.rs",
+        path: "crates/scoopc_hir/src/typecheck/type_env.rs",
         marker: "SealedInterfaceUserDefinitionNotAllowed {",
     },
     SourceMarker {
@@ -261,7 +261,7 @@ const SEALED_INTERFACE_USER_DEFINITION_MARKERS: &[SourceMarker] = &[
 
 const SEALED_INTERFACE_EMPTY_BODY_MARKERS: &[SourceMarker] = &[
     SourceMarker {
-        path: "crates/scoopc/src/typecheck/type_env.rs",
+        path: "crates/scoopc_hir/src/typecheck/type_env.rs",
         marker: "SealedInterfaceMustBeEmpty {",
     },
     SourceMarker {
@@ -272,7 +272,7 @@ const SEALED_INTERFACE_EMPTY_BODY_MARKERS: &[SourceMarker] = &[
 
 const SEALED_INTERFACE_SUPERTYPE_MUST_BE_SEALED_MARKERS: &[SourceMarker] = &[
     SourceMarker {
-        path: "crates/scoopc/src/typecheck/type_env.rs",
+        path: "crates/scoopc_hir/src/typecheck/type_env.rs",
         marker: "SealedInterfaceSupertypeMustBeSealed {",
     },
     SourceMarker {
@@ -287,7 +287,7 @@ const SEALED_INTERFACE_SUPERTYPE_MUST_BE_SEALED_MARKERS: &[SourceMarker] = &[
 
 const SEALED_INTERFACE_INHERITANCE_CYCLE_MARKERS: &[SourceMarker] = &[
     SourceMarker {
-        path: "crates/scoopc/src/typecheck/type_env.rs",
+        path: "crates/scoopc_hir/src/typecheck/type_env.rs",
         marker: "SealedInterfaceInheritanceCycle {",
     },
     SourceMarker {
@@ -302,7 +302,7 @@ const SEALED_INTERFACE_INHERITANCE_CYCLE_MARKERS: &[SourceMarker] = &[
 
 const SEALED_INTERFACE_DECL_MUTUAL_EXCLUSION_MARKERS: &[SourceMarker] = &[
     SourceMarker {
-        path: "crates/scoopc/src/typecheck/type_env.rs",
+        path: "crates/scoopc_hir/src/typecheck/type_env.rs",
         marker: "SealedInterfaceMutuallyExclusiveBound {",
     },
     SourceMarker {
@@ -313,7 +313,7 @@ const SEALED_INTERFACE_DECL_MUTUAL_EXCLUSION_MARKERS: &[SourceMarker] = &[
 
 const SEALED_INTERFACE_WHERE_MUTUAL_EXCLUSION_MARKERS: &[SourceMarker] = &[
     SourceMarker {
-        path: "crates/scoopc/src/typecheck/where_clause.rs",
+        path: "crates/scoopc_hir/src/typecheck/where_clause.rs",
         marker: "SealedInterfaceMutuallyExclusiveBound {",
     },
     SourceMarker {
@@ -324,7 +324,7 @@ const SEALED_INTERFACE_WHERE_MUTUAL_EXCLUSION_MARKERS: &[SourceMarker] = &[
 
 const SEALED_INTERFACE_RUNTIME_TYPE_POSITION_MARKERS: &[SourceMarker] = &[
     SourceMarker {
-        path: "crates/scoopc/src/typecheck/lower.rs",
+        path: "crates/scoopc_hir/src/typecheck/lower.rs",
         marker: "SealedInterfaceBoundOnly {",
     },
     SourceMarker {
@@ -355,7 +355,7 @@ const SEALED_INTERFACE_RUNTIME_TYPE_POSITION_MARKERS: &[SourceMarker] = &[
 
 const SEALED_INTERFACE_EXPLICIT_IMPLEMENTATION_MARKERS: &[SourceMarker] = &[
     SourceMarker {
-        path: "crates/scoopc/src/typecheck/interfaces.rs",
+        path: "crates/scoopc_hir/src/typecheck/interfaces.rs",
         marker: "SealedInterfaceBoundOnly {",
     },
     SourceMarker {
@@ -370,7 +370,7 @@ const SEALED_INTERFACE_EXPLICIT_IMPLEMENTATION_MARKERS: &[SourceMarker] = &[
 
 const SPEC_UNCOVERED_ASYNC_AWAIT_MARKERS: &[SourceMarker] = &[
     SourceMarker {
-        path: "crates/scoopc/src/resolve/mod.rs",
+        path: "crates/scoopc_hir/src/resolve/mod.rs",
         marker: "AsyncAwaitSurfaceNotDefined {",
     },
     SourceMarker {
@@ -381,7 +381,7 @@ const SPEC_UNCOVERED_ASYNC_AWAIT_MARKERS: &[SourceMarker] = &[
 
 const SPEC_UNCOVERED_GENERATOR_YIELD_MARKERS: &[SourceMarker] = &[
     SourceMarker {
-        path: "crates/scoopc/src/resolve/mod.rs",
+        path: "crates/scoopc_hir/src/resolve/mod.rs",
         marker: "GeneratorYieldSurfaceNotDefined {",
     },
     SourceMarker {
@@ -393,119 +393,119 @@ const SPEC_UNCOVERED_GENERATOR_YIELD_MARKERS: &[SourceMarker] = &[
 const FRONTEND_REJECT_SURFACES: &[FrontendRejectSurface] = &[
     FrontendRejectSurface {
         gap_id: "B-36 async/await intentionally undefined surface",
-        definition_path: "crates/scoopc/src/resolve/mod.rs",
+        definition_path: "crates/scoopc_hir/src/resolve/mod.rs",
         diagnostic_code: "scoop::resolve::async_await_surface_not_defined",
         message: "当前语言 contract 不定义 `async` / `await` 语法或内建 task runtime surface",
         markers: SPEC_UNCOVERED_ASYNC_AWAIT_MARKERS,
     },
     FrontendRejectSurface {
         gap_id: "B-36 generator/yield intentionally undefined surface",
-        definition_path: "crates/scoopc/src/resolve/mod.rs",
+        definition_path: "crates/scoopc_hir/src/resolve/mod.rs",
         diagnostic_code: "scoop::resolve::generator_yield_surface_not_defined",
         message: "当前语言 contract 不定义专用 generator / `yield` 语法；请使用 effect + resuming handler",
         markers: SPEC_UNCOVERED_GENERATOR_YIELD_MARKERS,
     },
     FrontendRejectSurface {
         gap_id: "PIPELINE_GAPS §7.1",
-        definition_path: "crates/scoopc/src/typecheck/expr/error.rs",
+        definition_path: "crates/scoopc_hir/src/typecheck/expr/error.rs",
         diagnostic_code: "scoop::typecheck::when_or_pattern_binder_not_allowed",
         message: "当前语言 contract 下，when or-pattern 不允许引入 binder",
         markers: OR_PATTERN_BINDER_MARKERS,
     },
     FrontendRejectSurface {
         gap_id: "PIPELINE_GAPS §7.2",
-        definition_path: "crates/scoopc/src/typecheck/expr/error.rs",
+        definition_path: "crates/scoopc_hir/src/typecheck/expr/error.rs",
         diagnostic_code: "scoop::typecheck::function_type_cast_not_supported",
         message: "当前语言 contract 下，除 `Any as? (...)->R / Pure!` 外不接受函数类型的 runtime cast：{from} -> {to}；请改用函数子类型/coercion，或先包进 nominal wrapper",
         markers: FUNCTION_TYPE_CAST_MARKERS,
     },
     FrontendRejectSurface {
         gap_id: "PIPELINE_GAPS §7.2",
-        definition_path: "crates/scoopc/src/typecheck/expr/error.rs",
+        definition_path: "crates/scoopc_hir/src/typecheck/expr/error.rs",
         diagnostic_code: "scoop::typecheck::effectful_function_type_cast_not_supported",
         message: "当前语言 contract 下，带非 `Pure` effect row 的函数类型不能参与显式 `as`/`as?`：{from} -> {to}；effect row 只存在于编译期，不能作为 runtime cast 合同",
         markers: EFFECTFUL_FUNCTION_TYPE_CAST_MARKERS,
     },
     FrontendRejectSurface {
         gap_id: "type lowering use-site effect row target validation",
-        definition_path: "crates/scoopc/src/typecheck/lower.rs",
+        definition_path: "crates/scoopc_hir/src/typecheck/lower.rs",
         diagnostic_code: "scoop::typecheck::use_site_eff_arg_not_allowed",
         message: "当前语言 contract 下，只有显式声明 effect row 形参的名义类型才允许 use-site effect row 实参（`eff ...`）；{name} 不满足该条件",
         markers: USE_SITE_EFFECT_ROW_MARKERS,
     },
     FrontendRejectSurface {
         gap_id: "PIPELINE_GAPS §7.5",
-        definition_path: "crates/scoopc/src/typecheck/structs.rs",
+        definition_path: "crates/scoopc_hir/src/typecheck/structs.rs",
         diagnostic_code: "scoop::typecheck::struct_field_must_be_val",
         message: "当前语言 contract 下，struct 字段必须是 `val`，不允许 `var`：{struct_fqn}.{field}",
         markers: STRUCT_MUTABLE_FIELD_MARKERS,
     },
     FrontendRejectSurface {
         gap_id: "P2 HIR barrier @CallingConvention non-generic gate",
-        definition_path: "crates/scoopc/src/typecheck/annotations.rs",
+        definition_path: "crates/scoopc_hir/src/typecheck/annotations.rs",
         diagnostic_code: "scoop::typecheck::calling_convention_fun_generics_not_supported",
         message: "`@CallingConvention` 当前不支持泛型函数",
         markers: CALLING_CONVENTION_GENERIC_MARKERS,
     },
     FrontendRejectSurface {
         gap_id: "P2 HIR barrier top-level var storage policy gate",
-        definition_path: "crates/scoopc/src/typecheck/annotations.rs",
+        definition_path: "crates/scoopc_hir/src/typecheck/annotations.rs",
         diagnostic_code: "scoop::typecheck::top_level_var_requires_threadlocal_or_global",
         message: "顶层 `var` 必须显式标注 `@ThreadLocal` 或 `@Global`：{var_name}",
         markers: TOP_LEVEL_VAR_STORAGE_POLICY_MARKERS,
     },
     FrontendRejectSurface {
         gap_id: "CLOSURE_FIX §2 sealed interface sysroot-only definition",
-        definition_path: "crates/scoopc/src/typecheck/type_env.rs",
+        definition_path: "crates/scoopc_hir/src/typecheck/type_env.rs",
         diagnostic_code: "scoop::typecheck::sealed_interface_user_definition_not_allowed",
         message: "`sealed interface` 只能在 trusted `syslib` cone 中定义：{fqn}",
         markers: SEALED_INTERFACE_USER_DEFINITION_MARKERS,
     },
     FrontendRejectSurface {
         gap_id: "CLOSURE_FIX §2 sealed interface empty body",
-        definition_path: "crates/scoopc/src/typecheck/type_env.rs",
+        definition_path: "crates/scoopc_hir/src/typecheck/type_env.rs",
         diagnostic_code: "scoop::typecheck::sealed_interface_must_be_empty",
         message: "`sealed interface` body 必须为空：{fqn}",
         markers: SEALED_INTERFACE_EMPTY_BODY_MARKERS,
     },
     FrontendRejectSurface {
         gap_id: "CLOSURE_FIX §2 sealed interface supertype restriction",
-        definition_path: "crates/scoopc/src/typecheck/type_env.rs",
+        definition_path: "crates/scoopc_hir/src/typecheck/type_env.rs",
         diagnostic_code: "scoop::typecheck::sealed_interface_supertype_must_be_sealed",
         message: "`sealed interface` 只能继承其它 sealed interface：{fqn} -> {super_fqn}",
         markers: SEALED_INTERFACE_SUPERTYPE_MUST_BE_SEALED_MARKERS,
     },
     FrontendRejectSurface {
         gap_id: "CLOSURE_FIX §2 sealed interface inheritance cycle",
-        definition_path: "crates/scoopc/src/typecheck/type_env.rs",
+        definition_path: "crates/scoopc_hir/src/typecheck/type_env.rs",
         diagnostic_code: "scoop::typecheck::sealed_interface_inheritance_cycle",
         message: "`sealed interface` 继承图存在循环：{cycle}",
         markers: SEALED_INTERFACE_INHERITANCE_CYCLE_MARKERS,
     },
     FrontendRejectSurface {
         gap_id: "CLOSURE_FIX §2 sealed interface declaration mutual exclusion",
-        definition_path: "crates/scoopc/src/typecheck/type_env.rs",
+        definition_path: "crates/scoopc_hir/src/typecheck/type_env.rs",
         diagnostic_code: "scoop::typecheck::sealed_interface_mutually_exclusive_bound",
         message: "sealed marker bound 不能同时蕴涵 AnyRef 与 AnyValue：{fqn}",
         markers: SEALED_INTERFACE_DECL_MUTUAL_EXCLUSION_MARKERS,
     },
     FrontendRejectSurface {
         gap_id: "CLOSURE_FIX §2 sealed interface where-bound mutual exclusion",
-        definition_path: "crates/scoopc/src/typecheck/where_clause.rs",
+        definition_path: "crates/scoopc_hir/src/typecheck/where_clause.rs",
         diagnostic_code: "scoop::typecheck::sealed_interface_mutually_exclusive_bound",
         message: "where 约束不能同时要求 `{param}` 满足 AnyRef 与 AnyValue",
         markers: SEALED_INTERFACE_WHERE_MUTUAL_EXCLUSION_MARKERS,
     },
     FrontendRejectSurface {
         gap_id: "CLOSURE_FIX §2 sealed interface runtime type position rejection",
-        definition_path: "crates/scoopc/src/typecheck/lower.rs",
+        definition_path: "crates/scoopc_hir/src/typecheck/lower.rs",
         diagnostic_code: "scoop::typecheck::sealed_interface_bound_only",
         message: "sealed marker `{name}` 只能作为 generic/where bound 使用，不能作为运行期类型位置",
         markers: SEALED_INTERFACE_RUNTIME_TYPE_POSITION_MARKERS,
     },
     FrontendRejectSurface {
         gap_id: "CLOSURE_FIX §2 sealed interface explicit implementation rejection",
-        definition_path: "crates/scoopc/src/typecheck/interfaces.rs",
+        definition_path: "crates/scoopc_hir/src/typecheck/interfaces.rs",
         diagnostic_code: "scoop::typecheck::sealed_interface_bound_only",
         message: "sealed marker `{name}` 只能作为 generic/where bound 使用，不能显式实现或继承",
         markers: SEALED_INTERFACE_EXPLICIT_IMPLEMENTATION_MARKERS,
@@ -529,19 +529,19 @@ struct UpstreamGuardedSentinel {
 
 const POST_UPSTREAM_VALIDATION_GUARDS: &[UpstreamGuardedSentinel] = &[
     UpstreamGuardedSentinel {
-        site: "crates/scoopc/src/typecheck/lower.rs::lower_struct_direct_field_infos",
+        site: "crates/scoopc_hir/src/typecheck/lower.rs::lower_struct_direct_field_infos",
         upstream_gate: "typecheck::check_file_headers rejects struct/class primary-ctor params without a type annotation via TypeHeaderError::MissingTypeAnnotation",
     },
     UpstreamGuardedSentinel {
-        site: "crates/scoopc/src/typecheck/when_pat.rs::WhenPat::Variant empty path guard",
+        site: "crates/scoopc_hir/src/typecheck/when_pat.rs::WhenPat::Variant empty path guard",
         upstream_gate: "parser guarantees a `WhenPat::Variant` path always contains at least one segment",
     },
     UpstreamGuardedSentinel {
-        site: "crates/scoopc/src/typecheck/when_pat.rs::WhenPat::Variant missing enum decl guard",
+        site: "crates/scoopc_hir/src/typecheck/when_pat.rs::WhenPat::Variant missing enum decl guard",
         upstream_gate: "enum_instance_from_type returns the enum FQN by looking it up in the type env, so the env must contain a corresponding enum_decl",
     },
     UpstreamGuardedSentinel {
-        site: "crates/scoopc/src/typecheck/when_pat.rs::WhenPat::Variant type-arg arity guard",
+        site: "crates/scoopc_hir/src/typecheck/when_pat.rs::WhenPat::Variant type-arg arity guard",
         upstream_gate: "enum_instance_from_type produces enum_args from the same nominal instance whose declaration we just looked up; arity matches by construction",
     },
     UpstreamGuardedSentinel {
@@ -939,12 +939,12 @@ const INTERNAL_BUG_SENTINEL_HITS: &[&str] = &[
     "crates/scoopc_codegen_llvm/src/llvm/codegen/mod.rs:974:                                panic!(",
     "crates/scoopc/src/mir/materialize/dispatch.rs:51:                    panic!(",
     "crates/scoopc/src/mir/materialize/output.rs:37:            panic!(",
-    "crates/scoopc/src/typecheck/lower.rs:1242:                unreachable!(",
-    "crates/scoopc/src/typecheck/lower.rs:2487:                    _ => unreachable!(\"nominal lowering produced non-nominal type\"),",
-    "crates/scoopc/src/typecheck/lower.rs:3380:                    _ => unreachable!(\"nominal lowering produced non-nominal type\"),",
-    "crates/scoopc/src/typecheck/lower.rs:3631:                unreachable!(\"is_value_only_enum implies first_super exists\");",
-    "crates/scoopc/src/typecheck/when_pat.rs:211:                    unreachable!(",
-    "crates/scoopc/src/typecheck/when_pat.rs:260:                unreachable!(",
+    "crates/scoopc_hir/src/typecheck/lower.rs:1242:                unreachable!(",
+    "crates/scoopc_hir/src/typecheck/lower.rs:2487:                    _ => unreachable!(\"nominal lowering produced non-nominal type\"),",
+    "crates/scoopc_hir/src/typecheck/lower.rs:3380:                    _ => unreachable!(\"nominal lowering produced non-nominal type\"),",
+    "crates/scoopc_hir/src/typecheck/lower.rs:3631:                unreachable!(\"is_value_only_enum implies first_super exists\");",
+    "crates/scoopc_hir/src/typecheck/when_pat.rs:211:                    unreachable!(",
+    "crates/scoopc_hir/src/typecheck/when_pat.rs:260:                unreachable!(",
 ];
 
 #[test]

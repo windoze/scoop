@@ -954,7 +954,7 @@ impl Index {
         min.unwrap_or(ConeId::DEFAULT)
     }
 
-    pub(crate) fn type_ref_to_fqn_in_file(
+    pub fn type_ref_to_fqn_in_file(
         &self,
         source: &SourceFile,
         file: &ast::File,

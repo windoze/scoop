@@ -19,9 +19,9 @@ mod expr;
 mod stmt;
 
 pub use types::{HirLowerError, HirStageError, LoweredHir};
-pub(crate) use util::GenericTemplateSymbolSuffixIndex;
+pub use util::GenericTemplateSymbolSuffixIndex;
 pub use util::mangle_nominal_fqn;
-pub(crate) use util::{
+pub use util::{
     canonical_generic_fun_signature_key, canonical_generic_property_getter_signature_key,
     collect_generic_template_symbol_suffixes, stable_instance_fqn,
 };

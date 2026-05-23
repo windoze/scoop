@@ -39,7 +39,7 @@ pub use headers::{TypeHeaderError, check_file_headers};
 pub use inheritance::{InheritanceError, check_file_inheritance};
 pub use interfaces::{InterfaceError, check_file_interfaces};
 pub use layout::{LayoutError, check_file_type_layouts};
-pub(crate) use lower::TypeLowering;
+pub use lower::TypeLowering;
 pub use lower::{
     TypeInstantiationKey, TypeLowerError, check_file_type_refs,
     check_file_type_refs_with_type_instantiation_keys,

@@ -596,7 +596,7 @@ pub(in crate::hir::lower) fn with_signature_lowering_ctx<T>(
     f(&mut ctx)
 }
 
-pub(crate) fn canonical_generic_fun_signature_key(
+pub fn canonical_generic_fun_signature_key(
     stable_cone_key: &StableConeKey,
     source: &SourceFile,
     file: &ast::File,
@@ -694,7 +694,7 @@ pub(crate) fn canonical_generic_fun_signature_key(
     })
 }
 
-pub(crate) fn canonical_generic_property_getter_signature_key(
+pub fn canonical_generic_property_getter_signature_key(
     stable_cone_key: &StableConeKey,
     source: &SourceFile,
     file: &ast::File,

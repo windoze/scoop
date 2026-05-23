@@ -434,7 +434,7 @@ pub(super) struct WhereBoundEntry {
     pub decl_file: std::path::PathBuf,
 }
 
-pub(crate) struct TypeLowering<'a> {
+pub struct TypeLowering<'a> {
     source: &'a SourceFile,
     index: &'a Index,
     imports: ImportTable,
@@ -673,7 +673,7 @@ impl<'a> TypeLowering<'a> {
     /// 用途：
     /// - typealias 展开时切换到“别名声明处文件”的上下文（T0446）
     /// - enum layout/metadata 计算时按“enum 声明处文件”的上下文降低 variant 字段类型（T0449）
-    pub(crate) fn new_with_ctx(
+    pub fn new_with_ctx(
         source: &'a SourceFile,
         index: &'a Index,
         env: &'a TypeEnv,
@@ -1297,7 +1297,7 @@ impl<'a> TypeLowering<'a> {
     /// 用途（T0609）：
     /// - override/interface impl 的 effect row 检查需要先对 receiver 的 use-site type args 与
     ///   `<eff E>` row 参数做 substitution，再比较 `R_over ⊆ R_base`。
-    pub(crate) fn lower_effect_row_expr_in_decl_file_with_scopes(
+    pub fn lower_effect_row_expr_in_decl_file_with_scopes(
         &mut self,
         decl_file: &Path,
         type_bindings: impl IntoIterator<Item = (String, TypeId)>,
@@ -1346,7 +1346,7 @@ impl<'a> TypeLowering<'a> {
     /// - 跨文件（sysroot / cone 依赖）的函数签名收集：当参数/返回类型里出现 `/ E` 时，
     ///   需要在 lowering 阶段先把 `E` 绑定到默认值（缺省 Pure），以便类型可以被正确构造，
     ///   并在调用点再用推断出的 `E_arg` 做实例化替换。
-    pub(crate) fn lower_type_ref_in_decl_file_with_scopes(
+    pub fn lower_type_ref_in_decl_file_with_scopes(
         &mut self,
         decl_file: &Path,
         type_bindings: impl IntoIterator<Item = (String, TypeId)>,
@@ -1392,7 +1392,7 @@ impl<'a> TypeLowering<'a> {
     /// - 与 `push_type_params` 相比，这里不分配新的 `TypeParamType`，而是把 `T` 直接映射到
     ///   “已实例化的实参类型”；
     /// - 该能力主要用于“在非 AST 语境内重用 TypeLowering”（例如 layout/metadata 计算）。
-    pub(crate) fn push_type_param_bindings(
+    pub fn push_type_param_bindings(
         &mut self,
         bindings: impl IntoIterator<Item = (String, TypeId)>,
     ) {
@@ -1403,11 +1403,11 @@ impl<'a> TypeLowering<'a> {
         self.type_param_scopes.push(scope);
     }
 
-    pub(crate) fn pop_type_param_bindings(&mut self) {
+    pub fn pop_type_param_bindings(&mut self) {
         let _ = self.type_param_scopes.pop();
     }
 
-    pub(crate) fn lower_type_ref(&mut self, ty: &ast::TypeRef) -> Result<TypeId, TypeLowerError> {
+    pub fn lower_type_ref(&mut self, ty: &ast::TypeRef) -> Result<TypeId, TypeLowerError> {
         match ty {
             ast::TypeRef::Path(p) => self.lower_type_path(p),
             ast::TypeRef::Tuple(t) => {
@@ -2019,11 +2019,11 @@ impl<'a> TypeLowering<'a> {
         std::mem::take(&mut self.typechecked_ctor_call_bindings)
     }
 
-    pub(crate) fn fmt_type(&self, id: TypeId) -> String {
+    pub fn fmt_type(&self, id: TypeId) -> String {
         self.types.display(id).to_string()
     }
 
-    pub(crate) fn types(&self) -> &TypeStore {
+    pub fn types(&self) -> &TypeStore {
         self.types
     }
 
@@ -2032,7 +2032,7 @@ impl<'a> TypeLowering<'a> {
     /// 说明：typecheck 的某些表达式语义（例如 `with` 更新）需要区分：
     /// - 是否为值类型/引用类型
     /// - 是否为名义值类型（struct/enum）
-    pub(crate) fn type_kind(&self, id: TypeId) -> TypeKind {
+    pub fn type_kind(&self, id: TypeId) -> TypeKind {
         self.types.kind(id).clone()
     }
 

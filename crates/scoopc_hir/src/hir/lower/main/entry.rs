@@ -14,8 +14,8 @@ pub(crate) fn load_dump_support_asts(
     session: &Session,
     entry_source: &SourceFile,
 ) -> Result<Vec<(SourceFile, ast::File)>, HirLowerError> {
-    let support_sources = crate::frontend::load_default_support_sources(session.options())
-        .map_err(|err| HirLowerError::Frontend {
+    let support_sources =
+        load_default_support_sources(session.options()).map_err(|err| HirLowerError::Frontend {
             message: format!("加载 dump support sources 失败：{err}"),
         })?;
 
@@ -33,6 +33,41 @@ pub(crate) fn load_dump_support_asts(
         }
         let ast = parse_file(&support_source)?;
         out.push((support_source, ast));
+    }
+    Ok(out)
+}
+
+fn load_default_support_sources(
+    session_options: &crate::session::SessionOptions,
+) -> miette::Result<Vec<SourceFile>> {
+    use miette::{Context as _, IntoDiagnostic as _};
+
+    let mut support_paths: Vec<(std::path::PathBuf, bool)> = Vec::new();
+    let sysroot_root = crate::sysroot::Sysroot::default_path()
+        .canonicalize()
+        .into_diagnostic()
+        .wrap_err("无法定位 sysroot 目录（T0143）")?;
+    let sysroot_entries = crate::sysroot::collect_auto_sysroot_source_entries(
+        &sysroot_root,
+        session_options.sysroot_overlay(),
+        session_options.extra_sysroot_dependencies(),
+    )?;
+
+    support_paths.extend(
+        sysroot_entries
+            .into_iter()
+            .map(|entry| (entry.path, entry.trusted_syslib)),
+    );
+
+    support_paths.sort_by(|(lhs, _), (rhs, _)| lhs.cmp(rhs));
+
+    let mut out = Vec::with_capacity(support_paths.len());
+    for (path, trusted_syslib) in support_paths {
+        out.push(if trusted_syslib {
+            SourceFile::load_trusted_syslib(&path)?
+        } else {
+            SourceFile::load_sysroot(&path)?
+        });
     }
     Ok(out)
 }

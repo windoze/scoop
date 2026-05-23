@@ -683,6 +683,7 @@ dependencies = [
  "object",
  "scoopc_ast",
  "scoopc_effect_facts",
+ "scoopc_hir",
  "scoopc_hir_facts",
  "scoopc_ids",
  "scoopc_lir_facts",
@@ -724,6 +725,22 @@ version = "0.1.0"
 dependencies = [
  "scoopc_ids",
  "scoopc_types",
+]
+
+[[package]]
+name = "scoopc_hir"
+version = "0.1.0"
+dependencies = [
+ "miette",
+ "scoopc_ast",
+ "scoopc_hir_facts",
+ "scoopc_ids",
+ "scoopc_project_model",
+ "scoopc_source",
+ "scoopc_span",
+ "scoopc_types",
+ "thiserror",
+ "tracing",
 ]
 
 [[package]]

@@ -45,13 +45,13 @@ pub struct SysrootFile {
 }
 
 #[derive(Debug, Clone)]
-pub(crate) struct SysrootSourceEntry {
+pub struct SysrootSourceEntry {
     pub path: PathBuf,
     pub trusted_syslib: bool,
 }
 
 #[derive(Debug, Clone)]
-pub(crate) struct SysrootSourceConePackage {
+pub struct SysrootSourceConePackage {
     pub root: PathBuf,
     pub manifest_path: PathBuf,
     pub manifest: ConeManifest,
@@ -144,7 +144,7 @@ pub fn collect_sysroot_files(
     Ok(())
 }
 
-pub(crate) fn collect_sysroot_source_cone_packages(
+pub fn collect_sysroot_source_cone_packages(
     root: &Path,
     overlay_root: Option<&Path>,
 ) -> Result<Vec<SysrootSourceConePackage>> {
@@ -187,7 +187,7 @@ pub(crate) fn collect_sysroot_source_cone_packages(
     Ok(out)
 }
 
-pub(crate) fn collect_auto_sysroot_source_cone_packages(
+pub fn collect_auto_sysroot_source_cone_packages(
     root: &Path,
     overlay_root: Option<&Path>,
     extra_dependency_names: &[String],
@@ -196,7 +196,7 @@ pub(crate) fn collect_auto_sysroot_source_cone_packages(
     select_auto_sysroot_source_cone_packages(packages, extra_dependency_names)
 }
 
-pub(crate) fn collect_auto_sysroot_source_entries(
+pub fn collect_auto_sysroot_source_entries(
     root: &Path,
     overlay_root: Option<&Path>,
     extra_dependency_names: &[String],
@@ -218,7 +218,7 @@ pub(crate) fn collect_auto_sysroot_source_entries(
     Ok(entries)
 }
 
-pub(crate) fn select_auto_sysroot_source_cone_packages(
+pub fn select_auto_sysroot_source_cone_packages(
     packages: Vec<SysrootSourceConePackage>,
     extra_dependency_names: &[String],
 ) -> Result<Vec<SysrootSourceConePackage>> {
@@ -251,7 +251,7 @@ pub(crate) fn select_auto_sysroot_source_cone_packages(
     Ok(out)
 }
 
-pub(crate) fn sysroot_source_cone_names(packages: &[SysrootSourceConePackage]) -> BTreeSet<String> {
+pub fn sysroot_source_cone_names(packages: &[SysrootSourceConePackage]) -> BTreeSet<String> {
     packages
         .iter()
         .map(|package| package.manifest.cone.name.clone())

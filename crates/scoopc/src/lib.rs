@@ -52,36 +52,42 @@ pub use scoopc_lir_facts as lir_facts_product;
 pub use scoopc_ast as ast;
 pub mod cone;
 pub mod driver_cli;
-pub(crate) mod dump_support;
+pub(crate) mod dump_support {
+    pub(crate) use scoopc_hir::dump_support::*;
+}
 pub(crate) mod effect;
 pub mod effect_facts;
 pub mod effect_lowered;
-pub(crate) mod expr_facts;
+pub(crate) mod expr_facts {
+    pub(crate) use scoopc_hir::expr_facts::*;
+}
 pub mod frontend;
-pub mod hir;
-pub mod infer;
-pub(crate) mod intrinsics;
-pub mod itable;
+pub use scoopc_hir::hir;
+pub use scoopc_hir::infer;
+pub(crate) mod intrinsics {
+    pub(crate) use scoopc_hir::intrinsics::*;
+}
+pub use scoopc_hir::itable;
 pub mod mir;
 pub mod monomorph;
 pub mod opt;
 pub use scoopc_ast::parser;
 pub mod pipeline;
-pub mod resolve;
+pub use scoopc_hir::resolve;
 pub mod rtti;
-pub mod session;
+pub use scoopc_hir::session;
 pub mod source;
 pub mod span;
-pub mod stable_id;
+pub use scoopc_hir::stable_id;
 #[path = "../../scoopc_codegen_llvm/src/stackmap.rs"]
 pub mod stackmap;
 pub use scoopc_ast::syntax;
-pub mod sysroot;
-pub mod target;
+pub use scoopc_hir::sysroot;
+pub use scoopc_hir::target;
 pub mod ty;
-pub mod typecheck;
-pub mod vtable;
-pub mod warnings;
+pub use scoopc_hir::typecheck;
+pub use scoopc_hir::vtable;
+pub use scoopc_hir::warnings;
 
 /// LLVM 后端（inkwell）。
 ///

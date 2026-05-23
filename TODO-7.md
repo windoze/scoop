@@ -326,7 +326,7 @@
   - 反向边复核：`cargo tree -p scoopc_codegen_llvm` 显示直接 workspace 依赖仅为临时 `scoopc` façade；`cargo tree -p scoopc_codegen_llvm --no-default-features` 不拉入 LLVM/inkwell 依赖。残余搜索中，非测试 LLVM HIR residual 无命中；排除测试与 `codegen/mir_body/**` 后的 LLVM MIR residual 无命中。剩余测试命中与 `mir_body` source-body helper 命中仍是 P9-T01-a/P9-T03 记录的允许分类。
   - 验证通过：`cargo fmt`；`cargo build --workspace --features llvm`；`cargo test --all --all-targets --features llvm`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`；`cargo run -p scoop_tools -- dependency-gate`；`cargo clippy --all-targets --features llvm -- -D warnings`；`cargo tree -p scoopc_codegen_llvm`；`cargo tree -p scoopc_codegen_llvm --no-default-features`；LLVM HIR/MIR residual 搜索；`git diff --check`。
 
-### [TODO] P9-T04：抽出 `scoopc_hir` crate
+### [DONE] P9-T04：抽出 `scoopc_hir` crate
 
 - 参考：本文件"跨切面 helper 的归属决策"。
 - 目标：
@@ -352,6 +352,12 @@
   - `cargo tree -p scoopc_hir` 只显示 base + ast + hir_facts；
   - 全套测试与 run-pass fixture 通过。
 - 依赖：P9-T03R
+- 完成记录：
+  - 2026-05-24：新建 `crates/scoopc_hir` 并把 `hir/`、`resolve/`、`typecheck/`、`infer/`、`intrinsics.rs`、`expr_facts.rs`、`vtable.rs`、`itable.rs` 迁入该 crate；`scoopc` 通过 façade re-export 保持 `scoopc::{hir, resolve, typecheck, infer}` 以及相关前端 helper 路径可用。
+  - 前端辅助面：为避免 `scoopc_hir` 反向依赖 umbrella crate，随 HIR 迁入当前 HIR/typecheck API 必需的 `session`、`sysroot`、`target`、`warnings`、`stable_id`、`dump_support` 与 monomorph request key 数据；`scoopc::monomorph` 仍保留 MIR dump wrapper 并 re-export HIR-owned request key。`sysroot` 迁入 HIR 后，P9-T07 仍负责最终 cone 数据/FS 层与 project-model 归属收口。
+  - dependency gate 已激活 `scoopc_hir` 的 HIR-stage crate 检查，允许依赖 base crates、`scoopc_ast` 与 `scoopc_hir_facts`，并把 HIR/typecheck source-boundary 扫描路径迁到 `crates/scoopc_hir/src/**`。
+  - 测试整理：原 HIR lowering 中依赖 umbrella pipeline stage dump 或 via-MIR/codegen request-root collection 的 tests 移到 `scoopc::pipeline` 测试模块；HIR crate 自身测试继续覆盖纯前端 lowering、resolve、typecheck、sysroot/session helper。
+  - 验证通过：`cargo fmt`；`cargo check --workspace`；`cargo build --workspace`；`cargo test --all --all-targets`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`；`cargo run -p scoop_tools -- dependency-gate`；`cargo clippy --all-targets -- -D warnings`；`cargo tree -p scoopc_hir`；`git diff --check`。
 
 ### [TODO] P9-T04R：Review `scoopc_hir` 抽取
 
@@ -441,10 +447,11 @@
 
 - 参考：本文件"当前 `cone/` 内的两层"。
 - 目标：
-  - 把 `cone/manifest.rs` / `package.rs` / `graph.rs` 与 `sysroot/` 全部迁到 base crate `scoopc_project_model`（这些只依赖 base）；
+  - 把 `cone/manifest.rs` / `package.rs` / `graph.rs` 与当前暂驻 `scoopc_hir` 的 `sysroot/` 全部迁到 base crate `scoopc_project_model`（这些只依赖 base）；
   - 把 `cone/archive.rs` / `scoopir/` / `annotations.rs` / `visibility.rs` / `pre_specialize.rs` / `consume.rs` 迁到新 crate `scoopc_cone`（操作层，依赖所有 stage crate）。
 - 必须修改的主要位置：
   - `crates/scoopc_project_model/` 扩展
+  - `crates/scoopc_hir/src/sysroot/`（P9-T04 后的临时前端归属）
   - 新建 `crates/scoopc_cone/`
   - `crates/scoopc/src/lib.rs` 把 `pub mod cone;` 改 façade
   - `crates/scoopc/src/frontend.rs` 改 import（`cone::ConeManifest` 等改路径）

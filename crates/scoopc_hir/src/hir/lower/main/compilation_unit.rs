@@ -6,7 +6,7 @@ use scoopc_ids::InstanceKey;
 
 use super::*;
 
-pub(crate) fn generic_template_symbol_suffixes_for_compilation_unit(
+pub fn generic_template_symbol_suffixes_for_compilation_unit(
     stable_cone_key: &StableConeKey,
     index: &Index,
     compilation_unit: &[(&SourceFile, &ast::File)],
@@ -360,7 +360,7 @@ pub fn lower_for_compilation_unit_multi_files_with_explicit_mir_instances(
 ///
 /// 该入口会复用 resolver/typecheck 事实，但显式关闭 HIR lowering 中遗留的 generic
 /// `::<...>` 实例物化路径，使实例身份只在后续 MIR 层建立。
-pub(crate) fn lower_generic_for_compilation_unit_multi_files_with_type_env(
+pub fn lower_generic_for_compilation_unit_multi_files_with_type_env(
     stable_cone_key: StableConeKey,
     index: &Index,
     compilation_unit: &[(&SourceFile, &ast::File)],

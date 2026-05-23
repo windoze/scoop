@@ -39,7 +39,7 @@ use super::super::{
     StructLitField, SymbolId, ValDecl, ValueRef, WhenArm, WhenPat,
 };
 
-pub(crate) type GenericTemplateSymbolSuffixIndex = HashMap<TemplateKey, String>;
+pub type GenericTemplateSymbolSuffixIndex = HashMap<TemplateKey, String>;
 
 mod annotations;
 mod closures;

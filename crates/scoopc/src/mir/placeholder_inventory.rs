@@ -225,7 +225,7 @@ fn scan_mir_lower_placeholders(manifest_dir: &Path, observed: &mut BTreeSet<Plac
 }
 
 fn scan_hir_handoff_placeholders(manifest_dir: &Path, observed: &mut BTreeSet<PlaceholderKey>) {
-    let hir_lower_dir = manifest_dir.join("src/hir/lower");
+    let hir_lower_dir = manifest_dir.join("../scoopc_hir/src/hir/lower");
     let mut files = Vec::new();
     collect_rust_files(&hir_lower_dir, &mut files);
     for path in files {

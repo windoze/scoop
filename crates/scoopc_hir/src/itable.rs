@@ -138,7 +138,7 @@ struct ConcreteClassTarget {
     ty: TypeId,
 }
 
-pub(crate) const ITABLE_RECEIVER_REF_TYPE_ID: u64 = 0;
+pub const ITABLE_RECEIVER_REF_TYPE_ID: u64 = 0;
 
 pub fn collect_interfaces_and_class_itables(
     compilation_unit: &[(&SourceFile, &ast::File)],
@@ -621,7 +621,7 @@ fn materialize_member_impl_fqn_for_owner(
     else {
         return Ok(impl_member_fqn.to_string());
     };
-    let template = crate::mir::TemplateKey {
+    let template = scoopc_ids::TemplateKey {
         fqn: impl_member_fqn.to_string(),
         source_path: overload.symbol.decl_file.clone(),
         decl_span: overload.symbol.span,
