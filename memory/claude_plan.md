@@ -38,4 +38,5 @@
 - Review found an indirect `interfaces` side-table dependency through value-box itable generation; `mir_value_box_itable_entries` now consumes LIR physical interface facts for interface metadata.
 - Final validation passes: `cargo test -p scoopc llvm::codegen::effect_lowered::layout`; `cargo test -p scoopc --no-default-features llvm::codegen::effect_lowered::layout`; `cargo test -p scoopc_lir_facts`; `cargo run -p scoop -- test --fixtures tests/fixtures/effect_lowered`; `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`; `cargo clippy --all-targets -- -D warnings`; `git diff --check`.
 - `TODO.md` and `TODO-6.md` updated: `P7-T04-c` is marked `[DONE]` and its completion record is filled.
-- Next step is final git review and commit.
+- Main task changes committed as `e08e2ffc` (`[P7-T04-c] Migrate physical ABI layout to LIR facts`).
+- This file is being updated once more to record the completed commit step.
