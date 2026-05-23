@@ -1376,13 +1376,13 @@
   8. 对所有保留的 `crate::hir` / `crate::mir` 命中重新分类；只允许测试、LIR-owned source payload alias 或已文档化的 base-context 窄合同，不得留下未解释 production fallback。
 - 验证：
   1. `cargo fmt`
-  2. `cargo run -p scoop_tools -- dependency-gate`
-  3. `cargo test -p scoopc_lir_facts`
-  4. `cargo test -p scoopc --no-default-features llvm_codegen_stage`
-  5. `cargo test -p scoopc --no-default-features llvm::codegen`
-  6. `cargo test -p scoopc llvm::codegen`
-  7. `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`（完整 run-pass，至少 30 分钟 timeout）
-  8. `cargo clippy --all-targets -- -D warnings`
+  2. `cargo clippy --all-targets -- -D warnings`
+  3. `cargo run -p scoop_tools -- dependency-gate`
+  4. `cargo test -p scoopc_lir_facts`
+  5. `cargo test -p scoopc --no-default-features llvm_codegen_stage`
+  6. `cargo test -p scoopc --no-default-features llvm::codegen`
+  7. `cargo test -p scoopc llvm::codegen`
+  8. `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`（完整 run-pass，至少 30 分钟 timeout）
   9. `git diff --check`
 - 完成条件：
   - LLVM production codegen 不再接收或保存 `fun_index`、`HirFacts`、完整 `MaterializedMir`、完整 `MaterializedEffectFacts` 或 HIR-derived callable signature fallback；
@@ -1475,11 +1475,11 @@
   4. 如果全量 fixture 中任何单个测试卡住超过 1 分钟，必须定位并修复，不得仅跳过。
 - 验证：
   1. `cargo fmt`
-  2. `cargo run -p scoop_tools -- dependency-gate`
-  3. `cargo run -p scoop_tools -- spec-fixtures check`
-  4. `cargo test --all --all-targets`
-  5. `cargo run -p scoop -- test`（完整 fixture suite，至少 30 分钟 timeout）
-  6. `cargo clippy --all-targets -- -D warnings`
+  2. `cargo clippy --all-targets -- -D warnings`
+  3. `cargo run -p scoop_tools -- dependency-gate`
+  4. `cargo run -p scoop_tools -- spec-fixtures check`
+  5. `cargo test --all --all-targets`
+  6. `cargo run -p scoop -- test`（完整 fixture suite，至少 30 分钟 timeout）
   7. `git diff --check`
 - 完成条件：
   - 最终验证矩阵通过；

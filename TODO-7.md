@@ -420,11 +420,11 @@
   4. README + crate overview 更新（指向新 crate 结构）。
 - 验证：
   1. `cargo fmt`
-  2. `cargo build --workspace`
-  3. `cargo test --all --all-targets`
-  4. `cargo run -p scoop -- test`（完整 fixture suite，至少 30 分钟 timeout）
-  5. `cargo run -p scoop_tools -- dependency-gate`
-  6. `cargo clippy --all-targets -- -D warnings`
+  2. `cargo clippy --all-targets -- -D warnings`
+  3. `cargo build --workspace`
+  4. `cargo test --all --all-targets`
+  5. `cargo run -p scoop -- test`（完整 fixture suite，至少 30 分钟 timeout）
+  6. `cargo run -p scoop_tools -- dependency-gate`
   7. `git diff --check`
 - 完成条件：
   - workspace 编译加测试全绿；
@@ -656,10 +656,10 @@
   4. 把整个 build closure 的 SHA fingerprint 路径标记为废弃。
 - 验证：
   1. `cargo fmt`
-  2. `cargo run -p scoop_tools -- dependency-gate`
-  3. `cargo test --all --all-targets`
-  4. `cargo run -p scoop -- test`（完整 fixture suite，至少 30 分钟 timeout）
-  5. `cargo clippy --all-targets -- -D warnings`
+  2. `cargo clippy --all-targets -- -D warnings`
+  3. `cargo run -p scoop_tools -- dependency-gate`
+  4. `cargo test --all --all-targets`
+  5. `cargo run -p scoop -- test`（完整 fixture suite，至少 30 分钟 timeout）
   6. `git diff --check`
 - 完成条件：
   - per-cone build 在所有 fixture 上稳定；
