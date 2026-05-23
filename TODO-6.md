@@ -4,7 +4,7 @@
 > 细化时间：2026-05-22
 > 计划基线：[`PLAN.md`](./PLAN.md) §4/P6-P8
 > 索引：[`TODO.md`](./TODO.md)
-> 当前状态：`P7-T04-a` / `P7-T04-b-1` / `P7-T04-b-1R` / `P7-T04-b-2` / `P7-T04-b-2R` / `P7-T04-b-3` / `P7-T04-b-3R` / `P7-T04-b-4` / `P7-T04-b-4R` / `P7-T04-b-5` / `P7-T04-b-5R` / `P7-T04-b` 均已完成。LLVM stage handoff 已收窄为 `LIR + LIR facts + LlvmStageBaseContext`，`LirStageOutput` 不再携带 backend residual；下一步执行 `P7-T04-bR`。
+> 当前状态：`P7-T04-a` / `P7-T04-b-1` / `P7-T04-b-1R` / `P7-T04-b-2` / `P7-T04-b-2R` / `P7-T04-b-3` / `P7-T04-b-3R` / `P7-T04-b-4` / `P7-T04-b-4R` / `P7-T04-b-5` / `P7-T04-b-5R` / `P7-T04-b` / `P7-T04-bR` 均已完成。LLVM stage handoff 已收窄为 `LIR + LIR facts + LlvmStageBaseContext`，`LirStageOutput` 不再携带 backend residual；下一步执行 `P7-T04-c`。
 
 ## 范围
 
@@ -1013,7 +1013,7 @@
   - 同步 layout/codegen/effect-lowering 测试 helper：helper 现在从 `LlvmStageBaseContext` 构造 `CompilationUnitCodegenInputs`，不再依赖 `LirStageOutput` residual accessor。
   - 验证通过：`cargo fmt`；`cargo test -p scoopc --no-default-features llvm_codegen_stage`（0 filtered-in，pass）；`cargo test -p scoopc --no-default-features pipeline::effect_lowering_stage`（14 passed）；`cargo test -p scoopc --no-default-features llvm::codegen::effect_lowered::layout`（0 filtered-in，pass）；`cargo test -p scoopc llvm_codegen_stage`（28 passed）；`cargo test -p scoopc llvm::codegen::effect_lowered::layout`（68 passed）；`cargo run -p scoop_tools -- dependency-gate`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`（421/421 passed）；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
 
-## [TODO] P7-T04-bR：Review LLVM stage handoff 形状收窄
+## [DONE] P7-T04-bR：Review LLVM stage handoff 形状收窄
 
 - 参考：P7-T04-b。
 - 重点：
@@ -1028,7 +1028,11 @@
   - review 结论明确写出 stage handoff 形状已收窄，或列出阻塞项并在本 review 内修复。
 - 依赖：P7-T04-b
 - 完成记录：
-  - 待填写。
+  - Review 结论：`P7-T04-b` 的 stage handoff 形状收窄成立。`LlvmCodegenStageOutput` / `StageEmitInput` / `LirStageOutput` 公共 API 不再以 `LoweredHir`、`HirFacts` 或 `EffectLoweredStageOutput` 作为 handoff 字段/accessor；`LirStageOutput` 保持纯 `LateLoweredProgram + LirFacts`，未恢复 `LirStageContext` 或 `llvm_residual_pass_view()`。
+  - Review 内修复：补强 ABI visibility 与 TypeStore owner 合同。`LlvmStageBaseContext::verify_lir_type_context` 现在校验 materialized/effect TypeStore fingerprint 与 LIR facts 一致；`StageEmitInput::new` 拒绝部分 ABI visibility tuple；emit 入口用 ABI visibility 自身的 TypeStore owner 校验 ABI LIR facts，避免静默混用 primary facts/types。
+  - HIR scaffold 残留归属：额外搜索中 `HirFacts` / `MaterializedMirPassView` 仍仅出现在 `LlvmStageBaseContext` 和 backend-private `CompilationUnitCodegenCx` residual，符合 P7-T04-b 对 P7-T04-c 前 physical layout 迁移残留的归属；未发现 `hir_compat_scaffold`、`llvm_residual_pass_view` 或 `EffectLoweredStageOutput` Rust 命中。
+  - 新增覆盖：`pipeline::llvm_codegen_stage::tests::llvm_codegen_stage_abi_visibility_handoff_is_complete_and_verified` 覆盖 primary/ABI visibility LIR facts 与 TypeStore owner 校验。
+  - 验证通过：`cargo fmt`；`cargo test -p scoopc --no-default-features llvm_codegen_stage`（0 filtered-in，pass）；`cargo test -p scoopc llvm_codegen_stage`（29 passed）；`cargo test -p scoopc --no-default-features pipeline::effect_lowering_stage`（14 passed）；`cargo test -p scoopc --no-default-features llvm::codegen::effect_lowered::layout`（0 filtered-in，pass）；`cargo test -p scoopc llvm::codegen::effect_lowered::layout`（68 passed）；`cargo run -p scoop_tools -- dependency-gate`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`（421/421 passed）；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
 
 ## [TODO] P7-T04-c：迁移 physical ABI/layout 查询面到 LIR facts
 

@@ -1,27 +1,41 @@
-# 当前执行计划
+Scoop task execution plan and progress log
 
-## 约束
-- 只处理 `TODO.md` 中第一个标题未带 `[DONE]` 的任务，完成后停止。
-- `TODO.md` 是任务排序、依赖、验证和完成记录的权威来源。
-- 如遇阻塞当前任务的缺陷、缺失特性或未排期失败，先修复；若不能在当前任务内正确修复，则在 `TODO.md` 中新增最小前置任务并提交后停止。
-- 不使用规避方案、降级夹具或改变预期建模方式来绕过语言/运行时/测试缺陷。
-- 仅在阶段级计划、依赖或完成标准变化时更新 `PLAN.md`。
+Current invocation goal
+- Complete exactly the first incomplete task in TODO.md, then stop.
+- Treat TODO.md as authoritative for ordering, dependencies, validation, and completion records.
 
-## 步骤
-1. 读取 `TODO.md`，定位第一个未完成任务，并确认最近提交是否指出与该任务直接相关的未完成事项。
-2. 读取该任务涉及的说明、相关源码和测试，确认实现边界与验证要求。
-3. 按任务要求实施最小正确变更；如发现必须先处理的具体前置问题，更新 `TODO.md` 后提交并停止。
-4. 运行与变更相关的定向测试；必要时运行更广的验证命令，确保未留下未排期失败。
-5. 将任务标题标记为 `[DONE]`，更新任务完成记录；如计划结构未变，不更新 `PLAN.md`。
-6. 检查工作区差异，提交本次任务相关的全部未提交文件，提交信息使用任务编号和简明说明。
-7. 停止，不继续下一个任务。
+Execution plan
+1. Read TODO.md and identify the first task whose heading is not prefixed with [DONE].
+2. Check the latest commit message only for unfinished issues directly relevant to that selected task.
+3. Inspect the selected task's requirements, dependencies, affected code, and nearby tests/fixtures.
+4. Implement the smallest spec-correct change needed for that task; do not use workarounds or weaken fixtures.
+5. Run targeted validation first, then broader validation required by the task or affected area.
+6. If any unscheduled failing test or fixture is observed, fix it or add the minimum prerequisite/follow-up task in TODO.md before marking the task complete.
+7. Mark the completed task heading in TODO.md with [DONE] and update its completion record.
+8. Update PLAN.md only if phase-level sequencing, dependencies, assumptions, or completion criteria changed.
+9. Review the diff, run final relevant checks, and commit all intended changes with a task-specific message.
+10. Stop without starting the next task.
 
-## 进度
-- 已创建初始执行计划。
-- 已读取 `TODO.md` 与最近提交；第一个未完成任务确定为 `P7-T04-b：收窄 LLVM stage handoff 形状`。
-- 当前任务验证范围：`cargo fmt`、`cargo test -p scoopc --no-default-features llvm_codegen_stage`、`cargo test -p scoopc --no-default-features pipeline::effect_lowering_stage`、`cargo test -p scoopc --no-default-features llvm::codegen::effect_lowered::layout`、`cargo run -p scoop_tools -- dependency-gate`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`、`cargo clippy --all-targets -- -D warnings`、`git diff --check`。
-- 执行重点：引入显式 LLVM stage base context，收窄 `LlvmCodegenStageOutput`、`StageEmitInput`、`LirStageOutput` 的公共输入形状，删除 `LirStageContext` 与 `llvm_residual_pass_view()` residual accessor，并保留 TypeId wire-format 推迟决策记录。
-- 已完成第一轮实现：`LirStageOutput` 不再保存 MIR/effect residual；LLVM stage 新增 `LlvmStageBaseContext`，`LlvmCodegenStageOutput` 与 `StageEmitInput` 改为携带 LIR/LIR facts/base context；layout 测试 helper 改为从 base context 构造 codegen 输入。
-- 默认 LLVM layout tests 初次运行发现 TypeStore owner 选择错误：LIR program 使用 effect-owned TypeStore，而 base context 暴露 materialized MIR TypeStore，已改为由 `LlvmStageBaseContext` 暴露 effect-owned TypeStore，并继续让 `MaterializedMir` 承担 backend contracts owner。
-- `run-pass` 初次验证发现 `sysroot_atomic_basic.scoop` 缺失 `Atomic<Box<Pair>>` layout key；已把 base context 的 backend contract side tables 改为显式合并 MaterializedMir contracts 与 HIR lowering 后的 side tables，避免继续依赖 `LoweredHir` 整包同时补齐 materialized 前缺失的 generic class layout 条目。
-- 已完成验证并更新 `TODO.md` / `TODO-6.md`：`P7-T04-b` 标记为 `[DONE]`，完成记录包含实现摘要、`sysroot_atomic_basic` 修复和全部验证命令结果。
+Progress log
+- Created initial execution plan before reading project task details.
+- Identified first incomplete task from TODO.md: P7-T04-bR, a review task for the LLVM stage handoff shape narrowing in TODO-6.md.
+- Read TODO-6.md requirements for P7-T04-bR. Latest commit is df64e064 `[P7-T04-b] Narrow LLVM stage handoff`, directly matching the reviewed task and not naming an extra unfinished prerequisite.
+
+Selected task plan: P7-T04-bR
+1. Read the P7-T04-b and P7-T04-bR entries in TODO-6.md to capture the exact review scope and validation requirements.
+2. Inspect the latest commit message for directly relevant unfinished work.
+3. Review the P7-T04-b implementation against the task contract: LLVM handoff should use the narrowed LIR/base/codegen context shape, not broad frontend or raw MIR/HIR fallback state.
+4. Search for residual handoff leaks and type-discipline regressions in codegen and related tests.
+5. Fix any issues that invalidate P7-T04-bR; if a concrete prerequisite blocks review completion, record it in TODO.md instead of marking the review done.
+6. Run the task-specified and relevant targeted validation, then update TODO.md and TODO-6.md completion records if the review passes.
+7. Commit the review changes and stop.
+
+Review findings and adjusted implementation plan
+- Residual API search confirmed `llvm_residual_pass_view`, `LirStageContext`, and `EffectLoweredStageOutput` are gone from Rust sources.
+- Remaining `HirFacts` and `MaterializedMirPassView` hits are in the explicit `LlvmStageBaseContext` / backend codegen context, matching the P7-T04-b allowance for backend-private residuals before P7-T04-c.
+- Review gap found: ABI visibility handoff consistency is documented but not enforced strongly enough. `StageEmitInput::new` can accept a partial ABI visibility tuple, and `LlvmStageBaseContext::verify_lir_type_context` checks owner/wire-format but not whether LIR facts fingerprints match the base context TypeStores.
+- Plan update: add narrow verifier checks for TypeStore fingerprints and ABI visibility option tuple consistency, update the stale stage handoff comment, add focused tests, then run the required validation.
+- Implemented the review fix: `LlvmStageBaseContext` now verifies materialized/effect TypeStore fingerprints, `StageEmitInput::new` rejects partial ABI visibility tuples, emit verifies ABI visibility facts against their TypeStore owner, and `llvm_codegen_stage_abi_visibility_handoff_is_complete_and_verified` covers the handoff.
+- Validation passed: `cargo fmt`; `cargo test -p scoopc --no-default-features llvm_codegen_stage`; `cargo test -p scoopc llvm_codegen_stage`; `cargo test -p scoopc --no-default-features pipeline::effect_lowering_stage`; `cargo test -p scoopc --no-default-features llvm::codegen::effect_lowered::layout`; `cargo test -p scoopc llvm::codegen::effect_lowered::layout`; `cargo run -p scoop_tools -- dependency-gate`; `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`; `cargo clippy --all-targets -- -D warnings`; `git diff --check`.
+- Residual search after changes: no `hir_compat_scaffold`, `llvm_residual_pass_view`, or `EffectLoweredStageOutput` Rust hits in the reviewed scopes; remaining `HirFacts` / `MaterializedMirPassView` hits are confined to `LlvmStageBaseContext` and backend-private codegen context residuals allowed until P7-T04-c.
+- Updated TODO.md and TODO-6.md to mark P7-T04-bR as [DONE] with the review conclusion, fix summary, residual search classification, and validation record.

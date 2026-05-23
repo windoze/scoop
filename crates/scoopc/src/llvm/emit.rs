@@ -55,6 +55,17 @@ impl<'a> StageEmitInput<'a> {
         abi_visibility_lir_facts: Option<&'a LirFacts>,
         abi_visibility_types: Option<&'a crate::ty::TypeStore>,
     ) -> Self {
+        let has_abi_visibility = abi_visibility_lir.is_some();
+        assert_eq!(
+            has_abi_visibility,
+            abi_visibility_lir_facts.is_some(),
+            "ABI visibility LIR and LIR facts must be provided together"
+        );
+        assert_eq!(
+            has_abi_visibility,
+            abi_visibility_types.is_some(),
+            "ABI visibility LIR and TypeStore owner must be provided together"
+        );
         Self {
             base_context,
             lir,
@@ -191,7 +202,7 @@ pub fn emit_minimal_main_ir_to_file(
     Ok(())
 }
 
-/// 基于 LLVM stage handoff（P5 late-lowered output + HIR compatibility scaffold）构建 LLVM module。
+/// 基于 LLVM stage handoff（LIR + LIR facts + LLVM base context）构建 LLVM module。
 pub(crate) fn build_main_module_from_stage_output<'ctx>(
     source_map: &SourceMap,
     entry_source_id: SourceId,
@@ -461,7 +472,7 @@ fn build_module_from_codegen_entry_with_root_selector<'ctx>(
     let target_data = TargetData::create(&target_info.data_layout);
 
     base_context.verify_lir_type_context(late_lowered_lir_facts, "primary")?;
-    base_context.verify_lir_type_context(abi_lir_facts, "ABI visibility")?;
+    LlvmStageBaseContext::verify_lir_type_store_owner(abi_types, abi_lir_facts, "ABI visibility")?;
 
     let fun_index = base_context.fun_index();
     let selected_root =

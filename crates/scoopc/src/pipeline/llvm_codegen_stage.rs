@@ -317,26 +317,69 @@ impl LlvmStageBaseContext {
         facts: &LirFacts,
         role: &'static str,
     ) -> Result<(), LlvmEmitError> {
-        if facts.type_context.owner != LirTypeContextOwner::LirStageBaseContext {
+        verify_lir_type_context_header(facts, role)?;
+
+        let materialized_fingerprint = type_store_fingerprint(&self.materialized_mir.types);
+        if facts.type_context.materialized_fingerprint != materialized_fingerprint {
             return Err(LlvmEmitError::Frontend {
                 message: format!(
-                    "LLVM stage {role} LIR facts 使用了非 LlvmStageBaseContext type owner: {:?}",
-                    facts.type_context.owner
+                    "LLVM stage {role} LIR facts materialized TypeStore fingerprint 与 LlvmStageBaseContext 不一致"
                 ),
             });
         }
-        if facts.type_context.stable_wire_format.decision
-            != LirTypeStableWireFormatDecision::Deferred
-            || facts.type_context.stable_wire_format.owner.is_empty()
-        {
+
+        Self::verify_lir_type_store_owner(self.types(), facts, role)
+    }
+
+    pub(crate) fn verify_lir_type_store_owner(
+        types: &TypeStore,
+        facts: &LirFacts,
+        role: &'static str,
+    ) -> Result<(), LlvmEmitError> {
+        verify_lir_type_context_header(facts, role)?;
+
+        let effect_facts_fingerprint = type_store_fingerprint(types);
+        if facts.type_context.effect_facts_fingerprint != effect_facts_fingerprint {
             return Err(LlvmEmitError::Frontend {
                 message: format!(
-                    "LLVM stage {role} LIR facts 缺少 TypeId wire-format 推迟决策记录"
+                    "LLVM stage {role} LIR facts effect TypeStore fingerprint 与 handoff TypeStore owner 不一致"
                 ),
             });
         }
+
         Ok(())
     }
+}
+
+fn verify_lir_type_context_header(
+    facts: &LirFacts,
+    role: &'static str,
+) -> Result<(), LlvmEmitError> {
+    if facts.type_context.owner != LirTypeContextOwner::LirStageBaseContext {
+        return Err(LlvmEmitError::Frontend {
+            message: format!(
+                "LLVM stage {role} LIR facts 使用了非 LlvmStageBaseContext type owner: {:?}",
+                facts.type_context.owner
+            ),
+        });
+    }
+    if facts.type_context.stable_wire_format.decision != LirTypeStableWireFormatDecision::Deferred
+        || facts.type_context.stable_wire_format.owner.is_empty()
+    {
+        return Err(LlvmEmitError::Frontend {
+            message: format!("LLVM stage {role} LIR facts 缺少 TypeId wire-format 推迟决策记录"),
+        });
+    }
+    Ok(())
+}
+
+fn type_store_fingerprint(types: &TypeStore) -> String {
+    let mut entries = types
+        .iter_ids()
+        .map(|ty| format!("t{}={}", ty.as_u32(), types.display(ty)))
+        .collect::<Vec<_>>();
+    entries.sort();
+    entries.join("|")
 }
 
 /// LLVM codegen stage 的稳定 handoff。
@@ -1875,6 +1918,45 @@ fun main(): Int {
         (session, source_map, entry_source_id, lowered)
     }
 
+    fn emit_args_for_source_with_abi_visibility(
+        source: SourceFile,
+    ) -> (
+        Session,
+        SourceMap,
+        crate::source::SourceId,
+        crate::frontend::CodegenLoweringOutput,
+        crate::frontend::CodegenLoweringOutput,
+    ) {
+        let session = session_for_source(&source);
+        let context =
+            crate::frontend::prepare_virtual_cone_context_with_options(source, session.options())
+                .unwrap();
+        let front = crate::frontend::run_project_frontend(&session, context).unwrap();
+        let primary = crate::frontend::lower_hir_for_codegen_with_request_root_mode(
+            &session,
+            &front,
+            OptLevel::O0,
+            crate::frontend::MirRequestRootMode::EntryMain,
+        )
+        .unwrap();
+        let abi_visibility = crate::frontend::lower_hir_for_codegen_with_request_root_mode(
+            &session,
+            &front,
+            OptLevel::O0,
+            crate::frontend::MirRequestRootMode::RequestSources,
+        )
+        .unwrap();
+        let (source_map, entry_source_id) =
+            crate::frontend::build_source_map(&session, front.input());
+        (
+            session,
+            source_map,
+            entry_source_id,
+            primary,
+            abi_visibility,
+        )
+    }
+
     fn sample_emit_args() -> (
         Session,
         SourceMap,
@@ -2558,6 +2640,41 @@ fun main() {
         .unwrap();
         let ir = module.print_to_string().to_string();
         assert!(ir.contains("define i32 @main("));
+    }
+
+    #[test]
+    fn llvm_codegen_stage_abi_visibility_handoff_is_complete_and_verified() {
+        let _guard = test_lock();
+        let (session, source_map, entry_source_id, primary, abi_visibility) =
+            emit_args_for_source_with_abi_visibility(sample_source());
+        let input = LlvmCodegenStageInput::new(
+            primary,
+            Some(abi_visibility),
+            source_map,
+            entry_source_id,
+            None,
+            OptLevel::O0,
+        );
+
+        let stage_output = super::run(&session, input).unwrap();
+        let abi_lir_facts = stage_output
+            .abi_visibility_lir_facts()
+            .expect("ABI visibility LIR facts should be present with ABI LIR");
+        let abi_types = stage_output
+            .abi_visibility_types()
+            .expect("ABI visibility TypeStore owner should be present with ABI LIR");
+
+        assert!(stage_output.abi_visibility_lir().is_some());
+        stage_output
+            .base_context()
+            .verify_lir_type_context(stage_output.lir_facts(), "primary")
+            .unwrap();
+        super::LlvmStageBaseContext::verify_lir_type_store_owner(
+            abi_types,
+            abi_lir_facts,
+            "ABI visibility",
+        )
+        .unwrap();
     }
 
     #[test]
