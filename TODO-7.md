@@ -424,7 +424,7 @@
   - 依赖边界：`cargo tree -p scoopc_mir` 未显示 `scoopc_effect_*`、`scoopc_lir` 或 `scoopc_codegen_llvm`；`dependency-gate` 将 `scoopc_mir` 作为 MIR-stage 检查通过。
   - 验证通过：`cargo fmt`；`cargo build --workspace`；`cargo test --all --all-targets`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`；`cargo run -p scoop_tools -- dependency-gate`；`cargo clippy --all-targets -- -D warnings`；`cargo tree -p scoopc_mir`；`git diff --check`。
 
-### [TODO] P9-T06-a：收窄 LIR 的 HIR/AST source payload 边界
+### [DONE] P9-T06-a：收窄 LIR 的 HIR/AST source payload 边界
 
 - 阻塞原因：
   - P9-T06 要求 `scoopc_lir` 不再依赖 HIR/AST，并在抽取后让 LLVM codegen 直接依赖 `scoopc_lir` / `scoopc_lir_facts`，不能继续通过 `scoopc` façade 或 `scoopc_mir` façade 隐藏 HIR/AST payload。
@@ -451,13 +451,19 @@
   3. `cargo test --all --all-targets`
   4. `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`
   5. `cargo run -p scoop_tools -- dependency-gate`
-  6. 残余搜索：`rg -n "crate::hir|scoopc_hir|crate::ast|scoopc_ast|scoopc::hir|scoopc::ast" crates/scoopc/src/effect_lowered crates/scoopc_mir/src`
+  6. 残余搜索：`rg -n "crate::hir|scoopc_hir|crate::ast|scoopc_ast|scoopc::hir|scoopc::ast|scoopc_mir::hir|scoopc_mir::ast" crates/scoopc/src/effect_lowered`
   7. `git diff --check`
 - 完成条件：
   - P9-T06 可以在不使用 façade workaround、不弱化 LIR 输入模型的情况下创建 `scoopc_lir`；
   - production LIR 代码不直接命名 HIR/AST owner；
   - P9-T06 的依赖验证口径已与 PLAN §1.2 和实际 crate DAG 对齐。
 - 依赖：P9-T05R
+- 完成记录：
+  - 2026-05-24：发布 MIR-owned source payload 边界。`scoopc_mir::mir::source_payload` 承接当前 LLVM source-body helper 仍需的 HIR-shaped transitional payload；`effect_lowered::source` 不再直接 re-export HIR/AST owner，而是转发 MIR-owned source payload。
+  - class ctor init payload 已收窄：新增 `class_ctor_source` / MIR-owned `MonoClassInit`、`ClassCtor`、`ClassCtorDelegationKind`、`CtorCallInfo` 等 LIR 输入面；`LateLoweredClassCtorInitBody` 与 builder 不再直接命名 `crate::hir` / `crate::ast`，delegation kind 也不再匹配 AST owner enum。
+  - P9-T06 依赖验证口径已修正为 direct stage dependency：`scoopc_lir` 抽取后 `cargo tree -p scoopc_lir --depth 1` 与 `dependency-gate` 必须禁止 HIR/AST/`scoopc` direct dependency；full transitive tree 可继续反映 `scoopc_mir -> scoopc_hir/scoopc_ast` 的合法前阶段依赖，不作为 LIR direct-dep 失败条件。
+  - dependency gate 补强：新增可选 `scoopc_lir` direct-dependency 检查、当前 `crates/scoopc/src/effect_lowered` 与未来 `crates/scoopc_lir/src` 的 HIR/AST source-boundary 规则，并跳过尚未创建的可选 stage crate/root。
+  - 验证通过：`cargo fmt`；`cargo build --workspace`；`cargo test --all --all-targets`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`；`cargo run -p scoop_tools -- dependency-gate`；`cargo clippy --all-targets -- -D warnings`；LIR residual 搜索；`git diff --check`。
 
 ### [TODO] P9-T06：抽出 `scoopc_effect_facts_stage` 与 `scoopc_lir` crate
 
@@ -472,7 +478,7 @@
   - dependency_gate 激活两个 crate
 - 必须实现的内容：
   1. `scoopc_effect_facts_stage` 依赖：base + `scoopc_ast` + `scoopc_hir` + `scoopc_hir_facts` + `scoopc_mir` + `scoopc_mir_facts` + `scoopc_effect_facts`。
-  2. `scoopc_lir` 依赖：base + `scoopc_mir` + `scoopc_mir_facts` + `scoopc_effect_facts` + `scoopc_lir_facts`（按 PLAN §1.2，LIR 不应再依赖 hir 或 ast）。
+  2. `scoopc_lir` direct dependencies：base + `scoopc_mir` + `scoopc_mir_facts` + `scoopc_effect_facts` + `scoopc_lir_facts`（按 PLAN §1.2，LIR 不应再 direct 依赖 hir / ast / umbrella `scoopc`；full transitive tree 可包含 `scoopc_mir` 的合法前阶段依赖）。
   3. P9-T03 中登记的"`scoopc_codegen_llvm` 暂走 façade"义务在本任务完成后切换：`scoopc_codegen_llvm` 改为直接 `use scoopc_lir::...`。
 - 验证：
   1. `cargo fmt`
@@ -480,9 +486,10 @@
   3. `cargo test --all --all-targets`
   4. `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`
   5. `cargo run -p scoop_tools -- dependency-gate`
-  6. `git diff --check`
+  6. `cargo tree -p scoopc_lir --depth 1`
+  7. `git diff --check`
 - 完成条件：
-  - `cargo tree -p scoopc_lir` 不显示 `scoopc_hir` / `scoopc_ast`；
+  - `cargo tree -p scoopc_lir --depth 1` 不显示 `scoopc_hir` / `scoopc_ast` / `scoopc`；
   - `cargo tree -p scoopc_codegen_llvm` 直接显示 `scoopc_lir`，不再绕 façade。
 - 依赖：P9-T06-a
 

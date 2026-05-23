@@ -146,7 +146,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             callee_span,
             callee_span,
             args,
-            Some(site),
+            Some(site.arg_mapping.as_slice()),
             ctor_params,
             "class ctor call arg eval",
         )?;
@@ -311,15 +311,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         _at: crate::span::Span,
         callee_span: crate::span::Span,
         args: &[hir::CallArg],
-        call_info: Option<&hir::CtorCallInfo>,
+        arg_mapping: Option<&[Option<usize>]>,
         ctor_params: &[LateLoweredClassCtorParam],
         kind: &'static str,
     ) -> Result<Vec<CgValue<'ctx>>, LlvmEmitError> {
-        let mapping: Vec<Option<usize>> = if let Some(info) = call_info {
-            if info.arg_mapping.len() != ctor_params.len() {
+        let mapping: Vec<Option<usize>> = if let Some(arg_mapping) = arg_mapping {
+            if arg_mapping.len() != ctor_params.len() {
                 panic!("codegen_class_ctor_eval_args: verifier accepted {kind}");
             }
-            info.arg_mapping.clone()
+            arg_mapping.to_vec()
         } else {
             if !args.is_empty() || !ctor_params.is_empty() {
                 panic!("codegen_class_ctor_eval_args: verifier accepted {kind}");
@@ -474,7 +474,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         target_class_fqn: &str,
         target_key: &LirClassCtorInitKey,
         target_args: &[hir::CallArg],
-        target_call: Option<&hir::CtorCallInfo>,
+        target_arg_mapping: Option<&[Option<usize>]>,
         obj_ptr: PointerValue<'ctx>,
         stack: &mut HashSet<String>,
         kind: &'static str,
@@ -492,7 +492,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             callee_span,
             callee_span,
             target_args,
-            target_call,
+            target_arg_mapping,
             target_init.params(),
             kind,
         )?;
@@ -530,7 +530,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             delegation.class_fqn(),
             delegation.target(),
             delegation.args(),
-            delegation.call(),
+            delegation.call().map(|call| call.arg_mapping.as_slice()),
             obj_ptr,
             stack,
             kind,
@@ -556,7 +556,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             super_call.class_fqn(),
             super_call.target(),
             super_call.args(),
-            super_call.call(),
+            super_call.call().map(|call| call.arg_mapping.as_slice()),
             obj_ptr,
             stack,
             "class super ctor selected/ordered args contract",

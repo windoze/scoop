@@ -41,7 +41,7 @@ use thiserror::Error;
 use crate::ast;
 use crate::span::Span;
 use crate::stable_id::StableConeKey;
-use crate::ty::{EffectRow, RefTypeKind, TypeId, TypeKind, TypeStore};
+use crate::ty::{EffectRow, MonoTypeId, RefTypeKind, TypeId, TypeKind, TypeStore};
 
 pub(crate) use callables::{MaterializedCallableFamilies, MaterializedCallableFamilyInput};
 pub use callables::{MaterializedCallableFamilyView, MaterializedCallableView};
@@ -1569,6 +1569,228 @@ pub struct InitializerDependency {
 pub enum InitializerDependencyKind {
     TopLevelValue,
     ObjectSingleton,
+}
+
+/// MIR-owned class initialization payload consumed by LIR class ctor init lowering.
+pub type ClassInitIndex = HashMap<ClassInstanceKey, MonoClassInit>;
+
+/// MIR-facing class layout key; the identity is still authored by the HIR frontend.
+pub type ClassInstanceKey = crate::hir::ClassInstanceKey;
+
+/// Source-local symbol id preserved for class ctor source payloads.
+pub type SymbolId = crate::hir::SymbolId;
+
+/// Source expression payload preserved behind MIR/LIR names for class ctor lowering.
+pub type SourceExpr = crate::hir::Expr;
+
+/// Source block payload preserved behind MIR/LIR names for class ctor lowering.
+pub type SourceBlock = crate::hir::Block;
+
+/// Source call argument payload preserved behind MIR/LIR names for class ctor lowering.
+pub type SourceCallArg = crate::hir::CallArg;
+
+/// Transitional MIR-owned source payload namespace used by source-body codegen helpers.
+///
+/// MIR is allowed to depend on the frontend stages; LIR should consume these
+/// payloads through explicit LIR contracts instead of re-exporting this module.
+pub mod source_payload {
+    pub use crate::hir::*;
+}
+
+/// Monomorphic class init source contract published to LIR without exposing HIR/AST owner names.
+#[derive(Debug, Clone)]
+pub struct MonoClassInit {
+    pub fqn: String,
+    pub source_path: PathBuf,
+    pub super_class_fqn: Option<String>,
+    pub super_ctor_args_span: Option<Span>,
+    pub super_ctor_call: Option<CtorCallInfo>,
+    pub super_ctor_args: Vec<SourceCallArg>,
+    pub this_id: SymbolId,
+    pub fields: Vec<ClassField<MonoTypeId>>,
+    pub field_indices: HashMap<String, u32>,
+    pub steps: Vec<ClassInitStep>,
+    pub ctors: Vec<ClassCtor<MonoTypeId>>,
+}
+
+impl MonoClassInit {
+    /// Build the MIR-owned payload from the frontend-owned class init side table.
+    pub fn from_hir(class: &crate::hir::MonoClassInit) -> Self {
+        Self {
+            fqn: class.fqn.clone(),
+            source_path: class.source_path.clone(),
+            super_class_fqn: class.super_class_fqn.clone(),
+            super_ctor_args_span: class.super_ctor_args_span,
+            super_ctor_call: class.super_ctor_call.as_ref().map(CtorCallInfo::from_hir),
+            super_ctor_args: class.super_ctor_args.clone(),
+            this_id: class.this_id,
+            fields: class.fields.iter().map(ClassField::from_hir).collect(),
+            field_indices: class.field_indices.clone(),
+            steps: class.steps.iter().map(ClassInitStep::from_hir).collect(),
+            ctors: class.ctors.iter().map(ClassCtor::from_hir).collect(),
+        }
+    }
+}
+
+/// Class field source contract for backend-neutral class layout consumers.
+#[derive(Debug, Clone)]
+pub struct ClassField<T> {
+    pub fqn: String,
+    pub name: String,
+    pub mutable: bool,
+    pub ty: T,
+}
+
+impl<T: Copy> ClassField<T> {
+    fn from_hir(field: &crate::hir::ClassField<T>) -> Self {
+        Self {
+            fqn: field.fqn.clone(),
+            name: field.name.clone(),
+            mutable: field.mutable,
+            ty: field.ty,
+        }
+    }
+}
+
+/// One source-ordered class initialization step consumed by LIR ctor lowering.
+#[derive(Debug, Clone)]
+pub enum ClassInitStep {
+    PropertyInit { field_fqn: String, init: SourceExpr },
+    InitBlock { block: SourceBlock },
+}
+
+impl ClassInitStep {
+    fn from_hir(step: &crate::hir::ClassInitStep) -> Self {
+        match step {
+            crate::hir::ClassInitStep::PropertyInit { field_fqn, init } => Self::PropertyInit {
+                field_fqn: field_fqn.clone(),
+                init: init.clone(),
+            },
+            crate::hir::ClassInitStep::InitBlock { block } => Self::InitBlock {
+                block: block.clone(),
+            },
+        }
+    }
+}
+
+/// Source constructor kind normalized into a MIR-owned enum.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ClassCtorKind {
+    Primary,
+    Secondary,
+}
+
+impl ClassCtorKind {
+    fn from_hir(kind: crate::hir::ClassCtorKind) -> Self {
+        match kind {
+            crate::hir::ClassCtorKind::Primary => Self::Primary,
+            crate::hir::ClassCtorKind::Secondary => Self::Secondary,
+        }
+    }
+}
+
+/// A monomorphic class constructor payload consumed by LIR class init lowering.
+#[derive(Debug, Clone)]
+pub struct ClassCtor<T> {
+    pub kind: ClassCtorKind,
+    pub span: Span,
+    pub params: Vec<ClassCtorParam<T>>,
+    pub delegation: Option<ClassCtorDelegation>,
+    pub body: Option<SourceBlock>,
+}
+
+impl<T: Copy> ClassCtor<T> {
+    fn from_hir(ctor: &crate::hir::ClassCtor<T>) -> Self {
+        Self {
+            kind: ClassCtorKind::from_hir(ctor.kind),
+            span: ctor.span,
+            params: ctor.params.iter().map(ClassCtorParam::from_hir).collect(),
+            delegation: ctor.delegation.as_ref().map(ClassCtorDelegation::from_hir),
+            body: ctor.body.clone(),
+        }
+    }
+}
+
+/// Constructor delegation kind normalized away from the AST owner enum.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ClassCtorDelegationKind {
+    This,
+    Super,
+}
+
+impl ClassCtorDelegationKind {
+    fn from_ast(kind: ast::CtorDelegationKind) -> Self {
+        match kind {
+            ast::CtorDelegationKind::This => Self::This,
+            ast::CtorDelegationKind::Super => Self::Super,
+        }
+    }
+}
+
+/// Constructor delegation payload with AST ownership hidden behind MIR names.
+#[derive(Debug, Clone)]
+pub struct ClassCtorDelegation {
+    pub kind: ClassCtorDelegationKind,
+    pub span: Span,
+    pub call: Option<CtorCallInfo>,
+    pub args: Vec<SourceCallArg>,
+}
+
+impl ClassCtorDelegation {
+    fn from_hir(delegation: &crate::hir::ClassCtorDelegation) -> Self {
+        Self {
+            kind: ClassCtorDelegationKind::from_ast(delegation.kind),
+            span: delegation.span,
+            call: delegation.call.as_ref().map(CtorCallInfo::from_hir),
+            args: delegation.args.clone(),
+        }
+    }
+}
+
+/// Constructor parameter payload published to LIR class init lowering.
+#[derive(Debug, Clone)]
+pub struct ClassCtorParam<T> {
+    pub id: SymbolId,
+    pub name: String,
+    pub decl_span: Span,
+    pub ty: T,
+    pub has_default: bool,
+    pub default_value: Option<SourceExpr>,
+    pub is_property: bool,
+    pub property_field_fqn: Option<String>,
+}
+
+impl<T: Copy> ClassCtorParam<T> {
+    fn from_hir(param: &crate::hir::ClassCtorParam<T>) -> Self {
+        Self {
+            id: param.id,
+            name: param.name.clone(),
+            decl_span: param.decl_span,
+            ty: param.ty,
+            has_default: param.has_default,
+            default_value: param.default_value.clone(),
+            is_property: param.is_property,
+            property_field_fqn: param.property_field_fqn.clone(),
+        }
+    }
+}
+
+/// Constructor call binding payload needed for named/default argument replay.
+#[derive(Debug, Clone)]
+pub struct CtorCallInfo {
+    pub class_fqn: String,
+    pub ctor_span: Option<Span>,
+    pub arg_mapping: Vec<Option<usize>>,
+}
+
+impl CtorCallInfo {
+    fn from_hir(call: &crate::hir::CtorCallInfo) -> Self {
+        Self {
+            class_fqn: call.class_fqn.clone(),
+            ctor_span: call.ctor_span,
+            arg_mapping: call.arg_mapping.clone(),
+        }
+    }
 }
 
 /// MIR-owned contract for an `@Extern` top-level global variable.

@@ -20,7 +20,7 @@ use super::ir::{
     LateLoweredClassCtorParam, LateLoweredClassCtorSuperCall, LateLoweredFrameSchema,
     LateLoweredPlainBodySlice, LateLoweredPlainCallSite, LateLoweredPlainCallable,
     LateLoweredPlainLocalEffectControl, LateLoweredProgram, LateLoweredResumeStateMap,
-    LateLoweredStateGraph, source,
+    LateLoweredStateGraph, class_ctor_source as source,
 };
 use super::materialize::{
     BoundaryMaterializationInputs, ContinuationObjectMaterializationInputs,
@@ -348,8 +348,11 @@ impl<'a> LateLoweredProgramBuilder<'a> {
             callables.push(callable);
         }
 
-        let class_ctor_init_bodies =
-            build_class_ctor_init_bodies(materialized.backend_contracts().class_inits.values());
+        let class_init_payloads = materialized
+            .backend_contracts()
+            .class_init_payloads()
+            .collect::<Vec<_>>();
+        let class_ctor_init_bodies = build_class_ctor_init_bodies(class_init_payloads.iter());
         let program =
             LateLoweredProgram::new(step_types, resume_packings, continuation_objects, callables)
                 .with_class_ctor_init_bodies(class_ctor_init_bodies)
@@ -487,8 +490,8 @@ fn build_class_ctor_delegation<'a>(
     delegation: &source::ClassCtorDelegation,
 ) -> LateLoweredClassCtorDelegation {
     let kind = match delegation.kind {
-        crate::ast::CtorDelegationKind::This => scoopc_lir_facts::LirClassCtorDelegationKind::This,
-        crate::ast::CtorDelegationKind::Super => {
+        source::ClassCtorDelegationKind::This => scoopc_lir_facts::LirClassCtorDelegationKind::This,
+        source::ClassCtorDelegationKind::Super => {
             scoopc_lir_facts::LirClassCtorDelegationKind::Super
         }
     };
@@ -497,8 +500,8 @@ fn build_class_ctor_delegation<'a>(
         .as_ref()
         .map(|call| call.class_fqn.clone())
         .or_else(|| match delegation.kind {
-            crate::ast::CtorDelegationKind::This => Some(class.fqn.clone()),
-            crate::ast::CtorDelegationKind::Super => class.super_class_fqn.clone(),
+            source::ClassCtorDelegationKind::This => Some(class.fqn.clone()),
+            source::ClassCtorDelegationKind::Super => class.super_class_fqn.clone(),
         })
         .unwrap_or_else(|| class.fqn.clone());
     let target_span = delegation.call.as_ref().and_then(|call| call.ctor_span);

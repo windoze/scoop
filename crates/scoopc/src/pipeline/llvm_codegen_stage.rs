@@ -184,11 +184,16 @@ impl LlvmStageBaseContext {
         for (key, value) in lowered_hir.class_inits {
             class_inits.entry(key).or_insert(value);
         }
-        let class_ctor_init_bodies =
-            crate::effect_lowered::builder::build_class_ctor_init_bodies(class_inits.values())
-                .into_iter()
-                .map(|body| (body.key().as_str().to_string(), body))
-                .collect();
+        let class_init_payloads = class_inits
+            .values()
+            .map(crate::mir::MonoClassInit::from_hir)
+            .collect::<Vec<_>>();
+        let class_ctor_init_bodies = crate::effect_lowered::builder::build_class_ctor_init_bodies(
+            class_init_payloads.iter(),
+        )
+        .into_iter()
+        .map(|body| (body.key().as_str().to_string(), body))
+        .collect();
         let mut class_vtables = contracts.class_vtables.clone();
         for (key, value) in lowered_hir.class_vtables {
             class_vtables.entry(key).or_insert(value);

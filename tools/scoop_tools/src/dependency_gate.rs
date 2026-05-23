@@ -39,6 +39,8 @@ const HIR_STAGE_CRATES: &[&str] = &["scoopc_hir"];
 
 const MIR_STAGE_CRATES: &[&str] = &["scoopc_mir"];
 
+const LIR_STAGE_CRATES: &[&str] = &["scoopc_lir"];
+
 const CODEGEN_STAGE_CRATES: &[&str] = &["scoopc_codegen_llvm"];
 
 const TEMPORARY_CODEGEN_FACADE_DEPS: &[&str] = &["scoopc"];
@@ -75,14 +77,15 @@ impl Report {
         }
 
         let mut lines = vec![format!(
-            "dependency gate: ok (checked {} pipeline crates: {} base, {} fact, {} base-only stage, {} HIR stage, {} MIR stage, {} codegen stage; {} source boundary files)",
+            "dependency gate: ok (checked {} pipeline crates: {} base, {} fact, {} base-only stage, {} HIR stage, {} MIR stage, {} LIR stage, {} codegen stage; {} source boundary files)",
             self.checks.len(),
-            BASE_CRATES.len(),
-            FACT_CRATES.len(),
-            BASE_ONLY_STAGE_CRATES.len(),
-            HIR_STAGE_CRATES.len(),
-            MIR_STAGE_CRATES.len(),
-            CODEGEN_STAGE_CRATES.len(),
+            self.count_crate_kind(CrateKind::Base),
+            self.count_crate_kind(CrateKind::Fact),
+            self.count_crate_kind(CrateKind::BaseOnlyStage),
+            self.count_crate_kind(CrateKind::HirStage),
+            self.count_crate_kind(CrateKind::MirStage),
+            self.count_crate_kind(CrateKind::LirStage),
+            self.count_crate_kind(CrateKind::CodegenStage),
             self.source_checks.len()
         )];
         for check in &self.checks {
@@ -116,6 +119,13 @@ impl Report {
                 .source_checks
                 .iter()
                 .any(|check| !check.violations.is_empty())
+    }
+
+    fn count_crate_kind(&self, kind: CrateKind) -> usize {
+        self.checks
+            .iter()
+            .filter(|check| check.kind == kind)
+            .count()
     }
 
     fn render_failures(&self) -> String {
@@ -159,6 +169,7 @@ enum CrateKind {
     BaseOnlyStage,
     HirStage,
     MirStage,
+    LirStage,
     CodegenStage,
 }
 
@@ -170,6 +181,7 @@ impl CrateKind {
             Self::BaseOnlyStage => "base-only-stage",
             Self::HirStage => "hir-stage",
             Self::MirStage => "mir-stage",
+            Self::LirStage => "lir-stage",
             Self::CodegenStage => "codegen-stage",
         }
     }
@@ -269,6 +281,21 @@ pub fn run() -> Result<Report> {
         });
     }
 
+    for crate_name in LIR_STAGE_CRATES {
+        if !crate_manifest_exists(crate_name, &workspace_root) {
+            continue;
+        }
+        let dependency_names = cargo_tree_direct_package_names(crate_name, &workspace_root)?;
+        let violations =
+            find_dependency_violations(crate_name, CrateKind::LirStage, &dependency_names);
+        checks.push(CrateCheck {
+            crate_name: (*crate_name).to_string(),
+            kind: CrateKind::LirStage,
+            dependency_names,
+            violations,
+        });
+    }
+
     for crate_name in CODEGEN_STAGE_CRATES {
         let dependency_names = cargo_tree_direct_package_names(crate_name, &workspace_root)?;
         let violations =
@@ -316,6 +343,9 @@ fn run_source_tree_boundary_check(
     rule: SourceTreeBoundaryRule,
 ) -> Result<Vec<SourceBoundaryCheck>> {
     let root = workspace_root.join(rule.root);
+    if !root.exists() {
+        return Ok(Vec::new());
+    }
     let mut files = Vec::new();
     collect_rust_files(&root, &mut files)?;
     files.sort();
@@ -366,6 +396,14 @@ fn workspace_root() -> Result<PathBuf> {
         .and_then(Path::parent)
         .map(Path::to_path_buf)
         .ok_or_else(|| miette::miette!("unable to locate workspace root from scoop_tools"))
+}
+
+fn crate_manifest_exists(crate_name: &str, workspace_root: &Path) -> bool {
+    workspace_root
+        .join("crates")
+        .join(crate_name)
+        .join("Cargo.toml")
+        .is_file()
 }
 
 fn cargo_tree_package_names(crate_name: &str, workspace_root: &Path) -> Result<BTreeSet<String>> {
@@ -983,6 +1021,94 @@ fn source_tree_boundary_rules() -> Vec<SourceTreeBoundaryRule> {
                 },
             ],
         },
+        SourceTreeBoundaryRule {
+            label: "LIR production direct HIR/AST residuals",
+            kind_label: "stage-split-boundary",
+            root: "crates/scoopc/src/effect_lowered",
+            exclude_path_fragments: &[],
+            forbidden: &[
+                ForbiddenSourcePattern {
+                    pattern: "use crate::hir",
+                    reason: "LIR source payloads must enter through MIR/LIR-owned contracts, not raw HIR APIs",
+                },
+                ForbiddenSourcePattern {
+                    pattern: "crate::hir::",
+                    reason: "LIR must not reach directly into raw HIR APIs",
+                },
+                ForbiddenSourcePattern {
+                    pattern: "scoopc_hir::",
+                    reason: "future LIR crate must not depend directly on the HIR stage crate",
+                },
+                ForbiddenSourcePattern {
+                    pattern: "scoopc::hir",
+                    reason: "future LIR crate must not depend on the scoopc facade for HIR APIs",
+                },
+                ForbiddenSourcePattern {
+                    pattern: "use crate::ast",
+                    reason: "LIR source payloads must enter through MIR/LIR-owned contracts, not raw AST APIs",
+                },
+                ForbiddenSourcePattern {
+                    pattern: "crate::ast::",
+                    reason: "LIR must not reach directly into raw AST APIs",
+                },
+                ForbiddenSourcePattern {
+                    pattern: "scoopc_ast::",
+                    reason: "future LIR crate must not depend directly on the AST stage crate",
+                },
+                ForbiddenSourcePattern {
+                    pattern: "scoopc::ast",
+                    reason: "future LIR crate must not depend on the scoopc facade for AST APIs",
+                },
+                ForbiddenSourcePattern {
+                    pattern: "scoopc_mir::hir",
+                    reason: "LIR must not use the MIR crate's frontend facade as a HIR dependency workaround",
+                },
+                ForbiddenSourcePattern {
+                    pattern: "scoopc_mir::ast",
+                    reason: "LIR must not use the MIR crate's frontend facade as an AST dependency workaround",
+                },
+            ],
+        },
+        SourceTreeBoundaryRule {
+            label: "scoopc_lir direct HIR/AST residuals",
+            kind_label: "stage-split-boundary",
+            root: "crates/scoopc_lir/src",
+            exclude_path_fragments: &[],
+            forbidden: &[
+                ForbiddenSourcePattern {
+                    pattern: "use scoopc_hir",
+                    reason: "scoopc_lir must consume source payloads through MIR/LIR-owned contracts",
+                },
+                ForbiddenSourcePattern {
+                    pattern: "scoopc_hir::",
+                    reason: "scoopc_lir must not depend directly on the HIR stage crate",
+                },
+                ForbiddenSourcePattern {
+                    pattern: "scoopc::hir",
+                    reason: "scoopc_lir must not use the scoopc facade for HIR APIs",
+                },
+                ForbiddenSourcePattern {
+                    pattern: "use scoopc_ast",
+                    reason: "scoopc_lir must consume source payloads through MIR/LIR-owned contracts",
+                },
+                ForbiddenSourcePattern {
+                    pattern: "scoopc_ast::",
+                    reason: "scoopc_lir must not depend directly on the AST stage crate",
+                },
+                ForbiddenSourcePattern {
+                    pattern: "scoopc::ast",
+                    reason: "scoopc_lir must not use the scoopc facade for AST APIs",
+                },
+                ForbiddenSourcePattern {
+                    pattern: "scoopc_mir::hir",
+                    reason: "scoopc_lir must not use the MIR crate's frontend facade as a HIR dependency workaround",
+                },
+                ForbiddenSourcePattern {
+                    pattern: "scoopc_mir::ast",
+                    reason: "scoopc_lir must not use the MIR crate's frontend facade as an AST dependency workaround",
+                },
+            ],
+        },
     ]
 }
 
@@ -1082,6 +1208,42 @@ fn find_dependency_violations(
                 violations.push(Violation {
                     dependency: dependency.clone(),
                     reason: "MIR stage crates must depend only on base crates, scoopc_ast, scoopc_hir, scoopc_hir_facts, and scoopc_mir_facts"
+                        .to_string(),
+                });
+            }
+
+            continue;
+        }
+
+        if kind == CrateKind::LirStage {
+            let allowed_stage_inputs = [
+                "scoopc_mir",
+                "scoopc_mir_facts",
+                "scoopc_effect_facts",
+                "scoopc_lir_facts",
+            ];
+            if dependency_name == "scoopc"
+                || dependency_name == "scoopc_ast"
+                || dependency_name == "scoopc_hir"
+                || dependency_name == "scoopc_hir_facts"
+                || dependency_name == "scoopc_effect_facts_stage"
+                || dependency_name == "scoopc_codegen_llvm"
+                || dependency_name == "scoopc_codegen_c"
+            {
+                violations.push(Violation {
+                    dependency: dependency.clone(),
+                    reason: "LIR stage crates must depend directly only on base, MIR, MIR facts, effect facts, and LIR facts"
+                        .to_string(),
+                });
+                continue;
+            }
+
+            if FORBIDDEN_WORKSPACE_CRATES.contains(&dependency_name)
+                && !allowed_stage_inputs.contains(&dependency_name)
+            {
+                violations.push(Violation {
+                    dependency: dependency.clone(),
+                    reason: "LIR stage crates must not depend on facade, driver/runtime/tool, frontend stages, effect builder stage, backend, or non-LIR input facts"
                         .to_string(),
                 });
             }
@@ -1371,6 +1533,56 @@ mod tests {
         assert!(rejected.contains("scoopc"));
         assert!(rejected.contains("scoopc_effect_facts"));
         assert!(rejected.contains("scoopc_lir_facts"));
+        assert!(rejected.contains("scoopc_codegen_llvm"));
+    }
+
+    #[test]
+    fn allows_lir_stage_direct_dependency_direction() {
+        let violations = find_dependency_violations(
+            "scoopc_lir",
+            CrateKind::LirStage,
+            &set(&[
+                "scoopc_lir",
+                "scoopc_mir",
+                "scoopc_mir_facts",
+                "scoopc_effect_facts",
+                "scoopc_lir_facts",
+                "scoopc_project_model",
+                "scoopc_source",
+                "scoopc_types",
+                "scoopc_ids",
+                "scoopc_span",
+            ]),
+        );
+
+        assert!(violations.is_empty());
+    }
+
+    #[test]
+    fn rejects_lir_stage_direct_frontend_or_facade_dependency() {
+        let violations = find_dependency_violations(
+            "scoopc_lir",
+            CrateKind::LirStage,
+            &set(&[
+                "scoopc_lir",
+                "scoopc",
+                "scoopc_ast",
+                "scoopc_hir",
+                "scoopc_hir_facts",
+                "scoopc_effect_facts_stage",
+                "scoopc_codegen_llvm",
+            ]),
+        );
+
+        let rejected = violations
+            .iter()
+            .map(|violation| violation.dependency.as_str())
+            .collect::<BTreeSet<_>>();
+        assert!(rejected.contains("scoopc"));
+        assert!(rejected.contains("scoopc_ast"));
+        assert!(rejected.contains("scoopc_hir"));
+        assert!(rejected.contains("scoopc_hir_facts"));
+        assert!(rejected.contains("scoopc_effect_facts_stage"));
         assert!(rejected.contains("scoopc_codegen_llvm"));
     }
 

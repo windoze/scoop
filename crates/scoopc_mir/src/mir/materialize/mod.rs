@@ -100,6 +100,15 @@ pub struct MaterializedBackendContracts {
     pub object_inits: crate::hir::ObjectInitIndex,
 }
 
+impl MaterializedBackendContracts {
+    /// Return class init payloads through the MIR-owned surface expected by LIR.
+    pub fn class_init_payloads(&self) -> impl Iterator<Item = super::MonoClassInit> + '_ {
+        self.class_inits
+            .values()
+            .map(super::MonoClassInit::from_hir)
+    }
+}
+
 impl MaterializedMir {
     /// Stable text surface for `dump-ir` and materialized MIR regression checks.
     pub fn stable_dump(&self) -> String {

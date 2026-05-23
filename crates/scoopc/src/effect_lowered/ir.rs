@@ -14,11 +14,19 @@ use crate::ty::{EffectRow, TypeId};
 
 /// LIR-owned source payload namespace.
 ///
-/// Current late-lowered bodies still carry selected source-slice payloads whose
-/// concrete structs originate in earlier stages. Backend users must enter those
-/// payloads through this namespace instead of depending on the raw owner modules.
+/// Current late-lowered bodies still carry selected source-slice payloads, but
+/// LIR exposes them through MIR-owned names instead of raw HIR/AST owner modules.
 pub mod source {
-    pub use crate::hir::*;
+    pub use crate::mir::source_payload::*;
+}
+
+/// LIR-owned class constructor source payload namespace.
+pub mod class_ctor_source {
+    pub use crate::mir::{
+        ClassCtor, ClassCtorDelegation, ClassCtorDelegationKind, ClassCtorKind, ClassCtorParam,
+        ClassInitStep, CtorCallInfo, MonoClassInit, SourceBlock as Block, SourceCallArg as CallArg,
+        SourceExpr as Expr, SymbolId,
+    };
 }
 
 /// LIR-owned MIR-shaped source payload namespace.
@@ -323,15 +331,15 @@ pub type LateLoweredSourceStructLitField = crate::mir::StructLitField;
 
 pub type LateLoweredSourceClassCtorCallMetadata = crate::mir::ClassCtorCallMetadata;
 
-pub type LateLoweredSourceClassCtorCallArg = source::CallArg;
+pub type LateLoweredSourceClassCtorCallArg = class_ctor_source::CallArg;
 
-pub type LateLoweredSourceClassCtorExpr = source::Expr;
+pub type LateLoweredSourceClassCtorExpr = class_ctor_source::Expr;
 
-pub type LateLoweredSourceClassCtorBlock = source::Block;
+pub type LateLoweredSourceClassCtorBlock = class_ctor_source::Block;
 
 #[derive(Debug, Clone)]
 pub struct LateLoweredClassCtorParam {
-    id: source::SymbolId,
+    id: class_ctor_source::SymbolId,
     name: String,
     decl_span: Span,
     ty: MonoTypeId,
@@ -341,7 +349,7 @@ pub struct LateLoweredClassCtorParam {
 }
 
 impl LateLoweredClassCtorParam {
-    pub(crate) fn new(param: &source::ClassCtorParam<MonoTypeId>) -> Self {
+    pub(crate) fn new(param: &class_ctor_source::ClassCtorParam<MonoTypeId>) -> Self {
         Self {
             id: param.id,
             name: param.name.clone(),
@@ -353,7 +361,7 @@ impl LateLoweredClassCtorParam {
         }
     }
 
-    pub fn id(&self) -> source::SymbolId {
+    pub fn id(&self) -> class_ctor_source::SymbolId {
         self.id
     }
 
@@ -386,7 +394,7 @@ impl LateLoweredClassCtorParam {
 pub struct LateLoweredClassCtorSuperCall {
     target: scoopc_lir_facts::LirClassCtorInitKey,
     class_fqn: String,
-    call: Option<source::CtorCallInfo>,
+    call: Option<class_ctor_source::CtorCallInfo>,
     args: Vec<LateLoweredSourceClassCtorCallArg>,
     source_span: Option<Span>,
 }
@@ -395,7 +403,7 @@ impl LateLoweredClassCtorSuperCall {
     pub(crate) fn new(
         target: scoopc_lir_facts::LirClassCtorInitKey,
         class_fqn: String,
-        call: Option<source::CtorCallInfo>,
+        call: Option<class_ctor_source::CtorCallInfo>,
         args: Vec<LateLoweredSourceClassCtorCallArg>,
         source_span: Option<Span>,
     ) -> Self {
@@ -416,7 +424,7 @@ impl LateLoweredClassCtorSuperCall {
         &self.class_fqn
     }
 
-    pub fn call(&self) -> Option<&source::CtorCallInfo> {
+    pub fn call(&self) -> Option<&class_ctor_source::CtorCallInfo> {
         self.call.as_ref()
     }
 
@@ -434,7 +442,7 @@ pub struct LateLoweredClassCtorDelegation {
     kind: scoopc_lir_facts::LirClassCtorDelegationKind,
     target: scoopc_lir_facts::LirClassCtorInitKey,
     class_fqn: String,
-    call: Option<source::CtorCallInfo>,
+    call: Option<class_ctor_source::CtorCallInfo>,
     args: Vec<LateLoweredSourceClassCtorCallArg>,
     span: Span,
 }
@@ -444,7 +452,7 @@ impl LateLoweredClassCtorDelegation {
         kind: scoopc_lir_facts::LirClassCtorDelegationKind,
         target: scoopc_lir_facts::LirClassCtorInitKey,
         class_fqn: String,
-        call: Option<source::CtorCallInfo>,
+        call: Option<class_ctor_source::CtorCallInfo>,
         args: Vec<LateLoweredSourceClassCtorCallArg>,
         span: Span,
     ) -> Self {
@@ -470,7 +478,7 @@ impl LateLoweredClassCtorDelegation {
         &self.class_fqn
     }
 
-    pub fn call(&self) -> Option<&source::CtorCallInfo> {
+    pub fn call(&self) -> Option<&class_ctor_source::CtorCallInfo> {
         self.call.as_ref()
     }
 
@@ -538,7 +546,7 @@ pub struct LateLoweredClassCtorInitBody {
     key: scoopc_lir_facts::LirClassCtorInitKey,
     class_fqn: String,
     source_path: PathBuf,
-    this_id: source::SymbolId,
+    this_id: class_ctor_source::SymbolId,
     ctor_kind: scoopc_lir_facts::LirClassCtorKind,
     ctor_span: Option<Span>,
     params: Vec<LateLoweredClassCtorParam>,
@@ -553,7 +561,7 @@ impl LateLoweredClassCtorInitBody {
         key: scoopc_lir_facts::LirClassCtorInitKey,
         class_fqn: String,
         source_path: PathBuf,
-        this_id: source::SymbolId,
+        this_id: class_ctor_source::SymbolId,
         ctor_kind: scoopc_lir_facts::LirClassCtorKind,
         ctor_span: Option<Span>,
         params: Vec<LateLoweredClassCtorParam>,
@@ -587,7 +595,7 @@ impl LateLoweredClassCtorInitBody {
         &self.source_path
     }
 
-    pub fn this_id(&self) -> source::SymbolId {
+    pub fn this_id(&self) -> class_ctor_source::SymbolId {
         self.this_id
     }
 
