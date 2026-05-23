@@ -4,7 +4,7 @@
 > 细化时间：2026-05-22
 > 计划基线：[`PLAN.md`](./PLAN.md) §4/P6-P8
 > 索引：[`TODO.md`](./TODO.md)
-> 当前状态：`P7-T04-a` / `P7-T04-b-1` / `P7-T04-b-1R` / `P7-T04-b-2` / `P7-T04-b-2R` / `P7-T04-b-3` / `P7-T04-b-3R` / `P7-T04-b-4` / `P7-T04-b-4R` / `P7-T04-b-5` / `P7-T04-b-5R` / `P7-T04-b` / `P7-T04-bR` / `P7-T04-c` 均已完成。LLVM stage handoff 已收窄为 `LIR + LIR facts + LlvmStageBaseContext`，`LirStageOutput` 不再携带 backend residual；physical ABI/layout 查询面已迁到 LIR facts；下一步执行 `P7-T04-cR`。
+> 当前状态：`P7-T04-a` / `P7-T04-b-1` / `P7-T04-b-1R` / `P7-T04-b-2` / `P7-T04-b-2R` / `P7-T04-b-3` / `P7-T04-b-3R` / `P7-T04-b-4` / `P7-T04-b-4R` / `P7-T04-b-5` / `P7-T04-b-5R` / `P7-T04-b` / `P7-T04-bR` / `P7-T04-c` / `P7-T04-cR` 均已完成。LLVM stage handoff 已收窄为 `LIR + LIR facts + LlvmStageBaseContext`，`LirStageOutput` 不再携带 backend residual；physical ABI/layout 查询面已迁到 LIR facts，并已复审；下一步执行 `P7-T04` 合并验证。
 
 ## 范围
 
@@ -1076,7 +1076,7 @@
   - 同步更新 `tests/fixtures/effect_lowered/*.effectlowered` golden，反映新增 `Option<T>` LIR physical enum facts与当前 `LirStageOutput` dump 形状。
   - 验证通过：`cargo fmt`；`cargo test -p scoopc_lir_facts`；`cargo test -p scoopc --no-default-features llvm::codegen::effect_lowered::layout`（0 filtered-in，pass）；`cargo test -p scoopc llvm::codegen::effect_lowered::layout`（68 passed）；`cargo test -p scoopc llvm::codegen::effect_lowered`（70 passed）；`cargo run -p scoop -- test --fixtures tests/fixtures/effect_lowered`（10/10 passed）；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`（421/421 passed）；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
 
-## [TODO] P7-T04-cR：Review physical ABI/layout 迁移结果
+## [DONE] P7-T04-cR：Review physical ABI/layout 迁移结果
 
 - 参考：P7-T04-c。
 - 重点：
@@ -1091,7 +1091,11 @@
   - review 结论明确写出 physical ABI/layout 已迁到 LIR facts，或列出阻塞项并在本 review 内修复。
 - 依赖：P7-T04-c
 - 完成记录：
-  - 待填写。
+  - Review 结论：physical ABI/layout 迁移结果满足 P7-T04-cR 要求；`ProgramAbiMaterializer` 与 effect-lowered physical layout 生产路径只从 `LirFacts.physical_layout` / LIR callable facts / base `TypeStore` owner 查询 ABI/layout 合同，未发现需要阻塞 P7-T04 的 HIR scaffold 回看。
+  - residual 搜索：在 `crates/scoopc/src/llvm/codegen/effect_lowered/` 中搜索 `class_inits` / `class_vtables` / `interfaces` / `class_itables` / `enum_layouts` / `crate::hir::mangle_nominal_fqn`；生产路径无直接 HIR side-table 读取或 HIR-only mangle 调用，命中仅包括 LIR physical layout facts 字段、测试 helper 注入的空 HIR physical tables，以及接口命名中的正常 `interfaces` 文本。
+  - `CompilationUnitCodegenCx` / `CompilationUnitCodegenInputs` 复审：`enum_layouts`、`class_inits`、`class_vtables`、`interfaces`、`class_itables` 仍作为更宽 LLVM codegen residual 输入存在，但本轮未发现它们仅为 `effect_lowered/layout` physical ABI 服务；layout tests 通过空 HIR physical tables 运行，证明 materializer 未隐藏读取这些 side table。
+  - TypeStore bridge verifier 复审：`ProgramAbiMaterializer::new` 先执行 `lir_facts.verify()`，再调用 `LlvmStageBaseContext::verify_lir_type_store_owner(source_types, lir_facts, "physical ABI/layout")`；负测 `llvm_layout_rejects_mismatched_source_typestore_before_layout` 覆盖 mismatched TypeStore fail-fast。
+  - 验证通过：`cargo fmt`；`cargo test -p scoopc_lir_facts`；`cargo test -p scoopc --no-default-features llvm::codegen::effect_lowered::layout`；`cargo test -p scoopc --no-default-features llvm::codegen::effect_lowered`；`cargo test -p scoopc llvm::codegen::effect_lowered`；`cargo run -p scoop -- test --fixtures tests/fixtures/effect_lowered`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`（421/421 passed）；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
 
 ## [TODO] P7-T04：收尾——LLVM stage handoff 与 physical ABI cleanup 合并验证
 

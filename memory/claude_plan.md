@@ -2,41 +2,30 @@
 
 ## Scope
 
-- Source of truth: `TODO.md`.
-- Goal for this invocation: complete exactly the first incomplete task in `TODO.md`, then stop.
-- Completion requires implementation, validation, `TODO.md` completion update, and a git commit.
+- Execute exactly the first incomplete task in `TODO.md`.
+- Treat a task as complete only when its title is explicitly prefixed with `[DONE]`.
+- Stop after completing, documenting, testing, and committing that one task.
 
-## Execution Plan
+## Step-by-Step Plan
 
-1. Read `TODO.md` first and identify the first task whose heading is not prefixed with `[DONE]`.
-2. Inspect only the code, fixtures, and documentation needed for that task, plus recent git context if it directly affects the selected task.
-3. Implement the selected task without changing task scope or using workarounds.
-4. Add or update the smallest relevant tests/fixtures for the task.
-5. Run targeted validation first, then broader validation required by the task or affected area.
-6. If any failing test/fixture is observed and is not already explicitly scheduled, fix it or add the minimum prerequisite/follow-up task in `TODO.md` before marking anything complete.
-7. Update `TODO.md` by prefixing the completed task heading with `[DONE]` and filling its completion record.
-8. Update this file whenever the plan materially changes or a key step completes.
-9. Review git status/diff/log, then commit all intended changes with a task-specific message.
-10. Stop after the commit without starting the next task.
+1. Read `TODO.md` and identify the first task whose title does not start with `[DONE]`.
+2. Check the latest commit only for unfinished work directly relevant to that selected task.
+3. Read the selected task details, dependencies, validation requirements, and completion-record format.
+4. Inspect the minimum relevant code, tests, fixtures, and documentation needed for that task.
+5. Implement the task as specified, without narrowing scope or introducing workarounds.
+6. If a concrete blocking prerequisite is discovered, update `TODO.md` with the minimum required prerequisite task in the correct order, record the blocker here, commit that bookkeeping, and stop.
+7. Run targeted validation for the changed behavior, then broader required validation from the task. Address every observed unscheduled test or fixture failure before marking the task complete.
+8. Update `TODO.md` by prefixing the completed task title with `[DONE]` and filling in its completion record. Update `PLAN.md` only if phase-level sequencing or criteria changed.
+9. Review the worktree diff to ensure only intended changes are included.
+10. Commit all changes for this task with a clear task-id-based message.
+11. Stop without starting the next task.
 
-## Current Progress
+## Progress Log
 
-- Plan initialized before repository inspection.
-- `TODO.md` inspected; first incomplete task is `P7-T04-c` (`迁移 physical ABI/layout 查询面到 LIR facts`).
-- `TODO-6.md` task body inspected. Required scope: move physical ABI/layout and `effect_lowered/ty.rs` lookups from HIR scaffold side tables to `LirFacts.physical_layout` / type context / callable contracts; keep stage handoff shape unchanged.
-- Latest commit is `[P7-T04-bR] Review LLVM stage handoff narrowing`; no separate unfinished issue was identified from the commit subject.
-- Next step is targeted code inspection for scaffold fields/usages and existing LIR facts layout APIs.
-- Implemented first pass of the migration: physical class/enum/vtable/itable lookups in the effect-lowered ABI materializer now use `LirFacts.physical_layout`; enum-unit/runtime-error checks use LIR enum facts; the physical ABI/layout entry now verifies the LIR TypeStore owner.
-- Layout tests were adjusted so their ABI materializer helpers provide empty physical HIR side tables, proving the materializer path does not rely on those tables.
-- Targeted layout tests initially exposed a real missing LIR facts contract: effect-owned builtin `Option<T>` enum layouts were not published for all effect TypeStore types. The LIR facts builder now synthesizes those `Option<T>` physical enum facts.
-- `cargo test -p scoopc llvm::codegen::effect_lowered::layout` now passes (68 tests).
-- `cargo test -p scoopc llvm::codegen::effect_lowered` passes (70 tests).
-- `cargo test -p scoopc --no-default-features llvm::codegen::effect_lowered` passes (0 filtered-in tests for that feature set).
-- `cargo test -p scoopc_lir_facts` passes.
-- `cargo run -p scoop -- test --fixtures tests/fixtures/effect_lowered` passes after regenerating `.effectlowered` goldens for the new LIR physical enum facts and current dump shape.
-- `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass` passes (421/421).
-- Review found an indirect `interfaces` side-table dependency through value-box itable generation; `mir_value_box_itable_entries` now consumes LIR physical interface facts for interface metadata.
-- Final validation passes: `cargo test -p scoopc llvm::codegen::effect_lowered::layout`; `cargo test -p scoopc --no-default-features llvm::codegen::effect_lowered::layout`; `cargo test -p scoopc_lir_facts`; `cargo run -p scoop -- test --fixtures tests/fixtures/effect_lowered`; `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`; `cargo clippy --all-targets -- -D warnings`; `git diff --check`.
-- `TODO.md` and `TODO-6.md` updated: `P7-T04-c` is marked `[DONE]` and its completion record is filled.
-- Main task changes committed as `e08e2ffc` (`[P7-T04-c] Migrate physical ABI layout to LIR facts`).
-- This file is being updated once more to record the completed commit step.
+- Plan initialized before repository inspection or command execution.
+- Identified first incomplete task from `TODO.md`: `P7-T04-cR` (`Review physical ABI/layout 迁移结果`) in `TODO-6.md`.
+- Read `P7-T04-cR` requirements: review P7-T04-c, rerun its validation, search physical layout residuals, fix any blockers, then mark only this review task complete.
+- Checked latest commit: `5ff59320 [P7-T04-c] Record completion progress`; it does not declare an unfinished blocker, so review proceeds against `P7-T04-c` implementation.
+- Review search status: production `effect_lowered` physical layout code has no direct specified HIR side-table reads or `crate::hir::mangle_nominal_fqn` calls; tests pass empty HIR physical tables; TypeStore owner verifier is called from `ProgramAbiMaterializer::new`.
+- Validation completed: `cargo fmt`; `cargo test -p scoopc_lir_facts`; no-default `llvm::codegen::effect_lowered::layout`; no-default `llvm::codegen::effect_lowered`; default `cargo test -p scoopc llvm::codegen::effect_lowered`; effect-lowered fixtures; full run-pass fixtures; `cargo clippy --all-targets -- -D warnings`; `git diff --check`.
+- Updated `TODO.md` and `TODO-6.md`: marked `P7-T04-cR` `[DONE]`, filled its completion record, and advanced the package status to next task `P7-T04`.
