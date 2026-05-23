@@ -1,8 +1,6 @@
-// EXPECT: fail
-// EXPECT-ERROR: 语句
-// EXPECT-ERROR-CODE: scoop::parse::expected
-// EXPECT-ERROR-AT: 14:5
-// 目标：statement-level `comptime` surface 已删除，block 内 `comptime` 只走普通 parse 失败路径。
+// EXPECT: pass
+// 目标：statement-level `comptime` surface 已删除；`comptime` 不再是 parser keyword，
+// 因此这里按普通 identifier + trailing closure 形态解析，后续阶段自然处理语义。
 
 package fixtures.parse
 

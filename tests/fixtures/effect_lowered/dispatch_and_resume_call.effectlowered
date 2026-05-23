@@ -177,7 +177,7 @@ lir_facts {
     - callable_symbol=lir_callable(instance(121:template(107:def(41:cone(24:dispatch_and_resume_call;5:0.0.0);3:fun;23:fixtures.mir.resumeOnce;21:materialized_callable));6:list();6:list()),body#4) root=fixtures.mir.resumeOnce kind=effect_bridge abi=EffectStep exported=__scoop_abi0_fun__fixtures_mir_resumeOnce__h1b2702480a98c52c6ac23847e3dfb038
     - callable_symbol=lir_callable(instance(122:template(108:def(41:cone(24:dispatch_and_resume_call;5:0.0.0);3:fun;24:fixtures.mir.callVirtual;21:materialized_callable));6:list();6:list()),body#2) root=fixtures.mir.callVirtual kind=managed_ordinary abi=Plain exported=__scoop_abi0_fun__fixtures_mir_callVirtual__he70c11c03fe62946f5d081d044f735fc
     - callable_symbol=lir_callable(instance(124:template(110:def(41:cone(24:dispatch_and_resume_call;5:0.0.0);3:fun;26:fixtures.mir.callInterface;21:materialized_callable));6:list();6:list()),body#1) root=fixtures.mir.callInterface kind=managed_ordinary abi=Plain exported=__scoop_abi0_fun__fixtures_mir_callInterface__h623e22dff465f95a8f426955d8c8508d
-  type_context: owner=lir_stage_base_context bridge=explicit_display_name_remap remapped_types=471 wire_format=deferred wire_owner=P8 per-cone build artifact serialization
+  type_context: owner=lir_stage_base_context bridge=explicit_display_name_remap remapped_types=471 wire_format=deferred wire_owner=P10 per-cone build artifact serialization
   callables=5
     - callable=fixtures.mir.Base.ping kind=Plain control_body=false key=lir_callable(instance(120:template(106:def(41:cone(24:dispatch_and_resume_call;5:0.0.0);3:fun;22:fixtures.mir.Base.ping;21:materialized_callable));6:list();6:list()),body#0)
       plain_abi: function_ty=t446 params=1 return=t5 body_slices=1 call_sites=0

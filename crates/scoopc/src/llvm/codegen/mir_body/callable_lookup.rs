@@ -461,6 +461,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         if let Some(result_ty) = hidden_sret_result_ty {
             self.add_sret_attribute_to_function(llvm_fun, 0, result_ty);
         }
+        if native_abi.is_some() {
+            self.mark_gc_leaf_function(llvm_fun);
+        }
         Ok(llvm_fun)
     }
 

@@ -241,7 +241,6 @@ impl<'a> Lexer<'a> {
             "finally" => Some(Keyword::Finally),
             "do" => Some(Keyword::Do),
             "return" => Some(Keyword::Return),
-            "comptime" => Some(Keyword::Comptime),
             "if" => Some(Keyword::If),
             "else" => Some(Keyword::Else),
             "when" => Some(Keyword::When),
@@ -690,6 +689,12 @@ mod tests {
         assert!(ks.contains(&TokenKind::Ident));
         assert!(ks.contains(&TokenKind::IntLiteral));
         assert_eq!(ks.last().copied(), Some(TokenKind::Eof));
+    }
+
+    #[test]
+    fn lex_comptime_as_identifier_after_surface_removal() {
+        let ks = kinds("comptime");
+        assert_eq!(ks, vec![TokenKind::Ident, TokenKind::Eof]);
     }
 
     #[test]

@@ -504,7 +504,6 @@ impl<'a> Parser<'a> {
                 Keyword::Val
                     | Keyword::Var
                     | Keyword::Return
-                    | Keyword::Comptime
                     | Keyword::If
                     | Keyword::When
                     | Keyword::For
@@ -555,7 +554,6 @@ fn kw_name(kw: Keyword) -> &'static str {
         Keyword::Catch => "`catch`",
         Keyword::Finally => "`finally`",
         Keyword::Return => "`return`",
-        Keyword::Comptime => "`comptime`",
         Keyword::If => "`if`",
         Keyword::Else => "`else`",
         Keyword::When => "`when`",

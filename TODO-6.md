@@ -4,7 +4,7 @@
 > 细化时间：2026-05-22
 > 计划基线：[`PLAN.md`](./PLAN.md) §4/P6-P8
 > 索引：[`TODO.md`](./TODO.md)
-> 当前状态：`P7-T04-a` / `P7-T04-b-1` / `P7-T04-b-1R` / `P7-T04-b-2` / `P7-T04-b-2R` / `P7-T04-b-3` / `P7-T04-b-3R` / `P7-T04-b-4` / `P7-T04-b-4R` / `P7-T04-b-5` / `P7-T04-b-5R` / `P7-T04-b` / `P7-T04-bR` / `P7-T04-c` / `P7-T04-cR` / `P7-T04` / `P7-T04R` / `P7-T05` / `P7-T05-a` / `P7-T05-b-0` / `P7-T05-b` / `P7-T05-c` / `P7-T05R` 均已完成。P7 backend cleanup 已通过 review，下一步执行 `P8-T01` 最终 residual 搜索、文档冻结与未来 C backend 输入边界。
+> 当前状态：`P7-T04-a` / `P7-T04-b-1` / `P7-T04-b-1R` / `P7-T04-b-2` / `P7-T04-b-2R` / `P7-T04-b-3` / `P7-T04-b-3R` / `P7-T04-b-4` / `P7-T04-b-4R` / `P7-T04-b-5` / `P7-T04-b-5R` / `P7-T04-b` / `P7-T04-bR` / `P7-T04-c` / `P7-T04-cR` / `P7-T04` / `P7-T04R` / `P7-T05` / `P7-T05-a` / `P7-T05-b-0` / `P7-T05-b` / `P7-T05-c` / `P7-T05R` / `P8-T01` 均已完成。P8 final residual/documentation freeze 已完成，下一步执行 `P8-T01R` review。
 
 ## 范围
 
@@ -1420,7 +1420,7 @@
   - 额外 residual 搜索结论：`crates/scoopc/src/llvm` 中 `EffectLoweredStageOutput` / `EffectFactsStageOutput` / `hir_compat_scaffold` / `llvm_residual_pass_view` / LLVM integer-literal precheck、`fun_index` / `callable_signatures` / `LlvmCallableSignatureContract` / HIR dispatch side table / ordinary devirtualization residual 均无生产命中；唯一 `materialized_pass_view` 命中位于 LLVM layout 测试。`pipeline/llvm_codegen_stage.rs` 中 `LoweredHir` / `HirFacts` / `MaterializedMir` / `MaterializedEffectFacts` 命中仅用于构造显式 `LlvmStageBaseContext` 窄合同，stage output 与 emit handoff 不嵌套这些 wrapper。
   - 验证通过：`cargo fmt`；`cargo run -p scoop_tools -- dependency-gate`；`cargo test -p scoop_tools`；`cargo test -p scoopc_lir_facts`；`cargo test -p scoopc --no-default-features llvm_codegen_stage`；`cargo test -p scoopc --no-default-features llvm::codegen`；`cargo test -p scoopc llvm::codegen`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`（421/421 passed）；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
 
-## [TODO] P8-T01：最终 residual 搜索、文档冻结与未来 C backend 输入边界
+## [DONE] P8-T01：最终 residual 搜索、文档冻结与未来 C backend 输入边界
 
 - 目标：
   - 全仓确认 pipeline refactor 不再保留旧 surface、旧 owner 或 stage output 嵌套；
@@ -1451,7 +1451,12 @@
   - 未来 C backend 输入边界明确且可被 dependency gate 或文档验收。
 - 依赖：P7-T05R
 - 完成记录：
-  - 待填写。
+  - residual 搜索结论：活跃 Rust 源码中 `Comptime` / `"comptime" =>` / `Keyword::Comptime` / `const_eval` / `const_initializer_for_top_level_var` 已清零；`crates/scoopc/src/llvm` 中普通去虚化、P5 wrapper、HIR callable signature fallback、`fun_index` 等生产 residual 搜索无命中；stage-output 嵌套搜索只剩 `effect_lowering_stage` 对 P3/P4 输入的显式引用和“输出不保存 wrapper”注释。
+  - 实现清理：删除 `Keyword::Comptime`、lexer keyword mapping、parser recovery/display residual，并把 parser/lexer 回归更新为 `comptime` 作为普通 identifier；删除死亡的 LLVM `main/const_eval.rs` 和 unused top-level const initializer helper，避免旧 const-evaluator 命名继续存在。
+  - dependency gate 补强：新增 P8 source-boundary checks，覆盖旧 comptime keyword token/lexer/parser surface，以及 LLVM `const_eval` module / top-level const initializer helper residual；现有 LLVM handoff/emit/reachability/codegen context gate 继续覆盖 P7 backend residual 回归。
+  - 文档冻结：`README.md`、`PIPELINE_REFACTOR.md`、`PIPELINE-CLEANUP.md` 已同步到 P8-T01 状态，明确 LLVM 与未来 C backend 共享 `LIR + LIR facts + base context` 输入边界，不允许复制旧 HIR/raw MIR/effect facts coupling；`TypeId` cross-process stable wire format owner 已从历史 `P8/per-cone` wording 修正为 `P10 per-cone build artifact serialization`，并同步 LIR type-context dump/golden。
+  - 验证过程中修复的真实失败：更新 `mir_lowered/aggregate_transport.mir` golden；修正两个 LIR tests 的 TypeStore owner；恢复 LIR-declared native extern 的 `gc-leaf-function` 属性；更新 LLVM stage callable-symbol test 到当前 key contract；刷新 failure-policy internal-bug sentinel baseline。
+  - 验证通过：`cargo fmt`；`cargo run -p scoop_tools -- dependency-gate`；`cargo run -p scoop_tools -- spec-fixtures check`；`cargo test --all --all-targets`（长 timeout，最终通过）；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。额外通过：parser unit/lexer regression、parse fixtures、effect-lowered fixtures、`mir_lowered/aggregate_transport.scoop`、`gc_immix_write_barrier` standalone。
 
 ## [TODO] P8-T01R：Review final residual 搜索与文档冻结
 

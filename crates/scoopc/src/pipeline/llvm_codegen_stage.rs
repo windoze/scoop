@@ -765,6 +765,7 @@ mod tests {
 
     use inkwell::context::Context;
     use object::{BinaryFormat, Object, ObjectSymbol, SymbolKind, SymbolScope};
+    use scoopc_ids::StableCanonicalKey;
 
     use super::{LlvmCodegenStageInput, enable_test_stage_run_counting, test_stage_run_count};
     use crate::llvm::{LlvmEmitError, build_main_module_from_stage_output};
@@ -2225,19 +2226,19 @@ fun main() {
         let stage_output = super::run(&session, input).unwrap();
 
         assert_eq!(stage_output.opt_level(), OptLevel::O0);
-        assert!(stage_output.lir().callable("sample.main").is_some());
+        let main_callable = stage_output
+            .lir()
+            .callable("sample.main")
+            .expect("sample main callable should exist");
         assert!(
             stage_output
                 .lir_facts()
                 .physical_layout
                 .callable_symbols
-                .contains_key(&scoopc_ids::StableLirCallableKey::from_symbol_key(
-                    stage_output
-                        .lir()
-                        .callable("sample.main")
-                        .expect("sample main callable should exist")
-                        .stable_instance_key(),
-                )),
+                .values()
+                .any(|facts| facts.root_fqn == main_callable.root_fqn()
+                    && facts.stable_instance_key
+                        == main_callable.stable_instance_key().canonical_text()),
             "LLVM stage 应通过 LIR callable symbol facts 发布入口 callable ABI identity"
         );
         assert!(

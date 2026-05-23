@@ -86,7 +86,6 @@ pub enum Keyword {
     /// 普通局部 block 必须由 `do` 引入。
     Do,
     Return,
-    Comptime,
     If,
     Else,
     When,

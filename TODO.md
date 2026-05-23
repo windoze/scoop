@@ -142,7 +142,7 @@
 | P7-T05-b | [DONE] | [`TODO-6.md`](./TODO-6.md#done-p7-t05-b清除-p7-t05r-发现的-hir-derived-callable-与-class-ctor-residual) | 清除 P7-T05R 发现的 HIR-derived callable 与 class ctor residual |
 | P7-T05-c | [DONE] | [`TODO-6.md`](./TODO-6.md#done-p7-t05-c清除-p7-t05r-发现的最终-llvm-hirbase-context-residual) | 清除 P7-T05R 发现的最终 LLVM HIR/base-context residual |
 | P7-T05R | [DONE] | [`TODO-6.md`](./TODO-6.md#done-p7-t05rreview-p7-全包完成度) | Review P7 全包完成度 |
-| P8-T01 | [TODO] | [`TODO-6.md`](./TODO-6.md#todo-p8-t01最终-residual-搜索文档冻结与未来-c-backend-输入边界) | 最终 residual 搜索、文档冻结与未来 C backend 输入边界 |
+| P8-T01 | [DONE] | [`TODO-6.md`](./TODO-6.md#done-p8-t01最终-residual-搜索文档冻结与未来-c-backend-输入边界) | 最终 residual 搜索、文档冻结与未来 C backend 输入边界 |
 | P8-T01R | [TODO] | [`TODO-6.md`](./TODO-6.md#todo-p8-t01rreview-final-residual-搜索与文档冻结) | Review final residual 搜索与文档冻结 |
 | P8-T02 | [TODO] | [`TODO-6.md`](./TODO-6.md#todo-p8-t02最终全仓验证与-release-readiness-清场) | 最终全仓验证与 release readiness 清场 |
 | P8-T02R | [TODO] | [`TODO-6.md`](./TODO-6.md#todo-p8-t02rreview-final-verification-与-release-readiness) | Review final verification 与 release readiness |

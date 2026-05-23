@@ -6303,7 +6303,10 @@ mod tests {
             .expect("fixture 应可通过 late-lowering stage");
         let mir_stage_output = load_p4_ready_mir_stage_output_for_dump(&session, &source)
             .expect("fixture 应可通过 P4-ready MIR stage");
-        let types = &mir_stage_output.materialized_mir().types;
+        let effect_facts_output =
+            build_effect_facts_stage_output(&session, &source, &mir_stage_output)
+                .expect("fixture 应可通过 effect-facts stage");
+        let types = effect_facts_output.effect_facts().types();
         let leaf = output
             .program()
             .callable("sample.leaf")
@@ -6356,7 +6359,10 @@ mod tests {
             .expect("fixture 应可通过 late-lowering stage");
         let mir_stage_output = load_p4_ready_mir_stage_output_for_dump(&session, &source)
             .expect("fixture 应可通过 P4-ready MIR stage");
-        let types = &mir_stage_output.materialized_mir().types;
+        let effect_facts_output =
+            build_effect_facts_stage_output(&session, &source, &mir_stage_output)
+                .expect("fixture 应可通过 effect-facts stage");
+        let types = effect_facts_output.effect_facts().types();
         let widened_surface_method = output
             .program()
             .resume_packings()

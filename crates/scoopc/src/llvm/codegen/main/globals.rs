@@ -187,47 +187,4 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         Ok(gv)
     }
-
-    pub(in crate::llvm::codegen) fn const_initializer_for_top_level_var(
-        &mut self,
-        v: &hir::TopLevelVar,
-        cg_ty: CgTy,
-        llvm_ty: BasicTypeEnum<'ctx>,
-    ) -> Result<BasicValueEnum<'ctx>, LlvmEmitError> {
-        let Some(init) = v.init.as_ref() else {
-            return Ok(self.zero_initializer_for_basic_type(llvm_ty));
-        };
-
-        Ok(match cg_ty {
-            CgTy::Unit | CgTy::Never => self.context.i8_type().const_int(0, false).into(),
-            CgTy::Bool => {
-                let value = self.const_eval_bool_expr(init).unwrap_or_else(|| {
-                    panic!("const_initializer_for_top_level_var: verifier accepted non-const Bool initializer")
-                });
-                self.context
-                    .bool_type()
-                    .const_int(value as u64, false)
-                    .into()
-            }
-            CgTy::Int(int_ty) => {
-                let bits = self.const_eval_int_expr_bits(init, int_ty)?.unwrap_or_else(|| {
-                    panic!("const_initializer_for_top_level_var: verifier accepted non-const Int initializer")
-                });
-                let value = mask_to_bits(bits, int_ty.bits) as u64;
-                self.int_type(int_ty).const_int(value, false).into()
-            }
-            CgTy::Float64 | CgTy::Float32 => {
-                self.const_eval_float_expr(init, cg_ty).unwrap_or_else(|| {
-                    panic!("const_initializer_for_top_level_var: verifier accepted non-const Float initializer")
-                })
-            }
-            // 早期阶段：仅支持"静态全零初始化"；更复杂的值类型常量构造留给后续任务补齐。
-            CgTy::Tuple(_) | CgTy::Struct(_) | CgTy::Enum(_) => {
-                panic!("const_initializer_for_top_level_var: verifier accepted aggregate top-level var initializer");
-            }
-            CgTy::String | CgTy::Ref => {
-                panic!("const_initializer_for_top_level_var: verifier accepted GC top-level var initializer");
-            }
-        })
-    }
 }

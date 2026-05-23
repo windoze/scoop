@@ -1076,9 +1076,9 @@ fn build_type_context_facts(
         },
         stable_wire_format: LirTypeStableWireFormatFacts {
             decision: LirTypeStableWireFormatDecision::Deferred,
-            owner: "P8 per-cone build artifact serialization".to_string(),
+            owner: "P10 per-cone build artifact serialization".to_string(),
             reason: "TypeId is still an in-process TypeStore identity; portable serialization needs a canonical text key or import remap format.".to_string(),
-            non_blocking_reason: "P7-T04 only needs a single in-process LIR/base type context owner; persisted per-cone artifacts are not emitted yet.".to_string(),
+            non_blocking_reason: "P7/P8 only need a single in-process LIR/base type context owner; persisted per-cone artifacts are not emitted yet.".to_string(),
         },
     }
 }

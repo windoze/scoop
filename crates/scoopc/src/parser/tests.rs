@@ -828,31 +828,20 @@ fn top_level_var_destructuring_is_rejected() {
 }
 
 #[test]
-fn parse_comptime_statement_surface_removed() {
+fn parse_comptime_as_plain_identifier_after_surface_removal() {
     let src = SourceFile::new_virtual(
         "<mem>",
-        concat!(
-            r#"
+        r#"
 package a
 
 fun f() {
-    comptime"#,
-            r#" if (cond) {
-        val y = 1
-    }
+    val comptime = 1
+    val y = comptime
 }
-"#
-        ),
+"#,
     );
 
-    let err = parse_file(&src).expect_err("block 内 comptime 语句 surface 已删除");
-    assert!(matches!(
-        err,
-        ParseError::Expected {
-            found: TokenKind::Keyword(crate::syntax::token::Keyword::Comptime),
-            ..
-        }
-    ));
+    parse_file(&src).expect("`comptime` surface removed; word should parse as an identifier");
 }
 
 /// 崩溃防线：确保 parser 对“任意输入”都不会 panic。

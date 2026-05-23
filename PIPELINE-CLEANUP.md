@@ -22,13 +22,13 @@
 
 ## P7-T05 状态更新
 
-当前代码已完成 P7-T05 backend cleanup 清场基线：LLVM entry/global 查询、reachability、production body emission、stage handoff 和 physical ABI/layout 均已迁到 `LIR + lir_facts + LlvmStageBaseContext`。`LlvmCodegenStageOutput` / `StageEmitInput` 不再传播 `EffectLoweredStageOutput`、`LoweredHir` 或 `HirFacts` wrapper，`LirStageOutput` 不再携带 LLVM residual accessor，physical ABI/layout 只把 `LirFacts.physical_layout` / type context 映射成 LLVM-private layout。此前位于 LLVM stage 的 integer literal HIR body precheck 已迁到 typecheck/when-pattern 边界；LLVM stage 不再为该诊断遍历 HIR body。`dependency-gate` 现在覆盖 LLVM stage handoff、emit handoff 和 reachability 的 forbidden residual 搜索，防止重新引入 P5 wrapper、HIR/raw MIR scan 或 backend-local ordinary dispatch 去虚化。`TypeId` cross-process stable wire format 显式推迟到 P8/per-cone build artifact serialization；P7-T05 不持久化 `TypeId`，仍只消费同进程 `TypeStore` owner。
+当前代码已完成 P7-T05 backend cleanup 清场基线：LLVM entry/global 查询、reachability、production body emission、stage handoff 和 physical ABI/layout 均已迁到 `LIR + lir_facts + LlvmStageBaseContext`。`LlvmCodegenStageOutput` / `StageEmitInput` 不再传播 `EffectLoweredStageOutput`、`LoweredHir` 或 `HirFacts` wrapper，`LirStageOutput` 不再携带 LLVM residual accessor，physical ABI/layout 只把 `LirFacts.physical_layout` / type context 映射成 LLVM-private layout。此前位于 LLVM stage 的 integer literal HIR body precheck 已迁到 typecheck/when-pattern 边界；LLVM stage 不再为该诊断遍历 HIR body。P8-T01 已完成最终 residual 搜索与文档冻结；`dependency-gate` 现在覆盖 LLVM stage handoff、emit handoff、reachability、旧 `comptime` keyword 和 LLVM `const_eval` helper 的 forbidden residual 搜索，防止重新引入 P5 wrapper、HIR/raw MIR scan、backend-local ordinary dispatch 去虚化或旧 comptime/const-eval surface。`TypeId` cross-process stable wire format 显式推迟到 P10 per-cone build artifact serialization；P7/P8 不持久化 `TypeId`，仍只消费同进程 `TypeStore` owner。
 
 因此，本报告中的 P1/P2/P3/P4/P5/P16/P17/P18/P19 是已解决或历史化的问题；保留它们是为了说明原始 cleanup 背景并验证阶段清场结果。P6 与 P7-T05 后，当前仍然成立、并进入 P8 的主结论是：
 
 1. `llvm_codegen_stage` 仍是 `scoopc` 内的后端 orchestrator；P9/P10 crate split 和 per-cone artifact 才会把 stage/codegen 拆成独立 crate 与持久化产物。
-2. P8 仍需做最终 residual 搜索、文档冻结和 release-readiness 验证；backend 边界回退现在由 `dependency-gate` 的 source boundary checks 覆盖关键入口。
-3. `TypeId` cross-process stable wire format 仍是 per-cone build artifact serialization 的硬前置；P7-T05 只冻结推迟决策与 owner，不把 `TypeId` 落盘。
+2. P8-T01 已完成最终 residual 搜索和文档冻结；P8 剩余工作是 release-readiness 验证。
+3. `TypeId` cross-process stable wire format 仍是 P10 per-cone build artifact serialization 的硬前置；P8-T01 只冻结推迟决策与 owner，不把 `TypeId` 落盘。
 
 ## 目标边界
 
@@ -414,8 +414,8 @@ P7-T05 收口结果：
 
 后续方向：
 
-1. P8 继续做最终 residual 搜索、文档冻结和 release-readiness 验证。
-2. P8/per-cone artifact serialization 负责落实 `TypeId` cross-process stable wire format；P7-T05 已冻结推迟决策与 future owner。
+1. P8-T01 已完成最终 residual 搜索和文档冻结；P8-T02 继续做 release-readiness 验证。
+2. P10 per-cone artifact serialization 负责落实 `TypeId` cross-process stable wire format；P8-T01 已冻结推迟决策与 future owner。
 
 ---
 
@@ -887,11 +887,11 @@ P5 结果：
 
 当前最核心的问题不是“文件太长”，而是必须继续防止已收口的 stage handoff 与 backend physicalization 回退成跨阶段回看。
 
-P7-T05 后的三个结构性结论是：
+P8-T01 后的三个结构性结论是：
 
 1. `LlvmCodegenStageOutput` / `StageEmitInput` 已收口为 `LIR + lir_facts + LlvmStageBaseContext`，不再传播 P5 wrapper 或 HIR scaffold wrapper。
-2. production backend 的 entry/global、reachability、body emission 与 physical ABI/layout 已迁到 LIR/LIR facts/base context；dependency gate 已覆盖 LLVM handoff/emit/reachability 的关键防回退检查，P8 只剩最终 residual 搜索、文档冻结和 release-readiness 验证。
-3. `TypeId` cross-process stable wire format 已明确推迟到 P8/per-cone build artifact serialization；P7-T05 不落盘 `TypeId`，只要求同进程 `TypeStore` owner 和 verifier 一致。
+2. production backend 的 entry/global、reachability、body emission 与 physical ABI/layout 已迁到 LIR/LIR facts/base context；dependency gate 已覆盖 LLVM handoff/emit/reachability、旧 `comptime` keyword 和 LLVM `const_eval` helper 的关键防回退检查，P8 只剩 release-readiness 验证。
+3. `TypeId` cross-process stable wire format 已明确推迟到 P10 per-cone build artifact serialization；P7/P8 不落盘 `TypeId`，只要求同进程 `TypeStore` owner 和 verifier 一致。
 
 其中一个贯穿全线的次级根因是：backend physical layout、reachability、body emission 和 type bridging 必须始终建立在 `LIR + lir_facts + base context` 上。P2 已经把 HIR/source-site facts 收口到 `HirFacts`，P3 已经把 MIR root/snapshot/pass facts 收口到 `MirFacts` 和 MIR pass query surface，P4 已经把 effect facts 收口为只读窄输出，P5 已经把 LIR facts/query owner 收口，P6 已把 global init/storage/final-entry owner 收口到 LIR facts，P7-T05 已把 LLVM handoff 与 physical ABI/layout 收口到同一边界并加上 gate；后续不得重新引入 HIR fallback、MIR fallback、effect facts fallback 或重复 owner。
 

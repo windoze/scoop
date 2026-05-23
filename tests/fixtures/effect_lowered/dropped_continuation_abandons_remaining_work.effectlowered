@@ -171,7 +171,7 @@ lir_facts {
     - callable_symbol=lir_callable(instance(129:template(115:def(61:cone(44:dropped_continuation_abandons_remaining_work;5:0.0.0);3:fun;11:sample.main;21:materialized_callable));6:list();6:list()),body#2) root=sample.main kind=managed_ordinary abi=Plain exported=__scoop_abi0_fun__sample_main__hbe7e2e29f43c88af0b29f668ee1c8a43
     - callable_symbol=lir_callable(instance(131:template(117:def(61:cone(44:dropped_continuation_abandons_remaining_work;5:0.0.0);3:fun;13:sample.helper;21:materialized_callable));6:list();6:list()),body#1) root=sample.helper kind=effect_bridge abi=EffectStep exported=__scoop_abi0_fun__sample_helper__h56ef6a30eb1ae9ac1d6318aed4d8d594
     - callable_symbol=lir_callable(instance(132:template(118:def(61:cone(44:dropped_continuation_abandons_remaining_work;5:0.0.0);3:fun;14:sample.cleanup;21:materialized_callable));6:list();6:list()),body#0) root=sample.cleanup kind=managed_ordinary abi=Plain exported=__scoop_abi0_fun__sample_cleanup__hed1194494bccf74e8ef17c2384ac098f
-  type_context: owner=lir_stage_base_context bridge=explicit_display_name_remap remapped_types=458 wire_format=deferred wire_owner=P8 per-cone build artifact serialization
+  type_context: owner=lir_stage_base_context bridge=explicit_display_name_remap remapped_types=458 wire_format=deferred wire_owner=P10 per-cone build artifact serialization
   callables=3
     - callable=sample.main kind=Plain control_body=false key=lir_callable(instance(129:template(115:def(61:cone(44:dropped_continuation_abandons_remaining_work;5:0.0.0);3:fun;11:sample.main;21:materialized_callable));6:list();6:list()),body#2)
       plain_abi: function_ty=t97 params=0 return=t5 body_slices=1 call_sites=0

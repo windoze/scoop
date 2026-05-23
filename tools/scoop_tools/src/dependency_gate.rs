@@ -288,6 +288,51 @@ struct ForbiddenSourcePattern {
 fn source_boundary_rules() -> Vec<SourceBoundaryRule> {
     vec![
         SourceBoundaryRule {
+            label: "Scoop comptime keyword token",
+            kind_label: "frontend-boundary",
+            path: "crates/scoopc/src/syntax/token.rs",
+            forbidden: &[ForbiddenSourcePattern {
+                pattern: "Comptime",
+                reason: "old comptime surface must not be preserved as a dedicated keyword token",
+            }],
+        },
+        SourceBoundaryRule {
+            label: "Scoop comptime lexer surface",
+            kind_label: "frontend-boundary",
+            path: "crates/scoopc/src/syntax/lexer.rs",
+            forbidden: &[ForbiddenSourcePattern {
+                pattern: "\"comptime\" =>",
+                reason: "old comptime surface must lex as a normal identifier, not a dedicated keyword",
+            }],
+        },
+        SourceBoundaryRule {
+            label: "Scoop comptime parser surface",
+            kind_label: "frontend-boundary",
+            path: "crates/scoopc/src/parser/cursor.rs",
+            forbidden: &[ForbiddenSourcePattern {
+                pattern: "Keyword::Comptime",
+                reason: "parser recovery must not preserve a dedicated old comptime statement surface",
+            }],
+        },
+        SourceBoundaryRule {
+            label: "LLVM const-eval module residual",
+            kind_label: "backend-boundary",
+            path: "crates/scoopc/src/llvm/codegen/main/mod.rs",
+            forbidden: &[ForbiddenSourcePattern {
+                pattern: "const_eval",
+                reason: "backend data initializer helpers must not restore old const-evaluator naming or module boundaries",
+            }],
+        },
+        SourceBoundaryRule {
+            label: "LLVM top-level const initializer residual",
+            kind_label: "backend-boundary",
+            path: "crates/scoopc/src/llvm/codegen/main/globals.rs",
+            forbidden: &[ForbiddenSourcePattern {
+                pattern: "const_initializer_for_top_level_var",
+                reason: "top-level eager init must not restore the old const initializer helper path",
+            }],
+        },
+        SourceBoundaryRule {
             label: "LLVM stage handoff",
             kind_label: "backend-boundary",
             path: "crates/scoopc/src/pipeline/llvm_codegen_stage.rs",
