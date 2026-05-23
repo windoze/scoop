@@ -1512,7 +1512,7 @@
   - 本轮验证同步的 fixture/golden：build fixture 期望更新为当前 LIR direct-call SSA 命名；`per_cone_init_routine_emit_llvm` 更新为当前实际 linked cone init order；MIR / mir_lowered / mir_materialized stable dump 与 tracked actual dump 刷新到当前 direct constants / MIR facts 输出；`top_level_val_pattern_multi_file_basic` stdout golden 更新为 eager top-level init 在 `main` 前完成的顺序。
   - Release readiness 清场：未观察到单个 fixture 卡住超过 1 分钟；`TODO.md` 与 `TODO-6.md` 已同步标记 `P8-T02` 为 `[DONE]`，下一步只剩独立 review 任务 `P8-T02R`。
 
-## [TODO] P8-T02R：Review final verification 与 release readiness
+## [DONE] P8-T02R：Review final verification 与 release readiness
 
 - 参考：P8-T02。
 - 重点：
@@ -1526,4 +1526,8 @@
   - review 结论明确写出项目实现完成并可进入最终 release tag 流程，或列出阻塞项并在本 review 内修复。
 - 依赖：P8-T02
 - 完成记录：
-  - 待填写。
+  - Review 结论：P0-P8 final verification 与 release readiness 成立；`P8-T02` 的最终验证矩阵已在本 review 中完整重跑并通过，未发现需要阻塞后续 `TODO-7` / release tag 流程的未跟踪 blocker。
+  - TODO 状态复查：`TODO.md` 与 `TODO-6.md` 已同步标记 `P8-T02R` 为 `[DONE]`；`TODO-1.md` 至 `TODO-6.md` 中 P0-P8 任务均为 `[DONE]`，下一项未完成任务是 `TODO-7-INIT`。
+  - residual 复查结论：旧 `comptime` / `const_eval` surface 在 `crates/scoopc/src` 无生产命中；LLVM production residual 搜索只剩 `llvm/frontend.rs` 的 single-file frontend preparation handoff 与 layout 测试中的 `materialized_pass_view`，符合 `P8-T01R` 的已记录边界；`dependency-gate` 继续覆盖 20 个 source boundary 文件并全部通过。
+  - 工作区复查：未发现未提交的临时 fixture、golden、debug dump 或 plan workaround；存在非本任务未跟踪设计草案 `PLUGIN_ABI.md`，未纳入本 review 提交，且不影响 P0-P8 代码、fixture、文档和 dependency gate 验证结果。
+  - 验证通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo run -p scoop_tools -- dependency-gate`；`cargo run -p scoop_tools -- spec-fixtures check`；`cargo test --all --all-targets`；`cargo run -p scoop -- test`（完整 fixture suite，1536 checks passed）；`git diff --check`。
