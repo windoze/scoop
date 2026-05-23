@@ -12,10 +12,8 @@ use super::*;
 impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
     pub(super) fn materialize_local_runtime_error_contracts(
         &mut self,
-    ) -> Result<
-        BTreeMap<(StepSchemaId, crate::mir::SiteId), LocalRuntimeErrorContract<'ctx>>,
-        LlvmEmitError,
-    > {
+    ) -> Result<BTreeMap<(StepSchemaId, SiteId), LocalRuntimeErrorContract<'ctx>>, LlvmEmitError>
+    {
         let mut contracts = BTreeMap::new();
         for callable in self.program.callables() {
             if !callable.has_control_body() {
@@ -122,8 +120,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             ContinuationSchemaId,
             ContinuationSurfaceResumeLayout<'ctx>,
         >,
-    ) -> Result<BTreeMap<(StepSchemaId, crate::mir::SiteId), HandleDispatchLayout>, LlvmEmitError>
-    {
+    ) -> Result<BTreeMap<(StepSchemaId, SiteId), HandleDispatchLayout>, LlvmEmitError> {
         let mut layouts = BTreeMap::new();
         for callable in self.program.callables() {
             if !callable.has_control_body() {
@@ -826,7 +823,7 @@ fn collect_handle_contract_pending_outward_cases(
 #[allow(clippy::too_many_arguments)]
 fn build_expected_handle_state_regions(
     owner_root_fqn: &str,
-    site_id: crate::mir::SiteId,
+    site_id: SiteId,
     state_graph: &crate::effect_lowered::ir::LateLoweredStateGraph,
     dispatch_state: crate::effect_lowered::ir::StateId,
     body_state: crate::effect_lowered::ir::StateId,
@@ -932,7 +929,7 @@ fn build_expected_handle_state_regions(
 
 fn collect_expected_handle_region_states(
     owner_root_fqn: &str,
-    site_id: crate::mir::SiteId,
+    site_id: SiteId,
     state_graph: &crate::effect_lowered::ir::LateLoweredStateGraph,
     entry_state: crate::effect_lowered::ir::StateId,
     stop_states: &BTreeSet<crate::effect_lowered::ir::StateId>,
@@ -965,7 +962,7 @@ fn collect_expected_handle_region_states(
 
 fn insert_expected_handle_state_region(
     owner_root_fqn: &str,
-    site_id: crate::mir::SiteId,
+    site_id: SiteId,
     regions: &mut BTreeMap<
         crate::effect_lowered::ir::StateId,
         crate::effect_lowered::ir::LateLoweredHandleStateRegion,
@@ -987,7 +984,7 @@ fn insert_expected_handle_state_region(
 
 fn validate_published_handle_state_regions(
     owner_root_fqn: &str,
-    site_id: crate::mir::SiteId,
+    site_id: SiteId,
     contract: &crate::effect_lowered::ir::LateLoweredHandleDispatchContract,
     expected_regions: &BTreeMap<
         crate::effect_lowered::ir::StateId,
@@ -1015,7 +1012,7 @@ fn validate_published_handle_state_regions(
 
 fn build_expected_handle_boundary_routings(
     owner_root_fqn: &str,
-    site_id: crate::mir::SiteId,
+    site_id: SiteId,
     contract: &crate::effect_lowered::ir::LateLoweredHandleDispatchContract,
     expected_regions: &BTreeMap<
         crate::effect_lowered::ir::StateId,
@@ -1128,7 +1125,7 @@ fn build_expected_handle_boundary_routings(
 
 fn collect_expected_handle_boundary_case_tags(
     owner_root_fqn: &str,
-    site_id: crate::mir::SiteId,
+    site_id: SiteId,
     boundary: &crate::effect_lowered::ir::LateLoweredBoundary,
 ) -> Result<Vec<crate::effect_facts::CaseTag>, LlvmEmitError> {
     let lowering = boundary.lowering().ok_or_else(|| {
@@ -1185,7 +1182,7 @@ fn collect_expected_handle_boundary_case_tags(
 #[allow(clippy::too_many_arguments)]
 fn build_expected_handle_boundary_case_routing(
     owner_root_fqn: &str,
-    site_id: crate::mir::SiteId,
+    site_id: SiteId,
     boundary: &crate::effect_lowered::ir::LateLoweredBoundary,
     owner_region: crate::effect_lowered::ir::LateLoweredHandleStateRegion,
     case_tag: crate::effect_facts::CaseTag,
@@ -1294,7 +1291,7 @@ fn build_expected_handle_boundary_case_routing(
 
 fn validate_published_handle_boundary_routings(
     owner_root_fqn: &str,
-    site_id: crate::mir::SiteId,
+    site_id: SiteId,
     contract: &crate::effect_lowered::ir::LateLoweredHandleDispatchContract,
     expected_routes: &BTreeMap<
         crate::effect_lowered::ir::BoundaryId,
@@ -1325,7 +1322,7 @@ fn validate_published_handle_boundary_routings(
 
 fn validate_published_handle_pending_completion_origins(
     owner_root_fqn: &str,
-    site_id: crate::mir::SiteId,
+    site_id: SiteId,
     contract: &crate::effect_lowered::ir::LateLoweredHandleDispatchContract,
 ) -> Result<(), LlvmEmitError> {
     let mut expected = BTreeSet::new();

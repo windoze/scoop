@@ -9,7 +9,7 @@ use inkwell::types::StructType;
 use inkwell::values::GlobalValue;
 use scoopc_lir_facts::LirGlobalRootKind;
 
-use crate::hir;
+use crate::effect_lowered::source as hir;
 use crate::stable_id::{CanonicalTextKey, PrivateSymbolMangler, canonical_record};
 use crate::ty::{
     MonoNominal, MonoRefKind, MonoTypeId, MonoTypeKind, MonoValueKind, NominalType, TypeId,
@@ -127,7 +127,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
     fn nominal_layout_key_from_mono(&self, nominal: &MonoNominal<'_>) -> String {
         let args: Vec<TypeId> = nominal.args.iter().map(|arg| arg.inner()).collect();
-        crate::hir::mangle_nominal_fqn(nominal.fqn, &args, self.types)
+        hir::mangle_nominal_fqn(nominal.fqn, &args, self.types)
     }
 
     pub(super) fn builtin_nominal_cg_ty(&self, fqn: &str) -> Option<CgTy> {
@@ -191,7 +191,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         nominal: &NominalType,
         types: &TypeStore,
     ) -> String {
-        crate::hir::mangle_nominal_fqn(&nominal.fqn, &nominal.args, types)
+        hir::mangle_nominal_fqn(&nominal.fqn, &nominal.args, types)
     }
 
     pub(super) fn nominal_layout_key(&self, nominal: &NominalType) -> String {
@@ -205,7 +205,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         unsupported_kind: &'static str,
     ) -> Result<String, LlvmEmitError> {
         match self.types.kind(enum_ty.inner()) {
-            TypeKind::Value(ValueTypeKind::Option(inner)) => Ok(crate::hir::mangle_nominal_fqn(
+            TypeKind::Value(ValueTypeKind::Option(inner)) => Ok(hir::mangle_nominal_fqn(
                 "scoop.core.Option",
                 &[*inner],
                 self.types,

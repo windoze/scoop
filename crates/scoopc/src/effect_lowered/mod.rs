@@ -29,6 +29,7 @@ pub use ir::{
     LateLoweredPlainBodySlice, LateLoweredPlainCallable, LateLoweredProgram,
     LateLoweredSourceCallable,
 };
+pub use ir::{mir_source, source};
 pub(crate) use opt::{LateLoweredOptOptions, run_lir_opt_pipeline};
 
 use thiserror::Error;

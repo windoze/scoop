@@ -1005,7 +1005,7 @@ pub(super) fn materialized_gc_array_fixture_keeps_string_locals_for_println_stri
     let source = SourceFile::load(&fixture).unwrap();
     let session = session_for_source(&source);
     let codegen_unit = frontend::prepare_single_file_codegen_unit(&session, &source).unwrap();
-    let pass_view = codegen_unit.materialized_mir.pass_view();
+    let pass_view = codegen_unit.lowering.materialized_mir.pass_view();
     let materialized_types = &pass_view.materialized().types;
 
     let mut seen_sites = 0usize;
@@ -1070,8 +1070,8 @@ pub(super) fn production_codegen_string_builder_fixture_materializes_mutable_arr
     let codegen_unit =
         frontend::prepare_single_file_codegen_unit_with_opt_level(&session, &source, OptLevel::O0)
             .unwrap();
-    let materialized = &codegen_unit.materialized_mir;
-    let pass_view = codegen_unit.materialized_mir.pass_view();
+    let materialized = &codegen_unit.lowering.materialized_mir;
+    let pass_view = codegen_unit.lowering.materialized_mir.pass_view();
     let mut pass_fun_fqns = Vec::new();
     for family in pass_view.instances() {
         pass_fun_fqns.extend(family.callable_bodies().map(|fun| fun.fqn.clone()));
@@ -1139,8 +1139,8 @@ pub(super) fn production_codegen_uint8_array_numeric_elements_keep_scalar_transp
     let codegen_unit =
         frontend::prepare_single_file_codegen_unit_with_opt_level(&session, &source, OptLevel::O0)
             .unwrap();
-    let materialized = &codegen_unit.materialized_mir;
-    let pass_view = codegen_unit.materialized_mir.pass_view();
+    let materialized = &codegen_unit.lowering.materialized_mir;
+    let pass_view = codegen_unit.lowering.materialized_mir.pass_view();
     let mut main = None;
     for family in pass_view.instances() {
         for fun in family.callable_bodies() {

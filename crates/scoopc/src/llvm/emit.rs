@@ -98,10 +98,7 @@ fn build_single_file_stage_output(
     crate::pipeline::run_llvm_codegen_stage(
         session,
         crate::pipeline::LlvmCodegenStageInput::new(
-            crate::frontend::CodegenLoweringOutput {
-                lowered_hir: codegen_unit.lowered,
-                materialized_mir: codegen_unit.materialized_mir,
-            },
+            codegen_unit.lowering,
             None,
             codegen_unit.source_map,
             codegen_unit.entry_source_id,

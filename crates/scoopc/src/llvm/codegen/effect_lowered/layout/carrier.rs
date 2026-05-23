@@ -13,10 +13,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
         &mut self,
         callable_layouts: &BTreeMap<StepSchemaId, CallableLayout<'ctx>>,
         step_layouts: &BTreeMap<StepSchemaId, StepLayout<'ctx>>,
-        dynamic_invoke_layouts: &BTreeMap<
-            (StepSchemaId, crate::mir::SiteId),
-            DynamicInvokeLayout<'ctx>,
-        >,
+        dynamic_invoke_layouts: &BTreeMap<(StepSchemaId, SiteId), DynamicInvokeLayout<'ctx>>,
     ) -> Result<HashMap<(CallableCarrierKind, String), CallableCarrierTargetLayout>, LlvmEmitError>
     {
         let published_callable_roots = self
@@ -171,10 +168,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
 
     pub(super) fn dynamic_dispatch_carrier_targets(
         &self,
-        dynamic_invoke_layouts: &BTreeMap<
-            (StepSchemaId, crate::mir::SiteId),
-            DynamicInvokeLayout<'ctx>,
-        >,
+        dynamic_invoke_layouts: &BTreeMap<(StepSchemaId, SiteId), DynamicInvokeLayout<'ctx>>,
     ) -> Result<HashMap<(CallableCarrierKind, String), StepSchemaId>, LlvmEmitError> {
         let mut targets = HashMap::<(CallableCarrierKind, String), StepSchemaId>::new();
         for layout in dynamic_invoke_layouts.values() {

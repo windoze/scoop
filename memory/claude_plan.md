@@ -1,30 +1,33 @@
-# 执行计划
+# Claude Execution Plan
 
-## 约束说明
+## Scope
 
-- 本文件记录可公开的执行计划、关键决策依据摘要和进度检查点。
-- 不记录私密逐步推理；后续如计划变化或关键步骤完成，会及时更新本文件。
+- Follow `TODO.md` as the authoritative task list.
+- Complete exactly the first task whose heading is not prefixed with `[DONE]`.
+- Do not continue to the next task after completion.
 
-## 初始计划
+## Plan
 
-1. 读取 `TODO.md`，按文件顺序识别第一个标题未带 `[DONE]` 的任务。
-2. 检查最近提交是否明确提到与该任务直接相关的未完成问题；只在其阻塞当前任务时纳入当前工作或写入 `TODO.md` 作为前置任务。
-3. 阅读当前任务相关的代码、测试、规格或计划上下文，避免做开放式历史问题扫描。
-4. 判断任务是否可直接完成；只有遇到具体阻塞性前置条件时，才最小化更新 `TODO.md` 并停止。
-5. 实现当前任务，优先做最小且完整的规格正确改动，不引入绕路或 fixture-only hack。
-6. 运行任务要求的验证，以及必要的相关测试；如果发现未被明确排期的失败，修复或按规则写入 `TODO.md`。
-7. 更新 `TODO.md`：将完成的任务标题加 `[DONE]`，补充完成记录；仅在阶段级计划变化时更新 `PLAN.md`。
-8. 检查工作区差异，提交本次任务相关的所有未提交改动。
-9. 停止，不继续处理下一项任务。
+1. Read `TODO.md` and identify the first incomplete task.
+2. Inspect the latest commit only for unfinished work directly relevant to that task.
+3. Read the task details, dependencies, validation requirements, and completion-record expectations.
+4. Inspect the relevant implementation and test/fixture files.
+5. Implement the smallest spec-correct change needed for the selected task.
+6. Run targeted validation first, then any task-required broader validation.
+7. If validation exposes an unscheduled failure, fix it if in scope or add the minimum prerequisite/follow-up task to `TODO.md` before marking completion.
+8. Update `TODO.md` by prefixing the completed task title with `[DONE]` and filling in its completion record.
+9. Update this file whenever a key step completes or the plan changes.
+10. Review `git status`, `git diff`, and recent commits, then commit all intended changes with a task-specific message.
+11. Stop after the commit.
 
-## 当前状态
+## Progress
 
-- 已写入初始执行计划。
-- 已读取 `TODO.md`，第一个未完成任务为 `P9-T01`：消除阻塞 stage crate split 的后向边。
-- 已读取 `TODO-7.md` 中 `P9-T01` 的详细要求：迁移 `InstanceKey` / `TemplateKey`、迁移 `ExternAbi`、删除 `devirtualize.rs`，并验证后向边搜索归零。
-- 最近提交为 `[TODO-7-INIT] Detail P9 and P10 task package`，未明确提出阻塞 `P9-T01` 的未完成 issue。
-- 当前工作区存在未跟踪 `PLUGIN_ABI.md`，该文件与当前任务无关，将保持不触碰且不纳入本任务提交。
-- 已按 `P9-T01` 要求检查相关残余导入，发现 `crates/scoopc/src/llvm` 仍有 `use crate::hir`，且 LLVM codegen 路径仍大量通过 `crate::mir` 消费 raw MIR/LIR source-payload 兼容类型。
-- 该问题直接违反 `P9-T01` 的前置验证要求，不能通过改窄搜索或 façade 绕开。
-- 已在 `TODO.md` / `TODO-7.md` 中插入前置任务 `P9-T01-a`，用于先修复 LLVM/HIR-MIR residual baseline；`P9-T01` 依赖已改为 `P9-T01-a`。
-- 下一步验证文档差异并提交本次前置任务登记，然后停止。
+- Initial execution plan recorded.
+- Identified first incomplete task: `P9-T01-a` in `TODO.md` / `TODO-7.md`.
+- Latest commit is directly relevant: `[P9-T01] Schedule LLVM residual prerequisite`.
+- Read `TODO-7.md` task body. Required validation includes fmt, workspace build/test, dependency gate, residual searches, and diff whitespace check.
+- Implemented initial residual cleanup: `llvm/frontend.rs` no longer directly names HIR/MIR handoff types; LLVM direct HIR references are centralized through the LIR-owned `effect_lowered::source` namespace; non-`mir_body` LLVM direct MIR references were moved to the same LIR source namespace.
+- Added dependency-gate recursive source boundary rules for LLVM production direct HIR and non-source-helper direct MIR residuals.
+- Fixed source namespace collision by splitting HIR-shaped `source` and MIR-shaped `mir_source` payload namespaces.
+- Validation completed: `cargo fmt`, `cargo build --workspace`, `cargo test --all --all-targets`, `cargo run -p scoop_tools -- dependency-gate`, residual searches, `cargo clippy --all-targets -- -D warnings`, and `git diff --check` all passed or produced only classified residual output.
+- Updated `TODO.md` and `TODO-7.md`: `P9-T01-a` is now marked `[DONE]` with completion notes and validation record.

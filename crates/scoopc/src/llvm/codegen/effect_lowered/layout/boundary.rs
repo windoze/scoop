@@ -32,10 +32,7 @@ fn boundary_source_consumption(
 impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
     pub(super) fn materialize_boundary_operand_layouts(
         &mut self,
-        dynamic_invoke_layouts: &BTreeMap<
-            (StepSchemaId, crate::mir::SiteId),
-            DynamicInvokeLayout<'ctx>,
-        >,
+        dynamic_invoke_layouts: &BTreeMap<(StepSchemaId, SiteId), DynamicInvokeLayout<'ctx>>,
         surface_resume_layouts: &BTreeMap<
             ContinuationSchemaId,
             ContinuationSurfaceResumeLayout<'ctx>,
@@ -157,7 +154,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
     pub(super) fn validate_boundary_source_consumption(
         &self,
         owner_root_fqn: &str,
-        site_id: crate::mir::SiteId,
+        site_id: SiteId,
         kind: &'static str,
         owner_slices: &[LateLoweredStateSlice],
         consumption: LateLoweredBoundarySourceConsumption,
@@ -361,7 +358,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
     pub(super) fn validate_boundary_operand_source_layout(
         &mut self,
         owner_root_fqn: &str,
-        site_id: crate::mir::SiteId,
+        site_id: SiteId,
         kind: &'static str,
         label: &'static str,
         source: &LateLoweredOperandSource,
@@ -378,7 +375,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
     pub(super) fn validate_ordered_boundary_sources(
         &mut self,
         owner_root_fqn: &str,
-        site_id: crate::mir::SiteId,
+        site_id: SiteId,
         kind: &'static str,
         label: &'static str,
         sources: &[LateLoweredOperandSource],
@@ -438,12 +435,9 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
         &mut self,
         callable: &LateLoweredCallable,
         boundary: &crate::effect_lowered::ir::LateLoweredBoundary,
-        site_id: crate::mir::SiteId,
+        site_id: SiteId,
         lowering: &crate::effect_lowered::ir::LateLoweredCallBoundaryLowering,
-        dynamic_invoke_layouts: &BTreeMap<
-            (StepSchemaId, crate::mir::SiteId),
-            DynamicInvokeLayout<'ctx>,
-        >,
+        dynamic_invoke_layouts: &BTreeMap<(StepSchemaId, SiteId), DynamicInvokeLayout<'ctx>>,
         surface_resume_layouts: &BTreeMap<
             ContinuationSchemaId,
             ContinuationSurfaceResumeLayout<'ctx>,
@@ -539,7 +533,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
         &self,
         callable: &LateLoweredCallable,
         boundary: &crate::effect_lowered::ir::LateLoweredBoundary,
-        site_id: crate::mir::SiteId,
+        site_id: SiteId,
         lowering: &crate::effect_lowered::ir::LateLoweredCallBoundaryLowering,
         surface_resume_layouts: &BTreeMap<
             ContinuationSchemaId,
@@ -598,7 +592,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
         &self,
         callable: &LateLoweredCallable,
         boundary: &crate::effect_lowered::ir::LateLoweredBoundary,
-        site_id: crate::mir::SiteId,
+        site_id: SiteId,
         lowering: &crate::effect_lowered::ir::LateLoweredCallBoundaryLowering,
         input_step: &LateLoweredStepType,
         composition: &LateLoweredCallBoundaryContinuationComposition,
@@ -757,7 +751,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
         &mut self,
         callable: &LateLoweredCallable,
         boundary: &crate::effect_lowered::ir::LateLoweredBoundary,
-        site_id: crate::mir::SiteId,
+        site_id: SiteId,
         lowering: &crate::effect_lowered::ir::LateLoweredPerformBoundaryLowering,
     ) -> Result<(), LlvmEmitError> {
         let owner_state = callable.state_graph().state(boundary.owner_state()).ok_or_else(|| {
@@ -794,7 +788,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
         &mut self,
         callable: &LateLoweredCallable,
         boundary: &crate::effect_lowered::ir::LateLoweredBoundary,
-        site_id: crate::mir::SiteId,
+        site_id: SiteId,
         lowering: &crate::effect_lowered::ir::LateLoweredResumeBoundaryLowering,
         surface_resume_layouts: &BTreeMap<
             ContinuationSchemaId,

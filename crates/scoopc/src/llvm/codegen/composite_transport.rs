@@ -8,12 +8,12 @@ use inkwell::module::Linkage;
 use inkwell::types::BasicTypeEnum;
 use inkwell::values::{BasicValueEnum, GlobalValue, PointerValue};
 
-use crate::llvm::{BackendGateError, LlvmEmitError};
-use crate::mir::{
-    AggregateTransportMetadata, ArrayElementTransportMetadata, CallTransportMetadata,
+use crate::effect_lowered::mir_source::{
+    self as mir, AggregateTransportMetadata, ArrayElementTransportMetadata, CallTransportMetadata,
     ClosureEnvTransportMetadata, GcIntrinsicTransportMetadata, MirBoxingReason, MirTransportKind,
     Rvalue, StatementKind, TerminatorKind, ValueTransportMetadata,
 };
+use crate::llvm::{BackendGateError, LlvmEmitError};
 use crate::span::Span;
 use crate::stable_id::{CanonicalTextKey, PrivateSymbolMangler, canonical_list, canonical_record};
 use crate::ty::{TypeId, TypeKind, TypeStore, ValueTypeKind, is_builtin_scalar_nominal_value_type};
@@ -109,7 +109,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &mut self,
         body_fqn: &str,
         body_span: Span,
-        body: &crate::mir::Body,
+        body: &mir::Body,
         mir_types: &TypeStore,
     ) -> Result<(), LlvmEmitError> {
         for block in &body.blocks {
@@ -235,10 +235,10 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let aggregate = ValueTransportMetadata {
             source_ty: metadata.aggregate_ty,
             kind: match metadata.kind {
-                crate::mir::AggregateTransportKind::Tuple => MirTransportKind::Tuple,
-                crate::mir::AggregateTransportKind::Struct => MirTransportKind::Struct,
-                crate::mir::AggregateTransportKind::EnumPayload => MirTransportKind::EnumPayload,
-                crate::mir::AggregateTransportKind::ClosureEnv => MirTransportKind::ClosureEnv,
+                mir::AggregateTransportKind::Tuple => MirTransportKind::Tuple,
+                mir::AggregateTransportKind::Struct => MirTransportKind::Struct,
+                mir::AggregateTransportKind::EnumPayload => MirTransportKind::EnumPayload,
+                mir::AggregateTransportKind::ClosureEnv => MirTransportKind::ClosureEnv,
             },
             requirements: self
                 .composite_transport_requirements_for_type(mir_types, metadata.aggregate_ty),
@@ -494,9 +494,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &mut self,
         mir_types: &TypeStore,
         ty: TypeId,
-    ) -> crate::mir::MirTransportRequirements {
+    ) -> mir::MirTransportRequirements {
         let trace = self.type_contains_traceable_ref(mir_types, ty);
-        crate::mir::MirTransportRequirements {
+        mir::MirTransportRequirements {
             trace,
             copy: true,
             drop: trace || self.type_needs_composite_transport_layout(mir_types, ty),
@@ -510,7 +510,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 self.type_contains_traceable_ref(mir_types, star.read_ty)
             }
             TypeKind::Value(ValueTypeKind::Option(_)) => {
-                crate::mir::mir_transport_trace_requirement_for_type(mir_types, ty)
+                mir::mir_transport_trace_requirement_for_type(mir_types, ty)
             }
             TypeKind::Value(ValueTypeKind::Tuple(elements)) => elements
                 .iter()
@@ -760,7 +760,7 @@ pub(in crate::llvm::codegen) fn composite_transport_codegen_guard_error<'a, 'ctx
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::mir::{MirBoxingIntent, MirTransportRequirements};
+    use crate::effect_lowered::mir_source::{MirBoxingIntent, MirTransportRequirements};
     use crate::ty::TypeStore;
 
     fn transport(source_ty: TypeId, kind: MirTransportKind) -> ValueTransportMetadata {

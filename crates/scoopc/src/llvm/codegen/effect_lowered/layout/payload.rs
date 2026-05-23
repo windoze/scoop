@@ -497,7 +497,10 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
     pub(super) fn published_boundary_result_slot(
         frame_schema: &crate::effect_lowered::ir::LateLoweredFrameSchema,
         boundary_id: BoundaryId,
-    ) -> Option<(crate::mir::LocalId, crate::effect_lowered::ir::FrameSlotId)> {
+    ) -> Option<(
+        crate::effect_lowered::mir_source::LocalId,
+        crate::effect_lowered::ir::FrameSlotId,
+    )> {
         frame_schema
             .slots()
             .iter()
@@ -513,14 +516,16 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
 
     pub(super) fn published_frame_slot_for_local(
         frame_schema: &crate::effect_lowered::ir::LateLoweredFrameSchema,
-        local: crate::mir::LocalId,
+        local: crate::effect_lowered::mir_source::LocalId,
     ) -> Option<crate::effect_lowered::ir::FrameSlotId> {
         frame_schema.slots().iter().find_map(|slot| {
             (Self::frame_slot_local(slot.kind()) == Some(local)).then_some(slot.slot_id())
         })
     }
 
-    pub(super) fn frame_slot_local(kind: LateLoweredFrameSlotKind) -> Option<crate::mir::LocalId> {
+    pub(super) fn frame_slot_local(
+        kind: LateLoweredFrameSlotKind,
+    ) -> Option<crate::effect_lowered::mir_source::LocalId> {
         match kind {
             LateLoweredFrameSlotKind::SourceLocal(local)
             | LateLoweredFrameSlotKind::CompilerTemporary(local)

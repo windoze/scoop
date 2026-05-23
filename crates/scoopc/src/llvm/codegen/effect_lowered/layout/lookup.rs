@@ -10,7 +10,7 @@ use super::*;
 impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
     pub(super) fn physical_class_layout(
         &self,
-        layout_key: &crate::hir::ClassInstanceKey,
+        layout_key: &crate::effect_lowered::source::ClassInstanceKey,
     ) -> Option<&scoopc_lir_facts::LirClassLayoutFacts> {
         self.lir_facts
             .physical_layout

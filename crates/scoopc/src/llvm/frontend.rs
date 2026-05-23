@@ -1,4 +1,3 @@
-use crate::hir;
 use crate::opt::OptLevel;
 use crate::session::Session;
 use crate::source::{SourceFile, SourceId, SourceMap};
@@ -6,8 +5,7 @@ use crate::source::{SourceFile, SourceId, SourceMap};
 use super::LlvmEmitError;
 
 pub(super) struct SingleFileCodegenUnit {
-    pub(super) lowered: hir::LoweredHir,
-    pub(super) materialized_mir: crate::mir::MaterializedMir,
+    pub(super) lowering: crate::frontend::CodegenLoweringOutput,
     pub(super) source_map: SourceMap,
     pub(super) entry_source_id: SourceId,
 }
@@ -47,12 +45,10 @@ pub(super) fn prepare_single_file_codegen_unit_with_opt_level(
         crate::frontend::MirRequestRootMode::EntryMain,
     )
     .map_err(frontend_error)?;
-    let (lowered, materialized_mir) = lowering.into_parts();
     let (source_map, entry_source_id) = crate::frontend::build_source_map(session, front.input());
 
     Ok(SingleFileCodegenUnit {
-        lowered,
-        materialized_mir,
+        lowering,
         source_map,
         entry_source_id,
     })

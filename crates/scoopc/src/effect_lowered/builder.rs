@@ -20,7 +20,7 @@ use super::ir::{
     LateLoweredClassCtorParam, LateLoweredClassCtorSuperCall, LateLoweredFrameSchema,
     LateLoweredPlainBodySlice, LateLoweredPlainCallSite, LateLoweredPlainCallable,
     LateLoweredPlainLocalEffectControl, LateLoweredProgram, LateLoweredResumeStateMap,
-    LateLoweredStateGraph,
+    LateLoweredStateGraph, source,
 };
 use super::materialize::{
     BoundaryMaterializationInputs, ContinuationObjectMaterializationInputs,
@@ -367,7 +367,7 @@ fn find_materialized_fun<'a>(materialized: &'a MaterializedMir, fqn: &str) -> Op
 }
 
 pub(crate) fn build_class_ctor_init_bodies<'a>(
-    classes: impl Iterator<Item = &'a crate::hir::MonoClassInit> + Clone,
+    classes: impl Iterator<Item = &'a source::MonoClassInit> + Clone,
 ) -> Vec<LateLoweredClassCtorInitBody> {
     let mut bodies = Vec::new();
     for class in classes.clone() {
@@ -387,9 +387,9 @@ pub(crate) fn build_class_ctor_init_bodies<'a>(
 }
 
 fn build_class_ctor_init_body<'a>(
-    classes: impl Iterator<Item = &'a crate::hir::MonoClassInit> + Clone,
-    class: &crate::hir::MonoClassInit,
-    ctor: Option<&crate::hir::ClassCtor<crate::ty::MonoTypeId>>,
+    classes: impl Iterator<Item = &'a source::MonoClassInit> + Clone,
+    class: &source::MonoClassInit,
+    ctor: Option<&source::ClassCtor<crate::ty::MonoTypeId>>,
 ) -> LateLoweredClassCtorInitBody {
     let ctor_span = ctor.map(|ctor| ctor.span);
     let key = class_ctor_init_key(&class.fqn, ctor_span);
@@ -429,13 +429,13 @@ fn build_class_ctor_init_body<'a>(
         }
         for step in &class.steps {
             match step {
-                crate::hir::ClassInitStep::PropertyInit { field_fqn, init } => {
+                source::ClassInitStep::PropertyInit { field_fqn, init } => {
                     steps.push(LateLoweredClassCtorInitStep::PropertyInitializer {
                         field_fqn: field_fqn.clone(),
                         init: init.clone(),
                     });
                 }
-                crate::hir::ClassInitStep::InitBlock { block } => {
+                source::ClassInitStep::InitBlock { block } => {
                     steps.push(LateLoweredClassCtorInitStep::InitBlock {
                         block: block.clone(),
                     });
@@ -463,8 +463,8 @@ fn build_class_ctor_init_body<'a>(
 }
 
 fn build_implicit_super_call<'a>(
-    _classes: impl Iterator<Item = &'a crate::hir::MonoClassInit> + Clone,
-    class: &crate::hir::MonoClassInit,
+    _classes: impl Iterator<Item = &'a source::MonoClassInit> + Clone,
+    class: &source::MonoClassInit,
 ) -> Option<LateLoweredClassCtorSuperCall> {
     let super_fqn = class.super_class_fqn.as_ref()?;
     let target_span = class
@@ -481,10 +481,10 @@ fn build_implicit_super_call<'a>(
 }
 
 fn build_class_ctor_delegation<'a>(
-    _classes: impl Iterator<Item = &'a crate::hir::MonoClassInit> + Clone,
-    class: &crate::hir::MonoClassInit,
+    _classes: impl Iterator<Item = &'a source::MonoClassInit> + Clone,
+    class: &source::MonoClassInit,
     _current_ctor_span: crate::span::Span,
-    delegation: &crate::hir::ClassCtorDelegation,
+    delegation: &source::ClassCtorDelegation,
 ) -> LateLoweredClassCtorDelegation {
     let kind = match delegation.kind {
         crate::ast::CtorDelegationKind::This => scoopc_lir_facts::LirClassCtorDelegationKind::This,
@@ -522,10 +522,10 @@ fn class_ctor_init_key(
     )
 }
 
-fn lir_class_ctor_kind(kind: crate::hir::ClassCtorKind) -> scoopc_lir_facts::LirClassCtorKind {
+fn lir_class_ctor_kind(kind: source::ClassCtorKind) -> scoopc_lir_facts::LirClassCtorKind {
     match kind {
-        crate::hir::ClassCtorKind::Primary => scoopc_lir_facts::LirClassCtorKind::Primary,
-        crate::hir::ClassCtorKind::Secondary => scoopc_lir_facts::LirClassCtorKind::Secondary,
+        source::ClassCtorKind::Primary => scoopc_lir_facts::LirClassCtorKind::Primary,
+        source::ClassCtorKind::Secondary => scoopc_lir_facts::LirClassCtorKind::Secondary,
     }
 }
 

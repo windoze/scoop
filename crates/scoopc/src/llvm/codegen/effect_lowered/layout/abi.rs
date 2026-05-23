@@ -77,7 +77,10 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                 ))
             })?;
             let Some(class_key) =
-                crate::hir::ClassInstanceKey::from_mono_nominal(self.source_types, mono_ty)
+                crate::effect_lowered::source::ClassInstanceKey::from_mono_nominal(
+                    self.source_types,
+                    mono_ty,
+                )
             else {
                 continue;
             };

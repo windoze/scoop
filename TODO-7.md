@@ -136,7 +136,7 @@
 
 将 PLAN.md §1.2 要求的 stage / fact crate DAG 用 cargo crate 边界硬化。
 
-### [TODO] P9-T01-a：修复 P9-T01 前置的 LLVM/HIR-MIR residual baseline
+### [DONE] P9-T01-a：修复 P9-T01 前置的 LLVM/HIR-MIR residual baseline
 
 - 阻塞原因：
   - 执行 P9-T01 指定的残余搜索前置检查时，当前树仍在 `crates/scoopc/src/llvm` 命中 `use crate::hir`，并且 LLVM codegen 路径仍大量通过 `crate::mir` 消费 raw MIR/LIR source-payload 兼容类型。
@@ -169,6 +169,12 @@
   - LLVM production codegen 不再依赖 `scoopc_hir` 或 raw `scoopc_mir` API；
   - 所有剩余测试/窄合同命中均有明确 owner 和 dependency-gate 覆盖。
 - 依赖：TODO-7-INIT
+- 完成记录：
+  - 2026-05-23：修复 P9-T01 前置 residual baseline。`llvm/frontend.rs` 的 single-file handoff 改为承载 `CodegenLoweringOutput`，`LlvmEmitError` 不再直接保存 HIR lowering error variant；pipeline 内需要转换的 HIR stage error 统一映射为 LLVM frontend-stage diagnostic。
+  - 发布 LIR-owned source payload namespace：`effect_lowered::source` 承载 HIR-shaped source payload，`effect_lowered::mir_source` 承载 MIR-shaped source payload，避免同名 `CallArg` 等类型混淆；LLVM production 中直接 `crate::hir` 命名已清到测试和该 LIR-owned namespace 边界内，非 `mir_body` source-body helper 的直接 `crate::mir` 命名也已切到 `mir_source`。
+  - dependency gate 补强：新增递归 source-boundary 规则，覆盖 `crates/scoopc/src/llvm` production 直接 HIR residual，以及排除测试和 `codegen/mir_body/` 后的直接 MIR residual；规则同时预防未来 split 后的 `scoopc_hir` / `scoopc_mir` / `scoopc::hir` / `scoopc::mir` 回归。
+  - residual 搜索分类：`rg -n "use crate::hir|crate::hir::" crates/scoopc/src/llvm crates/scoopc/src/effect_lowered` 只剩 `effect_lowered::source` 的 LIR-owned HIR payload re-export 与 LLVM 测试命中；`rg -n "use crate::mir|crate::mir::" crates/scoopc/src/llvm` 剩余命中位于测试和 `llvm/codegen/mir_body/**` LIR-owned source-body helper，后者是已发布 source callable/body payload 的 lowering surface，不是 pass-view/body discovery fallback。
+  - 验证通过：`cargo fmt`；`cargo build --workspace`；`cargo test --all --all-targets`；`cargo run -p scoop_tools -- dependency-gate`；上述两条 residual 搜索；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
 
 ### [TODO] P9-T01：消除阻塞 stage crate split 的后向边
 

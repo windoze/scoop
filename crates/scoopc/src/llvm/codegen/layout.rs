@@ -9,7 +9,7 @@ use std::collections::{HashMap, HashSet};
 
 use inkwell::values::PointerValue;
 
-use crate::hir;
+use crate::effect_lowered::source as hir;
 use crate::ty::layout::{NicheDomain, NicheStorage, TargetLayout, TypeLayout};
 use crate::ty::{MonoTypeId, MonoTypeKind, MonoValueKind, TypeId, TypeKind, ValueTypeKind};
 

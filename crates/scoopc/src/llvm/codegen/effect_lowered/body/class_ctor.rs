@@ -328,7 +328,7 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
         span: crate::span::Span,
         class_fqn: &str,
         result_local: LocalId,
-    ) -> Result<crate::hir::ClassInstanceKey, LlvmEmitError> {
+    ) -> Result<crate::effect_lowered::source::ClassInstanceKey, LlvmEmitError> {
         let Some(target_ty) = self
             .body
             .locals

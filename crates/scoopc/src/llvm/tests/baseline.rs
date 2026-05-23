@@ -131,8 +131,8 @@ fun main(): Int / Pure! {
     let codegen_unit =
         frontend::prepare_single_file_codegen_unit_with_opt_level(&session, &source, OptLevel::O2)
             .unwrap();
-    let materialized = &codegen_unit.materialized_mir;
-    let callable_view = codegen_unit.materialized_mir.callable_view();
+    let materialized = &codegen_unit.lowering.materialized_mir;
+    let callable_view = codegen_unit.lowering.materialized_mir.callable_view();
     let materialized_fun_fqns = materialized
         .file
         .items
@@ -143,7 +143,8 @@ fun main(): Int / Pure! {
         })
         .collect::<Vec<_>>();
     let lowered_fun_fqns = codegen_unit
-        .lowered
+        .lowering
+        .lowered_hir
         .file
         .items
         .iter()
@@ -1112,7 +1113,8 @@ pub(super) fn class_init_order_fixture_collects_class_init_println_call_bindings
     let source = SourceFile::load(&fixture).unwrap();
     let codegen_unit = frontend::prepare_single_file_codegen_unit(&session, &source).unwrap();
     let println_bindings = codegen_unit
-        .lowered
+        .lowering
+        .lowered_hir
         .top_level_fun_call_sites
         .values()
         .filter(|binding| binding.fqn == "scoop.core.println")

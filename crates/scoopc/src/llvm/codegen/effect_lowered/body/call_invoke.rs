@@ -62,14 +62,14 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
             .ok_or_else(|| frontend_error("call boundary callee 未返回 Step_F".to_string()))
     }
 
-    pub(super) fn body_operand_source_ty(&self, operand: &crate::mir::Operand) -> Option<TypeId> {
+    pub(super) fn body_operand_source_ty(&self, operand: &mir::Operand) -> Option<TypeId> {
         match operand {
-            crate::mir::Operand::Local(local) => self
+            mir::Operand::Local(local) => self
                 .body
                 .locals
                 .get(local.as_u32() as usize)
                 .map(|decl| decl.ty),
-            crate::mir::Operand::Const(_) => None,
+            mir::Operand::Const(_) => None,
         }
     }
 

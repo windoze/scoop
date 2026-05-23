@@ -20,9 +20,9 @@ use crate::effect_lowered::ir::{
     LateLoweredResumePayloadBinding, LateLoweredSurfaceResumeDispatchSourceKind,
     LateLoweredSurfaceResumeWrapperProjection, ResumeInterfaceId, StateId, SystemSlotKind,
 };
-use crate::hir::ClassInstanceKey;
+use crate::effect_lowered::mir_source::{InstanceKey, LocalId, SiteId};
+use crate::effect_lowered::source::ClassInstanceKey;
 use crate::llvm::LlvmEmitError;
-use crate::mir::{InstanceKey, LocalId, SiteId};
 use crate::ty::TypeId;
 
 use super::super::CallableCarrierKind;

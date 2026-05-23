@@ -554,8 +554,9 @@ fn run_lir_stage_from_lowered_hir(
 ) -> Result<LlvmLirRun, LlvmEmitError> {
     let source_path = entry_source.path().to_path_buf();
     let base_hir = lowered_hir.clone();
-    let typed_hir_output =
-        HirStageOutput::new(lowered_hir, &source_path).map_err(crate::hir::HirLowerError::from)?;
+    let typed_hir_output = HirStageOutput::new(lowered_hir, &source_path)
+        .map_err(crate::hir::HirLowerError::from)
+        .map_err(|err| stage_error("HIR stage", err))?;
     let hir_facts = typed_hir_output.hir_facts().clone();
     let mir_stage_output = mir_stage::run(typed_hir_output)
         .map_err(|err| stage_error("direct-style MIR", err))?

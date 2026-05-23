@@ -56,7 +56,7 @@ use crate::ast;
 use crate::cone::SourceConeInfo;
 use crate::effect::analysis::EffectAnalysisFacts;
 use crate::effect::state_machine::CalleeSuspendPlan;
-use crate::hir;
+use crate::effect_lowered::source as hir;
 use crate::llvm::target::HostTargetInfo;
 use crate::source::{SourceFile, SourceId, SourceMap};
 use crate::stable_id::{

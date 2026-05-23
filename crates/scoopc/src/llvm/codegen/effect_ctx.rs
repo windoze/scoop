@@ -11,8 +11,8 @@ use inkwell::types::StructType;
 use inkwell::values::{IntValue, PointerValue};
 
 use super::MainCodegen;
+use crate::effect_lowered::mir_source::SiteId;
 use crate::llvm::LlvmEmitError;
-use crate::mir::SiteId;
 
 const EFFECT_CTX_FIELD_HANDLER_TOP: u32 = 1;
 

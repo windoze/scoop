@@ -10,7 +10,7 @@ use inkwell::values::{
     BasicMetadataValueEnum, BasicValueEnum, FunctionValue, IntValue, PointerValue,
 };
 
-use crate::hir;
+use crate::effect_lowered::source as hir;
 use crate::ty::{RefTypeKind, TypeId, TypeKind, ValueTypeKind};
 
 /// direct-call target 已在 HIR 中物化为 `foo::<Bar>` 时，返回其模板 FQN `foo`。

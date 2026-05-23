@@ -1,7 +1,7 @@
 //! Scalar builtins and core intrinsic lowering helpers.
 
 use super::super::*;
-use crate::mir;
+use crate::effect_lowered::mir_source as mir;
 
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     pub(in crate::llvm::codegen) fn codegen_sysroot_panic(

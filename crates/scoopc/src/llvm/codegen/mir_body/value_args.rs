@@ -299,12 +299,18 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let Some(template_source) = self.callable_sources.get(impl_member_fqn) else {
             return impl_member_fqn.to_string();
         };
-        let template = crate::mir::TemplateKey {
+        let template = crate::effect_lowered::mir_source::TemplateKey {
             fqn: impl_member_fqn.to_string(),
             source_path: template_source.source_path.clone(),
             decl_span: template_source.span,
         };
-        crate::hir::stable_instance_fqn(self.types, &template, &nominal.args, &[], "")
+        crate::effect_lowered::source::stable_instance_fqn(
+            self.types,
+            &template,
+            &nominal.args,
+            &[],
+            "",
+        )
     }
 
     pub(in crate::llvm::codegen) fn mir_value_box_itable_entries<T: CodegenMonoInput>(

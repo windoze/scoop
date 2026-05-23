@@ -14,11 +14,11 @@ use inkwell::values::PointerValue;
 
 use super::super::mir_body::MirLocalSlot;
 use super::super::*;
+use crate::effect_lowered::mir_source as mir;
 use crate::intrinsics::{
     NamedIntrinsicAuditEntry, NamedIntrinsicLoweringMode, NamedIntrinsicRuntimeTy,
     named_intrinsic_audit_entry,
 };
-use crate::mir;
 use crate::ty::{RefTypeKind, TypeId, TypeKind};
 
 #[derive(Clone)]

@@ -22,8 +22,8 @@ use crate::effect_lowered::ir::{
     LateLoweredOperandSource, LateLoweredOperandValueSource, LateLoweredPlainCallSite,
     LateLoweredProgram, LateLoweredSourceBody,
 };
+use crate::effect_lowered::mir_source::{self as mir, LocalId};
 use crate::llvm::LlvmEmitError;
-use crate::mir::{self, LocalId};
 use crate::span::Span;
 use crate::stable_id::canonical_record;
 use crate::ty::{MonoTypeId, RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind};
@@ -867,7 +867,7 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
         span: Span,
         class_fqn: &str,
         target_local: Option<LocalId>,
-    ) -> Result<crate::hir::ClassInstanceKey, LlvmEmitError> {
+    ) -> Result<crate::effect_lowered::source::ClassInstanceKey, LlvmEmitError> {
         let Some(target_ty) = target_local
             .and_then(|local| self.body.locals.get(local.as_u32() as usize))
             .map(|local| local.ty)

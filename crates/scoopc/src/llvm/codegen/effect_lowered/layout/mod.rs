@@ -38,8 +38,8 @@ use crate::effect_lowered::ir::{
     LateLoweredSurfaceResumeWrapperCompleteProjection, LateLoweredSurfaceResumeWrapperProjection,
     ResumeInterfaceId, StateId, SystemSlotKind,
 };
+use crate::effect_lowered::mir_source::{BasicBlockId, InstanceKey, SiteId};
 use crate::llvm::LlvmEmitError;
-use crate::mir::{BasicBlockId, InstanceKey, SiteId};
 use crate::stable_id::canonical_record;
 use crate::ty::{RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind};
 use scoopc_lir_facts::{
@@ -80,7 +80,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     }
 }
 
-type BoundaryOperandKey = (StepSchemaId, crate::mir::SiteId);
+type BoundaryOperandKey = (StepSchemaId, SiteId);
 type CallBoundaryOperandLayouts = BTreeMap<BoundaryOperandKey, CallBoundaryOperandLayout>;
 type PerformBoundaryOperandLayouts = BTreeMap<BoundaryOperandKey, PerformBoundaryOperandLayout>;
 type ResumeBoundaryOperandLayouts = BTreeMap<BoundaryOperandKey, ResumeBoundaryOperandLayout>;

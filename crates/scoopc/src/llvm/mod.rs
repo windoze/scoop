@@ -19,7 +19,6 @@ use inkwell::values::InstructionValueError;
 use miette::{Diagnostic, NamedSource};
 use thiserror::Error;
 
-use crate::hir;
 use crate::parser::ParseError;
 use crate::source::SourceFile;
 use crate::span::Span;
@@ -109,10 +108,6 @@ pub enum LlvmEmitError {
     #[error(transparent)]
     #[diagnostic(transparent)]
     Parse(#[from] ParseError),
-
-    #[error(transparent)]
-    #[diagnostic(transparent)]
-    HirLower(#[from] hir::HirLowerError),
 
     #[error(transparent)]
     #[diagnostic(transparent)]

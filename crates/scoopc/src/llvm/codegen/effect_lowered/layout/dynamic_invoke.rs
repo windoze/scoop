@@ -11,17 +11,14 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
     pub(super) fn materialize_dynamic_invoke_layouts(
         &mut self,
         step_layouts: &BTreeMap<StepSchemaId, StepLayout<'ctx>>,
-    ) -> Result<
-        BTreeMap<(StepSchemaId, crate::mir::SiteId), DynamicInvokeLayout<'ctx>>,
-        LlvmEmitError,
-    > {
+    ) -> Result<BTreeMap<(StepSchemaId, SiteId), DynamicInvokeLayout<'ctx>>, LlvmEmitError> {
         let mut layouts = BTreeMap::new();
         for contract in self.lir_facts.dynamic_invokes.values() {
             let Some(owner_step_schema) = contract.owner_step_schema else {
                 continue;
             };
             let owner_step_schema = StepSchemaId::new(owner_step_schema.as_u32());
-            let site_id = crate::mir::SiteId::from_raw(contract.site_id.as_u32());
+            let site_id = SiteId::from_raw(contract.site_id.as_u32());
             let key = (owner_step_schema, site_id);
             if layouts.contains_key(&key) {
                 return Err(frontend_error(format!(
@@ -44,7 +41,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
     pub(super) fn materialize_dynamic_invoke_layout(
         &mut self,
         owner_step_schema: StepSchemaId,
-        site_id: crate::mir::SiteId,
+        site_id: SiteId,
         contract: &LirDynamicInvokeContract,
         step_layouts: &BTreeMap<StepSchemaId, StepLayout<'ctx>>,
     ) -> Result<DynamicInvokeLayout<'ctx>, LlvmEmitError> {

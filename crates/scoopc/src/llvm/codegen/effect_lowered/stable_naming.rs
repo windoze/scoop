@@ -652,7 +652,7 @@ mod tests {
 
     use super::*;
     use crate::effect_lowered::ir::{LateLoweredCallable, LateLoweredPlainCallable};
-    use crate::mir::{InstanceKey, TemplateKey};
+    use crate::effect_lowered::mir_source::{InstanceKey, TemplateKey};
     use crate::span::Span;
     use crate::stable_id::{
         NoTypeParamResolver, StableDefKey, StableDefNamespace, StableInstanceKey, StableTemplateKey,

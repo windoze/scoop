@@ -46,7 +46,8 @@ fun main(): Int {
 
     let codegen_unit = frontend::prepare_single_file_codegen_unit(&session, &source).unwrap();
     let main = codegen_unit
-        .lowered
+        .lowering
+        .lowered_hir
         .file
         .items
         .iter()
@@ -167,7 +168,8 @@ fun main(): Int {
 
     let codegen_unit = frontend::prepare_single_file_codegen_unit(&session, &source).unwrap();
     let inspect = codegen_unit
-        .lowered
+        .lowering
+        .lowered_hir
         .file
         .items
         .iter()
@@ -181,7 +183,7 @@ fun main(): Int {
     assert_top_level_call(find_local_init(body, "len"), "scoop.core.byteLength", 1);
     assert_top_level_call(find_local_init(body, "byte"), "scoop.core.getByte", 2);
 
-    let materialized = &codegen_unit.materialized_mir;
+    let materialized = &codegen_unit.lowering.materialized_mir;
     let inspect_mir = materialized
         .caller_side_pass_candidate_bodies()
         .iter()
@@ -274,7 +276,8 @@ fun main(): Int {
 
     let codegen_unit = frontend::prepare_single_file_codegen_unit(&session, &source).unwrap();
     let inspect = codegen_unit
-        .lowered
+        .lowering
+        .lowered_hir
         .file
         .items
         .iter()
@@ -302,7 +305,7 @@ fun main(): Int {
         2,
     );
 
-    let materialized = &codegen_unit.materialized_mir;
+    let materialized = &codegen_unit.lowering.materialized_mir;
     let inspect_mir = materialized
         .caller_side_pass_candidate_bodies()
         .iter()
@@ -384,7 +387,8 @@ pub(super) fn builtin_string_trim_indent_member_calls_lower_to_direct_calls() {
 
     let codegen_unit = frontend::prepare_single_file_codegen_unit(&session, &source).unwrap();
     let main = codegen_unit
-        .lowered
+        .lowering
+        .lowered_hir
         .file
         .items
         .iter()
@@ -406,7 +410,7 @@ pub(super) fn builtin_string_trim_indent_member_calls_lower_to_direct_calls() {
         1,
     );
 
-    let materialized = &codegen_unit.materialized_mir;
+    let materialized = &codegen_unit.lowering.materialized_mir;
     let main_mir = materialized
         .caller_side_pass_candidate_bodies()
         .iter()
@@ -463,7 +467,7 @@ pub(super) fn top_level_generic_named_args_keep_canonical_param_order_in_pass_mi
     let source = SourceFile::load(&fixture).unwrap();
 
     let codegen_unit = frontend::prepare_single_file_codegen_unit(&session, &source).unwrap();
-    let materialized = &codegen_unit.materialized_mir;
+    let materialized = &codegen_unit.lowering.materialized_mir;
     let main_mir = materialized
         .caller_side_pass_candidate_bodies()
         .iter()
@@ -509,7 +513,7 @@ pub(super) fn callable_value_and_top_level_funptr_named_args_keep_binding_order_
     let source = SourceFile::load(&fixture).unwrap();
 
     let codegen_unit = frontend::prepare_single_file_codegen_unit(&session, &source).unwrap();
-    let materialized = &codegen_unit.materialized_mir;
+    let materialized = &codegen_unit.lowering.materialized_mir;
     let main_mir = materialized
         .caller_side_pass_candidate_bodies()
         .iter()
@@ -639,7 +643,7 @@ fun main(): Int {
     let o0_unit =
         frontend::prepare_single_file_codegen_unit_with_opt_level(&session, &source, OptLevel::O0)
             .unwrap();
-    let o0_materialized = &o0_unit.materialized_mir;
+    let o0_materialized = &o0_unit.lowering.materialized_mir;
     assert!(
         !o0_materialized
             .pass_view()
@@ -658,7 +662,7 @@ fun main(): Int {
     let o2_unit =
         frontend::prepare_single_file_codegen_unit_with_opt_level(&session, &source, OptLevel::O2)
             .unwrap();
-    let o2_materialized = &o2_unit.materialized_mir;
+    let o2_materialized = &o2_unit.lowering.materialized_mir;
     assert!(
         o2_materialized
             .pass_view()

@@ -22,7 +22,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     fn codegen_native_callable_body_symbol(
         &mut self,
         fqn: &str,
-        callable: &crate::hir::NativeCallableFun,
+        callable: &crate::effect_lowered::source::NativeCallableFun,
         abi: &ProgramAbiQuery<'ctx>,
     ) -> Result<(), LlvmEmitError> {
         let signature = self

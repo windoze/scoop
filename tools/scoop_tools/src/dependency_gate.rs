@@ -232,7 +232,59 @@ fn run_source_boundary_checks(workspace_root: &Path) -> Result<Vec<SourceBoundar
             violations: source_boundary_violations(&contents, rule.forbidden),
         });
     }
+    for rule in source_tree_boundary_rules() {
+        checks.extend(run_source_tree_boundary_check(workspace_root, rule)?);
+    }
     Ok(checks)
+}
+
+fn run_source_tree_boundary_check(
+    workspace_root: &Path,
+    rule: SourceTreeBoundaryRule,
+) -> Result<Vec<SourceBoundaryCheck>> {
+    let root = workspace_root.join(rule.root);
+    let mut files = Vec::new();
+    collect_rust_files(&root, &mut files)?;
+    files.sort();
+
+    let mut checks = Vec::new();
+    for path in files {
+        let rel_path = path
+            .strip_prefix(workspace_root)
+            .map(Path::to_path_buf)
+            .unwrap_or_else(|_| path.clone());
+        let rel_text = rel_path.to_string_lossy();
+        if source_path_is_excluded(&rel_text, rule.exclude_path_fragments) {
+            continue;
+        }
+        let contents = fs::read_to_string(&path).into_diagnostic()?;
+        checks.push(SourceBoundaryCheck {
+            label: rule.label,
+            kind_label: rule.kind_label,
+            path: rel_path,
+            violations: source_boundary_violations(&contents, rule.forbidden),
+        });
+    }
+    Ok(checks)
+}
+
+fn collect_rust_files(dir: &Path, out: &mut Vec<PathBuf>) -> Result<()> {
+    for entry in fs::read_dir(dir).into_diagnostic()? {
+        let entry = entry.into_diagnostic()?;
+        let path = entry.path();
+        if path.is_dir() {
+            collect_rust_files(&path, out)?;
+            continue;
+        }
+        if path.extension().is_some_and(|ext| ext == "rs") {
+            out.push(path);
+        }
+    }
+    Ok(())
+}
+
+fn source_path_is_excluded(path: &str, fragments: &[&str]) -> bool {
+    fragments.iter().any(|fragment| path.contains(fragment))
 }
 
 fn workspace_root() -> Result<PathBuf> {
@@ -276,6 +328,15 @@ struct SourceBoundaryRule {
     label: &'static str,
     kind_label: &'static str,
     path: &'static str,
+    forbidden: &'static [ForbiddenSourcePattern],
+}
+
+#[derive(Debug, Clone, Copy)]
+struct SourceTreeBoundaryRule {
+    label: &'static str,
+    kind_label: &'static str,
+    root: &'static str,
+    exclude_path_fragments: &'static [&'static str],
     forbidden: &'static [ForbiddenSourcePattern],
 }
 
@@ -734,6 +795,59 @@ fn source_boundary_rules() -> Vec<SourceBoundaryRule> {
     ]
 }
 
+fn source_tree_boundary_rules() -> Vec<SourceTreeBoundaryRule> {
+    vec![
+        SourceTreeBoundaryRule {
+            label: "LLVM production direct HIR residuals",
+            kind_label: "backend-boundary",
+            root: "crates/scoopc/src/llvm",
+            exclude_path_fragments: &["/tests/", "tests.rs"],
+            forbidden: &[
+                ForbiddenSourcePattern {
+                    pattern: "use crate::hir",
+                    reason: "LLVM production must consume HIR-shaped source payloads through the LIR-owned source namespace",
+                },
+                ForbiddenSourcePattern {
+                    pattern: "crate::hir::",
+                    reason: "LLVM production must not reach directly into raw HIR APIs",
+                },
+                ForbiddenSourcePattern {
+                    pattern: "scoopc_hir::",
+                    reason: "future LLVM crate must not depend directly on the HIR stage crate",
+                },
+                ForbiddenSourcePattern {
+                    pattern: "scoopc::hir",
+                    reason: "future LLVM crate must not depend on the scoopc facade for HIR APIs",
+                },
+            ],
+        },
+        SourceTreeBoundaryRule {
+            label: "LLVM production direct MIR residuals outside LIR source-body helpers",
+            kind_label: "backend-boundary",
+            root: "crates/scoopc/src/llvm",
+            exclude_path_fragments: &["/tests/", "tests.rs", "/codegen/mir_body/"],
+            forbidden: &[
+                ForbiddenSourcePattern {
+                    pattern: "use crate::mir",
+                    reason: "LLVM production must consume MIR-shaped source payloads through the LIR-owned source namespace",
+                },
+                ForbiddenSourcePattern {
+                    pattern: "crate::mir::",
+                    reason: "only the documented LIR-owned source-body helper may pattern-match MIR-shaped payloads",
+                },
+                ForbiddenSourcePattern {
+                    pattern: "scoopc_mir::",
+                    reason: "future LLVM crate must not depend directly on the MIR stage crate",
+                },
+                ForbiddenSourcePattern {
+                    pattern: "scoopc::mir",
+                    reason: "future LLVM crate must not depend on the scoopc facade for MIR APIs",
+                },
+            ],
+        },
+    ]
+}
+
 fn source_boundary_violations(
     contents: &str,
     forbidden: &[ForbiddenSourcePattern],
@@ -986,6 +1100,18 @@ mod tests {
         assert_eq!(violations.len(), 1);
         assert_eq!(violations[0].line, 2);
         assert_eq!(violations[0].pattern, "EffectLoweredStageOutput");
+    }
+
+    #[test]
+    fn excludes_source_tree_paths_by_fragment() {
+        assert!(source_path_is_excluded(
+            "crates/scoopc/src/llvm/tests/baseline.rs",
+            &["/tests/", "tests.rs"]
+        ));
+        assert!(!source_path_is_excluded(
+            "crates/scoopc/src/llvm/codegen/mod.rs",
+            &["/tests/", "tests.rs"]
+        ));
     }
 
     fn set(names: &[&str]) -> BTreeSet<String> {

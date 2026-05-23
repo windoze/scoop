@@ -35,8 +35,8 @@ use crate::effect_lowered::ir::{
     LateLoweredSurfaceResumeWrapperCompletePayloadSource, ResumeInterfaceId, StateId,
     SystemSlotKind,
 };
+use crate::effect_lowered::mir_source::{self as mir, LocalId, SiteId};
 use crate::llvm::LlvmEmitError;
-use crate::mir::{self, LocalId, SiteId};
 use crate::stable_id::{canonical_record, canonical_type_text};
 use crate::ty::{RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind};
 
