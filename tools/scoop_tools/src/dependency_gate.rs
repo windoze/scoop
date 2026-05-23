@@ -8,7 +8,8 @@
 //! `scoopc_effect_facts`, and `scoopc_lir_facts`, so they only depend on base
 //! crates and never on the facade, stages, or other facts. Stage crates that are
 //! still expected to be base-only, such as `scoopc_ast`, are checked with the
-//! same workspace-boundary rules.
+//! same workspace-boundary rules. Backend crates are checked separately while
+//! P9 is still splitting the remaining stage crates out of the facade.
 
 use std::collections::BTreeSet;
 use std::fs;
@@ -33,6 +34,10 @@ const FACT_CRATES: &[&str] = &[
 ];
 
 const BASE_ONLY_STAGE_CRATES: &[&str] = &["scoopc_ast"];
+
+const CODEGEN_STAGE_CRATES: &[&str] = &["scoopc_codegen_llvm"];
+
+const TEMPORARY_CODEGEN_FACADE_DEPS: &[&str] = &["scoopc"];
 
 const FORBIDDEN_WORKSPACE_CRATES: &[&str] = &[
     "scoop",
@@ -66,11 +71,12 @@ impl Report {
         }
 
         let mut lines = vec![format!(
-            "dependency gate: ok (checked {} pipeline crates: {} base, {} fact, {} base-only stage; {} source boundary files)",
+            "dependency gate: ok (checked {} pipeline crates: {} base, {} fact, {} base-only stage, {} codegen stage; {} source boundary files)",
             self.checks.len(),
             BASE_CRATES.len(),
             FACT_CRATES.len(),
             BASE_ONLY_STAGE_CRATES.len(),
+            CODEGEN_STAGE_CRATES.len(),
             self.source_checks.len()
         )];
         for check in &self.checks {
@@ -145,6 +151,7 @@ enum CrateKind {
     Base,
     Fact,
     BaseOnlyStage,
+    CodegenStage,
 }
 
 impl CrateKind {
@@ -153,6 +160,7 @@ impl CrateKind {
             Self::Base => "base",
             Self::Fact => "fact",
             Self::BaseOnlyStage => "base-only-stage",
+            Self::CodegenStage => "codegen-stage",
         }
     }
 }
@@ -222,6 +230,18 @@ pub fn run() -> Result<Report> {
         checks.push(CrateCheck {
             crate_name: (*crate_name).to_string(),
             kind: CrateKind::BaseOnlyStage,
+            dependency_names,
+            violations,
+        });
+    }
+
+    for crate_name in CODEGEN_STAGE_CRATES {
+        let dependency_names = cargo_tree_direct_package_names(crate_name, &workspace_root)?;
+        let violations =
+            find_dependency_violations(crate_name, CrateKind::CodegenStage, &dependency_names);
+        checks.push(CrateCheck {
+            crate_name: (*crate_name).to_string(),
+            kind: CrateKind::CodegenStage,
             dependency_names,
             violations,
         });
@@ -315,10 +335,27 @@ fn workspace_root() -> Result<PathBuf> {
 }
 
 fn cargo_tree_package_names(crate_name: &str, workspace_root: &Path) -> Result<BTreeSet<String>> {
+    cargo_tree_package_names_with_extra_args(crate_name, workspace_root, &[])
+}
+
+fn cargo_tree_direct_package_names(
+    crate_name: &str,
+    workspace_root: &Path,
+) -> Result<BTreeSet<String>> {
+    cargo_tree_package_names_with_extra_args(crate_name, workspace_root, &["--depth", "1"])
+}
+
+fn cargo_tree_package_names_with_extra_args(
+    crate_name: &str,
+    workspace_root: &Path,
+    extra_args: &[&str],
+) -> Result<BTreeSet<String>> {
+    let mut args = vec![
+        "tree", "--edges", "normal", "--prefix", "none", "-p", crate_name,
+    ];
+    args.extend_from_slice(extra_args);
     let output = Command::new("cargo")
-        .args([
-            "tree", "--edges", "normal", "--prefix", "none", "-p", crate_name,
-        ])
+        .args(args)
         .current_dir(workspace_root)
         .output()
         .into_diagnostic()?;
@@ -397,7 +434,7 @@ fn source_boundary_rules() -> Vec<SourceBoundaryRule> {
         SourceBoundaryRule {
             label: "LLVM const-eval module residual",
             kind_label: "backend-boundary",
-            path: "crates/scoopc/src/llvm/codegen/main/mod.rs",
+            path: "crates/scoopc_codegen_llvm/src/llvm/codegen/main/mod.rs",
             forbidden: &[ForbiddenSourcePattern {
                 pattern: "const_eval",
                 reason: "backend data initializer helpers must not restore old const-evaluator naming or module boundaries",
@@ -406,7 +443,7 @@ fn source_boundary_rules() -> Vec<SourceBoundaryRule> {
         SourceBoundaryRule {
             label: "LLVM top-level const initializer residual",
             kind_label: "backend-boundary",
-            path: "crates/scoopc/src/llvm/codegen/main/globals.rs",
+            path: "crates/scoopc_codegen_llvm/src/llvm/codegen/main/globals.rs",
             forbidden: &[ForbiddenSourcePattern {
                 pattern: "const_initializer_for_top_level_var",
                 reason: "top-level eager init must not restore the old const initializer helper path",
@@ -478,7 +515,7 @@ fn source_boundary_rules() -> Vec<SourceBoundaryRule> {
         SourceBoundaryRule {
             label: "LLVM emit handoff",
             kind_label: "backend-boundary",
-            path: "crates/scoopc/src/llvm/emit.rs",
+            path: "crates/scoopc_codegen_llvm/src/llvm/emit.rs",
             forbidden: &[
                 ForbiddenSourcePattern {
                     pattern: "EffectLoweredStageOutput",
@@ -517,7 +554,7 @@ fn source_boundary_rules() -> Vec<SourceBoundaryRule> {
         SourceBoundaryRule {
             label: "LLVM reachability",
             kind_label: "backend-boundary",
-            path: "crates/scoopc/src/llvm/reachability.rs",
+            path: "crates/scoopc_codegen_llvm/src/llvm/reachability.rs",
             forbidden: &[
                 ForbiddenSourcePattern {
                     pattern: "use crate::hir",
@@ -544,7 +581,7 @@ fn source_boundary_rules() -> Vec<SourceBoundaryRule> {
         SourceBoundaryRule {
             label: "LLVM codegen context",
             kind_label: "backend-boundary",
-            path: "crates/scoopc/src/llvm/codegen/mod.rs",
+            path: "crates/scoopc_codegen_llvm/src/llvm/codegen/mod.rs",
             forbidden: &[
                 ForbiddenSourcePattern {
                     pattern: "materialized_pass_view",
@@ -583,7 +620,7 @@ fn source_boundary_rules() -> Vec<SourceBoundaryRule> {
         SourceBoundaryRule {
             label: "LLVM legacy HIR function declarations",
             kind_label: "backend-boundary",
-            path: "crates/scoopc/src/llvm/codegen/main/declare.rs",
+            path: "crates/scoopc_codegen_llvm/src/llvm/codegen/main/declare.rs",
             forbidden: &[
                 ForbiddenSourcePattern {
                     pattern: "declare_top_level_fun(",
@@ -606,7 +643,7 @@ fn source_boundary_rules() -> Vec<SourceBoundaryRule> {
         SourceBoundaryRule {
             label: "LLVM legacy HIR function emission",
             kind_label: "backend-boundary",
-            path: "crates/scoopc/src/llvm/codegen/main/function.rs",
+            path: "crates/scoopc_codegen_llvm/src/llvm/codegen/main/function.rs",
             forbidden: &[
                 ForbiddenSourcePattern {
                     pattern: "codegen_top_level_fun(",
@@ -621,7 +658,7 @@ fn source_boundary_rules() -> Vec<SourceBoundaryRule> {
         SourceBoundaryRule {
             label: "LLVM legacy HIR callable identity",
             kind_label: "backend-boundary",
-            path: "crates/scoopc/src/llvm/codegen/main/identity.rs",
+            path: "crates/scoopc_codegen_llvm/src/llvm/codegen/main/identity.rs",
             forbidden: &[ForbiddenSourcePattern {
                 pattern: "exported_abi_symbol_for_hir_fun",
                 reason: "exported ABI identity must come from LIR callable symbol facts, not HIR FunDecl helpers",
@@ -630,7 +667,7 @@ fn source_boundary_rules() -> Vec<SourceBoundaryRule> {
         SourceBoundaryRule {
             label: "LLVM direct call lowering",
             kind_label: "backend-boundary",
-            path: "crates/scoopc/src/llvm/codegen/call/lowering.rs",
+            path: "crates/scoopc_codegen_llvm/src/llvm/codegen/call/lowering.rs",
             forbidden: &[
                 ForbiddenSourcePattern {
                     pattern: "materialized_pass_view",
@@ -661,7 +698,7 @@ fn source_boundary_rules() -> Vec<SourceBoundaryRule> {
         SourceBoundaryRule {
             label: "LLVM callable ABI facts",
             kind_label: "backend-boundary",
-            path: "crates/scoopc/src/llvm/codegen/call/abi.rs",
+            path: "crates/scoopc_codegen_llvm/src/llvm/codegen/call/abi.rs",
             forbidden: &[
                 ForbiddenSourcePattern {
                     pattern: "self.source_signatures.get",
@@ -688,7 +725,7 @@ fn source_boundary_rules() -> Vec<SourceBoundaryRule> {
         SourceBoundaryRule {
             label: "LLVM source callable lookup",
             kind_label: "backend-boundary",
-            path: "crates/scoopc/src/llvm/codegen/mir_body/callable_lookup.rs",
+            path: "crates/scoopc_codegen_llvm/src/llvm/codegen/mir_body/callable_lookup.rs",
             forbidden: &[
                 ForbiddenSourcePattern {
                     pattern: "materialized_pass_view",
@@ -715,7 +752,7 @@ fn source_boundary_rules() -> Vec<SourceBoundaryRule> {
         SourceBoundaryRule {
             label: "LLVM callable identity",
             kind_label: "backend-boundary",
-            path: "crates/scoopc/src/llvm/codegen/main/identity.rs",
+            path: "crates/scoopc_codegen_llvm/src/llvm/codegen/main/identity.rs",
             forbidden: &[
                 ForbiddenSourcePattern {
                     pattern: "materialized_pass_view",
@@ -738,7 +775,7 @@ fn source_boundary_rules() -> Vec<SourceBoundaryRule> {
         SourceBoundaryRule {
             label: "LLVM dispatch target declaration",
             kind_label: "backend-boundary",
-            path: "crates/scoopc/src/llvm/codegen/gc.rs",
+            path: "crates/scoopc_codegen_llvm/src/llvm/codegen/gc.rs",
             forbidden: &[
                 ForbiddenSourcePattern {
                     pattern: "fun_index.get",
@@ -757,7 +794,7 @@ fn source_boundary_rules() -> Vec<SourceBoundaryRule> {
         SourceBoundaryRule {
             label: "LLVM MIR dispatch helpers",
             kind_label: "backend-boundary",
-            path: "crates/scoopc/src/llvm/codegen/mir_body/dispatch.rs",
+            path: "crates/scoopc_codegen_llvm/src/llvm/codegen/mir_body/dispatch.rs",
             forbidden: &[
                 ForbiddenSourcePattern {
                     pattern: "fun_index.get",
@@ -772,7 +809,7 @@ fn source_boundary_rules() -> Vec<SourceBoundaryRule> {
         SourceBoundaryRule {
             label: "LLVM ordinary callee analysis",
             kind_label: "backend-boundary",
-            path: "crates/scoopc/src/llvm/codegen/ordinary_callee.rs",
+            path: "crates/scoopc_codegen_llvm/src/llvm/codegen/ordinary_callee.rs",
             forbidden: &[
                 ForbiddenSourcePattern {
                     pattern: "materialized_pass_view",
@@ -799,7 +836,7 @@ fn source_boundary_rules() -> Vec<SourceBoundaryRule> {
         SourceBoundaryRule {
             label: "LLVM class ctor init body",
             kind_label: "backend-boundary",
-            path: "crates/scoopc/src/llvm/codegen/class_ctor.rs",
+            path: "crates/scoopc_codegen_llvm/src/llvm/codegen/class_ctor.rs",
             forbidden: &[
                 ForbiddenSourcePattern {
                     pattern: "ctor.body.as_ref",
@@ -867,7 +904,7 @@ fn source_tree_boundary_rules() -> Vec<SourceTreeBoundaryRule> {
         SourceTreeBoundaryRule {
             label: "LLVM production direct HIR residuals",
             kind_label: "backend-boundary",
-            root: "crates/scoopc/src/llvm",
+            root: "crates/scoopc_codegen_llvm/src/llvm",
             exclude_path_fragments: &["/tests/", "tests.rs"],
             forbidden: &[
                 ForbiddenSourcePattern {
@@ -891,7 +928,7 @@ fn source_tree_boundary_rules() -> Vec<SourceTreeBoundaryRule> {
         SourceTreeBoundaryRule {
             label: "LLVM production direct MIR residuals outside LIR source-body helpers",
             kind_label: "backend-boundary",
-            root: "crates/scoopc/src/llvm",
+            root: "crates/scoopc_codegen_llvm/src/llvm",
             exclude_path_fragments: &["/tests/", "tests.rs", "/codegen/mir_body/"],
             forbidden: &[
                 ForbiddenSourcePattern {
@@ -976,6 +1013,38 @@ fn find_dependency_violations(
                 violations.push(Violation {
                     dependency: dependency.clone(),
                     reason: "base-only stage crates must not depend on facade, driver/runtime/tool, other stage, backend, or fact crates"
+                        .to_string(),
+                });
+            }
+
+            continue;
+        }
+
+        if kind == CrateKind::CodegenStage {
+            let allowed_stage_inputs = ["scoopc_lir", "scoopc_lir_facts"];
+            if dependency_name == "scoopc_ast"
+                || dependency_name == "scoopc_hir"
+                || dependency_name == "scoopc_mir"
+                || dependency_name == "scoopc_effect_facts_stage"
+                || dependency_name == "scoopc_codegen_c"
+                || FACT_CRATES.contains(&dependency_name)
+                    && !allowed_stage_inputs.contains(&dependency_name)
+            {
+                violations.push(Violation {
+                    dependency: dependency.clone(),
+                    reason: "LLVM codegen crates must depend only on base/LIR inputs; the temporary scoopc facade is allowed only until P9-T06"
+                        .to_string(),
+                });
+                continue;
+            }
+
+            if FORBIDDEN_WORKSPACE_CRATES.contains(&dependency_name)
+                && !allowed_stage_inputs.contains(&dependency_name)
+                && !TEMPORARY_CODEGEN_FACADE_DEPS.contains(&dependency_name)
+            {
+                violations.push(Violation {
+                    dependency: dependency.clone(),
+                    reason: "LLVM codegen crates must not depend on driver/runtime/tool, frontend stages, MIR/effect stages, or non-LIR fact crates"
                         .to_string(),
                 });
             }
@@ -1207,11 +1276,11 @@ mod tests {
     #[test]
     fn excludes_source_tree_paths_by_fragment() {
         assert!(source_path_is_excluded(
-            "crates/scoopc/src/llvm/tests/baseline.rs",
+            "crates/scoopc_codegen_llvm/src/llvm/tests/baseline.rs",
             &["/tests/", "tests.rs"]
         ));
         assert!(!source_path_is_excluded(
-            "crates/scoopc/src/llvm/codegen/mod.rs",
+            "crates/scoopc_codegen_llvm/src/llvm/codegen/mod.rs",
             &["/tests/", "tests.rs"]
         ));
     }

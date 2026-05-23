@@ -1,0 +1,11 @@
+[package]
+name = "scoopc_codegen_llvm"
+version.workspace = true
+edition.workspace = true
+
+[features]
+default = ["llvm"]
+llvm = ["scoopc/llvm"]
+
+[dependencies]
+scoopc = { path = "../scoopc", default-features = false }

@@ -1,34 +1,17 @@
-# 当前执行计划
+执行计划（当前调用）
 
-说明：本文件记录可审计的执行计划、约束、关键决策和进度更新；不记录私有推理链。
+1. 先读取 `TODO.md`，按文件顺序找到第一个标题未以 `[DONE]` 开头的任务。
+2. 读取该任务相关上下文、最新提交和必要代码，确认任务范围、依赖和验证要求；不做无关历史问题扫查。
+3. 如任务可直接完成，按最小正确改动实现；如发现阻塞当前任务的缺失特性或测试失败，按要求在 `TODO.md` 中加入最小前置任务并停止。
+4. 运行与任务相关的测试；如观察到未排期失败，修复或在 `TODO.md` 中排期为当前任务前置项。
+5. 更新 `TODO.md`：完成时在任务标题加 `[DONE]` 并补全完成记录；仅在阶段计划变化时更新 `PLAN.md`。
+6. 检查工作区差异，提交本次调用产生的所有相关改动，然后停止，不继续下一个任务。
 
-## 初始约束
+进度记录：
 
-- 以 `TODO.md` 为任务顺序和完成状态的唯一权威来源。
-- 只完成第一个标题未带 `[DONE]` 的任务，然后停止。
-- 若遇到阻塞当前任务的缺陷、规格不匹配或缺失特性，优先修复；若无法在当前任务中正确修复，则在 `TODO.md` 中插入最小必要前置任务并停止。
-- 不通过缩小范围、改 fixture 形状、特殊分支或其他 workaround 绕过问题。
-- 任务完成后必须更新 `TODO.md` 标题为 `[DONE]`，补全完成记录，运行相关验证，并提交 Git commit。
-- 仅当阶段级计划、依赖或完成标准发生变化时更新 `PLAN.md`。
-
-## 步骤计划
-
-1. 阅读 `TODO.md`，确定第一个未完成任务及其验收要求。
-2. 检查最近提交是否明确提到与该任务直接相关的未完成问题；只处理与当前任务直接相关的内容。
-3. 根据任务内容读取最小必要代码、测试和文档上下文。
-4. 实现当前任务，优先做最小但完整、规格正确的改动。
-5. 添加或更新最相关的测试/fixture，避免 fixture-only hack。
-6. 运行任务要求的验证；若发现未排期的失败测试/fixture，修复或在 `TODO.md` 中安排为当前任务前置项。
-7. 更新 `TODO.md`：将当前任务标题加 `[DONE]` 并填写完成记录；如发现必须拆分或新增前置任务，则按依赖顺序更新并停止。
-8. 视情况更新 `PLAN.md`，仅记录阶段级变化。
-9. 检查 `git status`、`git diff`、最近提交，确认只提交本轮相关改动。
-10. 创建描述清晰的 Git commit。
-11. 停止，不继续下一个任务。
-
-## 当前状态
-
-- 状态：已确认第一个未完成任务为 `P9-T02R：Review scoopc_ast 抽取`。
-- 最近提交：`44c0c62d [P9-T02] Extract scoopc_ast crate`，与当前 review 任务直接相关；本轮只复审该抽取结果。
-- 已完成复审项：`crates/scoopc/src/{ast,parser,syntax}` 实体目录不存在；`crates/scoopc/src/lib.rs` 保留 `scoopc::ast`、`scoopc::parser`、`scoopc::syntax` façade；`cargo tree -p scoopc_ast` 显示 workspace 依赖仅为 `scoopc_source`、`scoopc_span`、`scoopc_types`；`dependency-gate` 已通过并覆盖 `scoopc_ast` base-only stage。
-- 验证结果：`cargo fmt`、`cargo build --workspace`、`cargo test --all --all-targets`、`cargo run -p scoop_tools -- dependency-gate`、`cargo clippy --all-targets -- -D warnings`、`cargo tree -p scoopc_ast`、`git diff --check` 均已通过。
-- TODO 更新：`TODO.md` 与 `TODO-7.md` 已将 `P9-T02R` 标记为 `[DONE]`，并记录 review 结论；下一步检查 diff/status 后提交。
+- 已写入初始执行计划；下一步读取 `TODO.md` 确认第一个未完成任务。
+- 已确认第一个未完成任务为 `P9-T03`（抽出 `scoopc_codegen_llvm` crate）。最新提交 `720e3770 [P9-T02R] Review scoopc_ast extraction` 未记录直接相关的未完成事项。当前工作区已有非本次产生的未跟踪文件 `PLUGIN_ABI.md`，本次不会修改或提交它。
+- 下一步聚焦读取 `scoopc` 的 LLVM 模块、`stackmap.rs`、pipeline LLVM stage、workspace Cargo 配置与 dependency gate，制定最小迁移补丁。
+- 已确认直接让 `scoopc` 依赖新 backend crate 会与 P9-T03 允许的临时 `scoopc` façade 依赖形成 Cargo cycle。采用 staged extraction：把 LLVM/stackmap 源码物理迁入 `crates/scoopc_codegen_llvm`，`scoopc` 通过 `#[path]` façade 继续编译这些源文件，新 crate 暂时 re-export `scoopc::llvm` / `scoopc::stackmap`；完成记录登记 P9-T06 后切到真正 `scoopc_lir` 直依赖。
+- 已完成迁移初稿：workspace 加入 `scoopc_codegen_llvm`，`llvm/` 与 `stackmap.rs` 已移到新 crate 路径，dependency gate 的 LLVM source-boundary 路径已切换。`cargo check --workspace --features llvm` 与 `cargo run -p scoop_tools -- dependency-gate` 已通过；下一步跑任务要求的完整验证。
+- 验证完成：`cargo fmt`、`cargo build --workspace --features llvm`、`cargo test --all --all-targets --features llvm`（30 分钟超时重跑通过）、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`、`cargo run -p scoop_tools -- dependency-gate`、`cargo clippy --all-targets --features llvm -- -D warnings`、`cargo tree -p scoopc_codegen_llvm`、`git diff --check` 均已通过。已将 `TODO.md` / `TODO-7.md` 中 `P9-T03` 标记为 `[DONE]` 并补充完成记录；下一步检查差异并提交。

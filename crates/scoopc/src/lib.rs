@@ -73,6 +73,7 @@ pub mod session;
 pub mod source;
 pub mod span;
 pub mod stable_id;
+#[path = "../../scoopc_codegen_llvm/src/stackmap.rs"]
 pub mod stackmap;
 pub use scoopc_ast::syntax;
 pub mod sysroot;
@@ -86,6 +87,7 @@ pub mod warnings;
 ///
 /// 注意：该模块需要启用 `scoopc` 的 `llvm` feature（默认关闭）。
 #[cfg(feature = "llvm")]
+#[path = "../../scoopc_codegen_llvm/src/llvm/mod.rs"]
 pub mod llvm;
 
 #[cfg(test)]

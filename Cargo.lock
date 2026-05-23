@@ -712,6 +712,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "scoopc_codegen_llvm"
+version = "0.1.0"
+dependencies = [
+ "scoopc",
+]
+
+[[package]]
 name = "scoopc_effect_facts"
 version = "0.1.0"
 dependencies = [

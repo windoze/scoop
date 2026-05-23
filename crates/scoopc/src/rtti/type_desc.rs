@@ -1090,7 +1090,7 @@ fn package_prefix(source: &SourceFile, pkg: Option<&ast::PackageDecl>) -> String
 fn builtin_type_descs(target: TargetLayout) -> Vec<TypeDesc> {
     let header_size = gc_object_header_size(target);
 
-    // 说明：builtin/runtime 类型的字段布局在 early stage 固定（见 `crates/scoopc/src/llvm/codegen.rs`）。
+    // 说明：builtin/runtime 类型的字段布局在 early stage 固定（见 `crates/scoopc_codegen_llvm/src/llvm/codegen`）。
     let mut out = Vec::new();
 
     // `scoop.core.String`：无 GC pointer 字段（trace bitmap 为空）。

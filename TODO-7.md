@@ -279,7 +279,7 @@
   - 迁移残留：复核 `crates/scoopc/src` 下已无 `pub mod ast/parser/syntax` 或实体模块定义，未发现重复定义；历史文档中的旧路径仅为归档/完成记录引用，不构成 production 残留。
   - 验证通过：`cargo fmt`；`cargo build --workspace`；`cargo test --all --all-targets`；`cargo run -p scoop_tools -- dependency-gate`；`cargo clippy --all-targets -- -D warnings`；`cargo tree -p scoopc_ast`；`git diff --check`。
 
-### [TODO] P9-T03：抽出 `scoopc_codegen_llvm` crate
+### [DONE] P9-T03：抽出 `scoopc_codegen_llvm` crate
 
 - 参考：本文件"当前 `scoopc/src/` 主模块体量"。
 - 目标：
@@ -305,6 +305,12 @@
   - `cargo tree -p scoopc_codegen_llvm` 不显示 `scoopc_hir` / `scoopc_mir` / `scoopc_effect_facts` 任何 stage crate（只能通过 façade `scoopc` 间接，且必须在 P9-T06 完成后切到 `scoopc_lir` 直依赖）；
   - run-pass fixtures 全部通过。
 - 依赖：P9-T02R
+- 完成记录：
+  - 2026-05-24：新建 `crates/scoopc_codegen_llvm` 并把 `crates/scoopc/src/llvm` 与 backend-only `stackmap.rs` 物理迁入该 crate 路径；`scoopc` 的 `llvm` / `stackmap` 入口改为 `#[path]` façade，保持 `scoopc::llvm` 与 `scoopc::stackmap` 原路径可用。
+  - 临时依赖登记：由于 P9-T06 前 `scoopc_lir` 尚未抽出，若让 `scoopc` 直接依赖 `scoopc_codegen_llvm` 且 backend crate 再依赖 `scoopc` façade 会形成 Cargo cycle。本任务采用 staged extraction：`scoopc_codegen_llvm` 暂时通过 `scoopc` façade re-export backend API，`llvm = ["scoopc/llvm"]` 保持原 LLVM feature 门；P9-T06 完成 `scoopc_lir` 抽取后必须切换为 direct `scoopc_lir` / `scoopc_lir_facts` 输入。
+  - dependency gate 已激活 `scoopc_codegen_llvm` 的 codegen-stage 检查，并把 LLVM source-boundary 规则迁到 `crates/scoopc_codegen_llvm/src/llvm/**`；用户可见 failure policy 与 stable-id audit 的源路径也同步到新位置。
+  - `cargo tree -p scoopc_codegen_llvm` 显示当前直接依赖为临时 `scoopc` façade；没有直接 `scoopc_hir` / `scoopc_mir` stage crate，后续 LIR 抽取完成后按本记录移除 façade 依赖。
+  - 验证通过：`cargo fmt`；`cargo check --workspace --features llvm`；`cargo build --workspace --features llvm`；`cargo test --all --all-targets --features llvm`（用 30 分钟超时重跑通过；单独复现 `once_guard_cross_dylib` 1.22s 通过，确认此前 20 分钟超时是整条测试命令总时长不足）；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`；`cargo run -p scoop_tools -- dependency-gate`；`cargo clippy --all-targets --features llvm -- -D warnings`；`cargo tree -p scoopc_codegen_llvm`；`git diff --check`。
 
 ### [TODO] P9-T03R：Review `scoopc_codegen_llvm` 抽取
 

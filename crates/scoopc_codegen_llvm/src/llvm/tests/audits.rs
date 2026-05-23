@@ -293,9 +293,13 @@ pub(super) fn stable_id_relative_repo_path(path: &Path) -> String {
 }
 
 pub(super) fn llvm_raw_add_function_none_callsites() -> Vec<String> {
-    let llvm_root = stable_id_repo_root().join("crates/scoopc/src/llvm");
+    let llvm_root = stable_id_repo_root().join("crates/scoopc_codegen_llvm/src/llvm");
     let mut files = Vec::new();
-    stable_id_collect_audit_files("crates/scoopc/src/llvm", &llvm_root, &mut files);
+    stable_id_collect_audit_files(
+        "crates/scoopc_codegen_llvm/src/llvm",
+        &llvm_root,
+        &mut files,
+    );
 
     let mut hits = Vec::new();
     for (_, path) in files {
@@ -331,10 +335,11 @@ pub(super) fn llvm_raw_add_function_none_callsites() -> Vec<String> {
 }
 
 pub(super) fn llvm_legacy_closure_private_naming_hits() -> Vec<String> {
-    let llvm_codegen_root = stable_id_repo_root().join("crates/scoopc/src/llvm/codegen");
+    let llvm_codegen_root =
+        stable_id_repo_root().join("crates/scoopc_codegen_llvm/src/llvm/codegen");
     let mut files = Vec::new();
     stable_id_collect_audit_files(
-        "crates/scoopc/src/llvm/codegen",
+        "crates/scoopc_codegen_llvm/src/llvm/codegen",
         &llvm_codegen_root,
         &mut files,
     );
