@@ -28,6 +28,7 @@ pub struct LirFacts {
     pub global_init: LirGlobalInitFacts,
     pub physical_layout: LirPhysicalLayoutFacts,
     pub type_context: LirTypeContextFacts,
+    pub source_signatures: BTreeMap<String, LirSourceCallableSignatureFacts>,
     pub callables: BTreeMap<StableLirCallableKey, LirCallableFacts>,
     pub step_types: BTreeMap<LirStepSchemaKey, LirStepTypeFacts>,
     pub dynamic_invokes: BTreeMap<LirDynamicInvokeKey, LirDynamicInvokeContract>,
@@ -44,6 +45,7 @@ pub struct LirFactGroups {
     pub global_init: LirGlobalInitFacts,
     pub physical_layout: LirPhysicalLayoutFacts,
     pub type_context: LirTypeContextFacts,
+    pub source_signatures: BTreeMap<String, LirSourceCallableSignatureFacts>,
     pub callables: BTreeMap<StableLirCallableKey, LirCallableFacts>,
     pub step_types: BTreeMap<LirStepSchemaKey, LirStepTypeFacts>,
     pub dynamic_invokes: BTreeMap<LirDynamicInvokeKey, LirDynamicInvokeContract>,
@@ -63,6 +65,7 @@ impl LirFacts {
             global_init: LirGlobalInitFacts::default(),
             physical_layout: LirPhysicalLayoutFacts::default(),
             type_context: LirTypeContextFacts::default(),
+            source_signatures: BTreeMap::new(),
             callables: BTreeMap::new(),
             step_types: BTreeMap::new(),
             dynamic_invokes: BTreeMap::new(),
@@ -94,6 +97,7 @@ impl LirFacts {
             global_init: groups.global_init,
             physical_layout: groups.physical_layout,
             type_context: groups.type_context,
+            source_signatures: groups.source_signatures,
             callables: groups.callables,
             step_types: groups.step_types,
             dynamic_invokes: groups.dynamic_invokes,
@@ -107,6 +111,7 @@ impl LirFacts {
     /// Return whether all currently published LIR fact groups are empty.
     pub fn is_empty(&self) -> bool {
         self.callables.is_empty()
+            && self.source_signatures.is_empty()
             && self.global_init.is_empty()
             && self.physical_layout.is_empty()
             && self.summary.callable_count == 0
@@ -279,12 +284,14 @@ mod tests {
             root_fqn: root_fqn.to_string(),
             stable_instance_key: key.as_str().to_string(),
             source_kind: LirCallableSourceKind::TopLevel,
+            param_names: Vec::new(),
             param_tys: Vec::new(),
             return_ty: ty(2),
             body_version: body_version(&key),
             resolved_outward_cases: Vec::new(),
             contract: LirCallableContract::Plain(Box::new(LirPlainCallableFacts {
                 function_ty: ty(1),
+                param_names: Vec::new(),
                 param_tys: Vec::new(),
                 return_ty: ty(2),
                 body_slices: Vec::new(),
@@ -419,6 +426,7 @@ mod tests {
                 root_fqn: "app.main".to_string(),
                 stable_instance_key: callable_key.as_str().to_string(),
                 source_kind: LirCallableSourceKind::TopLevel,
+                param_names: Vec::new(),
                 param_tys: Vec::new(),
                 return_ty: ty(2),
                 body_version: LirBodyVersionFacts {

@@ -264,6 +264,59 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         .map_err(|message| LlvmEmitError::Frontend { message })
     }
 
+    pub(in crate::llvm::codegen) fn lir_callable_symbol_facts(
+        &self,
+        callable_fqn: &str,
+    ) -> Option<&'a scoopc_lir_facts::LirCallableSymbolFacts> {
+        self.published_lir_facts
+            .physical_layout
+            .callable_symbols
+            .values()
+            .find(|symbol| symbol.root_fqn == callable_fqn)
+    }
+
+    pub(in crate::llvm::codegen) fn exported_abi_symbol_for_lir_callable(
+        &self,
+        callable_fqn: &str,
+    ) -> Result<String, LlvmEmitError> {
+        if callable_fqn == "main" {
+            return Ok("main".to_string());
+        }
+        if let Some(symbol_facts) = self.lir_callable_symbol_facts(callable_fqn) {
+            let symbol = symbol_facts
+                .exported_symbol
+                .clone()
+                .unwrap_or_else(|| AbiMangler.fun_symbol(&symbol_facts.callable));
+            self.reserve_exported_abi_symbol(
+                &symbol,
+                &symbol_facts.callable,
+                format!("LIR callable `{callable_fqn}` via callable symbol facts"),
+            )?;
+            return Ok(symbol);
+        }
+        let signature = self.source_signatures.get(callable_fqn).ok_or_else(|| {
+            LlvmEmitError::Frontend {
+                message: format!(
+                    "source signature facts 缺少 exported callable `{callable_fqn}` 的 ABI identity"
+                ),
+            }
+        })?;
+        let stable_key = self.stable_def_key_for_callable_signature_in_cone(
+            self.stable_cone_key_for_source_path(signature.source_path.as_path()),
+            callable_fqn,
+            "non_generic_callable",
+            signature.function_ty,
+            self.types,
+        )?;
+        let symbol = AbiMangler.fun_symbol(&stable_key);
+        self.reserve_exported_abi_symbol(
+            &symbol,
+            &stable_key,
+            format!("source callable `{callable_fqn}` via source signature facts"),
+        )?;
+        Ok(symbol)
+    }
+
     pub(in crate::llvm::codegen) fn exported_abi_symbol_for_hir_fun(
         &self,
         fun: &hir::FunDecl,
@@ -271,22 +324,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         if fun.fqn == "main" {
             return Ok("main".to_string());
         }
-        if let Some(pass_view) = self.materialized_pass_view()
-            && let Some(owner) = pass_view.owner_of_callable(&fun.fqn)
-            && let Some(stable_key) = pass_view
-                .materialized()
-                .authoritative_stable_instance_key(owner)
-        {
-            let symbol = AbiMangler.fun_symbol(&stable_key);
-            self.reserve_exported_abi_symbol(
-                &symbol,
-                &stable_key,
-                format!(
-                    "source callable `{}` via authoritative instance key",
-                    fun.fqn
-                ),
-            )?;
-            return Ok(symbol);
+        if self.lir_callable_symbol_facts(&fun.fqn).is_some() {
+            return self.exported_abi_symbol_for_lir_callable(&fun.fqn);
         }
         let stable_key = self.stable_def_key_for_callable_signature_in_cone(
             self.stable_cone_key_for_source_path(fun.source_path.as_path()),
@@ -348,51 +387,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 "source callable `{}` via signature override concrete callable type",
                 owner_path
             ),
-        )?;
-        Ok(symbol)
-    }
-
-    pub(in crate::llvm::codegen) fn exported_abi_symbol_for_materialized_fun(
-        &self,
-        mir_fun: &crate::mir::FunDecl,
-        mir_types: &TypeStore,
-    ) -> Result<String, LlvmEmitError> {
-        if mir_fun.fqn == "main" {
-            return Ok("main".to_string());
-        }
-        if let Some(pass_view) = self.materialized_pass_view()
-            && let Some(owner) = pass_view.owner_of_callable(&mir_fun.fqn)
-            && let Some(stable_key) = pass_view
-                .materialized()
-                .authoritative_stable_instance_key(owner)
-        {
-            let symbol = AbiMangler.fun_symbol(&stable_key);
-            self.reserve_exported_abi_symbol(
-                &symbol,
-                &stable_key,
-                format!(
-                    "materialized callable `{}` via authoritative instance key",
-                    mir_fun.fqn
-                ),
-            )?;
-            return Ok(symbol);
-        }
-        if let Some(hir_fun) = self.hir_fun_for_callable_fqn(&mir_fun.fqn)
-            && hir_fun.fqn == mir_fun.fqn
-        {
-            return self.exported_abi_symbol_for_hir_fun(hir_fun);
-        }
-        let stable_key = self.stable_def_key_for_callable_signature(
-            &mir_fun.fqn,
-            "non_generic_callable",
-            mir_fun.ty,
-            mir_types,
-        )?;
-        let symbol = AbiMangler.fun_symbol(&stable_key);
-        self.reserve_exported_abi_symbol(
-            &symbol,
-            &stable_key,
-            format!("materialized callable `{}`", mir_fun.fqn),
         )?;
         Ok(symbol)
     }
@@ -463,54 +457,37 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(StableClosureKey::new(&owner_key, lexical_path))
     }
 
-    pub(in crate::llvm::codegen) fn stable_closure_key_for_materialized_callable(
+    pub(in crate::llvm::codegen) fn stable_closure_key_for_lir_source_callable(
         &self,
         callable_fqn: &str,
         _at: crate::span::Span,
     ) -> Result<StableClosureKey, LlvmEmitError> {
-        let (_, mir_fun) = self.materialized_mir_callable(callable_fqn).unwrap_or_else(|| {
-            panic!("stable_closure_key_for_materialized_callable: materialized pass view accepted missing closure callable")
+        let (_, source_fun) = self.lir_source_callable(callable_fqn).unwrap_or_else(|| {
+            panic!("stable_closure_key_for_lir_source_callable: LIR source contract accepted missing closure callable")
         });
-        if !mir_fun.name.starts_with("$lambda") {
-            panic!("stable_closure_key_for_materialized_callable: callable is not a closure body")
+        if !source_fun.name.starts_with("$lambda") {
+            panic!("stable_closure_key_for_lir_source_callable: callable is not a closure body")
         }
         let mut owner_callable_fqn = callable_fqn;
         while let Some((parent, _)) = owner_callable_fqn.rsplit_once(".$lambda") {
             owner_callable_fqn = parent;
         }
-        let owner_fun = self.hir_fun_for_callable_fqn(owner_callable_fqn).unwrap_or_else(|| {
-            panic!("stable_closure_key_for_materialized_callable: materialized closure lacks HIR owner")
-        });
-        let lexical_path = hir::stable_closure_lexical_path_in_fun(owner_fun, mir_fun.span)
+        let owner_symbol = self
+            .lir_callable_symbol_facts(owner_callable_fqn)
             .ok_or_else(|| LlvmEmitError::Frontend {
                 message: format!(
-                    "无法为 materialized MIR closure `{callable_fqn}` 从 HIR body 恢复稳定 lexical path"
+                    "LIR callable symbol facts 缺少 closure `{callable_fqn}` owner `{owner_callable_fqn}` 的 stable identity"
                 ),
             })?;
-
-        if let Some(pass_view) = self.materialized_pass_view()
-            && let Some(owner) = pass_view.owner_of_callable(owner_callable_fqn)
-            && (!owner.type_args.is_empty() || !owner.eff_args.is_empty())
-        {
-            let stable_instance = pass_view.materialized().stable_instance_key(owner).ok_or_else(|| {
-                LlvmEmitError::Frontend {
-                    message: format!(
-                        "无法为 materialized MIR closure `{callable_fqn}` 找到 authoritative stable instance key"
-                    ),
-                }
+        let lexical_path = callable_fqn
+            .strip_prefix(owner_callable_fqn)
+            .and_then(|suffix| suffix.strip_prefix('.'))
+            .ok_or_else(|| LlvmEmitError::Frontend {
+                message: format!(
+                    "LIR source closure `{callable_fqn}` 无法从 owner `{owner_callable_fqn}` 恢复 lexical path"
+                ),
             })?;
-            return Ok(StableClosureKey::new(stable_instance, lexical_path));
-        }
-
-        let owner_key = StableDefKey::new(
-            self.stable_cone_key_for_source_path(owner_fun.source_path.as_path())
-                .clone(),
-            StableDefNamespace::Fun,
-            &owner_fun.fqn,
-            "top_level_fun",
-            None,
-        );
-        Ok(StableClosureKey::new(&owner_key, lexical_path))
+        Ok(StableClosureKey::new(&owner_symbol.callable, lexical_path))
     }
 
     pub(in crate::llvm::codegen) fn direct_hir_closure_callable_fqn(

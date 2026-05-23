@@ -74,15 +74,9 @@ impl CodegenMonoInput for TypeId {
         self,
         codegen: &MainCodegen<'a, 'ctx>,
     ) -> Option<MonoTypeId> {
-        if (self.as_u32() as usize) < codegen.types.len() {
-            return codegen.types.as_mono(self).ok();
-        }
-        let materialized = codegen.materialized_pass_view()?.materialized();
-        if (self.as_u32() as usize) >= materialized.types.len() {
-            return None;
-        }
-        let codegen_ty = codegen.equivalent_codegen_type_id(&materialized.types, self)?;
-        codegen.types.as_mono(codegen_ty).ok()
+        ((self.as_u32() as usize) < codegen.types.len())
+            .then(|| codegen.types.as_mono(self).ok())
+            .flatten()
     }
 }
 

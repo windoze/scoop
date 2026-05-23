@@ -7,7 +7,7 @@ use crate::effect_lowered::{LateLoweredOptOptions, LateLoweredProgram};
 use crate::frontend::CodegenLoweringOutput;
 use crate::hir::{self, LoweredHir};
 use crate::llvm::LlvmEmitError;
-use crate::mir::{MaterializedMir, MaterializedMirPassView};
+use crate::mir::MaterializedMir;
 use crate::opt::OptLevel;
 use crate::session::Session;
 use crate::source::{SourceFile, SourceId, SourceMap};
@@ -75,7 +75,7 @@ impl LlvmCodegenStageInput {
 /// `LirFacts.type_context.owner` 指向这个 context：当前 TypeId 仍是同进程
 /// effect-owned `TypeStore` identity，cross-process stable wire format 显式推迟到 P8 的
 /// per-cone build artifact serialization。这里不再嵌套 `LoweredHir`，只保留 LLVM
-/// 迁移到 LIR facts 之前还需要的 source-side side tables 与 Materialized MIR contracts owner。
+/// 迁移到 LIR facts 之前还需要的 source-side side tables 与 materialized contracts owner。
 #[derive(Debug)]
 pub struct LlvmStageBaseContext {
     source_cones: HashMap<PathBuf, SourceConeInfo>,
@@ -98,6 +98,7 @@ pub struct LlvmStageBaseContext {
     nominal_kinds: hir::NominalKindIndex,
     direct_supertypes: hir::DirectSupertypesIndex,
     builtins: BuiltinTypes,
+    source_signatures: HashMap<String, LlvmSourceCallableSignature>,
     top_level_funs: Vec<hir::FunDecl>,
     member_funs: Vec<hir::FunDecl>,
     extern_funs: hir::ExternFunIndex,
@@ -107,6 +108,15 @@ pub struct LlvmStageBaseContext {
     effect_facts: MaterializedEffectFacts,
 }
 
+#[derive(Debug, Clone)]
+pub(crate) struct LlvmSourceCallableSignature {
+    pub(crate) source_path: PathBuf,
+    pub(crate) function_ty: crate::ty::TypeId,
+    pub(crate) param_names: Vec<String>,
+    pub(crate) param_tys: Vec<crate::ty::TypeId>,
+    pub(crate) return_ty: crate::ty::TypeId,
+}
+
 impl LlvmStageBaseContext {
     pub(crate) fn from_lowered_hir(
         lowered_hir: LoweredHir,
@@ -114,7 +124,7 @@ impl LlvmStageBaseContext {
         materialized_mir: MaterializedMir,
         effect_facts: MaterializedEffectFacts,
     ) -> Self {
-        let top_level_funs = lowered_hir
+        let top_level_funs: Vec<hir::FunDecl> = lowered_hir
             .file
             .items
             .into_iter()
@@ -164,6 +174,8 @@ impl LlvmStageBaseContext {
         for (key, value) in lowered_hir.native_callable_funs {
             native_callable_funs.entry(key).or_insert(value);
         }
+        let source_signatures =
+            build_source_signature_index(&top_level_funs, &lowered_hir.member_funs);
         Self {
             source_cones: lowered_hir.source_cones,
             stable_type_param_keys: lowered_hir.stable_type_param_keys,
@@ -185,6 +197,7 @@ impl LlvmStageBaseContext {
             nominal_kinds: lowered_hir.nominal_kinds,
             direct_supertypes: lowered_hir.direct_supertypes,
             builtins: lowered_hir.builtins,
+            source_signatures,
             top_level_funs,
             member_funs: lowered_hir.member_funs,
             extern_funs,
@@ -287,6 +300,10 @@ impl LlvmStageBaseContext {
         self.builtins
     }
 
+    pub(crate) fn source_signatures(&self) -> &HashMap<String, LlvmSourceCallableSignature> {
+        &self.source_signatures
+    }
+
     pub(crate) fn extern_funs(&self) -> &hir::ExternFunIndex {
         &self.extern_funs
     }
@@ -297,10 +314,6 @@ impl LlvmStageBaseContext {
 
     pub(crate) fn hir_facts(&self) -> &HirFacts {
         &self.hir_facts
-    }
-
-    pub(crate) fn materialized_pass_view(&self) -> MaterializedMirPassView<'_> {
-        self.materialized_mir.pass_view()
     }
 
     pub(crate) fn fun_index(&self) -> HashMap<String, &hir::FunDecl> {
@@ -348,6 +361,28 @@ impl LlvmStageBaseContext {
 
         Ok(())
     }
+}
+
+fn build_source_signature_index(
+    top_level_funs: &[hir::FunDecl],
+    member_funs: &[hir::FunDecl],
+) -> HashMap<String, LlvmSourceCallableSignature> {
+    top_level_funs
+        .iter()
+        .chain(member_funs.iter())
+        .map(|fun| {
+            (
+                fun.fqn.clone(),
+                LlvmSourceCallableSignature {
+                    source_path: fun.source_path.clone(),
+                    function_ty: fun.ty,
+                    param_names: fun.params.iter().map(|param| param.name.clone()).collect(),
+                    param_tys: fun.params.iter().map(|param| param.ty).collect(),
+                    return_ty: fun.return_ty,
+                },
+            )
+        })
+        .collect()
 }
 
 fn verify_lir_type_context_header(
@@ -2136,11 +2171,18 @@ fun main() {
         assert_eq!(stage_output.opt_level(), OptLevel::O0);
         assert!(stage_output.lir().callable("sample.main").is_some());
         assert!(
-            !stage_output
-                .base_context()
-                .materialized_pass_view()
-                .is_empty(),
-            "LLVM stage 应为 TODO-6/P7 backend residual 保留显式 canonical pass-view"
+            stage_output
+                .lir_facts()
+                .physical_layout
+                .callable_symbols
+                .contains_key(&scoopc_ids::StableLirCallableKey::from_symbol_key(
+                    stage_output
+                        .lir()
+                        .callable("sample.main")
+                        .expect("sample main callable should exist")
+                        .stable_instance_key(),
+                )),
+            "LLVM stage 应通过 LIR callable symbol facts 发布入口 callable ABI identity"
         );
         assert!(
             stage_output.abi_visibility_lir().is_none(),

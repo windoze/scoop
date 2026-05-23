@@ -513,7 +513,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let env_i8 = if capture_field_cgs.is_empty() {
             gc_i8_ptr_ty.const_null()
         } else {
-            let closure_key = self.stable_closure_key_for_materialized_callable(fn_ptr, span)?;
+            let closure_key = self.stable_closure_key_for_lir_source_callable(fn_ptr, span)?;
             let env_ty =
                 self.mir_closure_env_object_type(span, &closure_key, &capture_field_cgs)?;
             let env_size_bytes = self.target_data.get_store_size(&env_ty);
@@ -607,11 +607,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             self.llvm_i8_ptr_type().const_null()
         } else if let Some(plain_entry) = self
             .module
-            .get_function(&self.materialized_mir_closure_body_symbol(fn_ptr, span)?)
+            .get_function(&self.lir_source_closure_body_symbol(fn_ptr, span)?)
         {
             plain_entry.as_global_value().as_pointer_value()
         } else {
-            self.ensure_materialized_mir_closure_callable_defined(span, fn_ptr)?
+            self.ensure_lir_source_closure_callable_defined(span, fn_ptr)?
                 .as_global_value()
                 .as_pointer_value()
         };
@@ -688,7 +688,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         span: crate::span::Span,
         fn_ptr: &str,
     ) -> Result<GlobalValue<'ctx>, LlvmEmitError> {
-        if let Some((callable_types, callable)) = self.materialized_mir_callable(fn_ptr) {
+        if let Some((callable_types, callable)) = self.lir_source_callable(fn_ptr) {
             let mut params = Vec::with_capacity(callable.params.len().saturating_sub(1));
             let mut value_params = callable.params.iter().skip(1).peekable();
             let receiver = if value_params

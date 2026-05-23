@@ -425,6 +425,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.published_callable_signature_impl(callable_fqn)
     }
 
+    pub(in crate::llvm::codegen) fn published_callable_signature_with_names(
+        &self,
+        callable_fqn: &str,
+    ) -> Option<(&'a TypeStore, Vec<String>, Vec<TypeId>, TypeId)> {
+        self.published_callable_signature_with_names_impl(callable_fqn)
+    }
+
     pub(in crate::llvm::codegen) fn published_signature_tys_as_codegen_tys(
         &self,
         source_types: &TypeStore,

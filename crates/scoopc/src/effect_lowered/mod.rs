@@ -27,6 +27,7 @@ pub use dump::render_late_lowered_program;
 pub use ir::{
     LateLoweredCallable, LateLoweredCallableAbi, LateLoweredEffectStepCallable,
     LateLoweredPlainBodySlice, LateLoweredPlainCallable, LateLoweredProgram,
+    LateLoweredSourceCallable,
 };
 pub(crate) use opt::{LateLoweredOptOptions, run_lir_opt_pipeline};
 

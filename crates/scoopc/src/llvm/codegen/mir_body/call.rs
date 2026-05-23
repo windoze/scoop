@@ -84,8 +84,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         require_plain_surface: bool,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
         let mut concrete_fqn = self.concrete_top_level_fun_call_fqn(span, fqn)?;
-        if self.materialized_mir_callable(&concrete_fqn).is_none()
-            && let Some(inferred_fqn) = self.inferred_materialized_direct_call_fqn(
+        if self.lir_source_callable(&concrete_fqn).is_none()
+            && let Some(inferred_fqn) = self.inferred_lir_source_direct_call_fqn(
                 &concrete_fqn,
                 args,
                 transport.result.source_ty,
@@ -126,129 +126,47 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             )));
         }
         let uses_explicit_effect_hidden_abi = !require_plain_surface && uses_effect_step_surface;
-        let materialized_sig = self
-            .materialized_mir_callable(&concrete_fqn)
-            .map(|(mir_types, fun)| (fun.clone(), mir_types as *const TypeStore));
-        let hir_sig_fun = self
-            .fun_index
-            .get(&concrete_fqn)
-            .copied()
-            .or_else(|| self.hir_fun_for_callable_fqn(&concrete_fqn));
-        if hir_sig_fun.is_none() && materialized_sig.is_none() {
-            panic!(
-                "codegen_mir_direct_call_with_policy: MIR call ABI verifier accepted missing direct callee signature"
-            );
-        }
-        let map_foreign_signature_ty_to_codegen =
-            |cg: &Self, ty: TypeId| cg.equivalent_codegen_type_id(mir_types, ty).unwrap_or(ty);
-        let (param_names, param_tys, return_ty_for_codegen) = if let Some((
-            fun,
-            materialized_types,
-        )) = materialized_sig.as_ref()
-        {
-            // SAFETY: `materialized_types` points into the materialized pass view owned by the
-            // compilation-unit codegen context and outlives this call.
-            let materialized_types = unsafe { &**materialized_types };
-            let param_names = fun
-                .params
-                .iter()
-                .map(|param| param.name.clone())
-                .collect::<Vec<_>>();
-            let fallback_param_tys = fun.params.iter().map(|param| param.ty).collect::<Vec<_>>();
-            let fallback_return_ty = fun.return_ty;
-            let needs_published_sig = fallback_param_tys
-                .iter()
-                .any(|&ty| self.cg_ty_of_mir_type(materialized_types, ty).is_none())
-                || self
-                    .cg_ty_of_mir_type(materialized_types, fallback_return_ty)
-                    .is_none();
-            let published_sig = if needs_published_sig {
-                self.published_callable_signature(&concrete_fqn)
-                    .or_else(|| {
-                        (dispatch_fqn != concrete_fqn)
-                            .then(|| self.published_callable_signature(dispatch_fqn))
-                            .flatten()
-                    })
-            } else {
-                None
-            };
-            let (param_tys, return_ty) = if let Some((source_types, param_tys, return_ty)) =
-                published_sig
-                && let Some(mapped) =
-                    self.published_signature_tys_as_codegen_tys(source_types, param_tys, return_ty)
-            {
-                mapped
-            } else {
-                (fallback_param_tys, fallback_return_ty)
-            };
-            (param_names, param_tys, return_ty)
-        } else {
-            let fun = hir_sig_fun.expect("validated above");
-            let param_names = fun
-                .params
-                .iter()
-                .map(|param| param.name.clone())
-                .collect::<Vec<_>>();
-            let arg_to_param = map_mir_call_args_to_params(&fun.params, args).unwrap_or_else(|| {
-                    panic!("codegen_mir_direct_call_with_policy: MIR call ABI verifier accepted arg binding drift")
-                });
-            let mut fallback_param_tys =
-                fun.params.iter().map(|param| param.ty).collect::<Vec<_>>();
-            for (arg_idx, arg) in args.iter().enumerate() {
-                let param_idx = arg_to_param[arg_idx];
-                if self
-                    .try_cg_ty_of_type_id(fallback_param_tys[param_idx])
-                    .is_some()
-                {
-                    continue;
-                }
-                if let Some(source_ty) = self.mir_operand_type_id(body, &arg.value)
-                    && let Some(codegen_ty) = self.equivalent_codegen_type_id(mir_types, source_ty)
-                {
-                    fallback_param_tys[param_idx] = codegen_ty;
-                }
-            }
-            let fallback_return_ty = fun.return_ty;
-            let needs_published_sig = fallback_param_tys
-                .iter()
-                .any(|&ty| self.try_cg_ty_of_type_id(ty).is_none())
-                || self.try_cg_ty_of_type_id(fallback_return_ty).is_none();
-            let published_sig = if needs_published_sig {
-                self.published_callable_signature(&concrete_fqn)
-                    .or_else(|| {
-                        (dispatch_fqn != concrete_fqn)
-                            .then(|| self.published_callable_signature(dispatch_fqn))
-                            .flatten()
-                    })
-            } else {
-                None
-            };
-            let (param_tys, return_ty) = if let Some((source_types, param_tys, return_ty)) =
-                published_sig
-                && let Some(mapped) =
-                    self.published_signature_tys_as_codegen_tys(source_types, param_tys, return_ty)
-            {
-                mapped
-            } else {
-                (fallback_param_tys, fallback_return_ty)
-            };
-            let param_tys = param_tys
-                .into_iter()
-                .map(|ty| {
-                    if self.try_cg_ty_of_type_id(ty).is_some() {
-                        ty
-                    } else {
-                        map_foreign_signature_ty_to_codegen(self, ty)
-                    }
+        let (signature_owner_fqn, source_types, param_names, source_param_tys, source_return_ty) =
+            self.published_callable_signature_with_names(&concrete_fqn)
+                .map(|(source_types, param_names, param_tys, return_ty)| {
+                    (
+                        concrete_fqn.as_str(),
+                        source_types,
+                        param_names,
+                        param_tys,
+                        return_ty,
+                    )
                 })
-                .collect::<Vec<_>>();
-            let return_ty = if self.try_cg_ty_of_type_id(return_ty).is_some() {
-                return_ty
-            } else {
-                map_foreign_signature_ty_to_codegen(self, return_ty)
-            };
-            (param_names, param_tys, return_ty)
-        };
+                .or_else(|| {
+                    (dispatch_fqn != concrete_fqn)
+                        .then(|| self.published_callable_signature_with_names(dispatch_fqn))
+                        .flatten()
+                        .map(|(source_types, param_names, param_tys, return_ty)| {
+                            (
+                                dispatch_fqn,
+                                source_types,
+                                param_names,
+                                param_tys,
+                                return_ty,
+                            )
+                        })
+                })
+                .ok_or_else(|| LlvmEmitError::Frontend {
+                    message: format!(
+                        "direct call `{concrete_fqn}` 缺少 LIR callable signature facts"
+                    ),
+                })?;
+        let (param_tys, return_ty_for_codegen) = self
+            .published_signature_tys_as_codegen_tys(
+                source_types,
+                source_param_tys.clone(),
+                source_return_ty,
+            )
+            .ok_or_else(|| LlvmEmitError::Frontend {
+                message: format!(
+                    "direct call `{concrete_fqn}` 的 LIR callable signature 无法映射到 LLVM codegen TypeStore"
+                ),
+            })?;
         if param_names.len() != param_tys.len() {
             panic!(
                 "codegen_mir_direct_call_with_policy: MIR call ABI verifier accepted signature arity mismatch"
@@ -274,35 +192,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let ret_cg = native_abi
             .as_ref()
             .map(|abi| abi.return_abi.cg_ty)
+            .or_else(|| self.cg_ty_of_mir_type(source_types, source_return_ty))
+            .or_else(|| self.try_cg_ty_of_type_id(return_ty_for_codegen))
+            .or_else(|| self.cg_ty_of_mir_type(mir_types, transport.result.source_ty))
             .or_else(|| {
-                if let Some((fun, materialized_types)) = materialized_sig.as_ref() {
-                    // SAFETY: `materialized_types` points into the materialized pass view owned by the
-                    // compilation-unit codegen context and outlives this call.
-                    let materialized_types = unsafe { &**materialized_types };
-                    self.cg_ty_of_mir_type(materialized_types, fun.return_ty)
-                        .or_else(|| self.try_cg_ty_of_type_id(return_ty_for_codegen))
-                        .or_else(|| {
-                            self.cg_ty_of_mir_type(mir_types, transport.result.source_ty)
-                                .or_else(|| {
-                                    self.equivalent_codegen_type_id(
-                                        mir_types,
-                                        transport.result.source_ty,
-                                    )
-                                    .and_then(|ty| self.try_cg_ty_of_type_id(ty))
-                                })
-                        })
-                } else {
-                    self.try_cg_ty_of_type_id(return_ty_for_codegen).or_else(|| {
-                        self.cg_ty_of_mir_type(mir_types, transport.result.source_ty)
-                            .or_else(|| {
-                                self.equivalent_codegen_type_id(
-                                    mir_types,
-                                    transport.result.source_ty,
-                                )
-                                .and_then(|ty| self.try_cg_ty_of_type_id(ty))
-                            })
-                    })
-                }
+                self.equivalent_codegen_type_id(mir_types, transport.result.source_ty)
+                    .and_then(|ty| self.try_cg_ty_of_type_id(ty))
             })
             .unwrap_or_else(|| {
                 panic!("codegen_mir_direct_call_with_policy: MIR call ABI verifier accepted unsupported direct call return type")
@@ -312,29 +207,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         } else {
             self.hidden_sret_result_ty(span, ret_cg)?
         };
-        let evaluated_args = if let Some((fun, mir_types)) = materialized_sig.as_ref() {
-            // SAFETY: `mir_types` points into the materialized pass view owned by the
-            // compilation-unit codegen context and outlives this call.
-            let mir_types = unsafe { &**mir_types };
-            self.codegen_bound_materialized_mir_call_args(
-                span,
-                fun,
-                mir_types,
-                args,
-                slots,
-                native_abi.is_some(),
-            )?
-        } else {
-            self.codegen_bound_mir_call_args_from_signature(
-                span,
-                &param_names,
-                &param_tys,
-                args,
-                slots,
-                native_abi.is_some(),
-                self.types,
-            )?
-        };
+        let evaluated_args = self.codegen_bound_mir_call_args_from_signature(
+            span,
+            &param_names,
+            &param_tys,
+            args,
+            slots,
+            native_abi.is_some(),
+            self.types,
+        )?;
 
         let mut llvm_args: Vec<BasicMetadataValueEnum<'ctx>> = Vec::with_capacity(
             evaluated_args.len()
@@ -368,32 +249,20 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let llvm_fun = match self.module.get_function(llvm_name) {
             Some(function) => function,
             None => {
-                if let Some((fun, mir_types)) = materialized_sig.as_ref() {
-                    // SAFETY: `mir_types` points into the materialized pass view owned by the
-                    // compilation-unit codegen context and outlives this call.
-                    let mir_types = unsafe { &**mir_types };
-                    let param_tys = fun.params.iter().map(|param| param.ty).collect::<Vec<_>>();
-                    let declaration_surface = if callable_abi.is_extern() {
-                        LlvmFunctionDeclarationSurface::RuntimeOrNativeImport
-                    } else {
-                        LlvmFunctionDeclarationSurface::ExportedAbi
-                    };
-                    self.declare_materialized_mir_plain_fun_with_symbol(
-                        llvm_name,
-                        declaration_surface,
-                        fun,
-                        &param_tys,
-                        fun.return_ty,
-                        mir_types,
-                    )?
+                let declaration_surface = if callable_abi.is_extern() {
+                    LlvmFunctionDeclarationSurface::RuntimeOrNativeImport
                 } else {
-                    self.declare_top_level_fun_with_signature_override(
-                        hir_sig_fun.expect("validated above"),
-                        llvm_name,
-                        &param_tys,
-                        return_ty_for_codegen,
-                    )?
-                }
+                    LlvmFunctionDeclarationSurface::ExportedAbi
+                };
+                self.declare_lir_plain_fun_with_symbol(
+                    llvm_name,
+                    declaration_surface,
+                    signature_owner_fqn,
+                    &source_param_tys,
+                    source_return_ty,
+                    source_types,
+                    false,
+                )?
             }
         };
         let call_site_result = if let Some(native_abi) = native_abi.as_ref() {

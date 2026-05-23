@@ -533,20 +533,16 @@ fn build_module_from_codegen_entry_with_root_selector<'ctx>(
             nominal_kinds: base_context.nominal_kinds(),
             direct_supertypes: base_context.direct_supertypes(),
             builtins: base_context.builtins(),
+            source_signatures: base_context.source_signatures(),
             extern_funs: base_context.extern_funs(),
             native_callable_funs: base_context.native_callable_funs(),
             fun_index: &fun_index,
-            materialized_pass_view: Some(base_context.materialized_pass_view()),
             published_late_lowered_program,
             published_late_lowered_types,
             published_lir_facts: late_lowered_lir_facts,
             hir_facts: Rc::clone(&hir_facts),
             effect_op_tags: Rc::clone(&effect_op_tags),
         });
-    debug_assert!(
-        unit_codegen.materialized_pass_view().is_some(),
-        "CompilationUnitCodegenCx 应保留 LLVM production 入口显式接入的 materialized pass view 边界"
-    );
     let mut declare = unit_codegen.fresh_main_codegen();
 
     let _reachable_fqns =

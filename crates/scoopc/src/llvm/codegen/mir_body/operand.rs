@@ -63,7 +63,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         {
             return Some(callable.effect_step_abi().is_some());
         }
-        if let Some((callable_types, callable_fun)) = self.materialized_mir_callable(callable_fqn) {
+        if let Some((callable_types, callable_fun)) = self.lir_source_callable(callable_fqn) {
             return Some(
                 crate::mir::summarize_pass_rewritten_fun(callable_fun, callable_types, None)
                     .may_outward_effect,
@@ -192,7 +192,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         args: &[crate::mir::CallArg],
         visiting: &mut HashSet<crate::mir::LocalId>,
     ) -> Option<String> {
-        let (callee_types, callable_fun) = self.materialized_mir_callable(callee_fqn)?;
+        let (callee_types, callable_fun) = self.lir_source_callable(callee_fqn)?;
         let summary = crate::mir::summarize_pass_rewritten_fun(callable_fun, callee_types, None);
         self.mir_callable_value_fqn_from_result(
             body,

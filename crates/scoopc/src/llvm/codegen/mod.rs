@@ -496,12 +496,8 @@ pub(crate) struct CompilationUnitCodegenCx<'a, 'ctx> {
     nominal_kinds: &'a hir::NominalKindIndex,
     direct_supertypes: &'a hir::DirectSupertypesIndex,
     builtins: BuiltinTypes,
+    source_signatures: &'a HashMap<String, crate::pipeline::LlvmSourceCallableSignature>,
     fun_index: &'a HashMap<String, &'a hir::FunDecl>,
-    /// production/codegen 主路径显式接入的 canonical materialized MIR/pass 视图。
-    ///
-    /// reachability、callable body-presence、known fun suspendability 查询与显式
-    /// pass-rewritten callable body lowering 会优先观察该 pass 产物层。
-    materialized_pass_view: Option<crate::mir::MaterializedMirPassView<'a>>,
     /// ABI 可见性阶段发布的 callable contract。
     ///
     /// 这里先只承接“某个 callable root 是否需要 effect hidden ABI / resume shell”这类
@@ -828,10 +824,10 @@ pub(super) struct CompilationUnitCodegenInputs<'a, 'ctx> {
     pub(super) nominal_kinds: &'a hir::NominalKindIndex,
     pub(super) direct_supertypes: &'a hir::DirectSupertypesIndex,
     pub(super) builtins: BuiltinTypes,
+    pub(super) source_signatures: &'a HashMap<String, crate::pipeline::LlvmSourceCallableSignature>,
     pub(super) extern_funs: &'a hir::ExternFunIndex,
     pub(super) native_callable_funs: &'a hir::NativeCallableFunIndex,
     pub(super) fun_index: &'a HashMap<String, &'a hir::FunDecl>,
-    pub(super) materialized_pass_view: Option<crate::mir::MaterializedMirPassView<'a>>,
     pub(super) published_late_lowered_program:
         Option<&'a crate::effect_lowered::LateLoweredProgram>,
     pub(super) published_late_lowered_types: Option<&'a TypeStore>,
@@ -884,9 +880,9 @@ impl<'a, 'ctx> CompilationUnitCodegenCx<'a, 'ctx> {
             nominal_kinds,
             direct_supertypes,
             builtins,
+            source_signatures,
             extern_funs,
             fun_index,
-            materialized_pass_view,
             published_late_lowered_program,
             published_late_lowered_types,
             published_lir_facts,
@@ -927,8 +923,8 @@ impl<'a, 'ctx> CompilationUnitCodegenCx<'a, 'ctx> {
             nominal_kinds,
             direct_supertypes,
             builtins,
+            source_signatures,
             fun_index,
-            materialized_pass_view,
             published_late_lowered_program,
             published_late_lowered_types,
             published_lir_facts,
@@ -1014,12 +1010,6 @@ impl<'a, 'ctx> CompilationUnitCodegenCx<'a, 'ctx> {
     /// 新实例会重置函数级局部状态，但继续复用编译单元级共享输入与共享事实。
     pub(super) fn fresh_main_codegen(&'a self) -> MainCodegen<'a, 'ctx> {
         MainCodegen::new(self)
-    }
-
-    pub(super) fn materialized_pass_view(
-        &self,
-    ) -> Option<&crate::mir::MaterializedMirPassView<'a>> {
-        self.materialized_pass_view.as_ref()
     }
 
     pub(super) fn published_late_lowered_program(

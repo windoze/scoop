@@ -49,6 +49,7 @@ struct MaterializedCallSite {
 #[derive(Debug, Clone)]
 struct MaterializedCallableSignature {
     source_kind: LirCallableSourceKind,
+    param_names: Vec<String>,
     param_tys: Vec<TypeId>,
     return_ty: TypeId,
     closure_carrier_arg_tys: Vec<TypeId>,
@@ -81,6 +82,7 @@ pub(crate) fn build_lir_facts(
         global_init: build_global_init_facts(&ctx)?,
         physical_layout: build_physical_layout_facts(&ctx)?,
         type_context: build_type_context_facts(ctx.materialized, ctx.effect_facts),
+        source_signatures: build_source_signature_facts(ctx.materialized),
         callables,
         step_types: build_step_type_facts(lir),
         dynamic_invokes,
@@ -756,6 +758,7 @@ fn build_callable_symbol_facts(
             .map(|native| LirNativeCallableSignatureFacts {
                 symbol: native.symbol.clone(),
                 calling_convention: native.calling_convention.clone(),
+                param_names: signature.param_names.clone(),
                 param_tys: signature.param_tys.clone(),
                 return_ty: signature.return_ty,
             });
@@ -767,6 +770,7 @@ fn build_callable_symbol_facts(
                 abi: extern_fun.abi.name().to_string(),
                 calling_convention: extern_fun.calling_convention.clone(),
                 lib: extern_fun.lib.clone(),
+                param_names: signature.param_names.clone(),
                 param_tys: signature.param_tys.clone(),
                 return_ty: signature.return_ty,
             });
@@ -781,6 +785,7 @@ fn build_callable_symbol_facts(
                     .instance_exported_fun_symbol(callable.instance_key()),
                 kind: callable_symbol_kind(callable, native.as_ref(), extern_.as_ref()),
                 abi_kind: callable_abi_kind(callable.call_abi_kind()),
+                param_names: signature.param_names,
                 param_tys: signature.param_tys,
                 return_ty: signature.return_ty,
                 native,
@@ -789,6 +794,35 @@ fn build_callable_symbol_facts(
         );
     }
     Ok(out)
+}
+
+fn build_source_signature_facts(
+    materialized: &MaterializedMir,
+) -> BTreeMap<String, LirSourceCallableSignatureFacts> {
+    let mut out = BTreeMap::new();
+    for fun in materialized
+        .file
+        .items
+        .iter()
+        .filter_map(|item| match item {
+            Item::Fun(fun) => Some(fun),
+            _ => None,
+        })
+        .chain(materialized.caller_side_pass_candidate_bodies().iter())
+    {
+        out.entry(fun.fqn.clone())
+            .or_insert_with(|| source_signature_facts_for_fun(fun));
+    }
+    out
+}
+
+fn source_signature_facts_for_fun(fun: &FunDecl) -> LirSourceCallableSignatureFacts {
+    LirSourceCallableSignatureFacts {
+        root_fqn: fun.fqn.clone(),
+        param_names: fun.params.iter().map(|param| param.name.clone()).collect(),
+        param_tys: fun.params.iter().map(|param| param.ty).collect(),
+        return_ty: fun.return_ty,
+    }
 }
 
 fn callable_symbol_kind(
@@ -895,6 +929,7 @@ fn build_callable_facts(
                 root_fqn: callable.root_fqn().to_string(),
                 stable_instance_key: callable.stable_instance_key().canonical_text(),
                 source_kind: signature.source_kind,
+                param_names: signature.param_names,
                 param_tys: signature.param_tys,
                 return_ty: signature.return_ty,
                 body_version: body_version_facts(callable, &key),
@@ -947,6 +982,16 @@ fn build_plain_callable_facts(
         .collect::<Result<Vec<_>, _>>()?;
     Ok(LirPlainCallableFacts {
         function_ty: plain.function_ty(),
+        param_names: callable
+            .source_callable()
+            .map(|source| {
+                source
+                    .params
+                    .iter()
+                    .map(|param| param.name.clone())
+                    .collect()
+            })
+            .unwrap_or_default(),
         param_tys: plain.param_tys().to_vec(),
         return_ty: plain.return_ty(),
         body_slices: plain
@@ -1811,11 +1856,17 @@ fn lookup_materialized_callable_signature(
     root_fqn: &str,
 ) -> Result<MaterializedCallableSignature, EffectLoweringError> {
     let fun = lookup_materialized_callable_fun(materialized, root_fqn)?;
+    let param_names = fun
+        .params
+        .iter()
+        .map(|param| param.name.clone())
+        .collect::<Vec<_>>();
     let param_tys = fun.params.iter().map(|param| param.ty).collect::<Vec<_>>();
     let skip_closure_env = usize::from(fun.name.starts_with("$lambda"));
     let closure_carrier_arg_tys = param_tys.iter().copied().skip(skip_closure_env).collect();
     Ok(MaterializedCallableSignature {
         source_kind: callable_source_kind(materialized, root_fqn),
+        param_names,
         param_tys,
         return_ty: fun.return_ty,
         closure_carrier_arg_tys,

@@ -27,7 +27,10 @@ struct CalleeSuspendResumeState<'ctx> {
 }
 
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
-    fn ordinary_callee_effect_analysis_ctx(&self, callable_fqn: Option<&str>) -> EffectAnalysisCtx {
+    fn ordinary_callee_effect_analysis_ctx(
+        &self,
+        _callable_fqn: Option<&str>,
+    ) -> EffectAnalysisCtx {
         let known_fun_effects = self.known_fun_call_suspendability_map().clone();
         let mut known_local_fun_effects = HashMap::new();
         let mut known_local_metadata = HashMap::new();
@@ -58,13 +61,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             current_source.path().to_path_buf(),
             Rc::clone(&self.shared.hir_facts),
         )
-        .with_continuation_escape_facts(
-            ContinuationEscapeFacts::from_pass_view_for_callable(
-                self.materialized_pass_view(),
-                callable_fqn,
-                current_source.path(),
-            ),
-        )
+        .with_continuation_escape_facts(ContinuationEscapeFacts::default())
     }
 
     fn build_ordinary_callee_suspend_plan_for_callable(
@@ -112,7 +109,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             self.types,
             self.fun_index,
             Rc::clone(&self.shared.hir_facts),
-            self.materialized_pass_view(),
+            None,
         );
         *self.shared_caches.known_fun_call_suspend_cache.borrow_mut() = Some(known_fun_effects);
     }

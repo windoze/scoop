@@ -35,6 +35,8 @@ pub(crate) use hir_stage::{
     TypedCallSiteContract, TypedIntrinsicKind,
 };
 #[cfg(feature = "llvm")]
+pub(crate) use llvm_codegen_stage::LlvmSourceCallableSignature;
+#[cfg(feature = "llvm")]
 pub use llvm_codegen_stage::{LlvmCodegenStageInput, LlvmCodegenStageOutput, LlvmStageBaseContext};
 pub use mir_stage::{DirectStyleMirStageOutput, MirStageOutput};
 

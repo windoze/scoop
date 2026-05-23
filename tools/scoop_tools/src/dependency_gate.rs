@@ -309,6 +309,14 @@ fn source_boundary_rules() -> Vec<SourceBoundaryRule> {
                     reason: "LirStageOutput must not restore LLVM-only residual accessors",
                 },
                 ForbiddenSourcePattern {
+                    pattern: "materialized_pass_view",
+                    reason: "LLVM stage handoff must not expose materialized MIR/pass-view accessors to production codegen",
+                },
+                ForbiddenSourcePattern {
+                    pattern: "MaterializedMirPassView",
+                    reason: "LLVM stage handoff must not expose materialized MIR/pass-view types to production codegen",
+                },
+                ForbiddenSourcePattern {
                     pattern: "precheck_invalid_integer_literals",
                     reason: "integer literal validation belongs to frontend/typecheck, not LLVM HIR body scans",
                 },
@@ -348,6 +356,10 @@ fn source_boundary_rules() -> Vec<SourceBoundaryRule> {
                     reason: "emit handoff must not receive raw MIR/pass-view input directly",
                 },
                 ForbiddenSourcePattern {
+                    pattern: "materialized_pass_view",
+                    reason: "emit handoff must not receive raw MIR/pass-view input directly",
+                },
+                ForbiddenSourcePattern {
                     pattern: "crate::hir",
                     reason: "emit handoff must not traverse HIR APIs",
                 },
@@ -381,6 +393,93 @@ fn source_boundary_rules() -> Vec<SourceBoundaryRule> {
                 ForbiddenSourcePattern {
                     pattern: "devirtualization_facts",
                     reason: "backend reachability must not consume MIR devirtualization facts directly",
+                },
+            ],
+        },
+        SourceBoundaryRule {
+            label: "LLVM codegen context",
+            kind_label: "backend-boundary",
+            path: "crates/scoopc/src/llvm/codegen/mod.rs",
+            forbidden: &[
+                ForbiddenSourcePattern {
+                    pattern: "materialized_pass_view",
+                    reason: "LLVM production codegen context must not carry raw MIR/pass-view accessors",
+                },
+                ForbiddenSourcePattern {
+                    pattern: "MaterializedMirPassView",
+                    reason: "LLVM production codegen context must not carry raw MIR/pass-view types",
+                },
+            ],
+        },
+        SourceBoundaryRule {
+            label: "LLVM direct call lowering",
+            kind_label: "backend-boundary",
+            path: "crates/scoopc/src/llvm/codegen/call/lowering.rs",
+            forbidden: &[
+                ForbiddenSourcePattern {
+                    pattern: "materialized_pass_view",
+                    reason: "direct call lowering must use LIR callable signature facts instead of MIR pass-view fallback",
+                },
+                ForbiddenSourcePattern {
+                    pattern: "MaterializedMirPassView",
+                    reason: "direct call lowering must not depend on MIR pass-view types",
+                },
+                ForbiddenSourcePattern {
+                    pattern: "materialized_owner_hir_fun_for_callable",
+                    reason: "direct call signature lookup must not recover HIR owners from materialized MIR fallback",
+                },
+            ],
+        },
+        SourceBoundaryRule {
+            label: "LLVM source callable lookup",
+            kind_label: "backend-boundary",
+            path: "crates/scoopc/src/llvm/codegen/mir_body/callable_lookup.rs",
+            forbidden: &[
+                ForbiddenSourcePattern {
+                    pattern: "materialized_pass_view",
+                    reason: "source body emission must use LIR-owned source callable contracts instead of MIR pass views",
+                },
+                ForbiddenSourcePattern {
+                    pattern: "MaterializedMirPassView",
+                    reason: "source body emission must not depend on MIR pass-view types",
+                },
+                ForbiddenSourcePattern {
+                    pattern: "materialized_mir_callable",
+                    reason: "source body emission must not expose materialized MIR body discovery helpers",
+                },
+            ],
+        },
+        SourceBoundaryRule {
+            label: "LLVM callable identity",
+            kind_label: "backend-boundary",
+            path: "crates/scoopc/src/llvm/codegen/main/identity.rs",
+            forbidden: &[
+                ForbiddenSourcePattern {
+                    pattern: "materialized_pass_view",
+                    reason: "callable identity must come from LIR callable symbol facts instead of MIR pass views",
+                },
+                ForbiddenSourcePattern {
+                    pattern: "MaterializedMirPassView",
+                    reason: "callable identity must not depend on MIR pass-view types",
+                },
+                ForbiddenSourcePattern {
+                    pattern: "stable_closure_key_for_materialized_callable",
+                    reason: "closure identity must be based on LIR source callable identity",
+                },
+            ],
+        },
+        SourceBoundaryRule {
+            label: "LLVM ordinary callee analysis",
+            kind_label: "backend-boundary",
+            path: "crates/scoopc/src/llvm/codegen/ordinary_callee.rs",
+            forbidden: &[
+                ForbiddenSourcePattern {
+                    pattern: "materialized_pass_view",
+                    reason: "ordinary callee analysis must not consume MIR pass-view escape facts from LLVM production codegen",
+                },
+                ForbiddenSourcePattern {
+                    pattern: "MaterializedMirPassView",
+                    reason: "ordinary callee analysis must not depend on MIR pass-view types",
                 },
             ],
         },

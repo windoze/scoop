@@ -205,6 +205,9 @@ pub enum VerifyError {
     MismatchedCallableSymbolSignature {
         key: String,
     },
+    InvalidSourceSignature {
+        key: String,
+    },
     InvalidTypeContextBridge {
         mode: &'static str,
     },
@@ -465,6 +468,12 @@ impl fmt::Display for VerifyError {
                 f,
                 "LIR callable symbol `{key}` signature drifts from callable inventory"
             ),
+            Self::InvalidSourceSignature { key } => {
+                write!(
+                    f,
+                    "LIR source signature `{key}` has inconsistent identity or arity"
+                )
+            }
             Self::InvalidTypeContextBridge { mode } => write!(
                 f,
                 "LIR type context bridge mode `{mode}` is inconsistent with published fingerprints"
@@ -548,6 +557,7 @@ pub fn verify_lir_facts(facts: &LirFacts) -> Result<()> {
     verify_summary_counts(facts)?;
     verify_global_init_contracts(facts)?;
     verify_physical_layout_contracts(facts)?;
+    verify_source_signature_contracts(facts)?;
     verify_type_context_contract(facts)?;
     verify_callable_inventory(facts)?;
     verify_dynamic_invoke_contracts(facts)?;
@@ -1019,6 +1029,7 @@ fn verify_physical_layout_contracts(facts: &LirFacts) -> Result<()> {
         }
         if let Some(callable) = facts.callables.get(key)
             && (callable.root_fqn != symbol.root_fqn
+                || callable.param_names != symbol.param_names
                 || callable.param_tys != symbol.param_tys
                 || callable.return_ty != symbol.return_ty
                 || callable_symbol_abi_kind(callable.kind()) != symbol.abi_kind)
@@ -1026,6 +1037,18 @@ fn verify_physical_layout_contracts(facts: &LirFacts) -> Result<()> {
             return Err(VerifyError::MismatchedCallableSymbolSignature {
                 key: key.as_str().to_string(),
             });
+        }
+    }
+    Ok(())
+}
+
+fn verify_source_signature_contracts(facts: &LirFacts) -> Result<()> {
+    for (key, signature) in &facts.source_signatures {
+        if key != &signature.root_fqn
+            || signature.root_fqn.is_empty()
+            || signature.param_names.len() != signature.param_tys.len()
+        {
+            return Err(VerifyError::InvalidSourceSignature { key: key.clone() });
         }
     }
     Ok(())

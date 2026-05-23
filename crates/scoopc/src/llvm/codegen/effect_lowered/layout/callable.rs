@@ -370,10 +370,8 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                 ))
             })?;
             (
-                self.codegen.materialized_mir_closure_body_symbol(
-                    callable.root_fqn(),
-                    source_callable.span,
-                )?,
+                self.codegen
+                    .lir_source_closure_body_symbol(callable.root_fqn(), source_callable.span)?,
                 LlvmFunctionDeclarationSurface::CompilerPrivateHelper,
                 true,
             )

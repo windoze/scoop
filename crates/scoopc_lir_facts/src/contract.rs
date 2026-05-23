@@ -362,6 +362,7 @@ impl LirCallableSymbolKind {
 pub struct LirNativeCallableSignatureFacts {
     pub symbol: String,
     pub calling_convention: String,
+    pub param_names: Vec<String>,
     pub param_tys: Vec<TypeId>,
     pub return_ty: TypeId,
 }
@@ -372,6 +373,16 @@ pub struct LirExternCallableSignatureFacts {
     pub abi: String,
     pub calling_convention: Option<String>,
     pub lib: Option<String>,
+    pub param_names: Vec<String>,
+    pub param_tys: Vec<TypeId>,
+    pub return_ty: TypeId,
+}
+
+/// Source callable signature published for body-less/runtime/helper call targets.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LirSourceCallableSignatureFacts {
+    pub root_fqn: String,
+    pub param_names: Vec<String>,
     pub param_tys: Vec<TypeId>,
     pub return_ty: TypeId,
 }
@@ -384,6 +395,7 @@ pub struct LirCallableSymbolFacts {
     pub exported_symbol: Option<String>,
     pub kind: LirCallableSymbolKind,
     pub abi_kind: LirCallableAbiKind,
+    pub param_names: Vec<String>,
     pub param_tys: Vec<TypeId>,
     pub return_ty: TypeId,
     pub native: Option<LirNativeCallableSignatureFacts>,
@@ -693,6 +705,7 @@ pub struct LirPlainCallSiteFacts {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LirPlainCallableFacts {
     pub function_ty: TypeId,
+    pub param_names: Vec<String>,
     pub param_tys: Vec<TypeId>,
     pub return_ty: TypeId,
     pub body_slices: Vec<LirPlainBodySliceFacts>,
@@ -748,6 +761,7 @@ pub struct LirCallableFacts {
     pub root_fqn: String,
     pub stable_instance_key: String,
     pub source_kind: LirCallableSourceKind,
+    pub param_names: Vec<String>,
     pub param_tys: Vec<TypeId>,
     pub return_ty: TypeId,
     pub body_version: LirBodyVersionFacts,

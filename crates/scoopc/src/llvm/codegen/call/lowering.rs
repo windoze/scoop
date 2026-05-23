@@ -590,16 +590,6 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(self.expect_current_function("current_codegen_function"))
     }
 
-    fn materialized_owner_hir_fun_for_callable(&self, fqn: &str) -> Option<&'a hir::FunDecl> {
-        let pass_view = self.materialized_pass_view()?;
-        let owner = pass_view.owner_of_callable(fqn)?;
-        self.fun_index.values().copied().find(|fun| {
-            fun.fqn == owner.template.fqn
-                && fun.source_path == owner.template.source_path
-                && fun.span == owner.template.decl_span
-        })
-    }
-
     fn canonical_builtin_signature_ty(&self, ty: TypeId) -> TypeId {
         match self.types.kind(ty) {
             TypeKind::Ref(RefTypeKind::Nominal(nominal)) if nominal.fqn == "scoop.core.String" => {
@@ -1723,170 +1713,42 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         fqn: &str,
         args: &[hir::CallArg],
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        enum CallableSig<'b> {
-            Hir(&'b hir::FunDecl),
-            Mir(crate::mir::FunDecl, &'b TypeStore),
-        }
-
         let callable_abi = self.direct_call_abi_identity(fqn);
         let dispatch_fqn = direct_call_dispatch_fqn(fqn);
         let uses_explicit_effect_hidden_abi = callable_abi.uses_effect_bridge_abi();
-        let sig_fun = self
-            .materialized_pass_view()
-            .and_then(|view| {
-                view.callable(fqn)
-                    .cloned()
-                    .map(|fun| CallableSig::Mir(fun, &view.materialized().types))
-            })
-            .or_else(|| {
-                self.materialized_owner_hir_fun_for_callable(fqn)
-                    .map(CallableSig::Hir)
-            })
-            .or_else(|| self.fun_index.get(fqn).copied().map(CallableSig::Hir))
-            .or_else(|| {
-                if dispatch_fqn == fqn {
-                    None
-                } else {
-                    self.materialized_owner_hir_fun_for_callable(dispatch_fqn)
-                        .map(CallableSig::Hir)
-                        .or_else(|| {
-                            self.fun_index
-                                .get(dispatch_fqn)
-                                .copied()
-                                .map(CallableSig::Hir)
+        let (signature_owner_fqn, source_types, param_names, source_param_tys, source_return_ty) =
+            self.published_callable_signature_with_names(fqn)
+                .map(|(source_types, param_names, param_tys, return_ty)| {
+                    (fqn, source_types, param_names, param_tys, return_ty)
+                })
+                .or_else(|| {
+                    (dispatch_fqn != fqn)
+                        .then(|| self.published_callable_signature_with_names(dispatch_fqn))
+                        .flatten()
+                        .map(|(source_types, param_names, param_tys, return_ty)| {
+                            (
+                                dispatch_fqn,
+                                source_types,
+                                param_names,
+                                param_tys,
+                                return_ty,
+                            )
                         })
-                }
-            })
+                })
+                .ok_or_else(|| LlvmEmitError::Frontend {
+                    message: format!("call callee `{fqn}` 缺少 LIR callable signature facts"),
+                })?;
+        let (mut param_tys, mut return_ty) = self
+            .published_signature_tys_as_codegen_tys(
+                source_types,
+                source_param_tys.clone(),
+                source_return_ty,
+            )
             .ok_or_else(|| LlvmEmitError::Frontend {
                 message: format!(
-                    "call callee type `{fqn}` is missing from materialized MIR and HIR indexes"
+                    "call callee `{fqn}` 的 LIR callable signature 无法映射到 LLVM codegen TypeStore"
                 ),
             })?;
-        let signature_owner_fqn = match &sig_fun {
-            CallableSig::Hir(_) if dispatch_fqn != fqn => dispatch_fqn,
-            _ => fqn,
-        };
-
-        let (param_names, mut param_tys, mut return_ty) = match &sig_fun {
-            CallableSig::Hir(fun) => {
-                let param_names = fun
-                    .params
-                    .iter()
-                    .map(|param| param.name.clone())
-                    .collect::<Vec<_>>();
-                let fallback_param_tys =
-                    fun.params.iter().map(|param| param.ty).collect::<Vec<_>>();
-                let fallback_return_ty = fun.return_ty;
-                let inferred_param_tys = if fallback_param_tys
-                    .iter()
-                    .any(|&ty| self.try_cg_ty_of_type_id(ty).is_none())
-                {
-                    let mut inferred = fallback_param_tys.clone();
-                    let mut next_positional = 0usize;
-                    let mut changed = false;
-                    for arg in args {
-                        let (param_index, expr) = match arg {
-                            hir::CallArg::Positional(expr) => {
-                                let param_index = next_positional;
-                                next_positional += 1;
-                                if param_index >= inferred.len() {
-                                    continue;
-                                }
-                                (param_index, expr)
-                            }
-                            hir::CallArg::Named { name, value, .. } => {
-                                let Some(param_index) =
-                                    fun.params.iter().position(|param| param.name == *name)
-                                else {
-                                    continue;
-                                };
-                                (param_index, value)
-                            }
-                        };
-                        let concrete_ty = self.resolve_expr_concrete_type(expr).unwrap_or(expr.ty);
-                        if self.try_cg_ty_of_type_id(inferred[param_index]).is_none()
-                            && self.try_cg_ty_of_type_id(concrete_ty).is_some()
-                        {
-                            inferred[param_index] = concrete_ty;
-                            changed = true;
-                        }
-                    }
-                    changed.then_some(inferred)
-                } else {
-                    None
-                };
-                let needs_published_sig = fallback_param_tys
-                    .iter()
-                    .any(|&ty| self.try_cg_ty_of_type_id(ty).is_none())
-                    || self.try_cg_ty_of_type_id(fallback_return_ty).is_none();
-                let (param_tys, return_ty) = if needs_published_sig {
-                    self.published_callable_signature(fqn)
-                        .or_else(|| {
-                            (dispatch_fqn != fqn)
-                                .then(|| self.published_callable_signature(dispatch_fqn))
-                                .flatten()
-                        })
-                        .and_then(|(source_types, param_tys, return_ty)| {
-                            self.published_signature_tys_as_codegen_tys(
-                                source_types,
-                                param_tys,
-                                return_ty,
-                            )
-                        })
-                        .or_else(|| {
-                            inferred_param_tys
-                                .clone()
-                                .map(|param_tys| (param_tys, fallback_return_ty))
-                        })
-                        .unwrap_or((fallback_param_tys, fallback_return_ty))
-                } else {
-                    (fallback_param_tys, fallback_return_ty)
-                };
-                (param_names, param_tys, return_ty)
-            }
-            CallableSig::Mir(fun, types) => {
-                let mir_types = *types;
-                let param_names = fun
-                    .params
-                    .iter()
-                    .map(|param| param.name.clone())
-                    .collect::<Vec<_>>();
-                let fallback_param_tys = fun
-                    .params
-                    .iter()
-                    .map(|param| {
-                        self.equivalent_codegen_type_id(mir_types, param.ty)
-                            .unwrap_or(param.ty)
-                    })
-                    .collect::<Vec<_>>();
-                let fallback_return_ty = self
-                    .equivalent_codegen_type_id(mir_types, fun.return_ty)
-                    .unwrap_or(fun.return_ty);
-                let needs_published_sig = fallback_param_tys
-                    .iter()
-                    .any(|&ty| self.try_cg_ty_of_type_id(ty).is_none())
-                    || self.try_cg_ty_of_type_id(fallback_return_ty).is_none();
-                let (param_tys, return_ty) = if needs_published_sig {
-                    self.published_callable_signature(fqn)
-                        .or_else(|| {
-                            (dispatch_fqn != fqn)
-                                .then(|| self.published_callable_signature(dispatch_fqn))
-                                .flatten()
-                        })
-                        .and_then(|(source_types, param_tys, return_ty)| {
-                            self.published_signature_tys_as_codegen_tys(
-                                source_types,
-                                param_tys,
-                                return_ty,
-                            )
-                        })
-                        .unwrap_or((fallback_param_tys, fallback_return_ty))
-                } else {
-                    (fallback_param_tys, fallback_return_ty)
-                };
-                (param_names, param_tys, return_ty)
-            }
-        };
         for ty in &mut param_tys {
             *ty = self.canonical_builtin_signature_ty(*ty);
         }
@@ -1915,14 +1777,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         let ret_cg = native_abi
             .as_ref()
             .map(|abi| abi.return_abi.cg_ty)
-            .or_else(|| match &sig_fun {
-                CallableSig::Hir(_) => self.try_cg_ty_of_type_id(return_ty),
-                CallableSig::Mir(fun, types) => {
-                    let mir_types = *types;
-                    self.cg_ty_of_mir_type(mir_types, fun.return_ty)
-                        .or_else(|| self.try_cg_ty_of_type_id(return_ty))
-                }
-            })
+            .or_else(|| self.cg_ty_of_mir_type(source_types, source_return_ty))
+            .or_else(|| self.try_cg_ty_of_type_id(return_ty))
             .unwrap_or_else(|| {
                 panic!("codegen_top_level_fun_call_impl: call ABI verifier accepted unsupported return type")
             });
@@ -1978,14 +1834,22 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .unwrap_or(signature_owner_fqn);
         let llvm_fun = match self.module.get_function(llvm_name) {
             Some(function) => function,
-            None => match sig_fun {
-                CallableSig::Hir(fun) => self.declare_top_level_fun_with_signature_override(
-                    fun, llvm_name, &param_tys, return_ty,
-                )?,
-                CallableSig::Mir(ref fun, _) => {
-                    self.declare_materialized_top_level_fun_with_symbol(fun, llvm_name)?
-                }
-            },
+            None => {
+                let declaration_surface = if callable_abi.is_extern() {
+                    LlvmFunctionDeclarationSurface::RuntimeOrNativeImport
+                } else {
+                    LlvmFunctionDeclarationSurface::ExportedAbi
+                };
+                self.declare_lir_plain_fun_with_symbol(
+                    llvm_name,
+                    declaration_surface,
+                    signature_owner_fqn,
+                    &source_param_tys,
+                    source_return_ty,
+                    source_types,
+                    false,
+                )?
+            }
         };
 
         let call_site_result = if let Some(native_abi) = native_abi.as_ref() {

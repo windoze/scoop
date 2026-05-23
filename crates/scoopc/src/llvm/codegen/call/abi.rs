@@ -383,6 +383,46 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Some((source_types, param_tys, return_ty))
     }
 
+    pub(in crate::llvm::codegen) fn published_callable_signature_with_names_impl(
+        &self,
+        callable_fqn: &str,
+    ) -> Option<(&'a TypeStore, Vec<String>, Vec<TypeId>, TypeId)> {
+        if let Some((source_types, param_tys, return_ty)) =
+            self.published_callable_signature_impl(callable_fqn)
+        {
+            let callable_facts = self
+                .published_lir_facts
+                .callables
+                .values()
+                .find(|callable| callable.root_fqn == callable_fqn)?;
+            return Some((
+                source_types,
+                callable_facts.param_names.clone(),
+                param_tys,
+                return_ty,
+            ));
+        }
+        let source_types = self.published_late_lowered_types()?;
+        if let Some(signature) = self.source_signatures.get(callable_fqn) {
+            return Some((
+                source_types,
+                signature.param_names.clone(),
+                signature.param_tys.clone(),
+                signature.return_ty,
+            ));
+        }
+        let signature = self
+            .published_lir_facts
+            .source_signatures
+            .get(callable_fqn)?;
+        Some((
+            source_types,
+            signature.param_names.clone(),
+            signature.param_tys.clone(),
+            signature.return_ty,
+        ))
+    }
+
     pub(in crate::llvm::codegen) fn explicit_effect_hidden_abi_param_count_impl(
         &self,
         uses_explicit_effect_hidden_abi: bool,

@@ -19,11 +19,25 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         if let Some(sig_fun) = self.fun_index.get(callable_fqn).copied() {
             return self.declare_top_level_fun(sig_fun);
         }
-        if let Some(mir_fun) = self
-            .materialized_mir_callable(callable_fqn)
-            .map(|(_mir_types, mir_fun)| mir_fun.clone())
-        {
-            return self.declare_materialized_top_level_fun_with_symbol(&mir_fun, callable_fqn);
+        if let Some((source_types, source_fun)) = self.lir_source_callable(callable_fqn) {
+            let source_types = source_types as *const TypeStore;
+            let source_fun = source_fun.clone();
+            let param_tys = source_fun
+                .params
+                .iter()
+                .map(|param| param.ty)
+                .collect::<Vec<_>>();
+            // SAFETY: `source_types` points to the immutable LIR source TypeStore stored in
+            // the compilation-unit codegen context and outlives this declaration call.
+            let source_types = unsafe { &*source_types };
+            return self.declare_lir_source_plain_fun_with_symbol(
+                llvm_name,
+                LlvmFunctionDeclarationSurface::ExportedAbi,
+                &source_fun,
+                &param_tys,
+                source_fun.return_ty,
+                source_types,
+            );
         }
         Err(LlvmEmitError::Frontend {
             message: format!(

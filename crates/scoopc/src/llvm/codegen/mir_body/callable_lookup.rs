@@ -1,70 +1,51 @@
-//! Materialized MIR callable lookup and closure body emission.
+//! LIR source callable lookup and closure body emission.
 
 #![allow(dead_code)]
 
 use super::*;
 
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
-    pub(in crate::llvm::codegen) fn has_materialized_instances_for_template(
+    pub(in crate::llvm::codegen) fn has_lir_source_instances_for_template(
         &self,
         fqn: &str,
     ) -> bool {
-        self.materialized_pass_view().is_some_and(|pass_view| {
-            pass_view.instances().any(|family| {
-                family.key().template.fqn == fqn
-                    && (!family.key().type_args.is_empty() || !family.key().eff_args.is_empty())
+        self.published_late_lowered_program()
+            .is_some_and(|program| {
+                program.callables().iter().any(|callable| {
+                    mir_direct_call_base_fqn(callable.root_fqn()) == fqn
+                        && callable.root_fqn() != fqn
+                })
             })
-        })
     }
 
-    pub(in crate::llvm::codegen) fn materialized_mir_callable(
+    pub(in crate::llvm::codegen) fn lir_source_callable(
         &self,
         fqn: &str,
-    ) -> Option<(&TypeStore, &crate::mir::FunDecl)> {
-        let pass_view = self.materialized_pass_view()?;
-        let fqn_is_generic_template_with_instances = pass_view.instances().any(|family| {
-            family.key().template.fqn == fqn
-                && (!family.key().type_args.is_empty() || !family.key().eff_args.is_empty())
-        });
-        if fqn_is_generic_template_with_instances {
+    ) -> Option<(
+        &'a TypeStore,
+        &'a crate::effect_lowered::LateLoweredSourceCallable,
+    )> {
+        if self.has_lir_source_instances_for_template(fqn) {
             return None;
         }
-        let mir_fun = pass_view
-            .callable(fqn)
-            .or_else(|| {
-                pass_view
-                    .materialized()
-                    .file
-                    .items
-                    .iter()
-                    .find_map(|item| match item {
-                        crate::mir::Item::Fun(fun) if fun.fqn == fqn && fun.body.is_some() => {
-                            Some(fun)
-                        }
-                        _ => None,
-                    })
-            })
-            .or_else(|| {
-                pass_view
-                    .materialized()
-                    .caller_side_pass_candidate_bodies()
-                    .iter()
-                    .find(|fun| fun.fqn == fqn && fun.body.is_some())
-            })?;
-        Some((&pass_view.materialized().types, mir_fun))
+        let program = self.published_late_lowered_program()?;
+        let source_types = self.published_late_lowered_types()?;
+        let source_callable = program.callable(fqn)?.source_callable()?;
+        source_callable.body.as_ref()?;
+        Some((source_types, source_callable))
     }
 
-    pub(in crate::llvm::codegen) fn materialized_mir_closure_body_symbol(
+    pub(in crate::llvm::codegen) fn lir_source_closure_body_symbol(
         &self,
         callable_fqn: &str,
         at: crate::span::Span,
     ) -> Result<String, LlvmEmitError> {
         Ok(private_closure_body_fn_name(
-            &self.stable_closure_key_for_materialized_callable(callable_fqn, at)?,
+            &self.stable_closure_key_for_lir_source_callable(callable_fqn, at)?,
         ))
     }
 
-    pub(in crate::llvm::codegen) fn inferred_materialized_direct_call_fqn(
+    pub(in crate::llvm::codegen) fn inferred_lir_source_direct_call_fqn(
         &self,
         template_fqn: &str,
         args: &[crate::mir::CallArg],
@@ -72,8 +53,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         body: &crate::mir::Body,
         mir_types: &TypeStore,
     ) -> Option<String> {
-        let pass_view = self.materialized_pass_view()?;
-        let materialized_types = &pass_view.materialized().types;
+        let program = self.published_late_lowered_program()?;
+        let source_types = self.published_late_lowered_types()?;
         let arg_cg_tys = args
             .iter()
             .map(|arg| {
@@ -90,11 +71,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .or_else(|| self.cg_ty_of_mir_type(mir_types, result_source_ty))
             .or_else(|| self.try_cg_ty_of_type_id(result_source_ty))?;
         let mut matched: Option<String> = None;
-        for family in pass_view.instances() {
-            if family.key().template.fqn != template_fqn {
+        for callable in program.callables() {
+            if mir_direct_call_base_fqn(callable.root_fqn()) != template_fqn {
                 continue;
             }
-            let Some(fun) = family.root_body() else {
+            let Some(fun) = callable.source_callable() else {
                 continue;
             };
             if fun.params.len() != arg_cg_tys.len() {
@@ -105,16 +86,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     .iter()
                     .zip(arg_cg_tys.iter().copied())
                     .all(|(param, arg_cg)| {
-                        self.cg_ty_of_mir_type(materialized_types, param.ty)
+                        self.cg_ty_of_mir_type(source_types, param.ty)
                             .is_some_and(|param_cg| param_cg == arg_cg)
                     });
             if !params_match {
                 continue;
             }
-            if self.cg_ty_of_mir_type(materialized_types, fun.return_ty) != Some(result_cg) {
+            if self.cg_ty_of_mir_type(source_types, fun.return_ty) != Some(result_cg) {
                 continue;
             }
-            let candidate = family.root_fqn().to_string();
+            let candidate = callable.root_fqn().to_string();
             if let Some(found) = matched.as_ref() {
                 if found != &candidate {
                     return None;
@@ -126,32 +107,32 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         matched
     }
 
-    pub(in crate::llvm::codegen) fn ensure_materialized_mir_closure_callable_defined(
+    pub(in crate::llvm::codegen) fn ensure_lir_source_closure_callable_defined(
         &mut self,
         span: crate::span::Span,
         fn_ptr: &str,
     ) -> Result<FunctionValue<'ctx>, LlvmEmitError> {
-        let (mir_types, mir_fun) = self.materialized_mir_callable(fn_ptr).unwrap_or_else(|| {
-            panic!("ensure_materialized_mir_closure_callable_defined: missing materialized closure callable")
-        });
-        if !mir_fun.name.starts_with("$lambda") {
+        let (source_types, source_fun) = self.lir_source_callable(fn_ptr).unwrap_or_else(|| {
             panic!(
-                "ensure_materialized_mir_closure_callable_defined: callable is not a closure body"
+                "ensure_lir_source_closure_callable_defined: missing LIR source closure callable"
             )
+        });
+        if !source_fun.name.starts_with("$lambda") {
+            panic!("ensure_lir_source_closure_callable_defined: callable is not a closure body")
         }
-        let body_symbol = self.materialized_mir_closure_body_symbol(fn_ptr, mir_fun.span)?;
+        let body_symbol = self.lir_source_closure_body_symbol(fn_ptr, source_fun.span)?;
         if let Some(existing) = self.module.get_function(&body_symbol)
             && existing.count_basic_blocks() > 0
         {
             return Ok(existing);
         }
 
-        let saved_block = self.expect_insert_block("materialized MIR closure body lookup");
+        let saved_block = self.expect_insert_block("LIR source closure body lookup");
         let mut child = self.fresh_child_codegen();
-        child.current_source_id = child.materialized_mir_callable_source_id(fn_ptr, span)?;
-        let llvm_fun = child.declare_materialized_mir_closure_fun(span, mir_fun, mir_types)?;
+        child.current_source_id = child.lir_source_callable_source_id(fn_ptr, span)?;
+        let llvm_fun = child.declare_lir_source_closure_fun(span, source_fun, source_types)?;
         if llvm_fun.count_basic_blocks() == 0 {
-            child.codegen_materialized_mir_closure_fun(mir_fun, mir_types, llvm_fun)?;
+            child.codegen_lir_source_closure_fun(source_fun, source_types, llvm_fun)?;
         }
         self.builder.position_at_end(saved_block);
         Ok(llvm_fun)
@@ -161,39 +142,19 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &self,
         fqn: &str,
     ) -> Option<&'a hir::FunDecl> {
-        if let Some(pass_view) = self.materialized_pass_view()
-            && let Some(owner) = pass_view.owner_of_callable(fqn)
-            && let Some(hir_fun) = self.fun_index.values().copied().find(|fun| {
-                fun.fqn == owner.template.fqn
-                    && fun.source_path == owner.template.source_path
-                    && fun.span == owner.template.decl_span
-            })
-        {
-            return Some(hir_fun);
-        }
         if let Some(hir_fun) = self.fun_index.get(fqn).copied() {
             return Some(hir_fun);
         }
         let base = mir_direct_call_base_fqn(fqn);
-        if base != fqn {
-            if let Some(pass_view) = self.materialized_pass_view()
-                && let Some(owner) = pass_view.owner_of_callable(base)
-                && let Some(hir_fun) = self.fun_index.values().copied().find(|fun| {
-                    fun.fqn == owner.template.fqn
-                        && fun.source_path == owner.template.source_path
-                        && fun.span == owner.template.decl_span
-                })
-            {
-                return Some(hir_fun);
-            }
-            if let Some(hir_fun) = self.fun_index.get(base).copied() {
-                return Some(hir_fun);
-            }
+        if base != fqn
+            && let Some(hir_fun) = self.fun_index.get(base).copied()
+        {
+            return Some(hir_fun);
         }
         None
     }
 
-    pub(in crate::llvm::codegen) fn materialized_mir_callable_source_id(
+    pub(in crate::llvm::codegen) fn lir_source_callable_source_id(
         &self,
         fqn: &str,
         span: crate::span::Span,
@@ -209,69 +170,75 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             owner_fqn = parent;
         }
         panic!(
-            "materialized_mir_callable_source_id: MIR call ABI verifier accepted callable without source path"
+            "lir_source_callable_source_id: LIR source contract accepted callable without source path"
         )
     }
 
-    pub(in crate::llvm::codegen) fn declare_materialized_mir_closure_fun(
+    pub(in crate::llvm::codegen) fn declare_lir_source_closure_fun(
         &mut self,
         span: crate::span::Span,
-        mir_fun: &crate::mir::FunDecl,
-        mir_types: &TypeStore,
+        source_fun: &crate::effect_lowered::LateLoweredSourceCallable,
+        source_types: &TypeStore,
     ) -> Result<FunctionValue<'ctx>, LlvmEmitError> {
-        let param_tys = mir_fun
+        let param_tys = source_fun
             .params
             .iter()
             .map(|param| param.ty)
             .collect::<Vec<_>>();
-        self.declare_materialized_mir_closure_fun_with_signature(
+        self.declare_lir_source_closure_fun_with_signature(
             span,
-            mir_fun,
+            source_fun,
             &param_tys,
-            mir_fun.return_ty,
-            mir_types,
+            source_fun.return_ty,
+            source_types,
         )
     }
 
-    pub(in crate::llvm::codegen) fn declare_materialized_mir_closure_fun_with_signature(
+    pub(in crate::llvm::codegen) fn declare_lir_source_closure_fun_with_signature(
         &mut self,
         span: crate::span::Span,
-        mir_fun: &crate::mir::FunDecl,
+        source_fun: &crate::effect_lowered::LateLoweredSourceCallable,
         param_tys: &[TypeId],
         return_ty: TypeId,
-        mir_types: &TypeStore,
+        source_types: &TypeStore,
     ) -> Result<FunctionValue<'ctx>, LlvmEmitError> {
-        let body_symbol = self.materialized_mir_closure_body_symbol(mir_fun.fqn.as_str(), span)?;
+        let body_symbol = self.lir_source_closure_body_symbol(source_fun.fqn.as_str(), span)?;
         if let Some(existing) = self.module.get_function(&body_symbol) {
             return Ok(existing);
         }
-        if param_tys.len() != mir_fun.params.len() {
+        if param_tys.len() != source_fun.params.len() {
             return Err(frontend_error(format!(
-                "materialized closure `{}` 的 plain ABI 参数数量({}) 与 MIR 参数数量({}) 不一致",
-                mir_fun.fqn,
+                "LIR source closure `{}` 的 plain ABI 参数数量({}) 与 source 参数数量({}) 不一致",
+                source_fun.fqn,
                 param_tys.len(),
-                mir_fun.params.len()
+                source_fun.params.len()
             )));
         }
 
-        let ret_cg = self.cg_ty_of_mir_type(mir_types, return_ty).unwrap_or_else(|| {
-            panic!("declare_materialized_mir_closure_fun_with_signature: MIR verifier accepted unsupported closure return type")
+        let ret_cg = self.cg_ty_of_mir_type(source_types, return_ty).unwrap_or_else(|| {
+            panic!("declare_lir_source_closure_fun_with_signature: LIR source verifier accepted unsupported closure return type")
         });
         let hidden_sret_result_ty = self.hidden_sret_result_ty(span, ret_cg)?;
         // 这里发布的是 plain callable ABI 的 closure body symbol；effect-step callable surface
         // 由 stage-owned direct/dynamic entry shell 单独承载，不应再为 plain entry 混入 hidden ABI。
-        let mut llvm_param_tys: Vec<BasicMetadataTypeEnum<'ctx>> =
-            Vec::with_capacity(mir_fun.params.len() + usize::from(hidden_sret_result_ty.is_some()));
+        let mut llvm_param_tys: Vec<BasicMetadataTypeEnum<'ctx>> = Vec::with_capacity(
+            source_fun.params.len() + usize::from(hidden_sret_result_ty.is_some()),
+        );
         if let Some(result_ty) = hidden_sret_result_ty {
             let _ = result_ty;
             llvm_param_tys.push(self.context.ptr_type(AddressSpace::default()).into());
         }
         llvm_param_tys.push(self.llvm_gc_i8_ptr_type().into());
-        for (param, param_ty) in mir_fun.params.iter().skip(1).zip(param_tys.iter().skip(1)) {
+        for (param, param_ty) in source_fun
+            .params
+            .iter()
+            .skip(1)
+            .zip(param_tys.iter().skip(1))
+        {
             let param_ty = self
-                .equivalent_codegen_type_id(mir_types, *param_ty)
+                .equivalent_codegen_type_id(source_types, *param_ty)
                 .unwrap_or_else(|| {
-                    panic!("declare_materialized_mir_closure_fun_with_signature: TypeStore equivalence verifier accepted unsupported closure param type")
+                    panic!("declare_lir_source_closure_fun_with_signature: TypeStore equivalence verifier accepted unsupported closure param type")
                 });
             llvm_param_tys.push(
                 self.ordinary_param_abi(param.span, param_ty)?
@@ -284,7 +251,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 self.context.void_type().fn_type(&llvm_param_tys, false)
             }
             (None, other) => self
-                .llvm_basic_type_of(mir_fun.span, other)?
+                .llvm_basic_type_of(source_fun.span, other)?
                 .fn_type(&llvm_param_tys, false),
         };
         let llvm_fun =
@@ -296,18 +263,18 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         Ok(llvm_fun)
     }
 
-    pub(in crate::llvm::codegen) fn declare_materialized_mir_plain_fun_with_symbol(
+    pub(in crate::llvm::codegen) fn declare_lir_source_plain_fun_with_symbol(
         &mut self,
         llvm_name: &str,
         surface: LlvmFunctionDeclarationSurface,
-        mir_fun: &crate::mir::FunDecl,
+        source_fun: &crate::effect_lowered::LateLoweredSourceCallable,
         param_tys: &[TypeId],
         return_ty: TypeId,
-        mir_types: &TypeStore,
+        source_types: &TypeStore,
     ) -> Result<FunctionValue<'ctx>, LlvmEmitError> {
         let llvm_name = match surface {
             LlvmFunctionDeclarationSurface::ExportedAbi => {
-                self.exported_abi_symbol_for_materialized_fun(mir_fun, mir_types)?
+                self.exported_abi_symbol_for_lir_callable(&source_fun.fqn)?
             }
             LlvmFunctionDeclarationSurface::RuntimeOrNativeImport
             | LlvmFunctionDeclarationSurface::CompilerPrivateHelper => llvm_name.to_string(),
@@ -315,34 +282,35 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         if let Some(existing) = self.module.get_function(&llvm_name) {
             return Ok(existing);
         }
-        if param_tys.len() != mir_fun.params.len() {
+        if param_tys.len() != source_fun.params.len() {
             return Err(frontend_error(format!(
-                "plain materialized callable `{}` 的 plain ABI 参数数量({}) 与 MIR 参数数量({}) 不一致",
-                mir_fun.fqn,
+                "plain LIR source callable `{}` 的 plain ABI 参数数量({}) 与 source 参数数量({}) 不一致",
+                source_fun.fqn,
                 param_tys.len(),
-                mir_fun.params.len()
+                source_fun.params.len()
             )));
         }
 
-        let ret_cg = self.cg_ty_of_mir_type(mir_types, return_ty).unwrap_or_else(|| {
-            panic!("declare_materialized_mir_plain_fun_with_symbol: MIR call ABI verifier accepted unsupported plain return type")
+        let ret_cg = self.cg_ty_of_mir_type(source_types, return_ty).unwrap_or_else(|| {
+            panic!("declare_lir_source_plain_fun_with_symbol: LIR source ABI verifier accepted unsupported plain return type")
         });
-        let hidden_sret_result_ty = self.hidden_sret_result_ty(mir_fun.span, ret_cg)?;
-        let mut llvm_param_tys: Vec<BasicMetadataTypeEnum<'ctx>> =
-            Vec::with_capacity(mir_fun.params.len() + usize::from(hidden_sret_result_ty.is_some()));
+        let hidden_sret_result_ty = self.hidden_sret_result_ty(source_fun.span, ret_cg)?;
+        let mut llvm_param_tys: Vec<BasicMetadataTypeEnum<'ctx>> = Vec::with_capacity(
+            source_fun.params.len() + usize::from(hidden_sret_result_ty.is_some()),
+        );
         if let Some(result_ty) = hidden_sret_result_ty {
             let _ = result_ty;
             llvm_param_tys.push(self.context.ptr_type(AddressSpace::default()).into());
         }
-        for (param, param_ty) in mir_fun.params.iter().zip(param_tys.iter().copied()) {
-            let param_ty = self.equivalent_codegen_type_id(mir_types, param_ty).unwrap_or_else(|| {
+        for (param, param_ty) in source_fun.params.iter().zip(param_tys.iter().copied()) {
+            let param_ty = self.equivalent_codegen_type_id(source_types, param_ty).unwrap_or_else(|| {
                 tracing::warn!(
-                    "declare_materialized_mir_plain_fun_with_symbol: unsupported param type for {} param {} -> {}",
-                    mir_fun.fqn,
+                    "declare_lir_source_plain_fun_with_symbol: unsupported param type for {} param {} -> {}",
+                    source_fun.fqn,
                     param.name,
-                    mir_types.display(param_ty)
+                    source_types.display(param_ty)
                 );
-                panic!("declare_materialized_mir_plain_fun_with_symbol: TypeStore equivalence verifier accepted unsupported plain param type")
+                panic!("declare_lir_source_plain_fun_with_symbol: TypeStore equivalence verifier accepted unsupported plain param type")
             });
             llvm_param_tys.push(
                 self.ordinary_param_abi(param.span, param_ty)?
@@ -355,7 +323,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 self.context.void_type().fn_type(&llvm_param_tys, false)
             }
             (None, other) => self
-                .llvm_basic_type_of(mir_fun.span, other)?
+                .llvm_basic_type_of(source_fun.span, other)?
                 .fn_type(&llvm_param_tys, false),
         };
         let llvm_fun = match surface {
@@ -395,28 +363,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             LlvmFunctionDeclarationSurface::ExportedAbi => {
                 if owner_fqn == "main" {
                     "main".to_string()
-                } else if let Some(pass_view) = self.materialized_pass_view()
-                    && let Some(owner) = pass_view.owner_of_callable(owner_fqn)
-                    && let Some(stable_key) = pass_view
-                        .materialized()
-                        .authoritative_stable_instance_key(owner)
-                {
-                    let symbol = AbiMangler.fun_symbol(&stable_key);
-                    self.reserve_exported_abi_symbol(
-                        &symbol,
-                        &stable_key,
-                        format!(
-                            "LIR plain callable `{}` via authoritative instance key",
-                            owner_fqn
-                        ),
-                    )?;
-                    symbol
-                } else if let Some(fun) = self.hir_fun_for_callable_fqn(owner_fqn) {
-                    self.exported_abi_symbol_for_hir_fun_with_signature_override(
-                        fun, owner_fqn, param_tys, return_ty,
-                    )?
                 } else {
-                    llvm_name.to_string()
+                    self.exported_abi_symbol_for_lir_callable(owner_fqn)?
                 }
             }
             LlvmFunctionDeclarationSurface::RuntimeOrNativeImport
@@ -426,32 +374,70 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             return Ok(existing);
         }
 
-        let ret_cg = self.cg_ty_of_mir_type(source_types, return_ty).unwrap_or_else(|| {
-            panic!("declare_lir_plain_fun_with_symbol: LIR facts verifier accepted unsupported plain return type")
-        });
-        let hidden_sret_result_ty = self.hidden_sret_result_ty(span, ret_cg)?;
+        let callable_abi = self.direct_call_abi_identity(owner_fqn);
+        let codegen_param_tys = param_tys
+            .iter()
+            .copied()
+            .map(|param_ty| {
+                self.equivalent_codegen_type_id(source_types, param_ty)
+                    .unwrap_or_else(|| {
+                        panic!("declare_lir_plain_fun_with_symbol: TypeStore equivalence verifier accepted unsupported plain param type")
+                    })
+            })
+            .collect::<Vec<_>>();
+        let codegen_return_ty = self
+            .equivalent_codegen_type_id(source_types, return_ty)
+            .unwrap_or(return_ty);
+        let native_abi = if callable_abi.uses_native_abi() {
+            Some(self.classify_direct_extern_native_callable(
+                span,
+                owner_fqn,
+                &codegen_param_tys,
+                codegen_return_ty,
+            )?)
+        } else {
+            None
+        };
+        let ret_cg = native_abi
+            .as_ref()
+            .map(|abi| abi.return_abi.cg_ty)
+            .or_else(|| self.cg_ty_of_mir_type(source_types, return_ty))
+            .unwrap_or_else(|| {
+                panic!("declare_lir_plain_fun_with_symbol: LIR facts verifier accepted unsupported plain return type")
+            });
+        let hidden_sret_result_ty = if native_abi.is_some() {
+            None
+        } else {
+            self.hidden_sret_result_ty(span, ret_cg)?
+        };
+        let uses_explicit_effect_hidden_abi =
+            native_abi.is_none() && !closure_like && callable_abi.uses_effect_bridge_abi();
         let mut llvm_param_tys: Vec<BasicMetadataTypeEnum<'ctx>> = Vec::with_capacity(
             param_tys.len()
                 + usize::from(hidden_sret_result_ty.is_some())
-                + usize::from(closure_like),
+                + usize::from(closure_like)
+                + self.explicit_effect_hidden_abi_param_count(uses_explicit_effect_hidden_abi)
+                    as usize,
         );
         if let Some(result_ty) = hidden_sret_result_ty {
             let _ = result_ty;
             llvm_param_tys.push(self.context.ptr_type(AddressSpace::default()).into());
         }
-        let lowered_param_tys = if closure_like {
-            llvm_param_tys.push(self.llvm_gc_i8_ptr_type().into());
-            param_tys.iter().skip(1).copied().collect::<Vec<_>>()
+        if uses_explicit_effect_hidden_abi {
+            self.push_explicit_effect_hidden_abi_param_tys(&mut llvm_param_tys);
+        }
+        if let Some(native_abi) = native_abi.as_ref() {
+            llvm_param_tys.extend(native_abi.param_abis.iter().map(|abi| abi.llvm_param_ty));
         } else {
-            param_tys.to_vec()
-        };
-        for param_ty in lowered_param_tys {
-            let param_ty = self
-                .equivalent_codegen_type_id(source_types, param_ty)
-                .unwrap_or_else(|| {
-                    panic!("declare_lir_plain_fun_with_symbol: TypeStore equivalence verifier accepted unsupported plain param type")
-                });
-            llvm_param_tys.push(self.ordinary_param_abi(span, param_ty)?.llvm_param_ty());
+            let lowered_param_tys = if closure_like {
+                llvm_param_tys.push(self.llvm_gc_i8_ptr_type().into());
+                codegen_param_tys.into_iter().skip(1).collect::<Vec<_>>()
+            } else {
+                codegen_param_tys
+            };
+            for param_ty in lowered_param_tys {
+                llvm_param_tys.push(self.ordinary_param_abi(span, param_ty)?.llvm_param_ty());
+            }
         }
 
         let fn_ty = match (hidden_sret_result_ty, ret_cg) {
@@ -473,48 +459,51 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 self.declare_compiler_private_helper_function(&llvm_name, fn_ty, Linkage::Internal)
             }
         };
-        llvm_fun.set_call_conventions(0);
+        llvm_fun.set_call_conventions(
+            native_abi
+                .as_ref()
+                .map(|abi| abi.call_convention)
+                .unwrap_or(0),
+        );
         if let Some(result_ty) = hidden_sret_result_ty {
             self.add_sret_attribute_to_function(llvm_fun, 0, result_ty);
         }
         Ok(llvm_fun)
     }
 
-    pub(in crate::llvm::codegen) fn codegen_materialized_mir_closure_fun(
+    pub(in crate::llvm::codegen) fn codegen_lir_source_closure_fun(
         mut self,
-        mir_fun: &crate::mir::FunDecl,
-        mir_types: &TypeStore,
+        source_fun: &crate::effect_lowered::LateLoweredSourceCallable,
+        source_types: &TypeStore,
         llvm_fun: FunctionValue<'ctx>,
     ) -> Result<(), LlvmEmitError> {
-        let Some(body) = mir_fun.body.as_ref() else {
+        let Some(body) = source_fun.body.as_ref() else {
             return Ok(());
         };
         body.validate_cfg().unwrap_or_else(|_| {
-            panic!(
-                "codegen_materialized_mir_closure_fun: MIR call ABI verifier accepted invalid CFG"
-            )
+            panic!("codegen_lir_source_closure_fun: LIR source ABI verifier accepted invalid CFG")
         });
-        ensure_raw_mir_body_route_is_safe(&mir_fun.fqn, body)?;
-        self.function_cx.current_callable_fqn = Some(mir_fun.fqn.clone());
+        ensure_raw_mir_body_route_is_safe(&source_fun.fqn, body)?;
+        self.function_cx.current_callable_fqn = Some(source_fun.fqn.clone());
 
         let declared_return_cg = self
-            .cg_ty_of_mir_type(mir_types, mir_fun.return_ty)
+            .cg_ty_of_mir_type(source_types, source_fun.return_ty)
             .unwrap_or_else(|| {
-                panic!("codegen_materialized_mir_closure_fun: MIR verifier accepted unsupported closure return type")
+                panic!("codegen_lir_source_closure_fun: LIR source verifier accepted unsupported closure return type")
             });
         let entry = self.context.append_basic_block(llvm_fun, "entry");
         self.builder.position_at_end(entry);
         self.begin_function_explicit_frame_layout(llvm_fun)?;
         self.function_cx.current_fun_return_ty = Some(declared_return_cg);
         let uses_hidden_sret = self
-            .hidden_sret_result_ty(mir_fun.span, declared_return_cg)?
+            .hidden_sret_result_ty(source_fun.span, declared_return_cg)?
             .is_some();
         self.function_cx.current_sret_return_ptr = if uses_hidden_sret {
             Some(
                 llvm_fun
                     .get_nth_param(0)
                     .unwrap_or_else(|| {
-                        panic!("codegen_materialized_mir_closure_fun: MIR call ABI verifier accepted missing sret param")
+                        panic!("codegen_lir_source_closure_fun: LIR source ABI verifier accepted missing sret param")
                     })
                     .into_pointer_value(),
             )
@@ -524,11 +513,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         self.clear_explicit_effect_hidden_abi_slots();
 
         let (return_bb, return_alloca) =
-            self.setup_function_return_context(mir_fun.span, llvm_fun, declared_return_cg)?;
-        let mut local_slots = self.create_mir_local_slots(body, mir_types)?;
+            self.setup_function_return_context(source_fun.span, llvm_fun, declared_return_cg)?;
+        let mut local_slots = self.create_mir_local_slots(body, source_types)?;
         self.bind_mir_closure_params(
-            mir_fun,
-            mir_types,
+            source_fun,
+            source_types,
             llvm_fun,
             u32::from(uses_hidden_sret),
             &mut local_slots,
@@ -547,19 +536,19 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             .get(body.start.as_u32() as usize)
             .copied()
             .unwrap_or_else(|| {
-                panic!("codegen_materialized_mir_closure_fun: MIR call ABI verifier accepted missing start block")
+                panic!("codegen_lir_source_closure_fun: LIR source ABI verifier accepted missing start block")
             });
         self.builder.build_unconditional_branch(start_bb)?;
 
         for (idx, block) in body.blocks.iter().enumerate() {
             self.builder.position_at_end(llvm_blocks[idx]);
             for stmt in &block.stmts {
-                self.codegen_mir_statement(stmt, body, mir_types, &local_slots, &used_locals)?;
+                self.codegen_mir_statement(stmt, body, source_types, &local_slots, &used_locals)?;
             }
             self.codegen_mir_terminator(
                 &block.terminator,
                 body,
-                mir_types,
+                source_types,
                 &local_slots,
                 &llvm_blocks,
                 declared_return_cg,
@@ -567,12 +556,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
 
         self.emit_function_return_block(
-            mir_fun.span,
+            source_fun.span,
             declared_return_cg,
             return_bb,
             return_alloca,
         )?;
-        self.finish_function_explicit_frame_layout(mir_fun.span)?;
+        self.finish_function_explicit_frame_layout(source_fun.span)?;
         self.clear_explicit_effect_hidden_abi_slots();
         self.function_cx.current_sret_return_ptr = None;
         Ok(())
@@ -669,8 +658,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                         )
                     })
                     .into_pointer_value();
-                let closure_key =
-                    self.stable_closure_key_for_materialized_callable(fn_ptr, span)?;
+                let closure_key = self.stable_closure_key_for_lir_source_callable(fn_ptr, span)?;
                 let env_ty =
                     self.mir_closure_env_object_type(span, &closure_key, &capture_field_cgs)?;
                 let env_ptr_ty = self.llvm_ptr_type(self.gc_address_space());

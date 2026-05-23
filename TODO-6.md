@@ -1189,7 +1189,7 @@
   - 额外针对性验证通过：`cargo test -p scoopc --no-default-features int_literal`；`cargo run -p scoop -- test --fixtures tests/fixtures/build/int_literal_uint8_overflow_fail.scoop`；`cargo run -p scoop -- test --fixtures tests/fixtures/build/int_literal_neg_int8_overflow_fail.scoop`；`cargo run -p scoop -- test --fixtures tests/fixtures/build/when_int_pattern_uint8_overflow_fail.scoop`；`cargo run -p scoop -- test --fixtures tests/fixtures/build/int_literal_default_int_overflow_fail.scoop`；`cargo test -p scoop_tools dependency_gate`。
   - 验证通过：`cargo fmt`；`cargo run -p scoop_tools -- dependency-gate`；`cargo test -p scoopc_lir_facts`；`cargo test -p scoopc --no-default-features llvm_codegen_stage`（0 filtered-in，pass）；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`（421/421 passed）；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
 
-## [TODO] P7-T05-a：清除 P7-T05R 发现的 LLVM codegen production residual
+## [DONE] P7-T05-a：清除 P7-T05R 发现的 LLVM codegen production residual
 
 - 目标：
   - 修复 `P7-T05R` review 发现的 P7 阻塞项；
@@ -1230,7 +1230,14 @@
   - 若发现 LIR/LIR facts 缺少合同，已补齐正确 owner，而不是在 backend 保留 workaround。
 - 依赖：P7-T05
 - 完成记录：
-  - 待填写。
+  - 删除 LLVM production emit/context 对 `MaterializedMirPassView` / `materialized_pass_view()` 的显式接入：`CompilationUnitCodegenInputs` 与 `CompilationUnitCodegenCx` 不再携带 pass view，`emit.rs` 不再从 `LlvmStageBaseContext` 传入 pass view，`LlvmStageBaseContext` 也不再公开该 accessor。
+  - callable/body/signature 查询改为 `LateLoweredProgram` 的 LIR-owned source callable contract、`LirFacts` callable/source signature facts 与 LLVM base context 的窄 `LlvmSourceCallableSignature`；direct-call lowering 不再按 `MaterializedMirPassView -> owner HIR fun -> fun_index` 顺序回退补签名，closure/source body emission 也改名并收口到 `lir_source_*` helpers。
+  - `scoopc_lir_facts` 发布并校验 source callable signature facts；LLVM base context 为 runtime/helper/declaration-only callable 发布只含 source path、function type、参数名/类型和返回类型的 source signature index，用于补齐无 LIR body 的合法调用目标，避免重新暴露 HIR body 或 MIR pass view。
+  - callable symbol identity 优先使用 `LirFacts.physical_layout.callable_symbols`，无 LIR callable symbol 的 declaration-only source callable 使用 base source signature 计算稳定 exported ABI symbol；不再通过 materialized owner/pass-view 恢复 stable key。
+  - dependency gate 新增 5 个 LLVM production source-boundary 规则（codegen context、direct call lowering、source callable lookup、callable identity、ordinary callee analysis），并扩展 LLVM stage/emit handoff 规则，防止重新引入 `materialized_pass_view`、`MaterializedMirPassView` 或 materialized/HIR owner fallback。
+  - residual 搜索结果：`crates/scoopc/src/llvm/emit.rs`、`crates/scoopc/src/pipeline/llvm_codegen_stage.rs` 与 `crates/scoopc/src/llvm/codegen` 的 production 路径不再命中 `materialized_pass_view` / `MaterializedMirPassView`；唯一剩余命中位于 `llvm/codegen/effect_lowered/layout/tests/mod.rs` 测试构造路径。
+  - 广义 `crate::hir` / `crate::mir` 命中分类：`mir_body/**` 与 `effect_lowered/**` 中的 `crate::mir` 使用是 LIR-owned source callable/body payload alias、source-slice lowering helper或 raw-route guard，不再从 pass view 发现 body；`crate::hir` 命中保留在 backend-private layout/type metadata、source expression lowering和 source-site semantic fact resolver 路径，不参与 callable body/signature/ABI fallback。`HirFacts` 仍作为 source-site semantic fact resolver 输入保留，但 direct-call signature/body/ABI 查询已改走 LIR/source signature contracts，本任务未留下 `MaterializedMirPassView -> HIR owner -> fun_index` fallback。
+  - 验证通过：`cargo fmt`；`cargo run -p scoop_tools -- dependency-gate`；`cargo test -p scoopc_lir_facts`；`cargo test -p scoopc --no-default-features llvm_codegen_stage`（0 filtered-in，pass）；`cargo test -p scoopc --no-default-features llvm::codegen`（0 filtered-in，pass）；`cargo test -p scoopc llvm::codegen`（97 passed）；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`（421/421 passed）；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
 
 ## [TODO] P7-T05R：Review P7 全包完成度
 

@@ -133,12 +133,6 @@ pub enum LlvmEmitError {
     MissingEntryMain,
 
     #[error(
-        "当前 LLVM production codegen 入口要求 canonical materialized MIR/pass 视图，但 lowering 产物未携带它"
-    )]
-    #[diagnostic(code(scoop::llvm::missing_materialized_pass_view))]
-    MissingMaterializedPassView,
-
-    #[error(
         "LLVM backend 尚未迁移入口 `{entry}` 的 reachable callable `{callable}` 所需的 lowering 路径（{unsupported_paths}）；已显式禁止回落到已删除的 handler-stack / EffectOutcome backend"
     )]
     #[diagnostic(code(scoop::llvm::effect_lowering_unsupported))]
