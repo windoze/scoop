@@ -8,6 +8,72 @@
 use super::*;
 
 impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
+    pub(super) fn physical_class_layout(
+        &self,
+        layout_key: &crate::hir::ClassInstanceKey,
+    ) -> Option<&scoopc_lir_facts::LirClassLayoutFacts> {
+        self.lir_facts
+            .physical_layout
+            .classes
+            .get(layout_key.as_str())
+    }
+
+    pub(super) fn physical_enum_layout_by_key(
+        &self,
+        layout_key: &str,
+    ) -> Option<&scoopc_lir_facts::LirEnumLayoutFacts> {
+        self.lir_facts.physical_layout.enums.get(layout_key)
+    }
+
+    pub(super) fn physical_enum_layout_for_option(
+        &self,
+        types: &TypeStore,
+        inner: TypeId,
+    ) -> Result<&scoopc_lir_facts::LirEnumLayoutFacts, LlvmEmitError> {
+        let key = self.physical_nominal_layout_key("scoop.core.Option", &[inner], types);
+        self.physical_enum_layout_by_key(&key).ok_or_else(|| {
+            frontend_error(format!(
+                "LLVM ABI materialization 缺少 `{key}` 的 LIR enum layout（inner=`{}`）",
+                types.display(inner)
+            ))
+        })
+    }
+
+    pub(super) fn physical_enum_layout_for_nominal(
+        &self,
+        types: &TypeStore,
+        nominal: &crate::ty::NominalType,
+    ) -> Result<&scoopc_lir_facts::LirEnumLayoutFacts, LlvmEmitError> {
+        self.physical_enum_layout_for_nominal_opt(types, nominal)
+            .ok_or_else(|| {
+                frontend_error(format!(
+                    "LLVM ABI materialization 缺少 nominal value `{}` 的 LIR enum layout",
+                    nominal.fqn
+                ))
+            })
+    }
+
+    pub(super) fn physical_enum_layout_for_nominal_opt(
+        &self,
+        types: &TypeStore,
+        nominal: &crate::ty::NominalType,
+    ) -> Option<&scoopc_lir_facts::LirEnumLayoutFacts> {
+        let key = self.physical_nominal_layout_key(&nominal.fqn, &nominal.args, types);
+        self.physical_enum_layout_by_key(&key)
+    }
+
+    fn physical_nominal_layout_key(&self, fqn: &str, args: &[TypeId], types: &TypeStore) -> String {
+        if args.is_empty() {
+            return fqn.to_string();
+        }
+        let arg_text = args
+            .iter()
+            .map(|id| types.display(*id).to_string())
+            .collect::<Vec<_>>()
+            .join(", ");
+        format!("{fqn}<{arg_text}>")
+    }
+
     pub(super) fn callable_facts_for_root(
         &self,
         root_fqn: &str,

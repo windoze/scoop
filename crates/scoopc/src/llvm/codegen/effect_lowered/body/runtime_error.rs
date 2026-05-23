@@ -76,10 +76,12 @@ impl<'cg, 'a, 'ctx> CallableEmitter<'cg, 'a, 'ctx> {
         }
         let enum_layout = self
             .codegen
-            .enum_layouts
+            .published_lir_facts
+            .physical_layout
+            .enums
             .get("scoop.core.RuntimeError")
             .unwrap_or_else(|| {
-                panic!("runtime_error_unit_variant_payload: verifier accepted missing RuntimeError enum layout")
+                panic!("runtime_error_unit_variant_payload: verifier accepted missing RuntimeError LIR enum layout")
             });
         let variant = enum_layout
             .variants

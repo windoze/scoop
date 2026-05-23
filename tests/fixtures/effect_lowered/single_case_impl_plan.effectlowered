@@ -1,14 +1,9 @@
 LirStageOutput
 opt_level: O2
-snapshot_binding:
-  query_surface: PassView
-  instance_count: 1
-  canonical_body_fqns:
-    - sample.leaf
 lir_facts:
 lir_facts {
   opt_level: O2
-  summary: opt_revision=1 callables=1 step_types=1 dynamic_invokes=0 dispatches=0 resume_packings=1 continuation_objects=1 surface_resume_dispatches=2 layout_classes=29 layout_enums=5 layout_interfaces=11 layout_class_itables=54 layout_callable_symbols=1
+  summary: opt_revision=1 callables=1 step_types=1 dynamic_invokes=0 dispatches=0 resume_packings=1 continuation_objects=1 surface_resume_dispatches=2 layout_classes=29 layout_enums=7 layout_interfaces=11 layout_class_itables=54 layout_callable_symbols=1
   opt_pipeline: revision=1 preserve_published_resume_shells=false passes=7
     - pass=local-state-machine-elimination status=Applied changed=false
     - pass=higher-order-wrapper-inline-devirt status=NoOp changed=false
@@ -17,7 +12,7 @@ lir_facts {
     - pass=dead-state-slot-cleanup status=Applied changed=false
     - pass=resume-packing-pruning status=Applied changed=true
     - pass=post-opt-verifier status=Applied changed=false
-  physical_layout: classes=29 enums=5 vtables=54 interfaces=11 class_itables=54 callable_symbols=1
+  physical_layout: classes=29 enums=7 vtables=54 interfaces=11 class_itables=54 callable_symbols=1
     - class=scoop.core.AllowIntrinsic layout_key=scoop.core.AllowIntrinsic super=<none> fields=0
     - class=scoop.core.Array<Any> layout_key=scoop.core.Array<Any> super=<none> fields=0
     - class=scoop.core.Array<Int> layout_key=scoop.core.Array<Int> super=<none> fields=0
@@ -49,6 +44,8 @@ lir_facts {
     - class=scoop.lang.string.StringBuilder layout_key=scoop.lang.string.StringBuilder super=<none> fields=1
     - enum=scoop.core.AnnotationTarget repr=tagged_union variants=11
     - enum=scoop.core.Nothing repr=tagged_union variants=0
+    - enum=scoop.core.Option<Int> repr=tagged_union variants=2
+    - enum=scoop.core.Option<T> repr=tagged_union variants=2
     - enum=scoop.core.RuntimeError repr=tagged_union variants=3
     - enum=scoop.core.TypeKind repr=tagged_union variants=7
     - enum=scoop.delegates.LazyThreadSafetyMode repr=tagged_union variants=3

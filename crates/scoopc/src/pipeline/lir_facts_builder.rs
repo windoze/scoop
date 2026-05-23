@@ -28,7 +28,7 @@ use crate::mir::{
     Operand as MirOperand, Rvalue as MirRvalue, SiteId, StatementKind as MirStatementKind,
 };
 use crate::opt::OptLevel;
-use crate::ty::{TypeId, TypeStore};
+use crate::ty::{TypeId, TypeKind, TypeStore, ValueTypeKind};
 
 struct LirFactsBuildContext<'a> {
     lir: &'a LateLoweredProgram,
@@ -582,6 +582,7 @@ fn build_physical_layout_facts(
     for (fqn, layout) in &contracts.enum_layouts {
         facts.enums.insert(fqn.clone(), enum_layout_facts(layout));
     }
+    insert_builtin_option_enum_layout_facts(&mut facts, ctx.effect_facts.types());
     for (class_fqn, slots) in &contracts.class_vtables {
         facts.class_vtables.insert(
             class_fqn.clone(),
@@ -695,6 +696,49 @@ fn enum_layout_facts(layout: &crate::hir::EnumLayout) -> LirEnumLayoutFacts {
             })
             .collect(),
     }
+}
+
+fn insert_builtin_option_enum_layout_facts(facts: &mut LirPhysicalLayoutFacts, types: &TypeStore) {
+    for ty in types.iter_ids() {
+        let TypeKind::Value(ValueTypeKind::Option(inner)) = types.kind(ty) else {
+            continue;
+        };
+        let key = lir_nominal_layout_key("scoop.core.Option", &[*inner], types);
+        facts
+            .enums
+            .entry(key.clone())
+            .or_insert_with(|| LirEnumLayoutFacts {
+                fqn: key,
+                repr: LirEnumReprFacts::TaggedUnion,
+                variants: vec![
+                    LirEnumVariantFacts {
+                        name: "Some".to_string(),
+                        tag: 0,
+                        fields: vec![LirEnumVariantFieldFacts {
+                            name: "value".to_string(),
+                            ty: Some(*inner),
+                        }],
+                    },
+                    LirEnumVariantFacts {
+                        name: "None".to_string(),
+                        tag: 1,
+                        fields: Vec::new(),
+                    },
+                ],
+            });
+    }
+}
+
+fn lir_nominal_layout_key(fqn: &str, args: &[TypeId], types: &TypeStore) -> String {
+    if args.is_empty() {
+        return fqn.to_string();
+    }
+    let arg_text = args
+        .iter()
+        .map(|id| types.display(*id).to_string())
+        .collect::<Vec<_>>()
+        .join(", ");
+    format!("{fqn}<{arg_text}>")
 }
 
 fn build_callable_symbol_facts(

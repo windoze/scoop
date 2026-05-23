@@ -324,11 +324,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         interfaces
             .into_iter()
             .map(|interface_fqn| {
-                let iface = self.interfaces.get(&interface_fqn).ok_or_else(|| {
-                    frontend_error(format!(
-                        "value box interface `{interface_fqn}` missing interface metadata"
-                    ))
-                })?;
+                let iface = self
+                    .published_lir_facts
+                    .physical_layout
+                    .interfaces
+                    .get(&interface_fqn)
+                    .ok_or_else(|| {
+                        frontend_error(format!(
+                            "value box interface `{interface_fqn}` missing LIR interface metadata"
+                        ))
+                    })?;
                 let mut method_impl_fqns = Vec::with_capacity(iface.method_slots.len());
                 let value_receiver_type_id = self
                     .stable_rtti_type_id_for_codegen(
@@ -403,7 +408,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         }
         if let Some(supertypes) = self.direct_supertypes.get(fqn) {
             for super_fqn in supertypes {
-                if self.interfaces.contains_key(super_fqn) && !out.contains(super_fqn) {
+                if self
+                    .published_lir_facts
+                    .physical_layout
+                    .interfaces
+                    .contains_key(super_fqn)
+                    && !out.contains(super_fqn)
+                {
                     out.push(super_fqn.clone());
                 }
                 self.collect_mir_value_box_interfaces(super_fqn, out, visiting);

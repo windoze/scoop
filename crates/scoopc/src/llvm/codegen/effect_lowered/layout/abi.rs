@@ -81,12 +81,14 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             else {
                 continue;
             };
-            let Some(class) = self.codegen.class_inits.get(&class_key) else {
+            let Some(class) = self.physical_class_layout(&class_key) else {
                 continue;
             };
-            if class.fields.iter().any(|field| {
-                self.type_contains_param_in_types(self.codegen.types, field.ty.inner())
-            }) {
+            if class
+                .fields
+                .iter()
+                .any(|field| self.type_contains_param_in_types(self.source_types, field.ty))
+            {
                 return Err(frontend_error(format!(
                     "LLVM ABI materialization 发现 concrete class `{class_key}` 的 field layout 仍含未实例化类型参数"
                 )));
@@ -95,7 +97,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             let fields = class
                 .fields
                 .iter()
-                .map(|field| ClassInstanceFieldLayout::new(field.fqn.clone(), field.ty.inner()))
+                .map(|field| ClassInstanceFieldLayout::new(field.fqn.clone(), field.ty))
                 .collect();
             layouts.insert(
                 ty,
@@ -251,25 +253,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                 Ok(self.codegen.context.struct_type(&fields, false).into())
             }
             TypeKind::Value(ValueTypeKind::Option(inner)) => {
-                if let Some(codegen_ty) = self.equivalent_codegen_type_id_from_types(types, ty) {
-                    let cg_ty = self
-                        .codegen
-                        .try_cg_ty_of_type_id(codegen_ty)
-                        .ok_or_else(|| {
-                            frontend_error(format!(
-                                "LLVM ABI materialization 无法为 `{}` 恢复 codegen 类型",
-                                types.display(ty)
-                            ))
-                        })?;
-                    return self.codegen.llvm_basic_type_of(dummy_span(), cg_ty);
-                }
-                let key = crate::hir::mangle_nominal_fqn("scoop.core.Option", &[*inner], types);
-                let layout = self.codegen.enum_layouts.get(&key).ok_or_else(|| {
-                    frontend_error(format!(
-                        "LLVM ABI materialization 缺少 `{}` 的 enum layout",
-                        types.display(ty)
-                    ))
-                })?;
+                let layout = self.physical_enum_layout_for_option(types, *inner)?;
                 self.llvm_enum_value_type_from_layout(layout)
             }
             TypeKind::Value(ValueTypeKind::Nominal(nominal)) => {
@@ -291,6 +275,9 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                         })
                         .into());
                 }
+                if let Some(layout) = self.physical_enum_layout_for_nominal_opt(types, nominal) {
+                    return self.llvm_enum_value_type_from_layout(layout);
+                }
                 if let Some(codegen_ty) = self.equivalent_codegen_type_id_from_types(types, ty) {
                     let cg_ty = self
                         .codegen
@@ -303,7 +290,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                         })?;
                     return self.codegen.llvm_basic_type_of(dummy_span(), cg_ty);
                 }
-                self.llvm_nominal_value_type_from_layout(nominal)
+                self.llvm_nominal_value_type_from_layout(types, nominal)
             }
             TypeKind::Param(_) => Err(frontend_error(format!(
                 "LLVM ABI materialization 遇到尚未实例化的类型参数 `{}`（t{}）",
@@ -315,24 +302,19 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
 
     pub(super) fn llvm_nominal_value_type_from_layout(
         &mut self,
+        types: &TypeStore,
         nominal: &crate::ty::NominalType,
     ) -> Result<BasicTypeEnum<'ctx>, LlvmEmitError> {
-        let key = crate::hir::mangle_nominal_fqn(&nominal.fqn, &nominal.args, self.source_types);
-        let layout = self.codegen.enum_layouts.get(&key).ok_or_else(|| {
-            frontend_error(format!(
-                "LLVM ABI materialization 缺少 nominal value `{}` 的等价 codegen TypeId 或 enum layout",
-                nominal.fqn
-            ))
-        })?;
+        let layout = self.physical_enum_layout_for_nominal(types, nominal)?;
         self.llvm_enum_value_type_from_layout(layout)
     }
 
     pub(super) fn llvm_enum_value_type_from_layout(
         &self,
-        layout: &crate::hir::EnumLayout,
+        layout: &scoopc_lir_facts::LirEnumLayoutFacts,
     ) -> Result<BasicTypeEnum<'ctx>, LlvmEmitError> {
         match &layout.repr {
-            crate::hir::EnumRepr::TaggedUnion => {
+            scoopc_lir_facts::LirEnumReprFacts::TaggedUnion => {
                 if let Some(existing) = self.codegen.context.get_struct_type(&layout.fqn) {
                     return Ok(existing.into());
                 }
@@ -349,7 +331,7 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
                 );
                 Ok(enum_ty.into())
             }
-            crate::hir::EnumRepr::ValueOnly { underlying_ty_fqn } => {
+            scoopc_lir_facts::LirEnumReprFacts::ValueOnly { underlying_ty_fqn } => {
                 self.llvm_builtin_integer_from_fqn(underlying_ty_fqn.as_deref())
             }
         }

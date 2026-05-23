@@ -132,7 +132,7 @@
 | P7-T04-b-5R | [DONE] | [`TODO-6.md`](./TODO-6.md#done-p7-t04-b-5rreview-预存-llvm-库测试失败修复结果) | Review 预存 LLVM 库测试失败修复结果 |
 | P7-T04-b | [DONE] | [`TODO-6.md`](./TODO-6.md#done-p7-t04-b收窄-llvm-stage-handoff-形状) | 收窄 LLVM stage handoff 形状 |
 | P7-T04-bR | [DONE] | [`TODO-6.md`](./TODO-6.md#done-p7-t04-brreview-llvm-stage-handoff-形状收窄) | Review LLVM stage handoff 形状收窄 |
-| P7-T04-c | [TODO] | [`TODO-6.md`](./TODO-6.md#todo-p7-t04-c迁移-physical-abilayout-查询面到-lir-facts) | 迁移 physical ABI/layout 查询面到 LIR facts |
+| P7-T04-c | [DONE] | [`TODO-6.md`](./TODO-6.md#done-p7-t04-c迁移-physical-abilayout-查询面到-lir-facts) | 迁移 physical ABI/layout 查询面到 LIR facts |
 | P7-T04-cR | [TODO] | [`TODO-6.md`](./TODO-6.md#todo-p7-t04-crreview-physical-abilayout-迁移结果) | Review physical ABI/layout 迁移结果 |
 | P7-T04 | [TODO] | [`TODO-6.md`](./TODO-6.md#todo-p7-t04收尾llvm-stage-handoff-与-physical-abi-cleanup-合并验证) | 收尾——LLVM stage handoff 与 physical ABI cleanup 合并验证 |
 | P7-T04R | [TODO] | [`TODO-6.md`](./TODO-6.md#todo-p7-t04rreview-llvm-stage-handoff-与-physical-abi-cleanup) | Review LLVM stage handoff 与 physical ABI cleanup |

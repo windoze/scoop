@@ -1,41 +1,41 @@
-Scoop task execution plan and progress log
+# Claude Execution Plan
 
-Current invocation goal
-- Complete exactly the first incomplete task in TODO.md, then stop.
-- Treat TODO.md as authoritative for ordering, dependencies, validation, and completion records.
+## Scope
 
-Execution plan
-1. Read TODO.md and identify the first task whose heading is not prefixed with [DONE].
-2. Check the latest commit message only for unfinished issues directly relevant to that selected task.
-3. Inspect the selected task's requirements, dependencies, affected code, and nearby tests/fixtures.
-4. Implement the smallest spec-correct change needed for that task; do not use workarounds or weaken fixtures.
+- Source of truth: `TODO.md`.
+- Goal for this invocation: complete exactly the first incomplete task in `TODO.md`, then stop.
+- Completion requires implementation, validation, `TODO.md` completion update, and a git commit.
+
+## Execution Plan
+
+1. Read `TODO.md` first and identify the first task whose heading is not prefixed with `[DONE]`.
+2. Inspect only the code, fixtures, and documentation needed for that task, plus recent git context if it directly affects the selected task.
+3. Implement the selected task without changing task scope or using workarounds.
+4. Add or update the smallest relevant tests/fixtures for the task.
 5. Run targeted validation first, then broader validation required by the task or affected area.
-6. If any unscheduled failing test or fixture is observed, fix it or add the minimum prerequisite/follow-up task in TODO.md before marking the task complete.
-7. Mark the completed task heading in TODO.md with [DONE] and update its completion record.
-8. Update PLAN.md only if phase-level sequencing, dependencies, assumptions, or completion criteria changed.
-9. Review the diff, run final relevant checks, and commit all intended changes with a task-specific message.
-10. Stop without starting the next task.
+6. If any failing test/fixture is observed and is not already explicitly scheduled, fix it or add the minimum prerequisite/follow-up task in `TODO.md` before marking anything complete.
+7. Update `TODO.md` by prefixing the completed task heading with `[DONE]` and filling its completion record.
+8. Update this file whenever the plan materially changes or a key step completes.
+9. Review git status/diff/log, then commit all intended changes with a task-specific message.
+10. Stop after the commit without starting the next task.
 
-Progress log
-- Created initial execution plan before reading project task details.
-- Identified first incomplete task from TODO.md: P7-T04-bR, a review task for the LLVM stage handoff shape narrowing in TODO-6.md.
-- Read TODO-6.md requirements for P7-T04-bR. Latest commit is df64e064 `[P7-T04-b] Narrow LLVM stage handoff`, directly matching the reviewed task and not naming an extra unfinished prerequisite.
+## Current Progress
 
-Selected task plan: P7-T04-bR
-1. Read the P7-T04-b and P7-T04-bR entries in TODO-6.md to capture the exact review scope and validation requirements.
-2. Inspect the latest commit message for directly relevant unfinished work.
-3. Review the P7-T04-b implementation against the task contract: LLVM handoff should use the narrowed LIR/base/codegen context shape, not broad frontend or raw MIR/HIR fallback state.
-4. Search for residual handoff leaks and type-discipline regressions in codegen and related tests.
-5. Fix any issues that invalidate P7-T04-bR; if a concrete prerequisite blocks review completion, record it in TODO.md instead of marking the review done.
-6. Run the task-specified and relevant targeted validation, then update TODO.md and TODO-6.md completion records if the review passes.
-7. Commit the review changes and stop.
-
-Review findings and adjusted implementation plan
-- Residual API search confirmed `llvm_residual_pass_view`, `LirStageContext`, and `EffectLoweredStageOutput` are gone from Rust sources.
-- Remaining `HirFacts` and `MaterializedMirPassView` hits are in the explicit `LlvmStageBaseContext` / backend codegen context, matching the P7-T04-b allowance for backend-private residuals before P7-T04-c.
-- Review gap found: ABI visibility handoff consistency is documented but not enforced strongly enough. `StageEmitInput::new` can accept a partial ABI visibility tuple, and `LlvmStageBaseContext::verify_lir_type_context` checks owner/wire-format but not whether LIR facts fingerprints match the base context TypeStores.
-- Plan update: add narrow verifier checks for TypeStore fingerprints and ABI visibility option tuple consistency, update the stale stage handoff comment, add focused tests, then run the required validation.
-- Implemented the review fix: `LlvmStageBaseContext` now verifies materialized/effect TypeStore fingerprints, `StageEmitInput::new` rejects partial ABI visibility tuples, emit verifies ABI visibility facts against their TypeStore owner, and `llvm_codegen_stage_abi_visibility_handoff_is_complete_and_verified` covers the handoff.
-- Validation passed: `cargo fmt`; `cargo test -p scoopc --no-default-features llvm_codegen_stage`; `cargo test -p scoopc llvm_codegen_stage`; `cargo test -p scoopc --no-default-features pipeline::effect_lowering_stage`; `cargo test -p scoopc --no-default-features llvm::codegen::effect_lowered::layout`; `cargo test -p scoopc llvm::codegen::effect_lowered::layout`; `cargo run -p scoop_tools -- dependency-gate`; `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`; `cargo clippy --all-targets -- -D warnings`; `git diff --check`.
-- Residual search after changes: no `hir_compat_scaffold`, `llvm_residual_pass_view`, or `EffectLoweredStageOutput` Rust hits in the reviewed scopes; remaining `HirFacts` / `MaterializedMirPassView` hits are confined to `LlvmStageBaseContext` and backend-private codegen context residuals allowed until P7-T04-c.
-- Updated TODO.md and TODO-6.md to mark P7-T04-bR as [DONE] with the review conclusion, fix summary, residual search classification, and validation record.
+- Plan initialized before repository inspection.
+- `TODO.md` inspected; first incomplete task is `P7-T04-c` (`迁移 physical ABI/layout 查询面到 LIR facts`).
+- `TODO-6.md` task body inspected. Required scope: move physical ABI/layout and `effect_lowered/ty.rs` lookups from HIR scaffold side tables to `LirFacts.physical_layout` / type context / callable contracts; keep stage handoff shape unchanged.
+- Latest commit is `[P7-T04-bR] Review LLVM stage handoff narrowing`; no separate unfinished issue was identified from the commit subject.
+- Next step is targeted code inspection for scaffold fields/usages and existing LIR facts layout APIs.
+- Implemented first pass of the migration: physical class/enum/vtable/itable lookups in the effect-lowered ABI materializer now use `LirFacts.physical_layout`; enum-unit/runtime-error checks use LIR enum facts; the physical ABI/layout entry now verifies the LIR TypeStore owner.
+- Layout tests were adjusted so their ABI materializer helpers provide empty physical HIR side tables, proving the materializer path does not rely on those tables.
+- Targeted layout tests initially exposed a real missing LIR facts contract: effect-owned builtin `Option<T>` enum layouts were not published for all effect TypeStore types. The LIR facts builder now synthesizes those `Option<T>` physical enum facts.
+- `cargo test -p scoopc llvm::codegen::effect_lowered::layout` now passes (68 tests).
+- `cargo test -p scoopc llvm::codegen::effect_lowered` passes (70 tests).
+- `cargo test -p scoopc --no-default-features llvm::codegen::effect_lowered` passes (0 filtered-in tests for that feature set).
+- `cargo test -p scoopc_lir_facts` passes.
+- `cargo run -p scoop -- test --fixtures tests/fixtures/effect_lowered` passes after regenerating `.effectlowered` goldens for the new LIR physical enum facts and current dump shape.
+- `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass` passes (421/421).
+- Review found an indirect `interfaces` side-table dependency through value-box itable generation; `mir_value_box_itable_entries` now consumes LIR physical interface facts for interface metadata.
+- Final validation passes: `cargo test -p scoopc llvm::codegen::effect_lowered::layout`; `cargo test -p scoopc --no-default-features llvm::codegen::effect_lowered::layout`; `cargo test -p scoopc_lir_facts`; `cargo run -p scoop -- test --fixtures tests/fixtures/effect_lowered`; `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`; `cargo clippy --all-targets -- -D warnings`; `git diff --check`.
+- `TODO.md` and `TODO-6.md` updated: `P7-T04-c` is marked `[DONE]` and its completion record is filled.
+- Next step is final git review and commit.

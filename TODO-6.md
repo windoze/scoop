@@ -4,7 +4,7 @@
 > 细化时间：2026-05-22
 > 计划基线：[`PLAN.md`](./PLAN.md) §4/P6-P8
 > 索引：[`TODO.md`](./TODO.md)
-> 当前状态：`P7-T04-a` / `P7-T04-b-1` / `P7-T04-b-1R` / `P7-T04-b-2` / `P7-T04-b-2R` / `P7-T04-b-3` / `P7-T04-b-3R` / `P7-T04-b-4` / `P7-T04-b-4R` / `P7-T04-b-5` / `P7-T04-b-5R` / `P7-T04-b` / `P7-T04-bR` 均已完成。LLVM stage handoff 已收窄为 `LIR + LIR facts + LlvmStageBaseContext`，`LirStageOutput` 不再携带 backend residual；下一步执行 `P7-T04-c`。
+> 当前状态：`P7-T04-a` / `P7-T04-b-1` / `P7-T04-b-1R` / `P7-T04-b-2` / `P7-T04-b-2R` / `P7-T04-b-3` / `P7-T04-b-3R` / `P7-T04-b-4` / `P7-T04-b-4R` / `P7-T04-b-5` / `P7-T04-b-5R` / `P7-T04-b` / `P7-T04-bR` / `P7-T04-c` 均已完成。LLVM stage handoff 已收窄为 `LIR + LIR facts + LlvmStageBaseContext`，`LirStageOutput` 不再携带 backend residual；physical ABI/layout 查询面已迁到 LIR facts；下一步执行 `P7-T04-cR`。
 
 ## 范围
 
@@ -1034,7 +1034,7 @@
   - 新增覆盖：`pipeline::llvm_codegen_stage::tests::llvm_codegen_stage_abi_visibility_handoff_is_complete_and_verified` 覆盖 primary/ABI visibility LIR facts 与 TypeStore owner 校验。
   - 验证通过：`cargo fmt`；`cargo test -p scoopc --no-default-features llvm_codegen_stage`（0 filtered-in，pass）；`cargo test -p scoopc llvm_codegen_stage`（29 passed）；`cargo test -p scoopc --no-default-features pipeline::effect_lowering_stage`（14 passed）；`cargo test -p scoopc --no-default-features llvm::codegen::effect_lowered::layout`（0 filtered-in，pass）；`cargo test -p scoopc llvm::codegen::effect_lowered::layout`（68 passed）；`cargo run -p scoop_tools -- dependency-gate`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`（421/421 passed）；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
 
-## [TODO] P7-T04-c：迁移 physical ABI/layout 查询面到 LIR facts
+## [DONE] P7-T04-c：迁移 physical ABI/layout 查询面到 LIR facts
 
 - 目标：
   - 让 `effect_lowered/layout/` 与 `effect_lowered/ty.rs` 等 LLVM physical ABI/layout 路径只读 `LirFacts.physical_layout` / `LirFacts.type_context` / `LirFacts.callable_symbols` 等 P7-T04-a 发布的合同；
@@ -1069,7 +1069,12 @@
   - TypeStore bridge verifier 在 LLVM physical layout 入口实际触发。
 - 依赖：P7-T04-bR
 - 完成记录：
-  - 待填写。
+  - physical ABI/layout 查询面已迁到 `LirFacts.physical_layout`：`ProgramAbiMaterializer` 的 class instance、enum ABI、vtable/itable carrier target 查询不再读取 `CompilationUnitCodegenCx` 的 `class_inits` / `class_vtables` / `class_itables` / `enum_layouts` HIR side table；effect-lowered enum unit value 与 runtime-error payload 查询改读 LIR enum facts。
+  - 补齐缺失合同：`lir_facts_builder` 现在为 effect-owned `TypeStore` 中的 builtin `Option<T>` 发布 LIR physical enum layout facts，避免 physical ABI/layout 继续依赖 HIR enum layout side table。
+  - value-box itable metadata 读取同步改为 LIR physical interface facts，避免 `effect_lowered/layout` 经 `mir_value_box_itable_entries` 间接回看 interface side table。
+  - `ProgramAbiMaterializer::new` 在 physical ABI/layout 入口验证 LIR facts 与 handoff `TypeStore` owner 一致；layout tests 新增/调整为使用空 physical HIR side table 构造 materializer，覆盖真实迁移边界。
+  - 同步更新 `tests/fixtures/effect_lowered/*.effectlowered` golden，反映新增 `Option<T>` LIR physical enum facts与当前 `LirStageOutput` dump 形状。
+  - 验证通过：`cargo fmt`；`cargo test -p scoopc_lir_facts`；`cargo test -p scoopc --no-default-features llvm::codegen::effect_lowered::layout`（0 filtered-in，pass）；`cargo test -p scoopc llvm::codegen::effect_lowered::layout`（68 passed）；`cargo test -p scoopc llvm::codegen::effect_lowered`（70 passed）；`cargo run -p scoop -- test --fixtures tests/fixtures/effect_lowered`（10/10 passed）；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`（421/421 passed）；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
 
 ## [TODO] P7-T04-cR：Review physical ABI/layout 迁移结果
 

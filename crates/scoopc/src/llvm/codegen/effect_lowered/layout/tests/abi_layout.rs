@@ -128,7 +128,7 @@ pub(super) fn llvm_layout_resolves_tuple_resume_payload_and_answer_contract() {
 }
 
 #[test]
-pub(super) fn llvm_layout_rejects_unlowerable_invoke_args_type() {
+pub(super) fn llvm_layout_rejects_mismatched_source_typestore_before_layout() {
     let inputs = build_fixture_inputs("effect_lowered_step_enum_single_case.scoop");
     let mut source_types = inputs.primary_types().clone();
     let param_ty = source_types.ty_param(TypeParamType {
@@ -171,21 +171,19 @@ pub(super) fn llvm_layout_rejects_unlowerable_invoke_args_type() {
         move |_inputs| source_types,
         |_inputs, result, _module| {
             let err = match result {
-                Ok(_) => panic!("不可 lowering 的 synthetic invoke args type 必须 fail fast"),
+                Ok(_) => {
+                    panic!("mismatched source TypeStore 必须在 physical ABI/layout 入口 fail fast")
+                }
                 Err(err) => err,
             };
             let message = err.to_string();
             assert!(
-                message.contains("source-type ABI value lowering"),
-                "错误消息应指出缺失的是 source-type ABI lowering contract: {message}"
+                message.contains("physical ABI/layout"),
+                "错误消息应指出失败发生在 physical ABI/layout verifier: {message}"
             );
             assert!(
-                message.contains("SyntheticInvokeArgs"),
-                "错误消息应指出不可 lowering 的 synthetic source type: {message}"
-            );
-            assert!(
-                message.contains("尚未实例化的类型参数"),
-                "错误消息应明确拒绝未实例化类型参数: {message}"
+                message.contains("handoff TypeStore owner 不一致"),
+                "错误消息应指出 LIR facts 与 source TypeStore owner 不一致: {message}"
             );
         },
     );

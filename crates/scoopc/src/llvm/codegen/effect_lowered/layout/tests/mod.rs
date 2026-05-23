@@ -178,6 +178,11 @@ fn with_inputs_query_result(
     let fun_index = base.fun_index();
     let hir_facts = Rc::new(base.hir_facts().clone());
     let effect_op_tags = Rc::new(RefCell::new(EffectOpTagState::new()));
+    let empty_enum_layouts = crate::hir::EnumLayoutIndex::default();
+    let empty_class_inits = crate::hir::ClassInitIndex::default();
+    let empty_class_vtables = crate::vtable::ClassVtableIndex::default();
+    let empty_interfaces = crate::itable::InterfaceIndex::default();
+    let empty_class_itables = crate::itable::ClassItableIndex::default();
     let unit_codegen = CompilationUnitCodegenCx::new(CompilationUnitCodegenInputs {
         context: &context,
         module: &module,
@@ -191,15 +196,15 @@ fn with_inputs_query_result(
         stable_type_param_keys: base.stable_type_param_keys(),
         types: base.types(),
         struct_layouts: base.struct_layouts(),
-        enum_layouts: base.enum_layouts(),
+        enum_layouts: &empty_enum_layouts,
         top_level_vars: base.top_level_vars(),
         top_level_immutable_values: base.top_level_immutable_values(),
         top_level_fun_call_sites: base.top_level_fun_call_sites(),
         object_inits: base.object_inits(),
-        class_inits: base.class_inits(),
-        class_vtables: base.class_vtables(),
-        interfaces: base.interfaces(),
-        class_itables: base.class_itables(),
+        class_inits: &empty_class_inits,
+        class_vtables: &empty_class_vtables,
+        interfaces: &empty_interfaces,
+        class_itables: &empty_class_itables,
         ctor_call_sites: base.ctor_call_sites(),
         dispatch_call_sites: base.dispatch_call_sites(),
         effect_op_call_sites: base.effect_op_call_sites(),
@@ -248,6 +253,11 @@ fn with_inputs_query_result_for_source_types(
     let fun_index = base.fun_index();
     let hir_facts = Rc::new(base.hir_facts().clone());
     let effect_op_tags = Rc::new(RefCell::new(EffectOpTagState::new()));
+    let empty_enum_layouts = crate::hir::EnumLayoutIndex::default();
+    let empty_class_inits = crate::hir::ClassInitIndex::default();
+    let empty_class_vtables = crate::vtable::ClassVtableIndex::default();
+    let empty_interfaces = crate::itable::InterfaceIndex::default();
+    let empty_class_itables = crate::itable::ClassItableIndex::default();
     let unit_codegen = CompilationUnitCodegenCx::new(CompilationUnitCodegenInputs {
         context: &context,
         module: &module,
@@ -261,15 +271,15 @@ fn with_inputs_query_result_for_source_types(
         stable_type_param_keys: base.stable_type_param_keys(),
         types: base.types(),
         struct_layouts: base.struct_layouts(),
-        enum_layouts: base.enum_layouts(),
+        enum_layouts: &empty_enum_layouts,
         top_level_vars: base.top_level_vars(),
         top_level_immutable_values: base.top_level_immutable_values(),
         top_level_fun_call_sites: base.top_level_fun_call_sites(),
         object_inits: base.object_inits(),
-        class_inits: base.class_inits(),
-        class_vtables: base.class_vtables(),
-        interfaces: base.interfaces(),
-        class_itables: base.class_itables(),
+        class_inits: &empty_class_inits,
+        class_vtables: &empty_class_vtables,
+        interfaces: &empty_interfaces,
+        class_itables: &empty_class_itables,
         ctor_call_sites: base.ctor_call_sites(),
         dispatch_call_sites: base.dispatch_call_sites(),
         effect_op_call_sites: base.effect_op_call_sites(),
@@ -314,6 +324,11 @@ fn with_inputs_query_result_and_codegen(
     let fun_index = base.fun_index();
     let hir_facts = Rc::new(base.hir_facts().clone());
     let effect_op_tags = Rc::new(RefCell::new(EffectOpTagState::new()));
+    let empty_enum_layouts = crate::hir::EnumLayoutIndex::default();
+    let empty_class_inits = crate::hir::ClassInitIndex::default();
+    let empty_class_vtables = crate::vtable::ClassVtableIndex::default();
+    let empty_interfaces = crate::itable::InterfaceIndex::default();
+    let empty_class_itables = crate::itable::ClassItableIndex::default();
     let unit_codegen = CompilationUnitCodegenCx::new(CompilationUnitCodegenInputs {
         context: &context,
         module: &module,
@@ -327,15 +342,15 @@ fn with_inputs_query_result_and_codegen(
         stable_type_param_keys: base.stable_type_param_keys(),
         types: base.types(),
         struct_layouts: base.struct_layouts(),
-        enum_layouts: base.enum_layouts(),
+        enum_layouts: &empty_enum_layouts,
         top_level_vars: base.top_level_vars(),
         top_level_immutable_values: base.top_level_immutable_values(),
         top_level_fun_call_sites: base.top_level_fun_call_sites(),
         object_inits: base.object_inits(),
-        class_inits: base.class_inits(),
-        class_vtables: base.class_vtables(),
-        interfaces: base.interfaces(),
-        class_itables: base.class_itables(),
+        class_inits: &empty_class_inits,
+        class_vtables: &empty_class_vtables,
+        interfaces: &empty_interfaces,
+        class_itables: &empty_class_itables,
         ctor_call_sites: base.ctor_call_sites(),
         dispatch_call_sites: base.dispatch_call_sites(),
         effect_op_call_sites: base.effect_op_call_sites(),

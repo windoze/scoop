@@ -35,28 +35,30 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             .collect::<BTreeSet<_>>();
         let closure_targets = published_callable_roots.clone();
         let plain_closure_targets = plain_callable_roots.clone();
-        // TODO-6/P7 owns the remaining physical vtable/itable inventory source;
-        // P5-owned target classification and signatures come from LIR data only.
+        // Vtable/itable carrier publication consumes the LIR physical layout inventory.
         let class_vtable_targets = self
-            .codegen
+            .lir_facts
+            .physical_layout
             .class_vtables
             .values()
             .flat_map(|slots| slots.iter().map(|slot| slot.impl_member_fqn.as_str()))
             .filter(|impl_fqn| published_callable_roots.contains(impl_fqn))
             .collect::<BTreeSet<_>>();
         let plain_class_vtable_targets = self
-            .codegen
+            .lir_facts
+            .physical_layout
             .class_vtables
             .values()
             .flat_map(|slots| slots.iter().map(|slot| slot.impl_member_fqn.as_str()))
             .filter(|impl_fqn| plain_callable_roots.contains(impl_fqn))
             .collect::<BTreeSet<_>>();
         let mut interface_itable_targets = self
-            .codegen
+            .lir_facts
+            .physical_layout
             .class_itables
             .values()
             .flat_map(|entries| {
-                entries.iter().flat_map(|entry| {
+                entries.entries.iter().flat_map(|entry| {
                     entry
                         .method_impl_fqns
                         .iter()
@@ -67,11 +69,12 @@ impl<'cg, 'a, 'ctx> ProgramAbiMaterializer<'cg, 'a, 'ctx> {
             .cloned()
             .collect::<BTreeSet<String>>();
         let mut plain_interface_itable_targets = self
-            .codegen
+            .lir_facts
+            .physical_layout
             .class_itables
             .values()
             .flat_map(|entries| {
-                entries.iter().flat_map(|entry| {
+                entries.entries.iter().flat_map(|entry| {
                     entry
                         .method_impl_fqns
                         .iter()

@@ -849,7 +849,9 @@ impl<'p, 'a, 'ctx> ValuePrimitives<'p, 'a, 'ctx> {
             return false;
         };
         self.codegen
-            .enum_layouts
+            .published_lir_facts
+            .physical_layout
+            .enums
             .get(owner_fqn)
             .and_then(|layout| {
                 layout
