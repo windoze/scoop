@@ -6,7 +6,9 @@
 //! base crate in the P1 dependency direction. It also checks fact crates,
 //! currently including `scoopc_hir_facts`, `scoopc_mir_facts`,
 //! `scoopc_effect_facts`, and `scoopc_lir_facts`, so they only depend on base
-//! crates and never on the facade, stages, or other facts.
+//! crates and never on the facade, stages, or other facts. Stage crates that are
+//! still expected to be base-only, such as `scoopc_ast`, are checked with the
+//! same workspace-boundary rules.
 
 use std::collections::BTreeSet;
 use std::fs;
@@ -29,6 +31,8 @@ const FACT_CRATES: &[&str] = &[
     "scoopc_effect_facts",
     "scoopc_lir_facts",
 ];
+
+const BASE_ONLY_STAGE_CRATES: &[&str] = &["scoopc_ast"];
 
 const FORBIDDEN_WORKSPACE_CRATES: &[&str] = &[
     "scoop",
@@ -62,10 +66,11 @@ impl Report {
         }
 
         let mut lines = vec![format!(
-            "dependency gate: ok (checked {} pipeline crates: {} base, {} fact; {} source boundary files)",
+            "dependency gate: ok (checked {} pipeline crates: {} base, {} fact, {} base-only stage; {} source boundary files)",
             self.checks.len(),
             BASE_CRATES.len(),
             FACT_CRATES.len(),
+            BASE_ONLY_STAGE_CRATES.len(),
             self.source_checks.len()
         )];
         for check in &self.checks {
@@ -139,6 +144,7 @@ struct CrateCheck {
 enum CrateKind {
     Base,
     Fact,
+    BaseOnlyStage,
 }
 
 impl CrateKind {
@@ -146,6 +152,7 @@ impl CrateKind {
         match self {
             Self::Base => "base",
             Self::Fact => "fact",
+            Self::BaseOnlyStage => "base-only-stage",
         }
     }
 }
@@ -203,6 +210,18 @@ pub fn run() -> Result<Report> {
         checks.push(CrateCheck {
             crate_name: (*crate_name).to_string(),
             kind: CrateKind::Fact,
+            dependency_names,
+            violations,
+        });
+    }
+
+    for crate_name in BASE_ONLY_STAGE_CRATES {
+        let dependency_names = cargo_tree_package_names(crate_name, &workspace_root)?;
+        let violations =
+            find_dependency_violations(crate_name, CrateKind::BaseOnlyStage, &dependency_names);
+        checks.push(CrateCheck {
+            crate_name: (*crate_name).to_string(),
+            kind: CrateKind::BaseOnlyStage,
             dependency_names,
             violations,
         });
@@ -351,7 +370,7 @@ fn source_boundary_rules() -> Vec<SourceBoundaryRule> {
         SourceBoundaryRule {
             label: "Scoop comptime keyword token",
             kind_label: "frontend-boundary",
-            path: "crates/scoopc/src/syntax/token.rs",
+            path: "crates/scoopc_ast/src/syntax/token.rs",
             forbidden: &[ForbiddenSourcePattern {
                 pattern: "Comptime",
                 reason: "old comptime surface must not be preserved as a dedicated keyword token",
@@ -360,7 +379,7 @@ fn source_boundary_rules() -> Vec<SourceBoundaryRule> {
         SourceBoundaryRule {
             label: "Scoop comptime lexer surface",
             kind_label: "frontend-boundary",
-            path: "crates/scoopc/src/syntax/lexer.rs",
+            path: "crates/scoopc_ast/src/syntax/lexer.rs",
             forbidden: &[ForbiddenSourcePattern {
                 pattern: "\"comptime\" =>",
                 reason: "old comptime surface must lex as a normal identifier, not a dedicated keyword",
@@ -369,7 +388,7 @@ fn source_boundary_rules() -> Vec<SourceBoundaryRule> {
         SourceBoundaryRule {
             label: "Scoop comptime parser surface",
             kind_label: "frontend-boundary",
-            path: "crates/scoopc/src/parser/cursor.rs",
+            path: "crates/scoopc_ast/src/parser/cursor.rs",
             forbidden: &[ForbiddenSourcePattern {
                 pattern: "Keyword::Comptime",
                 reason: "parser recovery must not preserve a dedicated old comptime statement surface",
@@ -952,6 +971,18 @@ fn find_dependency_violations(
             continue;
         }
 
+        if kind == CrateKind::BaseOnlyStage {
+            if FORBIDDEN_WORKSPACE_CRATES.contains(&dependency_name) {
+                violations.push(Violation {
+                    dependency: dependency.clone(),
+                    reason: "base-only stage crates must not depend on facade, driver/runtime/tool, other stage, backend, or fact crates"
+                        .to_string(),
+                });
+            }
+
+            continue;
+        }
+
         if FORBIDDEN_WORKSPACE_CRATES.contains(&dependency_name) {
             violations.push(Violation {
                 dependency: dependency.clone(),
@@ -1109,6 +1140,29 @@ mod tests {
         );
 
         assert!(violations.is_empty());
+    }
+
+    #[test]
+    fn allows_base_only_stage_crate_to_depend_on_base_crates() {
+        let violations = find_dependency_violations(
+            "scoopc_ast",
+            CrateKind::BaseOnlyStage,
+            &set(&["scoopc_ast", "scoopc_source", "scoopc_types", "scoopc_span"]),
+        );
+
+        assert!(violations.is_empty());
+    }
+
+    #[test]
+    fn rejects_base_only_stage_dependency_on_facade() {
+        let violations = find_dependency_violations(
+            "scoopc_ast",
+            CrateKind::BaseOnlyStage,
+            &set(&["scoopc_ast", "scoopc_span", "scoopc"]),
+        );
+
+        assert_eq!(violations.len(), 1);
+        assert_eq!(violations[0].dependency, "scoopc");
     }
 
     #[test]

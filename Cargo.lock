@@ -681,6 +681,7 @@ dependencies = [
  "llvm-sys",
  "miette",
  "object",
+ "scoopc_ast",
  "scoopc_effect_facts",
  "scoopc_hir_facts",
  "scoopc_ids",
@@ -697,6 +698,17 @@ dependencies = [
  "thiserror",
  "toml",
  "tracing",
+]
+
+[[package]]
+name = "scoopc_ast"
+version = "0.1.0"
+dependencies = [
+ "miette",
+ "scoopc_source",
+ "scoopc_span",
+ "scoopc_types",
+ "thiserror",
 ]
 
 [[package]]

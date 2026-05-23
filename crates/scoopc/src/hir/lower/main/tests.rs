@@ -2441,7 +2441,7 @@ fn lower_for_compilation_unit_multi_files_preserves_safe_member_access_resolutio
     .unwrap();
     typecheck::check_file_type_layouts(&index, &env, &mut types, builtins).unwrap();
 
-    let safe_debug = format!("{:?}", ast.safe_member_access_resolved.borrow());
+    let safe_debug = format!("{:?}", ast.safe_member_access_resolved_entries());
     assert!(safe_debug.contains("User.score"), "{safe_debug}");
     assert!(safe_debug.contains("Config.port"), "{safe_debug}");
     assert!(safe_debug.contains("doubleScore"), "{safe_debug}");

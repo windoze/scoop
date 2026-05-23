@@ -241,6 +241,10 @@ impl File {
             .cloned()
     }
 
+    pub fn safe_member_access_resolved_entries(&self) -> HashMap<Span, ResolvedMemberRef> {
+        self.safe_member_access_resolved.borrow().clone()
+    }
+
     pub fn replace_typechecked_member_resolved(&self, resolved: HashMap<Span, ResolvedMemberRef>) {
         *self.typechecked_member_resolved.borrow_mut() = resolved;
     }

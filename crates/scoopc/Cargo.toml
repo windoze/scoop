@@ -10,6 +10,7 @@ default = ["llvm"]
 llvm = ["dep:inkwell", "dep:llvm-sys"]
 
 [dependencies]
+scoopc_ast = { path = "../scoopc_ast" }
 scoopc_ids = { path = "../scoopc_ids" }
 scoopc_effect_facts = { path = "../scoopc_effect_facts" }
 scoopc_hir_facts = { path = "../scoopc_hir_facts" }

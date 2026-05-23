@@ -49,7 +49,7 @@ pub use scoopc_effect_facts as effect_facts_product;
 /// compiler crate.
 pub use scoopc_lir_facts as lir_facts_product;
 
-pub mod ast;
+pub use scoopc_ast as ast;
 pub mod cone;
 pub mod driver_cli;
 pub(crate) mod dump_support;
@@ -65,7 +65,7 @@ pub mod itable;
 pub mod mir;
 pub mod monomorph;
 pub mod opt;
-pub mod parser;
+pub use scoopc_ast::parser;
 pub mod pipeline;
 pub mod resolve;
 pub mod rtti;
@@ -74,7 +74,7 @@ pub mod source;
 pub mod span;
 pub mod stable_id;
 pub mod stackmap;
-pub mod syntax;
+pub use scoopc_ast::syntax;
 pub mod sysroot;
 pub mod target;
 pub mod ty;

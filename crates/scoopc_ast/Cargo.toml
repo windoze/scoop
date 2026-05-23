@@ -1,0 +1,11 @@
+[package]
+name = "scoopc_ast"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+scoopc_source = { path = "../scoopc_source" }
+scoopc_span = { path = "../scoopc_span" }
+scoopc_types = { path = "../scoopc_types" }
+miette = { version = "7.6.0", features = ["fancy"] }
+thiserror = "2.0.12"

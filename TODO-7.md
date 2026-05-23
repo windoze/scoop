@@ -232,7 +232,7 @@
   - 残余搜索结果：`use crate::mir` 在 `scoopc/src/hir` 与 `scoopc/src/typecheck` 内无命中；`use crate::hir` 在 `scoopc/src/typecheck` 内无命中；LLVM 的 `use crate::hir` 仅剩 `llvm/tests/mod.rs` 测试命中；`effect_lowered` 的 `use crate::hir` 仍是 P9-T01-a 已记录的 LIR-owned source payload namespace。
   - 验证通过：`cargo fmt`；`cargo build --workspace`；`cargo test --all --all-targets`；`cargo run -p scoop_tools -- dependency-gate`；指定残余搜索；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
 
-### [TODO] P9-T02：抽出 `scoopc_ast` crate
+### [DONE] P9-T02：抽出 `scoopc_ast` crate
 
 - 参考：本文件"当前 `scoopc/src/` 主模块体量"。
 - 目标：
@@ -258,6 +258,11 @@
   - `cargo tree -p scoopc_ast` 只显示 base crates；
   - `scoopc` umbrella 仍提供 `ast` / `parser` / `syntax` 模块路径。
 - 依赖：P9-T01R
+- 完成记录：
+  - 2026-05-23：新建 `crates/scoopc_ast` 并把 `crates/scoopc/src/{ast,parser,syntax}` 整体迁入该 crate；`scoopc_ast` root re-export AST 节点，内部通过 base adapter 使用 `scoopc_source` / `scoopc_span` / `scoopc_types`。
+  - `scoopc` umbrella 已切换为 `pub use scoopc_ast as ast;`、`pub use scoopc_ast::parser;` 与 `pub use scoopc_ast::syntax;`，现有 `scoopc::{ast,parser,syntax}` 路径保持可用；抽取后暴露 `File::safe_member_access_resolved_entries()` 作为只读快照，避免跨 crate 测试直接读取 AST side-table 字段。
+  - `dependency_gate` 激活 `scoopc_ast` 的 base-only stage 检查，并把已迁移的 lexer/parser source-boundary 路径更新到 `crates/scoopc_ast/src/**`；gate 输出确认 `scoopc_ast [base-only-stage]` 的 workspace base 依赖仅为 `scoopc_source`、`scoopc_span`、`scoopc_types`。
+  - 验证通过：`cargo fmt`；`cargo build --workspace`；`cargo test --all --all-targets`；`cargo run -p scoop_tools -- dependency-gate`；`cargo clippy --all-targets -- -D warnings`；`cargo tree -p scoopc_ast`；`git diff --check`。
 
 ### [TODO] P9-T02R：Review `scoopc_ast` 抽取
 
