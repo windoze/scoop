@@ -25,7 +25,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             hir::ExprKind::Closure(closure) => {
                 // 说明：
                 // - `Once.run` 的参数类型在 sysroot 中固定为 `() -> Unit`；
-                // - 但 early stage 的 `fun_index` 只包含"本编译单元内有 body 的函数"，不含 sysroot 声明；
+                // - 但 source callable contracts 只覆盖已发布 callable，不含所有 sysroot 声明；
                 // - 同时 HIR v0 对 closure expr 的 `ty` 也不总是可用作 expected type（需要 MIR/CFG 才能更稳）。
                 //
                 // 因此这里从 `TypeStore` 中查找一个"无参、返回 Unit、Pure"的函数类型作为 expected context。

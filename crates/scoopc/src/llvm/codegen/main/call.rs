@@ -159,10 +159,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &self,
         expr: &hir::Expr,
     ) -> Option<crate::ty::TypeId> {
-        ExprFactResolver::new(self.types, self.hir_facts.as_ref(), |id| {
-            self.function_cx.env.get(id).and_then(|local| local.hir_ty)
-        })
-        .resolve_expr_concrete_type(expr)
+        self.shared
+            .effect_analysis_facts
+            .resolve_expr_concrete_type(self.types, expr, &|id| {
+                self.function_cx.env.get(id).and_then(|local| local.hir_ty)
+            })
     }
 
     pub(in crate::llvm::codegen) fn maybe_record_active_suspend_site_effect_outcome(

@@ -10,13 +10,423 @@ use std::rc::Rc;
 use crate::hir;
 use crate::mir;
 use crate::span::Span;
-use crate::ty::TypeId;
+use crate::ty::{RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind};
 use scoopc_hir_facts::HirFacts;
+use scoopc_hir_facts::declarations::{FieldOwnerKind, NominalKind};
+use scoopc_hir_facts::globals::GlobalRootKind;
+use scoopc_hir_facts::source_sites::{ConstructorCallTarget, ContinuationResumeContract};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct KnownLocalMetadata {
     pub(crate) ty: TypeId,
     pub(crate) mutable: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum EffectGlobalRootKind {
+    TopLevelVal,
+    TopLevelVar,
+    ObjectSingleton,
+}
+
+#[derive(Debug, Clone)]
+struct EffectFieldFact {
+    owner_kind: FieldOwnerKind,
+    owner: String,
+    fqn: String,
+    ty: TypeId,
+}
+
+/// Narrow semantic facts needed by shared effect planning.
+///
+/// LLVM codegen consumes this explicit query surface instead of holding the
+/// complete `HirFacts` wrapper in its production context.
+#[derive(Debug, Clone, Default)]
+pub(crate) struct EffectAnalysisFacts {
+    global_roots: HashMap<String, (EffectGlobalRootKind, Option<TypeId>)>,
+    fields: Vec<EffectFieldFact>,
+    callable_return_tys: HashMap<String, TypeId>,
+    nominal_supertypes: HashMap<String, Vec<String>>,
+    constructor_calls: HashMap<hir::CallSite, ConstructorCallTarget>,
+    continuation_resumes: HashMap<hir::CallSite, ContinuationResumeContract>,
+}
+
+impl EffectAnalysisFacts {
+    pub(crate) fn from_hir_facts(facts: &HirFacts) -> Self {
+        let global_roots = facts
+            .globals
+            .roots
+            .iter()
+            .map(|root| {
+                let kind = match root.kind {
+                    GlobalRootKind::TopLevelVal => EffectGlobalRootKind::TopLevelVal,
+                    GlobalRootKind::TopLevelVar => EffectGlobalRootKind::TopLevelVar,
+                    GlobalRootKind::ObjectSingleton => EffectGlobalRootKind::ObjectSingleton,
+                };
+                (root.identity.display_name.clone(), (kind, root.ty))
+            })
+            .collect();
+        let fields = facts
+            .declarations
+            .fields
+            .iter()
+            .map(|field| EffectFieldFact {
+                owner_kind: field.owner_kind,
+                owner: field.owner.as_str().to_string(),
+                fqn: field.identity.display_name.clone(),
+                ty: field.ty,
+            })
+            .collect();
+        let callable_return_tys = facts
+            .declarations
+            .callables
+            .iter()
+            .map(|callable| (callable.identity.display_name.clone(), callable.return_ty))
+            .collect();
+        let nominal_supertypes = facts
+            .declarations
+            .nominals
+            .iter()
+            .filter(|nominal| nominal.kind == NominalKind::Class)
+            .map(|nominal| {
+                (
+                    nominal.identity.display_name.clone(),
+                    nominal
+                        .direct_supertypes
+                        .iter()
+                        .map(|key| key.as_str().to_string())
+                        .collect(),
+                )
+            })
+            .collect();
+        let constructor_calls = facts
+            .source_sites
+            .call_sites
+            .iter()
+            .filter_map(|site| {
+                facts
+                    .source_sites
+                    .constructor_call(site.identity.source_path.as_path(), site.identity.span)
+                    .map(|target| {
+                        (
+                            hir::CallSite::new(
+                                site.identity.source_path.clone(),
+                                site.identity.span,
+                            ),
+                            target.clone(),
+                        )
+                    })
+            })
+            .collect();
+        let continuation_resumes = facts
+            .source_sites
+            .continuation_resumes
+            .iter()
+            .map(|resume| {
+                (
+                    hir::CallSite::new(resume.identity.source_path.clone(), resume.identity.span),
+                    resume.clone(),
+                )
+            })
+            .collect();
+
+        Self {
+            global_roots,
+            fields,
+            callable_return_tys,
+            nominal_supertypes,
+            constructor_calls,
+            continuation_resumes,
+        }
+    }
+
+    pub(crate) fn top_level_value_ty(&self, fqn: &str) -> Option<TypeId> {
+        self.global_roots.get(fqn).and_then(|(kind, ty)| {
+            matches!(
+                kind,
+                EffectGlobalRootKind::TopLevelVal | EffectGlobalRootKind::TopLevelVar
+            )
+            .then_some(*ty)
+            .flatten()
+        })
+    }
+
+    pub(crate) fn object_property_ty(&self, fqn: &str) -> Option<TypeId> {
+        self.fields
+            .iter()
+            .find(|field| field.owner_kind == FieldOwnerKind::Object && field.fqn == fqn)
+            .map(|field| field.ty)
+    }
+
+    pub(crate) fn fun_return_ty(&self, fqn: &str) -> Option<TypeId> {
+        self.callable_return_tys.get(fqn).copied()
+    }
+
+    pub(crate) fn resolve_nominal_field_ty(
+        &self,
+        types: &TypeStore,
+        receiver_ty: TypeId,
+        field_fqn: &str,
+    ) -> Option<TypeId> {
+        self.resolve_struct_field_ty(types, receiver_ty, field_fqn)
+            .or_else(|| self.resolve_class_field_ty(types, receiver_ty, field_fqn))
+    }
+
+    pub(crate) fn is_object_value_fqn(&self, fqn: &str) -> bool {
+        self.global_roots
+            .get(fqn)
+            .is_some_and(|(kind, _)| *kind == EffectGlobalRootKind::ObjectSingleton)
+    }
+
+    pub(crate) fn is_object_property_fqn(&self, fqn: &str) -> bool {
+        self.fields
+            .iter()
+            .any(|field| field.owner_kind == FieldOwnerKind::Object && field.fqn == fqn)
+    }
+
+    pub(crate) fn is_top_level_immutable_value_fqn(&self, fqn: &str) -> bool {
+        self.global_roots
+            .get(fqn)
+            .is_some_and(|(kind, _)| *kind == EffectGlobalRootKind::TopLevelVal)
+    }
+
+    pub(crate) fn constructor_call(
+        &self,
+        source_path: &Path,
+        span: Span,
+    ) -> Option<&ConstructorCallTarget> {
+        self.constructor_calls
+            .get(&hir::CallSite::new(source_path.to_path_buf(), span))
+    }
+
+    pub(crate) fn continuation_resume(
+        &self,
+        source_path: &Path,
+        span: Span,
+    ) -> Option<&ContinuationResumeContract> {
+        self.continuation_resumes
+            .get(&hir::CallSite::new(source_path.to_path_buf(), span))
+    }
+
+    pub(crate) fn has_continuation_resume(&self, source_path: &Path, span: Span) -> bool {
+        self.continuation_resume(source_path, span).is_some()
+    }
+
+    pub(crate) fn resolve_expr_concrete_type<LocalTyLookup>(
+        &self,
+        types: &TypeStore,
+        expr: &hir::Expr,
+        local_ty_lookup: &LocalTyLookup,
+    ) -> Option<TypeId>
+    where
+        LocalTyLookup: Fn(hir::SymbolId) -> Option<TypeId>,
+    {
+        if crate::expr_facts::hir_ty_is_precise(types, expr.ty) {
+            return Some(expr.ty);
+        }
+
+        match &expr.kind {
+            hir::ExprKind::VarRef(hir::ValueRef::Local { id, .. }) => local_ty_lookup(*id),
+            hir::ExprKind::VarRef(hir::ValueRef::TopLevel { fqn, .. }) => {
+                self.top_level_value_ty(fqn)
+            }
+            hir::ExprKind::MemberAccess { receiver, member } => {
+                self.resolve_member_access_concrete_type(types, receiver, member, local_ty_lookup)
+            }
+            hir::ExprKind::Call { callee, .. } => {
+                self.resolve_call_result_type(types, callee, local_ty_lookup)
+            }
+            hir::ExprKind::Block(block) => block.stmts.last().and_then(|stmt| {
+                let hir::StmtKind::Expr(expr) = &stmt.kind else {
+                    return None;
+                };
+                self.resolve_expr_concrete_type(types, expr, local_ty_lookup)
+            }),
+            hir::ExprKind::If {
+                then_branch,
+                else_branch,
+                ..
+            } => else_branch.as_deref().and_then(|else_branch| {
+                self.resolve_common_branch_concrete_type(
+                    types,
+                    [then_branch.as_ref(), else_branch],
+                    local_ty_lookup,
+                )
+            }),
+            hir::ExprKind::When { arms, .. } => self.resolve_common_branch_concrete_type(
+                types,
+                arms.iter().map(|arm| &arm.body),
+                local_ty_lookup,
+            ),
+            _ => None,
+        }
+    }
+
+    fn resolve_common_branch_concrete_type<'a, LocalTyLookup>(
+        &self,
+        types: &TypeStore,
+        exprs: impl IntoIterator<Item = &'a hir::Expr>,
+        local_ty_lookup: &LocalTyLookup,
+    ) -> Option<TypeId>
+    where
+        LocalTyLookup: Fn(hir::SymbolId) -> Option<TypeId>,
+    {
+        let mut candidate = None;
+        for expr in exprs {
+            let resolved = self.resolve_expr_concrete_type(types, expr, local_ty_lookup)?;
+            match candidate {
+                None => candidate = Some(resolved),
+                Some(existing) if existing == resolved => {}
+                Some(_) => return None,
+            }
+        }
+        candidate
+    }
+
+    fn resolve_member_access_concrete_type<LocalTyLookup>(
+        &self,
+        types: &TypeStore,
+        receiver: &hir::Expr,
+        member: &hir::MemberAccess,
+        local_ty_lookup: &LocalTyLookup,
+    ) -> Option<TypeId>
+    where
+        LocalTyLookup: Fn(hir::SymbolId) -> Option<TypeId>,
+    {
+        let field_fqn = match member.resolved.as_ref()? {
+            hir::MemberRef::Value { fqn, .. } | hir::MemberRef::ExtensionValue { fqn, .. } => fqn,
+            _ => return None,
+        };
+
+        if let Some(ty) = self.top_level_value_ty(field_fqn) {
+            return Some(ty);
+        }
+        if let Some(ty) = self.object_property_ty(field_fqn) {
+            return Some(ty);
+        }
+
+        let receiver_ty = self
+            .resolve_expr_concrete_type(types, receiver, local_ty_lookup)
+            .unwrap_or(receiver.ty);
+        self.resolve_nominal_field_ty(types, receiver_ty, field_fqn)
+    }
+
+    fn resolve_call_result_type<LocalTyLookup>(
+        &self,
+        types: &TypeStore,
+        callee: &hir::Expr,
+        local_ty_lookup: &LocalTyLookup,
+    ) -> Option<TypeId>
+    where
+        LocalTyLookup: Fn(hir::SymbolId) -> Option<TypeId>,
+    {
+        if let Some(callee_ty) = self.resolve_expr_concrete_type(types, callee, local_ty_lookup)
+            && let TypeKind::Ref(RefTypeKind::Function(fun_ty)) = types.kind(callee_ty)
+            && crate::expr_facts::hir_ty_is_precise(types, fun_ty.return_ty)
+        {
+            return Some(fun_ty.return_ty);
+        }
+
+        let fqn = match &callee.kind {
+            hir::ExprKind::VarRef(hir::ValueRef::TopLevel { fqn, .. }) => Some(fqn.as_str()),
+            hir::ExprKind::UnresolvedIdent { name } => Some(name.as_str()),
+            hir::ExprKind::MemberAccess { member, .. } => match member.resolved.as_ref()? {
+                hir::MemberRef::Fun { fqn, .. } | hir::MemberRef::ExtensionFun { fqn, .. } => {
+                    Some(fqn.as_str())
+                }
+                _ => None,
+            },
+            _ => None,
+        }?;
+
+        if let Some(return_ty) = self.fun_return_ty(fqn)
+            && crate::expr_facts::hir_ty_is_precise(types, return_ty)
+        {
+            return Some(return_ty);
+        }
+
+        if let Some(class_ty) = types.find_nominal_ref_by_fqn(fqn) {
+            return Some(class_ty);
+        }
+
+        types.iter_ids().find(|id| {
+            matches!(
+                types.kind(*id),
+                TypeKind::Value(ValueTypeKind::Nominal(nominal))
+                    if nominal.fqn == fqn && nominal.args.is_empty()
+            )
+        })
+    }
+
+    fn resolve_struct_field_ty(
+        &self,
+        types: &TypeStore,
+        receiver_ty: TypeId,
+        field_fqn: &str,
+    ) -> Option<TypeId> {
+        let TypeKind::Value(ValueTypeKind::Nominal(nominal)) = types.kind(receiver_ty) else {
+            return None;
+        };
+        let layout_key = hir::mangle_nominal_fqn(&nominal.fqn, &nominal.args, types);
+        self.lookup_field_ty_by_owner(FieldOwnerKind::Struct, &layout_key, field_fqn)
+            .or_else(|| {
+                (layout_key != nominal.fqn)
+                    .then(|| {
+                        self.lookup_field_ty_by_owner(
+                            FieldOwnerKind::Struct,
+                            &nominal.fqn,
+                            field_fqn,
+                        )
+                    })
+                    .flatten()
+            })
+    }
+
+    fn resolve_class_field_ty(
+        &self,
+        types: &TypeStore,
+        receiver_ty: TypeId,
+        field_fqn: &str,
+    ) -> Option<TypeId> {
+        let TypeKind::Ref(RefTypeKind::Nominal(nominal)) = types.kind(receiver_ty) else {
+            return None;
+        };
+        let layout_key = hir::mangle_nominal_fqn(&nominal.fqn, &nominal.args, types);
+        self.lookup_class_field_ty_by_key(&layout_key, field_fqn)
+            .or_else(|| {
+                (layout_key != nominal.fqn)
+                    .then(|| self.lookup_class_field_ty_by_key(&nominal.fqn, field_fqn))
+                    .flatten()
+            })
+    }
+
+    fn lookup_class_field_ty_by_key(&self, class_key: &str, field_fqn: &str) -> Option<TypeId> {
+        self.lookup_field_ty_by_owner(FieldOwnerKind::Class, class_key, field_fqn)
+            .or_else(|| {
+                self.nominal_supertypes
+                    .get(class_key)
+                    .and_then(|supertypes| supertypes.first())
+                    .and_then(|super_key| {
+                        self.lookup_class_field_ty_by_key(super_key.as_str(), field_fqn)
+                    })
+            })
+    }
+
+    fn lookup_field_ty_by_owner(
+        &self,
+        owner_kind: FieldOwnerKind,
+        owner_key: &str,
+        field_fqn: &str,
+    ) -> Option<TypeId> {
+        self.fields
+            .iter()
+            .find(|field| {
+                field.owner_kind == owner_kind
+                    && field.owner.as_str() == owner_key
+                    && field.fqn == field_fqn
+            })
+            .map(|field| field.ty)
+    }
 }
 
 /// Continuation escape state exposed to effect/state-machine planning.
@@ -134,7 +544,7 @@ pub(crate) struct EffectAnalysisCtx {
     pub(crate) known_local_metadata: HashMap<hir::SymbolId, KnownLocalMetadata>,
     next_synthetic_symbol_raw: Cell<u32>,
     current_source_path: PathBuf,
-    pub(crate) hir_facts: Rc<HirFacts>,
+    pub(crate) facts: Rc<EffectAnalysisFacts>,
     continuation_escape_facts: ContinuationEscapeFacts,
 }
 
@@ -144,7 +554,7 @@ impl EffectAnalysisCtx {
         known_local_fun_effects: HashMap<hir::SymbolId, bool>,
         known_local_metadata: HashMap<hir::SymbolId, KnownLocalMetadata>,
         current_source_path: PathBuf,
-        hir_facts: Rc<HirFacts>,
+        facts: Rc<EffectAnalysisFacts>,
     ) -> Self {
         let next_synthetic_symbol_raw = known_local_metadata
             .keys()
@@ -159,9 +569,25 @@ impl EffectAnalysisCtx {
             known_local_metadata,
             next_synthetic_symbol_raw: Cell::new(next_synthetic_symbol_raw),
             current_source_path,
-            hir_facts,
+            facts,
             continuation_escape_facts: ContinuationEscapeFacts::default(),
         }
+    }
+
+    pub(crate) fn from_hir_facts(
+        known_fun_effects: HashMap<String, bool>,
+        known_local_fun_effects: HashMap<hir::SymbolId, bool>,
+        known_local_metadata: HashMap<hir::SymbolId, KnownLocalMetadata>,
+        current_source_path: PathBuf,
+        hir_facts: Rc<HirFacts>,
+    ) -> Self {
+        Self::new(
+            known_fun_effects,
+            known_local_fun_effects,
+            known_local_metadata,
+            current_source_path,
+            Rc::new(EffectAnalysisFacts::from_hir_facts(hir_facts.as_ref())),
+        )
     }
 
     pub(crate) fn current_source_path(&self) -> &Path {

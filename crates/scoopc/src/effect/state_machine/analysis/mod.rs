@@ -12,16 +12,14 @@ use std::rc::Rc;
 
 use crate::ast;
 use crate::effect::analysis::{
-    ContinuationEscapeFacts, ContinuationEscapeState, EffectAnalysisCtx, KnownLocalMetadata,
-    collect_known_local_metadata_in_block, collect_known_local_metadata_in_expr,
-    collect_known_local_metadata_in_fun, collect_known_local_metadata_in_handle,
-    collect_known_local_metadata_in_handle_arm,
+    ContinuationEscapeFacts, ContinuationEscapeState, EffectAnalysisCtx, EffectAnalysisFacts,
+    KnownLocalMetadata, collect_known_local_metadata_in_block,
+    collect_known_local_metadata_in_expr, collect_known_local_metadata_in_fun,
+    collect_known_local_metadata_in_handle, collect_known_local_metadata_in_handle_arm,
 };
-use crate::expr_facts::{ExprFactResolver, HirFactResolver};
 use crate::hir;
 use crate::span::Span;
 use crate::ty::{EffectRow, RefTypeKind, TypeId, TypeKind, TypeStore};
-use scoopc_hir_facts::HirFacts;
 
 mod arm_scope;
 mod builder;

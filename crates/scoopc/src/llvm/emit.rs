@@ -474,7 +474,6 @@ fn build_module_from_codegen_entry_with_root_selector<'ctx>(
     base_context.verify_lir_type_context(late_lowered_lir_facts, "primary")?;
     LlvmStageBaseContext::verify_lir_type_store_owner(abi_types, abi_lir_facts, "ABI visibility")?;
 
-    let fun_index = base_context.fun_index();
     let selected_root =
         select_root_callable(late_lowered_lir_facts, late_lowered_types, root_selector)?;
     let root_callable = late_lowered_program
@@ -494,7 +493,6 @@ fn build_module_from_codegen_entry_with_root_selector<'ctx>(
             ),
         })?;
     let builder = context.create_builder();
-    let hir_facts = Rc::new(base_context.hir_facts().clone());
     let effect_op_tags = Rc::new(RefCell::new(codegen::EffectOpTagState::new()));
     let published_late_lowered_program = Some(abi_program);
     let published_late_lowered_types = Some(abi_types);
@@ -527,7 +525,7 @@ fn build_module_from_codegen_entry_with_root_selector<'ctx>(
             interfaces: base_context.interfaces(),
             class_itables: base_context.class_itables(),
             ctor_call_sites: base_context.ctor_call_sites(),
-            dispatch_call_sites: base_context.dispatch_call_sites(),
+            dispatch_call_contracts: base_context.dispatch_call_contracts(),
             effect_op_call_sites: base_context.effect_op_call_sites(),
             continuation_resume_call_sites: base_context.continuation_resume_call_sites(),
             when_pat_binding_tys: base_context.when_pat_binding_tys(),
@@ -535,14 +533,12 @@ fn build_module_from_codegen_entry_with_root_selector<'ctx>(
             direct_supertypes: base_context.direct_supertypes(),
             builtins: base_context.builtins(),
             callable_sources: base_context.callable_sources(),
-            callable_signatures: base_context.callable_signatures(),
             extern_funs: base_context.extern_funs(),
             native_callable_funs: base_context.native_callable_funs(),
-            fun_index: &fun_index,
             published_late_lowered_program,
             published_late_lowered_types,
             published_lir_facts: late_lowered_lir_facts,
-            hir_facts: Rc::clone(&hir_facts),
+            effect_analysis_facts: base_context.effect_analysis_facts(),
             effect_op_tags: Rc::clone(&effect_op_tags),
         });
     let mut declare = unit_codegen.fresh_main_codegen();

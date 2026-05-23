@@ -1130,8 +1130,7 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
 
         if let Some(target) = self
             .context
-            .hir_facts
-            .source_sites
+            .facts
             .constructor_call(self.context.current_source_path(), expr.span)
         {
             let class_name = if target.owner_fqn.is_empty() {
@@ -1180,8 +1179,7 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
         // self-contained nested-handle 语义。
         if !self
             .context
-            .hir_facts
-            .source_sites
+            .facts
             .has_continuation_resume(self.context.current_source_path(), call_span)
         {
             return None;
@@ -1189,8 +1187,7 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
 
         if self
             .context
-            .hir_facts
-            .source_sites
+            .facts
             .continuation_resume(self.context.current_source_path(), call_span)
             .is_some_and(|resume| resume.resumes_outward())
         {
@@ -1211,12 +1208,11 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
         let hir::ValueRef::TopLevel { fqn, .. } = value_ref else {
             return None;
         };
-        let facts = HirFactResolver::new(self.types, self.context.hir_facts.as_ref());
-        if facts.is_object_value_fqn(fqn) {
+        if self.context.facts.is_object_value_fqn(fqn) {
             Some(SuspendSiteKind::ObjectInitAccess {
                 target: fqn.clone(),
             })
-        } else if facts.is_top_level_immutable_value_fqn(fqn) {
+        } else if self.context.facts.is_top_level_immutable_value_fqn(fqn) {
             Some(SuspendSiteKind::TopLevelValueInitAccess {
                 target: fqn.clone(),
             })
@@ -1232,11 +1228,10 @@ impl<'a, 'hir> HandlePlanBuilder<'a, 'hir> {
         let hir::MemberRef::Value { fqn, .. } = member.resolved.as_ref()? else {
             return None;
         };
-        let facts = HirFactResolver::new(self.types, self.context.hir_facts.as_ref());
-        (facts.is_object_value_fqn(fqn) || facts.is_object_property_fqn(fqn)).then(|| {
-            SuspendSiteKind::ObjectInitAccess {
-                target: fqn.clone(),
-            }
+        (self.context.facts.is_object_value_fqn(fqn)
+            || self.context.facts.is_object_property_fqn(fqn))
+        .then(|| SuspendSiteKind::ObjectInitAccess {
+            target: fqn.clone(),
         })
     }
 

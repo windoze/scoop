@@ -4,7 +4,7 @@
 > 细化时间：2026-05-22
 > 计划基线：[`PLAN.md`](./PLAN.md) §4/P6-P8
 > 索引：[`TODO.md`](./TODO.md)
-> 当前状态：`P7-T04-a` / `P7-T04-b-1` / `P7-T04-b-1R` / `P7-T04-b-2` / `P7-T04-b-2R` / `P7-T04-b-3` / `P7-T04-b-3R` / `P7-T04-b-4` / `P7-T04-b-4R` / `P7-T04-b-5` / `P7-T04-b-5R` / `P7-T04-b` / `P7-T04-bR` / `P7-T04-c` / `P7-T04-cR` / `P7-T04` / `P7-T04R` / `P7-T05` / `P7-T05-a` / `P7-T05-b-0` / `P7-T05-b` 均已完成。`P7-T05-b` 已清除 HIR-derived callable signature/ABI/body residual 与 class ctor HIR body production fallback，并补齐 dependency gate 防回归；下一步执行 `P7-T05R` review。
+> 当前状态：`P7-T04-a` / `P7-T04-b-1` / `P7-T04-b-1R` / `P7-T04-b-2` / `P7-T04-b-2R` / `P7-T04-b-3` / `P7-T04-b-3R` / `P7-T04-b-4` / `P7-T04-b-4R` / `P7-T04-b-5` / `P7-T04-b-5R` / `P7-T04-b` / `P7-T04-bR` / `P7-T04-c` / `P7-T04-cR` / `P7-T04` / `P7-T04R` / `P7-T05` / `P7-T05-a` / `P7-T05-b-0` / `P7-T05-b` / `P7-T05-c` 均已完成。`P7-T05-c` 已清除最终 LLVM HIR/base-context residual，并补齐 LIR/source signature 合同与 dependency gate 防回归；下一步执行 `P7-T05R` review。
 
 ## 范围
 
@@ -1341,7 +1341,7 @@
   - `dependency_gate` 新增/扩展 source boundary：禁止 LLVM stage handoff 恢复旧 source signature map，禁止 callable ABI/identity/source lookup/direct lowering/dispatch target/MIR dispatch helper 中恢复 `self.source_signatures.get`、`fun_index.get`、`declare_top_level_fun(`、`HIR/materialized declaration source`、`hir_fun_for_callable_fqn` 等 residual。
   - 验证通过：`cargo fmt`；`cargo run -p scoop_tools -- dependency-gate`；`cargo test -p scoopc_lir_facts`；`cargo test -p scoopc --no-default-features llvm_codegen_stage`；`cargo test -p scoopc --no-default-features llvm::codegen`；`cargo test -p scoopc llvm::codegen`（97 passed）；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`（421/421 passed）；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
 
-## [TODO] P7-T05-c：清除 P7-T05R 发现的最终 LLVM HIR/base-context residual
+## [DONE] P7-T05-c：清除 P7-T05R 发现的最终 LLVM HIR/base-context residual
 
 - 阻塞原因：
   - 执行 `P7-T05R` 静态复审时发现，`P7-T05-b` 已清除 callable/class-ctor 的主要 HIR fallback，但 LLVM production codegen 仍保留几类会阻止 P7 真实完成的 residual；如果直接把 `P7-T05R` 标记完成，P8 将不再只是最终 residual 搜索、验证和文档冻结。
@@ -1391,7 +1391,14 @@
   - `P7-T05R` 的 residual review 能进入真实最终判定，而不是继续发现同类 HIR/base-context blocker。
 - 依赖：P7-T05-b
 - 完成记录：
-  - 待填写。
+  - 删除 LLVM production codegen 的最终 HIR/base-context residual：`CompilationUnitCodegenInputs` / `CompilationUnitCodegenCx` / `emit.rs` 不再接收或保存 `fun_index`、完整 `HirFacts`、HIR-derived `callable_signatures` / `LlvmCallableSignatureContract`，也不再保存完整 `MaterializedMir` / `MaterializedEffectFacts` wrappers。
+  - ordinary callee analysis 改为从 `LirFacts.callables` 派生 known callable outward/suspendability，并使用窄 `EffectAnalysisFacts` 查询 source/object/top-level/constructor/resume metadata；`ExprFactResolver` 的 LLVM production 消费路径已删除。
+  - `LlvmStageBaseContext` 收窄为显式 base contracts：同进程 `TypeStore` owner、stable cone key、type fingerprints、LIR-owned class ctor init bodies、callable source contracts、dispatch source narrow contract 与 `EffectAnalysisFacts`；`verify_lir_type_context` 继续校验 materialized/effect TypeStore fingerprint。
+  - callable signature fallback 迁到 LIR/materialized owner：`MaterializedMir` 发布 `MaterializedCallableSignature`，`lir_facts_builder` 将 materialized callable declarations 以及 MIR direct/virtual/interface call-site helper signatures 发布到 `LirFacts.source_signatures`；LLVM ABI lookup 只读 `LateLoweredProgram`、`LirFacts.source_signatures` 或 `physical_layout.callable_symbols`，缺失时 fail-fast。
+  - dispatch kind/source-site 查询不再读取 HIR `dispatch_call_sites` side table；LLVM source lowering 只读 `LlvmDispatchCallKey -> LirCallSiteKind` narrow contract，MIR/LIR dispatch lowering继续消费 LIR dispatch/callable facts。
+  - `dependency_gate` 已扩展覆盖本任务 residual：`self.fun_index`、full `HirFacts` production input、`callable_signatures.get` / `LlvmCallableSignatureContract`、full MIR/effect wrappers、HIR dispatch side-table lookup、ordinary callee HIR suspendability collection等回归模式。
+  - residual 搜索结论：`crates/scoopc/src/llvm` production 路径不再命中 `fun_index`、`HirFacts`、`callable_signatures`、`LlvmCallableSignatureContract`、`MaterializedMir` / `MaterializedEffectFacts` wrapper 或 `dispatch_call_sites`；剩余 `MaterializedMir` 命中仅在 `llvm/frontend.rs` 的 single-file frontend preparation handoff，不进入 production codegen context。
+  - 验证通过：`cargo fmt`；`cargo clippy --all-targets -- -D warnings`；`cargo run -p scoop_tools -- dependency-gate`；`cargo test -p scoopc_lir_facts`；`cargo test -p scoopc --no-default-features llvm_codegen_stage`；`cargo test -p scoopc --no-default-features llvm::codegen`；`cargo test -p scoopc llvm::codegen`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`（421/421 passed）；`git diff --check`。
 
 ## [TODO] P7-T05R：Review P7 全包完成度
 

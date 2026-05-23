@@ -321,8 +321,20 @@ fn source_boundary_rules() -> Vec<SourceBoundaryRule> {
                     reason: "LLVM stage handoff must not publish HIR-derived callable signatures",
                 },
                 ForbiddenSourcePattern {
+                    pattern: "LlvmCallableSignatureContract",
+                    reason: "LLVM stage handoff must not publish HIR-derived callable signature fallback contracts",
+                },
+                ForbiddenSourcePattern {
+                    pattern: "build_callable_signature_contracts",
+                    reason: "LLVM stage handoff must not rebuild callable signatures from HIR functions",
+                },
+                ForbiddenSourcePattern {
                     pattern: "source_signatures:",
                     reason: "LLVM stage handoff must not carry HIR-derived source signature maps",
+                },
+                ForbiddenSourcePattern {
+                    pattern: "callable_signatures:",
+                    reason: "LLVM stage handoff must not carry HIR-derived callable signature maps",
                 },
                 ForbiddenSourcePattern {
                     pattern: "precheck_invalid_integer_literals",
@@ -417,6 +429,30 @@ fn source_boundary_rules() -> Vec<SourceBoundaryRule> {
                     pattern: "MaterializedMirPassView",
                     reason: "LLVM production codegen context must not carry raw MIR/pass-view types",
                 },
+                ForbiddenSourcePattern {
+                    pattern: "HirFacts",
+                    reason: "LLVM production codegen context must not save full HIR facts",
+                },
+                ForbiddenSourcePattern {
+                    pattern: "fun_index",
+                    reason: "LLVM production codegen context must not save HIR function indexes",
+                },
+                ForbiddenSourcePattern {
+                    pattern: "callable_signatures",
+                    reason: "LLVM production codegen context must not save HIR-derived callable signature maps",
+                },
+                ForbiddenSourcePattern {
+                    pattern: "LlvmCallableSignatureContract",
+                    reason: "LLVM production codegen context must not consume HIR-derived callable signature fallback contracts",
+                },
+                ForbiddenSourcePattern {
+                    pattern: "MaterializedMir",
+                    reason: "LLVM production codegen context must not save full materialized MIR wrappers",
+                },
+                ForbiddenSourcePattern {
+                    pattern: "MaterializedEffectFacts",
+                    reason: "LLVM production codegen context must not save full materialized effect-facts wrappers",
+                },
             ],
         },
         SourceBoundaryRule {
@@ -440,6 +476,14 @@ fn source_boundary_rules() -> Vec<SourceBoundaryRule> {
                     pattern: "fun_index.get",
                     reason: "direct/dispatch call lowering must use LIR callable signature facts instead of HIR fun_index fallback",
                 },
+                ForbiddenSourcePattern {
+                    pattern: "self.fun_index",
+                    reason: "direct/dispatch call lowering must not retain HIR function indexes",
+                },
+                ForbiddenSourcePattern {
+                    pattern: "dispatch_call_sites",
+                    reason: "dispatch kind must come from LIR facts or the explicit LLVM dispatch narrow contract",
+                },
             ],
         },
         SourceBoundaryRule {
@@ -454,6 +498,18 @@ fn source_boundary_rules() -> Vec<SourceBoundaryRule> {
                 ForbiddenSourcePattern {
                     pattern: "fun_index.get",
                     reason: "callable ABI lookup must not recover signatures from HIR fun_index",
+                },
+                ForbiddenSourcePattern {
+                    pattern: "callable_signatures.get",
+                    reason: "callable ABI lookup must fail fast instead of using HIR-derived signature fallback maps",
+                },
+                ForbiddenSourcePattern {
+                    pattern: "self.callable_signatures",
+                    reason: "callable ABI lookup must not consume HIR-derived signature fallback maps",
+                },
+                ForbiddenSourcePattern {
+                    pattern: "LlvmCallableSignatureContract",
+                    reason: "callable ABI lookup must not depend on HIR-derived LLVM signature contracts",
                 },
             ],
         },
@@ -553,6 +609,18 @@ fn source_boundary_rules() -> Vec<SourceBoundaryRule> {
                 ForbiddenSourcePattern {
                     pattern: "MaterializedMirPassView",
                     reason: "ordinary callee analysis must not depend on MIR pass-view types",
+                },
+                ForbiddenSourcePattern {
+                    pattern: "self.fun_index",
+                    reason: "ordinary callee analysis must use LIR callable facts instead of HIR function indexes",
+                },
+                ForbiddenSourcePattern {
+                    pattern: "HirFacts",
+                    reason: "ordinary callee analysis must use narrow effect-analysis facts instead of full HIR facts",
+                },
+                ForbiddenSourcePattern {
+                    pattern: "collect_known_fun_call_suspendability",
+                    reason: "LLVM ordinary callee analysis must not re-run HIR-body suspendability collection",
                 },
             ],
         },

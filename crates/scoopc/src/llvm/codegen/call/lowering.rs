@@ -567,11 +567,11 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &self,
         span: crate::span::Span,
         receiver_ty: TypeId,
-    ) -> Result<Option<hir::DispatchCallKind>, LlvmEmitError> {
+    ) -> Result<Option<LirCallSiteKind>, LlvmEmitError> {
         let source = self.current_source()?;
         Ok(self
-            .dispatch_call_sites
-            .get(&hir::DispatchCallSite::new(
+            .dispatch_call_contracts
+            .get(&crate::pipeline::LlvmDispatchCallKey::new(
                 source.path().to_path_buf(),
                 span,
                 receiver_ty,
@@ -1990,7 +1990,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         };
         if !matches!(
             self.dispatch_call_kind_for_receiver(span, receiver_expr.ty)?,
-            Some(hir::DispatchCallKind::Virtual)
+            Some(LirCallSiteKind::Virtual)
         ) {
             return Ok(None);
         }
@@ -2483,7 +2483,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         };
         if !matches!(
             self.dispatch_call_kind_for_receiver(span, receiver_expr.ty)?,
-            Some(hir::DispatchCallKind::Interface)
+            Some(LirCallSiteKind::Interface)
         ) {
             return Ok(None);
         }

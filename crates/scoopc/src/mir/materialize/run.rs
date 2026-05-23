@@ -237,6 +237,7 @@ impl MirInstanceMaterializer {
             &pass_callable_families,
             &pass_instance_keys,
         );
+        let source_callable_signatures = self.source_callable_signatures.clone();
         let top_level_value_tys = self.collect_top_level_value_tys();
         let canonical_targets_by_fqn = self.collect_canonical_dispatch_targets_by_fqn();
         let backend_contracts = MaterializedBackendContracts {
@@ -276,6 +277,7 @@ impl MirInstanceMaterializer {
             pass_artifacts,
             dispatch_devirtualization_facts,
             caller_side_pass_candidates: self.caller_side_pass_candidates,
+            source_callable_signatures,
         };
         super::super::pass_pipeline::run_mir_pass_pipeline(&mut materialized);
         materialized.validate_materialized()?;

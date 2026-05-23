@@ -10,8 +10,7 @@ use inkwell::values::{FunctionValue, IntValue, PointerValue};
 use crate::effect::analysis::{ContinuationEscapeFacts, EffectAnalysisCtx, KnownLocalMetadata};
 use crate::effect::state_machine::{
     CalleeSuspendPlan, SuspendCallAnalysis, build_ordinary_callee_suspend_plan_with_context,
-    collect_known_fun_call_suspendability, function_ty_declared_effectful,
-    hir_ty_is_function_value,
+    function_ty_declared_effectful, hir_ty_is_function_value,
 };
 use crate::ty::TypeId;
 
@@ -59,7 +58,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             known_local_fun_effects,
             known_local_metadata,
             current_source.path().to_path_buf(),
-            Rc::clone(&self.shared.hir_facts),
+            Rc::clone(&self.shared.effect_analysis_facts),
         )
         .with_continuation_escape_facts(ContinuationEscapeFacts::default())
     }
@@ -105,12 +104,18 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             return;
         }
 
-        let known_fun_effects = collect_known_fun_call_suspendability(
-            self.types,
-            self.fun_index,
-            Rc::clone(&self.shared.hir_facts),
-            None,
-        );
+        let known_fun_effects = self
+            .published_lir_facts
+            .callables
+            .values()
+            .map(|callable| {
+                (
+                    callable.root_fqn.clone(),
+                    callable.body_version.needs_reentry
+                        || !callable.resolved_outward_cases.is_empty(),
+                )
+            })
+            .collect();
         *self.shared_caches.known_fun_call_suspend_cache.borrow_mut() = Some(known_fun_effects);
     }
 

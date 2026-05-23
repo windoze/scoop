@@ -28,7 +28,7 @@ use crate::mir::{
     Operand as MirOperand, Rvalue as MirRvalue, SiteId, StatementKind as MirStatementKind,
 };
 use crate::opt::OptLevel;
-use crate::ty::{TypeId, TypeKind, TypeStore, ValueTypeKind};
+use crate::ty::{RefTypeKind, TypeId, TypeKind, TypeStore, ValueTypeKind};
 
 struct LirFactsBuildContext<'a> {
     lir: &'a LateLoweredProgram,
@@ -82,7 +82,7 @@ pub(crate) fn build_lir_facts(
         global_init: build_global_init_facts(&ctx)?,
         physical_layout: build_physical_layout_facts(&ctx)?,
         type_context: build_type_context_facts(ctx.materialized, ctx.effect_facts),
-        source_signatures: build_source_signature_facts(ctx.materialized),
+        source_signatures: build_source_signature_facts(ctx.materialized)?,
         class_ctor_inits: build_class_ctor_init_facts(ctx.lir),
         callables,
         step_types: build_step_type_facts(lir),
@@ -799,8 +799,20 @@ fn build_callable_symbol_facts(
 
 fn build_source_signature_facts(
     materialized: &MaterializedMir,
-) -> BTreeMap<String, LirSourceCallableSignatureFacts> {
+) -> Result<BTreeMap<String, LirSourceCallableSignatureFacts>, EffectLoweringError> {
     let mut out = BTreeMap::new();
+    for signature in materialized.source_callable_signatures() {
+        insert_source_signature_fact(
+            &materialized.types,
+            &mut out,
+            LirSourceCallableSignatureFacts {
+                root_fqn: signature.fqn.clone(),
+                param_names: signature.param_names.clone(),
+                param_tys: signature.param_tys.clone(),
+                return_ty: signature.return_ty,
+            },
+        )?;
+    }
     for fun in materialized
         .file
         .items
@@ -811,10 +823,16 @@ fn build_source_signature_facts(
         })
         .chain(materialized.caller_side_pass_candidate_bodies().iter())
     {
-        out.entry(fun.fqn.clone())
-            .or_insert_with(|| source_signature_facts_for_fun(fun));
+        insert_source_signature_fact(
+            &materialized.types,
+            &mut out,
+            source_signature_facts_for_fun(fun),
+        )?;
+        if let Some(body) = fun.body.as_ref() {
+            publish_call_site_source_signatures(materialized, body, &mut out)?;
+        }
     }
-    out
+    Ok(out)
 }
 
 fn source_signature_facts_for_fun(fun: &FunDecl) -> LirSourceCallableSignatureFacts {
@@ -824,6 +842,123 @@ fn source_signature_facts_for_fun(fun: &FunDecl) -> LirSourceCallableSignatureFa
         param_tys: fun.params.iter().map(|param| param.ty).collect(),
         return_ty: fun.return_ty,
     }
+}
+
+fn publish_call_site_source_signatures(
+    materialized: &MaterializedMir,
+    body: &Body,
+    out: &mut BTreeMap<String, LirSourceCallableSignatureFacts>,
+) -> Result<(), EffectLoweringError> {
+    for block in &body.blocks {
+        for statement in &block.stmts {
+            let MirStatementKind::Assign {
+                value:
+                    MirRvalue::Call {
+                        kind,
+                        args,
+                        transport,
+                        ..
+                    },
+                ..
+            } = &statement.kind
+            else {
+                continue;
+            };
+            let Some((callee_fqn, receiver_ty)) = call_site_signature_target(kind) else {
+                continue;
+            };
+            let mut param_tys = receiver_ty.into_iter().collect::<Vec<_>>();
+            param_tys.extend(args
+                .iter()
+                .map(|arg| operand_type_id(materialized, body, &arg.value))
+                .collect::<Option<Vec<_>>>()
+                .ok_or_else(|| EffectLoweringError::InvalidLirFactsContract {
+                    detail: format!(
+                        "direct call `{callee_fqn}` cannot publish source signature because an argument type is unavailable"
+                    ),
+                })?);
+            let param_names = (0..param_tys.len())
+                .map(|idx| format!("arg{idx}"))
+                .collect();
+            insert_source_signature_fact(
+                &materialized.types,
+                out,
+                LirSourceCallableSignatureFacts {
+                    root_fqn: callee_fqn.to_string(),
+                    param_names,
+                    param_tys,
+                    return_ty: transport.result.source_ty,
+                },
+            )?;
+        }
+    }
+    Ok(())
+}
+
+fn call_site_signature_target(kind: &MirCallKind) -> Option<(&str, Option<TypeId>)> {
+    match kind {
+        MirCallKind::Direct { callee_fqn } => Some((callee_fqn.as_str(), None)),
+        MirCallKind::Virtual { dispatch, .. } | MirCallKind::Interface { dispatch, .. } => {
+            Some((dispatch.member_fqn.as_str(), Some(dispatch.receiver_ty)))
+        }
+        MirCallKind::Closure { .. }
+        | MirCallKind::FunValue { .. }
+        | MirCallKind::FunPtr { .. }
+        | MirCallKind::Resume { .. } => None,
+    }
+}
+
+fn insert_source_signature_fact(
+    _types: &TypeStore,
+    out: &mut BTreeMap<String, LirSourceCallableSignatureFacts>,
+    signature: LirSourceCallableSignatureFacts,
+) -> Result<(), EffectLoweringError> {
+    if out.contains_key(signature.root_fqn.as_str()) {
+        return Ok(());
+    }
+    out.insert(signature.root_fqn.clone(), signature);
+    Ok(())
+}
+
+fn operand_type_id(
+    materialized: &MaterializedMir,
+    body: &Body,
+    operand: &MirOperand,
+) -> Option<TypeId> {
+    match operand {
+        MirOperand::Local(local) => body.locals.get(local.as_u32() as usize).map(|decl| decl.ty),
+        MirOperand::Const(value) => const_type_id(&materialized.types, value),
+    }
+}
+
+fn const_type_id(types: &TypeStore, value: &crate::mir::ConstValue) -> Option<TypeId> {
+    types.iter_ids().find(|ty| {
+        matches!(
+            (value, types.kind(*ty)),
+            (
+                crate::mir::ConstValue::Bool(_),
+                TypeKind::Value(ValueTypeKind::Bool)
+            ) | (
+                crate::mir::ConstValue::Char,
+                TypeKind::Value(ValueTypeKind::Char)
+            ) | (
+                crate::mir::ConstValue::Unit,
+                TypeKind::Value(ValueTypeKind::Unit)
+            ) | (
+                crate::mir::ConstValue::Int | crate::mir::ConstValue::SynthInt(_),
+                TypeKind::Value(ValueTypeKind::Int),
+            ) | (
+                crate::mir::ConstValue::Float64,
+                TypeKind::Value(ValueTypeKind::Float64)
+            ) | (
+                crate::mir::ConstValue::Float32,
+                TypeKind::Value(ValueTypeKind::Float32)
+            ) | (
+                crate::mir::ConstValue::String | crate::mir::ConstValue::SynthString(_),
+                TypeKind::Ref(RefTypeKind::String),
+            )
+        )
+    })
 }
 
 fn build_class_ctor_init_facts(

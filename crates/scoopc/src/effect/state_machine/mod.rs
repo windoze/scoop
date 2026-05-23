@@ -9,6 +9,5 @@ mod analysis;
 #[cfg(feature = "llvm")]
 pub(crate) use analysis::{
     CalleeSuspendPlan, SuspendCallAnalysis, build_ordinary_callee_suspend_plan_with_context,
-    collect_known_fun_call_suspendability, function_ty_declared_effectful,
-    hir_ty_is_function_value,
+    function_ty_declared_effectful, hir_ty_is_function_value,
 };

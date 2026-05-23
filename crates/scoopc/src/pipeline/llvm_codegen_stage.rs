@@ -1,7 +1,9 @@
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
+use std::rc::Rc;
 
 use crate::cone::SourceConeInfo;
+use crate::effect::analysis::EffectAnalysisFacts;
 use crate::effect_facts::MaterializedEffectFacts;
 use crate::effect_lowered::ir::LateLoweredClassCtorInitBody;
 use crate::effect_lowered::{LateLoweredOptOptions, LateLoweredProgram};
@@ -16,7 +18,9 @@ use crate::span::Span;
 use crate::stable_id::{StableConeKey, StableTypeParamKey};
 use crate::ty::{BuiltinTypes, TypeParamType, TypeStore};
 use scoopc_hir_facts::HirFacts;
-use scoopc_lir_facts::{LirFacts, LirTypeContextOwner, LirTypeStableWireFormatDecision};
+use scoopc_lir_facts::{
+    LirCallSiteKind, LirFacts, LirTypeContextOwner, LirTypeStableWireFormatDecision,
+};
 
 use super::{
     HirStageOutput, LirStageOutput, LlvmArtifactKind,
@@ -76,12 +80,16 @@ impl LlvmCodegenStageInput {
 ///
 /// `LirFacts.type_context.owner` 指向这个 context：当前 TypeId 仍是同进程
 /// effect-owned `TypeStore` identity，cross-process stable wire format 显式推迟到 P8 的
-/// per-cone build artifact serialization。这里不再嵌套 `LoweredHir`，只保留 LLVM
-/// 迁移到 LIR facts 之前还需要的 source-side side tables 与 materialized contracts owner。
+/// per-cone build artifact serialization。这里不再嵌套 `LoweredHir`、完整 MIR/effect
+/// wrappers 或 HIR fact wrapper，只保留 LLVM 仍需的显式窄 base contracts。
 #[derive(Debug)]
 pub struct LlvmStageBaseContext {
     source_cones: HashMap<PathBuf, SourceConeInfo>,
     stable_type_param_keys: HashMap<TypeParamType, StableTypeParamKey>,
+    types: TypeStore,
+    stable_cone_key: StableConeKey,
+    materialized_type_fingerprint: String,
+    effect_type_fingerprint: String,
     struct_layouts: hir::StructLayoutIndex,
     enum_layouts: hir::EnumLayoutIndex,
     top_level_vars: hir::TopLevelVarIndex,
@@ -94,7 +102,7 @@ pub struct LlvmStageBaseContext {
     interfaces: crate::itable::InterfaceIndex,
     class_itables: crate::itable::ClassItableIndex,
     ctor_call_sites: hir::CtorCallSiteIndex,
-    dispatch_call_sites: hir::DispatchCallSiteIndex,
+    dispatch_call_contracts: HashMap<LlvmDispatchCallKey, LirCallSiteKind>,
     effect_op_call_sites: hir::EffectOpCallSiteIndex,
     continuation_resume_call_sites: hir::ContinuationResumeCallSiteIndex,
     when_pat_binding_tys: hir::WhenPatBindingTypeIndex,
@@ -102,14 +110,9 @@ pub struct LlvmStageBaseContext {
     direct_supertypes: hir::DirectSupertypesIndex,
     builtins: BuiltinTypes,
     callable_sources: HashMap<String, LlvmCallableSourceContract>,
-    callable_signatures: HashMap<String, LlvmCallableSignatureContract>,
-    top_level_funs: Vec<hir::FunDecl>,
-    member_funs: Vec<hir::FunDecl>,
     extern_funs: hir::ExternFunIndex,
     native_callable_funs: hir::NativeCallableFunIndex,
-    hir_facts: HirFacts,
-    materialized_mir: MaterializedMir,
-    effect_facts: MaterializedEffectFacts,
+    effect_analysis_facts: Rc<EffectAnalysisFacts>,
 }
 
 #[derive(Debug, Clone)]
@@ -118,11 +121,25 @@ pub(crate) struct LlvmCallableSourceContract {
     pub(crate) span: Span,
 }
 
-#[derive(Debug, Clone)]
-pub(crate) struct LlvmCallableSignatureContract {
-    pub(crate) param_names: Vec<String>,
-    pub(crate) param_tys: Vec<crate::ty::TypeId>,
-    pub(crate) return_ty: crate::ty::TypeId,
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub(crate) struct LlvmDispatchCallKey {
+    pub(crate) source_path: PathBuf,
+    pub(crate) span: Span,
+    pub(crate) receiver_ty: crate::ty::TypeId,
+}
+
+impl LlvmDispatchCallKey {
+    pub(crate) fn new(
+        source_path: impl Into<PathBuf>,
+        span: Span,
+        receiver_ty: crate::ty::TypeId,
+    ) -> Self {
+        Self {
+            source_path: source_path.into(),
+            span,
+            receiver_ty,
+        }
+    }
 }
 
 impl LlvmStageBaseContext {
@@ -141,6 +158,11 @@ impl LlvmStageBaseContext {
                 _ => None,
             })
             .collect();
+        let effect_analysis_facts = Rc::new(EffectAnalysisFacts::from_hir_facts(&hir_facts));
+        let stable_cone_key = materialized_mir.stable_cone_key().clone();
+        let materialized_type_fingerprint = type_store_fingerprint(&materialized_mir.types);
+        let types = effect_facts.types().clone();
+        let effect_type_fingerprint = type_store_fingerprint(&types);
         let contracts = materialized_mir.backend_contracts();
         let mut enum_layouts = contracts.enum_layouts.clone();
         for (key, value) in lowered_hir.enum_layouts {
@@ -189,11 +211,15 @@ impl LlvmStageBaseContext {
         }
         let callable_sources =
             build_callable_source_contracts(&top_level_funs, &lowered_hir.member_funs);
-        let callable_signatures =
-            build_callable_signature_contracts(&top_level_funs, &lowered_hir.member_funs);
+        let dispatch_call_contracts =
+            build_dispatch_call_contracts(lowered_hir.dispatch_call_sites);
         Self {
             source_cones: lowered_hir.source_cones,
             stable_type_param_keys: lowered_hir.stable_type_param_keys,
+            types,
+            stable_cone_key,
+            materialized_type_fingerprint,
+            effect_type_fingerprint,
             struct_layouts: lowered_hir.struct_layouts,
             enum_layouts,
             top_level_vars,
@@ -206,7 +232,7 @@ impl LlvmStageBaseContext {
             interfaces,
             class_itables,
             ctor_call_sites: lowered_hir.ctor_call_sites,
-            dispatch_call_sites: lowered_hir.dispatch_call_sites,
+            dispatch_call_contracts,
             effect_op_call_sites: lowered_hir.effect_op_call_sites,
             continuation_resume_call_sites: lowered_hir.continuation_resume_call_sites,
             when_pat_binding_tys: lowered_hir.when_pat_binding_tys,
@@ -214,23 +240,18 @@ impl LlvmStageBaseContext {
             direct_supertypes: lowered_hir.direct_supertypes,
             builtins: lowered_hir.builtins,
             callable_sources,
-            callable_signatures,
-            top_level_funs,
-            member_funs: lowered_hir.member_funs,
             extern_funs,
             native_callable_funs,
-            hir_facts,
-            materialized_mir,
-            effect_facts,
+            effect_analysis_facts,
         }
     }
 
     pub(crate) fn into_type_store(self) -> TypeStore {
-        self.effect_facts.types().clone()
+        self.types
     }
 
     pub(crate) fn stable_cone_key(&self) -> &StableConeKey {
-        self.materialized_mir.stable_cone_key()
+        &self.stable_cone_key
     }
 
     pub(crate) fn source_cones(&self) -> &HashMap<PathBuf, SourceConeInfo> {
@@ -242,7 +263,7 @@ impl LlvmStageBaseContext {
     }
 
     pub(crate) fn types(&self) -> &TypeStore {
-        self.effect_facts.types()
+        &self.types
     }
 
     pub(crate) fn struct_layouts(&self) -> &hir::StructLayoutIndex {
@@ -293,8 +314,8 @@ impl LlvmStageBaseContext {
         &self.ctor_call_sites
     }
 
-    pub(crate) fn dispatch_call_sites(&self) -> &hir::DispatchCallSiteIndex {
-        &self.dispatch_call_sites
+    pub(crate) fn dispatch_call_contracts(&self) -> &HashMap<LlvmDispatchCallKey, LirCallSiteKind> {
+        &self.dispatch_call_contracts
     }
 
     pub(crate) fn effect_op_call_sites(&self) -> &hir::EffectOpCallSiteIndex {
@@ -325,10 +346,6 @@ impl LlvmStageBaseContext {
         &self.callable_sources
     }
 
-    pub(crate) fn callable_signatures(&self) -> &HashMap<String, LlvmCallableSignatureContract> {
-        &self.callable_signatures
-    }
-
     pub(crate) fn extern_funs(&self) -> &hir::ExternFunIndex {
         &self.extern_funs
     }
@@ -337,16 +354,8 @@ impl LlvmStageBaseContext {
         &self.native_callable_funs
     }
 
-    pub(crate) fn hir_facts(&self) -> &HirFacts {
-        &self.hir_facts
-    }
-
-    pub(crate) fn fun_index(&self) -> HashMap<String, &hir::FunDecl> {
-        self.top_level_funs
-            .iter()
-            .chain(self.member_funs.iter())
-            .map(|fun| (fun.fqn.clone(), fun))
-            .collect()
+    pub(crate) fn effect_analysis_facts(&self) -> Rc<EffectAnalysisFacts> {
+        Rc::clone(&self.effect_analysis_facts)
     }
 
     pub(crate) fn verify_lir_type_context(
@@ -356,11 +365,18 @@ impl LlvmStageBaseContext {
     ) -> Result<(), LlvmEmitError> {
         verify_lir_type_context_header(facts, role)?;
 
-        let materialized_fingerprint = type_store_fingerprint(&self.materialized_mir.types);
-        if facts.type_context.materialized_fingerprint != materialized_fingerprint {
+        if facts.type_context.materialized_fingerprint != self.materialized_type_fingerprint {
             return Err(LlvmEmitError::Frontend {
                 message: format!(
                     "LLVM stage {role} LIR facts materialized TypeStore fingerprint 与 LlvmStageBaseContext 不一致"
+                ),
+            });
+        }
+
+        if facts.type_context.effect_facts_fingerprint != self.effect_type_fingerprint {
+            return Err(LlvmEmitError::Frontend {
+                message: format!(
+                    "LLVM stage {role} LIR facts effect TypeStore fingerprint 与 LlvmStageBaseContext 不一致"
                 ),
             });
         }
@@ -407,21 +423,19 @@ fn build_callable_source_contracts(
         .collect()
 }
 
-fn build_callable_signature_contracts(
-    top_level_funs: &[hir::FunDecl],
-    member_funs: &[hir::FunDecl],
-) -> HashMap<String, LlvmCallableSignatureContract> {
-    top_level_funs
-        .iter()
-        .chain(member_funs.iter())
-        .map(|fun| {
+fn build_dispatch_call_contracts(
+    dispatch_call_sites: hir::DispatchCallSiteIndex,
+) -> HashMap<LlvmDispatchCallKey, LirCallSiteKind> {
+    dispatch_call_sites
+        .into_iter()
+        .map(|(site, kind)| {
+            let kind = match kind {
+                hir::DispatchCallKind::Virtual => LirCallSiteKind::Virtual,
+                hir::DispatchCallKind::Interface => LirCallSiteKind::Interface,
+            };
             (
-                fun.fqn.clone(),
-                LlvmCallableSignatureContract {
-                    param_names: fun.params.iter().map(|param| param.name.clone()).collect(),
-                    param_tys: fun.params.iter().map(|param| param.ty).collect(),
-                    return_ty: fun.return_ty,
-                },
+                LlvmDispatchCallKey::new(site.source_path, site.span, site.receiver_ty),
+                kind,
             )
         })
         .collect()

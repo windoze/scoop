@@ -13,8 +13,8 @@
 //! - `enum_lowering.rs` / `object_init.rs`：enum constructor/object singleton 相关 lowering；
 //! - `effect/`、`gc.rs`、`runtime_abi.rs` 等继续保持独立主题边界。
 //!
-//! `T5000c` 已将 `HirFacts` / `EffectAnalysisCtx` / `ExprFactResolver` 这类 shared facts
-//! 抽离到 backend 外的共享层；这里当前只消费这些 backend-agnostic 输入，并继续朝
+//! P7 cleanup 已将 shared semantic facts 收窄到 explicit backend-agnostic 查询面；
+//! 这里当前只消费这些 backend-neutral 输入，并继续朝
 //! “只做 backend lowering”的边界收口。后续 `T5000d+` 将让 early MIR / summary 直接复用
 //! 同一层共享事实，而不是回到 LLVM 现场拼装分析输入。
 
@@ -54,8 +54,8 @@ use inkwell::values::PointerValue;
 
 use crate::ast;
 use crate::cone::SourceConeInfo;
+use crate::effect::analysis::EffectAnalysisFacts;
 use crate::effect::state_machine::CalleeSuspendPlan;
-use crate::expr_facts::{ExprFactResolver, HirFactResolver};
 use crate::hir;
 use crate::llvm::target::HostTargetInfo;
 use crate::source::{SourceFile, SourceId, SourceMap};
@@ -72,10 +72,9 @@ use crate::ty::{
     BuiltinTypes, MonoTypeId, NominalType, RefTypeKind, TypeId, TypeKind, TypeParamType, TypeStore,
     ValueTypeKind,
 };
-use scoopc_hir_facts::{HirFacts, declarations::NominalKind as HirFactNominalKind};
 use scoopc_lir_facts::{
-    LirClassCtorDelegationKind, LirClassCtorInitKey, LirExternGlobalLinkage, LirFacts,
-    LirGlobalRootFacts, LirGlobalRootKey, LirGlobalRootKind, LirGlobalStoragePolicy,
+    LirCallSiteKind, LirClassCtorDelegationKind, LirClassCtorInitKey, LirExternGlobalLinkage,
+    LirFacts, LirGlobalRootFacts, LirGlobalRootKey, LirGlobalRootKind, LirGlobalStoragePolicy,
 };
 
 use super::LlvmEmitError;
@@ -490,7 +489,7 @@ pub(crate) struct CompilationUnitCodegenCx<'a, 'ctx> {
     interfaces: &'a crate::itable::InterfaceIndex,
     class_itables: &'a crate::itable::ClassItableIndex,
     ctor_call_sites: &'a hir::CtorCallSiteIndex,
-    dispatch_call_sites: &'a hir::DispatchCallSiteIndex,
+    dispatch_call_contracts: &'a HashMap<crate::pipeline::LlvmDispatchCallKey, LirCallSiteKind>,
     #[allow(dead_code)]
     effect_op_call_sites: &'a hir::EffectOpCallSiteIndex,
     continuation_resume_call_sites: &'a hir::ContinuationResumeCallSiteIndex,
@@ -499,8 +498,6 @@ pub(crate) struct CompilationUnitCodegenCx<'a, 'ctx> {
     direct_supertypes: &'a hir::DirectSupertypesIndex,
     builtins: BuiltinTypes,
     callable_sources: &'a HashMap<String, crate::pipeline::LlvmCallableSourceContract>,
-    callable_signatures: &'a HashMap<String, crate::pipeline::LlvmCallableSignatureContract>,
-    fun_index: &'a HashMap<String, &'a hir::FunDecl>,
     /// ABI 可见性阶段发布的 callable contract。
     ///
     /// 这里先只承接“某个 callable root 是否需要 effect hidden ABI / resume shell”这类
@@ -510,8 +507,8 @@ pub(crate) struct CompilationUnitCodegenCx<'a, 'ctx> {
     published_late_lowered_types: Option<&'a TypeStore>,
     /// LIR-owned backend-neutral contracts for global init/storage and callable ABI.
     published_lir_facts: &'a LirFacts,
-    /// HIR barrier 发布的 declaration/entity facts。
-    hir_facts: Rc<HirFacts>,
+    /// Narrow source/semantic facts used by remaining LIR-owned source payload lowering.
+    effect_analysis_facts: Rc<EffectAnalysisFacts>,
     /// 编译单元级共享 analysis/layout cache。
     shared_caches: SharedCodegenCaches,
     /// Effect op_tag 分配状态（T1608）：整个编译单元共享的 FQN → tag 表。
@@ -769,15 +766,13 @@ const EFFECT_INSTANCE_KEY_RAISE_RUNTIME_ERROR: u32 = u32::MAX;
 
 fn collect_known_effect_instance_types_by_effect_fqn(
     types: &TypeStore,
-    hir_facts: &HirFacts,
+    nominal_kinds: &hir::NominalKindIndex,
 ) -> HashMap<String, Vec<TypeId>> {
     let mut by_effect_fqn: HashMap<String, Vec<TypeId>> = HashMap::new();
-    let effect_fqns = hir_facts
-        .declarations
-        .nominals
+    let effect_fqns = nominal_kinds
         .iter()
-        .filter(|nominal| nominal.kind == HirFactNominalKind::Effect)
-        .map(|nominal| nominal.identity.display_name.as_str())
+        .filter(|(_, kind)| **kind == ast::TypeKind::Effect)
+        .map(|(fqn, _)| fqn.as_str())
         .collect::<HashSet<_>>();
 
     for type_id in types.iter_ids() {
@@ -830,7 +825,8 @@ pub(super) struct CompilationUnitCodegenInputs<'a, 'ctx> {
     pub(super) interfaces: &'a crate::itable::InterfaceIndex,
     pub(super) class_itables: &'a crate::itable::ClassItableIndex,
     pub(super) ctor_call_sites: &'a hir::CtorCallSiteIndex,
-    pub(super) dispatch_call_sites: &'a hir::DispatchCallSiteIndex,
+    pub(super) dispatch_call_contracts:
+        &'a HashMap<crate::pipeline::LlvmDispatchCallKey, LirCallSiteKind>,
     pub(super) effect_op_call_sites: &'a hir::EffectOpCallSiteIndex,
     pub(super) continuation_resume_call_sites: &'a hir::ContinuationResumeCallSiteIndex,
     pub(super) when_pat_binding_tys: &'a hir::WhenPatBindingTypeIndex,
@@ -838,16 +834,13 @@ pub(super) struct CompilationUnitCodegenInputs<'a, 'ctx> {
     pub(super) direct_supertypes: &'a hir::DirectSupertypesIndex,
     pub(super) builtins: BuiltinTypes,
     pub(super) callable_sources: &'a HashMap<String, crate::pipeline::LlvmCallableSourceContract>,
-    pub(super) callable_signatures:
-        &'a HashMap<String, crate::pipeline::LlvmCallableSignatureContract>,
     pub(super) extern_funs: &'a hir::ExternFunIndex,
     pub(super) native_callable_funs: &'a hir::NativeCallableFunIndex,
-    pub(super) fun_index: &'a HashMap<String, &'a hir::FunDecl>,
     pub(super) published_late_lowered_program:
         Option<&'a crate::effect_lowered::LateLoweredProgram>,
     pub(super) published_late_lowered_types: Option<&'a TypeStore>,
     pub(super) published_lir_facts: &'a LirFacts,
-    pub(super) hir_facts: Rc<HirFacts>,
+    pub(super) effect_analysis_facts: Rc<EffectAnalysisFacts>,
     pub(super) effect_op_tags: Rc<RefCell<EffectOpTagState>>,
 }
 
@@ -889,7 +882,7 @@ impl<'a, 'ctx> CompilationUnitCodegenCx<'a, 'ctx> {
             interfaces,
             class_itables,
             ctor_call_sites,
-            dispatch_call_sites,
+            dispatch_call_contracts,
             effect_op_call_sites,
             continuation_resume_call_sites,
             when_pat_binding_tys,
@@ -897,17 +890,15 @@ impl<'a, 'ctx> CompilationUnitCodegenCx<'a, 'ctx> {
             direct_supertypes,
             builtins,
             callable_sources,
-            callable_signatures,
             extern_funs,
-            fun_index,
             published_late_lowered_program,
             published_late_lowered_types,
             published_lir_facts,
-            hir_facts,
+            effect_analysis_facts,
             effect_op_tags,
         } = inputs;
         let known_effect_instances_by_effect_fqn =
-            collect_known_effect_instance_types_by_effect_fqn(types, hir_facts.as_ref());
+            collect_known_effect_instance_types_by_effect_fqn(types, nominal_kinds);
         Self {
             context,
             module,
@@ -934,7 +925,7 @@ impl<'a, 'ctx> CompilationUnitCodegenCx<'a, 'ctx> {
             interfaces,
             class_itables,
             ctor_call_sites,
-            dispatch_call_sites,
+            dispatch_call_contracts,
             effect_op_call_sites,
             continuation_resume_call_sites,
             when_pat_binding_tys,
@@ -942,12 +933,10 @@ impl<'a, 'ctx> CompilationUnitCodegenCx<'a, 'ctx> {
             direct_supertypes,
             builtins,
             callable_sources,
-            callable_signatures,
-            fun_index,
             published_late_lowered_program,
             published_late_lowered_types,
             published_lir_facts,
-            hir_facts,
+            effect_analysis_facts,
             shared_caches: SharedCodegenCaches::default(),
             effect_op_tags,
             known_effect_instances_by_effect_fqn,

@@ -2244,10 +2244,11 @@ pub(crate) fn resolve_plan_expr_concrete_type(
     expr: &hir::Expr,
     known_local_metadata: &HashMap<hir::SymbolId, KnownLocalMetadata>,
 ) -> Option<TypeId> {
-    ExprFactResolver::new(types, context.hir_facts.as_ref(), |id| {
-        known_local_metadata.get(&id).map(|metadata| metadata.ty)
-    })
-    .resolve_expr_concrete_type(expr)
+    context
+        .facts
+        .resolve_expr_concrete_type(types, expr, &|id| {
+            known_local_metadata.get(&id).map(|metadata| metadata.ty)
+        })
 }
 
 pub(crate) fn collect_outer_scope_slots(

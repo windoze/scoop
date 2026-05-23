@@ -436,10 +436,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     }
 
     pub(in crate::llvm::codegen) fn top_level_value_ty(&self, fqn: &str) -> Option<TypeId> {
-        let facts = HirFactResolver::new(self.types, self.hir_facts.as_ref());
-        self.lir_global_root(fqn)
-            .and_then(|root| root.ty)
-            .or_else(|| facts.top_level_value_ty(fqn))
+        self.lir_global_root(fqn).and_then(|root| root.ty)
     }
 
     pub(in crate::llvm::codegen) fn lir_global_root(

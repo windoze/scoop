@@ -159,6 +159,15 @@ pub struct MaterializedMir {
     pub(super) pass_artifacts: MaterializedMirPassArtifacts,
     pub(super) dispatch_devirtualization_facts: super::DispatchDevirtualizationFacts,
     pub(super) caller_side_pass_candidates: Vec<FunDecl>,
+    pub(super) source_callable_signatures: Vec<MaterializedCallableSignature>,
+}
+
+#[derive(Debug, Clone)]
+pub struct MaterializedCallableSignature {
+    pub fqn: String,
+    pub param_names: Vec<String>,
+    pub param_tys: Vec<TypeId>,
+    pub return_ty: TypeId,
 }
 
 /// Data-only backend contracts captured at materialization time for LIR facts.
@@ -288,6 +297,10 @@ impl MaterializedMir {
     /// 面的 caller-side pass / 调试路径复用。
     pub(crate) fn caller_side_pass_candidate_bodies(&self) -> &[FunDecl] {
         &self.caller_side_pass_candidates
+    }
+
+    pub(crate) fn source_callable_signatures(&self) -> &[MaterializedCallableSignature] {
+        &self.source_callable_signatures
     }
 }
 

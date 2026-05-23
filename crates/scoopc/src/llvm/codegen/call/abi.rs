@@ -342,26 +342,22 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &self,
         callable_fqn: &str,
     ) -> bool {
-        self.published_late_lowered_program()
-            .is_some_and(|program| {
-                program.callables().iter().any(|callable| {
-                    callable.root_fqn() == callable_fqn && callable.effect_step_abi().is_some()
-                })
-            })
+        self.published_lir_facts.callables.values().any(|callable| {
+            callable.root_fqn == callable_fqn
+                && matches!(
+                    callable.kind(),
+                    scoopc_lir_facts::LirCallableKind::EffectStep
+                )
+        })
     }
 
     pub(in crate::llvm::codegen) fn callable_needs_callee_resume_shell_impl(
         &self,
         callable_fqn: &str,
     ) -> bool {
-        self.published_late_lowered_program()
-            .is_some_and(|program| {
-                program.callables().iter().any(|callable| {
-                    callable.root_fqn() == callable_fqn
-                        && callable.effect_step_abi().is_some()
-                        && callable.needs_reentry()
-                })
-            })
+        self.published_lir_facts.callables.values().any(|callable| {
+            callable.root_fqn == callable_fqn && callable.body_version.needs_reentry
+        })
     }
 
     pub(in crate::llvm::codegen) fn published_callable_signature_impl(
@@ -410,13 +406,15 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 signature.return_ty,
             ));
         }
-        let signature = self.callable_signatures.get(callable_fqn)?;
-        Some((
-            self.types,
-            signature.param_names.clone(),
-            signature.param_tys.clone(),
-            signature.return_ty,
-        ))
+        if let Some(symbol) = self.lir_callable_symbol_facts(callable_fqn) {
+            return Some((
+                self.types,
+                symbol.param_names.clone(),
+                symbol.param_tys.clone(),
+                symbol.return_ty,
+            ));
+        }
+        None
     }
 
     pub(in crate::llvm::codegen) fn published_codegen_callable_signature_impl(

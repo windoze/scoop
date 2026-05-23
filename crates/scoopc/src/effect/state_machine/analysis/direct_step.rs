@@ -281,7 +281,7 @@ pub(crate) fn direct_step_analysis_context_for_handle(
         HashMap::new(),
         known_local_metadata,
         PathBuf::from("<t4008b1a>"),
-        Rc::new(HirFacts::new()),
+        Rc::new(EffectAnalysisFacts::default()),
     )
 }
 

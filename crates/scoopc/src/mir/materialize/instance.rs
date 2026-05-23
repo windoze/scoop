@@ -102,6 +102,19 @@ impl MirInstanceMaterializer {
                 .map(|signature_key| (signature.template.clone(), signature_key))
             })
             .collect::<HashMap<_, _>>();
+        let source_callable_signatures = callable_signatures
+            .iter()
+            .map(|signature| super::MaterializedCallableSignature {
+                fqn: signature.template.fqn.clone(),
+                param_names: signature
+                    .params
+                    .iter()
+                    .map(|param| param.name.clone())
+                    .collect(),
+                param_tys: signature.params.iter().map(|param| param.ty).collect(),
+                return_ty: signature.return_ty,
+            })
+            .collect();
         let callable_signatures = callable_signatures
             .into_iter()
             .map(|signature| (signature.template.clone(), signature))
@@ -365,6 +378,7 @@ impl MirInstanceMaterializer {
             generic_family_fqns,
             request_templates,
             roots,
+            source_callable_signatures,
             template_signatures,
             stable_template_keys,
             nongeneric_callable_signature_keys,

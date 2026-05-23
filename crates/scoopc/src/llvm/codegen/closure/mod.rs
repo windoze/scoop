@@ -688,8 +688,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     /// 在当前 compilation unit 的 `TypeStore` 中查找 `() -> Unit / Pure` 的函数类型。
     ///
     /// 用途：
-    /// - 一些 sysroot API（例如 `scoop.sync.Once.run`）在 early stage 是“只有声明没有 body 的外部落点”，
-    ///   因此不在 `fun_index` 中；但 closure codegen 仍需要一个 expected function type 来确定参数绑定。
+    /// - 一些 sysroot API（例如 `scoop.sync.Once.run`）在 source callable contracts 中只有声明，
+    ///   但 closure codegen 仍需要一个 expected function type 来确定参数绑定。
     pub(in crate::llvm::codegen) fn lookup_pure_unit_closure_type(&self) -> Option<TypeId> {
         let unit = self
             .types

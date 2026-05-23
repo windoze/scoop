@@ -425,6 +425,7 @@ fn materialized_for_test(file: File, types: TypeStore) -> MaterializedMir {
         pass_artifacts,
         dispatch_devirtualization_facts: DispatchDevirtualizationFacts::default(),
         caller_side_pass_candidates: Vec::new(),
+        source_callable_signatures: Vec::new(),
     }
 }
 
