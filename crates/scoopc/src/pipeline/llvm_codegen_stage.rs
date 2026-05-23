@@ -3,6 +3,7 @@ use std::path::{Path, PathBuf};
 
 use crate::cone::SourceConeInfo;
 use crate::effect_facts::MaterializedEffectFacts;
+use crate::effect_lowered::ir::LateLoweredClassCtorInitBody;
 use crate::effect_lowered::{LateLoweredOptOptions, LateLoweredProgram};
 use crate::frontend::CodegenLoweringOutput;
 use crate::hir::{self, LoweredHir};
@@ -87,6 +88,7 @@ pub struct LlvmStageBaseContext {
     top_level_fun_call_sites: hir::TopLevelFunCallSiteIndex,
     object_inits: hir::ObjectInitIndex,
     class_inits: hir::ClassInitIndex,
+    class_ctor_init_bodies: HashMap<String, LateLoweredClassCtorInitBody>,
     class_vtables: crate::vtable::ClassVtableIndex,
     interfaces: crate::itable::InterfaceIndex,
     class_itables: crate::itable::ClassItableIndex,
@@ -154,6 +156,11 @@ impl LlvmStageBaseContext {
         for (key, value) in lowered_hir.class_inits {
             class_inits.entry(key).or_insert(value);
         }
+        let class_ctor_init_bodies =
+            crate::effect_lowered::builder::build_class_ctor_init_bodies(class_inits.values())
+                .into_iter()
+                .map(|body| (body.key().as_str().to_string(), body))
+                .collect();
         let mut class_vtables = contracts.class_vtables.clone();
         for (key, value) in lowered_hir.class_vtables {
             class_vtables.entry(key).or_insert(value);
@@ -186,6 +193,7 @@ impl LlvmStageBaseContext {
             top_level_fun_call_sites: lowered_hir.top_level_fun_call_sites,
             object_inits,
             class_inits,
+            class_ctor_init_bodies,
             class_vtables,
             interfaces,
             class_itables,
@@ -254,6 +262,10 @@ impl LlvmStageBaseContext {
 
     pub(crate) fn class_inits(&self) -> &hir::ClassInitIndex {
         &self.class_inits
+    }
+
+    pub(crate) fn class_ctor_init_bodies(&self) -> &HashMap<String, LateLoweredClassCtorInitBody> {
+        &self.class_ctor_init_bodies
     }
 
     pub(crate) fn class_vtables(&self) -> &crate::vtable::ClassVtableIndex {

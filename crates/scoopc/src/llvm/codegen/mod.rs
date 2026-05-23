@@ -74,8 +74,8 @@ use crate::ty::{
 };
 use scoopc_hir_facts::{HirFacts, declarations::NominalKind as HirFactNominalKind};
 use scoopc_lir_facts::{
-    LirExternGlobalLinkage, LirFacts, LirGlobalRootFacts, LirGlobalRootKey, LirGlobalRootKind,
-    LirGlobalStoragePolicy,
+    LirClassCtorDelegationKind, LirClassCtorInitKey, LirExternGlobalLinkage, LirFacts,
+    LirGlobalRootFacts, LirGlobalRootKey, LirGlobalRootKind, LirGlobalStoragePolicy,
 };
 
 use super::LlvmEmitError;
@@ -484,6 +484,8 @@ pub(crate) struct CompilationUnitCodegenCx<'a, 'ctx> {
     native_callable_funs: &'a hir::NativeCallableFunIndex,
     object_inits: &'a hir::ObjectInitIndex,
     class_inits: &'a hir::ClassInitIndex,
+    class_ctor_init_bodies:
+        &'a HashMap<String, crate::effect_lowered::ir::LateLoweredClassCtorInitBody>,
     class_vtables: &'a crate::vtable::ClassVtableIndex,
     interfaces: &'a crate::itable::InterfaceIndex,
     class_itables: &'a crate::itable::ClassItableIndex,
@@ -813,6 +815,8 @@ pub(super) struct CompilationUnitCodegenInputs<'a, 'ctx> {
     pub(super) top_level_fun_call_sites: &'a hir::TopLevelFunCallSiteIndex,
     pub(super) object_inits: &'a hir::ObjectInitIndex,
     pub(super) class_inits: &'a hir::ClassInitIndex,
+    pub(super) class_ctor_init_bodies:
+        &'a HashMap<String, crate::effect_lowered::ir::LateLoweredClassCtorInitBody>,
     pub(super) class_vtables: &'a crate::vtable::ClassVtableIndex,
     pub(super) interfaces: &'a crate::itable::InterfaceIndex,
     pub(super) class_itables: &'a crate::itable::ClassItableIndex,
@@ -869,6 +873,7 @@ impl<'a, 'ctx> CompilationUnitCodegenCx<'a, 'ctx> {
             native_callable_funs,
             object_inits,
             class_inits,
+            class_ctor_init_bodies,
             class_vtables,
             interfaces,
             class_itables,
@@ -912,6 +917,7 @@ impl<'a, 'ctx> CompilationUnitCodegenCx<'a, 'ctx> {
             native_callable_funs,
             object_inits,
             class_inits,
+            class_ctor_init_bodies,
             class_vtables,
             interfaces,
             class_itables,

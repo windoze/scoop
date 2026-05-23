@@ -387,6 +387,130 @@ pub struct LirSourceCallableSignatureFacts {
     pub return_ty: TypeId,
 }
 
+/// Stable identity for a class constructor init body contract.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct LirClassCtorInitKey(String);
+
+impl LirClassCtorInitKey {
+    pub fn new(raw: impl Into<String>) -> Self {
+        Self(raw.into())
+    }
+
+    pub fn for_ctor(class_fqn: &str, ctor_span: Option<(usize, usize)>) -> Self {
+        let suffix = ctor_span
+            .map(|(start, end)| format!("{start}..{end}"))
+            .unwrap_or_else(|| "default".to_string());
+        Self(format!("class_ctor_init:{class_fqn}@{suffix}"))
+    }
+
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+/// Source-level constructor family selected before backend lowering.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LirClassCtorKind {
+    Primary,
+    Secondary,
+}
+
+impl LirClassCtorKind {
+    pub const fn stable_name(self) -> &'static str {
+        match self {
+            Self::Primary => "primary",
+            Self::Secondary => "secondary",
+        }
+    }
+}
+
+/// Constructor delegation shape fixed by the LIR ctor-init contract.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LirClassCtorDelegationKind {
+    This,
+    Super,
+}
+
+impl LirClassCtorDelegationKind {
+    pub const fn stable_name(self) -> &'static str {
+        match self {
+            Self::This => "this",
+            Self::Super => "super",
+        }
+    }
+}
+
+/// One executable step in a class constructor init body.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LirClassCtorInitStepKind {
+    PropertyParamAssignment,
+    PropertyInitializer,
+    InitBlock,
+    SecondaryBody,
+}
+
+impl LirClassCtorInitStepKind {
+    pub const fn stable_name(self) -> &'static str {
+        match self {
+            Self::PropertyParamAssignment => "property_param_assignment",
+            Self::PropertyInitializer => "property_initializer",
+            Self::InitBlock => "init_block",
+            Self::SecondaryBody => "secondary_body",
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LirClassCtorParamFacts {
+    pub name: String,
+    pub ty: TypeId,
+    pub has_default: bool,
+    pub is_property: bool,
+    pub property_field_fqn: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LirClassCtorSuperCallFacts {
+    pub target: LirClassCtorInitKey,
+    pub class_fqn: String,
+    pub arg_count: usize,
+    pub source_span_start: Option<usize>,
+    pub source_span_end: Option<usize>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LirClassCtorDelegationFacts {
+    pub kind: LirClassCtorDelegationKind,
+    pub target: LirClassCtorInitKey,
+    pub class_fqn: String,
+    pub arg_count: usize,
+    pub source_span_start: usize,
+    pub source_span_end: usize,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LirClassCtorInitStepFacts {
+    pub kind: LirClassCtorInitStepKind,
+    pub field_fqn: Option<String>,
+    pub source_span_start: usize,
+    pub source_span_end: usize,
+}
+
+/// Backend-neutral class constructor init body ownership contract.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LirClassCtorInitFacts {
+    pub key: LirClassCtorInitKey,
+    pub class_fqn: String,
+    pub source_path: String,
+    pub ctor_kind: LirClassCtorKind,
+    pub ctor_span_start: Option<usize>,
+    pub ctor_span_end: Option<usize>,
+    pub params: Vec<LirClassCtorParamFacts>,
+    pub implicit_super: Option<LirClassCtorSuperCallFacts>,
+    pub delegation: Option<LirClassCtorDelegationFacts>,
+    pub steps: Vec<LirClassCtorInitStepFacts>,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LirCallableSymbolFacts {
     pub callable: StableLirCallableKey,

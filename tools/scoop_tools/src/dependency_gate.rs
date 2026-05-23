@@ -483,6 +483,21 @@ fn source_boundary_rules() -> Vec<SourceBoundaryRule> {
                 },
             ],
         },
+        SourceBoundaryRule {
+            label: "LLVM class ctor init body",
+            kind_label: "backend-boundary",
+            path: "crates/scoopc/src/llvm/codegen/class_ctor.rs",
+            forbidden: &[
+                ForbiddenSourcePattern {
+                    pattern: "ctor.body.as_ref",
+                    reason: "class ctor body emission must consume the LIR-owned init contract instead of HIR ctor bodies",
+                },
+                ForbiddenSourcePattern {
+                    pattern: "codegen_block_value(body)",
+                    reason: "class ctor body emission must not directly lower a ctor HIR body",
+                },
+            ],
+        },
     ]
 }
 

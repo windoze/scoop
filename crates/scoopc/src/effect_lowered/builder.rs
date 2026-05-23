@@ -16,9 +16,11 @@ use super::EffectLoweringError;
 use super::frame::{FrameBuildInputs, augment_frame_for_handle_dispatch, build_callable_frame};
 use super::ir::{
     ContinuationObjectId, LateLoweredBodyVersionKey, LateLoweredBoundaryMap, LateLoweredCallable,
-    LateLoweredFrameSchema, LateLoweredPlainBodySlice, LateLoweredPlainCallSite,
-    LateLoweredPlainCallable, LateLoweredPlainLocalEffectControl, LateLoweredProgram,
-    LateLoweredResumeStateMap, LateLoweredStateGraph,
+    LateLoweredClassCtorDelegation, LateLoweredClassCtorInitBody, LateLoweredClassCtorInitStep,
+    LateLoweredClassCtorParam, LateLoweredClassCtorSuperCall, LateLoweredFrameSchema,
+    LateLoweredPlainBodySlice, LateLoweredPlainCallSite, LateLoweredPlainCallable,
+    LateLoweredPlainLocalEffectControl, LateLoweredProgram, LateLoweredResumeStateMap,
+    LateLoweredStateGraph,
 };
 use super::materialize::{
     BoundaryMaterializationInputs, ContinuationObjectMaterializationInputs,
@@ -346,8 +348,11 @@ impl<'a> LateLoweredProgramBuilder<'a> {
             callables.push(callable);
         }
 
+        let class_ctor_init_bodies =
+            build_class_ctor_init_bodies(materialized.backend_contracts().class_inits.values());
         let program =
             LateLoweredProgram::new(step_types, resume_packings, continuation_objects, callables)
+                .with_class_ctor_init_bodies(class_ctor_init_bodies)
                 .with_stable_instance_keys(stable_instance_keys);
         let dump_type_texts = collect_program_dump_type_texts(&program, types);
         Ok(program.with_dump_metadata(dump_type_texts, dump_body_labels))
@@ -359,6 +364,169 @@ fn find_materialized_fun<'a>(materialized: &'a MaterializedMir, fqn: &str) -> Op
         Item::Fun(fun) if fun.fqn == fqn => Some(fun),
         _ => None,
     })
+}
+
+pub(crate) fn build_class_ctor_init_bodies<'a>(
+    classes: impl Iterator<Item = &'a crate::hir::MonoClassInit> + Clone,
+) -> Vec<LateLoweredClassCtorInitBody> {
+    let mut bodies = Vec::new();
+    for class in classes.clone() {
+        if class.ctors.is_empty() {
+            bodies.push(build_class_ctor_init_body(classes.clone(), class, None));
+            continue;
+        }
+        for ctor in &class.ctors {
+            bodies.push(build_class_ctor_init_body(
+                classes.clone(),
+                class,
+                Some(ctor),
+            ));
+        }
+    }
+    bodies
+}
+
+fn build_class_ctor_init_body<'a>(
+    classes: impl Iterator<Item = &'a crate::hir::MonoClassInit> + Clone,
+    class: &crate::hir::MonoClassInit,
+    ctor: Option<&crate::hir::ClassCtor<crate::ty::MonoTypeId>>,
+) -> LateLoweredClassCtorInitBody {
+    let ctor_span = ctor.map(|ctor| ctor.span);
+    let key = class_ctor_init_key(&class.fqn, ctor_span);
+    let ctor_kind = ctor
+        .map(|ctor| lir_class_ctor_kind(ctor.kind))
+        .unwrap_or(scoopc_lir_facts::LirClassCtorKind::Primary);
+    let params = ctor
+        .map(|ctor| {
+            ctor.params
+                .iter()
+                .map(LateLoweredClassCtorParam::new)
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+    let delegation = ctor.and_then(|ctor| {
+        ctor.delegation.as_ref().map(|delegation| {
+            build_class_ctor_delegation(classes.clone(), class, ctor.span, delegation)
+        })
+    });
+    let implicit_super = if delegation.is_none() {
+        build_implicit_super_call(classes.clone(), class)
+    } else {
+        None
+    };
+    let mut steps = Vec::new();
+    if delegation.as_ref().is_none_or(|delegation| {
+        delegation.kind() != scoopc_lir_facts::LirClassCtorDelegationKind::This
+    }) {
+        for (param_index, param) in params.iter().enumerate() {
+            if let Some(field_fqn) = param.property_field_fqn() {
+                steps.push(LateLoweredClassCtorInitStep::PropertyParamAssignment {
+                    param_index,
+                    field_fqn: field_fqn.to_string(),
+                    span: param.decl_span(),
+                });
+            }
+        }
+        for step in &class.steps {
+            match step {
+                crate::hir::ClassInitStep::PropertyInit { field_fqn, init } => {
+                    steps.push(LateLoweredClassCtorInitStep::PropertyInitializer {
+                        field_fqn: field_fqn.clone(),
+                        init: init.clone(),
+                    });
+                }
+                crate::hir::ClassInitStep::InitBlock { block } => {
+                    steps.push(LateLoweredClassCtorInitStep::InitBlock {
+                        block: block.clone(),
+                    });
+                }
+            }
+        }
+    }
+    if let Some(body) = ctor.and_then(|ctor| ctor.body.as_ref()) {
+        steps.push(LateLoweredClassCtorInitStep::SecondaryBody {
+            block: body.clone(),
+        });
+    }
+    LateLoweredClassCtorInitBody::new(
+        key,
+        class.fqn.clone(),
+        class.source_path.clone(),
+        class.this_id,
+        ctor_kind,
+        ctor_span,
+        params,
+        implicit_super,
+        delegation,
+        steps,
+    )
+}
+
+fn build_implicit_super_call<'a>(
+    _classes: impl Iterator<Item = &'a crate::hir::MonoClassInit> + Clone,
+    class: &crate::hir::MonoClassInit,
+) -> Option<LateLoweredClassCtorSuperCall> {
+    let super_fqn = class.super_class_fqn.as_ref()?;
+    let target_span = class
+        .super_ctor_call
+        .as_ref()
+        .and_then(|call| call.ctor_span);
+    Some(LateLoweredClassCtorSuperCall::new(
+        class_ctor_init_key(super_fqn, target_span),
+        super_fqn.clone(),
+        class.super_ctor_call.clone(),
+        class.super_ctor_args.clone(),
+        class.super_ctor_args_span,
+    ))
+}
+
+fn build_class_ctor_delegation<'a>(
+    _classes: impl Iterator<Item = &'a crate::hir::MonoClassInit> + Clone,
+    class: &crate::hir::MonoClassInit,
+    _current_ctor_span: crate::span::Span,
+    delegation: &crate::hir::ClassCtorDelegation,
+) -> LateLoweredClassCtorDelegation {
+    let kind = match delegation.kind {
+        crate::ast::CtorDelegationKind::This => scoopc_lir_facts::LirClassCtorDelegationKind::This,
+        crate::ast::CtorDelegationKind::Super => {
+            scoopc_lir_facts::LirClassCtorDelegationKind::Super
+        }
+    };
+    let class_fqn = delegation
+        .call
+        .as_ref()
+        .map(|call| call.class_fqn.clone())
+        .or_else(|| match delegation.kind {
+            crate::ast::CtorDelegationKind::This => Some(class.fqn.clone()),
+            crate::ast::CtorDelegationKind::Super => class.super_class_fqn.clone(),
+        })
+        .unwrap_or_else(|| class.fqn.clone());
+    let target_span = delegation.call.as_ref().and_then(|call| call.ctor_span);
+    LateLoweredClassCtorDelegation::new(
+        kind,
+        class_ctor_init_key(&class_fqn, target_span),
+        class_fqn,
+        delegation.call.clone(),
+        delegation.args.clone(),
+        delegation.span,
+    )
+}
+
+fn class_ctor_init_key(
+    class_fqn: &str,
+    ctor_span: Option<crate::span::Span>,
+) -> scoopc_lir_facts::LirClassCtorInitKey {
+    scoopc_lir_facts::LirClassCtorInitKey::for_ctor(
+        class_fqn,
+        ctor_span.map(|span| (span.start, span.end)),
+    )
+}
+
+fn lir_class_ctor_kind(kind: crate::hir::ClassCtorKind) -> scoopc_lir_facts::LirClassCtorKind {
+    match kind {
+        crate::hir::ClassCtorKind::Primary => scoopc_lir_facts::LirClassCtorKind::Primary,
+        crate::hir::ClassCtorKind::Secondary => scoopc_lir_facts::LirClassCtorKind::Secondary,
+    }
 }
 
 fn nominal_direct_supertypes_from_mir_facts(mir_facts: &MirFacts) -> NominalDirectSupertypeIndex {

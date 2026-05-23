@@ -83,6 +83,7 @@ pub(crate) fn build_lir_facts(
         physical_layout: build_physical_layout_facts(&ctx)?,
         type_context: build_type_context_facts(ctx.materialized, ctx.effect_facts),
         source_signatures: build_source_signature_facts(ctx.materialized),
+        class_ctor_inits: build_class_ctor_init_facts(ctx.lir),
         callables,
         step_types: build_step_type_facts(lir),
         dynamic_invokes,
@@ -823,6 +824,75 @@ fn source_signature_facts_for_fun(fun: &FunDecl) -> LirSourceCallableSignatureFa
         param_tys: fun.params.iter().map(|param| param.ty).collect(),
         return_ty: fun.return_ty,
     }
+}
+
+fn build_class_ctor_init_facts(
+    lir: &LateLoweredProgram,
+) -> BTreeMap<LirClassCtorInitKey, LirClassCtorInitFacts> {
+    let mut out = BTreeMap::new();
+    for body in lir.class_ctor_init_bodies() {
+        let key = body.key().clone();
+        let ctor_span = body.ctor_span();
+        let implicit_super = body.implicit_super().map(|super_call| {
+            let source_span = super_call.source_span();
+            LirClassCtorSuperCallFacts {
+                target: super_call.target().clone(),
+                class_fqn: super_call.class_fqn().to_string(),
+                arg_count: super_call.args().len(),
+                source_span_start: source_span.map(|span| span.start),
+                source_span_end: source_span.map(|span| span.end),
+            }
+        });
+        let delegation = body
+            .delegation()
+            .map(|delegation| LirClassCtorDelegationFacts {
+                kind: delegation.kind(),
+                target: delegation.target().clone(),
+                class_fqn: delegation.class_fqn().to_string(),
+                arg_count: delegation.args().len(),
+                source_span_start: delegation.span().start,
+                source_span_end: delegation.span().end,
+            });
+        let steps = body
+            .steps()
+            .iter()
+            .map(|step| {
+                let span = step.span();
+                LirClassCtorInitStepFacts {
+                    kind: step.kind(),
+                    field_fqn: step.field_fqn().map(str::to_string),
+                    source_span_start: span.start,
+                    source_span_end: span.end,
+                }
+            })
+            .collect();
+        out.insert(
+            key.clone(),
+            LirClassCtorInitFacts {
+                key,
+                class_fqn: body.class_fqn().to_string(),
+                source_path: body.source_path().display().to_string(),
+                ctor_kind: body.ctor_kind(),
+                ctor_span_start: ctor_span.map(|span| span.start),
+                ctor_span_end: ctor_span.map(|span| span.end),
+                params: body
+                    .params()
+                    .iter()
+                    .map(|param| LirClassCtorParamFacts {
+                        name: param.name().to_string(),
+                        ty: param.ty().inner(),
+                        has_default: param.default_value().is_some(),
+                        is_property: param.is_property(),
+                        property_field_fqn: param.property_field_fqn().map(str::to_string),
+                    })
+                    .collect(),
+                implicit_super,
+                delegation,
+                steps,
+            },
+        );
+    }
+    out
 }
 
 fn callable_symbol_kind(

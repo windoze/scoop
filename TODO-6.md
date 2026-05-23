@@ -1239,7 +1239,7 @@
   - 广义 `crate::hir` / `crate::mir` 命中分类：`mir_body/**` 与 `effect_lowered/**` 中的 `crate::mir` 使用是 LIR-owned source callable/body payload alias、source-slice lowering helper或 raw-route guard，不再从 pass view 发现 body；`crate::hir` 命中保留在 backend-private layout/type metadata、source expression lowering和 source-site semantic fact resolver 路径，不参与 callable body/signature/ABI fallback。`HirFacts` 仍作为 source-site semantic fact resolver 输入保留，但 direct-call signature/body/ABI 查询已改走 LIR/source signature contracts，本任务未留下 `MaterializedMirPassView -> HIR owner -> fun_index` fallback。
   - 验证通过：`cargo fmt`；`cargo run -p scoop_tools -- dependency-gate`；`cargo test -p scoopc_lir_facts`；`cargo test -p scoopc --no-default-features llvm_codegen_stage`（0 filtered-in，pass）；`cargo test -p scoopc --no-default-features llvm::codegen`（0 filtered-in，pass）；`cargo test -p scoopc llvm::codegen`（97 passed）；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`（421/421 passed）；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
 
-## [TODO] P7-T05-b-0：发布 LIR-owned class ctor init body contract
+## [DONE] P7-T05-b-0：发布 LIR-owned class ctor init body contract
 
 - 目标：
   - 修复执行 `P7-T05-b` 时确认的具体前置阻塞；
@@ -1279,7 +1279,11 @@
   - 未通过 fixture-only hack、弱化断言或 backend fallback 保持测试通过。
 - 依赖：P7-T05-a
 - 完成记录：
-  - 待填写。
+  - 发布 class ctor init body contract：`scoopc_lir_facts` 新增 `LirClassCtorInitFacts` / param / delegation / super / step facts；`LateLoweredProgram` 新增 `LateLoweredClassCtorInitBody` source contract，覆盖 selected ctor、ordered params、default arg payload、`this` / `super` delegation、property-param assignment、property initializer、init block 和 secondary body。
+  - LIR stage 从 materialized backend contracts 发布可落入 LIR facts 的 ctor init bodies；LLVM base context 同步从合并后的 class init index 发布窄 base contract，覆盖 codegen-only 泛型 class ctor instantiation（例如 `Atomic<Box<T>>`）而不回退到 LLVM 现场 HIR body discovery。
+  - LLVM class ctor invoke 改为按 ctor init contract 查询 params、delegation、super 和 init steps；production 路径不再读取 `ctor.body.as_ref()`，也不再以 `codegen_block_value(body)` 直接 lower ctor HIR body。`mir_body/args.rs` 的 class ctor ordered args 同步消费 contract params。
+  - `dependency_gate` 新增 `LLVM class ctor init body` source boundary，阻止 `ctor.body.as_ref` 与 `codegen_block_value(body)` 回归。
+  - 验证通过：`cargo fmt`；`cargo run -p scoop_tools -- dependency-gate`；`cargo test -p scoopc_lir_facts`；`cargo test -p scoopc --no-default-features llvm_codegen_stage`；`cargo test -p scoopc --no-default-features llvm::codegen`；`cargo test -p scoopc llvm::codegen`（97 passed）；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`（421/421 passed）；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
 
 ## [TODO] P7-T05-b：清除 P7-T05R 发现的 HIR-derived callable 与 class ctor residual
 

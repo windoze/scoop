@@ -208,6 +208,10 @@ pub enum VerifyError {
     InvalidSourceSignature {
         key: String,
     },
+    InvalidClassCtorInit {
+        key: String,
+        reason: &'static str,
+    },
     InvalidTypeContextBridge {
         mode: &'static str,
     },
@@ -474,6 +478,9 @@ impl fmt::Display for VerifyError {
                     "LIR source signature `{key}` has inconsistent identity or arity"
                 )
             }
+            Self::InvalidClassCtorInit { key, reason } => {
+                write!(f, "LIR class ctor init `{key}` is invalid: {reason}")
+            }
             Self::InvalidTypeContextBridge { mode } => write!(
                 f,
                 "LIR type context bridge mode `{mode}` is inconsistent with published fingerprints"
@@ -558,6 +565,7 @@ pub fn verify_lir_facts(facts: &LirFacts) -> Result<()> {
     verify_global_init_contracts(facts)?;
     verify_physical_layout_contracts(facts)?;
     verify_source_signature_contracts(facts)?;
+    verify_class_ctor_init_contracts(facts)?;
     verify_type_context_contract(facts)?;
     verify_callable_inventory(facts)?;
     verify_dynamic_invoke_contracts(facts)?;
@@ -1049,6 +1057,76 @@ fn verify_source_signature_contracts(facts: &LirFacts) -> Result<()> {
             || signature.param_names.len() != signature.param_tys.len()
         {
             return Err(VerifyError::InvalidSourceSignature { key: key.clone() });
+        }
+    }
+    Ok(())
+}
+
+fn verify_class_ctor_init_contracts(facts: &LirFacts) -> Result<()> {
+    for (key, init) in &facts.class_ctor_inits {
+        if key != &init.key {
+            return Err(VerifyError::InvalidClassCtorInit {
+                key: key.as_str().to_string(),
+                reason: "map key does not match embedded key",
+            });
+        }
+        if init.class_fqn.is_empty() || init.source_path.is_empty() {
+            return Err(VerifyError::InvalidClassCtorInit {
+                key: key.as_str().to_string(),
+                reason: "class identity or source path is empty",
+            });
+        }
+        if init.ctor_span_start.is_some() != init.ctor_span_end.is_some() {
+            return Err(VerifyError::InvalidClassCtorInit {
+                key: key.as_str().to_string(),
+                reason: "ctor span endpoints are incomplete",
+            });
+        }
+        for param in &init.params {
+            if param.name.is_empty() {
+                return Err(VerifyError::InvalidClassCtorInit {
+                    key: key.as_str().to_string(),
+                    reason: "parameter name is empty",
+                });
+            }
+            if param.is_property
+                && param
+                    .property_field_fqn
+                    .as_deref()
+                    .unwrap_or_default()
+                    .is_empty()
+            {
+                return Err(VerifyError::InvalidClassCtorInit {
+                    key: key.as_str().to_string(),
+                    reason: "property parameter is missing field identity",
+                });
+            }
+        }
+        for step in &init.steps {
+            if step.source_span_start > step.source_span_end {
+                return Err(VerifyError::InvalidClassCtorInit {
+                    key: key.as_str().to_string(),
+                    reason: "step source span is reversed",
+                });
+            }
+        }
+        if let Some(super_call) = &init.implicit_super
+            && (super_call.class_fqn.is_empty()
+                || !facts.class_ctor_inits.contains_key(&super_call.target))
+        {
+            return Err(VerifyError::InvalidClassCtorInit {
+                key: key.as_str().to_string(),
+                reason: "implicit super target is unpublished",
+            });
+        }
+        if let Some(delegation) = &init.delegation
+            && (delegation.class_fqn.is_empty()
+                || !facts.class_ctor_inits.contains_key(&delegation.target))
+        {
+            return Err(VerifyError::InvalidClassCtorInit {
+                key: key.as_str().to_string(),
+                reason: "delegation target is unpublished",
+            });
         }
     }
     Ok(())

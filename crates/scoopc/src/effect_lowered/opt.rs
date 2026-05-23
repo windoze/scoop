@@ -36,7 +36,7 @@ impl LateLoweredOptOptions {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub(crate) struct LirOptPipelineOutput {
     program: LateLoweredProgram,
     opt_pipeline: LirOptPipelineFacts,
@@ -164,6 +164,7 @@ fn optimize_program_body(
             continuation_objects,
             optimized_callables,
         )
+        .with_class_ctor_init_bodies(program.class_ctor_init_bodies().cloned().collect())
         .with_stable_instance_keys(program.stable_instance_keys().clone())
         .with_dump_metadata(
             program.dump_type_texts().clone(),
@@ -227,6 +228,7 @@ fn optimize_program_body(
         continuation_objects,
         callables,
     )
+    .with_class_ctor_init_bodies(program.class_ctor_init_bodies().cloned().collect())
     .with_stable_instance_keys(program.stable_instance_keys().clone())
     .with_dump_metadata(
         program.dump_type_texts().clone(),

@@ -2,6 +2,8 @@
 
 #![allow(dead_code)]
 
+use crate::effect_lowered::ir::LateLoweredClassCtorParam;
+
 use super::*;
 
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
@@ -10,7 +12,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         _span: crate::span::Span,
         args: &[crate::mir::CallArg],
         slots: &[MirLocalSlot<'ctx>],
-        ctor_params: &[hir::ClassCtorParam<MonoTypeId>],
+        ctor_params: &[LateLoweredClassCtorParam],
         kind: &'static str,
     ) -> Result<Vec<CgValue<'ctx>>, LlvmEmitError> {
         if ctor_params.len() != args.len() {
@@ -22,7 +24,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             if arg.name.is_some() {
                 panic!("codegen_mir_class_ctor_ordered_args: MIR verifier accepted {kind}");
             }
-            let param_cg = self.cg_ty_of_type_id(param.ty.inner(), "MIR class ctor param type");
+            let param_cg = self.cg_ty_of_type_id(param.ty().inner(), "MIR class ctor param type");
             let value =
                 self.codegen_mir_operand_expected(arg.span, &arg.value, slots, Some(param_cg))?;
             let value = self.coerce_value(arg.span, value, param_cg)?;
@@ -57,10 +59,8 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             args,
             "class ctor selected/ordered args contract",
         )?;
-        let ctor_params: &[hir::ClassCtorParam<MonoTypeId>] = match selected_ctor {
-            Some(ctor) => ctor.params.as_slice(),
-            None => &[][..],
-        };
+        let init_body = self.class_ctor_init_body_for_selected(span, &class, selected_ctor)?;
+        let ctor_params = init_body.params();
 
         let obj_ty = self.llvm_class_object_type(span, &class)?;
         let obj_size_bytes = self.target_data.get_store_size(&obj_ty);
@@ -132,7 +132,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             span,
             span,
             &class,
-            selected_ctor,
+            &init_body,
             evaluated_args.as_slice(),
             current_obj,
         )?;

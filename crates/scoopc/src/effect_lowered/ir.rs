@@ -1,4 +1,5 @@
 use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::path::PathBuf;
 
 use crate::effect_facts::{
     CallSiteEffectFacts, CallSiteKind, CallableAbiKind, CaseTag, ClassCtorSiteEffectFacts,
@@ -8,6 +9,7 @@ use crate::effect_facts::{
 use crate::mir::{BasicBlockId, ConstValue, InstanceKey, LocalId, SiteId};
 use crate::span::Span;
 use crate::stable_id::StableInstanceKey;
+use crate::ty::MonoTypeId;
 use crate::ty::{EffectRow, TypeId};
 
 /// P5 LIR 阶段的顶层中间表示。
@@ -20,13 +22,14 @@ use crate::ty::{EffectRow, TypeId};
 ///
 /// `LirStageOutput::lir()` 正式发布这份结构作为当前 LIR 本体。后续任务只能继续在这些类型里
 /// 补算法和内容，而不能再另起一套临时 IR。
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub struct LateLoweredProgram {
     step_types: Vec<LateLoweredStepType>,
     resume_packings: Vec<LateLoweredResumeInterface>,
     continuation_objects: Vec<LateLoweredContinuationObject>,
     surface_resume_dispatch_inventory: Vec<LateLoweredSurfaceResumeDispatchInventoryEntry>,
     callables: Vec<LateLoweredCallable>,
+    class_ctor_init_bodies: HashMap<String, LateLoweredClassCtorInitBody>,
     stable_instance_keys: HashMap<InstanceKey, StableInstanceKey>,
     dump_type_texts: HashMap<TypeId, String>,
     dump_body_labels: HashMap<LateLoweredBodyVersionKey, crate::mir::BodyLabels>,
@@ -47,6 +50,7 @@ impl LateLoweredProgram {
             continuation_objects,
             surface_resume_dispatch_inventory,
             callables,
+            class_ctor_init_bodies: HashMap::new(),
             stable_instance_keys: HashMap::new(),
             dump_type_texts: HashMap::new(),
             dump_body_labels: HashMap::new(),
@@ -83,6 +87,7 @@ impl LateLoweredProgram {
             continuation_objects: self.continuation_objects.clone(),
             surface_resume_dispatch_inventory,
             callables: self.callables.clone(),
+            class_ctor_init_bodies: self.class_ctor_init_bodies.clone(),
             stable_instance_keys: self.stable_instance_keys.clone(),
             dump_type_texts: self.dump_type_texts.clone(),
             dump_body_labels: self.dump_body_labels.clone(),
@@ -155,6 +160,28 @@ impl LateLoweredProgram {
 
     pub fn callables(&self) -> &[LateLoweredCallable] {
         &self.callables
+    }
+
+    pub fn with_class_ctor_init_bodies(
+        mut self,
+        class_ctor_init_bodies: Vec<LateLoweredClassCtorInitBody>,
+    ) -> Self {
+        self.class_ctor_init_bodies = class_ctor_init_bodies
+            .into_iter()
+            .map(|body| (body.key().as_str().to_string(), body))
+            .collect();
+        self
+    }
+
+    pub fn class_ctor_init_body(
+        &self,
+        key: &scoopc_lir_facts::LirClassCtorInitKey,
+    ) -> Option<&LateLoweredClassCtorInitBody> {
+        self.class_ctor_init_bodies.get(key.as_str())
+    }
+
+    pub fn class_ctor_init_bodies(&self) -> impl Iterator<Item = &LateLoweredClassCtorInitBody> {
+        self.class_ctor_init_bodies.values()
     }
 
     pub fn callable(&self, root_fqn: &str) -> Option<&LateLoweredCallable> {
@@ -281,6 +308,299 @@ pub type LateLoweredSourceInterpolatedStringPart = crate::mir::InterpolatedStrin
 pub type LateLoweredSourceStructLitField = crate::mir::StructLitField;
 
 pub type LateLoweredSourceClassCtorCallMetadata = crate::mir::ClassCtorCallMetadata;
+
+pub type LateLoweredSourceClassCtorCallArg = crate::hir::CallArg;
+
+pub type LateLoweredSourceClassCtorExpr = crate::hir::Expr;
+
+pub type LateLoweredSourceClassCtorBlock = crate::hir::Block;
+
+#[derive(Debug, Clone)]
+pub struct LateLoweredClassCtorParam {
+    id: crate::hir::SymbolId,
+    name: String,
+    decl_span: Span,
+    ty: MonoTypeId,
+    default_value: Option<LateLoweredSourceClassCtorExpr>,
+    is_property: bool,
+    property_field_fqn: Option<String>,
+}
+
+impl LateLoweredClassCtorParam {
+    pub(crate) fn new(param: &crate::hir::ClassCtorParam<MonoTypeId>) -> Self {
+        Self {
+            id: param.id,
+            name: param.name.clone(),
+            decl_span: param.decl_span,
+            ty: param.ty,
+            default_value: param.default_value.clone(),
+            is_property: param.is_property,
+            property_field_fqn: param.property_field_fqn.clone(),
+        }
+    }
+
+    pub fn id(&self) -> crate::hir::SymbolId {
+        self.id
+    }
+
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    pub fn decl_span(&self) -> Span {
+        self.decl_span
+    }
+
+    pub fn ty(&self) -> MonoTypeId {
+        self.ty
+    }
+
+    pub fn default_value(&self) -> Option<&LateLoweredSourceClassCtorExpr> {
+        self.default_value.as_ref()
+    }
+
+    pub fn is_property(&self) -> bool {
+        self.is_property
+    }
+
+    pub fn property_field_fqn(&self) -> Option<&str> {
+        self.property_field_fqn.as_deref()
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct LateLoweredClassCtorSuperCall {
+    target: scoopc_lir_facts::LirClassCtorInitKey,
+    class_fqn: String,
+    call: Option<crate::hir::CtorCallInfo>,
+    args: Vec<LateLoweredSourceClassCtorCallArg>,
+    source_span: Option<Span>,
+}
+
+impl LateLoweredClassCtorSuperCall {
+    pub(crate) fn new(
+        target: scoopc_lir_facts::LirClassCtorInitKey,
+        class_fqn: String,
+        call: Option<crate::hir::CtorCallInfo>,
+        args: Vec<LateLoweredSourceClassCtorCallArg>,
+        source_span: Option<Span>,
+    ) -> Self {
+        Self {
+            target,
+            class_fqn,
+            call,
+            args,
+            source_span,
+        }
+    }
+
+    pub fn target(&self) -> &scoopc_lir_facts::LirClassCtorInitKey {
+        &self.target
+    }
+
+    pub fn class_fqn(&self) -> &str {
+        &self.class_fqn
+    }
+
+    pub fn call(&self) -> Option<&crate::hir::CtorCallInfo> {
+        self.call.as_ref()
+    }
+
+    pub fn args(&self) -> &[LateLoweredSourceClassCtorCallArg] {
+        &self.args
+    }
+
+    pub fn source_span(&self) -> Option<Span> {
+        self.source_span
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct LateLoweredClassCtorDelegation {
+    kind: scoopc_lir_facts::LirClassCtorDelegationKind,
+    target: scoopc_lir_facts::LirClassCtorInitKey,
+    class_fqn: String,
+    call: Option<crate::hir::CtorCallInfo>,
+    args: Vec<LateLoweredSourceClassCtorCallArg>,
+    span: Span,
+}
+
+impl LateLoweredClassCtorDelegation {
+    pub(crate) fn new(
+        kind: scoopc_lir_facts::LirClassCtorDelegationKind,
+        target: scoopc_lir_facts::LirClassCtorInitKey,
+        class_fqn: String,
+        call: Option<crate::hir::CtorCallInfo>,
+        args: Vec<LateLoweredSourceClassCtorCallArg>,
+        span: Span,
+    ) -> Self {
+        Self {
+            kind,
+            target,
+            class_fqn,
+            call,
+            args,
+            span,
+        }
+    }
+
+    pub fn kind(&self) -> scoopc_lir_facts::LirClassCtorDelegationKind {
+        self.kind
+    }
+
+    pub fn target(&self) -> &scoopc_lir_facts::LirClassCtorInitKey {
+        &self.target
+    }
+
+    pub fn class_fqn(&self) -> &str {
+        &self.class_fqn
+    }
+
+    pub fn call(&self) -> Option<&crate::hir::CtorCallInfo> {
+        self.call.as_ref()
+    }
+
+    pub fn args(&self) -> &[LateLoweredSourceClassCtorCallArg] {
+        &self.args
+    }
+
+    pub fn span(&self) -> Span {
+        self.span
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum LateLoweredClassCtorInitStep {
+    PropertyParamAssignment {
+        param_index: usize,
+        field_fqn: String,
+        span: Span,
+    },
+    PropertyInitializer {
+        field_fqn: String,
+        init: LateLoweredSourceClassCtorExpr,
+    },
+    InitBlock {
+        block: LateLoweredSourceClassCtorBlock,
+    },
+    SecondaryBody {
+        block: LateLoweredSourceClassCtorBlock,
+    },
+}
+
+impl LateLoweredClassCtorInitStep {
+    pub fn kind(&self) -> scoopc_lir_facts::LirClassCtorInitStepKind {
+        match self {
+            Self::PropertyParamAssignment { .. } => {
+                scoopc_lir_facts::LirClassCtorInitStepKind::PropertyParamAssignment
+            }
+            Self::PropertyInitializer { .. } => {
+                scoopc_lir_facts::LirClassCtorInitStepKind::PropertyInitializer
+            }
+            Self::InitBlock { .. } => scoopc_lir_facts::LirClassCtorInitStepKind::InitBlock,
+            Self::SecondaryBody { .. } => scoopc_lir_facts::LirClassCtorInitStepKind::SecondaryBody,
+        }
+    }
+
+    pub fn span(&self) -> Span {
+        match self {
+            Self::PropertyParamAssignment { span, .. } => *span,
+            Self::PropertyInitializer { init, .. } => init.span,
+            Self::InitBlock { block } | Self::SecondaryBody { block } => block.span,
+        }
+    }
+
+    pub fn field_fqn(&self) -> Option<&str> {
+        match self {
+            Self::PropertyParamAssignment { field_fqn, .. }
+            | Self::PropertyInitializer { field_fqn, .. } => Some(field_fqn),
+            Self::InitBlock { .. } | Self::SecondaryBody { .. } => None,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct LateLoweredClassCtorInitBody {
+    key: scoopc_lir_facts::LirClassCtorInitKey,
+    class_fqn: String,
+    source_path: PathBuf,
+    this_id: crate::hir::SymbolId,
+    ctor_kind: scoopc_lir_facts::LirClassCtorKind,
+    ctor_span: Option<Span>,
+    params: Vec<LateLoweredClassCtorParam>,
+    implicit_super: Option<LateLoweredClassCtorSuperCall>,
+    delegation: Option<LateLoweredClassCtorDelegation>,
+    steps: Vec<LateLoweredClassCtorInitStep>,
+}
+
+impl LateLoweredClassCtorInitBody {
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn new(
+        key: scoopc_lir_facts::LirClassCtorInitKey,
+        class_fqn: String,
+        source_path: PathBuf,
+        this_id: crate::hir::SymbolId,
+        ctor_kind: scoopc_lir_facts::LirClassCtorKind,
+        ctor_span: Option<Span>,
+        params: Vec<LateLoweredClassCtorParam>,
+        implicit_super: Option<LateLoweredClassCtorSuperCall>,
+        delegation: Option<LateLoweredClassCtorDelegation>,
+        steps: Vec<LateLoweredClassCtorInitStep>,
+    ) -> Self {
+        Self {
+            key,
+            class_fqn,
+            source_path,
+            this_id,
+            ctor_kind,
+            ctor_span,
+            params,
+            implicit_super,
+            delegation,
+            steps,
+        }
+    }
+
+    pub fn key(&self) -> &scoopc_lir_facts::LirClassCtorInitKey {
+        &self.key
+    }
+
+    pub fn class_fqn(&self) -> &str {
+        &self.class_fqn
+    }
+
+    pub fn source_path(&self) -> &PathBuf {
+        &self.source_path
+    }
+
+    pub fn this_id(&self) -> crate::hir::SymbolId {
+        self.this_id
+    }
+
+    pub fn ctor_kind(&self) -> scoopc_lir_facts::LirClassCtorKind {
+        self.ctor_kind
+    }
+
+    pub fn ctor_span(&self) -> Option<Span> {
+        self.ctor_span
+    }
+
+    pub fn params(&self) -> &[LateLoweredClassCtorParam] {
+        &self.params
+    }
+
+    pub fn implicit_super(&self) -> Option<&LateLoweredClassCtorSuperCall> {
+        self.implicit_super.as_ref()
+    }
+
+    pub fn delegation(&self) -> Option<&LateLoweredClassCtorDelegation> {
+        self.delegation.as_ref()
+    }
+
+    pub fn steps(&self) -> &[LateLoweredClassCtorInitStep] {
+        &self.steps
+    }
+}
 
 impl LateLoweredBodyVersionKey {
     pub(crate) fn new(

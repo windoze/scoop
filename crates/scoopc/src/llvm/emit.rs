@@ -522,6 +522,7 @@ fn build_module_from_codegen_entry_with_root_selector<'ctx>(
             top_level_fun_call_sites: base_context.top_level_fun_call_sites(),
             object_inits: base_context.object_inits(),
             class_inits: base_context.class_inits(),
+            class_ctor_init_bodies: base_context.class_ctor_init_bodies(),
             class_vtables: base_context.class_vtables(),
             interfaces: base_context.interfaces(),
             class_itables: base_context.class_itables(),

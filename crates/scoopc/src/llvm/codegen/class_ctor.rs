@@ -1,5 +1,11 @@
 //! Class constructor selection and initialization lowering split out of `codegen/mod.rs`.
 
+use crate::effect_lowered::ir::{
+    LateLoweredClassCtorDelegation, LateLoweredClassCtorInitBody, LateLoweredClassCtorInitStep,
+    LateLoweredClassCtorParam, LateLoweredClassCtorSuperCall, LateLoweredSourceClassCtorBlock,
+    LateLoweredSourceClassCtorExpr,
+};
+
 use super::*;
 
 impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
@@ -70,10 +76,9 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             None,
             "class ctor selected/ordered args contract",
         )?;
-        let ctor_params: &[hir::ClassCtorParam<MonoTypeId>] = match selected_ctor {
-            Some(ctor) => ctor.params.as_slice(),
-            None => &[][..],
-        };
+        let init_body =
+            self.class_ctor_init_body_for_selected(callee_span, &class, selected_ctor)?;
+        let ctor_params = init_body.params();
         // 4) 分配对象（header 由 runtime 初始化）；payload 先清零，避免读取未初始化字段导致的非确定性。
         let obj_ty = self.llvm_class_object_type(span, &class)?;
         let obj_size_bytes = self.target_data.get_store_size(&obj_ty);
@@ -156,7 +161,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
             span,
             callee_span,
             &class,
-            selected_ctor,
+            &init_body,
             evaluated_args.as_slice(),
             current_obj,
         )?;
@@ -261,13 +266,53 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         panic!("pick_class_ctor_by_target: verifier accepted {kind}")
     }
 
+    pub(in crate::llvm::codegen) fn class_ctor_init_body_for_selected(
+        &self,
+        at: crate::span::Span,
+        class: &hir::MonoClassInit,
+        ctor: Option<&hir::ClassCtor<MonoTypeId>>,
+    ) -> Result<LateLoweredClassCtorInitBody, LlvmEmitError> {
+        let key = LirClassCtorInitKey::for_ctor(
+            class.fqn.as_str(),
+            ctor.map(|ctor| (ctor.span.start, ctor.span.end)),
+        );
+        self.class_ctor_init_body_for_key(at, &key)
+    }
+
+    fn class_ctor_init_body_for_key(
+        &self,
+        _at: crate::span::Span,
+        key: &LirClassCtorInitKey,
+    ) -> Result<LateLoweredClassCtorInitBody, LlvmEmitError> {
+        if self.published_lir_facts.class_ctor_inits.contains_key(key) {
+            let program =
+                self.published_late_lowered_program()
+                    .ok_or_else(|| LlvmEmitError::Frontend {
+                        message: "class ctor init contract requires published LateLoweredProgram"
+                            .to_string(),
+                    })?;
+            if let Some(body) = program.class_ctor_init_body(key) {
+                return Ok(body.clone());
+            }
+        }
+        self.class_ctor_init_bodies
+            .get(key.as_str())
+            .cloned()
+            .ok_or_else(|| LlvmEmitError::Frontend {
+                message: format!(
+                    "class ctor init body `{}` is missing from LIR facts and LLVM base context",
+                    key.as_str()
+                ),
+            })
+    }
+
     fn codegen_class_ctor_eval_args(
         &mut self,
         _at: crate::span::Span,
         callee_span: crate::span::Span,
         args: &[hir::CallArg],
         call_info: Option<&hir::CtorCallInfo>,
-        ctor_params: &[hir::ClassCtorParam<MonoTypeId>],
+        ctor_params: &[LateLoweredClassCtorParam],
         kind: &'static str,
     ) -> Result<Vec<CgValue<'ctx>>, LlvmEmitError> {
         let mapping: Vec<Option<usize>> = if let Some(info) = call_info {
@@ -309,14 +354,14 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 panic!("codegen_class_ctor_eval_args: verifier accepted {kind}")
             });
             let param = &ctor_params[param_idx];
-            let param_cg = self.cg_ty_of_type_id(param.ty.inner(), "class ctor param type");
+            let param_cg = self.cg_ty_of_type_id(param.ty().inner(), "class ctor param type");
             let expr = match arg {
                 hir::CallArg::Positional(expr) => expr,
                 hir::CallArg::Named { value, .. } => value,
             };
             let v = match &expr.kind {
                 hir::ExprKind::Closure(closure) => {
-                    self.codegen_closure_expr(expr.span, closure, param.ty.inner())?
+                    self.codegen_closure_expr(expr.span, closure, param.ty().inner())?
                 }
                 _ => self.codegen_expr_in_expected_context(expr, Some(param_cg))?,
             };
@@ -360,14 +405,13 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 }
                 let default_value =
                     param
-                        .default_value
-                        .as_ref()
+                        .default_value()
                         .unwrap_or_else(|| panic!("codegen_class_ctor_eval_args: verifier accepted missing default value for {kind}"));
                 let param_cg =
-                    self.cg_ty_of_type_id(param.ty.inner(), "class ctor default param type");
+                    self.cg_ty_of_type_id(param.ty().inner(), "class ctor default param type");
                 let v = match &default_value.kind {
                     hir::ExprKind::Closure(closure) => {
-                        self.codegen_closure_expr(default_value.span, closure, param.ty.inner())?
+                        self.codegen_closure_expr(default_value.span, closure, param.ty().inner())?
                     }
                     _ => self.codegen_expr_in_expected_context(default_value, Some(param_cg))?,
                 };
@@ -401,18 +445,18 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         &mut self,
         _callee_span: crate::span::Span,
         _kind: &'static str,
-        param: &hir::ClassCtorParam<MonoTypeId>,
+        param: &LateLoweredClassCtorParam,
         expr_span: crate::span::Span,
         value: CgValue<'ctx>,
     ) -> Result<CgValue<'ctx>, LlvmEmitError> {
-        let param_cg = self.cg_ty_of_type_id(param.ty.inner(), "class ctor bound param type");
-        let ptr = self.create_entry_alloca(param.decl_span, &param.name, param_cg)?;
+        let param_cg = self.cg_ty_of_type_id(param.ty().inner(), "class ctor bound param type");
+        let ptr = self.create_entry_alloca(param.decl_span(), param.name(), param_cg)?;
         let stored = self.store_local_value(expr_span, ptr, param_cg, value)?;
         self.function_cx.env.insert(
-            param.id,
+            param.id(),
             CgLocal {
-                hir_ty: Some(param.ty.inner()),
-                call_may_suspend: self.local_call_may_suspend_from_hir_ty(Some(param.ty.inner())),
+                hir_ty: Some(param.ty().inner()),
+                call_may_suspend: self.local_call_may_suspend_from_hir_ty(Some(param.ty().inner())),
                 ty: param_cg,
                 ptr,
                 frame_backing_ptr: None,
@@ -423,65 +467,101 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
     }
 
     #[allow(clippy::too_many_arguments)]
-    fn codegen_class_ctor_call_super(
+    fn codegen_class_ctor_call_target(
         &mut self,
         span: crate::span::Span,
         callee_span: crate::span::Span,
-        class: &hir::MonoClassInit,
-        super_args: &[hir::CallArg],
-        super_call: Option<&hir::CtorCallInfo>,
-        stack: &mut HashSet<(String, crate::span::Span)>,
+        target_class_fqn: &str,
+        target_key: &LirClassCtorInitKey,
+        target_args: &[hir::CallArg],
+        target_call: Option<&hir::CtorCallInfo>,
+        obj_ptr: PointerValue<'ctx>,
+        stack: &mut HashSet<String>,
         kind: &'static str,
     ) -> Result<(), LlvmEmitError> {
-        let Some(super_fqn) = class.super_class_fqn.as_deref() else {
-            return Ok(());
-        };
-
-        let super_key = self.registered_class_instance_key(super_fqn).ok_or_else(|| {
-            LlvmEmitError::Frontend {
+        let class_key = self
+            .registered_class_instance_key(target_class_fqn)
+            .ok_or_else(|| LlvmEmitError::Frontend {
                 message: format!(
-                    "class ctor `{}` references superclass `{super_fqn}` without ClassInstanceKey metadata",
-                    class.fqn
+                    "class ctor target `{target_class_fqn}` lacks ClassInstanceKey metadata"
                 ),
-            }
-        })?;
-        let super_class = self.class_init_layout(callee_span, &super_key)?;
-        let super_ctor = self.pick_class_ctor_by_target(
+            })?;
+        let target_class = self.class_init_layout(callee_span, &class_key)?;
+        let target_init = self.class_ctor_init_body_for_key(callee_span, target_key)?;
+        let target_values = self.codegen_class_ctor_eval_args(
             callee_span,
-            &super_class,
-            super_call.and_then(|call| call.ctor_span),
-            super_args.len(),
-            None,
+            callee_span,
+            target_args,
+            target_call,
+            target_init.params(),
             kind,
         )?;
-
-        let super_ctor_params: &[hir::ClassCtorParam<MonoTypeId>] = match super_ctor {
-            Some(ctor) => ctor.params.as_slice(),
-            None => &[][..],
-        };
-        let super_values = self.codegen_class_ctor_eval_args(
-            callee_span,
-            callee_span,
-            super_args,
-            super_call,
-            super_ctor_params,
-            kind,
-        )?;
-        let obj_ptr = self.current_class_ctor_this_ptr(callee_span, class)?;
 
         self.codegen_class_ctor_invoke_inner(
             span,
             callee_span,
-            &super_class,
-            super_ctor,
-            super_values.as_slice(),
+            &target_class,
+            &target_init,
+            target_values.as_slice(),
             obj_ptr,
             stack,
+        )
+    }
+
+    fn codegen_class_ctor_delegation(
+        &mut self,
+        span: crate::span::Span,
+        callee_span: crate::span::Span,
+        delegation: &LateLoweredClassCtorDelegation,
+        obj_ptr: PointerValue<'ctx>,
+        stack: &mut HashSet<String>,
+    ) -> Result<(), LlvmEmitError> {
+        let kind = match delegation.kind() {
+            LirClassCtorDelegationKind::This => {
+                "class this delegation selected/ordered args contract"
+            }
+            LirClassCtorDelegationKind::Super => {
+                "class super delegation selected/ordered args contract"
+            }
+        };
+        self.codegen_class_ctor_call_target(
+            span,
+            callee_span,
+            delegation.class_fqn(),
+            delegation.target(),
+            delegation.args(),
+            delegation.call(),
+            obj_ptr,
+            stack,
+            kind,
         )?;
+        let effect_label = match delegation.kind() {
+            LirClassCtorDelegationKind::This => "class_ctor_this_delegation_effect",
+            LirClassCtorDelegationKind::Super => "class_ctor_super_effect",
+        };
+        self.emit_current_local_effect_escape_check(callee_span, effect_label)
+    }
 
-        self.emit_current_local_effect_escape_check(callee_span, "class_ctor_super_effect")?;
-
-        Ok(())
+    fn codegen_class_ctor_super_contract(
+        &mut self,
+        span: crate::span::Span,
+        callee_span: crate::span::Span,
+        super_call: &LateLoweredClassCtorSuperCall,
+        obj_ptr: PointerValue<'ctx>,
+        stack: &mut HashSet<String>,
+    ) -> Result<(), LlvmEmitError> {
+        self.codegen_class_ctor_call_target(
+            span,
+            callee_span,
+            super_call.class_fqn(),
+            super_call.target(),
+            super_call.args(),
+            super_call.call(),
+            obj_ptr,
+            stack,
+            "class super ctor selected/ordered args contract",
+        )?;
+        self.emit_current_local_effect_escape_check(callee_span, "class_ctor_super_effect")
     }
 
     fn codegen_class_ctor_run_init_steps(
@@ -489,48 +569,45 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         span: crate::span::Span,
         _callee_span: crate::span::Span,
         class: &hir::MonoClassInit,
-        ctor_params: &[hir::ClassCtorParam<MonoTypeId>],
+        init_body: &LateLoweredClassCtorInitBody,
     ) -> Result<(), LlvmEmitError> {
-        // primary ctor 参数属性赋值（在 super ctor 之后执行，Kotlin-like）。
-        for param in ctor_params {
-            if !param.is_property {
-                continue;
-            }
-            let param_cg =
-                self.cg_ty_of_type_id(param.ty.inner(), "class ctor property param type");
-
-            let Some(field_fqn) = param.property_field_fqn.as_deref() else {
-                panic!(
-                    "codegen_class_ctor_run_init_steps: verifier accepted property param without field FQN"
-                );
-            };
-            let Some(field_idx) = class.field_indices.get(field_fqn).copied() else {
-                panic!(
-                    "codegen_class_ctor_run_init_steps: verifier accepted property param field index drift"
-                );
-            };
-            let local =
-                self.function_cx
-                    .env
-                    .get(param.id)
-                    .unwrap_or_else(|| panic!("codegen_class_ctor_run_init_steps: verifier accepted missing ctor param local slot"));
-            let local_ptr =
-                self.local_ptr_for_use(span, local, &format!("class_ctor_param_{}", param.name))?;
-            let loaded = self.builder.build_load(
-                self.llvm_basic_type_of(span, param_cg)?,
-                local_ptr,
-                &format!("load_class_ctor_param_{}", param.name),
-            )?;
-            let arg_v = self.cg_value_from_loaded(span, param_cg, loaded)?;
-            let obj_ptr = self.current_class_ctor_this_ptr(span, class)?;
-            let field_ptr = self.codegen_class_field_ptr(span, class, obj_ptr, field_idx)?;
-            let _ = self.store_local_value_exact(span, field_ptr, param_cg, arg_v)?;
-        }
-
-        // property initializer / init blocks（按源码顺序）
-        for step in &class.steps {
+        for step in init_body.steps() {
             match step {
-                hir::ClassInitStep::PropertyInit { field_fqn, init } => {
+                LateLoweredClassCtorInitStep::PropertyParamAssignment {
+                    param_index,
+                    field_fqn,
+                    ..
+                } => {
+                    let param = init_body.params().get(*param_index).unwrap_or_else(|| {
+                        panic!("codegen_class_ctor_run_init_steps: verifier accepted property param index drift")
+                    });
+                    let param_cg =
+                        self.cg_ty_of_type_id(param.ty().inner(), "class ctor property param type");
+                    let Some(field_idx) = class.field_indices.get(field_fqn).copied() else {
+                        panic!(
+                            "codegen_class_ctor_run_init_steps: verifier accepted property param field index drift"
+                        );
+                    };
+                    let local = self.function_cx.env.get(param.id()).unwrap_or_else(|| {
+                        panic!("codegen_class_ctor_run_init_steps: verifier accepted missing ctor param local slot")
+                    });
+                    let local_ptr = self.local_ptr_for_use(
+                        span,
+                        local,
+                        &format!("class_ctor_param_{}", param.name()),
+                    )?;
+                    let loaded = self.builder.build_load(
+                        self.llvm_basic_type_of(span, param_cg)?,
+                        local_ptr,
+                        &format!("load_class_ctor_param_{}", param.name()),
+                    )?;
+                    let arg_v = self.cg_value_from_loaded(span, param_cg, loaded)?;
+                    let obj_ptr = self.current_class_ctor_this_ptr(span, class)?;
+                    let field_ptr =
+                        self.codegen_class_field_ptr(span, class, obj_ptr, field_idx)?;
+                    let _ = self.store_local_value_exact(span, field_ptr, param_cg, arg_v)?;
+                }
+                LateLoweredClassCtorInitStep::PropertyInitializer { field_fqn, init } => {
                     let Some(field_idx) = class.field_indices.get(field_fqn).copied() else {
                         panic!(
                             "codegen_class_ctor_run_init_steps: verifier accepted property init field index drift"
@@ -542,18 +619,35 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     let field_cg =
                         self.cg_ty_of_type_id(field.ty.inner(), "class property init field type");
 
-                    let v = self.codegen_expr_in_expected_context(init, Some(field_cg))?;
+                    let v = self.codegen_lir_class_ctor_expr(init, Some(field_cg))?;
                     let obj_ptr = self.current_class_ctor_this_ptr(init.span, class)?;
                     let field_ptr =
                         self.codegen_class_field_ptr(init.span, class, obj_ptr, field_idx)?;
                     let _ = self.store_local_value(init.span, field_ptr, field_cg, v)?;
                 }
-                hir::ClassInitStep::InitBlock { block } => {
-                    let _ = self.codegen_block_value(block)?;
+                LateLoweredClassCtorInitStep::InitBlock { block }
+                | LateLoweredClassCtorInitStep::SecondaryBody { block } => {
+                    self.codegen_lir_class_ctor_block(block)?;
                 }
             }
         }
 
+        Ok(())
+    }
+
+    fn codegen_lir_class_ctor_expr(
+        &mut self,
+        expr: &LateLoweredSourceClassCtorExpr,
+        expected: Option<CgTy>,
+    ) -> Result<CgValue<'ctx>, LlvmEmitError> {
+        self.codegen_expr_in_expected_context(expr, expected)
+    }
+
+    fn codegen_lir_class_ctor_block(
+        &mut self,
+        block: &LateLoweredSourceClassCtorBlock,
+    ) -> Result<(), LlvmEmitError> {
+        let _ = self.codegen_block_value(block)?;
         Ok(())
     }
 
@@ -562,16 +656,16 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         span: crate::span::Span,
         callee_span: crate::span::Span,
         class: &hir::MonoClassInit,
-        ctor: Option<&hir::ClassCtor<MonoTypeId>>,
+        init_body: &LateLoweredClassCtorInitBody,
         args: &[CgValue<'ctx>],
         obj_ptr: PointerValue<'ctx>,
     ) -> Result<(), LlvmEmitError> {
-        let mut stack: HashSet<(String, crate::span::Span)> = HashSet::new();
+        let mut stack: HashSet<String> = HashSet::new();
         self.codegen_class_ctor_invoke_inner(
             span,
             callee_span,
             class,
-            ctor,
+            init_body,
             args,
             obj_ptr,
             &mut stack,
@@ -584,29 +678,12 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
         span: crate::span::Span,
         callee_span: crate::span::Span,
         class: &hir::MonoClassInit,
-        ctor: Option<&hir::ClassCtor<MonoTypeId>>,
+        init_body: &LateLoweredClassCtorInitBody,
         args: &[CgValue<'ctx>],
         obj_ptr: PointerValue<'ctx>,
-        stack: &mut HashSet<(String, crate::span::Span)>,
+        stack: &mut HashSet<String>,
     ) -> Result<(), LlvmEmitError> {
-        let (ctor_kind, ctor_span, ctor_params, ctor_body, delegation) = match ctor {
-            Some(ctor) => (
-                ctor.kind,
-                ctor.span,
-                ctor.params.as_slice(),
-                ctor.body.as_ref(),
-                ctor.delegation.as_ref(),
-            ),
-            None => (
-                hir::ClassCtorKind::Primary,
-                callee_span,
-                &[][..],
-                None,
-                None,
-            ),
-        };
-
-        let key = (class.fqn.clone(), ctor_span);
+        let key = init_body.key().as_str().to_string();
         if !stack.insert(key.clone()) {
             panic!(
                 "codegen_class_ctor_invoke_inner: typecheck accepted class ctor delegation cycle"
@@ -615,7 +692,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
 
         let saved_source_id = self.current_source_id;
         self.current_source_id =
-            self.source_id_for_path(class.source_path.as_path(), callee_span)?;
+            self.source_id_for_path(init_body.source_path().as_path(), callee_span)?;
         let result = (|| {
             if self.function_cx.current_effect_outcome_ptr.is_none() {
                 let outcome_slot =
@@ -643,7 +720,7 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     },
                 )?;
                 cg.function_cx.env.insert(
-                    class.this_id,
+                    init_body.this_id(),
                     CgLocal {
                         hir_ty: None,
                         call_may_suspend: false,
@@ -655,21 +732,23 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                 );
 
                 // ctor params locals（先写 locals；参数属性赋值延后到 super ctor call 之后）。
-                if args.len() != ctor_params.len() {
+                if args.len() != init_body.params().len() {
                     panic!("codegen_class_ctor_invoke_inner: verifier accepted ctor arg/param length mismatch");
                 }
 
-                for (param, arg_v) in ctor_params.iter().zip(args.iter()) {
-                    let param_cg = cg.cg_ty_of_type_id(param.ty.inner(), "class ctor invoke param type");
+                for (param, arg_v) in init_body.params().iter().zip(args.iter()) {
+                    let param_cg = cg
+                        .cg_ty_of_type_id(param.ty().inner(), "class ctor invoke param type");
                     let param_ptr =
-                        cg.create_entry_alloca(param.decl_span, &param.name, param_cg)?;
+                        cg.create_entry_alloca(param.decl_span(), param.name(), param_cg)?;
                     let _ =
-                        cg.store_local_value_exact(param.decl_span, param_ptr, param_cg, *arg_v)?;
+                        cg.store_local_value_exact(param.decl_span(), param_ptr, param_cg, *arg_v)?;
                     cg.function_cx.env.insert(
-                        param.id,
+                        param.id(),
                         CgLocal {
-                            hir_ty: Some(param.ty.inner()),
-                            call_may_suspend: cg.local_call_may_suspend_from_hir_ty(Some(param.ty.inner())),
+                            hir_ty: Some(param.ty().inner()),
+                            call_may_suspend: cg
+                                .local_call_may_suspend_from_hir_ty(Some(param.ty().inner())),
                             ty: param_cg,
                             ptr: param_ptr,
                             frame_backing_ptr: None,
@@ -678,110 +757,25 @@ impl<'a, 'ctx> MainCodegen<'a, 'ctx> {
                     );
                 }
 
-                // secondary ctor delegation（T1327c）
-                if ctor_kind == hir::ClassCtorKind::Secondary
-                    && let Some(deleg) = delegation
-                {
-                    match deleg.kind {
-                        ast::CtorDelegationKind::This => {
-                            let target = cg.pick_class_ctor_by_target(
-                                callee_span,
-                                class,
-                                deleg.call.as_ref().and_then(|call| call.ctor_span),
-                                deleg.args.len(),
-                                Some(ctor_span),
-                                "class this delegation selected/ordered args contract",
-                            )?;
-
-                            let target_params: &[hir::ClassCtorParam<MonoTypeId>] = match target {
-                                Some(c) => c.params.as_slice(),
-                                None => &[][..],
-                            };
-                            let target_values = cg.codegen_class_ctor_eval_args(
-                                callee_span,
-                                callee_span,
-                                deleg.args.as_slice(),
-                                deleg.call.as_ref(),
-                                target_params,
-                                "class this delegation arg eval",
-                            )?;
-                            let current_obj = cg.current_class_ctor_this_ptr(callee_span, class)?;
-
-                            cg.codegen_class_ctor_invoke_inner(
-                                span,
-                                callee_span,
-                                class,
-                                target,
-                                target_values.as_slice(),
-                                current_obj,
-                                stack,
-                            )?;
-                            cg.emit_current_local_effect_escape_check(
-                                callee_span,
-                                "class_ctor_this_delegation_effect",
-                            )?;
-
-                            if let Some(body) = ctor_body {
-                                let _ = cg.codegen_block_value(body)?;
-                            }
-
-                            cg.clear_gc_locals_in_current_scope(
-                                callee_span,
-                                "class_ctor_invoke_scope_drop",
-                            )?;
-                            cg.builder.build_unconditional_branch(merge_bb)?;
-                            return Ok(());
-                        }
-                        ast::CtorDelegationKind::Super => {
-                            cg.codegen_class_ctor_call_super(
-                                span,
-                                callee_span,
-                                class,
-                                deleg.args.as_slice(),
-                                deleg.call.as_ref(),
-                                stack,
-                                "class super delegation selected/ordered args contract",
-                            )?;
-
-                            cg.codegen_class_ctor_run_init_steps(
-                                span,
-                                callee_span,
-                                class,
-                                ctor_params,
-                            )?;
-
-                            if let Some(body) = ctor_body {
-                                let _ = cg.codegen_block_value(body)?;
-                            }
-
-                            cg.clear_gc_locals_in_current_scope(
-                                callee_span,
-                                "class_ctor_invoke_scope_drop",
-                            )?;
-                            cg.builder.build_unconditional_branch(merge_bb)?;
-                            return Ok(());
-                        }
-                    }
+                if let Some(delegation) = init_body.delegation() {
+                    cg.codegen_class_ctor_delegation(
+                        span,
+                        callee_span,
+                        delegation,
+                        obj_ptr,
+                        stack,
+                    )?;
+                } else if let Some(super_call) = init_body.implicit_super() {
+                    cg.codegen_class_ctor_super_contract(
+                        span,
+                        callee_span,
+                        super_call,
+                        obj_ptr,
+                        stack,
+                    )?;
                 }
 
-                // primary ctor / secondary ctor（无 delegation）路径：使用 class header 的 super ctor args。
-                cg.codegen_class_ctor_call_super(
-                    span,
-                    callee_span,
-                    class,
-                    class.super_ctor_args.as_slice(),
-                    class.super_ctor_call.as_ref(),
-                    stack,
-                    "class super ctor selected/ordered args contract",
-                )?;
-
-                cg.codegen_class_ctor_run_init_steps(span, callee_span, class, ctor_params)?;
-
-                if ctor_kind == hir::ClassCtorKind::Secondary
-                    && let Some(body) = ctor_body
-                {
-                    let _ = cg.codegen_block_value(body)?;
-                }
+                cg.codegen_class_ctor_run_init_steps(span, callee_span, class, init_body)?;
 
                 cg.clear_gc_locals_in_current_scope(callee_span, "class_ctor_invoke_scope_drop")?;
                 cg.builder.build_unconditional_branch(merge_bb)?;
