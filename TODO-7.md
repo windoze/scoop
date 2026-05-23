@@ -465,6 +465,41 @@
   - dependency gate 补强：新增可选 `scoopc_lir` direct-dependency 检查、当前 `crates/scoopc/src/effect_lowered` 与未来 `crates/scoopc_lir/src` 的 HIR/AST source-boundary 规则，并跳过尚未创建的可选 stage crate/root。
   - 验证通过：`cargo fmt`；`cargo build --workspace`；`cargo test --all --all-targets`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`；`cargo run -p scoop_tools -- dependency-gate`；`cargo clippy --all-targets -- -D warnings`；LIR residual 搜索；`git diff --check`。
 
+### [TODO] P9-T06-b：发布 LIR-owned ordinary-callee suspend 合同
+
+- 阻塞原因：
+  - P9-T06 必须把 `effect/` 与 `effect_facts/builder.rs` 抽入 `scoopc_effect_facts_stage`，同时完成 P9-T03 登记的义务，让 `scoopc_codegen_llvm` 不再经由 `scoopc` façade，而是 direct 依赖 `scoopc_lir` / `scoopc_lir_facts`。
+  - 当前 `crates/scoopc_codegen_llvm/src/llvm/**` 的 production code 仍直接使用 `crate::effect::analysis::EffectAnalysisFacts`、`crate::effect::state_machine::CalleeSuspendPlan` 与 ordinary-callee suspend analysis helper；如果 P9-T06 直接移动 `effect/`，LLVM crate 要么继续依赖 effect stage，要么通过 façade/path 隐藏依赖，都会违反 P9-T06 的 codegen direct-LIR 输入边界。
+  - 该依赖不是 HIR/AST source payload 问题，P9-T06-a 未覆盖；必须先把 LLVM 仍需的 ordinary-callee suspend 信息发布到 LIR-owned contract 或 LIR facts，才能无 workaround 地抽出 `scoopc_lir` 并切换 LLVM crate。
+- 目标：
+  - 发布 LIR-owned ordinary-callee suspend/effect-analysis contract，使 LLVM production code 不再直接命名 `crate::effect` / future `scoopc_effect_facts_stage`。
+  - 保持当前 ordinary-callee suspend 行为不变；不得通过禁用 callee suspend lowering、弱化 fixture、复制 effect stage façade 或 backend 私有重算来绕过。
+  - 为 P9-T06 准备可执行依赖边界：抽取后 `scoopc_codegen_llvm` 只需 direct `scoopc_lir` / `scoopc_lir_facts` 即可获得 codegen 所需 suspend contract。
+- 必须修改的主要位置：
+  - `crates/scoopc/src/effect/**`
+  - `crates/scoopc/src/effect_lowered/**`
+  - `crates/scoopc/src/pipeline/llvm_codegen_stage.rs`
+  - `crates/scoopc_codegen_llvm/src/llvm/**`
+  - `crates/scoopc_lir_facts/**`（如 contract 需要进入 data-only facts）
+  - `tools/scoop_tools/src/dependency_gate.rs`（加入 codegen direct `effect` residual 防回归规则，如需要）
+- 必须实现的内容：
+  1. 识别 LLVM ordinary-callee suspend lowering 实际消费的最小数据，发布在 LIR-owned API 或 `scoopc_lir_facts` 中，而不是继续暴露 `effect/` stage API。
+  2. 改造 `LlvmStageBaseContext` / emit handoff / codegen context，使其消费 LIR-owned suspend contract；production code 中不得再 import 或引用 `crate::effect::analysis`、`crate::effect::state_machine`、future `scoopc_effect_facts_stage::effect`。
+  3. 保留当前 callee suspend 行为与 diagnostics；新增或更新 targeted tests 覆盖 ordinary callee suspend path。
+  4. 补强 dependency/source-boundary 检查，防止 LLVM codegen 重新依赖 effect stage 或 `scoopc` façade 获得 suspend analysis。
+- 验证：
+  1. `cargo fmt`
+  2. `cargo build --workspace`
+  3. `cargo test --all --all-targets`
+  4. `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`
+  5. `cargo run -p scoop_tools -- dependency-gate`
+  6. 残余搜索：`rg -n "crate::effect::|scoopc_effect_facts_stage::effect|scoopc::effect" crates/scoopc_codegen_llvm/src/llvm crates/scoopc/src/pipeline/llvm_codegen_stage.rs`
+  7. `git diff --check`
+- 完成条件：
+  - LLVM production code 不再直接依赖 effect stage API；ordinary-callee suspend contract 由 LIR-owned surface 或 LIR facts 提供。
+  - P9-T06 可以把 `effect/` 移入 `scoopc_effect_facts_stage`，并把 `scoopc_codegen_llvm` 切到 direct `scoopc_lir` / `scoopc_lir_facts`，不需要 façade/path workaround。
+- 依赖：P9-T06-a
+
 ### [TODO] P9-T06：抽出 `scoopc_effect_facts_stage` 与 `scoopc_lir` crate
 
 - 参考：本文件"当前 `scoopc/src/` 主模块体量"。
@@ -491,7 +526,7 @@
 - 完成条件：
   - `cargo tree -p scoopc_lir --depth 1` 不显示 `scoopc_hir` / `scoopc_ast` / `scoopc`；
   - `cargo tree -p scoopc_codegen_llvm` 直接显示 `scoopc_lir`，不再绕 façade。
-- 依赖：P9-T06-a
+- 依赖：P9-T06-b
 
 ### [TODO] P9-T06R：Review `scoopc_effect_facts_stage` 与 `scoopc_lir` 抽取
 
