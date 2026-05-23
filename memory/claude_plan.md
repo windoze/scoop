@@ -47,3 +47,5 @@
 - physical ABI/layout 搜索结果：`effect_lowered/layout` 生产命中为 `LirFacts.physical_layout.class_vtables/class_itables` 字段读取；HIR side-table 名称命中只在 layout tests 的空表注入或普通 `interfaces` 文本，未发现 `crate::hir::mangle_nominal_fqn` 生产残留。
 - P7-T04R 指定验证已通过：`cargo fmt`；`cargo test -p scoopc --no-default-features llvm_codegen_stage`；`cargo test -p scoopc --no-default-features llvm::codegen::effect_lowered::layout`；`cargo run -p scoop_tools -- dependency-gate`；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`（421/421 passed）；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
 - 已更新 `TODO.md` 与 `TODO-6.md`：`P7-T04R` 标记为 `[DONE]`，完成记录写入 review 结论、residual 搜索分类、TypeId wire-format owner 和验证结果。
+- 已提交本任务变更：`[P7-T04R] Review LLVM handoff cleanup`（`026ebe0b`）。
+- 本次 invocation 到此停止，不继续执行 `P7-T05`。
