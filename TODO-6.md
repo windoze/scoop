@@ -4,7 +4,7 @@
 > 细化时间：2026-05-22
 > 计划基线：[`PLAN.md`](./PLAN.md) §4/P6-P8
 > 索引：[`TODO.md`](./TODO.md)
-> 当前状态：`P7-T04-a` / `P7-T04-b-1` / `P7-T04-b-1R` / `P7-T04-b-2` / `P7-T04-b-2R` / `P7-T04-b-3` / `P7-T04-b-3R` / `P7-T04-b-4` / `P7-T04-b-4R` / `P7-T04-b-5` / `P7-T04-b-5R` / `P7-T04-b` / `P7-T04-bR` / `P7-T04-c` / `P7-T04-cR` / `P7-T04` / `P7-T04R` / `P7-T05` 均已完成。LLVM stage handoff 已收窄为 `LIR + LIR facts + LlvmStageBaseContext`，`LirStageOutput` 不再携带 backend residual；physical ABI/layout 查询面已迁到 LIR facts，`TypeId` wire-format 推迟决策已在 stable dump 与文档中冻结；dependency gate 已覆盖 LLVM stage handoff、emit handoff 与 reachability 防回退检查；下一步执行 `P7-T05R` review。
+> 当前状态：`P7-T04-a` / `P7-T04-b-1` / `P7-T04-b-1R` / `P7-T04-b-2` / `P7-T04-b-2R` / `P7-T04-b-3` / `P7-T04-b-3R` / `P7-T04-b-4` / `P7-T04-b-4R` / `P7-T04-b-5` / `P7-T04-b-5R` / `P7-T04-b` / `P7-T04-bR` / `P7-T04-c` / `P7-T04-cR` / `P7-T04` / `P7-T04R` / `P7-T05` 均已完成。`P7-T05R` review 的 residual 搜索发现 LLVM production codegen 仍显式接入 `MaterializedMirPassView` / `materialized_pass_view()`，并保留 HIR/MIR fallback 查询；这会阻塞 P7 review 结论。下一步先执行新增前置任务 `P7-T05-a`，清除该 production residual 后再回到 `P7-T05R`。
 
 ## 范围
 
@@ -1189,6 +1189,49 @@
   - 额外针对性验证通过：`cargo test -p scoopc --no-default-features int_literal`；`cargo run -p scoop -- test --fixtures tests/fixtures/build/int_literal_uint8_overflow_fail.scoop`；`cargo run -p scoop -- test --fixtures tests/fixtures/build/int_literal_neg_int8_overflow_fail.scoop`；`cargo run -p scoop -- test --fixtures tests/fixtures/build/when_int_pattern_uint8_overflow_fail.scoop`；`cargo run -p scoop -- test --fixtures tests/fixtures/build/int_literal_default_int_overflow_fail.scoop`；`cargo test -p scoop_tools dependency_gate`。
   - 验证通过：`cargo fmt`；`cargo run -p scoop_tools -- dependency-gate`；`cargo test -p scoopc_lir_facts`；`cargo test -p scoopc --no-default-features llvm_codegen_stage`（0 filtered-in，pass）；`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`（421/421 passed）；`cargo clippy --all-targets -- -D warnings`；`git diff --check`。
 
+## [TODO] P7-T05-a：清除 P7-T05R 发现的 LLVM codegen production residual
+
+- 目标：
+  - 修复 `P7-T05R` review 发现的 P7 阻塞项；
+  - 让 LLVM production codegen 不再显式接入 `MaterializedMirPassView` / `materialized_pass_view()` 或通过 HIR/MIR fallback 查询补 body/signature/ABI 信息；
+  - 使后续 `P7-T05R` 可以真实结论为 P7 完成、P8 只剩最终 residual 搜索、验证和文档冻结。
+- Review 发现的阻塞 residual：
+  1. `crates/scoopc/src/llvm/emit.rs` 仍向 `CompilationUnitCodegenInputs` 传入 `materialized_pass_view: Some(base_context.materialized_pass_view())`，并用 debug assert 要求 production 入口保留该 pass view。
+  2. `crates/scoopc/src/llvm/codegen/mod.rs` 仍在 production codegen context 中保存 `MaterializedMirPassView` 与 `HirFacts`，并向下游提供 `materialized_pass_view()` accessor。
+  3. `crates/scoopc/src/llvm/codegen/call/lowering.rs` 的 `codegen_top_level_fun_call_impl` 仍按 `MaterializedMirPassView -> owner HIR fun -> fun_index` 顺序回退获取 callable signature。
+  4. `crates/scoopc/src/llvm/codegen/mir_body/**` 仍包含 raw MIR body/source helper 路径；其中可保留的部分必须明确转为 LIR-owned source-slice contract，不能作为 backend body discovery fallback。
+- 必须修改的主要位置：
+  - `crates/scoopc/src/llvm/emit.rs`
+  - `crates/scoopc/src/llvm/codegen/mod.rs`
+  - `crates/scoopc/src/llvm/codegen/call/lowering.rs`
+  - `crates/scoopc/src/llvm/codegen/mir_body/**`
+  - `crates/scoopc/src/effect_lowered/ir.rs` / `crates/scoopc_lir_facts/`（若 LIR/LIR facts 缺少所需 source-slice、signature 或 ABI contract）
+  - `crates/scoopc/src/pipeline/llvm_codegen_stage.rs`
+  - `tools/scoop_tools/src/dependency_gate.rs`
+- 必须实现的内容：
+  1. 删除 production `CompilationUnitCodegenInputs.materialized_pass_view`、`CompilationUnitCodegenCx::materialized_pass_view()` accessor，以及 `emit.rs` 对 `base_context.materialized_pass_view()` 的显式接入；若仍需对应信息，必须补到 LIR/LIR facts 或 `LlvmStageBaseContext` 的窄合同字段，而不是暴露 MIR pass view。
+  2. 删除 callable signature/body 查询的 HIR/MIR fallback 顺序，特别是 `codegen_top_level_fun_call_impl` 中的 `MaterializedMirPassView -> owner HIR fun -> fun_index` 兜底；普通调用、closure/native/export ABI 形状必须由 LIR callable facts、source signature facts 和 base `TypeStore` 决定。
+  3. 清理 `mir_body` production route：保留的 helper 必须只消费已经发布在 `LateLoweredProgram` / LIR source-slice contract 中的 payload，且命名、注释和 API 不得暗示 backend 可从 raw MIR/pass view 发现 body。
+  4. 扩展 dependency gate，覆盖 `crates/scoopc/src/llvm/emit.rs`、`crates/scoopc/src/llvm/codegen` 与 `crates/scoopc/src/pipeline/llvm_codegen_stage.rs` 中重新引入 `materialized_pass_view`、`MaterializedMirPassView`、HIR body fallback、raw MIR body fallback 或 backend-local ordinary dispatch 去虚化的情况。
+  5. 更新相关注释和文档；若仍有广义 `crate::hir` / `crate::mir` 命中，必须在完成记录中逐项分类为测试、LIR-owned source alias 或 backend-private type/layout helper，不能留下未解释的 production fallback。
+- 验证：
+  1. `cargo fmt`
+  2. `cargo run -p scoop_tools -- dependency-gate`
+  3. `cargo test -p scoopc_lir_facts`
+  4. `cargo test -p scoopc --no-default-features llvm_codegen_stage`
+  5. `cargo test -p scoopc --no-default-features llvm::codegen`
+  6. `cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`（完整 run-pass，至少 30 分钟 timeout）
+  7. `cargo clippy --all-targets -- -D warnings`
+  8. `git diff --check`
+- 完成条件：
+  - `P7-T05R` 的额外 residual 搜索不再发现 LLVM production codegen 接入 `MaterializedMirPassView` / `materialized_pass_view()`；
+  - LLVM callable/body/signature 查询不再通过 HIR body、raw MIR body或 pass-view fallback 补合同；
+  - dependency gate 能阻止上述 residual 回归；
+  - 若发现 LIR/LIR facts 缺少合同，已补齐正确 owner，而不是在 backend 保留 workaround。
+- 依赖：P7-T05
+- 完成记录：
+  - 待填写。
+
 ## [TODO] P7-T05R：Review P7 全包完成度
 
 - 参考：P7-T05。
@@ -1201,7 +1244,7 @@
   - 额外搜索 `crates/scoopc/src/llvm` 与 `crates/scoopc/src/pipeline` 中的上游 stage output / HIR / MIR residual。
 - 完成条件：
   - review 结论明确写出 P7 完成、P8 可以开始，或列出阻塞项并在本 review 内修复。
-- 依赖：P7-T05
+- 依赖：P7-T05-a
 - 完成记录：
   - 待填写。
 

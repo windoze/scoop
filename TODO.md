@@ -137,6 +137,7 @@
 | P7-T04 | [DONE] | [`TODO-6.md`](./TODO-6.md#done-p7-t04收尾llvm-stage-handoff-与-physical-abi-cleanup-合并验证) | 收尾——LLVM stage handoff 与 physical ABI cleanup 合并验证 |
 | P7-T04R | [DONE] | [`TODO-6.md`](./TODO-6.md#done-p7-t04rreview-llvm-stage-handoff-与-physical-abi-cleanup) | Review LLVM stage handoff 与 physical ABI cleanup |
 | P7-T05 | [DONE] | [`TODO-6.md`](./TODO-6.md#done-p7-t05p7-全包清场文档同步与依赖审计) | P7 全包清场、文档同步与依赖审计 |
+| P7-T05-a | [TODO] | [`TODO-6.md`](./TODO-6.md#todo-p7-t05-a清除-p7-t05r-发现的-llvm-codegen-production-residual) | 清除 P7-T05R 发现的 LLVM codegen production residual |
 | P7-T05R | [TODO] | [`TODO-6.md`](./TODO-6.md#todo-p7-t05rreview-p7-全包完成度) | Review P7 全包完成度 |
 | P8-T01 | [TODO] | [`TODO-6.md`](./TODO-6.md#todo-p8-t01最终-residual-搜索文档冻结与未来-c-backend-输入边界) | 最终 residual 搜索、文档冻结与未来 C backend 输入边界 |
 | P8-T01R | [TODO] | [`TODO-6.md`](./TODO-6.md#todo-p8-t01rreview-final-residual-搜索与文档冻结) | Review final residual 搜索与文档冻结 |

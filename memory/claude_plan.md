@@ -22,15 +22,24 @@
 
 ## 当前状态
 
-- 已读取 `TODO.md`。
-- 第一个未完成任务是 `P7-T05`：`P7 全包清场、文档同步与依赖审计`，任务详情位于 `TODO-6.md`。
-- 已读取 `TODO-6.md` 中 `P7-T05` 完整要求：需要最终清场 LLVM backend 输入 residual，确认 codegen/reachability 无普通 dispatch 去虚化残留，补齐或记录 dependency gate，并同步文档/TODO。
-- 最近提交为 `P7-T04R` 记录和复审 LLVM handoff cleanup，未看到要求当前任务前置修复的未完成事项。
-- 工作区当前仅有本计划文件改动；下一步检查现有 dependency gate、README、PIPELINE-CLEANUP 与相关 residual 命中。
-- 初步 residual 检查发现 `crates/scoopc/src/pipeline/llvm_codegen_stage.rs` 仍有 `precheck_invalid_integer_literals` 直接遍历 `LoweredHir` body/expr。这属于当前任务要求清除的 backend HIR body 输入，不能只记录为已知问题。
-- 计划调整：先把 integer literal overflow/underflow 预检查迁出 LLVM backend（优先迁到 HIR/frontend 屏障或复用已有诊断入口），删除 LLVM stage 的 HIR body precheck，再继续 P7-T05 文档/gate 清场。
-- 已完成实现改动：integer literal 目标范围校验已迁到 typecheck/when-pattern 边界，LLVM stage HIR body precheck 已删除，相关 overflow build fixtures 期望错误码已切到 `scoop::typecheck::invalid_integer_literal`。
-- 已完成 gate/文档改动：`dependency-gate` 新增 LLVM stage handoff、emit handoff、reachability source-boundary 检查；`README.md`、`PIPELINE-CLEANUP.md`、`PIPELINE_REFACTOR.md` 已同步 P7-T05 清场状态与未来 C backend 共享输入边界。
-- 已通过针对性验证：`cargo test -p scoopc --no-default-features int_literal`；四个 integer literal overflow build fixtures；`cargo test -p scoop_tools dependency_gate`；`cargo run -p scoop_tools -- dependency-gate`。
-- P7-T05 指定验证集已通过：`cargo fmt`、`cargo run -p scoop_tools -- dependency-gate`、`cargo test -p scoopc_lir_facts`、`cargo test -p scoopc --no-default-features llvm_codegen_stage`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`（421/421 passed）、`cargo clippy --all-targets -- -D warnings`、`git diff --check`。
-- 已同步 `TODO.md` 与 `TODO-6.md`：`P7-T05` 标记为 `[DONE]` 并写入完成记录；下一步检查最终 diff，然后提交本任务改动。
+- 已读取 `TODO.md` 与 `TODO-6.md`。
+- 第一个未完成任务是 `P7-T05R`：`Review P7 全包完成度`，任务详情位于 `TODO-6.md`。
+- `P7-T05R` 要求复审 `P7-T05`：确认 LLVM backend 只消费 `LIR + LIR facts + base context`，没有 HIR/raw MIR/effect facts/stage output wrapper residual，并判断 P8 是否只剩最终验证和文档冻结。
+
+## 本轮执行计划（P7-T05R）
+
+1. 查看最近提交和工作区状态，只识别与 `P7-T05R` 直接相关的未完成事项或待提交改动。
+2. 复审 `P7-T05` 已改动区域和 dependency gate，确认 review 范围内的边界检查已覆盖 LLVM stage handoff、emit handoff、reachability 与 backend 去虚化残余。
+3. 执行 `P7-T05R` 要求的额外 residual 搜索，范围覆盖 `crates/scoopc/src/llvm` 与 `crates/scoopc/src/pipeline` 中上游 stage output、HIR、raw MIR、effect facts wrapper、ordinary dispatch devirtualization 等命中。
+4. 重新运行 `P7-T05` 指定验证：`cargo fmt`、`cargo run -p scoop_tools -- dependency-gate`、`cargo test -p scoopc_lir_facts`、`cargo test -p scoopc --no-default-features llvm_codegen_stage`、`cargo run -p scoop -- test --fixtures tests/fixtures/run-pass`、`cargo clippy --all-targets -- -D warnings`、`git diff --check`。
+5. 如发现未调度失败或阻塞 residual，优先修复；无法在本 review 内正确修复时，在 `TODO.md` / `TODO-6.md` 添加最小必要前置任务并停止。
+6. 若 review 通过，更新 `TODO.md` 与 `TODO-6.md`：将 `P7-T05R` 标记为 `[DONE]`，填写完成记录与验证结果。
+7. 检查最终 diff，提交本任务所有改动，然后停止，不进入 `P8-T01`。
+
+## 本轮进展
+
+- 已检查最近提交：最新提交是 `23c0d463 [P7-T05] Complete backend cleanup gate`。
+- 工作区进入本轮时仅有本计划文件改动。
+- `P7-T05R` residual 搜索发现阻塞项：`crates/scoopc/src/llvm/emit.rs` 仍把 `base_context.materialized_pass_view()` 传入 production `CompilationUnitCodegenInputs`，`crates/scoopc/src/llvm/codegen/mod.rs` 仍保存并暴露 `MaterializedMirPassView` accessor，`crates/scoopc/src/llvm/codegen/call/lowering.rs` 仍按 `MaterializedMirPassView -> HIR owner fun -> fun_index` 顺序回退获取 callable signature。
+- 该 residual 使 `P7-T05R` 不能如实写出“P7 完成、P8 只剩最终验证/文档冻结”。
+- 已按规则在 `TODO-6.md` 与 `TODO.md` 插入最小前置任务 `P7-T05-a`，并把 `P7-T05R` 依赖改为 `P7-T05-a`；本轮将提交该任务重排后停止。
